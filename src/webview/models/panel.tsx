@@ -3,8 +3,8 @@
 // comes from the registry too: the panel root is a container, and the
 // table reflows to cards under 340 px (models.css).
 
-import { UI_TEXT } from '../../shared/constants'
-import { useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react'
+import { MODELS_SECTION_PENDING_MS, UI_TEXT } from '../../shared/constants'
+import { useEffect, useLayoutEffect, useReducer, useRef, useState, useTransition } from 'react'
 import {
   parseHostToPanelMessage,
   type ModelsPanelState,
@@ -15,7 +15,10 @@ import type { HostBridge } from '../hostBridge'
 import type { PanelUiAction, PanelUiState, WizardLife } from './reducer'
 import { INITIAL_PANEL_UI, panelUiReducer } from './reducer'
 import { MODEL_SECTIONS } from './sections'
+import { SectionNavigation } from './SectionNavigation'
 import { MoneyUnavailable } from '../money'
+import { rememberedSectionHeight, SectionFrame, SectionLoading } from './DeferredSections'
+import type { ModelsPanelSection } from '../../shared/modelsPanel'
 
 /** The panel's document retry, as its crash screen's Reload. */
 function reloadPanel(): void {
@@ -31,6 +34,8 @@ export function ModelsApp({
   readonly report: ErrorReporter
 }) {
   const [ui, dispatch] = useReducer(panelUiReducer, INITIAL_PANEL_UI)
+  const [hostPending, startHostTransition] = useTransition()
+  const [hostDestination, setHostDestination] = useState<ModelsPanelSection>('providers')
   const [panelState, setPanelState] = useState<ModelsPanelState | undefined>(undefined)
   useEffect(() => {
     const onMessage = (event: MessageEvent): void => {
@@ -44,7 +49,10 @@ export function ModelsApp({
         setPanelState(message.state)
         dispatch({ type: 'host-state', state: message.state })
       } else {
-        dispatch({ type: 'host-navigate', section: message.section, itemId: message.itemId })
+        setHostDestination(message.section)
+        startHostTransition(() => {
+          dispatch({ type: 'host-navigate', section: message.section, itemId: message.itemId })
+        })
       }
     }
     host.messages.addEventListener('message', onMessage)
@@ -53,11 +61,27 @@ export function ModelsApp({
     return () => {
       host.messages.removeEventListener('message', onMessage)
     }
-  }, [host, report])
+  }, [host, report, startHostTransition])
   const post = (message: PanelToHostMessage): void => {
     host.post(message)
   }
-  return <ModelsPanel panelState={panelState} ui={ui} post={post} dispatch={dispatch} />
+  return (
+    <>
+      {panelState === undefined && rememberedSectionHeight(host, ui.section) === undefined && (
+        <p role="status" className="models-visually-hidden" data-deferred-loading>
+          {UI_TEXT.connecting}
+        </p>
+      )}
+      <ModelsPanel
+        panelState={panelState}
+        ui={ui}
+        post={post}
+        dispatch={dispatch}
+        host={host}
+        hostPendingSection={hostPending ? hostDestination : undefined}
+      />
+    </>
+  )
 }
 
 export interface ModelsPanelProps {
@@ -66,6 +90,8 @@ export interface ModelsPanelProps {
   readonly ui: PanelUiState
   readonly post: (message: PanelToHostMessage) => void
   readonly dispatch: (action: PanelUiAction) => void
+  readonly host?: HostBridge | undefined
+  readonly hostPendingSection?: ModelsPanelSection | undefined
 }
 
 /**
@@ -84,7 +110,34 @@ function useWizardLife(ui: PanelUiState): WizardLife {
   }
 }
 
-export function ModelsPanel({ panelState, ui, post, dispatch }: ModelsPanelProps) {
+export function ModelsPanel({
+  panelState,
+  ui,
+  post,
+  dispatch,
+  host,
+  hostPendingSection,
+}: ModelsPanelProps) {
+  const [isPending, startTransition] = useTransition()
+  const [destination, setDestination] = useState<ModelsPanelSection>(ui.section)
+  const [pendingShown, setPendingShown] = useState(false)
+  const pendingSection = hostPendingSection ?? (isPending ? destination : undefined)
+  useEffect(() => {
+    if (pendingSection === undefined) return
+    const timer = setTimeout(() => {
+      setPendingShown(true)
+    }, MODELS_SECTION_PENDING_MS)
+    return () => {
+      clearTimeout(timer)
+      setPendingShown(false)
+    }
+  }, [pendingSection])
+  const navigate = (section: ModelsPanelSection) => {
+    setDestination(section)
+    startTransition(() => {
+      dispatch({ type: 'navigate', section })
+    })
+  }
   const wizardLife = useWizardLife(ui)
   const active = MODEL_SECTIONS.find((section) => section.id === ui.section) ?? MODEL_SECTIONS[0]
   if (active === undefined) {
@@ -92,47 +145,41 @@ export function ModelsPanel({ panelState, ui, post, dispatch }: ModelsPanelProps
   }
   const Section = active.Component
   return (
-    <div className="models-panel">
-      <nav className="models-nav" aria-label={UI_TEXT.modelsPanelTitle}>
-        {MODEL_SECTIONS.map((section) => {
-          const Icon = section.icon
-          const isActive = section.id === active.id
-          return (
-            <button
-              key={section.id}
-              type="button"
-              className={isActive ? 'models-nav-item models-nav-item-active' : 'models-nav-item'}
-              aria-current={isActive ? 'page' : undefined}
-              onClick={() => {
-                dispatch({ type: 'navigate', section: section.id })
-              }}
-            >
-              <Icon />
-              {section.getTitle()}
-            </button>
-          )
-        })}
-      </nav>
+    <div
+      className="models-panel"
+      style={{
+        visibility:
+          panelState === undefined && rememberedSectionHeight(host, active.id) === undefined
+            ? 'hidden'
+            : undefined,
+      }}
+    >
+      <SectionNavigation
+        activeId={active.id}
+        pendingSection={pendingSection}
+        pendingShown={pendingShown}
+        navigate={panelState === undefined ? undefined : navigate}
+      />
       {/* A failed money load (costs, budgets, rates, key usage) is said once
           for every section, with Retry; Accept stays unavailable meanwhile. */}
       <MoneyUnavailable buttonClassName="models-button" onRetry={reloadPanel} />
       {panelState === undefined ? (
-        <p className="models-hint" role="status">
-          {UI_TEXT.connecting}
-        </p>
+        <div className="models-section-slot">
+          <SectionLoading section={active.id} host={host} />
+        </div>
       ) : (
-        <Section
-          panelState={panelState}
-          post={post}
-          navigate={(section) => {
-            dispatch({ type: 'navigate', section })
-          }}
-          dispatch={dispatch}
-          wizardOpen={ui.wizardOpen}
-          wizardLife={wizardLife}
-          importOpen={ui.importOpen}
-          highlightedItem={ui.highlighted?.itemId}
-        />
+        <SectionFrame section={active.id} panelState={panelState} host={host}>
+          <Section
+            panelState={panelState}
+            post={post}
+            navigate={navigate}
+            dispatch={dispatch}
+            wizardOpen={ui.wizardOpen}
+            wizardLife={wizardLife}
+            importOpen={ui.importOpen}
+            highlightedItem={ui.highlighted?.itemId}
+          />
+        </SectionFrame>
       )}
     </div>
   )

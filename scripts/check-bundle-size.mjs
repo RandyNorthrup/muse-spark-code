@@ -5,6 +5,7 @@
 
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import {
+  modelsDeferredBudgetGroups,
   webviewDeferredBudgetGroups,
   webviewPacingOutputs,
   webviewStartupOutputs,
@@ -351,6 +352,31 @@ for (const { name, source, budgetKiB } of [
   if (sizeKiB > budgetKiB) hasFailure = true
   console.log(
     `${sizeKiB <= budgetKiB ? 'ok  ' : 'OVER'} dist/webview ${name} body: ${sizeKiB.toFixed(1)} KiB (budget ${budgetKiB} KiB)`,
+  )
+}
+// MODELSPLIT: the Models panel's deferred sections have their own measured
+// caps from the page's own metafile (see MODELS_DEFERRED_BUDGETS in
+// scripts/lib/webviewBundles.mjs for the measurements). New rows, first set
+// on the release train on 2026-10-11 at the merge of b92fab054 onto
+// acf388a14: providers section 37 KiB (32,197 bytes measured, plus 15
+// percent, rounded up), models section 13 KiB (12,074 bytes measured).
+const modelsMeta = JSON.parse(readFileSync('dist/meta/modelsWebview.json', 'utf8'))
+const modelsSectionGroups = modelsDeferredBudgetGroups(modelsMeta)
+for (const { name, budgetKiB, outputs } of modelsSectionGroups) {
+  // An empty group is a MISS, never an `ok` 0 KiB line: it means the
+  // section chunk is gone, or its bytes moved back into the panel body
+  // (where the body's own cap has room to hide them).
+  if (outputs.length === 0) {
+    hasFailure = true
+    console.log(
+      `MISS dist/webview ${name}: deferred section chunk missing (budget ${budgetKiB} KiB)`,
+    )
+    continue
+  }
+  const sizeKiB = outputs.reduce((sum, file) => sum + statSync(file).size, 0) / BYTES_PER_KIB
+  if (sizeKiB > budgetKiB) hasFailure = true
+  console.log(
+    `${sizeKiB <= budgetKiB ? 'ok  ' : 'OVER'} dist/webview ${name}: ${sizeKiB.toFixed(1)} KiB (budget ${budgetKiB} KiB)`,
   )
 }
 for (const { entry, budgetKiB } of WEBVIEW_SURFACE_BUDGETS) {

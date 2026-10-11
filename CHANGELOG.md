@@ -270,6 +270,11 @@ happened, not what was planned; superseded entries are kept.
   multiple-accounts open instead of a raw stack, and on the terminal crash
   line as the sentence itself.
 
+- Models & Agents keeps the visible section during lazy navigation and reserves
+  its remembered height on reload. The first visit estimates its host rows.
+  Visual captures wait for money amounts, and filtered model tables now have
+  reviewed coverage across every theme, width and interaction state.
+
 ### Documentation
 
 - PLAN.md had grown to 4,157,477 bytes, 36,827 short of the 4 MiB bound at

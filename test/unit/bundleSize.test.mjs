@@ -6,7 +6,16 @@ vi.mock('node:fs', () => ({ existsSync: vi.fn(), readFileSync: vi.fn(), statSync
 const CONTENT_FILE = 'dist/whatsNew.json'
 const CONTENT_BUDGET_BYTES = 40 * 1024
 
-function mockWebviewMeta(meta, models, whatsNew) {
+function mockWebviewMeta(
+  meta,
+  models,
+  whatsNew,
+  sectionChunks = [
+    ['dist/webview/chunks/models-providers.js', 'src/webview/models/ProvidersSection.tsx'],
+    ['dist/webview/chunks/models-models.js', 'src/webview/models/ModelsSection.tsx'],
+  ],
+  bodyInputs,
+) {
   let modelsMeta =
     models ??
     (meta.outputs['dist/webview/models.js'] === undefined
@@ -15,10 +24,17 @@ function mockWebviewMeta(meta, models, whatsNew) {
   modelsMeta = {
     ...modelsMeta,
     outputs: {
+      ...Object.fromEntries(
+        sectionChunks.map(([file, source]) => [
+          file,
+          { imports: [], inputs: { [source]: { bytesInOutput: 1 } } },
+        ]),
+      ),
       ...modelsMeta.outputs,
       'dist/webview/chunks/models-body.js': {
         imports: [],
         entryPoint: 'src/webview/models/panel.tsx',
+        ...(bodyInputs !== undefined && { inputs: bodyInputs }),
       },
     },
   }
@@ -72,6 +88,85 @@ describe('bundled What’s New content budget', () => {
       `OVER dist/webview ${name} body: ${budget.toFixed(1)} KiB (budget ${budget} KiB)`,
     )
   })
+  it.each([
+    ['models providers section', 37, 'src/webview/models/ProvidersSection.tsx'],
+    ['models models section', 13, 'src/webview/models/ModelsSection.tsx'],
+  ])('bounds the deferred %s at %i KiB', async (name, budget, source) => {
+    const chunk = 'dist/webview/chunks/section.js'
+    mockWebviewMeta(
+      { outputs: { 'dist/webview/main.js': { imports: [] } } },
+      {
+        outputs: {
+          'dist/webview/models.js': { imports: [] },
+          [chunk]: { imports: [], inputs: { [source]: { bytesInOutput: 1 } } },
+        },
+      },
+    )
+    statSync.mockImplementation((file) => ({ size: file === chunk ? budget * 1024 : 0 }))
+    await import('../../scripts/check-bundle-size.mjs')
+    expect(console.log).toHaveBeenCalledWith(
+      `ok   dist/webview ${name}: ${budget.toFixed(1)} KiB (budget ${budget} KiB)`,
+    )
+    vi.resetModules()
+    statSync.mockImplementation((file) => ({ size: file === chunk ? budget * 1024 + 1 : 0 }))
+    await expect(import('../../scripts/check-bundle-size.mjs')).rejects.toThrow('exit 1')
+    expect(console.log).toHaveBeenCalledWith(
+      `OVER dist/webview ${name}: ${budget.toFixed(1)} KiB (budget ${budget} KiB)`,
+    )
+  })
+  it.each([
+    ['models providers section', 37],
+    ['models models section', 13],
+  ])('refuses a missing deferred %s chunk instead of an ok 0 KiB line', async (name, budget) => {
+    // No output carries either section source: both groups are empty.
+    mockWebviewMeta(
+      { outputs: { 'dist/webview/main.js': { imports: [] } } },
+      undefined,
+      undefined,
+      [],
+    )
+    await expect(import('../../scripts/check-bundle-size.mjs')).rejects.toThrow('exit 1')
+    expect(console.log).toHaveBeenCalledWith(
+      `MISS dist/webview ${name}: deferred section chunk missing (budget ${budget} KiB)`,
+    )
+  })
+  it.each([
+    [
+      'models providers section',
+      37,
+      'src/webview/models/ProvidersSection.tsx',
+      'dist/webview/chunks/models-models.js',
+      'src/webview/models/ModelsSection.tsx',
+    ],
+    [
+      'models models section',
+      13,
+      'src/webview/models/ModelsSection.tsx',
+      'dist/webview/chunks/models-providers.js',
+      'src/webview/models/ProvidersSection.tsx',
+    ],
+  ])(
+    'refuses a %s statically compiled into the panel body',
+    async (name, budget, source, otherChunk, otherSource) => {
+      // The section's only copy lives in the body chunk (excluded from the
+      // group), where the body's own cap has room to hide it.
+      mockWebviewMeta(
+        { outputs: { 'dist/webview/main.js': { imports: [] } } },
+        {
+          outputs: {
+            'dist/webview/models.js': { imports: [] },
+          },
+        },
+        undefined,
+        [[otherChunk, otherSource]],
+        { [source]: { bytesInOutput: 1 } },
+      )
+      await expect(import('../../scripts/check-bundle-size.mjs')).rejects.toThrow('exit 1')
+      expect(console.log).toHaveBeenCalledWith(
+        `MISS dist/webview ${name}: deferred section chunk missing (budget ${budget} KiB)`,
+      )
+    },
+  )
   it('bounds the native schedules runtime chunk at 50 KiB', async () => {
     statSync.mockImplementation((file) => ({
       size: file === 'dist/scheduleBackground.js' ? 50 * 1024 + 1 : 0,

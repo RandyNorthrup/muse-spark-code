@@ -23916,6 +23916,34 @@ OpenCode plugin hooks").
 **Provider panel, 0.17.1 residual (PROVWIZ9, lead decision 2026-10-09).**
 Two editor windows saving the same provider at the same moment: last writer wins for fields both changed; no secret is exposed; follow-up PROVSTORE-LOCKLIB moves the provider store and key rotation onto the shared lease after M123 lands on main.
 
+**MODELSPLIT4 redesign (2026-10-11, kubuntu).** Fix every RVMODELSPLIT3
+finding in the shared Models webview, without new dependencies or higher caps.
+Section navigation uses a React transition and one stable Suspense boundary:
+the visible section stays mounted until the next chunk is ready, with a tab
+loading indication after 150 ms. Start the default Providers import when the
+entry evaluates. First section paint reserves its last measured height in
+validated webview state; without a saved height, estimate from the host rows.
+The first-ever estimate may adjust once; record its measured difference.
+Later identical-state reloads must keep the skeleton and settled boxes equal.
+Hold each real section chunk across navigation and reload in browser checks;
+assert changed host content before DOM identity. Mark every Models money
+reader while loading and wait for outstanding requests even without markers.
+The capture also waits for counted harness actions after lazy content arrives;
+chunk-failure reserves cannot feed their own measured height back into growth.
+Add and inspect all filtered-table visual baselines through the existing
+capture/manifest workflow. Record failing regression drills, byte-exact
+restoration, measurements and scoped gates in `docs/certification/models-split.md`.
+The brief delegates aggregate quality to the lead and forbids a merge.
+
+**MODELSPLIT section rows (lead ruling, 2026-10-11).** The split's two budget
+rows are new and take their first value on the release train, where they
+first land: measured production bytes plus 15 percent, rounded up to a whole
+KiB (D6's precedent for a new chunk). Providers section 32,197 B measured at
+the merge of `b92fab054` onto `acf388a14`, so 37 KiB (the lane's 31 KiB came
+from 0.17.0's smaller wizard); models section 12,074 B, 13 KiB. No existing
+row changes. The providers row tightens when the wizard leaves the section
+chunk. Receipt: `docs/certification/models-split.md`.
+
 **M95R5 integration (2026-10-05, Windows 11).** Merge lane T with
 `--no-ff`, then merge a single sanitized squash of X's net changes on its
 merge-base. Remove the scanner-flagged certification line unseen before
@@ -34033,6 +34061,16 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**MODELSPLIT4 scoped rig qualification (2026-10-11, kubuntu).** The
+explicit lane/common brief forbids aggregate `npm run quality` and reserves
+it for the lead's integrated tree. This lane runs complete owning test files
+at repository deadlines, all five type projects, changed-file lint/format,
+plain knip, duplication, localization, reference, host API, token, plan and
+roadmap checks, production budgets, real held/failed-chunk browser cases and
+all Models panel visual comparisons. No gate, cap, coverage threshold or
+timeout is relaxed. Nine byte-restored red drills and the documented
+first-ever estimate are in `docs/certification/models-split.md`.
 
 **REL0171B final 0.17.1 branch (2026-10-10, linuxlt + Kubuntu).** Merge
 MENUFAN and VIS0171 onto `release/0.17.1` by meaning, regenerate every
