@@ -35,6 +35,16 @@
 // other rows stay; a failed page fetch keeps the rows already read with the
 // fetch reason. The port returns its distinct reasons beside the surviving
 // rows so the github source can report them without dropping a fact.
+//
+// RVCM1136D: redesigned, not patched. Every request inside the read (each
+// tag page, each release page, each run page) returns its own result — rows
+// or a refusal with its own paged reason (`tags-page-2: http-500`) — and the
+// assembly never throws because one of them failed. Rows from the requests
+// that succeeded stay; a failed page ends only its own endpoint's
+// pagination (later pages are unknown, never probed). An unparseable tag is
+// skipped with `tag-response-invalid` and never blamed on another record: a
+// release or run whose tag element was corrupt is skipped silently, its
+// reason already recorded.
 import * as z from 'zod/mini'
 import {
   GITHUB_API_BASE_URL,
@@ -74,39 +84,91 @@ function endpoint(repository: GitHubRepository): string {
 }
 
 /**
- * Paged endpoints, read leniently (RVCM1136B P2): elements are validated
- * one by one so a single unparseable record is skipped with its reason
- * while the other rows stay; a failed page fetch keeps the rows already
- * read with the fetch reason. Anything that is not a `ReportNetworkFailure`
- * (an abort, a deadline) is rethrown, never converted into rows.
+ * Reads the `name` off a tag-shaped value without guessing: only a string
+ * `name` counts, so a corrupt element beside it can be tied to the releases
+ * and runs that named it instead of blaming those records.
+ */
+function tagNameOf(item: unknown): string | null {
+  const parsed = z.looseObject({ name: z.string() }).safeParse(item)
+  return parsed.success ? parsed.data.name : null
+}
+
+/**
+ * Paged endpoints, read leniently (RVCM1136B P2, redesigned RVCM1136D):
+ * elements are validated one by one so a single unparseable record is
+ * skipped with its reason while the other rows stay, and every page fetch
+ * returns its own result instead of throwing: a failed page records which
+ * page and which failure (`tags-page-2: http-500`) and ends only its own
+ * endpoint's other pages: a failed page records its paged refusal and
+ * pagination continues past it, so rows from the pages that did arrive
+ * stay. Only the shared page bound ends the walk (further requests are
+ * refused anyway). A page body that carries no usable records at all
+ * (invalid JSON, a non-array body, a runs envelope without
+ * `workflow_runs`) is refused the same way with the element code.
+ * Anything else — an abort, a deadline, a genuine bug — escapes as a
+ * throw, never as rows.
  */
 async function readElements<T>(
   query: ReportNetworkQuery,
   pageSize: number,
   element: z.ZodMiniType<T>,
   unparseable: string,
+  pageName: string,
   urlFor: (page: number) => string,
-): Promise<{ rows: T[]; reasons: string[]; fetchFailed: string | null }> {
+  select: (body: unknown) => unknown[] | null,
+  nameOf?: (item: unknown) => string | null,
+): Promise<{ rows: T[]; invalidNames: string[]; reasons: string[]; didFetchFail: boolean }> {
   const rows: T[] = []
+  const invalidNames: string[] = []
   const reasons: string[] = []
-  let fetchFailed: string | null = null
+  let didFetchFail = false
   for (let page = 1; ; page += 1) {
-    let batch: unknown[]
+    let batch: unknown[] | null
     try {
-      batch = await query({ url: urlFor(page) }, z.array(z.unknown()))
+      // `unknown` on the wire: the page shape is validated below with
+      // `safeParse`, so a misshapen body is the request's own refusal and
+      // never an exception that drops the other requests' rows. Only
+      // `JSON.parse` inside the reader can still throw, as `SyntaxError`.
+      batch = select(await query({ url: urlFor(page) }, z.unknown()))
     } catch (error: unknown) {
-      if (!(error instanceof ReportNetworkFailure)) throw error
-      fetchFailed = error.message
-      break
+      if (error instanceof ReportNetworkFailure) {
+        reasons.push(`${pageName}-${String(page)}: ${error.message}`)
+        // The shared page bound refuses every further request, so the
+        // walk ends here; any other failure records its page and the next
+        // page is still read.
+        if (error.message === 'page-bound') break
+      } else if (error instanceof SyntaxError) {
+        reasons.push(`${pageName}-${String(page)}: ${unparseable}`)
+      } else {
+        throw error
+      }
+      didFetchFail = true
+      continue
+    }
+    if (batch === null) {
+      reasons.push(`${pageName}-${String(page)}: ${unparseable}`)
+      didFetchFail = true
+      continue
     }
     for (const item of batch) {
       const parsed = element.safeParse(item)
-      if (parsed.success) rows.push(parsed.data)
-      else reasons.push(unparseable)
+      if (parsed.success) {
+        rows.push(parsed.data)
+      } else {
+        reasons.push(unparseable)
+        const name = nameOf?.(item) ?? null
+        if (name !== null) invalidNames.push(name)
+      }
     }
     if (batch.length < pageSize) break
   }
-  return { rows, reasons, fetchFailed }
+  return { rows, invalidNames, reasons, didFetchFail }
+}
+
+/** A bare paged array: tags and releases. */
+function selectArrayBodies(body: unknown): unknown[] | null {
+  const parsed = z.array(z.unknown()).safeParse(body)
+  return parsed.success ? parsed.data : null
 }
 
 /**
@@ -119,29 +181,33 @@ export function githubWorkflowReleasesPort(): ReportGitHubAdditionalPort {
   return {
     async read(_context, query, repository) {
       const base = endpoint(repository)
+      // Tags are only a join key, with no row of their own: their reasons
+      // still join the port's own, so a corrupt tag is never silent and a
+      // failed tag page never blanks the releases and runs read after it.
       const tagPages = await readElements(
         query,
         GITHUB_TAGS_PAGE_SIZE,
         tagSchema,
         'tag-response-invalid',
+        'tags-page',
         (page) => `${base}/tags?per_page=${String(GITHUB_TAGS_PAGE_SIZE)}&page=${String(page)}`,
+        selectArrayBodies,
+        tagNameOf,
       )
-      // Tags are only a join key, with no row of their own: a failed tag
-      // read still throws with the fetch reason, exactly as before, because
-      // no fact has been parsed yet. An unparseable tag element surfaces on
-      // the release row that then names no commit.
-      if (tagPages.fetchFailed !== null) throw new ReportNetworkFailure(tagPages.fetchFailed)
+      const reasons = [...tagPages.reasons]
+      const invalidTags = new Set(tagPages.invalidNames)
       const commits = new Map(tagPages.rows.map((tag) => [tag.name, tag.commit.sha]))
       const releasePages = await readElements(
         query,
         GITHUB_RELEASES_PAGE_SIZE,
         releaseSchema,
         'release-response-invalid',
+        'releases-page',
         (page) =>
           `${base}/releases?per_page=${String(GITHUB_RELEASES_PAGE_SIZE)}&page=${String(page)}`,
+        selectArrayBodies,
       )
-      const reasons = [...releasePages.reasons]
-      if (releasePages.fetchFailed !== null) reasons.push(releasePages.fetchFailed)
+      reasons.push(...releasePages.reasons)
       const normalizedReleases = []
       for (const release of releasePages.rows) {
         if (release.draft) {
@@ -154,7 +220,12 @@ export function githubWorkflowReleasesPort(): ReportGitHubAdditionalPort {
         }
         const commit = commits.get(release.tag_name)
         if (commit === undefined) {
-          reasons.push('release-commit-required')
+          // The tag element was corrupt (`tag-response-invalid` is already
+          // recorded) or its page never arrived (the paged refusal is
+          // already recorded): either way the release record itself is not
+          // blamed for another request's failure.
+          if (!invalidTags.has(release.tag_name) && !tagPages.didFetchFail)
+            reasons.push('release-commit-required')
           continue
         }
         normalizedReleases.push({
@@ -166,41 +237,34 @@ export function githubWorkflowReleasesPort(): ReportGitHubAdditionalPort {
       }
       // The runs envelope carries its own count; like every fixed request
       // here it is paged by number to a short page, never via Link headers.
-      // A failed runs read keeps the releases above with the fetch reason.
+      // A failed runs page keeps the releases above with its paged reason.
       // Each run is validated on its own so one unparseable run is skipped
       // with its reason while the other runs stay.
-      const collected: z.infer<typeof runSchema>[] = []
-      let runsFailed: string | null = null
-      for (let page = 1; ; page += 1) {
-        let envelope: { workflow_runs: unknown[] }
-        try {
-          envelope = await query(
-            {
-              url: `${base}/actions/workflows/${RELEASE_WORKFLOW_FILE}/runs?per_page=${String(GITHUB_WORKFLOW_RUNS_PAGE_SIZE)}&page=${String(page)}`,
-            },
-            z.looseObject({ workflow_runs: z.array(z.unknown()) }),
-          )
-        } catch (error: unknown) {
-          if (!(error instanceof ReportNetworkFailure)) throw error
-          runsFailed = error.message
-          break
-        }
-        for (const item of envelope.workflow_runs) {
-          const parsed = runSchema.safeParse(item)
-          if (parsed.success) collected.push(parsed.data)
-          else reasons.push('run-response-invalid')
-        }
-        if (envelope.workflow_runs.length < GITHUB_WORKFLOW_RUNS_PAGE_SIZE) break
-      }
-      if (runsFailed !== null) reasons.push(runsFailed)
+      const runPages = await readElements(
+        query,
+        GITHUB_WORKFLOW_RUNS_PAGE_SIZE,
+        runSchema,
+        'run-response-invalid',
+        'runs-page',
+        (page) =>
+          `${base}/actions/workflows/${RELEASE_WORKFLOW_FILE}/runs?per_page=${String(GITHUB_WORKFLOW_RUNS_PAGE_SIZE)}&page=${String(page)}`,
+        (body) => {
+          const parsed = z.looseObject({ workflow_runs: z.array(z.unknown()) }).safeParse(body)
+          return parsed.success ? parsed.data.workflow_runs : null
+        },
+      )
+      reasons.push(...runPages.reasons)
       const runs = []
-      for (const run of collected) {
+      for (const run of runPages.rows) {
         if (run.conclusion === null) {
           reasons.push('run-conclusion-required')
           continue
         }
         if (!commits.has(run.head_branch)) {
-          reasons.push('run-release-tag-required')
+          // Same rule as releases above: a corrupt or missing tag page is
+          // already named, so the run record is not blamed for it.
+          if (!invalidTags.has(run.head_branch) && !tagPages.didFetchFail)
+            reasons.push('run-release-tag-required')
           continue
         }
         runs.push({
