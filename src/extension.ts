@@ -1,4 +1,4 @@
-import { formatDateTime } from './shared/l10n/text'
+import { formatDate } from './shared/l10n/text'
 import { runtimeAccountsLoader } from './runtime/providers/accountsBundle'
 import { ACCOUNT_REQUEST_CERTIFICATION, RUNTIME_ACCOUNTS_BUNDLE_FILE } from './shared/constants'
 import { createSchedulesBridge, registerScheduleCommands } from './host/schedules/schedulesBridge'
@@ -1133,7 +1133,9 @@ async function activateWindow(
             modal: true,
             detail: [
               UI_TEXT.accounts.legitimate,
-              fill(UI_TEXT.accounts.checked, { date: formatDateTime(Date.parse(row.checkedAt)) }),
+              fill(UI_TEXT.accounts.checked, {
+                date: formatDate(Date.parse(`${row.checkedAt}T12:00:00`)),
+              }),
               ...row.sources.map((source) => `${source.quote}\n${source.url}`),
             ].join('\n\n'),
           },

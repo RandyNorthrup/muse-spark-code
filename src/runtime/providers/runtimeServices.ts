@@ -339,7 +339,7 @@ export function createRuntimeAccountServices(
         directory: input.dataDir,
         now: input.now ?? Date.now,
         settings,
-        isHeld: () => isHeld,
+        isHeld: () => isHeld || !ACCOUNT_REQUEST_CERTIFICATION.isComplete,
         askPolicy: input.askPolicy,
         publish: (sessionId, event, accounts) => {
           for (const [key, port] of sessionsByProvider)
@@ -359,6 +359,7 @@ export function createRuntimeAccountServices(
     return created
   }
   const requests: RuntimeAccountServices['requests'] = async (client, options) => {
+    if (!ACCOUNT_REQUEST_CERTIFICATION.isComplete) throw new Error(UI_TEXT.accounts.poolUnavailable)
     const live = await owner('meta')
     return live.requests(
       client,

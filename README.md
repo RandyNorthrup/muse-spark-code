@@ -887,6 +887,12 @@ question open, even when interactive deferral is disabled.
 ## Several accounts per provider
 
 Accounts keep separate credentials, labels, order, limit groups and thresholds.
+Native Meta request pooling and mid-chat selection are wired behind a closed
+certification switch. They remain unavailable in this build: the original Models
+body exceeds its unchanged budget by 898 bytes, and graphical and independent
+review receipts remain open. [The completion record](docs/certification/cm1082.md)
+lists the exact enablement and release-branch restore steps.
+
 The terminal can manage their metadata and choose a fixed account for a
 headless run. Automatic swapping, parallel admission, device placement and
 the editor panel/usage mounts await the provider, journal and shared-owner

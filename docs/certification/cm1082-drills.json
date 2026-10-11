@@ -391,5 +391,59 @@
       }
     ],
     "restoredByteExact": true
+  },
+  {
+    "name": "closed-admission",
+    "exit": 1,
+    "failed": [
+      "one default-off switch hides installed request admission and its Help detail, then fences a held lease when closed 61ms"
+    ],
+    "restoration": [
+      {
+        "file": "src/runtime/providers/runtimeServices.ts",
+        "sha256": "c05dc143994dc54d7920cc7673869f1e76bfaed54a4f1f3ac67a116268f07794"
+      }
+    ],
+    "restoredByteExact": true
+  },
+  {
+    "name": "closed-held-lease",
+    "exit": 1,
+    "failed": [
+      "one default-off switch hides installed request admission and its Help detail, then fences a held lease when closed 193ms"
+    ],
+    "restoration": [
+      {
+        "file": "src/runtime/providers/runtimeServices.ts",
+        "sha256": "c05dc143994dc54d7920cc7673869f1e76bfaed54a4f1f3ac67a116268f07794"
+      }
+    ],
+    "restoredByteExact": true
+  },
+  {
+    "name": "closed-help-detail",
+    "exit": 1,
+    "failed": [
+      "one default-off switch hides installed request admission and its Help detail, then fences a held lease when closed 28ms"
+    ],
+    "restoration": [
+      {
+        "file": "src/shared/featureCatalog.ts",
+        "sha256": "3b25bce816ae472e71df6c249e6d7bebbbbba40d54dfc67f204fe0e679b4bca9"
+      }
+    ],
+    "restoredByteExact": true
+  },
+  {
+    "name": "new-account-ui-budget",
+    "exit": 1,
+    "failed": ["bounds the complete lazy model accounts body at 175 KiB 29ms"],
+    "restoration": [
+      {
+        "file": "scripts/check-bundle-size.mjs",
+        "sha256": "d9d4845c4ff3ec5b517712e62570a9d2c76717a079d192e7b33447c115ff6d78"
+      }
+    ],
+    "restoredByteExact": true
   }
 ]
