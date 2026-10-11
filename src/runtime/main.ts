@@ -101,7 +101,7 @@ import { type LogLevel, stderrLogger } from './stderrLog'
 import { webReadable } from './webStreams'
 import { createLifecycle } from './exec/execLimits'
 import { createFdWriter } from './exec/fdWriter'
-import { createExecLogger, redactWhole } from './exec/execOutput'
+import { crashTextForLog, createExecLogger, redactWhole } from './exec/execOutput'
 import { runSecretScan } from './exec/scanSecrets'
 import { loadLegalScanner } from './legal/legalScanner'
 import { runLegalCommand } from './legal/runLegal'
@@ -1596,10 +1596,7 @@ async function run(): Promise<void> {
   try {
     process.exitCode = await main()
   } catch (error: unknown) {
-    writeLine(
-      process.stderr,
-      redactWhole(error instanceof Error ? (error.stack ?? error.message) : String(error), []),
-    )
+    writeLine(process.stderr, redactWhole(crashTextForLog(error), []))
     process.exitCode = EXIT_FAILED
   } finally {
     processResources.dispose()
