@@ -105,11 +105,17 @@ export interface TeamSwitch {
   readonly taskId: string
 }
 
-/** D75's `TeamAgentSwitch` payload fields (lane H fires it; a hook's refusal exhausts the role). */
+/**
+ * D75's `TeamAgentSwitch` payload fields (lane H; lane X fires it once per
+ * switch, and a hook's refusal exhausts the role, never another entry).
+ */
 export interface TeamAgentSwitchPayload {
   readonly role_id: string
   readonly from_entry_id: string
   readonly to_entry_id: string
+  /** Both agent profiles (their stable keys) and models. */
+  readonly from_agent_profile: string
+  readonly to_agent_profile: string
   readonly from_model: string
   readonly to_model: string
   readonly reason: TeamSwitchReason
@@ -118,18 +124,22 @@ export interface TeamAgentSwitchPayload {
   readonly amount: number | undefined
   readonly used: number | undefined
   readonly task_id: string
+  readonly parent_session_id: string | undefined
 }
 
-/** The payload for a switch, with both agent profiles' models. */
+/** The payload for a switch, with both agent profiles and models. */
 export function switchHookPayload(
   change: TeamSwitch,
   fromAgent: TeamAgentProfile,
   toAgent: TeamAgentProfile,
+  parentSessionId: string | undefined,
 ): TeamAgentSwitchPayload {
   return {
     role_id: change.roleId,
     from_entry_id: change.fromEntryId,
     to_entry_id: change.toEntryId,
+    from_agent_profile: fromAgent.key,
+    to_agent_profile: toAgent.key,
     from_model: fromAgent.modelId,
     to_model: toAgent.modelId,
     reason: change.reason,
@@ -138,7 +148,71 @@ export function switchHookPayload(
     amount: change.amount,
     used: change.used,
     task_id: change.taskId,
+    parent_session_id: parentSessionId,
   }
+}
+
+/**
+ * D75's team fields for a task's `SubagentStart`/`SubagentStop` (lane H;
+ * lane X fires them on either backend from the hook files the Model API
+ * backend reads). The payload keeps M51's `subagent_id` (the task id) and
+ * `child_session_id` (the worker's session) and adds Claude Code's
+ * `agent_id` (the task id) and `agent_type` (the role id, so a Claude
+ * matcher on the agent type works) with the team links. Paths are
+ * workspace-relative with `/` separators, on every platform.
+ */
+export interface TeamSubagentHookFields {
+  readonly subagentId: string
+  readonly childSessionId: string
+  readonly roleId: string
+  readonly entryId: string
+  readonly agentProfileId: string
+  readonly provider: string | undefined
+  readonly taskId: string
+  readonly parentSessionId: string
+  readonly workspaceMode: string
+  readonly branch: string | undefined
+  readonly workingCopyPath: string | undefined
+  readonly pipelineId: string | undefined
+  readonly depth: number
+  readonly model: string
+  readonly modelProvider: string
+}
+
+function teamSubagentWireFields(fields: TeamSubagentHookFields): Readonly<Record<string, unknown>> {
+  return {
+    subagent_id: fields.subagentId,
+    child_session_id: fields.childSessionId,
+    agent_id: fields.taskId,
+    agent_type: fields.roleId,
+    role_id: fields.roleId,
+    entry_id: fields.entryId,
+    agent_profile_id: fields.agentProfileId,
+    ...(fields.provider !== undefined && { provider: fields.provider }),
+    task_id: fields.taskId,
+    parent_session_id: fields.parentSessionId,
+    workspace_mode: fields.workspaceMode,
+    ...(fields.branch !== undefined && { branch: fields.branch }),
+    ...(fields.workingCopyPath !== undefined && { working_copy_path: fields.workingCopyPath }),
+    ...(fields.pipelineId !== undefined && { pipeline_id: fields.pipelineId }),
+    depth: fields.depth,
+    model: fields.model,
+    model_provider: fields.modelProvider,
+  }
+}
+
+/** A team task's `SubagentStart` payload: M51's ids with D75's fields. */
+export function teamSubagentStartFields(
+  fields: TeamSubagentHookFields,
+): Readonly<Record<string, unknown>> {
+  return teamSubagentWireFields(fields)
+}
+
+/** A team task's `SubagentStop` payload: M51's ids with D75's fields. */
+export function teamSubagentStopFields(
+  fields: TeamSubagentHookFields,
+): Readonly<Record<string, unknown>> {
+  return teamSubagentWireFields(fields)
 }
 
 /** The switch row's reason in the display language. */

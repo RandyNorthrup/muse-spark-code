@@ -149,6 +149,25 @@ describe('parseSparkHooksConfig', () => {
     ])
   })
 
+  it('matches TeamAgentSwitch on role ids only', () => {
+    const parsed = parseSparkHooksConfig(
+      spark({
+        TeamAgentSwitch: [
+          { matcher: 'engineering|research', hooks: [{ type: 'command', command: 's' }] },
+        ],
+      }),
+      'project',
+      'linux',
+    )
+    expect(parsed.warnings).toEqual([])
+    expect(parsed.hooks).toHaveLength(1)
+    expect(parsed.hooks[0]?.event).toBe('TeamAgentSwitch')
+    expect(parsed.hooks[0]?.matcher).toEqual({
+      kind: 'exact',
+      names: new Set(['engineering', 'research']),
+    })
+  })
+
   it('runs only command handlers until lane H adds the rest', () => {
     const parsed = parseSparkHooksConfig(
       spark({ Manual: [{ hooks: [{ type: 'prompt', command: 'x' }] }] }),
@@ -305,6 +324,30 @@ describe('extension payloads', () => {
       name: 'attempt 2',
       siblings_running: 2,
     })
+    expect(
+      teammateIdleFields({
+        name: 'task-2',
+        siblingsRunning: 1,
+        team: {
+          teammateName: 'task-2',
+          roleId: 'engineering',
+          entryId: 'eng-2',
+          agentProfileId: 'opus-openrouter',
+          taskId: 'task-2',
+          parentSessionId: 'session-7',
+        },
+      }),
+    ).toEqual({
+      name: 'task-2',
+      siblings_running: 1,
+      teammate_name: 'task-2',
+      role_id: 'engineering',
+      entry_id: 'eng-2',
+      agent_profile_id: 'opus-openrouter',
+      task_id: 'task-2',
+      parent_session_id: 'session-7',
+    })
+    // teamAgentSwitchFields' full wire mapping lives in teamHookEvents.test.ts.
     expect(beforeToolSelectionFields(['read_file', 'bash'])).toEqual({
       tools: ['read_file', 'bash'],
     })
@@ -318,6 +361,8 @@ describe('parseExtensionHookAnswer', () => {
       'UserPromptExpansion',
       'PreModelSwitch',
       'Elicitation',
+      // M96 lane H: a switch refusal exhausts the role, never another entry.
+      'TeamAgentSwitch',
     ] as const) {
       expect(parseExtensionHookAnswer(event, 2, '', 'no, because reasons').status).toBe('refused')
       expect(parseExtensionHookAnswer(event, 2, '', 'no, because reasons').reason).toBe(
@@ -344,7 +389,19 @@ describe('parseExtensionHookAnswer', () => {
   it('takes a deny decision on refusing events, and fails it elsewhere', () => {
     const deny = JSON.stringify({ decision: { behavior: 'deny', message: 'not yet' } })
     expect(parseExtensionHookAnswer('TaskCompleted', 0, deny, '').status).toBe('refused')
+    expect(parseExtensionHookAnswer('TeamAgentSwitch', 0, deny, '').status).toBe('refused')
     expect(parseExtensionHookAnswer('FileChanged', 0, deny, '').status).toBe('failed')
+  })
+
+  it('never lets a TeamAgentSwitch answer widen: no entry, tools or context', () => {
+    const narrowed = JSON.stringify({ allowedTools: ['read_file'] })
+    expect(parseExtensionHookAnswer('TeamAgentSwitch', 0, narrowed, '').status).toBe('failed')
+    const context = JSON.stringify({ additionalContext: 'prefer eng-1' })
+    expect(parseExtensionHookAnswer('TeamAgentSwitch', 0, context, '').status).toBe('failed')
+    const keep = JSON.stringify({ continue: false, stopReason: 'stay' })
+    expect(parseExtensionHookAnswer('TeamAgentSwitch', 0, keep, '').status).toBe('failed')
+    const rewrite = JSON.stringify({ displayText: 'switched' })
+    expect(parseExtensionHookAnswer('TeamAgentSwitch', 0, rewrite, '').status).toBe('failed')
   })
 
   it('rewrites the display text only on MessageDisplay', () => {
