@@ -6954,6 +6954,45 @@ export const EVAL_ARM_SOURCE_SEARCH_DEPTH = 12
 // A frozen arm computes configuration only; it never runs a model turn.
 export const EVAL_ARM_PROCESS_TIMEOUT_MS = 2000
 export const EVAL_ARM_OUTPUT_MAX_BYTES = 1_048_576
+// The frozen arm sandbox (review RVCM1012H finding 1): an arm program may
+// load only these Node built-in modules, with or without the `node:`
+// prefix. A literal load of any other built-in fails the freeze; a computed
+// load fails the run inside the guard below. Filesystem reads stay confined
+// by the child permission grants; `node:sqlite`, child processes, workers,
+// the network and the inspector are not on it because grants do not confine
+// them.
+export const EVAL_ARM_ALLOWED_BUILTINS = ['fs', 'path', 'url', 'util'] as const
+// Bare spellings of built-in modules the permission grants do not confine
+// (review RVCM1012H finding 1): a literal load of one fails the freeze even
+// without the `node:` prefix. Any other bare load is a bundled dependency;
+// the run-time guard still refuses every bare load outside the allowlist.
+export const EVAL_ARM_DENIED_BARE_BUILTINS = [
+  'async_hooks',
+  'child_process',
+  'cluster',
+  'dgram',
+  'dns',
+  'http',
+  'http2',
+  'https',
+  'inspector',
+  'module',
+  'net',
+  'process',
+  'repl',
+  'sea',
+  'sqlite',
+  'test',
+  'tls',
+  'vm',
+  'v8',
+  'wasi',
+  'worker_threads',
+] as const
+// The evaluation child needs the permission flags (`--permission`), which
+// Node carries unflagged from 22.13.0 (review RVCM1012H finding 2). The
+// evaluation refuses to run below this; the product floor stays `>=22`.
+export const EVAL_ARM_MIN_NODE_VERSION = '22.13.0'
 
 // --- Bring-your-own model providers (M95, PLAN.md D74) ---
 //
