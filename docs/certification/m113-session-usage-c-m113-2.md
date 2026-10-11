@@ -384,3 +384,162 @@ Files changed this round: `src/core/reporting/collect/common.ts`,
 `test/unit/reportUsage.test.ts`, `test/unit/reportEnginePlanParse.test.ts`
 (new), this record. No sibling-lane file, `PLAN.md`, l10n table, catalog,
 dependency, hook, cap or bundle-split change.
+
+## Round 6 — RVCM1132E repair (Muse, 2026-10-11, macmini)
+
+Branch `c/m113-2`, base `edf34a0c6` (same worktree). Both RVCM1132E P2s are
+fixed by redesign, not by two more per-collector calls: the row-identity
+guarantee moved to the one place every row passes through. No new dependency,
+paid/live call, credential, merge, push, guard relaxation, l10n change,
+reference change or hook change. No `eslint-disable`, `@ts-expect-error`, `as`
+cast or `any` added. No change to what a unique row looks like: unique rows
+keep byte-identical keys (the round-5 bare-id stability test is green
+unchanged), and generation is deterministic (every property case regenerates
+byte-identically).
+
+### Where the one guarantee lives
+
+`uniqueRowKey` / `dedupeRowKeys` in `src/core/reporting/collect/common.ts`,
+called at the top of `section()` before sorting and slicing: the first row
+with a key keeps the bare key; each later row sharing a key in source order
+takes the first free `key/2`, `key/3`, … suffix (pattern-safe, length-capped).
+Every collector reaches it through `section()` (directly in `needsYou`, via
+`sourcedSection` everywhere else, including the forwarded kinds). Forwarded
+source sections are additionally passed through `dedupeUnknownRowKeys` before
+their strict schema parse, so a repeated row key in a source's own data no
+longer throws a raw `$ZodError`. Removed: `planItemIdentities` and its four
+call sites in `collect/plan.ts` (`laneRows`, `planRiskRows`,
+`planResidualRows`, `planQuestionRows` now key by their bare identities).
+Kept, with reasons: `needsYou`'s inline collapse-plus-drift-row (display
+semantics — byte-identical open questions collapse to one row plus a named
+`0-question-duplicate` row — which key uniqueness alone cannot express), the
+milestone checklist ordinal and the delivery `step-<index>` prefix (both
+collision-free by construction). None can disagree with the backstop: it only
+rewrites keys that actually collide at section-build time, so every input that
+previously succeeded renders byte-identically.
+
+### Drift
+
+`readPlan` records `release-duplicate` (line of the repeat, detail the
+version) when the same version is recorded twice **in the same record form**
+(`###` heading, `released` bold, `preparation` bold, bare bold, status). Form
+sensitivity is load-bearing: the repository's own §10 keeps a `preparation`
+record beside its `released` record for 0.10.0 and 0.16.0, and the first
+version-identity cut flagged them — the per-form cut keeps the real plan at 0
+drift. Both records stay; the report shows the drift row and never throws.
+Plan `### D…` headings get no duplicate drift on purpose: the real plan
+repeats D74 and D92 verbatim, so that drift would fail `check:plan` on
+today's file; decisions never become report rows, and the sweep records this.
+Drift codes render raw through the existing `planDrift` sentence slots, so no
+new user-visible string and no l10n change (`check:l10n` 0 problems).
+
+### Sweep (section, key, can it repeat)
+
+Keys below are the `row()` identity before the central guarantee; every one
+now survives repetition.
+
+| Section                                                                          | Key made of                                      | Can the source repeat it                                              |
+| -------------------------------------------------------------------------------- | ------------------------------------------------ | --------------------------------------------------------------------- |
+| project `milestones`                                                             | `milestone` + plan milestone id (RVCM1132E-1)    | yes, two headings one id                                              |
+| release `releaseRecord`                                                          | `release` + plan release version (RVCM1132E-2)   | yes, two blocks one version                                           |
+| release `assets`                                                                 | `release` + GitHub release version (RVCM1132E-2) | yes, two GitHub releases one version                                  |
+| milestone/session/… questions, risks, residuals, lanes                           | bare question/risk/residual id, lane triple      | yes (round-5 class, helper removed)                                   |
+| release `changelog`                                                              | `line` + changelog version + line                | yes, two sections same version and line                               |
+| release `tag`                                                                    | `tag` + git tag name                             | yes if a source lists a tag twice                                     |
+| changes `commits`                                                                | digest-prefix + commit sha                       | yes, overlapping ranges                                               |
+| changes `changelog`                                                              | `line` + Unreleased line                         | yes, two Unreleased sections                                          |
+| changes/session/quality `checks`, quality `lastLocalRuns`                        | `check` + name + commit + at                     | yes, journal can repeat a run                                         |
+| quality/certification `certificationRecords`                                     | `record` + certification path                    | yes, two records one path                                             |
+| milestone `milestoneDependencies`, `gateDeclarations`, `checklist`               | `dependency`/`gate` + id, `item` + text          | yes for dependencies/gates; checklist ordinal pre-empts               |
+| session `approvals`, `tools`, `paidUses`, usage `totals`/`files`/`turns`/`model` | single rows or map/group keys                    | no (object keys, grouped maps, singletons)                            |
+| project `releases`                                                               | merged by version, sources unioned               | no (merge, not keys)                                                  |
+| project `nextSteps`                                                              | `step-<deliveryIndex>` + entry id                | no (index prefix unique)                                              |
+| usage `breakdown`/`limits`, `agentUsage`/`agentLimits`                           | `usage`/`limit` + key, `agent` + file            | yes, source arrays can repeat keys                                    |
+| channels (`channelRows`)                                                         | `channel` + store channel                        | yes, two stores one channel                                           |
+| `ci` runs                                                                        | `ci` + ref + sha + workflow + url                | yes, a run listed twice                                               |
+| `pullRequests` open/merged                                                       | `pr` + number                                    | yes, paginated overlap                                                |
+| `0-source` rows                                                                  | `0-source` + source id                           | yes (e.g. rootless changes: two selections share one id)              |
+| `planFormat` drift rows                                                          | `drift` + code + line + detail                   | no in practice; covered regardless                                    |
+| forwarded fleet/security/accounts/estimate/playbook/issues/schedules/keybindings | source's own row keys                            | yes; pre-parse dedupe, then central                                   |
+| plan decisions (`### D…`)                                                        | never become rows                                | n/a; no drift (real plan repeats D74/D92)                             |
+| asset names, changelog lines as cells                                            | `list()` cells, never keys                       | n/a; the repeating entity is the release version                      |
+| diff `diff` section                                                              | built from two verified documents                | out of scope (comparison, not collection)                             |
+| document section ids (forwarded)                                                 | source's own section ids                         | source-built; still throws on a true duplicate (noted, not a row key) |
+
+### Property test
+
+`test/unit/collect.rowIdentity.test.ts`, 35 duplication cases × `full: true`
+and default view (70 generates) + 1 kind-coverage + 15 section-coverage = 51
+tests. Each case asserts: no throw, `reportDocumentSchema` parses, every
+section and needs-you carries unique row keys, both records are present (byte-identical
+copies included — nothing is hidden), the drift row is present where a drift
+code exists, and a repeat generate is byte-identical. Kind coverage is read
+from `REPORT_KINDS`, not a hand list, and each kind's cases must touch every
+section the kind emits, so a new kind or section fails the test. The
+reviewer's scenarios are cases by name: `PLAN_FORMAT_FIXTURE with ###
+M110a0 rewritten to ### M12` (drift `milestone-duplicate`, two M12 milestone
+rows) and `PLAN_FORMAT_FIXTURE with a second ### 0.14.2 — 2026-10-06 block`
+(drift `release-duplicate`, two 0.14.2 release rows). `playbook decision rows`
+covers forwarded decisions; asset-name duplication is covered by the two
+same-version GitHub-release cases (assets are list cells; the version is the
+key). Reader-level regressions: `release-duplicate` added to
+`helpers/planDrift.ts` (original line reported) and a preparation-beside-
+released pair test asserting two records and no drift.
+
+### Contract changes this redesign required
+
+Two existing tests asserted the old rejection contract and were updated, not
+deleted: `collect.facets.test.ts` (duplicated fleet rows now assert two
+visible rows instead of `.toThrow()`; malformed-shape and foreign-reference
+rejections stay) and `collect.contract.test.ts` (validation-before-finalizer
+is now proved with a malformed row — empty cells fail the forwarded section
+parse before the finalizer runs — instead of a duplicated row).
+
+### Red-drill receipts
+
+Each mutation ran the owning suite at repository defaults (no
+`--testTimeout`) and was restored byte-exact (`sha256sum -c` all OK):
+`common.ts` `87c23879…`, `reader.ts` `2439b8ce…`, `index.ts` `769c6d50…`.
+
+| Guard                                           | Break                                                       | Red |
+| ----------------------------------------------- | ----------------------------------------------------------- | --- |
+| D1 central dedupe bypassed in `section()`       | 30 failed / 51 in rowIdentity                               | yes |
+| D2 `release-duplicate` push removed (first cut) | only the reviewer-scenario release case red (1/51)          | yes |
+| D2r same break on the final per-form code       | rowIdentity R1 + planReader drift-table case red (2/103)    | yes |
+| D3 `forward()` pre-parse removed                | 8 forwarded cases + 8 coverage red (16/51, raw `$ZodError`) | yes |
+
+### Verification (macmini, repository default 5 s timeout, `--maxWorkers=3`)
+
+- `npm run typecheck` (all projects): pass.
+- ESLint `--max-warnings=0` on all 9 changed files: pass. Prettier
+  `--check`: pass.
+- `node scripts/check-l10n.mjs`: 14 UI, 14 usage, 252 manifest, 1516
+  sources, 0 problems. `node scripts/check-plan.mjs`: plan-format-v1, 207
+  milestones, 0 drift.
+- Suites, ≤3 files per run: rowIdentity 51; milestone+project+session 27;
+  release+quality+changes 19; contract+usage+facets 55; determinism+
+  contracts+invariants 54; planReader+planParse+selections 56 (incl. 2 new
+  release-duplicate tests); reportUsage+checkPlan 43; reportInputs 28 alone;
+  schema+fixtures+sessionSource 19; diff+redaction+strings 50 — all green.
+- `reportInputs` real-PLAN usage (3333 ms alone) times out at 5 s only when
+  batched with two other files on this loaded rig (`Test timed out in
+5000ms`, assertion never reached); alone it passes. No timeout raised or
+  named; the suite is recorded here as run alone.
+- `reportEngine.test.ts` was not run: this sandbox cannot run it (the macOS
+  writer-lock probe needs `/bin/ps`, blocked). Named for the reviewer; the
+  round-5 note on its `history.save` environment failure stands.
+- `npm run build`: EXIT 1 only on the pre-existing `dist/usagePanel.js`
+  OVER 75.1/75 KiB (round-5 finding, untouched by this lane — no changed
+  file is reachable from `usagePanelEntry.ts`). Reporting rows exact:
+  `dist/reporting.js` 149.0/175 KiB ok, `dist/reportInputs.js` 69.3/100 KiB
+  ok (round 5: 148.9 → 149.0 for the central guarantee; caps never raised).
+
+Files changed this round: `src/core/reporting/collect/common.ts`,
+`src/core/reporting/collect/index.ts`, `src/core/reporting/collect/plan.ts`,
+`src/core/reporting/collect/session.ts` (comment only),
+`src/core/reporting/plan/reader.ts`,
+`test/unit/collect.rowIdentity.test.ts` (new),
+`test/unit/collect.contract.test.ts`, `test/unit/collect.facets.test.ts`,
+`test/unit/helpers/planDrift.ts`, `test/unit/planReader.test.ts`, this
+record. No `PLAN.md`, l10n table, catalog, dependency, hook, cap or
+bundle-split change.
