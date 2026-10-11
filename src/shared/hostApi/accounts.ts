@@ -124,7 +124,13 @@ export const accountsReplySchema = z.union([
   // Fixed codes, never raw provider errors that could contain a credential.
   z.strictObject({
     type: z.literal('accounts/error'),
-    code: z.enum(['invalidAccount', 'notOffered', 'unavailable', 'consentRequired']),
+    code: z.enum([
+      'invalidAccount',
+      'notOffered',
+      'unavailable',
+      'consentRequired',
+      'providersInvalid',
+    ]),
   }),
 ])
 export type AccountsReply = z.infer<typeof accountsReplySchema>

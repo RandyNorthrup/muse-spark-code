@@ -21,10 +21,12 @@ describe('feature catalogue details merge', () => {
     expect(detailKeys('schedules')).toContain('scheduledMediaSupport')
   })
 
-  it('removes dormant account details while keeping the working developer CLI route', () => {
-    expect(detailKeys('accounts')).toEqual([])
+  it('publishes accounts with the developer detail beside the developer CLI route', () => {
+    expect(detailKeys('accounts')).toEqual(['referenceDeveloper'])
     const published = referenceModel()
-    expect(published.features.some((feature) => feature.id === 'accounts')).toBe(false)
+    expect(published.features.find((feature) => feature.id === 'accounts')?.details).toEqual([
+      { ui: 'referenceDeveloper' },
+    ])
     expect(published.cli.some((command) => command.route === 'developer')).toBe(true)
   })
 

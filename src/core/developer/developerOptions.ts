@@ -120,7 +120,15 @@ export class DeveloperOptions {
           await deps.resources.start(profile, current)
         }
       } catch (error) {
-        await owner.setMultiple(false, 'lifecycle')
+        // The refusal that stopped the start is what the person hears: turning
+        // multiple accounts off must not replace it with its own failure (a
+        // refused providers file would otherwise escape as a raw stack or a
+        // different typed failure). The disable is still attempted first.
+        try {
+          await owner.setMultiple(false, 'lifecycle')
+        } catch {
+          /* The original refusal below stands. */
+        }
         throw error
       }
     }
@@ -348,6 +356,9 @@ export class DeveloperOptions {
             this.invalidate()
             try {
               await this.stopAll()
+            } catch {
+              // The start refusal below stands; stopping already-stopped
+              // profiles must not replace it.
             } finally {
               await this.save(
                 { ...this.state, isMultipleAccountsOn: false },

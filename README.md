@@ -41,6 +41,7 @@ built, what is planned and what each release shipped.
 [Highlights](#highlights) · [Screenshots](#screenshots) ·
 [Get started](#get-started) · [Backends](#backends) · [Subscriptions](#subscriptions) ·
 [Permission modes](#permission-modes) ·
+[Several accounts](#several-accounts-per-provider) ·
 [Developer options](#developer-options) ·
 [Rules, skills and memory](#rules-skills-and-memory) ·
 [Muse Code's own tools](#muse-codes-own-tools) · [Web fetch](#web-fetch) ·
@@ -923,6 +924,40 @@ Headless `exec` still declines questions immediately, reports
 conversations and the evaluation keep their immediate cancellation or
 clarification. Scheduled/unattended prompts defer at once and keep the
 question open, even when interactive deferral is disabled.
+
+## Several accounts per provider
+
+Accounts keep separate credentials, labels, order, limit groups and thresholds.
+The terminal manages their metadata and pins a headless run to one account,
+and an ACP session on the Model API backend lists them. Automatic swapping,
+pooled runs, placement on other devices and the editor's Accounts and usage
+pages are not part of this yet; the [roadmap](ROADMAP.md#in-progress) tracks
+them.
+
+The installed CLI, ACP agent and headless runs share one account service
+over the runtime's providers file and the OS credential store. Meta's Model
+API entry is built in, so listing, adding, ordering, thresholds and
+per-account credentials work with no pre-existing file; a corrupt file is
+reported, never clobbered. Any other provider needs its stored metadata row.
+Display order never selects a backend credential.
+
+Manage metadata through the agent (credentials only from standard input,
+never an argument or a file):
+
+- `muse-spark-code-acp providers accounts list --provider <id>`
+- `muse-spark-code-acp providers accounts add --provider <id> --account <id> --label <label>`
+- `muse-spark-code-acp providers accounts thresholds --provider <id> --account <id> --thresholds <JSON>`
+- `muse-spark-code-acp auth set --provider <id> --account <id>` (then paste the key)
+- `muse-spark-code-acp exec --account <id> <prompt>` pins one run to one account
+
+ACP's `/accounts` (list, current, thresholds) and the `account` picker read
+the same live metadata on the Model API backend; the Muse Code backend runs
+on its subscription with no account picker. Choosing another account stays
+refused: moving a session credential needs the pooled owner, so the session
+keeps its current account and says so. A pooled headless run stays refused
+until that owner lands too. A vendor limit stops only its own account, and
+the stop names the blocked account and its reset even with no usage page
+bundled.
 
 ## Developer options
 
@@ -4944,7 +4979,6 @@ schedules, workers and hooks always remain fenced.
 
 The unbound features include:
 
-- <a id="several-accounts-per-provider"></a>Several accounts per provider
 - <a id="streamed-argument-previews"></a>Tool argument previews
 - <a id="estimates"></a>Capacity estimates
 - <a id="the-vault"></a>Credential vault

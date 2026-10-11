@@ -25,6 +25,9 @@ function commandError(error: unknown): string {
     if (error.code === 'notOffered') return UI_TEXT.accounts.notOffered
     if (error.code === 'invalidAccount' || error.code === 'invalidCredential')
       return UI_TEXT.accounts.invalidAccount
+    // A refused providers file is not a connection problem: the runtime is
+    // already on the account service, and the file was left untouched.
+    if (error.code === 'invalidProvidersFile') return UI_TEXT.accounts.providersInvalid
   }
   return UI_TEXT.accounts.unavailable
 }

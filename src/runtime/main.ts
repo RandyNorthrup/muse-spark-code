@@ -102,7 +102,7 @@ import { type LogLevel, stderrLogger } from './stderrLog'
 import { webReadable } from './webStreams'
 import { createLifecycle } from './exec/execLimits'
 import { createFdWriter } from './exec/fdWriter'
-import { createExecLogger, redactWhole } from './exec/execOutput'
+import { crashTextForLog, createExecLogger, redactWhole } from './exec/execOutput'
 import { runSecretScan } from './exec/scanSecrets'
 import { loadLegalScanner } from './legal/legalScanner'
 import { runLegalCommand } from './legal/runLegal'
@@ -732,6 +732,10 @@ async function serve(
       log,
     })
     const reports = runtimeReports(log)
+    // Model API sessions only: the Muse Code backend runs on its
+    // subscription. Meta's entry is built in, so the metadata reads without
+    // a providers file; a refused file or a loader failure leaves the
+    // session working without accounts instead of refusing `serve`.
     let accounts: Awaited<ReturnType<RuntimeAccountServices['sessionsIfPresent']>>
     if (options.backend === 'modelApi') {
       try {
@@ -772,6 +776,8 @@ async function serve(
           uiLocale(),
         ),
       reports: { format: 'md', execute: (args, context) => reports().acp.execute(args, context) },
+      // The account picker serves Model API sessions (list, current,
+      // thresholds). Switching stays refused (no adoption transaction).
       ...(accounts !== undefined && { accounts }),
       legalScan: async (cwd, signal, isRegistryOn, allowsRegistryLookup) => {
         const bundle = agentLegalBundle()
@@ -1585,10 +1591,7 @@ async function run(): Promise<void> {
   try {
     process.exitCode = await main()
   } catch (error: unknown) {
-    writeLine(
-      process.stderr,
-      redactWhole(error instanceof Error ? (error.stack ?? error.message) : String(error), []),
-    )
+    writeLine(process.stderr, redactWhole(crashTextForLog(error), []))
     process.exitCode = EXIT_FAILED
   } finally {
     processResources.dispose()

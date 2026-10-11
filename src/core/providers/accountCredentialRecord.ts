@@ -45,7 +45,12 @@ export interface AccountCredentialVault {
 export class AccountStoreError extends Error {
   public constructor(
     public readonly code:
-      'invalidAccount' | 'notOffered' | 'unavailable' | 'invalidCredential' | 'originMismatch',
+      | 'invalidAccount'
+      | 'notOffered'
+      | 'unavailable'
+      | 'invalidCredential'
+      | 'originMismatch'
+      | 'invalidProvidersFile',
   ) {
     // Fixed codes only: store/revocation errors can contain the secret itself.
     super(code)
