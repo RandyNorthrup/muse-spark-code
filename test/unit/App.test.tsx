@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import type * as Constants from '../../src/shared/constants'
 import { SHARE_VIEW_PAGE_ITEMS, UI_TEXT } from '../../src/shared/constants'
 import { EMPTY_PAID_TALLY } from '../../src/shared/paid'
 import type { HostToWebviewMessage, WebviewToHostMessage } from '../../src/shared/protocol'
@@ -14,6 +15,13 @@ import axe from 'axe-core'
 import { testSettings } from './helpers/fakes'
 import { warmDeferredSurfaces } from './helpers/warmDeferredSurfaces'
 import { fakeScheduleDraft } from './helpers/schedules/runtimeFixtures'
+
+// These fixtures exercise implemented surfaces with fake owners. Production
+// availability and refusals are exercised without this binding in cx1r6Chat.
+vi.mock('../../src/shared/constants', async (original) => ({
+  ...(await original<typeof Constants>()),
+  OPTIONAL_RUNTIME_AVAILABILITY: { schedules: true, estimator: true },
+}))
 
 function deliver(data: unknown) {
   act(() => {
