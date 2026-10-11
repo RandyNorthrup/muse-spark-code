@@ -9,9 +9,9 @@ import {
   createAccountsReportReader,
   createSecurityReportReader,
 } from '../../src/runtime/reporting/reportInputs'
-import { REPORT_FIXTURE_AS_OF } from './helpers/reporting/snapshot'
 import { tempDirTracker, writeDeveloperAudit } from './helpers/reporting/tempDir'
 import { canaryVaultSnapshot } from './helpers/reporting/canaryVault'
+import { reasonContext } from './helpers/reporting/reasonCases'
 
 setUiText(EN, 'en')
 
@@ -22,23 +22,8 @@ afterEach(async () => {
 })
 const dir = (prefix: string) => temps.dir(prefix)
 
-const context = () => ({
-  asOf: REPORT_FIXTURE_AS_OF,
-  workspaceKey: 'fixture',
-  options: {
-    kind: 'accounts' as const,
-    asOf: REPORT_FIXTURE_AS_OF,
-    scope: '',
-    full: false,
-    network: false,
-    failOn: [],
-  },
-  signal: new AbortController().signal,
-})
-const securityContext = () => ({
-  ...context(),
-  options: { ...context().options, kind: 'security' as const },
-})
+const context = () => reasonContext('accounts')
+const securityContext = () => reasonContext('security')
 
 describe('accounts report reader', () => {
   it('reads the registry with projected thresholds and names missing facets', async () => {

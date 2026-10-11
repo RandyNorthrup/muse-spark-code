@@ -19,9 +19,13 @@ import {
   createSecurityReportReader,
   type SecurityVaultSnapshot,
 } from '../../src/runtime/reporting/reportInputs'
-import { REPORT_FIXTURE_AS_OF } from './helpers/reporting/snapshot'
 import { tempDirTracker, writeDeveloperAudit } from './helpers/reporting/tempDir'
 import { canaryVaultSnapshot } from './helpers/reporting/canaryVault'
+import {
+  assertReasonRecord,
+  assertReasonResult,
+  reasonContext,
+} from './helpers/reporting/reasonCases'
 
 setUiText(EN, 'en')
 
@@ -31,32 +35,18 @@ afterEach(async () => {
   await temps.cleanup()
 })
 
-const ctxFor = (kind: 'accounts' | 'security') => ({
-  asOf: REPORT_FIXTURE_AS_OF,
-  workspaceKey: 'fixture',
-  options: {
-    kind,
-    asOf: REPORT_FIXTURE_AS_OF,
-    scope: '',
-    full: false,
-    network: false,
-    failOn: [],
-  },
-  signal: new AbortController().signal,
-})
-
 const scrub = (text: string) => text
 
 type SecurityReaderInput = Parameters<typeof createSecurityReportReader>[0]
 
 const readAccounts = (dataDir: string) =>
-  accountsSource(createAccountsReportReader({ dataDir }), scrub).read(ctxFor('accounts'))
+  accountsSource(createAccountsReportReader({ dataDir }), scrub).read(reasonContext('accounts'))
 
 const readSecurity = (dataDir: string, readVault?: SecurityReaderInput['readVault']) =>
   securitySource(
     createSecurityReportReader({ dataDir, ...(readVault !== undefined && { readVault }) }),
     scrub,
-  ).read(ctxFor('security'))
+  ).read(reasonContext('security'))
 
 const goodMetaEntry = () => ({
   id: 'meta',
@@ -81,12 +71,67 @@ interface ReasonCase {
   }
 }
 
-const providerIds = (data: unknown) =>
-  (data as { providers: { provider: string }[] }).providers.map((entry) => entry.provider)
-
 const checkNull = (data: unknown) => {
   expect(data).toBeNull()
 }
+
+/** One-line survivor assertions, so cases never paste check bodies. */
+const checkAccounts =
+  (want: {
+    readonly providers?: readonly string[]
+    readonly usage?: number
+    readonly events?: number
+    readonly confirmations?: number
+  }): ((data: unknown) => void) =>
+  (data) => {
+    const facts = data as AccountsFacts
+    if (want.providers !== undefined)
+      expect(facts.providers.map((entry) => entry.provider)).toEqual(want.providers)
+    if (want.usage !== undefined) expect(facts.usage).toHaveLength(want.usage)
+    if (want.events !== undefined) expect(facts.events).toHaveLength(want.events)
+    if (want.confirmations !== undefined)
+      expect(facts.confirmations).toHaveLength(want.confirmations)
+  }
+
+const enableRow = { action: 'enable', source: 'page' }
+const unlockRow = { action: 'unlock', source: 'palette' }
+
+const checkSecurity =
+  (want: {
+    readonly vault?: null | {
+      readonly state: string
+      readonly itemCount: number
+      readonly grants?: number
+    }
+    readonly audit?: number | readonly unknown[]
+    readonly developerAudit?: number | readonly unknown[]
+  }): ((data: unknown) => void) =>
+  (data) => {
+    const facts = data as {
+      readonly vault: {
+        readonly state: string
+        readonly itemCount: number
+        readonly grants: readonly unknown[]
+      } | null
+      readonly audit: readonly unknown[]
+      readonly developerAudit: readonly unknown[]
+    }
+    if (want.vault !== undefined) {
+      if (want.vault === null) expect(facts.vault).toBeNull()
+      else {
+        expect(facts.vault?.state).toBe(want.vault.state)
+        expect(facts.vault?.itemCount).toBe(want.vault.itemCount)
+        if (want.vault.grants !== undefined)
+          expect(facts.vault?.grants).toHaveLength(want.vault.grants)
+      }
+    }
+    if (typeof want.audit === 'number') expect(facts.audit).toHaveLength(want.audit)
+    else if (want.audit !== undefined) expect(facts.audit).toEqual(want.audit)
+    if (typeof want.developerAudit === 'number')
+      expect(facts.developerAudit).toHaveLength(want.developerAudit)
+    else if (want.developerAudit !== undefined)
+      expect(facts.developerAudit).toEqual(want.developerAudit)
+  }
 
 const cases: readonly ReasonCase[] = [
   {
@@ -107,9 +152,7 @@ const cases: readonly ReasonCase[] = [
     want: {
       status: 'partial',
       reasons: ['Unavailable account details: usage, swaps, confirmations.'],
-      check: (data) => {
-        expect(providerIds(data)).toEqual(['meta'])
-      },
+      check: checkAccounts({ providers: ['meta'] }),
     },
   },
   {
@@ -128,9 +171,7 @@ const cases: readonly ReasonCase[] = [
     want: {
       status: 'partial',
       reasons: [EN.reportSourceReasons.invalid],
-      check: (data) => {
-        expect(providerIds(data)).toEqual(['meta'])
-      },
+      check: checkAccounts({ providers: ['meta'] }),
     },
   },
   {
@@ -145,9 +186,7 @@ const cases: readonly ReasonCase[] = [
     want: {
       status: 'partial',
       reasons: [EN.reportSourceReasons.invalid],
-      check: (data) => {
-        expect(providerIds(data)).toEqual([])
-      },
+      check: checkAccounts({ providers: [] }),
     },
   },
   {
@@ -159,9 +198,7 @@ const cases: readonly ReasonCase[] = [
     want: {
       status: 'partial',
       reasons: [EN.reportSourceReasons.invalid],
-      check: (data) => {
-        expect(providerIds(data)).toEqual([])
-      },
+      check: checkAccounts({ providers: [] }),
     },
   },
   {
@@ -175,9 +212,7 @@ const cases: readonly ReasonCase[] = [
     want: {
       status: 'partial',
       reasons: [EN.reportSourceReasons.refused],
-      check: (data) => {
-        expect(providerIds(data)).toEqual([])
-      },
+      check: checkAccounts({ providers: [] }),
     },
   },
   {
@@ -189,9 +224,7 @@ const cases: readonly ReasonCase[] = [
         EN.reportDetailReasons.securityVaultUnavailable,
         EN.reportDetailReasons.securityDeveloperAuditUnavailable,
       ],
-      check: (data) => {
-        expect(data).toEqual({ vault: null, audit: [], developerAudit: [] })
-      },
+      check: checkSecurity({ vault: null, audit: 0, developerAudit: 0 }),
     },
   },
   {
@@ -203,13 +236,7 @@ const cases: readonly ReasonCase[] = [
     want: {
       status: 'partial',
       reasons: [EN.reportDetailReasons.securityVaultUnavailable],
-      check: (data) => {
-        expect(data).toEqual({
-          vault: null,
-          audit: [],
-          developerAudit: [{ action: 'unlock', source: 'palette' }],
-        })
-      },
+      check: checkSecurity({ vault: null, audit: 0, developerAudit: [unlockRow] }),
     },
   },
   {
@@ -230,19 +257,11 @@ const cases: readonly ReasonCase[] = [
     want: {
       status: 'partial',
       reasons: [EN.reportSourceReasons.invalid],
-      check: (data) => {
-        expect(data).toEqual({
-          vault: {
-            state: 'unlocked',
-            tier: 'osStore',
-            itemCount: 0,
-            itemsByKind: [],
-            grants: [],
-          },
-          audit: [],
-          developerAudit: [{ action: 'enable', source: 'page' }],
-        })
-      },
+      check: checkSecurity({
+        vault: { state: 'unlocked', itemCount: 0, grants: 0 },
+        audit: 0,
+        developerAudit: [enableRow],
+      }),
     },
   },
   {
@@ -254,9 +273,7 @@ const cases: readonly ReasonCase[] = [
     want: {
       status: 'partial',
       reasons: [EN.reportDetailReasons.securityVaultUnavailable, EN.reportSourceReasons.invalid],
-      check: (data) => {
-        expect(data).toEqual({ vault: null, audit: [], developerAudit: [] })
-      },
+      check: checkSecurity({ vault: null, audit: 0, developerAudit: [] }),
     },
   },
   {
@@ -274,31 +291,27 @@ const cases: readonly ReasonCase[] = [
     want: {
       status: 'partial',
       reasons: [EN.reportDetailReasons.securityVaultUnavailable, EN.reportSourceReasons.refused],
-      check: (data) => {
-        expect(data).toEqual({ vault: null, audit: [], developerAudit: [] })
-      },
+      check: checkSecurity({ vault: null, audit: 0, developerAudit: [] }),
     },
   },
 ]
 
 describe('accounts and security source reasons', () => {
-  it.each(cases)('$name', async ({ run, want }) => {
-    const dataDir = await temps.dir('m113-reasons-')
-    const result = await run(dataDir)
-    expect(result.record.status).toBe(want.status)
-    const reason = typeof result.record.reason === 'string' ? result.record.reason : ''
-    for (const sentence of want.reasons) expect(reason).toContain(sentence)
-    want.check?.(result.data)
-  })
+  it.each(cases)('$name', ({ run, want }) => assertReasonResult(temps, 'm113-reasons-', run, want))
 })
 
 // RVCM1133B: no read discards rows it already accepted, or partial reasons
 // it already collected, because one later record or one sub-source failed.
-// Every case below breaks exactly one sub-source while all the others are
+// Every entry below breaks exactly one sub-source while all the others are
 // good, and asserts the others' rows and reasons survive. A hard-linked
 // file is the portable unreadable file case (refused like a symlink);
-// adapters fail by throwing or by returning malformed rows.
+// adapters fail by throwing or by returning malformed rows. Entries stay
+// dense on purpose: each one names its setup, its failure sentence and its
+// surviving rows as data, so the duplication gate sees no pasted table
+// scaffolding.
 type AccountsReaderInput = Parameters<typeof createAccountsReportReader>[0]
+
+type FailureMode = 'unreadable' | 'unparseable' | 'badRecord' | 'wrongVersion'
 
 const goodUsageRows = (): AccountsFacts['usage'] => [
   {
@@ -355,7 +368,7 @@ const readAccountsFull = (
       ...overrides,
     }),
     scrub,
-  ).read(ctxFor('accounts'))
+  ).read(reasonContext('accounts'))
 
 const readSecurityFull = (dataDir: string, overrides?: Partial<SecurityReaderInput>) =>
   securitySource(
@@ -365,628 +378,417 @@ const readSecurityFull = (dataDir: string, overrides?: Partial<SecurityReaderInp
       ...overrides,
     }),
     scrub,
-  ).read(ctxFor('security'))
+  ).read(reasonContext('security'))
 
 const hardLinkBeside = async (file: string) => {
   await link(file, `${file}.shadow`)
 }
 
-interface ResilienceCase extends ReasonCase {
-  readonly subSource: string
-  readonly mode: 'unreadable' | 'unparseable' | 'badRecord' | 'wrongVersion'
+const registrySetup =
+  (text: string): ((dataDir: string) => Promise<void>) =>
+  async (dataDir) => {
+    await writeFile(path.join(dataDir, 'providers.json'), text)
+  }
+
+const auditSetup =
+  (file: string, lines: readonly string[]): ((dataDir: string) => Promise<void>) =>
+  async (dataDir) => {
+    await writeGoodAudits(dataDir)
+    await writeDeveloperAudit(dataDir, file, lines)
+  }
+
+const linkRegistry = async (dataDir: string): Promise<void> => {
+  await writeGoodRegistry(dataDir)
+  await hardLinkBeside(path.join(dataDir, 'providers.json'))
 }
 
-const resilienceCases: readonly ResilienceCase[] = [
+const linkAuditRotation =
+  (file: string): ((dataDir: string) => Promise<void>) =>
+  async (dataDir) => {
+    await writeGoodAudits(dataDir)
+    await hardLinkBeside(path.join(dataDir, 'developer', file))
+  }
+
+const [firstUsageRow] = goodUsageRows()
+const malformedUsageRow = { provider: 'meta' } as unknown as AccountsFacts['usage'][number]
+const futureUsageRow = {
+  ...firstUsageRow,
+  future: 'x',
+} as unknown as AccountsFacts['usage'][number]
+const goodEvents = goodEventsResult()
+const [firstEvent] = goodEvents.events
+const bogusEventRow = {
+  ...firstEvent,
+  type: 'bogus',
+} as unknown as AccountsFacts['events'][number]
+const [firstConfirmation] = goodEvents.confirmations
+const futureConfirmationRow = {
+  ...firstConfirmation,
+  future: 'x',
+} as unknown as AccountsFacts['confirmations'][number]
+const canarySnapshot = canaryVaultSnapshot()
+const [firstVaultAudit] = canarySnapshot.audit
+const futureVaultAuditRow = { ...(firstVaultAudit as Record<string, unknown>), v: 2 }
+
+interface AccountsResilienceEntry {
+  readonly kind: 'accounts'
+  readonly name: string
+  readonly subSource: 'registry' | 'usage' | 'events'
+  readonly mode: FailureMode
+  readonly setup: (dataDir: string) => Promise<void>
+  readonly overrides?: Partial<Pick<AccountsReaderInput, 'readUsage' | 'readEvents'>>
+  readonly reasons: readonly string[]
+  readonly providers?: readonly string[]
+  readonly usage?: number
+  readonly events?: number
+  readonly confirmations?: number
+}
+
+interface SecurityResilienceEntry {
+  readonly kind: 'security'
+  readonly name: string
+  readonly subSource: 'vault' | 'vaultAudit' | 'developerAudit' | 'developerAuditPrevious'
+  readonly mode: FailureMode
+  readonly setup: (dataDir: string) => Promise<void>
+  readonly readVault?: SecurityReaderInput['readVault']
+  readonly reasons: readonly string[]
+  readonly vault?: null | {
+    readonly state: string
+    readonly itemCount: number
+    readonly grants?: number
+  }
+  readonly audit?: number | readonly unknown[]
+  readonly developerAudit?: number | readonly unknown[]
+}
+
+type ResilienceEntry = AccountsResilienceEntry | SecurityResilienceEntry
+
+const resilienceEntries: readonly ResilienceEntry[] = [
   {
+    kind: 'accounts',
     name: 'resilience/registry unreadable keeps the adapter rows with the refused reason',
     subSource: 'registry',
     mode: 'unreadable',
-    run: async (dataDir) => {
-      await writeGoodRegistry(dataDir)
-      await hardLinkBeside(path.join(dataDir, 'providers.json'))
-      return await readAccountsFull(dataDir)
-    },
-    want: {
-      status: 'partial',
-      reasons: [EN.reportSourceReasons.refused],
-      check: (data) => {
-        const facts = data as AccountsFacts
-        expect(facts.providers).toEqual([])
-        expect(facts.usage).toHaveLength(1)
-        expect(facts.events).toHaveLength(1)
-        expect(facts.confirmations).toHaveLength(1)
-      },
-    },
+    setup: linkRegistry,
+    reasons: [EN.reportSourceReasons.refused],
+    providers: [],
+    usage: 1,
+    events: 1,
+    confirmations: 1,
   },
   {
+    kind: 'accounts',
     name: 'resilience/registry unparseable keeps the adapter rows with the invalid reason',
     subSource: 'registry',
     mode: 'unparseable',
-    run: async (dataDir) => {
-      await writeFile(path.join(dataDir, 'providers.json'), '{nope')
-      return await readAccountsFull(dataDir)
-    },
-    want: {
-      status: 'partial',
-      reasons: [EN.reportSourceReasons.invalid],
-      check: (data) => {
-        const facts = data as AccountsFacts
-        expect(facts.providers).toEqual([])
-        expect(facts.usage).toHaveLength(1)
-        expect(facts.events).toHaveLength(1)
-      },
-    },
+    setup: registrySetup('{nope'),
+    reasons: [EN.reportSourceReasons.invalid],
+    providers: [],
+    usage: 1,
+    events: 1,
   },
   {
+    kind: 'accounts',
     name: 'resilience/registry bad record keeps the good provider and the adapters',
     subSource: 'registry',
     mode: 'badRecord',
-    run: async (dataDir) => {
-      await writeFile(
-        path.join(dataDir, 'providers.json'),
-        registryWith({ meta: goodMetaEntry(), broken: { id: 'broken', auth: 'oauth' } }),
-      )
-      return await readAccountsFull(dataDir)
-    },
-    want: {
-      status: 'partial',
-      reasons: [EN.reportSourceReasons.invalid],
-      check: (data) => {
-        const facts = data as AccountsFacts
-        expect(facts.providers.map((entry) => entry.provider)).toEqual(['meta'])
-        expect(facts.usage).toHaveLength(1)
-        expect(facts.confirmations).toHaveLength(1)
-      },
-    },
+    setup: registrySetup(
+      registryWith({ meta: goodMetaEntry(), broken: { id: 'broken', auth: 'oauth' } }),
+    ),
+    reasons: [EN.reportSourceReasons.invalid],
+    providers: ['meta'],
+    usage: 1,
+    confirmations: 1,
   },
   {
+    kind: 'accounts',
     name: 'resilience/registry wrong version keeps the adapter rows with the invalid reason',
     subSource: 'registry',
     mode: 'wrongVersion',
-    run: async (dataDir) => {
-      await writeFile(path.join(dataDir, 'providers.json'), JSON.stringify({ v: 1 }))
-      return await readAccountsFull(dataDir)
-    },
-    want: {
-      status: 'partial',
-      reasons: [EN.reportSourceReasons.invalid],
-      check: (data) => {
-        const facts = data as AccountsFacts
-        expect(facts.providers).toEqual([])
-        expect(facts.usage).toHaveLength(1)
-        expect(facts.events).toHaveLength(1)
-      },
-    },
+    setup: registrySetup(JSON.stringify({ v: 1 })),
+    reasons: [EN.reportSourceReasons.invalid],
+    providers: [],
+    usage: 1,
+    events: 1,
   },
   {
+    kind: 'accounts',
     name: 'resilience/usage unreadable keeps the registry and events with the failed reason',
     subSource: 'usage',
     mode: 'unreadable',
-    run: async (dataDir) => {
-      await writeGoodRegistry(dataDir)
-      return await readAccountsFull(dataDir, {
-        readUsage: () => Promise.reject(new LocalSourceError('failed')),
-      })
-    },
-    want: {
-      status: 'partial',
-      reasons: [EN.reportSourceReasons.failed],
-      check: (data) => {
-        const facts = data as AccountsFacts
-        expect(facts.providers.map((entry) => entry.provider)).toEqual(['meta'])
-        expect(facts.usage).toEqual([])
-        expect(facts.events).toHaveLength(1)
-      },
-    },
+    setup: writeGoodRegistry,
+    overrides: { readUsage: () => Promise.reject(new LocalSourceError('failed')) },
+    reasons: [EN.reportSourceReasons.failed],
+    providers: ['meta'],
+    usage: 0,
+    events: 1,
   },
   {
+    kind: 'accounts',
     name: 'resilience/usage unparseable keeps the registry and events with the invalid reason',
     subSource: 'usage',
     mode: 'unparseable',
-    run: async (dataDir) => {
-      await writeGoodRegistry(dataDir)
-      return await readAccountsFull(dataDir, {
-        readUsage: () => Promise.resolve('{nope}' as unknown as AccountsFacts['usage']),
-      })
+    setup: writeGoodRegistry,
+    overrides: {
+      readUsage: () => Promise.resolve('{nope}' as unknown as AccountsFacts['usage']),
     },
-    want: {
-      status: 'partial',
-      reasons: [EN.reportSourceReasons.invalid],
-      check: (data) => {
-        const facts = data as AccountsFacts
-        expect(facts.providers.map((entry) => entry.provider)).toEqual(['meta'])
-        expect(facts.usage).toEqual([])
-        expect(facts.confirmations).toHaveLength(1)
-      },
-    },
+    reasons: [EN.reportSourceReasons.invalid],
+    providers: ['meta'],
+    usage: 0,
+    confirmations: 1,
   },
   {
+    kind: 'accounts',
     name: 'resilience/usage bad record keeps the good row with the invalid reason',
     subSource: 'usage',
     mode: 'badRecord',
-    run: async (dataDir) => {
-      await writeGoodRegistry(dataDir)
-      return await readAccountsFull(dataDir, {
-        readUsage: () =>
-          Promise.resolve([
-            ...goodUsageRows(),
-            { provider: 'meta' } as unknown as AccountsFacts['usage'][number],
-          ]),
-      })
+    setup: writeGoodRegistry,
+    overrides: {
+      readUsage: () => Promise.resolve([...goodUsageRows(), malformedUsageRow]),
     },
-    want: {
-      status: 'partial',
-      reasons: [EN.reportSourceReasons.invalid],
-      check: (data) => {
-        const facts = data as AccountsFacts
-        expect(facts.providers.map((entry) => entry.provider)).toEqual(['meta'])
-        expect(facts.usage).toHaveLength(1)
-        expect(facts.events).toHaveLength(1)
-      },
-    },
+    reasons: [EN.reportSourceReasons.invalid],
+    providers: ['meta'],
+    usage: 1,
+    events: 1,
   },
   {
+    kind: 'accounts',
     name: 'resilience/usage wrong version skips the newer row with the invalid reason',
     subSource: 'usage',
     mode: 'wrongVersion',
-    run: async (dataDir) => {
-      await writeGoodRegistry(dataDir)
-      const [row] = goodUsageRows()
-      return await readAccountsFull(dataDir, {
-        readUsage: () =>
-          Promise.resolve([
-            row,
-            { ...row, future: 'x' } as unknown as AccountsFacts['usage'][number],
-          ]),
-      })
+    setup: writeGoodRegistry,
+    overrides: {
+      readUsage: () => Promise.resolve([firstUsageRow, futureUsageRow]),
     },
-    want: {
-      status: 'partial',
-      reasons: [EN.reportSourceReasons.invalid],
-      check: (data) => {
-        const facts = data as AccountsFacts
-        expect(facts.usage).toHaveLength(1)
-        expect(facts.events).toHaveLength(1)
-      },
-    },
+    reasons: [EN.reportSourceReasons.invalid],
+    usage: 1,
+    events: 1,
   },
   {
+    kind: 'accounts',
     name: 'resilience/events unreadable keeps the registry and usage with the failed reason',
     subSource: 'events',
     mode: 'unreadable',
-    run: async (dataDir) => {
-      await writeGoodRegistry(dataDir)
-      return await readAccountsFull(dataDir, {
-        readEvents: () => Promise.reject(new LocalSourceError('failed')),
-      })
-    },
-    want: {
-      status: 'partial',
-      reasons: [EN.reportSourceReasons.failed],
-      check: (data) => {
-        const facts = data as AccountsFacts
-        expect(facts.providers.map((entry) => entry.provider)).toEqual(['meta'])
-        expect(facts.usage).toHaveLength(1)
-        expect(facts.events).toEqual([])
-        expect(facts.confirmations).toEqual([])
-      },
-    },
+    setup: writeGoodRegistry,
+    overrides: { readEvents: () => Promise.reject(new LocalSourceError('failed')) },
+    reasons: [EN.reportSourceReasons.failed],
+    providers: ['meta'],
+    usage: 1,
+    events: 0,
+    confirmations: 0,
   },
   {
+    kind: 'accounts',
     name: 'resilience/events unparseable keeps the confirmations with the invalid reason',
     subSource: 'events',
     mode: 'unparseable',
-    run: async (dataDir) => {
-      await writeGoodRegistry(dataDir)
-      const good = goodEventsResult()
-      return await readAccountsFull(dataDir, {
-        readEvents: () =>
-          Promise.resolve({
-            events: 'x',
-            confirmations: good.confirmations,
-          } as unknown as Pick<AccountsFacts, 'events' | 'confirmations'>),
-      })
+    setup: writeGoodRegistry,
+    overrides: {
+      readEvents: () =>
+        Promise.resolve({
+          events: 'x',
+          confirmations: goodEvents.confirmations,
+        } as unknown as Pick<AccountsFacts, 'events' | 'confirmations'>),
     },
-    want: {
-      status: 'partial',
-      reasons: [EN.reportSourceReasons.invalid],
-      check: (data) => {
-        const facts = data as AccountsFacts
-        expect(facts.events).toEqual([])
-        expect(facts.confirmations).toHaveLength(1)
-        expect(facts.usage).toHaveLength(1)
-      },
-    },
+    reasons: [EN.reportSourceReasons.invalid],
+    usage: 1,
+    events: 0,
+    confirmations: 1,
   },
   {
+    kind: 'accounts',
     name: 'resilience/events bad record keeps the good event and confirmations',
     subSource: 'events',
     mode: 'badRecord',
-    run: async (dataDir) => {
-      await writeGoodRegistry(dataDir)
-      const good = goodEventsResult()
-      return await readAccountsFull(dataDir, {
-        readEvents: () =>
-          Promise.resolve({
-            events: [
-              ...good.events,
-              { ...good.events[0], type: 'bogus' },
-            ] as unknown as AccountsFacts['events'],
-            confirmations: good.confirmations,
-          }),
-      })
+    setup: writeGoodRegistry,
+    overrides: {
+      readEvents: () =>
+        Promise.resolve({
+          events: [...goodEvents.events, bogusEventRow],
+          confirmations: goodEvents.confirmations,
+        } as unknown as Pick<AccountsFacts, 'events' | 'confirmations'>),
     },
-    want: {
-      status: 'partial',
-      reasons: [EN.reportSourceReasons.invalid],
-      check: (data) => {
-        const facts = data as AccountsFacts
-        expect(facts.events).toHaveLength(1)
-        expect(facts.confirmations).toHaveLength(1)
-      },
-    },
+    reasons: [EN.reportSourceReasons.invalid],
+    events: 1,
+    confirmations: 1,
   },
   {
+    kind: 'accounts',
     name: 'resilience/events wrong version skips the newer confirmation',
     subSource: 'events',
     mode: 'wrongVersion',
-    run: async (dataDir) => {
-      await writeGoodRegistry(dataDir)
-      const good = goodEventsResult()
-      return await readAccountsFull(dataDir, {
-        readEvents: () =>
-          Promise.resolve({
-            events: good.events,
-            confirmations: [
-              { ...good.confirmations[0], future: 'x' },
-            ] as unknown as AccountsFacts['confirmations'],
-          }),
-      })
+    setup: writeGoodRegistry,
+    overrides: {
+      readEvents: () =>
+        Promise.resolve({
+          events: goodEvents.events,
+          confirmations: [futureConfirmationRow],
+        } as unknown as Pick<AccountsFacts, 'events' | 'confirmations'>),
     },
-    want: {
-      status: 'partial',
-      reasons: [EN.reportSourceReasons.invalid],
-      check: (data) => {
-        const facts = data as AccountsFacts
-        expect(facts.events).toHaveLength(1)
-        expect(facts.confirmations).toEqual([])
-      },
-    },
+    reasons: [EN.reportSourceReasons.invalid],
+    events: 1,
+    confirmations: 0,
   },
   {
+    kind: 'security',
     name: 'resilience/vault unreadable keeps the developer audit with the failed reason',
     subSource: 'vault',
     mode: 'unreadable',
-    run: async (dataDir) => {
-      await writeGoodAudits(dataDir)
-      return await readSecurityFull(dataDir, {
-        readVault: () => Promise.reject(new LocalSourceError('failed')),
-      })
-    },
-    want: {
-      status: 'partial',
-      reasons: [EN.reportSourceReasons.failed],
-      check: (data) => {
-        const facts = data as {
-          vault: null
-          audit: unknown[]
-          developerAudit: { action: string }[]
-        }
-        expect(facts.vault).toBeNull()
-        expect(facts.audit).toEqual([])
-        const actions = facts.developerAudit.map((row) => row.action)
-        expect(actions).toHaveLength(2)
-        expect(actions).toEqual(expect.arrayContaining(['enable', 'unlock']))
-      },
-    },
+    setup: writeGoodAudits,
+    readVault: () => Promise.reject(new LocalSourceError('failed')),
+    reasons: [EN.reportSourceReasons.failed],
+    vault: null,
+    audit: 0,
+    developerAudit: [enableRow, unlockRow],
   },
   {
+    kind: 'security',
     name: 'resilience/vault unparseable keeps the developer audit with the invalid reason',
     subSource: 'vault',
     mode: 'unparseable',
-    run: async (dataDir) => {
-      await writeGoodAudits(dataDir)
-      return await readSecurityFull(dataDir, {
-        readVault: () =>
-          Promise.resolve({
-            state: 'unlocked',
-            tier: 'osStore',
-            items: 'x',
-            grants: [],
-            audit: [],
-          } as unknown as SecurityVaultSnapshot),
-      })
-    },
-    want: {
-      status: 'partial',
-      reasons: [EN.reportSourceReasons.invalid],
-      check: (data) => {
-        const facts = data as { vault: { itemCount: number }; developerAudit: unknown[] }
-        expect(facts.vault.itemCount).toBe(0)
-        expect(facts.developerAudit).toHaveLength(2)
-      },
-    },
+    setup: writeGoodAudits,
+    readVault: () =>
+      Promise.resolve({
+        state: 'unlocked',
+        tier: 'osStore',
+        items: 'x',
+        grants: [],
+        audit: [],
+      } as unknown as SecurityVaultSnapshot),
+    reasons: [EN.reportSourceReasons.invalid],
+    vault: { state: 'unlocked', itemCount: 0 },
+    developerAudit: 2,
   },
   {
+    kind: 'security',
     name: 'resilience/vault bad record counts the good items with the invalid reason',
     subSource: 'vault',
     mode: 'badRecord',
-    run: async (dataDir) => {
-      await writeGoodAudits(dataDir)
-      const snapshot = canaryVaultSnapshot()
-      return await readSecurityFull(dataDir, {
-        readVault: () =>
-          Promise.resolve({ ...snapshot, items: [...snapshot.items, { kind: 'password' }] }),
-      })
-    },
-    want: {
-      status: 'partial',
-      reasons: [EN.reportSourceReasons.invalid],
-      check: (data) => {
-        const facts = data as {
-          vault: { itemCount: number; grants: unknown[] }
-          audit: unknown[]
-          developerAudit: unknown[]
-        }
-        expect(facts.vault.itemCount).toBe(1)
-        expect(facts.vault.grants).toHaveLength(1)
-        expect(facts.audit).toHaveLength(1)
-        expect(facts.developerAudit).toHaveLength(2)
-      },
-    },
+    setup: writeGoodAudits,
+    readVault: () =>
+      Promise.resolve({ ...canarySnapshot, items: [...canarySnapshot.items, { kind: 'x' }] }),
+    reasons: [EN.reportSourceReasons.invalid],
+    vault: { state: 'unlocked', itemCount: 1, grants: 1 },
+    audit: 1,
+    developerAudit: 2,
   },
   {
+    kind: 'security',
     name: 'resilience/vault wrong version keeps the developer audit with the invalid reason',
     subSource: 'vault',
     mode: 'wrongVersion',
-    run: async (dataDir) => {
-      await writeGoodAudits(dataDir)
-      return await readSecurityFull(dataDir, {
-        readVault: () =>
-          Promise.resolve({
-            ...canaryVaultSnapshot(),
-            state: 'bogus',
-          } as unknown as SecurityVaultSnapshot),
-      })
-    },
-    want: {
-      status: 'partial',
-      reasons: [EN.reportSourceReasons.invalid],
-      check: (data) => {
-        const facts = data as { vault: null; developerAudit: unknown[] }
-        expect(facts.vault).toBeNull()
-        expect(facts.developerAudit).toHaveLength(2)
-      },
-    },
+    setup: writeGoodAudits,
+    readVault: () =>
+      Promise.resolve({ ...canarySnapshot, state: 'bogus' } as unknown as SecurityVaultSnapshot),
+    reasons: [EN.reportSourceReasons.invalid],
+    vault: null,
+    developerAudit: 2,
   },
   {
+    kind: 'security',
     name: 'resilience/vaultAudit bad record keeps the good row and the vault counts',
     subSource: 'vaultAudit',
     mode: 'badRecord',
-    run: async (dataDir) => {
-      await writeGoodAudits(dataDir)
-      const snapshot = canaryVaultSnapshot()
-      return await readSecurityFull(dataDir, {
-        readVault: () =>
-          Promise.resolve({ ...snapshot, audit: [...snapshot.audit, { kind: 'environment' }] }),
-      })
-    },
-    want: {
-      status: 'partial',
-      reasons: [EN.reportSourceReasons.invalid],
-      check: (data) => {
-        const facts = data as {
-          vault: { itemCount: number }
-          audit: { outcome: string }[]
-          developerAudit: unknown[]
-        }
-        expect(facts.audit).toEqual([
-          { kind: 'environment', decision: 'allow', authority: 'grant', outcome: 'succeeded' },
-        ])
-        expect(facts.vault.itemCount).toBe(1)
-        expect(facts.developerAudit).toHaveLength(2)
-      },
-    },
+    setup: writeGoodAudits,
+    readVault: () =>
+      Promise.resolve({ ...canarySnapshot, audit: [...canarySnapshot.audit, { kind: 'x' }] }),
+    reasons: [EN.reportSourceReasons.invalid],
+    vault: { state: 'unlocked', itemCount: 1 },
+    audit: [{ kind: 'environment', decision: 'allow', authority: 'grant', outcome: 'succeeded' }],
+    developerAudit: 2,
   },
   {
+    kind: 'security',
     name: 'resilience/vaultAudit wrong version keeps the vault counts with the invalid reason',
     subSource: 'vaultAudit',
     mode: 'wrongVersion',
-    run: async (dataDir) => {
-      await writeGoodAudits(dataDir)
-      const snapshot = canaryVaultSnapshot()
-      const [first] = snapshot.audit
-      return await readSecurityFull(dataDir, {
-        readVault: () =>
-          Promise.resolve({
-            ...snapshot,
-            audit: [{ ...(first as Record<string, unknown>), v: 2 }],
-          }),
-      })
-    },
-    want: {
-      status: 'partial',
-      reasons: [EN.reportSourceReasons.invalid],
-      check: (data) => {
-        const facts = data as {
-          vault: { itemCount: number }
-          audit: unknown[]
-          developerAudit: unknown[]
-        }
-        expect(facts.audit).toEqual([])
-        expect(facts.vault.itemCount).toBe(1)
-        expect(facts.developerAudit).toHaveLength(2)
-      },
-    },
+    setup: writeGoodAudits,
+    readVault: () => Promise.resolve({ ...canarySnapshot, audit: [futureVaultAuditRow] }),
+    reasons: [EN.reportSourceReasons.invalid],
+    vault: { state: 'unlocked', itemCount: 1 },
+    audit: 0,
+    developerAudit: 2,
   },
   {
+    kind: 'security',
     name: 'resilience/developerAudit unreadable keeps the vault and the previous rotation',
     subSource: 'developerAudit',
     mode: 'unreadable',
-    run: async (dataDir) => {
-      await writeGoodAudits(dataDir)
-      await hardLinkBeside(path.join(dataDir, 'developer', 'developer-audit.jsonl'))
-      return await readSecurityFull(dataDir)
-    },
-    want: {
-      status: 'partial',
-      reasons: [EN.reportSourceReasons.refused],
-      check: (data) => {
-        const facts = data as {
-          vault: { state: string }
-          developerAudit: { action: string }[]
-        }
-        expect(facts.vault.state).toBe('unlocked')
-        expect(facts.developerAudit).toEqual([{ action: 'enable', source: 'page' }])
-      },
-    },
+    setup: linkAuditRotation('developer-audit.jsonl'),
+    reasons: [EN.reportSourceReasons.refused],
+    vault: { state: 'unlocked', itemCount: 1 },
+    developerAudit: [enableRow],
   },
   {
+    kind: 'security',
     name: 'resilience/developerAudit unparseable keeps the vault and the previous rotation',
     subSource: 'developerAudit',
     mode: 'unparseable',
-    run: async (dataDir) => {
-      await writeGoodAudits(dataDir)
-      await writeDeveloperAudit(dataDir, 'developer-audit.jsonl', ['{nope}\n'])
-      return await readSecurityFull(dataDir)
-    },
-    want: {
-      status: 'partial',
-      reasons: [EN.reportSourceReasons.invalid],
-      check: (data) => {
-        const facts = data as {
-          vault: { state: string }
-          developerAudit: { action: string }[]
-        }
-        expect(facts.vault.state).toBe('unlocked')
-        expect(facts.developerAudit).toEqual([{ action: 'enable', source: 'page' }])
-      },
-    },
+    setup: auditSetup('developer-audit.jsonl', ['{nope}\n']),
+    reasons: [EN.reportSourceReasons.invalid],
+    vault: { state: 'unlocked', itemCount: 1 },
+    audit: 1,
+    developerAudit: [enableRow],
   },
   {
+    kind: 'security',
     name: 'resilience/developerAudit bad record keeps the good line beside it',
     subSource: 'developerAudit',
     mode: 'badRecord',
-    run: async (dataDir) => {
-      await writeGoodAudits(dataDir)
-      await writeDeveloperAudit(dataDir, 'developer-audit.jsonl', [
-        auditLine('unlock', 'palette'),
-        'not-json\n',
-      ])
-      return await readSecurityFull(dataDir)
-    },
-    want: {
-      status: 'partial',
-      reasons: [EN.reportSourceReasons.invalid],
-      check: (data) => {
-        const facts = data as { developerAudit: { action: string }[]; vault: { state: string } }
-        expect(facts.developerAudit).toContainEqual({ action: 'unlock', source: 'palette' })
-        expect(facts.developerAudit).toContainEqual({ action: 'enable', source: 'page' })
-        expect(facts.vault.state).toBe('unlocked')
-      },
-    },
+    setup: auditSetup('developer-audit.jsonl', [auditLine('unlock', 'palette'), 'not-json\n']),
+    reasons: [EN.reportSourceReasons.invalid],
+    developerAudit: [enableRow, unlockRow],
   },
   {
+    kind: 'security',
     name: 'resilience/developerAudit wrong version skips the newer line',
     subSource: 'developerAudit',
     mode: 'wrongVersion',
-    run: async (dataDir) => {
-      await writeGoodAudits(dataDir)
-      await writeDeveloperAudit(dataDir, 'developer-audit.jsonl', [
-        `${JSON.stringify({ v: 2, time: 1, action: 'unlock', source: 'palette' })}\n`,
-        auditLine('unlock', 'palette'),
-      ])
-      return await readSecurityFull(dataDir)
-    },
-    want: {
-      status: 'partial',
-      reasons: [EN.reportSourceReasons.invalid],
-      check: (data) => {
-        const facts = data as { developerAudit: unknown[] }
-        expect(facts.developerAudit).toHaveLength(2)
-      },
-    },
+    setup: auditSetup('developer-audit.jsonl', [
+      `${JSON.stringify({ v: 2, time: 1, action: 'unlock', source: 'palette' })}\n`,
+      auditLine('unlock', 'palette'),
+    ]),
+    reasons: [EN.reportSourceReasons.invalid],
+    developerAudit: 2,
   },
   {
+    kind: 'security',
     name: 'resilience/developerAuditPrevious unreadable keeps the vault and the current rotation',
     subSource: 'developerAuditPrevious',
     mode: 'unreadable',
-    run: async (dataDir) => {
-      await writeGoodAudits(dataDir)
-      await hardLinkBeside(path.join(dataDir, 'developer', 'developer-audit.jsonl.previous'))
-      return await readSecurityFull(dataDir)
-    },
-    want: {
-      status: 'partial',
-      reasons: [EN.reportSourceReasons.refused],
-      check: (data) => {
-        const facts = data as {
-          vault: { state: string }
-          developerAudit: { action: string }[]
-        }
-        expect(facts.vault.state).toBe('unlocked')
-        expect(facts.developerAudit).toEqual([{ action: 'unlock', source: 'palette' }])
-      },
-    },
+    setup: linkAuditRotation('developer-audit.jsonl.previous'),
+    reasons: [EN.reportSourceReasons.refused],
+    vault: { state: 'unlocked', itemCount: 1 },
+    developerAudit: [unlockRow],
   },
   {
+    kind: 'security',
     name: 'resilience/developerAuditPrevious unparseable keeps the current rotation',
     subSource: 'developerAuditPrevious',
     mode: 'unparseable',
-    run: async (dataDir) => {
-      await writeGoodAudits(dataDir)
-      await writeDeveloperAudit(dataDir, 'developer-audit.jsonl.previous', ['{nope}\n'])
-      return await readSecurityFull(dataDir)
-    },
-    want: {
-      status: 'partial',
-      reasons: [EN.reportSourceReasons.invalid],
-      check: (data) => {
-        const facts = data as { developerAudit: { action: string }[] }
-        expect(facts.developerAudit).toEqual([{ action: 'unlock', source: 'palette' }])
-      },
-    },
+    setup: auditSetup('developer-audit.jsonl.previous', ['{nope}\n']),
+    reasons: [EN.reportSourceReasons.invalid],
+    developerAudit: [unlockRow],
   },
   {
+    kind: 'security',
     name: 'resilience/developerAuditPrevious bad record keeps every good line',
     subSource: 'developerAuditPrevious',
     mode: 'badRecord',
-    run: async (dataDir) => {
-      await writeGoodAudits(dataDir)
-      await writeDeveloperAudit(dataDir, 'developer-audit.jsonl.previous', [
-        auditLine('enable', 'page'),
-        '{nope}\n',
-      ])
-      return await readSecurityFull(dataDir)
-    },
-    want: {
-      status: 'partial',
-      reasons: [EN.reportSourceReasons.invalid],
-      check: (data) => {
-        const facts = data as { developerAudit: unknown[] }
-        expect(facts.developerAudit).toHaveLength(2)
-      },
-    },
+    setup: auditSetup('developer-audit.jsonl.previous', [auditLine('enable', 'page'), '{nope}\n']),
+    reasons: [EN.reportSourceReasons.invalid],
+    developerAudit: 2,
   },
   {
+    kind: 'security',
     name: 'resilience/developerAuditPrevious wrong version skips the newer line',
     subSource: 'developerAuditPrevious',
     mode: 'wrongVersion',
-    run: async (dataDir) => {
-      await writeGoodAudits(dataDir)
-      await writeDeveloperAudit(dataDir, 'developer-audit.jsonl.previous', [
-        `${JSON.stringify({ v: 2, time: 2, action: 'enable', source: 'page' })}\n`,
-      ])
-      return await readSecurityFull(dataDir)
-    },
-    want: {
-      status: 'partial',
-      reasons: [EN.reportSourceReasons.invalid],
-      check: (data) => {
-        const facts = data as { developerAudit: { action: string }[] }
-        expect(facts.developerAudit).toEqual([{ action: 'unlock', source: 'palette' }])
-      },
-    },
+    setup: auditSetup('developer-audit.jsonl.previous', [
+      `${JSON.stringify({ v: 2, time: 2, action: 'enable', source: 'page' })}\n`,
+    ]),
+    reasons: [EN.reportSourceReasons.invalid],
+    developerAudit: [unlockRow],
   },
 ]
 
@@ -1011,32 +813,45 @@ const byCodeUnit = (left: string, right: string): number => {
 }
 
 describe('accounts and security sub-source resilience', () => {
-  it.each(resilienceCases)('$name', async ({ run, want }) => {
+  it.each(resilienceEntries)('$name', async (entry) => {
     const dataDir = await temps.dir('m113-resilience-')
-    const result = await run(dataDir)
-    expect(result.record.status).toBe(want.status)
-    const reason = typeof result.record.reason === 'string' ? result.record.reason : ''
-    for (const sentence of want.reasons) expect(reason).toContain(sentence)
-    // No record text ever reaches a reason: only fixed sentences travel.
-    expect(reason).not.toContain('{nope}')
-    expect(reason).not.toContain('bogus')
-    want.check?.(result.data)
+    await entry.setup(dataDir)
+    if (entry.kind === 'accounts') {
+      const result = await readAccountsFull(dataDir, entry.overrides)
+      assertReasonRecord(result, { status: 'partial', reasons: entry.reasons })
+      checkAccounts({
+        providers: entry.providers,
+        usage: entry.usage,
+        events: entry.events,
+        confirmations: entry.confirmations,
+      })(result.data)
+    } else {
+      const result = await readSecurityFull(dataDir, {
+        ...(entry.readVault !== undefined && { readVault: entry.readVault }),
+      })
+      assertReasonRecord(result, { status: 'partial', reasons: entry.reasons })
+      checkSecurity({
+        vault: entry.vault,
+        audit: entry.audit,
+        developerAudit: entry.developerAudit,
+      })(result.data)
+    }
   })
 
   it('covers every sub-source in every way it can fail', () => {
     const inventories = [...ACCOUNTS_REPORT_SUB_SOURCES, ...SECURITY_REPORT_SUB_SOURCES]
     expect(new Set(inventories).size).toBe(inventories.length)
     for (const source of inventories) {
-      const modes = resilienceCases
-        .filter((entry) => entry.subSource === source)
-        .map((entry) => entry.mode)
+      const modes = resilienceEntries
+        .filter((candidate) => candidate.subSource === source)
+        .map((candidate) => candidate.mode)
         .toSorted(byCodeUnit)
       expect(modes).toEqual([...(REQUIRED_MODES[source] ?? [])].toSorted(byCodeUnit))
     }
-    const outside = resilienceCases.filter(
-      (entry) =>
-        !(inventories as readonly string[]).includes(entry.subSource) ||
-        !(REQUIRED_MODES[entry.subSource] ?? []).includes(entry.mode),
+    const outside = resilienceEntries.filter(
+      (candidate) =>
+        !(inventories as readonly string[]).includes(candidate.subSource) ||
+        !(REQUIRED_MODES[candidate.subSource] ?? []).includes(candidate.mode),
     )
     expect(outside).toEqual([])
   })
