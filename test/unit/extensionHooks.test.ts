@@ -169,46 +169,18 @@ describe('parseSparkHooksConfig', () => {
     })
   })
 
-  it('names every built-in TeamAgentSwitch role id, hyphens included', () => {
+  it('names every valid TeamAgentSwitch role id: all built-ins plus hyphenated customs', () => {
+    const ids = [...TEAM_BUILTIN_ROLE_IDS, 'my-team-2']
     const parsed = parseSparkHooksConfig(
       spark({
-        TeamAgentSwitch: [
-          {
-            matcher: [...TEAM_BUILTIN_ROLE_IDS].join('|'),
-            hooks: [{ type: 'command', command: 's' }],
-          },
-        ],
+        TeamAgentSwitch: [{ matcher: ids.join('|'), hooks: [{ type: 'command', command: 's' }] }],
       }),
       'project',
       'linux',
     )
     expect(parsed.warnings).toEqual([])
     expect(parsed.hooks).toHaveLength(1)
-    expect(parsed.hooks[0]?.matcher).toEqual({
-      kind: 'exact',
-      names: new Set(TEAM_BUILTIN_ROLE_IDS),
-    })
-  })
-
-  it('matches hyphenated custom TeamAgentSwitch role ids', () => {
-    const parsed = parseSparkHooksConfig(
-      spark({
-        TeamAgentSwitch: [
-          {
-            matcher: 'code-review|my-team-2',
-            hooks: [{ type: 'command', command: 's' }],
-          },
-        ],
-      }),
-      'project',
-      'linux',
-    )
-    expect(parsed.warnings).toEqual([])
-    expect(parsed.hooks).toHaveLength(1)
-    expect(parsed.hooks[0]?.matcher).toEqual({
-      kind: 'exact',
-      names: new Set(['code-review', 'my-team-2']),
-    })
+    expect(parsed.hooks[0]?.matcher).toEqual({ kind: 'exact', names: new Set(ids) })
   })
 
   it('refuses a TeamAgentSwitch matcher no role id allows', () => {

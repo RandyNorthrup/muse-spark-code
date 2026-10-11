@@ -94,6 +94,15 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Hidden M96 team hook events (lane H review fixes): a `TeamAgentSwitch`
+  hook matcher now names every valid role id, including hyphenated ids
+  such as built-in `code-review` and custom role ids; an asynchronous
+  `TeamAgentSwitch` handler is refused at load because its dropped output
+  could never exhaust the role; and a team task's `working_copy_path`
+  reaches the wire with `/` separators on every platform. Nothing fires
+  these events yet; teams remain unavailable pending the milestone's
+  remaining bindings (lane X) and certification.
+
 - On macOS 26, a process that `ps` lists with an unknown state (`?`) while
   it changes no longer voids every resource tree's membership read, which
   could refuse Stop/kill for a tree while any process on the Mac was mid-transition.
