@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { once } from 'node:events'
 import type * as NodeFsPromises from 'node:fs/promises'
 import { mkdtemp, readdir, readFile, stat } from 'node:fs/promises'
 import { createServer, request, type IncomingHttpHeaders, type ServerResponse } from 'node:http'
@@ -122,9 +123,9 @@ async function serve(overrides: Partial<CompanionUploadOptions> = {}): Promise<v
     responses.push(response)
     void companionUpload(config(overrides))(req, response)
   })
-  await new Promise<void>((resolve) => {
-    server.listen(0, '127.0.0.1', resolve)
-  })
+  const listening = once(server, 'listening')
+  server.listen(0, '127.0.0.1')
+  await listening
   const address = server.address()
   if (address === null || typeof address === 'string') throw new Error('Missing test address')
   state.origin = `http://127.0.0.1:${String(address.port)}`

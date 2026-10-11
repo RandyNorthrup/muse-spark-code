@@ -206,6 +206,14 @@ function normalizeBodies(raw: readonly string[]): string[] {
   )
 }
 
+async function rejectedOutputRecord(cap: number): Promise<Awaited<ReturnType<typeof setup>>> {
+  const rig = await setup({ modelOutputMaxTokens: () => cap })
+  rig.api.script({ text: 'Never requested.' })
+  await send(rig)
+  expect(rig.api.responseBodies()).toHaveLength(0)
+  return rig
+}
+
 describe('M106 loop guarantees', () => {
   it('transfers both steering messages before a throwing reassignment listener and finishes queued work', async () => {
     const rig = await setup({ outputContinuation: () => false })
@@ -426,10 +434,7 @@ describe('M106 loop guarantees', () => {
 
   it('refuses stored Meta output caps below sixteen before dispatch', async () => {
     for (const cap of [0, 1, 15]) {
-      const rig = await setup({ modelOutputMaxTokens: () => cap })
-      rig.api.script({ text: 'Never requested.' })
-      await send(rig)
-      expect(rig.api.responseBodies()).toHaveLength(0)
+      const rig = await rejectedOutputRecord(cap)
       expect(rig.events).toContainEqual(
         expect.objectContaining({
           type: 'turnCompleted',
@@ -447,10 +452,7 @@ describe('M106 loop guarantees', () => {
 
   it('refuses invalid model output records before dispatch', async () => {
     for (const cap of [0, -1, 1.5, Infinity, NaN]) {
-      const rig = await setup({ modelOutputMaxTokens: () => cap })
-      rig.api.script({ text: 'Never requested.' })
-      await send(rig)
-      expect(rig.api.responseBodies()).toHaveLength(0)
+      const rig = await rejectedOutputRecord(cap)
       expect(
         rig.events.some(
           (event) =>

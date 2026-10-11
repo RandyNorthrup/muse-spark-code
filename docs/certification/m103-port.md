@@ -113,11 +113,54 @@ The two sides are accepted maker work and the 0.17.1 release respectively. Both 
 
 ## Verification
 
-In progress. The initial final-source pass reports five ESLint style errors (repaired without rule changes) and ten joined test clones at the unchanged zero threshold; their reruns are pending. All five typecheck projects, Prettier, knip, cycles, l10n, reference, roadmap, plan, host API, bundle split and host globals pass. Arduino product staging remains failing after two fixture repairs (current error: missing `dist/uiText.js` in the staged fixture); the lane’s two-fix stop rule applies. ACP stdio’s five Muse Code session cases fail in the existing Windows native created-registry `publish` helper before CLI startup; error details are retained in repair-09.json. No enforcement bypass or substitute native launcher was introduced. Commands and output receipts are under gitignored temp/portm103 while this record is finalized. Windows cycle roots, archive round-trips and browser constants: repair-10, 87 passed. Backend policy/account/reviewer: repair-06, 180 passed. Maker lease identity/protocol/skills: repair-05, 70 passed, 3 inherited platform-pending cases. Installer regressions: repair-09, all passed. No passing claim is made for a check not run. Dependencies installed with npm ci --ignore-scripts from the merged exact lockfile; no dependency added or repinned. npm ci reported 11 audit findings (2 low, 9 high); no audit-fix mutation. Hooks remain .husky/_.
+The real merge and first repair commit are saved with hooks on: 7748c4179342100100c348d337fa705a5121e424 and 1e57b1f84a5993e8a989613f378282b87a6c5879. Each hook runs the repository's original lint-staged tasks and gitleaks; both commits passed. Final all-project typechecking passed again after fixture consolidation.
+
+Direct Windows owning-suite receipts cover 95 files: 4,818 passed, 10 failed, 12 inherited platform skips. No new skip or filter, raised deadline, live/paid call, emulator asset session or hardware session. The twelve skips are six POSIX emulator cases, three POSIX lease/socket identity cases, one legacy POSIX Stop endpoint case and two POSIX linked-image filesystem cases. Fresh macOS/native/editor/device qualification is not claimed.
+
+The joined duplication gate failed with ten clones, then one, then passed with zero. Shared fixture setup and the two epoch cases retain every original assertion and distinct test case. Full reruns: dup-01, 807 passed (budget, loop, upload); dup-02, 124 passed (maker host, commands, transport); dup-03, 49 passed, one inherited POSIX skip (Stop, settings, Arduino host). Original names/counts are unchanged in each previously measured affected suite. Final transport style rerun: 50 passed. Final all-project typecheck, fixture ESLint, knip, cycles, duplication, bundle split and host globals passed again. The resource-policy injection regression now passes at its unchanged named deadline; successful split-check runs still perform all checks. Its first final standalone run passed in 2.8 seconds.
+
+Dependencies installed with npm ci --ignore-scripts from the merged exact lockfile; no dependency added or repinned. npm ci reported 11 audit findings (2 low, 9 high); no audit-fix mutation. Hooks remain .husky/_.
+
+| Gate                                                                             | Result                                                                                                      | Receipt                                               |
+| -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| All five typecheck projects                                                      | PASS, repeated after fixture consolidation                                                                  | typecheck-close.log                                   |
+| Scoped ESLint                                                                    | PASS after five style fixes and first repair hook; all consolidated fixtures and transport style rerun pass | lint-repair.log / lint-close.log / transport-lint.log |
+| Scoped Prettier                                                                  | PASS; final record formatted and checked                                                                    | prettier-close.log                                    |
+| knip (plain)                                                                     | PASS                                                                                                        | deadcode-close.log                                    |
+| dpdm cycle detection                                                             | PASS                                                                                                        | cycles-close.log                                      |
+| Duplication                                                                      | PASS, 0 clones; no threshold/ignore changes                                                                 | duplication-close.log                                 |
+| Localization                                                                     | PASS: 14 UI, 14 usage, 252 manifest strings, 1,620 source files                                             | gate-l10n.log                                         |
+| Reference                                                                        | PASS: 78 features, 71 commands, 100 settings, 29 slash, 267 CLI                                             | gate-reference.log                                    |
+| Roadmap and plan                                                                 | PASS, 216 milestones                                                                                        | roadmap-close.log / plan-close.log                    |
+| Host API                                                                         | PASS: 391 VS Code APIs, 53 importers, 30 Node built-ins, 71 theme variables                                 | gate-host-api.log                                     |
+| Bundle split and host globals                                                    | PASS                                                                                                        | split-close.log / globals-close.log                   |
+| Production build/size                                                            | FAIL: Model API 376 B over its unchanged cap                                                                | build-final.log                                       |
+| Owning unit/e2e files                                                            | FAIL: ten cases in four files, listed below                                                                 | final-tests.json                                      |
+| Aggregate quality/coverage/a11y, installed-editor/package/platform qualification | SKIPPED here: common rig instructions delegate aggregate runs; native/device/editor receipts remain open    | Lead qualification required                           |
+
+| Remaining failing file            | Failed cases | Reason                                                             |
+| --------------------------------- | -----------: | ------------------------------------------------------------------ |
+| test/unit/arduinoBuild.test.mjs   |            1 | Incomplete staged English fixture after the two allowed repairs    |
+| test/unit/deferredBundles.test.ts |            2 | Model API review pin and the size probe it blocks                  |
+| test/e2e/acpStdio.e2e.test.ts     |            5 | Windows native created-registry publish refusal before CLI startup |
+| test/unit/webviewBundle.test.mjs  |            2 | Startup review pin and the provider-pacing split-check deadline    |
+
+Failing or skipped is never reported as passing. All logs are under gitignored temp/portm103; the tracked summary retains their relevant tails:
+
+```text
+Arduino product staging: ENOENT: .../dist/vsix-package/dist/uiText.js
+ACP stdio: RequestError: Internal error; Windows MuseSparkCreated::Execute('publish', ...)
+Deferred Model API budget: expected 537976 to be <= 530883
+Legal-scan size probe: blocked by the same Model API size failure
+Startup review pin: expected 763427 to be <= 761548.8
+Provider-pacing split check: Test timed out in 20000ms
+```
+
+Arduino staging still fails after two fixture repairs; the brief's stop rule applies. Five ACP stdio Muse Code session cases fail in the release's existing native created-registry publication helper before fake CLI startup; native ownership checks are intact. Model API and startup size paths stop after the two recorded approaches without changing limits. The final one-file webview rerun (dup-04: 63 passed, 2 failed) still hits the provider-pacing deadline; no timeout override or test weakening. Standalone split validation passes.
 
 ## Final bundle measurements
 
-Production build-5: all measured bundle caps pass except Model API. The strict first-paint unit pin still fails. No existing cap changes.
+Final production build: all measured bundle caps pass except Model API. The strict first-paint unit pin still fails. No existing cap changes.
 
 | Artifact               |      Measured KiB |                                             Cap KiB | Result                               |
 | ---------------------- | ----------------: | --------------------------------------------------: | ------------------------------------ |
@@ -160,6 +203,10 @@ bundle size budget exceeded or a bundle is missing; see PLAN.md section 2 (D6)
 | Keep unrelated integer-product declarations                | hardwareBrowserText.test.mjs  | Failed new browser constants regression   | SHA-256 identical |
 
 Each uses repository deadlines, whole files and at most three workers. The shared-contract cap's one-byte-over fixture also returns failure. ACP help/attendance, namespace parsing, installer rollback, Windows notice paths, vault migration, and native entry-refusal regressions were observed failing before their repairs.
+
+## Additional fixture reconciliation
+
+The unchanged duplication gate exposed joined fixtures in `companionUpload.test.ts`, `modelApiHost.test.ts`, `modelApiLoopGuarantees.test.ts`, `runtimeMakerHost.test.ts`, `runtimeMakerCommands.test.ts`, `runtimeMakerTransport.test.ts` and `runtimeMakerStop.test.ts`. Reuse HTTP response/review/grant setup, native identity environment and existing bounded cleanup; retain all budget, epoch, approval and cancellation assertions and every old case title. This changes no product behavior or qualification.
 
 ## Ordered switch-on prerequisites
 

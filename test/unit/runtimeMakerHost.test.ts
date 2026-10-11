@@ -415,25 +415,13 @@ describe('runtime maker host', () => {
       expect(host.answer(answer, fresh)).toBe(true)
       expect(engine.answer(await pending)).toBeDefined()
     })
-    it('editor ask: an answer resolving after a new document settles reject without prompting', async () => {
-      const asked = Promise.withResolvers<unknown>()
-      const { host, deps } = await fixture({ ask: () => asked.promise })
-      await host.setHardware(true, 'bench')
-      const snapshot = { ...request(), expiresAt: Date.now() + 30_000 }
-      const engine = new MakerApproval(snapshot, () => host.hardwareEnabled())
-      const pending = host.confirm(snapshot, (raw) => engine.review(raw))
-      host.newDocument()
-      asked.resolve({
-        id: snapshot.id,
-        digest: snapshot.digest,
-        target: snapshot.target,
-        decision: 'allow_once',
-      })
-      expect(await pending).toMatchObject({ id: snapshot.id, decision: 'reject_once' })
-      expect(engine.answer(await pending)).toBeUndefined()
-      expect(deps.presence.check).toHaveBeenCalledTimes(1)
-    })
-    it('RVM103W4 P3 no consumer can restore an old epoch; only newDocument advances it', async () => {
+    it.each([
+      [
+        'editor ask: an answer resolving after a new document settles reject without prompting',
+        false,
+      ],
+      ['RVM103W4 P3 no consumer can restore an old epoch; only newDocument advances it', true],
+    ] as const)('%s', async (_name, checksReadonlyEpoch) => {
       const asked = Promise.withResolvers<unknown>()
       const { host, deps } = await fixture({ ask: () => asked.promise })
       await host.setHardware(true, 'bench')
@@ -442,12 +430,14 @@ describe('runtime maker host', () => {
       const pending = host.confirm(snapshot, (raw) => engine.review(raw))
       const saved = host.epoch
       host.newDocument()
-      expect(host.epoch).toBe(saved + 1)
-      expect(() => {
-        // @ts-expect-error -- RVM103W4 P3: the epoch is read-only; this restore must not compile.
-        host.epoch = saved
-      }).toThrow(TypeError)
-      expect(host.epoch).toBe(saved + 1)
+      if (checksReadonlyEpoch) {
+        expect(host.epoch).toBe(saved + 1)
+        expect(() => {
+          // @ts-expect-error -- RVM103W4 P3: the epoch is read-only; this restore must not compile.
+          host.epoch = saved
+        }).toThrow(TypeError)
+        expect(host.epoch).toBe(saved + 1)
+      }
       asked.resolve({
         id: snapshot.id,
         digest: snapshot.digest,
