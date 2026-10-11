@@ -133,6 +133,39 @@ describe('playbook source', () => {
     expect(sectionById(result.data, 'playbook/disabledRules').rows).toHaveLength(1)
   })
 
+  it('lists one switched-off rule once however many later notes repeat it', async () => {
+    const settings = journal.find(
+      (record) =>
+        typeof record === 'object' &&
+        record !== null &&
+        (record as { kind: unknown }).kind === 'settings',
+    )
+    // Production `note()` stamps every acknowledgement with its own time,
+    // so each repeat below carries a distinct stamp like the forged shape
+    // the earlier test misses.
+    const acknowledgements = Array.from({ length: 12 }, (_, index) => ({
+      kind: 'note',
+      value: {
+        rule: 'loudFailures',
+        code: 'ruleDisabled',
+        actor: 'lead',
+        reason: 'Too noisy',
+        at: 7000 + index,
+        needsUser: false,
+      },
+    }))
+    const records: readonly unknown[] = [...journal, settings, ...acknowledgements]
+    const result = await playbookSource(reader(records), scrub).read(context())
+    expect(result.record.status).toBe('ok')
+    const rows = sectionById(result.data, 'playbook/disabledRules').rows
+    expect(rows).toHaveLength(1)
+    // The row keeps the switch-off itself, not a later acknowledgement.
+    expect(rows[0]!.cells['date']).toEqual({
+      type: 'timestamp',
+      value: '1970-01-01T00:00:06.000Z',
+    })
+  })
+
   it('heads the receipts section with what the journal holds', async () => {
     const result = await playbookSource(reader(journal), scrub).read(context())
     expect(sectionById(result.data, 'playbook/drills').label).toBe('hookVerification')

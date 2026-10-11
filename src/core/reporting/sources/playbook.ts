@@ -52,10 +52,13 @@ function project(records: readonly PlaybookRecord[]): PlaybookView {
   const drills: PlaybookDrillView[] = []
   const disabledRules: PlaybookDisabledRuleView[] = []
   const refusals: PlaybookRefusalView[] = []
-  // Every settings save snapshots every switched-off rule, and switching a
-  // rule off also journals a `ruleDisabled` note, so one switch would fill
-  // the section with copies of itself and hide a second disabled rule past
-  // the row cap. Rows that share rule, actor, reason and stamp are one fact.
+  // Every settings save snapshots every switched-off rule, and every later
+  // policy acknowledgement journals another `ruleDisabled` note stamped with
+  // its own time, so one switch would fill the section with copies of
+  // itself and hide a second disabled rule past the row cap. One
+  // switched-off rule is one row, however many snapshots and notes repeat
+  // it: rows are keyed by rule identity and keep the earliest record (the
+  // switch-off itself, which precedes its acknowledgements in the journal).
   const seenDisabled = new Set<string>()
   for (const record of records)
     projectRecord(record, { designs, drills, disabledRules, refusals, seenDisabled })
@@ -66,7 +69,7 @@ function pushDisabledRule(
   sink: { disabledRules: PlaybookDisabledRuleView[]; seenDisabled: Set<string> },
   entry: PlaybookDisabledRuleView,
 ): void {
-  const identity = JSON.stringify([entry.rule, entry.actor, entry.reason, entry.at])
+  const identity = entry.rule
   if (sink.seenDisabled.has(identity)) return
   sink.seenDisabled.add(identity)
   sink.disabledRules.push(entry)

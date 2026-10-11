@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { compare } from '../../src/core/reporting/collect/common'
 import { schedulesSections, type SchedulesView } from '../../src/core/reporting/collect/schedules'
 import { scheduleFireRecordSchema, scheduleV2Schema } from '../../src/shared/scheduleV2'
 import { collectFixture, fullSnapshot, getSection } from './helpers/reporting/collect'
@@ -23,6 +24,9 @@ const entry = (
 ): SchedulesView['schedules'][number] => ({
   schedule: schedule(overrides),
   triggerText: 'every 3600000 ms',
+  targetText: 'New conversation each fire: modelApi',
+  deliveryText: 'New conversation',
+  creatorText: undefined,
   grantText: '0 rules, 0 destinations, cap 0',
   nextFireIso: iso,
 })
@@ -79,13 +83,31 @@ describe('schedules sections', () => {
         .cells
     expect(byName('Morning build')).toMatchObject({
       trigger: { type: 'text', value: 'every 3600000 ms' },
-      target: { type: 'text', value: 'newConversation:modelApi' },
-      delivery: { type: 'text', value: 'newConversation' },
+      target: { type: 'text', value: 'New conversation each fire: modelApi' },
+      delivery: { type: 'text', value: 'New conversation' },
       grant: { type: 'text', value: '0 rules, 0 destinations, cap 0' },
       creator: { type: 'label', value: 'user' },
       status: { type: 'label', value: 'active' },
     })
     expect(byName('Paused job')['status']).toEqual({ type: 'label', value: 'paused' })
+  })
+
+  it('reads an agent creator through its pre-rendered label and id', () => {
+    const agent: SchedulesView = {
+      schedules: [
+        {
+          ...entry({
+            id: 'agent-job',
+            name: 'Agent job',
+            creator: { kind: 'agent', agentId: 'agent-1', sessionId: 's1', orchestratorId: 'o1' },
+          }),
+          creatorText: 'Creator: agent-1',
+        },
+      ],
+      fires: [],
+    }
+    const rows = schedulesSections(agent, reportOptions('schedules'))[1]!.rows
+    expect(rows[0]!.cells['creator']).toEqual({ type: 'text', value: 'Creator: agent-1' })
   })
 
   it('keeps a paused schedule out of the timeline and collision lists', () => {
@@ -103,6 +125,91 @@ describe('schedules sections', () => {
     expect(timeline.rows[0]!.cells['collision']).toEqual({ type: 'text', value: '' })
     // The paused twin stays visible in the schedules table, never dropped.
     expect(sections[1]!.rows).toHaveLength(2)
+  })
+
+  it('gives every scheduler and store status its honest row or omission', () => {
+    // `options.asOf` is the report's own stamp (2026-10-06), never the
+    // clock: an `end.atMs` of 1500 is long past, so the ended rows below
+    // stay ended on every machine.
+    const eventTrigger = {
+      kind: 'event',
+      source: 'github',
+      event: 'pullRequestOpened',
+      conditions: [],
+    }
+    const statuses: SchedulesView = {
+      schedules: [
+        entry({ id: 'live', name: 'Live interval' }),
+        entry({ id: 'paused-ended', name: 'Paused past end', paused: true, end: { atMs: 1500 } }),
+        entry({
+          id: 'spent',
+          name: 'Spent runs',
+          end: { afterRuns: 1 },
+          fireCount: 1,
+          nextFireAtMs: 2000,
+        }),
+        entry({
+          id: 'past-end',
+          name: 'Past end date',
+          end: { atMs: 1500 },
+          nextFireAtMs: 2000,
+        }),
+        entry({
+          id: 'one-shot-done',
+          name: 'One-shot fired',
+          trigger: { kind: 'once', atMs: 1000 },
+          nextFireAtMs: undefined,
+          fireCount: 1,
+        }),
+        entry({
+          id: 'one-shot-armed',
+          name: 'One-shot armed',
+          trigger: { kind: 'once', atMs: 2000 },
+          nextFireAtMs: 2000,
+        }),
+        entry({
+          id: 'event-armed',
+          name: 'Event armed',
+          trigger: eventTrigger,
+          nextFireAtMs: undefined,
+        }),
+        entry({
+          id: 'event-stored-time',
+          name: 'Event with stored time',
+          trigger: eventTrigger,
+          nextFireAtMs: 2000,
+        }),
+        entry({
+          id: 'after-event-stored-time',
+          name: 'After-event with stored time',
+          trigger: { kind: 'afterEvent', event: eventTrigger, time: { kind: 'once', atMs: 2000 } },
+          nextFireAtMs: 2000,
+        }),
+      ],
+      fires: [],
+    }
+    const sections = schedulesSections(statuses, reportOptions('schedules'))
+    const rows = sections[1]!.rows
+    const statusOf = (name: string) =>
+      rows.find((row) => row.cells['name']?.type === 'text' && row.cells['name'].value === name)!
+        .cells['status']
+    expect(statusOf('Live interval')).toEqual({ type: 'label', value: 'active' })
+    // Paused wins over ended: the schedule is switched off, not due.
+    expect(statusOf('Paused past end')).toEqual({ type: 'label', value: 'paused' })
+    expect(statusOf('Spent runs')).toEqual({ type: 'label', value: 'ended' })
+    expect(statusOf('Past end date')).toEqual({ type: 'label', value: 'ended' })
+    expect(statusOf('One-shot fired')).toEqual({ type: 'label', value: 'complete' })
+    expect(statusOf('One-shot armed')).toEqual({ type: 'label', value: 'active' })
+    expect(statusOf('Event armed')).toEqual({ type: 'label', value: 'active' })
+    expect(statusOf('Event with stored time')).toEqual({ type: 'label', value: 'active' })
+    expect(statusOf('After-event with stored time')).toEqual({ type: 'label', value: 'active' })
+    // Only the two armed time triggers are upcoming fires: the scheduler
+    // will not run an ended or paused schedule, a fired one-shot, or any
+    // event trigger at its stored time.
+    const timeline = sections[0]!.rows
+      .map((row) => (row.cells['name']?.type === 'text' ? row.cells['name'].value : ''))
+      .toSorted(compare)
+    expect(timeline).toEqual(['Live interval', 'One-shot armed'])
   })
 
   it('lists refused fires with their refused actions and summed cost', () => {

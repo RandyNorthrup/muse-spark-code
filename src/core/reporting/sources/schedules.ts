@@ -33,8 +33,8 @@ export interface SchedulesReportReader {
  * Trigger and grant prose in the installed language, read here (after the
  * input bundle installs the caller's table) so the pure collector never
  * touches the text table — like dates, which arrive pre-rendered.
- * Technical details spliced after a label (`on src:event`, a cron
- * expression, an agent id) stay as they came.
+ * Technical details spliced after a label (a trigger's `source:event`, a
+ * target or creator id, a cron expression) stay as they came.
  */
 export function triggerText(schedule: ScheduleV2): string {
   const trigger = schedule.trigger
@@ -62,12 +62,58 @@ export function triggerText(schedule: ScheduleV2): string {
       return trigger.expression
     }
     case 'event': {
-      return `on ${trigger.source}:${trigger.event}`
+      return `${UI_TEXT.scheduleV2.triggers.event}: ${trigger.source}:${trigger.event}`
     }
     case 'afterEvent': {
-      return `after ${trigger.event.source}:${trigger.event.event}`
+      return `${UI_TEXT.scheduleV2.triggers.afterEvent}: ${trigger.event.source}:${trigger.event.event}`
     }
   }
+}
+
+/**
+ * Target prose in the installed language: the translated target word with
+ * the technical id spliced after it (`Label: detail` over a session, worker,
+ * role, team or node id), like dates arrive pre-rendered.
+ */
+export function targetText(schedule: ScheduleV2): string {
+  const words = UI_TEXT.scheduleV2.targets
+  const target = schedule.target
+  switch (target.kind) {
+    case 'conversation': {
+      return `${words.conversation}: ${target.sessionId}`
+    }
+    case 'newConversation': {
+      return `${words.newConversation}: ${target.backend}`
+    }
+    case 'worker': {
+      return `${words.worker}: ${target.workerId}`
+    }
+    case 'role': {
+      return `${words.role}: ${target.teamId}/${target.roleId}`
+    }
+    case 'team': {
+      return `${words.team}: ${target.teamId}`
+    }
+    case 'node': {
+      return `${words.node}: ${target.nodeId}`
+    }
+  }
+}
+
+/** Delivery prose in the installed language, read at use time. */
+export function deliveryText(schedule: ScheduleV2): string {
+  return UI_TEXT.scheduleV2.delivery[schedule.delivery]
+}
+
+/**
+ * Agent-creator prose in the installed language: the translated creator
+ * word with the technical agent id spliced after it. A user creator reads
+ * as the `user` label, so this is `undefined` for one.
+ */
+export function creatorText(schedule: ScheduleV2): string | undefined {
+  return schedule.creator.kind === 'user'
+    ? undefined
+    : `${UI_TEXT.scheduleV2.labels.creator}: ${schedule.creator.agentId}`
 }
 
 export function grantText(schedule: ScheduleV2): string {
@@ -100,6 +146,9 @@ export function schedulesSource(reader: SchedulesReportReader | undefined, scrub
           .map((schedule) => ({
             schedule,
             triggerText: triggerText(schedule),
+            targetText: targetText(schedule),
+            deliveryText: deliveryText(schedule),
+            creatorText: creatorText(schedule),
             grantText: grantText(schedule),
             nextFireIso:
               schedule.nextFireAtMs === undefined ? undefined : isoDateMs(schedule.nextFireAtMs),
