@@ -278,7 +278,10 @@ export function createEstimateReportReader(input: {
   return {
     read: async (request, context) => {
       const section = await input.run(request, context.signal)
-      return { section, observedAt: new Date().toISOString() }
+      // The observation is the request's own validated stamp, never the
+      // wall clock: the same generation seals the same bytes, and the
+      // source reads fresh at age zero instead of unknown.
+      return { section, observedAt: request.asOf }
     },
   }
 }

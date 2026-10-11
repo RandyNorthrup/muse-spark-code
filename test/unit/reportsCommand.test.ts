@@ -69,7 +69,7 @@ describe('M113 CLI routing and parsing', () => {
     expect(
       parseReportsArguments(['estimate', 'finish M113', '--by', '2026-11-01', '--fleet', 'optimum'])
         .options,
-    ).toMatchObject({ deadline: '2026-11-01T23:59:59+00:00', fleet: 'optimum' })
+    ).toMatchObject({ deadline: '2026-11-01T00:00:00.000Z', fleet: 'optimum' })
     expect(parseReportsArguments(['issues', '--repo', 'owner/project']).options.scope).toBe(
       'owner/project',
     )
@@ -107,6 +107,8 @@ describe('M113 CLI routing and parsing', () => {
       ['project', '--from', 'x.json', '--as-of', REPORT_AS_OF],
       ['history', '--diff', 'previous'],
       ['history', '--format', 'html'],
+      ['estimate', 'M113', '--by', 'not-a-date'],
+      ['estimate', 'M113', '--by', '2026-13-01'],
     ])
       expect(() => parseReportsArguments(args), args.join(' ')).toThrow()
   })

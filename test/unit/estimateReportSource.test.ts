@@ -177,26 +177,29 @@ describe('estimate report source', () => {
     expect(result.data).toBeNull()
   })
 
-  it('E7 reports a missing run as failed, never empty success', async () => {
+  it('E7 reports a missing run as failed with the estimator fallback, never empty success', async () => {
     const result = await estimateSource({ read: () => Promise.resolve(null) }, scrub).read(
       estimateContext(),
     )
     expect(result.record.status).toBe('unavailable')
-    expect(result.record.reason).toBe(UI_TEXT.reportSourceReasons.failed)
+    expect(result.record.reason).toBe('Estimate failed: estimate-unavailable')
     expect(result.data).toBeNull()
   })
 
-  it('E8 reports a refused engine run as failed without inventing rows', async () => {
+  it('E8 reports a refused engine run as failed with its typed reason', async () => {
+    const refusal = Object.assign(new Error('Estimate failed: missing-estimate: M117:C-M117-9'), {
+      estimateDiagnostic: 'missing-estimate: M117:C-M117-9',
+    })
     const result = await estimateSource(
       {
         read: () => {
-          throw new Error('missing-estimate: M117:C-M117-9')
+          throw refusal
         },
       },
       scrub,
     ).read(estimateContext())
     expect(result.record.status).toBe('unavailable')
-    expect(result.record.reason).toBe(UI_TEXT.reportSourceReasons.failed)
+    expect(result.record.reason).toBe('Estimate failed: missing-estimate: M117:C-M117-9')
     expect(result.data).toBeNull()
   })
 
@@ -215,6 +218,126 @@ describe('estimate report source', () => {
     expect(result.record.status).toBe('partial')
     expect(result.record.reason).toBe('[redacted] note')
     expect(result.data).not.toBeNull()
+  })
+
+  it('E15 names every refusal the estimator can return instead of the generic sentence', async () => {
+    const typed = (diagnostic: string): Error =>
+      Object.assign(new Error(`Estimate failed: ${diagnostic}`), {
+        estimateDiagnostic: diagnostic,
+      })
+    const refusals: readonly (readonly [name: string, error: Error, reason: string])[] = [
+      [
+        'snapshot missing hours',
+        typed('missing-estimate: M117:C-M117-9'),
+        'Estimate failed: missing-estimate: M117:C-M117-9',
+      ],
+      ['unknown goal', typed('unknown-goal: M999'), 'Estimate failed: unknown-goal: M999'],
+      [
+        'unknown prerequisite',
+        typed('unknown-prerequisite: M117:zzz'),
+        'Estimate failed: unknown-prerequisite: M117:zzz',
+      ],
+      [
+        'unknown release member',
+        typed('unknown-release-member: M117'),
+        'Estimate failed: unknown-release-member: M117',
+      ],
+      [
+        'unknown rig',
+        typed('unknown-rig: M117:x:kubuntu2'),
+        'Estimate failed: unknown-rig: M117:x:kubuntu2',
+      ],
+      [
+        'duplicate lane',
+        typed('duplicate-lane: M117:x'),
+        'Estimate failed: duplicate-lane: M117:x',
+      ],
+      [
+        'malformed starts',
+        typed('malformed-starts: M117:x line 12'),
+        'Estimate failed: malformed-starts: M117:x line 12',
+      ],
+      ['missing plan', typed('missing-plan: PLAN.md'), 'Estimate failed: missing-plan: PLAN.md'],
+      [
+        'missing associations',
+        typed('missing-associations: milestone'),
+        'Estimate failed: missing-associations: milestone',
+      ],
+      [
+        'source unavailable',
+        typed('source-unavailable: pull-requests'),
+        'Estimate failed: source-unavailable: pull-requests',
+      ],
+      [
+        'source incomplete',
+        typed('source-incomplete: branches'),
+        'Estimate failed: source-incomplete: branches',
+      ],
+      ['invalid lane', typed('invalid-lane: M117:x'), 'Estimate failed: invalid-lane: M117:x'],
+      ['plan drift', typed('plan-drift: M117'), 'Estimate failed: plan-drift: M117'],
+      ['lane limit', typed('lane-limit'), 'Estimate failed: lane-limit'],
+      [
+        'refusal secret scrubbed',
+        typed('unknown-prerequisite: M117:private-canary'),
+        'Estimate failed: unknown-prerequisite: M117:[redacted]',
+      ],
+      [
+        'engine no feasible setup',
+        new Error('Estimate failed: no-feasible-setup'),
+        'Estimate failed: no-feasible-setup',
+      ],
+      [
+        'engine missing fit',
+        new Error('Estimate failed: missing-fit'),
+        'Estimate failed: missing-fit',
+      ],
+      [
+        'schedule unschedulable',
+        new Error('Estimate failed: unschedulable:M117:x'),
+        'Estimate failed: unschedulable:M117:x',
+      ],
+      ['no fleet capacity', new Error(UI_TEXT.estimateNoCapacity), UI_TEXT.estimateNoCapacity],
+      [
+        'goal not found',
+        new Error('Goal not found: {"kind":"milestone"}'),
+        'Goal not found: {"kind":"milestone"}',
+      ],
+      ['unshaped failure stays generic', new Error('boom'), UI_TEXT.reportSourceReasons.failed],
+      [
+        'forged diagnostic stays generic',
+        Object.assign(new Error('nope'), { estimateDiagnostic: '../../etc/passwd' }),
+        UI_TEXT.reportSourceReasons.failed,
+      ],
+      [
+        'bare diagnostic text stays generic',
+        new Error('missing-estimate: M117:C-M117-9'),
+        UI_TEXT.reportSourceReasons.failed,
+      ],
+    ]
+    for (const [name, error, reason] of refusals) {
+      const result = await estimateSource(
+        {
+          read: () => {
+            throw error
+          },
+        },
+        scrub,
+      ).read(estimateContext())
+      expect(result.record.status, name).toBe('unavailable')
+      expect(result.record.reason, name).toBe(reason)
+      expect(result.data, name).toBeNull()
+    }
+  })
+
+  it('E16 stamps the run at the request instant, so the report reads fresh', async () => {
+    const section = fakeEstimate()
+    const result = await estimateSource(
+      { read: () => Promise.resolve({ section, observedAt: ESTIMATOR_AS_OF }) },
+      scrub,
+    ).read(estimateContext())
+    expect(result.record.status).toBe('ok')
+    expect(result.record.observedAt).toBe(ESTIMATOR_AS_OF)
+    expect(result.record.freshness).toEqual({ state: 'fresh', ageMs: 0 })
   })
 
   it('E10 orders content-addressed rows by key whatever order the engine lists them in', () => {
@@ -241,7 +364,7 @@ describe('estimate report inputs', () => {
     }
     const result = await createEstimateReportReader({ run }).read(request, context)
     expect(run).toHaveBeenCalledWith(request, context.signal)
-    expect(result).toEqual({ section, observedAt: expect.any(String) })
+    expect(result).toEqual({ section, observedAt: ESTIMATOR_AS_OF })
   })
 
   it('E12 propagates the engine failure instead of masking it', async () => {
