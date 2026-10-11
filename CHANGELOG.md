@@ -95,6 +95,10 @@ happened, not what was planned; superseded entries are kept.
   panel retry failed initialization safely. Export scrubbing recognizes OS
   usernames in paths and identity fields, preserving ordinary words and
   personal-prompt metadata even for usernames such as `user`, `admin` and `test`.
+  A scrubbed chat export whose text carries a username path segment (for
+  example `team/[user]/src/main.ts`) now releases instead of expiring its own
+  preview: every marker the scrub emits is atomic, so the confirmation
+  re-scrub is a fixed point.
 
 - On macOS 26, a process that `ps` lists with an unknown state (`?`) while
   it changes no longer voids every resource tree's membership read, which
