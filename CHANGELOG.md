@@ -32,6 +32,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- Legal scans reject restrictive holder/party text in pinned SPDX templates,
+  including Title Case, camelCase and multilingual variants, while recognizing
+  ordinary names such as Profit Inc. Coverage follows shipped dependencies,
+  exact license-text disagreements remain conflicts, build evidence survives
+  alphabetically earlier file-cap noise, and package versions remain visible
+  after email scrubbing. Exit documentation now agrees with blocker-only exit 1.
 - `@muse-code/sdk` moves from 1.4.2 to 1.4.4 (SDK144). Muse Code 1.4.4
   (1.4.4-R5419.1) serves the new pin's schema fingerprint, so it connects
   without a mismatch warning; a 1.4.2 host now logs one, as older hosts did

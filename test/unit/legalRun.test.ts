@@ -5,7 +5,7 @@
 
 import { describe, expect, it, vi } from 'vitest'
 import { createHash } from 'node:crypto'
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import {
@@ -420,6 +420,19 @@ describe('M97 legal run (lane R)', () => {
       expect(envelope.result.findings).toHaveLength(1)
     },
   )
+  it('documents the same complete-scan exit codes that the runtime returns (RVCM971C P3)', async () => {
+    for (const file of ['src/shared/constants.ts', 'src/runtime/legal/runLegal.ts']) {
+      const source = readFileSync(path.join(__dirname, '../..', file), 'utf8')
+      expect(source).toContain(
+        'Advice and should-fix findings alone exit 0; only blockers take exit 1.',
+      )
+    }
+    const { outcome } = await runJsonScan(
+      fakeScan(scanResult({ findings: [finding({ severity: 'should-fix' })] })),
+    )
+    expect(outcome.exitCode).toBe(LEGAL_EXIT.ok)
+  })
+
   it('exits 2 on incomplete coverage, even with blockers beside it', async () => {
     const context = deps({
       scan: fakeScan(

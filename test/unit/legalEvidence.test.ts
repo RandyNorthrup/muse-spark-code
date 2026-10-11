@@ -11,12 +11,34 @@ import { evaluateCompatibility } from '../../src/core/legal/compat'
 import { evaluateDependencyLicenses } from '../../src/core/legal/depLicenses'
 import { dependency } from '../../src/core/legal/dependencies'
 import { parseSpdxExpression, orAlternatives } from '../../src/core/legal/spdx'
+import { scrubLegalText } from '../../src/core/legal/files'
 import { scanLegal } from '../../src/core/legal/scan'
 import { scanHeaders } from '../../src/core/legal/headers'
 import { LEGAL_SCAN_PATHS_MAX, LEGAL_PATH_MAX_CHARS } from '../../src/shared/constants'
 import { snapshotFrom } from './legal/helpers'
 
 describe('legal evidence regressions', () => {
+  it.each([
+    'leftpad@1.3.0',
+    '@scope/pkg@1.2.3-beta.4',
+    'package@1.2.3+build.4',
+    'crate@v1.2.3',
+    'python@2.0',
+    'python@2.0rc1',
+    'python@2.0.dev4',
+    'gem@1.2.3.pre.2',
+  ])('preserves package coordinate %s while scrubbing real email', (coordinate) => {
+    expect(scrubLegalText(`${coordinate} contact owner@example.com`)).toBe(
+      `${coordinate} contact [redacted]`,
+    )
+    expect(scrubLegalText('1.2.3@example.com')).toBe('[redacted]')
+  })
+
+  it('retains email scrubbing for punycode and numeric address domains', () => {
+    for (const email of ['owner@example.xn--p1ai', 'owner@127.0.0.1', 'owner@1.2.dev'])
+      expect(scrubLegalText(email)).toBe('[redacted]')
+  })
+
   it('reports conflicting Maven and NuGet metadata instead of choosing one license', () => {
     const jvm = readJvm(
       snapshotFrom({

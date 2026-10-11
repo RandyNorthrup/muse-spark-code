@@ -2,8 +2,8 @@
 // the injected scanner, optionally enrich from the public registries, render
 // the report as text or JSON, and answer with the documented exit code:
 // 0 is a complete scan with no blockers, 1 a complete scan with blockers,
-// 2 incomplete coverage, bad input or an operational failure. Advice alone
-// never fails CI: only `blocker` and `should-fix` findings take exit 1.
+// 2 incomplete coverage, bad input or an operational failure.
+// Advice and should-fix findings alone exit 0; only blockers take exit 1.
 //
 // No backend, no auth, no model: every dependency (scan, fetch, file write)
 // is injected, so the tests pin the exit codes, the lane-0 contract shape,

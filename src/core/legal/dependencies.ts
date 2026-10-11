@@ -98,3 +98,15 @@ export function parseJson(text: string): unknown {
     return undefined
   }
 }
+
+/** Admission shared by ecosystem readers when distribution is known. */
+export type LegalDependencyAdmission = (dep: LegalDependency) => boolean
+
+/** Count evidence gaps only within the admitted dependency set. */
+export function countIncludedDependencies(
+  dependencies: readonly LegalDependency[],
+  isIncluded: LegalDependencyAdmission,
+  hasGap: LegalDependencyAdmission,
+): number {
+  return dependencies.filter((dep) => isIncluded(dep) && hasGap(dep)).length
+}

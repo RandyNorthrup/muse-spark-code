@@ -111,11 +111,11 @@ describe('SPDX template matching', () => {
       ),
       FULL_MIT_LICENSE.replace(
         MIT_COPYRIGHT,
-        'Copyright Joyent, Inc. and other Node contributors. All rights reserved.',
+        'Copyright Joyent, Inc. and other Node contributors, All rights reserved.',
       ),
       FULL_MIT_LICENSE.replace(
         MIT_COPYRIGHT,
-        'Copyright (c) 2014-2026 J. Doe\nCopyright (c) Example Ltd.',
+        'Copyright (c) 2014-2026 John Doe\nCopyright (c) Example Ltd.',
       ),
       FULL_MIT_LICENSE.split('\n')
         .map((line) => `// ${line}`)
@@ -146,6 +146,51 @@ describe('SPDX template matching', () => {
       expect(match?.differs?.span).not.toBe('')
     },
   )
+
+  it.each([
+    'Paying Customers Get Access.',
+    'ExampleNonprofit',
+    'examplenonprofit',
+    'NoncommercialUse',
+    'noncommercialuse',
+    'CommerciaL',
+    'LimitEd',
+    'PrivatE',
+    'non_commercial',
+    'Example_Nonprofit',
+    'ExamplePrivate',
+    'Example\u{301}\u{308}Private',
+    'EXAMPLE\u{301}\u{308}Private',
+    'ExampleMembers',
+    'ExampleКлиенты',
+    'Example非商业',
+    'Alpha Beta Gamma Delta Epsilon Zeta Eta Theta Iota',
+    'J. Doe',
+    'Example Mr.',
+    'Example Prof.',
+    'Example Access.',
+    'Example: Access',
+  ])('keeps the quoted MIT holder under review: %s', (holder) => {
+    const match = identifyLicenseText(
+      FULL_MIT_LICENSE.replace(MIT_COPYRIGHT, () => `Copyright 2026 ${holder}`),
+    )
+    expect(match?.exact).toBe(false)
+    expect(match?.differs?.span).toContain(holder)
+  })
+
+  it('allows Profit Inc. and company abbreviations, but rejects the compound Non Profit and No Starch Press', () => {
+    for (const holder of ['Profit Inc.', 'John Doe', 'Example S.A.']) {
+      const text = FULL_MIT_LICENSE.replace(MIT_COPYRIGHT, () => `Copyright 2026 ${holder}`)
+      expect(identifyLicenseText(text)?.exact, holder).toBe(true)
+      expect(scanProjectLicense(snapshotFrom({ LICENSE: text })).incomplete).toEqual([])
+    }
+    for (const holder of ['Example Non Profit', 'ExampleNonProfit', 'No Starch Press'])
+      expect(
+        identifyLicenseText(
+          FULL_MIT_LICENSE.replace(MIT_COPYRIGHT, () => `Copyright 2026 ${holder}`),
+        )?.exact,
+      ).toBe(false)
+  })
 
   it('ignores a title line written after the copyright line', () => {
     const text = FULL_MIT_LICENSE.replace(
@@ -233,29 +278,30 @@ describe('SPDX template matching', () => {
     }
   })
 
-  it.each(PINNED_TEMPLATE_IDS.map((id, index) => [id, index] as const))(
-    'never reads %s with an inserted restriction sentence as exact (property)',
-    (id, index) => {
+  it.each(
+    PINNED_TEMPLATE_IDS.flatMap((id, index) =>
+      [true, false].map((isKept) => ({ id, index, isKept })),
+    ),
+  )(
+    'never reads $id with an inserted restriction sentence as exact (optionals $isKept)',
+    ({ id, index, isKept }) => {
       const next = random(97 + index)
-      for (const isKept of [true, false]) {
-        const base = canonicalText(id, isKept)
-        const boundaries = sentenceBoundaries(base)
-        const pick = (): number => boundaries[Math.floor(next() * boundaries.length)] ?? 0
-        // The start, the end, sampled sentence starts and sampled word starts.
-        const offsets = [
-          0,
-          base.length,
-          ...Array.from({ length: 4 }, pick),
-          ...Array.from({ length: 4 }, () => Math.floor(next() * base.length)),
-        ]
-        for (const offset of offsets) {
-          const at = base.lastIndexOf(' ', offset - 1) + 1 || offset
-          const restriction = RESTRICTIONS[Math.floor(next() * RESTRICTIONS.length)] ?? ''
-          const text = `${base.slice(0, at)}${restriction} ${base.slice(at)}`
-          const reading = readLicenseText(text)
-          if (reading?.exact === true)
-            throw new Error(`${id} read as exact with "${restriction}" at ${String(at)}`)
-        }
+      const base = canonicalText(id, isKept)
+      const boundaries = sentenceBoundaries(base)
+      const pick = (): number => boundaries[Math.floor(next() * boundaries.length)] ?? 0
+      const offsets = [
+        0,
+        base.length,
+        ...Array.from({ length: 4 }, pick),
+        ...Array.from({ length: 4 }, () => Math.floor(next() * base.length)),
+      ]
+      for (const offset of offsets) {
+        const at = base.lastIndexOf(' ', offset - 1) + 1 || offset
+        const restriction = RESTRICTIONS[Math.floor(next() * RESTRICTIONS.length)] ?? ''
+        const text = `${base.slice(0, at)}${restriction} ${base.slice(at)}`
+        const reading = readLicenseText(text)
+        if (reading?.exact === true)
+          throw new Error(`${id} read as exact with "${restriction}" at ${String(at)}`)
       }
     },
   )

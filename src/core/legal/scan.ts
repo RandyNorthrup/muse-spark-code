@@ -397,7 +397,6 @@ function deriveDistribution(snapshot: LegalFileSnapshot): DistributionEvidence {
     ...(hasBundles && { bundleInputs: bundle.bundleInputs, bundles: bundle.bundles }),
     ...(packageFiles !== undefined && { packageFiles }),
     ...(vscodeignoreText !== undefined && { vscodeignoreText }),
-    notices: snapshotNotices(snapshot),
   }
 }
 
@@ -423,7 +422,23 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
 
   const sorted = snapshot.files.toSorted((a, b) => compareLegalText(a, b))
   const overCap = sorted.length - LEGAL_FILES_SCANNED_MAX
-  const allowed = new Set(overCap > 0 ? sorted.slice(0, LEGAL_FILES_SCANNED_MAX) : sorted)
+  // Root facts and build records precede general walk noise within the same cap.
+  const buildFacts = sorted.filter(
+    (file) => file.startsWith(LEGAL_META_DIR) || file.startsWith(LEGAL_META_HASHES_DIR),
+  )
+  const rootFacts = sorted.filter(
+    (file) =>
+      !file.includes('/') &&
+      (isLicenseFileName(file) ||
+        isNoticeFileName(file) ||
+        /^(?:README|package|npm-shrinkwrap|yarn|pnpm-lock|pyproject|requirements|setup|uv|poetry|Cargo|go|pom|build\.gradle|gradle\.lockfile|packages\.lock|project\.assets|composer|Gemfile|REUSE|\.vscodeignore)(?:[.-]|$)|\.(?:gemspec|nuspec|[cfv]sproj)$/iu.test(
+          file,
+        )),
+  )
+  const facts = [...buildFacts, ...rootFacts]
+  const priority = new Set(facts)
+  const admission = [...facts, ...sorted.filter((file) => !priority.has(file))]
+  const allowed = new Set(admission.slice(0, LEGAL_FILES_SCANNED_MAX))
   // The human-review caveat (M97 C-M97-1) is earned, not blanket: it is
   // added below only when a license text stayed heuristic or unrecognized,
   // an asset or source reference needs provenance, or dependency terms
@@ -434,7 +449,9 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
   const deadline = options.deadline ?? Date.now() + LEGAL_SCAN_TIMEOUT_MS
   let isTimedOut = false
   const bounded: LegalFileSnapshot = {
-    files: [...allowed].toSorted((a, b) => compareLegalText(a, b)),
+    get files() {
+      return [...allowed].toSorted((a, b) => compareLegalText(a, b))
+    },
     readFile: (path: string) => {
       if (options.signal?.aborted === true) throw new LegalScanError(UI_TEXT.legalScanner.m111)
       if (Date.now() >= deadline) {
@@ -485,6 +502,38 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
   // each shipped package. Test fixtures and other undistributed files stay
   // out; with distribution unknown, the whole workspace counts.
   const distributionEvidence = options.distribution ?? deriveDistribution(bounded)
+  // Once the bounded records name their material, reserve the remaining
+  // slots for that evidence before admitting the general walk. Never read
+  // outside the unchanged file/byte/deadline budgets.
+  const listedMaterial = [
+    ...(distributionEvidence.bundleInputs ?? []),
+    ...(distributionEvidence.bundles ?? []).flatMap((bundle) => [
+      ...bundle.inputs,
+      ...bundle.outputs,
+    ]),
+  ].map((file) => normalizeEvidencePath(file))
+  const packageRoots = new Set(
+    listedMaterial.flatMap((file) => {
+      const root = /^(.*node_modules\/(?:@[^/]+\/)?[^/]+\/)/u.exec(file)?.[1]
+      return root === undefined ? [] : [root]
+    }),
+  )
+  const packageFacts = sorted.filter((file) =>
+    [...packageRoots].some((root) => file.startsWith(root)),
+  )
+  const presentFiles = new Set(sorted)
+  const material = new Set([
+    ...cache.keys(),
+    ...buildFacts,
+    ...listedMaterial,
+    ...rootFacts,
+    ...packageFacts,
+  ])
+  const prioritized = [...material, ...sorted.filter((file) => !material.has(file))]
+    .filter((file) => presentFiles.has(file))
+    .slice(0, LEGAL_FILES_SCANNED_MAX)
+  allowed.clear()
+  for (const file of prioritized) allowed.add(file)
   const view = distributedView(bounded, distributionEvidence)
   // Header policy covers the project's own sources, never installed packages.
   const ownFiles = new Set(view.files.filter((file) => !file.includes(NODE_MODULES_SEGMENT)))
@@ -511,6 +560,7 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
   ]
   const dependencies: LegalDependency[] = []
   const manifests: ManifestLicenseDeclaration[] = []
+  const readerResults = []
   for (const reader of readers) {
     const result = reader(view)
     const remaining = LEGAL_DEPENDENCIES_MAX - dependencies.length
@@ -522,12 +572,7 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
       )
     dependencies.push(...result.dependencies.slice(0, remaining))
     manifests.push(...result.projectLicenses)
-    // An ecosystem with no manifests, locks or installed metadata has
-    // nothing to check: its absence is a complete observation, not
-    // incomplete coverage (M97 C-M97-1). Present-but-unresolvable notes
-    // (unresolved versions, missing licenses) pass through untouched and
-    // still fail the run toward exit 2.
-    incomplete.push(...result.incomplete.filter((entry) => !isAbsentEcosystemNote(entry)))
+    readerResults.push({ reader, result })
   }
 
   // Scan scope (lead ruling 2026-10-10): a workspace scan judges what the
@@ -536,11 +581,17 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
   // informational and never makes the scan incomplete. With distribution
   // unknown, every dependency is judged as if it ships.
   const preShipped = computeShipped(bounded, dependencies, distributionEvidence)
+  const observedReviewed = new Set<LegalDependency>()
   const isReviewed = (dep: LegalDependency): boolean =>
+    observedReviewed.has(dep) ||
     preShipped.shippedFiles === undefined ||
     preShipped.shippedDependencies.has(
       JSON.stringify([dep.ecosystem, dep.name, dep.version, dep.evidenceFile]),
     )
+  for (const { reader, result } of readerResults) {
+    const scoped = preShipped.shippedFiles === undefined ? result : reader(view, isReviewed)
+    incomplete.push(...scoped.incomplete.filter((entry) => !isAbsentEcosystemNote(entry)))
+  }
   const informational = new Set<string>()
   const observed: LegalDependency[] = []
   let hasUnrecognizedLicenseText = false
@@ -579,13 +630,15 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
         hasUnrecognizedLicenseText = true
         if (hasLicenseTextAgreement(dep.licenseRaw, match.id)) continue
       }
-      if (!hasLicenseTextAgreement(dep.licenseRaw, match.id))
-        observed.push({
-          ...dep,
-          licenseRaw: match.id,
-          evidenceFile: file,
-          evidenceSource: fill(UI_TEXT.legalScanner.m118, { v0: file }),
-        })
+      if (hasLicenseTextAgreement(dep.licenseRaw, match.id)) continue
+      const observation = {
+        ...dep,
+        licenseRaw: match.id,
+        evidenceFile: file,
+        evidenceSource: fill(UI_TEXT.legalScanner.m118, { v0: file }),
+      }
+      observed.push(observation)
+      observedReviewed.add(observation)
     }
   }
   dependencies.push(...observed)

@@ -1,6 +1,6 @@
 import { fill, plural } from '../../../shared/l10n/text'
 import { UI_TEXT } from '../../../shared/constants'
-import type { InstalledLicenseMetadata } from '../dependencies'
+
 import { LEGAL_HEADER_LINE_WINDOW } from '../../../shared/constants'
 import { compareLegalText } from '../files'
 // npm, pnpm and Yarn evidence (M97, PLAN.md D76): `package.json`
@@ -14,7 +14,14 @@ import type {
   LegalDependencyScope,
   ManifestLicenseDeclaration,
 } from '../dependencies'
-import { dependency, parseJson, recordOf } from '../dependencies'
+import {
+  dependency,
+  parseJson,
+  recordOf,
+  countIncludedDependencies,
+  type InstalledLicenseMetadata,
+  type LegalDependencyAdmission,
+} from '../dependencies'
 import type { LegalFileSnapshot } from '../files'
 import { baseNameOf, dirNameOf } from '../files'
 
@@ -288,7 +295,11 @@ function licenseFieldOf(manifest: Record<string, unknown>): string | undefined {
  * without a resolving lock, and lock entries without license or installed
  * metadata, become `not checked` coverage entries, never silent gaps.
  */
-export function readNpm(snapshot: LegalFileSnapshot): EcosystemResult {
+export function readNpm(
+  snapshot: LegalFileSnapshot,
+  isDependencyIncluded?: LegalDependencyAdmission,
+): EcosystemResult {
+  const isIncluded = isDependencyIncluded ?? (() => true)
   const incomplete: string[] = []
   const manifests: LegalDependency[] = []
   const projectLicenses: ManifestLicenseDeclaration[] = []
@@ -353,11 +364,6 @@ export function readNpm(snapshot: LegalFileSnapshot): EcosystemResult {
     const entries = readYarnLock(snapshot, file)
     retainEntries(entries, file)
     if (entries.length === 0) incomplete.push(fill(UI_TEXT.legalScanner.m175, { v0: file }))
-    if (entries.length > 0) {
-      incomplete.push(
-        plural(UI_TEXT.legalScanner.m176, entries.length, { v0: file, v1: entries.length }),
-      )
-    }
   }
 
   const listed9 = snapshot.files
@@ -370,14 +376,6 @@ export function readNpm(snapshot: LegalFileSnapshot): EcosystemResult {
       continue
     }
     retainEntries(dependencies, file)
-    if (dependencies.length > 0) {
-      incomplete.push(
-        plural(UI_TEXT.legalScanner.m176, dependencies.length, {
-          v0: file,
-          v1: dependencies.length,
-        }),
-      )
-    }
   }
 
   const installed = readInstalled(snapshot)
@@ -409,14 +407,15 @@ export function readNpm(snapshot: LegalFileSnapshot): EcosystemResult {
             licenseRaw: present.licenseRaw,
           }),
         )
-        incomplete.push(
-          fill(UI_TEXT.legalScanner.m178, {
-            v0: dep.name,
-            v1: dep.version ?? '',
-            v2: dep.evidenceFile,
-            v3: present.file,
-          }),
-        )
+        if (isIncluded(dep))
+          incomplete.push(
+            fill(UI_TEXT.legalScanner.m178, {
+              v0: dep.name,
+              v1: dep.version ?? '',
+              v2: dep.evidenceFile,
+              v3: present.file,
+            }),
+          )
       }
     }
   }
@@ -439,7 +438,20 @@ export function readNpm(snapshot: LegalFileSnapshot): EcosystemResult {
     }
   }
 
-  const unresolved = manifests.filter((dep) => !lockedNames.has(dep.name)).length
+  for (const file of [...listed8, ...listed9]) {
+    const missing = countIncludedDependencies(
+      dependencies,
+      isIncluded,
+      (dep) => dep.evidenceFile === file && dep.licenseRaw === undefined,
+    )
+    if (missing > 0)
+      incomplete.push(plural(UI_TEXT.legalScanner.m176, missing, { v0: file, v1: missing }))
+  }
+  const unresolved = countIncludedDependencies(
+    manifests,
+    isIncluded,
+    (dep) => !lockedNames.has(dep.name),
+  )
   if (unresolved > 0) {
     incomplete.push(plural(UI_TEXT.legalScanner.m179, unresolved, { v0: unresolved }))
   }

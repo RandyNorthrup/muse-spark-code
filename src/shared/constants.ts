@@ -7630,6 +7630,8 @@ export const LEGAL_TEMPLATE_EXPECTED_TOKENS = 12
 // Capitals-only words in a row, outside a variable's own wording, that
 // read as a clause rather than a name (`NO COMMERCIAL USE`).
 export const LEGAL_TEMPLATE_CAPITALS_RUN_MAX = 3
+// Holder and party names are short; longer text stays quoted for review.
+export const LEGAL_TEMPLATE_NAME_TOKENS_MAX = 8
 // Characters of slack when comparing variable text with the template's
 // original value, before tokenizing it: past this it cannot be equal.
 export const LEGAL_TEMPLATE_ORIGINAL_SLACK_CHARS = 16
@@ -7649,8 +7651,8 @@ export const LEGAL_DEPENDENCIES_MAX = 10_000
 //
 // Exit codes (D76): 0 is a complete scan with no blockers, 1 a complete scan
 // with blockers, 2 incomplete coverage, bad input or an operational failure.
-// Advice alone never fails CI: only `blocker` and `should-fix` findings take
-// exit 1, and anything the scan could not cover takes exit 2.
+// Advice and should-fix findings alone exit 0; only blockers take exit 1.
+// Anything the scan could not cover takes exit 2.
 export const LEGAL_EXIT = {
   ok: 0,
   findings: 1,
