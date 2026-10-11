@@ -71,6 +71,7 @@ import { Usd, sumUsd, multiplyUsd, usdAmountSchema, type UsdAmount } from '../..
 
 /** The client needs admission and settlement, not the ledger's internal totals. */
 interface PaidRequestClaim {
+  readonly markSent?: () => void
   readonly reservedUsd: UsdAmount
   check(capUsd: UsdAmount): void
   settle(actualCostUsd: UsdAmount, hasUnknownCost?: boolean): Promise<unknown>

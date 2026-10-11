@@ -28505,6 +28505,18 @@ OpenCode plugin hooks").
 
 ### M95 — Bring-your-own model providers (D74)
 
+**EXECPROV (2026-10-11, kubuntu; M80/M95 repair).** Follow the corrected
+rig brief: A1 refunds every unsent daily/run claim and recovers demonstrably
+dead owners of new unsent daily claims; sent or legacy unknown liability stays
+reserved. A3 preserves user refusals through the shared provider wrappers. A2
+quotes the actual conservative input plus one resolved output cap, using the
+selected model price card. B keeps configured defaults in exec/ACP; C updates
+only documented catalogue evidence; D uses terminal instructions in every
+language; E repairs usage persistence; F confines help to its command; G updates
+ACP/README/reference. Fake providers only, existing caps/hooks/timeouts intact.
+Certification: `docs/certification/exec-provider.md`. Full aggregate quality
+belongs to the lead under this lane's explicit scoped-gate instruction.
+
 **Provider panel, 0.17.1 residual (PROVWIZ9, lead decision 2026-10-09).**
 Two editor windows saving the same provider at the same moment: last writer wins for fields both changed; no secret is exposed; follow-up PROVSTORE-LOCKLIB moves the provider store and key rotation onto the shared lease after M123 lands on main.
 

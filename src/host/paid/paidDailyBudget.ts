@@ -55,6 +55,7 @@ export function createPaidDailyBudget(deps: {
   const journal = createSessionBudgetJournal({
     directory: deps.directory,
     sleep: deps.sleep,
+    recoverUnsent: true,
     initialBudget: () =>
       Promise.resolve({ spentUsd: Usd.from(0).toAmount(), hasUnknownHistoricalFees: false }),
   })

@@ -5,7 +5,7 @@
 // so an incomplete or missing scope can never be silently seeded again.
 
 import { randomUUID } from 'node:crypto'
-import { readFileSync, readdirSync, statSync } from 'node:fs'
+import { mkdirSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { mkdir, rmdir, stat } from 'node:fs/promises'
 import path from 'node:path'
 import * as z from 'zod/mini'
@@ -31,6 +31,7 @@ const INTENT_DIRECTORY = 'budget-intents'
 const CLAIMS_DIRECTORY = 'claims'
 const SEED_FILE = 'seed.json'
 const CLAIM_FILE = 'claim.json'
+const SENT_DIRECTORY = 'send-intent'
 const MISSING = 'ENOENT'
 const EXISTS = 'EEXIST'
 const SESSION_ID = /^[A-Za-z0-9_-]+$/
@@ -65,6 +66,7 @@ const legacyClaimSchema = z.object({
   scopeId: z.string().check(z.regex(UUID)),
   claimId: z.string().check(z.regex(UUID)),
   ownerId: z.string().check(z.regex(UUID)),
+  ownerPid: z.optional(z.number().check(z.int(), z.minimum(1))),
   sessionId: z.string().check(z.regex(SESSION_ID)),
   accountId: z.string().check(z.regex(ACCOUNT_ID)),
   reservedUsd: z.number().check(z.nonnegative()),
@@ -108,6 +110,8 @@ type ClaimFlags = z.infer<typeof claimFlagsSchema>
 export type SessionBudgetJournalDeps = {
   readonly directory: string
   readonly sleep: (ms: number) => Promise<void>
+  /** Daily scopes recover only new, durably nonsent claims whose PID no longer exists. */
+  readonly recoverUnsent?: boolean
   readonly rename?: (from: string, to: string) => Promise<void>
 } & (
   | {
@@ -380,6 +384,7 @@ export function createSessionBudgetJournal(
       scopeId: seed.scopeId,
       claimId: randomUUID(),
       ownerId,
+      ...(deps.recoverUnsent === true && isNonsentReservation && { ownerPid: process.pid }),
       sessionId: scope.sessionId,
       accountId: scope.accountId,
       reservedUsd: Usd.from(costUsd).toString(),
@@ -482,6 +487,18 @@ export function createSessionBudgetJournal(
     return {
       claimId: created.claimId,
       reservedUsd: Usd.from(created.reservedUsd).toAmount(),
+      ...(created.ownerPid !== undefined && {
+        markSent: () => {
+          const claim = owned()
+          if (claim.settledUsd !== undefined) throw unavailable()
+          const marker = path.join(scope.directory, CLAIMS_DIRECTORY, claim.claimId, SENT_DIRECTORY)
+          try {
+            mkdirSync(marker)
+          } catch (error: unknown) {
+            if (storeErrorCode(error) !== EXISTS) throw unavailable(error)
+          }
+        },
+      }),
       check(capUsd) {
         assertCost(capUsd)
         if (settling !== undefined) {
@@ -566,22 +583,49 @@ export function createSessionBudgetJournal(
     }
   }
 
+  const recoverUnsent = async (scope: Scope, seed: Seed) => {
+    if (deps.recoverUnsent !== true) return
+    const claimIds = readdirSync(path.join(scope.directory, CLAIMS_DIRECTORY))
+    for (const claimId of claimIds) {
+      const claim = readClaim(scope, seed, claimId)
+      if (claim.ownerPid === undefined || claim.settledUsd !== undefined) continue
+      try {
+        process.kill(claim.ownerPid, 0)
+        continue
+      } catch (error: unknown) {
+        // A reused PID or EPERM is still live/unknown; age is never proof of death.
+        if (storeErrorCode(error) !== 'ESRCH') continue
+      }
+      const directory = path.join(scope.directory, CLAIMS_DIRECTORY, claimId)
+      if (await isPresent(path.join(directory, SENT_DIRECTORY))) continue
+      await writeFileAtomically(
+        path.join(directory, CLAIM_FILE),
+        JSON.stringify({ ...claim, settledUsd: '0', hasUnknownCost: false }),
+        options,
+      )
+    }
+  }
+
   return {
     async reserveAdmitted(sessionId, accountId, costUsd, capUsd) {
       const scope = scopeFor(sessionId, accountId)
-      return await withReservationLock(scope, async () => {
-        assertCost(capUsd)
-        if (Usd.from(capUsd).compare(Usd.from(0)) <= 0) throw unavailable()
-        const seed = await ensure(scope)
-        const claim = claimFor(scope, seed, await writeClaim(scope, seed, costUsd, true))
-        try {
+      let claim: SessionBudgetClaim | undefined
+      try {
+        return await withReservationLock(scope, async () => {
+          assertCost(capUsd)
+          if (Usd.from(capUsd).compare(Usd.from(0)) <= 0) throw unavailable()
+          const seed = await ensure(scope)
+          await recoverUnsent(scope, seed)
+          claim = claimFor(scope, seed, await writeClaim(scope, seed, costUsd, true))
           claim.check(capUsd)
           return claim
-        } catch (error: unknown) {
-          await claim.settle(Usd.from(0).toAmount())
-          throw error
-        }
-      })
+        })
+      } catch (error: unknown) {
+        // Releasing the admission lock is also awaited after publication.
+        // A failure there must not strand a claim that never reached its caller.
+        await claim?.settle(Usd.from(0).toAmount())
+        throw error
+      }
     },
     async readExisting(sessionId, accountId) {
       const scope = scopeFor(sessionId, accountId)
@@ -612,6 +656,7 @@ export function createSessionBudgetJournal(
       const scope = scopeFor(sessionId, accountId)
       return await withReservationLock(scope, async () => {
         const seed = await ensure(scope)
+        await recoverUnsent(scope, seed)
         return claimFor(
           scope,
           seed,

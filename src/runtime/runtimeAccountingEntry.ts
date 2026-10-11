@@ -43,6 +43,7 @@ export function createRuntimeDailyBudget(deps: {
   const journal = createSessionBudgetJournal({
     directory: path.join(deps.dataFolder, PAID_DAILY_BUDGET.directory),
     sleep: deps.sleep,
+    recoverUnsent: true,
     initialBudget: () =>
       Promise.resolve({ spentUsd: Usd.from(0).toAmount(), hasUnknownHistoricalFees: false }),
   })
@@ -146,6 +147,10 @@ export function withRuntimeAccounting(
           // A sent request without a verified price keeps its original durable reservation.
           if (!wasSent || cost !== undefined)
             await owned.settle(wasSent ? (cost ?? owned.reservedUsd) : Usd.from(0).toAmount())
+          if (!wasSent && ticket !== undefined) {
+            accounting?.ledger.releaseResponse(ticket)
+            ticket = undefined
+          }
           if (ticket !== undefined && accounting !== undefined) {
             const result = accounting.ledger.settleResponse(
               ticket,
@@ -196,23 +201,32 @@ export function withRuntimeAccounting(
                       cachedInput: Usd.from(0).toAmount(),
                       output: Usd.from(0).toAmount(),
                     }
-              const admission = accounting.ledger.admitResponse({
-                model: body.model,
-                maxOutputTokens: body.max_output_tokens,
-                contextTokens,
-                reserveUsd: ceilUsd(reserveUsd),
-                price,
-              })
+              let admission: ReturnType<RunLedger['admitResponse']>
+              try {
+                signal.throwIfAborted()
+                admission = accounting.ledger.admitResponse({
+                  model: body.model,
+                  maxOutputTokens: body.max_output_tokens,
+                  contextTokens,
+                  reserveUsd: ceilUsd(reserveUsd),
+                  price,
+                })
+              } catch (error: unknown) {
+                await settle()
+                throw error
+              }
               if ('refused' in admission) {
+                await settle()
                 accounting.refuse(admission.refused)
                 throw new Error(UI_TEXT.execBudgetRefused)
               }
               ticket = admission
             },
             onRequestStarted: () => {
-              wasSent = true
+              claim?.markSent?.()
               if (ticket !== undefined) accounting?.started(ticket.n)
               guard?.onRequestStarted?.()
+              wasSent = true
             },
           },
         )
