@@ -1,22 +1,37 @@
-// M105 lane V: vendor codec media refusals. No vendor outside Meta has a
-// captured media wire (D85.1: Gemini Files/inline data, OpenAI input_audio
-// and vLLM/SGLang video_url are all uncaptured), so the chat and Gemini
-// codecs refuse video with the model's own translated reason instead of
-// standing in a placeholder or emitting a foreign file id. The gate
-// (modalityGate over the captured Meta rows) refuses first in production;
-// these tests pin the codec stage and the agreement between the two.
-import { describe, expect, it } from 'vitest'
+// M105 lane V R2 (RVCM1054): vendor codec media refusals across every
+// encoder. No vendor outside Meta has a captured media wire (D85.1), so
+// every request encoder (chat, gemini, responses, anthropic, ollama) refuses
+// a held video part with the model's own translated reason instead of
+// forwarding Meta's shape or dropping the part and sending the rest. The
+// gate (modalityGate over the captured Meta rows) refuses first in
+// production; these tests pin the codec stage, the refusal's passage
+// through the production client, and the agreement between the two.
+import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
+import { afterEach, describe, expect, it } from 'vitest'
 import {
   encodeChatRequest,
+  isChatCodecError,
   type ChatPresetQuirks,
 } from '../../src/core/backends/modelapi/codecs/chat'
 import { encodeGeminiRequest } from '../../src/core/backends/modelapi/codecs/gemini'
+import { createResponsesCodec } from '../../src/core/backends/modelapi/codecs/responses'
+import { encodeAnthropicRequest } from '../../src/core/backends/modelapi/codecs/anthropic'
+import { encodeOllamaRequest } from '../../src/core/backends/modelapi/codecs/ollama'
+import { createConfiguredProviderServices } from '../../src/core/providers/configured'
+import {
+  providerEntrySchema,
+  writeProvidersFileAtomic,
+} from '../../src/core/providers/providersFile'
+import { PRESETS } from '../../src/core/providers/presets'
 import { metaMediaCapabilities } from '../../src/core/media/metaMediaCapabilities'
 import { modalityGate } from '../../src/core/media/modalityGate'
 import { sniffMediaBytes } from '../../src/core/media/limits'
 import { videoFixture } from './helpers/media/fixtures'
+import { memorySecrets } from './helpers/fakes'
 import { EN } from '../../src/shared/l10n/en'
-import { setUiText } from '../../src/shared/l10n/text'
+import { setUiText, UI_TEXT } from '../../src/shared/l10n/text'
 import type { CreateResponseBody, InputContentPart } from '../../src/core/backends/modelapi/schemas'
 
 const OPENROUTER_LIKE: ChatPresetQuirks = {
@@ -96,6 +111,25 @@ describe('M105 lane V vendor video refusals', () => {
     ).toThrow('some-model is not known to take video.')
   })
 
+  it('refuses a held video on a chat preset with no vision flag with the model reason', () => {
+    const body = chatBody([{ type: 'input_text', text: 'describe' }, HELD_VIDEO])
+    expect(() => encodeChatRequest(body, 'some-model', OPENROUTER_LIKE)).toThrow(
+      'some-model is not known to take video.',
+    )
+  })
+
+  it('refuses a held video in an assistant message on a chat preset with the model reason', () => {
+    const body: CreateResponseBody = {
+      ...chatBody([{ type: 'input_text', text: 'describe' }]),
+      input: [{ type: 'message', role: 'assistant', content: [HELD_VIDEO] }],
+    }
+    expect(() =>
+      encodeChatRequest(body, 'some-model', OPENROUTER_LIKE, {
+        capabilities: { vision: true },
+      }),
+    ).toThrow('some-model is not known to take video.')
+  })
+
   it.each([true, false, undefined])(
     'refuses a held video on Gemini (vision: %s) with the model reason',
     (vision) => {
@@ -119,21 +153,59 @@ describe('M105 lane V vendor video refusals', () => {
         }),
       ).toThrow('m nimmt.m')
       expect(() => encodeGeminiRequest(geminiBody([HELD_VIDEO]), 'm')).toThrow('m nimmt.m')
+      expect(() =>
+        createResponsesCodec({
+          sendPromptCacheKey: false,
+          sendPromptCacheRetention: false,
+        }).encodeRequest({ ...chatBody([HELD_VIDEO]), model: 'm' }),
+      ).toThrow('m nimmt.m')
+      expect(() =>
+        createResponsesCodec({ profile: 'chatgpt', toolNamespace: 'functions' }).encodeRequest({
+          ...chatBody([HELD_VIDEO]),
+          model: 'm',
+        }),
+      ).toThrow('m nimmt.m')
+      expect(() =>
+        encodeAnthropicRequest(chatBody([HELD_VIDEO]), {
+          model: 'm',
+          maxTokens: 1024,
+          effort: 'none',
+        }),
+      ).toThrow('m nimmt.m')
+      expect(() =>
+        encodeOllamaRequest(chatBody([HELD_VIDEO]), { model: 'm', numCtx: 32_768 }),
+      ).toThrow('m nimmt.m')
     } finally {
       setUiText(EN, 'en')
     }
   })
 
   it('keeps image and text wire byte-identical around the refusal', () => {
-    const body = chatBody([
+    const content: readonly InputContentPart[] = [
       { type: 'input_text', text: 'hi' },
       { type: 'input_image', image_url: 'data:image/png;base64,iVBOR', detail: 'auto' },
-    ])
-    const request = encodeChatRequest(body, 'm', OPENROUTER_LIKE, {
+    ]
+    const chat = encodeChatRequest(chatBody(content), 'm', OPENROUTER_LIKE, {
       capabilities: { vision: true },
     })
-    expect(JSON.stringify(request.body.messages)).toContain('data:image/png;base64,iVBOR')
-    expect(JSON.stringify(request.body.messages)).not.toContain('input_video')
+    expect(JSON.stringify(chat.body.messages)).toBe(
+      '[{"role":"system","content":"be brief"},{"role":"user","content":[{"type":"text","text":"hi"},{"type":"image_url","image_url":{"url":"data:image/png;base64,iVBOR","detail":"auto"}}]}]',
+    )
+    const gemini = encodeGeminiRequest(geminiBody(content), 'gemini-2.5-flash')
+    expect(JSON.stringify(gemini.body)).toBe(
+      '{"systemInstruction":{"parts":[{"text":"be brief"}]},"contents":[{"role":"user","parts":[{"text":"hi"},{"inlineData":{"mimeType":"image/png","data":"iVBOR"}}]}],"generationConfig":{"maxOutputTokens":1024,"thinkingConfig":{"thinkingBudget":0,"includeThoughts":true}}}',
+    )
+    // A video part refuses instead of encoding: this fails when either
+    // refusal above is removed (the request would encode in its place).
+    const withVideo: readonly InputContentPart[] = [...content, HELD_VIDEO]
+    expect(() =>
+      encodeChatRequest(chatBody(withVideo), 'm', OPENROUTER_LIKE, {
+        capabilities: { vision: true },
+      }),
+    ).toThrow('m is not known to take video.')
+    expect(() => encodeGeminiRequest(geminiBody(withVideo), 'gemini-2.5-flash')).toThrow(
+      'gemini-2.5-flash is not known to take video.',
+    )
   })
 
   it('composes the gate and both codecs on one sniffed clip (production stages)', () => {
@@ -163,5 +235,303 @@ describe('M105 lane V vendor video refusals', () => {
     // The captured Meta control still admits the same clip (lane changes nothing there).
     const meta = modalityGate(info, metaMediaCapabilities('muse-spark-1.3-contributor'))
     expect(meta.ok).toBe(true)
+  })
+})
+
+/** Minimal chat quirks for a registry route (reasoning off: the video refuses first). */
+function chatQuirksFor(route: string): ChatPresetQuirks {
+  return {
+    presetId: route,
+    outputCap: 'max_tokens',
+    reasoningParam: 'none',
+    sendCacheKey: false,
+    includeUsage: true,
+    toolStream: false,
+    toolResultName: false,
+    replayField: 'none',
+  }
+}
+
+/** One registry route's request encoding with a held video part (must throw, never send). */
+function encodeRoute(route: string, kind: string, model: string, body: CreateResponseBody): void {
+  switch (kind) {
+    case 'chat': {
+      encodeChatRequest(body, model, chatQuirksFor(route), { capabilities: { vision: true } })
+      return
+    }
+    case 'gemini': {
+      encodeGeminiRequest(body, model)
+      return
+    }
+    case 'responses': {
+      createResponsesCodec({
+        sendPromptCacheKey: false,
+        sendPromptCacheRetention: false,
+      }).encodeRequest({ ...body, model })
+      return
+    }
+    case 'chatgpt': {
+      createResponsesCodec({ profile: 'chatgpt', toolNamespace: 'functions' }).encodeRequest({
+        ...body,
+        model,
+      })
+      return
+    }
+    case 'anthropic': {
+      encodeAnthropicRequest(body, { model, maxTokens: 1024, effort: 'none' })
+      return
+    }
+    case 'ollama': {
+      encodeOllamaRequest(body, { model, numCtx: 32_768 })
+      return
+    }
+    default: {
+      throw new Error(`matrix has no encoder for kind ${kind}`)
+    }
+  }
+}
+
+function videoBody(model: string, content: readonly InputContentPart[]): CreateResponseBody {
+  return { ...chatBody(content), model }
+}
+
+describe('M105 lane V R2 every encoder refuses on every provider route', () => {
+  const rows: readonly (readonly [string, string])[] = [
+    ...PRESETS.map((preset) => [preset.id, preset.format] as const),
+    ['chatgpt-subscription', 'chatgpt'] as const,
+  ]
+
+  it('covers every provider format, so a new format without an encoder fails', () => {
+    expect(new Set(rows.map((row) => row[1]))).toEqual(
+      new Set(['anthropic', 'chat', 'chatgpt', 'gemini', 'ollama', 'responses']),
+    )
+  })
+
+  it('covers the named non-Meta routes', () => {
+    const ids = PRESETS.map((preset) => preset.id)
+    for (const route of ['openai', 'azure', 'xai', 'anthropic', 'ollama', 'openrouter', 'custom']) {
+      expect(ids).toContain(route)
+    }
+  })
+
+  it.each(rows)('refuses a held video on route %s with the typed model reason', (route, kind) => {
+    for (const content of [
+      [{ type: 'input_text', text: 'what is in this clip?' }, HELD_VIDEO] as const,
+      [HELD_VIDEO] as const,
+    ]) {
+      const model = `${route}-model`
+      let error: unknown
+      try {
+        encodeRoute(route, kind, model, videoBody(model, [...content]))
+      } catch (error_) {
+        error = error_
+      }
+      expect(isChatCodecError(error), route).toBe(true)
+      expect((error as Error).message).toBe(`${model} is not known to take video.`)
+    }
+  })
+})
+
+interface ProductionFamily {
+  readonly id: string
+  readonly preset: string
+  readonly address: string
+  readonly auth: 'apiKey' | 'none'
+  readonly native: string
+  readonly numCtx?: number | undefined
+}
+
+/** One route per provider family through the real production client. */
+const PRODUCTION_FAMILIES: readonly ProductionFamily[] = [
+  {
+    id: 'openrouter',
+    preset: 'openrouter',
+    address: 'https://openrouter.ai/api/v1',
+    auth: 'apiKey',
+    native: 'sao10k/l3.1-euryale-70b',
+  },
+  {
+    id: 'gemini',
+    preset: 'gemini',
+    address: 'https://generativelanguage.googleapis.com',
+    auth: 'apiKey',
+    native: 'gemini-flash-latest',
+  },
+  {
+    id: 'openai',
+    preset: 'openai',
+    address: 'https://api.openai.com',
+    auth: 'apiKey',
+    native: 'gpt-5.4',
+  },
+  {
+    id: 'anthropic',
+    preset: 'anthropic',
+    address: 'https://api.anthropic.com',
+    auth: 'apiKey',
+    native: 'claude-haiku-4-5',
+  },
+  {
+    id: 'ollama',
+    preset: 'ollama',
+    address: 'http://127.0.0.1:11434',
+    auth: 'none',
+    native: 'llama3.2',
+    numCtx: 32_768,
+  },
+]
+
+const roots: string[] = []
+
+/** The fake transport's byte source (never read: the refusal throws first). */
+async function* emptyBytes(): AsyncGenerator<Uint8Array> {
+  yield* await Promise.resolve([new Uint8Array(0)])
+}
+
+afterEach(async () => {
+  await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })))
+})
+
+/**
+ * A held video turn through the production configured-provider client:
+ * rejects with the refusal's own sentence and sends zero requests.
+ */
+async function productionRefusal(family: ProductionFamily, expected?: string): Promise<number> {
+  const root = await mkdtemp(path.join(tmpdir(), 'm105r2-vendor-'))
+  roots.push(root)
+  const entry = providerEntrySchema.parse({
+    id: family.id,
+    preset: family.preset,
+    address: family.address,
+    auth: family.auth,
+    models: [family.native],
+    ...(family.numCtx !== undefined && { numCtx: { [family.native]: family.numCtx } }),
+  })
+  const configFile = path.join(root, 'providers.json')
+  const written = await writeProvidersFileAtomic(configFile, { v: 1, providers: [entry] })
+  expect(written.ok).toBe(true)
+  let sent = 0
+  const services = createConfiguredProviderServices(undefined, {
+    configFile,
+    catalogFile: path.resolve('vendor/models-dev/snapshot.json'),
+    secrets: memorySecrets(),
+    resolve: () => Promise.resolve(['127.0.0.1']),
+    send: () => {
+      sent += 1
+      return Promise.resolve({
+        status: 200,
+        headers: {},
+        body: emptyBytes(),
+        close: () => undefined,
+      })
+    },
+  })
+  const ref = `${family.id}/${family.native}`
+  const body: CreateResponseBody = {
+    model: ref,
+    instructions: 'be brief',
+    input: [
+      {
+        type: 'message',
+        role: 'user',
+        content: [
+          { type: 'input_text', text: 'what is in this clip?' },
+          { type: 'input_video', file_id: 'file-abc123' },
+        ],
+      },
+    ],
+    tools: [],
+    tool_choice: 'auto',
+    reasoning: { effort: 'none', summary: 'auto' },
+    stream: true,
+    store: false,
+    include: [],
+    max_output_tokens: 1024,
+    prompt_cache_key: 'test',
+    prompt_cache_retention: '24h',
+  }
+  await expect(
+    Array.fromAsync(services.client.streamResponse(body, new AbortController().signal)),
+  ).rejects.toThrow(expected ?? `${family.native} is not known to take video.`)
+  return sent
+}
+
+describe('M105 lane V R2 the refusal arrives as itself through the production client', () => {
+  it.each(PRODUCTION_FAMILIES.map((family) => [family.id, family] as const))(
+    'family %s refuses with its own sentence and sends zero requests',
+    async (_id, family) => {
+      expect(await productionRefusal(family)).toBe(0)
+    },
+  )
+
+  it('refuses in the installed language through the production client', async () => {
+    setUiText({ ...EN, media: { ...EN.media, videoUnknown: '{model} nimmt kein Video.' } }, 'de')
+    const openrouter = PRODUCTION_FAMILIES[0]
+    if (openrouter === undefined) throw new Error('openrouter family must exist')
+    try {
+      expect(await productionRefusal(openrouter, `${openrouter.native} nimmt kein Video.`)).toBe(0)
+    } finally {
+      setUiText(EN, 'en')
+    }
+  })
+
+  it('never surfaces the generic unavailable error for a held video', async () => {
+    const openrouter = PRODUCTION_FAMILIES[0]
+    if (openrouter === undefined) throw new Error('openrouter family must exist')
+    const root = await mkdtemp(path.join(tmpdir(), 'm105r2-vendor-'))
+    roots.push(root)
+    const entry = providerEntrySchema.parse({
+      id: openrouter.id,
+      preset: openrouter.preset,
+      address: openrouter.address,
+      auth: openrouter.auth,
+      models: [openrouter.native],
+    })
+    const configFile = path.join(root, 'providers.json')
+    const written = await writeProvidersFileAtomic(configFile, { v: 1, providers: [entry] })
+    expect(written.ok).toBe(true)
+    const services = createConfiguredProviderServices(undefined, {
+      configFile,
+      catalogFile: path.resolve('vendor/models-dev/snapshot.json'),
+      secrets: memorySecrets(),
+      resolve: () => Promise.resolve(['127.0.0.1']),
+      send: () =>
+        Promise.resolve({ status: 200, headers: {}, body: emptyBytes(), close: () => undefined }),
+    })
+    const ref = `${openrouter.id}/${openrouter.native}`
+    const events = services.client.streamResponse(
+      {
+        model: ref,
+        instructions: 'be brief',
+        input: [
+          {
+            type: 'message',
+            role: 'user',
+            content: [
+              { type: 'input_text', text: 'what is in this clip?' },
+              { type: 'input_video', file_id: 'file-abc123' },
+            ],
+          },
+        ],
+        tools: [],
+        tool_choice: 'auto',
+        reasoning: { effort: 'none', summary: 'auto' },
+        stream: true,
+        store: false,
+        include: [],
+        max_output_tokens: 1024,
+        prompt_cache_key: 'test',
+        prompt_cache_retention: '24h',
+      },
+      new AbortController().signal,
+    )
+    let error: unknown
+    try {
+      await Array.fromAsync(events)
+    } catch (error_) {
+      error = error_
+    }
+    expect(error).toBeInstanceOf(Error)
+    expect((error as Error).message).not.toBe(UI_TEXT.modelsPanelUnavailable)
   })
 })

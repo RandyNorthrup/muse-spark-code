@@ -162,3 +162,15 @@ export function nativeCallId(callId: string, format: CallIdFormat): string {
     }
   }
 }
+
+/**
+ * M105 lane V (RVCM1054 finding 1): the one refusal path for uncaptured
+ * media at the codec stage. Every request encoder throws this (never a
+ * plain Error) for a video part with no vendor capture behind it, and the
+ * configured production client rethrows it by name, so the sentence the
+ * user reads is the refusal's own translated reason. Matched by name so a
+ * second copy of this module cannot mask it.
+ */
+export class ChatCodecError extends Error {
+  override readonly name = 'ChatCodecError'
+}

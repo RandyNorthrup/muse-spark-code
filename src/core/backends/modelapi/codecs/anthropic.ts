@@ -59,9 +59,16 @@ import {
   THINKING_OFF_EFFORT,
   PROVIDER_MANUAL_THINKING_BUDGET,
 } from '../../../../shared/constants'
-import { UI_TEXT } from '../../../../shared/l10n/text'
+import { fill, UI_TEXT } from '../../../../shared/l10n/text'
 import { ModelApiError } from '../transport'
-import { cleanJsonStrings, cleanWireText, isBlankWireText, isRecord, nativeCallId } from './shared'
+import {
+  ChatCodecError,
+  cleanJsonStrings,
+  cleanWireText,
+  isBlankWireText,
+  isRecord,
+  nativeCallId,
+} from './shared'
 import {
   type CreateResponseBody,
   type FunctionCallItem,
@@ -433,6 +440,15 @@ export function encodeAnthropicRequest(
   body: CreateResponseBody,
   options: AnthropicEncodeOptions,
 ): AnthropicNativeRequest {
+  // M105 lane V R2 (RVCM1054 finding 2): a held video has no Anthropic
+  // shape without a vendor capture behind it, so it refuses with the
+  // model's own reason before any other validation instead of being
+  // dropped while the rest of the message is sent.
+  for (const item of body.input) {
+    if (item.type === 'message' && item.content.some((part) => part.type === 'input_video')) {
+      throw new ChatCodecError(fill(UI_TEXT.media.videoUnknown, { model: options.model }))
+    }
+  }
   const record = options.capabilityRecord ?? capturedCapabilities('anthropic', options.model)
   const modes = record.reasoning.modes.state === 'yes' ? record.reasoning.modes.value : []
   const isThinking = options.effort !== THINKING_OFF_EFFORT
@@ -531,7 +547,8 @@ export function encodeAnthropicRequest(
               return 'file_data' in part ? [{ document: documentBlock(part.file_data) }] : []
             }
             case 'input_video': {
-              return []
+              // Fail closed: the entry scan above owns the reachable path.
+              throw new ChatCodecError(fill(UI_TEXT.media.videoUnknown, { model: options.model }))
             }
           }
         })
