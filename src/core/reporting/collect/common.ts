@@ -52,6 +52,70 @@ export function derivedSourceId(sourceId: string, facet: string): string {
   return id.length > REPORT_MAX_ID_CHARS ? key('source', sourceId, facet) : id
 }
 
+/**
+ * The one row-identity guarantee every collected row passes through. The
+ * first row with a key keeps the bare key, so saved reports, links and ids
+ * for unique rows never change; each later row sharing a key in source order
+ * takes the first free `key/2`, `key/3`, … suffix. No collector — present or
+ * later — can fail document validation through a duplicate row key, whatever
+ * plan, journal, git, GitHub or store data repeats (RVCM1132E findings 1–2).
+ */
+export function uniqueRowKey(wanted: string, used: Set<string>): string {
+  if (!used.has(wanted)) {
+    used.add(wanted)
+    return wanted
+  }
+  let ordinal = 2
+  for (;;) {
+    const suffix = `/${String(ordinal)}`
+    const room = REPORT_MAX_ID_CHARS - suffix.length
+    const candidate = `${wanted.slice(0, Math.max(0, room))}${suffix}`
+    if (!used.has(candidate)) {
+      used.add(candidate)
+      return candidate
+    }
+    ordinal += 1
+  }
+}
+
+export function dedupeRowKeys(rows: readonly ReportRow[]): ReportRow[] {
+  const used = new Set<string>()
+  return rows.map((entry) => {
+    const kept = uniqueRowKey(entry.key, used)
+    return kept === entry.key ? entry : { ...entry, key: kept }
+  })
+}
+
+/** Blind pre-parse pass for forwarded source sections, whose rows have not
+ * been validated yet; only string `key` fields of array `rows` are touched. */
+export function dedupeUnknownRowKeys(value: unknown): unknown {
+  return Array.isArray(value)
+    ? value.map((section) => dedupeUnknownSection(section))
+    : dedupeUnknownSection(value)
+}
+
+function dedupeUnknownSection(section: unknown): unknown {
+  if (
+    typeof section !== 'object' ||
+    section === null ||
+    !Array.isArray((section as { readonly rows?: unknown }).rows)
+  )
+    return section
+  const used = new Set<string>()
+  const rows = (section as { readonly rows: readonly unknown[] }).rows.map((row) => {
+    if (
+      typeof row !== 'object' ||
+      row === null ||
+      typeof (row as { readonly key?: unknown }).key !== 'string'
+    )
+      return row
+    const wanted = (row as { readonly key: string }).key
+    const kept = uniqueRowKey(wanted, used)
+    return kept === wanted ? row : { ...row, key: kept }
+  })
+  return { ...section, rows }
+}
+
 export function row(
   prefix: string,
   identity: readonly string[],
@@ -65,34 +129,6 @@ export function row(
   }
 }
 
-/**
- * Row identities that stay unique when the plan reuses an item id. The
- * collision-free entry keeps its bare id so stable keys never churn; entries
- * sharing an id add their text, and byte-identical copies add an ordinal
- * (RVCM1132D finding 1). Every report kind routes plan questions, risks,
- * residuals and lanes through here, so a duplicated id can never fail
- * document validation the way bare `[id]` keys did.
- */
-export function planItemIdentities(
-  items: readonly { readonly identity: readonly string[]; readonly text: string }[],
-): string[][] {
-  const counts = new Map<string, number>()
-  for (const item of items) {
-    const fingerprint = JSON.stringify(item.identity)
-    counts.set(fingerprint, (counts.get(fingerprint) ?? 0) + 1)
-  }
-  const copies = new Map<string, number>()
-  return items.map((item) => {
-    if ((counts.get(JSON.stringify(item.identity)) ?? 1) <= 1) return [...item.identity]
-    const fingerprint = JSON.stringify([...item.identity, item.text])
-    const ordinal = copies.get(fingerprint) ?? 0
-    copies.set(fingerprint, ordinal + 1)
-    return ordinal === 0
-      ? [...item.identity, item.text]
-      : [...item.identity, item.text, String(ordinal)]
-  })
-}
-
 export function section(
   id: string,
   heading: ReportLabelKey,
@@ -100,7 +136,7 @@ export function section(
   rows: readonly ReportRow[],
   options: ReportOptions,
 ): ReportSection {
-  const ordered = rows.toSorted((left, right) => compare(left.key, right.key))
+  const ordered = dedupeRowKeys(rows).toSorted((left, right) => compare(left.key, right.key))
   return {
     id,
     label: heading,

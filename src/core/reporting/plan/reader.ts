@@ -219,17 +219,19 @@ function questions(
   return result
 }
 
-function releases(body: readonly PlanLine[]): PlanFacts['releases'] {
+function releases(body: readonly PlanLine[], drift: Drift[]): PlanFacts['releases'] {
   const records: { version: string; date: string; text: string }[] = []
+  const seenForms = new Set<string>()
   for (let index = 0; index < body.length; index += 1) {
-    const text = body[index]?.text ?? ''
+    const line = body[index]
+    const text = line?.text ?? ''
     const heading = /^### v?(\d+\.\d+\.\d+) — (\d{4}-\d{2}-\d{2})$/.exec(text)
     const bold =
-      /^\*\*v?(\d+\.\d+\.\d+)(?: (?:released|preparation))? \((?:published )?(\d{4}-\d{2}-\d{2})(?:, [^)]*)?\)/.exec(
+      /^\*\*v?(\d+\.\d+\.\d+)(?: (released|preparation))? \((?:published )?(\d{4}-\d{2}-\d{2})(?:, [^)]*)?\)/.exec(
         text,
       )
     const initial = /^\*\*Status (\d{4}-\d{2}-\d{2}):\*\*/.exec(text)
-    const date = heading?.[2] ?? bold?.[2] ?? initial?.[1]
+    const date = heading?.[2] ?? bold?.[3] ?? initial?.[1]
     if (!date) continue
     const start = index
     while (
@@ -244,7 +246,18 @@ function releases(body: readonly PlanLine[]): PlanFacts['releases'] {
       .trim()
     const version =
       heading?.[1] ?? bold?.[1] ?? (initial ? /\bv(\d+\.\d+\.\d+)\b/.exec(recordText)?.[1] : null)
-    if (version) records.push({ version, date, text: recordText })
+    if (!version) continue
+    // A preparation record followed by its released record is the lifecycle,
+    // not a repetition: only the same version in the same record form is
+    // drift. Both records stay, like duplicated milestone headings, and the
+    // repetition fails check:plan (RVCM1132E finding 2).
+    const form =
+      heading === null ? (bold?.[2] ?? (initial === null ? 'record' : 'status')) : 'heading'
+    const fingerprint = `${form} ${version}`
+    if (seenForms.has(fingerprint))
+      drift.push({ code: 'release-duplicate', line: line?.line ?? 1, detail: version })
+    else seenForms.add(fingerprint)
+    records.push({ version, date, text: recordText })
   }
   return records
 }
@@ -438,7 +451,7 @@ function parsePlan(text: string, evidence: PlanEvidence): PlanReadResult {
       questions: questions(sectionBodies.get(PLAN_SECTIONS.questions) ?? [], knownIds, drift),
       risks,
       residuals,
-      releases: releases(sectionBodies.get(PLAN_SECTIONS.releases) ?? []),
+      releases: releases(sectionBodies.get(PLAN_SECTIONS.releases) ?? [], drift),
       deliveryOrder: delivery,
       drift: drift.toSorted((a, b) => a.line - b.line || comparePlanText(a.code, b.code)),
     },

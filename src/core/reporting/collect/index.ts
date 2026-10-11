@@ -9,7 +9,13 @@ import {
   type ReportSourceRecord,
 } from '../../../shared/reportSchema'
 import type { ReportCollector, SourceSnapshot } from '../sources/types'
-import { compare, derivedSourceId, sourcedSection, unavailableRecord } from './common'
+import {
+  compare,
+  dedupeUnknownRowKeys,
+  derivedSourceId,
+  sourcedSection,
+  unavailableRecord,
+} from './common'
 import { needsYou } from './needsYou'
 import { collectMilestone, planFormat } from './plan'
 import {
@@ -58,7 +64,10 @@ function forward(
   const sources: ReportSourceRecord[] = []
   const sections =
     source.data?.map((value) => {
-      const parsed = reportSectionSchema.parse(value)
+      // A repeated row key in a forwarded section is drift in the source's
+      // own data, never a reason to throw a raw parse error: make keys
+      // unique before the schema validates everything else strictly.
+      const parsed = reportSectionSchema.parse(dedupeUnknownRowKeys(value))
       // Already omitted rows cannot be recovered; --full requires complete facts.
       if (options.full && parsed.omittedRows !== 0) throw new Error('report/incompleteFullSource')
       const collected = sourcedSection(

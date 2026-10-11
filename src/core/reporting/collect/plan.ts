@@ -6,7 +6,6 @@ import {
   count,
   label,
   list,
-  planItemIdentities,
   row,
   isSameMilestone,
   normalizeMilestone,
@@ -107,18 +106,11 @@ export function laneRows(milestones: readonly PlanMilestone[], sourceId: string)
   const entries = milestones.flatMap((milestone) =>
     milestone.lanes.map((lane) => ({ milestone, lane })),
   )
-  // Separate declaration tables can reuse an owner id for distinct scopes;
-  // a repeated triple still gets a unique key (RVCM1132D finding 1).
-  const identities = planItemIdentities(
-    entries.map(({ milestone, lane }) => ({
-      identity: [milestone.id, lane.id, lane.scope],
-      text: JSON.stringify([lane.branch, lane.state, lane.pullRequest, lane.certification]),
-    })),
-  )
-  return entries.map(({ milestone, lane }, index) =>
+  // A repeated triple gets its unique key from the central section guarantee.
+  return entries.map(({ milestone, lane }) =>
     row(
       'lane',
-      identities[index] ?? [milestone.id, lane.id, lane.scope],
+      [milestone.id, lane.id, lane.scope],
       {
         name: text(lane.id),
         scope: text(lane.scope),
@@ -173,51 +165,37 @@ export function deliveryRows(facts: PlanFacts, limit: number, sourceId: string):
   )
 }
 
-/** Risk rows with duplicate-safe keys, shared by the milestone and project kinds. */
+/** Risk rows, shared by the milestone and project kinds. */
 export function planRiskRows(risks: PlanFacts['risks'], sourceIds: readonly string[]): ReportRow[] {
-  const identities = planItemIdentities(
-    risks.map((risk) => ({ identity: [risk.id], text: risk.text })),
-  )
-  return risks.map((risk, index) =>
-    row(
-      'risk',
-      identities[index] ?? [risk.id],
-      { name: text(risk.id), reason: text(risk.text) },
-      sourceIds,
-    ),
+  return risks.map((risk) =>
+    row('risk', [risk.id], { name: text(risk.id), reason: text(risk.text) }, sourceIds),
   )
 }
 
-/** Residual rows with duplicate-safe keys, shared by the milestone and project kinds. */
+/** Residual rows, shared by the milestone and project kinds. */
 export function planResidualRows(
   residuals: PlanFacts['residuals'],
   sourceIds: readonly string[],
 ): ReportRow[] {
-  const identities = planItemIdentities(
-    residuals.map((residual) => ({ identity: [residual.id], text: residual.text })),
-  )
-  return residuals.map((residual, index) =>
+  return residuals.map((residual) =>
     row(
       'residual',
-      identities[index] ?? [residual.id],
+      [residual.id],
       { name: text(residual.id), reason: text(residual.text) },
       sourceIds,
     ),
   )
 }
 
-/** Question rows with duplicate-safe keys, shared by the milestone and session kinds. */
+/** Question rows, shared by the milestone and session kinds. */
 export function planQuestionRows(
   questions: readonly ReportQuestion[],
   sourceIds: readonly string[],
 ): ReportRow[] {
-  const identities = planItemIdentities(
-    questions.map((question) => ({ identity: [question.id], text: question.text })),
-  )
-  return questions.map((question, index) =>
+  return questions.map((question) =>
     row(
       'question',
-      identities[index] ?? [question.id],
+      [question.id],
       {
         name: text(question.id),
         questions: text(question.text),

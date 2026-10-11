@@ -84,6 +84,12 @@ const cases: readonly {
     text: PLAN_FORMAT_FIXTURE.replace('### M91b — Plugins', '### M12 — Plugins'),
     line: '### M12 — Plugins',
   },
+  {
+    code: 'release-duplicate',
+    text: `${PLAN_FORMAT_FIXTURE}### 0.14.2 — 2026-10-06\nA second record.\n`,
+    line: '### 0.14.2',
+    last: true,
+  },
 ]
 
 export const PLAN_DRIFT_CASES = cases.map(({ code, text, line, last }) => {

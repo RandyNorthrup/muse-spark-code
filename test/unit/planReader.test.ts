@@ -210,6 +210,14 @@ describe('plan-format v1', () => {
     },
   )
 
+  it('keeps a preparation record beside its released record without release-duplicate drift', () => {
+    const facts = readPlan(
+      `${PLAN_FORMAT_FIXTURE}**0.14.2 preparation (2026-10-04, draft).**\nA preparation record.\n`,
+    ).facts
+    expect(facts.releases.filter((record) => record.version === '0.14.2')).toHaveLength(2)
+    expect(facts.drift.filter((entry) => entry.code === 'release-duplicate')).toEqual([])
+  })
+
   it('masks fenced examples, keeps CRLF locations, and preserves folded checklist text', () => {
     const input = PLAN_FORMAT_FIXTURE.replace(
       '- [ ] A certified renderer.',
