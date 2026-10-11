@@ -258,6 +258,27 @@ describe('cliArgs provider commands', () => {
     })
   })
 
+  it('parses positive manual context windows and rejects invalid counts', () => {
+    for (const value of ['4096', '0', '-1', '1.5', 'Infinity', '9007199254740992', '']) {
+      const result = parseCommandLine([
+        'providers',
+        'add',
+        '--preset',
+        'lmstudio',
+        '--model',
+        'qwen3-0.6b',
+        '--context-window',
+        value,
+      ])
+      expect(result).toMatchObject(
+        value === '4096'
+          ? { command: 'providersAdd', options: { contextWindow: 4096 } }
+          : { command: 'invalid' },
+      )
+    }
+    expect(parseCommandLine(['--context-window', '4096'])).toMatchObject({ command: 'invalid' })
+  })
+
   it('parses providers list|test|remove', () => {
     expect(parseCommandLine(['providers', 'list'])).toEqual({ command: 'providersList' })
     expect(parseCommandLine(['providers', 'test', 'openrouter'])).toEqual({
@@ -568,6 +589,47 @@ describe('providers add', () => {
       }),
     ).toBe(1)
     expect(noKey.errors.join(',')).toContain('--key-stdin')
+  })
+
+  it('persists manual local windows for ACP configuration and refuses absent or invalid windows', async () => {
+    for (const [preset, contextWindow] of [
+      ['lmstudio', 8192],
+      ['lmstudio', undefined],
+      ['lmstudio', 0],
+      ['lmstudio', 1.5],
+      ['groq', 8192],
+    ] as const) {
+      const parsed = parseCommandLine([
+        'providers',
+        'add',
+        '--preset',
+        preset,
+        '--model',
+        'qwen3-0.6b',
+        '--context-window',
+        '8192',
+      ])
+      expect(parsed.command).toBe('providersAdd')
+      if (parsed.command !== 'providersAdd') throw new Error('Expected provider command')
+      const fake = fakeProviders(emptyProvidersFile(), {
+        ...(preset === 'groq' && { secret: GROQ_KEY }),
+        resolve: () => Promise.resolve([preset === 'groq' ? '93.184.216.34' : '127.0.0.1']),
+      })
+      const code = await providersAdd(fake.deps, { ...parsed.options, contextWindow })
+      const isValid = preset === 'lmstudio' && contextWindow === 8192
+      expect(code).toBe(isValid ? 0 : 1)
+      if (isValid) {
+        expect(fake.written[0]?.providers[0]?.modelLimits).toEqual({
+          'qwen3-0.6b': { contextTokens: 8192, outputTokens: 8192 },
+        })
+      } else {
+        expect(fake.written).toEqual([])
+        expect(fake.fetchCalls).toEqual([])
+        if (contextWindow !== undefined)
+          expect(fake.errors).toContain(UI_TEXT.localContextWindowInvalid)
+      }
+      expect(fake.store.size).toBe(0)
+    }
   })
 
   it('needs at least one ticked model, like the wizard', async () => {

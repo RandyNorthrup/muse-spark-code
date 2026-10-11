@@ -45,12 +45,14 @@ const CLOUD = {
   auth: 'apiKey' as const,
   models: ['gpt-test'],
 }
+const LOCAL_LIMITS = { contextTokens: 8192, outputTokens: 1024 }
 const LOCAL = {
   id: 'ollama',
   preset: 'ollama',
   address: 'http://localhost:11434',
   auth: 'none' as const,
   models: ['qwen-test'],
+  modelLimits: { 'qwen-test': LOCAL_LIMITS },
 }
 
 describe('production Models panel seam', () => {
@@ -81,7 +83,11 @@ describe('production Models panel seam', () => {
         useNow: false,
       }
       await saveWizardDraft(deps, draft)
-      const edited = { ...provider, models: ['edited-model'] }
+      const edited = {
+        ...provider,
+        models: ['edited-model'],
+        ...(provider.auth === 'none' && { modelLimits: { 'edited-model': LOCAL_LIMITS } }),
+      }
       await saveWizardDraft(deps, {
         ...draft,
         provider: edited,

@@ -61,7 +61,8 @@
           "conditions": [
             { "when": "openRouterServices=absent", "text": { "ui": "providerOpenRouterServices" } }
           ]
-        }
+        },
+        { "ui": "localContextWindowHint" }
       ],
       "facts": {
         "management": ["vscode:museCode", "vscode:modelApi", "acp:museCode", "acp:modelApi"],
@@ -4958,6 +4959,13 @@
     },
     {
       "route": "providersAdd",
+      "name": "providersAdd: --context-window <value>",
+      "description": "--context-window <tokens>: Enter the context window loaded on the local server. Manual values override scanned limits.",
+      "text": { "cli": "context-window" },
+      "contract": { "type": "string", "repeatable": false }
+    },
+    {
+      "route": "providersAdd",
       "name": "providersAdd: --privacy <value>",
       "description": "--privacy: Any provider may be used, including ones that train on data.",
       "text": { "cli": "privacy" },
@@ -5141,6 +5149,13 @@
       "description": "Choose the model for this run.",
       "text": { "cli": "model" },
       "contract": { "type": "string", "repeatable": true, "refused": true }
+    },
+    {
+      "route": "serve",
+      "name": "serve: --context-window <value>",
+      "description": "--context-window <tokens>: Enter the context window loaded on the local server. Manual values override scanned limits.",
+      "text": { "cli": "context-window" },
+      "contract": { "type": "string", "repeatable": false }
     },
     {
       "route": "serve",
@@ -5355,6 +5370,13 @@
       "description": "Choose the model for this run.",
       "text": { "cli": "model" },
       "contract": { "type": "string", "repeatable": true, "refused": true }
+    },
+    {
+      "route": "login",
+      "name": "login: --context-window <value>",
+      "description": "--context-window <tokens>: Enter the context window loaded on the local server. Manual values override scanned limits.",
+      "text": { "cli": "context-window" },
+      "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
     },
     {
       "route": "login",
@@ -5589,6 +5611,13 @@
     },
     {
       "route": "setup",
+      "name": "setup: --context-window <value>",
+      "description": "--context-window <tokens>: Enter the context window loaded on the local server. Manual values override scanned limits.",
+      "text": { "cli": "context-window" },
+      "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
+    },
+    {
+      "route": "setup",
       "name": "setup: --privacy <value>",
       "description": "--privacy: Any provider may be used, including ones that train on data.",
       "text": { "cli": "privacy" },
@@ -5816,6 +5845,13 @@
       "description": "Choose the model for this run.",
       "text": { "cli": "model" },
       "contract": { "type": "string", "repeatable": true, "refused": true }
+    },
+    {
+      "route": "authSet",
+      "name": "authSet: --context-window <value>",
+      "description": "--context-window <tokens>: Enter the context window loaded on the local server. Manual values override scanned limits.",
+      "text": { "cli": "context-window" },
+      "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
     },
     {
       "route": "authSet",
@@ -6069,6 +6105,13 @@
     },
     {
       "route": "authStatus",
+      "name": "authStatus: --context-window <value>",
+      "description": "--context-window <tokens>: Enter the context window loaded on the local server. Manual values override scanned limits.",
+      "text": { "cli": "context-window" },
+      "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
+    },
+    {
+      "route": "authStatus",
       "name": "authStatus: --privacy <value>",
       "description": "--privacy: Any provider may be used, including ones that train on data.",
       "text": { "cli": "privacy" },
@@ -6309,6 +6352,13 @@
       "description": "Choose the model for this run.",
       "text": { "cli": "model" },
       "contract": { "type": "string", "repeatable": true, "refused": true }
+    },
+    {
+      "route": "authClear",
+      "name": "authClear: --context-window <value>",
+      "description": "--context-window <tokens>: Enter the context window loaded on the local server. Manual values override scanned limits.",
+      "text": { "cli": "context-window" },
+      "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
     },
     {
       "route": "authClear",

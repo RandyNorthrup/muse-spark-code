@@ -828,7 +828,7 @@ export function createConfiguredProviderServices(
           if (typeof live !== 'number' || !(live > 0)) {
             throw new Error(
               fill(UI_TEXT.llamacppScanMissingWindow, {
-                build: preset.capturedBuild ?? 'an unknown build',
+                build: preset.capturedBuild ?? preset.id,
               }),
             )
           }

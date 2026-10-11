@@ -71,6 +71,18 @@ async function chooseOpenRouter(panel: FakeWebviewPanel): Promise<void> {
     expect(latestState(panel).drafts.wizard?.presetId).toBe('openrouter')
   })
 }
+async function chooseOllama(panel: FakeWebviewPanel): Promise<void> {
+  await send(panel, { type: 'providers/select', presetId: 'ollama' }, () => {
+    expect(latestState(panel).drafts.wizard?.presetId).toBe('ollama')
+  })
+  await send(
+    panel,
+    { type: 'providers/prefill', fields: { address: 'http://127.0.0.1:11434' } },
+    () => {
+      expect(latestState(panel).drafts.wizard?.address).toBe('http://127.0.0.1:11434')
+    },
+  )
+}
 async function testWizardDraft(panel: FakeWebviewPanel): Promise<void> {
   await send(panel, { type: 'providers/test', acceptCost: false }, () => {
     expect(latestState(panel).drafts.wizard?.test?.status).toBe('ok')
@@ -150,6 +162,152 @@ describe('Models host contract', () => {
       expect(parseHostToPanelMessage(call[0]).ok).toBe(true)
     }
   })
+  it('saves and displays a manual local window and preserves it across rescans and ticks', async () => {
+    const store = memoryProvidersStore()
+    const { providers } = testProvidersHost({
+      deps: {
+        store,
+        fetcher: { fetchModels: () => Promise.resolve({ rows: [localWindowedRow('m')] }) },
+      },
+    })
+    const { panel } = setup({ providers })
+    await chooseOllama(panel)
+    await testWizardDraft(panel)
+    await tickWizardModel(panel, 'ollama/m', 'm')
+    const setWindow = (tokens: number, scope: 'wizard' | 'provider') =>
+      send(
+        panel,
+        {
+          type: 'models/contextWindow',
+          scope: { scope, ...(scope === 'provider' && { providerId: 'ollama' }) },
+          ref: 'ollama/m',
+          contextTokens: tokens,
+        },
+        () => {
+          expect(latestState(panel).models[0]?.contextTokens).toBe(tokens)
+        },
+      )
+    await setWindow(8192, 'wizard')
+    await send(panel, { type: 'providers/save', useNow: false }, () => {
+      expect(latestState(panel).drafts.wizard).toBeUndefined()
+    })
+    expect(store.current[0]?.modelLimits?.['m']).toEqual({
+      contextTokens: 8192,
+      outputTokens: 8192,
+    })
+    await send(panel, { type: 'models/scan', providerId: 'ollama' }, () => {
+      expect(latestState(panel).scans['ollama']?.status).toBe('done')
+    })
+    expect(latestState(panel).models[0]?.contextTokens).toBe(8192)
+    const tickMessages = panel.webview.postMessage.mock.calls.length
+    await send(
+      panel,
+      {
+        type: 'models/tick',
+        scope: { scope: 'provider', providerId: 'ollama' },
+        ref: 'ollama/m',
+        ticked: true,
+      },
+      () => {
+        expect(panel.webview.postMessage.mock.calls.length).toBeGreaterThan(tickMessages)
+        expect(latestState(panel).models[0]?.ticked).toBe(true)
+      },
+    )
+    expect(store.current[0]?.modelLimits?.['m']?.contextTokens).toBe(8192)
+    await setWindow(2048, 'provider')
+    await send(panel, { type: 'providers/edit', providerId: 'ollama' }, () => {
+      expect(latestState(panel).drafts.edits['ollama']?.modelLimits?.['m']?.contextTokens).toBe(
+        2048,
+      )
+    })
+    await send(
+      panel,
+      {
+        type: 'models/contextWindow',
+        scope: { scope: 'wizard', providerId: 'ollama' },
+        ref: 'ollama/m',
+        contextTokens: 1024,
+      },
+      () => {
+        expect(latestState(panel).drafts.edits['ollama']?.modelLimits?.['m']?.contextTokens).toBe(
+          1024,
+        )
+      },
+    )
+    await send(panel, { type: 'providers/test', providerId: 'ollama', acceptCost: false }, () => {
+      expect(latestState(panel).drafts.edits['ollama']?.test?.status).toBe('ok')
+    })
+    await send(panel, { type: 'providers/save', providerId: 'ollama', useNow: false }, () => {
+      expect(latestState(panel).drafts.edits['ollama']).toBeUndefined()
+    })
+    expect(store.current[0]?.modelLimits?.['m']).toEqual({
+      contextTokens: 1024,
+      outputTokens: 1024,
+    })
+    await send(
+      panel,
+      {
+        type: 'models/tick',
+        scope: { scope: 'provider', providerId: 'ollama' },
+        ref: 'ollama/m',
+        ticked: false,
+      },
+      () => {
+        expect(latestState(panel).models[0]?.ticked).toBe(false)
+      },
+    )
+    expect(store.current[0]?.modelLimits).toEqual({})
+  })
+
+  it('rejects invalid or cross-provider manual windows without persistence', async () => {
+    const { panel, warnings } = setup()
+    await chooseOpenRouter(panel)
+    await tickWizardModel(panel, 'openrouter/m1', 'm1')
+    for (const contextTokens of [0, 1.5, Infinity]) {
+      const count = warnings.length
+      await send(
+        panel,
+        {
+          type: 'models/contextWindow',
+          scope: { scope: 'wizard' },
+          ref: 'openrouter/m1',
+          contextTokens,
+        },
+        () => {
+          expect(warnings.length).toBe(count + 1)
+        },
+      )
+    }
+    await send(
+      panel,
+      {
+        type: 'models/contextWindow',
+        scope: { scope: 'wizard' },
+        ref: 'openrouter/m1',
+        contextTokens: 4096,
+      },
+      () => {
+        expect(latestState(panel).notice).toBe(EN.actionFailed)
+      },
+    )
+    expect(latestState(panel).drafts.wizard?.modelLimits).toBeUndefined()
+    await chooseOllama(panel)
+    await testWizardDraft(panel)
+    await tickWizardModel(panel, 'ollama/m1', 'm1')
+    for (const ref of ['remote/m1', 'ollama/unlisted']) {
+      const sent = panel.webview.postMessage.mock.calls.length
+      await send(
+        panel,
+        { type: 'models/contextWindow', scope: { scope: 'wizard' }, ref, contextTokens: 4096 },
+        () => {
+          expect(panel.webview.postMessage.mock.calls.length).toBeGreaterThan(sent)
+        },
+      )
+      expect(latestState(panel).notice).toBe(EN.actionFailed)
+      expect(latestState(panel).drafts.wizard?.modelLimits).toBeUndefined()
+    }
+  })
+
   it('drops smuggled credentials without echoing raw validation input', async () => {
     const { panel, warnings } = setup()
     await send(
@@ -256,16 +414,7 @@ describe('Models host contract', () => {
       },
     })
     const { panel } = setup({ providers })
-    await send(panel, { type: 'providers/select', presetId: 'ollama' }, () => {
-      expect(latestState(panel).drafts.wizard?.presetId).toBe('ollama')
-    })
-    await send(
-      panel,
-      { type: 'providers/prefill', fields: { address: 'http://127.0.0.1:11434' } },
-      () => {
-        expect(latestState(panel).drafts.wizard?.address).toBe('http://127.0.0.1:11434')
-      },
-    )
+    await chooseOllama(panel)
     await testWizardDraft(panel)
     await tickWizardModel(panel, 'ollama/qwen3:8b', 'qwen3:8b')
     await send(panel, { type: 'providers/save', useNow: false }, () => {

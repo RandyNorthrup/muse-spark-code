@@ -339,7 +339,8 @@
     "estimate-by": "--by <date>: Határidő",
     "fleet": "--fleet current|minimum|optimum: Jelenlegi géppark / Minimális összeállítás / Optimális összeállítás",
     "estimate-format": "--format md|html|json|text: Kimeneti formátum",
-    "seed": "--seed <seed>: Szimulációs kezdőérték"
+    "seed": "--seed <seed>: Szimulációs kezdőérték",
+    "context-window": "--context-window <tokens>: Adja meg a helyi szerveren betöltött kontextusablakot. A kézi értékek felülírják a felderített korlátokat. Az"
   },
   "referenceScanSecrets": "Titkokat keres egy UTF-8 javításfájlban, és találat esetén hibával kilép. A --key-stdin a memóriában lévő pontos Model API-kulcsot is keresi; nem tárol kulcsot.",
   "referenceVault": "Dolgozzon a terminálból a felhasználónkénti hitelesítőadat-tárolóval: állapot, feloldás, zárolás, lista, hozzáadás, engedélyek, naplózás, importálás és figyelés. Az értékek soha nem jelennek meg; a közvetítő őrzi őket.",
@@ -4098,7 +4099,7 @@
   "providerTestFailed": "Az ellenőrzés sikertelen: {detail}",
   "scanFailed": "Az átvizsgálás sikertelen: {detail}",
   "llamacppScanMissingWindow": "A llama.cpp modellista nem jelent élő környezetablakot (rögzített build {build}).",
-  "localModelWindowUnknown": "A(z) {model} modellnek nincs ismert környezetablaka. Vizsgálja át újra a szolgáltatót, és mentse ismét.",
+  "localModelWindowUnknown": "A(z) {model} modell kontextusablaka ismeretlen. Adja meg a betöltött ablakot a szolgáltatóvarázslóban, a Modellek panelen vagy a providers add --context-window paranccsal.",
   "providerNeedsKey": "A(z) {id} szolgáltatóhoz kulcs szükséges.",
   "wizardPickProvider": "Válasszon szolgáltatót",
   "providerFields": {
@@ -5228,5 +5229,8 @@
       "one": "{count} engedély",
       "other": "{count} engedély"
     }
-  }
+  },
+  "localContextWindow": "Kontextusablak (tokenek)",
+  "localContextWindowHint": "Adja meg a helyi szerveren betöltött kontextusablakot. A kézi értékek felülírják a felderített korlátokat. Az",
+  "localContextWindowInvalid": "Adjon meg pozitív egész tokenszámot."
 }

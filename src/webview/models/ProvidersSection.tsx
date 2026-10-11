@@ -5,6 +5,7 @@
 
 import { useState } from 'react'
 import { UI_TEXT } from '../../shared/constants'
+import { ContextWindow } from './components/ContextWindow'
 import { fill, plural } from '../../shared/l10n/text'
 import { useFormatUsd } from '../money'
 
@@ -137,12 +138,14 @@ function EditForm({
   onSave,
   onCancel,
   onPrefill,
+  onContextWindow,
 }: {
   readonly draft: PanelDraft
   readonly editId: string
   readonly onSave: () => void
   readonly onCancel: () => void
   readonly onPrefill: (fields: PrefillFields) => void
+  readonly onContextWindow: (model: string, tokens: number) => void
 }) {
   return (
     <div className="models-edit-form">
@@ -158,6 +161,17 @@ function EditForm({
           }}
         />
       </label>
+      {draft.auth === 'none' &&
+        draft.models.map((model) => (
+          <ContextWindow
+            key={model}
+            model={model}
+            tokens={draft.modelLimits?.[model]?.contextTokens}
+            onChange={(tokens) => {
+              onContextWindow(model, tokens)
+            }}
+          />
+        ))}
       <InlineError messages={[...draft.errors, ...draft.blockers]} />
       <div className="models-row-actions">
         <button
@@ -317,6 +331,14 @@ function ProviderRow({
       {editing && editDraft !== undefined && (
         <EditForm
           draft={editDraft}
+          onContextWindow={(model, contextTokens) => {
+            post({
+              type: 'models/contextWindow',
+              scope: { scope: 'wizard', providerId: provider.id },
+              ref: `${provider.id}/${model}`,
+              contextTokens,
+            })
+          }}
           editId={provider.id}
           onSave={() => {
             post({ type: 'providers/save', useNow: false, providerId: provider.id })

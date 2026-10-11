@@ -7,6 +7,7 @@ import { usdInputSchema, type UsdAmount } from '../../shared/usd'
 
 import { UI_TEXT } from '../../shared/constants'
 import { fill, plural } from '../../shared/l10n/text'
+import { modelLimitsSchema } from '../../shared/providerRouting'
 import type { PickItem } from '../commands/pickItem'
 import type { PresetInfo, ProviderEntry, ProviderModelRow } from '../providers/providerPorts'
 import type { ProvidersHost } from '../providers/providersHost'
@@ -201,6 +202,27 @@ export async function runAddProviderQuickPick(
   if (ticked === undefined || ticked.length === 0) {
     return undefined
   }
+  const modelLimits = scannedLocalModelLimits(entry.auth, ticked, scanned.rows) ?? {}
+  if (entry.auth === 'none') {
+    for (const id of ticked) {
+      const entered = await ui.inputText({
+        title: `${UI_TEXT.localContextWindow}: ${id}`,
+        placeholder: UI_TEXT.localContextWindowHint,
+        value: modelLimits[id]?.contextTokens.toString(),
+        validate: (value) =>
+          modelLimitsSchema.shape.contextTokens.safeParse(Number(value)).success
+            ? undefined
+            : UI_TEXT.localContextWindowInvalid,
+      })
+      if (entered === undefined) return undefined
+      const parsed = modelLimitsSchema.shape.contextTokens.safeParse(Number(entered))
+      if (!parsed.success) {
+        ui.showError(UI_TEXT.localContextWindowInvalid)
+        return undefined
+      }
+      modelLimits[id] = { contextTokens: parsed.data, outputTokens: parsed.data }
+    }
+  }
   // OpenRouter's privacy routing (D74: private by default) is the panel's
   // choice (lane M renders it from `privacyChoices`); the quick pick keeps
   // the default until lane P's file holds the routing. Noted in m95-k.md.
@@ -283,12 +305,11 @@ export async function runAddProviderQuickPick(
   }
   // C-M95-4 R3: a saved local model carries its scanned window, so the
   // request path never meets a missing one.
-  const modelLimits = scannedLocalModelLimits(entry.auth, ticked, scanned.rows)
   const outcome = await providers.saveDraft({
     provider: {
       ...entry,
       models: [...ticked],
-      ...(modelLimits !== undefined && { modelLimits }),
+      ...(Object.keys(modelLimits).length > 0 && { modelLimits }),
     },
     credential,
     credentialAuth,

@@ -339,7 +339,8 @@
     "estimate-by": "--by <date>: Termin",
     "fleet": "--fleet current|minimum|optimum: Obecna flota / Minimalna konfiguracja / Optymalna konfiguracja",
     "estimate-format": "--format md|html|json|text: Format wyjściowy",
-    "seed": "--seed <seed>: Ziarno symulacji"
+    "seed": "--seed <seed>: Ziarno symulacji",
+    "context-window": "--context-window <tokens>: Podaj okno kontekstu załadowane na lokalnym serwerze. Wartości ręczne zastępują wykryte limity."
   },
   "referenceScanSecrets": "Skanuje plik poprawki UTF-8 w poszukiwaniu sekretów i kończy się błędem po wykryciu. --key-stdin sprawdza także dokładny klucz Model API w pamięci; żaden klucz nie jest zapisywany.",
   "referenceVault": "Pracuj z magazynem poświadczeń użytkownika z terminala: stan, odblokowanie, blokowanie, lista, dodawanie, granty, audyt, import i obserwacja. Wartości nigdy nie są wypisywane; przechowuje je broker.",
@@ -4316,7 +4317,7 @@
   "providerTestFailed": "Sprawdzenie nie powiodło się: {detail}",
   "scanFailed": "Skanowanie nie powiodło się: {detail}",
   "llamacppScanMissingWindow": "Lista modeli llama.cpp nie zgłasza żadnego aktywnego okna kontekstu (przechwycona kompilacja {build}).",
-  "localModelWindowUnknown": "Model {model} nie ma znanego okna kontekstu. Przeskanuj ponownie jego dostawcę i zapisz.",
+  "localModelWindowUnknown": "Okno kontekstu modelu {model} jest nieznane. Podaj załadowane okno w kreatorze dostawcy, panelu Modele lub za pomocą providers add --context-window.",
   "providerNeedsKey": "Dostawca {id} wymaga klucza.",
   "wizardPickProvider": "Wybierz dostawcę",
   "providerFields": {
@@ -5534,5 +5535,8 @@
       "few": "{count} uprawnienia",
       "many": "{count} uprawnień"
     }
-  }
+  },
+  "localContextWindow": "Okno kontekstu (tokeny)",
+  "localContextWindowHint": "Podaj okno kontekstu załadowane na lokalnym serwerze. Wartości ręczne zastępują wykryte limity.",
+  "localContextWindowInvalid": "Podaj dodatnią całkowitą liczbę tokenów."
 }
