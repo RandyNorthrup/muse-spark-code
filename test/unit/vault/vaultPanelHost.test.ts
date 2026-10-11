@@ -6,6 +6,7 @@ import {
   type VaultPanelHostDeps,
 } from '../../../src/host/vault/vaultPanelHost'
 import { type VaultItem, type VaultItemMetadata } from '../../../src/shared/vault'
+import { UI_TEXT } from '../../../src/shared/constants'
 import { panel, item, metadata, approval, grant } from '../helpers/vault/fixtures'
 import { generatedImport, generatedSetup } from '../helpers/vault/runtime'
 
@@ -93,16 +94,23 @@ async function answerSession(
 }
 
 describe('U authenticated panel host', () => {
-  it('V16 failed Lock keeps controls locked until an explicit unlock; cancellation reaches native entry', async () => {
+  it('V16 failed Lock restores the unlocked section and reports the failure; cancellation reaches native entry', async () => {
     const f = fixture()
     await f.host.refresh()
     vi.mocked(f.service.lock).mockRejectedValueOnce(new Error('test failure'))
     await f.host.lock()
+    // RVCM1091D P2: the optimistic Locked view is replaced by the vault's
+    // real unlocked snapshot, and the foreign failure stays generic.
+    expect(f.deps.showError).toHaveBeenCalledWith(UI_TEXT.vault.operationFailed)
+    expect(f.deps.status).toHaveBeenLastCalledWith(true)
+    const published = f.deps.publish.mock.calls.map(
+      (call) => (call[0] as { state: { status: { state: string } } }).state.status.state,
+    )
+    expect(published.at(-1)).toBe('unlocked')
+    // A later refresh of the still-unlocked vault publishes it normally.
     const count = f.deps.publish.mock.calls.length
     await f.host.refresh()
-    expect(f.deps.publish.mock.calls.length).toBe(count)
-    expect(f.deps.status).toHaveBeenLastCalledWith(false)
-    await f.host.handle({ type: 'vaultUnlock' })
+    expect(f.deps.publish.mock.calls.length).toBe(count + 1)
     expect(f.deps.status).toHaveBeenLastCalledWith(true)
     const held = Promise.withResolvers<VaultItem | null>()
     let signal: AbortSignal | undefined

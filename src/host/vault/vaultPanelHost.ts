@@ -251,6 +251,15 @@ export class VaultPanelHost {
       await this.deps.service.lock()
       await this.refresh()
     } catch (error: unknown) {
+      // A failed Lock never stays on screen as Locked: drop the optimistic
+      // view and reload the vault's real snapshot, so later refreshes of the
+      // still-unlocked vault publish it instead of throwing Locked (RVCM1091D P2).
+      this.lockRequested = false
+      try {
+        await this.load(this.generation)
+      } catch {
+        /* The reload loses; the original failure is reported below. */
+      }
       this.reportError(generation, error)
     }
   }
