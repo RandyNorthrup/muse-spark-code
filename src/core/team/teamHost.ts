@@ -407,6 +407,7 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
   const listeners = new Set<(tree: TeamTreeData | undefined) => void>()
   /** `collect` calls waiting for a task to change, each with its bound. */
   const waiters = new Set<() => void>()
+  const executions = new Map<string, Promise<void>>()
   /** "Waiting for you" cards, by id, until the user answers. */
   const waiting = new Map<string, (choice: TeamWaitingChoice | 'cancelled') => void>()
   /** The last conversation model seen: the orchestrator the tree and Default show. */
@@ -1037,13 +1038,19 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
         changed()
       }
     }
-    void execute()
-      .then(pump)
-      .catch((error: unknown) => {
+    const executing = (async () => {
+      try {
+        await execute()
+        await pump()
+      } catch (error: unknown) {
         task.failure = describeError(error)
         deps.log.warn(`Team task ${task.taskId}: ${task.failure}`)
         changed()
-      })
+      } finally {
+        executions.delete(task.taskId)
+      }
+    })()
+    executions.set(task.taskId, executing)
   }
 
   async function pump(): Promise<void> {
@@ -1719,7 +1726,7 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
       snapshot = readStoredTeam(deps.state)
       changed()
     },
-    dispose: async () => {
+    dispose: async (options) => {
       isDisposed = true
       listeners.clear()
       for (const resolve of waiting.values()) resolve('cancelled')
@@ -1729,6 +1736,13 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
         if (isActive(task.phase) || task.phase === 'queued') task.controller.abort()
       }
       for (const wake of waiters) wake()
+      if (options?.waitForWorkers === true)
+        await Promise.allSettled([
+          ...executions.values(),
+          ...allTasks().flatMap((task) =>
+            task.mergeCompletion === undefined ? [] : [task.mergeCompletion],
+          ),
+        ])
       await saveQueue
     },
   }

@@ -1,5 +1,5 @@
 // M96b exec --team flags (C-M96b-0, PLAN.md D75): grammar, validation and the
-// loud refusal until the runner lane (C-M96b-2) admits team runs.
+// headless engine admission after all ordinary argument checks.
 import { describe, expect, it } from 'vitest'
 import { parseExec } from '../../src/runtime/exec/execArgs'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
@@ -30,13 +30,10 @@ describe('M96b exec --team flags', () => {
       reason: UI_TEXT.execTeamNeedsEdits,
     })
   })
-  it('refuses a valid --team request out loud until the runner lane lands', () => {
+  it('admits a valid bounded --team request', () => {
     expect(
       parseExec({ ...BUDGET, team: true, 'permission-mode': 'acceptEdits' }, ['task']),
-    ).toEqual({
-      ok: false,
-      reason: UI_TEXT.execTeamNotReady,
-    })
+    ).toMatchObject({ ok: true, options: { team: true, mode: 'acceptEdits' } })
   })
   it('rejects a non-boolean --team', () => {
     expect(parseExec({ ...BUDGET, team: 'true' }, ['task']).ok).toBe(false)
@@ -65,13 +62,12 @@ describe('M96b exec --team flags', () => {
       ]),
     ).toEqual({ ok: false, reason: UI_TEXT.execStdinTwice })
   })
-  // RVCM96B0 finding 5: public Help must not advertise the refused flag as
-  // a working team-run option.
-  it('tells help readers --team is refused until the runner lane lands', () => {
-    expect(UI_TEXT.referenceCliOptions.team).toContain('refused')
-    expect(UI_TEXT.referenceCliOptions.team).toContain('exits 2')
+  it('documents the shared hard budget and headless merge policy', () => {
+    expect(UI_TEXT.referenceCliOptions.team).toContain('hard budget')
+    expect(UI_TEXT.referenceCliOptions.team).toContain('acceptEdits')
+    expect(UI_TEXT.referenceCliOptions.team).toContain('prompts deny')
   })
-  it('ends --team at the command line with exit 2, never a run', () => {
+  it('admits --team through the real command line', () => {
     expect(
       parseCommandLine([
         'exec',
@@ -84,6 +80,15 @@ describe('M96b exec --team flags', () => {
         'acceptEdits',
         'task',
       ]),
-    ).toEqual({ command: 'invalid', reason: UI_TEXT.execTeamNotReady, exitCode: 2 })
+    ).toMatchObject({ command: 'exec', options: { team: true, mode: 'acceptEdits' } })
+  })
+})
+
+it('requires the hard run budget before admitting a headless team', () => {
+  expect(
+    parseExec({ backend: 'modelApi', team: true, 'permission-mode': 'acceptEdits' }, ['task']),
+  ).toEqual({
+    ok: false,
+    reason: UI_TEXT.execBudgetRequired,
   })
 })

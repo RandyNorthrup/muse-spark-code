@@ -2982,6 +2982,11 @@ export const TEAM_NEW_ROLE_CEILING_GROUPS: readonly TeamToolGroup[] = ['read', '
 
 /** The repository's lowering file (PLAN.md D75): workspace-relative segments. */
 export const TEAM_JSON_SEGMENTS = ['.muse', 'team.json'] as const
+// M96b: stored snapshot is user-owned; mutable state/copies are run-owned.
+export const EXEC_TEAM_STATE_FILE = 'team.json'
+export const EXEC_TEAM_RUN_PREFIX = 'muse-exec-team-'
+export const EXEC_TEAM_BOARD_FILE = 'board.json'
+export const EXEC_TEAM_FILE_MODE = 0o600
 /** An unmerged task keeps its working copy and branch until the user acts; then this offers to discard it. */
 export const TEAM_UNMERGED_NOTICE_DAYS = 7
 

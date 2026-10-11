@@ -323,7 +323,7 @@
     "effort": "Wählen, wie viel Mühe Muse in jede Antwort steckt.",
     "output": "Das Ergebnisformat wählen: text, json oder jsonl.",
     "max-budget-usd": "Das feste Ausgabenlimit in USD für diesen Lauf festlegen.",
-    "team": "--team: Einen Team-Lauf anfordern (Model-API-Backend, acceptEdits und ein festes Budget; bis zur Team-Runner-Spur verweigert: jede Anfrage endet mit 2).",
+    "team": "--team: Engine-Teams mit Model API, acceptEdits und einem festen Budget für alle Worker ausführen; Rückfragen werden abgelehnt, Zusammenführungen landen im Arbeitsverzeichnis des Laufs.",
     "max-requests": "Die maximale Anzahl von Modellanfragen festlegen.",
     "timeout": "Die Laufzeitgrenze in Sekunden festlegen.",
     "fail-on-denial": "Den Lauf bei verweigerter Berechtigung stoppen.",
@@ -3455,7 +3455,6 @@
   "execPaidNeedsEdits": "Bilderzeugung benötigt acceptEdits.",
   "execModelApiOnly": "Diese Optionen benötigen das Model-API-Backend.",
   "execTeamNeedsEdits": "--team benötigt --permission-mode acceptEdits.",
-  "execTeamNotReady": "Team-Läufe brauchen die Team-Runner-Spur; die Anfrageprüfung ist bestanden.",
   "execMuseCodeOnly": "Diese Optionen benötigen das Muse-Code-Backend.",
   "execModelUnpriced": "Für dieses Modell ist kein Tarif bekannt.",
   "execPromptMissing": "Gib einen nicht leeren Prompt an.",
@@ -5242,5 +5241,8 @@
       "one": "{count} Freigabe",
       "other": "{count} Freigaben"
     }
-  }
+  },
+  "execTeamWorkerUnsupported": "Headless-Teams führen nur Engine-Worker aus; {kind} kann in CI nicht laufen.",
+  "execTeamConfigInvalid": "Ungültige Headless-Team-Konfiguration: {reason}.",
+  "execTeamProtectedDenied": "Headless-Team-Zusammenführung verweigert: geschützte Pfade erfordern eine Genehmigung."
 }

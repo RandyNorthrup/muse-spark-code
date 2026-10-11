@@ -323,7 +323,7 @@
     "effort": "各回答に Muse がかける手間を選びます。",
     "output": "結果形式をtext、json、jsonlから選びます。",
     "max-budget-usd": "この実行の厳格な支出上限をUSDで設定します。",
-    "team": "--team: チーム実行を要求する（Model API バックエンド、acceptEdits、固定予算。チームランナーレーンが来るまで拒否：すべての要求は終了コード 2）。",
+    "team": "--team: Model API、acceptEdits、全ワーカーで共有する厳格な予算でエンジンチームを実行します。確認要求は拒否され、マージは実行の作業ツリーに入ります。",
     "max-requests": "モデルへのリクエスト上限を設定します。",
     "timeout": "実行時間の上限を秒で設定します。",
     "fail-on-denial": "権限が拒否されたら実行を停止します。",
@@ -3382,7 +3382,6 @@
   "execPaidNeedsEdits": "画像生成には acceptEdits が必要です。",
   "execModelApiOnly": "これらのオプションには Model API バックエンドが必要です。",
   "execTeamNeedsEdits": "--team には --permission-mode acceptEdits が必要です。",
-  "execTeamNotReady": "チーム実行にはチームランナーレーンが必要です。リクエストの検証は通過しました。",
   "execMuseCodeOnly": "これらのオプションには Muse Code バックエンドが必要です。",
   "execModelUnpriced": "このモデルの料金は不明です。",
   "execPromptMissing": "空でないプロンプトを1つ指定してください。",
@@ -5089,5 +5088,8 @@
     "grantsCount": {
       "other": "{count} 件の許可"
     }
-  }
+  },
+  "execTeamWorkerUnsupported": "ヘッドレスチームはエンジンワーカーのみ実行します。{kind} は CI で実行できません。",
+  "execTeamConfigInvalid": "ヘッドレスチームの設定が無効です: {reason}。",
+  "execTeamProtectedDenied": "ヘッドレスチームのマージを拒否しました。保護されたパスには承認が必要です。"
 }

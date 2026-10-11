@@ -323,7 +323,7 @@
     "effort": "Muse'un her yanıta ayırdığı çabayı seçin.",
     "output": "Sonuç biçimini seçin: text, json veya jsonl.",
     "max-budget-usd": "Bu çalıştırma için USD cinsinden kesin harcama sınırı belirleyin.",
-    "team": "--team: Ekip çalıştırması iste (Model API arka ucu, acceptEdits ve sabit bütçe; ekip çalıştırıcı şeridi gelene kadar reddedilir: her istek 2 ile çıkar).",
+    "team": "--team: Model API, acceptEdits ve tüm çalışanların paylaştığı kesin bütçeyle motor ekiplerini çalıştır; sorular reddedilir, birleştirmeler çalışmanın çalışma ağacına girer.",
     "max-requests": "Maksimum model isteği sayısını belirleyin.",
     "timeout": "Çalıştırma süresi sınırını saniye olarak belirleyin.",
     "fail-on-denial": "İzin reddedilirse çalıştırmayı durdurun.",
@@ -3455,7 +3455,6 @@
   "execPaidNeedsEdits": "Görsel üretimi için acceptEdits gerekir.",
   "execModelApiOnly": "Bu seçenekler Model API arka ucunu gerektirir.",
   "execTeamNeedsEdits": "--team, --permission-mode acceptEdits gerektirir.",
-  "execTeamNotReady": "Ekip çalıştırmaları ekip çalıştırıcı şeridini gerektirir; istek doğrulaması geçti.",
   "execMuseCodeOnly": "Bu seçenekler Muse Code arka ucunu gerektirir.",
   "execModelUnpriced": "Bu modelin bilinen tarifesi yok.",
   "execPromptMissing": "Boş olmayan tek bir istem belirtin.",
@@ -5242,5 +5241,8 @@
       "one": "{count} izin",
       "other": "{count} izin"
     }
-  }
+  },
+  "execTeamWorkerUnsupported": "Arayüzsüz ekipler yalnızca motor çalışanlarını çalıştırır; {kind} CI ortamında çalışamaz.",
+  "execTeamConfigInvalid": "Arayüzsüz ekip yapılandırması geçersiz: {reason}.",
+  "execTeamProtectedDenied": "Arayüzsüz ekip birleştirmesi reddedildi: korumalı yollar onay gerektirir."
 }

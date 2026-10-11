@@ -323,7 +323,7 @@
     "effort": "選擇 Muse 在每則回答上投入的心力。",
     "output": "選擇結果格式：text、json或jsonl。",
     "max-budget-usd": "以USD設定本次執行的硬性支出上限。",
-    "team": "--team: 要求團隊執行（Model API 後端、acceptEdits 和固定預算；在團隊執行通道落地前會被拒絕：每個請求都以 2 結束）。",
+    "team": "--team: 使用 Model API、acceptEdits 和所有工作程序共用的硬性預算執行引擎團隊；詢問會遭拒，合併進入執行的工作樹。",
     "max-requests": "設定模型請求次數上限。",
     "timeout": "以秒設定執行時間上限。",
     "fail-on-denial": "權限遭拒時停止執行。",
@@ -3382,7 +3382,6 @@
   "execPaidNeedsEdits": "圖片生成需要 acceptEdits。",
   "execModelApiOnly": "這些選項需要 Model API 後端。",
   "execTeamNeedsEdits": "--team 需要 --permission-mode acceptEdits。",
-  "execTeamNotReady": "團隊執行需要團隊執行通道；請求驗證已通過。",
   "execMuseCodeOnly": "這些選項需要 Muse Code 後端。",
   "execModelUnpriced": "此模型沒有已知費率。",
   "execPromptMissing": "請提供一個非空提示。",
@@ -5089,5 +5088,8 @@
     "grantsCount": {
       "other": "{count} 個授權"
     }
-  }
+  },
+  "execTeamWorkerUnsupported": "無介面團隊只執行引擎工作程序；{kind} 無法在 CI 中執行。",
+  "execTeamConfigInvalid": "無介面團隊設定無效：{reason}。",
+  "execTeamProtectedDenied": "無介面團隊合併遭拒：受保護的路徑需要核准。"
 }

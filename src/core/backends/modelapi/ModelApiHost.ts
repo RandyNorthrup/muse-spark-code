@@ -891,6 +891,8 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
         { readonly stable: readonly TeamStableRole[]; readonly live?: TeamRosterLive } | undefined)
     | undefined
   readonly teamRunner?: TeamToolRunner | undefined
+  /** Explicit headless team opt-in; never authorizes the orchestrator's shell or hooks. */
+  readonly isTeamTrusted?: (() => boolean) | undefined
   readonly isTeamInPlaceActive?: (() => boolean) | undefined
   /** Drain only state transitions and config edits; ordinary consumption stays in tool results. */
   readonly takeTeamChanges?:
@@ -9892,7 +9894,10 @@ export class ModelApiSession implements ScheduledAgentSession {
       const reason = fill(TEAM_BOOTSTRAP_MODEL_TEXT.undeclaredTool, { tool: call.name })
       return { output: reason, visibleOutput: reason, failureReason: reason }
     }
-    if ((name === 'delegate' || name === 'merge') && !this.deps.isWorkspaceTrusted()) {
+    if (
+      (name === 'delegate' || name === 'merge') &&
+      !(this.deps.isTeamTrusted?.() ?? this.deps.isWorkspaceTrusted())
+    ) {
       return toolFailure(MODEL_API_MODEL_TEXT.shellRestrictedMode)
     }
     if (

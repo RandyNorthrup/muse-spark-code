@@ -1,11 +1,12 @@
 import { Usd } from '../../src/shared/usd'
 import { fork } from 'node:child_process'
+import { EventEmitter, once } from 'node:events'
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { build } from 'esbuild'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import * as z from 'zod/mini'
 import {
   createRuntimeDailyBudget,
@@ -17,6 +18,8 @@ import { FakeLogOutputChannel } from './helpers/fakes'
 import { removeFolder } from './helpers/temporaryFolders'
 import type { CreateResponseBody } from '../../src/core/backends/modelapi/schemas'
 import { createRunLedger } from '../../src/runtime/exec/runLedger'
+import { metaResolvedModel } from '../../src/core/backends/modelapi/modelPolicy'
+import { EXEC_USD_DECIMALS } from '../../src/shared/constants'
 
 const roots: string[] = []
 const folder = () => {
@@ -215,3 +218,69 @@ describe('standalone daily admission', () => {
 function dailyBudgetAt(dataFolder: string) {
   return createRuntimeDailyBudget({ dataFolder, now: Date.now, sleep: delay })
 }
+
+it('queues journal publication until the preceding request owns its final dispatch fence', async () => {
+  const daily = dailyBudgetAt(folder())
+  const reserve = daily.reserve.bind(daily)
+  const gate = new EventEmitter()
+  const held = once(gate, 'held')
+  let calls = 0
+  vi.spyOn(daily, 'reserve').mockImplementation(async (cost, signal) => {
+    calls += 1
+    if (calls === 1) {
+      const released = once(gate, 'release')
+      gate.emit('held')
+      await released
+    }
+    return await reserve(cost, signal)
+  })
+  const api = fakeModelApi()
+  api.script({ text: 'done' })
+  const raw = fakeModelApiClient(api, new FakeLogOutputChannel())
+  const firstClient = withRuntimeAccounting(raw, daily)
+  const secondClient = withRuntimeAccounting(raw, daily)
+  const first = Array.fromAsync(firstClient.streamResponse(body, new AbortController().signal))
+  await held
+  const second = Array.fromAsync(secondClient.streamResponse(body, new AbortController().signal))
+  try {
+    await delay(0)
+    expect(calls).toBe(1)
+  } finally {
+    gate.emit('release')
+    await Promise.all([first, second])
+  }
+  expect(calls).toBe(2)
+  expect(api.responseBodies()).toHaveLength(2)
+})
+
+it('uses the engine worker estimate rather than a new full-window reservation', async () => {
+  const api = fakeModelApi()
+  api.script({ text: 'done' })
+  const raw = fakeModelApiClient(api, new FakeLogOutputChannel())
+  const ledger = createRunLedger({
+    capUsd: Usd.from('0.001').toAmount(),
+    maxRequests: 2,
+    concurrent: true,
+  })
+  const samples: string[] = []
+  const client = withRuntimeAccounting(raw, dailyBudgetAt(folder()), {
+    isWorker: true,
+    ledger,
+    refuse: () => undefined,
+    started: () => {
+      samples.push(ledger.totals().reservedUsd)
+    },
+    settled: () => undefined,
+  })
+  const guard = Object.assign(() => undefined, { paidEstimatedInputTokens: 100 })
+  await Array.fromAsync(
+    client.streamResponse(body, new AbortController().signal, undefined, undefined, guard),
+  )
+  const estimate = metaResolvedModel(body.model, raw).price.reserve({
+    inputTokens: 100,
+    outputTokens: body.max_output_tokens,
+  })
+  if (estimate === undefined) throw new Error('model has no price')
+  expect(samples).toEqual([Usd.from(estimate).ceiling(EXEC_USD_DECIMALS).toAmount()])
+  expect(api.responseBodies()).toHaveLength(1)
+})

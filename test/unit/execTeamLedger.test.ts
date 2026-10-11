@@ -75,3 +75,67 @@ describe('M96b concurrent headless reservations', () => {
     expect(() => reserve(ledger, '0')).toThrow('closed')
   })
 })
+
+it('worker settlements preserve the orchestrator terminal and observe their own attempt', () => {
+  const ledger = createRunLedger({ capUsd: amount('1'), maxRequests: 100, concurrent: true })
+  const parent = reserve(ledger)
+  ledger.settleResponse(parent, completed)
+  const terminal = ledger.lastResponse
+  const worker = ledger.admitResponse({
+    model: 'worker',
+    maxOutputTokens: 100,
+    price,
+    reserveUsd: amount('0.4'),
+    recordsLastResponse: false,
+  })
+  if ('refused' in worker) throw new Error(worker.refused)
+  expect(ledger.lastResponse).toEqual(terminal)
+  const observed: number[] = []
+  ledger.settleResponse(worker, completed, undefined, (outcome) => {
+    observed.push(outcome.n)
+  })
+  expect(observed).toEqual([worker.n])
+  expect(ledger.lastResponse).toEqual(terminal)
+})
+
+it('repository lowering caps all workers together without expanding the run allowance', () => {
+  const ledger = createRunLedger({ capUsd: amount('2'), maxRequests: 100, concurrent: true })
+  ledger.lowerWorkerCap(amount('0.5'))
+  const worker = ledger.admitResponse({
+    model: 'worker',
+    maxOutputTokens: 100,
+    price,
+    reserveUsd: amount('0.4'),
+    recordsLastResponse: false,
+  })
+  if ('refused' in worker) throw new Error(worker.refused)
+  expect(
+    ledger.admitResponse({
+      model: 'worker',
+      maxOutputTokens: 100,
+      price,
+      reserveUsd: amount('0.4'),
+      recordsLastResponse: false,
+    }),
+  ).toEqual({ refused: 'budget' })
+  reserve(ledger, '1')
+  expect(() => {
+    ledger.lowerWorkerCap(amount('1'))
+  }).toThrow()
+  ledger.settleResponse(worker, {
+    kind: 'transport',
+    why: 'error',
+    terminal: null,
+    incompleteReason: null,
+    usage: undefined,
+  })
+  expect(
+    ledger.admitResponse({
+      model: 'worker',
+      maxOutputTokens: 100,
+      price,
+      reserveUsd: amount('0.4'),
+      recordsLastResponse: false,
+    }),
+  ).toEqual({ refused: 'budget' })
+})

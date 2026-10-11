@@ -323,7 +323,7 @@
     "effort": "Scegli quanto impegno Muse dedica a ogni risposta.",
     "output": "Scegliere il formato del risultato: text, json o jsonl.",
     "max-budget-usd": "Impostare il limite rigido di spesa in USD per questa esecuzione.",
-    "team": "--team: Richiedi un’esecuzione di squadra (backend Model API, acceptEdits e un budget fisso; rifiutato finché non arriva la corsia di esecuzione del team: ogni richiesta esce con 2).",
+    "team": "--team: Eseguire team del motore con Model API, acceptEdits e un budget rigido condiviso da tutti i worker; le richieste vengono negate e le unioni entrano nell’albero di lavoro dell’esecuzione.",
     "max-requests": "Impostare il numero massimo di richieste al modello.",
     "timeout": "Impostare il limite di durata in secondi.",
     "fail-on-denial": "Fermare l’esecuzione se viene negato un permesso.",
@@ -3528,7 +3528,6 @@
   "execPaidNeedsEdits": "La generazione di immagini richiede acceptEdits.",
   "execModelApiOnly": "Queste opzioni richiedono il backend Model API.",
   "execTeamNeedsEdits": "--team richiede --permission-mode acceptEdits.",
-  "execTeamNotReady": "Le esecuzioni di squadra richiedono la corsia di esecuzione del team; la convalida della richiesta è riuscita.",
   "execMuseCodeOnly": "Queste opzioni richiedono il backend Muse Code.",
   "execModelUnpriced": "Questo modello non ha una tariffa nota.",
   "execPromptMissing": "Fornisci un’unica istruzione non vuota.",
@@ -5395,5 +5394,8 @@
       "other": "{count} autorizzazioni",
       "many": "{count} autorizzazioni"
     }
-  }
+  },
+  "execTeamWorkerUnsupported": "I team senza interfaccia eseguono solo worker del motore; {kind} non può essere eseguito in CI.",
+  "execTeamConfigInvalid": "Configurazione del team senza interfaccia non valida: {reason}.",
+  "execTeamProtectedDenied": "Unione del team senza interfaccia negata: i percorsi protetti richiedono approvazione."
 }

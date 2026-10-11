@@ -26469,10 +26469,33 @@ the run working tree after local checks; protected paths deny. Keep the runner
 in its own lazy bundle and retain headless's 100 KiB cap. Certify with fake
 Model API tests and byte-exact restored drills in `docs/certification/m96b-2.md`.
 Hosted Windows/Linux receipts and editor surfaces remain the lead's CI and
-C-M96b-1/4 respectively. Scoped local gates run here; the brief reserves the
-full quality suite for the lead.
+C-M96b-1/4 respectively.
+Runner preflight found the existing Model API collect declaration uses
+numeric bounds the strict-tool encoder cannot represent. Preserve the full
+collect schema and zod boundary through the existing NON_STRICT_TOOL policy;
+all other team tools retain native strict encoding. Prove the real strict-mode
+team turn, not only fake-session ports.
+Exec keeps ordinary workspace trust off. Explicit --team authorizes only
+delegation/merge and file-only worker hosts through isTeamTrusted; it never
+authorizes the orchestrator shell, hooks, protected writes or paid extras. Scoped local gates run here; the brief reserves the
+full quality suite for the lead. The new run-policy chunk has its own budget
+(`dist/execTeam.js`); existing startup/headless caps never grow. Measured
+30.9 KiB plus 15%, rounded to 50 KiB. Provider preflight helpers share the
+existing lazy runtime engine; the headless preflight measures 79.9/100 KiB.
 
-**Status 2026-10-10 (C-M96b-0 contracts; acceptance review pending): building.**
+**Status 2026-10-11 (C-M96b-2 headless runner implemented; hosted CI and lead review pending): building.**
+
+Headless binding owns state/copies for the run, uses the shared engine
+ports in-process, reserves every concurrent attempt in the exact run ledger,
+uses the engine estimate for worker reservations, runs keyless local models,
+denies questions/protected writes and serializes checked working-tree merges.
+Local journal updates and final dispatch fences share one queue, preserving
+the journal's incomplete-intent refusal while network streams stay concurrent.
+Headless shutdown drains service handoff and final state writes before removing
+copies and task refs. Meta fake API and captured Ollama loopback tests pass on
+macbook; `docs/certification/m96b-2.md` holds drills and final gate receipts.
+The next slices are hosted three-OS CI/lead review, C-M96b-1 ACP bindings,
+C-M96b-3 complete parity goldens and C-M96b-4 editor receipts.
 
 Status detail retained: planned; starts after M96 merges. C-M96b-0 froze the
 ACP mapping and exec flag contracts (`src/acp/teamContracts.ts`, certified in
@@ -42780,6 +42803,17 @@ aggregate quality/coverage/platform matrix before integration/release. No
 threshold, ignore or rule is changed.
 
 ## 8. Escape hatches register
+
+M96b-2 uses the Node 20 compatible deferred-gate pattern.
+
+| Location                                                                                                          | Escape hatch                                                     | Reason                                                                                                                                                                                                                                     | Added      |
+| ----------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- |
+| `src/runtime/exec/execTeamEntry.ts` and `src/runtime/runtimeAccountingEntry.ts`, serialized landing/journal turns | `eslint-disable-next-line unicorn/prefer-promise-with-resolvers` | Shared host typechecks retain ES2023 for the Node 20 editor floor, which has no `Promise.withResolvers`. These gates use the standard synchronous Promise executor; finally releases the owned turn. No compiler or lint gate is weakened. | 2026-10-11 |
+
+The new `REAL_GIT_TIMEOUT_MS` (30,000 ms) in `test/unit/execTeam.test.ts`
+applies only to complete native Git clone/commit/merge/cleanup workloads with
+real engine loops and durable journal I/O; ordinary cases retain repository
+defaults. The rig brief permits named deadlines for genuinely long OS work.
 
 | PORTS017 escape                                                                           | Reason                                                                                                                                                                                                                          |
 | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

@@ -31,8 +31,8 @@ export function parseInput<Schema extends z.ZodMiniType>(
 const teamExecAdmissionInputSchema = z.strictObject({ mode: z.string(), backend: z.string() })
 
 /**
- * The runner lane (C-M96b-2) will admit Model API team runs with acceptEdits
- * and a hard budget. Until then, refuse a valid request explicitly.
+ * Exec validates its hard budget first. Team dispatch additionally requires
+ * the Model API engine and acceptEdits; every other mode refuses explicitly.
  */
 export function teamExecAdmission(input: {
   readonly mode: string
@@ -40,9 +40,7 @@ export function teamExecAdmission(input: {
 }): { readonly ok: true } | { readonly ok: false; readonly reason: string } {
   const parsed = parseInput(teamExecAdmissionInputSchema, input, 'team exec admission')
   if (parsed.backend !== 'modelApi') return { ok: false, reason: UI_TEXT.execModelApiOnly }
-  const isAcceptEdits = parsed.mode === 'acceptEdits'
-  return {
-    ok: false,
-    reason: isAcceptEdits ? UI_TEXT.execTeamNotReady : UI_TEXT.execTeamNeedsEdits,
-  }
+  return parsed.mode === 'acceptEdits'
+    ? { ok: true }
+    : { ok: false, reason: UI_TEXT.execTeamNeedsEdits }
 }

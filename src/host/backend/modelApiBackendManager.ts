@@ -65,10 +65,14 @@ import {
 export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   /** M96 lane X: the window's team host seams; the window's host only, never an attempt's. */
   readonly team?: TeamHostSeams | undefined
+  readonly isTeamTrusted?: ModelApiHostDeps['isTeamTrusted']
   readonly paidAuthority?: ModelApiClientDeps['paidAuthority']
   readonly reservePaidRequest?: ModelApiClientDeps['reservePaidRequest']
   readonly judge?: ModelApiHostDeps['judge']
-  readonly createProviderClient?: ModelApiBundleDeps['createProviderClient']
+  readonly createProviderClient?: (
+    client: Parameters<NonNullable<ModelApiBundleDeps['createProviderClient']>>[0],
+    usageKind?: ModelApiHostDeps['usageKind'],
+  ) => ReturnType<NonNullable<ModelApiBundleDeps['createProviderClient']>>
   readonly getProviderAccountId?: () => Promise<string | undefined>
   readonly log: Logger
   readonly getApiKey: () => Promise<string | undefined>
@@ -200,6 +204,7 @@ const MANAGER_DISPOSED = 'The Model API backend was stopped while it was startin
 
 /** What differs between the window's host and a best-of-N attempt's host. */
 interface HostVariant {
+  readonly isWorkspaceTrusted?: (() => boolean) | undefined
   readonly verify: ModelApiBackendManagerDeps['verify']
   readonly workspaceEdits: WorkspaceEdits
   readonly sessionWorkspaceRoot: string | undefined
@@ -311,7 +316,8 @@ export class ModelApiBackendManager {
       uiText: UI_TEXT,
       uiLocale: uiLocale(),
       ...(this.deps.createProviderClient !== undefined && {
-        createProviderClient: this.deps.createProviderClient,
+        createProviderClient: (client) =>
+          this.deps.createProviderClient?.(client, variant.usageKind) ?? Promise.resolve(client),
       }),
       client: {
         ...(this.deps.paidAuthority !== undefined && { paidAuthority: this.deps.paidAuthority }),
@@ -356,7 +362,8 @@ export class ModelApiBackendManager {
         personalSkillsRoot: this.deps.personalSkillsRoot,
         bundledSkills: this.deps.bundledSkills,
         personalAgentsRoot: this.deps.personalAgentsRoot,
-        isWorkspaceTrusted: this.deps.isWorkspaceTrusted,
+        isWorkspaceTrusted: variant.isWorkspaceTrusted ?? this.deps.isWorkspaceTrusted,
+        isTeamTrusted: this.deps.isTeamTrusted,
         isConfidentialWorkspace: this.deps.isConfidentialWorkspace,
         confirmContributorModel: this.deps.confirmContributorModel,
         store: variant.store,
@@ -516,6 +523,10 @@ export class ModelApiBackendManager {
       attemptVerify === undefined ? undefined : { ...attemptVerify, checkCommands: () => [] }
     try {
       return await this.createHost({
+        ...(kind.usageKind === 'worker' &&
+          this.deps.isTeamTrusted !== undefined && {
+            isWorkspaceTrusted: this.deps.isTeamTrusted,
+          }),
         verify,
         workspaceEdits: new WorkspaceEdits(),
         sessionWorkspaceRoot: undefined,

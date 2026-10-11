@@ -323,7 +323,7 @@
     "effort": "Wybierz, ile wysiłku Muse wkłada w każdą odpowiedź.",
     "output": "Wybierz format wyniku: text, json lub jsonl.",
     "max-budget-usd": "Ustaw twardy limit wydatków w USD dla tego uruchomienia.",
-    "team": "--team: Poproś o uruchomienie zespołowe (backend Model API, acceptEdits i sztywny budżet; odmawiane do czasu toru uruchamiania zespołu: każde żądanie kończy się 2).",
+    "team": "--team: Uruchamiaj zespoły silnika z Model API, acceptEdits i ścisłym budżetem dla wszystkich wykonawców; pytania są odrzucane, a scalenia trafiają do drzewa roboczego uruchomienia.",
     "max-requests": "Ustaw maksymalną liczbę żądań do modelu.",
     "timeout": "Ustaw limit czasu uruchomienia w sekundach.",
     "fail-on-denial": "Zatrzymaj uruchomienie po odmowie uprawnienia.",
@@ -3601,7 +3601,6 @@
   "execPaidNeedsEdits": "Generowanie obrazów wymaga acceptEdits.",
   "execModelApiOnly": "Te opcje wymagają backendu Model API.",
   "execTeamNeedsEdits": "--team wymaga --permission-mode acceptEdits.",
-  "execTeamNotReady": "Uruchomienia zespołowe wymagają toru uruchamiania zespołu; weryfikacja żądania powiodła się.",
   "execMuseCodeOnly": "Te opcje wymagają backendu Muse Code.",
   "execModelUnpriced": "Ten model nie ma znanej taryfy.",
   "execPromptMissing": "Podaj jedno niepuste polecenie.",
@@ -5548,5 +5547,8 @@
       "few": "{count} uprawnienia",
       "many": "{count} uprawnień"
     }
-  }
+  },
+  "execTeamWorkerUnsupported": "Zespoły bez interfejsu uruchamiają tylko wykonawców silnika; {kind} nie może działać w CI.",
+  "execTeamConfigInvalid": "Nieprawidłowa konfiguracja zespołu bez interfejsu: {reason}.",
+  "execTeamProtectedDenied": "Scalanie zespołu bez interfejsu odrzucone: chronione ścieżki wymagają zgody."
 }

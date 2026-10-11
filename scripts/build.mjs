@@ -457,6 +457,12 @@ const teamHostOptions = {
   outfile: TEAM_HOST_OUTFILE,
 }
 
+const execTeamOptions = {
+  ...teamOptions,
+  entryPoints: ['src/runtime/exec/execTeamEntry.ts'],
+  outfile: 'dist/execTeam.js',
+}
+
 const teamFileIoOptions = {
   ...teamOptions,
   entryPoints: [TEAM_FILE_IO_ENTRY],
@@ -1222,6 +1228,7 @@ if (isWatch) {
     esbuild.context(teamOptions),
     esbuild.context(teamRunnersOptions),
     esbuild.context(teamHostOptions),
+    esbuild.context(execTeamOptions),
     esbuild.context(teamFileIoOptions),
     esbuild.context(teamMergeOptions),
     esbuild.context(teamSchedulerOptions),
@@ -1339,6 +1346,7 @@ if (isWatch) {
     team: esbuild.build(teamOptions),
     teamRunners: esbuild.build(teamRunnersOptions),
     teamHost: esbuild.build(teamHostOptions),
+    execTeam: esbuild.build(execTeamOptions),
     teamFileIo: esbuild.build(teamFileIoOptions),
     teamMerge: esbuild.build(teamMergeOptions),
     teamScheduler: esbuild.build(teamSchedulerOptions),

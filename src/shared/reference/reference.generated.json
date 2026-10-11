@@ -570,6 +570,21 @@
       "editors": ["vscode", "acp"]
     },
     {
+      "id": "headless-teams",
+      "name": { "ui": "paidTeamWorkersName" },
+      "summary": { "cli": "team" },
+      "description": { "cli": "team" },
+      "commands": [],
+      "settings": [],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#headless-runs",
+      "backends": ["modelApi"],
+      "paid": false,
+      "surfaces": ["acp:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["acp"]
+    },
+    {
       "id": "output-schema",
       "name": { "cli": "output-schema" },
       "summary": { "cli": "output-schema" },
@@ -6669,7 +6684,7 @@
     {
       "route": "exec",
       "name": "exec: --team",
-      "description": "--team: Ask for a team run (Model API backend, acceptEdits and a hard budget; refused until the team runner lane lands: every request exits 2).",
+      "description": "--team: Run engine teams with Model API, acceptEdits and a hard budget shared by every worker; prompts deny, merges enter the run working tree.",
       "text": { "cli": "team" },
       "contract": { "type": "boolean", "repeatable": false, "default": false, "purpose": "team" }
     },

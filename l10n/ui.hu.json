@@ -323,7 +323,7 @@
     "effort": "Válassza ki, mennyi erőfeszítést tegyen a Muse az egyes válaszokba.",
     "output": "Az eredmény formátumának kiválasztása: text, json vagy jsonl.",
     "max-budget-usd": "A futtatás szigorú kiadási korlátjának megadása USD-ben.",
-    "team": "--team: Csapatfuttatás kérése (Model API backend, acceptEdits és kemény költségkeret; a csapatfuttató sáv érkezéséig elutasítva: minden kérés 2-vel lép ki).",
+    "team": "--team: Motorcsapatok futtatása Model API, acceptEdits és az összes dolgozó által megosztott szigorú költségkeret mellett; a kérdések elutasítva, az egyesítések a futás munkafájába kerülnek.",
     "max-requests": "A modellkérések maximális számának beállítása.",
     "timeout": "A futtatás határidejének beállítása másodpercben.",
     "fail-on-denial": "A futtatás leállítása elutasított engedélynél.",
@@ -3455,7 +3455,6 @@
   "execPaidNeedsEdits": "A képgeneráláshoz acceptEdits szükséges.",
   "execModelApiOnly": "Ezekhez a beállításokhoz a Model API háttérszolgáltatás szükséges.",
   "execTeamNeedsEdits": "A --teamhez --permission-mode acceptEdits szükséges.",
-  "execTeamNotReady": "A csapatfuttatásokhoz a csapatfuttató sáv kell; a kérés ellenőrzése sikeres.",
   "execMuseCodeOnly": "Ezekhez a beállításokhoz a Muse Code háttérszolgáltatás szükséges.",
   "execModelUnpriced": "Ehhez a modellhez nincs ismert díjszabás.",
   "execPromptMissing": "Adj meg egy nem üres utasítást.",
@@ -5242,5 +5241,8 @@
       "one": "{count} engedély",
       "other": "{count} engedély"
     }
-  }
+  },
+  "execTeamWorkerUnsupported": "A felület nélküli csapatok csak a motor dolgozóit futtatják; {kind} nem futtatható CI-ben.",
+  "execTeamConfigInvalid": "Érvénytelen felület nélküli csapatbeállítás: {reason}.",
+  "execTeamProtectedDenied": "A felület nélküli csapat egyesítése elutasítva: a védett útvonalak jóváhagyást igényelnek."
 }
