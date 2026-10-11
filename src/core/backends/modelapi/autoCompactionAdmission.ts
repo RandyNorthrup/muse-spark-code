@@ -4,8 +4,8 @@ import { MODEL_API_PRICES_PER_MILLION, TOKENS_PER_MILLION } from '../../../share
 import { modelApiPaidTier } from '../../../shared/paid'
 import { estimateCostUsd } from '../../usage/insights'
 import type { CoreLogger } from '../../logging'
-import { reserveRequestAmount } from '../../providers/priceCard'
-import { requestImageCount } from './modelPolicy'
+import type { reserveRequestAmount } from '../../providers/priceCard'
+import type { requestImageCount } from './modelPolicy'
 import type { AutoCompactModel } from './autoCompact'
 import { AutoCompactionNotAuthorizedError } from '../../paid/paidConsent'
 import type { ModelApiHostDeps } from './ModelApiHost'
@@ -52,7 +52,15 @@ export interface AutoCompactionLedger {
   ): Promise<AutoCompactionLedgerClaim | undefined>
 }
 
+/** Supplied by the backend and providers bundles when the first attempt prepares. */
+export interface AutoCompactionPricing {
+  readonly reserveRequestAmount: typeof reserveRequestAmount
+  readonly requestImageCount: typeof requestImageCount
+}
+
 export interface AutoCompactionAdmissionDeps {
+  /** Missing pricing refuses admission; a failed load cannot dispatch a request. */
+  readonly loadPricing?: () => Promise<AutoCompactionPricing | undefined>
   /** Runtime transport already owns the daily claim for every HTTP attempt. */
   readonly accounting: AutoCompactionLedger | 'transport'
   readonly allowsPaidUse: ModelApiHostDeps['allowsPaidUse']
@@ -74,8 +82,10 @@ function reserveAmountUsd(
   model: AutoCompactModel,
   body: CreateResponseBody,
   inputTokens: number,
+  pricing: AutoCompactionPricing | undefined,
 ): UsdAmount | undefined {
   if (
+    pricing === undefined ||
     model.pricing.kind !== 'priced' ||
     !Number.isSafeInteger(inputTokens) ||
     inputTokens < 0 ||
@@ -86,12 +96,12 @@ function reserveAmountUsd(
     return undefined
   try {
     return Usd.from(
-      reserveRequestAmount(model.pricing.card, {
+      pricing.reserveRequestAmount(model.pricing.card, {
         inputTokens,
         outputTokens: body.max_output_tokens,
       }),
     )
-      .add(Usd.from(model.pricing.card.image ?? 0).times(requestImageCount(body)))
+      .add(Usd.from(model.pricing.card.image ?? 0).times(pricing.requestImageCount(body)))
       .toAmount()
   } catch {
     return undefined
@@ -131,7 +141,7 @@ export function createAutoCompactionAdmission(
 ): AdmitAutoCompaction {
   return async ({ signal, model, modelId, sessionId }) => {
     const isAvailable = () => deps.isOn() && deps.isTrusted() && deps.isEvaluated()
-    if (signal.aborted || !isAvailable()) return
+    if (signal.aborted || !isAvailable() || deps.loadPricing === undefined) return
     // Only the verified catalogue is settled here; BYO tariffs belong to C-M101-4.
     if (model.pricing.kind !== 'priced' || modelApiPaidTier(modelId) === undefined) return
     const beforeConsent = deps.paidUseFence(sessionId)
@@ -196,7 +206,9 @@ export function createAutoCompactionAdmission(
           await settle(modelId, undefined, 'uncertain')
           checkAuthorization()
           if (hasFailed || body.model !== modelId) throw new Error(deps.storeUnavailable)
-          const reserveUsd = reserveAmountUsd(model, body, inputTokens)
+          const pricing = await deps.loadPricing?.()
+          checkAuthorization()
+          const reserveUsd = reserveAmountUsd(model, body, inputTokens, pricing)
           if (reserveUsd === undefined) throw new Error(deps.storeUnavailable)
           if (deps.accounting === 'transport') return
           claim = await deps.accounting.reserveCompaction(reserveUsd, signal)

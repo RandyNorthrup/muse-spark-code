@@ -50,18 +50,12 @@ import {
   MODEL_TEXT,
   type PromptCacheRetention,
   type PaidFeature,
-  IS_AUTO_COMPACTION_EVALUATED,
   UI_TEXT,
-  SETTING_DEFAULTS,
 } from '../../shared/constants'
 import { uiLocale } from '../../shared/l10n/text'
 import { forgetFile, requireFile } from '../lazyBundle'
 import type { Logger } from '../logger'
-import {
-  createAutoCompactionAdmission,
-  resolveAutoCompactModel,
-  type AutoCompactionLedgerClaim,
-} from '../../core/backends/modelapi/autoCompactionAdmission'
+import type { AutoCompactionLedgerClaim } from '../../core/backends/modelapi/autoCompactionAdmission'
 import {
   isModelApiBundle,
   type McpPoolFactory,
@@ -432,37 +426,6 @@ export class ModelApiBackendManager {
         observationPacking: this.deps.isObservationPackingOn,
         autoCompaction: this.deps.isAutoCompactionOn,
         autoCompactionEvaluated: this.deps.autoCompactionEvaluated,
-        autoCompactModel: resolveAutoCompactModel,
-        ...((this.deps.reserveAutoCompaction !== undefined ||
-          this.deps.autoCompactionAccounting === 'transport') && {
-          admitAutoCompaction: createAutoCompactionAdmission({
-            accounting:
-              this.deps.autoCompactionAccounting === 'transport'
-                ? 'transport'
-                : {
-                    reserveCompaction: async (amount, signal) => {
-                      if (this.deps.reserveAutoCompaction === undefined)
-                        throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
-                      return await this.deps.reserveAutoCompaction(amount, signal)
-                    },
-                  },
-            allowsPaidUse: variant.allowsPaidUse,
-            isOn: () =>
-              variant.isPaidFeatureOn('autoCompaction') &&
-              this.deps.isAutoCompactionOn?.() !== false,
-            isTrusted: this.deps.isWorkspaceTrusted,
-            isEvaluated: () =>
-              this.deps.autoCompactionEvaluated?.() ?? IS_AUTO_COMPACTION_EVALUATED,
-            paidUseFence: (sessionId) =>
-              this.deps.paidUseFence?.('autoCompaction', sessionId) ?? (() => false),
-            dailyBudgetUsd:
-              this.deps.paidDailyBudgetUsd ??
-              (() => Usd.from(SETTING_DEFAULTS.paidDailyBudgetUsd).toAmount()),
-            notePaidUse: this.deps.notePaidUse,
-            log: this.deps.log,
-            storeUnavailable: UI_TEXT.sessionBudgetStoreUnavailable,
-          }),
-        }),
         shellKeepsDirectory: this.deps.isShellKeepsDirectoryOn,
         allowsPaidUse: variant.allowsPaidUse,
         isPaidUseRemembered: variant.isPaidUseRemembered,
@@ -482,6 +445,7 @@ export class ModelApiBackendManager {
         workspaceEdits: variant.workspaceEdits,
         sessionWorkspaceRoot: variant.sessionWorkspaceRoot,
       },
+      autoCompaction: this.deps,
       hookSettingsPath: this.deps.hookSettingsPath,
       createMcpServers: variant.createMcpServers,
     })

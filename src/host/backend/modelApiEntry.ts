@@ -1,4 +1,9 @@
-import { MODEL_API_MAX_RETRIES, UI_TEXT } from '../../shared/constants'
+import {
+  IS_AUTO_COMPACTION_EVALUATED,
+  MODEL_API_MAX_RETRIES,
+  SETTING_DEFAULTS,
+  UI_TEXT,
+} from '../../shared/constants'
 import type { CreateResponseBody, StreamEvent } from '../../core/backends/modelapi/schemas'
 import {
   type ResponseAttemptGuard,
@@ -40,6 +45,12 @@ import {
 import { sparkHooksFiles } from '../../core/backends/modelapi/hookNames'
 
 import { ModelApiHost } from '../../core/backends/modelapi/ModelApiHost'
+import {
+  createAutoCompactionAdmission,
+  resolveAutoCompactModel,
+} from '../../core/backends/modelapi/autoCompactionAdmission'
+import { requestImageCount } from '../../core/backends/modelapi/modelPolicy'
+import { Usd } from '../../shared/usd'
 
 import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
@@ -91,6 +102,44 @@ async function loadSparkHooks(sources: HookLoadDeps): Promise<readonly Extension
   return await entry.loadSparkHookDefinitions(sources)
 }
 
+/** The same admission authority, constructed behind the backend's existing boundary. */
+function autoCompactionAdmission(deps: ModelApiBundleDeps) {
+  const config = deps.autoCompaction
+  if (
+    config?.reserveAutoCompaction === undefined &&
+    config?.autoCompactionAccounting !== 'transport'
+  )
+    return
+  const host = deps.host
+  return createAutoCompactionAdmission({
+    loadPricing: async () => {
+      const { priceCard } = await import('./providersEntry')
+      return { reserveRequestAmount: priceCard.reserveRequestAmount, requestImageCount }
+    },
+    accounting:
+      config.autoCompactionAccounting === 'transport'
+        ? 'transport'
+        : {
+            reserveCompaction: async (amount, signal) => {
+              if (config.reserveAutoCompaction === undefined)
+                throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+              return await config.reserveAutoCompaction(amount, signal)
+            },
+          },
+    allowsPaidUse: host.allowsPaidUse,
+    isOn: () => host.isPaidFeatureOn('autoCompaction') && host.autoCompaction?.() !== false,
+    isTrusted: host.isWorkspaceTrusted,
+    isEvaluated: () => host.autoCompactionEvaluated?.() ?? IS_AUTO_COMPACTION_EVALUATED,
+    paidUseFence: (sessionId) =>
+      config.paidUseFence?.('autoCompaction', sessionId) ?? (() => false),
+    dailyBudgetUsd:
+      config.paidDailyBudgetUsd ?? (() => Usd.from(SETTING_DEFAULTS.paidDailyBudgetUsd).toAmount()),
+    notePaidUse: host.notePaidUse,
+    log: host.log,
+    storeUnavailable: UI_TEXT.sessionBudgetStoreUnavailable,
+  })
+}
+
 /** The host over the given dependencies, its stored sessions read. */
 export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<ModelApiHost> {
   setUiText(deps.uiText, deps.uiLocale)
@@ -128,6 +177,8 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
   mcp?.setUiText(deps.uiText, deps.uiLocale)
   const host = new ModelApiHost({
     ...hostDeps,
+    autoCompactModel: hostDeps.autoCompactModel ?? resolveAutoCompactModel,
+    admitAutoCompaction: hostDeps.admitAutoCompaction ?? autoCompactionAdmission(deps),
     modelFacts: hostDeps.modelFacts ?? metaModelFacts,
     sideCallFormats: hostDeps.sideCallFormats ?? metaSideCallFormats,
     modelCapabilities: hostDeps.modelCapabilities ?? metaHostedCapabilities,
