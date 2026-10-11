@@ -4101,7 +4101,11 @@ count does not establish legal compliance. Missing locks or license data,
 dynamic metadata, binary files, links, stale artifacts and bounded-out input
 remain incomplete. Identifier matching is pinned, and verbatim license texts
 match pinned SPDX License List texts exactly; excerpts, modified texts and
-unrecognized prose stay heuristic with named incomplete reasons. **Not legal
+unrecognized prose stay heuristic with named incomplete reasons. Holder and
+party slots accept names of at most eight normalized tokens, reject restriction vocabulary in every supported
+language after case and separator splitting, and keep suspicious slot text quoted
+for review. Coverage gaps for dependencies that provably do not ship are
+informational; a shipped declaration/text disagreement stays a named conflict. **Not legal
 advice; for distribution decisions consult a lawyer.**
 
 Select findings or choose **Fix all safe ones** to review exact patches before

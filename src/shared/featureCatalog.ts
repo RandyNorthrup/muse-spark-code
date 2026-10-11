@@ -367,6 +367,7 @@ export function featureCatalog(): readonly Feature[] {
       { ui: 'legalScanItemDetail' },
       ['legalScan'],
       ['legalHeaderPolicy', 'legalRegistryLookups'],
+      // Exact template slots reject restrictive text; coverage follows shipped material.
       'legal-scan-m97',
       ['museCode', 'modelApi'],
       false,

@@ -180,6 +180,123 @@ describe('shipped vs not', () => {
   })
 })
 
+describe('RVCM971C reader coverage follows distribution', () => {
+  const cases: readonly [string, Record<string, string>][] = [
+    ['Yarn', { 'yarn.lock': 'leftpad@^1.3.0:\n  version "1.3.0"\n' }],
+    ['pnpm', { 'pnpm-lock.yaml': "lockfileVersion: '9.0'\npackages:\n  leftpad@1.3.0: {}\n" }],
+    [
+      'unresolved npm',
+      { 'package.json': '{"name":"own","license":"MIT","dependencies":{"not-in-lock":"*"}}' },
+    ],
+    ['Python', { 'requirements.txt': 'requests==2.0.0\n' }],
+    [
+      'Cargo',
+      {
+        'Cargo.lock':
+          '[[package]]\nname = "leftpad"\nversion = "1.3.0"\nsource = "registry+local"\n',
+      },
+    ],
+    ['Go', { 'go.mod': 'module own\nrequire example/leftpad v1.3.0\n' }],
+    [
+      'JVM',
+      {
+        'pom.xml':
+          '<project><dependencies><dependency><groupId>example</groupId><artifactId>leftpad</artifactId><version>1.3.0</version></dependency></dependencies></project>',
+      },
+    ],
+    [
+      'NuGet',
+      { 'own.csproj': '<Project><PackageReference Include="leftpad" Version="1.3.0" /></Project>' },
+    ],
+    ['Composer', { 'composer.json': '{"name":"own","require":{"example/leftpad":"*"}}' }],
+    ['Ruby', { Gemfile: 'gem "leftpad", "1.3.0"\n' }],
+  ]
+  it.each(cases)('keeps non-shipping %s reader gaps out of completeness', (_name, metadata) => {
+    const files = {
+      LICENSE: FULL_MIT_LICENSE,
+      'src/a.ts': HEADED,
+      [BUNDLE_OUTPUT]: BUNDLE_TEXT,
+      ...metadata,
+    }
+    const result = scanLegal(snapshotFrom(files), {
+      headerPolicy: 'optional',
+      distribution: hashEvidence({ 'src/a.ts': HEADED, [BUNDLE_OUTPUT]: BUNDLE_TEXT }),
+    })
+    expect(result.incompleteChecks).toEqual([])
+    const unknown = scanLegal(snapshotFrom(files), { headerPolicy: 'optional' })
+    expect(unknown.incompleteChecks.length).toBeGreaterThan(0)
+  })
+
+  it('keeps malformed manifest coverage even when no dependency ships', () => {
+    const files = {
+      LICENSE: FULL_MIT_LICENSE,
+      'package.json': '{broken',
+      'src/a.ts': HEADED,
+      [BUNDLE_OUTPUT]: BUNDLE_TEXT,
+    }
+    const result = scanLegal(snapshotFrom(files), {
+      headerPolicy: 'optional',
+      distribution: hashEvidence({ 'src/a.ts': HEADED, [BUNDLE_OUTPUT]: BUNDLE_TEXT }),
+    })
+    expect(result.incompleteChecks).toContain(
+      fill(UI_TEXT.legalScanner.m150, { v0: 'package.json' }),
+    )
+  })
+
+  it('ignores unresolved non-shipping rows alongside a licensed shipped npm package', () => {
+    const files = {
+      LICENSE: FULL_MIT_LICENSE,
+      'yarn.lock': 'shipped@^1.0.0:\n  version "1.0.0"\n\ndevonly@^2.0.0:\n  version "2.0.0"\n',
+      'package.json': '{"name":"own","license":"MIT","dependencies":{"missing":"*"}}',
+      'node_modules/shipped/package.json': '{"name":"shipped","version":"1.0.0","license":"MIT"}',
+      'node_modules/shipped/index.js': 'module.exports = 1',
+      THIRD_PARTY_NOTICES: 'shipped',
+      [BUNDLE_OUTPUT]: BUNDLE_TEXT,
+    }
+    const result = scanLegal(snapshotFrom(files), {
+      headerPolicy: 'optional',
+      distribution: hashEvidence({
+        'node_modules/shipped/index.js': files['node_modules/shipped/index.js'],
+        [BUNDLE_OUTPUT]: BUNDLE_TEXT,
+      }),
+    })
+    expect(result.incompleteChecks).toEqual([])
+  })
+
+  it.each(['BSD-2-Clause', 'Apache-2.0', 'GPL-2.0-only'])(
+    'preserves a shipped exact %s text disagreeing with MIT metadata',
+    (id) => {
+      const files = {
+        LICENSE: FULL_MIT_LICENSE,
+        THIRD_PARTY_NOTICES: 'leftpad',
+        'package-lock.json':
+          '{"lockfileVersion":3,"packages":{"node_modules/leftpad":{"version":"1.3.0","license":"MIT"}}}',
+        'node_modules/leftpad/package.json': '{"name":"leftpad","version":"1.3.0","license":"MIT"}',
+        'node_modules/leftpad/index.js': 'module.exports = 1',
+        'node_modules/leftpad/LICENSE': canonicalText(id),
+        [BUNDLE_OUTPUT]: BUNDLE_TEXT,
+      }
+      const result = scanLegal(snapshotFrom(files), {
+        headerPolicy: 'optional',
+        distribution: hashEvidence({
+          'node_modules/leftpad/index.js': files['node_modules/leftpad/index.js'],
+          [BUNDLE_OUTPUT]: BUNDLE_TEXT,
+        }),
+      })
+      expect(result.incompleteChecks).toContain(fill(UI_TEXT.legalScanner.m033, { v0: 'leftpad' }))
+      expect(
+        result.findings.find((finding) => finding.explanation.includes('License evidence conflict'))
+          ?.explanation,
+      ).toContain('node_modules/leftpad/LICENSE')
+      if (id === 'GPL-2.0-only') {
+        expect(
+          result.findings.find((finding) => finding.severity === 'blocker')?.explanation,
+        ).toContain('leftpad@1.3.0')
+      }
+    },
+  )
+})
+
 describe('report bounds', () => {
   it('summarizes omitted advice instead of making the scan incomplete', () => {
     const sources = Object.fromEntries(

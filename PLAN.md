@@ -19180,6 +19180,19 @@ in-tree junctions below it, drive-letter spelling) and
 
 ## 3. Open questions (need the owner)
 
+**CM971R4 vendor evidence blocker (2026-10-10).** RVCM971C's required
+strict slot grammar and the required repository exit 0/1 conflict on the
+currently shipped upstream texts. `@muse-code/sdk`, `react`, `react-dom` and
+`scheduler` end their holder line with `affiliates.`; `highlight.js` ends a
+personal holder name with a sentence period; `parse5`'s holder/contact slot
+exceeds eight normalized tokens; `lz-string` uses the bare lowercase holder `pieroxy`; `smol-toml` uses `et al.`. These are external
+licence bytes, never edited by this lane. The conservative matcher retains
+review, so the repository scan has nine incomplete reasons (eight named
+texts plus the human-review caveat) and exit 2. Every size/split/host-global/
+notice gate and all 87 build records pass. The lead must decide the grammar
+or obtain admissible upstream evidence before the repository scan can pass;
+no whitelist, threshold, or incomplete-coverage guard is weakened here.
+
 **Q-VISREGEN2 resolved by lead (2026-10-09).** Preserve every 0.17.0
 change and Highlight while tightening only that release's wording below
 72,000 decoded bytes. Keep 0.16.0 and older notes byte-exact and all content
@@ -36965,6 +36978,18 @@ Record regression failures, byte-exact red drills and bounded checks in
   (MIT-0 added). Omitted advice in a long report is summarized, not an
   incomplete reason.
 
+- **CM971R4 repair scope (2026-10-10, RVCM971C).** Exact variable
+  matches require short names (at most eight tokens), multilingual restriction
+  rejection after Unicode case/separator splitting, and no sentence punctuation
+  beyond company abbreviations. Compound `non profit` is a
+  phrase, never a ban on `Profit Inc.`. Scope reader gaps to shipped material,
+  preserve declaration/text conflicts, prioritize distribution evidence within
+  the unchanged file cap, preserve package versions during privacy scrubbing,
+  and align the exit documentation with blocker-only exit 1. Ecosystem admission
+  counting is shared in the existing dependency module to retain the unchanged
+  zero-duplication gate. Every finding has
+  a regression and byte-exact red/restored drill in `docs/certification/m97.md`.
+
 - **Goal.** Both backends offer an evidence-based legal/licensing and header
   hygiene report without modifying the project; the user can then authorize
   selected, supported fixes. The feature does not certify that everything is legal.
@@ -38038,6 +38063,15 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**CM971R4 gate receipt (2026-10-10).** The unchanged production build gate
+refuses eight upstream licence texts under the owner's strict slot grammar;
+see §3 and `docs/certification/m97.md`. This is an external vendor evidence
+blocker, recorded before committing the review repairs. The gate remains on
+and failing; no product qualification or repository exit-0/1 pass is claimed.
+The lane's explicit shared rules reserve the full aggregate quality command
+for the lead, so this rig runs the prescribed static gates, production build,
+and complete owning test files instead.
 
 **CIR4MAC scoped hosted-CI repair (2026-10-09, macmini).** Reproduce
 round 4's macOS target-size deadline and palette failure-render ordering

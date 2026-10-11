@@ -16,6 +16,7 @@
 import {
   LEGAL_TEMPLATE_ALIGN_MIN,
   LEGAL_TEMPLATE_CAPITALS_RUN_MAX,
+  LEGAL_TEMPLATE_NAME_TOKENS_MAX,
   LEGAL_TEMPLATE_EXPECTED_TOKENS,
   LEGAL_TEMPLATE_ORIGINAL_SLACK_CHARS,
   LEGAL_TEMPLATE_SIMILARITY_MIN,
@@ -134,9 +135,9 @@ const RIGHTS_RESERVED = /[.,]?\s*all rights reserved\.?\s*$/iu
 const YEARS = /\b\d{4}(?:\s*[-–—]\s*(?:\d{4}|present))?\b/giu
 const LIST_MARKER =
   /^(?:\(?(?:\d{1,3}(?:\.\d{1,3})*|[a-z]{1,2}|[ivxlcdm]{1,7})[.)]?\)?\.?|[-*•·–—o])$/iu
-/** Corporate and personal abbreviations a name may close a word with. */
+/** Company and organisation abbreviations a name may close a word with. */
 const ABBREVIATIONS: ReadonlySet<string> = new Set(
-  'inc corp co ltd llc llp lp gmbh ag sa sas sarl bv nv plc pty jr sr st dr mr mrs ms prof kg kk oy ab as aps spa srl ltda cia univ assn assoc dept bros al'.split(
+  'inc corp co ltd llc llp lp gmbh ag sa sas sarl bv nv plc pty kg kk oy ab as aps spa srl ltda cia univ assn assoc dept bros'.split(
     ' ',
   ),
 )
@@ -154,16 +155,66 @@ const NAME_CONNECTORS: ReadonlySet<string> = new Set(
  * Nonprofit Projects Only`) keeps human review. The list only ever forces
  * review; it never makes a text match.
  */
+// Suffix packing preserves every one of the 312 distinct words below;
+// the independent test fixture expands the original language lists. This
+// keeps multilingual review inside the scanner's unchanged bundle budget.
 const RESTRICTION_WORDS: ReadonlySet<string> = new Set(
-  'noncommercial commercial nonprofit non profit educational education academic personal only solely exclusively strictly no not never without except excluding unless prohibited prohibit forbidden restricted restriction restrictions permitted permission allowed require requires required must shall paid pay payment fee fees royalty royalties charge use usage purpose purposes training evaluation military internal hobby hobbyist demo trial'.split(
-    ' ',
+  [
+    'academic allowed apenas ausschließlich beschränkt bezahlt bildung||szwecke charge client|es|i|s comercia|is|l|les commercia|l|le|les|li|ux csak',
+    'customer||s członk|owie|ów demo educacional educati|on|onal|va|vo edukacyjn|e|y esclusivamente evaluation except exclu|ding|sivamente|sively',
+    'eğit|im|sel fee||s fizető||s forbidden gemeinnützig||e hobby||ist inter|dit|dite|nal jen kar kereskedelmi kizárólag kişisel klien|ci|tów',
+    'komer|cyjne|cyjny|ční kommerziell||e|en|es korlátozott kunden kâr limit|ada|ado|ata|ato|ed|é|ée lucrati|f|va|ve|vo lucro magán||célú',
+    'memb|er|ers|res|ri|ros miembros military mitglieder must müşteriler nekomerční nemkereskedelmi never neziskov|é|ý nichtkommerziell niedochodowy',
+    'niekomercyjn|e|y no noncommercial||e nonprofit not nur ograniczon|e|y oktatási omezen|é|ý only osob|iste|isty|ní paga|do|mento|ndo|ntes|nti pago',
+    'paid pay||ant|ants|ing|ment permi|ssion|tted person|al|ale|nel|nelle persönlich||e|en pessoal placen|é|ý pouze',
+    'priv|ada|ado|at|ata|ate|aten|ater|ato|é|ée|ées|és prohib|ida|ido|it|ited|é|ée proibi|da|do|ta|to prywatn|e|ego|y purpose||s pädagogisch',
+    'pła|cący|tny require||d|s restrict|ed|ion|ions royalt|ies|y sadece seulement shall sol|amente|ely|o|tanto somente soukrom|é|ý strictly személyes',
+    'sólo sınırlı tagok ticari til|os|tott training trial tylko uniquement unless untersagt usage use vedado verboten vietat|a|o vzdělávací without',
+    'wyłącznie yalnızca yasak||lanmış|tır zabronion|e|y zahlende zakazane zakáz|aný|áno zákazní|ci|ky éducati|f|ve ödeyen özel únicamente ücretli',
+    'ügyfelek üyeler člen|ové|y запрещ|ен|ено|ён клиент|ов|ы коммерческ|ая|ие|ий|ое личн|ого|ое|ый некоммерческ|ая|ий|их|ое нельзя образовательн|ое|ый',
+    'ограничен|ный|о плат|ный|ящих только участники частн|ого|ое|ый членов のみ 不可 不得 个人 仅限 付費 付费 会员 会員 個人 僅限 商业 商業 商用 客戶 客户 教育 會員 有料 營利 禁止 私人 私的 营利 限制',
+    '限定 非商业 非商業 非商用 非営利 非營利 非营利 顧客 개인 고객 교육 금지 불가 비상업 비영리 사적 상업 유료 전용 제한 지불 회원',
+  ].flatMap((line) =>
+    line
+      .split(' ')
+      .flatMap((entry) => {
+        const [stem = '', ...suffixes] = entry.split('|')
+        return suffixes.length === 0 ? [stem] : suffixes.map((suffix) => stem + suffix)
+      })
+      .map((word) => word.replaceAll('ı', 'i').replaceAll('ß', 'ss')),
   ),
 )
+// Keep compound restrictions intact: neither `non` nor `profit` alone
+// implies a restriction (Profit Inc. is an ordinary company name).
+const RESTRICTION_PHRASES = ['non profit', 'non commercial', 'no ai']
 
-/** Whether a word, or any hyphen-joined piece of it, is restriction vocabulary. */
-function isRestrictionWord(lower: string): boolean {
+/** Split Unicode camelCase, acronym boundaries and separators before folding case. */
+function nameTokens(text: string): string[] {
+  return text
+    .normalize('NFKC')
+    .replaceAll(/([\p{Ll}\p{N}]\p{M}*)([\p{Lu}\p{Lt}])/gu, '$1 $2')
+    .replaceAll(/([\p{Lu}\p{Lt}]\p{M}*)([\p{Lu}\p{Lt}]\p{M}*\p{Ll})/gu, '$1 $2')
+    .toLowerCase()
+    .replaceAll('\u{307}', '')
+    .replaceAll('ı', 'i')
+    .replaceAll('ß', 'ss')
+    .split(/[^\p{L}\p{N}\p{M}]+/u)
+    .filter((part) => part !== '')
+}
+
+function isRestrictionWord(text: string): boolean {
+  const tokens = nameTokens(text)
+  const joined = tokens.join(' ')
+  const unsplit = text
+    .normalize('NFKC')
+    .toLowerCase()
+    .replaceAll('\u{307}', '')
+    .replaceAll('ı', 'i')
+    .replaceAll('ß', 'ss')
   return (
-    RESTRICTION_WORDS.has(lower) || lower.split('-').some((piece) => RESTRICTION_WORDS.has(piece))
+    RESTRICTION_WORDS.has(unsplit) ||
+    tokens.some((part) => RESTRICTION_WORDS.has(part)) ||
+    RESTRICTION_PHRASES.some((phrase) => ` ${joined} `.includes(` ${phrase} `))
   )
 }
 
@@ -618,16 +669,23 @@ function isNameWord(word: string, lower: string, vocabulary: ReadonlySet<string>
 }
 
 /**
- * Whether text reads only as a name: capitalised words, initials,
- * numbers, contacts, a lone handle and a closed set of particles, with
- * periods only after an initial or an abbreviation, or closing the name.
+ * Whether text reads only as a name: capitalised words,
+ * numbers, contacts and a closed set of particles, with
+ * at most eight tokens and periods only after a company abbreviation.
  * A terminator, lowercase prose, a sentence after an abbreviation,
  * restriction vocabulary in any case, or text in a script without letter
  * case never passes.
  */
 function isNameShaped(text: string, vocabulary: ReadonlySet<string>): boolean {
   const body = collapse(text)
-  if (body === '' || TERMINATORS.test(body)) return false
+  if (
+    body === '' ||
+    TERMINATORS.test(body) ||
+    body.split(/\s+/u).length > LEGAL_TEMPLATE_NAME_TOKENS_MAX ||
+    isRestrictionWord(body) ||
+    nameTokens(body).length > LEGAL_TEMPLATE_NAME_TOKENS_MAX
+  )
+    return false
   const hasContacts = body.includes('@') || body.includes('://')
   const parts = (
     hasContacts
@@ -642,24 +700,25 @@ function isNameShaped(text: string, vocabulary: ReadonlySet<string>): boolean {
     .filter((part) => part !== '' && !/^[,&/+-]+$/u.test(part))
   let isAfterAbbreviation = false
   let capitalRun = 0
-  for (const [index, part] of parts.entries()) {
+  for (const part of parts) {
     const hasPeriod = part.endsWith('.')
     const word = hasPeriod ? part.slice(0, -1) : part
     const lower = word.toLowerCase()
-    if (word === '' || /[^\p{L}\p{N}\p{M}._'’-]/u.test(word)) return false
+    if (word === '' || /[^\p{Lu}\p{Ll}\p{Lt}\p{N}\p{M}._'’-]/u.test(word)) return false
+    if (word.includes('.') && !/^(?:\p{L}\.)+\p{L}$/u.test(word)) return false
     if (isAfterAbbreviation && /^\p{Lu}/u.test(word)) return false
-    if (isRestrictionWord(lower)) return false
+    if (isRestrictionWord(word)) return false
     // Capitals-only words in a row outside the variable's own wording
     // read as a clause (`NO COMMERCIAL USE`), not a name.
     const isShout =
       /^\p{Lu}{2,}$/u.test(word) && !vocabulary.has(lower) && !NAME_CONNECTORS.has(lower)
     capitalRun = isShout ? capitalRun + 1 : 0
-    if (capitalRun >= LEGAL_TEMPLATE_CAPITALS_RUN_MAX) return false
-    const isHandle = parts.length === 1 && /^[\p{Ll}\p{N}_-]+$/u.test(word)
-    if (!isHandle && !isNameWord(word, lower, vocabulary)) return false
+    if (capitalRun >= LEGAL_TEMPLATE_CAPITALS_RUN_MAX || !isNameWord(word, lower, vocabulary))
+      return false
     isAfterAbbreviation = hasPeriod && ABBREVIATIONS.has(lower)
-    const isInitial = /^\p{L}$/u.test(word)
-    if (hasPeriod && !isAfterAbbreviation && !isInitial && index !== parts.length - 1) return false
+    const isCompanyInitials =
+      /^(?:\p{L}\.)+\p{L}$/u.test(word) && ABBREVIATIONS.has(lower.replaceAll('.', ''))
+    if (hasPeriod && !isAfterAbbreviation && !isCompanyInitials) return false
   }
   return parts.length > 0
 }
@@ -685,10 +744,7 @@ function withoutWorkLeadIn(line: string): string {
   const isWorkName =
     words.length <= WORK_LEAD_IN_WORDS_MAX &&
     others.length <= 1 &&
-    others.every(
-      (word) =>
-        /^[\p{L}\p{N}][\p{L}\p{N}._-]*$/u.test(word) && !isRestrictionWord(word.toLowerCase()),
-    )
+    others.every((word) => /^[\p{L}\p{N}][\p{L}\p{N}._-]*$/u.test(word) && !isRestrictionWord(word))
   return isWorkName ? line.slice(at) : line
 }
 

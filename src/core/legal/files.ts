@@ -153,6 +153,15 @@ function hasControlCharacter(text: string): boolean {
 export function scrubLegalText(text: string): string {
   return redactSecrets(text).replaceAll(
     /[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+/g,
-    () => REDACTED_MARK,
+    (matched) => {
+      // A package coordinate's version is not an email domain. Keep the
+      // complete original email matcher for real domains (including IDNs).
+      const domain = matched.slice(matched.lastIndexOf('@') + 1)
+      return /^v?\d+\.\d+(?:\.\d+)?(?:(?:[ab]|rc)\d+)?(?:\.(?:dev|post|pre)\.?\d+)*(?:[-+][\da-z.-]+)?$/iu.test(
+        domain,
+      )
+        ? matched
+        : REDACTED_MARK
+    },
   )
 }

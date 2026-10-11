@@ -303,6 +303,57 @@ describe('scanLegal', () => {
     expect(whole.findings.length).toBeGreaterThan(0)
   })
 
+  it.each([
+    { prefix: 'a/', isExplicit: false },
+    { prefix: '000', isExplicit: false },
+    { prefix: 'NOTICE.', isExplicit: false },
+    { prefix: 'a/', isExplicit: true },
+  ])(
+    'retains build evidence past $prefix file-cap noise (explicit inputs $isExplicit)',
+    ({ prefix, isExplicit }) => {
+      const files = {
+        ...Object.fromEntries(
+          Array.from({ length: LEGAL_FILES_SCANNED_MAX }, (_, index) => [
+            `${prefix}f${String(index)}.txt`,
+            'x',
+          ]),
+        ),
+        LICENSE: FULL_MIT_LICENSE,
+        'package.json': '{"name":"own","license":"MIT"}',
+        'src/z.ts': headed,
+        [BUNDLE_OUTPUT]: BUNDLE_TEXT,
+        'dist/meta/bundle.json': JSON.stringify({
+          inputs: { 'src/z.ts': { bytes: 1 } },
+          outputs: { [BUNDLE_OUTPUT]: { bytes: 1 } },
+        }),
+        'dist/meta-hashes/bundle.json': JSON.stringify({
+          version: 2,
+          inputs: { 'src/z.ts': fingerprint(headed) },
+          outputs: { [BUNDLE_OUTPUT]: fingerprint(BUNDLE_TEXT) },
+        }),
+      }
+      const { snapshot, readPaths } = countingSnapshot(files)
+      const result = scanLegal(snapshot, {
+        headerPolicy: 'off',
+        ...(isExplicit && { distribution: { bundleInputs: ['src/z.ts'] } }),
+      })
+      expect(result.distribution).toContain('known bundle inputs')
+      expect(result.incompleteChecks.includes(UI_TEXT.legalScanner.m035)).toBe(isExplicit)
+      expect(
+        result.incompleteChecks.some(
+          (note) =>
+            note.includes('distribution set unknown') ||
+            note.includes('build-recorded') ||
+            note.includes('license text did not match'),
+        ),
+      ).toBe(false)
+      expect(result.evidenceFiles?.map((entry) => entry.path)).toContain('src/z.ts')
+      expect(result.evidenceFiles?.some((entry) => entry.path === BUNDLE_OUTPUT)).toBe(!isExplicit)
+      expect(new Set(readPaths()).size).toBeLessThanOrEqual(LEGAL_FILES_SCANNED_MAX)
+      expect(result.incompleteChecks.join(' ')).toContain('more not read')
+    },
+  )
+
   it('rejects an unknown header policy instead of guessing', () => {
     expect(() => {
       Reflect.apply(scanLegal, undefined, [snapshotFrom(project), { headerPolicy: 'sometimes' }])

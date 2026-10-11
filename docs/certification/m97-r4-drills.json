@@ -1,0 +1,283 @@
+{
+  "lane": "CM971R4",
+  "base": "84ccf573ce66ffec3af5838ce9b3adc481b3214d",
+  "machine": "macmini",
+  "command": "npx vitest run <test> --maxWorkers=3",
+  "timeout": "repository default, no override",
+  "matrixSource": {
+    "src/core/legal/licenseTemplates.ts": "74b87bb917950a7b20f0c954d7de06d99d1aa885de2ef0467a56a5b4bb22e363",
+    "test/unit/legal/templateSlots.ts": "a4b82decb939a2d49691022877e239768dc67fefda41fe7bcd876dbaf3ee69eb",
+    "test/unit/legalTemplateSlots.test.ts": "16e99e3ea08ba2ce8636448693c9d19859f5060109a3c54855d33866ff6b1128",
+    "test/unit/legalTemplateSlots1.test.ts": "c92fdd5e6756d51ed22c3e222c5d312e82b234a586baea8930447215584a809b",
+    "test/unit/legalTemplateSlots2.test.ts": "f20c71f35d757cbf0c44b986a550546312e582aed5b94957f3452453809cb9c9"
+  },
+  "finalSourceAfterMechanicalLintAndReaderDedup": {
+    "src/core/legal/licenseTemplates.ts": "0ab42973bfcf5dc17de93d9d99d8c6c8400bd12fe3a3102f81a6fa73be3167c1",
+    "src/core/legal/dependencies.ts": "d4ab92af3aaac3f77fd147843ee149efb3627908aeb9ba5c0e825b23d606a049",
+    "src/core/legal/scan.ts": "befce179f92f05c9d4d89f7cb332b8cf0d5ca07803f5c387305c9db76653e490",
+    "src/core/legal/files.ts": "6f1792e15778e6a29e30f97a42b0f446a0a48a97323f200ecdba197134b77033",
+    "test/unit/legal/templateSlots.ts": "495d6850ed5eb44c0751ea7b5f335fd72a7c55b382610e7910c884e106ad3c63",
+    "src/core/legal/ecosystems/jvm.ts": "cbb4bf93fb75b20dd3786ce2bac15f8dc3834f19e4b92022d3072cf21577188e",
+    "src/core/legal/ecosystems/python.ts": "1734720cb5b275ed1e3f62be06cf42607bbfd02e2e918cf673fe5135d176cbce",
+    "src/core/legal/ecosystems/go.ts": "a60120c2a2630683793145aae352bdb7c58188438793e738b2617e1f2e7ea82d",
+    "src/core/legal/ecosystems/gems.ts": "7080a49f5b9987f7bcd1babd9db2e308b9ed30ecb6414d3935b3d8770ae17006",
+    "src/core/legal/ecosystems/nuget.ts": "5f68d42b3cd35153b30ca733dac814a473cf0387d7c30e29b7aeb86f3e31330d",
+    "src/core/legal/ecosystems/npm.ts": "cf798a363842e839c884949a8c28cc0c12af160e4ae6962b4a924b2ccab4fdc6",
+    "src/core/legal/ecosystems/cargo.ts": "f8539b937119bd2b724e9caf56d813d62d71ecbef4d76d41bda69432b42c8ab1",
+    "src/core/legal/ecosystems/composer.ts": "3b577a9a52e282b6d2e9de5f688f6c1140f10f67f573c73d57613eb8baac865e"
+  },
+  "runs": [
+    {
+      "drill": "R4-D42-lexicon",
+      "file": "src/core/legal/licenseTemplates.ts",
+      "test": "test/unit/legalTextMatch.test.ts",
+      "exit": 1,
+      "sha256": "7809ba6c2b9cc2f1f00ed5d97ea79f9e51228ada30f8d108a31aeeace9b71c3f",
+      "restored": true,
+      "failureCount": 28,
+      "firstFailure": "FAIL  test/unit/legalTextMatch.test.ts > SPDX template matching > keeps the quoted MIT holder under review: ExampleNonprofit"
+    },
+    {
+      "drill": "R4-D43-camel",
+      "file": "src/core/legal/licenseTemplates.ts",
+      "test": "test/unit/legalTextMatch.test.ts",
+      "exit": 1,
+      "sha256": "7809ba6c2b9cc2f1f00ed5d97ea79f9e51228ada30f8d108a31aeeace9b71c3f",
+      "restored": true,
+      "failureCount": 6,
+      "firstFailure": "FAIL  test/unit/legalTextMatch.test.ts > SPDX template matching > keeps the quoted MIT holder under review: ExampleNonprofit"
+    },
+    {
+      "drill": "R4-D44-length",
+      "file": "src/core/legal/licenseTemplates.ts",
+      "test": "test/unit/legalTextMatch.test.ts",
+      "exit": 1,
+      "sha256": "7809ba6c2b9cc2f1f00ed5d97ea79f9e51228ada30f8d108a31aeeace9b71c3f",
+      "restored": true,
+      "failureCount": 1,
+      "firstFailure": "FAIL  test/unit/legalTextMatch.test.ts > SPDX template matching > keeps the quoted MIT holder under review: Alpha Beta Gamma Delta Epsilon Zeta Eta Theta Iota"
+    },
+    {
+      "drill": "R4-D45-period",
+      "file": "src/core/legal/licenseTemplates.ts",
+      "test": "test/unit/legalTextMatch.test.ts",
+      "exit": 1,
+      "sha256": "7809ba6c2b9cc2f1f00ed5d97ea79f9e51228ada30f8d108a31aeeace9b71c3f",
+      "restored": true,
+      "failureCount": 4,
+      "firstFailure": "FAIL  test/unit/legalTextMatch.test.ts > SPDX template matching > keeps the quoted MIT holder under review: J. Doe"
+    },
+    {
+      "drill": "R4-D46-profit",
+      "file": "src/core/legal/licenseTemplates.ts",
+      "test": "test/unit/legalTextMatch.test.ts",
+      "exit": 1,
+      "sha256": "7809ba6c2b9cc2f1f00ed5d97ea79f9e51228ada30f8d108a31aeeace9b71c3f",
+      "restored": true,
+      "failureCount": 1,
+      "firstFailure": "FAIL  test/unit/legalTextMatch.test.ts > SPDX template matching > allows Profit Inc. and company abbreviations, but rejects the compound Non Profit and No Starch Press"
+    },
+    {
+      "drill": "R4-D47-scope",
+      "file": "src/core/legal/scan.ts",
+      "test": "test/unit/legalScope.test.ts",
+      "exit": 1,
+      "sha256": "a2680811922393dac29b5cd78258ff9094c1af663acbc38ca8e334fb4697d9f5",
+      "restored": true,
+      "failureCount": 10,
+      "firstFailure": "FAIL  test/unit/legalScope.test.ts > RVCM971C reader coverage follows distribution > keeps non-shipping Yarn reader gaps out of completeness"
+    },
+    {
+      "drill": "R4-D48-conflict",
+      "file": "src/core/legal/scan.ts",
+      "test": "test/unit/legalScope.test.ts",
+      "exit": 1,
+      "sha256": "a2680811922393dac29b5cd78258ff9094c1af663acbc38ca8e334fb4697d9f5",
+      "restored": true,
+      "failureCount": 3,
+      "firstFailure": "FAIL  test/unit/legalScope.test.ts > RVCM971C reader coverage follows distribution > preserves a shipped exact BSD-2-Clause text disagreeing with MIT metadata"
+    },
+    {
+      "drill": "R4-D49-cap",
+      "file": "src/core/legal/scan.ts",
+      "test": "test/unit/legalScan.test.ts",
+      "exit": 1,
+      "sha256": "a2680811922393dac29b5cd78258ff9094c1af663acbc38ca8e334fb4697d9f5",
+      "restored": true,
+      "failureCount": 1,
+      "firstFailure": "FAIL  test/unit/legalScan.test.ts > scanLegal > retains build evidence and shipped inputs past alphabetically earlier file-cap noise"
+    },
+    {
+      "drill": "R4-D50-scrub",
+      "file": "src/core/legal/files.ts",
+      "test": "test/unit/legalEvidence.test.ts",
+      "exit": 1,
+      "sha256": "c231af2466bc8d505af81fde3acb6778f23760a2735b4431d83155b088f7f8b0",
+      "restored": true,
+      "failureCount": 4,
+      "firstFailure": "FAIL  test/unit/legalEvidence.test.ts > legal evidence regressions > preserves package coordinate leftpad@1.3.0 while scrubbing real email"
+    },
+    {
+      "drill": "R4-D51-exit",
+      "file": "src/shared/constants.ts",
+      "test": "test/unit/legalRun.test.ts",
+      "exit": 1,
+      "sha256": "8f2f31ea3e15ed8a3225b6b3981ffb5f137295417b11f0f8f02d159916fc2091",
+      "restored": true,
+      "failureCount": 1,
+      "firstFailure": "FAIL  test/unit/legalRun.test.ts > M97 legal run (lane R) > documents the same complete-scan exit codes that the runtime returns (RVCM971C P3)"
+    },
+    {
+      "drill": "R4-D52-packing",
+      "file": "src/core/legal/licenseTemplates.ts",
+      "test": "test/unit/legalSlotLexicon.test.ts",
+      "exit": 1,
+      "sha256": "7809ba6c2b9cc2f1f00ed5d97ea79f9e51228ada30f8d108a31aeeace9b71c3f",
+      "restored": true,
+      "failureCount": 190,
+      "firstFailure": "FAIL  test/unit/legalSlotLexicon.test.ts > packed multilingual slot lexicon > keeps restriction word commercial under review without punctuation"
+    },
+    {
+      "drill": "R4-D53-casefold",
+      "file": "src/core/legal/licenseTemplates.ts",
+      "test": "test/unit/legalSlotLexicon.test.ts",
+      "exit": 1,
+      "sha256": "7809ba6c2b9cc2f1f00ed5d97ea79f9e51228ada30f8d108a31aeeace9b71c3f",
+      "restored": true,
+      "failureCount": 5,
+      "firstFailure": "FAIL  test/unit/legalSlotLexicon.test.ts > packed multilingual slot lexicon > keeps restriction word ausschließlich under review without punctuation"
+    },
+    {
+      "drill": "R4-D47-final",
+      "file": "src/core/legal/scan.ts",
+      "test": "test/unit/legalScope.test.ts",
+      "exit": 1,
+      "sha256": "db8191c289ae2f0e5f7d891610431d43fc3165a11674b92dd29b6bcf4074978a",
+      "restored": true,
+      "failureCount": 10,
+      "firstFailure": "FAIL  test/unit/legalScope.test.ts > RVCM971C reader coverage follows distribution > keeps non-shipping Yarn reader gaps out of completeness"
+    },
+    {
+      "drill": "R4-D48-final",
+      "file": "src/core/legal/scan.ts",
+      "test": "test/unit/legalScope.test.ts",
+      "exit": 1,
+      "sha256": "db8191c289ae2f0e5f7d891610431d43fc3165a11674b92dd29b6bcf4074978a",
+      "restored": true,
+      "failureCount": 3,
+      "firstFailure": "FAIL  test/unit/legalScope.test.ts > RVCM971C reader coverage follows distribution > preserves a shipped exact BSD-2-Clause text disagreeing with MIT metadata"
+    },
+    {
+      "drill": "R4-D49-final",
+      "file": "src/core/legal/scan.ts",
+      "test": "test/unit/legalScan.test.ts",
+      "exit": 1,
+      "sha256": "db8191c289ae2f0e5f7d891610431d43fc3165a11674b92dd29b6bcf4074978a",
+      "restored": true,
+      "failureCount": 3,
+      "firstFailure": "FAIL  test/unit/legalScan.test.ts > scanLegal > retains build evidence and shipped inputs past a/ file-cap noise"
+    },
+    {
+      "drill": "R4-D54-root",
+      "file": "src/core/legal/scan.ts",
+      "test": "test/unit/legalScan.test.ts",
+      "exit": 1,
+      "sha256": "db8191c289ae2f0e5f7d891610431d43fc3165a11674b92dd29b6bcf4074978a",
+      "restored": true,
+      "failureCount": 2,
+      "firstFailure": "FAIL  test/unit/legalScan.test.ts > scanLegal > retains build evidence and shipped inputs past 000 file-cap noise"
+    },
+    {
+      "drill": "R4-D55-notices",
+      "file": "src/core/legal/scan.ts",
+      "test": "test/unit/legalScan.test.ts",
+      "exit": 0,
+      "sha256": "db8191c289ae2f0e5f7d891610431d43fc3165a11674b92dd29b6bcf4074978a",
+      "restored": true,
+      "failureCount": 0,
+      "firstFailure": null
+    },
+    {
+      "drill": "R4-D51-runtime",
+      "file": "src/runtime/legal/runLegal.ts",
+      "test": "test/unit/legalRun.test.ts",
+      "exit": 1,
+      "sha256": "aee73fe9fa4c80990d3a619a9da9930869c227d1fc7add0d99c6be0acaf0f97b",
+      "restored": true,
+      "failureCount": 1,
+      "firstFailure": "FAIL  test/unit/legalRun.test.ts > M97 legal run (lane R) > documents the same complete-scan exit codes that the runtime returns (RVCM971C P3)"
+    },
+    {
+      "drill": "R4-D56-combining",
+      "file": "src/core/legal/licenseTemplates.ts",
+      "test": "test/unit/legalTextMatch.test.ts",
+      "exit": 1,
+      "sha256": "74b87bb917950a7b20f0c954d7de06d99d1aa885de2ef0467a56a5b4bb22e363",
+      "restored": true,
+      "failureCount": 2,
+      "firstFailure": "FAIL  test/unit/legalTextMatch.test.ts > SPDX template matching > keeps the quoted MIT holder under review: Examplé̈Private"
+    },
+    {
+      "drill": "R4-D57-explicit",
+      "file": "src/core/legal/scan.ts",
+      "test": "test/unit/legalScan.test.ts",
+      "exit": 1,
+      "sha256": "befce179f92f05c9d4d89f7cb332b8cf0d5ca07803f5c387305c9db76653e490",
+      "restored": true,
+      "validProof": false,
+      "reason": "Invalidated: the baseline input-only fixture overclaimed freshness/output evidence; repeated with corrected baseline as R4-D57-confirmed.",
+      "failureCount": 1,
+      "firstFailure": "FAIL  test/unit/legalScan.test.ts > scanLegal > retains build evidence past a/ file-cap noise (explicit inputs true)"
+    },
+    {
+      "drill": "R4-D58-unsplit",
+      "file": "src/core/legal/licenseTemplates.ts",
+      "test": "test/unit/legalTextMatch.test.ts",
+      "exit": 1,
+      "sha256": "74b87bb917950a7b20f0c954d7de06d99d1aa885de2ef0467a56a5b4bb22e363",
+      "restored": true,
+      "failureCount": 2,
+      "firstFailure": "FAIL  test/unit/legalTextMatch.test.ts > SPDX template matching > keeps the quoted MIT holder under review: CommerciaL"
+    },
+    {
+      "drill": "R4-D59-handles",
+      "file": "src/core/legal/licenseTemplates.ts",
+      "test": "test/unit/legalTextMatch.test.ts",
+      "exit": 1,
+      "sha256": "74b87bb917950a7b20f0c954d7de06d99d1aa885de2ef0467a56a5b4bb22e363",
+      "restored": true,
+      "failureCount": 2,
+      "firstFailure": "FAIL  test/unit/legalTextMatch.test.ts > SPDX template matching > keeps the quoted MIT holder under review: examplenonprofit"
+    },
+    {
+      "drill": "R4-D60-prerelease",
+      "file": "src/core/legal/files.ts",
+      "test": "test/unit/legalEvidence.test.ts",
+      "exit": 1,
+      "sha256": "6f1792e15778e6a29e30f97a42b0f446a0a48a97323f200ecdba197134b77033",
+      "restored": true,
+      "failureCount": 3,
+      "firstFailure": "FAIL  test/unit/legalEvidence.test.ts > legal evidence regressions > preserves package coordinate python@2.0rc1 while scrubbing real email"
+    },
+    {
+      "drill": "R4-D57-confirmed",
+      "file": "src/core/legal/scan.ts",
+      "test": "test/unit/legalScan.test.ts",
+      "exit": 1,
+      "sha256": "befce179f92f05c9d4d89f7cb332b8cf0d5ca07803f5c387305c9db76653e490",
+      "restored": true,
+      "failureCount": 1,
+      "firstFailure": "FAIL  test/unit/legalScan.test.ts > scanLegal > retains build evidence past a/ file-cap noise (explicit inputs true)"
+    },
+    {
+      "drill": "R4-D61-count-admission",
+      "file": "src/core/legal/dependencies.ts",
+      "test": "test/unit/legalScope.test.ts",
+      "exit": 1,
+      "sha256": "d4ab92af3aaac3f77fd147843ee149efb3627908aeb9ba5c0e825b23d606a049",
+      "restored": true,
+      "failureCount": 10,
+      "firstFailure": "FAIL  test/unit/legalScope.test.ts > RVCM971C reader coverage follows distribution > keeps non-shipping Yarn reader gaps out of completeness"
+    }
+  ]
+}

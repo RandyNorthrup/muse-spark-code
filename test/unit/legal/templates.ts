@@ -16,17 +16,28 @@ export const PINNED_TEMPLATE_IDS: readonly string[] = SPDX_TEMPLATE_FILES.filter
   (file) => file.kind === 'template',
 ).map((file) => path.posix.basename(file.path, '.template.txt'))
 
+const sources = new Map<string, string>()
+
 /** The raw pinned template markup for an SPDX id. */
 function templateSource(id: string): string {
-  return readFileSync(path.join(LEGAL_DATA, 'templates', `${id}.template.txt`), 'utf8')
+  const source =
+    sources.get(id) ??
+    readFileSync(path.join(LEGAL_DATA, 'templates', `${id}.template.txt`), 'utf8')
+  sources.set(id, source)
+  return source
 }
 
 /** Render a template: variables at their originals, optionals kept or dropped. */
-export function canonicalText(id: string, isOptionalKept = true): string {
+export function canonicalText(
+  id: string,
+  isOptionalKept = true,
+  replacement?: { readonly index: number; readonly value: string },
+): string {
   let depth = 0
   let skipping = 0
   let out = ''
   let last = 0
+  let variableIndex = 0
   const source = templateSource(id)
   for (const match of source.matchAll(MARKUP)) {
     if (skipping === 0) out += source.slice(last, match.index)
@@ -37,8 +48,10 @@ export function canonicalText(id: string, isOptionalKept = true): string {
     } else if (match[1] === 'endOptional') {
       if (skipping === depth) skipping = 0
       depth -= 1
-    } else if (skipping === 0) {
-      out += match[2] ?? ''
+    } else {
+      if (skipping === 0)
+        out += replacement?.index === variableIndex ? replacement.value : (match[2] ?? '')
+      variableIndex += 1
     }
   }
   return out + source.slice(last)

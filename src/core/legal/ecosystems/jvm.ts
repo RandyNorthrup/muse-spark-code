@@ -7,12 +7,7 @@ import { compareLegalText } from '../files'
 // else stays raw for a human read. Executable build logic is never
 // evaluated: only declarative coordinates are read.
 
-import type {
-  EcosystemResult,
-  LegalDependencyScope,
-  ManifestLicenseDeclaration,
-} from '../dependencies'
-import { dependency } from '../dependencies'
+import * as deps from '../dependencies'
 import type { LegalFileSnapshot } from '../files'
 import { baseNameOf } from '../files'
 import { parseSpdxExpression } from '../spdx'
@@ -78,7 +73,7 @@ interface MavenDependency {
   readonly group: string
   readonly artifact: string
   readonly version: string | undefined
-  readonly scope: LegalDependencyScope
+  readonly scope: deps.LegalDependencyScope
 }
 
 function readPomDependencies(text: string): readonly MavenDependency[] {
@@ -134,7 +129,7 @@ function readPomProject(text: string): {
 const GRADLE_COORDINATES =
   /^\s*(?:implementation|api|compileOnlyApi|runtimeOnly|compileOnly|testImplementation|testRuntimeOnly|testCompileOnly|androidTestImplementation)\s*(?:\(\s*)?["']([^"']+)["']/gm
 
-function gradleScope(configuration: string): LegalDependencyScope {
+function gradleScope(configuration: string): deps.LegalDependencyScope {
   return configuration.toLowerCase().startsWith('test') ||
     configuration.toLowerCase() === 'compileonly'
     ? 'development'
@@ -144,12 +139,12 @@ function gradleScope(configuration: string): LegalDependencyScope {
 function readGradleFile(text: string): {
   readonly name: string
   readonly version: string | undefined
-  readonly scope: LegalDependencyScope
+  readonly scope: deps.LegalDependencyScope
 }[] {
   const found: {
     readonly name: string
     readonly version: string | undefined
-    readonly scope: LegalDependencyScope
+    readonly scope: deps.LegalDependencyScope
   }[] = []
   GRADLE_COORDINATES.lastIndex = 0
   let match = GRADLE_COORDINATES.exec(text)
@@ -215,9 +210,13 @@ function readVersionCatalog(text: string): Map<string, string> {
  * declarations no lock or catalog resolves stay versionless; executable
  * build logic is never evaluated.
  */
-export function readJvm(snapshot: LegalFileSnapshot): EcosystemResult {
+export function readJvm(
+  snapshot: LegalFileSnapshot,
+  isDependencyIncluded?: deps.LegalDependencyAdmission,
+): deps.EcosystemResult {
+  const isIncluded = isDependencyIncluded ?? (() => true)
   const incomplete: string[] = []
-  const projectLicenses: ManifestLicenseDeclaration[] = []
+  const projectLicenses: deps.ManifestLicenseDeclaration[] = []
   const poms = new Map<string, { readonly licenses: readonly string[]; readonly file: string }>()
   const retainPom = (identity: string, licenses: readonly string[], file: string): void => {
     const existing = poms.get(identity)
@@ -238,7 +237,7 @@ export function readJvm(snapshot: LegalFileSnapshot): EcosystemResult {
   const gradleDeps: {
     readonly name: string
     readonly version: string | undefined
-    readonly scope: LegalDependencyScope
+    readonly scope: deps.LegalDependencyScope
     readonly file: string
   }[] = []
   const resolvedVersions = new Map<string, string>()
@@ -339,7 +338,7 @@ export function readJvm(snapshot: LegalFileSnapshot): EcosystemResult {
         present === undefined || present.licenses.length === 0
           ? undefined
           : present.licenses.join(' OR ')
-      return dependency(
+      return deps.dependency(
         'maven',
         license === undefined ? dep.file : (present?.file ?? dep.file),
         name,
@@ -357,7 +356,7 @@ export function readJvm(snapshot: LegalFileSnapshot): EcosystemResult {
         present === undefined || present.licenses.length === 0
           ? undefined
           : present.licenses.join(' OR ')
-      return dependency(
+      return deps.dependency(
         'gradle',
         license === undefined ? dep.file : (present?.file ?? dep.file),
         dep.name,
@@ -374,7 +373,7 @@ export function readJvm(snapshot: LegalFileSnapshot): EcosystemResult {
     if (dependencies.some((dep) => dep.name === name)) continue
     const present = poms.get(`${name}@${version}`)
     dependencies.push(
-      dependency('gradle', present?.file ?? 'gradle.lockfile', name, {
+      deps.dependency('gradle', present?.file ?? 'gradle.lockfile', name, {
         version,
         scope: 'unknown',
         licenseRaw:
@@ -384,12 +383,21 @@ export function readJvm(snapshot: LegalFileSnapshot): EcosystemResult {
       }),
     )
   }
-  if (manifestDeps.length > 0) incomplete.push(UI_TEXT.legalScanner.m167)
-  const unresolved = dependencies.filter((dep) => dep.version === undefined).length
+  if (isDependencyIncluded === undefined && manifestDeps.length > 0)
+    incomplete.push(UI_TEXT.legalScanner.m167)
+  const unresolved = deps.countIncludedDependencies(
+    dependencies,
+    isIncluded,
+    (dep) => dep.version === undefined,
+  )
   if (unresolved > 0) {
     incomplete.push(plural(UI_TEXT.legalScanner.m168, unresolved, { v0: unresolved }))
   }
-  const withoutLicense = dependencies.filter((dep) => dep.licenseRaw === undefined).length
+  const withoutLicense = deps.countIncludedDependencies(
+    dependencies,
+    isIncluded,
+    (dep) => dep.licenseRaw === undefined,
+  )
   if (withoutLicense > 0) {
     incomplete.push(plural(UI_TEXT.legalScanner.m169, withoutLicense, { v0: withoutLicense }))
   }

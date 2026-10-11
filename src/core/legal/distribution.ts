@@ -100,7 +100,7 @@ export function materialInSnapshot(snapshot: LegalFileSnapshot, dep: LegalDepend
         const text = snapshot.readFile(file)
         if (text === undefined) return false
         const manifest = recordOf(parseJson(text))
-        return dep.version !== undefined && manifest?.['version'] === dep.version
+        return dep.version === undefined || manifest?.['version'] === dep.version
       })
       // A lone installed location with no manifest remains approximate; multiple
       // locations without exact-version evidence never borrow one another.
