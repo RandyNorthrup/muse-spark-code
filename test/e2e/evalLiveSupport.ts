@@ -132,6 +132,7 @@ export function liveToolIo(options: LiveToolIoOptions): ToolIo {
 const selectionSchema = z.object({
   MUSE_EVAL_TASKS: z.optional(z.string()),
   MUSE_EVAL_REPORT: z.optional(z.string()),
+  MUSE_EVAL_MAX_ATTEMPTS: z.optional(z.string()),
 })
 
 export interface LiveEvalSelection {
@@ -139,6 +140,8 @@ export interface LiveEvalSelection {
   readonly tasks: readonly EvalTask[]
   /** MUSE_EVAL_REPORT: a path without extension for the report's .json and .md. */
   readonly reportPath: string | undefined
+  /** MUSE_EVAL_MAX_ATTEMPTS: the run's hard call ceiling; budget-only when unset. */
+  readonly maxAttempts: number | undefined
 }
 
 /**
@@ -153,6 +156,7 @@ export function liveEvalSelection(env: NodeJS.ProcessEnv, isEnabled: boolean): L
   const selection = selectionSchema.parse({
     MUSE_EVAL_TASKS: env['MUSE_EVAL_TASKS'],
     MUSE_EVAL_REPORT: env['MUSE_EVAL_REPORT'],
+    MUSE_EVAL_MAX_ATTEMPTS: env['MUSE_EVAL_MAX_ATTEMPTS'],
   })
   const wanted = (selection.MUSE_EVAL_TASKS ?? '')
     .split(',')
@@ -162,9 +166,15 @@ export function liveEvalSelection(env: NodeJS.ProcessEnv, isEnabled: boolean): L
   if (unknown.length > 0) {
     throw new Error(`unknown eval tasks: ${unknown.join(', ')}`)
   }
+  const ceiling = selection.MUSE_EVAL_MAX_ATTEMPTS
+  const maxAttempts = ceiling === undefined ? undefined : Number(ceiling)
+  if (maxAttempts !== undefined && (!Number.isSafeInteger(maxAttempts) || maxAttempts < 1)) {
+    throw new Error('MUSE_EVAL_MAX_ATTEMPTS must be a positive integer.')
+  }
   return {
     tasks: wanted.length === 0 ? EVAL_TASKS : EVAL_TASKS.filter((task) => wanted.includes(task.id)),
     reportPath: selection.MUSE_EVAL_REPORT,
+    maxAttempts,
   }
 }
 
@@ -211,6 +221,61 @@ export function withPackingEngagement(
     packingEngagement: {
       arm: armName,
       longOutputTasks: tasks.filter((task) => task.isLongOutput === true).map((task) => task.id),
+      unengaged,
+      held: isHeld,
+    },
+    verdict: isHeld ? report.verdict : 'fail',
+  }
+}
+
+/**
+ * The long-context tasks on which an arm sent no more attempts than the
+ * baseline (M74): an auto-compaction run that passes its floors without
+ * compacting proves nothing about compaction. The extra sends are the
+ * summary round trips, counted from the trace, which never keeps bodies.
+ * The baseline arm missing from the report counts as never engaged.
+ */
+export function unengagedCompactionTasks(
+  report: EvalReport,
+  armName: string,
+  baselineName: string,
+  tasks: readonly EvalTask[],
+): string[] {
+  const arm = report.arms.find((candidate) => candidate.name === armName)?.results ?? []
+  const baseline = report.arms.find((candidate) => candidate.name === baselineName)?.results ?? []
+  return tasks
+    .filter((task) => task.isLongContext === true)
+    .filter((task) => {
+      const made = arm.find((result) => result.taskId === task.id)?.attempts
+      const plain = baseline.find((result) => result.taskId === task.id)?.attempts
+      return made === undefined || plain === undefined || made <= plain
+    })
+    .map((task) => task.id)
+}
+
+/**
+ * The report with lane E's compaction acceptance recorded in it (PLAN.md
+ * M101): the arm's engagement on the run's long-context tasks, and the
+ * verdict `fail` when it never compacted on one, whatever the floors say.
+ * Applied before the report is printed or written, so both artifacts say
+ * what the run's acceptance decided.
+ */
+export function withCompactionEngagement(
+  report: EvalReport,
+  armName: string,
+  baselineName: string,
+  tasks: readonly EvalTask[],
+): EvalReport {
+  if (report.version !== EVAL_REPORT_VERSION) {
+    throw new Error('Compaction engagement is recorded only in a current-version report.')
+  }
+  const unengaged = unengagedCompactionTasks(report, armName, baselineName, tasks)
+  const isHeld = unengaged.length === 0
+  return {
+    ...report,
+    compactionEngagement: {
+      arm: armName,
+      longContextTasks: tasks.filter((task) => task.isLongContext === true).map((task) => task.id),
       unengaged,
       held: isHeld,
     },

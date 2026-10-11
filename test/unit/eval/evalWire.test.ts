@@ -73,7 +73,12 @@ async function refusalOf(response: Response): Promise<string> {
 
 async function expectUnpricedUsage(wire: EvalWire, budget: EvalBudget, api: FakeModelApi) {
   await wire.settle()
-  expect(budget).toEqual({ spentUsd: Usd.from(0).toAmount(), hasUnknownUsage: true })
+  // The unbillable call was still sent: the ceiling counts sends, not bills.
+  expect(budget).toEqual({
+    spentUsd: Usd.from(0).toAmount(),
+    hasUnknownUsage: true,
+    sentAttempts: 1,
+  })
   expect(wireTotals(wire)).toMatchObject({ inputTokens: 0, cachedTokens: 0, outputTokens: 0 })
   const sent = api.requests.length
   const later = wireOn(api.fetch, budget)
@@ -107,6 +112,32 @@ describe('eval wire', () => {
     expect(budget.spentUsd).toBe(cost)
     expect(wire.refusals).toEqual([])
     expect(wire.problems).toEqual([])
+  })
+
+  it('refuses past the call ceiling, and refusals never consume it', async () => {
+    const api = fakeModelApi()
+    api.script(
+      { text: 'first', usage: { input: 100, output: 10, cached: 0 } },
+      { text: 'second', usage: { input: 100, output: 10, cached: 0 } },
+    )
+    const budget: EvalBudget = { spentUsd: Usd.from(0).toAmount(), maxAttempts: 1 }
+    const wire = wireOn(api.fetch, budget)
+    const first = await wire.fetch(RESPONSES_URL, modelCall())
+    await first.text()
+    await wire.settle()
+    expect(budget.sentAttempts).toBe(1)
+    // A wrong-model refusal happens before the ceiling check: it consumes nothing.
+    expect(await refusalOf(await wire.fetch(RESPONSES_URL, modelCall('other-model')))).toContain(
+      'only',
+    )
+    expect(budget.sentAttempts).toBe(1)
+    // Past the ceiling every further model call is refused, unsent.
+    expect(await refusalOf(await wire.fetch(RESPONSES_URL, modelCall()))).toContain(
+      'call ceiling of 1 model calls is reached',
+    )
+    expect(budget.sentAttempts).toBe(1)
+    expect(api.requests).toHaveLength(1)
+    expect(wireTotals(wire).attempts).toBe(1)
   })
 
   it('counts a request that is not a model call as a request only', async () => {

@@ -1,4 +1,4 @@
-import { Usd } from '../../shared/usd'
+import { Usd, sumUsd, type UsdAmount } from '../../shared/usd'
 // One M75 task's turn (PLAN.md D49) on the extension's own Model API
 // harness: a `ModelApiHost` over the task's workspace, the task's prompt
 // sent as the user's message, and the turn waited for. The harness is the
@@ -14,6 +14,10 @@ import type { AgentSession } from '../agent/agentBackend'
 import type { ContextIo } from '../context/contextFiles'
 import type { CoreLogger } from '../logging'
 import type { ModelApiClient } from '../backends/modelapi/client'
+import {
+  createAutoCompactionAdmission,
+  type AutoCompactionLedger,
+} from '../backends/modelapi/autoCompactionAdmission'
 import { ModelApiHost, type ModelApiHostDeps } from '../backends/modelapi/ModelApiHost'
 import { APPROVAL_CHOICE_IDS } from '../backends/modelapi/permissions'
 import type { ToolIo } from '../backends/modelapi/tools'
@@ -21,20 +25,53 @@ import type { MemoryStore } from '../memory/memoryStore'
 import type { AgentEvent, ItemSnapshot } from '../../shared/agentEvents'
 import {
   EVAL_APPROVAL_MODE,
+  EVAL_BUDGET_USD,
   EVAL_MODEL_ID,
   EVAL_TURN_COMPLETED,
   EVAL_TURN_TIMED_OUT,
   EVAL_TURN_TIMEOUT_MS,
+  IS_AUTO_COMPACTION_EVALUATED,
   MODEL_API_CONTEXT_WINDOW,
   MODEL_API_MODEL_TEXT,
   MODEL_API_TOOLS,
   SETTING_DEFAULTS,
+  UI_TEXT,
 } from '../../shared/constants'
 import type { ApprovalMode } from '../../shared/permissionModes'
 import { EVAL_HELD_DEPS } from './heldDeps'
+import type { EvalBudget } from './wire'
 
 /** A mechanism: the change it makes to the harness's dependencies. */
 export type EvalHostChange = (deps: ModelApiHostDeps) => ModelApiHostDeps
+
+/**
+ * Installs the real shared D78 admission over `base`, with its switches
+ * reading whatever `readArmed` returns when the turn asks to compact. The
+ * driver passes the dependencies its frozen change is about to arm; a
+ * caller that arms first (a session-level test) passes its armed result.
+ */
+export function bindEvalAdmission(
+  base: ModelApiHostDeps,
+  admission: EvalCompactionAdmission,
+  log: CoreLogger,
+  readArmed: () => ModelApiHostDeps,
+): ModelApiHostDeps {
+  return {
+    ...base,
+    admitAutoCompaction: createAutoCompactionAdmission({
+      accounting: admission.ledger,
+      allowsPaidUse: admission.allowsPaidUse,
+      isOn: () => readArmed().autoCompaction?.() ?? SETTING_DEFAULTS.modelApiAutoCompaction,
+      isTrusted: () => readArmed().isWorkspaceTrusted(),
+      isEvaluated: () => readArmed().autoCompactionEvaluated?.() ?? IS_AUTO_COMPACTION_EVALUATED,
+      paidUseFence: admission.paidUseFence,
+      dailyBudgetUsd: admission.dailyBudgetUsd,
+      notePaidUse: admission.notePaidUse,
+      log,
+      storeUnavailable: UI_TEXT.sessionBudgetStoreUnavailable,
+    }),
+  }
+}
 
 export interface EvalTurnDeps {
   readonly client: ModelApiClient
@@ -55,6 +92,101 @@ export interface EvalTurnDeps {
    * certifies. A mechanism must not change it (it is held fixed below).
    */
   readonly memory?: MemoryStore | undefined
+  /**
+   * Lane E's spend authority for admitted compaction (PLAN.md M101): the
+   * counted runner binds it, tests bind it. Without it the auto-compaction
+   * arm fails closed: its frozen change requires the parent's admission.
+   */
+  readonly admission?: EvalCompactionAdmission | undefined
+}
+
+/**
+ * What the parent binds behind one evaluation turn's automatic compaction
+ * (PLAN.md M101 lane E): the REAL shared D78 admission and a ledger against
+ * the run's own hard budget — never a test double that admits without
+ * charge. Consent admits because launching the counted run is the opt-in;
+ * every admitted attempt is trace-counted and settled against the budget.
+ */
+export interface EvalCompactionAdmission {
+  /** Reserves and settles admitted attempts; a refusal throws. It tallies started and settled attempts. */
+  readonly ledger: AutoCompactionLedger & { readonly tally: EvalCompactionTally }
+  /** The counted run's own consent. */
+  readonly allowsPaidUse: ModelApiHostDeps['allowsPaidUse']
+  /** Admitted attempts, tallied on the ledger; never the paid-use failure counter. */
+  readonly notePaidUse: ModelApiHostDeps['notePaidUse']
+  /** Revocation source; the runner binds the run budget, tests bind true. */
+  readonly paidUseFence: (sessionId: string) => () => boolean
+  readonly dailyBudgetUsd: () => UsdAmount | Promise<UsdAmount>
+}
+
+/** Admitted attempts, started and settled, on one evaluation ledger. */
+export interface EvalCompactionTally {
+  started: number
+  settled: number
+}
+
+/**
+ * The evaluation ledger: a real D78 ledger, not an allowance stub. It
+ * reserves each admitted attempt against the run's hard budget and refuses
+ * (by throwing, as the interface requires) past it, on unknown usage, or
+ * on abort. Settling releases the reservation without adding to the spent
+ * total: the trace owns actual spend — the wire adds every reply's usage
+ * when it arrives — so settling here must not count it twice. Unknown cost
+ * stops the run, like the wire's own rule.
+ */
+export function createEvalCompactionLedger(
+  budget: EvalBudget,
+): AutoCompactionLedger & { readonly tally: EvalCompactionTally } {
+  const tally: EvalCompactionTally = { started: 0, settled: 0 }
+  let outstanding = Usd.from(0).toAmount()
+  const headroom = (): Usd =>
+    Usd.from(EVAL_BUDGET_USD).subtract(Usd.from(budget.spentUsd)).subtract(Usd.from(outstanding))
+  return {
+    tally,
+    reserveCompaction: (amount, signal) => {
+      signal.throwIfAborted()
+      if (budget.hasUnknownUsage === true)
+        return Promise.reject(evalLedgerRefusal('a sent model call has unknown usage'))
+      if (headroom().compare(Usd.from(amount)) < 0)
+        return Promise.reject(evalLedgerRefusal('the run budget cannot cover it'))
+      outstanding = sumUsd(outstanding, amount)
+      let isOpen = true
+      return Promise.resolve({
+        reservedUsd: amount,
+        check(): void {
+          signal.throwIfAborted()
+          if (budget.hasUnknownUsage === true)
+            throw evalLedgerRefusal('a sent model call has unknown usage')
+          if (headroom().compare(Usd.from(0)) < 0)
+            throw evalLedgerRefusal('the run budget is spent')
+        },
+        settle: (_actual, hasUnknown) => {
+          if (isOpen) {
+            isOpen = false
+            outstanding = Usd.from(outstanding).subtract(Usd.from(amount)).toAmount()
+            tally.settled += 1
+          }
+          if (hasUnknown) budget.hasUnknownUsage = true
+          return Promise.resolve()
+        },
+      })
+    },
+  }
+}
+
+function evalLedgerRefusal(why: string): Error {
+  return new Error(`the evaluation cannot reserve an admitted compaction: ${why}`)
+}
+
+/**
+ * The evaluation's paid-use fence: current while the run budget can still
+ * cover a send. Read live, so an admitted use revokes the moment the run
+ * cannot cover it.
+ */
+export function evalPaidUseFence(budget: EvalBudget): () => boolean {
+  return () =>
+    budget.hasUnknownUsage !== true &&
+    Usd.from(budget.spentUsd).compare(Usd.from(EVAL_BUDGET_USD)) < 0
 }
 
 export interface EvalTurnOptions {
@@ -202,7 +334,24 @@ export async function runEvalTurn(options: EvalTurnOptions): Promise<EvalTurnOut
       counts.paidUses += 1
     },
   }
-  const host = new ModelApiHost(applyChange(hostDeps, options.change))
+  // Lane E binds the REAL shared D78 admission behind the turn (never a
+  // test double): consent once per use, reserve/recheck/settle each attempt
+  // against the run's own ledger. The window, memory, client, workspace and
+  // paid hooks stay held — only this key is the mechanism's. The admission
+  // is installed before the frozen change (so the auto-compaction arm's
+  // wrapper delegates to it), but its switches read the ARMED dependencies:
+  // the change below sets the mechanism's flags, and the factory reads them
+  // lazily when the turn asks to compact. Without a bound admission the
+  // host gets none, and the auto-compaction arm fails closed in its change.
+  // The admission reads through this holder so its switches see the
+  // dependencies the frozen change arms below, not the unarmed base.
+  const armedRef: { current: ModelApiHostDeps } = { current: hostDeps }
+  const withAdmission: ModelApiHostDeps =
+    deps.admission === undefined
+      ? hostDeps
+      : bindEvalAdmission(hostDeps, deps.admission, deps.log, () => armedRef.current)
+  armedRef.current = applyChange(withAdmission, options.change)
+  const host = new ModelApiHost(armedRef.current)
   try {
     const session = await host.startSession({
       workspaceRoot: options.workspace,

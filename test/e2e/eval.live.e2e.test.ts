@@ -3,11 +3,14 @@
 // against Meta's real API, each task in a fresh temporary workspace holding
 // only its fixture files, every model call on the contributor model. The
 // trace counts each request sent; the verifier judges the files the turn
-// left. The arms are the baseline and observation packing (M73); M74 adds
-// its own with its run (D49's "Measured first"). A packing run must also
-// have packed on every long-output task it ran, or it proves nothing about
-// packing: that acceptance is recorded in the report, whose verdict it
-// fails, before the report is printed or written.
+// left. The arms are the four frozen ones (M101 lane E): the baseline,
+// observation packing (M73), automatic compaction through the real shared
+// D78 admission and the run's own ledger (M74), and strict tool schemas for
+// a capable selected model (M101 item 24). A packing run must also have
+// packed on every long-output task it ran, and the auto-compaction run
+// must have compacted on every long-context task it ran, or the run proves
+// nothing about that mechanism: each acceptance is recorded in the report,
+// whose verdict it fails, before the report is printed or written.
 //
 // Opt-in only, never in CI: it bills the owner's Model API key. It runs
 // when MUSE_LIVE_MODEL_API=1, reading the ACP agent's existing operating
@@ -20,13 +23,18 @@
 // less every credential variable; the verifier runs the code the model wrote
 // the same way, with an empty environment. Neither is a sandbox. Run
 // `npm run build:dev` first: the search tool's worker is the built one.
+// Run `node scripts/m101-e.mjs --plan` first: it prints the planned model
+// calls and the hard call ceiling this run stops at.
 //
 //   MUSE_EVAL_TASKS   comma-separated task ids; every task when unset
 //   MUSE_EVAL_REPORT  a path without extension: the report goes to
 //                     <path>.json and <path>.md, prettier-formatted; the
 //                     Markdown is printed either way
+//   MUSE_EVAL_MAX_ATTEMPTS
+//                     hard ceiling for model calls sent; the wire refuses
+//                     past it. The lane E launcher sets it from its plan.
 //
-// Both are read inside the enabled test only (`liveEvalSelection`).
+// All three are read inside the enabled test only (`liveEvalSelection`).
 
 import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
@@ -40,8 +48,13 @@ import {
   formatEvalReportMarkdown,
   type EvalReport,
 } from '../../src/core/eval/report'
-import { OBSERVATION_PACKING_ARM } from '../../src/core/eval/mechanisms'
-import { runPairedEval, type EvalArm } from '../../src/core/eval/runner'
+import {
+  AUTO_COMPACTION_ARM,
+  BASELINE_ARM,
+  EVAL_ARMS,
+  OBSERVATION_PACKING_ARM,
+} from '../../src/core/eval/mechanisms'
+import { runPairedEval } from '../../src/core/eval/runner'
 import { EVAL_TASKS } from '../../src/core/eval/tasks'
 import { fileContextIo } from '../../src/host/backend/contextIo'
 import { shellJobAssembly } from '../../src/host/backend/shellJob'
@@ -62,6 +75,7 @@ import {
   liveEvalSelection,
   liveToolIo,
   loadEvalLiveCredentials,
+  withCompactionEngagement,
   withPackingEngagement,
 } from './evalLiveSupport'
 
@@ -85,12 +99,13 @@ async function writeReport(result: EvalReport, target: string): Promise<void> {
 }
 
 describe.skipIf(!IS_ENABLED)('live paired evaluation (MUSE_LIVE_MODEL_API=1)', () => {
-  const arms: readonly [EvalArm, ...EvalArm[]] = [{ name: 'baseline' }, OBSERVATION_PACKING_ARM]
+  // The four frozen arms, in run order: the control first, then one mechanism each.
+  const arms = EVAL_ARMS
 
   it(
     'runs the task set on the contributor model and records the report',
     async () => {
-      const { tasks, reportPath } = liveEvalSelection(process.env, IS_ENABLED)
+      const { tasks, reportPath, maxAttempts } = liveEvalSelection(process.env, IS_ENABLED)
       expect(existsSync(SEARCH_WORKER) ? 'built' : 'run npm run build:dev first').toBe('built')
       const credentials = await loadEvalLiveCredentials(IS_ENABLED)
       const channel = new FakeLogOutputChannel()
@@ -139,6 +154,7 @@ describe.skipIf(!IS_ENABLED)('live paired evaluation (MUSE_LIVE_MODEL_API=1)', (
           now: Date.now,
           newId: () => randomUUID(),
           generatedAt: new Date().toISOString(),
+          ...(maxAttempts !== undefined && { maxAttempts }),
           inspect: (root) => {
             for (const file of filesUnder(root)) {
               if (credentials.contains(readFileSync(file))) {
@@ -151,9 +167,16 @@ describe.skipIf(!IS_ENABLED)('live paired evaluation (MUSE_LIVE_MODEL_API=1)', (
       } finally {
         await removeFolder(storage)
       }
-      // The packing acceptance goes into the report before it is printed or
-      // written, so neither artifact says pass for a run that never packed.
-      const report = withPackingEngagement(result, OBSERVATION_PACKING_ARM.name, tasks)
+      // Both mechanisms' acceptances go into the report before it is
+      // printed or written, so neither artifact says pass for a run whose
+      // packing arm never packed or whose auto-compaction arm never
+      // compacted.
+      const report = withCompactionEngagement(
+        withPackingEngagement(result, OBSERVATION_PACKING_ARM.name, tasks),
+        AUTO_COMPACTION_ARM.name,
+        BASELINE_ARM.name,
+        tasks,
+      )
       const markdown = formatEvalReportMarkdown(report)
       if (logLines(channel).some((line) => credentials.contains(line))) {
         leaks.push('the log')
@@ -169,6 +192,9 @@ describe.skipIf(!IS_ENABLED)('live paired evaluation (MUSE_LIVE_MODEL_API=1)', (
       expect(report.verdict).not.toBe('fail')
       expect(
         report.version === EVAL_REPORT_VERSION ? report.packingEngagement?.unengaged : undefined,
+      ).toEqual([])
+      expect(
+        report.version === EVAL_REPORT_VERSION ? report.compactionEngagement?.unengaged : undefined,
       ).toEqual([])
     },
     // The selection is read inside the test, so the deadline allows the

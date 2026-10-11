@@ -3,7 +3,6 @@
 // production code under test remains outside the freeze.
 
 import { createHash } from 'node:crypto'
-import type { ResponseAttemptGuard } from '../backends/modelapi/transport'
 import {
   EVAL_APPROVAL_MODE,
   MODEL_API_CONTEXT_WINDOW,
@@ -47,13 +46,12 @@ export const OBSERVATION_PACKING_ARM: EvalArm = {
 /**
  * Automatic compaction (M74): the eval host admits automatic compaction as
  * evaluated, prices the summary from the catalogue card and settles every
- * extra attempt through an evaluation admission that admits and settles
- * without charge. The window it compacts under is harness condition, not
- * part of this mechanism (M101 R2): the driver holds the same window on
- * both arms of the pair, so the pair isolates compaction alone — a window
- * override here would also move file-read truncation. Lane E's counted run
- * replaces the admission with the real shared D78 guard and ledger; test
- * doubles here cannot certify that integration.
+ * extra attempt through the real shared D78 admission and the run's own
+ * ledger, both bound by the parent (lane E). The window it compacts under
+ * is harness condition, not part of this mechanism (M101 R2): the driver
+ * holds the same window on both arms of the pair, so the pair isolates
+ * compaction alone — a window override here would also move file-read
+ * truncation.
  */
 export const AUTO_COMPACTION_ARM: EvalArm = {
   name: 'auto-compaction',
@@ -73,11 +71,6 @@ export const STRICT_TOOLS_ARM: EvalArm = {
   mechanism: 'M101 strict-subset schemas for a capable selected model',
   program: ARM_PROGRAM,
   change: frozenChange('strict-tools'),
-}
-
-/** A void callback for the evaluation admission: it admits and settles without charge. */
-function noop(): void {
-  // The admission's work is the allowance itself; nothing is tallied here.
 }
 
 /** The frozen arms, in run order: the control first, then one mechanism each. */
@@ -125,9 +118,15 @@ export function frozenBundleChange(bundle: ArmBundle): EvalHostChange {
       autoCompactionEvaluated: () => options.autoCompactionEvaluated === true,
     }),
     ...(options.evaluationAdmission === true && {
-      admitAutoCompaction: () => {
-        const guard: ResponseAttemptGuard = Object.assign(noop, {})
-        return Promise.resolve({ guard, settle: noop })
+      // The frozen arm declares that it compacts; the spend authority is
+      // the parent's real D78 admission, never a double built here. Without
+      // one the arm fails closed with its reason, instead of compacting
+      // for free or running uncompacted as if that were the mechanism.
+      admitAutoCompaction: (request) => {
+        const parent = deps.admitAutoCompaction
+        if (parent === undefined)
+          throw new Error('the auto-compaction arm needs the evaluation admission its parent binds')
+        return parent(request)
       },
     }),
     ...(options.modelFacts !== undefined && { modelFacts: () => options.modelFacts }),

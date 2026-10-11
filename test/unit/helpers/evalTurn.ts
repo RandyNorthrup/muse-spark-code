@@ -2,9 +2,18 @@
 // the shared driver for the eval unit tests, so the arms' suites do not
 // duplicate its setup.
 
-import { runEvalTurn, type EvalHostChange } from '../../../src/core/eval/driver'
+import {
+  createEvalCompactionLedger,
+  evalPaidUseFence,
+  runEvalTurn,
+  type EvalCompactionAdmission,
+  type EvalHostChange,
+} from '../../../src/core/eval/driver'
+import type { EvalBudget } from '../../../src/core/eval/wire'
 import type { MemoryStore } from '../../../src/core/memory/memoryStore'
+import { EVAL_BUDGET_USD } from '../../../src/shared/constants'
 import type { ApprovalMode } from '../../../src/shared/permissionModes'
+import { Usd } from '../../../src/shared/usd'
 import { memoryContextIo } from './fakeContextIo'
 import {
   FAKE_MODEL_API_ACCOUNT_ID,
@@ -24,6 +33,27 @@ export interface DrivenEvalTurn {
   readonly outcome: Awaited<ReturnType<typeof runEvalTurn>>
 }
 
+/**
+ * The turn's spend authority on fakes: the real D78 admission over a real
+ * ledger against a throwaway run budget. Fake scripts never approach its
+ * cap, so every scripted compaction is admitted, settled and tallied —
+ * exercising the production path, not an allowance stub. A caller proving
+ * a refusal passes its own admission instead.
+ */
+export function testEvalAdmission(budget?: EvalBudget): EvalCompactionAdmission {
+  const run = budget ?? { spentUsd: Usd.from(0).toAmount() }
+  const ledger = createEvalCompactionLedger(run)
+  return {
+    ledger,
+    allowsPaidUse: () => Promise.resolve(true),
+    notePaidUse: () => {
+      ledger.tally.started += 1
+    },
+    paidUseFence: () => evalPaidUseFence(run),
+    dailyBudgetUsd: () => Usd.from(EVAL_BUDGET_USD).toAmount(),
+  }
+}
+
 /** Scripts the replies, sends the prompt as the user's message, and reports the turn. */
 export async function driveEvalTurn(options: {
   readonly replies: readonly ScriptedReply[]
@@ -34,6 +64,7 @@ export async function driveEvalTurn(options: {
   readonly windowTokens?: number | undefined
   readonly memory?: MemoryStore | undefined
   readonly approvalMode?: ApprovalMode | undefined
+  readonly admission?: EvalCompactionAdmission | undefined
 }): Promise<DrivenEvalTurn> {
   const api = fakeModelApi()
   api.script(...options.replies)
@@ -55,6 +86,7 @@ export async function driveEvalTurn(options: {
       },
       turnTimeoutMs: options.turnTimeoutMs,
       memory: options.memory,
+      admission: options.admission ?? testEvalAdmission(),
     },
     workspace: EVAL_TURN_ROOT,
     prompt: options.prompt,

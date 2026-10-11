@@ -541,7 +541,7 @@ describe('runPairedEval', { timeout: RUNS_TIMEOUT_MS }, () => {
   })
 
   it('runs the M101 auto-compaction fake pair: the arm compacts the long-context tasks and both arms hold the floors', async () => {
-    const { api, deps } = rig()
+    const { api, deps, log } = rig()
     const longIds = new Set(
       EVAL_TASKS.filter((task) => task.isLongContext === true).map((task) => task.id),
     )
@@ -577,6 +577,13 @@ describe('runPairedEval', { timeout: RUNS_TIMEOUT_MS }, () => {
         JSON.stringify(body).includes(MODEL_API_MODEL_TEXT.compactionPrompt.slice(0, 40)),
       )
     expect(summaries).toHaveLength(2)
+    // Each compaction settled through the real admission against the run
+    // budget — never the paid-use failure counter — and the run says so.
+    for (const taskId of ['accept-long-compaction', 'heldout-long-compaction']) {
+      expect(logLines(log)).toContain(
+        `Evaluation auto-compaction ${taskId}: 1 admitted compaction attempt settled against the run budget`,
+      )
+    }
   })
 
   it('records the packing ledger and the recalls of the long-output tasks (M73)', async () => {

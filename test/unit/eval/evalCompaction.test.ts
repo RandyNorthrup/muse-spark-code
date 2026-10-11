@@ -23,7 +23,8 @@ import {
   MODEL_API_MODEL_TEXT,
   MODEL_API_TOOLS,
 } from '../../../src/shared/constants'
-import { driveEvalTurn, EVAL_TURN_ROOT } from '../helpers/evalTurn'
+import { bindEvalAdmission } from '../../../src/core/eval/driver'
+import { driveEvalTurn, testEvalAdmission, EVAL_TURN_ROOT } from '../helpers/evalTurn'
 import { FakeLogOutputChannel } from '../helpers/fakes'
 import {
   fakeModelApi,
@@ -403,7 +404,10 @@ describe('the automatic compaction arm', () => {
     const atEvalWindow: Pick<ModelApiHostDeps, 'contextModel'> = {
       contextModel: () => ({ format: 'responses', contextTokens: EVAL_COMPACT_WINDOW_TOKENS }),
     }
-    const host = new ModelApiHost(
+    // The arm's spend authority is bound over the armed dependencies, as
+    // the driver binds it: the change alone declares the mechanism, and
+    // without the parent's admission it fails closed.
+    const unbound =
       AUTO_COMPACTION_ARM.change === undefined
         ? {
             ...fakeModelApiHostDeps({
@@ -424,7 +428,9 @@ describe('the automatic compaction arm', () => {
               }),
             ),
             ...atEvalWindow,
-          },
+          }
+    const host = new ModelApiHost(
+      bindEvalAdmission(unbound, testEvalAdmission(), log, () => unbound),
     )
     try {
       const { session, events, turnDone } = await startWatchedSession(

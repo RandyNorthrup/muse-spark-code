@@ -50,6 +50,10 @@ export interface EvalBudget {
   spentUsd: UsdAmount
   /** A sent model call whose bill cannot be measured stops every remaining arm. */
   hasUnknownUsage?: boolean
+  /** Hard ceiling for model calls sent; the wire refuses past it. Absent means budget-only. */
+  maxAttempts?: number | undefined
+  /** Model calls sent so far; the wire owns the count. */
+  sentAttempts?: number | undefined
 }
 
 export interface EvalWire {
@@ -271,6 +275,17 @@ export function createEvalWire(deps: EvalWireDeps): EvalWire {
     const isModelCall = endpoint === MODEL_CALL
     if (model !== EVAL_MODEL_ID && (isModelCall || model !== undefined)) {
       return refuse(`the evaluation runs on ${EVAL_MODEL_ID} only, not ${String(model)}`)
+    }
+    if (isModelCall) {
+      // The counted run's hard call ceiling (lane E): refusals never
+      // consume it, only validated sends.
+      const sent = deps.budget.sentAttempts ?? 0
+      if (deps.budget.maxAttempts !== undefined && sent >= deps.budget.maxAttempts) {
+        return refuse(
+          `the evaluation's call ceiling of ${String(deps.budget.maxAttempts)} model calls is reached`,
+        )
+      }
+      deps.budget.sentAttempts = sent + 1
     }
     // Reading a streamed request body can yield while the prior reply settles.
     const afterBody = checkBudget()

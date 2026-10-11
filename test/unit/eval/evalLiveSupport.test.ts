@@ -9,7 +9,9 @@ import {
   liveEvalSelection,
   liveToolIo,
   loadEvalLiveCredentials,
+  unengagedCompactionTasks,
   unengagedLongOutputTasks,
+  withCompactionEngagement,
   withPackingEngagement,
 } from '../../e2e/evalLiveSupport'
 import {
@@ -242,7 +244,11 @@ describe('live eval selection', () => {
   })
 
   it('runs every task when unset, and the named ones in task-set order', () => {
-    expect(liveEvalSelection({}, true)).toEqual({ tasks: EVAL_TASKS, reportPath: undefined })
+    expect(liveEvalSelection({}, true)).toEqual({
+      tasks: EVAL_TASKS,
+      reportPath: undefined,
+      maxAttempts: undefined,
+    })
     const [first, second] = EVAL_TASKS
     if (first === undefined || second === undefined) {
       throw new Error('the task set is too small')
@@ -252,7 +258,16 @@ describe('live eval selection', () => {
         { MUSE_EVAL_TASKS: ` ${second.id},,${first.id} `, MUSE_EVAL_REPORT: 'out/report' },
         true,
       ),
-    ).toEqual({ tasks: [first, second], reportPath: 'out/report' })
+    ).toEqual({ tasks: [first, second], reportPath: 'out/report', maxAttempts: undefined })
+  })
+
+  it('reads the hard call ceiling, and stops on a non-positive-integer one', () => {
+    expect(liveEvalSelection({ MUSE_EVAL_MAX_ATTEMPTS: '300' }, true).maxAttempts).toBe(300)
+    for (const ceiling of ['0', '-5', '2.5', 'many']) {
+      expect(() => liveEvalSelection({ MUSE_EVAL_MAX_ATTEMPTS: ceiling }, true)).toThrow(
+        'MUSE_EVAL_MAX_ATTEMPTS must be a positive integer.',
+      )
+    }
   })
 })
 
@@ -343,6 +358,137 @@ describe('a packing run engaged', () => {
     const smallReport = withPackingEngagement(packingReport({}), 'packing', small)
     expect(smallReport.verdict).toBe('pass')
     expect(formatEvalReportMarkdown(smallReport)).toContain('| packing | none | none | yes |')
+  })
+})
+
+/** One arm's results: every task at the attempts `attemptsOf` names. */
+function armResults(name: string, attemptsOf: (taskId: string) => number) {
+  return {
+    name,
+    results: EVAL_TASKS.map((task) => ({
+      taskId: task.id,
+      title: task.title,
+      split: task.split,
+      passed: true,
+      terminal: 'completed',
+      failures: [],
+      attempts: attemptsOf(task.id),
+      requests: attemptsOf(task.id),
+      inputTokens: 1,
+      cachedTokens: 0,
+      outputTokens: 1,
+      costUsd: Usd.from(0).toAmount(),
+      toolCalls: 0,
+      approvals: 0,
+      questions: 0,
+      paidRefusals: 0,
+      order: 1,
+    })),
+    summaries: [],
+  }
+}
+
+/** A two-arm report: the baseline at three attempts, the arm at `made`. */
+function compactionReport(made: Readonly<Record<string, number>>): EvalReport {
+  return {
+    version: EVAL_REPORT_VERSION,
+    model: EVAL_MODEL_ID,
+    generatedAt: '2026-10-01T00:00:00.000Z',
+    arms: [
+      armResults('baseline', () => 3),
+      armResults('auto-compaction', (taskId) => made[taskId] ?? 3),
+    ],
+    floors: [],
+    verdict: 'pass',
+  }
+}
+
+describe('an auto-compaction run engaged', () => {
+  const longIds = EVAL_TASKS.filter((task) => task.isLongContext === true).map((task) => task.id)
+
+  it('needs more attempts than the baseline on every long-context task it ran', () => {
+    const [first] = longIds
+    if (first === undefined) throw new Error('the task set needs a long-context task')
+    const everyLong = Object.fromEntries(longIds.map((id) => [id, 6]))
+    expect(
+      unengagedCompactionTasks(
+        compactionReport(everyLong),
+        'auto-compaction',
+        'baseline',
+        EVAL_TASKS,
+      ),
+    ).toEqual([])
+    expect(
+      unengagedCompactionTasks(compactionReport({}), 'auto-compaction', 'baseline', EVAL_TASKS),
+    ).toEqual(longIds)
+    expect(
+      unengagedCompactionTasks(
+        compactionReport({
+          [first]: 3,
+          ...Object.fromEntries(longIds.filter((id) => id !== first).map((id) => [id, 6])),
+        }),
+        'auto-compaction',
+        'baseline',
+        EVAL_TASKS,
+      ),
+    ).toEqual([first])
+  })
+
+  it('counts a missing arm as never engaged', () => {
+    const everyLong = Object.fromEntries(longIds.map((id) => [id, 6]))
+    expect(
+      unengagedCompactionTasks(compactionReport(everyLong), 'other', 'baseline', EVAL_TASKS),
+    ).toEqual(longIds)
+    expect(
+      unengagedCompactionTasks(compactionReport(everyLong), 'auto-compaction', 'other', EVAL_TASKS),
+    ).toEqual(longIds)
+  })
+
+  it('records a run whose floors pass but which never compacted as failed, in both artifacts', () => {
+    const floorsPass = compactionReport({})
+    expect(floorsPass.verdict).toBe('pass')
+    const report = withCompactionEngagement(floorsPass, 'auto-compaction', 'baseline', EVAL_TASKS)
+    expect(report.verdict).toBe('fail')
+    const json = evalReportSchema.parse(JSON.parse(formatEvalReportJson(report)))
+    expect(json.verdict).toBe('fail')
+    expect(json.version === EVAL_REPORT_VERSION ? json.compactionEngagement : undefined).toEqual({
+      arm: 'auto-compaction',
+      longContextTasks: longIds,
+      unengaged: longIds,
+      held: false,
+    })
+    const markdown = formatEvalReportMarkdown(report)
+    expect(markdown).toContain('verdict: fail')
+    expect(markdown).not.toContain('verdict: pass')
+    expect(markdown).toContain(
+      `| auto-compaction | ${longIds.join(', ')} | ${longIds.join(', ')} | no |`,
+    )
+  })
+
+  it('leaves the verdict to the floors when compaction engaged on every long-context task', () => {
+    const everyLong = Object.fromEntries(longIds.map((id) => [id, 6]))
+    const report = withCompactionEngagement(
+      compactionReport(everyLong),
+      'auto-compaction',
+      'baseline',
+      EVAL_TASKS,
+    )
+    expect(report.verdict).toBe('pass')
+    expect(formatEvalReportMarkdown(report)).toContain(
+      `| auto-compaction | ${longIds.join(', ')} | none | yes |`,
+    )
+    // A selection without long-context tasks has nothing to engage.
+    const small = EVAL_TASKS.filter((task) => task.isLongContext !== true)
+    const smallReport = withCompactionEngagement(
+      compactionReport({}),
+      'auto-compaction',
+      'baseline',
+      small,
+    )
+    expect(smallReport.verdict).toBe('pass')
+    expect(formatEvalReportMarkdown(smallReport)).toContain(
+      '| auto-compaction | none | none | yes |',
+    )
   })
 })
 
