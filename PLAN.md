@@ -327,6 +327,28 @@ full quality and installed-editor/platform certification stay with the lead.
 
 ---
 
+**TRAINACT release-train activation repair (2026-10-11, macmini).**
+Move automatic-compaction admission behind the existing Model API backend
+boundary, with pricing supplied by the existing providers chunk. Preserve
+fail-closed reservation, consent, cancellation and per-attempt accounting.
+Measure the unchanged immutable pre-K activation budget after each cut;
+move further on-demand helpers only as needed to retain at least 150 bytes
+of room below 3,072 bytes. The paid-use question formatter moves whole to
+the existing imported-hook runtime, preserving its async API and installed
+language; the smaller hook runtime retains its cap. The admission factory
+loads from that same runtime on first compaction to retain the backend
+ratchet. Refresh the owning size-drill fixture with the two existing Models
+section entries missing after the train merge; remove the unused type
+alias `GitHubLeaseResult` reported by knip, with
+no emitted-code change. Keep the compaction refusal error in a dependency-free
+shared leaf, re-exported through its existing consent API, to prevent the
+new lazy runtime edge from cycling back into consent. Consolidate only
+the duplicated runtime-account test fixtures reported by the unchanged
+clone gate, preserving every assertion. No cap, baseline, allow-list,
+string, behavior,
+wire shape or evaluation-latch change. No merge, push or subagents.
+Certification: `docs/certification/train-activation.md`.
+
 ## 1. Assumptions
 
 | #   | Assumption                                                                                                                                       |
@@ -33635,6 +33657,14 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**TRAINACT scoped qualification.** The explicit rig/common brief reserves
+aggregate `npm run quality` for the lead and forbids it in this lane.
+Run production build and all unchanged caps/split checks; complete owning
+suites at repository timeouts (at most three files per run); host, unit and
+e2e typechecks; changed-file lint/format; knip, cycles, duplication, host API
+and localization. Drill both regressions and restore source byte for byte.
+Record receipts in `docs/certification/train-activation.md`.
 
 **MODELSPLIT4 scoped rig qualification (2026-10-11, kubuntu).** The
 explicit lane/common brief forbids aggregate `npm run quality` and reserves
