@@ -183,12 +183,16 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     if (preset === undefined) {
       throw new Error(UI_TEXT.actionFailed)
     }
+    // Azure's deployment rides as the request's model (the v1 API names
+    // it), so the deployment the wizard collects replaces any ticked list
+    // ids: a models-list id is not a deployment name and would 404.
+    const deployment = draft.deployment ?? ''
     return {
       id: id ?? preset.id,
       preset: preset.id,
       address: draft.address ?? preset.origin,
       auth: draft.auth,
-      models: draft.models,
+      models: deployment !== '' && preset.id === 'azure' ? [deployment] : draft.models,
       ...(draft.customFormat !== undefined && { format: draft.customFormat }),
       ...(preset.id === 'openrouter' && {
         routing: {
@@ -213,14 +217,22 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       if (preset === undefined) {
         return []
       }
+      // The seam erases every user-supplied origin to `''`, so only the id
+      // still says Azure asks for a resource and deployment (not an
+      // address); loopback takes a port, anything else is a custom server.
+      let originKind: 'fixed' | 'azure-resource' | 'loopback' | 'custom' = 'fixed'
+      if (preset.origin === '') {
+        originKind = 'custom'
+        if (id === 'azure') originKind = 'azure-resource'
+        else if (preset.kind === 'local') originKind = 'loopback'
+      }
       const card = presetCardSchema.safeParse({
         id,
         label: preset.name,
         description: preset.description,
         category: id === 'custom' ? 'custom' : preset.kind,
         format: preset.format,
-        originKind:
-          preset.origin === '' ? (preset.kind === 'local' ? 'loopback' : 'custom') : 'fixed',
+        originKind,
         originDisplay: preset.origin,
         auth: preset.auth,
         connectOAuth: preset.connectLabel !== undefined,
