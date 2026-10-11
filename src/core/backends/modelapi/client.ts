@@ -10,6 +10,7 @@ import { PaidAuthority } from '../../paid/paidAuthority'
 
 import {
   RequestTransport,
+  assertConfirmedAllowed,
   ignoreClosingError,
   ModelApiError,
   parseJsonResponse,
@@ -454,12 +455,11 @@ export class ModelApiClient implements TransportProviderClient {
       await admitAttempt?.mediaAccounting?.finish()
       throw new RangeError(outputTokenMinimumMessage(MODEL_API_MIN_OUTPUT_TOKENS))
     }
-    if (
-      confirmed !== undefined &&
-      (body.model !== confirmed.modelId || !confirmed.isStillAllowed())
-    ) {
+    try {
+      assertConfirmedAllowed(body.model, confirmed)
+    } catch (error: unknown) {
       await admitAttempt?.mediaAccounting?.finish()
-      throw new Error(UI_TEXT.scheduleConfirmationExpired)
+      throw error
     }
     let feature = admitAttempt?.paidFeature
     if (feature === undefined && confirmed !== undefined) {

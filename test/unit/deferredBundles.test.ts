@@ -847,7 +847,12 @@ describe('deferred cohort bundles', () => {
     // workspacePath) and its MODEL_TEXT keys that activation reads +221.
     // Re-measured and ratcheted down when m105/media-w2 moves media to the
     // deferred dist/productionMedia.js.
-    expect(Buffer.byteLength(bundleText('modelApi'))).toBeLessThanOrEqual(530_883)
+    // Train 0.18.0 (lead decision 2026-10-11 15:45 PT): re-measured at
+    // 532,537 B on b7f9de08a6 (train af67368a22 + argument previews
+    // 83f8da887, +1,854 B of intended code: the production capability
+    // binding and the one confirmed-dispatch gate). D6's 525 KiB cap is
+    // unchanged; the pin ratchets down when fix/modelapi-diet merges.
+    expect(Buffer.byteLength(bundleText('modelApi'))).toBeLessThanOrEqual(532_537)
     const schedules = new Set(inputs('schedules'))
     for (const file of [
       'src/core/backends/modelapi/schedulesEntry.ts',

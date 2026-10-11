@@ -22,6 +22,18 @@ happened, not what was planned; superseded entries are kept.
   changing account inside a session and pooled runs. The three account
   settings keep no effect, and the editor has no Accounts page yet.
 
+- **Live tool-argument previews, in the panel and in ACP** (M106, C-M106-2).
+  On the Model API backend a tool row shows an **Argument preview** while
+  the model is still writing the call: declared top-level string fields
+  (file paths, shell commands, search patterns, fetch URLs) appear once
+  their closing quote validates, scrubbed like every other display. File
+  content, edits and nested values stay hidden, and a tool the request never
+  offered shows a byte count only. A preview never runs a tool, asks for
+  approval or calls a hook. One model's record verifies streamed arguments
+  today, `muse-spark-1.3-contributor`; every other model keeps the
+  completed-call row until its own stream is captured, and headless `exec`
+  records completed tools only.
+
 - **Judge benchmark tooling (repository only, lane JEVBENCH, D107/M125).**
   `scripts/judge-bench.mjs` judges a labelled decision set through one
   engine interface (local Ollama SystemOne, local llama-server chat with
@@ -123,6 +135,73 @@ happened, not what was planned; superseded entries are kept.
   questions on first use through the existing imported-hook runtime. Activation
   behavior, paid admission, displayed text and all bundle limits stay unchanged.
   Remove the unused internal GitHub lease-result type found by the train gate.
+
+- M106's wire certification adds counted, scrubbed Muse Code 1.4.4 effort,
+  feedback and session-lifecycle captures, plus an opt-in developer collector
+  for Meta's missing raw argument stream, status and output-cap receipts.
+  Every provider's remaining credential or local-runtime requirement is
+  recorded. Muse Code 1.4.4's removed delete method is captured as a refusal.
+
+- The Model API backend now binds the selected model's capability record in
+  production: streamed tool-argument previews render on the U9-captured
+  `muse-spark-1.3-contributor` model in VS Code and ACP, and Meta turns in
+  VS Code and interactive ACP request the documented 131,072-token output
+  cap. Headless `exec` requests at most 32,768 output tokens (or the record’s
+  smaller maximum), because its run ledger reserves each request’s worst
+  case before dispatch. Its body, schema, ledger and start reservation
+  share one resolved cap. Headless `exec` drops every `tool_call`/`tool_call_update`
+  before its sink, so it records completed tools only and never shows live
+  argument previews. Unobserved models keep today's stream and the legacy
+  32,768-token request cap. No setting changes; feature-off request bytes
+  are unchanged (`docs/certification/m106-capability-binding.md`).
+
+- Fixed headless edit reporting after argument previews: complete-argument
+  promotion carries file locations through ACP, so successful edits appear in
+  `filesChanged` even when their previews began without a path. ACP regression
+  coverage now checks workspace-relative locations on any Windows drive and
+  excludes pathless tools and paths outside the session workspace.
+
+- Fixed the Model API selected-record binding review findings: the
+  production entry resolves qualified models through the session client's
+  own resolver instead of a standalone registry, so headless `exec` keeps
+  its daily budget admission and run-ledger accounting, ChatGPT and Copilot
+  subscription models stay selectable, plan-key usage stays with the owning
+  service, and interactive ACP binds a qualified record's larger output
+  cap. Declared IDE and MCP tools render preview text from their own
+  string fields, as host tools do; unoffered tools still show a byte count
+  only. The reference lists argument previews on the VS Code and ACP
+  surfaces. Raw Meta capture receipts: the 16-frame U9 strict stream
+  proves declared-tool preview text from captured bytes, and the refused
+  1-token probe documents Meta's 16-token output minimum (the collector
+  probes it next run).
+
+- Fixed two follow-up selected-record binding findings (RVCM1062C). A
+  compaction, Git draft or summary fork sent before any prompt on a resumed
+  qualified model now builds its request after the selected record
+  resolves, so it carries the record's output maximum and reasoning effort
+  instead of the legacy 32,768-token cap and the unresolved fallback; the
+  cached maximum is dropped whenever the record or the selection changes.
+  Streamed argument-preview text now comes only from the tools the request
+  itself offered: a tool the request never offered (allowlisted out,
+  untrusted away, or never declared) renders a byte count only, never its
+  fields (`docs/certification/m106-capability-binding.md`).
+
+- Fixed both RVCM1062D binding findings. Strict tools preserve each host
+  tool's curated preview fields, so file content, edits and tools without
+  preview declarations remain hidden. Responses and token counts build
+  from one resolved model record and use it for output caps, reasoning,
+  offered tools, admission and accounting; configuration changes cannot
+  replace the client underneath an already-built body. A stale record
+  refuses before dispatch, and a switched selection rebuilds the request.
+
+- Fixed the RVCM1062E finding: every stale-record refusal now names the
+  operation the user actually ran. A lapsed record during manual
+  compaction says to compact again, during a turn to send the message
+  again, and during a model-hook call to try the action again; headless
+  runs name the run, and resolution-time refusals that know no operation
+  retry neutrally. Scheduled prompts keep their schedule guidance. The
+  new guidance is translated in all fourteen UI tables
+  (`docs/certification/m106-capability-binding.md`).
 
 ### Fixed
 
@@ -288,6 +367,31 @@ happened, not what was planned; superseded entries are kept.
   factories now, and single-surface schemas live behind pure builders, so
   small bundles stop carrying them: usagePanel.js back under its cap with
   room to spare. Recorded in `docs/certification/train-bundle-diet.md`.
+
+- A confirmed run on a ChatGPT or Copilot plan model (hook model, review,
+  scheduled prompt) no longer fails with "the model changed" before it is
+  sent. The subscription client proceeds while the confirmation is still
+  allowed and refuses with the run's own guidance only once it has lapsed,
+  like the other clients (M106, RVCM1062F).
+
+- Fixed the RVCM1062G findings on that plan-model success path. A confirmed
+  scheduled run now records its start receipt and scheduled-prompt tally,
+  and a paid-gate lapse during ChatGPT sign-in or Copilot token counting
+  still refuses before anything is sent — through the same
+  confirmed-dispatch helper the other branches use. A lapsed confirmation
+  names the hook, schedule or review instead of the generic plan retry
+  sentence, and a catalogue request id is accepted against a session
+  confirmation id (M106, RVCM1062G;
+  `docs/certification/m106-capability-binding.md`).
+
+- Fixed the RVCM1062H findings: the last two confirmed-dispatch paths that
+  decided by themselves now route through the shared helper. A still-allowed
+  scheduled or hook confirmation on a configured provider (which carries no
+  origin) dispatches instead of refusing with "Models & Agents is not
+  available in this build", and a lapsed confirmation there keeps the run's
+  own guidance instead of that sentence. An inventory test fails if any site
+  but the helper ever refuses a confirmed dispatch again (M106, RVCM1062H;
+  `docs/certification/m106-capability-binding.md`).
 
 ### Documentation
 

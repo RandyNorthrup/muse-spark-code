@@ -455,6 +455,21 @@
       "editors": ["vscode", "acp"]
     },
     {
+      "id": "argument-preview",
+      "name": { "ui": "toolArgumentPreviewLabel" },
+      "summary": { "ui": "toolArgumentPreviewDescription" },
+      "description": { "ui": "toolArgumentPreviewDescription" },
+      "commands": [],
+      "settings": [],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees",
+      "backends": ["modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:modelApi", "acp:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode", "acp"]
+    },
+    {
       "id": "cut-short-tools",
       "name": { "ui": "incompleteToolCallsNotRun" },
       "summary": { "ui": "incompleteToolCallsNotRun" },

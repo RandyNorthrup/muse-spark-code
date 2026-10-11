@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { screen } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { loadUiTable } from '../../src/host/l10n'
@@ -27,7 +27,10 @@ const PREVIEW: Extract<AgentEvent, { type: 'toolArgumentPreview' }> = {
   },
 }
 
-afterEach(restoreEnglish)
+afterEach(() => {
+  restoreEnglish()
+  vi.unstubAllGlobals()
+})
 
 function showPreview(text: string, isTruncated: boolean) {
   renderTranscript([
@@ -349,7 +352,7 @@ describe('argument preview across editor surfaces', () => {
   })
 
   it('sends the same labeled preview through ACP, pending until the real call begins', () => {
-    const translator = new UpdateTranslator('/ws', false)
+    const translator = new UpdateTranslator(path.resolve('/ws'), false)
     const [started] = translator.updates(PREVIEW)
     expect(started).toMatchObject({
       sessionUpdate: 'tool_call',
@@ -391,10 +394,134 @@ describe('argument preview across editor surfaces', () => {
         status: 'in_progress',
         rawInput: { path: 'a.ts', content: 'ready' },
         title: 'Write: a.ts',
+        locations: [{ path: path.resolve('/ws', 'a.ts') }],
         content: [],
       },
     ])
   })
+
+  it.each(['itemStarted', 'itemCompleted'] as const)(
+    'promotes a pathless tool without a client location (%s)',
+    (type) => {
+      const translator = new UpdateTranslator(path.resolve('/ws'), false)
+      translator.updates({ ...PREVIEW, item: { ...PREVIEW.item, tool: 'shell' } })
+      const promoted = translator.updates({
+        type,
+        item: {
+          ...PREVIEW.item,
+          tool: 'shell',
+          args: '{"command":"npm test"}',
+          argumentPreview: undefined,
+        },
+      })
+      expect(promoted).toEqual([
+        {
+          sessionUpdate: 'tool_call_update',
+          toolCallId: 'call-row',
+          status: type === 'itemCompleted' ? 'completed' : 'in_progress',
+          rawInput: { command: 'npm test' },
+          title: 'Shell: npm test',
+          locations: [],
+          content: [],
+        },
+      ])
+    },
+  )
+
+  it('resolves a promoted relative location against this session’s workspace', () => {
+    const workspace = path.resolve('/ws/session')
+    const translator = new UpdateTranslator(workspace, false)
+    translator.updates(PREVIEW)
+    const [promoted] = translator.updates({
+      type: 'itemCompleted',
+      item: {
+        ...PREVIEW.item,
+        args: '{"path":"src/../a.ts","content":"ready"}',
+        argumentPreview: undefined,
+      },
+    })
+    expect(promoted).toEqual({
+      sessionUpdate: 'tool_call_update',
+      toolCallId: 'call-row',
+      status: 'completed',
+      rawInput: { path: 'src/../a.ts', content: 'ready' },
+      title: 'Write: src/../a.ts',
+      locations: [{ path: path.resolve(workspace, 'a.ts') }],
+      content: [
+        { type: 'diff', path: path.resolve(workspace, 'a.ts'), oldText: null, newText: 'ready' },
+      ],
+    })
+  })
+
+  it.each(['C', 'D', 'Z'])(
+    'uses the session workspace’s resolved identity on drive %s',
+    (drive) => {
+      vi.stubGlobal('process', { ...process, platform: 'win32' })
+      const workspace = path.win32.resolve(`${drive}:/ws/session`)
+      const translator = new UpdateTranslator(workspace, false)
+      translator.updates(PREVIEW)
+      const [promoted] = translator.updates({
+        type: 'itemStarted',
+        item: {
+          ...PREVIEW.item,
+          args: JSON.stringify({ path: String.raw`src\..\a.ts`, content: 'ready' }),
+          argumentPreview: undefined,
+        },
+      })
+      if (promoted?.sessionUpdate !== 'tool_call_update') throw new Error('missing promotion')
+      expect(promoted.locations).toHaveLength(1)
+      const absolute = promoted.locations?.[0]?.path
+      if (absolute === undefined) throw new Error('missing location')
+      expect(path.win32.isAbsolute(absolute)).toBe(true)
+      expect(path.win32.relative(path.win32.resolve(workspace, 'a.ts'), absolute)).toBe('')
+    },
+  )
+
+  it.each(['../outside.ts', '@../outside.ts', path.resolve('/ws-sibling/outside.ts')])(
+    'keeps an outside path out of promoted client locations and diffs (%s)',
+    (given) => {
+      const translator = new UpdateTranslator(path.resolve('/ws'), false)
+      translator.updates(PREVIEW)
+      const [promoted] = translator.updates({
+        type: 'itemCompleted',
+        item: {
+          ...PREVIEW.item,
+          args: JSON.stringify({ path: given, content: 'ready' }),
+          argumentPreview: undefined,
+        },
+      })
+      expect(promoted).toMatchObject({
+        sessionUpdate: 'tool_call_update',
+        status: 'completed',
+        rawInput: { path: given, content: 'ready' },
+        locations: [],
+        content: [],
+      })
+    },
+  )
+
+  it.each([String.raw`..\outside.ts`, 'Z:/outside.ts', 'D:/ws-sibling/outside.ts'])(
+    'refuses promoted locations escaping a Windows workspace (%s)',
+    (given) => {
+      vi.stubGlobal('process', { ...process, platform: 'win32' })
+      const translator = new UpdateTranslator('D:/ws', false)
+      translator.updates(PREVIEW)
+      const [promoted] = translator.updates({
+        type: 'itemStarted',
+        item: {
+          ...PREVIEW.item,
+          args: JSON.stringify({ path: given, content: 'ready' }),
+          argumentPreview: undefined,
+        },
+      })
+      expect(promoted).toMatchObject({
+        sessionUpdate: 'tool_call_update',
+        status: 'in_progress',
+        locations: [],
+        content: [],
+      })
+    },
+  )
 
   it('lets an ACP client joining through history see the same current preview', () => {
     const translator = new UpdateTranslator('/ws', true)
