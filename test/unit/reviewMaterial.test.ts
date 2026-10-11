@@ -4,7 +4,14 @@
 // prints: the uncommitted changes, a branch against its base, one commit.
 
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, realpathSync, symlinkSync, unlinkSync } from 'node:fs'
+import {
+  appendFileSync,
+  mkdtempSync,
+  realpathSync,
+  symlinkSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs'
 import { mkdir, mkdtemp, readFile, unlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -769,6 +776,29 @@ describe('filter discovery over real git', { timeout: REAL_GIT_TIMEOUT_MS }, () 
       await collector(folder, () => undefined).collect({ scope: 'uncommitted', focus: 'general' }),
     )
     expect(found.diff).toContain('+b')
+  })
+
+  // A machine with Git LFS installed lists a global LFS filter here; the
+  // review must read the same inventory there as on a machine with none.
+  it('proceeds when the test-owned global configuration defines an LFS filter', async () => {
+    const folder = await repository('global-lfs-filter')
+    await commitFile(folder, 'a.ts', 'a\n', 'first')
+    await writeFile(path.join(folder, 'a.ts'), 'b\n')
+    appendFileSync(
+      isolated.globalFile,
+      '[filter "lfs"]\n\tclean = git-lfs clean -- %f\n\tsmudge = git-lfs smudge -- %f\n\tprocess = git-lfs filter-process\n\trequired = true\n',
+    )
+    try {
+      const found = material(
+        await collector(folder, () => undefined).collect({
+          scope: 'uncommitted',
+          focus: 'general',
+        }),
+      )
+      expect(found.diff).toContain('+b')
+    } finally {
+      writeFileSync(isolated.globalFile, '')
+    }
   })
 
   it('carries a configured clean, process and required filter as scoped overrides', async () => {
