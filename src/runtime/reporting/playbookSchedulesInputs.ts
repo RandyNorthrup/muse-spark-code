@@ -11,6 +11,7 @@ import {
   FilePlaybookJournal,
   PlaybookHistoryLostError,
 } from '../../core/orchestration/playbook/journal'
+import { SCHEDULE_FS_RETRY_ATTEMPTS } from '../../shared/constants'
 import { createScheduleStore } from '../../core/schedules/store'
 import { LocalSourceError } from '../../core/reporting/sources/local'
 import type { PlaybookReportReader } from '../../core/reporting/sources/playbook'
@@ -66,7 +67,7 @@ const SCHEDULE_CONTENT_FAILURES = new Set([
   'scheduleIndexRevisionMismatch',
   'scheduleIndexDeltaInvalid',
   'scheduleJournalLimitExceeded',
-  'scheduleJournalOwnershipLost',
+  'scheduleJournalFencingRegression',
 ])
 
 function isScheduleContentFailure(error: unknown): boolean {
@@ -86,17 +87,29 @@ export function createSchedulesReportReader(input: {
   return {
     read: async (context: SourceReadContext) => {
       const store = createScheduleStore(createNodeScheduleFs(input.storeRoot))
-      try {
-        const schedules = await store.list(input.workspaceKey)
-        const fires = await store.fires(input.workspaceKey)
-        return {
-          schedules: [...schedules],
-          fires: [...fires],
-          observedAt: context.asOf,
+      for (let attempt = 0; attempt < SCHEDULE_FS_RETRY_ATTEMPTS; attempt += 1) {
+        context.signal.throwIfAborted()
+        try {
+          const schedules = await store.list(input.workspaceKey)
+          const fires = await store.fires(input.workspaceKey)
+          const confirmed = await store.list(input.workspaceKey)
+          // Every settings/admission mutation advances the per-schedule
+          // revision; ids cannot be reused. Equal ordered revision sets on
+          // both sides of the locked history read describe one snapshot.
+          const revisions = (rows: typeof schedules) =>
+            JSON.stringify(rows.map(({ id, revision }) => [id, revision]))
+          if (revisions(schedules) !== revisions(confirmed)) continue
+          return { schedules: [...confirmed], fires: [...fires], observedAt: context.asOf }
+        } catch (error) {
+          if (
+            error instanceof Error &&
+            ['scheduleJournalOwnershipLost', 'scheduleQueueOwnershipLost'].includes(error.message)
+          )
+            continue
+          throw new LocalSourceError(isScheduleContentFailure(error) ? 'invalid' : 'failed')
         }
-      } catch (error) {
-        throw new LocalSourceError(isScheduleContentFailure(error) ? 'invalid' : 'failed')
       }
+      throw new LocalSourceError('busy')
     },
   }
 }

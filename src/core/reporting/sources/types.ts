@@ -1,3 +1,4 @@
+import type { UiText } from '../../../shared/l10n/en'
 import type { UsdAmount } from '../../../shared/usdSchema'
 // Normalized, scrubbed facts supplied by injected readers. These types are
 // application contracts; upstream HTTP/MSP parsers stay with their source owners.
@@ -239,6 +240,8 @@ export type SourceResult<T> =
     }
 
 export interface SourceReadContext {
+  /** Request-owned language table, captured before any source awaits. */
+  readonly reportText?: UiText
   /** Identity shared by all reads in one generation, including refreshes at the same stamp. */
   readonly run?: object
 

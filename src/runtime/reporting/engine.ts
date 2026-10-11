@@ -115,6 +115,7 @@ export function createReportingServices(context: ReportingContext): ReportsServi
   let boundNetwork: Pick<ReportSourcePorts, 'github' | 'stores'> | undefined
   return {
     async generate(options, signal = new AbortController().signal) {
+      const reportText = { ...context.l10n.table }
       const key = requiredKey()
       const local =
         root === undefined
@@ -132,7 +133,14 @@ export function createReportingServices(context: ReportingContext): ReportsServi
               ...(context.playbook !== undefined && { playbook: context.playbook }),
               ...(context.schedules !== undefined && { schedules: context.schedules }),
             }).sources
-      const readContext = { run: {}, options, asOf: options.asOf, workspaceKey: key, signal }
+      const readContext = {
+        reportText,
+        run: {},
+        options,
+        asOf: options.asOf,
+        workspaceKey: key,
+        signal,
+      }
       let planText: string | undefined
       const sources: ReportSourcePorts = {
         git: local?.git ?? unavailable('git'),

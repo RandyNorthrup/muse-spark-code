@@ -35273,6 +35273,20 @@ design, owned by a later K/collector change. This record closes the
 lane-level repair only; the whole M113 milestone stays planned until W
 integrates and the §6.0 checklist boxes are checked per milestone.
 
+**C-M113-4 review repair RVCM1134F (2026-10-11, CM1134AR4).**
+Fix all seven findings with test-first matrices and byte-exact red drills:
+replay current settings per team for disabled-rule rows; reconcile schedule
+revisions around fire-history reads, omit admitted one-shots and cached fires
+at or beyond end bounds; regenerate and validate the shipped report schema;
+capture request-owned `reportText` before source awaits and translate every
+settlement outcome; distinguish corrupt fencing history from writer contention
+and retry the latter within the existing retry cap. Sweep siblings in these
+kinds only, preserve every gate and dependency, and certify all five typechecks
+and scoped dependent suites on Kubuntu. Aggregate quality remains lead-owned
+under the explicit rig/common brief; execStdio's inherited setup failure is
+recorded rather than repaired in this lane. Update this record, the roadmap
+and the certification together.
+
 **C-M113-4 playbook and schedules kinds (2026-10-11, lane CM1134A,
 status: implemented; independent review pending).** Wire the D93.4
 playbook and schedules rows end to end: `sources/playbook.ts` replays
@@ -35292,7 +35306,7 @@ security, accounts, issues and keybindings stay unavailable as before.
 Until delivery is registered (CM1151) no v2 fire exists and the fire
 sections stay empty. The replay and store machinery would overflow the
 session/usage chunk (68.7 KiB of its 100 KiB budget), so the readers
-ride their own lazy chunk (50.5 KiB measured, 75 KiB budget); no
+ride their own lazy chunk (51.2 KiB measured, 59 KiB budget); no
 existing budget moves. Checklist: collect regressions in
 `test/unit/collect.playbook.test.ts` and
 `test/unit/collect.schedules.test.ts`, source regressions in
@@ -35303,8 +35317,10 @@ end-to-end generation in
 `test/unit/helpers/reporting/reportKindFixtures.ts`, live-CLI cases in
 `test/e2e/reports.e2e.test.ts`; red drills with byte-exact restores in
 `docs/certification/m113-playbook-schedules-c-m113-4.md`; README kinds
-table and prose, CHANGELOG entry under `[Unreleased]`; no new string,
-command, setting, dependency or activation change. This record closes
+table and prose, CHANGELOG entry under `[Unreleased]`; report labels and
+schedule-cell templates translated in English and all 14 language tables
+(including the repaired `ended` label); no command, setting, dependency or
+activation change. This record closes
 the lane-level change only; the whole M113 milestone stays planned
 until W integrates and the §6.0 checklist boxes are checked per
 milestone.
@@ -38090,6 +38106,21 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**CM1134AR4 scoped qualification (2026-10-11, Kubuntu).** The explicit
+rig/common brief delegates aggregate quality to the lead. This repair runs
+all five typechecks, scoped static gates, the complete changed-source
+dependent closure and editor/ACP/CLI host suites at repository deadlines.
+The production build hits the inherited `usagePanel.js` size failure:
+76,938 bytes against 76,800. Its 41 local inputs are unchanged from
+`ed0cd5000`; an official in-memory rebuild is byte-identical. The affected
+report engine and reader pass their unchanged 175/59 KiB budgets. The
+unchanged source-list and usage money-structure assertions reproduce the
+review's base failures; execStdio's base setup failures are recorded rather
+than repaired, as the brief directs. These are lead integration deferrals,
+not release-green claims; no cap, assertion, timeout or hook is relaxed.
+Complete receipts and all twelve repair drills are in
+`docs/certification/m113-playbook-schedules-c-m113-4.md`.
 
 CM1132R2's rig/common brief delegates aggregate `npm run quality` to the lead
 and prohibits it in the lane. This qualification runs five typechecks,
@@ -42721,6 +42752,10 @@ aggregate quality/coverage/platform matrix before integration/release. No
 threshold, ignore or rule is changed.
 
 ## 8. Escape hatches register
+
+| CM1134AR4 escape (2026-10-11)                                                       | Reason                                                                                                                                                                                                                                                                          |
+| ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `test/unit/reportSchema.test.ts`: `shipped as Parameters<typeof fromJSONSchema>[0]` | JSON imports widen fixed schema discriminants to strings. The adjacent freshness test checks complete equality with the generated contract; the label matrix independently validates emitted documents through the shipped schema. Test-only cast; no runtime boundary changes. |
 
 | PORTS017 escape                                                                           | Reason                                                                                                                                                                                                                          |
 | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

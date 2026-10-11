@@ -27,6 +27,7 @@ export interface SchedulesFireView {
   readonly fire: ScheduleFireRecord
   readonly scheduleName: string
   readonly occurrenceIso: string | undefined
+  readonly outcomeText: string
 }
 export interface SchedulesView {
   readonly schedules: readonly SchedulesScheduleView[]
@@ -66,9 +67,13 @@ function scheduleStatus(
   const isEnded =
     (schedule.end?.afterRuns !== undefined && schedule.fireCount >= schedule.end.afterRuns) ||
     (schedule.end?.atMs !== undefined && nowMs >= schedule.end.atMs)
-  // The store drops the next-fire time when a time-advancing fire is
-  // admitted, so a one-shot schedule with no next fire already fired.
-  const isFiredOnce = schedule.trigger.kind === 'once' && schedule.nextFireAtMs === undefined
+  // Manual admission preserves the cached next fire. Count/cursor facts
+  // still prove the one-shot fired; a cleared cache also means exhausted.
+  const isFiredOnce =
+    schedule.trigger.kind === 'once' &&
+    (schedule.fireCount > 0 ||
+      (schedule.lastFireAtMs !== undefined && schedule.lastFireAtMs >= schedule.trigger.atMs) ||
+      schedule.nextFireAtMs === undefined)
   switch (true) {
     case schedule.paused: {
       return 'paused'
@@ -101,7 +106,9 @@ export function schedulesSections(view: SchedulesView, options: ReportOptions): 
       entry.schedule.nextFireAtMs !== undefined &&
       entry.schedule.trigger.kind !== 'event' &&
       entry.schedule.trigger.kind !== 'afterEvent' &&
-      scheduleStatus(entry.schedule, nowMs) === 'active',
+      scheduleStatus(entry.schedule, nowMs) === 'active' &&
+      (entry.schedule.end?.atMs === undefined ||
+        entry.schedule.nextFireAtMs < entry.schedule.end.atMs),
   )
   const timeline = upcoming.map((entry) => {
     const atMs = entry.schedule.nextFireAtMs
@@ -145,7 +152,7 @@ export function schedulesSections(view: SchedulesView, options: ReportOptions): 
       {
         name: text(entry.scheduleName),
         run: text(entry.fire.runId),
-        outcome: text(entry.fire.outcome),
+        outcome: text(entry.outcomeText),
         reason: text(entry.fire.reason ?? ''),
         date: dateCell(entry.fire.occurrenceMs, entry.occurrenceIso),
       },
