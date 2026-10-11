@@ -27,17 +27,56 @@ const MAIN_TREE = z.object({
   tree: z.array(z.object({ path: z.string(), type: z.enum(['blob', 'tree', 'commit']) })),
 })
 
+// One request past its deadline failed three hosted jobs of one run (PR #147):
+// a request that gets no answer (its deadline passes, the connection fails)
+// is made again, at most twice more, each with the same deadline. An answer
+// is never asked for twice: an HTTP error, a wrong type or wrong content fails
+// the check at once.
+const REQUEST_ATTEMPTS = 3
+
+/** No answer came: the request's own deadline, or Node's fetch failing to connect. */
+function isNetworkFailure(error) {
+  return (
+    error instanceof Error &&
+    (error.name === 'TimeoutError' ||
+      error.name === 'AbortError' ||
+      (error instanceof TypeError && error.message === 'fetch failed'))
+  )
+}
+
+/**
+ * One request and `read`'s use of its reply, under one deadline per attempt
+ * (reading a body can time out as well). Whatever `read` throws about an
+ * answer ends the check; only a network failure is tried again.
+ */
+async function request(fetcher, url, headers, read) {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      const reply = await fetcher(url, {
+        cache: 'no-store',
+        signal: globalThis.AbortSignal.timeout(REQUEST_MS),
+        ...(headers !== undefined && { headers }),
+      })
+      return await read(reply)
+    } catch (error) {
+      if (attempt >= REQUEST_ATTEMPTS || !isNetworkFailure(error)) throw error
+    }
+  }
+}
+
 // Hosted runners share an IP's unauthenticated API quota (HTTP 403 when spent),
 // so CI passes its job token; it goes to this GitHub API request only, never to
 // an image host.
 async function publicMainFiles(fetcher, githubToken) {
-  const reply = await fetcher(PUBLIC_MAIN_TREE, {
-    cache: 'no-store',
-    signal: globalThis.AbortSignal.timeout(REQUEST_MS),
-    ...(githubToken && { headers: { authorization: `Bearer ${githubToken}` } }),
-  })
-  if (!reply.ok) throw new Error(`Public main tree HTTP ${reply.status}`)
-  const tree = MAIN_TREE.parse(await reply.json())
+  const tree = await request(
+    fetcher,
+    PUBLIC_MAIN_TREE,
+    githubToken ? { authorization: `Bearer ${githubToken}` } : undefined,
+    async (reply) => {
+      if (!reply.ok) throw new Error(`Public main tree HTTP ${reply.status}`)
+      return MAIN_TREE.parse(await reply.json())
+    },
+  )
   return new Set(tree.tree.filter((entry) => entry.type === 'blob').map((entry) => entry.path))
 }
 
@@ -173,25 +212,26 @@ export async function checkReadmeBadges(documents, version, options = {}) {
       localImages += 1
       continue
     }
-    const reply = await fetcher(url, {
-      cache: 'no-store',
-      signal: globalThis.AbortSignal.timeout(REQUEST_MS),
-    })
-    if (!reply.ok) throw new Error(`Badge image HTTP ${reply.status}: ${url}`)
-    if (reply.url && new URL(reply.url).protocol !== 'https:') {
-      throw new Error(`Badge image redirected away from HTTPS: ${url}`)
-    }
-    if (!isBadgeUrl(url)) {
-      if (!/^image\//i.test(reply.headers.get('content-type') ?? '')) {
-        throw new Error(`Content image did not return an image: ${url}`)
+    // A badge's SVG text, read inside the attempt so its deadline covers the
+    // body; undefined for a content image, whose bytes are not inspected.
+    const body = await request(fetcher, url, undefined, async (reply) => {
+      if (!reply.ok) throw new Error(`Badge image HTTP ${reply.status}: ${url}`)
+      if (reply.url && new URL(reply.url).protocol !== 'https:') {
+        throw new Error(`Badge image redirected away from HTTPS: ${url}`)
       }
-      await reply.body?.cancel()
-      continue
-    }
-    if (!/^image\/svg\+xml\b/i.test(reply.headers.get('content-type') ?? '')) {
-      throw new Error(`Badge did not return SVG: ${url}`)
-    }
-    const body = await reply.text()
+      if (!isBadgeUrl(url)) {
+        if (!/^image\//i.test(reply.headers.get('content-type') ?? '')) {
+          throw new Error(`Content image did not return an image: ${url}`)
+        }
+        await reply.body?.cancel()
+        return
+      }
+      if (!/^image\/svg\+xml\b/i.test(reply.headers.get('content-type') ?? '')) {
+        throw new Error(`Badge did not return SVG: ${url}`)
+      }
+      return await reply.text()
+    })
+    if (body === undefined) continue
     if (/<!DOCTYPE/i.test(body)) throw new Error(`Badge SVG contains a doctype: ${url}`)
     const dom = new JSDOM(body, { contentType: 'image/svg+xml' })
     try {

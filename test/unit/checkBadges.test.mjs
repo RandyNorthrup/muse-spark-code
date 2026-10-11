@@ -326,3 +326,60 @@ describe('checkout images ahead of public main', () => {
     await expect(f.check()).rejects.toThrow('Public main tree HTTP 404')
   })
 })
+
+// One slow public image host failed three hosted jobs of one run (PR #147).
+const overdue = () =>
+  new globalThis.DOMException('The operation was aborted due to timeout', 'TimeoutError')
+const unreachable = () => new TypeError('fetch failed')
+const answer = () => Promise.resolve(response(shields(version)))
+
+describe('badge requests that get no answer', () => {
+  it.each([
+    ['its deadline passes', overdue],
+    ['the connection fails', unreachable],
+  ])('are made again when %s, at most twice more, then verified', async (_case, failure) => {
+    const fetch = vi
+      .fn()
+      .mockRejectedValueOnce(failure())
+      .mockRejectedValueOnce(failure())
+      .mockImplementation(answer)
+    await expect(checkReadmeBadges([document()], version, { fetch })).resolves.toContain(
+      '1 HTTPS images',
+    )
+    expect(fetch).toHaveBeenCalledTimes(3)
+    for (const [, options] of fetch.mock.calls) expect(options.signal.aborted).toBe(false)
+  })
+
+  it('fail the check with the last failure after three attempts', async () => {
+    const fetch = vi.fn(() => Promise.reject(overdue()))
+    await expect(checkReadmeBadges([document()], version, { fetch })).rejects.toThrow(
+      'aborted due to timeout',
+    )
+    expect(fetch).toHaveBeenCalledTimes(3)
+  })
+
+  it('are made again when the body does not arrive in time', async () => {
+    const stalled = response(shields(version))
+    stalled.text = () => Promise.reject(overdue())
+    const fetch = vi.fn().mockResolvedValueOnce(stalled).mockImplementation(answer)
+    await expect(checkReadmeBadges([document()], version, { fetch })).resolves.toContain(
+      '1 HTTPS images',
+    )
+    expect(fetch).toHaveBeenCalledTimes(2)
+  })
+
+  it.each([
+    ['an HTTP error', () => Promise.resolve(response(svg(), 'image/svg+xml', 503)), 'HTTP 503'],
+    [
+      'a wrong type',
+      () => Promise.resolve(response('<html></html>', 'text/html')),
+      'not return SVG',
+    ],
+    ['a wrong version', () => Promise.resolve(response(shields('0.13.0'))), 'version mismatch'],
+    ['an error that is no network failure', () => Promise.reject(new Error('offline')), 'offline'],
+  ])('is never repeated after %s: an answer fails at once', async (_case, reply, message) => {
+    const fetch = vi.fn(reply)
+    await expect(checkReadmeBadges([document()], version, { fetch })).rejects.toThrow(message)
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
+})
