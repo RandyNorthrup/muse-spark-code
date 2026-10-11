@@ -1,0 +1,167 @@
+{
+  "rig": "kubuntu",
+  "sourceRevision": "d531ce7f4532759e1009b827f587ea4c73245319",
+  "repositoryTestTimeout": true,
+  "maxWorkers": 3,
+  "maximumFilesPerInvocation": 3,
+  "modifiedOwningFiles": {
+    "command": "npx vitest run test/unit/teamRolesSection.test.tsx test/unit/teamPanel.test.ts test/unit/teamModelsFirstPaint.test.mjs --maxWorkers=3",
+    "passed": 88,
+    "roles": 51,
+    "controller": 28,
+    "firstPaintAndChrome": 9
+  },
+  "surroundingAndChromeRuns": [
+    {
+      "files": [
+        "teamSingleModel.test.ts",
+        "teamModelSettings.test.ts",
+        "modelApiGoldenRequests.test.ts"
+      ],
+      "exit": 0,
+      "tests": 167,
+      "passed": 167,
+      "failed": 0,
+      "failures": [],
+      "command": "npx vitest run test/unit/teamSingleModel.test.ts test/unit/teamModelSettings.test.ts test/unit/modelApiGoldenRequests.test.ts --maxWorkers=3"
+    },
+    {
+      "files": [
+        "teamPanelBrowser.test.ts",
+        "modelsPanelEntry.test.ts",
+        "modelsPanelSchemas.test.ts"
+      ],
+      "exit": 0,
+      "tests": 22,
+      "passed": 22,
+      "failed": 0,
+      "failures": [],
+      "command": "npx vitest run test/unit/teamPanelBrowser.test.ts test/unit/modelsPanelEntry.test.ts test/unit/modelsPanelSchemas.test.ts --maxWorkers=3"
+    },
+    {
+      "files": ["modelsPanel.test.ts", "modelsSections.test.ts", "webviewBundles.test.mjs"],
+      "exit": 0,
+      "tests": 28,
+      "passed": 28,
+      "failed": 0,
+      "failures": [],
+      "command": "npx vitest run test/unit/modelsPanel.test.ts test/unit/modelsSections.test.ts test/unit/webviewBundles.test.mjs --maxWorkers=3"
+    },
+    {
+      "files": ["TeamTree.test.tsx", "teamHostService.test.ts", "teamTemplates.test.ts"],
+      "exit": 0,
+      "tests": 44,
+      "passed": 44,
+      "failed": 0,
+      "failures": [],
+      "command": "npx vitest run test/unit/TeamTree.test.tsx test/unit/teamHostService.test.ts test/unit/teamTemplates.test.ts --maxWorkers=3"
+    },
+    {
+      "files": ["teamPreview.test.ts", "teamCapValidation.test.ts", "modelsComponents.test.tsx"],
+      "exit": 0,
+      "tests": 47,
+      "passed": 47,
+      "failed": 0,
+      "failures": [],
+      "command": "npx vitest run test/unit/teamPreview.test.ts test/unit/teamCapValidation.test.ts test/unit/modelsComponents.test.tsx --maxWorkers=3"
+    },
+    {
+      "files": ["browserEnglish.test.mjs", "uiTextRegions.test.mjs"],
+      "exit": 0,
+      "tests": 10,
+      "passed": 10,
+      "failed": 0,
+      "failures": [],
+      "command": "npx vitest run test/unit/browserEnglish.test.mjs test/unit/uiTextRegions.test.mjs --maxWorkers=3"
+    },
+    {
+      "files": ["visualCapture.test.mjs"],
+      "exit": 0,
+      "tests": 11,
+      "passed": 11,
+      "failed": 0,
+      "failures": [],
+      "command": "npx vitest run test/unit/visualCapture.test.mjs --maxWorkers=3"
+    },
+    {
+      "files": ["visualReadiness.test.mjs"],
+      "exit": 0,
+      "tests": 3,
+      "passed": 3,
+      "failed": 0,
+      "failures": [],
+      "command": "npx vitest run test/unit/visualReadiness.test.mjs --maxWorkers=3"
+    },
+    {
+      "files": ["visualStability.test.mjs"],
+      "exit": 0,
+      "tests": 1,
+      "passed": 1,
+      "failed": 0,
+      "failures": [],
+      "command": "npx vitest run test/unit/visualStability.test.mjs --maxWorkers=3"
+    },
+    {
+      "files": ["m114ConversationReview.test.mjs"],
+      "exit": 0,
+      "tests": 137,
+      "passed": 137,
+      "failed": 0,
+      "failures": [],
+      "command": "npx vitest run test/unit/m114ConversationReview.test.mjs --maxWorkers=3"
+    }
+  ],
+  "totalPassed": 558,
+  "chromePassed": 152,
+  "finalGates": [
+    {
+      "name": "typecheck",
+      "command": "npm run typecheck",
+      "exit": 0
+    },
+    {
+      "name": "build",
+      "command": "npm run build",
+      "exit": 1
+    },
+    {
+      "name": "split",
+      "command": "node scripts/check-bundle-split.mjs",
+      "exit": 0
+    },
+    {
+      "name": "host-globals",
+      "command": "node scripts/check-host-globals.mjs",
+      "exit": 0
+    },
+    {
+      "name": "notices",
+      "command": "node scripts/third-party-notices.mjs",
+      "exit": 0
+    },
+    {
+      "name": "duplication",
+      "command": "npx jscpd",
+      "exit": 0
+    }
+  ],
+  "productionBuild": {
+    "rig": "kubuntu",
+    "buildExit": 1,
+    "measurements": {
+      "Surface English": 25502,
+      "Team English": 1628,
+      "Models body": 79002,
+      "Models bootstrap and static imports": 345841,
+      "Chat bootstrap and static imports": 760578,
+      "Roles closure": 22833,
+      "Agents closure": 36553,
+      "Team controller": 79530
+    }
+  },
+  "liveModelAttempts": 0,
+  "paidModelAttempts": 0,
+  "aggregateQualityLeadOwned": true,
+  "fullVisualMatrixLeadOwned": true,
+  "windowsAndMacQualificationLeadOwned": true
+}
