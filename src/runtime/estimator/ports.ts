@@ -10,6 +10,7 @@
 import path from 'node:path'
 import { createAcpEstimate, type AcpEstimatePort } from '../../acp/estimate'
 import { lazyEstimator, type EstimatorSourcePorts } from '../../host/estimator/estimatorBundle'
+import { fleetIoFromSources, headlessFleetSources } from '../../host/estimator/fleetBinding'
 import { estimatorSourcePorts } from '../../host/estimator/localFleet'
 import { planCheckLoader, planSnapshotLoader } from '../../host/estimator/planSnapshotBundle'
 import { runEstimateCommand } from './command'
@@ -50,6 +51,12 @@ export function runtimeEstimatorPorts(
       // No Reports policy: headless runs never do networked reads (D65).
       ...(deps.loadBundle !== undefined && { loadBundle: deps.loadBundle }),
     }),
+    // The estimate's fleet (M117 C-M117-3, PLAN.md D97): M107's configured
+    // defaults through the same settings contract (no workspace
+    // configuration exists headless); networked `gh` reads stay off (D65),
+    // so CI stays absent and lanes declaring it refuse with the schedule's
+    // true reason.
+    fleetIoFromSources(headlessFleetSources()),
   )
 }
 

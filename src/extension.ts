@@ -270,6 +270,7 @@ import {
 import { WindowHold, WorktreeRegistry } from './host/git/worktreeRegistry'
 import { lazyReview } from './host/review/reviewBundle'
 import { lazyEstimator } from './host/estimator/estimatorBundle'
+import { extensionFleetSources, fleetIoFromSources } from './host/estimator/fleetBinding'
 import { estimatorSourcePorts } from './host/estimator/localFleet'
 import { planSnapshotLoader } from './host/estimator/planSnapshotBundle'
 import { PendingPrompts, type BoardSession } from './core/sessionBoard'
@@ -2378,6 +2379,17 @@ async function activateWindow(
           catalogUrls: [],
         }),
         snapshot,
+        // The estimate's fleet (M117 C-M117-3, PLAN.md D97): M107's
+        // settings read live from the workspace configuration, so the
+        // configured ceilings shape admission. The M108 account registry
+        // is not instantiated in the extension host and no captured shape
+        // names CI concurrency, so those stay absent (extensionFleetSources
+        // names why) and the measured row stands in.
+        fleetIoFromSources(
+          extensionFleetSources({
+            inspect: (key) => vscode.workspace.getConfiguration(SETTINGS_SECTION).inspect(key),
+          }),
+        ),
       )
     },
   })

@@ -122,13 +122,13 @@ export function estimatorSourcePorts(
   snapshot: EstimatorSourcePorts['snapshot'],
   fleetIo?: FleetBindingIo,
 ): EstimatorSourcePorts {
-  const fleet = (lanes: readonly EstimateLane[], asOf: string): FleetSnapshot =>
+  const fleet = (lanes: readonly EstimateLane[], asOf: string): Promise<FleetSnapshot> =>
     applyFleetBinding(localFleet(lanes, asOf), fleetIo ?? {})
   return {
     snapshot,
-    fleet: (lanes, asOf) => Promise.resolve(fleet(lanes, asOf)),
+    fleet: (lanes, asOf) => fleet(lanes, asOf),
     history: () => Promise.resolve([]),
-    candidatePool: (lanes, asOf) => Promise.resolve(fleet(lanes, asOf)),
+    candidatePool: (lanes, asOf) => fleet(lanes, asOf),
     board: () => ({
       audit: () => missingEstimateBinding('M117-W-M96-board'),
       start: () => missingEstimateBinding('M117-W-M96-board'),
