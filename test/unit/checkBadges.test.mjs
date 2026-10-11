@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { PNG } from 'pngjs'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   checkReadmeBadges,
   readmeImageUrls,
@@ -325,61 +325,165 @@ describe('checkout images ahead of public main', () => {
     f.fetch.mockResolvedValue(response('missing', 'text/plain', 404))
     await expect(f.check()).rejects.toThrow('Public main tree HTTP 404')
   })
+  it('names the inventory request when it gets no answer', async () => {
+    const f = fixture()
+    f.fetch.mockImplementation(refused)
+    vi.useFakeTimers()
+    try {
+      const { error } = await settle(f.check())
+      expect(error.message).toBe(
+        'No answer from https://api.github.com/repos/RandyNorthrup/muse-spark-code/git/trees/main?recursive=1 after 4 attempts in 33 s: fetch failed',
+      )
+      expect(f.fetch).toHaveBeenCalledTimes(4)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
 })
 
-// One slow public image host failed three hosted jobs of one run (PR #147).
+// Hosted runners got no answer from one of the image URLs for more than
+// half a minute at a time (five jobs in three runs of PR #147).
+const REQUEST_MS = 15_000
 const overdue = () =>
   new globalThis.DOMException('The operation was aborted due to timeout', 'TimeoutError')
-const unreachable = () => new TypeError('fetch failed')
 const answer = () => Promise.resolve(response(shields(version)))
+/** No answer inside the attempt's deadline: the abort arrives REQUEST_MS later. */
+function pastDeadline() {
+  return new Promise((_resolve, reject) => {
+    globalThis.setTimeout(() => {
+      reject(overdue())
+    }, REQUEST_MS)
+  })
+}
+/** No connection: fetch fails at once. */
+function refused() {
+  return Promise.reject(new TypeError('fetch failed'))
+}
+/** A fetch that notes the fake clock's time of every request. */
+function counted(reply) {
+  const times = []
+  const fetch = vi.fn(() => {
+    times.push(Date.now())
+    return reply(times.length)
+  })
+  return { fetch, sinceFirst: () => times.map((time) => time - times[0]) }
+}
+// The event loop's own turn, kept from before the fake clock replaces it.
+const realTurn = globalThis.setImmediate
+/** Runs a check to its end under the fake clock, a second at a time. */
+async function settle(check) {
+  let outcome
+  const watch = async () => {
+    try {
+      outcome = { value: await check }
+    } catch (error) {
+      outcome = { error }
+    }
+  }
+  void watch()
+  for (let second = 0; outcome === undefined && second < 300; second += 1) {
+    await vi.advanceTimersByTimeAsync(1000)
+    await new Promise((resolve) => {
+      realTurn(resolve)
+    })
+  }
+  if (outcome === undefined) throw new Error('the check did not end in 300 s of fake time')
+  return outcome
+}
 
 describe('badge requests that get no answer', () => {
-  it.each([
-    ['its deadline passes', overdue],
-    ['the connection fails', unreachable],
-  ])('are made again when %s, at most twice more, then verified', async (_case, failure) => {
-    const fetch = vi
-      .fn()
-      .mockRejectedValueOnce(failure())
-      .mockRejectedValueOnce(failure())
-      .mockImplementation(answer)
-    await expect(checkReadmeBadges([document()], version, { fetch })).resolves.toContain(
-      '1 HTTPS images',
-    )
-    expect(fetch).toHaveBeenCalledTimes(3)
-    for (const [, options] of fetch.mock.calls) expect(options.signal.aborted).toBe(false)
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
-  it('fail the check with the last failure after three attempts', async () => {
-    const fetch = vi.fn(() => Promise.reject(overdue()))
-    await expect(checkReadmeBadges([document()], version, { fetch })).rejects.toThrow(
-      'aborted due to timeout',
+  it.each([
+    ['its deadline passes', pastDeadline, [0, 18_000, 43_000, 78_000]],
+    ['the connection fails', refused, [0, 3000, 13_000, 33_000]],
+  ])(
+    'are made again when %s: four attempts, pauses of 3, 10 and 20 s, then verified',
+    async (_case, failure, requestTimes) => {
+      const { fetch, sinceFirst } = counted((attempt) => (attempt < 4 ? failure() : answer()))
+      const { value } = await settle(checkReadmeBadges([document()], version, { fetch }))
+      expect(value).toContain('1 HTTPS images')
+      expect(sinceFirst()).toEqual(requestTimes)
+      for (const [, options] of fetch.mock.calls) expect(options.signal.aborted).toBe(false)
+    },
+  )
+
+  it('fail the check after the fourth attempt, naming the URL, the attempts and the time waited', async () => {
+    const deadline = vi.spyOn(globalThis.AbortSignal, 'timeout')
+    try {
+      const { fetch, sinceFirst } = counted(pastDeadline)
+      const { error } = await settle(checkReadmeBadges([document()], version, { fetch }))
+      expect(error.message).toBe(
+        `No answer from ${badge} after 4 attempts in 93 s: The operation was aborted due to timeout`,
+      )
+      expect(sinceFirst()).toEqual([0, 18_000, 43_000, 78_000])
+      // Each attempt has the whole deadline to itself.
+      expect(deadline.mock.calls).toEqual(Array.from({ length: 4 }, () => [REQUEST_MS]))
+    } finally {
+      deadline.mockRestore()
+    }
+  })
+
+  it("name fetch's own reason for a failed connection", async () => {
+    const { fetch } = counted(() =>
+      Promise.reject(
+        new TypeError('fetch failed', {
+          cause: Object.assign(new Error('read ECONNRESET'), { code: 'ECONNRESET' }),
+        }),
+      ),
     )
-    expect(fetch).toHaveBeenCalledTimes(3)
+    const { error } = await settle(checkReadmeBadges([document()], version, { fetch }))
+    expect(error.message).toBe(
+      `No answer from ${badge} after 4 attempts in 33 s: fetch failed (ECONNRESET)`,
+    )
+    expect(fetch).toHaveBeenCalledTimes(4)
   })
 
   it('are made again when the body does not arrive in time', async () => {
-    const stalled = response(shields(version))
-    stalled.text = () => Promise.reject(overdue())
-    const fetch = vi.fn().mockResolvedValueOnce(stalled).mockImplementation(answer)
-    await expect(checkReadmeBadges([document()], version, { fetch })).resolves.toContain(
-      '1 HTTPS images',
-    )
-    expect(fetch).toHaveBeenCalledTimes(2)
+    const { fetch, sinceFirst } = counted((attempt) => {
+      if (attempt > 1) return answer()
+      const stalled = response(shields(version))
+      stalled.text = () => Promise.reject(overdue())
+      return Promise.resolve(stalled)
+    })
+    const { value } = await settle(checkReadmeBadges([document()], version, { fetch }))
+    expect(value).toContain('1 HTTPS images')
+    expect(sinceFirst()).toEqual([0, 3000])
   })
 
   it.each([
-    ['an HTTP error', () => Promise.resolve(response(svg(), 'image/svg+xml', 503)), 'HTTP 503'],
+    ['HTTP 500', () => response(svg(), 'image/svg+xml', 500), 'HTTP 500'],
+    ['HTTP 503', () => response(svg(), 'image/svg+xml', 503), 'HTTP 503'],
+    ['a wrong type', () => response('<html></html>', 'text/html'), 'not return SVG'],
+    ['a wrong version', () => response(shields('0.13.0')), 'version mismatch'],
     [
-      'a wrong type',
-      () => Promise.resolve(response('<html></html>', 'text/html')),
-      'not return SVG',
+      'a redirect away from HTTPS',
+      () =>
+        Object.defineProperty(response(), 'url', {
+          value: 'https://example.test/image.svg'.replace('https:', 'http:'),
+        }),
+      'redirected away',
     ],
-    ['a wrong version', () => Promise.resolve(response(shields('0.13.0'))), 'version mismatch'],
-    ['an error that is no network failure', () => Promise.reject(new Error('offline')), 'offline'],
-  ])('is never repeated after %s: an answer fails at once', async (_case, reply, message) => {
-    const fetch = vi.fn(reply)
-    await expect(checkReadmeBadges([document()], version, { fetch })).rejects.toThrow(message)
+  ])(
+    'is never repeated after %s: the first answer fails the check, with no pause',
+    async (_case, reply, message) => {
+      const fetch = vi.fn(() => Promise.resolve(reply()))
+      // The fake clock never moves here: a pause would leave this pending.
+      await expect(checkReadmeBadges([document()], version, { fetch })).rejects.toThrow(message)
+      expect(fetch).toHaveBeenCalledTimes(1)
+      expect(vi.getTimerCount()).toBe(0)
+    },
+  )
+
+  it('is never repeated after an error that is no network failure', async () => {
+    const fetch = vi.fn(() => Promise.reject(new Error('offline')))
+    await expect(checkReadmeBadges([document()], version, { fetch })).rejects.toThrow('offline')
     expect(fetch).toHaveBeenCalledTimes(1)
+    expect(vi.getTimerCount()).toBe(0)
   })
 })
