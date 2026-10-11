@@ -439,7 +439,7 @@
   "referenceTasks": "A beszélgetés feladatainak megnyitása külön szerkesztőlapon.",
   "referenceDiagnostics": "A helyi háttérrendszer és bővítmény diagnosztikájának megjelenítése.",
   "referenceReport": "A megtisztított hibajelentés előnézete mentés vagy küldés előtt.",
-  "estimateDiagnosticHelp": "A terv és a számítás elutasításai ugyanazt a névvel ellátott diagnosztikát mutatják a panelen, a CLI-ben és az ACP-ben; a külső hibák elrejtik a privát adatokat.",
+  "estimateDiagnosticHelp": "A terv és a számítás elutasításai ugyanazt a névvel ellátott diagnosztikát mutatják a panelen, a CLI-ben és az ACP-ben; a külső hibák elrejtik a privát adatokat. Az elutasított becslés, frissítés vagy indítás a korábbi előrejelzést ezzel a diagnosztikával váltja fel.",
   "referenceEstimate": "Megbecsüli, mikor készül el egy cél a jelenlegi flottával, vagy milyen összeállítás kell egy határidőhöz.",
   "referenceTerminal": "A Muse Code CLI megnyitása a szerkesztő termináljában.",
   "referenceRules": "AGENTS.md létrehozása vagy megnyitása a munkaterület gyökerében.",

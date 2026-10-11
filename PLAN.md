@@ -1249,7 +1249,12 @@ properties, and retain all existing caps. No new artifact or dependency.
 
 **FIXM106L1 (2026-10-06):** the complete argument-preview UI entry is independently bounded at 25 KiB: 648 bytes measured, plus 15%, rounded to 25 KiB. Only its new entry moves out of the deferred group; shared/static dependencies retain their existing startup and deferred caps.
 
-**Webview estimator import closure budget rationale.** (M117: EstimatorPanel.tsx and its boundary; first split 9.6 KiB on 2026-10-06 by the same rule; separate from the unchanged unclassified deferred group)
+**Webview estimator import closure budget rationale.** (M117: EstimatorPanel.tsx and its boundary; first split 9.6 KiB on 2026-10-06 by the same rule; separate from the unchanged unclassified deferred group) The R7 diagnostic vocabulary,
+character/secret validation and normalization load as a shared lazy browser
+module within the existing 50-KiB deferred aggregate; the panel keeps the small
+localized renderer and typed view state. The split gate requires this module
+exactly once and deferred. Node estimate contracts reuse the shipped
+vaultBoundaries scrubber. No existing cap or parser guard changes.
 
 **`dist/reference.js` budget rationale.** (M117: the generated help reference; the estimator feature, command and settings rows bring it to 100.7 KiB on 2026-10-07, plus 15%, rounded up to 25 KiB)
 
@@ -36582,6 +36587,18 @@ from this PLAN.md, `M117` refuses naming its unestimated `M96` lanes, and a
 single-rig milestone forecasts P50/P90 deterministically. Receipts in
 `docs/certification/m117-snapshot.md`. Still waiting: board, catalog,
 history, multi-machine fleets, and issue lane linkage (M113 N).
+
+**C-M117-1R7 shared refusal state (2026-10-11, macmini; RVCM1171G).**
+Fix both P2 findings and their siblings by carrying one validated diagnostic
+object across the application boundary and using one shared idle/loading/showing/
+failed view state in the store, real card, view session and terminal. Every refusal,
+including refresh and spin-up, replaces the previous section. All surfaces use
+one installed-language renderer. Cross the diagnostic inventory with CLI, ACP,
+transcript notice, session, real card and terminal cases; missing coverage fails.
+Include the successful M112:Q forecast followed by a self-dependent Re-estimate.
+Remove redundant card error/section state, measure exact panel and engine bytes,
+and record regression red drills with byte-exact restoration. No new dependency,
+cap, hook, paid/live call, merge or push; aggregate quality remains lead-owned.
 
 **C-M117-1R6 diagnostic repair (2026-10-11, macmini; review RVCM1171E).**
 Every estimator refusal carries an application diagnostic, including late DAG

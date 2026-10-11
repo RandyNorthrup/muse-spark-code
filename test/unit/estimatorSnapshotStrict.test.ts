@@ -349,9 +349,8 @@ describe('M117 R3 strict snapshot regressions', () => {
       context(),
       runner,
       { subscribe: () => vi.fn() },
-      vi.fn(),
-      (text) => {
-        errors.push(text)
+      (state) => {
+        if (state.status === 'failed') errors.push(estimateFailureText(state.diagnostic))
       },
     )
     await view.refresh()

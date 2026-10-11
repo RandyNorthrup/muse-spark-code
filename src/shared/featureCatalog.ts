@@ -1090,7 +1090,7 @@ const REFERENCE_DETAILS: Readonly<
 > = {
   providers: ['providerOpenRouterServices'],
   // The estimator also exposes the exclusive whole-plan check in ESTIMATE_OPTIONS.
-  estimator: ['estimateCliHelp', 'estimateDiagnosticHelp'],
+  estimator: ['estimateDiagnosticHelp', 'estimateCliHelp'],
   permissions: ['referencePermissionLimits'],
   'native-agents': ['referenceAgentControls', 'referenceNativeAgentsConditions'],
   account: ['signInBrowserDetail', 'signInApiKeyDetail', 'installDetail', 'referenceSecretPrompt'],

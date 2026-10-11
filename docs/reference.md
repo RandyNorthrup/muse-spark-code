@@ -1535,9 +1535,9 @@ Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/m
 
 Ship-date forecast for a goal from the current fleet, or the setup a target date needs.
 
-Estimate a goal using linked machines, agent slots, accounts and CI; no model call.
+Plan and engine refusals show the same named diagnostic in the panel, CLI and ACP; external errors hide private details. A refused estimate, refresh or start replaces the previous forecast with that diagnostic.
 
-Plan and engine refusals show the same named diagnostic in the panel, CLI and ACP; external errors hide private details.
+Estimate a goal using linked machines, agent slots, accounts and CI; no model call.
 
 Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
 

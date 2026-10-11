@@ -439,7 +439,7 @@
   "referenceTasks": "Otevřít úkoly této konverzace na samostatné kartě editoru.",
   "referenceDiagnostics": "Zobrazit místní diagnostiku backendu a rozšíření.",
   "referenceReport": "Před uložením nebo odesláním zobrazit očištěné hlášení problému.",
-  "estimateDiagnosticHelp": "Odmítnutí plánu a výpočtu zobrazují stejnou pojmenovanou diagnostiku v panelu, CLI i ACP; externí chyby skrývají soukromé údaje.",
+  "estimateDiagnosticHelp": "Odmítnutí plánu a výpočtu zobrazují stejnou pojmenovanou diagnostiku v panelu, CLI i ACP; externí chyby skrývají soukromé údaje. Odmítnutý odhad, obnovení nebo spuštění nahradí předchozí prognózu touto diagnostikou.",
   "referenceEstimate": "Odhadne, kdy bude cíl hotový se stávající flotilou, nebo jaké nastavení vyžaduje datum.",
   "referenceTerminal": "Otevřít Muse Code CLI v terminálu editoru.",
   "referenceRules": "Vytvořit nebo otevřít AGENTS.md v kořenu pracovního prostoru.",
