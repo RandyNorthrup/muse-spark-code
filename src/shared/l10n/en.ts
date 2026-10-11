@@ -5205,6 +5205,10 @@ export const EN = {
       fireworks: 'Fast open-model inference on Fireworks',
       huggingface: 'The Hugging Face router across many providers',
       zai: 'GLM models on Z.ai pay-as-you-go',
+      moonshot: 'Kimi models on the Moonshot API',
+      ollamaCloud: 'Ollama Cloud models through an API key',
+      minimaxPlan: 'MiniMax models on an M Plan key',
+      alibabaPlan: 'Alibaba models on a Coding Plan key',
       ollama: 'Models on this computer through Ollama',
       lmstudio: 'Models on this computer through LM Studio',
       vllm: 'A vLLM server, here or on your network over HTTPS',
@@ -5323,6 +5327,9 @@ export const EN = {
   ollamaDuplicateCall: 'Ollama history contains a duplicate tool call id.',
   ollamaResponseIdRequired: 'Ollama needs a unique response id for this request.',
   ollamaMissingFinal: 'Ollama closed the stream without a final answer.',
+  // Azure OpenAI (M95): a 404 on the resource names a deployment that is not there.
+  azureDeploymentInvalid:
+    'Azure OpenAI has no such deployment on this resource. Check the deployment name.',
   ollamaMalformedFrame: 'Malformed Ollama stream frame.',
   ollamaStreamLimit: 'Ollama exceeded the stream size or item limit.',
   ollamaFinishReason: 'Ollama finished with reason "{reason}".',

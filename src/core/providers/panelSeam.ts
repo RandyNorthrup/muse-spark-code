@@ -6,7 +6,13 @@ import { lookup } from 'node:dns/promises'
 import { isIP } from 'node:net'
 import type { ModelsPanelSeam, ProviderEntry, PresetInfo } from '../../host/providers/providerPorts'
 import { emptyProvidersFile, readProvidersFile, writeProvidersFileAtomic } from './providersFile'
-import { listedPresets, PRESETS, PLAN_KEY_PRESETS, isKeyShape } from './presets'
+import {
+  listedPlanKeyPresets,
+  listedPresets,
+  PRESETS,
+  PLAN_KEY_PRESETS,
+  isKeyShape,
+} from './presets'
 import { checkEndpointUrl } from './endpointPolicy'
 import { createPkcePair } from './pkce'
 import { UI_TEXT } from '../../shared/constants'
@@ -101,7 +107,8 @@ export function createModelsPanelSeam(options: {
   for (const preset of [
     ...listedPresets(),
     ...PRESETS.filter((row) => row.category === 'local'),
-    ...PLAN_KEY_PRESETS,
+    // Plan keys join the panel only once their own capture is recorded.
+    ...listedPlanKeyPresets(),
   ]) {
     const origin = preset.origin.kind === 'fixed' ? preset.origin.origin : ''
     let kind: PresetInfo['kind'] = preset.category === 'custom' ? 'cloud' : preset.category

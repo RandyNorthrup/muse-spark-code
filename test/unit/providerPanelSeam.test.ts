@@ -191,6 +191,15 @@ describe('production Models panel seam', () => {
     await expect(providers.openRouterUsage('synthetic-key')).resolves.toBeUndefined()
   })
 
+  it('lists only captured presets and plan keys, hiding the uncaptured four', async () => {
+    const { seam } = await panel()
+    for (const id of ['azure', 'moonshot', 'ollama-cloud', 'minimax-plan', 'alibaba-plan']) {
+      expect(seam.catalog.get(id), id).toBeUndefined()
+    }
+    expect(seam.catalog.get('mistral-plan')?.kind).toBe('subscription')
+    expect(seam.catalog.get('mistral')?.kind).toBe('cloud')
+  })
+
   it('contacts every local preset at its model-list path and loopback port (PR136 VJ)', async () => {
     const { seam } = await panel()
     const fetcher = vi.fn<typeof fetch>(() => Promise.resolve(new Response('{}')))
