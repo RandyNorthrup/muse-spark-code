@@ -1456,7 +1456,8 @@ export function isEstimatorWebviewMessage(input: unknown): boolean {
     typeof input === 'object' &&
     input !== null &&
     'type' in input &&
-    (input.type === 'estimateRun' || input.type === 'estimateSpinUp')
+    typeof input.type === 'string' &&
+    ['estimateRun', 'estimateSpinUp', 'estimateCommand'].includes(input.type)
   )
 }
 

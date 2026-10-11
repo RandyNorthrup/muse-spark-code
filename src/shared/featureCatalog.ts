@@ -1095,7 +1095,8 @@ const REFERENCE_DETAILS: Readonly<
   Record<string, readonly Extract<ReferenceText, { ui: unknown }>['ui'][]>
 > = {
   providers: ['providerOpenRouterServices'],
-  estimator: ['estimateCliHelp'],
+  // The estimator also exposes the exclusive whole-plan check in ESTIMATE_OPTIONS.
+  estimator: ['estimateDiagnosticHelp', 'estimateCliHelp'],
   permissions: ['referencePermissionLimits'],
   'native-agents': ['referenceAgentControls', 'referenceNativeAgentsConditions'],
   account: ['signInBrowserDetail', 'signInApiKeyDetail', 'installDetail', 'referenceSecretPrompt'],

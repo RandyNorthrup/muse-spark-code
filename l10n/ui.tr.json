@@ -339,7 +339,7 @@
     "estimate-by": "--by <date>: Son tarih",
     "fleet": "--fleet current|minimum|optimum: Mevcut makine grubu / Asgari kurulum / En uygun kurulum",
     "estimate-format": "--format md|html|json|text: Çıktı biçimi",
-    "estimate-check-plan": "--check-plan: List every plan problem instead of estimating",
+    "estimate-check-plan": "--check-plan: Tahmin yapmak yerine plandaki tüm sorunları listele",
     "seed": "--seed <seed>: Simülasyon tohumu"
   },
   "referenceScanSecrets": "UTF-8 yama dosyasında gizli bilgileri arar ve bulursa başarısız olur. --key-stdin bellekteki Model API anahtarının tam değerini de arar; anahtar saklanmaz.",
@@ -439,6 +439,7 @@
   "referenceTasks": "Bu görüşmenin görevlerini ayrı bir düzenleyici sekmesinde aç.",
   "referenceDiagnostics": "Yerel arka uç ve uzantı tanılama bilgilerini göster.",
   "referenceReport": "Kaydetmeden veya göndermeden önce temizlenmiş sorun raporunu önizle.",
+  "estimateDiagnosticHelp": "Plan ve motor retleri panelde, CLI ve ACP’de aynı adlandırılmış tanıyı gösterir; dış hatalar özel ayrıntıları gizler. Reddedilen bir tahmin, yenileme veya başlatma, önceki öngörüyü bu tanıyla değiştirir.",
   "referenceEstimate": "Bir hedefin mevcut filoyla ne zaman hazır olacağını veya bir tarihin hangi kuruluma ihtiyaç duyduğunu tahmin eder.",
   "referenceTerminal": "Muse Code CLI’yi düzenleyicinin terminalinde aç.",
   "referenceRules": "Çalışma alanı kökünde AGENTS.md oluştur veya aç.",

@@ -1,3 +1,4 @@
+import type { EstimateViewState } from './estimateView'
 // M117 / D97's application contracts. These are our documents and injected
 // ports, never guessed provider/MSP frames. External adapters parse captured
 // wire shapes before projecting them here. Import only on estimator use.
@@ -763,4 +764,18 @@ export interface EstimateNodePort {
   install(server: ProvisionedServer): Promise<void>
   pair(server: ProvisionedServer): Promise<void>
   teardownAndWipe(server: ProvisionedServer): Promise<void>
+}
+
+/** First-use boundary normalization stays outside the panel's rendering closure. */
+export async function collectEstimateView(
+  request: EstimateRequest,
+  run: () => Promise<unknown>,
+  signal: AbortSignal,
+): Promise<EstimateViewState> {
+  try {
+    const boundary = await import('./estimateDiagnostic')
+    return await boundary.collectEstimateView(request, run, signal)
+  } catch {
+    return { status: 'failed', diagnostic: { estimateDiagnostic: 'source-unavailable' } }
+  }
 }

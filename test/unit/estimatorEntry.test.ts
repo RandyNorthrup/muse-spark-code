@@ -1,3 +1,4 @@
+import { EstimateDiagnosticError } from '../../src/core/estimator/diagnostic'
 // M117 W: the lazy estimator bundle assembles a fully evidenced section
 // from injected sources, deterministically, with an honest first wave.
 // Repository default timeout; no skips.
@@ -59,6 +60,20 @@ afterEach(() => {
 })
 
 describe('M117 estimator bundle assembly', () => {
+  it('F1 exposes command parsing only through the installed lazy host run', () => {
+    const run = createEstimatorRun(ports(), EN, BASE_LOCALE)
+    expect(
+      run.parseCommand?.('/estimate M117 --fleet minimum', {
+        asOf: ESTIMATOR_AS_OF,
+        optimize: 'cost',
+      }),
+    ).toEqual({
+      goal: { kind: 'milestone', milestoneId: 'M117' },
+      asOf: ESTIMATOR_AS_OF,
+      optimize: 'cost',
+      fleet: 'minimum',
+    })
+  })
   it('produces a fully evidenced section: chain, engines, disclosures, no risks', async () => {
     const run = createEstimatorRun(ports(), EN, BASE_LOCALE)
     const section = await run.estimate(request(), new AbortController().signal)
@@ -222,7 +237,7 @@ describe('M117 estimator bundle assembly', () => {
     const real = simulation.simulateEstimate
     let calls = 0
     vi.spyOn(simulation, 'simulateEstimate').mockImplementation((...args) => {
-      if (++calls > 1) throw new Error('Estimate failed: missing-fit')
+      if (++calls > 1) throw new EstimateDiagnosticError('missing-fit')
       return real(...args)
     })
     await expect(

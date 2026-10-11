@@ -1373,6 +1373,8 @@ const deferredWebviewSources = [
   'src/webview/components/TeamCards.tsx',
   'src/core/prompts/promptSearch.ts',
   'src/shared/slashCommands.ts',
+  // Refusal validation loads with the boundary; it stays in the unchanged deferred aggregate.
+  'src/shared/estimateDiagnostic.ts',
 ]
 for (const source of deferredWebviewSources) {
   const outputs = Object.entries(webviewMeta.outputs).filter(([, output]) =>

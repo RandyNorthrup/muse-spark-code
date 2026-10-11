@@ -9,6 +9,9 @@ import { describe, expect, it } from 'vitest'
 import { buildPlanSnapshot, checkPlan } from '../../src/core/estimator/planSnapshot'
 import { resolveEstimateGoal } from '../../src/core/estimator/goal'
 import { parseEstimateGoal } from '../../src/shared/estimate'
+import { tableCells, comparePlanText } from '../../src/core/reporting/plan/grammar'
+import { readPlan } from '../../src/core/reporting/plan/reader'
+import * as z from 'zod/mini'
 
 const AS_OF = '2026-10-10T12:00:00.000Z'
 const here = import.meta.dirname
@@ -19,12 +22,84 @@ function readPlanText(): string {
 
 const planText = readPlanText()
 
+// The reviewed fixture covers all 374 declarations, independently expanded
+// from Starts. Supply test-only hours/state so missing estimates or historical
+// completion cannot conceal the real plan's declared prerequisite edges.
+const prerequisites = z
+  .record(z.string(), z.array(z.string()))
+  .parse(
+    JSON.parse(
+      readFileSync(
+        path.join(here, '..', 'fixtures', 'estimator', 'plan-prerequisites.json'),
+        'utf8',
+      ),
+    ),
+  )
+const fixturePlan = (() => {
+  let hoursIndex: number | undefined
+  return planText
+    .replaceAll(
+      /\*\*Status (\d{4}-\d{2}-\d{2})(?: \([^]*?\))?: [^]*?\*\*/g,
+      '**Status $1: planned.**',
+    )
+    .split('\n')
+    .map((line) => {
+      if (!line.trimStart().startsWith('|')) {
+        if (line.trim() !== '') hoursIndex = undefined
+        return line
+      }
+      const cells = tableCells(line)
+      if (cells[0] === 'Lane' || cells[0] === 'Lane / receipt') {
+        hoursIndex = cells.indexOf('Hours')
+        if (hoursIndex === -1) {
+          hoursIndex = cells.length
+          cells.push('Hours')
+        }
+      } else if (hoursIndex !== undefined) {
+        cells[hoursIndex] = /^[-: ]+$/.test(cells[0] ?? '') ? '---' : '1'
+      }
+      return `| ${cells.join(' | ')} |`
+    })
+    .join('\n')
+})()
+const fixtureMilestones = [
+  ...new Set(Object.keys(prerequisites).map((id) => id.split(':', 1)[0] ?? '')),
+]
+const fixtureBranches = Object.keys(prerequisites).map((id) => ({
+  name: id.replace(':', '/').toLowerCase(),
+  merged: true,
+}))
+
+describe('M117 reviewed real-plan prerequisite fixture', () => {
+  it('covers every real lane declaration', () => {
+    const ids = readPlan(planText)
+      .facts.milestones.flatMap((milestone) =>
+        milestone.lanes.map((lane) => `${milestone.id}:${lane.id}`),
+      )
+      .toSorted(comparePlanText)
+    expect(ids).toEqual(Object.keys(prerequisites).toSorted(comparePlanText))
+  })
+  it.each(fixtureMilestones)('F3 preserves every declared prerequisite in %s', (mid) => {
+    const goal = parseEstimateGoal(mid)
+    if (!goal) throw new Error('bad fixture milestone')
+    const snapshot = buildPlanSnapshot(fixturePlan, goal, AS_OF, {
+      branches: fixtureBranches.filter(
+        (branch) => !branch.name.startsWith(`${mid.toLowerCase()}/`),
+      ),
+    })
+    const ownLanes = snapshot.lanes.filter((entry) => entry.lane.id.startsWith(`${mid}:`))
+    for (const entry of ownLanes) {
+      expect(entry.lane.dependencies, entry.lane.id).toEqual(prerequisites[entry.lane.id])
+    }
+  })
+})
+
 /** Real milestone tables remain unchanged; whole-plan refusals are tested separately. */
 function milestoneExcerpt(id: string): string {
   const start = planText.indexOf(`### ${id} —`)
   const remainder = planText.slice(start)
   const next = /\n### M\d+/.exec(remainder)
-  return `## 6. Milestones\n\n${remainder.slice(0, next?.index ?? remainder.length)}`
+  return `## 6. Milestones\n\n${remainder.slice(0, next?.index ?? remainder.length)}\n${['M96', 'M96c', 'M100', 'M110'].map((mid) => `### ${mid} — External prerequisite\n\n**Status 2026-10-10: released.**\n`).join('\n')}`
 }
 
 async function resolveReal(text: string): Promise<string[]> {
@@ -108,15 +183,8 @@ describe('M117 plan snapshot on the real PLAN.md', () => {
     ])
   })
 
-  it('estimates M116 on the full plan with its last lane closing the milestone', async () => {
-    await expect(resolveReal('M116')).resolves.toEqual([
-      'M116:0',
-      'M116:I',
-      'M116:K',
-      'M116:P',
-      'M116:U',
-      'M116:W',
-    ])
+  it('refuses M116 when its restored integration prerequisites have no hours', async () => {
+    await expect(resolveReal('M116')).rejects.toThrow(/missing-estimate:/)
   })
 
   it('refuses release forecasts only on genuinely missing hours, never plan shape', () => {

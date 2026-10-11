@@ -576,6 +576,8 @@ export const EN = {
   referenceTasks: 'Open this conversation’s task list in a separate editor tab.',
   referenceDiagnostics: 'Show local backend and extension diagnostics.',
   referenceReport: 'Preview a scrubbed problem report before saving or sending it.',
+  estimateDiagnosticHelp:
+    'Plan and engine refusals show the same named diagnostic in the panel, CLI and ACP; external errors hide private details. A refused estimate, refresh or start replaces the previous forecast with that diagnostic.',
   referenceEstimate:
     'Ship-date forecast for a goal from the current fleet, or the setup a target date needs.',
   referenceTerminal: 'Open the Muse Code CLI in the editor’s terminal.',

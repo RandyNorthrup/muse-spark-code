@@ -2200,18 +2200,41 @@ current|minimum|optimum]`, ACP `/estimate`, **Open Estimator**, and standalone
 `muse-spark-code-acp estimate` use one lazy engine. The snapshot reads your
 workspace `PLAN.md` with its git and `gh` evidence: lane hours, Starts
 dependencies, rigs, file affinities, the delivery order and §10 releases.
-Every declared prerequisite and release member must resolve, including references
-outside the selected goal; duplicate lane identities and unknown unfinished rigs
-refuse with all unresolved references named. Completed lanes remain addressable
+Every prerequisite in the selected goal's dependency closure must resolve;
+duplicate identities, invalid rows, reader drift and unknown unfinished rigs in
+that closure refuse with all problems named. Unrelated rows do not block a
+forecast. Release goals also validate their declared release members. Completed lanes remain addressable
 with zero remaining work and require no placement. Merge evidence uses origin's
 default branch; a current replacement branch overrides older merged PRs.
 Failed or incomplete enabled evidence collection refuses by source name. Git-only
 forecasts remain available while network reads are disabled; PR goals then refuse.
 Editor network reads follow the current Reports network/sign-in policy and trust
 admission on every estimate. ACP/headless network reads remain disabled.
-ACP, CLI and TUI preserve the named refusal so the plan or source can be repaired.
+The panel, ACP, CLI and TUI show the same named diagnostic for plan and engine
+refusals, including self dependencies and cycles. External errors show only
+the fixed unavailable reason, so private paths and content stay hidden.
 `muse-spark-code-acp estimate --help` shows the
 standalone syntax without starting a model or asking for credentials.
+A refused estimate, refresh or first-wave start replaces the previous forecast with its
+diagnostic; old P50/P90, schedule rows and setup cards are removed.
+
+`muse-spark-code-acp estimate --check-plan` and ACP `/estimate --check-plan`
+check the entire workspace plan without estimating, reading git or calling a
+model. Use the flag alone, with no goal or other flags. The checker requires
+`plan-format-v1` and at least one lane table; empty, truncated or unsupported
+plans fail. It lists every row problem, including malformed Starts, invalid
+identities, unresolved references, self prerequisites and reader drift. CLI
+exit codes are 0 for a clean plan, 1 for problems or an unavailable plan, and
+2 for usage errors. A clean check prints nothing; ACP returns the problem
+list or an empty response for a clean plan.
+
+Starts uses `after` followed by lane, qualified-lane or milestone references,
+separated by commas or `and`, with clauses separated by semicolons. `lane M1`
+always refers to the local lane M1; bare `M1` refers to milestone M1.
+`first` and `day 0` have no prerequisites; `last` follows every other lane.
+Parenthetical notes may describe a reference, but ordering words such as
+`after`, `before`, `once`, `when`, `finished`, `last` and `freeze` in a note
+are rejected. Put ordering in Starts itself, for example `after 0; last`.
 
 - **Verified with fakes, and with real plans.** The engine returns P50/P90 dates,
   critical-path schedules, limiting resources and current/minimum/optimum setups. Figures

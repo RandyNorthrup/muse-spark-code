@@ -74,8 +74,7 @@
       "legalUsage",
       "referenceScreenRecording",
       "referenceLatestRecording",
-      "referenceUploadedFiles",
-      "referenceCliOptions.estimate-check-plan"
+      "referenceUploadedFiles"
     ],
     "cs": [
       "groupModel",

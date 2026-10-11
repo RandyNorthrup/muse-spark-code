@@ -361,7 +361,15 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
   locally with no model turn.
   M117's `/estimate <goal> [--by <date>] [--fleet current|minimum|optimum]`
   when the estimator binding is present; it runs the same engine as the
-  panel with no model call.
+  panel with no model call. `/estimate --check-plan` checks every row in the
+  workspace plan, independently of a forecast's dependency closure. Use the
+  flag alone, with no goal or other flags. It requires plan-format-v1 and a
+  lane table, returns all problems (including line numbers for malformed rows),
+  and returns an empty response only for a clean plan. Missing or unsupported
+  plans are failures. The standalone `muse-spark-code-acp estimate --check-plan`
+  uses exit codes 0 for clean, 1 for problems/unavailable, and 2 for usage.
+  Plan and engine refusals, including self dependencies and cycles, use the same
+  localized diagnostic as the panel and CLI. Raw external errors hide private details.
 - **Permission prompts**: the backend's own choices (allow once, allow for
   the session, reject). A prompt the editor cancels, or answers with a
   choice it was not offered, is rejected; nothing runs by default.

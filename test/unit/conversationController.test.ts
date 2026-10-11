@@ -1,3 +1,6 @@
+import { ESTIMATE_DIAGNOSTIC_CASES, diagnosticSentence } from './helpers/estimator/diagnosticMatrix'
+import { EstimateDiagnosticError, estimateDiagnostic } from '../../src/shared/estimateDiagnostic'
+import { parseEstimateComposer } from '../../src/runtime/estimator/command'
 import type { EstimateRequest } from '../../src/shared/estimate'
 import { fakeEstimate } from './helpers/estimator/fixtures'
 import { questionAnswerText } from './helpers/questions/registry'
@@ -17766,6 +17769,7 @@ describe('M105 E1 attachment handler', () => {
 
 function fakeEstimatorBinding() {
   return {
+    parseCommand: parseEstimateComposer,
     estimate: vi.fn((_request: EstimateRequest, _signal: AbortSignal) =>
       Promise.resolve(fakeEstimate()),
     ),
@@ -17775,6 +17779,85 @@ function fakeEstimatorBinding() {
   }
 }
 describe('M117 estimates belong to their conversation', () => {
+  it.each(ESTIMATE_DIAGNOSTIC_CASES)(
+    '$code → transcript notice and typed frame after a successful forecast',
+    async ({ diagnostic }) => {
+      const t = setup()
+      const run = fakeEstimatorBinding()
+      const controller = new ConversationController({ ...t.deps, estimator: run })
+      const request = fakeEstimate().inputs.request
+      await controller.handle({ type: 'estimateRun', requestId: 'first', request })
+      run.estimate.mockRejectedValue(diagnostic)
+      await controller.handle({ type: 'estimateRun', requestId: 'refresh', request })
+      expect(t.surface.posted).toContainEqual({
+        type: 'estimatorFailure',
+        requestId: 'refresh',
+        diagnostic,
+      })
+      expect(t.surface.posted).toContainEqual({
+        type: 'notice',
+        level: 'warning',
+        text: diagnosticSentence(diagnostic.estimateDiagnostic),
+      })
+      controller.dispose()
+    },
+  )
+
+  it('F1 parses composer commands in the host and never dispatches invalid input', async () => {
+    const t = setup()
+    const run = fakeEstimatorBinding()
+    const controller = new ConversationController({ ...t.deps, estimator: run })
+    const context = { asOf: fakeEstimate().asOf, optimize: 'cost' } as const
+    await controller.handle({
+      type: 'estimateCommand',
+      requestId: 'composer',
+      command: '/estimate M117',
+      context,
+    })
+    expect(run.estimate).toHaveBeenCalledWith(
+      fakeEstimate().inputs.request,
+      expect.any(AbortSignal),
+    )
+    await controller.handle({
+      type: 'estimateCommand',
+      requestId: 'bad',
+      command: '/estimate M117 --unknown',
+      context,
+    })
+    expect(run.estimate).toHaveBeenCalledTimes(1)
+    expect(t.surface.posted).toContainEqual({
+      type: 'estimatorFailure',
+      requestId: 'bad',
+      diagnostic: { estimateDiagnostic: 'usage' },
+    })
+    controller.dispose()
+  })
+
+  it.each(['self-dependency: M112:Q', 'cycle: M112:A, M112:Q', '/private/account'])(
+    'R6 renders %s through the shared diagnostic path',
+    async (detail) => {
+      const t = setup()
+      const run = fakeEstimatorBinding()
+      const error = detail.startsWith('/')
+        ? new Error(detail)
+        : new EstimateDiagnosticError(detail, '/private/raw-message')
+      run.estimate.mockRejectedValue(error)
+      const controller = new ConversationController({ ...t.deps, estimator: run })
+      await controller.handle({
+        type: 'estimateRun',
+        requestId: 'diagnostic',
+        request: fakeEstimate().inputs.request,
+      })
+      expect(t.surface.posted).toContainEqual({
+        type: 'estimatorFailure',
+        requestId: 'diagnostic',
+        diagnostic: estimateDiagnostic(error),
+      })
+      expect(JSON.stringify(t.surface.posted)).not.toContain('/private')
+      controller.dispose()
+    },
+  )
+
   it('returns a correlated failure when the source rejects', async () => {
     const t = setup()
     const run = fakeEstimatorBinding()
@@ -17788,7 +17871,7 @@ describe('M117 estimates belong to their conversation', () => {
     expect(t.surface.posted).toContainEqual({
       type: 'estimatorFailure',
       requestId: 'estimate-1',
-      reason: 'source-unavailable',
+      diagnostic: { estimateDiagnostic: 'estimate-unavailable' },
     })
     controller.dispose()
   })

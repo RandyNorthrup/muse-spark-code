@@ -1,3 +1,4 @@
+import { EstimateDiagnosticError } from '../../core/estimator/diagnostic'
 // The capacity estimator's headless bindings (M117, PLAN.md D97): the same
 // ports the extension assembles, with this machine as the fleet. The
 // snapshot reads the requesting session's workspace root (one cached
@@ -119,7 +120,7 @@ export function createRuntimeEstimate(deps: RuntimeEstimatorDeps): AcpEstimatePo
     checkPlan: (cwd, signal) => checkFor(cwd)(signal),
     money: {
       price: (price) => {
-        if (active === undefined) throw new Error('estimate has not run yet')
+        if (active === undefined) throw new EstimateDiagnosticError('running')
         return active.price(price)
       },
     },
