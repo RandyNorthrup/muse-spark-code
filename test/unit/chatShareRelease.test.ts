@@ -228,6 +228,41 @@ describe('M118 exact-preview release', () => {
     }
     expect(host.readSession).not.toHaveBeenCalled()
   })
+  it('releases an unchanged preview carrying a username path segment, in every format and mode', async () => {
+    for (const format of ['md', 'html', 'json'] as const) {
+      for (const mode of ['full', 'conversation'] as const) {
+        const sink = vi.fn(() => Promise.resolve())
+        const sharing = new ChatShareRelease({
+          privacy: createChatSharePrivacy({
+            workspaceRoots: ['/work'],
+            home: '/home/user',
+            userName: 'user',
+            redactRegisteredSecrets: (text) => text,
+          }),
+          isConfidentialWorkspace: () => false,
+          newPreviewId: () => 'token',
+          prepare: () => Promise.resolve(sink),
+        })
+        const preview = sharing.preparePreview(
+          {
+            ...source,
+            items: [
+              {
+                itemId: 'u1',
+                kind: 'userMessage',
+                status: 'completed',
+                text: '/work/team/user/src/main.ts',
+              },
+            ],
+          },
+          { target: 'chat', sessionId: 's1', mode, format, destination: 'copy' },
+        )
+        expect(preview.content).toContain('team/[user]/src/main.ts')
+        await expect(sharing.confirm(confirmed(preview))).resolves.toBe('shared')
+        expect(sink).toHaveBeenCalledTimes(1)
+      }
+    }
+  })
   it('keeps original sink bytes even if the view changes its returned preview text', async () => {
     const t = harness()
     const preview = t.sharing.preparePreview(source, request)

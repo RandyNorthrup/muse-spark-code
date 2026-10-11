@@ -1,5 +1,5 @@
 import { scrubUserIdentity } from '../prompts/promptPrivacy'
-import type { SharePrivacyPort } from '../../shared/share'
+import { SCRUB_MARKERS, type SharePrivacyPort } from '../../shared/share'
 import { scrubTransferIdentifiers } from '../export/sessionTransfer'
 
 export interface ChatSharePrivacyContext {
@@ -22,7 +22,9 @@ const PATH_END = /[\s"'<>()[\]{},;]/
 const POSIX_SEGMENT = /^[\p{L}\p{N}._~!$&+%@=-]+$/u
 
 function isPathBoundary(token: string, offset: number, text: string): boolean {
-  if (text.slice(0, offset).endsWith('[home]')) return false
+  // A scrub marker is atomic: the scrub is idempotent, so the release
+  // confirmation's re-scrub is its fixed point (RVDFACPERR5 P2).
+  if (SCRUB_MARKERS.some((marker) => text.slice(0, offset).endsWith(marker))) return false
   // A label's colon is a boundary; a URL's scheme separator is not.
   if (
     offset > 0 &&

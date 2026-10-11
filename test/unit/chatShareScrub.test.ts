@@ -254,4 +254,42 @@ describe('M118 always-on scrub', () => {
     value = 'second'
     expect(scrubShareText('first second', dynamic)).toBe('first [redacted]')
   })
+  it('reaches the RVDFACPERR5 fixed point: a username path segment scrubs once and stays', () => {
+    const review = createChatSharePrivacy({
+      workspaceRoots: ['/work'],
+      home: '/home/user',
+      userName: 'user',
+      redactRegisteredSecrets: (text) => text,
+    })
+    expect(scrubShareText('/work/team/user/src/main.ts', review)).toBe('team/[user]/src/main.ts')
+  })
+  it.each(['user', 'home', 'src', 'team'])(
+    'is a fixed point for %s across nested paths and both separators',
+    (user) => {
+      const roots = ['/work', String.raw`C:\work`, String.raw`\\server\share\work`]
+      for (const root of roots) {
+        const home = root.startsWith('C:') ? `C:\\Users\\${user}` : `/home/${user}`
+        const port = createChatSharePrivacy({
+          workspaceRoots: [root],
+          home,
+          userName: user,
+          redactRegisteredSecrets: (text) => text,
+        })
+        const messages = [
+          `${root}/team/${user}/src/main.ts`,
+          `${root}/team/${user}/src/main.ts`.replaceAll('/', '\\'),
+          `${root}/a/${user}/b/${user}/c.ts`,
+          `${home}/team/${user}/src/main.ts`,
+          `see ${root}/team/${user}/src/main.ts for details`,
+          `the ${user} opened ${root}/src/notes.ts`,
+          `owner: ${user}`,
+          `owner ${user}/team/notes`,
+        ]
+        for (const message of messages) {
+          const once = scrubShareText(message, port)
+          expect(scrubShareText(once, port), message).toBe(once)
+        }
+      }
+    },
+  )
 })
