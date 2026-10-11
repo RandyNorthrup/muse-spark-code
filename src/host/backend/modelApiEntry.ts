@@ -179,28 +179,18 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
       filesClient !== undefined &&
       mediaAccountId !== undefined &&
       mediaDirectory !== undefined && {
+        // The replay assembly (and its expiry forwarding) resolves on
+        // demand inside the production-media bundle (C-M105-8 diet).
         createMediaReplay: (sessionId: string, session: MediaReplaySession) =>
-          productionMedia.createProductionMediaReplay({
+          productionMedia.createHostMediaReplay(
+            hostDeps,
+            filesClient,
+            mediaAccountId,
+            mediaDirectory,
+            attached,
             sessionId,
-            client: filesClient,
-            accountId: mediaAccountId,
-            currentAccountId: hostDeps.getAccountId,
-            directory: mediaDirectory,
-            log: hostDeps.log,
-            ...(hostDeps.uploadExpiryDays !== undefined && {
-              expiryDays: hostDeps.uploadExpiryDays,
-            }),
-            ...session,
-            source: productionMedia.attachedOrWorkspaceSource(
-              attached,
-              productionMedia.workspaceMediaSource({
-                workspaceRoot: hostDeps.workspaceRoot,
-                platform: hostDeps.platform,
-                io: hostDeps.io,
-              }),
-            ),
-            ...(attached !== undefined && { attachment: (part) => attached.resolve(part) }),
-          }),
+            session,
+          ),
       }),
     modelFacts: hostDeps.modelFacts ?? metaModelFacts,
     sideCallFormats: hostDeps.sideCallFormats ?? metaSideCallFormats,

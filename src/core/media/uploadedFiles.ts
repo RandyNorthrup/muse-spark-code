@@ -9,9 +9,15 @@ import { fill, formatDateTime } from '../../shared/l10n/text'
 import { uploadedFilesReportSchema, type UploadedFilesReport } from '../../shared/media'
 import type { UploadLedger } from './uploadLedger'
 
+/** The ledger surface the uploaded-files port reads and deletes through. */
+export type UploadedFilesLedger = Pick<
+  UploadLedger,
+  'accountReport' | 'deleteFile' | 'deleteAllOurs'
+>
+
 export interface UploadedFilesPortDeps {
   /** The current account's ledger; undefined while there is none. */
-  readonly ledger: () => Promise<UploadLedger | undefined>
+  readonly ledger: () => Promise<UploadedFilesLedger | undefined>
   /** Shows the report on this surface; absent drops it (a text surface answers itself). */
   readonly post?: (report: UploadedFilesReport) => void
   /** Asks whether a file another app may still use may go; absent refuses. */
@@ -20,7 +26,8 @@ export interface UploadedFilesPortDeps {
 
 export interface UploadedFilesPort {
   read(): Promise<unknown>
-  post(report: UploadedFilesReport): void
+  /** Validates before showing: a byte-bearing or extra-key payload throws. */
+  post(report: unknown): void
   deleteFile(
     fileId: string,
     isForeignDeletionConfirmed: (name: string) => Promise<boolean>,
@@ -56,7 +63,7 @@ export function createUploadedFilesPort(deps: UploadedFilesPortDeps): UploadedFi
       const ledger = await deps.ledger()
       return ledger === undefined ? emptyUploadedFilesReport() : await ledger.accountReport()
     },
-    post(report: UploadedFilesReport): void {
+    post(report: unknown): void {
       deps.post?.(uploadedFilesReportSchema.parse(report))
     },
     async deleteFile(

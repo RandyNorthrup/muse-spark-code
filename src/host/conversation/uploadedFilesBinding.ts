@@ -3,10 +3,10 @@
 // command behind it. No VS Code import here: the surfaces (webview post,
 // modal confirmation, QuickPick) arrive as callbacks, so tests drive this
 // module directly and each host binds it thinly.
-import type { UploadLedger } from '../../core/media/uploadLedger'
 import {
   createUploadedFilesPort,
   uploadExpiryText,
+  type UploadedFilesLedger,
   type UploadedFilesPort,
 } from '../../core/media/uploadedFiles'
 import { UI_TEXT } from '../../shared/constants'
@@ -17,7 +17,7 @@ import type { ConversationUploadedFilesPort } from './conversationController'
 
 export interface UploadedFilesBindingDeps {
   /** The account's ledger over the production storage and Files wire. */
-  readonly uploads: (accountId: string) => Promise<UploadLedger>
+  readonly uploads: (accountId: string) => Promise<UploadedFilesLedger>
   /** The key digest in use; undefined while no account backs the ledger. */
   readonly getAccountId: () => Promise<string | undefined>
   /** Shows the report on this surface. */
@@ -35,7 +35,7 @@ export interface UploadedFilesBinding {
 
 /** The `ConversationDeps.uploadedFiles` supplier, whichever host binds it. */
 export function createUploadedFilesBinding(deps: UploadedFilesBindingDeps): UploadedFilesBinding {
-  const ledger = async (): Promise<UploadLedger | undefined> => {
+  const ledger = async (): Promise<UploadedFilesLedger | undefined> => {
     const accountId = await deps.getAccountId()
     return accountId === undefined ? undefined : await deps.uploads(accountId)
   }

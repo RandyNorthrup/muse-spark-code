@@ -19,6 +19,7 @@ import {
 } from '../../src/core/backends/modelapi/files'
 import { ModelApiError } from '../../src/core/backends/modelapi/client'
 import { MILLISECONDS_PER_DAY, SECONDS_PER_DAY } from '../../src/shared/constants'
+import type { StoredSession } from '../../src/core/backends/modelapi/sessionStore'
 import { uploadedFilesReportSchema } from '../../src/shared/media'
 import { UploadLedger, type UploadLedgerState } from '../../src/core/media/uploadLedger'
 import { createUploadedFilesPort } from '../../src/core/media/uploadedFiles'
@@ -73,6 +74,7 @@ interface Rig {
   readonly uploadsDir: string
   readonly sessionsDir: string
   readonly accountId: string
+  readonly filesClient: () => Pick<Rig, 'requestFile'>
 }
 
 /** The production stack with a fake HTTP boundary that counts provider calls. */
@@ -192,6 +194,21 @@ describe('uploaded-files production composition', () => {
     expect(t.bodies[0]?.split('expires_after[seconds]', 2)[1]).toContain('2592000')
   })
 
+  it('reads the expiry setting on every upload, not once per session', async () => {
+    const week = { created_at: 1000, expires_at: 1000 + 7 * 86_400 }
+    const day = { created_at: 1000, expires_at: 1000 + 86_400 }
+    const t = rig('expiry-change', [week, day])
+    let days = 7
+    const uploads = productionUploads(t, () => days)
+    const ledger = await uploads(t.accountId)
+    await ledger.ensure('s1', sha256, source, new AbortController().signal)
+    expect(t.bodies[0]?.split('expires_after[seconds]', 2)[1]).toContain('604800')
+    days = 1
+    await ledger.ensure('s1', youngSha256, youngSource, new AbortController().signal)
+    expect(t.bodies).toHaveLength(2)
+    expect(t.bodies[1]?.split('expires_after[seconds]', 2)[1]).toContain('86400')
+  })
+
   it('serves the VS Code consumers from the production port and deletes the chosen file', async () => {
     const t = rig('vscode', [YOUNG])
     const { binding, posted } = vsCodeBinding(t)
@@ -268,7 +285,7 @@ describe('uploaded-files production composition', () => {
       sessionId: string,
       refs: readonly (typeof oldRef)[],
       lastActivityAt: string,
-    ) => ({
+    ): StoredSession => ({
       version: 1,
       sessionId,
       workspaceRoot: '/ws',
