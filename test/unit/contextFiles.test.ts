@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { decodeContextText, readContextText } from '../../src/core/context/contextFiles'
+import { contentHash } from '../../src/core/schedules/provenance'
 import { encoded, memoryContextIo } from './helpers/fakeContextIo'
 
 const TEXT = 'Regeln für 日本 🚀\r\nline two\n'
@@ -53,6 +54,17 @@ describe('readContextText', () => {
     await expect(readContextText(deps, '/ws/AGENTS.md', '/ws')).resolves.toEqual({
       ok: true,
       text: 'inside',
+      contentSource: {
+        kind: 'file',
+        contentHash: contentHash(encoded.utf16le('inside')),
+        file: {
+          path: '/ws/AGENTS.md',
+          dev: '0',
+          ino: '0',
+          size: encoded.utf16le('inside').length,
+          mtime: '0',
+        },
+      },
     })
     await expect(readContextText(deps, '/ws/none.md', '/ws')).resolves.toBeUndefined()
   })
@@ -61,6 +73,11 @@ describe('readContextText', () => {
     await expect(readContextText(deps, '/ws/linked/AGENTS.md', '/ws')).resolves.toEqual({
       ok: true,
       text: 'shared',
+      contentSource: {
+        kind: 'file',
+        contentHash: contentHash('shared'),
+        file: { path: '/ws/shared/AGENTS.md', dev: '0', ino: '0', size: 6, mtime: '0' },
+      },
     })
     await expect(readContextText(deps, '/ws/escape/AGENTS.md', '/ws')).resolves.toEqual({
       ok: false,
@@ -72,6 +89,11 @@ describe('readContextText', () => {
     await expect(readContextText(deps, '/ws/escape/AGENTS.md', undefined)).resolves.toEqual({
       ok: true,
       text: 'secret',
+      contentSource: {
+        kind: 'file',
+        contentHash: contentHash('secret'),
+        file: { path: '/outside/AGENTS.md', dev: '0', ino: '0', size: 6, mtime: '0' },
+      },
     })
   })
 })

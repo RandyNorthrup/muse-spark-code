@@ -5,13 +5,16 @@
 // the acceptance while the card shows the redacted text.
 
 import { act, fireEvent, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { beforeAll, afterEach, describe, expect, it, vi } from 'vitest'
 import { UI_TEXT } from '../../src/shared/constants'
 import { createUiStore } from '../../src/webview/state/store'
 import { initialUiState } from '../../src/webview/state/uiState'
 import type { HostToWebviewMessage, WebviewToHostMessage } from '../../src/shared/protocol'
 import { App } from '../../src/webview/App'
 import { testSettings } from './helpers/fakes'
+import { warmDeferredSurfaces } from './helpers/warmDeferredSurfaces'
+
+beforeAll(warmDeferredSurfaces)
 
 const TEXT = 'please deploy this for me'
 const REDACTED = 'please deploy this for me, redacted'

@@ -5,6 +5,8 @@
 
 import { describe, expect, it, vi } from 'vitest'
 import * as z from 'zod/mini'
+import { metaHostedCapabilities } from '../../src/core/backends/modelapi/modelCapabilities'
+import { M106_CAPTURED_META_MODEL } from '../../src/shared/constants'
 import { ModelApiHost } from '../../src/core/backends/modelapi/ModelApiHost'
 import type {
   ModelApiHostDeps,
@@ -78,6 +80,8 @@ function setup(
     readonly hooks?: readonly HookDefinition[]
     readonly paidSubagents?: boolean
     readonly paidWebSearch?: boolean
+    readonly modelCapabilities?: ModelApiHostDeps['modelCapabilities']
+    readonly compactionModel?: ModelApiHostDeps['compactionModel']
   } = {},
 ) {
   const api = fakeModelApi()
@@ -97,6 +101,9 @@ function setup(
       io: base,
       log,
     }),
+    ...(options.modelCapabilities !== undefined && {
+      modelCapabilities: options.modelCapabilities,
+    }),
     contextIo: memoryContextIo(base.files),
     now: () => clock,
     getAccountId: () => Promise.resolve(FAKE_MODEL_API_ACCOUNT_ID),
@@ -107,12 +114,14 @@ function setup(
     loadExtensionHooks: () => Promise.resolve(options.extensionHooks ?? []),
     isHooksEnabled: options.isHooksEnabled ?? (() => true),
     isWorkspaceTrusted: options.isWorkspaceTrusted ?? (() => true),
+    ...(options.paidWebSearch === true && { confirmContributorModel: () => Promise.resolve(true) }),
     loadHooks: () => Promise.resolve(options.hooks ?? []),
+    ...(options.compactionModel !== undefined && { compactionModel: options.compactionModel }),
     ...((options.paidSubagents === true || options.paidWebSearch === true) && {
       isPaidFeatureOn: (feature) =>
         (feature === 'subagents' && options.paidSubagents === true) ||
         (feature === 'webSearch' && options.paidWebSearch === true),
-      allowsPaidUse: () => Promise.resolve(true),
+      allowsPaidUse: (request) => Promise.resolve(request.feature !== 'webSearch' || request.quote),
     }),
   })
   return {
@@ -175,12 +184,15 @@ describe('ModelApiSession extension hooks', () => {
   it('refuses hosted-tool dispatch when a narrowing excludes paid web search', async () => {
     const t = setup({
       paidWebSearch: true,
+      // D86.4/U8: bind the captured selected-model tool and bound.
+      modelCapabilities: metaHostedCapabilities,
       extensionHooks: sparkHooks({
         BeforeToolSelection: [{ hooks: [{ type: 'command', command: 'narrow' }] }],
       }),
       runHook: () => hookResult('{"allowedTools":["read_file"]}'),
     })
     const { session, events, turnDone } = await startSession(t)
+    await session.setModel(M106_CAPTURED_META_MODEL)
     await session.sendTurn([{ type: 'text', text: 'search' }])
     await turnDone()
     expect(t.api.responseBodies()).toEqual([])
@@ -548,6 +560,11 @@ describe('ModelApiSession extension hooks', () => {
 
   it('leaves compaction alone: the tool-less summary fires no extension hook', async () => {
     const t = setup({
+      compactionModel: () => ({
+        contextTokens: undefined,
+        capabilities: { toolCalling: true },
+        quirks: { keepToolsWithHistory: false, reasoningReplay: 'same-model' },
+      }),
       extensionHooks: sparkHooks({
         BeforeToolSelection: [{ hooks: [{ type: 'command', command: 'narrow' }] }],
         AfterAgentThought: [{ hooks: [{ type: 'command', command: 'think' }] }],

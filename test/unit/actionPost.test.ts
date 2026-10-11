@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 // M80 lane C: the sticky review comment (SPEC §2.2, §6.6; G11). Only a valid
 // completed result posts; the body is redacted first, then every @ is
 // defused, then it is capped; the footer names model, requests, settled and
@@ -88,10 +89,10 @@ describe('the comment body (G11)', () => {
       usage: {
         ...base.usage,
         costUsd: {
-          settled: 0.010004,
-          uncertain: 0.108135,
-          reserved: 0,
-          total: 0.118139,
+          settled: Usd.from(0.010004).toAmount(),
+          uncertain: Usd.from(0.108135).toAmount(),
+          reserved: Usd.from(0).toAmount(),
+          total: Usd.from(0.118139).toAmount(),
           isUpperBound: true,
         },
         paid: {
@@ -99,8 +100,8 @@ describe('the comment body (G11)', () => {
           imagesReturned: 1,
           imagesRefunded: 0,
           imagesUncertain: 1,
-          settledUsd: 0.01,
-          uncertainUsd: 0.01,
+          settledUsd: Usd.from(0.01).toAmount(),
+          uncertainUsd: Usd.from(0.01).toAmount(),
         },
       },
     }

@@ -1,4 +1,4 @@
-// Report a problem (M93, PLAN.md D72): the report-only message handler in
+// Report a Problem (M93, PLAN.md D72): the report-only message handler in
 // src/host/conversation/reportProblemHandler.ts. Opening, rebuilding and
 // exporting all go through the builder and the export paths; the preview the
 // dialog shows is byte-identical to what an export carries, its item list is
@@ -186,7 +186,7 @@ describe('reportProblemHandler', () => {
     // The facts and the two records the builder keeps; the three it skips
     // (unknown kind, extra field, outside frame) list no item.
     expect(draft?.items).toEqual([
-      { kind: 'facts', label: 'Support facts' },
+      { kind: 'facts', label: 'Support Facts' },
       {
         kind: 'event',
         eventIndex: 0,
@@ -262,7 +262,7 @@ describe('reportProblemHandler', () => {
       removedEventIndexes: [],
     })
     const draft = draftsOf(posted)[1]
-    expect(draft?.items).toEqual([{ kind: 'facts', label: 'Support facts' }])
+    expect(draft?.items).toEqual([{ kind: 'facts', label: 'Support Facts' }])
     expect(draft?.text).not.toContain('Recent events')
   })
 
@@ -316,12 +316,57 @@ describe('reportProblemHandler', () => {
     ])
     expect(drafts[1]?.text).toContain('The panel went blank.')
     // The facts section and the first event are gone from text and items.
-    expect(drafts[2]?.text).not.toContain('Support facts:')
+    expect(drafts[2]?.text).not.toContain('Support Facts:')
     expect(drafts[2]?.text).not.toContain('toolCallFailed')
     expect(drafts[2]?.text).toContain('backendExit')
     expect(drafts[2]?.items.map((item) => item.eventIndex)).toEqual([1])
     // Removing a record changes the draft; its item goes with it.
     expect(drafts[2]?.hash).not.toBe(drafts[1]?.hash)
+  })
+
+  it('settles a refused rebuild on the previous draft so the dialog can retry (RVM109T 5)', async () => {
+    let shouldRefuse = false
+    const vaultScrub = {
+      scrub: (text: string) =>
+        shouldRefuse ? Promise.reject(new Error('locked')) : Promise.resolve(text),
+    }
+    const { deps, posted } = depsWith(sourceWith())
+    const { handle } = createReportProblemHandler({ ...deps, vaultScrub })
+    await handle({ type: 'openReport' })
+    const opened = draftsOf(posted)
+    expect(opened).toHaveLength(1)
+    shouldRefuse = true
+    await handle({
+      type: 'updateReport',
+      revision: 1,
+      description: 'The panel went blank.',
+      includeFacts: true,
+      includeEvents: true,
+      removedEventIndexes: [],
+    })
+    // One notice, and the previous draft re-posted with the failed revision:
+    // the dialog stops waiting instead of holding revision 0 with disabled
+    // exports.
+    expect(deps.noticeError).toHaveBeenCalledTimes(1)
+    const settled = draftsOf(posted)
+    expect(settled).toHaveLength(2)
+    expect([settled[1]?.session, settled[1]?.revision]).toEqual([1, 1])
+    expect(settled[1]?.hash).toBe(opened[0]?.hash)
+    expect(settled[1]?.text).toBe(opened[0]?.text)
+    // The next edit retries the build and answers it.
+    shouldRefuse = false
+    await handle({
+      type: 'updateReport',
+      revision: 2,
+      description: 'The panel went blank.',
+      includeFacts: true,
+      includeEvents: true,
+      removedEventIndexes: [],
+    })
+    const retried = draftsOf(posted)
+    expect(retried).toHaveLength(3)
+    expect([retried[2]?.session, retried[2]?.revision]).toEqual([1, 2])
+    expect(retried[2]?.text).toContain('The panel went blank.')
   })
 
   it('copies exactly the previewed draft, and names the draft it answers', async () => {

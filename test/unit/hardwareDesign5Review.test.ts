@@ -26,6 +26,9 @@ function setup(source: () => HardwareContext) {
     h.host,
     new FakeLogOutputChannel(),
     { normalMs: 2000, longMs: 2000 },
+    undefined,
+    undefined,
+    undefined,
     source,
   )
   h.server.handle('session/start', () => ({

@@ -1,0 +1,295 @@
+{
+  "fullRunFailedTests": 69,
+  "fullRunFailedFiles": 16,
+  "reportedFailureHeaders": [
+    {
+      "fileTest": "test/unit/deferredBundles.test.ts [ test/unit/deferredBundles.test.ts ]",
+      "cause": "build fixture must include three team outputs and actual production resolvers"
+    },
+    {
+      "fileTest": "test/unit/vsixPackaging.test.mjs [ test/unit/vsixPackaging.test.mjs ]",
+      "cause": "unchanged 10 s staging hook timed out under concurrent coverage; scoped suite passes"
+    },
+    {
+      "fileTest": "test/e2e/execStdio.e2e.test.ts > M80 D package guards > ships exact committed schemas, keeps production bin, and never packs the test launcher",
+      "cause": "fake package fixture must contain team bundles, runner files and new packager probe"
+    },
+    {
+      "fileTest": "test/e2e/execStdio.e2e.test.ts > M80 D package guards > refuses directory schema before replacing stage",
+      "cause": "fake package fixture must contain team bundles, runner files and new packager probe"
+    },
+    {
+      "fileTest": "test/e2e/execStdio.e2e.test.ts > M80 D package guards > packs distinct private fake-only tarball without changing production stage or digest",
+      "cause": "fake package fixture must contain team bundles, runner files and new packager probe"
+    },
+    {
+      "fileTest": "test/e2e/execStdio.e2e.test.ts > M80 D package guards > refuses missing test launcher rather than emitting a product-like test success",
+      "cause": "fake package fixture must contain team bundles, runner files and new packager probe"
+    },
+    {
+      "fileTest": "test/e2e/execStdio.e2e.test.ts > M80 D package guards > build tarball guard rejects missing schemas/exec-result-v1.schema.json",
+      "cause": "fake package fixture must contain team bundles, runner files and new packager probe"
+    },
+    {
+      "fileTest": "test/e2e/execStdio.e2e.test.ts > M80 D package guards > build tarball guard rejects missing schemas/exec-event-v1.schema.json",
+      "cause": "fake package fixture must contain team bundles, runner files and new packager probe"
+    },
+    {
+      "fileTest": "test/e2e/execStdio.e2e.test.ts > M80 D package guards > build tarball guard rejects missing l10n/ui.tables.json.br",
+      "cause": "fake package fixture must contain team bundles, runner files and new packager probe"
+    },
+    {
+      "fileTest": "test/e2e/execStdio.e2e.test.ts > M80 D package guards > build tarball guard rejects missing dist/runtime.bundles.json.br",
+      "cause": "fake package fixture must contain team bundles, runner files and new packager probe"
+    },
+    {
+      "fileTest": "test/e2e/execStdio.e2e.test.ts > M80 D package guards > refuses wrong production name before test staging",
+      "cause": "fake package fixture must contain team bundles, runner files and new packager probe"
+    },
+    {
+      "fileTest": "test/e2e/execStdio.e2e.test.ts > M80 D package guards > refuses wrong production bin before test staging",
+      "cause": "fake package fixture must contain team bundles, runner files and new packager probe"
+    },
+    {
+      "fileTest": "test/e2e/execStdio.e2e.test.ts > M80 D package guards > refuses wrong production version before test staging",
+      "cause": "fake package fixture must contain team bundles, runner files and new packager probe"
+    },
+    {
+      "fileTest": "test/e2e/execStdio.e2e.test.ts > M80 D package guards > refuses a directory in place of a required test-package schema",
+      "cause": "fake package fixture must contain team bundles, runner files and new packager probe"
+    },
+    {
+      "fileTest": "test/e2e/execStdio.e2e.test.ts > M80 D package guards > refuses empty npm pack output instead of renaming a directory",
+      "cause": "fake package fixture must contain team bundles, runner files and new packager probe"
+    },
+    {
+      "fileTest": "test/e2e/execStdio.e2e.test.ts > M80 D package guards > refuses path npm pack output instead of renaming a directory",
+      "cause": "fake package fixture must contain team bundles, runner files and new packager probe"
+    },
+    {
+      "fileTest": "test/e2e/execStdio.e2e.test.ts > M80 D package guards > host store guard/cleanup: stored",
+      "cause": "fake package fixture must contain team bundles, runner files and new packager probe"
+    },
+    {
+      "fileTest": "test/e2e/execStdio.e2e.test.ts > M80 D package guards > host store guard/cleanup: unavailable",
+      "cause": "fake package fixture must contain team bundles, runner files and new packager probe"
+    },
+    {
+      "fileTest": "test/e2e/execStdio.e2e.test.ts > M80 D package guards > host store guard/cleanup: exec-fails",
+      "cause": "fake package fixture must contain team bundles, runner files and new packager probe"
+    },
+    {
+      "fileTest": "test/e2e/execStdio.e2e.test.ts > M80 D package guards > host store guard/cleanup: trust-accepted",
+      "cause": "fake package fixture must contain team bundles, runner files and new packager probe"
+    },
+    {
+      "fileTest": "test/e2e/execStdio.e2e.test.ts > M80 D package guards > host store guard/cleanup: help-missing",
+      "cause": "fake package fixture must contain team bundles, runner files and new packager probe"
+    },
+    {
+      "fileTest": "test/e2e/execStdio.e2e.test.ts > M80 D package guards > host store guard/cleanup: schema-drift",
+      "cause": "fake package fixture must contain team bundles, runner files and new packager probe"
+    },
+    {
+      "fileTest": "test/e2e/execStdio.e2e.test.ts > M80 D package guards > host store guard/cleanup: help-no-exec",
+      "cause": "fake package fixture must contain team bundles, runner files and new packager probe"
+    },
+    {
+      "fileTest": "test/e2e/execStdio.e2e.test.ts > M80 D package guards > host store guard/cleanup: help-no-scan",
+      "cause": "fake package fixture must contain team bundles, runner files and new packager probe"
+    },
+    {
+      "fileTest": "test/e2e/execStdio.e2e.test.ts > M80 D package guards > host store guard/cleanup: schema-required",
+      "cause": "fake package fixture must contain team bundles, runner files and new packager probe"
+    },
+    {
+      "fileTest": "test/e2e/execStdio.e2e.test.ts > M80 D package guards > host store guard/cleanup: schema-empty",
+      "cause": "fake package fixture must contain team bundles, runner files and new packager probe"
+    },
+    {
+      "fileTest": "test/unit/bundleSize.test.mjs > bundled What\u2019s New content budget > counts eager chunks against the unchanged startup cap",
+      "cause": "size fixture must include separately budgeted TeamUi entry"
+    },
+    {
+      "fileTest": "test/unit/bundleSize.test.mjs > bundled What\u2019s New content budget > admits exactly 40 KiB of raw JSON",
+      "cause": "size fixture must include separately budgeted TeamUi entry"
+    },
+    {
+      "fileTest": "test/unit/bundleSize.test.mjs > bundled What\u2019s New content budget > rejects one byte over 40 KiB",
+      "cause": "size fixture must include separately budgeted TeamUi entry"
+    },
+    {
+      "fileTest": "test/unit/bundleSize.test.mjs > bundled What\u2019s New content budget > rejects a missing content file",
+      "cause": "size fixture must include separately budgeted TeamUi entry"
+    },
+    {
+      "fileTest": "test/unit/flightRecorder.test.ts > RVM93R regressions > R2 verifies the frame vocabulary against the shipped extension package",
+      "cause": "product: register three actually shipped team frame paths"
+    },
+    {
+      "fileTest": "test/unit/htmlToMarkdown.test.ts > htmlToMarkdown (M69) > walks a deep tree without recursion",
+      "cause": "fixed full-profile test deadline; scoped suite passes"
+    },
+    {
+      "fileTest": "test/unit/htmlToMarkdown.test.ts > htmlToMarkdown (M69) > stops at its bound on a page built to expand, and says it did",
+      "cause": "fixed full-profile test deadline; scoped suite passes"
+    },
+    {
+      "fileTest": "test/unit/paidDailyBudget.test.ts > D78 interactive paid daily budget > default-on first use asks before any paid request, and Deny sends nothing",
+      "cause": "async popup fixture must await its visible question"
+    },
+    {
+      "fileTest": "test/unit/paletteRegistry.test.ts > buildPalette: paid features (M33, PLAN.md D30) > offers the key\u2019s images and voice on the Muse Code backend when a key is stored (M44)",
+      "cause": "product tip plus pre-D75 paid row fixture expectations"
+    },
+    {
+      "fileTest": "test/unit/paletteRegistry.test.ts > buildPalette: paid features (M33, PLAN.md D30) > offers each paid feature as a toggle naming its price on the Model API backend",
+      "cause": "product tip plus pre-D75 paid row fixture expectations"
+    },
+    {
+      "fileTest": "test/unit/paletteRegistry.test.ts > M87 palette tips > covers every registry row on every backend, except loading and empty notes",
+      "cause": "product tip plus pre-D75 paid row fixture expectations"
+    },
+    {
+      "fileTest": "test/unit/pluginDispatch.test.ts > plugin dispatch with real children > an OpenCode throw blocks; a crash blocks by its fail-closed rule",
+      "cause": "portable Node stand-in must simulate supported Linux memory wrapper; Darwin Bun refusal unchanged"
+    },
+    {
+      "fileTest": "test/unit/pluginDispatch.test.ts > plugin dispatch with real children > an OpenCode in-place args rewrite narrows the call, under our argument names (P2 9)",
+      "cause": "portable Node stand-in must simulate supported Linux memory wrapper; Darwin Bun refusal unchanged"
+    },
+    {
+      "fileTest": "test/unit/pluginDispatch.test.ts > plugin dispatch with real children > every exported OpenCode plugin function runs, in load order (P2 10)",
+      "cause": "portable Node stand-in must simulate supported Linux memory wrapper; Darwin Bun refusal unchanged"
+    },
+    {
+      "fileTest": "test/unit/pluginDispatch.test.ts > plugin dispatch with real children > a plugin past its timeout is ended and fails by its rule",
+      "cause": "portable Node stand-in must simulate supported Linux memory wrapper; Darwin Bun refusal unchanged"
+    },
+    {
+      "fileTest": "test/unit/pluginDispatch.test.ts > plugin dispatch with real children > the session\u2019s dispose ends a running plugin child",
+      "cause": "portable Node stand-in must simulate supported Linux memory wrapper; Darwin Bun refusal unchanged"
+    },
+    {
+      "fileTest": "test/unit/sshRunner.test.ts > SSH runner over a fake transport and local repositories > pushes working edits and untracked files, streams exact output, caches setup and installs only by rename",
+      "cause": "fixed full-profile test deadline; scoped suite passes"
+    },
+    {
+      "fileTest": "test/unit/sshRunner.test.ts > SSH runner over a fake transport and local repositories > keeps the remote slot after disconnect until an exit marker, rejects late run ids and respects maxJobs across windows",
+      "cause": "fixed full-profile test deadline; scoped suite passes"
+    },
+    {
+      "fileTest": "test/unit/sshRunner.test.ts > SSH runner over a fake transport and local repositories > falls back on a cache creator without hiding a check exit code of 75",
+      "cause": "fixed full-profile test deadline; scoped suite passes"
+    },
+    {
+      "fileTest": "test/unit/sshRunner.test.ts > SSH runner over a fake transport and local repositories > releases the owned cache creation lease after a setup timeout and permits retry",
+      "cause": "fixed full-profile test deadline; scoped suite passes"
+    },
+    {
+      "fileTest": "test/unit/sshRunner.test.ts > SSH runner over a fake transport and local repositories > retains a cache lease whose recorded owner differs from the retired job",
+      "cause": "fixed full-profile test deadline; scoped suite passes"
+    },
+    {
+      "fileTest": "test/unit/sshRunner.test.ts > SSH runner over a fake transport and local repositories > checks raw output prefixes and decodes split UTF-8 exactly once",
+      "cause": "fixed full-profile test deadline; scoped suite passes"
+    },
+    {
+      "fileTest": "test/unit/sshRunner.test.ts > SSH runner over a fake transport and local repositories > ends the remote process group at timeout and writes the marker only afterwards",
+      "cause": "fixed full-profile test deadline; scoped suite passes"
+    },
+    {
+      "fileTest": "test/unit/teamHarness.test.mjs > RVM96B browser regressions > 23 packages every emitted webview JavaScript chunk",
+      "cause": "fixed full-profile VSCE call deadline; scoped suite passes"
+    },
+    {
+      "fileTest": "test/unit/teamLanding.test.ts > snapshot-bound landing and recovery > lands and undoes an indexed executable on a permission-blind checkout",
+      "cause": "fixed full-profile test deadline/late cleanup; scoped suite passes"
+    },
+    {
+      "fileTest": "test/unit/teamLanding.test.ts > snapshot-bound landing and recovery > rechecks holders at the final staged-file guard for recover",
+      "cause": "fixed full-profile test deadline/late cleanup; scoped suite passes"
+    },
+    {
+      "fileTest": "test/unit/teamLanding.test.ts > snapshot-bound landing and recovery > rechecks holders at the final staged-file guard for undo",
+      "cause": "fixed full-profile test deadline/late cleanup; scoped suite passes"
+    },
+    {
+      "fileTest": "test/unit/teamLanding.test.ts > snapshot-bound landing and recovery > lands and undoes raw binary additions and deletions with executable modes",
+      "cause": "fixed full-profile test deadline/late cleanup; scoped suite passes"
+    },
+    {
+      "fileTest": "test/unit/teamLanding.test.ts > snapshot-bound landing and recovery > defers a known holder to a landing branch and Apply rebuilds from a fresh snapshot",
+      "cause": "fixed full-profile test deadline/late cleanup; scoped suite passes"
+    },
+    {
+      "fileTest": "test/unit/teamLanding.test.ts > snapshot-bound landing and recovery > defers a known holder to a landing branch and Apply rebuilds from a fresh snapshot",
+      "cause": "fixed full-profile test deadline/late cleanup; scoped suite passes"
+    },
+    {
+      "fileTest": "test/unit/teamLanding.test.ts > snapshot-bound landing and recovery > asks separately for Land without checks in every mode",
+      "cause": "fixed full-profile test deadline/late cleanup; scoped suite passes"
+    },
+    {
+      "fileTest": "test/unit/teamLanding.test.ts > snapshot-bound landing and recovery > rechecks bytes and target admission after the replacement file has been staged",
+      "cause": "fixed full-profile test deadline/late cleanup; scoped suite passes"
+    },
+    {
+      "fileTest": "test/unit/teamLanding.test.ts > snapshot-bound landing and recovery > reports the visible change from a lock-ignoring writer: checkout-index",
+      "cause": "fixed full-profile test deadline/late cleanup; scoped suite passes"
+    },
+    {
+      "fileTest": "test/unit/teamLanding.test.ts > snapshot-bound landing and recovery > reports the visible change from a lock-ignoring writer: clean",
+      "cause": "fixed full-profile test deadline/late cleanup; scoped suite passes"
+    },
+    {
+      "fileTest": "test/unit/teamLanding.test.ts > snapshot-bound landing and recovery > reports the visible change from a lock-ignoring writer: HEAD",
+      "cause": "fixed full-profile test deadline/late cleanup; scoped suite passes"
+    },
+    {
+      "fileTest": "test/unit/teamLanding.test.ts > snapshot-bound landing and recovery > reports the visible change from a lock-ignoring writer: linked-worktree",
+      "cause": "fixed full-profile test deadline/late cleanup; scoped suite passes"
+    },
+    {
+      "fileTest": "test/unit/teamLanding.test.ts > snapshot-bound landing and recovery > keeps a partial landing journal and lock, then Recover restores only matching bytes",
+      "cause": "fixed full-profile test deadline/late cleanup; scoped suite passes"
+    },
+    {
+      "fileTest": "test/unit/teamLanding.test.ts > snapshot-bound landing and recovery > requires owner authorization for recovery and Undo batch for shared files",
+      "cause": "fixed full-profile test deadline/late cleanup; scoped suite passes"
+    },
+    {
+      "fileTest": "test/unit/teamLanding.test.ts > snapshot-bound landing and recovery > rejects journal path escapes and revalidates targets after staging",
+      "cause": "fixed full-profile test deadline/late cleanup; scoped suite passes"
+    },
+    {
+      "fileTest": "test/unit/teamMergeBatchRepository.test.ts > cumulative batches on real repositories > checks actual merged files and lands the exact last passing tree: green",
+      "cause": "fixed full-profile test deadline; scoped suite passes"
+    },
+    {
+      "fileTest": "test/unit/teamMergeBatchRepository.test.ts > cumulative batches on real repositories > checks actual merged files and lands the exact last passing tree: culprit",
+      "cause": "fixed full-profile test deadline; scoped suite passes"
+    },
+    {
+      "fileTest": "test/unit/teamMergeBatchRepository.test.ts > cumulative batches on real repositories > checks actual merged files and lands the exact last passing tree: interaction",
+      "cause": "fixed full-profile test deadline; scoped suite passes"
+    },
+    {
+      "fileTest": "test/unit/teamMergeBatchRepository.test.ts > cumulative batches on real repositories > checks actual merged files and lands the exact last passing tree: dependency",
+      "cause": "fixed full-profile test deadline; scoped suite passes"
+    },
+    {
+      "fileTest": "test/unit/teamNativeLifetime.test.ts > M96 K real native lifetime > bounds the exit wait even when an owned primary does not acknowledge signals",
+      "cause": "exact production deadline checked with fake test clock; real ownership/signals/cleanup retained"
+    },
+    {
+      "fileTest": "test/unit/teamSchedulerRetire.test.ts > window-observed retirement > keeps the slot after its own child exits while a real detached descendant writes late",
+      "cause": "fixed full-profile test deadline; scoped suite passes"
+    },
+    {
+      "fileTest": "test/unit/webviewBundle.test.mjs > the production webview chunks (FIX78W) > counts a shared static chunk once and leaves dynamic imports outside startup",
+      "cause": "size fixture must include separately budgeted TeamUi entry"
+    }
+  ],
+  "note": "Grouped Vitest failure headers include two suite setup errors; shared stack traces are not independent assertions. No full-quality rerun or gate change."
+}

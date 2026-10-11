@@ -1,0 +1,242 @@
+[
+  {
+    "name": "review-feedback-scrub",
+    "file": "src/core/backends/musecode/feedback.ts",
+    "test": "test/unit/feedback.test.ts",
+    "exitCode": 1,
+    "sha256": "f6591b3cdd8b74eb322dbc0b3ee1581890b97631d040484f1ec4cdc54a7be82f",
+    "failures": [
+      "FAIL  test/unit/feedback.test.ts > Muse Code feedback: user choices before an injected receipt reader > scrubs a registered literal and an M84 credential pattern before dispatch",
+      "FAIL  test/unit/feedback.test.ts > Muse Code feedback: user choices before an injected receipt reader > refuses dispatch when scrubbing changes the approved preview"
+    ]
+  },
+  {
+    "name": "review-feedback-approved",
+    "file": "src/core/backends/musecode/feedback.ts",
+    "test": "test/unit/feedback.test.ts",
+    "exitCode": 1,
+    "sha256": "f6591b3cdd8b74eb322dbc0b3ee1581890b97631d040484f1ec4cdc54a7be82f",
+    "failures": [
+      "FAIL  test/unit/feedback.test.ts > Muse Code feedback: user choices before an injected receipt reader > refuses dispatch when scrubbing changes the approved preview"
+    ]
+  },
+  {
+    "name": "review-feedback-preview",
+    "file": "src/webview/components/FeedbackDialog.tsx",
+    "test": "test/unit/FeedbackDialog.test.tsx",
+    "exitCode": 1,
+    "sha256": "d18ff1be5ee79885c62e5efe2d20fef36fe225bde2f5731b610c8abc515bced7",
+    "failures": [
+      "FAIL  test/unit/FeedbackDialog.test.tsx > FeedbackDialog: disclosure consent > shows the scrubbed registered secret and M84 pattern before consent and sends that exact preview"
+    ]
+  },
+  {
+    "name": "review-feedback-host-literal",
+    "file": "src/core/backends/musecode/MuseCodeHost.ts",
+    "test": "test/unit/museCodeSdk142.test.ts",
+    "exitCode": 1,
+    "sha256": "60d46aae973cca368fbeaadd902cc0b4b09949fb25776168ceb02ee838493e55",
+    "failures": [
+      "FAIL  test/unit/museCodeSdk142.test.ts > Muse Code 1.4.2 feature ports > previews registered secrets and M84 patterns and dispatches exactly the approved note"
+    ]
+  },
+  {
+    "name": "review-feedback-host-approved",
+    "file": "src/core/backends/musecode/MuseCodeHost.ts",
+    "test": "test/unit/museCodeSdk142.test.ts",
+    "exitCode": 1,
+    "sha256": "60d46aae973cca368fbeaadd902cc0b4b09949fb25776168ceb02ee838493e55",
+    "failures": [
+      "FAIL  test/unit/museCodeSdk142.test.ts > Muse Code 1.4.2 feature ports > previews registered secrets and M84 patterns and dispatches exactly the approved note"
+    ]
+  },
+  {
+    "name": "review-observer-dispatch",
+    "file": "src/core/backends/musecode/MuseCodeHost.ts",
+    "test": "test/unit/museCodeSdk142.test.ts",
+    "exitCode": 1,
+    "sha256": "97514384ef04edd02004539e73f6c2992cd0d1b85878cdeb8895a258d0fed194",
+    "failures": [
+      "FAIL  test/unit/museCodeSdk142.test.ts > Muse Code 1.4.2 feature ports > isolates a throwing public observer from private deletion completion and session disposal",
+      "FAIL  test/unit/museCodeSdk142.test.ts > Muse Code 1.4.2 feature ports > isolates throwing History observers and continues delivering started lifecycle events"
+    ]
+  },
+  {
+    "name": "review-feedback-scrub",
+    "file": "src/core/backends/musecode/feedback.ts",
+    "test": "test/unit/feedback.test.ts",
+    "exitCode": 1,
+    "sha256": "f6591b3cdd8b74eb322dbc0b3ee1581890b97631d040484f1ec4cdc54a7be82f",
+    "failures": [
+      "FAIL  test/unit/feedback.test.ts > Muse Code feedback: user choices before an injected receipt reader > scrubs M84 patterns even without a host literal scrubber",
+      "FAIL  test/unit/feedback.test.ts > Muse Code feedback: user choices before an injected receipt reader > scrubs a registered literal and an M84 credential pattern before dispatch",
+      "FAIL  test/unit/feedback.test.ts > Muse Code feedback: user choices before an injected receipt reader > refuses dispatch when scrubbing changes the approved preview"
+    ]
+  },
+  {
+    "name": "review-feedback-approved",
+    "file": "src/core/backends/musecode/feedback.ts",
+    "test": "test/unit/feedback.test.ts",
+    "exitCode": 1,
+    "sha256": "f6591b3cdd8b74eb322dbc0b3ee1581890b97631d040484f1ec4cdc54a7be82f",
+    "failures": [
+      "FAIL  test/unit/feedback.test.ts > Muse Code feedback: user choices before an injected receipt reader > refuses dispatch when scrubbing changes the approved preview"
+    ]
+  },
+  {
+    "name": "review-feedback-preview",
+    "file": "src/webview/components/FeedbackDialog.tsx",
+    "test": "test/unit/FeedbackDialog.test.tsx",
+    "exitCode": 1,
+    "sha256": "02453ad430322db3a179e92850e204341493674d1d3d948de67e200c78d01829",
+    "failures": [
+      "FAIL  test/unit/FeedbackDialog.test.tsx > FeedbackDialog: disclosure consent > shows the scrubbed registered secret and M84 pattern before consent and sends that exact preview"
+    ]
+  },
+  {
+    "name": "review-feedback-host-literal",
+    "file": "src/core/backends/musecode/MuseCodeHost.ts",
+    "test": "test/unit/museCodeSdk142.test.ts",
+    "exitCode": 1,
+    "sha256": "97514384ef04edd02004539e73f6c2992cd0d1b85878cdeb8895a258d0fed194",
+    "failures": [
+      "FAIL  test/unit/museCodeSdk142.test.ts > Muse Code 1.4.2 feature ports > previews registered secrets and M84 patterns and dispatches exactly the approved note",
+      "FAIL  test/unit/museCodeSdk142.test.ts > Muse Code 1.4.2 feature ports > refuses a preview that became secret after approval instead of silently changing the payload"
+    ]
+  },
+  {
+    "name": "review-feedback-host-approved",
+    "file": "src/core/backends/musecode/MuseCodeHost.ts",
+    "test": "test/unit/museCodeSdk142.test.ts",
+    "exitCode": 1,
+    "sha256": "97514384ef04edd02004539e73f6c2992cd0d1b85878cdeb8895a258d0fed194",
+    "failures": [
+      "FAIL  test/unit/museCodeSdk142.test.ts > Muse Code 1.4.2 feature ports > previews registered secrets and M84 patterns and dispatches exactly the approved note",
+      "FAIL  test/unit/museCodeSdk142.test.ts > Muse Code 1.4.2 feature ports > refuses a preview that became secret after approval instead of silently changing the payload"
+    ]
+  },
+  {
+    "name": "review-feedback-readonly",
+    "file": "src/webview/components/FeedbackDialog.tsx",
+    "test": "test/unit/FeedbackDialog.test.tsx",
+    "exitCode": 1,
+    "sha256": "02453ad430322db3a179e92850e204341493674d1d3d948de67e200c78d01829",
+    "failures": [
+      "FAIL  test/unit/FeedbackDialog.test.tsx > FeedbackDialog: disclosure consent > shows the scrubbed registered secret and M84 pattern before consent and sends that exact preview"
+    ]
+  },
+  {
+    "name": "review-feedback-edit-preview",
+    "file": "src/webview/components/FeedbackDialog.tsx",
+    "test": "test/unit/FeedbackDialog.test.tsx",
+    "exitCode": 1,
+    "sha256": "02453ad430322db3a179e92850e204341493674d1d3d948de67e200c78d01829",
+    "failures": [
+      "FAIL  test/unit/FeedbackDialog.test.tsx > FeedbackDialog: disclosure consent > requires a new scrubbed preview after editing the approved note"
+    ]
+  },
+  {
+    "name": "review-feedback-shared-detector",
+    "file": "src/core/backends/musecode/feedback.ts",
+    "test": "test/unit/feedback.test.ts",
+    "exitCode": 1,
+    "sha256": "f6591b3cdd8b74eb322dbc0b3ee1581890b97631d040484f1ec4cdc54a7be82f",
+    "failures": [
+      "FAIL  test/unit/feedback.test.ts > Muse Code feedback: user choices before an injected receipt reader > scrubs M84 patterns even without a host literal scrubber"
+    ]
+  },
+  {
+    "name": "review-observer-dispatch",
+    "file": "src/core/backends/musecode/MuseCodeHost.ts",
+    "test": "test/unit/museCodeSdk142.test.ts",
+    "exitCode": 1,
+    "sha256": "97514384ef04edd02004539e73f6c2992cd0d1b85878cdeb8895a258d0fed194",
+    "failures": [
+      "FAIL  test/unit/museCodeSdk142.test.ts > Muse Code 1.4.2 feature ports > isolates a throwing public observer from private deletion completion and session disposal",
+      "FAIL  test/unit/museCodeSdk142.test.ts > Muse Code 1.4.2 feature ports > isolates throwing History observers and continues delivering started lifecycle events"
+    ]
+  },
+  {
+    "name": "review-private-terminal",
+    "file": "src/core/backends/musecode/MuseCodeHost.ts",
+    "test": "test/unit/museCodeSdk142.test.ts",
+    "exitCode": 1,
+    "sha256": "97514384ef04edd02004539e73f6c2992cd0d1b85878cdeb8895a258d0fed194",
+    "failures": [
+      "FAIL  test/unit/museCodeSdk142.test.ts > Muse Code 1.4.2 feature ports > isolates a throwing public observer from private deletion completion and session disposal"
+    ]
+  },
+  {
+    "name": "review-delete-disposal",
+    "file": "src/core/backends/musecode/MuseCodeHost.ts",
+    "test": "test/unit/museCodeSdk142.test.ts",
+    "exitCode": 1,
+    "sha256": "97514384ef04edd02004539e73f6c2992cd0d1b85878cdeb8895a258d0fed194",
+    "failures": [
+      "FAIL  test/unit/museCodeSdk142.test.ts > Muse Code 1.4.2 feature ports > arms deletion before admission and disposes the tracked session only on completed",
+      "FAIL  test/unit/museCodeSdk142.test.ts > Muse Code 1.4.2 feature ports > isolates a throwing public observer from private deletion completion and session disposal"
+    ]
+  },
+  {
+    "name": "review-delete-connection-close",
+    "file": "src/core/backends/musecode/MuseCodeHost.ts",
+    "test": "test/unit/museCodeSdk142.test.ts",
+    "exitCode": 1,
+    "sha256": "97514384ef04edd02004539e73f6c2992cd0d1b85878cdeb8895a258d0fed194",
+    "failures": [
+      "FAIL  test/unit/museCodeSdk142.test.ts > Muse Code 1.4.2 feature ports > rejects admitted deletion promptly on connection close without reporting the session deleted"
+    ]
+  },
+  {
+    "name": "review-delete-host-exit",
+    "file": "src/core/backends/musecode/MuseCodeHost.ts",
+    "test": "test/unit/museCodeSdk142.test.ts",
+    "exitCode": 1,
+    "sha256": "97514384ef04edd02004539e73f6c2992cd0d1b85878cdeb8895a258d0fed194",
+    "failures": [
+      "FAIL  test/unit/museCodeSdk142.test.ts > Muse Code 1.4.2 feature ports > rejects admitted deletion promptly on host exit without reporting the session deleted"
+    ]
+  },
+  {
+    "name": "review-delete-host-close",
+    "file": "src/core/backends/musecode/MuseCodeHost.ts",
+    "test": "test/unit/museCodeSdk142.test.ts",
+    "exitCode": 1,
+    "sha256": "97514384ef04edd02004539e73f6c2992cd0d1b85878cdeb8895a258d0fed194",
+    "failures": [
+      "FAIL  test/unit/museCodeSdk142.test.ts > Muse Code 1.4.2 feature ports > rejects admitted deletion promptly on host close without reporting the session deleted"
+    ]
+  },
+  {
+    "name": "review-delete-terminal-timeout",
+    "file": "src/core/backends/musecode/MuseCodeHost.ts",
+    "test": "test/unit/museCodeSdk142.test.ts",
+    "exitCode": 1,
+    "sha256": "97514384ef04edd02004539e73f6c2992cd0d1b85878cdeb8895a258d0fed194",
+    "failures": [
+      "FAIL  test/unit/museCodeSdk142.test.ts > Muse Code 1.4.2 feature ports > uses the named deletion terminal timeout, cleans up and leaves the session in History"
+    ]
+  },
+  {
+    "name": "review-delete-abort-cleanup",
+    "file": "src/core/backends/musecode/MuseCodeHost.ts",
+    "test": "test/unit/museCodeSdk142.test.ts",
+    "exitCode": 1,
+    "sha256": "97514384ef04edd02004539e73f6c2992cd0d1b85878cdeb8895a258d0fed194",
+    "failures": [
+      "FAIL  test/unit/museCodeSdk142.test.ts > Muse Code 1.4.2 feature ports > uses the named deletion terminal timeout, cleans up and leaves the session in History"
+    ]
+  },
+  {
+    "name": "review-delete-already-stopped",
+    "file": "src/core/backends/musecode/MuseCodeHost.ts",
+    "test": "test/unit/museCodeSdk142.test.ts",
+    "exitCode": 1,
+    "sha256": "97514384ef04edd02004539e73f6c2992cd0d1b85878cdeb8895a258d0fed194",
+    "failures": [
+      "FAIL  test/unit/museCodeSdk142.test.ts > Muse Code 1.4.2 feature ports > rejects admitted deletion promptly on connection close without reporting the session deleted",
+      "FAIL  test/unit/museCodeSdk142.test.ts > Muse Code 1.4.2 feature ports > rejects admitted deletion promptly on host exit without reporting the session deleted",
+      "FAIL  test/unit/museCodeSdk142.test.ts > Muse Code 1.4.2 feature ports > rejects admitted deletion promptly on host close without reporting the session deleted"
+    ]
+  }
+]

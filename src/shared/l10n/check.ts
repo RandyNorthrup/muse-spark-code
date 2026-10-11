@@ -11,6 +11,8 @@ const CODE_SPAN = /`/g
 const BOLD = /\*\*/g
 
 export interface CheckOptions {
+  /** Browser groups whose canonical text arrives with their first-use chunk. */
+  readonly deferredGroups?: readonly string[]
   /** The table's language: its plural categories come from `Intl.PluralRules`. */
   readonly locale: string
   /**
@@ -140,7 +142,10 @@ function groupProblems(
       problems.push(`${prefix}${name}: not in the English table`)
     }
   }
-  for (const [name, englishValue] of Object.entries(english)) {
+  const names = Object.keys(Object.getOwnPropertyDescriptors(english))
+  for (const name of names) {
+    if (prefix === '' && options.deferredGroups?.includes(name)) continue
+    const englishValue = english[name]
     const key = `${prefix}${name}`
     const value = table[name]
     if (value === undefined) {

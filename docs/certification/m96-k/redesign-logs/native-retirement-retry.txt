@@ -1,0 +1,31 @@
+npm notice run muse-spark-code@0.12.1 npx
+npm notice run 'vitest' run test/unit/teamNativeLifetime.test.ts --maxWorkers=3 --testTimeout=120000
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.2 /home/randy/lanes/REDM96K
+
+ ❯ test/unit/teamNativeLifetime.test.ts (18 tests | 1 failed) 8396ms
+   ❯ M96 K real native lifetime (18)
+     × reproves ownership and retries native retirement after transient EPERM 267ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/unit/teamNativeLifetime.test.ts > M96 K real native lifetime > reproves ownership and retries native retirement after transient EPERM
+Error: transient EPERM
+ ❯ test/unit/teamNativeLifetime.test.ts:612:48
+    610|         const signal = vi
+    611|           .spyOn(observer, 'signal')
+    612|           .mockRejectedValueOnce(Object.assign(new Error('transient EP…
+       |                                                ^
+    613|           .mockImplementation(original)
+    614|         const observed = vi.spyOn(observer, 'observe')
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 17 passed (18)
+   Start at  12:49:20
+   Duration  9.27s (tests 92%, transform 5%, import 2%, setup 1%)

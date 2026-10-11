@@ -1,0 +1,68 @@
+[
+  {
+    "name": "deferred-output",
+    "source": "test/unit/deferredBundles.test.ts",
+    "test": "test/unit/deferredBundles.test.ts",
+    "exit": 1,
+    "failedTests": 0,
+    "failedSuites": 1,
+    "seconds": 2.02,
+    "sha256": "53add1f9b915864f6cc7c703b72708f796c0f6415925dc4e2d13dd2e19e3920a",
+    "restoredExactly": true
+  },
+  {
+    "name": "darwin-refusal",
+    "source": "test/unit/pluginDispatch.test.ts",
+    "test": "test/unit/pluginDispatch.test.ts",
+    "exit": 1,
+    "failedTests": 1,
+    "failedSuites": 2,
+    "seconds": 8.06,
+    "sha256": "f56025d3425ef3025e493abfda9fe25031895261da0dbffe51e580c8b8206f50",
+    "restoredExactly": true
+  },
+  {
+    "name": "late-write",
+    "source": "test/unit/teamSchedulerRetire.test.ts",
+    "test": "test/unit/teamSchedulerRetire.test.ts",
+    "exit": 1,
+    "failedTests": 1,
+    "failedSuites": 2,
+    "seconds": 1.48,
+    "sha256": "f58e19cbf39dbde6a42b0fac8f977a904e99e94c43565b0affad405768a6029a",
+    "restoredExactly": true
+  },
+  {
+    "name": "mixed-credential",
+    "source": "native/runner/runner-helper.sh",
+    "test": "test/unit/sshRunner.test.ts",
+    "exit": 1,
+    "failedTests": 1,
+    "failedSuites": 3,
+    "seconds": 22.67,
+    "sha256": "2003e353651fcf8e6292c2a800627fcd987fdda07405085fa936bd9064fb8e0b",
+    "restoredExactly": true
+  },
+  {
+    "name": "mode-race",
+    "source": "src/host/team/stagingCopy.ts",
+    "test": "test/unit/teamStagingCopy.test.ts",
+    "exit": 1,
+    "failedTests": 1,
+    "failedSuites": 2,
+    "seconds": 5.25,
+    "sha256": "51e2f27c46dccb6daba37e7d6d0514f81de85b98d5fc482257a6d67461af2284",
+    "restoredExactly": true
+  },
+  {
+    "name": "uncertain-retirement",
+    "source": "src/core/team/scheduler/retire.ts",
+    "test": "test/unit/teamSchedulerRetire.test.ts",
+    "exit": 1,
+    "failedTests": 6,
+    "failedSuites": 2,
+    "seconds": 3.29,
+    "sha256": "63cfc75ca0362e57294796c974c36b222078ca6281bbf0dd3caecd8eb873116c",
+    "restoredExactly": true
+  }
+]

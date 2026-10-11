@@ -16,10 +16,16 @@ import {
 } from '../../../shared/constants'
 import { fill } from '../../../shared/l10n/text'
 import type { EditedFile, FileDiagnostics } from '../../verify/diagnosticsReport'
+import type { CheckRunRecord } from '../../reporting/sources/types'
 import { shellOutcome, type ShellResult } from './tools'
 
 /** What the host lends the verify loop; undefined leaves it out. */
 export interface VerifyHooks {
+  /** M113-H: the shared journal adapter captures HEAD before execution, never shell text. */
+  readonly checkRuns?: {
+    readonly commit: () => Promise<string>
+    readonly append: (record: CheckRunRecord) => Promise<void>
+  }
   /** `museSpark.diagnosticsAfterEdits`. */
   readonly isDiagnosticsOn: () => boolean
   /** `museSpark.checkCommands`, validated. */

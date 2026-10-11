@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 import { describe, expect, it } from 'vitest'
 
 import {
@@ -13,22 +14,20 @@ const CONTRIBUTOR = 'muse-spark-1.3-contributor'
 describe('tabWorstCaseUsd', () => {
   it('reserves input bytes plus the output cap at list price', () => {
     // 2 input bytes at $1.25 and 128 output tokens at $4.25 per million.
-    expect(tabWorstCaseUsd({ model: STANDARD, inputText: 'ab', maxOutputTokens: 128 })).toBeCloseTo(
-      0.0005465,
-      10,
-    )
+    expect(
+      Number(tabWorstCaseUsd({ model: STANDARD, inputText: 'ab', maxOutputTokens: 128 })),
+    ).toBeCloseTo(0.0005465, 10)
     // The contributor tier's own rates: 2 at $0.10, 128 at $0.20.
     expect(
-      tabWorstCaseUsd({ model: CONTRIBUTOR, inputText: 'ab', maxOutputTokens: 128 }),
+      Number(tabWorstCaseUsd({ model: CONTRIBUTOR, inputText: 'ab', maxOutputTokens: 128 })),
     ).toBeCloseTo(0.0000258, 10)
   })
 
   it('counts UTF-8 bytes, not characters', () => {
     // 'é' is one character but two bytes: 2 at $1.25, 16 at $4.25.
-    expect(tabWorstCaseUsd({ model: STANDARD, inputText: 'é', maxOutputTokens: 16 })).toBeCloseTo(
-      0.0000705,
-      10,
-    )
+    expect(
+      Number(tabWorstCaseUsd({ model: STANDARD, inputText: 'é', maxOutputTokens: 16 })),
+    ).toBeCloseTo(0.0000705, 10)
   })
 
   it('errs high against the settlement for the same usage', () => {
@@ -38,7 +37,7 @@ describe('tabWorstCaseUsd', () => {
       maxOutputTokens: 128,
     })
     const settled = tabSettleUsd({ inputTokens: 100, outputTokens: 20, cachedTokens: 90 }, STANDARD)
-    expect(worst).toBeGreaterThan(settled)
+    expect(Number(worst)).toBeGreaterThan(Number(settled))
   })
 })
 
@@ -46,17 +45,27 @@ describe('tabSettleUsd', () => {
   it('prices reported usage with cached tokens at the cached rate', () => {
     // 60 fresh at $1.25, 40 cached at $0.15, 10 output at $4.25.
     expect(
-      tabSettleUsd({ inputTokens: 100, outputTokens: 10, cachedTokens: 40 }, STANDARD),
+      Number(tabSettleUsd({ inputTokens: 100, outputTokens: 10, cachedTokens: 40 }, STANDARD)),
     ).toBeCloseTo(0.0001235, 10)
   })
 })
 
 describe('isWithinTabBudget', () => {
   it('fits exactly at the budget and refuses past it', () => {
-    expect(isWithinTabBudget({ spentTodayUsd: 0.5, worstCaseUsd: 0.5, budgetUsd: 1 })).toBe(true)
-    expect(isWithinTabBudget({ spentTodayUsd: 0.5, worstCaseUsd: 0.500001, budgetUsd: 1 })).toBe(
-      false,
-    )
+    expect(
+      isWithinTabBudget({
+        spentTodayUsd: Usd.from(0.5).toAmount(),
+        worstCaseUsd: Usd.from(0.5).toAmount(),
+        budgetUsd: Usd.from(1).toAmount(),
+      }),
+    ).toBe(true)
+    expect(
+      isWithinTabBudget({
+        spentTodayUsd: Usd.from(0.5).toAmount(),
+        worstCaseUsd: Usd.from(0.500001).toAmount(),
+        budgetUsd: Usd.from(1).toAmount(),
+      }),
+    ).toBe(false)
   })
 })
 

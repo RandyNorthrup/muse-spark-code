@@ -3,8 +3,11 @@ import { act, fireEvent, render, screen } from '@testing-library/react'
 import { lazy, useState, type ComponentType } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { retrySurface } from '../../src/webview/surfaceRetry'
+import { renderTranscript, tool } from './helpers/transcriptFixtures'
 
 vi.mock('../../src/webview/surfaceRetry', () => ({ retrySurface: vi.fn() }))
+const heldToolRow = vi.hoisted(() => Promise.withResolvers<never>())
+vi.mock('../../src/webview/components/ToolRow', () => heldToolRow.promise)
 import { UI_TEXT } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { deferred, DeferredSurface } from '../../src/webview/components/DeferredSurface'
@@ -46,7 +49,60 @@ function heldSurface(isModal = true) {
   return { pending, Loaded, Harness, mounted }
 }
 
+async function assertMissingRowChunk(
+  pending: { readonly promise: Promise<unknown>; readonly reject: (reason: Error) => void },
+  list: HTMLElement,
+) {
+  expect(screen.getByRole('status').closest('li')?.parentElement).toBe(list)
+  await act(async () => {
+    pending.reject(new Error('missing row chunk'))
+    try {
+      await pending.promise
+    } catch {
+      // The lazy boundary owns this rejected chunk and renders its failure.
+    }
+  })
+  expect(screen.getByRole('alert').closest('li')?.parentElement).toBe(list)
+  fireEvent.click(screen.getByRole('button', { name: UI_TEXT.surfaceLoadRetry }))
+  expect(retrySurface).toHaveBeenCalledOnce()
+}
+
 describe('deferred surfaces', () => {
+  it('keeps the actual transcript row accessible across a missing tool chunk', async () => {
+    const errorLog = vi.spyOn(console, 'error').mockImplementation(vi.fn())
+    try {
+      renderTranscript([tool({ status: 'inProgress' })])
+      const list = screen.getByRole('list', { name: UI_TEXT.transcriptLabel })
+      await assertMissingRowChunk(heldToolRow, list)
+    } finally {
+      errorLog.mockRestore()
+    }
+  })
+
+  it('keeps a deferred row a list item during loading, failure and retry', async () => {
+    const pending = Promise.withResolvers<{ default: ComponentType<{ value: string }> }>()
+    const Row = deferred(() => pending.promise)
+    const errorLog = vi.spyOn(console, 'error').mockImplementation(vi.fn())
+    try {
+      render(
+        <ol aria-label="Rows">
+          <Row value="row" asListItem keepFocus />
+        </ol>,
+      )
+      const list = screen.getByRole('list', { name: 'Rows' })
+      const escape = new KeyboardEvent('keydown', {
+        key: 'Escape',
+        bubbles: true,
+        cancelable: true,
+      })
+      list.dispatchEvent(escape)
+      expect(escape.defaultPrevented).toBe(false)
+      await assertMissingRowChunk(pending, list)
+    } finally {
+      errorLog.mockRestore()
+    }
+  })
+
   it.each([true, false])(
     'announces loading and closes on Escape before a late import (%s)',
     async (isModal) => {
@@ -143,7 +199,7 @@ it('loads on use, shows an honest failure and retries by reloading the document'
   const Surface = deferred(load)
   const onClose = vi.fn()
   const tree = (isOpen: boolean, value: string) =>
-    isOpen ? <Surface value={value} onClose={onClose} /> : <p>Chat</p>
+    isOpen ? <Surface className="review-comment" value={value} onClose={onClose} /> : <p>Chat</p>
   const view = render(tree(false, name))
   expect(load).not.toHaveBeenCalled()
   view.rerender(tree(true, name))
@@ -161,6 +217,7 @@ it('loads on use, shows an honest failure and retries by reloading the document'
       }
     })
     expect(screen.getByRole('alert')).toHaveTextContent(EN.surfaceLoadFailed)
+    expect(screen.getByRole('alert').parentElement).toHaveClass('review-comment')
     expect(screen.queryByText('chunk fetch failed')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: EN.surfaceLoadRetry }))
     expect(retrySurface).toHaveBeenCalledOnce()
@@ -237,21 +294,21 @@ it.each(['pointer', 'focus', 'Escape', 'navigation'])(
     const mounted = vi.fn()
     function LoadedMenu() {
       mounted()
-      return <button autoFocus>Copy response</button>
+      return <button autoFocus>Copy Response</button>
     }
     const Surface = deferred(() => held.promise)
     const onClose = vi.fn()
     const view = render(
       <>
-        <button>More actions</button>
+        <button>More Actions</button>
         <textarea aria-label="Composer" />
       </>,
     )
-    const trigger = screen.getByRole('button', { name: 'More actions' })
+    const trigger = screen.getByRole('button', { name: 'More Actions' })
     trigger.focus()
     view.rerender(
       <>
-        <button>More actions</button>
+        <button>More Actions</button>
         <textarea aria-label="Composer" />
         <Surface keepFocus onClose={onClose} />
       </>,
@@ -275,7 +332,7 @@ it.each(['pointer', 'focus', 'Escape', 'navigation'])(
       await held.promise
     })
     expect(mounted).not.toHaveBeenCalled()
-    expect(screen.queryByText('Copy response')).toBeNull()
+    expect(screen.queryByText('Copy Response')).toBeNull()
     expect(screen.queryByRole('status')).toBeNull()
     if (dismissal === 'pointer' || dismissal === 'focus')
       expect(document.activeElement).toBe(composer)
@@ -287,12 +344,12 @@ it('a failed nonmodal menu accepts Escape from Retry and returns focus to its tr
   const Surface = deferred(() => held.promise)
   const onClose = vi.fn()
   const errors = vi.spyOn(console, 'error').mockImplementation(vi.fn())
-  const view = render(<button>More actions</button>)
-  const trigger = screen.getByRole('button', { name: 'More actions' })
+  const view = render(<button>More Actions</button>)
+  const trigger = screen.getByRole('button', { name: 'More Actions' })
   trigger.focus()
   view.rerender(
     <>
-      <button>More actions</button>
+      <button>More Actions</button>
       <Surface keepFocus onClose={onClose} />
     </>,
   )

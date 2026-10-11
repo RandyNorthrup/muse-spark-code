@@ -16,6 +16,7 @@ import {
   GoalRefusedError,
   isGoalRefusedError,
 } from '../../src/core/agent/agentBackend'
+import type { SessionExport } from '../../src/core/export/sessionTransfer'
 import { ModelApiHost } from '../../src/core/backends/modelapi/ModelApiHost'
 import { ModelApiBackendManager } from '../../src/host/backend/modelApiBackendManager'
 import type { ModelApiBackendManagerDeps } from '../../src/host/backend/modelApiBackendManager'
@@ -23,7 +24,11 @@ import { loadUiTable } from '../../src/host/l10n'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import {
   GOAL_OBJECTIVE_MAX_CHARS,
+  CONVERSATION_MODEL_TEXT,
   MODEL_API_BUNDLE_FILE,
+  MODEL_API_IMPORT_MAX_REPLAY_BYTES,
+  SESSION_EXPORT_FORMAT,
+  SESSION_EXPORT_VERSION,
   UI_TEXT,
 } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
@@ -42,6 +47,22 @@ import { shellToolFor } from '../../src/core/backends/modelapi/tools'
 const ROOT = '/ws'
 const MODEL = 'muse-spark-1.3'
 const built = { folder: '', file: '' }
+const IMPORT_DOC: SessionExport = {
+  format: SESSION_EXPORT_FORMAT,
+  version: SESSION_EXPORT_VERSION,
+  exportedAt: '2026-10-06T00:00:00.000Z',
+  sourceBackend: 'modelApi',
+  redacted: true,
+  modelId: MODEL,
+  transcript: [
+    {
+      itemId: 'original',
+      kind: 'userMessage',
+      status: 'completed',
+      text: 'Untrusted imported history',
+    },
+  ],
+}
 
 beforeAll(async () => {
   // Node keys its module cache by real path: macOS's temporary folder is
@@ -104,6 +125,73 @@ afterAll(async () => {
 })
 
 describe('the Model API bundle (M57)', () => {
+  it('loads the import sanitizer on first import with the current language (FIXM106T budget)', async () => {
+    setUiText({ ...EN, importReplayTooLarge: 'IMPORT LIMIT {size} / {limit}' }, 'de')
+    const t = managerFor(built.file)
+    const nativeRequire = createRequire(built.file)
+    const runtime = path.join(built.folder, 'foreignHooksEntry.js')
+    expect(nativeRequire.cache[runtime]).toBeUndefined()
+    const host = await t.manager.ensureHost()
+    expect(nativeRequire.cache[runtime]).toBeUndefined()
+    const doc = IMPORT_DOC
+    const loaded = await host.importSession(doc, {
+      approvalMode: 'promptUnmatched',
+      modelId: MODEL,
+    })
+    expect(loaded.record.imported).toBe(true)
+    expect(loaded.history.items[0]?.itemId).not.toBe('original')
+    expect(nativeRequire.cache[runtime]).toBeDefined()
+    const count = host.sessionCount
+    await expect(
+      host.importSession(
+        {
+          ...doc,
+          transcript: [
+            {
+              ...doc.transcript[0],
+              itemId: 'large',
+              kind: 'userMessage',
+              status: 'completed',
+              text: 'x'.repeat(MODEL_API_IMPORT_MAX_REPLAY_BYTES),
+            },
+          ],
+        },
+        { approvalMode: 'promptUnmatched', modelId: MODEL },
+      ),
+    ).rejects.toThrow('IMPORT LIMIT')
+    expect(host.sessionCount).toBe(count)
+    expect(t.api.responseBodies()).toHaveLength(0)
+    const { turnDone } = watchSessionTurns(loaded.session)
+    t.api.script({ text: 'Checking the imported history.' })
+    await loaded.session.sendTurn([{ type: 'text', text: 'Continue' }])
+    await turnDone()
+    const replay = JSON.stringify(t.api.responseBodies()[0]?.['input'])
+    expect(replay).toContain(CONVERSATION_MODEL_TEXT.importedHistoryNote)
+    expect(replay).toContain(CONVERSATION_MODEL_TEXT.importedTurnLead)
+    expect(replay).toContain('Untrusted imported history')
+    await t.manager.dispose()
+  })
+
+  it('propagates missing or malformed import runtime failures without creating a session (FIXM106T budget)', async () => {
+    const folder = scratchFolder()
+    const file = path.join(folder, MODEL_API_BUNDLE_FILE)
+    copyBundleTo(file)
+    const t = managerFor(file)
+    const host = await t.manager.ensureHost()
+    const doc = IMPORT_DOC
+    const options = { approvalMode: 'promptUnmatched', modelId: MODEL } as const
+    await expect(host.importSession(doc, options)).rejects.toThrow()
+    expect(host.sessionCount).toBe(0)
+    writeFileSync(
+      path.join(folder, 'foreignHooksEntry.js'),
+      'module.exports = { sanitizeSessionImport: 1 }',
+    )
+    await expect(host.importSession(doc, options)).rejects.toThrow('Invalid session import export')
+    expect(host.sessionCount).toBe(0)
+    expect(t.api.responseBodies()).toHaveLength(0)
+    await t.manager.dispose()
+  })
+
   it('is required from its file and runs a turn on the fake Model API', async () => {
     const t = managerFor(built.file)
     const nativeRequire = createRequire(built.file)

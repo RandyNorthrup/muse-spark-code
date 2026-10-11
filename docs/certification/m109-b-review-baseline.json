@@ -1,0 +1,29 @@
+{
+  "base": "85632f515a0abd4050a3508d0a0ba710a9d46857",
+  "exitCode": 1,
+  "failedTests": [
+    "native authenticated broker channel P2-7 closing a private connection cancels presence and erases its pending material",
+    "RVM109B lifecycle regressions P1-1 disclosure cannot express a model or agent recipient",
+    "RVM109B lifecycle regressions P1-1 person disclosure requires fresh presence even on a non-presence item",
+    "RVM109B lifecycle regressions P1-2 an answer expiring during metadata validation caches no session consent",
+    "RVM109B lifecycle regressions P1-2 expiry during the ticket audit cannot cache session consent",
+    "RVM109B lifecycle regressions P1-3 item expiry is enforced at redemption",
+    "RVM109B lifecycle regressions P1-3 item expiry is enforced at release",
+    "RVM109B lifecycle regressions P1-3 grant expiry between redemption and material release denies the destination",
+    "RVM109B lifecycle regressions P1-4 a failed epoch write still defeats an in-flight unlock",
+    "RVM109B lifecycle regressions P1-5 revoke wipes every active use before termination can wait",
+    "RVM109B lifecycle regressions P1-5 revoke wipes every active use before termination can reject",
+    "RVM109B lifecycle regressions P1-5 a second material read is denied while the first termination is waiting",
+    "RVM109B lifecycle regressions P2-6 lock erases temporary unwrap and repository keys while open is pending",
+    "RVM109B lifecycle regressions P2-6 final epoch read failure locks the newly opened store",
+    "RVM109B lifecycle regressions P2-8 revoking A preserves B requesters and approvals",
+    "RVM109B lifecycle regressions P2-9 lock explicitly audits pending approvals and unused tickets",
+    "RVM109B lifecycle regressions P2-9 cancel explicitly audits pending approvals and unused tickets"
+  ],
+  "restoredSources": {
+    "src/shared/vault.ts": "9ba15feb506eb75551c32da5cf7ce80ffae142c842f2895c1c8dbb08325eede4",
+    "src/core/vault/broker/broker.ts": "4b01f0daa59f03558e622b536b18c9cda407f8e5a47a5a65e8c3b49a23f1a974",
+    "src/core/vault/broker/channel.ts": "efd31fb7bf95fd1ff88498ce606aafc945ebd01b6a3dd418e525b289598a06dd",
+    "src/core/vault/broker/queue.ts": "d342e6f852397e42a040067d5d1dab823f826fdbf183455daaf0b56ba02cf957"
+  }
+}

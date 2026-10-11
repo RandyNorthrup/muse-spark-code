@@ -4,6 +4,8 @@
 // answer rules (a plugin answer can only refuse, narrow or add context).
 // The RVM91X regressions are named by their finding (RVM91X-n).
 import { spawn } from 'node:child_process'
+import * as resources from '../../src/core/resources/admission'
+import type { ResourceLease } from '../../src/core/resources/launch'
 import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -19,20 +21,24 @@ import {
   runPluginHook,
   sanitizePluginAnswer,
 } from '../../src/core/backends/modelapi/pluginHost'
-import { PLUGIN_CHILD_MAX_MEMORY_BYTES } from '../../src/shared/constants'
+import {
+  PLUGIN_CHILD_MAX_MEMORY_BYTES,
+  PLUGIN_RESPONSE_MAX_BYTES,
+  PLUGIN_RUNTIME_PROBE_TIMEOUT_MS,
+} from '../../src/shared/constants'
 import { expectEnded } from './helpers/processes'
 
 interface FakeChild {
   readonly handle: PluginChildHandle
   readonly writes: string[]
   stdout(text: string | Buffer): void
-  close(): void
+  close(code?: number | null): void
   crash(): void
 }
 
 function fakeChild(): FakeChild {
   const writes: string[] = []
-  const closes: (() => void)[] = []
+  const closes: ((code?: number | null) => void)[] = []
   const errors: (() => void)[] = []
   const stdouts: ((chunk: Buffer) => void)[] = []
   const handle: PluginChildHandle = {
@@ -56,8 +62,8 @@ function fakeChild(): FakeChild {
     stdout: (text) => {
       for (const listener of stdouts) listener(Buffer.isBuffer(text) ? text : Buffer.from(text))
     },
-    close: () => {
-      for (const listener of closes) listener()
+    close: (code) => {
+      for (const listener of closes) listener(code)
     },
     crash: () => {
       for (const listener of errors) listener()
@@ -125,6 +131,112 @@ function runtimeDeps(version: () => Promise<string>): PluginRunDeps {
 }
 
 describe('resolvePluginRuntime refuses with a reason when absent', () => {
+  it('cancels session-owned runtime probe admission on disposal', async () => {
+    const held = Promise.withResolvers<ResourceLease | undefined>()
+    void held.promise.catch(() => undefined)
+    let signal: AbortSignal | undefined
+    const admission = vi
+      .spyOn(resources, 'admitResource')
+      .mockImplementation((_kind, currentSignal) => {
+        signal = currentSignal
+        return held.promise
+      })
+    const child = fakeChild()
+    const tree = fakeTree(child)
+    const session = new PluginSession(fakeDeps(tree, { runVersion: undefined }))
+    const pending = session.run(call())
+    try {
+      await spawned()
+      session.dispose()
+      expect(signal?.aborted).toBe(true)
+      expect(tree.spawned).toHaveLength(0)
+      held.reject(new Error('Probe admission cancelled'))
+      expect(await pending).toMatchObject({ status: 'failed' })
+    } finally {
+      session.dispose()
+      held.reject(new Error('Probe admission cancelled'))
+      await pending
+      admission.mockRestore()
+    }
+  })
+
+  it.each(['cancelled', 'failed', 'oversized', 'nonzero', 'timed out'] as const)(
+    'ends a default runtime probe that is %s',
+    async (failure) => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+      const admission = vi.spyOn(resources, 'admitResource').mockResolvedValue(undefined)
+      const child = fakeChild()
+      const tree = fakeTree(child)
+      const stop = new AbortController()
+      try {
+        const pending = resolvePluginRuntime(
+          'amp',
+          { env: FAKE_ENV, platform: 'linux', fileExists: () => true, processTree: tree },
+          stop.signal,
+        )
+        await spawned()
+        child.stdout('v24.0.0\n')
+        switch (failure) {
+          case 'cancelled': {
+            stop.abort()
+            break
+          }
+          case 'failed': {
+            child.crash()
+            break
+          }
+          case 'oversized': {
+            child.stdout(Buffer.alloc(PLUGIN_RESPONSE_MAX_BYTES + 1))
+            break
+          }
+          case 'nonzero': {
+            child.close(1)
+            break
+          }
+          default: {
+            await vi.advanceTimersByTimeAsync(PLUGIN_RUNTIME_PROBE_TIMEOUT_MS)
+          }
+        }
+        expect(await pending).toMatchObject({ ok: false })
+        expect(tree.killed).toEqual([child.handle])
+      } finally {
+        stop.abort()
+        admission.mockRestore()
+        vi.useRealTimers()
+      }
+    },
+  )
+
+  it('governs the default runtime version probe through the registered process tree', async () => {
+    const lease: ResourceLease = { register: vi.fn(), complete: vi.fn(), background: vi.fn() }
+    const held = Promise.withResolvers<ResourceLease>()
+    const admission = vi.spyOn(resources, 'admitResource').mockReturnValue(held.promise)
+    const child = fakeChild()
+    const tree = fakeTree(child)
+    const launch = vi.spyOn(tree, 'spawn')
+    try {
+      const pending = resolvePluginRuntime('amp', {
+        env: FAKE_ENV,
+        platform: 'linux',
+        fileExists: () => true,
+        processTree: tree,
+      })
+      expect(admission).toHaveBeenCalledWith('hook', undefined)
+      expect(tree.spawned).toHaveLength(0)
+      held.resolve(lease)
+      await spawned()
+      expect(launch).toHaveBeenCalledWith(
+        '/usr/bin/node',
+        ['--version'],
+        expect.objectContaining({ resource: lease, env: FAKE_ENV }),
+      )
+      child.stdout('v24.0.0\n')
+      child.close()
+      expect(await pending).toMatchObject({ ok: true })
+    } finally {
+      admission.mockRestore()
+    }
+  })
   it('amp needs system node >= 22.18', async () => {
     await expect(
       resolvePluginRuntime(

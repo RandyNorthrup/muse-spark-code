@@ -58,6 +58,9 @@ export function acpMspHost(
       normalMs: COMMAND_TIMEOUT_MS,
       longMs: COMMAND_TIMEOUT_MS,
     },
+    undefined,
+    undefined,
+    undefined,
     () => ({ hardwareSessionLatched: false, ...hardwareContext() }),
   )
   const { server } = handle

@@ -1,0 +1,3622 @@
+{
+  "version": 1,
+  "status": "baseline-and-drill-complete-full-replay-unqualified",
+  "review": "VIS0171-0.17.1-labels-provider-notes-2026-10-10",
+  "sourceRevision": "f8db72798c498dff30f70b83375b2098e202f976",
+  "previousRevision": "fb7a3f005b32756f98280988725e0edf0396b424",
+  "previousManifestSha256": "e314783f2e7bcd2d95ecd83327e9e9142fe3fe66ae71a0418524fb118c4fed50",
+  "browser": "153.0.8010.52",
+  "platform": "linux",
+  "rasterization": "a8de1ddfb6e62687899116825ad89f19166af18efdb086980f1c0e365c739033",
+  "captures": 9792,
+  "reviewedChangedFrames": 8640,
+  "stateCoverageDifferences": 0,
+  "widths": [320, 690],
+  "states": ["default", "hover", "focus-visible", "pressed", "disabled", "selected"],
+  "classes": {
+    "labelOnly": 116,
+    "labelsAndProviderPicker": 1,
+    "releaseNotes": 3
+  },
+  "scenes": [
+    {
+      "scene": "account-usage",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "accounts-dialog",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "accounts-edit",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "accounts-section",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "accounts-swap",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "accounts-thresholds",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "agents-details",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "agents-result",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "bestofn",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "board",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "chat-sharing",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "chat-tool-menu-narrow",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "context-meter-full",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "context-meter-warning",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "crash",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "developer-options",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "diff-tally",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "elicitation-narrow",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "empty",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "estimator-result",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "git-pr-narrow",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "goal",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "goal-edit",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "handoff",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "help-narrow",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "history-archived",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "judge-narrow",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "legal",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "long-patch",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "markdown",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "media-controls",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "mention",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "models",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "models-configure",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "models-credential",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "models-errors",
+      "classification": "a+c",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "models-models",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "models-pick",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "models-providers",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "models-scanning",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "models-suggestions",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "models-table",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "models-test-cost",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "models-undo",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "modes",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "muse-shell",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "muse-tools",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "muse-workflow",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "muse-workflow-map",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "paid",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "paid-always",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "paid-image",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "paid-usage",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "palette",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "plan-usage",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "playbook-map",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "playbook-notes",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "playbook-status",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "prompt-library",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "question",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "question-filled",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "questions-chip",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "questions-open",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "quote-menu",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "report",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "report-destinations",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "report-narrow",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "reporting-page",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "resource-controls",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "resource-history",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "resource-task",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "review-comment",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "review-findings",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "review-pane-narrow",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "schedule-report-action",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "schedule-settlements",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "schedules-narrow",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "schedules-v2-editor",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "schedules-v2-list",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "schedules-v2-timeline",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "secret",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "setup-preview",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "share-narrow",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "signin-error",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "signin-install",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "slash-commands",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "stop-running",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "tasks-tab",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "team-cards",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "team-tree",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "todo",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "tools-open",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "traffic-conflicts",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "traffic-lanes",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "traffic-leases",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "traffic-mergeQueue",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "traffic-metrics",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "usage",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "usage-api",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "usage-attempts",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "usage-breakdown",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "usage-burn",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "usage-detail",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "usage-features",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "usage-limits",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "usage-page-empty",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "usage-page-nine-providers",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "usage-providers",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "usage-savings",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "usage-share",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "usage-stacked",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "usage-steps",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "usage-tokens",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "vault-approval",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "vault-grant",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "vault-panel",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "verify",
+      "classification": "a",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "whats-new",
+      "classification": "b'",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "whats-new-footer",
+      "classification": "b'",
+      "frames": 72,
+      "approved": true
+    },
+    {
+      "scene": "whats-new-highlights",
+      "classification": "b'",
+      "frames": 72,
+      "approved": true
+    }
+  ],
+  "reviewMethod": "Every changed frame is indexed to native-width before/after pixel-delta regions, with exact pixel-pair deduplication. All unique regions were inspected for labels, prose, clipping and overlap. Full-frame overview coverage was inspected separately for layout; focused full question and release-note frames were also reviewed.",
+  "reviewRoot": "/var/tmp/l-VIS0171/vis0171-frame-review",
+  "evidence": [
+    {
+      "theme": "light",
+      "frames": 1440,
+      "uniqueRegions": 1105,
+      "metadata": {
+        "file": "/var/tmp/l-VIS0171/vis0171-frame-review/delta-light.json",
+        "sha256": "f7c96395a52f8c68a11d901f44ba94439ca3c231ea26bad4ed8da6396b854859"
+      },
+      "sheets": [
+        {
+          "file": "delta-light-00.png",
+          "sha256": "47828a772f6f7de97c618a0fa4ca323471f666bfbb958963a27ff8d15561de05",
+          "width": 1440,
+          "height": 1600,
+          "regions": 26
+        },
+        {
+          "file": "delta-light-01.png",
+          "sha256": "7776f6e5e012a4c27def6083d1b0e1a73f92fb16038e51d7ccab023fdc2b1de6",
+          "width": 1440,
+          "height": 1600,
+          "regions": 2
+        },
+        {
+          "file": "delta-light-02.png",
+          "sha256": "cca28bfebb9bf3cb3d154ac99c7fd6acf34c1f6cfbda5bd4504ac49118c780c6",
+          "width": 1440,
+          "height": 1600,
+          "regions": 18
+        },
+        {
+          "file": "delta-light-03.png",
+          "sha256": "8d74619086d7dab084dada84ba168917e280b6496e8fd1b37a27bbe63e6c4410",
+          "width": 1440,
+          "height": 1600,
+          "regions": 12
+        },
+        {
+          "file": "delta-light-04.png",
+          "sha256": "39b2f003cfaaa9db6c5f8216fb1d96e2b4018e0092d1884ac772b1b4e874b413",
+          "width": 1440,
+          "height": 1600,
+          "regions": 28
+        },
+        {
+          "file": "delta-light-05.png",
+          "sha256": "6165b54bd755fb1f7a0895bfb75df48077be9b358c00d8bd598a48d07b7bc1b3",
+          "width": 1440,
+          "height": 1600,
+          "regions": 25
+        },
+        {
+          "file": "delta-light-06.png",
+          "sha256": "d212dbc9e8cdeb6695bcb586640f675edb07c295bdea03d43c6732937c35dec6",
+          "width": 1440,
+          "height": 1600,
+          "regions": 21
+        },
+        {
+          "file": "delta-light-07.png",
+          "sha256": "1934f8392f0dd28f21828e452b3ad1260906c0ff53a8d51bfedbbcd4129c4be4",
+          "width": 1440,
+          "height": 1600,
+          "regions": 21
+        },
+        {
+          "file": "delta-light-08.png",
+          "sha256": "1be5ed74c18d3bbff9b642723797ccbc6522abe5edd6a0c89e9268e2fb355fe8",
+          "width": 1440,
+          "height": 1600,
+          "regions": 31
+        },
+        {
+          "file": "delta-light-09.png",
+          "sha256": "2baf6f679c196f725caee5e9f461ea196b09ef273d87251245123fbd1111d0b4",
+          "width": 1440,
+          "height": 1600,
+          "regions": 28
+        },
+        {
+          "file": "delta-light-10.png",
+          "sha256": "99ab19a43b1c91b918647c5311230dcea191dbcdb361d3251af4a34b0a167ddd",
+          "width": 1440,
+          "height": 1600,
+          "regions": 18
+        },
+        {
+          "file": "delta-light-11.png",
+          "sha256": "405073fb9fe782c62dc5708840cbc2b5b3e5605e523f3eb5ae28ce02cab2806f",
+          "width": 1440,
+          "height": 1600,
+          "regions": 26
+        },
+        {
+          "file": "delta-light-12.png",
+          "sha256": "1c622e91afcbcdb5b18aa3aac2ab6a27ffce46085b1ca7b5f49b7d02c16bf204",
+          "width": 1440,
+          "height": 1600,
+          "regions": 24
+        },
+        {
+          "file": "delta-light-13.png",
+          "sha256": "5ec189969454774b5be5efb275ef6b9d52345e07b6baa66af217b714df75d52c",
+          "width": 1440,
+          "height": 1600,
+          "regions": 23
+        },
+        {
+          "file": "delta-light-14.png",
+          "sha256": "2251e2ee9cc82892e48ee945012305777e9efbb4306d4303d19efe8fd43d1e3a",
+          "width": 1440,
+          "height": 1600,
+          "regions": 30
+        },
+        {
+          "file": "delta-light-15.png",
+          "sha256": "29f2e2f2120739e634e400f78166babdf6c645afbfb10051054cf1acd96f3241",
+          "width": 1440,
+          "height": 1600,
+          "regions": 31
+        },
+        {
+          "file": "delta-light-16.png",
+          "sha256": "17f86a7a0c9991e62bc050c9a97715691468d2a99e6924aa11f230894f677015",
+          "width": 1440,
+          "height": 1600,
+          "regions": 27
+        },
+        {
+          "file": "delta-light-17.png",
+          "sha256": "15438f23b47221d11df1a5e721ae31a45689afb4c118f7ea3ebe9d2557117831",
+          "width": 1440,
+          "height": 1600,
+          "regions": 26
+        },
+        {
+          "file": "delta-light-18.png",
+          "sha256": "2b82fec55038022421c9ad0e79c1db6f6d73748a38c7cd31b3efa764127a180b",
+          "width": 1440,
+          "height": 1600,
+          "regions": 16
+        },
+        {
+          "file": "delta-light-19.png",
+          "sha256": "64b6c1df138e7fcc1e4510837a34954ac0a2d34c7b444fa0c902fc2195ccc812",
+          "width": 1440,
+          "height": 1600,
+          "regions": 4
+        },
+        {
+          "file": "delta-light-20.png",
+          "sha256": "e55c4c8df494309fdbd1ed92c99a71ea838c89ba974a1e1eb5a863cff541a1c5",
+          "width": 1440,
+          "height": 1600,
+          "regions": 8
+        },
+        {
+          "file": "delta-light-21.png",
+          "sha256": "d8adca964a4d14a9bd81ef9ce7ffb7390e8f0e480a7e8d8adb0ee60ad753ff77",
+          "width": 1440,
+          "height": 1600,
+          "regions": 17
+        },
+        {
+          "file": "delta-light-22.png",
+          "sha256": "ead683e59765b628e24992988c7bae66abadc0db7c255b6d43d34905b14e6aa2",
+          "width": 1440,
+          "height": 1600,
+          "regions": 26
+        },
+        {
+          "file": "delta-light-23.png",
+          "sha256": "50e82df2ee490c29a2fe34fd0bdf89eb604570e68eed007b5605778b86c088be",
+          "width": 1440,
+          "height": 1600,
+          "regions": 27
+        },
+        {
+          "file": "delta-light-24.png",
+          "sha256": "cb760fab3adc2a451837cbfd8fb150695bd6f4918e5d5120b6791952e5633c01",
+          "width": 1440,
+          "height": 1600,
+          "regions": 20
+        },
+        {
+          "file": "delta-light-25.png",
+          "sha256": "88a97b0a5eb9aedc4911b3db847fdd36eb8d8a26621230e9022bc21eddc6413d",
+          "width": 1440,
+          "height": 1600,
+          "regions": 21
+        },
+        {
+          "file": "delta-light-26.png",
+          "sha256": "e7b5ecd0337f7c80bfaa990e5e7e2bf3ba3b4c4570a29d86c592eb6178bb3b49",
+          "width": 1440,
+          "height": 1600,
+          "regions": 29
+        },
+        {
+          "file": "delta-light-27.png",
+          "sha256": "b722cc8f4bd4bbe3c93a0852374910be70fa908c0a479333afb6975f26319f17",
+          "width": 1440,
+          "height": 1600,
+          "regions": 21
+        },
+        {
+          "file": "delta-light-28.png",
+          "sha256": "3dd377ee6d97d3d49942168e35b0dd2b806de747c4e7eec251751bcf03df43b0",
+          "width": 1440,
+          "height": 1600,
+          "regions": 27
+        },
+        {
+          "file": "delta-light-29.png",
+          "sha256": "d86d2ec133c85d98c78996cd8be48fa660b1b5eee69ed9634f2dffdeab875aeb",
+          "width": 1440,
+          "height": 1600,
+          "regions": 27
+        },
+        {
+          "file": "delta-light-30.png",
+          "sha256": "78b1d2f366350297fc38e66da52042b17be52979f7d4ef0093f64214f013e20e",
+          "width": 1440,
+          "height": 1600,
+          "regions": 28
+        },
+        {
+          "file": "delta-light-31.png",
+          "sha256": "3ae8890c3799ee1b32302e705b1b9eaeb95302165c8b3a045591bb0751754189",
+          "width": 1440,
+          "height": 1600,
+          "regions": 19
+        },
+        {
+          "file": "delta-light-32.png",
+          "sha256": "2ad8ad2564c40f82657f4e61f190f0273c57731ce2db993ca2382ce157b40cf5",
+          "width": 1440,
+          "height": 1600,
+          "regions": 18
+        },
+        {
+          "file": "delta-light-33.png",
+          "sha256": "957f211f819880d0cb0540ee7fdcfb783e6b7c25dc5297443c496c8a3a31b862",
+          "width": 1440,
+          "height": 1600,
+          "regions": 30
+        },
+        {
+          "file": "delta-light-34.png",
+          "sha256": "b45f187f4ab1fda2a4884ecc5543e245ca09e7adc322e67a4a1a7670098fc09b",
+          "width": 1440,
+          "height": 1600,
+          "regions": 16
+        },
+        {
+          "file": "delta-light-35.png",
+          "sha256": "499358461cbdac42f929c644ded0405d956ad2472c7392469d251933114944d8",
+          "width": 1440,
+          "height": 1600,
+          "regions": 24
+        },
+        {
+          "file": "delta-light-36.png",
+          "sha256": "6d551b682da266f67f7b4034d59c80ac53ab6ce77d73a66d4aacbe63e7949a23",
+          "width": 1440,
+          "height": 1600,
+          "regions": 26
+        },
+        {
+          "file": "delta-light-37.png",
+          "sha256": "c55f831bb76d2fd97ad421b42e692727169668065c0c3c7877d848599972cc4e",
+          "width": 1440,
+          "height": 1600,
+          "regions": 24
+        },
+        {
+          "file": "delta-light-38.png",
+          "sha256": "f3b16902fb4d6a581f9a5527b9e7976d080995077461ae399ea09e30a4f1caa2",
+          "width": 1440,
+          "height": 1600,
+          "regions": 29
+        },
+        {
+          "file": "delta-light-39.png",
+          "sha256": "7a6843698dcc6e7e915fa25bfa0e19090a7115efd5c98be2466f9ea06fd27490",
+          "width": 1440,
+          "height": 1600,
+          "regions": 29
+        },
+        {
+          "file": "delta-light-40.png",
+          "sha256": "3593daafcfb7a323642971532af2c00049097e0d80609c3c5bfc280fc8b0f0d1",
+          "width": 1440,
+          "height": 1600,
+          "regions": 28
+        },
+        {
+          "file": "delta-light-41.png",
+          "sha256": "5ddf1a6a3b95732f0a0dbc1fc0b02ee3338f288c36a0a9026e360838afed9b5e",
+          "width": 1440,
+          "height": 1600,
+          "regions": 28
+        },
+        {
+          "file": "delta-light-42.png",
+          "sha256": "ae9fc6a959e96f2f439f76dbd08f235f3cf4789663229f201ea3c9ef2a30f3ed",
+          "width": 1440,
+          "height": 1600,
+          "regions": 28
+        },
+        {
+          "file": "delta-light-43.png",
+          "sha256": "7bab80d0d264d6e8b938c24ec990dccaa40af114efee74bf806da19402710f39",
+          "width": 1440,
+          "height": 1600,
+          "regions": 18
+        },
+        {
+          "file": "delta-light-44.png",
+          "sha256": "fbbaf9a4fb1b8cd72d75edf3ae42f65b51d5487633438dd690b9dbc5ab81a5b1",
+          "width": 1440,
+          "height": 1600,
+          "regions": 21
+        },
+        {
+          "file": "delta-light-45.png",
+          "sha256": "0204ea3e35ed2cc1482e668c7e58ba0125ef1d7ec273e85c973af686babcb89e",
+          "width": 1440,
+          "height": 1600,
+          "regions": 26
+        },
+        {
+          "file": "delta-light-46.png",
+          "sha256": "8ef02bebd6ce76a1f7303f76e5b3f3bc4af5b60c9ffa61ba1f41e13a5f42734b",
+          "width": 1440,
+          "height": 1600,
+          "regions": 25
+        },
+        {
+          "file": "delta-light-47.png",
+          "sha256": "48e5e68441a063360e66643b1fad62acc9b2e073e26373a6bf067c52b082dc51",
+          "width": 1440,
+          "height": 1600,
+          "regions": 21
+        },
+        {
+          "file": "delta-light-48.png",
+          "sha256": "3bd8e11c9778f8dc1ce51642d30d3b62685d3eb013d2ad5b5e562987d1a82ebd",
+          "width": 1440,
+          "height": 1600,
+          "regions": 7
+        }
+      ]
+    },
+    {
+      "theme": "dark",
+      "frames": 1440,
+      "uniqueRegions": 1085,
+      "metadata": {
+        "file": "/var/tmp/l-VIS0171/vis0171-frame-review/delta-dark.json",
+        "sha256": "0ba02fe0b7e55892eb51c0105c4326c8ce46298a5b70d271f7b3a999394ed356"
+      },
+      "sheets": [
+        {
+          "file": "delta-dark-00.png",
+          "sha256": "37904dfe4c2b78ca7e0c3772195faca196e41ec6147629513ae9e352490bbb01",
+          "width": 1440,
+          "height": 1600,
+          "regions": 26
+        },
+        {
+          "file": "delta-dark-01.png",
+          "sha256": "c1d720db1b87071ae488156039ba27f44d184eece12f3e759e782cd89c5d64f7",
+          "width": 1440,
+          "height": 1600,
+          "regions": 2
+        },
+        {
+          "file": "delta-dark-02.png",
+          "sha256": "817f5f0aacaf6a687237b653023639a77cece09f1435d56811ef0f267617a796",
+          "width": 1440,
+          "height": 1600,
+          "regions": 17
+        },
+        {
+          "file": "delta-dark-03.png",
+          "sha256": "f259cc0a196ec30aff951f37f7a3f049d7b13b7982dae7441f05f7d90d97dd9f",
+          "width": 1440,
+          "height": 1600,
+          "regions": 12
+        },
+        {
+          "file": "delta-dark-04.png",
+          "sha256": "32ebfb77d45b45aed3b46d5013372181dd8e1425fdbe31966f5e8aae4872ee8e",
+          "width": 1440,
+          "height": 1600,
+          "regions": 27
+        },
+        {
+          "file": "delta-dark-05.png",
+          "sha256": "fdeab8c6617f9edc8e803ab656e8f90677e658985fb05e32b2d3afb6a9744e48",
+          "width": 1440,
+          "height": 1600,
+          "regions": 23
+        },
+        {
+          "file": "delta-dark-06.png",
+          "sha256": "d5f2835831922210854ab088368f2613460f27c2248ee4727d3797c9b12d49e8",
+          "width": 1440,
+          "height": 1600,
+          "regions": 20
+        },
+        {
+          "file": "delta-dark-07.png",
+          "sha256": "8b4005d6fc95ba506ed4ffc3a07a0090243bcd772553685c765012ef4f3551c4",
+          "width": 1440,
+          "height": 1600,
+          "regions": 16
+        },
+        {
+          "file": "delta-dark-08.png",
+          "sha256": "d838204b5713672d9341230b1b1a1d42ab1a4028e8de6f9f5ba2d7fbca84004d",
+          "width": 1440,
+          "height": 1600,
+          "regions": 30
+        },
+        {
+          "file": "delta-dark-09.png",
+          "sha256": "2a6f19ed0ac52cc9def835489c0b764c460d91cd16573d16ef2369d273999966",
+          "width": 1440,
+          "height": 1600,
+          "regions": 26
+        },
+        {
+          "file": "delta-dark-10.png",
+          "sha256": "656e80d5e4b67f973ae70574228931542073cce616c27a41e2cc0c8d966e7858",
+          "width": 1440,
+          "height": 1600,
+          "regions": 20
+        },
+        {
+          "file": "delta-dark-11.png",
+          "sha256": "672a5384df62b252e15fc66192b2b6fd653c0e8bf8b4ccf6cb1abdd8e0c8d8ff",
+          "width": 1440,
+          "height": 1600,
+          "regions": 26
+        },
+        {
+          "file": "delta-dark-12.png",
+          "sha256": "23086998a55ca9a66d01f5130bf17a52e2873302cf36d120103e76f723f9c0d5",
+          "width": 1440,
+          "height": 1600,
+          "regions": 29
+        },
+        {
+          "file": "delta-dark-13.png",
+          "sha256": "8f65547daa3cda93444757c29c95c654709c3d530c44e045cf7f8409e4cec0ac",
+          "width": 1440,
+          "height": 1600,
+          "regions": 24
+        },
+        {
+          "file": "delta-dark-14.png",
+          "sha256": "c669f2d9fded40ad4036af8e175a1a206b47d433f75aa440b1b179a3e35d464e",
+          "width": 1440,
+          "height": 1600,
+          "regions": 32
+        },
+        {
+          "file": "delta-dark-15.png",
+          "sha256": "294467c513776484ea2c1a35a78b3dad981341b76877aefcaf6b3af6cb6bd533",
+          "width": 1440,
+          "height": 1600,
+          "regions": 29
+        },
+        {
+          "file": "delta-dark-16.png",
+          "sha256": "3dd0d8fc94fdf012128065c74bfc5e632e84ca6cbb2e6e5f5f911a9e54d8b3b6",
+          "width": 1440,
+          "height": 1600,
+          "regions": 30
+        },
+        {
+          "file": "delta-dark-17.png",
+          "sha256": "fdaeff6a265e26b365cc78058d56d099846b16bba6f6923d516392928c25c62c",
+          "width": 1440,
+          "height": 1600,
+          "regions": 23
+        },
+        {
+          "file": "delta-dark-18.png",
+          "sha256": "cee80481d0781f1aaad87115f7dc8dc221d8eb2d1b734e5ea1aacb93521c67a9",
+          "width": 1440,
+          "height": 1600,
+          "regions": 6
+        },
+        {
+          "file": "delta-dark-19.png",
+          "sha256": "806582a36e479c66c123fb6a0d7412e12fec7dbde12e4d288391dd64a055d21d",
+          "width": 1440,
+          "height": 1600,
+          "regions": 8
+        },
+        {
+          "file": "delta-dark-20.png",
+          "sha256": "22ecd6ec2dc1cff265405c639337c34f9c9f52b68af7fa4b71d492084c87b3a9",
+          "width": 1440,
+          "height": 1600,
+          "regions": 17
+        },
+        {
+          "file": "delta-dark-21.png",
+          "sha256": "bf7cd6d8f7748aa9d247b171733ce131812d9d7f314f8fb0808ec5068f958d73",
+          "width": 1440,
+          "height": 1600,
+          "regions": 27
+        },
+        {
+          "file": "delta-dark-22.png",
+          "sha256": "38deaed29132a32194659cd3238d2af3d6c8e84cbb0cc86401affb4aa693deb6",
+          "width": 1440,
+          "height": 1600,
+          "regions": 27
+        },
+        {
+          "file": "delta-dark-23.png",
+          "sha256": "f8b401d850cd293fb0eeeda004c48ce1d7ae883f2d894df27884f1565a59d72e",
+          "width": 1440,
+          "height": 1600,
+          "regions": 21
+        },
+        {
+          "file": "delta-dark-24.png",
+          "sha256": "9cdd345c43d3d4756c18dda66d7ecf6b1fa66694d5cf7799f8082d0824e0847c",
+          "width": 1440,
+          "height": 1600,
+          "regions": 24
+        },
+        {
+          "file": "delta-dark-25.png",
+          "sha256": "ba5b870a54250f398d7b9b8d3caa724fcba059584580082c149b0131b4b205c4",
+          "width": 1440,
+          "height": 1600,
+          "regions": 29
+        },
+        {
+          "file": "delta-dark-26.png",
+          "sha256": "f39c8fb16bb201c58f3926d07e1fea0eb359bacf4a920d816c409a4c911dd2f0",
+          "width": 1440,
+          "height": 1600,
+          "regions": 21
+        },
+        {
+          "file": "delta-dark-27.png",
+          "sha256": "2d582419884f4839abc748e33b70ccf2bbb2a62f243d746dd28fc93d92f4eb90",
+          "width": 1440,
+          "height": 1600,
+          "regions": 28
+        },
+        {
+          "file": "delta-dark-28.png",
+          "sha256": "f01a0e1f243fd434ad08c16fa536afbbdf41ebed401ead6be58019b3c40322ca",
+          "width": 1440,
+          "height": 1600,
+          "regions": 30
+        },
+        {
+          "file": "delta-dark-29.png",
+          "sha256": "dd8b2a5a135cfb92359d8661b3a45333fb4f5ab0626e4042bdf871678e7df206",
+          "width": 1440,
+          "height": 1600,
+          "regions": 25
+        },
+        {
+          "file": "delta-dark-30.png",
+          "sha256": "fc99f021417c4ad8047e45507c4ea23fed811f87b10cf048cecfb4c66fbcec8e",
+          "width": 1440,
+          "height": 1600,
+          "regions": 18
+        },
+        {
+          "file": "delta-dark-31.png",
+          "sha256": "cd5382e699934a6bc224845d1136e6b4ab3242de94aedb1bece37cbfbf674bae",
+          "width": 1440,
+          "height": 1600,
+          "regions": 15
+        },
+        {
+          "file": "delta-dark-32.png",
+          "sha256": "0bb87776c9d568aa2b9c23a9313955bfdfc3308fded9db108ea48bf5a8a82540",
+          "width": 1440,
+          "height": 1600,
+          "regions": 30
+        },
+        {
+          "file": "delta-dark-33.png",
+          "sha256": "723f33cbd3b2ae5f70b7a4d7ea32a4b4f8345320ed41923a0f05d983fb33cf5c",
+          "width": 1440,
+          "height": 1600,
+          "regions": 15
+        },
+        {
+          "file": "delta-dark-34.png",
+          "sha256": "e7e48621d2330e51af46ef015c1aab341ed593adf6514f82b8df80e92f522e00",
+          "width": 1440,
+          "height": 1600,
+          "regions": 25
+        },
+        {
+          "file": "delta-dark-35.png",
+          "sha256": "94eb0edbab5a67a74f1855ff5efd8efb97785f3b53774c677a4a3f92d8293fb9",
+          "width": 1440,
+          "height": 1600,
+          "regions": 27
+        },
+        {
+          "file": "delta-dark-36.png",
+          "sha256": "89e9219ac2cb36d1229848fc8f3c8951540f114d3a25a26a306cd04e4b733289",
+          "width": 1440,
+          "height": 1600,
+          "regions": 23
+        },
+        {
+          "file": "delta-dark-37.png",
+          "sha256": "5eb61595675fc548abe2b538e0081db5592408081de09c9bf19b20fa1f1729f4",
+          "width": 1440,
+          "height": 1600,
+          "regions": 27
+        },
+        {
+          "file": "delta-dark-38.png",
+          "sha256": "fafe1927f179ff6aef1ba1a05a4a634e17cf3e598bbb19d4515263ba6adfdba5",
+          "width": 1440,
+          "height": 1600,
+          "regions": 30
+        },
+        {
+          "file": "delta-dark-39.png",
+          "sha256": "6845b0f3602ab41d918330ef62c18a68d43c7f058fd3b549266175ca6d78983a",
+          "width": 1440,
+          "height": 1600,
+          "regions": 29
+        },
+        {
+          "file": "delta-dark-40.png",
+          "sha256": "32fd66c741fc35e9d0b063815a2eae9c22c2927b896fe1b43ae8c0a7e5281fb6",
+          "width": 1440,
+          "height": 1600,
+          "regions": 29
+        },
+        {
+          "file": "delta-dark-41.png",
+          "sha256": "2f19bacf953f839969a303cf52cca82132345a57d3d5a5d29a65f19cd098ef8d",
+          "width": 1440,
+          "height": 1600,
+          "regions": 27
+        },
+        {
+          "file": "delta-dark-42.png",
+          "sha256": "119533ba83013db3b3343d51679de7a0fb67c4147b22856a4802686c8d6e57f8",
+          "width": 1440,
+          "height": 1600,
+          "regions": 19
+        },
+        {
+          "file": "delta-dark-43.png",
+          "sha256": "43d08795037c0425a3081d33a2b0609a52d62e3d629c8054f5373985e8519cab",
+          "width": 1440,
+          "height": 1600,
+          "regions": 19
+        },
+        {
+          "file": "delta-dark-44.png",
+          "sha256": "427d215b69ed3e2035d10aa4004277d9dbf3930702e16a0c5bb2dfdc9c60e2a6",
+          "width": 1440,
+          "height": 1600,
+          "regions": 28
+        },
+        {
+          "file": "delta-dark-45.png",
+          "sha256": "57c0a25aa75ad021e5a9cd2b66f2fcf735d38ba7d27b559ef65fbf839cfbd15b",
+          "width": 1440,
+          "height": 1600,
+          "regions": 26
+        },
+        {
+          "file": "delta-dark-46.png",
+          "sha256": "9478a4375d9adea6db57bd14c8611b36f385101df7c932d43cf69d756eaa600a",
+          "width": 1440,
+          "height": 1600,
+          "regions": 20
+        },
+        {
+          "file": "delta-dark-47.png",
+          "sha256": "1c61cb66358d44385a867d322acf3b30ccf771d60575bda432627de4039ee874",
+          "width": 1440,
+          "height": 1600,
+          "regions": 3
+        }
+      ]
+    },
+    {
+      "theme": "hc-dark",
+      "frames": 1440,
+      "uniqueRegions": 1030,
+      "metadata": {
+        "file": "/var/tmp/l-VIS0171/vis0171-frame-review/delta-hc-dark.json",
+        "sha256": "a1cd5d2cc48dae50b9f279768b75928f49cd6190b2f5223bdbaa40b6a17bb27a"
+      },
+      "sheets": [
+        {
+          "file": "delta-hc-dark-00.png",
+          "sha256": "fd6b6daaa1a061112d71bce7b52dfc28ea1913f1938058b1e2a154a3669b6b36",
+          "width": 1440,
+          "height": 1600,
+          "regions": 25
+        },
+        {
+          "file": "delta-hc-dark-01.png",
+          "sha256": "398ec04c95fef7fce43bf72aef27511dc7a9bcfdf20cb618e4ee0e49a691041c",
+          "width": 1440,
+          "height": 1600,
+          "regions": 2
+        },
+        {
+          "file": "delta-hc-dark-02.png",
+          "sha256": "9a4b39033853329b887dbc0b4d10ca98c7ec7669c2ff5ed41e96ef68ff529ff8",
+          "width": 1440,
+          "height": 1600,
+          "regions": 21
+        },
+        {
+          "file": "delta-hc-dark-03.png",
+          "sha256": "ed62009f52b2ea87fef1b86752511a3cd12c0407ff8690b0c9c94ca484950f9b",
+          "width": 1440,
+          "height": 1600,
+          "regions": 9
+        },
+        {
+          "file": "delta-hc-dark-04.png",
+          "sha256": "8dda74d0514e3ab56fda21215336f2d76e707f42ac0ce07f97bdc39c084b7a12",
+          "width": 1440,
+          "height": 1600,
+          "regions": 25
+        },
+        {
+          "file": "delta-hc-dark-05.png",
+          "sha256": "026eb70b67eeaba0174651135e2f226244ead2c7fb999c2ffe44100eab67a966",
+          "width": 1440,
+          "height": 1600,
+          "regions": 24
+        },
+        {
+          "file": "delta-hc-dark-06.png",
+          "sha256": "27be6e2e250c53a0164058c7ee93a537f2cadf64cdc68d6c5ecf042fed39b4d7",
+          "width": 1440,
+          "height": 1600,
+          "regions": 21
+        },
+        {
+          "file": "delta-hc-dark-07.png",
+          "sha256": "2661ca388661df99c0cf6c442090322ff63751bd67614a717d95deedc5c9d17c",
+          "width": 1440,
+          "height": 1600,
+          "regions": 16
+        },
+        {
+          "file": "delta-hc-dark-08.png",
+          "sha256": "b1d8748dea97d5d379a8c15f66baca6b08f6451c3843125b12eeecfcfa5e3a4d",
+          "width": 1440,
+          "height": 1600,
+          "regions": 31
+        },
+        {
+          "file": "delta-hc-dark-09.png",
+          "sha256": "2b5b4e59d9be4d163168a60c83e29553eb028c4cb43fecc66dea61984d53d2dd",
+          "width": 1440,
+          "height": 1600,
+          "regions": 26
+        },
+        {
+          "file": "delta-hc-dark-10.png",
+          "sha256": "a12a58aba775035e424c98e22ca24d8608342de6a6ae8fdb4c8e13e8c67b878b",
+          "width": 1440,
+          "height": 1600,
+          "regions": 19
+        },
+        {
+          "file": "delta-hc-dark-11.png",
+          "sha256": "f4b745c5eb040e75feca4cb169e8de0d8f033af7f66a2bba248593f382e777db",
+          "width": 1440,
+          "height": 1600,
+          "regions": 25
+        },
+        {
+          "file": "delta-hc-dark-12.png",
+          "sha256": "510530df584a81dc08682631dd2f106722e06336c987e8294303325dfdef3279",
+          "width": 1440,
+          "height": 1600,
+          "regions": 27
+        },
+        {
+          "file": "delta-hc-dark-13.png",
+          "sha256": "d015ab2abc9a5c397e33049787817b99fd67b8c96ff92e913b1e03eb8d9d1a5b",
+          "width": 1440,
+          "height": 1600,
+          "regions": 24
+        },
+        {
+          "file": "delta-hc-dark-14.png",
+          "sha256": "c759b6568cd33423751e29f75a132a6a99f43f48f7d56e85b601660759d58707",
+          "width": 1440,
+          "height": 1600,
+          "regions": 32
+        },
+        {
+          "file": "delta-hc-dark-15.png",
+          "sha256": "5e4b00920e7c8a1e2f4ee2e39375d4df3ae1b3a4015300d7a9c1a57317a6f645",
+          "width": 1440,
+          "height": 1600,
+          "regions": 29
+        },
+        {
+          "file": "delta-hc-dark-16.png",
+          "sha256": "7fbbc260e991da909049d8fd96bd1b26cc43aafcd90358a79f90252ddb45ef5e",
+          "width": 1440,
+          "height": 1600,
+          "regions": 28
+        },
+        {
+          "file": "delta-hc-dark-17.png",
+          "sha256": "bd44cad768cd1155a09351c48558ab6648da1859671fa6f15ee9480145d76a10",
+          "width": 1440,
+          "height": 1600,
+          "regions": 14
+        },
+        {
+          "file": "delta-hc-dark-18.png",
+          "sha256": "6911cc02d7c017b4522ed5f48dcd287d7cf5cc9f67d1bb90c262229774352d30",
+          "width": 1440,
+          "height": 1600,
+          "regions": 8
+        },
+        {
+          "file": "delta-hc-dark-19.png",
+          "sha256": "a3ed743061f318f9f5be858d5981321ddeace24cc53716b8d2813773f1f81ba2",
+          "width": 1440,
+          "height": 1600,
+          "regions": 18
+        },
+        {
+          "file": "delta-hc-dark-20.png",
+          "sha256": "0247ff57d7b10fe885c4b0574d6a1f960276b29c8f12528ab396ed5c52b53884",
+          "width": 1440,
+          "height": 1600,
+          "regions": 26
+        },
+        {
+          "file": "delta-hc-dark-21.png",
+          "sha256": "4e319b6ebd2e56dbc66d7bafc4c60a0b020651f32366b33689268797f408fd2a",
+          "width": 1440,
+          "height": 1600,
+          "regions": 28
+        },
+        {
+          "file": "delta-hc-dark-22.png",
+          "sha256": "3bc0f3c071d1ffdd366ff35d98a1b814308e49f7d8f7b865fcc978e7bcd228c2",
+          "width": 1440,
+          "height": 1600,
+          "regions": 19
+        },
+        {
+          "file": "delta-hc-dark-23.png",
+          "sha256": "0788830b7b38e0d207befabbc9e6783130b7c78be4accd09ca2c000939180a4c",
+          "width": 1440,
+          "height": 1600,
+          "regions": 27
+        },
+        {
+          "file": "delta-hc-dark-24.png",
+          "sha256": "361e6abf9aa37a0af7af9aa253d658354107b5d9c148cae18299a001d7f44f28",
+          "width": 1440,
+          "height": 1600,
+          "regions": 28
+        },
+        {
+          "file": "delta-hc-dark-25.png",
+          "sha256": "c55d5d8cd25729181e453baae76aa75fe59a86394cb7b2d56e7a7b0b6433b36f",
+          "width": 1440,
+          "height": 1600,
+          "regions": 20
+        },
+        {
+          "file": "delta-hc-dark-26.png",
+          "sha256": "8aecf32a1ecda46f9f171382784c927b83d829f05f1cdfa07ae9aa108c2d58a4",
+          "width": 1440,
+          "height": 1600,
+          "regions": 29
+        },
+        {
+          "file": "delta-hc-dark-27.png",
+          "sha256": "504a326f781d4c4d7e1832787009820efb700b43a170a073582a702c82ef59e0",
+          "width": 1440,
+          "height": 1600,
+          "regions": 31
+        },
+        {
+          "file": "delta-hc-dark-28.png",
+          "sha256": "30d01355dd90544ac5c962d5229cc7fff25ca727afa2b68c5520dcd838855947",
+          "width": 1440,
+          "height": 1600,
+          "regions": 17
+        },
+        {
+          "file": "delta-hc-dark-29.png",
+          "sha256": "cfe8819d956c1301c85da716d11fd287674a8852193710598bd603cb455a8b69",
+          "width": 1440,
+          "height": 1600,
+          "regions": 17
+        },
+        {
+          "file": "delta-hc-dark-30.png",
+          "sha256": "342bd27b7095f7e9276f5dd7a02d11c1ff953ca5a5c7b6846370143ace85d5ca",
+          "width": 1440,
+          "height": 1600,
+          "regions": 16
+        },
+        {
+          "file": "delta-hc-dark-31.png",
+          "sha256": "dface58b246e8274ddaeccbb49547bda9aea8d1b2a4579cfc9eb017eb1092bab",
+          "width": 1440,
+          "height": 1600,
+          "regions": 27
+        },
+        {
+          "file": "delta-hc-dark-32.png",
+          "sha256": "52ce884ca72f5cabc03f228b50965652945aaf3e97c127ff7b19d73aa63f203a",
+          "width": 1440,
+          "height": 1600,
+          "regions": 19
+        },
+        {
+          "file": "delta-hc-dark-33.png",
+          "sha256": "87dd63aad3ab9f110a987c2ee0389e6df47e34b593e2775003265ba1a36af909",
+          "width": 1440,
+          "height": 1600,
+          "regions": 26
+        },
+        {
+          "file": "delta-hc-dark-34.png",
+          "sha256": "fbf690f24c3fda18c1e4380cb942d36a4cd2f6bab195d1d4de24768d81e08f10",
+          "width": 1440,
+          "height": 1600,
+          "regions": 27
+        },
+        {
+          "file": "delta-hc-dark-35.png",
+          "sha256": "949bd498e1244e05602827e530def80f1f34fd8781c5a45d6db38d041d57831c",
+          "width": 1440,
+          "height": 1600,
+          "regions": 25
+        },
+        {
+          "file": "delta-hc-dark-36.png",
+          "sha256": "f8de5a8b0e3a9b1dc49e8ce562bbede68e89ca7ef5e03cce392ccfd9ae3fca66",
+          "width": 1440,
+          "height": 1600,
+          "regions": 30
+        },
+        {
+          "file": "delta-hc-dark-37.png",
+          "sha256": "99319513bf53ece4fcd611b56c5d804a3e5e5f2e990ebfd063a17816aaa5ead4",
+          "width": 1440,
+          "height": 1600,
+          "regions": 29
+        },
+        {
+          "file": "delta-hc-dark-38.png",
+          "sha256": "df3aa983e12343bfdefc2f6d1d6b61156bc4364b95986e5c29d976335de67efa",
+          "width": 1440,
+          "height": 1600,
+          "regions": 30
+        },
+        {
+          "file": "delta-hc-dark-39.png",
+          "sha256": "75a77438b25587ed5881ed2e944160f0d3c8b12b0c1d04f9317cba3298084801",
+          "width": 1440,
+          "height": 1600,
+          "regions": 27
+        },
+        {
+          "file": "delta-hc-dark-40.png",
+          "sha256": "e2db7b5083af1c30edde4d26ec49b6dbe6bffb9198d08310e5630306220f0738",
+          "width": 1440,
+          "height": 1600,
+          "regions": 17
+        },
+        {
+          "file": "delta-hc-dark-41.png",
+          "sha256": "095b91f6f8cf58bb87e633a4f3a3bd8882c04d362cb2acae7613ff7c948d4b4c",
+          "width": 1440,
+          "height": 1600,
+          "regions": 24
+        },
+        {
+          "file": "delta-hc-dark-42.png",
+          "sha256": "9e15cbde85cb59ac6b4d17f0172264a4c363501d2b99edd8a310851de55c453d",
+          "width": 1440,
+          "height": 1600,
+          "regions": 26
+        },
+        {
+          "file": "delta-hc-dark-43.png",
+          "sha256": "9ce1eff0f5ac837b16872541729d6a1059a2761ac5e1e7b8afdd56ddf97bb668",
+          "width": 1440,
+          "height": 1600,
+          "regions": 27
+        },
+        {
+          "file": "delta-hc-dark-44.png",
+          "sha256": "3ae1d4578e568c1fd2286b05eb38755fa591b0fa1aa0d5a61011f85fa19b86b2",
+          "width": 1440,
+          "height": 1600,
+          "regions": 14
+        }
+      ]
+    },
+    {
+      "theme": "hc-light",
+      "frames": 1440,
+      "uniqueRegions": 1007,
+      "metadata": {
+        "file": "/var/tmp/l-VIS0171/vis0171-frame-review/delta-hc-light.json",
+        "sha256": "d36fd4a2dd5901b0858213c6eba13f78f0ec422981f0c193a9e531bb11e50dd7"
+      },
+      "sheets": [
+        {
+          "file": "delta-hc-light-00.png",
+          "sha256": "4df725c2aca99ebb5f50b9ea01e30f43bd874c6b6af2bd9c6e65121f5f328c89",
+          "width": 1440,
+          "height": 1600,
+          "regions": 25
+        },
+        {
+          "file": "delta-hc-light-01.png",
+          "sha256": "ca23ea67439386f085fbea3302e5d08844f55d60f1adfeb41de736819419ff85",
+          "width": 1440,
+          "height": 1600,
+          "regions": 2
+        },
+        {
+          "file": "delta-hc-light-02.png",
+          "sha256": "72e77d8505a05a87029a7e59fb70e314c1651b45fbc3f871951a3db9490fdfcb",
+          "width": 1440,
+          "height": 1600,
+          "regions": 23
+        },
+        {
+          "file": "delta-hc-light-03.png",
+          "sha256": "b51a2772d73bd38cacfb9ff5a67374790b7fe4ab2857752b3e5d89a102779fb7",
+          "width": 1440,
+          "height": 1600,
+          "regions": 8
+        },
+        {
+          "file": "delta-hc-light-04.png",
+          "sha256": "55df3ad5026673d41022d1c5d25fe72fefee1d3ffad2d923b16de8a2b24117ce",
+          "width": 1440,
+          "height": 1600,
+          "regions": 27
+        },
+        {
+          "file": "delta-hc-light-05.png",
+          "sha256": "0b22ab5fd3132b90f62515322d46970ed6fee0f7e133823258f4c866ec2777ea",
+          "width": 1440,
+          "height": 1600,
+          "regions": 30
+        },
+        {
+          "file": "delta-hc-light-06.png",
+          "sha256": "b70304b3507fb74aa4fe08e12a64c8514622588a71851379dcfbb72696d6f56d",
+          "width": 1440,
+          "height": 1600,
+          "regions": 19
+        },
+        {
+          "file": "delta-hc-light-07.png",
+          "sha256": "4ccf6ff9c1a490f412b2363491965ea9f9c43c2b8775b55938e48e1ffa36deab",
+          "width": 1440,
+          "height": 1600,
+          "regions": 21
+        },
+        {
+          "file": "delta-hc-light-08.png",
+          "sha256": "3350c7269599823c6d4106cb6bf24c9e50f0f05e41091e46456f884fa807a620",
+          "width": 1440,
+          "height": 1600,
+          "regions": 32
+        },
+        {
+          "file": "delta-hc-light-09.png",
+          "sha256": "06945a40e3e3b0f7d0f886f573da0662ccfbeef5f131f83f0b8dd4dcaccb30d0",
+          "width": 1440,
+          "height": 1600,
+          "regions": 20
+        },
+        {
+          "file": "delta-hc-light-10.png",
+          "sha256": "611bc27f4072a010ef971a290488ff4d57641ea69fcaad008eb2329c1ea82fd3",
+          "width": 1440,
+          "height": 1600,
+          "regions": 22
+        },
+        {
+          "file": "delta-hc-light-11.png",
+          "sha256": "fa6f50c7533c86f999fdce477440836b64845b3e12895be9ff9a04e84b09f386",
+          "width": 1440,
+          "height": 1600,
+          "regions": 26
+        },
+        {
+          "file": "delta-hc-light-12.png",
+          "sha256": "22bb4238985ef99c07a5ba4ec7c36e50c2cb0a58e7dd092c1b28d72082da1bdf",
+          "width": 1440,
+          "height": 1600,
+          "regions": 24
+        },
+        {
+          "file": "delta-hc-light-13.png",
+          "sha256": "7d4f8b475b1d14cba8473094e01fae4c9b31355e4e08a866b9465ab4df8e3a31",
+          "width": 1440,
+          "height": 1600,
+          "regions": 32
+        },
+        {
+          "file": "delta-hc-light-14.png",
+          "sha256": "2726d71697cd0bc115072d0aa0e1df10e00cdd43943a0bd154ba847e570d1920",
+          "width": 1440,
+          "height": 1600,
+          "regions": 28
+        },
+        {
+          "file": "delta-hc-light-15.png",
+          "sha256": "73e2522c22e766c551f73d5d9ce233955643368aa58e140bf3990d35bd7713e4",
+          "width": 1440,
+          "height": 1600,
+          "regions": 30
+        },
+        {
+          "file": "delta-hc-light-16.png",
+          "sha256": "15e0ffd2bcc48957f63345b98e2624842d2abbf4779d6e0999efb0edddaf39cf",
+          "width": 1440,
+          "height": 1600,
+          "regions": 26
+        },
+        {
+          "file": "delta-hc-light-17.png",
+          "sha256": "7bc4ed8fa7570472e3c97833c73c0817464df1c27349f9aff6eac7917a248720",
+          "width": 1440,
+          "height": 1600,
+          "regions": 4
+        },
+        {
+          "file": "delta-hc-light-18.png",
+          "sha256": "d0eb364a3c5240ea9cc15c0421218248d61247b6447d28023d7b6acd8fa058e3",
+          "width": 1440,
+          "height": 1600,
+          "regions": 12
+        },
+        {
+          "file": "delta-hc-light-19.png",
+          "sha256": "f348fc0db166a9006130b32e64f48ea64c27dc1156681306ea9f2cfc3c897dcd",
+          "width": 1440,
+          "height": 1600,
+          "regions": 24
+        },
+        {
+          "file": "delta-hc-light-20.png",
+          "sha256": "28894bde66102133a73a6e14ab3e786d522cf71ceb4e76444d7166de12778e28",
+          "width": 1440,
+          "height": 1600,
+          "regions": 26
+        },
+        {
+          "file": "delta-hc-light-21.png",
+          "sha256": "5dc03bd68ed1b545a15f920f14c0f97edf374d217e1be4684c3575708740ba0f",
+          "width": 1440,
+          "height": 1600,
+          "regions": 29
+        },
+        {
+          "file": "delta-hc-light-22.png",
+          "sha256": "87ea4926c673f72a38ce8becd4477698312231c08f3b6bd00fa71d7d903d76b3",
+          "width": 1440,
+          "height": 1600,
+          "regions": 16
+        },
+        {
+          "file": "delta-hc-light-23.png",
+          "sha256": "920838d87fff64ebceeacf108c65ea830210ded7f37298bc260c7a5a7cfa2ec6",
+          "width": 1440,
+          "height": 1600,
+          "regions": 30
+        },
+        {
+          "file": "delta-hc-light-24.png",
+          "sha256": "10aba6f3c64a46c16b96353efd3671781019ff1afe0227abe95443291d869faa",
+          "width": 1440,
+          "height": 1600,
+          "regions": 19
+        },
+        {
+          "file": "delta-hc-light-25.png",
+          "sha256": "e5785702960c75a5fde26d38970b9cb497459d46e8140c5b3b3f30f930067da9",
+          "width": 1440,
+          "height": 1600,
+          "regions": 26
+        },
+        {
+          "file": "delta-hc-light-26.png",
+          "sha256": "15ee5aeadb5f078f978fb875d8aaca91b975ae9d60c5fe536dbe267b385e174d",
+          "width": 1440,
+          "height": 1600,
+          "regions": 28
+        },
+        {
+          "file": "delta-hc-light-27.png",
+          "sha256": "b6329e1100314b6134a0aab66b14186b9d7f848326da75b096a2ebc289a3da1a",
+          "width": 1440,
+          "height": 1600,
+          "regions": 27
+        },
+        {
+          "file": "delta-hc-light-28.png",
+          "sha256": "4a1b4e78a19e4feb2f88ac7daf33f320dce5e1a744b412fe1133b57dc4e80121",
+          "width": 1440,
+          "height": 1600,
+          "regions": 17
+        },
+        {
+          "file": "delta-hc-light-29.png",
+          "sha256": "d907cd8b2bec2f684d69b84c31ac91c27c5064028de6ce4d914f517004dcf205",
+          "width": 1440,
+          "height": 1600,
+          "regions": 13
+        },
+        {
+          "file": "delta-hc-light-30.png",
+          "sha256": "89eeebd7d70afb9a4a5b2616eee1215f2b6adf1fd267107832b317efff662036",
+          "width": 1440,
+          "height": 1600,
+          "regions": 25
+        },
+        {
+          "file": "delta-hc-light-31.png",
+          "sha256": "78a0e4d6f9330e5f8e2b0da276382c28104c0a4bb1a07ecf762b01fbb25cab2c",
+          "width": 1440,
+          "height": 1600,
+          "regions": 20
+        },
+        {
+          "file": "delta-hc-light-32.png",
+          "sha256": "fc3c5629b38988bb8d83c0d42f87379e17ce71d807652b776dd642633ade2d73",
+          "width": 1440,
+          "height": 1600,
+          "regions": 27
+        },
+        {
+          "file": "delta-hc-light-33.png",
+          "sha256": "1e303a9153e48e850b006cf22bab994a996bf6f536ce6f08de345527e80cc35a",
+          "width": 1440,
+          "height": 1600,
+          "regions": 27
+        },
+        {
+          "file": "delta-hc-light-34.png",
+          "sha256": "f0a6095975212fb0685378a726fb1a9f3fa2ac6c017d3a403e36974ff6530cd0",
+          "width": 1440,
+          "height": 1600,
+          "regions": 27
+        },
+        {
+          "file": "delta-hc-light-35.png",
+          "sha256": "8a0969b7500a0a56ebc4fe4084fd9ddddebdba93ede9a34c5b18b697634f8a39",
+          "width": 1440,
+          "height": 1600,
+          "regions": 30
+        },
+        {
+          "file": "delta-hc-light-36.png",
+          "sha256": "d5fe76f62f2c90b73c6b1e5350d8d9692ace1d563126a33d96c8feedb0c699e7",
+          "width": 1440,
+          "height": 1600,
+          "regions": 29
+        },
+        {
+          "file": "delta-hc-light-37.png",
+          "sha256": "e6a93d735c3bbe192326792acb10d51bd2fbe78a01ccd725ade7ef06f6e0db45",
+          "width": 1440,
+          "height": 1600,
+          "regions": 29
+        },
+        {
+          "file": "delta-hc-light-38.png",
+          "sha256": "153ac4c7105650ddb886263cba79b3627c662bc0739490bb851f3b7fa3c8f343",
+          "width": 1440,
+          "height": 1600,
+          "regions": 23
+        },
+        {
+          "file": "delta-hc-light-39.png",
+          "sha256": "d1a25f6a0ee3fd229682c767671b7b3def49503146e3043bb740ae37b58f8b7a",
+          "width": 1440,
+          "height": 1600,
+          "regions": 20
+        },
+        {
+          "file": "delta-hc-light-40.png",
+          "sha256": "f529c77216a0425209d0d04d32092a93e48d04b38b4d7f6eb9a6dc51562137de",
+          "width": 1440,
+          "height": 1600,
+          "regions": 25
+        },
+        {
+          "file": "delta-hc-light-41.png",
+          "sha256": "3bef32618f764292d5469360ffa7361e8ec6478109ab3941afd03f4af2ab0cf3",
+          "width": 1440,
+          "height": 1600,
+          "regions": 25
+        },
+        {
+          "file": "delta-hc-light-42.png",
+          "sha256": "32e418930a7132537f55da861e13cf8e03bd3d56665011b8b5861a14e8c471c1",
+          "width": 1440,
+          "height": 1600,
+          "regions": 21
+        },
+        {
+          "file": "delta-hc-light-43.png",
+          "sha256": "b36874288def1d1e0b2a7df213970a13776d33fb619dfe5e3a5efe087cb9044c",
+          "width": 1440,
+          "height": 1600,
+          "regions": 13
+        }
+      ]
+    },
+    {
+      "theme": "one-dark-pro",
+      "frames": 1440,
+      "uniqueRegions": 1109,
+      "metadata": {
+        "file": "/var/tmp/l-VIS0171/vis0171-frame-review/delta-one-dark-pro.json",
+        "sha256": "7a63cae380ac10b06c260f8a79b0191d5c847559d06889c3b1d7304ce2eafa26"
+      },
+      "sheets": [
+        {
+          "file": "delta-one-dark-pro-00.png",
+          "sha256": "1169303eb9ca5400d43776572e2b2caa56be8408295ac0c7e61cac82357f706c",
+          "width": 1440,
+          "height": 1600,
+          "regions": 26
+        },
+        {
+          "file": "delta-one-dark-pro-01.png",
+          "sha256": "2ae777f669bee62a3905ef410dd893bc441f5dd1df09a0f0198fce6912f2498c",
+          "width": 1440,
+          "height": 1600,
+          "regions": 2
+        },
+        {
+          "file": "delta-one-dark-pro-02.png",
+          "sha256": "1c0bc855cf00a3abcbfdd1f52faae3b9412a2425cd77a85edc879de9abf0db44",
+          "width": 1440,
+          "height": 1600,
+          "regions": 18
+        },
+        {
+          "file": "delta-one-dark-pro-03.png",
+          "sha256": "98c41b4ac564d26dec4a9854bebe0e2acfa135866ae99fe759d84f8a876a2c6e",
+          "width": 1440,
+          "height": 1600,
+          "regions": 8
+        },
+        {
+          "file": "delta-one-dark-pro-04.png",
+          "sha256": "77109fa67ad1d2c1cc9791446fa72beec34a8b8ac83677ee985a04dd9583e848",
+          "width": 1440,
+          "height": 1600,
+          "regions": 18
+        },
+        {
+          "file": "delta-one-dark-pro-05.png",
+          "sha256": "ddc99d2fb9cd4392c47c0ca0fab470d387d53409492db6c7ad16124e77e95a03",
+          "width": 1440,
+          "height": 1600,
+          "regions": 31
+        },
+        {
+          "file": "delta-one-dark-pro-06.png",
+          "sha256": "c57e43bb4d2dc10da217d0c0f181bc580d70c6024fddc213dfe5955f2b5a5d60",
+          "width": 1440,
+          "height": 1600,
+          "regions": 27
+        },
+        {
+          "file": "delta-one-dark-pro-07.png",
+          "sha256": "665ae7ee9b5ab6998997dccbb661935e2e6d6d35c2c9920fbaed1c609e20c463",
+          "width": 1440,
+          "height": 1600,
+          "regions": 19
+        },
+        {
+          "file": "delta-one-dark-pro-08.png",
+          "sha256": "471d5b43df079dcd3e7948e7bd6183722440d6d16275802538e027c48614f6fb",
+          "width": 1440,
+          "height": 1600,
+          "regions": 22
+        },
+        {
+          "file": "delta-one-dark-pro-09.png",
+          "sha256": "624cdce3a09f588edefa78e497a66c27b7e2bf1dcf3bcbc7cb8f33beeb6ce3ed",
+          "width": 1440,
+          "height": 1600,
+          "regions": 28
+        },
+        {
+          "file": "delta-one-dark-pro-10.png",
+          "sha256": "05d9d2792c585c6d34e681708310b0009885f98e5a21894204e0667f9261972d",
+          "width": 1440,
+          "height": 1600,
+          "regions": 19
+        },
+        {
+          "file": "delta-one-dark-pro-11.png",
+          "sha256": "4fa8f939e5b2904511a83996b772f99e2730ebbf00bff2bf3ba58450e114e024",
+          "width": 1440,
+          "height": 1600,
+          "regions": 22
+        },
+        {
+          "file": "delta-one-dark-pro-12.png",
+          "sha256": "d63c6a82d6f8b1202f27c94809640f09ff7958bf031bc8f471acb25c721caa8d",
+          "width": 1440,
+          "height": 1600,
+          "regions": 27
+        },
+        {
+          "file": "delta-one-dark-pro-13.png",
+          "sha256": "b81278b09e95acfca127ad1d9b5532fd2a9ad7b2cfa8cb0f655f17fc307c25f7",
+          "width": 1440,
+          "height": 1600,
+          "regions": 27
+        },
+        {
+          "file": "delta-one-dark-pro-14.png",
+          "sha256": "cf1fa07f022c225664292f75814f2934d724f5a54a7a5a636126d1874872243e",
+          "width": 1440,
+          "height": 1600,
+          "regions": 25
+        },
+        {
+          "file": "delta-one-dark-pro-15.png",
+          "sha256": "869297a0da013fd3a7b8ad13a8e7a9ff92aad0a37a92b3a392361008c2cb1154",
+          "width": 1440,
+          "height": 1600,
+          "regions": 31
+        },
+        {
+          "file": "delta-one-dark-pro-16.png",
+          "sha256": "b109f9cc924defe71f05291b62f5b37e5b01d9d5fd18d5b9ceabe60125a1a1db",
+          "width": 1440,
+          "height": 1600,
+          "regions": 30
+        },
+        {
+          "file": "delta-one-dark-pro-17.png",
+          "sha256": "7cfd434fd031294b99decacf8c529c628293b15403168d4d1dfc98f14b4c6f4a",
+          "width": 1440,
+          "height": 1600,
+          "regions": 28
+        },
+        {
+          "file": "delta-one-dark-pro-18.png",
+          "sha256": "3733c1fc17401215f7b7c38054ce7c324377845485e18a3b14da65064647dc9b",
+          "width": 1440,
+          "height": 1600,
+          "regions": 21
+        },
+        {
+          "file": "delta-one-dark-pro-19.png",
+          "sha256": "f2e8db48970df6cc1a142658ade9457a5d85ed9033b91de9fe41b28887b4f464",
+          "width": 1440,
+          "height": 1600,
+          "regions": 5
+        },
+        {
+          "file": "delta-one-dark-pro-20.png",
+          "sha256": "e80c49db4d2d9fe23ac7fb580bfcf56766c97232fefd4676ca6bf30f7130fbe7",
+          "width": 1440,
+          "height": 1600,
+          "regions": 8
+        },
+        {
+          "file": "delta-one-dark-pro-21.png",
+          "sha256": "1c8ab8a8c1e1a04d372934ea47e9e86740d3cec52f976333e8ae0cf7d0e33bb6",
+          "width": 1440,
+          "height": 1600,
+          "regions": 13
+        },
+        {
+          "file": "delta-one-dark-pro-22.png",
+          "sha256": "f3cfe427069a4a203b097ea4dafe9911e0463e501632292c31395ab97eebfa81",
+          "width": 1440,
+          "height": 1600,
+          "regions": 24
+        },
+        {
+          "file": "delta-one-dark-pro-23.png",
+          "sha256": "064bb878b82258b576562d7df3c02dba81e418f17b8173ee5f9ee29ef9d751ee",
+          "width": 1440,
+          "height": 1600,
+          "regions": 28
+        },
+        {
+          "file": "delta-one-dark-pro-24.png",
+          "sha256": "d8f60cbd3212458682bdbcacca866a893734c3f6af0606c4ae280c4ccaf06a2e",
+          "width": 1440,
+          "height": 1600,
+          "regions": 27
+        },
+        {
+          "file": "delta-one-dark-pro-25.png",
+          "sha256": "8ad4dfd43ebeff07bdbb23cd1a0fca27918804b2be5d2025be85da3c660c5b78",
+          "width": 1440,
+          "height": 1600,
+          "regions": 15
+        },
+        {
+          "file": "delta-one-dark-pro-26.png",
+          "sha256": "7696d8eafeb2c231ed142ed463bac0c3def35fbf3b5fdf38526b8be974cf25b5",
+          "width": 1440,
+          "height": 1600,
+          "regions": 30
+        },
+        {
+          "file": "delta-one-dark-pro-27.png",
+          "sha256": "f3edcc3204027afc3775a54acba2d941367030d04e4aaa955b5c96d1c6d260fc",
+          "width": 1440,
+          "height": 1600,
+          "regions": 26
+        },
+        {
+          "file": "delta-one-dark-pro-28.png",
+          "sha256": "d4d88183e1a954a30321f9fba05e6d644ed4184b2c6e8a1a938e51442965c595",
+          "width": 1440,
+          "height": 1600,
+          "regions": 24
+        },
+        {
+          "file": "delta-one-dark-pro-29.png",
+          "sha256": "e6d1d6efcdfeb3f656a54e6c1aaa881885477d405f35672a566426bd754cc846",
+          "width": 1440,
+          "height": 1600,
+          "regions": 26
+        },
+        {
+          "file": "delta-one-dark-pro-30.png",
+          "sha256": "bdfb0e3f5236ea26ce33c7a290320c49e0337fcac0ecf2dd030837b336388fb0",
+          "width": 1440,
+          "height": 1600,
+          "regions": 29
+        },
+        {
+          "file": "delta-one-dark-pro-31.png",
+          "sha256": "a8c3b57802a8ebc2cc6a9ac50ba72faed98b2ffefac8178307c349aa38581091",
+          "width": 1440,
+          "height": 1600,
+          "regions": 18
+        },
+        {
+          "file": "delta-one-dark-pro-32.png",
+          "sha256": "2d1d97be2827cab9e192c888d7e0a389d0ded5aeb439bacfb39b2fb7148c2c2c",
+          "width": 1440,
+          "height": 1600,
+          "regions": 17
+        },
+        {
+          "file": "delta-one-dark-pro-33.png",
+          "sha256": "7bc36699b44d0287751a66b6e1ef8b4254b6fa8d195e7cd5ea74d3be4857620f",
+          "width": 1440,
+          "height": 1600,
+          "regions": 28
+        },
+        {
+          "file": "delta-one-dark-pro-34.png",
+          "sha256": "8b85eed679f214e81ba5ea2453ba5af30ba95ddbb9b0b739a6e7979d906ae627",
+          "width": 1440,
+          "height": 1600,
+          "regions": 18
+        },
+        {
+          "file": "delta-one-dark-pro-35.png",
+          "sha256": "34bdea17852a6703e1c09fad3d27e82809c36d981b99f8e94dd8f1d92ce9a839",
+          "width": 1440,
+          "height": 1600,
+          "regions": 22
+        },
+        {
+          "file": "delta-one-dark-pro-36.png",
+          "sha256": "0d6ccb7b47b8ae7511c2d38b2a0f054954f61ce9d10949ae40a822725a49471b",
+          "width": 1440,
+          "height": 1600,
+          "regions": 28
+        },
+        {
+          "file": "delta-one-dark-pro-37.png",
+          "sha256": "99c4061f39094bcd3512461a7d574d96430edc13e9ca8faef48220c8bdf1f67a",
+          "width": 1440,
+          "height": 1600,
+          "regions": 25
+        },
+        {
+          "file": "delta-one-dark-pro-38.png",
+          "sha256": "84b324f91d16af80a809d322a2eb680934c264222b4da7b3bc23319d356720a5",
+          "width": 1440,
+          "height": 1600,
+          "regions": 25
+        },
+        {
+          "file": "delta-one-dark-pro-39.png",
+          "sha256": "f02d93391643f5eabb4bf6247240c069f1804710f8ae7eaf52e2862cb1271ed5",
+          "width": 1440,
+          "height": 1600,
+          "regions": 31
+        },
+        {
+          "file": "delta-one-dark-pro-40.png",
+          "sha256": "22272f9faeb05324c191a318381b4ace97a1cb4eb9f7343c3f929464465536ac",
+          "width": 1440,
+          "height": 1600,
+          "regions": 30
+        },
+        {
+          "file": "delta-one-dark-pro-41.png",
+          "sha256": "56c74d75647ccf41e79f504ced65b8f7cdda68da3b5574e5eab168e86f28af55",
+          "width": 1440,
+          "height": 1600,
+          "regions": 28
+        },
+        {
+          "file": "delta-one-dark-pro-42.png",
+          "sha256": "6b81ec2aad5733141a30380ae138c603415b59cdf878602edf4324404962c4a5",
+          "width": 1440,
+          "height": 1600,
+          "regions": 28
+        },
+        {
+          "file": "delta-one-dark-pro-43.png",
+          "sha256": "65b971e4af947fa48e75565c54298e6514536a6201c0521a0f456cc7a6a929ca",
+          "width": 1440,
+          "height": 1600,
+          "regions": 21
+        },
+        {
+          "file": "delta-one-dark-pro-44.png",
+          "sha256": "529ba89d3f5617532184b6b7eb086b96db7944b23bb6758ea6fcf0d4d8ff30f5",
+          "width": 1440,
+          "height": 1600,
+          "regions": 19
+        },
+        {
+          "file": "delta-one-dark-pro-45.png",
+          "sha256": "929de78af31b5b2cb2570fef750e2155395a3f832a57845371ae73dc89c61771",
+          "width": 1440,
+          "height": 1600,
+          "regions": 25
+        },
+        {
+          "file": "delta-one-dark-pro-46.png",
+          "sha256": "06883ded3ec47803a9945aa53a2a12f8765482cf9a72b29f21610e7a98f10c79",
+          "width": 1440,
+          "height": 1600,
+          "regions": 26
+        },
+        {
+          "file": "delta-one-dark-pro-47.png",
+          "sha256": "df46a0cd8054e70acb05548da5763de5a26a8f64423c2288eb6849b538113f83",
+          "width": 1440,
+          "height": 1600,
+          "regions": 23
+        },
+        {
+          "file": "delta-one-dark-pro-48.png",
+          "sha256": "22207630a021a348d3d98999b6e4b36a8d2bb38a56620ccc17ff60d42f61cb19",
+          "width": 1440,
+          "height": 1600,
+          "regions": 13
+        }
+      ]
+    },
+    {
+      "theme": "dracula",
+      "frames": 1440,
+      "uniqueRegions": 1066,
+      "metadata": {
+        "file": "/var/tmp/l-VIS0171/vis0171-frame-review/delta-dracula.json",
+        "sha256": "4955622b42b32c1023d5689e9f536a89dbc77d7b9318846117d6d151c138d48f"
+      },
+      "sheets": [
+        {
+          "file": "delta-dracula-00.png",
+          "sha256": "bca8d93ba4ebfb764ca3e914d8878a3f78363ca322a03fcbdc06f0dcb1f7cf97",
+          "width": 1440,
+          "height": 1600,
+          "regions": 26
+        },
+        {
+          "file": "delta-dracula-01.png",
+          "sha256": "2288144300ab8f8ae77963dad546975d6885ff36907491160c2dc397a0d1deca",
+          "width": 1440,
+          "height": 1600,
+          "regions": 2
+        },
+        {
+          "file": "delta-dracula-02.png",
+          "sha256": "44167da631748d00c73dc05556b65fcb256c3ea1ec7c843fa5cbb7dd5f0a853f",
+          "width": 1440,
+          "height": 1600,
+          "regions": 18
+        },
+        {
+          "file": "delta-dracula-03.png",
+          "sha256": "1d6f805c02bb03b796236ba8a18acc93717d3844471b735bb2f2f3d47fdb9981",
+          "width": 1440,
+          "height": 1600,
+          "regions": 12
+        },
+        {
+          "file": "delta-dracula-04.png",
+          "sha256": "59d26ead50b307dd49149e477d7e29b3db9022ebee0601cc605100ca46cfa2af",
+          "width": 1440,
+          "height": 1600,
+          "regions": 29
+        },
+        {
+          "file": "delta-dracula-05.png",
+          "sha256": "10e785f340cc2578102f12dfabf7da732d0f6df23adba80e2b7b669fdc3c7399",
+          "width": 1440,
+          "height": 1600,
+          "regions": 27
+        },
+        {
+          "file": "delta-dracula-06.png",
+          "sha256": "b0aded671c8bf5a93bef7fbe60c2d643a9ec50f0e58632faf8022e594b09c1a7",
+          "width": 1440,
+          "height": 1600,
+          "regions": 16
+        },
+        {
+          "file": "delta-dracula-07.png",
+          "sha256": "ea68723b6e919e4eae698bb15c203da699c70f22ba10263588b1e04ef5f6e7e2",
+          "width": 1440,
+          "height": 1600,
+          "regions": 17
+        },
+        {
+          "file": "delta-dracula-08.png",
+          "sha256": "17351ce4598a81471d786aec512da1a9e919f44ae9c1a7bc43d402e981934a86",
+          "width": 1440,
+          "height": 1600,
+          "regions": 31
+        },
+        {
+          "file": "delta-dracula-09.png",
+          "sha256": "08b461398def686c958f84755d0a640b0b416a4eb6eb463ae88f9880803dd1fa",
+          "width": 1440,
+          "height": 1600,
+          "regions": 26
+        },
+        {
+          "file": "delta-dracula-10.png",
+          "sha256": "4634666a9beb571bc4d5b6b299731f03a2913ac40e6be94b9920c5c64c6ea350",
+          "width": 1440,
+          "height": 1600,
+          "regions": 19
+        },
+        {
+          "file": "delta-dracula-11.png",
+          "sha256": "a7fa9396dee19ed06f2ce819193a9b279a73cccc1ca1725bcef4c9f5ce7671b7",
+          "width": 1440,
+          "height": 1600,
+          "regions": 25
+        },
+        {
+          "file": "delta-dracula-12.png",
+          "sha256": "e5e84334ccb4369c4784c2298b6c3c7adc2a59c2f59ea9c68e480d4d42e25a52",
+          "width": 1440,
+          "height": 1600,
+          "regions": 26
+        },
+        {
+          "file": "delta-dracula-13.png",
+          "sha256": "0905aa0733b744cdab20afac3095f153ae54aaaaa246e25fca66a2a7ff1c2574",
+          "width": 1440,
+          "height": 1600,
+          "regions": 24
+        },
+        {
+          "file": "delta-dracula-14.png",
+          "sha256": "d53416e9d523559cf0b2fd38c4fb1ae8f981a87af06c8374b1b8a590f63a8e71",
+          "width": 1440,
+          "height": 1600,
+          "regions": 32
+        },
+        {
+          "file": "delta-dracula-15.png",
+          "sha256": "35c6464cb4a6506acfa33bb459b7cd403a630fffb3c79c0cc4b6d2f1a3ca157a",
+          "width": 1440,
+          "height": 1600,
+          "regions": 29
+        },
+        {
+          "file": "delta-dracula-16.png",
+          "sha256": "c08ce64a94d713a5a0d8916f7eb8e5495d329324d792ccca249156e5235e5bcb",
+          "width": 1440,
+          "height": 1600,
+          "regions": 30
+        },
+        {
+          "file": "delta-dracula-17.png",
+          "sha256": "7c858af8d061e9970d586a687c3c1b0956f7c2b146853015f211edca68e49486",
+          "width": 1440,
+          "height": 1600,
+          "regions": 22
+        },
+        {
+          "file": "delta-dracula-18.png",
+          "sha256": "f554c1c42584c96ca4612f9b1900d2473c877e29927a68a0f0989d77938a89fd",
+          "width": 1440,
+          "height": 1600,
+          "regions": 6
+        },
+        {
+          "file": "delta-dracula-19.png",
+          "sha256": "e5fce92ea0d76c850bc70616ed9398977671466e2d46d1dfaa08fb9d07b188aa",
+          "width": 1440,
+          "height": 1600,
+          "regions": 8
+        },
+        {
+          "file": "delta-dracula-20.png",
+          "sha256": "51118f7d74a0370b7ab32bc5054c133ac21fb2b4715428539e87851b28ee15da",
+          "width": 1440,
+          "height": 1600,
+          "regions": 15
+        },
+        {
+          "file": "delta-dracula-21.png",
+          "sha256": "126a0e4c32acfea91e286e497d5b83e5e390d93bcdb0e527cd7349e0f30bbbd4",
+          "width": 1440,
+          "height": 1600,
+          "regions": 26
+        },
+        {
+          "file": "delta-dracula-22.png",
+          "sha256": "4485d0855925337a6c7eaecb912ea809dceac5ffed37f44451adaa1b39bea0ee",
+          "width": 1440,
+          "height": 1600,
+          "regions": 28
+        },
+        {
+          "file": "delta-dracula-23.png",
+          "sha256": "24438617bab7d710bfe7f933ff58121c65088743093554fba2ce5fbd79ea78ef",
+          "width": 1440,
+          "height": 1600,
+          "regions": 20
+        },
+        {
+          "file": "delta-dracula-24.png",
+          "sha256": "25ae114ac6a67635d377e0c91b23071a4f857769d708c511db4897b019b05bb1",
+          "width": 1440,
+          "height": 1600,
+          "regions": 23
+        },
+        {
+          "file": "delta-dracula-25.png",
+          "sha256": "04c3991b1dbdcaf713906b96fec4c3a58f0a27ad914079ce5b6736d7d6ffdde6",
+          "width": 1440,
+          "height": 1600,
+          "regions": 28
+        },
+        {
+          "file": "delta-dracula-26.png",
+          "sha256": "8ea32c8dec7cbe9e07b9e04c46871a0f5eb33556b704d6b7ca66cc696aba2c5c",
+          "width": 1440,
+          "height": 1600,
+          "regions": 22
+        },
+        {
+          "file": "delta-dracula-27.png",
+          "sha256": "92258211f1a888a9054ee21e51668ad53c9f31b9d1f56dff2047f726e1c933bb",
+          "width": 1440,
+          "height": 1600,
+          "regions": 29
+        },
+        {
+          "file": "delta-dracula-28.png",
+          "sha256": "4465cebd30996a996ef906e3c090688d414feb8de381f66f40e29e3e3f8d71c5",
+          "width": 1440,
+          "height": 1600,
+          "regions": 30
+        },
+        {
+          "file": "delta-dracula-29.png",
+          "sha256": "750b6445463ede5d16aea49a3447fb22ff03bf7357cd4f767f519abe6dd235ed",
+          "width": 1440,
+          "height": 1600,
+          "regions": 19
+        },
+        {
+          "file": "delta-dracula-30.png",
+          "sha256": "3d48ef0e9fb75ea5ea8ada70e51be52cde122d861c8fd1b039e0b91efa5f7342",
+          "width": 1440,
+          "height": 1600,
+          "regions": 19
+        },
+        {
+          "file": "delta-dracula-31.png",
+          "sha256": "03ca410369e0f2493df3e3e5348e934172f41abd2dcffddea5c4fb7ef5595ea0",
+          "width": 1440,
+          "height": 1600,
+          "regions": 24
+        },
+        {
+          "file": "delta-dracula-32.png",
+          "sha256": "795a31d8a08a5fcac8449940d3d2ccebe6b1cdb099c0e59f8ed5fe32ad52c63f",
+          "width": 1440,
+          "height": 1600,
+          "regions": 20
+        },
+        {
+          "file": "delta-dracula-33.png",
+          "sha256": "90087021db75a089f978ab37747500c86dbdf54068d82c75c59417a4fb20b4dd",
+          "width": 1440,
+          "height": 1600,
+          "regions": 24
+        },
+        {
+          "file": "delta-dracula-34.png",
+          "sha256": "e3591f9934ccd1b16b9947fb1a4e35ad6b8e36baef5fa75697d0fedfda0a94a2",
+          "width": 1440,
+          "height": 1600,
+          "regions": 24
+        },
+        {
+          "file": "delta-dracula-35.png",
+          "sha256": "47f9c6954bf10e92ece8f2a8fc7fce2c13e09887fa62fb1aafab8ff590b6a6ba",
+          "width": 1440,
+          "height": 1600,
+          "regions": 25
+        },
+        {
+          "file": "delta-dracula-36.png",
+          "sha256": "6ad269b637e5799ae6824fc78cedd0ec7d4f1c1889092c4ba474e92e9bd51c39",
+          "width": 1440,
+          "height": 1600,
+          "regions": 27
+        },
+        {
+          "file": "delta-dracula-37.png",
+          "sha256": "39da434723bc6187511b91edaea32ed98d31748b20ee18902162d7f0e0dd507f",
+          "width": 1440,
+          "height": 1600,
+          "regions": 29
+        },
+        {
+          "file": "delta-dracula-38.png",
+          "sha256": "1ae7ada2d17090312776b9e42b2f358add5bb2ad1182b430872aa197074c904f",
+          "width": 1440,
+          "height": 1600,
+          "regions": 29
+        },
+        {
+          "file": "delta-dracula-39.png",
+          "sha256": "77f9d5c0d440730ca490e9a34c3896dcdf08fdf4c41c1cbdb19200f4d1d34f17",
+          "width": 1440,
+          "height": 1600,
+          "regions": 28
+        },
+        {
+          "file": "delta-dracula-40.png",
+          "sha256": "7b358377476b066ade0e9fc2ffb9c46bb6790b9f416f016c7a0585878e3783e9",
+          "width": 1440,
+          "height": 1600,
+          "regions": 28
+        },
+        {
+          "file": "delta-dracula-41.png",
+          "sha256": "e218d15209cb1636fea24a2957e526e97988141cf33543782564b8cfca9289c0",
+          "width": 1440,
+          "height": 1600,
+          "regions": 20
+        },
+        {
+          "file": "delta-dracula-42.png",
+          "sha256": "f3c756de2954384151700b8938b48b9da0feb2eea232535a7835ce490be07cd2",
+          "width": 1440,
+          "height": 1600,
+          "regions": 19
+        },
+        {
+          "file": "delta-dracula-43.png",
+          "sha256": "56387ff013e7b3758396a29b197a62961d8bd335940352ae47d1dceefebe1b27",
+          "width": 1440,
+          "height": 1600,
+          "regions": 27
+        },
+        {
+          "file": "delta-dracula-44.png",
+          "sha256": "8cf5f698925b8d1d25f901ff01be2f598c934d536bd3e9e3db5735550c01ce5a",
+          "width": 1440,
+          "height": 1600,
+          "regions": 26
+        },
+        {
+          "file": "delta-dracula-45.png",
+          "sha256": "35051e7770a5ac43fbd6e37dcc13e7088d60a0274ee0b4cdc0c4f3b79514f1a9",
+          "width": 1440,
+          "height": 1600,
+          "regions": 22
+        },
+        {
+          "file": "delta-dracula-46.png",
+          "sha256": "1be50d8a042c238dd6c931b3d2d09bb9ff785e2b04c6f0ac2885b49f9c9422ae",
+          "width": 1440,
+          "height": 1600,
+          "regions": 10
+        }
+      ]
+    }
+  ],
+  "withinPolicyReview": {
+    "frames": 90,
+    "significantChangedPixels": 2,
+    "comparison": {
+      "file": "temp/vis0171-round2-noise.json",
+      "sha256": "669c5ebad6e421ca0d9b3188b527375ac4bcdf9aee7d3efd4c29e9f80d560276"
+    },
+    "evidence": [
+      {
+        "theme": "light",
+        "frames": 26,
+        "uniqueRegions": 13,
+        "metadata": {
+          "file": "/var/tmp/l-VIS0171/vis0171-frame-review/noise-light.json",
+          "sha256": "8ceeb1c47c11f992765dfc6918e9e050af922719832fa2c4e7be53938e14b53a"
+        },
+        "sheets": [
+          {
+            "file": "noise-light-00.png",
+            "sha256": "f58ca3879dc348eaabe13f22b277b4b1ff7a38fd9fa93d44a3e8b36fa3d133c1",
+            "width": 1440,
+            "height": 1600,
+            "regions": 13
+          }
+        ]
+      },
+      {
+        "theme": "dark",
+        "frames": 20,
+        "uniqueRegions": 12,
+        "metadata": {
+          "file": "/var/tmp/l-VIS0171/vis0171-frame-review/noise-dark.json",
+          "sha256": "932338c7d3029220e5a7a0b2d8bf80ab743db55d3f63aa0a12d75107573baf56"
+        },
+        "sheets": [
+          {
+            "file": "noise-dark-00.png",
+            "sha256": "bbcd2cc5769c886eb9b5116e96fabb7c8721b807baeaffd984562b47f90fcb69",
+            "width": 1440,
+            "height": 1600,
+            "regions": 12
+          }
+        ]
+      },
+      {
+        "theme": "hc-dark",
+        "frames": 9,
+        "uniqueRegions": 3,
+        "metadata": {
+          "file": "/var/tmp/l-VIS0171/vis0171-frame-review/noise-hc-dark.json",
+          "sha256": "150a9e4ae559bd59ea2eb6767fbfc8582b2386668fe3af325dfd6a358589f1ec"
+        },
+        "sheets": [
+          {
+            "file": "noise-hc-dark-00.png",
+            "sha256": "f8adb330f5032aedafb764a0902a1d382634d6dfc8b147fa0c01f1af030225b1",
+            "width": 1440,
+            "height": 1600,
+            "regions": 3
+          }
+        ]
+      },
+      {
+        "theme": "hc-light",
+        "frames": 12,
+        "uniqueRegions": 7,
+        "metadata": {
+          "file": "/var/tmp/l-VIS0171/vis0171-frame-review/noise-hc-light.json",
+          "sha256": "b7e75186cfa533315d2241c03e80a1bf32578a98419c6309355a7adf7115e105"
+        },
+        "sheets": [
+          {
+            "file": "noise-hc-light-00.png",
+            "sha256": "4a4c163afa57b8e2f4afec0fadf42445383ceca4c65f6855895c5c29258dae25",
+            "width": 1440,
+            "height": 1600,
+            "regions": 7
+          }
+        ]
+      },
+      {
+        "theme": "one-dark-pro",
+        "frames": 13,
+        "uniqueRegions": 12,
+        "metadata": {
+          "file": "/var/tmp/l-VIS0171/vis0171-frame-review/noise-one-dark-pro.json",
+          "sha256": "ccfa587d2cec8a743c6872adced549424640b1adbf6ff31e45637c3a93a7d725"
+        },
+        "sheets": [
+          {
+            "file": "noise-one-dark-pro-00.png",
+            "sha256": "ad7004301166f689cd555561ccead1b74a3b90a4c7cf6cd1e537e650c0b8c8ba",
+            "width": 1440,
+            "height": 1600,
+            "regions": 12
+          }
+        ]
+      },
+      {
+        "theme": "dracula",
+        "frames": 10,
+        "uniqueRegions": 6,
+        "metadata": {
+          "file": "/var/tmp/l-VIS0171/vis0171-frame-review/noise-dracula.json",
+          "sha256": "82a19feffe6930ec9a6481b11b5183b33953eed8f8e07f4c08dc00577ddf616c"
+        },
+        "sheets": [
+          {
+            "file": "noise-dracula-00.png",
+            "sha256": "e443df56d15cce34b0a4d409d80e9fbccf8fffd7ac100b0fb5e8c76daa9e4615",
+            "width": 1440,
+            "height": 1600,
+            "regions": 6
+          }
+        ]
+      }
+    ]
+  },
+  "overviewSheets": [
+    {
+      "file": "overview-00.png",
+      "sha256": "a15e2e0f09684d7dd362187ed7364f7db6d202b2b594a6e8a20a740c1c1f9db9",
+      "width": 2016,
+      "height": 2160,
+      "frames": 432
+    },
+    {
+      "file": "overview-01.png",
+      "sha256": "ec80f4002aa57a308d9dd9468564ea960ad6bb2f727d5cf9143bc4ec6f8b349e",
+      "width": 2016,
+      "height": 2160,
+      "frames": 432
+    },
+    {
+      "file": "overview-02.png",
+      "sha256": "50e326104daa586fa1f8789e0644263c028c66b7b535c762757c098c84a664aa",
+      "width": 2016,
+      "height": 2160,
+      "frames": 432
+    },
+    {
+      "file": "overview-03.png",
+      "sha256": "f093c95e9a84f9c02abed1ba02993fa32b670d790824571a9bd92683287e4044",
+      "width": 2016,
+      "height": 2160,
+      "frames": 432
+    },
+    {
+      "file": "overview-04.png",
+      "sha256": "d7062e74990750fc14a18e910465b2d9901acfedde9a5a8c5642fa6d7f6ef10b",
+      "width": 2016,
+      "height": 2160,
+      "frames": 432
+    },
+    {
+      "file": "overview-05.png",
+      "sha256": "00d5d2e1067fc579046b6236fd4bee05f6faf8d984365121a171c0274b169f91",
+      "width": 2016,
+      "height": 2160,
+      "frames": 432
+    },
+    {
+      "file": "overview-06.png",
+      "sha256": "06c1739f2371bbe2dc366641a1082e7c0035f700eafc760c6c5569d0b354f5ce",
+      "width": 2016,
+      "height": 2160,
+      "frames": 432
+    },
+    {
+      "file": "overview-07.png",
+      "sha256": "6e2a0bfda194841c1230110c1a30489b7a34c30813dc4be8e75decb4ec345ef1",
+      "width": 2016,
+      "height": 2160,
+      "frames": 432
+    },
+    {
+      "file": "overview-08.png",
+      "sha256": "3178de6842d699dce905f88554410f280dc1d0a87ad13db269fc280951ea769b",
+      "width": 2016,
+      "height": 2160,
+      "frames": 432
+    },
+    {
+      "file": "overview-09.png",
+      "sha256": "d904f4de751a13ac29b3be89124cbe797bc2a63abf7f80cfb5ad3180a7908eaf",
+      "width": 2016,
+      "height": 2160,
+      "frames": 432
+    },
+    {
+      "file": "overview-10.png",
+      "sha256": "0429475f4dd55393ae4aa4edd3c75010d8e4547a80f57824bf65131f670ac957",
+      "width": 2016,
+      "height": 2160,
+      "frames": 432
+    },
+    {
+      "file": "overview-11.png",
+      "sha256": "360806c7e15f0e90519ef9c13d767db5071913aa19cfaea9b45db5ba505dc7ea",
+      "width": 2016,
+      "height": 2160,
+      "frames": 432
+    },
+    {
+      "file": "overview-12.png",
+      "sha256": "1a4d963f8b7a51d1406edbad481583584be54b356b5209b5487d469732f18e5a",
+      "width": 2016,
+      "height": 2160,
+      "frames": 432
+    },
+    {
+      "file": "overview-13.png",
+      "sha256": "09761c3deee4efd9cdb2bdd821128bb449ce3cd39b87f126781b2947d5632ca2",
+      "width": 2016,
+      "height": 2160,
+      "frames": 432
+    },
+    {
+      "file": "overview-14.png",
+      "sha256": "93d80448a295e3082a2188e6d82f42038ae7f314c7eeb914c51cb2ed1928c617",
+      "width": 2016,
+      "height": 2160,
+      "frames": 432
+    },
+    {
+      "file": "overview-15.png",
+      "sha256": "6bc9c06e38e65640e1145c6144cc907b36ffd1bc828a9e114799b0ac9d30a47a",
+      "width": 2016,
+      "height": 2160,
+      "frames": 432
+    },
+    {
+      "file": "overview-16.png",
+      "sha256": "d9e45fe44406c43613fa31b2cec247088c8679bd8983fa78bd6ff55250b9d015",
+      "width": 2016,
+      "height": 2160,
+      "frames": 432
+    },
+    {
+      "file": "overview-17.png",
+      "sha256": "04075178206b9571235713d1e9823296b22b79c7203577df83b2a4d12f612db4",
+      "width": 2016,
+      "height": 2160,
+      "frames": 432
+    },
+    {
+      "file": "overview-18.png",
+      "sha256": "9191bfcee278ee9fb266b7c52d7dca61cf6b4ff3420493e82f497648f71a1f72",
+      "width": 2016,
+      "height": 2160,
+      "frames": 432
+    },
+    {
+      "file": "overview-19.png",
+      "sha256": "a70201f9e0b8f534f3385b33ebe8c93a0f24213b9a3fe4cf82089b772aefb809",
+      "width": 2016,
+      "height": 2160,
+      "frames": 432
+    }
+  ],
+  "readme": [
+    {
+      "file": "media/readme/agents.png",
+      "scenario": "agents",
+      "width": 690,
+      "height": 760,
+      "bytes": 63713,
+      "sha256": "71cfdb0963583cf99633f0e6beb5994b9a5c68c182913cdc1a7c5b5e39b5b596",
+      "changed": true
+    },
+    {
+      "file": "media/readme/approval.png",
+      "scenario": "approval",
+      "width": 690,
+      "height": 760,
+      "bytes": 55219,
+      "sha256": "80a205f4a85133f738ef0bb7b66117fc1466af8b3cdd50fe62d5f84a9f3991f7",
+      "changed": true
+    },
+    {
+      "file": "media/readme/question.png",
+      "scenario": "question",
+      "width": 690,
+      "height": 760,
+      "bytes": 49612,
+      "sha256": "9cb2246f30e1b45de0c886453b70dd9cd336eb809fb067df6be556b78854b954",
+      "changed": true
+    },
+    {
+      "file": "media/readme/history.png",
+      "scenario": "history",
+      "width": 690,
+      "height": 760,
+      "bytes": 69973,
+      "sha256": "1dcaf620fac0c3a45081168b5b88e1f3d76d232d247ed1b1512a189fca0d42e2",
+      "changed": true
+    },
+    {
+      "file": "media/readme/languages.png",
+      "scenario": "usage",
+      "width": 690,
+      "height": 760,
+      "bytes": 73506,
+      "sha256": "45752b079a7932bcd2153f037116d646074c37d7a940bf84fb200473ac2f8d73",
+      "changed": false
+    },
+    {
+      "file": "media/readme/modes.png",
+      "scenario": "modes",
+      "width": 690,
+      "height": 760,
+      "bytes": 84268,
+      "sha256": "c8ce6dc1f6d7eca98f5528e710dc0ac6ba3220c456ca273ed8551363f4c54188",
+      "changed": true
+    },
+    {
+      "file": "media/readme/paid.png",
+      "scenario": "paid",
+      "width": 690,
+      "height": 760,
+      "bytes": 34317,
+      "sha256": "e4dd3ab9d0957e5d10e90f5a8a7f533a85dedaac1d44c2d074eb6f0138c6420e",
+      "changed": true
+    },
+    {
+      "file": "media/readme/paid-always.png",
+      "scenario": "paid-always",
+      "width": 690,
+      "height": 1000,
+      "bytes": 107692,
+      "sha256": "47a16ff7921de359bb4399fa7e19ff32dc5e76651b1de3505cc801aab8b76d24",
+      "changed": true
+    },
+    {
+      "file": "media/readme/palette.png",
+      "scenario": "slash-palette",
+      "width": 690,
+      "height": 760,
+      "bytes": 51960,
+      "sha256": "b439949f304de131ae5bc2d125931099e1588720cc06d39de49fd98cca6aab18",
+      "changed": true
+    },
+    {
+      "file": "media/readme/quote.png",
+      "scenario": "quote-menu",
+      "width": 690,
+      "height": 760,
+      "bytes": 38070,
+      "sha256": "ed293cc57cb7ec180db17412a145c16f9e2cb4aa7f31ce0bd04d4bbafed845a8",
+      "changed": true
+    },
+    {
+      "file": "media/readme/rewind.png",
+      "scenario": "rewind",
+      "width": 690,
+      "height": 760,
+      "bytes": 44734,
+      "sha256": "15634f4969286350a3688d638ee6eeae7667b0c03a07a586962894880369a775",
+      "changed": true
+    },
+    {
+      "file": "media/readme/slash-commands.png",
+      "scenario": "slash-commands",
+      "width": 690,
+      "height": 760,
+      "bytes": 76823,
+      "sha256": "0ab9253fb0356175c66fdd0151b2b5010c589725c86e80c8fd86c15793f48c98",
+      "changed": true
+    },
+    {
+      "file": "media/readme/turn.png",
+      "scenario": "tools-open",
+      "width": 690,
+      "height": 760,
+      "bytes": 52666,
+      "sha256": "1923df9c16e16fa2249f02283f9b374a87a1fb325977f8efa65661e96e08313a",
+      "changed": true
+    },
+    {
+      "file": "media/readme/usage.png",
+      "scenario": "usage",
+      "width": 690,
+      "height": 760,
+      "bytes": 66608,
+      "sha256": "9f32d726c297522234d493b331f30a779a4b926d9dc3deca0a258e9e192a8f48",
+      "changed": true
+    },
+    {
+      "file": "media/readme/voice.png",
+      "scenario": "dictation",
+      "width": 690,
+      "height": 760,
+      "bytes": 56904,
+      "sha256": "b118be8fef69cfaf73326a4920b5a349cd2dd6051e956f81898e0cd1b04d313b",
+      "changed": true
+    },
+    {
+      "file": "media/readme/open-question.png",
+      "scenario": "readme-open-question",
+      "width": 690,
+      "height": 760,
+      "bytes": 47307,
+      "sha256": "2f0bbaeaebd708b2431e16213e9912c09e00e140056b5dbc78b199bf3e1c4ef4",
+      "changed": true
+    },
+    {
+      "file": "media/readme/help.png",
+      "scenario": "readme-help",
+      "width": 1000,
+      "height": 760,
+      "bytes": 104140,
+      "sha256": "2e04ffd970c9dcedf62a4ac5368ad10a28461e06f6953f3b480bf14619410d4a",
+      "changed": true
+    },
+    {
+      "file": "media/readme/deterministic-report.png",
+      "scenario": "deterministic-report",
+      "width": 690,
+      "height": 760,
+      "bytes": 54294,
+      "sha256": "b88a94be512821ebdac4a42e2baae3e8914808b0265a470caf2c3d8acafb666a",
+      "changed": true
+    },
+    {
+      "file": "media/readme/resources.png",
+      "scenario": "resources-throttle",
+      "width": 690,
+      "height": 760,
+      "bytes": 36849,
+      "sha256": "a29357c0821ef40603ece77cef2b78e394d92e24ecf699fd8c113eea235df6db",
+      "changed": true
+    }
+  ],
+  "audit": [
+    {
+      "file": "src/webview/App.tsx",
+      "before": "ddad3af00bae9d84f4620fb83e61b69a9c8e8311381e47c26a51d550296c6926",
+      "after": "50a30f202255ca0af53dbe791591c91be3a20e284fd70648409f1accbd95cf6e"
+    },
+    {
+      "file": "src/webview/components/AttachmentChips.tsx",
+      "before": "d52672790c44f8148443bde77c5723a0e47d60cface0166652ea900ed9d6732f",
+      "after": "bcd727c8a092c0971b19e47c559c1c1e56f54cc320768b165e2e667fe7e4b04d"
+    },
+    {
+      "file": "src/webview/components/AttachmentMediaCost.tsx",
+      "before": "dd744a60e43a4625dfd368625e1d684896bf446c8fb24135b4df9d8d2b8c89b6",
+      "after": "0ea43f56e74fb1f2a0bfab2d4feaf95330063391fc6bdab1b58397291886efb9"
+    },
+    {
+      "file": "src/webview/components/ErrorBoundary.tsx",
+      "before": "0c7be779d8f3166c06c575db14332d8d9be8518947e06e470ffdc0a72d166fc4",
+      "after": "d836eed1452c9bf354665f46c4acec0578184c004444f1bec548a2fd1e8aa983"
+    },
+    {
+      "file": "src/webview/components/GitPanel.tsx",
+      "before": "bba6479e14b936e1d3708ea26dfbce0f6d1652ac0829734d81bb9288771748be",
+      "after": "6a85a87ba247f2020d00c22226c1ac5990f058b8428c5016ff1f512b692c10f2"
+    },
+    {
+      "file": "src/webview/components/HistoryDialog.tsx",
+      "before": "b2b32c69da6d2fc96504f44aaa511a9161478fd587468e7ba92c4240f822365a",
+      "after": "a7f72222a110026b9f6cf6e3883f409f30a596d4fe5d9a2604bd866b5f8ed7d0"
+    },
+    {
+      "file": "src/webview/components/Onboarding.tsx",
+      "before": "fd09e8fa4a4e455b65d04267f825e967719df87f275c98563c36366b9e80ce4e",
+      "after": "2b338cf7ae4d413eccaa51c02649abec905b709bd2884cae2fdb31a9b9c82e00"
+    },
+    {
+      "file": "src/webview/components/PaidUsageSection.tsx",
+      "before": "18fc34d364ca6767a39973547de1c0b4f1163e62aac1b82e962f39cd47335779",
+      "after": "0e1c7158eec13c58e6639eb43303f69fc6891d3563b6f44ad66ac2255f4a5d7e"
+    },
+    {
+      "file": "src/webview/components/QuestionCard.tsx",
+      "before": "016f9fae9e293fd4fb09ae09e7c6827b6b862ea57e6315bd9e0bc2b736daa892",
+      "after": "46e1c75c8435a016d6f065c7572b1e10d0bce48a19a22d39f557b912257d055f"
+    },
+    {
+      "file": "src/webview/components/Transcript.tsx",
+      "before": "56e228c5679f24b5005c12e30e6c9e874f839ea51cd3978cf3f5ab836614bb93",
+      "after": "19ee67818686578bcf0cd9f5bff3c021762c8a79a90c8bd71929fc829c8aacd9"
+    },
+    {
+      "file": "src/webview/main.tsx",
+      "before": "5e7bf44a76e3ae7706d0fc378e0af5056d8f62267cccf8ad246a9f0157f5d59b",
+      "after": "80d575b1ad8f6c97a482e6ddccea7a8bd5fd14e90152926b02fd24d5c779527e"
+    },
+    {
+      "file": "src/webview/media/CompanionMedia.tsx",
+      "before": "0b16627a50f9e2e80704e2235e258f09975237facd92efa6abcee26765c84620",
+      "after": "b61c76e926673db101b526a3cba1061d484873b7753f8a82321e235e4feefeee"
+    },
+    {
+      "file": "src/webview/models/ModelsSection.tsx",
+      "before": "f917f223935c2783f7838193abc3eb218c9d5a02b31f0d378706e05f0337dca1",
+      "after": "db0b921cd0fdfc1de0f6c88d962e9d4aab16c1d55687baedca28534927091200"
+    },
+    {
+      "file": "src/webview/models/ProvidersSection.tsx",
+      "before": "b98b7e462edc857352e0d5e94be7665d137d52014a519662c8901fadfc6f9793",
+      "after": "ce9ea7870166c121c58ec7984eb09b59e03b0283fc11caedd2405ef60abeeeaa"
+    },
+    {
+      "file": "src/webview/models/Wizard.tsx",
+      "before": "3d76d415b23b0696099f4f20adc91d15a31dd5685d7e8e193215c57061b6b0af",
+      "after": "a34d1ff5ccf0bf71966d1413c67eb070a9118e6874ef3345a03a3e6f073efdc3"
+    },
+    {
+      "file": "src/webview/models/components/SearchableSelect.tsx",
+      "before": "2115a7e563b6d2900da12fc6db09b7cf159f986bce98743eabf19ad20b438273",
+      "after": "5aa8b7dda8b120affd55066438b87e53ee8c785b9eb2f04a932dffa2e99885a6"
+    },
+    {
+      "file": "src/webview/models/models.css",
+      "before": "388dde2783a7d4501a18585bda70d167f24bc86c0b2ce6e687f6e651bce1720a",
+      "after": "70b008b5616306c21dbd8f4856ebca8dc92621d48e70d75825581aa56e0eceb6"
+    },
+    {
+      "file": "src/webview/models/reducer.ts",
+      "before": "a03d5378131fad9d85f2a3670bf3aa3ca520c128d02090bafe880961ce143a01",
+      "after": "3d269f84cb429ab806cc8963eee79dc0e1586262eb680c5a83de080820adec7d"
+    },
+    {
+      "file": "src/webview/state/transcriptEntries.ts",
+      "before": "e21b474c0d28debfb2cc51e909c79b2cde28d5bfda70f2055a1f28d000868f2e",
+      "after": "ee03967a2ad5a0c7215106cebc3ea7993094adee9f60e7bfc90aaf247cf09a34"
+    },
+    {
+      "file": "src/webview/state/uiState.ts",
+      "before": "0dc17c546c3d74b7f5ba107f04f01f444c09d1d3b2b473ba49bd2f3ebd5e3823",
+      "after": "ad3f87715f1059e7ae207fdc41530fdcaef7855d970a314083cd487acf2026ae"
+    }
+  ],
+  "reviewArchiveIntegrity": {
+    "checked": 9792,
+    "bytes": 450605007,
+    "metadataSha256": "802681717db1996dba187b28f5e5501a49e2a0fe6c99ea6744df32168238b7ad",
+    "archive": "/var/tmp/l-VIS0171/vis0171-round2-review"
+  },
+  "officialBaseline": {
+    "manifestSha256": "b6fed01534712876f83bbcfd841ca7599ca3dc3446df4a38d5639ecc55bd28f5",
+    "revision": "f8db72798c498dff30f70b83375b2098e202f976",
+    "archive": "/var/tmp/l-VIS0171/vis0171-reviewed-final-tty",
+    "captures": 9792,
+    "verifiedBytes": 450604546,
+    "stateCoverageDifferences": 0,
+    "identicalToReviewedFrames": 8537,
+    "withinPolicyFrames": 1255,
+    "significantChangedPixels": 16,
+    "comparison": {
+      "file": "temp/vis0171-round2-official-review-parity.json",
+      "sha256": "ec835f20a02fe36db9349a4c604efdc4285f151d8754072a54cb2ef815e41423"
+    },
+    "allInspected": true,
+    "evidence": [
+      {
+        "theme": "light",
+        "frames": 241,
+        "uniqueRegions": 158,
+        "metadata": {
+          "file": "/var/tmp/l-VIS0171/vis0171-frame-review/official-light.json",
+          "sha256": "cd65340b298044c7c44e2df085f11f6bfa4cadb2170c426c6a915e13565540b5"
+        },
+        "sheets": [
+          {
+            "file": "official-light-00.png",
+            "sha256": "80c625f4b88f7d1b34421a630b019aea9469c6fdc3f30797aaca2afcf0d2de28",
+            "width": 1440,
+            "height": 1600,
+            "regions": 36
+          },
+          {
+            "file": "official-light-01.png",
+            "sha256": "28946868c61edb2d75c9b4957275dbd96fd124d1b1c13df57e6a5e9963d541a1",
+            "width": 1440,
+            "height": 1600,
+            "regions": 35
+          },
+          {
+            "file": "official-light-02.png",
+            "sha256": "c1b7caa5003f52e8a706e05995905936555da4cd33d188cecf7ccc2a396ea2f8",
+            "width": 1440,
+            "height": 1600,
+            "regions": 36
+          },
+          {
+            "file": "official-light-03.png",
+            "sha256": "7b47dbf3dceba023b0b1f7014c8ad6bcd163864ac9efb365d473e1016c7e6d5b",
+            "width": 1440,
+            "height": 1600,
+            "regions": 37
+          },
+          {
+            "file": "official-light-04.png",
+            "sha256": "1ad232084acb3b282d040942c416b371d3f490658a49412fefac576f80818e8c",
+            "width": 1440,
+            "height": 1600,
+            "regions": 14
+          }
+        ]
+      },
+      {
+        "theme": "dark",
+        "frames": 216,
+        "uniqueRegions": 160,
+        "metadata": {
+          "file": "/var/tmp/l-VIS0171/vis0171-frame-review/official-dark.json",
+          "sha256": "db0c9583980a16e763b834f8449acb4476cc614cf1022e84e465259694c14c83"
+        },
+        "sheets": [
+          {
+            "file": "official-dark-00.png",
+            "sha256": "e6624c229dc6574f73fb532a96431952942eede3855e4d37917d407a4dadc228",
+            "width": 1440,
+            "height": 1600,
+            "regions": 37
+          },
+          {
+            "file": "official-dark-01.png",
+            "sha256": "3a227fdff10c611a0894e2cdf97f945d036803009ea38c21f896e10bc5bd3920",
+            "width": 1440,
+            "height": 1600,
+            "regions": 37
+          },
+          {
+            "file": "official-dark-02.png",
+            "sha256": "3b564658e5103c072c1ebb37c6212568a406f00a658d7e261b8961829a0427c1",
+            "width": 1440,
+            "height": 1600,
+            "regions": 36
+          },
+          {
+            "file": "official-dark-03.png",
+            "sha256": "2ccb2a5715a0743be53665688d2253c3c367f5c9e6ef6fdb0a5c1620d8e56e49",
+            "width": 1440,
+            "height": 1600,
+            "regions": 35
+          },
+          {
+            "file": "official-dark-04.png",
+            "sha256": "78c8a1b30a3eff249156da601a11d655b7805081494e9444c7b69b9fc1856d77",
+            "width": 1440,
+            "height": 1600,
+            "regions": 15
+          }
+        ]
+      },
+      {
+        "theme": "hc-dark",
+        "frames": 192,
+        "uniqueRegions": 125,
+        "metadata": {
+          "file": "/var/tmp/l-VIS0171/vis0171-frame-review/official-hc-dark.json",
+          "sha256": "ce07bcdf28acae58a485216ea75d31e7b4cb41323513750933d23871e3d0543e"
+        },
+        "sheets": [
+          {
+            "file": "official-hc-dark-00.png",
+            "sha256": "fe87c4dd14228fe3e265339672cf53cc687367904441a07d8bf0016d098eec13",
+            "width": 1440,
+            "height": 1600,
+            "regions": 37
+          },
+          {
+            "file": "official-hc-dark-01.png",
+            "sha256": "2ddebf8cb8eb8743db76e73fb7892f085f9bbbb6f05c682d152c2cb575570e8d",
+            "width": 1440,
+            "height": 1600,
+            "regions": 37
+          },
+          {
+            "file": "official-hc-dark-02.png",
+            "sha256": "28b2a6d311fbc11d85e4b0feb120886fe04969b18ba2a239c5c9507017c75407",
+            "width": 1440,
+            "height": 1600,
+            "regions": 36
+          },
+          {
+            "file": "official-hc-dark-03.png",
+            "sha256": "9f3b29a94f92b678e0380668e529f1bf155b6d42da4abba448785ca954a44e0a",
+            "width": 1440,
+            "height": 1600,
+            "regions": 15
+          }
+        ]
+      },
+      {
+        "theme": "hc-light",
+        "frames": 176,
+        "uniqueRegions": 107,
+        "metadata": {
+          "file": "/var/tmp/l-VIS0171/vis0171-frame-review/official-hc-light.json",
+          "sha256": "3e99e0570a88640c7acfe885b935166f54ca9f4369e707bc82306d0c57c0b65f"
+        },
+        "sheets": [
+          {
+            "file": "official-hc-light-00.png",
+            "sha256": "2fe360d95c4a14fb17df3be606b32e0ab362b08c9a91abcb18a4a0f4883f463c",
+            "width": 1440,
+            "height": 1600,
+            "regions": 36
+          },
+          {
+            "file": "official-hc-light-01.png",
+            "sha256": "100f79d8faafab9980997ee0d49c69fe2ebfaed927908d9bd814456bfe7f7f3d",
+            "width": 1440,
+            "height": 1600,
+            "regions": 36
+          },
+          {
+            "file": "official-hc-light-02.png",
+            "sha256": "e5dd670ea4387f392174bcb6ba2d7dcfc344221e0696967c409205a7de8b8a72",
+            "width": 1440,
+            "height": 1600,
+            "regions": 35
+          }
+        ]
+      },
+      {
+        "theme": "one-dark-pro",
+        "frames": 243,
+        "uniqueRegions": 157,
+        "metadata": {
+          "file": "/var/tmp/l-VIS0171/vis0171-frame-review/official-one-dark-pro.json",
+          "sha256": "69ca4e65345bab2b140d1db1646ea3a869f31b39b75ed17c10c0ab90180d6487"
+        },
+        "sheets": [
+          {
+            "file": "official-one-dark-pro-00.png",
+            "sha256": "5e0681d7e7743dbba797560ebc3327f657526b1c8cb3103eaba2a524da6eae49",
+            "width": 1440,
+            "height": 1600,
+            "regions": 38
+          },
+          {
+            "file": "official-one-dark-pro-01.png",
+            "sha256": "4879ba93d459843f19d36be9e422ed9445d8a389283423e46e58cdb5b40ffe2b",
+            "width": 1440,
+            "height": 1600,
+            "regions": 36
+          },
+          {
+            "file": "official-one-dark-pro-02.png",
+            "sha256": "673a4e30c304b04434e62f6e182071ef7e19b2c9f725d38061ddd6911de51fc9",
+            "width": 1440,
+            "height": 1600,
+            "regions": 36
+          },
+          {
+            "file": "official-one-dark-pro-03.png",
+            "sha256": "9db232e8e30d046e11525d0a527c120406482007454cb995d0203fe69bc40b65",
+            "width": 1440,
+            "height": 1600,
+            "regions": 35
+          },
+          {
+            "file": "official-one-dark-pro-04.png",
+            "sha256": "736f3d3c73d442fe1cddd907ffec417d0e6dd9d873318f9fd62b7f254dd72d51",
+            "width": 1440,
+            "height": 1600,
+            "regions": 12
+          }
+        ]
+      },
+      {
+        "theme": "dracula",
+        "frames": 187,
+        "uniqueRegions": 123,
+        "metadata": {
+          "file": "/var/tmp/l-VIS0171/vis0171-frame-review/official-dracula.json",
+          "sha256": "b1e6d477684b2c2bdc933c9a078168f31b2291ddb2c2643494e82628d37454c0"
+        },
+        "sheets": [
+          {
+            "file": "official-dracula-00.png",
+            "sha256": "fc4c4a68ded75b3ab02e7b9b3e866550ce8a15c0c041673befd526ce4ac54cd2",
+            "width": 1440,
+            "height": 1600,
+            "regions": 37
+          },
+          {
+            "file": "official-dracula-01.png",
+            "sha256": "0e9b5877fb75af3c349bae16cf674ea435c01c5ca99897a89bcf4880148060bd",
+            "width": 1440,
+            "height": 1600,
+            "regions": 34
+          },
+          {
+            "file": "official-dracula-02.png",
+            "sha256": "4d5b59310bd50bbbdd8b5e44b841d37d554407f19fbda8a1baaea847ae115066",
+            "width": 1440,
+            "height": 1600,
+            "regions": 35
+          },
+          {
+            "file": "official-dracula-03.png",
+            "sha256": "06398181411bf92d7c1fc44dea58e34c94f139b22ded4a3273e88c8fdddbc2be",
+            "width": 1440,
+            "height": 1600,
+            "regions": 17
+          }
+        ]
+      }
+    ]
+  },
+  "manifestSha256": "e28ece7b2e5a6bf234713b405ed9a1bd5469cf9a4658e8e5b39caeedebbdbd21",
+  "baselineDrill": {
+    "capture": "panel/account-usage/default/light/320",
+    "manifestBefore": "e28ece7b2e5a6bf234713b405ed9a1bd5469cf9a4658e8e5b39caeedebbdbd21",
+    "imageBefore": "6c8271cdad53f0094b29baf67a2657e132c9a18e33c548dc37d83f59b1c6cf9f",
+    "historicalImage": "02ac868fa768bb8f63c539268e77d6fd4875cd6285c52fe53cd6118562f35fe3",
+    "log": "temp/vis0171-round2-baseline-drill.log",
+    "exitCode": 1,
+    "failure": "Error: panel/account-usage/default/light/320: Visual regression: 2075 changed pixel(s), allowance 12",
+    "manifestAfter": "e28ece7b2e5a6bf234713b405ed9a1bd5469cf9a4658e8e5b39caeedebbdbd21",
+    "imageAfter": "6c8271cdad53f0094b29baf67a2657e132c9a18e33c548dc37d83f59b1c6cf9f",
+    "restored": true
+  },
+  "fullReplay": {
+    "status": "incomplete-unqualified",
+    "command": "npm run check:visual",
+    "log": "temp/vis0171-round2-full-visual.log",
+    "candidateHead": "f7243df254d74ae2b93c00c3fcee20adf69bec89",
+    "reason": "Stopped to respect the 90-minute rig-brief time box and record the handoff",
+    "signalRequested": "SIGINT through the tool terminal",
+    "toolExitCode": 1,
+    "lastReportedCaptures": 1152,
+    "requiredCaptures": 9792,
+    "observedVisualRegressionErrors": 0,
+    "terminalError": "browserContext.close: Target page, context or browser has been closed",
+    "manifestSha256After": "e28ece7b2e5a6bf234713b405ed9a1bd5469cf9a4658e8e5b39caeedebbdbd21",
+    "finalFullResultWritten": false
+  }
+}

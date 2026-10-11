@@ -1,0 +1,123 @@
+[
+  {
+    "name": "english-encoding",
+    "file": "scripts/lib/compressedEnglish.mjs",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/compressedEnglish.test.mjs",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "exit": 1,
+    "summary": ["Test Files  1 failed (1)", "Tests  2 failed | 5 passed (7)"],
+    "beforeSha256": "501e2f0b7464c096096ccdab30a58e356c6f3ccd2d16a5976d893059dec95b54",
+    "restoredSha256": "501e2f0b7464c096096ccdab30a58e356c6f3ccd2d16a5976d893059dec95b54"
+  },
+  {
+    "name": "english-expression-guard",
+    "file": "scripts/lib/compressedEnglish.mjs",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/compressedEnglish.test.mjs",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "exit": 1,
+    "summary": ["Test Files  1 failed (1)", "Tests  2 failed | 5 passed (7)"],
+    "beforeSha256": "501e2f0b7464c096096ccdab30a58e356c6f3ccd2d16a5976d893059dec95b54",
+    "restoredSha256": "501e2f0b7464c096096ccdab30a58e356c6f3ccd2d16a5976d893059dec95b54"
+  },
+  {
+    "name": "scheduler-factory",
+    "file": "src/core/team/teamSchedulerEntry.ts",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/teamRuntimePackage.test.mjs",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "exit": 1,
+    "summary": ["Test Files  1 failed (1)", "Tests  1 failed (1)"],
+    "beforeSha256": "497bca685757e56d70dde1909f23feb7e4b72a447a519e9b32bf3a44b1825f7f",
+    "restoredSha256": "497bca685757e56d70dde1909f23feb7e4b72a447a519e9b32bf3a44b1825f7f"
+  },
+  {
+    "name": "schema-freshness",
+    "file": "src/shared/teamToolSchemas.json",
+    "command": ["node", "scripts/team-tool-schemas.mjs"],
+    "exit": 1,
+    "summary": [],
+    "beforeSha256": "a1c1c05e30ded46be52d1609ff14576c3ac518476393fec9e9857dd495300e3d",
+    "restoredSha256": "a1c1c05e30ded46be52d1609ff14576c3ac518476393fec9e9857dd495300e3d"
+  },
+  {
+    "name": "scheduler-split-inventory",
+    "file": "dist/meta/teamScheduler.json",
+    "exit": 1,
+    "beforeSha256": "6c288e88399dcccd06a0fa8009c9b6ed6de2f1f74e3177cdc52395d58d783dc7",
+    "restoredSha256": "6c288e88399dcccd06a0fa8009c9b6ed6de2f1f74e3177cdc52395d58d783dc7"
+  },
+  {
+    "name": "shared-validation-api",
+    "file": "dist/validation.js",
+    "exit": 1,
+    "beforeSha256": "8119be5043a50bb46e6810b7d42c73412c6ff7b8c9c445bf554e8e2b7d086f06",
+    "restoredSha256": "8119be5043a50bb46e6810b7d42c73412c6ff7b8c9c445bf554e8e2b7d086f06"
+  },
+  {
+    "name": "unknown-liability",
+    "file": "src/core/team/teamMeter.ts",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/teamMeter.test.ts",
+      "test/unit/teamSettlement.test.ts",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "exit": 1,
+    "summary": ["Test Files  1 failed | 1 passed (2)", "Tests  1 failed | 17 passed (18)"],
+    "beforeSha256": "a7235ac378910e3dddb2aef7f4fec0abe208ad6d30ed349ac41e7255a16a2d6b",
+    "restoredSha256": "a7235ac378910e3dddb2aef7f4fec0abe208ad6d30ed349ac41e7255a16a2d6b"
+  },
+  {
+    "name": "end-record-retry",
+    "file": "src/host/team/processLifetime.ts",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/teamProcessLifetime.test.ts",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "exit": 1,
+    "summary": ["Test Files  1 failed (1)", "Tests  2 failed | 23 passed (25)", "Errors  4 errors"],
+    "beforeSha256": "485c6dc2ed9a1ef4da68e15907db9467360206371681e1070f5b9aa486020409",
+    "restoredSha256": "485c6dc2ed9a1ef4da68e15907db9467360206371681e1070f5b9aa486020409"
+  },
+  {
+    "name": "traffic-single-entry",
+    "file": "test/harness/index.html",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/teamHarness.test.mjs",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "exit": 1,
+    "fiveRouteGuardsFired": true,
+    "summary": ["Test Files  1 failed (1)", "Tests  6 failed | 16 passed (22)"],
+    "beforeSha256": "d70f06a002640584ddd775ff6cf218aa08f9ec7786843a87486b3410c8477b5b",
+    "restoredSha256": "d70f06a002640584ddd775ff6cf218aa08f9ec7786843a87486b3410c8477b5b"
+  }
+]

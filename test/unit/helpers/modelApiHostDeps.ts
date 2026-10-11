@@ -1,10 +1,11 @@
+import { Usd } from '../../../src/shared/usd'
 // A `ModelApiHost`'s dependencies over the fake Model API and an in-memory
 // workspace: trusted, non-confidential, nothing paid or allowed, no personal
 // skills, agents or memory,
 // ids and a clock that count up. The host suites spread it and change what
 // they test.
 
-import type { ModelApiClient } from '../../../src/core/backends/modelapi/client'
+import type { ProviderClient } from '../../../src/core/backends/modelapi/client'
 import type { ModelApiHostDeps } from '../../../src/core/backends/modelapi/ModelApiHost'
 import type { CoreLogger } from '../../../src/core/logging'
 import { memoryContextIo } from './fakeContextIo'
@@ -16,7 +17,7 @@ const CLOCK_START_MS = 1_000_000
 const CLOCK_STEP_MS = 1000
 
 export function fakeModelApiHostDeps(base: {
-  readonly client: ModelApiClient
+  readonly client: ProviderClient
   readonly workspaceRoot: string
   readonly io: MemoryToolIo
   readonly log: CoreLogger
@@ -50,7 +51,7 @@ export function fakeModelApiHostDeps(base: {
     notePaidUse: () => undefined,
     promptCacheRetention: () => 'in_memory',
     // No session budget, no reply usage line (M82).
-    sessionBudgetUsd: () => 0,
+    sessionBudgetUsd: () => Usd.from(0).toAmount(),
     showReplyUsage: () => false,
     allowsPaidUse: () => Promise.resolve(false),
     isPaidUseRemembered: () => false,

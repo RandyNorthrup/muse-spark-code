@@ -1,4 +1,4 @@
-// "Mention file from this project…": a QuickPick whose items are refreshed
+// "Mention File From This Project…": a QuickPick whose items are refreshed
 // from the mention index as the user types. The QuickPick factory is injected
 // so the flow is unit-tested with a fake; `vscode.window.createQuickPick`
 // satisfies it directly.

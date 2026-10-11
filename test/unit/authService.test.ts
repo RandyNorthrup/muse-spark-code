@@ -173,6 +173,29 @@ async function signedInModelApi(overrides: Partial<AuthServiceDeps> = {}): Promi
   return h
 }
 
+it('publishes plan identity only when signed in to the Model API and refreshes account changes', async () => {
+  const getPlanAccount = vi.fn(() =>
+    Promise.resolve({ providerId: 'chatgpt', accountIdHash: 'a'.repeat(64) }),
+  )
+  const h = await signedInModelApi({ getPlanAccount })
+  expect(h.service.toMessage()).toHaveProperty('planAccount.accountIdHash', 'a'.repeat(64))
+  getPlanAccount.mockResolvedValue({ providerId: 'chatgpt', accountIdHash: 'b'.repeat(64) })
+  await h.service.refresh()
+  expect(h.service.toMessage()).toHaveProperty('planAccount.accountIdHash', 'b'.repeat(64))
+  h.service.markAuthRequired('synthetic-expired')
+  expect(h.service.toMessage()).not.toHaveProperty('planAccount')
+  h.facts.backendMode = 'museCode'
+  h.facts.cli = 'signedIn'
+  await h.service.refresh()
+  expect(h.service.toMessage()).not.toHaveProperty('planAccount')
+  h.facts.backendMode = 'modelApi'
+  getPlanAccount.mockRejectedValue(new Error('synthetic-private-account'))
+  await h.service.refresh()
+  expect(h.service.toMessage()).not.toHaveProperty('planAccount')
+  expect(h.deps.log.warn).toHaveBeenCalledWith('Plan account identity could not be read')
+  expect(JSON.stringify(h.broadcasts)).not.toContain('synthetic-private-account')
+})
+
 async function expectSignedOutWithoutKey(h: Harness): Promise<void> {
   expect(await h.deps.credentials.getApiKey()).toBeUndefined()
   expect(h.service.current.status).toBe('signedOut')

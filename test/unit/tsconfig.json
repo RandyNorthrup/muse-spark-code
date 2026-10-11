@@ -7,7 +7,9 @@
   "compilerOptions": {
     "lib": ["ES2024", "ESNext.Array", "DOM", "DOM.Iterable"],
     "jsx": "react-jsx",
-    "types": ["node", "vscode", "vscode-webview", "@testing-library/jest-dom"]
+    // `vite/client` types `import.meta.glob`, which the structural money
+    // guard uses to load every schema module with vitest's normal loading.
+    "types": ["node", "vscode", "vscode-webview", "@testing-library/jest-dom", "vite/client"]
   },
   "include": [
     "./**/*.ts",

@@ -1,0 +1,376 @@
+[
+  {
+    "drill": "T01 forced taint",
+    "file": "src/core/vault/taint.ts",
+    "sha256": "ab345ae972d4734c889854a2ea7732c91655c8d1a580c3ae40e892285a5e78d3",
+    "restored": true,
+    "failed": [
+      "FAIL  test/unit/vault/taint.test.ts > vault taint > forces an ask after web despite an Always grant and denies unattended use",
+      "FAIL  test/unit/vault/taint.test.ts > vault taint > forces an ask after search despite an Always grant and denies unattended use",
+      "FAIL  test/unit/vault/taint.test.ts > vault taint > forces an ask after browser despite an Always grant and denies unattended use",
+      "FAIL  test/unit/vault/taint.test.ts > vault taint > forces an ask after mcp despite an Always grant and denies unattended use",
+      "FAIL  test/unit/vault/taint.test.ts > vault taint > forces an ask after issue despite an Always grant and denies unattended use",
+      "FAIL  test/unit/vault/taint.test.ts > vault taint > forces an ask after pullRequest despite an Always grant and denies unattended use",
+      "FAIL  test/unit/vault/taint.test.ts > vault taint > forces an ask after agent despite an Always grant and denies unattended use",
+      "FAIL  test/unit/vault/taint.test.ts > vault taint > forces an ask after device despite an Always grant and denies unattended use",
+      "FAIL  test/unit/vault/taint.test.ts > vault taint > tracks actual Model API context and propagates summaries without poisoning an independent request",
+      "FAIL  test/unit/vault/taint.test.ts > vault taint > keeps Muse Code taint through later requests and refuses mutation of snapshots",
+      "FAIL  test/unit/vault/taint.test.ts > vault taint > Restricted Mode taints either backend, and Muse Code retains it after trust changes",
+      "FAIL  test/unit/vault/taint.test.ts > vault taint > bounds and deduplicates reasons without clearing taint, including unspecified provenance"
+    ]
+  },
+  {
+    "drill": "T02 provenance validation",
+    "file": "src/core/vault/taint.ts",
+    "sha256": "ab345ae972d4734c889854a2ea7732c91655c8d1a580c3ae40e892285a5e78d3",
+    "restored": true,
+    "failed": [
+      "FAIL  test/unit/vault/taint.test.ts > vault taint > bounds and deduplicates reasons without clearing taint, including unspecified provenance"
+    ]
+  },
+  {
+    "drill": "T03 bounded reasons",
+    "file": "src/core/vault/taint.ts",
+    "sha256": "ab345ae972d4734c889854a2ea7732c91655c8d1a580c3ae40e892285a5e78d3",
+    "restored": true,
+    "failed": [
+      "FAIL  test/unit/vault/taint.test.ts > vault taint > bounds and deduplicates reasons without clearing taint, including unspecified provenance"
+    ]
+  },
+  {
+    "drill": "T04 sticky Muse Code",
+    "file": "src/core/vault/taint.ts",
+    "sha256": "ab345ae972d4734c889854a2ea7732c91655c8d1a580c3ae40e892285a5e78d3",
+    "restored": true,
+    "failed": [
+      "FAIL  test/unit/vault/taint.test.ts > vault taint > tracks actual Model API context and propagates summaries without poisoning an independent request",
+      "FAIL  test/unit/vault/taint.test.ts > vault taint > keeps Muse Code taint through later requests and refuses mutation of snapshots",
+      "FAIL  test/unit/vault/taint.test.ts > vault taint > Restricted Mode taints either backend, and Muse Code retains it after trust changes"
+    ]
+  },
+  {
+    "drill": "T05 Restricted Mode",
+    "file": "src/core/vault/taint.ts",
+    "sha256": "ab345ae972d4734c889854a2ea7732c91655c8d1a580c3ae40e892285a5e78d3",
+    "restored": true,
+    "failed": [
+      "FAIL  test/unit/vault/taint.test.ts > vault taint > Restricted Mode taints either backend, and Muse Code retains it after trust changes"
+    ]
+  },
+  {
+    "drill": "T06 derived context",
+    "file": "src/core/vault/taint.ts",
+    "sha256": "ab345ae972d4734c889854a2ea7732c91655c8d1a580c3ae40e892285a5e78d3",
+    "restored": true,
+    "failed": [
+      "FAIL  test/unit/vault/taint.test.ts > vault taint > tracks actual Model API context and propagates summaries without poisoning an independent request"
+    ]
+  },
+  {
+    "drill": "T07 exact forms",
+    "file": "src/core/vault/scrub.ts",
+    "sha256": "37110a619c2f4430d735b151ab76cbcf0c866fac7bfb566fcc1e1e86c91707c0",
+    "restored": true,
+    "failed": [
+      "FAIL  test/unit/vault/scrub.test.ts > vault scrub > catches literal, JSON, percent and hex forms without altering unrelated text",
+      "FAIL  test/unit/vault/scrub.test.ts > vault scrub > catches base64 and base64url embedded at all three byte alignments",
+      "FAIL  test/unit/vault/scrub.test.ts > vault scrub > scrubs overlapping values, suffix matches and Unicode",
+      "FAIL  test/unit/vault/scrub.test.ts > vault scrub > catches every split write, line break and ANSI run without emitting a secret prefix",
+      "FAIL  test/unit/vault/scrub.test.ts > vault scrub > retains an incomplete ANSI sequence until its terminator arrives",
+      "FAIL  test/unit/vault/scrub.test.ts > vault scrub > locks immediately, wipes transferred values and cannot install a late build"
+    ]
+  },
+  {
+    "drill": "T08 base64 alignment",
+    "file": "src/core/vault/scrub.ts",
+    "sha256": "37110a619c2f4430d735b151ab76cbcf0c866fac7bfb566fcc1e1e86c91707c0",
+    "restored": true,
+    "failed": [
+      "FAIL  test/unit/vault/scrub.test.ts > vault scrub > catches base64 and base64url embedded at all three byte alignments"
+    ]
+  },
+  {
+    "drill": "T09 stream suffix",
+    "file": "src/core/vault/scrub.ts",
+    "sha256": "37110a619c2f4430d735b151ab76cbcf0c866fac7bfb566fcc1e1e86c91707c0",
+    "restored": true,
+    "failed": [
+      "FAIL  test/unit/vault/scrub.test.ts > vault scrub > catches every split write, line break and ANSI run without emitting a secret prefix",
+      "FAIL  test/unit/vault/scrub.test.ts > vault scrub > retains an incomplete ANSI sequence until its terminator arrives"
+    ]
+  },
+  {
+    "drill": "T10 obsolete build",
+    "file": "src/core/vault/scrub.ts",
+    "sha256": "37110a619c2f4430d735b151ab76cbcf0c866fac7bfb566fcc1e1e86c91707c0",
+    "restored": true,
+    "failed": [
+      "FAIL  test/unit/vault/scrub.test.ts > vault scrub > locks immediately, wipes transferred values and cannot install a late build"
+    ]
+  },
+  {
+    "drill": "T11 byte ownership",
+    "file": "src/core/vault/scrub.ts",
+    "sha256": "37110a619c2f4430d735b151ab76cbcf0c866fac7bfb566fcc1e1e86c91707c0",
+    "restored": true,
+    "failed": [
+      "FAIL  test/unit/vault/scrub.test.ts > vault scrub > locks immediately, wipes transferred values and cannot install a late build",
+      "FAIL  test/unit/vault/scrub.test.ts > vault scrub > refuses decoration-only values instead of claiming a safe empty match"
+    ]
+  },
+  {
+    "drill": "T12 disposed trie",
+    "file": "src/core/vault/scrub.ts",
+    "sha256": "37110a619c2f4430d735b151ab76cbcf0c866fac7bfb566fcc1e1e86c91707c0",
+    "restored": true,
+    "failed": [
+      "FAIL  test/unit/vault/scrub.test.ts > vault scrub > refuses disposed streams and retains no trie after disposal"
+    ]
+  },
+  {
+    "drill": "T13 matchable value",
+    "file": "src/core/vault/scrub.ts",
+    "sha256": "37110a619c2f4430d735b151ab76cbcf0c866fac7bfb566fcc1e1e86c91707c0",
+    "restored": true,
+    "failed": [
+      "FAIL  test/unit/vault/scrub.test.ts > vault scrub > refuses decoration-only values instead of claiming a safe empty match"
+    ]
+  },
+  {
+    "drill": "T14 bounded stream",
+    "file": "src/core/vault/scrub.ts",
+    "sha256": "37110a619c2f4430d735b151ab76cbcf0c866fac7bfb566fcc1e1e86c91707c0",
+    "restored": true,
+    "failed": [
+      "FAIL  test/unit/vault/scrub.test.ts > vault scrub > bounds streaming suffix memory and closes an over-limit stream without output"
+    ]
+  },
+  {
+    "drill": "T15 unavailable refusal",
+    "file": "src/core/vault/scrub.ts",
+    "sha256": "37110a619c2f4430d735b151ab76cbcf0c866fac7bfb566fcc1e1e86c91707c0",
+    "restored": true,
+    "failed": [
+      "FAIL  test/unit/vault/scrub.test.ts > vault scrub > locks immediately, wipes transferred values and cannot install a late build",
+      "FAIL  test/unit/vault/scrub.test.ts > vault scrub > refuses decoration-only values instead of claiming a safe empty match"
+    ]
+  },
+  {
+    "drill": "T16 actual request context",
+    "file": "src/core/backends/modelapi/ModelApiHost.ts",
+    "sha256": "db05834e17d1db3c31ffb360b9b3bd2f7f2be1f21ff55340a303571c38ea342f",
+    "restored": true,
+    "failed": [
+      "FAIL  test/unit/vault/requestTaint.test.ts > request provenance > keeps metadata off the provider wire and preserves externally supplied provenance through restore and compaction",
+      "FAIL  test/unit/vault/requestTaint.test.ts > request provenance > taints a configured MCP foreign server despite its claimed trust",
+      "FAIL  test/unit/vault/requestTaint.test.ts > request provenance > taints a configured MCP ide server despite its claimed trust",
+      "FAIL  test/unit/vault/requestTaint.test.ts > request provenance > treats old history without provenance as untrusted rather than accepting a missing proof"
+    ]
+  },
+  {
+    "drill": "T17 same reply search",
+    "file": "src/core/backends/modelapi/ModelApiHost.ts",
+    "sha256": "db05834e17d1db3c31ffb360b9b3bd2f7f2be1f21ff55340a303571c38ea342f",
+    "restored": true,
+    "failed": [
+      "FAIL  test/unit/vault/requestTaint.test.ts > request provenance > taints calls in the same reply as hosted search and retains that provenance"
+    ]
+  },
+  {
+    "drill": "T18 MCP routing trust",
+    "file": "src/core/backends/modelapi/ModelApiHost.ts",
+    "sha256": "db05834e17d1db3c31ffb360b9b3bd2f7f2be1f21ff55340a303571c38ea342f",
+    "restored": true,
+    "failed": [
+      "FAIL  test/unit/vault/requestTaint.test.ts > request provenance > taints a configured MCP foreign server despite its claimed trust",
+      "FAIL  test/unit/vault/requestTaint.test.ts > request provenance > taints a configured MCP ide server despite its claimed trust"
+    ]
+  },
+  {
+    "drill": "T19 legacy proof",
+    "file": "src/core/backends/modelapi/ModelApiHost.ts",
+    "sha256": "db05834e17d1db3c31ffb360b9b3bd2f7f2be1f21ff55340a303571c38ea342f",
+    "restored": true,
+    "failed": [
+      "FAIL  test/unit/vault/requestTaint.test.ts > request provenance > treats old history without provenance as untrusted rather than accepting a missing proof"
+    ]
+  },
+  {
+    "drill": "T20 stored provenance",
+    "file": "src/core/backends/modelapi/sessionStore.ts",
+    "sha256": "36af51da55538698321ff17bf7d8b9a3269edb9c3099b7ca02d761f734d90320",
+    "restored": true,
+    "failed": [
+      "FAIL  test/unit/vault/requestTaint.test.ts > request provenance > keeps metadata off the provider wire and preserves externally supplied provenance through restore and compaction"
+    ]
+  },
+  {
+    "drill": "T21 pre-send scrub",
+    "file": "src/core/backends/modelapi/client.ts",
+    "sha256": "01bf6ebe409f323eb86637e14899f30828c1a0fdb62737d40f8e7e539b385d0e",
+    "restored": true,
+    "failed": [
+      "FAIL  test/unit/vault/boundaryScrub.test.ts > vault scrub boundaries > scrubs the complete Model API body before every HTTP try, including token counting",
+      "FAIL  test/unit/vault/boundaryScrub.test.ts > vault scrub boundaries > refuses sends on a scrub failure or malformed scrubbed JSON"
+    ]
+  },
+  {
+    "drill": "T22 JSON validity",
+    "file": "src/core/backends/modelapi/client.ts",
+    "sha256": "01bf6ebe409f323eb86637e14899f30828c1a0fdb62737d40f8e7e539b385d0e",
+    "restored": true,
+    "failed": [
+      "FAIL  test/unit/vault/boundaryScrub.test.ts > vault scrub boundaries > refuses sends on a scrub failure or malformed scrubbed JSON"
+    ]
+  },
+  {
+    "drill": "T23 full export scrub",
+    "file": "src/core/export/sessionTransfer.ts",
+    "sha256": "feb815b875eb1e983e43d564bd535207287f326ce60f2b8d3443ed31cce9ffd2",
+    "restored": true,
+    "failed": [
+      "FAIL  test/unit/vault/boundaryScrub.test.ts > vault scrub boundaries > removes vault values from portable JSON even when full export is selected",
+      "FAIL  test/unit/vault/boundaryScrub.test.ts > vault scrub boundaries > scrubs json filenames, previews and saved bytes, and refuses failed scrubs"
+    ]
+  },
+  {
+    "drill": "T24 Markdown scrub",
+    "file": "src/host/conversation/exportConversation.ts",
+    "sha256": "32e03f51b43d9b3ac70bfdeece728bd3047ebed686ab2dcd423c6c068d7917d4",
+    "restored": true,
+    "failed": [
+      "FAIL  test/unit/vault/boundaryScrub.test.ts > vault scrub boundaries > scrubs markdown/full filenames, previews and saved bytes, and refuses failed scrubs"
+    ]
+  },
+  {
+    "drill": "T25 opaque log refusal",
+    "file": "src/host/conversation/exportConversation.ts",
+    "sha256": "32e03f51b43d9b3ac70bfdeece728bd3047ebed686ab2dcd423c6c068d7917d4",
+    "restored": true,
+    "failed": [
+      "FAIL  test/unit/vault/boundaryScrub.test.ts > vault scrub boundaries > refuses the opaque CLI session-log writer when vault scrubbing is required"
+    ]
+  },
+  {
+    "drill": "T26 final report scrub",
+    "file": "src/core/support/problemReport.ts",
+    "sha256": "2a19bc09e5c5e1debb266e9bed3b1d50ee045593345a670d56e6cbc1fd185173",
+    "restored": true,
+    "failed": [
+      "FAIL  test/unit/vault/boundaryScrub.test.ts > vault scrub boundaries > scrubs the final report before sealing, including the percent/base64 forms"
+    ]
+  },
+  {
+    "drill": "T27 journal write refusal",
+    "file": "src/host/support/reportJournal.ts",
+    "sha256": "209667ad1d77c780a5d797a8cf3648f098a70f63d655e595c6db2d8737c25fe6",
+    "restored": true,
+    "failed": [
+      "FAIL  test/unit/vault/reportScrub.test.ts > vault report and journal scrub > drops a journal record containing a generated vault value (stored earlier: false)"
+    ]
+  },
+  {
+    "drill": "T28 latest report revision",
+    "file": "src/host/conversation/reportProblemHandler.ts",
+    "sha256": "6041f73dd2ccab61925d0678dc1e5f8e714c38ac54691b8f0d5113d95ef5003e",
+    "restored": true,
+    "failed": [
+      "FAIL  test/unit/vault/reportScrub.test.ts > vault report and journal scrub > keeps only the newest report revision when an older scrub completes late"
+    ]
+  },
+  {
+    "drill": "T29 final export rescrub",
+    "file": "src/host/conversation/reportProblemHandler.ts",
+    "sha256": "6041f73dd2ccab61925d0678dc1e5f8e714c38ac54691b8f0d5113d95ef5003e",
+    "restored": true,
+    "failed": [
+      "FAIL  test/unit/vault/reportScrub.test.ts > vault report and journal scrub > re-scrubs before export and requires a fresh preview when a newly stored value matches",
+      "FAIL  test/unit/vault/reportScrub.test.ts > vault report and journal scrub > refuses export after Lock and logs only a fixed failure class"
+    ]
+  },
+  {
+    "drill": "T30 shared hook refusal",
+    "file": "src/shared/redact.ts",
+    "sha256": "6d2e9b0ff17f60584c57e4edf7c6f33ebe4b0f2ba47f4340c786a88a1a80d7b7",
+    "restored": true,
+    "failed": [
+      "FAIL  test/unit/vault/boundaryScrub.test.ts > vault scrub boundaries > scrubs the complete Model API body before every HTTP try, including token counting",
+      "FAIL  test/unit/vault/boundaryScrub.test.ts > vault scrub boundaries > refuses sends on a scrub failure or malformed scrubbed JSON",
+      "FAIL  test/unit/vault/boundaryScrub.test.ts > vault scrub boundaries > scrubs markdown filenames, previews and saved bytes, and refuses failed scrubs"
+    ]
+  },
+  {
+    "drill": "T31 incomplete ANSI",
+    "file": "src/core/vault/scrub.ts",
+    "sha256": "37110a619c2f4430d735b151ab76cbcf0c866fac7bfb566fcc1e1e86c91707c0",
+    "restored": true,
+    "failed": [
+      "FAIL  test/unit/vault/scrub.test.ts > vault scrub > retains an incomplete ANSI sequence until its terminator arrives"
+    ]
+  },
+  {
+    "drill": "T32 closed stream",
+    "file": "src/core/vault/scrub.ts",
+    "sha256": "37110a619c2f4430d735b151ab76cbcf0c866fac7bfb566fcc1e1e86c91707c0",
+    "restored": true,
+    "failed": [
+      "FAIL  test/unit/vault/scrub.test.ts > vault scrub > refuses disposed streams and retains no trie after disposal",
+      "FAIL  test/unit/vault/scrub.test.ts > vault scrub > bounds streaming suffix memory and closes an over-limit stream without output"
+    ]
+  },
+  {
+    "drill": "T33 existing journal scrub",
+    "file": "src/host/support/reportJournal.ts",
+    "sha256": "209667ad1d77c780a5d797a8cf3648f098a70f63d655e595c6db2d8737c25fe6",
+    "restored": true,
+    "failed": [
+      "FAIL  test/unit/vault/reportScrub.test.ts > vault report and journal scrub > drops a journal record containing a generated vault value (stored earlier: true)"
+    ]
+  },
+  {
+    "drill": "T34 cached export scrub",
+    "file": "src/host/conversation/exportConversation.ts",
+    "sha256": "32e03f51b43d9b3ac70bfdeece728bd3047ebed686ab2dcd423c6c068d7917d4",
+    "restored": true,
+    "failed": [
+      "FAIL  test/unit/vault/boundaryScrub.test.ts > vault scrub boundaries > scrubs json/redacted filenames, previews and saved bytes, and refuses failed scrubs"
+    ]
+  },
+  {
+    "drill": "T35 final filename scrub",
+    "file": "src/host/conversation/exportConversation.ts",
+    "sha256": "32e03f51b43d9b3ac70bfdeece728bd3047ebed686ab2dcd423c6c068d7917d4",
+    "restored": true,
+    "failed": [
+      "FAIL  test/unit/vault/boundaryScrub.test.ts > vault scrub boundaries > scrubs json/full filenames, previews and saved bytes, and refuses failed scrubs",
+      "FAIL  test/unit/vault/boundaryScrub.test.ts > vault scrub boundaries > scrubs json/redacted filenames, previews and saved bytes, and refuses failed scrubs"
+    ]
+  },
+  {
+    "drill": "T36 throughput regression",
+    "file": "src/core/vault/scrub.ts",
+    "sha256": "37110a619c2f4430d735b151ab76cbcf0c866fac7bfb566fcc1e1e86c91707c0",
+    "restored": true,
+    "failed": [
+      "FAIL  test/unit/vault/scrub.test.ts > vault scrub > measures the 1,000-value throughput floor"
+    ]
+  },
+  {
+    "drill": "T37 native web routing",
+    "file": "src/core/backends/modelapi/ModelApiHost.ts",
+    "sha256": "db05834e17d1db3c31ffb360b9b3bd2f7f2be1f21ff55340a303571c38ea342f",
+    "restored": true,
+    "failed": [
+      "FAIL  test/unit/vault/requestTaint.test.ts > request provenance > taints the host-routed web page independently of its text claims"
+    ]
+  },
+  {
+    "drill": "T38 native browser routing",
+    "file": "src/core/backends/modelapi/ModelApiHost.ts",
+    "sha256": "db05834e17d1db3c31ffb360b9b3bd2f7f2be1f21ff55340a303571c38ea342f",
+    "restored": true,
+    "failed": [
+      "FAIL  test/unit/vault/requestTaint.test.ts > request provenance > taints the host-routed browser page independently of its text claims"
+    ]
+  }
+]

@@ -1,0 +1,227 @@
+[
+  {
+    "drill": "P1-2-schema",
+    "source": "src/shared/scheduleV2.ts",
+    "test": "test/unit/schedulePaid.test.ts",
+    "failingTest": "rejects zero paid consent while retaining no-consent migration records",
+    "exitCode": 1,
+    "sha256": "daa22b7e72311c882761cc4ca5e258bb660fcbd9974ff561e5f005470c55a9cd",
+    "restored": true
+  },
+  {
+    "drill": "P1-2-consent",
+    "source": "src/core/paid/paidConsent.ts",
+    "test": "test/unit/schedulePaid.test.ts",
+    "failingTest": "rejects zero paid authority at schema, consent and durable reservation before HTTP",
+    "exitCode": 1,
+    "sha256": "bc814adfeb410885a7e225a710cae5f163f502304fe2224db65e720d196d23f1",
+    "restored": true
+  },
+  {
+    "drill": "P1-2-popup",
+    "source": "src/core/paid/paidConsent.ts",
+    "test": "test/unit/schedulePaid.test.ts",
+    "failingTest": "does not ask for paid consent with a zero cap",
+    "exitCode": 1,
+    "sha256": "bc814adfeb410885a7e225a710cae5f163f502304fe2224db65e720d196d23f1",
+    "restored": true
+  },
+  {
+    "drill": "P1-2-ledger",
+    "source": "src/host/paid/paidDailyBudget.ts",
+    "test": "test/unit/schedulePaid.test.ts",
+    "failingTest": "rejects zero cap at the durable reservation independently of schema validation",
+    "exitCode": 1,
+    "sha256": "8a6fd83f8142f637d74d125e37caf6b8f7e7b9cb01e375f7ce896082b6590511",
+    "restored": true
+  },
+  {
+    "drill": "P2-8-concrete",
+    "source": "src/core/schedules/grant.ts",
+    "test": "test/unit/scheduleGrant.test.ts",
+    "failingTest": "matches concrete dynamic-route filenames separately from restricted glob syntax",
+    "exitCode": 1,
+    "sha256": "0ffdb4b500a9104817464f6b059b6607b2be9f2b50c66c19f31af4e19df2c537",
+    "restored": true
+  },
+  {
+    "drill": "P1-1-route",
+    "source": "src/core/backends/modelapi/client.ts",
+    "test": "test/unit/schedulePaid.test.ts",
+    "failingTest": "never falls back to an attempt override when scheduled paid authority is missing",
+    "exitCode": 1,
+    "sha256": "e8f262975f5819eea71209a325411509e4f2eb34864fb917bd086dcccd73c556",
+    "restored": true
+  },
+  {
+    "drill": "P1-1-missing-owner",
+    "source": "src/core/backends/modelapi/client.ts",
+    "test": "test/unit/schedulePaid.test.ts",
+    "failingTest": "never falls back to an attempt override when scheduled paid authority is missing",
+    "exitCode": 1,
+    "sha256": "e8f262975f5819eea71209a325411509e4f2eb34864fb917bd086dcccd73c556",
+    "restored": true
+  },
+  {
+    "drill": "P1-1-wire-owner",
+    "source": "src/core/backends/modelapi/client.ts",
+    "test": "test/unit/schedulePaid.test.ts",
+    "failingTest": "rechecks the fire immediately before HTTP after a reservation await",
+    "exitCode": 1,
+    "sha256": "e8f262975f5819eea71209a325411509e4f2eb34864fb917bd086dcccd73c556",
+    "restored": true
+  },
+  {
+    "drill": "P1-2-captured-cap",
+    "source": "src/core/schedules/unattended.ts",
+    "test": "test/unit/unattended.test.ts",
+    "failingTest": "cannot enable paid extras through an ordinary tool grant or a hook requiring a person",
+    "exitCode": 1,
+    "sha256": "d6f2ce207de323e874f3b0abd3d35deaf58400aa510a7f82320533b0d2dbad0d",
+    "restored": true
+  },
+  {
+    "drill": "P1-4-canonical-safety",
+    "source": "src/core/schedules/unattended.ts",
+    "test": "test/unit/unattended.test.ts",
+    "failingTest": "passes canonical paths to safety before permitting a read that feeds a request",
+    "exitCode": 1,
+    "sha256": "d6f2ce207de323e874f3b0abd3d35deaf58400aa510a7f82320533b0d2dbad0d",
+    "restored": true
+  },
+  {
+    "drill": "P1-4-attachments",
+    "source": "src/core/schedules/unattended.ts",
+    "test": "test/unit/unattended.test.ts",
+    "failingTest": "checks named attachments and refuses anonymous bytes before scheduled request admission",
+    "exitCode": 1,
+    "sha256": "d6f2ce207de323e874f3b0abd3d35deaf58400aa510a7f82320533b0d2dbad0d",
+    "restored": true
+  },
+  {
+    "drill": "P2-7-mode",
+    "source": "src/core/schedules/unattended.ts",
+    "test": "test/unit/unattendedBackends.test.ts",
+    "failingTest": "Accept edits schedules write unprotected files with an empty grant and still refuse protected edits",
+    "exitCode": 1,
+    "sha256": "d6f2ce207de323e874f3b0abd3d35deaf58400aa510a7f82320533b0d2dbad0d",
+    "restored": true
+  },
+  {
+    "drill": "P1-4-native-attachment-entry",
+    "source": "src/core/backends/musecode/MuseCodeHost.ts",
+    "test": "test/unit/unattendedBackends.test.ts",
+    "failingTest": "refuses a protected named attachment before native turn admission",
+    "exitCode": 1,
+    "sha256": "6c2f488c723cac81afa7272fb41e3cc1df62310d42e3de122163d83ddbe391ce",
+    "restored": true
+  },
+  {
+    "drill": "P1-4-native-wire-attachment",
+    "source": "src/core/backends/musecode/MuseCodeHost.ts",
+    "test": "test/unit/unattendedBackends.test.ts",
+    "failingTest": "rechecks native attachment paths after approval-mode admission before sending bytes",
+    "exitCode": 1,
+    "sha256": "6c2f488c723cac81afa7272fb41e3cc1df62310d42e3de122163d83ddbe391ce",
+    "restored": true
+  },
+  {
+    "drill": "P1-4-native-steer-attachment",
+    "source": "src/core/backends/musecode/MuseCodeHost.ts",
+    "test": "test/unit/unattendedBackends.test.ts",
+    "failingTest": "checks ordinary steered attachments against the active native fire before wire submission",
+    "exitCode": 1,
+    "sha256": "6c2f488c723cac81afa7272fb41e3cc1df62310d42e3de122163d83ddbe391ce",
+    "restored": true
+  },
+  {
+    "drill": "P2-5-cancel-owner",
+    "source": "src/core/backends/musecode/MuseCodeHost.ts",
+    "test": "test/unit/unattendedBackends.test.ts",
+    "failingTest": "rechecks scheduled ownership after a held approval before wire cancellation",
+    "exitCode": 1,
+    "sha256": "6c2f488c723cac81afa7272fb41e3cc1df62310d42e3de122163d83ddbe391ce",
+    "restored": true
+  },
+  {
+    "drill": "P2-7-native-mode",
+    "source": "src/core/backends/musecode/MuseCodeHost.ts",
+    "test": "test/unit/unattendedBackends.test.ts",
+    "failingTest": "Accept edits answers only plain unprotected writes with no path grant",
+    "exitCode": 1,
+    "sha256": "6c2f488c723cac81afa7272fb41e3cc1df62310d42e3de122163d83ddbe391ce",
+    "restored": true
+  },
+  {
+    "drill": "P1-1-session-client",
+    "source": "src/core/backends/modelapi/ModelApiHost.ts",
+    "test": "test/unit/unattendedBackends.test.ts",
+    "failingTest": "reserves generate_image only through the fire and refuses an over-cap image before HTTP",
+    "exitCode": 1,
+    "sha256": "034d40f2c2f4e763c3f13a7b7f3fe163a5dbd1bc4a703cdb89868c92ab8911b8",
+    "restored": true
+  },
+  {
+    "drill": "P1-3-pending",
+    "source": "src/core/backends/modelapi/ModelApiHost.ts",
+    "test": "test/unit/unattendedBackends.test.ts",
+    "failingTest": "isolates a second scheduled steer from a pending owner in its own turn, grant and audit",
+    "exitCode": 1,
+    "sha256": "034d40f2c2f4e763c3f13a7b7f3fe163a5dbd1bc4a703cdb89868c92ab8911b8",
+    "restored": true
+  },
+  {
+    "drill": "P1-3-active",
+    "source": "src/core/backends/modelapi/ModelApiHost.ts",
+    "test": "test/unit/unattendedBackends.test.ts",
+    "failingTest": "isolates a second scheduled steer from a active owner in its own turn, grant and audit",
+    "exitCode": 1,
+    "sha256": "034d40f2c2f4e763c3f13a7b7f3fe163a5dbd1bc4a703cdb89868c92ab8911b8",
+    "restored": true
+  },
+  {
+    "drill": "P1-4-sources",
+    "source": "src/core/backends/modelapi/ModelApiHost.ts",
+    "test": "test/unit/unattendedBackends.test.ts",
+    "failingTest": "checks protected or physical image sources before reading or sending them (physical true)",
+    "exitCode": 1,
+    "sha256": "034d40f2c2f4e763c3f13a7b7f3fe163a5dbd1bc4a703cdb89868c92ab8911b8",
+    "restored": true
+  },
+  {
+    "drill": "P1-4-read-entry",
+    "source": "src/core/backends/modelapi/ModelApiHost.ts",
+    "test": "test/unit/unattendedBackends.test.ts",
+    "failingTest": "checks actual read paths again after a canonical alias changes before native I/O",
+    "exitCode": 1,
+    "sha256": "034d40f2c2f4e763c3f13a7b7f3fe163a5dbd1bc4a703cdb89868c92ab8911b8",
+    "restored": true
+  },
+  {
+    "drill": "P1-4-output-fill",
+    "source": "src/core/backends/modelapi/ModelApiHost.ts",
+    "test": "test/unit/unattendedBackends.test.ts",
+    "failingTest": "rechecks the canonical image destination before filling returned bytes",
+    "exitCode": 1,
+    "sha256": "034d40f2c2f4e763c3f13a7b7f3fe163a5dbd1bc4a703cdb89868c92ab8911b8",
+    "restored": true
+  },
+  {
+    "drill": "P1-4-model-attachment-entry",
+    "source": "src/core/backends/modelapi/ModelApiHost.ts",
+    "test": "test/unit/unattendedBackends.test.ts",
+    "failingTest": "refuses a protected named attachment before backend request admission",
+    "exitCode": 1,
+    "sha256": "034d40f2c2f4e763c3f13a7b7f3fe163a5dbd1bc4a703cdb89868c92ab8911b8",
+    "restored": true
+  },
+  {
+    "drill": "P2-6-deferral-stop",
+    "source": "src/core/backends/modelapi/ModelApiHost.ts",
+    "test": "test/unit/unattendedBackends.test.ts",
+    "failingTest": "Stop settles a scheduled turn while deferred-question persistence remains pending",
+    "exitCode": 1,
+    "sha256": "034d40f2c2f4e763c3f13a7b7f3fe163a5dbd1bc4a703cdb89868c92ab8911b8",
+    "restored": true
+  }
+]

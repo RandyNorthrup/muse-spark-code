@@ -1,0 +1,528 @@
+{
+  "rig": "kubuntu",
+  "date": "2026-10-05",
+  "checks": [
+    {
+      "check": "format",
+      "command": [
+        "npx",
+        "prettier",
+        "--write",
+        "src/acp/translate.ts",
+        "src/core/backends/modelapi/ModelApiHost.ts",
+        "src/core/backends/modelapi/client.ts",
+        "src/core/backends/modelapi/codecs/ollama.ts",
+        "src/core/backends/modelapi/reviewerEntry.ts",
+        "src/core/backends/musecode/MuseCodeHost.ts",
+        "src/core/backends/musecode/mapNotification.ts",
+        "src/core/paid/paidFeatures.ts",
+        "src/core/usage/recording.ts",
+        "src/extension.ts",
+        "src/host/backend/modelApiBackendManager.ts",
+        "src/host/conversation/conversationController.ts",
+        "src/host/paid/paidHost.ts",
+        "src/runtime/exec/runExec.ts",
+        "test/unit/conversationController.test.ts",
+        "test/unit/execRun.test.ts",
+        "test/unit/mapNotification.test.ts",
+        "test/unit/modelApiBackendManager.test.ts",
+        "test/unit/modelApiPacking.test.ts",
+        "test/unit/modelApiProviders.test.ts",
+        "test/unit/modelApiWireHosts.test.ts",
+        "test/unit/museUsageDeltas.test.ts",
+        "test/unit/paidHost.test.ts",
+        "test/unit/rateLimitHeaders.test.ts",
+        "test/unit/usageRecording.test.ts",
+        "test/unit/usageRecordingAux.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 6.21
+    },
+    {
+      "check": "typecheck",
+      "command": ["npm", "run", "typecheck"],
+      "exit": 0,
+      "seconds": 68.85
+    },
+    {
+      "check": "eslint",
+      "command": [
+        "npx",
+        "eslint",
+        "--max-warnings=0",
+        "src/acp/translate.ts",
+        "src/core/backends/modelapi/ModelApiHost.ts",
+        "src/core/backends/modelapi/client.ts",
+        "src/core/backends/modelapi/codecs/ollama.ts",
+        "src/core/backends/modelapi/reviewerEntry.ts",
+        "src/core/backends/musecode/MuseCodeHost.ts",
+        "src/core/backends/musecode/mapNotification.ts",
+        "src/core/paid/paidFeatures.ts",
+        "src/core/usage/recording.ts",
+        "src/extension.ts",
+        "src/host/backend/modelApiBackendManager.ts",
+        "src/host/conversation/conversationController.ts",
+        "src/host/paid/paidHost.ts",
+        "src/runtime/exec/runExec.ts",
+        "test/unit/conversationController.test.ts",
+        "test/unit/execRun.test.ts",
+        "test/unit/mapNotification.test.ts",
+        "test/unit/modelApiBackendManager.test.ts",
+        "test/unit/modelApiPacking.test.ts",
+        "test/unit/modelApiProviders.test.ts",
+        "test/unit/modelApiWireHosts.test.ts",
+        "test/unit/museUsageDeltas.test.ts",
+        "test/unit/paidHost.test.ts",
+        "test/unit/rateLimitHeaders.test.ts",
+        "test/unit/usageRecording.test.ts",
+        "test/unit/usageRecordingAux.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 41.0
+    },
+    {
+      "check": "prettier",
+      "command": [
+        "npx",
+        "prettier",
+        "--check",
+        "src/acp/translate.ts",
+        "src/core/backends/modelapi/ModelApiHost.ts",
+        "src/core/backends/modelapi/client.ts",
+        "src/core/backends/modelapi/codecs/ollama.ts",
+        "src/core/backends/modelapi/reviewerEntry.ts",
+        "src/core/backends/musecode/MuseCodeHost.ts",
+        "src/core/backends/musecode/mapNotification.ts",
+        "src/core/paid/paidFeatures.ts",
+        "src/core/usage/recording.ts",
+        "src/extension.ts",
+        "src/host/backend/modelApiBackendManager.ts",
+        "src/host/conversation/conversationController.ts",
+        "src/host/paid/paidHost.ts",
+        "src/runtime/exec/runExec.ts",
+        "test/unit/conversationController.test.ts",
+        "test/unit/execRun.test.ts",
+        "test/unit/mapNotification.test.ts",
+        "test/unit/modelApiBackendManager.test.ts",
+        "test/unit/modelApiPacking.test.ts",
+        "test/unit/modelApiProviders.test.ts",
+        "test/unit/modelApiWireHosts.test.ts",
+        "test/unit/museUsageDeltas.test.ts",
+        "test/unit/paidHost.test.ts",
+        "test/unit/rateLimitHeaders.test.ts",
+        "test/unit/usageRecording.test.ts",
+        "test/unit/usageRecordingAux.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 5.76
+    },
+    {
+      "check": "deadcode",
+      "command": ["npm", "run", "deadcode"],
+      "exit": 0,
+      "seconds": 4.54
+    },
+    {
+      "check": "duplication",
+      "command": ["npx", "jscpd"],
+      "exit": 1,
+      "seconds": 0.94
+    },
+    {
+      "check": "l10n",
+      "command": ["node", "scripts/check-l10n.mjs"],
+      "exit": 1,
+      "seconds": 2.82
+    },
+    {
+      "check": "host-api",
+      "command": ["npm", "run", "check:host-api"],
+      "exit": 1,
+      "seconds": 14.23
+    },
+    {
+      "check": "cycles",
+      "command": ["npm", "run", "cycles"],
+      "exit": 0,
+      "seconds": 6.84
+    },
+    {
+      "check": "build",
+      "command": ["npm", "run", "build"],
+      "exit": 1,
+      "seconds": 4.18
+    },
+    {
+      "check": "final-typecheck",
+      "command": ["npm", "run", "typecheck"],
+      "exit": 0,
+      "seconds": 78.04
+    },
+    {
+      "check": "final-eslint",
+      "command": [
+        "npx",
+        "eslint",
+        "--max-warnings=0",
+        "src/acp/translate.ts",
+        "src/core/backends/modelapi/ModelApiHost.ts",
+        "src/core/backends/modelapi/client.ts",
+        "src/core/backends/modelapi/codecs/ollama.ts",
+        "src/core/backends/modelapi/reviewerEntry.ts",
+        "src/core/backends/musecode/MuseCodeHost.ts",
+        "src/core/backends/musecode/mapNotification.ts",
+        "src/core/paid/paidFeatures.ts",
+        "src/core/usage/recording.ts",
+        "src/extension.ts",
+        "src/host/backend/modelApiBackendManager.ts",
+        "src/host/conversation/conversationController.ts",
+        "src/host/paid/paidHost.ts",
+        "src/runtime/exec/runExec.ts",
+        "test/unit/conversationController.test.ts",
+        "test/unit/execRun.test.ts",
+        "test/unit/mapNotification.test.ts",
+        "test/unit/modelApiBackendManager.test.ts",
+        "test/unit/modelApiPacking.test.ts",
+        "test/unit/modelApiProviders.test.ts",
+        "test/unit/modelApiWireHosts.test.ts",
+        "test/unit/museUsageDeltas.test.ts",
+        "test/unit/paidHost.test.ts",
+        "test/unit/rateLimitHeaders.test.ts",
+        "test/unit/usageRecording.test.ts",
+        "test/unit/usageRecordingAux.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 39.19
+    },
+    {
+      "check": "final-duplication",
+      "command": ["npx", "jscpd"],
+      "exit": 1,
+      "seconds": 1.0
+    },
+    {
+      "check": "final-build",
+      "command": ["npm", "run", "build"],
+      "exit": 1,
+      "seconds": 2.84
+    },
+    {
+      "check": "host-globals",
+      "command": ["node", "scripts/check-host-globals.mjs"],
+      "exit": 0,
+      "seconds": 0.06
+    },
+    {
+      "check": "notices",
+      "command": ["node", "scripts/third-party-notices.mjs"],
+      "exit": 0,
+      "seconds": 0.11
+    },
+    {
+      "check": "duplication-after-helper-extraction",
+      "command": ["npx", "jscpd"],
+      "exit": 0
+    }
+  ],
+  "tests": [
+    {
+      "files": [
+        "test/unit/usageRecording.test.ts",
+        "test/unit/rateLimitHeaders.test.ts",
+        "test/unit/museUsageDeltas.test.ts"
+      ],
+      "exit": 0,
+      "tests": 24,
+      "passed": 24,
+      "failed": 0
+    },
+    {
+      "files": [
+        "test/unit/usageRecordingAux.test.ts",
+        "test/unit/modelApiWireHosts.test.ts",
+        "test/unit/modelApiProviders.test.ts"
+      ],
+      "exit": 0,
+      "tests": 26,
+      "passed": 26,
+      "failed": 0
+    },
+    {
+      "files": [
+        "test/unit/modelApiBackendManager.test.ts",
+        "test/unit/modelApiPacking.test.ts",
+        "test/unit/conversationController.test.ts"
+      ],
+      "exit": 0,
+      "tests": 568,
+      "passed": 568,
+      "failed": 0
+    },
+    {
+      "files": [
+        "test/unit/execRun.test.ts",
+        "test/unit/mapNotification.test.ts",
+        "test/unit/paidHost.test.ts"
+      ],
+      "exit": 0,
+      "tests": 112,
+      "passed": 112,
+      "failed": 0
+    },
+    {
+      "files": [
+        "test/unit/acpTranslate.test.ts",
+        "test/unit/paidFeatures.test.ts",
+        "test/unit/ollamaCodec.test.ts"
+      ],
+      "exit": 0,
+      "tests": 95,
+      "passed": 95,
+      "failed": 0
+    },
+    {
+      "files": ["test/unit/MuseCodeHost.test.ts", "test/unit/modelApiHost.test.ts"],
+      "exit": 0,
+      "tests": 653,
+      "passed": 653,
+      "failed": 0
+    }
+  ],
+  "reviewRepairs": [
+    {
+      "check": "recording-final",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/usageRecording.test.ts",
+        "test/unit/museUsageDeltas.test.ts",
+        "test/unit/usageRecordingAux.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000"
+      ],
+      "exit": 0,
+      "seconds": 3.11
+    },
+    {
+      "check": "runtime-final",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/acpRuntime.test.ts",
+        "test/unit/execRun.test.ts",
+        "test/unit/modelApiBackendManager.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000"
+      ],
+      "exit": 0,
+      "seconds": 8.62
+    },
+    {
+      "check": "host-paid-final",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/modelApiHost.test.ts",
+        "test/unit/paidFeatures.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000"
+      ],
+      "exit": 0,
+      "seconds": 25.75
+    },
+    {
+      "check": "typecheck",
+      "command": ["npm", "run", "typecheck"],
+      "exit": 0,
+      "seconds": 64.81
+    },
+    {
+      "check": "eslint",
+      "command": [
+        "npx",
+        "eslint",
+        "--max-warnings=0",
+        "src/core/backends/modelapi/ModelApiHost.ts",
+        "src/core/backends/musecode/MuseCodeHost.ts",
+        "src/core/paid/paidFeatures.ts",
+        "src/core/usage/recording.ts",
+        "src/extension.ts",
+        "src/host/backend/modelApiBackendManager.ts",
+        "src/runtime/backends.ts",
+        "test/unit/acpRuntime.test.ts",
+        "test/unit/museUsageDeltas.test.ts",
+        "test/unit/usageRecording.test.ts",
+        "test/unit/usageRecordingAux.test.ts"
+      ],
+      "exit": 1,
+      "seconds": 21.77
+    },
+    {
+      "check": "prettier",
+      "command": [
+        "npx",
+        "prettier",
+        "--check",
+        "CHANGELOG.md",
+        "PLAN.md",
+        "docs/certification/m102-r.md",
+        "src/core/backends/modelapi/ModelApiHost.ts",
+        "src/core/backends/musecode/MuseCodeHost.ts",
+        "src/core/paid/paidFeatures.ts",
+        "src/core/usage/recording.ts",
+        "src/extension.ts",
+        "src/host/backend/modelApiBackendManager.ts",
+        "src/runtime/backends.ts",
+        "test/unit/acpRuntime.test.ts",
+        "test/unit/museUsageDeltas.test.ts",
+        "test/unit/usageRecording.test.ts",
+        "test/unit/usageRecordingAux.test.ts"
+      ],
+      "exit": 1,
+      "seconds": 7.09
+    },
+    {
+      "check": "deadcode",
+      "command": ["npm", "run", "deadcode"],
+      "exit": 0,
+      "seconds": 6.59
+    },
+    {
+      "check": "duplication",
+      "command": ["npx", "jscpd"],
+      "exit": 1,
+      "seconds": 1.4
+    },
+    {
+      "check": "l10n",
+      "command": ["npm", "run", "check:l10n"],
+      "exit": 1,
+      "seconds": 3.03
+    },
+    {
+      "check": "host-api",
+      "command": ["npm", "run", "check:host-api"],
+      "exit": 1,
+      "seconds": 13.53
+    },
+    {
+      "check": "build",
+      "command": ["npm", "run", "build"],
+      "exit": 1,
+      "seconds": 3.09
+    },
+    {
+      "check": "eslint-final",
+      "command": [
+        "npx",
+        "eslint",
+        "--max-warnings=0",
+        "src/core/backends/modelapi/ModelApiHost.ts",
+        "src/core/backends/musecode/MuseCodeHost.ts",
+        "src/core/paid/paidFeatures.ts",
+        "src/core/usage/recording.ts",
+        "src/extension.ts",
+        "src/host/backend/modelApiBackendManager.ts",
+        "src/runtime/backends.ts",
+        "test/unit/acpRuntime.test.ts",
+        "test/unit/museUsageDeltas.test.ts",
+        "test/unit/usageRecording.test.ts",
+        "test/unit/usageRecordingAux.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 20.7
+    },
+    {
+      "check": "unit-typecheck-final",
+      "command": ["npm", "run", "typecheck:unit"],
+      "exit": 0,
+      "seconds": 30.22
+    },
+    {
+      "check": "recording-after-style",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/usageRecording.test.ts",
+        "test/unit/museUsageDeltas.test.ts",
+        "test/unit/usageRecordingAux.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000"
+      ],
+      "exit": 0,
+      "seconds": 3.04
+    },
+    {
+      "check": "duplication-final",
+      "command": ["npx", "jscpd"],
+      "exit": 0,
+      "seconds": 0.89
+    },
+    {
+      "check": "prettier-final",
+      "command": [
+        "npx",
+        "prettier",
+        "--check",
+        "CHANGELOG.md",
+        "PLAN.md",
+        "docs/certification/m102-r-drills.json",
+        "docs/certification/m102-r.md",
+        "src/core/backends/modelapi/ModelApiHost.ts",
+        "src/core/backends/musecode/MuseCodeHost.ts",
+        "src/core/paid/paidFeatures.ts",
+        "src/core/usage/recording.ts",
+        "src/extension.ts",
+        "src/host/backend/modelApiBackendManager.ts",
+        "src/runtime/backends.ts",
+        "test/unit/acpRuntime.test.ts",
+        "test/unit/museUsageDeltas.test.ts",
+        "test/unit/usageRecording.test.ts",
+        "test/unit/usageRecordingAux.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 7.08
+    },
+    {
+      "check": "cycles-final",
+      "command": ["npm", "run", "cycles"],
+      "exit": 0,
+      "seconds": 5.11
+    },
+    {
+      "check": "build-final",
+      "command": ["npm", "run", "build"],
+      "exit": 1,
+      "seconds": 2.53
+    },
+    {
+      "check": "host-globals-final",
+      "command": ["node", "scripts/check-host-globals.mjs"],
+      "exit": 0,
+      "seconds": 0.05
+    },
+    {
+      "check": "notices-final",
+      "command": ["node", "scripts/third-party-notices.mjs"],
+      "exit": 0,
+      "seconds": 0.84
+    },
+    {
+      "check": "recording-after-final-drills",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/usageRecording.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000"
+      ],
+      "exit": 0,
+      "testsPassed": 26
+    }
+  ]
+}

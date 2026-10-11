@@ -77,7 +77,8 @@ describe('activation wires git and pull requests to the window’s guards (M71)'
     )
     // The rest: the hold's own input, the paid-use memory, the controller's
     // trust beside the hold (it asks both before git), the support report,
-    // web-fetch availability, which never runs git.
+    // web-fetch and legal availability/reads, which never run git. Legal
+    // publication separately uses workspaceActionGuard and withCheckpointEdit.
     const raw = Array.from(source.matchAll(/^.*vscode\.workspace\.isTrusted.*$/gm), ([line]) =>
       line.trim(),
     )
@@ -85,8 +86,12 @@ describe('activation wires git and pull requests to the window’s guards (M71)'
       'windowHold.allowsProjectConfiguration(vscode.workspace.isTrusted)',
       'vscode.workspace.isTrusted && (vscode.workspace.workspaceFolders?.length ?? 0) > 0,',
       'isIdeWebFetchOffered(vscode.workspace.isTrusted, currentSettings().sandboxNetwork)',
+      'if (!vscode.workspace.isTrusted) throw new Error(UI_TEXT.legalScanUntrusted)',
+      'isOn: () => currentSettings().legalRegistryLookups && vscode.workspace.isTrusted,',
+      'workspaceRoot !== undefined && isIdeLegalScanOffered(vscode.workspace.isTrusted),',
       'isIdeWebFetchOffered(vscode.workspace.isTrusted, currentSettings().sandboxNetwork),',
       'isWorkspaceTrusted: () => vscode.workspace.isTrusted,',
+      'if (workspaceRoot === undefined || !vscode.workspace.isTrusted) return []',
       'isWorkspaceTrusted: vscode.workspace.isTrusted,',
     ])
     expect(source).toMatch(

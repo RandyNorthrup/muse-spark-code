@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import * as ContextFiles from '../../src/core/context/contextFiles'
+import { describe, expect, it, vi } from 'vitest'
 import { WorkspaceContext } from '../../src/core/context/workspaceContext'
 import type { MemoryScopeSnapshot } from '../../src/core/memory/memoryStore'
 import { RULES_FILE_MAX_BYTES } from '../../src/shared/constants'
@@ -17,6 +18,28 @@ const agentFile = (name: string, description: string, extra = '') =>
 const MEMORY: readonly MemoryScopeSnapshot[] = [
   { scope: 'project', index: '- [A](a.md) | hook', notes: [], hasMoreNotes: false },
 ]
+
+/** A context with the bundled skills source, on while its setting is on. */
+function bundledContext(initial: Record<string, string>, isEnabled: () => boolean) {
+  const files = memoryTree(initial, ROOT)
+  const context = new WorkspaceContext({
+    io: memoryContextIo(files),
+    workspaceRoot: ROOT,
+    platform: 'linux',
+    personalSkillsRoot: USER_ROOT,
+    bundledSkills: {
+      packageRoot: `${ROOT}/.ext/vendor/high-quality-projects-skill`,
+      firstPartyRoot: `${ROOT}/.ext/first-party-skills`,
+      isEnabled,
+    },
+    personalAgentsRoot: USER_AGENTS_ROOT,
+    hasAgents: false,
+    isWorkspaceTrusted: () => true,
+    loadMemory: undefined,
+    warn: () => undefined,
+  })
+  return { context }
+}
 
 function setup(
   initial: Record<string, string>,
@@ -54,6 +77,47 @@ function setup(
 }
 
 describe('WorkspaceContext', () => {
+  it('RVM115U4 P1: unsourced rule, skill and agent catalogue entries remain explicit inputs', async () => {
+    const read = ContextFiles.readContextText
+    const missing = vi
+      .spyOn(ContextFiles, 'readContextText')
+      .mockImplementation(async (...args) => {
+        const captured = await read(...args)
+        return captured?.ok === true ? { ok: true, text: captured.text } : captured
+      })
+    try {
+      const t = setup({
+        'AGENTS.md': 'rule bytes',
+        '.agents/skills/safe/SKILL.md': skillFile('safe', 'skill catalogue'),
+        '.agents/agents/scout/AGENT.md': agentFile('scout', 'agent catalogue'),
+      })
+      await t.context.load()
+      const material = t.context.instructionMaterial(true, false)
+      expect(material).toHaveLength(3)
+      expect(material.map((input) => input.source)).toEqual(
+        Array.from({ length: 3 }, () => ({ kind: 'tool', callId: 'unproved-context' })),
+      )
+      expect(material.map((input) => input.bytes).join(' ')).toContain('rule bytes')
+    } finally {
+      missing.mockRestore()
+    }
+  })
+
+  it('RVM115U4 P1: truncated rules retain their input inventory without full delivery evidence', async () => {
+    const t = setup({ 'AGENTS.md': 'root' })
+    await t.context.load()
+    for (const directory of ['a', 'a/b', 'a/b/c', 'a/b/c/d', 'a/b/c/d/e']) {
+      t.files.set(
+        `${ROOT}/${directory}/AGENTS.md`,
+        directory.repeat(Math.floor(RULES_FILE_MAX_BYTES / directory.length)),
+      )
+      await t.context.touch(`${directory}/file.ts`)
+    }
+    const rules = t.context.instructionMaterial(false, false, false)
+    expect(rules).toHaveLength(6)
+    expect(rules.some((rule) => rule.isFullyShown === false)).toBe(true)
+  })
+
   it('loads the root rules, the skills, the agents and the memory snapshot once', async () => {
     const t = setup({
       'AGENTS.md': 'end with PINEAPPLE\n',
@@ -87,6 +151,22 @@ describe('WorkspaceContext', () => {
     })
     expect(t.context.agent('nope')).toEqual({ kind: 'unknown' })
     expect(t.warnings).toEqual([])
+  })
+
+  it('retains independent agent and memory source bytes when no skill catalogue is loaded', async () => {
+    const t = setup({ '.agents/agents/scout/AGENT.md': agentFile('scout', 'Scouting') })
+    await t.context.load()
+    expect(t.context.instructionMaterial(false, false)).toEqual([])
+    const material = t.context.instructionMaterial()
+    expect(material).toHaveLength(2)
+    expect(material[0]).toMatchObject({
+      bytes: JSON.stringify({ id: 'scout', description: 'Scouting' }),
+      source: { kind: 'file', file: { path: `${ROOT}/.agents/agents/scout/AGENT.md` } },
+    })
+    expect(material[1]).toEqual({
+      bytes: JSON.stringify(MEMORY[0]),
+      source: { kind: 'harness', operation: 'memory-snapshot' },
+    })
   })
 
   it('reads no agent directory for a child, which cannot spawn (M76)', async () => {
@@ -220,6 +300,33 @@ describe('WorkspaceContext', () => {
     await expect(context.refreshSkills()).resolves.toBe(true)
     expect(context.skill('project_setup')?.source).toBe('bundled')
     expect(context.skill('muse_gadgets')?.source).toBe('bundled')
+  })
+
+  it('toggles the legal skill under the extension bundled root alongside the vendor package, dropping both when the setting goes off (M97-B)', async () => {
+    let isOn = false
+    const { context } = bundledContext(
+      {
+        '.ext/vendor/high-quality-projects-skill/skills/project_setup/SKILL.md': skillFile(
+          'project_setup',
+          'Set up',
+        ),
+        '.ext/skills/legal/SKILL.md': skillFile('legal', 'Scan'),
+      },
+      () => isOn,
+    )
+    await context.load()
+    expect(context.skill('legal')).toBeUndefined()
+    isOn = true
+    await expect(context.refreshSkills()).resolves.toBe(true)
+    expect(context.sections().skills.map((skill) => `${skill.source}:${skill.id}`)).toEqual([
+      'bundled:project_setup',
+      'bundled:legal',
+    ])
+    expect(context.skill('legal')?.packageRoot).toBe(`${ROOT}/.ext`)
+    isOn = false
+    await expect(context.refreshSkills()).resolves.toBe(true)
+    expect(context.skill('legal')).toBeUndefined()
+    expect(context.skill('project_setup')).toBeUndefined()
   })
 
   it('loads nothing in an untrusted workspace', async () => {

@@ -1,0 +1,110 @@
+{
+  "provider": "ollama",
+  "step": "tool-follow-up",
+  "capturedAt": "2026-10-05T13:19:18.062Z",
+  "billed": false,
+  "request": {
+    "method": "POST",
+    "url": "http://127.0.0.1:11434/api/chat",
+    "body": {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "messages": [
+        {
+          "role": "system",
+          "content": "Use both tools exactly once in the same response. Do not answer with text. First read_file, then bash."
+        },
+        {
+          "role": "user",
+          "content": "Read notes.md and run pwd. Call read_file with path notes.md, and bash with cmd pwd, both now."
+        },
+        {
+          "role": "assistant",
+          "content": "",
+          "tool_calls": [
+            {
+              "id": "x2sZKsj3Sb9YSmCESTDtKUNpInEM8Ra7",
+              "function": {
+                "index": 0,
+                "name": "read_file",
+                "arguments": {
+                  "path": "notes.md"
+                }
+              }
+            },
+            {
+              "id": "DP0zKjko82IEzOjq6BfekoMhRSIhNFr7",
+              "function": {
+                "index": 1,
+                "name": "bash",
+                "arguments": {
+                  "cmd": "pwd"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_name": "read_file",
+          "content": "Synthetic notes: capture only."
+        },
+        {
+          "role": "tool",
+          "tool_name": "bash",
+          "content": "/synthetic"
+        }
+      ],
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "description": "Read a file.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string"
+                }
+              },
+              "required": ["path"]
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "bash",
+            "description": "Run a shell command.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "cmd": {
+                  "type": "string"
+                }
+              },
+              "required": ["cmd"]
+            }
+          }
+        }
+      ],
+      "options": {
+        "num_ctx": 4096,
+        "num_predict": 256,
+        "temperature": 0
+      },
+      "think": false,
+      "stream": true
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/x-ndjson",
+      "date": "Mon, 05 Oct 2026 13:19:17 GMT",
+      "transfer-encoding": "chunked"
+    },
+    "body": "{\"model\":\"qwen3:4b-instruct-2507-q4_K_M\",\"created_at\":\"2026-10-05T13:19:17.0980058Z\",\"message\":{\"role\":\"assistant\",\"content\":\"The\"},\"done\":false}\n{\"model\":\"qwen3:4b-instruct-2507-q4_K_M\",\"created_at\":\"2026-10-05T13:19:17.1128626Z\",\"message\":{\"role\":\"assistant\",\"content\":\" content\"},\"done\":false}\n{\"model\":\"qwen3:4b-instruct-2507-q4_K_M\",\"created_at\":\"2026-10-05T13:19:17.1267927Z\",\"message\":{\"role\":\"assistant\",\"content\":\" of\"},\"done\":false}\n{\"model\":\"qwen3:4b-instruct-2507-q4_K_M\",\"created_at\":\"2026-10-05T13:19:17.1405618Z\",\"message\":{\"role\":\"assistant\",\"content\":\" notes\"},\"done\":false}\n{\"model\":\"qwen3:4b-instruct-2507-q4_K_M\",\"created_at\":\"2026-10-05T13:19:17.1542979Z\",\"message\":{\"role\":\"assistant\",\"content\":\".md\"},\"done\":false}\n{\"model\":\"qwen3:4b-instruct-2507-q4_K_M\",\"created_at\":\"2026-10-05T13:19:17.1681395Z\",\"message\":{\"role\":\"assistant\",\"content\":\" is\"},\"done\":false}\n{\"model\":\"qwen3:4b-instruct-2507-q4_K_M\",\"created_at\":\"2026-10-05T13:19:17.1819801Z\",\"message\":{\"role\":\"assistant\",\"content\":\":\"},\"done\":false}\n{\"model\":\"qwen3:4b-instruct-2507-q4_K_M\",\"created_at\":\"2026-10-05T13:19:17.1958144Z\",\"message\":{\"role\":\"assistant\",\"content\":\" capture\"},\"done\":false}\n{\"model\":\"qwen3:4b-instruct-2507-q4_K_M\",\"created_at\":\"2026-10-05T13:19:17.209478Z\",\"message\":{\"role\":\"assistant\",\"content\":\" only\"},\"done\":false}\n{\"model\":\"qwen3:4b-instruct-2507-q4_K_M\",\"created_at\":\"2026-10-05T13:19:17.2235338Z\",\"message\":{\"role\":\"assistant\",\"content\":\".\\n\\n\"},\"done\":false}\n{\"model\":\"qwen3:4b-instruct-2507-q4_K_M\",\"created_at\":\"2026-10-05T13:19:17.2374754Z\",\"message\":{\"role\":\"assistant\",\"content\":\"The\"},\"done\":false}\n{\"model\":\"qwen3:4b-instruct-2507-q4_K_M\",\"created_at\":\"2026-10-05T13:19:17.2513818Z\",\"message\":{\"role\":\"assistant\",\"content\":\" current\"},\"done\":false}\n{\"model\":\"qwen3:4b-instruct-2507-q4_K_M\",\"created_at\":\"2026-10-05T13:19:17.265399Z\",\"message\":{\"role\":\"assistant\",\"content\":\" working\"},\"done\":false}\n{\"model\":\"qwen3:4b-instruct-2507-q4_K_M\",\"created_at\":\"2026-10-05T13:19:17.2792012Z\",\"message\":{\"role\":\"assistant\",\"content\":\" directory\"},\"done\":false}\n{\"model\":\"qwen3:4b-instruct-2507-q4_K_M\",\"created_at\":\"2026-10-05T13:19:17.2853178Z\",\"message\":{\"role\":\"assistant\",\"content\":\" is\"},\"done\":false}\n{\"model\":\"qwen3:4b-instruct-2507-q4_K_M\",\"created_at\":\"2026-10-05T13:19:17.3068342Z\",\"message\":{\"role\":\"assistant\",\"content\":\":\"},\"done\":false}\n{\"model\":\"qwen3:4b-instruct-2507-q4_K_M\",\"created_at\":\"2026-10-05T13:19:17.3209218Z\",\"message\":{\"role\":\"assistant\",\"content\":\" /\"},\"done\":false}\n{\"model\":\"qwen3:4b-instruct-2507-q4_K_M\",\"created_at\":\"2026-10-05T13:19:17.3347447Z\",\"message\":{\"role\":\"assistant\",\"content\":\"syn\"},\"done\":false}\n{\"model\":\"qwen3:4b-instruct-2507-q4_K_M\",\"created_at\":\"2026-10-05T13:19:17.3485437Z\",\"message\":{\"role\":\"assistant\",\"content\":\"thetic\"},\"done\":false}\n{\"model\":\"qwen3:4b-instruct-2507-q4_K_M\",\"created_at\":\"2026-10-05T13:19:17.3624379Z\",\"message\":{\"role\":\"assistant\",\"content\":\".\"},\"done\":false}\n{\"model\":\"qwen3:4b-instruct-2507-q4_K_M\",\"created_at\":\"2026-10-05T13:19:17.3760405Z\",\"message\":{\"role\":\"assistant\",\"content\":\"\"},\"done\":true,\"done_reason\":\"stop\",\"total_duration\":363239700,\"load_duration\":4255500,\"prompt_eval_count\":310,\"prompt_eval_cached_count\":282,\"prompt_eval_duration\":36928000,\"eval_count\":21,\"eval_duration\":278229000}\n",
+    "chunkBytes": [146, 446, 436, 592, 600, 584, 487]
+  }
+}

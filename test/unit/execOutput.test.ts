@@ -1,11 +1,18 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createExecLogger, createExecSink, redactWhole } from '../../src/runtime/exec/execOutput'
+import {
+  createExecLogger,
+  createExecSink,
+  redactWhole,
+  validateSchemaResult,
+  validateSchemaEvent,
+} from '../../src/runtime/exec/execOutput'
+import { compileOutputSchema, type OutputSchema } from '../../src/runtime/exec/outputSchema'
 import { execEventSchema } from '../../src/runtime/exec/execProtocol'
 import { UI_TEXT } from '../../src/shared/constants'
 import { outputWriter, resultRecord } from './helpers/execContract'
 
 const KEY = 'LLM|123|before%after+/.=$&'
-function harness(format: 'text' | 'json' | 'jsonl' = 'jsonl') {
+function harness(format: 'text' | 'json' | 'jsonl' = 'jsonl', schema?: OutputSchema) {
   const out = outputWriter()
   const summary = vi.fn()
   const onStalled = vi.fn()
@@ -16,9 +23,303 @@ function harness(format: 'text' | 'json' | 'jsonl' = 'jsonl') {
     literals: () => [KEY],
     summary,
     onStalled,
+    outputSchema: () => schema,
   })
   return { out, summary, onStalled, sink }
 }
+
+const answerSchema = (properties?: Record<string, unknown>) => {
+  const fields = properties ?? { ok: { type: 'boolean' } }
+  return compileOutputSchema(
+    new TextEncoder().encode(
+      JSON.stringify({
+        type: 'object',
+        properties: fields,
+        required: Object.keys(fields),
+        additionalProperties: false,
+      }),
+    ),
+  )
+}
+
+describe('M106 structured exec egress', () => {
+  it('bounds cyclic and oversized additive records before recursive parsing', () => {
+    const cyclic: Record<string, unknown> = { ...resultRecord() }
+    cyclic['cycle'] = cyclic
+    expect(() => validateSchemaResult(cyclic)).toThrow('depth / nodes')
+    let deep: unknown = null
+    for (let level = 0; level < 100; level += 1) deep = { next: deep }
+    expect(() => validateSchemaResult({ ...resultRecord(), extra: deep })).toThrow('depth / nodes')
+    expect(() =>
+      validateSchemaResult({
+        ...resultRecord(),
+        extra: Array.from({ length: 200_001 }, () => null),
+      }),
+    ).toThrow('depth / nodes')
+  })
+  it.each(['__proto__', 'constructor', 'prototype'])(
+    'fails forbidden answer key %s without rewriting it into a completed result',
+    async (key) => {
+      const schema = answerSchema()
+      const h = harness('jsonl', schema)
+      h.sink.message({
+        itemId: 'final',
+        kind: 'agentMessage',
+        text: `{"ok":true,"${key}":{"unexpected":true}}`,
+        complete: true,
+      })
+      await h.sink.finish(resultRecord())
+      const final = validateSchemaEvent(JSON.parse(h.out.chunks.at(-1) ?? ''), schema)
+      expect(final).toMatchObject({
+        type: 'result',
+        result: {
+          status: 'failed',
+          exitCode: 10,
+          error: { kind: 'output_schema_mismatch' },
+          usage: resultRecord().usage,
+          ledger: { outputSchemaSha256: schema.sha256 },
+        },
+      })
+      if (final.type !== 'result') throw new Error('missing result')
+      expect(Object.hasOwn(final.result, 'output')).toBe(false)
+      expect(h.sink.resultExitCode).toBe(10)
+    },
+  )
+  it.each(['__proto__', 'constructor', 'prototype'])(
+    'refuses forbidden record key %s in additive result and event readers at every level',
+    (key) => {
+      const good = {
+        ...resultRecord(),
+        output: { value: { ok: true }, validation: 'provider' },
+        ledger: { ...resultRecord().ledger, outputSchemaSha256: answerSchema().sha256 },
+      }
+      for (const result of [
+        { ...good, [key]: true },
+        { ...good, ledger: { ...good.ledger, [key]: true } },
+        { ...good, output: { ...good.output, value: { ok: true, nested: { [key]: true } } } },
+        { ...good, usage: { ...good.usage, [key]: true } },
+      ]) {
+        const input: unknown = structuredClone(result)
+        expect(() => validateSchemaResult(input)).toThrow('forbidden record key')
+        expect(() =>
+          validateSchemaEvent({
+            v: 1,
+            seq: 1,
+            at: '2026-10-06T00:00:00.000Z',
+            type: 'result',
+            result: input,
+          }),
+        ).toThrow('forbidden record key')
+      }
+      expect(validateSchemaResult(good)).toEqual(good)
+    },
+  )
+
+  it.each(['META_API_KEY=opaque-value', 'password="quoted-value"'])(
+    'serialises decoded redaction once and keeps message/result JSON identical: %s',
+    async (note) => {
+      const schema = answerSchema({ note: { type: 'string' } })
+      const h = harness('jsonl', schema)
+      h.sink.message({
+        itemId: 'final',
+        kind: 'agentMessage',
+        text: JSON.stringify({ note }),
+        complete: true,
+      })
+      await h.sink.finish(resultRecord())
+      const message = validateSchemaEvent(JSON.parse(h.out.chunks[0] ?? ''), schema)
+      const final = validateSchemaEvent(JSON.parse(h.out.chunks.at(-1) ?? ''), schema)
+      if (message.type !== 'message' || final.type !== 'result') throw new Error('missing events')
+      expect(schema.parseAnswer(message.text).ok).toBe(true)
+      expect(message.text).toBe(final.result.finalMessage)
+      expect(JSON.parse(message.text)).toEqual(final.result.output?.value)
+      expect(h.sink.resultExitCode).toBe(0)
+      expect(h.out.chunks.join('')).not.toContain('opaque-value')
+      expect(h.out.chunks.join('')).not.toContain('quoted-value')
+      expect(() => validateSchemaEvent({ ...message, text: '{"note":"broken' }, schema)).toThrow()
+    },
+  )
+  it('retains integral large-number output and accounting at egress', async () => {
+    const h = harness('json', answerSchema({ n: { type: 'integer' } }))
+    h.sink.message({
+      itemId: 'final',
+      kind: 'agentMessage',
+      text: '{"n":9007199254740992}',
+      complete: true,
+    })
+    await h.sink.finish(resultRecord())
+    expect(h.sink.resultExitCode).toBe(0)
+    expect(validateSchemaResult(JSON.parse(h.out.chunks[0] ?? ''))).toMatchObject({
+      output: { value: { n: 9_007_199_254_740_992 }, validation: 'provider' },
+      usage: resultRecord().usage,
+    })
+  })
+  it('reports answer validation work exhaustion as its named failure while retaining accounting', async () => {
+    const h = harness('json', answerSchema({ a: { type: 'array', items: { type: 'integer' } } }))
+    h.sink.message({
+      itemId: 'final',
+      kind: 'agentMessage',
+      text: JSON.stringify({ a: Array.from({ length: 20_000 }, (_, i) => i) }),
+      complete: true,
+    })
+    await h.sink.finish(resultRecord())
+    expect(h.sink.resultExitCode).toBe(10)
+    expect(validateSchemaResult(JSON.parse(h.out.chunks[0] ?? ''))).toMatchObject({
+      status: 'failed',
+      error: { kind: 'output_schema_validation_budget' },
+      usage: resultRecord().usage,
+    })
+  })
+  it.each(['text', 'json', 'jsonl'] as const)(
+    'returns validated output and exact digest in %s',
+    async (format) => {
+      const schema = answerSchema()
+      const h = harness(format, schema)
+      h.sink.message({
+        itemId: 'final',
+        kind: 'agentMessage',
+        text: '{ "ok": true }',
+        complete: true,
+      })
+      await h.sink.finish(resultRecord())
+      expect(h.sink.resultExitCode).toBe(0)
+      if (format === 'text') expect(h.out.chunks).toEqual(['{"ok":true}\n'])
+      else {
+        const value: unknown = JSON.parse(h.out.chunks.at(-1) ?? '')
+        const result = format === 'json' ? validateSchemaResult(value) : validateSchemaEvent(value)
+        expect(result).toMatchObject(
+          format === 'json'
+            ? {
+                output: { value: { ok: true }, validation: 'provider' },
+                ledger: { outputSchemaSha256: schema.sha256 },
+              }
+            : {
+                type: 'result',
+                result: {
+                  output: { value: { ok: true }, validation: 'provider' },
+                  ledger: { outputSchemaSha256: schema.sha256 },
+                },
+              },
+        )
+      }
+    },
+  )
+  it.each(['not JSON', '{"ok":"yes"}', '{"ok":true,"extra":1}'])(
+    'refuses a mismatched final answer: %s',
+    async (text) => {
+      const h = harness('jsonl', answerSchema())
+      h.sink.message({ itemId: 'final', kind: 'agentMessage', text, complete: true })
+      await h.sink.finish(resultRecord())
+      expect(h.sink.resultExitCode).toBe(10)
+      const event = validateSchemaEvent(JSON.parse(h.out.chunks.at(-1) ?? ''))
+      expect(event).toMatchObject({
+        type: 'result',
+        result: {
+          status: 'failed',
+          exitCode: 10,
+          finalMessage: UI_TEXT.execMessageWithheld,
+          error: { kind: 'output_schema_mismatch' },
+        },
+      })
+      if (event.type !== 'result') throw new Error('missing result')
+      expect(Object.hasOwn(event.result, 'output')).toBe(false)
+      expect(h.out.chunks.join('')).not.toContain(text)
+    },
+  )
+  it('redacts decoded sensitive fields and validates after redaction, including escaped field names', async () => {
+    const schema = answerSchema({ password: { type: 'string' }, note: { type: 'string' } })
+    const h = harness('jsonl', schema)
+    h.sink.message({
+      itemId: 'final',
+      kind: 'agentMessage',
+      text: String.raw`{"pass\u0077ord":"opaque-value","note":"safe"}`,
+      complete: true,
+    })
+    await h.sink.finish(resultRecord())
+    const event = validateSchemaEvent(JSON.parse(h.out.chunks.at(-1) ?? ''))
+    expect(event).toMatchObject({
+      type: 'result',
+      result: {
+        output: { value: { password: '[redacted]', note: 'safe' }, validation: 'provider' },
+        finalMessage: '{"password":"[redacted]","note":"safe"}',
+      },
+    })
+    expect(h.out.chunks.join('')).not.toContain('opaque-value')
+    const constrained = harness('jsonl', answerSchema({ note: { type: 'string', enum: [KEY] } }))
+    constrained.sink.message({
+      itemId: 'final',
+      kind: 'agentMessage',
+      text: JSON.stringify({ note: KEY }),
+      complete: true,
+    })
+    await constrained.sink.finish(resultRecord())
+    expect(constrained.sink.resultExitCode).toBe(10)
+    expect(constrained.out.chunks.join('')).not.toContain(KEY)
+    const placeholder = harness(
+      'json',
+      answerSchema({ note: { type: 'string', enum: ['[redacted]'] } }),
+    )
+    placeholder.sink.message({
+      itemId: 'final',
+      kind: 'agentMessage',
+      text: JSON.stringify({ note: KEY }),
+      complete: true,
+    })
+    await placeholder.sink.finish(resultRecord())
+    expect(placeholder.sink.resultExitCode).toBe(10)
+  })
+  it('never promotes earlier valid commentary over a withheld final response or a stop', async () => {
+    const h = harness('json', answerSchema())
+    h.sink.message({ itemId: 'early', kind: 'agentMessage', text: '{"ok":true}', complete: true })
+    h.sink.message({ itemId: 'final', kind: 'agentMessage', text: '{"ok":', complete: false })
+    const base = resultRecord()
+    await h.sink.finish({
+      ...base,
+      status: 'incomplete',
+      exitCode: 8,
+      error: { kind: 'incomplete', message: 'incomplete' },
+      finalMessage: UI_TEXT.execMessageWithheld,
+    })
+    const result = validateSchemaResult(JSON.parse(h.out.chunks[0] ?? ''))
+    expect(result.status).toBe('incomplete')
+    expect(Object.hasOwn(result, 'output')).toBe(false)
+    expect(result.ledger?.outputSchemaSha256).toBe(answerSchema().sha256)
+    expect(h.sink.resultExitCode).toBe(8)
+  })
+  it('rejects malformed additive fields and retains the base accounting guards', () => {
+    const base = resultRecord()
+    const good = {
+      ...base,
+      output: { value: { ok: true }, validation: 'provider' },
+      ledger: { ...base.ledger, outputSchemaSha256: answerSchema().sha256 },
+    }
+    expect(validateSchemaResult(good)).toEqual(good)
+    expect(
+      validateSchemaResult({ ...good, output: { value: { ok: true }, validation: 'local' } }).output
+        ?.validation,
+    ).toBe('local')
+    for (const value of [
+      { ...good, output: undefined },
+      { ...good, output: { value: { ok: NaN }, validation: 'provider' } },
+      { ...good, output: { value: { ok: true } } },
+      { ...good, output: { value: { ok: true }, validation: 'unverified' } },
+      { ...good, output: { value: { ok: true }, validation: 'local', extra: true } },
+      { ...good, ledger: base.ledger },
+      { ...base, ledger: good.ledger },
+      { ...good, ledger: { ...good.ledger, outputSchemaSha256: 'wrong' } },
+      { ...good, ledger: { ...good.ledger, unexpected: true } },
+      { ...good, status: 'failed', exitCode: 4, error: { kind: 'failed', message: 'failed' } },
+      { ...good, usage: { ...good.usage, requests: null } },
+    ])
+      expect(() => validateSchemaResult(value)).toThrow()
+    expect(validateSchemaResult(base)).toEqual(base)
+  })
+  it('keeps no-schema result bytes equal to the existing v1 contract', async () => {
+    const h = harness('json')
+    await h.sink.finish(resultRecord())
+    expect(h.out.chunks).toEqual([`${JSON.stringify(resultRecord())}\n`])
+  })
+})
 
 describe('M80 egress (A12–A14, A17, A19, A20)', () => {
   it('B/D27 authoritative withholding cannot reuse earlier completed commentary', async () => {

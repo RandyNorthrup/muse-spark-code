@@ -1,5 +1,7 @@
 // Build plugins shared by production output and typed private fixture builds.
 import type { Plugin } from 'esbuild'
+export const compactBrowserUiText: Plugin
+export const compactBrowserEnglish: Plugin
 
 export const UI_TEXT_REGIONS: readonly {
   readonly name: string
@@ -12,5 +14,3 @@ export function compressedEnglish(
   isProduction: boolean,
   compressionQuality: number,
 ): Plugin
-
-export const compactBrowserEnglish: Plugin

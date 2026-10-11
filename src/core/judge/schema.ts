@@ -1,3 +1,4 @@
+import { nonnegativeUsdSchema, type UsdAmount } from '../../shared/usd'
 // The Muse Judge's contract (M98, PLAN.md D77): the Jev wire shapes for
 // `noul`, `choice` and `score`, bounded at the intersection of the SystemOne
 // services, plus our sibling `muse` object, so `answers` stays
@@ -186,8 +187,8 @@ export const judgeMuseSchema = z.object({
   confidence: probabilitySchema,
   vendorConfidence: z.optional(probabilitySchema),
   partial: z.boolean(),
-  reservedCostUsd: z.optional(z.number().check(z.nonnegative())),
-  settledCostUsd: z.optional(z.number().check(z.nonnegative())),
+  reservedCostUsd: z.optional(nonnegativeUsdSchema),
+  settledCostUsd: z.optional(nonnegativeUsdSchema),
 })
 export type JudgeMuse = z.infer<typeof judgeMuseSchema>
 
@@ -252,8 +253,8 @@ export interface JudgeLogMuse {
   readonly label: JudgeLabel
   readonly partial: boolean
   readonly confidence: number
-  readonly reservedCostUsd?: number
-  readonly settledCostUsd?: number
+  readonly reservedCostUsd?: UsdAmount
+  readonly settledCostUsd?: UsdAmount
 }
 
 export interface JudgeLogSummary {

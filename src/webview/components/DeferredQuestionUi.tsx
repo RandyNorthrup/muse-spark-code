@@ -1,7 +1,7 @@
 // One guarded import for the question-only UI; its draft context stays mounted.
 import { UI_TEXT } from '../../shared/constants'
 import type { PendingQuestion } from '../state/uiState'
-import type { QuestionCardProps, QuestionOutcome } from './QuestionCard'
+import type { QuestionView } from './QuestionCard'
 import type { QuestionDockProps } from './QuestionUi'
 import { deferred } from './DeferredSurface'
 
@@ -12,10 +12,15 @@ const LazyCard = deferred(
     return { default: QuestionView }
   },
   false,
-  (props) =>
-    'question' in props ? (
-      <QuestionLoadingCard question={props.question} isDockCard={props.isDockCard ?? false} />
-    ) : null,
+  (props) => {
+    if ('question' in props)
+      return (
+        <QuestionLoadingCard question={props.question} isDockCard={props.isDockCard ?? false} />
+      )
+    return 'elicitation' in props ? (
+      <QuestionLoadingCard title={props.elicitation.server} question={undefined} />
+    ) : null
+  },
 )
 const LazyDock = deferred(
   async () => {
@@ -34,9 +39,11 @@ const LazyDock = deferred(
 /** Keep an arrival visible while its controls load; drafts live above Suspense. */
 function QuestionLoadingCard({
   question,
+  title,
   isDockCard = false,
 }: {
   readonly question: PendingQuestion | undefined
+  readonly title?: string
   readonly isDockCard?: boolean
 }) {
   return (
@@ -44,7 +51,7 @@ function QuestionLoadingCard({
       className="question question-folded"
       role="group"
       aria-busy="true"
-      aria-label={question?.questions[0]?.header ?? UI_TEXT.questionOpen}
+      aria-label={title ?? question?.questions[0]?.header ?? UI_TEXT.questionOpen}
       data-question-id={question?.userInputId}
       data-question-slot={isDockCard ? 'dock' : 'row'}
       tabIndex={-1}
@@ -52,15 +59,13 @@ function QuestionLoadingCard({
       <div className="question-summary">
         <span className="question-state-label">{UI_TEXT.loadingOutput}</span>
         <span className="question-summary-header" dir="auto">
-          {question?.questions[0]?.header}
+          {title ?? question?.questions[0]?.header}
         </span>
       </div>
     </div>
   )
 }
-export function DeferredQuestionCard(
-  props: QuestionCardProps | Parameters<typeof QuestionOutcome>[0],
-) {
+export function DeferredQuestionCard(props: Parameters<typeof QuestionView>[0]) {
   return <LazyCard {...props} />
 }
 export function DeferredQuestionDock(props: QuestionDockProps) {

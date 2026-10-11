@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { runInNewContext } from 'node:vm'
 import { describe, expect, it } from 'vitest'
 import { toSnapshot, wireItemSchema } from '../../src/core/backends/musecode/sessionRecords'
 import { parseHostToWebviewMessage, parseWebviewToHostMessage } from '../../src/shared/protocol'
@@ -187,6 +189,15 @@ describe('parseHostToWebviewMessage', () => {
     settings: testSettings,
   }
 
+  it('accepts the real accessibility harness initialization settings', () => {
+    const html = readFileSync(new URL('../harness/index.html', import.meta.url), 'utf8')
+    const literal = /const settings = (\{[\s\S]*?\n {6}\})/.exec(html)?.[1]
+    expect(literal).toBeDefined()
+    // Evaluate only this repository-owned static fixture, never a host message.
+    const settings: unknown = runInNewContext(`(${literal ?? ''})`)
+    expect(parseHostToWebviewMessage({ ...init, settings }).ok).toBe(true)
+  })
+
   it('requires the scheduled count in a paid subagent usage update', () => {
     const state = {
       features: ['subagents'],
@@ -197,7 +208,7 @@ describe('parseHostToWebviewMessage', () => {
         subagentRequests: 2,
         subagentUnknownRequests: 1,
         subagentTokens: 1_100_000,
-        subagentCostUsd: 1.455,
+        subagentCostUsd: '1.455',
       },
       isKeyStored: true,
       alwaysAllowed: [],

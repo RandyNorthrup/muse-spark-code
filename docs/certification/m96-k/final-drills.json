@@ -1,0 +1,173 @@
+{
+  "rig": "macmini",
+  "drills": [
+    {
+      "id": "R3.1-executable",
+      "source": "src/host/team/processOwnership.ts",
+      "before": "aa36c49ed7cbf6b8f2f6e7d441e36354d9333aaf01d958771dccd3d6bcb91754",
+      "after": "aa36c49ed7cbf6b8f2f6e7d441e36354d9333aaf01d958771dccd3d6bcb91754",
+      "command": "npx vitest run test/unit/teamProcessOwnership.test.ts --maxWorkers=3 --testTimeout=120000",
+      "exit": 1,
+      "test": "refuses a changed executable immediately before a signal",
+      "log": "final-logs/R3.1-executable.txt",
+      "logSha256": "09062ab0fc08ab5c701cfe7ec7a95938a0f362a2eb60dc99e4bd91a3942ed32f",
+      "seconds": 1.36
+    },
+    {
+      "id": "R3.1-uid",
+      "source": "src/host/team/processOwnership.ts",
+      "before": "aa36c49ed7cbf6b8f2f6e7d441e36354d9333aaf01d958771dccd3d6bcb91754",
+      "after": "aa36c49ed7cbf6b8f2f6e7d441e36354d9333aaf01d958771dccd3d6bcb91754",
+      "command": "npx vitest run test/unit/teamProcessOwnership.test.ts --maxWorkers=3 --testTimeout=120000",
+      "exit": 1,
+      "test": "refuses a changed uid immediately before a signal",
+      "log": "final-logs/R3.1-uid.txt",
+      "logSha256": "980dcbbd5fbdc8e2afe530fef1a633a1693cfb9f11147e572f518faa5b87e0e6",
+      "seconds": 1.38
+    },
+    {
+      "id": "R3.1-missing-identity",
+      "source": "src/host/team/processOwnership.ts",
+      "before": "aa36c49ed7cbf6b8f2f6e7d441e36354d9333aaf01d958771dccd3d6bcb91754",
+      "after": "aa36c49ed7cbf6b8f2f6e7d441e36354d9333aaf01d958771dccd3d6bcb91754",
+      "command": "npx vitest run test/unit/teamProcessOwnership.test.ts --maxWorkers=3 --testTimeout=120000",
+      "exit": 1,
+      "test": "a launch marker never substitutes for recorded executable and UID",
+      "log": "final-logs/R3.1-missing-identity.txt",
+      "logSha256": "0223a2d562428d7cb97db4ce3485dd4db1d82e3d5ae75a945256795f38a662af",
+      "seconds": 1.35
+    },
+    {
+      "id": "R3.1-unrecorded-member",
+      "source": "src/host/team/processOwnership.ts",
+      "before": "aa36c49ed7cbf6b8f2f6e7d441e36354d9333aaf01d958771dccd3d6bcb91754",
+      "after": "aa36c49ed7cbf6b8f2f6e7d441e36354d9333aaf01d958771dccd3d6bcb91754",
+      "command": "npx vitest run test/unit/teamProcessOwnership.test.ts --maxWorkers=3 --testTimeout=120000",
+      "exit": 1,
+      "test": "retirement reports unrecorded marked survivors after the group leader has exited",
+      "log": "final-logs/R3.1-unrecorded-member.txt",
+      "logSha256": "33a525813d65290524250db3dc93fbfe213ad2eb040451b5abadb2b7fedd85cc",
+      "seconds": 1.35
+    },
+    {
+      "id": "R3.2-primary",
+      "source": "src/host/team/processLifetime.ts",
+      "before": "485c6dc2ed9a1ef4da68e15907db9467360206371681e1070f5b9aa486020409",
+      "after": "485c6dc2ed9a1ef4da68e15907db9467360206371681e1070f5b9aa486020409",
+      "command": "npx vitest run test/unit/teamNativeLifetime.test.ts --maxWorkers=3 --testTimeout=120000",
+      "exit": 1,
+      "test": "retirement and dispose never await an unowned primary after survivor signals",
+      "log": "final-logs/R3.2-primary.txt",
+      "logSha256": "4a6dcbcadf7591c8038670e978aa65d1d0fe58dddb66f7d3b47a924cf75103e6",
+      "seconds": 29.41
+    },
+    {
+      "id": "R3.2-deadline",
+      "source": "src/host/team/processLifetime.ts",
+      "before": "485c6dc2ed9a1ef4da68e15907db9467360206371681e1070f5b9aa486020409",
+      "after": "485c6dc2ed9a1ef4da68e15907db9467360206371681e1070f5b9aa486020409",
+      "command": "npx vitest run test/unit/teamNativeLifetime.test.ts --maxWorkers=3 --testTimeout=120000",
+      "exit": 1,
+      "test": "bounds the exit wait even when an owned primary does not acknowledge signals",
+      "log": "final-logs/R3.2-deadline.txt",
+      "logSha256": "286d13a21887344cd4007059f67b4de36e3468424cca2b669eb883772e7d1ddf",
+      "seconds": 30.59
+    },
+    {
+      "id": "R3.4-stop-after-END",
+      "source": "src/host/team/processLifetime.ts",
+      "before": "485c6dc2ed9a1ef4da68e15907db9467360206371681e1070f5b9aa486020409",
+      "after": "485c6dc2ed9a1ef4da68e15907db9467360206371681e1070f5b9aa486020409",
+      "command": "npx vitest run test/unit/teamWindowsControl.test.ts --maxWorkers=3 --testTimeout=120000",
+      "exit": 1,
+      "test": "retirement after END sends no STOP and waits for helper close before saving proved end",
+      "log": "final-logs/R3.4-stop-after-END.txt",
+      "logSha256": "43cb1541f41887a628d37f844b24984307c42af8b67ca0ec7084452c9284c47b",
+      "seconds": 2.21
+    },
+    {
+      "id": "R3.4-close-deadline",
+      "source": "src/host/team/processLifetime.ts",
+      "before": "485c6dc2ed9a1ef4da68e15907db9467360206371681e1070f5b9aa486020409",
+      "after": "485c6dc2ed9a1ef4da68e15907db9467360206371681e1070f5b9aa486020409",
+      "command": "npx vitest run test/unit/teamWindowsControl.test.ts --maxWorkers=3 --testTimeout=120000",
+      "exit": 1,
+      "test": "retirement after END has a deadline when helper closure is missing",
+      "log": "final-logs/R3.4-close-deadline.txt",
+      "logSha256": "92d6876b33c0c813637f43cda2270a97c378cd6dd116e907678c9c75b3b48653",
+      "seconds": 2.5
+    },
+    {
+      "id": "R3.5-directory",
+      "source": "src/host/team/teamJournal.ts",
+      "before": "cc4cbf09940ff70d989be20fd66dfa8e8bfb10abe9063cece188863772afc9a1",
+      "after": "cc4cbf09940ff70d989be20fd66dfa8e8bfb10abe9063cece188863772afc9a1",
+      "command": "npx vitest run test/unit/teamProcessLifetime.test.ts --maxWorkers=3 --testTimeout=120000",
+      "exit": 1,
+      "test": "warns about a damaged foreign journal directory and keeps valid launches",
+      "log": "final-logs/R3.5-directory.txt",
+      "logSha256": "f96cfdc2f738c0265e9fc453815f54d3c31f1b468447fc6e88586266cbc284b0",
+      "seconds": 6.23
+    },
+    {
+      "id": "R3.3-consumed-handle",
+      "source": "src/host/team/windowHints.ts",
+      "before": "dadab7e16841d9c53ec501750705d1c2117633deebc05c1e24906ae468458147",
+      "after": "dadab7e16841d9c53ec501750705d1c2117633deebc05c1e24906ae468458147",
+      "command": "npx vitest run test/unit/teamHintsAndLoad.test.ts --maxWorkers=3 --testTimeout=120000",
+      "exit": 1,
+      "test": "Windows consumes the handle-verified hint rather than an older opened inode after replacement",
+      "log": "final-logs/R3.3-consumed-handle.txt",
+      "logSha256": "cf41667fd4024dae94f38e06c31ed0e0c37da88ad405e964f3e05f0a7f050d4c",
+      "seconds": 3.1
+    },
+    {
+      "id": "R3.1-invalid-marker",
+      "source": "src/host/team/orphanRecovery.ts",
+      "before": "55241637293d4ec7860579de686bc7c43fe690b0c4008fb756dc85f7cbfe14cf",
+      "after": "55241637293d4ec7860579de686bc7c43fe690b0c4008fb756dc85f7cbfe14cf",
+      "command": "npx vitest run test/unit/teamNativeLifetime.test.ts --maxWorkers=3 --testTimeout=120000",
+      "exit": 1,
+      "test": "native macOS ignores an invalid marker without aborting valid process discovery",
+      "log": "final-logs/R3.1-invalid-marker.txt",
+      "logSha256": "a09ad680d53f12d38cca39c9899732107cd77f48bd04f495aabece9cb9386fda",
+      "seconds": 30.05
+    },
+    {
+      "id": "R3.1-argv",
+      "source": "src/host/team/orphanRecovery.ts",
+      "before": "55241637293d4ec7860579de686bc7c43fe690b0c4008fb756dc85f7cbfe14cf",
+      "after": "55241637293d4ec7860579de686bc7c43fe690b0c4008fb756dc85f7cbfe14cf",
+      "command": "npx vitest run test/unit/teamNativeLifetime.test.ts --maxWorkers=3 --testTimeout=120000",
+      "exit": 1,
+      "test": "native macOS reads libproc identity and never mistakes argv for an environment marker",
+      "log": "final-logs/R3.1-argv.txt",
+      "logSha256": "e506d56ae0df8e1833997095bf03915ac17135a3a591130b7a18ea155f4e122a",
+      "seconds": 30.12
+    },
+    {
+      "id": "R3.1-recorded-stop",
+      "source": "src/host/team/orphanRecovery.ts",
+      "before": "55241637293d4ec7860579de686bc7c43fe690b0c4008fb756dc85f7cbfe14cf",
+      "after": "55241637293d4ec7860579de686bc7c43fe690b0c4008fb756dc85f7cbfe14cf",
+      "command": "npx vitest run test/unit/teamHintsAndLoad.test.ts --maxWorkers=3 --testTimeout=120000",
+      "exit": 1,
+      "test": "a marker-only recovery row cannot stop without a recorded confirmation",
+      "log": "final-logs/R3.1-recorded-stop.txt",
+      "logSha256": "15f0823c247a0ba0252b4f02786dd5d6e1471a115c004c08641145a87ea1a81b",
+      "seconds": 2.12
+    },
+    {
+      "id": "R3.1-recovery-executable",
+      "source": "src/host/team/orphanRecovery.ts",
+      "before": "55241637293d4ec7860579de686bc7c43fe690b0c4008fb756dc85f7cbfe14cf",
+      "after": "55241637293d4ec7860579de686bc7c43fe690b0c4008fb756dc85f7cbfe14cf",
+      "command": "npx vitest run test/unit/teamHintsAndLoad.test.ts --maxWorkers=3 --testTimeout=120000",
+      "exit": 1,
+      "test": "marker-only recovery cannot authorize an unrelated recorded PID or executable",
+      "log": "final-logs/R3.1-recovery-executable.txt",
+      "logSha256": "425c994c3123c6d22b88ffe590d47e48489547c2b20899309d3e129013cad2ca",
+      "seconds": 1.77
+    }
+  ]
+}

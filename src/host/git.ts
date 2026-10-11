@@ -1,3 +1,4 @@
+import { resourceEnvironment } from '../core/resources/launch'
 // How the extension runs git (the mention index, the Model API prompt's
 // environment facts): by absolute path, found on the absolute PATH entries
 // only, so a `git.exe` committed to the workspace is never the one that runs
@@ -5,8 +6,12 @@
 // and `GIT_OPTIONAL_LOCKS=0` so a background `git status` never takes the
 // index lock out from under the user's own git.
 
-import { type ExecFileOptions, execFile, spawn } from 'node:child_process'
+import { type ExecFileOptions, spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
+import { admitResource, resourceWindowsJob, stopResourceTree } from '../core/resources/admission'
+import { spawnMcpJob } from './backend/mcpJobLaunch'
+import { observeResourceProcess } from './resources/resourceAdmission'
+import { treeSpawnOptions } from './processTree'
 import { Buffer } from 'node:buffer'
 import * as z from 'zod/mini'
 import { resolveExecutable } from '../core/executables'
@@ -89,7 +94,13 @@ export async function metadataGit(
     names = await runGit([...GIT_METADATA_OPTIONS, ...GIT_FILTER_NAMES_ARGS], cwd)
   } catch (error: unknown) {
     // `config --get-regexp` exits 1 when no filter is configured.
-    if (typeof error !== 'object' || error === null || !('code' in error) || error.code !== 1) {
+    let code: unknown
+    if (isGitExitError(error)) {
+      code = error.exitCode
+    } else if (typeof error === 'object' && error !== null && 'code' in error) {
+      code = error.code
+    }
+    if (code !== 1) {
       throw error
     }
     names = ''
@@ -167,6 +178,7 @@ export interface GitRunnerDeps {
     args: readonly string[],
     options: ExecFileOptions,
     input?: string,
+    beforeRun?: BestOfNGitGuard,
   ) => Promise<string>
 }
 
@@ -220,6 +232,7 @@ export function createGitRunner(
       maxBuffer: GIT_OUTPUT_MAX_BYTES,
       timeout: timeoutMs,
       windowsHide: true,
+      ...(beforeRun?.signal !== undefined && { signal: beforeRun.signal }),
     }
     beforeRun?.()
     if (deps.isAutomatic === true) {
@@ -257,6 +270,8 @@ export function createGitRunner(
     // Configuration/version reads can await. The owned caller rechecks
     // synchronously here, with no await before the actual process entry.
     beforeRun?.()
+    if (beforeRun !== undefined)
+      return await deps.execFile(git, invocation, options, input, beforeRun)
     return input === undefined
       ? await deps.execFile(git, invocation, options)
       : await deps.execFile(git, invocation, options, input)
@@ -286,23 +301,25 @@ export function processGitRunner(
     argsBefore: options.argsBefore,
     fileExists: existsSync,
     isAutomatic: options.isAutomatic === true,
-    execFile: (file, args, options, input) =>
-      new Promise((resolve, reject) => {
-        const child = execFile(
-          file,
-          [...args],
-          { ...options, encoding: 'utf8' },
-          (error, stdout) => {
-            if (error === null) {
-              resolve(stdout)
-            } else {
-              reject(error instanceof Error ? error : new Error('Git process failed'))
-            }
-          },
-        )
-        child.stdin?.on('error', reject)
-        child.stdin?.end(input)
-      }),
+    execFile: async (_file, args, options, input, beforeRun) => {
+      if (typeof options.cwd !== 'string' || options.env === undefined)
+        throw new Error('Git requires an explicit working directory and environment')
+      const run = createGitProcess({
+        platform: process.platform,
+        env: options.env,
+        fileExists: existsSync,
+        spawn,
+      })
+      const result = await run(args, {
+        cwd: options.cwd,
+        env: options.env,
+        timeoutMs: options.timeout ?? GIT_TIMEOUT_MS,
+        ...(input !== undefined && { input }),
+        ...(options.signal !== undefined && { signal: options.signal }),
+        ...(beforeRun !== undefined && { beforeRun }),
+      })
+      return result.toString('utf8')
+    },
   })
 }
 
@@ -332,6 +349,9 @@ export function isGitExitError(value: unknown): value is GitExitError {
 }
 
 export interface GitProcessOptions {
+  /** Checkpoint Git bypasses temp pressure and checks this storage volume instead. */
+  readonly checkpointDestination?: string | undefined
+  readonly beforeRun?: BestOfNGitGuard | undefined
   readonly cwd: string
   /** The child's whole environment: nothing else is inherited. */
   readonly env: NodeJS.ProcessEnv
@@ -369,119 +389,171 @@ export interface GitProcessDeps {
  */
 export function createGitProcess(deps: GitProcessDeps): GitProcess {
   const gitPath = gitLocator(deps)
-  return (args, options) =>
-    new Promise<Buffer>((resolve, reject) => {
-      const git = gitPath()
-      if (git === undefined) {
-        reject(new GitMissingError())
-        return
-      }
-      const command = subcommandOf(args)
-      if (options.signal?.aborted === true) {
-        reject(new Error(`git ${command} was not started: the window is closing`))
-        return
-      }
-      const child = deps.spawn(git, [...args], {
-        cwd: options.cwd,
-        env: withoutCredentials(options.env),
-        stdio: ['pipe', 'pipe', 'pipe'],
-        windowsHide: true,
-      })
-      const chunks: Buffer[] = []
-      let size = 0
-      let stderr = ''
-      let failure: Error | undefined
-      // A failure (the timeout, the window closing) also ends the wait for a
-      // taker still busy with a chunk after the child closed.
-      // Not `Promise.withResolvers`, which Node 20 (VS Code 1.99's host) lacks.
-      const stopping = new AbortController()
-      const stopped = new Promise<void>((resolveStopped) => {
-        stopping.signal.addEventListener(
-          'abort',
-          () => {
-            resolveStopped()
-          },
-          { once: true },
-        )
-      })
-      const fail = (error: Error) => {
-        failure ??= error
-        child.kill()
-        stopping.abort()
-      }
-      const timer = setTimeout(() => {
-        fail(new Error(`git ${command} timed out after ${String(options.timeoutMs)} ms`))
-      }, options.timeoutMs)
-      const onAbort = () => {
-        fail(new Error(`git ${command} was stopped: the window is closing`))
-      }
-      options.signal?.addEventListener('abort', onAbort, { once: true })
-      // A taker's chunks, one at a time and in order. A pause does not stop
-      // chunks already read, and the child closes once its last chunk is
-      // emitted, not taken: the command settles after this chain.
-      let taking = Promise.resolve()
-      const takeInTurn = async (
-        previous: Promise<void>,
-        take: (chunk: Buffer) => Promise<void>,
-        chunk: Buffer,
-      ): Promise<void> => {
-        await previous
-        try {
-          // Nothing reaches the taker after a failure.
-          if (failure === undefined) {
-            await take(chunk)
+  return async (args, options) => {
+    const resource =
+      options.checkpointDestination === undefined
+        ? await admitResource('other', options.signal, options.beforeRun?.resourceClass)
+        : await admitResource(
+            'other',
+            options.signal,
+            'checkpoint',
+            false,
+            options.checkpointDestination,
+          )
+    let wasSpawned = false
+    try {
+      const job =
+        resource === undefined || deps.platform !== 'win32' ? undefined : await resourceWindowsJob()
+      options.beforeRun?.()
+      return await new Promise<Buffer>((resolve, reject) => {
+        const git = gitPath()
+        if (git === undefined) {
+          resource?.complete(true)
+          reject(new GitMissingError())
+          return
+        }
+        const command = subcommandOf(args)
+        if (options.signal?.aborted === true) {
+          resource?.complete(true)
+          reject(new Error(`git ${command} was not started: the window is closing`))
+          return
+        }
+        const child =
+          job === undefined
+            ? deps.spawn(git, [...args], {
+                cwd: options.cwd,
+                env: resourceEnvironment(withoutCredentials(options.env), resource),
+                stdio: ['pipe', 'pipe', 'pipe'],
+                windowsHide: true,
+                ...treeSpawnOptions(deps.platform),
+              })
+            : spawnMcpJob({
+                executablePath: job.executablePath,
+                file: git,
+                args,
+                cwd: options.cwd,
+                env: resourceEnvironment(withoutCredentials(options.env), resource),
+                isVerbatim: false,
+                log: () => {
+                  /* The launcher returns its failure through the process streams. */
+                },
+                resource,
+                resourceAssembly: job.assemblyPath,
+              })
+        wasSpawned = true
+        if (job === undefined) observeResourceProcess(resource, child)
+        const chunks: Buffer[] = []
+        let size = 0
+        let stderr = ''
+        let failure: Error | undefined
+        // A failure (the timeout, the window closing) also ends the wait for a
+        // taker still busy with a chunk after the child closed.
+        // Not `Promise.withResolvers`, which Node 20 (VS Code 1.99's host) lacks.
+        const stopping = new AbortController()
+        const stopped = new Promise<void>((resolveStopped) => {
+          stopping.signal.addEventListener(
+            'abort',
+            () => {
+              resolveStopped()
+            },
+            { once: true },
+          )
+        })
+        const fail = (error: Error) => {
+          failure ??= error
+          if (resource === undefined) child.kill()
+          else
+            void stopResourceTree(resource).catch((stopError: unknown) => {
+              failure =
+                stopError instanceof Error
+                  ? stopError
+                  : new Error('Registered Git tree stop failed')
+              clearTimeout(timer)
+              options.signal?.removeEventListener('abort', onAbort)
+              child.stdout.destroy()
+              child.stderr.destroy()
+              reject(failure)
+            })
+          stopping.abort()
+        }
+        const timer = setTimeout(() => {
+          fail(new Error(`git ${command} timed out after ${String(options.timeoutMs)} ms`))
+        }, options.timeoutMs)
+        const onAbort = () => {
+          fail(new Error(`git ${command} was stopped: the window is closing`))
+        }
+        options.signal?.addEventListener('abort', onAbort, { once: true })
+        // A taker's chunks, one at a time and in order. A pause does not stop
+        // chunks already read, and the child closes once its last chunk is
+        // emitted, not taken: the command settles after this chain.
+        let taking = Promise.resolve()
+        const takeInTurn = async (
+          previous: Promise<void>,
+          take: (chunk: Buffer) => Promise<void>,
+          chunk: Buffer,
+        ): Promise<void> => {
+          await previous
+          try {
+            // Nothing reaches the taker after a failure.
+            if (failure === undefined) {
+              await take(chunk)
+            }
+          } catch (error: unknown) {
+            fail(error instanceof Error ? error : new Error(String(error)))
           }
-        } catch (error: unknown) {
-          fail(error instanceof Error ? error : new Error(String(error)))
+          child.stdout.resume()
         }
-        child.stdout.resume()
-      }
-      child.stdout.on('data', (chunk: Buffer) => {
-        const take = options.onStdout
-        if (take !== undefined) {
-          child.stdout.pause()
-          taking = takeInTurn(taking, take, chunk)
-          return
+        child.stdout.on('data', (chunk: Buffer) => {
+          const take = options.onStdout
+          if (take !== undefined) {
+            child.stdout.pause()
+            taking = takeInTurn(taking, take, chunk)
+            return
+          }
+          size += chunk.length
+          if (size > GIT_OUTPUT_MAX_BYTES) {
+            fail(new Error(`git ${command} wrote more than ${String(GIT_OUTPUT_MAX_BYTES)} bytes`))
+            return
+          }
+          chunks.push(chunk)
+        })
+        child.stderr.setEncoding('utf8')
+        child.stderr.on('data', (chunk: string) => {
+          if (stderr.length < GIT_STDERR_MAX_CHARS) {
+            stderr = `${stderr}${chunk}`.slice(0, GIT_STDERR_MAX_CHARS)
+          }
+        })
+        // A command that exits before reading all of stdin closes the pipe
+        // under the write; its exit code says what went wrong.
+        child.stdin.on('error', () => {
+          // Nothing to add: the exit code reports it.
+        })
+        child.on('error', (error) => {
+          fail(error)
+        })
+        // The timeout and the abort stay armed until the taker is done.
+        const settle = async (code: number | null): Promise<void> => {
+          await Promise.race([taking, stopped])
+          clearTimeout(timer)
+          options.signal?.removeEventListener('abort', onAbort)
+          if (failure !== undefined) {
+            reject(failure)
+          } else if (code === 0) {
+            resolve(Buffer.concat(chunks))
+          } else {
+            reject(new GitExitError(code ?? -1, stderr, command))
+          }
         }
-        size += chunk.length
-        if (size > GIT_OUTPUT_MAX_BYTES) {
-          fail(new Error(`git ${command} wrote more than ${String(GIT_OUTPUT_MAX_BYTES)} bytes`))
-          return
-        }
-        chunks.push(chunk)
+        child.on('close', (code) => {
+          void settle(code)
+        })
+        child.stdin.end(options.input ?? '')
       })
-      child.stderr.setEncoding('utf8')
-      child.stderr.on('data', (chunk: string) => {
-        if (stderr.length < GIT_STDERR_MAX_CHARS) {
-          stderr = `${stderr}${chunk}`.slice(0, GIT_STDERR_MAX_CHARS)
-        }
-      })
-      // A command that exits before reading all of stdin closes the pipe
-      // under the write; its exit code says what went wrong.
-      child.stdin.on('error', () => {
-        // Nothing to add: the exit code reports it.
-      })
-      child.on('error', (error) => {
-        fail(error)
-      })
-      // The timeout and the abort stay armed until the taker is done.
-      const settle = async (code: number | null): Promise<void> => {
-        await Promise.race([taking, stopped])
-        clearTimeout(timer)
-        options.signal?.removeEventListener('abort', onAbort)
-        if (failure !== undefined) {
-          reject(failure)
-        } else if (code === 0) {
-          resolve(Buffer.concat(chunks))
-        } else {
-          reject(new GitExitError(code ?? -1, stderr, command))
-        }
-      }
-      child.on('close', (code) => {
-        void settle(code)
-      })
-      child.stdin.end(options.input ?? '')
-    })
+    } catch (error: unknown) {
+      resource?.complete(!wasSpawned)
+      throw error
+    }
+  }
 }
 
 /** Whether git is on the absolute entries of this process's PATH (M72's availability). */

@@ -1,0 +1,1171 @@
+{
+  "provider": "together",
+  "step": "tool-call-stream-gpt-oss-120b",
+  "capturedAt": "2026-10-04",
+  "billed": true,
+  "request": {
+    "method": "POST",
+    "url": "https://api.together.ai/v1/chat/completions",
+    "headers": {
+      "authorization": "<redacted>",
+      "content-type": "application/json"
+    },
+    "body": {
+      "model": "openai/gpt-oss-120b",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a capture assistant for an API wire-format test. When the user asks for the time, call the get_time tool, then answer in one short sentence.\n\nHouse rule 1: when a request mentions item 1, answer briefly, name the source of each fact, and never invent a value for field 1 or option 7.\nHouse rule 2: when a request mentions item 2, answer briefly, name the source of each fact, and never invent a value for field 2 or option 14.\nHouse rule 3: when a request mentions item 3, answer briefly, name the source of each fact, and never invent a value for field 3 or option 21.\nHouse rule 4: when a request mentions item 4, answer briefly, name the source of each fact, and never invent a value for field 4 or option 5.\nHouse rule 5: when a request mentions item 5, answer briefly, name the source of each fact, and never invent a value for field 5 or option 12.\nHouse rule 6: when a request mentions item 6, answer briefly, name the source of each fact, and never invent a value for field 6 or option 19.\nHouse rule 7: when a request mentions item 7, answer briefly, name the source of each fact, and never invent a value for field 7 or option 3.\nHouse rule 8: when a request mentions item 8, answer briefly, name the source of each fact, and never invent a value for field 8 or option 10.\nHouse rule 9: when a request mentions item 9, answer briefly, name the source of each fact, and never invent a value for field 9 or option 17.\nHouse rule 10: when a request mentions item 10, answer briefly, name the source of each fact, and never invent a value for field 10 or option 1.\nHouse rule 11: when a request mentions item 11, answer briefly, name the source of each fact, and never invent a value for field 11 or option 8.\nHouse rule 12: when a request mentions item 12, answer briefly, name the source of each fact, and never invent a value for field 12 or option 15.\nHouse rule 13: when a request mentions item 13, answer briefly, name the source of each fact, and never invent a value for field 13 or option 22.\nHouse rule 14: when a request mentions item 14, answer briefly, name the source of each fact, and never invent a value for field 14 or option 6.\nHouse rule 15: when a request mentions item 15, answer briefly, name the source of each fact, and never invent a value for field 15 or option 13.\nHouse rule 16: when a request mentions item 16, answer briefly, name the source of each fact, and never invent a value for field 16 or option 20.\nHouse rule 17: when a request mentions item 17, answer briefly, name the source of each fact, and never invent a value for field 0 or option 4.\nHouse rule 18: when a request mentions item 18, answer briefly, name the source of each fact, and never invent a value for field 1 or option 11.\nHouse rule 19: when a request mentions item 19, answer briefly, name the source of each fact, and never invent a value for field 2 or option 18.\nHouse rule 20: when a request mentions item 20, answer briefly, name the source of each fact, and never invent a value for field 3 or option 2.\nHouse rule 21: when a request mentions item 21, answer briefly, name the source of each fact, and never invent a value for field 4 or option 9.\nHouse rule 22: when a request mentions item 22, answer briefly, name the source of each fact, and never invent a value for field 5 or option 16.\nHouse rule 23: when a request mentions item 23, answer briefly, name the source of each fact, and never invent a value for field 6 or option 0.\nHouse rule 24: when a request mentions item 24, answer briefly, name the source of each fact, and never invent a value for field 7 or option 7.\nHouse rule 25: when a request mentions item 25, answer briefly, name the source of each fact, and never invent a value for field 8 or option 14.\nHouse rule 26: when a request mentions item 26, answer briefly, name the source of each fact, and never invent a value for field 9 or option 21.\nHouse rule 27: when a request mentions item 27, answer briefly, name the source of each fact, and never invent a value for field 10 or option 5.\nHouse rule 28: when a request mentions item 28, answer briefly, name the source of each fact, and never invent a value for field 11 or option 12.\nHouse rule 29: when a request mentions item 29, answer briefly, name the source of each fact, and never invent a value for field 12 or option 19.\nHouse rule 30: when a request mentions item 30, answer briefly, name the source of each fact, and never invent a value for field 13 or option 3.\nHouse rule 31: when a request mentions item 31, answer briefly, name the source of each fact, and never invent a value for field 14 or option 10.\nHouse rule 32: when a request mentions item 32, answer briefly, name the source of each fact, and never invent a value for field 15 or option 17.\nHouse rule 33: when a request mentions item 33, answer briefly, name the source of each fact, and never invent a value for field 16 or option 1.\nHouse rule 34: when a request mentions item 34, answer briefly, name the source of each fact, and never invent a value for field 0 or option 8.\nHouse rule 35: when a request mentions item 35, answer briefly, name the source of each fact, and never invent a value for field 1 or option 15.\nHouse rule 36: when a request mentions item 36, answer briefly, name the source of each fact, and never invent a value for field 2 or option 22."
+        },
+        {
+          "role": "user",
+          "content": "What time is it in UTC right now? Call get_time, then answer in one short sentence."
+        }
+      ],
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "description": "Returns the current time in the given IANA time zone.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string",
+                  "description": "An IANA time zone such as UTC."
+                }
+              },
+              "required": ["timezone"]
+            }
+          }
+        }
+      ],
+      "tool_choice": "auto",
+      "stream": true,
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 512,
+      "reasoning_effort": "low"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "access-control-allow-origin": "*",
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "cache-control": "no-cache, no-transform",
+      "cf-cache-status": "DYNAMIC",
+      "cf-ray": "a457abcf7f6a2b90-LAX",
+      "connection": "keep-alive",
+      "content-type": "text/event-stream;charset=utf-8",
+      "date": "Sun, 04 Oct 2026 22:37:26 GMT",
+      "server": "cloudflare",
+      "strict-transport-security": "max-age=2592000; includeSubDomains",
+      "transfer-encoding": "chunked",
+      "x-amzn-trace-id": "a9d58ecd-a5a7-4457-aede-46ce1dcddea3-noamzn",
+      "x-api-call-start": "2026-10-04T22:37:26.770Z",
+      "x-api-received": "2026-10-04T22:37:26.512Z",
+      "x-content-type-options": "nosniff",
+      "x-inference-version": "v2",
+      "x-request-id": "p3w6boL-fdNmn-a457abcf7f6a2b90"
+    },
+    "events": [
+      {
+        "data": {
+          "id": "p3w6boL-fdNmn-a457abcf7f6a2b90",
+          "object": "chat.completion.chunk",
+          "created": 1791153446,
+          "choices": [
+            {
+              "index": 0,
+              "text": "",
+              "logprobs": null,
+              "finish_reason": null,
+              "delta": {
+                "token_id": null,
+                "role": "assistant",
+                "content": "",
+                "reasoning": null
+              }
+            }
+          ],
+          "model": "openai/gpt-oss-120b"
+        }
+      },
+      {
+        "data": {
+          "id": "p3w6boL-fdNmn-a457abcf7f6a2b90",
+          "object": "chat.completion.chunk",
+          "created": 1791153446,
+          "choices": [
+            {
+              "index": 0,
+              "text": "",
+              "logprobs": null,
+              "finish_reason": null,
+              "delta": {
+                "token_id": null,
+                "role": "assistant",
+                "content": "",
+                "reasoning": "Need"
+              }
+            }
+          ],
+          "model": "openai/gpt-oss-120b",
+          "usage": null
+        }
+      },
+      {
+        "data": {
+          "id": "p3w6boL-fdNmn-a457abcf7f6a2b90",
+          "object": "chat.completion.chunk",
+          "created": 1791153446,
+          "choices": [
+            {
+              "index": 0,
+              "text": "",
+              "logprobs": null,
+              "finish_reason": null,
+              "delta": {
+                "token_id": null,
+                "role": "assistant",
+                "content": "",
+                "reasoning": " to"
+              }
+            }
+          ],
+          "model": "openai/gpt-oss-120b",
+          "usage": null
+        }
+      },
+      {
+        "data": {
+          "id": "p3w6boL-fdNmn-a457abcf7f6a2b90",
+          "object": "chat.completion.chunk",
+          "created": 1791153446,
+          "choices": [
+            {
+              "index": 0,
+              "text": "",
+              "logprobs": null,
+              "finish_reason": null,
+              "delta": {
+                "token_id": null,
+                "role": "assistant",
+                "content": "",
+                "reasoning": " call"
+              }
+            }
+          ],
+          "model": "openai/gpt-oss-120b",
+          "usage": null
+        }
+      },
+      {
+        "data": {
+          "id": "p3w6boL-fdNmn-a457abcf7f6a2b90",
+          "object": "chat.completion.chunk",
+          "created": 1791153446,
+          "choices": [
+            {
+              "index": 0,
+              "text": "",
+              "logprobs": null,
+              "finish_reason": null,
+              "delta": {
+                "token_id": null,
+                "role": "assistant",
+                "content": "",
+                "reasoning": " get"
+              }
+            }
+          ],
+          "model": "openai/gpt-oss-120b",
+          "usage": null
+        }
+      },
+      {
+        "data": {
+          "id": "p3w6boL-fdNmn-a457abcf7f6a2b90",
+          "object": "chat.completion.chunk",
+          "created": 1791153446,
+          "choices": [
+            {
+              "index": 0,
+              "text": "",
+              "logprobs": null,
+              "finish_reason": null,
+              "delta": {
+                "token_id": null,
+                "role": "assistant",
+                "content": "",
+                "reasoning": "_time"
+              }
+            }
+          ],
+          "model": "openai/gpt-oss-120b",
+          "usage": null
+        }
+      },
+      {
+        "data": {
+          "id": "p3w6boL-fdNmn-a457abcf7f6a2b90",
+          "object": "chat.completion.chunk",
+          "created": 1791153446,
+          "choices": [
+            {
+              "index": 0,
+              "text": "",
+              "logprobs": null,
+              "finish_reason": null,
+              "delta": {
+                "token_id": null,
+                "role": "assistant",
+                "content": "",
+                "reasoning": " UTC"
+              }
+            }
+          ],
+          "model": "openai/gpt-oss-120b",
+          "usage": null
+        }
+      },
+      {
+        "data": {
+          "id": "p3w6boL-fdNmn-a457abcf7f6a2b90",
+          "object": "chat.completion.chunk",
+          "created": 1791153446,
+          "choices": [
+            {
+              "index": 0,
+              "text": "",
+              "logprobs": null,
+              "finish_reason": null,
+              "delta": {
+                "token_id": null,
+                "role": "assistant",
+                "content": "",
+                "reasoning": "."
+              }
+            }
+          ],
+          "model": "openai/gpt-oss-120b",
+          "usage": null
+        }
+      },
+      {
+        "data": {
+          "id": "p3w6boL-fdNmn-a457abcf7f6a2b90",
+          "object": "chat.completion.chunk",
+          "created": 1791153446,
+          "choices": [
+            {
+              "index": 0,
+              "text": "",
+              "logprobs": null,
+              "finish_reason": null,
+              "delta": {
+                "token_id": null,
+                "role": "assistant",
+                "content": "",
+                "tool_calls": [
+                  {
+                    "index": 0,
+                    "id": "call_01a10910-a000-7d83-9b27-efc1bb3e764b",
+                    "type": "function",
+                    "function": {
+                      "name": "get_time",
+                      "arguments": ""
+                    }
+                  }
+                ],
+                "reasoning": null
+              }
+            }
+          ],
+          "model": "openai/gpt-oss-120b",
+          "usage": null
+        }
+      },
+      {
+        "data": {
+          "id": "p3w6boL-fdNmn-a457abcf7f6a2b90",
+          "object": "chat.completion.chunk",
+          "created": 1791153446,
+          "choices": [
+            {
+              "index": 0,
+              "text": "",
+              "logprobs": null,
+              "finish_reason": null,
+              "delta": {
+                "token_id": null,
+                "role": "assistant",
+                "content": "",
+                "tool_calls": [
+                  {
+                    "index": 0,
+                    "function": {
+                      "arguments": "{\n"
+                    }
+                  }
+                ],
+                "reasoning": null
+              }
+            }
+          ],
+          "model": "openai/gpt-oss-120b",
+          "usage": null
+        }
+      },
+      {
+        "data": {
+          "id": "p3w6boL-fdNmn-a457abcf7f6a2b90",
+          "object": "chat.completion.chunk",
+          "created": 1791153446,
+          "choices": [
+            {
+              "index": 0,
+              "text": "",
+              "logprobs": null,
+              "finish_reason": null,
+              "delta": {
+                "token_id": null,
+                "role": "assistant",
+                "content": "",
+                "tool_calls": [
+                  {
+                    "index": 0,
+                    "function": {
+                      "arguments": " "
+                    }
+                  }
+                ],
+                "reasoning": null
+              }
+            }
+          ],
+          "model": "openai/gpt-oss-120b",
+          "usage": null
+        }
+      },
+      {
+        "data": {
+          "id": "p3w6boL-fdNmn-a457abcf7f6a2b90",
+          "object": "chat.completion.chunk",
+          "created": 1791153446,
+          "choices": [
+            {
+              "index": 0,
+              "text": "",
+              "logprobs": null,
+              "finish_reason": null,
+              "delta": {
+                "token_id": null,
+                "role": "assistant",
+                "content": "",
+                "tool_calls": [
+                  {
+                    "index": 0,
+                    "function": {
+                      "arguments": " \""
+                    }
+                  }
+                ],
+                "reasoning": null
+              }
+            }
+          ],
+          "model": "openai/gpt-oss-120b",
+          "usage": null
+        }
+      },
+      {
+        "data": {
+          "id": "p3w6boL-fdNmn-a457abcf7f6a2b90",
+          "object": "chat.completion.chunk",
+          "created": 1791153446,
+          "choices": [
+            {
+              "index": 0,
+              "text": "",
+              "logprobs": null,
+              "finish_reason": null,
+              "delta": {
+                "token_id": null,
+                "role": "assistant",
+                "content": "",
+                "tool_calls": [
+                  {
+                    "index": 0,
+                    "function": {
+                      "arguments": "timezone"
+                    }
+                  }
+                ],
+                "reasoning": null
+              }
+            }
+          ],
+          "model": "openai/gpt-oss-120b",
+          "usage": null
+        }
+      },
+      {
+        "data": {
+          "id": "p3w6boL-fdNmn-a457abcf7f6a2b90",
+          "object": "chat.completion.chunk",
+          "created": 1791153446,
+          "choices": [
+            {
+              "index": 0,
+              "text": "",
+              "logprobs": null,
+              "finish_reason": null,
+              "delta": {
+                "token_id": null,
+                "role": "assistant",
+                "content": "",
+                "tool_calls": [
+                  {
+                    "index": 0,
+                    "function": {
+                      "arguments": "\":"
+                    }
+                  }
+                ],
+                "reasoning": null
+              }
+            }
+          ],
+          "model": "openai/gpt-oss-120b",
+          "usage": null
+        }
+      },
+      {
+        "data": {
+          "id": "p3w6boL-fdNmn-a457abcf7f6a2b90",
+          "object": "chat.completion.chunk",
+          "created": 1791153446,
+          "choices": [
+            {
+              "index": 0,
+              "text": "",
+              "logprobs": null,
+              "finish_reason": null,
+              "delta": {
+                "token_id": null,
+                "role": "assistant",
+                "content": "",
+                "tool_calls": [
+                  {
+                    "index": 0,
+                    "function": {
+                      "arguments": " \""
+                    }
+                  }
+                ],
+                "reasoning": null
+              }
+            }
+          ],
+          "model": "openai/gpt-oss-120b",
+          "usage": null
+        }
+      },
+      {
+        "data": {
+          "id": "p3w6boL-fdNmn-a457abcf7f6a2b90",
+          "object": "chat.completion.chunk",
+          "created": 1791153446,
+          "choices": [
+            {
+              "index": 0,
+              "text": "",
+              "logprobs": null,
+              "finish_reason": null,
+              "delta": {
+                "token_id": null,
+                "role": "assistant",
+                "content": "",
+                "tool_calls": [
+                  {
+                    "index": 0,
+                    "function": {
+                      "arguments": "UTC"
+                    }
+                  }
+                ],
+                "reasoning": null
+              }
+            }
+          ],
+          "model": "openai/gpt-oss-120b",
+          "usage": null
+        }
+      },
+      {
+        "data": {
+          "id": "p3w6boL-fdNmn-a457abcf7f6a2b90",
+          "object": "chat.completion.chunk",
+          "created": 1791153446,
+          "choices": [
+            {
+              "index": 0,
+              "text": "",
+              "logprobs": null,
+              "finish_reason": null,
+              "delta": {
+                "token_id": null,
+                "role": "assistant",
+                "content": "",
+                "tool_calls": [
+                  {
+                    "index": 0,
+                    "function": {
+                      "arguments": "\"\n"
+                    }
+                  }
+                ],
+                "reasoning": null
+              }
+            }
+          ],
+          "model": "openai/gpt-oss-120b",
+          "usage": null
+        }
+      },
+      {
+        "data": {
+          "id": "p3w6boL-fdNmn-a457abcf7f6a2b90",
+          "object": "chat.completion.chunk",
+          "created": 1791153446,
+          "choices": [
+            {
+              "index": 0,
+              "text": "",
+              "logprobs": null,
+              "finish_reason": null,
+              "delta": {
+                "token_id": null,
+                "role": "assistant",
+                "content": "",
+                "tool_calls": [
+                  {
+                    "index": 0,
+                    "function": {
+                      "arguments": "}"
+                    }
+                  }
+                ],
+                "reasoning": null
+              }
+            }
+          ],
+          "model": "openai/gpt-oss-120b",
+          "usage": null
+        }
+      },
+      {
+        "data": {
+          "id": "p3w6boL-fdNmn-a457abcf7f6a2b90",
+          "object": "chat.completion.chunk",
+          "created": 1791153446,
+          "choices": [
+            {
+              "index": 0,
+              "text": "It",
+              "logprobs": null,
+              "finish_reason": null,
+              "delta": {
+                "token_id": null,
+                "role": "assistant",
+                "content": "It",
+                "reasoning": null
+              }
+            }
+          ],
+          "model": "openai/gpt-oss-120b",
+          "usage": null
+        }
+      },
+      {
+        "data": {
+          "id": "p3w6boL-fdNmn-a457abcf7f6a2b90",
+          "object": "chat.completion.chunk",
+          "created": 1791153446,
+          "choices": [
+            {
+              "index": 0,
+              "text": " is",
+              "logprobs": null,
+              "finish_reason": null,
+              "delta": {
+                "token_id": null,
+                "role": "assistant",
+                "content": " is",
+                "reasoning": null
+              }
+            }
+          ],
+          "model": "openai/gpt-oss-120b",
+          "usage": null
+        }
+      },
+      {
+        "data": {
+          "id": "p3w6boL-fdNmn-a457abcf7f6a2b90",
+          "object": "chat.completion.chunk",
+          "created": 1791153446,
+          "choices": [
+            {
+              "index": 0,
+              "text": " currently",
+              "logprobs": null,
+              "finish_reason": null,
+              "delta": {
+                "token_id": null,
+                "role": "assistant",
+                "content": " currently",
+                "reasoning": null
+              }
+            }
+          ],
+          "model": "openai/gpt-oss-120b",
+          "usage": null
+        }
+      },
+      {
+        "data": {
+          "id": "p3w6boL-fdNmn-a457abcf7f6a2b90",
+          "object": "chat.completion.chunk",
+          "created": 1791153446,
+          "choices": [
+            {
+              "index": 0,
+              "text": " ",
+              "logprobs": null,
+              "finish_reason": null,
+              "delta": {
+                "token_id": null,
+                "role": "assistant",
+                "content": " ",
+                "reasoning": null
+              }
+            }
+          ],
+          "model": "openai/gpt-oss-120b",
+          "usage": null
+        }
+      },
+      {
+        "data": {
+          "id": "p3w6boL-fdNmn-a457abcf7f6a2b90",
+          "object": "chat.completion.chunk",
+          "created": 1791153446,
+          "choices": [
+            {
+              "index": 0,
+              "text": "202",
+              "logprobs": null,
+              "finish_reason": null,
+              "delta": {
+                "token_id": null,
+                "role": "assistant",
+                "content": "202",
+                "reasoning": null
+              }
+            }
+          ],
+          "model": "openai/gpt-oss-120b",
+          "usage": null
+        }
+      },
+      {
+        "data": {
+          "id": "p3w6boL-fdNmn-a457abcf7f6a2b90",
+          "object": "chat.completion.chunk",
+          "created": 1791153446,
+          "choices": [
+            {
+              "index": 0,
+              "text": "6",
+              "logprobs": null,
+              "finish_reason": null,
+              "delta": {
+                "token_id": null,
+                "role": "assistant",
+                "content": "6",
+                "reasoning": null
+              }
+            }
+          ],
+          "model": "openai/gpt-oss-120b",
+          "usage": null
+        }
+      },
+      {
+        "data": {
+          "id": "p3w6boL-fdNmn-a457abcf7f6a2b90",
+          "object": "chat.completion.chunk",
+          "created": 1791153446,
+          "choices": [
+            {
+              "index": 0,
+              "text": "-",
+              "logprobs": null,
+              "finish_reason": null,
+              "delta": {
+                "token_id": null,
+                "role": "assistant",
+                "content": "-",
+                "reasoning": null
+              }
+            }
+          ],
+          "model": "openai/gpt-oss-120b",
+          "usage": null
+        }
+      },
+      {
+        "data": {
+          "id": "p3w6boL-fdNmn-a457abcf7f6a2b90",
+          "object": "chat.completion.chunk",
+          "created": 1791153446,
+          "choices": [
+            {
+              "index": 0,
+              "text": "10",
+              "logprobs": null,
+              "finish_reason": null,
+              "delta": {
+                "token_id": null,
+                "role": "assistant",
+                "content": "10",
+                "reasoning": null
+              }
+            }
+          ],
+          "model": "openai/gpt-oss-120b",
+          "usage": null
+        }
+      },
+      {
+        "data": {
+          "id": "p3w6boL-fdNmn-a457abcf7f6a2b90",
+          "object": "chat.completion.chunk",
+          "created": 1791153446,
+          "choices": [
+            {
+              "index": 0,
+              "text": "-",
+              "logprobs": null,
+              "finish_reason": null,
+              "delta": {
+                "token_id": null,
+                "role": "assistant",
+                "content": "-",
+                "reasoning": null
+              }
+            }
+          ],
+          "model": "openai/gpt-oss-120b",
+          "usage": null
+        }
+      },
+      {
+        "data": {
+          "id": "p3w6boL-fdNmn-a457abcf7f6a2b90",
+          "object": "chat.completion.chunk",
+          "created": 1791153446,
+          "choices": [
+            {
+              "index": 0,
+              "text": "04",
+              "logprobs": null,
+              "finish_reason": null,
+              "delta": {
+                "token_id": null,
+                "role": "assistant",
+                "content": "04",
+                "reasoning": null
+              }
+            }
+          ],
+          "model": "openai/gpt-oss-120b",
+          "usage": null
+        }
+      },
+      {
+        "data": {
+          "id": "p3w6boL-fdNmn-a457abcf7f6a2b90",
+          "object": "chat.completion.chunk",
+          "created": 1791153446,
+          "choices": [
+            {
+              "index": 0,
+              "text": " ",
+              "logprobs": null,
+              "finish_reason": null,
+              "delta": {
+                "token_id": null,
+                "role": "assistant",
+                "content": " ",
+                "reasoning": null
+              }
+            }
+          ],
+          "model": "openai/gpt-oss-120b",
+          "usage": null
+        }
+      },
+      {
+        "data": {
+          "id": "p3w6boL-fdNmn-a457abcf7f6a2b90",
+          "object": "chat.completion.chunk",
+          "created": 1791153446,
+          "choices": [
+            {
+              "index": 0,
+              "text": "14",
+              "logprobs": null,
+              "finish_reason": null,
+              "delta": {
+                "token_id": null,
+                "role": "assistant",
+                "content": "14",
+                "reasoning": null
+              }
+            }
+          ],
+          "model": "openai/gpt-oss-120b",
+          "usage": null
+        }
+      },
+      {
+        "data": {
+          "id": "p3w6boL-fdNmn-a457abcf7f6a2b90",
+          "object": "chat.completion.chunk",
+          "created": 1791153446,
+          "choices": [
+            {
+              "index": 0,
+              "text": ":",
+              "logprobs": null,
+              "finish_reason": null,
+              "delta": {
+                "token_id": null,
+                "role": "assistant",
+                "content": ":",
+                "reasoning": null
+              }
+            }
+          ],
+          "model": "openai/gpt-oss-120b",
+          "usage": null
+        }
+      },
+      {
+        "data": {
+          "id": "p3w6boL-fdNmn-a457abcf7f6a2b90",
+          "object": "chat.completion.chunk",
+          "created": 1791153446,
+          "choices": [
+            {
+              "index": 0,
+              "text": "22",
+              "logprobs": null,
+              "finish_reason": null,
+              "delta": {
+                "token_id": null,
+                "role": "assistant",
+                "content": "22",
+                "reasoning": null
+              }
+            }
+          ],
+          "model": "openai/gpt-oss-120b",
+          "usage": null
+        }
+      },
+      {
+        "data": {
+          "id": "p3w6boL-fdNmn-a457abcf7f6a2b90",
+          "object": "chat.completion.chunk",
+          "created": 1791153446,
+          "choices": [
+            {
+              "index": 0,
+              "text": " ",
+              "logprobs": null,
+              "finish_reason": null,
+              "delta": {
+                "token_id": null,
+                "role": "assistant",
+                "content": " ",
+                "reasoning": null
+              }
+            }
+          ],
+          "model": "openai/gpt-oss-120b",
+          "usage": null
+        }
+      },
+      {
+        "data": {
+          "id": "p3w6boL-fdNmn-a457abcf7f6a2b90",
+          "object": "chat.completion.chunk",
+          "created": 1791153446,
+          "choices": [
+            {
+              "index": 0,
+              "text": "UTC",
+              "logprobs": null,
+              "finish_reason": null,
+              "delta": {
+                "token_id": null,
+                "role": "assistant",
+                "content": "UTC",
+                "reasoning": null
+              }
+            }
+          ],
+          "model": "openai/gpt-oss-120b",
+          "usage": null
+        }
+      },
+      {
+        "data": {
+          "id": "p3w6boL-fdNmn-a457abcf7f6a2b90",
+          "object": "chat.completion.chunk",
+          "created": 1791153446,
+          "choices": [
+            {
+              "index": 0,
+              "text": " (",
+              "logprobs": null,
+              "finish_reason": null,
+              "delta": {
+                "token_id": null,
+                "role": "assistant",
+                "content": " (",
+                "reasoning": null
+              }
+            }
+          ],
+          "model": "openai/gpt-oss-120b",
+          "usage": null
+        }
+      },
+      {
+        "data": {
+          "id": "p3w6boL-fdNmn-a457abcf7f6a2b90",
+          "object": "chat.completion.chunk",
+          "created": 1791153446,
+          "choices": [
+            {
+              "index": 0,
+              "text": "generated",
+              "logprobs": null,
+              "finish_reason": null,
+              "delta": {
+                "token_id": null,
+                "role": "assistant",
+                "content": "generated",
+                "reasoning": null
+              }
+            }
+          ],
+          "model": "openai/gpt-oss-120b",
+          "usage": null
+        }
+      },
+      {
+        "data": {
+          "id": "p3w6boL-fdNmn-a457abcf7f6a2b90",
+          "object": "chat.completion.chunk",
+          "created": 1791153446,
+          "choices": [
+            {
+              "index": 0,
+              "text": " by",
+              "logprobs": null,
+              "finish_reason": null,
+              "delta": {
+                "token_id": null,
+                "role": "assistant",
+                "content": " by",
+                "reasoning": null
+              }
+            }
+          ],
+          "model": "openai/gpt-oss-120b",
+          "usage": null
+        }
+      },
+      {
+        "data": {
+          "id": "p3w6boL-fdNmn-a457abcf7f6a2b90",
+          "object": "chat.completion.chunk",
+          "created": 1791153446,
+          "choices": [
+            {
+              "index": 0,
+              "text": " the",
+              "logprobs": null,
+              "finish_reason": null,
+              "delta": {
+                "token_id": null,
+                "role": "assistant",
+                "content": " the",
+                "reasoning": null
+              }
+            }
+          ],
+          "model": "openai/gpt-oss-120b",
+          "usage": null
+        }
+      },
+      {
+        "data": {
+          "id": "p3w6boL-fdNmn-a457abcf7f6a2b90",
+          "object": "chat.completion.chunk",
+          "created": 1791153446,
+          "choices": [
+            {
+              "index": 0,
+              "text": " get",
+              "logprobs": null,
+              "finish_reason": null,
+              "delta": {
+                "token_id": null,
+                "role": "assistant",
+                "content": " get",
+                "reasoning": null
+              }
+            }
+          ],
+          "model": "openai/gpt-oss-120b",
+          "usage": null
+        }
+      },
+      {
+        "data": {
+          "id": "p3w6boL-fdNmn-a457abcf7f6a2b90",
+          "object": "chat.completion.chunk",
+          "created": 1791153446,
+          "choices": [
+            {
+              "index": 0,
+              "text": "_time",
+              "logprobs": null,
+              "finish_reason": null,
+              "delta": {
+                "token_id": null,
+                "role": "assistant",
+                "content": "_time",
+                "reasoning": null
+              }
+            }
+          ],
+          "model": "openai/gpt-oss-120b",
+          "usage": null
+        }
+      },
+      {
+        "data": {
+          "id": "p3w6boL-fdNmn-a457abcf7f6a2b90",
+          "object": "chat.completion.chunk",
+          "created": 1791153446,
+          "choices": [
+            {
+              "index": 0,
+              "text": " tool",
+              "logprobs": null,
+              "finish_reason": null,
+              "delta": {
+                "token_id": null,
+                "role": "assistant",
+                "content": " tool",
+                "reasoning": null
+              }
+            }
+          ],
+          "model": "openai/gpt-oss-120b",
+          "usage": null
+        }
+      },
+      {
+        "data": {
+          "id": "p3w6boL-fdNmn-a457abcf7f6a2b90",
+          "object": "chat.completion.chunk",
+          "created": 1791153446,
+          "choices": [
+            {
+              "index": 0,
+              "text": ").",
+              "logprobs": null,
+              "finish_reason": null,
+              "delta": {
+                "token_id": null,
+                "role": "assistant",
+                "content": ").",
+                "reasoning": null
+              }
+            }
+          ],
+          "model": "openai/gpt-oss-120b",
+          "usage": null
+        }
+      },
+      {
+        "data": {
+          "id": "p3w6boL-fdNmn-a457abcf7f6a2b90",
+          "object": "chat.completion.chunk",
+          "created": 1791153446,
+          "choices": [
+            {
+              "index": 0,
+              "text": "",
+              "logprobs": null,
+              "finish_reason": "tool_calls",
+              "delta": {
+                "token_id": null,
+                "role": "assistant",
+                "content": "",
+                "reasoning": null
+              }
+            }
+          ],
+          "model": "openai/gpt-oss-120b",
+          "usage": null
+        }
+      },
+      {
+        "data": {
+          "id": "p3w6boL-fdNmn-a457abcf7f6a2b90",
+          "object": "chat.completion.chunk",
+          "created": 1791153446,
+          "choices": [],
+          "model": "openai/gpt-oss-120b",
+          "usage": {
+            "prompt_tokens": 1523,
+            "completion_tokens": 65,
+            "total_tokens": 1588,
+            "prompt_tokens_details": {
+              "cached_tokens": 48
+            },
+            "completion_tokens_details": {
+              "reasoning_tokens": 18
+            }
+          }
+        }
+      },
+      {
+        "data": "[DONE]"
+      }
+    ]
+  }
+}

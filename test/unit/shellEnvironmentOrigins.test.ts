@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import * as fs from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -13,6 +13,7 @@ import { memoryToolIo } from './helpers/fakeToolIo'
 import { memorySessionStore } from './helpers/fakeSessionStore'
 import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
 import { startWatchedSession } from './helpers/sessionTurns'
+import { removeFolder } from './helpers/temporaryFolders'
 
 vi.mock('node:fs/promises', { spy: true })
 
@@ -22,7 +23,7 @@ afterEach(async () => {
   vi.restoreAllMocks()
   vi.unstubAllEnvs()
   for (const host of hosts.splice(0)) await host.close()
-  for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
+  for (const root of roots.splice(0)) await removeFolder(root)
 })
 
 function harness(isNativeShell = false) {
@@ -38,6 +39,7 @@ function harness(isNativeShell = false) {
       platform: process.platform,
       systemRoot: process.env['SystemRoot'],
       env: () => process.env,
+      agentFence: () => false,
       passEnvironmentVariables: () => ['OPENAI_API_KEY'],
       listFiles: () => Promise.resolve([]),
       searchWorkerPath: 'unused',
@@ -127,6 +129,7 @@ describe('D89.5 command origins cannot widen unattended environments', () => {
     'retains the $origin origin through directory preparation after backgrounding',
     async (test) => {
       vi.stubEnv('OPENAI_API_KEY', 'envfence-fake-delayed')
+      vi.stubEnv('SSH_AUTH_SOCK', '/ambient/fake-scheduled-route')
       const t = harness(true)
       const { session, events, turnDone } = await startWatchedSession(
         t.host,
@@ -147,7 +150,8 @@ describe('D89.5 command origins cannot widen unattended environments', () => {
       })
       const nextRequested = Promise.withResolvers<undefined>()
       const nextRelease = Promise.withResolvers<undefined>()
-      const command = process.platform === 'win32' ? 'Get-ChildItem Env:' : 'env'
+      const command =
+        process.platform === 'win32' ? '[Environment]::GetEnvironmentVariables().Values' : 'env'
       t.api.script(
         {
           calls: [
@@ -168,6 +172,8 @@ describe('D89.5 command origins cannot widen unattended environments', () => {
         },
       )
       const done = turnDone()
+      let commandDone: Promise<undefined> | undefined
+      let stopWatching: (() => void) | undefined
       try {
         if (test.isScheduled) {
           await schedules.run(job.id, job.nextFireAtMs, {
@@ -183,6 +189,12 @@ describe('D89.5 command origins cannot widen unattended environments', () => {
           .history()
           .items.find((item) => item.tool === 'bash' || item.tool === 'powershell')
         if (row === undefined) throw new Error('expected shell row')
+        const completed = Promise.withResolvers<undefined>()
+        commandDone = completed.promise
+        stopWatching = session.onEvent((event) => {
+          if (event.type === 'itemCompleted' && event.item.itemId === row.itemId)
+            completed.resolve(undefined)
+        })
         await session.moveToBackground(row.itemId)
         await done
         expect(t.shell).not.toHaveBeenCalled()
@@ -191,21 +203,26 @@ describe('D89.5 command origins cannot widen unattended environments', () => {
           await nextRequested.promise
         }
         release.resolve(undefined)
-        await vi.waitFor(() => {
-          expect(
-            events.some(
-              (event) => event.type === 'itemCompleted' && event.item.itemId === row.itemId,
-            ),
-          ).toBe(true)
-        })
+        // Await this command's event, within the test deadline, rather than a
+        // one-second polling deadline that can expire during PowerShell startup.
+        await commandDone
+        expect(
+          events.some(
+            (event) => event.type === 'itemCompleted' && event.item.itemId === row.itemId,
+          ),
+        ).toBe(true)
         const result = t.shellResults[0]
         expect(result?.exitCode).toBe(0)
         expect(result?.stdout.includes('envfence-fake-delayed')).toBe(!test.isScheduled)
+        expect(result?.stdout.includes('/ambient/fake-scheduled-route')).toBe(!test.isScheduled)
         expect(t.shell.mock.calls[0]?.[6]).toBe(!test.isScheduled)
       } finally {
         release.resolve(undefined)
         nextRelease.resolve(undefined)
         await session.settled()
+        // Background shells are outside settled(); finish ours before removing its cwd.
+        await commandDone
+        stopWatching?.()
       }
     },
   )

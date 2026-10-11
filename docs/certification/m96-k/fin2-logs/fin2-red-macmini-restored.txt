@@ -1,0 +1,16 @@
+base=/Users/randy/gates/base-c78aedc3ea0dab3c lock=c78aedc3ea0dab3cf7e685e18926e181d01a96535223c740d26598931bce86ce
+base reused
+rig=macmini slot=finm96k2-red snapshot=1bf6f356 base=/Users/randy/gates/base-c78aedc3ea0dab3c
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.2 /Users/randy/gates.noindex/rt-finm96k2-red
+
+ ✓ test/unit/teamSettlement.test.ts (6 tests) 10ms
+
+ Test Files  1 passed (1)
+      Tests  6 passed (6)
+   Start at  09:07:11
+   Duration  600ms (transform 45%, setup 28%, import 24%, tests 2%, worker 1%)
+

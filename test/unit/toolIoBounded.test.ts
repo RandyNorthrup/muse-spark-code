@@ -143,3 +143,38 @@ it('bounds a tool-row image that grows after its open handle reports the old siz
     }),
   ).rejects.toThrow(`tool-image.png is ${String(MAX_IMAGE_BYTES + 1)} bytes`)
 })
+
+it('refuses aborted native text and byte reads before opening the file', async () => {
+  const abort = new AbortController()
+  abort.abort()
+  const target = path.join(root, 'aborted.txt')
+  await writeFile(target, 'never read')
+  await expect(io.readFile(target, undefined, abort.signal)).rejects.toMatchObject({
+    name: 'AbortError',
+  })
+  await expect(
+    io.readBytes(target, TOOL_FILE_MAX_BYTES, undefined, abort.signal),
+  ).rejects.toMatchObject({ name: 'AbortError' })
+  expect(open).not.toHaveBeenCalled()
+})
+
+it('stops bounded native reads after an awaited metadata sample and closes the handle', async () => {
+  const target = path.join(root, 'stopped-after-stat.txt')
+  await writeFile(target, 'discarded native bytes')
+  const abort = new AbortController()
+  const handle = await open(target, 'r')
+  const realStat = handle.stat.bind(handle)
+  vi.spyOn(handle, 'stat').mockImplementationOnce(async (options) => {
+    const metadata = await realStat(options)
+    abort.abort()
+    return metadata
+  })
+  const close = vi.spyOn(handle, 'close')
+  const read = vi.spyOn(handle, 'read')
+  vi.mocked(open).mockResolvedValueOnce(handle)
+  await expect(io.readFile(target, undefined, abort.signal)).rejects.toMatchObject({
+    name: 'AbortError',
+  })
+  expect(read).not.toHaveBeenCalled()
+  expect(close).toHaveBeenCalledExactlyOnceWith()
+})
