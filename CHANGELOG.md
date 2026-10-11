@@ -140,6 +140,16 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The Muse Code feedback dialog reports what the upload receipt actually
+  says: only an uploaded receipt reads as success, and every other outcome
+  (recorded, rate limited, rejected sign-in, missing credential, uncertain
+  delivery, and the rest of the receipt taxonomy) shows its own sentence.
+  The note stops at the protocol maximum with a counter, and a refused
+  preview or send settles the dialog with its reason instead of waiting.
+  The Modes footer and palette effort dots render the served catalogue's
+  tiers and names, and new ACP sessions start on the catalogue's default;
+  a malformed catalogue row no longer fails the whole model list.
+
 - On macOS 26, a process that `ps` lists with an unknown state (`?`) while
   it changes no longer voids every resource tree's membership read, which
   could refuse Stop/kill for a tree while any process on the Mac was mid-transition.
