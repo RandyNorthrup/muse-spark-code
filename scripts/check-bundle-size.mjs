@@ -121,6 +121,8 @@ const BUDGETS = [
   { path: 'dist/teamHost.js', budgetKiB: 130 },
   // R4: first-use file adapter, 8.5 KiB measured +15%, rounded up.
   { path: 'dist/teamFileIo.js', budgetKiB: 10 },
+  // CM963NF: native creation is its own first-use file-operation chunk.
+  { path: 'dist/teamCreate.js', budgetKiB: 13 },
   // R4 follow-up: first-merge flow, 9.6 KiB measured +15%, rounded up.
   { path: 'dist/teamMerge.js', budgetKiB: 12 },
   // M96c X2: board/scheduler/tools 57.8 KiB; D6's 15%, rounded to 25 KiB.

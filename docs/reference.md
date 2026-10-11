@@ -73,7 +73,7 @@ Commands: `museSpark.openUsagePage`. Settings: `museSpark.usageHistory`, `museSp
 
 ### Team workers
 
-Paid, on by default; the first charge asks once. On the Model API backend, team tasks run on models billed to your Model API key, and on the Muse Code backend while a key is stored. Enabling this asks you to accept token prices. The first delegate call that starts key tasks asks for approval, naming each model's prices and each task's ceiling, in every permission mode including Bypass, unless you allow team workers always in this workspace. Subscription and local tasks are never billed.
+teamIntegration=incomplete&workerNativeHelper=available: Teams remain unavailable pending integration and certification. Engine and ACP workers can create files through the verified native helper, within their working copy and role write paths.
 
 ```json
 {
