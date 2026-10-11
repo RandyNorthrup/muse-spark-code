@@ -39,6 +39,7 @@ happened, not what was planned; superseded entries are kept.
   Workspace skills cannot republish reserved dormant commands. Legacy `/loop`
   stays available. Team-worker toggles record no price acceptance; a bound
   team asks the task price and shared daily budget on first paid use.
+  Visual capture waits for lazy chunks between frozen-clock paint steps.
 
 - ACP sessions open and run normally without account metadata or when optional
   account startup fails (CX1R5). Account controls appear only after a successful
@@ -51,7 +52,7 @@ happened, not what was planned; superseded entries are kept.
 - Hide unavailable ACP commands from editor discovery and drop the unbound
   vault binding from the ACP agent (CX1R5): `/schedule` and `/estimate` stay
   out of `available_commands_update` while their owners refuse, and `/vault`
-  refuses without a broker. Settings describe the schedule editor/draft, relocation pause note and
+  refuses without a broker. Settings describe the legacy loop shortcut, schedule draft delivery, relocation pause note and
   inactive automatic-compaction notice they still control; the accounts, relocation and team
   Help strings say only what they do today. The 0.17.0 detailed accounts
   claim and the stale relocation wording are archived out of current notes.
