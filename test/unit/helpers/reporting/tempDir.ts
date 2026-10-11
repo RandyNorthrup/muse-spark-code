@@ -1,6 +1,16 @@
-import { mkdtemp, realpath, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+
+/** One developer-audit rotation file under a fixture data dir. */
+export async function writeDeveloperAudit(
+  dataDir: string,
+  file: string,
+  lines: readonly string[],
+): Promise<void> {
+  await mkdir(path.join(dataDir, 'developer'), { recursive: true })
+  await writeFile(path.join(dataDir, 'developer', file), lines.join(''))
+}
 
 /** Per-file temporary directories with one cleanup call for afterEach. */
 export function tempDirTracker() {

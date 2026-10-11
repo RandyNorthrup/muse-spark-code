@@ -13,9 +13,10 @@ import { securitySource } from '../../src/core/reporting/sources/security'
 import {
   createAccountsReportReader,
   createSecurityReportReader,
+  type SecurityVaultSnapshot,
 } from '../../src/runtime/reporting/reportInputs'
 import { REPORT_FIXTURE_AS_OF } from './helpers/reporting/snapshot'
-import { tempDirTracker } from './helpers/reporting/tempDir'
+import { tempDirTracker, writeDeveloperAudit } from './helpers/reporting/tempDir'
 
 setUiText(EN, 'en')
 
@@ -40,6 +41,17 @@ const ctxFor = (kind: 'accounts' | 'security') => ({
 })
 
 const scrub = (text: string) => text
+
+type SecurityReaderInput = Parameters<typeof createSecurityReportReader>[0]
+
+const readAccounts = (dataDir: string) =>
+  accountsSource(createAccountsReportReader({ dataDir }), scrub).read(ctxFor('accounts'))
+
+const readSecurity = (dataDir: string, readVault?: SecurityReaderInput['readVault']) =>
+  securitySource(
+    createSecurityReportReader({ dataDir, ...(readVault !== undefined && { readVault }) }),
+    scrub,
+  ).read(ctxFor('security'))
 
 const goodMetaEntry = () => ({
   id: 'meta',
@@ -67,27 +79,37 @@ interface ReasonCase {
 const providerIds = (data: unknown) =>
   (data as { providers: { provider: string }[] }).providers.map((entry) => entry.provider)
 
+const checkNull = (data: unknown) => {
+  expect(data).toBeNull()
+}
+
+const wantUnavailableInvalid: ReasonCase['want'] = {
+  status: 'unavailable',
+  reasons: [EN.reportSourceReasons.invalid],
+  check: checkNull,
+}
+
+const wantUnavailableRefused: ReasonCase['want'] = {
+  status: 'unavailable',
+  reasons: [EN.reportSourceReasons.refused],
+  check: checkNull,
+}
+
 const cases: readonly ReasonCase[] = [
   {
     name: 'accounts/absent registry reads missing',
-    run: async (dataDir) => {
-      const source = accountsSource(createAccountsReportReader({ dataDir }), scrub)
-      return await source.read(ctxFor('accounts'))
-    },
+    run: (dataDir) => readAccounts(dataDir),
     want: {
       status: 'unavailable',
       reasons: [EN.reportSourceReasons.missing],
-      check: (data) => {
-        expect(data).toBeNull()
-      },
+      check: checkNull,
     },
   },
   {
     name: 'accounts/valid registry with no adapters names the missing facets',
     run: async (dataDir) => {
       await writeFile(path.join(dataDir, 'providers.json'), registryWith({ meta: goodMetaEntry() }))
-      const source = accountsSource(createAccountsReportReader({ dataDir }), scrub)
-      return await source.read(ctxFor('accounts'))
+      return await readAccounts(dataDir)
     },
     want: {
       status: 'partial',
@@ -108,8 +130,7 @@ const cases: readonly ReasonCase[] = [
           broken: { id: 'broken', auth: 'oauth' },
         }),
       )
-      const source = accountsSource(createAccountsReportReader({ dataDir }), scrub)
-      return await source.read(ctxFor('accounts'))
+      return await readAccounts(dataDir)
     },
     want: {
       status: 'partial',
@@ -126,31 +147,17 @@ const cases: readonly ReasonCase[] = [
         path.join(dataDir, 'providers.json'),
         registryWith({ broken: { id: 'broken', auth: 'oauth' } }),
       )
-      const source = accountsSource(createAccountsReportReader({ dataDir }), scrub)
-      return await source.read(ctxFor('accounts'))
+      return await readAccounts(dataDir)
     },
-    want: {
-      status: 'unavailable',
-      reasons: [EN.reportSourceReasons.invalid],
-      check: (data) => {
-        expect(data).toBeNull()
-      },
-    },
+    want: wantUnavailableInvalid,
   },
   {
     name: 'accounts/corrupt registry reads invalid',
     run: async (dataDir) => {
       await writeFile(path.join(dataDir, 'providers.json'), '{nope')
-      const source = accountsSource(createAccountsReportReader({ dataDir }), scrub)
-      return await source.read(ctxFor('accounts'))
+      return await readAccounts(dataDir)
     },
-    want: {
-      status: 'unavailable',
-      reasons: [EN.reportSourceReasons.invalid],
-      check: (data) => {
-        expect(data).toBeNull()
-      },
-    },
+    want: wantUnavailableInvalid,
   },
   {
     name: 'accounts/linked registry refuses like a linked session file',
@@ -158,23 +165,13 @@ const cases: readonly ReasonCase[] = [
       const outside = await temps.dir('m113-reasons-outside-')
       await writeFile(path.join(outside, 'providers.json'), registryWith({ meta: goodMetaEntry() }))
       await symlink(path.join(outside, 'providers.json'), path.join(dataDir, 'providers.json'))
-      const source = accountsSource(createAccountsReportReader({ dataDir }), scrub)
-      return await source.read(ctxFor('accounts'))
+      return await readAccounts(dataDir)
     },
-    want: {
-      status: 'unavailable',
-      reasons: [EN.reportSourceReasons.refused],
-      check: (data) => {
-        expect(data).toBeNull()
-      },
-    },
+    want: wantUnavailableRefused,
   },
   {
     name: 'security/both absent names both reasons as a partial',
-    run: async (dataDir) => {
-      const source = securitySource(createSecurityReportReader({ dataDir }), scrub)
-      return await source.read(ctxFor('security'))
-    },
+    run: (dataDir) => readSecurity(dataDir),
     want: {
       status: 'partial',
       reasons: [
@@ -189,13 +186,8 @@ const cases: readonly ReasonCase[] = [
   {
     name: 'security/audit without a vault names only the vault reason',
     run: async (dataDir) => {
-      await mkdir(path.join(dataDir, 'developer'), { recursive: true })
-      await writeFile(
-        path.join(dataDir, 'developer', 'developer-audit.jsonl'),
-        auditLine('unlock', 'palette'),
-      )
-      const source = securitySource(createSecurityReportReader({ dataDir }), scrub)
-      return await source.read(ctxFor('security'))
+      await writeDeveloperAudit(dataDir, 'developer-audit.jsonl', [auditLine('unlock', 'palette')])
+      return await readSecurity(dataDir)
     },
     want: {
       status: 'partial',
@@ -212,27 +204,16 @@ const cases: readonly ReasonCase[] = [
   {
     name: 'security/invalid vault keeps the readable developer audit',
     run: async (dataDir) => {
-      await mkdir(path.join(dataDir, 'developer'), { recursive: true })
-      await writeFile(
-        path.join(dataDir, 'developer', 'developer-audit.jsonl'),
-        auditLine('enable', 'page'),
-      )
-      const source = securitySource(
-        createSecurityReportReader({
-          dataDir,
-          readVault: () =>
-            Promise.resolve({
-              state: 'unlocked' as const,
-              tier: 'osStore',
-              // Fails the vault item metadata schema: no valid snapshot.
-              items: [{ kind: 'password' }],
-              grants: [],
-              audit: [],
-            }),
-        }),
-        scrub,
-      )
-      return await source.read(ctxFor('security'))
+      await writeDeveloperAudit(dataDir, 'developer-audit.jsonl', [auditLine('enable', 'page')])
+      // Fails the vault item metadata schema: no valid snapshot.
+      const snapshot: SecurityVaultSnapshot = {
+        state: 'unlocked',
+        tier: 'osStore',
+        items: [{ kind: 'password' }],
+        grants: [],
+        audit: [],
+      }
+      return await readSecurity(dataDir, () => Promise.resolve(snapshot))
     },
     want: {
       status: 'partial',
@@ -249,18 +230,10 @@ const cases: readonly ReasonCase[] = [
   {
     name: 'security/corrupt audit reads invalid',
     run: async (dataDir) => {
-      await mkdir(path.join(dataDir, 'developer'), { recursive: true })
-      await writeFile(path.join(dataDir, 'developer', 'developer-audit.jsonl'), '{nope}\n')
-      const source = securitySource(createSecurityReportReader({ dataDir }), scrub)
-      return await source.read(ctxFor('security'))
+      await writeDeveloperAudit(dataDir, 'developer-audit.jsonl', ['{nope}\n'])
+      return await readSecurity(dataDir)
     },
-    want: {
-      status: 'unavailable',
-      reasons: [EN.reportSourceReasons.invalid],
-      check: (data) => {
-        expect(data).toBeNull()
-      },
-    },
+    want: wantUnavailableInvalid,
   },
   {
     name: 'security/linked audit refuses like a linked session file',
@@ -272,16 +245,9 @@ const cases: readonly ReasonCase[] = [
         path.join(outside, 'developer-audit.jsonl'),
         path.join(dataDir, 'developer', 'developer-audit.jsonl'),
       )
-      const source = securitySource(createSecurityReportReader({ dataDir }), scrub)
-      return await source.read(ctxFor('security'))
+      return await readSecurity(dataDir)
     },
-    want: {
-      status: 'unavailable',
-      reasons: [EN.reportSourceReasons.refused],
-      check: (data) => {
-        expect(data).toBeNull()
-      },
-    },
+    want: wantUnavailableRefused,
   },
 ]
 

@@ -1,5 +1,5 @@
 // M113 C-M113-3: bound accounts and security inputs over real directories.
-import { writeFile, mkdir } from 'node:fs/promises'
+import { writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
@@ -10,7 +10,7 @@ import {
   createSecurityReportReader,
 } from '../../src/runtime/reporting/reportInputs'
 import { REPORT_FIXTURE_AS_OF } from './helpers/reporting/snapshot'
-import { tempDirTracker } from './helpers/reporting/tempDir'
+import { tempDirTracker, writeDeveloperAudit } from './helpers/reporting/tempDir'
 import { canaryVaultSnapshot } from './helpers/reporting/canaryVault'
 
 setUiText(EN, 'en')
@@ -132,15 +132,12 @@ describe('accounts report reader', () => {
 describe('security report reader', () => {
   it('reads the developer audit across both rotations with a locked vault', async () => {
     const dataDir = await dir('m113-security-')
-    await mkdir(path.join(dataDir, 'developer'), { recursive: true })
-    await writeFile(
-      path.join(dataDir, 'developer', 'developer-audit.jsonl'),
+    await writeDeveloperAudit(dataDir, 'developer-audit.jsonl', [
       `${JSON.stringify({ v: 1, time: 1, action: 'unlock', source: 'palette' })}\n`,
-    )
-    await writeFile(
-      path.join(dataDir, 'developer', 'developer-audit.jsonl.previous'),
+    ])
+    await writeDeveloperAudit(dataDir, 'developer-audit.jsonl.previous', [
       `${JSON.stringify({ v: 1, time: 2, action: 'enable', source: 'page' })}\n`,
-    )
+    ])
     const reader = createSecurityReportReader({ dataDir })
     const result = await reader.read(securityContext())
     expect(result!.facts.vault).toBeNull()
@@ -181,8 +178,7 @@ describe('security report reader', () => {
     expect(read!.partial).toContain(EN.reportDetailReasons.securityVaultUnavailable)
     expect(read!.partial).toContain(EN.reportDetailReasons.securityDeveloperAuditUnavailable)
     const corruptDir = await dir('m113-security-corrupt-')
-    await mkdir(path.join(corruptDir, 'developer'), { recursive: true })
-    await writeFile(path.join(corruptDir, 'developer', 'developer-audit.jsonl'), '{nope}\n')
+    await writeDeveloperAudit(corruptDir, 'developer-audit.jsonl', ['{nope}\n'])
     await expect(
       createSecurityReportReader({ dataDir: corruptDir }).read(securityContext()),
     ).rejects.toMatchObject({ isLocalSourceError: true, code: 'invalid' })
