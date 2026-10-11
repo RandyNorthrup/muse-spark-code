@@ -20,7 +20,7 @@ compaction task (`isLongContext`) and one two-defect multi-edit task.
 Current frozen digest (`evalHarnessDigest`, SHA-256 over each arm's
 self-contained emitted bundle and explicitly declared fixture bytes):
 
-`90b1ceb1c6375306207a2f5681a5491c4689552b1ff68f83a68f12cd71e75348`
+`475cd2c8a6f760a49f00fc0dd0197d48d531bd8ad213ebea06a89cbf59d754d3`
 
 R7's fixture set is `armSources.ts`, `mechanisms.ts`, `runner.ts`,
 `heldDeps.ts`, `tasks.ts`, and canonical `conditions.json` (the exact selected task data,
@@ -66,6 +66,16 @@ closed without one, and the runner binds the real shared admission over a
 ledger against the run budget, plus the trace wire's hard call ceiling.
 The arm list, task list, fixture set and held dependencies are unchanged;
 no digest comparison was weakened. Details in `docs/certification/m101.md`.)
+2026-10-11 R2 re-freeze (review RVCM1013A, on fakes). The previous digest
+`90b1ceb1…e75348` pinned the stale mechanism sentence (P3: "without
+charge" while the ledger reserves every attempt against the run budget),
+attempt-count engagement and a ceiling increment consumed by an unsent
+refusal. The mechanism text now states reservation-and-settlement, the
+runner fixture records the settled-admission count per task and the
+stopped-early reasons, the wire counts only validated sends, and the
+frozen change throws the missing-admission marker the host rethrows. The
+arm list, task list, fixture set and held dependencies are unchanged; no
+digest comparison was weakened. Details in `docs/certification/m101.md`.
 
 ## Why the closure runs the real resolver (R4 redesign, not a patch)
 

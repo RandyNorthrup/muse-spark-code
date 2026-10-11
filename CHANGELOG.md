@@ -86,6 +86,19 @@ happened, not what was planned; superseded entries are kept.
   ceiling) before anything sends. All four frozen arms run behind the
   live switch with both mechanism engagements recorded. The counted live
   run is still ahead; production automatic compaction stays off.
+- **M75 evaluation review repairs** (M101 CM1013AR2, review RVCM1013A, no
+  user-facing change). "Compaction engaged" now means the D78 admission
+  settled a summary: the report records the settled-admission count per
+  task and requires at least one on every long-context task of the
+  auto-compaction arm — more model calls than the baseline is not
+  evidence either way. A selection with no long-context (or long-output)
+  task is `incomplete`, never a pass, and the live test accepts only
+  `pass`. The printed plan (198) is exactly what runs with the hard
+  ceiling equal to it; a run that would exceed it stops `incomplete`.
+  The frozen receipt no longer calls admitted attempts uncharged, a
+  budget refusal after the body read consumes no ceiling slot, and the
+  missing-admission throw fails the turn instead of running uncompacted.
+  The counted live run is still ahead; production stays off.
 - **Production admission for automatic compaction** (M101 C-M101-1, dormant).
   The panel backend manager and the runtime backend manager (ACP, exec) now
   bind the one shared D78 gate and ledger for automatic compaction
