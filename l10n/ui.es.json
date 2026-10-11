@@ -1966,7 +1966,9 @@
     "rolledUpSessionExcluded": "El historial acumulado está excluido de los totales y del desglose de esta sesión.",
     "journalIncomplete": "El registro de uso contiene entradas dañadas, incompletas o de una versión más reciente; los totales las excluyen.",
     "sessionUsageUnavailable": "El uso de esta sesión no se puede atribuir en el registro conservado; los totales de tokens y costes no están disponibles.",
-    "budgetsUnavailable": "Las instantáneas de presupuesto del periodo seleccionado no están disponibles."
+    "budgetsUnavailable": "Las instantáneas de presupuesto del periodo seleccionado no están disponibles.",
+    "sessionModelUnavailable": "El catálogo de la sesión no nombra ningún modelo activo, por lo que el modelo se informa como desconocido.",
+    "duplicateOpenQuestion": "Este identificador de pregunta abierta está duplicado en PLAN.md (problema del plan)."
   },
   "reportRowsMore": {
     "one": "{count} fila más",

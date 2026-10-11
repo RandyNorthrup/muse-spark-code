@@ -2293,6 +2293,9 @@ export const EN = {
     sessionUsageUnavailable:
       'Usage for this session is not attributable in the retained journal; token and cost totals are unavailable.',
     budgetsUnavailable: 'Budget snapshots for the selected period are unavailable.',
+    sessionModelUnavailable:
+      'The session catalogue names no active model, so the model is reported as unknown.',
+    duplicateOpenQuestion: 'This open-question id is duplicated in PLAN.md (plan problem).',
 
     sessionTurnsUnavailable:
       'The session history records no turn identifiers, so turns cannot be counted.',

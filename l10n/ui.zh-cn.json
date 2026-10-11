@@ -1910,7 +1910,9 @@
     "rolledUpSessionExcluded": "汇总历史不计入此会话的总数和明细。",
     "journalIncomplete": "使用日志包含损坏、不完整或较新版本的记录；总计不包含这些记录。",
     "sessionUsageUnavailable": "保留的日志无法将使用量归属于此会话；令牌和费用总计不可用。",
-    "budgetsUnavailable": "所选期间的预算快照不可用。"
+    "budgetsUnavailable": "所选期间的预算快照不可用。",
+    "sessionModelUnavailable": "会话目录没有列出任何活动模型，因此该模型报告为未知。",
+    "duplicateOpenQuestion": "此未解决问题 ID 在 PLAN.md 中重复（计划问题）。"
   },
   "reportRowsMore": {
     "other": "另外 {count} 行"
