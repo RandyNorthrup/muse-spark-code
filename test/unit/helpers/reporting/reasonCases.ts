@@ -59,3 +59,9 @@ export async function assertReasonResult(
   assertReasonRecord(result, want)
   want.check?.(result.data)
 }
+
+/** Malformed ports bypass constructors; a valid exemplar can infer the expected type. */
+export function malformed<T>(value: unknown, _validExample?: T): T {
+  // Test-only fault injection bypasses the port type to exercise its runtime validator (PLAN §8 CM1133R4).
+  return value as T
+}

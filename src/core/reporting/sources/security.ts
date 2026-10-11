@@ -20,6 +20,15 @@ const count = z.number().check(z.int(), z.nonnegative())
 const groups = <T extends z.ZodMiniType>(entry: T) =>
   z.array(entry).check(z.maxLength(REPORT_MAX_ROWS))
 
+export const securityAuditRowSchema = z.strictObject({
+  kind: word,
+  decision: z.enum(['allow', 'deny', 'ask']),
+  authority: word,
+  outcome: word,
+})
+
+export const securityDeveloperAuditRowSchema = z.strictObject({ action: word, source: word })
+
 const factsSchema = z.strictObject({
   vault: z.nullable(
     z.strictObject({
@@ -47,20 +56,8 @@ const factsSchema = z.strictObject({
       ),
     }),
   ),
-  audit: groups(
-    z.strictObject({
-      kind: word,
-      decision: z.enum(['allow', 'deny', 'ask']),
-      authority: word,
-      outcome: word,
-    }),
-  ),
-  developerAudit: groups(
-    z.strictObject({
-      action: word,
-      source: word,
-    }),
-  ),
+  audit: groups(securityAuditRowSchema),
+  developerAudit: groups(securityDeveloperAuditRowSchema),
 })
 
 /** Vault aggregates and the developer audit for one report, never a value. */

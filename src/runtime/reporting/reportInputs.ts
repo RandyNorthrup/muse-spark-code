@@ -19,6 +19,7 @@ import {
   EXEC_UNTRUSTED_FILE_MAX_BYTES,
   DEVELOPER_AUDIT_MAX_BYTES,
   DEVELOPER_FILES,
+  REPORT_MAX_ROWS,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import type { BackendKind } from '../../shared/protocol'
@@ -29,7 +30,14 @@ import {
   accountsConfirmationRowSchema,
   accountsEventRowSchema,
   accountsUsageRowSchema,
+  accountsAccountRowSchema,
+  accountsProviderRowSchema,
+  accountsThresholdsSchema,
 } from '../../core/reporting/sources/accounts'
+import {
+  securityAuditRowSchema,
+  securityDeveloperAuditRowSchema,
+} from '../../core/reporting/sources/security'
 import type { ReportSessionReader } from '../../core/reporting/sources/session'
 import type { ReportAccountsReader } from '../../core/reporting/sources/accounts'
 import type { ReportSecurityReader } from '../../core/reporting/sources/security'
@@ -39,7 +47,7 @@ import type {
   SecurityFacts,
   SourceReadContext,
 } from '../../core/reporting/sources/types'
-import { accountIdSchema, accountSchema } from '../../shared/accounts'
+import { accountIdSchema, accountSchema, accountThresholdsSchema } from '../../shared/accounts'
 import { developerAuditSchema } from '../../shared/developerOptions'
 import {
   vaultAuditRecordSchema,
@@ -99,8 +107,14 @@ function failureReason(error: unknown): string {
 }
 
 /** A row schema any record stream below can be validated against one by one. */
-interface RowSchema {
-  safeParse(row: unknown): { readonly success: boolean; readonly data?: unknown }
+interface RowSchema<T> {
+  safeParse(row: unknown): { readonly success: boolean; readonly data?: T }
+}
+
+/** Admission owns the bound; final validation never drops accepted sibling facets. */
+function admitRow<T>(row: T, into: T[], partials: string[]): void {
+  if (into.length >= REPORT_MAX_ROWS) keepReason(partials, UI_TEXT.reportSourceReasons.limit)
+  else into.push(row)
 }
 
 /**
@@ -109,10 +123,10 @@ interface RowSchema {
  * invalid reason beside the rows (RVCM1133B P2). A value that is not a row
  * list at all is the same failure, never a throw.
  */
-function collectValidRows(
+function collectValidRows<T>(
   rows: unknown,
-  schema: RowSchema,
-  into: unknown[],
+  schema: RowSchema<T>,
+  into: T[],
   partials: string[],
 ): void {
   if (!Array.isArray(rows)) {
@@ -121,12 +135,18 @@ function collectValidRows(
   }
   let skipped = 0
   for (const row of rows) {
-    const parsed = schema.safeParse(row)
+    let parsed: ReturnType<RowSchema<T>['safeParse']>
+    try {
+      parsed = schema.safeParse(row)
+    } catch (error) {
+      keepReason(partials, failureReason(error))
+      continue
+    }
     if (!parsed.success || parsed.data === undefined) {
       skipped += 1
       continue
     }
-    into.push(parsed.data)
+    admitRow(parsed.data, into, partials)
   }
   if (skipped > 0) keepReason(partials, UI_TEXT.reportSourceReasons.invalid)
 }
@@ -433,7 +453,7 @@ const registryEntrySchema = z.object({
   id: accountIdSchema,
   product: accountIdSchema,
   auth: z.enum(['apiKey', 'oauth', 'subscription', 'none']),
-  accounts: z.optional(z.array(accountSchema)),
+  accounts: z.optional(z.unknown()),
 })
 
 async function readDataFile(directory: string, file: string, maxBytes: number) {
@@ -462,10 +482,22 @@ async function readDataFile(directory: string, file: string, maxBytes: number) {
     // A hard-linked final component is a private path, never an incomplete
     // read: refuse it like the sibling session reader (RVCM1133B P3).
     if (held.nlink !== BigInt(REPORT_STORAGE_LINK_COUNT)) throw new LocalSourceError('refused')
-    const buffer = Buffer.alloc(Number(held.size))
-    await handle.read(buffer, 0, buffer.length, 0)
+    const buffer = Buffer.alloc(maxBytes + 1)
+    let bytesRead = 0
+    while (bytesRead <= maxBytes) {
+      const { bytesRead: chunkBytes } = await handle.read(
+        buffer,
+        bytesRead,
+        buffer.length - bytesRead,
+        null,
+      )
+      if (chunkBytes === 0) break
+      bytesRead += chunkBytes
+    }
+    if (bytesRead > maxBytes) throw new LocalSourceError('limit')
+    if (!sameFile(held, await lstatIdentity(target))) throw new LocalSourceError('refused')
     try {
-      return new TextDecoder('utf-8', { fatal: true }).decode(buffer)
+      return new TextDecoder('utf-8', { fatal: true }).decode(buffer.subarray(0, bytesRead))
     } catch {
       throw new LocalSourceError('invalid')
     }
@@ -477,35 +509,81 @@ async function readDataFile(directory: string, file: string, maxBytes: number) {
   }
 }
 
+const registryAccountMetadataSchema = z.object({
+  id: accountSchema.shape.id,
+  label: accountSchema.shape.label,
+  order: accountSchema.shape.order,
+  limitGroup: accountSchema.shape.limitGroup,
+  thresholds: z.optional(z.unknown()),
+})
+const recordFieldsSchema = z.record(z.string(), z.unknown())
+
 function projectThresholds(
-  thresholds: z.infer<typeof accountSchema.shape.thresholds>,
+  raw: unknown,
+  partials: string[],
 ): AccountsFacts['providers'][number]['accounts'][number]['thresholds'] {
-  type SpendUsd = AccountsFacts['providers'][number]['accounts'][number]['thresholds']['spendUsd']
-  const spendUsd: { period: SpendUsd[number]['period']; value: SpendUsd[number]['value'] }[] = []
-  for (const period of ['day', 'week', 'month'] as const) {
-    const value = thresholds.spendUsd?.[period]
-    if (value !== undefined) spendUsd.push({ period, value })
+  // Whole-shape validation discloses unknown fields without vetoing valid limits.
+  if (!accountThresholdsSchema.safeParse(raw).success)
+    keepReason(partials, UI_TEXT.reportSourceReasons.invalid)
+  const result: z.infer<typeof accountsThresholdsSchema> = {
+    spendUsd: [],
+    counts: [],
+    percents: [],
   }
-  const counts: {
-    metric: 'inputTokens' | 'outputTokens' | 'requests'
-    period: 'day' | 'week' | 'month'
-    value: number
-  }[] = []
-  for (const metric of ['inputTokens', 'outputTokens', 'requests'] as const) {
+  const fields = (value: unknown): Record<string, unknown> => {
+    if (value === undefined) return {}
+    const parsed = recordFieldsSchema.safeParse(value)
+    if (parsed.success) return parsed.data
+    keepReason(partials, UI_TEXT.reportSourceReasons.invalid)
+    return {}
+  }
+  const thresholds = fields(raw)
+  for (const metric of ['spendUsd', 'inputTokens', 'outputTokens', 'requests'] as const) {
+    const amounts = fields(thresholds[metric])
     for (const period of ['day', 'week', 'month'] as const) {
-      const value = thresholds[metric]?.[period]
-      if (value !== undefined) counts.push({ metric, period, value })
+      const value = amounts[period]
+      if (value === undefined) continue
+      if (metric === 'spendUsd')
+        collectValidRows(
+          [{ period, value }],
+          accountsThresholdsSchema.shape.spendUsd.def.element,
+          result.spendUsd,
+          partials,
+        )
+      else
+        collectValidRows(
+          [{ metric, period, value }],
+          accountsThresholdsSchema.shape.counts.def.element,
+          result.counts,
+          partials,
+        )
     }
   }
-  const percents: { name: string; value: number }[] = []
-  const planWindows = Object.entries(thresholds.planWindowPercent ?? {})
-  for (const [name, value] of planWindows) percents.push({ name, value })
-  const headroom = thresholds.rateLimitHeadroomPercent
-  if (headroom?.requests !== undefined)
-    percents.push({ name: 'rateLimitHeadroom/requests', value: headroom.requests })
-  if (headroom?.tokens !== undefined)
-    percents.push({ name: 'rateLimitHeadroom/tokens', value: headroom.tokens })
-  return { spendUsd, counts, percents }
+  const planWindows = Object.entries(fields(thresholds['planWindowPercent']))
+  for (const [name, value] of planWindows) {
+    if (!accountIdSchema.safeParse(name).success) {
+      keepReason(partials, UI_TEXT.reportSourceReasons.invalid)
+      continue
+    }
+    collectValidRows(
+      [{ name, value }],
+      accountsThresholdsSchema.shape.percents.def.element,
+      result.percents,
+      partials,
+    )
+  }
+  const headroom = fields(thresholds['rateLimitHeadroomPercent'])
+  for (const metric of ['requests', 'tokens'] as const) {
+    const value = headroom[metric]
+    if (value !== undefined)
+      collectValidRows(
+        [{ name: `rateLimitHeadroom/${metric}`, value }],
+        accountsThresholdsSchema.shape.percents.def.element,
+        result.percents,
+        partials,
+      )
+  }
+  return result
 }
 
 /**
@@ -520,10 +598,12 @@ function projectThresholds(
  */
 export function createAccountsReportReader(input: {
   readonly dataDir: string
-  readonly readUsage?: (context: SourceReadContext) => Promise<AccountsFacts['usage'] | null>
+  readonly readUsage?: (
+    context: SourceReadContext,
+  ) => Promise<AccountsFacts['usage'] | null | undefined>
   readonly readEvents?: (
     context: SourceReadContext,
-  ) => Promise<Pick<AccountsFacts, 'events' | 'confirmations'> | null>
+  ) => Promise<Pick<AccountsFacts, 'events' | 'confirmations'> | null | undefined>
 }): ReportAccountsReader {
   return {
     read: async (context: SourceReadContext) => {
@@ -535,10 +615,12 @@ export function createAccountsReportReader(input: {
           'providers.json',
           EXEC_UNTRUSTED_FILE_MAX_BYTES,
         )
-        if (text === null) return null
+        if (text === null && input.readUsage === undefined && input.readEvents === undefined)
+          return null
+        if (text === null) keepReason(partials, UI_TEXT.reportSourceReasons.missing)
         let raw: unknown
         try {
-          raw = JSON.parse(text)
+          raw = text === null ? undefined : JSON.parse(text)
         } catch {
           raw = undefined
           keepReason(partials, UI_TEXT.reportSourceReasons.invalid)
@@ -553,18 +635,51 @@ export function createAccountsReportReader(input: {
                 invalidEntries += 1
                 continue
               }
-              providers.push({
-                provider: parsed.data.id,
-                product: parsed.data.product,
-                auth: parsed.data.auth,
-                accounts: (parsed.data.accounts ?? []).map((account) => ({
-                  id: account.id,
-                  label: account.label,
-                  order: account.order,
-                  limitGroup: account.limitGroup ?? null,
-                  thresholds: projectThresholds(account.thresholds),
-                })),
-              })
+              const accounts: AccountsFacts['providers'][number]['accounts'][number][] = []
+              if (parsed.data.accounts !== undefined) {
+                if (Array.isArray(parsed.data.accounts)) {
+                  for (const rawAccount of parsed.data.accounts) {
+                    // Preserve the strict stored contract's disclosure while
+                    // accepting independently valid metadata and limits below.
+                    if (!accountSchema.safeParse(rawAccount).success)
+                      keepReason(partials, UI_TEXT.reportSourceReasons.invalid)
+                    const metadata = registryAccountMetadataSchema.safeParse(rawAccount)
+                    if (!metadata.success) {
+                      keepReason(partials, UI_TEXT.reportSourceReasons.invalid)
+                      continue
+                    }
+                    collectValidRows(
+                      [
+                        {
+                          id: metadata.data.id,
+                          label: metadata.data.label,
+                          order: metadata.data.order,
+                          limitGroup: metadata.data.limitGroup ?? null,
+                          thresholds: projectThresholds(metadata.data.thresholds, partials),
+                        },
+                      ],
+                      accountsAccountRowSchema,
+                      accounts,
+                      partials,
+                    )
+                  }
+                } else {
+                  keepReason(partials, UI_TEXT.reportSourceReasons.invalid)
+                }
+              }
+              collectValidRows(
+                [
+                  {
+                    provider: parsed.data.id,
+                    product: parsed.data.product,
+                    auth: parsed.data.auth,
+                    accounts,
+                  },
+                ],
+                accountsProviderRowSchema,
+                providers,
+                partials,
+              )
             }
             if (invalidEntries > 0) keepReason(partials, UI_TEXT.reportSourceReasons.invalid)
           } else keepReason(partials, UI_TEXT.reportSourceReasons.invalid)
@@ -581,7 +696,8 @@ export function createAccountsReportReader(input: {
       else {
         try {
           const read = await input.readUsage(context)
-          if (read !== null) collectValidRows(read, accountsUsageRowSchema, usage, partials)
+          if (read === null || read === undefined) missing.push('usage')
+          else collectValidRows(read, accountsUsageRowSchema, usage, partials)
         } catch (error) {
           if (context.signal.aborted) throw error
           keepReason(partials, failureReason(error))
@@ -593,13 +709,19 @@ export function createAccountsReportReader(input: {
       else {
         try {
           const read = await input.readEvents(context)
-          if (read !== null) {
+          if (read === null || read === undefined) missing.push('swaps', 'confirmations')
+          else {
             if (typeof read !== 'object' || Array.isArray(read))
               keepReason(partials, UI_TEXT.reportSourceReasons.invalid)
             else {
-              collectValidRows(read.events, accountsEventRowSchema, events, partials)
               collectValidRows(
-                read.confirmations,
+                readSnapshotFacet(read, 'events', partials),
+                accountsEventRowSchema,
+                events,
+                partials,
+              )
+              collectValidRows(
+                readSnapshotFacet(read, 'confirmations', partials),
                 accountsConfirmationRowSchema,
                 confirmations,
                 partials,
@@ -636,6 +758,19 @@ export interface SecurityVaultSnapshot {
   readonly audit: readonly unknown[]
 }
 
+/** An adapter may expose a throwing getter: isolate every result facet. */
+function readSnapshotFacet(snapshot: unknown, key: string, partials: string[]): unknown {
+  try {
+    const field = z.object({ [key]: z.unknown() })
+    const parsed = field.safeParse(snapshot)
+    if (parsed.success) return parsed.data[key]
+    keepReason(partials, UI_TEXT.reportSourceReasons.invalid)
+  } catch (error) {
+    keepReason(partials, failureReason(error))
+  }
+  return undefined
+}
+
 /**
  * The reporting `security` source from the developer audit on disk and an
  * injected unlock-capable vault view. Without values throughout: the vault
@@ -658,66 +793,90 @@ export function createSecurityReportReader(input: {
       const partials: string[] = []
       let vault: SecurityFacts['vault'] = null
       const vaultAudit: SecurityFacts['audit'][number][] = []
-      let snapshot: SecurityVaultSnapshot | null = null
+      let snapshot: unknown = null
       if (input.readVault !== undefined) {
         try {
           snapshot = await input.readVault(context)
         } catch (error) {
-          // A vault that cannot be read is one failed sub-source, never a
-          // failed read: the developer audit below still reports.
           if (context.signal.aborted) throw error
           keepReason(partials, failureReason(error))
         }
       }
-      if (snapshot === null) partials.push(UI_TEXT.reportDetailReasons.securityVaultUnavailable)
+      if (snapshot === null || snapshot === undefined)
+        keepReason(partials, UI_TEXT.reportDetailReasons.securityVaultUnavailable)
       else {
-        // The view's own scalars are validated before use: an unknown
-        // state or tier invalidates the vault facets, never the audit
-        // beside them (RVCM1133B P3).
-        const view = z
-          .pick(vaultStatusSchema, { state: true, tier: true })
-          .safeParse({ state: snapshot.state, tier: snapshot.tier })
-        if (view.success) {
-          const items: z.infer<typeof vaultItemMetadataSchema>[] = []
-          collectValidRows(snapshot.items, vaultItemMetadataSchema, items, partials)
-          const grants: z.infer<typeof vaultGrantSchema>[] = []
-          collectValidRows(snapshot.grants, vaultGrantSchema, grants, partials)
-          if (Array.isArray(snapshot.audit)) {
-            let skipped = 0
-            for (const record of snapshot.audit) {
-              const parsed = vaultAuditRecordSchema.safeParse(record)
-              if (!parsed.success) {
-                skipped += 1
-                continue
-              }
-              vaultAudit.push({
-                kind: parsed.data.kind,
-                decision: parsed.data.decision,
-                authority: parsed.data.authority,
-                outcome: parsed.data.outcome,
-              })
+        const envelope = z.object({}).safeParse(snapshot)
+        if (envelope.success) {
+          // Audit evidence is independent of view state/tier and item/grant validity.
+          const records: z.infer<typeof vaultAuditRecordSchema>[] = []
+          collectValidRows(
+            readSnapshotFacet(snapshot, 'audit', partials),
+            vaultAuditRecordSchema,
+            records,
+            partials,
+          )
+          for (const record of records)
+            collectValidRows(
+              [
+                {
+                  kind: record.kind,
+                  decision: record.decision,
+                  authority: record.authority,
+                  outcome: record.outcome,
+                },
+              ],
+              securityAuditRowSchema,
+              vaultAudit,
+              partials,
+            )
+          const view = z
+            .strictObject({
+              state: vaultStatusSchema.shape.state,
+              tier: vaultStatusSchema.shape.tier,
+            })
+            .safeParse({
+              state: readSnapshotFacet(snapshot, 'state', partials),
+              tier: readSnapshotFacet(snapshot, 'tier', partials),
+            })
+          if (view.success) {
+            const items: z.infer<typeof vaultItemMetadataSchema>[] = []
+            collectValidRows(
+              readSnapshotFacet(snapshot, 'items', partials),
+              vaultItemMetadataSchema,
+              items,
+              partials,
+            )
+            const grants: z.infer<typeof vaultGrantSchema>[] = []
+            collectValidRows(
+              readSnapshotFacet(snapshot, 'grants', partials),
+              vaultGrantSchema,
+              grants,
+              partials,
+            )
+            const itemsByKind = new Map<string, number>()
+            for (const item of items)
+              itemsByKind.set(item.kind, (itemsByKind.get(item.kind) ?? 0) + 1)
+            const grantsByScope = new Map<string, number>()
+            for (const grant of grants) {
+              const scope = `${grant.roles === 'any' ? 'any' : 'named'}/${grant.workspaces === 'any' ? 'any' : 'named'}`
+              grantsByScope.set(scope, (grantsByScope.get(scope) ?? 0) + 1)
             }
-            if (skipped > 0) keepReason(partials, UI_TEXT.reportSourceReasons.invalid)
-          } else keepReason(partials, UI_TEXT.reportSourceReasons.invalid)
-          const itemsByKind = new Map<string, number>()
-          for (const item of items)
-            itemsByKind.set(item.kind, (itemsByKind.get(item.kind) ?? 0) + 1)
-          const grantsByScope = new Map<string, number>()
-          for (const grant of grants) {
-            const scope = `${grant.roles === 'any' ? 'any' : 'named'}/${grant.workspaces === 'any' ? 'any' : 'named'}`
-            grantsByScope.set(scope, (grantsByScope.get(scope) ?? 0) + 1)
+            vault = {
+              state: view.data.state,
+              tier: view.data.tier,
+              itemCount: items.length,
+              itemsByKind: Array.from(itemsByKind, ([kind, count]) => ({ kind, count })),
+              grants: Array.from(grantsByScope, ([scope, count]) => ({ scope, count })),
+            }
+          } else {
+            keepReason(partials, UI_TEXT.reportSourceReasons.invalid)
           }
-          vault = {
-            state: view.data.state,
-            tier: view.data.tier,
-            itemCount: items.length,
-            itemsByKind: Array.from(itemsByKind, ([kind, count]) => ({ kind, count })),
-            grants: Array.from(grantsByScope, ([scope, count]) => ({ scope, count })),
-          }
-        } else keepReason(partials, UI_TEXT.reportSourceReasons.invalid)
+        } else {
+          keepReason(partials, UI_TEXT.reportSourceReasons.invalid)
+        }
       }
       const directory = path.join(input.dataDir, 'developer')
-      let developerAudit: SecurityFacts['developerAudit'] | null = null
+      let developerAudit: SecurityFacts['developerAudit'][number][] | null = null
       const auditFiles = [DEVELOPER_FILES.audit, `${DEVELOPER_FILES.audit}.previous`]
       for (const file of auditFiles) {
         let text: string | null
@@ -732,7 +891,7 @@ export function createSecurityReportReader(input: {
         }
         if (text === null) continue
         let skipped = 0
-        const rows: SecurityFacts['developerAudit'][number][] = []
+        developerAudit ??= []
         for (const line of text.trim().split('\n')) {
           if (line === '') continue
           let entry: unknown
@@ -749,10 +908,14 @@ export function createSecurityReportReader(input: {
           }
           // The profile id parses here and is dropped: only the action
           // and source travel into the facts.
-          rows.push({ action: parsed.data.action, source: parsed.data.source })
+          collectValidRows(
+            [{ action: parsed.data.action, source: parsed.data.source }],
+            securityDeveloperAuditRowSchema,
+            developerAudit,
+            partials,
+          )
         }
         if (skipped > 0) keepReason(partials, UI_TEXT.reportSourceReasons.invalid)
-        developerAudit = [...(developerAudit ?? []), ...rows]
       }
       if (developerAudit === null)
         partials.push(UI_TEXT.reportDetailReasons.securityDeveloperAuditUnavailable)
