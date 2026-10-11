@@ -44,13 +44,14 @@ import { createWorkspaceRegistry } from './registry'
 import { scheduleTimePlan } from './timePlan'
 import type { ScheduleControlPort } from './command'
 import type { ScheduleCallerContext } from './args'
-import { createRuntimeScheduleDelivery, type RuntimeScheduleDeliveryPorts } from './delivery'
+import type { createRuntimeScheduleDelivery, RuntimeScheduleDeliveryPorts } from './delivery'
 
 export interface ScheduleEngineOptions {
   readonly signal?: AbortSignal
   readonly caller?: () => ScheduleCallerContext
   readonly consent?: (schedule: ScheduleV2) => Promise<ScheduleV2['paidConsent']>
   readonly runtimeDelivery?: RuntimeScheduleDeliveryPorts
+  readonly runtimeDeliveryFactory?: typeof createRuntimeScheduleDelivery
   /** A host installs complete unattended delivery; absent hosts stay refused. */
   readonly delivery?: (
     authority: ScheduleAuthorityStore,
@@ -90,9 +91,11 @@ export function createScheduleEngine(options: ScheduleEngineOptions) {
   const authority = createAuthorityStore(store, options.fs, 'runtime/grant-audits.json')
   const registry = createWorkspaceRegistry(options.fs, 'runtime/workspaces.json')
   const runtimeDelivery =
-    options.runtimeDelivery === undefined
-      ? undefined
-      : createRuntimeScheduleDelivery(options.runtimeDelivery, authority, registry)
+    options.runtimeDelivery !== undefined && options.runtimeDeliveryFactory !== undefined
+      ? options.runtimeDeliveryFactory(options.runtimeDelivery, authority, registry)
+      : undefined
+  if (runtimeDelivery === undefined && options.runtimeDelivery !== undefined)
+    throw new Error(UI_TEXT.scheduleV2.runtime.unavailable)
   const late: { delivery?: ScheduleDelivery } = {}
   const host: RuntimeScheduleHost = new RuntimeScheduleHost({
     now,

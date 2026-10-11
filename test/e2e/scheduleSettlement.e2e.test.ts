@@ -9,6 +9,7 @@ import { scheduleDeliveryStateSchema } from '../../src/shared/scheduleV2'
 
 const message = z.discriminatedUnion('phase', [
   z.strictObject({ phase: z.literal('parked') }),
+  z.strictObject({ phase: z.literal('ready') }),
   z.strictObject({
     phase: z.literal('recovered'),
     record: scheduleDeliveryStateSchema,
@@ -24,6 +25,7 @@ const recoveryCases = [
   { phase: 'known', catchUp: 'runOnce', sends: 1, outcome: 'ran' },
 ]
 const owners = new Map<string, ReturnType<typeof start>>()
+const readers = new Map<string, ReturnType<typeof start>>()
 const paths = { folder: '', worker: '' }
 const children: ChildProcess[] = []
 const exited = new Map<ChildProcess, Promise<number | null>>()
@@ -46,6 +48,10 @@ beforeAll(async () => {
       owners.set(key, owner)
       const parked = await owner.response
       expect(parked.phase).toBe('parked')
+      const reader = start(path.join(paths.folder, key), 'recover', test.catchUp)
+      readers.set(key, reader)
+      const ready = await reader.response
+      expect(ready.phase).toBe('ready')
     }),
   )
 })
@@ -63,16 +69,19 @@ function start(root: string, phase: string, catchUp: string) {
   children.push(child)
   const exit = new Promise<number | null>((resolve) => child.once('exit', resolve))
   exited.set(child, exit)
-  const response = new Promise<z.infer<typeof message>>((resolve, reject) => {
+  const response = nextMessage(child)
+  return { child, exit, response }
+}
+function nextMessage(child: ChildProcess) {
+  return new Promise<z.infer<typeof message>>((resolve, reject) => {
     child.once('message', (input: unknown) => {
       resolve(message.parse(input))
     })
     child.once('error', reject)
     child.once('exit', () => {
-      reject(new Error('paths.worker exited before journal receipt'))
+      reject(new Error('worker exited before journal receipt'))
     })
   })
-  return { child, exit, response }
 }
 it.each(recoveryCases)(
   'recovers real killed process at $phase with $catchUp without replay',
@@ -84,8 +93,11 @@ it.each(recoveryCases)(
     expect(parked.phase).toBe('parked')
     owner.child.kill()
     await owner.exit
-    const next = start(root, 'recover', test.catchUp)
-    const receipt = await next.response
+    const next = readers.get(`${test.phase}-${test.catchUp}`)
+    if (next === undefined) throw new Error('missing warm recovery process')
+    const recovered = nextMessage(next.child)
+    next.child.send('recover')
+    const receipt = await recovered
     expect(await next.exit).toBe(0)
     expect(receipt).toMatchObject({
       phase: 'recovered',

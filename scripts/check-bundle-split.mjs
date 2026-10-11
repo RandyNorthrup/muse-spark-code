@@ -1030,7 +1030,7 @@ const TEXT_BLOCKS = [
   {
     block: 'SCHEDULE_MODEL_TEXT',
     sentinels: ['unattendedNote', 'eventUntrusted'],
-    readers: ['dist/schedules.js'],
+    readers: ['dist/schedules.js', 'dist/runtimeEngine.js'],
   },
   {
     block: 'MCP_POOL_MODEL_TEXT',

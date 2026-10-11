@@ -32,6 +32,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- Schedule consent/pricing loads with the existing paid helper bundle; runtime
+  session ownership loads with the standalone engine, preserving the schedule
+  surface budget without another chunk or a cap increase.
+
 - **Joined schedule settlement** (M115). The candidate scheduler writes a
   durable dispatch fence and owns every terminal record across VS Code, ACP
   and CLI. Ambiguous dispatch becomes uncertain without replay; failed cost

@@ -435,4 +435,7 @@ async function requestReviewer(
 }
 
 export { explainLegal } from '../../paid/legalExplanation'
-export { setUiText as setLegalExplanationLanguage } from '../../../shared/l10n/text'
+export { setUiText as setLegalExplanationLanguage, setUiText } from '../../../shared/l10n/text'
+
+// Schedule consent/pricing shares this existing first-use paid helper owner.
+export { createScheduleBilling } from '../../../host/schedules/paidBinding'

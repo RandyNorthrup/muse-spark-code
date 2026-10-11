@@ -1,3 +1,4 @@
+import { createRuntimeScheduleDelivery } from '../../src/runtime/schedules/delivery'
 import path from 'node:path'
 import { mkdtemp, mkdir, realpath, writeFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -189,7 +190,10 @@ it.each(['VS Code window', 'ACP', 'CLI run-due'] as const)(
             consent: (schedule) => billing.consent(schedule),
             caller: () => caller,
           }
-        : { runtimeDelivery: sessions.ports }),
+        : {
+            runtimeDeliveryFactory: createRuntimeScheduleDelivery,
+            runtimeDelivery: sessions.ports,
+          }),
       verifyWake: () =>
         Promise.resolve({ scheduledPrompts: true, maxBudgetUsd: Usd.from(5).toAmount() }),
     })

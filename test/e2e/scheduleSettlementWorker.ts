@@ -1,5 +1,6 @@
 import process from 'node:process'
 import path from 'node:path'
+import * as z from 'zod/mini'
 import { appendFile } from 'node:fs/promises'
 import { createScheduler } from '../../src/core/schedules/scheduler'
 import { createScheduleStore } from '../../src/core/schedules/store'
@@ -48,6 +49,20 @@ async function main() {
     process.on('message', () => undefined)
     return
   }
+  // Warm process/module startup without reading the journal; construct the
+  // second scheduler only after the first process is killed and reaped.
+  const resume = new Promise<void>((resolve, reject) => {
+    process.once('message', (input: unknown) => {
+      try {
+        z.literal('recover').parse(input)
+        resolve()
+      } catch (error: unknown) {
+        reject(error instanceof Error ? error : new Error('invalid recovery signal'))
+      }
+    })
+  })
+  process.send?.({ phase: 'ready' })
+  await resume
   const scheduler = createScheduler({
     store,
     runs: store,

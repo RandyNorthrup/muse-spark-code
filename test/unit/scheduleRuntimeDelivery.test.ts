@@ -1,3 +1,4 @@
+import { createRuntimeScheduleDelivery } from '../../src/runtime/schedules/delivery'
 import { mkdtempSync } from 'node:fs'
 import { rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -98,6 +99,7 @@ function fixture(
     fs,
     queue: memoryScheduleQueue(fs),
     now: () => Date.parse('2026-10-08T12:00:00Z'),
+    runtimeDeliveryFactory: createRuntimeScheduleDelivery,
     runtimeDelivery: {
       backendFor,
       allowsContributorModels: false,

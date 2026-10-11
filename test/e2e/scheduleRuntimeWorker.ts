@@ -1,3 +1,4 @@
+import { createRuntimeScheduleDelivery } from '../../src/runtime/schedules/delivery'
 // Fake-only stdio fixture: real runtime delivery and Model API over loopback.
 import path from 'node:path'
 import { Writable } from 'node:stream'
@@ -71,6 +72,7 @@ async function main() {
   const engine = createScheduleEngine({
     fs: createNodeScheduleFs(path.join(data, 'schedules')),
     queue: createNodeScheduleQueue(path.join(data, 'schedules')),
+    runtimeDeliveryFactory: createRuntimeScheduleDelivery,
     runtimeDelivery: {
       backendFor: () => Promise.resolve(backend),
       allowsContributorModels: false,
