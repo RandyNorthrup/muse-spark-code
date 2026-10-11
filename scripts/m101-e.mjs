@@ -7,52 +7,99 @@
 // arguments, the environment or a file; the legacy key variable is refused
 // by the enabled test, never read or deleted. Standard input here is only
 // inherited, never parsed for secrets.
+import { readFileSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs'
+import { createRequire } from 'node:module'
+import { fileURLToPath } from 'node:url'
+import { buildSync } from 'esbuild'
+import frozenPlan from '../src/core/eval/plan.json' with { type: 'json' }
 import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
 
-/**
- * The counted live evaluation's call plan (M101 lane E R2). Base attempts
- * come from the fake pairs (test/unit/eval/evalRunner.test.ts: fourteen
- * small tasks at three attempts on every arm, two long-context tasks at
- * three on every arm but auto-compaction's six — one summary round trip
- * each). The printed plan is EXACTLY what the run may send: no probe, no
- * extra round, no headroom. The hard ceiling equals the plan; the wire
- * refuses past it, and a run that would exceed it stops and is
- * `incomplete`, never a pass. test/unit/eval/evalPlan.test.ts pins every
- * count below against EVAL_TASKS and EVAL_ARMS, so the plan cannot drift
- * from the frozen task set.
- */
-const M101_EVAL_PLAN = {
-  model: 'muse-spark-1.3-contributor',
-  tasks: { total: 16, small: 14, longContext: 2 },
-  arms: [
-    { name: 'baseline', smallAttempts: 3, longAttempts: 3 },
-    { name: 'packing', smallAttempts: 3, longAttempts: 3 },
-    { name: 'auto-compaction', smallAttempts: 3, longAttempts: 6 },
-    { name: 'strict-tools', smallAttempts: 3, longAttempts: 3 },
-  ],
-  liveAttemptsHere: 0,
-  budgetUsd: 0.5,
-  /** Model calls the plan sends: exactly what the live run may send. */
-  plannedCalls: 198,
-  /** Hard ceiling enforced by the trace wire (MUSE_EVAL_MAX_ATTEMPTS): the plan, exactly. */
-  callCeiling: 198,
-  m75: '16 tasks × 4 arms (baseline/packing/auto-compaction/strict-tools): 198 calls from the fake pairs, and the ceiling is that plan exactly — no headroom, no probe. The wire refuses past it and the run stops incomplete; the trace also stops future sends at its $0.50 estimate or on unknown usage, stopping incomplete the same way. This is not a reservation theorem.',
-  autoCompaction:
-    'The auto-compaction arm admits through the real shared D78 gate and settles every extra attempt against the run budget (src/core/eval/driver.ts, runner.ts); the report records the settled-admission count per task and requires at least one settled admission on every long-context task of that arm, beside the floors. Never flips the production latch from this launcher.',
-  captures:
-    'Record workspace, contributor model, every actual attempt, cached tokens, the settled-admission count per task, per-task terminal and stopped-early reasons. Store sanitized captures and passing paired report in docs/certification/m101-e.md.',
+// Each task/arm owns an independent measured allowance. The global ceiling
+// is their sum, only a backstop; local overruns fail their task and continue.
+
+function planFor(selection) {
+  const wanted = (selection ?? '')
+    .split(',')
+    .map((id) => id.trim())
+    .filter(Boolean)
+  const unknown = wanted.filter((id) => frozenPlan.tasks.every((task) => task.id !== id))
+  if (unknown.length > 0) throw new Error(`unknown eval tasks: ${unknown.join(', ')}`)
+  const tasks = frozenPlan.tasks.filter((task) => wanted.length === 0 || wanted.includes(task.id))
+  const plannedCalls = tasks.reduce(
+    (sum, task) => sum + task.callBudget * frozenPlan.arms.length,
+    0,
+  )
+  return {
+    ...frozenPlan,
+    tasks,
+    plannedCalls,
+    callCeiling: plannedCalls,
+    measuredCostEstimateUsd:
+      (plannedCalls * frozenPlan.measurement.costUsd) / frozenPlan.measurement.attempts,
+    liveAttemptsHere: 0,
+    selection: tasks.length === frozenPlan.tasks.length ? 'full frozen set' : 'narrowed selection',
+    accounting:
+      'An independent call budget per task/arm; local overrun fails the task and continues. Global ceiling, $0.50 spend or unknown usage stops are incomplete. The measured average-cost projection is not a reservation theorem.',
+    engagement:
+      'Both packing tasks must pack; both compaction tasks must replace history with an accepted summary whose admission settled. Every arm must hold both 0.75 floors. A narrowed selection is incomplete.',
+  }
+}
+
+/** Execute only the reviewed freeze adapter, offline; no arm source executes in this process. */
+function digestOffline() {
+  const root = fileURLToPath(new URL('..', import.meta.url))
+  const scratch = mkdtempSync(path.join(tmpdir(), 'm101-freeze-'))
+  try {
+    const target = path.join(scratch, 'freeze.cjs')
+    const built = buildSync({
+      entryPoints: [path.join(root, 'src/core/eval/mechanisms.ts')],
+      bundle: true,
+      platform: 'node',
+      format: 'cjs',
+      write: false,
+      external: ['esbuild'],
+      banner: {
+        js: `var require = require('node:module').createRequire(${JSON.stringify(import.meta.url)});`,
+      },
+    })
+    const output = built.outputFiles[0]
+    if (output === undefined) throw new Error('The freeze adapter emitted no code.')
+    writeFileSync(target, output.contents)
+    const adapter = createRequire(import.meta.url)(target)
+    const digest = adapter.evalHarnessDigest()
+    if (typeof digest !== 'string' || !/^[a-f0-9]{64}$/.test(digest))
+      throw new Error('The freeze adapter returned an invalid digest.')
+    return digest
+  } finally {
+    rmSync(scratch, { recursive: true, force: true })
+  }
 }
 
 function main() {
   const mode = process.argv[2] ?? '--plan'
-  if (!['--plan', '--fake', '--live-m75'].includes(mode) || process.argv.length > 3) {
-    throw new Error('Use --plan, --fake or --live-m75')
+  if (
+    !['--plan', '--fake', '--live-m75', '--smoke-m75', '--freeze'].includes(mode) ||
+    process.argv.length > 3
+  ) {
+    throw new Error('Use --plan, --fake, --live-m75, --smoke-m75 or --freeze')
   }
+  if (mode === '--freeze') {
+    const sha256 = digestOffline()
+    writeFileSync(
+      new URL('../src/core/eval/frozen.json', import.meta.url),
+      `${JSON.stringify({ sha256 }, null, 2)}\n`,
+    )
+    process.stdout.write(`${sha256}\n`)
+    return
+  }
+  const isSmoke = mode === '--smoke-m75'
+  const selection = process.env['MUSE_EVAL_TASKS'] ?? (isSmoke ? 'accept-off-by-one' : undefined)
+  const plan = planFor(selection)
   // The plan prints BEFORE anything sends, in every mode.
-  process.stdout.write(`${JSON.stringify(M101_EVAL_PLAN, null, 2)}\n`)
+  process.stdout.write(`${JSON.stringify(plan, null, 2)}\n`)
   if (mode === '--plan') process.exit(0)
   // At most three files per batch: RAM is shared with other lanes' runs.
   const batches =
@@ -87,7 +134,16 @@ function main() {
         ]
       : [['test/e2e/eval.live.e2e.test.ts']]
   const env = { ...process.env }
-  if (mode === '--live-m75') {
+  if (mode === '--live-m75' || isSmoke) {
+    const computed = digestOffline()
+    const pinned = JSON.parse(
+      readFileSync(new URL('../src/core/eval/frozen.json', import.meta.url), 'utf8'),
+    ).sha256
+    if (computed !== pinned)
+      throw new Error(
+        `Frozen harness mismatch: pinned ${String(pinned)}, computed ${computed}; no live call may run.`,
+      )
+    process.stderr.write(`Frozen harness: pinned ${String(pinned)}, computed ${computed}\n`)
     process.stderr.write(
       'OPT-IN LIVE M75: bills the existing OS-stored Model API key; subscription pays none. The printed plan above is what it may send.\n',
     )
@@ -95,10 +151,18 @@ function main() {
     // survives, so the JSON above cannot disagree with the run. The
     // enabled test refuses a non-positive-integer value without sending.
     env['MUSE_LIVE_MODEL_API'] = '1'
-    env['MUSE_EVAL_MAX_ATTEMPTS'] = String(M101_EVAL_PLAN.callCeiling)
+    if (selection !== undefined) env['MUSE_EVAL_TASKS'] = selection
+    if (isSmoke) {
+      if (plan.selection !== 'narrowed selection')
+        throw new Error('Smoke mode requires a narrowed selection.')
+      env['MUSE_EVAL_SMOKE'] = '1'
+    } else {
+      delete env['MUSE_EVAL_SMOKE']
+    }
+    env['MUSE_EVAL_MAX_ATTEMPTS'] = String(plan.callCeiling)
     if (env['MUSE_EVAL_TASKS'] !== undefined && env['MUSE_EVAL_TASKS'] !== '') {
       process.stderr.write(
-        `Selection: ${env['MUSE_EVAL_TASKS'] ?? ''} — a narrowed selection sends fewer than the printed plan and cannot pass: no long-context task means verdict incomplete, and any missing split does too.\n`,
+        `Selection: ${env['MUSE_EVAL_TASKS'] ?? ''} — narrowed plan printed above; expected verdict incomplete (narrowed selection), never pass.\n`,
       )
     }
     // Scrubbed receipts beside the report: the run masks workspace paths,

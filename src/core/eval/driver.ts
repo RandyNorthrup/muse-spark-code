@@ -230,6 +230,7 @@ export interface EvalTurnOutcome {
    * What each `recall_output` call that succeeded returned (M73), for the
    * packing arm's own check; never copied into a report.
    */
+  readonly compactionsApplied: number
   readonly recalledOutputs: readonly string[]
 }
 
@@ -424,6 +425,14 @@ export async function runEvalTurn(options: EvalTurnOptions): Promise<EvalTurnOut
       // A copy: a card answered after the turn cannot change the outcome.
       problems: [...problems],
       ...(packedTokensAvoided !== undefined && { packedTokensAvoided }),
+      // The host emits this completed paid row only AFTER accepting the summary
+      // and replacing replay history; rejected attempts emit no such row.
+      compactionsApplied: items.filter(
+        (item) =>
+          item.kind === 'compaction' &&
+          item.status === EVAL_TURN_COMPLETED &&
+          item.paid === 'autoCompaction',
+      ).length,
       recalledOutputs: calls.flatMap((item) =>
         item.tool === MODEL_API_TOOLS.recallOutput &&
         // An item completes with the same word a turn does.

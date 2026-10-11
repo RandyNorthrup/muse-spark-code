@@ -4,6 +4,7 @@ import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
   EVAL_BUDGET_USD,
+  MODEL_API_MAX_RETRIES,
   EVAL_LONG_EVIDENCE_RECALL_OFFSET,
   EVAL_MODEL_ID,
   EVAL_REPORT_VERSION,
@@ -21,6 +22,8 @@ import {
 } from '../../../src/core/eval/mechanisms'
 import { evalReportSchema } from '../../../src/core/eval/report'
 import { runPairedEval, type EvalArm, type EvalRunDeps } from '../../../src/core/eval/runner'
+import plan from '../../../src/core/eval/plan.json'
+import { withPackingEngagement, withCompactionEngagement } from '../../e2e/evalLiveSupport'
 import { EVAL_TASKS, evalTasksOfSplit, type EvalTask } from '../../../src/core/eval/tasks'
 import { listWorkspaceFiles } from '../../../src/core/eval/workspace'
 import { fileContextIo } from '../../../src/host/backend/contextIo'
@@ -212,7 +215,7 @@ describe('runPairedEval', { timeout: RUNS_TIMEOUT_MS }, () => {
 
   it('fails the run when the mechanism loses the fixes', async () => {
     const { api, deps } = rig()
-    const tasks = [...evalTasksOfSplit('accept').slice(0, 2), ...evalTasksOfSplit('heldout')]
+    const tasks = EVAL_TASKS
     api.script(...tasks.flatMap((task) => [...canonical(task), ...canonical(task)]))
     const report = await runPairedEval(tasks, [BASELINE, DROPS_WRITES], deps)
     expect(report.verdict).toBe('fail')
@@ -253,7 +256,7 @@ describe('runPairedEval', { timeout: RUNS_TIMEOUT_MS }, () => {
       held: false,
     })
     const two = await runWith(2)
-    expect(two.verdict).toBe('fail')
+    expect(two.verdict).toBe('incomplete')
     expect(
       two.floors.find((floor) => floor.arm === 'mechanism' && floor.split === 'heldout'),
     ).toMatchObject({ passRate: 5 / 7, held: false })
@@ -595,6 +598,7 @@ describe('runPairedEval', { timeout: RUNS_TIMEOUT_MS }, () => {
     const compactionResults = compactionArm?.results ?? []
     for (const result of compactionResults) {
       expect(result.compactionsSettled).toBe(longIds.has(result.taskId) ? 1 : 0)
+      expect(result.compactionsApplied).toBe(longIds.has(result.taskId) ? 1 : 0)
     }
     // A full run names no early stop.
     expect(report.version === EVAL_REPORT_VERSION ? report.stoppedEarly : undefined).toBeUndefined()
@@ -623,6 +627,177 @@ describe('runPairedEval', { timeout: RUNS_TIMEOUT_MS }, () => {
     expect(two?.attempts).toBe(0)
   })
 
+  it.each(['empty', 'tool', 'rate-limited'] as const)(
+    'leaves a rejected %s summary unengaged on a fake pair',
+    async (kind) => {
+      const { api, deps } = rig()
+      const task = EVAL_TASKS.find((candidate) => candidate.id === 'accept-long-compaction')
+      if (task === undefined) throw new Error('missing long task')
+      const arm = compactionArmReplies(task)
+      const rejections: Record<typeof kind, { reply: ScriptedReply; count: number }> = {
+        empty: { reply: { text: '' }, count: 1 },
+        tool: {
+          reply: {
+            calls: [{ name: 'read_file', arguments: JSON.stringify({ path: 'package.json' }) }],
+          },
+          count: 2,
+        },
+        'rate-limited': {
+          reply: { httpError: { status: 429, retryAfter: '0' } },
+          count: MODEL_API_MAX_RETRIES + 1,
+        },
+      }
+      const rejected = rejections[kind]
+      api.script(
+        ...canonical(task),
+        arm[0] ?? {},
+        ...Array.from({ length: rejected.count }, () => rejected.reply),
+        { text: 'Continue without compaction.' },
+      )
+      const raw = await runPairedEval([task], [BASELINE, AUTO_COMPACTION_ARM], deps)
+      const result = raw.arms[1]?.results[0]
+      expect(result?.compactionsSettled).toBeGreaterThan(0)
+      expect(result?.compactionsApplied).toBe(0)
+      const report = withCompactionEngagement(raw, 'auto-compaction', 'baseline', [task])
+      expect(
+        report.version === EVAL_REPORT_VERSION ? report.compactionEngagement?.unengaged : undefined,
+      ).toEqual([task.id])
+    },
+  )
+
+  it('records a local overrun and still runs the next task', async () => {
+    const { api, deps } = rig()
+    const tasks = EVAL_TASKS.filter((task) =>
+      ['accept-off-by-one', 'heldout-strict-equal'].includes(task.id),
+    )
+    const [first, next] = tasks
+    if (first === undefined || next === undefined) throw new Error('missing task')
+    // The first task consumes its one call on a read; its write is refused.
+    // The refusal consumes no scripted reply, leaving the next task intact.
+    api.script(canonical(first)[0] ?? {}, {
+      calls: [
+        { name: 'write_file', arguments: JSON.stringify(fixesFor(EVAL_CANONICAL_FIXES, next)[0]) },
+      ],
+    })
+    const report = await runPairedEval(tasks, [BASELINE], { ...deps, maxTaskAttempts: 1 })
+    expect(report.arms[0]?.results[0]).toMatchObject({
+      passed: false,
+      overBudget: true,
+      callBudget: 1,
+      attempts: 1,
+    })
+    expect(report.arms[0]?.results[0]?.failures.join(' ')).toContain('task over budget')
+    // A one-call write also needs a closing response, so grant the second
+    // task its real measured allowance in the independent full-run case below.
+    expect(report.arms[0]?.results[1]?.attempts).toBe(1)
+    expect(api.responseBodies()).toHaveLength(2)
+    expect(report.version === EVAL_REPORT_VERSION ? report.stoppedEarly : undefined).toBeUndefined()
+  })
+
+  it('reaches both compaction tasks before talkative small tasks, on every arm', async () => {
+    const { api, deps } = rig()
+    const arms = [BASELINE, OBSERVATION_PACKING_ARM, AUTO_COMPACTION_ARM, STRICT_TOOLS_ARM] as const
+    api.script(
+      ...EVAL_TASKS.flatMap((task, index) => {
+        const order = [...arms.slice(index % arms.length), ...arms.slice(0, index % arms.length)]
+        return order.flatMap((arm) => {
+          if (task.isLongContext === true)
+            return arm === AUTO_COMPACTION_ARM ? compactionArmReplies(task) : canonical(task)
+          if (task.isLongOutput === true)
+            return longTaskReplies(
+              task,
+              arm === OBSERVATION_PACKING_ARM,
+              EVAL_LONG_EVIDENCE_RECALL_OFFSET,
+            )
+          if (task.id !== 'accept-off-by-one') return canonical(task)
+          const allowance = plan.tasks.find((row) => row.id === task.id)?.callBudget ?? 1
+          return Array.from({ length: allowance }, (_, step) => ({
+            calls: [
+              {
+                name: 'todo_write',
+                arguments: JSON.stringify({
+                  items: [
+                    { id: String(step), text: `Step ${String(step)}`, status: 'in_progress' },
+                  ],
+                }),
+              },
+            ],
+          }))
+        })
+      }),
+    )
+    const report = await runPairedEval(EVAL_TASKS, arms, { ...deps, maxAttempts: 548 })
+    for (const arm of report.arms) {
+      expect(arm.results.slice(0, 4).map((task) => task.taskId)).toEqual([
+        'accept-long-compaction',
+        'heldout-long-compaction',
+        'accept-long-middle-value',
+        'heldout-long-middle-rule',
+      ])
+      expect(arm.results.slice(0, 4).every((task) => task.passed)).toBe(true)
+      expect(arm.results.find((task) => task.taskId === 'accept-off-by-one')).toMatchObject({
+        overBudget: true,
+        passed: false,
+      })
+      expect(arm.results.slice(5).every((task) => task.passed)).toBe(true)
+    }
+    expect(
+      report.arms
+        .find((arm) => arm.name === 'auto-compaction')
+        ?.results.slice(0, 2)
+        .map((task) => task.compactionsApplied),
+    ).toEqual([1, 1])
+    expect(report.version === EVAL_REPORT_VERSION ? report.stoppedEarly : undefined).toBeUndefined()
+    expect(report.verdict).toBe('pass')
+  })
+
+  it('calls the six-task selection incomplete even when every floor and mechanism holds', async () => {
+    const { api, deps } = rig()
+    const tasks = EVAL_TASKS.filter(
+      (task) =>
+        task.isLongContext === true ||
+        task.isLongOutput === true ||
+        ['accept-off-by-one', 'heldout-strict-equal'].includes(task.id),
+    )
+    api.script(...tasks.flatMap((task) => canonical(task)))
+    const raw = await runPairedEval(tasks, [BASELINE], deps)
+    if (raw.version !== EVAL_REPORT_VERSION) throw new Error('unexpected legacy report')
+    expect(raw.floors.every((floor) => floor.held)).toBe(true)
+    // Accepted and packed evidence is supplied here to isolate selection.
+    const report = {
+      ...raw,
+      arms: [
+        ...raw.arms,
+        {
+          ...raw.arms[0],
+          name: 'packing',
+          results:
+            raw.arms[0]?.results.map((result) => ({ ...result, packedTokensAvoided: 1 })) ?? [],
+          summaries: [],
+        },
+        {
+          name: 'auto-compaction',
+          results:
+            raw.arms[0]?.results.map((result) => ({
+              ...result,
+              compactionsApplied: 1,
+              compactionsSettled: 1,
+            })) ?? [],
+          summaries: [],
+        },
+      ],
+    }
+    expect(
+      withCompactionEngagement(
+        withPackingEngagement(report, 'packing', tasks),
+        'auto-compaction',
+        'baseline',
+        tasks,
+      ).verdict,
+    ).toBe('incomplete')
+    expect(raw.incompleteReasons).toEqual(['narrowed selection'])
+  })
+
   it('records the packing ledger and the recalls of the long-output tasks (M73)', async () => {
     const { api, deps } = rig()
     const tasks = EVAL_TASKS.filter((task) => task.isLongOutput === true)
@@ -635,7 +810,7 @@ describe('runPairedEval', { timeout: RUNS_TIMEOUT_MS }, () => {
       }),
     )
     const report = await runPairedEval(tasks, [BASELINE, OBSERVATION_PACKING_ARM], deps)
-    expect(report.verdict).toBe('pass')
+    expect(report.verdict).toBe('incomplete')
     const [baseline, packing] = report.arms
     expect(
       baseline?.results.map((result) => [

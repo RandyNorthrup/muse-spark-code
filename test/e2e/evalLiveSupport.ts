@@ -221,8 +221,8 @@ export function withPackingEngagement(
   // An empty list is not held: nothing ran to engage on.
   const isHeld = longTasks.length > 0 && unengaged.length === 0
   let verdict = report.verdict
-  if (!isHeld) {
-    verdict = longTasks.length === 0 && report.verdict === 'pass' ? 'incomplete' : 'fail'
+  if (!isHeld && verdict !== 'incomplete') {
+    verdict = longTasks.length === 0 ? 'incomplete' : 'fail'
   }
   return {
     ...report,
@@ -257,9 +257,17 @@ export function unengagedCompactionTasks(
   return tasks
     .filter((task) => task.isLongContext === true)
     .filter((task) => {
-      const settled = arm.find((result) => result.taskId === task.id)?.compactionsSettled
+      const result = arm.find((result) => result.taskId === task.id)
+      const settled = result?.compactionsSettled
+      const applied = result?.compactionsApplied
       const ran = baseline.find((result) => result.taskId === task.id)
-      return ran === undefined || settled === undefined || settled < 1
+      return (
+        ran === undefined ||
+        settled === undefined ||
+        applied === undefined ||
+        applied < 1 ||
+        settled < applied
+      )
     })
     .map((task) => task.id)
 }
@@ -287,8 +295,8 @@ export function withCompactionEngagement(
   // An empty list is not held: nothing ran to engage on.
   const isHeld = longTasks.length > 0 && unengaged.length === 0
   let verdict = report.verdict
-  if (!isHeld) {
-    verdict = longTasks.length === 0 && report.verdict === 'pass' ? 'incomplete' : 'fail'
+  if (!isHeld && verdict !== 'incomplete') {
+    verdict = longTasks.length === 0 ? 'incomplete' : 'fail'
   }
   return {
     ...report,

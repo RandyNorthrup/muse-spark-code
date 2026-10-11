@@ -62,6 +62,7 @@ export type EvalWireTruncation = 'call-ceiling' | 'budget-spent' | 'unknown-usag
 export interface EvalWire {
   readonly fetch: typeof fetch
   /** The requests sent, in order. */
+  readonly isOverBudget: boolean
   readonly calls: readonly EvalWireCall[]
   /** The requests refused before sending, by reason. */
   readonly refusals: readonly string[]
@@ -199,6 +200,7 @@ export interface EvalWireDeps {
   /** The network: the live `fetch`, or the fake Model API's. */
   readonly fetch: typeof fetch
   readonly baseUrl: string
+  readonly maxAttempts?: number | undefined
   readonly budget: EvalBudget
 }
 
@@ -210,6 +212,8 @@ export function createEvalWire(deps: EvalWireDeps): EvalWire {
   const problems: string[] = []
   const truncated: EvalWireTruncation[] = []
   const reads: Promise<void>[] = []
+  let taskAttempts = 0
+  let isOverBudget = false
 
   const refuse = (reason: string): Response => {
     refusals.push(reason)
@@ -292,6 +296,12 @@ export function createEvalWire(deps: EvalWireDeps): EvalWire {
       return refuse(`the evaluation runs on ${EVAL_MODEL_ID} only, not ${String(model)}`)
     }
     if (isModelCall) {
+      if (deps.maxAttempts !== undefined && taskAttempts >= deps.maxAttempts) {
+        isOverBudget = true
+        return refuse(
+          `task over budget: its allowance of ${String(deps.maxAttempts)} model calls is reached`,
+        )
+      }
       // The counted run's hard call ceiling (lane E): refusals never
       // consume it, only validated sends.
       const sent = deps.budget.sentAttempts ?? 0
@@ -311,6 +321,7 @@ export function createEvalWire(deps: EvalWireDeps): EvalWire {
       // Counted only once the send is certain: a refusal after the body
       // read (R2: the budget spent while the body was held) consumes no
       // ceiling slot, so the next real call is still allowed.
+      taskAttempts += 1
       deps.budget.sentAttempts = (deps.budget.sentAttempts ?? 0) + 1
     }
     const call: EvalWireCall = {
@@ -362,6 +373,9 @@ export function createEvalWire(deps: EvalWireDeps): EvalWire {
 
   return {
     fetch: wiredFetch,
+    get isOverBudget() {
+      return isOverBudget
+    },
     calls,
     refusals,
     problems,

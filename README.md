@@ -5630,11 +5630,19 @@ without rebuilding.
 #### M101 integration validation
 
 `node scripts/m101-e.mjs --plan` prints lane E's live capture plan and call
-estimate. `node scripts/m101-e.mjs --fake` runs request goldens, the fake
+estimate: 137 calls per arm, 548 total from independent measured task
+allowances, about $0.073 at the first run's token mix, with a $0.50 spend
+stop. Local overruns fail their task and continue; narrowed selections and
+global stops remain incomplete. `node scripts/m101-e.mjs --fake` runs request goldens, the fake
 M75 pair and automatic-compaction/overflow checks in bounded batches. Lane E
 owns the live receipt; production automatic compaction stays inactive until
 its evaluated latch and paid admission are certified. The launcher's live
-M75 mode uses the existing OS-stored key and bills that key.
+M75 mode uses the existing OS-stored key and bills that key. It checks the
+certified freeze before opening credentials. The `--smoke-m75` mode is also
+paid and live; it defaults to one task and succeeds only with an incomplete
+narrowed-selection receipt whose selected task passed. Offline fake tests
+validate that contract. Re-freeze reviewed harness changes with the offline
+`--freeze` mode; it generates `src/core/eval/frozen.json`.
 
 PNG/JPEG images are resized before entering Model API replay when the selected
 model record supplies vision support and documented pixel limits. The portable

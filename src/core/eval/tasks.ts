@@ -133,6 +133,69 @@ const LONG_CONTEXT_PROMPT =
 
 export const EVAL_TASKS: readonly EvalTask[] = [
   {
+    id: 'accept-long-compaction',
+    title: 'Recover a build number from a long log and record it',
+    split: 'accept',
+    prompt: `${LONG_CONTEXT_PROMPT} create answer.js exporting the build number as the number answer. Do not write answer.js before recovering the record.\n\n${compactBulk('required_build=781924')}`,
+    files: [PACKAGE_JSON],
+    verify: ["const { answer } = await load('answer.js')", 'assert.equal(answer, 781924)'].join(
+      '\n',
+    ),
+    isLongContext: true,
+  },
+  {
+    id: 'heldout-long-compaction',
+    title: 'Apply a rule from a long log to a transform',
+    split: 'heldout',
+    prompt: `${LONG_CONTEXT_PROMPT} create transform.js exporting transform(value), which applies the record's mapping. Do not write transform.js before recovering the record.\n\n${compactBulk('required mapping: add 4 to the input, then multiply by 6')}`,
+    files: [PACKAGE_JSON],
+    verify: [
+      "const { transform } = await load('transform.js')",
+      'assert.equal(transform(-3), 6)',
+      'assert.equal(transform(0), 24)',
+      'assert.equal(transform(2), 36)',
+      'assert.equal(transform(8), 72)',
+    ].join('\n'),
+    isLongContext: true,
+  },
+  {
+    id: 'accept-long-middle-value',
+    title: 'Recover a value from the middle of a long tool output',
+    split: 'accept',
+    prompt: `${LONG_OUTPUT_PROMPT} create answer.js exporting the record's required value as the number answer. Do not write answer.js before recovering the record.`,
+    files: [
+      PACKAGE_JSON,
+      { path: 'evidence.txt', content: evidenceFile('required_value=314159') },
+      ...PHASE_FILES,
+    ],
+    verify: ["const { answer } = await load('answer.js')", 'assert.equal(answer, 314159)'].join(
+      '\n',
+    ),
+    isLongOutput: true,
+  },
+  {
+    id: 'heldout-long-middle-rule',
+    title: 'Apply a rule from the middle of a long tool output',
+    split: 'heldout',
+    prompt: `${LONG_OUTPUT_PROMPT} create transform.js exporting transform(value), which applies the record's mapping. Do not write transform.js before recovering the record.`,
+    files: [
+      PACKAGE_JSON,
+      {
+        path: 'evidence.txt',
+        content: evidenceFile('required mapping: multiply the input by 7, then add 11'),
+      },
+      ...PHASE_FILES,
+    ],
+    verify: [
+      "const { transform } = await load('transform.js')",
+      'assert.equal(transform(-3), -10)',
+      'assert.equal(transform(0), 11)',
+      'assert.equal(transform(2), 25)',
+      'assert.equal(transform(8), 67)',
+    ].join('\n'),
+    isLongOutput: true,
+  },
+  {
     id: 'accept-off-by-one',
     title: 'Fix the loop bound that reads past the end',
     split: 'accept',
@@ -343,69 +406,6 @@ export const EVAL_TASKS: readonly EvalTask[] = [
       "assert.deepEqual(JSON.parse(readFileSync(file, 'utf8')), { theme: 'dark' })",
       "await assert.rejects(saveSettings(join(process.cwd(), 'missing', 'settings.json'), {}))",
     ].join('\n'),
-  },
-  {
-    id: 'accept-long-middle-value',
-    title: 'Recover a value from the middle of a long tool output',
-    split: 'accept',
-    prompt: `${LONG_OUTPUT_PROMPT} create answer.js exporting the record's required value as the number answer. Do not write answer.js before recovering the record.`,
-    files: [
-      PACKAGE_JSON,
-      { path: 'evidence.txt', content: evidenceFile('required_value=314159') },
-      ...PHASE_FILES,
-    ],
-    verify: ["const { answer } = await load('answer.js')", 'assert.equal(answer, 314159)'].join(
-      '\n',
-    ),
-    isLongOutput: true,
-  },
-  {
-    id: 'heldout-long-middle-rule',
-    title: 'Apply a rule from the middle of a long tool output',
-    split: 'heldout',
-    prompt: `${LONG_OUTPUT_PROMPT} create transform.js exporting transform(value), which applies the record's mapping. Do not write transform.js before recovering the record.`,
-    files: [
-      PACKAGE_JSON,
-      {
-        path: 'evidence.txt',
-        content: evidenceFile('required mapping: multiply the input by 7, then add 11'),
-      },
-      ...PHASE_FILES,
-    ],
-    verify: [
-      "const { transform } = await load('transform.js')",
-      'assert.equal(transform(-3), -10)',
-      'assert.equal(transform(0), 11)',
-      'assert.equal(transform(2), 25)',
-      'assert.equal(transform(8), 67)',
-    ].join('\n'),
-    isLongOutput: true,
-  },
-  {
-    id: 'accept-long-compaction',
-    title: 'Recover a build number from a long log and record it',
-    split: 'accept',
-    prompt: `${LONG_CONTEXT_PROMPT} create answer.js exporting the build number as the number answer. Do not write answer.js before recovering the record.\n\n${compactBulk('required_build=781924')}`,
-    files: [PACKAGE_JSON],
-    verify: ["const { answer } = await load('answer.js')", 'assert.equal(answer, 781924)'].join(
-      '\n',
-    ),
-    isLongContext: true,
-  },
-  {
-    id: 'heldout-long-compaction',
-    title: 'Apply a rule from a long log to a transform',
-    split: 'heldout',
-    prompt: `${LONG_CONTEXT_PROMPT} create transform.js exporting transform(value), which applies the record's mapping. Do not write transform.js before recovering the record.\n\n${compactBulk('required mapping: add 4 to the input, then multiply by 6')}`,
-    files: [PACKAGE_JSON],
-    verify: [
-      "const { transform } = await load('transform.js')",
-      'assert.equal(transform(-3), 6)',
-      'assert.equal(transform(0), 24)',
-      'assert.equal(transform(2), 36)',
-      'assert.equal(transform(8), 72)',
-    ].join('\n'),
-    isLongContext: true,
   },
   {
     id: 'accept-multi-edit',
