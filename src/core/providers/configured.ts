@@ -38,7 +38,13 @@ import { parseNdjson } from '../backends/modelapi/ndjson'
 import { parseSse } from '../backends/modelapi/sse'
 import { ApiKeyAuthSource, NoAuthSource } from '../backends/modelapi/authSource'
 import { CodecClient, type WireCodec } from '../backends/modelapi/providerClient'
-import { RequestTransport, parseJsonResponse, ModelApiError } from '../backends/modelapi/transport'
+import {
+  RequestTransport,
+  parseJsonResponse,
+  ModelApiError,
+  assertConfirmedAllowed,
+  isStaleConfirmedError,
+} from '../backends/modelapi/transport'
 import { withDeadline } from '../timeouts'
 import { Usd } from '../../shared/usd'
 import {
@@ -745,6 +751,10 @@ export function createConfiguredProviderServices(
           },
         )
         try {
+          // The shared helper is the only confirmed-dispatch decision: a
+          // lapsed or mismatched confirmation refuses with the run's own
+          // guidance before the provider's unavailable text.
+          assertConfirmedAllowed(body.model, confirmed)
           if (body.model !== ref) return fail()
           const events = client.streamResponse(
             body,
@@ -758,13 +768,16 @@ export function createConfiguredProviderServices(
             if ('response' in event && event.response.usage != null) usage = event.response.usage
             yield event
           }
-        } catch (error) {
+        } catch (error: unknown) {
           // A typed codec refusal (an unsupported reasoning effort and its
           // localized reason) and the output-cap minimum refusal (MINOUT)
           // reach the caller; genuinely unknown errors keep the generic
           // unavailable error (lane FIXDSTHINK2 finding 3).
           if (chat.isChatCodecError(error)) throw error
           if (error instanceof RangeError) throw error
+          // A lapsed confirmation keeps the run's own guidance instead of
+          // the provider's unavailable text.
+          if (isStaleConfirmedError(error)) throw error
           return fail()
         } finally {
           if (presets.planKeyPresetById(entry.preset) !== undefined)

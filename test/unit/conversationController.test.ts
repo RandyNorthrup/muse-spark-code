@@ -1827,6 +1827,20 @@ describe('ConversationController: composer controls', () => {
     expect(t.server.requestsFor('session/start')).toHaveLength(2)
   })
 
+  it('shows compaction retry guidance when compaction fails on a stale record', async () => {
+    // RVCM1062E P3: the displayed compaction-failure reason names compaction,
+    // never a schedule the user never ran.
+    const t = setup()
+    t.server.handle('session/compact', () => {
+      throw new Error(UI_TEXT.requestStaleCompaction)
+    })
+    await t.controller.handle({ type: 'compact' })
+    const notice = t.surface.posted.at(-1)
+    expect(notice).toMatchObject({ type: 'notice', level: 'error' })
+    expect(notice?.type === 'notice' ? notice.text : '').toContain('Compact again')
+    expect(notice?.type === 'notice' ? notice.text : '').not.toContain('schedule')
+    t.controller.dispose()
+  })
   it('refuses skills, compaction and mentions when signed out', async () => {
     const t = setup({ status: 'signedOut' })
     await t.controller.handle({ type: 'listSkills' })
