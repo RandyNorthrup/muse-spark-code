@@ -228,7 +228,8 @@ visible as unavailable.
 | Issues                      | `/report issues`                                                                            |
 | Estimate                    | `/report estimate M113`                                                                     |
 | Fleet / security / accounts | `/report fleet`, `/report security`, `/report accounts`; future source bindings unavailable |
-| Schedules / keybindings     | `/report schedules`, `/report keybindings`; owning host bindings unavailable                |
+| Keybindings                 | `/report keybindings`; editor bindings, panel gestures, ACP commands                        |
+| Schedules                   | `/report schedules`; owning host bindings unavailable                                       |
 
 Each table shows at most ten rows with an omitted-row count; `--full` retains
 all available rows. Next steps follow the plan's declared delivery order and

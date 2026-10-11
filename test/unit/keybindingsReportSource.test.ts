@@ -26,20 +26,20 @@ import { fixtureCollector } from './helpers/reporting/collect'
 import { referenceKeyboardActions } from '../../src/shared/keybindings'
 import manifest from '../../package.json'
 
-// Report storage's own-process identity probe and Git metadata are bounded OS
-// commands; the governed admission is proved by spawnGovernance, and here the
-// fixture command stands in, as in reportEngine.test.ts.
+// Bounded probe exec stands in for governed admission here (see spawnGovernance).
 vi.mock('../../src/core/resources/launcher', async (original) => {
   const { withFixtureCommand } = await import('./helpers/resources/fixtureLaunch')
   return withFixtureCommand(await original())
 })
 
-const context = () => ({
-  asOf: REPORT_FIXTURE_AS_OF,
-  workspaceKey: 'fixture',
-  options: reportOptions('keybindings'),
-  signal: new AbortController().signal,
-})
+function keybindingsContext() {
+  return {
+    asOf: REPORT_FIXTURE_AS_OF,
+    workspaceKey: 'keybindings-fixture',
+    options: reportOptions('keybindings'),
+    signal: new AbortController().signal,
+  }
+}
 
 const roots: string[] = []
 afterEach(async () => {
@@ -83,7 +83,7 @@ function editorCells(section: ReportSection, command: string, platform: string) 
 
 describe('keybindings report facts', () => {
   it('lists every installed editor binding on every platform with its scope', async () => {
-    const result = await keybindingsSource(() => manifest).read(context())
+    const result = await keybindingsSource(() => manifest).read(keybindingsContext())
     expect(result.record.status).toBe('ok')
     const sections = result.data ?? []
     expect(sections.map((section) => section.id)).toEqual([
@@ -140,7 +140,7 @@ describe('keybindings report facts', () => {
         ],
       },
     }
-    const valid = await keybindingsSource(() => base).read(context())
+    const valid = await keybindingsSource(() => base).read(keybindingsContext())
     expect(valid.record.status).toBe('ok')
     // Two bindings on three platforms, every panel gesture, every ACP local.
     expect(valid.data?.[0]?.rows).toHaveLength(
@@ -168,7 +168,7 @@ describe('keybindings report facts', () => {
         },
       },
     ]) {
-      const result = await keybindingsSource(() => broken).read(context())
+      const result = await keybindingsSource(() => broken).read(keybindingsContext())
       expect(result.record.status).toBe('unavailable')
       expect(result.data).toBeNull()
     }
@@ -233,7 +233,7 @@ describe('keybindings report facts', () => {
   })
 
   it('collects real sections through the shared forward with row caps', async () => {
-    const result = await keybindingsSource(() => manifest).read(context())
+    const result = await keybindingsSource(() => manifest).read(keybindingsContext())
     const report = fixtureCollector(
       buildSourceSnapshot({ keybindings: availableSource('keybindings', result.data!) }),
       reportOptions('keybindings'),
@@ -275,7 +275,7 @@ describe('keybindings manifest reader', () => {
     })
     const missing = await keybindingsSource(() => {
       throw new LocalSourceError('missing')
-    }).read(context())
+    }).read(keybindingsContext())
     expect(missing).toMatchObject({
       record: { status: 'unavailable', reason: EN.reportSourceReasons.missing },
       data: null,
@@ -283,48 +283,47 @@ describe('keybindings manifest reader', () => {
   })
 })
 
-async function engineWorkspace() {
-  const root = await mkdtemp(path.join(os.tmpdir(), 'keybindings-engine-'))
-  roots.push(root)
+async function keybindingsRun(keybindings: (() => unknown) | undefined) {
+  const home = await mkdtemp(path.join(os.tmpdir(), 'keybindings-host-'))
+  roots.push(home)
   await writeFile(
-    path.join(root, 'package.json'),
+    path.join(home, 'package.json'),
     JSON.stringify({ scripts: { quality: 'npm test' } }),
   )
   await writeFile(
-    path.join(root, 'CHANGELOG.md'),
+    path.join(home, 'CHANGELOG.md'),
     '# Changelog\n\n## [Unreleased]\n\n### Added\n\n- A local change.\n',
   )
-  return root
+  const workspaceKey = reportWorkspaceKey(home, process.platform)
+  const engine = createReportingEngine({
+    workspaceRoot: home,
+    workspaceKey,
+    storageRoot: path.join(home, 'data'),
+    l10n: { table: EN, locale: 'en' },
+    generatorVersion: '0.0.0-test',
+    keepHistory: false,
+    enabledAgents: [],
+    ...(keybindings !== undefined && { keybindings }),
+  })
+  const result = await engine.reports.run({
+    workspaceKey,
+    options: {
+      kind: 'keybindings',
+      asOf: REPORT_AS_OF,
+      scope: '',
+      full: false,
+      network: false,
+      failOn: [],
+    },
+  })
+  if (result.status !== 'generated') throw new Error(JSON.stringify(result))
+  return result.document
 }
 describe('keybindings engine binding', () => {
-  const options = {
-    kind: 'keybindings' as const,
-    asOf: REPORT_AS_OF,
-    scope: '',
-    full: false,
-    network: false,
-    failOn: [],
-  }
   it('generates the kind from the passed install manifest in every host', async () => {
-    const root = await engineWorkspace()
-    const workspaceKey = reportWorkspaceKey(root, process.platform)
-    const engine = createReportingEngine({
-      workspaceRoot: root,
-      workspaceKey,
-      storageRoot: path.join(root, 'data'),
-      l10n: { table: EN, locale: 'en' },
-      generatorVersion: '0.0.0-test',
-      keepHistory: false,
-      enabledAgents: [],
-      keybindings: () => manifest,
-    })
-    const result = await engine.reports.run({ workspaceKey, options })
-    expect(result.status).toBe('generated')
-    if (result.status !== 'generated') throw new Error(JSON.stringify(result))
-    expect(result.document.sources.find(({ id }) => id === 'keybindings')?.status).toBe('ok')
-    const bindings = result.document.sections.find(
-      (section) => section.id === 'keybindings/keybindings',
-    )!
+    const document = await keybindingsRun(() => manifest)
+    expect(document.sources.find(({ id }) => id === 'keybindings')?.status).toBe('ok')
+    const bindings = document.sections.find((section) => section.id === 'keybindings/keybindings')!
     expect(
       bindings.rows.some(
         (entry) =>
@@ -334,22 +333,7 @@ describe('keybindings engine binding', () => {
     ).toBe(true)
   })
   it('leaves the kind unbound without the install manifest', async () => {
-    const root = await engineWorkspace()
-    const workspaceKey = reportWorkspaceKey(root, process.platform)
-    const engine = createReportingEngine({
-      workspaceRoot: root,
-      workspaceKey,
-      storageRoot: path.join(root, 'data'),
-      l10n: { table: EN, locale: 'en' },
-      generatorVersion: '0.0.0-test',
-      keepHistory: false,
-      enabledAgents: [],
-    })
-    const result = await engine.reports.run({ workspaceKey, options })
-    expect(result.status).toBe('generated')
-    if (result.status !== 'generated') throw new Error(JSON.stringify(result))
-    expect(result.document.sources.find(({ id }) => id === 'keybindings')?.status).toBe(
-      'unavailable',
-    )
+    const document = await keybindingsRun(undefined)
+    expect(document.sources.find(({ id }) => id === 'keybindings')?.status).toBe('unavailable')
   })
 })
