@@ -1,8 +1,9 @@
+import { Usd as PortUsd } from '../../src/shared/usd'
 import { describe, expect, it, vi } from 'vitest'
 import { readAccountUsage } from '../../src/core/usage/accountUsage'
 import { evaluateAccountThresholds } from '../../src/core/accounts/thresholds'
 import type { AccountUsageTotals } from '../../src/shared/accounts'
-import { parseUsd, usdNumber } from '../../src/shared/accountUsd'
+import { parseUsd, usdDecimal } from '../../src/shared/accountUsd'
 import { UI_TEXT } from '../../src/shared/constants'
 import {
   USAGE_NOW,
@@ -39,7 +40,13 @@ describe('M108 J account aggregation', () => {
   it('keeps exact nano-USD liability and safe counts across settlement, reservation and uncertainty', () => {
     const f = usageFixture()
     f.records.splice(1)
-    f.records.push(usageRecord({ settledUsd: 0.2, reservedUsd: 0, uncertainUsd: 0 }))
+    f.records.push(
+      usageRecord({
+        settledUsd: PortUsd.from(0.2).toAmount(),
+        reservedUsd: PortUsd.from(0).toAmount(),
+        uncertainUsd: PortUsd.from(0).toAmount(),
+      }),
+    )
     const row = f.report().accounts[0]!
     expect(row.totals).toEqual({
       settledUsd: '0.3',
@@ -57,11 +64,102 @@ describe('M108 J account aggregation', () => {
       isReached: true,
     })
     f.records.length = 0
-    f.records.push(usageRecord({ settledUsd: '0.3', reservedUsd: 0, uncertainUsd: 0 }))
-    f.catalog[0]!.accounts[0] = usageAccount('default', { spendUsd: { day: 0.3000000009 } })
-    expect(f.report().accounts[0]?.meters[0]).toMatchObject({ threshold: '0.3', isReached: true })
+    f.records.push(
+      usageRecord({
+        settledUsd: '0.3',
+        reservedUsd: PortUsd.from(0).toAmount(),
+        uncertainUsd: PortUsd.from(0).toAmount(),
+      }),
+    )
+    f.catalog[0]!.accounts[0] = usageAccount('default', {
+      spendUsd: { day: PortUsd.from(0.3000000009).toAmount() },
+    })
+    // The cap is carried exactly, not floored to nano-USD: '0.3' spent against
+    // a '0.3000000009' cap is not reached, matching admission.
+    expect(f.report().accounts[0]?.meters[0]).toMatchObject({
+      value: '0.3',
+      threshold: '0.3000000009',
+      progress: 99,
+      isReached: false,
+    })
     f.records.push(usageRecord({ requests: Number.MAX_SAFE_INTEGER }))
     expect(f.report).toThrow('spend ledger')
+  })
+
+  it('matches admission exactly on a sub-nano spend cap instead of flooring it', () => {
+    const cap = PortUsd.from('0.1000000000000000001').toAmount()
+    const tenth = PortUsd.from('0.1').toAmount()
+    const zero = PortUsd.from(0).toAmount()
+    const f = usageFixture()
+    f.records.splice(
+      0,
+      f.records.length,
+      usageRecord({ settledUsd: tenth, reservedUsd: zero, uncertainUsd: zero }),
+    )
+    f.catalog[0]!.accounts[0] = usageAccount('default', { spendUsd: { day: cap } })
+    expect(f.report().accounts[0]?.meters[0]).toMatchObject({
+      value: '0.1',
+      threshold: '0.1000000000000000001',
+      progress: 99,
+      isReached: false,
+    })
+    expect(
+      evaluateAccountThresholds({
+        provider: 'meta',
+        account: { id: 'default', thresholds: { spendUsd: { day: cap } } },
+        now: USAGE_NOW,
+        journal: {
+          read: () => ({
+            settledUsd: PortUsd.from('0.1').toAmount(),
+            reservedUsd: PortUsd.from(0).toAmount(),
+            uncertainUsd: PortUsd.from(0).toAmount(),
+            inputTokens: 0,
+            outputTokens: 0,
+            requests: 0,
+          }),
+        },
+      }),
+    ).toEqual([])
+  })
+
+  it('keeps sub-nano spend below nearby caps instead of rounding up through nano-USD', () => {
+    // A1: totalsFor rounded spend through nano-USD, so the meter reported
+    // these caps reached while admission did not.
+    for (const [capText, spendText] of [
+      ['0.1000000005', '0.1000000001'],
+      ['0.1000000000000000002', '0.1000000000000000001'],
+    ] as const) {
+      const cap = PortUsd.from(capText).toAmount()
+      const spend = PortUsd.from(spendText).toAmount()
+      const zero = PortUsd.from(0).toAmount()
+      const f = usageFixture()
+      f.records.splice(
+        0,
+        f.records.length,
+        usageRecord({ settledUsd: spend, reservedUsd: zero, uncertainUsd: zero }),
+      )
+      f.catalog[0]!.accounts[0] = usageAccount('default', { spendUsd: { day: cap } })
+      const meter = f.report().accounts[0]?.meters[0]
+      expect(meter).toMatchObject({ value: spendText, threshold: capText, isReached: false })
+      expect(meter?.progress).toBeLessThan(100)
+      expect(
+        evaluateAccountThresholds({
+          provider: 'meta',
+          account: { id: 'default', thresholds: { spendUsd: { day: cap } } },
+          now: USAGE_NOW,
+          journal: {
+            read: () => ({
+              settledUsd: spend,
+              reservedUsd: zero,
+              uncertainUsd: zero,
+              inputTokens: 0,
+              outputTokens: 0,
+              requests: 0,
+            }),
+          },
+        }),
+      ).toEqual([])
+    }
   })
 
   it('includes configured idle accounts and removed event identities without inventing usage', () => {
@@ -84,7 +182,11 @@ describe('M108 J account aggregation', () => {
   it('uses half-open local calendar periods for selected totals and each threshold meter', () => {
     const f = usageFixture()
     f.catalog[0]!.accounts[0] = usageAccount('default', {
-      spendUsd: { day: 10, week: 10, month: 10 },
+      spendUsd: {
+        day: PortUsd.from(10).toAmount(),
+        week: PortUsd.from(10).toAmount(),
+        month: PortUsd.from(10).toAmount(),
+      },
       inputTokens: { day: 100 },
       outputTokens: { month: 100 },
       requests: { week: 100 },
@@ -100,16 +202,16 @@ describe('M108 J account aggregation', () => {
         usageRecord({
           time: new Date(2026, 9, day).toISOString(),
           settledUsd,
-          reservedUsd: 0,
-          uncertainUsd: 0,
+          reservedUsd: PortUsd.from(0).toAmount(),
+          uncertainUsd: PortUsd.from(0).toAmount(),
         }),
       )
     f.records.push(
       usageRecord({
         time: new Date(2026, 8, 30, 23, 59).toISOString(),
         settledUsd: '9',
-        reservedUsd: 0,
-        uncertainUsd: 0,
+        reservedUsd: PortUsd.from(0).toAmount(),
+        uncertainUsd: PortUsd.from(0).toAmount(),
       }),
     )
     const queries: { start: string; end: string }[] = []
@@ -182,7 +284,13 @@ describe('M108 J account aggregation', () => {
         [new Date(2026, 11, 31, 23, 59), new Date(2027, 0, 1, 0, 1)],
       ] as const) {
         const f = usageFixture()
-        const account = usageAccount('default', { spendUsd: { day: 1, week: 1, month: 1 } })
+        const account = usageAccount('default', {
+          spendUsd: {
+            day: PortUsd.from(1).toAmount(),
+            week: PortUsd.from(1).toAmount(),
+            month: PortUsd.from(1).toAmount(),
+          },
+        })
         f.catalog[0]!.accounts[0] = account
         const old = usageRecord({
           account: undefined,
@@ -238,9 +346,11 @@ describe('M108 J account aggregation', () => {
             now: observed.getTime(),
             journal: {
               read: (query) => ({
-                settledUsd: Date.parse(old.time) >= Date.parse(query.start) ? 9.1 : 0.1,
-                reservedUsd: Number(reservedUsd),
-                uncertainUsd: Number(uncertainUsd),
+                settledUsd: PortUsd.from(
+                  Date.parse(old.time) >= Date.parse(query.start) ? 9.1 : 0.1,
+                ).toAmount(),
+                reservedUsd: PortUsd.from(reservedUsd).toAmount(),
+                uncertainUsd: PortUsd.from(uncertainUsd).toAmount(),
                 inputTokens: 0,
                 outputTokens: 0,
                 requests: 0,
@@ -536,12 +646,16 @@ describe('M108 J account aggregation', () => {
         label: provider,
         accounts: [
           usageAccount('default', {
-            spendUsd: { day: 0.3, week: 0.4, month: 1 },
+            spendUsd: {
+              day: PortUsd.from(0.3).toAmount(),
+              week: PortUsd.from(0.4).toAmount(),
+              month: PortUsd.from(1).toAmount(),
+            },
             inputTokens: { day: 100, month: 1000 },
             outputTokens: { day: 20, month: 200 },
             requests: { day: 10 },
           }),
-          usageAccount('personal', { spendUsd: { day: 0.3 } }),
+          usageAccount('personal', { spendUsd: { day: PortUsd.from(0.3).toAmount() } }),
         ],
       })
     let seed = 108
@@ -564,8 +678,8 @@ describe('M108 J account aggregation', () => {
           provider,
           account,
           settledUsd: `0.${String(nano).padStart(9, '0')}`,
-          reservedUsd: 0,
-          uncertainUsd: 0,
+          reservedUsd: PortUsd.from(0).toAmount(),
+          uncertainUsd: PortUsd.from(0).toAmount(),
           inputTokens: tokens,
           outputTokens: 0,
         }),
@@ -582,9 +696,9 @@ describe('M108 J account aggregation', () => {
         .find((entry) => entry.provider === row.provider)!
         .accounts.find((entry) => entry.id === row.account)!
       const totals: AccountUsageTotals = {
-        settledUsd: usdNumber(truth.nano),
-        reservedUsd: 0,
-        uncertainUsd: 0,
+        settledUsd: PortUsd.from(usdDecimal(truth.nano)).toAmount(),
+        reservedUsd: PortUsd.from(0).toAmount(),
+        uncertainUsd: PortUsd.from(0).toAmount(),
         inputTokens: truth.tokens,
         outputTokens: 0,
         requests: truth.requests,

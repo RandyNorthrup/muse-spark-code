@@ -299,7 +299,7 @@ describe('machine-local Developer options', () => {
     expect(restored.resources.start).toHaveBeenCalledTimes(1)
     await expect(
       DeveloperOptions.open({ ...restored.deps, machineId: 'other-machine' }),
-    ).rejects.toMatchObject({ code: 'unavailable' })
+    ).rejects.toMatchObject({ code: 'differentMachine' })
     const future = developerFixture({
       ...stored,
       unlockedAt: stored.unlockedAt === null ? 1 : stored.unlockedAt + 1,

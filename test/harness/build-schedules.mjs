@@ -1,8 +1,8 @@
-// Lane V's separate-page preview. W binds this entry in the shipping build
-// after integrating S/U/T; the existing conversation budget is unchanged.
+// Render the served revision's schedule component through its standalone mount.
 import { build } from 'esbuild'
-export async function buildScheduleHarness() {
+export async function buildScheduleHarness(root = process.cwd()) {
   await build({
+    absWorkingDir: root,
     entryPoints: ['src/webview/schedules/ScheduleSurface.tsx'],
     outdir: 'temp/m115-v/surface',
     bundle: true,

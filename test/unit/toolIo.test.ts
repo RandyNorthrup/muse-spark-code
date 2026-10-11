@@ -39,6 +39,11 @@ import { readJobSource } from './helpers/jobSource'
 vi.mock('node:fs/promises', async (importOriginal) => ({
   ...(await importOriginal<typeof fs>()),
 }))
+// The real job helper compiles under the bootstrap runner; only its admission is a fixture.
+vi.mock('../../src/core/resources/admission', async (original) => {
+  const { withFixtureBootstrap } = await import('./helpers/resources/fixtureLaunch')
+  return withFixtureBootstrap(await original())
+})
 
 const INSTALLED_SHELLS: ReadonlySet<string> = new Set([
   '/usr/bin/bash',

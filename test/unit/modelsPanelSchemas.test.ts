@@ -31,6 +31,7 @@ const messages: readonly PanelToHostMessage[] = [
   { type: 'providers/connectSubscription', providerId: 'chatgpt' },
   { type: 'providers/connectSubscription', providerId: 'copilot' },
   { type: 'providers/edit', providerId: 'ollama' },
+  { type: 'providers/edit', providerId: 'ollama', reload: true },
   { type: 'providers/prefill', fields: { address: 'https://openrouter.ai' } },
   {
     type: 'providers/prefill',
@@ -76,7 +77,12 @@ const messages: readonly PanelToHostMessage[] = [
   { type: 'suggestions/accept', kind: 'defaultModel' },
   { type: 'suggestions/accept', kind: 'sessionBudget' },
   { type: 'suggestions/change', kind: 'defaultModel', modelRef: 'ollama/qwen3:8b' },
-  { type: 'suggestions/change', kind: 'sessionBudget', usd: Usd.from(2.5).toAmount() },
+  {
+    type: 'suggestions/change',
+    kind: 'sessionBudget',
+    usd: Usd.from(2.5).toAmount(),
+    expectedUsd: Usd.from(0).toAmount(),
+  },
 ]
 
 const hostMessages: readonly HostToPanelMessage[] = [
@@ -132,6 +138,33 @@ describe('modelsPanel schemas', () => {
   it('refuses an unknown message type in either direction', () => {
     expect(parsePanelToHostMessage({ type: 'providers/launch' }).ok).toBe(false)
     expect(parseHostToPanelMessage({ type: 'modelsPanel/launch' }).ok).toBe(false)
+  })
+
+  it('validates edit reloads and refuses host-only snapshots on the bridge', () => {
+    expect(
+      parsePanelToHostMessage({ type: 'providers/edit', providerId: 'custom', reload: true }).ok,
+    ).toBe(true)
+    for (const fields of [
+      { reload: 'true' },
+      { editSnapshot: {} },
+      { credential: 'synthetic-key' },
+    ]) {
+      expect(
+        parsePanelToHostMessage({ type: 'providers/edit', providerId: 'custom', ...fields }).ok,
+      ).toBe(false)
+    }
+    expect(
+      parseModelsPanelState({
+        ...emptyState,
+        drafts: { edits: { custom: makeDraft({ saveConflict: true }) } },
+      }).ok,
+    ).toBe(true)
+    expect(
+      parseModelsPanelState({
+        ...emptyState,
+        drafts: { edits: { custom: { ...makeDraft(), saveConflict: 'true' } } },
+      }).ok,
+    ).toBe(false)
   })
 
   it('refuses a deep link to an unknown section', () => {

@@ -1,0 +1,534 @@
+{
+  "lane": "SPAWN017B",
+  "rig": "win11",
+  "base": "b6e717f74",
+  "qualifiedCommit": "19e8893723c5d457e0ea3ff130992ed00b3c0211",
+  "npmCiExit": 0,
+  "gates": [
+    {
+      "name": "typecheck-host",
+      "exit": 0,
+      "ms": 46597
+    },
+    {
+      "name": "typecheck-webview",
+      "exit": 0,
+      "ms": 18251
+    },
+    {
+      "name": "typecheck-unit",
+      "exit": 0,
+      "ms": 103787
+    },
+    {
+      "name": "typecheck-e2e",
+      "exit": 0,
+      "ms": 38038
+    },
+    {
+      "name": "typecheck-integration",
+      "exit": 0,
+      "ms": 12989
+    },
+    {
+      "name": "eslint",
+      "exit": 0,
+      "ms": 41196
+    },
+    {
+      "name": "prettier",
+      "exit": 0,
+      "ms": 20234
+    },
+    {
+      "name": "knip",
+      "exit": 0,
+      "ms": 12977
+    },
+    {
+      "name": "jscpd",
+      "exit": 1,
+      "ms": 3979
+    },
+    {
+      "name": "l10n",
+      "exit": 0,
+      "ms": 4781
+    },
+    {
+      "name": "host-api",
+      "exit": 0,
+      "ms": 36696
+    },
+    {
+      "name": "reference",
+      "exit": 0,
+      "ms": 4201
+    },
+    {
+      "name": "build",
+      "exit": 1,
+      "ms": 15588
+    },
+    {
+      "name": "bootstrap-runtime-boundaries",
+      "exit": 0,
+      "ms": 10514
+    },
+    {
+      "name": "login-runtime-host",
+      "exit": 0,
+      "ms": 15458
+    },
+    {
+      "name": "unavailable-builders",
+      "exit": 0,
+      "ms": 3070
+    },
+    {
+      "name": "native-account-vault",
+      "exit": 0,
+      "ms": 57599
+    },
+    {
+      "name": "schedule-real-git",
+      "exit": 1,
+      "ms": 6253
+    }
+  ],
+  "baselineJscpdExit": 1,
+  "drills": [
+    {
+      "id": "bootstrap-admission",
+      "exit": 1
+    },
+    {
+      "id": "runtime-binding",
+      "exit": 1
+    },
+    {
+      "id": "history-open-destination",
+      "exit": 1
+    },
+    {
+      "id": "unavailable-help",
+      "exit": 1
+    },
+    {
+      "id": "runtime-opener",
+      "exit": 1
+    },
+    {
+      "id": "bootstrap-tree",
+      "exit": 1
+    },
+    {
+      "id": "bootstrap-output",
+      "exit": 1
+    },
+    {
+      "id": "history-module-discovery",
+      "exit": 1
+    },
+    {
+      "id": "vault-bootstrap-admission",
+      "exit": 1,
+      "originalSha256": "c35b7c47a50662131c4bdcff4d3098f58e23531819cf3e32723394375a61b456"
+    }
+  ],
+  "historyExcludedAttempt": [
+    {
+      "mode": "idle",
+      "loop": 1,
+      "exit": 0,
+      "ms": 9995
+    },
+    {
+      "mode": "idle",
+      "loop": 2,
+      "exit": 0,
+      "ms": 10160
+    },
+    {
+      "mode": "idle",
+      "loop": 3,
+      "exit": 1,
+      "ms": 99704
+    }
+  ],
+  "historyFinal": [
+    {
+      "mode": "idle",
+      "loop": 1,
+      "exit": 0,
+      "ms": 9814
+    },
+    {
+      "mode": "idle",
+      "loop": 2,
+      "exit": 0,
+      "ms": 10014
+    },
+    {
+      "mode": "idle",
+      "loop": 3,
+      "exit": 0,
+      "ms": 13083
+    },
+    {
+      "mode": "idle",
+      "loop": 4,
+      "exit": 0,
+      "ms": 9666
+    },
+    {
+      "mode": "idle",
+      "loop": 5,
+      "exit": 0,
+      "ms": 9774
+    },
+    {
+      "mode": "idle",
+      "loop": 6,
+      "exit": 0,
+      "ms": 9607
+    },
+    {
+      "mode": "idle",
+      "loop": 7,
+      "exit": 0,
+      "ms": 9627
+    },
+    {
+      "mode": "idle",
+      "loop": 8,
+      "exit": 0,
+      "ms": 9722
+    },
+    {
+      "mode": "idle",
+      "loop": 9,
+      "exit": 0,
+      "ms": 9652
+    },
+    {
+      "mode": "idle",
+      "loop": 10,
+      "exit": 0,
+      "ms": 9711
+    },
+    {
+      "mode": "idle",
+      "loop": 11,
+      "exit": 0,
+      "ms": 9683
+    },
+    {
+      "mode": "idle",
+      "loop": 12,
+      "exit": 0,
+      "ms": 9656
+    },
+    {
+      "mode": "idle",
+      "loop": 13,
+      "exit": 0,
+      "ms": 9681
+    },
+    {
+      "mode": "idle",
+      "loop": 14,
+      "exit": 0,
+      "ms": 9720
+    },
+    {
+      "mode": "idle",
+      "loop": 15,
+      "exit": 0,
+      "ms": 9692
+    },
+    {
+      "mode": "idle",
+      "loop": 16,
+      "exit": 0,
+      "ms": 10508
+    },
+    {
+      "mode": "idle",
+      "loop": 17,
+      "exit": 0,
+      "ms": 9742
+    },
+    {
+      "mode": "idle",
+      "loop": 18,
+      "exit": 0,
+      "ms": 9780
+    },
+    {
+      "mode": "idle",
+      "loop": 19,
+      "exit": 0,
+      "ms": 9674
+    },
+    {
+      "mode": "idle",
+      "loop": 20,
+      "exit": 0,
+      "ms": 10096
+    },
+    {
+      "mode": "idle",
+      "loop": 21,
+      "exit": 0,
+      "ms": 9617
+    },
+    {
+      "mode": "idle",
+      "loop": 22,
+      "exit": 0,
+      "ms": 9987
+    },
+    {
+      "mode": "idle",
+      "loop": 23,
+      "exit": 0,
+      "ms": 9705
+    },
+    {
+      "mode": "idle",
+      "loop": 24,
+      "exit": 0,
+      "ms": 9650
+    },
+    {
+      "mode": "idle",
+      "loop": 25,
+      "exit": 0,
+      "ms": 9767
+    },
+    {
+      "mode": "idle",
+      "loop": 26,
+      "exit": 0,
+      "ms": 9767
+    },
+    {
+      "mode": "idle",
+      "loop": 27,
+      "exit": 0,
+      "ms": 9739
+    },
+    {
+      "mode": "idle",
+      "loop": 28,
+      "exit": 0,
+      "ms": 9661
+    },
+    {
+      "mode": "idle",
+      "loop": 29,
+      "exit": 0,
+      "ms": 9697
+    },
+    {
+      "mode": "idle",
+      "loop": 30,
+      "exit": 0,
+      "ms": 9639
+    },
+    {
+      "mode": "load",
+      "loop": 1,
+      "exit": 0,
+      "ms": 10033
+    },
+    {
+      "mode": "load",
+      "loop": 2,
+      "exit": 0,
+      "ms": 10071
+    },
+    {
+      "mode": "load",
+      "loop": 3,
+      "exit": 0,
+      "ms": 10104
+    },
+    {
+      "mode": "load",
+      "loop": 4,
+      "exit": 0,
+      "ms": 9871
+    },
+    {
+      "mode": "load",
+      "loop": 5,
+      "exit": 0,
+      "ms": 10144
+    },
+    {
+      "mode": "load",
+      "loop": 6,
+      "exit": 0,
+      "ms": 9952
+    },
+    {
+      "mode": "load",
+      "loop": 7,
+      "exit": 0,
+      "ms": 10069
+    },
+    {
+      "mode": "load",
+      "loop": 8,
+      "exit": 0,
+      "ms": 10174
+    },
+    {
+      "mode": "load",
+      "loop": 9,
+      "exit": 0,
+      "ms": 10000
+    },
+    {
+      "mode": "load",
+      "loop": 10,
+      "exit": 0,
+      "ms": 10006
+    },
+    {
+      "mode": "load",
+      "loop": 11,
+      "exit": 0,
+      "ms": 10008
+    },
+    {
+      "mode": "load",
+      "loop": 12,
+      "exit": 0,
+      "ms": 10157
+    },
+    {
+      "mode": "load",
+      "loop": 13,
+      "exit": 0,
+      "ms": 10018
+    },
+    {
+      "mode": "load",
+      "loop": 14,
+      "exit": 0,
+      "ms": 10092
+    },
+    {
+      "mode": "load",
+      "loop": 15,
+      "exit": 0,
+      "ms": 10115
+    },
+    {
+      "mode": "load",
+      "loop": 16,
+      "exit": 0,
+      "ms": 10054
+    },
+    {
+      "mode": "load",
+      "loop": 17,
+      "exit": 0,
+      "ms": 10125
+    },
+    {
+      "mode": "load",
+      "loop": 18,
+      "exit": 0,
+      "ms": 10126
+    },
+    {
+      "mode": "load",
+      "loop": 19,
+      "exit": 0,
+      "ms": 10035
+    },
+    {
+      "mode": "load",
+      "loop": 20,
+      "exit": 0,
+      "ms": 10072
+    },
+    {
+      "mode": "load",
+      "loop": 21,
+      "exit": 0,
+      "ms": 9992
+    },
+    {
+      "mode": "load",
+      "loop": 22,
+      "exit": 0,
+      "ms": 9939
+    },
+    {
+      "mode": "load",
+      "loop": 23,
+      "exit": 0,
+      "ms": 10030
+    },
+    {
+      "mode": "load",
+      "loop": 24,
+      "exit": 0,
+      "ms": 9921
+    },
+    {
+      "mode": "load",
+      "loop": 25,
+      "exit": 0,
+      "ms": 10040
+    },
+    {
+      "mode": "load",
+      "loop": 26,
+      "exit": 0,
+      "ms": 10132
+    },
+    {
+      "mode": "load",
+      "loop": 27,
+      "exit": 0,
+      "ms": 10048
+    },
+    {
+      "mode": "load",
+      "loop": 28,
+      "exit": 0,
+      "ms": 9979
+    },
+    {
+      "mode": "load",
+      "loop": 29,
+      "exit": 0,
+      "ms": 9961
+    },
+    {
+      "mode": "load",
+      "loop": 30,
+      "exit": 0,
+      "ms": 9902
+    }
+  ],
+  "unresolved": [
+    "native created-file publication: retained real-Git schedule failure after two fixes",
+    "four inherited jscpd clones",
+    "candidate bundle caps"
+  ],
+  "cleanup": {
+    "path": "C:/Users/Randy/AppData/Local/Temp/l-SPAWN017B",
+    "result": "rejected before execution",
+    "attempts": 2,
+    "reason": "blocked by policy",
+    "isDirectoryLink": false,
+    "artifactsRemain": true
+  }
+}

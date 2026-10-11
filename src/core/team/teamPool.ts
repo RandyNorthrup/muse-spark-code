@@ -1,6 +1,7 @@
 import { Usd, type UsdAmount } from '../../shared/usd'
 import { UI_TEXT, TEAM_SCHED_TICK_MS } from '../../shared/constants'
-import { fill, formatNumber, formatUsd } from '../../shared/l10n/text'
+import { fill, formatNumber } from '../../shared/l10n/text'
+import { formatUsd } from '../../shared/l10n/exactUsd'
 import { type TeamAttempt, type TeamBoard, type TeamBoardTask } from '../../shared/team'
 import { type TaskBoard } from './scheduler/board'
 import { TaskPicker, type PickContext, type SchedulerEntry } from './scheduler/pick'

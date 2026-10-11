@@ -40,6 +40,7 @@ import { createHash } from 'node:crypto'
 import { chmod, mkdir, readdir, readFile, rename, rm, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { gitBlobOid } from '../../core/checkpoints/gitListings'
+import { pathIdentityRelation } from '../../core/pathIdentity'
 import {
   CHECKPOINT_GIT_TIMEOUT_MS,
   CHECKPOINT_INITIALIZER_DIGITS,
@@ -152,9 +153,9 @@ export function isWithinFolder(candidate: string, folder: string): boolean {
 /** Any checkpoint storage inside the workspace, or the workspace inside this storage. */
 function isTangled(storageRoot: string, storage: string, workspace: string): boolean {
   return (
-    isWithinFolder(storageRoot, workspace) ||
-    isWithinFolder(storage, workspace) ||
-    isWithinFolder(workspace, storage)
+    pathIdentityRelation(storageRoot, workspace) !== 'outside' ||
+    pathIdentityRelation(storage, workspace) !== 'outside' ||
+    pathIdentityRelation(workspace, storage) !== 'outside'
   )
 }
 

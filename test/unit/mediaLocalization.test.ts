@@ -51,7 +51,7 @@ describe('M105 frozen media wording', () => {
     setUiText({ ...EN, media: { ...EN.media, sendWithoutSound: 'Sans son pour ce test' } }, 'fr')
     expect(UI_TEXT.media.sendWithoutSound).toBe('Sans son pour ce test')
     setUiText(EN, 'en')
-    expect(UI_TEXT.media.sendWithoutSound).toBe('Send without sound')
+    expect(UI_TEXT.media.sendWithoutSound).toBe('Send Without Sound')
   })
 
   it('provides all nine manifest strings in all languages without adding unused package keys', () => {
@@ -75,5 +75,25 @@ describe('M105 frozen media wording', () => {
     expect(english['config.mediaAudioAction.enumDescriptions.transcribe']).toContain(
       '$0.18 per audio hour',
     )
+  })
+
+  it('refuses uploads with the missing bindings, not storage billing (D85.6)', () => {
+    setUiText(EN, 'en')
+    // D85.6 records the not-billed decision, so the refusal names what is
+    // still missing: the production upload and transcription bindings.
+    expect(UI_TEXT.media.uploadStorageUnknown).toBe(
+      'Video and audio uploads are not available in this version: the production upload and transcription bindings are still missing.',
+    )
+    expect(UI_TEXT.scheduledMediaSupport).toBe(
+      'Scheduled turns support text and image inputs; video and audio inputs are unsupported in this version.',
+    )
+    for (const locale of TABLE_LOCALES) {
+      const table: unknown = JSON.parse(
+        readFileSync(new URL(`../../l10n/ui.${locale}.json`, import.meta.url), 'utf8'),
+      )
+      const { media } = mediaTableSchema.parse(table)
+      expect(media['uploadStorageUnknown']).not.toContain('has not been verified')
+      expect(JSON.stringify(table)).not.toContain('scheduledMediaUnavailable')
+    }
   })
 })

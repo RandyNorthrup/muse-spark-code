@@ -1,5 +1,5 @@
 import { withStrictTools } from '../../../src/core/backends/modelapi/schemas'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import {
   executeTool,
   toolDefinitions,
@@ -14,6 +14,11 @@ import { FakeLogOutputChannel } from '../helpers/fakes'
 import { memoryToolIo } from '../helpers/fakeToolIo'
 import { envelope, serviceFixture } from './execFixture'
 import { UI_TEXT } from '../../../src/shared/constants'
+import * as fs from 'node:fs'
+
+// The Linux tool host resolves bash on PATH with the host's existsSync; on a
+// Windows runner /bin/bash is absent, so that case names it present.
+vi.mock('node:fs', { spy: true })
 
 const servers: IdeMcpServer[] = []
 afterEach(() => {
@@ -146,6 +151,13 @@ describe('M109 X backend adapters', () => {
     expect(JSON.stringify(result)).not.toContain(privateFailure)
   })
   it('keeps host loading lazy and binds the exact interpreter argv and current native admission', async () => {
+    const actualExists = vi.mocked(fs.existsSync).getMockImplementation() ?? (() => false)
+    vi.mocked(fs.existsSync).mockImplementation(
+      (file) => file === '/bin/bash' || actualExists(file),
+    )
+    onTestFinished(() => {
+      vi.mocked(fs.existsSync).mockImplementation(actualExists)
+    })
     const { service, port } = fixture()
     const load = vi.fn(() => Promise.resolve(service))
     const io = createToolIo({

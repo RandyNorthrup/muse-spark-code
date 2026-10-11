@@ -4,7 +4,7 @@
 // and the commit and pull request forms. The forms are the confirmation:
 // they show everything that goes out, all of it editable, and nothing is
 // committed or sent until their button is pressed. A draft is written by
-// the model only when the user presses "Write with Muse", as their own
+// the model only when the user presses "Write With Muse", as their own
 // message in the conversation.
 
 import type { ReactNode, SubmitEvent } from 'react'

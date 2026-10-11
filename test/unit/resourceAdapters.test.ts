@@ -157,6 +157,7 @@ describe('C1 final process admission', () => {
     vi.mocked(resourceWindowsJob).mockResolvedValue({
       assemblyPath: 'unused.dll',
       executablePath: 'unused.exe',
+      verify: () => Promise.resolve(),
     })
     try {
       await expect(

@@ -152,7 +152,7 @@ describe('M108 panel host', () => {
       label: 'Org',
       limitGroup: 'project',
       order: 0,
-      thresholds: { spendUsd: { week: 0.3 } },
+      thresholds: { spendUsd: { week: '0.3' } },
     })
     await h.handler.handle({ type: 'accounts/remove', provider: 'openai', account: 'work' })
     expect(h.vault.remove).toHaveBeenCalledWith({

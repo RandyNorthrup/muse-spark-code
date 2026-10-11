@@ -26,6 +26,7 @@ it('loads a real user prompt into a new empty workspace composer without sending
     const post = vi.fn<ChatSurface['post']>()
     const surface: ChatSurface = {
       id: 'new-empty-chat',
+      documentId: 'new-empty-chat-document',
       post,
       reveal: vi.fn(),
       markUnread: vi.fn(),

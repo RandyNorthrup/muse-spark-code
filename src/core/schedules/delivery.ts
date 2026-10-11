@@ -1,3 +1,4 @@
+import { Usd } from '../../shared/usd'
 import { isSteerRefusedError } from '../agent/agentBackend'
 import { UI_TEXT } from '../../shared/constants'
 import { scheduleEventSchema, type ScheduleEvent } from '../../shared/scheduleEvents'
@@ -154,7 +155,11 @@ export class ScheduleDelivery implements ScheduleHostPort {
       outcome: 'missed',
       reason: UI_TEXT.scheduleV2.messages.targetClosed,
       refusedActions: [],
-      cost: { usd: 0, certainty: 'exact', retainedLiabilityUsd: 0 },
+      cost: {
+        usd: Usd.from(0).toAmount(),
+        certainty: 'exact',
+        retainedLiabilityUsd: Usd.from(0).toAmount(),
+      },
     }
     this.record(schedule, context, occurrenceMs, event, notSent)
     if (!this.holds(schedule.workspaceKey)) {
@@ -331,7 +336,11 @@ export class ScheduleDelivery implements ScheduleHostPort {
         outcome: 'missed',
         reason: UI_TEXT.scheduleV2.messages.catchUpSkipped,
         refusedActions: [],
-        cost: { usd: 0, certainty: 'exact', retainedLiabilityUsd: 0 },
+        cost: {
+          usd: Usd.from(0).toAmount(),
+          certainty: 'exact',
+          retainedLiabilityUsd: Usd.from(0).toAmount(),
+        },
       }),
     )
   }

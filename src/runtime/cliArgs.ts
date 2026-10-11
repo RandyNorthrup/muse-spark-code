@@ -1,3 +1,4 @@
+import type { UsdAmount } from '../shared/usdSchema'
 // The agent's command line (PLAN.md D62): serve ACP on stdio, or one of the
 // sign-in commands the editors' terminal sign-ins run (D61). Pure: the
 // arguments in, what to do out, with the reason when they make no sense.
@@ -83,7 +84,7 @@ export interface ServeOptions {
   readonly questionsDeferAfterSeconds?: number
   readonly autoCompaction?: boolean | undefined
   readonly scheduledPrompts?: boolean
-  readonly maxBudgetUsd?: number
+  readonly maxBudgetUsd?: UsdAmount
 }
 
 /** What `report` prints: the scrubbed draft as text, or its exact bytes in a file. */

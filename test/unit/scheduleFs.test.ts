@@ -31,7 +31,13 @@ vi.mock('node:fs/promises', async (importOriginal) => {
 const root = mkdtempSync(path.join(tmpdir(), 'muse-m115-locks-'))
 const exec = promisify(execFile)
 const actualDisk = await vi.importActual<typeof disk>('node:fs/promises')
-afterAll(() => removeFolder(root))
+const helpers = new Set<{ release: string; worker: ReturnType<typeof exec> }>()
+const HELPER_RELEASE_WAIT_MS = 2000
+afterEach(releaseHelpers)
+afterAll(async () => {
+  await releaseHelpers()
+  await removeFolder(root)
+})
 beforeEach(() => {
   const interval = globalThis.setInterval
   vi.spyOn(globalThis, 'setInterval').mockImplementation((callback, ms, ...args) => {
@@ -76,13 +82,18 @@ async function handle(file: string, name: string) {
   const script = path.join(root, `${name}.ps1`)
   const ready = path.join(root, `${name}.ready`)
   const release = path.join(root, `${name}.release`)
+  // .NET calls only: Test-Path and Start-Sleep made PowerShell discover and
+  // load modules, which a cold hosted runner (with this bare environment, no
+  // module analysis cache) took past the test deadline. Language and .NET
+  // need no module at all.
   await disk.writeFile(
     script,
     `param($Target, $Ready, $Release)
+$PSModuleAutoLoadingPreference = 'None'
 $held = [IO.File]::Open($Target, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
 try {
   [IO.File]::WriteAllText($Ready, '')
-  while (!(Test-Path -LiteralPath $Release)) { Start-Sleep -Milliseconds 20 }
+  while (-not [IO.File]::Exists($Release)) { [Threading.Thread]::Sleep(20) }
 } finally { $held.Dispose() }
 `,
   )
@@ -103,6 +114,8 @@ try {
     ],
     { windowsHide: true, env: { SystemRoot: systemRoot } },
   )
+  const helper = { release, worker }
+  helpers.add(helper)
   await Promise.race([
     vi.waitFor(() => disk.readFile(ready), { timeout: 120_000 }),
     (async () => {
@@ -111,8 +124,43 @@ try {
     })(),
   ])
   return async () => {
+    helpers.delete(helper)
     await disk.writeFile(release, '')
     await worker
+  }
+}
+
+/**
+ * A case that failed or timed out before its release still has a helper
+ * holding a handle in root, which would keep afterAll's removal retrying.
+ * Release it, and end it if it does not answer.
+ */
+async function releaseHelpers(): Promise<void> {
+  const pending = new Set(helpers)
+  helpers.clear()
+  for (const helper of pending) {
+    try {
+      await disk.writeFile(helper.release, '')
+    } catch {
+      // The folder is already gone; the kill below still ends the holder.
+    }
+    const ending = (async () => {
+      try {
+        await helper.worker
+      } catch {
+        // A failed helper has ended too.
+      }
+      return true
+    })()
+    const isEnded = await Promise.race([
+      ending,
+      new Promise<false>((resolve) => {
+        setTimeout(() => {
+          resolve(false)
+        }, HELPER_RELEASE_WAIT_MS)
+      }),
+    ])
+    if (!isEnded) helper.worker.child.kill()
   }
 }
 

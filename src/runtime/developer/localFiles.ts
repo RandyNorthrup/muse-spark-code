@@ -40,13 +40,20 @@ export class DeveloperLocalFiles implements DeveloperStore, ProfileFolders {
     this.root = path.resolve(root)
   }
 
+  /** Where `target` must resolve. The root may sit below links the OS or the
+   * user chose (macOS /var, a relocated or redirected profile, a Windows short
+   * name); only a link at or below the root is refused. */
+  private async anchored(target: string): Promise<string> {
+    return normalized(path.join(await realpath(this.root), path.relative(this.root, target)))
+  }
+
   private async directory(target: string): Promise<void> {
     await mkdir(target, { recursive: true, mode: DEVELOPER_DIRECTORY_MODE })
     const info = await lstat(target)
     if (
       !info.isDirectory() ||
       info.isSymbolicLink() ||
-      normalized(await realpath(target)) !== normalized(target)
+      normalized(await realpath(target)) !== (await this.anchored(target))
     )
       throw new Error(UI_TEXT.developer.unavailable)
     await chmod(target, DEVELOPER_DIRECTORY_MODE)
@@ -129,7 +136,11 @@ export class DeveloperLocalFiles implements DeveloperStore, ProfileFolders {
         .trim()
         .split('\n')
         .map((row) => developerAuditSchema.parse(JSON.parse(row)))
-      const authority = rows.findLast((row) => row.action !== 'create' && row.action !== 'remove')
+      // `migrate` re-binds the machine identity without granting authority,
+      // so it never decides the restored switch (DEVID017B).
+      const authority = rows.findLast(
+        (row) => row.action !== 'create' && row.action !== 'remove' && row.action !== 'migrate',
+      )
       if (authority !== undefined)
         return { ...state, isMultipleAccountsOn: authority.action === 'enable' }
     }
@@ -168,8 +179,13 @@ export class DeveloperLocalFiles implements DeveloperStore, ProfileFolders {
       }
     } catch (error) {
       // Failure to append cannot grant authority. Revocation still attempts
-      // state publication, and the caller receives the persistence failure.
-      if (!state.isMultipleAccountsOn) await this.publishState(state)
+      // state publication, and the caller receives the persistence failure —
+      // except a foreign `resetForeign` clear, which is never published
+      // without its audit row (DEVID017E): a failed foreign Reset leaves
+      // the stored state unchanged instead of clearing it unaudited. Every
+      // other revocation, own-machine Reset included, still publishes.
+      if (audit.action !== 'resetForeign' && !state.isMultipleAccountsOn)
+        await this.publishState(state)
       throw error
     }
     await this.publishState(state)
@@ -196,7 +212,7 @@ export class DeveloperLocalFiles implements DeveloperStore, ProfileFolders {
       if (
         !parentInfo.isDirectory() ||
         parentInfo.isSymbolicLink() ||
-        normalized(await realpath(parent)) !== normalized(parent)
+        normalized(await realpath(parent)) !== (await this.anchored(parent))
       )
         throw new Error(UI_TEXT.developer.unavailable)
       const target = path.join(parent, id)

@@ -15,7 +15,8 @@ import {
 import { showTabMenu, snoozeTabCommand, tabLanguagesCommand } from '../../src/host/tab/tabStatus'
 import { createTabSnooze, createTabStatusItem } from '../../src/host/tab/tabBundle'
 import { UI_TEXT } from '../../src/shared/constants'
-import { fill, formatUsd } from '../../src/shared/l10n/text'
+import { fill } from '../../src/shared/l10n/text'
+import { formatUsd } from '../../src/shared/l10n/exactUsd'
 import { FakeStatusBarItem } from './mocks/vscode'
 
 const MINUTE_MS = 60_000

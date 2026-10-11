@@ -17,7 +17,9 @@ import type {
   TurnCheckpoint,
   TurnEnd,
 } from '../../core/backends/modelapi/tools'
+import { StorageRefusalError } from '../../core/checkpoints/storageRefusal'
 import { refusedShellEntry, ShellEntryError } from '../../core/shellResult'
+import { windowsPathProblem } from '../../core/windowsPathSpelling'
 import { randomUUID } from 'node:crypto'
 import { failureForLog } from '../../core/backends/musecode/logText'
 import type { Owner } from '../../core/checkpoints/toolWrites'
@@ -38,6 +40,20 @@ import type {
   RestoreOutcome,
   RestoreRequest,
 } from './checkpointStore'
+
+/**
+ * A refused spelling or an unverifiable storage identity, in each reader's
+ * words: the model keeps its fixed English reason, the row keeps the display
+ * language. Storage itself stays a plain English error, as before.
+ */
+function localizedRefusal(problem: 'spelling' | 'uncertain'): StorageRefusalError {
+  return problem === 'spelling'
+    ? new StorageRefusalError(MODEL_TEXT.checkpointWindowsPathRefused, UI_TEXT.windowsPathRefused)
+    : new StorageRefusalError(
+        MODEL_TEXT.checkpointStorageUncertain,
+        UI_TEXT.checkpointStorageUncertain,
+      )
+}
 
 export interface CheckpointPort {
   /** Native uncertainty persists independently of the recording setting. */
@@ -91,7 +107,7 @@ export type CheckpointStoreApi = Pick<
   | 'unforgetSession'
   | 'queueForget'
   | 'maintain'
-  | 'isStoragePath'
+  | 'storagePathProblem'
   | 'isNativeUnsafe'
   | 'markNativeBackend'
   | 'markUnprovenProcess'
@@ -236,9 +252,14 @@ export function createCheckpointPort(deps: CheckpointHostDeps): CheckpointPort {
       await gitStore()?.maintain()
     },
     refuseStorageWrite: (absolutePath) => {
-      if (deps.store?.isStoragePath(absolutePath) === true) {
-        throw new Error(MODEL_TEXT.checkpointStorageWrite)
-      }
+      // With no store, only a refused spelling (UNC admission is confinement's).
+      const isRefusedSpelling =
+        windowsPathProblem(absolutePath, process.platform, absolutePath) !== undefined
+      const problem =
+        deps.store?.storagePathProblem(absolutePath) ??
+        (isRefusedSpelling ? ('spelling' as const) : undefined)
+      if (problem === 'storage') throw new Error(MODEL_TEXT.checkpointStorageWrite)
+      if (problem !== undefined) throw localizedRefusal(problem)
     },
   }
 }

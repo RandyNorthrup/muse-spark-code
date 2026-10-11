@@ -1,5 +1,6 @@
+import type * as ResourceLauncher from '../../../src/core/resources/launcher'
 import { afterEach, afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { execFileSync } from 'node:child_process'
+import { execFileSync, type SpawnOptions } from 'node:child_process'
 import { mkdtemp, rm, stat, chmod, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import os from 'node:os'
@@ -27,12 +28,42 @@ import { type VaultBroker } from '../../../src/core/vault/broker/broker'
 import { use } from '../helpers/vault/fixtures'
 import { VAULT_LIMITS, UI_TEXT } from '../../../src/shared/constants'
 
+// The channel's protocol runs over the real native peer helper. Since spawn4 the
+// verifier starts that helper through the governed contained launch, whose
+// admission and containment spawnBoundaries proves; these protocol tests keep
+// the slot fixture's direct launch, with the socket handed over as fd 3.
+vi.mock('../../../src/core/resources/launcher', async (original) => {
+  const actual = await original<typeof ResourceLauncher>()
+  const { fixtureResourceProcess } = await import('../helpers/resourceProcess')
+  return {
+    ...actual,
+    spawnResourceProcess: (
+      profile: 'contained',
+      file: string,
+      args: readonly string[],
+      options: SpawnOptions,
+      extraDescriptors: readonly number[] = [],
+    ) =>
+      fixtureResourceProcess(profile, file, args, options, [
+        'pipe',
+        'pipe',
+        'pipe',
+        ...extraDescriptors,
+      ]),
+  }
+})
+
 const directories: string[] = [],
   servers: VaultChannelServer[] = [],
   brokers: VaultBroker[] = []
 const releases: (() => Promise<void>)[] = []
 const native = { helper: '' }
+// The Unix peer helper is C built with the system compiler for the Unix-socket
+// channel. Windows has neither; its peers are judged by the named-pipe seam
+// below, which needs no helper.
+const hasUnixPeer = process.platform !== 'win32'
 beforeAll(async () => {
+  if (!hasUnixPeer) return
   const directory = await mkdtemp(path.join(os.tmpdir(), 'm109-b-peer-'))
   directories.push(directory)
   native.helper = path.join(directory, 'peer')
@@ -195,7 +226,7 @@ async function closedOrReply(socket: Socket): Promise<'closed' | 'reply'> {
     socket.removeListener('data', reply)
   }
 }
-describe('native authenticated broker channel', () => {
+describe.skipIf(!hasUnixPeer)('native authenticated broker channel', () => {
   it.each(['fragment', 'remote', 'throwingDestroy', 'parsed'])(
     'RVM109B5 P1 channel erases owned input on %s',
     async (action) => {

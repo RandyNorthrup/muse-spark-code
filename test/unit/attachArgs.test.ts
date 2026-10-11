@@ -1,5 +1,4 @@
 import path from 'node:path'
-import { pathToFileURL } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { execAttachmentBlocks, parseAttachArgs } from '../../src/runtime/exec/attachArgs'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
@@ -47,7 +46,9 @@ describe('exec --attach', () => {
     ).toEqual([
       {
         type: 'resource_link',
-        uri: pathToFileURL('/ws/dir/clip #1.mp4').href,
+        // The named platform's file URI, not the test host's: on Windows the
+        // host's pathToFileURL would put the runner's drive before /ws.
+        uri: 'file:///ws/dir/clip%20%231.mp4',
         name: 'clip #1.mp4',
       },
     ])

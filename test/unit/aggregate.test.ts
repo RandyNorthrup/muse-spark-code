@@ -22,7 +22,7 @@ import {
   type UsageRecord,
 } from '../../src/shared/usageJournal'
 import { usageTotalsSchema, usageQuerySchema, type UsageQuery } from '../../src/shared/usagePage'
-import { formatUsd } from '../../src/shared/l10n/text'
+import { formatUsd } from '../../src/shared/l10n/exactUsd'
 
 const now = new Date(2026, 9, 5, 12).getTime()
 const today = usageLocalDay(now)

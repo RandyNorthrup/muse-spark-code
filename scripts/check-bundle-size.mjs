@@ -38,7 +38,16 @@ const BUDGETS = [
   { path: 'dist/extension.js', budgetKiB: 600 },
   // M107: 89.5 / 1.8 KiB measured; +15%, rounded up to 25 KiB.
   { path: 'dist/resourceGovernor.js', budgetKiB: 125 },
+  // POSTSPAWN: the governed launcher, split from the governor; 35.6 KiB
+  // measured, +15%, rounded up to 25 KiB. The governor's cap is unchanged.
+  { path: 'dist/resourceProcess.js', budgetKiB: 50 },
+  // POSTSPAWN: the vault MCP launch, off activation; 13.4 KiB measured,
+  // +15%, rounded up to 25 KiB.
+  { path: 'dist/mcpVault.js', budgetKiB: 25 },
   { path: 'dist/resourceAdmission.js', budgetKiB: 25 },
+  // INT0170: M107 W2's journal, shared by the governor and the usage service;
+  // 41.1 KiB measured, +15%, rounded up to 25 KiB.
+  { path: 'dist/resourceJournal.js', budgetKiB: 50 },
   // Resource controls/history closures (including their deferred parser and CSS) have 50 KiB caps below.
   { path: 'dist/webview/resourceSurface.js', budgetKiB: 25 },
   { path: 'dist/webview/resourceHistory.js', budgetKiB: 25 },
@@ -177,6 +186,11 @@ const BUDGETS = [
   // git and pull request features moved out of activation: 127.4 KiB
   // measured; plus 15%, rounded up to 25 KiB (PLAN.md D6).
   { path: 'dist/conversationGit.js', budgetKiB: 150 },
+  // ACTBUD017: the Model API backend's session store (its budget journal,
+  // atomic writes and stored-session schemas) moved out of activation,
+  // required when that backend's host is first built: 37.1 KiB measured;
+  // plus 15%, rounded up to 25 KiB (PLAN.md D6).
+  { path: 'dist/modelApiSessions.js', budgetKiB: 50 },
   // M89: the bundled skills installer for Muse Code (the copy, the links and
   // zod's parser for the vendor record and the mark), loaded on first use:
   // 22.6 KiB when split out. Measured size plus 15%, rounded up to 25 KiB.

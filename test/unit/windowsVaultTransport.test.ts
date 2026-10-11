@@ -1,3 +1,5 @@
+import type * as ResourceLauncher from '../../src/core/resources/launcher'
+import * as launcher from '../../src/core/resources/launcher'
 import { EventEmitter } from 'node:events'
 import { mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -11,30 +13,53 @@ import type { RunProgram } from '../../src/host/processTree'
 
 const processStub = vi.hoisted(() => ({ spawn: vi.fn(), execFile: vi.fn() }))
 vi.mock('node:child_process', () => processStub)
-const folders: string[] = []
-beforeEach(() => {
-  processStub.execFile.mockImplementation(
-    (_file, args: string[], _options, callback: (error: Error | null) => void) => {
-      const encoded = args.at(-1)
-      const directory =
-        encoded === undefined
-          ? undefined
-          : /\$target = '([^']+)'/u.exec(Buffer.from(encoded, 'base64').toString('utf16le'))?.[1]
-      if (directory === undefined) {
-        callback(new Error('unexpected compiler'))
-        return { stdin: new PassThrough() }
-      }
-      void mkdir(directory)
-        .then(() => {
-          callback(null)
-        })
-        .catch(() => {
-          callback(new Error('prepare failed'))
-        })
-      return { stdin: new PassThrough() }
-    },
-  )
+vi.mock('../../src/core/resources/launcher', async (original) => {
+  const actual = await original<typeof ResourceLauncher>()
+  const fixture = await import('./helpers/resourceProcess')
+  return { ...actual, spawnResourceProcess: vi.fn(fixture.fixtureResourceProcess) }
 })
+const folders: string[] = []
+
+/**
+ * The vault guard and compiler are bootstrap launches since spawn4 (PLAN
+ * SPAWN017C): runBootstrap, through the facade's fixture, to this spawn. The
+ * process exits with `exitCode` once it settles; a kill closes it at once.
+ */
+function compilerProcess(exitCode: number | Promise<number>) {
+  const instance = Object.assign(new EventEmitter(), {
+    stdin: new PassThrough(),
+    stdout: new PassThrough(),
+    stderr: new PassThrough(),
+    kill: vi.fn(() => {
+      setImmediate(() => instance.emit('close', null))
+    }),
+  })
+  instance.stdin.resume()
+  void Promise.resolve(exitCode).then((code) => {
+    setImmediate(() => instance.emit('close', code))
+  })
+  return instance
+}
+beforeEach(() => {
+  processStub.spawn.mockImplementation((_file: string, args: string[]) => {
+    const encoded = args.at(-1)
+    const directory =
+      encoded === undefined
+        ? undefined
+        : /\$target = '([^']+)'/u.exec(Buffer.from(encoded, 'base64').toString('utf16le'))?.[1]
+    // Only the guard's prepare step runs here; an unexpected compiler fails.
+    return compilerProcess(directory === undefined ? 1 : prepared(directory))
+  })
+})
+/** The guard script's effect: its private directory, or exit 1. */
+async function prepared(directory: string): Promise<number> {
+  try {
+    await mkdir(directory)
+    return 0
+  } catch {
+    return 1
+  }
+}
 afterEach(async () => {
   vi.useRealTimers()
   vi.resetAllMocks()
@@ -82,6 +107,7 @@ describe('Windows helper private transport', () => {
       }),
     )
     const pending = windowsVaultTransport(helper).exchange(wrapHeader, key)
+    await Promise.resolve()
     expect(processStub.spawn).toHaveBeenCalledWith(helper.powershell, expect.any(Array), {
       cwd: path.dirname(helper.powershell),
       env: {},
@@ -132,6 +158,7 @@ describe('Windows helper private transport', () => {
       header,
       new Uint8Array(),
     )
+    await Promise.resolve()
     instance.emit('close', 23)
     await expect(pending).rejects.toThrow(UI_TEXT.vault.noAccess)
     expect(instance.stdin.read()).toEqual(prelude)
@@ -141,6 +168,7 @@ describe('Windows helper private transport', () => {
   it('refuses unrecognized readiness without sending input', async () => {
     const instance = child()
     const pending = windowsVaultTransport(helper).exchange(header, new Uint8Array())
+    await Promise.resolve()
     instance.stdout.emit('data', Buffer.from([2]))
     instance.emit('close', 0)
     await expect(pending).rejects.toThrow(UI_TEXT.vault.noAccess)
@@ -149,6 +177,7 @@ describe('Windows helper private transport', () => {
   it('sanitizes synchronous stdin failure after verified readiness', async () => {
     const instance = child()
     const pending = windowsVaultTransport(helper).exchange(header, new Uint8Array())
+    await Promise.resolve()
     vi.spyOn(instance.stdin, 'write').mockImplementation(() => {
       throw new Error('private write failure')
     })
@@ -183,6 +212,7 @@ describe('Windows helper private transport', () => {
         header,
         new Uint8Array(),
       )
+      await Promise.resolve()
       const rejection = expect(pending).rejects.toThrow(UI_TEXT.vault.noAccess)
       instance.stdout.emit('data', Buffer.from([1]))
       const chunk = Buffer.from('private value')
@@ -246,6 +276,7 @@ describe('Windows helper private transport', () => {
       header,
       new Uint8Array(),
     )
+    await Promise.resolve()
     instance.emit('close', 0)
     await expect(pending).rejects.toThrow(UI_TEXT.vault.noAccess)
     expect(instance.kill).toHaveBeenCalledWith('SIGKILL')
@@ -254,6 +285,7 @@ describe('Windows helper private transport', () => {
   it('bounds stdout and erases the oversized chunk', async () => {
     const instance = child()
     const pending = windowsVaultTransport(helper).exchange(header, new Uint8Array())
+    await Promise.resolve()
     const rejected = expect(pending).rejects.toThrow(UI_TEXT.vault.noAccess)
     instance.stdout.emit('data', Buffer.from([1]))
     const oversized = Buffer.alloc(VAULT_LIMITS.text + 32 + 4 + 1, 42)
@@ -271,6 +303,7 @@ describe('Windows helper private transport', () => {
       Buffer.from('{"v":1,"operation":"screenLock"}'),
       new Uint8Array(),
     )
+    await Promise.resolve()
     const rejected = expect(pending).rejects.toThrow(UI_TEXT.vault.noAccess)
     await vi.advanceTimersByTimeAsync(VAULT_APPROVAL_TTL_MS + 1)
     expect(instance.kill).not.toHaveBeenCalled()
@@ -285,6 +318,7 @@ describe('Windows helper private transport', () => {
       header,
       new Uint8Array(),
     )
+    await Promise.resolve()
     instance.stdout.emit('data', Buffer.from([1]))
     instance.emit('close', 0)
     await pending
@@ -302,21 +336,31 @@ async function storage() {
 describe('Windows vault helper compiler', () => {
   it('refuses a failed public-source stdin without leaking its diagnostic', async () => {
     const storageDir = await storage()
-    processStub.execFile.mockImplementation(() => {
-      const stdin = new PassThrough()
-      queueMicrotask(() => {
-        stdin.emit('error', new Error('private source-pipe diagnostic'))
+    processStub.spawn.mockImplementation(() => {
+      // Never exits by itself: the failed source pipe must stop it.
+      const instance = compilerProcess(new Promise<number>(() => undefined))
+      setImmediate(() => {
+        instance.stdin.emit('error', new Error('private source-pipe diagnostic'))
       })
-      return { stdin }
+      return instance
     })
-    await expect(
-      windowsVaultExecutable({
+    let failure: unknown
+    try {
+      await windowsVaultExecutable({
         storageDir,
         systemRoot: path.resolve('Windows'),
         readSource: () => Promise.resolve(source),
-      }),
-    ).rejects.toThrow(UI_TEXT.vault.noAccess)
-    expect(processStub.execFile).toHaveBeenCalledTimes(2)
+      })
+    } catch (error: unknown) {
+      failure = error
+    }
+    expect(failure).toMatchObject({ message: UI_TEXT.vault.noAccess })
+    const messages: string[] = []
+    for (let error: unknown = failure; error instanceof Error; error = error.cause)
+      messages.push(error.message)
+    expect(messages.join('\n')).not.toContain('private source-pipe diagnostic')
+    // The protected cache parent, then the temp fallback: each stopped, never retried.
+    expect(processStub.spawn).toHaveBeenCalledTimes(2)
   })
   it('compiles once per source digest with no credential environment and cleans scratch', async () => {
     const storageDir = await storage()
@@ -379,11 +423,13 @@ describe('Windows vault helper compiler', () => {
   })
   it('runs the real compiler port with a private environment and fixed diagnostics', async () => {
     const storageDir = await storage()
-    processStub.execFile.mockImplementation(
-      (_file, _args, options, callback: (error: Error | null) => void) => {
-        expect(options).toMatchObject({ env: {}, windowsHide: true })
-        callback(new Error('compiler canary'))
-        return { stdin: new PassThrough() }
+    const environments: unknown[] = []
+    processStub.spawn.mockImplementation(
+      (_file: string, _args: string[], options: { env?: unknown }) => {
+        environments.push(options.env)
+        const instance = compilerProcess(1)
+        instance.stderr.write('compiler canary')
+        return instance
       },
     )
     await expect(
@@ -393,6 +439,11 @@ describe('Windows vault helper compiler', () => {
         readSource: () => Promise.resolve(source + 'test source'),
       }),
     ).rejects.toThrow(UI_TEXT.vault.noAccess)
-    expect(processStub.execFile).toHaveBeenCalledTimes(2)
+    expect(processStub.spawn).toHaveBeenCalledTimes(2)
+    expect(environments).toEqual([{}, {}])
+    // The guard runs as a bootstrap launch: it builds what containment needs.
+    expect(vi.mocked(launcher.spawnResourceProcess).mock.calls.map(([profile]) => profile)).toEqual(
+      ['bootstrap', 'bootstrap'],
+    )
   })
 })

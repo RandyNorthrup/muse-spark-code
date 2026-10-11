@@ -1,4 +1,4 @@
-import { nonnegativeUsdSchema } from './usd'
+import { nonnegativeUsdSchema } from './usdSchema'
 // Backend-agnostic events a conversation emits. The MSP backend maps Muse
 // Session Protocol notifications onto these; the Model API backend (M7) will
 // map its own stream onto the same union. The webview renders only these, so

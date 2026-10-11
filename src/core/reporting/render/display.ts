@@ -1,6 +1,8 @@
+import { Usd } from '../../../shared/usd'
 import { MILLISECONDS_PER_SECOND } from '../../../shared/constants'
 import type { UiText } from '../../../shared/l10n/en'
 import { fill } from '../../../shared/l10n/text'
+import { formatUsdAtPrecision } from '../../../shared/l10n/exactUsd'
 import type {
   ReportDocument,
   ReportLabelKey,
@@ -29,12 +31,6 @@ export function reportDisplay(
   const UI_TEXT = port.textForLocale(locale)
   const number = new Intl.NumberFormat(locale)
   const percent = new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 0 })
-  const usd = new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })
   const seconds = new Intl.NumberFormat(locale, {
     style: 'unit',
     unit: 'second',
@@ -60,7 +56,7 @@ export function reportDisplay(
         return percent.format(cell.value / 100)
       }
       case 'usd': {
-        return `${cell.value === null ? label('unknown') : usd.format(cell.value)} (${label(cell.certainty)})`
+        return `${cell.value === null ? label('unknown') : formatUsdAtPrecision(Usd.from(cell.value), 2, locale)} (${label(cell.certainty)})`
       }
       case 'durationMs': {
         return seconds.format(cell.value / MILLISECONDS_PER_SECOND)

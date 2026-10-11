@@ -26,3 +26,8 @@ used to update a golden.
 `report-320-light.png` is the static HTML in Chrome at 320 pixels after the
 four-theme, two-width axe run. The machine, assertions and exact-restoration
 receipts are in the lane R certification record.
+
+PORTS017 refreshed the 15 current renderer sets for the explicit `moneyVersion: 2`
+marker and its resulting hashes. `usage.money-v1.json.golden` is retained as a
+historical numeric-money read fixture; verification checks its original hash
+before normalizing its USD cells.

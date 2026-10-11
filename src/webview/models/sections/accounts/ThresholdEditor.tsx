@@ -1,7 +1,7 @@
 import { type SubmitEvent, useId, useState } from 'react'
 import { accountThresholdsSchema, type AccountThresholds } from '../../../../shared/accounts'
 import { UI_TEXT } from '../../../../shared/constants'
-import { parseUsd, usdNumber } from '../../../../shared/accountUsd'
+import { usdInputSchema, type UsdAmount } from '../../../../shared/usdSchema'
 import type { ModelsAccountsSlice } from '../../../../shared/accountsPanel'
 import { formatPercent } from '../../../../shared/l10n/text'
 
@@ -43,18 +43,24 @@ export function ThresholdEditor({
       // Preserve thresholds for unavailable live capabilities; never invent windows.
       const next: AccountThresholds = structuredClone(value)
       for (const metric of metrics) {
+        if (metric === 'spendUsd') {
+          const amounts: Partial<Record<(typeof periods)[number], UsdAmount>> = {}
+          for (const period of periods) {
+            const raw = field(`${metric}.${period}`)
+            if (raw === '') continue
+            // Exact decimal input: a stored sub-nano cap saves unchanged, and
+            // no binary number round trip can reject or reshape it.
+            amounts[period] = usdInputSchema.parse(raw)
+          }
+          next.spendUsd = Object.keys(amounts).length === 0 ? undefined : amounts
+          continue
+        }
         const amounts: Partial<Record<(typeof periods)[number], number>> = {}
         for (const period of periods) {
           const raw = field(`${metric}.${period}`)
           if (raw === '') continue
-          if (metric !== 'spendUsd' && !/^\d+$/.test(raw))
-            throw new Error(UI_TEXT.accounts.invalidAccount)
-          if (metric === 'spendUsd') {
-            const exact = parseUsd(raw, 'floor')
-            if (parseUsd(raw) !== exact || parseUsd(usdNumber(exact), 'floor') !== exact)
-              throw new Error(UI_TEXT.accounts.invalidAccount)
-            amounts[period] = usdNumber(exact)
-          } else amounts[period] = Number(raw)
+          if (!/^\d+$/.test(raw)) throw new Error(UI_TEXT.accounts.invalidAccount)
+          amounts[period] = Number(raw)
         }
         next[metric] = Object.keys(amounts).length === 0 ? undefined : amounts
       }

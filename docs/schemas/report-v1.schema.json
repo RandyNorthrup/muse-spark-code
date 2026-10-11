@@ -3,6 +3,7 @@
   "type": "object",
   "properties": {
     "format": { "type": "string", "const": "report-v1" },
+    "moneyVersion": { "default": 2, "type": "number", "const": 2 },
     "header": {
       "type": "object",
       "properties": {
@@ -524,7 +525,10 @@
                       "properties": {
                         "type": { "type": "string", "const": "usd" },
                         "value": {
-                          "anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+                          "anyOf": [
+                            { "type": "string", "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$" },
+                            { "type": "null" }
+                          ]
                         },
                         "certainty": {
                           "type": "string",
@@ -1081,7 +1085,10 @@
                         "properties": {
                           "type": { "type": "string", "const": "usd" },
                           "value": {
-                            "anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+                            "anyOf": [
+                              { "type": "string", "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$" },
+                              { "type": "null" }
+                            ]
                           },
                           "certainty": {
                             "type": "string",
@@ -1418,7 +1425,7 @@
       "additionalProperties": false
     }
   },
-  "required": ["format", "header", "needsYou", "sections", "sources", "footer"],
+  "required": ["format", "moneyVersion", "header", "needsYou", "sections", "sources", "footer"],
   "additionalProperties": false,
   "x-runtime-invariants": [
     "Needs you has id and label needsYou, and is the first section.",
@@ -1429,6 +1436,7 @@
     "Source strings are scrubbed at snapshot creation and again over canonical output bytes before hashing.",
     "Then compute contentHash as SHA-256 of the scrubbed canonical JSON excluding /header/asOf and /header/contentHash; verify the same bytes when reading saved reports.",
     "Only /header/contentHash is excluded from output scrubbing by schema path, never by value, key name alone or a general hexadecimal exemption; JSON, display and diff hash metadata preserve it.",
-    "Schema validation alone certifies neither output scrubbing nor content-hash verification."
+    "Schema validation alone certifies neither output scrubbing nor content-hash verification.",
+    "Money version 2 uses canonical decimal USD strings. Historical unmarked version 1 numeric reports are hash-verified before migration."
   ]
 }

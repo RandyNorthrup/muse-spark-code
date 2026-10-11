@@ -15,6 +15,61 @@ view.usageHarness.failNextSend = () => {
   current.shouldFailNextSend = true
 }
 const current = { state: usageStateFor(scenario), saved: undefined, shouldFailNextSend: false }
+// M107 W-history scenes: real-shaped history, an unreadable journal, an empty one.
+const resourceScene = params.get('resources')
+if (resourceScene !== null) current.state.resources = resourceHistoryScene(resourceScene)
+
+function resourceHistoryScene(name) {
+  if (name === 'unavailable') return null
+  if (name === 'empty') return { minutes: [], events: [], counts: [], work: [] }
+  const now = current.state.generatedAt
+  const minuteMs = 60_000
+  const start = Math.floor(now / minuteMs) * minuteMs - 89 * minuteMs
+  const minutes = Array.from({ length: 90 }, (_, index) => ({
+    type: 'resource',
+    atMs: start + index * minuteMs + 1000,
+    event: null,
+    minute: {
+      cpuPercent: index === 30 ? null : 35 + ((index * 7) % 55),
+      memoryUsedPercent: 52 + ((index * 3) % 40),
+      availableMemory: index > 70 ? 'low' : 'ample',
+      gpuPercent: null,
+      diskBusyPercent: null,
+      level: index > 60 && index < 75 ? 'throttle' : 'normal',
+      thresholds: { cpuMaxPercent: 85, memoryMaxPercent: 90, memoryMinFreeGiB: 2 },
+    },
+    work: [{ kind: 'check', cpuSeconds: index % 5, peakMemoryBytes: 300_000_000 }],
+  }))
+  const changed = start + 61 * minuteMs
+  return {
+    minutes,
+    events: [
+      { type: 'levelChanged', atMs: changed, from: 'normal', to: 'throttle', reason: 'cpu' },
+      { type: 'deferred', atMs: changed + 5000, kind: 'check', class: 'background' },
+      {
+        type: 'levelChanged',
+        atMs: start + 75 * minuteMs,
+        from: 'throttle',
+        to: 'normal',
+        reason: 'recovery',
+      },
+    ],
+    counts: [
+      { type: 'levelChanged', kind: null, count: 2 },
+      { type: 'deferred', kind: 'check', count: 1 },
+    ],
+    work: [{ kind: 'check', cpuSeconds: 180, peakMemoryBytes: 300_000_000 }],
+    days: [8, 9, 10].map((back) => ({
+      day: new Date(now - back * 86_400_000).toISOString().slice(0, 10),
+      minutes: 1400 - back * 10,
+      cpuPercent: 30 + back,
+      memoryUsedPercent: 60 + back,
+      levels: { normal: 1300, throttle: 90 - back * 5, relocate: 0, pause: 10 },
+      events: 12 + back,
+      work: [{ kind: 'check', cpuSeconds: 900 + back, peakMemoryBytes: 400_000_000 }],
+    })),
+  }
+}
 view.usageHarness.addAccount = () => {
   current.state.limits.push({
     ...current.state.limits[0],

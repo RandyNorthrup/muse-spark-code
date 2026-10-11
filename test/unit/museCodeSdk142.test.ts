@@ -1,6 +1,8 @@
+import { type SpawnOptions, spawn } from 'node:child_process'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { EXPECTED_SCHEMA_FINGERPRINT } from '@muse-code/sdk'
-import echoCapture from '../fixtures/m106/msp-echo-1.4.2.json'
+import { EXPECTED_SCHEMA_FINGERPRINT, MuseServeChild } from '@muse-code/sdk'
+import echoCapture142 from '../fixtures/m106/msp-echo-1.4.2.json'
+import echoCapture from '../fixtures/sdk144/msp-echo-1.4.4.json'
 import {
   MuseCodeHost,
   type MuseCodeFeaturePorts,
@@ -115,8 +117,10 @@ describe('Muse Code 1.4.2 feature ports', () => {
     const host = new MuseCodeHost(fixture.host, new FakeLogOutputChannel())
     fixture.server.handle('model/list', () => echoCapture.modelList)
     expect(echoCapture.initialize.schema.fingerprint).toBe(EXPECTED_SCHEMA_FINGERPRINT)
+    // The 1.4.2 capture is older than the SDK 1.4.4 pin (SDK144).
+    expect(echoCapture142.initialize.schema.fingerprint).not.toBe(EXPECTED_SCHEMA_FINGERPRINT)
     expect(echoCapture.provenance.modelAttempts).toBe(0)
-    expect(host.info.serverVersion).toBe('1.4.2')
+    expect(host.info.serverVersion).toBe('1.4.4')
     await expect(host.listModels()).resolves.toEqual([])
   })
   it('keeps the old model result when no effort reader is installed', async () => {
@@ -376,7 +380,12 @@ describe('Muse Code 1.4.2 feature ports', () => {
     })
     await closing
     await settle()
-    expect(reader.parseDeleteAdmission).toHaveBeenCalledOnce()
+    // M108 fences every pending command reply that races host close, host
+    // exit or a closed connection (889c8d11c), so the admission in that final
+    // read is refused unparsed; the terminal validated before shutdown is
+    // what the deletion keeps.
+    expect(server.requestsFor('session/delete')).toHaveLength(1)
+    expect(reader.parseDeleteAdmission).not.toHaveBeenCalled()
     expect(visible).toHaveBeenCalledOnce()
     expect(history.has('s')).toBe(outcome === 'failed')
     expect(host.sessionCount).toBe(outcome === 'failed' && ending !== 'host close' ? 1 : 0)
@@ -480,9 +489,14 @@ describe('Muse Code 1.4.2 feature ports', () => {
     expect(vi.getTimerCount()).toBe(0)
     expect(host.sessionCount).toBe(1)
     expect(visible).not.toHaveBeenCalled()
-    const abortListener = adding.mock.calls.find(([name]) => name === 'abort')?.[1]
-    expect(abortListener).toEqual(expect.any(Function))
-    expect(removing).toHaveBeenCalledExactlyOnceWith('abort', abortListener)
+    // The deletion's stop listener comes first; M108's command lease adds one
+    // for the admission request. Each is released exactly once.
+    const abortListeners = adding.mock.calls.flatMap(([name, listener]) =>
+      name === 'abort' ? [listener] : [],
+    )
+    expect(abortListeners[0]).toEqual(expect.any(Function))
+    expect(removing).toHaveBeenCalledTimes(abortListeners.length)
+    for (const listener of abortListeners) expect(removing).toHaveBeenCalledWith('abort', listener)
     await host.close()
     expect(vi.getTimerCount()).toBe(0)
   })
@@ -569,5 +583,24 @@ describe('Muse Code 1.4.2 feature ports', () => {
     })
     await expect(host.deleteSession('s')).resolves.toMatchObject({ outcome: 'failed' })
     expect(host.sessionCount).toBe(1)
+  })
+})
+
+// meta-models/muse-code-sdk#34 (PLAN.md D25): SDK 1.4.4 (FR-45141-1) spawns
+// `muse serve` with `windowsHide`, on the public path as on ours (SDK144).
+describe('Muse Code SDK 1.4.4 spawn options', () => {
+  it('hides the host window on every spawn the SDK makes', async () => {
+    const seen: SpawnOptions[] = []
+    const child = MuseServeChild.spawn({
+      museBin: process.execPath,
+      args: ['-e', ''],
+      spawnFn: ((command: string, args: readonly string[], options: SpawnOptions) => {
+        seen.push(options)
+        return spawn(command, args, options)
+      }) as typeof spawn,
+    })
+    await child.exit
+    expect(seen).toHaveLength(1)
+    expect(seen[0]?.windowsHide).toBe(true)
   })
 })

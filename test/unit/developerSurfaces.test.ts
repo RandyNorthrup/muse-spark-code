@@ -209,6 +209,7 @@ describe('Developer options on every surface', () => {
           title: 'Test title',
           badge: 'Test badge',
           resetWarning: 'Test reset',
+          foreignResetWarning: 'Test foreign reset',
         },
       },
       'en',
@@ -218,6 +219,10 @@ describe('Developer options on every surface', () => {
       expect(developerConfirmation('reset')).toMatchObject({
         title: 'Test title',
         message: 'Test reset',
+      })
+      expect(developerConfirmation('resetForeign')).toMatchObject({
+        title: 'Test title',
+        message: 'Test foreign reset',
       })
       expect(developerConfirmation('unlock').message).toBe(UI_TEXT.developer.unlockWarning)
       expect(developerConfirmation('multiple').message).toBe(UI_TEXT.developer.multipleWarning)

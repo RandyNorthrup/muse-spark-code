@@ -1,3 +1,4 @@
+import { Usd as PortUsd } from '../../src/shared/usd'
 import { describe, expect, it } from 'vitest'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
 import { parseScheduleCommand } from '../../src/runtime/schedules/args'
@@ -38,10 +39,13 @@ describe('schedule terminal commands', () => {
         '--max-budget-usd',
         '1.25',
       ]),
-    ).toMatchObject({ ok: true, options: { scheduledPrompts: true, maxBudgetUsd: 1.25 } })
+    ).toMatchObject({
+      ok: true,
+      options: { scheduledPrompts: true, maxBudgetUsd: PortUsd.from(1.25).toAmount() },
+    })
     expect(parseCommandLine(['--scheduled-prompts', '--max-budget-usd', '1.25'])).toMatchObject({
       command: 'serve',
-      options: { scheduledPrompts: true, maxBudgetUsd: 1.25 },
+      options: { scheduledPrompts: true, maxBudgetUsd: PortUsd.from(1.25).toAmount() },
     })
     for (const value of ['', '-1', 'NaN', 'Infinity', '1e4', ' 1', '0x10']) {
       expect(parseScheduleCommand(['add', '--draft', '{}', '--max-budget-usd', value]).ok).toBe(

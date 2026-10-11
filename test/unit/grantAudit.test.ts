@@ -1,3 +1,4 @@
+import { Usd as PortUsd } from '../../src/shared/usd'
 import { describe, expect, it } from 'vitest'
 import {
   ScheduleGrantEditor,
@@ -12,9 +13,9 @@ function authorityStore() {
     grant: {
       rules: [{ id: 'test', kind: 'command', prefix: 'npm test' }],
       destinationIds: [],
-      paidCapUsd: 1,
+      paidCapUsd: PortUsd.from(1).toAmount(),
     },
-    paidCapUsd: 1,
+    paidCapUsd: PortUsd.from(1).toAmount(),
   })
   const entries: ScheduleGrantAudit[] = [{ scheduleId: 'schedule-1', atMs: 0, kind: 'created' }]
   const store: ScheduleAuthorityStore = {
@@ -62,12 +63,12 @@ describe('schedule grant editor and audit', () => {
       await editor.change('workspace-1', 'schedule-1', 0, {
         rules: [],
         destinationIds: [],
-        paidCapUsd: 0,
+        paidCapUsd: PortUsd.from(0).toAmount(),
       }),
     ).toBe(true)
     expect(get()).toMatchObject({
       revision: 1,
-      paidCapUsd: 0,
+      paidCapUsd: PortUsd.from(0).toAmount(),
       grant: { rules: [] },
       name: 'Check the build',
       mode: 'manual',
@@ -83,8 +84,8 @@ describe('schedule grant editor and audit', () => {
     const editor = new ScheduleGrantEditor(store, () => 1)
     expect(await editor.revoke('workspace-1', 'schedule-1')).toBe(true)
     expect(get()).toMatchObject({
-      grant: { rules: [], destinationIds: [], paidCapUsd: 0 },
-      paidCapUsd: 0,
+      grant: { rules: [], destinationIds: [], paidCapUsd: PortUsd.from(0).toAmount() },
+      paidCapUsd: PortUsd.from(0).toAmount(),
       paidConsent: undefined,
     })
     if (old === undefined) throw new Error('missing fixture')
@@ -103,7 +104,7 @@ describe('schedule grant editor and audit', () => {
           {
             ...next,
             name: 'Changed concurrently',
-            grant: { rules: [], destinationIds: [], paidCapUsd: 0 },
+            grant: { rules: [], destinationIds: [], paidCapUsd: PortUsd.from(0).toAmount() },
           },
           { ...audit, kind: 'changed' },
         )

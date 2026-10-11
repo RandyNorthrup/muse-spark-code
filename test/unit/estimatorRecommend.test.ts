@@ -7,7 +7,10 @@ import {
   type EstimateRecommendationPort,
 } from '../../src/core/estimator/recommend'
 import { simulateEstimate } from '../../src/core/estimator/simulate'
-import { ESTIMATE_MARGINAL_FLOOR_HOURS } from '../../src/shared/constants'
+import {
+  ESTIMATE_MARGINAL_FLOOR_HOURS,
+  ESTIMATE_MAX_RENTAL_COST_USD,
+} from '../../src/shared/constants'
 import machineClassData from '../../src/shared/machineClasses.json'
 import { machineClassesSchema } from '../../src/shared/estimate'
 const machineClasses = machineClassesSchema.parse(machineClassData)
@@ -68,7 +71,7 @@ describe('M117 setup recommendations', () => {
       fleetForKind(golden(), 'optimumCost').machines.some((machine) => machine.id === 'linux'),
     ).toBe(true)
     const selected = golden().selections.find((entry) => entry.kind === 'optimumCost')!
-    expect(golden().evaluations[selected.evaluation]!.rentalCostP90Usd).toBe(0.48)
+    expect(golden().evaluations[selected.evaluation]!.rentalCostP90Usd).toBe('0.48')
     expect(golden().setups.find((setup) => setup.kind === 'optimumCost')!.provisioning).toBe(
       'adviceOnly',
     )
@@ -272,14 +275,14 @@ describe('M117 setup recommendations', () => {
       rates: [0.9, 0.3],
       hours: [1, 3],
       selected: 'rental-0',
-      displayed: [0.9, 0.9],
+      displayed: ['0.9', '0.9'],
     },
     {
       name: 'sub-nano costs before display rounding',
       rates: [2e-9, 5e-10],
       hours: [0.1, 0.2],
       selected: 'rental-1',
-      displayed: [1e-9, 1e-9],
+      displayed: ['0.0000000002', '0.0000000001'],
     },
   ])('$name', ({ rates, hours, selected, displayed }) => {
     const { inputs, pool, prices } = rentalOnlyFixture()
@@ -352,7 +355,7 @@ describe('M117 setup recommendations', () => {
         result.evaluations
           .filter((entry) => entry.forecast.status === 'feasible')
           .map((entry) => entry.rentalCostP90Usd),
-      ).toEqual([0])
+      ).toEqual(['0'])
     },
   )
   it('sums decimal hourly rentals exactly across machines', () => {
@@ -371,7 +374,7 @@ describe('M117 setup recommendations', () => {
       'rental-0',
       'rental-1',
     ])
-    expect(result.evaluations[selection.evaluation]!.rentalCostP90Usd).toBe(0.9)
+    expect(result.evaluations[selection.evaluation]!.rentalCostP90Usd).toBe('0.9')
   })
   it('charges only new rentals when expanding an existing rented fleet', () => {
     const { inputs, pool, prices } = recommendationFixture(1)
@@ -380,8 +383,8 @@ describe('M117 setup recommendations', () => {
     const result = recommendEstimate(inputs, pool, forecastPort, prices)
     const selected = result.selections.find((entry) => entry.kind === 'optimumCost')!
     expect(fleetForKind(result, 'optimumCost').machines).toHaveLength(2)
-    expect(result.evaluations[selected.evaluation]!.rentalCostP90Usd).toBe(0.48)
-    expect(result.evaluations[0]!.rentalCostP90Usd).toBe(0)
+    expect(result.evaluations[selected.evaluation]!.rentalCostP90Usd).toBe('0.48')
+    expect(result.evaluations[0]!.rentalCostP90Usd).toBe('0')
   })
   it('omits deadline objectives without a deadline or when the deadline is impossible', () => {
     const { inputs, pool } = recommendationFixture(0)
@@ -604,6 +607,35 @@ describe('M117 setup recommendations', () => {
         },
       }),
     ).toThrow('calibration-unavailable')
+  })
+  it('admits the largest honestly displayable rental and refuses one dollar more', () => {
+    const { inputs, pool, prices } = recommendationFixture(1)
+    const base = simulateEstimate(inputs, fixedDurationPort)
+    const asOf = Date.parse(inputs.request.asOf)
+    const hourMs = 60 * 60 * 1000
+    const oneHour: EstimateRecommendationPort = {
+      forecast: () => ({
+        status: 'feasible',
+        simulation: {
+          ...base,
+          p50Hours: 0.5,
+          p90Hours: 1,
+          p50: new Date(asOf + 0.5 * hourMs).toISOString(),
+          p90: new Date(asOf + hourMs).toISOString(),
+        },
+      }),
+    }
+    const bound = Number(ESTIMATE_MAX_RENTAL_COST_USD)
+    const priced = (rate: number) => [
+      { machineId: prices[0]!.machineId, price: catalogPrice(rate) },
+    ]
+    const admitted = recommendEstimate(inputs, pool, oneHour, priced(bound))
+    expect(
+      admitted.evaluations.some((entry) => entry.rentalCostP90Usd === ESTIMATE_MAX_RENTAL_COST_USD),
+    ).toBe(true)
+    expect(() => recommendEstimate(inputs, pool, oneHour, priced(bound + 1))).toThrow(
+      'cost-overflow',
+    )
   })
   it('parses inputs and candidate fleets before invoking an infeasible evaluator', () => {
     const { inputs, pool } = recommendationFixture(0)

@@ -7,6 +7,7 @@ import {
   scheduleV2Schema,
   scheduleRunContextSchema,
   scheduleFireRecordSchema,
+  noScheduleCost,
   type ScheduleDeliveryState,
   type ScheduleHostPort,
   type ScheduleV2,
@@ -90,7 +91,7 @@ export class RuntimeScheduleHost implements ScheduleHostPort {
         outcome: 'refused',
         reason: UI_TEXT.scheduleV2.reportAction.unavailable,
         refusedActions: [],
-        cost: { usd: 0, certainty: 'exact', retainedLiabilityUsd: 0 },
+        cost: noScheduleCost(),
         ...(e !== undefined && { event: e }),
       })
     const result = scheduleFireRecordSchema.parse(
@@ -110,9 +111,9 @@ export class RuntimeScheduleHost implements ScheduleHostPort {
       throw new Error(UI_TEXT.scheduleV2.runtime.invalidResponse)
     if (
       s.action.kind === 'report' &&
-      (result.cost.usd !== 0 ||
+      (result.cost.usd !== '0' ||
         result.cost.certainty !== 'exact' ||
-        result.cost.retainedLiabilityUsd !== 0 ||
+        result.cost.retainedLiabilityUsd !== '0' ||
         (result.outcome === 'ran' &&
           (result.report === undefined ||
             Object.values(result.report).some((item) => item.status !== 'delivered'))) ||

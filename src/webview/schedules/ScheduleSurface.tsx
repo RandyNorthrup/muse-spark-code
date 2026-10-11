@@ -1,3 +1,4 @@
+import { Usd } from '../../shared/usd'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { installEmbeddedTable } from '../installTable'
@@ -182,8 +183,8 @@ export function ScheduleSurface(context: ScheduleSurfaceProps) {
                   if (input.method === 'schedules/revokeGrant')
                     return {
                       ...item,
-                      grant: { rules: [], destinationIds: [], paidCapUsd: 0 },
-                      paidCapUsd: 0,
+                      grant: { rules: [], destinationIds: [], paidCapUsd: Usd.from(0).toAmount() },
+                      paidCapUsd: Usd.from(0).toAmount(),
                     }
                   return {
                     ...item,

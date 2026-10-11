@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { beforeEach, expect, it } from 'vitest'
 import axe from 'axe-core'
 import { aggregateResources } from '../../src/core/usage/aggregate'
-import { usageResourcesText } from '../../src/core/usage/usageText'
+import { resourceHistoryText } from '../../src/core/usage/resourceText'
 import {
   UI_TEXT,
   RESOURCE_HISTORY_MAX_EVENTS,
@@ -32,6 +32,10 @@ import type { ResourceRecord } from '../../src/shared/resources'
 import ResourcesSection from '../../src/webview/usage/ResourcesSection'
 import { LazyResourcesSection } from '../../src/webview/usage/LazyResourcesSection'
 import { historyRecords } from './helpers/resources/history'
+
+// The terminal/ACP text renders the same aggregate the page receives.
+const usageResourcesText = (records: readonly ResourceRecord[]) =>
+  resourceHistoryText(aggregateResources(records))
 
 beforeEach(() => {
   setUiText(EN, 'en')

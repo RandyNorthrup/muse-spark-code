@@ -1,6 +1,7 @@
 // Optional font-pack notices and package guard (M114 F). No downloads here.
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { Buffer } from 'node:buffer'
 import * as esbuild from 'esbuild'
 
@@ -11,7 +12,9 @@ async function fontModule() {
       stdin: {
         contents:
           "export { fontPackSchema } from './manifest'; export { verifyFontAsset } from './install'",
-        resolveDir: path.resolve('src/runtime/fonts'),
+        // This checkout's own validators (and their node_modules), whatever
+        // the working folder: notices tests run the script in a fixture root.
+        resolveDir: fileURLToPath(new URL('../src/runtime/fonts', import.meta.url)),
         loader: 'ts',
       },
       bundle: true,

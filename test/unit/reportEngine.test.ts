@@ -1,7 +1,7 @@
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { tmpdir } from 'node:os'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
 import { createReportingEngine, createReportingServices } from '../../src/runtime/reporting/engine'
 import { reportWorkspaceKey } from '../../src/core/reporting/sources/local'
@@ -12,6 +12,14 @@ import { reportDocument } from './helpers/reporting/snapshot'
 import { REPORT_THEME } from './reportRenderFixtures'
 import { referenceModel as nodeReference } from '../../src/runtime/reference.node.generated'
 import { referenceModel } from '../../src/shared/reference/reference.generated'
+
+// Report storage's own-process identity probe and Git metadata are bounded OS
+// commands; on Windows and macOS the probe spawns (Linux reads /proc). Their
+// governed admission is proved by spawnGovernance; here they run directly.
+vi.mock('../../src/core/resources/launcher', async (original) => {
+  const { withFixtureCommand } = await import('./helpers/resources/fixtureLaunch')
+  return withFixtureCommand(await original())
+})
 
 const roots: string[] = []
 afterEach(async () => {

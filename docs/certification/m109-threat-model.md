@@ -5,7 +5,72 @@ named lanes below. A contract rejection proves validation, not OS isolation,
 scrubbing, policy enforcement or revocation. Fakes are under `test/**` only.
 No credential store is read and no model call is required by these tests.
 
+SPAWN017B's **bootstrap tier** governs compilation of the Windows job and
+vault helpers themselves. A compiler cannot use the job helper it has not
+yet built. It holds heavy resource admission, uses PROCESS_TABLE_TIMEOUT_MS
+and CLI_OUTPUT_MAX_BYTES, strips credential variables, and waits for process
+exit before publishing compiled bytes. Timeout or cancellation stops the
+root and descendants using Windows taskkill /T /F or a POSIX process group.
+The OS terminator remains available at pause. This is a governance tier,
+not an exemption; native hung-root/child and output-cap drills are in the
+combined 0.17.0 certification. Windows taskkill has an enumeration window,
+as documented in processTree.ts; compiled payload helpers use jobs instead.
+
 Research: [82-source recheck and corrections](m109-research-check.md).
+
+SPAWN017C makes launch lifetime explicit: every governed launch names one
+profile (`src/core/resources/process.ts`), and no call site chooses
+`detached`, `stdio` or `shell`.
+
+- `contained` (payloads, tools, helpers): pipes, its own POSIX process group
+  (session) or a Windows job. Cancel, deadline, root exit and host disposal
+  stop the whole tree; disposal kills, and keeps ownership (and the temp root)
+  until the tree is observed gone. On Windows the job attests itself: the
+  helper holds the only handle to an unnamed kill-on-close job without
+  breakaway, the kernel enforces the process cap, the helper ends and drains
+  the job before it exits, and one final record carries the usage. A killed
+  helper closes that handle and the kernel ends the tree, but that end is not
+  observed: only a drained record retires the work; anything else keeps the
+  temp root and is reported. The record also names cap refusals and enforced
+  memory limits. The helper's bytes are hashed around its self-test and again
+  before every launch (a same-user process can forge size and times, not a
+  hash); a changed helper is refused and rebuilt. The check-to-exec window
+  that remains is the same user's own, as for any other file the extension
+  runs.
+- `probe` (bounded, read-only commands: Git ref and report reads, gh reads,
+  birth and version probes): contained like the above but with no temp root,
+  because it writes nothing. Each call site names it and the inventory records
+  it with its reason; a command that might write stays `contained`.
+- `handoff` (OS openers and clipboard programs): background admission, so a
+  pause refuses it at once. Its output goes to the null device, so nothing is
+  buffered and a browser the OS starts never holds the CLI's pipes. It gets
+  the caller's environment, never the lease's temporary root, which is
+  cleaned up after the lease while the browser lives on. The
+  RESOURCE_HANDOFF_TIMEOUT_MS deadline covers admission and the adapter's
+  run; at the deadline only the adapter root is killed. It is waited for by
+  its own exit; what it opened belongs to the user and is never stopped.
+- `interactive` (`muse login`): inherited stdio in the terminal's own
+  session, group and TTY, so Ctrl+C and the terminal reach it; its exit is
+  observed and the root is killed if the CLI shuts down first.
+- `bootstrap` (compilers that build the containment helpers, and the
+  governor's own fixed, bounded, credential-free probes and emergency
+  terminators): these cannot be admitted through the helpers they build or
+  verify, nor queue behind the pause they must outlast. Compilers keep heavy
+  background admission, pipes, a deadline, one combined output cap and OS
+  whole-tree termination.
+
+Pause refuses bootstrap and background admission immediately with the
+governor's own status words (`Resources: Paused`). The shell's job helper
+and the vault builder pass that refusal on: neither treats it as "job
+objects unavailable", falls back to taskkill, or tries a second vault
+storage location. The runtime admission deadline is armed before the bundle
+load, settings read and sampler refresh; the caller's signal ends its own
+wait without cancelling the shared sample. The inventory guard
+(`spawnInventory.test.mjs`) parses every source file, aliases, delegated
+calls and embedded supervisor code; a site missing from
+`spawn-inventory.json` fails it, and each `test-only` entry is proved
+unreachable from production, transitively. Receipts are in the combined
+certification; the POSIX session/group/TTY proof ran on Kubuntu.
 
 ## Trust boundaries
 

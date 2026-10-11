@@ -608,16 +608,29 @@ describe('tiered CI (CIFLOW)', () => {
       expect(job(id)).toContain('["ubuntu-latest","windows-latest","macos-latest"]')
     }
     // Exactly quality:gates without tests and pixels, which have required jobs: a
-    // gate added to quality:gates and not to CI fails here.
+    // gate added to quality:gates and not to CI fails here. The static gates run
+    // in parts (CIFIX017R3): each script quality:gates reaches through run-s
+    // runs in exactly one part, none twice and none dropped.
+    const scripts: Record<string, string | undefined> = manifest.scripts
+    const leaves = (names: readonly string[]): string[] =>
+      names.flatMap((name) => {
+        const script = scripts[name] ?? ''
+        return script.startsWith('run-s ') ? leaves(script.split(' ').slice(1)) : [name]
+      })
     const gates = manifest.scripts['quality:gates'].split(' ')
     expect(gates.slice(0, 1)).toEqual(['run-s'])
     expect(gates).toContain('test:unit')
-    expect(job('checks')).toContain(
-      `      - run: npx run-s ${gates
-        .slice(1)
-        .filter((gate) => gate !== 'test:unit' && gate !== 'check:visual')
-        .join(' ')}\n`,
+    const parts = Array.from(
+      job('checks').matchAll(/\n {12}gates: '([^']+)'\n/g),
+      ([, list = '']) => list.split(' '),
     )
+    expect(parts).toHaveLength(3)
+    expect(leaves(parts.flat()).toSorted((a, b) => a.localeCompare(b))).toEqual(
+      leaves(
+        gates.slice(1).filter((gate) => gate !== 'test:unit' && gate !== 'check:visual'),
+      ).toSorted((a, b) => a.localeCompare(b)),
+    )
+    expect(job('checks')).toContain('      - run: npx run-s ${{ matrix.part.gates }}\n')
     expect(job('unit')).toContain('npx vitest run\n')
     for (const id of [
       'coverage',
@@ -645,19 +658,12 @@ describe('tiered CI (CIFLOW)', () => {
     expect(job('packages')).toContain('name: muse-spark-code-sboms')
   })
 
-  it('carries the reporting panel metrics input with browser files for accessibility', () => {
-    expect(job('checks')).toContain('path: |\n            dist/webview\n')
-    for (const file of [
-      'reportingPanel',
-      'validation',
-      'wire',
-      'uiText',
-      'uiTextRuntime',
-      'uiTextHooks',
-      'uiTextSurfaces',
-    ]) {
-      expect(job('checks')).toContain(`            dist/${file}.js\n`)
-    }
+  it('carries the whole production dist, not a hand list, to the accessibility job', () => {
+    // A hand list drifted once: wire.js gained a lazy chunk the list lacked.
+    expect(job('checks')).toContain(
+      'path: |\n            dist\n            !dist/vsix-package\n            !dist/meta\n',
+    )
+    expect(job('checks')).not.toMatch(/^ {12}dist\/[A-Za-z]+\.js$/m)
     expect(job('accessibility')).toContain('name: production-webview\n          path: dist\n')
     expect(read('test/harness/reporting/verify.mjs')).toContain(
       "statSync(path.join(root, 'dist/reportingPanel.js'))",
@@ -672,14 +678,25 @@ describe('tiered CI (CIFLOW)', () => {
     expect(job('visual')).toContain('needs: visual-shards')
   })
 
-  it('collects all four shards per OS and gates merged coverage with unchanged thresholds', () => {
-    expect(job('unit')).toContain("shard: ${{ fromJSON(inputs.fast && '[1]' || '[1,2,3,4]') }}")
-    expect(job('unit')).toContain('--shard="$SHARD/4" --reporter=default --reporter=blob')
+  it('collects every shard per OS (eight on Windows, six on macOS) and gates merged coverage with unchanged thresholds', () => {
+    expect(job('unit')).toContain(
+      "shard: ${{ fromJSON(inputs.fast && '[1]' || '[1,2,3,4,5,6,7,8]') }}",
+    )
+    expect(job('unit')).toContain(
+      `exclude: \${{ fromJSON(inputs.fast && '[]' || '[{"os":"ubuntu-latest","shard":5},{"os":"ubuntu-latest","shard":6},{"os":"ubuntu-latest","shard":7},{"os":"ubuntu-latest","shard":8},{"os":"macos-latest","shard":7},{"os":"macos-latest","shard":8}]') }}`,
+    )
+    expect(job('unit')).toContain(
+      "SHARDS: ${{ matrix.os == 'ubuntu-latest' && 4 || matrix.os == 'macos-latest' && 6 || 8 }}",
+    )
+    expect(job('unit')).toContain('--shard="$SHARD/$SHARDS" --reporter=default --reporter=blob')
     expect(job('unit')).toContain('--outputFile="blob-reports/shard-$SHARD.json"')
     expect(job('coverage')).toContain('os: [ubuntu-latest, windows-latest, macos-latest]')
     expect(job('coverage')).toContain('pattern: coverage-${{ matrix.os }}-*')
     expect(job('coverage')).toContain('merge-multiple: true')
-    expect(job('coverage')).toContain('for shard in 1 2 3 4; do')
+    expect(job('coverage')).toContain(
+      "SHARDS: ${{ matrix.os == 'ubuntu-latest' && 4 || matrix.os == 'macos-latest' && 6 || 8 }}",
+    )
+    expect(job('coverage')).toContain('for shard in $(seq 1 "$SHARDS"); do')
     expect(job('coverage')).toContain('test -s "blob-reports/shard-$shard.json"')
     expect(job('coverage')).toContain('npx vitest run --merge-reports=blob-reports --coverage')
     const config = read('vitest.config.ts')
@@ -687,7 +704,10 @@ describe('tiered CI (CIFLOW)', () => {
     expect(config).toContain("arg !== '--shard' && !arg.startsWith('--shard=')")
     expect(config).toContain('...(process.argv.every')
     expect(config).toContain('thresholds: COVERAGE_THRESHOLDS,')
-    expect(config).toContain("fileParallelism: process.platform !== 'win32'")
+    expect(config).toContain("fileParallelism: process.platform !== 'win32' && !IS_HOSTED_MAC")
+    expect(config).toContain(
+      "process.platform === 'darwin' && process.env['GITHUB_ACTIONS'] === 'true'",
+    )
   })
 
   it('keeps all required names and wires fail-closed checks for each selected-tier dependency', () => {
@@ -864,5 +884,34 @@ describe('toolchain pins (AGENTS.md)', () => {
     expect(dependabot).toMatch(
       /^ {6}- dependency-name: typescript\n {8}update-types: \['version-update:semver-major'\]$/m,
     )
+  })
+})
+
+// cmd.exe reads at most 8,191 characters per command line. npm on Windows runs
+// a script as `%ComSpec% /d /s /c "<script>"`, and a tool from node_modules/.bin
+// is npm's .cmd shim, which re-expands every argument into one line of its own
+// (CMD_SHIM_LINE). Measured on Windows 11 (CIFIX017W2): through dpdm's shim in a
+// 51-character .bin folder, an 8,035-character script ran and 8,036 failed
+// with "The syntax of the command is incorrect." (exit 255), as the 8,070-
+// character `cycles` script did on the hosted runner. Each path in those lines
+// may be up to MAX_PATH long, wherever the repository is checked out.
+const CMD_LINE_MAX = 8191
+const MAX_PATH = 260
+const CMD_SHIM_LINE = String.raw`endLocal & goto #_undefined_# 2>NUL || title %COMSPEC% & "%_prog%"  "%dp0%\..\%tool%" %*`
+
+describe('npm scripts on Windows (CIFIX017W2)', () => {
+  it('fit cmd.exe’s command line as npm runs them and as a node_modules/.bin shim expands them', () => {
+    const longestPath = 'p'.repeat(MAX_PATH)
+    const lines = (script: string) => [
+      `${longestPath} /d /s /c "${script}"`,
+      CMD_SHIM_LINE.replaceAll(/%(?:COMSPEC|_prog|dp0|tool)%/g, () => longestPath).replace(
+        '%*',
+        () => script,
+      ),
+    ]
+    const tooLong = Object.entries(manifest.scripts).filter(([, script]) =>
+      lines(script).some((line) => line.length > CMD_LINE_MAX),
+    )
+    expect(tooLong.map(([name, script]) => `${name}: ${String(script.length)}`)).toEqual([])
   })
 })

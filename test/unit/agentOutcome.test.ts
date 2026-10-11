@@ -60,7 +60,7 @@ describe('D101 structured outcomes', () => {
     expect(agentActivity({ status: 'completed', controlStatus: 'resultReady' }, 0).activity).toBe(
       'inactive',
     )
-    expect(agentStateText(done(), 0)).toBe('Inactive · Ended, unverified')
+    expect(agentStateText(done(), 0)).toBe('Inactive · Ended, Unverified')
     expect(agentActivity({ status: 'future' }, 0).reason).toBe('idle')
   })
   it('bounds the recent-output window', () => {
@@ -109,7 +109,7 @@ describe('D101 structured outcomes', () => {
     expect(listedAgents(items)).toHaveLength(4)
     expect(agentListingText(items, 0)).toContain('Inactive · Incomplete')
     expect(agentListingText(items, 0)).toContain('w/c')
-    expect(agentListingText(items, 0)).toContain('Inactive · Ended, unverified')
+    expect(agentListingText(items, 0)).toContain('Inactive · Ended, Unverified')
     expect(agentListingText(items, 0)).toContain('Inactive · Failed')
     expect(agentListingText(items, 0)).toContain('exit ·')
   })

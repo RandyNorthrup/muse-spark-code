@@ -222,6 +222,11 @@ export class ResourceRecords {
     })
   }
 
+  /** The open minute's cumulative snapshot so far, for the live view only; a copy. */
+  current(): ResourceRecord | undefined {
+    return this.minute === undefined ? undefined : resourceRecordSchema.parse(this.minute)
+  }
+
   /** Call before a journal read and on clean shutdown; failed appends remain retryable. */
   flush(): Promise<void> {
     return this.serialize(async () => {

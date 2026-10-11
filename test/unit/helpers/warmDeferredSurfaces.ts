@@ -1,7 +1,6 @@
 /** Move cold transforms outside Testing Library's default findBy deadline. */
 export async function warmDeferredSurfaces(): Promise<void> {
   await Promise.all([
-    import('../../../src/shared/palette'),
     import('../../../src/shared/paletteRegistry'),
     import('../../../src/webview/components/DiffTally'),
     import('../../../src/webview/components/MentionMenu'),
@@ -11,6 +10,8 @@ export async function warmDeferredSurfaces(): Promise<void> {
     import('../../../src/webview/playbook/PlaybookPanel'),
     import('../../../src/webview/playbook/PlaybookRows'),
     import('../../../src/webview/schedules/channel'),
+    // STARTUP017: `/schedule` prompt mapping loads on first submit.
+    import('../../../src/webview/schedules/prompt'),
     import('../../../src/webview/schedules/ScheduleRunBody'),
     import('../../../src/webview/schedules/ScheduleSurfaceView'),
     import('../../../src/webview/reporting/UsageReportAction'),
@@ -35,7 +36,6 @@ export async function warmDeferredSurfaces(): Promise<void> {
     import('../../../src/webview/components/QuestionUi'),
     import('../../../src/webview/components/ReportDialog'),
     import('../../../src/webview/components/GooeyMenuContent'),
-    import('../../../src/webview/components/ElicitationCard'),
     import('../../../src/webview/components/WorkflowRun'),
     import('../../../src/webview/components/HighlightedCode'),
     import('../../../src/webview/components/EffortSlider'),

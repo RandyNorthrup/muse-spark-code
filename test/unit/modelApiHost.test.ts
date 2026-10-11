@@ -2095,7 +2095,7 @@ describe('Model API scheduled prompts (M52)', () => {
   })
 
   it.each(['duplicate', 'different'] as const)(
-    'releases a rejected %s schedule lease without clearing the running generation',
+    'refuses a concurrent %s schedule run before admission without clearing the running generation',
     async (kind) => {
       const firstLease: ResourceLease = {
         register: vi.fn(),
@@ -2149,25 +2149,22 @@ describe('Model API scheduled prompts (M52)', () => {
         await vi.waitFor(() => {
           expect(claim).toHaveBeenCalledTimes(1)
         })
+        // One occurrence at a time holds the lease slot until its turn ends
+        // (the 0.17 schedules/resources merge, 1e5dc24cb): a second run, the
+        // same occurrence or another, is refused before admission or claim.
         const rejected = schedules.run(other.id, other.nextFireAtMs, confirmedRun(other, session))
-        void rejected.catch(() => undefined)
-        await vi.waitFor(() => {
-          expect(claim).toHaveBeenCalledTimes(2)
-        })
+        await expect(rejected).rejects.toThrow(UI_TEXT.scheduleBusy)
+        expect(claim).toHaveBeenCalledOnce()
+        expect(admission).toHaveBeenCalledOnce()
         claims[0]!.resolve(true)
         await running
         await hook.promise
-        claims[1]!.resolve(kind !== 'duplicate')
-        await expect(rejected).rejects.toThrow(
-          kind === 'duplicate' ? UI_TEXT.scheduleAlreadyRun : UI_TEXT.scheduleBusy,
-        )
-        expect(secondLease.complete).toHaveBeenCalledWith(true)
         expect(firstLease.complete).not.toHaveBeenCalled()
         const completed = turnDone()
         release.resolve(true)
         await completed
         expect(firstLease.complete).toHaveBeenCalledExactlyOnceWith(true)
-        expect(secondLease.complete).toHaveBeenCalledExactlyOnceWith(true)
+        expect(secondLease.complete).not.toHaveBeenCalled()
       } finally {
         release.resolve(true)
         await t.host.close()
@@ -3005,6 +3002,29 @@ describe('ModelApiSession: session budget (M82)', () => {
   it('never sends a request the cap cannot fit, and the turn says why', async () => {
     setUiText(EN, BASE_LOCALE)
     const t = setup({ sessionBudgetUsd: Usd.from(0.000001).toAmount() })
+    const watched = await startSession(t)
+    await budgetTurn(t, watched, 'hi', { text: 'never sent' })
+    expect(t.api.responseBodies()).toEqual([])
+    expect(watched.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+      terminal: 'failed',
+    })
+    expect(lastReason(watched.events)).toContain('It was not sent.')
+  })
+
+  it('stops with the budget message when the cap affords fewer than sixteen output tokens', async () => {
+    setUiText(EN, BASE_LOCALE)
+    // Meta rejects max_output_tokens below 16, so ten affordable tokens must
+    // refuse exactly like zero: nothing is sent and the turn says why.
+    const probe = setup({ sessionBudgetUsd: Usd.from(10).toAmount() })
+    await budgetTurn(probe, await startSession(probe), 'hi', { text: 'ok' })
+    const [sent] = probe.api.responseBodies()
+    const estimated = estimateInput(sentParts(sent), undefined).inputTokens
+    const capUsd = Usd.from('1.25')
+      .times(estimated)
+      .divide(1_000_000)
+      .add(Usd.from('4.25').times(10).divide(1_000_000))
+      .toAmount()
+    const t = setup({ sessionBudgetUsd: capUsd })
     const watched = await startSession(t)
     await budgetTurn(t, watched, 'hi', { text: 'never sent' })
     expect(t.api.responseBodies()).toEqual([])

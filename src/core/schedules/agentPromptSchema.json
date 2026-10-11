@@ -790,16 +790,16 @@
               }
             },
             "paidCapUsd": {
-              "type": "number",
-              "minimum": 0
+              "type": "string",
+              "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$"
             }
           },
           "required": ["rules", "destinationIds", "paidCapUsd"],
           "additionalProperties": false
         },
         "paidCapUsd": {
-          "type": "number",
-          "minimum": 0
+          "type": "string",
+          "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$"
         },
         "parallel": {
           "type": "boolean"

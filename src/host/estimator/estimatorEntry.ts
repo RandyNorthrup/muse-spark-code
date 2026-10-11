@@ -20,7 +20,8 @@
 // the review time observed in history, and hours per round would count it
 // twice (docs/estimator/prior.md).
 import * as z from 'zod/mini'
-import { setUiText, fill, formatUsd } from '../../shared/l10n/text'
+import { setUiText, fill } from '../../shared/l10n/text'
+import { formatUsd } from '../../shared/l10n/exactUsd'
 import type { UiText } from '../../shared/l10n/en'
 import { ESTIMATE_ENGINES, UI_TEXT } from '../../shared/constants'
 import {

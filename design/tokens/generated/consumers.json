@@ -26,6 +26,12 @@
         "css": "#737780",
         "variable": "--ms-border"
       },
+      "colour.boundary": {
+        "type": "color",
+        "value": { "colorSpace": "srgb", "components": [0.521569, 0.545098, 0.596078], "alpha": 1 },
+        "css": "color-mix(in srgb, var(--vscode-foreground, var(--ms-text)) 70%, var(--vscode-editor-background, var(--ms-surface)))",
+        "variable": "--ms-boundary"
+      },
       "colour.text": {
         "type": "color",
         "value": { "colorSpace": "srgb", "components": [0.145098, 0.160784, 0.196078], "alpha": 1 },
@@ -817,6 +823,12 @@
         "value": { "colorSpace": "srgb", "components": [0.521569, 0.545098, 0.596078], "alpha": 1 },
         "css": "#858b98",
         "variable": "--ms-border"
+      },
+      "colour.boundary": {
+        "type": "color",
+        "value": { "colorSpace": "srgb", "components": [0.521569, 0.545098, 0.596078], "alpha": 1 },
+        "css": "color-mix(in srgb, var(--vscode-foreground, var(--ms-text)) 70%, var(--vscode-editor-background, var(--ms-surface)))",
+        "variable": "--ms-boundary"
       },
       "colour.text": {
         "type": "color",
@@ -1622,6 +1634,12 @@
         "css": "#000000",
         "variable": "--ms-border"
       },
+      "colour.boundary": {
+        "type": "color",
+        "value": { "colorSpace": "srgb", "components": [0.521569, 0.545098, 0.596078], "alpha": 1 },
+        "css": "color-mix(in srgb, var(--vscode-foreground, var(--ms-text)) 70%, var(--vscode-editor-background, var(--ms-surface)))",
+        "variable": "--ms-boundary"
+      },
       "colour.text": {
         "type": "color",
         "value": { "colorSpace": "srgb", "components": [0, 0, 0], "alpha": 1 },
@@ -2373,6 +2391,12 @@
         "value": { "colorSpace": "srgb", "components": [1, 1, 1], "alpha": 1 },
         "css": "#ffffff",
         "variable": "--ms-border"
+      },
+      "colour.boundary": {
+        "type": "color",
+        "value": { "colorSpace": "srgb", "components": [0.521569, 0.545098, 0.596078], "alpha": 1 },
+        "css": "color-mix(in srgb, var(--vscode-foreground, var(--ms-text)) 70%, var(--vscode-editor-background, var(--ms-surface)))",
+        "variable": "--ms-boundary"
       },
       "colour.text": {
         "type": "color",
@@ -3320,6 +3344,10 @@
     { "foreground": "colour.info", "background": "colour.hover", "usage": "text" },
     { "foreground": "colour.focus", "background": "colour.hover", "usage": "ui" },
     { "foreground": "colour.border", "background": "colour.hover", "usage": "ui" },
+    { "foreground": "colour.boundary", "background": "colour.surface", "usage": "ui" },
+    { "foreground": "colour.boundary", "background": "colour.raised", "usage": "ui" },
+    { "foreground": "colour.boundary", "background": "colour.overlay", "usage": "ui" },
+    { "foreground": "colour.boundary", "background": "colour.hover", "usage": "ui" },
     { "foreground": "colour.on-accent", "background": "colour.accent", "usage": "text" },
     { "foreground": "colour.on-accent", "background": "colour.pressed", "usage": "text" },
     { "foreground": "colour.on-selection", "background": "colour.selection", "usage": "text" },

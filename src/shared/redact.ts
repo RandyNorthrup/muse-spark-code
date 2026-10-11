@@ -473,6 +473,8 @@ interface LiteralNode {
 
 /** One shared Aho-Corasick matcher, so overlapping encodings cannot leave a tail. */
 function literalMatcher(forms: readonly string[]): (text: string, matched?: () => void) => string {
+  // No literal registered (the usual case): nothing can match, so skip the per-character walk.
+  if (forms.length === 0) return (text) => text
   const root: LiteralNode = { next: new Map(), fail: undefined, length: 0 }
   for (const literal of forms) {
     let node = root
@@ -597,6 +599,26 @@ export function redactSecrets(
   shouldIncludePatterns = true,
 ): string {
   return redactWith(text, literals, undefined, shouldIncludePatterns)
+}
+
+/**
+ * `redactSecrets` with fixed literals, for one stream's many strings: the
+ * literals' encoded forms and the matcher are built once, and again only
+ * when a registered secret changes, instead of on every call.
+ */
+export function secretRedactor(
+  literals: readonly string[],
+  shouldIncludePatterns = true,
+): (text: string) => string {
+  const fixed = secretForms(literals)
+  let built: { registered: string[]; matcher: ReturnType<typeof literalMatcher> } | undefined
+  return (text) => {
+    const registered = currentForms()
+    if (built?.registered !== registered)
+      built = { registered, matcher: literalMatcher([...registered, ...fixed]) }
+    const redacted = built.matcher(text)
+    return shouldIncludePatterns ? redactPatterns(redacted) : redacted
+  }
 }
 
 /** Counts only changed, nonoverlapping matches in the same order as redaction. */

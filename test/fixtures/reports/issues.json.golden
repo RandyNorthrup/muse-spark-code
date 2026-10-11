@@ -1,11 +1,12 @@
 {
   "format": "report-v1",
+  "moneyVersion": 2,
   "header": {
     "kind": "issues",
     "scope": "Fixture workspace",
     "asOf": "2026-10-06T12:00:00+00:00",
     "generatorVersion": "0.14.2",
-    "contentHash": "01353be400aa8d686b2c935ac7219b2c404c865a3c840266bfa0ef7175562fec"
+    "contentHash": "28cfbad5c03d137ccf0716ce39e2be0e69c35e2b5cfd91c96f6a3ca065b17742"
   },
   "needsYou": {
     "id": "needsYou",

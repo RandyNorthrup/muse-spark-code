@@ -3,6 +3,8 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { spawnMspConnection } from '@muse-code/sdk'
+import { spawnAccountMspConnection } from '../../core/backends/musecode/MuseCodeHost'
+import type { MuseCodeAccountHome } from '../../core/backends/musecode/accountHomes'
 import { posixQuoted } from '../../core/shellQuote'
 import { resourceWindowsJob } from '../../core/resources/admission'
 import { resourceEnvironment, type ResourceLease } from '../../core/resources/launch'
@@ -121,15 +123,25 @@ async function museResourceLaunch(
 }
 
 /** Both SDK host paths share the same final spawn and registration boundary. */
-export async function spawnResourceMuseConnection(
+interface ResourceHandshake {
+  exited: Promise<{ code: number | null; signal: NodeJS.Signals | null }>
+  close(): Promise<unknown>
+  child?: { close(): Promise<unknown> }
+  initialize(
+    params: Parameters<ReturnType<typeof spawnMspConnection>['initialize']>[0],
+  ): Promise<{ close(): Promise<unknown> }>
+}
+
+async function spawnGovernedMuseConnection<T extends ResourceHandshake>(
   options: Parameters<typeof spawnMspConnection>[0],
   resource: ResourceLease | undefined,
   assembly: () => Promise<string | undefined>,
   systemRoot: string | undefined,
   assertCanRun: () => Promise<void>,
-): Promise<ReturnType<typeof spawnMspConnection>> {
+  spawnConnection: (options: Parameters<typeof spawnMspConnection>[0]) => T,
+): Promise<T> {
   let launch: Awaited<ReturnType<typeof museResourceLaunch>> | undefined
-  let handshake: ReturnType<typeof spawnMspConnection> | undefined
+  let handshake: T | undefined
   try {
     const drainMs = options.shutdownTimeoutMs ?? RESOURCE_MUSE_SHUTDOWN_MS
     if (!Number.isSafeInteger(drainMs) || drainMs < 0 || drainMs > RESOURCE_TIMER_MAX_MS)
@@ -144,7 +156,7 @@ export async function spawnResourceMuseConnection(
     await assertCanRun()
     // Windows' SDK ladder must not kill the launcher while the registry is
     // proving and stopping its job. Our deadline remains the caller's drain plus grace.
-    handshake = spawnMspConnection({
+    handshake = spawnConnection({
       ...options,
       command: launch.command,
       args: [...launch.args],
@@ -207,7 +219,8 @@ export async function spawnResourceMuseConnection(
         })())
     }
     handshake.close = bounded(handshake.close.bind(handshake))
-    handshake.child.close = bounded(handshake.child.close.bind(handshake.child))
+    if (handshake.child !== undefined)
+      handshake.child.close = bounded(handshake.child.close.bind(handshake.child))
     const initialize = handshake.initialize.bind(handshake)
     handshake.initialize = async (params) => {
       try {
@@ -249,4 +262,40 @@ export async function spawnResourceMuseConnection(
   } finally {
     await launch?.dispose()
   }
+}
+
+/** Ordinary and account-owned transports use the same containment boundary. */
+export function spawnResourceMuseConnection(
+  options: Parameters<typeof spawnMspConnection>[0],
+  resource: ResourceLease | undefined,
+  assembly: () => Promise<string | undefined>,
+  systemRoot: string | undefined,
+  assertCanRun: () => Promise<void>,
+): Promise<ReturnType<typeof spawnMspConnection>> {
+  return spawnGovernedMuseConnection(
+    options,
+    resource,
+    assembly,
+    systemRoot,
+    assertCanRun,
+    spawnMspConnection,
+  )
+}
+
+export function spawnResourceAccountConnection(
+  options: Parameters<typeof spawnMspConnection>[0],
+  accountHome: MuseCodeAccountHome,
+  resource: ResourceLease | undefined,
+  assembly: () => Promise<string | undefined>,
+  systemRoot: string | undefined,
+  assertCanRun: () => Promise<void>,
+): Promise<ReturnType<typeof spawnAccountMspConnection>> {
+  return spawnGovernedMuseConnection(
+    options,
+    resource,
+    assembly,
+    systemRoot,
+    assertCanRun,
+    (launch) => spawnAccountMspConnection(launch, accountHome),
+  )
 }

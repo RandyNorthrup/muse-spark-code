@@ -27,8 +27,8 @@ const trigger = {
   kind: 'userCap',
   metric: 'spendUsd',
   period: 'day',
-  value: 20,
-  threshold: 20,
+  value: '20',
+  threshold: '20',
   resetAt: time,
 }
 
@@ -80,7 +80,14 @@ describe('M108 local accounts contracts', () => {
       planWindowPercent: { 'five-hour': 100, weekly: 0 },
       rateLimitHeadroomPercent: { requests: 0, tokens: 100 },
     })
-    expect(thresholds.spendUsd?.day).toBe(0)
+    expect(thresholds.spendUsd?.day).toBe('0')
+  })
+
+  it('normalizes numeric persisted spend caps and trigger spend once on read', () => {
+    expect(accountThresholdsSchema.parse({ spendUsd: { day: 0.3 } })).toEqual({
+      spendUsd: { day: '0.3' },
+    })
+    expect(accountTriggerSchema.parse({ ...trigger, value: 20, threshold: 20 })).toEqual(trigger)
   })
 
   it.each([
@@ -135,9 +142,10 @@ describe('M108 local accounts contracts', () => {
       previousAccount: 'work',
       time,
       trigger,
-      coldCacheUsd: 0.01,
+      coldCacheUsd: '0.01',
     }
     expect(accountEventSchema.parse(event)).toEqual(event)
+    expect(accountEventSchema.parse({ ...event, coldCacheUsd: 0.01 })).toEqual(event)
     const journalRecord = z.strictObject({ time: z.iso.datetime(), ...usageAccountFields })
     expect(journalRecord.parse({ time })).toEqual({ time })
     expect(journalRecord.parse({ time, account: 'work' })).toEqual({ time, account: 'work' })

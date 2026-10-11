@@ -27,7 +27,7 @@ import type { PaidUseRequest, PaidUseDecision } from '../shared/paid'
 import { PaidAuthority, type PaidGrant } from '../core/paid/paidAuthority'
 import type { PaidQuote } from '../shared/paid'
 
-/** Where "Allow always in this workspace" is kept, per folder. */
+/** Where "Allow Always in This Workspace" is kept, per folder. */
 export interface PaidGrantStore {
   readonly read: (workspaceRoot: string) => ReadonlySet<PaidFeature>
   /** Adds these features to the folder's grants, merged with the store as it then is. */

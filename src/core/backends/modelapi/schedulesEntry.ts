@@ -59,8 +59,16 @@ function isAbortRequested(signal: AbortSignal): boolean {
   return signal.aborted
 }
 
+// Every recorded read installs the caller's language; copying the whole table
+// and rebuilding the Intl formatters each time cost ~4 ms per read.
+const installed: { table: UiText | undefined; locale: string | undefined } = {
+  table: undefined,
+  locale: undefined,
+}
 export function installLanguage(table: UiText, locale: string): void {
+  if (installed.table === table && installed.locale === locale) return
   setUiText(table, locale)
+  Object.assign(installed, { table, locale })
 }
 export function createLedger(preFire: Iterable<ProvenanceEntry>): ProvenanceLedger {
   return new ProvenanceLedger(preFire)

@@ -228,6 +228,22 @@ Each lesson here cost real time during the runs of 2026-10-06 and 2026-10-07. Th
     - _What happened:_ a lane ran `git stash` and `git stash pop` in its worktree. Stashes are shared by every worktree of a repository, so the pop applied another lane's lint-staged backup into it.
     - _Rule:_ lanes never stash. Lint-staged backups are dropped or namespaced per worktree, and the lane runner refuses a stash command.
     - _Control:_ M96c lane runner stash refusal; G59.
+28. **Tests reap every process they start.**
+    - _What happened:_ a review lane's test runs timed out and left 44 supervised test fixtures alive, re-parented to init. Eleven were watchdog fixtures, each spinning at about half a core; together they held a laptop at load 24 until they were killed by exact match.
+    - _Rule:_ every test that starts a process reaps that process's whole tree in its teardown (`afterEach` or `afterAll`), including after a timeout, and asserts that none of it survives. Idle watchdogs and supervisors wait on events, never in a hot polling loop. When a lane ends, the governor checks for processes it left behind and reports them as a leak.
+    - _Control:_ M107 governor leak check at lane end; M109 binds the same rule for the processes it spawns; extends lesson 14 and G38; G79.
+29. **A handoff ends or hands over everything the old session started.**
+    - _What happened:_ switching to a fresh lead session did not end the old one. The old session's process (845 MB) and its background jobs kept running: a cleanup loop started two days earlier, a gate waiter on the orchestrating PC and a stale Node server.
+    - _Rule:_ a session handoff ends the old session's process and every background job it started, or lists each job for the new lead to adopt or stop. The handoff is complete only when every one of them is ended or adopted.
+    - _Control:_ M96c lead handoff; M120 role handoff; G80.
+30. **A blind reading is not zero.**
+    - _What happened:_ on Windows, performance counters and non-elevated process queries read 0% CPU for the protected antivirus process, while Task Manager showed it at a steady 22%.
+    - _Rule:_ measure a protected process with a source that can see it (Task Manager's data or an elevated query). Otherwise report the reading as blind. A blind source never reports 0.
+    - _Control:_ M107 resource sampler on Windows; G81.
+31. **Never poll a security product in a tight loop.**
+    - _What happened:_ a wait loop that polled the antivirus service's status every 3 seconds, while waiting for the user to act, itself held that service at 22% CPU.
+    - _Rule:_ code that waits for the user's action waits on an event, or checks at a long interval. Never poll a security product's status in a tight loop, in the orchestrator or in setup and wizard code.
+    - _Control:_ M107 governor; setup and wizard code; G82.
 
 ## What each component implements
 

@@ -129,7 +129,7 @@ export function isReviewableApproval(
 }
 
 /**
- * The allow-once choice "Edit automatically" takes for a request answered
+ * The allow-once choice "Edit Automatically" takes for a request answered
  * under `mode` (the client's own, for the parent conversation); undefined
  * for anything the user must see.
  */

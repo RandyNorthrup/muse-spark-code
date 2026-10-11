@@ -16,6 +16,7 @@ import { mcpJobExecutable } from '../../../src/host/backend/mcpJobExecutable'
 import type { FakeLogOutputChannel } from './fakes'
 import { removeFolder } from './temporaryFolders'
 import { readJobSource } from './jobSource'
+import { runProgram } from '../../../src/host/processTree'
 
 export const FAKE_MCP_SERVER = fileURLToPath(new URL('fakeMcpServer.mjs', import.meta.url))
 
@@ -62,6 +63,8 @@ async function fixtureMcpJobExecutable(): Promise<{
   const storageDir = await mkdtemp(path.join(tmpdir(), 'muse-mcp-job-test-'))
   try {
     const executable = await mcpJobExecutable({
+      // This fixture tests compiled-job containment; bootstrap admission has its own suite.
+      run: runProgram,
       readJobSource,
       storageDir,
       systemRoot: process.env['SystemRoot'] ?? '',

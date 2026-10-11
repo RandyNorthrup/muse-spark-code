@@ -1,3 +1,4 @@
+import { Usd, maxUsd, nonnegativeUsdSchema } from '../../shared/usd'
 // One channel for the companion, native bridges, TUI, desktop and VS Code panel.
 import {
   scheduleWebviewMessageSchema,
@@ -83,11 +84,13 @@ export class ScheduleSurface {
     const r = request.data
     if (
       (r.method === 'schedules/create' || r.method === 'schedules/update') &&
-      (r.draft.paidCapUsd > 0 || r.draft.grant.paidCapUsd > 0) &&
+      (r.draft.paidCapUsd !== '0' || r.draft.grant.paidCapUsd !== '0') &&
       (caller?.scheduledPrompts !== true ||
         caller.maxBudgetUsd === undefined ||
-        !Number.isFinite(caller.maxBudgetUsd) ||
-        caller.maxBudgetUsd < Math.max(r.draft.paidCapUsd, r.draft.grant.paidCapUsd))
+        !nonnegativeUsdSchema.safeParse(caller.maxBudgetUsd).success ||
+        Usd.from(caller.maxBudgetUsd).compare(
+          Usd.from(maxUsd(r.draft.paidCapUsd, r.draft.grant.paidCapUsd)),
+        ) < 0)
     )
       return { kind: 'refused', reason: UI_TEXT.scheduleV2.runtime.paidAuthorizationRequired }
     let raw: unknown

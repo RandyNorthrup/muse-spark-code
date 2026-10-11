@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 import { describe, expect, it } from 'vitest'
 import { AgentScheduleNoEscalation } from '../../src/core/schedules/noEscalation'
 import type { ScheduleGrant, ScheduleGrantRule } from '../../src/shared/scheduleV2'
@@ -15,7 +16,7 @@ const subsets = Array.from({ length: 2 ** rules.length }, (_, mask) =>
 const grant = (rules: ScheduleGrantRule[], paidCapUsd = 1): ScheduleGrant => ({
   rules,
   destinationIds: rules.map((rule) => rule.id),
-  paidCapUsd,
+  paidCapUsd: Usd.from(paidCapUsd).toAmount(),
 })
 const intersection = new AgentScheduleNoEscalation()
 
@@ -68,7 +69,7 @@ describe('agent schedule grant intersection', () => {
     for (const requested of [0, 1, 2])
       for (const held of [0, 1, 2])
         expect(intersection.bounded(grant([], requested), grant([], held)).paidCapUsd).toBe(
-          Math.min(requested, held),
+          Usd.from(Math.min(requested, held)).toAmount(),
         )
     for (const paidCapUsd of [-1, NaN, Infinity]) {
       expect(() => intersection.bounded(grant([], paidCapUsd), grant([]))).toThrow()

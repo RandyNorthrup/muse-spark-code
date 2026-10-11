@@ -307,7 +307,11 @@ scenario(
   },
 )
 
-for (const cause of ['executable', 'admission', 'changed'])
+// Windows has no execute bit: chmod 0644 leaves a hook Git for Windows still
+// runs, so the unexecutable-hook cause exists only on POSIX.
+const unavailableCauses =
+  process.platform === 'win32' ? ['admission', 'changed'] : ['executable', 'admission', 'changed']
+for (const cause of unavailableCauses)
   scenario(
     `fails closed when hook verification is unavailable: ${cause}`,
     (fixture) => {

@@ -34,6 +34,7 @@ import {
 } from '../../../shared/constants'
 import { hookDecisionSchema } from '../../../shared/sideCallSchemas'
 import { setUiText } from '../../../shared/l10n/text'
+import { minOutputTokensForPolicy, modelPolicyFor } from './modelPolicy'
 import { sideCallBody, structuredSideCall, type SideCallAttempt } from './structuredOutput'
 
 const IN_PROGRESS = 'inProgress'
@@ -305,6 +306,7 @@ async function requestHookStep(
           spentUsd: total.spentUsd,
           estimatedInputTokens: estimated,
           modelId,
+          minOutputTokens: minOutputTokensForPolicy(modelPolicyFor(modelId)),
         })
         body = {
           ...body,

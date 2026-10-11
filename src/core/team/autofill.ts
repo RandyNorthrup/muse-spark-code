@@ -11,7 +11,8 @@ import { Usd, type UsdAmount } from '../../shared/usd'
 // per-role task tokens (lane A); here they arrive as plain numbers.
 
 import { TEAM_LEARNED_MIN_TASKS, UI_TEXT } from '../../shared/constants'
-import { fill, formatUsd } from '../../shared/l10n/text'
+import { fill } from '../../shared/l10n/text'
+import { formatUsd } from '../../shared/l10n/exactUsd'
 import { TEAM_ROLE_TYPICAL_TASK_TOKENS, type TeamDraft } from './templates'
 
 /** M96's suggestion kinds for M95's engine (D75). */

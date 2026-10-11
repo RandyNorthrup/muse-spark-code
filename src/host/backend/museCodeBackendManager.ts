@@ -23,7 +23,7 @@ import {
   type CommandTimeouts,
   type MuseCodeFeaturePorts,
   MuseCodeHost,
-  spawnAccountMspConnection,
+  type spawnAccountMspConnection,
   type MspHost,
 } from '../../core/backends/musecode/MuseCodeHost'
 import {
@@ -68,8 +68,10 @@ import { readCredentialFile } from '../auth/cliAccount'
 import type { Logger } from '../logger'
 import { systemPath } from './memoryIo'
 import { admitResource } from '../../core/resources/admission'
-import { spawnResourceMuseConnection } from '../resources/museResourceLaunch'
-import { observeResourceProcess } from '../resources/resourceAdmission'
+import {
+  spawnResourceMuseConnection,
+  spawnResourceAccountConnection,
+} from '../resources/museResourceLaunch'
 import { vaultFenceEnvironment, type VaultFenceOptions } from '../../core/vault/exec/fence'
 
 /** VS Code's proxy settings (`http.proxy`, `http.noProxy`), handed to the CLI when its environment has none. */
@@ -232,18 +234,17 @@ export class MuseCodeBackendManager {
     resource: ResourceLease | undefined,
     assertCanRun: () => Promise<void>,
   ): Promise<ReturnType<typeof spawnAccountMspConnection>> {
-    try {
-      await assertCanRun()
-      // spawnAccountMspConnection's own check, before the lease meets a process.
-      accountHome.assertCurrent()
-    } catch (error: unknown) {
-      resource?.failed?.()
-      resource?.complete(true)
-      throw error
-    }
-    return spawnAccountMspConnection(options, accountHome, (child) => {
-      observeResourceProcess(resource, child)
-    })
+    return await spawnResourceAccountConnection(
+      options,
+      accountHome,
+      resource,
+      () => this.deps.shellJobAssembly?.() ?? Promise.resolve(undefined),
+      environmentValue(options.env ?? {}, process.platform, 'SystemRoot'),
+      async () => {
+        await assertCanRun()
+        accountHome.assertCurrent()
+      },
+    )
   }
 
   private async spawn(generation: number): Promise<MuseCodeHost> {

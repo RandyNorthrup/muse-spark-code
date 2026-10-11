@@ -19,11 +19,21 @@ export interface DeveloperStore {
   read(): Promise<unknown>
   /** Audit before enabling; revoke state even after audit failure where possible.
    * Durable revocations take precedence over an older enabled state on restore.
-   * The single machine owner serializes calls, including other editor clients. */
+   * The single machine owner serializes calls, including other editor clients.
+   * One exception (DEVID017E): a foreign `resetForeign` clear is never
+   * published when its audit row was not written — a failed foreign Reset
+   * leaves stored state unchanged instead of clearing it unaudited. Every
+   * other revocation, own-machine Reset included, is still published after
+   * an audit failure, and the caller still gets the persistence error. */
   commit(state: DeveloperState, audit: DeveloperAudit): Promise<void>
 }
 export interface DeveloperOptionsDeps {
   readonly machineId: string
+  /** Ids this machine was known by before DEVID017B (its raw hostname, its
+   * hostname digest, or that digest for the short or `.local` hostname
+   * forms). A stored grant under one is adopted once and re-bound to
+   * machineId, compared case-insensitively. */
+  readonly previousMachineIds?: readonly string[]
   readonly now: () => number
   readonly newProfileId: () => string
   readonly store: DeveloperStore
@@ -31,16 +41,24 @@ export interface DeveloperOptionsDeps {
   /** Password/standard-input entry stays with K, vendor eligibility with P/M.
    * The port must refuse unsupported products and unbound/absent accounts. */
   readonly checkAccount: (provider: string, account: string) => Promise<void>
-  readonly confirm: (question: 'unlock' | 'multiple' | 'reset') => Promise<boolean>
+  readonly confirm: (question: 'unlock' | 'multiple' | 'reset' | 'resetForeign') => Promise<boolean>
   /** Pushes the same snapshot/badge to all registered surfaces. */
   readonly changed: (snapshot: DeveloperSnapshot) => void
 }
 
 export class DeveloperOptionsError extends Error {
-  public constructor(public readonly code: 'locked' | 'unavailable' | 'invalidRequest') {
+  public constructor(
+    public readonly code: 'locked' | 'unavailable' | 'invalidRequest' | 'differentMachine',
+  ) {
     super(UI_TEXT.developer[code])
     this.name = 'DeveloperOptionsError'
   }
+}
+
+function isPreviousMachine(stored: string, previous: readonly string[] | undefined): boolean {
+  // Hostnames compare case-insensitively; digests are already lowercase.
+  const normalized = stored.toLowerCase()
+  return (previous ?? []).some((id) => id.toLowerCase() === normalized)
 }
 
 /** One parent-owned service across windows, editor bridges and terminal clients.
@@ -56,16 +74,42 @@ export class DeveloperOptions {
       profiles: [],
     })
     const stored = await deps.store.read()
-    const parsed = developerStateSchema.safeParse(stored)
+    const parsed = stored === undefined ? undefined : developerStateSchema.safeParse(stored)
     if (
       stored !== undefined &&
-      (!parsed.success ||
-        parsed.data.machineId !== deps.machineId ||
+      (parsed === undefined ||
+        !parsed.success ||
         (parsed.data.unlockedAt !== null && parsed.data.unlockedAt > deps.now()))
     ) {
       throw new DeveloperOptionsError('unavailable')
     }
-    const owner = new DeveloperOptions(deps, parsed.success ? parsed.data : empty)
+    if (
+      parsed?.success === true &&
+      parsed.data.machineId !== deps.machineId &&
+      !isPreviousMachine(parsed.data.machineId, deps.previousMachineIds)
+    ) {
+      // Set up under a different machine identity: the profiles stay on
+      // disk until the user resets (DEVID017B).
+      throw new DeveloperOptionsError('differentMachine')
+    }
+    // A grant stored under this machine's legacy id (its raw hostname or
+    // hostname digest) keeps working: it is re-bound to the stored id here
+    // and persisted at once — with no grant change and so no authority
+    // audit entry, only the `migrate` identity row — so the identifying raw
+    // hostname leaves stored state on this open, not on some later save.
+    const isMigrated = parsed?.success === true && parsed.data.machineId !== deps.machineId
+    let restored = empty
+    if (parsed?.success === true) {
+      restored = isMigrated ? { ...parsed.data, machineId: deps.machineId } : parsed.data
+    }
+    const owner = new DeveloperOptions(deps, restored)
+    if (isMigrated) {
+      try {
+        await owner.save(owner.state, 'migrate', 'lifecycle')
+      } catch {
+        throw new DeveloperOptionsError('unavailable')
+      }
+    }
     await owner.refresh()
     if (owner.isMultipleAccountsOn()) {
       const current = owner.fence()
@@ -81,6 +125,49 @@ export class DeveloperOptions {
       }
     }
     return owner
+  }
+
+  /** Reset state bound to another machine's identity (DEVID017B, redesigned
+   * DEVID017C, hardened DEVID017D). `open` refuses such state, so the
+   * terminal `developer reset` recovers through here without an owner.
+   * Confirmation comes first — under its own `resetForeign` question, whose
+   * text says exactly what happens: this machine's developer state is
+   * cleared, nothing is stopped, and profile folders stay on disk — and
+   * nothing is mutated before the answer: denying re-refuses with the honest
+   * identity message and leaves everything — stored identity, unlock,
+   * profiles, audit — unchanged, so the next open still refuses with
+   * `differentMachine`. On confirmation the foreign unlock and registration
+   * are cleared to a fresh record for this machine; nothing is transferred,
+   * on no path: not before confirmation, not in a `finally`, not on cancel
+   * or failure. Profiles recorded under the foreign id cannot be running
+   * under this machine's authority, so they are cleared from the record
+   * without stopping through this machine's resource port — and the single
+   * `resetForeign` audit row records exactly that: a reset with no stop and
+   * no disable. Their state folders and credential slots stay on disk: PLAN
+   * D88 (b) gives Reset the job of turning every option off and stopping
+   * the profiles (PLAN.md:12407), never of deleting profile folders. The
+   * store writes that audit row before the cleared state; when the audit
+   * write fails the state is left unchanged and the failure is reported,
+   * never an unaudited clearing. */
+  public static async resetForeign(
+    deps: DeveloperOptionsDeps,
+    source: DeveloperAudit['source'],
+  ): Promise<DeveloperSnapshot> {
+    const stored = await deps.store.read()
+    const parsed = stored === undefined ? undefined : developerStateSchema.safeParse(stored)
+    if (parsed?.success !== true) throw new DeveloperOptionsError('differentMachine')
+    if (!(await deps.confirm('resetForeign'))) throw new DeveloperOptionsError('differentMachine')
+    const cleared = developerStateSchema.parse({
+      v: 1,
+      machineId: deps.machineId,
+      unlockedAt: null,
+      expiresAt: null,
+      isMultipleAccountsOn: false,
+      profiles: [],
+    })
+    const owner = new DeveloperOptions(deps, cleared)
+    await owner.save(owner.state, 'resetForeign', source)
+    return owner.snapshot()
   }
 
   private state: DeveloperState

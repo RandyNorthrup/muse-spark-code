@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import * as vault from '../../../src/shared/vault'
 import * as protocol from '../../../src/shared/vaultProtocol'
-import { vaultPanelStateSchema } from '../../../src/shared/modelsPanel'
+import { vaultPanelStateSchema } from '../../../src/shared/vaultPanel'
 import { vaultClientMessageSchema } from '../../../src/shared/hostApi/vaultMessages'
 import { VAULT_LIMITS } from '../../../src/shared/constants'
 import { FakeVaultSlot } from '../helpers/vault/core'

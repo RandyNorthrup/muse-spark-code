@@ -5,6 +5,7 @@ import {
   scheduleV2Schema,
   scheduleRunContextSchema,
   scheduleFireRecordSchema,
+  noScheduleCost,
   scheduleReportResultsSchema,
   scheduleGrantAuditSchema,
   scheduleDraftSchema,
@@ -96,7 +97,7 @@ export class ScheduleReportActionRunner implements ScheduleReportDeliveryPort {
         outcome,
         ...(reason !== undefined && { reason }),
         refusedActions: [],
-        cost: { usd: 0, certainty: 'exact', retainedLiabilityUsd: 0 },
+        cost: noScheduleCost(),
         ...(e !== undefined && { event: e }),
         ...(report !== undefined && { report }),
       })

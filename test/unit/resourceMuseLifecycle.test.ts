@@ -58,6 +58,7 @@ async function fixture() {
   vi.mocked(resourceWindowsJob).mockResolvedValue({
     executablePath: 'fixture.exe',
     assemblyPath: 'fixture.dll',
+    verify: () => Promise.resolve(),
   })
   return {
     root,

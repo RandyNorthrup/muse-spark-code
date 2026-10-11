@@ -1,3 +1,5 @@
+import { malformedUsd } from './helpers/malformedUsd'
+import { Usd as PortUsd } from '../../src/shared/usd'
 import { describe, expect, it, vi } from 'vitest'
 import { ScheduleSurface } from '../../src/runtime/schedules/surface'
 import { ScheduleBackgroundCoordinator } from '../../src/runtime/schedules/background'
@@ -74,12 +76,16 @@ describe('shared schedules channel', () => {
   })
   it('uses the same paid admission for interactive editor requests and forwards trusted host context', async () => {
     const value = fakeScheduleDraft()
-    const draft = { ...value, paidCapUsd: 1, grant: { ...value.grant, paidCapUsd: 1 } }
+    const draft = {
+      ...value,
+      paidCapUsd: PortUsd.from(1).toAmount(),
+      grant: { ...value.grant, paidCapUsd: PortUsd.from(1).toAmount() },
+    }
     const request = frame({ method: 'schedules/create', workspaceKey: KEY, draft })
     for (const authorization of [
-      { scheduledPrompts: false, maxBudgetUsd: 1 },
+      { scheduledPrompts: false, maxBudgetUsd: PortUsd.from(1).toAmount() },
       { scheduledPrompts: true },
-      { scheduledPrompts: true, maxBudgetUsd: NaN },
+      { scheduledPrompts: true, maxBudgetUsd: malformedUsd(NaN) },
     ]) {
       const s = setup({ source: 'interactive', isInteractive: true, ...authorization })
       expect(await responseOf(s.surface, request)).toEqual({
@@ -92,7 +98,7 @@ describe('shared schedules channel', () => {
       source: 'interactive' as const,
       isInteractive: true,
       scheduledPrompts: true,
-      maxBudgetUsd: 1,
+      maxBudgetUsd: PortUsd.from(1).toAmount(),
     }
     const s = setup(caller)
     s.request.mockResolvedValue({ kind: 'accepted', id: 'paid-1' })

@@ -12,8 +12,9 @@ import {
 } from './runtimeServices'
 
 export type { RuntimeAccountServices, RuntimeAccountServicesInput } from './runtimeServices'
-import { runDeveloperCommand } from '../developer/developerCommand'
+import { parseDeveloperCommand, runDeveloperCommand } from '../developer/developerCommand'
 import { developerStatusText } from '../../core/developer/surfaces'
+import { DeveloperOptionsError } from '../../core/developer/developerOptions'
 
 export function createRuntimeAccountServicesForLocale(
   table: UiText,
@@ -40,11 +41,29 @@ export async function runTerminalDeveloperCommand(
 ): Promise<{ readonly text: string; readonly exitCode: number }> {
   setUiText(table, locale)
   const services = createRuntimeAccountServices(input)
-  const developer = await services.developer(owner)
-  const reply = await runDeveloperCommand(developer, args, clientId)
-  return reply.type === 'developer/error'
-    ? { text: UI_TEXT.developer[reply.code], exitCode: 1 }
-    : { text: developerStatusText(reply), exitCode: 0 }
+  try {
+    const developer = await services.developer(owner)
+    const reply = await runDeveloperCommand(developer, args, clientId)
+    return reply.type === 'developer/error'
+      ? { text: UI_TEXT.developer[reply.code], exitCode: 1 }
+      : { text: developerStatusText(reply), exitCode: 0 }
+  } catch (error: unknown) {
+    // Stored state belongs to another machine identity: opening refuses, so
+    // only Reset can recover (DEVID017B). Anything else names the identity
+    // instead of reporting a generic failure.
+    if (!(error instanceof DeveloperOptionsError) || error.code !== 'differentMachine') throw error
+    const request = parseDeveloperCommand(args)
+    if (request?.type !== 'developer/reset')
+      return { text: UI_TEXT.developer.differentMachine, exitCode: 1 }
+    try {
+      const snapshot = await services.developerReset(owner)
+      return { text: developerStatusText(snapshot), exitCode: 0 }
+    } catch (resetError: unknown) {
+      if (resetError instanceof DeveloperOptionsError)
+        return { text: UI_TEXT.developer[resetError.code], exitCode: 1 }
+      throw resetError
+    }
+  }
 }
 
 export { runAccountsCommand, runAccountAuthSet } from './accountsCommand'

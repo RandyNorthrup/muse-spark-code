@@ -53,7 +53,7 @@ describe('M108 terminal account commands', () => {
       ]),
     ).toBe(0)
     expect(await h.accounts.list('meta')).toMatchObject([
-      { id: 'work', order: 0, limitGroup: 'org', thresholds: { spendUsd: { day: 0.3 } } },
+      { id: 'work', order: 0, limitGroup: 'org', thresholds: { spendUsd: { day: '0.3' } } },
       { id: 'default', order: 1 },
     ])
     expect(await run(['remove', '--account', 'work'])).toBe(0)

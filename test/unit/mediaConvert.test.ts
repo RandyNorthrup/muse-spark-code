@@ -1,9 +1,20 @@
+import type * as ResourceLauncher from '../../src/core/resources/launcher'
+import * as resourceLaunch from '../../src/core/resources/launcher'
 import { Buffer } from 'node:buffer'
 import { spawn } from 'node:child_process'
 import { writeFileSync } from 'node:fs'
 import type * as ChildProcess from 'node:child_process'
 import type * as FsPromises from 'node:fs/promises'
-import fs, { chmod, lstat, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
+import fs, {
+  chmod,
+  lstat,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  symlink,
+  writeFile,
+} from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeAll, afterAll, describe, expect, it, vi } from 'vitest'
@@ -43,7 +54,27 @@ vi.mock('node:fs/promises', async (original) => {
   }
 })
 
+// Conversion policy owns its byte/RSS/deadline guards; the native launch
+// boundary has separate containment and admission regressions in spawnGovernance.
+vi.mock('../../src/core/resources/launcher', async (original) => {
+  const actual = await original<typeof ResourceLauncher>()
+  const { fixtureResourceProcess } = await import('./helpers/resourceProcess')
+  return {
+    ...actual,
+    spawnResourceProcess: (
+      profile: 'contained',
+      file: string,
+      args: readonly string[],
+      options: ChildProcess.SpawnOptions,
+    ) => fixtureResourceProcess(profile, file, args, options, ['pipe', 'pipe', 'pipe']),
+  }
+})
+
 const fake: MediaConverter = { kind: 'ffmpeg', command: process.execPath }
+// Discovery on another POSIX platform judges commands with POSIX path rules;
+// this host's node path (C:\... on Windows) is not absolute there. These
+// cases inject the probe or mock spawn, so nothing runs this path.
+const posixFake: MediaConverter = { kind: 'ffmpeg', command: '/opt/muse-test/bin/ffmpeg' }
 const fixture = { workspace: '', input: '' }
 const directories: string[] = []
 
@@ -61,6 +92,19 @@ afterEach(async () => {
 afterAll(async () => {
   await rm(fixture.workspace, { recursive: true, force: true })
 })
+
+// A folder (or a video file in one) inside this checkout. The system temp
+// can sit on another drive (Windows runners: C: temp, D: checkout), where
+// path.relative() returns an absolute path that would test nothing.
+async function checkoutLocal(name?: string): Promise<string> {
+  await mkdir('temp', { recursive: true })
+  const directory = await mkdtemp(path.resolve('temp/m105-local-'))
+  directories.push(directory)
+  if (name === undefined) return directory
+  const file = path.join(directory, name)
+  await writeFile(file, videoFixture())
+  return file
+}
 
 function outputPath(args: readonly string[]): string {
   const output = args.at(-1)
@@ -116,9 +160,6 @@ function convertToMp4(
 const FFMPEG_BANNER =
   'ffmpeg version 8.0.1-3ubuntu2 Copyright (c) 2000-2025 the FFmpeg developers\n'
 const refused = { refused: true, component: '/untrusted', reason: 'test-only unsafe mode' } as const
-// A platform with no documented installs, whose path rules match this host's.
-const OTHER_PLATFORM: NodeJS.Platform = process.platform === 'win32' ? 'win32' : 'aix'
-
 describe('M105 converter discovery', () => {
   it('ignores workspace PATH and verifies only configured or documented install paths', async () => {
     vi.stubEnv('PATH', `${fixture.workspace}/node_modules/.bin`)
@@ -161,13 +202,13 @@ describe('M105 converter discovery', () => {
     const verify = vi.fn(() => Promise.resolve(refused))
     expect(
       await locateMediaConverter({
-        platform: OTHER_PLATFORM,
-        configuredConverters: [fake, { kind: 'ffmpeg', command: 'relative/ffmpeg' }],
+        platform: 'aix',
+        configuredConverters: [posixFake, { kind: 'ffmpeg', command: 'relative/ffmpeg' }],
         trustedPath: { verify },
         probeVersion,
       }),
     ).toMatchObject({ ok: false })
-    expect(verify).toHaveBeenCalledExactlyOnceWith(fake.command, { leafKind: 'file' })
+    expect(verify).toHaveBeenCalledExactlyOnceWith(posixFake.command, { leafKind: 'file' })
     expect(probeVersion).not.toHaveBeenCalled()
   })
 
@@ -181,8 +222,8 @@ describe('M105 converter discovery', () => {
     ]) {
       expect(
         await locateMediaConverter({
-          platform: OTHER_PLATFORM,
-          configuredConverters: [fake],
+          platform: 'aix',
+          configuredConverters: [posixFake],
           trustedPath: {
             verify: (file: string) => Promise.resolve({ ok: true as const, path: file }),
           },
@@ -193,8 +234,8 @@ describe('M105 converter discovery', () => {
     const probeVersion = vi.fn(() => Promise.reject(new Error('private probe failure')))
     expect(
       await locateMediaConverter({
-        platform: OTHER_PLATFORM,
-        configuredConverters: [fake],
+        platform: 'aix',
+        configuredConverters: [posixFake],
         trustedPath: {
           verify: (file: string) => Promise.resolve({ ok: true as const, path: file }),
         },
@@ -204,7 +245,7 @@ describe('M105 converter discovery', () => {
       // A configured converter names itself, never the private probe failure.
       ok: false,
       reason: fill(UI_TEXT.media.converterConfiguredRefused, {
-        reason: `${fake.command}: unavailable`,
+        reason: `${posixFake.command}: unavailable`,
       }),
     })
     expect(
@@ -223,7 +264,7 @@ describe('M105 converter discovery', () => {
     for (const mode of ['deadline', 'overflow', 'known'] as const) {
       let child: ReturnType<typeof spawn> | undefined
       vi.mocked(spawn).mockImplementation((_command, _args, options) => {
-        expect(options).toMatchObject({ stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true })
+        expect(options).toMatchObject({ stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true })
         const scripts = {
           known: `process.stdout.write(${JSON.stringify(FFMPEG_BANNER)})`,
           overflow: `process.stdout.write('x'.repeat(${String(MEDIA_CONVERTER_PROBE_MAX_BYTES + 1)})); setTimeout(() => {}, 300)`,
@@ -234,8 +275,8 @@ describe('M105 converter discovery', () => {
         return child
       })
       const result = await locateMediaConverter({
-        platform: OTHER_PLATFORM,
-        configuredConverters: [fake],
+        platform: 'aix',
+        configuredConverters: [posixFake],
         trustedPath: {
           verify: (file: string) => Promise.resolve({ ok: true as const, path: file }),
         },
@@ -707,6 +748,42 @@ describe('M105 private local conversion', () => {
     if (result.ok) await result.dispose()
   })
 
+  it('samples the governed payload PID rather than the launcher PID', async () => {
+    await realEncoder(120)
+    const originalLaunch = resourceLaunch.spawnResourceProcess
+    vi.spyOn(resourceLaunch, 'spawnResourceProcess').mockImplementation(
+      async (_profile, file, args, options) => {
+        const launched = await originalLaunch('contained', file, args, options)
+        return { ...launched, pid: () => Promise.resolve(process.pid) }
+      },
+    )
+    const readRssBytes = vi.fn((_pid: number) => Promise.resolve(1024))
+    const result = await convertToMp4(fixture.input, fake, { readRssBytes })
+    expect(result.ok).toBe(true)
+    expect(readRssBytes).toHaveBeenCalledWith(process.pid)
+    expect(readRssBytes.mock.calls.every(([pid]) => pid === process.pid)).toBe(true)
+    if (result.ok) await result.dispose()
+  })
+
+  it('stops the governed whole tree when the encoder exceeds its RSS cap', async () => {
+    const held = await realEncoder(3000)
+    const originalLaunch = resourceLaunch.spawnResourceProcess
+    const stopped = vi.fn<() => Promise<void>>()
+    vi.spyOn(resourceLaunch, 'spawnResourceProcess').mockImplementation(
+      async (_profile, file, args, options) => {
+        const launched = await originalLaunch('contained', file, args, options)
+        stopped.mockImplementation(launched.stop)
+        return { ...launched, stop: stopped }
+      },
+    )
+    const result = await convertToMp4(fixture.input, fake, {
+      readRssBytes: () => Promise.resolve(MEDIA_CONVERSION_MAX_RSS_BYTES + 1),
+    })
+    expect(result.ok).toBe(false)
+    expect(stopped).toHaveBeenCalled()
+    expect(held.encoder?.killed).toBe(true)
+  })
+
   it('refuses when the strict sampler fails while the real child is live', async () => {
     const held = await realEncoder(3000)
     const readRssBytes = vi.fn(() => Promise.reject(new Error('sampler unavailable')))
@@ -725,9 +802,9 @@ describe('M105 private local conversion', () => {
       await convertToMp4(fixture.input, { kind: 'ffmpeg', command: 'ffmpeg' }, { run }),
     ).toMatchObject({ ok: false })
     expect(await convertToMp4('relative.webm', fake, { run })).toMatchObject({ ok: false })
-    expect(
-      await convertToMp4(path.relative(process.cwd(), fixture.input), fake, { run }),
-    ).toMatchObject({ ok: false })
+    const relativeInput = path.relative(process.cwd(), await checkoutLocal('clip.webm'))
+    expect(path.isAbsolute(relativeInput)).toBe(false)
+    expect(await convertToMp4(relativeInput, fake, { run })).toMatchObject({ ok: false })
     expect(await convertToMp4(fixture.workspace, fake, { run })).toMatchObject({ ok: false })
     expect(run).not.toHaveBeenCalled()
   })
@@ -773,12 +850,12 @@ describe('M105 private local conversion', () => {
     } finally {
       Object.defineProperty(process, 'platform', descriptor)
     }
-    const privateDirectory = await mkdtemp(path.join(fixture.workspace, 'private-factory-'))
+    const privateDirectory = path.relative(process.cwd(), await checkoutLocal())
+    expect(path.isAbsolute(privateDirectory)).toBe(false)
     expect(
       await convertToMp4(fixture.input, fake, {
         run,
-        createPrivateDirectory: () =>
-          Promise.resolve(path.relative(process.cwd(), privateDirectory)),
+        createPrivateDirectory: () => Promise.resolve(privateDirectory),
       }),
     ).toMatchObject({ ok: false })
     expect(await readFile(fixture.input)).toEqual(Buffer.from(videoFixture()))
@@ -827,7 +904,7 @@ describe('M105 private local conversion', () => {
       const controller = new AbortController()
       let child: ReturnType<typeof spawn> | undefined
       vi.mocked(spawn).mockImplementation((_command, args, options) => {
-        expect(options).toMatchObject({ stdio: 'ignore', windowsHide: true })
+        expect(options).toMatchObject({ stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true })
         writeFileSync(outputPath(args), videoFixture())
         child = actual.spawn(
           process.execPath,

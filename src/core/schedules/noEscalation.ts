@@ -1,3 +1,4 @@
+import { minUsd } from '../../shared/usd'
 import {
   scheduleGrantSchema,
   type ScheduleGrant,
@@ -35,7 +36,7 @@ export class AgentScheduleNoEscalation implements ScheduleNoEscalation {
     return {
       rules: wanted.rules.filter((rule) => held.rules.some((parent) => isContained(parent, rule))),
       destinationIds: wanted.destinationIds.filter((id) => held.destinationIds.includes(id)),
-      paidCapUsd: Math.min(wanted.paidCapUsd, held.paidCapUsd),
+      paidCapUsd: minUsd(wanted.paidCapUsd, held.paidCapUsd),
     }
   }
 }

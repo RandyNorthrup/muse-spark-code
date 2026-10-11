@@ -4,9 +4,9 @@ import {
   formatNumber,
   formatPercent,
   formatUnit,
-  formatUsd,
   UI_TEXT,
 } from '../../../shared/l10n/text'
+import { formatUsd } from '../../../shared/l10n/exactUsd'
 import { TrafficSection, type TrafficProps } from './TrafficParts'
 
 const ratio = (numerator: number, denominator: number) =>

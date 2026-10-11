@@ -2,6 +2,21 @@ import { readFile, readdir } from 'node:fs/promises'
 import { describe, expect, it } from 'vitest'
 
 const ports = [
+  'acp/agent.ts',
+  'acp/schedules.ts',
+  'core/accounts/pool.ts',
+  'core/accounts/thresholds.ts',
+  'core/estimator/recommend.ts',
+  'core/paid/paidConsent.ts',
+  'core/reporting/sources/types.ts',
+  'core/schedules/agentTools.ts',
+  'core/voice/transcribeBatch.ts',
+  'runtime/cliArgs.ts',
+  'runtime/schedules/args.ts',
+  'runtime/schedules/control.ts',
+  'runtime/schedules/registration.ts',
+  'shared/accounts.ts',
+  'webview/schedules/ports.ts',
   'core/backends/modelapi/client.ts',
   'core/backends/modelapi/sessionBudget.ts',
   'core/backends/modelapi/hookHandlers.ts',

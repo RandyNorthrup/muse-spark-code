@@ -102,6 +102,9 @@ export function accountUsageEventText(event: AccountEvent, report: AccountUsageR
   if (event.type === 'spread')
     return fill(UI_TEXT.accounts.usageSpread, { ...target, worker: event.workerId })
   const trigger = event.trigger
+  // Display rule: a shortened cap renders with ceiling, never below the exact
+  // trigger, so an exact reach always shows value >= cap. Reach state itself
+  // comes from the exact meter or trigger event, never the shortened text.
   const threshold =
     trigger.kind === 'vendorLimit'
       ? `${UI_TEXT.accounts.vendorLimit} (${trigger.reason})`
@@ -110,7 +113,7 @@ export function accountUsageEventText(event: AccountEvent, report: AccountUsageR
           period: periodLabel(trigger.period),
           threshold:
             trigger.metric === 'spendUsd'
-              ? formatUsd(parseUsd(trigger.threshold, 'floor'))
+              ? formatUsd(parseUsd(trigger.threshold))
               : formatNumber(trigger.threshold),
         })
   if (event.type === 'swap')

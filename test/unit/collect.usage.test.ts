@@ -8,8 +8,9 @@ describe('usage collector', () => {
     expect(getSection(report, 'totals').rows[0]!.cells).toMatchObject({
       inputTokens: { type: 'count', value: 100 },
       outputTokens: { type: 'count', value: 20 },
-      cost: { type: 'usd', value: 0.25, certainty: 'reported' },
+      cost: { type: 'usd', value: '0.25', certainty: 'reported' },
     })
+    expect(typeof getSection(report, 'totals').rows[0]!.cells['cost']!.value).toBe('string')
     expect(getSection(report, 'breakdown').rows[0]!.cells['scope']).toEqual({
       type: 'text',
       value: 'provider',

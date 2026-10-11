@@ -53,6 +53,7 @@ import {
   browserLaunchArgs,
   type CheckFolders,
   commandLineVerdict,
+  SystemRootMissingError,
 } from './browserLaunch'
 import {
   type CanaryPhase,
@@ -148,6 +149,8 @@ export type PreparationFailure =
 export type ConfinementFailure =
   /** The verified runtime did not start, or its pipe failed during setup. */
   | 'launch'
+  /** The Windows system directory is unavailable, so no browser was started. */
+  | 'systemDirectoryUnavailable'
   /** The browser's version, command line or startup targets are not the pin's exact contract. */
   | 'unrecognized'
   /** No fresh private profile or browser context (the cookie tripwire included). */
@@ -540,7 +543,13 @@ async function launch(
     fail('runtimeIntegrity')
   }
   const args = browserLaunchArgs(proxy.endpoint, folder.profile)
-  const env = browserEnvironment(deps.platform, deps.env, folder)
+  let env: Readonly<Record<string, string>>
+  try {
+    env = browserEnvironment(deps.platform, deps.env, folder)
+  } catch (error: unknown) {
+    if (!(error instanceof SystemRootMissingError)) throw error
+    return fail('systemDirectoryUnavailable')
+  }
   let browser: BrowserProcess
   try {
     browser = deps.spawn(runtime.executable, args, env)

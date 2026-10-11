@@ -1,4 +1,4 @@
-import { legacyUsdSchema } from '../../shared/usd'
+import { legacyUsdSchema } from '../../shared/usdSchema'
 // The transcript rows the webview keeps, as zod schemas with the types
 // inferred from them (M25, PLAN.md D28). The schemas exist because the rows
 // outlive the document: the panel saves its conversation in VS Code's webview
@@ -428,7 +428,7 @@ const errorEntrySchema = z.object({
   /**
    * The sanitized handoff when the host recorded this failure (M93 lane W):
    * which journal event the row means, never its text. The row offers
-   * "Report this" only while it is present.
+   * "Report This" only while it is present.
    */
   reportRef: z.optional(reportEventRefSchema),
   errorKind: z.optional(z.string()),
@@ -450,7 +450,7 @@ const noticeEntrySchema = z.object({
   /**
    * The sanitized handoff when the host recorded this failure (M93 lane W):
    * which journal event the row means, never its text. The row offers
-   * "Report this" only while it is present.
+   * "Report This" only while it is present.
    */
   reportRef: z.optional(reportEventRefSchema),
   /**

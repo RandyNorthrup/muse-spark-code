@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { spawnSync } from 'node:child_process'
+import type { SpawnSyncOptions } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import nodePath from 'node:path'
 import { UI_TEXT } from '../../../shared/l10n/text'
@@ -22,6 +22,8 @@ import {
 } from '../../../shared/constants'
 import type { PlaybookLease } from '../../../shared/playbook'
 import { withoutCredentials } from '../../credentialEnvironment'
+import { runTreeSync } from '../../../host/processTree'
+import type { PlaybookHookAdmission } from './outcomes'
 
 export interface ModuleState {
   module: PlaybookModule
@@ -181,13 +183,18 @@ export function hasSimilarContent(left: string, right: string): boolean {
 /** Git supplies similarity-based rename evidence even when moved code changed
  * bytes. Hashes separately cover untracked moves and copies. Never consult an
  * agent's claim about identity. Both staged and unstaged moves are inspected. */
-export function renamedFiles(workspace: string): { from: string; to: string }[] {
+export function renamedFiles(
+  workspace: string,
+  admission: PlaybookHookAdmission,
+): { from: string; to: string }[] {
   if (!existsSync(nodePath.join(workspace, '.git'))) return []
   const renames: { from: string; to: string }[] = []
   for (const args of [['diff', '--cached'], ['diff'], ['log', '--all', '--format=']]) {
-    const result = spawnSync(
-      'git',
-      [
+    const effect = {
+      kind: 'git' as const,
+      cwd: workspace,
+      command: 'git',
+      args: [
         ...args,
         '--no-ext-diff',
         '--no-textconv',
@@ -196,17 +203,23 @@ export function renamedFiles(workspace: string): { from: string; to: string }[] 
         `--find-renames=${String(PLAYBOOK_CONTENT_SIMILARITY_PERCENT)}%`,
         '--',
       ],
-      {
-        cwd: workspace,
-        env: withoutCredentials(process.env),
-        encoding: 'utf8',
-        timeout: GIT_TIMEOUT_MS,
-        maxBuffer: GIT_OUTPUT_MAX_BYTES,
-        windowsHide: true,
-      },
-    )
+    }
+    if (!admission.admit(effect) || (process.platform === 'win32' && !admission.runContained))
+      throw new Error(UI_TEXT.playbookUnavailable)
+    const options: SpawnSyncOptions = {
+      cwd: workspace,
+      env: withoutCredentials(process.env),
+      encoding: 'buffer',
+      timeout: GIT_TIMEOUT_MS,
+      maxBuffer: GIT_OUTPUT_MAX_BYTES,
+      windowsHide: true,
+    }
+    const result =
+      admission.runContained === undefined
+        ? runTreeSync(effect.command, effect.args, options)
+        : admission.runContained(effect, options)
     if (result.status !== 0 || result.error) throw new Error(UI_TEXT.playbookUnavailable)
-    const fields = result.stdout.split('\0')
+    const fields = result.stdout.toString('utf8').split('\0')
     for (let index = 0; index < fields.length - 1; index += 1) {
       const status = (fields[index] ?? '').trim()
       if (!status) continue

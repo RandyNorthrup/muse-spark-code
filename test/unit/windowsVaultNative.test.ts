@@ -1,3 +1,5 @@
+import type * as ResourceAdmission from '../../src/core/resources/admission'
+import type * as ResourceLauncher from '../../src/core/resources/launcher'
 import { execFile, spawn } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import {
@@ -13,7 +15,7 @@ import {
 } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { windowsVaultExecutable } from '../../src/host/vault/slots/windowsVaultBuild'
 import { compileJob } from '../../src/host/backend/jobBuild'
 import {
@@ -35,6 +37,17 @@ import type { RunProgram } from '../../src/host/processTree'
 import { slotContext } from './helpers/vault/fixtures'
 
 const paths = { root: '', helper: '', guards: '', trap: '' }
+vi.mock('../../src/core/resources/launcher', async (original) => {
+  const actual = await original<typeof ResourceLauncher>()
+  const fixture = await import('./helpers/resourceProcess')
+  return { ...actual, spawnResourceProcess: fixture.fixtureResourceProcess }
+})
+vi.mock('../../src/core/resources/admission', async (original) => {
+  const actual = await original<typeof ResourceAdmission>()
+  const { fakeResourceLease } = await import('./helpers/resources/fakes')
+  // Native vault fixtures own their temporary compiler trees; pause is covered by spawnBootstrap.
+  return { ...actual, admitBootstrap: () => Promise.resolve(fakeResourceLease()) }
+})
 const owned = new Set<WindowsVaultSlot>()
 const capture: {
   transport?: WindowsVaultTransport
@@ -149,7 +162,13 @@ describe.runIf(process.platform === 'win32')(
   'Windows native vault capture: generated material only',
   () => {
     beforeAll(async () => {
-      paths.root = await mkdtemp(path.join(tmpdir(), 'muse-vault-native-'))
+      // The vault's path guard refuses any ancestor another account may modify.
+      // %TEMP% can be such a folder (a Codex Windows sandbox grants its group
+      // Modify there); the profile's LOCALAPPDATA, like the extension's own
+      // storage, is not. Hosted runners accept either.
+      paths.root = await mkdtemp(
+        path.join(process.env['LOCALAPPDATA'] ?? tmpdir(), 'muse-vault-native-'),
+      )
       const contents = await Promise.all(
         sources.map((name) => readFile(path.resolve('native/windows', name), 'utf8')),
       )
@@ -376,8 +395,13 @@ describe.runIf(process.platform === 'win32')(
       let target = previous
       if (kind !== 'file') target = path.dirname(target)
       if (kind === 'parent') target = path.dirname(target)
+      // The DACL only: Set-Acl writes the audit section too, which needs
+      // SeSecurityPrivilege (an elevated runner has it; an ordinary account not).
+      // CLR constructors, no cmdlet: Get-Item and New-Object load their modules
+      // first, which took past the test deadline on hosted runners (CIFIX017W2).
+      // Module auto-loading is off, so a cmdlet here fails on any machine.
       const setRule = async (isRemove: boolean) => {
-        const script = `$target = '${target.replaceAll("'", "''")}'; $acl = Get-Acl -LiteralPath $target; $sid = New-Object Security.Principal.SecurityIdentifier('S-1-1-0'); $rule = New-Object Security.AccessControl.FileSystemAccessRule($sid, '${rights}', 'Allow'); $acl.${isRemove ? 'RemoveAccessRuleAll' : 'AddAccessRule'}($rule); Set-Acl -LiteralPath $target -AclObject $acl`
+        const script = `$PSModuleAutoLoadingPreference = 'None'; $ErrorActionPreference = 'Stop'; $item = [IO.${kind === 'file' ? 'FileInfo' : 'DirectoryInfo'}]::new('${target.replaceAll("'", "''")}'); $acl = $item.GetAccessControl('Access'); $sid = [Security.Principal.SecurityIdentifier]::new('S-1-1-0'); $rule = [Security.AccessControl.FileSystemAccessRule]::new($sid, '${rights}', 'Allow'); $acl.${isRemove ? 'RemoveAccessRuleAll' : 'AddAccessRule'}($rule); $item.SetAccessControl($acl)`
         await new Promise<void>((resolve, reject) => {
           execFile(
             helper.powershell,

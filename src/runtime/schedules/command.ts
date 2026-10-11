@@ -1,3 +1,4 @@
+import { Usd } from '../../shared/usd'
 import {
   scheduleRequestSchema,
   scheduleResponseSchema,
@@ -38,8 +39,12 @@ async function requestOf(
         draft: {
           ...request.draft,
           action: resolved.action,
-          paidCapUsd: 0,
-          grant: { ...request.draft.grant, destinationIds: resolved.destinationIds, paidCapUsd: 0 },
+          paidCapUsd: Usd.from(0).toAmount(),
+          grant: {
+            ...request.draft.grant,
+            destinationIds: resolved.destinationIds,
+            paidCapUsd: Usd.from(0).toAmount(),
+          },
         },
       })
     }

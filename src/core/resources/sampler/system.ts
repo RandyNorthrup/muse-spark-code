@@ -8,6 +8,7 @@ import {
   BOUNDED_FILE_READ_CHUNK_BYTES,
   RESOURCE_SAMPLE_MS,
   RESOURCE_PROBE_EMPTY_ENV_KEYS,
+  RESOURCE_DARWIN_HEADROOM_LIBUV_MIN_MINOR,
 } from '../../../shared/constants'
 import type { ResourceSampler, ResourceSettings } from '../../../shared/resources'
 import { MachineResourceSampler } from './machineSampler'
@@ -137,7 +138,11 @@ export function createMachineResourceSampler(
   disks?: ResourceDiskSampler,
 ): ResourceSampler {
   const io = createSamplerIo(limits)
-  // Node versions without availableMemory remain supported; Darwin then reports unknown.
+  // Before libuv 1.52 Darwin's API returns free pages alone, not usable headroom.
+  // Such runtimes, or ones without availableMemory, must report unknown (D87).
+  const [uvMajor = 0, uvMinor = 0] = process.versions.uv.split('.').map(Number)
+  const hasDarwinHeadroom =
+    uvMajor > 1 || (uvMajor === 1 && uvMinor >= RESOURCE_DARWIN_HEADROOM_LIBUV_MIN_MINOR)
   const compatibleProcess: { availableMemory?: () => number } = process
   return new MachineResourceSampler(
     {
@@ -146,7 +151,10 @@ export function createMachineResourceSampler(
       cpus: () => os.cpus().map((cpu) => cpu.times),
       totalMemory: () => os.totalmem(),
       freeMemory: () => os.freemem(),
-      availableMemory: () => compatibleProcess.availableMemory?.() ?? null,
+      availableMemory: () =>
+        !hasDarwinHeadroom && process.platform === 'darwin'
+          ? null
+          : (compatibleProcess.availableMemory?.() ?? null),
       read: io.read,
       loadOptionalProbes: async () => {
         const { createOptionalResourceProbes } = await import('./optionalProbes')

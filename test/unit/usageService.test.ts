@@ -111,6 +111,28 @@ describe('shared usage service', () => {
     expect(await deps.readBudgets()).toEqual(beforeBudgets)
     expect(deps.setHistory).not.toHaveBeenCalled()
   })
+  it('counts the resource history the same delete removes, and refuses when it cannot count it', async () => {
+    const deps = usageFixtureDeps([usageFixtureRecord()])
+    const service = createUsageService({ ...deps, countResources: () => Promise.resolve(3) })
+    await service.handle({ type: 'usage/deleteHistory', requestId: 'delete' })
+    expect(deps.confirmDelete).toHaveBeenCalledWith(
+      expect.objectContaining({
+        count: 1,
+        resources: 3,
+        detail: expect.stringMatching(/1 usage record .* 3 resource history entries\.$/),
+      }),
+    )
+    deps.confirmDelete.mockClear()
+    const failing = createUsageService({
+      ...deps,
+      countResources: () => Promise.reject(new Error('private canary')),
+    })
+    expect(await failing.handle({ type: 'usage/deleteHistory', requestId: 'delete' })).toEqual([
+      { type: 'usage/error', requestId: 'delete', code: 'writeFailed' },
+    ])
+    expect(deps.confirmDelete).not.toHaveBeenCalled()
+    expect(deps.journal.deleteHistory).not.toHaveBeenCalled()
+  })
   it('keeps live subscription and budget sources when history is off and performs no network call', async () => {
     const fetch = vi.fn(() => {
       throw new Error('network is forbidden')

@@ -1,12 +1,13 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { MODEL_API_BASE_URL, SECRET_KEYS, UI_TEXT } from '../../src/shared/constants'
 import { runtimeProvidersFile } from '../../src/runtime/providers/providersFileStore'
 import { createRuntimeAccountServices } from '../../src/runtime/providers/runtimeServices'
+import { createRuntimeBackend } from '../../src/runtime/backends'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
-import type { KeyringEntryFactory } from '../../src/runtime/keyStore'
+import { memoryKeyring } from './helpers/keyring'
 
 const dirs: string[] = []
 
@@ -29,24 +30,12 @@ function seed(folder: string): void {
   )
 }
 
-function keyring(): { openEntry: KeyringEntryFactory; values: Map<string, string> } {
-  const values = new Map<string, string>()
-  const openEntry: KeyringEntryFactory = (_service, name) => ({
-    getPassword: () => Promise.resolve(values.get(name)),
-    setPassword: (value: string) => {
-      values.set(name, value)
-      return Promise.resolve()
-    },
-    deletePassword: () => Promise.resolve(values.delete(name)),
-  })
-  return { openEntry, values }
-}
-
 function rig() {
-  const folder = mkdtempSync(path.join(tmpdir(), 'm108-services-'))
+  // macOS spells $TMPDIR through a /var symlink the developer root refuses.
+  const folder = mkdtempSync(path.join(realpathSync.native(tmpdir()), 'm108-services-'))
   dirs.push(folder)
   seed(folder)
-  const { openEntry } = keyring()
+  const { openEntry } = memoryKeyring()
   return createRuntimeAccountServices({
     dataDir: folder,
     openEntry,
@@ -167,6 +156,8 @@ describe('createRuntimeAccountServices', () => {
     const fetch = vi.fn<typeof globalThis.fetch>(() =>
       Promise.reject(new Error('unexpected fetch')),
     )
+    // CAPS017: the services build the runtime only through the caller's factory.
+    const createBackend = vi.fn(createRuntimeBackend)
     const configured = services.exec.create(
       {
         options: parsed.options,
@@ -182,7 +173,10 @@ describe('createRuntimeAccountServices', () => {
         log: { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
       },
       { account: 'work', hasPoolFlag: false, isInteractive: false },
+      createBackend,
     )
+    expect(createBackend).toHaveBeenCalledOnce()
+    expect(createBackend.mock.results[0]?.value).toBe(configured.runtime)
     const seen: unknown[] = []
     const stop = configured.accounts.subscribe('run-a', (state) => {
       seen.push(state)

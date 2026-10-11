@@ -3,17 +3,21 @@ import { ResourceLaunchHost } from '../../src/core/resources/launchHost'
 import { ResourceGovernor } from '../../src/core/resources/governor'
 import { ResourceEvents } from '../../src/core/resources/events'
 import type { ResourceTreeBinding } from '../../src/core/resources/launch'
+import type { ResourceLaunchHostOptions } from '../../src/core/resources/launchHost'
 import {
   RESOURCE_TREE_PROCESS_CAP,
   RESOURCE_TREE_SPAWN_CAP,
   RESOURCE_TREE_SPAWN_WINDOW_MS,
   RESOURCE_FOREGROUND_WAIT_MS,
   RESOURCE_GIB_BYTES,
+  RESOURCE_DISPOSE_POLL_MS,
+  RESOURCE_SETTLED_ROWS_MAX,
+  TREE_EXIT_WAIT_MS,
 } from '../../src/shared/constants'
 import { resourceSettingsSchema, type ResourceSample } from '../../src/shared/resources'
 import { FakeResourceClock, ScriptedResourceSampler } from './helpers/resources/fakes'
 
-function setup() {
+function setup(extra: Partial<ResourceLaunchHostOptions> = {}) {
   const clock = new FakeResourceClock()
   const steps: ResourceSample[] = []
   const errors = vi.fn()
@@ -49,6 +53,7 @@ function setup() {
     settings: () => settings,
     bindTree,
     onError: errors,
+    ...extra,
   })
   const read = async (changes: Partial<ResourceSample>) => {
     steps.push({
@@ -82,10 +87,137 @@ function setup() {
     setUnknown: () => {
       isUnknown = true
     },
+    errors,
   }
 }
 
+const settle = async () => {
+  for (let index = 0; index < 5; index++)
+    await new Promise<void>((resolve) => {
+      setImmediate(resolve)
+    })
+}
+function created() {
+  return {
+    finish: vi.fn(() => Promise.resolve()),
+    clean: vi.fn(() => Promise.resolve({ removed: 0, freedBytes: null })),
+  }
+}
+/** One admitted contained launch whose stop returns at once, with its temp-root registry. */
+async function registered(launch: { group: true } | { attested: true }) {
+  const registry = created()
+  const h = setup({ created: registry })
+  const lease = await h.host.admit('toolShell')
+  lease.register({ pid: 700, profile: 'contained', stop: () => Promise.resolve(), ...launch })
+  return { registry, h, lease }
+}
+
 describe('C1 process admission and registration', () => {
+  it('kills active work on dispose instead of merely releasing admission', async () => {
+    const h = setup()
+    const lease = await h.host.admit('toolShell')
+    const stop = vi.fn(() => Promise.resolve())
+    lease.register({ pid: 700, profile: 'contained', group: true, stop })
+    h.host.dispose()
+    await Promise.resolve()
+    expect(stop).toHaveBeenCalledOnce()
+  })
+  it('finishes the temp root only after a stopped tree is observed gone, even late', async () => {
+    const { registry, h } = await registered({ group: true })
+    await settle()
+    h.host.dispose()
+    await settle()
+    // The stop was dispatched, but the tree is still there: nothing is finished yet.
+    expect(registry.finish).not.toHaveBeenCalled()
+    h.clock.advance(RESOURCE_DISPOSE_POLL_MS)
+    await settle()
+    expect(registry.finish).not.toHaveBeenCalled()
+    h.setGone()
+    h.clock.advance(RESOURCE_DISPOSE_POLL_MS)
+    await settle()
+    expect(registry.finish).toHaveBeenCalledOnce()
+    expect(h.errors).not.toHaveBeenCalled()
+  })
+  it('keeps a stopped tree that never goes as uncertain, reported, with its temp root', async () => {
+    const { registry, h } = await registered({ group: true })
+    await settle()
+    h.host.dispose()
+    for (let elapsed = 0; elapsed <= TREE_EXIT_WAIT_MS; elapsed += RESOURCE_DISPOSE_POLL_MS) {
+      h.clock.advance(RESOURCE_DISPOSE_POLL_MS)
+      await settle()
+    }
+    expect(registry.finish).not.toHaveBeenCalled()
+    expect(h.errors).toHaveBeenCalled()
+  })
+  it('retires attested work on dispose only through its settlement', async () => {
+    const registry = created()
+    const h = setup({ created: registry })
+    const lease = await h.host.admit('toolShell')
+    let finishStop: (() => void) | undefined
+    const stop = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finishStop = () => {
+            lease.complete(true)
+            resolve()
+          }
+        }),
+    )
+    lease.register({ pid: 700, profile: 'contained', attested: true, stop })
+    h.host.dispose()
+    await settle()
+    // A dispatched stop is not completion: nothing is finished until the settlement.
+    expect(stop).toHaveBeenCalledOnce()
+    expect(registry.finish).not.toHaveBeenCalled()
+    finishStop?.()
+    await settle()
+    expect(registry.finish).toHaveBeenCalledOnce()
+    expect(h.errors).not.toHaveBeenCalled()
+  })
+  it('keeps attested work whose stop returned unsettled as uncertain and reports it', async () => {
+    const { registry, h } = await registered({ attested: true })
+    h.host.dispose()
+    await settle()
+    expect(registry.finish).not.toHaveBeenCalled()
+    expect(h.errors).toHaveBeenCalled()
+  })
+  it('releases admission but keeps the temp root on the uncertain path', async () => {
+    const { registry, h, lease } = await registered({ attested: true })
+    lease.uncertain?.()
+    await settle()
+    expect(registry.finish).not.toHaveBeenCalled()
+    expect(h.errors).toHaveBeenCalledOnce()
+    // Retired: a later dispose has nothing left to stop or report.
+    h.host.dispose()
+    await settle()
+    expect(h.errors).toHaveBeenCalledOnce()
+  })
+  it('keeps no settled rows while no history reader is bound', async () => {
+    const h = setup()
+    const lease = await h.host.admit('toolShell')
+    for (let index = 0; index < 50; index++)
+      lease.settle?.({
+        root: { pid: 700 + index, startTime: '1' },
+        scope: 'attested-fixture',
+        usage: null,
+      })
+    expect(h.host.settled()).toEqual({ rows: [], dropped: 0 })
+  })
+  it('bounds settled rows for a bound reader and counts the dropped ones', async () => {
+    const h = setup({ isSettledRead: true })
+    const lease = await h.host.admit('toolShell')
+    for (let index = 0; index < RESOURCE_SETTLED_ROWS_MAX + 88; index++)
+      lease.settle?.({
+        root: { pid: 700 + index, startTime: '1' },
+        scope: 'attested-fixture',
+        usage: null,
+      })
+    const first = h.host.settled()
+    expect(first.rows).toHaveLength(RESOURCE_SETTLED_ROWS_MAX)
+    expect(first.dropped).toBe(88)
+    expect(first.rows[0]?.ticket.root.pid).toBe(700 + 88)
+    expect(h.host.settled()).toEqual({ rows: [], dropped: 0 })
+  })
   it('keeps an SDK root exit unknown while exact identity registration is still pending', async () => {
     const h = setup()
     await h.throttle()
@@ -313,4 +445,27 @@ describe('D100 G13 offending-job containment', () => {
       h.host.dispose()
     },
   )
+})
+
+describe('J history work source', () => {
+  it('reuses the tree sampler reading and hands over a retired tree final reading once', async () => {
+    const h = setup()
+    expect(h.host.treeUsage()).toEqual([])
+    const lease = await h.host.admit('check')
+    lease.register({ pid: 700, group: true })
+    await h.host.refreshTrees()
+    const queries = vi.mocked(h.binding.reader.usage).mock.calls.length
+    const row = {
+      ticket: expect.objectContaining({ kind: 'check', root: h.binding.root }),
+      usage: { cpuSeconds: 1, residentBytes: 100 },
+    }
+    expect(h.host.treeUsage()).toEqual([row])
+    // History reads the cached verified reading; it starts no OS query of its own.
+    expect(vi.mocked(h.binding.reader.usage).mock.calls).toHaveLength(queries)
+    lease.complete(true)
+    expect(h.host.tickets()).toEqual([])
+    expect(h.host.treeUsage()).toEqual([row])
+    expect(h.host.treeUsage()).toEqual([])
+    h.host.dispose()
+  })
 })

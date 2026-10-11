@@ -1,3 +1,4 @@
+import { Usd as PortUsd } from '../../src/shared/usd'
 import * as ts from 'typescript'
 import { parseHookConfig } from '../../src/core/backends/modelapi/hooks'
 import type { EditedFile, FileDiagnostics } from '../../src/core/verify/diagnosticsReport'
@@ -39,7 +40,7 @@ import { fakeRunContext } from './helpers/schedules/fixtures'
 function paidReservation(claimId: string, spentUsd = 0) {
   return vi.fn().mockResolvedValue({
     claimId,
-    reservedUsd: 1,
+    reservedUsd: PortUsd.from(1).toAmount(),
     check: () => ({ spentUsd, hasUnknownHistoricalFees: false }),
     settle: () => Promise.resolve({ spentUsd: 0, hasUnknownHistoricalFees: false }),
   })
@@ -78,7 +79,7 @@ async function modelBackend(
   const reserve = paidReservation('paid-claim', 1)
   const run = (context = fakeRunContext(), overrides: Partial<ScheduleRunDeps> = {}) =>
     unattendedRun({
-      context: { ...context, grant: { ...context.grant, paidCapUsd: 1 } },
+      context: { ...context, grant: { ...context.grant, paidCapUsd: PortUsd.from(1).toAmount() } },
       io,
       paid: {
         modelId: 'muse-spark-1.3',

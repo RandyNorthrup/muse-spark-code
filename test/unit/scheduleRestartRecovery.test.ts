@@ -1,3 +1,4 @@
+import { Usd as PortUsd } from '../../src/shared/usd'
 import { describe, expect, it, vi } from 'vitest'
 import {
   ScheduleDelivery,
@@ -17,7 +18,11 @@ const occurrenceMs = Date.parse('2026-10-06T12:00:00Z')
 const settlement: ScheduleRunSettlement = {
   outcome: 'ran',
   refusedActions: [],
-  cost: { usd: 0.1, certainty: 'estimated', retainedLiabilityUsd: 0.2 },
+  cost: {
+    usd: PortUsd.from(0.1).toAmount(),
+    certainty: 'estimated',
+    retainedLiabilityUsd: PortUsd.from(0.2).toAmount(),
+  },
 }
 
 class RecoverySession extends IdleScheduleSession implements ScheduleDeliverySession {}
@@ -34,7 +39,11 @@ function failedFire(intent: ScheduleRunIntent, now: number): ScheduleFireRecord 
     outcome: 'failed',
     reason: 'Dispatch failed',
     refusedActions: [],
-    cost: { usd: 0, certainty: 'exact', retainedLiabilityUsd: 0 },
+    cost: {
+      usd: PortUsd.from(0).toAmount(),
+      certainty: 'exact',
+      retainedLiabilityUsd: PortUsd.from(0).toAmount(),
+    },
   }
 }
 

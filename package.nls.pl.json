@@ -205,6 +205,8 @@
   "config.legalExplanation": "Opcjonalne wyjaśnienie Model API: USD. Każde użycie wymaga zgody i korzysta ze wspólnego budżetu dziennego.",
   "config.paidDailyBudgetUsd": "Wspólny dzienny budżet płatnych dodatków: USD.",
   "command.openUsagePage.title": "Otwórz użycie i koszty",
+  "command.showResources.title": "Pokaż zasoby",
+  "command.resumeResources.title": "Wznów pracę teraz",
   "setting.usageHistory.description": "Zapisuj użycie modeli lokalnie na tym komputerze. Wyłączenie zatrzymuje nowe zapisy; bieżące limity i budżety pozostają widoczne.",
   "setting.usageHistoryDays.description": "Liczba dni przechowywania dziennych podsumowań użycia (30–1825). Szczegóły poszczególnych wywołań są przechowywane przez 30 dni.",
   "command.connectChatGpt": "Kontynuuj z ChatGPT",

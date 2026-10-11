@@ -6,11 +6,13 @@ import {
   MAX_IMAGE_BYTES,
   MAX_DOCUMENT_BYTES,
   MODEL_API_MEDIA_PER_REQUEST,
+  MODEL_API_MIN_OUTPUT_TOKENS,
   MODEL_API_PDF_PAGE_IMAGES,
   MODEL_API_CONTEXT_WINDOW,
   MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS,
   PROMPT_CACHE_RETENTIONS,
 } from '../../shared/constants'
+import { outputTokenMinimumMessage } from '../../shared/providerRouting'
 import { effortLevelsFor } from '../../shared/effort'
 
 const sourceSchema = z.strictObject({
@@ -84,7 +86,7 @@ const outputSchema = z.strictObject({
   formats: known(
     z.array(z.enum(['text', 'json_object', 'json_schema', 'strict_schema', 'forced_tool'])),
   ),
-  maxTokens: z.optional(count),
+  maxTokens: z.optional(z.int()),
   minTokens: z.optional(count),
   acceptsLimit: flag,
 })
@@ -140,21 +142,39 @@ const recordSchema = z.strictObject({
 })
 export type ModelCapabilityRecord = Readonly<z.infer<typeof recordSchema>>
 /** Any policy family may be overridden; identity's route remains registry-owned. */
-export const capabilityOverridesSchema = z.strictObject({
-  servedVersion: z.optional(z.string()),
-  tools: z.optional(z.partial(toolsSchema)),
-  reasoning: z.optional(
-    z.extend(z.partial(reasoningSchema), { replay: z.optional(z.partial(replaySchema)) }),
-  ),
-  cache: z.optional(z.partial(cacheSchema)),
-  output: z.optional(z.partial(outputSchema)),
-  limits: z.optional(z.partial(limitsSchema)),
-  modalities: z.optional(z.partial(modalitiesSchema)),
-  sampling: z.optional(z.partial(samplingSchema)),
-  hosted: z.optional(z.partial(hostedSchema)),
-  logprobs: z.optional(logprobsSchema),
-  completion: z.optional(completionSchema),
-})
+export const capabilityOverridesSchema = z
+  .strictObject({
+    servedVersion: z.optional(z.string()),
+    tools: z.optional(z.partial(toolsSchema)),
+    reasoning: z.optional(
+      z.extend(z.partial(reasoningSchema), { replay: z.optional(z.partial(replaySchema)) }),
+    ),
+    cache: z.optional(z.partial(cacheSchema)),
+    output: z.optional(z.partial(outputSchema)),
+    limits: z.optional(z.partial(limitsSchema)),
+    modalities: z.optional(z.partial(modalitiesSchema)),
+    sampling: z.optional(z.partial(samplingSchema)),
+    hosted: z.optional(z.partial(hostedSchema)),
+    logprobs: z.optional(logprobsSchema),
+    completion: z.optional(completionSchema),
+  })
+  .check((payload) => {
+    const { output } = payload.value
+    // Declared bounds only: without a declared minimum the provider layer
+    // reports its own effective floor (Meta: 16), so the override must still
+    // parse for that layer to see it. Merging still refuses below one token.
+    if (
+      output?.maxTokens !== undefined &&
+      output.minTokens !== undefined &&
+      output.maxTokens < output.minTokens
+    )
+      payload.issues.push({
+        code: 'custom',
+        input: payload.value,
+        path: ['output', 'maxTokens'],
+        message: outputTokenMinimumMessage(output.minTokens),
+      })
+  })
 export type CapabilityOverrides = z.input<typeof capabilityOverridesSchema>
 /** User-file parsing stamps provenance before the patch is stored. */
 export function userCapabilityOverrides(
@@ -262,11 +282,10 @@ export function resolveModelCapabilities(
   }
   const record = recordSchema.parse(result)
   if (
-    record.output.minTokens !== undefined &&
     record.output.maxTokens !== undefined &&
-    record.output.minTokens > record.output.maxTokens
+    record.output.maxTokens < (record.output.minTokens ?? 1)
   )
-    throw new Error('capability_record:invalid_output_bounds')
+    throw new RangeError(outputTokenMinimumMessage(record.output.minTokens ?? 1))
   return record
 }
 /** Meta policy is built only from today's constants; callers keep their exact wire. */
@@ -304,6 +323,10 @@ export function metaCapabilityRecord(nativeModel: string): ModelCapabilityRecord
         },
         cache: { mode: 'implicit', acceptsKey: true, retention: [...PROMPT_CACHE_RETENTIONS] },
       },
+    },
+    {
+      source: { kind: 'capture', ref: 'docs/certification/min-output-cap.md' },
+      fields: { output: { minTokens: MODEL_API_MIN_OUTPUT_TOKENS } },
     },
   ])
 }

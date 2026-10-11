@@ -291,6 +291,7 @@ describe('shared token file', () => {
     for (const [executable, args, env] of run.mock.calls) {
       expect(executable.startsWith(String.raw`D:\Windows`)).toBe(true)
       expect(executable).toMatch(/powershell\.exe$/)
+      expect(executable.startsWith('D:\\Windows\\')).toBe(true)
       expect(args.slice(0, -1)).toEqual([
         '-NoLogo',
         '-NoProfile',
@@ -318,6 +319,16 @@ describe('shared token file', () => {
     await expect(createTokenFile(await folder())).rejects.toThrow('ETOKEN_ACL')
     expect(run).not.toHaveBeenCalled()
   })
+  it.each(['Windows', '/Windows', 'relative/Windows', 'Q:Windows'])(
+    'refuses malformed Windows root %s before starting the ACL helper',
+    async (root) => {
+      const run = asWindowsWithAcl()
+      vi.stubEnv('SystemRoot', root)
+      vi.stubEnv('windir', String.raw`E:\Win`)
+      await expect(createTokenFile(await folder())).rejects.toThrow('ETOKEN_ACL')
+      expect(run).not.toHaveBeenCalled()
+    },
+  )
   it.each([
     { failure: 'malformed JSON', output: () => Promise.resolve('malformed-json') },
     {

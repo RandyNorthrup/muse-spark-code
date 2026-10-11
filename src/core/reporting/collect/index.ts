@@ -179,6 +179,7 @@ export function createReportCollector(dependencies: ReportCollectorDependencies)
     return reportDocumentSchema.parse(
       dependencies.finalize({
         format: REPORT_FORMAT_VERSION,
+        moneyVersion: 2,
         header: {
           kind: options.kind,
           scope: options.scope,

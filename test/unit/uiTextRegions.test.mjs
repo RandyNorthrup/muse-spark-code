@@ -1,101 +1,39 @@
 import { Buffer } from 'node:buffer'
 // Exercise the real generated Node fallback and localization state.
-import { readFileSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { readFileSync, mkdtempSync } from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { createRequire } from 'node:module'
 import vm from 'node:vm'
 import { build } from 'esbuild'
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, describe, expect, inject, it, vi } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
 import {
   UI_TEXT_REGIONS,
   regionalUiText,
   uiTextProperties,
-  compactBrowserEnglish,
-  compactBrowserUiText,
   compressedReference,
 } from '../../scripts/lib/uiTextRegions.mjs'
 
+import { L10N_BUILDS_KEY, REGIONAL_ENGLISH, buildRegionalEnglish } from './helpers/l10nBuilds.mjs'
 import { removeFolder } from './helpers/temporaryFolders'
 
-const built = { textSource: '', folder: '', browserSource: '' }
+const built = { textSource: '', folder: '', browserSource: '', isOwned: false }
 beforeAll(async () => {
-  built.folder = mkdtempSync(path.resolve('temp/muse-regional-english-'))
-  // One parallel batch: these builds are independent, and running them one
-  // after another made the suite slow enough to time out under a loaded
-  // full run. The browser build feeds the inline round-trip test below.
-  const regions = [{ name: undefined, output: 'dist/uiText.js' }, ...UI_TEXT_REGIONS]
-  const [browser] = await Promise.all([
-    build({
-      entryPoints: ['src/shared/l10n/en.ts'],
-      bundle: true,
-      write: false,
-      minify: true,
-      platform: 'browser',
-      format: 'esm',
-      plugins: [compactBrowserEnglish],
-    }),
-    ...regions.map((region) =>
-      build({
-        entryPoints: ['src/shared/l10n/en.ts'],
-        bundle: true,
-        minify: true,
-        outfile: path.join(built.folder, path.basename(region.output)),
-        platform: 'node',
-        format: 'cjs',
-        target: 'node20.18',
-        plugins: [regionalUiText(region.name)],
-      }),
-    ),
-  ])
-  built.browserSource = browser.outputFiles[0].text
-  const result = await build({
-    entryPoints: ['src/shared/l10n/text.ts'],
-    bundle: true,
-    write: false,
-    platform: 'node',
-    format: 'cjs',
-    target: 'node20.18',
-    plugins: [
-      {
-        name: 'test-shared-english',
-        setup(builder) {
-          builder.onResolve({ filter: /^\.\/en$/ }, () => ({ path: './uiText.js', external: true }))
-        },
-      },
-    ],
-  })
-  built.textSource = result.outputFiles[0].text
-  const vaultProbe = path.join(built.folder, 'vault-probe.ts')
-  writeFileSync(
-    vaultProbe,
-    `export { installVaultEnglish } from '${path.relative(built.folder, path.resolve('src/shared/l10n/vaultEnglish.ts')).replaceAll('\\', '/')}';`,
-  )
-  await build({
-    entryPoints: {
-      english: 'src/shared/l10n/en.ts',
-      text: 'src/shared/l10n/text.ts',
-      vault: vaultProbe,
-      main: 'src/webview/main.tsx',
-      models: 'src/webview/models/models.tsx',
-      usage: 'src/webview/usage/usage.tsx',
-      install: 'src/webview/installTable.ts',
-    },
-    outdir: path.join(built.folder, 'browser'),
-    outExtension: { '.js': '.mjs' },
-    bundle: true,
-    splitting: true,
-    minify: true,
-    platform: 'browser',
-    format: 'esm',
-    plugins: [compactBrowserUiText],
-    loader: { '.css': 'empty' },
-    jsx: 'automatic',
-  })
+  // Built once per run by globalSetup.mjs (before workers start, so a loaded
+  // run cannot spend this hook's budget on esbuild); a run without it builds
+  // its own copy under the repository, as this suite always did.
+  const shared = inject(L10N_BUILDS_KEY)
+  if (shared === undefined) {
+    built.folder = mkdtempSync(path.resolve('temp/muse-regional-english-'))
+    built.isOwned = true
+    await buildRegionalEnglish(built.folder)
+  } else built.folder = path.join(shared, REGIONAL_ENGLISH)
+  built.browserSource = readFileSync(path.join(built.folder, 'browser-english.js'), 'utf8')
+  built.textSource = readFileSync(path.join(built.folder, 'text-source.js'), 'utf8')
 })
 
-afterAll(() => removeFolder(built.folder))
+afterAll(() => (built.isOwned ? removeFolder(built.folder) : undefined))
 
 it('selects the canonical English input on POSIX and Windows paths', () => {
   let filter

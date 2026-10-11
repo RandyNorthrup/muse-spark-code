@@ -7,6 +7,11 @@ export interface ReportRedaction {
   readonly localRoots?: readonly string[]
 }
 
+/** Escape constructor-pattern operators; separators are added separately. */
+function escapeReportRootSegment(segment: string): string {
+  return segment.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`)
+}
+
 /** Workspace paths become portable; the export scrub removes outside paths. */
 export function reportScrubber(options: ReportRedaction = {}): (text: string) => string {
   const scrub = createExportTextScrubber({
@@ -24,7 +29,7 @@ export function reportScrubber(options: ReportRedaction = {}): (text: string) =>
       if (normalized.split('/').filter(Boolean).length < 2) return []
       const escaped = normalized
         .split('/')
-        .map((part) => part.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`))
+        .map((part) => escapeReportRootSegment(part))
         .join(String.raw`[\\/]+`)
       return [
         {
