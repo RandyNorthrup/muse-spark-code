@@ -68,7 +68,7 @@ function fixture() {
   return {
     ...f,
     writer: vault,
-    importer: new VaultFileImporter(vault, f.deps.owner),
+    importer: new VaultFileImporter(vault, f.deps.owner, tmpdir()),
     prepare,
     source: () => input,
     prepared: () => prepared,
@@ -107,7 +107,7 @@ describe('D89.5 ambient discovery and explicit import', () => {
   it('W-M7 a reloaded importer can delete its verified source using the persisted receipt', async () => {
     const { f, path, result } = await importedSource()
     f.importer.dispose()
-    const reloaded = new VaultFileImporter(f.writer, f.deps.owner)
+    const reloaded = new VaultFileImporter(f.writer, f.deps.owner, tmpdir())
     await reloaded.deleteSource(result.receipt, () => undefined)
     await expect(readFile(path)).rejects.toMatchObject({ code: 'ENOENT' })
   })

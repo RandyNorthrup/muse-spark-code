@@ -16,6 +16,8 @@ import {
 } from '../../../src/core/vault/broker/repository'
 import { FakeVaultClock, FakeVaultSlot } from '../helpers/vault/core'
 import { MemoryVaultAnchor, MemoryVaultFiles } from './storeFixtures'
+import { VaultError } from '../../../src/core/vault/crypto'
+import type { VaultGenerationState } from '../../../src/core/vault/store'
 
 const homes: string[] = []
 /** Removes only generated homes owned by this worker's completed tests. */
@@ -34,7 +36,14 @@ export class AnchorWithId extends MemoryVaultAnchor implements VaultAnchorPort {
     const [first] = this.states.keys()
     return Promise.resolve(first ?? null)
   }
-  reset(vaultId: string): Promise<void> {
+  reset(
+    vaultId: string,
+    expected: VaultGenerationState | null,
+    authorize: () => void,
+  ): Promise<void> {
+    authorize()
+    if (JSON.stringify(this.states.get(vaultId) ?? null) !== JSON.stringify(expected))
+      return Promise.reject(new VaultError('rollback'))
     this.states.delete(vaultId)
     return Promise.resolve()
   }

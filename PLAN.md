@@ -33281,11 +33281,29 @@ broker or panel checklist.
 
 **C-M109-1 (a) additions (2026-10-10, lead decisions).**
 
+**CM1091A4 review repair (2026-10-10, win11).** Close all nine
+RVCM1091A3 findings by class: capture Lock authority at request admission;
+bind imported paths and every parent to held, verified identities within the
+home; classify missing/damaged documents and pending intents consistently;
+refuse Reset while unlocked; authorize every destructive reset boundary and
+retire the exact anchor state inside the writer transaction; cancel sent panel
+imports on retirement while preserving receipt authority across ordinary
+change notifications; retain private imported target identity in encrypted
+material. Generated-only regressions and byte-exact removal drills are recorded
+in `docs/certification/m109.md`. Scoped rig gates replace aggregate quality
+under the explicit common/rig brief. No merge, push, dependency or live call.
+The independent host build first exceeds its unchanged 50 KiB cap at 52,042
+bytes. Reuse the panel's retirement, locked-state publication and fixed-error
+paths, and return service promises directly; retain every cancellation and
+authorization check. The repaired build is 51,174 bytes and both budget owners
+pass alongside the complete panel-host and notification regressions.
+
 - **Reset Vault.** It is offered only when this user's anchor names a vault
   that no slot or code can open, because its files are missing or damaged.
   - Two steps: the plain statement of loss, then the typed word `RESET`.
-  - The store re-checks under the writer lock that no slot records exist
-    before anything changes.
+  - The store re-checks under the writer lock that no complete openable vault
+    or recoverable intent exists before anything changes; Reset refuses an
+    unlocked broker.
   - It appends a value-free audit line to `reset.v1` and keeps the
     displaced document aside.
   - It clears the anchor by compare-and-delete. Rollback protection restarts

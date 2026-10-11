@@ -808,7 +808,7 @@
     {
       "id": "M109",
       "title": "Credential vault for agents",
-      "summary": "One encrypted vault gives agents approved, logged uses without values, with hardware protection where available; follow-up setup, batch import and confirmed reset await installed broker and panel bindings.",
+      "summary": "An encrypted vault gives agents approved, logged uses without values; setup, cancellable home imports retaining private identity, and reset under the writer lock await installed broker and panel bindings.",
       "area": "security",
       "release": "0.17.0"
     },

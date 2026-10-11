@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { constants } from 'node:fs'
-import { renameSync } from 'node:fs'
+import { renameSync, unlinkSync } from 'node:fs'
 import { link, lstat, mkdir, open, realpath, rename, unlink } from 'node:fs/promises'
 import path from 'node:path'
 import * as z from 'zod/mini'
@@ -43,8 +43,8 @@ export interface VaultFilePort {
    */
   writeAtomic(name: VaultFileName, data: Uint8Array, commit?: () => void): Promise<void>
   /** Retain any displaced document durably without reading it or removing its current path. */
-  quarantine(name: 'vault.v1'): Promise<void>
-  remove(name: VaultFileName): Promise<void>
+  quarantine(name: 'vault.v1', authorize?: () => void): Promise<void>
+  remove(name: VaultFileName, authorize?: () => void): Promise<void>
   withWriter<T>(operation: () => Promise<T>): Promise<T>
 }
 export interface VaultGenerationState {
@@ -194,14 +194,15 @@ export class NodeVaultFiles implements VaultFilePort {
       }
     }
   }
-  async remove(name: VaultFileName): Promise<void> {
+  async remove(name: VaultFileName, authorize?: () => void): Promise<void> {
     await this.directory()
     const file = path.join(this.root, name)
     await this.verify(file, 'file')
-    await unlink(file)
+    authorize?.()
+    unlinkSync(file)
     await this.syncDirectory()
   }
-  async quarantine(name: 'vault.v1'): Promise<void> {
+  async quarantine(name: 'vault.v1', authorize?: () => void): Promise<void> {
     await this.directory()
     const file = path.join(this.root, name)
     let identity
@@ -217,6 +218,7 @@ export class NodeVaultFiles implements VaultFilePort {
       this.root,
       `${name}.${randomVaultBytes(VAULT_LIMITS.idBytes).toString('hex')}.quarantine`,
     )
+    authorize?.()
     try {
       // Hard links preserve unreadable bytes and the old path until atomic publication replaces it.
       await link(file, retained)
@@ -349,18 +351,45 @@ function stateMac(key: Uint8Array, vaultId: string, domain: string, body: object
 function slotMac(key: Uint8Array, slots: Omit<Slots, 'mac'>): Buffer {
   return stateMac(key, slots.vaultId, 'vault-slots-v1', slots)
 }
-/** Whether these slot or intent bytes name usable slot records for this vault. */
-function isVaultOpenable(name: 'slots.v1' | 'pending.v1', bytes: Buffer, vaultId: string): boolean {
+/** A complete document/slot pair or pending transaction, without opening secret material. */
+async function isVaultOpenable(files: VaultFilePort, vaultId: string): Promise<boolean> {
+  const buffers: Buffer[] = []
   try {
-    const parsed: unknown = JSON.parse(bytes.toString('utf8'))
-    if (name === 'slots.v1') {
-      const slots = slotsSchema.safeParse(parsed)
-      return slots.success && slots.data.vaultId === vaultId
+    const pending = await files.read('pending.v1')
+    if (pending) {
+      buffers.push(pending)
+      const intent = intentSchema.safeParse(parseJson(pending))
+      if (!intent.success) return false
+      const { document, slots } = intent.data.snapshot
+      return (
+        document.vaultId === vaultId &&
+        slots.vaultId === vaultId &&
+        slots.records.every((record) => record.vaultId === vaultId) &&
+        slots.documentDigest === documentDigest(document)
+      )
     }
-    const intent = intentSchema.safeParse(parsed)
-    return intent.success && intent.data.snapshot.document.vaultId === vaultId
-  } catch {
-    return false
+    const document = await files.read('vault.v1')
+    if (document) buffers.push(document)
+    const slots = await files.read('slots.v1')
+    if (slots) buffers.push(slots)
+    if (!document || !slots) return false
+    const pair = snapshotSchema.safeParse({
+      document: parseJson(document),
+      slots: parseJson(slots),
+    })
+    return (
+      pair.success &&
+      pair.data.document.vaultId === vaultId &&
+      pair.data.slots.vaultId === vaultId &&
+      pair.data.slots.records.every((record) => record.vaultId === vaultId) &&
+      pair.data.document.generation === pair.data.slots.generation &&
+      pair.data.slots.documentDigest === documentDigest(pair.data.document)
+    )
+  } catch (error: unknown) {
+    if (error instanceof VaultError && error.code === 'invalid') return false
+    throw error
+  } finally {
+    for (const bytes of buffers) bytes.fill(0)
   }
 }
 function documentDigest(document: Document): string {
@@ -564,18 +593,11 @@ export class VaultStore implements VaultStorePort {
   }
   /**
    * Reset Vault (lead decision, 2026-10-10): offered only when the anchored
-   * vault cannot be opened by any slot or code, because its slot records are
-   * missing or unreadable. Never true for a vault that merely is locked.
+   * vault cannot be opened by any slot or code, because its required files are
+   * missing or damaged. Never true for a vault that merely is locked.
    */
   static async isLost(files: VaultFilePort, anchoredId: string): Promise<boolean> {
-    try {
-      await this.slotRecords(files, anchoredId)
-      return false
-    } catch (error: unknown) {
-      // Missing or unreadable records only; a busy writer or an I/O error is no loss.
-      if (error instanceof VaultError && error.code === 'invalid') return true
-      throw error
-    }
+    return await files.withWriter(async () => !(await isVaultOpenable(files, anchoredId)))
   }
   /**
    * The reset's file side: appends a value-free audit line to `reset.v1`,
@@ -587,20 +609,20 @@ export class VaultStore implements VaultStorePort {
     anchoredId: string,
     auditLine: string,
     authorize: () => void,
+    retireAnchor: () => Promise<void>,
+    anchor: VaultGenerationPort,
+    expected: VaultGenerationState | null,
   ): Promise<void> {
     await files.withWriter(async () => {
+      const current = await anchor.minimum(anchoredId)
+      authorize()
+      if (!isSameState(current, expected)) throw new VaultError('rollback')
       // Rechecked under the writer: a vault that became openable is never reset.
-      for (const name of ['slots.v1', 'pending.v1'] as const) {
-        const bytes = await files.read(name)
-        if (!bytes) continue
-        try {
-          if (isVaultOpenable(name, bytes, anchoredId)) throw new VaultError('invalid')
-        } finally {
-          bytes.fill(0)
-        }
-      }
+      if (await isVaultOpenable(files, anchoredId)) throw new VaultError('invalid')
+      authorize()
       const previous = await files.read('reset.v1')
       try {
+        authorize()
         const line = Buffer.from(`${auditLine}\n`, 'utf8')
         // A Lock while staging must stop the reset before its audit or file removal.
         await files.writeAtomic(
@@ -611,18 +633,26 @@ export class VaultStore implements VaultStorePort {
       } finally {
         previous?.fill(0)
       }
+      authorize()
       const document = await files.read('vault.v1')
+      authorize()
       if (document) {
         document.fill(0)
-        await files.quarantine('vault.v1')
-        await files.remove('vault.v1')
+        await files.quarantine('vault.v1', authorize)
+        authorize()
+        await files.remove('vault.v1', authorize)
+        authorize()
       }
       for (const name of ['slots.v1', 'pending.v1'] as const) {
         const bytes = await files.read(name)
+        authorize()
         if (!bytes) continue
         bytes.fill(0)
-        await files.remove(name)
+        await files.remove(name, authorize)
+        authorize()
       }
+      await retireAnchor()
+      authorize()
     })
   }
   /** Whether any vault document exists here: the setup flow's "uncreated" test. */

@@ -79,6 +79,6 @@ export function prepareImportItems(
     metadata: metadata(entry.material.kind, kind, index + 1, naming, {
       bindings: [...entry.bindings],
     }),
-    material: entry.material,
+    material: { ...entry.material, importTarget: entry.target },
   }))
 }

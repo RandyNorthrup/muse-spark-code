@@ -66,20 +66,30 @@ export class VaultManageSession {
   private async call<T>(
     work: (client: VaultBrokerConnection) => Promise<T>,
     authorize?: () => void,
+    signal?: AbortSignal,
   ): Promise<T> {
     const client = await this.connect()
+    const stop = () => {
+      client.close()
+    }
+    signal?.addEventListener('abort', stop, { once: true })
     try {
+      if (signal?.aborted) throw new Error(UI_TEXT.vault.useChanged)
       authorize?.()
-      return await work(client)
+      const result = await work(client)
+      if (signal?.aborted) throw new Error(UI_TEXT.vault.useChanged)
+      return result
     } finally {
+      signal?.removeEventListener('abort', stop)
       client.close()
     }
   }
-  private async simple(
+  private simple(
     request: Parameters<VaultBrokerConnection['send']>[0],
     authorize?: () => void,
+    signal?: AbortSignal,
   ): Promise<VaultChannelResponse['response']> {
-    return await this.call(async (client) => await client.send(request), authorize)
+    return this.call((client) => client.send(request), authorize, signal)
   }
 
   async snapshot(): Promise<VaultBrokerSnapshot> {
@@ -143,8 +153,12 @@ export class VaultManageSession {
     return await this.simple({ kind: 'answer', answer }, authorize)
   }
   /** The per-item report (metadata only) and the receipt for Keep/Delete. */
-  async importFile(path: string, authorize?: () => void): Promise<VaultImportReport> {
-    const response = await this.simple({ kind: 'import', path }, authorize)
+  async importFile(
+    path: string,
+    authorize?: () => void,
+    signal?: AbortSignal,
+  ): Promise<VaultImportReport> {
+    const response = await this.simple({ kind: 'import', path }, authorize, signal)
     if (response.kind === 'refused') throw new Error(vaultRefusalMessage(response.reason))
     if (response.kind !== 'imported') throw new Error(UI_TEXT.vault.noAccess)
     return { receipt: response.receipt, items: response.items }
@@ -152,8 +166,8 @@ export class VaultManageSession {
   async keepImport(receipt: string): Promise<void> {
     expectOk(await this.simple({ kind: 'importKeep', receipt }))
   }
-  async deleteImport(receipt: string, authorize?: () => void): Promise<void> {
-    expectOk(await this.simple({ kind: 'importDelete', receipt }, authorize))
+  async deleteImport(receipt: string, authorize?: () => void, signal?: AbortSignal): Promise<void> {
+    expectOk(await this.simple({ kind: 'importDelete', receipt }, authorize, signal))
   }
   async resetBegin(): Promise<{ resetId: string; word: string }> {
     const response = await this.simple({ kind: 'resetBegin' })
