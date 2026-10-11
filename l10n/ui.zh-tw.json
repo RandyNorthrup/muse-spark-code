@@ -4062,6 +4062,11 @@
   "providerImportPreviewTitle": "匯入預覽",
   "importNeedsKey": "需要金鑰",
   "importNeedsKeyLabel": "需要金鑰",
+  "providerConnectFailed": "OpenRouter 連線失敗。請重新連線。",
+  "providerUsageFailed": "無法讀取 OpenRouter 金鑰用量。請重試。",
+  "providerPasteCode": "貼上 OpenRouter 顯示的授權碼。",
+  "usageKeyTotal": "總用量",
+  "usageUnlimited": "無限額",
   "providerOpenRouterServices": "連接您的 OpenRouter 帳戶，查看金鑰用量、限額和剩餘餘額。",
   "refreshModels": "重新整理模型",
   "scanNewModels": {
@@ -5122,10 +5127,5 @@
     "grantsCount": {
       "other": "{count} 個授權"
     }
-  },
-  "providerConnectFailed": "OpenRouter 連線失敗。請重新連線。",
-  "providerUsageFailed": "無法讀取 OpenRouter 金鑰用量。請重試。",
-  "providerPasteCode": "貼上 OpenRouter 顯示的授權碼。",
-  "usageKeyTotal": "總用量",
-  "usageUnlimited": "無限額"
+  }
 }

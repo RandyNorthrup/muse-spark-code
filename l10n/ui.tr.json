@@ -4172,6 +4172,11 @@
   "providerImportPreviewTitle": "İçe aktarma önizlemesi",
   "importNeedsKey": "anahtar gerekli",
   "importNeedsKeyLabel": "anahtar gerekli",
+  "providerConnectFailed": "OpenRouter bağlantısı başarısız oldu. Yeniden bağlanmayı deneyin.",
+  "providerUsageFailed": "OpenRouter anahtar kullanımı okunamadı. Yeniden deneyin.",
+  "providerPasteCode": "OpenRouter tarafından gösterilen yetkilendirme kodunu yapıştırın.",
+  "usageKeyTotal": "Toplam Kullanım",
+  "usageUnlimited": "Sınır Yok",
   "providerOpenRouterServices": "OpenRouter hesabınızı bağlayın ve anahtarın kullanımını, sınırını ve kalan bakiyesini görüntüleyin.",
   "refreshModels": "Modelleri yenile",
   "scanNewModels": {
@@ -5276,10 +5281,5 @@
       "one": "{count} izin",
       "other": "{count} izin"
     }
-  },
-  "providerConnectFailed": "OpenRouter bağlantısı başarısız oldu. Yeniden bağlanmayı deneyin.",
-  "providerUsageFailed": "OpenRouter anahtar kullanımı okunamadı. Yeniden deneyin.",
-  "providerPasteCode": "OpenRouter tarafından gösterilen yetkilendirme kodunu yapıştırın.",
-  "usageKeyTotal": "Toplam Kullanım",
-  "usageUnlimited": "Sınır Yok"
+  }
 }

@@ -4062,6 +4062,11 @@
   "providerImportPreviewTitle": "가져오기 미리 보기",
   "importNeedsKey": "키 필요",
   "importNeedsKeyLabel": "키 필요",
+  "providerConnectFailed": "OpenRouter 연결에 실패했습니다. 다시 연결해 주세요.",
+  "providerUsageFailed": "OpenRouter 키 사용량을 읽을 수 없습니다. 다시 시도해 주세요.",
+  "providerPasteCode": "OpenRouter에 표시된 인증 코드를 붙여넣으세요.",
+  "usageKeyTotal": "총 사용량",
+  "usageUnlimited": "제한 없음",
   "providerOpenRouterServices": "OpenRouter 계정을 연결하고 키 사용량, 한도 및 잔액을 확인하세요.",
   "refreshModels": "모델 새로 고침",
   "scanNewModels": {
@@ -5122,10 +5127,5 @@
     "grantsCount": {
       "other": "{count} 개 권한"
     }
-  },
-  "providerConnectFailed": "OpenRouter 연결에 실패했습니다. 다시 연결해 주세요.",
-  "providerUsageFailed": "OpenRouter 키 사용량을 읽을 수 없습니다. 다시 시도해 주세요.",
-  "providerPasteCode": "OpenRouter에 표시된 인증 코드를 붙여넣으세요.",
-  "usageKeyTotal": "총 사용량",
-  "usageUnlimited": "제한 없음"
+  }
 }

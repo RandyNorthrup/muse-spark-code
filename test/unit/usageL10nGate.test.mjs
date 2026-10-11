@@ -81,6 +81,7 @@ beforeAll(async () => {
   }
   for (const file of [
     'l10n/untranslated.json',
+    'l10n/ui.de.json',
     ...TABLE_LOCALES.map((locale) => `l10n/usage.${locale}.json`),
   ])
     originalFiles.set(file, readFileSync(path.join(fixture.root, file)))
@@ -113,6 +114,17 @@ describe('both localization families', () => {
     expect(result.output).toContain('l10n/usage.de.json: title: missing')
     expect(result.output).toContain('journalHost: slots {host} expected, found {path}')
     expect(result.output).toContain('refresh: left in English')
+  })
+
+  it('rejects translated UI key order drift before packaging', () => {
+    const file = 'l10n/ui.de.json'
+    const table = JSON.parse(readFileSync(path.join(fixture.root, file), 'utf8'))
+    const entries = Object.entries(table)
+    writeJson(file, Object.fromEntries([...entries.slice(1), entries[0]]))
+    const result = runGate()
+    expect(result.code).toBe(1)
+    expect(result.output).toContain(`${file}: key order differs from English`)
+    expect(result.output).not.toContain('differs from source')
   })
 
   it('rejects a missing usage file, an unknown locale and invalid plural categories', () => {

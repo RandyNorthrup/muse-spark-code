@@ -272,6 +272,14 @@ function checkTables(l10n, untranslatedFor, problems, family, repoRoot) {
     }
     const table = readJson(file, problems, repoRoot)
     if (table === undefined) continue
+    // Archives restore the canonical English key order; source tables must
+    // already have that order so package-time equality cannot fail later.
+    if (
+      family === 'ui' &&
+      isRecord(table) &&
+      JSON.stringify(Object.keys(table)) !== JSON.stringify(Object.keys(english))
+    )
+      problems.push(`${file}: key order differs from English`)
     const untranslated = untranslatedFor(family, locale)
     const found = tableProblems(english, table, { locale, isStrict: true, untranslated })
     problems.push(...found.map((problem) => `${file}: ${problem}`))

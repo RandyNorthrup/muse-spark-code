@@ -4282,6 +4282,11 @@
   "providerImportPreviewTitle": "Aperçu de l’import",
   "importNeedsKey": "nécessite une clé",
   "importNeedsKeyLabel": "nécessite une clé",
+  "providerConnectFailed": "La connexion à OpenRouter a échoué. Réessayez de vous connecter.",
+  "providerUsageFailed": "Impossible de lire l’utilisation de la clé OpenRouter. Réessayez.",
+  "providerPasteCode": "Collez le code d’autorisation affiché par OpenRouter.",
+  "usageKeyTotal": "Utilisation totale",
+  "usageUnlimited": "Sans limite",
   "providerOpenRouterServices": "Connectez votre compte OpenRouter et consultez l’utilisation de la clé, la limite et le solde restant.",
   "refreshModels": "Actualiser les modèles",
   "scanNewModels": {
@@ -5430,10 +5435,5 @@
       "other": "{count} autorisations",
       "many": "{count} autorisations"
     }
-  },
-  "providerConnectFailed": "La connexion à OpenRouter a échoué. Réessayez de vous connecter.",
-  "providerUsageFailed": "Impossible de lire l’utilisation de la clé OpenRouter. Réessayez.",
-  "providerPasteCode": "Collez le code d’autorisation affiché par OpenRouter.",
-  "usageKeyTotal": "Utilisation totale",
-  "usageUnlimited": "Sans limite"
+  }
 }

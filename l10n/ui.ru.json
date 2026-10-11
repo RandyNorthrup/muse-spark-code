@@ -4392,6 +4392,11 @@
   "providerImportPreviewTitle": "Предпросмотр импорта",
   "importNeedsKey": "нужен ключ",
   "importNeedsKeyLabel": "нужен ключ",
+  "providerConnectFailed": "Не удалось подключиться к OpenRouter. Попробуйте подключиться снова.",
+  "providerUsageFailed": "Не удалось прочитать использование ключа OpenRouter. Повторите попытку.",
+  "providerPasteCode": "Вставьте код авторизации, показанный OpenRouter.",
+  "usageKeyTotal": "Общее использование",
+  "usageUnlimited": "Без лимита",
   "providerOpenRouterServices": "Подключите учётную запись OpenRouter и просматривайте использование ключа, лимит и остаток средств.",
   "refreshModels": "Обновить модели",
   "scanNewModels": {
@@ -5584,10 +5589,5 @@
       "few": "{count} разрешения",
       "many": "{count} разрешений"
     }
-  },
-  "providerConnectFailed": "Не удалось подключиться к OpenRouter. Попробуйте подключиться снова.",
-  "providerUsageFailed": "Не удалось прочитать использование ключа OpenRouter. Повторите попытку.",
-  "providerPasteCode": "Вставьте код авторизации, показанный OpenRouter.",
-  "usageKeyTotal": "Общее использование",
-  "usageUnlimited": "Без лимита"
+  }
 }

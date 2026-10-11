@@ -7,6 +7,11 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- Keep translated UI keys in canonical English order and reject source key
+  order drift before ACP or headless packaging.
+
 ### Added
 
 - OpenRouter account connection now completes browser authorization without

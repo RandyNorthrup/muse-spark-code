@@ -4392,6 +4392,11 @@
   "providerImportPreviewTitle": "Náhled importu",
   "importNeedsKey": "potřebuje klíč",
   "importNeedsKeyLabel": "potřebuje klíč",
+  "providerConnectFailed": "Připojení k OpenRouteru se nezdařilo. Zkuste se připojit znovu.",
+  "providerUsageFailed": "Využití klíče OpenRouter se nepodařilo načíst. Zkuste to znovu.",
+  "providerPasteCode": "Vložte autorizační kód zobrazený OpenRouterem.",
+  "usageKeyTotal": "Celkové využití",
+  "usageUnlimited": "Bez limitu",
   "providerOpenRouterServices": "Připojte účet OpenRouter a zobrazte využití klíče, limit a zbývající zůstatek.",
   "refreshModels": "Aktualizovat modely",
   "scanNewModels": {
@@ -5584,10 +5589,5 @@
       "few": "{count} oprávnění",
       "many": "{count} oprávnění"
     }
-  },
-  "providerConnectFailed": "Připojení k OpenRouteru se nezdařilo. Zkuste se připojit znovu.",
-  "providerUsageFailed": "Využití klíče OpenRouter se nepodařilo načíst. Zkuste to znovu.",
-  "providerPasteCode": "Vložte autorizační kód zobrazený OpenRouterem.",
-  "usageKeyTotal": "Celkové využití",
-  "usageUnlimited": "Bez limitu"
+  }
 }

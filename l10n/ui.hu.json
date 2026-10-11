@@ -4172,6 +4172,11 @@
   "providerImportPreviewTitle": "Importálási előnézet",
   "importNeedsKey": "kulcsot igényel",
   "importNeedsKeyLabel": "kulcsot igényel",
+  "providerConnectFailed": "Az OpenRouter csatlakozása sikertelen. Próbáljon újra csatlakozni.",
+  "providerUsageFailed": "Az OpenRouter kulcs használata nem olvasható. Próbálja újra.",
+  "providerPasteCode": "Illessze be az OpenRouter által megjelenített engedélyezési kódot.",
+  "usageKeyTotal": "Teljes használat",
+  "usageUnlimited": "Nincs korlát",
   "providerOpenRouterServices": "Csatlakoztassa OpenRouter-fiókját, és tekintse meg a kulcs használatát, korlátját és a fennmaradó egyenleget.",
   "refreshModels": "Modellek frissítése",
   "scanNewModels": {
@@ -5276,10 +5281,5 @@
       "one": "{count} engedély",
       "other": "{count} engedély"
     }
-  },
-  "providerConnectFailed": "Az OpenRouter csatlakozása sikertelen. Próbáljon újra csatlakozni.",
-  "providerUsageFailed": "Az OpenRouter kulcs használata nem olvasható. Próbálja újra.",
-  "providerPasteCode": "Illessze be az OpenRouter által megjelenített engedélyezési kódot.",
-  "usageKeyTotal": "Teljes használat",
-  "usageUnlimited": "Nincs korlát"
+  }
 }

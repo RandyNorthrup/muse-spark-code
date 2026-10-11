@@ -28482,6 +28482,17 @@ OpenCode plugin hooks").
 
 ### M95 — Bring-your-own model providers (D74)
 
+**CM952R2 review repair (2026-10-11, macmini).** Close all six RVCM952
+findings and their lane siblings: enforce canonical source localization key
+order, reject credentials changed during provider-add probes, cancel OAuth
+exchange with the wizard/session lifetime, discard stale or unavailable key
+usage, carry new total/week amounts through the existing exact-money boundary,
+and certify explicit missing-service refusal. First commit the packaging/order
+repair; then the lifecycle table and regressions with byte-exact red drills
+in `docs/certification/cm952.md`. Preserve caps, gates and dependencies; no
+merge, push, credentials or live/paid requests. Aggregate quality remains
+lead-owned under the rig brief.
+
 **C-M95-2 implementation (2026-10-11, CM952, macmini).** Complete the
 production OpenRouter PKCE Connect and remote password-box code route,
 parse key usage from the 2026-10-04 `/api/v1/key` capture, and show total,

@@ -1,0 +1,17 @@
+[
+  {
+    "name": "p1-order",
+    "file": "scripts/lib/localizationGate.mjs",
+    "sha256": "5a022ccc0aa19e12ac32ae74a6bf4390657c2f9a99f87dca7e8867a11550cbcc",
+    "tests": ["test/unit/usageL10nGate.test.mjs"],
+    "exit": 1,
+    "failures": [
+      "\u276f test/unit/usageL10nGate.test.mjs (9 tests | 1 failed) 3916ms",
+      "\u276f both localization families (9)",
+      "\u00d7 rejects translated UI key order drift before packaging 213ms",
+      "FAIL  test/unit/usageL10nGate.test.mjs > both localization families > rejects translated UI key order drift before packaging",
+      "\u276f test/unit/usageL10nGate.test.mjs:125:25"
+    ],
+    "restored": true
+  }
+]

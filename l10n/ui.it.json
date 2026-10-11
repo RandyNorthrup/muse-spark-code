@@ -4282,6 +4282,11 @@
   "providerImportPreviewTitle": "Anteprima di importazione",
   "importNeedsKey": "richiede una chiave",
   "importNeedsKeyLabel": "richiede una chiave",
+  "providerConnectFailed": "Connessione a OpenRouter non riuscita. Riprova a connetterti.",
+  "providerUsageFailed": "Impossibile leggere l’utilizzo della chiave OpenRouter. Riprova.",
+  "providerPasteCode": "Incolla il codice di autorizzazione mostrato da OpenRouter.",
+  "usageKeyTotal": "Utilizzo totale",
+  "usageUnlimited": "Nessun limite",
   "providerOpenRouterServices": "Collega il tuo account OpenRouter e visualizza l’utilizzo della chiave, il limite e il saldo rimanente.",
   "refreshModels": "Aggiorna i modelli",
   "scanNewModels": {
@@ -5430,10 +5435,5 @@
       "other": "{count} autorizzazioni",
       "many": "{count} autorizzazioni"
     }
-  },
-  "providerConnectFailed": "Connessione a OpenRouter non riuscita. Riprova a connetterti.",
-  "providerUsageFailed": "Impossibile leggere l’utilizzo della chiave OpenRouter. Riprova.",
-  "providerPasteCode": "Incolla il codice di autorizzazione mostrato da OpenRouter.",
-  "usageKeyTotal": "Utilizzo totale",
-  "usageUnlimited": "Nessun limite"
+  }
 }
