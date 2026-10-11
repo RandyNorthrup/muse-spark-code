@@ -862,7 +862,7 @@
     {
       "id": "M117",
       "title": "Capacity estimator",
-      "summary": "Run /estimate without a model call, using explicit prerequisite grammar and closure-scoped validation; check every plan row with --check-plan, retain completed identities and honor the current Reports network policy.",
+      "summary": "Forecast goal completion with explicit prerequisite grammar and closure-scoped validation; check every plan row with --check-plan, preserve named refusal diagnostics across all surfaces, and honor the current Reports network policy.",
       "area": "agents",
       "release": "0.17.0"
     },

@@ -368,6 +368,8 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
   and returns an empty response only for a clean plan. Missing or unsupported
   plans are failures. The standalone `muse-spark-code-acp estimate --check-plan`
   uses exit codes 0 for clean, 1 for problems/unavailable, and 2 for usage.
+  Plan and engine refusals, including self dependencies and cycles, use the same
+  localized diagnostic as the panel and CLI. Raw external errors hide private details.
 - **Permission prompts**: the backend's own choices (allow once, allow for
   the session, reject). A prompt the editor cancels, or answers with a
   choice it was not offered, is rejected; nothing runs by default.

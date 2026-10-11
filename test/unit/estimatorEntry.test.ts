@@ -1,3 +1,4 @@
+import { EstimateDiagnosticError } from '../../src/core/estimator/diagnostic'
 // M117 W: the lazy estimator bundle assembles a fully evidenced section
 // from injected sources, deterministically, with an honest first wave.
 // Repository default timeout; no skips.
@@ -236,7 +237,7 @@ describe('M117 estimator bundle assembly', () => {
     const real = simulation.simulateEstimate
     let calls = 0
     vi.spyOn(simulation, 'simulateEstimate').mockImplementation((...args) => {
-      if (++calls > 1) throw new Error('Estimate failed: missing-fit')
+      if (++calls > 1) throw new EstimateDiagnosticError('missing-fit')
       return real(...args)
     })
     await expect(

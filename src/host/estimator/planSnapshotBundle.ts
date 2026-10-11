@@ -1,3 +1,4 @@
+import { EstimateDiagnosticError } from '../../core/estimator/diagnostic'
 // The plan snapshot as the activation bundle sees it (M117 C-M117-1,
 // PLAN.md D6): dist/planSnapshot.js, built from planSnapshotEntry.ts and
 // required the first time an estimate needs a plan snapshot. Only a type
@@ -54,7 +55,7 @@ function requireSnapshotBundle(deps: PlanSnapshotLoaderDeps): unknown {
     return loadBundle(bundlePath)
   } catch (error: unknown) {
     deps.log.error(`The plan snapshot ${bundlePath} could not be loaded: ${describe(error)}`)
-    throw new Error(UI_TEXT.estimateUnavailable, { cause: error })
+    throw new EstimateDiagnosticError('estimate-unavailable', UI_TEXT.estimateUnavailable)
   }
 }
 
@@ -94,7 +95,7 @@ export function planSnapshotLoader(
         if (deps.loadBundle === undefined) {
           forgetFile(bundlePath)
         }
-        throw new Error(UI_TEXT.estimateUnavailable)
+        throw new EstimateDiagnosticError('estimate-unavailable', UI_TEXT.estimateUnavailable)
       }
       // Each bundle keeps its own language state: the snapshot bundle gets
       // the caller's table before it reads anything.
@@ -126,7 +127,7 @@ export function planCheckLoader(
         if (deps.loadBundle === undefined) {
           forgetFile(bundlePath)
         }
-        throw new Error(UI_TEXT.estimateUnavailable)
+        throw new EstimateDiagnosticError('estimate-unavailable', UI_TEXT.estimateUnavailable)
       }
       // Each bundle keeps its own language state: the snapshot bundle gets
       // the caller's table before it reads anything.

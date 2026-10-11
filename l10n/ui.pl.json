@@ -439,6 +439,7 @@
   "referenceTasks": "Otwórz zadania tej rozmowy w osobnej karcie edytora.",
   "referenceDiagnostics": "Pokaż lokalną diagnostykę backendu i rozszerzenia.",
   "referenceReport": "Wyświetl oczyszczony raport przed zapisaniem lub wysłaniem.",
+  "estimateDiagnosticHelp": "Odmowy planu i silnika pokazują tę samą nazwaną diagnozę w panelu, CLI i ACP; błędy zewnętrzne ukrywają prywatne szczegóły.",
   "referenceEstimate": "Szacuje, kiedy cel będzie gotowy przy obecnej flocie, albo jakiej konfiguracji wymaga termin.",
   "referenceTerminal": "Otwórz CLI Muse Code w terminalu edytora.",
   "referenceRules": "Utwórz lub otwórz AGENTS.md w katalogu głównym obszaru roboczego.",

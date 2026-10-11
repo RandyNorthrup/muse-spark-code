@@ -1,5 +1,8 @@
-import * as z from 'zod/mini'
-import { redactSecrets } from '../../core/redact'
+import {
+  parseEstimate,
+  EstimateDiagnosticError,
+  estimateFailureText,
+} from '../../core/estimator/diagnostic'
 import { escapeHtml } from '../../core/htmlText'
 import { ESTIMATE_OPTIONS } from './options'
 import {
@@ -18,22 +21,7 @@ import {
 } from '../../shared/constants'
 import { fill, formatNumber, formatUnit, UI_TEXT, uiLocale } from '../../shared/l10n/text'
 
-/** Only validated application diagnostics reach host output; raw IO errors do not. */
-export function estimateFailureText(error: unknown): string {
-  if (typeof error === 'object' && error !== null && 'estimateDiagnostic' in error) {
-    const estimateDiagnosticSchema = z
-      .string()
-      .check(
-        z.regex(
-          /^(?:missing-associations|missing-plan|unknown-goal|unknown-prerequisite|unknown-release-member|unknown-rig|duplicate-lane|malformed-starts|missing-estimate|source-unavailable|source-incomplete|invalid-lane|plan-drift|lane-limit):?[\w .,:;-]*$/,
-        ),
-      )
-    const parsed = estimateDiagnosticSchema.safeParse(error.estimateDiagnostic)
-    if (parsed.success && redactSecrets(parsed.data) === parsed.data)
-      return fill(UI_TEXT.estimateFailed, { detail: parsed.data })
-  }
-  return fill(UI_TEXT.estimateFailed, { detail: 'estimate-unavailable' })
-}
+export { estimateFailureText } from '../../core/estimator/diagnostic'
 
 export interface EstimateCommandOptions {
   readonly goal: EstimateRequest['goal']
@@ -162,13 +150,14 @@ export function parseEstimateComposer(text: string, context: EstimateContext): E
   const args = estimateSlashArguments(text)
   const parsed = args === undefined ? undefined : parseEstimateOptions(args)
   if (parsed?.kind !== 'estimate') {
-    throw new Error(
+    throw new EstimateDiagnosticError(
+      parsed?.kind === 'help' ? 'help' : 'usage',
       parsed?.kind === 'help'
         ? `${UI_TEXT.estimateUsage}\n${UI_TEXT.estimateCliHelp}`
         : UI_TEXT.estimateUsage,
     )
   }
-  return estimateRequestSchema.parse({
+  return parseEstimate(estimateRequestSchema, {
     ...context,
     goal: parsed.options.goal,
     fleet: parsed.options.fleet,
@@ -184,7 +173,7 @@ export async function collectEstimate(
   port: EstimateRunPort,
   signal: AbortSignal,
 ): Promise<EstimateSection> {
-  const request = estimateRequestSchema.parse({
+  const request = parseEstimate(estimateRequestSchema, {
     goal: options.goal,
     asOf: context.asOf,
     fleet: options.fleet,
@@ -194,17 +183,17 @@ export async function collectEstimate(
   })
   const expectedRequest = JSON.stringify(request)
   signal.throwIfAborted()
-  const section = estimateSectionSchema.parse(await port.estimate(request, signal))
+  const section = parseEstimate(estimateSectionSchema, await port.estimate(request, signal))
   signal.throwIfAborted()
   if (JSON.stringify(section.inputs.request) !== expectedRequest)
-    throw new Error(fill(UI_TEXT.estimateFailed, { detail: 'request-mismatch' }))
+    throw new EstimateDiagnosticError('request-mismatch')
   return section
 }
 
 const HOUR_MS = MILLISECONDS_PER_SECOND * SECONDS_PER_MINUTE * MINUTES_PER_HOUR
 
 export function estimateDrift(next: EstimateSection, previous: EstimateSection): EstimateSection {
-  return estimateSectionSchema.parse({
+  return parseEstimate(estimateSectionSchema, {
     ...next,
     drift: {
       previousAsOf: previous.asOf,
@@ -283,7 +272,7 @@ export function renderEstimate(
   format: EstimateCommandOptions['format'],
   money: EstimateFormatPort,
 ): string {
-  const section = estimateSectionSchema.parse(input)
+  const section = parseEstimate(estimateSectionSchema, input)
   if (format === 'json') return `${JSON.stringify(section, null, 2)}\n`
   const paragraphs = [
     [UI_TEXT.estimateP50, date(section.p50)],
@@ -359,7 +348,7 @@ export async function runEstimateCommand(
   // nothing when the plan is clean: the exit code carries that verdict.
   if (parsed.kind === 'check-plan') {
     if (deps.checkPlan === undefined) {
-      deps.error(estimateFailureText(new Error('no plan check')))
+      deps.error(estimateFailureText(new EstimateDiagnosticError('estimate-unavailable')))
       return 1
     }
     try {
