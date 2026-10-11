@@ -23,6 +23,13 @@ async function setup(
     refuseRetry?: boolean
     rejectStart?: boolean
     abortRetry?: boolean
+    admission?: {
+      prepare?: () => Promise<void>
+      reserve?: () => Promise<void>
+      reserved?: () => void
+      attached?: () => void
+      settle?: () => Promise<void>
+    }
   } = {},
 ) {
   const api = fakeModelApi()
@@ -44,16 +51,20 @@ async function setup(
   api.models.push(modelId)
   const settlements: { claim: number; outcome: ResponseAttemptOutcome }[] = []
   const maxima: { inputTokens: number; outputTokens: number; costUsd?: string | undefined }[] = []
-  const reserve = vi.fn((maximum: (typeof maxima)[number]) => {
+  const reserve = vi.fn(async (maximum: (typeof maxima)[number]) => {
     maxima.push(maximum)
     const claim = reserve.mock.calls.length
-    return Promise.resolve((outcome: ResponseAttemptOutcome) => {
+    await options.admission?.reserve?.()
+    options.admission?.reserved?.()
+    return async (outcome: ResponseAttemptOutcome) => {
       settlements.push({ claim, outcome })
-    })
+      await options.admission?.settle?.()
+    }
   })
   let prepares = 0
   const guard: ResponseAttemptGuard = Object.assign(
     () => {
+      options.admission?.attached?.()
       if ((options.refuseRetry && reserve.mock.calls.length > 1) || options.refuseDispatch)
         throw new Error('revoked before dispatch')
     },
@@ -61,7 +72,7 @@ async function setup(
       prepare: () => {
         prepares += 1
         if (prepares === 1 && options.rebuild) generation += 1
-        return Promise.resolve()
+        return options.admission?.prepare?.() ?? Promise.resolve()
       },
       reserveUsage: reserve,
       onRequestStarted: () => {
@@ -300,6 +311,117 @@ it('R6 compaction: collected responses preserve per-attempt worker reservation a
     ])
     expect(h.settlements.map((item) => item.claim)).toEqual([1, 2, 3])
   } finally {
+    await h.host.close()
+  }
+})
+
+it.each(
+  ['turn', 'compaction'].flatMap((request) =>
+    ['before reservation', 'during reservation', 'before attachment', 'after attachment'].map(
+      (stage) => ({ request, stage }),
+    ),
+  ),
+)(
+  'R7 lifetime: cancel $request $stage releases every unsent claim once',
+  async ({ request, stage }) => {
+    const reached = Promise.withResolvers<undefined>()
+    const resume = Promise.withResolvers<undefined>()
+    let isArmed = false
+    const hold = async () => {
+      if (!isArmed) return
+      reached.resolve(undefined)
+      await resume.promise
+    }
+    const h = await setup('muse-spark-1.3', [{ text: 'done', usage: { input: 12, output: 3 } }], {
+      admission: {
+        ...(stage === 'before reservation' && { prepare: hold }),
+        ...(stage === 'during reservation' && { reserve: hold }),
+        reserved: () => {
+          if (isArmed && stage === 'before attachment') cancel()
+        },
+        attached: () => {
+          if (isArmed && stage === 'after attachment') cancel()
+        },
+      },
+    })
+    const cancel = () => {
+      reached.resolve(undefined)
+      void h.session.cancel()
+    }
+    try {
+      if (request === 'compaction') {
+        await h.session.sendTurn([{ type: 'text', text: 'first' }])
+        await h.turns.turnDone()
+      }
+      isArmed = true
+      const ended =
+        request === 'compaction'
+          ? h.session.compact()
+          : (async () => {
+              await h.session.sendTurn([{ type: 'text', text: 'work' }])
+              await h.turns.turnDone()
+            })()
+      await reached.promise
+      await h.session.cancel()
+      if (request === 'compaction') await ended
+      const hasReplacement = request === 'compaction' && stage === 'during reservation'
+      if (hasReplacement) {
+        isArmed = false
+        h.api.script({ text: 'replacement', usage: { input: 12, output: 3 } })
+        await h.session.sendTurn([{ type: 'text', text: 'replacement' }])
+        await h.turns.turnDone()
+      }
+      resume.resolve(undefined)
+      await ended
+      // Drain the held promise's continuations, including an abandoned compaction stream.
+      await new Promise<void>((resolve) => setImmediate(resolve))
+      isArmed = false
+      expect(h.api.responseBodies()).toHaveLength(
+        (request === 'compaction' ? 1 : 0) + (hasReplacement ? 1 : 0),
+      )
+      expect(h.reserve).toHaveBeenCalledTimes(
+        (request === 'compaction' ? 1 : 0) +
+          (stage === 'before reservation' ? 0 : 1) +
+          (hasReplacement ? 1 : 0),
+      )
+      expect(h.settlements.map((item) => item.outcome.kind)).toEqual([
+        ...(request === 'compaction' ? ['billed'] : []),
+        ...(hasReplacement ? ['billed'] : []),
+        ...(stage === 'before reservation' ? [] : ['released']),
+      ])
+      expect(new Set(h.settlements.map((item) => item.claim)).size).toBe(h.settlements.length)
+      await h.host.close()
+      expect(h.settlements).toHaveLength(h.reserve.mock.calls.length)
+    } finally {
+      resume.resolve(undefined)
+      await h.host.close()
+    }
+  },
+)
+
+it('R7 lifetime: cancel during prior settlement never prepares a replacement attempt', async () => {
+  const reached = Promise.withResolvers<undefined>()
+  const resume = Promise.withResolvers<undefined>()
+  const h = await setup('muse-spark-1.3', [{ httpError: { status: 503 } }], {
+    admission: {
+      settle: async () => {
+        reached.resolve(undefined)
+        await resume.promise
+      },
+    },
+  })
+  try {
+    await h.session.sendTurn([{ type: 'text', text: 'work' }])
+    await reached.promise
+    await h.session.cancel()
+    resume.resolve(undefined)
+    await h.turns.turnDone()
+    expect(h.prepares()).toBe(1)
+    expect(h.reserve).toHaveBeenCalledTimes(1)
+    expect(h.settlements.map((item) => item.outcome.kind)).toEqual(['ambiguous'])
+    expect(h.api.responseBodies()).toHaveLength(1)
+  } finally {
+    resume.resolve(undefined)
     await h.host.close()
   }
 })

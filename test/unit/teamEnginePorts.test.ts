@@ -38,6 +38,7 @@ import {
 } from './helpers/fakeModelApi'
 import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
 import { memoryToolIo } from './helpers/fakeToolIo'
+import { watchSessionTurns } from './helpers/sessionTurns'
 import { Usd } from '../../src/shared/usd'
 import { FakeAgentSession } from './helpers/fakeAgent'
 import { cleanupTeamRoots, teamFixtureRepo, teamGitRunner, trackTeamRoot } from './helpers/teamGit'
@@ -548,6 +549,76 @@ it.each([
   },
 )
 
+it.each(['before reservation', 'during reservation', 'before attachment', 'after attachment'])(
+  'R7 engine lifetime: cancel %s refunds only its own unsent ordinal once',
+  async (stage) => {
+    const stop = new AbortController()
+    const held = Promise.withResolvers<undefined>()
+    const reached = Promise.withResolvers<undefined>()
+    const reserved: TeamUsage[] = []
+    const settled: { ordinal: number; usage: TeamUsage; isFinal?: boolean | undefined }[] = []
+    const meter: TeamTaskMeter = {
+      admitRequest: () => undefined,
+      reserveRequest: async (maximum) => {
+        reserved.push(maximum)
+        if (stage === 'during reservation') {
+          reached.resolve(undefined)
+          await held.promise
+        } else if (stage === 'before attachment') stop.abort()
+        return reserved.length
+      },
+      settleRequest: async (ordinal, usage, isFinal) => {
+        settled.push({ ordinal, usage, isFinal })
+        if (stage === 'before reservation' && ordinal === 1) await held.promise
+      },
+      noteUsage: () => Promise.resolve(),
+      noteWorkspace: () => Promise.resolve(),
+    }
+    const { ports, started } = await setup(() => Promise.resolve())
+    await ports.workers.run(spec(ENGINEERING, 'task1', { meter }), stop.signal)
+    const reserve = started[0]?.admit.reserveUsage
+    if (reserve === undefined) throw new Error('reservation callback missing')
+    const maximum = { inputTokens: 80, outputTokens: 20, costUsd: Usd.from('0.75').toAmount() }
+    let previous = Promise.resolve()
+    if (stage === 'before reservation') {
+      const first = await reserve(maximum)
+      if (typeof first !== 'function') throw new Error('first claim missing')
+      previous = Promise.resolve(first({ kind: 'released' }))
+    }
+    const pending = reserve(maximum)
+    if (stage === 'after attachment') {
+      const close = await pending
+      if (typeof close !== 'function') throw new Error('claim missing')
+      stop.abort()
+      await close({ kind: 'released' })
+      await close({ kind: 'released' })
+    } else {
+      const rejected = expect(pending).rejects.toThrow()
+      if (stage === 'during reservation') await reached.promise
+      if (stage !== 'before attachment') stop.abort()
+      held.resolve(undefined)
+      await rejected
+    }
+    await previous
+    expect(reserved).toHaveLength(1)
+    expect(settled).toEqual([
+      {
+        ordinal: 1,
+        usage: {
+          input: 0,
+          cachedInput: 0,
+          output: 0,
+          reasoning: 0,
+          modelCalls: 0,
+          estimated: false,
+          costUsd: 0,
+        },
+        isFinal: true,
+      },
+    ])
+  },
+)
+
 it.each([
   { name: 'success', failures: [], outcomes: ['billed'], posts: 1 },
   {
@@ -572,6 +643,20 @@ it.each([
   { name: 'refusal', failures: [{ httpError: { status: 400 } }], outcomes: ['released'], posts: 1 },
   { name: 'failure before dispatch', failures: [], outcomes: ['released'], posts: 0, revoke: true },
   {
+    name: 'cancel during durable compaction admission',
+    failures: [],
+    outcomes: ['billed', 'released'],
+    posts: 1,
+    compaction: 'cancel',
+  },
+  {
+    name: 'close during durable compaction admission',
+    failures: [],
+    outcomes: ['billed', 'released'],
+    posts: 1,
+    compaction: 'close',
+  },
+  {
     name: 'abort between attempts',
     failures: [{ httpError: { status: 503 } }],
     outcomes: ['ambiguous'],
@@ -586,6 +671,7 @@ it.each([
   revoke?: boolean
   cancel?: boolean
   limit?: number
+  compaction?: 'cancel' | 'close'
 }[])(
   'R6 integrated accounting: $name sums host/engine/service outcomes',
   async ({ failures, outcomes, posts, ...fault }) => {
@@ -593,6 +679,11 @@ it.each([
     api.models.push('muse-spark-1.3')
     api.script(...failures, { text: REPORT, usage: { input: 12, output: 3 } })
     const maxima: { costUsd?: string | undefined }[] = []
+    const admissionPending = Promise.withResolvers<undefined>()
+    const saveRelease = Promise.withResolvers<undefined>()
+    const terminalOutcomes: string[] = []
+    let isCompactionAdmission = false
+    let hasHeldSave = false
     const h = await setup(
       () => Promise.resolve(),
       REPORT,
@@ -606,10 +697,14 @@ it.each([
           },
           {
             reserveUsage: async (maximum: Parameters<typeof reserve>[0]) => {
+              isCompactionAdmission = fault.compaction !== undefined && maxima.length === 1
               const claim = await reserve(maximum)
               if (typeof claim !== 'function') throw new Error('worker claim missing')
               maxima.push(maximum)
-              return claim
+              return async (outcome: ResponseAttemptOutcome) => {
+                terminalOutcomes.push(outcome.kind)
+                await claim(outcome)
+              }
             },
           },
         )
@@ -632,6 +727,34 @@ it.each([
           session.onEvent((event) => {
             if (event.type === 'turnRetry') void session.cancel()
           })
+        if (fault.compaction !== undefined) {
+          // The port waits for real host compaction before forwarding the terminal report.
+          const port = new FakeAgentSession(session.sessionId, modelId)
+          const turns = watchSessionTurns(session)
+          port.sendTurn.mockImplementation(async (parts) => {
+            const sent = await session.sendTurn(parts)
+            await turns.turnDone()
+            const compacted = session.compact()
+            await admissionPending.promise
+            if (fault.compaction === 'close') await host.close()
+            else await session.cancel()
+            await compacted
+            saveRelease.resolve(undefined)
+            await new Promise<void>((resolve) => setImmediate(resolve))
+            setImmediate(() => {
+              port.emit(
+                { type: 'turnStarted', turnId: sent.turnId },
+                {
+                  type: 'itemCompleted',
+                  item: { itemId: 'm1', kind: 'agentMessage', status: 'completed', text: REPORT },
+                },
+                { type: 'turnCompleted', turnId: sent.turnId, terminal: 'completed' },
+              )
+            })
+            return sent
+          })
+          return { session: port, toolNames: [], close: () => host.close() }
+        }
         return { session, toolNames: [], close: () => host.close() }
       },
     )
@@ -657,6 +780,11 @@ it.each([
         get: (key) => values.get(key),
         update: (key, value) => {
           values.set(key, value)
+          if (isCompactionAdmission && !hasHeldSave) {
+            hasHeldSave = true
+            admissionPending.resolve(undefined)
+            return saveRelease.promise
+          }
           return Promise.resolve()
         },
       },
@@ -700,6 +828,7 @@ it.each([
       })
       expect(api.responseBodies()).toHaveLength(posts)
       expect(maxima).toHaveLength(outcomes.length)
+      expect(terminalOutcomes).toEqual(outcomes)
       let total = 0
       for (const [index, outcome] of outcomes.entries()) {
         if (outcome === 'ambiguous') total += Number(maxima[index]?.costUsd)
@@ -714,6 +843,7 @@ it.each([
       expect(service.tree()?.roles[0]?.entries[0]?.caps[0]?.used).toBe(0)
       expect(service.tree()?.roles[0]?.entries[0]?.caps[1]?.used).toBe(0)
     } finally {
+      saveRelease.resolve(undefined)
       stopWatching()
       await service.dispose()
     }

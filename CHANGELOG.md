@@ -86,6 +86,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Hidden M96 worker admissions recheck their originating request after each
+  asynchronous wait. Cancellation or close during durable compaction admission
+  releases the late unsent claim exactly once, without attaching it to an ended
+  or replacement request. Teams remain unavailable pending integration.
+
 - Hidden M96 engine workers reserve and settle each transport attempt separately.
   Successful retries preserve earlier uncertain liability; refused and unsent
   attempts release their claims, including admission revoked during a durable
