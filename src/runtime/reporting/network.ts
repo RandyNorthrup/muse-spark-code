@@ -12,11 +12,14 @@ import {
   ReportResponseCache,
   ReportNetworkReader,
   reportCacheEntrySchema,
+  ReportNetworkFailure,
+  publicReportTransport,
   type ReportNetworkPolicy,
   type ReportNetworkTransport,
 } from '../../core/reporting/sources/cache'
 import { githubReportSource, ghReportTransport } from '../../core/reporting/sources/github'
 import { storesReportSource } from '../../core/reporting/sources/stores'
+import { GITHUB_API_BASE_URL, LEGAL_REGISTRY_HOSTS } from '../../shared/constants'
 import { npmStoreAdapter } from '../../core/reporting/sources/npmStore'
 import type { ReportStoreProject } from '../../core/reporting/sources/storeProject'
 import { reportScrubber } from '../../core/reporting/render/redaction'
@@ -32,6 +35,29 @@ export interface ReportingNetworkContext {
   readonly policy: ReportNetworkPolicy
   readonly transport?: ReportNetworkTransport
 }
+const GITHUB_API_HOST = new URL(GITHUB_API_BASE_URL).hostname
+const NPM_REGISTRY_HOST = LEGAL_REGISTRY_HOSTS.npm
+
+/**
+ * Production transport composition (RVCM1136 P1): one transport behind the
+ * reader, routed by host. `api.github.com` keeps the surface's own lane —
+ * the editor's credential-owning fetch, or the CLI/ACP `gh` child process —
+ * so GitHub traffic never leaves its lane (the GitHub sweep: its binding is
+ * unchanged, only addressed). The public npm registry rides the
+ * credential-free public fetch, under the same policy and egress consent the
+ * reader already enforces before any transport runs. Any other host is
+ * refused, exactly as the `gh` lane refused it before.
+ */
+export function routeReportTransport(github: ReportNetworkTransport): ReportNetworkTransport {
+  const publicTransport = publicReportTransport((input, init) => globalThis.fetch(input, init))
+  return async (request, etag, signal) => {
+    const hostname = new URL(request.url).hostname
+    if (hostname === GITHUB_API_HOST) return await github(request, etag, signal)
+    if (hostname === NPM_REGISTRY_HOST) return await publicTransport(request, etag, signal)
+    throw new ReportNetworkFailure('gh-endpoint-refused')
+  }
+}
+
 const caches = new Map<string, ReportResponseCache>()
 /** H's owner lease serializes cache publication across windows/processes. */
 export function reportingResponseCache(storageRoot: string): ReportResponseCache {
@@ -101,17 +127,18 @@ export function createReportingNetwork(
   const scrub = reportScrubber({ workspaceRoot: context.workspaceRoot, localRoots: [homedir()] })
   const reader = new ReportNetworkReader({
     policy: context.policy,
-    transport:
+    transport: routeReportTransport(
       context.transport ??
-      ghReportTransport({
-        environment: process.env,
-        maxBytes: REPORT_NETWORK_MAX_BYTES,
-        probe: {
-          platform: process.platform,
-          pathVariable: process.env['PATH'] ?? process.env['Path'],
-          fileExists: existsSync,
-        },
-      }),
+        ghReportTransport({
+          environment: process.env,
+          maxBytes: REPORT_NETWORK_MAX_BYTES,
+          probe: {
+            platform: process.platform,
+            pathVariable: process.env['PATH'] ?? process.env['Path'],
+            fileExists: existsSync,
+          },
+        }),
+    ),
     cache: reportingResponseCache(context.storageRoot),
     now: () => new Date().toISOString(),
     scrub,
