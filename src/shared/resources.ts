@@ -17,9 +17,14 @@ import {
   RESOURCE_OPTIONAL_MIN_PERCENT,
 } from './constants'
 
-export const resourceLevelSchema = z.enum(['normal', 'throttle', 'relocate', 'pause'])
+export const resourceLevelSchema = /* @__PURE__ */ z.enum([
+  'normal',
+  'throttle',
+  'relocate',
+  'pause',
+])
 export type ResourceLevel = z.infer<typeof resourceLevelSchema>
-export const resourceKindSchema = z.enum([
+export const resourceKindSchema = /* @__PURE__ */ z.enum([
   'toolShell',
   'backgroundTask',
   'check',
@@ -34,33 +39,41 @@ export const resourceKindSchema = z.enum([
   'other',
 ])
 export type ResourceKind = z.infer<typeof resourceKindSchema>
-export const resourceClassSchema = z.enum(['foreground', 'background'])
+export const resourceClassSchema = /* @__PURE__ */ z.enum(['foreground', 'background'])
 export type ResourceClass = z.infer<typeof resourceClassSchema>
-const percent = z.number().check(z.gte(0), z.lte(100))
-const reading = z.nullable(percent)
-const counter = z.number().check(z.gte(0), z.int())
-const id = z.string().check(z.minLength(1), z.maxLength(RESOURCE_ID_MAX_LENGTH))
+const percent = /* @__PURE__ */ z.number().check(z.gte(0), z.lte(100))
+const reading = /* @__PURE__ */ z.nullable(percent)
+const counter = /* @__PURE__ */ z.number().check(z.gte(0), z.int())
+const id = /* @__PURE__ */ z.string().check(z.minLength(1), z.maxLength(RESOURCE_ID_MAX_LENGTH))
 const cpuLimit = percent.check(z.gte(RESOURCE_CPU_MIN_PERCENT))
 const memoryLimit = percent.check(
   z.gte(RESOURCE_MEMORY_MIN_PERCENT),
   z.lte(RESOURCE_MEMORY_MAX_PERCENT),
 )
-const memoryFloor = z
+const memoryFloor = /* @__PURE__ */ z
   .number()
   .check(z.gte(RESOURCE_MEMORY_MIN_FREE_GIB), z.lte(RESOURCE_MEMORY_MAX_FREE_GIB))
-const optionalLimit = z.nullable(percent.check(z.gte(RESOURCE_OPTIONAL_MIN_PERCENT)))
+const optionalLimit = /* @__PURE__ */ z.nullable(
+  percent.check(z.gte(RESOURCE_OPTIONAL_MIN_PERCENT)),
+)
 
-export const resourceSettingsSchema = z.strictObject({
-  enabled: z._default(z.boolean(), true),
-  cpuMaxPercent: z._default(cpuLimit, RESOURCE_CPU_DEFAULT_PERCENT),
-  memoryMaxPercent: z._default(memoryLimit, RESOURCE_MEMORY_DEFAULT_PERCENT),
-  memoryMinFreeGiB: z._default(memoryFloor, RESOURCE_MEMORY_DEFAULT_FREE_GIB),
-  gpuMaxPercent: z._default(optionalLimit, null),
-  diskBusyMaxPercent: z._default(optionalLimit, null),
-  // null selects the volume-scaled default floor; explicit values are machine-only.
-  diskMinFreeGiB: z._default(z.nullable(z.number().check(z.gte(RESOURCE_DISK_MIN_FREE_GIB))), null),
-  relocate: z._default(z.enum(['paired', 'ask', 'off']), 'paired'),
-})
+// Pure factory: governor settings ride only with the governor, so panels and
+// headless runs drop the schema instead of carrying it.
+export const resourceSettingsSchema = /* @__PURE__ */ (() =>
+  z.strictObject({
+    enabled: z._default(z.boolean(), true),
+    cpuMaxPercent: z._default(cpuLimit, RESOURCE_CPU_DEFAULT_PERCENT),
+    memoryMaxPercent: z._default(memoryLimit, RESOURCE_MEMORY_DEFAULT_PERCENT),
+    memoryMinFreeGiB: z._default(memoryFloor, RESOURCE_MEMORY_DEFAULT_FREE_GIB),
+    gpuMaxPercent: z._default(optionalLimit, null),
+    diskBusyMaxPercent: z._default(optionalLimit, null),
+    // null selects the volume-scaled default floor; explicit values are machine-only.
+    diskMinFreeGiB: z._default(
+      z.nullable(z.number().check(z.gte(RESOURCE_DISK_MIN_FREE_GIB))),
+      null,
+    ),
+    relocate: z._default(z.enum(['paired', 'ask', 'off']), 'paired'),
+  }))()
 export type ResourceSettings = z.infer<typeof resourceSettingsSchema>
 
 // Adapters supply inspected machine settings, never an effective workspace value.
@@ -97,7 +110,7 @@ export function resourceMemoryFloorBytes(settings: ResourceSettings, totalBytes:
 }
 
 // Local surfaces use logical volume roles, never workspace paths in egress.
-export const resourceDiskRoleSchema = z.enum([
+export const resourceDiskRoleSchema = /* @__PURE__ */ z.enum([
   'workspace',
   'worktrees',
   'temp',
@@ -106,52 +119,56 @@ export const resourceDiskRoleSchema = z.enum([
   'nodeState',
 ])
 export type ResourceDiskRole = z.infer<typeof resourceDiskRoleSchema>
-export const resourceDiskVolumeSchema = z
-  .strictObject({
-    role: resourceDiskRoleSchema,
-    atMs: counter,
-    freeBytes: z.nullable(counter),
-    totalBytes: z.nullable(counter.check(z.gt(0))),
-    etaMs: z.nullable(z.number().check(z.gte(0))),
-  })
-  .check(
-    z.refine(
-      (volume) =>
-        volume.freeBytes === null ||
-        volume.totalBytes === null ||
-        volume.freeBytes <= volume.totalBytes,
-    ),
-  )
+// Pure factory: disk volumes ride only with disk surfaces.
+export const resourceDiskVolumeSchema = /* @__PURE__ */ (() =>
+  z
+    .strictObject({
+      role: resourceDiskRoleSchema,
+      atMs: counter,
+      freeBytes: z.nullable(counter),
+      totalBytes: z.nullable(counter.check(z.gt(0))),
+      etaMs: z.nullable(z.number().check(z.gte(0))),
+    })
+    .check(
+      z.refine(
+        (volume) =>
+          volume.freeBytes === null ||
+          volume.totalBytes === null ||
+          volume.freeBytes <= volume.totalBytes,
+      ),
+    ))()
 export type ResourceDiskVolume = z.infer<typeof resourceDiskVolumeSchema>
 
 // Each failed or unavailable reading is null, including a first CPU delta.
-export const resourceSampleSchema = z
-  .strictObject({
-    atMs: counter,
-    transportFailurePercent: z.optional(reading),
-    cpuPercent: reading,
-    memoryUsedPercent: reading,
-    memoryAvailableBytes: z.nullable(counter),
-    memoryTotalBytes: z.nullable(counter.check(z.gt(0))),
-    gpuPercent: reading,
-    diskBusyPercent: reading,
-    diskVolumes: z.optional(z.array(resourceDiskVolumeSchema)),
-    pressure: z.nullable(
-      z.strictObject({
-        cpuSomePercent: reading,
-        memorySomePercent: reading,
-        memoryFullPercent: reading,
-      }),
-    ),
-  })
-  .check(
-    z.refine(
-      (sample) =>
-        sample.memoryAvailableBytes === null ||
-        sample.memoryTotalBytes === null ||
-        sample.memoryAvailableBytes <= sample.memoryTotalBytes,
-    ),
-  )
+// Pure factory: samples ride only with the sampler and status readers.
+export const resourceSampleSchema = /* @__PURE__ */ (() =>
+  z
+    .strictObject({
+      atMs: counter,
+      transportFailurePercent: z.optional(reading),
+      cpuPercent: reading,
+      memoryUsedPercent: reading,
+      memoryAvailableBytes: z.nullable(counter),
+      memoryTotalBytes: z.nullable(counter.check(z.gt(0))),
+      gpuPercent: reading,
+      diskBusyPercent: reading,
+      diskVolumes: z.optional(z.array(resourceDiskVolumeSchema)),
+      pressure: z.nullable(
+        z.strictObject({
+          cpuSomePercent: reading,
+          memorySomePercent: reading,
+          memoryFullPercent: reading,
+        }),
+      ),
+    })
+    .check(
+      z.refine(
+        (sample) =>
+          sample.memoryAvailableBytes === null ||
+          sample.memoryTotalBytes === null ||
+          sample.memoryAvailableBytes <= sample.memoryTotalBytes,
+      ),
+    ))()
 export type ResourceSample = z.infer<typeof resourceSampleSchema>
 export interface ResourceSampler {
   sample(): Promise<ResourceSample>
@@ -162,12 +179,12 @@ export interface ResourceClock {
 }
 
 // Only the local registry/actuator uses these. No ticket is in a status or record.
-export const resourceProcessIdentitySchema = z.strictObject({
+export const resourceProcessIdentitySchema = /* @__PURE__ */ z.strictObject({
   pid: counter.check(z.gt(0)),
   startTime: id,
 })
 export type ResourceProcessIdentity = z.infer<typeof resourceProcessIdentitySchema>
-export const resourceTicketSchema = z.strictObject({
+export const resourceTicketSchema = /* @__PURE__ */ z.strictObject({
   id,
   root: resourceProcessIdentitySchema,
   scope: z.discriminatedUnion('type', [
@@ -180,7 +197,7 @@ export const resourceTicketSchema = z.strictObject({
   sessionId: z.nullable(id),
 })
 export type ResourceTicket = z.infer<typeof resourceTicketSchema>
-export const resourceTreeUsageSchema = z.strictObject({
+export const resourceTreeUsageSchema = /* @__PURE__ */ z.strictObject({
   cpuSeconds: z.number().check(z.gte(0)),
   residentBytes: counter,
 })
@@ -191,7 +208,7 @@ export interface ResourceTreeReader {
   usage(ticket: ResourceTicket): Promise<ResourceTreeUsage | null>
 }
 
-const reason = z.enum([
+const reason = /* @__PURE__ */ z.enum([
   'cpu',
   'memoryUsed',
   'memoryFree',
@@ -204,7 +221,7 @@ const reason = z.enum([
   'transport',
   'osService',
 ])
-export const resourceEventSchema = z.discriminatedUnion('type', [
+export const resourceEventSchema = /* @__PURE__ */ z.discriminatedUnion('type', [
   z.strictObject({
     type: z.literal('levelChanged'),
     atMs: counter,
@@ -234,28 +251,32 @@ export type ResourceEvent = z.infer<typeof resourceEventSchema>
  * paired-device or runner route, so work stays here; `noTarget`: a bound route
  * has no approved target with room now. Older producers omit the field.
  */
-const resourceRelocationSchema = z.enum(['off', 'available', 'noTarget', 'noRoute'])
+const resourceRelocationSchema = /* @__PURE__ */ z.enum(['off', 'available', 'noTarget', 'noRoute'])
 export type ResourceRelocation = z.infer<typeof resourceRelocationSchema>
-export const resourceStatusSchema = z.strictObject({
-  level: resourceLevelSchema,
-  sample: z.nullable(resourceSampleSchema),
-  settings: resourceSettingsSchema,
-  queued: z.array(
-    z.strictObject({ kind: resourceKindSchema, class: resourceClassSchema, count: counter }),
-  ),
-  overrideUntilMs: z.nullable(counter),
-  relocation: z.optional(resourceRelocationSchema),
-})
+// Pure factory: status rows ride only with status readers, never exec sinks.
+export const resourceStatusSchema = /* @__PURE__ */ (() =>
+  z.strictObject({
+    level: resourceLevelSchema,
+    sample: z.nullable(resourceSampleSchema),
+    settings: resourceSettingsSchema,
+    queued: z.array(
+      z.strictObject({ kind: resourceKindSchema, class: resourceClassSchema, count: counter }),
+    ),
+    overrideUntilMs: z.nullable(counter),
+    relocation: z.optional(resourceRelocationSchema),
+  }))()
 export type ResourceStatus = z.infer<typeof resourceStatusSchema>
 
 // M100's offer status adds this field, never any raw local machine readings.
-export const deviceResourceSchema = z.strictObject({
-  level: resourceLevelSchema,
-  headroom: z.enum(['ample', 'some', 'none']),
-  diskFree: z.optional(
-    z.strictObject({ freeBytes: z.nullable(counter), floorBytes: z.nullable(counter) }),
-  ),
-})
+// Pure factory: device offers ride only with relocate/disk flows.
+export const deviceResourceSchema = /* @__PURE__ */ (() =>
+  z.strictObject({
+    level: resourceLevelSchema,
+    headroom: z.enum(['ample', 'some', 'none']),
+    diskFree: z.optional(
+      z.strictObject({ freeBytes: z.nullable(counter), floorBytes: z.nullable(counter) }),
+    ),
+  }))()
 export type DeviceResource = z.infer<typeof deviceResourceSchema>
 export interface ResourceLinkedDevice {
   resource(): Promise<DeviceResource>
@@ -264,39 +285,42 @@ export interface ResourceLinkedDevice {
 }
 
 // M102 composes this variant into its journal. No free text or process identity.
-const minuteSchema = z.strictObject({
-  cpuPercent: reading,
-  memoryUsedPercent: reading,
-  availableMemory: z.enum(['belowFloor', 'low', 'ample', 'unknown']),
-  gpuPercent: reading,
-  diskBusyPercent: reading,
-  level: resourceLevelSchema,
-  thresholds: z.strictObject({
-    cpuMaxPercent: cpuLimit,
-    memoryMaxPercent: memoryLimit,
-    memoryMinFreeGiB: memoryFloor,
-  }),
-})
-export const resourceRecordSchema = z
-  .strictObject({
-    type: z.literal('resource'),
-    atMs: counter,
-    minute: z.nullable(minuteSchema),
-    event: z.nullable(resourceEventSchema),
-    work: z.array(
-      z.strictObject({
-        kind: resourceKindSchema,
-        cpuSeconds: z.number().check(z.gte(0)),
-        peakMemoryBytes: counter,
-      }),
-    ),
-  })
-  .check(z.refine((record) => (record.minute === null) !== (record.event === null)))
+// Pure factory: minute rows ride only with the journal record.
+const minuteSchema = /* @__PURE__ */ (() =>
+  z.strictObject({
+    cpuPercent: reading,
+    memoryUsedPercent: reading,
+    availableMemory: z.enum(['belowFloor', 'low', 'ample', 'unknown']),
+    gpuPercent: reading,
+    diskBusyPercent: reading,
+    level: resourceLevelSchema,
+    thresholds: z.strictObject({
+      cpuMaxPercent: cpuLimit,
+      memoryMaxPercent: memoryLimit,
+      memoryMinFreeGiB: memoryFloor,
+    }),
+  }))()
+export const resourceRecordSchema = /* @__PURE__ */ (() =>
+  z
+    .strictObject({
+      type: z.literal('resource'),
+      atMs: counter,
+      minute: z.nullable(minuteSchema),
+      event: z.nullable(resourceEventSchema),
+      work: z.array(
+        z.strictObject({
+          kind: resourceKindSchema,
+          cpuSeconds: z.number().check(z.gte(0)),
+          peakMemoryBytes: counter,
+        }),
+      ),
+    })
+    .check(z.refine((record) => (record.minute === null) !== (record.event === null))))()
 export type ResourceRecord = z.infer<typeof resourceRecordSchema>
 
 // H composes this with the existing events when it adopts event envelope v2.
 // The nested M80 result remains v1; lane 0 does not change the live exec writer.
-export const resourceExecEventSchema = z.strictObject({
+export const resourceExecEventSchema = /* @__PURE__ */ z.strictObject({
   v: z.literal(RESOURCE_EXEC_EVENT_VERSION),
   seq: counter.check(z.gt(0)),
   time: z.iso.datetime(),

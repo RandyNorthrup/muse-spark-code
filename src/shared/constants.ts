@@ -1486,8 +1486,8 @@ export const UNSUPPORTED_BINARY_ATTACHMENT_EXTENSIONS: ReadonlySet<string> = new
   '.db',
 ])
 // A base64 attachment crossing webview postMessage (M54): cap before decode.
-export const MAX_ATTACHMENT_BASE64_CHARS =
-  BASE64_OUTPUT_BLOCK_CHARS * Math.ceil(MAX_DOCUMENT_BYTES / BASE64_INPUT_BLOCK_BYTES)
+// A literal so bundles that never attach media drop the whole line: 4 * ceil(32_000_000 / 3).
+export const MAX_ATTACHMENT_BASE64_CHARS = 42_666_668
 // Meta reads at most 50 images in one request, and a PDF's page images
 // (its first 50 pages) count toward them (file-handling, image-understanding).
 export const MODEL_API_MEDIA_PER_REQUEST = 50
@@ -1545,7 +1545,9 @@ export const GIT_FILTER_NAMES_ARGS = [
   '--null',
   '--name-only',
   '--get-regexp',
-  String.raw`^filter\..*\.(clean|process|required)$`,
+  // A plain string so the args stay droppable (String.raw is a call).
+  // eslint-disable-next-line unicorn/prefer-string-raw -- droppability beats readability here; test/unit/bundleDiet pins it.
+  '^filter\\..*\\.(clean|process|required)$',
 ] as const
 export const GIT_FILTER_NAMES_MAX = 200
 export const GIT_FILTER_NAME_MAX_CHARS = 1024
@@ -2564,10 +2566,10 @@ export const HOOK_MODEL_READ_TOOLS: ReadonlySet<string> = /* @__PURE__ */ (() =>
 // `web_fetch` is switched off: `mcp__ide__webFetch` in its items.
 export const IDE_WEB_FETCH_TOOL = 'webFetch'
 // The tool names whose rows read a fetched page (the URL, then its size).
-export const WEB_FETCH_TOOLS: ReadonlySet<string> = new Set([
-  'web_fetch',
-  `mcp__ide__${IDE_WEB_FETCH_TOOL}`,
-])
+// Literal members so bundles that never fetch drop the set: a template over
+// IDE_WEB_FETCH_TOOL pins it in every importer (test/unit/bundleDiet pins
+// the sync with that constant).
+export const WEB_FETCH_TOOLS: ReadonlySet<string> = new Set(['web_fetch', 'mcp__ide__webFetch'])
 // The approval card's subject for a web fetch on the Model API backend: its
 // `target` is the URL, and the card reads "Muse wants to fetch <url>".
 export const WEB_FETCH_SUBJECT_KIND = 'webFetch'
@@ -2742,9 +2744,12 @@ export const IDE_IMAGE_TOOLS = {
 } as const
 // How Muse Code names those tools in its items (`mcp__<server>__<tool>`):
 // their rows are marked paid like the Model API backend's (M44).
+// Literal members so bundles without paid image rows drop the set: a
+// template over IDE_IMAGE_TOOLS pins it in every importer
+// (test/unit/bundleDiet pins the sync with those constants).
 export const IDE_PAID_TOOLS: ReadonlySet<string> = new Set([
-  `mcp__ide__${IDE_IMAGE_TOOLS.generateImage}`,
-  `mcp__ide__${IDE_IMAGE_TOOLS.editImage}`,
+  'mcp__ide__generateImage',
+  'mcp__ide__editImage',
 ])
 // The goal loop on the Model API backend (M45, D38). Muse Code reminds the
 // agent to report progress after about ten model calls without any (its
@@ -3820,7 +3825,8 @@ export const MEMORY_LIST_MAX_NOTES = 500
 export const MEMORY_LIST_MAX_DEPTH = 8
 // An index line's hook, cut to this many characters.
 export const MEMORY_HOOK_MAX_CHARS = 120
-export const MEMORY_MARKDOWN_ESCAPE = String.fromCodePoint(92)
+// One backslash; a literal so the escape stays droppable (fromCodePoint is a call).
+export const MEMORY_MARKDOWN_ESCAPE = '\\'
 export const MEMORY_INDEX_MAX_LINES = 200
 export const MEMORY_INDEX_MAX_BYTES = 32 * 1024
 export const MEMORY_TRUNCATED_MARKER = '[MEMORY.md truncated]'
@@ -4032,8 +4038,12 @@ export const SHELL_JOB_TYPE_NAME = 'MuseSparkJob'
 export const SHELL_JOB_FOLDER = 'shell-job'
 // .NET Framework ships with Windows PowerShell 5.1; its x86 compiler is
 // available on every supported Windows architecture and emits AnyCPU IL.
-export const WINDOWS_FRAMEWORK_RELATIVE_PATH = String.raw`Microsoft.NET\Framework\v4.0.30319`
-export const SHELL_JOB_NAME_PREFIX = String.raw`Local\MuseSparkShell-`
+// Plain strings: same characters String.raw would give, without the call,
+// so bundles that never spawn a shell job drop them.
+// eslint-disable-next-line unicorn/prefer-string-raw -- droppability beats readability here; test/unit/bundleDiet pins it.
+export const WINDOWS_FRAMEWORK_RELATIVE_PATH = 'Microsoft.NET\\Framework\\v4.0.30319'
+// eslint-disable-next-line unicorn/prefer-string-raw -- as above.
+export const SHELL_JOB_NAME_PREFIX = 'Local\\MuseSparkShell-'
 export const TREE_EXIT_WAIT_MS = 10_000
 export const ORPHAN_SWEEP_ROUNDS = 5
 export const PROCESS_TABLE_TIMEOUT_MS = 20_000
@@ -4883,7 +4893,11 @@ export const VERIFY_TOOLS = {
   /** The extension's automatic step after a round of edits (a row, never a model call). */
   verifyEdits: 'verify_edits',
 } as const
-export const VERIFY_ROW_TOOLS: ReadonlySet<string> = new Set(Object.values(VERIFY_TOOLS))
+// Pure on both levels (reading a frozen literal's values, then building the
+// Set), so bundles without verify rows drop the set and the read together.
+export const VERIFY_ROW_TOOLS: ReadonlySet<string> = /* @__PURE__ */ new Set(
+  /* @__PURE__ */ Object.values(VERIFY_TOOLS),
+)
 // The session-rule key of the verify loop's commands (checks, run_checks,
 // then_run): their "Always allow in this session" is theirs alone and never
 // answers for the model's own shell calls, nor the shell's for them (PR #54,
@@ -5285,7 +5299,8 @@ export const SLASH_COMMAND_NAMES = {
 export const REPORT_FORMAT_VERSION = 'report-v1'
 export const REPORT_SECTION_ROWS = 10
 export const REPORT_NEXT_STEP_LIMIT = 3
-export const REPORT_EMPTY_HASH = '0'.repeat(64)
+// Sixty-four zeroes; a literal so the hash stays droppable ('0'.repeat is a call).
+export const REPORT_EMPTY_HASH = '0000000000000000000000000000000000000000000000000000000000000000'
 export const REPORT_GIT_MAX_COMMITS = 5000
 export const REPORT_NETWORK_MAX_BYTES = 2 * 1024 * 1024
 export const REPORT_NETWORK_MAX_PAGES = 3
@@ -5627,7 +5642,9 @@ export const MUSE_VERSION_FILE = '.muse-version'
 export const MUSE_BIN_PREFIX = 'muse-bin-'
 export const MUSE_WINDOWS_EXE_SUFFIX = '.exe'
 export const MUSE_CREDENTIAL_FILE_SEGMENTS = ['muse', 'auth.json'] as const
-export const WINDOWS_POWERSHELL_RELATIVE_PATH = String.raw`System32\WindowsPowerShell\v1.0\powershell.exe`
+// A plain string: the same characters String.raw would give, without the call.
+// eslint-disable-next-line unicorn/prefer-string-raw -- droppability beats readability here; test/unit/bundleDiet pins it.
+export const WINDOWS_POWERSHELL_RELATIVE_PATH = 'System32\\WindowsPowerShell\\v1.0\\powershell.exe'
 // Windows PowerShell 5.1 writes a redirected stdout in the OEM code page
 // ("héllo ✓" came back "h�llo ?", probed 2026-09-23 under Node's
 // windowsHide); this runs first and makes its output, and what it pipes to
@@ -7270,7 +7287,10 @@ export const WEBVIEW_L10N_ELEMENT_ID = 'muse-l10n'
 
 // Windows PowerShell as an absolute-path suffix under %SystemRoot%, for
 // `createTerminal({ shellPath })` when running `muse login` / `muse logout`.
-export const WINDOWS_POWERSHELL_TERMINAL_PATH = String.raw`\System32\WindowsPowerShell\v1.0\powershell.exe`
+// A plain string: the same characters String.raw would give, without the call.
+export const WINDOWS_POWERSHELL_TERMINAL_PATH =
+  // eslint-disable-next-line unicorn/prefer-string-raw -- droppability beats readability here; test/unit/bundleDiet pins it.
+  '\\System32\\WindowsPowerShell\\v1.0\\powershell.exe'
 // The login / TUI terminal's shell off Windows (PLAN.md D25): POSIX syntax, always there.
 export const POSIX_TERMINAL_SHELL = '/bin/sh'
 
