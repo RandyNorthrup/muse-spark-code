@@ -42,6 +42,38 @@ const thresholdsSchema = z.strictObject({
   ),
 })
 
+/**
+ * One injected usage, event or confirmation row, exported so the runtime
+ * reader can validate each row on its own: a bad row is skipped with the
+ * invalid reason while the good rows still report (RVCM1133B).
+ */
+export const accountsUsageRowSchema = z.strictObject({
+  provider: name,
+  account: name,
+  label: name,
+  period: name,
+  inputTokens: count,
+  outputTokens: count,
+  costUsd: z.nullable(legacyUsdSchema),
+  certainty: z.enum(['reported', 'estimated', 'unknown']),
+})
+
+export const accountsEventRowSchema = z.strictObject({
+  type: z.enum(['swap', 'stop', 'spread']),
+  provider: name,
+  account: name,
+  time: z.iso.datetime({ offset: true }),
+  trigger: name,
+  previousAccount: z.nullable(name),
+})
+
+export const accountsConfirmationRowSchema = z.strictObject({
+  provider: name,
+  product: name,
+  choice: z.enum(['confirm', 'ownCapsOnly', 'cancel']),
+  answeredAt: z.iso.datetime({ offset: true }),
+})
+
 const factsSchema = z.strictObject({
   providers: rows(
     z.strictObject({
@@ -59,36 +91,9 @@ const factsSchema = z.strictObject({
       ),
     }),
   ),
-  usage: rows(
-    z.strictObject({
-      provider: name,
-      account: name,
-      label: name,
-      period: name,
-      inputTokens: count,
-      outputTokens: count,
-      costUsd: z.nullable(legacyUsdSchema),
-      certainty: z.enum(['reported', 'estimated', 'unknown']),
-    }),
-  ),
-  events: rows(
-    z.strictObject({
-      type: z.enum(['swap', 'stop', 'spread']),
-      provider: name,
-      account: name,
-      time: z.iso.datetime({ offset: true }),
-      trigger: name,
-      previousAccount: z.nullable(name),
-    }),
-  ),
-  confirmations: rows(
-    z.strictObject({
-      provider: name,
-      product: name,
-      choice: z.enum(['confirm', 'ownCapsOnly', 'cancel']),
-      answeredAt: z.iso.datetime({ offset: true }),
-    }),
-  ),
+  usage: rows(accountsUsageRowSchema),
+  events: rows(accountsEventRowSchema),
+  confirmations: rows(accountsConfirmationRowSchema),
 })
 
 /** M108's registry, use, swaps and stops, and confirmations for one report. */

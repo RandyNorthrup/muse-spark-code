@@ -113,19 +113,21 @@ describe('accounts report reader', () => {
     expect(result!.facts.providers).toEqual([])
   })
 
-  it('reads a missing registry as null and a corrupt one as invalid', async () => {
+  it('reads a missing registry as null and a corrupt one as partial with the invalid reason', async () => {
     const missing = createAccountsReportReader({ dataDir: await dir('m113-accounts-empty-') })
     await expect(missing.read(context())).resolves.toBeNull()
-    const corruptDir = await dir('m113-accounts-corrupt-')
-    await writeFile(path.join(corruptDir, 'providers.json'), '{nope')
-    await expect(
-      createAccountsReportReader({ dataDir: corruptDir }).read(context()),
-    ).rejects.toMatchObject({ isLocalSourceError: true, code: 'invalid' })
-    const envelopeDir = await dir('m113-accounts-envelope-')
-    await writeFile(path.join(envelopeDir, 'providers.json'), JSON.stringify({ v: 1 }))
-    await expect(
-      createAccountsReportReader({ dataDir: envelopeDir }).read(context()),
-    ).rejects.toMatchObject({ isLocalSourceError: true, code: 'invalid' })
+    // RVCM1133B P2: a corrupt registry is one failed sub-source, never a
+    // failed read: the facts still return with the invalid reason.
+    for (const [prefix, text] of [
+      ['m113-accounts-corrupt-', '{nope'],
+      ['m113-accounts-envelope-', JSON.stringify({ v: 1 })],
+    ] as const) {
+      const registryDir = await dir(prefix)
+      await writeFile(path.join(registryDir, 'providers.json'), text)
+      const read = await createAccountsReportReader({ dataDir: registryDir }).read(context())
+      expect(read!.facts.providers).toEqual([])
+      expect(read!.partial).toContain(EN.reportSourceReasons.invalid)
+    }
   })
 })
 
@@ -170,18 +172,23 @@ describe('security report reader', () => {
     expect(JSON.stringify(result)).not.toContain('canary')
   })
 
-  it('reads nothing as partial facts naming both reasons and a corrupt audit as invalid', async () => {
+  it('reads nothing as partial facts naming both reasons and a corrupt audit as partial', async () => {
     const empty = createSecurityReportReader({ dataDir: await dir('m113-security-empty-') })
     const read = await empty.read(securityContext())
     expect(read).not.toBeNull()
     expect(read!.facts).toEqual({ vault: null, audit: [], developerAudit: [] })
     expect(read!.partial).toContain(EN.reportDetailReasons.securityVaultUnavailable)
     expect(read!.partial).toContain(EN.reportDetailReasons.securityDeveloperAuditUnavailable)
+    // RVCM1133B P2: a corrupt audit rotation is one failed sub-source: the
+    // facts still return with the invalid reason beside the vault reason.
     const corruptDir = await dir('m113-security-corrupt-')
     await writeDeveloperAudit(corruptDir, 'developer-audit.jsonl', ['{nope}\n'])
-    await expect(
-      createSecurityReportReader({ dataDir: corruptDir }).read(securityContext()),
-    ).rejects.toMatchObject({ isLocalSourceError: true, code: 'invalid' })
+    const corrupt = await createSecurityReportReader({ dataDir: corruptDir }).read(
+      securityContext(),
+    )
+    expect(corrupt!.facts).toEqual({ vault: null, audit: [], developerAudit: [] })
+    expect(corrupt!.partial).toContain(EN.reportDetailReasons.securityVaultUnavailable)
+    expect(corrupt!.partial).toContain(EN.reportSourceReasons.invalid)
     expect(new LocalSourceError('invalid').isLocalSourceError).toBe(true)
   })
 })

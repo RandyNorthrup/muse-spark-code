@@ -24,7 +24,12 @@ import { fill } from '../../shared/l10n/text'
 import type { BackendKind } from '../../shared/protocol'
 import type { AgentHost } from '../../core/agent/agentBackend'
 import { itemSnapshotSchema, type ItemSnapshot } from '../../shared/agentEvents'
-import { LocalSourceError } from '../../core/reporting/sources/local'
+import { LocalSourceError, localFailureOf, sourceReason } from '../../core/reporting/sources/local'
+import {
+  accountsConfirmationRowSchema,
+  accountsEventRowSchema,
+  accountsUsageRowSchema,
+} from '../../core/reporting/sources/accounts'
 import type { ReportSessionReader } from '../../core/reporting/sources/session'
 import type { ReportAccountsReader } from '../../core/reporting/sources/accounts'
 import type { ReportSecurityReader } from '../../core/reporting/sources/security'
@@ -41,7 +46,7 @@ import {
   vaultGrantSchema,
   vaultItemMetadataSchema,
 } from '../../shared/vault'
-import type { VaultStatus } from '../../shared/vaultStatus'
+import { vaultStatusSchema, type VaultStatus } from '../../shared/vaultStatus'
 import {
   sessionTurnCount,
   sessionUsageFacts,
@@ -81,6 +86,70 @@ function errorCode(error: unknown): string | undefined {
 function keepReason(partials: string[], reason: string): void {
   if (!partials.includes(reason)) partials.push(reason)
 }
+
+/**
+ * The true sentence for a sub-source that threw: its own failure code when
+ * it names one, otherwise the generic read failure. Only fixed sentences
+ * ever enter a partial; a record's own text never does, so no secret, key
+ * material or vault item value can reach a reason (RVCM1133B).
+ */
+function failureReason(error: unknown): string {
+  const code = localFailureOf(error)
+  return code === undefined ? UI_TEXT.reportSourceReasons.failed : sourceReason(code)
+}
+
+/** A row schema any record stream below can be validated against one by one. */
+interface RowSchema {
+  safeParse(row: unknown): { readonly success: boolean; readonly data?: unknown }
+}
+
+/**
+ * One record stream that never discards its good rows for one bad record:
+ * each row parses on its own, a bad row is skipped, and any skip keeps the
+ * invalid reason beside the rows (RVCM1133B P2). A value that is not a row
+ * list at all is the same failure, never a throw.
+ */
+function collectValidRows(
+  rows: unknown,
+  schema: RowSchema,
+  into: unknown[],
+  partials: string[],
+): void {
+  if (!Array.isArray(rows)) {
+    keepReason(partials, UI_TEXT.reportSourceReasons.invalid)
+    return
+  }
+  let skipped = 0
+  for (const row of rows) {
+    const parsed = schema.safeParse(row)
+    if (!parsed.success || parsed.data === undefined) {
+      skipped += 1
+      continue
+    }
+    into.push(parsed.data)
+  }
+  if (skipped > 0) keepReason(partials, UI_TEXT.reportSourceReasons.invalid)
+}
+
+/**
+ * Every sub-source createAccountsReportReader consumes. The resilience
+ * table in reportSourceReasons.test.ts covers each one in every way it can
+ * fail; a new sub-source is added here first, which fails that test until
+ * its cases exist (RVCM1133B).
+ */
+export const ACCOUNTS_REPORT_SUB_SOURCES = ['registry', 'usage', 'events'] as const
+
+/**
+ * Every sub-source createSecurityReportReader consumes: the vault view and
+ * its audit from the injected snapshot, and each developer audit rotation
+ * file. Same coverage rule as the accounts inventory (RVCM1133B).
+ */
+export const SECURITY_REPORT_SUB_SOURCES = [
+  'vault',
+  'vaultAudit',
+  'developerAudit',
+  'developerAuditPrevious',
+] as const
 
 /** The durable usage journal, tolerating a fresh install with no history yet. */
 export async function readUsageReportJournal(dataFolder: string): Promise<UsageReportJournal> {
@@ -385,9 +454,15 @@ async function readDataFile(directory: string, file: string, maxBytes: number) {
     // parsed. Ancestor links are ordinary directories and stay readable.
     const link = await lstatIdentity(target)
     if (link.isSymbolicLink()) throw new LocalSourceError('refused')
-    const info = await handle.stat()
-    if (!info.isFile() || info.size > maxBytes) throw new LocalSourceError('limit')
-    const buffer = Buffer.alloc(info.size)
+    const held = await handleIdentity(handle)
+    // The open handle must still name this path: a swap between open and
+    // lstat is a private path, refused the same way (RVCM1133B P3).
+    if (!sameFile(link, held)) throw new LocalSourceError('refused')
+    if (!held.isFile() || held.size > BigInt(maxBytes)) throw new LocalSourceError('limit')
+    // A hard-linked final component is a private path, never an incomplete
+    // read: refuse it like the sibling session reader (RVCM1133B P3).
+    if (held.nlink !== BigInt(REPORT_STORAGE_LINK_COUNT)) throw new LocalSourceError('refused')
+    const buffer = Buffer.alloc(Number(held.size))
     await handle.read(buffer, 0, buffer.length, 0)
     try {
       return new TextDecoder('utf-8', { fatal: true }).decode(buffer)
@@ -436,10 +511,12 @@ function projectThresholds(
 /**
  * The reporting `accounts` source from M108's registry on disk, with use,
  * swaps and confirmations from injected adapters. Facets no adapter supplies
- * stay empty and are named in the partial, never invented. A registry entry
- * that fails validation is skipped with the invalid reason while the good
- * entries still report; only a registry with no good entry at all reads as
- * invalid (RVCM1133).
+ * stay empty and are named in the partial, never invented. No sub-source
+ * discards another's rows: a registry entry that fails validation is
+ * skipped with the invalid reason while the good entries still report, and
+ * a registry or adapter that fails outright keeps its own reason beside
+ * the rows the other sub-sources still return (RVCM1133B P2). Only a
+ * missing registry file is a fresh install that reads as null.
  */
 export function createAccountsReportReader(input: {
   readonly dataDir: string
@@ -450,55 +527,89 @@ export function createAccountsReportReader(input: {
 }): ReportAccountsReader {
   return {
     read: async (context: SourceReadContext) => {
-      const text = await readDataFile(
-        input.dataDir,
-        'providers.json',
-        EXEC_UNTRUSTED_FILE_MAX_BYTES,
-      )
-      if (text === null) return null
-      let raw: unknown
-      try {
-        raw = JSON.parse(text)
-      } catch {
-        throw new LocalSourceError('invalid')
-      }
-      const envelope = z.object({ providers: z.record(z.string(), z.unknown()) }).safeParse(raw)
-      if (!envelope.success) throw new LocalSourceError('invalid')
       const partials: string[] = []
       const providers: AccountsFacts['providers'][number][] = []
-      let invalidEntries = 0
-      for (const entry of Object.values(envelope.data.providers)) {
-        const parsed = registryEntrySchema.safeParse(entry)
-        if (!parsed.success) {
-          invalidEntries += 1
-          continue
+      try {
+        const text = await readDataFile(
+          input.dataDir,
+          'providers.json',
+          EXEC_UNTRUSTED_FILE_MAX_BYTES,
+        )
+        if (text === null) return null
+        let raw: unknown
+        try {
+          raw = JSON.parse(text)
+        } catch {
+          raw = undefined
+          keepReason(partials, UI_TEXT.reportSourceReasons.invalid)
         }
-        providers.push({
-          provider: parsed.data.id,
-          product: parsed.data.product,
-          auth: parsed.data.auth,
-          accounts: (parsed.data.accounts ?? []).map((account) => ({
-            id: account.id,
-            label: account.label,
-            order: account.order,
-            limitGroup: account.limitGroup ?? null,
-            thresholds: projectThresholds(account.thresholds),
-          })),
-        })
+        if (raw !== undefined) {
+          const envelope = z.object({ providers: z.record(z.string(), z.unknown()) }).safeParse(raw)
+          if (envelope.success) {
+            let invalidEntries = 0
+            for (const entry of Object.values(envelope.data.providers)) {
+              const parsed = registryEntrySchema.safeParse(entry)
+              if (!parsed.success) {
+                invalidEntries += 1
+                continue
+              }
+              providers.push({
+                provider: parsed.data.id,
+                product: parsed.data.product,
+                auth: parsed.data.auth,
+                accounts: (parsed.data.accounts ?? []).map((account) => ({
+                  id: account.id,
+                  label: account.label,
+                  order: account.order,
+                  limitGroup: account.limitGroup ?? null,
+                  thresholds: projectThresholds(account.thresholds),
+                })),
+              })
+            }
+            if (invalidEntries > 0) keepReason(partials, UI_TEXT.reportSourceReasons.invalid)
+          } else keepReason(partials, UI_TEXT.reportSourceReasons.invalid)
+        }
+      } catch (error) {
+        // An unreadable registry is one failed sub-source, never a failed
+        // read: the injected facets below still report (RVCM1133B P2).
+        if (context.signal.aborted) throw error
+        keepReason(partials, failureReason(error))
       }
-      if (providers.length === 0 && invalidEntries > 0) throw new LocalSourceError('invalid')
-      if (invalidEntries > 0) keepReason(partials, UI_TEXT.reportSourceReasons.invalid)
       const missing: string[] = []
-      let usage: AccountsFacts['usage'] = []
+      const usage: AccountsFacts['usage'][number][] = []
       if (input.readUsage === undefined) missing.push('usage')
-      else usage = (await input.readUsage(context)) ?? []
-      let events: AccountsFacts['events'] = []
-      let confirmations: AccountsFacts['confirmations'] = []
+      else {
+        try {
+          const read = await input.readUsage(context)
+          if (read !== null) collectValidRows(read, accountsUsageRowSchema, usage, partials)
+        } catch (error) {
+          if (context.signal.aborted) throw error
+          keepReason(partials, failureReason(error))
+        }
+      }
+      const events: AccountsFacts['events'][number][] = []
+      const confirmations: AccountsFacts['confirmations'][number][] = []
       if (input.readEvents === undefined) missing.push('swaps', 'confirmations')
       else {
-        const read = await input.readEvents(context)
-        events = read?.events ?? []
-        confirmations = read?.confirmations ?? []
+        try {
+          const read = await input.readEvents(context)
+          if (read !== null) {
+            if (typeof read !== 'object' || Array.isArray(read))
+              keepReason(partials, UI_TEXT.reportSourceReasons.invalid)
+            else {
+              collectValidRows(read.events, accountsEventRowSchema, events, partials)
+              collectValidRows(
+                read.confirmations,
+                accountsConfirmationRowSchema,
+                confirmations,
+                partials,
+              )
+            }
+          }
+        } catch (error) {
+          if (context.signal.aborted) throw error
+          keepReason(partials, failureReason(error))
+        }
       }
       if (missing.length > 0)
         partials.push(
@@ -532,9 +643,11 @@ export interface SecurityVaultSnapshot {
  * aggregates; the developer audit contributes action counts. A locked or
  * unbound vault leaves the vault facets empty with its reason; without the
  * developer audit either, both reasons travel in the partial instead of a
- * generic missing file (RVCM1133). A vault view that fails validation is
- * invalid and never hides a readable developer audit: the vault facets
- * stay empty while the audit still reports.
+ * generic missing file (RVCM1133). No record or sub-source discards what
+ * the read already accepted: each vault record and each audit line parses
+ * on its own, a bad one is skipped with the invalid reason, and a vault
+ * view or audit file that fails outright keeps its own reason beside the
+ * rows the other sub-sources still return (RVCM1133B P2).
  */
 export function createSecurityReportReader(input: {
   readonly dataDir: string
@@ -544,13 +657,48 @@ export function createSecurityReportReader(input: {
     read: async (context: SourceReadContext) => {
       const partials: string[] = []
       let vault: SecurityFacts['vault'] = null
-      let audit: SecurityFacts['audit'] = []
-      const snapshot = input.readVault === undefined ? null : await input.readVault(context)
+      const vaultAudit: SecurityFacts['audit'][number][] = []
+      let snapshot: SecurityVaultSnapshot | null = null
+      if (input.readVault !== undefined) {
+        try {
+          snapshot = await input.readVault(context)
+        } catch (error) {
+          // A vault that cannot be read is one failed sub-source, never a
+          // failed read: the developer audit below still reports.
+          if (context.signal.aborted) throw error
+          keepReason(partials, failureReason(error))
+        }
+      }
       if (snapshot === null) partials.push(UI_TEXT.reportDetailReasons.securityVaultUnavailable)
       else {
-        try {
-          const items = z.array(vaultItemMetadataSchema).parse(snapshot.items)
-          const grants = z.array(vaultGrantSchema).parse(snapshot.grants)
+        // The view's own scalars are validated before use: an unknown
+        // state or tier invalidates the vault facets, never the audit
+        // beside them (RVCM1133B P3).
+        const view = z
+          .pick(vaultStatusSchema, { state: true, tier: true })
+          .safeParse({ state: snapshot.state, tier: snapshot.tier })
+        if (view.success) {
+          const items: z.infer<typeof vaultItemMetadataSchema>[] = []
+          collectValidRows(snapshot.items, vaultItemMetadataSchema, items, partials)
+          const grants: z.infer<typeof vaultGrantSchema>[] = []
+          collectValidRows(snapshot.grants, vaultGrantSchema, grants, partials)
+          if (Array.isArray(snapshot.audit)) {
+            let skipped = 0
+            for (const record of snapshot.audit) {
+              const parsed = vaultAuditRecordSchema.safeParse(record)
+              if (!parsed.success) {
+                skipped += 1
+                continue
+              }
+              vaultAudit.push({
+                kind: parsed.data.kind,
+                decision: parsed.data.decision,
+                authority: parsed.data.authority,
+                outcome: parsed.data.outcome,
+              })
+            }
+            if (skipped > 0) keepReason(partials, UI_TEXT.reportSourceReasons.invalid)
+          } else keepReason(partials, UI_TEXT.reportSourceReasons.invalid)
           const itemsByKind = new Map<string, number>()
           for (const item of items)
             itemsByKind.set(item.kind, (itemsByKind.get(item.kind) ?? 0) + 1)
@@ -560,56 +708,58 @@ export function createSecurityReportReader(input: {
             grantsByScope.set(scope, (grantsByScope.get(scope) ?? 0) + 1)
           }
           vault = {
-            state: snapshot.state,
-            tier: snapshot.tier,
+            state: view.data.state,
+            tier: view.data.tier,
             itemCount: items.length,
             itemsByKind: Array.from(itemsByKind, ([kind, count]) => ({ kind, count })),
             grants: Array.from(grantsByScope, ([scope, count]) => ({ scope, count })),
           }
-          audit = snapshot.audit.map((record) => {
-            const parsed = vaultAuditRecordSchema.parse(record)
-            return {
-              kind: parsed.kind,
-              decision: parsed.decision,
-              authority: parsed.authority,
-              outcome: parsed.outcome,
-            }
-          })
-        } catch {
-          // Fail closed on the vault view itself, but keep reading the
-          // developer audit below: a bad snapshot is invalid, never a
-          // silent drop of the audit beside it.
-          vault = null
-          audit = []
-          keepReason(partials, UI_TEXT.reportSourceReasons.invalid)
-        }
+        } else keepReason(partials, UI_TEXT.reportSourceReasons.invalid)
       }
       const directory = path.join(input.dataDir, 'developer')
       let developerAudit: SecurityFacts['developerAudit'] | null = null
       const auditFiles = [DEVELOPER_FILES.audit, `${DEVELOPER_FILES.audit}.previous`]
       for (const file of auditFiles) {
-        const text = await readDataFile(directory, file, DEVELOPER_AUDIT_MAX_BYTES)
-        if (text === null) continue
+        let text: string | null
         try {
-          const parsed = text
-            .trim()
-            .split('\n')
-            .filter((line) => line !== '')
-            .map((line) => {
-              const entry = developerAuditSchema.parse(JSON.parse(line))
-              return { action: entry.action, source: entry.source }
-            })
-          developerAudit = [...(developerAudit ?? []), ...parsed]
-        } catch {
-          throw new LocalSourceError('invalid')
+          text = await readDataFile(directory, file, DEVELOPER_AUDIT_MAX_BYTES)
+        } catch (error) {
+          // An unreadable rotation is one failed sub-source: the vault
+          // rows above and the other rotation still report (RVCM1133B P2).
+          if (context.signal.aborted) throw error
+          keepReason(partials, failureReason(error))
+          continue
         }
+        if (text === null) continue
+        let skipped = 0
+        const rows: SecurityFacts['developerAudit'][number][] = []
+        for (const line of text.trim().split('\n')) {
+          if (line === '') continue
+          let entry: unknown
+          try {
+            entry = JSON.parse(line)
+          } catch {
+            skipped += 1
+            continue
+          }
+          const parsed = developerAuditSchema.safeParse(entry)
+          if (!parsed.success) {
+            skipped += 1
+            continue
+          }
+          // The profile id parses here and is dropped: only the action
+          // and source travel into the facts.
+          rows.push({ action: parsed.data.action, source: parsed.data.source })
+        }
+        if (skipped > 0) keepReason(partials, UI_TEXT.reportSourceReasons.invalid)
+        developerAudit = [...(developerAudit ?? []), ...rows]
       }
       if (developerAudit === null)
         partials.push(UI_TEXT.reportDetailReasons.securityDeveloperAuditUnavailable)
       // Both sources absent is a partial naming both true reasons, never a
       // bare null that the source would report as a generic missing file.
       return {
-        facts: { vault, audit, developerAudit: developerAudit ?? [] },
+        facts: { vault, audit: vaultAudit, developerAudit: developerAudit ?? [] },
         observedAt: context.asOf,
         ...(partials.length > 0 && { partial: partials.join(' ') }),
       }
