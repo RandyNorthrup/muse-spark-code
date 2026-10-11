@@ -1,9 +1,13 @@
 import type { VaultApprovalResult } from '../../src/shared/vaultProtocol'
+import { mkdtempSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 import { PassThrough } from 'node:stream'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { HeadlessVaultSession, type ExecVaultContext } from '../../src/runtime/vault/execVault'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
 import { runExec, type ExecDeps } from '../../src/runtime/exec/runExec'
+import { execPanelPort } from '../../src/runtime/panel/panelLoader'
 import { createLifecycle } from '../../src/runtime/exec/execLimits'
 import { execEventSchema } from '../../src/runtime/exec/execProtocol'
 import { EXEC_EXIT, UI_TEXT } from '../../src/shared/constants'
@@ -14,6 +18,8 @@ import { outputWriter } from './helpers/execContract'
 import { memorySecrets } from './helpers/fakes'
 import { until } from './helpers/acpWaits'
 import { FakeAgentHost } from './helpers/fakeAgent'
+import { buildRuntimeConversationBundles } from './helpers/modelApiBundle'
+import { removeFolder } from './helpers/temporaryFolders'
 import * as backends from '../../src/runtime/backends'
 
 function authorization() {
@@ -189,6 +195,15 @@ const finishedPort = (context: ExecVaultContext) =>
 const noSignal = () => undefined
 const actualRuntime = backends.createRuntimeBackend
 afterEach(() => vi.restoreAllMocks())
+// A headless run holds its conversation on the runtime panel's controller
+// registry (M104 lane B), so these runs need the real bundles beside them.
+const bundles = mkdtempSync(path.join(tmpdir(), 'm109h-bundles-'))
+beforeAll(async () => {
+  await buildRuntimeConversationBundles(bundles)
+})
+afterAll(async () => {
+  await removeFolder(bundles)
+})
 function execHarness(flags: readonly string[] = []) {
   const parsed = parseCommandLine(['exec', '--output', 'jsonl', ...flags, 'task'])
   if (parsed.command !== 'exec') throw new Error('args')
@@ -215,6 +230,7 @@ function execHarness(flags: readonly string[] = []) {
     options: parsed.options,
     version: 'test',
     distDir: process.cwd(),
+    ...execPanelPort(bundles),
     platform: process.platform,
     env: {},
     homeDir: process.cwd(),

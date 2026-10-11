@@ -7507,7 +7507,9 @@ export const MHP = {
   minimumVersion: 'mhp/1.5.0',
   maximumVersionExclusive: 'mhp/1.6.0',
   jsonRpcVersion: '2.0',
-  maximumInteger: Number.MAX_SAFE_INTEGER,
+  // Number.MAX_SAFE_INTEGER as a literal: a property read on a global keeps
+  // this whole block in every bundle that imports this module (M104 join).
+  maximumInteger: 9_007_199_254_740_991,
   maximumSelectionChars: 16_384,
   featureCount: 56,
 } as const

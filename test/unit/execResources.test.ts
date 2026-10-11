@@ -1,17 +1,19 @@
 import { execFile } from 'node:child_process'
+import { mkdtempSync } from 'node:fs'
 import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { PassThrough } from 'node:stream'
 import { promisify } from 'node:util'
 import { build } from 'esbuild'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import * as runtimeBackends from '../../src/runtime/backends'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
 import { agentDataFolder } from '../../src/runtime/dataFolder'
 import { createLifecycle } from '../../src/runtime/exec/execLimits'
 import { execEventV2Schema, execEventSchema } from '../../src/runtime/exec/execProtocol'
 import { runExec } from '../../src/runtime/exec/runExec'
+import { execPanelPort } from '../../src/runtime/panel/panelLoader'
 import { createResourceExecSink } from '../../src/runtime/resources/execSink'
 import {
   RESOURCE_EXEC_EVENT_VERSION,
@@ -23,6 +25,7 @@ import { resourceStatusSchema } from '../../src/shared/resources'
 import { resourceHistorySchema } from '../../src/shared/resourceHistory'
 import { FakeAgentHost } from './helpers/fakeAgent'
 import { memorySecrets } from './helpers/fakes'
+import { buildRuntimeConversationBundles } from './helpers/modelApiBundle'
 import { outputWriter, resultRecord } from './helpers/execContract'
 import { runtimeResources } from './helpers/resources/runtime'
 import { removeFolder } from './helpers/temporaryFolders'
@@ -33,6 +36,15 @@ afterEach(async () => {
   vi.restoreAllMocks()
   for (const host of hosts.splice(0)) host.dispose()
   await Promise.all(folders.splice(0).map((folder) => removeFolder(folder)))
+})
+// A headless run holds its conversation on the runtime panel's controller
+// registry (M104 lane B), so the real run below needs the bundles beside it.
+const bundles = mkdtempSync(path.join(tmpdir(), 'm107h-bundles-'))
+beforeAll(async () => {
+  await buildRuntimeConversationBundles(bundles)
+})
+afterAll(async () => {
+  await removeFolder(bundles)
 })
 
 function sinkScene(format: 'text' | 'json' | 'jsonl' = 'jsonl') {
@@ -260,14 +272,18 @@ describe('M107 H headless flags and v2 egress', () => {
       },
     })
     const dispose = vi.spyOn(fixture.host, 'dispose')
+    // The conversation's own settings and state live under the home folder now.
+    const home = await mkdtemp(path.join(tmpdir(), 'm107h-home-'))
+    folders.push(home)
     try {
       const code = await runExec(lifecycle, {
         options: options.options,
         version: 'test',
         distDir: '/unused',
+        ...execPanelPort(bundles),
         platform: process.platform,
         env: {},
-        homeDir: '/unused',
+        homeDir: home,
         processCwd: process.cwd(),
         stdin: new PassThrough(),
         stdout: out,

@@ -358,6 +358,12 @@ describe('MHP 1.5 boundary and native export', () => {
 })
 
 describe('MHP negotiation and feature skeleton', () => {
+  // constants.ts writes the limit as a literal so bundles that never use MHP
+  // can drop the block; this keeps the literal from drifting.
+  it('keeps the integer limit at the largest safe integer', () => {
+    expect(MHP.maximumInteger).toBe(Number.MAX_SAFE_INTEGER)
+  })
+
   it.each([
     ['mhp/1.0.0', 'mhp/2.0.0', true],
     ['mhp/0.9.0', 'mhp/1.0.1', false],
