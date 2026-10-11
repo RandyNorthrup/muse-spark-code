@@ -432,3 +432,30 @@ All measured bundles fit their unchanged caps. The backend-only
 `autoCompact.ts` engine stays absent from activation, ACP startup and runtime
 accounting; it remains in the lazy Model API bundle. No copies of admission
 were added to the Model API bundle.
+
+## After 0.17.1's truth pass (release train merge, 2026-10-11)
+
+The release train merged `rel0171/final` at `dbdb55a0e` after this lane. Its
+truth pass (CX1R3 to CX1R5, `docs/certification/cx1.md`) settled finding P3's
+class in another way, for every dormant feature at once, and its tests pin
+the result in all 15 manifest tables, so the train keeps the release's text
+wherever the two disagreed:
+
+- `config.modelApiAutoCompaction.description` says what the setting does
+  today: it shows the first-turn awaiting-evaluation notice, and turning it
+  off hides the notice. This lane's "stores a preference only" wording is
+  gone in all 15 tables.
+- The README section on automatic compaction, its settings-table row and
+  `docs/acp.md`'s paragraph and option rows for the inactive feature are
+  removed. The README names the setting once, as controlling that notice.
+- The roadmap entry reads "automatic compaction is in progress".
+- This lane's manifest test for the setting (`test/unit/manifest.test.ts`,
+  now "describes the visible automatic compaction setting by what it does
+  while inactive") checks the latch, default, scope and description key as
+  before; the wording it pins is the release's.
+
+Unchanged from this lane: the latch, the admission code, the structured
+option filter in `cliOptions.ts` (the release removed the account and
+schedule lines beside it), the `auto-compaction` catalogue entry (now also
+in the release's in-progress list, which withholds it from published Help)
+and the manual-compaction description of the `compaction` entry.

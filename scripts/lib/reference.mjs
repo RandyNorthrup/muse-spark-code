@@ -401,6 +401,7 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
           .replaceAll(' ', '-'),
       ),
   )
+  for (const match of readme.matchAll(/<a id="([a-z0-9-]+)"><\/a>/g)) anchors.add(match[1])
   const errors = []
   const properties = manifest.contributes.configuration.properties
   const protocol = source.evidence['src/shared/protocol.ts']
@@ -580,11 +581,28 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
     resourceRelocate: 'relocate',
   }
   const resourceDefaults = source.resourceSettingsSchema.parse({})
+  // A compatibility-only control must ignore every configured value and have no reader.
+  // Active controls keep the same enum, inverse-boolean and numeric-bound probes.
+  const inactiveSettings = new Set(
+    Object.entries(properties)
+      .filter(
+        ([, schema]) =>
+          translated(schema.deprecationMessage ?? schema.markdownDeprecationMessage, nls) ===
+          'Stored for compatibility; no runtime effect.',
+      )
+      .map(([id]) => id.slice('museSpark.'.length)),
+  )
+  const readInactiveSettings = new Set()
   const runtimeSetting = (key, value, log) => {
     const field = resourceFields[key]
     if (field === undefined)
       return source.readSettings(
-        { get: (requested) => (requested === key ? value : undefined) },
+        {
+          get: (requested) => {
+            if (inactiveSettings.has(requested)) readInactiveSettings.add(requested)
+            return requested === key ? value : undefined
+          },
+        },
         log,
       )[key]
     try {
@@ -612,9 +630,14 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
     const canonical = field === undefined ? source.SETTING_DEFAULTS[key] : resourceDefaults[field]
     if (JSON.stringify(canonical) !== JSON.stringify(schema.default))
       errors.push(`Runtime default mismatch: ${id}`)
-    for (const value of [schema.default, ...(schema.enum ?? [])]) {
+    for (const value of [
+      schema.default,
+      ...(schema.enum ?? []),
+      ...(schema.type === 'boolean' ? [!schema.default] : []),
+    ]) {
       const actual = runtimeSetting(key, value, silentLog)
-      if (!isSameSetting(key, actual, value)) errors.push(`Runtime value mismatch: ${id}`)
+      if (!isSameSetting(key, actual, inactiveSettings.has(key) ? canonical : value))
+        errors.push(`Runtime value mismatch: ${id}`)
     }
   }
 
@@ -630,7 +653,13 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
     const key = id.slice('museSpark.'.length)
     for (const value of [schema.minimum, schema.maximum]) {
       if (value === undefined) continue
-      if (!isSameSetting(key, readSetting(key, value), value))
+      if (
+        !isSameSetting(
+          key,
+          readSetting(key, value),
+          inactiveSettings.has(key) ? schema.default : value,
+        )
+      )
         errors.push(`Runtime bound mismatch: ${id}`)
     }
     for (const value of [
@@ -638,7 +667,11 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
       schema.maximum === undefined ? undefined : schema.maximum + 1,
     ]) {
       if (value === undefined) continue
-      if (isSameSetting(key, readSetting(key, value), value))
+      if (
+        inactiveSettings.has(key)
+          ? !isSameSetting(key, readSetting(key, value), schema.default)
+          : isSameSetting(key, readSetting(key, value), value)
+      )
         errors.push(`Runtime bound mismatch: ${id}`)
     }
   }
@@ -656,6 +689,9 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
     errors.push('Runtime refinement mismatch: values:boolean')
   if (readSetting('browserCheckExtraHosts', ['invalid/path']).length > 0)
     errors.push('Runtime refinement mismatch: valid:host')
+
+  for (const key of readInactiveSettings)
+    errors.push(`Compatibility setting has a runtime reader: museSpark.${key}`)
 
   const descriptionFor = (ref) => {
     if ('conditions' in ref)
@@ -1319,17 +1355,67 @@ export function referenceMarkdown(model, source, nls, manifest) {
   return lines.join('\n')
 }
 
+/** Publication is narrower than the complete, validated command inventory. */
+export function publishedReference(model, source) {
+  const dormant = model.features.filter((feature) =>
+    source.REFERENCE_IN_PROGRESS_FEATURES.includes(feature.id),
+  )
+  const commands = new Set([
+    ...dormant.flatMap((feature) => feature.commands),
+    source.COMMAND_IDS.schedulePrompt,
+    source.COMMAND_IDS.showSchedules,
+    source.COMMAND_IDS.showScheduleTimeline,
+  ])
+  const settings = new Set([
+    ...dormant
+      .flatMap((feature) => feature.settings)
+      .filter(
+        (id) => !['museSpark.modelApiAutoCompaction', 'museSpark.vault.agentFence'].includes(id),
+      ),
+    'museSpark.scheduleAgentCreation',
+  ])
+  // CX1R4 F1: the accounts route is dormant; CM108ACC re-adds it with the runtime.
+  const hiddenRoutes = new Set(['estimate', 'schedule', 'vault', 'vaultHelp', 'accounts'])
+
+  return {
+    ...model,
+    features: model.features
+      .filter((feature) => !source.REFERENCE_IN_PROGRESS_FEATURES.includes(feature.id))
+      .map((feature) => ({
+        ...feature,
+        commands: feature.commands.filter((id) => !commands.has(id)),
+        settings: feature.settings.filter((id) => !settings.has(id)),
+      })),
+    commands: model.commands.filter((command) => !commands.has(command.id)),
+    settings: model.settings.filter((setting) => !settings.has(setting.id)),
+    slash: model.slash.filter(
+      (command) => !['estimate', 'vault', 'schedule'].includes(command.name),
+    ),
+    cli: model.cli.filter(
+      (command) =>
+        !hiddenRoutes.has(command.route) &&
+        !/(?:^|\s)--(?:scheduled-prompts|vault|no-auto-compaction|account(?:-pool)?)(?:\s|$)/.test(
+          command.name,
+        ),
+    ),
+    shortcuts: model.shortcuts.filter(
+      (shortcut) => !commands.has(shortcut.command) && shortcut.command !== 'team.tree',
+    ),
+  }
+}
+
 export async function generateReference(root, isCheck = false) {
   const manifest = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'))
   const nls = JSON.parse(readFileSync(path.join(root, 'package.nls.json'), 'utf8'))
   const source = await referenceSources(root)
-  const model = buildReference(
+  const inventory = buildReference(
     manifest,
     nls,
     source,
     readFileSync(path.join(root, 'src/runtime/cliArgs.ts'), 'utf8'),
     readFileSync(path.join(root, 'README.md'), 'utf8'),
   )
+  const model = publishedReference(inventory, source)
   const texts = [
     ...model.features.flatMap((f) => [f.name, f.summary, f.description, ...f.details]),
     ...model.commands.map((c) => c.text),

@@ -14,9 +14,6 @@ export function formatAcpUsage(table: UiText, command: string): string {
     fill(table.acpUsage, { command }),
     fill(table.acpChatGpt.usage, { command }),
     sharingHelp(table),
-    fill(table.accounts.cliUsage, { command }),
-    fill(table.accounts.execHelp, { command }),
-    table.scheduleV2.runtime.usage,
     ...Object.entries(options)
       .filter(
         ([option]) =>
