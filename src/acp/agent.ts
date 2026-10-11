@@ -101,6 +101,7 @@ import type {
   AcpQueuedAnswerLease,
 } from './questionDeferral'
 import { AcpAccounts, accountErrorText, type AccountsSessionPort } from './accounts'
+import { runUploadsCommand, type AcpUploadsPort } from './uploads'
 import {
   acpQuestionClock,
   questionDeferralLoader,
@@ -183,6 +184,8 @@ export interface AcpAgentDeps {
   readonly onClientName?: (name: string) => void
   /** Shared journal/service, required lazily on the local /usage command. */
   readonly usage?: Pick<UsageAdapter, 'access' | 'openPage'>
+  /** The account upload ledger, required lazily on the local /uploads command. */
+  readonly uploads?: AcpUploadsPort
   /** I binds P's durable, authorized workspace/team adapter. */
   readonly playbookFor?: (cwd: string, sessionId: string) => PlaybookSurfacePort
   readonly schedules?: AcpSchedulePort
@@ -552,6 +555,15 @@ class AcpSession {
                 input: null,
               },
             ]),
+        ...(this.deps.uploads === undefined
+          ? []
+          : [
+              {
+                name: 'uploads',
+                description: UI_TEXT.media.uploadsDescription,
+                input: { hint: UI_TEXT.media.uploadsUsage },
+              },
+            ]),
         ...(this.deps.resources === undefined
           ? []
           : resourceCommands().filter(
@@ -618,6 +630,7 @@ class AcpSession {
                 'record',
                 'accounts',
                 'vault',
+                'uploads',
               ].includes(skill.selector) &&
               ((this.deps.usage === undefined && this.deps.resources === undefined) ||
                 skill.selector !== 'usage') &&
@@ -651,6 +664,19 @@ class AcpSession {
       interactive: this.deps.options.isHeadless !== true,
     })
     return this.media
+  }
+
+  /** The local /uploads command over the account ledger; other text falls through. */
+  private async uploadsCommand(blocks: readonly ContentBlock[]): Promise<boolean> {
+    const [first] = blocks
+    if (blocks.length !== 1 || first?.type !== 'text') return false
+    const outcome = await runUploadsCommand(first.text, {
+      files: this.deps.uploads,
+      send: (text) => {
+        this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
+      },
+    })
+    return outcome === 'handled'
   }
 
   private async mediaCommand(
@@ -1660,6 +1686,11 @@ class AcpSession {
         await this.outbox
         return preparing.isCancelled ? 'cancelled' : 'end_turn'
       }
+      if (await this.uploadsCommand(blocks)) {
+        await this.announceCommands()
+        await this.outbox
+        return preparing.isCancelled ? 'cancelled' : 'end_turn'
+      }
       // Only media links need the port: ordinary links stay mentions even
       // when the factory binds (M105 E2 review).
       const isNeedsMedia = blocks.some(
@@ -1745,6 +1776,7 @@ class AcpSession {
                 ...(this.deps.media === undefined || this.deps.options.isHeadless === true
                   ? []
                   : ['attach', 'record']),
+                ...(this.deps.uploads === undefined ? [] : ['uploads']),
                 ...this.skills
                   .map((skill) => skill.selector)
                   .filter(
@@ -1757,6 +1789,7 @@ class AcpSession {
                         'agents',
                         'attach',
                         'record',
+                        'uploads',
                       ].includes(name),
                   ),
                 'agents',

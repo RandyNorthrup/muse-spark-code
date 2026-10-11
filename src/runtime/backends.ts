@@ -52,6 +52,9 @@ import { mcpJobExecutable } from '../host/backend/mcpJobExecutable'
 import { createToolIo } from '../host/backend/toolIo'
 import type { ToolIo } from '../core/backends/modelapi/tools'
 import type { AcpMediaFactory } from '../acp/media'
+import type { AcpUploadsPort } from '../acp/uploads'
+import { createUploadedFilesPort } from '../core/media/uploadedFiles'
+import type { UploadLedger } from '../core/media/uploadLedger'
 import type { AttachedMedia, AttachedMediaPort } from '../core/media/attachedMedia'
 import { lazyAttachedMedia } from '../core/media/attachedMediaPort'
 import type * as RuntimeMediaEntry from './runtimeMediaEntry'
@@ -151,6 +154,12 @@ export interface RuntimeBackend {
    * Code, which refuses media with its own reason.
    */
   readonly media?: AcpMediaFactory
+  /**
+   * M105 lane F: ACP serve's uploaded-files port on the Model API backend,
+   * over the same account ledger the session store cleans. Absent without
+   * upload storage (ephemeral runs say so and delete nothing).
+   */
+  readonly uploads?: AcpUploadsPort
   readonly close: () => Promise<void>
 }
 
@@ -808,6 +817,43 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     return manager.ensureHost()
   }
 
+  // M105 lane F: the /uploads port over the account ledger in the agent
+  // data folder. The media bundle loads on first use; without storage or
+  // an account it reads empty and deletes nothing. ACP answers in text,
+  // never through post.
+  const agentUploadLedgerDir =
+    deps.exec?.isEphemeral === true
+      ? undefined
+      : path.join(agentDataFolder(deps), MODEL_API_UPLOADS_DIR)
+  const uploadsAccountId = async (): Promise<string | undefined> => {
+    const key = await credentials.getApiKey()
+    return key === undefined ? undefined : createHash('sha256').update(key).digest('hex')
+  }
+  let uploadsClient: ModelApiClient | undefined
+  const uploads: AcpUploadsPort = createUploadedFilesPort({
+    ledger: async (): Promise<UploadLedger | undefined> => {
+      if (agentUploadLedgerDir === undefined) return undefined
+      const accountId = await uploadsAccountId()
+      if (accountId === undefined) return undefined
+      const media = await import('../host/backend/productionMediaEntry')
+      media.setUiText(UI_TEXT, uiLocale())
+      return await media.createSessionUploads({
+        uploadLedgerDir: agentUploadLedgerDir,
+        currentAccountId: uploadsAccountId,
+        filesClient: () =>
+          (uploadsClient ??= new ModelApiClient({
+            fetch: deps.fetch,
+            baseUrl: MODEL_API_BASE_URL,
+            apiKey: () => credentials.getApiKey(),
+            sleep: deps.sleep,
+            now: () => Date.now(),
+            random: () => Math.random(),
+            log: deps.log,
+          })),
+        expiryDays: () => SETTING_DEFAULTS.mediaUploadExpiryDays,
+      })(accountId)
+    },
+  })
   return {
     readUsageBudgets: async () => {
       const budgets = await Promise.all(
@@ -851,6 +897,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
         })
       },
     }),
+    ...(deps.options.backend === 'modelApi' && { uploads }),
     forgetUnflaggedGrants: () =>
       deps.exec === undefined && deps.options.backend === 'modelApi'
         ? paid.forgetUnflagged()
