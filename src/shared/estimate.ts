@@ -360,59 +360,61 @@ export const fleetSnapshotSchema = z
   )
 export type FleetSnapshot = z.infer<typeof fleetSnapshotSchema>
 
-export const estimateLaneSchema = z.strictObject({
-  id,
-  kind: id,
-  estimatedHours: z.number().check(z.positive()),
-  elapsedAgentHours: hours,
-  minimumRemainingHours: hours,
-  state: z.enum(['planned', 'running', 'merged']),
-  dependencies: boundedIds.check(z.refine(areUnique)),
-  // Workspace-relative, scrubbed file globs. Goal resolution owns affinity.
-  files: z.array(z.string().check(z.minLength(1))),
-  affinity: z.strictObject({
-    os: z.array(os),
-    architectures: z.array(architecture),
-    machineClassIds: boundedIds,
-    gpuRequired: z.boolean(),
-  }),
-  resources: z.strictObject({
-    slots: resourceQuantity(positiveCount),
-    accountRequestsPerHour: demand,
-    accountTokensPerHour: demand,
-    accountUsdPerHour: demand,
-    accountPercentPerHour: demand,
-    ciJobs: resourceQuantity(count),
-    ciMinutes: demand,
-    disk: z
-      .array(
-        z
-          .strictObject({
-            role: volumeRole,
-            peakBytes: byteDemand,
-            steadyBytes: byteDemand,
-          })
-          .check(
-            z.refine(
-              (disk) =>
-                disk.peakBytes.value === null ||
-                disk.steadyBytes.value === null ||
-                disk.steadyBytes.value <= disk.peakBytes.value,
+export const estimateLaneSchema = z
+  .strictObject({
+    id,
+    kind: id,
+    estimatedHours: hours,
+    elapsedAgentHours: hours,
+    minimumRemainingHours: hours,
+    state: z.enum(['planned', 'running', 'merged']),
+    dependencies: boundedIds.check(z.refine(areUnique)),
+    // Workspace-relative, scrubbed file globs. Goal resolution owns affinity.
+    files: z.array(z.string().check(z.minLength(1))),
+    affinity: z.strictObject({
+      os: z.array(os),
+      architectures: z.array(architecture),
+      machineClassIds: boundedIds,
+      gpuRequired: z.boolean(),
+    }),
+    resources: z.strictObject({
+      slots: resourceQuantity(positiveCount),
+      accountRequestsPerHour: demand,
+      accountTokensPerHour: demand,
+      accountUsdPerHour: demand,
+      accountPercentPerHour: demand,
+      ciJobs: resourceQuantity(count),
+      ciMinutes: demand,
+      disk: z
+        .array(
+          z
+            .strictObject({
+              role: volumeRole,
+              peakBytes: byteDemand,
+              steadyBytes: byteDemand,
+            })
+            .check(
+              z.refine(
+                (disk) =>
+                  disk.peakBytes.value === null ||
+                  disk.steadyBytes.value === null ||
+                  disk.steadyBytes.value <= disk.peakBytes.value,
+              ),
             ),
-          ),
-      )
-      .check(
-        z.minLength(1),
-        z.refine((disks) => areUnique(disks.map((disk) => disk.role))),
-      ),
-    ciId: z.optional(id),
-  }),
-  review: reviewSchema,
-  // M117 W (PLAN.md D100, gotcha G4): the base the lane was built on, when
-  // known. A base older than ESTIMATE_STALE_BASE_DAYS is a schedule risk:
-  // the estimate names it in `risks` instead of pricing a rebase it cannot see.
-  baseAsOf: z.optional(instant),
-})
+        )
+        .check(
+          z.minLength(1),
+          z.refine((disks) => areUnique(disks.map((disk) => disk.role))),
+        ),
+      ciId: z.optional(id),
+    }),
+    review: reviewSchema,
+    // M117 W (PLAN.md D100, gotcha G4): the base the lane was built on, when
+    // known. A base older than ESTIMATE_STALE_BASE_DAYS is a schedule risk:
+    // the estimate names it in `risks` instead of pricing a rebase it cannot see.
+    baseAsOf: z.optional(instant),
+  })
+  .check(z.refine((lane) => lane.state === 'merged' || lane.estimatedHours > 0))
 export type EstimateLane = z.infer<typeof estimateLaneSchema>
 
 export const historyRecordSchema = z

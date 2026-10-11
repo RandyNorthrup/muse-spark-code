@@ -70,9 +70,11 @@ export type EstimateGoalSnapshot = z.infer<typeof snapshotSchema>
  * The adapter reads one bounded snapshot at asOf, including prerequisites.
  * Missing sources/estimates reject the read; no empty fallback is supplied.
  * Rig facts, board agent time and calibrated minima are projected upstream.
+ * The signal lets callers cancel a slow snapshot read; sources check it
+ * before starting each file or process read.
  */
 export interface EstimateGoalSourcesPort {
-  snapshot(goal: EstimateGoal, asOf: string): Promise<unknown>
+  snapshot(goal: EstimateGoal, asOf: string, signal?: AbortSignal): Promise<unknown>
 }
 
 /** Code-unit order is independent of the host's language and ICU version. */
@@ -211,8 +213,21 @@ export async function resolveEstimateGoal(
       break
     }
   }
+  // A lane's state comes from its current branch/PR, never from an older
+  // merged PR: a lane with an open PR stays current even when a merged PR
+  // still touches it (a repair PR after an old merge).
+  const open = new Set(
+    snapshot.pullRequests.filter((pr) => pr.state === 'open').flatMap((pr) => pr.laneIds),
+  )
   const merged = new Set(
-    snapshot.pullRequests.filter((pr) => pr.state === 'merged').flatMap((pr) => pr.laneIds),
+    snapshot.pullRequests
+      .filter((pr) => pr.state === 'merged')
+      .flatMap((pr) => pr.laneIds)
+      .filter(
+        (id) =>
+          !open.has(id) &&
+          snapshot.lanes.find((entry) => entry.lane.id === id)?.lane.state !== 'running',
+      ),
   )
   const lanes = new Map(snapshot.lanes.map((entry) => [entry.lane.id, entry]))
   const included = new Map<string, EstimateLane>()

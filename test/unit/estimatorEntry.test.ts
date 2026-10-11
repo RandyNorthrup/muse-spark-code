@@ -79,6 +79,29 @@ describe('M117 estimator bundle assembly', () => {
     expect(parsed.risks ?? []).toEqual([])
     expect(parsed.setups.length).toBeGreaterThan(0)
   })
+  it('stamps the fleet with the request asOf instead of a second clock', async () => {
+    const stamps: string[] = []
+    const base = ports()
+    const run = createEstimatorRun(
+      {
+        ...base,
+        fleet: (lanes, asOf) => {
+          stamps.push(asOf)
+          return base.fleet(lanes, asOf)
+        },
+        candidatePool: (lanes, asOf) => {
+          stamps.push(asOf)
+          return base.candidatePool(lanes, asOf)
+        },
+      },
+      EN,
+      BASE_LOCALE,
+    )
+    const section = await run.estimate(request(), new AbortController().signal)
+    expect(section.inputs.fleet.asOf).toBe(ESTIMATOR_AS_OF)
+    expect(section.inputs.request.asOf).toBe(ESTIMATOR_AS_OF)
+    expect(stamps).toEqual([ESTIMATOR_AS_OF, ESTIMATOR_AS_OF])
+  })
   it('fits new rental classes and searches their faster setup', async () => {
     const fixture = recommendationFixture(1)
     const rental = fixture.pool.machines.find((machine) => machine.source === 'rented')!

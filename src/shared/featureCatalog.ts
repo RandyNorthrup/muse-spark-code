@@ -1024,7 +1024,7 @@ export function featureCatalog(): readonly Feature[] {
       { ui: 'estimateTitle' },
       { ui: 'referenceEstimate' },
       ['estimate'],
-      ['estimator.optimize', 'estimator.priceLookup'],
+      ['estimator.optimize', 'estimator.priceLookup', 'reports.network'],
       'estimates',
       ['museCode', 'modelApi'],
       false,
