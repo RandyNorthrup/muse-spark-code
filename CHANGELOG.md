@@ -405,6 +405,11 @@ happened, not what was planned; superseded entries are kept.
   editors' leases (lane L), the panel and its strings (lane U) and each
   editor's qualification (lane Q).
 
+- Reviewing Git changes now works on machines and repositories with no Git
+  filters configured (for example without Git LFS installed). Broken since
+  0.15.0, it refused every native review there with "Git could not read the
+  changes to review" (lane REVIEWEXIT).
+
 ## [0.17.1] - 2026-10-10
 
 ### Highlights
