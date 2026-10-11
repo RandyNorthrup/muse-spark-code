@@ -170,7 +170,7 @@ export function withRuntimeAccounting(
         }
         const attempt: ResponseAttemptGuard = Object.assign(
           (digest: string | undefined) => {
-            if (!model.isCurrent()) throw new Error(UI_TEXT.scheduleConfirmationExpired)
+            if (!model.isCurrent()) throw new Error(UI_TEXT.requestStaleRun)
             claim?.check(Usd.from(0).toAmount())
             guard?.(digest)
           },

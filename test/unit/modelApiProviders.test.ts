@@ -1,3 +1,4 @@
+import { UI_TEXT } from '../../src/shared/constants'
 import { Usd } from '../../src/shared/usd'
 import type { UsageRecording } from '../../src/core/usage/recording'
 import { describe, expect, it, vi } from 'vitest'
@@ -7,6 +8,9 @@ import {
   type RegistryModel,
 } from '../../src/core/providers/providerRegistry'
 import { parseHookConfig } from '../../src/core/backends/modelapi/hooks'
+import { createSubscriptionClient } from '../../src/core/providers/subscriptions/registry'
+import { providerEntrySchema, type ProvidersFile } from '../../src/core/providers/providersFile'
+import type { CreateResponseBody } from '../../src/core/backends/modelapi/schemas'
 import {
   fakeModelApi,
   fakeModelApiClient,
@@ -529,6 +533,74 @@ describe('registry dispatch through the real host', () => {
       consent.resolve(false)
       await h.host.close()
     }
+  })
+
+  it('names the hook call when a plan confirmation lapses on a subscription record', async () => {
+    // RVCM1062E P3: a hook-model run has no schedule, so its stale
+    // confirmation names the hook call instead of borrowing schedule guidance.
+    const file: ProvidersFile = {
+      v: 1,
+      providers: [
+        providerEntrySchema.parse({
+          id: 'copilot',
+          preset: 'copilot',
+          address: 'https://github.com/copilot',
+          auth: 'subscription',
+          format: 'chat',
+          models: ['claude-test'],
+        }),
+      ],
+    }
+    const meta = fakeModelApiClient(fakeModelApi(), new FakeLogOutputChannel())
+    const client = createSubscriptionClient(meta, {
+      fetch: () => Promise.reject(new Error('no HTTP past the refusal')),
+      providers: () => Promise.resolve(file),
+      chatgpt: () => Promise.reject(new Error('no ChatGPT sign-in in this test')),
+      accountId: () => Promise.resolve('test-account'),
+    })
+    const body: CreateResponseBody = {
+      model: 'copilot/claude-test',
+      instructions: 'Test',
+      input: [{ type: 'message', role: 'user', content: [{ type: 'input_text', text: 'hi' }] }],
+      tools: [],
+      tool_choice: 'auto',
+      stream: true,
+      store: false,
+      prompt_cache_key: 'test-cache',
+      prompt_cache_retention: 'in_memory',
+      max_output_tokens: 64,
+      reasoning: { effort: 'none' },
+      include: [],
+    }
+    // A lapsed Copilot confirmation surfaces as an error event carrying the
+    // refusal, so the test reads the event instead of a rejection.
+    const events = await Array.fromAsync(
+      client.streamResponse(body, new AbortController().signal, undefined, undefined, undefined, {
+        modelId: body.model,
+        keyDigest: 'stale',
+        runKind: 'hookModel',
+        isStillAllowed: () => true,
+        onRequestStarted: () => undefined,
+      }),
+    )
+    expect(events).toHaveLength(1)
+    const first = events[0]
+    if (first?.type !== 'error') throw new Error('expected a refusal error event')
+    expect(first.message).toContain(UI_TEXT.requestStaleHookModel)
+    expect(first.message).not.toContain('schedule')
+  })
+  it('refuses a lapsed record with neutral retry guidance', async () => {
+    // RVCM1062E P3: registry resolution knows no operation, so its
+    // stale-record refusal retries neutrally instead of naming a schedule.
+    const api = fakeModelApi()
+    const client = fakeModelApiClient(api, new FakeLogOutputChannel())
+    const registry = createProviderRegistry({
+      models: () => Promise.resolve([model]),
+      createClient: () => Promise.resolve(client),
+      isCurrent: () => false,
+    })
+    await expect(registry.resolve(ref)).rejects.toThrow(UI_TEXT.requestStaleRetry)
+    expect(api.responseBodies()).toHaveLength(0)
   })
 })
 

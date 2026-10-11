@@ -9,6 +9,7 @@ import {
   RequestTransport,
   ignoreClosingError,
   redactModelApiError,
+  staleConfirmedError,
   ModelApiError,
   parseJsonResponse,
   type TransportDeps,
@@ -200,7 +201,7 @@ export class CodecClient implements ProviderClient {
         confirmed.origin !== this.provider.origin ||
         !confirmed.isStillAllowed())
     ) {
-      throw new Error(UI_TEXT.scheduleConfirmationExpired)
+      throw staleConfirmedError(confirmed)
     }
     const model = this.deps.modelFor(body.model)
     const request = this.deps.codec.encode(body, model)

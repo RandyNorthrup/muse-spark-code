@@ -2908,6 +2908,22 @@ export class ModelApiSession implements ScheduledAgentSession {
     await this.teamRuntimeLoading
   }
 
+  /**
+   * A stale-record refusal that names the run the user actually started: a
+   * scheduled prompt keeps its schedule guidance, compaction names
+   * compaction, and an ordinary turn names the turn. Resolution-time callers
+   * with no run in flight fall back to neutral retry guidance.
+   */
+  private staleRecordError(isCompaction = false): Error {
+    if (isCompaction || this.compacting !== undefined)
+      return new Error(UI_TEXT.requestStaleCompaction)
+    if (this.active?.confirmedRequest !== undefined)
+      return new Error(UI_TEXT.scheduleConfirmationExpired)
+    return new Error(
+      this.active === undefined ? UI_TEXT.requestStaleRetry : UI_TEXT.requestStaleTurn,
+    )
+  }
+
   private async resolveModel(ref = this.modelId): Promise<ResolvedModel> {
     const model =
       ref.includes('/') &&
@@ -2919,7 +2935,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     if (ref.includes('/')) {
       this.modelKeyDigests.set(ref, await model.client.currentKeyDigest())
-      if (!model.isCurrent()) throw new Error(UI_TEXT.scheduleConfirmationExpired)
+      if (!model.isCurrent()) throw this.staleRecordError()
     }
     this.resolvedModels.set(ref, model)
     return model
@@ -4758,7 +4774,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         !resolved.isCurrent() ||
         (expectedKeyDigest !== undefined && keyDigest !== expectedKeyDigest)
       ) {
-        throw new Error(UI_TEXT.scheduleConfirmationExpired)
+        throw this.staleRecordError(isCompaction)
       }
       if (!this.owner.matches(token)) throw new AbortedError()
       this.active?.audioMessage?.assertCurrent()
@@ -6793,6 +6809,7 @@ export class ModelApiSession implements ScheduledAgentSession {
           providerId: resolved.policy.identity.provider,
           origin: resolved.origin,
           keyDigest,
+          runKind: 'review',
           isStillAllowed: () => isCurrent() && this.isPaidBudgetAllowed(budgetScope, keyDigest),
           onRequestStarted: () => {
             this.notifyUsage(() => {
@@ -8665,6 +8682,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       {
         modelId,
         keyDigest,
+        runKind: 'hookModel',
         isStillAllowed: () => isCurrent() && this.isPaidBudgetAllowed(budgetScope, keyDigest),
         onRequestStarted: () => {
           // Hook runs are counted by the consenting dispatcher.
@@ -14237,7 +14255,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         await unlessStopped(this.refreshBudgetSpend(), signal)
         if (resolved.ref !== this.modelId)
           resolved = await unlessStopped(this.resolveModel(), signal)
-        if (!resolved.isCurrent()) throw new Error(UI_TEXT.scheduleConfirmationExpired)
+        if (!resolved.isCurrent()) throw this.staleRecordError(turnId === COMPACTION_TURN_ID)
         const body = makeBody(resolved)
         const revision = this.modelRevision
         const chargedGoalId = isGoalActive(this.goal) ? this.goal.goal_id : undefined
@@ -15286,6 +15304,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     return {
       modelId: paid.modelId,
       keyDigest: paid.accountId,
+      runKind: 'scheduled',
       isStillAllowed: () =>
         run.isActive() && run.allowsPaid('scheduledPrompts') && this.modelId === paid.modelId,
       onRequestStarted: () => {

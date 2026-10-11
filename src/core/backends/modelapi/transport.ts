@@ -351,10 +351,28 @@ export interface ConfirmedModelRequest {
   readonly keyDigest: string
   readonly providerId?: string | undefined
   readonly origin?: string | undefined
+  /**
+   * Which confirmed run this identity belongs to. Stale-identity refusals
+   * keep the schedule guidance for scheduled prompts and name the hook call
+   * for model-hook runs.
+   */
+  readonly runKind?: 'scheduled' | 'review' | 'hookModel' | undefined
   /** The paid gate and session model must still match before every HTTP try. */
   readonly isStillAllowed: () => boolean
   /** Only after identity and gate checks, immediately before the first HTTP try. */
   readonly onRequestStarted: () => void
+}
+
+/**
+ * A stale-identity refusal that names the confirmed run: scheduled prompts
+ * keep the schedule guidance, model-hook runs name the hook call.
+ */
+export function staleConfirmedError(confirmed: ConfirmedModelRequest): Error {
+  return new Error(
+    confirmed.runKind === 'hookModel'
+      ? UI_TEXT.requestStaleHookModel
+      : UI_TEXT.scheduleConfirmationExpired,
+  )
 }
 
 /** Owned synchronous admission and attempt observation; no fields cross the HTTP wire. */
@@ -822,7 +840,7 @@ export class RequestTransport {
           (confirmed.origin !== undefined && confirmed.origin !== new URL(url).origin) ||
           !confirmed.isStillAllowed())
       ) {
-        throw new Error(UI_TEXT.scheduleConfirmationExpired)
+        throw staleConfirmedError(confirmed)
       }
       // A scheduled fire's authority is live: checked before pacing and again
       // after it, since revocation or a key change can land during the wait.
@@ -890,7 +908,7 @@ export class RequestTransport {
         throw new ModelApiError('cancelled', NETWORK_FAILURE_STATUS, undefined, undefined)
       }
       if (confirmed !== undefined && !confirmed.isStillAllowed()) {
-        throw new Error(UI_TEXT.scheduleConfirmationExpired)
+        throw staleConfirmedError(confirmed)
       }
       if (
         wireBody !== undefined &&
