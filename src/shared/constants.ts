@@ -1042,6 +1042,9 @@ export const EXTENSION_HOOK_EVENTS = [
   'Elicitation',
   'ElicitationResult',
   'TeammateIdle',
+  // M96 lane H (PLAN.md D75): fired once per pool-entry switch, with D75's
+  // payload; a hook's refusal marks the role exhausted, never another entry.
+  'TeamAgentSwitch',
   'MessageDisplay',
   'BeforeToolSelection',
   'AfterAgentThought',
