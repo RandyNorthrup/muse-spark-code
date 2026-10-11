@@ -801,7 +801,7 @@
     {
       "id": "M108",
       "title": "Several accounts per provider",
-      "summary": "Keep labelled provider accounts with use thresholds and headless pinning; native Meta account switching awaits its remaining verification.",
+      "summary": "Keep labelled provider accounts with use thresholds and headless pinning; native Meta account switching passes its size gate and awaits dependent, graphical and review verification.",
       "area": "models-providers",
       "release": "0.17.0"
     },

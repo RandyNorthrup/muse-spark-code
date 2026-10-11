@@ -49,6 +49,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- Models provider import editor loads only when opened, with its own loading,
+  failure and retry states; the original first-paint cap stays unchanged.
+
 - Account request certification fixtures share their metadata, runtime hosts and
   journal readers; the zero-duplication gate passes without changing behavior.
 

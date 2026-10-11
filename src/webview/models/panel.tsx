@@ -5,7 +5,7 @@ import { modelAccountsRouteSchema } from '../../shared/modelAccountsRoute'
 // table reflows to cards under 340 px (models.css).
 
 import { UI_TEXT } from '../../shared/constants'
-import { lazy, Suspense, useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react'
 import {
   parseHostToPanelMessage,
   type ModelsPanelState,
@@ -17,8 +17,9 @@ import type { PanelUiAction, PanelUiState, WizardLife } from './reducer'
 import { INITIAL_PANEL_UI, panelUiReducer } from './reducer'
 import { MODEL_SECTIONS } from './sections'
 import { MoneyUnavailable } from '../money'
+import { deferred } from '../components/DeferredSurface'
 
-const ModelAccounts = lazy(async () => {
+const ModelAccounts = deferred(async () => {
   const chunk = await import('./ModelAccounts')
   return { default: chunk.ModelAccounts }
 })
@@ -73,17 +74,7 @@ export function ModelsApp({
   return (
     <>
       <ModelsPanel panelState={panelState} ui={ui} post={post} dispatch={dispatch} />
-      {hasAccounts ? (
-        <Suspense
-          fallback={
-            <p role="status">
-              {UI_TEXT.accounts.title}: {UI_TEXT.loadingOutput}
-            </p>
-          }
-        >
-          <ModelAccounts host={host} />
-        </Suspense>
-      ) : null}
+      {hasAccounts ? <ModelAccounts host={host} label={UI_TEXT.accounts.title} /> : null}
     </>
   )
 }

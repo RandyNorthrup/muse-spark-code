@@ -32684,6 +32684,8 @@ Each joins when its dependency merges, and none blocks the others.
 
 ### M108 — Several accounts per provider, with use thresholds (D88)
 
+**C-M108-2 release-readiness continuation (2026-10-11).** Remove Models first-paint overage by deferring its optional import editor with section loading/failure/retry; preserve all caps. Compare three red suites against `47ba74845`, bind the supplied WB-153/154/159/165/167/171/175/251 restore list to the certification switch, and execute non-hub dependents plus identifier-owning hub suites in three-file batches. Keep the switch false; no browser/GUI or paid/live call.
+
 **C-M108-2 production composition; availability held (2026-10-11).**
 Accepted lane P merged first (`327e1b1e9`). Native Meta request ownership now
 binds VS Code's manager and lazy Models account surface as well as CLI/ACP.
@@ -38136,14 +38138,7 @@ lane A's first step.
 
 ## 7. Gates
 
-**C-M108-2 build deferral (2026-10-11).** Account production composition is
-held behind the default-false certification switch. The Models body remains
-75.9 KiB against its unchanged 75 KiB cap after two distinct deferral repairs.
-Per the rig's stop-after-two-fixes rule, stop this path here; do not widen the
-cap or call the feature shippable. The lead/size owner must remove the remaining
-body overage, then replay all dependent, visual/editor and independent-review
-receipts before enabling it. This records an unclosed gate, not a passing build
-or an accepted budget waiver. Node caps remain within their original limits.
+**C-M108-2 build overage resolved (2026-10-11, continuation).** Deferring the optional provider import editor reduces the original Models body from 77,698 to 76,274 B under its unchanged 76,800 B cap. Its new lazy closure measures 2,128 B under an independent 25 KiB cap; loading, failure, retry and dismissal retain the section label. Account chunk failures now use the same section boundary. Production build passes without adding Model API bytes. Availability stays false pending complete dependents and external visual/editor/review receipts. See `docs/certification/cm1082.md`.
 
 **CIR4MAC scoped hosted-CI repair (2026-10-09, macmini).** Reproduce
 round 4's macOS target-size deadline and palette failure-render ordering

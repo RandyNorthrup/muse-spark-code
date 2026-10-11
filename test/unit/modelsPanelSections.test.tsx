@@ -389,7 +389,7 @@ describe('ProvidersSection', () => {
     expect(screen.getByText(UI_TEXT.usageRemaining)).toBeDefined()
   })
 
-  it('previews an import as a diff with every provider needing a key', () => {
+  it('previews an import as a diff with every provider needing a key', async () => {
     const post = vi.fn()
     const preview: ImportPreview = {
       providers: [{ id: 'openrouter', label: 'OpenRouter', address: 'https://openrouter.ai' }],
@@ -397,7 +397,7 @@ describe('ProvidersSection', () => {
     }
     const state = makeState({ importPreview: preview })
     render(<ProvidersSection {...props(state, post, { importOpen: true })} />)
-    expect(screen.getByText(UI_TEXT.providerImportPreviewTitle)).toBeDefined()
+    expect(await screen.findByText(UI_TEXT.providerImportPreviewTitle)).toBeDefined()
     expect(screen.getByText(UI_TEXT.importUntrusted)).toBeDefined()
     expect(screen.getByText(UI_TEXT.importNeedsKey)).toBeDefined()
     const confirm = screen.getAllByRole('button', { name: UI_TEXT.providerImport }).at(-1)
