@@ -36623,6 +36623,46 @@ estimator-panel OVER (25.3 KiB vs 25 KiB, also OVER at pristine HEAD);
 `dist/extension.js` 554.1 KiB (budget 600), `dist/modelApi.js` 515.8 KiB
 (budget 525).
 
+**C-M117-3R3 redesign on the real contracts (2026-10-11, Kubuntu; review
+RVCM1173B).** Third round, so the binding is redesigned, not patched: the
+estimator never computes a fleet number (`fleetSlotsForCaps` deleted with
+every test that pinned its invented counts). Machine parallelism is the
+certified one serial slot on every surface — the teams runner slots govern
+team agents, not estimate lanes, and no lane-concurrency setting exists, so no
+configured cap binds; M107's thresholds ride the local row's caps as facts
+(the schedule never reads them for admission) and vanish with the governor
+off. CLI `estimate` and ACP `/estimate` read `resources.json` through the
+headless governor's own `resourceMachineStore` (missing file carries the
+schema defaults; the ACP agent's `resources` object and the estimate share
+the agent data folder). M108's account row carries only read values: the
+runtime registry names the account with limits unknown, the editor carries
+the typed no-reader seam (`unknown: no account reader in this editor`, plus
+a skipped test naming the unbuilt reader); `MuseCodeAccountHomes` is never
+constructed in production, so no live limits reader exists on any surface
+today — the headless `AccountStore` gives identity, not limits. A plan window
+with a captured duration shapes a fixed rolling window over that period (the
+short window's `windowDurationMins`, now carried by `accountHomes.read`); any
+other percent window is stated, never converted, and the schedule states a
+percent window with unknown lane demand instead of throwing `unknown-demand`.
+A full window with no read rate refuses as `fleet-account-blocked` naming the
+reset; with a read rate the forecast waits for the reset behind a
+zero-remaining window and names the account rate as its bottleneck. Each
+source re-parses on its own (`fleet-caps-invalid`, `fleet-account-invalid`,
+`fleet-ci-invalid`; broken structure is `fleet-binding-invalid`), and one
+estimate reads the fleet once (fleet and candidate pool share the snapshot).
+`requestsPerMinute` is optional in the fleet schema: unread rates record
+`unknown` instead of passing against demand. CI is `ci unknown: not read` on
+every surface (no captured shape; no repository CI-concurrency reader found —
+the CI templates carry no concurrent-job or occupied-count field). Receipts
+(24 binding tests with 5 red drills, CLI/ACP composition tests through the
+production assemblies, accountHomes duration test) in
+`docs/certification/m117-fleet.md`. No new UI strings (unknown rows are
+technical splices under the existing uncertainty label), commands, settings,
+dependencies or cap changes. `npm run build`: panel OVER unchanged (25.3 KiB
+vs 25 KiB, pre-existing); `dist/extension.js` 556.8 KiB (budget 600),
+`dist/estimator.js` 67.9 KiB (budget 75), `dist/acp.js` 245.4 KiB (budget
+850), `dist/modelApi.js` 515.8 KiB (budget 525).
+
 **C-M117-1R3 strict redesign (2026-10-10, macmini; review RVCM1171B).**
 Repair all thirteen P2 and two P3 findings within the snapshot lane. Validate
 all declared lane prerequisites, milestone references, release members and

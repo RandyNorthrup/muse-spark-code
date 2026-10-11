@@ -6,11 +6,22 @@
 // lookups and networked reads off, install the caller's language table in
 // the snapshot bundle, and answer `/estimate --help` without loading the
 // engine. Repository default timeout; no skips.
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fleetSnapshotSchema } from '../../src/shared/estimate'
+import { fleetSnapshotSchema, type FleetSnapshot } from '../../src/shared/estimate'
+import {
+  RESOURCE_CPU_DEFAULT_PERCENT,
+  RESOURCE_MEMORY_DEFAULT_PERCENT,
+} from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { BASE_LOCALE, fill, setUiText, UI_TEXT } from '../../src/shared/l10n/text'
-import { createRuntimeEstimate, runtimeEstimatorPorts } from '../../src/runtime/estimator/ports'
+import {
+  createRuntimeEstimate,
+  runRuntimeEstimateCommand,
+  runtimeEstimatorPorts,
+} from '../../src/runtime/estimator/ports'
 import { chainLanes } from './helpers/estimator/fixtures'
 import { ESTIMATOR_AS_OF } from './helpers/estimator/fakes'
 
@@ -42,6 +53,54 @@ function portsWithoutSnapshot() {
     accounts: { list: () => Promise.resolve([]) },
     loadBundle: neverSnapshotBundle,
   })
+}
+
+// The composition engine: the real fleet behind a trivially valid section,
+// so the forecasts below prove the owners (not the engine) moved the rows.
+function fleetEchoEngine() {
+  return {
+    createEstimatorRun: (ports: { fleet(lanes: readonly [], asOf: string): Promise<unknown> }) => ({
+      estimate: async (request: { asOf: string }) => ({
+        kind: 'estimate',
+        schemaVersion: 1,
+        asOf: request.asOf,
+        p50: request.asOf,
+        p90: request.asOf,
+        seed: 'fleet-echo',
+        runs: 1,
+        schedule: [],
+        criticalPath: [],
+        limitingResource: {
+          kind: 'criticalPath',
+          hoursSavedIfUnbounded: 0,
+          moreAgentsHelp: false,
+        },
+        setups: [],
+        inputs: { request, lanes: [], fleet: await ports.fleet([], request.asOf), history: [] },
+        disclosures: [],
+        calibration: [],
+      }),
+      startWave: () => Promise.resolve([]),
+      price: () => '',
+      provisionWaiting: '',
+    }),
+  }
+}
+
+function scratchDir(prefix: string): string {
+  // Lane scratch lives under TMPDIR; the fallback keeps Windows CI green.
+  return mkdtempSync(path.join(process.env['TMPDIR'] ?? tmpdir(), prefix))
+}
+
+/** The fleet out of a composition run's JSON section, narrowed without casts. */
+function sectionFleet(out: string): FleetSnapshot {
+  const body: unknown = JSON.parse(out)
+  if (typeof body !== 'object' || body === null || !('inputs' in body))
+    throw new Error('composition run returned no section')
+  const inputs: unknown = body.inputs
+  if (typeof inputs !== 'object' || inputs === null || !('fleet' in inputs))
+    throw new Error('composition run returned no fleet')
+  return fleetSnapshotSchema.parse(inputs.fleet)
 }
 
 const lanes = chainLanes
@@ -196,6 +255,111 @@ describe('M117 headless estimator bindings', () => {
     expect(roots).toEqual(['/sessions/editor-a', '/sessions/editor-b', '/sessions/editor-a'])
     expect(created).toEqual(['/sessions/editor-a', '/sessions/editor-b'])
     expect(loaded.filter((file) => file === 'estimator.js')).toHaveLength(2)
+  })
+  it('estimates through the CLI owners: resources.json and the registry', async () => {
+    const folder = scratchDir('cm1173-cli-')
+    try {
+      const accounts = { list: () => Promise.resolve([{ id: 'shop' }]) }
+      const runCli = async (argv: readonly string[]) => {
+        let out = ''
+        let err = ''
+        const code = await runRuntimeEstimateCommand(argv, {
+          bundlePath: 'estimator.js',
+          log,
+          write: (text) => {
+            out += text
+          },
+          error: (text) => {
+            err += text
+          },
+          machineDir: folder,
+          accounts,
+          loadBundle: () => fleetEchoEngine(),
+        })
+        return { code, out, err }
+      }
+      // A missing file carries the schema defaults the governor itself runs.
+      const missing = await runCli(['M999', '--format', 'json'])
+      expect(missing.code).toBe(0)
+      const missingFleet = sectionFleet(missing.out)
+      expect(missingFleet.machines[0]?.caps).toMatchObject({
+        cpuPercent: RESOURCE_CPU_DEFAULT_PERCENT,
+        memoryPercent: RESOURCE_MEMORY_DEFAULT_PERCENT,
+      })
+      expect(missingFleet.machines[0]?.governorSlots).toBe(1)
+      // A present file is the configured value, read at call time: CPU 40
+      // reaches the forecast, then 50 after the owner changes it.
+      writeFileSync(
+        `${folder}/resources.json`,
+        JSON.stringify({ 'museSpark.resourceCpuMaxPercent': 40 }),
+      )
+      const fortyRun = await runCli(['M999', '--format', 'json'])
+      const forty = sectionFleet(fortyRun.out)
+      expect(forty.machines[0]?.caps).toMatchObject({ cpuPercent: 40 })
+      expect(forty.machines[0]?.governorSlots).toBe(1)
+      expect(forty.accounts).toEqual([
+        { id: 'shop', providerId: 'meta', statedLimits: ['unknown: limits unread for meta shop'] },
+      ])
+      writeFileSync(
+        `${folder}/resources.json`,
+        JSON.stringify({ 'museSpark.resourceCpuMaxPercent': 50 }),
+      )
+      const fiftyRun = await runCli(['M999', '--format', 'json'])
+      const fifty = sectionFleet(fiftyRun.out)
+      expect(fifty.machines[0]?.caps).toMatchObject({ cpuPercent: 50 })
+      // A governor that is off states no threshold row.
+      writeFileSync(
+        `${folder}/resources.json`,
+        JSON.stringify({ 'museSpark.resourceGovernor': false }),
+      )
+      const offRun = await runCli(['M999', '--format', 'json'])
+      const off = sectionFleet(offRun.out)
+      expect(off.machines[0]?.caps).toMatchObject({ cpuPercent: 100, memoryPercent: 100 })
+      // A malformed file refuses without leaking its bytes.
+      writeFileSync(`${folder}/resources.json`, '{"museSpark.resourceCpuMaxPercent":')
+      const broken = await runCli(['M999', '--format', 'json'])
+      expect(broken.code).toBe(1)
+      expect(broken.err).toBe(fill(UI_TEXT.estimateFailed, { detail: 'estimate-unavailable' }))
+    } finally {
+      rmSync(folder, { recursive: true, force: true })
+    }
+  })
+  it('estimates through the ACP owners: the same resources.json and registry', async () => {
+    const folder = scratchDir('cm1173-acp-')
+    try {
+      writeFileSync(
+        `${folder}/resources.json`,
+        JSON.stringify({ 'museSpark.resourceCpuMaxPercent': 40 }),
+      )
+      const estimate = createRuntimeEstimate({
+        bundlePath: 'estimator.js',
+        log,
+        loadBundle: () => fleetEchoEngine(),
+        machineDir: folder,
+        accounts: { list: () => Promise.resolve([{ id: 'studio' }]) },
+      })
+      const signal = new AbortController().signal
+      const firstText = await estimate.run('/estimate M999 --format json', folder, signal)
+      const first = sectionFleet(firstText)
+      expect(first.machines[0]?.caps).toMatchObject({ cpuPercent: 40 })
+      expect(first.accounts).toEqual([
+        {
+          id: 'studio',
+          providerId: 'meta',
+          statedLimits: ['unknown: limits unread for meta studio'],
+        },
+      ])
+      // The owner changes the file; the next estimate follows it.
+      writeFileSync(
+        `${folder}/resources.json`,
+        JSON.stringify({ 'museSpark.resourceCpuMaxPercent': 60 }),
+      )
+      const secondText = await estimate.run('/estimate M999 --format json', folder, signal)
+      const second = sectionFleet(secondText)
+      expect(second.machines[0]?.caps).toMatchObject({ cpuPercent: 60 })
+    } finally {
+      rmSync(folder, { recursive: true, force: true })
+    }
   })
   it('installs the caller language table in the snapshot bundle', async () => {
     const installed: { locale: string; notFound: string }[] = []
