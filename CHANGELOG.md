@@ -32,6 +32,14 @@ happened, not what was planned; superseded entries are kept.
   lane JEVBENCH2 round 2 (all matched; gaps filled), and a new unit
   test fails if a committed result file contains anything key-like.
 
+- Internal B1 inspect confinement tooling (M125 F1a): Linux per-file Landlock
+  grants, verified system executables, a fixed environment, syscall guards,
+  session self-tests and a portable runner. `npm run build:confine` builds
+  its offline certification artifacts under `temp/`; no editor approval
+  uses this path. macOS stays off pending its captured Seatbelt policy and
+  platform receipt; Windows is excluded by D107. Fresh reviews and F1b's
+  approval integration are required before exposure.
+
 ### Changed
 
 - What's New fits its content budget by itself: the newest release always
@@ -50,6 +58,13 @@ happened, not what was planned; superseded entries are kept.
   are normalized to lowercase, including repository-derived full-notes links
   in the page and packaged notes, so uppercase links cannot drop fitting
   notes. An unsupported repository URL fails by name before plan selection.
+
+- Internal B1 inspect checks protected/private paths after canonicalizing
+  their spelling, sends the same operands to the grant walk and program,
+  and refuses noncanonical native input. A cancelled caller detaches from
+  the shared self-test promptly; session disposal still awaits its cleanup.
+  Regression properties and native canaries cover both review findings
+  (M125 F1a); the component remains unavailable to editor approvals.
 
 ### Fixed
 
