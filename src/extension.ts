@@ -2379,18 +2379,19 @@ async function activateWindow(
           catalogUrls: [],
         }),
         snapshot,
-        // The estimate's fleet (M117 C-M117-3R3, PLAN.md D97): M107's
-        // settings read live from the workspace configuration, so the
-        // configured throttle thresholds ride the local row's caps as facts
-        // while its one serial slot stands. The extension host constructs
-        // no account-limits reader (the accounts view reads the registry,
-        // live usage sits on the backend), so the account source is the
-        // typed no-reader seam with its limits unknown; no captured shape
-        // names CI concurrency, so CI stays not read (extensionFleetSources
-        // names why).
+        // M117: bind the usage owners already used by Account & usage.
         fleetIoFromSources(
           extensionFleetSources({
             inspect: (key) => vscode.workspace.getConfiguration(SETTINGS_SECTION).inspect(key),
+            readLiveLimits: () =>
+              (usageRecording.limits?.() ?? []).filter(
+                (row) => row.backend === auth.current.backend,
+              ),
+            readUsage: async () => {
+              if (!backend.isRunning || auth.current.backend !== 'museCode') return
+              const host = await backend.ensureHost()
+              return await host.readUsage()
+            },
           }),
         ),
       )

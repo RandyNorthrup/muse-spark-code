@@ -862,7 +862,7 @@
     {
       "id": "M117",
       "title": "Capacity estimator",
-      "summary": "Run /estimate on a goal without a model call, with strict snapshots that name unresolved references and incomplete evidence, retain completed lane identities and honor the current Reports network policy.",
+      "summary": "Run /estimate without a model call using strict plan snapshots and owner observations, retaining account blocks, default/configured threshold provenance and named uncertainty without inventing refill rates.",
       "area": "agents",
       "release": "0.17.0"
     },

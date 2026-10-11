@@ -38,7 +38,7 @@ const bucketSchema = z.strictObject({
   remaining: count,
   resetAt: z.iso.datetime(),
 })
-const limitsSchema = z.strictObject({
+export const accountLimitsSnapshotSchema = z.strictObject({
   planWindows: z.optional(z.record(accountIdSchema, windowSchema)),
   rateLimits: z.optional(
     z.strictObject({ requests: z.optional(bucketSchema), tokens: z.optional(bucketSchema) }),
@@ -49,7 +49,7 @@ const limitsSchema = z.strictObject({
 })
 
 /** Normalized local snapshots, produced only by each provider's captured codec. */
-export type AccountLimitsSnapshot = z.infer<typeof limitsSchema>
+export type AccountLimitsSnapshot = z.infer<typeof accountLimitsSnapshotSchema>
 export interface AccountLimitsReader {
   /** Must be scoped by both identities; an absent configured metric refuses admission. */
   read(provider: string, account: string): AccountLimitsSnapshot
@@ -119,7 +119,9 @@ export function evaluateAccountThresholds(deps: {
     Object.values(thresholds.rateLimitHeadroomPercent ?? {}).some((value) => value !== undefined)
   if (requiresLimits && deps.limits === undefined) unavailable()
   if (deps.limits !== undefined) {
-    const result = limitsSchema.safeParse(deps.limits.read(deps.provider, deps.account.id))
+    const result = accountLimitsSnapshotSchema.safeParse(
+      deps.limits.read(deps.provider, deps.account.id),
+    )
     if (!result.success) unavailable()
     const snapshot = result.data
     const isActive = (reset: string | null) => reset === null || Date.parse(reset) > deps.now

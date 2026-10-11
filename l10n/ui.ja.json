@@ -5073,5 +5073,15 @@
     "grantsCount": {
       "other": "{count} 件の許可"
     }
-  }
+  },
+  "estimateNoAccountReader": "不明: {source} にアカウントの読み取り元がありません。",
+  "estimateLimitsUnread": "不明: {source} の制限は未取得です。",
+  "estimateRefillUnknown": "今後の補充周期とレートは不明です: {source}。",
+  "estimatePlanWindowUnknown": "{source}: {percent} 使用済み; {reset}; ウィンドウの周期とタスクの需要は不明です。",
+  "estimatePercentDemandUnknown": "これらのタスクの割合需要は不明です: {source}; リセット {reset}。",
+  "estimateResetUnknown": "リセット時刻は不明",
+  "estimateCiUnread": "CI 容量は不明です: 読み取り元がありません。",
+  "estimateSettingsDefault": "既定の設定: {source}。",
+  "estimateSettingsConfigured": "構成済みの設定: {source}。",
+  "referenceEstimateFacts": "予測は観測されたアカウントの制限を保持し、未取得の容量を明示し、既定値と構成済みのしきい値を区別します。今後の補充レートは報告されるまで不明です。"
 }

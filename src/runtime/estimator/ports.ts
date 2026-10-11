@@ -10,7 +10,11 @@
 import path from 'node:path'
 import { createAcpEstimate, type AcpEstimatePort } from '../../acp/estimate'
 import { lazyEstimator, type EstimatorSourcePorts } from '../../host/estimator/estimatorBundle'
-import { fleetIoFromSources, headlessFleetSources } from '../../host/estimator/fleetBinding'
+import {
+  fleetIoFromSources,
+  headlessFleetSources,
+  type FleetUsageOwners,
+} from '../../host/estimator/fleetBinding'
 import { estimatorSourcePorts } from '../../host/estimator/localFleet'
 import { planCheckLoader, planSnapshotLoader } from '../../host/estimator/planSnapshotBundle'
 import { runEstimateCommand } from './command'
@@ -36,7 +40,7 @@ export interface RuntimeEstimatorPortsDeps {
 
 /** The headless fleet owners: the agent data folder both the governor and the
  * estimate read, and the runtime's account registry (identity only). */
-export interface HeadlessFleetOwners {
+export interface HeadlessFleetOwners extends FleetUsageOwners {
   /** Agent data folder holding resources.json, the headless governor's file. */
   readonly machineDir: string
   /** The runtime's account registry: ids only, never credentials. */
@@ -80,7 +84,10 @@ export function runtimeEstimatorPorts(
     fleetIoFromSources(
       headlessFleetSources({
         readSettings: () => machine.readSettings(),
+        readSettingsWithOrigin: () => machine.readSettingsWithOrigin(),
         listAccounts: () => deps.accounts.list('meta'),
+        readLiveLimits: deps.readLiveLimits,
+        readUsage: deps.readUsage,
       }),
     ),
   )
@@ -98,6 +105,8 @@ function portsWith(
       root,
       machineDir: deps.machineDir,
       accounts: deps.accounts,
+      readLiveLimits: deps.readLiveLimits,
+      readUsage: deps.readUsage,
       ...(deps.loadBundle !== undefined && { loadBundle: deps.loadBundle }),
     })
 }

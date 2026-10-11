@@ -5226,5 +5226,15 @@
       "one": "{count} Freigabe",
       "other": "{count} Freigaben"
     }
-  }
+  },
+  "estimateNoAccountReader": "Unbekannt: kein Kontoleser auf {source}.",
+  "estimateLimitsUnread": "Unbekannt: Limits für {source} nicht gelesen.",
+  "estimateRefillUnknown": "Künftiger Auffüllzeitraum und Rate unbekannt: {source}.",
+  "estimatePlanWindowUnknown": "{source}: {percent} verbraucht; {reset}; Fensterzeitraum und Arbeitsbedarf unbekannt.",
+  "estimatePercentDemandUnknown": "Prozentbedarf dieser Aufgaben unbekannt: {source}; Zurücksetzung {reset}.",
+  "estimateResetUnknown": "Zurücksetzung unbekannt",
+  "estimateCiUnread": "CI-Kapazität unbekannt: kein Leser.",
+  "estimateSettingsDefault": "Standardeinstellungen: {source}.",
+  "estimateSettingsConfigured": "Konfigurierte Einstellungen: {source}.",
+  "referenceEstimateFacts": "Prognosen behalten beobachtete Kontosperren bei, benennen ungelesene Kapazität und unterscheiden Standardwerte von konfigurierten Schwellen. Künftige Auffüllraten bleiben unbekannt, sofern nicht gemeldet."
 }

@@ -1089,7 +1089,7 @@ const REFERENCE_DETAILS: Readonly<
   Record<string, readonly Extract<ReferenceText, { ui: unknown }>['ui'][]>
 > = {
   providers: ['providerOpenRouterServices'],
-  estimator: ['estimateCliHelp'],
+  estimator: ['estimateCliHelp', 'referenceEstimateFacts'],
   permissions: ['referencePermissionLimits'],
   'native-agents': ['referenceAgentControls', 'referenceNativeAgentsConditions'],
   account: ['signInBrowserDetail', 'signInApiKeyDetail', 'installDetail', 'referenceSecretPrompt'],

@@ -5379,5 +5379,15 @@
       "other": "{count} autorizzazioni",
       "many": "{count} autorizzazioni"
     }
-  }
+  },
+  "estimateNoAccountReader": "Sconosciuto: nessun lettore di account su {source}.",
+  "estimateLimitsUnread": "Sconosciuto: limiti non letti per {source}.",
+  "estimateRefillUnknown": "Periodo e velocità di ripristino futuri sconosciuti: {source}.",
+  "estimatePlanWindowUnknown": "{source}: {percent} utilizzato; {reset}; periodo della finestra e richiesta delle attività sconosciuti.",
+  "estimatePercentDemandUnknown": "Richiesta percentuale di queste attività sconosciuta: {source}; ripristino {reset}.",
+  "estimateResetUnknown": "ripristino sconosciuto",
+  "estimateCiUnread": "Capacità CI sconosciuta: nessun lettore.",
+  "estimateSettingsDefault": "Impostazioni predefinite: {source}.",
+  "estimateSettingsConfigured": "Impostazioni configurate: {source}.",
+  "referenceEstimateFacts": "Le previsioni mantengono i blocchi osservati degli account, indicano la capacità non letta e distinguono le soglie predefinite da quelle configurate. Le velocità future di ripristino restano sconosciute finché non vengono riportate."
 }

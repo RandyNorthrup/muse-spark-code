@@ -1537,6 +1537,8 @@ Ship-date forecast for a goal from the current fleet, or the setup a target date
 
 Estimate a goal using linked machines, agent slots, accounts and CI; no model call.
 
+Forecasts retain observed account blocks, name unread capacity and distinguish default from configured thresholds. Future refill rates remain unknown unless reported.
+
 Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
 
 Commands: `museSpark.estimate`. Settings: `museSpark.estimator.optimize`, `museSpark.estimator.priceLookup`, `museSpark.reports.network`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#estimates)

@@ -5,6 +5,7 @@ import { storeErrorCode } from '../../host/backend/storeErrors'
 import { BOUNDED_FILE_READ_CHUNK_BYTES, UI_TEXT } from '../../shared/constants'
 import { readResourceSettings } from '../../shared/resources'
 import type { ResourceMachineStore } from './port'
+import type { FleetMachineReading } from '../../host/estimator/fleetBinding'
 
 const machineTable = z.record(z.string(), z.unknown())
 const resumeMarker = z.strictObject({ untilMs: z.number().check(z.int(), z.gte(0)) })
@@ -37,12 +38,35 @@ export function resourceMachineStore(input: {
   settingsFile: string
   resumeFile: string
   sleep: (ms: number) => Promise<void>
-}): ResourceMachineStore {
+}): ResourceMachineStore & {
+  readSettingsWithOrigin(): Promise<{
+    settings: Awaited<ReturnType<ResourceMachineStore['readSettings']>>
+    origin: NonNullable<FleetMachineReading['origin']>
+  }>
+} {
+  const readSettingsWithOrigin = async () => {
+    const raw = await readJson(input.settingsFile)
+    const table = machineTable.parse(raw === undefined ? {} : raw)
+    return {
+      settings: readResourceSettings((key) => ({ globalValue: table[`museSpark.${key}`] })),
+      origin: {
+        source: 'resources.json',
+        cpuPercent:
+          table['museSpark.resourceCpuMaxPercent'] === undefined
+            ? ('default' as const)
+            : ('configured' as const),
+        memoryPercent:
+          table['museSpark.resourceMemoryMaxPercent'] === undefined
+            ? ('default' as const)
+            : ('configured' as const),
+      },
+    }
+  }
   return {
+    readSettingsWithOrigin,
     async readSettings() {
-      const raw = await readJson(input.settingsFile)
-      const table = machineTable.parse(raw === undefined ? {} : raw)
-      return readResourceSettings((key) => ({ globalValue: table[`museSpark.${key}`] }))
+      const reading = await readSettingsWithOrigin()
+      return reading.settings
     },
     async readResumeUntil() {
       const raw = await readJson(input.resumeFile)

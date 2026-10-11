@@ -831,8 +831,15 @@ async function serve(
           env: process.env,
           homeDir: homedir(),
         }),
+        readLiveLimits: () =>
+          (recording.limits?.() ?? []).filter((row) => row.backend === options.backend),
         accounts: {
-          list: (provider: string) => loadAccounts().store.list(provider),
+          list: async (provider: string) => {
+            const owner = loadAccounts()
+            return (await owner.metadata.read(provider)) === undefined
+              ? []
+              : await owner.store.list(provider)
+          },
         },
       }),
       questions: (input) => {
@@ -1446,7 +1453,12 @@ async function main(): Promise<number> {
         // account registry (identity only, read lazily).
         machineDir: servicesInput.dataDir,
         accounts: {
-          list: (provider: string) => loadAccounts(log).store.list(provider),
+          list: async (provider: string) => {
+            const owner = loadAccounts(log)
+            return (await owner.metadata.read(provider)) === undefined
+              ? []
+              : await owner.store.list(provider)
+          },
         },
       })
     }

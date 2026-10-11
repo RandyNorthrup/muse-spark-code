@@ -285,6 +285,7 @@ describe('M117 headless estimator bindings', () => {
       expect(missingFleet.machines[0]?.caps).toMatchObject({
         cpuPercent: RESOURCE_CPU_DEFAULT_PERCENT,
         memoryPercent: RESOURCE_MEMORY_DEFAULT_PERCENT,
+        origin: { source: 'resources.json', cpuPercent: 'default', memoryPercent: 'default' },
       })
       expect(missingFleet.machines[0]?.governorSlots).toBe(1)
       // A present file is the configured value, read at call time: CPU 40
@@ -295,10 +296,13 @@ describe('M117 headless estimator bindings', () => {
       )
       const fortyRun = await runCli(['M999', '--format', 'json'])
       const forty = sectionFleet(fortyRun.out)
-      expect(forty.machines[0]?.caps).toMatchObject({ cpuPercent: 40 })
+      expect(forty.machines[0]?.caps).toMatchObject({
+        cpuPercent: 40,
+        origin: { source: 'resources.json', cpuPercent: 'configured', memoryPercent: 'default' },
+      })
       expect(forty.machines[0]?.governorSlots).toBe(1)
       expect(forty.accounts).toEqual([
-        { id: 'shop', providerId: 'meta', statedLimits: ['unknown: limits unread for meta shop'] },
+        { id: 'shop', providerId: 'meta', statedLimits: ['Unknown: limits unread for meta/shop.'] },
       ])
       writeFileSync(
         `${folder}/resources.json`,
@@ -319,7 +323,7 @@ describe('M117 headless estimator bindings', () => {
       writeFileSync(`${folder}/resources.json`, '{"museSpark.resourceCpuMaxPercent":')
       const broken = await runCli(['M999', '--format', 'json'])
       expect(broken.code).toBe(1)
-      expect(broken.err).toBe(fill(UI_TEXT.estimateFailed, { detail: 'estimate-unavailable' }))
+      expect(broken.err).toBe(fill(UI_TEXT.estimateFailed, { detail: 'fleet-caps-invalid' }))
     } finally {
       rmSync(folder, { recursive: true, force: true })
     }
@@ -346,7 +350,7 @@ describe('M117 headless estimator bindings', () => {
         {
           id: 'studio',
           providerId: 'meta',
-          statedLimits: ['unknown: limits unread for meta studio'],
+          statedLimits: ['Unknown: limits unread for meta/studio.'],
         },
       ])
       // The owner changes the file; the next estimate follows it.
