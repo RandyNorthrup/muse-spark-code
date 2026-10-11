@@ -23,6 +23,11 @@ import {
   SUBSCRIPTION_STREAM_MAX_BYTES,
   UI_TEXT,
 } from '../../../shared/constants'
+import {
+  assertConfirmedAllowed,
+  isStaleConfirmedError,
+  noteConfirmedRequestStarted,
+} from '../../backends/modelapi/transport'
 import type { ProvidersFile } from '../providersFile'
 import { type ChatGptSignIn, ChatGptSignInError, chatGptRecordSchema } from './chatgpt'
 import type { PlanUsageRow } from './planUsage'
@@ -217,15 +222,7 @@ export function createSubscriptionClient(
         // model, and reviews and scheduled prompts keep their confirmed one.
         // Like the other clients, proceed while still allowed and refuse with
         // the run's guidance only once the confirmation has lapsed.
-        if (
-          confirmed !== undefined &&
-          (body.model !== confirmed.modelId || !confirmed.isStillAllowed())
-        )
-          throw new Error(
-            confirmed.runKind === 'hookModel'
-              ? UI_TEXT.requestStaleHookModel
-              : UI_TEXT.scheduleConfirmationExpired,
-          )
+        assertConfirmedAllowed(body.model, confirmed)
         if (ref.providerId === 'copilot') {
           const adapter = deps.copilot?.().get(ref.modelId)
           if (adapter === undefined) throw new Error(UI_TEXT.actionFailed)
@@ -233,7 +230,7 @@ export function createSubscriptionClient(
           const guard = Object.assign(() => admitAttempt?.(account), {
             onRequestStarted: () => {
               isDispatched = true
-              admitAttempt?.onRequestStarted?.()
+              noteConfirmedRequestStarted(confirmed, admitAttempt)
             },
           })
           const stream = adapter.streamResponse(
@@ -242,6 +239,17 @@ export function createSubscriptionClient(
             onRetry,
             budget,
             guard,
+            // The adapter re-checks the gate around its own send; its start
+            // callback stays inert so the guard above counts this paid use
+            // once, like the hook and review entries.
+            confirmed === undefined
+              ? undefined
+              : {
+                  ...confirmed,
+                  onRequestStarted: () => {
+                    // The guard above counts this paid use once.
+                  },
+                },
           )
           for await (const event of stream) {
             note(event)
@@ -256,7 +264,10 @@ export function createSubscriptionClient(
         const request = codec.encodeRequest({ ...body, model: ref.modelId })
         admitAttempt?.(await deps.accountId())
         if (signal.aborted) throw signal.reason
-        admitAttempt?.onRequestStarted?.()
+        // A paid-gate lapse during sign-in still refuses: re-check the gate
+        // immediately before the send, like the other clients.
+        assertConfirmedAllowed(body.model, confirmed)
+        noteConfirmedRequestStarted(confirmed, admitAttempt)
         isDispatched = true
         const response = await deps.fetch(RESPONSES_URL, {
           method: 'POST',
@@ -326,6 +337,14 @@ export function createSubscriptionClient(
         }
       } catch (error) {
         if (signal.aborted) throw error
+        // A lapsed confirmation names the run (hook, schedule, review) with
+        // its own guidance instead of the generic plan retry sentence, on
+        // both plan branches: the gate throws above, and an admission guard
+        // may throw a stale-model refusal with the same strings.
+        if (error instanceof Error && isStaleConfirmedError(error)) {
+          yield { type: 'error', message: error.message }
+          return
+        }
         if (ref.providerId === 'copilot' && error instanceof Error) {
           yield { type: 'error', message: error.message }
           return

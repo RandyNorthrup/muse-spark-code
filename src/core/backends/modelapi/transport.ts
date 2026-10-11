@@ -375,6 +375,56 @@ export function staleConfirmedError(confirmed: ConfirmedModelRequest): Error {
   )
 }
 
+/**
+ * Whether an error is a lapsed-confirmation refusal carrying the run's own
+ * guidance. Branches whose catch maps failures to branch text (the plan
+ * retry sentence, the adapter's failure text) let these through unchanged,
+ * so a lapsed hook, schedule or review says what lapsed.
+ */
+export function isStaleConfirmedError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (error.message === UI_TEXT.requestStaleHookModel ||
+      error.message === UI_TEXT.scheduleConfirmationExpired)
+  )
+}
+
+/**
+ * The one confirmed-dispatch gate every provider branch runs: proceed while
+ * the confirmation names this model and is still allowed, and refuse with
+ * the run's own guidance otherwise. Branches that accept more than the bare
+ * session model id (a catalogue id, a provider, an origin) check those
+ * fields themselves and pass `isSameModel` for the model half, so a future
+ * branch cannot miss a step by hand-copying the condition.
+ */
+export function assertConfirmedAllowed(
+  requestModel: string,
+  confirmed: ConfirmedModelRequest | undefined,
+  isSameModel: (confirmedModelId: string, requestModel: string) => boolean = (left, right) =>
+    left === right,
+): void {
+  if (
+    confirmed !== undefined &&
+    (!isSameModel(confirmed.modelId, requestModel) || !confirmed.isStillAllowed())
+  ) {
+    throw staleConfirmedError(confirmed)
+  }
+}
+
+/**
+ * Mark a confirmed dispatch started: the start receipt and the
+ * scheduled-prompt use tally run exactly once, adjacent to the send, with
+ * the admission observer right after. Call sites invoke this once per
+ * dispatch, after the final gate re-check.
+ */
+export function noteConfirmedRequestStarted(
+  confirmed: ConfirmedModelRequest | undefined,
+  admitAttempt: Pick<ResponseAttemptGuard, 'onRequestStarted'> | undefined,
+): void {
+  confirmed?.onRequestStarted()
+  admitAttempt?.onRequestStarted?.()
+}
+
 /** Owned synchronous admission and attempt observation; no fields cross the HTTP wire. */
 export interface ResponseObservation {
   readonly headers?: UsageHeaders | undefined
@@ -947,8 +997,7 @@ export class RequestTransport {
         ...(init.body !== undefined && { body: wireBody ?? JSON.stringify(init.body) }),
         ...(signal !== undefined && { signal }),
       }
-      confirmed?.onRequestStarted()
-      admitAttempt?.onRequestStarted?.()
+      noteConfirmedRequestStarted(confirmed, admitAttempt)
       if (init.paid !== undefined) {
         init.paid.isSent = true
       }
