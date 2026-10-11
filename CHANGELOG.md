@@ -126,6 +126,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- A confirmed run on a ChatGPT or Copilot plan model (hook model, review,
+  scheduled prompt) no longer fails with "the model changed" before it is
+  sent. The subscription client proceeds while the confirmation is still
+  allowed and refuses with the run's own guidance only once it has lapsed,
+  like the other clients (M106, RVCM1062F).
+
 - On macOS 26, a process that `ps` lists with an unknown state (`?`) while
   it changes no longer voids every resource tree's membership read, which
   could refuse Stop/kill for a tree while any process on the Mac was mid-transition.

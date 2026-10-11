@@ -548,3 +548,89 @@ skipped, filtered, or given a raised timeout.
   disk-backed `$TMPDIR`.
 
 No RVCM1062E finding remains open; no external blocker was encountered.
+
+## R7 — RVCM1062F repair: confirmed runs work on plan models (kubuntu, 2026-10-11)
+
+Review RVCM1062F raised one P3: `subscriptions/registry.ts:216` refused
+EVERY confirmed plan-model request before dispatch, and its message claimed
+the model had changed ("try again") when nothing had — retrying failed the
+same way. No P1 or P2 was raised.
+
+**Which case applied: implement.** Nothing in PLAN forbids a confirmed run
+on a plan model, so the plan-model branch now honours `isStillAllowed()`
+exactly like the other branches. Citations:
+
+- M95b (PLAN §6) promises a ChatGPT-Plus/Pro or Copilot-plan user "runs the
+  harness on that plan's inference"; it lists no confirmed-run exclusion,
+  and neither M106 (D86) nor the decision that introduced
+  `ConfirmedModelRequest` (the contract comment at `transport.ts:348-364`:
+  "the paid gate and session model must still match before every HTTP try")
+  excludes plan models.
+- The hook model IS the session model (`ModelApiHost.ts:8629`), so a hook
+  run on a plan session necessarily carries a plan `modelId`; the old branch
+  broke every hook run on every plan session. Reviews explicitly admit plan
+  pricing without a paid consent (`ModelApiHost.ts:6743`), so a review on a
+  plan session must also pass the subscription gate.
+- The other three branches share one conditional form — Meta
+  (`client.ts:452-458`), BYO (`providerClient.ts:197-205`) and the transport
+  fence (`transport.ts:837-844`): refuse only on identity mismatch or a
+  lapsed gate, otherwise dispatch. The plan-model branch is now the fourth
+  instance of that form. No new string, setting, chunk or dependency; no
+  surface offered or withdrew a combination.
+
+| Finding → fix → test → drill                                                                                                                      | File                        |
+| ------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
+| Plan-model confirmed gate refuses only on model mismatch or `!isStillAllowed()`; hook runs name the hook call, other kinds keep schedule text     | `subscriptions/registry.ts` |
+| Same unconditional throw in the Copilot adapter now refuses only a lapsed or mismatched confirmation before dispatch                              | `copilotClient.ts`          |
+| Still-allowed confirmation dispatches per run kind (`hookModel`, `scheduled`, `review`, unmarked); adapter gets the catalogue model id            | `modelApiProviders` (new)   |
+| Lapsed confirmation per run kind refuses before dispatch with the run's guidance (hook text names no schedule)                                    | `modelApiProviders` (new)   |
+| Still-allowed confirmation for another model refuses even while allowed                                                                           | `modelApiProviders` (new)   |
+| ChatGPT branch: lapsed refuses before sign-in, still-allowed reaches sign-in (branch catch maps both to its retry text, as for every error there) | `modelApiProviders` (new)   |
+| Adapter: lapsed/mismatched refuses, still-allowed dispatches through `sendRequest` with schema-valid events                                       | `copilotClient` (rewritten) |
+| R6 hook-lapse case now lapses for real (`isStillAllowed: () => false`); shared `streamPlanConfirmed`/`refusalOf` harness keeps jscpd at 0 clones  | `modelApiProviders` (edit)  |
+
+### Sibling sweep (every `confirmed !== undefined` site)
+
+- `client.ts:453`, `providerClient.ts:198`, `transport.ts:838`: already
+  conditional — untouched.
+- `schedulesEntry.ts:393`, `conversationController.ts:9769/9776`,
+  `modelApiBackendManager.ts:563`: pre-dispatch identity/allowance checks —
+  already conditional, untouched.
+- `copilotClient.ts:286`: unconditional — fixed (its only production caller,
+  the registry's Copilot branch, never forwards `confirmed`, so the fix
+  changes no live path today; it removes the trap for a direct caller).
+- No other unconditional confirmed throw exists in `src/`.
+
+### R7 red drills
+
+Backups under this lane's disk-backed `$TMPDIR`; both files restored
+byte-exact (SHA-256 `sha256sum -c` OK:
+`registry.ts` `14b576bc…ada880cbfa`,
+`copilotClient.ts` `0a3cd703…27d7134f7272a6c60b1e9b61eb`). Repository
+timeouts throughout, `--maxWorkers=3`; every drill exit was a test failure,
+never a timeout.
+
+1. **Subscription gate:** condition reverted to `if (confirmed !== undefined)`.
+   The five still-allowed cases fail (4 Copilot run kinds + ChatGPT
+   sign-in); the mismatch case still passes (5 failed / 1 passed /
+   23 skipped in the `-t still-allowed` slice).
+2. **Adapter gate:** condition reverted to `if (confirmed !== undefined)`.
+   The rewritten adapter case fails (1 failed / 49 skipped in its
+   `-t still-allowed` slice).
+
+### R7 verification (kubuntu, repository timeouts, `--maxWorkers=3`)
+
+- `modelApiProviders`, `copilotClient`: **79 passed** (whole files).
+- `npm run typecheck`: all projects passed.
+- ESLint `--max-warnings=0` and Prettier `--check` on all four changed files
+  passed. Knip: only the two pre-existing vendor/axe-core hints. jscpd:
+  **0 clones** (the first cut added 6; extracted the shared harness).
+- Localization: 14 UI tables, 14 usage tables, 0 problems (no string added
+  or changed). Reference, host API and feature catalogue untouched: no
+  command, setting or surface changed.
+- Final `npm run build` passed: extension **550.1 / 600 KiB**; Model API
+  **517.4 / 525 KiB** — both unchanged from R6; no budget raised.
+- No browser, live/paid call, credential read, install, push, rebase or
+  merge was performed.
+
+No RVCM1062F finding remains open; no external blocker was encountered.
