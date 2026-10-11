@@ -5468,6 +5468,7 @@
     "importedSummary": "Zaimportowano do sejfu: {names}",
     "importKeepOrDelete": "Zachować oryginalny plik, czy go usunąć, skoro jego poświadczenia są w sejfie?",
     "resetVault": "Zresetuj sejf",
+    "resetHeadless": "Resetowanie sejfu wymaga interaktywnego terminala; uruchomienia bez interakcji nie mogą go zresetować.",
     "resetContinue": "Kontynuuj",
     "resetWarning": "Reset trwale usuwa ten sejf: wszystkie zapisane sekrety znikają, a ochrona przed wycofaniem rusza od nowa z nową kotwicą, gdy ponownie skonfigurujesz sejf.",
     "resetTypeWord": "Wpisz {word}, aby zresetować sejf.",

@@ -236,8 +236,8 @@ export const COMMAND_REFERENCE: Readonly<Record<CommandKey, CommandReference>> =
   schedulePrompt: { description: { tip: 'schedulePrompt' }, canRun: true },
   showSchedules: { description: { tip: 'schedule' }, canRun: true },
   showScheduleTimeline: { description: { tip: 'scheduleTimeline' }, canRun: true },
-  // Import receipts survive ordinary changes; Lock cancels sent imports.
-  // Lost-document Reset refuses unlocked stores and retires the exact anchor.
+  // Import completions reconcile changes on failure too; Lock cancels sent imports.
+  // Reset detects impossible public framing, needs a terminal, and retires the exact anchor.
   vault: { description: { ui: 'referenceVaultPanel' }, canRun: false },
   lockVault: { description: { ui: 'referenceVaultPanel' }, canRun: false },
 }

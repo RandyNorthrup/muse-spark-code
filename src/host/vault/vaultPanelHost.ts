@@ -110,7 +110,7 @@ export class VaultPanelHost {
           this.retire(event.kind !== 'changed')
           if (event.kind === 'locked') this.showLocked(event.lockEpoch)
         }
-        // The importing owner reloads after Keep/Delete. Starting another
+        // The importing owner reloads on every completion. Starting another
         // snapshot now would compete with its writer transaction.
         if (event.kind === 'changed' && this.importsInFlight > 0) return
         void this.refresh()
@@ -412,12 +412,14 @@ export class VaultPanelHost {
               await this.deps.service.deleteImport(report.receipt, authorizeImport, signal)
             else await this.deps.service.keepImport(report.receipt)
             authorizeImport()
-            await this.load(this.generation)
           } catch (error: unknown) {
             if (generation !== this.generation && !signal.aborted) this.reportError(this.generation)
             throw error
           } finally {
             this.importsInFlight -= 1
+            // Import may have committed before the report or Keep/Delete failed.
+            // Reconcile suppressed changes even when the operation refuses.
+            if (!signal.aborted) await this.load(this.generation)
           }
           return
         }

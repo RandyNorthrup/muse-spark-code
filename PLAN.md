@@ -33281,6 +33281,20 @@ broker or panel checklist.
 
 **C-M109-1 (a) additions (2026-10-10, lead decisions).**
 
+**CM1091A5 review repair (2026-10-11, win11).** Close both RVCM1091A4
+P2 findings and RVCM1091B4's part-A P3 by class. Before opening secret
+material, validate pending-intent authentication framing and history,
+document/block generations and encodings, and slot identities, high-water
+marks and wrapping/KDF framing; impossible states must offer Reset under
+the same writer recheck. Reconcile every non-retired import completion,
+including report, Keep and Delete failures, while retaining its refusal.
+Give headless Reset its own accurate terminal sentence in all fourteen
+languages and assert the printed text. Generated-only regressions and
+byte-exact red drills belong in `docs/certification/m109.md`. Keep the
+quarantine implementation untouched for CM1091CR2. Scoped rig gates replace
+aggregate quality under the explicit brief; no merge, push, dependency,
+subagent or paid/live call.
+
 **CM1091A4 review repair (2026-10-10, win11).** Close all nine
 RVCM1091A3 findings by class: capture Lock authority at request admission;
 bind imported paths and every parent to held, verified identities within the

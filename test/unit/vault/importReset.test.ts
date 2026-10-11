@@ -240,6 +240,11 @@ describe('C-M109-1 Reset Vault', () => {
       await runVaultCommand({ command: 'reset' }, { ...headless.deps, isInteractive: false }),
     ).toBe(1)
     expect(headless.port.resetBegin).not.toHaveBeenCalled()
+    expect(headless.deps.printError).toHaveBeenCalledExactlyOnceWith(
+      'Resetting the vault needs an interactive terminal; headless runs cannot reset it.',
+    )
+    expect(headless.deps.choose).not.toHaveBeenCalled()
+    expect(headless.deps.readLine).not.toHaveBeenCalled()
     expect(panel().status.reason).not.toBe('vaultLost')
   })
 })

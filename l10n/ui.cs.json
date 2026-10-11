@@ -5468,6 +5468,7 @@
     "importedSummary": "Importováno do trezoru: {names}",
     "importKeepOrDelete": "Ponechat původní soubor, nebo ho smazat, když jsou jeho údaje v trezoru?",
     "resetVault": "Obnovit trezor do výchozího stavu",
+    "resetHeadless": "Resetování trezoru vyžaduje interaktivní terminál; bezobslužné běhy jej nemohou resetovat.",
     "resetContinue": "Pokračovat",
     "resetWarning": "Obnovení trezor nenávratně vymaže: všechny uložené tajné údaje zmizí a ochrana před vrácením se znovu spustí s novou kotvou, až trezor znovu nastavíte.",
     "resetTypeWord": "Napište {word} pro obnovení trezoru.",

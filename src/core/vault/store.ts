@@ -4,7 +4,14 @@ import { renameSync, unlinkSync } from 'node:fs'
 import { link, lstat, mkdir, open, realpath, rename, unlink } from 'node:fs/promises'
 import path from 'node:path'
 import * as z from 'zod/mini'
-import { VAULT_KEY_BYTES, VAULT_LIMITS, VAULT_STORE_FORMAT_VERSION } from '../../shared/constants'
+import {
+  VAULT_KDF,
+  VAULT_KEY_BYTES,
+  VAULT_LIMITS,
+  VAULT_NONCE_BYTES,
+  VAULT_STORE_FORMAT_VERSION,
+  VAULT_TAG_BYTES,
+} from '../../shared/constants'
 import {
   vaultGrantSchema,
   vaultItemMetadataSchema,
@@ -351,6 +358,67 @@ function stateMac(key: Uint8Array, vaultId: string, domain: string, body: object
 function slotMac(key: Uint8Array, slots: Omit<Slots, 'mac'>): Buffer {
   return stateMac(key, slots.vaultId, 'vault-slots-v1', slots)
 }
+/** The reader and loss predicate share every check that needs no secret key. */
+function validateSnapshotFraming({ document, slots }: VaultSnapshot): void {
+  if (
+    document.vaultId !== slots.vaultId ||
+    document.generation < 1 ||
+    document.generation !== slots.generation ||
+    document.index.generation !== document.generation ||
+    new Set(document.items.map((item) => item.id)).size !== document.items.length ||
+    slots.documentDigest !== documentDigest(document) ||
+    new Set(slots.records.map((record) => record.id)).size !== slots.records.length ||
+    slots.records.some(
+      (record) =>
+        record.vaultId !== slots.vaultId ||
+        record.lastGeneration !== slots.generation ||
+        record.auditGeneration !== slots.auditGeneration ||
+        record.auditHead !== slots.auditHead,
+    )
+  )
+    throw new VaultError('invalid')
+  decodeVaultBytes(slots.mac, VAULT_KEY_BYTES).fill(0)
+  const emptyIndexBytes = encodeVaultJson({ items: [], grants: [], receipts: [] }).length
+  // The shortest material is one secret byte: descriptor, two length words, then the byte.
+  const minimumMaterialBytes =
+    encodeVaultJson({ kind: 'secret', value: { bytes: 0 } }).length +
+    Uint32Array.BYTES_PER_ELEMENT * 2 +
+    1
+  for (const block of [document.index, ...document.items.map((item) => item.block)]) {
+    if (block.generation < 1 || block.generation > document.generation)
+      throw new VaultError('invalid')
+    decodeVaultBytes(block.nonce, VAULT_NONCE_BYTES).fill(0)
+    decodeVaultBytes(block.tag, VAULT_TAG_BYTES).fill(0)
+    const ciphertext = decodeVaultBytes(block.ciphertext)
+    const minimum = block === document.index ? emptyIndexBytes : minimumMaterialBytes
+    const isTooShort = ciphertext.length < minimum
+    ciphertext.fill(0)
+    if (isTooShort) throw new VaultError('invalid')
+  }
+  for (const record of slots.records) {
+    const isSoftware = record.provider === 'passphrase' || record.provider === 'recovery'
+    decodeVaultBytes(record.wrappedKey, isSoftware ? VAULT_KEY_BYTES : undefined).fill(0)
+    if (record.nonce !== null) decodeVaultBytes(record.nonce, VAULT_NONCE_BYTES).fill(0)
+    if (record.tag !== null) decodeVaultBytes(record.tag, VAULT_TAG_BYTES).fill(0)
+    if (record.kdf !== null) decodeVaultBytes(record.kdf.salt, VAULT_KDF.saltBytes).fill(0)
+  }
+}
+function validateIntentFraming(intent: z.infer<typeof intentSchema>): void {
+  decodeVaultBytes(intent.mac, VAULT_KEY_BYTES).fill(0)
+  validateSnapshotFraming(intent.snapshot)
+  const next = intent.snapshot.slots
+  const priorGeneration = intent.prior?.generation ?? 0
+  if (
+    next.previousDigest !== (intent.prior?.stateDigest ?? '0'.repeat(VAULT_LIMITS.sha256Hex)) ||
+    next.generation <= priorGeneration ||
+    (intent.restoreDigest === null && next.generation !== priorGeneration + 1) ||
+    (intent.prior &&
+      (next.auditGeneration < intent.prior.auditGeneration ||
+        (next.auditGeneration === intent.prior.auditGeneration &&
+          next.auditHead !== intent.prior.auditHead)))
+  )
+    throw new VaultError('rollback')
+}
 /** A complete document/slot pair or pending transaction, without opening secret material. */
 async function isVaultOpenable(files: VaultFilePort, vaultId: string): Promise<boolean> {
   const buffers: Buffer[] = []
@@ -360,13 +428,8 @@ async function isVaultOpenable(files: VaultFilePort, vaultId: string): Promise<b
       buffers.push(pending)
       const intent = intentSchema.safeParse(parseJson(pending))
       if (!intent.success) return false
-      const { document, slots } = intent.data.snapshot
-      return (
-        document.vaultId === vaultId &&
-        slots.vaultId === vaultId &&
-        slots.records.every((record) => record.vaultId === vaultId) &&
-        slots.documentDigest === documentDigest(document)
-      )
+      validateIntentFraming(intent.data)
+      return intent.data.snapshot.document.vaultId === vaultId
     }
     const document = await files.read('vault.v1')
     if (document) buffers.push(document)
@@ -377,16 +440,11 @@ async function isVaultOpenable(files: VaultFilePort, vaultId: string): Promise<b
       document: parseJson(document),
       slots: parseJson(slots),
     })
-    return (
-      pair.success &&
-      pair.data.document.vaultId === vaultId &&
-      pair.data.slots.vaultId === vaultId &&
-      pair.data.slots.records.every((record) => record.vaultId === vaultId) &&
-      pair.data.document.generation === pair.data.slots.generation &&
-      pair.data.slots.documentDigest === documentDigest(pair.data.document)
-    )
+    if (!pair.success) return false
+    validateSnapshotFraming(pair.data)
+    return pair.data.document.vaultId === vaultId
   } catch (error: unknown) {
-    if (error instanceof VaultError && error.code === 'invalid') return false
+    if (error instanceof VaultError && ['invalid', 'rollback'].includes(error.code)) return false
     throw error
   } finally {
     for (const bytes of buffers) bytes.fill(0)
@@ -482,6 +540,7 @@ function validateSnapshot(
   if (parsed.data.vaultId !== slots.vaultId || parsed.data.generation !== slots.generation)
     throw new VaultError('rollback')
   if (documentDigest(parsed.data) !== slots.documentDigest) throw new VaultError('authentication')
+  validateSnapshotFraming({ document: parsed.data, slots })
   return { snapshot: { document: parsed.data, slots }, index: openIndex(key, parsed.data) }
 }
 
@@ -793,22 +852,12 @@ export class VaultStore implements VaultStorePort {
       expected = stateMac(this.active(), this.vaultId, 'vault-intent-v1', intent)
       actual = decodeVaultBytes(mac, VAULT_KEY_BYTES)
       if (!areVaultBytesEqual(expected, actual)) throw new VaultError('authentication')
+      validateIntentFraming(parsed.data)
       const { snapshot, index } = validateSnapshot(this.active(), intent.snapshot)
       const next = stateOf(snapshot.slots)
       const minimum = await this.options.anchor.minimum(this.vaultId)
       this.active()
-      const priorGeneration = intent.prior?.generation ?? 0
-      if (
-        snapshot.slots.previousDigest !==
-          (intent.prior?.stateDigest ?? '0'.repeat(VAULT_LIMITS.sha256Hex)) ||
-        next.generation <= priorGeneration ||
-        (intent.restoreDigest === null && next.generation !== priorGeneration + 1) ||
-        (intent.prior &&
-          (next.auditGeneration < intent.prior.auditGeneration ||
-            (next.auditGeneration === intent.prior.auditGeneration &&
-              next.auditHead !== intent.prior.auditHead))) ||
-        (!isSameState(minimum, intent.prior) && !isSameState(minimum, next))
-      )
+      if (!isSameState(minimum, intent.prior) && !isSameState(minimum, next))
         throw new VaultError('rollback')
       for (const item of index.items)
         eraseVaultMaterial(this.material(snapshot.document, index, item.metadata.id).material)

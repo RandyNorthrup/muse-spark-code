@@ -32,6 +32,15 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- **Credential vault review repairs (RVCM1091A4 / RVCM1091B4).** Impossible
+  public authentication/framing fields and pending history now qualify a lost
+  vault for Reset, using the same checks as the recovery reader. The panel
+  reloads committed imports even when their report or Keep/Delete step fails,
+  while still reporting the refusal and preserving a changed source file.
+  Headless `vault reset` now says that Reset requires an interactive terminal
+  in all fourteen languages. Installed broker and panel qualification remains
+  the separate integration step.
+
 - **Credential vault: protocol v2, setup and recovery underneath** (M109,
   C-M109-1). The vault still refuses every use with "The broker cannot
   start…" until its broker process and per-OS connections are installed;

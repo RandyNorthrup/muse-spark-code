@@ -5318,6 +5318,7 @@
     "importedSummary": "Importé dans le coffre-fort : {names}",
     "importKeepOrDelete": "Conserver le fichier d’origine ou le supprimer maintenant que ses identifiants sont dans le coffre-fort ?",
     "resetVault": "Réinitialiser le coffre-fort",
+    "resetHeadless": "La réinitialisation du coffre nécessite un terminal interactif ; les exécutions sans interaction ne peuvent pas le réinitialiser.",
     "resetContinue": "Continuer",
     "resetWarning": "La réinitialisation efface définitivement ce coffre-fort : tous les secrets enregistrés disparaissent, et la protection contre le retour arrière repart avec une nouvelle ancre lorsque vous reconfigurez le coffre-fort.",
     "resetTypeWord": "Saisissez {word} pour réinitialiser le coffre-fort.",
