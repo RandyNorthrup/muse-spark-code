@@ -1,5 +1,5 @@
 import type { MuseEmbeddedHost } from '../../shared/hostApi/panel'
-import type { PanelBridge, PanelCodec } from './types'
+import { bootImport, type PanelBridge, type PanelCodec } from './types'
 import { vscodeBridge } from './vscode'
 import { companionStateStore } from './state'
 
@@ -14,13 +14,13 @@ export async function selectBridge(
   onError: (error: unknown) => void,
 ): Promise<PanelBridge> {
   if (window.museHost !== undefined) {
-    const { nativeBridge } = await import('./native')
+    const { nativeBridge } = await bootImport(() => import('./native'), 'native')
     return nativeBridge(window.museHost, codec)
   }
   if (document.body.dataset['bridge'] === 'companion') {
     const [{ companionBridge }, { panelBindingSchema }] = await Promise.all([
-      import('./companion'),
-      import('../../shared/hostApi/panel'),
+      bootImport(() => import('./companion'), 'companion'),
+      bootImport(() => import('../../shared/hostApi/panel'), 'companion'),
     ])
     const value: unknown = JSON.parse(document.querySelector('#muse-panel')?.textContent ?? 'null')
     const binding = panelBindingSchema.parse(value)

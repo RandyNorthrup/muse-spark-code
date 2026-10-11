@@ -76,7 +76,7 @@
 //
 //   node scripts/check-bundle-split.mjs
 
-import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
 import ts from 'typescript'
 import { createRequire } from 'node:module'
@@ -103,8 +103,12 @@ import {
   DEFERRED_WEBVIEW_SURFACES,
   webviewStartupOutputs,
   webviewTeamOutputs,
+  portableWebviewBudgetGroups,
 } from './lib/webviewBundles.mjs'
+import { measurePortableStartup } from './lib/portableStartup.mjs'
 import { UI_TEXT_REGIONS } from './lib/uiTextRegions.mjs'
+
+const BYTES_PER_KIB = 1024
 
 const MODEL_API_DIR = 'src/core/backends/modelapi'
 const ENTRY = 'src/host/backend/modelApiEntry.ts'
@@ -1549,7 +1553,8 @@ for (const source of Object.keys(webviewMeta.inputs)) {
     problems.push(`VS Code's webview carries portable-only source ${normal}`)
 }
 const portableMeta = normalWebviewMeta(JSON.parse(readFileSync('dist/meta/portable.json', 'utf8')))
-const eagerPortable = new Set(webviewStartupOutputs(portableMeta, 'dist/webview/portable/main.js'))
+const portableStartup = await measurePortableStartup(portableMeta)
+const eagerPortable = new Set(portableStartup.flatMap(({ outputs }) => outputs))
 for (const file of eagerPortable) {
   const sources = Object.keys(portableMeta.outputs[file].inputs)
   for (const source of sources) {
@@ -1581,8 +1586,6 @@ const portableDeferredSources = [
   ),
   ...PORTABLE_PRESENTATION_BUDGETS.flatMap(({ entries }) => entries),
   ...FALLBACK_COMPONENTS.map((component) => `src/webview/fallbacks/${component}.tsx`),
-  'src/webview/bridges/native.ts',
-  'src/webview/bridges/companion.ts',
 ]
 for (const source of portableDeferredSources) {
   const outputs = Object.entries(portableMeta.outputs).filter(([, output]) =>
@@ -1604,6 +1607,17 @@ for (const [file, output] of Object.entries(portableMeta.outputs)) {
   ) {
     problems.push(`Unlisted deferred portable webview surface ${output.entryPoint}`)
   }
+}
+// M104 F4: the same startup/total caps and measurement evidence as the size
+// gate. Preserve missing-output diagnostics above instead of statting absence.
+for (const { name, budgetKiB, outputs } of portableWebviewBudgetGroups(
+  portableMeta,
+  portableStartup,
+)) {
+  if (outputs.some((file) => !existsSync(file))) continue
+  const bytes = outputs.reduce((sum, file) => sum + statSync(file).size, 0)
+  if (bytes > budgetKiB * BYTES_PER_KIB)
+    problems.push(`portable ${name} exceeds ${budgetKiB} KiB: ${bytes} bytes`)
 }
 const portableChunks = 'dist/webview/portable/chunks'
 for (const file of readdirSync(portableChunks)) {
@@ -1766,7 +1780,6 @@ if (problems.length > 0) {
   }
   process.exit(1)
 }
-const BYTES_PER_KIB = 1024
 const carried = [...activation]
   .filter(([input]) => input.startsWith(`${MODEL_API_DIR}/`))
   .toSorted(([a], [b]) => a.localeCompare(b, 'en'))

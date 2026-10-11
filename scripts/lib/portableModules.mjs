@@ -7,13 +7,17 @@ import ts from 'typescript'
 
 // Parse the emitted JavaScript: string searches would also rewrite user/model
 // text. UTF-16 source offsets are identical in the browser's fetched string.
-export function writePortableManifest(meta, directory) {
+export function portableManifest(
+  meta,
+  directory,
+  readSource = (file) => readFileSync(file, 'utf8'),
+) {
   const outputs = new Set(Object.keys(meta.outputs).map((file) => path.resolve(file)))
   const root = path.resolve(directory)
   const modules = Object.keys(meta.outputs)
     .filter((file) => file.endsWith('.js'))
     .map((file) => {
-      const source = readFileSync(file, 'utf8')
+      const source = readSource(file)
       const tree = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS)
       const imports = []
       function visit(node) {
@@ -50,7 +54,14 @@ export function writePortableManifest(meta, directory) {
         imports,
       }
     })
-  writeFileSync(path.join(directory, 'modules.json'), JSON.stringify({ modules }))
+  return { modules }
+}
+
+export function writePortableManifest(meta, directory) {
+  writeFileSync(
+    path.join(directory, 'modules.json'),
+    JSON.stringify(portableManifest(meta, directory)),
+  )
 }
 
 // The fake-only process suites build the same graph into an isolated package.

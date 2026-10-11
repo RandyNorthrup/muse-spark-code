@@ -11,6 +11,7 @@ import {
   readFileSync,
   readdirSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs'
 import path from 'node:path'
@@ -367,6 +368,12 @@ describe('RVM96B browser regressions', { timeout: REAL_HARNESS_CASE_TIMEOUT_MS }
     mkdirSync(path.join(fixture, 'scripts'), { recursive: true })
     cpSync('scripts/check-bundle-size.mjs', path.join(fixture, 'scripts/check-bundle-size.mjs'))
     cpSync('scripts/lib', path.join(fixture, 'scripts/lib'), { recursive: true })
+    mkdirSync(path.join(fixture, 'test/harness'), { recursive: true })
+    cpSync(
+      'test/harness/portableBridgeSetup.mjs',
+      path.join(fixture, 'test/harness/portableBridgeSetup.mjs'),
+    )
+    symlinkSync(path.resolve('node_modules'), path.join(fixture, 'node_modules'), 'junction')
     const target = path.join(fixture, chunk)
     const original = readFileSync(target)
     const sha = createHash('sha256').update(original).digest('hex')

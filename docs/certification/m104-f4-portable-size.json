@@ -1,0 +1,2329 @@
+{
+  "revision": "036b42ec4",
+  "command": "npm run build",
+  "buildExit": 1,
+  "capBytes": 1126400,
+  "totalBytes": 1323336,
+  "startupBytes": 757722,
+  "metafileSha256": "7c06650928f40f36c3ff7c8979ef332acd5831775ac87f9c49539cb2596ed626",
+  "buildScriptSha256": "48db4512f0e49801378fc5f82f63d42895072e4736f04579c4b52028bd5fd77f",
+  "sizeGateSha256": "3f1610d0f7e6833ccf2b8ae1296995e5ee6a542a150c27ec6468bb3bf264c6b3",
+  "splitGateSha256": "f970a078cc333b9fea0934d624a69f180e4e121e4811133534c2f2f63acdb948",
+  "inputContributionBytes": 1262595,
+  "top40": [
+    {
+      "rank": 1,
+      "source": "node_modules/react-dom/cjs/react-dom-client.production.js",
+      "feature": "React renderer and runtime",
+      "bytes": 204927,
+      "contributions": [
+        {
+          "output": "dist/webview/portable/chunks/A6SA2NTK.js",
+          "bytes": 204927,
+          "phase": "chat startup"
+        }
+      ]
+    },
+    {
+      "rank": 2,
+      "source": "src/webview/state/uiState.ts",
+      "feature": "Chat and other shared surfaces",
+      "bytes": 52105,
+      "contributions": [
+        {
+          "output": "dist/webview/portable/chunks/6GBV66RH.js",
+          "bytes": 52105,
+          "phase": "chat startup"
+        }
+      ]
+    },
+    {
+      "rank": 3,
+      "source": "src/webview/App.tsx",
+      "feature": "Chat and other shared surfaces",
+      "bytes": 48805,
+      "contributions": [
+        {
+          "output": "dist/webview/portable/main.js",
+          "bytes": 48805,
+          "phase": "chat startup"
+        }
+      ]
+    },
+    {
+      "rank": 4,
+      "source": "src/shared/l10n/en.ts",
+      "feature": "English fallback and localized formatting",
+      "bytes": 39672,
+      "contributions": [
+        {
+          "output": "dist/webview/portable/chunks/5UGZ6AAK.js",
+          "bytes": 39672,
+          "phase": "chat startup"
+        }
+      ]
+    },
+    {
+      "rank": 5,
+      "source": "node_modules/zod/v4/core/schemas.js",
+      "feature": "Boundary validation",
+      "bytes": 24491,
+      "contributions": [
+        {
+          "output": "dist/webview/portable/chunks/W6FJYL4E.js",
+          "bytes": 18598,
+          "phase": "chat startup"
+        },
+        {
+          "output": "dist/webview/portable/loader.js",
+          "bytes": 5893,
+          "phase": "authenticated bootstrap"
+        }
+      ]
+    },
+    {
+      "rank": 6,
+      "source": "browser-surface-english:browser-surface-english",
+      "feature": "English fallback regions",
+      "bytes": 22388,
+      "contributions": [
+        {
+          "output": "dist/webview/portable/chunks/Q7FAYAID.js",
+          "bytes": 22388,
+          "phase": "deferred or auxiliary page"
+        }
+      ]
+    },
+    {
+      "rank": 7,
+      "source": "node_modules/highlight.js/lib/core.js",
+      "feature": "Code highlighting",
+      "bytes": 20674,
+      "contributions": [
+        {
+          "output": "dist/webview/portable/chunks/BM2MTZEI.js",
+          "bytes": 20674,
+          "phase": "deferred or auxiliary page"
+        }
+      ]
+    },
+    {
+      "rank": 8,
+      "source": "src/webview/components/Transcript.tsx",
+      "feature": "Chat and other shared surfaces",
+      "bytes": 15196,
+      "contributions": [
+        {
+          "output": "dist/webview/portable/main.js",
+          "bytes": 15196,
+          "phase": "chat startup"
+        }
+      ]
+    },
+    {
+      "rank": 9,
+      "source": "src/webview/components/Composer.tsx",
+      "feature": "Chat and other shared surfaces",
+      "bytes": 14997,
+      "contributions": [
+        {
+          "output": "dist/webview/portable/main.js",
+          "bytes": 14997,
+          "phase": "chat startup"
+        }
+      ]
+    },
+    {
+      "rank": 10,
+      "source": "src/shared/constants.ts",
+      "feature": "Shared protocol and configuration",
+      "bytes": 13617,
+      "contributions": [
+        {
+          "output": "dist/webview/portable/chunks/4ARFQ7VS.js",
+          "bytes": 13617,
+          "phase": "chat startup"
+        }
+      ]
+    },
+    {
+      "rank": 11,
+      "source": "src/shared/protocol.ts",
+      "feature": "Shared protocol and configuration",
+      "bytes": 13581,
+      "contributions": [
+        {
+          "output": "dist/webview/portable/chunks/6ROOJFNT.js",
+          "bytes": 13581,
+          "phase": "chat startup"
+        }
+      ]
+    },
+    {
+      "rank": 12,
+      "source": "node_modules/highlight.js/es/languages/css.js",
+      "feature": "Code highlighting",
+      "bytes": 13446,
+      "contributions": [
+        {
+          "output": "dist/webview/portable/chunks/BM2MTZEI.js",
+          "bytes": 13446,
+          "phase": "deferred or auxiliary page"
+        }
+      ]
+    },
+    {
+      "rank": 13,
+      "source": "src/webview/components/UsageDialogContent.tsx",
+      "feature": "Account and paid usage",
+      "bytes": 11728,
+      "contributions": [
+        {
+          "output": "dist/webview/portable/chunks/2MUNHFTX.js",
+          "bytes": 11728,
+          "phase": "deferred or auxiliary page"
+        }
+      ]
+    },
+    {
+      "rank": 14,
+      "source": "browser-reference-english:browser-reference-english",
+      "feature": "English fallback regions",
+      "bytes": 11477,
+      "contributions": [
+        {
+          "output": "dist/webview/portable/chunks/AZ52SG7L.js",
+          "bytes": 11477,
+          "phase": "deferred or auxiliary page"
+        }
+      ]
+    },
+    {
+      "rank": 15,
+      "source": "src/webview/estimator/EstimatorPanel.tsx",
+      "feature": "Capacity estimator",
+      "bytes": 10871,
+      "contributions": [
+        {
+          "output": "dist/webview/portable/chunks/VXGCGK6Q.js",
+          "bytes": 10871,
+          "phase": "deferred or auxiliary page"
+        }
+      ]
+    },
+    {
+      "rank": 16,
+      "source": "src/webview/components/AgentMapContent.tsx",
+      "feature": "Agent map and teams",
+      "bytes": 10856,
+      "contributions": [
+        {
+          "output": "dist/webview/portable/chunks/R7GETPIX.js",
+          "bytes": 10856,
+          "phase": "deferred or auxiliary page"
+        }
+      ]
+    },
+    {
+      "rank": 17,
+      "source": "node_modules/mdast-util-from-markdown/lib/index.js",
+      "feature": "Markdown and GFM",
+      "bytes": 10217,
+      "contributions": [
+        {
+          "output": "dist/webview/portable/chunks/ZSMVPGYG.js",
+          "bytes": 10217,
+          "phase": "chat startup"
+        }
+      ]
+    },
+    {
+      "rank": 18,
+      "source": "node_modules/property-information/lib/svg.js",
+      "feature": "Markdown and GFM",
+      "bytes": 10097,
+      "contributions": [
+        {
+          "output": "dist/webview/portable/chunks/TO4IPJIV.js",
+          "bytes": 10097,
+          "phase": "chat startup"
+        }
+      ]
+    },
+    {
+      "rank": 19,
+      "source": "src/webview/components/ToolRow.tsx",
+      "feature": "Tools and questions",
+      "bytes": 9976,
+      "contributions": [
+        {
+          "output": "dist/webview/portable/chunks/XKQQFDMT.js",
+          "bytes": 9976,
+          "phase": "deferred or auxiliary page"
+        }
+      ]
+    },
+    {
+      "rank": 20,
+      "source": "src/shared/paletteRegistry.ts",
+      "feature": "Command palette and help",
+      "bytes": 9885,
+      "contributions": [
+        {
+          "output": "dist/webview/portable/chunks/QZCWOWOE.js",
+          "bytes": 9885,
+          "phase": "deferred or auxiliary page"
+        }
+      ]
+    },
+    {
+      "rank": 21,
+      "source": "src/webview/components/QuestionCard.tsx",
+      "feature": "Tools and questions",
+      "bytes": 9393,
+      "contributions": [
+        {
+          "output": "dist/webview/portable/chunks/ZNNMNZXP.js",
+          "bytes": 9393,
+          "phase": "deferred or auxiliary page"
+        }
+      ]
+    },
+    {
+      "rank": 22,
+      "source": "src/shared/reference/referenceSchema.generated.ts",
+      "feature": "Command palette and help",
+      "bytes": 9235,
+      "contributions": [
+        {
+          "output": "dist/webview/portable/chunks/3XWWDZ3C.js",
+          "bytes": 9235,
+          "phase": "deferred or auxiliary page"
+        }
+      ]
+    },
+    {
+      "rank": 23,
+      "source": "src/shared/estimate.ts",
+      "feature": "Capacity estimator",
+      "bytes": 9030,
+      "contributions": [
+        {
+          "output": "dist/webview/portable/chunks/DKXD4ATD.js",
+          "bytes": 9030,
+          "phase": "deferred or auxiliary page"
+        }
+      ]
+    },
+    {
+      "rank": 24,
+      "source": "src/webview/components/TeamTree.tsx",
+      "feature": "Agent map and teams",
+      "bytes": 8879,
+      "contributions": [
+        {
+          "output": "dist/webview/portable/chunks/A5Y5GO6R.js",
+          "bytes": 8879,
+          "phase": "deferred or auxiliary page"
+        }
+      ]
+    },
+    {
+      "rank": 25,
+      "source": "src/webview/components/LegalReport.tsx",
+      "feature": "Git, review and legal",
+      "bytes": 8704,
+      "contributions": [
+        {
+          "output": "dist/webview/portable/chunks/4J7Q4GPI.js",
+          "bytes": 8704,
+          "phase": "deferred or auxiliary page"
+        }
+      ]
+    },
+    {
+      "rank": 26,
+      "source": "src/webview/components/GitPanel.tsx",
+      "feature": "Git, review and legal",
+      "bytes": 8615,
+      "contributions": [
+        {
+          "output": "dist/webview/portable/chunks/DBTVCQPN.js",
+          "bytes": 8615,
+          "phase": "deferred or auxiliary page"
+        }
+      ]
+    },
+    {
+      "rank": 27,
+      "source": "node_modules/zod/v4/core/util.js",
+      "feature": "Boundary validation",
+      "bytes": 8428,
+      "contributions": [
+        {
+          "output": "dist/webview/portable/chunks/W6FJYL4E.js",
+          "bytes": 4901,
+          "phase": "chat startup"
+        },
+        {
+          "output": "dist/webview/portable/loader.js",
+          "bytes": 3527,
+          "phase": "authenticated bootstrap"
+        }
+      ]
+    },
+    {
+      "rank": 28,
+      "source": "src/webview/components/ReferencePage.tsx",
+      "feature": "Command palette and help",
+      "bytes": 8113,
+      "contributions": [
+        {
+          "output": "dist/webview/portable/chunks/3XWWDZ3C.js",
+          "bytes": 8113,
+          "phase": "deferred or auxiliary page"
+        }
+      ]
+    },
+    {
+      "rank": 29,
+      "source": "src/webview/schedules/ScheduleEditor.tsx",
+      "feature": "Schedules",
+      "bytes": 8043,
+      "contributions": [
+        {
+          "output": "dist/webview/portable/chunks/5FVJ53TV.js",
+          "bytes": 8043,
+          "phase": "deferred or auxiliary page"
+        }
+      ]
+    },
+    {
+      "rank": 30,
+      "source": "src/shared/hostApi/methods.ts",
+      "feature": "Shared protocol and configuration",
+      "bytes": 7907,
+      "contributions": [
+        {
+          "output": "dist/webview/portable/chunks/CXTF5MOB.js",
+          "bytes": 7907,
+          "phase": "deferred or auxiliary page"
+        }
+      ]
+    },
+    {
+      "rank": 31,
+      "source": "node_modules/react/cjs/react.production.js",
+      "feature": "React renderer and runtime",
+      "bytes": 7823,
+      "contributions": [
+        {
+          "output": "dist/webview/portable/chunks/FNI5YF2R.js",
+          "bytes": 7823,
+          "phase": "chat startup"
+        }
+      ]
+    },
+    {
+      "rank": 32,
+      "source": "src/shared/redact.ts",
+      "feature": "Chat and other shared surfaces",
+      "bytes": 7709,
+      "contributions": [
+        {
+          "output": "dist/webview/portable/chunks/XT4M5XRQ.js",
+          "bytes": 7709,
+          "phase": "chat startup"
+        }
+      ]
+    },
+    {
+      "rank": 33,
+      "source": "src/webview/schedules/ScheduleSurface.tsx",
+      "feature": "Schedules",
+      "bytes": 7160,
+      "contributions": [
+        {
+          "output": "dist/webview/portable/chunks/5FVJ53TV.js",
+          "bytes": 7160,
+          "phase": "deferred or auxiliary page"
+        }
+      ]
+    },
+    {
+      "rank": 34,
+      "source": "src/webview/components/icons.tsx",
+      "feature": "Chat and other shared surfaces",
+      "bytes": 7009,
+      "contributions": [
+        {
+          "output": "dist/webview/portable/chunks/7KG6AR4V.js",
+          "bytes": 7009,
+          "phase": "chat startup"
+        }
+      ]
+    },
+    {
+      "rank": 35,
+      "source": "src/webview/components/Palette.tsx",
+      "feature": "Command palette and help",
+      "bytes": 6868,
+      "contributions": [
+        {
+          "output": "dist/webview/portable/chunks/NQKFWV7W.js",
+          "bytes": 6868,
+          "phase": "deferred or auxiliary page"
+        }
+      ]
+    },
+    {
+      "rank": 36,
+      "source": "src/webview/components/BestOfNDialog.tsx",
+      "feature": "Chat and other shared surfaces",
+      "bytes": 6769,
+      "contributions": [
+        {
+          "output": "dist/webview/portable/chunks/V2M6FW3I.js",
+          "bytes": 6769,
+          "phase": "deferred or auxiliary page"
+        }
+      ]
+    },
+    {
+      "rank": 37,
+      "source": "src/shared/scheduleV2.ts",
+      "feature": "Schedules",
+      "bytes": 6707,
+      "contributions": [
+        {
+          "output": "dist/webview/portable/chunks/QGQVQSM6.js",
+          "bytes": 6707,
+          "phase": "chat startup"
+        }
+      ]
+    },
+    {
+      "rank": 38,
+      "source": "node_modules/highlight.js/es/languages/javascript.js",
+      "feature": "Code highlighting",
+      "bytes": 6493,
+      "contributions": [
+        {
+          "output": "dist/webview/portable/chunks/BM2MTZEI.js",
+          "bytes": 6493,
+          "phase": "deferred or auxiliary page"
+        }
+      ]
+    },
+    {
+      "rank": 39,
+      "source": "node_modules/highlight.js/es/languages/sql.js",
+      "feature": "Code highlighting",
+      "bytes": 6465,
+      "contributions": [
+        {
+          "output": "dist/webview/portable/chunks/BM2MTZEI.js",
+          "bytes": 6465,
+          "phase": "deferred or auxiliary page"
+        }
+      ]
+    },
+    {
+      "rank": 40,
+      "source": "src/webview/schedules/TriggerFields.tsx",
+      "feature": "Schedules",
+      "bytes": 6155,
+      "contributions": [
+        {
+          "output": "dist/webview/portable/chunks/5FVJ53TV.js",
+          "bytes": 6155,
+          "phase": "deferred or auxiliary page"
+        }
+      ]
+    }
+  ],
+  "featureTotals": [
+    {
+      "feature": "Chat and other shared surfaces",
+      "bytes": 356147
+    },
+    {
+      "feature": "React renderer and runtime",
+      "bytes": 220974
+    },
+    {
+      "feature": "Markdown and GFM",
+      "bytes": 154632
+    },
+    {
+      "feature": "Code highlighting",
+      "bytes": 89402
+    },
+    {
+      "feature": "Boundary validation",
+      "bytes": 56035
+    },
+    {
+      "feature": "Schedules",
+      "bytes": 48628
+    },
+    {
+      "feature": "Shared protocol and configuration",
+      "bytes": 46612
+    },
+    {
+      "feature": "English fallback and localized formatting",
+      "bytes": 45548
+    },
+    {
+      "feature": "English fallback regions",
+      "bytes": 44083
+    },
+    {
+      "feature": "Command palette and help",
+      "bytes": 35067
+    },
+    {
+      "feature": "Git, review and legal",
+      "bytes": 33203
+    },
+    {
+      "feature": "Tools and questions",
+      "bytes": 32595
+    },
+    {
+      "feature": "Agent map and teams",
+      "bytes": 30987
+    },
+    {
+      "feature": "Native and companion bridges and presentation",
+      "bytes": 26423
+    },
+    {
+      "feature": "Capacity estimator",
+      "bytes": 21820
+    },
+    {
+      "feature": "Account and paid usage",
+      "bytes": 20439
+    }
+  ],
+  "duplicateSourceRepeatedBytes": 17014,
+  "duplicateSources": [
+    {
+      "source": "node_modules/zod/v4/core/schemas.js",
+      "feature": "Boundary validation",
+      "bytes": 24491,
+      "contributions": [
+        {
+          "output": "dist/webview/portable/chunks/W6FJYL4E.js",
+          "bytes": 18598,
+          "phase": "chat startup"
+        },
+        {
+          "output": "dist/webview/portable/loader.js",
+          "bytes": 5893,
+          "phase": "authenticated bootstrap"
+        }
+      ],
+      "repeatedBytes": 5893
+    },
+    {
+      "source": "node_modules/zod/v4/core/util.js",
+      "feature": "Boundary validation",
+      "bytes": 8428,
+      "contributions": [
+        {
+          "output": "dist/webview/portable/chunks/W6FJYL4E.js",
+          "bytes": 4901,
+          "phase": "chat startup"
+        },
+        {
+          "output": "dist/webview/portable/loader.js",
+          "bytes": 3527,
+          "phase": "authenticated bootstrap"
+        }
+      ],
+      "repeatedBytes": 3527
+    },
+    {
+      "source": "node_modules/zod/v4/mini/schemas.js",
+      "feature": "Boundary validation",
+      "bytes": 5524,
+      "contributions": [
+        {
+          "output": "dist/webview/portable/chunks/W6FJYL4E.js",
+          "bytes": 4060,
+          "phase": "chat startup"
+        },
+        {
+          "output": "dist/webview/portable/loader.js",
+          "bytes": 1464,
+          "phase": "authenticated bootstrap"
+        }
+      ],
+      "repeatedBytes": 1464
+    },
+    {
+      "source": "node_modules/zod/v4/core/checks.js",
+      "feature": "Boundary validation",
+      "bytes": 5413,
+      "contributions": [
+        {
+          "output": "dist/webview/portable/chunks/W6FJYL4E.js",
+          "bytes": 3403,
+          "phase": "chat startup"
+        },
+        {
+          "output": "dist/webview/portable/loader.js",
+          "bytes": 2010,
+          "phase": "authenticated bootstrap"
+        }
+      ],
+      "repeatedBytes": 2010
+    },
+    {
+      "source": "node_modules/zod/v4/core/core.js",
+      "feature": "Boundary validation",
+      "bytes": 3278,
+      "contributions": [
+        {
+          "output": "dist/webview/portable/chunks/W6FJYL4E.js",
+          "bytes": 1707,
+          "phase": "chat startup"
+        },
+        {
+          "output": "dist/webview/portable/loader.js",
+          "bytes": 1571,
+          "phase": "authenticated bootstrap"
+        }
+      ],
+      "repeatedBytes": 1571
+    },
+    {
+      "source": "node_modules/zod/v4/core/api.js",
+      "feature": "Boundary validation",
+      "bytes": 2594,
+      "contributions": [
+        {
+          "output": "dist/webview/portable/chunks/W6FJYL4E.js",
+          "bytes": 2023,
+          "phase": "chat startup"
+        },
+        {
+          "output": "dist/webview/portable/loader.js",
+          "bytes": 571,
+          "phase": "authenticated bootstrap"
+        }
+      ],
+      "repeatedBytes": 571
+    },
+    {
+      "source": "node_modules/zod/v4/core/parse.js",
+      "feature": "Boundary validation",
+      "bytes": 2185,
+      "contributions": [
+        {
+          "output": "dist/webview/portable/chunks/W6FJYL4E.js",
+          "bytes": 1095,
+          "phase": "chat startup"
+        },
+        {
+          "output": "dist/webview/portable/loader.js",
+          "bytes": 1090,
+          "phase": "authenticated bootstrap"
+        }
+      ],
+      "repeatedBytes": 1090
+    },
+    {
+      "source": "node_modules/zod/v4/core/errors.js",
+      "feature": "Boundary validation",
+      "bytes": 2049,
+      "contributions": [
+        {
+          "output": "dist/webview/portable/chunks/W6FJYL4E.js",
+          "bytes": 1266,
+          "phase": "chat startup"
+        },
+        {
+          "output": "dist/webview/portable/loader.js",
+          "bytes": 783,
+          "phase": "authenticated bootstrap"
+        }
+      ],
+      "repeatedBytes": 783
+    },
+    {
+      "source": "node_modules/zod/v4/core/regexes.js",
+      "feature": "Boundary validation",
+      "bytes": 1491,
+      "contributions": [
+        {
+          "output": "dist/webview/portable/chunks/W6FJYL4E.js",
+          "bytes": 1419,
+          "phase": "chat startup"
+        },
+        {
+          "output": "dist/webview/portable/loader.js",
+          "bytes": 72,
+          "phase": "authenticated bootstrap"
+        }
+      ],
+      "repeatedBytes": 72
+    },
+    {
+      "source": "node_modules/zod/v4/core/versions.js",
+      "feature": "Boundary validation",
+      "bytes": 66,
+      "contributions": [
+        {
+          "output": "dist/webview/portable/chunks/W6FJYL4E.js",
+          "bytes": 33,
+          "phase": "chat startup"
+        },
+        {
+          "output": "dist/webview/portable/loader.js",
+          "bytes": 33,
+          "phase": "authenticated bootstrap"
+        }
+      ],
+      "repeatedBytes": 33
+    }
+  ],
+  "deferredBudgets": [
+    {
+      "name": "deferred JS",
+      "budgetKiB": 50,
+      "bytes": 95962,
+      "outputs": [
+        "dist/webview/portable/chunks/UYPVHNC4.js",
+        "dist/webview/portable/chunks/B2SPYXIV.js",
+        "dist/webview/portable/chunks/MFPH6EPU.js",
+        "dist/webview/portable/chunks/LYPIEHRB.js",
+        "dist/webview/portable/chunks/3S5QIRF5.js",
+        "dist/webview/portable/chunks/6OMNLSZ5.js",
+        "dist/webview/portable/chunks/FGS646KH.js",
+        "dist/webview/portable/chunks/HQZLC2DJ.js",
+        "dist/webview/portable/chunks/DBTVCQPN.js",
+        "dist/webview/portable/chunks/FUD6WHET.js",
+        "dist/webview/portable/chunks/YVARE2RA.js",
+        "dist/webview/portable/chunks/V2M6FW3I.js",
+        "dist/webview/portable/chunks/H6IHUBXR.js",
+        "dist/webview/portable/chunks/NSXCNUTR.js",
+        "dist/webview/portable/chunks/AK3RDXVV.js",
+        "dist/webview/portable/chunks/JYDCMTZK.js",
+        "dist/webview/portable/chunks/XOC5KL6N.js",
+        "dist/webview/portable/chunks/ZPBVKG4M.js",
+        "dist/webview/portable/chunks/IFQ6YPWA.js",
+        "dist/webview/portable/whatsNew.js",
+        "dist/webview/portable/presentation.js",
+        "dist/webview/portable/chunks/XALA6PXC.js",
+        "dist/webview/portable/fallbacks.js",
+        "dist/webview/portable/chunks/CXTF5MOB.js",
+        "dist/webview/portable/chunks/GBS7TVPM.js",
+        "dist/webview/portable/bridge.js",
+        "dist/webview/portable/chunks/L4VFIAJM.js",
+        "dist/webview/portable/chunks/2JIBJWT4.js",
+        "dist/webview/portable/loader.js"
+      ]
+    },
+    {
+      "name": "resource controls",
+      "budgetKiB": 50,
+      "bytes": 9763,
+      "outputs": [
+        "dist/webview/portable/chunks/ZF6UYGQR.js",
+        "dist/webview/portable/chunks/JYDCMTZK.js"
+      ]
+    },
+    {
+      "name": "resource history",
+      "budgetKiB": 50,
+      "bytes": 0,
+      "outputs": []
+    },
+    {
+      "name": "SetupBanner",
+      "budgetKiB": 25,
+      "bytes": 709,
+      "outputs": ["dist/webview/portable/chunks/HZBPGWKC.js"]
+    },
+    {
+      "name": "surface English",
+      "budgetKiB": 25,
+      "bytes": 22482,
+      "outputs": ["dist/webview/portable/chunks/Q7FAYAID.js"]
+    },
+    {
+      "name": "account English",
+      "budgetKiB": 25,
+      "bytes": 3757,
+      "outputs": ["dist/webview/portable/chunks/NYMRE27U.js"]
+    },
+    {
+      "name": "schedule English",
+      "budgetKiB": 25,
+      "bytes": 4933,
+      "outputs": ["dist/webview/portable/chunks/TP4R2PZ3.js"]
+    },
+    {
+      "name": "help reference",
+      "budgetKiB": 50,
+      "bytes": 36420,
+      "outputs": [
+        "dist/webview/portable/chunks/3XWWDZ3C.js",
+        "dist/webview/portable/chunks/AZ52SG7L.js",
+        "dist/webview/portable/chunks/XJDS7I4J.css"
+      ]
+    },
+    {
+      "name": "paid usage",
+      "budgetKiB": 25,
+      "bytes": 16082,
+      "outputs": [
+        "dist/webview/portable/chunks/BRAXTN74.js",
+        "dist/webview/portable/chunks/YQ3AXMD5.js",
+        "dist/webview/portable/chunks/BZY5QVN4.js",
+        "dist/webview/portable/chunks/3KRMZ66O.js"
+      ]
+    },
+    {
+      "name": "provider usage",
+      "budgetKiB": 25,
+      "bytes": 13516,
+      "outputs": [
+        "dist/webview/portable/chunks/RB6RI32Z.js",
+        "dist/webview/portable/chunks/KIO4C7QB.js",
+        "dist/webview/portable/chunks/YQ3AXMD5.js",
+        "dist/webview/portable/chunks/BZY5QVN4.js",
+        "dist/webview/portable/chunks/3KRMZ66O.js"
+      ]
+    },
+    {
+      "name": "report destinations",
+      "budgetKiB": 25,
+      "bytes": 0,
+      "outputs": []
+    },
+    {
+      "name": "reporting UI",
+      "budgetKiB": 25,
+      "bytes": 343,
+      "outputs": ["dist/webview/portable/chunks/ZMTB35PS.js"]
+    },
+    {
+      "name": "ToolBodies",
+      "budgetKiB": 25,
+      "bytes": 11817,
+      "outputs": [
+        "dist/webview/portable/chunks/DDPFVUCQ.js",
+        "dist/webview/portable/chunks/23VWJIZE.js",
+        "dist/webview/portable/chunks/6BJZZTX6.js",
+        "dist/webview/portable/chunks/D7CEHUNI.js",
+        "dist/webview/portable/chunks/BZY5QVN4.js"
+      ]
+    },
+    {
+      "name": "ToolRow",
+      "budgetKiB": 25,
+      "bytes": 12792,
+      "outputs": [
+        "dist/webview/portable/chunks/XKQQFDMT.js",
+        "dist/webview/portable/chunks/UNVQFKSQ.js"
+      ]
+    },
+    {
+      "name": "ReviewFindings",
+      "budgetKiB": 25,
+      "bytes": 1904,
+      "outputs": ["dist/webview/portable/chunks/JFT3OHT5.js"]
+    },
+    {
+      "name": "HistoryPromptRow",
+      "budgetKiB": 25,
+      "bytes": 4670,
+      "outputs": [
+        "dist/webview/portable/chunks/OZGPKVO6.js",
+        "dist/webview/portable/chunks/NSXCNUTR.js",
+        "dist/webview/portable/chunks/AK3RDXVV.js",
+        "dist/webview/portable/chunks/JYDCMTZK.js"
+      ]
+    },
+    {
+      "name": "SignIn",
+      "budgetKiB": 25,
+      "bytes": 4405,
+      "outputs": ["dist/webview/portable/chunks/NNEUHS5B.js"]
+    },
+    {
+      "name": "GoalPanel",
+      "budgetKiB": 25,
+      "bytes": 4301,
+      "outputs": [
+        "dist/webview/portable/chunks/XCR5MC2G.js",
+        "dist/webview/portable/chunks/23VWJIZE.js"
+      ]
+    },
+    {
+      "name": "SchedulePanel",
+      "budgetKiB": 25,
+      "bytes": 1809,
+      "outputs": ["dist/webview/portable/chunks/KTQXLRNH.js"]
+    },
+    {
+      "name": "Palette",
+      "budgetKiB": 25,
+      "bytes": 23005,
+      "outputs": [
+        "dist/webview/portable/chunks/YH7WABRL.js",
+        "dist/webview/portable/chunks/QZCWOWOE.js",
+        "dist/webview/portable/chunks/NQKFWV7W.js",
+        "dist/webview/portable/chunks/AK3RDXVV.js",
+        "dist/webview/portable/chunks/JYDCMTZK.js",
+        "dist/webview/portable/chunks/XADBE5JC.js",
+        "dist/webview/portable/chunks/IFQ6YPWA.js"
+      ]
+    },
+    {
+      "name": "PopoverMenu",
+      "budgetKiB": 25,
+      "bytes": 3056,
+      "outputs": ["dist/webview/portable/chunks/HQFOFTOX.js"]
+    },
+    {
+      "name": "GooeyMenuContent",
+      "budgetKiB": 25,
+      "bytes": 5985,
+      "outputs": ["dist/webview/portable/chunks/DAXPXS4B.js"]
+    },
+    {
+      "name": "UsageDialogContent",
+      "budgetKiB": 25,
+      "bytes": 24549,
+      "outputs": [
+        "dist/webview/portable/chunks/2MUNHFTX.js",
+        "dist/webview/portable/chunks/KIO4C7QB.js",
+        "dist/webview/portable/chunks/YQ3AXMD5.js",
+        "dist/webview/portable/chunks/BZY5QVN4.js",
+        "dist/webview/portable/chunks/3KRMZ66O.js"
+      ]
+    },
+    {
+      "name": "AgentMapContent",
+      "budgetKiB": 25,
+      "bytes": 21702,
+      "outputs": [
+        "dist/webview/portable/chunks/R7GETPIX.js",
+        "dist/webview/portable/chunks/476ZRISU.js",
+        "dist/webview/portable/chunks/EX32EU2Q.js"
+      ]
+    },
+    {
+      "name": "LegalReport",
+      "budgetKiB": 25,
+      "bytes": 10432,
+      "outputs": ["dist/webview/portable/chunks/4J7Q4GPI.js"]
+    },
+    {
+      "name": "ReviewCommentForm",
+      "budgetKiB": 25,
+      "bytes": 2144,
+      "outputs": ["dist/webview/portable/chunks/XCQ2VVZ4.js"]
+    },
+    {
+      "name": "question UI",
+      "budgetKiB": 25,
+      "bytes": 21622,
+      "outputs": ["dist/webview/portable/chunks/ZNNMNZXP.js"]
+    },
+    {
+      "name": "workflow details",
+      "budgetKiB": 25,
+      "bytes": 9059,
+      "outputs": [
+        "dist/webview/portable/chunks/WKGPZU4N.js",
+        "dist/webview/portable/chunks/EX32EU2Q.js"
+      ]
+    },
+    {
+      "name": "code highlighting",
+      "budgetKiB": 125,
+      "bytes": 90277,
+      "outputs": [
+        "dist/webview/portable/chunks/BM2MTZEI.js",
+        "dist/webview/portable/chunks/2C6CMX2H.js"
+      ]
+    },
+    {
+      "name": "tool cards",
+      "budgetKiB": 25,
+      "bytes": 5843,
+      "outputs": [
+        "dist/webview/portable/chunks/DDPFVUCQ.js",
+        "dist/webview/portable/chunks/23VWJIZE.js"
+      ]
+    },
+    {
+      "name": "action dialogs",
+      "budgetKiB": 25,
+      "bytes": 20456,
+      "outputs": [
+        "dist/webview/portable/chunks/MKVZK2XE.js",
+        "dist/webview/portable/chunks/YRAGX4AV.js",
+        "dist/webview/portable/chunks/UNVQFKSQ.js",
+        "dist/webview/portable/chunks/HZBPGWKC.js",
+        "dist/webview/portable/chunks/2YWMMH5O.js",
+        "dist/webview/portable/chunks/Y4SPDVYI.js",
+        "dist/webview/portable/chunks/DSTZWUJB.js",
+        "dist/webview/portable/chunks/AK3RDXVV.js",
+        "dist/webview/portable/chunks/JYDCMTZK.js",
+        "dist/webview/portable/chunks/IFQ6YPWA.js",
+        "dist/webview/portable/chunks/SJSJYB6Y.js",
+        "dist/webview/portable/chunks/PQUVJDX5.js",
+        "dist/webview/portable/chunks/DUHRRHZL.js"
+      ]
+    },
+    {
+      "name": "prompt library",
+      "budgetKiB": 25,
+      "bytes": 11883,
+      "outputs": [
+        "dist/webview/portable/chunks/3KPY5ANF.js",
+        "dist/webview/portable/chunks/MJNSKDHM.js",
+        "dist/webview/portable/chunks/S5BKJ2CW.js",
+        "dist/webview/portable/chunks/YW345DY5.js",
+        "dist/webview/portable/chunks/7P7XYOHY.css"
+      ]
+    },
+    {
+      "name": "chat sharing",
+      "budgetKiB": 25,
+      "bytes": 15676,
+      "outputs": [
+        "dist/webview/portable/chunks/PNFXPHDB.js",
+        "dist/webview/portable/chunks/YRAGX4AV.js",
+        "dist/webview/portable/chunks/UNVQFKSQ.js",
+        "dist/webview/portable/chunks/MJNSKDHM.js",
+        "dist/webview/portable/chunks/2C6CMX2H.js",
+        "dist/webview/portable/chunks/I4AAXOFB.css"
+      ]
+    },
+    {
+      "name": "tasks tab",
+      "budgetKiB": 25,
+      "bytes": 3144,
+      "outputs": [
+        "dist/webview/portable/chunks/T2PBC7SP.js",
+        "dist/webview/portable/chunks/7OQ6F5NX.js",
+        "dist/webview/portable/chunks/B4ZBWANN.js"
+      ]
+    },
+    {
+      "name": "playbook UI",
+      "budgetKiB": 25,
+      "bytes": 19519,
+      "outputs": [
+        "dist/webview/portable/chunks/PTBSRC4I.js",
+        "dist/webview/portable/chunks/QTJJBXPM.js",
+        "dist/webview/portable/chunks/YR33X6OG.js",
+        "dist/webview/portable/chunks/476ZRISU.js",
+        "dist/webview/portable/chunks/D7JM5FLB.js",
+        "dist/webview/portable/chunks/ER7KVXMD.js",
+        "dist/webview/portable/chunks/H3WPFIKI.js"
+      ]
+    },
+    {
+      "name": "schedule surface",
+      "budgetKiB": 50,
+      "bytes": 41723,
+      "outputs": [
+        "dist/webview/portable/chunks/5FVJ53TV.js",
+        "dist/webview/portable/chunks/D7CEHUNI.js",
+        "dist/webview/portable/chunks/BZY5QVN4.js",
+        "dist/webview/portable/chunks/GTYRZKIW.js",
+        "dist/webview/portable/chunks/XQPIKTQA.js"
+      ]
+    },
+    {
+      "name": "exact money",
+      "budgetKiB": 25,
+      "bytes": 12956,
+      "outputs": [
+        "dist/webview/portable/chunks/53NWMVI3.js",
+        "dist/webview/portable/chunks/3KRMZ66O.js",
+        "dist/webview/portable/chunks/BZY5QVN4.js",
+        "dist/webview/portable/chunks/GLRCZQAP.js",
+        "dist/webview/portable/chunks/YQ3AXMD5.js"
+      ]
+    },
+    {
+      "name": "deferred overlays",
+      "budgetKiB": 10,
+      "bytes": 6926,
+      "outputs": [
+        "dist/webview/portable/chunks/SHISP5KA.js",
+        "dist/webview/portable/chunks/JCLO7QYT.js",
+        "dist/webview/portable/chunks/XADBE5JC.js",
+        "dist/webview/portable/chunks/XHMWL4QF.js",
+        "dist/webview/portable/chunks/B4ZBWANN.js",
+        "dist/webview/portable/chunks/J6RGT5UJ.js",
+        "dist/webview/portable/chunks/YACDNNZJ.js",
+        "dist/webview/portable/chunks/AZZMCKA7.js",
+        "dist/webview/portable/chunks/IFQ6YPWA.js"
+      ]
+    },
+    {
+      "name": "media",
+      "budgetKiB": 25,
+      "bytes": 4460,
+      "outputs": [
+        "dist/webview/portable/chunks/2WMPEUCS.js",
+        "dist/webview/portable/chunks/BZY5QVN4.js"
+      ]
+    },
+    {
+      "name": "estimator panel",
+      "budgetKiB": 25,
+      "bytes": 25549,
+      "outputs": [
+        "dist/webview/portable/chunks/XEGZND2L.js",
+        "dist/webview/portable/chunks/DKXD4ATD.js",
+        "dist/webview/portable/chunks/2C6CMX2H.js",
+        "dist/webview/portable/chunks/VXGCGK6Q.js",
+        "dist/webview/portable/chunks/L64ORVKR.js",
+        "dist/webview/portable/chunks/UWAEJOB6.css"
+      ]
+    },
+    {
+      "name": "Walkthrough",
+      "budgetKiB": 5,
+      "bytes": 644,
+      "outputs": [
+        "dist/webview/portable/chunks/ZMBBF65K.js",
+        "dist/webview/portable/chunks/EU4WI45X.js"
+      ]
+    },
+    {
+      "name": "DiffPage",
+      "budgetKiB": 5,
+      "bytes": 1860,
+      "outputs": [
+        "dist/webview/portable/chunks/ZYT47RJ5.js",
+        "dist/webview/portable/chunks/EFVS4KTR.js"
+      ]
+    },
+    {
+      "name": "ManagerPage",
+      "budgetKiB": 5,
+      "bytes": 1593,
+      "outputs": [
+        "dist/webview/portable/chunks/JM5RCH52.js",
+        "dist/webview/portable/chunks/GM6QMF25.js"
+      ]
+    },
+    {
+      "name": "PlanPage",
+      "budgetKiB": 5,
+      "bytes": 2158,
+      "outputs": ["dist/webview/portable/chunks/PWO7GUFH.js"]
+    },
+    {
+      "name": "RoleTrafficPage",
+      "budgetKiB": 5,
+      "bytes": 1732,
+      "outputs": ["dist/webview/portable/chunks/QLQ3RVUC.js"]
+    },
+    {
+      "name": "argument preview JS",
+      "budgetKiB": 25,
+      "bytes": 950,
+      "outputs": ["dist/webview/portable/chunks/OKACVO6I.js"]
+    },
+    {
+      "name": "pacing/status JS",
+      "budgetKiB": 25,
+      "bytes": 1200,
+      "outputs": ["dist/webview/portable/chunks/FLZXZ4D6.js"]
+    },
+    {
+      "name": "team UI",
+      "budgetKiB": 25,
+      "bytes": 16996,
+      "outputs": ["dist/webview/portable/chunks/A5Y5GO6R.js"]
+    }
+  ],
+  "outputs": [
+    {
+      "path": "dist/webview/portable/chunks/UYPVHNC4.js",
+      "bytes": 3182,
+      "sha256": "dadff2452e157be28da2f535f33811b4e7a6daab19156e2bfccf83d6947f64b5",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/B2SPYXIV.js",
+      "bytes": 3489,
+      "sha256": "c185401c2d5c3b580515240bb469f564a1de18f17a14618989e834e1947b459b",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/T2PBC7SP.js",
+      "bytes": 1246,
+      "sha256": "d05ed6d2179bec64542683ffba4dc2ac681da9a38a89915b2b56120f6942b9fd",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/ZYT47RJ5.js",
+      "bytes": 162,
+      "sha256": "56779a5410849979bf846bc66b257f798a6bd1e4cc5c841ff86ff71c7dd4094a",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/JM5RCH52.js",
+      "bytes": 165,
+      "sha256": "159c6812ffa359097e1b1f27a9ae4022f0f22eff9826f97a45d4f4c946f9d303",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/PWO7GUFH.js",
+      "bytes": 2158,
+      "sha256": "a086bae4d4d1752c5eec0e9f69d26a44d9243369be81325d21b47e96abd57190",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/QLQ3RVUC.js",
+      "bytes": 1732,
+      "sha256": "605eab74daadd145d551a8153878d9d5c8e601d831469a9817b18528a6373c22",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/MFPH6EPU.js",
+      "bytes": 480,
+      "sha256": "ad757d733c4c820095ee6d4b61d3659ac3e7375d1e9a2b2f970715cd03d7357f",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/LYPIEHRB.js",
+      "bytes": 275,
+      "sha256": "4ed88128fe4928f7d1517a69ce5a64ea0e67c2dc6d5a79e1498cbcdf43801713",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/3S5QIRF5.js",
+      "bytes": 137,
+      "sha256": "c434b42f3c68dbc74236499173c55efc2a98f95ee0e8ea3cf50acdc73e24cd27",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/6OMNLSZ5.js",
+      "bytes": 954,
+      "sha256": "70f3db883e0a3f2419d7ada684b61b4c44aa140eb7e9c5fda684b06df9cd41c7",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/FGS646KH.js",
+      "bytes": 3854,
+      "sha256": "2c9346608339dbf652995742ec4136413ad0a78cc8ffd56777c1869a5e5d59fc",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/7OQ6F5NX.js",
+      "bytes": 323,
+      "sha256": "6334652a1473b4539cf5d74cdb4561b990a02904d5c7be99778832f76444e765",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/HQZLC2DJ.js",
+      "bytes": 299,
+      "sha256": "4dba9b72ccc2c53d3880f4b1d7711338d9723613877a50d66ed8fdc1a572c5e0",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/MKVZK2XE.js",
+      "bytes": 2076,
+      "sha256": "2e23d596e8eda5669ca76b7370c7100cf5f10754856e854638a0b14a72031a00",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/DBTVCQPN.js",
+      "bytes": 8848,
+      "sha256": "9286d74eadae8fd2569590a5b0e68227be2b8080505edcd68e1585835efd7c75",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/5FVJ53TV.js",
+      "bytes": 34330,
+      "sha256": "fb0446358d725661b0cdc9543623d0372ccd49c0012164507b835b11d5af1c0d",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/GTYRZKIW.js",
+      "bytes": 1655,
+      "sha256": "78e06ad3754aa6d8b2b7a3fbe83b1f0802e44d40339b482287eb62e3dd9e129d",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/XQPIKTQA.js",
+      "bytes": 1347,
+      "sha256": "ff0d868931b7d30194d39f0a165f6e71867a9c67a9f41b14c6f8c49a9d14650d",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/XEGZND2L.js",
+      "bytes": 2140,
+      "sha256": "3a0a21d0c802a9ed582cbb40e2cfc0cfdf382578456dbe119a5bd9f40c88050d",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/ZF6UYGQR.js",
+      "bytes": 9394,
+      "sha256": "2dbbb4092ee9c1ab1a585f70596777f0979708cd925841845c04f4007df612db",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/ZMBBF65K.js",
+      "bytes": 143,
+      "sha256": "3edfd32826f91dda71e94f7dd97b2c6152b9e22428c947ed858ac7991c0c2863",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/FUD6WHET.js",
+      "bytes": 4459,
+      "sha256": "5dce8a1bca5bd830ae3b6f12f227a01de3979086bffdc1dc4b773fd0400d0542",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/3XWWDZ3C.js",
+      "bytes": 23323,
+      "sha256": "4024f3395a37a7ce006e461fb4bdf7ddc11ab4d4be37db05104677bfbdfe4d5d",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/HZBPGWKC.js",
+      "bytes": 709,
+      "sha256": "81bcc42e758ffad648aca18084a748b8a151daf8af532c64706f088958e45daa",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/2YWMMH5O.js",
+      "bytes": 1506,
+      "sha256": "d8b6a3caf920670f6dc17d04c96de6f95982318e54038012a36364e19ec45be1",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/Y4SPDVYI.js",
+      "bytes": 904,
+      "sha256": "184697ffe2cd4c1ac17aee6e2c75fd3111679e0671216e16e465c278fe31b824",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/DSTZWUJB.js",
+      "bytes": 2444,
+      "sha256": "e5bc56745b012fb7ae3009f725a4ff6506ff77563cd14ac56165185d77532805",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/3KPY5ANF.js",
+      "bytes": 2203,
+      "sha256": "2e3fefc305e3aa9fb867106ddc9e991c4db9469467d4c67468fbd777f26b4f17",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/PNFXPHDB.js",
+      "bytes": 8653,
+      "sha256": "e5350bfe88e5f46ccb9cc7c69996e3d223d0aca909b6e3cf043cef0df476aa16",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/YRAGX4AV.js",
+      "bytes": 3139,
+      "sha256": "14491265ff0eb4deccbefd232a2018e1f01400484906c9f1a2f9e757d6e2fd86",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/MJNSKDHM.js",
+      "bytes": 2287,
+      "sha256": "4732da44434f68c771dd2d1424d266565e4e3e0a88154557b6d4d354ae721b85",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/SJSJYB6Y.js",
+      "bytes": 1437,
+      "sha256": "f960217d5b631e31c9b8d88b76dfa29ca5aa3dce7288e5b74d1cdbbc12bb2a97",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/RB6RI32Z.js",
+      "bytes": 1435,
+      "sha256": "4cb9913887173dd5b2721d18ca36f88f3e7858751b1fc2228ff1e15ad9cd6525",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/BRAXTN74.js",
+      "bytes": 4299,
+      "sha256": "8a6d163abb9176fd480a4d6796ebc044b6541a031a3687ff8843e92ae348af62",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/FLZXZ4D6.js",
+      "bytes": 1200,
+      "sha256": "a6f98f0c409b8b4e369d4291b5ba73935bf1186161b268160029d08ca1c55924",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/2MUNHFTX.js",
+      "bytes": 12468,
+      "sha256": "3e3fe181b4f1115dbfda4f08a432d669ace6d66e5050049a4dc7df180f990cdb",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/KIO4C7QB.js",
+      "bytes": 298,
+      "sha256": "7b85817917598b3a57df1f9d81844a779bf3f02fb0028e0d14a7c6ce3f475805",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/YVARE2RA.js",
+      "bytes": 478,
+      "sha256": "21cd8374d82ebb78275cc089bccb666a39de0a61c41acf8b94d5d8bd324a8359",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/V2M6FW3I.js",
+      "bytes": 7305,
+      "sha256": "c4d57485933c178a55af6f41927c2daddd6e0b894829365d19a03e176acfe2b1",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/XCQ2VVZ4.js",
+      "bytes": 2144,
+      "sha256": "3f580861a81769fe63f5788e5f9ca86c17ff9c966c5f9fa683aff207a68404fa",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/VXGCGK6Q.js",
+      "bytes": 11236,
+      "sha256": "79a3f761ffd1a388ec8aa260aeab535847f9dc45d4c00491e37cab8a30d51ce9",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/YH7WABRL.js",
+      "bytes": 265,
+      "sha256": "a2db3b0fccb3cacce4a043c09884003aea12ef386df8a721786f2c12b1bd9405",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/NQKFWV7W.js",
+      "bytes": 8277,
+      "sha256": "3121e9f7a4fb6cfa49bc3762544356454ee7a343fefaf541fa8fef64e0be2376",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/QZCWOWOE.js",
+      "bytes": 10566,
+      "sha256": "5a9369bca1e3c61b5c7c6d188087ff497e2da503224d734367fba8bd3bcd34d1",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/OZGPKVO6.js",
+      "bytes": 2047,
+      "sha256": "96efc372ee6d04c3e36663c9916a83b3dbc919a3a44b31566a7a9b439d5bd6ad",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/H6IHUBXR.js",
+      "bytes": 3561,
+      "sha256": "5f6b2cbb5a3a9ee4f9620d361976154b96f73aca89b371c373412ba8d9281b37",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/NSXCNUTR.js",
+      "bytes": 193,
+      "sha256": "630bfaa5add241b53b2a0852293944e20276dcfcb546b6c7b58648fb0e6100f2",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/AK3RDXVV.js",
+      "bytes": 2061,
+      "sha256": "a9d054b7d2a150e396bf7370035722cc2e9b3e92cb16b7383160305fbbb6b8c2",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/JYDCMTZK.js",
+      "bytes": 369,
+      "sha256": "e2d2182f43cb3285f20040b5a6315650c4f3dc573e84fd5f631e85bd3776cbfd",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/R7GETPIX.js",
+      "bytes": 12202,
+      "sha256": "920c4c410bb1d09ed73bd4ed652891c8ec80303989839d3c5e78d693401723e1",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/XOC5KL6N.js",
+      "bytes": 372,
+      "sha256": "82c2ad32b0209d5c56f47bb5e5c57eb093538d9ffff63a20b400177f0fa8d20d",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/DUHRRHZL.js",
+      "bytes": 357,
+      "sha256": "4059a14ea1cd520061eb23e49afcf2502da05dfb15ed38bed07f63faba641d11",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/PQUVJDX5.js",
+      "bytes": 4399,
+      "sha256": "b53eb45e2efdf19188868dda00f044afcf2a6faa8595e1aa2998bb1dfb792955",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/SHISP5KA.js",
+      "bytes": 1060,
+      "sha256": "64dedb72a11adabf06f7778809505820efcb49ccb895bf7e2dd6868545068163",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/JCLO7QYT.js",
+      "bytes": 210,
+      "sha256": "4c150faba8aaf1569aa7e20fb8a03c468f92a3ce3a5e67c2df360bf50725c716",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/XADBE5JC.js",
+      "bytes": 1223,
+      "sha256": "a9cebbccf5ec6b0a20a493836b6e22407e3f065ef8e5e2a580693e2986786cf8",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/XHMWL4QF.js",
+      "bytes": 229,
+      "sha256": "0ad7859c4525b5827f35c16ba2d9a905ecc3d8be52ca229e92b0c470499308a6",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/B4ZBWANN.js",
+      "bytes": 1575,
+      "sha256": "221eac6d82d80c9ddc61a9640f1026bd6240da8768065066a3652b155fa13e46",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/4J7Q4GPI.js",
+      "bytes": 10432,
+      "sha256": "c6e9b7dc0e4cc3aea95f93789019f9de00bf13befa3415fad10184864c99b7b3",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/ZMTB35PS.js",
+      "bytes": 343,
+      "sha256": "2a3ce8b21244f8edd675bb977d827263d313c5f128607bd3cace699d087ac5b4",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/NNEUHS5B.js",
+      "bytes": 4405,
+      "sha256": "d618011c8e9827ad62ce7815a9c738b3a90aa4234d13b9c4badf6357d5e82c2e",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/XCR5MC2G.js",
+      "bytes": 3621,
+      "sha256": "01a47052cc4f802768532dcad360b60e325596b97058650fb11aa8453b2ef9ae",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/KTQXLRNH.js",
+      "bytes": 1809,
+      "sha256": "af1212b70d1c42d0cbcdda0790babf54407a74b467c3c96dc2df0511aa0fba9a",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/PTBSRC4I.js",
+      "bytes": 1643,
+      "sha256": "039b9bd07990532e19df49a57c5478a0777870366cdf4160468936957daffc44",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/YR33X6OG.js",
+      "bytes": 445,
+      "sha256": "9937bceeedc798069e9de85841ab00ba5baf420da8cc95fe6a2d2e275174b2cd",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/476ZRISU.js",
+      "bytes": 813,
+      "sha256": "40630ca6c218edeebad64239e7dd2d22c5cab859a56486b4f6c60e017d8508c3",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/DDPFVUCQ.js",
+      "bytes": 5163,
+      "sha256": "bce962f57ddc859dcfd087cea08624ac425bafa0567493d975bd0d2926e5e408",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/23VWJIZE.js",
+      "bytes": 680,
+      "sha256": "ba5786586a4b1a718880416f358a3c15b0c59467d0ed4542fbc7af34b890fd5d",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/6BJZZTX6.js",
+      "bytes": 1583,
+      "sha256": "dd5ca0566e58f6575ff53991de6e2e3a8d0f601790a073e0b0c8619b544cb4d6",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/D7CEHUNI.js",
+      "bytes": 1233,
+      "sha256": "96aaea7f2b6ff13255fcd5ab4501ecf87b4b13738b290fb377876cafbce8ad90",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/OKACVO6I.js",
+      "bytes": 950,
+      "sha256": "c392f222d94133b2192a7e8b6e8fd38ae0cf02ae4b15d9a3af463264c555371e",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/XKQQFDMT.js",
+      "bytes": 11981,
+      "sha256": "c1cbf5dcfad102d5b12d6418562fa5036a7401c3d450a39666d1a158c4548303",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/UNVQFKSQ.js",
+      "bytes": 811,
+      "sha256": "679256ccf16cb445dce31f4e7a018bb5d21e290f189472c0dbcba8f020e87478",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/WKGPZU4N.js",
+      "bytes": 372,
+      "sha256": "549779332a2385bcff492d9e5145eb2ef33b84b17c51b091d1e7c686d9ac7d76",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/EX32EU2Q.js",
+      "bytes": 8687,
+      "sha256": "d9cb19bdd2dcb855b163962f2310d782d219b8955091960bee5ee0abb31b5b67",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/L64ORVKR.js",
+      "bytes": 883,
+      "sha256": "d30a9fc57e095034fffa10ee66d81e8d857e0c5106ea1d5c26834adb0fab1286",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/DKXD4ATD.js",
+      "bytes": 9337,
+      "sha256": "a602679075024085cad94cb6c6b0ed9507077bd5688ba290ee3cc960cf3b2420",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/J6RGT5UJ.js",
+      "bytes": 825,
+      "sha256": "9f41361be5683e59852281126109941e61eeab1a596f8aec664ceb696d40b8d7",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/YW345DY5.js",
+      "bytes": 299,
+      "sha256": "c98ab5f9e12e275170e0616746aef9c7232fc845b36ade83e64325e4145448f4",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/S5BKJ2CW.js",
+      "bytes": 5725,
+      "sha256": "c2a0eee2aac78c7766d498f828542ffad1e3700fa926e1945b6940fa5eb2d52f",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/HQFOFTOX.js",
+      "bytes": 3056,
+      "sha256": "f74d8451788fdbf2adec112e5c7d04bfe486ca2fc7ab4150d4cd37923c343cef",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/ZPBVKG4M.js",
+      "bytes": 4927,
+      "sha256": "a264cc2bff4fe27ee4008597e72bcd57378846600351cde6be40068d9d437775",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/BM2MTZEI.js",
+      "bytes": 90137,
+      "sha256": "350d702de5fc1301736c8c9f931b35a6f992f416073dc509e8db82091a32f056",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/2C6CMX2H.js",
+      "bytes": 140,
+      "sha256": "93ebb02cd70c11d59110be4ab34ff777bb525738527be7b7858ab05a02f3ee6a",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/JFT3OHT5.js",
+      "bytes": 1904,
+      "sha256": "e5821e7783a0326f5136652358e6f7220c79b06201225530ff9b7dac9e5c0989",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/D7JM5FLB.js",
+      "bytes": 255,
+      "sha256": "470c103e6e00292e49f948548f09ea4d8befb22b8d218ffc3b23f67c02c3f3a5",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/H3WPFIKI.js",
+      "bytes": 819,
+      "sha256": "ab253db4aa6d0633cab8adc92845a67f538b661e717bc81f1c3c322ef5db90a8",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/ER7KVXMD.js",
+      "bytes": 5694,
+      "sha256": "b898007060db652b601aa1a40585aecd090352ab81ecbd9c073187849e6a1928",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/QTJJBXPM.js",
+      "bytes": 9850,
+      "sha256": "c7bbc62ca1eda503568fc565c6d7c051bcd92efdf0861146bb4a761ec67b1ae5",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/TP4R2PZ3.js",
+      "bytes": 4933,
+      "sha256": "52b245c258cdc4c5fee857922d80cea191ffd638f2fd0bc257b58ac414f230ed",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/53NWMVI3.js",
+      "bytes": 839,
+      "sha256": "e5fbb0de67d4f39e29e45b9e0079aa3e6578e1ee6a20a27c93a4fe73642dda51",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/GLRCZQAP.js",
+      "bytes": 334,
+      "sha256": "847ebce94c8be5fb85d44edb4ba2104719af022494d4a37b7eccdb7d6e723a07",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/A5Y5GO6R.js",
+      "bytes": 16996,
+      "sha256": "ac14eccba3d36b5fb54186ec3ad9211d99270ee1b156aad39ed921732975460c",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/YQ3AXMD5.js",
+      "bytes": 2321,
+      "sha256": "5108b44dea7ee180f259a2ec03fba4fe2327ca217769ab15ccd75aebb4cd5724",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/3KRMZ66O.js",
+      "bytes": 6304,
+      "sha256": "2a3b829239b997d88a1cf8f4b2502623faaca072c7d14bc773a32754da054527",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/DAXPXS4B.js",
+      "bytes": 5985,
+      "sha256": "ed228e23dfdafb3e7a0fe65334528c67e8af0fad7456dcd2a8912aa12489c939",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/ZNNMNZXP.js",
+      "bytes": 21622,
+      "sha256": "229bbb883ae3d45bd9dad32f5cc5ecec068a59b389aff959f105ab40e7521fff",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/2WMPEUCS.js",
+      "bytes": 1302,
+      "sha256": "4e225c9ec1cbc574f474010a73cd19bc9c7deab9a0161f4686e2070415962567",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/BZY5QVN4.js",
+      "bytes": 3158,
+      "sha256": "e089c68308a828a30bad6f49f3cd5a45b2b3a652d0640eaa6c6529a6e652b899",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/AZZMCKA7.js",
+      "bytes": 1048,
+      "sha256": "a6d46344c1095a32494aa54a09db6deae1e17107d9331859045c41421b291abd",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/IFQ6YPWA.js",
+      "bytes": 244,
+      "sha256": "ec91f0ab510cc9ef3d675354e1d0cf0d3922e8857d2dd31197c9361db69c9235",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/YACDNNZJ.js",
+      "bytes": 512,
+      "sha256": "9322e3a99e0d770571340ae164c8ba8602c304fcec90adb65071ecd767f2d58e",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/main.js",
+      "bytes": 117354,
+      "sha256": "4785b959772b7225b925883414bedfff405ed4923aad82e91343fe8c9be0991a",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/chunks/CFR4Z3VE.js",
+      "bytes": 42786,
+      "sha256": "a2ea75ccfddb033ae417e8abadb3c7d3a9c8e2af8cdcc44291b7fe8b44f27e69",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/chunks/FJP6GBW2.js",
+      "bytes": 1106,
+      "sha256": "8fb9f23288353676257a8a041da894b439c308b67f90cafd98ec467b8c74203c",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/chunks/DXM4WB4G.js",
+      "bytes": 503,
+      "sha256": "0039a9f9406079f159e0f77949e2f12d3456791ae9a01b8ec65ab4da83850a79",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/chunks/CRJQKXK6.js",
+      "bytes": 165,
+      "sha256": "6873114664b6dec213c2fad6eb84e4a99a011eb3d6e52a307325f0e0b1ff099f",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/chunks/CPGKQOSS.js",
+      "bytes": 1165,
+      "sha256": "744afe604a38dc7421027ca0a116268b1eaa3f13b0a758d6d9f0d9720e2b8f81",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/chunks/6PBNNZIB.js",
+      "bytes": 455,
+      "sha256": "fa864323a39add79a3fd29ad2809597246eb5fffb3ee9a6b3e0a84b38b62b676",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/chunks/NN6PEMXT.js",
+      "bytes": 326,
+      "sha256": "d92df5ac0176bc4473e5cf92edb30ab50c0f9565d8c0676722f5ee989af80bad",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/chunks/UNKPDIQY.js",
+      "bytes": 1478,
+      "sha256": "c996f0ad45f25175d484116a51c7fade3ef707e7072540390595961fed39bea3",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/chunks/3VPDAETW.js",
+      "bytes": 716,
+      "sha256": "21434ff459c32876a799785bb7cea7b1f40a3165de3ac0192966439834c2de51",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/chunks/JTBEQ2N6.js",
+      "bytes": 1794,
+      "sha256": "58c518d23621788176d4767ea1eab00f0fbc9916eaf8ca4e7e7345fa7c6387a4",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/chunks/SFTB7P4K.js",
+      "bytes": 1730,
+      "sha256": "2bf8fc0c818e0eb079a94d8beb8f2d325a5518ec61567d174ab2c478df4e86dd",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/chunks/RTCVS6YT.js",
+      "bytes": 1657,
+      "sha256": "6858a7576c505b530e89afd44c9c5305a8af6082ada3a0e63ee96b91a627cdf0",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/chunks/2TEO5AI5.js",
+      "bytes": 549,
+      "sha256": "4e766cd11d666a4a56ba6c3b28fbe5fb748cdff2b7761fe23d6a1cbf6371574b",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/chunks/TO4IPJIV.js",
+      "bytes": 61671,
+      "sha256": "7814a6a6879b3a0ad733f313c56dd1ce4aee9858b6c10ad19323b3f94e8dd47c",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/chunks/ZSMVPGYG.js",
+      "bytes": 56498,
+      "sha256": "d38f18466ba113c87b2312a5cfd6956f62ae19b52c074779c4b94ec9b8cefc64",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/chunks/DM7PSPQW.js",
+      "bytes": 746,
+      "sha256": "57eb6fb805427f2abe820f059683c59e0d82846f8d1ab6e7ef326cf77205eab6",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/chunks/3SKGAJQK.js",
+      "bytes": 1403,
+      "sha256": "91604bf7b5b849c2ee788b4344c94e753001f75f822522088d22e110da02e927",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/chunks/KUALNXIO.js",
+      "bytes": 1395,
+      "sha256": "ba8ce29b3c8d250430d50cd67bec7ed5dbfb9a62f658cade3396c9f1ac03b2a6",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/chunks/6GBV66RH.js",
+      "bytes": 59223,
+      "sha256": "c4ad33562bee2cb86cb8a7916ea6a8726d2f50a463dcab1c4f0d0857c36709a0",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/chunks/27PQGSMR.js",
+      "bytes": 2293,
+      "sha256": "8dd171d9a1ed22eabc17df6c211b4a23a65d7ce8e52e6cf0947e7883da15a028",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/chunks/YTEE75RK.js",
+      "bytes": 3707,
+      "sha256": "a2941b321cb8c7357e68a73c0908be4d3f0294ab386b02de5708717d996b1357",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/chunks/XCTVFG3Z.js",
+      "bytes": 2766,
+      "sha256": "5f6a7348b3ef49267c8f91e75129f846d0cc538a9e891446de7ee8fa293cbe09",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/chunks/VGJ47MEZ.js",
+      "bytes": 254,
+      "sha256": "d4178797e793b9ca93a9af24dbc3eb496312ac8243e008f8350d8b322a9e547a",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/chunks/XT4M5XRQ.js",
+      "bytes": 7776,
+      "sha256": "49c4da1fbafbe3ec7b310dc86140a08fe94a3c523e9264e0f9257630bd5f6e16",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/chunks/WYFDBKSP.js",
+      "bytes": 2755,
+      "sha256": "290f52d791be8556275cc20ed16db51e9ccb988a6525ed4d322baefc528d3050",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/chunks/FP6YRUSD.js",
+      "bytes": 270,
+      "sha256": "1dcb12261df755227ae7968b35dcf1f15acf680635d1e28e068d702f90569679",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/chunks/N6INZH65.js",
+      "bytes": 186,
+      "sha256": "934b1fe1a98c04f9050531bec5667fe471992e3e74627d7c21617181ab932f3e",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/whatsNew.js",
+      "bytes": 1087,
+      "sha256": "85d09a2f2fe9841554ebfd85f80e744cc0657b7e380ee419d8a7aae3979f8b4f",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/YJZPHKMO.js",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/presentation.js",
+      "bytes": 4098,
+      "sha256": "a6ce8385ea1b63bbd96060306556cffb26a08f96b9a69ccf496fe78812e75999",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/XALA6PXC.js",
+      "bytes": 1911,
+      "sha256": "839c9fd582196941298aebf2e40d8415a378a8911678f275a6b57642905357ab",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/QYMNV23N.js",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/chunks/6ROOJFNT.js",
+      "bytes": 21844,
+      "sha256": "793ec6e61edbc2295edcc50fd4dced645dbf214b6e75ef5dd454abc4c0b9d56f",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/chunks/4RL4BZR7.js",
+      "bytes": 5697,
+      "sha256": "754a28bc6de2574307ecb81b57a464f300376f9df33bcc40312e650636814c19",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/chunks/2C7O7ZBF.js",
+      "bytes": 685,
+      "sha256": "cdb0090510456d15f7500c692965c4c5aebeb1cc316d49fb1d25a1d0bb45e84a",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/chunks/JPUVSFQC.js",
+      "bytes": 1131,
+      "sha256": "39a26399edd279d01db1fa0c9113aad4b44b9432b1bcd34a40d58b7d0e3c1867",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/chunks/CDHX6UAA.js",
+      "bytes": 1569,
+      "sha256": "21ac5a36c8e4ced17ddc7e6cf7a044066cf2734cd85ec6f385c21c990c27cdbd",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/chunks/NVVEBVPE.js",
+      "bytes": 2257,
+      "sha256": "85e458f8b74b0eebb5612be84f6656e6790f8119624f7a14ff1cc7f596fee39b",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/chunks/IJ6HR7RD.js",
+      "bytes": 1647,
+      "sha256": "9f727645e02b380a96f5afcc9dcfa4ef6f0cdc55b0372930390962bb5c7bf13f",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/chunks/QGQVQSM6.js",
+      "bytes": 8134,
+      "sha256": "c7dae846831801915635c32f719119456e6f394f3883ea048f4c6058d2b48424",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/chunks/VHIZG52O.js",
+      "bytes": 431,
+      "sha256": "810fd582f0b491bb69f6f40d46fcc5d87f2aec8db0a31895bfa4f09f2478f952",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/chunks/3R347UIA.js",
+      "bytes": 1265,
+      "sha256": "06ac606314a520c9ca5bb50fcb7f0beda66c4626a1f2eeb3c99502918daa953a",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/chunks/LK7JSXJB.js",
+      "bytes": 663,
+      "sha256": "dd89db29b8d753bd4416c6892c4c245f11dda932a3808e4daaf18248394d46d0",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/chunks/AWELKJUA.js",
+      "bytes": 1915,
+      "sha256": "293fad0c262eb53e5fead3707adf7139e977a14f679ba9cd5c5a459b99263a6d",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/chunks/L3K7L3NY.js",
+      "bytes": 1951,
+      "sha256": "01fad7f339f130193ba05fad97e372f8810c2519220f4d3c57d266a9d2fd3d6e",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/chunks/SPUT47NS.js",
+      "bytes": 694,
+      "sha256": "e33ffbf210fed0f4f9400461c781e27dd8add1b3245bee8f22ef21cb79d072aa",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/chunks/V2AZ7A4S.js",
+      "bytes": 3219,
+      "sha256": "1ee7478f3b35f1e3e8bc7ae34dc2cce908dbd8c85a35e56c29aa4126137ba671",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/fallbacks.js",
+      "bytes": 9236,
+      "sha256": "aa6d720d6bd82e2c097b38bf18f78e59278f5d1fdb08a1f5aba9f16255ed859e",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/CXTF5MOB.js",
+      "bytes": 8326,
+      "sha256": "a2a38d3923abab13a45f64b4b922e3ca887e90ee23878e2c54e84655de6c55cb",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/EFVS4KTR.js",
+      "bytes": 1698,
+      "sha256": "d0d2d8f9a3858b78078625302b1e3c9e920ecb2275e9f31e608edf3edf363ee2",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/GM6QMF25.js",
+      "bytes": 1428,
+      "sha256": "508f0e5a03894d2ecb89ecf6662fba2dbd2d455e85a005c1b76e990f6c19f35e",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/EU4WI45X.js",
+      "bytes": 501,
+      "sha256": "a42087636d3602792011083947320c1beaf125e2fdccb15a2395f171e126b941",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/7UUPT2FJ.js",
+      "bytes": 1535,
+      "sha256": "0a8288f9588d6bc2e0a8c206c81e3173bf845ab62e51bcc50dbae2077f36795f",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/chunks/I4KJ4UUW.js",
+      "bytes": 2183,
+      "sha256": "76e3bd63cbaeb8de164cfe174f550497c16cfe9eb7317b239251f4d334d30904",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/chunks/7KG6AR4V.js",
+      "bytes": 7272,
+      "sha256": "81d8852a89aa18510c414a721c465e7dc09e7850e5ef45a95891c7ab22161e1d",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/chunks/FWNC6A5K.js",
+      "bytes": 416,
+      "sha256": "4a36a747a7969b8c6978255c760030188ca92dd27ec81dfa1cb5e3a859d32c41",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/chunks/GBS7TVPM.js",
+      "bytes": 2144,
+      "sha256": "dab2a9f49a8f6247a00aba2fc965c17e2156d817c54ef7f471df4f89946cdf29",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/A6SA2NTK.js",
+      "bytes": 208991,
+      "sha256": "706834ae41c0297adc5a26b15f30ef5b1401e40c44e9f4edca689c04d6c945cd",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/chunks/IKLU5OTY.js",
+      "bytes": 3923,
+      "sha256": "d16787ae87a5626a5b971bea426bb91005533d313fc5cd7d016fc0b17abcb46c",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/chunks/FNI5YF2R.js",
+      "bytes": 7921,
+      "sha256": "144c9216848c4e3a15842d8ebeabe20445747558089dd98bef94d57bda2fcac1",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/chunks/HLK2X6MJ.js",
+      "bytes": 446,
+      "sha256": "d94b159d8679a1e80604d3c49e9d8e8b4beb65f6de648f010ab4ab184f81438d",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/bridge.js",
+      "bytes": 1282,
+      "sha256": "6a448572b0c326fcc08d54aeadf143e278b870bbf508f684dc07b16866201a32",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/L4VFIAJM.js",
+      "bytes": 715,
+      "sha256": "d531d8852786c50eb69dbfc1cb5d9cde441d13b30660f5bdce0e41108ac2bfe0",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/2JIBJWT4.js",
+      "bytes": 2290,
+      "sha256": "a6dc482ef0d8ae000d516e1ea9c5cd552b3d325f13a2686a4cf647cf0059b830",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/4ARFQ7VS.js",
+      "bytes": 17298,
+      "sha256": "0418fdad6f3f9c8a87711e54914c4794dbd157cde3f8d10eb500612ddd8b2f8d",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/chunks/YZ4H7HJP.js",
+      "bytes": 2671,
+      "sha256": "cad0f826ac6cc628caffb8f14e4502e11d8dd5e4e9980272b804ede7b0c1fc0d",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/chunks/W6FJYL4E.js",
+      "bytes": 38897,
+      "sha256": "a30862834bc43725cb9ff9038b2ac9bbe61f3562ce4250b85a61e5478c673b0a",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/chunks/Q7FAYAID.js",
+      "bytes": 22482,
+      "sha256": "9c8f37265ec2dd004f06859d660fae9f97c2a997d09e46ba2b320a64b7719d03",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/AZ52SG7L.js",
+      "bytes": 11571,
+      "sha256": "c75a3271a92981677643e71ce471b2c8299bd189989008d4ee18faae2fe75cda",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/NYMRE27U.js",
+      "bytes": 3757,
+      "sha256": "75757ebc708ca635c0d8e4569c1da79679f1fa4fc00aa821ae2473434a068e02",
+      "chatStartup": false
+    },
+    {
+      "path": "dist/webview/portable/chunks/5UGZ6AAK.js",
+      "bytes": 39702,
+      "sha256": "a8b99171d7fef0a2c7beab0de783e2c6cf7df7c338df0bc30940d600bf319297",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/chunks/OMGFRT2N.js",
+      "bytes": 638,
+      "sha256": "9dbaaa1b267ebd74b96fc498735a78d76804f1e96e532871291c937cf83694e7",
+      "chatStartup": true
+    },
+    {
+      "path": "dist/webview/portable/loader.js",
+      "bytes": 19386,
+      "sha256": "a1298b9b1848e49bd80283b687b1d6e78fbb06d615fe6161c8dd6b9c9e27577c",
+      "chatStartup": false
+    }
+  ],
+  "overageBytes": 196936,
+  "restoredVerification": {
+    "buildExit": 1,
+    "bytes": 1323336,
+    "changedOutputs": 0,
+    "metafileSha256": "7c06650928f40f36c3ff7c8979ef332acd5831775ac87f9c49539cb2596ed626",
+    "allOutputsByteExact": true,
+    "productionSourceChanged": false
+  }
+}

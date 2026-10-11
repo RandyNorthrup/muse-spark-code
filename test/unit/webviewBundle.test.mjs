@@ -1,7 +1,9 @@
 import { spawnSync } from 'node:child_process'
 import { Buffer } from 'node:buffer'
+import { createHash } from 'node:crypto'
 import {
   cpSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -11,18 +13,52 @@ import {
   writeFileSync,
 } from 'node:fs'
 import path from 'node:path'
+import { runInThisContext } from 'node:vm'
+import { build, context as buildContext, transform } from 'esbuild'
+import { chromium } from 'playwright-core'
+import { findChrome } from '../../scripts/lib/chrome.mjs'
+import { compactBrowserUiText } from '../../scripts/lib/uiTextRegions.mjs'
+import { lazyBrowserKeybindings } from '../../scripts/lib/browserKeybindings.mjs'
+import { sharedHighlightGrammar } from '../../scripts/lib/highlightGrammar.mjs'
+import { resourceBrowserValidation } from '../../scripts/lib/webviewBundles.mjs'
+import { BUNDLES, checkResourceBundles } from '../../scripts/lib/deferredBundles.mjs'
 import { createRequire } from 'node:module'
 import { listFiles } from '@vscode/vsce/out/package.js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { webviewDeferredBudgetGroups } from '../../scripts/lib/webviewBundles.mjs'
+import {
+  webviewDeferredBudgetGroups,
+  portableWebviewBudgetGroups,
+} from '../../scripts/lib/webviewBundles.mjs'
+import { measurePortableStartup } from '../../scripts/lib/portableStartup.mjs'
 import { buildProductionPackage } from './helpers/productionPackage'
 
 const ENTRY = 'dist/webview/main.js'
 const SIZE_GATE = path.resolve('scripts/check-bundle-size.mjs')
-const built = { outputs: {}, fixture: '', production: '' }
+const built = {
+  outputs: {},
+  fixture: '',
+  production: '',
+  startup: [],
+  memoryStartup: [],
+  graphs: new Map(),
+  failures: new Map(),
+  browser: undefined,
+  contexts: { active: 0, peak: 0 },
+  sizeGate: '',
+  splitGate: '',
+  splitSections: undefined,
+  shippedBundles: [],
+}
 const outputFile = (file) => path.join(built.production, file)
+const NON_BUILT_REQUESTS = ['native', 'companion', 'worker'].flatMap((variant) =>
+  ['http://127.0.0.1/not-built', 'https://unbuilt.invalid/boot.js'].map((url) => [variant, url]),
+)
+const UNROUTABLE_TARGETS = [
+  ['shared_worker', `new SharedWorker('/assets/portable/main.js');`],
+  ['service_worker', `await navigator.serviceWorker.register('/assets/portable/main.js');`],
+]
 
-beforeAll(() => {
+beforeAll(async () => {
   mkdirSync('temp', { recursive: true })
   built.production = mkdtempSync(path.resolve('temp/fix78w-production-'))
   mkdirSync(outputFile('dist/webview/chunks'), { recursive: true })
@@ -80,13 +116,7 @@ beforeAll(() => {
   // Exercise the real allowlist over all real emitted browser files in an
   // owned tree, without traversing other tests’ concurrently growing temp trees.
   cpSync(outputFile('dist/webview'), path.join(built.fixture, 'dist/webview'), { recursive: true })
-  const portable = JSON.parse(readFileSync(outputFile('dist/meta/portable.json'), 'utf8'))
   cpSync(outputFile('dist/meta/portable.json'), path.join(built.fixture, 'dist/meta/portable.json'))
-  // This size fixture varies the original chat budget; retain the complete
-  // portable inventory with zero payloads. Its eager/lazy cap has its own suite.
-  for (const file of Object.keys(portable.outputs)) {
-    if (file.endsWith('.js')) writeFileSync(path.join(built.fixture, file), '')
-  }
   mkdirSync(path.join(built.fixture, 'docs/schemas'), { recursive: true })
   cpSync(
     'docs/schemas/exec-event-v2.schema.json',
@@ -97,9 +127,416 @@ beforeAll(() => {
   }
   cpSync('.vscodeignore', path.join(built.fixture, '.vscodeignore'))
   cpSync('package.json', path.join(built.fixture, 'package.json'))
+  built.browser = await chromium.launch({
+    executablePath: findChrome(),
+    channel: 'chrome',
+    headless: true,
+  })
+  // Real contexts compete for the same browser and five-second boot deadline.
+  // Observe the fixture's concurrency rather than relying on machine speed.
+  const newContext = built.browser.newContext.bind(built.browser)
+  built.browser.newContext = async (options) => {
+    const context = await newContext(options)
+    built.contexts.active += 1
+    built.contexts.peak = Math.max(built.contexts.peak, built.contexts.active)
+    context.on('close', () => {
+      built.contexts.active -= 1
+    })
+    return context
+  }
+  const portableMeta = JSON.parse(readFileSync(outputFile('dist/meta/portable.json'), 'utf8'))
+  built.startup = await measurePortableStartup(
+    portableMeta,
+    (file) => readFileSync(outputFile(file)),
+    built.browser,
+  )
+  // Padding and unrelated Node/legacy-budget drills do not change boot imports.
+  // Reuse the freshly observed resource lists through a fake measurement port;
+  // the in-memory scenario tests below exercise the real browser port separately.
+  const gateTasks = ['size', 'split'].map((gate) => async () => {
+    const target = outputFile(`temp/check-bundle-${gate}.mjs`)
+    await build({
+      entryPoints: [`scripts/check-bundle-${gate}.mjs`],
+      outfile: target,
+      bundle: true,
+      format: 'esm',
+      platform: 'node',
+      packages: 'external',
+      logLevel: 'silent',
+      plugins: [
+        {
+          name: 'observed-boot-fixture',
+          setup(build) {
+            build.onLoad({ filter: /[/\\]portableStartup\.mjs$/ }, () => ({
+              contents: `export async function measurePortableStartup() { return ${JSON.stringify(built.startup)} }`,
+              loader: 'js',
+            }))
+          },
+        },
+      ],
+    })
+    if (gate === 'size') built.sizeGate = target
+    else built.splitGate = target
+  })
+  // Evaluate the production option declarations, not a second approximate build configuration.
+  const source = readFileSync('scripts/build.mjs', 'utf8')
+  const declarations = source.slice(
+    source.indexOf('const browserReviewComment ='),
+    source.indexOf('async function buildPortable()'),
+  )
+  const strings = Object.fromEntries(
+    source.matchAll(/const (\w+) = '([^']*)'/g).map((match) => [match[1], match[2]]),
+  )
+  const optionContext = {
+    ...strings,
+    readFileSync,
+    path,
+    esbuild: { transform },
+    isProduction: true,
+    sharedHighlightGrammar,
+    compactBrowserUiText,
+    lazyBrowserKeybindings,
+    resourceBrowserValidation,
+    common: {
+      bundle: true,
+      minify: true,
+      metafile: true,
+      logLevel: 'silent',
+      define: { 'process.env.NODE_ENV': '"production"' },
+    },
+  }
+  const options = runInThisContext(`(context) => {
+    const { ${Object.keys(optionContext).join(',')} } = context;
+    ${declarations}
+    return portableOptions;
+  }`)(optionContext)
+  const original = readFileSync('src/webview/portable.tsx', 'utf8')
+  const imports = Object.values(portableMeta.outputs)
+    .map((output) => output.entryPoint)
+    .filter((source) => source?.startsWith('src/webview/') && source !== 'src/webview/portable.tsx')
+    .slice(0, 64)
+    .map(
+      (source) =>
+        `bootImport(() => import(${JSON.stringify(`./${path.posix.relative('src/webview', source)}`)}))`,
+    )
+    .join(',')
+  expect(imports.match(/bootImport/g)).toHaveLength(64)
+  const mountCall =
+    'mountChat(rootElement, portableChatBridge(host), reportBridgeFailure, markChatMounted)'
+  const scenarioSources = [
+    ['baseline', original],
+    [
+      'argument',
+      original.replace(
+        mountCall,
+        () =>
+          `mountChat(rootElement, (await Promise.all([${imports}]), portableChatBridge(host)), reportBridgeFailure, markChatMounted)`,
+      ),
+    ],
+    [
+      'helper',
+      original.replace(
+        'async function mount(): Promise<void> {',
+        () =>
+          `async function prepareBoot() { await Promise.all([${imports}]) }\nasync function mount(): Promise<void> { await prepareBoot();`,
+      ),
+    ],
+    [
+      'deferred',
+      original.replace(
+        '  performance.mark(PORTABLE_CHAT_MOUNTED_MARK)',
+        () =>
+          `  performance.mark(PORTABLE_CHAT_MOUNTED_MARK)\n  requestIdleCallback(() => { void Promise.all([${imports}]) })`,
+      ),
+    ],
+  ]
+  // Only the portable entry changes. Incremental rebuilds retain esbuild's
+  // dependency parsing cache without reusing any scenario's emitted bytes.
+  let scenarioSource = original
+  const regressionBuild = await buildContext({
+    ...options,
+    write: false,
+    plugins: [
+      {
+        name: 'boot-regression',
+        setup(build) {
+          build.onLoad({ filter: /[/\\]portable\.tsx$/ }, (args) => ({
+            contents: scenarioSource,
+            loader: 'tsx',
+            resolveDir: path.dirname(args.path),
+          }))
+        },
+      },
+      ...options.plugins.map((plugin) => {
+        if (![compactBrowserUiText, lazyBrowserKeybindings].includes(plugin)) return plugin
+        // These scenarios change boot order only. Both reader surveys inspect
+        // the same unchanged files on disk, so prepare their real data once in
+        // this context; emitted scenario graphs are still rebuilt independently.
+        return {
+          ...plugin,
+          setup(build) {
+            plugin.setup({
+              ...build,
+              onStart(callback) {
+                let prepared
+                build.onStart(() => {
+                  prepared ??= Promise.resolve(callback())
+                  return prepared
+                })
+              },
+            })
+          },
+        }
+      }),
+    ],
+  })
+  try {
+    for (const [scenario, contents] of scenarioSources) {
+      scenarioSource = contents
+      const graph = await regressionBuild.rebuild()
+      const files = new Map(
+        graph.outputFiles.map((file) => [
+          path.relative(process.cwd(), file.path).replaceAll('\\', '/'),
+          file.contents,
+        ]),
+      )
+      const loader = 'dist/webview/portable/loader.js'
+      files.set(loader, readFileSync(outputFile(loader)))
+      graph.metafile.outputs[loader] = portableMeta.outputs[loader]
+      if (scenario === 'baseline') {
+        // The owned clone's dependency junction changes esbuild chunk hashes.
+        // Compare source ownership and emitted byte lengths, independent of that root.
+        const inventory = (meta) =>
+          Object.values(meta.outputs)
+            .map((output) => [
+              Object.keys(output.inputs)
+                .map((file) =>
+                  file.replaceAll('\\', '/').replaceAll(/(?:\.\.\/)+(?=node_modules\/)/gu, ''),
+                )
+                .toSorted((a, b) => a.localeCompare(b, 'en')),
+              output.bytes,
+            ])
+            .toSorted((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b), 'en'))
+        expect(inventory(graph.metafile)).toEqual(inventory(portableMeta))
+      }
+      built.graphs.set(scenario, { meta: graph.metafile, files })
+      if (scenario === 'baseline')
+        built.graphs.set('windows', {
+          files,
+          meta: {
+            ...graph.metafile,
+            outputs: Object.fromEntries(
+              Object.entries(graph.metafile.outputs).map(([file, output]) => [
+                file.replaceAll('/', '\\'),
+                output,
+              ]),
+            ),
+          },
+        })
+    }
+  } finally {
+    await regressionBuild.dispose()
+  }
+  for (const task of gateTasks) await task()
+  // RVM104F4I P3: the complete split gate runs exactly once here, inside the
+  // bounded setup hook — never inside a five-second test body. Each mutation
+  // test below replays only its own gate section against this shared tree,
+  // redoing solely what its mutation changes.
+  {
+    const baseline = spawnSync(process.execPath, [built.splitGate], {
+      cwd: built.production,
+      encoding: 'utf8',
+    })
+    expect(baseline.status, baseline.stdout + baseline.stderr).toBe(0)
+  }
+  {
+    const gate = readFileSync('scripts/check-bundle-split.mjs', 'utf8')
+    const section = (start, end, anchor) => {
+      const text = gate.slice(gate.indexOf(start), gate.indexOf(end))
+      expect(text).toContain(anchor)
+      return text
+    }
+    built.splitSections = {
+      inputsOf: section(
+        'function inputsOf({ output, metafile }) {',
+        '/** Every TypeScript file under the backend',
+        'bytesInOutput',
+      ),
+      shipped: section(
+        'function shippedBundles() {',
+        'const SHIPPED = shippedBundles()',
+        'dist/webview/portable/main.js',
+      ),
+      normalMeta: section(
+        'function normalWebviewMeta(meta) {',
+        'const webviewMeta = normalWebviewMeta(',
+        'entryPoint',
+      ),
+      lazyHead: [
+        section('const LAZY_ONLY = [', '/** The bundle', "'pacing.ts'"),
+        section(
+          "const MODEL_API_DIR = 'src/core/backends/modelapi'",
+          "const ENTRY = 'src/host/backend/modelApiEntry.ts'",
+          'modelapi',
+        ),
+        section('const loaders = [', 'for (const name of lazy) {', 'BUNDLES.acp.output'),
+      ].join('\n'),
+      lazyLoop: section(
+        'for (const name of lazy) {',
+        'for (const [output, inputs] of loaders) {\n  if (inputs.has(ENTRY))',
+        'which loads only with the backend',
+      ),
+      budget: section(
+        'for (const { name, budgetKiB, outputs } of portableWebviewBudgetGroups(',
+        "const portableChunks = 'dist/webview/portable/chunks'",
+        'exceeds ${budgetKiB} KiB',
+      ),
+    }
+    const { readdirSync: listDir, readFileSync: readFile } = productionFs()
+    built.shippedBundles = runInThisContext(`(ports) => {
+      const { readdirSync, readFileSync } = ports;
+      ${built.splitSections.shipped}
+      return shippedBundles();
+    }`)({ readdirSync: listDir, readFileSync: readFile })
+    expect(built.shippedBundles.length).toBeGreaterThan(0)
+  }
+  // The baseline boot stays sequential: the resource scenarios below derive
+  // their eager set from its observed variants.
+  {
+    const graph = built.graphs.get('baseline')
+    graph.variants = await measurePortableStartup(
+      graph.meta,
+      (file) => graph.files.get(file),
+      built.browser,
+    )
+    built.memoryStartup = graph.variants
+  }
+  // One boot at a time avoids renderer/route contention on smaller machines.
+  // Each scenario still owns a fresh context and its full measurement.
+  const bootTasks = ['windows', 'argument', 'helper', 'deferred'].map((scenario) => async () => {
+    const graph = built.graphs.get(scenario)
+    graph.variants = await measurePortableStartup(
+      graph.meta,
+      (file) => graph.files.get(file),
+      built.browser,
+    )
+  })
+  bootTasks.push(
+    ...['worker', 'font', 'extensionless'].map((scenario) => async () => {
+      const baseline = built.graphs.get('baseline')
+      const files = new Map(baseline.files)
+      const meta = { ...baseline.meta, outputs: { ...baseline.meta.outputs } }
+      const main = 'dist/webview/portable/main.js'
+      const root = 'dist/webview/portable/'
+      const url = (file) => `http://127.0.0.1/assets/portable/${file.slice(root.length)}`
+      let prefix
+      let required
+      if (scenario === 'worker') {
+        const eager = new Set(built.memoryStartup.flatMap(({ outputs }) => outputs))
+        required = files
+          .keys()
+          .filter((file) => file.endsWith('.js') && !eager.has(file))
+          .toArray()
+        const worker = `Promise.all(${JSON.stringify(required.map((file) => url(file)))}.map(async url => {
+          const response = await fetch(url); if (!response.ok) throw new Error(url);
+          await response.arrayBuffer();
+        })).then(() => postMessage('ready'));`
+        const workerFile = root + 'boot-worker.js'
+        const workerBytes = Buffer.from(worker)
+        files.set(workerFile, workerBytes)
+        meta.outputs[workerFile] = { bytes: workerBytes.byteLength, inputs: {}, imports: [] }
+        required.push(workerFile)
+        prefix = `await new Promise((resolve, reject) => {
+          const worker = new Worker(${JSON.stringify(url(workerFile))});
+          worker.onmessage = () => { worker.terminate(); resolve(); }; worker.onerror = reject;
+        });`
+      } else {
+        const resource = root + (scenario === 'font' ? 'inter.woff2' : 'boot-payload')
+        const bytes =
+          scenario === 'font'
+            ? readFileSync('design/fonts/pack/inter.woff2')
+            : Buffer.alloc(300 * 1024)
+        files.set(resource, bytes)
+        meta.outputs[resource] = { bytes: bytes.byteLength, inputs: {}, imports: [] }
+        required = [resource]
+        prefix =
+          scenario === 'font'
+            ? `await Promise.all([new FontFace('startup-inter', 'url(${url(resource)})').load(), fetch('${url(resource)}?alias').then(r => r.arrayBuffer())]);`
+            : `await Promise.all(['${url(resource)}', '${url(resource)}?alias'].map(async url => (await fetch(url)).arrayBuffer()));`
+      }
+      files.set(main, Buffer.concat([Buffer.from(prefix), files.get(main)]))
+      meta.outputs[main] = { ...meta.outputs[main], bytes: files.get(main).byteLength }
+      const variants = await measurePortableStartup(meta, (file) => files.get(file), built.browser)
+      built.graphs.set(`resource:${scenario}`, { meta, files, required, variants })
+    }),
+  )
+  // Negative boots own fresh contexts too. Share this expensive preparation
+  // in the existing production hook; each test keeps the default body deadline.
+  const baseline = built.graphs.get('baseline')
+  const cases = [
+    ...NON_BUILT_REQUESTS.map(([variant, url]) => {
+      const worker = `fetch(${JSON.stringify(url)}).then(() => postMessage('ready'), () => postMessage('ready'));`
+      const prefix =
+        variant === 'worker'
+          ? `await new Promise(resolve => { const worker = new Worker('/assets/portable/negative-worker.js'); worker.onmessage = () => { worker.terminate(); resolve(); }; });`
+          : `if (document.body.dataset.bridge === ${JSON.stringify(variant)}) await fetch(${JSON.stringify(url)});`
+      return [`${variant}:${url}`, prefix, variant === 'worker' ? worker : undefined]
+    }),
+    ...UNROUTABLE_TARGETS,
+  ]
+  bootTasks.push(
+    ...cases.map(([key, prefix, worker]) => async () => {
+      // Refusal occurs before chat mounts. Keep the real production loader
+      // and its guards without evaluating React's full graph first.
+      const files = new Map([
+        ['dist/webview/portable/loader.js', baseline.files.get('dist/webview/portable/loader.js')],
+        ['dist/webview/portable/main.css', Buffer.alloc(0)],
+        [
+          'dist/webview/portable/main.js',
+          Buffer.from(prefix + "performance.mark('muse:chat-mounted');"),
+        ],
+      ])
+      const meta = {
+        outputs: Object.fromEntries(files.keys().map((file) => [file, { imports: [] }])),
+      }
+      if (worker !== undefined) {
+        const file = 'dist/webview/portable/negative-worker.js'
+        const bytes = Buffer.from(worker)
+        files.set(file, bytes)
+        meta.outputs[file] = { bytes: bytes.byteLength, inputs: {}, imports: [] }
+      }
+      try {
+        await measurePortableStartup(meta, (file) => files.get(file), built.browser)
+      } catch (error) {
+        built.failures.set(key, error)
+      }
+    }),
+  )
+  // A cancelled/untimed served request cannot establish the render boundary.
+  const timingBrowser = {
+    newContext: async (options) => {
+      const context = await built.browser.newContext(options)
+      const route = context.route.bind(context)
+      context.route = (pattern, handler) =>
+        route(pattern, (value) => {
+          value.request().timing = () => ({ startTime: -1 })
+          return handler(value)
+        })
+      return context
+    },
+  }
+  bootTasks.push(async () => {
+    try {
+      await measurePortableStartup(baseline.meta, (file) => baseline.files.get(file), timingBrowser)
+    } catch (error) {
+      built.failures.set('untimed', error)
+    }
+  })
+  for (const task of bootTasks) await task()
 }, 120_000)
 
-afterAll(() => {
+afterAll(async () => {
+  await built.browser?.close()
   for (const folder of [built.fixture, built.production])
     if (folder !== '') rmSync(folder, { recursive: true, force: true })
 })
@@ -166,7 +603,7 @@ function sizeFixture(sharedBytes) {
       },
     }),
   )
-  return spawnSync(process.execPath, [SIZE_GATE], { cwd: built.fixture, encoding: 'utf8' })
+  return spawnSync(process.execPath, [built.sizeGate], { cwd: built.fixture, encoding: 'utf8' })
 }
 
 function questionSizeFixture(bytes) {
@@ -178,10 +615,86 @@ function questionSizeFixture(bytes) {
   meta.outputs[file] = { imports: [], entryPoint: 'src/webview/components/QuestionUi.tsx' }
   writeFileSync(path.join(built.fixture, file), Buffer.alloc(bytes))
   writeFileSync(metaPath, JSON.stringify(meta))
-  return spawnSync(process.execPath, [SIZE_GATE], { cwd: built.fixture, encoding: 'utf8' })
+  return spawnSync(process.execPath, [built.sizeGate], { cwd: built.fixture, encoding: 'utf8' })
+}
+
+// RVM104F4I P3: file ports scoped to the shared production tree, so each
+// mutation body below replays one real split-gate section without relaunching
+// the complete gate.
+function productionFs() {
+  return {
+    existsSync: (file) => existsSync(outputFile(file)),
+    readdirSync: (dir, options) => readdirSync(outputFile(dir), options),
+    readFileSync: (file, ...rest) => readFileSync(outputFile(file), ...rest),
+    statSync: (file) => statSync(outputFile(file)),
+  }
+}
+
+// The gate's own metafile reader over the production tree, memoised per body.
+function productionInputsOf() {
+  const { existsSync, readFileSync } = productionFs()
+  const cache = new Map()
+  const inputsOf = runInThisContext(`(ports) => {
+    const { existsSync, readFileSync } = ports;
+    ${built.splitSections.inputsOf}
+    return inputsOf;
+  }`)({ existsSync, readFileSync })
+  return (bundle) => {
+    if (!cache.has(bundle.metafile)) cache.set(bundle.metafile, inputsOf(bundle))
+    return cache.get(bundle.metafile)
+  }
+}
+
+// The gate's portable budget verdict over the production tree as mutated.
+function runSplitBudget() {
+  const { existsSync, readFileSync, statSync } = productionFs()
+  const ports = {
+    portableWebviewBudgetGroups,
+    normalWebviewMeta: runInThisContext(`() => {
+      ${built.splitSections.normalMeta}
+      return normalWebviewMeta;
+    }`)(),
+    portableMeta: undefined,
+    portableStartup: built.startup,
+    existsSync,
+    statSync,
+    BYTES_PER_KIB: 1024,
+    problems: [],
+  }
+  ports.portableMeta = ports.normalWebviewMeta(
+    JSON.parse(readFileSync('dist/meta/portable.json', 'utf8')),
+  )
+  runInThisContext(`(ports) => {
+    const { ${Object.keys(ports).join(',')} } = ports;
+    ${built.splitSections.budget}
+  }`)(ports)
+  return ports.problems
+}
+
+// The gate's backend-lazy verdict over the production tree as mutated.
+function runSplitLazy() {
+  const inputsOf = productionInputsOf()
+  const ports = {
+    BUNDLES,
+    activation: inputsOf(BUNDLES.activation),
+    acp: inputsOf(BUNDLES.acp),
+    modelApi: inputsOf(BUNDLES.modelApi),
+    problems: [],
+  }
+  runInThisContext(`(ports) => {
+    const { ${Object.keys(ports).join(',')} } = ports;
+    ${built.splitSections.lazyHead}
+    const lazy = new Set(LAZY_ONLY);
+    ${built.splitSections.lazyLoop}
+  }`)(ports)
+  return ports.problems
 }
 
 describe('the production webview chunks (FIX78W)', () => {
+  it('keeps qualification contexts from competing for the five-second boot deadline', () => {
+    expect(built.contexts.peak).toBe(1)
+    expect(built.contexts.active).toBe(0)
+  })
   it('keeps the question renderer and dock in one independently budgeted lazy closure', () => {
     for (const name of ['QuestionCard', 'QuestionUi', 'OpenQuestionsChip']) {
       const source = `src/webview/components/${name}.tsx`
@@ -265,6 +778,173 @@ describe('the production webview chunks (FIX78W)', () => {
     ).toBe(false)
     for (const source of ['src/shared/resources.ts', 'src/shared/hostApi/panel.ts'])
       expect(Object.hasOwn(portable.inputs, source)).toBe(true)
+  })
+
+  it.each([
+    ['native startup resources', 1100, 'dist/webview/portable/loader.js'],
+    ['companion startup resources', 1100, 'dist/webview/portable/loader.js'],
+    ['total JS', 1486, 'dist/webview/portable/whatsNew.js'],
+  ])('the split check rejects a one-byte portable %s overflow', async (name, cap, target) => {
+    const meta = JSON.parse(readFileSync(outputFile('dist/meta/portable.json'), 'utf8'))
+    const outputs = portableWebviewBudgetGroups(meta, built.startup).find(
+      (group) => group.name === name,
+    ).outputs
+    const bytes = outputs.reduce((sum, file) => sum + statSync(outputFile(file)).size, 0)
+    const file = outputFile(target)
+    const original = readFileSync(file)
+    try {
+      writeFileSync(file, Buffer.concat([original, Buffer.alloc(cap * 1024 - bytes + 1, ' ')]))
+      // The body's own gate section, not a fresh full-gate launch: the shared
+      // setup already qualified the unmutated tree.
+      const problems = runSplitBudget()
+      expect(problems).toContainEqual(
+        expect.stringContaining(`portable ${name} exceeds ${cap} KiB`),
+      )
+      if (name === 'total JS')
+        expect(problems.join('\n')).not.toMatch(
+          /portable (native|companion) startup resources exceeds/,
+        )
+    } finally {
+      writeFileSync(file, original)
+    }
+    expect(readFileSync(file).equals(original)).toBe(true)
+  })
+
+  it.each(['baseline', 'windows', 'argument', 'helper', 'deferred'])(
+    'measures production %s imports at the first-render boundary',
+    (scenario) => {
+      const { meta, files, variants } = built.graphs.get(scenario)
+      const groups = portableWebviewBudgetGroups(meta, variants)
+      for (const group of groups) {
+        const bytes = group.outputs.reduce((sum, file) => sum + files.get(file).byteLength, 0)
+        const isOverBudget = bytes > group.budgetKiB * 1024
+        expect(isOverBudget, `${scenario}: ${group.name}: ${bytes} bytes`).toBe(
+          group.name !== 'total JS' && ['argument', 'helper'].includes(scenario),
+        )
+      }
+      switch (scenario) {
+        case 'baseline': {
+          built.memoryStartup = variants
+          for (const group of groups) {
+            const baseline = portableWebviewBudgetGroups(
+              JSON.parse(readFileSync(outputFile('dist/meta/portable.json'), 'utf8')),
+              built.startup,
+            ).find((entry) => entry.name === group.name)
+            expect(group.outputs.reduce((sum, file) => sum + files.get(file).byteLength, 0)).toBe(
+              baseline.outputs.reduce((sum, file) => sum + statSync(outputFile(file)).size, 0),
+            )
+            expect(group.outputs).toHaveLength(baseline.outputs.length)
+          }
+          break
+        }
+        case 'windows': {
+          expect(variants).toEqual(built.memoryStartup)
+          break
+        }
+        case 'deferred': {
+          for (const { variant, outputs } of variants) {
+            const baseline = built.startup.find((entry) => entry.variant === variant).outputs
+            // Imports alter chunk hashes; compare their source ownership as well as byte caps.
+            const sources = outputs.flatMap((file) => Object.keys(meta.outputs[file].inputs))
+            const before = baseline.flatMap((file) =>
+              Object.keys(
+                JSON.parse(readFileSync(outputFile('dist/meta/portable.json'), 'utf8')).outputs[
+                  file
+                ].inputs,
+              ),
+            )
+            expect(new Set(sources)).toEqual(new Set(before))
+          }
+          break
+        }
+      }
+    },
+  )
+
+  it.each(['worker', 'font', 'extensionless'])(
+    'rejects awaited %s built resources above the startup cap',
+    async (scenario) => {
+      const { meta, files, required, variants } = built.graphs.get(`resource:${scenario}`)
+      for (const { outputs, resources } of variants) {
+        for (const resource of required) expect(outputs).toContain(resource)
+        expect(new Set(outputs).size).toBe(outputs.length)
+        expect(resources).toEqual(
+          outputs.map((file) => ({
+            file,
+            bytes: files.get(file).byteLength,
+            sha256: createHash('sha256').update(files.get(file)).digest('hex'),
+          })),
+        )
+      }
+      const groups = portableWebviewBudgetGroups(meta, variants)
+      for (const group of groups) {
+        const bytes = group.outputs.reduce((sum, file) => sum + files.get(file).byteLength, 0)
+        expect(bytes > group.budgetKiB * 1024, `${scenario}: ${group.name}: ${bytes} bytes`).toBe(
+          group.name !== 'total JS',
+        )
+      }
+      // Replay the actual gate sections with the browser's observed lists and
+      // these in-memory emitted bytes, so this assertion cannot mirror a gate.
+      const log = []
+      const ports = {
+        portableWebviewBudgetGroups,
+        measurePortableStartup: async () => variants,
+        readFileSync: () => JSON.stringify(meta),
+        existsSync: (file) => files.has(file),
+        statSync: (file) => ({ size: files.get(file).byteLength }),
+        BYTES_PER_KIB: 1024,
+        console: {
+          log: (...values) => {
+            log.push(values)
+          },
+        },
+      }
+      const size = readFileSync('scripts/check-bundle-size.mjs', 'utf8')
+      const sizeSection = size.slice(
+        size.indexOf("const portableMeta = JSON.parse(readFileSync('dist/meta/portable.json'"),
+        size.indexOf('// TRAIN15C: provider usage'),
+      )
+      expect(
+        await runInThisContext(`async (ports) => {
+        const { ${Object.keys(ports).join(',')} } = ports;
+        let hasFailure = false; ${sizeSection}; return hasFailure;
+      }`)(ports),
+      ).toBe(true)
+      const split = readFileSync('scripts/check-bundle-split.mjs', 'utf8')
+      const splitSection = split.slice(
+        split.indexOf('for (const { name, budgetKiB, outputs } of portableWebviewBudgetGroups('),
+        split.indexOf("const portableChunks = 'dist/webview/portable/chunks'"),
+      )
+      expect(
+        runInThisContext(`(ports, portableMeta, portableStartup) => {
+        const { ${Object.keys(ports).join(',')} } = ports;
+        const problems = []; ${splitSection}; return problems;
+      }`)(ports, meta, variants),
+      ).toEqual([
+        expect.stringMatching(/portable native startup .* exceeds 1100 KiB/),
+        expect.stringMatching(/portable companion startup .* exceeds 1100 KiB/),
+      ])
+    },
+  )
+
+  it.each(NON_BUILT_REQUESTS)(
+    'refuses %s non-built boot request %s with a named diagnostic',
+    (variant, url) => {
+      expect(built.failures.get(`${variant}:${url}`)).toMatchObject({
+        message: expect.stringContaining('PORTABLE_STARTUP_UNBUILT_REQUEST'),
+      })
+    },
+  )
+  it.each(UNROUTABLE_TARGETS)('refuses unroutable %s boot activity explicitly', (kind) => {
+    expect(built.failures.get(kind)).toMatchObject({
+      message: expect.stringContaining(`PORTABLE_STARTUP_UNROUTABLE_TARGET: ${kind}`),
+    })
+  })
+
+  it('refuses served resources without a request-start timestamp', () => {
+    expect(built.failures.get('untimed')).toMatchObject({
+      message: expect.stringContaining('PORTABLE_STARTUP_UNTIMED_REQUEST'),
+    })
   })
 
   it('keeps usage, action dialogs and estimator within their existing closure caps', () => {
@@ -458,12 +1138,10 @@ describe('the production webview chunks (FIX78W)', () => {
       if (output === undefined) throw new Error('Missing activation output')
       output.inputs['src/core/resources/governor.ts'] = { bytesInOutput: 1 }
       writeFileSync(file, JSON.stringify(meta))
-      const result = spawnSync(process.execPath, ['scripts/check-bundle-split.mjs'], {
-        cwd: built.production,
-        encoding: 'utf8',
-      })
-      expect(result.status).toBe(1)
-      expect(result.stderr).toContain(
+      // The gate's own resource verdict over the mutated tree, not a fresh
+      // full-gate launch.
+      const problems = checkResourceBundles(productionInputsOf(), built.shippedBundles)
+      expect(problems).toContain(
         'dist/extension.js carries resource policy src/core/resources/governor.ts outside the lazy governor',
       )
     } finally {
@@ -473,11 +1151,9 @@ describe('the production webview chunks (FIX78W)', () => {
   })
 
   it('keeps provider pacing in its lazy Model API inventory', () => {
-    const result = spawnSync(process.execPath, ['scripts/check-bundle-split.mjs'], {
-      cwd: built.production,
-      encoding: 'utf8',
-    })
-    expect(result.status, result.stdout + result.stderr).toBe(0)
+    // The shared setup already qualified the unmutated tree through the full
+    // gate; this body replays only the gate's backend-lazy section.
+    expect(runSplitLazy()).toEqual([])
     const source = 'src/core/backends/modelapi/pacing.ts'
     for (const [meta, present] of [
       ['dist/meta/modelApi.json', true],
@@ -624,7 +1300,7 @@ describe('the production webview chunks (FIX78W)', () => {
   it('rejects a missing static chunk', () => {
     sizeFixture(0)
     rmSync(path.join(built.fixture, 'dist/webview/shared.js'))
-    const result = spawnSync(process.execPath, [SIZE_GATE], {
+    const result = spawnSync(process.execPath, [built.sizeGate], {
       cwd: built.fixture,
       encoding: 'utf8',
     })
@@ -632,6 +1308,19 @@ describe('the production webview chunks (FIX78W)', () => {
     expect(result.stderr).toContain('ENOENT')
     expect(result.stderr).toContain('stat ')
     expect(result.stderr.replaceAll('\\', '/')).toContain('dist/webview/shared.js')
+  })
+
+  it('qualifies the full split gate once in setup, never inside a test body', () => {
+    // RVM104F4I P3: a full-gate launch costs seconds on a slow machine and
+    // breaks the five-second body deadline. Bodies replay only their own
+    // section through runSplitBudget, runSplitLazy and checkResourceBundles.
+    const source = readFileSync('test/unit/webviewBundle.test.mjs', 'utf8')
+    expect(
+      source.matchAll(/spawnSync\(process\.execPath, \[built\.splitGate\]/g).toArray(),
+    ).toHaveLength(1)
+    for (const file of ['test/unit/webviewBundles.test.mjs', 'test/unit/bundleSize.test.mjs']) {
+      expect(readFileSync(file, 'utf8')).not.toContain('check-bundle-split')
+    }
   })
 })
 

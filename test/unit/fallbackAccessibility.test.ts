@@ -8,6 +8,7 @@ import axe from 'axe-core'
 import * as z from 'zod/mini'
 import { EN } from '../../src/shared/l10n/en'
 import { TABLE_LOCALES } from '../../src/shared/l10n/locales'
+import { portableBridgeSetup } from '../harness/portableBridgeSetup.mjs'
 import { MHP_PANEL } from '../../src/shared/constants'
 
 const themes = ['light', 'dark', 'hc-light', 'hc-dark'] as const
@@ -81,29 +82,7 @@ beforeAll(async () => {
   for (const bridge of ['vscode', 'native', 'companion'])
     for (const surface of ['chat', 'tasks', 'whatsNew']) {
       const binding = { surface: 'startup', sessionId: 'test', surfaceKind: surface }
-      const setup = String.raw`
-        const posts = []; let listener; let stream;
-        window.fixturePosts = posts;
-        const host = {
-          postMessage: value => posts.push(value), getState: () => undefined,
-          setState: () => {}, onMessage: value => { listener = value; return () => {}; }
-        };
-        window.fixtureReceive = payload => {
-          if (${JSON.stringify(bridge)} === 'companion') stream.enqueue(new TextEncoder().encode(
-            'data: ' + JSON.stringify({ mhp: ${JSON.stringify(MHP_PANEL.wireVersion)}, kind: 'panel', direction: 'toPanel', surface: 'startup', seq: 1, payload }) + '\n\n'));
-          else if (listener) listener(payload);
-          else window.dispatchEvent(new MessageEvent('message', { data: payload }));
-        };
-        if (${JSON.stringify(bridge)} === 'native') window.museHost = host;
-        else if (${JSON.stringify(bridge)} === 'vscode') window.acquireVsCodeApi = () => host;
-        else window.fetch = async (input, init) => {
-          if (input === '/host/events') return new Response(new ReadableStream({ start() {} }), { headers: { 'Content-Type': 'text/event-stream' } });
-          if (input === '/panel/events') return new Response(new ReadableStream({ start(value) { stream = value; } }), { headers: { 'Content-Type': 'text/event-stream' } });
-          const frame = JSON.parse(init.body);
-          if (frame.kind === 'panel') posts.push(frame.payload);
-          return new Response(null, { status: 204 });
-        };
-      `
+      const setup = portableBridgeSetup(bridge, MHP_PANEL.wireVersion)
       files.set(`/panel?bridge=${bridge}&surface=${surface}`, {
         content: `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Portable startup</title><link rel="stylesheet" href="/${surface === 'whatsNew' ? 'whatsNew' : 'main'}.css"></head><body data-bridge="${bridge}" data-surface="${surface}"><div id="root"></div><a href="#" data-link="0">Link</a><button data-try="0">Try</button><input type="checkbox" id="hide-on-update"><script type="application/json" id="muse-l10n">${JSON.stringify({ locale: 'en', table: EN })}</script><script type="application/json" id="muse-panel">${JSON.stringify(binding)}</script><script>${setup}</script><script type="module" src="/${surface === 'whatsNew' ? 'whatsNew' : 'main'}.js"></script></body></html>`,
         type: 'text/html',

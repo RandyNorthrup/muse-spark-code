@@ -18,6 +18,14 @@ export interface PanelBridge {
   dispose(): void
 }
 
+/** Documents required boot imports; bundle gates measure the running page. */
+export function bootImport<T>(
+  load: () => Promise<T>,
+  _variant: 'both' | 'native' | 'companion' | 'tasks' = 'both',
+): Promise<T> {
+  return load()
+}
+
 export async function loadFallbacks() {
   return await import('../fallbacks')
 }

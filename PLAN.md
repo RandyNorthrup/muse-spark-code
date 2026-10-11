@@ -573,6 +573,109 @@ quality`) and as a CI job.
 
 ### D6 — Bundle budgets (Phase 6)
 
+**M104 F4 round 8 (2026-10-10, RVM104F4H).** Within round 7's
+ordinary-wrapper threat model, classify fetch inputs through the native Request
+URL getter captured before application scripts, including cross-frame Requests
+and constructor/prototype wrappers. Sweep page and worker probes; retain string,
+URL, authenticated blob and built query inputs and every non-built refusal.
+Reduce production fixture preparation and browser contention within the existing
+five-second boot and 120-second setup deadlines, retaining all production,
+negative-path and accounting assertions. Each finding gets a failing regression
+and a byte-exact red drill in `docs/certification/m104.md`. No dependency,
+production runtime, cap, support-status or unrelated guard change. Scoped tests
+and builds run directly on Kubuntu; aggregate and installed-editor qualification
+remain lead-owned.
+
+**M104 F4 round 7 (2026-10-10, RVM104F4G; lead threat-model boundary).**
+The startup measurement's threat model is accidental activity by our own built
+code and dependencies, including ordinary application wrappers (a postMessage
+protocol wrapper, a reassigned reporting global or prototype method):
+instrumentation (page init scripts, prepended worker probe) runs before any
+application script, captures the native senders first, and delivers every
+refusal and the flush acknowledgement over that captured path. Deliberate
+tampering before instrumentation runs is out of scope. Within that model, fix
+the worker-probe masking (captured worker sender/stop, captured page bindings
+and Worker prototype methods), admit fragment references to authenticated
+loader module blobs without admitting unrelated blob URLs, and prepare the
+production fixture through bounded pools of three inside the unchanged
+120-second hook with every assertion retained. Startup stays 1,100 KiB and
+total JavaScript 1,486 KiB. No dependency, production module, support status
+or unrelated guard changes. Browser verification is lead-owned where this
+lane's sandbox cannot launch Chrome; see §7.
+
+Round-7 outside-sandbox verification must also preserve the named refusal
+when CSP rejects a non-built HTTP fetch before the route observes it. Refuse
+that request through the captured fetch probe before native dispatch, using
+the immutable built resource paths; retain built queries and authenticated
+blob fragments. Regress that refusal by observing native dispatch, and drill
+removal of the inventory check. No cap, deadline, production module or
+support status changes. The Kubuntu outside-sandbox pass is recorded in §7.
+
+**M104 F4 round 6 (2026-10-10, RVM104F4F; lead transport boundary).**
+Before the synchronous render mark, deny every non-HTTP transport and every
+non-built fetch/import, independently of application error handling. Cover
+WebSockets at context scope and all attached targets; explicitly refuse
+EventSource, WebTransport and WebRTC data channels. Data/blob activity is
+permitted only for authenticated-loader module blobs made from already-counted
+built bytes, with precise identity validation. Sweep page, frame and worker
+boot activity, add caught-error regressions, and record byte-exact red drills.
+Worker scripts and module dependencies receive a measurement-only constructor
+probe; worker refusals and queued CSP violations flush before termination.
+Nested-worker creation is explicitly refused as an unroutable target. Probe bytes are excluded like frame init scripts; output identities
+remain the original immutable built files.
+Startup remains 1,100 KiB and total JavaScript 1,486 KiB. No dependency,
+production module, support status or unrelated guard changes. Full quality
+remains lead-owned; scoped verification runs directly on Kubuntu.
+
+**M104 F4 round 5 (2026-10-10, RVM104F4E; lead measurement boundary).**
+Count at the source: context-level routes record every built resource answered
+for any supported target whose request started before the render marker,
+independent of suffix or resource type, once by path/byte-length/SHA-256 identity.
+Non-built requests outside the explicit measurement document/origin contract
+fail with a named diagnostic; unroutable worker activity is explicitly refused.
+Regress awaited Blob-worker deferred fetches, the real built Inter WOFF2,
+an extensionless built resource and a non-built URL. Prove worker coverage and
+non-JavaScript accounting fail under deliberate mutations and restore byte-exact.
+Startup stays 1,100 KiB and total JavaScript 1,486 KiB; retain the current
+887,044 / 908,902-byte production counts unless source accounting finds real bytes.
+Full quality remains lead-owned; scoped checks run directly on Kubuntu.
+
+**M104 F4 round 4 (2026-10-10, RVM104F4D; lead redesign).** The static
+boot walk missed awaited call arguments and helper bodies, so its accounting and
+`bootImport` guard are replaced by production page boots in headless Chrome.
+Both native and companion use the existing fake transports and authenticated
+loader; the synchronous first-render `muse:chat-mounted` mark bounds requested
+JS/CSS, counted once per variant against the unchanged 1,100 KiB cap. The total
+JavaScript cap remains 1,486 KiB. Measured resource lists, regressions and the
+marker's trust-boundary drill are in `docs/certification/m104.md`, F4 round 4.
+Earlier syntax-derived figures below are historical.
+
+**M104 F4 round 3 (2026-10-10, RVM104F4C).** Startup includes the static
+closures of source-marked dynamic imports awaited before `mountChat`, as well
+as chat and the authenticated loader. Each native/companion variant counts
+shared outputs once; enforcing both against 1,100 KiB enforces the worst boot.
+Unmarked imports in the pre-mount boot functions fail the shared guard.
+Measured native startup is **782,149 bytes**, companion is **804,007 bytes**;
+both remain below 1,126,400 bytes. Total is **1,323,637 bytes**, below the
+unchanged 1,486 KiB cap. The round-two static-only 777,108-byte number below
+is historical and undercounted awaited bridge imports. Source marker glue adds
+301 delivery bytes; no optional feature enters boot on the production path.
+
+**M104 F4 round 2 (2026-10-09, lead decision).** Separate the portable
+startup and total JavaScript caps in both size and split checks. Startup
+retains **1,100 KiB** and charges chat's static import closure plus the
+authenticated loader's static closure, deduplicated. The measured startup is
+**777,108 bytes** (757,722 chat + 19,386 loader), below 1,126,400 bytes.
+The complete graph still charges every emitted JavaScript entry and lazy
+chunk. Its new independent cap is **1,486 KiB / 1,521,664 bytes**:
+`floor(1,323,336 * 1.15 / 1024)`, using the composition receipt at
+`036b42ec4` in `docs/certification/m104-f4-portable-size.json`.
+The lead identifies the total growth as phase-2 functionality and authorizes
+this measured-plus-15% total cap; no other cap changes. Optional-feature
+eager-import guards remain. This resolves Q-M104F4-PAYLOAD-DIET without an
+implementation diet or excluding lazy bytes. Full quality and native/editor
+qualification remain lead-owned under the lane brief.
+
 **INT0170 (2026-10-08, kubuntu).** Three lane merges broke the Node bundles
 under unchanged caps; each is fixed at the root and held by the split check.
 Activation took classic zod through `paidConsent.ts` (1,033,339 B, two
@@ -1222,7 +1325,8 @@ properties, and retain all existing caps. No new artifact or dependency.
 
 **M104D continuation (2026-10-05):** `dist/webview/portable/main.js`,
 `whatsNew.js`, `bridge.js`, `fallbacks.js` and every JavaScript chunk in that independent
-graph share one new **1100 KiB** cap. Measured 974,922 bytes; the existing
+graph originally shared one new **1100 KiB** cap (superseded by M104 F4
+round 2 above: 1100 KiB startup / 1486 KiB total). Measured 974,922 bytes; the existing
 D6 rule gives `25 × ceil(1.15 × (974922 / 1024) / 25) = 1100 KiB`.
 VS Code's existing startup and deferred budgets are unchanged. Its eager
 chat is 898,666 bytes, below the 898,682-byte pre-lane baseline, and its
@@ -37907,6 +38011,100 @@ logged.
 
 ### M104 — Every editor, every feature (D84)
 
+**M104 F4 round 8 (2026-10-10, RVM104F4H).** Repair Request input
+classification across page, frame and worker probes with the captured native URL
+getter, preserving ordinary constructor/prototype wrappers and cross-frame
+brands without weakening non-built refusals. The production fixture reuses one
+incremental esbuild context with invariant reader surveys prepared once, boots
+one browser context at a time and tests
+pre-mount refusals with the real built loader in small graphs; all existing
+production/accounting assertions and deadlines stay intact. New regressions and
+byte-exact guard drills are recorded in `docs/certification/m104.md`. M104 remains
+waiting, experimental and untested pending the existing joined qualification.
+
+**M104 F4 round 6 (2026-10-10, RVM104F4F; lead transport boundary).**
+Before the synchronous render mark, deny every non-HTTP transport and every
+non-built fetch/import, independently of application error handling. Cover
+WebSockets at context scope and all attached targets; explicitly refuse
+EventSource, WebTransport and WebRTC data channels. Data/blob activity is
+permitted only for authenticated-loader module blobs made from already-counted
+built bytes, with precise identity validation. Sweep page, frame and worker
+boot activity, add caught-error regressions, and record byte-exact red drills.
+Worker scripts and module dependencies receive a measurement-only constructor
+probe; worker refusals and queued CSP violations flush before termination.
+Nested-worker creation is explicitly refused as an unroutable target. Probe bytes are excluded like frame init scripts; output identities
+remain the original immutable built files.
+Startup remains 1,100 KiB and total JavaScript 1,486 KiB. No dependency,
+production module, support status or unrelated guard changes. Full quality
+remains lead-owned; scoped verification runs directly on Kubuntu.
+
+**M104 F4 round 5 (2026-10-10, RVM104F4E; lead measurement boundary).**
+Count at the source: context-level routes record every built resource answered
+for any supported target whose request started before the render marker,
+independent of suffix or resource type, once by path/byte-length/SHA-256 identity.
+Non-built requests outside the explicit measurement document/origin contract
+fail with a named diagnostic; unroutable worker activity is explicitly refused.
+Regress awaited Blob-worker deferred fetches, the real built Inter WOFF2,
+an extensionless built resource and a non-built URL. Prove worker coverage and
+non-JavaScript accounting fail under deliberate mutations and restore byte-exact.
+Startup stays 1,100 KiB and total JavaScript 1,486 KiB; retain the current
+887,044 / 908,902-byte production counts unless source accounting finds real bytes.
+Full quality remains lead-owned; scoped checks run directly on Kubuntu.
+
+**M104 F4 round 4 — measure the boot (2026-10-10, RVM104F4D).** Replace
+source-syntax boot accounting with headless Chrome boots of the production
+native and companion pages using the existing bridge fakes and authenticated
+module loader. A synchronous first-render marker bounds requested JS/CSS;
+charge each built resource once and enforce both variants against the unchanged
+1,100 KiB startup cap. Keep the 1,486 KiB total-JavaScript cap and optional
+placement checks. Remove the AST boot walk and its import-marker guard. Regress
+64 optional imports awaited in mount arguments and an awaited helper, and the
+same imports after the render marker. Record actual chunk lists and the early
+marker failure drill with byte-exact restoration in `docs/certification/m104.md`.
+Full quality and native/editor qualification remain lead-owned.
+The restored production graph measures native **887,044 bytes / 65 resources**
+and companion **908,902 bytes / 72 resources**, including **104,696 CSS bytes**
+per variant; total JavaScript is **1,323,836 bytes / 178 files**. Two independent
+Chrome runs produce identical lists. All 2,869 scoped tests pass at repository
+deadlines; marker, CSS and Windows-path drills fire and restore SHA-256 exact.
+
+**M104 F4 round 3 — awaited boot closures (2026-10-10, RVM104F4C).**
+Derive mandatory pre-mount dynamic imports from `bootImport` markers in the
+portable mount and bridge selector. Guard unmarked imports before `mountChat`;
+measure native and companion startup separately, charging each marked import's
+static closure plus chat and the authenticated loader once, and enforce the
+larger variant against the unchanged 1,100 KiB cap. Total retains the measured
+plus 15% cap (1,486 KiB). Regress an awaited optional import before mount and a
+deferred import after mount; prove both accounting and guard fire, restore
+byte-exact, remeasure, and record scoped verification under F4 round 3.
+The production variants measure 782,149 / 804,007 bytes (native / companion),
+below the unchanged 1,126,400-byte cap; full qualification remains lead-owned.
+
+**M104 F4 round 2 — independent portable caps (2026-10-09, lead decision).**
+Size and split gates enforce D6's separate 1,100 KiB startup and 1,486 KiB
+total caps. They count all static startup imports and the authenticated
+loader once and retain every lazy JavaScript output in the total. Scoped
+certification passes 146 tests at repository deadlines, including exact caps,
+one-byte overruns, Windows paths and an optional feature imported eagerly.
+Six deliberate red drills restore byte-exact. Contributor documentation,
+the composition size table and roadmap are updated.
+The measured startup is below its unchanged cap, so the brief's stop condition
+does not apply. No paid/live calls, merge or push; full quality stays with
+the lead. Receipts: `docs/certification/m104.md`, F4 round 2.
+
+**M104 F4 portable-size audit (2026-10-09, kubuntu; before changes).**
+Keep the complete portable JavaScript graph's 1,100 KiB cap and every existing
+startup/deferred cap. Measure the production metafile's forty largest source
+contributors, group them by feature, audit existing first-use chunks and
+repeated dependencies, and replay the owning portable/native suites and a
+byte-exact eager-import split drill. Moving bytes from static to dynamic imports
+does not reduce this complete-graph total. If the named optional surfaces are
+already deferred and a payload diet cannot fit the shared brief's bounded scope,
+retain the refusal and record the exact remaining gap and needed owner decision;
+never exclude lazy outputs from the existing counter. Aggregate quality and
+other lanes' security/native/installed qualification remain lead-owned.
+Receipts belong in `docs/certification/m104.md`, M104 F4.
+
 **JBDIAG (2026-10-09):** Repair native diagnostic fixtures to wait for the real daemon; 86/86 pass.
 
 **M104 F1 native contract and qualification repair (2026-10-09).** Repair the
@@ -38242,7 +38440,7 @@ keeping its detailed native qualification catalogue generated too.
 Installed VS Code on Win11, a real Visual Studio run and resource-chip parity
 in JetBrains/Visual Studio/Eclipse/companion remain open for their next lanes.
 
-**Status 2026-10-09: waiting.** All five phase-2 lanes are joined locally on Kubuntu. F1 adopts the frozen MHP 1.5 closed-input contract and repairs native schema vocabulary, theme roles and the authored readiness fixture; JBDIAG repairs the two JetBrains settled-diagnostic tests in their harness, production unchanged. M104 F2 repairs the sixteen reported SAST sites with regressions and an offline 16-to-zero reproduction; its review follow-ups restore shell-free Windows npm-agent discovery and absolute Node/script overrides in Eclipse, and confine discovered packages beneath the canonical npm prefix. The unchanged registry SAST rescan remains lead-owned under the lane's network restriction. M104 F3 repairs the four ACP resource fixtures and the twelve recorded duplication findings; their complete touched suites and the zero-clone gate pass. Verification still retains the portable graph cap (F3: 1292.3/1100 KiB), installed qualification and the next resource-chip parity lane as blockers. Their matrix and drill receipts and the retained requirements follow.
+**Status 2026-10-10: waiting.** All five phase-2 lanes are joined locally on Kubuntu. F1 adopts the frozen MHP 1.5 closed-input contract and repairs native schema vocabulary, theme roles and the authored readiness fixture; JBDIAG repairs the two JetBrains settled-diagnostic tests in their harness, production unchanged. M104 F2 repairs the sixteen reported SAST sites with regressions and an offline 16-to-zero reproduction; its review follow-ups restore shell-free Windows npm-agent discovery and absolute Node/script overrides in Eclipse, and confine discovered packages beneath the canonical npm prefix. The unchanged registry SAST rescan remains lead-owned under the lane's network restriction. M104 F3 repairs the four ACP resource fixtures and the twelve recorded duplication findings; their complete touched suites and the zero-clone gate pass. F4 round 8 preserves separate startup/total caps, counts source-served resources through the first-render mark across ordinary Request wrappers and frame brands, and denies unsupported transports and non-loader data/blob activity across pages, frames and workers even when caught. Production qualification keeps its existing deadlines; MacBook execution remains an external qualification requirement. Installed qualification and the next resource-chip parity lane remain blockers. Their matrix and drill receipts and the retained requirements follow.
 
 **M104 F2 follow-up round 2 / RVM104F2D (2026-10-09, before code).**
 Confine Windows npm-shim discovery to the expected package root beneath the
@@ -38923,12 +39121,121 @@ and are not transferred or accepted as complete by these launcher repairs.
 
 ## 7. Gates
 
+**M104 F4 round-8 scoped qualification (2026-10-10, RVM104F4H).**
+Native Request-brand regressions cover page/worker constructor and URL-getter
+wrappers, cross-frame fetches in both directions, native string conversion and
+non-built refusals before dispatch. Worker dispatch is also observed without CSP,
+so its native-brand guard must independently fire. Production qualification uses
+one incremental build context with invariant reader surveys prepared once, one
+active browser context, and small real-loader negative graphs; all existing
+production/accounting assertions and the five-second boot/120-second setup
+limits remain. Captured profiling observes 54.8-second preparation on Kubuntu.
+Byte-exact red drills and final scoped results are in
+`docs/certification/m104.md`. The reviewed MacBook is unavailable to this lane:
+its unchanged-deadline replay remains an external hardware qualification
+requirement, not a claimed pass. Aggregate quality and installed-editor/native
+qualification remain lead-owned; M104 is still waiting/experimental/untested.
+
+**M104 F4 round-6 scoped qualification (2026-10-10).** All review-class
+regressions use the real authenticated loader and browser at repository body
+deadlines. Three earlier expanded production-preparation attempts hit the
+unchanged 120-second hook deadline; after two setup fixes that path was stopped
+under the shared lane rule. The final full production-suite rerun remains
+lead-owned, separately from the repaired transport finding. No timeout, cap,
+assertion or guard is weakened; aggregate quality is not claimed. See
+`docs/certification/m104.md`, F4 round 6, for assertions, deliberate failures,
+byte-exact restorations and the scoped final checks.
+
+**M104 F4 round-7 scoped qualification (2026-10-10).** Round 7 answers the
+round-6 deferral with a bounded-pool fixture (pools of three, baseline boot
+sequential, every assertion and the 120-second hook unchanged), but this
+lane's shell sandbox denies the `socketpair` syscall so headless Chrome cannot
+start here and no browser-dependent step could execute in the lane. Run here:
+the browser-free guard regressions (22 tests), their two red drills with
+byte-exact restoration, changed-file lint/format, full typecheck, deadcode,
+duplication, localization and host API. The production build compiles and
+emits here (extension 571.1 KiB) and fails only at the size gate's browser
+measurement. Lead-owned outside the sandbox: the three new browser behavioral
+regressions, the restructured production fixture run, their red drills, and
+the size/split measurement. No timeout, cap, assertion or guard is weakened;
+aggregate quality is not claimed. See `docs/certification/m104.md`, F4 round 7.
+
+**M104 F4 round-7 outside-sandbox verification (2026-10-10, Kubuntu).**
+The deferred browser runs executed here at repository deadlines, one file or
+build at a time. Transport suite **47 / 47** (30.24 s). Production fixture
+**77 / 77** (104.07 s), inside the unchanged 120-second hook. Sender, fragment
+and HTTP-inventory drills fail the named assertions and restore byte-exact.
+One-at-a-time preparation does not exceed the hook (**77 / 77**, file duration
+120.48 s) and is not claimed as a red hook. `npm run build` exits 0; all 210
+KiB budget lines stay within their unchanged caps. See
+`docs/certification/m104.md`, round-7 outside-sandbox verification.
+
+**M104 F4 round 6 (2026-10-10, RVM104F4F; lead transport boundary).**
+Before the synchronous render mark, deny every non-HTTP transport and every
+non-built fetch/import, independently of application error handling. Cover
+WebSockets at context scope and all attached targets; explicitly refuse
+EventSource, WebTransport and WebRTC data channels. Data/blob activity is
+permitted only for authenticated-loader module blobs made from already-counted
+built bytes, with precise identity validation. Sweep page, frame and worker
+boot activity, add caught-error regressions, and record byte-exact red drills.
+Worker scripts and module dependencies receive a measurement-only constructor
+probe; worker refusals and queued CSP violations flush before termination.
+Nested-worker creation is explicitly refused as an unroutable target. Probe bytes are excluded like frame init scripts; output identities
+remain the original immutable built files.
+Startup remains 1,100 KiB and total JavaScript 1,486 KiB. No dependency,
+production module, support status or unrelated guard changes. Full quality
+remains lead-owned; scoped verification runs directly on Kubuntu.
+
+**M104 F4 round 5 (2026-10-10, RVM104F4E; lead measurement boundary).**
+Count at the source: context-level routes record every built resource answered
+for any supported target whose request started before the render marker,
+independent of suffix or resource type, once by path/byte-length/SHA-256 identity.
+Non-built requests outside the explicit measurement document/origin contract
+fail with a named diagnostic; unroutable worker activity is explicitly refused.
+Regress awaited Blob-worker deferred fetches, the real built Inter WOFF2,
+an extensionless built resource and a non-built URL. Prove worker coverage and
+non-JavaScript accounting fail under deliberate mutations and restore byte-exact.
+Startup stays 1,100 KiB and total JavaScript 1,486 KiB; retain the current
+887,044 / 908,902-byte production counts unless source accounting finds real bytes.
+Full quality remains lead-owned; scoped checks run directly on Kubuntu.
+
+**M104 F4 round-5 shared-rig qualification (2026-10-10).** The complete
+unchanged fallback accessibility file runs at repository deadlines: 2,555
+passing cases across its three-file batch and one five-second timeout in
+`vscode fallback WCAG 2.2 AA > light/zh-cn/confirm at 320px` (1,613.96 seconds
+for the batch). That renderer and its matrix code are unchanged by this lane;
+the matrix does not use the modified transport fake. Retain the failure for
+lead-owned qualification on an available rig; no assertion, timeout or gate
+waiver, and no claim of aggregate quality. Both RVM104F4E source-boundary
+findings are repaired; this external qualification result is recorded separately
+in `docs/certification/m104.md` and the round-five receipt.
+
+**M104 F4 round-4 qualification (2026-10-10).** Both bundle gates charge
+production JS/CSS requested before the first-render marker, using headless
+Chrome and the shared native/companion fakes. No AST boot walk or `bootImport`
+guard remains; optional placement checks use the measured startup union. Both
+reviewer scenarios rebuild the production graph in memory, while post-marker
+idle imports retain deferral. The early-marker drill demonstrates the marker's
+ownership contract; receipts and measured chunks are in `docs/certification/m104.md`.
+Startup and total caps stay unchanged; prior static receipts are historical.
+
+**M104 F4 round-3 qualification (2026-10-10).** The shared startup helper
+derives marked boot imports and guards unmarked pre-mount imports in `mount`
+and `selectBridge`, including `Promise.all`. Native and companion closures
+are measured separately; both gates enforce the unchanged startup cap for
+each variant, equivalent to enforcing their maximum. Optional placement
+checks use their union; mandatory bridges are boot dependencies, not optional
+surfaces. Round-two static-only measurements are superseded. Gate-fire and
+byte-exact restoration receipts: `docs/certification/m104.md`, F4 round 3.
+
 **JBDIAG scope (2026-10-09).** The rig/common brief reserves aggregate
 quality/coverage for the lead; this lane runs the complete offline native
 Gradle matrix and scoped repository gates. Production remains unchanged.
-The existing portable-webview build budget (1,321.5/1,100 KiB) and twelve
-unchanged source/test duplication findings remain lead integration blockers;
-no size cap, duplication threshold or assertion is weakened.
+The portable-webview build budget (1,321.5/1,100 KiB) and twelve source/test
+duplication findings were lead integration blockers on that lane's base; F4
+(separate startup and total caps) and F3 (shared fixtures) address them, and
+`docs/certification/m104-join.md` records what the joined tree measures.
+No size cap, duplication threshold or assertion is weakened.
 
 **M104INT final-verification fixture repairs (2026-10-09).** Keep every
 changed lane file and bridge/companion suite in the default-deadline inventory.
@@ -38941,6 +39248,27 @@ language/kind combinations after finite entrance motion, split by language and f
 so each test fits the unchanged deadline. Preserve every locale-specific
 plural form when ordering source tables. No assertions, contrasts, caps or
 platform guards are relaxed; failing receipts remain blockers until corrected.
+
+**M104 F4 round-2 qualification (2026-10-09, lead decision).** The startup
+and complete-delivery graphs now have separate D6 caps in both gates, with
+one shared definition. The original payload-diet question is resolved by the
+lead's measured total plus 15% rule. Round-one composition and boundary receipts
+below remain historical evidence; all full-quality and native/editor blockers
+remain lead-owned. Final round-two measurements, regressions and byte-exact
+red drills are recorded in `docs/certification/m104.md`.
+
+**M104 F4 bounded split audit (2026-10-09, kubuntu; round-one record).** The production
+metafile audit records the forty largest contributors by feature and every
+portable output's measured bytes/hash. Chat startup is 757,722 B (58 outputs);
+the other 119 JavaScript outputs cost 565,614 B. Named optional UI and editor
+bridges already load on first use, with existing closure guards and budgets.
+The only source copies are the authenticated classic loader's ten parser
+modules: even eliminating all 17,014 repeated bytes without overhead leaves
+179,922 B above the unchanged complete-graph cap. Replays and eager-import
+drills qualify the current boundaries, not an aggregate size pass. No source,
+feature, dependency, counter, exclusion or cap is changed; before/after totals
+remain 1,323,336 B. A broader implementation diet is an explicit owner question
+in section 3. Full quality and other integration blockers remain lead-owned.
 
 **M104 F3 repair scope (2026-10-09, kubuntu).** The dedicated follow-up
 brief authorizes root-cause repair of the twelve recorded clones, the complete

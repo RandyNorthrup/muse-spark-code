@@ -138,6 +138,16 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- Contributor bundle gates now check portable startup and total delivery
+  separately. Startup keeps its 1,100 KiB cap and counts the authenticated
+  loader; total delivery counts every eager and lazy JavaScript output under
+  the lead-approved 1,486 KiB cap (1,323,336 measured bytes plus 15%, rounded
+  down to a whole KiB). Size and split checks enforce both caps, while existing
+  optional-feature deferral and VS Code budgets remain unchanged.
+- Round-one portable-panel certification recorded the complete graph's forty
+  largest contributors, existing lazy-feature budgets and dependency copies.
+  Its original 1,100 KiB total cap refused 1,292.3 KiB despite deferred optional
+  panels and bridges. That receipt informed the lead's separate-cap decision.
 - `@muse-code/sdk` moves from 1.4.2 to 1.4.4 (SDK144). Muse Code 1.4.4
   (1.4.4-R5419.1) serves the new pin's schema fingerprint, so it connects
   without a mismatch warning; a 1.4.2 host now logs one, as older hosts did
@@ -235,6 +245,36 @@ happened, not what was planned; superseded entries are kept.
   regular expressions. Native-contract qualification remains open.
 - Correct the M104 duplication-drill restoration receipt to the committed
   host-ledger hash and verify every recorded restoration hash against Git blobs.
+- Portable startup fetch accounting recognizes Requests from other frames and
+  ordinary constructor/prototype wrappers through the captured native URL getter.
+  Built queries, URL objects and string-convertible inputs retain their exact
+  resource identities; non-built requests still refuse before dispatch.
+  Production qualification reuses incremental build parsing and invariant reader
+  surveys, avoids competing browser contexts and uses small real-loader refusal
+  fixtures while retaining all assertions and the existing boot/setup deadlines.
+- Portable startup measurement now delivers every worker refusal and flush
+  acknowledgement over senders captured before application code runs, so an
+  ordinary postMessage protocol wrapper or reassigned reporting global cannot
+  hide boot activity from the receipt. Fragment references to authenticated
+  loader module blobs stay admitted, and the production fixture prepares its
+  independent builds and boots through a bounded pool inside the unchanged
+  120-second hook deadline. Non-built HTTP fetches receive the named refusal
+  before native dispatch, including when CSP would otherwise report too late.
+  Startup and total delivery caps are unchanged.
+- Portable startup measurement now refuses WebSockets, arbitrary data/blob
+  fetches and imports, EventSource, WebTransport and WebRTC data channels,
+  including caught failures in frames and workers. The authenticated loader's
+  exact module blobs remain admitted from already-counted built bytes; startup
+  and total delivery caps are unchanged.
+- Portable startup accounting now records every built resource served by the
+  browser context, including dedicated-worker fetches, fonts and extensionless
+  outputs. Unknown boot URLs and unroutable shared/service-worker boot activity
+  fail explicitly. Startup and total-JavaScript caps remain unchanged.
+- Portable startup gates now boot both production bridge variants in headless
+  Chrome and count JS/CSS requested before chat's first-render mark, including
+  imports awaited inside call arguments or helpers. They replace source-syntax
+  accounting and keep the 1,100 KiB startup and 1,486 KiB total-JavaScript caps.
+  Imports requested after the mark remain deferred.
 - Portable controllers preserve host readiness, restored selection and session
   ownership. Paid engine policy and accounting follow the owning runtime; effective
   settings remain specific to each conversation and worktree.
@@ -517,6 +557,12 @@ happened, not what was planned; superseded entries are kept.
   and runtime process tree on transport failure. Workspace globs include root
   files and apply exclusions at every depth. Add settled diagnostics regressions
   and size accounting for the actual shipped inline startup scripts.
+
+- Production split-gate qualification no longer relaunches the complete gate
+  inside five-second test bodies. The full gate runs once in the bounded
+  setup hook; each mutation test replays only its own gate section (portable
+  budgets, backend-lazy inventory, resource policy) against the shared tree,
+  keeping every mutation-specific refusal assertion and existing deadline.
 
 ### Security
 

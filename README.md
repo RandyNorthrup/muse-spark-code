@@ -5425,8 +5425,29 @@ its own bridge, with chat/Tasks in `dist/webview/main.js` and What's New in
 `dist/webview/whatsNew.js`. Native and companion hosts use the separate
 `dist/webview/portable/main.js`, `whatsNew.js`, `bridge.js`, `fallbacks.js` and their shared
 chunks; common React host-service fallbacks and manager pages load through
-`PanelBridge.loadFallbacks()`. The portable budget counts every JavaScript
-entry and chunk, independently of the unchanged VS Code budgets. Native
+`PanelBridge.loadFallbacks()`. Portable delivery has two independent caps:
+1,100 KiB for the larger native or companion startup variant's requested built resources,
+and 1,486 KiB for every delivered JavaScript entry and chunk, including lazy features.
+Both bundle gates boot the production page in headless Chrome with the shared
+native/companion browser fakes and authenticated loader. They wait for the
+synchronous first-render `muse:chat-mounted` mark and count built resources
+whose requests started before it once per variant, by path, byte length and SHA-256.
+Context-level routes include dedicated workers, iframes, fonts and extensionless
+outputs. Unknown URLs, WebSockets, arbitrary data/blob fetches or imports,
+EventSource, WebTransport and WebRTC data channels fail with
+`PORTABLE_STARTUP_UNBUILT_REQUEST`, even when application code catches the error.
+Only the authenticated loader's exact module blobs from already-counted built
+bytes are admitted. Worker CSP violations report through the same measurement
+boundary. A measurement-only worker preface refuses transport constructors and
+relays violations through the owning worker before termination. Its probe bytes,
+like frame init scripts and the synthetic main document, are excluded; each
+receipt identifies the original immutable built output. Shared and
+service-worker and nested-worker boot activity is refused with
+`PORTABLE_STARTUP_UNROUTABLE_TARGET` because those targets cannot be fully routed
+by the measurement. Imports awaited
+inside arguments or helpers are included; requests after the mark remain deferred. Chrome must be
+installed (`CHROME_PATH` can select it). Optional features must remain deferred.
+The VS Code budgets are unchanged. Native
 UI requests on native stdio use the correlated MHP host-service channel.
 Companion windows receive correlated React UI requests on authenticated
 `POST /host/events` and return method-validated replies to `POST /host/message`,
@@ -5685,8 +5706,10 @@ the conversation's Git bundle, 125 KiB for
 the shared English fallback (`dist/uiText.js`, also in the ACP package), 50 KiB for
 the search worker, 300 KiB for
 web fetch's page converter worker, 900 KiB for webview startup plus 50 KiB
-for its deferred JavaScript, 1100 KiB for the independent portable webview
-including every JavaScript entry and chunk, and 850 KiB for
+for its deferred JavaScript, 1100 KiB for the built resources of each measured native/companion startup variant
+including its authenticated loader and built resources requested before chat's
+first-render mark, 1486 KiB for the complete portable graph
+including every lazy JavaScript entry and chunk, and 850 KiB for
 the ACP agent (`dist/acp.js`).
 
 The webview's Git panel loads when it has state to show; Account & usage

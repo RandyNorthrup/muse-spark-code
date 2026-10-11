@@ -5,6 +5,7 @@ import {
   checkResourceWebview,
   webviewEntryMetafile,
   webviewPanelOutputs,
+  portableWebviewBudgetGroups,
 } from '../../scripts/lib/webviewBundles.mjs'
 
 const MAIN = 'dist/webview/main.js'
@@ -40,6 +41,51 @@ function metafile() {
 }
 
 describe('webview import budgets', () => {
+  it('counts shared portable startup dependencies once and retains every lazy JS output', () => {
+    const main = 'dist/webview/portable/main.js'
+    const loader = 'dist/webview/portable/loader.js'
+    const lazy = 'dist/webview/portable/lazy.js'
+    const css = 'dist/webview/portable/main.css'
+    const independent = 'dist/webview/portable/whatsNew.js'
+    const groups = portableWebviewBudgetGroups(
+      {
+        outputs: {
+          [main]: output([edge(CORE), edge(lazy, 'dynamic-import')]),
+          [loader]: output([edge(CORE)]),
+          [CORE]: output([edge(SHARED), edge(SHARED)]),
+          [SHARED]: output([
+            edge(CORE),
+            { path: 'external', external: true, kind: 'import-statement' },
+          ]),
+          [lazy]: output([edge(SHARED)]),
+          [independent]: output(),
+          [css]: output(),
+        },
+      },
+      ['native', 'companion'].map((variant) => ({
+        variant,
+        outputs: [main, CORE, SHARED, loader, css],
+      })),
+    )
+    expect(groups).toEqual([
+      {
+        name: 'native startup resources',
+        budgetKiB: 1100,
+        outputs: [main, CORE, SHARED, loader, css],
+      },
+      {
+        name: 'companion startup resources',
+        budgetKiB: 1100,
+        outputs: [main, CORE, SHARED, loader, css],
+      },
+      {
+        name: 'total JS',
+        budgetKiB: 1486,
+        outputs: [main, loader, CORE, SHARED, lazy, independent],
+      },
+    ])
+  })
+
   it.each(['/', '\\'])('charges portable pacing and team closures with %s paths', (separator) => {
     const main = 'dist/webview/portable/main.js'
     const pacing = 'dist/webview/portable/pacing.js'
