@@ -7367,6 +7367,37 @@
       "gradeSourceRevision": "LEFT017B current rendered descendants; image review recorded in int0170-combined.md"
     },
     {
+      "file": "src/webview/models/DeferredSections.tsx",
+      "owner": "P2",
+      "selectors": [".models-panel section"],
+      "scene": "models-providers",
+      "grades": {
+        "colour": "inherited",
+        "radius": "inherited",
+        "elevation": "inherited",
+        "motion": "inherited",
+        "focus": "inherited",
+        "states": "inherited",
+        "highContrast": "inherited",
+        "accessibility": "inherited",
+        "typographySpacing": "inherited"
+      },
+      "roles": ["colour.surface", "colour.text", "typography.font-ui"],
+      "findings": ["inherited"],
+      "fix": "Inspect the deferred section through its committed descendants; held-chunk unit/browser checks cover the loading interval and remembered-height skeleton.",
+      "evidence": [
+        {
+          "file": "src/webview/models/DeferredSections.tsx",
+          "line": 111,
+          "selector": ".models-panel section",
+          "declarations": "SectionFrame stable boundary"
+        }
+      ],
+      "captureSelector": ".models-panel section",
+      "vscodeVariables": [],
+      "gradeSourceRevision": "MODELSPLIT4: current shared boundary around the unchanged rendered section; loading receipts in models-split.md"
+    },
+    {
       "file": "src/webview/models/ModelsSection.tsx",
       "owner": "P2",
       "selectors": [".models-table"],
@@ -7427,6 +7458,37 @@
       "captureSelector": ".models-providers",
       "vscodeVariables": [],
       "gradeSourceRevision": "LEFT017B current rendered descendants; image review recorded in int0170-combined.md"
+    },
+    {
+      "file": "src/webview/models/SectionNavigation.tsx",
+      "owner": "P2",
+      "selectors": [".models-panel nav"],
+      "scene": "models-providers",
+      "grades": {
+        "colour": "inherited",
+        "radius": "inherited",
+        "elevation": "inherited",
+        "motion": "inherited",
+        "focus": "inherited",
+        "states": "inherited",
+        "highContrast": "inherited",
+        "accessibility": "inherited",
+        "typographySpacing": "inherited"
+      },
+      "roles": ["colour.surface", "colour.text", "typography.font-ui"],
+      "findings": ["inherited"],
+      "fix": "The shared registry navigation renders in the panel frame; held-chunk unit/browser checks verify its visible pending tab and stable shell.",
+      "evidence": [
+        {
+          "file": "src/webview/models/SectionNavigation.tsx",
+          "line": 6,
+          "selector": ".models-panel nav",
+          "declarations": "SectionNavigation shared shell and pending state"
+        }
+      ],
+      "captureSelector": ".models-panel",
+      "vscodeVariables": [],
+      "gradeSourceRevision": "MODELSPLIT4: shared navigation in the existing panel frames; held transition receipts in models-split.md"
     },
     {
       "file": "src/webview/models/Wizard.tsx",
@@ -10080,7 +10142,7 @@
     {
       "file": "src/webview/models/sections.ts",
       "classification": "logic-only",
-      "audit": "Supporting source: inspect theme/token/lazy lifecycle behavior through its actual rendered consumers in the current component inventory."
+      "audit": "Section registry and reducers; the shared rendered navigation is audited separately in SectionNavigation.tsx."
     },
     {
       "file": "src/webview/models/sections/accounts/accounts.css",
@@ -10389,6 +10451,7 @@
     "models-scanning",
     "models-suggestions",
     "models-table",
+    "models-table-filtered",
     "models-test-cost",
     "models-undo",
     "modes",
@@ -11106,16 +11169,24 @@
       "sha256": "a3fb65727ef11cec5f2fd5a3838ef283bd9b7428c5796067d5a9cee9f178ecda"
     },
     {
+      "file": "src/webview/models/DeferredSections.tsx",
+      "sha256": "6de406c31b5b503dd0bddde6f676bc3bf0389090cd10c658de4226453fa4a64c"
+    },
+    {
       "file": "src/webview/models/ModelsSection.tsx",
-      "sha256": "f917f223935c2783f7838193abc3eb218c9d5a02b31f0d378706e05f0337dca1"
+      "sha256": "890848b48fbbf637b1033cf1dd72700e0e22bdbc84d7b1285f0a3b47f3dbf342"
     },
     {
       "file": "src/webview/models/ProvidersSection.tsx",
-      "sha256": "b98b7e462edc857352e0d5e94be7665d137d52014a519662c8901fadfc6f9793"
+      "sha256": "469df363b8535ac537177e37e78a7c60a21e5ea5f2e607b3cbd83d688c40e355"
+    },
+    {
+      "file": "src/webview/models/SectionNavigation.tsx",
+      "sha256": "f23c4f84626d4167346ea200126331135bb7127d6497580bd9d14e2b60972948"
     },
     {
       "file": "src/webview/models/Wizard.tsx",
-      "sha256": "3d76d415b23b0696099f4f20adc91d15a31dd5685d7e8e193215c57061b6b0af"
+      "sha256": "985594ea01a0c3b9ce6171b8f8ef7aa76bda3053fa74cb0d2832f28bafdf2baf"
     },
     {
       "file": "src/webview/models/components/Badge.tsx",
@@ -11123,7 +11194,7 @@
     },
     {
       "file": "src/webview/models/components/CostNotice.tsx",
-      "sha256": "862d4ed08b567d8e25159d6e36adbc58a5945f70bb575e2e53cfc636403423e2"
+      "sha256": "2975b236b7724439a5a47961ed111d6d2ff8c1a85390a46bef0737287a850842"
     },
     {
       "file": "src/webview/models/components/DataTable.tsx",
@@ -11151,7 +11222,7 @@
     },
     {
       "file": "src/webview/models/components/SuggestionCard.tsx",
-      "sha256": "7bb7b7a3d59c238188dd3632197bdbb2dbb1a96fe17e15c2acd3c41c189eea54"
+      "sha256": "a06d387272cfc5b7c77d9e2b8ace749d3ac74986b552884ac7e54e286d174b81"
     },
     {
       "file": "src/webview/models/components/UndoBar.tsx",
@@ -11159,15 +11230,15 @@
     },
     {
       "file": "src/webview/models/models.css",
-      "sha256": "388dde2783a7d4501a18585bda70d167f24bc86c0b2ce6e687f6e651bce1720a"
+      "sha256": "512101ce260017f945479b7f33c382a5548f28be99b50843d5c423af476b92f3"
     },
     {
       "file": "src/webview/models/models.tsx",
-      "sha256": "9f399437cf1edf238651329a1b29130ac1cca108f22bec003d8ddd30d25a7328"
+      "sha256": "fedf18674857de2b7cbbd5d14fd1744729346ee780cd6d14623ded4ce6b02fd8"
     },
     {
       "file": "src/webview/models/panel.tsx",
-      "sha256": "1b6d841cacd87ab7fe21ebf7a32ab7267af41bfee1392dccc393a93400b30395"
+      "sha256": "a8253182668158ce0af9cedb1cda1718d4ca51d011d19c1853c6a46d17916a56"
     },
     {
       "file": "src/webview/models/reducer.ts",
@@ -11175,7 +11246,7 @@
     },
     {
       "file": "src/webview/models/sections.ts",
-      "sha256": "9a91502ac02d3b9bf50bdb7f1bc202c807e50271a04d6f2e4901857dec05a292"
+      "sha256": "2e19cc38a34fe6e9d2deb3a4108ab242367d621be07c37517b278ab7621bc462"
     },
     {
       "file": "src/webview/models/sections/accounts/AccountEditor.tsx",

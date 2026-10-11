@@ -154,7 +154,7 @@ describe('M96 U1 Roles UI', () => {
     const view = render(<RolesSection {...props} highlightedItem="engineering" />)
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.teamEditorRoles['code-review'] }))
     expect(
-      screen.getByRole('heading', { name: UI_TEXT.teamEditorRoles['code-review'] }),
+      await screen.findByRole('heading', { name: UI_TEXT.teamEditorRoles['code-review'] }),
     ).toBeDefined()
     view.rerender(<RolesSection {...props} highlightedItem="research" />)
     expect(screen.getByRole('heading', { name: UI_TEXT.teamEditorRoles.research })).toBeDefined()

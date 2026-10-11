@@ -6,7 +6,12 @@ import { teamTemplateSchema, teamPreviewSampleSchema } from '../../../../shared/
 import { fill } from '../../../../shared/l10n/text'
 import type { SectionProps } from '../../sections'
 import { SearchableSelect } from '../../components/SearchableSelect'
-import { RoleEditor } from './RoleEditor'
+import { deferred } from '../../../components/DeferredSurface'
+
+const RoleEditor = deferred(async () => {
+  const module = await import('./RoleEditor')
+  return { default: module.RoleEditor }
+})
 import { ModelSettings } from './fields'
 
 export function RolesSection({ panelState, post, highlightedItem }: SectionProps) {

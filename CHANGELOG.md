@@ -104,12 +104,20 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The hidden team configuration keeps its per-role editor lazy after the
+  Models split, with a separate measured budget and loading/retry UI.
+
 - The hidden Roles editor preserves pending composite edits across unrelated
   host replies and manual Default concurrency across orchestrator edits. Tool
   search matches translated labels; enabled-team navigation waits for its
   English fallback. Pool filters support model families and fractional-price
   saves, and option prices use the display language's currency rules. U1-only
   English travels in its team chunk under the existing surface budget.
+
+- Models & Agents keeps the visible section during lazy navigation and reserves
+  its remembered height on reload. The first visit estimates its host rows.
+  Visual captures wait for money amounts, and filtered model tables now have
+  reviewed coverage across every theme, width and interaction state.
 
 - On macOS 26, a process that `ps` lists with an unknown state (`?`) while
   it changes no longer voids every resource tree's membership read, which

@@ -775,6 +775,12 @@ JupyterLab (Jupyter AI) with the agent.
 
 Subscription sign-in is being integrated under M95b; installed-editor and live
 success certification is still pending ([record](docs/certification/m95b.md)).
+
+The Models & Agents panel keeps the current section visible while another
+section loads. A pending tab indicates loading after 150 ms. Reloads reserve
+the section's last measured height; the first visit estimates from the host's
+rows and can adjust once when the section arrives.
+
 In **Models & Agents → Providers**, choose **Continue with ChatGPT** or
 **Use my Copilot models**. The same actions are available in the command palette.
 Connecting selects the shared in-process harness and the account's first
@@ -5843,7 +5849,8 @@ Roles and Agents in Models & Agents remain hidden until the production team
 worker binding and its complete configuration ports are installed. The portable editor and shared React sections
 are implemented and tested with an enabled fake host; that does not enable
 workers in the released extension. The saved workspace document is
-`museSpark.team.config`, followed by `TeamHostBinding.reload()`.
+`museSpark.team.config`, followed by `TeamHostBinding.reload()`. The per-role
+editor loads on first use, with accessible loading and a retry on chunk failure.
 
 For maintainers, `npm run harness:team` runs the standalone
 Roles and Agents scenes through axe in six themes, all 14 translations and

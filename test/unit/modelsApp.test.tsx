@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { UI_TEXT } from '../../src/shared/constants'
 import { parsePanelToHostMessage } from '../../src/shared/modelsPanel'
@@ -8,7 +8,7 @@ import { ModelsApp } from '../../src/webview/models/panel'
 import { makeProvider, makeRow, makeState } from './modelsPanelFixtures'
 
 describe('ModelsApp shared host contract', () => {
-  it('subscribes before ready, renders host state, follows navigation and posts top-level requests', () => {
+  it('subscribes before ready, renders host state, follows navigation and posts top-level requests', async () => {
     const state = makeState({ providers: [makeProvider()], models: [makeRow()], totalModels: 1 })
     const post = vi.fn<HostBridge['post']>((message) => {
       expect(parsePanelToHostMessage(message).ok).toBe(true)
@@ -27,7 +27,16 @@ describe('ModelsApp shared host contract', () => {
     const report = vi.fn()
     const { unmount } = render(<ModelsApp host={host} report={report} />)
     expect(post).toHaveBeenCalledWith({ type: 'modelsPanel/ready' })
-    expect(screen.getByText('Ollama')).toBeInTheDocument()
+    // The sections load behind the shared deferred boundary: loading is
+    // announced with a status until the providers chunk arrives.
+    await waitFor(() => {
+      expect(screen.getByRole('status')).toHaveTextContent(UI_TEXT.loadingOutput)
+    })
+    expect(document.querySelector('[data-deferred-loading]')).not.toBeNull()
+    expect(await screen.findByText('Ollama')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: UI_TEXT.teamRolesTitle })).toBeNull()
+    expect(screen.queryByRole('button', { name: UI_TEXT.teamEditor.agents })).toBeNull()
+    expect(document.querySelector('[data-deferred-loading]')).toBeNull()
     expect(screen.queryByText(UI_TEXT.connecting)).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.providerEdit }))
     expect(post).toHaveBeenCalledWith({ type: 'providers/edit', providerId: 'ollama' })
@@ -42,7 +51,7 @@ describe('ModelsApp shared host contract', () => {
         }),
       )
     })
-    expect(screen.getByRole('row', { name: 'ollama/qwen3:8b' })).toBeInTheDocument()
+    expect(await screen.findByRole('row', { name: 'ollama/qwen3:8b' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('checkbox', { name: /Offer ollama/ }))
     expect(post).toHaveBeenCalledWith({
       type: 'models/tick',
@@ -58,7 +67,7 @@ describe('ModelsApp shared host contract', () => {
     expect(report).not.toHaveBeenCalled()
   })
 
-  it('rejects the incompatible legacy envelope and preserves the displayed state', () => {
+  it('rejects the incompatible legacy envelope and preserves the displayed state', async () => {
     const post = vi.fn()
     const report = vi.fn()
     const host: HostBridge = {
@@ -73,7 +82,9 @@ describe('ModelsApp shared host contract', () => {
         new MessageEvent('message', { data: { type: 'providers/state', payload: makeState() } }),
       )
     })
-    expect(report).toHaveBeenCalledWith('hostMessage', expect.any(Error))
+    await waitFor(() => {
+      expect(report).toHaveBeenCalledWith('hostMessage', expect.any(Error))
+    })
     expect(screen.getByText(UI_TEXT.connecting)).toBeInTheDocument()
   })
 })
