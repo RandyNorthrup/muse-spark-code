@@ -1,0 +1,23 @@
+--- a/src/core/providers/capabilityRecord.ts
++++ b/src/core/providers/capabilityRecord.ts
+@@ -114,7 +114,10 @@
+   topP: flag,
+   nativeCandidates: known(count),
+ })
+-const hostedSchema = z.strictObject({ webSearch: known(z.strictObject({ tool: z.string() })) })
++const hostedSchema = z.strictObject({
++  webSearch: known(z.strictObject({ tool: z.string() })),
++  maxToolCalls: flag,
++})
+ const completionSchema = known(z.strictObject({ mode: z.enum(['fim', 'chat-hole']) }))
+ const groups = {
+   tools: toolsSchema,
+@@ -238,7 +241,7 @@
+     logprobs: unknown,
+     sampling: { temperature: unknown, topP: unknown, nativeCandidates: unknown },
+     completion: unknown,
+-    hosted: { webSearch: unknown },
++    hosted: { webSearch: unknown, maxToolCalls: unknown },
+   }
+   const ordered = evidence.toSorted((a, b) => PRIORITY[a.source.kind] - PRIORITY[b.source.kind])
+   for (const item of ordered) {

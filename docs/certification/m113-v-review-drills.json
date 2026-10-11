@@ -1,0 +1,123 @@
+[
+  {
+    "id": "CSP-style-nonce",
+    "source": "src/host/reporting/reportPanel.ts",
+    "testFile": "test/unit/reportingPanel.test.ts",
+    "expectedTest": "authorizes the iframe stylesheet with the actual production shell nonce",
+    "exitCode": 1,
+    "expectedFailure": true,
+    "sha256": "47cb069ccec9426c4d16d7e3e693c85270d17b7f18fe6639699515d7ffd2d6e6",
+    "restoredSha256": "47cb069ccec9426c4d16d7e3e693c85270d17b7f18fe6639699515d7ffd2d6e6",
+    "byteExact": true
+  },
+  {
+    "id": "diff-serialized-scrub",
+    "source": "src/host/reporting/reportPanel.ts",
+    "testFile": "test/unit/reportingPanel.test.ts",
+    "expectedTest": "scrubs decoded diff strings and keys while preserving already redacted rows",
+    "exitCode": 1,
+    "expectedFailure": true,
+    "sha256": "47cb069ccec9426c4d16d7e3e693c85270d17b7f18fe6639699515d7ffd2d6e6",
+    "restoredSha256": "47cb069ccec9426c4d16d7e3e693c85270d17b7f18fe6639699515d7ffd2d6e6",
+    "byteExact": true
+  },
+  {
+    "id": "diff-scrub-bypass",
+    "source": "src/host/reporting/reportPanel.ts",
+    "testFile": "test/unit/reportingPanel.test.ts",
+    "expectedTest": "scrubs decoded diff strings and keys while preserving already redacted rows",
+    "exitCode": 1,
+    "expectedFailure": true,
+    "sha256": "47cb069ccec9426c4d16d7e3e693c85270d17b7f18fe6639699515d7ffd2d6e6",
+    "restoredSha256": "47cb069ccec9426c4d16d7e3e693c85270d17b7f18fe6639699515d7ffd2d6e6",
+    "byteExact": true
+  },
+  {
+    "id": "picker-busy-admission",
+    "source": "src/host/reporting/reportPanel.ts",
+    "testFile": "test/unit/reportingPanel.test.ts",
+    "expectedTest": "admits picker work as busy and keeps a stale history failure out of a reopened tab",
+    "exitCode": 1,
+    "expectedFailure": true,
+    "sha256": "47cb069ccec9426c4d16d7e3e693c85270d17b7f18fe6639699515d7ffd2d6e6",
+    "restoredSha256": "47cb069ccec9426c4d16d7e3e693c85270d17b7f18fe6639699515d7ffd2d6e6",
+    "byteExact": true
+  },
+  {
+    "id": "picker-stale-failure",
+    "source": "src/host/reporting/reportPanel.ts",
+    "testFile": "test/unit/reportingPanel.test.ts",
+    "expectedTest": "admits picker work as busy and keeps a stale history failure out of a reopened tab",
+    "exitCode": 1,
+    "expectedFailure": true,
+    "sha256": "47cb069ccec9426c4d16d7e3e693c85270d17b7f18fe6639699515d7ffd2d6e6",
+    "restoredSha256": "47cb069ccec9426c4d16d7e3e693c85270d17b7f18fe6639699515d7ffd2d6e6",
+    "byteExact": true
+  },
+  {
+    "id": "picker-history-lifetime",
+    "source": "src/host/reporting/reportPanel.ts",
+    "testFile": "test/unit/reportingPanel.test.ts",
+    "expectedTest": "cancels picker history work when its panel closes without reopening it",
+    "exitCode": 1,
+    "expectedFailure": true,
+    "sha256": "47cb069ccec9426c4d16d7e3e693c85270d17b7f18fe6639699515d7ffd2d6e6",
+    "restoredSha256": "47cb069ccec9426c4d16d7e3e693c85270d17b7f18fe6639699515d7ffd2d6e6",
+    "byteExact": true
+  },
+  {
+    "id": "picker-selection-lifetime",
+    "source": "src/host/reporting/reportPanel.ts",
+    "testFile": "test/unit/reportingPanel.test.ts",
+    "expectedTest": "cancels picker selection work when its panel closes without reopening it",
+    "exitCode": 1,
+    "expectedFailure": true,
+    "sha256": "47cb069ccec9426c4d16d7e3e693c85270d17b7f18fe6639699515d7ffd2d6e6",
+    "restoredSha256": "47cb069ccec9426c4d16d7e3e693c85270d17b7f18fe6639699515d7ffd2d6e6",
+    "byteExact": true
+  },
+  {
+    "id": "picker-scope-lifetime",
+    "source": "src/host/reporting/reportPanel.ts",
+    "testFile": "test/unit/reportingPanel.test.ts",
+    "expectedTest": "cancels picker scope work when its panel closes without reopening it",
+    "exitCode": 1,
+    "expectedFailure": true,
+    "sha256": "47cb069ccec9426c4d16d7e3e693c85270d17b7f18fe6639699515d7ffd2d6e6",
+    "restoredSha256": "47cb069ccec9426c4d16d7e3e693c85270d17b7f18fe6639699515d7ffd2d6e6",
+    "byteExact": true
+  },
+  {
+    "id": "picker-dialog-cancel",
+    "source": "src/host/reporting/reportPanel.ts",
+    "testFile": "test/unit/reportingPanel.test.ts",
+    "expectedTest": "cancels picker selection work when its panel closes without reopening it",
+    "exitCode": 1,
+    "expectedFailure": true,
+    "sha256": "47cb069ccec9426c4d16d7e3e693c85270d17b7f18fe6639699515d7ffd2d6e6",
+    "restoredSha256": "47cb069ccec9426c4d16d7e3e693c85270d17b7f18fe6639699515d7ffd2d6e6",
+    "byteExact": true
+  },
+  {
+    "id": "CSP-reopened-document",
+    "source": "src/host/reporting/reportPanel.ts",
+    "testFile": "test/unit/reportingPanel.test.ts",
+    "expectedTest": "does not carry a document with an old style nonce into a canceled reopened picker",
+    "exitCode": 1,
+    "expectedFailure": true,
+    "sha256": "47cb069ccec9426c4d16d7e3e693c85270d17b7f18fe6639699515d7ffd2d6e6",
+    "restoredSha256": "47cb069ccec9426c4d16d7e3e693c85270d17b7f18fe6639699515d7ffd2d6e6",
+    "byteExact": true
+  },
+  {
+    "id": "usage-deferred-regrowth",
+    "source": "src/webview/components/UsageDialog.tsx",
+    "testFile": "test/unit/reportingBundles.test.mjs",
+    "expectedTest": "keeps the usage report action out of the capped legacy deferred group",
+    "exitCode": 1,
+    "expectedFailure": true,
+    "sha256": "f9d1a667297c5d612cd20ee8667fb46cd292e8567feeeee6826799d472662597",
+    "restoredSha256": "f9d1a667297c5d612cd20ee8667fb46cd292e8567feeeee6826799d472662597",
+    "byteExact": true
+  }
+]

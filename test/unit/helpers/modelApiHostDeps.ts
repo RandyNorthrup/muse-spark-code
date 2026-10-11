@@ -1,3 +1,4 @@
+import { Usd } from '../../../src/shared/usd'
 // A `ModelApiHost`'s dependencies over the fake Model API and an in-memory
 // workspace: trusted, non-confidential, nothing paid or allowed, no personal
 // skills, agents or memory,
@@ -49,7 +50,7 @@ export function fakeModelApiHostDeps(base: {
     notePaidUse: () => undefined,
     promptCacheRetention: () => 'in_memory',
     // No session budget, no reply usage line (M82).
-    sessionBudgetUsd: () => 0,
+    sessionBudgetUsd: () => Usd.from(0).toAmount(),
     showReplyUsage: () => false,
     allowsPaidUse: () => Promise.resolve(false),
     isPaidUseRemembered: () => false,

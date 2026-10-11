@@ -1,3 +1,4 @@
+import { Usd, type UsdAmount } from '../../shared/usd'
 // Pure M80 argument validation. Files, catalogue and TTY checks belong to B.
 import {
   ACP_BACKENDS,
@@ -29,6 +30,8 @@ import { fill, plural } from '../../shared/l10n/text'
 import { modelRef } from '../../host/backend/providerPolicyEntry'
 const { isProviderId, parseModelRef } = modelRef
 import type { ServeOptions } from '../cliArgs'
+import { accountIdSchema } from '../../shared/accounts'
+import { ACCOUNT_DEFAULT_ID } from '../../shared/constants'
 
 export type ExecMode = 'plan' | 'acceptEdits'
 export type ExecOutput = 'text' | 'json' | 'jsonl'
@@ -38,6 +41,8 @@ export type PromptSource =
   | { readonly kind: 'file'; readonly path: string }
   | { readonly kind: 'stdin' }
 export interface ExecOptions {
+  readonly account?: string
+  readonly accountPool?: boolean
   readonly backend: AcpBackendKind
   readonly cwd: string | undefined
   readonly prompt: PromptSource
@@ -53,15 +58,18 @@ export interface ExecOptions {
   readonly effort: EffortLevel | undefined
   readonly allowsContributorModels: boolean
   readonly output: ExecOutput
-  /** Display conversion only; admission retains budgetMicroUsd (F1). */
-  readonly budgetUsd: number | undefined
-  readonly budgetMicroUsd: number | undefined
+  readonly outputSchema?: string
+  readonly outputSchemaOutside?: boolean
+  /** Exact canonical budget; admission uses integer micro-units internally (F1). */
+  readonly budgetUsd: UsdAmount | undefined
   readonly maxRequests: number | undefined
   readonly timeoutMs: number
   readonly paidFeatures: readonly ExecPaidFeature[]
   readonly failOnDenial: boolean
   readonly ephemeral: boolean
   readonly keyFromStdin: boolean
+  /** Local unattended vault grants only; CI's stdin-key lane remains vault-free. */
+  readonly vault: boolean
   readonly museBinary: string
   readonly shellSandbox: ShellSandboxMode
   readonly isVerbose: boolean
@@ -75,10 +83,13 @@ const BOOLEAN_OPTIONS = new Set([
   'fail-on-denial',
   'ephemeral',
   'key-stdin',
+  'vault',
   'verbose',
   'trust-workspace',
   'allow-dangerously-skip-permissions',
   'web-search',
+  'output-schema-outside',
+  'account-pool',
 ])
 const STRING_OPTIONS = new Set([
   'backend',
@@ -88,12 +99,14 @@ const STRING_OPTIONS = new Set([
   'model',
   'effort',
   'output',
+  'output-schema',
   'max-budget-usd',
   'max-requests',
   'timeout',
   'muse-binary',
   'shell-sandbox',
   'provider',
+  'account',
 ])
 const DECIMAL_BUDGET = /^[0-9]+(?:\.[0-9]{1,6})?$/
 const INTEGER = /^[0-9]+$/
@@ -109,15 +122,15 @@ function integer(value: unknown, fallback: number, min: number, max: number): nu
   return Number.isSafeInteger(parsed) && parsed >= min && parsed <= max ? parsed : undefined
 }
 
-/** Parse decimal digits directly; Number is used only after the integer range check. */
-function budgetUnits(value: unknown): number | undefined {
+/** Parse decimal digits directly and retain the exact canonical budget. */
+function budgetUnits(value: unknown): UsdAmount | undefined {
   if (typeof value !== 'string' || !DECIMAL_BUDGET.test(value)) return undefined
   const [whole = '', fraction = ''] = value.split('.', 2)
   const units =
     BigInt(whole) * BigInt(EXEC_USD_UNITS) + BigInt(fraction.padEnd(EXEC_USD_DECIMALS, '0'))
   const ZERO_UNITS = 0n
   return units > ZERO_UNITS && units <= BigInt(EXEC_MAX_BUDGET_USD * EXEC_USD_UNITS)
-    ? Number(units)
+    ? Usd.fromUnits(units, EXEC_USD_DECIMALS).toAmount()
     : undefined
 }
 
@@ -174,6 +187,16 @@ export function parseExec(
   if (values['trust-workspace'] === true || values['allow-dangerously-skip-permissions'] === true)
     return invalid(UI_TEXT.execTrustRefused)
   if (values['web-search'] === true) return invalid(UI_TEXT.execWebSearchUnbounded)
+  if (values['account'] !== undefined && !accountIdSchema.safeParse(values['account']).success)
+    return invalid(UI_TEXT.accounts.invalidAccount)
+  if (
+    values['key-stdin'] === true &&
+    (values['account-pool'] === true ||
+      (values['account'] !== undefined && values['account'] !== ACCOUNT_DEFAULT_ID))
+  )
+    return invalid(UI_TEXT.accounts.credentialHelp)
+  if (values['vault'] === true && values['key-stdin'] === true)
+    return invalid(`${UI_TEXT.vault.noAccess}: --vault / --key-stdin`)
   const mode = enumValue(EXEC_MODES, values['permission-mode'] ?? EXEC_DEFAULT_MODE)
   if (mode === undefined) return invalid(UI_TEXT.execModeRefused)
   const backend = enumValue(ACP_BACKENDS, values['backend'] ?? ACP_DEFAULT_BACKEND)
@@ -183,6 +206,12 @@ export function parseExec(
     values['shell-sandbox'] ?? SETTING_DEFAULTS.shellSandbox,
   )
   const effort = enumValue(EFFORT_LEVELS, values['effort'])
+  if (
+    backend === 'museCode' &&
+    (values['account-pool'] === true ||
+      (values['account'] !== undefined && values['account'] !== ACCOUNT_DEFAULT_ID))
+  )
+    return invalid(UI_TEXT.accounts.museCodeUnavailable)
   if (
     backend === undefined ||
     output === undefined ||
@@ -202,20 +231,30 @@ export function parseExec(
     1,
     EXEC_MAX_REQUESTS,
   )
-  const budgetMicroUsd = budgetUnits(values['max-budget-usd'])
+  const budgetUsd = budgetUnits(values['max-budget-usd'])
   if (
     timeout === undefined ||
     maxRequests === undefined ||
-    (budgetMicroUsd === undefined && values['max-budget-usd'] !== undefined)
+    (budgetUsd === undefined && values['max-budget-usd'] !== undefined)
   )
     return invalid(UI_TEXT.execNumberInvalid)
-  if (backend === 'modelApi' && budgetMicroUsd === undefined)
-    return invalid(UI_TEXT.execBudgetRequired)
+  if (backend === 'modelApi' && budgetUsd === undefined) return invalid(UI_TEXT.execBudgetRequired)
+  if (
+    values['output-schema'] === '' ||
+    (values['output-schema-outside'] === true && values['output-schema'] === undefined)
+  )
+    return invalid(UI_TEXT.execUsage)
   if (
     backend === 'museCode' &&
-    ['max-budget-usd', 'max-requests', 'ephemeral', 'key-stdin', 'image-generation'].some(
-      (key) => values[key] !== undefined && values[key] !== false,
-    )
+    [
+      'max-budget-usd',
+      'max-requests',
+      'ephemeral',
+      'key-stdin',
+      'image-generation',
+      'output-schema',
+      'output-schema-outside',
+    ].some((key) => values[key] !== undefined && values[key] !== false)
   )
     return invalid(UI_TEXT.execModelApiOnly)
   if (
@@ -246,6 +285,7 @@ export function parseExec(
   if (prompt.kind === 'text' && Buffer.byteLength(prompt.text) > EXEC_PROMPT_MAX_BYTES)
     return invalid(UI_TEXT.execFileTooLarge)
   const stringValue = (key: string) => (typeof values[key] === 'string' ? values[key] : undefined)
+  const outputSchema = stringValue('output-schema')
   const provider = stringValue('provider')
   if (provider !== undefined && !isProviderId(provider)) {
     return invalid(fill(UI_TEXT.providerUnknown, { provider }))
@@ -261,6 +301,8 @@ export function parseExec(
   return {
     ok: true,
     options: {
+      ...(typeof values['account'] === 'string' && { account: values['account'] }),
+      ...(values['account-pool'] === true && { accountPool: true }),
       backend,
       cwd: stringValue('cwd'),
       prompt,
@@ -271,14 +313,16 @@ export function parseExec(
       effort,
       allowsContributorModels: values['allow-contributor-models'] === true,
       output,
-      budgetMicroUsd,
-      budgetUsd: budgetMicroUsd === undefined ? undefined : budgetMicroUsd / EXEC_USD_UNITS,
+      ...(outputSchema !== undefined && { outputSchema }),
+      ...(values['output-schema-outside'] === true && { outputSchemaOutside: true }),
+      budgetUsd,
       maxRequests: backend === 'modelApi' ? maxRequests : undefined,
       timeoutMs: timeout * MILLISECONDS_PER_SECOND,
       paidFeatures: values['image-generation'] === true ? ['imageGeneration'] : [],
       failOnDenial: values['fail-on-denial'] === true,
       ephemeral: values['ephemeral'] === true,
       keyFromStdin: values['key-stdin'] === true,
+      vault: values['vault'] === true,
       museBinary: stringValue('muse-binary') ?? SETTING_DEFAULTS.museBinaryPath,
       shellSandbox,
       isVerbose: values['verbose'] === true,

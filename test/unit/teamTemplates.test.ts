@@ -46,7 +46,7 @@ describe('templateRoles', () => {
     expect(templateRoles('pair')).toEqual(['engineering', 'code-review'])
   })
 
-  it('staffs six roles for Full team, marketing offered', () => {
+  it('staffs six roles for Full Team, marketing offered', () => {
     expect(templateRoles('full')).toEqual([
       'research',
       'design',
@@ -75,7 +75,7 @@ describe('buildTemplateDraft', () => {
     expect(draft.roles[1]?.pool).toEqual([])
   })
 
-  it('prefills each Full team role with its mode, tools and task cap', () => {
+  it('prefills each Full Team role with its mode, tools and task cap', () => {
     const draft = buildTemplateDraft('full', [META, CODEX, LOCAL])
     expect(draft.roles).toHaveLength(6)
     for (const key of templateRoles('full')) {
@@ -115,7 +115,7 @@ describe('labels', () => {
   it('names each template and numbers the setup steps', () => {
     expect(templateName('solo')).toBe('Solo')
     expect(templateName('pair')).toContain('Pair')
-    expect(templateName('full')).toBe('Full team')
+    expect(templateName('full')).toBe('Full Team')
     expect(templateName('custom')).toBe('Custom')
     expect(setupStepLabel(3)).toContain('3')
   })

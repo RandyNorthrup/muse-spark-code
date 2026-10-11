@@ -21,7 +21,13 @@ describe('read_file model budget (M101 item 13)', () => {
 
   it('applies the selected budget to both tool and visible read output', async () => {
     const io = memoryToolIo({ 'large.txt': 'a'.repeat(1000).concat('\n').repeat(100) }, '/ws')
-    const base: ToolContext = { workspaceRoot: '/ws', platform: 'linux', io, seen: new Map() }
+    const base: ToolContext = {
+      workspaceRoot: '/ws',
+      platform: 'linux',
+      io,
+      seen: new Map(),
+      provisionalSeen: new Map(),
+    }
     const args = JSON.stringify({ path: 'large.txt' })
     const small = await executeTool('read_file', args, { ...base, contextTokens: 8192 })
     const muse = await executeTool('read_file', args, { ...base, contextTokens: 1_048_576 })

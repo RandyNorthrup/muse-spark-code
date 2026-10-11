@@ -1,0 +1,443 @@
+{
+  "rig": "kubuntu",
+  "date": "2026-10-06",
+  "base": "f7575b3b6c6853a90542f576b9033b51cbf7bbe7",
+  "fakeOnly": true,
+  "repositoryDefaultTimeout": true,
+  "maxFilesPerTestRun": 3,
+  "testRuns": [
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/scheduleProvenance.test.ts",
+        "test/unit/scheduleSessionOwner.test.ts",
+        "test/unit/unattendedBackends.test.ts",
+        "--maxWorkers=3",
+        "--reporter=json",
+        "--outputFile=temp/redm115-final-tests-1.json",
+        "--coverage",
+        "--coverage.include=src/core/schedules/provenance.ts",
+        "--coverage.include=src/core/schedules/sessionOwner.ts",
+        "--coverage.include=src/core/schedules/unattended.ts"
+      ],
+      "exitCode": 0,
+      "passed": 79,
+      "pending": 0,
+      "files": 3
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/modelApiHost.test.ts",
+        "test/unit/memoryStore.test.ts",
+        "test/unit/modelApiGoldenRequests.test.ts",
+        "--maxWorkers=3",
+        "--reporter=json",
+        "--outputFile=temp/redm115-final-tests-2.json"
+      ],
+      "exitCode": 0,
+      "passed": 671,
+      "pending": 0,
+      "files": 3
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/MuseCodeHost.test.ts",
+        "test/unit/modelApiClient.test.ts",
+        "test/unit/codeIntelTools.test.ts",
+        "--maxWorkers=3",
+        "--reporter=json",
+        "--outputFile=temp/redm115-final-tests-3.json"
+      ],
+      "exitCode": 0,
+      "passed": 139,
+      "pending": 0,
+      "files": 3
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/contextFiles.test.ts",
+        "test/unit/rules.test.ts",
+        "test/unit/skills.test.ts",
+        "--maxWorkers=3",
+        "--reporter=json",
+        "--outputFile=temp/redm115-final-tests-4.json"
+      ],
+      "exitCode": 0,
+      "passed": 31,
+      "pending": 0,
+      "files": 3
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/customAgents.test.ts",
+        "test/unit/workspaceContext.test.ts",
+        "test/unit/contextIo.test.ts",
+        "--maxWorkers=3",
+        "--reporter=json",
+        "--outputFile=temp/redm115-final-tests-5.json"
+      ],
+      "exitCode": 0,
+      "passed": 62,
+      "pending": 0,
+      "files": 3
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/fileIdentity.test.ts",
+        "--maxWorkers=3",
+        "--reporter=json",
+        "--outputFile=temp/redm115-final-tests-6.json"
+      ],
+      "exitCode": 0,
+      "passed": 5,
+      "pending": 0,
+      "files": 1
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/memoryIo.test.ts",
+        "test/unit/checkpointMemory.test.ts",
+        "test/unit/checkpointModelApiStop.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exitCode": 0,
+      "passed": 70,
+      "pending": 0,
+      "files": 3
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/toolIo.test.ts",
+        "test/unit/toolIoBounded.test.ts",
+        "test/unit/toolIoCommandAdmission.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exitCode": 0,
+      "passed": 61,
+      "pending": 2,
+      "files": 3
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/unattended.test.ts",
+        "test/unit/schedulePaid.test.ts",
+        "test/unit/scheduleGrant.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exitCode": 0,
+      "passed": 50,
+      "pending": 0,
+      "files": 3
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/mediaBudget.test.ts",
+        "test/unit/observationPack.test.ts",
+        "test/unit/memoryTools.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exitCode": 0,
+      "passed": 42,
+      "pending": 0,
+      "files": 3
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/modelApiHooks.test.ts",
+        "test/unit/modelApiExtensionHooks.test.ts",
+        "test/unit/modelApiForeignHooks.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exitCode": 0,
+      "passed": 48,
+      "pending": 0,
+      "files": 3
+    }
+  ],
+  "uniquePassedTests": 1258,
+  "existingPlatformExclusions": 2,
+  "uniqueTestFiles": 31,
+  "gates": [
+    {
+      "name": "typecheck",
+      "command": ["npm", "run", "typecheck"],
+      "exitCode": 0
+    },
+    {
+      "name": "eslint",
+      "command": [
+        "npx",
+        "eslint",
+        "--max-warnings=0",
+        "src/core/backends/modelapi/ModelApiHost.ts",
+        "src/core/backends/modelapi/tools.ts",
+        "src/core/backends/musecode/MuseCodeHost.ts",
+        "src/core/context/catalogFiles.ts",
+        "src/core/context/contextFiles.ts",
+        "src/core/context/customAgents.ts",
+        "src/core/context/rules.ts",
+        "src/core/context/skills.ts",
+        "src/core/context/workspaceContext.ts",
+        "src/core/fs/fileIdentity.ts",
+        "src/core/memory/memoryStore.ts",
+        "src/core/schedules/unattended.ts",
+        "src/host/backend/contextIo.ts",
+        "src/host/backend/memoryIo.ts",
+        "src/host/backend/toolIo.ts",
+        "test/unit/contextFiles.test.ts",
+        "test/unit/contextIo.test.ts",
+        "test/unit/fileIdentity.test.ts",
+        "test/unit/rules.test.ts",
+        "test/unit/unattendedBackends.test.ts",
+        "test/unit/workspaceContext.test.ts",
+        "src/core/schedules/provenance.ts",
+        "src/core/schedules/sessionOwner.ts",
+        "test/unit/scheduleProvenance.test.ts",
+        "test/unit/scheduleSessionOwner.test.ts"
+      ],
+      "exitCode": 0
+    },
+    {
+      "name": "deadcode",
+      "command": ["npm", "run", "deadcode"],
+      "exitCode": 0
+    },
+    {
+      "name": "duplication",
+      "command": ["npx", "jscpd"],
+      "exitCode": 0
+    },
+    {
+      "name": "localization",
+      "command": ["npm", "run", "check:l10n"],
+      "exitCode": 0
+    },
+    {
+      "name": "host-api",
+      "command": ["npm", "run", "check:host-api"],
+      "exitCode": 0
+    },
+    {
+      "name": "build",
+      "command": ["npm", "run", "build"],
+      "exitCode": 0
+    },
+    {
+      "name": "format",
+      "command": [
+        "npx",
+        "prettier",
+        "--check",
+        "CHANGELOG.md",
+        "PLAN.md",
+        "docs/certification/m115-u.md",
+        "docs/ide-compatibility/host-api.md",
+        "src/core/backends/modelapi/ModelApiHost.ts",
+        "src/core/backends/modelapi/tools.ts",
+        "src/core/backends/musecode/MuseCodeHost.ts",
+        "src/core/context/catalogFiles.ts",
+        "src/core/context/contextFiles.ts",
+        "src/core/context/customAgents.ts",
+        "src/core/context/rules.ts",
+        "src/core/context/skills.ts",
+        "src/core/context/workspaceContext.ts",
+        "src/core/fs/fileIdentity.ts",
+        "src/core/memory/memoryStore.ts",
+        "src/core/schedules/unattended.ts",
+        "src/host/backend/contextIo.ts",
+        "src/host/backend/memoryIo.ts",
+        "src/host/backend/toolIo.ts",
+        "test/unit/contextFiles.test.ts",
+        "test/unit/contextIo.test.ts",
+        "test/unit/fileIdentity.test.ts",
+        "test/unit/rules.test.ts",
+        "test/unit/unattendedBackends.test.ts",
+        "test/unit/workspaceContext.test.ts",
+        "docs/certification/redm115-u-drills.json",
+        "docs/certification/redm115-u-verification.json",
+        "src/core/schedules/provenance.ts",
+        "src/core/schedules/sessionOwner.ts",
+        "test/unit/scheduleProvenance.test.ts",
+        "test/unit/scheduleSessionOwner.test.ts"
+      ],
+      "exitCode": 0
+    },
+    {
+      "name": "cycles",
+      "command": ["npm", "run", "cycles"],
+      "exitCode": 0
+    }
+  ],
+  "sourceSha256": [
+    {
+      "path": "src/core/backends/modelapi/ModelApiHost.ts",
+      "sha256": "0efbb5944eb1bea770da0104da8a7e7a2f66c02a4bd9b8a7270eda9b5abcceb1"
+    },
+    {
+      "path": "src/core/backends/modelapi/tools.ts",
+      "sha256": "7113c408bc471a5398afef4a7a10318664ec5d57a05a0679f6331d1b778b3ef5"
+    },
+    {
+      "path": "src/core/backends/musecode/MuseCodeHost.ts",
+      "sha256": "633bfb498fef97ea65cc6f4c84ee050a292afe8b35f52040fab7eaf1d3004e34"
+    },
+    {
+      "path": "src/core/context/catalogFiles.ts",
+      "sha256": "7787476a22fa4b2b73b1369aa71b4982f633fe03dbb0107318a8ffb48141033d"
+    },
+    {
+      "path": "src/core/context/contextFiles.ts",
+      "sha256": "9383a98e810eeaeae009eb0d85941e9c556483384af8e643ef14e721a199b377"
+    },
+    {
+      "path": "src/core/context/customAgents.ts",
+      "sha256": "da109fa8378cd41e2ed7e415c5e2e13e4517240f0f1010255cd4a49b1a0b07c8"
+    },
+    {
+      "path": "src/core/context/rules.ts",
+      "sha256": "933e8aa2dc7e1695bb353ab281b07afecedc9e974b9c22bf14a7f2efafd0844d"
+    },
+    {
+      "path": "src/core/context/skills.ts",
+      "sha256": "3481f0e989a07f5d94fd30e5828d852af7a63b5cb0ef88874932f205b6a0fbab"
+    },
+    {
+      "path": "src/core/context/workspaceContext.ts",
+      "sha256": "e65c62e2a61aa9e0277675738d07529984fa77ec1ac9b43b665f601f78f4ecf5"
+    },
+    {
+      "path": "src/core/fs/fileIdentity.ts",
+      "sha256": "f3aefc3309e85834b8b8cf2595eec68018b107f5e676faffd47cbedbb390c8e7"
+    },
+    {
+      "path": "src/core/memory/memoryStore.ts",
+      "sha256": "2d39d3dd4e6e038ea871db00e3c76837a4780bf8d4c0f11822aeafbca05a5aaf"
+    },
+    {
+      "path": "src/core/schedules/provenance.ts",
+      "sha256": "7ec787484ee0a4a31d89f71c82729c4c0be1566dfbbb3a52e85896a3443242e2"
+    },
+    {
+      "path": "src/core/schedules/sessionOwner.ts",
+      "sha256": "8de084cb1267a08c4524c98b569cd274abacebde0260fa6220405d72ecceffab"
+    },
+    {
+      "path": "src/core/schedules/unattended.ts",
+      "sha256": "de058df2324b3568f7e2db771ec15a32c389207a5d31d979e50d39125433a6d3"
+    },
+    {
+      "path": "src/host/backend/contextIo.ts",
+      "sha256": "9e97ba2d040c4b003fe2fa52ed37061fc656e9c0beca78a3e739ceba82eaa3ea"
+    },
+    {
+      "path": "src/host/backend/memoryIo.ts",
+      "sha256": "92f4606d268754c1d0c38a8e002a1543fc061ee208eb79a3ece7a0855ceafc50"
+    },
+    {
+      "path": "src/host/backend/toolIo.ts",
+      "sha256": "6256cffb97594f5924a89084aaec8eaf0cd116b6c5434085e2a33ddab64fe8b1"
+    },
+    {
+      "path": "test/unit/contextFiles.test.ts",
+      "sha256": "9545f80a786b06b02714bec531648617943e8a2c6fa9081468cfd590ae8af319"
+    },
+    {
+      "path": "test/unit/contextIo.test.ts",
+      "sha256": "8c20bb60dcbf211d0943681007942ceca26560b99f6c7689da5adf8461427a93"
+    },
+    {
+      "path": "test/unit/fileIdentity.test.ts",
+      "sha256": "8f44df7832cbd17c527a910f60768b03cb2f031b49812e833b76134a31ff7ca5"
+    },
+    {
+      "path": "test/unit/rules.test.ts",
+      "sha256": "0bfed01f1c51f33ba741df4c9788277ebdaf312f1a431b9f9aa34b7854653291"
+    },
+    {
+      "path": "test/unit/scheduleProvenance.test.ts",
+      "sha256": "542867a6312426f7d79f454873c09ac290ca1aac2e2993190254fe50b34ee595"
+    },
+    {
+      "path": "test/unit/scheduleSessionOwner.test.ts",
+      "sha256": "ceaa65d455fcc593330e952e2a65fc2a875e23225c061120b854fe854f0a7e19"
+    },
+    {
+      "path": "test/unit/unattendedBackends.test.ts",
+      "sha256": "0e8394779cb6e143cd7c712b16d839c15924a1ae59520109280471017277f9cb"
+    },
+    {
+      "path": "test/unit/workspaceContext.test.ts",
+      "sha256": "5e8416ba6be889181069c8e5390ed3ac502b9cfe0830083506c4785f6b80b28a"
+    }
+  ],
+  "focusedCoverage": {
+    "files": [
+      "src/core/schedules/provenance.ts",
+      "src/core/schedules/sessionOwner.ts",
+      "src/core/schedules/unattended.ts"
+    ],
+    "statements": 93.64,
+    "branches": 88.09,
+    "functions": 97.87,
+    "lines": 96.68,
+    "thresholdsUnchanged": {
+      "statements": 90,
+      "branches": 85,
+      "functions": 90,
+      "lines": 90
+    }
+  },
+  "bundlesKiB": {
+    "extension": 461.0,
+    "modelApi": 468.6,
+    "checkpointStore": 77.0,
+    "acp": 839.7
+  },
+  "aggregateQualityOwner": "W/lead; full quality is forbidden in this rig lane",
+  "hostApiRecordRegeneratedAndReviewed": true,
+  "drills": "redm115-u-drills.json",
+  "guardDrillCount": 7,
+  "commitHooks": {
+    "lintStaged": {
+      "command": "npx lint-staged --concurrent 1",
+      "exitCode": 0
+    },
+    "stagedGitleaks": {
+      "command": "gitleaks git --pre-commit --staged --redact --no-banner",
+      "exitCode": 0
+    },
+    "firstAttempt": "lint-staged passed; gitleaks flagged the SHA-256 receipt keyed by ModelApiHost.ts. Separate path and sha256 fields preserve the exact digest and clear the finding without a rule or allowance change."
+  }
+}

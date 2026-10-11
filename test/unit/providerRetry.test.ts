@@ -54,12 +54,13 @@ describe('classifyRetry', () => {
     ).toEqual({ retry: false, reason: 'quota' })
   })
 
-  it('retries Meta responses failures exactly as before (429, 500, 502, 503)', () => {
+  // D86.6 adds 504; every pre-existing retry and refusal stays unchanged.
+  it('preserves Meta retries (429, 500, 502, 503) and adds 504 (D86.6)', () => {
     const tables = RETRY_TABLES.responses
-    for (const status of [429, 500, 502, 503]) {
+    for (const status of [429, 500, 502, 503, 504]) {
       expect(classifyRetry(tables, failure(status))).toEqual({ retry: true })
     }
-    for (const status of [200, 400, 401, 403, 404, 408, 504, 529]) {
+    for (const status of [200, 400, 401, 403, 404, 408, 529]) {
       expect(classifyRetry(tables, failure(status))).toEqual({
         retry: false,
         reason: 'not-retryable',

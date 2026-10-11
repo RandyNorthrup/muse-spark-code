@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 // Lane P: the wizard flow, suggestions, scan diffs and model filters
 // (M95, D74) — every step, every facet, every badge, each able to fail.
 
@@ -146,13 +147,13 @@ describe('wizardFlow', () => {
     state = applyWizardEvent(state, { type: 'next' })
     const unaccepted = applyWizardEvent(state, {
       type: 'test-complete',
-      result: { ok: true, costUsd: 0.0001 },
+      result: { ok: true, costUsd: Usd.from(0.0001).toAmount() },
     })
     expect(unaccepted.draft.test).toBeUndefined()
     expect(unaccepted.error).toContain('cost')
     const accepted = applyWizardEvent(applyWizardEvent(state, { type: 'accept-test-cost' }), {
       type: 'test-complete',
-      result: { ok: true, costUsd: 0.0001 },
+      result: { ok: true, costUsd: Usd.from(0.0001).toAmount() },
     })
     expect(accepted.draft.test?.ok).toBe(true)
   })
@@ -250,7 +251,10 @@ describe('wizardFlow', () => {
     })
     expect(unchanged.draft.test?.ok).toBe(true)
     expect(
-      applyWizardEvent(base, { type: 'edit-form', fields: { sessionBudgetUsd: 1 } }).draft.test?.ok,
+      applyWizardEvent(base, {
+        type: 'edit-form',
+        fields: { sessionBudgetUsd: Usd.from(1).toAmount() },
+      }).draft.test?.ok,
     ).toBe(true)
   })
 
@@ -293,22 +297,22 @@ describe('suggest', () => {
     ref: 'groq/openai/gpt-oss-20b',
     toolCalling: true,
     contextTokens: 131_072,
-    inputUsd: 1e-7,
-    outputUsd: 5e-7,
+    inputUsd: Usd.from(1e-7).toAmount(),
+    outputUsd: Usd.from(5e-7).toAmount(),
   }
   const dearer = {
     ref: 'anthropic/claude-sonnet-5-5',
     toolCalling: true,
     contextTokens: 1_000_000,
-    inputUsd: 3e-6,
-    outputUsd: 15e-6,
+    inputUsd: Usd.from(3e-6).toAmount(),
+    outputUsd: Usd.from(15e-6).toAmount(),
   }
   const toolLess = {
     ref: 'x/model-embed',
     toolCalling: false,
     contextTokens: 1_000_000,
-    inputUsd: 1e-9,
-    outputUsd: 1e-9,
+    inputUsd: Usd.from(1e-9).toAmount(),
+    outputUsd: Usd.from(1e-9).toAmount(),
   }
 
   it('suggests the cheapest capable model, each value with its reason', () => {
@@ -345,12 +349,12 @@ describe('suggest', () => {
   })
 
   it('budgets from history, else from a reference session at the default rates', () => {
-    const fromHistory = suggestSessionBudget(undefined, 1.25)
-    expect(fromHistory?.value.usd).toBe(1.25)
+    const fromHistory = suggestSessionBudget(undefined, Usd.from(1.25).toAmount())
+    expect(fromHistory?.value.usd).toBe(Usd.from(1.25).toAmount())
     expect(fromHistory?.reason).toContain('median')
     const card = { input: 2e-6, output: 8e-6, source: 'list' as const }
     const fallback = suggestSessionBudget(card, undefined)
-    expect(fallback?.value.usd).toBeCloseTo(100_000 * 2e-6 + 10_000 * 8e-6, 12)
+    expect(Number(fallback?.value.usd)).toBeCloseTo(100_000 * 2e-6 + 10_000 * 8e-6, 12)
     expect(fallback?.reason).toContain('No history yet')
     expect(suggestSessionBudget(undefined, undefined)).toBeUndefined()
   })
@@ -361,9 +365,9 @@ describe('scanDiff', () => {
     providerId: 'openrouter',
     scannedAtMs: 1000,
     models: [
-      { id: 'a', inputUsd: 1e-6, outputUsd: 2e-6 },
-      { id: 'b', inputUsd: 1e-6, outputUsd: 2e-6 },
-      { id: 'c', inputUsd: 1e-6, outputUsd: 2e-6 },
+      { id: 'a', inputUsd: Usd.from(1e-6).toAmount(), outputUsd: Usd.from(2e-6).toAmount() },
+      { id: 'b', inputUsd: Usd.from(1e-6).toAmount(), outputUsd: Usd.from(2e-6).toAmount() },
+      { id: 'c', inputUsd: Usd.from(1e-6).toAmount(), outputUsd: Usd.from(2e-6).toAmount() },
     ],
   }
 
@@ -372,15 +376,22 @@ describe('scanDiff', () => {
       providerId: 'openrouter',
       scannedAtMs: 2000,
       models: [
-        { id: 'a', inputUsd: 1e-6, outputUsd: 2e-6 },
-        { id: 'b', inputUsd: 2e-6, outputUsd: 2e-6 },
-        { id: 'd', inputUsd: 1e-6, outputUsd: 2e-6 },
+        { id: 'a', inputUsd: Usd.from(1e-6).toAmount(), outputUsd: Usd.from(2e-6).toAmount() },
+        { id: 'b', inputUsd: Usd.from(2e-6).toAmount(), outputUsd: Usd.from(2e-6).toAmount() },
+        { id: 'd', inputUsd: Usd.from(1e-6).toAmount(), outputUsd: Usd.from(2e-6).toAmount() },
       ],
     }
     const diff = diffModelScans(first, current)
     expect(diff.newIds).toEqual(['d'])
     expect(diff.removedIds).toEqual(['c'])
-    expect(diff.repriced).toEqual([{ id: 'b', field: 'inputUsd', before: 1e-6, after: 2e-6 }])
+    expect(diff.repriced).toEqual([
+      {
+        id: 'b',
+        field: 'inputUsd',
+        before: Usd.from(1e-6).toAmount(),
+        after: Usd.from(2e-6).toAmount(),
+      },
+    ])
     expect(diff.summary).toBe('1 new model, 1 removed model, 1 repriced model since the last scan.')
   })
 
@@ -397,20 +408,28 @@ describe('scanDiff', () => {
   it('reports price appearance and disappearance and counts repriced ids once', () => {
     const previous = {
       ...first,
-      models: [{ id: 'a', inputUsd: 1e-6, outputUsd: 2e-6 }, { id: 'b' }],
+      models: [
+        { id: 'a', inputUsd: Usd.from(1e-6).toAmount(), outputUsd: Usd.from(2e-6).toAmount() },
+        { id: 'b' },
+      ],
     }
     const current = {
       ...first,
       models: [
-        { id: 'a', inputUsd: 2e-6 },
-        { id: 'b', cachedUsd: 1e-7 },
+        { id: 'a', inputUsd: Usd.from(2e-6).toAmount() },
+        { id: 'b', cachedUsd: Usd.from(1e-7).toAmount() },
       ],
     }
     const diff = diffModelScans(previous, current)
     expect(diff.repriced).toEqual([
-      { id: 'a', field: 'inputUsd', before: 1e-6, after: 2e-6 },
-      { id: 'a', field: 'outputUsd', before: 2e-6, after: undefined },
-      { id: 'b', field: 'cachedUsd', before: undefined, after: 1e-7 },
+      {
+        id: 'a',
+        field: 'inputUsd',
+        before: Usd.from(1e-6).toAmount(),
+        after: Usd.from(2e-6).toAmount(),
+      },
+      { id: 'a', field: 'outputUsd', before: Usd.from(2e-6).toAmount(), after: undefined },
+      { id: 'b', field: 'cachedUsd', before: undefined, after: Usd.from(1e-7).toAmount() },
     ])
     expect(diff.summary).toBe('2 repriced models since the last scan.')
   })

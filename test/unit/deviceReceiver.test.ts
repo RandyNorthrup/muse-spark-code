@@ -5,6 +5,7 @@ import { TLSSocket } from 'node:tls'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { encodeDeviceFrame } from '../../src/core/devices/deviceFraming'
 import { DEVICE_LIMITS } from '../../src/shared/constants'
+import { usdAmountSchema } from '../../src/shared/usdSchema'
 import { DevicePairingError } from '../../src/core/devices/pairing'
 import {
   deviceDispatchSchema,
@@ -83,7 +84,7 @@ const use = {
   kind: 'prompt',
   event: 'PreToolUse',
   modelId: 'muse-spark-1.3',
-  dailyBudgetUsd: 1,
+  dailyBudgetUsd: usdAmountSchema.parse('1'),
 } as const
 
 describe('receiver admission and local authority', () => {

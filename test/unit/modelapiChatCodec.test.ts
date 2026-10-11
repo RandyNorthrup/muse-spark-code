@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 // Lane H (M95): the chat codec's requests and streams, per preset, against
 // the 2026-10-04 wire captures in docs/certification/m95-captures/.
 //
@@ -12,6 +13,7 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import * as z from 'zod/mini'
 import { customQuirksFor } from '../../src/core/providers/presets'
+import { mcpFunctionDefinition } from '../../src/core/backends/modelapi/mcp/functions'
 import { toolDefinitions } from '../../src/core/backends/modelapi/tools'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText, UI_TEXT } from '../../src/shared/l10n/text'
@@ -207,6 +209,17 @@ const ZAI: ChatPresetQuirks = {
   toolStream: true,
   toolResultName: false,
   replayField: 'content',
+}
+
+// Lane DSTHINK: DeepSeek with its declared Thinking-off switch and effort
+// list (lead capture L98P2; the catalogue gives DeepSeek `toggle` plus
+// effort `[low, high, max]`, so effort `none` must ride the documented
+// `thinking: {type: "disabled"}` switch, never an unlisted effort value).
+const DEEPSEEK_DECLARED: ChatPresetQuirks = {
+  ...DEEPSEEK,
+  thinkingOff: 'thinking-switch',
+  effortLevels: ['low', 'high', 'max'],
+  canDisable: true,
 }
 
 // --- canonical bodies rebuilt from a capture's own request ---
@@ -641,6 +654,26 @@ describe('chat codec retained-history scenario goldens', () => {
 })
 
 describe('chat codec request goldens', () => {
+  it('preserves each MCP fallback in a mixed strict-capable Chat request (RVM106T F2)', () => {
+    const closed = mcpFunctionDefinition('mcp__s__closed', {
+      name: 'closed',
+      inputSchema: { type: 'object', additionalProperties: false },
+    })
+    const open = mcpFunctionDefinition('mcp__s__open', {
+      name: 'open',
+      inputSchema: { type: 'object', additionalProperties: true },
+    })
+    const body = tinyBody({ tools: [closed.definition, open.definition] })
+    const on = encodeChatRequest(body, 'm', { ...GROQ, supportsStrictTools: true })
+    expect(on.body.tools?.[0]?.function.strict).toBe(true)
+    expect(on.body.tools?.[1]?.function).toMatchObject({
+      strict: false,
+      parameters: open.definition.parameters,
+    })
+    const off = encodeChatRequest(body, 'm', { ...GROQ, supportsStrictTools: false })
+    expect(off.body.tools?.every((tool) => !Object.hasOwn(tool.function, 'strict'))).toBe(true)
+  })
+
   it('rewrites custom strict tools only when supportsStrictTools is on (F4)', () => {
     const body = tinyBody({ tools: toolDefinitions('linux') })
     const compat = customQuirksFor('chat', { supportsStrictTools: true })
@@ -713,6 +746,97 @@ describe('chat codec request goldens', () => {
   it('encodes Z.ai byte for byte: tool_stream, no reasoning parameter', () => {
     expectRoundTrip('zai', '02-tool-call-stream.json', ZAI)
     expectRoundTrip('zai', '03-tool-result-stream.json', ZAI)
+  })
+
+  it('sends DeepSeek Thinking off as the thinking switch, without reasoning_effort', () => {
+    const body = tinyBody({ reasoning: { effort: 'none', summary: 'auto' } })
+    const encoded = encodeChatRequest(body, 'deepseek-flash', DEEPSEEK_DECLARED)
+    expect(encoded.body.thinking).toEqual({ type: 'disabled' })
+    expect(encoded.body).not.toHaveProperty('reasoning_effort')
+    expect(encoded.body).not.toHaveProperty('reasoning')
+    expect(Object.keys(encoded.body)).toEqual([
+      'model',
+      'messages',
+      'stream',
+      'stream_options',
+      'max_tokens',
+      'thinking',
+    ])
+    expect(JSON.stringify(encoded.body)).toContain('"thinking":{"type":"disabled"}')
+  })
+
+  it('still sends a listed DeepSeek effort flat once the switch is declared', () => {
+    const body = tinyBody({ reasoning: { effort: 'high', summary: 'auto' } })
+    const encoded = encodeChatRequest(body, 'deepseek-flash', DEEPSEEK_DECLARED)
+    expect(encoded.body.reasoning_effort).toBe('high')
+    expect(encoded.body).not.toHaveProperty('thinking')
+  })
+
+  it('maps an unlisted Thinking-on effort to the nearest listed level, never to off', () => {
+    // Lane DSTHINK3: the shared resolver; a tie takes the higher level.
+    for (const [requested, sent] of [
+      ['medium', 'high'],
+      ['minimal', 'low'],
+      ['xhigh', 'max'],
+    ] as const) {
+      const encoded = encodeChatRequest(
+        tinyBody({ reasoning: { effort: requested, summary: 'auto' } }),
+        'deepseek-flash',
+        DEEPSEEK_DECLARED,
+      )
+      expect(encoded.body.reasoning_effort).toBe(sent)
+      expect(encoded.body).not.toHaveProperty('thinking')
+    }
+  })
+
+  it('refuses an unknown effort and Thinking off where the model forbids it', () => {
+    const unknown = tinyBody({ reasoning: { effort: 'ultra', summary: 'auto' } })
+    expect(() => encodeChatRequest(unknown, 'deepseek-flash', DEEPSEEK_DECLARED)).toThrow(
+      `${UI_TEXT.chatCodecEffortUnsupported} (unsupported_reasoning_effort)`,
+    )
+    const off = tinyBody({ reasoning: { effort: 'none', summary: 'auto' } })
+    const locked: ChatPresetQuirks = { ...DEEPSEEK_DECLARED, canDisable: false }
+    expect(() => encodeChatRequest(off, 'deepseek-flash', locked)).toThrow(
+      `${UI_TEXT.chatCodecThinkingOffUnsupported} (unsupported_reasoning_effort)`,
+    )
+    try {
+      encodeChatRequest(off, 'deepseek-flash', locked)
+      expect.unreachable()
+    } catch (error) {
+      expect(error).toBeInstanceOf(Error)
+      expect((error as Error).name).toBe('ChatCodecError')
+    }
+    // A preset without the switch keeps the base behaviour for any effort.
+    expect(encodeChatRequest(unknown, 'm', OPENROUTER).body.reasoning).toEqual({ effort: 'ultra' })
+  })
+
+  it('keeps presets without the switch byte-identical with Thinking off', () => {
+    const quirks: ChatPresetQuirks = { ...GROQ, effortLevels: ['low', 'medium', 'high'] }
+    const body = tinyBody({ reasoning: { effort: 'none', summary: 'auto' } })
+    const encoded = encodeChatRequest(body, 'm', quirks)
+    expect(encoded.body.reasoning_effort).toBe('none')
+    expect(encoded.body).not.toHaveProperty('thinking')
+  })
+
+  it('sends the thinking switch for a toggle-only model with no effort list', () => {
+    // Lane FIXDSTHINK2 finding 2: toggle support must not depend on an
+    // affirmative effort-level list (reasoningParam none, no effortLevels).
+    const quirks: ChatPresetQuirks = {
+      ...DEEPSEEK,
+      reasoningParam: 'none',
+      thinkingOff: 'thinking-switch',
+      canDisable: true,
+    }
+    const off = tinyBody({ reasoning: { effort: 'none', summary: 'auto' } })
+    const encoded = encodeChatRequest(off, 'deepseek-flash', quirks)
+    expect(encoded.body.thinking).toEqual({ type: 'disabled' })
+    expect(encoded.body).not.toHaveProperty('reasoning_effort')
+    expect(encoded.body).not.toHaveProperty('reasoning')
+    const on = tinyBody({ reasoning: { effort: 'high', summary: 'auto' } })
+    const encodedOn = encodeChatRequest(on, 'deepseek-flash', quirks)
+    expect(encodedOn.body).not.toHaveProperty('thinking')
+    expect(encodedOn.body).not.toHaveProperty('reasoning_effort')
+    expect(encodedOn.body).not.toHaveProperty('reasoning')
   })
 
   it('keeps a fixed key order on every request', () => {
@@ -898,7 +1022,7 @@ describe('chat codec stream decoding', () => {
       input_tokens_details: { cached_tokens: 64, cache_write_tokens: 0 },
       output_tokens_details: { reasoning_tokens: 9 },
     })
-    expect(decoded.providerCostUsd).toBe(0.00004997)
+    expect(decoded.providerCostUsd).toBe(Usd.from(0.00004997).toAmount())
   })
 
   it('decodes the OpenRouter final answer: text and usage on the finish chunk', () => {
@@ -913,7 +1037,7 @@ describe('chat codec stream decoding', () => {
       input_tokens_details: { cached_tokens: 80, cache_write_tokens: 0 },
       output_tokens_details: { reasoning_tokens: 0 },
     })
-    expect(decoded.providerCostUsd).toBe(0.00004909)
+    expect(decoded.providerCostUsd).toBe(Usd.from(0.00004909).toAmount())
   })
 
   it('decodes Groq: a whole call, reasoning with a channel, a choices-less usage chunk', () => {
@@ -1525,7 +1649,7 @@ describe('chat codec guards', () => {
       cached_tokens: 0,
       cache_write_tokens: 1925,
     })
-    expect(decoded.providerCostUsd).toBe(0.0048845)
+    expect(decoded.providerCostUsd).toBe(Usd.from(0.0048845).toAmount())
   })
 
   it('rejects invalid optional usage counts and negative cost', () => {

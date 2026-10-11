@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 import { Buffer } from 'node:buffer'
 import { createHash } from 'node:crypto'
 import { mkdtempSync, realpathSync } from 'node:fs'
@@ -15,6 +16,7 @@ import {
   type VoiceSocketHandlers,
 } from '../../src/core/voice/museVoice'
 import {
+  MUSE_VOICE_BYTES_PER_SECOND,
   MUSE_VOICE_FINISH_TIMEOUT_MS,
   MUSE_VOICE_HANDSHAKE_TIMEOUT_MS,
   STORED_SESSION_VERSION,
@@ -132,7 +134,7 @@ describe('MuseVoiceStream (M35)', () => {
     expect(t.socket().isClosed).toBe(true)
     // 2.375 local seconds sent; the existing window estimate retains 2.
     expect(t.stream.seconds).toBe(2)
-    expect(t.stream.audioSeconds).toBe(2.375)
+    expect(t.stream.audioBytes).toBe(2.375 * MUSE_VOICE_BYTES_PER_SECOND)
   })
 
   it('sends the end after the answer when the recording ended first', () => {
@@ -344,7 +346,7 @@ async function voiceBudget(name: string, capUsd = 0) {
     sessionId: 'voice-parent',
     accountId,
     journal,
-    capUsd: () => current.capUsd,
+    capUsd: () => Usd.from(current.capUsd).toAmount(),
     isStillAllowed: (digest: string | undefined) => current.isOwnerCurrent && digest === accountId,
   })
   return { scope, current, store }
@@ -358,7 +360,10 @@ async function voiceBudgetTotal(budget: VoiceBudgetFixture) {
 
 async function expectVoiceRefund(budget: VoiceBudgetFixture): Promise<void> {
   await vi.waitFor(async () => {
-    expect(await voiceBudgetTotal(budget)).toEqual({ spentUsd: 0, hasUnknownHistoricalFees: false })
+    expect(await voiceBudgetTotal(budget)).toEqual({
+      spentUsd: Usd.from(0).toAmount(),
+      hasUnknownHistoricalFees: false,
+    })
   })
 }
 
@@ -391,8 +396,8 @@ async function expectUnknownVoiceEstimate(budget: VoiceBudgetFixture, seconds: n
   await vi.waitFor(async () => {
     const total = await voiceBudgetTotal(budget)
     expect(total.hasUnknownHistoricalFees).toBe(true)
-    expect(total.spentUsd).toBeCloseTo(
-      (seconds * PAID_PRICES_USD.voicePerHour) / SECONDS_PER_HOUR,
+    expect(Number(total.spentUsd)).toBeCloseTo(
+      (seconds * Number(PAID_PRICES_USD.voicePerHour)) / SECONDS_PER_HOUR,
       12,
     )
   })
@@ -450,10 +455,10 @@ describe('MuseVoiceDictation shared budget (M82)', () => {
     const next = await budget.scope.journal.reserve(
       budget.scope.sessionId,
       budget.scope.accountId,
-      0.01,
+      Usd.from(0.01).toAmount(),
     )
-    expect(() => next.check(1)).toThrow(UI_TEXT.sessionBudgetLegacyFeesUnknown)
-    await next.settle(0, false)
+    expect(() => next.check(Usd.from(1).toAmount())).toThrow(UI_TEXT.sessionBudgetLegacyFeesUnknown)
+    await next.settle(Usd.from(0).toAmount(), false)
     t.dictation.dispose()
     await expectVoiceRefund(budget)
   })

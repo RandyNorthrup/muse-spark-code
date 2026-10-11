@@ -265,6 +265,8 @@ export const modelListSchema = z.object({
   data: z.array(z.object({ id: z.string() })),
 })
 
+export { modelApiStatusSchema } from '../../../shared/serviceStatus'
+
 // A count below zero is no count: it would lower the session budget's base (M82).
 export const inputTokensSchema = z.object({ input_tokens: z.number().check(z.nonnegative()) })
 
@@ -276,15 +278,13 @@ export const inputTokensSchema = z.object({ input_tokens: z.number().check(z.non
  * replayed as such: replayed as a final answer before a `function_call`
  * it is a 400. `final_answer` is accepted on input only.
  */
-export const MESSAGE_PHASES = ['commentary', 'final_answer'] as const
-export type MessagePhase = (typeof MESSAGE_PHASES)[number]
 
 /** A user or assistant message in the replayed conversation. */
 export interface InputMessageItem {
   readonly type: 'message'
   readonly role: 'user' | 'assistant' | 'developer'
   readonly content: readonly InputContentPart[]
-  readonly phase?: MessagePhase | undefined
+  readonly phase?: string | null | undefined
 }
 
 /**
@@ -351,40 +351,62 @@ export type InputItem =
   | ReasoningItem
   | WebSearchCallInputItem
 
+/** MCP conversion evidence stays off the wire and survives copying a declaration. */
+export const NON_STRICT_TOOL = Symbol.for('muse-spark-code.nonStrictTool')
+const ORIGINAL_TOOL_PARAMETERS = Symbol.for('muse-spark-code.originalToolParameters')
+
 export interface FunctionToolDefinition {
   readonly type: 'function'
   readonly name: string
   readonly description: string
   readonly parameters: Record<string, unknown>
-  // False everywhere the canonical body goes (Meta included); true only
-  // where the model's quirks say `supportsStrictTools` (M101 item 24), set
-  // through `withStrictTools`, never by hand.
+  // Set through M101's rewrite only while the session enables strict tools
+  // and the selected model's capability record supports them (M106).
   readonly strict: boolean
+  /** The original MCP schema cannot convert losslessly; never auto-promote its fitted schema. */
+  readonly [NON_STRICT_TOOL]?: true
+  /** Preserve omission semantics through repeated strict encodings; also absent from JSON. */
+  readonly [ORIGINAL_TOOL_PARAMETERS]?: Record<string, unknown>
 }
 
 /**
  * Flags function tools strict where the model takes it (M101 item 24);
  * search tools pass through. Off returns the same definitions, so the
- * canonical body (and the golden bytes) stays `strict: false` where the
- * quirk is off.
+ * canonical body (and the golden bytes) stays `strict: false` when the
+ * session setting or capability is off. Unconvertible MCP tools retain
+ * their declaration; harness schema failures still refuse the request.
  */
+export function withStrictTools(
+  tools: readonly FunctionToolDefinition[],
+  shouldUseStrict: boolean,
+): readonly FunctionToolDefinition[]
+export function withStrictTools(
+  tools: readonly ToolDefinition[],
+  shouldUseStrict: boolean,
+): readonly ToolDefinition[]
 export function withStrictTools(
   tools: readonly ToolDefinition[],
   shouldUseStrict: boolean,
 ): readonly ToolDefinition[] {
   return shouldUseStrict
     ? tools.map((tool) => {
-        if (tool.type !== 'function') return tool
+        if (tool.type !== 'function' || tool[NON_STRICT_TOOL] === true) return tool
         if (tool.parameters['type'] !== 'object') {
           throw new Error('strict_tool_schema_unsupported')
         }
-        return { ...tool, parameters: strictToolSchema(tool.parameters), strict: true }
+        return {
+          ...tool,
+          parameters: strictToolSchema(tool.parameters),
+          strict: true,
+          [ORIGINAL_TOOL_PARAMETERS]: tool[ORIGINAL_TOOL_PARAMETERS] ?? tool.parameters,
+        }
       })
     : tools
 }
 
 /** Strict optional properties are nullable on the wire; restore omission for tool parsers. */
 export function restoreOptionalToolArguments(json: string, tool: FunctionToolDefinition): string {
+  if (tool[NON_STRICT_TOOL] === true) return json
   let value: unknown
   try {
     value = JSON.parse(json)
@@ -411,7 +433,7 @@ export function restoreOptionalToolArguments(json: string, tool: FunctionToolDef
       }),
     )
   }
-  return JSON.stringify(restore(value, tool.parameters))
+  return JSON.stringify(restore(value, tool[ORIGINAL_TOOL_PARAMETERS] ?? tool.parameters))
 }
 
 // Conservative common strict subset. Unknown/unsupported constraints refuse
@@ -605,6 +627,14 @@ export type ToolDefinition = FunctionToolDefinition | WebSearchToolDefinition
 /** What the response adds beyond its defaults: reasoning to replay, search results to show. */
 export type IncludeField = 'reasoning.encrypted_content' | 'web_search_call.results'
 
+/** U10 (2026-10-05): structured answers coexist with function tools. */
+export interface JsonSchemaTextFormat {
+  readonly type: 'json_schema'
+  readonly name: string
+  readonly schema: Record<string, unknown>
+  readonly strict: boolean
+}
+
 export interface CreateResponseBody {
   readonly model: string
   readonly input: readonly InputItem[]
@@ -619,6 +649,10 @@ export interface CreateResponseBody {
   readonly store: false
   readonly include: readonly IncludeField[]
   readonly max_output_tokens: number
+  /** U8: bounds hosted tool calls, not the harness's function calls. */
+  readonly max_tool_calls?: number
+  /** Omitted on today's text path; lane O1 selects this per session. */
+  readonly text?: { readonly format: JsonSchemaTextFormat }
   /** One key per shared prefix, not per session (promptCache.ts, M56). */
   readonly prompt_cache_key: string
   /** How long Meta is asked to keep the cached prefix; a hint (M56). */

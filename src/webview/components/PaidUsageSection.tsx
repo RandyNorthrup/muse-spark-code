@@ -1,13 +1,20 @@
 import {
   PAID_PRICES_VERIFIED_ON,
+  MILLISECONDS_PER_SECOND,
   TAB_DAILY_BUDGET_DEFAULT_USD,
   type PaidFeature,
   UI_TEXT,
 } from '../../shared/constants'
 import { fill, formatNumber, plural } from '../../shared/l10n/text'
-import { paidCostUsd, paidFeatureName, paidTotalUsd, type PaidState } from '../../shared/paid'
+import {
+  paidCostUsd,
+  paidFeatureName,
+  paidTotalUsd,
+  type PaidState,
+  type PaidTally,
+} from '../../shared/paid'
 import { formatUsd } from '../../core/usage/insights'
-import { paidUseText } from '../agentFormat'
+import { formatDurationMs } from '../agentFormat'
 
 /**
  * The paid features this backend uses (D30 rule 5; on Muse Code, the key's
@@ -93,7 +100,7 @@ function UnknownPaidRequests({ count }: { readonly count: number }) {
  * The Tab row (M94 lane U, PLAN.md D73 acceptance 16): today's spend against
  * the daily budget, the request count, and the on/off state. "Today" is the
  * ledger's total for the local day across every window, shown once Tab has
- * run in this window (the ledger is read by dist/tab.js); "This window" is
+ * run in this window (the ledger is read by dist/tab.js); "This Window" is
  * this window's reported cost; the budget is the configured one (RVM94HU
  * 23–24). While Tab is off and has never run here, the row says off with the
  * budget instead of zeros that read as use. The facts wrap, as the other
@@ -178,4 +185,26 @@ function PaidRow({ feature, paid }: { readonly feature: PaidFeature; readonly pa
       </dd>
     </>
   )
+}
+
+function paidUseText(feature: PaidFeature, tally: PaidTally): string {
+  if (feature === 'legalExplanation') return formatNumber(tally.legalExplanations ?? 0)
+  if (feature === 'voice')
+    return fill(UI_TEXT.usagePaidAudio, {
+      duration: formatDurationMs(tally.voiceSeconds * MILLISECONDS_PER_SECOND),
+    })
+  const counts = {
+    webSearch: [UI_TEXT.usagePaidSearches, tally.webSearches],
+    imageGeneration: [UI_TEXT.usagePaidImages, tally.images],
+    scheduledPrompts: [UI_TEXT.usagePaidScheduled, tally.scheduledRuns],
+    subagents: [UI_TEXT.usagePaidSubagentRequests, tally.subagentRequests ?? 0],
+    autoReviewer: [UI_TEXT.usagePaidAutoReviews, tally.autoReviews ?? 0],
+    teamWorkers: [UI_TEXT.usagePaidTeamTasks, tally.teamWorkerRequests ?? 0],
+    bestOfN: [UI_TEXT.usagePaidBestOfNAttempts, tally.bestOfNAttempts ?? 0],
+    tab: [UI_TEXT.usagePaidTabRequests, tally.tabRequests ?? 0],
+    hookModels: [UI_TEXT.usagePaidHookModelRuns, tally.hookModelRuns ?? 0],
+    judge: [UI_TEXT.usagePaidJudgeCalls, tally.judgeCalls ?? 0],
+  } as const
+  const [forms, count] = counts[feature]
+  return plural(forms, count)
 }

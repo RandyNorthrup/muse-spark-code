@@ -1,3 +1,4 @@
+import { Usd, sumUsd, type UsdAmount } from '../../shared/usd'
 // The M75 trace (PLAN.md D49): every request an evaluation run makes to the
 // Model API goes through this `fetch` and is recorded with its method, path,
 // model, status and the usage Meta returned. Attempts, tokens and cost are
@@ -46,7 +47,7 @@ export interface EvalWireCall {
 
 /** The run's spend so far, shared by every task's wire. */
 export interface EvalBudget {
-  spentUsd: number
+  spentUsd: UsdAmount
   /** A sent model call whose bill cannot be measured stops every remaining arm. */
   hasUnknownUsage?: boolean
 }
@@ -71,7 +72,7 @@ export interface EvalWireTotals {
   readonly inputTokens: number
   readonly cachedTokens: number
   readonly outputTokens: number
-  readonly costUsd: number
+  readonly costUsd: UsdAmount
 }
 
 const modelBodySchema = z.object({ model: z.optional(z.string()) })
@@ -106,7 +107,7 @@ function refusal(message: string): Response {
   )
 }
 
-function callCost(call: EvalWireCall): number {
+function callCost(call: EvalWireCall): UsdAmount {
   return estimateCostUsd(
     {
       inputTokens: call.inputTokens,
@@ -209,7 +210,7 @@ export function createEvalWire(deps: EvalWireDeps): EvalWire {
     if (deps.budget.hasUnknownUsage === true) {
       return refuse('the evaluation stopped because a sent model call has unknown usage')
     }
-    return deps.budget.spentUsd >= EVAL_BUDGET_USD
+    return Usd.from(deps.budget.spentUsd).compare(Usd.from(EVAL_BUDGET_USD)) >= 0
       ? refuse(`the evaluation's budget of $${EVAL_BUDGET_USD.toFixed(2)} is spent`)
       : undefined
   }
@@ -235,7 +236,7 @@ export function createEvalWire(deps: EvalWireDeps): EvalWire {
       problems.push(`a reply stream failed before its usage: ${describe(error)}`)
       return
     } finally {
-      deps.budget.spentUsd += callCost(call)
+      deps.budget.spentUsd = sumUsd(deps.budget.spentUsd, callCost(call))
       if (!hasUsage) {
         deps.budget.hasUnknownUsage = true
       }
@@ -336,13 +337,19 @@ export function createEvalWire(deps: EvalWireDeps): EvalWire {
 
 /** What the trace counts for one task: attempts, requests, tokens and cost. */
 export function wireTotals(wire: EvalWire): EvalWireTotals {
-  const totals = { attempts: 0, inputTokens: 0, cachedTokens: 0, outputTokens: 0, costUsd: 0 }
+  const totals = {
+    attempts: 0,
+    inputTokens: 0,
+    cachedTokens: 0,
+    outputTokens: 0,
+    costUsd: Usd.from(0).toAmount(),
+  }
   for (const call of wire.calls) {
     totals.attempts += call.isModelCall ? 1 : 0
     totals.inputTokens += call.inputTokens
     totals.cachedTokens += call.cachedTokens
     totals.outputTokens += call.outputTokens
-    totals.costUsd += callCost(call)
+    totals.costUsd = sumUsd(totals.costUsd, callCost(call))
   }
   return { ...totals, requests: wire.calls.length }
 }

@@ -2,6 +2,7 @@ import * as childProcess from 'node:child_process'
 import { once } from 'node:events'
 import * as workers from 'node:worker_threads'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { vaultFenceEnvironment } from '../../src/core/vault/exec/fence'
 import { isCredentialVariable, withoutCredentials } from '../../src/core/credentialEnvironment'
 import { buildChildEnvironment } from '../../src/core/backends/musecode/launch'
 import { GLOB_LIMITS } from '../../src/core/backends/modelapi/globLimits'
@@ -21,7 +22,6 @@ import { spawnHelper, startRecorder } from '../../src/host/voice/voiceProcesses'
 import { pageConverter } from '../../src/host/web/pageConverter'
 import { readSettings } from '../../src/host/settings'
 import { FakeLogOutputChannel, fakeSettingsSource } from './helpers/fakes'
-import { SEARCH_HIT_MAX_CHARS } from '../../src/shared/constants'
 
 vi.mock('node:child_process', { spy: true })
 vi.mock('node:worker_threads', { spy: true })
@@ -32,6 +32,9 @@ afterEach(() => {
 })
 
 const CREDENTIAL_NAMES = [
+  'PGPASSWORD',
+  'MYSQL_PWD',
+  'REDISCLI_AUTH',
   'OPENAI_API_KEY',
   'ANTHROPIC_API_KEY',
   'GEMINI_API_KEY',
@@ -112,8 +115,8 @@ describe('D89.5 shared credential fence', () => {
       expect(isCredentialVariable(spelling)).toBe(false)
       const env = { [spelling]: 'envfence-harmless' }
       expect(withoutCredentials(env)).toEqual(env)
-      expect(shellEnvironment(env, 'linux', undefined)).toEqual(env)
-      expect(hookEnvironment(env, 'linux', [spelling])).toEqual(env)
+      expect(shellEnvironment(env, 'linux', undefined, [], false)).toEqual(env)
+      expect(hookEnvironment(env, 'linux', [spelling])).toEqual(vaultFenceEnvironment(env))
       expect(takeCredentials(env)).toEqual([])
       expect(env[spelling]).toBe('envfence-harmless')
     }
@@ -146,16 +149,18 @@ describe('D89.5 shared credential fence', () => {
       'linux',
       '/ws',
     )
-    expect(shellEnvironment(overridden, 'linux', undefined)).toEqual(SAFE)
-    expect(shellEnvironment(overridden, 'linux', undefined, ['OPENAI_API_KEY'])).toEqual({
+    expect(shellEnvironment(overridden, 'linux', undefined, [], false)).toEqual(SAFE)
+    expect(shellEnvironment(overridden, 'linux', undefined, ['OPENAI_API_KEY'], false)).toEqual({
       ...SAFE,
       OPENAI_API_KEY: 'terminal-fake',
     })
-    expect(shellEnvironment(overridden, 'linux', undefined, ['openai_api_key'])).toEqual(SAFE)
+    expect(shellEnvironment(overridden, 'linux', undefined, ['openai_api_key'], false)).toEqual(
+      SAFE,
+    )
     expect(
       withoutCredentials({ Path: '/bin', openai_api_key: 'fake' }, ['OPENAI_API_KEY'], 'win32'),
     ).toEqual({ Path: '/bin', openai_api_key: 'fake' })
-    expect(hookEnvironment(ENV, 'linux', CREDENTIAL_NAMES)).toEqual(SAFE)
+    expect(hookEnvironment(ENV, 'linux', CREDENTIAL_NAMES)).toEqual(vaultFenceEnvironment(SAFE))
     expect(mcpServerEnvironment(ENV, {}, 'linux')).toEqual(SAFE)
     expect(mcpServerEnvironment(ENV, { GH_TOKEN: 'explicit-fake' }, 'linux')).toEqual({
       ...SAFE,
@@ -242,7 +247,7 @@ describe('D89.5 native environment snapshots', () => {
     ).toBe('true')
   })
 
-  it('fences browser and voice helpers at the spawn boundary', () => {
+  it('fences browser and voice helpers at the spawn boundary', async () => {
     vi.stubEnv('GH_TOKEN', 'envfence-fake')
     const spawn = vi.spyOn(childProcess, 'spawn').mockImplementation(() => {
       throw new Error('snapshot')
@@ -255,9 +260,21 @@ describe('D89.5 native environment snapshots', () => {
       ),
     ).toThrow('snapshot')
     expect(spawn.mock.calls[0]?.[2]?.env).toEqual({ PATH: '/bin' })
-    expect(() => startRecorder('/recorder', [])).toThrow('snapshot')
+    const recorder = startRecorder('/recorder', [])
+    await expect(
+      new Promise<string>((resolve) => {
+        recorder.onExit(resolve)
+      }),
+    ).resolves.toContain('snapshot')
+    expect(spawn).toHaveBeenCalledTimes(2)
     expect(spawn.mock.calls[1]?.[2]?.env?.['GH_TOKEN']).toBeUndefined()
-    expect(() => spawnHelper({ command: '/helper', args: [] })).toThrow('snapshot')
+    const helper = spawnHelper({ command: '/helper', args: [] })
+    await expect(
+      new Promise<string>((resolve) => {
+        helper.onExit(resolve)
+      }),
+    ).resolves.toContain('snapshot')
+    expect(spawn).toHaveBeenCalledTimes(3)
     expect(spawn.mock.calls[2]?.[2]?.env?.['GH_TOKEN']).toBeUndefined()
   })
 
@@ -275,7 +292,7 @@ describe('D89.5 native environment snapshots', () => {
           files: [],
           maxFileBytes: 100,
           maxHits: 1,
-          maxHitChars: SEARCH_HIT_MAX_CHARS,
+          maxHitChars: 100,
           denyRead: [],
           globLimits: GLOB_LIMITS,
         },

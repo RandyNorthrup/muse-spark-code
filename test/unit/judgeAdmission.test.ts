@@ -1,3 +1,4 @@
+import { Usd, type UsdAmount } from '../../src/shared/usd'
 import { describe, expect, it, vi } from 'vitest'
 import {
   admitJudgeCall,
@@ -15,19 +16,25 @@ import {
   type JudgeLedgerClaim,
 } from '../../src/core/judge/admission'
 
+const INJECTED_PRICE = {
+  input: Usd.from(2).toAmount(),
+  cachedInput: Usd.from(0.5).toAmount(),
+  output: Usd.from(8).toAmount(),
+}
+
 const MODEL = 'muse-spark-1.3'
 
 interface MemoryClaim extends JudgeLedgerClaim {
-  settled: number[]
+  settled: UsdAmount[]
 }
 
-function memoryLedger(balanceUsd: number): JudgeDailyLedger & {
+function memoryLedger(balanceUsd: UsdAmount): JudgeDailyLedger & {
   readonly claims: Map<string, MemoryClaim>
   readonly calls: string[]
   failRemaining: boolean
   failReserve: boolean
   failSettle: boolean
-  remaining: number
+  remaining: UsdAmount
 } {
   let next = 1
   const ledger = {
@@ -36,40 +43,44 @@ function memoryLedger(balanceUsd: number): JudgeDailyLedger & {
     failRemaining: false,
     failReserve: false,
     failSettle: false,
-    remaining: balanceUsd,
-    remainingUsd(): Promise<number> {
+    remaining: Usd.from(balanceUsd).toAmount(),
+    remainingUsd(): Promise<UsdAmount> {
       ledger.calls.push('remaining')
       if (ledger.failRemaining) {
         return Promise.reject(new Error('store unreadable'))
       }
-      let open = 0
+      let open = Usd.from(0).toAmount()
       for (const claim of ledger.claims.values()) {
-        open += claim.settled[0] ?? claim.reservedUsd
+        open = Usd.from(open)
+          .add(Usd.from(claim.settled[0] ?? claim.reservedUsd))
+          .toAmount()
       }
-      return Promise.resolve(ledger.remaining - open)
+      return Promise.resolve(Usd.from(ledger.remaining).subtract(Usd.from(open)).toAmount())
     },
-    reserve(costUsd: number): Promise<JudgeLedgerClaim> {
+    reserve(costUsd: UsdAmount): Promise<JudgeLedgerClaim> {
       ledger.calls.push('reserve')
       if (ledger.failReserve) {
         return Promise.reject(new Error('lock failure'))
       }
       const claim: MemoryClaim = {
         claimId: `claim-${String(next++)}`,
-        reservedUsd: costUsd,
+        reservedUsd: Usd.from(costUsd).toAmount(),
         settled: [],
         check(): void {
           if (ledger.failRemaining || claim.settled.length > 0) {
             throw new Error('claim unavailable')
           }
-          let spent = 0
+          let spent = Usd.from(0).toAmount()
           for (const entry of ledger.claims.values()) {
-            spent += entry.settled[0] ?? entry.reservedUsd
+            spent = Usd.from(spent)
+              .add(Usd.from(entry.settled[0] ?? entry.reservedUsd))
+              .toAmount()
           }
-          if (spent > ledger.remaining) {
+          if (Usd.from(spent).compare(Usd.from(ledger.remaining)) > 0) {
             throw new Error('over budget')
           }
         },
-        settle(actualCostUsd: number): Promise<void> {
+        settle(actualCostUsd: UsdAmount): Promise<void> {
           if (ledger.failSettle) {
             return Promise.reject(new Error('store unwritable'))
           }
@@ -191,7 +202,9 @@ describe('worstCaseJudgeCostUsd', () => {
     // 1000 input at 1.25 and 100 output at 4.25 per million, no cache
     // discount: (1250 + 425) / 1e6.
     expect(
-      worstCaseJudgeCostUsd({ modelId: MODEL, estimatedInputTokens: 1000, maxOutputTokens: 100 }),
+      Number(
+        worstCaseJudgeCostUsd({ modelId: MODEL, estimatedInputTokens: 1000, maxOutputTokens: 100 }),
+      ),
     ).toBeCloseTo(0.001675, 12)
   })
 
@@ -219,19 +232,25 @@ describe('worstCaseJudgeCostUsd', () => {
 
   it('reads an injected tariff and rejects an unusable one', () => {
     expect(
-      worstCaseJudgeCostUsd({
-        modelId: MODEL,
-        estimatedInputTokens: 1000,
-        maxOutputTokens: 100,
-        priceOf: () => ({ input: 2, cachedInput: 0.5, output: 8 }),
-      }),
+      Number(
+        worstCaseJudgeCostUsd({
+          modelId: MODEL,
+          estimatedInputTokens: 1000,
+          maxOutputTokens: 100,
+          priceOf: () => INJECTED_PRICE,
+        }),
+      ),
     ).toBeCloseTo((2000 + 800) / 1_000_000, 12)
     expect(() =>
       worstCaseJudgeCostUsd({
         modelId: MODEL,
         estimatedInputTokens: 1000,
         maxOutputTokens: 100,
-        priceOf: () => ({ input: -1, cachedInput: 0.5, output: 8 }),
+        priceOf: () => ({
+          input: Usd.from(-1).toAmount(),
+          cachedInput: Usd.from(0.5).toAmount(),
+          output: Usd.from(8).toAmount(),
+        }),
       }),
     ).toThrow(JudgeLedgerError)
   })
@@ -241,7 +260,7 @@ describe('admitJudgeCall', () => {
   it.each(['remaining', 'reserve'] as const)(
     'rechecks a lowered budget after the %s wait',
     async (wait) => {
-      const ledger = memoryLedger(1)
+      const ledger = memoryLedger(Usd.from(1).toAmount())
       const gate = pauseLedger(ledger, wait)
       const admission = admitJudgeCall({
         binding: binding(),
@@ -250,17 +269,18 @@ describe('admitJudgeCall', () => {
         maxOutputTokens: 100,
       })
       await gate.entered
-      ledger.remaining = 0.0001
+      ledger.remaining = Usd.from(0.0001).toAmount()
       gate.release()
       expect(await admission).toEqual({ admitted: false, refusal: 'ledger-unavailable' })
       expect(await ledger.remainingUsd()).toBe(ledger.remaining)
       expect(ledger.claims.size).toBe(1)
-      for (const claim of ledger.claims.values()) expect(claim.settled).toEqual([0])
+      for (const claim of ledger.claims.values())
+        expect(claim.settled).toEqual([Usd.from(0).toAmount()])
     },
   )
 
   it('rebinds revoked consent after the nonsent cleanup wait', async () => {
-    const ledger = memoryLedger(1)
+    const ledger = memoryLedger(Usd.from(1).toAmount())
     let current = binding()
     const entered = Promise.withResolvers<undefined>()
     const release = Promise.withResolvers<undefined>()
@@ -269,11 +289,11 @@ describe('admitJudgeCall', () => {
       const claim = await reserve(costUsd)
       return {
         ...claim,
-        reservedUsd: costUsd + 1,
-        async settle(actualCostUsd: number): Promise<void> {
+        reservedUsd: Usd.from(costUsd + 1).toAmount(),
+        async settle(actualCostUsd: UsdAmount): Promise<void> {
           entered.resolve(undefined)
           await release.promise
-          await claim.settle(actualCostUsd)
+          await claim.settle(Usd.from(actualCostUsd).toAmount())
         },
       }
     })
@@ -288,11 +308,11 @@ describe('admitJudgeCall', () => {
     current = binding({ consent: 'declined' })
     release.resolve(undefined)
     expect(await admission).toEqual({ admitted: false, refusal: 'consent-declined' })
-    expect(await ledger.remainingUsd()).toBe(1)
+    expect(await ledger.remainingUsd()).toBe(Usd.from(1).toAmount())
   })
 
   it('requires an affirmative paid grant for a metered binding', async () => {
-    const ledger = memoryLedger(1)
+    const ledger = memoryLedger(Usd.from(1).toAmount())
     const current = binding()
     // Simulate an untyped/stale subscription state arriving from a caller.
     Reflect.set(current, 'consent', 'not-required')
@@ -333,7 +353,7 @@ describe('admitJudgeCall', () => {
       refusal: 'binding-invalid',
     },
   ] as const)('rebinds $field after the $wait wait', async ({ wait, change, refusal }) => {
-    const ledger = memoryLedger(1)
+    const ledger = memoryLedger(Usd.from(1).toAmount())
     let current = binding()
     const gate = pauseLedger(ledger, wait)
     const admission = admitJudgeCall({
@@ -347,17 +367,18 @@ describe('admitJudgeCall', () => {
     current = binding(change)
     gate.release()
     expect(await admission).toEqual({ admitted: false, refusal })
-    expect(await ledger.remainingUsd()).toBe(1)
-    for (const claim of ledger.claims.values()) expect(claim.settled).toEqual([0])
+    expect(await ledger.remainingUsd()).toBe(Usd.from(1).toAmount())
+    for (const claim of ledger.claims.values())
+      expect(claim.settled).toEqual([Usd.from(0).toAmount()])
   })
 
   it('commits the durable reservation before the dispatch runs', async () => {
-    const ledger = memoryLedger(1)
+    const ledger = memoryLedger(Usd.from(1).toAmount())
     const events: string[] = []
     const tracking = {
       ...ledger,
-      async reserve(costUsd: number): Promise<JudgeLedgerClaim> {
-        const claim = await ledger.reserve(costUsd)
+      async reserve(costUsd: UsdAmount): Promise<JudgeLedgerClaim> {
+        const claim = await ledger.reserve(Usd.from(costUsd).toAmount())
         events.push('reserved')
         return claim
       },
@@ -374,13 +395,13 @@ describe('admitJudgeCall', () => {
     // The dispatch runs after admission resolves: the funds are held first.
     events.push('dispatched')
     expect(events).toEqual(['reserved', 'dispatched'])
-    expect(admission.claim.reservedUsd).toBeCloseTo(0.001675, 12)
+    expect(Number(admission.claim.reservedUsd)).toBeCloseTo(0.001675, 12)
     expect(admission.claim.billed).toBe(true)
-    expect(await tracking.remainingUsd()).toBeCloseTo(1 - 0.001675, 12)
+    expect(Number(await tracking.remainingUsd())).toBeCloseTo(1 - 0.001675, 12)
   })
 
   it('refuses an over-budget call and reserves nothing', async () => {
-    const ledger = memoryLedger(0.0001)
+    const ledger = memoryLedger(Usd.from(0.0001).toAmount())
     const admission = await admitJudgeCall({
       binding: binding(),
       billing: metered(ledger),
@@ -392,7 +413,7 @@ describe('admitJudgeCall', () => {
   })
 
   it('refuses an unpriced call without touching the ledger', async () => {
-    const ledger = memoryLedger(1)
+    const ledger = memoryLedger(Usd.from(1).toAmount())
     const remaining = vi.spyOn(ledger, 'remainingUsd')
     const reserve = vi.spyOn(ledger, 'reserve')
     const admission = await admitJudgeCall({
@@ -408,7 +429,7 @@ describe('admitJudgeCall', () => {
 
   it('refuses without paid consent, needed and declined', async () => {
     for (const consent of ['needed', 'declined'] as const) {
-      const ledger = memoryLedger(1)
+      const ledger = memoryLedger(Usd.from(1).toAmount())
       const admission = await admitJudgeCall({
         binding: binding({ consent }),
         billing: metered(ledger),
@@ -424,7 +445,7 @@ describe('admitJudgeCall', () => {
   })
 
   it('refuses an invalid binding and a backend without its billing', async () => {
-    const ledger = memoryLedger(1)
+    const ledger = memoryLedger(Usd.from(1).toAmount())
     const invalid: JudgeAdmissionBinding[] = [
       binding({ ownerId: '' }),
       binding({ modelId: '' }),
@@ -459,7 +480,7 @@ describe('admitJudgeCall', () => {
   })
 
   it('fails closed when the ledger is unreadable, before or during reserve', async () => {
-    const unreadable = memoryLedger(1)
+    const unreadable = memoryLedger(Usd.from(1).toAmount())
     unreadable.failRemaining = true
     expect(
       await admitJudgeCall({
@@ -471,7 +492,7 @@ describe('admitJudgeCall', () => {
     ).toEqual({ admitted: false, refusal: 'ledger-unavailable' })
     expect(unreadable.claims.size).toBe(0)
 
-    const unreservable = memoryLedger(1)
+    const unreservable = memoryLedger(Usd.from(1).toAmount())
     unreservable.failReserve = true
     expect(
       await admitJudgeCall({
@@ -484,8 +505,8 @@ describe('admitJudgeCall', () => {
   })
 
   it('fails closed on a ledger that reports nonsense or echoes the wrong claim', async () => {
-    const negative = memoryLedger(1)
-    negative.remaining = -5
+    const negative = memoryLedger(Usd.from(1).toAmount())
+    negative.remaining = Usd.from(-5).toAmount()
     expect(
       await admitJudgeCall({
         binding: binding(),
@@ -495,12 +516,12 @@ describe('admitJudgeCall', () => {
       }),
     ).toEqual({ admitted: false, refusal: 'ledger-unavailable' })
 
-    const base = memoryLedger(1)
+    const base = memoryLedger(Usd.from(1).toAmount())
     const echoing: JudgeDailyLedger = {
       remainingUsd: () => base.remainingUsd(),
-      reserve: async (costUsd: number) => {
-        const claim = await base.reserve(costUsd)
-        return { ...claim, reservedUsd: costUsd + 1 }
+      reserve: async (costUsd: UsdAmount) => {
+        const claim = await base.reserve(Usd.from(costUsd).toAmount())
+        return { ...claim, reservedUsd: Usd.from(costUsd + 1).toAmount() }
       },
     }
     expect(
@@ -516,18 +537,18 @@ describe('admitJudgeCall', () => {
   it('admits a subscription call with no ledger claim', async () => {
     const claim = await subscriptionClaim()
     expect(claim.billed).toBe(false)
-    expect(claim.reservedUsd).toBeCloseTo(0.001675, 12)
+    expect(Number(claim.reservedUsd)).toBeCloseTo(0.001675, 12)
     const settled = await claim.settleKnown({
       inputTokens: 1000,
       outputTokens: 100,
       cachedTokens: 0,
     })
-    expect(settled).toBeCloseTo(0.001675, 12)
-    expect(claim.outstandingUsd()).toBeCloseTo(0.001675, 12)
+    expect(Number(settled)).toBeCloseTo(0.001675, 12)
+    expect(Number(claim.outstandingUsd())).toBeCloseTo(0.001675, 12)
   })
 
   it('makes a retry a new claim', async () => {
-    const ledger = memoryLedger(1)
+    const ledger = memoryLedger(Usd.from(1).toAmount())
     const first = await admittedClaim(ledger)
     const second = await admittedClaim(ledger)
     expect(second.claimId).not.toBe(first.claimId)
@@ -537,7 +558,7 @@ describe('admitJudgeCall', () => {
 
 describe('JudgeAdmissionClaim settlement', () => {
   it('shares an in-flight settlement by claim id and rejects an overlapping conflict', async () => {
-    const ledger = memoryLedger(1)
+    const ledger = memoryLedger(Usd.from(1).toAmount())
     const claim = await admittedClaim(ledger)
     const gate = pauseSettlement(ledger, claim)
     const usage = { inputTokens: 1000, outputTokens: 100, cachedTokens: 0 }
@@ -555,22 +576,22 @@ describe('JudgeAdmissionClaim settlement', () => {
   it.each([0, 400])(
     'settles with the injected verified tariff and %s cached tokens',
     async (cachedTokens) => {
-      const ledger = memoryLedger(1)
+      const ledger = memoryLedger(Usd.from(1).toAmount())
       const admission = await admitJudgeCall({
         binding: binding(),
         billing: metered(ledger),
         estimatedInputTokens: 1000,
         maxOutputTokens: 100,
-        priceOf: () => ({ input: 2, cachedInput: 0.5, output: 8 }),
+        priceOf: () => INJECTED_PRICE,
       })
       if (!admission.admitted) throw new Error('expected admission')
-      expect(admission.claim.reservedUsd).toBeCloseTo(0.0028, 12)
+      expect(Number(admission.claim.reservedUsd)).toBeCloseTo(0.0028, 12)
       const actual = await admission.claim.settleKnown({
         inputTokens: 1000,
         outputTokens: 100,
         cachedTokens,
       })
-      expect(actual).toBeCloseTo(
+      expect(Number(actual)).toBeCloseTo(
         ((1000 - cachedTokens) * 2 + cachedTokens * 0.5 + 100 * 8) / 1_000_000,
         12,
       )
@@ -579,7 +600,7 @@ describe('JudgeAdmissionClaim settlement', () => {
   )
 
   it('settles known usage at the actual cost with the cache discount', async () => {
-    const ledger = memoryLedger(1)
+    const ledger = memoryLedger(Usd.from(1).toAmount())
     const claim = await admittedClaim(ledger)
     // 600 fresh input at 1.25, 400 cached at 0.15, 100 output at 4.25:
     // (750 + 60 + 425) / 1e6, under the 0.001675 reservation.
@@ -588,31 +609,31 @@ describe('JudgeAdmissionClaim settlement', () => {
       outputTokens: 100,
       cachedTokens: 400,
     })
-    expect(settled).toBeCloseTo(0.001235, 12)
-    expect(claim.outstandingUsd()).toBeCloseTo(0.001235, 12)
+    expect(Number(settled)).toBeCloseTo(0.001235, 12)
+    expect(Number(claim.outstandingUsd())).toBeCloseTo(0.001235, 12)
     expect(ledger.claims.get(claim.claimId)?.settled).toEqual([settled])
   })
 
   it('refunds a known non-send to zero', async () => {
-    const ledger = memoryLedger(1)
+    const ledger = memoryLedger(Usd.from(1).toAmount())
     const claim = await admittedClaim(ledger)
     await claim.refundNonSend()
-    expect(claim.outstandingUsd()).toBe(0)
-    expect(ledger.claims.get(claim.claimId)?.settled).toEqual([0])
+    expect(claim.outstandingUsd()).toBe(Usd.from(0).toAmount())
+    expect(ledger.claims.get(claim.claimId)?.settled).toEqual([Usd.from(0).toAmount()])
   })
 
   it('keeps the full liability for an uncertain outcome', async () => {
-    const ledger = memoryLedger(1)
+    const ledger = memoryLedger(Usd.from(1).toAmount())
     const claim = await admittedClaim(ledger)
     // A timeout: no settlement call exists, so nothing runs. The
     // reservation stays open in the ledger.
-    expect(claim.outstandingUsd()).toBeCloseTo(0.001675, 12)
+    expect(Number(claim.outstandingUsd())).toBeCloseTo(0.001675, 12)
     expect(ledger.claims.get(claim.claimId)?.settled).toEqual([])
-    expect(await ledger.remainingUsd()).toBeCloseTo(1 - 0.001675, 12)
+    expect(Number(await ledger.remainingUsd())).toBeCloseTo(1 - 0.001675, 12)
   })
 
   it('settles idempotently for the same value and refuses a conflict', async () => {
-    const ledger = memoryLedger(1)
+    const ledger = memoryLedger(Usd.from(1).toAmount())
     const claim = await admittedClaim(ledger)
     const usage = { inputTokens: 1000, outputTokens: 100, cachedTokens: 400 }
     const first = await claim.settleKnown(usage)
@@ -625,13 +646,13 @@ describe('JudgeAdmissionClaim settlement', () => {
   })
 
   it('keeps liability when the store fails at settlement', async () => {
-    const ledger = memoryLedger(1)
+    const ledger = memoryLedger(Usd.from(1).toAmount())
     const claim = await admittedClaim(ledger)
     ledger.failSettle = true
     await expect(
       claim.settleKnown({ inputTokens: 1000, outputTokens: 100, cachedTokens: 0 }),
     ).rejects.toThrow(JudgeLedgerError)
-    expect(claim.outstandingUsd()).toBeCloseTo(0.001675, 12)
+    expect(Number(claim.outstandingUsd())).toBeCloseTo(0.001675, 12)
     expect(await verifyJudgeDispatch(claim, binding(), ledger)).toEqual({
       proceed: false,
       reason: 'already-settled',
@@ -642,8 +663,17 @@ describe('JudgeAdmissionClaim settlement', () => {
   })
 
   it('keeps liability when the tariff vanished before settlement', async () => {
-    const ledger = memoryLedger(1)
-    const tariffs = new Map([[MODEL, { input: 1.25, cachedInput: 0.15, output: 4.25 }]])
+    const ledger = memoryLedger(Usd.from(1).toAmount())
+    const tariffs = new Map([
+      [
+        MODEL,
+        {
+          input: Usd.from(1.25).toAmount(),
+          cachedInput: Usd.from(0.15).toAmount(),
+          output: Usd.from(4.25).toAmount(),
+        },
+      ],
+    ])
     const admission = await admitJudgeCall({
       binding: binding(),
       billing: metered(ledger),
@@ -658,28 +688,28 @@ describe('JudgeAdmissionClaim settlement', () => {
     await expect(
       admission.claim.settleKnown({ inputTokens: 1000, outputTokens: 100, cachedTokens: 0 }),
     ).rejects.toThrow(JudgeUnpricedError)
-    expect(admission.claim.outstandingUsd()).toBeCloseTo(0.001675, 12)
+    expect(Number(admission.claim.outstandingUsd())).toBeCloseTo(0.001675, 12)
   })
 
   it('rejects garbage usage instead of settling it', async () => {
-    const ledger = memoryLedger(1)
+    const ledger = memoryLedger(Usd.from(1).toAmount())
     const claim = await admittedClaim(ledger)
     await expect(
       claim.settleKnown({ inputTokens: 100, outputTokens: 10, cachedTokens: 101 }),
     ).rejects.toThrow(TypeError)
-    expect(claim.outstandingUsd()).toBeCloseTo(0.001675, 12)
+    expect(Number(claim.outstandingUsd())).toBeCloseTo(0.001675, 12)
   })
 })
 
 describe('rebindJudgeClaim', () => {
   it('rebounds an unchanged binding', async () => {
-    const ledger = memoryLedger(1)
+    const ledger = memoryLedger(Usd.from(1).toAmount())
     const claim = await admittedClaim(ledger)
     expect(rebindJudgeClaim(claim, binding())).toEqual({ rebound: true })
   })
 
   it('refuses each changed field with its reason', async () => {
-    const ledger = memoryLedger(1)
+    const ledger = memoryLedger(Usd.from(1).toAmount())
     const claim = await admittedClaim(ledger)
     const cases: { readonly current: JudgeAdmissionBinding; readonly reason: string }[] = [
       { current: binding({ ownerId: 'owner-2' }), reason: 'owner-changed' },
@@ -701,7 +731,7 @@ describe('rebindJudgeClaim', () => {
 
 describe('verifyJudgeDispatch', () => {
   it('reads a replaced consent binding after the dispatch ledger wait', async () => {
-    const ledger = memoryLedger(1)
+    const ledger = memoryLedger(Usd.from(1).toAmount())
     const claim = await admittedClaim(ledger)
     let current = binding()
     const gate = pauseLedger(ledger, 'remaining')
@@ -713,7 +743,7 @@ describe('verifyJudgeDispatch', () => {
   })
 
   it('rechecks claim closure after its own dispatch ledger wait', async () => {
-    const ledger = memoryLedger(1)
+    const ledger = memoryLedger(Usd.from(1).toAmount())
     const claim = await admittedClaim(ledger)
     const gate = pauseLedger(ledger, 'remaining')
     const verification = verifyJudgeDispatch(claim, binding(), ledger)
@@ -724,12 +754,12 @@ describe('verifyJudgeDispatch', () => {
   })
 
   it('checks the remaining shared budget synchronously per claim before dispatch', async () => {
-    const ledger = memoryLedger(1)
-    const historical = await ledger.reserve(0.6)
-    await historical.settle(0.6)
+    const ledger = memoryLedger(Usd.from(1).toAmount())
+    const historical = await ledger.reserve(Usd.from(0.6).toAmount())
+    await historical.settle(Usd.from(0.6).toAmount())
     const claim = await admittedClaim(ledger)
     const check = vi.spyOn(ledger.claims.get(claim.claimId) ?? historical, 'check')
-    ledger.remaining = 0.5
+    ledger.remaining = Usd.from(0.5).toAmount()
     expect(await verifyJudgeDispatch(claim, binding(), ledger)).toEqual({
       proceed: false,
       reason: 'ledger-unavailable',
@@ -746,7 +776,7 @@ describe('verifyJudgeDispatch', () => {
     { change: { confidential: true }, reason: 'confidential-changed' },
     { change: { backend: 'museCode', consent: 'not-required' }, reason: 'backend-changed' },
   ] as const)('rebinds $reason after the dispatch ledger wait', async ({ change, reason }) => {
-    const ledger = memoryLedger(1)
+    const ledger = memoryLedger(Usd.from(1).toAmount())
     const claim = await admittedClaim(ledger)
     const current = binding()
     const gate = pauseLedger(ledger, 'remaining')
@@ -758,7 +788,7 @@ describe('verifyJudgeDispatch', () => {
   })
 
   it('refuses a paid binding that carries subscription consent', async () => {
-    const ledger = memoryLedger(1)
+    const ledger = memoryLedger(Usd.from(1).toAmount())
     const claim = await admittedClaim(ledger)
     const current = binding()
     Reflect.set(current, 'consent', 'not-required')
@@ -769,7 +799,7 @@ describe('verifyJudgeDispatch', () => {
   })
 
   it('refuses a settled claim even when its actual cost equals its reservation', async () => {
-    const ledger = memoryLedger(1)
+    const ledger = memoryLedger(Usd.from(1).toAmount())
     const claim = await admittedClaim(ledger)
     await claim.settleKnown({ inputTokens: 1000, outputTokens: 100, cachedTokens: 0 })
     expect(claim.outstandingUsd()).toBe(claim.reservedUsd)
@@ -780,7 +810,7 @@ describe('verifyJudgeDispatch', () => {
   })
 
   it('refuses dispatch while a non-send refund is waiting on the store', async () => {
-    const ledger = memoryLedger(1)
+    const ledger = memoryLedger(Usd.from(1).toAmount())
     const claim = await admittedClaim(ledger)
     const gate = pauseSettlement(ledger, claim)
     const refund = claim.refundNonSend()
@@ -793,24 +823,24 @@ describe('verifyJudgeDispatch', () => {
   })
 
   it('proceeds when the binding is current and the ledger answers', async () => {
-    const ledger = memoryLedger(1)
+    const ledger = memoryLedger(Usd.from(1).toAmount())
     const claim = await admittedClaim(ledger)
     expect(await verifyJudgeDispatch(claim, binding(), ledger)).toEqual({ proceed: true })
   })
 
   it('refuses after a held modal revoked consent', async () => {
-    const ledger = memoryLedger(1)
+    const ledger = memoryLedger(Usd.from(1).toAmount())
     const claim = await admittedClaim(ledger)
     expect(await verifyJudgeDispatch(claim, binding({ consent: 'declined' }), ledger)).toEqual({
       proceed: false,
       reason: 'consent-declined',
     })
     // The liability is still reserved: the revoked dispatch was not sent.
-    expect(claim.outstandingUsd()).toBeCloseTo(0.001675, 12)
+    expect(Number(claim.outstandingUsd())).toBeCloseTo(0.001675, 12)
   })
 
   it('refuses when the ledger went away during the wait', async () => {
-    const ledger = memoryLedger(1)
+    const ledger = memoryLedger(Usd.from(1).toAmount())
     const claim = await admittedClaim(ledger)
     ledger.failRemaining = true
     expect(await verifyJudgeDispatch(claim, binding(), ledger)).toEqual({
@@ -820,7 +850,7 @@ describe('verifyJudgeDispatch', () => {
   })
 
   it('refuses a claim that is already settled', async () => {
-    const ledger = memoryLedger(1)
+    const ledger = memoryLedger(Usd.from(1).toAmount())
     const claim = await admittedClaim(ledger)
     await claim.refundNonSend()
     expect(await verifyJudgeDispatch(claim, binding(), ledger)).toEqual({
@@ -835,7 +865,7 @@ describe('verifyJudgeDispatch', () => {
   })
 
   it('needs the ledger for a billed claim', async () => {
-    const ledger = memoryLedger(1)
+    const ledger = memoryLedger(Usd.from(1).toAmount())
     const claim = await admittedClaim(ledger)
     expect(await verifyJudgeDispatch(claim, binding(), undefined)).toEqual({
       proceed: false,

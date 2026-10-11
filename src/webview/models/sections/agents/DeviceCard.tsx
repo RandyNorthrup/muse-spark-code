@@ -1,7 +1,8 @@
 import { useId, useRef, useState } from 'react'
 import { DEVICE_LIMITS, UI_TEXT } from '../../../../shared/constants'
 import { deviceCapsSchema, deviceEndpointSchema, type DeviceCaps } from '../../../../shared/devices'
-import { fill, formatBytes, formatNumber, formatUsd, plural } from '../../../../shared/l10n/text'
+import { fill, formatBytes, formatNumber, plural } from '../../../../shared/l10n/text'
+import { formatUsd } from '../../../../shared/l10n/exactUsd'
 import type {
   DeviceActionResult,
   DeviceHostMessage,

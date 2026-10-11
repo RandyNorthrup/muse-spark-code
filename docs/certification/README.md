@@ -1,5 +1,9 @@
 # Certification records
 
+- [MUSE143](muse143.md): live Windows 1.4.3 approval/rename/fork/sandbox
+  receipts, version-aware update guidance and retained upstream limitations.
+- [FIXCYCLES](fixcycles.md): complete cycle-root inventory, worker environment dependency fix, red/restored drills and fresh-clone gates.
+
 - [SDK142](sdk142.md): Muse Code 1.4.1/1.4.2 fingerprints, CLI documentation corrections and regression drill; SDK stays 1.3.0.
 
 [0.10.0 release preparation](release-0.10.0.md) tracks the current candidate
@@ -8,6 +12,14 @@ and the still-open checks for every distribution channel.
 [PR #51 Android/Termux regression tests](pr51-termux-tests.md) records the
 contributor test scope and resumed integration proof, separate from a real
 Android installation or microphone certification.
+
+Outside contributions get one vetting record each under `vetting/`, as
+[docs/contributor-vetting.md](../contributor-vetting.md) sets out:
+
+- [PR #51](vetting/pr-51.md): retroactive; the author's public record, the
+  merged diff against the change checklist, the fork CI approvals, what
+  went out of process, and the benefit check of its four tests (PLAN.md
+  D102).
 
 One file per milestone, written when the milestone closed: the gate results
 of that day, what was built row by row and which test checks it, the visual

@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 import type { AgentSession } from '../../src/core/agent/agentBackend'
 import * as copilotAdapter from '../../src/host/providers/copilotClient'
 import { fakeCopilotPort } from './helpers/fakeCopilotPort'
@@ -125,7 +126,7 @@ async function exerciseHost(
   const host = new ModelApiHost({
     ...fakeModelApiHostDeps({ client, io, log, workspaceRoot: '/workspace' }),
     loadHooks: () => Promise.resolve(hooks),
-    sessionBudgetUsd: () => 0.000001,
+    sessionBudgetUsd: () => Usd.from(0.000001).toAmount(),
     notePaidUse: paid,
     getAccountId: () => client.currentKeyDigest(),
   })
@@ -393,7 +394,7 @@ describe('M95b production subscription integration', () => {
           workspaceRoot: '/workspace',
         }),
         getAccountId: features.accountId,
-        sessionBudgetUsd: () => 0.000001,
+        sessionBudgetUsd: () => Usd.from(0.000001).toAmount(),
       })
       expect(await host.listModels()).toMatchObject([
         {

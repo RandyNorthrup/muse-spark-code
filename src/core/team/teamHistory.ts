@@ -1,3 +1,4 @@
+import { Usd, type UsdAmount } from '../../shared/usd'
 // The team ledger's queries (M96, PLAN.md D75 "The team ledger" and
 // acceptance 42): filters, text search, sorting, totals per role and agent
 // for today, the week and all time, the record's figures per entry, and CSV
@@ -64,9 +65,9 @@ export interface TeamHistoryRow {
   /** Model calls (inference count). */
   readonly modelCalls: number
   /** Undefined for unpriced entries. */
-  readonly costUsd: number | undefined
+  readonly costUsd: UsdAmount | undefined
   readonly hookAddedTokens?: number
-  readonly paidToolCostUsd?: number
+  readonly paidToolCostUsd?: UsdAmount
   /** The review's findings against this task's changes; severities as written. */
   readonly findingSeverities?: readonly string[]
   /** Rounds the task needed to pass review; undefined when it never went through one. */
@@ -105,10 +106,10 @@ export interface HistoryTotals {
   readonly tasks: number
   readonly tokens: number
   readonly estimatedTokens: number
-  readonly costUsd: number
+  readonly costUsd: UsdAmount
   readonly unpricedTasks: number
   readonly hookAddedTokens: number
-  readonly paidToolCostUsd: number
+  readonly paidToolCostUsd: UsdAmount
 }
 
 /** The record's figures for one pool entry, judging it without reordering anything. */
@@ -126,7 +127,7 @@ export interface EntryFigures {
   readonly findingsBySeverity: Record<string, number>
   readonly roundsToPassAvg: number | undefined
   readonly avgTokens: number | undefined
-  readonly avgCostUsd: number | undefined
+  readonly avgCostUsd: UsdAmount | undefined
   readonly avgMinutes: number | undefined
 }
 
@@ -171,7 +172,7 @@ export function searchHistory(rows: readonly TeamHistoryRow[], text: string): Te
   return rows.filter((row) => row.brief.toLowerCase().includes(needle))
 }
 
-function sortValue(row: TeamHistoryRow, key: HistorySortKey): number | undefined {
+function sortValue(row: TeamHistoryRow, key: HistorySortKey): number | UsdAmount | undefined {
   switch (key) {
     case 'cost': {
       return row.costUsd
@@ -206,7 +207,7 @@ export function sortHistory(
     }
     return rightValue === undefined
       ? -1
-      : (leftValue - rightValue) * sign || left.index - right.index
+      : Usd.from(leftValue).compare(Usd.from(rightValue)) * sign || left.index - right.index
   })
   return indexed.map((item) => item.row)
 }
@@ -382,10 +383,10 @@ export function historyTotals(
         tasks: 1,
         tokens,
         estimatedTokens: row.estimated ? tokens : 0,
-        costUsd: row.costUsd ?? 0,
+        costUsd: row.costUsd ?? Usd.from(0).toAmount(),
         unpricedTasks: row.costUsd === undefined ? 1 : 0,
         hookAddedTokens: row.hookAddedTokens ?? 0,
-        paidToolCostUsd: row.paidToolCostUsd ?? 0,
+        paidToolCostUsd: row.paidToolCostUsd ?? Usd.from(0).toAmount(),
       }
     } else {
       byKey[key] = {
@@ -393,10 +394,14 @@ export function historyTotals(
         tasks: current.tasks + 1,
         tokens: current.tokens + tokens,
         estimatedTokens: current.estimatedTokens + (row.estimated ? tokens : 0),
-        costUsd: current.costUsd + (row.costUsd ?? 0),
+        costUsd: Usd.from(current.costUsd)
+          .add(Usd.from(row.costUsd ?? 0))
+          .toAmount(),
         unpricedTasks: current.unpricedTasks + (row.costUsd === undefined ? 1 : 0),
         hookAddedTokens: current.hookAddedTokens + (row.hookAddedTokens ?? 0),
-        paidToolCostUsd: current.paidToolCostUsd + (row.paidToolCostUsd ?? 0),
+        paidToolCostUsd: Usd.from(current.paidToolCostUsd)
+          .add(Usd.from(row.paidToolCostUsd ?? 0))
+          .toAmount(),
       }
     }
   }
@@ -407,6 +412,13 @@ function average(values: readonly number[]): number | undefined {
   return values.length === 0
     ? undefined
     : values.reduce((total, value) => total + value, 0) / values.length
+}
+
+function averageCost(values: readonly UsdAmount[]): UsdAmount | undefined {
+  if (values.length === 0) return undefined
+  let sum = Usd.from(0)
+  for (const value of values) sum = sum.add(Usd.from(value))
+  return sum.divideIntegerCeiling(values.length).toAmount()
 }
 
 /**
@@ -451,7 +463,7 @@ export function entryFigures(
         scoped.flatMap((row) => (row.roundsUsed === undefined ? [] : [row.roundsUsed])),
       ),
       avgTokens: average(scoped.map((row) => totalTokens(row))),
-      avgCostUsd: average(
+      avgCostUsd: averageCost(
         scoped.flatMap((row) => (row.costUsd === undefined ? [] : [row.costUsd])),
       ),
       avgMinutes: average(
@@ -591,9 +603,9 @@ export interface HistoryJsonRow {
   readonly tokens: TeamHistoryTokens
   readonly estimated: boolean
   readonly modelCalls: number
-  readonly costUsd: number | undefined
+  readonly costUsd: UsdAmount | undefined
   readonly hookAddedTokens: number
-  readonly paidToolCostUsd: number
+  readonly paidToolCostUsd: UsdAmount
   readonly brief: string
   readonly transcript?: string
 }
@@ -621,7 +633,7 @@ export function exportHistoryJson(
       modelCalls: row.modelCalls,
       costUsd: row.costUsd,
       hookAddedTokens: row.hookAddedTokens ?? 0,
-      paidToolCostUsd: row.paidToolCostUsd ?? 0,
+      paidToolCostUsd: row.paidToolCostUsd ?? Usd.from(0).toAmount(),
       brief: exportBrief(row),
       ...(transcript !== undefined && { transcript }),
     }

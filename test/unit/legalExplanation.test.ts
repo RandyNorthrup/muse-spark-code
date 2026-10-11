@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 import { autoReviewPrice } from '../../src/shared/paid'
 import type { CreateResponseBody } from '../../src/core/backends/modelapi/schemas'
 import { createSessionBudgetJournal } from '../../src/host/backend/sessionBudgetJournal'
@@ -63,7 +64,7 @@ async function setup(answer: PaidUseAnswer = 'once') {
   const daily = createPaidDailyBudget({
     directory,
     now: () => status.now,
-    capUsd: () => 0.5,
+    capUsd: () => Usd.from(0.5).toAmount(),
     sleep: () => Promise.resolve(),
     isModelApi: () => true,
   })
@@ -113,7 +114,8 @@ async function dailyTotal(directory: string) {
   return await createSessionBudgetJournal({
     directory,
     sleep: () => Promise.resolve(),
-    initialBudget: () => Promise.resolve({ spentUsd: 0, hasUnknownHistoricalFees: false }),
+    initialBudget: () =>
+      Promise.resolve({ spentUsd: Usd.from(0).toAmount(), hasUnknownHistoricalFees: false }),
   }).read('2026-10-5', PAID_DAILY_BUDGET.accountId)
 }
 describe('legal explanations through the shared D78 gate', () => {
@@ -156,7 +158,7 @@ describe('legal explanations through the shared D78 gate', () => {
     expect(t.reserve).toHaveBeenCalledTimes(2)
     expect(t.usage.current.legalExplanations).toBe(2)
     expect(t.usage.current.legalExplanationUnknownRequests).toBe(0)
-    expect(t.usage.current.legalExplanationCostUsd).toBeGreaterThan(0)
+    expect(Number(t.usage.current.legalExplanationCostUsd)).toBeGreaterThan(0)
     const total = await dailyTotal(t.directory)
     expect(total.spentUsd).toBe(t.usage.current.legalExplanationCostUsd)
     const body = t.api.requests.find((r) => r.path === '/responses')?.body
@@ -184,7 +186,7 @@ describe('legal explanations through the shared D78 gate', () => {
     const other = createPaidDailyBudget({
       directory: t.directory,
       now: () => t.status.now,
-      capUsd: () => 0.5,
+      capUsd: () => Usd.from(0.5).toAmount(),
       sleep: () => Promise.resolve(),
       isModelApi: () => true,
     })
@@ -227,8 +229,8 @@ describe('legal explanations through the shared D78 gate', () => {
     expect(t.api.requests).toEqual([])
     const claim = t.claims[0]
     const total = await dailyTotal(t.directory)
-    expect(total.spentUsd).toBe(0)
-    expect(claim?.reservedUsd).toBeGreaterThan(0)
+    expect(total.spentUsd).toBe(Usd.from(0).toAmount())
+    expect(Number(claim?.reservedUsd)).toBeGreaterThan(0)
   })
   it('refuses a rotated key before HTTP and refunds an unsent claim', async () => {
     const t = await setup()
@@ -241,7 +243,7 @@ describe('legal explanations through the shared D78 gate', () => {
     ).rejects.toThrow()
     expect(t.api.requests).toEqual([])
     const total = await dailyTotal(t.directory)
-    expect(total.spentUsd).toBe(0)
+    expect(total.spentUsd).toBe(Usd.from(0).toAmount())
   })
   it('refuses untrusted finding identifiers and an oversized explanation payload', async () => {
     const t = await setup()
@@ -275,14 +277,18 @@ describe('legal explanations through the shared D78 gate', () => {
   })
   it('uses the shared popup with exact price and daily budget', async () => {
     const t = await setup()
-    const store = { get: () => ['legalExplanation'], update: () => Promise.resolve() }
+    const store = {
+      keys: () => [],
+      get: () => ['legalExplanation'],
+      update: () => Promise.resolve(),
+    }
     const paid = createPaidFeatures({
       globalState: store,
       workspaceState: store,
       isSettingOn: () => true,
       isKeyStored: () => true,
       canRememberPaidUse: () => false,
-      dailyBudgetUsd: () => 5,
+      dailyBudgetUsd: () => Usd.from(5).toAmount(),
       log: new FakeLogOutputChannel(),
     })
     vi.mocked(window.showWarningMessage).mockResolvedValue(undefined)

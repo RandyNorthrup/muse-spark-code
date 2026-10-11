@@ -1,3 +1,4 @@
+import { Usd, type UsdAmount } from '../../shared/usd'
 // Team meters (M96 lane A, PLAN.md D75): caps by measure and window as sums
 // over ledger rows, plus the reservations still open in the team's scope of
 // M82's journal. Admission never depends on a flush, because the reservation
@@ -21,7 +22,7 @@ export interface TeamMeterUsage {
   readonly reasoningTokens: number
   /** Model calls (inference count). */
   readonly calls: number
-  readonly costUsd: number
+  readonly costUsd: UsdAmount
   /** Delegations counted (1 per task row; N per totals rollup). */
   readonly tasks: number
   /** Hook-added tokens and paid-tool tokens: lines of their own (SoL-Pi rules 3 and 6). */
@@ -36,7 +37,7 @@ export const ZERO_TEAM_METER_USAGE: TeamMeterUsage = {
   outputTokens: 0,
   reasoningTokens: 0,
   calls: 0,
-  costUsd: 0,
+  costUsd: Usd.from(0).toAmount(),
   tasks: 0,
   hookTokens: 0,
   paidToolTokens: 0,
@@ -95,7 +96,7 @@ export interface TeamReservation {
   readonly tokens: number
   readonly inputTokens: number
   readonly outputTokens: number
-  readonly spendUsd: number
+  readonly spendUsd: UsdAmount
 }
 
 type TeamClaimUsage = Pick<TeamReservation, 'tokens' | 'inputTokens' | 'outputTokens' | 'spendUsd'>
@@ -108,7 +109,7 @@ export type TeamClaimOutcome =
       readonly tokens: 0
       readonly inputTokens: 0
       readonly outputTokens: 0
-      readonly spendUsd: 0
+      readonly spendUsd: UsdAmount
     }
 
 export interface TeamClaimRecord {
@@ -118,10 +119,10 @@ export interface TeamClaimRecord {
 
 /** Current limits, read again synchronously just before dispatch. Zero is a hard stop. */
 export interface TeamDailyBudgets {
-  readonly paidDailyBudgetUsd: number
-  readonly teamDailyBudgetUsd: number
+  readonly paidDailyBudgetUsd: UsdAmount
+  readonly teamDailyBudgetUsd: UsdAmount
   readonly teamDailyBudgetTokens: number
-  readonly workspaceDailyBudgetUsd: number
+  readonly workspaceDailyBudgetUsd: UsdAmount
   readonly workspaceDailyBudgetTokens: number
 }
 
@@ -202,7 +203,13 @@ export async function settleTeamClaim(
   if (claim?.reservation.id !== id) throw failure('unavailable')
   let next: TeamClaimOutcome
   if (outcome.kind === 'nonsent')
-    next = { kind: 'refunded', tokens: 0, inputTokens: 0, outputTokens: 0, spendUsd: 0 }
+    next = {
+      kind: 'refunded',
+      tokens: 0,
+      inputTokens: 0,
+      outputTokens: 0,
+      spendUsd: Usd.from(0).toAmount(),
+    }
   else if (outcome.kind === 'unknown')
     next = {
       kind: 'liability',
@@ -250,11 +257,11 @@ export interface TeamMeterSource {
 
 /** A meter reading: the sum, and whether any of it was estimated. */
 export interface TeamMeterReading {
-  readonly value: number
+  readonly value: number | UsdAmount
   readonly estimated: boolean
 }
 
-function usageAmount(measure: TeamMeasure, usage: TeamMeterUsage): number {
+function usageAmount(measure: TeamMeasure, usage: TeamMeterUsage): number | UsdAmount {
   switch (measure) {
     case 'tokens': {
       return usage.inputTokens + usage.outputTokens
@@ -274,7 +281,7 @@ function usageAmount(measure: TeamMeasure, usage: TeamMeterUsage): number {
   }
 }
 
-function reservationAmount(measure: TeamMeasure, reservation: TeamClaimUsage): number {
+function reservationAmount(measure: TeamMeasure, reservation: TeamClaimUsage): number | UsdAmount {
   switch (measure) {
     case 'tokens': {
       return reservation.tokens
@@ -370,7 +377,7 @@ export class TeamMeter {
           candidate.clearedWindow === cap.window &&
           (candidate.clearedEntryId === undefined || candidate.clearedEntryId === entryId),
       )
-    let value = 0
+    let value = Usd.from(0)
     let isEstimated = false
     for (const row of this.source.rows()) {
       if (!isRowInScope(row, entryId, cap.window, scope)) {
@@ -384,13 +391,12 @@ export class TeamMeter {
       )
       // Old markers without a baseline keep their original clearing semantics.
       if (reset?.clearedUsage === undefined && row.startMs < resetMs) continue
-      const amount = Math.max(
-        0,
-        usageAmount(cap.measure, row.usage) -
-          (baseline === undefined ? 0 : usageAmount(cap.measure, baseline.usage)),
+      const delta = Usd.from(usageAmount(cap.measure, row.usage)).subtract(
+        Usd.from(baseline === undefined ? 0 : usageAmount(cap.measure, baseline.usage)),
       )
-      value += amount
-      if (amount > 0) isEstimated ||= row.estimated
+      if (delta.compare(Usd.from(0)) <= 0) continue
+      value = value.add(delta)
+      isEstimated ||= row.estimated
     }
     for (const reservation of this.source.openReservations()) {
       if (reservation.entryId !== entryId) {
@@ -403,21 +409,24 @@ export class TeamMeter {
         continue
       }
       const amount = reservationAmount(cap.measure, reservation)
-      if (amount === 0) {
+      if (Usd.from(amount).compare(Usd.from(0)) === 0) {
         continue
       }
-      value += amount
+      value = value.add(Usd.from(amount))
       // A reservation is an estimate until reported usage replaces it.
       isEstimated = true
     }
-    return { value, estimated: isEstimated }
+    return {
+      value: cap.measure === 'spendUsd' ? value.toAmount() : Number(value.toString()),
+      estimated: isEstimated,
+    }
   }
 }
 
 /** The team's totals for Account & usage's Team section, with the lines apart. */
 export interface TeamTotals {
   readonly tokens: number
-  readonly costUsd: number
+  readonly costUsd: UsdAmount
   readonly tasks: number
   readonly estimatedTokens: number
   readonly hookTokens: number
@@ -434,7 +443,7 @@ export function sumTeamTotals(
   scope: { readonly dayKey: string | undefined },
 ): TeamTotals {
   let tokens = 0
-  let costUsd = 0
+  let costUsd = Usd.from(0)
   let tasks = 0
   let estimatedTokens = 0
   let hookTokens = 0
@@ -448,7 +457,7 @@ export function sumTeamTotals(
     }
     const rowTokens = row.usage.inputTokens + row.usage.outputTokens
     tokens += rowTokens
-    costUsd += row.usage.costUsd
+    costUsd = costUsd.add(Usd.from(row.usage.costUsd))
     tasks += row.usage.tasks
     if (row.estimated) {
       estimatedTokens += rowTokens
@@ -456,7 +465,7 @@ export function sumTeamTotals(
     hookTokens += row.usage.hookTokens
     paidToolTokens += row.usage.paidToolTokens
   }
-  return { tokens, costUsd, tasks, estimatedTokens, hookTokens, paidToolTokens }
+  return { tokens, costUsd: costUsd.toAmount(), tasks, estimatedTokens, hookTokens, paidToolTokens }
 }
 
 /** Publish the request's claim, then check the complete durable scope.
@@ -484,12 +493,12 @@ export async function checkAndReserve(
     const reading = meter.used(request.entryId, cap, { taskId: request.taskId, dayKey })
     // Tasks are counted at delegation admission, not again on every request.
     const want = reservationAmount(cap.measure, request)
-    if (reading.value + want > cap.amount) {
+    if (Usd.from(reading.value).add(Usd.from(want)).compare(Usd.from(cap.amount)) > 0) {
       return {
         ok: false,
         measure: cap.measure,
         window: cap.window,
-        used: reading.value,
+        used: Number(reading.value),
         amount: cap.amount,
       }
     }

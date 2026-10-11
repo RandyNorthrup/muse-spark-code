@@ -9,8 +9,16 @@
 // is refused. Pure: the host supplies the file system.
 
 import { confineWorkspacePath } from '../workspacePath'
+import { contentHash, type ContentSource } from '../schedules/provenance'
+
+export interface ContextSourceRead {
+  readonly bytes: Uint8Array
+  readonly source: Extract<ContentSource, { kind: 'file' }>
+}
 
 export interface ContextIo {
+  /** Same open file's bytes and fstat identity, with its original canonical path. */
+  readSource?(absolutePath: string, maxBytes?: number): Promise<ContextSourceRead | undefined>
   /**
    * The file's bytes; undefined when it does not exist. With `maxBytes` (the
    * catalogs' caps) it reads at most one byte more than that, so a file over
@@ -35,7 +43,11 @@ export interface ContextReadDeps {
 }
 
 export type ContextText =
-  | { readonly ok: true; readonly text: string }
+  | {
+      readonly ok: true
+      readonly text: string
+      readonly contentSource?: Extract<ContentSource, { kind: 'file' }>
+    }
   /** `reason` reads after the file's name ("is not valid UTF-8 text"). */
   | { readonly ok: false; readonly reason: string }
 
@@ -125,11 +137,30 @@ export async function readContextText(
     // an outside link or junction while canonical resolution awaits.
     readPath = resolution.checkedAbsolute
   }
-  const bytes = await deps.io.readFile(readPath, maxBytes)
-  if (bytes === undefined) {
-    return undefined
+  // Personal and bundled aliases also retain the target they actually read.
+  readPath = await deps.io.realPath(readPath)
+  const captured = await deps.io.readSource?.(readPath, maxBytes)
+  const bytes =
+    deps.io.readSource === undefined ? await deps.io.readFile(readPath, maxBytes) : captured?.bytes
+  if (bytes === undefined) return undefined
+  if (maxBytes !== undefined && bytes.length > maxBytes)
+    return { ok: false, reason: `is over the ${String(maxBytes)} byte limit` }
+  const decoded = decodeContextText(bytes)
+  if (!decoded.ok) return decoded
+  return {
+    ...decoded,
+    contentSource: captured?.source ?? {
+      kind: 'file',
+      contentHash: contentHash(bytes),
+      // In-memory/legacy ports have no inode clock; their canonical source and
+      // exact bytes remain pinned. Native ports capture fstat on the read handle.
+      file: {
+        path: readPath.replaceAll('\\', '/'),
+        dev: '0',
+        ino: '0',
+        size: bytes.length,
+        mtime: '0',
+      },
+    },
   }
-  return maxBytes !== undefined && bytes.length > maxBytes
-    ? { ok: false, reason: `is over the ${String(maxBytes)} byte limit` }
-    : decodeContextText(bytes)
 }

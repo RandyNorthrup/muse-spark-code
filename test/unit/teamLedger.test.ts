@@ -105,11 +105,13 @@ function openLedger(directory: string, windowId = 'window-a', nowMs = 1_000_000)
 async function lifetimeInput(ledger: TeamLedger, taskId: string, atMs: number): Promise<number> {
   const { rows } = await ledger.read()
   const meter = new TeamMeter({ rows: () => ledgerMeterRows(rows), openReservations: () => [] })
-  return meter.used(
-    'eng-1',
-    { measure: 'inputTokens', window: 'lifetime' },
-    { taskId, dayKey: teamDayKey(atMs) },
-  ).value
+  return Number(
+    meter.used(
+      'eng-1',
+      { measure: 'inputTokens', window: 'lifetime' },
+      { taskId, dayKey: teamDayKey(atMs) },
+    ).value,
+  )
 }
 
 describe('teamLedger', () => {

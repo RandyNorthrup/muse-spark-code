@@ -12,6 +12,9 @@
 // pays: the runner refuses any backend but the Model API, whose turns bill
 // the key.
 
+import { admitResource, inResourceClass } from '../resources/admission'
+import type { ResourceLease } from '../resources/launch'
+import type { ResourceClass } from '../../shared/resources'
 import type { BestOfNCoordinator } from './bestOfNCoordinator'
 import type { ResponseAttemptGuard } from '../backends/modelapi/client'
 import type { OwnedSessionBudgetScope } from '../backends/modelapi/sessionBudget'
@@ -167,6 +170,8 @@ export interface BestOfNStart extends BestOfNRequest {
 export interface BestOfNGitGuard {
   (): void
   readonly prepare?: (() => Promise<void>) | undefined
+  readonly signal?: AbortSignal | undefined
+  readonly resourceClass?: ResourceClass | undefined
 }
 
 /** One Take owns its captured conversation recorder and all pending write notices. */
@@ -176,6 +181,7 @@ type BeginBestOfNWorkspaceEdits = (
 ) => Promise<(wasWritten: boolean) => void>
 
 interface RunningAttempt {
+  resource?: ResourceLease | undefined
   attempt: BestOfNAttempt
   driver: BestOfNAttemptDriver | undefined
   tree: string | undefined
@@ -354,7 +360,14 @@ export class BestOfNRunner {
         if (input !== undefined && this.deps.hasDirtyEditors())
           throw new BestOfNError('targetChanged')
       },
-      { prepare: finalPrepare },
+      {
+        prepare: finalPrepare,
+        signal: canAllowStopped ? undefined : run.controller.signal,
+        resourceClass:
+          canAllowStopped || input !== undefined
+            ? ('foreground' as const)
+            : ('background' as const),
+      },
     )
     beforeRun()
     return await this.deps.runGit(invocation, cwd, input, beforeRun)
@@ -382,6 +395,8 @@ export class BestOfNRunner {
   }
 
   private disposeOf(entry: RunningAttempt): void {
+    entry.resource?.complete(true)
+    entry.resource = undefined
     const driver = entry.driver
     entry.driver = undefined
     if (driver === undefined) {
@@ -420,64 +435,76 @@ export class BestOfNRunner {
     const { attempt } = entry
     try {
       this.requireCurrent(run)
-      const driver = await this.deps.startAttempt({
-        attemptId: attempt.attemptId,
-        branch: attempt.branch,
-        worktreePath: attempt.worktreePath,
-        prompt: start.prompt,
-        modelId: start.modelId,
-        requestCeilingPerAttempt: start.requestCeilingPerAttempt,
-        approvalMode: start.approvalMode,
-        signal: run.controller.signal,
-        budgetScope: run.budgetScope,
-        noteUsage: (modelId, usage) => {
-          if (
-            this.run === run &&
-            !run.controller.signal.aborted &&
-            run.isCurrent() &&
-            modelId === run.modelId
-          ) {
-            this.deps.noteAttemptUsage?.(modelId, usage)
-          }
-        },
-        admitRequest: Object.assign(
-          (keyDigest: string | undefined) => {
-            this.requireCurrent(run)
-            if (keyDigest === undefined || keyDigest !== run.accountId) {
-              throw new BestOfNError('contextChanged')
-            }
-            if (run.budgetScope?.isStillAllowed(keyDigest) === false)
-              throw new BestOfNError('contextChanged')
-            if (isTerminal(entry.attempt.status) || entry.isCapturing)
-              throw new BestOfNError('attemptNotDone')
-            if (!(entry.attempt.requestsMade >= run.requestCeilingPerAttempt)) {
-              return
-            }
-
-            entry.attempt = { ...entry.attempt, ceilingReached: true }
-            this.publish(run)
-            throw new BestOfNError('attemptNotDone')
-          },
-          {
-            onRequestStarted: () => {
-              this.requireCurrent(run)
-              if (entry.attempt.requestsMade === 0) {
-                this.deps.notePaidUse(1)
+      entry.resource = await admitResource('bestOfN', run.controller.signal, 'background')
+      this.requireCurrent(run)
+      if (isTerminal(entry.attempt.status)) {
+        this.disposeOf(entry)
+        return
+      }
+      const driver = await inResourceClass(
+        'background',
+        async () =>
+          await this.deps.startAttempt({
+            attemptId: attempt.attemptId,
+            branch: attempt.branch,
+            worktreePath: attempt.worktreePath,
+            prompt: start.prompt,
+            modelId: start.modelId,
+            requestCeilingPerAttempt: start.requestCeilingPerAttempt,
+            approvalMode: start.approvalMode,
+            signal: run.controller.signal,
+            budgetScope: run.budgetScope,
+            noteUsage: (modelId, usage) => {
+              if (
+                this.run === run &&
+                !run.controller.signal.aborted &&
+                run.isCurrent() &&
+                modelId === run.modelId
+              ) {
+                this.deps.noteAttemptUsage?.(modelId, usage)
               }
-              entry.attempt = { ...entry.attempt, requestsMade: entry.attempt.requestsMade + 1 }
-              this.deps.noteAttemptRequest?.()
-              this.publish(run)
             },
-          },
-        ),
-        onEvent: (event) => {
-          void this.onAttemptEvent(run, attempt.attemptId, event).catch(() => {
-            this.deps.log.warn('A best-of-N attempt event arrived after its run ended')
-          })
-        },
-      })
+            admitRequest: Object.assign(
+              (keyDigest: string | undefined) => {
+                this.requireCurrent(run)
+                if (keyDigest === undefined || keyDigest !== run.accountId) {
+                  throw new BestOfNError('contextChanged')
+                }
+                if (run.budgetScope?.isStillAllowed(keyDigest) === false)
+                  throw new BestOfNError('contextChanged')
+                if (isTerminal(entry.attempt.status) || entry.isCapturing)
+                  throw new BestOfNError('attemptNotDone')
+                if (!(entry.attempt.requestsMade >= run.requestCeilingPerAttempt)) {
+                  return
+                }
+
+                entry.attempt = { ...entry.attempt, ceilingReached: true }
+                this.publish(run)
+                throw new BestOfNError('attemptNotDone')
+              },
+              {
+                pacingClass: 'bestOfN' as const,
+                onRequestStarted: () => {
+                  this.requireCurrent(run)
+                  if (entry.attempt.requestsMade === 0) {
+                    this.deps.notePaidUse(1)
+                  }
+                  entry.attempt = { ...entry.attempt, requestsMade: entry.attempt.requestsMade + 1 }
+                  this.deps.noteAttemptRequest?.()
+                  this.publish(run)
+                },
+              },
+            ),
+            onEvent: (event) => {
+              void this.onAttemptEvent(run, attempt.attemptId, event).catch(() => {
+                this.deps.log.warn('A best-of-N attempt event arrived after its run ended')
+              })
+            },
+          }),
+      )
       // A cancel may have settled the attempt while the host started it.
       if (isTerminal(entry.attempt.status) || run.controller.signal.aborted) {
+        this.disposeOf(entry)
         try {
           driver.dispose()
         } catch {
@@ -599,7 +626,10 @@ export class BestOfNRunner {
       return false
     }
     try {
-      await driver.continueAttempt(verdict.reason ?? 'kept working by hook')
+      await inResourceClass(
+        'background',
+        async () => await driver.continueAttempt?.(verdict.reason ?? 'kept working by hook'),
+      )
     } catch {
       this.deps.log.warn('A best-of-N attempt could not keep working')
       return false

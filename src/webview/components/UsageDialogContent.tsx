@@ -1,3 +1,5 @@
+import { USD_DECIMAL_ZERO } from '../../shared/usdConstants'
+import { Usd, type UsdAmount } from '../../shared/usd'
 // The Account & Usage modal (M8, rebuilt in D17 after Claude Code's): the
 // account (sign-in method, plan, backend, CLI version, model), the
 // subscription windows Muse Code last observed (the current block and the
@@ -8,22 +10,31 @@
 // usage row, `/usage` and `/cost`; centred over the transcript with the
 // chat dimmed behind it.
 
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
+  MILLISECONDS_PER_SECOND,
   META_DASHBOARD_URL,
   MODEL_API_PRICES_VERIFIED_ON,
   type ModelPricing,
   UI_TEXT,
   USAGE_COUNTDOWN_REFRESH_MS,
 } from '../../shared/constants'
-import { fill, formatPercent, plural, templateParts } from '../../shared/l10n/text'
+import {
+  fill,
+  formatBytes,
+  formatDateTime,
+  formatList,
+  formatPercent,
+  formatTokenWindow,
+  plural,
+  templateParts,
+} from '../../shared/l10n/text'
 import {
   type PaidState,
   listedPaidFeatures,
   usablePaidFeatures,
   modelApiPaidTier,
 } from '../../shared/paid'
-import { formatTokenWindow } from '../../shared/palette'
 import { relativeTime } from '../../shared/sessions'
 import {
   barValue,
@@ -35,10 +46,10 @@ import {
 } from '../../shared/usage'
 import { estimateCostUsd, formatUsd, percentOf } from '../../core/usage/insights'
 import type { TeamUsageSummary } from '../../shared/teamView'
-import type { ContextSummary, UsageReport, UsageSummary } from '../state/uiState'
-import type { UiState } from '../state/uiState'
-import type { SignInMethod, WebviewToHostMessage } from '../../shared/protocol'
-import type { ModelOption } from '../../shared/protocol'
+import type { ContextSummary, UsageReport, UsageSummary, UiState } from '../state/uiState'
+
+import type { SignInMethod, WebviewToHostMessage, ModelOption } from '../../shared/protocol'
+
 const AccountSection = lazy(async () => {
   const module = await import('./UsageProviderSections')
   return { default: module.AccountSection }
@@ -65,10 +76,21 @@ const TeamSection = lazy(async () => {
   return { default: module.TeamSection }
 })
 
+import type { ServiceStatusReader } from './ServiceStatusRow'
+const ServiceStatusRow = lazy(async () => {
+  const module = await import('./ServiceStatusRow')
+  return { default: module.ServiceStatusRow }
+})
+
 export interface UsageDialogProps {
+  readonly readServiceStatus?: ServiceStatusReader
   readonly models?: readonly ModelOption[]
   /** undefined while the host has not answered `readUsage`. */
   readonly report: UsageReport | undefined
+  /** Validated by the host bridge; retained after removal of the account key. */
+  readonly uploadedFiles?: UploadedFilesView
+  readonly onDeleteUploadedFile?: (fileId: string) => void
+  readonly onDeleteAllUploadedFiles?: () => void
   readonly usage: UsageSummary | undefined
   readonly context: ContextSummary | undefined
   /**
@@ -91,9 +113,26 @@ export interface UsageDialogProps {
   /** The chat's existing bridge supplies openUsagePage (editor wiring lane). */
   readonly onOpenUsagePage?: () => void
   readonly onClose: () => void
+  /** The report action loads through its own reporting boundary. */
+  readonly reportAction?: ReactNode
 }
 
 const ROW_META_CLASS = 'usage-row-meta'
+/** The bridge supplies validated metadata; browser types have no Node imports. */
+interface UploadedFilesView {
+  readonly provider: string
+  readonly isReadOnly: boolean
+  readonly poolBytes: number
+  readonly usedBytes: number
+  readonly files: readonly {
+    readonly fileId: string
+    readonly name: string
+    readonly bytes: number
+    readonly expiresAt?: number | undefined
+    readonly ours: boolean
+    readonly sessions: readonly string[]
+  }[]
+}
 
 type InsightWindow = 'day' | 'week'
 
@@ -198,15 +237,19 @@ function contextValueOf(context: ContextSummary | undefined): string | undefined
  */
 function cacheSavings(
   usage: UsageSummary,
-  costUsd: number,
+  costUsd: UsdAmount,
   modelId: string,
-): { readonly amount: number; readonly percent: number } {
+): { readonly amount: UsdAmount; readonly percent: number } {
   const uncached = estimateCostUsd(
     { inputTokens: usage.inputTokens, outputTokens: usage.outputTokens, cachedTokens: 0 },
     modelId,
   )
-  const amount = uncached - costUsd
-  return { amount, percent: uncached > 0 ? percentOf(amount, uncached) : 0 }
+  const amount = Usd.from(uncached).subtract(Usd.from(costUsd)).toAmount()
+  const ratio =
+    Usd.from(uncached).compare(Usd.from(0)) > 0
+      ? Usd.from(amount).times(100).floorDivide(Usd.from(uncached))
+      : USD_DECIMAL_ZERO
+  return { amount, percent: Number(ratio) }
 }
 
 /** Keep absent token facts absent while sharing their number formatting. */
@@ -223,7 +266,7 @@ function TokensSection({
 }: {
   readonly usage: UsageSummary | undefined
   readonly context: ContextSummary | undefined
-  readonly costUsd: number | undefined
+  readonly costUsd: UsdAmount | undefined
   readonly modelId: string | undefined
   /** The current model lost its price card (M95): tokens only, said so. */
   readonly pricing: ModelPricing | undefined
@@ -232,7 +275,7 @@ function TokensSection({
     return <p className={ROW_META_CLASS}>{UI_TEXT.usageNoSession}</p>
   }
   // A local model shows cost 0; an unpriced one counts tokens only (M95).
-  const cost = costUsd ?? (pricing === 'local' ? 0 : undefined)
+  const cost = costUsd ?? (pricing === 'local' ? Usd.from(0).toAmount() : undefined)
   const contextValue = contextValueOf(context)
   const savings =
     usage !== undefined && cost !== undefined && modelId !== undefined && costUsd !== undefined
@@ -359,8 +402,12 @@ function InsightsSection({
 }
 
 export function UsageDialogContent({
+  readServiceStatus,
   models = [],
   report,
+  uploadedFiles,
+  onDeleteUploadedFile,
+  onDeleteAllUploadedFiles,
   usage,
   context,
   team,
@@ -375,6 +422,7 @@ export function UsageDialogContent({
   onOpenExternal,
   onOpenUsagePage,
   onClose,
+  reportAction,
 }: UsageDialogProps) {
   const [confirmInstall, setConfirmInstall] = useState(false)
   const [, setCountdownTick] = useState(0)
@@ -409,6 +457,18 @@ export function UsageDialogContent({
           modelId,
         )
       : undefined
+  const statusReader = useMemo(
+    () =>
+      readServiceStatus ??
+      (report?.backend === 'modelApi'
+        ? () => {
+            if (report.serviceStatus === undefined)
+              throw new Error(UI_TEXT.modelApiStatusUnavailable)
+            return Promise.resolve(report.serviceStatus)
+          }
+        : undefined),
+    [readServiceStatus, report],
+  )
   const paidFeatures = listedPaidFeatures(
     usablePaidFeatures(report?.backend, paid.isKeyStored),
     paid.tally,
@@ -432,6 +492,11 @@ export function UsageDialogContent({
             provider={provider}
           />
         </Suspense>
+        {statusReader === undefined ? null : (
+          <Suspense fallback={<p role="status">{UI_TEXT.usageLoading}</p>}>
+            <ServiceStatusRow read={statusReader} onOpenExternal={onOpenExternal} />
+          </Suspense>
+        )}
         <h3 className="usage-heading">{UI_TEXT.usageHeading}</h3>
         {report.subscription === undefined ? (
           <p className="usage-row-meta">{usageNote}</p>
@@ -504,7 +569,79 @@ export function UsageDialogContent({
       >
         {UI_TEXT.openUsagePage}
       </button>
+      {reportAction}
       {body}
+      {uploadedFiles === undefined ? null : (
+        <section aria-label={UI_TEXT.media.uploadedFiles}>
+          <h3 className="usage-heading">{UI_TEXT.media.uploadedFiles}</h3>
+          <p>
+            {fill(UI_TEXT.media.poolUsage, {
+              used: formatBytes(uploadedFiles.usedBytes),
+              pool: formatBytes(uploadedFiles.poolBytes),
+            })}
+          </p>
+          {uploadedFiles.isReadOnly || !paid.isKeyStored ? (
+            <p role="status">{UI_TEXT.media.filesReadOnly}</p>
+          ) : null}
+          {uploadedFiles.files.length === 0 ? (
+            <p>{UI_TEXT.media.filesEmpty}</p>
+          ) : (
+            <ul className="usage-insights">
+              {uploadedFiles.files.map((file) => (
+                <li key={file.fileId}>
+                  <strong>{file.name}</strong>
+                  <p>{formatBytes(file.bytes)}</p>
+                  <p>{file.ours ? UI_TEXT.media.filesOurs : UI_TEXT.media.filesOtherApp}</p>
+                  <p>
+                    {file.expiresAt === undefined
+                      ? UI_TEXT.media.fileNoExpiry
+                      : fill(UI_TEXT.media.fileExpiry, {
+                          expiry: formatDateTime(file.expiresAt * MILLISECONDS_PER_SECOND),
+                        })}
+                  </p>
+                  {file.sessions.length > 0 ? (
+                    <p>
+                      {fill(UI_TEXT.media.fileSessions, { sessions: formatList(file.sessions) })}
+                    </p>
+                  ) : null}
+                  <button
+                    type="button"
+                    className="usage-link"
+                    aria-label={`${UI_TEXT.memoryDeleteAction}: ${file.name}`}
+                    title={file.sessions.length > 0 ? UI_TEXT.media.filesInUse : undefined}
+                    disabled={
+                      uploadedFiles.isReadOnly ||
+                      !paid.isKeyStored ||
+                      file.sessions.length > 0 ||
+                      onDeleteUploadedFile === undefined
+                    }
+                    onClick={() => {
+                      onDeleteUploadedFile?.(file.fileId)
+                    }}
+                  >
+                    {UI_TEXT.memoryDeleteAction}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <button
+            type="button"
+            className="usage-link"
+            disabled={
+              uploadedFiles.isReadOnly ||
+              !paid.isKeyStored ||
+              onDeleteAllUploadedFiles === undefined ||
+              uploadedFiles.files.every((file) => !file.ours || file.sessions.length > 0)
+            }
+            onClick={() => {
+              onDeleteAllUploadedFiles?.()
+            }}
+          >
+            {UI_TEXT.media.deleteAllOurs}
+          </button>
+        </section>
+      )}
       {auth.status === 'signedIn' ? (
         <div className="usage-setup">
           {auth.hasCli === false ? (
@@ -594,6 +731,7 @@ export function UsageDialogContent({
 
 /** The state-backed App adapter stays with the deferred account surface. */
 export function UsageSurface({
+  reportAction,
   state,
   postMessage,
   onSetupSignIn,
@@ -603,6 +741,7 @@ export function UsageSurface({
 }: {
   readonly state: UiState
   readonly postMessage: (message: WebviewToHostMessage) => void
+  readonly reportAction?: ReactNode
   readonly onSetupSignIn: (method: SignInMethod) => void
   readonly now: () => number
   readonly onOpenExternal: (url: string) => void
@@ -611,6 +750,7 @@ export function UsageSurface({
   return (
     <UsageDialogContent
       auth={state.auth}
+      reportAction={reportAction}
       report={state.usageReport}
       usage={state.usage}
       context={state.context}

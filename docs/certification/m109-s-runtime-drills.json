@@ -1,0 +1,841 @@
+[
+  {
+    "guard": "sign-flags",
+    "file": "src/core/vault/ssh/keys.ts",
+    "command": "npx vitest run test/unit/vault/sshKeys.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshKeys.test.ts > vault SSH keys and RFC 9987 boundary > generates unpooled Ed25519 material, exports only public data and verifies signatures",
+      "FAIL  test/unit/vault/sshKeys.test.ts > vault SSH keys and RFC 9987 boundary > handles P-256 and RSA SHA2; rejects weak or mismatched methods and unknown flags"
+    ],
+    "restoredSha256": "eabaa4b7ac829916fabc0a7208611b88b88555b11926bb2b9ec2303a3a560fca"
+  },
+  {
+    "guard": "signed-data-integrity",
+    "file": "src/core/vault/ssh/keys.ts",
+    "command": "npx vitest run test/unit/vault/sshKeys.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshKeys.test.ts > vault SSH keys and RFC 9987 boundary > generates unpooled Ed25519 material, exports only public data and verifies signatures"
+    ],
+    "restoredSha256": "eabaa4b7ac829916fabc0a7208611b88b88555b11926bb2b9ec2303a3a560fca"
+  },
+  {
+    "guard": "rsa-sha1-refusal",
+    "file": "src/core/vault/ssh/keys.ts",
+    "command": "npx vitest run test/unit/vault/sshKeys.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshKeys.test.ts > vault SSH keys and RFC 9987 boundary > handles P-256 and RSA SHA2; rejects weak or mismatched methods and unknown flags"
+    ],
+    "restoredSha256": "eabaa4b7ac829916fabc0a7208611b88b88555b11926bb2b9ec2303a3a560fca"
+  },
+  {
+    "guard": "unpooled-private-export",
+    "file": "src/core/vault/ssh/keys.ts",
+    "command": "npx vitest run test/unit/vault/sshKeys.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshKeys.test.ts > vault SSH keys and RFC 9987 boundary > generates unpooled Ed25519 material, exports only public data and verifies signatures"
+    ],
+    "restoredSha256": "eabaa4b7ac829916fabc0a7208611b88b88555b11926bb2b9ec2303a3a560fca"
+  },
+  {
+    "guard": "openssh-public-private-match",
+    "file": "src/core/vault/ssh/keys.ts",
+    "command": "npx vitest run test/unit/vault/sshImport.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshImport.test.ts > generated OpenSSH key files > refuses corrupt padding, checkints, public keys, cipher and trailing file data"
+    ],
+    "restoredSha256": "eabaa4b7ac829916fabc0a7208611b88b88555b11926bb2b9ec2303a3a560fca"
+  },
+  {
+    "guard": "openssh-checkints",
+    "file": "src/core/vault/ssh/openSshFile.ts",
+    "command": "npx vitest run test/unit/vault/sshImport.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshImport.test.ts > generated OpenSSH key files > refuses corrupt padding, checkints, public keys, cipher and trailing file data"
+    ],
+    "restoredSha256": "1404e9df96c3cf6e923fa19c125e0ab45b3771a9dd36a1203057c489562f471e"
+  },
+  {
+    "guard": "openssh-padding",
+    "file": "src/core/vault/ssh/openSshFile.ts",
+    "command": "npx vitest run test/unit/vault/sshImport.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshImport.test.ts > generated OpenSSH key files > refuses corrupt padding, checkints, public keys, cipher and trailing file data"
+    ],
+    "restoredSha256": "1404e9df96c3cf6e923fa19c125e0ab45b3771a9dd36a1203057c489562f471e"
+  },
+  {
+    "guard": "openssh-cipher",
+    "file": "src/core/vault/ssh/openSshFile.ts",
+    "command": "npx vitest run test/unit/vault/sshImport.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshImport.test.ts > generated OpenSSH key files > refuses corrupt padding, checkints, public keys, cipher and trailing file data"
+    ],
+    "restoredSha256": "1404e9df96c3cf6e923fa19c125e0ab45b3771a9dd36a1203057c489562f471e"
+  },
+  {
+    "guard": "known-host-key",
+    "file": "src/core/vault/ssh/knownHosts.ts",
+    "command": "npx vitest run test/unit/vault/sshKeys.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshKeys.test.ts > vault SSH keys and RFC 9987 boundary > matches literal, hashed and wildcard known_hosts; revocation, negation, aliases and wrong keys fail closed"
+    ],
+    "restoredSha256": "eb9db88f1c18f667f57fc44b1497bf4416c2059c62683109fa0e85728fc2612e"
+  },
+  {
+    "guard": "known-host-revoked",
+    "file": "src/core/vault/ssh/knownHosts.ts",
+    "command": "npx vitest run test/unit/vault/sshKeys.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshKeys.test.ts > vault SSH keys and RFC 9987 boundary > matches literal, hashed and wildcard known_hosts; revocation, negation, aliases and wrong keys fail closed"
+    ],
+    "restoredSha256": "eb9db88f1c18f667f57fc44b1497bf4416c2059c62683109fa0e85728fc2612e"
+  },
+  {
+    "guard": "known-host-negation",
+    "file": "src/core/vault/ssh/knownHosts.ts",
+    "command": "npx vitest run test/unit/vault/sshKeys.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshKeys.test.ts > vault SSH keys and RFC 9987 boundary > matches literal, hashed and wildcard known_hosts; revocation, negation, aliases and wrong keys fail closed"
+    ],
+    "restoredSha256": "eb9db88f1c18f667f57fc44b1497bf4416c2059c62683109fa0e85728fc2612e"
+  },
+  {
+    "guard": "known-host-ambiguity",
+    "file": "src/core/vault/ssh/knownHosts.ts",
+    "command": "npx vitest run test/unit/vault/sshKeys.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshKeys.test.ts > vault SSH keys and RFC 9987 boundary > matches literal, hashed and wildcard known_hosts; revocation, negation, aliases and wrong keys fail closed"
+    ],
+    "restoredSha256": "eb9db88f1c18f667f57fc44b1497bf4416c2059c62683109fa0e85728fc2612e"
+  },
+  {
+    "guard": "known-host-hash",
+    "file": "src/core/vault/ssh/knownHosts.ts",
+    "command": "npx vitest run test/unit/vault/sshKeys.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshKeys.test.ts > vault SSH keys and RFC 9987 boundary > matches literal, hashed and wildcard known_hosts; revocation, negation, aliases and wrong keys fail closed"
+    ],
+    "restoredSha256": "eb9db88f1c18f667f57fc44b1497bf4416c2059c62683109fa0e85728fc2612e"
+  },
+  {
+    "guard": "wire-trailing-data",
+    "file": "src/core/vault/ssh/wire.ts",
+    "command": "npx vitest run test/unit/vault/sshKeys.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshKeys.test.ts > vault SSH keys and RFC 9987 boundary > parses fragmented/coalesced frames, bounds lengths, rejects trailing and malformed fields"
+    ],
+    "restoredSha256": "6f001b973e5084e6c4f7385c5898f05bc8ce85b944da41e02ecf09642fc985e1"
+  },
+  {
+    "guard": "wire-zero-length",
+    "file": "src/core/vault/ssh/wire.ts",
+    "command": "npx vitest run test/unit/vault/sshKeys.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshKeys.test.ts > vault SSH keys and RFC 9987 boundary > parses fragmented/coalesced frames, bounds lengths, rejects trailing and malformed fields"
+    ],
+    "restoredSha256": "6f001b973e5084e6c4f7385c5898f05bc8ce85b944da41e02ecf09642fc985e1"
+  },
+  {
+    "guard": "wire-boolean",
+    "file": "src/core/vault/ssh/wire.ts",
+    "command": "npx vitest run test/unit/vault/sshKeys.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshKeys.test.ts > vault SSH keys and RFC 9987 boundary > erases borrowed frames and rejects noncanonical booleans and text"
+    ],
+    "restoredSha256": "6f001b973e5084e6c4f7385c5898f05bc8ce85b944da41e02ecf09642fc985e1"
+  },
+  {
+    "guard": "wire-text",
+    "file": "src/core/vault/ssh/wire.ts",
+    "command": "npx vitest run test/unit/vault/sshKeys.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshKeys.test.ts > vault SSH keys and RFC 9987 boundary > erases borrowed frames and rejects noncanonical booleans and text"
+    ],
+    "restoredSha256": "6f001b973e5084e6c4f7385c5898f05bc8ce85b944da41e02ecf09642fc985e1"
+  },
+  {
+    "guard": "frame-erasure",
+    "file": "src/core/vault/ssh/wire.ts",
+    "command": "npx vitest run test/unit/vault/sshKeys.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshKeys.test.ts > vault SSH keys and RFC 9987 boundary > erases borrowed frames and rejects noncanonical booleans and text"
+    ],
+    "restoredSha256": "6f001b973e5084e6c4f7385c5898f05bc8ce85b944da41e02ecf09642fc985e1"
+  },
+  {
+    "guard": "frame-close",
+    "file": "src/core/vault/ssh/wire.ts",
+    "command": "npx vitest run test/unit/vault/sshKeys.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshKeys.test.ts > vault SSH keys and RFC 9987 boundary > erases borrowed frames and rejects noncanonical booleans and text"
+    ],
+    "restoredSha256": "6f001b973e5084e6c4f7385c5898f05bc8ce85b944da41e02ecf09642fc985e1"
+  },
+  {
+    "guard": "bind-signature",
+    "file": "src/core/vault/ssh/session.ts",
+    "command": "npx vitest run test/unit/vault/sshAgent.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshAgent.test.ts > vault SSH agent destination proofs > refuses host spoofing and corrupt session-bind before authorization"
+    ],
+    "restoredSha256": "9629b7874f58e913f02e901acba335176e5936c208b488089dc92f346e43d140"
+  },
+  {
+    "guard": "bind-known-host",
+    "file": "src/core/vault/ssh/session.ts",
+    "command": "npx vitest run test/unit/vault/sshAgent.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshAgent.test.ts > vault SSH agent destination proofs > refuses a valid but unknown host bind and a duplicate forwarding session"
+    ],
+    "restoredSha256": "9629b7874f58e913f02e901acba335176e5936c208b488089dc92f346e43d140"
+  },
+  {
+    "guard": "bind-replay",
+    "file": "src/core/vault/ssh/session.ts",
+    "command": "npx vitest run test/unit/vault/sshAgent.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshAgent.test.ts > vault SSH agent destination proofs > refuses a valid but unknown host bind and a duplicate forwarding session"
+    ],
+    "restoredSha256": "9629b7874f58e913f02e901acba335176e5936c208b488089dc92f346e43d140"
+  },
+  {
+    "guard": "bind-auth-rebind",
+    "file": "src/core/vault/ssh/session.ts",
+    "command": "npx vitest run test/unit/vault/sshAgent.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshAgent.test.ts > vault SSH agent destination proofs > rejects duplicate binding, authentication rebinding and changed session/key/method"
+    ],
+    "restoredSha256": "9629b7874f58e913f02e901acba335176e5936c208b488089dc92f346e43d140"
+  },
+  {
+    "guard": "userauth-packet",
+    "file": "src/core/vault/ssh/session.ts",
+    "command": "npx vitest run test/unit/vault/sshAgent.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshAgent.test.ts > vault SSH agent destination proofs > rejects wrong service, method, algorithm and an unsigned authentication probe"
+    ],
+    "restoredSha256": "9629b7874f58e913f02e901acba335176e5936c208b488089dc92f346e43d140"
+  },
+  {
+    "guard": "userauth-service",
+    "file": "src/core/vault/ssh/session.ts",
+    "command": "npx vitest run test/unit/vault/sshAgent.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshAgent.test.ts > vault SSH agent destination proofs > rejects wrong service, method, algorithm and an unsigned authentication probe"
+    ],
+    "restoredSha256": "9629b7874f58e913f02e901acba335176e5936c208b488089dc92f346e43d140"
+  },
+  {
+    "guard": "userauth-method",
+    "file": "src/core/vault/ssh/session.ts",
+    "command": "npx vitest run test/unit/vault/sshAgent.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshAgent.test.ts > vault SSH agent destination proofs > rejects wrong service, method, algorithm and an unsigned authentication probe"
+    ],
+    "restoredSha256": "9629b7874f58e913f02e901acba335176e5936c208b488089dc92f346e43d140"
+  },
+  {
+    "guard": "userauth-signed",
+    "file": "src/core/vault/ssh/session.ts",
+    "command": "npx vitest run test/unit/vault/sshAgent.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshAgent.test.ts > vault SSH agent destination proofs > rejects wrong service, method, algorithm and an unsigned authentication probe"
+    ],
+    "restoredSha256": "9629b7874f58e913f02e901acba335176e5936c208b488089dc92f346e43d140"
+  },
+  {
+    "guard": "userauth-algorithm",
+    "file": "src/core/vault/ssh/session.ts",
+    "command": "npx vitest run test/unit/vault/sshAgent.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshAgent.test.ts > vault SSH agent destination proofs > rejects wrong service, method, algorithm and an unsigned authentication probe"
+    ],
+    "restoredSha256": "9629b7874f58e913f02e901acba335176e5936c208b488089dc92f346e43d140"
+  },
+  {
+    "guard": "userauth-client-key",
+    "file": "src/core/vault/ssh/session.ts",
+    "command": "npx vitest run test/unit/vault/sshAgent.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshAgent.test.ts > vault SSH agent destination proofs > rejects duplicate binding, authentication rebinding and changed session/key/method"
+    ],
+    "restoredSha256": "9629b7874f58e913f02e901acba335176e5936c208b488089dc92f346e43d140"
+  },
+  {
+    "guard": "userauth-hostbound-key",
+    "file": "src/core/vault/ssh/session.ts",
+    "command": "npx vitest run test/unit/vault/sshAgent.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshAgent.test.ts > vault SSH agent destination proofs > parses hostbound authentication and rejects a different embedded host key"
+    ],
+    "restoredSha256": "9629b7874f58e913f02e901acba335176e5936c208b488089dc92f346e43d140"
+  },
+  {
+    "guard": "userauth-session",
+    "file": "src/core/vault/ssh/session.ts",
+    "command": "npx vitest run test/unit/vault/sshAgent.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshAgent.test.ts > vault SSH agent destination proofs > rejects duplicate binding, authentication rebinding and changed session/key/method"
+    ],
+    "restoredSha256": "9629b7874f58e913f02e901acba335176e5936c208b488089dc92f346e43d140"
+  },
+  {
+    "guard": "forwarding-only-hop",
+    "file": "src/core/vault/ssh/session.ts",
+    "command": "npx vitest run test/unit/vault/sshAgent.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshAgent.test.ts > vault SSH agent destination proofs > marks a forwarding chain and never signs at a forwarding-only hop"
+    ],
+    "restoredSha256": "9629b7874f58e913f02e901acba335176e5936c208b488089dc92f346e43d140"
+  },
+  {
+    "guard": "forwarding-target",
+    "file": "src/core/vault/ssh/session.ts",
+    "command": "npx vitest run test/unit/vault/sshAgent.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshAgent.test.ts > vault SSH agent destination proofs > marks a forwarding chain and never signs at a forwarding-only hop"
+    ],
+    "restoredSha256": "9629b7874f58e913f02e901acba335176e5936c208b488089dc92f346e43d140"
+  },
+  {
+    "guard": "sign-known-host-reread",
+    "file": "src/core/vault/ssh/session.ts",
+    "command": "npx vitest run test/unit/vault/sshAgent.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshAgent.test.ts > vault SSH agent destination proofs > refuses unknown/revoked known_hosts and rechecks it at signing"
+    ],
+    "restoredSha256": "9629b7874f58e913f02e901acba335176e5936c208b488089dc92f346e43d140"
+  },
+  {
+    "guard": "sshsig-namespace",
+    "file": "src/core/vault/ssh/session.ts",
+    "command": "npx vitest run test/unit/vault/sshAgent.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshAgent.test.ts > vault SSH agent destination proofs > accepts only the separate git SSHSIG namespace and valid hash lengths"
+    ],
+    "restoredSha256": "9629b7874f58e913f02e901acba335176e5936c208b488089dc92f346e43d140"
+  },
+  {
+    "guard": "sshsig-hash",
+    "file": "src/core/vault/ssh/session.ts",
+    "command": "npx vitest run test/unit/vault/sshAgent.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshAgent.test.ts > vault SSH agent destination proofs > accepts only the separate git SSHSIG namespace and valid hash lengths"
+    ],
+    "restoredSha256": "9629b7874f58e913f02e901acba335176e5936c208b488089dc92f346e43d140"
+  },
+  {
+    "guard": "sshsig-length",
+    "file": "src/core/vault/ssh/session.ts",
+    "command": "npx vitest run test/unit/vault/sshAgent.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshAgent.test.ts > vault SSH agent destination proofs > accepts only the separate git SSHSIG namespace and valid hash lengths"
+    ],
+    "restoredSha256": "9629b7874f58e913f02e901acba335176e5936c208b488089dc92f346e43d140"
+  },
+  {
+    "guard": "sshsig-binding-separation",
+    "file": "src/core/vault/ssh/session.ts",
+    "command": "npx vitest run test/unit/vault/sshAgent.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshAgent.test.ts > vault SSH agent destination proofs > accepts only the separate git SSHSIG namespace and valid hash lengths"
+    ],
+    "restoredSha256": "9629b7874f58e913f02e901acba335176e5936c208b488089dc92f346e43d140"
+  },
+  {
+    "guard": "session-generation",
+    "file": "src/core/vault/ssh/session.ts",
+    "command": "npx vitest run test/unit/vault/sshAgent.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshAgent.test.ts > vault SSH agent destination proofs > closes at the queued-byte bound and rejects a late identity lookup after close",
+      "FAIL  test/unit/vault/sshAgent.test.ts > vault SSH agent destination proofs > never releases a late signature after revocation or connection close"
+    ],
+    "restoredSha256": "9629b7874f58e913f02e901acba335176e5936c208b488089dc92f346e43d140"
+  },
+  {
+    "guard": "session-queued-bound",
+    "file": "src/core/vault/ssh/session.ts",
+    "command": "npx vitest run test/unit/vault/sshAgent.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshAgent.test.ts > vault SSH agent destination proofs > closes at the queued-byte bound and rejects a late identity lookup after close"
+    ],
+    "restoredSha256": "9629b7874f58e913f02e901acba335176e5936c208b488089dc92f346e43d140"
+  },
+  {
+    "guard": "session-close-byte-wipe",
+    "file": "src/core/vault/ssh/session.ts",
+    "command": "npx vitest run test/unit/vault/sshAgent.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshAgent.test.ts > vault SSH agent destination proofs > never releases a late signature after revocation or connection close"
+    ],
+    "restoredSha256": "9629b7874f58e913f02e901acba335176e5936c208b488089dc92f346e43d140"
+  },
+  {
+    "guard": "session-identity-hidden",
+    "file": "src/core/vault/ssh/session.ts",
+    "command": "npx vitest run test/unit/vault/sshAgent.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshAgent.test.ts > vault SSH agent destination proofs > hides hidden/first-party/Never keys, rejects invalid signatures and refuses agent mutation commands"
+    ],
+    "restoredSha256": "9629b7874f58e913f02e901acba335176e5936c208b488089dc92f346e43d140"
+  },
+  {
+    "guard": "session-identity-never",
+    "file": "src/core/vault/ssh/session.ts",
+    "command": "npx vitest run test/unit/vault/sshAgent.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshAgent.test.ts > vault SSH agent destination proofs > hides hidden/first-party/Never keys, rejects invalid signatures and refuses agent mutation commands"
+    ],
+    "restoredSha256": "9629b7874f58e913f02e901acba335176e5936c208b488089dc92f346e43d140"
+  },
+  {
+    "guard": "signature-release-verification",
+    "file": "src/core/vault/ssh/session.ts",
+    "command": "npx vitest run test/unit/vault/sshAgent.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshAgent.test.ts > vault SSH agent destination proofs > hides hidden/first-party/Never keys, rejects invalid signatures and refuses agent mutation commands"
+    ],
+    "restoredSha256": "9629b7874f58e913f02e901acba335176e5936c208b488089dc92f346e43d140"
+  },
+  {
+    "guard": "broker-taint-cancellation",
+    "file": "src/core/vault/ssh/brokerAccess.ts",
+    "command": "npx vitest run test/unit/vault/sshBroker.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshBroker.test.ts > SSH access through the real vault broker > a cancelled taint lookup never mints a request or acquires key material"
+    ],
+    "restoredSha256": "1434e8b6a1db4d21f802a3e9490a2743f9e374adb1641632103bf4c922a9a230"
+  },
+  {
+    "guard": "broker-unknown-forward-grant",
+    "file": "src/core/vault/ssh/brokerAccess.ts",
+    "command": "npx vitest run test/unit/vault/sshBroker.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshBroker.test.ts > SSH access through the real vault broker > requires a grant for unproven destinations and forwarding even after an Allow once answer"
+    ],
+    "restoredSha256": "1434e8b6a1db4d21f802a3e9490a2743f9e374adb1641632103bf4c922a9a230"
+  },
+  {
+    "guard": "broker-ticket-digest",
+    "file": "src/core/vault/ssh/brokerAccess.ts",
+    "command": "npx vitest run test/unit/vault/sshBroker.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshBroker.test.ts > SSH access through the real vault broker > refuses substituted approval tickets and finishes their broker operations as denied"
+    ],
+    "restoredSha256": "1434e8b6a1db4d21f802a3e9490a2743f9e374adb1641632103bf4c922a9a230"
+  },
+  {
+    "guard": "broker-ticket-requester",
+    "file": "src/core/vault/ssh/brokerAccess.ts",
+    "command": "npx vitest run test/unit/vault/sshBroker.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshBroker.test.ts > SSH access through the real vault broker > refuses substituted approval tickets and finishes their broker operations as denied"
+    ],
+    "restoredSha256": "1434e8b6a1db4d21f802a3e9490a2743f9e374adb1641632103bf4c922a9a230"
+  },
+  {
+    "guard": "broker-ticket-item",
+    "file": "src/core/vault/ssh/brokerAccess.ts",
+    "command": "npx vitest run test/unit/vault/sshBroker.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshBroker.test.ts > SSH access through the real vault broker > refuses substituted approval tickets and finishes their broker operations as denied"
+    ],
+    "restoredSha256": "1434e8b6a1db4d21f802a3e9490a2743f9e374adb1641632103bf4c922a9a230"
+  },
+  {
+    "guard": "broker-refused-ticket-finish",
+    "file": "src/core/vault/ssh/brokerAccess.ts",
+    "command": "npx vitest run test/unit/vault/sshBroker.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshBroker.test.ts > SSH access through the real vault broker > refuses substituted approval tickets and finishes their broker operations as denied"
+    ],
+    "restoredSha256": "1434e8b6a1db4d21f802a3e9490a2743f9e374adb1641632103bf4c922a9a230"
+  },
+  {
+    "guard": "broker-late-effect-cancellation",
+    "file": "src/core/vault/ssh/brokerAccess.ts",
+    "command": "npx vitest run test/unit/vault/sshBroker.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshBroker.test.ts > SSH access through the real vault broker > a cancelled taint lookup never mints a request or acquires key material"
+    ],
+    "restoredSha256": "1434e8b6a1db4d21f802a3e9490a2743f9e374adb1641632103bf4c922a9a230"
+  },
+  {
+    "guard": "broker-signature-erasure",
+    "file": "src/core/vault/ssh/brokerAccess.ts",
+    "command": "npx vitest run test/unit/vault/sshBroker.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshBroker.test.ts > SSH access through the real vault broker > fronts an external key through the same authorization and wipes the upstream signature",
+      "FAIL  test/unit/vault/sshBroker.test.ts > SSH access through the real vault broker > signs with hardware through P and refuses/wipes a valid signature completing after lock"
+    ],
+    "restoredSha256": "1434e8b6a1db4d21f802a3e9490a2743f9e374adb1641632103bf4c922a9a230"
+  },
+  {
+    "guard": "requester-invalidation",
+    "file": "src/core/vault/ssh/brokerAccess.ts",
+    "command": "npx vitest run test/unit/vault/sshBroker.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshBroker.test.ts > SSH access through the real vault broker > revocation closes the current requester, terminates its pinned peer and blocks the next signature"
+    ],
+    "restoredSha256": "1434e8b6a1db4d21f802a3e9490a2743f9e374adb1641632103bf4c922a9a230"
+  },
+  {
+    "guard": "hardware-curve",
+    "file": "src/core/vault/ssh/hardwareKey.ts",
+    "command": "npx vitest run test/unit/vault/sshBroker.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshBroker.test.ts > SSH access through the real vault broker > hardware generation rejects non-P256 and disposes a late/cancelled reference"
+    ],
+    "restoredSha256": "43418ddf0ee5afef98fb6ab4e9e37c148d4b0ad7339ab7cd23cf840158493693"
+  },
+  {
+    "guard": "hardware-active-generation",
+    "file": "src/core/vault/ssh/hardwareKey.ts",
+    "command": "npx vitest run test/unit/vault/sshBroker.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshBroker.test.ts > SSH access through the real vault broker > hardware generation rejects non-P256 and disposes a late/cancelled reference",
+      "FAIL  test/unit/vault/sshBroker.test.ts > SSH access through the real vault broker > returns a P256 hardware reference and destroys a valid late acquisition after cancellation"
+    ],
+    "restoredSha256": "43418ddf0ee5afef98fb6ab4e9e37c148d4b0ad7339ab7cd23cf840158493693"
+  },
+  {
+    "guard": "hardware-failed-reference-destroy",
+    "file": "src/core/vault/ssh/hardwareKey.ts",
+    "command": "npx vitest run test/unit/vault/sshBroker.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshBroker.test.ts > SSH access through the real vault broker > hardware generation rejects non-P256 and disposes a late/cancelled reference",
+      "FAIL  test/unit/vault/sshBroker.test.ts > SSH access through the real vault broker > returns a P256 hardware reference and destroys a valid late acquisition after cancellation"
+    ],
+    "restoredSha256": "43418ddf0ee5afef98fb6ab4e9e37c148d4b0ad7339ab7cd23cf840158493693"
+  },
+  {
+    "guard": "endpoint-platform-port",
+    "file": "src/core/vault/ssh/endpoint.ts",
+    "command": "npx vitest run test/unit/vault/sshTransport.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshTransport.test.ts > SSH requester endpoints and external agents > makes isolated Unix sockets and private Windows pipes and pins Windows OpenSSH for git"
+    ],
+    "restoredSha256": "4f562d55037ce15be8791a3a40f075a58d4e4c23052199f97d57612130ebf007"
+  },
+  {
+    "guard": "unix-socket-mode",
+    "file": "src/core/vault/ssh/endpoint.ts",
+    "command": "npx vitest run test/unit/vault/sshTransport.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshTransport.test.ts > SSH requester endpoints and external agents > uses an owner-only Unix socket and refuses to replace an existing address"
+    ],
+    "restoredSha256": "4f562d55037ce15be8791a3a40f075a58d4e4c23052199f97d57612130ebf007"
+  },
+  {
+    "guard": "endpoint-late-peer",
+    "file": "src/core/vault/ssh/endpoint.ts",
+    "command": "npx vitest run test/unit/vault/sshTransport.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshTransport.test.ts > SSH requester endpoints and external agents > destroys sockets and cancels peer lookups when listener setup fails after accepting",
+      "FAIL  test/unit/vault/sshTransport.test.ts > SSH requester endpoints and external agents > connection close during peer lookup refuses the late access and endpoint close owns every socket"
+    ],
+    "restoredSha256": "4f562d55037ce15be8791a3a40f075a58d4e4c23052199f97d57612130ebf007"
+  },
+  {
+    "guard": "endpoint-setup-failure-cleanup",
+    "file": "src/core/vault/ssh/endpoint.ts",
+    "command": "npx vitest run test/unit/vault/sshTransport.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshTransport.test.ts > SSH requester endpoints and external agents > destroys sockets and cancels peer lookups when listener setup fails after accepting"
+    ],
+    "restoredSha256": "4f562d55037ce15be8791a3a40f075a58d4e4c23052199f97d57612130ebf007"
+  },
+  {
+    "guard": "windows-system-pipe-env",
+    "file": "src/core/vault/ssh/endpoint.ts",
+    "command": "npx vitest run test/unit/vault/sshTransport.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshTransport.test.ts > SSH requester endpoints and external agents > makes isolated Unix sockets and private Windows pipes and pins Windows OpenSSH for git"
+    ],
+    "restoredSha256": "4f562d55037ce15be8791a3a40f075a58d4e4c23052199f97d57612130ebf007"
+  },
+  {
+    "guard": "windows-path-quoting",
+    "file": "src/core/vault/ssh/endpoint.ts",
+    "command": "npx vitest run test/unit/vault/sshTransport.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshTransport.test.ts > SSH requester endpoints and external agents > makes isolated Unix sockets and private Windows pipes and pins Windows OpenSSH for git"
+    ],
+    "restoredSha256": "4f562d55037ce15be8791a3a40f075a58d4e4c23052199f97d57612130ebf007"
+  },
+  {
+    "guard": "upstream-system-pipe",
+    "file": "src/core/vault/ssh/externalAgent.ts",
+    "command": "npx vitest run test/unit/vault/sshTransport.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshTransport.test.ts > SSH requester endpoints and external agents > refuses malformed identity replies, failed upstream binding and invalid upstream signatures"
+    ],
+    "restoredSha256": "dad41894f72fa638dadc4f8e581dee6c0445e942ede3efed0f7da3278180a2bb"
+  },
+  {
+    "guard": "upstream-metadata-fingerprint",
+    "file": "src/core/vault/ssh/externalAgent.ts",
+    "command": "npx vitest run test/unit/vault/sshTransport.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshTransport.test.ts > SSH requester endpoints and external agents > validates every returned external public key against its metadata"
+    ],
+    "restoredSha256": "dad41894f72fa638dadc4f8e581dee6c0445e942ede3efed0f7da3278180a2bb"
+  },
+  {
+    "guard": "upstream-bind-response",
+    "file": "src/core/vault/ssh/externalAgent.ts",
+    "command": "npx vitest run test/unit/vault/sshTransport.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshTransport.test.ts > SSH requester endpoints and external agents > refuses a failed upstream bind even when that agent would return a valid signature"
+    ],
+    "restoredSha256": "dad41894f72fa638dadc4f8e581dee6c0445e942ede3efed0f7da3278180a2bb"
+  },
+  {
+    "guard": "upstream-signature",
+    "file": "src/core/vault/ssh/externalAgent.ts",
+    "command": "npx vitest run test/unit/vault/sshTransport.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshTransport.test.ts > SSH requester endpoints and external agents > refuses malformed identity replies, failed upstream binding and invalid upstream signatures"
+    ],
+    "restoredSha256": "dad41894f72fa638dadc4f8e581dee6c0445e942ede3efed0f7da3278180a2bb"
+  },
+  {
+    "guard": "upstream-response-erasure",
+    "file": "src/core/vault/ssh/externalAgent.ts",
+    "command": "npx vitest run test/unit/vault/sshTransport.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshTransport.test.ts > SSH requester endpoints and external agents > fronts only reviewed identities, replays verified binds upstream and validates/erases replies"
+    ],
+    "restoredSha256": "dad41894f72fa638dadc4f8e581dee6c0445e942ede3efed0f7da3278180a2bb"
+  },
+  {
+    "guard": "upstream-close",
+    "file": "src/core/vault/ssh/externalAgent.ts",
+    "command": "npx vitest run test/unit/vault/sshTransport.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshTransport.test.ts > SSH requester endpoints and external agents > fronts only reviewed identities, replays verified binds upstream and validates/erases replies",
+      "FAIL  test/unit/vault/sshTransport.test.ts > SSH requester endpoints and external agents > refuses malformed identity replies, failed upstream binding and invalid upstream signatures",
+      "FAIL  test/unit/vault/sshTransport.test.ts > SSH requester endpoints and external agents > refuses a failed upstream bind even when that agent would return a valid signature"
+    ],
+    "restoredSha256": "dad41894f72fa638dadc4f8e581dee6c0445e942ede3efed0f7da3278180a2bb"
+  },
+  {
+    "guard": "upstream-request-serialization",
+    "file": "src/core/vault/ssh/externalAgent.ts",
+    "command": "npx vitest run test/unit/vault/sshConnection.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshConnection.test.ts > SSH external agent connection ownership > authenticates the selected server, serializes replies and preserves the owned reply across framing wipe"
+    ],
+    "restoredSha256": "dad41894f72fa638dadc4f8e581dee6c0445e942ede3efed0f7da3278180a2bb"
+  },
+  {
+    "guard": "upstream-late-peer-proof",
+    "file": "src/core/vault/ssh/externalAgent.ts",
+    "command": "npx vitest run test/unit/vault/sshConnection.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshConnection.test.ts > SSH external agent connection ownership > refuses an already aborted dial, a rejected or late server proof and an interrupted connection"
+    ],
+    "restoredSha256": "dad41894f72fa638dadc4f8e581dee6c0445e942ede3efed0f7da3278180a2bb"
+  },
+  {
+    "guard": "upstream-abort",
+    "file": "src/core/vault/ssh/externalAgent.ts",
+    "command": "npx vitest run test/unit/vault/sshConnection.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshConnection.test.ts > SSH external agent connection ownership > rejects an unsolicited reply and rejects a pending request when aborted",
+      "FAIL  test/unit/vault/sshConnection.test.ts > SSH external agent connection ownership > refuses an already aborted dial, a rejected or late server proof and an interrupted connection"
+    ],
+    "restoredSha256": "dad41894f72fa638dadc4f8e581dee6c0445e942ede3efed0f7da3278180a2bb"
+  },
+  {
+    "guard": "upstream-time-bound",
+    "file": "src/core/vault/ssh/externalAgent.ts",
+    "command": "npx vitest run test/unit/vault/sshConnection.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshConnection.test.ts > SSH external agent connection ownership > bounds a silent upstream request by the approval lifetime"
+    ],
+    "restoredSha256": "dad41894f72fa638dadc4f8e581dee6c0445e942ede3efed0f7da3278180a2bb"
+  },
+  {
+    "guard": "upstream-unsolicited-reply",
+    "file": "src/core/vault/ssh/externalAgent.ts",
+    "command": "npx vitest run test/unit/vault/sshConnection.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshConnection.test.ts > SSH external agent connection ownership > rejects an unsolicited reply and rejects a pending request when aborted"
+    ],
+    "restoredSha256": "dad41894f72fa638dadc4f8e581dee6c0445e942ede3efed0f7da3278180a2bb"
+  },
+  {
+    "guard": "sign-private-public-match",
+    "file": "src/core/vault/ssh/keys.ts",
+    "command": "npx vitest run test/unit/vault/sshKeys.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshKeys.test.ts > vault SSH keys and RFC 9987 boundary > generates unpooled Ed25519 material, exports only public data and verifies signatures"
+    ],
+    "restoredSha256": "eabaa4b7ac829916fabc0a7208611b88b88555b11926bb2b9ec2303a3a560fca"
+  },
+  {
+    "guard": "private-file-size",
+    "file": "src/core/vault/ssh/keys.ts",
+    "command": "npx vitest run test/unit/vault/sshKeys.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshKeys.test.ts > vault SSH keys and RFC 9987 boundary > bounds selected private-key files and known_hosts before decoding them"
+    ],
+    "restoredSha256": "eabaa4b7ac829916fabc0a7208611b88b88555b11926bb2b9ec2303a3a560fca"
+  },
+  {
+    "guard": "known-host-file-size",
+    "file": "src/core/vault/ssh/knownHosts.ts",
+    "command": "npx vitest run test/unit/vault/sshKeys.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshKeys.test.ts > vault SSH keys and RFC 9987 boundary > bounds selected private-key files and known_hosts before decoding them"
+    ],
+    "restoredSha256": "eb9db88f1c18f667f57fc44b1497bf4416c2059c62683109fa0e85728fc2612e"
+  },
+  {
+    "guard": "frame-upper-bound",
+    "file": "src/core/vault/ssh/wire.ts",
+    "command": "npx vitest run test/unit/vault/sshKeys.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshKeys.test.ts > vault SSH keys and RFC 9987 boundary > parses fragmented/coalesced frames, bounds lengths, rejects trailing and malformed fields"
+    ],
+    "restoredSha256": "6f001b973e5084e6c4f7385c5898f05bc8ce85b944da41e02ecf09642fc985e1"
+  },
+  {
+    "guard": "bind-chain-bound",
+    "file": "src/core/vault/ssh/session.ts",
+    "command": "npx vitest run test/unit/vault/sshAgent.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshAgent.test.ts > vault SSH agent destination proofs > bounds bind chains and session ids and validates listed identity metadata"
+    ],
+    "restoredSha256": "9629b7874f58e913f02e901acba335176e5936c208b488089dc92f346e43d140"
+  },
+  {
+    "guard": "bind-empty-session",
+    "file": "src/core/vault/ssh/session.ts",
+    "command": "npx vitest run test/unit/vault/sshAgent.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshAgent.test.ts > vault SSH agent destination proofs > bounds bind chains and session ids and validates listed identity metadata"
+    ],
+    "restoredSha256": "9629b7874f58e913f02e901acba335176e5936c208b488089dc92f346e43d140"
+  },
+  {
+    "guard": "bind-session-bound",
+    "file": "src/core/vault/ssh/session.ts",
+    "command": "npx vitest run test/unit/vault/sshAgent.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshAgent.test.ts > vault SSH agent destination proofs > bounds bind chains and session ids and validates listed identity metadata"
+    ],
+    "restoredSha256": "9629b7874f58e913f02e901acba335176e5936c208b488089dc92f346e43d140"
+  },
+  {
+    "guard": "identity-count-bound",
+    "file": "src/core/vault/ssh/session.ts",
+    "command": "npx vitest run test/unit/vault/sshAgent.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshAgent.test.ts > vault SSH agent destination proofs > bounds bind chains and session ids and validates listed identity metadata"
+    ],
+    "restoredSha256": "9629b7874f58e913f02e901acba335176e5936c208b488089dc92f346e43d140"
+  },
+  {
+    "guard": "identity-fingerprint",
+    "file": "src/core/vault/ssh/session.ts",
+    "command": "npx vitest run test/unit/vault/sshAgent.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshAgent.test.ts > vault SSH agent destination proofs > bounds bind chains and session ids and validates listed identity metadata"
+    ],
+    "restoredSha256": "9629b7874f58e913f02e901acba335176e5936c208b488089dc92f346e43d140"
+  },
+  {
+    "guard": "identity-public-key",
+    "file": "src/core/vault/ssh/session.ts",
+    "command": "npx vitest run test/unit/vault/sshAgent.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/vault/sshAgent.test.ts > vault SSH agent destination proofs > bounds bind chains and session ids and validates listed identity metadata"
+    ],
+    "restoredSha256": "9629b7874f58e913f02e901acba335176e5936c208b488089dc92f346e43d140"
+  }
+]

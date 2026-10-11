@@ -104,7 +104,7 @@ const HARNESS_PREPARE_TIMEOUT_MS = 60_000
 const READY_TIMEOUT_MS = 2000
 beforeAll(async () => {
   // The run's one production build (test/unit/productionBuild.ts) is already in dist/.
-  assertCurrentProductionBuild(inject('productionBuild'), process.cwd())
+  assertCurrentProductionBuild(inject('deviceProductionBuild'), process.cwd())
   const serving = await serveRepo(process.cwd())
   rig.server = serving.server
   rig.origin = `http://127.0.0.1:${serving.port}`

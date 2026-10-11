@@ -54,6 +54,14 @@ function renderDialog(overrides: Partial<HistoryDialogProps> = {}) {
   return { props, search: screen.getByRole('combobox') }
 }
 
+// Exercise the real first lazy render once; subsequent cases test settled interaction.
+beforeAll(async () => {
+  renderDialog()
+  expect(document.querySelector('[data-deferred-loading]')).not.toBeNull()
+  await screen.findByRole('option', { name: /Fix the parser/ })
+  cleanup()
+})
+
 function optionTitles(): string[] {
   return screen
     .getAllByRole('option')
@@ -87,15 +95,52 @@ describe('layoutHistory', () => {
   })
 })
 
+describe('HistoryDialog: injected Muse Code deletion', () => {
+  it('offers deletion only with the host callback and keeps archive separate', () => {
+    const onDelete = vi.fn()
+    const { props, search } = renderDialog({ onDelete })
+    fireEvent.keyDown(search, { key: 'Delete', shiftKey: true })
+    expect(onDelete).toHaveBeenCalledExactlyOnceWith('now')
+    expect(props.onSetArchived).not.toHaveBeenCalled()
+    fireEvent.keyDown(search, { key: 'Delete' })
+    expect(props.onSetArchived).toHaveBeenCalledWith('now', true)
+  })
+
+  it('supports the mouse delete affordance without resuming or archiving the row', () => {
+    const onDelete = vi.fn()
+    const { props } = renderDialog({ onDelete })
+    const mark = screen.getAllByTitle('Delete (Shift+Delete)')[0]!
+    fireEvent.click(mark)
+    expect(onDelete).toHaveBeenCalledExactlyOnceWith('now')
+    expect(props.onResume).not.toHaveBeenCalled()
+    expect(props.onSetArchived).not.toHaveBeenCalled()
+  })
+
+  it('keeps today’s behavior without deletion and never deletes while editing search text', () => {
+    const { props, search } = renderDialog()
+    expect(screen.queryByTitle('Delete (Shift+Delete)')).not.toBeInTheDocument()
+    fireEvent.keyDown(search, { key: 'Delete', shiftKey: true })
+    expect(props.onSetArchived).toHaveBeenCalledWith('now', true)
+  })
+
+  it('never deletes a highlighted session while the user is editing search text', () => {
+    const onDelete = vi.fn()
+    const { search } = renderDialog({ onDelete })
+    fireEvent.change(search, { target: { value: 'Fix' } })
+    fireEvent.keyDown(search, { key: 'Delete', shiftKey: true })
+    expect(onDelete).not.toHaveBeenCalled()
+  })
+})
+
 describe('HistoryDialog', () => {
   it('groups the visible sessions, marks the current one and shows the row details', () => {
     renderDialog()
     expect(screen.getByText('Today')).toBeInTheDocument()
     expect(screen.getByText('Yesterday')).toBeInTheDocument()
     expect(screen.queryByText('Older')).toBeNull()
-    expect(optionTitles()).toEqual(['Fix the parsercurrent', 'Write docs'])
+    expect(optionTitles()).toEqual(['Fix the parserCurrent', 'Write docs'])
     expect(screen.getByText('1 hr. ago · 3 turns · main')).toBeInTheDocument()
-    expect(screen.getByText('yesterday · 1 turn · fork')).toBeInTheDocument()
+    expect(screen.getByText('yesterday · 1 turn · Fork')).toBeInTheDocument()
   })
 
   it('marks known sessions with localized singular/plural open counts and clears zero counts', () => {
@@ -104,14 +149,14 @@ describe('HistoryDialog', () => {
       '1 open question',
     )
     expect(screen.getByRole('option', { name: /Write docs/ })).toHaveTextContent('2 open questions')
-    fireEvent.click(screen.getByLabelText('Show archived'))
+    fireEvent.click(screen.getByLabelText('Show Archived'))
     expect(screen.getByRole('option', { name: /Old idea/ })).not.toHaveTextContent('open question')
   })
 
   it('shows archived and stale rows behind the switch, with Unarchive on the archived one', () => {
     const { props } = renderDialog()
-    fireEvent.click(screen.getByLabelText('Show archived'))
-    expect(optionTitles()).toEqual(['Fix the parsercurrent', 'Put away', 'Write docs', 'Old idea'])
+    fireEvent.click(screen.getByLabelText('Show Archived'))
+    expect(optionTitles()).toEqual(['Fix the parserCurrent', 'Put away', 'Write docs', 'Old idea'])
     fireEvent.click(archiveMark('Put away', 'Unarchive (Delete)'))
     expect(props.onSetArchived).toHaveBeenCalledWith('archived', false)
     // A row hidden by age is not in the archived set: it still offers Archive.
@@ -125,7 +170,7 @@ describe('HistoryDialog', () => {
     fireEvent.change(search, { target: { value: 'docs' } })
     expect(optionTitles()).toEqual(['Write docs'])
     fireEvent.change(search, { target: { value: 'MAIN' } })
-    expect(optionTitles()).toEqual(['Fix the parsercurrent'])
+    expect(optionTitles()).toEqual(['Fix the parserCurrent'])
     expect(search).toHaveAttribute('aria-controls', 'history-listbox')
     fireEvent.change(search, { target: { value: 'zzz' } })
     expect(screen.getByText('No sessions match.')).toBeInTheDocument()
@@ -163,9 +208,9 @@ describe('HistoryDialog', () => {
 
   // M25: the switch took the focus, and the arrows, Enter and Escape stopped
   // working until the next click in the search box.
-  it('keeps the keyboard in the search box through a Show archived toggle', () => {
+  it('keeps the keyboard in the search box through a Show Archived toggle', () => {
     const { props, search } = renderDialog()
-    const toggle = screen.getByLabelText('Show archived')
+    const toggle = screen.getByLabelText('Show Archived')
     expect(fireEvent.mouseDown(toggle)).toBe(false)
     fireEvent.click(toggle)
     expect(document.activeElement).toBe(search)
@@ -203,7 +248,7 @@ describe('HistoryDialog', () => {
     expect(props.onSetArchived).toHaveBeenCalledOnce()
     // An archived row restores.
     fireEvent.change(search, { target: { value: '' } })
-    fireEvent.click(screen.getByLabelText('Show archived'))
+    fireEvent.click(screen.getByLabelText('Show Archived'))
     fireEvent.keyDown(search, { key: 'ArrowDown' })
     expect(screen.getByRole('option', { name: /Put away/ })).toHaveAttribute(
       'aria-description',
@@ -227,7 +272,7 @@ describe('HistoryDialog', () => {
   })
 })
 
-it('offers Save prompt on history right-click without resuming or losing archive', async () => {
+it('offers Save Prompt on history right-click without resuming or losing archive', async () => {
   const save = vi.fn()
   const { props } = renderDialog({ onSavePrompt: save })
   fireEvent.contextMenu(screen.getByText('Fix the parser'))

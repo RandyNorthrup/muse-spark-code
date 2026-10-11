@@ -15,19 +15,15 @@ export interface QuestionDockProps {
 }
 export function QuestionDock({ questionGroup, hasApproval, isInert }: QuestionDockProps) {
   const surface = useAttentionSurface()
+  const navigation = surface?.navigation
+  const selectDockCard = surface?.selectDockCard
+  const dockCard = surface?.dockCard
+  const dockRequests = surface?.dockRequests
   useLayoutEffect(() => {
-    const target = surface?.navigation
+    const target = navigation
     if (target === undefined || target.isReminder === true) return
-    const candidates = [...document.querySelectorAll<HTMLElement>('[data-question-id]')].filter(
-      (element) => element.dataset['questionId'] === target.userInputId,
-    )
-    const card =
-      candidates.find((element) => element.dataset['questionSlot'] === 'row') ??
-      candidates.find((element) => !element.hidden)
-    if (card?.closest('[inert]') !== null) return
-    card.scrollIntoView({ block: 'nearest' })
-    card.focus()
-  }, [surface?.navigation])
+    selectDockCard?.({ kind: 'question', id: target.userInputId })
+  }, [navigation, selectDockCard])
   const questions = questionGroup.questions.filter((question) =>
     ['waiting', 'open'].includes(question.state ?? 'waiting'),
   )
@@ -37,7 +33,7 @@ export function QuestionDock({ questionGroup, hasApproval, isInert }: QuestionDo
     .toSorted((a, b) => (b.askedAt ?? 0) - (a.askedAt ?? 0))
   const openQuestions = questions.filter((question) => question.state === 'open')
   const forms = questionGroup.elicitations
-  const chosen = surface?.dockCard
+  const chosen = dockCard
   const selected =
     chosen !== undefined &&
     (chosen.kind === 'question'
@@ -65,15 +61,35 @@ export function QuestionDock({ questionGroup, hasApproval, isInert }: QuestionDo
   const defaultForm =
     firstForm === undefined ? undefined : { kind: 'elicitation', id: firstForm.elicitationId }
   const active =
-    (selected?.kind === 'elicitation' || waitingQuestions.length === 0 ? selected : undefined) ??
+    selected ??
     (firstQuestion === undefined
       ? defaultForm
       : { kind: 'question', id: firstQuestion.userInputId })
   const dock = useAttentionFocus<HTMLDivElement>(
-    hasApproval ? undefined : active?.id,
+    hasApproval || selected !== undefined ? undefined : active?.id,
     '.question:not([hidden]), [data-elicitation-id]:not([hidden]) > form',
     isInert,
   )
+  useLayoutEffect(() => {
+    if (hasApproval || isInert || dockCard === undefined) return
+    const card = [
+      ...(dock.current?.querySelectorAll<HTMLElement>(
+        '[data-question-slot="dock"], [data-elicitation-id]',
+      ) ?? []),
+    ].find(
+      (element) =>
+        !element.hidden &&
+        (element.dataset['questionId'] === dockCard.id ||
+          element.dataset['elicitationId'] === dockCard.id),
+    )
+    if (card === undefined) return
+    card.scrollIntoView({ block: 'nearest' })
+    const control =
+      card.querySelector<HTMLElement>(
+        'input:not(:disabled), textarea:not(:disabled), select:not(:disabled), [role="tab"]:not(:disabled)',
+      ) ?? card.querySelector<HTMLElement>('button:not(:disabled)')
+    control?.focus()
+  }, [dockCard, dockRequests, hasApproval, isInert, dock])
   return (
     <div ref={dock} className="attention-questions">
       {!hasApproval || openQuestions.length > 0 ? null : (

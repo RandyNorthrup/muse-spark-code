@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { beforeAll, describe, expect, it } from 'vitest'
 import type { WorkflowEntry } from '../../src/webview/state/uiState'
-import { renderTranscript, tool } from './helpers/transcriptFixtures'
+import { renderTranscript, tool, warmRowMenus } from './helpers/transcriptFixtures'
 import {
   WORKFLOW_CHILD_ID,
   WORKFLOW_ITEM_ID,
@@ -53,8 +53,9 @@ const runningRun: WorkflowEntry = {
 
 // Repeated behavior checks share first use; bundle tests cover the cold split.
 beforeAll(async () => {
+  await warmRowMenus()
   renderTranscript([completedRun])
-  await screen.findByRole('list', { name: 'Workflow agents' })
+  await screen.findByRole('list', { name: 'Workflow Agents' })
   cleanup()
 })
 
@@ -64,10 +65,10 @@ describe('a workflow run’s card (M47)', () => {
     const row = document.querySelector('.workflow')
     expect(row).toHaveAttribute('data-entry-id', WORKFLOW_ITEM_ID)
     expect(row).toHaveAttribute('data-status', 'completed')
-    expect(row).toHaveTextContent('WorkflowWritten for this task')
-    expect(row).toHaveTextContent('completed · 1 agent · 10.1K tokens · started by the model')
-    const agents = screen.getByRole('list', { name: 'Workflow agents' })
-    expect(agents).toHaveTextContent('ping2s · 10.1K tokens · completed')
+    expect(row).toHaveTextContent('WorkflowWritten for This Task')
+    expect(row).toHaveTextContent('Completed · 1 Agent · 10.1K tokens · started by the model')
+    const agents = screen.getByRole('list', { name: 'Workflow Agents' })
+    expect(agents).toHaveTextContent('ping2s · 10.1K tokens · Completed')
     expect(row).toHaveTextContent('Resultpong')
     // Owner controls wait for a live accepted-command capture.
     expect(screen.queryByRole('button', { name: 'Cancel workflow' })).toBeNull()
@@ -79,13 +80,13 @@ describe('a workflow run’s card (M47)', () => {
     expect(screen.queryByRole('button', { name: 'Cancel workflow' })).toBeNull()
     expect(screen.queryByRole('button', { name: /Skip|Retry/ })).toBeNull()
     // The queued agent, unnamed, is numbered.
-    const queued = within(screen.getByRole('list', { name: 'Workflow agents' }))
+    const queued = within(screen.getByRole('list', { name: 'Workflow Agents' }))
       .getByText('Agent 2')
       .closest('li')
     expect(queued).toHaveTextContent('queued')
     expect(within(queued ?? document.body).queryByRole('button')).toBeNull()
-    expect(screen.getByRole('list', { name: 'Workflow agents' })).toHaveTextContent(
-      'attempt 2 · 10.1K tokens · running',
+    expect(screen.getByRole('list', { name: 'Workflow Agents' })).toHaveTextContent(
+      'Attempt 2 · 10.1K tokens · Running',
     )
   })
 
@@ -173,13 +174,14 @@ describe('a workflow run’s card (M47)', () => {
         output: WORKFLOW_TOOL_ITEM.visibleOutput,
       }),
     ])
-    const toggle = screen.getByRole('button', { name: /Workflow/ })
+    const toggle = await screen.findByRole('button', { name: /Workflow/ })
     fireEvent.click(toggle)
     const row = toggle.closest('li')
     expect(row).toHaveAttribute('data-entry-id', WORKFLOW_TOOL_ITEM.itemId)
-    await waitFor(() => {
-      expect(row).toHaveTextContent('export default async function workflow(host)')
-    })
+    expect(
+      await screen.findByText(/export default async function workflow\(host\)/),
+    ).toBeInTheDocument()
+    expect(row).toHaveTextContent('export default async function workflow(host)')
     expect(row).toHaveTextContent(
       'Launched: it runs in the background and reports back to this conversation.',
     )
@@ -196,6 +198,7 @@ describe('a workflow run’s card (M47)', () => {
       }),
     ])
     fireEvent.click(screen.getByRole('button', { name: /Workflow/ }))
+    expect(await screen.findByText(/workflows are disabled for this run/)).toBeInTheDocument()
     const row = document.querySelector('[data-entry-id="resume"]')
     await waitFor(() => {
       expect(row).toHaveTextContent('workflows are disabled for this run')

@@ -16,6 +16,7 @@
 // made. Built into dist/bundledSkills.js and loaded on first use (PLAN.md
 // D6); every result is data, worded by the activation side.
 
+import { createHash, type Hash } from 'node:crypto'
 import { constants as fsConstants } from 'node:fs'
 import fs from 'node:fs/promises'
 import path from 'node:path'
@@ -29,6 +30,7 @@ import {
   BUNDLED_SKILLS_STAGING_WORD,
   BUNDLED_SKILLS_VENDOR_FILE,
   EXTENSION_QUALIFIED_ID,
+  FIRST_PARTY_SKILLS_DIR,
   SKILL_FILE_NAME,
   SKILL_ID_PATTERN,
 } from '../../shared/constants'
@@ -108,6 +110,8 @@ export type BundledSkillsStatus =
 interface VendoredPackage {
   readonly tag: string
   readonly skillIds: readonly string[]
+  readonly firstPartyRoot: string
+  readonly firstPartyIds: readonly string[]
 }
 
 type CopyState =
@@ -193,7 +197,7 @@ async function readVendor(vendorRoot: string): Promise<VendoredPackage> {
     throw new Error(`${file} is not a vendor record: ${z.prettifyError(parsed.error)}`)
   }
   const skillIds = parsed.data.files.flatMap(({ path: relative }) => {
-    const parts = relative.split(VENDOR_PATH_SEPARATOR)
+    const parts = relative.replaceAll('\\', '/').split(VENDOR_PATH_SEPARATOR)
     const [dir, id, file] = parts
     return id !== undefined &&
       dir === BUNDLED_SKILLS_DIR &&
@@ -206,7 +210,55 @@ async function readVendor(vendorRoot: string): Promise<VendoredPackage> {
   if (skillIds.length === 0) {
     throw new Error(`${file} lists no skills`)
   }
-  return { tag: parsed.data.tag, skillIds }
+  // Both installed sources belong to the same extension layout (D68/M92).
+  // A missing first-party source is a broken package, not a partial success.
+  const firstPartyRoot = path.resolve(vendorRoot, PARENT, PARENT, FIRST_PARTY_SKILLS_DIR)
+  const hash = createHash('sha256')
+  await hashTree(firstPartyRoot, '', hash)
+  const firstPartyIds = await fs.readdir(firstPartyRoot)
+  for (const id of firstPartyIds) {
+    if (!SKILL_ID_PATTERN.test(id)) throw new Error(`${firstPartyRoot} has an invalid skill id`)
+    const skillFile = path.join(firstPartyRoot, id, SKILL_FILE_NAME)
+    const stats = await fs.lstat(skillFile)
+    if (!stats.isFile()) throw new Error(`${skillFile} is not a skill file`)
+  }
+  return {
+    // A first-party-only update must offer Update even when the vendor tag
+    // stays the same. Full content digest includes supporting references.
+    tag:
+      firstPartyIds.length === 0
+        ? parsed.data.tag
+        : `${parsed.data.tag}+first-party.${hash.digest('hex')}`,
+    skillIds: [
+      ...new Set([...skillIds, ...firstPartyIds.toSorted((a, b) => a.localeCompare(b, 'en'))]),
+    ],
+    firstPartyRoot,
+    firstPartyIds,
+  }
+}
+
+/** Deterministic, content-addressed release identity; links/devices never enter the copy. */
+async function hashTree(folder: string, relative: string, hash: Hash): Promise<void> {
+  const stats = await fs.lstat(folder)
+  if (!stats.isDirectory() || stats.isSymbolicLink()) {
+    throw new Error(`${folder} is not a real folder`)
+  }
+  const entries = await fs.readdir(folder, { withFileTypes: true })
+  const ordered = entries.toSorted((a, b) => a.name.localeCompare(b.name, 'en'))
+  for (const entry of ordered) {
+    const file = path.join(folder, entry.name)
+    const identity = path.posix.join(relative, entry.name)
+    if (entry.isDirectory()) {
+      await hashTree(file, identity, hash)
+    } else if (entry.isFile()) {
+      const digest = createHash('sha256')
+        .update(await fs.readFile(file))
+        .digest('hex')
+      hash.update(JSON.stringify([identity, digest]))
+    } else {
+      throw new Error(`${file} is neither a file nor a folder`)
+    }
+  }
 }
 
 /** Whether the copy's folder is absent, the extension's (a real folder with a valid mark) or someone else's. */
@@ -412,6 +464,12 @@ export async function installBundledSkills(
     at = staging
     try {
       await copyTree(deps.vendorRoot, staging)
+      for (const id of vendor.firstPartyIds) {
+        const target = path.join(staging, BUNDLED_SKILLS_DIR, id)
+        // First-party precedence matches the Model API's bundled roots.
+        await fs.rm(target, { recursive: true, force: true })
+        await copyTree(path.join(vendor.firstPartyRoot, id), target)
+      }
       const marker = { tag: vendor.tag, installedAt: new Date(deps.now()).toISOString() }
       await fs.writeFile(
         path.join(staging, BUNDLED_SKILLS_MARKER_FILE),

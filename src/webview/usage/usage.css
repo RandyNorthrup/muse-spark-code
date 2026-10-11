@@ -1,22 +1,21 @@
+@import url('../tokens.css');
+
 /* Native hosts map these tokens to their theme. VS Code and browser fallbacks
    remain usable without an editor API. No SVG or element uses inline styles. */
 :root {
-  --ms-background: var(--vscode-editor-background, #fff);
-  --ms-foreground: var(--vscode-foreground, #3b3b3b);
-  --ms-muted: var(--vscode-descriptionForeground, #626262);
-  --ms-border: var(--vscode-panel-border, #767676);
-  --ms-focus: var(--vscode-focusBorder, #005fb8);
-  --ms-input-background: var(--vscode-input-background, #fff);
-  --ms-input-foreground: var(--vscode-input-foreground, #3b3b3b);
+  --ms-background: var(--vscode-editor-background, var(--ms-editor-surface));
+  --ms-foreground: var(--vscode-foreground, var(--ms-text));
+  --ms-input-background: var(--vscode-input-background, var(--ms-editor-surface));
+  --ms-input-foreground: var(--vscode-input-foreground, var(--ms-text));
   --ms-button-background: var(--vscode-button-secondaryBackground, var(--ms-input-background));
   --ms-button-foreground: var(--vscode-button-secondaryForeground, var(--ms-input-foreground));
-  --ms-blue: var(--vscode-charts-blue, #1a85ff);
-  --ms-purple: var(--vscode-charts-purple, #652d90);
-  --ms-orange: var(--vscode-charts-orange, #ba6800);
-  --ms-green: var(--vscode-charts-green, #008000);
-  --ms-yellow: var(--vscode-charts-yellow, #b89500);
-  --ms-red: var(--vscode-charts-red, #c42b1c);
-  --ms-other: var(--vscode-disabledForeground, #767676);
+  --ms-blue: var(--vscode-charts-blue, var(--ms-info));
+  --ms-purple: var(--vscode-charts-purple, var(--ms-usage-purple));
+  --ms-orange: var(--vscode-charts-orange, var(--ms-usage-orange));
+  --ms-green: var(--vscode-charts-green, var(--ms-success));
+  --ms-yellow: var(--vscode-charts-yellow, var(--ms-warning));
+  --ms-red: var(--vscode-charts-red, var(--ms-danger));
+  --ms-other: var(--vscode-disabledForeground, var(--ms-border));
 
   font-family: var(--vscode-font-family, system-ui, sans-serif);
   font-size: var(--vscode-font-size, 13px);

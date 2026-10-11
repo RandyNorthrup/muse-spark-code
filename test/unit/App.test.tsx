@@ -1,15 +1,19 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SHARE_VIEW_PAGE_ITEMS, UI_TEXT } from '../../src/shared/constants'
 import { EMPTY_PAID_TALLY } from '../../src/shared/paid'
 import type { HostToWebviewMessage, WebviewToHostMessage } from '../../src/shared/protocol'
+import { scheduleDraftSchema } from '../../src/shared/scheduleV2'
 import { App } from '../../src/webview/App'
 import { restoredUiState, webviewStateOf } from '../../src/webview/state/snapshot'
 import { createUiStore } from '../../src/webview/state/store'
 import { initialUiState } from '../../src/webview/state/uiState'
+import { fakeEstimate } from './helpers/estimator/fixtures'
+import axe from 'axe-core'
 import { testSettings } from './helpers/fakes'
 import { warmDeferredSurfaces } from './helpers/warmDeferredSurfaces'
+import { fakeScheduleDraft } from './helpers/schedules/runtimeFixtures'
 
 function deliver(data: unknown) {
   act(() => {
@@ -116,7 +120,7 @@ function rewindItem(name: string): HTMLElement {
 
 function chooseConversationRewind(cardIndex: number) {
   fireEvent.click(userMenuButtons()[cardIndex]!)
-  fireEvent.click(rewindItem('Rewind conversation to here'))
+  fireEvent.click(rewindItem('Rewind Conversation to Here'))
 }
 
 function expectRewindRequest(
@@ -156,7 +160,13 @@ async function askColour() {
   await act(async () => {
     await import('../../src/webview/components/QuestionUi')
   })
-  fireEvent.click(within(screen.getByRole('main')).getByRole('radio', { name: 'Red' }))
+  const card = document.querySelector('[data-question-slot="dock"]')
+  if (!(card instanceof HTMLElement)) throw new Error('Missing pinned question card')
+  fireEvent.click(within(card).getByRole('radio', { name: 'Red' }))
+}
+
+function questionButton(name: 'Submit' | 'Cancel') {
+  return within(screen.getByRole('region', { name: 'Open Question' })).getByRole('button', { name })
 }
 
 function renderReady(status: 'signedIn' | 'signedOut' = 'signedIn') {
@@ -234,8 +244,8 @@ beforeAll(async () => {
   renderReady()
   fireEvent.click(screen.getByLabelText('Commands'))
   fireEvent.keyDown(await screen.findByRole('combobox'), { key: 'Escape' })
-  fireEvent.click(screen.getByLabelText('Permission mode: Manual'))
-  fireEvent.keyDown(await screen.findByRole('menu', { name: 'Permission modes' }), {
+  fireEvent.click(screen.getByLabelText('Permission Mode: Manual'))
+  fireEvent.keyDown(await screen.findByRole('menu', { name: 'Permission Modes' }), {
     key: 'Escape',
   })
   loadHistory([historyUser('u1', 't1', 'first'), historyUser('u2', 't2', 'second')])
@@ -329,7 +339,8 @@ describe('App shell', () => {
     expect(screen.getByText('Restored title')).toBeInTheDocument()
     expect(screen.getByText('Restored answer')).toBeInTheDocument()
     expect(await screen.findByText('Restored title goal')).toBeInTheDocument()
-    expect(screen.getByText('Restored title todo')).toBeInTheDocument()
+    // The task list loads on first use, like the goal above it.
+    expect(await screen.findByText('Restored title todo')).toBeInTheDocument()
   })
 
   it('renders the empty state once signed in and focuses the composer', () => {
@@ -347,7 +358,7 @@ describe('App shell', () => {
     fireEvent.change(textarea(), { target: { value: 'hello' } })
     fireEvent.keyDown(textarea(), { key: 'Enter' })
     expect(screen.getByText('hello')).toBeInTheDocument()
-    fireEvent.click(screen.getByLabelText('New conversation'))
+    fireEvent.click(screen.getByLabelText('New Conversation'))
     expect(postMessage).toHaveBeenLastCalledWith(
       expect.objectContaining({ type: 'clearConversation' }),
     )
@@ -358,7 +369,7 @@ describe('App shell', () => {
   it('does not attach a deferred pasted PDF after New Conversation clears its source', async () => {
     const postMessage = renderReady()
     const releasePdf = holdPastedPdf()
-    fireEvent.click(screen.getByLabelText('New conversation'))
+    fireEvent.click(screen.getByLabelText('New Conversation'))
     await releasePdf()
     expect(postMessage).not.toHaveBeenCalledWith(
       expect.objectContaining({ type: 'attachImageData', name: 'stale.pdf' }),
@@ -374,7 +385,7 @@ describe('App shell', () => {
       fireEvent.change(textarea(), { target: { value: 'keep draft' } })
       const releasePdf = holdPastedPdf()
       if (action === 'resume') {
-        fireEvent.click(screen.getByLabelText('Session history'))
+        fireEvent.click(screen.getByLabelText('Session History'))
         deliver({
           type: 'sessionList',
           sessions: [
@@ -394,7 +405,7 @@ describe('App shell', () => {
         fireEvent.keyDown(await screen.findByRole('combobox'), { key: 'Enter' })
       } else {
         fireEvent.click(userMenuButtons()[1]!)
-        fireEvent.click(screen.getByRole('menuitem', { name: 'Fork conversation from here' }))
+        fireEvent.click(screen.getByRole('menuitem', { name: 'Fork Conversation' }))
       }
       expect(textarea()).toHaveValue('keep draft')
       expect(screen.getByLabelText('Remove shot.png')).toBeInTheDocument()
@@ -413,11 +424,11 @@ describe('App shell', () => {
     expect(textarea()).toHaveValue('look at @src/app.ts#5-10 ')
   })
 
-  it('shows the Focus view badge when the setting changes', () => {
+  it('shows the Focus View badge when the setting changes', () => {
     renderReady()
-    expect(screen.queryByText('Focus view')).toBeNull()
+    expect(screen.queryByText('Focus View')).toBeNull()
     deliver({ type: 'settingsChanged', settings: { ...testSettings, focusView: true } })
-    expect(screen.getByText('Focus view')).toBeInTheDocument()
+    expect(screen.getByText('Focus View')).toBeInTheDocument()
   })
 
   it('ignores malformed host messages', () => {
@@ -440,25 +451,25 @@ describe('App shell', () => {
 describe('App sign-in gate', () => {
   it('offers both sign-in paths when signed out and forwards the choice', () => {
     const postMessage = renderReady('signedOut')
-    expect(screen.getByRole('heading', { name: 'Sign in to Muse Spark' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Sign In to Muse Spark' })).toBeInTheDocument()
     expect(screen.getByLabelText('Model')).toHaveTextContent('Not signed in')
-    fireEvent.click(screen.getByText('Sign in with your Meta account'))
+    fireEvent.click(screen.getByText('Sign In With Your Meta Account'))
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'signIn', method: 'browser' })
-    fireEvent.click(screen.getByText('Use a Model API key'))
+    fireEvent.click(screen.getByText('Use a Model API Key'))
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'signIn', method: 'apiKey' })
   })
 
   it('shows install instructions when the CLI is missing', () => {
     const postMessage = renderReady()
     deliver({ type: 'authState', status: 'noCli', detail: 'Searched: C:/nowhere' })
-    expect(screen.getByRole('heading', { name: 'Muse Code is not installed' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Muse Code Is Not Installed' })).toBeInTheDocument()
     expect(screen.getByText('Searched: C:/nowhere')).toBeInTheDocument()
-    fireEvent.click(screen.getByText('Open install instructions'))
+    fireEvent.click(screen.getByText('Open Install Instructions'))
     expect(postMessage).toHaveBeenLastCalledWith({
       type: 'openExternal',
       url: 'https://dev.meta.ai/products/muse-code/',
     })
-    fireEvent.click(screen.getByText('Check again'))
+    fireEvent.click(screen.getByText('Check Again'))
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'retryBackend' })
   })
 
@@ -477,7 +488,7 @@ describe('App sign-in gate', () => {
     expect(document.querySelector('main')).toHaveAttribute('inert')
     expect(screen.getByText('irm https://dev.meta.ai/install.ps1 | iex')).toBeInTheDocument()
     expect(postMessage).not.toHaveBeenCalledWith({ type: 'installMuseCode' })
-    fireEvent.click(screen.getByText('Run installer'))
+    fireEvent.click(screen.getByText('Run Installer'))
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'installMuseCode' })
     expect(document.querySelector('main')).not.toHaveAttribute('inert')
   })
@@ -506,7 +517,7 @@ describe('App sign-in gate', () => {
     renderReady('signedOut')
     deliver({ type: 'authState', status: 'signingIn', detail: 'Waiting for the browser…' })
     expect(screen.getByText('Waiting for the browser…')).toBeInTheDocument()
-    expect(screen.queryByText('Sign in with your Meta account')).toBeNull()
+    expect(screen.queryByText('Sign In With Your Meta Account')).toBeNull()
   })
 
   it('clears prior-account history on sign-out while keeping sign-in and device code visible', () => {
@@ -516,7 +527,7 @@ describe('App sign-in gate', () => {
     deliver({ type: 'authState', status: 'signedOut', backend: 'museCode', methods: ['browser'] })
     expect(screen.queryByText('Remember this answer')).toBeNull()
     expect(
-      screen.getByRole('button', { name: 'Sign in with your Meta account' }),
+      screen.getByRole('button', { name: 'Sign In With Your Meta Account' }),
     ).toBeInTheDocument()
     deliver({
       type: 'authState',
@@ -527,10 +538,10 @@ describe('App sign-in gate', () => {
     })
     expect(screen.queryByText('Remember this answer')).toBeNull()
     expect(screen.getByText('ABCD-EFGH')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Open sign-in page' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Open Sign-In Page' })).toBeInTheDocument()
   })
 
-  it('offers CLI install while a Model API key keeps the backend signed in', async () => {
+  it('offers CLI install while a Model API Key keeps the backend signed in', async () => {
     const postMessage = renderReady()
     deliver({
       type: 'authState',
@@ -543,7 +554,7 @@ describe('App sign-in gate', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Install Muse Code' }))
     expect(screen.getByText('irm https://dev.meta.ai/install.ps1 | iex')).toBeInTheDocument()
     expect(postMessage).not.toHaveBeenCalledWith({ type: 'installMuseCode' })
-    fireEvent.click(screen.getByRole('button', { name: 'Run installer' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Run Installer' }))
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'installMuseCode' })
     deliver({
       type: 'authState',
@@ -552,7 +563,7 @@ describe('App sign-in gate', () => {
       hasCli: false,
       installState: 'running',
     })
-    expect(screen.getByRole('dialog', { name: 'Account & usage' })).toHaveTextContent(
+    expect(screen.getByRole('dialog', { name: 'Account & Usage' })).toHaveTextContent(
       'Installing Muse Code',
     )
     deliver({
@@ -562,11 +573,11 @@ describe('App sign-in gate', () => {
       hasCli: true,
       hasCliSession: false,
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Sign in with your Meta account' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Sign In With Your Meta Account' }))
     expect(postMessage).toHaveBeenCalledWith({ type: 'signIn', method: 'browser' })
   })
 
-  it('offers an extra Model API key while Muse Code remains signed in', async () => {
+  it('offers an extra Model API Key while Muse Code remains signed in', async () => {
     const postMessage = renderReady()
     deliver({
       type: 'authState',
@@ -576,7 +587,7 @@ describe('App sign-in gate', () => {
       hasCliSession: true,
     })
     await openUsageDialog()
-    fireEvent.click(screen.getByRole('button', { name: 'Add Model API key' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add Model API Key' }))
     expect(postMessage).toHaveBeenCalledWith({ type: 'signIn', method: 'apiKey' })
   })
 })
@@ -614,11 +625,11 @@ describe('App conversation', () => {
   it('runs a `!` prompt as a shell command: no message, the row comes from the host (M46)', () => {
     const postMessage = renderReady()
     fireEvent.change(textarea(), { target: { value: '!' } })
-    expect(screen.getByLabelText('Run command')).toBeDisabled()
+    expect(screen.getByLabelText('Run Command')).toBeDisabled()
     fireEvent.change(textarea(), { target: { value: "!Write-Output 'hello-m46'" } })
     expect(textarea()).toHaveClass('composer-input-shell')
     expect(screen.getByTitle(UI_TEXT.composerShellModeTitle)).toHaveTextContent('Shell')
-    expect(screen.getByLabelText('Run command')).toHaveAttribute('title', 'Run command')
+    expect(screen.getByLabelText('Run Command')).toHaveAttribute('title', 'Run Command')
     fireEvent.keyDown(textarea(), { key: 'Enter' })
     expect(postMessage).toHaveBeenLastCalledWith({
       type: 'runUserShell',
@@ -646,9 +657,9 @@ describe('App conversation', () => {
       args: '{"command":"npm run dev"}',
     }
     deliver({ type: 'agentEvent', event: { type: 'itemStarted', item: call } })
-    fireEvent.click(screen.getByRole('button', { name: /^Move to background/ }))
+    fireEvent.click(await screen.findByRole('button', { name: /^Move to Background/ }))
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'moveToBackground', itemId: 'c1' })
-    expect(screen.getByRole('button', { name: /^Move to background/ })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /^Move to Background/ })).toBeDisabled()
     deliver({
       type: 'agentEvent',
       event: {
@@ -658,9 +669,9 @@ describe('App conversation', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: /^Stop: PowerShell/ }))
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'stopTask', itemId: 'c1' })
-    // The header pill counts it, and the map's Stop all reaches the host.
-    fireEvent.click(screen.getByRole('button', { name: '1 background task' }))
-    fireEvent.click(await screen.findByRole('button', { name: 'Stop all' }))
+    // The header pill counts it, and the map's Stop All reaches the host.
+    fireEvent.click(screen.getByRole('button', { name: '1 Background Task' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Stop All' }))
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'stopAllTasks' })
   })
 
@@ -729,27 +740,27 @@ describe('App conversation', () => {
       isThinkingEnabled: false,
       permissionMode: 'manual',
     })
-    expect(screen.getByLabelText('Model')).toHaveTextContent('muse-spark-1.3 No thinking')
+    expect(screen.getByLabelText('Model')).toHaveTextContent('muse-spark-1.3 No Thinking')
   })
 
   it('opens the Modes menu from the button, selects a mode, and cycles on Shift+Tab', () => {
     const postMessage = renderReady()
-    fireEvent.click(screen.getByLabelText('Permission mode: Manual'))
-    const menu = screen.getByRole('menu', { name: 'Permission modes' })
+    fireEvent.click(screen.getByLabelText('Permission Mode: Manual'))
+    const menu = screen.getByRole('menu', { name: 'Permission Modes' })
     expect(document.activeElement).toBe(menu)
     expect(screen.getByText('Modes')).toBeInTheDocument()
-    expect(screen.getByText('⇧ + tab')).toBeInTheDocument()
+    expect(screen.getByText('⇧ + Tab')).toBeInTheDocument()
     expect(screen.getAllByRole('menuitemradio').map((node) => node.textContent)).toEqual([
       // Muse Code's wording (D24, D69): its Manual applies in-workspace edits
-      // unasked, so Edit automatically is Manual there; its Auto skips only
+      // unasked, so Edit Automatically is Manual there; its Auto skips only
       // simple commands, and the reviewer (on by default, M90) may allow others once.
       'ManualMuse will ask before running commands; Muse Code edits workspace files without askingCurrent',
-      'Edit automaticallyOn Muse Code, the same as Manual: Muse Code edits workspace files without asking and asks before running commands',
+      'Edit AutomaticallyOn Muse Code, the same as Manual: Muse Code edits workspace files without asking and asks before running commands',
       // Plan on Muse Code refuses commands, not file-tool edits (musecode-write-asks).
       'PlanMuse plans first; Muse Code refuses commands, but its file tools can still edit files without asking',
       'AutoMuse Code runs the commands it judges simple without asking; a reviewer may allow some others once, and you are asked about the rest',
     ])
-    fireEvent.click(screen.getByRole('menuitemradio', { name: /Edit automatically/ }))
+    fireEvent.click(screen.getByRole('menuitemradio', { name: /Edit Automatically/ }))
     expect(postMessage).toHaveBeenCalledWith({
       type: 'setPermissionMode',
       mode: 'acceptEdits',
@@ -762,25 +773,25 @@ describe('App conversation', () => {
       isThinkingEnabled: true,
       permissionMode: 'auto',
     })
-    expect(screen.getByLabelText('Permission mode: Auto')).toBeInTheDocument()
+    expect(screen.getByLabelText('Permission Mode: Auto')).toBeInTheDocument()
     // Bypass is not allowed, so the cycle wraps from Auto to Manual.
     fireEvent.keyDown(textarea(), { key: 'Tab', shiftKey: true })
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'setPermissionMode', mode: 'manual' })
     // A second click on the button closes the menu again.
-    fireEvent.click(screen.getByLabelText('Permission mode: Auto'))
+    fireEvent.click(screen.getByLabelText('Permission Mode: Auto'))
     expect(screen.getByRole('menu')).toBeInTheDocument()
-    fireEvent.click(screen.getByLabelText('Permission mode: Auto'))
+    fireEvent.click(screen.getByLabelText('Permission Mode: Auto'))
     expect(screen.queryByRole('menu')).toBeNull()
   })
 
-  it('lists Bypass permissions only while the setting allows it', () => {
+  it('lists Bypass Permissions only while the setting allows it', () => {
     const postMessage = renderReady()
     deliver({
       type: 'settingsChanged',
       settings: { ...testSettings, allowDangerouslySkipPermissions: true },
     })
-    fireEvent.click(screen.getByLabelText('Permission mode: Manual'))
-    expect(screen.getByRole('menuitemradio', { name: /Bypass permissions/ })).toBeInTheDocument()
+    fireEvent.click(screen.getByLabelText('Permission Mode: Manual'))
+    expect(screen.getByRole('menuitemradio', { name: /Bypass Permissions/ })).toBeInTheDocument()
     fireEvent.keyDown(screen.getByRole('menu'), { key: 'ArrowUp' })
     fireEvent.keyDown(screen.getByRole('menu'), { key: 'Enter' })
     expect(postMessage).toHaveBeenCalledWith({
@@ -803,7 +814,7 @@ describe('App conversation', () => {
   it('steps the effort from the Modes menu footer with the dots and the arrows', () => {
     const postMessage = renderReady()
     deliver({ type: 'sessionInfo', modelId: 'muse-spark-1.3', contextLimit: 1_007_997 })
-    fireEvent.click(screen.getByLabelText('Permission mode: Manual'))
+    fireEvent.click(screen.getByLabelText('Permission Mode: Manual'))
     expect(screen.getByText('Effort (High)')).toBeInTheDocument()
     fireEvent.click(screen.getByTitle('Max'))
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'setEffort', effort: 'max' })
@@ -832,7 +843,7 @@ describe('App conversation', () => {
       modelId: 'anthropic/claude-sonnet-5-5',
       contextLimit: 1_000_000,
     })
-    fireEvent.click(screen.getByLabelText('Permission mode: Manual'))
+    fireEvent.click(screen.getByLabelText('Permission Mode: Manual'))
     expect(screen.queryByTitle('Max')).toBeNull()
     expect(screen.queryByTitle('Medium')).toBeNull()
     fireEvent.click(screen.getByTitle('Low'))
@@ -848,19 +859,19 @@ describe('App conversation', () => {
       ],
     })
     deliver({ type: 'sessionInfo', modelId: 'anthropic/haiku', contextLimit: 200_000 })
-    fireEvent.click(screen.getByLabelText('Permission mode: Manual'))
+    fireEvent.click(screen.getByLabelText('Permission Mode: Manual'))
     expect(screen.queryByText('Effort (High)')).toBeNull()
     postMessage.mockClear()
     fireEvent.keyDown(screen.getByRole('menu'), { key: 'ArrowRight' })
     expect(postMessage).not.toHaveBeenCalled()
   })
 
-  it('opens the Modes menu from the palette row', () => {
+  it('opens the Modes menu from the palette row', async () => {
     renderReady()
-    const filter = openPalette()
-    fireEvent.change(filter, { target: { value: 'Permission mode' } })
+    const filter = await openPalette()
+    fireEvent.change(filter, { target: { value: 'Permission Mode' } })
     fireEvent.keyDown(filter, { key: 'Enter' })
-    expect(screen.getByRole('menu', { name: 'Permission modes' })).toBeInTheDocument()
+    expect(screen.getByRole('menu', { name: 'Permission Modes' })).toBeInTheDocument()
     expect(screen.queryByRole('combobox')).toBeNull()
   })
 
@@ -868,28 +879,29 @@ describe('App conversation', () => {
     const postMessage = renderReady()
     fireEvent.click(screen.getByLabelText('Attach'))
     expect(screen.getAllByRole('menuitem').map((node) => node.textContent)).toEqual([
-      'Upload from computer',
-      'Add context',
+      'Upload From Computer',
+      'Add Context',
     ])
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Upload from computer' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Upload From Computer' }))
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'pickFile' })
     expect(screen.queryByRole('menu')).toBeNull()
     fireEvent.change(textarea(), { target: { value: 'look at' } })
     fireEvent.click(screen.getByLabelText('Attach'))
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Add context' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Add Context' }))
     expect(textarea()).toHaveValue('look at @')
     // The caret lands after the `@` once the insert has committed.
     await act(async () => {
       await Promise.resolve()
     })
     expect(postMessage).toHaveBeenCalledWith({ type: 'searchMentions', requestId: 1, query: '' })
-    expect(screen.getByText('No matching files')).toBeInTheDocument()
+    // The mention menu body loads on first open.
+    expect(await screen.findByText('No matching files')).toBeInTheDocument()
     deliver({
       type: 'mentionResults',
       requestId: 1,
       items: [{ path: 'src/app.ts', isFolder: false }],
     })
-    expect(screen.getByRole('option', { name: 'src/app.ts' })).toBeInTheDocument()
+    expect(await screen.findByRole('option', { name: 'src/app.ts' })).toBeInTheDocument()
   })
 
   it('routes mention searches and attachment removal', () => {
@@ -927,7 +939,7 @@ function twoStepApproval(type: 'approvalRequested' | 'approvalUpdated', sourceIn
     argv: index === 0 ? ['git', 'show', 'HEAD:a.yml'] : ['Out-String'],
   }))
   const choices = [
-    { choiceId: 'allow_once', label: 'Allow once', decision: 'approved', scope: 'once' },
+    { choiceId: 'allow_once', label: 'Allow Once', decision: 'approved', scope: 'once' },
     { choiceId: 'abort', label: 'Reject', decision: 'abort', scope: 'once' },
   ]
   const common = {
@@ -954,10 +966,10 @@ function decisionsPosted(postMessage: ReturnType<typeof renderReady>) {
 }
 
 describe('App approval card: one decision per stage (D26)', () => {
-  it('keeps every button disabled after a click until the host settles the decision', () => {
+  it('keeps every button disabled after a click until the host settles the decision', async () => {
     const postMessage = renderReady()
     deliver({ type: 'agentEvent', event: twoStepApproval('approvalRequested', 0) })
-    const allow = screen.getByRole('button', { name: 'Allow once' })
+    const allow = await screen.findByRole('button', { name: 'Allow Once' })
     // Two clicks in one frame, before the locked card renders.
     act(() => {
       allow.click()
@@ -975,7 +987,7 @@ describe('App approval card: one decision per stage (D26)', () => {
     })
     deliver({ type: 'notice', level: 'error', text: 'Something else failed' })
     streamReply('r1', 'meanwhile')
-    for (const name of ['Allow once', 'Reject']) {
+    for (const name of ['Allow Once', 'Reject']) {
       const button = screen.getByRole('button', { name })
       expect(button).toBeDisabled()
       fireEvent.click(button)
@@ -983,18 +995,18 @@ describe('App approval card: one decision per stage (D26)', () => {
     expect(decisionsPosted(postMessage)).toHaveLength(1)
     // Settled by the host: its next step is a new decision.
     deliver({ type: 'agentEvent', event: twoStepApproval('approvalUpdated', 1) })
-    expect(screen.getByRole('button', { name: 'Allow once' })).toBeEnabled()
-    fireEvent.click(screen.getByRole('button', { name: 'Allow once' }))
+    expect(screen.getByRole('button', { name: 'Allow Once' })).toBeEnabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Allow Once' }))
     expect(decisionsPosted(postMessage).map(([message]) => message)).toEqual([
       expect.objectContaining({ requirementId: { approvalId: 'a1', sourceIndex: 0 } }),
       expect.objectContaining({ requirementId: { approvalId: 'a1', sourceIndex: 1 } }),
     ])
   })
 
-  it('docks the waiting card above the composer and leaves the decision in its row', () => {
+  it('docks the waiting card above the composer and leaves the decision in its row', async () => {
     renderReady()
     deliver({ type: 'agentEvent', event: twoStepApproval('approvalRequested', 0) })
-    const dock = screen.getByRole('region', { name: UI_TEXT.approvalDockLabel })
+    const dock = await screen.findByRole('region', { name: UI_TEXT.approvalDockLabel })
     // Outside the scrolled transcript, before the composer in Tab order.
     expect(screen.getByRole('main')).not.toContainElement(dock)
     expect(dock.compareDocumentPosition(textarea()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
@@ -1015,13 +1027,13 @@ describe('App approval card: one decision per stage (D26)', () => {
     expect(screen.queryByText(UI_TEXT.approvalDockedNote)).toBeNull()
   })
 
-  it('re-arms only when the host reopens the stage, and says a step that moved on on the card', () => {
+  it('re-arms only when the host reopens the stage, and says a step that moved on on the card', async () => {
     const postMessage = renderReady()
     deliver({ type: 'agentEvent', event: twoStepApproval('approvalRequested', 0) })
-    fireEvent.click(screen.getByRole('button', { name: 'Allow once' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Allow Once' }))
     deliver({ type: 'approvalReopened', approvalId: 'a1' })
-    expect(screen.getByRole('button', { name: 'Allow once' })).toBeEnabled()
-    fireEvent.click(screen.getByRole('button', { name: 'Allow once' }))
+    expect(screen.getByRole('button', { name: 'Allow Once' })).toBeEnabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Allow Once' }))
     expect(decisionsPosted(postMessage)).toHaveLength(2)
     // Refused as stale: the card shows the step Muse Code waits on, and says so.
     deliver({ type: 'agentEvent', event: twoStepApproval('approvalUpdated', 1) })
@@ -1030,7 +1042,7 @@ describe('App approval card: one decision per stage (D26)', () => {
     expect(card).toHaveClass('approval-moved')
     expect(within(card).getByText(UI_TEXT.promptMovedOn)).toBeInTheDocument()
     expect(within(card).getByText('Out-String')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Allow once' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Allow Once' }))
     expect(card).not.toHaveClass('approval-moved')
     expect(decisionsPosted(postMessage)).toHaveLength(3)
   })
@@ -1050,7 +1062,7 @@ describe('App transcript (M4)', () => {
         requirementId: { approvalId: 'a1', sourceIndex: 0 },
         subject: { kind: 'shell', command: 'ls' },
         availableChoices: [
-          { choiceId: 'allow_once', label: 'Allow once', decision: 'approved', scope: 'once' },
+          { choiceId: 'allow_once', label: 'Allow Once', decision: 'approved', scope: 'once' },
           {
             choiceId: 'abort',
             label: 'Reject',
@@ -1063,7 +1075,7 @@ describe('App transcript (M4)', () => {
         isProtectedWrite: false,
       },
     })
-    fireEvent.change(screen.getByPlaceholderText(/what to do instead/), {
+    fireEvent.change(await screen.findByPlaceholderText(/what to do instead/), {
       target: { value: 'no' },
     })
     fireEvent.click(screen.getByText('Reject'))
@@ -1077,8 +1089,8 @@ describe('App transcript (M4)', () => {
     // The stage locks on the first decision; a repeated update for the same
     // stage keeps it locked and the next stage unlocks it.
     const sentSoFar = postMessage.mock.calls.length
-    expect(screen.getByText('Allow once')).toBeDisabled()
-    fireEvent.click(screen.getByText('Allow once'))
+    expect(screen.getByText('Allow Once')).toBeDisabled()
+    fireEvent.click(screen.getByText('Allow Once'))
     expect(postMessage).toHaveBeenCalledTimes(sentSoFar)
     const stageUpdate = (sourceIndex: number) => {
       deliver({
@@ -1089,20 +1101,31 @@ describe('App transcript (M4)', () => {
           requirementId: { approvalId: 'a1', sourceIndex },
           subject: { kind: 'shell', command: 'ls; pwd' },
           availableChoices: [
-            { choiceId: 'allow_once', label: 'Allow once', decision: 'approved', scope: 'once' },
+            { choiceId: 'allow_once', label: 'Allow Once', decision: 'approved', scope: 'once' },
           ],
         },
       })
     }
     stageUpdate(0)
-    expect(screen.getByText('Allow once')).toBeDisabled()
+    expect(screen.getByText('Allow Once')).toBeDisabled()
     stageUpdate(1)
-    expect(screen.getByText('Allow once')).toBeEnabled()
+    expect(screen.getByText('Allow Once')).toBeEnabled()
+    fireEvent.click(screen.getByText('Allow Once'))
+    deliver({
+      type: 'agentEvent',
+      event: {
+        type: 'approvalResolved',
+        approvalId: 'a1',
+        itemId: 'c1',
+        decision: 'approved',
+        resolvedBy: 'user',
+      },
+    })
     await askColour()
 
     await act(async () => {
       await import('../../src/webview/components/QuestionUi')
-      fireEvent.click(within(screen.getByRole('main')).getByText('Submit'))
+      fireEvent.click(questionButton('Submit'))
     })
     expect(postMessage).toHaveBeenLastCalledWith({
       type: 'answerQuestion',
@@ -1132,7 +1155,7 @@ describe('App transcript (M4)', () => {
     })
     fireEvent.click(screen.getByText('Copy'))
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'copyText', text: 'let a = 1' })
-    fireEvent.click(screen.getByText('Insert at cursor'))
+    fireEvent.click(screen.getByText('Insert at Cursor'))
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'insertCode', text: 'let a = 1' })
     deliver({
       type: 'agentEvent',
@@ -1157,7 +1180,7 @@ describe('App transcript (M4)', () => {
     })
   })
 
-  it('shows the session name, the context indicator and the todo panel', () => {
+  it('shows the session name, the context indicator and the todo panel', async () => {
     renderReady()
     deliver({ type: 'agentEvent', event: { type: 'sessionNamed', name: 'Muse setup' } })
     expect(screen.getByRole('heading', { name: 'Muse setup' })).toBeInTheDocument()
@@ -1183,28 +1206,28 @@ describe('App transcript (M4)', () => {
       type: 'agentEvent',
       event: { type: 'todoChanged', items: [{ text: 'Write tests', status: 'pending' }] },
     })
-    expect(screen.getByRole('region', { name: 'Tasks' })).toHaveTextContent('Write tests')
+    expect(await screen.findByRole('region', { name: 'Tasks' })).toHaveTextContent('Write tests')
   })
 })
 
-function openPalette() {
+async function openPalette() {
   fireEvent.click(screen.getByLabelText('Commands'))
-  return screen.getByRole('combobox')
+  return await screen.findByRole('combobox')
 }
 
 /** Opens the account modal through the same palette action a user selects. */
 async function openUsageDialog() {
-  const filter = openPalette()
+  const filter = await openPalette()
   fireEvent.change(filter, { target: { value: '/usage' } })
   fireEvent.keyDown(filter, { key: 'Enter' })
-  return await screen.findByRole('dialog', { name: 'Account & usage' })
+  return await screen.findByRole('dialog', { name: 'Account & Usage' })
 }
 
 describe('App palette', () => {
-  it('opens from the Commands button, asks for skills once, and closes back to the composer', () => {
+  it('opens from the Commands button, asks for skills once, and closes back to the composer', async () => {
     const postMessage = renderReady()
     fireEvent.click(screen.getByLabelText('Commands'))
-    expect(screen.getByRole('dialog', { name: 'Actions' })).toBeInTheDocument()
+    expect(await screen.findByRole('dialog', { name: 'Actions' })).toBeInTheDocument()
     expect(postMessage).toHaveBeenCalledWith({ type: 'listSkills' })
     deliver({ type: 'skillList', skills: [] })
     fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Escape' })
@@ -1220,13 +1243,13 @@ describe('App palette', () => {
 
   // M38: `/` alone shows the palette attached to the prompt; a character
   // more, the slash commands. The prompt keeps the focus and the text.
-  it('shows the palette for a typed "/" and the slash commands after a character more', () => {
+  it('shows the palette for a typed "/" and the slash commands after a character more', async () => {
     const postMessage = renderReady()
     deliver({ type: 'modelList', models })
     const box = textarea()
     box.focus()
     fireEvent.change(box, { target: { value: '/' } })
-    const palette = screen.getByRole('dialog', { name: 'Actions' })
+    const palette = await screen.findByRole('dialog', { name: 'Actions' })
     expect(within(palette).queryByRole('combobox')).toBeNull()
     expect(document.activeElement).toBe(box)
     expect(postMessage).toHaveBeenCalledWith({ type: 'listSkills' })
@@ -1243,7 +1266,7 @@ describe('App palette', () => {
     fireEvent.click(screen.getByRole('option', { name: /Thinking/ }))
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'setThinking', enabled: false })
     expect(box.value).toBe('/')
-    expect(screen.getByRole('dialog', { name: 'Actions' })).toBeInTheDocument()
+    expect(await screen.findByRole('dialog', { name: 'Actions' })).toBeInTheDocument()
     // Escape closes it and keeps the text.
     fireEvent.keyDown(box, { key: 'Escape' })
     expect(screen.queryByRole('dialog')).toBeNull()
@@ -1251,7 +1274,8 @@ describe('App palette', () => {
     // A character more: the slash commands, the skill among them.
     fireEvent.change(box, { target: { value: '/fi' } })
     expect(screen.queryByRole('dialog')).toBeNull()
-    const list = screen.getByRole('listbox', { name: 'Slash commands' })
+    // The slash menu body loads on first open.
+    const list = await screen.findByRole('listbox', { name: 'Slash Commands' })
     expect(within(list).getAllByRole('option')[0]).toHaveTextContent('/fix-bug')
     fireEvent.keyDown(box, { key: 'Enter' })
     expect(box.value).toBe('/fix-bug ')
@@ -1263,26 +1287,26 @@ describe('App palette', () => {
     expect(box.value).toBe('')
     // A row that opens something else takes the `/` with it.
     fireEvent.change(box, { target: { value: '/' } })
-    fireEvent.click(screen.getByRole('option', { name: /Switch model/ }))
-    expect(screen.getByRole('listbox', { name: 'Models' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('option', { name: /Switch Model/ }))
+    expect(await screen.findByRole('listbox', { name: 'Models' })).toBeInTheDocument()
     expect(box.value).toBe('')
     expect(postMessage.mock.calls.filter(([m]) => m.type === 'listSkills')).toHaveLength(1)
   })
 
-  it('toggles the model list from the pill', () => {
+  it('toggles the model list from the pill', async () => {
     renderReady()
     deliver({ type: 'modelList', models })
     fireEvent.click(screen.getByLabelText('Model'))
-    expect(screen.getByRole('listbox', { name: 'Models' })).toBeInTheDocument()
+    expect(await screen.findByRole('listbox', { name: 'Models' })).toBeInTheDocument()
     fireEvent.click(screen.getByLabelText('Model'))
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(document.activeElement).toBe(textarea())
     fireEvent.click(screen.getByLabelText('Commands'))
     fireEvent.click(screen.getByLabelText('Model'))
-    expect(screen.getByRole('listbox', { name: 'Models' })).toBeInTheDocument()
+    expect(await screen.findByRole('listbox', { name: 'Models' })).toBeInTheDocument()
   })
 
-  it('routes every palette action to the host or the local state', () => {
+  it('routes every palette action to the host or the local state', async () => {
     const postMessage = renderReady()
     deliver({ type: 'sessionInfo', modelId: 'muse-spark-1.3', contextLimit: 1_007_997 })
     deliver({ type: 'modelList', models })
@@ -1290,56 +1314,56 @@ describe('App palette', () => {
       type: 'skillList',
       skills: [{ selector: 'fix-bug', displayName: 'Fix bug', description: 'd' }],
     })
-    const run = (filterText: string) => {
-      const filter = openPalette()
+    const run = async (filterText: string) => {
+      const filter = await openPalette()
       fireEvent.change(filter, { target: { value: filterText } })
       fireEvent.keyDown(filter, { key: 'Enter' })
     }
-    run('Attach file')
+    await run('Attach file')
     expect(postMessage).toHaveBeenCalledWith({ type: 'pickFile' })
-    run('Mention file')
+    await run('Mention file')
     expect(postMessage).toHaveBeenCalledWith({ type: 'pickMentionFile' })
-    run('Thinking')
+    await run('Thinking')
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'setThinking', enabled: false })
     fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Escape' })
-    run('Effort')
+    await run('Effort')
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'setEffort', effort: 'xhigh' })
     fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Escape' })
-    run('Focus view')
+    await run('Focus View')
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'hostAction', action: 'toggleFocusView' })
     fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Escape' })
-    run('Ctrl+Enter')
+    await run('Ctrl+Enter')
     expect(postMessage).toHaveBeenLastCalledWith({
       type: 'hostAction',
       action: 'toggleCtrlEnterToSend',
     })
     fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Escape' })
-    run('Open settings')
+    await run('Open settings')
     expect(postMessage).toHaveBeenCalledWith({ type: 'hostAction', action: 'openSettings' })
-    run('Keyboard shortcuts')
+    await run('Keyboard Shortcuts')
     expect(postMessage).toHaveBeenCalledWith({ type: 'hostAction', action: 'openKeybindings' })
-    run('Output log')
+    await run('Output log')
     expect(postMessage).toHaveBeenCalledWith({ type: 'hostAction', action: 'openLog' })
     // M99: the release notes of this version, in an editor tab.
-    run('What’s New')
+    await run('What’s New')
     expect(postMessage).toHaveBeenCalledWith({ type: 'hostAction', action: 'showWhatsNew' })
-    run('Sign out')
+    await run('Sign Out')
     expect(postMessage).toHaveBeenCalledWith({ type: 'signOut' })
-    run('/compact')
+    await run('/compact')
     expect(postMessage).toHaveBeenCalledWith({ type: 'compact' })
     // M74: /handoff readies the prompt for the new conversation's goal.
-    run('/handoff')
+    await run('/handoff')
     expect(textarea().value).toBe('/handoff ')
     expect(postMessage).not.toHaveBeenCalledWith(
       expect.objectContaining({ type: 'requestHandoff' }),
     )
     fireEvent.change(textarea(), { target: { value: '' } })
-    run('/export')
+    await run('/export')
     expect(postMessage).toHaveBeenCalledWith({ type: 'exportConversation', format: 'markdown' })
     deliver({ type: 'authState', status: 'signedIn', backend: 'modelApi' })
-    run('Import session…')
+    await run('Import Session…')
     expect(postMessage).toHaveBeenCalledWith({ type: 'importSession' })
-    run('Open share file…')
+    await run('Open Share File…')
     expect(postMessage).toHaveBeenCalledWith({ type: 'openShareFile' })
     // The CLI's own rows (M30) need the Muse Code backend.
     deliver({ type: 'authState', status: 'signedIn', backend: 'museCode' })
@@ -1347,49 +1371,49 @@ describe('App palette', () => {
       type: 'skillList',
       skills: [{ selector: 'fix-bug', displayName: 'Fix bug', description: 'd' }],
     })
-    run('Export session log')
+    await run('Export session log')
     expect(postMessage).toHaveBeenCalledWith({ type: 'exportConversation', format: 'sessionLog' })
-    run('Manage skills')
+    await run('Manage skills')
     expect(postMessage).toHaveBeenCalledWith({ type: 'hostAction', action: 'manageSkills' })
-    run('Import skills')
+    await run('Import skills')
     expect(postMessage).toHaveBeenCalledWith({ type: 'hostAction', action: 'importSkills' })
-    run('MCP servers')
+    await run('MCP servers')
     expect(postMessage).toHaveBeenCalledWith({ type: 'hostAction', action: 'showMcpServers' })
-    run('Hooks…')
+    await run('Hooks…')
     expect(postMessage).toHaveBeenCalledWith({ type: 'hostAction', action: 'showHooks' })
-    run('Memory…')
+    await run('Memory…')
     expect(postMessage).toHaveBeenCalledWith({ type: 'hostAction', action: 'showMemory' })
-    run('New worktree')
+    await run('New worktree')
     expect(postMessage).toHaveBeenCalledWith({ type: 'hostAction', action: 'newWorktree' })
-    run('Remove a worktree')
+    await run('Remove a Worktree')
     expect(postMessage).toHaveBeenCalledWith({ type: 'hostAction', action: 'removeWorktree' })
     // M93: the report's preview, never a bare link.
-    run('Report an issue')
+    await run('Report an issue')
     expect(postMessage).toHaveBeenCalledWith({ type: 'openReport' })
-    run('/fix-bug')
+    await run('/fix-bug')
     expect(textarea()).toHaveValue('/fix-bug ')
     expect(screen.queryByRole('dialog')).toBeNull()
   })
 
-  it('clears the conversation locally and tells the host', () => {
+  it('clears the conversation locally and tells the host', async () => {
     const postMessage = renderReady()
     fireEvent.change(textarea(), { target: { value: 'hello' } })
     fireEvent.keyDown(textarea(), { key: 'Enter' })
     expect(screen.getByText('hello')).toBeInTheDocument()
-    const filter = openPalette()
-    fireEvent.change(filter, { target: { value: 'Clear conversation' } })
+    const filter = await openPalette()
+    fireEvent.change(filter, { target: { value: 'Clear Conversation' } })
     fireEvent.keyDown(filter, { key: 'Enter' })
     expect(postMessage).toHaveBeenCalledWith(expect.objectContaining({ type: 'clearConversation' }))
     expect(screen.queryByText('hello')).toBeNull()
     expect(screen.getByText(init.emptyStateHint)).toBeInTheDocument()
   })
 
-  it('switches models from the pill and from the palette, and can go back', () => {
+  it('switches models from the pill and from the palette, and can go back', async () => {
     const postMessage = renderReady()
     deliver({ type: 'sessionInfo', modelId: 'muse-spark-1.3', contextLimit: 1_007_997 })
     deliver({ type: 'modelList', models })
     fireEvent.click(screen.getByLabelText('Model'))
-    expect(screen.getByRole('listbox', { name: 'Models' })).toBeInTheDocument()
+    expect(await screen.findByRole('listbox', { name: 'Models' })).toBeInTheDocument()
     fireEvent.keyDown(screen.getByRole('combobox'), { key: 'ArrowDown' })
     fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Enter' })
     expect(postMessage).toHaveBeenCalledWith({ type: 'setModel', modelId: 'muse-spark-1.2' })
@@ -1397,10 +1421,10 @@ describe('App palette', () => {
     deliver({ type: 'agentEvent', event: { type: 'modelChanged', modelId: 'muse-spark-1.2' } })
     expect(screen.getByLabelText('Model')).toHaveTextContent('muse-spark-1.2 High')
 
-    const filter = openPalette()
+    const filter = await openPalette()
     fireEvent.change(filter, { target: { value: 'Switch model' } })
     fireEvent.keyDown(filter, { key: 'Enter' })
-    expect(screen.getByRole('listbox', { name: 'Models' })).toBeInTheDocument()
+    expect(await screen.findByRole('listbox', { name: 'Models' })).toBeInTheDocument()
     fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Escape' })
     expect(screen.getByRole('listbox', { name: 'Actions' })).toBeInTheDocument()
   })
@@ -1449,7 +1473,7 @@ describe('App palette', () => {
         store.dispatch({ type: 'hostMessage', message, at: 1 })
       }
     })
-    const restart = screen.getByRole('button', { name: 'Restart now' })
+    const restart = screen.getByRole('button', { name: 'Restart Now' })
     fireEvent.click(restart)
     fireEvent.click(restart)
     expect(
@@ -1476,7 +1500,7 @@ describe('App palette', () => {
       })
     })
     expect(screen.getByText('Replay refused')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Restart now' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Restart Now' })).toBeNull()
   })
 })
 
@@ -1503,7 +1527,7 @@ describe('App editor integration (M5)', () => {
   it('leaves the context out once dismissed, until another file is active', () => {
     const postMessage = renderReady()
     deliver({ type: 'editorContext', context })
-    fireEvent.click(screen.getByLabelText('Leave the open file out: App.tsx L5-10'))
+    fireEvent.click(screen.getByLabelText('Leave the Open File Out: App.tsx L5-10'))
     expect(screen.queryByText('App.tsx L5-10')).toBeNull()
     fireEvent.change(textarea(), { target: { value: 'hi' } })
     fireEvent.keyDown(textarea(), { key: 'Enter' })
@@ -1547,7 +1571,7 @@ describe('App editor integration (M5)', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: 'notes.md' }))
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'openFile', path: 'notes.md' })
-    fireEvent.click(screen.getByText('Click to expand'))
+    fireEvent.click(screen.getByText('Click to Expand'))
     expect(postMessage).toHaveBeenLastCalledWith({
       type: 'openEditDiff',
       itemId: 'ed',
@@ -1584,7 +1608,7 @@ describe('App session history (M6)', () => {
 
   it('opens the History dialog from the header, lists, resumes and archives', () => {
     const postMessage = renderReady()
-    fireEvent.click(screen.getByLabelText('Session history'))
+    fireEvent.click(screen.getByLabelText('Session History'))
     expect(postMessage).toHaveBeenCalledWith({ type: 'listSessions' })
     expect(screen.getByText('Loading…')).toBeInTheDocument()
     deliver({ type: 'sessionList', sessions: [sessionRow], archivedIds: [] })
@@ -1608,7 +1632,7 @@ describe('App session history (M6)', () => {
 
   it('toggles the History dialog closed from the same button, hanging from the header', () => {
     renderReady()
-    const button = screen.getByLabelText('Session history')
+    const button = screen.getByLabelText('Session History')
     fireEvent.click(button)
     const dialog = screen.getByRole('dialog', { name: 'History' })
     expect(dialog.parentElement).toHaveClass('header-area')
@@ -1621,9 +1645,9 @@ describe('App session history (M6)', () => {
     expect(document.activeElement).toBe(textarea())
   })
 
-  it('opens the History dialog from the palette Resume row', () => {
+  it('opens the History dialog from the palette Resume row', async () => {
     const postMessage = renderReady()
-    const filter = openPalette()
+    const filter = await openPalette()
     fireEvent.change(filter, { target: { value: 'Resume' } })
     fireEvent.keyDown(filter, { key: 'Enter' })
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'listSessions' })
@@ -1649,7 +1673,7 @@ describe('App session history (M6)', () => {
     const menus = userMenuButtons()
     expect(menus).toHaveLength(2)
     fireEvent.click(menus[1]!)
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Fork conversation from here' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Fork Conversation' }))
     expect(postMessage).toHaveBeenLastCalledWith({
       type: 'forkSession',
       lastTurnId: 't1',
@@ -1658,7 +1682,7 @@ describe('App session history (M6)', () => {
     expect(screen.queryByRole('menu')).toBeNull()
     // Before the first message there is nothing to keep: a new conversation.
     fireEvent.click(menus[0]!)
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Fork conversation from here' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Fork Conversation' }))
     expect(postMessage).toHaveBeenLastCalledWith(
       expect.objectContaining({ type: 'clearConversation' }),
     )
@@ -1699,7 +1723,7 @@ describe('App session history (M6)', () => {
       event: { type: 'turnCompleted', turnId: 't1', terminal: 'completed' },
     })
     fireEvent.click(userMenuButtons()[0]!)
-    expect(screen.queryByRole('menuitem', { name: 'Rewind conversation to here' })).toBeNull()
+    expect(screen.queryByRole('menuitem', { name: 'Rewind Conversation to Here' })).toBeNull()
 
     loadHistory([
       {
@@ -1708,7 +1732,7 @@ describe('App session history (M6)', () => {
       },
     ])
     fireEvent.click(userMenuButtons()[0]!)
-    expect(screen.queryByRole('menuitem', { name: 'Rewind conversation to here' })).toBeNull()
+    expect(screen.queryByRole('menuitem', { name: 'Rewind Conversation to Here' })).toBeNull()
     expect(postMessage).not.toHaveBeenLastCalledWith(
       expect.objectContaining({ type: 'rewindConversation' }),
     )
@@ -1725,10 +1749,10 @@ describe('App session history (M6)', () => {
     ])
     const menus = userMenuButtons()
     fireEvent.click(menus[0]!)
-    expect(rewindItem('Rewind conversation to here')).toBeInTheDocument()
+    expect(rewindItem('Rewind Conversation to Here')).toBeInTheDocument()
     fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
     fireEvent.click(menus[1]!)
-    expect(screen.queryByRole('menuitem', { name: 'Rewind conversation to here' })).toBeNull()
+    expect(screen.queryByRole('menuitem', { name: 'Rewind Conversation to Here' })).toBeNull()
   })
 
   it('uses the backend replay ID for an image card rewound before History reload (M53)', () => {
@@ -1778,7 +1802,7 @@ describe('App session history (M6)', () => {
     renderReady()
     loadHistory([historyUser('u1', 't1', 'first'), historyUser('u2', 't1', 'steered')])
     fireEvent.click(userMenuButtons()[1]!)
-    expect(screen.queryByRole('menuitem', { name: 'Rewind conversation to here' })).toBeNull()
+    expect(screen.queryByRole('menuitem', { name: 'Rewind Conversation to Here' })).toBeNull()
   })
 
   it('hides conversation rewind for an active steered turn before its image reaches replay (M53)', () => {
@@ -1790,7 +1814,7 @@ describe('App session history (M6)', () => {
     ])
     deliver({ type: 'agentEvent', event: { type: 'turnStarted', turnId: 't2' } })
     fireEvent.click(userMenuButtons()[2]!)
-    expect(screen.queryByRole('menuitem', { name: 'Rewind conversation to here' })).toBeNull()
+    expect(screen.queryByRole('menuitem', { name: 'Rewind Conversation to Here' })).toBeNull()
   })
 
   it('offers a side chat on a fork-capable session and labels the Plan-mode tab (M53)', () => {
@@ -1804,15 +1828,15 @@ describe('App session history (M6)', () => {
         { itemId: 'u1', kind: 'userMessage', status: 'completed', turnId: 't1', text: 'first' },
       ],
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Side chat' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Side Chat' }))
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'openSideChat', sourceSessionId: 'old' })
     deliver({
       ...init,
       sideChat: true,
       settings: { ...testSettings, initialPermissionMode: 'plan' },
     })
-    expect(screen.getByText('Side chat')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Side chat' })).toBeNull()
+    expect(screen.getByText('Side Chat')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Side Chat' })).toBeNull()
   })
 
   it('labels a side session resumed through ordinary History and locks its mode (M53)', () => {
@@ -1831,9 +1855,9 @@ describe('App session history (M6)', () => {
       isThinkingEnabled: true,
       permissionMode: 'plan',
     })
-    expect(screen.getByText('Side chat')).toBeInTheDocument()
+    expect(screen.getByText('Side Chat')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: UI_TEXT.sideChatPlanOnly })).toBeDisabled()
-    expect(screen.queryByRole('button', { name: 'Side chat' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Side Chat' })).toBeNull()
   })
 
   it('rewinds code to a message, forks after rewinding, and closes the menu on Escape (M13)', () => {
@@ -1852,7 +1876,7 @@ describe('App session history (M6)', () => {
     })
     const menus = userMenuButtons()
     fireEvent.click(menus[0]!)
-    fireEvent.click(rewindItem('Rewind code to here'))
+    fireEvent.click(rewindItem('Rewind Code to Here'))
     expect(postMessage).toHaveBeenLastCalledWith({
       type: 'rewindCode',
       edits: [
@@ -1861,7 +1885,7 @@ describe('App session history (M6)', () => {
       ],
     })
     fireEvent.click(menus[1]!)
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Fork conversation and rewind code' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Fork and Rewind' }))
     // One host action: the rewind, then the fork (M72), never two racing messages.
     expect(postMessage).toHaveBeenLastCalledWith({
       type: 'rewindCode',
@@ -1874,7 +1898,7 @@ describe('App session history (M6)', () => {
     expect(screen.queryByRole('menu')).toBeNull()
   })
 
-  it('shows the agents pill once a subagent runs and opens the Agent map from it (M14)', () => {
+  it('shows the agents pill once a subagent runs and opens the Agent Map from it (M14)', async () => {
     const postMessage = renderReady()
     deliver({ type: 'sessionInfo', modelId: 'muse-spark-1.3', sessionId: 's1' })
     deliver({
@@ -1898,10 +1922,10 @@ describe('App session history (M6)', () => {
       },
     })
     const pill = screen.getByTitle('Show the agent map')
-    expect(pill).toHaveTextContent('1 agent')
+    expect(pill).toHaveTextContent('1 Agent')
     fireEvent.click(pill)
-    const map = screen.getByRole('dialog', { name: 'Agent map' })
-    expect(map).toHaveTextContent('1 agent · click an agent for details')
+    const map = await screen.findByRole('dialog', { name: 'Agent Map' })
+    expect(map).toHaveTextContent('1 Agent · click an agent for details')
     fireEvent.click(screen.getByRole('button', { name: /Map the workspace/ }))
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'readChildSession', sessionId: 'child-1' })
     expect(map).toHaveTextContent('Reading the agent’s transcript…')
@@ -1910,17 +1934,17 @@ describe('App session history (M6)', () => {
       sessionId: 'child-1',
       items: [{ itemId: 'a', kind: 'agentMessage', status: 'completed', text: 'Mapped 12 files' }],
     })
-    expect(screen.getByRole('list', { name: 'Agent transcript' })).toHaveTextContent(
+    expect(screen.getByRole('list', { name: 'Agent Transcript' })).toHaveTextContent(
       'Mapped 12 files',
     )
-    fireEvent.click(screen.getByText('Back to the map'))
-    fireEvent.keyDown(screen.getByRole('dialog', { name: 'Agent map' }), { key: 'Escape' })
+    fireEvent.click(screen.getByText('Back to the Map'))
+    fireEvent.keyDown(screen.getByRole('dialog', { name: 'Agent Map' }), { key: 'Escape' })
     expect(screen.queryByRole('dialog')).toBeNull()
   })
 
   it.each(['museCode', 'modelApi'] as const)(
     'shows only verified %s agent result controls through the real App',
-    (backend) => {
+    async (backend) => {
       const postMessage = renderReady()
       deliver({ type: 'authState', status: 'signedIn', backend })
       deliver({ type: 'sessionInfo', modelId: 'muse-spark-1.3', sessionId: 's1' })
@@ -1946,18 +1970,18 @@ describe('App session history (M6)', () => {
         },
       })
       fireEvent.click(screen.getByTitle('Show the agent map'))
-      fireEvent.click(screen.getByRole('button', { name: /Check controls/ }))
+      fireEvent.click(await screen.findByRole('button', { name: /Check controls/ }))
       if (backend === 'modelApi') {
-        fireEvent.click(screen.getByRole('button', { name: 'Mark result read' }))
+        fireEvent.click(screen.getByRole('button', { name: 'Mark Result Read' }))
         expect(postMessage).toHaveBeenCalledWith({
           type: 'subagentControl',
           subagentId: 'sub-controls',
           action: 'readResult',
         })
       } else {
-        expect(screen.queryByRole('button', { name: 'Mark result read' })).toBeNull()
+        expect(screen.queryByRole('button', { name: 'Mark Result Read' })).toBeNull()
       }
-      fireEvent.click(screen.getByRole('button', { name: 'Close agent' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Close Agent' }))
       expect(postMessage).toHaveBeenCalledWith({
         type: 'subagentControl',
         subagentId: 'sub-controls',
@@ -1970,7 +1994,7 @@ describe('App session history (M6)', () => {
           item: { ...started, status: 'completed', controlStatus: 'closed' },
         },
       })
-      expect(screen.queryByRole('button', { name: 'Reopen agent' }) !== null).toBe(
+      expect(screen.queryByRole('button', { name: 'Reopen Agent' }) !== null).toBe(
         backend === 'modelApi',
       )
     },
@@ -1999,7 +2023,7 @@ describe('App session history (M6)', () => {
     expect(screen.queryByRole('button', { name: 'Cancel workflow' })).toBeNull()
     expect(screen.queryByRole('button', { name: /Skip ping|Retry ping/ })).toBeNull()
     const pill = screen.getByTitle('Show the agent map')
-    expect(pill).toHaveTextContent('2 agents')
+    expect(pill).toHaveTextContent('2 Agents')
     fireEvent.click(pill)
     // The map reads the account facts fresh, as the usage dialog does.
     expect(postMessage).toHaveBeenCalledWith({ type: 'readUsage' })
@@ -2008,25 +2032,25 @@ describe('App session history (M6)', () => {
       backend: 'museCode',
       account: { signInMethod: 'cli', delegationMode: 'auto', workflowTriggerMode: 'explicit' },
     })
-    const map = screen.getByRole('dialog', { name: 'Agent map' })
+    const map = screen.getByRole('dialog', { name: 'Agent Map' })
     expect(within(map).getByRole('list', { name: 'Workflows' })).toHaveTextContent('ping')
     expect(within(map).getByRole('note')).toHaveTextContent('workflows are on explicit')
   })
 
-  it('explains delegation being off in the Agent map and opens the Muse settings file (M14)', () => {
+  it('explains delegation being off in the Agent Map and opens the Muse settings file (M14)', async () => {
     const postMessage = renderReady()
     deliver({
       type: 'usageReport',
       backend: 'museCode',
       account: { signInMethod: 'cli', delegationMode: 'off' },
     })
-    const filter = openPalette()
+    const filter = await openPalette()
     fireEvent.change(filter, { target: { value: '/agents' } })
     fireEvent.keyDown(filter, { key: 'Enter' })
-    const map = screen.getByRole('dialog', { name: 'Agent map' })
+    const map = screen.getByRole('dialog', { name: 'Agent Map' })
     expect(map).toHaveTextContent('No subagents in this conversation.')
     expect(map).toHaveTextContent('subagent delegation is off')
-    fireEvent.click(screen.getByText('Open the Muse Code settings file'))
+    fireEvent.click(screen.getByText('Open the Muse Code Settings File'))
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'hostAction', action: 'openMuseSettings' })
   })
 
@@ -2051,10 +2075,10 @@ describe('App session history (M6)', () => {
 
   it('renames from the title once a session exists, and not before', () => {
     const postMessage = renderReady()
-    expect(screen.queryByTitle('Rename this conversation')).toBeNull()
+    expect(screen.queryByTitle('Rename This Conversation')).toBeNull()
     deliver({ type: 'sessionInfo', modelId: 'muse-spark-1.3', sessionId: 's1' })
-    fireEvent.click(screen.getByTitle('Rename this conversation'))
-    const input = screen.getByLabelText<HTMLInputElement>('Rename this conversation')
+    fireEvent.click(screen.getByTitle('Rename This Conversation'))
+    const input = screen.getByLabelText<HTMLInputElement>('Rename This Conversation')
     expect(input.value).toBe('')
     fireEvent.change(input, { target: { value: 'Parser work' } })
     fireEvent.keyDown(input, { key: 'Enter' })
@@ -2062,10 +2086,10 @@ describe('App session history (M6)', () => {
     deliver({ type: 'agentEvent', event: { type: 'sessionNamed', name: 'Parser work' } })
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Parser work')
     // Escape and an unchanged name send nothing.
-    fireEvent.click(screen.getByTitle('Rename this conversation'))
-    fireEvent.keyDown(screen.getByLabelText('Rename this conversation'), { key: 'Escape' })
-    fireEvent.click(screen.getByTitle('Rename this conversation'))
-    fireEvent.blur(screen.getByLabelText('Rename this conversation'))
+    fireEvent.click(screen.getByTitle('Rename This Conversation'))
+    fireEvent.keyDown(screen.getByLabelText('Rename This Conversation'), { key: 'Escape' })
+    fireEvent.click(screen.getByTitle('Rename This Conversation'))
+    fireEvent.blur(screen.getByLabelText('Rename This Conversation'))
     const renames = postMessage.mock.calls.filter(([message]) => message.type === 'renameSession')
     expect(renames).toHaveLength(1)
   })
@@ -2079,7 +2103,7 @@ describe('App account & usage, onboarding and announcements (M8)', () => {
     weekly: { usedPercent: 7, resetsAtMs: Date.now() + 86_400_000 },
   }
 
-  it('opens Account & usage from /usage, asks the host, renders the report, closes on Escape', async () => {
+  it('opens Account & Usage from /usage, asks the host, renders the report, closes on Escape', async () => {
     const postMessage = renderReady()
     const dialog = await openUsageDialog()
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'readUsage' })
@@ -2087,7 +2111,7 @@ describe('App account & usage, onboarding and announcements (M8)', () => {
     expect(dialog).toHaveTextContent('Reading usage…')
     deliver({ type: 'usageReport', backend: 'museCode', subscription })
     expect(
-      screen.getByRole('progressbar', { name: 'Current window: 42% used' }),
+      screen.getByRole('progressbar', { name: 'Current Window: 42% used' }),
     ).toBeInTheDocument()
     await waitFor(() => expect(dialog).toHaveTextContent('muse-pro'))
     fireEvent.keyDown(screen.getByLabelText('Close'), { key: 'Escape' })
@@ -2102,40 +2126,40 @@ describe('App account & usage, onboarding and announcements (M8)', () => {
     await waitFor(() => expect(dialog).toHaveTextContent('muse-pro'))
     deliver({ type: 'conversationCleared', accountBoundary: true })
     expect(screen.queryByText('muse-pro')).toBeNull()
-    expect(screen.queryByRole('dialog', { name: 'Account & usage' })).toBeNull()
+    expect(screen.queryByRole('dialog', { name: 'Account & Usage' })).toBeNull()
     expect(screen.getByRole('status')).toHaveTextContent('Connecting to the extension host')
   })
 
-  it('opens Account & usage when the host asks (the Tab menu’s row, RVM94HU 21)', () => {
+  it('opens Account & Usage when the host asks (the Tab menu’s row, RVM94HU 21)', () => {
     const postMessage = renderReady()
-    expect(screen.queryByRole('dialog', { name: 'Account & usage' })).toBeNull()
+    expect(screen.queryByRole('dialog', { name: 'Account & Usage' })).toBeNull()
     postMessage.mockClear()
     deliver({ type: 'openUsage' })
-    expect(screen.getByRole('dialog', { name: 'Account & usage' })).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'Account & Usage' })).toBeInTheDocument()
     expect(postMessage).toHaveBeenCalledWith({ type: 'readUsage' })
   })
 
-  it('opens the dialog from the Account & usage row and from /cost', async () => {
+  it('opens the dialog from the Account & Usage row and from /cost', async () => {
     const postMessage = renderReady()
-    let filter = openPalette()
-    fireEvent.change(filter, { target: { value: 'Account & usage' } })
+    let filter = await openPalette()
+    fireEvent.change(filter, { target: { value: 'Account & Usage' } })
     fireEvent.keyDown(filter, { key: 'Enter' })
-    expect(await screen.findByRole('dialog', { name: 'Account & usage' })).toBeInTheDocument()
+    expect(await screen.findByRole('dialog', { name: 'Account & Usage' })).toBeInTheDocument()
     fireEvent.click(screen.getByLabelText('Close'))
-    filter = openPalette()
+    filter = await openPalette()
     fireEvent.change(filter, { target: { value: '/cost' } })
     fireEvent.keyDown(filter, { key: 'Enter' })
-    expect(await screen.findByRole('dialog', { name: 'Account & usage' })).toBeInTheDocument()
+    expect(await screen.findByRole('dialog', { name: 'Account & Usage' })).toBeInTheDocument()
     expect(postMessage.mock.calls.filter(([m]) => m.type === 'readUsage')).toHaveLength(2)
   })
 
   it('shows the getting-started tips until the user hides them', () => {
     const postMessage = renderReady()
-    expect(screen.getByRole('region', { name: 'Getting started' })).toHaveTextContent('Ctrl+Esc')
-    fireEvent.click(screen.getByText('Hide these tips'))
+    expect(screen.getByRole('region', { name: 'Getting Started' })).toHaveTextContent('Ctrl+Esc')
+    fireEvent.click(screen.getByText('Hide These Tips'))
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'hostAction', action: 'hideOnboarding' })
     deliver({ type: 'settingsChanged', settings: { ...testSettings, hideOnboarding: true } })
-    expect(screen.queryByRole('region', { name: 'Getting started' })).toBeNull()
+    expect(screen.queryByRole('region', { name: 'Getting Started' })).toBeNull()
     expect(screen.getByText(init.emptyStateHint)).toBeInTheDocument()
   })
 
@@ -2154,10 +2178,10 @@ describe('App account & usage, onboarding and announcements (M8)', () => {
 describe('App: voice dictation (M9)', () => {
   it('posts the microphone press and reflects the host state', () => {
     const postMessage = renderReady()
-    fireEvent.pointerDown(screen.getByLabelText('Record voice'))
+    fireEvent.pointerDown(screen.getByLabelText('Record Voice'))
     expect(postMessage).toHaveBeenCalledWith({ type: 'dictation', action: 'start' })
     deliver({ type: 'dictationState', status: 'listening' })
-    expect(screen.getByLabelText('Record voice')).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByLabelText('Record Voice')).toHaveAttribute('aria-pressed', 'true')
     expect(textarea()).toHaveAttribute('placeholder', 'Listening…')
     deliver({ type: 'insertText', text: 'fix the bug ' })
     expect(textarea()).toHaveValue('fix the bug ')
@@ -2182,7 +2206,7 @@ describe('transcript scrolling (M15)', () => {
     fireEvent.change(textarea(), { target: { value: 'hello' } })
     fireEvent.keyDown(textarea(), { key: 'Enter' })
     expect(setTop).toHaveBeenLastCalledWith(1000)
-    expect(screen.queryByRole('button', { name: 'New messages' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'New Messages' })).toBeNull()
 
     // Scrolled up: a new reply holds the view and offers the jump.
     top = 0
@@ -2191,9 +2215,9 @@ describe('transcript scrolling (M15)', () => {
     deliver({ type: 'turnAccepted', localId: 'local-1', turnId: 't1' })
     streamReply('m1', 'hi')
     expect(setTop).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('button', { name: 'New messages' }))
+    fireEvent.click(screen.getByRole('button', { name: 'New Messages' }))
     expect(setTop).toHaveBeenLastCalledWith(1000)
-    expect(screen.queryByRole('button', { name: 'New messages' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'New Messages' })).toBeNull()
 
     // Pinned to the end again: streaming keeps the view at the end, no button.
     top = 600
@@ -2204,7 +2228,7 @@ describe('transcript scrolling (M15)', () => {
       event: { type: 'textDelta', itemId: 'm1', field: 'text', delta: ' there' },
     })
     expect(setTop).toHaveBeenLastCalledWith(1000)
-    expect(screen.queryByRole('button', { name: 'New messages' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'New Messages' })).toBeNull()
   })
 
   it('asks the host to open a tool output in an editor', () => {
@@ -2258,6 +2282,18 @@ function reply(itemId: string, text: string) {
   })
 }
 
+function selectionMenuOrigin() {
+  const pill = screen.getAllByRole('menuitem')[0]
+  if (pill === undefined) throw new Error('Missing selection pill')
+  const [originX, originY] = pill.style.transformOrigin
+    .split(' ')
+    .map((value) => Number(value.replace('px', '')))
+  return {
+    x: Number(pill.style.left.replace('px', '')) + (originX ?? 0),
+    y: Number(pill.style.top.replace('px', '')) + (originY ?? 0),
+  }
+}
+
 describe('App chat references (M17)', () => {
   afterEach(() => {
     vi.restoreAllMocks()
@@ -2269,8 +2305,8 @@ describe('App chat references (M17)', () => {
     fireEvent.click(
       document.querySelector<HTMLButtonElement>('[data-role="assistant"] .row-actions-button')!,
     )
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Reply to this output' }))
-    expect(screen.getByText('Replying to: Use pnpm.')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Reply to This Output' }))
+    expect(screen.getByText('Replying To: Use pnpm.')).toBeInTheDocument()
     fireEvent.change(textarea(), { target: { value: 'why?' } })
     fireEvent.keyDown(textarea(), { key: 'Enter' })
     expect(postMessage).toHaveBeenLastCalledWith({
@@ -2282,8 +2318,8 @@ describe('App chat references (M17)', () => {
       reference: { intent: 'reply', role: 'assistant', entryId: 'm1', text: 'Use pnpm.' },
     })
     // The composer chip is gone; the sent card carries the label.
-    expect(screen.queryByLabelText('Remove: Replying to: Use pnpm.')).toBeNull()
-    expect(screen.getByText('Replying to: Use pnpm.').closest('.message-user')).not.toBeNull()
+    expect(screen.queryByLabelText('Remove: Replying To: Use pnpm.')).toBeNull()
+    expect(screen.getByText('Replying To: Use pnpm.').closest('.message-user')).not.toBeNull()
   })
 
   it('asks about highlighted text from the right-click menu, and the chip can be removed', () => {
@@ -2295,8 +2331,8 @@ describe('App chat references (M17)', () => {
       anchorNode: passage,
     } as unknown as Selection)
     fireEvent.contextMenu(passage)
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Ask about this' }))
-    expect(screen.getByText('Asking about: it is fast')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Ask About This' }))
+    expect(screen.getByText('Asking About: it is fast')).toBeInTheDocument()
     fireEvent.change(textarea(), { target: { value: 'how fast?' } })
     fireEvent.keyDown(textarea(), { key: 'Enter' })
     expect(postMessage).toHaveBeenLastCalledWith(
@@ -2306,9 +2342,67 @@ describe('App chat references (M17)', () => {
       }),
     )
     fireEvent.contextMenu(passage)
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Comment on this' }))
-    fireEvent.click(screen.getByLabelText('Remove: Commenting on: it is fast'))
-    expect(screen.queryByText('Commenting on: it is fast')).toBeNull()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Comment on This' }))
+    fireEvent.click(screen.getByLabelText('Remove: Commenting On: it is fast'))
+    expect(screen.queryByText('Commenting On: it is fast')).toBeNull()
+  })
+
+  it.each([true, false])(
+    'anchors a selection menu to its row opener when present: %s',
+    (hasButton) => {
+      renderReady()
+      reply('m1', 'Selected passage')
+      const passage = screen.getByText('Selected passage')
+      const row = passage.closest('[data-entry-id]')
+      const button = row?.querySelector('.row-actions-button')
+      if (button === null || button === undefined) throw new Error('Missing row opener')
+      vi.spyOn(button, 'getBoundingClientRect').mockReturnValue(new DOMRect(700, 240, 24, 24))
+      if (!hasButton) button.remove()
+      const range = document.createRange()
+      range.selectNodeContents(passage)
+      const selection = window.getSelection()
+      selection?.removeAllRanges()
+      selection?.addRange(range)
+      fireEvent.contextMenu(passage, { clientX: 300, clientY: 180 })
+      expect(selectionMenuOrigin()).toEqual({ x: hasButton ? 712 : 300, y: hasButton ? 252 : 180 })
+      selection?.removeAllRanges()
+    },
+  )
+
+  it('keeps the selection menu attached to its row button across panel resize', () => {
+    const observers = new Set<() => void>()
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        public constructor(private readonly callback: () => void) {}
+        public observe(): void {
+          observers.add(this.callback)
+        }
+        public disconnect(): void {
+          observers.delete(this.callback)
+        }
+      },
+    )
+    renderReady()
+    reply('m1', 'Selected passage')
+    const passage = screen.getByText('Selected passage')
+    const button = passage.closest('[data-entry-id]')?.querySelector('.row-actions-button')
+    if (button === null || button === undefined) throw new Error('Missing row opener')
+    const rect = vi.spyOn(button, 'getBoundingClientRect')
+    rect.mockReturnValue(new DOMRect(283, 150, 24, 24))
+    const range = document.createRange()
+    range.selectNodeContents(passage)
+    const selection = window.getSelection()
+    selection?.removeAllRanges()
+    selection?.addRange(range)
+    fireEvent.contextMenu(passage, { clientX: 100, clientY: 180 })
+    rect.mockReturnValue(new DOMRect(654, 240, 24, 24))
+    act(() => {
+      for (const callback of observers) callback()
+    })
+    expect(selectionMenuOrigin()).toEqual({ x: 666, y: 252 })
+    selection?.removeAllRanges()
+    vi.unstubAllGlobals()
   })
 
   it('opens row actions without a selection, quotes with one, and Escape closes each', () => {
@@ -2382,7 +2476,7 @@ describe('App webview and UI state (M25)', () => {
     const postMessage = renderReady()
     fireEvent.change(textarea(), { target: { value: 'first' } })
     fireEvent.keyDown(textarea(), { key: 'Enter' })
-    fireEvent.click(screen.getByLabelText('New conversation'))
+    fireEvent.click(screen.getByLabelText('New Conversation'))
     fireEvent.change(textarea(), { target: { value: 'second' } })
     fireEvent.keyDown(textarea(), { key: 'Enter' })
     expect(postMessage).toHaveBeenCalledWith(expect.objectContaining({ type: 'clearConversation' }))
@@ -2483,9 +2577,9 @@ describe('App webview and UI state (M25)', () => {
 
     await act(async () => {
       await import('../../src/webview/components/QuestionUi')
-      fireEvent.click(within(screen.getByRole('main')).getByText('Submit'))
-      fireEvent.click(within(screen.getByRole('main')).getByText('Submit'))
-      fireEvent.click(within(screen.getByRole('main')).getByText('Cancel'))
+      fireEvent.click(questionButton('Submit'))
+      fireEvent.click(questionButton('Submit'))
+      fireEvent.click(questionButton('Cancel'))
     })
     const answers = () =>
       postMessage.mock.calls.filter(
@@ -2496,7 +2590,7 @@ describe('App webview and UI state (M25)', () => {
     deliver({ type: 'notice', level: 'error', text: 'The answer was not accepted: gone' })
     await act(async () => {
       await import('../../src/webview/components/QuestionUi')
-      fireEvent.click(within(screen.getByRole('main')).getByText('Submit'))
+      fireEvent.click(questionButton('Submit'))
     })
     expect(answers()).toHaveLength(2)
   })
@@ -2536,7 +2630,7 @@ function showGoal() {
       goal: { objective: 'Original objective', status: 'active', percentComplete: 10 },
     },
   })
-  return screen.getByRole('region', { name: 'Session goal' })
+  return screen.getByRole('region', { name: 'Session Goal' })
 }
 
 describe('App: handoff command routing (M74)', () => {
@@ -2573,7 +2667,7 @@ describe('App: the session goal (M45)', () => {
     const strip = showGoal()
     const edit = within(strip).getByRole('button', { name: 'Edit' })
     fireEvent.click(edit)
-    const field = within(strip).getByRole('textbox', { name: 'Goal objective' })
+    const field = within(strip).getByRole('textbox', { name: 'Goal Objective' })
     const rawDraft = `  ${'Long objective '.repeat(60)}  `
     fireEvent.change(field, { target: { value: rawDraft } })
     fireEvent.click(within(strip).getByRole('button', { name: 'Save' }))
@@ -2598,7 +2692,7 @@ describe('App: the session goal (M45)', () => {
       },
     })
     deliver({ type: 'goalCommandResult', requestId: 'goal:local-1:2', accepted: true })
-    expect(within(strip).queryByRole('textbox', { name: 'Goal objective' })).toBeNull()
+    expect(within(strip).queryByRole('textbox', { name: 'Goal Objective' })).toBeNull()
     expect(edit).toHaveFocus()
   })
 
@@ -2606,7 +2700,7 @@ describe('App: the session goal (M45)', () => {
     const postMessage = renderReady()
     const strip = showGoal()
     fireEvent.click(within(strip).getByRole('button', { name: 'Edit' }))
-    const field = within(strip).getByRole('textbox', { name: 'Goal objective' })
+    const field = within(strip).getByRole('textbox', { name: 'Goal Objective' })
     fireEvent.change(field, { target: { value: 'First edit' } })
     fireEvent.click(within(strip).getByRole('button', { name: 'Save' }))
     fireEvent.change(field, { target: { value: 'Newer unsent edit' } })
@@ -2633,7 +2727,7 @@ describe('App: the session goal (M45)', () => {
     renderReady()
     const strip = showGoal()
     fireEvent.click(within(strip).getByRole('button', { name: 'Edit' }))
-    const field = within(strip).getByRole('textbox', { name: 'Goal objective' })
+    const field = within(strip).getByRole('textbox', { name: 'Goal Objective' })
     fireEvent.change(field, { target: { value: 'My unfinished edit' } })
     deliver({
       type: 'agentEvent',
@@ -2717,12 +2811,12 @@ describe('App: the session goal (M45)', () => {
     ).toHaveLength(1)
   })
 
-  it('readies /goal for an objective from the slash list and the palette, and asks for one', () => {
+  it('readies /goal for an objective from the slash list and the palette, and asks for one', async () => {
     const postMessage = renderReady()
     const box = textarea()
     box.focus()
     fireEvent.change(box, { target: { value: '/goal' } })
-    const list = screen.getByRole('listbox', { name: 'Slash commands' })
+    const list = await screen.findByRole('listbox', { name: 'Slash Commands' })
     expect(within(list).getAllByRole('option')[0]).toHaveTextContent('/goal')
     fireEvent.keyDown(box, { key: 'Enter' })
     expect(box).toHaveValue('/goal ')
@@ -2734,7 +2828,7 @@ describe('App: the session goal (M45)', () => {
     expect(postMessage).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'goalCommand' }))
     expect(box).toHaveValue('/goal ')
     fireEvent.change(box, { target: { value: '' } })
-    const filter = openPalette()
+    const filter = await openPalette()
     fireEvent.change(filter, { target: { value: '/goal' } })
     fireEvent.keyDown(filter, { key: 'Enter' })
     expect(textarea()).toHaveValue('/goal ')
@@ -2743,7 +2837,7 @@ describe('App: the session goal (M45)', () => {
 
   it('shows the goal the host reports above the composer, with its verbs', () => {
     const postMessage = renderReady()
-    expect(screen.queryByRole('region', { name: 'Session goal' })).toBeNull()
+    expect(screen.queryByRole('region', { name: 'Session Goal' })).toBeNull()
     deliver({
       type: 'agentEvent',
       event: {
@@ -2751,7 +2845,7 @@ describe('App: the session goal (M45)', () => {
         goal: { objective: 'Ship it', status: 'active', percentComplete: 30 },
       },
     })
-    const strip = screen.getByRole('region', { name: 'Session goal' })
+    const strip = screen.getByRole('region', { name: 'Session Goal' })
     expect(strip).toHaveTextContent('Ship it')
     fireEvent.click(within(strip).getByRole('button', { name: 'Pause' }))
     expect(postMessage).toHaveBeenLastCalledWith({
@@ -2760,7 +2854,7 @@ describe('App: the session goal (M45)', () => {
       verb: 'pause',
     })
     deliver({ type: 'agentEvent', event: { type: 'goalChanged', goal: null } })
-    expect(screen.queryByRole('region', { name: 'Session goal' })).toBeNull()
+    expect(screen.queryByRole('region', { name: 'Session Goal' })).toBeNull()
   })
 })
 
@@ -2800,7 +2894,7 @@ describe('App: Model API scheduled prompts (M52)', () => {
       },
     })
     fireEvent.click(
-      await screen.findByRole('button', { name: 'Enable paid runs for scheduled prompt job-a' }),
+      await screen.findByRole('button', { name: 'Enable Paid Runs for Scheduled Prompt job-a' }),
     )
     expect(postMessage).toHaveBeenLastCalledWith({
       type: 'setPaidFeature',
@@ -2816,7 +2910,7 @@ describe('App: Model API scheduled prompts (M52)', () => {
         alwaysAllowed: [],
       },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Run scheduled prompt job-a' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Run Scheduled Prompt job-a' }))
     expect(postMessage).toHaveBeenLastCalledWith({
       type: 'scheduleRun',
       id: 'job-a',
@@ -2831,6 +2925,63 @@ describe('App: Model API scheduled prompts (M52)', () => {
     expect(postMessage).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'sendMessage', text: '/loop 10m Review tests' }),
     )
+  })
+
+  // Scheduled Prompts v2 (M115, lane W): the palette binds the surface rows
+  // while the `schedules` setting is on (protocol's snapshot, on by default),
+  // and a report draft opens the editor with nothing stashed (only a prompt
+  // draft carries text for it).
+  it('shows the schedule rows while the schedules setting is on and routes one to the host', async () => {
+    const postMessage = renderReady()
+    await runPaletteRow(UI_TEXT.scheduleV2.labels.schedulePrompt)
+    expect(postMessage).toHaveBeenCalledWith({ type: 'openSchedules', view: 'editor' })
+    await runPaletteRow(UI_TEXT.scheduleV2.labels.timeline)
+    expect(postMessage).toHaveBeenCalledWith({ type: 'openSchedules', view: 'timeline' })
+  })
+
+  it('hides the schedule rows while the schedules setting is off', async () => {
+    const postMessage = vi.fn<(message: WebviewToHostMessage) => void>()
+    render(<App postMessage={postMessage} newLocalId={() => 'local-1'} />)
+    deliver({ ...init, settings: { ...testSettings, schedules: false } })
+    deliver({ type: 'authState', status: 'signedIn' })
+    const filter = await openPalette()
+    fireEvent.change(filter, { target: { value: 'schedule' } })
+    const palette = screen.getByRole('dialog', { name: 'Actions' })
+    expect(within(palette).queryByText(UI_TEXT.scheduleV2.labels.title)).toBeNull()
+    expect(within(palette).queryByText(UI_TEXT.scheduleV2.labels.schedulePrompt)).toBeNull()
+    expect(within(palette).queryByText(UI_TEXT.scheduleV2.labels.timeline)).toBeNull()
+  })
+
+  it('opens the editor with nothing stashed for a report draft', async () => {
+    const postMessage = renderReady()
+    const draft = scheduleDraftSchema.parse({
+      ...fakeScheduleDraft(),
+      action: {
+        kind: 'report',
+        reportKind: 'project',
+        args: { scope: 'workspace' },
+        format: 'html',
+        destinations: [{ id: 'browser', kind: 'browser', location: 'local', whenInactive: 'wait' }],
+      },
+    })
+    deliver({
+      type: 'schedulesSurface',
+      workspaceKey: 'test-key',
+      targets: [],
+      defaultDraft: draft,
+      nowMs: 1,
+      initialView: 'list',
+    } satisfies HostToWebviewMessage)
+    send('/schedule add')
+    // The prompt mapping loads on first use (STARTUP017): await the real one.
+    await waitFor(() => {
+      expect(postMessage).toHaveBeenLastCalledWith({ type: 'openSchedules', view: 'editor' })
+    })
+    expect(postMessage).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'schedulesRequest' }),
+    )
+    // Nothing stashed: the editor opens over the report draft's own args.
+    expect(screen.queryByDisplayValue('/schedule add')).toBeNull()
   })
 
   it('offers Copy only on an imported conversation’s code, and Insert and Apply again after it (M84)', () => {
@@ -2971,20 +3122,20 @@ function rowNames() {
 }
 
 describe('App turn checkpoints (M72)', () => {
-  it('offers Restore files and Both on a turn with a checkpoint, the old rows on one without', () => {
+  it('offers Restore Files and Both on a turn with a checkpoint, the old rows on one without', () => {
     renderReady()
     loadHistory([historyUser('u1', 't1', 'first'), historyUser('u2', 't2', 'second')])
     checkpointed(['t2'])
     openMenu(1)
     expect(rowNames()).toEqual([
-      'Rewind conversation to here',
-      'Restore files to here',
-      'Rewind code to here',
-      'Rewind conversation and restore files',
+      'Rewind Conversation to Here',
+      'Restore Files to Here',
+      'Rewind Code to Here',
+      'Rewind Conversation and Restore Files',
     ])
     fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
     openMenu(0)
-    expect(rowNames()).toEqual(['Rewind conversation to here', 'Rewind code to here'])
+    expect(rowNames()).toEqual(['Rewind Conversation to Here', 'Rewind Code to Here'])
   })
 
   it('asks the host to restore the files, or the files and the conversation', () => {
@@ -2992,14 +3143,14 @@ describe('App turn checkpoints (M72)', () => {
     loadHistory([historyUser('u1', 't1', 'first'), historyUser('u2', 't2', 'second')])
     checkpointed(['t2'])
     openMenu(1)
-    fireEvent.click(rewindItem('Restore files to here'))
+    fireEvent.click(rewindItem('Restore Files to Here'))
     expect(postMessage).toHaveBeenLastCalledWith({
       type: 'restoreFiles',
       sourceSessionId: 'old',
       turnId: 't2',
     })
     openMenu(1)
-    fireEvent.click(rewindItem('Rewind conversation and restore files'))
+    fireEvent.click(rewindItem('Rewind Conversation and Restore Files'))
     expect(postMessage).toHaveBeenLastCalledWith({
       type: 'restoreFiles',
       sourceSessionId: 'old',
@@ -3022,10 +3173,10 @@ describe('App turn checkpoints (M72)', () => {
     loadHistory([historyUser('u1', 't1', 'first'), historyUser('u1b', 't1', 'a steer')])
     checkpointed(['t1'])
     openMenu(1)
-    expect(screen.queryByRole('menuitem', { name: 'Restore files to here' })).toBeNull()
+    expect(screen.queryByRole('menuitem', { name: 'Restore Files to Here' })).toBeNull()
     fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
     openMenu(0)
-    expect(rewindItem('Restore files to here')).toBeInTheDocument()
+    expect(rewindItem('Restore Files to Here')).toBeInTheDocument()
   })
 
   it('ignores the checkpoints of another conversation', () => {
@@ -3040,7 +3191,7 @@ describe('App turn checkpoints (M72)', () => {
       turnIds: ['t1'],
     })
     openMenu(0)
-    expect(screen.queryByRole('menuitem', { name: 'Restore files to here' })).toBeNull()
+    expect(screen.queryByRole('menuitem', { name: 'Restore Files to Here' })).toBeNull()
   })
 
   it('says why there is no file restore in Restricted Mode, and no conversation rewind on Windows', () => {
@@ -3059,8 +3210,8 @@ describe('App turn checkpoints (M72)', () => {
     expect(
       screen.getByRole('menuitem', { name: UI_TEXT.conversationRewindUnavailable }),
     ).toHaveAttribute('aria-disabled', 'true')
-    expect(screen.queryByRole('menuitem', { name: 'Rewind conversation to here' })).toBeNull()
-    expect(screen.queryByRole('menuitem', { name: 'Restore files to here' })).toBeNull()
+    expect(screen.queryByRole('menuitem', { name: 'Rewind Conversation to Here' })).toBeNull()
+    expect(screen.queryByRole('menuitem', { name: 'Restore Files to Here' })).toBeNull()
   })
 
   it('says git is missing where a file restore would be', () => {
@@ -3074,7 +3225,7 @@ describe('App turn checkpoints (M72)', () => {
     )
   })
 
-  it('offers Restore files but not Both where the conversation cannot rewind', () => {
+  it('offers Restore Files but not Both where the conversation cannot rewind', () => {
     renderReady()
     loadHistory([historyUser('u1', 't1', 'first'), historyUser('u2', 't2', 'second')])
     checkpointed(['t2'])
@@ -3086,8 +3237,8 @@ describe('App turn checkpoints (M72)', () => {
     })
     openMenu(1)
     expect(rowNames()).toEqual([
-      'Restore files to here',
-      'Rewind code to here',
+      'Restore Files to Here',
+      'Rewind Code to Here',
       UI_TEXT.conversationRewindUnavailable,
     ])
   })
@@ -3177,8 +3328,8 @@ describe('App turn checkpoints (M72)', () => {
 })
 
 /** Filters the palette to one row and runs it. */
-function runPaletteRow(filterText: string) {
-  const filter = openPalette()
+async function runPaletteRow(filterText: string) {
+  const filter = await openPalette()
   fireEvent.change(filter, { target: { value: filterText } })
   fireEvent.keyDown(filter, { key: 'Enter' })
 }
@@ -3211,16 +3362,16 @@ describe('App: git and pull requests (M71)', () => {
     },
   } satisfies HostToWebviewMessage
 
-  it('routes the palette rows to the host', () => {
+  it('routes the palette rows to the host', async () => {
     const postMessage = renderReady()
     const run = runPaletteRow
-    run('Commit…')
+    await run('Commit…')
     expect(postMessage).toHaveBeenCalledWith({ type: 'gitAction', action: 'openCommit' })
-    run('Push…')
+    await run('Push…')
     expect(postMessage).toHaveBeenCalledWith({ type: 'gitAction', action: 'push' })
-    run('Open a pull request…')
+    await run('Open a Pull Request…')
     expect(postMessage).toHaveBeenCalledWith({ type: 'gitAction', action: 'openPullRequest' })
-    run('in a conversation')
+    await run('in a conversation')
     expect(postMessage).toHaveBeenCalledWith({
       type: 'hostAction',
       action: 'openPullRequestInConversation',
@@ -3234,9 +3385,9 @@ describe('App: git and pull requests (M71)', () => {
     expect(form).toHaveTextContent(
       'Git may run repository hooks, signing programs or credential helpers.',
     )
-    fireEvent.change(within(form).getByLabelText('Commit message'), { target: { value: 'Fix' } })
+    fireEvent.change(within(form).getByLabelText('Commit Message'), { target: { value: 'Fix' } })
     fireEvent.click(within(form).getByRole('button', { name: 'Commit' }))
-    expect(within(form).getByLabelText('Commit message')).toBeDisabled()
+    expect(within(form).getByLabelText('Commit Message')).toBeDisabled()
     fireEvent.click(within(form).getByRole('button', { name: 'Cancel' }))
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'gitAction', action: 'cancel' })
     expect(screen.queryByRole('form', { name: 'Commit' })).toBeNull()
@@ -3245,9 +3396,9 @@ describe('App: git and pull requests (M71)', () => {
   it('passes the edited PR base when requesting a generated description', async () => {
     const postMessage = renderReady()
     deliver(pullRequestForm)
-    const form = await screen.findByRole('form', { name: 'Pull request' })
+    const form = await screen.findByRole('form', { name: 'Pull Request' })
     fireEvent.change(within(form).getByLabelText('Into'), { target: { value: 'release' } })
-    fireEvent.click(within(form).getByRole('button', { name: 'Write with Muse' }))
+    fireEvent.click(within(form).getByRole('button', { name: 'Write With Muse' }))
     expect(postMessage).toHaveBeenLastCalledWith({
       type: 'sendMessage',
       localId: 'local-1',
@@ -3271,7 +3422,7 @@ describe('App: git and pull requests (M71)', () => {
     expect(within(form).getByRole('button', { name: 'Commit' })).toBeDisabled()
     // Something is staged: the unstaged box starts off.
     expect(within(form).getByRole('checkbox')).not.toBeChecked()
-    fireEvent.click(within(form).getByRole('button', { name: 'Write with Muse' }))
+    fireEvent.click(within(form).getByRole('button', { name: 'Write With Muse' }))
     expect(postMessage).toHaveBeenLastCalledWith({
       type: 'sendMessage',
       localId: 'local-1',
@@ -3281,12 +3432,12 @@ describe('App: git and pull requests (M71)', () => {
     })
     expect(within(form).getByRole('button', { name: 'Writing…' })).toBeDisabled()
     // The draft replaces the message, so nothing can be typed there until it comes.
-    expect(within(form).getByLabelText('Commit message')).toHaveAttribute('readonly')
+    expect(within(form).getByLabelText('Commit Message')).toHaveAttribute('readonly')
     // The user's message is in the transcript like any other.
     expect(screen.getByText('Write a commit message for my changes.')).toBeInTheDocument()
     deliver({ type: 'gitDraft', draft: { kind: 'commitMessage', message: 'Add the parser' } })
-    expect(within(form).getByLabelText('Commit message')).toHaveValue('Add the parser')
-    expect(within(form).getByLabelText('Commit message')).not.toHaveAttribute('readonly')
+    expect(within(form).getByLabelText('Commit Message')).toHaveValue('Add the parser')
+    expect(within(form).getByLabelText('Commit Message')).not.toHaveAttribute('readonly')
     fireEvent.click(within(form).getByRole('checkbox'))
     fireEvent.click(within(form).getByRole('button', { name: 'Commit' }))
     expect(postMessage).toHaveBeenLastCalledWith({
@@ -3302,17 +3453,17 @@ describe('App: git and pull requests (M71)', () => {
   it('shows every part of a pull request before it goes, and sends what was edited', async () => {
     const postMessage = renderReady()
     deliver(pullRequestForm)
-    const form = await screen.findByRole('form', { name: 'Pull request' })
+    const form = await screen.findByRole('form', { name: 'Pull Request' })
     expect(form).toHaveTextContent(
       'origin https://[redacted]@github.com/RandyNorthrup/muse-spark-code.git',
     )
     expect(form).toHaveTextContent('docs/how-its-built')
     expect(form).toHaveTextContent('2 commits go to origin first; you will be asked.')
-    expect(within(form).getByRole('checkbox', { name: 'Open as a draft' })).toBeChecked()
+    expect(within(form).getByRole('checkbox', { name: 'Open as a Draft' })).toBeChecked()
     fireEvent.change(within(form).getByLabelText('Title'), { target: { value: 'README' } })
     fireEvent.change(within(form).getByLabelText('Description'), { target: { value: 'Why' } })
     fireEvent.change(within(form).getByLabelText('Into'), { target: { value: 'release' } })
-    fireEvent.click(within(form).getByRole('button', { name: 'Create draft pull request' }))
+    fireEvent.click(within(form).getByRole('button', { name: 'Create Draft Pull Request' }))
     expect(postMessage).toHaveBeenLastCalledWith({
       type: 'gitCreatePullRequest',
       head: 'docs/how-its-built',
@@ -3324,7 +3475,7 @@ describe('App: git and pull requests (M71)', () => {
     // A refusal gives the button back with the text as it was.
     deliver({ type: 'gitDone', form: 'pullRequest', ok: false })
     expect(within(form).getByLabelText('Title')).toHaveValue('README')
-    expect(within(form).getByRole('button', { name: 'Create draft pull request' })).toBeEnabled()
+    expect(within(form).getByRole('button', { name: 'Create Draft Pull Request' })).toBeEnabled()
     // The host's masking replaces the text the user must see again.
     deliver({ type: 'gitDraft', draft: { kind: 'pullRequest', title: 'T', body: '[redacted]' } })
     expect(within(form).getByLabelText('Description')).toHaveValue('[redacted]')
@@ -3366,12 +3517,12 @@ describe('App: git and pull requests (M71)', () => {
         },
       },
     })
-    const card = await screen.findByRole('region', { name: 'Held pull request worktree' })
+    const card = await screen.findByRole('region', { name: 'Held Pull Request Worktree' })
     expect(card).toHaveTextContent('Pull request #51 by Piangpi1997: held until you trust it')
     expect(card).toHaveTextContent('Other extensions follow VS Code’s own workspace trust')
-    fireEvent.click(within(card).getByRole('button', { name: 'Trust this worktree…' }))
+    fireEvent.click(within(card).getByRole('button', { name: 'Trust This Worktree…' }))
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'gitAction', action: 'trustWorktree' })
-    const strip = await screen.findByRole('region', { name: 'This conversation’s pull request' })
+    const strip = await screen.findByRole('region', { name: 'This Conversation’s Pull Request' })
     expect(strip).toHaveTextContent('Draft')
     expect(strip).toHaveTextContent('Checks: 1 failed · 5 passed')
     fireEvent.click(within(strip).getByRole('button', { name: 'Refresh' }))
@@ -3412,7 +3563,7 @@ describe('App: git and pull requests (M71)', () => {
       checks,
     }
     deliver({ type: 'gitState', state: { pullRequest } })
-    const strip = await screen.findByRole('region', { name: 'This conversation’s pull request' })
+    const strip = await screen.findByRole('region', { name: 'This Conversation’s Pull Request' })
     expect(strip.querySelector('.tool-dot')).not.toBeNull()
     expect(strip.querySelector('.tool-dot-ok')).toBeNull()
     deliver({
@@ -3495,11 +3646,11 @@ describe('App BYO picker and setup (M95)', () => {
     expect(screen.getByLabelText('Model')).toHaveTextContent('muse-spark-1.3 High')
   })
 
-  it('opens the provider quick-pick from the picker footer', () => {
+  it('opens the provider quick-pick from the picker footer', async () => {
     const postMessage = renderReady()
     deliver({ type: 'modelList', models: byoModels })
     fireEvent.click(screen.getByLabelText('Model'))
-    fireEvent.click(screen.getByRole('option', { name: 'Add a model provider…' }))
+    fireEvent.click(await screen.findByRole('option', { name: 'Add a Model Provider…' }))
     expect(postMessage).toHaveBeenCalledWith({
       type: 'hostAction',
       action: 'addModelProvider',
@@ -3513,14 +3664,13 @@ describe('App BYO picker and setup (M95)', () => {
       provider: 'OpenRouter',
       model: 'openrouter/deepseek/deepseek-v3',
     })
-    await waitFor(() => {
-      expect(screen.getByRole('status')).toHaveTextContent('OpenRouter')
-    })
+    await screen.findByRole('button', { name: 'Manage Providers' })
+    expect(screen.getByRole('status')).toHaveTextContent('OpenRouter')
     expect(screen.getByRole('status')).toHaveTextContent('openrouter/deepseek/deepseek-v3')
-    fireEvent.click(screen.getByRole('button', { name: 'Manage providers' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Manage Providers' }))
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'hostAction', action: 'manageModels' })
     fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
-    expect(screen.queryByRole('button', { name: 'Manage providers' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Manage Providers' })).toBeNull()
   })
 })
 
@@ -3583,7 +3733,7 @@ describe('App: the M87 wiring (PLAN.md D66)', () => {
     vi.restoreAllMocks()
   })
 
-  it('adds up the edits in a row above the goal and task panes, Review opening M70’s pane', () => {
+  it('adds up the edits in a row above the goal and task panes, Review opening M70’s pane', async () => {
     const postMessage = renderReady()
     const goal = showGoal()
     deliver({
@@ -3595,10 +3745,11 @@ describe('App: the M87 wiring (PLAN.md D66)', () => {
     editItem('e2', 'src/b.ts', 10, 2)
     // The same file again: two files, every line counted.
     editItem('e3', 'src/a.ts', 1, 0)
-    const tally = screen.getByRole('group', { name: UI_TEXT.diffTallyLabel })
+    // The tally chunk loads on first use, so the first render waits for it.
+    const tally = await screen.findByRole('group', { name: UI_TEXT.diffTallyLabel })
     expect(tally).toHaveTextContent('2 files changed')
     expect(tally).toHaveTextContent('+14 −3')
-    const tasks = screen.getByRole('region', { name: 'Tasks' })
+    const tasks = await screen.findByRole('region', { name: 'Tasks' })
     for (const below of [goal, tasks, textarea()]) {
       expect(tally.compareDocumentPosition(below) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0)
     }
@@ -3874,7 +4025,7 @@ describe('M118 prompt action failure notices', () => {
         break
       }
       case 'history': {
-        fireEvent.click(screen.getByLabelText('Session history'))
+        fireEvent.click(screen.getByLabelText('Session History'))
         deliver({
           type: 'sessionList',
           archivedIds: [],
@@ -3896,7 +4047,7 @@ describe('M118 prompt action failure notices', () => {
         break
       }
       case 'palette': {
-        const filter = openPalette()
+        const filter = await openPalette()
         fireEvent.change(filter, { target: { value: label } })
         fireEvent.keyDown(filter, { key: 'Enter' })
         break
@@ -3923,5 +4074,265 @@ describe('M118 prompt action failure notices', () => {
       UI_TEXT.shareConfidential,
     )
     expect(post.mock.calls.some(([message]) => message.type === 'sendMessage')).toBe(false)
+  })
+})
+
+function sectionFor(request: Extract<WebviewToHostMessage, { type: 'estimateRun' }>['request']) {
+  const section = fakeEstimate()
+  section.inputs.request = request
+  section.asOf = request.asOf
+  section.inputs.fleet.asOf = request.asOf
+  const start = Date.parse(request.asOf)
+  section.p50 = new Date(start + 3_600_000).toISOString()
+  section.p90 = new Date(start + 7_200_000).toISOString()
+  section.schedule = section.schedule.map((row) => ({
+    ...row,
+    start: section.asOf,
+    end: section.p50,
+  }))
+  section.setups = section.setups.map((row) => ({ ...row, p50: section.p50, p90: section.p90 }))
+  section.disclosures = section.disclosures.map((row) =>
+    row.uncertainty.kind === 'time'
+      ? { ...row, uncertainty: { kind: 'time', earliest: section.p50, latest: section.p90 } }
+      : row,
+  )
+  return section
+}
+async function requestAppEstimate(post: ReturnType<typeof renderReady>, goal = 'M117') {
+  const before = post.mock.calls.filter(([message]) => message.type === 'estimateRun').length
+  fireEvent.change(textarea(), { target: { value: `/estimate ${goal}` } })
+  fireEvent.keyDown(textarea(), { key: 'Enter' })
+  await vi.waitFor(() => {
+    expect(post.mock.calls.filter(([message]) => message.type === 'estimateRun')).toHaveLength(
+      before + 1,
+    )
+  })
+  return post.mock.calls
+    .map(([message]) => message)
+    .findLast((message) => message.type === 'estimateRun')!
+}
+async function estimateInApp(shouldReplay = false) {
+  const post = renderReady()
+  const message = await requestAppEstimate(post)
+  const section = sectionFor(message.request)
+  deliver({ type: 'estimatorSection', requestId: message.requestId, section })
+  await screen.findByRole('heading', { name: UI_TEXT.estimateTitle })
+  if (shouldReplay) {
+    fireEvent.click(screen.getByRole('button', { name: /^(Estimate|Re-Estimate)$/ }))
+    const next = post.mock.calls
+      .map(([message]) => message)
+      .findLast((message) => message.type === 'estimateRun')!
+    deliver({
+      type: 'estimatorSection',
+      requestId: next.requestId,
+      section: sectionFor(next.request),
+    })
+    await screen.findByRole('heading', { name: UI_TEXT.estimateSchedule })
+  }
+  return { post, section }
+}
+describe('M117 estimator in the real App', () => {
+  it('shows the first composer forecast without another Run', async () => {
+    await estimateInApp()
+    expect(await screen.findByRole('heading', { name: UI_TEXT.estimateSchedule })).toBeTruthy()
+  })
+  it('keeps a superseded panel reply out of a newer composer request', async () => {
+    const store = createUiStore(initialUiState)
+    const post = vi.fn<(message: WebviewToHostMessage) => void>()
+    const deliver = (message: HostToWebviewMessage) => {
+      act(() => {
+        store.dispatch({ type: 'hostMessage', message, at: 0 })
+      })
+    }
+    render(<App store={store} postMessage={post} />)
+    deliver(init)
+    deliver({ type: 'authState', status: 'signedIn' })
+    const first = await requestAppEstimate(post)
+    deliver({
+      type: 'estimatorSection',
+      requestId: first.requestId,
+      section: sectionFor(first.request),
+    })
+    await screen.findByRole('heading', { name: UI_TEXT.estimateSchedule })
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.estimateRefresh }))
+    const pending = post.mock.calls
+      .map(([message]) => message)
+      .findLast((message) => message.type === 'estimateRun')!
+    const current = await requestAppEstimate(post, 'M118')
+    deliver({
+      type: 'estimatorSection',
+      requestId: pending.requestId,
+      section: sectionFor(pending.request),
+    })
+    await vi.waitFor(() => {
+      expect(store.getState().estimatorRequestId).toBe(pending.requestId)
+    })
+    expect(screen.queryByRole('heading', { name: UI_TEXT.estimateSchedule })).toBeNull()
+    deliver({
+      type: 'estimatorSection',
+      requestId: current.requestId,
+      section: sectionFor(current.request),
+    })
+    await screen.findByRole('heading', { name: UI_TEXT.estimateSchedule })
+    expect(screen.getByLabelText(UI_TEXT.estimateGoal)).toHaveValue('M118')
+    expect(screen.getByRole('button', { name: UI_TEXT.estimateRefresh })).not.toBeDisabled()
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+  it('settles a matching failed request and permits retry', async () => {
+    const { post } = await estimateInApp(true)
+    const run = screen.getByRole('button', { name: /^(Estimate|Re-Estimate)$/ })
+    fireEvent.click(run)
+    const request = post.mock.calls
+      .map(([message]) => message)
+      .findLast((message) => message.type === 'estimateRun')!
+
+    deliver({
+      type: 'estimatorFailure',
+      requestId: request.requestId,
+      reason: 'fake-source-failed',
+    })
+    await vi.waitFor(() => expect(run).not.toBeDisabled())
+    expect(screen.getByRole('alert').textContent).toContain('estimate-unavailable')
+  })
+  it('starts the existing fleet independently of rental-provider readiness', async () => {
+    const { post } = await estimateInApp(true)
+    const button = await screen.findByRole('button', { name: UI_TEXT.estimateSpinUp })
+    expect(button).not.toBeDisabled()
+    fireEvent.click(button)
+    expect(post.mock.calls.map(([message]) => message)).toContainEqual(
+      expect.objectContaining({ type: 'estimateSpinUp', setup: 'current' }),
+    )
+  })
+  it('has one main landmark', async () => {
+    await estimateInApp(true)
+    await screen.findByRole('heading', { name: UI_TEXT.estimateSchedule })
+    expect(screen.getAllByRole('main')).toHaveLength(1)
+    const results = await axe.run(document.body, { runOnly: ['landmark-no-duplicate-main'] })
+    expect(results.violations).toEqual([])
+  })
+  it('isolates estimator controls behind Account & Usage', async () => {
+    await estimateInApp(true)
+    deliver({ type: 'openUsage' })
+    await screen.findByRole('dialog')
+    expect(screen.getByLabelText(UI_TEXT.estimateGoal).closest('[inert]')).not.toBeNull()
+  })
+})
+
+// A fresh App per test, so its lazy import meets this test's held chunk.
+async function renderCold() {
+  const { App: ColdApp } = await import('../../src/webview/App')
+  const postMessage = vi.fn<(message: WebviewToHostMessage) => void>()
+  render(<ColdApp postMessage={postMessage} newLocalId={() => 'local-1'} />)
+  deliver(init)
+  deliver({ type: 'authState', status: 'signedIn' })
+  return postMessage
+}
+
+function openSurface() {
+  deliver({
+    type: 'schedulesSurface',
+    workspaceKey: 'test-key',
+    targets: [],
+    defaultDraft: fakeScheduleDraft(),
+    nowMs: 1,
+    initialView: 'list',
+  } satisfies HostToWebviewMessage)
+}
+
+function editorOpens(postMessage: Awaited<ReturnType<typeof renderCold>>): number {
+  return postMessage.mock.calls.filter(([message]) => message.type === 'openSchedules').length
+}
+
+// The `/schedule` prompt mapping is lazy (STARTUP017 review): a cold
+// command waits for it, a failed load hands the command back to an empty
+// composer with an honest warning, and a command whose surface, session or
+// conversation ended before the mapping arrived posts and stashes nothing.
+describe('/schedule mapping on first use', () => {
+  const promptChunk = { gate: Promise.withResolvers<undefined>(), shouldFail: false }
+  const command = '/schedule add Keep this exact prompt'
+
+  beforeEach(() => {
+    promptChunk.gate = Promise.withResolvers<undefined>()
+    promptChunk.shouldFail = false
+    // A cold chunk: the real mapping module, held until released.
+    vi.resetModules()
+    vi.doMock('../../src/webview/schedules/prompt', async (importOriginal) => {
+      await promptChunk.gate.promise
+      if (promptChunk.shouldFail) throw new Error('chunk gone')
+      return await importOriginal()
+    })
+  })
+
+  afterEach(() => {
+    promptChunk.gate.resolve(undefined)
+    vi.doUnmock('../../src/webview/schedules/prompt')
+  })
+
+  async function release(): Promise<void> {
+    await act(async () => {
+      promptChunk.gate.resolve(undefined)
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+  }
+
+  it('keeps a cold command until the mapping arrives, then opens the editor', async () => {
+    const postMessage = await renderCold()
+    openSurface()
+    send(command)
+    expect(textarea()).toHaveValue('')
+    expect(editorOpens(postMessage)).toBe(0)
+    await release()
+    await waitFor(() => {
+      expect(postMessage).toHaveBeenCalledWith({ type: 'openSchedules', view: 'editor' })
+    })
+    expect(editorOpens(postMessage)).toBe(1)
+  })
+
+  it('hands a failed command back to the empty composer with an honest warning', async () => {
+    promptChunk.shouldFail = true
+    const postMessage = await renderCold()
+    openSurface()
+    send(command)
+    expect(textarea()).toHaveValue('')
+    await release()
+    expect(await screen.findAllByText(UI_TEXT.scheduleCommandFailed)).not.toHaveLength(0)
+    expect(textarea()).toHaveValue(command)
+    expect(editorOpens(postMessage)).toBe(0)
+  })
+
+  it('never overwrites a newer draft when the mapping fails', async () => {
+    promptChunk.shouldFail = true
+    const postMessage = await renderCold()
+    openSurface()
+    send(command)
+    fireEvent.change(textarea(), { target: { value: 'A newer draft' } })
+    await release()
+    expect(await screen.findAllByText(UI_TEXT.scheduleCommandFailed)).not.toHaveLength(0)
+    expect(textarea()).toHaveValue('A newer draft')
+    expect(editorOpens(postMessage)).toBe(0)
+  })
+
+  it('posts and stashes nothing once its surface is cancelled before the mapping arrives', async () => {
+    const postMessage = await renderCold()
+    openSurface()
+    send(command)
+    fireEvent.click(await screen.findByRole('button', { name: UI_TEXT.goalEditCancel }))
+    // Reopened over the same workspace: still a different surface lifetime.
+    openSurface()
+    await release()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(editorOpens(postMessage)).toBe(0)
+    expect(screen.queryByDisplayValue('Keep this exact prompt')).toBeNull()
+  })
+
+  it('posts nothing once the conversation is cleared before the mapping arrives', async () => {
+    const postMessage = await renderCold()
+    openSurface()
+    send(command)
+    deliver({ type: 'conversationCleared' })
+    await release()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(editorOpens(postMessage)).toBe(0)
+    expect(textarea()).toHaveValue('')
   })
 })

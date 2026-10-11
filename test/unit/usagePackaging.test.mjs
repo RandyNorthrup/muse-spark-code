@@ -4,6 +4,7 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { brotliDecompressSync } from 'node:zlib'
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { layOutAcpNativeSources } from './helpers/acpPackageSources'
 
 const folders = []
 // Cold archive preparation and npm pack run once outside five-second assertions.
@@ -47,11 +48,27 @@ function fixture() {
     'modelApiMcp',
     'runtimeAccounting',
     'acpQuestions',
+    'acpPlaybook',
     'runtimeQuestions',
+    'runtimeAccounts',
     'questionNotes',
+    'mcpPool',
+    'exec',
+    'modelApiCodeIntel',
+    'structuredSchema',
+    'resourceAdmission',
+    'resourceGovernor',
+    'resourceProcess',
+    'resourceJournal',
     'runtimeEngine',
+    'schedules',
     'providerPolicy',
     'modelApiBoundaries',
+    'vault',
+    'vaultBoundaries',
+    'estimator',
+    'estimateContracts',
+    'media',
     'legalScan',
     'imageResizeWorker',
     'team',
@@ -69,6 +86,7 @@ function fixture() {
     'uiTextRuntime',
     'uiTextHooks',
     'uiTextSurfaces',
+    'uiTextMedia',
     'extensionHooks',
     'validation',
     'wire',
@@ -76,17 +94,28 @@ function fixture() {
     'pageWorker',
     'usageService',
     'usageCompanion',
+    'fontsInstall',
+    'scheduleBackground',
+    'reporting',
+    'reportingNetwork',
+    'reportingDestinations',
   ])
     put(`dist/${bundle}.js`, 'exports.EN = {}')
-  for (const file of ['MuseSparkJob', 'MuseSparkMcpJob', 'MuseSparkDeviceStorage'])
-    put(`native/windows/${file}.cs`, '// test source')
+  layOutAcpNativeSources(root, process.cwd())
   put('LICENSE', 'MIT')
+  put('design/fonts/manifest.json', readFileSync('design/fonts/manifest.json', 'utf8'))
   put('dist/providerCatalog.json', '{"providers":{}}')
   put('dist/providerCatalog.js', 'module.exports={providers:{}};')
   put('dist/legal-data/licenses.json', '{}')
-  put('native/runner/runner-helper.sh', '# fixture')
   put('docs/npm-readme.md', '# Test package')
-  for (const schema of ['exec-result-v1', 'exec-event-v1', 'share-v1'])
+  for (const schema of [
+    'exec-result-v1',
+    'exec-event-v1',
+    'exec-result-v2',
+    'exec-event-v2',
+    'share-v1',
+    'report-v1',
+  ])
     put(`docs/schemas/${schema}.schema.json`, '{}')
   put(
     'scripts/third-party-notices.mjs',
@@ -109,7 +138,7 @@ function fixture() {
   put('test/packaging/moduleExports.test.mjs', '')
   for (const file of readdirSync('l10n'))
     if (/^ui\..+\.json$/u.test(file)) {
-      put(`l10n/${file}`, '{}')
+      put(`l10n/${file}`, readFileSync(`l10n/${file}`, 'utf8'))
       put(`l10n/${file.replace(/^ui\./u, 'usage.')}`, '{"title":"test"}')
     }
   put('l10n/untranslated.json', '{}')

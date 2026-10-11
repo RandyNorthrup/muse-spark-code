@@ -1,3 +1,6 @@
+import { Usd, sumUsd, type UsdAmount } from '../../shared/usd'
+import type * as acp from '@agentclientprotocol/sdk'
+import { constants as fileFlags, stat, realpath, open, type FileHandle } from 'node:fs/promises'
 import {
   createUsageRecording,
   isUsageWriterBundle,
@@ -6,29 +9,38 @@ import {
 import { requireFile } from '../../host/lazyBundle'
 import { agentDataFolder } from '../dataFolder'
 import { randomUUID } from 'node:crypto'
-import type * as acp from '@agentclientprotocol/sdk'
-import { stat } from 'node:fs/promises'
+
 import path from 'node:path'
 import type { Readable } from 'node:stream'
+import {
+  handleIdentity,
+  lstatIdentity,
+  sameFile,
+  type FileIdentity,
+} from '../../core/fs/fileIdentity'
+import type { AcpMediaFactory } from '../../acp/media'
 import { isValidModelApiKey, type SecretStore } from '../../host/auth/credentialStore'
 import type { Logger } from '../../host/logger'
 import type { AgentEvent } from '../../shared/agentEvents'
-import { uiLocale } from '../../shared/l10n/text'
+import { uiLocale, fill, plural } from '../../shared/l10n/text'
+import { formatUsd } from '../../shared/l10n/exactUsd'
 import {
   ACP_AGENT_NAME,
   ACP_COMPACT_COMMAND,
+  ACCOUNT_DEFAULT_ID,
   ACP_CONFIG_IDS,
   EXEC_EXIT,
   EXEC_ENDPOINTS,
   EXEC_PROMPT_MAX_BYTES,
+  EXEC_MODEL_TEXT,
   EXEC_PROTOCOL_VERSION,
   EXEC_MAX_BUDGET_USD,
   EXEC_STOP_GRACE_MS,
   EXEC_STREAM_IDLE_MS,
   EXEC_USD_DECIMALS,
-  EXEC_USD_UNITS,
   HTTP_STATUS,
   HTTP_UNAUTHORIZED,
+  JSON_RPC_ERRORS,
   MILLISECONDS_PER_SECOND,
   MODEL_API_MAX_OUTPUT_TOKENS,
   NO_COMPACTABLE_HISTORY,
@@ -39,13 +51,20 @@ import {
   UI_TEXT,
 } from '../../shared/constants'
 import { effortLevelsFor } from '../../shared/effort'
-import { fill, formatUsd, plural } from '../../shared/l10n/text'
+import { formatUsd as exactUsd, parseUsd } from '../../shared/accountUsd'
 import { modelApiPaidTier } from '../../shared/paid'
-import type { RuntimeBackend } from '../backends'
-import { type ExecOptions, serveOptionsFor } from './execArgs'
+import type { RuntimeBackend, RuntimeBackendDeps } from '../backends'
+import { serveOptionsFor } from './execArgs'
+import { execAttachmentBlocks, type ExecAttachmentOptions as ExecOptions } from './attachArgs'
+import { execAccountSelection, type ExecAccountsPort } from './execAccounts'
+import type { AccountsSessionPort } from '../../acp/accounts'
+import { accountStopText, accountUsageUrl } from '../../acp/accountText'
 import { execFetch, type ExecTransport } from './execFetch'
 import { statusForStop, type Lifecycle, type StopCause } from './execLimits'
-import { createExecLogger, createExecSink, type ExecSink } from './execOutput'
+import { createExecLogger, type ExecSink } from './execOutput'
+import { createResourceExecSink } from '../resources/execSink'
+import type { RuntimeResources } from '../resources/port'
+import type { ResourceSettings } from '../../shared/resources'
 import {
   exitCodeFor,
   type ExecDenial,
@@ -66,11 +85,53 @@ import type { AssembledProviderRun } from './providerExec'
 import { createRunLedger } from './runLedger'
 import { observeBackend, type SessionTap } from './sessionTap'
 import { readUntrustedInputs } from './untrustedInput'
+import type { ExecVaultPort, ExecVaultSession } from '../vault/execVault'
+import { metaSideCallFormats } from '../../core/backends/modelapi/modelCapabilities'
+import { compileOutputSchema, type OutputSchema } from './outputSchema'
+
+/** Bind to M95's selected output.formats and the backend's session-fixed encoder at integration. */
+export interface ExecOutputSchemaPort {
+  /** Only values from an evidence-bearing `state: 'yes'` capability record. */
+  formatsFor(model: string): Promise<readonly ('strict_schema' | 'json_schema' | 'forced_tool')[]>
+  /** Set the session's format only: no dispatch, permission change or cached-prefix mutation. */
+  configure(input: {
+    runtime: RuntimeBackend
+    sessionId: string
+    model: string
+    mode: 'strict_schema' | 'json_schema' | 'forced_tool'
+    schema: Readonly<Record<string, unknown>>
+    signal: AbortSignal
+  }): Promise<void>
+}
+
+/** Production binding: captured selected formats, or the documented local-validation arm. */
+export const execOutputSchemaPort: ExecOutputSchemaPort = {
+  formatsFor: (model) => {
+    const formats = metaSideCallFormats(model)
+    return Promise.resolve(
+      formats.state === 'yes'
+        ? (formats.value ?? []).filter(
+            (format): format is 'strict_schema' | 'json_schema' | 'forced_tool' =>
+              ['strict_schema', 'json_schema', 'forced_tool'].includes(format),
+          )
+        : [],
+    )
+  },
+  configure: async ({ runtime, sessionId, model, mode, schema, signal }) => {
+    signal.throwIfAborted()
+    if (mode === 'forced_tool' || runtime.configureOutputSchema === undefined)
+      throw new Error(UI_TEXT.execRequestShape)
+    await runtime.configureOutputSchema(sessionId, model, mode, schema)
+    signal.throwIfAborted()
+  },
+}
 export { setUiText } from '../../shared/l10n/text'
 
 export interface ExecDeps {
   readonly usageRecording?: UsageRecording | undefined
   readonly isUsageHistoryEnabled?: (() => boolean) | undefined
+  readonly accounts?: ExecAccountsPort
+  readonly vault?: ExecVaultPort
   options: ExecOptions
   version: string
   distDir: string
@@ -89,8 +150,62 @@ export interface ExecDeps {
   readFile: (path: string, maxBytes: number, signal: AbortSignal) => Promise<Uint8Array>
   randomHex: (bytes: number) => string
   log: Logger
-  /** Optional test runner; production uses the ordinary ACP engine and shared transport. */
+  /** Construction is lazy; W/C1 inject this same host into runtime spawn adapters. */
+  createResources?: (overrides: Partial<ResourceSettings>) => RuntimeResources
+  resourceOverrides?: Partial<ResourceSettings>
   runProvider?: ProviderExecRunner | undefined
+  outputSchema?: ExecOutputSchemaPort
+  /** Filesystem seam for races and Windows junctions; production uses the native filesystem. */
+  schemaFileIo?: {
+    open: (file: string, flags: number) => Promise<FileHandle>
+    realpath: (file: string) => Promise<string>
+    lstat: (file: string) => Promise<FileIdentity>
+  }
+  /** W binds headless-safe capability, upload/replay and exact budget admission. */
+  media?: AcpMediaFactory
+}
+
+/** Open first, verify the held target, then read exclusively through that handle. */
+async function readSchemaFile(
+  deps: ExecDeps,
+  cwd: string,
+  signal: AbortSignal,
+  log: Logger,
+): Promise<Uint8Array> {
+  signal.throwIfAborted()
+  const io = deps.schemaFileIo ?? { open, realpath, lstat: lstatIdentity }
+  const file = path.resolve(cwd, deps.options.outputSchema ?? '')
+  // Windows has no O_NOFOLLOW; handle identity and realpath confinement still apply.
+  const flags = fileFlags.O_RDONLY | (deps.platform === 'win32' ? 0 : fileFlags.O_NOFOLLOW)
+  const handle = await io.open(file, flags)
+  try {
+    signal.throwIfAborted()
+    const [info, target, workspace] = await Promise.all([
+      handleIdentity(handle),
+      io.realpath(file),
+      io.realpath(cwd),
+    ])
+    const paths = deps.platform === 'win32' ? path.win32 : path
+    const relative = paths.relative(workspace, target).replaceAll('\\', '/')
+    const isOutside = relative === '..' || relative.startsWith('../') || paths.isAbsolute(relative)
+    if (isOutside && deps.options.outputSchemaOutside !== true)
+      throw new Error(UI_TEXT.outputSchemaOutsideRefused)
+    const current = await io.lstat(target)
+    if (!info.isFile() || !sameFile(info, current)) throw new Error(UI_TEXT.execFileUnreadable)
+    if (isOutside) log.info(UI_TEXT.outputSchemaOutsideAllowed)
+    if (info.size > BigInt(EXEC_PROMPT_MAX_BYTES)) throw new Error(UI_TEXT.execFileTooLarge)
+    const bytes = new Uint8Array(EXEC_PROMPT_MAX_BYTES + 1)
+    let offset = 0
+    for (;;) {
+      signal.throwIfAborted()
+      const part = await handle.read(bytes, offset, bytes.length - offset, null)
+      offset += part.bytesRead
+      if (offset > EXEC_PROMPT_MAX_BYTES) throw new Error(UI_TEXT.execFileTooLarge)
+      if (part.bytesRead === 0) return bytes.subarray(0, offset)
+    }
+  } finally {
+    await handle.close()
+  }
 }
 
 /** What the provider turn receives: the lifecycle, the run's deps and the assembly. */
@@ -141,8 +256,8 @@ function stopMessage(cause: StopCause, maxRequests: number): string {
 }
 const ZERO_MICRO_USD = 0n
 
-function microUsd(value: number): bigint {
-  return BigInt(value.toFixed(EXEC_USD_DECIMALS).replace('.', ''))
+function microUsd(value: UsdAmount): bigint {
+  return Usd.from(value).units(EXEC_USD_DECIMALS)
 }
 
 function relativePaths(cwd: string, paths: readonly string[]): string[] {
@@ -164,6 +279,7 @@ function relativePaths(cwd: string, paths: readonly string[]): string[] {
 
 export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<number> {
   const { options } = deps
+  const mediaFactory = deps.media
   const cwd = path.resolve(deps.processCwd, options.cwd ?? deps.processCwd)
   const literals: string[] = []
   let isFinished = false
@@ -215,10 +331,10 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
   }
   const ledger =
     options.backend === 'modelApi' &&
-    options.budgetMicroUsd !== undefined &&
+    options.budgetUsd !== undefined &&
     options.maxRequests !== undefined
       ? createRunLedger({
-          capUsd: options.budgetMicroUsd / EXEC_USD_UNITS,
+          capUsd: options.budgetUsd,
           maxRequests: options.maxRequests,
         })
       : undefined
@@ -227,6 +343,8 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
   let runtime: RuntimeBackend | undefined
   let tap: SessionTap | undefined
   let transport: ExecTransport | undefined
+  let vaultSession: ExecVaultSession | undefined
+  let vaultDenial: string | undefined
   const setup: { sessionId: string | null; isUsageError: boolean } = {
     sessionId: null,
     isUsageError: true,
@@ -249,9 +367,11 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
   let closeSession: (() => Promise<unknown>) | undefined
   let cancelSession: (() => void) | undefined
   let latestTokens: Partial<TokenTotals> | undefined
+  let outputSchema: OutputSchema | undefined
+  let outputValidation: 'provider' | 'local' = 'provider'
   const emitted = new Set<string>()
   const imageStarts = new Map<number, number>()
-  const sink = createExecSink({
+  const sink = createResourceExecSink({
     format: options.output,
     out: deps.stdout,
     now: deps.now,
@@ -262,6 +382,14 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
     onStalled: () => {
       lifecycle.latch({ kind: 'output_stalled' })
     },
+    outputSchema: () => outputSchema,
+    outputValidation: () => outputValidation,
+  })
+  const resources = deps.createResources?.({ ...deps.resourceOverrides, relocate: 'off' })
+  const unsubscribeResources = resources?.subscribeEvents((event, _status, text) => {
+    if (isFinishing || isFinished) return
+    sink.resource(event)
+    log.warn(text.replaceAll('\n', ' · '))
   })
   const drain = (target: ExecSink) => {
     const messages = tap?.releasedMessages() ?? []
@@ -287,6 +415,12 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         type: 'limit',
         limit: cause.kind === 'accounting_invalid' ? 'accounting' : cause.kind,
       })
+  }
+  const denyVault = (message: string) => {
+    if (isFinishing) return
+    vaultDenial = message
+    setup.isUsageError = false
+    latch({ kind: 'denied' })
   }
   const observe = (event: AgentEvent) => {
     if (event.type === 'turnCompleted') {
@@ -400,12 +534,42 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
     }
   }
   try {
+    if (
+      options.vault &&
+      (options.keyFromStdin ||
+        (deps.env['CI'] !== undefined &&
+          !['', '0', 'false'].includes(deps.env['CI'].toLowerCase())) ||
+        deps.vault === undefined)
+    ) {
+      denyVault(UI_TEXT.vault.brokerBlocked)
+      return await finish()
+    }
+    const selection = execAccountSelection(options)
+    const requiresAccounts =
+      options.accountPool === true || selection.account !== ACCOUNT_DEFAULT_ID
+    if (requiresAccounts && options.backend === 'museCode')
+      throw new Error(UI_TEXT.accounts.museCodeUnavailable)
+    if (requiresAccounts && deps.accounts === undefined)
+      throw new Error(UI_TEXT.accounts.unavailable)
     if (options.provider !== undefined) {
       const result = await runWithProvider()
       if (result !== undefined) return result
     }
     const folder = await lifecycle.race(stat(cwd))
     if (!folder.isDirectory()) throw new Error(UI_TEXT.execFileUnreadable)
+    if (options.outputSchema !== undefined) {
+      let bytes: Uint8Array
+      try {
+        bytes = await lifecycle.race(readSchemaFile(deps, cwd, lifecycle.signal, log))
+      } catch (error: unknown) {
+        if (error instanceof Error && error.message === UI_TEXT.outputSchemaOutsideRefused)
+          throw error
+        throw new Error(fill(UI_TEXT.outputSchemaReadFailed, { detail: 'file' }), { cause: error })
+      }
+      outputSchema = compileOutputSchema(bytes)
+      if (deps.outputSchema === undefined)
+        throw new Error(fill(UI_TEXT.outputSchemaInvalid, { detail: 'backend binding' }))
+    }
     let prompt: string
     try {
       if (options.prompt.kind === 'text') prompt = options.prompt.text
@@ -448,7 +612,12 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
             text: resource.text,
           },
         })),
+        ...(await lifecycle.race(
+          execAttachmentBlocks(options.attachFiles ?? [], cwd, lifecycle.signal, deps.platform),
+        )),
       ]
+      if ((options.attachFiles?.length ?? 0) > 0 && deps.media === undefined)
+        throw new Error(UI_TEXT.media.uploadStorageUnknown)
       let secrets = providerRun?.secrets ?? deps.storeSecrets
       if (providerRun === undefined && options.keyFromStdin) {
         const key = await lifecycle.race(readKeyLine(deps.stdin, lifecycle.signal))
@@ -528,7 +697,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       engine.setUiText(UI_TEXT, uiLocale())
       restoreUsageRecording = engine.installUsageRecording(usageRecording)
       const { createRuntimeBackend } = engine
-      runtime = createRuntimeBackend({
+      const runtimeDeps: RuntimeBackendDeps = {
         options: serveOptionsFor(options),
         version: deps.version,
         distDir: deps.distDir,
@@ -569,8 +738,8 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
               options.mode === 'acceptEdits' &&
               !requiresAsking &&
               !lifecycle.signal.aborted &&
-              microUsd(ledger?.totals().remainingUsd ?? 0) >=
-                microUsd(PAID_PRICES_USD.imageGeneration)
+              microUsd(ledger?.totals().remainingUsd ?? Usd.from(0).toAmount()) >=
+                microUsd(Usd.from(PAID_PRICES_USD.imageGeneration).toAmount())
             if (!isAllowed && !isFinishing && request.feature === 'imageGeneration')
               sink.emit({
                 type: 'paid_use',
@@ -578,13 +747,20 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
                 n: null,
                 phase: 'refused',
                 units: 1,
-                usd: 0,
+                usd: Usd.from(0).toAmount(),
                 reason: requiresAsking ? 'requires_asking' : 'policy',
               })
             return Promise.resolve(isAllowed)
           },
         },
-      })
+      }
+      let accounts: AccountsSessionPort | undefined
+      if (requiresAccounts) {
+        const configured = deps.accounts?.create(runtimeDeps, selection, createRuntimeBackend)
+        if (configured === undefined) throw new Error(UI_TEXT.accounts.unavailable)
+        runtime = configured.runtime
+        accounts = configured.accounts
+      } else runtime = createRuntimeBackend(runtimeDeps)
       setup.isUsageError = false
       const readiness = await lifecycle.race(runtime.backend.readiness(false))
       if (readiness.state !== 'ready') {
@@ -596,12 +772,14 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       const { createAcpAgent, createExecClient } = engine
       const agent = createAcpAgent({
         questions: 'decline',
+        ...(accounts !== undefined && { accounts }),
         backend: tap.backend,
         version: deps.version,
         options: {
           canBypass: false,
           allowsContributorModels: options.allowsContributorModels,
           initialMode: options.mode,
+          isHeadless: true,
         },
         signIn: {
           id: 'headless',
@@ -612,9 +790,42 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         },
         defaultCwd: cwd,
         paid: runtime.paid,
+        ...(resources !== undefined && { resources }),
         log,
+        ...(mediaFactory !== undefined && {
+          media: (context) =>
+            mediaFactory({
+              ...context,
+              onAttachment: ({ name, info }) => {
+                inputs.push({
+                  name: name.replaceAll(/[\\/:]/gu, '_'),
+                  bytes: info.sizeBytes,
+                  chunks: 0,
+                  complete: true,
+                })
+              },
+            }),
+        }),
       })
       const client = createExecClient({
+        onAccountNotice: (event) => {
+          if (event.type === 'swap')
+            log.info(
+              `${UI_TEXT.accounts.swapEvent}: ${event.provider} · ${event.account}. ${fill(UI_TEXT.accounts.coldCache, { cost: exactUsd(parseUsd(event.coldCacheUsd)) })}`,
+            )
+          else if (event.type === 'spread')
+            log.info(`${UI_TEXT.accounts.spreadEvent}: ${event.provider} · ${event.account}`)
+          else {
+            const text = accountStopText(event)
+            let url = ''
+            try {
+              if (accounts !== undefined) url = accountUsageUrl(accounts, event.provider)
+            } catch {
+              /* The notice remains visible without reflecting an invalid URL. */
+            }
+            log.info(`${text} ${url}`)
+          }
+        },
         sink,
         lifecycle,
         onDenial: (denial) => {
@@ -650,6 +861,39 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
                 .catch(() => {
                   /* Session already stopped or closed; cancellation is best effort. */
                 })
+            }
+            if (
+              requiresAccounts &&
+              created.configOptions?.find((option) => option.id === ACP_CONFIG_IDS.account)
+                ?.currentValue !== selection.account
+            ) {
+              setup.isUsageError = true
+              error = UI_TEXT.accounts.invalidAccount
+              return
+            }
+            if (options.vault && deps.vault !== undefined) {
+              try {
+                const vault = deps.vault
+                const opening = (async () => {
+                  const session = await vault.open({
+                    cwd,
+                    sessionId: created.sessionId,
+                    signal: lifecycle.signal,
+                    source: 'headless',
+                    unattended: true,
+                    onDenied: denyVault,
+                  })
+                  if (isFinishing || lifecycle.signal.aborted) {
+                    await session.close()
+                    throw new Error(UI_TEXT.vault.noAccess)
+                  }
+                  return session
+                })()
+                vaultSession = await lifecycle.race(opening)
+              } catch {
+                denyVault(UI_TEXT.vault.brokerBlocked)
+                return
+              }
             }
             const modelConfig = created.configOptions?.find(
               (option) => option.id === ACP_CONFIG_IDS.model,
@@ -696,6 +940,36 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
               effort = options.effort
             }
             const tier = modelApiPaidTier(model ?? '')
+            if (outputSchema !== undefined) {
+              setup.isUsageError = true
+              const port = deps.outputSchema
+              if (port === undefined || runtime === undefined || model === null)
+                throw new Error(fill(UI_TEXT.outputSchemaInvalid, { detail: 'backend binding' }))
+              const formats = await lifecycle.race(port.formatsFor(model))
+              const mode = (['strict_schema', 'json_schema', 'forced_tool'] as const).find(
+                (candidate) => formats.includes(candidate),
+              )
+              if (mode === undefined) {
+                outputValidation = 'local'
+                blocks.push({
+                  type: 'text',
+                  text: fill(EXEC_MODEL_TEXT.execOutputSchema, {
+                    schema: JSON.stringify(outputSchema.schema),
+                  }),
+                })
+              } else
+                await lifecycle.race(
+                  port.configure({
+                    runtime,
+                    sessionId: created.sessionId,
+                    model,
+                    mode,
+                    schema: outputSchema.schema,
+                    signal: lifecycle.signal,
+                  }),
+                )
+              setup.isUsageError = false
+            }
             if (ledger !== undefined && providerRun === undefined) {
               if (tier === undefined) {
                 setup.isUsageError = true
@@ -705,7 +979,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
               // Ask the ledger's exact arithmetic for the start reservation, in a
               // separate un-dispatched ledger. No request belongs to this run yet.
               const preview = createRunLedger({
-                capUsd: EXEC_MAX_BUDGET_USD,
+                capUsd: Usd.from(EXEC_MAX_BUDGET_USD).toAmount(),
                 maxRequests: 1,
               }).admitResponse({
                 model: model ?? '',
@@ -716,11 +990,11 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
               const minimum =
                 microUsd(preview.reserveUsd) +
                 (options.paidFeatures.includes('imageGeneration')
-                  ? microUsd(PAID_PRICES_USD.imageGeneration)
+                  ? microUsd(Usd.from(PAID_PRICES_USD.imageGeneration).toAmount())
                   : ZERO_MICRO_USD)
-              if (BigInt(options.budgetMicroUsd ?? 0) < minimum) {
+              if (microUsd(options.budgetUsd ?? Usd.from(0).toAmount()) < minimum) {
                 error = fill(UI_TEXT.execBudgetMinimum, {
-                  minimum: formatUsd(Number(minimum) / EXEC_USD_UNITS, EXEC_USD_DECIMALS),
+                  minimum: formatUsd(Usd.fromUnits(minimum, EXEC_USD_DECIMALS), EXEC_USD_DECIMALS),
                 })
                 latch({ kind: 'budget' })
                 return
@@ -752,6 +1026,14 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
               stopReason = answer.stopReason
             } catch (error_: unknown) {
               error = error_ instanceof Error ? error_.message : String(error_)
+              if (
+                error_ instanceof engine.RequestError &&
+                error_.code === JSON_RPC_ERRORS.invalidParams &&
+                ((options.attachFiles?.length ?? 0) > 0 ||
+                  prompt.trim() === '/record' ||
+                  /^\/attach(?:\s|$)/u.test(prompt.trim()))
+              )
+                setup.isUsageError = true
             }
             await lifecycle.race(transport?.whenSettled() ?? Promise.resolve())
           } finally {
@@ -804,7 +1086,10 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
     if (lifecycle.cause !== null) {
       status = statusForStop(lifecycle.cause)
       if (lifecycle.cause.kind !== 'budget' || error === UI_TEXT.execIncomplete)
-        error = stopMessage(lifecycle.cause, options.maxRequests ?? 0)
+        error =
+          vaultDenial !== undefined && lifecycle.cause.kind === 'denied'
+            ? vaultDenial
+            : stopMessage(lifecycle.cause, options.maxRequests ?? 0)
     } else if (status !== 'auth_required' && status !== 'backend_unavailable') {
       if (
         backendErrorKind === 'authRequired' ||
@@ -874,21 +1159,17 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
                 settled: totals.settledUsd,
                 uncertain: totals.uncertainUsd,
                 reserved: totals.reservedUsd,
-                total:
-                  Number(
-                    microUsd(totals.settledUsd) +
-                      microUsd(totals.uncertainUsd) +
-                      microUsd(totals.reservedUsd),
-                  ) / EXEC_USD_UNITS,
-                isUpperBound: totals.uncertainUsd > 0 || totals.reservedUsd > 0 || cause !== null,
+                total: sumUsd(totals.settledUsd, totals.uncertainUsd, totals.reservedUsd),
+                isUpperBound:
+                  totals.uncertainUsd !== '0' || totals.reservedUsd !== '0' || cause !== null,
               },
         paid: totals?.paid ?? {
           imageAttempts: 0,
           imagesReturned: 0,
           imagesRefunded: 0,
           imagesUncertain: 0,
-          settledUsd: 0,
-          uncertainUsd: 0,
+          settledUsd: Usd.from(0).toAmount(),
+          uncertainUsd: Usd.from(0).toAmount(),
         },
       },
       ledger:
@@ -913,6 +1194,8 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       transport?.close()
       cancelSession?.()
       unsubscribe?.()
+      unsubscribeResources?.()
+      resources?.dispose()
       isFinishing = true
       if (options.backend === 'museCode' && lifecycle.cause !== null)
         tap?.settleResponse({
@@ -935,7 +1218,22 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         literals.length = 0
       }
       try {
-        await grace(Promise.all([closeSession?.(), runtime?.close()]))
+        const closingVault = vaultSession
+        await grace(
+          Promise.all([
+            closeSession?.(),
+            runtime?.close(),
+            closingVault === undefined
+              ? undefined
+              : (async () => {
+                  try {
+                    await closingVault.close()
+                  } catch {
+                    throw new Error(UI_TEXT.vault.noAccess)
+                  }
+                })(),
+          ]),
+        )
       } catch (error_: unknown) {
         log.error(error_ instanceof Error ? error_.message : String(error_))
         lifecycle.latch({ kind: 'internal' })
@@ -956,7 +1254,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       )
       const code =
         lifecycle.cause === null
-          ? result.exitCode
+          ? (sink.resultExitCode ?? result.exitCode)
           : exitCodeFor(
               statusForStop(lifecycle.cause),
               lifecycle.cause.kind === 'signal' ? lifecycle.cause.signal : null,

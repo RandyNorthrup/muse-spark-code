@@ -10,7 +10,7 @@ import { UI_TEXT } from '../../shared/constants'
 import { fill, plural } from '../../shared/l10n/text'
 import { type PatchHunk, REMOVE_MARKER } from '../../shared/patchDocument'
 import type { ChatReference, LineRange, ReviewFile } from '../../shared/protocol'
-import { hunkRows } from '../diff'
+import { hunkRows } from '../../shared/patchDocument'
 import {
   type ReviewHunkState,
   reviewHunkKey,

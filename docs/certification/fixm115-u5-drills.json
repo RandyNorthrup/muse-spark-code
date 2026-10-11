@@ -1,0 +1,200 @@
+[
+  {
+    "mutation": "stale-mode",
+    "path": "src/core/schedules/sessionOwner.ts",
+    "sha256Before": "b9107f592ab0ee0610c0c6c0f7fd1c5af9540e6f0f3227fd33c52c1f5f9c6a6e",
+    "sha256Restored": "b9107f592ab0ee0610c0c6c0f7fd1c5af9540e6f0f3227fd33c52c1f5f9c6a6e",
+    "command": "npx vitest run test/unit/unattendedBackends.test.ts --maxWorkers=3",
+    "test": "RVM115U4 P2-1: a stale native mode acknowledgement",
+    "exitCode": 1,
+    "assertionFailed": true,
+    "byteExact": true
+  },
+  {
+    "mutation": "undispatched-admission",
+    "path": "src/core/schedules/sessionOwner.ts",
+    "sha256Before": "b9107f592ab0ee0610c0c6c0f7fd1c5af9540e6f0f3227fd33c52c1f5f9c6a6e",
+    "sha256Restored": "b9107f592ab0ee0610c0c6c0f7fd1c5af9540e6f0f3227fd33c52c1f5f9c6a6e",
+    "command": "npx vitest run test/unit/unattendedBackends.test.ts --maxWorkers=3",
+    "test": "RVM115U4 P2-2: a revoked native fire",
+    "exitCode": 1,
+    "assertionFailed": true,
+    "byteExact": true
+  },
+  {
+    "mutation": "idle-admission",
+    "path": "src/core/schedules/sessionOwner.ts",
+    "sha256Before": "b9107f592ab0ee0610c0c6c0f7fd1c5af9540e6f0f3227fd33c52c1f5f9c6a6e",
+    "sha256Restored": "b9107f592ab0ee0610c0c6c0f7fd1c5af9540e6f0f3227fd33c52c1f5f9c6a6e",
+    "command": "npx vitest run test/unit/unattendedBackends.test.ts --maxWorkers=3",
+    "test": "RVM115U4 P2-2: native idle evidence",
+    "exitCode": 1,
+    "assertionFailed": true,
+    "byteExact": true
+  },
+  {
+    "mutation": "queue-settlement",
+    "path": "src/core/backends/modelapi/ModelApiHost.ts",
+    "sha256Before": "08aa7790229cd6461d5e1749cdb09fbfa30671c39b3fa72c2d2a3b1f723a634a",
+    "sha256Restored": "08aa7790229cd6461d5e1749cdb09fbfa30671c39b3fa72c2d2a3b1f723a634a",
+    "command": "npx vitest run test/unit/unattendedBackends.test.ts --maxWorkers=3",
+    "test": "RVM115U4 P2-3: an inactive queued fire",
+    "exitCode": 1,
+    "assertionFailed": true,
+    "byteExact": true
+  },
+  {
+    "mutation": "media-before-claim",
+    "path": "src/core/backends/modelapi/ModelApiHost.ts",
+    "sha256Before": "08aa7790229cd6461d5e1749cdb09fbfa30671c39b3fa72c2d2a3b1f723a634a",
+    "sha256Restored": "08aa7790229cd6461d5e1749cdb09fbfa30671c39b3fa72c2d2a3b1f723a634a",
+    "command": "npx vitest run test/unit/unattendedBackends.test.ts --maxWorkers=3",
+    "test": "RVM115U4 P2-4: a media refused steer",
+    "exitCode": 1,
+    "assertionFailed": true,
+    "byteExact": true
+  },
+  {
+    "mutation": "withdraw-claim",
+    "path": "src/core/backends/modelapi/ModelApiHost.ts",
+    "sha256Before": "08aa7790229cd6461d5e1749cdb09fbfa30671c39b3fa72c2d2a3b1f723a634a",
+    "sha256Restored": "08aa7790229cd6461d5e1749cdb09fbfa30671c39b3fa72c2d2a3b1f723a634a",
+    "command": "npx vitest run test/unit/unattendedBackends.test.ts --maxWorkers=3",
+    "test": "RVM115U4 P2-4: a withdrawn steer",
+    "exitCode": 1,
+    "assertionFailed": true,
+    "byteExact": true
+  },
+  {
+    "mutation": "stop-unadopted",
+    "path": "src/core/backends/modelapi/ModelApiHost.ts",
+    "sha256Before": "08aa7790229cd6461d5e1749cdb09fbfa30671c39b3fa72c2d2a3b1f723a634a",
+    "sha256Restored": "08aa7790229cd6461d5e1749cdb09fbfa30671c39b3fa72c2d2a3b1f723a634a",
+    "command": "npx vitest run test/unit/unattendedBackends.test.ts --maxWorkers=3",
+    "test": "RVM115U4 P2-4: a stopped steer",
+    "exitCode": 1,
+    "assertionFailed": true,
+    "byteExact": true
+  },
+  {
+    "mutation": "complete-inventory",
+    "path": "src/core/schedules/provenance.ts",
+    "sha256Before": "4db6552b532ba0b4f8a2bea4053b01e624d43485467714f465222fb101d5c2d8",
+    "sha256Restored": "4db6552b532ba0b4f8a2bea4053b01e624d43485467714f465222fb101d5c2d8",
+    "command": "npx vitest run test/unit/scheduleProvenance.test.ts --maxWorkers=3",
+    "test": "RVM115U4 P1: a derived entry without an explicit complete input inventory",
+    "exitCode": 1,
+    "assertionFailed": true,
+    "byteExact": true
+  },
+  {
+    "mutation": "repo-map-inputs",
+    "path": "src/core/backends/modelapi/ModelApiHost.ts",
+    "sha256Before": "2b25279afae46bc192a4b2fc9e6463c3e3c66f63dbd587a9da7aff779dd544c5",
+    "sha256Restored": "2b25279afae46bc192a4b2fc9e6463c3e3c66f63dbd587a9da7aff779dd544c5",
+    "command": "npx vitest run test/unit/unattendedBackends.test.ts --maxWorkers=3",
+    "test": "RVM115U4 P1: an unsent cached repo map registers every input (protected=true)",
+    "exitCode": 1,
+    "assertionFailed": true,
+    "byteExact": true
+  },
+  {
+    "mutation": "missing-symbol-input",
+    "path": "src/core/backends/modelapi/ModelApiHost.ts",
+    "sha256Before": "2b25279afae46bc192a4b2fc9e6463c3e3c66f63dbd587a9da7aff779dd544c5",
+    "sha256Restored": "2b25279afae46bc192a4b2fc9e6463c3e3c66f63dbd587a9da7aff779dd544c5",
+    "command": "npx vitest run test/unit/unattendedBackends.test.ts --maxWorkers=3",
+    "test": "RVM115U4 P1: a repo map whose symbol source is absent",
+    "exitCode": 1,
+    "assertionFailed": true,
+    "byteExact": true
+  },
+  {
+    "mutation": "unsourced-context",
+    "path": "src/core/context/workspaceContext.ts",
+    "sha256Before": "3d749a19a20527910239698e22ffdaa2cf4f8cc1197bccf6dee8008a73573e30",
+    "sha256Restored": "3d749a19a20527910239698e22ffdaa2cf4f8cc1197bccf6dee8008a73573e30",
+    "command": "npx vitest run test/unit/workspaceContext.test.ts --maxWorkers=3",
+    "test": "RVM115U4 P1: unsourced rule, skill and agent catalogue entries",
+    "exitCode": 1,
+    "assertionFailed": true,
+    "byteExact": true
+  },
+  {
+    "mutation": "compaction-instructions",
+    "path": "src/core/backends/modelapi/ModelApiHost.ts",
+    "sha256Before": "2b25279afae46bc192a4b2fc9e6463c3e3c66f63dbd587a9da7aff779dd544c5",
+    "sha256Restored": "2b25279afae46bc192a4b2fc9e6463c3e3c66f63dbd587a9da7aff779dd544c5",
+    "command": "npx vitest run test/unit/unattendedBackends.test.ts --maxWorkers=3",
+    "test": "REDM115U: a cached compaction summary derives",
+    "exitCode": 1,
+    "assertionFailed": true,
+    "byteExact": true
+  },
+  {
+    "mutation": "canonical-cached-root",
+    "path": "src/core/schedules/unattended.ts",
+    "sha256Before": "946857f81e8ebce690dd7d4146b77ba5ee1f3218b546633ce5e01a270ce14bbc",
+    "sha256Restored": "946857f81e8ebce690dd7d4146b77ba5ee1f3218b546633ce5e01a270ce14bbc",
+    "command": "npx vitest run test/unit/unattendedBackends.test.ts --maxWorkers=3",
+    "test": "RVM115U4 P2-5: a fire can use cached skill metadata",
+    "exitCode": 1,
+    "assertionFailed": true,
+    "byteExact": true
+  },
+  {
+    "mutation": "reviewer-inventory",
+    "path": "src/core/backends/modelapi/ModelApiHost.ts",
+    "sha256Before": "2b25279afae46bc192a4b2fc9e6463c3e3c66f63dbd587a9da7aff779dd544c5",
+    "sha256Restored": "2b25279afae46bc192a4b2fc9e6463c3e3c66f63dbd587a9da7aff779dd544c5",
+    "command": "npx vitest run test/unit/unattendedBackends.test.ts --maxWorkers=3",
+    "test": "RVM115U4 P1: a reviewer request cannot mark",
+    "exitCode": 1,
+    "assertionFailed": true,
+    "byteExact": true
+  },
+  {
+    "mutation": "partial-delivery",
+    "path": "src/core/backends/modelapi/ModelApiHost.ts",
+    "sha256Before": "2b25279afae46bc192a4b2fc9e6463c3e3c66f63dbd587a9da7aff779dd544c5",
+    "sha256Restored": "2b25279afae46bc192a4b2fc9e6463c3e3c66f63dbd587a9da7aff779dd544c5",
+    "command": "npx vitest run test/unit/unattendedBackends.test.ts --maxWorkers=3",
+    "test": "RVM115U4 P1: an ordinary request cannot mark truncated",
+    "exitCode": 1,
+    "assertionFailed": true,
+    "byteExact": true
+  },
+  {
+    "mutation": "cancel-release",
+    "path": "src/core/backends/modelapi/ModelApiHost.ts",
+    "sha256Before": "2b25279afae46bc192a4b2fc9e6463c3e3c66f63dbd587a9da7aff779dd544c5",
+    "sha256Restored": "2b25279afae46bc192a4b2fc9e6463c3e3c66f63dbd587a9da7aff779dd544c5",
+    "command": "npx vitest run test/unit/unattendedBackends.test.ts --maxWorkers=3",
+    "test": "RVM115U4 P2-4: a stopped steer",
+    "exitCode": 1,
+    "assertionFailed": true,
+    "byteExact": true
+  },
+  {
+    "mutation": "failure-release",
+    "path": "src/core/backends/modelapi/ModelApiHost.ts",
+    "sha256Before": "2b25279afae46bc192a4b2fc9e6463c3e3c66f63dbd587a9da7aff779dd544c5",
+    "sha256Restored": "2b25279afae46bc192a4b2fc9e6463c3e3c66f63dbd587a9da7aff779dd544c5",
+    "command": "npx vitest run test/unit/unattendedBackends.test.ts --maxWorkers=3",
+    "test": "RVM115U4 P2-4: later steer validation failure",
+    "exitCode": 1,
+    "assertionFailed": true,
+    "byteExact": true
+  },
+  {
+    "mutation": "pinned-root",
+    "path": "src/core/schedules/unattended.ts",
+    "sha256Before": "946857f81e8ebce690dd7d4146b77ba5ee1f3218b546633ce5e01a270ce14bbc",
+    "sha256Restored": "946857f81e8ebce690dd7d4146b77ba5ee1f3218b546633ce5e01a270ce14bbc",
+    "command": "npx vitest run test/unit/unattended.test.ts --maxWorkers=3",
+    "test": "RVM115U4 P2-5: cached sources and live paths share one canonical root",
+    "exitCode": 1,
+    "assertionFailed": true,
+    "byteExact": true
+  }
+]

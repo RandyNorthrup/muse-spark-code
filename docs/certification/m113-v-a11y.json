@@ -1,0 +1,585 @@
+{
+  "sizes": {
+    "reportingPanelKiB": 99.5478515625,
+    "reportingPageKiB": 453.30859375,
+    "reportingCssKiB": 1.265625
+  },
+  "checks": [
+    {
+      "theme": "light",
+      "width": 690,
+      "scene": "report",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": [],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(31, 31, 31)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "theme": "light",
+      "width": 690,
+      "scene": "history",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": [],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(31, 31, 31)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "theme": "light",
+      "width": 690,
+      "scene": "diff",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": [],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(31, 31, 31)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "theme": "light",
+      "width": 690,
+      "scene": "error",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": [],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(31, 31, 31)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "theme": "light",
+      "width": 320,
+      "scene": "report",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": ["color-contrast"],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(31, 31, 31)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "theme": "light",
+      "width": 320,
+      "scene": "history",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": ["color-contrast"],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(31, 31, 31)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "theme": "light",
+      "width": 320,
+      "scene": "diff",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": ["color-contrast"],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(31, 31, 31)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "theme": "light",
+      "width": 320,
+      "scene": "error",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": ["color-contrast"],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(31, 31, 31)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "theme": "dark",
+      "width": 690,
+      "scene": "report",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": [],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(204, 204, 204)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "theme": "dark",
+      "width": 690,
+      "scene": "history",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": [],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(204, 204, 204)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "theme": "dark",
+      "width": 690,
+      "scene": "diff",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": [],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(204, 204, 204)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "theme": "dark",
+      "width": 690,
+      "scene": "error",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": [],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(204, 204, 204)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "theme": "dark",
+      "width": 320,
+      "scene": "report",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": ["color-contrast"],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(204, 204, 204)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "theme": "dark",
+      "width": 320,
+      "scene": "history",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": ["color-contrast"],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(204, 204, 204)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "theme": "dark",
+      "width": 320,
+      "scene": "diff",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": ["color-contrast"],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(204, 204, 204)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "theme": "dark",
+      "width": 320,
+      "scene": "error",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": ["color-contrast"],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(204, 204, 204)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "theme": "hc-dark",
+      "width": 690,
+      "scene": "report",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": [],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(255, 255, 255)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "theme": "hc-dark",
+      "width": 690,
+      "scene": "history",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": [],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(255, 255, 255)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "theme": "hc-dark",
+      "width": 690,
+      "scene": "diff",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": [],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(255, 255, 255)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "theme": "hc-dark",
+      "width": 690,
+      "scene": "error",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": [],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(255, 255, 255)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "report",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": ["color-contrast"],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(255, 255, 255)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "history",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": ["color-contrast"],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(255, 255, 255)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "diff",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": ["color-contrast"],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(255, 255, 255)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "error",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": ["color-contrast"],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(255, 255, 255)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "theme": "hc-light",
+      "width": 690,
+      "scene": "report",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": [],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(0, 0, 0)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "theme": "hc-light",
+      "width": 690,
+      "scene": "history",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": [],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(0, 0, 0)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "theme": "hc-light",
+      "width": 690,
+      "scene": "diff",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": [],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(0, 0, 0)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "theme": "hc-light",
+      "width": 690,
+      "scene": "error",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": [],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(0, 0, 0)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "report",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": ["color-contrast"],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(0, 0, 0)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "history",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": ["color-contrast"],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(0, 0, 0)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "diff",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": ["color-contrast"],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(0, 0, 0)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    },
+    {
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "error",
+      "violations": [],
+      "incomplete": ["frame-tested"],
+      "innerViolations": [],
+      "keyboardFocus": true,
+      "innerIncomplete": ["color-contrast"],
+      "errors": [],
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(0, 0, 0)",
+        "cssRules": 10,
+        "overflow": false
+      }
+    }
+  ]
+}

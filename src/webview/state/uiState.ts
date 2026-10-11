@@ -1,4 +1,6 @@
+import type { modelApiStatusSchema } from '../../shared/serviceStatus'
 import type { JudgeStatus } from '../../shared/judge'
+import { workflowChildSchema } from '../../shared/workflowChild'
 // Webview UI state: a pure reducer over host messages and local edits. No DOM
 // access here; the components apply focus and caret changes. Timestamps come
 // in with the action (`at`) so reasoning durations stay deterministic in tests.
@@ -6,6 +8,7 @@ import type { JudgeStatus } from '../../shared/judge'
 // conversation saved across a reload is validated before it comes back (M25).
 
 import * as z from 'zod/mini'
+import { reportCommandArguments } from '../../shared/reportCommand'
 import { redactSecrets } from '../../shared/redact'
 import {
   type AgentEvent,
@@ -59,11 +62,12 @@ import type {
   SignInMethod,
   SkillOption,
 } from '../../shared/protocol'
-import { EMPTY_PAID_TALLY, type PaidState } from '../../shared/paid'
+import { EMPTY_PAID_TALLY, type PaidState } from '../../shared/paidBoundary'
 import { isLegalPrompt } from '../../shared/legalCommand'
 import type { LegalScanResult } from '../../shared/legal'
 import type { LegalFixPreviewMessage, LegalFixResultMessage } from '../../shared/legalFix'
 import type { ScheduleView } from '../../shared/schedule'
+import type { EstimateSection } from '../../shared/estimate'
 import type { BestOfNRun } from '../../shared/bestOfN'
 import type { BoardRow } from '../../shared/sessionBoard'
 import type { SessionRow } from '../../shared/sessions'
@@ -129,6 +133,7 @@ export type {
 
 /** What the Account & usage dialog shows (M8, M14): the host's last `usageReport`. */
 export interface UsageReport {
+  readonly serviceStatus?: ReturnType<typeof modelApiStatusSchema.parse> | undefined
   readonly backend: BackendKind
   readonly subscription: SubscriptionUsage | undefined
   readonly account: AccountFacts | undefined
@@ -258,7 +263,17 @@ export interface CheckpointView {
 }
 
 export interface UiState {
+  readonly pendingReportCommand:
+    { readonly requestId: string; readonly draftRevision: number } | undefined
   readonly judge: JudgeStatus | undefined
+  /**
+   * M107 U–C1: this window governor's status as the host sent it (bounded
+   * JSON text; the deferred chip checks its schema); null when the current
+   * status was refused. Machine-wide, never saved.
+   */
+  readonly resourceStatus: string | null | undefined
+  /** The latest Show resources open the host offered, and the document it named. */
+  readonly resourceOffer: { readonly seq: number; readonly nonce: string } | undefined
   /** Newest resolutions whose tool rows have not arrived yet; never saved. */
   readonly pendingApprovalResolutions: readonly Extract<AgentEvent, { type: 'approvalResolved' }>[]
   readonly phase: 'connecting' | 'ready'
@@ -320,6 +335,8 @@ export interface UiState {
   readonly focusRequests: number
   /** Incremented per host `openUsage`; Account & usage opens when it changes (M94). */
   readonly usageRequests: number
+  /** Incremented per host `openEstimator`; the composer takes `/estimate ` when it changes (M117). */
+  readonly estimatorRequests: number
   readonly helpRequests: number
   readonly referenceValues:
     | {
@@ -461,6 +478,15 @@ export interface UiState {
   readonly goal: SessionGoal | undefined
   /** Extension-owned Model API schedules for this session (M52). */
   readonly schedules: readonly ScheduleView[]
+  /** The v2 schedules surface (M115); posted when a schedule command opens it. */
+  readonly schedulesSurface:
+    Extract<HostToWebviewMessage, { readonly type: 'schedulesSurface' }> | undefined
+  /** The capacity estimator's latest section (M117, PLAN.md D97); the panel renders it. Never saved. */
+  readonly estimatorRequestId?: string | undefined
+  readonly estimatorFailure?: { requestId?: string | undefined; reason: string } | undefined
+  readonly estimatorStarted?:
+    { requestId?: string | undefined; error?: string | undefined } | undefined
+  readonly estimator: EstimateSection | undefined
   /** Git and pull requests (M71): the host's cards and the open form. */
   readonly git: GitUiState
   /** Fetched output pages keyed by `${itemId}:${outputRef}`. */
@@ -535,11 +561,14 @@ export type UiAction =
   | { readonly type: 'goalEditCanceled' }
   | { readonly type: 'goalEditSubmitted'; readonly requestId: string; readonly objective: string }
   /** `/handoff …` sent from the composer (M74), awaiting the host's admission. */
+  | { readonly type: 'reportSubmitted'; readonly requestId: string }
   | { readonly type: 'handoffSubmitted'; readonly requestId: string }
   /** The handoff dialog's edits and Start (M74); Cancel dismisses it. */
   | { readonly type: 'handoffChanged'; readonly draft: string }
   | { readonly type: 'handoffConfirming' }
   | { readonly type: 'handoffDismissed' }
+  /** The v2 schedules surface's Close (M115). */
+  | { readonly type: 'schedulesSurfaceClosed' }
   | { readonly type: 'insertRequested'; readonly text: string }
   | { readonly type: 'insertApplied' }
   | { readonly type: 'focusRequested' }
@@ -600,7 +629,7 @@ export type UiAction =
   /** Commit or Create pressed: the form waits for the host's `gitDone`. */
   | { readonly type: 'gitFormBusy' }
   /**
-   * "Write with Muse" pressed: the user's own message asking for the draft
+   * "Write With Muse" pressed: the user's own message asking for the draft
    * goes in the transcript (the composer's draft stays as it is), and the
    * form waits for the reply.
    */
@@ -662,10 +691,14 @@ export const initialUiState: UiState = {
   goalEdit: undefined,
   goalEditRevision: 0,
   pendingHandoffCommand: undefined,
+  pendingReportCommand: undefined,
   handoff: undefined,
   focusRequests: 0,
   usageRequests: 0,
+  estimatorRequests: 0,
   helpRequests: 0,
+  resourceStatus: undefined,
+  resourceOffer: undefined,
   referenceValues: undefined,
   pendingInsert: undefined,
   judge: undefined,
@@ -711,6 +744,8 @@ export const initialUiState: UiState = {
   todos: [],
   goal: undefined,
   schedules: [],
+  schedulesSurface: undefined,
+  estimator: undefined,
   git: initialGitUiState,
   outputPages: {},
   toolImages: {},
@@ -939,15 +974,6 @@ function reportedImages(item: ItemSnapshot): readonly string[] | undefined {
 // One `children` element of a workflow item (MSP `WorkflowChild`, M47): its
 // identity and status are required; every other field is read on its own,
 // so one of another shape costs that field, never the agent or the run.
-const reportedChildSchema = z.object({
-  childId: z.string(),
-  attempt: z.number(),
-  status: z.string(),
-  label: z.optional(z.unknown()),
-  terminal: z.optional(z.unknown()),
-  durationMs: z.optional(z.unknown()),
-  usage: z.optional(z.unknown()),
-})
 
 function stringOf(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined
@@ -956,7 +982,7 @@ function stringOf(value: unknown): string | undefined {
 /** The agents a workflow item reports; undefined when it carries no list. */
 function reportedChildren(item: ItemSnapshot): readonly WorkflowChild[] | undefined {
   return item.children?.flatMap((raw) => {
-    const parsed = reportedChildSchema.safeParse(raw)
+    const parsed = workflowChildSchema.safeParse(raw)
     if (!parsed.success) {
       return []
     }
@@ -964,6 +990,7 @@ function reportedChildren(item: ItemSnapshot): readonly WorkflowChild[] | undefi
     return [
       {
         childId: child.childId,
+        agentEvidence: item.agentWorkflowEvidence?.[`${item.itemId}/${child.childId}`],
         attempt: child.attempt,
         status: child.status,
         label: stringOf(child.label),
@@ -1130,10 +1157,14 @@ function withBanner(state: UiState, name: string, reason: string): UiState {
 
 function toolEntry(item: ItemSnapshot): TranscriptEntry {
   return {
+    exitCode: item.exitCode,
+    durationMs: item.durationMs,
+    changedFiles: item.changedFiles,
     kind: 'tool',
     id: item.itemId,
     tool: item.tool ?? item.kind,
     args: item.args ?? '',
+    argumentPreview: item.argumentPreview,
     status: item.status,
     output: item.visibleOutput ?? '',
     failureReason: item.failureReason,
@@ -1176,6 +1207,7 @@ function userShellEntry(item: ItemSnapshot): UserShellEntry {
 
 function subagentEntry(item: ItemSnapshot, seq: number): SubagentEntry {
   return {
+    agentEvidence: item.agentEvidence,
     kind: 'subagent',
     id: item.itemId,
     seq,
@@ -1291,8 +1323,12 @@ function mergeItem(entry: TranscriptEntry, item: ItemSnapshot, at: number): Tran
     case 'tool': {
       return {
         ...entry,
+        exitCode: item.exitCode ?? entry.exitCode,
+        durationMs: item.durationMs ?? entry.durationMs,
+        changedFiles: item.changedFiles ?? entry.changedFiles,
         tool: item.tool ?? entry.tool,
         args: item.args ?? entry.args,
+        argumentPreview: item.argumentPreview,
         status: item.status,
         output: item.visibleOutput ?? entry.output,
         failureReason: item.failureReason ?? entry.failureReason,
@@ -1329,6 +1365,7 @@ function mergeItem(entry: TranscriptEntry, item: ItemSnapshot, at: number): Tran
       const fresh = subagentEntry(item, entry.seq)
       return {
         ...entry,
+        agentEvidence: fresh.agentEvidence ?? entry.agentEvidence,
         paid: fresh.paid ?? entry.paid,
         role: fresh.role ?? entry.role,
         objective: fresh.objective ?? entry.objective,
@@ -1397,13 +1434,15 @@ function settleEntry(entry: TranscriptEntry, at: number): TranscriptEntry {
         !isCutOff &&
         entry.approval === undefined &&
         entry.question === undefined &&
-        entry.elicitation === undefined
+        entry.elicitation === undefined &&
+        entry.argumentPreview === undefined
       ) {
         return entry
       }
       return {
         ...entry,
         status: isCutOff ? TOOL_STATUS_INTERRUPTED : entry.status,
+        argumentPreview: undefined,
         approval: undefined,
         question:
           entry.question?.state !== undefined && entry.question.state !== 'waiting'
@@ -1455,8 +1494,16 @@ function unlockQuestions(entries: readonly TranscriptEntry[]): readonly Transcri
     : entries
 }
 
-function settleAll(entries: readonly TranscriptEntry[], at: number): readonly TranscriptEntry[] {
-  const settled = entries.map((entry) => settleEntry(entry, at))
+function settleAll(
+  entries: readonly TranscriptEntry[],
+  at: number,
+  isPreviewOnly = false,
+): readonly TranscriptEntry[] {
+  const settled = entries.map((entry) =>
+    isPreviewOnly && (entry.kind !== 'tool' || entry.argumentPreview === undefined)
+      ? entry
+      : settleEntry(entry, at),
+  )
   return settled.every((entry, index) => entry === entries[index]) ? entries : settled
 }
 
@@ -1931,6 +1978,7 @@ function applyAgentEvent(
         : state
     }
     case 'itemStarted':
+    case 'toolArgumentPreview':
     case 'itemUpdated':
     case 'itemCompleted': {
       const next = applyItem(state, event.item, at)
@@ -2390,7 +2438,7 @@ function withPendingCard(
 }
 
 /**
- * The reply that "Save plan" and "Implement in a fresh conversation" sit
+ * The reply that "Save Plan" and "Implement in a Fresh Conversation" sit
  * under (M79): the conversation's latest reply, in Plan mode, once no turn
  * runs and nothing was sent after it, answering a message this panel sent
  * in Plan mode. Neither backend marks a plan or its approval on the wire,
@@ -2432,6 +2480,7 @@ function clearedConversation(state: UiState): UiState {
     pendingGoalCommand: undefined,
     goalEdit: undefined,
     pendingHandoffCommand: undefined,
+    pendingReportCommand: undefined,
     handoff: undefined,
     // A handoff dialog that goes with the conversation (its Start took)
     // hands the focus back to the prompt (M74).
@@ -2465,6 +2514,10 @@ function clearedConversation(state: UiState): UiState {
     todos: [],
     goal: undefined,
     schedules: [],
+    estimator: undefined,
+    estimatorRequestId: undefined,
+    estimatorFailure: undefined,
+    estimatorStarted: undefined,
     // A new conversation starts without a form; the host says what else stays.
     git: { ...state.git, form: undefined },
     outputPages: {},
@@ -2560,7 +2613,7 @@ function reconcile(
   at: number,
 ): UiState {
   const restore = state.pendingRestore
-  const live: UiState = {
+  let live: UiState = {
     ...state,
     attachmentEpoch: Math.max(state.attachmentEpoch, message.attachmentEpoch ?? 0),
     pendingRestore: undefined,
@@ -2579,9 +2632,11 @@ function reconcile(
   if (restore.isTranscriptOmitted) {
     return withNotice(live, 'info', UI_TEXT.snapshotTooLong)
   }
-  return message.activeTurnId === undefined
-    ? { ...live, transcript: settleAll(live.transcript, at) }
-    : live
+  for (const childId of Object.keys(live.childTranscripts)) {
+    live = mapChildEntries(live, childId, (entries) => settleAll(entries, at, true))
+  }
+  const transcript = settleAll(live.transcript, at, message.activeTurnId !== undefined)
+  return transcript === live.transcript ? live : { ...live, transcript }
 }
 
 /** Transcript order for loaded rows, then missing-history cards in arrival order. */
@@ -2756,6 +2811,20 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
     }
     case 'openUsage': {
       return { ...state, usageRequests: state.usageRequests + 1 }
+    }
+    case 'openEstimator': {
+      return { ...state, estimatorRequests: state.estimatorRequests + 1 }
+    }
+    case 'estimatorSection': {
+      // The estimator's latest section (M117): a new section reveals the
+      // panel, which renders it byte-identical through its validated port.
+      return { ...state, estimator: message.section, estimatorRequestId: message.requestId }
+    }
+    case 'estimatorFailure': {
+      return { ...state, estimatorFailure: message }
+    }
+    case 'estimatorStarted': {
+      return { ...state, estimatorStarted: message }
     }
     case 'openHelp': {
       return { ...state, helpRequests: state.helpRequests + 1 }
@@ -2972,6 +3041,7 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         usageReport: {
           backend: message.backend,
           subscription: message.subscription,
+          ...(message.serviceStatus !== undefined && { serviceStatus: message.serviceStatus }),
           account: message.account,
           insights: message.insights,
           team: message.team,
@@ -3056,6 +3126,12 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
     }
     case 'paidState': {
       return { ...state, paid: message.state }
+    }
+    case 'resourceStatus': {
+      return { ...state, resourceStatus: message.status }
+    }
+    case 'resourceOpen': {
+      return { ...state, resourceOffer: message }
     }
     case 'historyLoaded': {
       // The same session read again (a delivery gap, D26) keeps its usage.
@@ -3220,6 +3296,15 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         },
       }
     }
+    case 'reportCommandResult': {
+      const command = state.pendingReportCommand
+      if (command?.requestId !== message.requestId) return state
+      return {
+        ...state,
+        pendingReportCommand: undefined,
+        draft: message.accepted && command.draftRevision === state.draftRevision ? '' : state.draft,
+      }
+    }
     case 'handoffCommandResult': {
       // The request's admission (M74): a refused `/handoff …` stays in the
       // composer, its goal not lost; an accepted one clears it, if unedited.
@@ -3228,6 +3313,7 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         return {
           ...state,
           pendingHandoffCommand: undefined,
+          pendingReportCommand: undefined,
           draft:
             message.accepted && state.draftRevision === command.draftRevision ? '' : state.draft,
         }
@@ -3360,6 +3446,14 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
     }
     case 'skillList': {
       return { ...state, skills: message.skills }
+    }
+    case 'schedulesMessage': {
+      // The panel's versioned channel owns these; the store only keeps the
+      // surface's props below.
+      return state
+    }
+    case 'schedulesSurface': {
+      return { ...state, schedulesSurface: message }
     }
     case 'composerState': {
       return {
@@ -3627,6 +3721,12 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
         },
       }
     }
+    case 'reportSubmitted': {
+      return {
+        ...state,
+        pendingReportCommand: { requestId: action.requestId, draftRevision: state.draftRevision },
+      }
+    }
     case 'handoffSubmitted': {
       return {
         ...state,
@@ -3644,6 +3744,11 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
       return pending === undefined || pending.isConfirming
         ? state
         : { ...state, handoff: { ...pending, isConfirming: true } }
+    }
+    case 'schedulesSurfaceClosed': {
+      return state.schedulesSurface === undefined
+        ? state
+        : { ...state, schedulesSurface: undefined }
     }
     case 'handoffDismissed': {
       // Closed, the dialog hands the focus back to the prompt, as Usage
@@ -3707,6 +3812,7 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
             arm === undefined ? state.secretPromptQueue : state.secretPromptQueue.slice(1),
           pendingGoalCommand: undefined,
           pendingHandoffCommand: undefined,
+          pendingReportCommand: undefined,
           attachments:
             arm === undefined
               ? []
@@ -3943,6 +4049,8 @@ export function userShellCommandOf(draft: string): string | undefined {
 /** Whether the composer may submit right now (a running turn is steered; `!` needs a command). */
 export function canSend(state: UiState): boolean {
   if (isLegalPrompt(state.draft)) return true
+  if (reportCommandArguments(state.draft) !== undefined)
+    return state.pendingReportCommand === undefined
   if (state.auth.status !== 'signedIn') {
     return false
   }

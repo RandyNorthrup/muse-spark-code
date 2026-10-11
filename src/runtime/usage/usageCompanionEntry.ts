@@ -9,7 +9,8 @@ import type { UsageAccess, UsagePageConnection } from './usageAdapter'
 import type { UsageServiceToPageMessage } from '../../shared/usagePage'
 import { USAGE_TEXT, loadUsageTable, setUsageText } from '../../shared/l10n/usageTable'
 import { readUsageTableFile } from './usageTableFile'
-import { plural, setUiText } from '../../shared/l10n/text'
+import { setUiText } from '../../shared/l10n/text'
+import { usageDeleteDetail } from '../../shared/usageDeleteText'
 import type { UiText } from '../../shared/l10n/en'
 import type { CoreLogger } from '../../core/logging'
 import {
@@ -144,7 +145,7 @@ export async function openUsageCompanion(deps: {
               return Promise.resolve(true)
             },
             exportMaxBytes: USAGE_BROWSER_EXPORT_MAX_BYTES,
-            confirmDelete: (count) =>
+            confirmDelete: (count, resources) =>
               new Promise<boolean>((resolve) => {
                 const id = randomUUID()
                 approvals.set(id, { session, count, resolve })
@@ -152,7 +153,7 @@ export async function openUsageCompanion(deps: {
                   type: 'confirm',
                   id,
                   count,
-                  detail: plural(USAGE_TEXT.deleteConfirm, count),
+                  detail: usageDeleteDetail(count, resources),
                 })
               }),
             setHistory: deps.usage.setHistory ?? unsupported,

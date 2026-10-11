@@ -39,7 +39,7 @@ const GIT_LIST_MAX_BYTES = 64 * 1024 * 1024
 declare module 'vitest' {
   export interface ProvidedContext {
     /** The build inputs' generation this run built from; empty when it built nothing. */
-    productionBuild: string
+    deviceProductionBuild: string
   }
 }
 
@@ -100,7 +100,7 @@ export function assertCurrentProductionBuild(
 interface SetupProject {
   readonly config: { readonly root: string }
   readonly vitest: { readonly state: { getPaths(): string[] } }
-  provide(key: 'productionBuild', value: string): void
+  provide(key: 'deviceProductionBuild', value: string): void
   onTestsRerun(listener: (specifications: readonly { readonly moduleId: string }[]) => void): void
 }
 interface BuildPorts {
@@ -124,11 +124,11 @@ export function productionBuildSetup(ports: BuildPorts = realBuild) {
     const root = project.config.root
     const prepare = (selected: readonly string[]) => {
       if (!requiresProductionBuild(root, selected)) {
-        project.provide('productionBuild', '')
+        project.provide('deviceProductionBuild', '')
         return
       }
       ports.build(root)
-      project.provide('productionBuild', ports.generation(root))
+      project.provide('deviceProductionBuild', ports.generation(root))
     }
     // The run's selected files (the state API is experimental: a change there
     // shows as the serving suites' own refusal, never a silent skip).

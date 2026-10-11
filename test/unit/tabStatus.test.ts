@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 // Tab's status bar, its menu and the snooze (M94, PLAN.md D73): every
 // state D73 names, the menu's rows, and the timed and until-restart
 // snoozes. Snooze timing is asserted against a controlled clock.
@@ -14,7 +15,8 @@ import {
 import { showTabMenu, snoozeTabCommand, tabLanguagesCommand } from '../../src/host/tab/tabStatus'
 import { createTabSnooze, createTabStatusItem } from '../../src/host/tab/tabBundle'
 import { UI_TEXT } from '../../src/shared/constants'
-import { fill, formatUsd } from '../../src/shared/l10n/text'
+import { fill } from '../../src/shared/l10n/text'
+import { formatUsd } from '../../src/shared/l10n/exactUsd'
 import { FakeStatusBarItem } from './mocks/vscode'
 
 const MINUTE_MS = 60_000
@@ -94,10 +96,10 @@ function statusHarness(overrides: Partial<TabStatusDeps> = {}): StatusHarness {
     foreignSetting: () => undefined,
     isCopilotExtensionPresent: () => false,
     tabWithCopilot: () => 'yield',
-    todaySpend: () => ({ totalUsd: 0.12, requests: 3 }),
+    todaySpend: () => ({ totalUsd: Usd.from(0.12).toAmount(), requests: 3 }),
     isBudgetReached: () => false,
     model: () => 'muse-spark-1.3',
-    budgetUsd: () => 1,
+    budgetUsd: () => Usd.from(1).toAmount(),
     snooze,
     updateSetting,
     tabLanguages: () => ({ '*': true }),
@@ -151,7 +153,7 @@ describe('createTabStatus', () => {
   })
 
   it('names each state D73 names', () => {
-    const spend = { totalUsd: 0.12, requests: 3 }
+    const spend = { totalUsd: Usd.from(0.12).toAmount(), requests: 3 }
     const states: [string, Partial<TabStatusDeps>, string][] = [
       ['budget', { isBudgetReached: () => true }, UI_TEXT.tabStatusBudget],
       ['no key', { isKeyStored: () => false }, UI_TEXT.tabStatusNoKey],

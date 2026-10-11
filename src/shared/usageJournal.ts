@@ -142,6 +142,7 @@ export const usageRecordSchema = z
   .strictObject({
     ...identity,
     type: z.literal('usage'),
+    account: z.optional(accountIdSchema),
     startedAt: usageCountSchema,
     model: usageLabelSchema,
     served: z.optional(usageLabelSchema),
@@ -195,3 +196,8 @@ export const usageJournalEntrySchema = z.discriminatedUnion('type', [
   usageLimitSnapshotSchema,
 ])
 export type UsageJournalEntry = z.infer<typeof usageJournalEntrySchema>
+// M102 extends its record schemas with these fields once its journal lands.
+// Absence denotes a pre-M108 record; the reader resolves it to `default`.
+import { accountIdSchema } from './accountId'
+
+export const usageAccountFields = { account: z.optional(accountIdSchema) }

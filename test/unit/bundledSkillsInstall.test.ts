@@ -72,6 +72,7 @@ function writeFile(file: string, text: string): void {
 /** A vendored package as the sync script leaves it: the skills, a script, a doc, VENDOR.json. */
 function vendor(root: string, tag: string, ids: readonly string[] = IDS): string {
   const vendorRoot = path.join(root, 'vendor', PACKAGE)
+  mkdirSync(path.join(root, 'first-party-skills'), { recursive: true })
   const files = [
     ...ids.map((id) => `skills/${id}/SKILL.md`),
     'skills/project_setup/references/grill-me.md',
@@ -437,6 +438,136 @@ describe('on this platform, end to end', () => {
   })
 })
 
+describe('first-party bundled skills (M116 K)', () => {
+  const PLAYBOOK = 'orchestrator_playbook'
+  const shipped = readFileSync(`first-party-skills/${PLAYBOOK}/SKILL.md`, 'utf8')
+
+  function addSkill(f: Fixture, id = PLAYBOOK, body = shipped): string {
+    const folder = path.join(f.root, 'first-party-skills', id)
+    writeFile(path.join(folder, 'SKILL.md'), body)
+    return folder
+  }
+
+  it('installs the shipped playbook and its references byte-exact, then removes only its links', async () => {
+    const f = fixture()
+    const source = addSkill(f)
+    writeFile(path.join(source, 'references', 'design.md'), 'A structural decision.\n')
+    const result = await installBundledSkills(deps(f))
+    expect(result.failure).toBeUndefined()
+    expect(result.installed).toEqual([...IDS, PLAYBOOK])
+    const copy = path.join(f.copy, 'skills', PLAYBOOK)
+    expect(readFileSync(path.join(copy, 'SKILL.md'), 'utf8')).toBe(shipped)
+    expect(readFileSync(path.join(copy, 'references', 'design.md'), 'utf8')).toBe(
+      'A structural decision.\n',
+    )
+    expect(leadsTo(path.join(f.skillsRoot, PLAYBOOK))).toBe(copy)
+    const personal = path.join(f.skillsRoot, 'personal')
+    writeFile(path.join(personal, 'SKILL.md'), 'Mine')
+    const removed = await removeBundledSkills(f)
+    expect(removed.removed).toContain(PLAYBOOK)
+    expect(readFileSync(path.join(personal, 'SKILL.md'), 'utf8')).toBe('Mine')
+  })
+
+  it('offers an update for first-party changes alone, including reference changes and removed skills', async () => {
+    const f = fixture()
+    const source = addSkill(f)
+    const first = await installBundledSkills(deps(f))
+    const original = await bundledSkillsStatus(f)
+    expect(original).toMatchObject({ vendorTag: first.tag, installedTag: first.tag })
+    writeFile(path.join(source, 'references', 'decision.md'), 'A new decision.\n')
+    const updated = await bundledSkillsStatus(f)
+    expect(updated.vendorTag).not.toBe(first.tag)
+    expect(updated).toMatchObject({ installedTag: first.tag })
+    const offer = createBundledSkillsOffer({
+      isEnabled: () => true,
+      state: memento(),
+      keys: { installDeclined: 'install', updateDeclined: 'update' },
+      status: () => Promise.resolve(updated),
+    })
+    const notice = await offer.next()
+    expect(notice?.actions).toContain('updateBundledSkills')
+    const installed = await installBundledSkills(deps(f))
+    expect(installed.tag).toBe(updated.vendorTag)
+    await fs.rm(source, { recursive: true })
+    const withoutPlaybook = await installBundledSkills(deps(f))
+    expect(withoutPlaybook.removed).toContain(PLAYBOOK)
+    expect(existsSync(path.join(f.skillsRoot, PLAYBOOK))).toBe(false)
+  })
+
+  it('leaves a personal playbook untouched and prefers first-party bytes on a vendor id collision', async () => {
+    const f = fixture()
+    addSkill(f)
+    addSkill(f, IDS[0], 'First-party wins')
+    const personal = path.join(f.skillsRoot, PLAYBOOK, 'SKILL.md')
+    writeFile(personal, 'Personal playbook')
+    const result = await installBundledSkills(deps(f))
+    expect(result.failure).toBeUndefined()
+    expect(result.skipped).toEqual([PLAYBOOK])
+    expect(readFileSync(path.join(f.copy, 'skills', IDS[0], 'SKILL.md'), 'utf8')).toBe(
+      'First-party wins',
+    )
+    await removeBundledSkills(f)
+    expect(readFileSync(personal, 'utf8')).toBe('Personal playbook')
+  })
+
+  it('refuses a missing first-party source, invalid ids and a non-file skill instead of partial success', async () => {
+    for (const broken of ['missing', 'id', 'file']) {
+      const f = fixture()
+      const source = path.join(f.root, 'first-party-skills')
+      if (broken === 'missing') await fs.rm(source, { recursive: true })
+      else if (broken === 'id') writeFile(path.join(source, 'Bad Name', 'SKILL.md'), 'A skill')
+      else mkdirSync(path.join(source, PLAYBOOK, 'SKILL.md'), { recursive: true })
+      await expect(bundledSkillsStatus(f)).rejects.toThrow()
+      const result = await installBundledSkills(deps(f))
+      expect(result.failure?.reason.kind).toBe('error')
+      expect(existsSync(f.copy)).toBe(false)
+      expect(existsSync(f.skillsRoot)).toBe(false)
+    }
+  })
+
+  it('refuses linked first-party roots, skills and references without reading or copying their targets', async () => {
+    for (const linked of ['root', 'skill', 'reference']) {
+      const f = fixture()
+      const source = addSkill(f)
+      const outside = path.join(f.root, 'outside')
+      const outsideFile = path.join(outside, ...(linked === 'root' ? [PLAYBOOK] : []), 'SKILL.md')
+      writeFile(outsideFile, 'Outside')
+      let link = path.join(source, 'references')
+      if (linked === 'root') link = path.dirname(source)
+      else if (linked === 'skill') link = source
+      await fs.rm(link, { recursive: true, force: true })
+      linkFolder(outside, link)
+      const read = vi.spyOn(fs, 'readFile')
+      const result = await installBundledSkills(deps(f))
+      expect(result.failure?.reason.kind).toBe('error')
+      expect(existsSync(f.copy)).toBe(false)
+      expect(
+        read.mock.calls.some(
+          ([file]) =>
+            typeof file === 'string' &&
+            file.replaceAll('\\', '/').startsWith(`${link.replaceAll('\\', '/')}/`),
+        ),
+      ).toBe(false)
+      expect(readFileSync(outsideFile, 'utf8')).toBe('Outside')
+      read.mockRestore()
+    }
+  })
+
+  it('recognizes Windows separators in the installer list', async () => {
+    const f = fixture()
+    const record = path.join(f.vendorRoot, 'VENDOR.json')
+    writeFileSync(
+      record,
+      JSON.stringify({
+        tag: 'v0.7.0',
+        files: IDS.map((id) => ({ path: `skills\\${id}\\SKILL.md` })),
+      }),
+    )
+    const installed = await installBundledSkills(deps(f))
+    expect(installed.installed).toEqual([...IDS])
+  })
+})
+
 describe('the shipped bundle', () => {
   const built = { folder: '', file: '' }
 
@@ -481,6 +612,7 @@ describe('the shipped bundle', () => {
       bundledSkillsStatus: () => undefined,
       installBundledSkills: () => undefined,
       removeBundledSkills: () => undefined,
+      playbookReviewerCharter: () => 'charter',
     }
     expect(isBundledSkillsBundle(load())).toBe(true)
     expect(isBundledSkillsBundle(null)).toBe(false)
@@ -603,6 +735,7 @@ function commandDeps(
       bundledSkillsStatus: () => Promise.reject(new Error('unused')),
       installBundledSkills: () => Promise.reject(new Error('unused')),
       removeBundledSkills: () => Promise.reject(new Error('unused')),
+      playbookReviewerCharter: () => 'charter',
       ...bundle,
     }),
     paths: () => ({

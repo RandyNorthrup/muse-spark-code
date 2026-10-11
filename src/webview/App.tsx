@@ -1,4 +1,6 @@
+import { loadDeferredEnglish } from '../shared/l10n/deferredEnglish'
 import { JudgeStatusLine } from './components/JudgeStatusLine'
+import { retrySurface } from './surfaceRetry'
 import {
   type ReactNode,
   Suspense,
@@ -27,7 +29,9 @@ import {
   type GoalCommandVerb,
   MUSE_DELEGATION_ENABLED,
   REVIEW_SLASH_COMMAND,
-  SETTING_DEFAULTS,
+  ARE_SCHEDULES_ON_BY_DEFAULT,
+  IS_MUSE_CODE_AUTO_REVIEWER_ON_BY_DEFAULT,
+  type PaidFeature,
   type SubagentAction,
   UI_TEXT,
   SLASH_COMMAND_NAMES,
@@ -39,43 +43,79 @@ import {
   reviewRequestSchema,
 } from '../shared/reviewCommand'
 import { isLegalPrompt, parseLegalPrompt } from '../shared/legalCommand'
-import type { LegalScanRequestMessage } from '../shared/legal'
+import type { LegalScanRequestMessage, LegalFinding } from '../shared/legal'
 import { editorContextLabel } from '../shared/editorContext'
-import type { LegalFinding } from '../shared/legal'
+
 import { effortAt, effortIndex, effortLabel, effortLevelsFor } from '../shared/effort'
 import { parseGoalPrompt, requiresObjective } from '../shared/goalCommand'
 import { parseHandoffPrompt } from '../shared/handoff'
 import { parseLoopPrompt } from '../core/backends/modelapi/schedules'
 import { fill, formatNumber, plural, templateParts } from '../shared/l10n/text'
+import type { EstimateRequest, EstimateSection } from '../shared/estimate'
+import type { EstimatorPanelPort } from './estimator/EstimatorPanel'
+import { isEstimateCommandText } from './estimator/commandPrefix'
 import {
   availablePermissionModes,
   nextPermissionMode,
   permissionModeDetail,
 } from '../shared/permissionModes'
-import { paidFeatureName, paidFeaturePrice, usablePaidFeatures } from '../shared/paid'
-import { buildPalette, type PaletteAction } from '../shared/palette'
-import { type SlashCommand, slashCommandsOf } from '../shared/slashCommands'
+import { paidFeatureName, usablePaidFeatures } from '../shared/paidBoundary'
+import { MoneyUnavailable, usePriceOf } from './money'
+import { usePaidFeaturePrices } from './moneyHooks'
+import type * as PaletteRegistryModule from '../shared/paletteRegistry'
+import type * as SchedulePromptModule from './schedules/prompt'
+import type { PaletteAction } from '../shared/palette'
+import type { scheduleChannel } from './schedules/channel'
+import type { ScheduleRequest } from '../shared/scheduleV2'
+import type { SlashCommand } from '../shared/slashCommands'
 import type { GitAction, GitDraftKind } from '../shared/git'
-import type {
-  ChatReference,
-  LineRange,
-  NoticeAction,
-  ReportEventRef,
-  ReviewFile,
-  SignInMethod,
-  WebviewToHostMessage,
+import {
+  type ChatReference,
+  type LineRange,
+  type NoticeAction,
+  type ReportEventRef,
+  type ReviewFile,
+  type SignInMethod,
+  type WebviewToHostMessage,
+  parseHostToWebviewMessage,
 } from '../shared/protocol'
-import { parseHostToWebviewMessage } from '../shared/protocol'
+
 import type { GitFormEdit } from './state/gitState'
 import type { ApprovalDecisionInput } from './components/ApprovalCard'
 import { AttentionDock } from './components/AttentionDock'
 import { QuestionSurface } from './components/QuestionSurface'
 import { Composer, type ImageData, type SlashPaletteSlot } from './components/Composer'
-import { DiffTally } from './components/DiffTally'
-const EffortSlider = deferred(async () => {
-  const module = await import('./components/EffortSlider')
-  return { default: module.EffortSlider }
-})
+// The conversation's edit totals load on first use: an empty conversation
+// neither paints nor loads the tally chunk, and a populated one gets an
+// announced loading status with a local retry instead of the panel boundary.
+const DiffTally = deferred(
+  async () => {
+    const { DiffTally } = await import('./components/DiffTally')
+    return { default: DiffTally }
+  },
+  false,
+  (props) =>
+    props.counts === undefined ? null : (
+      <span role="status" data-deferred-loading>
+        {UI_TEXT.loadingOutput}
+      </span>
+    ),
+)
+// The Modes menu's effort control loads with the menu's first open. No
+// close control is wired: the menu owns dismissal, the boundary only
+// announces loading and retries a failed chunk.
+const EffortSlider = deferred(
+  async () => {
+    const { EffortSlider } = await import('./components/EffortSlider')
+    return { default: EffortSlider }
+  },
+  false,
+  () => (
+    <span role="status" data-deferred-loading>
+      {UI_TEXT.loadingOutput}
+    </span>
+  ),
+)
 import { EmptyState } from './components/EmptyState'
 import { Header } from './components/Header'
 import { DeferredReportDialog } from './components/DeferredReportDialog'
@@ -83,12 +123,27 @@ import { AddContextIcon, ExpandChevron, UploadIcon } from './components/icons'
 import { modeIcon } from './components/modeIcons'
 import type { PaletteKeys, PaletteView } from './components/Palette'
 import type { MenuEntry } from './components/PopoverMenu'
-import { TodoPanel } from './components/TodoPanel'
+// The task list loads on first use: an empty list neither paints nor loads
+// its chunk, and a populated one gets an announced loading status with a
+// local retry instead of the panel boundary.
+const TodoPanel = deferred(
+  async () => {
+    const { TodoPanel } = await import('./components/TodoPanel')
+    return { default: TodoPanel }
+  },
+  false,
+  (props) =>
+    props.items.length === 0 ? null : (
+      <span role="status" data-deferred-loading>
+        {UI_TEXT.loadingOutput}
+      </span>
+    ),
+)
 import type { TeamTreeActions } from './components/TeamTree'
 import { teamRunningTaskCount, teamTaskCount } from './state/teamEntries'
 import { type QueuedCardRef, Transcript } from './components/Transcript'
 import type { TeamCardActions } from './components/TeamCards'
-import { diffTally } from './diffTally'
+import { diffTally } from '../shared/diffTally'
 import { type ErrorReporter, webviewErrorReport } from './errorReport'
 import { createUiStore, listenToHost, type UiStore } from './state/store'
 import { hasFileAttachment } from './state/transcriptEntries'
@@ -113,13 +168,16 @@ import {
 } from './state/uiState'
 import { isChildRunning } from './workflowDetails'
 import type { QuoteIntent } from './components/QuoteMenu'
-import { Modal } from './components/Modal'
+import { reportCommandArguments } from '../shared/reportCommand'
 import { deferred } from './components/DeferredSurface'
+import { Modal } from './components/Modal'
+import type { ResourceSurfaceLoader } from './resources/resourcePort'
 
 const LegalReport = deferred(async () => {
   const module = await import('./components/LegalReport')
   return { default: module.LegalReport }
 }, true)
+const UsageReportAction = deferred(() => import('./reporting/UsageReportAction'))
 
 const SignIn = deferred(async () => {
   const module = await import('./components/SignIn')
@@ -132,6 +190,10 @@ const GoalPanel = deferred(async () => {
 const SchedulePanel = deferred(async () => {
   const module = await import('./components/SchedulePanel')
   return { default: module.SchedulePanel }
+})
+const EstimatorPanel = deferred(async () => {
+  const module = await import('./estimator/EstimatorPanel')
+  return { default: module.default }
 })
 const Palette = deferred(async () => {
   const module = await import('./components/Palette')
@@ -158,10 +220,6 @@ const PlanUi = deferred(async () => {
   const module = await import('./components/PlanUi')
   return { default: module.PlanUi }
 })
-const SetupBanner = deferred(async () => {
-  const module = await import('./components/SetupBanner')
-  return { default: module.SetupBanner }
-})
 const BestOfNDialog = deferred(async () => {
   const module = await import('./components/BestOfNDialog')
   return { default: module.BestOfNDialog }
@@ -171,6 +229,7 @@ const ReviewPane = deferred(async () => {
   return { default: module.ReviewPane }
 }, true)
 const ReferencePage = deferred(async () => {
+  await loadDeferredEnglish()
   const stylesheet = document.createElement('link')
   stylesheet.rel = 'stylesheet'
   stylesheet.href = new URL('referencePage.css', import.meta.url).href
@@ -187,6 +246,10 @@ const ReferencePage = deferred(async () => {
   }
 }, true)
 
+const SetupBanner = deferred(async () => {
+  const { SetupBanner } = await import('./components/SetupBanner')
+  return { default: SetupBanner }
+})
 const HandoffDialog = deferred(async () => {
   const { HandoffDialog } = await import('./components/HandoffDialog')
   return { default: HandoffDialog }
@@ -218,7 +281,15 @@ const ShareView = deferred(async () => {
 
 export interface AppProps {
   readonly planNoticePort?: PlanNoticePort
+  /** M108/M95's lazy shared surface injects nodes; no accounts code loads here. */
+  readonly accounts?: {
+    readonly label?: string
+    readonly pill: ReactNode
+    readonly transcript: ReactNode
+  }
   readonly postMessage: (message: WebviewToHostMessage) => void
+  /** U/M95: already-validated, lazy Vault cards; values never enter this slot or UI state. */
+  readonly vaultApprovals?: ReactNode
   /**
    * The UI store. main.tsx owns one that outlives a crashed tree and keeps
    * reducing host messages under the crash screen (M25); without one the
@@ -229,6 +300,8 @@ export interface AppProps {
   readonly newLocalId?: () => string
   /** Injected so tests get deterministic timestamps. */
   readonly now?: () => number
+  /** U/W: bind the separate resources delivery entry after the first governed spawn. */
+  readonly resources?: ResourceSurfaceLoader
 }
 
 type RewindConversationRequest = Extract<WebviewToHostMessage, { type: 'rewindConversation' }>
@@ -283,6 +356,14 @@ function restoreNoteOf(state: UiState): string | undefined {
 const GitPanel = deferred(async () => {
   const { GitPanel } = await import('./components/GitPanel')
   return { default: GitPanel }
+})
+
+// Scheduled prompts v2 (M115): the surface loads as its own chunk on first
+// use, beside the v1 panel, over the host's versioned schedule channel.
+// The wrapper builds W's port, so the time math stays in this chunk.
+const ScheduleSurfaceView = deferred(async () => {
+  const { ScheduleSurfaceView } = await import('./schedules/ScheduleSurfaceView')
+  return { default: ScheduleSurfaceView }
 })
 
 /** What floats above the composer: a palette view, a menu, the History dialog or a modal. */
@@ -351,6 +432,15 @@ export function modelLabelFor(state: UiState): string {
 }
 
 /** The reference's provider (`openrouter` of `openrouter/…`); undefined for Meta's bare ids. */
+/** The `/schedule` prompt mapping, loaded on first submit; undefined when its chunk fails. */
+async function loadSchedulePrompt(): Promise<typeof SchedulePromptModule | undefined> {
+  try {
+    return await import('./schedules/prompt')
+  } catch {
+    return undefined
+  }
+}
+
 function providerOf(modelId: string): string | undefined {
   const slash = modelId.indexOf('/')
   return slash === -1 ? undefined : modelId.slice(0, slash)
@@ -359,28 +449,39 @@ function providerOf(modelId: string): string | undefined {
 /**
  * The composer's paid badge (M33, PLAN.md D30): the paid features that are
  * on, named, with their prices in the tooltip. Shown on the Model API
- * backend only, the one that uses them.
+ * backend only, the one that uses them. The names paint with startup; the
+ * prices wait for the lazy money chunk, so the tooltip arrives just after.
  */
-function paidBadgeFor(
-  state: UiState,
-): { readonly label: string; readonly title: string } | undefined {
+function paidBadgeFeatures(state: UiState): readonly PaidFeature[] {
   // The features on that this backend uses (M44: the key's images and voice on Muse Code).
   const usable = usablePaidFeatures(state.auth.backend, state.paid.isKeyStored)
-  const features = state.paid.features.filter((feature) => usable.includes(feature))
+  return state.paid.features.filter((feature) => usable.includes(feature))
+}
+
+function paidBadgeFor(
+  state: UiState,
+  prices: ReadonlyMap<PaidFeature, string> | undefined,
+): { readonly label: string; readonly title: string | undefined } | undefined {
+  const features = paidBadgeFeatures(state)
   if (features.length === 0) {
     return undefined
   }
-  const title = fill(UI_TEXT.paidBadgeTitle, {
-    prices: features
-      .map((feature) => `${paidFeatureName(feature)} ${paidFeaturePrice(feature)}`)
-      .join('; '),
+  const label = fill(UI_TEXT.paidBadge, {
+    features: features.map((feature) => paidFeatureName(feature)).join(', '),
   })
+  const priced: string[] = []
+  for (const feature of features) {
+    const price = prices?.get(feature)
+    if (price === undefined) {
+      return { label, title: undefined }
+    }
+    priced.push(`${paidFeatureName(feature)} ${price}`)
+  }
+  const title = fill(UI_TEXT.paidBadgeTitle, { prices: priced.join('; ') })
   // What no longer asks here (M58) is said too: loud even when silent.
   const always = features.filter((feature) => state.paid.alwaysAllowed.includes(feature))
   return {
-    label: fill(UI_TEXT.paidBadge, {
-      features: features.map((feature) => paidFeatureName(feature)).join(', '),
-    }),
+    label,
     title:
       always.length === 0
         ? title
@@ -445,11 +546,15 @@ function promptStartFor(action: PaletteAction): string | undefined {
 
 export function App({
   postMessage,
+  accounts,
+  vaultApprovals,
   store: externalStore,
   newLocalId = defaultLocalId,
   now = defaultNow,
+  resources,
   planNoticePort,
 }: AppProps) {
+  const resourceSnapshot = resources?.port.getSnapshot()
   // Callbacks read the store's current state when they run instead of
   // closing over it, so they keep their identity across renders and the
   // memoised transcript rows skip a keystroke or a delta elsewhere (M25).
@@ -457,6 +562,8 @@ export function App({
   const [isOwnStore] = useState(externalStore === undefined)
   const state = useSyncExternalStore(store.subscribe, store.getState)
   const { dispatch } = store
+  // The composer badge's exact prices arrive with the lazy money chunk.
+  const badgePrices = usePaidFeaturePrices(paidBadgeFeatures(state))
   const selectedModel = state.models.find((model) => model.modelId === state.model?.modelId)
   const selectedProvider = providerOf(state.model?.modelId ?? '') ?? selectedModel?.providerId
   const hasPlan =
@@ -505,7 +612,7 @@ export function App({
   // The Auto reviewer on Muse Code (M90), as its setting says, and the paid
   // one on the Model API (M78), on with its price accepted.
   const hasMuseCodeReviewer =
-    state.settings?.museCodeAutoReviewer ?? SETTING_DEFAULTS.museCodeAutoReviewer
+    state.settings?.museCodeAutoReviewer ?? IS_MUSE_CODE_AUTO_REVIEWER_ON_BY_DEFAULT
   const hasModelApiReviewer = state.paid.features.includes('autoReviewer')
 
   // The transcript follows new entries while the reader is at its end; once
@@ -559,6 +666,89 @@ export function App({
       stop?.()
     }
   }, [store, isOwnStore, postMessage, now])
+
+  // Scheduled prompts v2 (M115): the panel's versioned channel over the
+  // host bridge. It owns its window listener beside the store's; the store
+  // ignores its answers, and it ignores everything else.
+  const scheduleChannelRef = useRef<Promise<ReturnType<typeof scheduleChannel>> | undefined>(
+    undefined,
+  )
+  const getScheduleChannel = useCallback(() => {
+    const load = async () => {
+      const module = await import('./schedules/channel')
+      return module.scheduleChannel(window, (message) => {
+        postMessage({ type: 'schedulesRequest', message })
+      })
+    }
+    scheduleChannelRef.current ??= load()
+    return scheduleChannelRef.current
+  }, [postMessage])
+  useEffect(
+    () => () => {
+      const loaded = scheduleChannelRef.current
+      scheduleChannelRef.current = undefined
+      void loaded?.then(
+        (channel) => {
+          channel.dispose()
+        },
+        () => {
+          /* A failed import created no channel to dispose. */
+        },
+      )
+    },
+    [postMessage],
+  )
+  // `/schedule add <prompt>` (M115): the prompt waits for the host's props,
+  // and the opening editor mounts over it. `surface` is the props seen at
+  // submit; the stash clears once newer props arrive (the override applied)
+  // or the surface closes — the editor snapshots its draft on mount.
+  const [pendingSchedulePrompt, setPendingSchedulePrompt] = useState<
+    { prompt: string; surface: UiState['schedulesSurface'] } | undefined
+  >(undefined)
+  useEffect(() => {
+    if (
+      pendingSchedulePrompt !== undefined &&
+      state.schedulesSurface !== pendingSchedulePrompt.surface
+    )
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- the stash clears after the mounting render applies it; no event fires then.
+      setPendingSchedulePrompt(undefined)
+  }, [pendingSchedulePrompt, state.schedulesSurface])
+  // The deferred surface's port (M115): stable callbacks over the channel
+  // ref, so the surface mounts once per workspace and view.
+  const schedulePortRequest = useCallback(
+    async (request: ScheduleRequest): Promise<unknown> => {
+      const channel = await getScheduleChannel()
+      return await channel.request(request)
+    },
+    [getScheduleChannel],
+  )
+  const schedulePortSubscribe = useCallback(
+    (listener: (message: unknown) => void): (() => void) => {
+      let isActive = true
+      let stop: (() => void) | undefined
+      void getScheduleChannel()
+        .then((channel) => {
+          if (isActive) stop = channel.subscribeChanges(listener)
+        })
+        .catch(() => {
+          if (isActive)
+            dispatch({ type: 'noticeRaised', level: 'warning', text: UI_TEXT.surfaceLoadFailed })
+        })
+      return () => {
+        isActive = false
+        stop?.()
+      }
+    },
+    [getScheduleChannel, dispatch],
+  )
+  // Each close of the surface ends the commands submitted over it: a
+  // `/schedule` mapping still loading then posts and stashes nothing.
+  const schedulesSurfaceCloses = useRef(0)
+  const onCloseSchedulesSurface = useCallback(() => {
+    schedulesSurfaceCloses.current += 1
+    setPendingSchedulePrompt(undefined)
+    dispatch({ type: 'schedulesSurfaceClosed' })
+  }, [dispatch])
 
   // A refused message's images the host may still hold go back to it to be
   // dropped (M25): the reducer lists them, the app posts and acknowledges.
@@ -771,6 +961,137 @@ export function App({
   const onScheduleEnable = useCallback(() => {
     postMessage({ type: 'setPaidFeature', feature: 'scheduledPrompts', isOn: true })
   }, [postMessage])
+  // `/estimate …` (M117, PLAN.md D97): the estimator panel, not a message.
+  // Runs post `estimateRun`; the host answers with `estimatorSection`, which
+  // reveals the panel and settles every pending run. Re-estimates are
+  // legitimate (the panel's Refresh), so runs are never deduplicated here.
+  const estimatePendings = useRef(
+    new Map<string, { resolve(section: EstimateSection): void; reject(error: Error): void }>(),
+  )
+  const estimateStarts = useRef(new Map<string, { resolve(): void; reject(error: Error): void }>())
+  const estimateSequence = useRef(0)
+  const estimateCurrentId = useRef<string | undefined>(undefined)
+  const [estimateDisplayId, setEstimateDisplayId] = useState<string | undefined>(undefined)
+  const [estimateLastRequest, setEstimateLastRequest] = useState<EstimateRequest | undefined>(
+    undefined,
+  )
+  const estimateSubscribers = useRef(new Set<(section: EstimateSection) => void>())
+  const postEstimateRun = useCallback(
+    (request: EstimateRequest, requestId?: string) => {
+      const id = requestId ?? `estimate-${String(++estimateSequence.current)}`
+      estimateCurrentId.current = id
+      setEstimateDisplayId(id)
+      for (const [pendingId, pending] of estimatePendings.current) {
+        if (pendingId === id) continue
+        pending.reject(new DOMException('The estimate was replaced', 'AbortError'))
+        estimatePendings.current.delete(pendingId)
+      }
+      setEstimateLastRequest(request)
+      postMessage({ type: 'estimateRun', requestId: id, request })
+    },
+    [postMessage],
+  )
+  const estimatorSection = state.estimator
+  const estimatorRequestId = state.estimatorRequestId
+  useEffect(() => {
+    if (estimatorSection === undefined || estimatorRequestId !== estimateCurrentId.current) return
+    if (estimatorRequestId !== undefined) {
+      estimatePendings.current.get(estimatorRequestId)?.resolve(estimatorSection)
+      estimatePendings.current.delete(estimatorRequestId)
+    }
+    for (const listener of estimateSubscribers.current) listener(estimatorSection)
+  }, [estimatorSection, estimatorRequestId])
+  const estimatorFailure = state.estimatorFailure
+  useEffect(() => {
+    if (estimatorFailure === undefined) return
+    const requestId = estimatorFailure.requestId ?? estimateCurrentId.current
+    if (requestId === undefined) return
+    estimatePendings.current.get(requestId)?.reject(new Error(estimatorFailure.reason))
+    estimatePendings.current.delete(requestId)
+  }, [estimatorFailure])
+  const estimatorStarted = state.estimatorStarted
+  useEffect(() => {
+    if (estimatorStarted === undefined) return
+    if (estimatorStarted.requestId === undefined) {
+      if (estimatorStarted.error !== undefined) {
+        for (const pending of estimateStarts.current.values())
+          pending.reject(new Error(estimatorStarted.error))
+        estimateStarts.current.clear()
+      }
+      return
+    }
+    const pending = estimateStarts.current.get(estimatorStarted.requestId)
+    if (estimatorStarted.error === undefined) pending?.resolve()
+    else pending?.reject(new Error(estimatorStarted.error))
+    estimateStarts.current.delete(estimatorStarted.requestId)
+  }, [estimatorStarted])
+  const estimatorSession = state.sessionId
+  useEffect(() => {
+    const estimates = estimatePendings.current
+    const starts = estimateStarts.current
+    return () => {
+      for (const pending of estimates.values()) pending.reject(new Error('estimate-replaced'))
+      estimates.clear()
+      for (const pending of starts.values()) pending.reject(new Error('estimate-replaced'))
+      starts.clear()
+      estimateCurrentId.current = undefined
+    }
+  }, [estimatorSession])
+  const estimatorOptimize = state.settings?.['estimator.optimize'] ?? 'cost'
+  const estimatorPort = useMemo<EstimatorPanelPort>(
+    () => ({
+      context: () => ({ asOf: new Date().toISOString(), optimize: estimatorOptimize }),
+      estimate: (request, signal) =>
+        new Promise<EstimateSection>((resolve, reject) => {
+          if (signal.aborted) {
+            reject(new DOMException('The estimate was replaced', 'AbortError'))
+            return
+          }
+          const requestId = `estimate-${String(++estimateSequence.current)}`
+          const onAbort = () => {
+            estimatePendings.current.delete(requestId)
+            reject(new DOMException('The estimate was replaced', 'AbortError'))
+          }
+          signal.addEventListener('abort', onAbort, { once: true })
+          estimatePendings.current.set(requestId, {
+            resolve: (section) => {
+              signal.removeEventListener('abort', onAbort)
+              resolve(section)
+            },
+            reject: (error) => {
+              signal.removeEventListener('abort', onAbort)
+              reject(error)
+            },
+          })
+          postEstimateRun(request, requestId)
+        }),
+      subscribe: (listener) => {
+        estimateSubscribers.current.add(listener)
+        return () => {
+          estimateSubscribers.current.delete(listener)
+        }
+      },
+      startExisting: (_section, setup) =>
+        new Promise<void>((resolve, reject) => {
+          const requestId = `estimate-start-${String(++estimateSequence.current)}`
+          estimateStarts.current.set(requestId, { resolve, reject })
+          postMessage({ type: 'estimateSpinUp', requestId, setup: setup.kind })
+        }),
+      provision: { state: 'waiting', dependency: 'M117-P-M109-provider' },
+    }),
+    [postEstimateRun, postMessage, estimatorOptimize],
+  )
+  // The extension's `museSpark.estimate` command (M117).
+  const estimatorRequests = state.estimatorRequests
+  const seenEstimatorRequests = useRef(estimatorRequests)
+  useEffect(() => {
+    if (estimatorRequests === seenEstimatorRequests.current) return
+    seenEstimatorRequests.current = estimatorRequests
+    if (store.getState().draft.trim() === '') {
+      dispatch({ type: 'draftChanged', draft: '/estimate ' })
+    }
+    dispatch({ type: 'focusRequested' })
+  }, [store, dispatch, estimatorRequests])
   // `/review …` and the palette's review rows (M70): the card first, then the
   // host's word on it, as for a message. False when the request is refused here.
   const onReview = useCallback(
@@ -821,6 +1142,14 @@ export function App({
       setOverlay('help')
       return
     }
+    const reportArguments = reportCommandArguments(current.draft)
+    if (reportArguments !== undefined) {
+      if (current.pendingReportCommand !== undefined) return
+      const requestId = newLocalId()
+      dispatch({ type: 'reportSubmitted', requestId })
+      postMessage({ type: 'runReport', requestId, argumentsText: reportArguments })
+      return
+    }
     if (!canSend(current)) {
       return
     }
@@ -867,6 +1196,29 @@ export function App({
       setIsPinnedToEnd(true)
       return
     }
+    // `/estimate …` opens the estimator panel, not a message (M117): the
+    // draft clears and the host's `estimatorSection` reveals it. The full
+    // parse loads with the composer so startup carries only the prefix check.
+    if (isEstimateCommandText(text)) {
+      dispatch({ type: 'draftChanged', draft: '' })
+      setIsPinnedToEnd(true)
+      void import('./estimator/composer')
+        .then(({ wasEstimateComposerHandled }) => {
+          wasEstimateComposerHandled(text, {
+            context: () => ({ asOf: new Date().toISOString(), optimize: estimatorOptimize }),
+            open: (request) => {
+              postEstimateRun(request)
+            },
+            notice: (noticeText) => {
+              dispatch({ type: 'noticeRaised', level: 'warning', text: noticeText })
+            },
+          })
+        })
+        .catch(() => {
+          dispatch({ type: 'noticeRaised', level: 'warning', text: UI_TEXT.estimateUnavailable })
+        })
+      return
+    }
     // `/handoff …` distils the conversation for a fresh one (M74), on
     // either backend (the host says where it cannot run).
     const handoff = parseHandoffPrompt(text)
@@ -877,6 +1229,93 @@ export function App({
       }
       onHandoff(handoff.goal)
       setIsPinnedToEnd(true)
+      return
+    }
+    // Scheduled prompts v2 (M115): `/schedule …` opens the surface or, with
+    // its props already here, dispatches the mapped draft or request.
+    // `/loop` below stays on the v1 store until its migration ships.
+    if (/^\/schedule(?:\s|$)/i.test(text.trim())) {
+      dispatch({ type: 'draftChanged', draft: '' })
+      setIsPinnedToEnd(true)
+      const props = current.schedulesSurface
+      if (props === undefined) {
+        const add = /^\/schedule\s+add(?:\s+([\s\S]*))?$/i.exec(text.trim())
+        const prompt = (add?.[1] ?? '').trim()
+        if (prompt !== '') setPendingSchedulePrompt({ prompt, surface: current.schedulesSurface })
+        postMessage({
+          type: 'openSchedules',
+          view: add === null ? 'list' : 'editor',
+        })
+        return
+      }
+      // The prompt mapping loads on first use, so startup carries only the
+      // prefix check above. The command lives as long as the surface it was
+      // submitted over, its session and its conversation: abandoned before
+      // the mapping arrives, it posts and stashes nothing. A failed load
+      // warns and hands the command back to an empty composer (never over
+      // a newer draft), so it can be sent again without retyping.
+      const workspaceKey = props.workspaceKey
+      const defaultDraft = props.defaultDraft
+      const submittedAt = now()
+      const closesAtSubmit = schedulesSurfaceCloses.current
+      const isCommandLive = (): boolean => {
+        const latest = store.getState()
+        return (
+          schedulesSurfaceCloses.current === closesAtSubmit &&
+          latest.schedulesSurface?.workspaceKey === workspaceKey &&
+          latest.sessionId === current.sessionId &&
+          latest.attachmentEpoch === current.attachmentEpoch
+        )
+      }
+      void loadSchedulePrompt().then((mapping) => {
+        if (!isCommandLive()) return
+        if (mapping === undefined) {
+          if (store.getState().draft === '')
+            dispatch({ type: 'draftChanged', draft: current.draft })
+          dispatch({ type: 'noticeRaised', level: 'warning', text: UI_TEXT.scheduleCommandFailed })
+          return
+        }
+        const action = mapping.schedulePromptAction(
+          text,
+          workspaceKey,
+          defaultDraft,
+          submittedAt,
+          parseLoopPrompt,
+        )
+        if (action === undefined) {
+          postMessage({ type: 'openSchedules', view: 'list' })
+          return
+        }
+        if (action.kind === 'open') {
+          // Only a prompt draft carries text for the editor; a report draft
+          // (M115 RA) opens the editor over its own args, with nothing stashed.
+          const draftAction = action.draft?.action
+          if (draftAction?.kind === 'prompt' && draftAction.prompt !== '')
+            setPendingSchedulePrompt({
+              prompt: draftAction.prompt,
+              surface: store.getState().schedulesSurface,
+            })
+          postMessage({ type: 'openSchedules', view: action.view })
+          return
+        }
+        if (action.kind === 'request') {
+          void getScheduleChannel()
+            .then((channel) => channel.request(action.request))
+            .then((response) => {
+              if (response.kind === 'refused')
+                dispatch({ type: 'noticeRaised', level: 'warning', text: response.reason })
+            })
+            .catch((error: unknown) => {
+              dispatch({
+                type: 'noticeRaised',
+                level: 'warning',
+                text: error instanceof Error ? error.message : UI_TEXT.scheduleCommandFailed,
+              })
+            })
+          return
+        }
+        dispatch({ type: 'noticeRaised', level: 'warning', text: action.reason })
+      })
       return
     }
     // Model API schedules are extension-owned. Muse Code's cron remains a
@@ -934,6 +1373,7 @@ export function App({
     setIsPinnedToEnd(true)
   }, [
     store,
+    getScheduleChannel,
     dispatch,
     newLocalId,
     now,
@@ -942,6 +1382,8 @@ export function App({
     onReview,
     onLegalScan,
     onHandoff,
+    postEstimateRun,
+    estimatorOptimize,
   ])
   // Send exactly the payload the dialog previewed. The composer may now
   // hold a newer draft, different chips or a different reference.
@@ -986,7 +1428,7 @@ export function App({
         readonly role: string
         readonly text: string
         readonly epoch: number
-        readonly origin: { readonly x: number; readonly y: number }
+        readonly origin: HTMLElement | { readonly x: number; readonly y: number }
       }
     | undefined
   >(undefined)
@@ -1030,10 +1472,13 @@ export function App({
         return
       }
       event.preventDefault()
+      // Highlighted-text actions fan from this row's “…” button too.
+      const button = row.querySelector<HTMLElement>('.row-actions-button')
+      const origin = button ?? { x: event.clientX, y: event.clientY }
       setQuoteMenu({
         entryId,
         role: row.dataset['role'] ?? 'assistant',
-        origin: { x: event.clientX, y: event.clientY },
+        origin,
         text,
         epoch: store.getState().attachmentEpoch,
       })
@@ -1648,7 +2093,7 @@ export function App({
     },
     [store, onNewConversation, dispatch, postMessage],
   )
-  // "Fork conversation and rewind code" (M72): one host action, so the fork
+  // "Fork and Rewind" (M72): one host action, so the fork
   // cannot overtake the rewind's confirmation; a fork before the first
   // message is a new conversation.
   const onForkRewind = useCallback(
@@ -1672,7 +2117,7 @@ export function App({
     },
     [store, dispatch, postMessage],
   )
-  // "Rewind code to here": the host reverts the edits after that message,
+  // "Rewind Code to Here": the host reverts the edits after that message,
   // newest first, and says so (or that there was nothing to revert).
   const onRewind = useCallback(
     (entryId: string) => {
@@ -1692,7 +2137,7 @@ export function App({
     },
     [store, dispatch, postMessage],
   )
-  // "Restore files to here" (M72): the host confirms, restores and reports.
+  // "Restore Files to Here" (M72): the host confirms, restores and reports.
   const onRestoreFiles = useCallback(
     (entryId: string) => {
       const current = store.getState()
@@ -1708,7 +2153,7 @@ export function App({
     },
     [store, postMessage],
   )
-  // "Rewind conversation and restore files" (M72): the files first, then M53's rewind.
+  // "Rewind Conversation and Restore Files" (M72): the files first, then M53's rewind.
   const onRestoreBoth = useCallback(
     (entryId: string) => {
       const request = rewindRequest(store.getState(), entryId)
@@ -1736,7 +2181,7 @@ export function App({
     },
     [store, dispatch, postMessage],
   )
-  // "Report this" on a recorded failure (M93 lane W): the row's
+  // "Report This" on a recorded failure (M93 lane W): the row's
   // sanitized event reference opens the report workflow, never its text.
   const onReportProblem = useCallback(
     (_entryId: string, ref: ReportEventRef) => {
@@ -1835,7 +2280,7 @@ export function App({
         setOverlay(undefined)
         return
       }
-      // "Add context": start an @-mention where the caret is; the mention
+      // "Add Context": start an @-mention where the caret is; the mention
       // menu opens as soon as the `@` lands. A mention token must follow
       // whitespace, so one is added after a non-blank draft.
       const { draft } = store.getState()
@@ -1919,6 +2364,11 @@ export function App({
         case 'showWhatsNew': {
           postMessage({ type: 'hostAction', action: action.type })
           closeOverlay()
+          break
+        }
+        case 'showReport': {
+          closeOverlay()
+          postMessage({ type: 'runReport', requestId: newLocalId(), argumentsText: '' })
           break
         }
         case 'openReport': {
@@ -2037,6 +2487,21 @@ export function App({
           openReviewPane()
           break
         }
+        case 'openScheduleList': {
+          postMessage({ type: 'openSchedules', view: 'list' })
+          closeOverlay()
+          break
+        }
+        case 'openScheduleTimeline': {
+          postMessage({ type: 'openSchedules', view: 'timeline' })
+          closeOverlay()
+          break
+        }
+        case 'openScheduleEditor': {
+          postMessage({ type: 'openSchedules', view: 'editor' })
+          closeOverlay()
+          break
+        }
         case 'none': {
           break
         }
@@ -2046,6 +2511,7 @@ export function App({
       store,
       dispatch,
       postMessage,
+      newLocalId,
       closeOverlay,
       openOverlay,
       onNewConversation,
@@ -2055,23 +2521,52 @@ export function App({
     ],
   )
 
-  const paletteGroups = useMemo(
-    () =>
-      buildPalette({
-        arePromptCommandsBound: true,
-        currentModel: state.model,
-        models: state.models,
-        effort: state.effort,
-        isThinkingEnabled: state.isThinkingEnabled,
-        permissionMode: state.permissionMode,
-        isFocusView: state.settings?.focusView ?? false,
-        useCtrlEnterToSend: state.settings?.useCtrlEnterToSend ?? false,
-        usage: state.usage,
-        skills: state.skills,
-        backend: state.auth.backend,
-        paidFeatures: state.paid.features,
-        isKeyStored: state.paid.isKeyStored,
+  // The registry also derives the "/" list's slash names, outside chat startup.
+  const [paletteModule, setPaletteModule] = useState<typeof PaletteRegistryModule>()
+  const [paletteFailure, setPaletteFailure] = useState(false)
+  const isNeedsPalette =
+    overlay === 'actions' || overlay === 'models' || state.draft.startsWith('/')
+  useEffect(() => {
+    if (!isNeedsPalette || paletteModule !== undefined || paletteFailure) return
+    let isActive = true
+    // The registry's rows read the optional English, which loads beside it.
+    void Promise.all([loadDeferredEnglish(), import('../shared/paletteRegistry')])
+      .then(([, module]) => {
+        if (isActive) setPaletteModule(module)
+      })
+      .catch(() => {
+        if (isActive) setPaletteFailure(true)
+      })
+    return () => {
+      isActive = false
+    }
+  }, [isNeedsPalette, paletteModule, paletteFailure])
+  const paletteContext = useMemo(
+    () => ({
+      arePromptCommandsBound: true,
+      ...((state.settings?.schedules ?? ARE_SCHEDULES_ON_BY_DEFAULT) && {
+        schedules: {
+          create: { type: 'openScheduleEditor' as const },
+          list: { type: 'openScheduleList' as const },
+          timeline: { type: 'openScheduleTimeline' as const },
+        },
       }),
+      currentModel: state.model,
+      models: state.models,
+      effort: state.effort,
+      isThinkingEnabled: state.isThinkingEnabled,
+      permissionMode: state.permissionMode,
+      isFocusView: state.settings?.focusView ?? false,
+      useCtrlEnterToSend: state.settings?.useCtrlEnterToSend ?? false,
+      usage: state.usage,
+      skills: state.skills,
+      backend: state.auth.backend,
+      paidFeatures: state.paid.features,
+      isKeyStored: state.paid.isKeyStored,
+      // The estimator is bound in this surface (M117): its row inserts
+      // `/estimate`, which the submit path handles below.
+      estimateAvailable: true,
+    }),
     [
       state.paid.isKeyStored,
       state.model,
@@ -2085,6 +2580,14 @@ export function App({
       state.auth.backend,
       state.paid.features,
     ],
+  )
+  const slashLoadState = paletteModule === undefined ? 'loading' : 'ready'
+  // Paid toggle rows name their prices once the lazy money chunk arrives;
+  // nothing loads until the palette's registry does.
+  const palettePriceOf = usePriceOf(undefined, paletteModule !== undefined)
+  const paletteGroups = useMemo(
+    () => paletteModule?.buildPalette(paletteContext, palettePriceOf) ?? [],
+    [paletteModule, paletteContext, palettePriceOf],
   )
   const onOpenUsage = useCallback(() => {
     openOverlay('usage')
@@ -2109,7 +2612,10 @@ export function App({
   // The prompt's "/" menus (M38). A row chosen there takes the `/` with it,
   // unless it leaves the palette open; a skill becomes `/selector ` for its
   // arguments.
-  const slashCommands = useMemo(() => slashCommandsOf(paletteGroups), [paletteGroups])
+  const slashCommands = useMemo(
+    () => paletteModule?.slashCommandsOf(paletteGroups) ?? [],
+    [paletteModule, paletteGroups],
+  )
   const slashPaletteKeys = useRef<PaletteKeys>(null)
   const onPromptAction = useCallback(
     (action: PaletteAction) => {
@@ -2143,19 +2649,30 @@ export function App({
       <Palette
         view="actions"
         groups={paletteGroups}
+        context={paletteModule === undefined ? paletteContext : undefined}
         models={state.models}
         currentModelId={state.model?.modelId}
         onAction={onPromptAction}
         onSelectModel={onSelectModel}
         onBack={onPaletteBack}
         onClose={slot.onClose}
+        onRetryMoney={retrySurface}
         isAttached
         keepFocus
         keys={slashPaletteKeys}
         onActiveRowChange={slot.onActiveRowChange}
       />
     ),
-    [paletteGroups, state.models, state.model, onPromptAction, onSelectModel, onPaletteBack],
+    [
+      paletteGroups,
+      paletteModule,
+      paletteContext,
+      state.models,
+      state.model,
+      onPromptAction,
+      onSelectModel,
+      onPaletteBack,
+    ],
   )
   const modeEntries = useMemo(
     (): readonly MenuEntry[] =>
@@ -2387,11 +2904,13 @@ export function App({
           key={overlay}
           view={overlay}
           groups={paletteGroups}
+          context={paletteModule === undefined ? paletteContext : undefined}
           models={state.models}
           currentModelId={state.model?.modelId}
           onAction={onPaletteAction}
           onSelectModel={onSelectModel}
           onBack={onPaletteBack}
+          onRetryMoney={retrySurface}
           onClose={closeOverlay}
         />
       )
@@ -2478,6 +2997,7 @@ export function App({
         onSelectAgent={setSelectedAgentId}
         onReadChild={onReadChild}
         onControl={onControlAgent}
+        onOpenFile={onOpenFile}
         onMessage={onMessageAgent}
         onStopTask={onStopTask}
         onStopAllTasks={onStopAllTasks}
@@ -2541,6 +3061,14 @@ export function App({
         state={state}
         postMessage={postMessage}
         onSetupSignIn={onSignIn}
+        reportAction={
+          <UsageReportAction
+            onUsageReport={() => {
+              closeOverlay()
+              postMessage({ type: 'runReport', requestId: newLocalId(), argumentsText: 'usage' })
+            }}
+          />
+        }
         now={now}
         onOpenExternal={onOpenExternal}
         onClose={closeOverlay}
@@ -2746,10 +3274,12 @@ export function App({
           onContextMenu={onTranscriptContextMenu}
         >
           {body}
+          {accounts?.transcript}
+          {vaultApprovals}
           {hasNewBelow ? (
             <button
               type="button"
-              className="jump-latest"
+              className="jump-latest chat-control"
               title={UI_TEXT.jumpToLatestTitle}
               onClick={scrollToEnd}
             >
@@ -2758,8 +3288,9 @@ export function App({
             </button>
           ) : null}
         </main>
-        {/* Review opens M70's pane on the same edits (D66 item 10). */}
-        <DiffTally counts={tally} onReview={openReviewPane} />
+        {/* Review opens M70's pane on the same edits (D66 item 10). Mounted
+        only with edits to show, so the chunk loads on first use. */}
+        {tally === undefined ? null : <DiffTally counts={tally} onReview={openReviewPane} />}
         {state.git.form === undefined &&
         state.git.state.worktree === undefined &&
         state.git.state.pullRequest === undefined &&
@@ -2806,7 +3337,57 @@ export function App({
             onEnable={onScheduleEnable}
           />
         )}
-        <TodoPanel items={state.todos} isInert={isModalOpen} onOpenInTab={onOpenTasksTab} />
+        {/* Scheduled prompts v2 (M115): the deferred surface over this
+            workspace. A new view remounts it; `/schedule add` pre-fills the
+            opening editor once, then the stash clears. */}
+        {state.schedulesSurface === undefined ? null : (
+          <ScheduleSurfaceView
+            key={`${state.schedulesSurface.workspaceKey}:${state.schedulesSurface.initialView}`}
+            surface={{
+              workspaceKey: state.schedulesSurface.workspaceKey,
+              targets: state.schedulesSurface.targets,
+              defaultDraft:
+                pendingSchedulePrompt === undefined
+                  ? state.schedulesSurface.defaultDraft
+                  : {
+                      ...state.schedulesSurface.defaultDraft,
+                      action: { kind: 'prompt', prompt: pendingSchedulePrompt.prompt },
+                    },
+              nowMs: state.schedulesSurface.nowMs,
+              initialView: state.schedulesSurface.initialView,
+            }}
+            request={schedulePortRequest}
+            subscribeChanges={schedulePortSubscribe}
+            nowMs={now}
+            onClose={onCloseSchedulesSurface}
+          />
+        )}
+        {/* A failed money load leaves every price out, said here with Retry,
+            which rebuilds the document (the palette says it inside itself). */}
+        <MoneyUnavailable isInert={isModalOpen} onRetry={retrySurface} />
+        {estimatorFailure?.reason === UI_TEXT.surfaceLoadFailed ? (
+          <div role="alert" inert={isModalOpen}>
+            {UI_TEXT.surfaceLoadFailed}
+            <button type="button" onClick={retrySurface}>
+              {UI_TEXT.surfaceLoadRetry}
+            </button>
+          </div>
+        ) : null}
+        {estimateLastRequest === undefined || state.estimator === undefined ? null : (
+          <EstimatorPanel
+            key={state.sessionId}
+            port={estimatorPort}
+            initial={estimateLastRequest}
+            initialSection={
+              state.estimatorRequestId === estimateDisplayId ? state.estimator : undefined
+            }
+            isInert={isModalOpen}
+          />
+        )}
+        {/* Mounted only with tasks to show, so the chunk loads on first use. */}
+        {state.todos.length === 0 ? null : (
+          <TodoPanel items={state.todos} isInert={isModalOpen} onOpenInTab={onOpenTasksTab} />
+        )}
         {isBodyGated ? null : (
           <AttentionDock
             waiting={waiting}
@@ -2844,11 +3425,23 @@ export function App({
             </Suspense>
           )}
           <JudgeStatusLine status={state.judge} />
+          {/* No status yet (no governed work), no chip: its deferred import waits. */}
+          {resources === undefined || resourceSnapshot === undefined ? null : (
+            <Suspense fallback={null}>
+              <resources.View
+                port={resources.port}
+                isInert={isModalOpen}
+                label={UI_TEXT.resourceTitle}
+                className="resource-surface"
+              />
+            </Suspense>
+          )}
           {hasPlan && selectedProvider === 'copilot' ? (
             <Suspense fallback={null}>
               <PlanUi surface="note" onOpenExternal={onOpenExternal} />
             </Suspense>
           ) : null}
+          {accounts?.pill}
           <Composer
             onSavePrompt={savePrompt}
             onSharePrompt={sharePrompt}
@@ -2860,7 +3453,11 @@ export function App({
             settings={state.settings}
             canSend={canSend(state)}
             isRunning={isRunning}
-            modelLabel={modelLabelFor(state)}
+            modelLabel={
+              accounts?.label === undefined
+                ? modelLabelFor(state)
+                : `${modelLabelFor(state)} · ${accounts.label}`
+            }
             planMark={
               hasPlan ? (
                 <Suspense fallback={null}>
@@ -2875,7 +3472,7 @@ export function App({
             }
             permissionMode={state.permissionMode}
             context={state.context}
-            paidBadge={paidBadgeFor(state)}
+            paidBadge={paidBadgeFor(state, badgePrices)}
             onOpenUsage={onOpenUsage}
             focusRequests={state.focusRequests}
             pendingInsert={state.pendingInsert}
@@ -2916,6 +3513,7 @@ export function App({
             banner={state.banner}
             onDismissBanner={onDismissBanner}
             slashCommands={slashCommands}
+            slashLoadState={paletteFailure ? 'failed' : slashLoadState}
             isMenuOpen={overlay !== undefined}
             renderSlashPalette={renderSlashPalette}
             slashPaletteKeys={slashPaletteKeys}

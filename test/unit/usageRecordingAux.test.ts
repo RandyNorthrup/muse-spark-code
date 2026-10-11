@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it, vi } from 'vitest'
 import * as z from 'zod/mini'
@@ -47,7 +48,7 @@ describe('auxiliary recording', () => {
   it('records searches, images and fractional voice seconds with separate units', () => {
     const tap = port()
     const usage = new PaidUsage(new FakeLogOutputChannel(), tap)
-    usage.add('webSearch', 2)
+    usage.add('webSearch', 2, Usd.from('0.005').toAmount())
     usage.add('imageGeneration', 1)
     usage.add('voice', 1.5)
     expect(tap.note).toHaveBeenNthCalledWith(
@@ -158,14 +159,14 @@ describe('auxiliary recording', () => {
       subagentRequests: 1,
       subagentUnknownRequests: 1,
       subagentTokens: 30,
-      subagentCostUsd: 0.5,
+      subagentCostUsd: Usd.from(0.5).toAmount(),
       autoReviews: 1,
       autoReviewUnknownRequests: 0,
       bestOfNAttempts: 1,
       bestOfNRequests: 2,
       bestOfNUnknownRequests: 1,
       bestOfNTokens: 30,
-      bestOfNCostUsd: 0.1,
+      bestOfNCostUsd: Usd.from(0.1).toAmount(),
     })
   })
   it('adds priced ACP session cost with certainty and leaves unknown prices absent', () => {

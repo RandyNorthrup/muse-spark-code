@@ -1,0 +1,273 @@
+{
+  "rig": "win11",
+  "modelAttempts": 0,
+  "paidCalls": 0,
+  "timeout": "repository default",
+  "receipts": [
+    {
+      "guard": "null-dacl",
+      "source": "native/windows/MuseSparkVault.cs",
+      "mutation": "if (acl == null) throw new InvalidDataException(); -> if (acl == null) return;",
+      "expectedFailure": "evaluates native file ACL descriptor nullDacl",
+      "observedFailures": [
+        "Windows native vault capture: generated material only evaluates native file ACL descriptor nullDacl"
+      ],
+      "exitCode": 1,
+      "originalSha256": "62489a880ae1b85b97f038e65b3cf20ab8e510589c7fc7da251896eb6b028400",
+      "restoredSha256": "62489a880ae1b85b97f038e65b3cf20ab8e510589c7fc7da251896eb6b028400",
+      "restoredByteExact": true,
+      "valid": true,
+      "seconds": 59.3
+    },
+    {
+      "guard": "generic-rights",
+      "source": "native/windows/MuseSparkVault.cs",
+      "mutation": "MapGenericMask(ref mask, ref mapping); -> // MapGenericMask deliberately omitted for the red drill.",
+      "expectedFailure": "evaluates native file ACL descriptor usersGenericAll",
+      "observedFailures": [
+        "Windows native vault capture: generated material only evaluates native file ACL descriptor usersGenericAll",
+        "Windows native vault capture: generated material only evaluates native file ACL descriptor usersGenericWrite",
+        "Windows native vault capture: generated material only evaluates native file ACL descriptor allowThenDeny",
+        "Windows native vault capture: generated material only evaluates native file ACL descriptor denyOtherGroup"
+      ],
+      "exitCode": 1,
+      "originalSha256": "62489a880ae1b85b97f038e65b3cf20ab8e510589c7fc7da251896eb6b028400",
+      "restoredSha256": "62489a880ae1b85b97f038e65b3cf20ab8e510589c7fc7da251896eb6b028400",
+      "restoredByteExact": true,
+      "valid": true,
+      "seconds": 47.2
+    },
+    {
+      "guard": "deny-order",
+      "source": "native/windows/MuseSparkVault.cs",
+      "mutation": "remaining &= ~mask; -> remaining &= UInt32.MaxValue;",
+      "expectedFailure": "evaluates native file ACL descriptor denyThenAllow",
+      "observedFailures": [
+        "Windows native vault capture: generated material only evaluates native file ACL descriptor denyThenAllow"
+      ],
+      "exitCode": 1,
+      "originalSha256": "62489a880ae1b85b97f038e65b3cf20ab8e510589c7fc7da251896eb6b028400",
+      "restoredSha256": "62489a880ae1b85b97f038e65b3cf20ab8e510589c7fc7da251896eb6b028400",
+      "restoredByteExact": true,
+      "valid": true,
+      "seconds": 46.3
+    },
+    {
+      "guard": "late-deny",
+      "source": "native/windows/MuseSparkVault.cs",
+      "mutation": "else if ((remaining & mask) != 0) -> else if ((remaining & mask) != 0 && acl.Count == 1)",
+      "expectedFailure": "evaluates native file ACL descriptor allowThenDeny",
+      "observedFailures": [
+        "Windows native vault capture: generated material only refuses an untrusted file ACL with Modify and leaves it in place",
+        "Windows native vault capture: generated material only refuses an untrusted directory ACL with Modify and leaves it in place",
+        "Windows native vault capture: generated material only refuses an untrusted file ACL with ChangePermissions and leaves it in place",
+        "Windows native vault capture: generated material only refuses an untrusted directory ACL with ChangePermissions and leaves it in place",
+        "Windows native vault capture: generated material only refuses an untrusted file ACL with TakeOwnership and leaves it in place",
+        "Windows native vault capture: generated material only refuses an untrusted directory ACL with TakeOwnership and leaves it in place",
+        "Windows native vault capture: generated material only refuses an untrusted parent ACL with DeleteSubdirectoriesAndFiles and leaves it in place",
+        "Windows native vault capture: generated material only evaluates native file ACL descriptor allowThenDeny",
+        "Windows native vault capture: generated material only evaluates native file ACL descriptor denyOtherGroup"
+      ],
+      "exitCode": 1,
+      "originalSha256": "62489a880ae1b85b97f038e65b3cf20ab8e510589c7fc7da251896eb6b028400",
+      "restoredSha256": "62489a880ae1b85b97f038e65b3cf20ab8e510589c7fc7da251896eb6b028400",
+      "restoredByteExact": true,
+      "valid": true,
+      "seconds": 40.4
+    },
+    {
+      "guard": "file-sharing",
+      "source": "native/windows/MuseSparkVault.cs",
+      "mutation": "directory ? 3u : 1u -> directory ? 3u : 7u",
+      "expectedFailure": "holds the verified executable against writes and deletion across the launch action",
+      "observedFailures": [
+        "Windows native vault capture: generated material only holds the verified executable against writes and deletion across the launch action"
+      ],
+      "exitCode": 1,
+      "originalSha256": "62489a880ae1b85b97f038e65b3cf20ab8e510589c7fc7da251896eb6b028400",
+      "restoredSha256": "62489a880ae1b85b97f038e65b3cf20ab8e510589c7fc7da251896eb6b028400",
+      "restoredByteExact": true,
+      "valid": true,
+      "seconds": 46.4
+    },
+    {
+      "guard": "ancestor-sharing",
+      "source": "native/windows/MuseSparkVault.cs",
+      "mutation": "directory ? 3u : 1u -> directory ? 7u : 1u",
+      "expectedFailure": "pins lexical ancestors before opening the executable",
+      "observedFailures": [
+        "Windows native vault capture: generated material only pins lexical ancestors before opening the executable"
+      ],
+      "exitCode": 1,
+      "originalSha256": "62489a880ae1b85b97f038e65b3cf20ab8e510589c7fc7da251896eb6b028400",
+      "restoredSha256": "62489a880ae1b85b97f038e65b3cf20ab8e510589c7fc7da251896eb6b028400",
+      "restoredByteExact": true,
+      "valid": true,
+      "seconds": 46.2
+    },
+    {
+      "guard": "job-lifetime",
+      "source": "native/windows/MuseSparkVault.cs",
+      "mutation": "limits.Basic.Flags = 0x2000; -> limits.Basic.Flags = 0;",
+      "expectedFailure": "terminates the native child when its supervising launcher is cancelled",
+      "observedFailures": [
+        "Windows native vault capture: generated material only terminates the native child when its supervising launcher is cancelled"
+      ],
+      "exitCode": 1,
+      "originalSha256": "62489a880ae1b85b97f038e65b3cf20ab8e510589c7fc7da251896eb6b028400",
+      "restoredSha256": "62489a880ae1b85b97f038e65b3cf20ab8e510589c7fc7da251896eb6b028400",
+      "restoredByteExact": true,
+      "valid": true,
+      "seconds": 47.4
+    },
+    {
+      "guard": "handle-descriptor",
+      "source": "native/windows/MuseSparkVault.cs",
+      "mutation": "AssertDescriptor(new RawSecurityDescriptor(bytes, 0), name, strict); -> // Handle descriptor validation deliberately omitted.",
+      "expectedFailure": "refuses an untrusted file ACL with Modify and leaves it in place",
+      "observedFailures": [
+        "Windows native vault capture: generated material only refuses a foreign owner on file without changing any filesystem owner",
+        "Windows native vault capture: generated material only refuses a foreign owner on directory without changing any filesystem owner",
+        "Windows native vault capture: generated material only refuses a foreign owner on parent without changing any filesystem owner",
+        "Windows native vault capture: generated material only refuses an untrusted file ACL with Modify and leaves it in place",
+        "Windows native vault capture: generated material only refuses an untrusted directory ACL with Modify and leaves it in place",
+        "Windows native vault capture: generated material only refuses an untrusted file ACL with ChangePermissions and leaves it in place",
+        "Windows native vault capture: generated material only refuses an untrusted directory ACL with ChangePermissions and leaves it in place",
+        "Windows native vault capture: generated material only refuses an untrusted file ACL with TakeOwnership and leaves it in place",
+        "Windows native vault capture: generated material only refuses an untrusted directory ACL with TakeOwnership and leaves it in place",
+        "Windows native vault capture: generated material only refuses an untrusted parent ACL with DeleteSubdirectoriesAndFiles and leaves it in place"
+      ],
+      "exitCode": 1,
+      "originalSha256": "62489a880ae1b85b97f038e65b3cf20ab8e510589c7fc7da251896eb6b028400",
+      "restoredSha256": "62489a880ae1b85b97f038e65b3cf20ab8e510589c7fc7da251896eb6b028400",
+      "restoredByteExact": true,
+      "valid": true,
+      "seconds": 42.8
+    },
+    {
+      "guard": "content-hash",
+      "source": "native/windows/MuseSparkVault.cs",
+      "mutation": "if (actual != digest) throw new InvalidDataException(); -> // Content comparison deliberately omitted.",
+      "expectedFailure": "refuses a same-name replacement on every launch and rebuilds without deleting it",
+      "observedFailures": [
+        "Windows native vault capture: generated material only refuses a same-name replacement on every launch and rebuilds without deleting it"
+      ],
+      "exitCode": 1,
+      "originalSha256": "62489a880ae1b85b97f038e65b3cf20ab8e510589c7fc7da251896eb6b028400",
+      "restoredSha256": "62489a880ae1b85b97f038e65b3cf20ab8e510589c7fc7da251896eb6b028400",
+      "restoredByteExact": true,
+      "valid": true,
+      "seconds": 44.4
+    },
+    {
+      "guard": "owner",
+      "source": "native/windows/MuseSparkVault.cs",
+      "mutation": "if (!Trusted(owner) && !osRoot) throw new InvalidDataException(); -> // Owner validation deliberately omitted.",
+      "expectedFailure": "refuses a foreign owner on file without changing any filesystem owner",
+      "observedFailures": [
+        "Windows native vault capture: generated material only refuses a foreign owner on file without changing any filesystem owner",
+        "Windows native vault capture: generated material only refuses a foreign owner on directory without changing any filesystem owner",
+        "Windows native vault capture: generated material only refuses a foreign owner on parent without changing any filesystem owner"
+      ],
+      "exitCode": 1,
+      "originalSha256": "62489a880ae1b85b97f038e65b3cf20ab8e510589c7fc7da251896eb6b028400",
+      "restoredSha256": "62489a880ae1b85b97f038e65b3cf20ab8e510589c7fc7da251896eb6b028400",
+      "restoredByteExact": true,
+      "valid": true,
+      "seconds": 47.0
+    },
+    {
+      "guard": "reparse",
+      "source": "native/windows/MuseSparkVault.cs",
+      "mutation": " || (information.Attributes & 0x400) != 0 ->  ",
+      "expectedFailure": "refuses a junction in the helper path and rebuilds without touching its target",
+      "observedFailures": [
+        "Windows native vault capture: generated material only refuses a junction in the helper path and rebuilds without touching its target"
+      ],
+      "exitCode": 1,
+      "originalSha256": "62489a880ae1b85b97f038e65b3cf20ab8e510589c7fc7da251896eb6b028400",
+      "restoredSha256": "62489a880ae1b85b97f038e65b3cf20ab8e510589c7fc7da251896eb6b028400",
+      "restoredByteExact": true,
+      "valid": true,
+      "seconds": 46.4
+    },
+    {
+      "guard": "job-parent-membership",
+      "source": "native/windows/MuseSparkVault.cs",
+      "mutation": "if (!AssignProcessToJobObject(job, GetCurrentProcess())) throw new InvalidDataException(); -> // Supervisor membership deliberately omitted.",
+      "expectedFailure": "terminates the native child when its supervising launcher is cancelled",
+      "observedFailures": [
+        "Windows native vault capture: generated material only terminates the native child when its supervising launcher is cancelled"
+      ],
+      "exitCode": 1,
+      "originalSha256": "62489a880ae1b85b97f038e65b3cf20ab8e510589c7fc7da251896eb6b028400",
+      "restoredSha256": "62489a880ae1b85b97f038e65b3cf20ab8e510589c7fc7da251896eb6b028400",
+      "restoredByteExact": true,
+      "valid": true,
+      "seconds": 51.3
+    },
+    {
+      "guard": "directory-list-access",
+      "source": "native/windows/MuseSparkVault.cs",
+      "mutation": "directory ? 0x81u : 0x80000000u -> directory ? 0x80u : 0x80000000u",
+      "expectedFailure": "pins lexical ancestors before opening the executable",
+      "observedFailures": [
+        "Windows native vault capture: generated material only pins lexical ancestors before opening the executable"
+      ],
+      "exitCode": 1,
+      "originalSha256": "62489a880ae1b85b97f038e65b3cf20ab8e510589c7fc7da251896eb6b028400",
+      "restoredSha256": "62489a880ae1b85b97f038e65b3cf20ab8e510589c7fc7da251896eb6b028400",
+      "restoredByteExact": true,
+      "valid": true,
+      "seconds": 48.3
+    },
+    {
+      "guard": "execute-positive",
+      "source": "native/windows/MuseSparkVault.cs",
+      "mutation": "Execute = 0x001200A0 -> Execute = 0x00120116",
+      "expectedFailure": "evaluates native file ACL descriptor usersGenericExecute",
+      "observedFailures": [
+        "Windows native vault capture: generated material only evaluates native file ACL descriptor usersGenericExecute"
+      ],
+      "exitCode": 1,
+      "originalSha256": "62489a880ae1b85b97f038e65b3cf20ab8e510589c7fc7da251896eb6b028400",
+      "restoredSha256": "62489a880ae1b85b97f038e65b3cf20ab8e510589c7fc7da251896eb6b028400",
+      "restoredByteExact": true,
+      "valid": true,
+      "seconds": 48.3
+    },
+    {
+      "guard": "empty-positive",
+      "source": "native/windows/MuseSparkVault.cs",
+      "mutation": "if (acl == null) throw new InvalidDataException(); -> if (acl == null || acl.Count == 0) throw new InvalidDataException();",
+      "expectedFailure": "evaluates native file ACL descriptor safeDacl",
+      "observedFailures": [
+        "Windows native vault capture: generated material only evaluates native file ACL descriptor safeDacl"
+      ],
+      "exitCode": 1,
+      "originalSha256": "62489a880ae1b85b97f038e65b3cf20ab8e510589c7fc7da251896eb6b028400",
+      "restoredSha256": "62489a880ae1b85b97f038e65b3cf20ab8e510589c7fc7da251896eb6b028400",
+      "restoredByteExact": true,
+      "valid": true,
+      "seconds": 46.5
+    },
+    {
+      "guard": "source-pipe-diagnostic",
+      "source": "src/host/vault/slots/windowsVaultBuild.ts",
+      "mutation": "child.stdin?.on('error', () => {\n      reject(new Error(UI_TEXT.vault.noAccess)) -> child.stdin?.on('error', () => {\n      // Rejection deliberately omitted for the red drill.",
+      "expectedFailure": "refuses a failed public-source stdin without leaking its diagnostic",
+      "observedFailures": [
+        "Windows vault helper compiler refuses a failed public-source stdin without leaking its diagnostic"
+      ],
+      "exitCode": 1,
+      "originalSha256": "670797dab4bfecf42d40bd2028d0d86b1df09cd7eaf75cba00d1c9130867e506",
+      "restoredSha256": "670797dab4bfecf42d40bd2028d0d86b1df09cd7eaf75cba00d1c9130867e506",
+      "restoredByteExact": true,
+      "valid": true
+    }
+  ],
+  "commands": [
+    "npx.cmd vitest run test/unit/windowsVaultNative.test.ts --maxWorkers=3 --reporter=json --outputFile=<receipt>",
+    "npx.cmd vitest run test/unit/windowsVaultTransport.test.ts --maxWorkers=3 --reporter=json --outputFile=<receipt>"
+  ]
+}

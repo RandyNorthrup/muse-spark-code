@@ -1,20 +1,22 @@
-// ACP /usage and the terminal render the very same page state. Technical
-// provider/model labels are escaped; numbers use the installed display locale.
 import { MILLISECONDS_PER_SECOND } from '../../shared/constants'
 import {
-  fill,
-  formatDate,
-  formatDateTime,
   formatNumber,
   formatPercent,
   formatUnit,
-  formatUsd,
+  fill,
+  formatDate,
+  formatDateTime,
   plural,
 } from '../../shared/l10n/text'
+import { formatUsd } from '../../shared/l10n/exactUsd'
+import { usagePeriodDelta, usageRange, usageSumUsd, usageWindowStatus } from './aggregate'
+
+// ACP /usage and the terminal render the very same page state. Technical
+// provider/model labels are escaped; numbers use the installed display locale.
+
 import { USAGE_TEXT } from '../../shared/l10n/usageTable'
 import type { UsageCertainty, UsageLimitSnapshot } from '../../shared/usageJournal'
 import type { UsagePageState, UsageTotals } from '../../shared/usagePage'
-import { usagePeriodDelta, usageRange, usageSumUsd, usageWindowStatus } from './aggregate'
 
 export type UsageTextFormat = 'markdown' | 'plain'
 function certaintyLabel(certainty: UsageCertainty): string {

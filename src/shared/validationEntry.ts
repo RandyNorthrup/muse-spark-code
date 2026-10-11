@@ -5,13 +5,16 @@ export {
   _default,
   NEVER,
   nonoptional,
+  // Exact money codecs (scheduleV2) read through the shared wire bundle.
+  codec,
   custom,
   length,
   partialRecord,
+  globalRegistry,
+  ZodMiniArray,
   array,
   boolean,
   discriminatedUnion,
-  // M91 lane M: an MCP form's email field.
   email,
   enum,
   exactOptional,
@@ -51,7 +54,10 @@ export {
   string,
   transform,
   trim,
+  // Native job event rows (mcpJobLaunch) and launcher exit arguments (resources/process).
+  tuple,
   union,
+  undefined,
   unknown,
   url,
   uuid,

@@ -10,6 +10,8 @@ import { ProviderCredentialStore } from '../../src/host/providers/credentialReco
 import { probeLocalServers } from '../../src/host/providers/localProbe'
 import { testProvidersHost } from './helpers/m95kFixtures'
 import { memorySecrets, unexpectedWarning } from './helpers/fakes'
+import { UI_TEXT } from '../../src/shared/constants'
+import * as providersFile from '../../src/core/providers/providersFile'
 
 const lookupAll = vi.hoisted(() =>
   vi.fn<(host: string, options: { all: true }) => Promise<{ address: string; family: number }[]>>(),
@@ -54,6 +56,42 @@ const LOCAL = {
 }
 
 describe('production Models panel seam', () => {
+  it('evaluates an edit against queued changes, without rewriting an unchanged file', async () => {
+    const { seam, configFile } = await panel()
+    await seam.store.add(CLOUD)
+    const concurrent = { ...CLOUD, pinned: ['gpt-test'] }
+    const otherWriter = seam.store.replaceAll([concurrent])
+    let seen: readonly unknown[] = []
+    const edit = seam.store.replaceAll((entries) => {
+      seen = entries
+      return entries.map((entry) => ({ ...entry, privateNetwork: false }))
+    })
+    await otherWriter
+    expect(await edit).toEqual([concurrent])
+    expect(seen).toEqual([concurrent])
+    const before = await readFile(configFile, 'utf8')
+    const write = vi.spyOn(providersFile, 'writeProvidersFileAtomic')
+    await seam.store.replaceAll((entries) => entries)
+    expect(write).not.toHaveBeenCalled()
+    expect(await readFile(configFile, 'utf8')).toBe(before)
+    expect(await seam.store.list()).toEqual([{ ...concurrent, privateNetwork: false }])
+  })
+
+  it('compares a changed default inside its mutation after a queued writer', async () => {
+    const { seam, configFile } = await panel()
+    await seam.store.add(CLOUD)
+    await seam.store.setDefaultModel('openai/gpt-test')
+    const otherWriter = seam.store.setDefaultModel('another/model')
+    const edit = seam.store.setDefaultModel('openai/edited', { value: 'openai/gpt-test' })
+    await expect(edit).rejects.toThrow(UI_TEXT.providerEditConflict)
+    await otherWriter
+    expect(await seam.store.defaultModel()).toBe('another/model')
+    const before = await readFile(configFile, 'utf8')
+    await seam.store.setDefaultModel('openai/edited', { value: 'another/model' })
+    expect(await seam.store.defaultModel()).toBe('openai/edited')
+    expect(await readFile(configFile, 'utf8')).not.toBe(before)
+  })
+
   it('uses the existing DNS resolver when no transport resolver is supplied', async () => {
     const { configFile } = await panel()
     const seam = createModelsPanelSeam({

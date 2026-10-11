@@ -1,3 +1,4 @@
+import { legacyUsdSchema } from './usdSchema'
 // The Models & Agents panel's wire contract (M95, PLAN.md D74): the
 // host-owned state slices lane K serves and the messages the panel and the
 // host exchange. Both sides validate with these schemas, as protocol.ts
@@ -64,7 +65,11 @@ export const presetCardSchema = z.strictObject({
   label: z.string(),
   /** One line for the searchable provider dropdown. */
   description: z.string(),
-  category: z.enum(['cloud', 'local', 'aggregator', 'custom']),
+  /**
+   * The dropdown's filter chip (D74). The host's `PresetKind` is this list
+   * without `custom`, so a new host kind fails the type check, not the panel.
+   */
+  category: z.enum(['cloud', 'local', 'subscription', 'aggregator', 'custom']),
   format: z.enum(['responses', 'chat', 'anthropic', 'gemini', 'ollama']),
   /** Where the endpoint comes from; `fixed` names it in `originDisplay`. */
   originKind: z.enum(['fixed', 'azure-resource', 'loopback', 'custom']),
@@ -74,7 +79,7 @@ export const presetCardSchema = z.strictObject({
   connectOAuth: z.boolean(),
   /** The key's shape as a hint beside the key field (never a key). */
   keyHint: z.string(),
-  /** The provider's key page (`Get a key`); absent where none is known. */
+  /** The provider's key page (`Get a Key`); absent where none is known. */
   keyPage: z.optional(z.string()),
   docsUrl: z.optional(z.string()),
   dataUseUrl: z.optional(z.string()),
@@ -88,7 +93,7 @@ export const providerTestSchema = z.strictObject({
   /** The models the free check listed. */
   modelCount: z.optional(z.number()),
   /** The one-token request's USD cost, stated and asked before it is sent. */
-  costUsd: z.optional(z.number()),
+  costUsd: z.optional(legacyUsdSchema),
   /** What the provider answered, in its words. */
   detail: z.optional(z.string()),
 })
@@ -118,9 +123,12 @@ export const providerStateSchema = z.strictObject({
   id: z.string(),
   /** The preset it was added from (or `custom`). */
   presetId: z.string(),
+  /** Set when the preset card is unavailable: the row shows this reason instead of its controls. */
+  unavailable: z.optional(z.string()),
+  /** Absent on an unavailable row whose preset card could not be read. */
+  format: z.optional(z.enum(['responses', 'chat', 'anthropic', 'gemini', 'ollama'])),
   label: z.string(),
   address: z.optional(z.string()),
-  format: z.enum(['responses', 'chat', 'anthropic', 'gemini', 'ollama']),
   auth: z.enum(['apiKey', 'none', 'subscription']),
   key: providerKeySchema,
   test: providerTestSchema,
@@ -228,7 +236,7 @@ export const suggestionSchema = z.discriminatedUnion('kind', [
   }),
   z.strictObject({
     kind: z.literal('sessionBudget'),
-    usd: z.number(),
+    usd: legacyUsdSchema,
     reason: z.string(),
     accepted: z.boolean(),
   }),
@@ -255,6 +263,19 @@ const endpointFields = {
   customFormat: z.optional(customFormatSchema),
 }
 
+/**
+ * A custom server's per-model limits as the draft holds them: either number
+ * may still be empty while the wizard asks. The host requires both before
+ * saving (the production entry schema rejects an incomplete set).
+ */
+export const draftModelLimitsSchema = z.record(
+  z.string(),
+  z.strictObject({
+    contextTokens: z.optional(z.number()),
+    outputTokens: z.optional(z.number()),
+  }),
+)
+
 export const panelDraftSchema = z.strictObject({
   ...endpointFields,
   step: wizardStepSchema,
@@ -265,8 +286,14 @@ export const panelDraftSchema = z.strictObject({
   /** OpenRouter's OAuth connect completed (the key arrived with no paste). */
   connected: z.boolean(),
   costAccepted: z.boolean(),
+  /** One queued Save owns this draft until it settles. */
+  saving: z.optional(z.boolean()),
+  /** The host refused a changed field; Reload discards the stale draft. */
+  saveConflict: z.optional(z.boolean()),
   test: z.optional(providerTestSchema),
   models: z.array(z.string()),
+  /** A custom server's per-model limits, keyed by model id. */
+  modelLimits: z.optional(draftModelLimitsSchema),
   privacy: openRouterPrivacySchema,
   providerOrder: z.array(z.string()),
   allowFallbacks: z.boolean(),
@@ -274,13 +301,33 @@ export const panelDraftSchema = z.strictObject({
   /** The private-network question was asked for this address. */
   privateAsked: z.boolean(),
   defaultModel: z.optional(z.string()),
-  sessionBudgetUsd: z.optional(z.number()),
+  sessionBudgetUsd: z.optional(legacyUsdSchema),
+  /** The setting value shown before the user edited the limit. */
+  sessionBudgetExpectedUsd: z.optional(legacyUsdSchema),
   /** The confirm step's summary: what is saved, and who receives the code. */
   summary: z.optional(z.strictObject({ origin: z.string(), lines: z.array(z.string()) })),
   errors: z.array(z.string()),
   blockers: z.array(z.string()),
 })
 export type PanelDraft = z.infer<typeof panelDraftSchema>
+
+/**
+ * What **Scan this computer** found: every local preset that answered, and
+ * every local preset that was checked with its usual port. Both lists carry
+ * the preset's own label and port, so the panel never hard-codes either.
+ */
+export const localScanHitSchema = z.strictObject({
+  presetId: z.string(),
+  label: z.string(),
+  port: z.number(),
+})
+
+export const localScanResultSchema = z.strictObject({
+  /** One row per local preset that answered (chosen rows open its wizard). */
+  found: z.array(localScanHitSchema),
+  /** One row per local preset that was checked, with its usual port. */
+  checked: z.array(localScanHitSchema),
+})
 
 /** A removal waiting behind Undo before its secret is deleted. */
 export const pendingRemovalSchema = z.strictObject({
@@ -319,21 +366,40 @@ export const modelsPanelStateSchema = z.strictObject({
   }),
   scans: z.record(z.string(), scanStateSchema),
   suggestions: z.array(suggestionSchema),
+  /**
+   * The conversation spending limit the wizard edits: the effective
+   * `museSpark.modelApiSessionBudgetUsd` value enforcement reads today
+   * (the suggestions step prefills its field with this; a changed number
+   * is written back at the scope it is effective from), and the one line
+   * naming that value and scope, worded by the host like any other error.
+   * The line is formatted host-side so the lazy webview bundle does not
+   * carry the template and scope words for it.
+   */
+  sessionBudget: z.strictObject({
+    effectiveUsd: legacyUsdSchema,
+    nowLine: z.string(),
+  }),
   /** The last choices made (a stated assumption with no history). */
   lastChoices: z.strictObject({
     defaultModelRef: z.optional(z.string()),
-    sessionBudgetUsd: z.optional(z.number()),
+    sessionBudgetUsd: z.optional(legacyUsdSchema),
   }),
   drafts: z.strictObject({
     wizard: z.optional(panelDraftSchema),
     edits: z.record(z.string(), panelDraftSchema),
   }),
+  /** The last **Scan this computer** run; absent before the first scan. */
+  localScan: z.optional(localScanResultSchema),
   pendingRemovals: z.array(pendingRemovalSchema),
   importPreview: z.optional(importPreviewSchema),
   /** A transient host confirmation (an export done, a save applied). */
   notice: z.optional(z.string()),
   subscriptionsAvailable: z.optional(z.boolean()),
   copilotAvailable: z.optional(z.boolean()),
+  /** True in a remote window: ChatGPT sign-in is refused there. */
+  remoteWindow: z.optional(z.boolean()),
+  /** True where the workspace is confidential: Copilot is hidden and refused. */
+  confidentialWorkspace: z.optional(z.boolean()),
 })
 export type ModelsPanelState = z.infer<typeof modelsPanelStateSchema>
 
@@ -345,7 +411,9 @@ export const prefillFieldsSchema = z.strictObject({
   allowFallbacks: z.optional(z.boolean()),
   privateConfirmed: z.optional(z.boolean()),
   defaultModel: z.optional(z.string()),
-  sessionBudgetUsd: z.optional(z.number()),
+  sessionBudgetUsd: z.optional(legacyUsdSchema),
+  /** A custom server's per-model limits (replaces the draft's set). */
+  modelLimits: z.optional(draftModelLimitsSchema),
 })
 export type PrefillFields = z.infer<typeof prefillFieldsSchema>
 
@@ -363,7 +431,11 @@ export const panelToHostMessageSchema = z.discriminatedUnion('type', [
   // through the host, anything else is refused there.
   z.strictObject({ type: z.literal('openExternal'), url: z.string() }),
   z.strictObject({ type: z.literal('providers/select'), presetId: z.string() }),
-  z.strictObject({ type: z.literal('providers/edit'), providerId: z.string() }),
+  z.strictObject({
+    type: z.literal('providers/edit'),
+    providerId: z.string(),
+    reload: z.optional(z.boolean()),
+  }),
   z.strictObject({
     type: z.literal('providers/prefill'),
     fields: prefillFieldsSchema,
@@ -449,7 +521,8 @@ export const panelToHostMessageSchema = z.discriminatedUnion('type', [
     type: z.literal('suggestions/change'),
     kind: suggestionKindSchema,
     modelRef: z.optional(z.string()),
-    usd: z.optional(z.number()),
+    usd: z.optional(legacyUsdSchema),
+    expectedUsd: z.optional(legacyUsdSchema),
   }),
 ])
 export type PanelToHostMessage = z.infer<typeof panelToHostMessageSchema>
@@ -773,3 +846,17 @@ export const runnersHostMessageSchema = z.strictObject({
   state: runnersSliceSchema,
 })
 // --- End Traffic and runners region. ---
+// M108 U's account slice. M95/M104 supply the authenticated panel envelope.
+// This local projection carries metadata and policy evidence, never credentials.
+// The wire schemas (the policy view and question the confirmations quote)
+// live on the accounts bridge and are re-exported here for panel readers.
+export {
+  accountsPolicyViewSchema,
+  accountsPolicyQuestionSchema,
+  type AccountsPolicyView,
+  type AccountsPolicyQuestion,
+  accountsNoticeSchema,
+  modelsAccountsSliceSchema,
+  type ModelsAccountsSlice,
+} from './accountsPanel'
+export type { VaultPanelState } from './vaultPanel'

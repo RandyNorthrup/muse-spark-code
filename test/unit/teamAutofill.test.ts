@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 // Adaptive autofill (M96 lane F): each rule fires with its reason, and
 // a dismissal holds.
 
@@ -59,7 +60,7 @@ function context(
     records: [],
     dismissals,
     isCapable,
-    remainingDailyBudgetUsd: 50,
+    remainingDailyBudgetUsd: Usd.from(50).toAmount(),
   }
 }
 
@@ -215,7 +216,10 @@ describe('budget caps and learning', () => {
   })
 
   it('suggests no budget cap when nothing remains or one is set', () => {
-    const empty = buildTeamSuggestions({ ...context([META], store()), remainingDailyBudgetUsd: 0 })
+    const empty = buildTeamSuggestions({
+      ...context([META], store()),
+      remainingDailyBudgetUsd: Usd.from(0).toAmount(),
+    })
     expect(empty.some((suggestion) => suggestion.kind === 'roleBudget')).toBe(false)
     const draft = buildTemplateDraft('pair', [
       { modelRef: 'muse-spark-1.3', vendor: 'meta', payKind: 'key' },

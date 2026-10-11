@@ -6,6 +6,7 @@ import { webviewKey } from '../../../shared/keybindings'
 // picks one, Escape closes.
 
 import { type KeyboardEvent, type ReactNode, useId, useMemo, useState } from 'react'
+
 import { UI_TEXT } from '../../../shared/constants'
 import { scrollRowIntoView, wrapIndex } from '../../listNavigation'
 
@@ -14,6 +15,9 @@ export interface SelectOption {
   readonly label: string
   readonly description: string
   readonly category: string
+  /** True where the row is shown but cannot be picked (with its reason). */
+  readonly disabled?: boolean | undefined
+  readonly disabledReason?: string | undefined
 }
 
 export interface SelectChip {
@@ -82,16 +86,10 @@ export function SearchableSelect({
     }
   }
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>): void => {
-    if (
-      webviewKey('models.select', event) !== 'next' &&
-      webviewKey('models.select', event) !== 'previous' &&
-      webviewKey('models.select', event) !== 'accept' &&
-      webviewKey('models.select', event) !== 'close'
-    ) {
-      return
-    }
+    const action = webviewKey('models.select', event)
+    if (action === undefined) return
     event.preventDefault()
-    switch (webviewKey('models.select', event)) {
+    switch (action) {
       case 'next': {
         step(1)
         break
@@ -101,7 +99,7 @@ export function SearchableSelect({
         break
       }
       case 'accept': {
-        if (isOpen && active !== undefined) {
+        if (isOpen && active !== undefined && active.disabled !== true) {
           onSelect(active.value)
         }
         break
@@ -170,14 +168,20 @@ export function SearchableSelect({
               id={`${baseId}-option-${option.value}`}
               role="option"
               aria-selected={index === wrapIndex(activeIndex, 0, matches.length)}
+              aria-disabled={option.disabled === true || undefined}
               onMouseDown={(event) => {
                 // Before the input's blur closes the list.
                 event.preventDefault()
-                onSelect(option.value)
+                if (option.disabled !== true) {
+                  onSelect(option.value)
+                }
               }}
             >
               <span className="models-select-label-row">{option.label}</span>
               <span className="models-select-description">{option.description}</span>
+              {option.disabledReason !== undefined && (
+                <span className="models-select-reason">{option.disabledReason}</span>
+              )}
             </li>
           ))}
           {matches.length === 0 && (

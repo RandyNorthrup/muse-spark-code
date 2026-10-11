@@ -18,6 +18,14 @@
       "note": "An approval card, docked above the message box, with the CLI's own choices"
     },
     {
+      "file": "media/readme/question.png",
+      "scenario": "question",
+      "theme": "light",
+      "width": 690,
+      "height": 760,
+      "note": "A compact transcript marker and one question card pinned above the composer, with tabs, choices, Other and Explain instead"
+    },
+    {
       "file": "media/readme/history.png",
       "scenario": "history",
       "theme": "light",
@@ -72,7 +80,7 @@
       "theme": "light",
       "width": 690,
       "height": 760,
-      "note": "Highlight, right-click: Copy, Ask about this or Comment on this"
+      "note": "Highlight, right-click: Copy, Ask About This or Comment on This"
     },
     {
       "file": "media/readme/rewind.png",
@@ -80,7 +88,7 @@
       "theme": "light",
       "width": 690,
       "height": 760,
-      "note": "Every sent message's ⋯: fork, fork and rewind code, or open Rewind"
+      "note": "Every sent message's ⋯: Fork Conversation, Fork and Rewind, Rewind, Save Prompt and Share Prompt…"
     },
     {
       "file": "media/readme/slash-commands.png",
@@ -129,6 +137,22 @@
       "width": 1000,
       "height": 760,
       "note": "Help & Reference searched for Next open question: question handling, deferral setting and navigation commands"
+    },
+    {
+      "file": "media/readme/deterministic-report.png",
+      "scenario": "deterministic-report",
+      "theme": "light",
+      "width": 690,
+      "height": 760,
+      "note": "Local deterministic report tab and export actions"
+    },
+    {
+      "file": "media/readme/resources.png",
+      "scenario": "resources-throttle",
+      "theme": "light",
+      "width": 690,
+      "height": 760,
+      "note": "The Resources chip beside the heartbeat while throttling, opened as Show resources does: readings against their limits, waiting work, no relocation route on this build, and Resume now, Open settings and Show resources"
     }
   ],
   "excluded": [

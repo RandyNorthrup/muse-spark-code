@@ -9,7 +9,7 @@ import * as esbuild from 'esbuild'
 
 const L10N_DIR = 'src/shared/l10n'
 const ENTRY = [
-  "export { ACP_AGENT_NAME, L10N_TABLE_MAX_BYTES, L10N_COMPRESSION_QUALITY, L10N_BROWSER_COMPRESSION_LEVEL, L10N_TABLE_ARCHIVE_FILE, USAGE_TABLE_ARCHIVE_FILE } from '../constants'",
+  "export { ACP_AGENT_NAME, L10N_TABLE_MAX_BYTES, L10N_COMPRESSION_QUALITY, L10N_BROWSER_COMPRESSION_LEVEL, L10N_BROWSER_COMPRESSION_MEMORY_LEVEL, L10N_TABLE_ARCHIVE_FILE, USAGE_TABLE_ARCHIVE_FILE } from '../constants'",
   "export { formatAcpUsage } from '../../runtime/cliOptions'",
   "export { readArchivedUiTable } from './tableArchive'",
   "export { encodeWhatsNewContent } from '../../core/whatsNew/whatsNewContent'",

@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 // Provider text must follow the installed language after these modules load.
 import { afterEach, describe, expect, it } from 'vitest'
 import { readFileSync, readdirSync } from 'node:fs'
@@ -20,11 +21,11 @@ import {
   BASE_LOCALE,
   fill,
   formatNumber,
-  formatUsd,
   plural,
   setUiText,
   UI_TEXT,
 } from '../../src/shared/l10n/text'
+import { formatUsd } from '../../src/shared/l10n/exactUsd'
 
 afterEach(() => {
   setUiText(EN, BASE_LOCALE)
@@ -77,15 +78,15 @@ describe('provider localization', () => {
     expect(wizardSummary(startWizard()).lines).toContain(
       fill(fr.providerText.summary.destination, { value: '—' }),
     )
-    expect(suggestSessionBudget(undefined, 1234.5)?.reason).toBe(
+    expect(suggestSessionBudget(undefined, Usd.from(1234.5).toAmount())?.reason).toBe(
       fill(fr.providerText.suggest.history, { amount: formatUsd(1234.5, 2) }),
     )
     const model = {
       ref: 'groq/model',
       toolCalling: true,
       contextTokens: 32_768,
-      inputUsd: 1e-6,
-      outputUsd: 1e-6,
+      inputUsd: Usd.from(1e-6).toAmount(),
+      outputUsd: Usd.from(1e-6).toAmount(),
     }
     expect(suggestDefaultModel({ models: [model] })?.reason).toBe(
       fill(fr.providerText.suggest.cheapest, { ref: model.ref }),
@@ -129,5 +130,31 @@ describe('provider localization', () => {
     if (!invalid.success) {
       expect(invalid.error.message).toContain(fr.providerText.schema.customLimits)
     }
+  })
+
+  it('uses the grammatical Russian token noun for the output-cap minimum', () => {
+    // RVMINOUT2 P3: `не менее` governs the genitive, so `one`/`other` take
+    // токена and `few`/`many` take токенов — the same pattern as the file's
+    // existing checksStoppedNotice (раунда/раундов), not the standalone
+    // estimateTokens nominative nouns.
+    setUiText(ru, 'ru')
+    expect(plural(UI_TEXT.outputCapBelowMinimum, 1)).toBe(
+      'Лимит вывода должен составлять не менее 1 токена.',
+    )
+    expect(plural(UI_TEXT.outputCapBelowMinimum, 2)).toBe(
+      'Лимит вывода должен составлять не менее 2 токенов.',
+    )
+    expect(plural(UI_TEXT.outputCapBelowMinimum, 5)).toBe(
+      'Лимит вывода должен составлять не менее 5 токенов.',
+    )
+    expect(plural(UI_TEXT.outputCapBelowMinimum, 16)).toBe(
+      'Лимит вывода должен составлять не менее 16 токенов.',
+    )
+    expect(plural(UI_TEXT.outputCapBelowMinimum, 21)).toBe(
+      'Лимит вывода должен составлять не менее 21 токена.',
+    )
+    expect(plural(UI_TEXT.outputCapBelowMinimum, 22)).toBe(
+      'Лимит вывода должен составлять не менее 22 токенов.',
+    )
   })
 })

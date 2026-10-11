@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 import type { UsageRecording } from '../../src/core/usage/recording'
 import { watchSessionTurns } from './helpers/sessionTurns'
 import { describe, expect, it, vi } from 'vitest'
@@ -80,7 +81,7 @@ it('loads the provider factory only on first BYO resolution and reuses it', asyn
 /** A manager on the fake API with no waits, over the given root and store. */
 function managerOn(
   workspaceRoot: string | undefined,
-  store: SessionStore | undefined,
+  store: ModelApiBackendManagerDeps['store'],
   log = new FakeLogOutputChannel(),
   hooks?: HookFixture,
   extra: Partial<
@@ -570,6 +571,28 @@ describe('ModelApiBackendManager', () => {
     await expect(m.ensureHost()).resolves.toBeDefined()
   })
 
+  it('makes a lazy store when the host is built, and a store that cannot load fails only that build', async () => {
+    const store = {
+      list: () => Promise.resolve([]),
+      load: () => Promise.resolve(undefined),
+      save: () => Promise.resolve(),
+      remove: () => Promise.resolve(),
+    }
+    let isMissing = true
+    const makeStore = vi.fn(() => {
+      if (isMissing) throw new Error('store bundle missing')
+      return store
+    })
+    const m = managerOn('/ws', makeStore)
+    expect(makeStore).not.toHaveBeenCalled()
+    await expect(m.manager.ensureHost()).rejects.toThrow('store bundle missing')
+    expect(m.manager.isRunning).toBe(false)
+    isMissing = false
+    await expect(m.manager.ensureHost()).resolves.toBeDefined()
+    expect(makeStore).toHaveBeenCalledTimes(2)
+    await m.manager.dispose()
+  })
+
   it('closes a host whose build a dispose overtook, and builds anew after (D25)', async () => {
     const listed = Promise.withResolvers<[]>()
     const servers = fakeMcpSource([])
@@ -615,7 +638,7 @@ it('records best-of-N requests once with the attempt kind and its own session', 
   const manager = new ModelApiBackendManager(
     fakeManagerDeps(api, new FakeLogOutputChannel(), {
       workspaceRoot: '/ws',
-      sessionBudgetUsd: () => 0,
+      sessionBudgetUsd: () => Usd.from(0).toAmount(),
       usageRecording: recording,
       bundlePath: 'source',
       loadBundle: () => modelApiEntry,

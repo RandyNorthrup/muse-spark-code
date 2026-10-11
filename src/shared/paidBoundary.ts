@@ -1,23 +1,31 @@
+import { nonnegativeUsdSchema } from './usdSchema'
 // Canonical paid schemas and accounting shared by Node consumers through
 // modelApiBoundaries.js; browser consumers retain the same inline code.
 import * as z from 'zod/mini'
 import {
   MODEL_API_PRICED_MODELS,
   type MODEL_API_PRICES_PER_MILLION,
+  MUSE_CODE_PAID_FEATURES,
   PAID_FEATURES,
-  PAID_PRICES_USD,
+  UI_TEXT,
   type PaidFeature,
-  SEARCHES_PER_PRICE_UNIT,
-  SECONDS_PER_HOUR,
 } from './constants'
 
 const paidCountSchema = z.optional(z.int().check(z.nonnegative()))
 
-const paidCostSchema = z.optional(z.number().check(z.nonnegative()))
+const paidCostSchema = z.optional(nonnegativeUsdSchema)
 
 /** What this window used of each paid feature since it opened. */
 export const paidTallySchema = z.object({
   webSearches: z.number(),
+  webSearchCharges: z.optional(
+    z.array(
+      z.object({
+        units: z.int().check(z.nonnegative()),
+        priceUsd: nonnegativeUsdSchema,
+      }),
+    ),
+  ),
   images: z.number(),
   voiceSeconds: z.number(),
   scheduledRuns: z.number(),
@@ -52,17 +60,17 @@ export const paidTallySchema = z.object({
   tabUnknownRequests: z.optional(z.int().check(z.nonnegative())),
   tabTokens: z.optional(z.int().check(z.nonnegative())),
   tabCachedTokens: z.optional(z.int().check(z.nonnegative())),
-  tabCostUsd: z.optional(z.number().check(z.nonnegative())),
+  tabCostUsd: z.optional(nonnegativeUsdSchema),
   // M91 prompt/agent hook runs started this window (D70); absent means none.
   hookModelRuns: z.optional(z.int().check(z.nonnegative())),
   hookModelUnknownRequests: z.optional(z.int().check(z.nonnegative())),
   hookModelTokens: z.optional(z.int().check(z.nonnegative())),
-  hookModelCostUsd: z.optional(z.number().check(z.nonnegative())),
+  hookModelCostUsd: z.optional(nonnegativeUsdSchema),
   // Same-model judge calls this window (M98, PLAN.md D77); absent means none.
   judgeCalls: z.optional(z.int().check(z.nonnegative())),
   judgeUnknownRequests: z.optional(z.int().check(z.nonnegative())),
   judgeTokens: z.optional(z.int().check(z.nonnegative())),
-  judgeCostUsd: z.optional(z.number().check(z.nonnegative())),
+  judgeCostUsd: z.optional(nonnegativeUsdSchema),
 })
 
 export type PaidTally = z.infer<typeof paidTallySchema>
@@ -72,6 +80,45 @@ export const EMPTY_PAID_TALLY: PaidTally = {
   images: 0,
   voiceSeconds: 0,
   scheduledRuns: 0,
+}
+
+/**
+ * The paid features a window can use (M44, PLAN.md D37): every one on the
+ * Model API backend; on Muse Code, the extension's features billed to a
+ * stored key, including key-billed team tasks; none without that key. This
+ * stays beside the schemas, without exact money arithmetic, so chat startup
+ * (the composer badge, the dictate tooltip) can name features before the
+ * lazy money chunk with the prices arrives.
+ */
+export function usablePaidFeatures(
+  // The backends protocol.ts names; kept as literals so this module never
+  // imports protocol (which imports this module for paidStateSchema).
+  backend: 'museCode' | 'modelApi' | undefined,
+  isKeyStored: boolean,
+): readonly PaidFeature[] {
+  if (backend === 'modelApi') {
+    return PAID_FEATURES
+  }
+  return backend === 'museCode' && isKeyStored ? MUSE_CODE_PAID_FEATURES : []
+}
+
+/** The feature's short name, as the badge and the dialog show it. */
+export function paidFeatureName(feature: PaidFeature): string {
+  const names: Readonly<Record<PaidFeature, string>> = {
+    webSearch: UI_TEXT.paidWebSearchName,
+    imageGeneration: UI_TEXT.paidImageGenerationName,
+    voice: UI_TEXT.paidVoiceName,
+    scheduledPrompts: UI_TEXT.paidScheduledName,
+    subagents: UI_TEXT.paidSubagentsName,
+    autoReviewer: UI_TEXT.paidAutoReviewerName,
+    bestOfN: UI_TEXT.paidBestOfNName,
+    teamWorkers: UI_TEXT.paidTeamWorkersName,
+    tab: UI_TEXT.paidTabName,
+    hookModels: UI_TEXT.paidHookModelName,
+    judge: UI_TEXT.paidJudgeName,
+    legalExplanation: UI_TEXT.paidLegalExplanationName,
+  }
+  return names[feature]
 }
 
 /** Unknown model tariffs cannot authorize a paid child task. */
@@ -101,76 +148,10 @@ export const paidStateSchema = z.object({
    */
   tab: z.optional(
     z.object({
-      budgetUsd: z.number().check(z.nonnegative()),
-      todayUsd: z.optional(z.number().check(z.nonnegative())),
+      budgetUsd: nonnegativeUsdSchema,
+      todayUsd: z.optional(nonnegativeUsdSchema),
     }),
   ),
 })
 
 export type PaidState = z.infer<typeof paidStateSchema>
-
-/** The estimated cost of one feature's use in the tally, in dollars. */
-export function paidCostUsd(feature: PaidFeature, tally: PaidTally): number {
-  switch (feature) {
-    case 'webSearch': {
-      return (tally.webSearches * PAID_PRICES_USD.webSearchPerThousand) / SEARCHES_PER_PRICE_UNIT
-    }
-    case 'imageGeneration': {
-      return tally.images * PAID_PRICES_USD.imageGeneration
-    }
-    case 'voice': {
-      return (tally.voiceSeconds * PAID_PRICES_USD.voicePerHour) / SECONDS_PER_HOUR
-    }
-    case 'scheduledPrompts': {
-      // Scheduled runs use ordinary Model API tokens. UsageDialog prices those
-      // tokens already; adding them to the extra-features total doubles them.
-      return 0
-    }
-    case 'subagents': {
-      return tally.subagentCostUsd ?? 0
-    }
-    case 'autoReviewer': {
-      // Billed apart from the conversation, so counted here alone.
-      return tally.autoReviewCostUsd ?? 0
-    }
-    case 'legalExplanation': {
-      return tally.legalExplanationCostUsd ?? 0
-    }
-    case 'bestOfN': {
-      // Separate worktree hosts do not contribute to the parent's token
-      // estimate. Count only reported costs here, not unknown HTTP tries.
-      return tally.bestOfNCostUsd ?? 0
-    }
-    case 'teamWorkers': {
-      // A worker's tokens already count in the conversation's estimate
-      // through the ledger; the row prices the reported part apart.
-      return tally.teamWorkerCostUsd ?? 0
-    }
-    case 'tab': {
-      // Tab requests are billed apart from every conversation, so they are
-      // counted here alone. Count only reported costs, not unknown tries.
-      return tally.tabCostUsd ?? 0
-    }
-    case 'hookModels': {
-      // A hook's own model call is billed apart from the conversation, like
-      // a review's. Count only reported costs, not unanswered runs.
-      return tally.hookModelCostUsd ?? 0
-    }
-    case 'judge': {
-      // Billed apart from the conversation, so counted here alone.
-      return tally.judgeCostUsd ?? 0
-    }
-  }
-}
-
-/** The whole tally's estimated cost. */
-export function paidTotalUsd(tally: PaidTally): number {
-  // Child token cost is already part of the conversation's token estimate.
-  let total = 0
-  for (const feature of PAID_FEATURES) {
-    if (feature !== 'subagents' && feature !== 'teamWorkers') {
-      total += paidCostUsd(feature, tally)
-    }
-  }
-  return total
-}

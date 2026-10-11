@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 // Cap validation (M96 lane F): each case D75 lists, refused or warned
 // with its own reason.
 
@@ -17,7 +18,7 @@ const UNPRICED_KEY: TeamCapModelInfo = { usdPerMTok: undefined, billedToKey: tru
 const LOCAL: TeamCapModelInfo = { usdPerMTok: undefined, billedToKey: false }
 const BUDGETS: TeamCapBudgets = {
   maxConcurrent: 8,
-  teamDailyBudgetUsd: 50,
+  teamDailyBudgetUsd: Usd.from(50).toAmount(),
   teamDailyBudgetTokens: 25_000_000,
 }
 

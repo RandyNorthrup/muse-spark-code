@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, rm, writeFile, stat, readFile, symlink } from 'node:fs/promises'
+import { realpath, mkdtemp, mkdir, rm, writeFile, stat, readFile, symlink } from 'node:fs/promises'
 import path from 'node:path'
 import os from 'node:os'
 import * as z from 'zod/mini'
@@ -35,7 +35,7 @@ describe('M118 production runtime bindings', () => {
       expected: '{{second}} then end',
     },
   ])('uses the shared literal terminal resolver for $body', async ({ body, answers, expected }) => {
-    const root = await mkdtemp(path.join(os.tmpdir(), 'm118-terminal-'))
+    const root = await realpath(await mkdtemp(path.join(os.tmpdir(), 'm118-terminal-')))
     roots.push(root)
     const ports: RuntimeSharingPorts = {
       folders: {
@@ -86,7 +86,7 @@ describe('M118 production runtime bindings', () => {
     }
   })
   it('saves verbatim personal prompts, lists and prepares them in a new workspace without backend reads', async () => {
-    const root = await mkdtemp(path.join(os.tmpdir(), 'm118-runtime-'))
+    const root = await realpath(await mkdtemp(path.join(os.tmpdir(), 'm118-runtime-')))
     roots.push(root)
     const read = vi.fn(() => Promise.reject(new Error('backend must not start')))
     const port = runtimeAcpSharing(
@@ -122,7 +122,7 @@ describe('M118 production runtime bindings', () => {
   it.each([false, true])(
     'refreshes registered values and releases through an aliased workspace: %s',
     async (isAliased) => {
-      const realRoot = await mkdtemp(path.join(os.tmpdir(), 'm118-registered-'))
+      const realRoot = await realpath(await mkdtemp(path.join(os.tmpdir(), 'm118-registered-')))
       roots.push(realRoot)
       const root = isAliased ? `${realRoot}-alias` : realRoot
       if (isAliased) {
@@ -182,6 +182,7 @@ describe('M118 production runtime bindings', () => {
       try {
         known.mockResolvedValue([value])
         expect(await runRuntimeSharing(parseSharingArgs(args), ports, EN, 'en')).toBe(7)
+        expect(errors).toEqual([])
         const scrubbed: unknown = JSON.parse(chunks.at(-1) ?? '')
         const scrubbedResult = z
           .object({ preview: z.object({ document: shareJsonSchema }) })
@@ -233,12 +234,12 @@ describe('M118 production runtime bindings', () => {
       ...savedPromptFixture,
       variables: [],
       title: 'Share registered-test-secret',
-      body: 'Keep /workspace/src/main.ts; registered-test-secret',
+      body: 'Keep /workspace/src/main.ts; registered-test-secret; owner user',
     }
     const privacy = createChatSharePrivacy({
       workspaceRoots: ['/workspace'],
       home: '',
-      userName: '',
+      userName: 'user',
       redactRegisteredSecrets: (text) => text.replaceAll('registered-test-secret', '[redacted]'),
     })
     for (const format of ['md', 'html', 'json'] as const) {
@@ -251,6 +252,8 @@ describe('M118 production runtime bindings', () => {
       })
       const first = buildPromptShare(prompt, request, '2026-10-06T12:00:00Z', privacy)
       expect(buildPromptShare(prompt, request, '2026-10-06T12:00:00Z', privacy)).toEqual(first)
+      expect(first.document).toMatchObject({ prompt: { scope: 'user' } })
+      expect(first.content).not.toContain('owner user')
       expect(first.content).not.toContain('registered-test-secret')
       expect(first.content).not.toContain('/workspace')
       expect(first.content).toContain('src/main.ts')
@@ -261,7 +264,7 @@ describe('M118 production runtime bindings', () => {
     expect(prompt.body).toContain('registered-test-secret')
   })
   it('refuses unknown confidential policy and respects explicit workspace settings', async () => {
-    const root = await mkdtemp(path.join(os.tmpdir(), 'm118-policy-'))
+    const root = await realpath(await mkdtemp(path.join(os.tmpdir(), 'm118-policy-')))
     roots.push(root)
     expect(runtimeSharingConfidential(root)).toBe(false)
     await mkdir(path.join(root, '.vscode'))

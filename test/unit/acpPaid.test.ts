@@ -1,3 +1,6 @@
+import type { PaidUseAnswer } from '../../src/core/paid/paidConsent'
+import { quotedSearch } from './helpers/paidQuote'
+import { Usd } from '../../src/shared/usd'
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import type * as Fs from 'node:fs'
 import { link, rename } from 'node:fs/promises'
@@ -58,7 +61,7 @@ describe('M80 structural headless paid policy', () => {
       log: logger(),
       headless: policy,
     })
-    expect(await paid.allows('/ws', 's', WEB_SEARCH, false)).toBe(false)
+    expect(await paid.allows('/ws', 's', WEB_SEARCH, false)).toBeFalsy()
     expect(policy).not.toHaveBeenCalled()
   })
 })
@@ -70,7 +73,8 @@ describe('M80 structural headless paid policy', () => {
 
 const FOLDER = path.resolve('work', 'app')
 const OTHER = path.resolve('work', 'other')
-const WEB_SEARCH = { feature: 'webSearch' } as const
+const WEB_SEARCH_QUOTE = { feature: 'webSearch', tariffUsd: Usd.from('0.0025').toAmount() }
+const WEB_SEARCH = { feature: 'webSearch', priceUsd: Usd.from(0.0025).toAmount() } as const
 const folders: string[] = []
 
 vi.mock('node:fs', async (importActual) => {
@@ -175,6 +179,43 @@ function holdFirstRename(isHolding: (from: Fs.PathLike, to: Fs.PathLike) => bool
 }
 
 describe('AcpPaidUse', () => {
+  it('persists the quote ceiling across ACP restart and asks the current session at a higher tariff', async () => {
+    const file = grantsFile()
+    const first = new AcpPaidUse({
+      flagged: ['webSearch'],
+      canRemember: () => true,
+      grants: fileStore(file),
+      log: logger(),
+    })
+    first.attach(() => Promise.resolve('always'))
+    await first.allows(FOLDER, 'old-session', WEB_SEARCH, false)
+    const second = new AcpPaidUse({
+      flagged: ['webSearch'],
+      canRemember: () => true,
+      grants: fileStore(file),
+      log: logger(),
+    })
+    const ask = vi.fn(() => Promise.resolve('once' as const))
+    second.attach(ask)
+    expect(await second.allows(FOLDER, 'new-session', WEB_SEARCH, false)).toMatchObject({
+      tariffUsd: Usd.from('0.0025').toAmount(),
+    })
+    expect(ask).not.toHaveBeenCalled()
+    await second.allows(
+      FOLDER,
+      'new-session',
+      { feature: 'webSearch', priceUsd: Usd.from('0.01').toAmount() },
+      false,
+    )
+    expect(ask).toHaveBeenCalledWith(
+      'new-session',
+      expect.objectContaining({
+        quote: expect.objectContaining({ tariffUsd: Usd.from('0.01').toAmount() }),
+      }),
+      true,
+    )
+  })
+
   it('denies every use until the agent attaches its way to ask', async () => {
     const log = logger()
     const paid = new AcpPaidUse({
@@ -183,14 +224,14 @@ describe('AcpPaidUse', () => {
       grants: memoryPaidGrants(),
       log,
     })
-    expect(await paid.allows(FOLDER, 's1', WEB_SEARCH, false)).toBe(false)
+    expect(await paid.allows(FOLDER, 's1', WEB_SEARCH, false)).toBeFalsy()
     expect(log.warn).toHaveBeenCalledWith(
       'Paid use of webSearch: no editor to ask, so it is denied',
     )
     const asker = vi.fn(() => Promise.reject(new Error('the connection closed')))
     paid.attach(asker)
-    expect(await paid.allows(FOLDER, 's1', WEB_SEARCH, false)).toBe(false)
-    expect(asker).toHaveBeenCalledWith('s1', WEB_SEARCH, true)
+    expect(await paid.allows(FOLDER, 's1', WEB_SEARCH, false)).toBeFalsy()
+    expect(asker).toHaveBeenCalledWith('s1', expect.objectContaining(WEB_SEARCH), true)
     expect(log.warn).toHaveBeenCalledWith(
       'Paid use of webSearch: the editor could not be asked, so it is denied: Error',
     )
@@ -207,17 +248,17 @@ describe('AcpPaidUse', () => {
     })
     const asker = vi.fn(() => Promise.resolve('always' as const))
     paid.attach(asker)
-    expect(await paid.allows(FOLDER, 's1', WEB_SEARCH, false)).toBe(true)
-    expect(await paid.allows(FOLDER, 's1', WEB_SEARCH, false)).toBe(true)
+    expect(await paid.allows(FOLDER, 's1', WEB_SEARCH, false)).toMatchObject(WEB_SEARCH_QUOTE)
+    expect(await paid.allows(FOLDER, 's1', WEB_SEARCH, false)).toMatchObject(WEB_SEARCH_QUOTE)
     expect(asker).toHaveBeenCalledTimes(1)
-    expect(await paid.allows(FOLDER, 's1', WEB_SEARCH, true)).toBe(true)
-    expect(await paid.allows(OTHER, 's2', WEB_SEARCH, false)).toBe(true)
+    expect(await paid.allows(FOLDER, 's1', WEB_SEARCH, true)).toMatchObject(WEB_SEARCH_QUOTE)
+    expect(await paid.allows(OTHER, 's2', WEB_SEARCH, false)).toMatchObject(WEB_SEARCH_QUOTE)
     expect(asker).toHaveBeenCalledTimes(3)
-    expect(asker).toHaveBeenLastCalledWith('s2', WEB_SEARCH, true)
+    expect(asker).toHaveBeenLastCalledWith('s2', expect.objectContaining(WEB_SEARCH), true)
     isTrusted = false
     expect(paid.isRemembered(FOLDER, 'webSearch')).toBe(false)
-    expect(await paid.allows(FOLDER, 's1', WEB_SEARCH, false)).toBe(true)
-    expect(asker).toHaveBeenLastCalledWith('s1', WEB_SEARCH, false)
+    expect(await paid.allows(FOLDER, 's1', WEB_SEARCH, false)).toMatchObject(WEB_SEARCH_QUOTE)
+    expect(asker).toHaveBeenLastCalledWith('s1', expect.objectContaining(WEB_SEARCH), false)
   })
 
   it('forgets "always" for every feature it starts without', async () => {
@@ -250,17 +291,17 @@ describe('AcpPaidUse', () => {
 
   it('lets an "always" it cannot keep go ahead once, and asks again next time', async () => {
     const grants = memoryPaidGrants()
-    vi.spyOn(grants, 'add').mockRejectedValue(new Error('read-only data folder'))
+    vi.spyOn(grants, 'writeQuote').mockRejectedValue(new Error('read-only data folder'))
     const log = logger()
     const paid = new AcpPaidUse({ flagged: ['webSearch'], canRemember: () => true, grants, log })
     const asker = vi.fn(() => Promise.resolve('always' as const))
     paid.attach(asker)
-    expect(await paid.allows(FOLDER, 's1', WEB_SEARCH, false)).toBe(true)
+    expect(await paid.allows(FOLDER, 's1', WEB_SEARCH, false)).toMatchObject(WEB_SEARCH_QUOTE)
     expect(log.warn).toHaveBeenCalledWith(
-      'Paid use of webSearch: "always" could not be kept, so it is allowed once: read-only data folder',
+      'Paid search quote could not be kept: read-only data folder',
     )
     expect(log.info).toHaveBeenLastCalledWith('Paid use of webSearch: allowed once')
-    expect(await paid.allows(FOLDER, 's1', WEB_SEARCH, false)).toBe(true)
+    expect(await paid.allows(FOLDER, 's1', WEB_SEARCH, false)).toMatchObject(WEB_SEARCH_QUOTE)
     expect(asker).toHaveBeenCalledTimes(2)
   })
 
@@ -538,4 +579,112 @@ describe('the grants file (runtime/paidGrants.ts)', () => {
     expect(store.read(OTHER)).toEqual(new Set())
     expect(store.read(FOLDER)).toEqual(new Set(['webSearch']))
   })
+})
+
+describe('R3 ACP generation-owned quote records', () => {
+  it('P2-1: saving model B after model A revocation never restores model A', async () => {
+    const store = fileStore(grantsFile())
+    const paid = new AcpPaidUse({
+      flagged: ['webSearch'],
+      canRemember: () => true,
+      grants: store,
+      log: logger(),
+    })
+    const pending = Promise.withResolvers<PaidUseAnswer>()
+    const opened = Promise.withResolvers<undefined>()
+    paid.attach((_session, request) => {
+      if (request.feature === 'webSearch' && request.quote?.model === 'model-b') {
+        opened.resolve(undefined)
+        return pending.promise
+      }
+      return Promise.resolve('always')
+    })
+    await paid.allows(FOLDER, 'a', quotedSearch('0.01'), false)
+    const savingB = paid.allows(FOLDER, 'b', quotedSearch('0.01', 'model-b'), false)
+    await opened.promise
+    await store.forget(['webSearch'])
+    pending.resolve('always')
+    expect(await savingB).toBeUndefined()
+    const question = vi.fn(() => Promise.resolve<PaidUseAnswer>('deny'))
+    paid.attach(question)
+    expect(await paid.allows(FOLDER, 'a', quotedSearch('0.01'), false)).toBeUndefined()
+    expect(question).toHaveBeenCalledOnce()
+  })
+
+  it.each([true, false])(
+    'R4 P2-1: persisted approval order beats an older owner three-Once history (revocation %s)',
+    async (revokes) => {
+      const file = grantsFile()
+      const store = fileStore(file)
+      const first = new AcpPaidUse({
+        flagged: ['webSearch'],
+        canRemember: () => true,
+        grants: store,
+        log: logger(),
+      })
+      first.attach(() => Promise.resolve('once'))
+      for (const id of ['once-a', 'once-b', 'once-c'])
+        await first.allows(FOLDER, 'old', quotedSearch('0.01', 'model-a', id), false)
+      first.attach(() => Promise.resolve('always'))
+      const barrier = holdFirstRename((_from, to) =>
+        String(to).replaceAll('\\', '/').endsWith('.quote'),
+      )
+      const old = first.allows(FOLDER, 'old', quotedSearch('0.01'), false)
+      await barrier.held.promise
+      const nextStore = fileStore(file)
+      if (revokes) await nextStore.forget(['webSearch'])
+      const next = new AcpPaidUse({
+        flagged: ['webSearch'],
+        canRemember: () => true,
+        grants: nextStore,
+        log: logger(),
+      })
+      next.attach(() => Promise.resolve('always'))
+      await next.allows(FOLDER, 'new', quotedSearch('0.0025'), false)
+      barrier.released.resolve(undefined)
+      expect(await old).toBeUndefined()
+      const question = vi.fn(() => Promise.resolve<PaidUseAnswer>('deny'))
+      next.attach(question)
+      expect(await next.allows(FOLDER, 'new', quotedSearch('0.0025'), false)).toMatchObject({
+        tariffUsd: Usd.from('0.0025').toAmount(),
+      })
+      expect(question).not.toHaveBeenCalled()
+      expect(await next.allows(FOLDER, 'new', quotedSearch('0.01'), false)).toBeUndefined()
+      expect(question).toHaveBeenCalledOnce()
+    },
+  )
+})
+
+it('R4 P2-1: ACP does not import legacy incomparable quote orders', async () => {
+  const file = grantsFile()
+  const store = fileStore(file)
+  const generation = await store.prepareQuoteGeneration?.()
+  if (generation === undefined) throw new Error('missing generation')
+  const request = quotedSearch('0.01')
+  const key = JSON.stringify(['webSearch', 'meta', 'model-a'])
+  writeFileSync(
+    path.join(
+      `${file}.d`,
+      'webSearch',
+      `${workspaceKey(FOLDER)}.${generation}.json.${workspaceKey(key)}.legacy.quote`,
+    ),
+    JSON.stringify({ generation, order: 100, quote: request.quote }),
+  )
+  expect(store.readQuote?.(FOLDER, request.quote)).toBeUndefined()
+})
+
+it('R4 P2-3: profile authority preserves workspace-scoped remembered search', async () => {
+  const paid = new AcpPaidUse({
+    flagged: ['webSearch'],
+    canRemember: () => true,
+    grants: fileStore(grantsFile()),
+    log: logger(),
+  })
+  paid.attach(() => Promise.resolve('always'))
+  await paid.allows(FOLDER, 'first', quotedSearch('0.0025', 'model-a', 'first'), false)
+  paid.attach(() => Promise.resolve('once'))
+  await paid.allows(OTHER, 'second', quotedSearch('0.0025', 'model-a', 'second'), false)
+  await paid.allows(FOLDER, 'first', quotedSearch('0.0025', 'model-a', 'first-again'), false)
+  expect(paid.isRemembered(FOLDER, 'webSearch')).toBe(true)
+  expect(paid.isRemembered(OTHER, 'webSearch')).toBe(false)
 })

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildWebviewHtml, createNonce } from '../../src/host/html'
-import { WEBVIEW_L10N_ELEMENT_ID } from '../../src/shared/constants'
+import { WEBVIEW_DOCUMENT_ATTRIBUTE, WEBVIEW_L10N_ELEMENT_ID } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 
 const L10N_OPEN = `<script type="application/json" id="${WEBVIEW_L10N_ELEMENT_ID}">`
@@ -75,6 +75,22 @@ describe('buildWebviewHtml', () => {
   it('marks the Devices document with its own surface', () => {
     const devices = buildWebviewHtml({ ...options, surface: 'devices' })
     expect(devices).toContain('<body data-native-context-menu="true" data-surface="devices">')
+  })
+
+  it('keeps the Devices surface and host-issued document identity together', () => {
+    const devices = buildWebviewHtml({ ...options, surface: 'devices', documentId: 'DOC123' })
+    expect(devices).toContain(
+      `<body data-native-context-menu="true" data-surface="devices" ${WEBVIEW_DOCUMENT_ATTRIBUTE}="DOC123">`,
+    )
+  })
+
+  it('names a chat document on its body only when the host issues an id (M107)', () => {
+    const chat = buildWebviewHtml({ ...options, documentId: 'DOC123' })
+    expect(chat).toContain(
+      `<body data-native-context-menu="true" ${WEBVIEW_DOCUMENT_ATTRIBUTE}="DOC123">`,
+    )
+    expect(html).not.toContain(WEBVIEW_DOCUMENT_ATTRIBUTE)
+    expect(chat).toContain("script-src 'nonce-NONCE123'")
   })
 
   it('names the document language and embeds the table as data before the bundle (D33)', () => {

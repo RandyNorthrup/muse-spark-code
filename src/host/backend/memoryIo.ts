@@ -105,7 +105,8 @@ export function createMemoryIo(
       },
     })
   return {
-    readFile: (absolutePath) => files.readFile(absolutePath),
+    readFile: (absolutePath, observeSource) =>
+      files.readFile(absolutePath, undefined, undefined, observeSource),
     hasUnsavedChanges: (absolutePath) => files.hasUnsavedChanges(absolutePath),
     // The checked path holds a replacement to where `locate` found the note (C2-4, M86).
     writeFile: (absolutePath, content, checkedPath, assertCanWrite) =>

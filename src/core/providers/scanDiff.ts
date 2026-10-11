@@ -1,3 +1,4 @@
+import { type UsdAmount } from '../../shared/usd'
 // A model scan diffed against the last one (M95, PLAN.md D74): a fresh
 // scan of each provider's models is cached with its time and diffed
 // ("3 new models since the last scan", removed models and changed prices
@@ -11,9 +12,9 @@ import { fill, plural, UI_TEXT } from '../../shared/l10n/text'
 export interface ScannedModel {
   readonly id: string
   readonly contextTokens?: number | undefined
-  readonly inputUsd?: number | undefined
-  readonly outputUsd?: number | undefined
-  readonly cachedUsd?: number | undefined
+  readonly inputUsd?: UsdAmount | undefined
+  readonly outputUsd?: UsdAmount | undefined
+  readonly cachedUsd?: UsdAmount | undefined
 }
 
 /** A provider's cached scan: its models and when they were fetched. */
@@ -27,8 +28,8 @@ export interface ModelScan {
 export interface Reprice {
   readonly id: string
   readonly field: 'inputUsd' | 'outputUsd' | 'cachedUsd'
-  readonly before: number | undefined
-  readonly after: number | undefined
+  readonly before: UsdAmount | undefined
+  readonly after: UsdAmount | undefined
 }
 
 export interface ScanDiff {
