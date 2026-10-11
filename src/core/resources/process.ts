@@ -211,11 +211,10 @@ function observe(
 function spawnInteractive(
   file: string,
   args: readonly string[],
-  { beforeSpawn, ...options }: ResourceProcessOptions,
+  options: ResourceProcessOptions,
   resource: ResourceLease,
   signal: AbortSignal | undefined,
 ): ResourceInteractiveProcess {
-  beforeSpawn?.()
   // Inherited stdio, no new session or group: the terminal's Ctrl+C and TTY reach it.
   // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- Admitted foreground terminal program (`muse login`): argument array, no shell, inherited session, owned root shutdown (PLAN SPAWN017C, section 8).
   const child = spawn(file, [...args], {
@@ -243,14 +242,13 @@ function spawnInteractive(
 function spawnHandoff(
   file: string,
   args: readonly string[],
-  { beforeSpawn, ...options }: ResourceProcessOptions,
+  options: ResourceProcessOptions,
   resource: ResourceLease,
   cancel: AbortSignal | undefined,
   deadline: AbortSignal,
   until: ResourceHandoffUntil,
 ): ResourceHandoffProcess {
   const isLaunchedAtSpawn = until === 'spawn'
-  beforeSpawn?.()
   // The caller's own environment, never the lease's temporary root: a browser the
   // OS starts outlives this lease and must not keep TMPDIR under governed cleanup.
   // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- Admitted fixed OS hand-off adapter: argument array, no shell, output to the null device, named deadline, root-only stop on cancel (PLAN SPAWN017C, section 8).
@@ -512,31 +510,33 @@ export async function spawnResourceProcess(
   extraDescriptors: readonly number[] = [],
 ): Promise<ResourceInteractiveProcess | ResourceHandoffProcess | ResourcePipedProcess> {
   // The memory cap is the attested job's, never a spawn option.
-  const { jobMemoryBytes, handoffUntil = 'exit', ...options } = launchOptions
+  const { jobMemoryBytes, handoffUntil = 'exit', beforeSpawn, ...options } = launchOptions
   if (profile === 'handoff') {
     // The named deadline covers the handoff's admission and the adapter's run.
     const deadline = AbortSignal.timeout(RESOURCE_HANDOFF_TIMEOUT_MS)
     const cancel = options.signal
     const signal = cancel === undefined ? deadline : AbortSignal.any([cancel, deadline])
     return await withLease(profile, signal, (resource, spawned) => {
-      const launched = spawnHandoff(file, args, options, resource, cancel, deadline, handoffUntil)
+      beforeSpawn?.()
       spawned.value = true
-      return Promise.resolve(launched)
+      return Promise.resolve(
+        spawnHandoff(file, args, options, resource, cancel, deadline, handoffUntil),
+      )
     })
   }
   const { signal } = options
   if (profile === 'interactive')
     return await withLease(profile, signal, (resource, spawned) => {
-      const launched = spawnInteractive(file, args, options, resource, signal)
+      beforeSpawn?.()
       spawned.value = true
-      return Promise.resolve(launched)
+      return Promise.resolve(spawnInteractive(file, args, options, resource, signal))
     })
   return await withLease(profile, signal, (resource, spawned) =>
     spawnPiped(
       profile,
       file,
       args,
-      { ...options, jobMemoryBytes },
+      { ...options, jobMemoryBytes, beforeSpawn },
       extraDescriptors,
       resource,
       signal,

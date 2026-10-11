@@ -133,13 +133,15 @@ export async function execResourceFile(
           stderr: Buffer.concat(err).toString('utf8'),
         }
         if (code === 0 && !isFailed) resolve(result)
-        else
+        else {
+          const failureCode = isFailed ? -1 : code
           reject(
             Object.assign(new Error('Governed command failed'), {
               ...result,
-              code: bytesRead > max ? 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER' : isFailed ? -1 : code,
+              code: bytesRead > max ? 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER' : failureCode,
             }),
           )
+        }
       })().catch(reject)
     })
   })

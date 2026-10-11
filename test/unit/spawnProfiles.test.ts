@@ -563,32 +563,43 @@ describe('the synchronous final spawn fence (M123)', () => {
     },
   )
 
-  it.runIf(process.platform !== 'win32')(
-    'runs the guard and spawn without a microtask between them',
-    async () => {
+  it('runs the guard and spawn without a microtask between them', async () => {
+    vi.mocked(childProcess.spawn).mockClear()
+    vi.mocked(jobLaunch.spawnAttestedJob).mockClear()
+    let isValid = true
+    const beforeSpawn = () => {
+      queueMicrotask(() => {
+        isValid = false
+      })
+    }
+    if (process.platform === 'win32') {
+      setup(record(), true)
+      const start = vi.mocked(jobLaunch.spawnAttestedJob).getMockImplementation()
+      if (start === undefined) throw new Error('Missing attested fixture')
+      vi.mocked(jobLaunch.spawnAttestedJob).mockImplementationOnce((launch) => {
+        expect(isValid).toBe(true)
+        return start(launch)
+      })
+    } else {
       vi.mocked(admission.admitResource).mockResolvedValue(fakeResourceLease())
-      let isValid = true
       const nativeSpawn = await vi.importActual<typeof childProcess>('node:child_process')
-      const spy = vi.spyOn(childProcess, 'spawn').mockImplementationOnce((file, args, options) => {
+      vi.spyOn(childProcess, 'spawn').mockImplementationOnce((file, args, options) => {
         expect(isValid).toBe(true)
         expect(options).not.toHaveProperty('beforeSpawn')
         return nativeSpawn.spawn(file, args, options)
       })
-      const launched = await spawnResourceProcess('probe', process.execPath, ['-v'], {
-        env: {},
-        beforeSpawn: () => {
-          queueMicrotask(() => {
-            isValid = false
-          })
-        },
-      })
-      launched.child.stdin.end()
-      launched.child.stdout.resume()
-      await once(launched.child, 'close')
-      expect(spy).toHaveBeenCalledOnce()
-      expect(isValid).toBe(false)
-    },
-  )
+    }
+    const launched = await spawnResourceProcess('probe', process.execPath, ['-v'], {
+      env: {},
+      beforeSpawn,
+    })
+    launched.child.stdin.end()
+    launched.child.stdout.resume()
+    await once(launched.child, 'close')
+    if (process.platform === 'win32') expect(jobLaunch.spawnAttestedJob).toHaveBeenCalledOnce()
+    else expect(childProcess.spawn).toHaveBeenCalledOnce()
+    expect(isValid).toBe(false)
+  })
 
   it('checks after Windows preparation and again at payload GO, preserving the refusal', async () => {
     await asWindows(async () => {
