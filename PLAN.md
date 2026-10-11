@@ -35674,6 +35674,28 @@ text/JSON/HTML output, saved-JSON round trips and outside-workspace
 redaction with default-timeout tests and a byte-exact red drill. Keep the
 shape-only scrub contract and the existing W integration handoffs explicit.
 
+**C-M113-1 port and RVCM1131 repair (2026-10-10, lane CM1131, status:
+implemented; independent review RVCM1131 complete; findings closed by
+lane CM1131R2).** Port the accepted RVM113S total-order tie-breaks onto
+release 0.17.0 as a manual port (Git/tag/branch/worktree, session
+check-run, usage breakdown/limit and scrubbed question-id sorts break
+ties on serialized bytes; agent file order normalizes Windows separators;
+discovery refuses directory entries shaped like session files), keeping
+the base's newer package matcher and subagent-descent logic. Checklist:
+permutation-stability regressions in `test/unit/gitSource.test.ts`,
+`test/unit/sessionReportSource.test.ts` and
+`test/unit/agentUsageSource.test.ts` (source bytes, then rendered
+Markdown/HTML/JSON/text bytes through the production collector,
+finalizer and renderers); red drills with byte-exact restores in
+`docs/certification/m113-s-local-sources.md`; CHANGELOG entry under
+`[Unreleased]`; no new string, command, setting, dependency, activation
+or bundle-cap change. Recorded (not changed): scrub-collapsed identities
+still collide at the collector's unique row keys, and Git
+branches/worktrees have no collector consumer — pre-existing collector
+design, owned by a later K/collector change. This record closes the
+lane-level repair only; the whole M113 milestone stays planned until W
+integrates and the §6.0 checklist boxes are checked per milestone.
+
 Lanes P, S, R and V start once lane 0's contracts freeze, which can be as
 soon as M112's lane 0 has published the registry's types (for the session
 kind). The usage kind waits for M102, the native-host rows for M104b–d.

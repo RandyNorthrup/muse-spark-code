@@ -104,7 +104,8 @@ export function sessionSource(
             codeUnitCompare(a.check, b.check) ||
             codeUnitCompare(a.outcome, b.outcome) ||
             codeUnitCompare(a.commit, b.commit) ||
-            a.durationMs - b.durationMs,
+            a.durationMs - b.durationMs ||
+            codeUnitCompare(JSON.stringify(a), JSON.stringify(b)),
         ),
       },
       observedAt: read.observedAt,
@@ -115,7 +116,13 @@ export function scrubUsage(usage: unknown, scrub: SourceScrub): ReportSourcePayl
   const parsed = usageSchema.parse(scrubSourceValue(usage, scrub))
   return {
     ...parsed,
-    breakdown: parsed.breakdown.toSorted((a, b) => codeUnitCompare(a.key, b.key)),
-    limits: parsed.limits.toSorted((a, b) => codeUnitCompare(a.key, b.key)),
+    breakdown: parsed.breakdown.toSorted(
+      (a, b) =>
+        codeUnitCompare(a.key, b.key) || codeUnitCompare(JSON.stringify(a), JSON.stringify(b)),
+    ),
+    limits: parsed.limits.toSorted(
+      (a, b) =>
+        codeUnitCompare(a.key, b.key) || codeUnitCompare(JSON.stringify(a), JSON.stringify(b)),
+    ),
   }
 }
