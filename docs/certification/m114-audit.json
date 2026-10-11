@@ -10586,7 +10586,7 @@
   "sources": [
     {
       "file": "src/webview/App.tsx",
-      "sha256": "25fd8bb0c99c08dc3b907a2ebcdc7f07ddd431230a898397f6915b8db41669af"
+      "sha256": "7d0eb2e32c933fcf48e3e0a9f19d880b78c506ce3f5983389726135675121c5b"
     },
     {
       "file": "src/webview/TasksApp.tsx",
@@ -11206,7 +11206,7 @@
     },
     {
       "file": "src/webview/models/components/InlineError.tsx",
-      "sha256": "f1c3fa0be00ff0987a3d4f6bed5e51a8d4944b79d3349edeed7ff78eb02b35e4"
+      "sha256": "500f91c56fc1e956421fa12b47c1dacbb901e2121d8b0e35290c24bfd8b42060"
     },
     {
       "file": "src/webview/models/components/KeyState.tsx",
