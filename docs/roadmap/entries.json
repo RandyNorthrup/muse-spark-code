@@ -700,7 +700,7 @@
     {
       "id": "M96",
       "title": "Agent roles and teams",
-      "summary": "Planned agent roles with charters, tools, model pools and task limits, and teams in isolated workspaces whose hidden service enforces request claims, file policy and worker slots while remaining bindings and certification are pending.",
+      "summary": "Agent roles with charters, tools, model pools and task limits, with a draft editor and isolated engine workers kept hidden until production configuration bindings and certification are complete.",
       "area": "agents"
     },
     {

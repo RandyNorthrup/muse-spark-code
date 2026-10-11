@@ -6,6 +6,8 @@
 // suggestions) arrives as parameters, read from `dist/providers.js`.
 
 import * as vscode from 'vscode'
+import type { TeamPanelBinding, TeamPanelHost } from './teamPanelBinding'
+import { randomUUID } from 'node:crypto'
 import { GLOBAL_STATE_KEYS, PROVIDER_IMPORT_MAX_BYTES, UI_TEXT } from '../../shared/constants'
 import { providerSetupSchema } from '../../shared/providerSetup'
 import type { ChatSurface } from '../views/chatSurface'
@@ -33,6 +35,7 @@ export interface ModelsPanelMemento {
 }
 
 export interface ModelsPanelHostDeps {
+  readonly team?: TeamPanelBinding | undefined
   readonly connectChatGpt?: () => Promise<void>
   readonly connectCopilot?: () => Promise<void>
   readonly removeSubscription?: (id: string) => Promise<void>
@@ -300,6 +303,37 @@ export function createModelsPanelFeatures(
     },
   })
 
+  const team: TeamPanelHost | undefined =
+    host.team === undefined
+      ? undefined
+      : {
+          tree: host.team.tree,
+          onTreeChange: host.team.onTreeChange,
+          handle: host.team.handle,
+          load: async () => {
+            const binding = host.team
+            const configuration = binding?.configuration
+            if (configuration === undefined || !binding?.isEnabled()) return
+            const { createTeamPanel } = await import('../../core/team/teamPanelEntry')
+            return createTeamPanel(host.l10n.table, host.l10n.locale, {
+              ...configuration,
+              isEnabled: () => binding.isEnabled() && binding.configuration === configuration,
+              isTrusted: () => vscode.workspace.isTrusted,
+              state: binding.state,
+              reload: binding.reload,
+              newId: randomUUID,
+              confirmInPlace: async () =>
+                (await vscode.window.showWarningMessage(
+                  UI_TEXT.teamInPlaceConfirm,
+                  { modal: true },
+                  UI_TEXT.wizardContinue,
+                  UI_TEXT.wizardCancel,
+                )) === UI_TEXT.wizardContinue,
+              writeExport: host.writeExportFile ?? writeExportFile,
+              readImport: host.readImportFile ?? readImportFile,
+            })
+          },
+        }
   let panel: ModelsPanel | undefined
   const openPanel = (navigate?: ModelsPanelNavigate): void => {
     if (panel === undefined) {
@@ -308,6 +342,7 @@ export function createModelsPanelFeatures(
         l10n: host.l10n,
         log: host.log,
         providers,
+        team,
         connectChatGpt: host.connectChatGpt,
         connectCopilot: host.connectCopilot,
         removeSubscription: host.removeSubscription,

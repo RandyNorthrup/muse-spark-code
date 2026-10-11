@@ -5828,3 +5828,25 @@ local-only scans; missing dependency licences remain unknown. Private registry
 configuration is never contacted. CLI lookup still requires `--registry`.
 
 Containment-helper compilation uses heavy bootstrap admission, a bounded deadline and output, and whole-tree cancellation before its result is used. CLI and ACP process launches share runtime resource admission, including login and browser openers. The credential vault remains unavailable until its broker is installed.
+
+### Team configuration
+
+Roles and Agents in Models & Agents remain hidden until the production team
+worker binding and its complete configuration ports are installed. The portable editor and shared React sections
+are implemented and tested with an enabled fake host; that does not enable
+workers in the released extension. The saved workspace document is
+`museSpark.team.config`, followed by `TeamHostBinding.reload()`.
+
+For maintainers, `npm run harness:team` runs the standalone
+Roles and Agents scenes through axe in six themes, all 14 translations and
+320 px layouts. PNGs and the JSON receipts stay under
+`temp/cm962-harness/`; only their reviewed hashes and dimensions are tracked
+in the certification record. See [the U1 record](docs/certification/m96-u1.md)
+for the engine, model-registry and other-editor bindings required before
+these sections can be enabled.
+
+The editor keeps pending settings, caps and tool selections across unrelated
+host replies. Manual Default concurrency stays within the resolved model's
+ceiling. Tool search uses translated labels; pool filters include model
+families and fractional price limits, with prices formatted in the display
+language.

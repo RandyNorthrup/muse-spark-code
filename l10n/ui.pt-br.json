@@ -4540,6 +4540,29 @@
   },
   "teamInPlaceConfirm": "Um worker neste papel escreve na sua própria árvore, ao lado das suas edições. Só escritores que você permite funcionam assim: nunca um repositório, um papel de projeto ou um modelo.",
   "teamToolChecklist": "Conjunto de ferramentas",
+  "teamToolGroups": {
+    "read": "Leitura",
+    "codeIntel": "Inteligência de código",
+    "rename": "Renomear",
+    "write": "Escrita",
+    "shell": "Shell",
+    "readOnlyShell": "Shell somente leitura",
+    "testShell": "Shell de teste",
+    "checks": "Verificações",
+    "diagnostics": "Diagnósticos",
+    "webFetch": "Busca na Web",
+    "webSearch": "Pesquisa na Web",
+    "images": "Imagens",
+    "memoryRead": "Leitura de memória",
+    "skills": "Skills",
+    "report": "Relatório"
+  },
+  "teamReportShapes": {
+    "summary": "Resumo",
+    "review": "Revisão",
+    "qa": "Q&A"
+  },
+  "teamPoolFree": "Grátis",
   "teamAddEntry": "Adicionar entrada",
   "teamDefaultEntry": "Padrão",
   "teamDefaultResolves": "Padrão ({model})",
@@ -5391,5 +5414,45 @@
       "other": "{count} autorizações",
       "many": "{count} autorizações"
     }
-  }
+  },
+  "teamEditor": {
+    "purpose": "Objetivo",
+    "done": "Critérios de conclusão",
+    "guidance": "Orientações",
+    "roleId": "ID da função",
+    "pools": "Grupos",
+    "concurrent": "Limite simultâneo",
+    "caps": "Limites",
+    "task": "Tarefa",
+    "day": "Dia",
+    "lifetime": "Acumulado",
+    "addCap": "Adicionar limite",
+    "reapply": "Reaplicar nível",
+    "empty": "Nenhuma equipe em execução",
+    "save": "Salvar equipe",
+    "saved": "Equipe salva.",
+    "invalid": "Revise os valores inválidos ou ausentes da equipe antes de salvar.",
+    "moveLabel": "{entry} movido para a posição {position}.",
+    "noCalls": "Esta prévia não chama o modelo e não tem custo.",
+    "settings": "Configurações do modelo",
+    "agents": "Agentes",
+    "workspace": "Área de trabalho",
+    "poolKeys": "Alt+Cima / Alt+Baixo move esta entrada no grupo.",
+    "toolSearch": "Buscar ferramentas",
+    "transcript": "Abrir transcrição",
+    "diff": "Revisar diff",
+    "editRole": "Editar na seção Funções",
+    "stopAll": "Interromper todas as tarefas da equipe"
+  },
+  "teamEditorRoles": {
+    "research": "Pesquisa",
+    "design": "Desenho de soluções",
+    "marketing": "Estratégia de mercado",
+    "engineering": "Engenharia",
+    "qa": "Garantia de qualidade",
+    "code-review": "Revisão de código",
+    "docs": "Documentação"
+  },
+  "referenceTeamConfiguration": "Papéis e Agentes ficam ocultos até que as conexões dos agentes da equipe e da configuração sejam instaladas.",
+  "referenceTeamPoolKeys": "Alt+Cima / Alt+Baixo move esta entrada no grupo."
 }

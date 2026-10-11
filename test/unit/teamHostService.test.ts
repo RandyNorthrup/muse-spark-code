@@ -263,6 +263,16 @@ async function settle(): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, 0))
 }
 
+async function finishedTeam() {
+  const h = harness(team([entry('e1', WORKER_MODEL)]))
+  const service = createTeamHostService(h.deps)
+  await service.probeEntries()
+  await service.teamRunner.delegate(delegateOne, context())
+  h.finish(0)
+  await settle()
+  return { h, service }
+}
+
 describe('the team host service', () => {
   it('reads no team as no decision, no tree and no roster', () => {
     const service = createTeamHostService(harness(undefined).deps)
@@ -344,10 +354,8 @@ describe('the team host service', () => {
   })
 
   it("refuses merge in Plan mode and another conversation's task", async () => {
-    const h = harness(team([entry('e1', WORKER_MODEL)]))
-    const service = await startedTask(h)
-    h.finish(0)
-    await settle()
+    const { h, service } = await finishedTeam()
+
     expect(
       await output(
         service.teamRunner.merge({ task_id: 'task-1' }, context({ approvalMode: 'denyUnmatched' })),
@@ -441,10 +449,8 @@ describe('the team host service', () => {
   })
 
   it('discards a finished task from the tree without a merge', async () => {
-    const h = harness(team([entry('e1', WORKER_MODEL)]))
-    const service = await startedTask(h)
-    h.finish(0)
-    await settle()
+    const { h, service } = await finishedTeam()
+
     await service.decideMerge('task-1', 'discard')
     expect(h.discarded).toEqual(['task-1'])
     expect(h.merged).toEqual([])
@@ -652,6 +658,19 @@ describe('the window binding', () => {
     const source = bound.seams.teamDecisionSource(ORCHESTRATOR)
     expect(source === undefined ? undefined : decideTeamConversationMode(source).mode).toBe('team')
     expect(trees.at(-1)).toEqual(bound.tree())
+    await bound.dispose()
+  })
+
+  it('notifies the Roles and Agents subscriber and stops notifying after unsubscribe', async () => {
+    const { bound } = binding(team([entry('e1', WORKER_MODEL)]))
+    const changed = vi.fn()
+    const unsubscribe = bound.onTreeChange(changed)
+    await bound.open()
+    expect(changed).toHaveBeenCalled()
+    unsubscribe()
+    changed.mockClear()
+    bound.reload()
+    expect(changed).not.toHaveBeenCalled()
     await bound.dispose()
   })
 

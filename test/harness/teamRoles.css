@@ -1,0 +1,25 @@
+/* Only the fake native host's confirmation chrome lives here. */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: var(--ms-overlay);
+  padding: var(--ms-space-12);
+}
+
+.modal {
+  box-sizing: border-box;
+  max-width: 100%;
+  background: var(--ms-surface);
+  padding: var(--ms-space-12);
+  border: var(--ms-focus-width) solid var(--ms-boundary);
+  border-radius: var(--ms-radius-lg);
+}
+
+/* The fake host supplies typography through the same generated token fallback. */
+body,
+.models-panel {
+  font-family: var(--ms-font-ui);
+  font-size: var(--ms-font-size);
+}

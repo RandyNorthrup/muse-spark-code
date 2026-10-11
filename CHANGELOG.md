@@ -9,6 +9,16 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **Roles and Agents editor** (M96 U1, C-M96-2), kept hidden behind the team
+  worker availability gate. Strict workspace drafts support guided Pair
+  setup, editable charters, ordered pools, caps, model capability checks,
+  intensity, local suggestions and estimates, and credential-free import
+  and export. The shared Agent map forwards actions through the existing
+  team host. All 14 translations are included. Production worker/model
+  bindings and cross-editor certification remain prerequisites for exposing
+  the sections. New code and English text load lazily; the unchanged Models
+  panel body budget still needs the lead's integration repair.
+
 - **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
   first governed launch, a **Resources** chip sits beside the heartbeat, or
   above the composer between turns. Its popover shows CPU, memory in use and
@@ -85,6 +95,13 @@ happened, not what was planned; superseded entries are kept.
   activation bundle; sessions are kept and read as before (ACTBUD017).
 
 ### Fixed
+
+- The hidden Roles editor preserves pending composite edits across unrelated
+  host replies and manual Default concurrency across orchestrator edits. Tool
+  search matches translated labels; enabled-team navigation waits for its
+  English fallback. Pool filters support model families and fractional-price
+  saves, and option prices use the display language's currency rules. U1-only
+  English travels in its team chunk under the existing surface budget.
 
 - On macOS 26, a process that `ps` lists with an unknown state (`?`) while
   it changes no longer voids every resource tree's membership read, which

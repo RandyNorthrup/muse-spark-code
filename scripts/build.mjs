@@ -1,6 +1,10 @@
 #!/usr/bin/env node
 import { buildLinuxHelper } from './build-linux-helper.mjs'
-import { resourceBrowserValidation, webviewEntryMetafile } from './lib/webviewBundles.mjs'
+import {
+  resourceBrowserValidation,
+  teamPanelBrowserValidation,
+  webviewEntryMetafile,
+} from './lib/webviewBundles.mjs'
 import { listIntegrationTests } from './lib/integrationTests.mjs'
 // Bundles the extension host entry, the Model API backend, the review, the search worker,
 // web fetch's page converter worker (M69: parse5 and the HTML converter,
@@ -137,6 +141,8 @@ const CONFIGURED_ENTRY = 'src/host/backend/configuredProvidersEntry.ts'
 const CONFIGURED_OUTFILE = 'dist/configuredProviders.js'
 const SESSION_BOARD_ENTRY = 'src/host/sessionBoardEntry.ts'
 const SESSION_BOARD_OUTFILE = 'dist/sessionBoard.js'
+const TEAM_PANEL_ENTRY = 'src/core/team/teamPanelEntry.ts'
+const TEAM_PANEL_OUTFILE = 'dist/teamPanel.js'
 const TEAM_ENTRY = 'src/core/team/teamEntry.ts'
 const TEAM_OUTFILE = 'dist/team.js'
 const TEAM_SCHEDULER_ENTRY = 'src/core/team/teamSchedulerEntry.ts'
@@ -437,6 +443,12 @@ const teamOptions = {
 }
 
 /** @type {import('esbuild').BuildOptions} */
+const teamPanelOptions = {
+  ...teamOptions,
+  entryPoints: [TEAM_PANEL_ENTRY],
+  outfile: TEAM_PANEL_OUTFILE,
+}
+
 const teamSchedulerOptions = {
   ...teamOptions,
   entryPoints: [TEAM_SCHEDULER_ENTRY],
@@ -1084,6 +1096,7 @@ const webviewOptions = {
     ...(isProduction ? [lazyBrowserKeybindings] : []),
     browserReviewComment,
     resourceBrowserValidation,
+    teamPanelBrowserValidation,
     {
       name: 'reference-caller-react',
       setup(build) {
@@ -1220,6 +1233,7 @@ if (isWatch) {
     esbuild.context(schedulesOptions),
     esbuild.context(reviewerOptions),
     esbuild.context(teamOptions),
+    esbuild.context(teamPanelOptions),
     esbuild.context(teamRunnersOptions),
     esbuild.context(teamHostOptions),
     esbuild.context(teamFileIoOptions),
@@ -1337,6 +1351,7 @@ if (isWatch) {
     schedules: esbuild.build(schedulesOptions),
     reviewer: esbuild.build(reviewerOptions),
     team: esbuild.build(teamOptions),
+    teamPanel: esbuild.build(teamPanelOptions),
     teamRunners: esbuild.build(teamRunnersOptions),
     teamHost: esbuild.build(teamHostOptions),
     teamFileIo: esbuild.build(teamFileIoOptions),

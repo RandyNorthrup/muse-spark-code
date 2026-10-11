@@ -24,6 +24,8 @@
     "test/harness/reporting/verify.mjs",
     "src/extension.ts",
     "src/core/resources/resourceGovernorEntry.ts",
+    // U1: standalone portable controller factory, built by scripts/build.mjs.
+    "src/core/team/teamPanelEntry.ts",
     "src/core/resources/admissionEntry.ts",
     "src/runtime/exec/runExec.ts",
     "src/runtime/runtimeAccountingEntry.ts",
@@ -142,6 +144,8 @@
     // build's esbuild entry, which knip does not read, and the runner is run
     // by path for the panel scenes and axe (`node test/harness/vault/run.mjs`).
     "test/harness/vault/main.tsx",
+    // U1: the genuine React/controller page bundled by harness:team.
+    "test/harness/teamRoles.tsx",
     "test/harness/vault/run.mjs",
     // M115 schedule scenes: test/harness/index.html imports this page module.
     "test/harness/schedules.mjs",
