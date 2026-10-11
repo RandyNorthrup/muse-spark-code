@@ -22,6 +22,7 @@ import {
   COMMAND_IDS,
   CONTEXT_KEYS,
   DEFAULT_MODEL_ID,
+  CONTRIBUTOR_MODEL_SUFFIX,
   EXTENSION_NAME,
   DICTATION_HELPER_DIR,
   FIND_FILES_GLOB,
@@ -2535,8 +2536,23 @@ async function activateWindow(
     const surface = registry.active
     return surface === undefined ? undefined : controllers.get(surface.id)?.teamComposerModel()
   }
+  const teamModelRates = new Map<string, { input: number; output: number }>()
   const teamHost: TeamHostBinding = new TeamHostBinding({
     ports: {
+      hooks: {
+        relativePath: (folder) =>
+          workspaceRoot === undefined
+            ? undefined
+            : path.relative(workspaceRoot, folder).replaceAll('\\', '/'),
+        fire: async (sessionId, event, fields, matcher, signal) => {
+          const runner = areHooksArmed() ? await hookRunnerFor(false) : undefined
+          return (
+            (await runner?.teamEvent(sessionId, event, fields, matcher, signal)) ?? {
+              keepWorking: false,
+            }
+          )
+        },
+      },
       state: {
         get: (key) => context.workspaceState.get(key),
         update: async (key, value) => {
@@ -2571,9 +2587,17 @@ async function activateWindow(
         storageRoot: path.join(context.storageUri?.fsPath ?? storageRoot, 'team'),
         platform: process.platform,
         isTrusted: () => vscode.workspace.isTrusted,
+        rates: (agent) => teamModelRates.get(agent.model),
         listModels: async () => {
           const host = await modelApi.ensureHost()
           const models = await host.listModels()
+          for (const model of models) {
+            if (model.inputUsdPerMTokens !== undefined && model.outputUsdPerMTokens !== undefined)
+              teamModelRates.set(model.modelId, {
+                input: model.inputUsdPerMTokens,
+                output: model.outputUsdPerMTokens,
+              })
+          }
           return models.map((model) => model.modelId)
         },
         startWorker: async ({
@@ -2584,6 +2608,7 @@ async function activateWindow(
           noteUsage,
           parentSessionId,
           fenceIo,
+          settings,
         }) => {
           let budgetScope
           try {
@@ -2597,6 +2622,7 @@ async function activateWindow(
             noteUsage,
             budgetScope,
             fenceIo,
+            settings?.outputCap,
           )
           try {
             const session = await host.startSession({
@@ -2604,6 +2630,7 @@ async function activateWindow(
               modelId,
               approvalMode,
             })
+            if (settings?.effort !== undefined) await session.setReasoningEffort(settings.effort)
             return {
               session,
               toolNames: host.sessionToolNames(session.sessionId) ?? [],
@@ -3502,6 +3529,7 @@ async function activateWindow(
                 host:
                   kind === 'modelApi' ? await modelApi.ensureHost() : await backend.ensureHost(),
                 modelId: override.modelId,
+                settings: override.settings,
               }
             },
           },
@@ -4222,6 +4250,65 @@ async function activateWindow(
           log,
           globalState: context.globalState,
           team: {
+            configuration: {
+              offers: async () => {
+                const { buildTeamModelOffers } = await import('./core/team/teamPanelEntry')
+                const engineHost = await modelApi.ensureHost()
+                const models = await engineHost.listModels()
+                const configured = await subscriptionFeatures().teamDiscovery()
+                const museHost =
+                  auth.backend === 'museCode' ? await backend.ensureHost() : undefined
+                const museCode = museHost === undefined ? [] : await museHost.listModels()
+                const discovered = buildTeamModelOffers({
+                  engine: [
+                    ...models
+                      .filter(
+                        (model) => model.providerId === undefined || model.providerId === 'meta',
+                      )
+                      .map((model) => ({
+                        model,
+                        record: subscriptionFeatures().teamMetaRecord(model.modelId),
+                        preset: 'meta',
+                      })),
+                    ...configured.models,
+                  ],
+                  museCode,
+                  limits: usageRecording.limits?.() ?? [],
+                  maxWorkers: Math.min(
+                    TEAM_ENGINE_HARD_CEILING,
+                    TEAM_MAX_WORKERS_PER_CPU * availableParallelism(),
+                  ),
+                  canRunKind: (kind) => kind === 'engine',
+                })
+                return discovered.offers
+              },
+              defaultRef: () => `engine:${teamComposerModel()?.modelId ?? DEFAULT_MODEL_ID}`,
+              maxWorkers: () =>
+                Math.min(
+                  TEAM_ENGINE_HARD_CEILING,
+                  TEAM_MAX_WORKERS_PER_CPU * availableParallelism(),
+                ),
+              confirmOrchestrator: async (ref) => {
+                if (ref === undefined) return
+                if (!ref.startsWith('engine:')) throw new Error(UI_TEXT.teamEditor.invalid)
+                if (
+                  (teamComposerModel()?.backend ?? auth.backend) !== 'modelApi' &&
+                  (await vscode.window.showWarningMessage(
+                    UI_TEXT.modelApiBackendNotice,
+                    { modal: true },
+                    UI_TEXT.wizardContinue,
+                    UI_TEXT.wizardCancel,
+                  )) !== UI_TEXT.wizardContinue
+                )
+                  throw new Error(UI_TEXT.teamTryDenied)
+                const modelId = ref.slice('engine:'.length)
+                if (
+                  modelId.endsWith(CONTRIBUTOR_MODEL_SUFFIX) &&
+                  !(await isContributorModelAllowed(modelId))
+                )
+                  throw new Error(UI_TEXT.teamTryDenied)
+              },
+            },
             dryRun: {
               cost: () => paidFeaturePrice('teamWorkers'),
               run: async (document, sample, signal) => {

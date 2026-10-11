@@ -1,0 +1,38 @@
+{
+  "status": 1,
+  "failedTests": [
+    " FAIL  test/unit/teamEnginePorts.test.ts > the engine worker port > refuses saved settings the worker cannot carry before creating a copy",
+    " FAIL  test/unit/teamModelRegistry.test.ts > captured team discovery > omits an unavailable worker and an uncaptured tool capability",
+    " FAIL  test/unit/teamModelRegistry.test.ts > captured team discovery > uses only the latest account limit instead of reviving an older quota",
+    " FAIL  test/unit/teamModelRegistry.test.ts > captured team discovery > retains hard and machine ceilings for captured providers without numeric quota headers",
+    " FAIL  test/unit/teamTry.test.ts > paid team planning preview > carries an output cap into the actual request and rejects an invalid cap",
+    " FAIL  test/unit/teamTry.test.ts > paid team planning preview > refuses input beyond the quoted token ceiling before billed dispatch",
+    " FAIL  test/unit/teamTry.test.ts > paid team planning preview > freezes the draft before consent rather than sending later edits"
+  ],
+  "restoration": [
+    {
+      "file": "src/core/team/teamModelRegistry.ts",
+      "before": "6897a7f53cd84153e33b6bdd833fa5e353d9dbdcede8a157e8c86031b3b98afb",
+      "after": "6897a7f53cd84153e33b6bdd833fa5e353d9dbdcede8a157e8c86031b3b98afb",
+      "exact": true
+    },
+    {
+      "file": "src/host/team/teamEnginePorts.ts",
+      "before": "5e8c30b700d3b081924516ce631a9151a0d1d6fa9274dfb798323f9b193a861a",
+      "after": "5e8c30b700d3b081924516ce631a9151a0d1d6fa9274dfb798323f9b193a861a",
+      "exact": true
+    },
+    {
+      "file": "src/core/team/teamTry.ts",
+      "before": "2efbcea272c05e7d9ddd9345b41c609668521527895a9c4b8ca17d527ea5641d",
+      "after": "2efbcea272c05e7d9ddd9345b41c609668521527895a9c4b8ca17d527ea5641d",
+      "exact": true
+    },
+    {
+      "file": "src/core/backends/modelapi/ModelApiHost.ts",
+      "before": "d4b75b04b0e1d01393dcf145ac2339f4a96dd6418fecbd8a39a0d63aaaa7cb21",
+      "after": "d4b75b04b0e1d01393dcf145ac2339f4a96dd6418fecbd8a39a0d63aaaa7cb21",
+      "exact": true
+    }
+  ]
+}

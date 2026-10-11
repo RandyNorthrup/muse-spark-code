@@ -5877,6 +5877,15 @@ bindings remain behind the team availability gate pending the remaining ports
 and certification.
 
 The hidden Roles panel's paid Try sends the current draft to an isolated
-planning conversation. It asks once before spending, names the model's rates
+planning conversation with at most three attempts, a 4,096-token preflight input
+ceiling per attempt and 2,048 output tokens. It asks once before spending, names the model's rates
 and shared daily budget, runs no tools or workers, and displays charged cost
 and retained liability for uncertain responses. Closing the panel cancels it.
+
+The hidden configuration registry uses configured provider models and their captured
+capability records. It offers reasoning effort and output caps where they can be
+carried to an actual session. Unsupported saved settings refuse dispatch. Providers
+without discovery/capability captures, and Muse Code or external agents without a
+worker binding, stay absent. Team lifecycle hooks read ordinary hooks.json sources;
+selected-entry switch and Idle hooks read spark-hooks.json. Idle continuation remains
+within the task's admission and continuation limits.

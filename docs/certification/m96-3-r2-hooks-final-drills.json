@@ -1,0 +1,25 @@
+{
+  "status": 1,
+  "failedTests": [
+    " FAIL  test/unit/teamHostService.test.ts > team lifecycle hook firing > fires Start once and Stop once with the actual child session after cancellation",
+    " FAIL  test/unit/teamHostService.test.ts > team lifecycle hook firing > never repeats Stop when its first hook completion fails",
+    " FAIL  test/unit/teamHostService.test.ts > team lifecycle hook firing > records and refuses one switch, exhausting the role without a third fallback",
+    " FAIL  test/unit/teamHostService.test.ts > team lifecycle hook firing > does not fire Idle after a worker reaches its request ceiling",
+    " FAIL  test/unit/teamHostService.test.ts > team lifecycle hook firing > re-admits Idle continuations on the same copy and bounds them",
+    " FAIL  test/unit/teamHostService.test.ts > team lifecycle hook firing > keeps Idle siblings within their delegate call"
+  ],
+  "restoration": [
+    {
+      "file": "src/core/team/teamHost.ts",
+      "before": "90d211bf9eb845a5447096c0755d9966a148d5d312539f9e3f6d685911132c00",
+      "after": "90d211bf9eb845a5447096c0755d9966a148d5d312539f9e3f6d685911132c00",
+      "exact": true
+    },
+    {
+      "file": "src/host/extensionHooksRunner.ts",
+      "before": "4d85619b822abb4917f3697894256a54345ad68c93442e8af5369ee3b9630a66",
+      "after": "4d85619b822abb4917f3697894256a54345ad68c93442e8af5369ee3b9630a66",
+      "exact": true
+    }
+  ]
+}
