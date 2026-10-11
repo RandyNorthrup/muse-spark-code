@@ -103,10 +103,11 @@ describe('U authenticated panel host', () => {
     // real unlocked snapshot, and the foreign failure stays generic.
     expect(f.deps.showError).toHaveBeenCalledWith(UI_TEXT.vault.operationFailed)
     expect(f.deps.status).toHaveBeenLastCalledWith(true)
-    const published = f.deps.publish.mock.calls.map(
-      (call) => (call[0] as { state: { status: { state: string } } }).state.status.state,
+    expect(f.deps.publish).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        state: expect.objectContaining({ status: expect.objectContaining({ state: 'unlocked' }) }),
+      }),
     )
-    expect(published.at(-1)).toBe('unlocked')
     // A later refresh of the still-unlocked vault publishes it normally.
     const count = f.deps.publish.mock.calls.length
     await f.host.refresh()

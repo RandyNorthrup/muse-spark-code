@@ -118,6 +118,14 @@ happened, not what was planned; superseded entries are kept.
     disabled while the vault is unavailable or first-party-only, so nothing
     is offered that the broker would refuse. The section stays hidden until
     the broker binds, as before; no new user-visible string.
+  - Review repairs (RVCM1091D, CM1091DR2): every vault state gets its own
+    heading and sentence, so nothing asks for an unlock of a vault that
+    does not exist or is lost and no cached slot claims protection for one
+    that cannot be opened; item and path collisions refuse as conflict with
+    their own sentence instead of the setup sentence; a failed Lock restores
+    the vault's real snapshot instead of staying Locked; the grant-form
+    hints are table keys; the mounted harness paints every added state with
+    a true locked frame across all six themes.
 - `@muse-code/sdk` moves from 1.4.2 to 1.4.4 (SDK144). Muse Code 1.4.4
   (1.4.4-R5419.1) serves the new pin's schema fingerprint, so it connects
   without a mismatch warning; a 1.4.2 host now logs one, as older hosts did

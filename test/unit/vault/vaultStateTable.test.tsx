@@ -31,6 +31,14 @@ interface StateCase extends StateSentence {
 
 describe('RVCM1091D vault state table', () => {
   it('gives every typed state its own true heading', () => {
+    const states: VaultStatus['state'][] = [
+      'unlocked',
+      'locked',
+      'uncreated',
+      'setupPending',
+      'unavailable',
+      'firstPartyOnly',
+    ]
     const headings: Readonly<Record<VaultStatus['state'], string>> = {
       unlocked: UI_TEXT.vault.unlocked,
       locked: UI_TEXT.vault.locked,
@@ -39,8 +47,8 @@ describe('RVCM1091D vault state table', () => {
       unavailable: UI_TEXT.vault.stateUnavailable,
       firstPartyOnly: UI_TEXT.vault.firstParty,
     }
-    for (const [state, heading] of Object.entries(headings)) {
-      expect(vaultStateHeading(status({ state: state as VaultStatus['state'] }))).toBe(heading)
+    for (const state of states) {
+      expect(vaultStateHeading(status({ state }))).toBe(headings[state])
     }
   })
 

@@ -12,10 +12,11 @@ import '../../../src/webview/models/models.css'
 import { ModelsPanel } from '../../../src/webview/models/panel'
 import { INITIAL_PANEL_UI } from '../../../src/webview/models/reducer'
 import { type ModelsPanelState } from '../../../src/shared/modelsPanel'
-import { vaultScenarioState, type VaultMountedScenario } from './scenarios'
+import { VAULT_MOUNTED_SCENARIOS, vaultScenarioState, type VaultMountedScenario } from './scenarios'
 
 const query = new URLSearchParams(location.search)
-const scenario = (query.get('scenario') ?? 'mounted') as VaultMountedScenario
+const scenario: VaultMountedScenario =
+  VAULT_MOUNTED_SCENARIOS.find((entry) => entry === query.get('scenario')) ?? 'mounted'
 const now = Date.now()
 const vault = vaultScenarioState(scenario, now)
 const panelState: ModelsPanelState = {
