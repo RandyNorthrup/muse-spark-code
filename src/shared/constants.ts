@@ -5329,6 +5329,7 @@ export const REPORT_LABEL_KEYS = [
   'merged',
   'released',
   'complete',
+  'ended',
   'superseded',
   'waiting',
   'blocked',

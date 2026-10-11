@@ -2178,6 +2178,7 @@ export const EN = {
     merged: 'Merged',
     released: 'Released',
     complete: 'Complete',
+    ended: 'Ended',
     superseded: 'Superseded',
     waiting: 'Waiting',
     blocked: 'Blocked',

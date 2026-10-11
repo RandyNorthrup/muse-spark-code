@@ -93,6 +93,7 @@ describe('M113 regional reporting text', () => {
     expect(UI_TEXT.reportLabels.current).toBe('Aktuell')
     expect(UI_TEXT.reportLabels.lagging).toBe('Im Rückstand')
     expect(UI_TEXT.reportLabels.paused).toBe('Pausiert')
+    expect(UI_TEXT.reportLabels.ended).toBe('Beendet')
     expect(UI_TEXT.reportLabels.hookVerification).toBe('Hook-Prüfung')
     expect(fill(UI_TEXT.reportScheduleCells.triggerInterval, { everyMs: '3600000' })).toBe(
       'alle 3600000 ms',

@@ -52,8 +52,10 @@ export function createPlaybookReportReader(input: {
 /**
  * Store-content failures the reader maps to `invalid`, like the playbook
  * reader maps malformed journals: damaged JSON, a workspace or identity
- * mismatch, a broken revision chain and every zod parse rejection. Genuine
- * I/O failures stay `failed`. A corrupt store is never an empty success and
+ * mismatch, a broken revision chain, a fencing-token regression (another
+ * writer's older delta superseding the lease owner's: corrupt journal data,
+ * never a generic read failure) and every zod parse rejection. Genuine I/O
+ * failures stay `failed`. A corrupt store is never an empty success and
  * never a generic read failure with the store's reason discarded.
  */
 const SCHEDULE_CONTENT_FAILURES = new Set([
@@ -64,6 +66,7 @@ const SCHEDULE_CONTENT_FAILURES = new Set([
   'scheduleIndexRevisionMismatch',
   'scheduleIndexDeltaInvalid',
   'scheduleJournalLimitExceeded',
+  'scheduleJournalOwnershipLost',
 ])
 
 function isScheduleContentFailure(error: unknown): boolean {

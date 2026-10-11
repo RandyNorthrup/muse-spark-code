@@ -14,6 +14,12 @@ export interface SchedulesScheduleView {
   // Pre-rendered by the source in the installed language, like dates:
   // collectors read only the injected view, never the text table.
   readonly triggerText: string
+  readonly targetText: string
+  readonly deliveryText: string
+  // The agent creator's translated label with its technical id spliced
+  // after it; `undefined` for a user creator, which reads as the `user`
+  // label instead.
+  readonly creatorText: string | undefined
   readonly grantText: string
   readonly nextFireIso: string | undefined
 }
@@ -37,36 +43,10 @@ function triggerCell(entry: SchedulesScheduleView): ReportValue {
   return entry.schedule.trigger.kind === 'once' ? label('once') : text(entry.triggerText)
 }
 
-function targetSummary(schedule: ScheduleV2): string {
-  const target = schedule.target
-  switch (target.kind) {
-    case 'conversation': {
-      return `conversation:${target.sessionId}`
-    }
-    case 'newConversation': {
-      return `newConversation:${target.backend}`
-    }
-    case 'worker': {
-      return `worker:${target.workerId}`
-    }
-    case 'role': {
-      return `role:${target.teamId}/${target.roleId}`
-    }
-    case 'team': {
-      return `team:${target.teamId}`
-    }
-    case 'node': {
-      return `node:${target.nodeId}`
-    }
-  }
-}
-
-function creatorCell(schedule: ScheduleV2): ReportValue {
-  // The agent id is technical detail spliced after its label; the plain
-  // word is a label.
-  return schedule.creator.kind === 'user'
-    ? label('user')
-    : text(`agent:${schedule.creator.agentId}`)
+function creatorCell(entry: SchedulesScheduleView): ReportValue {
+  // A user creator is a label; an agent id is technical detail spliced
+  // after its translated label, pre-rendered by the source like dates.
+  return entry.schedule.creator.kind === 'user' ? label('user') : text(entry.creatorText ?? '')
 }
 
 function certaintyLabel(certainty: ScheduleFireRecord['cost']['certainty']): ReportValue {
@@ -75,15 +55,53 @@ function certaintyLabel(certainty: ScheduleFireRecord['cost']['certainty']): Rep
   return { type: 'label', value: certainty === 'exact' ? 'reported' : certainty }
 }
 
+/** The honest lifecycle word for a schedule row. `nowMs` is the report's own
+ * request stamp (`options.asOf`), never the clock, so the pure collector
+ * stays deterministic. Paused wins over ended: a paused schedule that also
+ * reached its end is still switched off, not due. */
+function scheduleStatus(
+  schedule: ScheduleV2,
+  nowMs: number,
+): 'paused' | 'ended' | 'complete' | 'active' {
+  const isEnded =
+    (schedule.end?.afterRuns !== undefined && schedule.fireCount >= schedule.end.afterRuns) ||
+    (schedule.end?.atMs !== undefined && nowMs >= schedule.end.atMs)
+  // The store drops the next-fire time when a time-advancing fire is
+  // admitted, so a one-shot schedule with no next fire already fired.
+  const isFiredOnce = schedule.trigger.kind === 'once' && schedule.nextFireAtMs === undefined
+  switch (true) {
+    case schedule.paused: {
+      return 'paused'
+    }
+    case isEnded: {
+      return 'ended'
+    }
+    case isFiredOnce: {
+      return 'complete'
+    }
+    default: {
+      return 'active'
+    }
+  }
+}
+
 export function schedulesSections(view: SchedulesView, options: ReportOptions): ReportSection[] {
+  const nowMs = Date.parse(options.asOf)
   // The timeline is upcoming fires. A paused schedule keeps its stored
   // next-fire time but the scheduler will not fire it (`canRun` is false
-  // while paused), so listing it would promise a fire that never comes. It
-  // stays in the schedules table with its paused status, never silently
-  // dropped, and stays out of other schedules' collision lists.
+  // while paused), so listing it would promise a fire that never comes. The
+  // same holds for a schedule that reached its end (`canRun` is false once
+  // `fireCount` meets `afterRuns` or `now` meets `end.atMs`) and for an
+  // event trigger (the scheduler only fires those on events, never at the
+  // stored time). Each stays in the schedules table with its honest status,
+  // never silently dropped, and stays out of other schedules' collision
+  // lists.
   const upcoming = view.schedules.filter(
     (entry): entry is SchedulesScheduleView & { schedule: ScheduleV2 & { nextFireAtMs: number } } =>
-      entry.schedule.nextFireAtMs !== undefined && !entry.schedule.paused,
+      entry.schedule.nextFireAtMs !== undefined &&
+      entry.schedule.trigger.kind !== 'event' &&
+      entry.schedule.trigger.kind !== 'afterEvent' &&
+      scheduleStatus(entry.schedule, nowMs) === 'active',
   )
   const timeline = upcoming.map((entry) => {
     const atMs = entry.schedule.nextFireAtMs
@@ -111,11 +129,11 @@ export function schedulesSections(view: SchedulesView, options: ReportOptions): 
       {
         name: text(schedule.name),
         trigger: triggerCell(entry),
-        target: text(targetSummary(schedule)),
-        delivery: text(schedule.delivery),
+        target: text(entry.targetText),
+        delivery: text(entry.deliveryText),
         grant: text(entry.grantText),
-        creator: creatorCell(schedule),
-        status: label(schedule.paused ? 'paused' : 'active'),
+        creator: creatorCell(entry),
+        status: label(scheduleStatus(schedule, nowMs)),
       },
       ['schedules'],
     )

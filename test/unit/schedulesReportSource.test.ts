@@ -88,6 +88,45 @@ describe('schedules source', () => {
     }
   })
 
+  it('renders event triggers, targets, delivery and agent creators in German', async () => {
+    await installGerman(new FakeLogOutputChannel())
+    try {
+      const job = scheduleV2Schema.parse(
+        scheduleFixture(FIXTURE_WORKSPACE_KEY, {
+          id: 'sched-event',
+          name: 'Ereignisauftrag',
+          trigger: {
+            kind: 'event',
+            source: 'github',
+            event: 'pullRequestOpened',
+            conditions: [],
+          },
+          target: { kind: 'worker', workerId: 'worker-1' },
+          delivery: 'steer',
+          creator: { kind: 'agent', agentId: 'agent-1', sessionId: 's1', orchestratorId: 'o1' },
+          nextFireAtMs: 2000,
+        }),
+      )
+      const result = await schedulesSource(reader([structuredClone(job)], []), scrub).read(
+        context(),
+      )
+      expect(result.record.status).toBe('ok')
+      // No English composed in code: every word comes from the installed
+      // table and only the technical ids stay as they came.
+      expect(sectionById(result.data, 'schedules/schedules').rows[0]!.cells).toMatchObject({
+        trigger: { type: 'text', value: 'Bei einem Ereignis: github:pullRequestOpened' },
+        target: { type: 'text', value: 'Arbeitsagent: worker-1' },
+        delivery: { type: 'text', value: 'Laufenden Durchgang lenken' },
+        creator: { type: 'text', value: 'Ersteller: agent-1' },
+        status: { type: 'label', value: 'active' },
+      })
+      // The event trigger is armed, never an upcoming timed fire.
+      expect(sectionById(result.data, 'schedules/timeline').rows).toHaveLength(0)
+    } finally {
+      setUiText(EN, 'en')
+    }
+  })
+
   it('reads an empty store as ok with empty sections, never invented rows', async () => {
     const result = await schedulesSource(reader([], []), scrub).read(context())
     expect(result.record.status).toBe('ok')
