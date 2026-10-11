@@ -1,6 +1,10 @@
 import { useId, useState } from 'react'
 import { UI_TEXT } from '../../../shared/constants'
 
+function isWindowCount(tokens: number): boolean {
+  return Number.isSafeInteger(tokens) && tokens > 0
+}
+
 /** Shared local-model field: draft text stays editable; only validated counts cross the bridge. */
 export function ContextWindow({
   model,
@@ -27,10 +31,14 @@ export function ContextWindow({
         aria-invalid={invalid}
         aria-describedby={`${id}-hint`}
         onChange={(event) => {
+          setInvalid(!isWindowCount(event.target.valueAsNumber))
+        }}
+        onBlur={(event) => {
           const tokens = event.target.valueAsNumber
-          const isValid = Number.isSafeInteger(tokens) && tokens > 0
-          setInvalid(!isValid)
-          if (isValid) onChange(tokens)
+          if (isWindowCount(tokens)) onChange(tokens)
+        }}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') event.currentTarget.blur()
         }}
       />
       <span id={`${id}-hint`} className="models-hint" role={invalid ? 'alert' : undefined}>
