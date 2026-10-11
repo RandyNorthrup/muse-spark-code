@@ -1062,8 +1062,11 @@ describe('C-M109-4 R3 vault item names', () => {
       f.advanceRelease()
       await expect(f.service.retire(f.credential.key)).rejects.toMatchObject({ code: 'conflict' })
     }
-    // Deleted: its own typed state, undo refuses and leaves it absent,
-    // retire completes with the vault item still present.
+    // Deleted behind the vault: its own typed state, undo refuses and
+    // leaves it absent, and retire never completes it silently — no notice,
+    // no `retired` row, the report stays until the caller answers it. An
+    // unconfirmed delete of the last copy refuses; the confirmed one
+    // destroys it and records `deleted`.
     {
       const f = await behindActive(async (fixture) => {
         await fixture.secrets.delete(fixture.credential.key)
@@ -1075,11 +1078,17 @@ describe('C-M109-4 R3 vault item names', () => {
       expect(await f.service.retire(f.credential.key)).toBe(false)
       f.advanceRelease()
       f.advanceRelease()
-      expect(await f.service.retire(f.credential.key)).toBe(true)
-      expect(f.entries.has(f.credential.key)).toBe(false)
+      expect(await f.service.retire(f.credential.key)).toBe(false)
+      expect(f.onRetired).not.toHaveBeenCalled()
+      expect(f.journal.get(f.credential.key)?.phase).toBe('active')
+      expect(await f.service.migrate(f.credential.key)).toBe('legacyDeleted')
+      await expect(f.service.delete(f.credential.key)).rejects.toMatchObject({ code: 'conflict' })
       const listing = await f.vault.list()
       expect(listing.map((metadata) => metadata.id)).toContain(f.credential.itemId)
-      expect(JSON.stringify(listing)).not.toContain('synthetic-')
+      await f.service.delete(f.credential.key, { destroyLastCopyConfirmed: true })
+      expect(f.journal.get(f.credential.key)?.phase).toBe('deleted')
+      expect(await f.vault.list()).toEqual([])
+      expect(JSON.stringify(await f.vault.list())).not.toContain('synthetic-')
     }
     // Replaced by another shape: undecodable here, so diverged; undo and
     // late retire refuse with `invalid` and touch nothing.
@@ -1106,6 +1115,225 @@ describe('C-M109-4 R3 vault item names', () => {
       expect(await f.service.migrate(f.credential.key)).toBe('diverged')
       await expect(f.service.undo(f.credential.key)).rejects.toMatchObject({ code: 'invalid' })
       expect(f.entries.get(f.credential.key)).toBe('not JSON at all')
+    }
+  })
+
+  it('a kill at every retire await is never reported as a user deletion', async () => {
+    // RVCM1094D finding 1: `retire` is the only destructive step that wrote
+    // no journal row before it acted, so a crash between its legacy delete
+    // and its `retired` save was indistinguishable from a deletion behind
+    // the vault. `retire` now writes a durable retire intent before the
+    // delete; the table below kills every await of `retire` for each of the
+    // three codecs and crosses each kill with migrate, resume, retire, undo
+    // and delete. In no cell is a key reported deleted that nobody deleted,
+    // and in no cell is the last copy destroyed without the confirmed flag.
+    // Seeds use the real installed writers; only the crash itself is a
+    // rejected port.
+    const KIND: Record<string, string> = {
+      provider: 'synthetic-crash-provider-key',
+      account: 'synthetic-crash-account-key',
+      modelApi: 'LLM_TestOnlyCrash00000000000000000000000',
+    }
+    async function crashed(
+      kind: 'provider' | 'account' | 'modelApi',
+      kill: 'beforeIntent' | 'afterIntent' | 'afterDelete' | 'afterState',
+    ) {
+      let credential: MigrationCredential
+      if (kind === 'provider')
+        credential = providerCredentialMigrationCredential('openai', () => 1000)
+      else if (kind === 'account')
+        credential = accountSecretMigrationCredential('openai', 'work', () => 1000)
+      else credential = modelApiMigrationCredential(() => 1000)
+      const vault = new InMemoryVault()
+      const legacy = new Map<string, Uint8Array>()
+      const journal = new Map<string, MigrationRecord>()
+      let release = 10
+      const onRetired = vi.fn()
+      const deps: MigrationDeps = {
+        vault: {
+          list: () => vault.list(),
+          read: (id) => vault.read(id),
+          write: (item, authorize) => {
+            authorize()
+            return vault.write(item)
+          },
+          remove: (id, authorize) => {
+            authorize()
+            return vault.remove(id)
+          },
+        },
+        legacy: {
+          read: (key) => {
+            const value = legacy.get(key)
+            return Promise.resolve(value ? Uint8Array.from(value) : null)
+          },
+          write: (key, value, authorize) => {
+            authorize()
+            legacy.set(key, Uint8Array.from(value))
+            return Promise.resolve()
+          },
+          remove: (key, authorize) => {
+            authorize()
+            legacy.delete(key)
+            return Promise.resolve()
+          },
+        },
+        journal: {
+          sourceId: 'test-crash-source',
+          read: (key) => Promise.resolve(structuredClone(journal.get(key) ?? null)),
+          write: (row, authorize) => {
+            authorize()
+            journal.set(row.key, structuredClone(row))
+            return Promise.resolve()
+          },
+        },
+        owner: {
+          run<T>(work: (lease: MigrationLease) => Promise<T>): Promise<T> {
+            return work({ assertCurrent: () => undefined })
+          },
+        },
+        minorRelease: () => release,
+        onRetired,
+      }
+      const service = new VaultMigration(deps, [credential])
+      // Seed through the installed writer, then copy its bytes behind the
+      // engine's legacy port, so `decode` meets installed bytes.
+      const entries = new Map<string, string>()
+      const secrets: SecretStore = {
+        get: (key) => Promise.resolve(entries.get(key)),
+        store: (key, value) => {
+          entries.set(key, value)
+          return Promise.resolve()
+        },
+        delete: (key) => {
+          entries.delete(key)
+          return Promise.resolve()
+        },
+      }
+      if (kind === 'provider')
+        await saveProviderCredential(secrets, 'openai', {
+          v: 1,
+          auth: 'apiKey',
+          origin: 'https://api.openai.com',
+          secret: KIND[kind]!,
+        })
+      else if (kind === 'account')
+        await secretStorageAccountVault(secrets).write(
+          { provider: 'openai', account: 'work', origin: 'https://api.openai.com' },
+          {
+            provider: 'openai',
+            account: 'work',
+            origin: 'https://api.openai.com',
+            v: 1,
+            auth: 'apiKey',
+            secret: KIND[kind]!,
+          },
+        )
+      else await secrets.store(credential.key, KIND[kind]!)
+      legacy.set(credential.key, Buffer.from(entries.get(credential.key)!, 'utf8'))
+      expect(await service.migrate(credential.key)).toBe('active')
+      release += VAULT_LEGACY_RETAIN_RELEASES
+      const journalWrite = deps.journal.write
+      const legacyRemove = deps.legacy.remove
+      let didCrashRemove = false
+      const crashingRemove: MigrationDeps['legacy']['remove'] = (key, authorize) => {
+        if (!didCrashRemove) {
+          didCrashRemove = true
+          return Promise.reject(new Error('crash before the legacy delete'))
+        }
+        return legacyRemove(key, authorize)
+      }
+      const crashingWrite: MigrationDeps['journal']['write'] = (row, authorize) => {
+        const isKillWrite =
+          (kill === 'beforeIntent' && row.phase === 'active' && row.retireIntent === true) ||
+          (kill === 'afterDelete' && row.phase === 'retired') ||
+          (kill === 'afterState' &&
+            row.phase === 'retired' &&
+            row.retirementNoticePending === false)
+        return isKillWrite
+          ? Promise.reject(new Error('crash at the journal write'))
+          : journalWrite(row, authorize)
+      }
+      deps.legacy.remove = kill === 'afterIntent' ? crashingRemove : legacyRemove
+      deps.journal.write = kill === 'afterIntent' ? journalWrite : crashingWrite
+      await expect(service.retire(credential.key)).rejects.toMatchObject({ code: 'storage' })
+      deps.journal.write = journalWrite
+      deps.legacy.remove = legacyRemove
+      return { service, credential, vault, legacy, journal, onRetired }
+    }
+    const kills = ['beforeIntent', 'afterIntent', 'afterDelete', 'afterState'] as const
+    for (const kind of ['provider', 'account', 'modelApi'] as const) {
+      for (const kill of kills) {
+        const isLegacyPresent = kill === 'beforeIntent' || kill === 'afterIntent'
+        const isIntentSet = kill !== 'beforeIntent'
+        // migrate: never `legacyDeleted` for the engine's own retire; the
+        // interrupted retire finishes with the ordinary notice.
+        {
+          const f = await crashed(kind, kill)
+          const state = await f.service.migrate(f.credential.key)
+          expect(state, `${kind}/${kill}/migrate`).not.toBe('legacyDeleted')
+          if (!isIntentSet || isLegacyPresent) expect(state).toBe('active')
+          else {
+            expect(state).toBe('retired')
+            expect(f.onRetired).toHaveBeenCalledTimes(1)
+            expect(f.journal.get(f.credential.key)?.phase).toBe('retired')
+          }
+          expect(f.legacy.has(f.credential.key)).toBe(isLegacyPresent)
+        }
+        // resume: finishes the engine's own retire, ignores anything else.
+        {
+          const f = await crashed(kind, kill)
+          await f.service.resume(f.credential.key)
+          if (isIntentSet) {
+            expect(f.journal.get(f.credential.key)?.phase, `${kind}/${kill}/resume`).toBe('retired')
+            // `afterState` fired the notice before the crash; resume fires
+            // nothing more, while the other two finish with one notice.
+            expect(f.onRetired).toHaveBeenCalledTimes(1)
+          } else expect(f.journal.get(f.credential.key)?.phase).toBe('active')
+        }
+        // retire: a retry always finishes; the pending notice refires once.
+        {
+          const f = await crashed(kind, kill)
+          expect(await f.service.retire(f.credential.key), `${kind}/${kill}/retire`).toBe(true)
+          expect(f.journal.get(f.credential.key)?.phase).toBe('retired')
+          expect(f.onRetired).toHaveBeenCalledTimes(kill === 'afterState' ? 2 : 1)
+          expect(f.legacy.has(f.credential.key)).toBe(false)
+        }
+        // undo: the window has passed, so it refuses and writes nothing.
+        {
+          const f = await crashed(kind, kill)
+          const before = structuredClone([...f.journal])
+          await expect(
+            f.service.undo(f.credential.key),
+            `${kind}/${kill}/undo`,
+          ).rejects.toMatchObject({ code: 'window' })
+          expect([...f.journal]).toEqual(before)
+          expect(f.legacy.has(f.credential.key)).toBe(isLegacyPresent)
+          const listing = await f.vault.list()
+          expect(listing.some((metadata) => metadata.id === f.credential.itemId)).toBe(true)
+        }
+        // delete: with both copies present it removes both; with only the
+        // vault copy left it refuses without the confirmed flag and the last
+        // copy survives, and destroys it with the flag.
+        {
+          const f = await crashed(kind, kill)
+          if (isLegacyPresent) await f.service.delete(f.credential.key)
+          else {
+            await expect(
+              f.service.delete(f.credential.key),
+              `${kind}/${kill}/delete`,
+            ).rejects.toMatchObject({ code: 'conflict' })
+            const surviving = await f.vault.list()
+            expect(
+              surviving.some((metadata) => metadata.id === f.credential.itemId),
+              `${kind}/${kill}/last copy survives`,
+            ).toBe(true)
+            await f.service.delete(f.credential.key, { destroyLastCopyConfirmed: true })
+          }
+          expect(f.journal.get(f.credential.key)?.phase).toBe('deleted')
+          expect(await f.vault.list()).toEqual([])
+        }
+      }
     }
   })
 
