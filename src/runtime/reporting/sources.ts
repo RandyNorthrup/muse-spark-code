@@ -160,7 +160,7 @@ async function discoverAgentFiles(
         if (visited >= REPORT_MAX_ROWS) throw new LocalSourceError('limit')
         visited += 1
         const file = `${directory}/${entry.name}`
-        if (isAgentUsagePath(agent, file)) files.push({ agent, file, io })
+        if (!entry.directory && isAgentUsagePath(agent, file)) files.push({ agent, file, io })
         else if (
           entry.directory &&
           (agent === 'claudeCode'

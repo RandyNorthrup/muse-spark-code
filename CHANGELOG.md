@@ -109,6 +109,22 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Local report sources sort every tied list to a total order, so the same
+  inputs produce byte-identical source facts whatever order records arrive
+  in: Git commits, tags, branches and worktrees break key ties on their
+  full serialized bytes, session check runs break remaining ties on
+  serialized bytes after the existing timestamp/check/outcome/commit/
+  duration fields, usage breakdown and limit keys do the same, scrubbed
+  question ids do the same, and agent file order normalizes Windows
+  separators before comparing. Permuted valid inputs additionally render
+  byte-identical changes, project, session and usage reports in Markdown,
+  HTML, JSON and text. Distinct records that scrub to the same key still
+  collide at the collector's unique row keys; that pre-existing collector
+  limitation is recorded, not changed, by this repair. Runtime discovery
+  also refuses directory entries shaped like session files, so a folder
+  named `*.jsonl` can no longer mark a usage read partial (C-M113-1,
+  RVM113S tie-breaks, RVCM1131 findings 1–3).
+
 - On macOS 26, a process that `ps` lists with an unknown state (`?`) while
   it changes no longer voids every resource tree's membership read, which
   could refuse Stop/kill for a tree while any process on the Mac was mid-transition.
