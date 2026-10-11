@@ -4062,6 +4062,11 @@
   "providerImportPreviewTitle": "インポートのプレビュー",
   "importNeedsKey": "キーが必要です",
   "importNeedsKeyLabel": "キーが必要です",
+  "providerConnectFailed": "OpenRouterへの接続に失敗しました。もう一度接続してください。",
+  "providerUsageFailed": "OpenRouterキーの使用量を読み取れませんでした。再試行してください。",
+  "providerPasteCode": "OpenRouterに表示された認証コードを貼り付けてください。",
+  "usageKeyTotal": "総使用量",
+  "usageUnlimited": "上限なし",
   "providerOpenRouterServices": "OpenRouterアカウントを接続し、キーの使用量、上限、残高を確認できます。",
   "refreshModels": "モデルを更新",
   "scanNewModels": {
@@ -5122,10 +5127,5 @@
     "grantsCount": {
       "other": "{count} 件の許可"
     }
-  },
-  "providerConnectFailed": "OpenRouterへの接続に失敗しました。もう一度接続してください。",
-  "providerUsageFailed": "OpenRouterキーの使用量を読み取れませんでした。再試行してください。",
-  "providerPasteCode": "OpenRouterに表示された認証コードを貼り付けてください。",
-  "usageKeyTotal": "総使用量",
-  "usageUnlimited": "上限なし"
+  }
 }

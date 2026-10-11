@@ -678,7 +678,7 @@
     {
       "id": "M95",
       "title": "Bring your own models",
-      "summary": "Add origin-bound provider keys or connect OpenRouter in the browser, view its key usage and limits, and match model features and output caps to capabilities.",
+      "summary": "Add origin-bound provider keys or connect OpenRouter in the browser, view current-key usage and limits, cancel authorization safely, and match model features and output caps to capabilities.",
       "area": "models-providers",
       "release": "0.15.0"
     },

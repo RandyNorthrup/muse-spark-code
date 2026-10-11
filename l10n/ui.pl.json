@@ -4392,6 +4392,11 @@
   "providerImportPreviewTitle": "Podgląd importu",
   "importNeedsKey": "wymaga klucza",
   "importNeedsKeyLabel": "wymaga klucza",
+  "providerConnectFailed": "Połączenie z OpenRouter nie powiodło się. Spróbuj połączyć się ponownie.",
+  "providerUsageFailed": "Nie udało się odczytać użycia klucza OpenRouter. Spróbuj ponownie.",
+  "providerPasteCode": "Wklej kod autoryzacji wyświetlony przez OpenRouter.",
+  "usageKeyTotal": "Łączne użycie",
+  "usageUnlimited": "Bez limitu",
   "providerOpenRouterServices": "Połącz konto OpenRouter i sprawdź użycie klucza, limit i pozostałe saldo.",
   "refreshModels": "Odśwież modele",
   "scanNewModels": {
@@ -5584,10 +5589,5 @@
       "few": "{count} uprawnienia",
       "many": "{count} uprawnień"
     }
-  },
-  "providerConnectFailed": "Połączenie z OpenRouter nie powiodło się. Spróbuj połączyć się ponownie.",
-  "providerUsageFailed": "Nie udało się odczytać użycia klucza OpenRouter. Spróbuj ponownie.",
-  "providerPasteCode": "Wklej kod autoryzacji wyświetlony przez OpenRouter.",
-  "usageKeyTotal": "Łączne użycie",
-  "usageUnlimited": "Bez limitu"
+  }
 }

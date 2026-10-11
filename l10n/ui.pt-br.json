@@ -4282,6 +4282,11 @@
   "providerImportPreviewTitle": "Prévia da importação",
   "importNeedsKey": "precisa de uma chave",
   "importNeedsKeyLabel": "precisa de uma chave",
+  "providerConnectFailed": "A conexão com o OpenRouter falhou. Tente conectar novamente.",
+  "providerUsageFailed": "Não foi possível consultar o uso da chave do OpenRouter. Tente novamente.",
+  "providerPasteCode": "Cole o código de autorização exibido pelo OpenRouter.",
+  "usageKeyTotal": "Uso total",
+  "usageUnlimited": "Sem limite",
   "providerOpenRouterServices": "Conecte sua conta do OpenRouter e veja o uso da chave, o limite e o saldo restante.",
   "refreshModels": "Atualizar os modelos",
   "scanNewModels": {
@@ -5430,10 +5435,5 @@
       "other": "{count} autorizações",
       "many": "{count} autorizações"
     }
-  },
-  "providerConnectFailed": "A conexão com o OpenRouter falhou. Tente conectar novamente.",
-  "providerUsageFailed": "Não foi possível consultar o uso da chave do OpenRouter. Tente novamente.",
-  "providerPasteCode": "Cole o código de autorização exibido pelo OpenRouter.",
-  "usageKeyTotal": "Uso total",
-  "usageUnlimited": "Sem limite"
+  }
 }
