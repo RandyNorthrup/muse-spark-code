@@ -9,7 +9,7 @@ import { fill, plural } from '../../shared/l10n/text'
 import { useFormatUsd } from '../money'
 
 /** A usage amount with the lazy money chunk's exact display. */
-function UsageAmount({ usd }: { readonly usd: number }) {
+function UsageAmount({ usd }: { readonly usd: number | string }) {
   const formatted = useFormatUsd(usd, 2)
   return formatted === undefined ? null : <>{formatted}</>
 }
@@ -101,7 +101,7 @@ function KeyUsage({ provider }: { readonly provider: ProviderState }) {
   if (usage === undefined) {
     return null
   }
-  const rows: (readonly [string, number])[] = []
+  const rows: (readonly [string, number | string])[] = []
   if (usage.totalUsd !== undefined) rows.push([UI_TEXT.usageKeyTotal, usage.totalUsd])
   if (usage.weekUsd !== undefined) rows.push([UI_TEXT.usageWeekly, usage.weekUsd])
   if (usage.dayUsd !== undefined) {

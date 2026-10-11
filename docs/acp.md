@@ -203,7 +203,10 @@ openrouter --model <native-model-id>` uses the stored key, with ZDR routing
 by default. `muse-spark-code-acp providers usage openrouter` shows total,
 daily, weekly and monthly key usage, limit and remaining balance; a saved
 OpenRouter alias can replace `openrouter`. Usage reads cost no credits and
-make no model call. Failure text contains no service response or secret.
+make no model call. Cancellation discards late exchanged keys, and adding a
+model refuses if the connected credential changed during its probes. A reused
+credential is read-only, including when saving the provider fails. Failure
+text contains no service response or secret.
 
 Free probes use the shared request transport. `exec --provider` validates its
 configuration and key, but refuses before dispatch: its production runner

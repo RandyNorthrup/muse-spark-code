@@ -804,7 +804,10 @@ the same origin-bound key path as a pasted key. Local windows require no
 copy-paste; remote windows ask for the single-use authorization code in a
 password box. Models & Agents and Account & usage read OpenRouter’s key
 endpoint to show total, daily, weekly and monthly usage, the limit and
-remaining balance. **Refresh** in the provider row reads it again. These are
+remaining balance. **Refresh** in the provider row reads it again. Missing,
+changed or unreadable credentials discard the previous key's amounts.
+**Cancel**, **Back**, and closing the panel stop pending authorization and
+usage requests; a late connection cannot save a key. These are
 free account reads, with no model request. New setups keep no data retention
 (ZDR) routing. A failed read says so instead of displaying zero usage. The ACP agent offers
 `providers connect openrouter` and `providers usage <id>` through the same

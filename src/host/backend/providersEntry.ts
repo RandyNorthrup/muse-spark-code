@@ -27,6 +27,8 @@ export { recordPlanUsage } from '../../core/providers/subscriptions/planUsage'
 export {
   connectOpenRouterAccount,
   readOpenRouterKeyUsage,
+  readOpenRouterPanelUsage,
+  promptOpenRouterCode,
   OPENROUTER_ORIGIN,
 } from '../providers/openRouter'
 export { startOAuthLoopback } from '../providers/oauthLoopback'

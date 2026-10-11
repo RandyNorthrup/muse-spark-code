@@ -167,6 +167,7 @@ async function commitProviderChange(
   change: (file: ProvidersFile) => ProvidersFile | undefined,
   isRemoving: boolean,
   secret?: string,
+  expectedSecret?: string,
 ): Promise<number> {
   const commit = async () => {
     const loaded = fileOrError(await deps.readUserFile())
@@ -180,7 +181,10 @@ async function commitProviderChange(
           provider: id,
         }),
       )
-    const account = isRemoving || secret !== undefined ? providerSecretAccount(id) : undefined
+    const account =
+      isRemoving || secret !== undefined || expectedSecret !== undefined
+        ? providerSecretAccount(id)
+        : undefined
     let previous: string | undefined
     if (account !== undefined) {
       try {
@@ -192,8 +196,12 @@ async function commitProviderChange(
         )
       }
     }
+    if (expectedSecret !== undefined && previous !== expectedSecret)
+      return failed(deps, UI_TEXT.providerEditConflict)
     const canRestore = async () => {
-      if (account === undefined) return true
+      // A borrowed credential is never written or restored: another actor
+      // may rotate/remove it even while a configuration write is failing.
+      if (account === undefined || (!isRemoving && secret === undefined)) return true
       try {
         if (previous === undefined) await deps.secrets.delete(account)
         else await deps.secrets.store(account, previous)
@@ -600,6 +608,7 @@ export async function providersAdd(
     return failed(deps, state.error)
   }
   let key: string | undefined
+  let reusedSecret: string | undefined
   if (preset.auth === 'apiKey') {
     let typed: string
     if (options.keyFromStdin) {
@@ -620,6 +629,7 @@ export async function providersAdd(
         return failed(deps, fill(UI_TEXT.providerKeyNeeded, { provider: id }))
       }
       typed = parsed.key
+      reusedSecret = stored
     }
     if (typed.trim() === '') {
       return failed(deps, UI_TEXT.providerKeyNotStored)
@@ -736,12 +746,13 @@ export async function providersAdd(
       }
     },
     false,
-    key === undefined
+    key === undefined || reusedSecret !== undefined
       ? undefined
       : formatStoredProviderSecret(
           { v: CREDENTIAL_RECORD_VERSION, auth: 'apiKey', origin: address.origin },
           key,
         ),
+    reusedSecret,
   )
   if (committed !== EXIT_OK) return committed
   const summary = wizardSummary(state)

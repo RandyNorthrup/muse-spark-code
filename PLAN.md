@@ -19289,6 +19289,17 @@ in-tree junctions below it, drive-letter spelling) and
 
 ## 3. Open questions (need the owner)
 
+**CM952R2 qualification decision (2026-10-11).** The six assigned review
+findings are repaired with named passing regressions and red controls. Direct
+release packaging needs the absent Darwin/Linux native artifacts. The unchanged
+M102 `usageIntegration.test.ts` authenticated-page case also exceeds its five-
+second default on macmini after isolated replay; real storage reads dominate
+its measured path. The CM952 lane-file fence excludes that test and its
+storage owner. The lead must supply native inputs and decide the M102 fixture
+scope or rig qualification before considering the lane fully gated. Neither
+blocker is an accepted residual or a green gate. Evidence:
+`docs/certification/cm952.md` and `cm952r2-tests.json`.
+
 **Q-VIS0171-RELEASE-NOTES resolved by lead (2026-10-10, linuxlt).** Round 2
 explicitly approves the 116 Title Case scenes, `models-errors` with the
 provider-picker repair, and the three What's New scenes as class (b'):

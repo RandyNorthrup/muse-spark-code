@@ -19,11 +19,34 @@ type OpenRouterApi = Pick<
   'openRouterExchange' | 'openRouterUsage'
 >
 
+const connecting = new WeakSet<ProvidersDeps['secrets']>()
+
 export async function runOpenRouterConnect(
   deps: ProvidersDeps,
   api: OpenRouterApi,
+  callerSignal?: AbortSignal,
 ): Promise<number> {
+  if (connecting.has(deps.secrets)) {
+    deps.printError(UI_TEXT.providerConnectFailed)
+    return 1
+  }
+  connecting.add(deps.secrets)
+  const controller = new AbortController()
+  const signal =
+    callerSignal === undefined
+      ? controller.signal
+      : AbortSignal.any([callerSignal, controller.signal])
+  const abort = () => {
+    controller.abort()
+    // This command owns terminal input; stop its handle and restore echo on
+    // process interruption even if a hidden-input port has not settled yet.
+    if (process.stdin.isTTY) process.stdin.setRawMode(false)
+    process.stdin.pause()
+  }
+  process.once('SIGINT', abort)
+  process.once('SIGTERM', abort)
   try {
+    signal.throwIfAborted()
     const target = await keyTargetFor(deps.readUserFile, 'openrouter')
     const account = providerSecretAccount('openrouter')
     if (
@@ -36,7 +59,11 @@ export async function runOpenRouterConnect(
     const previous = await deps.secrets.get(account)
     const connection = await connectOpenRouterAccount({
       pkce: { create: pkce.createPkcePair, newState: () => pkce.createPkcePair().state },
-      exchange: { exchange: (request) => api.openRouterExchange(request.code, request.verifier) },
+      exchange: {
+        exchange: (request) =>
+          api.openRouterExchange(request.code, request.verifier, request.signal),
+      },
+      signal,
       // A terminal/remote editor displays the documented headless URL; the
       // user pastes only its single-use code through the non-echoing reader.
       isRemote: true,
@@ -49,6 +76,7 @@ export async function runOpenRouterConnect(
     })
     if (connection === undefined) return 1
     const store = async () => {
+      signal.throwIfAborted()
       const current = await keyTargetFor(deps.readUserFile, 'openrouter')
       if (
         !current.ok ||
@@ -57,17 +85,25 @@ export async function runOpenRouterConnect(
         (await deps.secrets.get(account)) !== previous
       )
         throw new Error(UI_TEXT.providerEditConflict)
-      await deps.secrets.store(
-        account,
-        formatStoredProviderSecret(
-          {
-            v: CREDENTIAL_RECORD_VERSION,
-            auth: 'apiKey',
-            origin: OPENROUTER_ORIGIN,
-          },
-          connection.key,
-        ),
+      signal.throwIfAborted()
+      const written = formatStoredProviderSecret(
+        {
+          v: CREDENTIAL_RECORD_VERSION,
+          auth: 'apiKey',
+          origin: OPENROUTER_ORIGIN,
+        },
+        connection.key,
       )
+      try {
+        await deps.secrets.store(account, written)
+      } finally {
+        if (signal.aborted && (await deps.secrets.get(account)) === written) {
+          // A previous record may have been independently removed during
+          // this write. Discard our cancelled grant; never revive that record.
+          await deps.secrets.delete(account)
+        }
+      }
+      signal.throwIfAborted()
       return 0
     }
     await (deps.withUserFileLock === undefined ? store() : deps.withUserFileLock(store))
@@ -76,6 +112,10 @@ export async function runOpenRouterConnect(
   } catch {
     deps.printError(UI_TEXT.providerConnectFailed)
     return 1
+  } finally {
+    connecting.delete(deps.secrets)
+    process.off('SIGINT', abort)
+    process.off('SIGTERM', abort)
   }
 }
 

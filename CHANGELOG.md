@@ -11,6 +11,11 @@ happened, not what was planned; superseded entries are kept.
 
 - Keep translated UI keys in canonical English order and reject source key
   order drift before ACP or headless packaging.
+- OpenRouter cancellation now interrupts token exchanges and usage reads,
+  releases the panel queue, and discards late credentials. Provider adds
+  preserve concurrent key rotation/removal and never rewrite a reused key.
+- Key usage clears on missing, unreadable, changed or failed observations;
+  new total and weekly amounts use the existing exact-dollar boundary.
 
 ### Added
 

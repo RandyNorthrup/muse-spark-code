@@ -1,0 +1,2038 @@
+{
+  "summary": {
+    "files": 198,
+    "stats": {
+      "pass": 5644,
+      "skip": 41,
+      "fail": 1
+    },
+    "failed": ["test/unit/usageIntegration.test.ts"],
+    "skips": [
+      {
+        "file": "test/e2e/eval.live.e2e.test.ts",
+        "cases": 1
+      },
+      {
+        "file": "test/unit/secWinIdentity2.test.ts",
+        "cases": 6
+      },
+      {
+        "file": "test/unit/vault/audit.test.ts",
+        "cases": 1
+      },
+      {
+        "file": "test/unit/windowsVaultNative.test.ts",
+        "cases": 33
+      }
+    ],
+    "unhandled": 0
+  },
+  "inventory": {
+    "sources": [
+      "src/core/providers/configured.ts",
+      "src/host/backend/providersEntry.ts",
+      "src/host/models/modelsPanel.ts",
+      "src/host/providers/openRouter.ts",
+      "src/host/providers/providerPorts.ts",
+      "src/host/providers/providersHost.ts",
+      "src/host/providers/subscriptionFeatures.ts",
+      "src/runtime/openRouterCommands.ts",
+      "src/runtime/providersCommands.ts",
+      "src/shared/modelsPanel.ts",
+      "src/webview/models/ProvidersSection.tsx"
+    ],
+    "hubs": ["src/shared/usage.ts", "src/shared/featureCatalog.ts"],
+    "files": [
+      "test/e2e/acpStdio.e2e.test.ts",
+      "test/e2e/eval.live.e2e.test.ts",
+      "test/e2e/execStdio.e2e.test.ts",
+      "test/e2e/questions.e2e.test.ts",
+      "test/unit/accountPaidConsent.test.ts",
+      "test/unit/accountsPanel.test.tsx",
+      "test/unit/accountsPanelHost.test.ts",
+      "test/unit/acpAccounts.test.ts",
+      "test/unit/acpAgent.test.ts",
+      "test/unit/acpEstimate.test.ts",
+      "test/unit/acpModelApi.test.ts",
+      "test/unit/acpPaid.test.ts",
+      "test/unit/acpQuestionDeferral.test.ts",
+      "test/unit/acpReportObserver.test.ts",
+      "test/unit/acpReports.test.ts",
+      "test/unit/acpResources.test.ts",
+      "test/unit/acpRuntime.test.ts",
+      "test/unit/acpSharing.test.ts",
+      "test/unit/acpUsage.test.ts",
+      "test/unit/acpVault.test.ts",
+      "test/unit/agentImportWorkspaceEdits.test.ts",
+      "test/unit/authSource.test.ts",
+      "test/unit/bestOfNAttempts.test.ts",
+      "test/unit/chatgptResponsesCap.test.ts",
+      "test/unit/chatGptSignIn.test.ts",
+      "test/unit/chatGptVsCode.test.ts",
+      "test/unit/checkpointModelApiStop.test.ts",
+      "test/unit/configuredProviders.test.ts",
+      "test/unit/conversationController.test.ts",
+      "test/unit/cx1r4Truth.test.ts",
+      "test/unit/cx1r5Session.test.ts",
+      "test/unit/cx1r5Truth.test.ts",
+      "test/unit/cx1r7Dispatch.test.ts",
+      "test/unit/eval/evalDriver.test.ts",
+      "test/unit/eval/evalPacking.test.ts",
+      "test/unit/eval/evalRunner.test.ts",
+      "test/unit/eval/evalWorkspacePrivacy.test.ts",
+      "test/unit/execFetch.test.ts",
+      "test/unit/execKeyInput.test.ts",
+      "test/unit/execProvider.test.ts",
+      "test/unit/execResources.test.ts",
+      "test/unit/execRun.test.ts",
+      "test/unit/execVault.test.ts",
+      "test/unit/geminiCodec.test.ts",
+      "test/unit/hookMcpToolHandlers.test.ts",
+      "test/unit/hookModelHandlers.test.ts",
+      "test/unit/judgeActivation.test.ts",
+      "test/unit/judgeConsent.test.ts",
+      "test/unit/judgeFences.test.ts",
+      "test/unit/judgeSharedBudget.test.ts",
+      "test/unit/judgeWindow.test.ts",
+      "test/unit/l10nPacked.test.ts",
+      "test/unit/lateAnswer.test.ts",
+      "test/unit/legalExplanation.test.ts",
+      "test/unit/m106Wiring.test.ts",
+      "test/unit/macVaultSlot.test.ts",
+      "test/unit/mediaClient.test.ts",
+      "test/unit/modelApiArgumentPreview.test.ts",
+      "test/unit/modelApiAttemptBudget.test.ts",
+      "test/unit/modelApiAttemptFiles.test.ts",
+      "test/unit/modelApiAttemptVerify.test.ts",
+      "test/unit/modelApiAudio.test.ts",
+      "test/unit/modelApiAutoCompact.test.ts",
+      "test/unit/modelApiBackendManager.test.ts",
+      "test/unit/modelApiBundle.test.ts",
+      "test/unit/modelApiCodeIntel.test.ts",
+      "test/unit/modelApiCutShort.test.ts",
+      "test/unit/modelApiElicitation.test.ts",
+      "test/unit/modelApiExtensionHooks.test.ts",
+      "test/unit/modelApiForeignHooks.test.ts",
+      "test/unit/modelApiGoldenRequests.test.ts",
+      "test/unit/modelApiHost.test.ts",
+      "test/unit/modelApiHostedSearch.test.ts",
+      "test/unit/modelApiImageIngress.test.ts",
+      "test/unit/modelApiLoopGuarantees.test.ts",
+      "test/unit/modelApiMedia.test.ts",
+      "test/unit/modelApiOverflow.test.ts",
+      "test/unit/modelApiPacking.test.ts",
+      "test/unit/modelApiPolicyFence.test.ts",
+      "test/unit/modelApiPrefix.test.ts",
+      "test/unit/modelApiProductionMedia.test.ts",
+      "test/unit/modelApiProviders.test.ts",
+      "test/unit/modelApiQuestionDeferral.test.ts",
+      "test/unit/modelApiReplayIdentity.test.ts",
+      "test/unit/modelApiShellDirectory.test.ts",
+      "test/unit/modelApiWireHosts.test.ts",
+      "test/unit/modelCapabilitiesBinding.test.ts",
+      "test/unit/modelsApp.test.tsx",
+      "test/unit/modelsMoneyLifecycle.test.tsx",
+      "test/unit/modelsPanel.test.ts",
+      "test/unit/modelsPanelEdit.test.tsx",
+      "test/unit/modelsPanelEntry.test.ts",
+      "test/unit/modelsPanelReducer.test.ts",
+      "test/unit/modelsPanelSchemas.test.ts",
+      "test/unit/modelsPanelSections.test.tsx",
+      "test/unit/modelsQuickPick.test.ts",
+      "test/unit/modelsSections.test.ts",
+      "test/unit/modelsWebviewEntry.test.tsx",
+      "test/unit/openQuestionNotices.test.ts",
+      "test/unit/openRouterChrome.test.mjs",
+      "test/unit/openRouterComposition.test.ts",
+      "test/unit/paidConsent.test.ts",
+      "test/unit/paidDailyBudget.test.ts",
+      "test/unit/paidHookModels.test.ts",
+      "test/unit/paidHost.test.ts",
+      "test/unit/paidMoneyStructure.test.ts",
+      "test/unit/paidPortBoundaries.test.ts",
+      "test/unit/providerImportExport.test.ts",
+      "test/unit/providerOpenRouter.test.ts",
+      "test/unit/providerPanelSeam.test.ts",
+      "test/unit/providerProvidersHost.test.ts",
+      "test/unit/providersX.test.ts",
+      "test/unit/providersXFix.test.ts",
+      "test/unit/providerTransport.test.ts",
+      "test/unit/providerWiring.test.ts",
+      "test/unit/questionRegistry.test.ts",
+      "test/unit/reasoningResolver.test.ts",
+      "test/unit/referenceGenerator.test.mjs",
+      "test/unit/reportInvariants.test.ts",
+      "test/unit/runtimeChatGpt.test.ts",
+      "test/unit/runtimeChatGptCallback.test.ts",
+      "test/unit/runtimeChatGptLock.test.ts",
+      "test/unit/runtimeChatGptPackage.test.ts",
+      "test/unit/runtimeServices.test.ts",
+      "test/unit/scanSecrets.test.ts",
+      "test/unit/scheduledRunConfirmation.test.ts",
+      "test/unit/scheduleInterrupt.test.ts",
+      "test/unit/schedulePaid.test.ts",
+      "test/unit/secWinIdentity2.test.ts",
+      "test/unit/shellEnvironmentOrigins.test.ts",
+      "test/unit/structuredSideCalls.test.ts",
+      "test/unit/subscriptionIntegration.test.ts",
+      "test/unit/tabLedger.test.ts",
+      "test/unit/tabSpendGate.test.ts",
+      "test/unit/tabStatus.test.ts",
+      "test/unit/teamDeclaration.test.ts",
+      "test/unit/teamWorkersPaid.test.ts",
+      "test/unit/trafficHandlers.test.ts",
+      "test/unit/trafficHarness.test.tsx",
+      "test/unit/trafficView.test.tsx",
+      "test/unit/transcribeBatch.test.ts",
+      "test/unit/unattendedBackends.test.ts",
+      "test/unit/UsageDialog.test.tsx",
+      "test/unit/usageIntegration.test.ts",
+      "test/unit/usageL10nGate.test.mjs",
+      "test/unit/usageRecording.test.ts",
+      "test/unit/vault/approvals.test.ts",
+      "test/unit/vault/audit.test.ts",
+      "test/unit/vault/backup.test.ts",
+      "test/unit/vault/boundaries.test.ts",
+      "test/unit/vault/broker.test.ts",
+      "test/unit/vault/channel.test.ts",
+      "test/unit/vault/contracts.test.ts",
+      "test/unit/vault/crypto.test.ts",
+      "test/unit/vault/delegation.test.ts",
+      "test/unit/vault/execAdapters.test.ts",
+      "test/unit/vault/execBrokerLease.test.ts",
+      "test/unit/vault/execSpawn.test.ts",
+      "test/unit/vault/fakes.test.ts",
+      "test/unit/vault/feeder.test.ts",
+      "test/unit/vault/fleet.test.ts",
+      "test/unit/vault/gitHelper.test.ts",
+      "test/unit/vault/importFile.test.ts",
+      "test/unit/vault/interleavings.test.ts",
+      "test/unit/vault/limits.test.ts",
+      "test/unit/vault/peer.test.ts",
+      "test/unit/vault/policy.test.ts",
+      "test/unit/vault/redemption.test.ts",
+      "test/unit/vault/remote.test.ts",
+      "test/unit/vault/requestTaint.test.ts",
+      "test/unit/vault/reviewFixes.test.ts",
+      "test/unit/vault/reviewRound2.test.ts",
+      "test/unit/vault/reviewRound3.test.ts",
+      "test/unit/vault/reviewRound4.test.ts",
+      "test/unit/vault/reviewRound5.test.ts",
+      "test/unit/vault/sshAgent.test.ts",
+      "test/unit/vault/sshBroker.test.ts",
+      "test/unit/vault/sshConnection.test.ts",
+      "test/unit/vault/sshTransport.test.ts",
+      "test/unit/vault/sudoFeed.test.ts",
+      "test/unit/vault/taint.test.ts",
+      "test/unit/vault/totp.test.ts",
+      "test/unit/vault/useDigest.test.ts",
+      "test/unit/vault/vaultExec.test.ts",
+      "test/unit/vault/vaultNativeEditor.test.ts",
+      "test/unit/vault/vaultPanel.test.tsx",
+      "test/unit/vault/vaultPanelHost.test.ts",
+      "test/unit/vault/vaultStore.test.ts",
+      "test/unit/vault/webCsvImport.test.ts",
+      "test/unit/vault/webFill.test.ts",
+      "test/unit/vault/webPageRead.test.ts",
+      "test/unit/vault/webSessions.test.ts",
+      "test/unit/vaultCommand.test.ts",
+      "test/unit/vaultSurface.test.ts",
+      "test/unit/verifyLoop.test.ts",
+      "test/unit/visualMatrix.test.mjs",
+      "test/unit/windowsVaultNative.test.ts",
+      "test/unit/wizardSessionBudget.test.ts"
+    ]
+  },
+  "files": [
+    {
+      "file": "test/e2e/acpStdio.e2e.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 13
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/e2e/eval.live.e2e.test.ts",
+      "state": "skip",
+      "stats": {
+        "skip": 1
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/e2e/execStdio.e2e.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 44
+      }
+    },
+    {
+      "file": "test/e2e/questions.e2e.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 4
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/accountPaidConsent.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 28
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/accountsPanel.test.tsx",
+      "state": "pass",
+      "stats": {
+        "pass": 28
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/accountsPanelHost.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 20
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/acpAccounts.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 28
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/acpAgent.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 142
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/acpEstimate.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 6
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/acpModelApi.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 12
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/acpPaid.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 30
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/acpQuestionDeferral.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 80
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/acpReportObserver.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 3
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/acpReports.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 6
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/acpResources.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 8
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/acpRuntime.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 43
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/acpSharing.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 27
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/acpUsage.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 7
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/acpVault.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 20
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/agentImportWorkspaceEdits.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 18
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/authSource.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 13
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/bestOfNAttempts.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 3
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/chatgptResponsesCap.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 22
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/chatGptSignIn.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 105
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/chatGptVsCode.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 26
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/checkpointModelApiStop.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 49
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/configuredProviders.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 40
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/conversationController.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 686
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/cx1r4Truth.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 26
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/cx1r5Session.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 4
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/cx1r5Truth.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 63
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/cx1r7Dispatch.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 26
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/eval/evalDriver.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 8
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/eval/evalPacking.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 8
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/eval/evalRunner.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 14
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/eval/evalWorkspacePrivacy.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 4
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/execFetch.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 36
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/execKeyInput.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 12
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/execProvider.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 17
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/execResources.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 6
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/execRun.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 94
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/execVault.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 25
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/geminiCodec.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 67
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/hookMcpToolHandlers.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 5
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/hookModelHandlers.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 14
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/judgeActivation.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 6
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/judgeConsent.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 10
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/judgeFences.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 18
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/judgeSharedBudget.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 5
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/judgeWindow.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 11
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/l10nPacked.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 2
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/lateAnswer.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 11
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/legalExplanation.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 10
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/m106Wiring.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 14
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/macVaultSlot.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 40
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/mediaClient.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 22
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/modelApiArgumentPreview.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 44
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/modelApiAttemptBudget.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 7
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/modelApiAttemptFiles.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 1
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/modelApiAttemptVerify.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 19
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/modelApiAudio.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 9
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/modelApiAutoCompact.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 40
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/modelApiBackendManager.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 23
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/modelApiBundle.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 15
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/modelApiCodeIntel.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 25
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/modelApiCutShort.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 5
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/modelApiElicitation.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 18
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/modelApiExtensionHooks.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 22
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/modelApiForeignHooks.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 9
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 140
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/modelApiHost.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 670
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/modelApiHostedSearch.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 52
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/modelApiImageIngress.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 2
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/modelApiLoopGuarantees.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 44
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/modelApiMedia.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 24
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/modelApiOverflow.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 26
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/modelApiPacking.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 24
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/modelApiPolicyFence.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 108
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/modelApiPrefix.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 28
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/modelApiProductionMedia.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 4
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/modelApiProviders.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 16
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/modelApiQuestionDeferral.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 3
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/modelApiReplayIdentity.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 1
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/modelApiShellDirectory.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 32
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/modelApiWireHosts.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 5
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/modelCapabilitiesBinding.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 12
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/modelsApp.test.tsx",
+      "state": "pass",
+      "stats": {
+        "pass": 2
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/modelsMoneyLifecycle.test.tsx",
+      "state": "pass",
+      "stats": {
+        "pass": 5
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/modelsPanel.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 27
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/modelsPanelEdit.test.tsx",
+      "state": "pass",
+      "stats": {
+        "pass": 41
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/modelsPanelEntry.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 6
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/modelsPanelReducer.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 8
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/modelsPanelSchemas.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 13
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/modelsPanelSections.test.tsx",
+      "state": "pass",
+      "stats": {
+        "pass": 35
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/modelsQuickPick.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 8
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/modelsSections.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 3
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/modelsWebviewEntry.test.tsx",
+      "state": "pass",
+      "stats": {
+        "pass": 1
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/openQuestionNotices.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 3
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/openRouterChrome.test.mjs",
+      "state": "pass",
+      "stats": {
+        "pass": 3
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/openRouterComposition.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 44
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/paidConsent.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 37
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/paidDailyBudget.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 36
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/paidHookModels.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 10
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/paidHost.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 41
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/paidMoneyStructure.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 8
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/paidPortBoundaries.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 17
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/providerImportExport.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 17
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/providerOpenRouter.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 13
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/providerPanelSeam.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 10
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/providerProvidersHost.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 10
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/providersX.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 34
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/providersXFix.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 16
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/providerTransport.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 33
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/providerWiring.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 26
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/questionRegistry.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 18
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/reasoningResolver.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 39
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/referenceGenerator.test.mjs",
+      "state": "pass",
+      "stats": {
+        "pass": 117
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/reportInvariants.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 2
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/runtimeChatGpt.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 35
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/runtimeChatGptCallback.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 18
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/runtimeChatGptLock.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 5
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/runtimeChatGptPackage.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 2
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/runtimeServices.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 10
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/scanSecrets.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 12
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/scheduledRunConfirmation.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 4
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/scheduleInterrupt.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 9
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/schedulePaid.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 21
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/secWinIdentity2.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 11,
+        "skip": 6
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/shellEnvironmentOrigins.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 7
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/structuredSideCalls.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 11
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/subscriptionIntegration.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 6
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/tabLedger.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 21
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/tabSpendGate.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 4
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/tabStatus.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 17
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/teamDeclaration.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 21
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/teamWorkersPaid.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 15
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/trafficHandlers.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 56
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/trafficHarness.test.tsx",
+      "state": "pass",
+      "stats": {
+        "pass": 1
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/trafficView.test.tsx",
+      "state": "pass",
+      "stats": {
+        "pass": 13
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/transcribeBatch.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 41
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/unattendedBackends.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 87
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/UsageDialog.test.tsx",
+      "state": "pass",
+      "stats": {
+        "pass": 61
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/usageIntegration.test.ts",
+      "state": "fail",
+      "stats": {
+        "pass": 2,
+        "fail": 1
+      },
+      "errors": [],
+      "cases": [
+        {
+          "name": "settles two vendor host turns and one MSP subscription turn into exactly three calls, shared totals and an authenticated page",
+          "message": "Test timed out in 5000ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it globally with \"testTimeout\".",
+          "stack": "Error: Test timed out in 5000ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it globally with \"testTimeout\".\n    at task (file:///Users/randy/lanes/CM952/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2681:43)\n    at Object.<anonymous> (file:///Users/randy/lanes/CM952/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2698:16)\n    at Object.<anonymous> (file:///Users/randy/lanes/CM952/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2471:28)\n    at chain (file:///Users/randy/lanes/CM952/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:1859:14)\n    at /Users/randy/lanes/CM952/test/unit/usageIntegration.test.ts:212:3\n    at file:///Users/randy/lanes/CM952/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2763:52\n    at runWithSuite (file:///Users/randy/lanes/CM952/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:3250:8)\n    at Object.collect (file:///Users/randy/lanes/CM952/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2763:22)\n    at Object.collect (file:///Users/randy/lanes/CM952/node_modules/vitest/dist/chunks/run.BTlFXlnv.js:2768:51)\n    at processTicksAndRejections (node:internal/process/task_queues:104:5)"
+        }
+      ]
+    },
+    {
+      "file": "test/unit/usageL10nGate.test.mjs",
+      "state": "pass",
+      "stats": {
+        "pass": 9
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/usageRecording.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 26
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/vault/approvals.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 14
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/vault/audit.test.ts",
+      "state": "pass",
+      "stats": {
+        "skip": 1,
+        "pass": 18
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/vault/backup.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 19
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/vault/boundaries.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 53
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/vault/broker.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 20
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/vault/channel.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 54
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/vault/contracts.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 24
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/vault/crypto.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 13
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/vault/delegation.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 19
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/vault/execAdapters.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 8
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/vault/execBrokerLease.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 4
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/vault/execSpawn.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 10
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/vault/fakes.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 17
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/vault/feeder.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 13
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/vault/fleet.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 20
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/vault/gitHelper.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 4
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/vault/importFile.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 12
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/vault/interleavings.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 35
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/vault/limits.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 3
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/vault/peer.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 1
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/vault/policy.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 21
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/vault/redemption.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 10
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/vault/remote.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 24
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/vault/requestTaint.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 10
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/vault/reviewFixes.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 16
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/vault/reviewRound2.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 17
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/vault/reviewRound3.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 7
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/vault/reviewRound4.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 8
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/vault/reviewRound5.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 7
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/vault/sshAgent.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 18
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/vault/sshBroker.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 13
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/vault/sshConnection.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 6
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/vault/sshTransport.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 10
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/vault/sudoFeed.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 4
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/vault/taint.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 12
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/vault/totp.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 8
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/vault/useDigest.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 7
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/vault/vaultExec.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 10
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/vault/vaultNativeEditor.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 18
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/vault/vaultPanel.test.tsx",
+      "state": "pass",
+      "stats": {
+        "pass": 26
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/vault/vaultPanelHost.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 23
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/vault/vaultStore.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 30
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/vault/webCsvImport.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 10
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/vault/webFill.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 33
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/vault/webPageRead.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 4
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/vault/webSessions.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 24
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/vaultCommand.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 34
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/vaultSurface.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 12
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/verifyLoop.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 77
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/visualMatrix.test.mjs",
+      "state": "pass",
+      "stats": {
+        "pass": 10
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/windowsVaultNative.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 1,
+        "skip": 33
+      },
+      "errors": [],
+      "cases": []
+    },
+    {
+      "file": "test/unit/wizardSessionBudget.test.ts",
+      "state": "pass",
+      "stats": {
+        "pass": 48
+      },
+      "errors": [],
+      "cases": []
+    }
+  ]
+}

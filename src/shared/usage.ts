@@ -7,6 +7,7 @@
 // implies live data.
 
 import * as z from 'zod/mini'
+import { legacyUsdSchema } from './usdSchema'
 import {
   HOURS_PER_DAY,
   MILLISECONDS_PER_SECOND,
@@ -72,9 +73,9 @@ export const providerUsageRowSchema = z.object({
   keyUsageError: z.optional(z.string()),
   keyUsage: z.optional(
     z.object({
-      totalUsd: z.optional(z.number().check(z.nonnegative())),
+      totalUsd: z.optional(legacyUsdSchema),
       unlimited: z.optional(z.boolean()),
-      weekUsd: z.optional(z.number().check(z.nonnegative())),
+      weekUsd: z.optional(legacyUsdSchema),
       todayUsd: z.number().check(z.nonnegative()),
       monthUsd: z.number().check(z.nonnegative()),
       limitUsd: z.optional(z.number().check(z.nonnegative())),

@@ -14,7 +14,11 @@ import type {
   ProviderCredentialStore as CredentialStore,
 } from './credentialRecords'
 import { isOriginBound } from './credentialRecords'
-import { readOpenRouterKeyUsage, connectOpenRouterAccount } from '../backend/providersEntry'
+import {
+  readOpenRouterKeyUsage,
+  connectOpenRouterAccount,
+  promptOpenRouterCode,
+} from '../backend/providersEntry'
 import type { OAuthLoopback } from './oauthLoopback'
 import { promptForProviderKey } from './keyPrompt'
 import { probeLocalServers, type LocalProbeResult } from './localProbe'
@@ -131,7 +135,10 @@ export interface ProvidersHost {
     isRemote: boolean,
     signal?: AbortSignal,
   ) => Promise<{ key: string } | undefined>
-  readonly openRouterUsage: (credential: string) => Promise<KeyUsageSnapshot | undefined>
+  readonly openRouterUsage: (
+    credential: string,
+    signal?: AbortSignal,
+  ) => Promise<KeyUsageSnapshot | undefined>
   readonly probe: (preset: PresetInfo) => Promise<readonly LocalProbeResult[]>
   readonly suggestDefaultModel: (
     candidates: readonly ProviderModelRow[],
@@ -314,15 +321,7 @@ export function createProvidersHost(deps: ProvidersHostDeps): ProvidersHost {
           exchange: exchanger,
           openBrowser: deps.ui.openBrowser,
           startServer: deps.startLoopback,
-          promptForPastedCode: () =>
-            Promise.resolve(
-              deps.ui.showInputBox({
-                title: fill(UI_TEXT.providerConnect, { provider: 'OpenRouter' }),
-                prompt: UI_TEXT.providerPasteCode,
-                password: true,
-                ignoreFocusOut: true,
-              }),
-            ),
+          promptForPastedCode: () => promptOpenRouterCode(deps.ui.showInputBox, signal),
           isRemote,
           ...(signal !== undefined && { signal }),
         })
@@ -332,9 +331,9 @@ export function createProvidersHost(deps: ProvidersHostDeps): ProvidersHost {
         throw new Error(UI_TEXT.providerConnectFailed)
       }
     },
-    openRouterUsage: async (credential) => {
+    openRouterUsage: async (credential, signal) => {
       if (deps.usage === undefined) throw new Error(UI_TEXT.providerUsageFailed)
-      const snapshot = await readOpenRouterKeyUsage(deps.usage, credential)
+      const snapshot = await readOpenRouterKeyUsage(deps.usage, credential, signal)
       deps.onKeyUsage?.(snapshot)
       return snapshot
     },

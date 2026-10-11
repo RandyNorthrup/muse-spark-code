@@ -9,6 +9,7 @@ import {
   openRouterAuthorizeUrl,
   openRouterSpendPage,
   readOpenRouterKeyUsage,
+  promptOpenRouterCode,
   type OpenRouterConnectDeps,
 } from '../../src/host/providers/openRouter'
 import type { OAuthLoopback } from '../../src/host/providers/oauthLoopback'
@@ -163,10 +164,97 @@ describe('connectOpenRouterAccount', () => {
     expect(cancelled).toBeUndefined()
   })
 
+  it.each(['browser', 'prompt'] as const)(
+    'cancels remote authorization while awaiting %s and rejects late input',
+    async (phase) => {
+      const controller = new AbortController()
+      const started = Promise.withResolvers<undefined>()
+      const held = Promise.withResolvers<string>()
+      const exchange = vi.fn()
+      const pending = connectOpenRouterAccount(
+        deps({
+          isRemote: true,
+          signal: controller.signal,
+          exchange: { exchange },
+          openBrowser: async () => {
+            if (phase !== 'browser') {
+              return
+            }
+
+            started.resolve(undefined)
+            await held.promise
+          },
+          promptForPastedCode: () => {
+            started.resolve(undefined)
+            return held.promise
+          },
+        }),
+      )
+      const refused = expect(pending).rejects.toThrow()
+      await started.promise
+      controller.abort()
+      await refused
+      held.resolve('late-synthetic-input')
+      await Promise.resolve()
+      expect(exchange).not.toHaveBeenCalled()
+    },
+  )
+
+  it('discards a late exchange result after cancellation', async () => {
+    const controller = new AbortController()
+    const started = Promise.withResolvers<undefined>()
+    const held = Promise.withResolvers<string>()
+    const pending = connectOpenRouterAccount(
+      deps({
+        signal: controller.signal,
+        exchange: {
+          exchange: (request) => {
+            expect(request.signal).toBe(controller.signal)
+            started.resolve(undefined)
+            return held.promise
+          },
+        },
+      }),
+    )
+    const refused = expect(pending).rejects.toThrow()
+    await started.promise
+    controller.abort()
+    held.resolve('late-synthetic-credential')
+    await refused
+  })
+
   it('refuses an empty exchanged key', async () => {
     await expect(
       connectOpenRouterAccount(deps({ exchange: { exchange: () => Promise.resolve('  ') } })),
     ).rejects.toThrow()
+  })
+})
+
+describe('native code prompt cancellation', () => {
+  it('withdraws a pending password box and disposes its cancellation subscription', async () => {
+    const controller = new AbortController()
+    const started = Promise.withResolvers<undefined>()
+    const delivered = vi.fn()
+    let wasCancelled = false
+    const pending = promptOpenRouterCode(
+      (_options, token) =>
+        new Promise((resolve) => {
+          if (token === undefined) throw new Error('Missing cancellation token')
+          const subscription = token.onCancellationRequested(() => {
+            delivered()
+            wasCancelled = token.isCancellationRequested
+            subscription.dispose()
+            resolve(undefined)
+          })
+          started.resolve(undefined)
+        }),
+      controller.signal,
+    )
+    await started.promise
+    controller.abort()
+    expect(await pending).toBeUndefined()
+    expect(delivered).toHaveBeenCalledTimes(1)
+    expect(wasCancelled).toBe(true)
   })
 })
 
