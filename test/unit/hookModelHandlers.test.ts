@@ -1,3 +1,6 @@
+import { ModelApiClient } from '../../src/core/backends/modelapi/client'
+import { fakeModelApiClientSettings } from './helpers/fakeModelApi'
+import { billingRoute } from '../../src/core/backends/modelapi/billingRoute'
 import { Usd, type UsdAmount } from '../../src/shared/usd'
 import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
 // M91 lane H: the `prompt` and `agent` hook handlers on the Model API
@@ -17,7 +20,7 @@ import {
 } from '../../src/core/backends/modelapi/hookHandlers'
 import type { PaidFeature } from '../../src/shared/constants'
 import { UI_TEXT } from '../../src/shared/constants'
-import { fakeModelApi, fakeModelApiClient, type ScriptedReply } from './helpers/fakeModelApi'
+import { fakeModelApi, type ScriptedReply } from './helpers/fakeModelApi'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { memoryToolIo } from './helpers/fakeToolIo'
 import { watchSessionTurns } from './helpers/sessionTurns'
@@ -75,7 +78,11 @@ function hook(): HookDefinition {
   }
 }
 
-function setupHost(isAllowed: boolean, overrides: Partial<ModelApiHostDeps> = {}) {
+function setupHost(
+  isAllowed: boolean,
+  overrides: Partial<ModelApiHostDeps> = {},
+  defaultKey = 'LLM|1|secret',
+) {
   const api = fakeModelApi()
   const log = new FakeLogOutputChannel()
   const io = memoryToolIo({ 'notes.txt': 'hello' }, ROOT)
@@ -83,7 +90,16 @@ function setupHost(isAllowed: boolean, overrides: Partial<ModelApiHostDeps> = {}
   const paidRuns: PaidFeature[] = []
   const settled: { readonly modelId: string; readonly usage: object }[] = []
   const host = new ModelApiHost({
-    ...fakeModelApiHostDeps({ client: fakeModelApiClient(api, log), workspaceRoot: ROOT, io, log }),
+    ...fakeModelApiHostDeps({
+      client: new ModelApiClient({
+        ...fakeModelApiClientSettings(log),
+        fetch: api.fetch,
+        apiKey: () => Promise.resolve(defaultKey),
+      }),
+      workspaceRoot: ROOT,
+      io,
+      log,
+    }),
     isPaidFeatureOn: (feature) => feature === 'hookModels',
     notePaidUse: (feature, units) => {
       for (let count = 0; count < units; count += 1) paidRuns.push(feature)
@@ -320,6 +336,25 @@ describe('prompt/agent answers cannot widen (M91 D70)', () => {
 })
 
 describe('prompt on the Model API backend (M91 D70, D48)', () => {
+  it.each(['prompt', 'agent'] as const)(
+    'carries the frozen paid route through a %s hook',
+    async (kind) => {
+      const t = setupHost(
+        true,
+        {
+          getBillingRoute: (isPaid) =>
+            Promise.resolve(billingRoute(isPaid ? 'payAsYouGo' : 'museCodePlan', 'LLM|1|secret')),
+          loadHooks: () => Promise.resolve([{ ...hook(), type: kind }]),
+        },
+        'opaque subscription credential',
+      )
+      await finishRead(t, MAIN_READ_REPLY, { text: '{}' }, { text: 'done' })
+      expect(t.api.responseBodies()[1]?.['instructions']).toContain(HOOK_MARK)
+      expect(t.api.requests[1]?.headers['Authorization']).toBe('Bearer LLM|1|secret')
+      expect(t.paidRuns).toEqual(['hookModels'])
+    },
+  )
+
   it('reserves the shared daily budget before a request, and settles actual cost', async () => {
     const check = vi.fn()
     const settle = vi.fn<(costUsd: UsdAmount, isUnknown: boolean) => Promise<void>>(() =>

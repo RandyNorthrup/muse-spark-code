@@ -1130,7 +1130,7 @@ async function activateWindow(
     vscode.workspace
       .getConfiguration(SETTINGS_SECTION)
       .inspect<boolean>(PAID_FEATURE_SETTINGS[feature])?.globalValue === undefined
-  const paidAuthority = new PaidAuthority()
+  const paidAuthority = new PaidAuthority(UI_TEXT, uiLocale())
   let paidDaily: ReturnType<typeof createPaidDailyBudget> | undefined
   const loadDailyPaid = () => {
     if (paidDaily !== undefined) return paidDaily

@@ -665,11 +665,11 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     // The opted-in CLI subscription counts before the secret store is
     // touched: a valid sign-in is usable with no pasted key, and an
     // unavailable OS store never blocks subscription-only use.
+    let subscriptionRefusal: string | undefined
     if (deps.options.subscription === true) {
       const read = await subscriptionSource.read()
-      return read.status === 'ready'
-        ? { state: 'ready' }
-        : { state: 'signedOut', message: subscriptionKeyRefusal(read.status) }
+      if (read.status === 'ready') return { state: 'ready' }
+      subscriptionRefusal = subscriptionKeyRefusal(read.status)
     }
     let key: string | undefined
     try {
@@ -681,16 +681,19 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
       }
     }
     if (deps.exec?.providerRun !== undefined) return { state: 'ready' }
-    if (deps.exec === undefined && (key === undefined || key === '')) {
+    if (
+      deps.exec === undefined &&
+      (subscriptionRefusal !== undefined || key === undefined || key === '')
+    ) {
       try {
-        if ((await deps.secrets.get(`${PROVIDER_SECRET_PREFIX}chatgpt`)) !== undefined)
-          return { state: 'ready' }
+        const hasProviderRecord =
+          (await deps.secrets.get(`${PROVIDER_SECRET_PREFIX}chatgpt`)) !== undefined
         const configFile = path.join(
           deps.env['XDG_CONFIG_HOME'] ?? path.join(deps.homeDir, '.config'),
           PROVIDERS_CONFIG_DIR_NAME,
           PROVIDERS_FILE_NAME,
         )
-        if (existsSync(configFile)) {
+        if (hasProviderRecord || existsSync(configFile)) {
           const entry = await import('./chatGptProviderCommands')
           const factory = entry.runtimeSubscriptionClient({
             secrets: deps.secrets,
@@ -706,6 +709,8 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
         return { state: 'unavailable', message: UI_TEXT.acpChatGpt.storeUnavailable }
       }
     }
+    if (subscriptionRefusal !== undefined)
+      return { state: 'signedOut', message: subscriptionRefusal }
     return key === undefined || key === ''
       ? { state: 'signedOut', message: UI_TEXT.acpNoStoredKey }
       : { state: 'ready' }

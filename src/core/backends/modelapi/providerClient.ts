@@ -1,3 +1,4 @@
+import { resolveAttemptBillingRoute } from './billingRoute'
 // M95-T: canonical client seam. Codecs/registry load only in the BYO bundle.
 import type { ModelCapabilities } from '../../providers/capabilities'
 import * as z from 'zod/mini'
@@ -151,7 +152,14 @@ export class CodecClient implements ProviderClient {
   public async listModels(): Promise<readonly string[]> {
     const result = await this.transport.request(
       this.deps.codec.models.path,
-      { method: 'GET', accept: 'application/json' },
+      {
+        billingRoute: await resolveAttemptBillingRoute({
+          feature: 'catalogue',
+          isMetaDirect: false,
+        }),
+        method: 'GET',
+        accept: 'application/json',
+      },
       AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
     )
     const models = await parseJsonResponse(result, (json) => this.deps.codec.models.parse(json))
@@ -171,6 +179,10 @@ export class CodecClient implements ProviderClient {
     const result = await this.transport.request(
       request.path,
       {
+        billingRoute: await resolveAttemptBillingRoute({
+          feature: 'tokenCount',
+          isMetaDirect: false,
+        }),
         method: 'POST',
         body: request.body,
         ...(request.headers !== undefined && { headers: request.headers }),
@@ -207,6 +219,10 @@ export class CodecClient implements ProviderClient {
     const { response, redact, redactContent, eventParsed } = await this.transport.streamRequest(
       request.path,
       {
+        billingRoute: await resolveAttemptBillingRoute({
+          feature: admitAttempt?.paidFeature ?? 'ordinary',
+          isMetaDirect: false,
+        }),
         body: request.body,
         ...(request.headers !== undefined && { headers: request.headers }),
         accept: this.provider.format === 'ollama' ? 'application/x-ndjson' : 'text/event-stream',

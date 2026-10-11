@@ -1,3 +1,4 @@
+import { billingRoute } from '../../src/core/backends/modelapi/billingRoute'
 import { Usd, type UsdAmount } from '../../src/shared/usd'
 import { describe, expect, it, vi } from 'vitest'
 import { createHash } from 'node:crypto'
@@ -1623,7 +1624,7 @@ describe('ModelApiClient', () => {
     await streamRetryThenSucceed(client, sleeps, [60_000])
   })
 
-  it('checks a child grant after a fresh key read before every HTTP retry', async () => {
+  it('refuses a child retry when its resolved payer changes', async () => {
     const api = fakeModelApi()
     const log = new FakeLogOutputChannel()
     let key = 'LLM|1|secret'
@@ -1656,9 +1657,8 @@ describe('ModelApiClient', () => {
           },
         ),
       ),
-    ).rejects.toThrow('child consent expired')
-    expect(keyDigests).toHaveLength(2)
-    expect(keyDigests[0]).not.toBe(keyDigests[1])
+    ).rejects.toThrow(UI_TEXT.subscriptionKey.billingChanged)
+    expect(keyDigests).toEqual([createHash('sha256').update('LLM|1|secret').digest('hex')])
     expect(api.responseBodies()).toHaveLength(1)
     expect(JSON.stringify(log)).not.toContain(key)
   })
@@ -1842,6 +1842,37 @@ describe('ModelApiClient', () => {
     await client.createImage(image, new AbortController().signal)
     expect(fetch).toHaveBeenCalledOnce()
     expect(seen).toEqual(['Bearer pasted-paid-key'])
+  })
+  it('carries an admitted image payer without rereading either credential source', async () => {
+    const fetch = vi.fn<typeof globalThis.fetch>((_input, init) => {
+      expect(new Headers(init?.headers).get('authorization')).toBe('Bearer admitted-paid-key')
+      return Promise.resolve(Response.json({ data: [{ b64_json: 'aGk=' }] }))
+    })
+    const paidApiKey = vi.fn(() => Promise.resolve(undefined))
+    const getBillingRoute = vi.fn(() => Promise.resolve(undefined))
+    const { client } = setup('subscription-credential', fetch, undefined, {
+      paidApiKey,
+      getBillingRoute,
+    })
+    const guard = Object.assign(vi.fn(), {
+      billingRoute: billingRoute('payAsYouGo', 'admitted-paid-key'),
+      paidFeature: 'imageGeneration' as const,
+    })
+    await client.createImage(
+      {
+        model: 'muse-image-1.0',
+        prompt: 'a cat',
+        n: 1,
+        size: '1024x1024',
+        response_format: 'b64_json',
+        output_format: 'png',
+      },
+      new AbortController().signal,
+      guard,
+    )
+    expect(fetch).toHaveBeenCalledOnce()
+    expect(paidApiKey).not.toHaveBeenCalled()
+    expect(getBillingRoute).not.toHaveBeenCalled()
   })
   it('refuses a paid image with the fix when no stored key backs the subscription', async () => {
     const fetch = vi.fn(() => Promise.resolve(Response.json({ data: [{ b64_json: 'aGk=' }] })))

@@ -1,3 +1,4 @@
+import { payerCredentialSchema } from '../../../src/core/backends/modelapi/billingRoute'
 // An in-process Meta Model API for unit tests: a `fetch` that answers
 // `GET /models`, `POST /responses/input_tokens` and the streamed
 // `POST /responses` from a script of replies, recording every request.
@@ -443,9 +444,9 @@ function urlOf(input: string | URL | Request): URL {
 
 /** A client on the fake API with no waits and a fixed clock. */
 export const FAKE_MODEL_API_KEY = 'LLM|1|secret'
-export const FAKE_MODEL_API_ACCOUNT_ID = createHash('sha256')
-  .update(FAKE_MODEL_API_KEY)
-  .digest('hex')
+export const FAKE_MODEL_API_ACCOUNT_ID = payerCredentialSchema.parse(
+  createHash('sha256').update(FAKE_MODEL_API_KEY).digest('hex'),
+)
 
 export const FAKE_MODEL_API_BASE_URL = 'https://api.example.test/v1'
 
@@ -491,7 +492,7 @@ export function responseOutputsByCall(api: FakeModelApi, index: number): Map<str
   return found
 }
 
-export function fakeModelApi(): FakeModelApi {
+export function fakeModelApi(acceptedKeys: readonly string[] = [FAKE_MODEL_API_KEY]): FakeModelApi {
   const requests: RecordedRequest[] = []
   let replies: ScriptedReply[] = [{ text: 'ok' }]
   let consumed = 0
@@ -536,7 +537,11 @@ export function fakeModelApi(): FakeModelApi {
       )
       const body = typeof init?.body === 'string' ? (JSON.parse(init.body) as unknown) : undefined
       requests.push({ path: url.pathname.replace(/^\/v1/, ''), method, headers, body })
-      if ((headers['Authorization'] ?? headers['authorization']) !== 'Bearer LLM|1|secret') {
+      if (
+        acceptedKeys.every(
+          (key) => (headers['Authorization'] ?? headers['authorization']) !== `Bearer ${key}`,
+        )
+      ) {
         return Promise.resolve(
           json(
             {

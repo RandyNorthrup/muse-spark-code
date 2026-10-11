@@ -706,6 +706,46 @@ describe('createRuntimeBackend', () => {
     expect(brokenReadiness.state).toBe('unavailable')
   })
 
+  it('keeps ACP providers ready after subscription sign-out and refuses malformed records', async () => {
+    const home = folder()
+    const secrets = memorySecrets()
+    const runtime = backend(
+      { backend: 'modelApi', subscription: true },
+      secrets,
+      {},
+      dist.folder,
+      fakeModelApi().fetch,
+      undefined,
+      home,
+    )
+    try {
+      secrets.values.set(
+        'museSpark.provider.chatgpt',
+        JSON.stringify({
+          v: 1,
+          auth: 'subscription',
+          origin: 'https://api.openai.com',
+          issuer: 'https://auth.openai.com',
+          clientId: 'fake-client',
+          hostId: 'fake-host',
+          accessToken: 'fake-access',
+          refreshToken: 'fake-refresh',
+          expiresAt: Date.now() + 100_000,
+          scope: 'openid',
+          nonce: 'fake-nonce',
+        }),
+      )
+      expect(await runtime.backend.readiness(false)).toEqual({ state: 'ready' })
+      secrets.values.set('museSpark.provider.chatgpt', '{}')
+      expect(await runtime.backend.readiness(false)).toEqual({
+        state: 'unavailable',
+        message: UI_TEXT.acpChatGpt.storeUnavailable,
+      })
+    } finally {
+      await runtime.close()
+    }
+  })
+
   it('counts a live subscription sign-in with no pasted key, before touching the store', async () => {
     // P2: valid CLI subscription sign-in, --backend modelApi
     // --subscription, no pasted key → a usable backend, not auth-required.

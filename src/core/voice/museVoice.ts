@@ -1,3 +1,4 @@
+import { payerCredentialSchema } from '../backends/modelapi/billingRoute'
 import { Usd } from '../../shared/usd'
 // Muse Voice (M35, PLAN.md D30): the paid, opt-in dictation engine. The
 // microphone's audio comes from a capture helper (the same resident-helper
@@ -489,10 +490,10 @@ export class MuseVoiceDictation implements DictationHandle {
     if (Usd.from(state.scope.capUsd()).compare(Usd.from(0)) > 0) {
       throw new Error(UI_TEXT.sessionBudgetVoiceUnavailable)
     }
-    if (state.keyDigest !== state.scope.accountId) {
+    if (state.keyDigest !== state.scope.payerCredential) {
       throw new Error(UI_TEXT.notSignedInReason)
     }
-    if (!state.scope.isStillAllowed(state.keyDigest)) {
+    if (!state.scope.isStillAllowed(payerCredentialSchema.parse(state.keyDigest))) {
       throw new Error(UI_TEXT.sessionBudgetVoiceContextChanged)
     }
   }
@@ -527,7 +528,13 @@ export class MuseVoiceDictation implements DictationHandle {
           } catch {
             return
           }
-          if (state.scope?.isStillAllowed(state.keyDigest) === false) {
+          if (
+            state.scope?.isStillAllowed(
+              state.keyDigest === undefined
+                ? undefined
+                : payerCredentialSchema.parse(state.keyDigest),
+            ) === false
+          ) {
             return
           }
           const trimmed = text.trim()

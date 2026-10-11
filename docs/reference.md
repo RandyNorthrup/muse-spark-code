@@ -703,7 +703,7 @@ useMuseCodeSubscription&paidFeatureConsent: Meta chat uses the Muse Code plan; e
 
 Surfaces: vscode:modelApi, acp:modelApi. Paid: no extra feature charge; model usage still applies.
 
-Commands: —. Settings: `museSpark.useMuseCodeSubscription`, `museSpark.modelApiWebSearch`, `museSpark.modelApiSubagents`, `museSpark.modelApiAutoReviewer`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#muse-code-subscription)
+Commands: —. Settings: `museSpark.useMuseCodeSubscription`, `museSpark.modelApiWebSearch`, `museSpark.modelApiSubagents`, `museSpark.modelApiAutoReviewer`, `museSpark.modelApiBestOfN`, `museSpark.modelApiHookModels`, `museSpark.judge.engine`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#muse-code-subscription)
 
 ### Several accounts per provider
 

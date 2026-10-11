@@ -144,7 +144,7 @@ export const EN = {
   // label comes from its setting id, `museSpark.useMuseCodeSubscription`.)
   subscriptionKey: {
     paidSearch: 'This response’s model tokens also bill your stored Model API key at {price}.',
-    billingChanged: 'The billing account changed. Nothing was sent; try again.',
+    billingChanged: 'The billing account changed. This attempt was refused; try again.',
     signInAgain:
       'Muse Code subscription is on, but the Muse Code CLI holds no subscription sign-in here. A pay-as-you-go key (`muse auth set`) does not count. Sign in with your Muse account (`muse login`), then try again — or use a Model API key instead.',
     cannotRead:

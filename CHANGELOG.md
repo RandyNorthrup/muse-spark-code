@@ -7,6 +7,12 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Bind every Meta attempt to its resolved billing route, including Best-of-N,
+  Judge and prompt/agent hooks. Search consent remembers payer kind and model
+  token rates; subscription/provider account transitions work without a restart,
+  Windows path casing preserves history, and refused retries describe only that
+  attempt.
+
 ### Added
 
 - **Model API on the Muse Code subscription** (C-M95-SUB). The Model API

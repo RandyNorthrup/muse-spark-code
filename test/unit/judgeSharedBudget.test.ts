@@ -1,3 +1,4 @@
+import { billingRoute, subscriptionAccountId } from '../../src/core/backends/modelapi/billingRoute'
 import { Usd, type UsdAmount } from '../../src/shared/usd'
 import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -99,11 +100,11 @@ describe('Judge on the real D78 shared journal', () => {
     )
   })
 
-  it.each(['complete', 'missing', 'nonsend'] as const)(
+  it.each(['complete', 'missing', 'nonsend', 'subscription'] as const)(
     'uses exactly one shared reservation and captured verdict format through the production Judge: %s receipt',
     async (receipt) => {
       const shared = daily()
-      const api = fakeModelApi()
+      const api = fakeModelApi(['LLM|1|secret', 'opaque plan token'])
       const held = Promise.withResolvers<undefined>()
       const log = new FakeLogOutputChannel()
       const automatic = vi.fn(shared.reserve)
@@ -115,6 +116,17 @@ describe('Judge on the real D78 shared journal', () => {
       const host = new ModelApiHost({
         ...fakeModelApiHostDeps({ client, workspaceRoot: '/ws', io: memoryToolIo({}, '/ws'), log }),
         sideCallFormats: metaSideCallFormats,
+        ...(receipt === 'subscription' && {
+          getAccountId: () => Promise.resolve(subscriptionAccountId('/fake/sign-in')),
+          getBillingRoute: (isPaid: boolean | undefined) =>
+            Promise.resolve(
+              billingRoute(
+                isPaid ? 'payAsYouGo' : 'museCodePlan',
+                isPaid ? 'LLM|1|secret' : 'opaque plan token',
+                subscriptionAccountId('/fake/sign-in'),
+              ),
+            ),
+        }),
       })
       const session = await host.startSession({
         workspaceRoot: '/ws',
@@ -253,13 +265,19 @@ describe('Judge on the real D78 shared journal', () => {
         } else await transport.send(body, new AbortController().signal)
         expect(observed).toHaveBeenCalledTimes(1)
         expect(automatic).not.toHaveBeenCalled()
+        if (receipt === 'subscription') {
+          expect(api.requests[0]?.headers['Authorization']).toBe('Bearer opaque plan token')
+          expect(api.requests[1]?.headers['Authorization']).toBe('Bearer LLM|1|secret')
+        }
         const claim = owned
         if (claim === undefined) throw new Error('Judge claim absent')
         const snapshot = await shared.lookupByClaimId('2026-10-5', claim.claimId)
         if (receipt === 'missing') expect(snapshot).not.toHaveProperty('settledUsd')
         else
           expect(snapshot.settledUsd).toBe(
-            receipt === 'complete' ? settledCost : Usd.from(0).toAmount(),
+            receipt === 'complete' || receipt === 'subscription'
+              ? settledCost
+              : Usd.from(0).toAmount(),
           )
         const latest = await daily().latestDay()
         expect(latest.spentUsd).toBe(

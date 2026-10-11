@@ -1,3 +1,7 @@
+import {
+  payerCredentialSchema,
+  conversationOwnerSchema,
+} from '../../src/core/backends/modelapi/billingRoute'
 import { Usd } from '../../src/shared/usd'
 // The best-of-N run (M77, PLAN.md D49): one popup, N worktrees, diffs per
 // attempt, and a take that merges only the taken branch.
@@ -77,7 +81,7 @@ function runnerWith(
     })
   const deps: BestOfNRunnerDeps = {
     coordinator: new BestOfNCoordinator(),
-    getAccountId: () => Promise.resolve('account-1'),
+    getAccountId: () => Promise.resolve(payerCredentialSchema.parse('account-1')),
     hasDirtyEditors: () => false,
     validatePaths: () => Promise.resolve(undefined),
     validateWorktree: () => Promise.resolve(undefined),
@@ -303,7 +307,7 @@ describe('BestOfNRunner guards', () => {
       const t = runnerWith({
         deps: {
           isTrusted: () => isTrusted,
-          getAccountId: () => Promise.resolve(accountId),
+          getAccountId: () => Promise.resolve(payerCredentialSchema.parse(accountId)),
           allowsPaidUse: () => {
             entered.resolve(undefined)
             return consent.promise
@@ -376,6 +380,28 @@ describe('BestOfNRunner guards', () => {
     expect(t.noted).toEqual([1, 1, 1])
   })
 
+  it('admits a parent scope whose stable owner differs from its paying credential', async () => {
+    const t = runnerWith({
+      deps: {
+        getBudgetScope: () =>
+          Promise.resolve({
+            sessionId: 'parent',
+            accountId: conversationOwnerSchema.parse('stable-owner'),
+            payerCredential: payerCredentialSchema.parse('account-1'),
+            capUsd: () => Usd.from(1).toAmount(),
+            isStillAllowed: (payer) => payer === 'account-1',
+            journal: {
+              read: () => Promise.reject(new Error('not used')),
+              reserve: () => Promise.reject(new Error('not used')),
+              record: () => Promise.reject(new Error('not used')),
+            },
+          }),
+      },
+    })
+    const run = await t.runner.start(START)
+    expect(run.status).toBe('running')
+  })
+
   it('refuses an owned parent scope invalidated during the paid popup', async () => {
     let isCurrent = true
     const t = runnerWith({
@@ -383,7 +409,8 @@ describe('BestOfNRunner guards', () => {
         getBudgetScope: () =>
           Promise.resolve({
             sessionId: 'parent-1',
-            accountId: 'account-1',
+            accountId: conversationOwnerSchema.parse('account-1'),
+            payerCredential: payerCredentialSchema.parse('account-1'),
             capUsd: () => Usd.from(1).toAmount(),
             isStillAllowed: () => isCurrent,
             journal: {

@@ -1,4 +1,13 @@
-import { billingKeyDigest, type BillingRoute } from './billingRoute'
+import {
+  billingKeyDigest,
+  conversationOwnerSchema,
+  payerCredentialSchema,
+  resolveAttemptBillingRoute,
+  type AttemptFeature,
+  type BillingRoute,
+  type PayerCredential,
+  type ConversationOwner,
+} from './billingRoute'
 import { StorageRefusalError } from '../../checkpoints/storageRefusal'
 import type { GitDraftOutputPort } from '../../git/gitText'
 import type * as CodeIntelEntry from './codeIntelEntry'
@@ -18,6 +27,7 @@ import {
   type SearchSettlement,
   modelApiPaidTier,
   type PaidUseRequest,
+  scheduledRunPrice,
   type SubagentTaskConfirmation,
   type SubagentUsage,
 } from '../../../shared/paid'
@@ -618,8 +628,9 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
   readonly client: ProviderClient
   readonly models?: ModelResolver | undefined
   readonly hasMetaCredential?: (() => boolean) | undefined
-  /** Stable sign-in identity remains available after sign-out to drop its fences. */
-  readonly subscriptionAccountId?: string | undefined
+  /** Stable sign-in identity permits provider transitions in both directions. */
+  readonly subscriptionAccountId?: ConversationOwner | undefined
+  readonly conversationOwner?: ConversationOwner | undefined
   /** Resolve a frozen Meta route; paid extras use the pasted-key lane. */
   readonly getBillingRoute?: ((isPaid?: boolean) => Promise<BillingRoute | undefined>) | undefined
   readonly autoCompaction?: (() => boolean) | undefined
@@ -1205,7 +1216,7 @@ interface OpenReservation extends BudgetReservation {
   readonly hasUnknownCost: boolean
   hasAmbiguousAttempt: boolean
   /** The account whose reservation was saved before the final key admission. */
-  accountId: string | undefined
+  accountId: ConversationOwner | undefined
   /** Held on disk, including before the request is actually sent. */
   isReserved: boolean
   claim: SessionBudgetClaim | undefined
@@ -2619,7 +2630,7 @@ export class ModelApiSession implements ScheduledAgentSession {
   private usageCostUsd = Usd.from(0).toAmount()
   private hasUnknownBudgetCost = false
   private budgetIsFreshFork = false
-  private budgetAccountId: string | undefined
+  private budgetAccountId: ConversationOwner | undefined
   private budgetWrites: Promise<void> = Promise.resolve()
   private turnCostUsd = Usd.from(0).toAmount()
   /** The last reported request, which the next estimate starts from (M82). */
@@ -3845,18 +3856,31 @@ export class ModelApiSession implements ScheduledAgentSession {
       : (this.deps.budgetScope?.journal ?? this.deps.store?.budget)
   }
 
+  private isPaidBudgetCurrent(
+    scope: OwnedSessionBudgetScope | undefined,
+    payer: PayerCredential,
+  ): boolean {
+    return (
+      (scope !== undefined || Usd.from(this.deps.sessionBudgetUsd()).compare(Usd.from(0)) === 0) &&
+      scope?.isStillAllowed(payer) !== false
+    )
+  }
+
   /** Only Meta-direct requests may receive the subscription credential. */
   private async attemptBillingRoute(
     modelId = this.modelId,
-    isPaid = false,
+    feature: AttemptFeature = 'ordinary',
   ): Promise<BillingRoute | undefined> {
     const isMetaDirect =
       !modelId.includes('/') && this.selectedModel(modelId).policy.identity.provider === 'meta'
     if (!isMetaDirect) return
-    const route = await this.deps.getBillingRoute?.(isPaid)
-    if (route === undefined && isPaid && this.deps.getBillingRoute !== undefined)
-      throw new Error(UI_TEXT.subscriptionKey.paidNeedsKey)
-    return route
+    const result = await resolveAttemptBillingRoute({
+      feature,
+      paidFeature: this.deps.admitResponseAttempt?.paidFeature,
+      isMetaDirect,
+      resolve: this.deps.getBillingRoute,
+    })
+    return result.billing
   }
 
   /** Read shared spending using this attempt's exemption, never old sending state. */
@@ -3864,22 +3888,28 @@ export class ModelApiSession implements ScheduledAgentSession {
     await this.budgetWrites
     if (this.deps.client.isPlanModel?.(this.modelId) === true) return
     if (route?.kind === 'museCodePlan') {
-      this.budgetOwner().budgetAccountId = route.accountId
+      this.budgetOwner().budgetAccountId = this.deps.conversationOwner ?? route.accountId
       return
     }
     const owner = this.budgetOwner()
     const scope = this.deps.budgetScope
-    const accountId = await this.deps.getAccountId()
+    const currentOwner = await this.deps.getAccountId()
+    const accountId =
+      this.deps.conversationOwner ??
+      (currentOwner === undefined ? undefined : conversationOwnerSchema.parse(currentOwner))
     if (
-      this.modelId.includes('/') &&
-      this.deps.subscriptionAccountId !== undefined &&
-      owner.budgetAccountId === this.deps.subscriptionAccountId
-    )
-      owner.budgetAccountId = undefined
-    if (
+      currentOwner === undefined ||
       accountId === undefined ||
+      (this.deps.conversationOwner !== undefined &&
+        currentOwner !== this.deps.conversationOwner &&
+        this.deps.conversationOwner !== this.deps.subscriptionAccountId) ||
       (owner.budgetAccountId !== undefined && owner.budgetAccountId !== accountId) ||
-      (scope !== undefined && (scope.accountId !== accountId || !scope.isStillAllowed(accountId)))
+      (scope !== undefined &&
+        (scope.accountId !== accountId ||
+          !scope.isStillAllowed(
+            route?.payerCredential ??
+              payerCredentialSchema.parse(await this.client.currentKeyDigest()),
+          )))
     ) {
       throw new MissingApiKeyError()
     }
@@ -4641,6 +4671,8 @@ export class ModelApiSession implements ScheduledAgentSession {
       const quote = freezePaidQuote({
         id: this.deps.newId(),
         feature: 'webSearch',
+        payerKind: 'payAsYouGo',
+        ...(isSubscriptionSearch && { modelTokenBilling: scheduledRunPrice(this.modelId) }),
         conversationId: this.sessionId,
         ...(this.webSearchBound() !== undefined && { maxCalls: this.webSearchBound() }),
         provider:
@@ -4772,6 +4804,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         !isCompaction &&
         directBudget === undefined &&
         !this.isSubagent &&
+        this.deps.admitResponseAttempt?.paidFeature === undefined &&
         body.tools.every((tool) => tool.type !== MODEL_API_WEB_SEARCH_TOOL)
       )
         throw new Error(UI_TEXT.subscriptionKey.billingChanged)
@@ -4802,7 +4835,11 @@ export class ModelApiSession implements ScheduledAgentSession {
         this.compacting?.abort()
         throw new AbortedError()
       }
-      if (this.deps.budgetScope?.isStillAllowed(keyDigest) === false) {
+      if (
+        this.deps.budgetScope?.isStillAllowed(
+          keyDigest === undefined ? undefined : payerCredentialSchema.parse(keyDigest),
+        ) === false
+      ) {
         this.active?.abort.abort()
         this.compacting?.abort()
         throw new AbortedError()
@@ -4835,7 +4872,11 @@ export class ModelApiSession implements ScheduledAgentSession {
       }
       // A cap enabled during key retrieval needs a new durable preflight.
       if (directBudget !== undefined) {
-        if (directBudget.scope?.isStillAllowed(keyDigest) === false) {
+        if (
+          directBudget.scope?.isStillAllowed(
+            keyDigest === undefined ? undefined : payerCredentialSchema.parse(keyDigest),
+          ) === false
+        ) {
           throw new AbortedError()
         }
         const capUsd = directBudget.scope?.capUsd() ?? this.currentBudgetCap()
@@ -4916,11 +4957,17 @@ export class ModelApiSession implements ScheduledAgentSession {
               // Compare-only: the fresh credential can stop a send, never replace its snapshot.
               let current: BillingRoute | undefined
               try {
-                current = await this.attemptBillingRoute(body.model, isPaidRoute)
+                let feature: AttemptFeature = isCompaction ? 'compaction' : 'ordinary'
+                if (isPaidRoute) feature = paidFeature ?? 'webSearch'
+                current = await this.attemptBillingRoute(body.model, feature)
               } catch {
                 throw new Error(UI_TEXT.subscriptionKey.billingChanged)
               }
-              if (current?.kind !== route.kind || current.accountId !== route.accountId)
+              if (
+                current?.kind !== route.kind ||
+                current.accountId !== route.accountId ||
+                (route.kind === 'payAsYouGo' && current.payerCredential !== route.payerCredential)
+              )
                 throw new Error(UI_TEXT.subscriptionKey.billingChanged)
             },
       observe: (observation: ResponseObservation) => {
@@ -6003,8 +6050,17 @@ export class ModelApiSession implements ScheduledAgentSession {
     const run = this.active?.scheduleRun
     if (run !== undefined) await this.checkScheduledReplay(run, this.body())
     const attempt = budget.retriesUsed + 1
-    const isPaidAttempt = this.isSubagent || this.active?.isWebSearchAllowed === true
-    const route = await this.attemptBillingRoute(this.modelId, isPaidAttempt)
+    const isPaidAttempt =
+      this.isSubagent ||
+      this.active?.isWebSearchAllowed === true ||
+      this.deps.admitResponseAttempt?.paidFeature !== undefined
+    const route = await this.attemptBillingRoute(
+      this.modelId,
+      isPaidAttempt
+        ? (this.deps.admitResponseAttempt?.paidFeature ??
+            (this.isSubagent ? 'subagents' : 'webSearch'))
+        : 'ordinary',
+    )
     // A request that cannot fit the session budget left is never sent (M82),
     // nor shown to the hooks; the body sent is reserved afresh below, since
     // what it carries can change while the hooks run.
@@ -6711,7 +6767,11 @@ export class ModelApiSession implements ScheduledAgentSession {
     scope: OwnedSessionBudgetScope | undefined,
     keyDigest: string | undefined,
   ): boolean {
-    return scope?.isStillAllowed(keyDigest) ?? !isPositiveUsd(this.deps.sessionBudgetUsd())
+    return (
+      scope?.isStillAllowed(
+        keyDigest === undefined ? undefined : payerCredentialSchema.parse(keyDigest),
+      ) ?? !isPositiveUsd(this.deps.sessionBudgetUsd())
+    )
   }
 
   private paidModelObservers(turnId: string, route?: BillingRoute) {
@@ -6778,7 +6838,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     let keyDigest: string
     let budgetScope: OwnedSessionBudgetScope | undefined
     try {
-      route = await unlessStopped(this.attemptBillingRoute(modelId, true), signal)
+      route = await unlessStopped(this.attemptBillingRoute(modelId, 'autoReviewer'), signal)
       keyDigest =
         route === undefined
           ? await unlessStopped(resolved.client.currentKeyDigest(), signal)
@@ -6796,9 +6856,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     if (
       !isCurrent() ||
-      (budgetScope === undefined &&
-        Usd.from(this.deps.sessionBudgetUsd()).compare(Usd.from(0)) !== 0) ||
-      budgetScope?.isStillAllowed(keyDigest) === false
+      !this.isPaidBudgetCurrent(budgetScope, payerCredentialSchema.parse(keyDigest))
     ) {
       return { decision: 'ask', note: UI_TEXT.autoReviewerFailed }
     }
@@ -7889,7 +7947,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       }
     }
     // A scheduled fire reserves through its own ledger, never the session cap.
-    const route = await this.attemptBillingRoute(DEFAULT_MODEL_ID, true)
+    const route = await this.attemptBillingRoute(DEFAULT_MODEL_ID, 'imageGeneration')
     if (run === undefined) await this.refreshBudgetSpend(route)
     const price = Usd.from(PAID_PRICES_USD.imageGeneration).toAmount()
     const capUsd = run === undefined ? this.currentBudgetCap() : Usd.from(0).toAmount()
@@ -7950,8 +8008,13 @@ export class ModelApiSession implements ScheduledAgentSession {
               this.active?.scheduleRun !== run ||
               run?.isActive() === false ||
               !this.deps.isPaidFeatureOn('imageGeneration') ||
-              scope?.isStillAllowed(selected.ref.includes('/') ? selectedKeyDigest : keyDigest) ===
-                false
+              scope?.isStillAllowed(
+                (selected.ref.includes('/') ? selectedKeyDigest : keyDigest) === undefined
+                  ? undefined
+                  : payerCredentialSchema.parse(
+                      selected.ref.includes('/') ? selectedKeyDigest : keyDigest,
+                    ),
+              ) === false
             ) {
               throw new AbortedError()
             }
@@ -7970,6 +8033,22 @@ export class ModelApiSession implements ScheduledAgentSession {
             }
           },
           {
+            billingRoute: route,
+            paidFeature: 'imageGeneration' as const,
+            confirmBillingRoute:
+              route === undefined
+                ? undefined
+                : async () => {
+                    const current = await this.attemptBillingRoute(
+                      DEFAULT_MODEL_ID,
+                      'imageGeneration',
+                    )
+                    if (
+                      current?.kind !== route.kind ||
+                      current.payerCredential !== route.payerCredential
+                    )
+                      throw new Error(UI_TEXT.subscriptionKey.billingChanged)
+                  },
             onRequestStarted: () => {
               imageState.isSent = true
               startedAt ??= this.deps.now()
@@ -8702,7 +8781,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       this.deps.isWorkspaceTrusted() &&
       this.deps.isPaidFeatureOn('hookModels') &&
       this.policy() === policy
-    const route = await this.attemptBillingRoute(modelId, true)
+    const route = await this.attemptBillingRoute(modelId, 'hookModels')
     const [keyDigest, budgetScope] = await unlessStopped(
       Promise.all([
         route === undefined
@@ -8714,9 +8793,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     )
     if (
       !isCurrent() ||
-      (budgetScope === undefined &&
-        Usd.from(this.deps.sessionBudgetUsd()).compare(Usd.from(0)) !== 0) ||
-      budgetScope?.isStillAllowed(keyDigest) === false
+      !this.isPaidBudgetCurrent(budgetScope, payerCredentialSchema.parse(keyDigest))
     ) {
       throw new Error('the hook model call could not start')
     }
@@ -9032,7 +9109,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       undefined,
     )
     if (verdict?.keepWorking !== true || !this.canContinueChild(child, grant)) return false
-    const route = await this.attemptBillingRoute(child.session.modelId, true)
+    const route = await this.attemptBillingRoute(child.session.modelId, 'subagents')
     const keyDigest =
       route === undefined
         ? await this.client.currentKeyDigest()
@@ -9335,7 +9412,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     const isWebSearchAllowed =
       this.active?.isWebSearchAllowed ?? this.deps.isPaidUseRemembered('webSearch')
     const resolved = await this.resolveModel(modelId)
-    const route = await this.attemptBillingRoute(modelId, true)
+    const route = await this.attemptBillingRoute(modelId, 'subagents')
     return {
       modelId,
       parentModelId,
@@ -9373,7 +9450,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     let keyDigest: string | undefined
     try {
       const resolved = await this.resolveModel(grant.modelId)
-      const route = await this.attemptBillingRoute(grant.modelId, true)
+      const route = await this.attemptBillingRoute(grant.modelId, 'subagents')
       keyDigest =
         route === undefined
           ? await resolved.client.currentKeyDigest()
@@ -14327,7 +14404,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       try {
         const route = await this.attemptBillingRoute(
           this.modelId,
-          extraAdmission?.paidFeature !== undefined,
+          extraAdmission?.paidFeature ?? 'compaction',
         )
         await unlessStopped(this.refreshBudgetSpend(route), signal)
         await unlessStopped(
@@ -15562,7 +15639,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     route?: BillingRoute,
   ): Promise<OwnedSessionBudgetScope | undefined> {
     const modelRevision = this.modelRevision
-    const paidRoute = route ?? (await this.attemptBillingRoute(this.modelId, true))
+    const paidRoute = route ?? (await this.attemptBillingRoute(this.modelId, 'bestOfN'))
     const resolved = this.modelId.includes('/') ? await this.resolveModel() : this.selectedModel()
     const providerKeyDigest = this.modelId.includes('/')
       ? await resolved.client.currentKeyDigest()
@@ -15577,15 +15654,18 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (journal === undefined || accountId === undefined) {
       return undefined
     }
-    let expectedKeyDigest: string | undefined =
-      paidRoute === undefined ? accountId : billingKeyDigest(paidRoute.credential)
-    if (paidRoute === undefined && resolved.ref.includes('/')) expectedKeyDigest = providerKeyDigest
+    let expectedKeyDigest: PayerCredential | undefined =
+      paidRoute === undefined ? payerCredentialSchema.parse(accountId) : paidRoute.payerCredential
+    if (paidRoute === undefined && resolved.ref.includes('/'))
+      expectedKeyDigest =
+        providerKeyDigest === undefined ? undefined : payerCredentialSchema.parse(providerKeyDigest)
     const scope: OwnedSessionBudgetScope = Object.freeze({
       sessionId: source?.sessionId ?? owner.sessionId,
-      accountId,
+      accountId: conversationOwnerSchema.parse(accountId),
+      payerCredential: payerCredentialSchema.parse(expectedKeyDigest),
       journal,
       capUsd: () => this.currentBudgetCap(),
-      isStillAllowed: (keyDigest: string | undefined) =>
+      isStillAllowed: (keyDigest: PayerCredential | undefined) =>
         !this.isHostClosing() &&
         !this.isDisposed &&
         !owner.isDisposed &&
@@ -16646,7 +16726,8 @@ export class ModelApiSession implements ScheduledAgentSession {
     this.turnCount = stored.turnIds.length
     this.usage = { ...stored.usage }
     this.budgetSpentUsd = Usd.from(stored.budgetSpentUsd ?? 0).toAmount()
-    this.budgetAccountId = stored.accountId
+    this.budgetAccountId =
+      stored.accountId === undefined ? undefined : conversationOwnerSchema.parse(stored.accountId)
     // The packing ledger is a session total like the token counts: a
     // session saved before it was kept carries none, so it starts at zero.
     this.restoredPackedTokens = stored.packedTokensAvoided
@@ -16867,14 +16948,22 @@ export class ModelApiSession implements ScheduledAgentSession {
   }
 
   /** Reads the actual main request; the side stream never enters this session's replay or tally. */
-  public judgeConnection(turnId: string, keyDigest: string): ModelApiJudgeConnection {
+  public judgeConnection(turnId: string): ModelApiJudgeConnection {
     const readMainBody = (): CreateResponseBody => {
       if (this.active?.turnId !== turnId || this.lastJudgeBody?.model !== this.modelId)
         throw new Error('Judge source changed')
       return this.lastJudgeBody
     }
     return {
-      keyDigest,
+      resolvePayer: async () => {
+        const route = await this.attemptBillingRoute(this.modelId, 'judge')
+        return {
+          route,
+          payerCredential:
+            route?.payerCredential ??
+            payerCredentialSchema.parse(await this.client.currentKeyDigest()),
+        }
+      },
       sideCallFormats: this.deps.sideCallFormats,
       forceSideCallTool: this.deps.forceSideCallTool,
       source: {
@@ -16887,13 +16976,40 @@ export class ModelApiSession implements ScheduledAgentSession {
       transport: {
         send: async (body, signal, guard) => {
           if (guard === undefined) throw new Error('Judge dispatch requires admission')
+          const route = guard.billingRoute ?? (await this.attemptBillingRoute(body.model, 'judge'))
+          const payer =
+            route?.payerCredential ??
+            payerCredentialSchema.parse(await this.client.currentKeyDigest())
+          const admission: ResponseAttemptGuard = Object.assign(
+            (actual: string | undefined) => {
+              if (actual !== payer) throw new Error('Judge account changed')
+              guard(actual)
+            },
+            {
+              ...guard,
+              billingRoute: route,
+              paidFeature: 'judge' as const,
+              reservePaidRequest: guard.reservePaidRequest ?? (() => Promise.resolve(undefined)),
+              confirmBillingRoute:
+                route === undefined
+                  ? undefined
+                  : async () => {
+                      const current = await this.attemptBillingRoute(body.model, 'judge')
+                      if (
+                        current?.kind !== route.kind ||
+                        current.payerCredential !== route.payerCredential
+                      )
+                        throw new Error(UI_TEXT.subscriptionKey.billingChanged)
+                    },
+            },
+          )
           let final: ResponseObject | undefined
           const stream = this.client.streamResponse(
             body,
             signal,
             undefined,
             { retriesUsed: MODEL_API_MAX_RETRIES },
-            guard,
+            admission,
           )
           for await (const event of stream) {
             if (event.type === 'response.completed') final = event.response
@@ -17006,7 +17122,8 @@ export class ModelApiHost implements AgentHost {
 
   private readonly workspaceEdits: WorkspaceEdits
   /** Pinned at first use; a host cannot serve a different stored-key account. */
-  private accountIdValue: string | undefined
+  private accountIdValue: ConversationOwner | undefined
+  private readonly sessionOwners = new Map<string, ConversationOwner>()
   /** What the store holds for this workspace, kept current as sessions change. */
   private readonly stored = new Map<string, StoredSessionHeader>()
   private readonly listListeners = new Set<(event: SessionListEvent) => void>()
@@ -17042,8 +17159,9 @@ export class ModelApiHost implements AgentHost {
     deps.mcpServers?.setElicitationHandler?.(() => Promise.resolve({ action: 'decline' as const }))
   }
 
-  private async requireAccountId(): Promise<string> {
-    const current = await this.deps.getAccountId()
+  private async requireAccountId(): Promise<ConversationOwner> {
+    const observed = await this.deps.getAccountId()
+    const current = observed === undefined ? undefined : conversationOwnerSchema.parse(observed)
     if (
       current === undefined ||
       (this.accountIdValue !== undefined && current !== this.accountIdValue)
@@ -17051,12 +17169,10 @@ export class ModelApiHost implements AgentHost {
       if (
         current !== undefined &&
         this.deps.subscriptionAccountId !== undefined &&
-        this.accountIdValue === this.deps.subscriptionAccountId &&
-        current !== this.deps.subscriptionAccountId
+        (this.accountIdValue === this.deps.subscriptionAccountId ||
+          current === this.deps.subscriptionAccountId)
       ) {
         this.accountIdValue = undefined
-        for (const [id, stored] of this.stored)
-          if (stored.accountId === this.deps.subscriptionAccountId) this.stored.delete(id)
       } else {
         throw new Error(UI_TEXT.notSignedInReason)
       }
@@ -17072,8 +17188,8 @@ export class ModelApiHost implements AgentHost {
     }
   }
 
-  private ownedSnapshot(snapshot: StoredSession): StoredSession {
-    const accountId = this.accountIdValue
+  private ownedSnapshot(snapshot: StoredSession, owner?: ConversationOwner): StoredSession {
+    const accountId = owner ?? this.sessionOwners.get(snapshot.sessionId) ?? this.accountIdValue
     if (accountId === undefined) {
       throw new Error(UI_TEXT.notSignedInReason)
     }
@@ -17083,7 +17199,7 @@ export class ModelApiHost implements AgentHost {
       ...(snapshot.children !== undefined && {
         children: snapshot.children.map((child) => ({
           ...child,
-          session: this.ownedSnapshot(child.session),
+          session: this.ownedSnapshot(child.session, accountId),
         })),
       }),
     }
@@ -17338,7 +17454,7 @@ export class ModelApiHost implements AgentHost {
       sessionId,
       modelId,
       approvalMode,
-      this.deps,
+      { ...this.deps, conversationOwner: this.deps.budgetScope?.accountId ?? this.accountIdValue },
       () => {
         if (this.pendingSummaryForks.has(sessionId)) return
         void this.persist(session)
@@ -17365,6 +17481,7 @@ export class ModelApiHost implements AgentHost {
       false,
       extensionHooks,
     )
+    if (this.accountIdValue !== undefined) this.sessionOwners.set(sessionId, this.accountIdValue)
     this.sessions.set(sessionId, session)
     return session
   }
@@ -17510,7 +17627,7 @@ export class ModelApiHost implements AgentHost {
   public judgeConnection(sessionId: string, turnId: string): ModelApiJudgeConnection | undefined {
     const session = this.sessions.get(sessionId)
     if (session === undefined || this.accountIdValue === undefined) return
-    return session.judgeConnection(turnId, this.accountIdValue)
+    return session.judgeConnection(turnId)
   }
 
   public async importSession(
@@ -17675,10 +17792,12 @@ export class ModelApiHost implements AgentHost {
   }
 
   public async listSessions(options: ListSessionsOptions): Promise<SessionPage> {
-    await this.requireAccountId()
-    const records = Array.from(this.sessions.values(), (session) => session.record())
+    const owner = await this.requireAccountId()
+    const records = Array.from(this.sessions.values(), (session) =>
+      this.sessionOwners.get(session.sessionId) === owner ? session.record() : undefined,
+    ).filter((record) => record !== undefined)
     for (const [sessionId, stored] of this.stored) {
-      if (!this.sessions.has(sessionId)) {
+      if (stored.accountId === owner && !this.sessions.has(sessionId)) {
         records.push(recordOf(stored))
       }
     }
@@ -17763,7 +17882,7 @@ export class ModelApiHost implements AgentHost {
       ? undefined
       : Object.freeze({
           ...scope,
-          isStillAllowed: (keyDigest: string | undefined) =>
+          isStillAllowed: (keyDigest: PayerCredential | undefined) =>
             !this.isClosing && scope.isStillAllowed(keyDigest),
         })
   }

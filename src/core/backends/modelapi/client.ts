@@ -1,3 +1,5 @@
+import { uiLocale } from '../../../shared/l10n/text'
+import { resolveAttemptBillingRoute, type BillingRoute } from './billingRoute'
 import { PaidAuthority } from '../../paid/paidAuthority'
 // A thin, schema-validated Model API client (PLAN.md D2, M34, D86.6):
 // models, token counts, streamed responses, generated/edited images and
@@ -155,6 +157,7 @@ export interface ModelApiClientDeps {
    * refuse instead of charging the subscription.
    */
   readonly paidApiKey?: () => Promise<string | undefined>
+  readonly getBillingRoute?: ((isPaid: boolean) => Promise<BillingRoute | undefined>) | undefined
   readonly sleep: (ms: number) => Promise<void>
   /** Epoch ms, for a `Retry-After` given as a date. */
   readonly now: () => number
@@ -239,8 +242,14 @@ export class ModelApiClient implements TransportProviderClient {
     // A paid extra never rides the subscription credential: while chat
     // bills the plan, the image POST authenticates as the stored
     // pay-as-you-go key, and refuses with the fix when none is stored.
-    const paidKey = await this.deps.paidApiKey?.()
-    if (paidKey === undefined && this.deps.paidApiKey !== undefined) {
+    const paidKey =
+      admitAttempt?.billingRoute?.credential ??
+      (this.deps.getBillingRoute === undefined ? await this.deps.paidApiKey?.() : undefined)
+    if (
+      paidKey === undefined &&
+      this.deps.getBillingRoute === undefined &&
+      this.deps.paidApiKey !== undefined
+    ) {
       throw new Error(UI_TEXT.subscriptionKey.paidNeedsKey)
     }
     const paid = await this.paidReservation(body, 'imageGeneration', active, admitAttempt)
@@ -249,6 +258,16 @@ export class ModelApiClient implements TransportProviderClient {
       const result = await this.transport.request(
         path,
         {
+          billingRoute: await resolveAttemptBillingRoute({
+            feature: 'imageGeneration',
+            isMetaDirect: true,
+            snapshot: admitAttempt?.billingRoute,
+            resolve: this.deps.getBillingRoute,
+            readCredential: () =>
+              Promise.resolve(
+                paidKey ?? (this.deps.paidApiKey === undefined ? this.deps.apiKey() : undefined),
+              ),
+          }),
           method: 'POST',
           body,
           modelId: body.model,
@@ -368,7 +387,16 @@ export class ModelApiClient implements TransportProviderClient {
     // No turn to stop it: a deadline instead, so a panel never waits for ever (D25).
     const result = await this.transport.request(
       '/models',
-      { method: 'GET', accept: JSON_MEDIA_TYPE },
+      {
+        billingRoute: await resolveAttemptBillingRoute({
+          feature: 'catalogue',
+          isMetaDirect: true,
+          resolve: this.deps.getBillingRoute,
+          readCredential: this.deps.apiKey,
+        }),
+        method: 'GET',
+        accept: JSON_MEDIA_TYPE,
+      },
       AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
     )
     const parsed = await parseJsonResponse(result, (json) => modelListSchema.parse(json))
@@ -422,7 +450,18 @@ export class ModelApiClient implements TransportProviderClient {
     const deadline = AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS)
     const result = await this.transport.request(
       '/responses/input_tokens',
-      { method: 'POST', body, modelId: body.model, accept: JSON_MEDIA_TYPE },
+      {
+        billingRoute: await resolveAttemptBillingRoute({
+          feature: 'tokenCount',
+          isMetaDirect: true,
+          resolve: this.deps.getBillingRoute,
+          readCredential: this.deps.apiKey,
+        }),
+        method: 'POST',
+        body,
+        modelId: body.model,
+        accept: JSON_MEDIA_TYPE,
+      },
       signal === undefined ? deadline : AbortSignal.any([signal, deadline]),
     )
     return await parseJsonResponse(result, (json) => inputTokensSchema.parse(json).input_tokens)
@@ -482,7 +521,7 @@ export class ModelApiClient implements TransportProviderClient {
     const searchPrice =
       searchQuote?.tariffUsd ?? (hasSearch ? this.searchPriceUsd(body.model) : undefined)
     let paid: Awaited<ReturnType<ModelApiClient['paidReservation']>>
-    const authority = this.deps.paidAuthority ?? new PaidAuthority()
+    const authority = this.deps.paidAuthority ?? new PaidAuthority(UI_TEXT, uiLocale())
     const claimId =
       searchQuote === undefined
         ? undefined
@@ -598,6 +637,17 @@ export class ModelApiClient implements TransportProviderClient {
       const { response, redact, redactContent, eventParsed } = await this.transport.streamRequest(
         '/responses',
         {
+          billingRoute: await resolveAttemptBillingRoute({
+            feature: feature ?? 'ordinary',
+            paidFeature: admitAttempt?.paidFeature,
+            isMetaDirect: true,
+            snapshot: admitAttempt?.billingRoute,
+            resolve: this.deps.getBillingRoute,
+            readCredential: (isPaid) =>
+              isPaid && this.deps.paidApiKey !== undefined
+                ? this.deps.paidApiKey()
+                : this.deps.apiKey(),
+          }),
           body,
           accept: EVENT_STREAM_MEDIA_TYPE,
           modelId: body.model,

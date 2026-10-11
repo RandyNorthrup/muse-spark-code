@@ -982,7 +982,10 @@
         "museSpark.useMuseCodeSubscription",
         "museSpark.modelApiWebSearch",
         "museSpark.modelApiSubagents",
-        "museSpark.modelApiAutoReviewer"
+        "museSpark.modelApiAutoReviewer",
+        "museSpark.modelApiBestOfN",
+        "museSpark.modelApiHookModels",
+        "museSpark.judge.engine"
       ],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#muse-code-subscription",
       "backends": ["modelApi"],

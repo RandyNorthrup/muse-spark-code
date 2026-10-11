@@ -1,4 +1,9 @@
-import type { BillingRoute } from '../../core/backends/modelapi/billingRoute'
+import {
+  payerCredentialSchema,
+  type PayerCredential,
+  type ConversationOwner,
+  type BillingRoute,
+} from '../../core/backends/modelapi/billingRoute'
 import { Usd, type UsdAmount } from '../../shared/usd'
 import type { CreateResponseBody, StreamEvent } from '../../core/backends/modelapi/schemas'
 import type { UsageRecording } from '../../core/usage/recording'
@@ -79,7 +84,7 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly createProviders?: (() => Promise<ModelResolver>) | undefined
   readonly hasMetaCredential?: (() => boolean) | undefined
   /** The immutable Meta credential/pricing decision for each request. */
-  readonly subscriptionAccountId?: string | undefined
+  readonly subscriptionAccountId?: ConversationOwner | undefined
   readonly getBillingRoute?: ((isPaid?: boolean) => Promise<BillingRoute | undefined>) | undefined
   readonly workspaceRoot: string | undefined
   readonly io: ToolIo
@@ -344,6 +349,9 @@ export class ModelApiBackendManager {
         baseUrl: MODEL_API_BASE_URL,
         apiKey: this.deps.getApiKey,
         ...(this.deps.getPaidApiKey !== undefined && { paidApiKey: this.deps.getPaidApiKey }),
+        ...(this.deps.getBillingRoute !== undefined && {
+          getBillingRoute: this.deps.getBillingRoute,
+        }),
         sleep: this.deps.sleep,
         now: this.deps.now,
         random: this.deps.random,
@@ -601,7 +609,9 @@ export class ModelApiBackendManager {
               generation !== this.generation ||
               (budgetScope === undefined &&
                 Usd.from(this.deps.sessionBudgetUsd()).compare(Usd.from(0)) !== 0) ||
-              budgetScope?.isStillAllowed(keyDigest) === false
+              budgetScope?.isStillAllowed(
+                keyDigest === undefined ? undefined : payerCredentialSchema.parse(keyDigest),
+              ) === false
             ) {
               throw new Error(UI_TEXT.bestOfNBudgetUnavailable)
             }
@@ -654,18 +664,20 @@ export class ModelApiBackendManager {
     return this.host?.readUsageBudgets() ?? Promise.resolve([])
   }
 
-  public async accountId(): Promise<string | undefined> {
+  public async accountId(): Promise<PayerCredential | undefined> {
     let key: string | undefined
     try {
-      key = await this.deps.getApiKey()
+      key = await (this.deps.getPaidApiKey ?? this.deps.getApiKey)()
     } catch {
       // A refused subscription key reads as no key here; the turn path
       // surfaces the refusal itself, and paid scopes stay unavailable.
-      return await this.deps.getProviderAccountId?.()
+      const provider = await this.deps.getProviderAccountId?.()
+      return provider === undefined ? undefined : payerCredentialSchema.parse(provider)
     }
-    return key === undefined
-      ? await this.deps.getProviderAccountId?.()
-      : createHash('sha256').update(key).digest('hex')
+    const provider = key === undefined ? await this.deps.getProviderAccountId?.() : undefined
+    if (key !== undefined)
+      return payerCredentialSchema.parse(createHash('sha256').update(key).digest('hex'))
+    return provider === undefined ? undefined : payerCredentialSchema.parse(provider)
   }
 
   /** The host, created on first use with the stored sessions read. Rejects without a workspace. */

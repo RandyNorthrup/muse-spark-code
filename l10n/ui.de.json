@@ -5232,7 +5232,7 @@
     "cannotRead": "Das Muse Code-Abonnement ist aktiviert, aber die Anmeldedatei der Muse Code CLI kann nicht gelesen werden. Melden Sie die Muse Code CLI erneut an und versuchen Sie es erneut – oder verwenden Sie stattdessen einen Model API-Schlüssel.",
     "keychainBacked": "Das Muse Code-Abonnement ist aktiviert, aber diese Anmeldung liegt im Login-Schlüsselbund, der hier nicht gelesen werden kann. Verwenden Sie stattdessen einen Model API-Schlüssel.",
     "paidNeedsKey": "Das Muse Code-Abonnement deckt Chat ab. Dieses kostenpflichtige Extra braucht einen gespeicherten Model API-Schlüssel: Speichern Sie einen und versuchen Sie es erneut.",
-    "billingChanged": "Das Abrechnungskonto hat sich geändert. Es wurde nichts gesendet; versuchen Sie es erneut.",
+    "billingChanged": "Das Abrechnungskonto hat sich geändert. Dieser Versuch wurde abgelehnt; versuchen Sie es erneut.",
     "paidSearch": "Die Modell-Token dieser Antwort werden ebenfalls über Ihren gespeicherten Model-API-Schlüssel zu diesen Preisen abgerechnet: {price}."
   },
   "acpSubscriptionNeedsModelApi": "{argument} erfordert --backend modelApi: Das Muse Code-Abonnement bezahlt Model API-Aufrufe.",

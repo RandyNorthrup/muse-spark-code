@@ -1,3 +1,4 @@
+import { payerCredentialSchema } from '../../src/core/backends/modelapi/billingRoute'
 import { Usd, type UsdAmount } from '../../src/shared/usd'
 import { describe, expect, it, vi } from 'vitest'
 import { admittedModelApiJudge } from '../../src/host/judge/judgeTransport'
@@ -57,7 +58,11 @@ function setup() {
   let keyDigest = 'account'
   let hold: Promise<undefined> | undefined
   const connection: ModelApiJudgeConnection = {
-    keyDigest: 'account',
+    resolvePayer: () =>
+      Promise.resolve({
+        route: undefined,
+        payerCredential: payerCredentialSchema.parse('account'),
+      }),
     source: { readMainBody: () => BODY, keyPrefix: () => 'judge', prefixTokens: () => undefined },
     transport: {
       send: async (_body, _signal, guard) => {

@@ -1,3 +1,4 @@
+import { payerCredentialSchema } from '../../src/core/backends/modelapi/billingRoute'
 import type { EstimateRequest } from '../../src/shared/estimate'
 import { fakeEstimate } from './helpers/estimator/fixtures'
 import { questionAnswerText } from './helpers/questions/registry'
@@ -9429,7 +9430,9 @@ describe('ConversationController: the microphone’s engine (M35, PLAN.md D30)',
           throw new Error('Expected the owned voice budget scope')
         }
         expect(Object.isFrozen(scope)).toBe(true)
-        expect(scope.isStillAllowed(FAKE_MODEL_API_ACCOUNT_ID)).toBe(true)
+        expect(scope.isStillAllowed(payerCredentialSchema.parse(FAKE_MODEL_API_ACCOUNT_ID))).toBe(
+          true,
+        )
         expect(api.responseBodies()).toEqual([])
         switch (change) {
           case 'auth': {
@@ -9442,7 +9445,9 @@ describe('ConversationController: the microphone’s engine (M35, PLAN.md D30)',
           }
           case 'restart': {
             const stopping = controller.backendStopping(true)
-            expect(scope.isStillAllowed(FAKE_MODEL_API_ACCOUNT_ID)).toBe(false)
+            expect(
+              scope.isStillAllowed(payerCredentialSchema.parse(FAKE_MODEL_API_ACCOUNT_ID)),
+            ).toBe(false)
             await stopping
             break
           }
@@ -9454,7 +9459,9 @@ describe('ConversationController: the microphone’s engine (M35, PLAN.md D30)',
             await controller.handle({ type: 'clearConversation' })
           }
         }
-        expect(scope.isStillAllowed(FAKE_MODEL_API_ACCOUNT_ID)).toBe(false)
+        expect(scope.isStillAllowed(payerCredentialSchema.parse(FAKE_MODEL_API_ACCOUNT_ID))).toBe(
+          false,
+        )
       } finally {
         controller.dispose()
         await host.close()

@@ -1,3 +1,4 @@
+import { uiLocale } from '../../shared/l10n/text'
 import { reportingAmount } from '../../core/usage/reportingAmount'
 import { randomUUID } from 'node:crypto'
 import { PaidAuthority } from '../../core/paid/paidAuthority'
@@ -47,7 +48,7 @@ export function createPaidDailyBudget(deps: {
   /** P's account-bound guard; shared daily claims still use one fixed scope. */
   readonly accountAdmission?: AccountBudgetAdmission
 }) {
-  const authority = deps.authority ?? new PaidAuthority()
+  const authority = deps.authority ?? new PaidAuthority(UI_TEXT, uiLocale())
   const day = () => {
     const today = new Date(deps.now())
     return [today.getFullYear(), today.getMonth() + 1, today.getDate()].join('-')

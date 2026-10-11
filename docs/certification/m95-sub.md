@@ -6,7 +6,7 @@ PLAN D106 records the scope and the D74/M95b tension for the lead.
 No real CLI auth file was read on this rig; every fixture is a temp-dir or
 in-memory fake. No paid or live model call. No new dependency.
 
-## Current behavior after the round 3 redesign
+## Current behavior after the RVCMSUBKEY3 repair
 
 The explicit subscription opt-in resolves one frozen in-memory `BillingRoute`
 per Meta-direct attempt from the captured `providers.meta.access_token` shape.
@@ -25,7 +25,7 @@ the resolved sign-in path, normalized for Windows separators; the captured
 metadata has no account/user id. Bearer rotation preserves saved-session
 visibility. Sign-out releases subscription-bound fences for unrelated models.
 
-Disabled extras stay quiet. Enabled hosted search, subagents and Auto review
+Disabled extras stay quiet. Enabled hosted search, subagents, Auto review, Best-of-N, hook models and Judge
 require the pasted key, normal price/daily-budget/use consent and paid usage
 accounting. A granted search response also bills its model tokens to that key;
 the consent question discloses their rates. Denied search leaves chat on the
@@ -338,3 +338,154 @@ model call is made here.
 The headless bundle is unchanged at 102,391 bytes (9 bytes of headroom); its
 new route-exclusion gate is red/green proven above. No dependency is added,
 no real credential is read, and no branch is pushed, rebased or merged.
+
+## CMSUBKEYR4 — all nine RVCMSUBKEY3 findings (2026-10-11, macmini)
+
+Owner decision recorded in PLAN M95: **one billing route, resolved once and
+carried everywhere**. ConversationOwner and PayerCredential are distinct zod
+brands; the saved conversation and its budget retain the owner while a paid
+attempt binds the actual credential digest. The shared resolver classifies
+ordinary, compaction, catalogue, token-count and every PaidFeature, including
+an admission's paidFeature flag. Both transport entries require its opaque
+AttemptBillingRoute result. The inventory names all ten production call sites,
+finds their RequestTransport receivers and rejects a hand-built route.
+
+The hook wrapper preserves the frozen route and its compare-only confirmation.
+Judge resolves its payer separately from the conversation owner and carries the
+route to its side stream; its existing admitted daily reservation remains the
+only one. Best-of-N compares payer to payer, with and without a parent journal.
+The parent scope and saved sessions retain stable ownership. Voice's sibling
+external-scope comparison also uses the payer, and every scope consumer parses
+its digest at the boundary before calling the branded payer contract.
+
+Search quotes and authority keys include payer kind and the exact disclosed
+model-token rates. Both Always and window Once share that binding; legacy
+unbound grants cannot authorize the newly disclosed obligation. Provider auth
+remains origin-bound. Subscription/provider host transitions are symmetric,
+retain owned history, and preserve budget ownership across sign-out. Runtime
+readiness checks schema-valid provider credentials before returning subscription
+sign-in guidance, matching the editor's provider-first readiness behavior.
+Windows path identity resolves and case-folds any drive and UNC path. The retry
+refusal describes this attempt in English and all fourteen translations,
+without a claim about earlier dispatched requests.
+
+| Finding | Fix                                                                               | Regression                                                                                                           |
+| ------- | --------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| 1       | Consent/authority key binds payer kind and token-rate disclosure                  | paidConsent: asks again when payer kind or model-token billing disclosure changes, in both directions                |
+| 2       | Prompt/agent admission preserves frozen route and confirmation                    | hookModelHandlers: carries the frozen paid route through a prompt / agent hook                                       |
+| 3       | Judge resolves the paid payer, carries auth and uses one existing reservation     | judgeSharedBudget: production Judge subscription receipt, actual plan and paid Authorization bytes                   |
+| 4       | Branded owner/payer split; Best-of-N and voice compare payer to payer             | bestOfNRunner: admits a parent scope whose stable owner differs from its paying credential; manager scoped candidate |
+| 5       | Shared resolver honors every admission paidFeature; transport requires its result | manager: paid candidates with parent scope false / true; billingRouteInventory                                       |
+| 6       | Symmetric host binding, stable per-session ownership and retained history         | subscriptionRoutes: subscription to provider and back without restarting; list/resume/start                          |
+| 7       | Runtime provider credentials precede subscription refusal                         | acpRuntime: providers ready after subscription sign-out; malformed-record control                                    |
+| 8       | Resolved/case-folded Windows sign-in identity, any drive and UNC                  | subscriptionCredential: resolves and case-folds Windows sign-in identities on any drive                              |
+| 9       | Localized refusal names only the refused attempt                                  | subscriptionRoutes: refused retry after an earlier response was dispatched                                           |
+
+No real credential file, OS credential store, live or paid model call, new
+dependency, merge, push, cap increase or hook modification. All work runs here
+in the foreground. Full quality and installed/native-editor certification are
+assigned to the lead by the rig/common brief. The lane runs owning suites at
+repository timeouts, three workers and at most three files per invocation.
+
+### RVCMSUBKEY3 red-drill receipts
+
+Every invocation ran the complete named file at repository timeouts, with
+`--maxWorkers=3`; exit 1 was required. Every source restored to the recorded
+pre-mutation SHA-256 in `finally`. No mutation remains.
+
+| Finding   | Guard deliberately broken                                                 | Failed / passed          | Restored source SHA-256                                            |
+| --------- | ------------------------------------------------------------------------- | ------------------------ | ------------------------------------------------------------------ |
+| F1        | Remove payer/disclosure from authority key                                | 1 failed; 38 passed (39) | `6b552e033d70b1454d905177e91c7467f6e134a01f70ea79c8cc7c11582354d2` |
+| F2        | Drop route and compare-only confirmation from hook wrapper                | 2 failed; 14 passed (16) | `a3e398e6f95abdf830daf6bbd4cf0bf9c350ffe7b557fd1d617a532ba1afae64` |
+| F3        | Resolve ordinary plan route for Judge payer                               | 1 failed; 5 passed (6)   | `aa2b11c418e84a34e8bbeeded1ae765bd2e55b1eaeda21976d757abb032ff82d` |
+| F4        | Compare external scope owner to Best-of-N payer                           | 1 failed; 46 passed (47) | `1ec2834b73c81671fb3f9cddec9e8823f9f5d96d0810c76c3d197a9e3264c3fb` |
+| F5        | Ignore paid feature classification in the shared resolver                 | 2 failed; 24 passed (26) | `bfee0de1516beff3f2dd2178c99f066f403b4cf021b53d43862ecb1d40f2e0c4` |
+| F6        | Allow only the plan-to-provider transition                                | 1 failed; 14 passed (15) | `aa2b11c418e84a34e8bbeeded1ae765bd2e55b1eaeda21976d757abb032ff82d` |
+| F7        | Return signedOut before checking provider credentials                     | 1 failed; 47 passed (48) | `c01320632e2867c7b013136cfa5858a546bed4260f6d87e1acd45dd3bf821d32` |
+| F8        | Preserve Windows path case                                                | 1 failed; 12 passed (13) | `bfee0de1516beff3f2dd2178c99f066f403b4cf021b53d43862ecb1d40f2e0c4` |
+| F9        | Restore the false Nothing-was-sent promise                                | 1 failed; 14 passed (15) | `829ed4e0ef259fc72eb4c77b0c36525ee18411f824bfceff218fd8af57a01d59` |
+| inventory | Construct an image-entry route with Object.freeze instead of the resolver | 1 failed; 1 passed (2)   | `90256fcb360acba9527e61d4b6c1523afa7e0d8f0df2609ebb555569cac45af5` |
+
+Two sibling guards were also broken and restored after the adapter sweep:
+
+| Guard                           | Named regression                                                           | Red result                | Restored source SHA-256                                            |
+| ------------------------------- | -------------------------------------------------------------------------- | ------------------------- | ------------------------------------------------------------------ |
+| Admitted image snapshot         | carries an admitted image payer without rereading either credential source | 1 failed ; 77 passed (78) | `851dab1bb4885d4f74117b8aa5051e7924e1f8826a97b8c2bd2858fa59c3cab5` |
+| Retry payer fence before pacing | refuses a legacy payer change before a retry can join pacing               | 1 failed ; 15 passed (16) | `50a3d84d94d02329b3c36051e2b1c41cddcfd42f24b2d3d52e95bcee718d2703` |
+
+The image guard carries the paid snapshot and compare-only confirmation;
+the client does not reread its credential sources for an admitted image.
+Legacy clients still verify credential continuity after pacing and before
+retry pacing. Their resolved payer cannot be silently replaced on retry.
+The child retry regression now asserts this earlier refusal and a single
+admission, rather than expecting admission under a different bearer.
+
+The first broad client run exposed the lost legacy pacing check and a
+scheduled retry repeatedly waiting with a fixed fake clock. Its worker was
+stopped; a temporary bounded pacing probe identified the retry, and pacing.ts
+was restored byte-for-byte. The production fix refuses a changed resolved
+payer before the retry can join pacing. No timeout or gate was changed.
+
+### Bundle-boundary repair
+
+The first production build failed the unchanged headless cap at 103,481 /
+102,400 bytes: providersCommands' free probe brought billingRoute.ts into
+preflight. The probe, its existing captured-list parsers and attribution
+headers now live in providerProbe.ts, exported by the existing lazy
+configuredProviders entry. The terminal wrapper installs its language before
+calling the probe. The transport inventory now names providerProbe.ts in the
+same ten-call inventory. No new bundle or budget was added.
+
+A second build caught a direct preset-table import in that existing lazy
+bundle; it now reads presets through providersEntry, preserving the original
+split. The complete production build, all size/split checks, host-global
+checks and notices then passed. Headless has neither billingRoute.ts nor
+providerProbe.ts as an input.
+
+| Final bundle                |   Bytes | Unchanged cap |
+| --------------------------- | ------: | ------------: |
+| dist/extension.js           | 569,390 |       614,400 |
+| dist/modelApi.js            | 536,346 |       537,600 |
+| dist/headless.js            |  99,762 |       102,400 |
+| dist/configuredProviders.js |  32,048 |        51,200 |
+
+The expanded Windows drive/UNC drill failed both named path cases (2 failed,
+12 passed), restored billingRoute.ts SHA-256 `0821d0b2096907e3d6d2ee636a228ec04dbb22086a634a7cc23726349a03a2b9`,
+and the restored routes/billing/credential group passed 40/40.
+
+Final verification used the repository defaults, at most three complete files
+per run and three workers, directly on macmini. The Model API host/client/golden
+group passed 887/887; conversation/voice/provider transport passed 736/736;
+configured providers/free probe/provider commands passed 75/75; and
+redaction/accounting/key parsing passed 49/49. The ACP/fetch/loopback group
+had one 5-second deadline in its existing first ACP packing/recall case,
+with 89 other passes; the entire ACP file then passed unchanged (48/48) at
+the same repository timeout. No timeout, assertion or gate was weakened.
+
+All five typecheck projects passed. Changed-file ESLint, Prettier, knip,
+localization (1517 source files, fourteen UI tables, zero problems), reference,
+plan and roadmap checks passed. The zero-duplication gate caught one shared
+budget predicate and repeated test request setup; factoring those preserves
+the same fences and leaves zero clones. Full quality/coverage, native editors
+and live billing remain the lead's assigned validation, per common.md.
+No paid/live request, real credential read, dependency, cap change, merge,
+push, rebase or hook change occurred.
+
+The deferred-bundle suite additionally exposed its stricter 530,883-byte
+Model API diet pin (the build cap is 537,600). Quote authority now ships
+once through the existing Node boundary bundle. Every production constructor
+installs the caller's text and locale before use. The shared-source split
+inventory includes paidAuthority.ts, so copies cannot silently return.
+This preserves both limits and all existing consent authority semantics.
+Final remeasurement: dist/modelApi.js = 528,678 bytes.
+Final remeasurement: dist/modelApiBoundaries.js = 42,038 bytes.
+Final remeasurement: dist/extension.js = 561,121 bytes.
+
+Final strict diet/boundary/consent rerun: deferredBundles, billingRouteInventory
+and paidConsent passed 158/158. The complete production build passed again
+with both size caps and the stricter diet pin unchanged.
+
+The installed pre-commit hook rejected constructor member order; fields now
+precede the quote-authority constructor. The localization gate also rejected
+ACP's field-time table read; its constructor now installs the table explicitly.
+Hooks and localization checks remain unchanged.
