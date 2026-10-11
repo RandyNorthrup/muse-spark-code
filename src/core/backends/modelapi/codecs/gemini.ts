@@ -24,7 +24,7 @@ import { fill, UI_TEXT } from '../../../../shared/l10n/text'
 
 import { ModelApiError } from '../transport'
 import { CODEC_EMPTY_TOOL_OUTPUT, CODEC_IMAGE_WITHOUT_VISION } from '../../../../shared/constants'
-import { cleanJsonStrings, cleanWireText, isBlankWireText } from './shared'
+import { ChatCodecError, cleanJsonStrings, cleanWireText, isBlankWireText } from './shared'
 import type {
   CreateResponseBody,
   FunctionCallOutputItem,
@@ -418,7 +418,7 @@ function toNativeParts(content: readonly InputContentPart[], build: ContentsBuil
   const parts: unknown[] = []
   for (const part of content) {
     if (part.type === 'input_video') {
-      throw new Error(fill(UI_TEXT.media.videoUnknown, { model: build.model }))
+      throw new ChatCodecError(fill(UI_TEXT.media.videoUnknown, { model: build.model }))
     }
     // Another provider's held file has no bytes to send; like an image
     // where the model takes none, the turn keeps the placeholder.
@@ -640,6 +640,16 @@ export function encodeGeminiRequest(
   let capabilityRecord = typeof recordOrBudget === 'object' ? recordOrBudget : undefined
   if (settings !== undefined && 'identity' in settings) capabilityRecord = settings
   const thinkingBudget = typeof recordOrBudget === 'number' ? recordOrBudget : explicitBudget
+  // M105 lane V R2 (RVCM1054 finding 1, same class as the other encoders):
+  // a held video refuses with the model's own reason before effort and
+  // budget validation, so the typed refusal reaches the production client
+  // for every record. The check inside `toNativeParts` stays as the
+  // fail-closed conversion guard.
+  for (const item of body.input) {
+    if (item.type === 'message' && item.content.some((part) => part.type === 'input_video')) {
+      throw new ChatCodecError(fill(UI_TEXT.media.videoUnknown, { model: nativeModelId }))
+    }
+  }
   // M101 lane P1 (BYO item 11): Gemini 3 and later take the full tool
   // schema; older models keep the OpenAPI 3.0 subset. The generation comes
   // from the catalog override when lane P supplies one, else the model id.

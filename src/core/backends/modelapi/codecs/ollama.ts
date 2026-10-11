@@ -40,7 +40,7 @@ import {
 } from '../../../../shared/constants'
 import { UI_TEXT, fill } from '../../../../shared/l10n/text'
 import { ModelApiError } from '../transport'
-import { cleanJsonStrings, cleanWireText, isBlankWireText } from './shared'
+import { ChatCodecError, cleanJsonStrings, cleanWireText, isBlankWireText } from './shared'
 import type {
   CreateResponseBody,
   FunctionCallItem,
@@ -314,6 +314,12 @@ export function encodeOllamaRequest(
     for (const part of item.content) {
       if (part.type === 'input_file') {
         throw new Error(UI_TEXT.ollamaPdfUnsupported)
+      }
+      // M105 lane V R2 (RVCM1054 finding 2): a held video has no Ollama
+      // shape without a vendor capture behind it, so it refuses with the
+      // model's own reason instead of being ignored while the rest sends.
+      if (part.type === 'input_video') {
+        throw new ChatCodecError(fill(UI_TEXT.media.videoUnknown, { model: options.model }))
       }
     }
     const images = imagesOf(item.content)
