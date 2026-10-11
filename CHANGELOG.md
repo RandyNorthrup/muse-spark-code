@@ -140,6 +140,14 @@ happened, not what was planned; superseded entries are kept.
   sentence, and a catalogue request id is accepted against a session
   confirmation id (M106, RVCM1062G;
   `docs/certification/m106-capability-binding.md`).
+- Fixed the RVCM1062H findings: the last two confirmed-dispatch paths that
+  decided by themselves now route through the shared helper. A still-allowed
+  scheduled or hook confirmation on a configured provider (which carries no
+  origin) dispatches instead of refusing with "Models & Agents is not
+  available in this build", and a lapsed confirmation there keeps the run's
+  own guidance instead of that sentence. An inventory test fails if any site
+  but the helper ever refuses a confirmed dispatch again (M106, RVCM1062H;
+  `docs/certification/m106-capability-binding.md`).
 
 - On macOS 26, a process that `ps` lists with an unknown state (`?`) while
   it changes no longer voids every resource tree's membership read, which
