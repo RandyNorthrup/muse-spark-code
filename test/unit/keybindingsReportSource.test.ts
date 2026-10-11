@@ -8,12 +8,9 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import * as acp from '@agentclientprotocol/sdk'
 import { EN } from '../../src/shared/l10n/en'
-import {
-  ACP_COMPACT_COMMAND,
-  REPORT_SECTION_ROWS,
-  SLASH_COMMAND_NAMES,
-} from '../../src/shared/constants'
+import { REPORT_SECTION_ROWS } from '../../src/shared/constants'
 import {
   reportSectionSchema,
   type ReportRow,
@@ -26,7 +23,15 @@ import {
   keybindingsSource,
 } from '../../src/core/reporting/sources/keybindings'
 import { acpSharingCommands } from '../../src/acp/sharing'
-import { resourceCommands } from '../../src/acp/resources'
+import { createAcpAgent, type AcpAgentDeps } from '../../src/acp/agent'
+import { AcpPaidUse } from '../../src/acp/paid'
+import { AcpVault } from '../../src/acp/vault'
+import type { RuntimeResources } from '../../src/runtime/resources/port'
+import { FakeAgentHost } from './helpers/fakeAgent'
+import { memoryPaidGrants } from './helpers/paidGrants'
+import { sessionAccountsRig } from './helpers/runtimeAccounts'
+import { FakeAcpQuestionRegistry } from './helpers/questions/acpRegistry'
+import { fakeUsageAccess } from './helpers/usageAdapters'
 import { compare } from '../../src/core/reporting/collect/common'
 import { collectKeybindingSections } from '../../src/core/reporting/collect/keybindings'
 import { keybindingsManifestReader } from '../../src/runtime/reporting/reportInputs'
@@ -87,32 +92,248 @@ function scopeText(entry: ReportRow): string {
   return scope.value
 }
 
-/** The port gating a guarded `refreshCommands` spread; unknown shapes throw. */
-function gateForGuard(guard: string): string {
-  if (guard.includes('deps.sharing')) return 'sharing'
-  if (guard.includes('deps.vault')) return 'vault'
-  if (guard.includes('this.accounts')) return 'accounts'
-  if (guard.includes('deps.legalScan')) return 'legalScan'
-  if (guard.includes('deps.usage')) return 'usage'
-  if (guard.includes('deps.resources')) return 'resources'
-  if (guard.includes('deps.playbookFor')) return 'playbook'
-  if (guard.includes('deps.schedules')) return 'schedules'
-  if (guard.includes('deps.media')) return 'media, not headless'
-  if (guard.includes('deps.estimate')) return 'estimate'
-  if (guard.includes('questionRegistry')) return 'questions'
-  throw new Error(`Unknown ACP command guard: ${guard}`)
+/** A test-only chord normalizer: the contract `conflictRows` implements. */
+function normalizeTestChord(chord: string): string {
+  return chord.toLowerCase().replaceAll(/\s+/gu, ' ').trim()
 }
 
-const acpNamePattern =
-  /name:\s*(?:'([^']+)'|((?:SLASH_COMMAND_NAMES|ACP_COMPACT_COMMAND))(?:\.(\w+))?)/g
+interface ConflictExpectation {
+  readonly shortcut: string
+  readonly commands: readonly string[]
+  readonly scope: string
+}
 
-/** One announced name from the agent table: a literal or a shared constant. */
-function resolveAcpName(match: RegExpMatchArray): string {
-  const [, literal, holder, key] = match
-  if (literal !== undefined) return literal
-  return holder === 'ACP_COMPACT_COMMAND' && key === undefined
-    ? ACP_COMPACT_COMMAND
-    : SLASH_COMMAND_NAMES[key as keyof typeof SLASH_COMMAND_NAMES]
+function compareConflict(left: ConflictExpectation, right: ConflictExpectation): number {
+  return compare(JSON.stringify(left), JSON.stringify(right))
+}
+
+/** A conflict section's rows as plain expectations, in row order. */
+function readConflicts(rows: ReportRow[]): ConflictExpectation[] {
+  return rows.map((entry) => {
+    const shortcut = entry.cells['shortcut']
+    const command = entry.cells['command']
+    if (shortcut?.type !== 'text' || command?.type !== 'textList')
+      throw new Error('Expected conflict cells')
+    return { shortcut: shortcut.value, commands: command.value, scope: scopeText(entry) }
+  })
+}
+
+/**
+ * One registrar gate: the port whose presence announces the command. The
+ * harness binds one port at a time against the real agent, so a command
+ * registered in any syntax is seen — and a command no single gate explains
+ * fails below as unclassifiable instead of passing silently.
+ */
+type AcpGate =
+  | 'sharing'
+  | 'vault'
+  | 'accounts'
+  | 'legalScan'
+  | 'usage'
+  | 'resources'
+  | 'playbook'
+  | 'schedules'
+  | 'media'
+  | 'estimate'
+  | 'questions'
+
+/** A port method the announce path never calls: it rejects if it ever runs. */
+function unusedPort(): Promise<never> {
+  return Promise.reject(new Error('port unused in announce test'))
+}
+
+/** An `unsubscribe` that never runs: returned, never called, in announce tests. */
+function unusedUnsubscribe(): void {
+  return undefined
+}
+
+/** The unused ports' half of a `RuntimeResources` double: only `subscribe` runs. */
+function unusedResources(): RuntimeResources {
+  return {
+    command: unusedPort,
+    status: unusedPort,
+    history: unusedPort,
+    resume: unusedPort,
+    admit: unusedPort,
+    workChanged: () => undefined,
+    subscribe: () => unusedUnsubscribe,
+    subscribeEvents: () => unusedUnsubscribe,
+    dispose: () => undefined,
+  }
+}
+
+/** One gate bound, everything else absent: the commands that gate announces. */
+function gateDeps(gate: AcpGate): Partial<AcpAgentDeps> {
+  switch (gate) {
+    case 'sharing': {
+      return {
+        sharing: { commands: acpSharingCommands, execute: () => Promise.resolve('') },
+      }
+    }
+    case 'vault': {
+      return { vault: new AcpVault(() => Promise.reject(new Error('port unused'))) }
+    }
+    case 'accounts': {
+      return { accounts: sessionAccountsRig().port }
+    }
+    case 'legalScan': {
+      return { legalScan: () => Promise.resolve('ok') }
+    }
+    case 'usage': {
+      return {
+        usage: { access: () => fakeUsageAccess().usage, openPage: () => Promise.resolve('') },
+      }
+    }
+    case 'resources': {
+      return { resources: unusedResources() }
+    }
+    case 'playbook': {
+      return {
+        playbookFor: () => ({
+          read: () => Promise.resolve({}),
+          change: () => Promise.resolve({}),
+        }),
+      }
+    }
+    case 'schedules': {
+      return { schedules: { run: () => Promise.resolve('') } }
+    }
+    case 'media': {
+      return { media: () => Promise.reject(new Error('port unused')) }
+    }
+    case 'estimate': {
+      return { estimate: { run: () => Promise.resolve('') } }
+    }
+    case 'questions': {
+      return { questions: (input) => new FakeAcpQuestionRegistry(input) }
+    }
+  }
+}
+
+/**
+ * The names the real registrar announces with these deps: a full agent over
+ * the ACP client, one `session/new`, then read-only `/agents` (which
+ * announces the commands before answering from history). Results are cached
+ * per configuration so the gate suite pays for each registrar run once.
+ */
+const announcedCache = new Map<string, Promise<string[]>>()
+
+function announcedNames(
+  gate: AcpGate | 'baseline' | 'all',
+  isHeadless: boolean,
+): Promise<string[]> {
+  const cacheKey = JSON.stringify([gate, isHeadless])
+  const cached = announcedCache.get(cacheKey)
+  if (cached !== undefined) return cached
+  const run = (async (): Promise<string[]> => {
+    const host = new FakeAgentHost()
+    host.readSession = () =>
+      Promise.resolve({ mode: 'none', items: [], name: undefined, todos: [] })
+    const updates: acp.SessionUpdate[] = []
+    const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
+    const gates: AcpGate[] = []
+    if (gate === 'all') {
+      gates.push(
+        'sharing',
+        'vault',
+        'accounts',
+        'legalScan',
+        'usage',
+        'resources',
+        'playbook',
+        'schedules',
+        'media',
+        'estimate',
+        'questions',
+      )
+    } else if (gate !== 'baseline') {
+      gates.push(gate)
+    }
+    const deps: AcpAgentDeps = {
+      questions: 'decline',
+      backend: {
+        kind: 'museCode',
+        readiness: () => Promise.resolve({ state: 'ready' }),
+        hostFor: () => Promise.resolve(host),
+      },
+      version: 'keybindings-parity-test',
+      options: {
+        canBypass: false,
+        allowsContributorModels: false,
+        initialMode: 'manual',
+        ...(isHeadless && { isHeadless: true }),
+      },
+      signIn: { id: 'test', name: 'test', description: 'test', args: [], command: 'test' },
+      defaultCwd: process.cwd(),
+      log,
+      paid: new AcpPaidUse({
+        flagged: [],
+        canRemember: () => false,
+        grants: memoryPaidGrants(),
+        log,
+      }),
+      ...Object.assign({}, ...gates.map((bound) => gateDeps(bound))),
+    }
+    const agent = createAcpAgent(deps)
+    const client = acp
+      .client({ name: 'keybindings-parity' })
+      .onNotification('session/update', (context) => {
+        updates.push(context.params.update)
+      })
+    await client.connectWith(agent, async (connection) => {
+      await connection.request('initialize', { protocolVersion: acp.PROTOCOL_VERSION })
+      const { sessionId } = await connection.request('session/new', {
+        cwd: process.cwd(),
+        mcpServers: [],
+      })
+      await connection.request('session/prompt', {
+        sessionId,
+        prompt: [{ type: 'text', text: '/agents' }],
+      })
+    })
+    const announced = updates.find(
+      (
+        update,
+      ): update is Extract<acp.SessionUpdate, { sessionUpdate: 'available_commands_update' }> =>
+        update.sessionUpdate === 'available_commands_update',
+    )
+    if (announced === undefined) throw new Error('The registrar announced no commands')
+    return announced.availableCommands.map((command) => command.name)
+  })()
+  announcedCache.set(cacheKey, run)
+  return run
+}
+
+/** The report's gate words for one announced command back to registrar gates. */
+function observedGates(when: string | undefined): Set<string> {
+  return new Set(
+    (when ?? '')
+      .split('|')
+      .map((gate) => gate.split(',', 1)[0] ?? '')
+      .map((gate) => gate.trim())
+      .filter((gate) => gate !== ''),
+  )
+}
+
+/**
+ * The commands each registrar gate adds beyond the always-announced
+ * baseline, as the registrar behaves today: sharing drops its own `help`
+ * (announced unconditionally), and the resource table carries `usage` beside
+ * `resources` while the usage port is absent. A new command in any gate
+ * fails the attribution test until this table learns it.
+ */
+const GATE_COMMANDS: Record<AcpGate, Set<string>> = {
+  sharing: new Set(['share', 'prompt']),
+  vault: new Set(['vault']),
+  accounts: new Set(['accounts']),
+  legalScan: new Set(['legal']),
+  usage: new Set(['usage']),
+  resources: new Set(['resources', 'usage']),
+  playbook: new Set(['playbook']),
+  schedules: new Set(['schedule']),
+  media: new Set(['attach', 'record']),
+  estimate: new Set(['estimate']),
+  questions: new Set(['answer', 'questions']),
 }
 
 /** Editor scopes carry the platform plus the binding's `when`, when it has one. */
@@ -335,6 +556,100 @@ describe('keybindings report facts', () => {
     expect(new Set(scopes)).toEqual(new Set(['editor/linux', 'editor/macos', 'editor/windows']))
   })
 
+  it('groups generated bindings by platform, chord and when in any input order', () => {
+    // A fixed seed, so the same bindings every run: the chords and clauses
+    // include the review's aliasing pairs (`ctrl+k` under `when: 'ab'`
+    // beside ungated `ctrl+kab`; `ctrl+k` under `when: ' ctrl+s'` beside
+    // `ctrl+k ctrl+s`), which a concatenated group key reports as clashes.
+    let state = 2_654_435_769
+    const next = (mod: number): number => {
+      state = (Math.imul(state, 1_664_525) + 1_013_904_223) >>> 0
+      return state % mod
+    }
+    const chords = [
+      'ctrl+k',
+      'Ctrl+K',
+      'ctrl+kab',
+      'ctrl+k  ctrl+s',
+      'ctrl+k ctrl+s',
+      'alt+\\',
+      ' '.repeat(3),
+    ]
+    const clauses: (string | undefined)[] = [
+      undefined,
+      'editorTextFocus',
+      'terminalFocus',
+      'ab',
+      ' ctrl+s',
+    ]
+    const editor: { command: string; key: string; linux?: string; when?: string }[] = [
+      { command: 'a.first', key: 'ctrl+k', when: 'ab' },
+      { command: 'b.second', key: 'ctrl+kab' },
+      { command: 'c.third', key: 'ctrl+k', when: ' ctrl+s' },
+      { command: 'd.fourth', key: 'ctrl+k ctrl+s' },
+    ]
+    for (let i = 0; i < 36; i++) {
+      const clause: string | undefined = clauses[next(clauses.length)]
+      const fact: { command: string; key: string; linux?: string; when?: string } = {
+        command: `gen.cmd${String(next(9))}`,
+        key: chords[next(chords.length)]!,
+      }
+      if (next(4) === 0) fact.linux = 'ctrl+alt+o'
+      if (clause !== undefined) fact.when = clause
+      editor.push(fact)
+    }
+    // The test's own statement of a conflict: same platform, same chord
+    // (case-insensitive, whitespace-collapsed), same clause — worked out by
+    // nested comparison, never by building a group key.
+    const expected: ConflictExpectation[] = []
+    for (const platform of ['linux', 'macos', 'windows']) {
+      const gestures = editor.flatMap((fact) => {
+        const gesture = (platform === 'linux' ? (fact.linux ?? fact.key) : fact.key).trim()
+        return gesture === ''
+          ? []
+          : [{ chord: normalizeTestChord(gesture), when: fact.when, command: fact.command }]
+      })
+      const chordsSeen = new Set(gestures.map((gesture) => gesture.chord))
+      const whensSeen = new Set(gestures.map((gesture) => gesture.when ?? ''))
+      for (const chord of chordsSeen) {
+        for (const when of whensSeen) {
+          const commands = [
+            ...new Set(
+              gestures
+                .filter((gesture) => gesture.chord === chord && (gesture.when ?? '') === when)
+                .map((gesture) => gesture.command),
+            ),
+          ].toSorted(compare)
+          if (commands.length < 2) continue
+          expected.push({
+            shortcut: chord,
+            commands,
+            scope: when === '' ? `editor/${platform}` : `editor/${platform} (${when})`,
+          })
+        }
+      }
+    }
+    // The aliasing pairs stay apart: neither is a clash on its own.
+    expect(
+      collectKeybindingSections({ editor: editor.slice(0, 4), panel: [], acp: [] })[1]!.rows,
+    ).toEqual([])
+    const forward = collectKeybindingSections({ editor, panel: [], acp: [] })
+    expect(readConflicts(forward[1]!.rows).toSorted(compareConflict)).toEqual(
+      expected.toSorted(compareConflict),
+    )
+    // Any input order collects byte-equal sections.
+    expect(
+      collectKeybindingSections({
+        editor: [...editor.slice(13), ...editor.slice(0, 13)],
+        panel: [],
+        acp: [],
+      }),
+    ).toEqual(forward)
+    expect(collectKeybindingSections({ editor: editor.toReversed(), panel: [], acp: [] })).toEqual(
+      forward,
+    )
+  })
+
   it('marks the source partial with its reason when a blank chord is skipped', async () => {
     const base = {
       contributes: {
@@ -361,81 +676,65 @@ describe('keybindings report facts', () => {
     expect(editorCells(result.data![0]!, 'museSpark.toggleThinking', 'linux')).toEqual([])
   })
 
-  it('pins the ACP table to the announced agent command table', () => {
+  it('pins the ACP table to the registrar announced commands', async () => {
+    // The report lists exactly what the real registrar announces with every
+    // port bound — no source scan, so a command registered in any syntax is
+    // seen. Dynamic skills announce per session and stay out of both.
     const reported = new Map<string, string | undefined>(
       ACP_COMMAND_FACTS.map((entry) => [entry.name, entry.when]),
     )
-    // Command name to every gate that announces it; absent means always announced.
-    const announced = new Map<string, (string | undefined)[]>()
-    const announce = (name: string, gate: string | undefined): void => {
-      announced.set(name, [...(announced.get(name) ?? []), gate])
+    const baseline = new Set(await announcedNames('baseline', false))
+    expect(baseline).toEqual(new Set(['help', 'compact', 'report', 'agents']))
+    const announced = new Set(await announcedNames('all', false))
+    expect(announced).toEqual(new Set(reported.keys()))
+    // Every announced command answers to at least one bound gate: a command
+    // no single gate explains fails here as unclassifiable.
+    for (const name of announced) {
+      if (baseline.has(name)) continue
+      const explaining = (Object.keys(GATE_COMMANDS) as AcpGate[]).filter((gate) =>
+        GATE_COMMANDS[gate].has(name),
+      )
+      expect(explaining, name).not.toEqual([])
     }
-    // The registrar modules own their names: a new sharing or resource
-    // command fails here until the report lists it. `help` is announced
-    // unconditionally instead (the agent's spread filters it out); the rest
-    // ride the sharing port, and the resource commands ride `resources`.
-    for (const command of acpSharingCommands()) {
-      if (command.name === SLASH_COMMAND_NAMES.help) continue
-      announce(command.name, 'sharing')
-    }
-    for (const command of resourceCommands()) announce(command.name, 'resources')
-    // The rest of the table lives in the agent's refreshCommands: read its
-    // announced names back, so a new literal there fails here too.
-    const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
-    const agent = readFileSync(path.join(root, '..', 'src', 'acp', 'agent.ts'), 'utf8')
-    const table = agent.slice(
-      agent.indexOf('private async refreshCommands'),
-      agent.indexOf('private mediaPort'),
+  })
+
+  it('attributes each announced command to its registrar gate', async () => {
+    // One gate bound at a time: the commands beyond the always-announced
+    // baseline are that gate's, and the report must carry them as its gate.
+    const baseline = new Set(await announcedNames('baseline', false))
+    const reported = new Map<string, string | undefined>(
+      ACP_COMMAND_FACTS.map((entry) => [entry.name, entry.when]),
     )
-    expect(table.length).toBeGreaterThan(0)
-    // Each `...(guard ? [] : [...])` spread announces its names only while
-    // the guard's port is bound, so the report must carry that port as the
-    // command's gate: removing a gate fails below. An unknown guard shape
-    // throws here, until the mapping above learns it.
-    const spreads = Array.from(
-      table.matchAll(/\.\.\.\((this\.[^?]+?)\? \[\]\s*:\s*\[([\s\S]*?)\]\)/g),
-      (spread) => ({
-        guard: gateForGuard(spread[1]!),
-        body: spread[2]!,
-        index: spread.index,
-        length: spread[0].length,
-      }),
-    )
-    // Nine guarded spreads today: vault, accounts, legal, usage, playbook,
-    // schedules, media, estimate, questions. Sharing and resources ride
-    // their registrar spreads above; a new spread fails here until mapped.
-    expect(spreads.map((spread) => spread.guard).toSorted(compare)).toEqual(
-      [
-        'accounts',
-        'estimate',
-        'legalScan',
-        'media, not headless',
-        'playbook',
-        'questions',
-        'schedules',
-        'usage',
-        'vault',
-      ].toSorted(compare),
-    )
-    for (const spread of spreads) {
-      for (const match of spread.body.matchAll(acpNamePattern))
-        announce(resolveAcpName(match), spread.guard)
+    for (const [gate, expected] of Object.entries(GATE_COMMANDS) as [AcpGate, Set<string>][]) {
+      const announced = await announcedNames(gate, false)
+      const added = new Set<string>()
+      for (const name of announced) {
+        if (!baseline.has(name)) added.add(name)
+      }
+      expect(added, gate).toEqual(expected)
     }
-    let unguarded = ''
-    let cursor = 0
-    for (const spread of spreads) {
-      unguarded += table.slice(cursor, spread.index)
-      cursor = spread.index + spread.length
+    for (const [name, when] of reported) {
+      if (baseline.has(name)) {
+        expect(when, name).toBeUndefined()
+        continue
+      }
+      const gates = (Object.keys(GATE_COMMANDS) as AcpGate[]).filter((gate) =>
+        GATE_COMMANDS[gate].has(name),
+      )
+      expect(new Set(gates), name).toEqual(observedGates(when))
     }
-    unguarded += table.slice(cursor)
-    for (const match of unguarded.matchAll(acpNamePattern))
-      announce(resolveAcpName(match), undefined)
-    // Dynamic skills announce per session and stay out of the static table.
-    expect(new Set(announced.keys())).toEqual(new Set(reported.keys()))
-    for (const [name, gates] of announced) {
-      const expected = new Set(gates.filter((gate) => gate !== undefined))
-      const actual = new Set((reported.get(name) ?? '').split('|').filter((gate) => gate !== ''))
-      expect(actual, name).toEqual(expected)
+  })
+
+  it('withholds the media commands when headless', async () => {
+    // `media, not headless` is behaviour, not a second gate: with every
+    // port bound but headless on, attach and record stay silent while every
+    // other reported command still announces.
+    const announced = new Set(await announcedNames('all', true))
+    expect(announced.has('attach')).toBe(false)
+    expect(announced.has('record')).toBe(false)
+    for (const entry of ACP_COMMAND_FACTS) {
+      if (entry.name === 'attach' || entry.name === 'record') continue
+      expect(announced.has(entry.name), entry.name).toBe(true)
     }
   })
 
