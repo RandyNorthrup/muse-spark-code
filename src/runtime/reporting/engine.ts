@@ -58,6 +58,8 @@ export interface ReportingContext {
   readonly session?: LocalReportSourceDeps['session']
   readonly questions?: LocalReportSourceDeps['questions']
   readonly usage?: LocalReportSourceDeps['usage']
+  readonly playbook?: LocalReportSourceDeps['playbook']
+  readonly schedules?: LocalReportSourceDeps['schedules']
   readonly networkSources?: Pick<ReportSourcePorts, 'github' | 'stores'>
   readonly network?:
     | Omit<ReportingNetworkContext, 'workspaceRoot' | 'storageRoot' | 'l10n'>
@@ -127,6 +129,8 @@ export function createReportingServices(context: ReportingContext): ReportsServi
               ...(context.session !== undefined && { session: context.session }),
               ...(context.questions !== undefined && { questions: context.questions }),
               ...(context.usage !== undefined && { usage: context.usage }),
+              ...(context.playbook !== undefined && { playbook: context.playbook }),
+              ...(context.schedules !== undefined && { schedules: context.schedules }),
             }).sources
       const readContext = { run: {}, options, asOf: options.asOf, workspaceKey: key, signal }
       let planText: string | undefined
@@ -146,9 +150,9 @@ export function createReportingServices(context: ReportingContext): ReportsServi
         security: unavailable('security'),
         accounts: unavailable('accounts'),
         estimate: unavailable('estimate'),
-        playbook: unavailable('playbook'),
+        playbook: local?.playbook ?? unavailable('playbook'),
         issues: unavailable('issues'),
-        schedules: unavailable('schedules'),
+        schedules: local?.schedules ?? unavailable('schedules'),
         keybindings: unavailable('keybindings'),
         plan: localSource('plan', async ({ signal: planSignal }) => {
           if (root === undefined) throw new LocalSourceError('unbound')

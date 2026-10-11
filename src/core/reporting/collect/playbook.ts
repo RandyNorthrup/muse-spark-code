@@ -1,0 +1,255 @@
+// Playbook report sections (M113 C-M113-4, PLAN.md D93.4 playbook row).
+// Pure view-model to sections: the source validates and scrubs the journal,
+// replays strike state and projects these facts; this module only filters
+// (--module <glob>, --milestone <id>) and builds stable rows. Dates arrive
+// pre-rendered because collectors never touch the clock.
+import { PLAYBOOK_SAFETY_RULE } from '../../../shared/constants'
+import type { ReportOptions, ReportSection, ReportValue } from '../../../shared/reportSchema'
+import { count, normalizeMilestone, row, section, text } from './common'
+
+export interface PlaybookModuleView {
+  readonly id: string
+  readonly key: string
+  readonly strikes: number
+  readonly rounds: readonly { readonly class: string | null; readonly round: number }[]
+}
+export interface PlaybookDesignView {
+  readonly id: string
+  readonly moduleKey: string
+  readonly redesignLane: string
+  readonly failureClass: string
+  readonly outcome: string
+  readonly at: number
+  readonly dateIso: string | undefined
+}
+export interface PlaybookDrillView {
+  readonly commit: string
+  readonly moduleId: string
+  readonly scope: string
+  readonly result: string
+  readonly at: number
+  readonly dateIso: string | undefined
+}
+export interface PlaybookDisabledRuleView {
+  readonly rule: string
+  readonly actor: string | undefined
+  readonly reason: string | undefined
+  readonly at: number
+  readonly dateIso: string | undefined
+}
+export interface PlaybookRefusalView {
+  readonly code: string
+  readonly module: string | undefined
+  readonly actor: string | undefined
+  readonly reason: string | undefined
+  readonly at: number
+  readonly dateIso: string | undefined
+}
+export interface PlaybookView {
+  readonly modules: readonly PlaybookModuleView[]
+  readonly designs: readonly PlaybookDesignView[]
+  readonly drills: readonly PlaybookDrillView[]
+  readonly disabledRules: readonly PlaybookDisabledRuleView[]
+  readonly refusals: readonly PlaybookRefusalView[]
+}
+
+const escapeGlob = (segment: string): string =>
+  segment.replaceAll(/[[\\\]^{[}+().|$]/gu, (char) => `\\${char}`)
+
+/** Segment-wise glob: `*` and `?` stay inside one segment, `**` crosses. */
+export function isModuleMatch(key: string, glob: string): boolean {
+  const normalized = key.replaceAll('\\', '/')
+  const pattern = glob
+    .replaceAll('\\', '/')
+    .split('/')
+    .map((segment) =>
+      segment === '**'
+        ? segment
+        : escapeGlob(segment).replaceAll('*', '[^/]*').replaceAll('?', '[^/]'),
+    )
+    .join('/')
+    .replaceAll('**/[^/]*', '(?:.*/)?[^/]*')
+    .replaceAll('**', '.*')
+  return new RegExp(`^(?:${pattern})$`, 'u').test(normalized)
+}
+
+function isMilestoneMatch(candidates: readonly (string | undefined)[], milestone: string): boolean {
+  const wanted = normalizeMilestone(milestone)
+  return candidates.some((candidate) => candidate?.toUpperCase().includes(wanted) ?? false)
+}
+
+function dateCell(at: number, dateIso: string | undefined): ReportValue {
+  // A schema-valid stamp outside the Date range stays visible as its number,
+  // never dropped and never rendered as a guessed date.
+  return dateIso === undefined ? text(String(at)) : { type: 'timestamp', value: dateIso }
+}
+
+function isModuleKept(
+  candidates: readonly (string | undefined)[],
+  options: ReportOptions,
+): boolean {
+  // Rows without a module (workspace settings, unscoped notes) are
+  // workspace-wide facts: filters keep them, never silently drop them.
+  if (candidates.every((candidate) => candidate === undefined)) return true
+  const glob = options.module
+  if (glob !== undefined) {
+    const keys = candidates.filter((candidate) => candidate !== undefined)
+    if (keys.every((key) => !isModuleMatch(key, glob))) return false
+  }
+  return options.milestone === undefined || isMilestoneMatch(candidates, options.milestone)
+}
+
+export function playbookSections(view: PlaybookView, options: ReportOptions): ReportSection[] {
+  const totals = view.modules
+    .filter((module) => isModuleKept([module.key, module.id], options))
+    .flatMap((module) => {
+      const rounds =
+        module.rounds.length > 0 ? module.rounds : [{ class: null as string | null, round: 0 }]
+      return rounds.map((entry) =>
+        row(
+          'strikes',
+          [module.key, entry.class ?? 'all', String(entry.round), String(module.strikes)],
+          {
+            module: text(module.key),
+            class: text(entry.class ?? 'all'),
+            strikes: count(module.strikes),
+            rounds: count(entry.round),
+          },
+          ['playbook'],
+        ),
+      )
+    })
+  const decisions = view.designs
+    .filter((design) => isModuleKept([design.moduleKey, design.redesignLane], options))
+    .map((design) =>
+      row(
+        'decision',
+        [design.outcome, design.moduleKey, design.id, String(design.at)],
+        {
+          name: text(design.id),
+          module: text(design.moduleKey),
+          outcome: text(design.outcome),
+          date: dateCell(design.at, design.dateIso),
+        },
+        ['playbook'],
+      ),
+    )
+  const drills = view.drills
+    .filter((drill) => isModuleKept([drill.moduleId], options))
+    .map((drill) =>
+      row(
+        'drill',
+        [drill.moduleId, drill.commit, drill.scope, String(drill.at)],
+        {
+          name: text(drill.commit),
+          module: text(drill.moduleId),
+          scope: text(drill.scope),
+          result: text(drill.result),
+          date: dateCell(drill.at, drill.dateIso),
+        },
+        ['playbook'],
+      ),
+    )
+  // Settings rows are workspace-wide, not module-scoped: filters keep them.
+  const disabledRules = view.disabledRules.map((entry) =>
+    row(
+      'disabled',
+      [entry.rule, entry.actor ?? '', entry.reason ?? '', String(entry.at)],
+      {
+        rule: text(entry.rule),
+        actor: text(entry.actor ?? ''),
+        reason: text(entry.reason ?? ''),
+        date: dateCell(entry.at, entry.dateIso),
+      },
+      ['playbook'],
+    ),
+  )
+  // A refusal without a module is workspace-wide, like a settings row.
+  const refusals = view.refusals
+    .filter((refusal) =>
+      isModuleKept(refusal.module === undefined ? [] : [refusal.module], options),
+    )
+    .map((refusal) =>
+      row(
+        'refusal',
+        [refusal.code, refusal.module ?? '', refusal.actor ?? '', String(refusal.at)],
+        {
+          code: text(refusal.code),
+          module: text(refusal.module ?? ''),
+          actor: text(refusal.actor ?? ''),
+          reason: text(refusal.reason ?? ''),
+          date: dateCell(refusal.at, refusal.dateIso),
+        },
+        ['playbook'],
+      ),
+    )
+  return [
+    section(
+      'playbook/totals',
+      'totals',
+      [
+        { key: 'module', label: 'name' },
+        { key: 'class', label: 'kind' },
+        { key: 'strikes', label: 'count' },
+        { key: 'rounds', label: 'count' },
+      ],
+      totals,
+      options,
+    ),
+    section(
+      'playbook/decisions',
+      'decisions',
+      [
+        { key: 'name', label: 'name' },
+        { key: 'module', label: 'name' },
+        { key: 'outcome', label: 'outcome' },
+        { key: 'date', label: 'date' },
+      ],
+      decisions,
+      options,
+    ),
+    section(
+      'playbook/drills',
+      'drills',
+      [
+        { key: 'name', label: 'name' },
+        { key: 'module', label: 'name' },
+        { key: 'scope', label: 'scope' },
+        { key: 'result', label: 'outcome' },
+        { key: 'date', label: 'date' },
+      ],
+      drills,
+      options,
+    ),
+    section(
+      'playbook/disabledRules',
+      'disabledRules',
+      [
+        { key: 'rule', label: 'name' },
+        { key: 'actor', label: 'name' },
+        { key: 'reason', label: 'reason' },
+        { key: 'date', label: 'date' },
+      ],
+      disabledRules,
+      options,
+    ),
+    section(
+      'playbook/refusals',
+      'refusals',
+      [
+        { key: 'code', label: 'name' },
+        { key: 'module', label: 'name' },
+        { key: 'actor', label: 'name' },
+        { key: 'reason', label: 'reason' },
+        { key: 'date', label: 'date' },
+      ],
+      refusals,
+      options,
+    ),
+  ]
+}
+
+/** Route-around refusals are the safety-rule notes, however they were filed. */
+export function isRouteAroundRefusal(rule: string): boolean {
+  return rule === PLAYBOOK_SAFETY_RULE
+}

@@ -4,7 +4,9 @@ import { changelogSource } from './changelog'
 import { gitSource, type ReportGitIo } from './git'
 import { localSource, LocalSourceError, type LocalFileIo, type SourceScrub } from './local'
 import { packageSource } from './package'
+import { playbookSource, type PlaybookReportReader } from './playbook'
 import { questionsSource, type ReportQuestionsReader } from './questions'
+import { schedulesSource, type SchedulesReportReader } from './schedules'
 import { scrubUsage, sessionSource, type ReportSessionReader } from './session'
 import type { ReportSourcePorts, SourceReadContext, UsageFacts } from './types'
 
@@ -22,6 +24,10 @@ export interface LocalReportSourceDeps {
     /** Breakdowns the journal cannot attribute stay partial, never invented. */
     partial?: string
   }>
+  /** M116's journal adapter, supplied by its owner; only the playbook kind binds it. */
+  readonly playbook?: PlaybookReportReader
+  /** M115's store and fire record adapter; only the schedules kind binds it. */
+  readonly schedules?: SchedulesReportReader
   readonly enabledAgents: readonly AgentUsageAgent[]
   readonly agentFiles: AgentUsageFiles
 }
@@ -35,6 +41,8 @@ export type LocalReportSources = Pick<
   | 'questions'
   | 'usage'
   | 'agentUsage'
+  | 'playbook'
+  | 'schedules'
 >
 /** All editors, CLI and ACP bind the same readers in the lazy reporting bundle. */
 export function createLocalReportSources(deps: LocalReportSourceDeps): LocalReportSources {
@@ -68,5 +76,7 @@ export function createLocalReportSources(deps: LocalReportSourceDeps): LocalRepo
       }
     }),
     agentUsage: agentUsageSource(deps.enabledAgents, deps.agentFiles, deps.scrub),
+    playbook: playbookSource(deps.playbook, deps.scrub),
+    schedules: schedulesSource(deps.schedules, deps.scrub),
   }
 }
