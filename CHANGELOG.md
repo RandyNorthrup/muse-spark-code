@@ -7,6 +7,31 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- **Judge benchmark tooling (repository only, lane JEVBENCH, D107/M125).**
+  `scripts/judge-bench.mjs` judges a labelled decision set through one
+  engine interface (local Ollama SystemOne, local llama-server chat with
+  logprobs, remote Jev wire or remote chat from environment variables) and
+  reports accuracy, per-label precision/recall, per-domain accuracy,
+  unsafe-approve count, Brier, latency p50/p95/max with cold vs warm, tokens
+  and the 5 s veto-window fit. `scripts/judge-bench-decisions.json` holds
+  170 hand-labelled decisions (50 allow / 50 deny / 50 ask plus 20 hard
+  cases, all secrets synthetic). Results and the recommendation live in
+  `docs/certification/judge-bench.md`. Nothing here runs in CI or ships in
+  the extension.
+
+- **Judge engine decision (lead, 2026-10-10; lane JEVBENCH2, D107/M125).**
+  Jev online stays the Judge engine: on the Win11 GPU both local sizes
+  fit the 5 s veto window but score far below Jev on the full 170 cases
+  (0.376/0.375 vs 0.794), with 9 must-refuse cases approved by 4b.
+  Local veto engines wait for ~0 unsafe-approves and accuracy within 2
+  points of Jev; M125 lanes L/V retune the deny question first. The
+  lead's rows in `docs/certification/judge-bench.md` (§§3/8) were
+  verified cell-by-cell against the committed raw result files in
+  lane JEVBENCH2 round 2 (all matched; gaps filled), and a new unit
+  test fails if a committed result file contains anything key-like.
+
 ### Changed
 
 - What's New fits its content budget by itself: the newest release always
