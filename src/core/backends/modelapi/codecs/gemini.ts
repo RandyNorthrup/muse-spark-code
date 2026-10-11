@@ -20,7 +20,7 @@ import {
 import { capturedCapabilities } from '../../../providers/capturedCapabilities'
 import type { ModelCapabilityRecord } from '../../../providers/capabilityRecord'
 import { PROVIDER_MANUAL_THINKING_BUDGET } from '../../../../shared/constants'
-import { UI_TEXT } from '../../../../shared/l10n/text'
+import { fill, UI_TEXT } from '../../../../shared/l10n/text'
 
 import { ModelApiError } from '../transport'
 import { CODEC_EMPTY_TOOL_OUTPUT, CODEC_IMAGE_WITHOUT_VISION } from '../../../../shared/constants'
@@ -407,17 +407,22 @@ function toInlineData(part: InputContentPart): unknown {
 /**
  * A message's content parts as native parts (`output_text` is replayed
  * assistant text). M101 lane P1 (BYO items 1, 4, 13): blank text is
- * dropped, lone surrogates are removed, media rides as the image-omitted
+ * dropped, lone surrogates are removed, images ride as the image-omitted
  * placeholder where the model takes no images, and a replayed text part
  * carries back its thought signature, empty parts included (Pi #7356).
+ * M105 lane V: video has no Gemini shape without a vendor capture behind
+ * it (no Files id, no inline bytes), so it is refused with the model's own
+ * reason instead of a placeholder.
  */
 function toNativeParts(content: readonly InputContentPart[], build: ContentsBuild): unknown[] {
   const parts: unknown[] = []
   for (const part of content) {
-    // Another provider's held file (or a video) has no bytes to send; like
-    // an image where the model takes none, the turn keeps the placeholder.
+    if (part.type === 'input_video') {
+      throw new Error(fill(UI_TEXT.media.videoUnknown, { model: build.model }))
+    }
+    // Another provider's held file has no bytes to send; like an image
+    // where the model takes none, the turn keeps the placeholder.
     if (
-      part.type === 'input_video' ||
       (part.type === 'input_image' && !('image_url' in part)) ||
       (part.type === 'input_file' && !('file_data' in part))
     ) {
@@ -511,6 +516,8 @@ interface ContentsBuild {
   readonly vision: boolean | undefined
   /** Whether the target model is Gemini 3 or later (BYO item 11). */
   readonly isGemini3: boolean
+  /** The native model id, naming it in media refusals (M105 lane V). */
+  readonly model: string
 }
 
 function pushParts(build: ContentsBuild, role: 'user' | 'model', parts: unknown[]): void {
@@ -594,6 +601,7 @@ function toContents(
   input: readonly InputItem[],
   vision: boolean | undefined,
   isGemini3: boolean,
+  model: string,
 ): GeminiContent[] {
   const build: ContentsBuild = {
     contents: [],
@@ -601,6 +609,7 @@ function toContents(
     pendingSignature: undefined,
     vision,
     isGemini3,
+    model,
   }
   for (const item of input) {
     if (item.type === 'function_call') {
@@ -682,7 +691,7 @@ export function encodeGeminiRequest(
     ...(body.instructions !== '' && {
       systemInstruction: { parts: [{ text: cleanWireText(body.instructions) }] },
     }),
-    contents: toContents(body.input, options?.capabilities?.vision, isGemini3),
+    contents: toContents(body.input, options?.capabilities?.vision, isGemini3, nativeModelId),
   }
   if (declarations.length > 0) {
     request['tools'] = [{ functionDeclarations: declarations }]
