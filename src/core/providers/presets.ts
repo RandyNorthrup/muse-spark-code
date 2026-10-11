@@ -550,8 +550,9 @@ const ALIBABA_PLAN_PRESET: PlanKeyPreset = {
   category: 'cloud',
   format: 'chat',
   // The Coding Plan's OpenAI base with its dedicated key; 6,000 requests
-  // per 5 hours, no token view.
-  origin: { kind: 'fixed', origin: 'https://coding-intl.dashscope.aliyuncs.com/v1' },
+  // per 5 hours, no token view. Host-only: `/v1` lives in the paths below,
+  // or the pin rejects every request and the URLs double to `/v1/v1/…`.
+  origin: { kind: 'fixed', origin: 'https://coding-intl.dashscope.aliyuncs.com' },
   auth: 'apiKey',
   authHeader: 'bearer',
   keyPage: 'https://modelstudio.console.alibabacloud.com/ap-southeast-1/subscription/coding-plan',

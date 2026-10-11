@@ -15,6 +15,8 @@ import {
   openRouterRoutingRequest,
   openRouterTokenRequestBody,
   isUserSuppliedOrigin,
+  PLAN_KEY_PRESETS,
+  planKeyPresetById,
   presetById,
   presetsByCategory,
   PRESETS,
@@ -107,6 +109,25 @@ describe('the preset table', () => {
       'vllm',
       'llamacpp',
     ])
+  })
+
+  it('keeps every fixed origin host-only so the pin and the paths compose', () => {
+    // A versioned path in a fixed origin rejects every request at the pin
+    // and doubles the composed URL (`/v1` + `/v1/models`); versions live in
+    // the models-list and turn paths only.
+    for (const candidate of [...PRESETS, ...PLAN_KEY_PRESETS]) {
+      if (candidate.origin.kind !== 'fixed') continue
+      expect(new URL(candidate.origin.origin).pathname, candidate.id).toBe('/')
+      expect(candidate.modelsList.path.startsWith('/'), candidate.id).toBe(true)
+    }
+    const alibaba = planKeyPresetById('alibaba-plan')
+    if (alibaba?.origin.kind !== 'fixed') throw new Error('missing Alibaba origin')
+    expect(`${alibaba.origin.origin}${alibaba.modelsList.path}`).toBe(
+      'https://coding-intl.dashscope.aliyuncs.com/v1/models',
+    )
+    expect(
+      `${alibaba.origin.origin}${alibaba.modelsList.path.replace(/models$/, 'chat/completions')}`,
+    ).toBe('https://coding-intl.dashscope.aliyuncs.com/v1/chat/completions')
   })
 
   it('gives every keyed preset its key hint', () => {

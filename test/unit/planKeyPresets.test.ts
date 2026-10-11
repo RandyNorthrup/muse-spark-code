@@ -65,7 +65,7 @@ describe('captured plan-key presets', () => {
     })
     expect(planKeyPresetById('alibaba-plan')?.origin).toEqual({
       kind: 'fixed',
-      origin: 'https://coding-intl.dashscope.aliyuncs.com/v1',
+      origin: 'https://coding-intl.dashscope.aliyuncs.com',
     })
   })
   it('lists only captured plan keys in the panel, and never a prohibited plan sign-in', () => {
