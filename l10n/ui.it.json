@@ -5454,5 +5454,14 @@
     "docs": "Documentazione"
   },
   "referenceTeamConfiguration": "Ruoli e Agenti restano nascosti finché non vengono installati i collegamenti per gli agenti del team e la configurazione.",
-  "referenceTeamPoolKeys": "Alt+Su / Alt+Giù sposta questa voce nel gruppo."
+  "referenceTeamPoolKeys": "Alt+Su / Alt+Giù sposta questa voce nel gruppo.",
+  "teamControlLabels": {
+    "thinkingBudget": "Budget di ragionamento",
+    "outputCap": "Limite di output",
+    "parallelToolCalls": "Chiamate parallele agli strumenti",
+    "temperature": "Temperatura",
+    "topP": "Probabilità Top-p"
+  },
+  "teamTryTally": "Anteprima a pagamento: {attempts}; addebitato {charged}; responsabilità trattenuta {retained}.",
+  "teamTryDenied": "Anteprima del piano a pagamento negata. Nessun addebito effettuato."
 }

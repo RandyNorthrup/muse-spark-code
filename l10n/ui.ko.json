@@ -5148,5 +5148,14 @@
     "docs": "문서"
   },
   "referenceTeamConfiguration": "팀 에이전트와 구성 연결이 설치될 때까지 역할과 에이전트는 숨겨집니다.",
-  "referenceTeamPoolKeys": "Alt+위 / Alt+아래로 풀 안에서 이 항목을 이동합니다."
+  "referenceTeamPoolKeys": "Alt+위 / Alt+아래로 풀 안에서 이 항목을 이동합니다.",
+  "teamControlLabels": {
+    "thinkingBudget": "사고 예산",
+    "outputCap": "출력 한도",
+    "parallelToolCalls": "병렬 도구 호출",
+    "temperature": "온도",
+    "topP": "Top-p 샘플링 확률"
+  },
+  "teamTryTally": "유료 미리보기: {attempts}, 청구 {charged}, 보류된 부담액 {retained}.",
+  "teamTryDenied": "유료 계획 미리보기가 거부되었습니다. 요금이 청구되지 않았습니다."
 }

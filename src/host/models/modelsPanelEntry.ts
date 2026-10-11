@@ -303,43 +303,7 @@ export function createModelsPanelFeatures(
     },
   })
 
-  const team: TeamPanelHost | undefined =
-    host.team === undefined
-      ? undefined
-      : {
-          tree: host.team.tree,
-          onTreeChange: host.team.onTreeChange,
-          handle: host.team.handle,
-          load: async () => {
-            const binding = host.team
-            const configuration = binding?.configuration
-            const snapshots = binding?.snapshots
-            if (configuration === undefined || snapshots === undefined || !binding?.isEnabled())
-              return
-            const { createTeamPanel } = await import('../../core/team/teamPanelEntry')
-            return createTeamPanel(host.l10n.table, host.l10n.locale, {
-              ...configuration,
-              ...snapshots,
-              isEnabled: () =>
-                binding.isEnabled() &&
-                binding.configuration === configuration &&
-                binding.snapshots === snapshots,
-              isTrusted: () => vscode.workspace.isTrusted,
-              state: binding.state,
-              reload: binding.reload,
-              newId: randomUUID,
-              confirmInPlace: async () =>
-                (await vscode.window.showWarningMessage(
-                  UI_TEXT.teamInPlaceConfirm,
-                  { modal: true },
-                  UI_TEXT.wizardContinue,
-                  UI_TEXT.wizardCancel,
-                )) === UI_TEXT.wizardContinue,
-              writeExport: host.writeExportFile ?? writeExportFile,
-              readImport: host.readImportFile ?? readImportFile,
-            })
-          },
-        }
+  const team = createTeamPanelHost(host)
   let panel: ModelsPanel | undefined
   const openPanel = (navigate?: ModelsPanelNavigate): void => {
     if (panel === undefined) {
@@ -461,4 +425,49 @@ export function createModelsPanelFeatures(
     completePendingRemovals: () => providers.completePendingRemovals(),
     suggestedPreset: () => providers.suggestedPreset(host.suggestedProviderSetting()),
   }
+}
+
+/** The production adapter used by Models & Agents and native-host composition tests. */
+export function createTeamPanelHost(
+  host: Pick<ModelsPanelHostDeps, 'team' | 'l10n' | 'writeExportFile' | 'readImportFile'>,
+): TeamPanelHost | undefined {
+  return host.team === undefined
+    ? undefined
+    : {
+        tree: host.team.tree,
+        onTreeChange: host.team.onTreeChange,
+        handle: host.team.handle,
+        load: async () => {
+          const binding = host.team
+          const configuration = binding?.configuration
+          const snapshots = binding?.snapshots
+          if (configuration === undefined || snapshots === undefined || !binding?.isEnabled())
+            return
+          const { createTeamPanel } = await import('../../core/team/teamPanelEntry')
+          return createTeamPanel(host.l10n.table, host.l10n.locale, {
+            ...configuration,
+            ...((binding.dryRun ?? configuration.dryRun) !== undefined && {
+              dryRun: binding.dryRun ?? configuration.dryRun,
+            }),
+            ...snapshots,
+            isEnabled: () =>
+              binding.isEnabled() &&
+              binding.configuration === configuration &&
+              binding.snapshots === snapshots,
+            isTrusted: () => vscode.workspace.isTrusted,
+            state: binding.state,
+            reload: binding.reload,
+            newId: randomUUID,
+            confirmInPlace: async () =>
+              (await vscode.window.showWarningMessage(
+                UI_TEXT.teamInPlaceConfirm,
+                { modal: true },
+                UI_TEXT.wizardContinue,
+                UI_TEXT.wizardCancel,
+              )) === UI_TEXT.wizardContinue,
+            writeExport: host.writeExportFile ?? writeExportFile,
+            readImport: host.readImportFile ?? readImportFile,
+          })
+        },
+      }
 }

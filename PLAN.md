@@ -24059,6 +24059,8 @@ live) and the controller filters its id as well.
 ### M96 — Agent roles and the team (D75)
 
 **CM963JR2 reviewed join (2026-10-11, kubuntu).** The owner authorizes
+CM963JR2 Port 5 binds one paid planning preview over a frozen draft, with tool declaration and dispatch restricted by the host, once-before-spend consent naming exact tariffs and the shared daily budget, engine per-attempt admission/settlement, a three-attempt ceiling, cancellation and an explicit charged/retained-liability tally. It creates its own planning conversation rather than borrowing a parent worker allowance. Native editor adapters remain with C-M96-5; without a preview port Try is absent.
+
 merging Models split `b92fab054`, engine `efbace8f8`, Roles `6cedc5ffd` and
 hooks `20a6de0f4`, each with normal hooks. Retain team-gated navigation and
 ordered validated messages. The Models split exposes the Roles editor's

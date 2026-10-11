@@ -48,6 +48,8 @@ import type { EditedFile } from '../../core/verify/diagnosticsReport'
 import { unstartedShell } from '../../core/shellResult'
 import {
   MODEL_API_BASE_URL,
+  MODEL_API_MAX_OUTPUT_TOKENS,
+  TEAM_TRY_MAX_OUTPUT_TOKENS,
   MODEL_TEXT,
   type PromptCacheRetention,
   UI_TEXT,
@@ -200,6 +202,9 @@ const MANAGER_DISPOSED = 'The Model API backend was stopped while it was startin
 
 /** What differs between the window's host and a best-of-N attempt's host. */
 interface HostVariant {
+  readonly ownsPaidBudget?: boolean | undefined
+  readonly toolAllowlist?: readonly string[] | undefined
+
   readonly verify: ModelApiBackendManagerDeps['verify']
   readonly workspaceEdits: WorkspaceEdits
   readonly sessionWorkspaceRoot: string | undefined
@@ -315,9 +320,10 @@ export class ModelApiBackendManager {
       }),
       client: {
         ...(this.deps.paidAuthority !== undefined && { paidAuthority: this.deps.paidAuthority }),
-        ...(this.deps.reservePaidRequest !== undefined && {
-          reservePaidRequest: this.deps.reservePaidRequest,
-        }),
+        ...(!variant.ownsPaidBudget &&
+          this.deps.reservePaidRequest !== undefined && {
+            reservePaidRequest: this.deps.reservePaidRequest,
+          }),
         pacingOwner: this.deps.pacingOwner ?? this,
         ...(this.deps.isRetryableFailure !== undefined && {
           isRetryableFailure: this.deps.isRetryableFailure,
@@ -345,6 +351,7 @@ export class ModelApiBackendManager {
         ...(this.deps.networkAdvice !== undefined && { networkAdvice: this.deps.networkAdvice }),
       },
       host: {
+        toolAllowlist: variant.toolAllowlist,
         judge: this.deps.judge,
         workspaceRoot: variant.workspaceRoot,
         platform: process.platform,
@@ -393,8 +400,11 @@ export class ModelApiBackendManager {
         ...(this.deps.argumentPreviewCapabilities !== undefined && {
           argumentPreviewCapabilities: this.deps.argumentPreviewCapabilities,
         }),
-        ...(this.deps.modelOutputMaxTokens !== undefined && {
-          modelOutputMaxTokens: this.deps.modelOutputMaxTokens,
+        ...((variant.ownsPaidBudget === true || this.deps.modelOutputMaxTokens !== undefined) && {
+          modelOutputMaxTokens: (modelId) =>
+            variant.ownsPaidBudget
+              ? TEAM_TRY_MAX_OUTPUT_TOKENS
+              : (this.deps.modelOutputMaxTokens?.(modelId) ?? MODEL_API_MAX_OUTPUT_TOKENS),
         }),
         ...(this.deps.sideCallFormats !== undefined && {
           sideCallFormats: this.deps.sideCallFormats,
@@ -493,6 +503,8 @@ export class ModelApiBackendManager {
     noteUsage: ((modelId: string, usage: SubagentUsage) => void) | undefined,
     budgetScope: OwnedSessionBudgetScope | undefined,
     kind: {
+      readonly isIndependentPreview?: boolean
+      readonly toolAllowlist?: readonly string[] | undefined
       readonly usageKind: 'bestOfN' | 'worker'
       readonly paidFeature: 'bestOfN' | 'teamWorkers'
       readonly budgetUnavailable: () => string
@@ -506,6 +518,7 @@ export class ModelApiBackendManager {
     // cannot create another allowance or save its transcript under the parent ID.
     if (
       budgetScope === undefined &&
+      !kind.isIndependentPreview &&
       Usd.from(this.deps.sessionBudgetUsd()).compare(Usd.from(0)) !== 0
     ) {
       throw new Error(kind.budgetUnavailable())
@@ -516,6 +529,8 @@ export class ModelApiBackendManager {
       attemptVerify === undefined ? undefined : { ...attemptVerify, checkCommands: () => [] }
     try {
       return await this.createHost({
+        ownsPaidBudget: kind.isIndependentPreview,
+        toolAllowlist: kind.toolAllowlist,
         verify,
         workspaceEdits: new WorkspaceEdits(),
         sessionWorkspaceRoot: undefined,
@@ -539,6 +554,7 @@ export class ModelApiBackendManager {
             if (
               generation !== this.generation ||
               (budgetScope === undefined &&
+                !kind.isIndependentPreview &&
                 Usd.from(this.deps.sessionBudgetUsd()).compare(Usd.from(0)) !== 0) ||
               budgetScope?.isStillAllowed(keyDigest) === false
             ) {
@@ -654,6 +670,19 @@ export class ModelApiBackendManager {
       shellRefusal: MODEL_TEXT.shellTeamWorker,
       readyMessage: 'Model API team worker host ready in its working copy',
       fenceIo,
+    })
+  }
+
+  /** One paid planning turn, without tools or any worker dispatch. */
+  public async buildTeamTryHost(root: string, guard: ResponseAttemptGuard): Promise<ModelApiHost> {
+    return await this.worktreeHost(root, guard, undefined, undefined, {
+      isIndependentPreview: true,
+      toolAllowlist: [],
+      usageKind: 'worker',
+      paidFeature: 'teamWorkers',
+      budgetUnavailable: () => UI_TEXT.teamBudgetUnavailable,
+      shellRefusal: MODEL_TEXT.shellTeamWorker,
+      readyMessage: 'Model API team planning preview ready',
     })
   }
 

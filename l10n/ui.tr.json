@@ -5301,5 +5301,14 @@
     "docs": "Belgeler"
   },
   "referenceTeamConfiguration": "Ekip ajanları ve yapılandırma bağlantıları kurulana kadar Roller ve Ajanlar gizli kalır.",
-  "referenceTeamPoolKeys": "Alt+Yukarı / Alt+Aşağı bu girdiyi havuzunda taşır."
+  "referenceTeamPoolKeys": "Alt+Yukarı / Alt+Aşağı bu girdiyi havuzunda taşır.",
+  "teamControlLabels": {
+    "thinkingBudget": "Düşünme bütçesi",
+    "outputCap": "Çıktı sınırı",
+    "parallelToolCalls": "Paralel araç çağrıları",
+    "temperature": "Sıcaklık",
+    "topP": "Top-p olasılığı"
+  },
+  "teamTryTally": "Ücretli önizleme: {attempts}; ücret {charged}; tutulan yükümlülük {retained}.",
+  "teamTryDenied": "Ücretli plan önizlemesi reddedildi. Ücret alınmadı."
 }

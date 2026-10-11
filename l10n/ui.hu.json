@@ -5301,5 +5301,14 @@
     "docs": "Dokumentáció"
   },
   "referenceTeamConfiguration": "A Szerepek és Ügynökök rejtve maradnak, amíg a csapatügynökök és a konfiguráció kapcsolatai nincsenek telepítve.",
-  "referenceTeamPoolKeys": "Az Alt+Fel / Alt+Le mozgatja ezt a bejegyzést a csoportjában."
+  "referenceTeamPoolKeys": "Az Alt+Fel / Alt+Le mozgatja ezt a bejegyzést a csoportjában.",
+  "teamControlLabels": {
+    "thinkingBudget": "Gondolkodási keret",
+    "outputCap": "Kimeneti korlát",
+    "parallelToolCalls": "Párhuzamos eszközhívások",
+    "temperature": "Hőmérséklet",
+    "topP": "Top-p valószínűség"
+  },
+  "teamTryTally": "Fizetős előnézet: {attempts}; felszámítva {charged}; fenntartott kötelezettség {retained}.",
+  "teamTryDenied": "A fizetős tervelőnézet elutasítva. Nem történt terhelés."
 }

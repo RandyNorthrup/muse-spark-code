@@ -37,10 +37,16 @@ export interface TeamPanelDeps {
   readonly confirmOrchestrator: (modelRef: string | undefined) => Promise<void>
   readonly writeExport: (text: string) => Promise<void>
   readonly readImport: () => Promise<string | undefined>
-  readonly dryRun?: {
-    readonly cost: () => string
-    readonly run: (document: TeamEditorDocument, sample: TeamPanelSlice['sample']) => Promise<void>
-  }
+  readonly dryRun?:
+    | {
+        readonly cost: () => string
+        readonly run: (
+          document: TeamEditorDocument,
+          sample: TeamPanelSlice['sample'],
+          signal: AbortSignal,
+        ) => Promise<unknown>
+      }
+    | undefined
 }
 export interface TeamPanelController {
   readonly read: () => Promise<TeamPanelSlice | undefined>
@@ -63,6 +69,7 @@ export function createTeamPanelController(deps: TeamPanelDeps): TeamPanelControl
   let isDirty = false
   let isDisposed = false
   let notice: string | undefined
+  let trying: AbortController | undefined
   const confirmedInPlace = new Set<string>()
   const dismissed = new Set<string>()
   const storedDismissals = deps.state.get(DISMISSALS_KEY)
@@ -406,7 +413,19 @@ export function createTeamPanelController(deps: TeamPanelDeps): TeamPanelControl
         if (deps.dryRun === undefined) throw new Error(UI_TEXT.teamEditor.invalid)
         const derived = await view()
         if (derived.issues.length > 0) throw new Error(UI_TEXT.teamEditor.invalid)
-        await deps.dryRun.run(draft, sample)
+        if (trying !== undefined) throw new Error(UI_TEXT.teamEditor.invalid)
+        const abort = new AbortController()
+        trying = abort
+        try {
+          const result = await deps.dryRun.run(
+            teamEditorDocumentSchema.parse(draft),
+            sample,
+            abort.signal,
+          )
+          if (typeof result === 'string') notice = result
+        } finally {
+          trying = undefined
+        }
         assertOpen()
         return
       }
@@ -483,6 +502,7 @@ export function createTeamPanelController(deps: TeamPanelDeps): TeamPanelControl
     handle,
     dispose: () => {
       isDisposed = true
+      trying?.abort()
       document = undefined
       offers = []
     },

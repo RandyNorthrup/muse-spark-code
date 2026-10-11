@@ -5148,5 +5148,14 @@
     "docs": "文档"
   },
   "referenceTeamConfiguration": "团队代理和配置连接安装完成之前，角色和代理保持隐藏。",
-  "referenceTeamPoolKeys": "Alt+上 / Alt+下可在池中移动此条目。"
+  "referenceTeamPoolKeys": "Alt+上 / Alt+下可在池中移动此条目。",
+  "teamControlLabels": {
+    "thinkingBudget": "思考预算",
+    "outputCap": "输出上限",
+    "parallelToolCalls": "并行工具调用",
+    "temperature": "温度",
+    "topP": "Top-p 采样概率"
+  },
+  "teamTryTally": "付费预览：{attempts}；已收费 {charged}；保留责任金额 {retained}。",
+  "teamTryDenied": "已拒绝付费计划预览。未产生费用。"
 }

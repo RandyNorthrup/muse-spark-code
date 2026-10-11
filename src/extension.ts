@@ -240,7 +240,7 @@ import { ideLegalScanTools, isIdeLegalScanOffered } from './host/ide/legalScanTo
 import { fill as fillLegalNotice, fill, plural, uiLocale } from './shared/l10n/text'
 import { legalScanLoader, legalExplanationLoader } from './host/ide/legalScanBundle'
 import { vscodeLanguageServices } from './host/codeIntel/languageServices'
-import { usablePaidFeatures } from './shared/paid'
+import { usablePaidFeatures, paidFeaturePrice } from './shared/paid'
 import { agentImportLoader } from './host/agentImportBundle'
 import {
   TAB_BUNDLE_FILE,
@@ -2625,7 +2625,10 @@ async function activateWindow(
       paid: {
         // Not forced to ask: a scoped "Always" for these models answers without a popup.
         allowKeyTasks: async (tasks, dailyBudgetUsd) =>
-          await paid.consent.allows({ feature: 'teamWorkers', tasks, dailyBudgetUsd }, false),
+          await paid.consent.allows(
+            { feature: 'teamWorkers', tasks, dailyBudgetUsd: dailyBudgetUsd ?? dailyPaid.capUsd() },
+            false,
+          ),
       },
       newId: () => crypto.randomUUID(),
       now: () => Date.now(),
@@ -4219,6 +4222,59 @@ async function activateWindow(
           log,
           globalState: context.globalState,
           team: {
+            dryRun: {
+              cost: () => paidFeaturePrice('teamWorkers'),
+              run: async (document, sample, signal) => {
+                if (
+                  workspaceRoot === undefined ||
+                  !teamHost.canConfigure() ||
+                  !paid.gate.isOn('teamWorkers')
+                )
+                  throw new Error(UI_TEXT.teamBudgetUnavailable)
+                const modelId =
+                  document.orchestrator?.agent?.model ??
+                  teamComposerModel()?.modelId ??
+                  DEFAULT_MODEL_ID
+                if (
+                  document.orchestrator?.agent !== undefined &&
+                  document.orchestrator.agent.kind !== 'engine'
+                )
+                  throw new Error(UI_TEXT.teamBudgetUnavailable)
+                const previewHost = await modelApi.ensureHost()
+                const models = await previewHost.listModels()
+                const model = models.find((row) => row.modelId === modelId)
+                if (model === undefined) throw new Error(UI_TEXT.teamBudgetUnavailable)
+                const { tryTeam, teamTryConfirmation } = await import('./core/team/teamPanelEntry')
+                const task = teamTryConfirmation(model)
+                return await tryTeam(
+                  {
+                    isAllowed: () => teamHost.canConfigure() && paid.gate.isOn('teamWorkers'),
+                    modelId,
+                    workspaceRoot,
+                    consent: () =>
+                      paid.consent.allows(
+                        {
+                          feature: 'teamWorkers',
+                          tasks: [task],
+                          dailyBudgetUsd: dailyPaid.capUsd(),
+                        },
+                        true,
+                      ),
+                    noteDispatched: () => {
+                      paid.usage.add('teamWorkers', 1)
+                    },
+                    noteUsage: (usage) => {
+                      paid.usage.addTeamWorkerUsage(modelId, usage)
+                    },
+                    reserve: dailyPaid.reserveExact,
+                    start: (guard) => modelApi.buildTeamTryHost(workspaceRoot, guard),
+                  },
+                  document,
+                  sample,
+                  signal,
+                )
+              },
+            },
             snapshots: {
               remainingDailyBudgetUsd: () => dailyPaid.judgeLedger.remainingUsd(),
               records: async () => {

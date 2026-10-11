@@ -5505,6 +5505,8 @@ export const EN = {
   teamPreviewTitle: 'Preview',
   teamPreviewSample: 'Sample task',
   // {cost}: the labelled cost of one orchestrator turn.
+  teamTryTally: 'Paid preview: {attempts}; charged {charged}; retained liability {retained}.',
+  teamTryDenied: 'Paid planning preview denied. No charge was made.',
   teamTryWithOrchestrator: 'Try with the orchestrator ({cost})',
   teamImportDraft: 'Opened as a draft: entries you lack show as missing.',
   teamEntryMissing: 'Missing: map it to one of your agents or remove it.',
@@ -5607,6 +5609,13 @@ export const EN = {
   // {low}, {high}: dollars per hour; {tokens}: tokens per hour.
   teamLevelCost: '{low}–{high} per hour, {tokens} tokens',
   teamLevelCostTokens: '{tokens} tokens per hour',
+  teamControlLabels: {
+    thinkingBudget: 'Thinking budget',
+    outputCap: 'Output cap',
+    parallelToolCalls: 'Parallel tool calls',
+    temperature: 'Temperature',
+    topP: 'Top-p',
+  },
   teamSettingCostEffort: 'Higher effort is slower, about twice the tokens per step up',
   teamSettingCostThinking: 'Thinking adds reasoning tokens to every task',
   teamSettingCostServiceTier: 'Priority tiers cost more per token',

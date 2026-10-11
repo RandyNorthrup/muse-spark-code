@@ -1041,6 +1041,11 @@ const TEXT_BLOCKS = [
     readers: ['dist/modelApi.js', 'dist/modelApiMcp.js', 'dist/mcpPool.js'],
   },
   {
+    block: 'TEAM_TRY_MODEL_TEXT',
+    sentinels: ['teamTryPlanningInstructions'],
+    readers: ['dist/teamPanel.js'],
+  },
+  {
     block: 'TEAM_MODEL_TEXT',
     sentinels: ['toolTheRoleToRunEG'],
     readers: [
