@@ -10,23 +10,23 @@ import {
   ESTIMATE_MAX_ITEMS,
 } from './constants'
 
-const id = z
+const id = /* @__PURE__ */ z
   .string()
   .check(z.minLength(1), z.maxLength(ESTIMATE_ID_MAX_CHARS), z.regex(/^[\w.-]+(?::[\w.-]+)?$/))
-const hours = z.number().check(z.nonnegative())
-const count = z.int().check(z.nonnegative())
-const positiveCount = z.int().check(z.positive())
-const instant = z.iso.datetime()
-const milestoneId = z.string().check(z.regex(/^M[1-9]\d*[a-z\d]*$/))
-const boundedIds = z.array(id).check(z.maxLength(ESTIMATE_MAX_ITEMS))
-const goalName = z
+const hours = /* @__PURE__ */ z.number().check(z.nonnegative())
+const count = /* @__PURE__ */ z.int().check(z.nonnegative())
+const positiveCount = /* @__PURE__ */ z.int().check(z.positive())
+const instant = /* @__PURE__ */ z.iso.datetime()
+const milestoneId = /* @__PURE__ */ z.string().check(z.regex(/^M[1-9]\d*[a-z\d]*$/))
+const boundedIds = /* @__PURE__ */ z.array(id).check(z.maxLength(ESTIMATE_MAX_ITEMS))
+const goalName = /* @__PURE__ */ z
   .string()
   .check(z.minLength(1), z.maxLength(ESTIMATE_ID_MAX_CHARS), z.regex(/^[\w.-]+$/))
-const os = z.enum(['windows', 'macos', 'linux'])
-const architecture = z.enum(['x64', 'arm64'])
+const os = /* @__PURE__ */ z.enum(['windows', 'macos', 'linux'])
+const architecture = /* @__PURE__ */ z.enum(['x64', 'arm64'])
 const areUnique = (values: readonly string[]): boolean => new Set(values).size === values.length
 
-export const estimateGoalSchema = z.discriminatedUnion('kind', [
+export const estimateGoalSchema = /* @__PURE__ */ z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('milestone'), milestoneId }),
   z.strictObject({ kind: z.literal('pullRequest'), number: positiveCount }),
   z.strictObject({
@@ -98,7 +98,7 @@ export function parseEstimateGoal(text: string): EstimateGoal | undefined {
 }
 
 // Quantitative application inputs retain unavailable measurements explicitly.
-const numericUncertainty = z.discriminatedUnion('kind', [
+const numericUncertainty = /* @__PURE__ */ z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('unknown') }),
   z
     .strictObject({ kind: z.literal('interval'), lower: z.number(), upper: z.number() })
@@ -137,9 +137,9 @@ function resourceQuantity(valueSchema: typeof hours) {
       ),
   ])
 }
-const demand = resourceQuantity(hours)
-const bytes = z.int().check(z.nonnegative())
-const byteDemand = resourceQuantity(bytes)
+const demand = /* @__PURE__ */ resourceQuantity(hours)
+const bytes = /* @__PURE__ */ z.int().check(z.nonnegative())
+const byteDemand = /* @__PURE__ */ resourceQuantity(bytes)
 // Opaque allocation roles (workspace, worktrees, temp, logs, data, state, ...).
 // A machine maps each role to one physical volume; volumes are not capped at three.
 const volumeRole = id
@@ -147,7 +147,7 @@ const diskFields = {
   volumeId: id,
   roles: z.array(volumeRole).check(z.minLength(1), z.refine(areUnique)),
 }
-const diskHeadroomSchema = z.discriminatedUnion('status', [
+const diskHeadroomSchema = /* @__PURE__ */ z.discriminatedUnion('status', [
   z.strictObject({ status: z.literal('unknown'), ...diskFields }),
   z
     .strictObject({
@@ -185,7 +185,7 @@ const windowFields = {
     }),
   ),
 }
-const usageWindowSchema = z
+const usageWindowSchema = /* @__PURE__ */ z
   .discriminatedUnion('kind', [
     z.strictObject({ kind: z.literal('rolling'), periodSeconds: positiveCount, ...windowFields }),
     // Repeat the reset's local time/day; clamp month-end to the last local day.
@@ -205,7 +205,7 @@ const usageWindowSchema = z
 
 // One complete review pass is one lane round, regardless of module count.
 // Module/class strikes count rounds with unresolved findings, never findings.
-const reviewSchema = z.discriminatedUnion('status', [
+const reviewSchema = /* @__PURE__ */ z.discriminatedUnion('status', [
   z.strictObject({ status: z.literal('unknown') }),
   z
     .strictObject({
@@ -277,7 +277,7 @@ export const machineClassesSchema = /* @__PURE__ */ (() =>
   ))()
 export type MachineClass = z.infer<typeof machineClassSchema>
 
-const machineSchema = z.strictObject({
+const machineSchema = /* @__PURE__ */ z.strictObject({
   id,
   classId: id,
   source: z.enum(['local', 'device', 'node', 'rented']),
@@ -302,7 +302,7 @@ const machineSchema = z.strictObject({
     memoryPercent: z.number().check(z.nonnegative(), z.maximum(100)),
   }),
 })
-const accountSchema = z.strictObject({
+const accountSchema = /* @__PURE__ */ z.strictObject({
   // Opaque snapshot alias: never an e-mail address or provider credential.
   id,
   providerId: id,
@@ -317,7 +317,7 @@ const accountSchema = z.strictObject({
   ),
 })
 
-export const fleetSnapshotSchema = z
+export const fleetSnapshotSchema = /* @__PURE__ */ z
   .strictObject({
     asOf: instant,
     machines: z.array(machineSchema).check(z.maxLength(ESTIMATE_MAX_ITEMS)),
@@ -360,7 +360,7 @@ export const fleetSnapshotSchema = z
   )
 export type FleetSnapshot = z.infer<typeof fleetSnapshotSchema>
 
-export const estimateLaneSchema = z.strictObject({
+export const estimateLaneSchema = /* @__PURE__ */ z.strictObject({
   id,
   kind: id,
   estimatedHours: z.number().check(z.positive()),
@@ -415,7 +415,7 @@ export const estimateLaneSchema = z.strictObject({
 })
 export type EstimateLane = z.infer<typeof estimateLaneSchema>
 
-export const historyRecordSchema = z
+export const historyRecordSchema = /* @__PURE__ */ z
   .strictObject({
     laneId: id,
     kind: id,
@@ -443,7 +443,7 @@ export interface EstimateHistoryPort {
   append(record: HistoryRecord): Promise<void>
 }
 
-export const estimateRequestSchema = z.strictObject({
+export const estimateRequestSchema = /* @__PURE__ */ z.strictObject({
   goal: estimateGoalSchema,
   asOf: instant,
   deadline: z.optional(instant),
@@ -453,7 +453,7 @@ export const estimateRequestSchema = z.strictObject({
 })
 export type EstimateRequest = z.infer<typeof estimateRequestSchema>
 
-export const estimateInputsSchema = z
+export const estimateInputsSchema = /* @__PURE__ */ z
   .strictObject({
     request: estimateRequestSchema,
     lanes: z.array(estimateLaneSchema).check(z.maxLength(ESTIMATE_MAX_ITEMS)),
@@ -476,7 +476,7 @@ export const estimateInputsSchema = z
   )
 export type EstimateInputs = z.infer<typeof estimateInputsSchema>
 
-const scheduleEntrySchema = z
+const scheduleEntrySchema = /* @__PURE__ */ z
   .strictObject({
     laneId: id,
     machineId: id,
@@ -488,7 +488,7 @@ const scheduleEntrySchema = z
     critical: z.boolean(),
   })
   .check(z.refine((entry) => Date.parse(entry.end) >= Date.parse(entry.start)))
-const catalogPriceSchema = z.strictObject({
+const catalogPriceSchema = /* @__PURE__ */ z.strictObject({
   providerId: id,
   sizeId: id,
   hourlyUsd: hours,
@@ -498,7 +498,7 @@ const catalogPriceSchema = z.strictObject({
   publicCatalog: z.literal(true),
 })
 export type CatalogPrice = z.infer<typeof catalogPriceSchema>
-const setupSchema = z
+const setupSchema = /* @__PURE__ */ z
   .strictObject({
     kind: z.enum(['current', 'minimumP50', 'minimumP90', 'optimumCost', 'optimumSpeed']),
     machines: z.array(
@@ -519,7 +519,7 @@ const setupSchema = z
   })
   .check(z.refine((setup) => Date.parse(setup.p90) >= Date.parse(setup.p50)))
 
-const disclosureSchema = z
+const disclosureSchema = /* @__PURE__ */ z
   .strictObject({
     // JSON Pointer into this section, excluding the disclosures themselves.
     path: z.string().check(z.startsWith('/'), z.maxLength(ESTIMATE_LABEL_MAX_CHARS)),
@@ -562,7 +562,7 @@ export function disclosureTargets(value: unknown, pointer = ''): Map<string, num
 }
 
 /** Section payload for M113 report-v1; lane W binds its envelope when merged. */
-export const estimateSectionSchema = z
+export const estimateSectionSchema = /* @__PURE__ */ z
   .strictObject({
     kind: z.literal('estimate'),
     schemaVersion: z.literal(1),
