@@ -3810,7 +3810,9 @@ Its hidden worker service reserves each transport attempt separately. Reported
 usage settles that attempt at the sent model's known price; a dispatched
 attempt without usage retains its full maximum as uncertain liability. A
 successful retry cannot erase earlier liability. Refused or unsent attempts
-release their claims, and completed outcomes leave no reservation open. Raise can
+release their claims, including when cancellation or close wins during a durable
+admission. Late claims close at zero and never attach to an ended or replacement
+request; completed outcomes leave no reservation open. Raise can
 lift entry caps for one task; it cannot lift concurrent worker limits. Worker
 file writes check the role before opening and use verified existing-file
 handles. Portable new-file creation is unavailable until a native operation

@@ -24076,6 +24076,24 @@ bound, `TEAM_COLLECT_WAIT_MAX_SECONDS_ENGINE` (60 s, golden `08-team-on`
 updated); the Muse Code team server keeps `TEAM_COLLECT_WAIT_MAX_SECONDS`
 (0) until lane P's timeout capture.
 
+**C-M96-3 round 7 late-admission repair (2026-10-11, RVCM963G).**
+Cancellation can end compaction while worker admission still awaits a durable
+save. Bind each asynchronous admission to its originating request lifetime:
+recheck after every wait, release a late unsent claim exactly once, and never
+attach it to an ended or replacement request. Sweep worker, subagent,
+best-of-N, hook and compaction reservation paths. Table-driven cancellation
+regressions cover before reservation, during reservation, after reservation
+before attachment, and after attachment, with byte-exact restored red drills
+in `docs/certification/m96-3.md`. Round 6's local completion claim is superseded
+by this review and repair. Scoped verification is complete: 396 tests across
+12 full files at repository deadlines, six red/restored guard drills, all five
+typechecks, zero-warning lint, zero clones/dead code and the production build.
+The team host is 132,676/133,120 bytes; Model API is 529,955/537,600 bytes;
+activation remains 568,965/614,400 bytes. No cap changed. RVCM963G's sole P2 is
+fixed, with no residual finding or external blocker. M96 remains planned and
+hidden; next slice is lead review/full cross-platform gates, then C-M96-2,
+C-M96-4, C-M96c-1 and C-M96-5/M96b bindings.
+
 **C-M96-3 round 6 accounting repair (2026-10-11, RVCM963F).**
 The lead's design replaces round 5's request-chain shortcut: each worker
 transport attempt reserves separately and closes exactly once through
