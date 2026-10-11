@@ -1939,8 +1939,7 @@
     "journalIncomplete": "A használati napló sérült, hiányos vagy újabb verziójú bejegyzéseket tartalmaz; az összesítés ezeket kizárja.",
     "sessionUsageUnavailable": "A megőrzött naplóban a használat nem rendelhető ehhez a munkamenethez; a tokenek és költségek összesítése nem érhető el.",
     "budgetsUnavailable": "A kiválasztott időszak költségkeret-pillanatképei nem érhetők el.",
-    "sessionModelUnavailable": "A munkamenet-katalógus nem nevez meg aktív modellt, ezért a modell ismeretlenként szerepel.",
-    "duplicateOpenQuestion": "Ez a nyitott kérdésazonosító duplán szerepel a PLAN.md fájlban (tervprobléma)."
+    "sessionModelUnavailable": "A munkamenet-katalógus nem nevez meg aktív modellt, ezért a modell ismeretlenként szerepel."
   },
   "reportRowsMore": {
     "one": "További {count} sor",

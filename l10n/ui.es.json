@@ -1967,8 +1967,7 @@
     "journalIncomplete": "El registro de uso contiene entradas dañadas, incompletas o de una versión más reciente; los totales las excluyen.",
     "sessionUsageUnavailable": "El uso de esta sesión no se puede atribuir en el registro conservado; los totales de tokens y costes no están disponibles.",
     "budgetsUnavailable": "Las instantáneas de presupuesto del periodo seleccionado no están disponibles.",
-    "sessionModelUnavailable": "El catálogo de la sesión no nombra ningún modelo activo, por lo que el modelo se informa como desconocido.",
-    "duplicateOpenQuestion": "Este identificador de pregunta abierta está duplicado en PLAN.md (problema del plan)."
+    "sessionModelUnavailable": "El catálogo de la sesión no nombra ningún modelo activo, por lo que el modelo se informa como desconocido."
   },
   "reportRowsMore": {
     "one": "{count} fila más",

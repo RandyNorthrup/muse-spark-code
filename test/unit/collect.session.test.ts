@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { collectFixture, fullSnapshot, getSection } from './helpers/reporting/collect'
 import { availableSource, unavailableSource } from './helpers/reporting/snapshot'
+import { reportSectionSchema } from '../../src/shared/reportSchema'
 
 describe('session collector', () => {
   it('reports observed zero files for a complete session with no edits', () => {
@@ -194,5 +195,56 @@ describe('session collector', () => {
       type: 'text',
       value: 'Legacy approvals missing',
     })
+  })
+
+  it('disambiguates duplicated open-question ids and names each as a plan problem', () => {
+    const snapshot = fullSnapshot()
+    const plan = snapshot.sources.plan.data!
+    const report = collectFixture(
+      'session',
+      {},
+      {
+        ...snapshot,
+        sources: {
+          ...snapshot.sources,
+          plan: availableSource('plan', {
+            ...plan,
+            questions: [
+              { id: 'Q-DUP', text: 'First body', milestoneIds: [], state: 'open' },
+              { id: 'Q-DUP', text: 'Second body', milestoneIds: [], state: 'open' },
+              { id: 'Q-SAME', text: 'Same body', milestoneIds: [], state: 'open' },
+              { id: 'Q-SAME', text: 'Same body', milestoneIds: [], state: 'open' },
+              { id: 'Q-answered', text: 'Decided body', milestoneIds: [], state: 'answered' },
+              { id: 'Q-answered', text: 'Decided body', milestoneIds: [], state: 'answered' },
+            ],
+            drift: [
+              { code: 'question-duplicate', line: 2, detail: 'Q-DUP' },
+              { code: 'question-duplicate', line: 4, detail: 'Q-SAME' },
+              { code: 'question-duplicate', line: 6, detail: 'Q-answered' },
+            ],
+          }),
+        },
+      },
+    )
+    // The same uniqueness refine that rejected the real PLAN.md accepts this.
+    expect(() => reportSectionSchema.parse(report.needsYou)).not.toThrow()
+    const names = report.needsYou.rows.map((row) => row.cells['name'])
+    const named = (id: string) =>
+      names.filter((cell) => cell?.type === 'text' && cell.value === id).length
+    // Distinct bodies stay as two rows; a byte-identical copy collapses to
+    // one; answered duplicates stay out of needs-you.
+    expect(named('Q-DUP')).toBe(2)
+    expect(named('Q-SAME')).toBe(1)
+    expect(named('Q-answered')).toBe(0)
+    // Each duplicated open id is named once as a plan problem, reading only
+    // the reader's drift entries; the answered duplicate is not.
+    const problems = report.needsYou.rows.filter(
+      (row) =>
+        row.cells['name']?.type === 'text' && row.cells['name'].value === 'question-duplicate',
+    )
+    expect(
+      problems.map((row) => row.cells['reason']).map((cell) => cell?.type === 'text' && cell.value),
+    ).toEqual(['Q-DUP', 'Q-SAME'])
+    expect(problems.every((row) => row.cells['status']?.type === 'label')).toBe(true)
   })
 })

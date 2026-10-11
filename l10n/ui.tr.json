@@ -1939,8 +1939,7 @@
     "journalIncomplete": "Kullanım günlüğü hasarlı, eksik veya daha yeni sürümlü kayıtlar içeriyor; toplamlar bunları hariç tutar.",
     "sessionUsageUnavailable": "Saklanan günlükte kullanım bu oturuma atanamıyor; belirteç ve maliyet toplamları kullanılamıyor.",
     "budgetsUnavailable": "Seçilen dönem için bütçe anlık görüntüleri kullanılamıyor.",
-    "sessionModelUnavailable": "Oturum kataloğu etkin bir model adlandırmıyor, bu nedenle model bilinmeyen olarak bildiriliyor.",
-    "duplicateOpenQuestion": "Bu açık soru kimliği PLAN.md dosyasında yinelenmiş (plan sorunu)."
+    "sessionModelUnavailable": "Oturum kataloğu etkin bir model adlandırmıyor, bu nedenle model bilinmeyen olarak bildiriliyor."
   },
   "reportRowsMore": {
     "one": "{count} satır daha",

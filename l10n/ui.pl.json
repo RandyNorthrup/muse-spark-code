@@ -1995,8 +1995,7 @@
     "journalIncomplete": "Dziennik zawiera uszkodzone, niepełne wpisy lub wpisy nowszej wersji; sumy je pomijają.",
     "sessionUsageUnavailable": "Nie można przypisać użycia do tej sesji w zachowanym dzienniku; sumy tokenów i kosztów są niedostępne.",
     "budgetsUnavailable": "Migawki budżetu dla wybranego okresu są niedostępne.",
-    "sessionModelUnavailable": "Katalog sesji nie wymienia żadnego aktywnego modelu, więc model jest zgłaszany jako nieznany.",
-    "duplicateOpenQuestion": "Ten identyfikator otwartego pytania występuje w PLAN.md podwójnie (problem planu)."
+    "sessionModelUnavailable": "Katalog sesji nie wymienia żadnego aktywnego modelu, więc model jest zgłaszany jako nieznany."
   },
   "reportRowsMore": {
     "one": "{count} dodatkowy wiersz",

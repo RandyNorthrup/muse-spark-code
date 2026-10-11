@@ -466,4 +466,18 @@ describe('plan-format v1', () => {
     expect(parsed.facts.releases.some(({ version }) => version === '9.9.9')).toBe(true)
     expect(nextSteps(parsed.facts)).toEqual([])
   })
+
+  it('keeps every duplicated open-question id and flags each repeat as drift', () => {
+    const input = PLAN_FORMAT_FIXTURE.replace(
+      '### Q-M91b — Older question form',
+      '### Q-M91b — Older question form\n- **Q-M12 — Repeated id (2026-10-06).**\n  A second body.',
+    )
+    const parsed = readPlan(input)
+    expect(parsed.facts.questions.filter(({ id }) => id === 'Q-M12')).toHaveLength(2)
+    expect(parsed.facts.drift).toContainEqual(
+      expect.objectContaining({ code: 'question-duplicate', detail: 'Q-M12' }),
+    )
+    // The fixed repository plan carries no duplicated question id.
+    expect(readPlan(repositoryPlan).facts.drift).toEqual([])
+  })
 })

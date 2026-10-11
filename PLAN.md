@@ -19267,7 +19267,7 @@ INT0170B integration question (2026-10-07), narrowed by LEFT017 (2026-10-08): th
   contains only `a95f24cf`. May the exact local release commit be merged
   separately, despite the rig note's main-merge prohibition? Until answered,
   keep the five authorized merges and independent cap repairs only.
-- **Q-M95INT2 universal helper (2026-10-05):** what approved local path supplies
+- **Q-M95INT2B universal helper (2026-10-05):** what approved local path supplies
   the real universal macOS helper, or is downloading a released VSIX solely
   to verify/extract that binary authorized? The binary is absent and the
   common rule prohibits downloads. A helper-free package cannot certify the
@@ -19278,12 +19278,6 @@ INT0170B integration question (2026-10-07), narrowed by LEFT017 (2026-10-08): th
   host/ACP composition. Its scope paragraph in M95b records this authorization;
   the shared configured-provider implementation is installed and tested offline.
 
-- **Q-M95-I transport prerequisite (2026-10-05):** which completed lane T
-  commit supplies ProviderClient/transport/authSource for this checkout?
-  Those modules are absent at `60bf96aa`; the local `rt-fixm95t` rig snapshot
-  is on a different base. The rig brief forbids main merges and network
-  fetches. The injected host/registry contract is tested offline; production
-  assembly awaits the lead's exact dependency and W's configured sources.
 - **Q-M95BINT live receipts (2026-10-05):** the supplied findings identify
   `acdc0f60…` and `577bc807…` (0 + 1 model attempts), but do not name the
   exact raw-capture workspace or provide a successful plan tool/reasoning/
@@ -19827,26 +19821,9 @@ observe the named tests fail, restore byte-exact and record the evidence in
     agent in a workspace asks once.
   - **No third-party prompt is needed for certification.**
 
-  The reasons are in D75's "Decisions on the open questions".
+  The reasons are in D75's "Decisions on the open questions" (Q-M94a–d decided
+  2026-10-04 above).
 
-- **Q-M94a: Tab's paid-use question (D73, D48).** D48 asks before every paid
-  use; Tab would ask on every keystroke pause. **Decided 2026-10-04 (owner):
-  yes, once per window, as Tab's form of D48** — Allow once this window (until
-  it closes), Allow always in this workspace, or Deny (snoozes Tab in this
-  window).
-- **Q-M94b: Tab's default model (D73, D4).** On Standard (`muse-spark-1.3`) Meta
-  does not train on the code, and typing costs about $0.80 an hour (from $0.40
-  to $2.00; research §7). On the contributor model it costs about $0.05 an
-  hour, and Meta trains on every file window Tab sends. **Decided 2026-10-04
-  (owner): Standard; the contributor model is a setting the user chooses,
-  with the training said in the setting and the confirmation.**
-- **Q-M94c: Tab's default daily budget (D73).** $1.00 a day is about 75
-  minutes of typical typing on Standard, or a full working day and more on the
-  contributor model. **Decided 2026-10-04 (owner): $1.00, from $0.05 to $50.**
-- **Q-M94d (watch, not a question): next edit suggestions.** These wait for
-  `isInlineEdit`/`showRange` to reach a stable `vscode.d.ts` (D73, research
-  V16 and V17). Each VS Code release's notes are read for it. When it lands,
-  M94b is planned against that release and the engine floor it needs.
 - **M91 Cursor's Tab hooks (D70).** **Resolved 2026-10-04 (owner): (a), a Tab-completions milestone.** M94 builds inline completions on `feature/m94-tab`, and its lane K wires `beforeTabFileRead` and `afterTabFileEdit` to them. Until then M91 imports them as "waiting for inline completions", where they run nothing.
 
 - **M93:** No new owner choice blocks the shipped workflow. Last 50 entries,

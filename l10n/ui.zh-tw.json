@@ -1911,8 +1911,7 @@
     "journalIncomplete": "使用日誌包含損壞、不完整或較新版本的記錄；總計不包含這些記錄。",
     "sessionUsageUnavailable": "保留的日誌無法將使用量歸屬於此工作階段；權杖與費用總計無法使用。",
     "budgetsUnavailable": "所選期間的預算快照無法使用。",
-    "sessionModelUnavailable": "工作階段目錄未列出任何使用中模型，因此該模型回報為未知。",
-    "duplicateOpenQuestion": "此未解決問題 ID 在 PLAN.md 中重複（計畫問題）。"
+    "sessionModelUnavailable": "工作階段目錄未列出任何使用中模型，因此該模型回報為未知。"
   },
   "reportRowsMore": {
     "other": "另外 {count} 列"
