@@ -31373,6 +31373,19 @@ consent, defaults, wire shapes or dependencies. The rig brief forbids aggregate
 quality and integration here; the lead retains those gates and independent
 review.
 
+**C-M106-3 native readers (2026-10-11, macmini).** Native effort and
+feedback readers from the C-M106-1 1.4.4 frames: `modelEfforts.ts` reads
+each `model/list` row's ordered variants, tier descriptions and default
+(future tiers verbatim, explicit `unknown` kept), and `feedback.ts` reads
+the note-only receipt, showing the upload without its identifiers. Where
+Muse Code sends no frame the feature refuses with an upstream request
+(`docs/research/m106-s1-upstream.md`, unposted): record-attached receipts
+and `session/delete` (methodNotFound, no terminal frame); History stays
+archive-only. EffortSlider and HistoryDialog needed no change. Reader
+binding at the host constructions, the FeedbackDialog restore and History
+deletion wiring remain for integration. Evidence:
+`docs/certification/m106-native-readers.md`.
+
 **M106W continuation 3 (2026-10-06, macmini).** Resolve the 15 full-suite
 blockers recorded by W: reconcile only D86-authorized behavior changes, repair
 stale fake package/capability/lazy UI fixtures, and fix shipped frame coverage.
