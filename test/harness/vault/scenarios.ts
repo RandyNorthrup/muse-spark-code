@@ -3,8 +3,10 @@
 // re-shot shows the pixels the certification changed. A locked snapshot
 // carries no items and no observed slot; uncreated and setup-pending keep
 // the broker's locked baseline; the lost vault is unavailable with Reset;
-// first-party-only keeps the broker's tier but no items. `connecting` has no
-// state yet: the host has not answered.
+// first-party-only keeps the broker's tier but no items. `unreachable` is
+// what the panel host publishes when no snapshot can be had (RVCM1091E):
+// unavailable with the broker-blocked sentence, never Reset, no items.
+// `connecting` has no state yet: the host has not answered.
 import { type VaultPanelState } from '../../../src/shared/modelsPanel'
 import { type VaultStatus } from '../../../src/shared/vaultStatus'
 
@@ -15,6 +17,7 @@ export const VAULT_MOUNTED_SCENARIOS = [
   'mounted-uncreated',
   'mounted-setup-pending',
   'mounted-unavailable',
+  'mounted-unreachable',
   'mounted-first-party-only',
 ] as const
 export type VaultMountedScenario = (typeof VAULT_MOUNTED_SCENARIOS)[number]
@@ -108,6 +111,24 @@ export function vaultScenarioState(
     case 'mounted-unavailable': {
       return {
         status: { ...lockedBaseline(), state: 'unavailable', reason: 'vaultLost' },
+        items: [],
+        grants: [],
+        audit: [],
+        pending: [],
+        ambientFiles: [],
+      }
+    }
+    case 'mounted-unreachable': {
+      return {
+        status: {
+          ...lockedBaseline(),
+          state: 'unavailable',
+          reason: 'brokerBlocked',
+          tier: null,
+          provider: null,
+          silentUnlock: false,
+          itemCount: 0,
+        },
         items: [],
         grants: [],
         audit: [],

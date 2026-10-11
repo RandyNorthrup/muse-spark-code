@@ -168,6 +168,16 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The vault section never keeps a stale view after a failed operation: every
+  failure reloads a fresh snapshot (a change that arrived meanwhile is
+  applied), or shows Unavailable with no item labels when no snapshot can be
+  had, and the message never tells the user to unlock a vault shown unlocked.
+  A Delete refused because the source changed after a successful import says
+  so instead of claiming nothing was added; a duplicate that wins the race
+  past add's pre-check reports a collision; unopenable vaults name no
+  protection; and setup confirmation broadcasts once, so its unlock no
+  longer loses the writer to a mid-flight snapshot.
+
 - On macOS 26, a process that `ps` lists with an unknown state (`?`) while
   it changes no longer voids every resource tree's membership read, which
   could refuse Stop/kill for a tree while any process on the Mac was mid-transition.
