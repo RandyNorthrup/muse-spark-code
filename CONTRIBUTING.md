@@ -333,9 +333,11 @@ To archive:
 2. Move whole top-level blocks only: a paragraph, a list item with everything
    indented under it, a table, a whole ordered list. Never part of one.
 3. Put each moved passage in its archive file between
-   `<!-- plan-archive:begin id="…" lines="…" bytes="…" sha256="…" -->` and
-   `<!-- plan-archive:end id="…" -->`, with one blank line inside each marker.
-   `test/unit/planArchive.test.ts` hashes every block; never edit inside one.
+   `<!-- plan-archive:begin id="…" lines="…" at="…" bytes="…" sha256="…" -->`
+   and `<!-- plan-archive:end id="…" -->`, with one blank line inside each
+   marker (`at` is the commit the line numbers refer to; the first move's
+   blocks carry none). `test/unit/planArchive.test.ts` hashes every block;
+   never edit inside one.
 4. Write each decision's summary from the decision itself, amendments
    included, and nothing beyond it. Lanes read it first and act on it.
 5. Prove nothing was lost and nothing got harder: rebuild the old `PLAN.md`
@@ -349,6 +351,62 @@ To archive:
    `m113cLaneClosure`, `teamPlanRecord`, `paidMoneyStructure`).
 7. Record the bytes before and after, the bytes moved per section and the
    proofs in [`docs/certification/plan-archive.md`](docs/certification/plan-archive.md).
+
+### The command
+
+`npm run plan:archive` (`scripts/plan-archive.mjs`) does steps 2 and 3 and
+the first proof of step 5, and refuses a move it cannot prove. It works on
+the `PLAN.md` of your checkout, so a lane archives the passages of its own
+branch with it.
+
+```sh
+# Where the plan stands against the bound and the gate; every block's hash.
+npm run plan:archive -- status
+
+# A decision's design record: the summary paragraph stays, with the link.
+npm run plan:archive -- move decisions --heading "D108 — Role preference" \
+  --lines 6120-6230,6240-6300 --summary summary.txt --dry-run
+
+# Lane history or a gate record: one pointer line stays.
+npm run plan:archive -- move gates --heading "0.17.1 gate records" \
+  --lines 39714-39727 --pointer
+
+# A closed milestone that already links to its archive section: nothing stays.
+npm run plan:archive -- move milestones --heading "QPIN — One question card" \
+  --lines 16599-16608 --linked --allow-fact-change
+
+# Several moves in the line numbers of one PLAN.md.
+npm run plan:archive -- move --batch moves.json --dry-run
+```
+
+- `--lines` are 1-based, inclusive ranges of `PLAN.md` as it stands, each a
+  run of whole top-level blocks. A heading never moves.
+- The first range is replaced by the paragraph in `--summary <file>` followed
+  by `Full record: <link>`, by one `- **Archived.**` line (`--pointer`), or by
+  nothing (`--linked`, allowed only where the section already links to the
+  archive file). The blocks go under `## <heading>` in the archive file.
+- `--batch` takes a JSON list such as
+  `[{ "to": "milestones", "heading": "…", "lines": "A-B,C-D", "pointer": true }]`,
+  with `"summary": "…"` or `"linked": true` in place of `"pointer"`.
+- Each block's marker names the commit its `lines` refer to: `HEAD`, or
+  `--at <commit>` for text a merge in progress brought in (the branch's
+  commit). When `PLAN.md` differs from that commit's, every passage is looked
+  up there and must stand in it exactly once.
+- Before anything is written the command rebuilds the old `PLAN.md` from the
+  new one plus the archive files and compares the bytes, and compares what the
+  plan reader parses before and after. Either difference stops it;
+  `--allow-fact-change` accepts the second for a closed milestone whose
+  fields, checklist or lane tables move.
+- `--dry-run` prints the same report (sizes before and after against the
+  bound and the gate, each block's id, lines, bytes and SHA-256, the
+  reassembly result, the parsed facts) and writes nothing.
+
+The command does not look at other branches: step 1 and the merge proof of
+step 5 stay with whoever moves text that open work may touch.
+
+A design record lives in the archive from the day it lands: `PLAN.md` carries
+the rule in force and the link, and a branch that adds a decision moves its
+record with this command in the same change.
 
 ## Style
 

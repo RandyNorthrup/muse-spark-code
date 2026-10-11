@@ -297,6 +297,14 @@ happened, not what was planned; superseded entries are kept.
   passes 85% of the bound and names the archive procedure in CONTRIBUTING.md,
   and `test/unit/planArchive.test.ts` hashes every archived passage.
 
+- `npm run plan:archive` (repository only) moves passages of PLAN.md into
+  `docs/plan-archive/` and proves each move before writing: the old file is
+  rebuilt byte for byte from the result, and the plan reader must parse the
+  same facts. `status` shows the plan's size against the bound and the gate
+  and checks every archived block's hash. A design record now goes to the
+  archive in the change that adds it; PLAN.md keeps the rule in force and
+  the link (AGENTS.md, CONTRIBUTING.md).
+
 ### Pending
 
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
