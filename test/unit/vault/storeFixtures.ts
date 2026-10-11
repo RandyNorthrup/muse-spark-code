@@ -43,11 +43,16 @@ export class MemoryVaultFiles implements VaultFilePort {
     commit?.()
     this.data.set(name, ownedBytes(bytes))
   }
-  remove(name: 'vault.v1' | 'slots.v1' | 'pending.v1' | 'reset.v1'): Promise<void> {
+  remove(
+    name: 'vault.v1' | 'slots.v1' | 'pending.v1' | 'reset.v1',
+    authorize?: () => void,
+  ): Promise<void> {
+    authorize?.()
     this.data.delete(name)
     return Promise.resolve()
   }
-  quarantine(name: 'vault.v1'): Promise<void> {
+  quarantine(name: 'vault.v1', authorize?: () => void): Promise<void> {
+    authorize?.()
     const bytes = this.data.get(name)
     if (bytes) this.quarantined.push(ownedBytes(bytes))
     return Promise.resolve()

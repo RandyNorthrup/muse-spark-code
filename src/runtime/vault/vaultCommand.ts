@@ -297,7 +297,7 @@ async function importFile(
 /** Reset Vault: a lost vault only; the warning, Continue, then the typed word. */
 async function resetVault(port: VaultCommandPort, deps: VaultCommandDeps): Promise<number> {
   if (!deps.isInteractive) {
-    deps.printError(UI_TEXT.vault.setupHeadless)
+    deps.printError(UI_TEXT.vault.resetHeadless)
     return 1
   }
   const challenge = await port.resetBegin()

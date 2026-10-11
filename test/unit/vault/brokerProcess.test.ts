@@ -184,7 +184,7 @@ beforeAll(async () => {
     '-Wall',
     '-Wextra',
     '-Werror',
-    'src/core/vault/broker/peer.c',
+    'native/posix/vaultPeer.c',
     '-o',
     native.helper,
   ])

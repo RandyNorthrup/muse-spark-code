@@ -30,9 +30,9 @@ export interface VaultPanelService {
   /** B consumes the answer and delivers any ticket privately to the waiting use route. */
   answer(answer: VaultApprovalAnswer, authorize: () => void): Promise<void>
   /** M imports only the selected path; never another application's private store. */
-  importFile(path: string, authorize: () => void): Promise<VaultImportReport>
+  importFile(path: string, authorize: () => void, signal: AbortSignal): Promise<VaultImportReport>
   keepImport(receipt: string): Promise<void>
-  deleteImport(receipt: string, authorize: () => void): Promise<void>
+  deleteImport(receipt: string, authorize: () => void, signal: AbortSignal): Promise<void>
   /** Reset Vault: only for a lost vault (lead decision). */
   resetBegin(): Promise<{ resetId: string; word: string }>
   resetConfirm(resetId: string, word: string, authorize: () => void): Promise<void>
@@ -78,6 +78,10 @@ export class VaultPanelHost {
   private lockRequested = false
   private readonly answered = new Set<string>()
   private cancellation = new AbortController()
+  // A receipt is bound to imported items, so ordinary metadata notifications
+  // cannot withdraw Keep/Delete. Lock, revocation and disposal still do.
+  private importAbort = new AbortController()
+  private importsInFlight = 0
   private state: VaultPanelState | undefined
   private queue = Promise.resolve()
   private readonly unsubscribe: () => void
@@ -103,55 +107,68 @@ export class VaultPanelHost {
             event.lockEpoch < this.state.status.lockEpoch
           )
             return
-          this.generation += 1
-          this.cancellation.abort()
-          this.cancellation = new AbortController()
-          this.queue = Promise.resolve()
-          if (event.kind === 'locked') {
-            this.lockRequested = true
-            this.answered.clear()
-            if (this.state !== undefined) {
-              this.state = {
-                ...this.state,
-                status: {
-                  ...this.state.status,
-                  state: 'locked',
-                  reason: 'locked',
-                  lockEpoch: event.lockEpoch,
-                },
-                pending: [],
-              }
-              this.deps.publish(
-                vaultHostMessageSchema.parse({ type: 'vaultState', state: this.state }),
-              )
-            }
-            this.deps.status(false)
-          }
+          this.retire(event.kind !== 'changed')
+          if (event.kind === 'locked') this.showLocked(event.lockEpoch)
         }
+        // The importing owner reloads on every completion. Starting another
+        // snapshot now would compete with its writer transaction.
+        if (event.kind === 'changed' && this.importsInFlight > 0) return
         void this.refresh()
       },
       () => {
         // The broker's event stream is down: say so once, never stay silent (F7).
-        if (!this.disposed) this.deps.showError(UI_TEXT.vault.operationFailed)
+        this.reportError(this.generation)
       },
     )
   }
 
   /** Late completions after disposal report nothing: there is no window left. */
-  private shouldReport(generation: number): boolean {
-    return !this.disposed && generation === this.generation
+  private reportError(generation: number): void {
+    if (!this.disposed && generation === this.generation)
+      this.deps.showError(UI_TEXT.vault.operationFailed)
+  }
+
+  private showLocked(lockEpoch?: number): void {
+    this.lockRequested = true
+    this.answered.clear()
+    if (this.state !== undefined) {
+      this.state = {
+        ...this.state,
+        status: {
+          ...this.state.status,
+          state: 'locked',
+          reason: 'locked',
+          lockEpoch: lockEpoch ?? this.state.status.lockEpoch,
+        },
+        pending: [],
+      }
+      this.deps.publish(vaultHostMessageSchema.parse({ type: 'vaultState', state: this.state }))
+    }
+    this.deps.status(false)
   }
 
   /** Prompt publish outside the queue; the queued editor keeps its own generation. */
   private refreshNow(): void {
     const generation = this.generation
     void this.load(generation).catch(() => {
-      if (this.shouldReport(generation)) this.deps.showError(UI_TEXT.vault.operationFailed)
+      this.reportError(generation)
     })
   }
 
   private authorize(generation: number): void {
     if (this.disposed || generation !== this.generation) throw new Error(UI_TEXT.vault.useChanged)
+  }
+
+  /** One retirement path keeps Lock, revocation and disposal equivalent. */
+  private retire(isBarrier: boolean): void {
+    this.generation += 1
+    this.cancellation.abort()
+    this.cancellation = new AbortController()
+    if (isBarrier) {
+      this.importAbort.abort()
+      this.importAbort = new AbortController()
+    }
+    if (isBarrier || this.importsInFlight === 0) this.queue = Promise.resolve()
   }
 
   private enqueue(task: (generation: number) => Promise<void>): Promise<void> {
@@ -163,7 +180,7 @@ export class VaultPanelHost {
         this.authorize(generation)
         await task(generation)
       } catch {
-        if (this.shouldReport(generation)) this.deps.showError(UI_TEXT.vault.operationFailed)
+        this.reportError(generation)
       }
     })()
     return this.queue
@@ -200,27 +217,14 @@ export class VaultPanelHost {
   /** Break glass bypasses the queue; no password box or stalled snapshot may delay it. */
   async lock(): Promise<void> {
     if (this.disposed) return
-    this.generation += 1
-    this.cancellation.abort()
-    this.cancellation = new AbortController()
-    this.lockRequested = true
-    this.answered.clear()
+    this.retire(true)
     const generation = this.generation
-    this.queue = Promise.resolve()
-    if (this.state !== undefined) {
-      this.state = {
-        ...this.state,
-        status: { ...this.state.status, state: 'locked', reason: 'locked' },
-        pending: [],
-      }
-      this.deps.publish(vaultHostMessageSchema.parse({ type: 'vaultState', state: this.state }))
-    }
-    this.deps.status(false)
+    this.showLocked()
     try {
       await this.deps.service.lock()
       await this.refresh()
     } catch {
-      if (this.shouldReport(generation)) this.deps.showError(UI_TEXT.vault.operationFailed)
+      this.reportError(generation)
     }
   }
 
@@ -231,10 +235,7 @@ export class VaultPanelHost {
     if (message.type === 'vaultLock') return this.lock()
     // Revocation is also a barrier; pending edits cannot commit with older authority.
     if (message.type === 'vaultRevoke') {
-      this.generation += 1
-      this.cancellation.abort()
-      this.cancellation = new AbortController()
-      this.queue = Promise.resolve()
+      this.retire(true)
       return this.enqueue(async (generation) => {
         await this.deps.service.revoke(message.grantId)
         await this.load(generation)
@@ -394,13 +395,33 @@ export class VaultPanelHost {
           ) {
             throw new Error(UI_TEXT.vault.useChanged)
           }
-          const report = await this.deps.service.importFile(message.path, authorize)
-          const choice = await this.deps.importDone(
-            report.items.map((item) => `${item.name} (${item.kind})`),
-          )
-          if (choice === 'delete') await this.deps.service.deleteImport(report.receipt, authorize)
-          else await this.deps.service.keepImport(report.receipt)
-          break
+          const signal = this.importAbort.signal
+          const authorizeImport = () => {
+            if (this.disposed || signal.aborted || this.lockRequested)
+              throw new Error(UI_TEXT.vault.useChanged)
+          }
+          this.importsInFlight += 1
+          try {
+            const report = await this.deps.service.importFile(message.path, authorizeImport, signal)
+            authorizeImport()
+            const choice = await this.deps.importDone(
+              report.items.map((item) => `${item.name} (${item.kind})`),
+            )
+            authorizeImport()
+            if (choice === 'delete')
+              await this.deps.service.deleteImport(report.receipt, authorizeImport, signal)
+            else await this.deps.service.keepImport(report.receipt)
+            authorizeImport()
+          } catch (error: unknown) {
+            if (generation !== this.generation && !signal.aborted) this.reportError(this.generation)
+            throw error
+          } finally {
+            this.importsInFlight -= 1
+            // Import may have committed before the report or Keep/Delete failed.
+            // Reconcile suppressed changes even when the operation refuses.
+            if (!signal.aborted) await this.load(this.generation)
+          }
+          return
         }
       }
       await this.load(generation)
@@ -410,8 +431,7 @@ export class VaultPanelHost {
   dispose(): void {
     if (this.disposed) return
     this.disposed = true
-    this.generation += 1
-    this.cancellation.abort()
+    this.retire(true)
     this.state = undefined
     this.answered.clear()
     this.unsubscribe()

@@ -5318,6 +5318,7 @@
     "importedSummary": "Importato nella cassaforte: {names}",
     "importKeepOrDelete": "Mantenere il file originale o eliminarlo, ora che le sue credenziali sono nella cassaforte?",
     "resetVault": "Reimposta la cassaforte",
+    "resetHeadless": "Per reimpostare il vault serve un terminale interattivo; le esecuzioni senza interazione non possono reimpostarlo.",
     "resetContinue": "Continua",
     "resetWarning": "La reimpostazione cancella questa cassaforte per sempre: tutti i segreti salvati spariscono e la protezione dal rollback riparte con una nuova ancora quando configuri di nuovo la cassaforte.",
     "resetTypeWord": "Digita {word} per reimpostare la cassaforte.",

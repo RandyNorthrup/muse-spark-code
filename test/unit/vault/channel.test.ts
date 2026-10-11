@@ -74,14 +74,7 @@ beforeAll(async () => {
   native.helper = path.join(directory, 'peer')
   execFileSync(
     '/usr/bin/cc',
-    [
-      '-Wall',
-      '-Wextra',
-      '-Werror',
-      path.resolve('src/core/vault/broker/peer.c'),
-      '-o',
-      native.helper,
-    ],
+    ['-Wall', '-Wextra', '-Werror', path.resolve('native/posix/vaultPeer.c'), '-o', native.helper],
     { env: { PATH: process.env['PATH'] } },
   )
 })

@@ -74,6 +74,29 @@ describe('C-M109-1 store v2 grants', () => {
 })
 
 describe('C-M109-1 keyring rollback anchor', () => {
+  it('F6: reset compares the complete expected state before retiring the anchor', async () => {
+    const keyring = memoryKeyring()
+    const anchor = new KeyringVaultAnchor(keyring.factory)
+    const { anchor: generated, vaultId, key } = await freshVault()
+    key.fill(0)
+    const first = await generated.minimum(vaultId)
+    if (first === null) throw new Error('missing generated anchor')
+    await anchor.advance(vaultId, first, null)
+    const second = { ...first, generation: first.generation + 1, stateDigest: '2'.repeat(64) }
+    await anchor.advance(vaultId, second, first)
+    await expect(anchor.reset(vaultId, first, () => undefined)).rejects.toMatchObject({
+      code: 'rollback',
+    })
+    expect(await anchor.minimum(vaultId)).toEqual(second)
+    await expect(
+      anchor.reset(vaultId, second, () => {
+        throw new Error('retired')
+      }),
+    ).rejects.toThrow('retired')
+    expect(await anchor.minimum(vaultId)).toEqual(second)
+    await anchor.reset(vaultId, second, () => undefined)
+    expect(await anchor.vaultId()).toBeNull()
+  })
   it('names one vault, advances only from its exact prior state and refuses another vault', async () => {
     const keyring = memoryKeyring()
     const anchor = new KeyringVaultAnchor(keyring.factory)

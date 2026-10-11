@@ -5168,6 +5168,7 @@
     "importedSummary": "Kasaya aktarıldı: {names}",
     "importKeepOrDelete": "Özgün dosya saklansın mı, yoksa kimlik bilgileri kasada olduğuna göre silinsin mi?",
     "resetVault": "Kasayı Sıfırla",
+    "resetHeadless": "Kasayı sıfırlamak için etkileşimli bir terminal gerekir; etkileşimsiz çalıştırmalar kasayı sıfırlayamaz.",
     "resetContinue": "Devam Et",
     "resetWarning": "Sıfırlama bu kasayı kalıcı olarak siler: kayıtlı tüm sırlar gider ve kasayı yeniden kurduğunuzda geri alma koruması yeni bir çapa ile yeniden başlar.",
     "resetTypeWord": "Kasayı sıfırlamak için {word} yazın.",

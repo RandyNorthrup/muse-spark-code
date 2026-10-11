@@ -6236,6 +6236,8 @@ export const EN = {
     importKeepOrDelete:
       'Keep the original file, or delete it now that its credentials are in the vault?',
     resetVault: 'Reset Vault',
+    resetHeadless:
+      'Resetting the vault needs an interactive terminal; headless runs cannot reset it.',
     resetContinue: 'Continue',
     resetWarning:
       'Resetting erases this vault for good: every stored secret is gone, and rollback protection restarts with a new anchor when you set the vault up again.',

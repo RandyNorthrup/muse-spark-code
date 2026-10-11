@@ -65,49 +65,27 @@ export function vaultPanelService(
         controller.abort()
       }
     },
-    unlock: async (authorize) => {
-      await session.unlock(null, authorize)
-    },
-    lock: async () => {
-      await session.lock()
-    },
+    unlock: (authorize) => session.unlock(null, authorize),
+    lock: () => session.lock(),
     write: async (item, authorize) => {
       const snapshot = await session.snapshot()
       const isEdit = snapshot.items.some((entry) => entry.id === item.metadata.id)
       await session.write(item, isEdit, authorize)
     },
-    updateMetadata: async (metadata, authorize) => {
-      await session.editMetadata(metadata, authorize)
-    },
-    remove: async (itemId, authorize) => {
-      await session.remove(itemId, authorize)
-    },
-    grant: async (grant, authorize) => {
-      await session.grant(grant, authorize)
-    },
-    revoke: async (grantId) => {
-      await session.revoke(grantId)
-    },
+    updateMetadata: (metadata, authorize) => session.editMetadata(metadata, authorize),
+    remove: (itemId, authorize) => session.remove(itemId, authorize),
+    grant: (grant, authorize) => session.grant(grant, authorize),
+    revoke: (grantId) => session.revoke(grantId),
     answer: async (answer, authorize) => {
       await session.answer(answer, authorize)
     },
-    importFile: async (path, authorize) => await session.importFile(path, authorize),
-    keepImport: async (receipt) => {
-      await session.keepImport(receipt)
-    },
-    deleteImport: async (receipt, authorize) => {
-      await session.deleteImport(receipt, authorize)
-    },
-    resetBegin: async () => await session.resetBegin(),
-    resetConfirm: async (resetId, word, authorize) => {
-      await session.resetConfirm(resetId, word, authorize)
-    },
-    setup: async () => await session.setup(),
-    confirmSetup: async (setupId, authorize) => {
-      await session.confirmSetup(setupId, authorize)
-    },
-    cancelSetup: async (setupId) => {
-      await session.cancelSetup(setupId)
-    },
+    importFile: (path, authorize, signal) => session.importFile(path, authorize, signal),
+    keepImport: (receipt) => session.keepImport(receipt),
+    deleteImport: (receipt, authorize, signal) => session.deleteImport(receipt, authorize, signal),
+    resetBegin: () => session.resetBegin(),
+    resetConfirm: (resetId, word, authorize) => session.resetConfirm(resetId, word, authorize),
+    setup: () => session.setup(),
+    confirmSetup: (setupId, authorize) => session.confirmSetup(setupId, authorize),
+    cancelSetup: (setupId) => session.cancelSetup(setupId),
   }
 }

@@ -5216,9 +5216,16 @@ missing or damaged while this user's anchor still names it). It states that
 every stored secret is gone and that rollback protection restarts with a new
 anchor, asks you to continue, then asks you to type `RESET`. It records the
 reset in `reset.v1` beside the vault (a value-free line), keeps a copy of the
-damaged document aside, and clears the anchor; a file from the old vault never
+damaged document aside, and clears the exact anchor state under the writer
+lock; a file from the old vault never
 opens again. The Vault section shows **Reset Vault** in the same state, with
-the same two steps.
+the same two steps. Reset refuses while the vault is unlocked and detects
+missing or damaged documents and pending transactions as well as slot files.
+Its public framing checks also detect impossible MAC, nonce, tag, salt,
+wrapped-key and ciphertext lengths or encodings, inconsistent identities and
+generations, invalid pending history, and a candidate that matches neither
+the protected anchor nor an intent's prior state. Reset requires an interactive
+terminal; a headless refusal names Reset explicitly.
 
 `add` reads private material as one bounded JSON line from standard input,
 with byte fields encoded as base64. Terminal echo stays off while reading;
@@ -5229,7 +5236,15 @@ only a credential file the vault discovered in your home folder (SSH keys,
 import is all or nothing: every credential in the file goes in under one
 commit, or none does, and a cancelled import writes nothing. It prints each
 imported item's name and kind, never a value; the items are hidden from
-agents until you review them. You then keep the original file or delete it. `grant` displays every
+agents until you review them. Profile and field identities remain private in
+the encrypted material after source deletion. Import verifies every parent and
+the opened file within your home; replacing a directory with a junction or
+symlink refuses Import and Delete. Closing or locking the panel cancels a sent
+import, while ordinary change notifications preserve your Keep/Delete choice.
+If the report or Keep/Delete step fails after an import committed, the panel
+reloads the stored items and reports the failure. A changed source file is
+kept when Delete refuses.
+You then keep the original file or delete it. `grant` displays every
 scope field and requires explicit terminal confirmation. `watch` displays
 exact requester/use details, asks through the terminal, and answers only the
 same unexpired request id and digest. Pipes cannot approve grants or uses.

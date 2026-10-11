@@ -5018,6 +5018,7 @@
     "importedSummary": "보관함으로 가져옴: {names}",
     "importKeepOrDelete": "원본 파일을 유지할까요, 아니면 자격 증명이 보관함에 있으니 삭제할까요?",
     "resetVault": "보관함 재설정",
+    "resetHeadless": "보관함을 초기화하려면 대화형 터미널이 필요합니다. 헤드리스 실행에서는 초기화할 수 없습니다.",
     "resetContinue": "계속",
     "resetWarning": "재설정하면 이 보관함이 영구히 지워집니다. 저장된 모든 비밀이 사라지며, 보관함을 다시 설정하면 롤백 보호가 새 앵커로 다시 시작됩니다.",
     "resetTypeWord": "보관함을 재설정하려면 {word}을(를) 입력하세요.",

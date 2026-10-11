@@ -117,11 +117,21 @@ export async function createVaultBrokerProcess(
           vaultSocketDescriptors,
         )
       const managementRef: { current?: VaultManagement } = {}
+      const epoch = new VaultLockEpoch(context.runDirectory, privateFiles)
+      const initialEpoch = await epoch.current()
       const broker = new VaultBroker({
         clock,
         repository,
         unlock,
-        epoch: new VaultLockEpoch(context.runDirectory, privateFiles),
+        epoch: {
+          current: () => epoch.current(),
+          bump: (authorize) => epoch.bump(authorize),
+          subscribe: (listener) => {
+            const unsubscribe = epoch.subscribe(listener)
+            listener(initialEpoch)
+            return unsubscribe
+          },
+        },
         audit: bindings.audit(repository),
         identity: bindings.identity,
         idleMs: VAULT_IDLE_MINUTES * MILLISECONDS_PER_MINUTE,
@@ -152,7 +162,7 @@ export async function createVaultBrokerProcess(
       // one committed save must emit exactly one changed event (RVCM1091B2).
       owned.broker = broker
       owned.management = management
-      await broker.synchronizeEpoch()
+      await broker.status()
       return new VaultChannelServer({
         broker,
         peers,

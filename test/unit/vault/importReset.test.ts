@@ -212,7 +212,7 @@ describe('C-M109-1 Reset Vault', () => {
     f.broker.lock()
     for (const [name, bytes] of kept) f.files.data.set(name, bytes)
     await expect(f.management.recover(code)).rejects.toThrow()
-    expect(await VaultStore.isLost(f.files, (await f.anchor.vaultId()) ?? '')).toBe(true)
+    expect(await VaultStore.isLost(f.files, (await f.anchor.vaultId()) ?? '', f.anchor)).toBe(true)
     code.fill(0)
     again.code.fill(0)
   })
@@ -240,6 +240,11 @@ describe('C-M109-1 Reset Vault', () => {
       await runVaultCommand({ command: 'reset' }, { ...headless.deps, isInteractive: false }),
     ).toBe(1)
     expect(headless.port.resetBegin).not.toHaveBeenCalled()
+    expect(headless.deps.printError).toHaveBeenCalledExactlyOnceWith(
+      'Resetting the vault needs an interactive terminal; headless runs cannot reset it.',
+    )
+    expect(headless.deps.choose).not.toHaveBeenCalled()
+    expect(headless.deps.readLine).not.toHaveBeenCalled()
     expect(panel().status.reason).not.toBe('vaultLost')
   })
 })
