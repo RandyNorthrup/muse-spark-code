@@ -30027,12 +30027,42 @@ receipts remain the lead's checks under the rig brief.
   red drills with byte-exact restoration; owning suites and lane gates; local
   hooked commits. Status: implemented; all five findings fixed, 443 tests
   in 18 complete files pass, and twelve red-drill runs restore byte-exact.
-  Frozen digest `cede4699ae8cc988b220373c0f1fc0f2f61ddae875c1bbd4991de2b4946f1489`.
+  Frozen digest `dc7726f6f99def7d4de9845059a90e2944adda2533a82edf96311324cffb01a3`.
   The receipt binds the exact selected task data as well as the arm snapshots;
   Windows computed imports use file URLs. A hard child deadline and cleanup
   are proved against an arm that handles SIGTERM. Static/build, roadmap and
   plan gates pass; the local repair is complete for lead integration. No paid/live
   calls or dependencies. Certification: `docs/certification/m101-eval-arms.md`.
+
+  **Lead threat model for the evaluation arms (2026-10-11, decision; it
+  settles the class the last three reviews kept reopening).** The arms are
+  this project's own reviewed code. The fence exists to catch accidental
+  undeclared inputs (a forgotten fixture, a stray import, a file read
+  outside the frozen set), so that the digest truly describes what ran. A
+  deliberately hostile arm (computed module names, process internals,
+  native add-ons) is out of scope: an arm is changed only through review,
+  and the digest changes with it. Under that model: (1) the enforcement
+  that counts is static and complete — at freeze time the bundler's
+  metafile is read and every built-in the bundle imports must be on a
+  short explicit allow-list (an unknown built-in fails), and `node:sqlite`
+  and the other data-reading built-ins are not on it; (2) the run-time
+  layer is Node's permission flags for the file system only, and no claim
+  remains in code comments, README or certification that it stops a
+  determined arm; (3) the Node floor names the exact minimum versions
+  with the flags (22.13.0 and 23.5.0), refusing 23.0–23.4 with the minimum
+  named.
+
+  **CM1012R9 repair of review RVCM1012I (2026-10-11, linuxlt).** All three
+  findings (one P2, two P3) fixed with no residuals, under the threat model
+  above. The `vm` guard module is deleted — the bundle entry runs in the
+  child host context and confines nothing by itself, and every comment,
+  the README live-eval row and the certification say so. The freeze reads
+  the same build's own metafile (`inputs[*].imports`, `external: true`)
+  and refuses every external outside the allow-list, bare and `node:`
+  spellings alike (`node:fs/../sqlite` included); the deny-list is
+  deleted. The version gate enforces 22.13.0 and 23.5.0 exactly. Re-frozen
+  as `a9f74f85…5f6f0`. Record: updated evidence and R9 drills in
+  `docs/certification/m101-eval-arms.md`.
 
   **C2 final-review accounting correction.** If shared settlement throws during
   an HTTP retry notice, mark that attempt consumed before invoking settlement

@@ -1,6 +1,15 @@
-// HASH WHAT RUNS (PLAN.md M101, CM1012R7). The digest covers emitted
-// self-contained bundle bytes and declared fixture snapshots. Runtime
-// permissions enforce the frozen set regardless of loader spelling.
+// HASH WHAT RUNS (PLAN.md M101, CM1012R7) — and say plainly what each layer
+// does and does not do (PLAN.md M101 threat model, review RVCM1012I). The
+// digest covers the entry prologue, the emitted self-contained bundle bytes
+// and declared fixture snapshots. At freeze time the bundler's own metafile
+// refuses every external load outside a short allowlist, so an accidental
+// undeclared import (a stray built-in) fails before any child runs. At run
+// time the child runs under Node's `--permission` flags with reads granted
+// only to the frozen files, so an undeclared file read fails. Neither layer
+// stops a deliberately hostile arm (a computed loader name, process
+// internals, an unconfined built-in such as `node:sqlite`, a native
+// add-on): the arms are this project's own reviewed code, changed only
+// through review, and the digest changes with them.
 
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
@@ -8,11 +17,14 @@ import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
-import { buildSync } from 'esbuild'
+import { buildSync, type Metafile } from 'esbuild'
 import * as z from 'zod/mini'
 // Type-only entry contract: the parent never loads the arm program.
 import type { run } from './armDefinitions'
 import {
+  EVAL_ARM_ALLOWED_BUILTINS,
+  EVAL_ARM_MIN_NODE_VERSION,
+  EVAL_ARM_MIN_NODE_VERSION_23,
   EVAL_ARM_SOURCE_SEARCH_DEPTH,
   EVAL_ARM_PROCESS_TIMEOUT_MS,
   EVAL_ARM_OUTPUT_MAX_BYTES,
@@ -21,6 +33,74 @@ import {
 } from '../../shared/constants'
 
 export const ARM_SOURCE_ROOTS: readonly string[] = ['src/core/eval/armDefinitions.ts']
+
+const allowedBuiltins = new Set<string>(EVAL_ARM_ALLOWED_BUILTINS)
+
+function parseNodeVersion(version: string): { major: number; minor: number } | undefined {
+  const match = /^v?(\d+)\.(\d+)/.exec(version)
+  if (match === null) return undefined
+  const major = Number(match[1])
+  const minor = Number(match[2])
+  return Number.isSafeInteger(major) && Number.isSafeInteger(minor) ? { major, minor } : undefined
+}
+
+/**
+ * The evaluation is a development and CI tool: it refuses to run on a Node
+ * without the permission flags it confines arms with (RVCM1012H finding 2).
+ * The product floor stays where `package.json` engines puts it.
+ */
+export function requireEvalArmRuntime(version: string = process.version): void {
+  const floor22 = parseNodeVersion(EVAL_ARM_MIN_NODE_VERSION)
+  const floor23 = parseNodeVersion(EVAL_ARM_MIN_NODE_VERSION_23)
+  const current = parseNodeVersion(version)
+  // The permission flags are unflagged only from 22.13.0 and 23.5.0: the
+  // 23.0–23.4 line still gates them behind `--experimental-permission`
+  // (review RVCM1012I finding 3). A later major line has the stable flags.
+  const isSupported =
+    floor22 !== undefined &&
+    floor23 !== undefined &&
+    current !== undefined &&
+    ((current.major === floor22.major && current.minor >= floor22.minor) ||
+      (current.major === floor23.major && current.minor >= floor23.minor) ||
+      current.major > floor23.major)
+  if (!isSupported) {
+    throw new Error(
+      `the frozen arm evaluation needs Node ${EVAL_ARM_MIN_NODE_VERSION} or ${EVAL_ARM_MIN_NODE_VERSION_23} or newer for its permission flags (this run uses ${version}); the extension itself still supports older Node 22`,
+    )
+  }
+}
+
+/**
+ * Every external load the bundler left for the child fails the freeze
+ * unless the allowlist names it (reviews RVCM1012H finding 1, RVCM1012I
+ * finding 2). The check reads the same build's own metafile — probed on
+ * this rig, the CJS `outputs[].imports` list is empty, and the external
+ * loads live in `inputs[*].imports` with `external: true` — never a second
+ * resolver. Bundled relative loads and package dependencies are inlined,
+ * so a remaining external is a built-in: `node:`-prefixed or bare (both
+ * spellings are refused alike, so there is no deny-list to miss one), and
+ * a `..` segment (the `node:fs/../sqlite` dodge) fails too. Computed
+ * loader names never reach the metafile; they are outside the freeze's
+ * threat model (PLAN.md M101: arms change only through review).
+ */
+function refuseNonAllowlistedBuiltinImports(metafile: Metafile, root: string): void {
+  const externals = new Set<string>()
+  for (const input of Object.values(metafile.inputs)) {
+    for (const load of input.imports) {
+      if (load.external) externals.add(load.path)
+    }
+  }
+  for (const specifier of [...externals].toSorted(comparePath)) {
+    const bare = specifier.startsWith('node:') ? specifier.slice('node:'.length) : specifier
+    const parts = bare.split('/')
+    const base = parts[0]
+    if (base === undefined || base === '' || parts.includes('..') || !allowedBuiltins.has(base)) {
+      throw new Error(
+        `the frozen arm sources cannot use ${specifier}: outside the frozen arm allowlist (${slash(root)})`,
+      )
+    }
+  }
+}
 
 export interface ArmFixture {
   /** Relative to the executing bundle, never a directory permission. */
@@ -104,11 +184,31 @@ export function buildArmBundle(
   try {
     const result = buildSync({
       stdin: {
-        contents: `import { run } from ${JSON.stringify('./' + slash(path.basename(entry)))};
-Promise.resolve().then(() => run(${JSON.stringify(name)})).then(
-  value => process.stdout.write(JSON.stringify(value)),
-  error => { process.stderr.write(String(error?.code ?? "ARM_FAILED") + ": " + String(error?.stack ?? error)); process.exitCode = 1; }
-);`,
+        // Self-executing in the permission-limited child: call the arm's
+        // `run` with the arm name from `argv` and write exactly one JSON
+        // value to `stdout`. A throw exits nonzero with the refusal on
+        // `stderr`, which the executor maps to a failed task. This runs in
+        // the child host context, not a sandbox: it confines nothing by
+        // itself (review RVCM1012I finding 1).
+        contents: String.raw`import { run } from ${JSON.stringify('./' + slash(path.basename(entry)))};
+const __armName = process.argv[2];
+if (typeof __armName !== 'string' || __armName === '') {
+  process.stderr.write('the frozen arm bundle was started without an arm name\n');
+  process.exitCode = 1;
+} else {
+  Promise.resolve()
+    .then(() => run(__armName))
+    .then(
+      (value) => {
+        process.stdout.write(JSON.stringify(value));
+      },
+      (error) => {
+        const code = error && error.code !== undefined ? String(error.code) : 'UNKNOWN';
+        process.stderr.write(code + ': ' + String((error && error.stack) || error) + '\n');
+        process.exitCode = 1;
+      },
+    );
+}`,
         resolveDir: path.dirname(entry),
         sourcefile: 'arm-entry.ts',
         loader: 'ts',
@@ -121,11 +221,16 @@ Promise.resolve().then(() => run(${JSON.stringify(name)})).then(
       minify: true,
       legalComments: 'none',
       logLevel: 'silent',
+      metafile: true,
     })
     const output = result.outputFiles[0]
     if (output === undefined) throw new Error('esbuild emitted no arm bundle')
+    // Outside the resolve wrapper so a refusal keeps its own message.
+    refuseNonAllowlistedBuiltinImports(result.metafile, root)
     code = output.text
   } catch (error) {
+    if (error instanceof Error && error.message.includes('outside the frozen arm allowlist'))
+      throw error
     throw new Error(`the frozen arm sources cannot resolve ${slash(root)}`, { cause: error })
   }
   // Snapshot caller-owned bytes, so later fixture changes cannot move an admitted run.
@@ -137,8 +242,16 @@ Promise.resolve().then(() => run(${JSON.stringify(name)})).then(
   return { ...bundle, sha256: armBundleDigest(bundle) }
 }
 
-/** No source execution in the parent. Node denies every undeclared filesystem read/load. */
+/** No source execution in the parent. The bundle runs in the child host
+ * context under `--permission`, with reads granted only to the frozen
+ * bundle and fixture files: an undeclared filesystem read or load fails
+ * there. That is the whole run-time layer — it does not confine built-ins
+ * the grants do not cover, and it stops no deliberately hostile arm
+ * (review RVCM1012I finding 1). A refusal is an error, never a pass: the
+ * caller maps a throw to a failed task before any model request.
+ */
 export function executeArmBundle(bundle: ArmBundle): unknown {
+  requireEvalArmRuntime()
   if (armBundleDigest(bundle) !== bundle.sha256)
     throw new Error('the frozen arm bundle changed after freezing')
   const dir = realpathSync(mkdtempSync(path.join(tmpdir(), EVAL_TEMP_PREFIX)))
@@ -156,7 +269,7 @@ export function executeArmBundle(bundle: ArmBundle): unknown {
     try {
       stdout = execFileSync(
         process.execPath,
-        ['--permission', ...reads.map((file) => `--allow-fs-read=${file}`), entry],
+        ['--permission', ...reads.map((file) => `--allow-fs-read=${file}`), entry, bundle.name],
         {
           cwd: dir,
           // No inherited credentials, NODE_OPTIONS, preload or loader configuration.
