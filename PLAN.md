@@ -20319,6 +20319,23 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### ACPDOG — ACP and headless dogfood repairs (2026-10-11)
+
+**Status 2026-10-11: building.** Repair release 0.17.1's advisory
+answer pollution, OS-store transients, settlement token pricing, ACP error
+causes and accounting metadata, workspace tool refusals, host facts and logs.
+D89 requires per-request first-party credential reads and request-local
+retention: retain those reads, bound transient retries, and refuse unsent
+requests with a localized typed cause. Use pinned ACP 1.7.0 notices only when
+the client advertises them. Protocol accounting uses the journal's settled
+records, exact USD and explicit uncertainty. VS Code request goldens stay
+unchanged. Reservation policy, configured-provider catch-all, exec usage
+warning/default/catalogue and providers terminal wording belong to the sibling
+lane and remain out of scope. Fake loopback/store proof only; no live/paid
+calls. Certification: `docs/certification/acp-dogfood.md`. Aggregate quality
+and integration are lead-owned under the rig brief; this lane runs its named
+and dependent suites, all typechecks and structural/build gates directly.
+
 ### PROVWIZ10 — Re-entry credential comparison and retry receipts (2026-10-09)
 
 **Status 2026-10-09: built.** On the provider branch for 0.17.1.

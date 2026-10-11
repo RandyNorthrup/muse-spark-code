@@ -268,6 +268,7 @@ export class UpdateTranslator {
   private readonly toolOutput = new Map<string, string>()
   private readonly announced = new Set<string>()
   private readonly previewing = new Set<string>()
+  private readonly notices = new Set<string>()
   /** Each item's kind, so a delta is routed by what it belongs to. */
   private readonly kinds = new Map<string, string>()
   private tokens = { inputTokens: 0, outputTokens: 0, cachedTokens: 0 }
@@ -280,6 +281,7 @@ export class UpdateTranslator {
     private readonly isReplay: boolean,
     private readonly readCost?: () => UsageCost | undefined,
     private readonly backend: 'modelApi' | 'museCode' = 'museCode',
+    private readonly canShowNotices = false,
   ) {}
 
   private deltaUpdates(itemId: string, field: string, delta: string): SessionUpdate[] {
@@ -463,7 +465,9 @@ export class UpdateTranslator {
             ]
       }
       case 'backendNotice': {
-        return [agentText(`${event.text}${PART_SEPARATOR}`)]
+        if (!this.canShowNotices || this.notices.has(event.text)) return []
+        this.notices.add(event.text)
+        return [{ sessionUpdate: 'notice', severity: event.level, title: event.text }]
       }
       case 'messageAdmitted': {
         // Nothing to send (M87): an ACP prompt is never queued behind
