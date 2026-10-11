@@ -48,3 +48,14 @@ Anthropic TTL, OpenAI/xAI subsets, OpenRouter reported USD, Gemini reasoning
 and Ollama; no new provider shape is invented.
 
 Green: pricing + configured providers passed; journal records + model API providers + provider model policy: 3 files / 48 tests at repository deadlines.
+
+## Item 2 — ACP failure boundaries
+
+Every registered request (initialize, authenticate, new/load/resume/list/close,
+mode/configuration, prompt) and cancellation notification passes one failure
+boundary. Known availability, backend, deadline, store and validation refusals
+keep typed codes and existing localized sentences. Unexpected failures log
+class plus redacted message once; MSP messages remain suppressed per AGENTS.
+Prompt text, embedded resources/media and authorization headers are withheld.
+Red: all 16 failure-injection cases failed before the boundary;
+`temp/acpdog-2-red.log`. Green: 16/16, plus the existing 145 ACP cases.

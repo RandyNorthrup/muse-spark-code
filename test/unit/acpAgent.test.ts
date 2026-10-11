@@ -953,7 +953,9 @@ describe('the ACP agent (M63)', () => {
       signedOut.run((client) => client.request('authenticate', { methodId: 'muse-code-login' })),
     ).rejects.toMatchObject({ code: -32_000 })
     const missing = harness({ readiness: { state: 'unavailable', message: 'no CLI' } })
-    await expect(missing.run((client) => start(client))).rejects.toMatchObject({ code: -32_603 })
+    await expect(missing.run((client) => start(client))).rejects.toMatchObject({
+      code: ACP_ERROR_CODES.unavailable,
+    })
     const ready = harness()
     expect(
       await ready.run((client) => client.request('authenticate', { methodId: 'muse-code-login' })),
