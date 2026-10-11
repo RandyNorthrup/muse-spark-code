@@ -267,3 +267,50 @@ Drill (win11, both breaks at once, restored and compared by SHA-256:
 | The fact comparison compares the old plan with itself         | `stops when the plan reader would parse something else, unless told the milestone is closed` and `takes a list of moves in the line numbers of one PLAN.md` fail |
 
 Together: 3 failed, 25 passed, exit 1.
+
+## Closed stubs trimmed (2026-10-11, with the command)
+
+The plan stood 6,531 bytes under the gate's line with merges of 6.8 KB and
+14.2 KB of plan text queued for the same day. The lead had approved trimming
+the milestones archived on 2026-10-08 to heading, status rows and pointer;
+this does it for the part no open work touches, and no further.
+
+`npm run plan:archive -- move --batch <34 moves> --allow-fact-change` at
+`bb25544b7`:
+
+| Measure                                  | Before    | After     |
+| ---------------------------------------- | --------- | --------- |
+| `PLAN.md` bytes                          | 3,558,627 | 3,525,290 |
+| Share of the reader's bound              | 84.8%     | 84.0%     |
+| Room under the gate's line (3,565,158)   | 6,531     | 39,868    |
+| Hashed blocks in `milestones.md`         | 7         | 41        |
+| Bytes moved (34 blocks, 34 closed lanes) |           | 33,303    |
+
+What moved is the leftover lane text of 34 closed sections whose full text
+was already in `milestones.md`: checklists and closing notes of release,
+CI-repair and review-fix lanes (INT0180, INT0160UX, QPIN, FLAKETH20, INT0170,
+CI0150M/W/C/B, REL0150M, VSIXDIET2, TRAIN15A, PR132M, PROMPTMENU2, REL0142,
+BADGEFIX, CIFIX14T/C/W2/M, TRAIN14B, TRAIN14A, KNIPC, DEFLAKE4, SDK142,
+MACSLOW, FIXM116P4, FIXM112U, DIET1, FIXHELPREF4/3, REDHELPREF, FIXHELPREF,
+HELPREF). Each block stands under its section's own heading there, with
+`at="bb25544b7"`; the pointer line each section already had stays.
+
+What stayed in those and the other archived sections: every `Goal`,
+`Depends on` and `Gates` field (23 sections keep one or more), every lane
+table, and every block that one of the 280 open heads touches or stands next
+to (M87, ENVFENCE, TRAIN15H, CI0150L, CI0150A, FIXAGENTOUT, one block of
+FIXM116P4), plus the sections tests cite (M73, M91, M93, M100, M101, M113,
+M121), which were not candidates. About 40 KB stays in those fields and
+protected blocks.
+
+Proofs:
+
+- Reassembly: the command rebuilt the old `PLAN.md` from the result,
+  SHA-256 `9f833e55…7abc81`, before writing.
+- Parsed facts: 33 of the 34 milestones lose checklist items (accepted for
+  closed milestones); nothing else differs, drift 0, 218 milestones.
+- `ROADMAP.md` regenerates byte-identical (`git status` clean for it).
+- `status`: 51 + 140 + 41 blocks, all intact.
+- Merge simulation, 280 open heads: conflict regions 1,010 before and after,
+  branch-changed lines in conflict 107,426 before and after, clean merges 35
+  before and after, heads made worse 0.
