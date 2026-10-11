@@ -8,7 +8,6 @@
 // no module under review returns `ungoverned` before any lease or git call.
 
 import { randomUUID } from 'node:crypto'
-import path from 'node:path'
 import type { AgentEvent } from '../../shared/agentEvents'
 import {
   PLAYBOOK_PANEL_LANE,
@@ -31,7 +30,6 @@ import type { ReviewBlock } from '../../shared/reviewFindings'
 import { FilePlaybookJournal } from '../../core/orchestration/playbook/journal'
 import {
   moduleStates,
-  modulePath,
   PLAYBOOK_BRIEF_NOTE,
   PLAYBOOK_IDENTITY_NOTE,
   PLAYBOOK_LEASE_NOTE,
@@ -52,6 +50,7 @@ import {
   newRedesignLane,
   panelBoard,
   reviewModules,
+  workspaceFile,
   type PanelChild,
   type PanelModuleStanding,
   type PanelReviewModule,
@@ -315,15 +314,9 @@ export class PanelGovernor {
     return conversation
   }
 
-  /** A path as the journal names it: workspace-relative, forward slashes; undefined when it is neither. */
+  /** A path as the journal names it, by resolved file identity; undefined when it is not in the workspace. */
   private relative(file: string): string | undefined {
-    try {
-      return modulePath(
-        path.isAbsolute(file) ? path.relative(this.options.workspaceFolder, file) : file,
-      )
-    } catch {
-      return undefined
-    }
+    return workspaceFile(this.options.workspaceFolder, file)
   }
 
   private summary(
@@ -515,11 +508,8 @@ export class PanelGovernor {
         records: () => this.policy.getRecord(),
       },
       sessionId,
-      files.flatMap((file) => this.relative(file) ?? []),
-      children.map((child) => ({
-        ...child,
-        files: child.files.flatMap((file) => this.relative(file) ?? []),
-      })),
+      files,
+      children,
     )
     if (contexts.length === 0) return { kind: 'ordinary' }
     const conversation = this.conversation(sessionId)

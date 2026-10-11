@@ -10,7 +10,10 @@
 // certified, never as passed.
 //
 // A machine that has no playbook journal at all is not asked about a
-// dispatch: no worker starts, and the dispatch runs as it always did.
+// dispatch: no worker starts, and the dispatch runs as it always did. Only
+// a journal folder that is confirmed absent takes that path; one that cannot
+// be looked at refuses. A review is the playbook's only when the one shared
+// classification says a child of the conversation changed a reviewed file.
 
 import { randomUUID } from 'node:crypto'
 import { access } from 'node:fs/promises'
@@ -22,14 +25,12 @@ import {
   PLAYBOOK_WORKER_KIND,
   PLAYBOOK_WORKER_SILENCE_MS,
   REVIEW_FINDINGS_LANGUAGE,
-  SHELL_JOB_TYPE_NAME,
   WINDOWS_POWERSHELL_COMMAND_ARGS,
 } from '../../shared/constants'
 import { UI_TEXT, uiLocale } from '../../shared/l10n/text'
 import type { PlaybookRecord, PlaybookWhyNote } from '../../shared/playbook'
-import { powerShellQuoted } from '../../core/shellQuote'
 import type { TurnPart } from '../../core/agent/agentBackend'
-import type { PanelChild } from '../../core/orchestration/panelLanes'
+import { reviewedChanges, type PanelChild } from '../../core/orchestration/panelLanes'
 import type {
   PanelAnswer,
   PanelDesignFields,
@@ -39,7 +40,8 @@ import type {
 import type { PlaybookChange, PlaybookSurfacePort } from '../../runtime/playbook/command'
 import type { PlaybookAgentRef } from '../../runtime/playbook/panelWire'
 import type { Logger } from '../logger'
-import { loadJobAssembly, runProgram, windowsPowerShell } from '../processTree'
+import { runProgram, windowsPowerShell } from '../processTree'
+import { endJobScript } from './containedJob'
 import {
   fromPlaybookWorkerSchema,
   playbookResultSchemas,
@@ -53,7 +55,6 @@ import {
 const AGENT_MESSAGE_KIND = 'agentMessage'
 const COMPLETED = 'completed'
 const REVIEW_FENCE = `\`\`\`${REVIEW_FINDINGS_LANGUAGE}`
-const KILLED_EXIT_CODE = 1
 const ORDINARY = { kind: 'ordinary' } as const
 
 /** The worker as the window drives it (`Worker`, or a test's). */
@@ -83,8 +84,10 @@ export interface PlaybookWindowDeps {
   readonly reviewCharter: (targets: readonly PanelReviewTarget[]) => string
   readonly log: Logger
   readonly silenceMs?: number
-  /** Ends a stuck worker's contained job by name; a test stands in its own. */
+  /** Ends a stopped worker's contained job by name, rejecting unless it was seen over; a test stands in its own. */
   readonly endJob?: (name: string, assembly: string, systemRoot: string) => Promise<void>
+  /** Looks at the journal folder (`fs.access`); a test stands in a failing disk. */
+  readonly access?: (folder: string) => Promise<void>
 }
 
 /** The policy refused, and said why. */
@@ -164,16 +167,19 @@ interface DispatchHandlers {
   readonly abort: () => void
 }
 
+/** Ends a job by name; rejects unless it was seen empty or gone. */
 async function endJobByName(name: string, assembly: string, systemRoot: string): Promise<void> {
   const powershell = windowsPowerShell(systemRoot)
   await runProgram(
     powershell.file,
-    [
-      ...WINDOWS_POWERSHELL_COMMAND_ARGS,
-      `${loadJobAssembly(assembly)}; [void][${SHELL_JOB_TYPE_NAME}]::Terminate(${powerShellQuoted(name)}, ${String(KILLED_EXIT_CODE)})`,
-    ],
+    [...WINDOWS_POWERSHELL_COMMAND_ARGS, endJobScript(assembly, name)],
     powershell.env,
   )
+}
+
+/** Whether a failed look at a folder says the folder is not there, and nothing else. */
+function isAbsent(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT'
 }
 
 function unavailable(): Error {
@@ -215,7 +221,8 @@ export function createPlaybookWindow(deps: PlaybookWindowDeps): PlaybookWindow {
   let starting: Promise<PlaybookWorkerHandle> | undefined
   let live: PlaybookWorkerHandle | undefined
   let assembly: string | undefined
-  let job: string | undefined
+  /** Jobs whose end the worker has not seen. */
+  let jobs: readonly string[] = []
   let watchdog: ReturnType<typeof setTimeout> | undefined
   let isDisposed = false
 
@@ -228,7 +235,7 @@ export function createPlaybookWindow(deps: PlaybookWindowDeps): PlaybookWindow {
     try {
       await (deps.endJob ?? endJobByName)(name, compiled, systemRoot)
     } catch {
-      deps.log.warn('The playbook job could not be ended by name; its own idle bound ends it')
+      deps.log.warn('A playbook job was not seen to end when it was ended by name')
     }
   }
 
@@ -253,13 +260,16 @@ export function createPlaybookWindow(deps: PlaybookWindowDeps): PlaybookWindow {
     rows.clear()
     const waiting = Array.from(pending, ([, request]) => request)
     pending.clear()
+    // Work that was admitted and is still running is told to stop: nothing is left to certify it.
+    const running = Array.from(dispatches, ([, handlers]) => handlers)
     dispatches.clear()
+    for (const handlers of running) handlers.abort()
     for (const request of waiting) request.reject(unavailable())
-    // A decision that was interrupted leaves its job to this window to end.
-    const open = job
-    job = undefined
-    if (open !== undefined && assembly !== undefined && deps.systemRoot !== undefined)
-      void endJob(open, assembly, deps.systemRoot)
+    // Every job the worker had not seen end is this window's to end, by name.
+    const open = jobs
+    jobs = []
+    if (assembly !== undefined && deps.systemRoot !== undefined)
+      for (const name of open) void endJob(name, assembly, deps.systemRoot)
     void terminate(handle)
   }
 
@@ -400,7 +410,7 @@ export function createPlaybookWindow(deps: PlaybookWindowDeps): PlaybookWindow {
         break
       }
       case 'job': {
-        job = message.name
+        jobs = message.names
         break
       }
       case 'alive': {
@@ -435,12 +445,24 @@ export function createPlaybookWindow(deps: PlaybookWindowDeps): PlaybookWindow {
     return parsed.data
   }
 
+  /** After every await that an effect follows: a window that has closed starts nothing. */
+  const open = (): void => {
+    if (isDisposed) throw unavailable()
+  }
+
+  /**
+   * Whether this machine has a journal folder. Only a folder that is not
+   * there says no; one that cannot be looked at may hold a journal, so the
+   * request that asked is refused.
+   */
   const hasJournals = async (): Promise<boolean> => {
     try {
-      await access(path.join(deps.agentDataFolder, PLAYBOOK_RECORD_FOLDER))
+      await (deps.access ?? access)(path.join(deps.agentDataFolder, PLAYBOOK_RECORD_FOLDER))
       return true
-    } catch {
-      return false
+    } catch (error) {
+      if (isAbsent(error)) return false
+      deps.log.error('The playbook journal folder could not be read; the request is refused')
+      throw unavailable()
     }
   }
 
@@ -548,7 +570,10 @@ export function createPlaybookWindow(deps: PlaybookWindowDeps): PlaybookWindow {
             request.itemId,
           )
           // Not the playbook's: it runs exactly as it always did.
-          if (outcome === 'ungoverned') await handlers.effect()
+          if (outcome === 'ungoverned') {
+            open()
+            await handlers.effect()
+          }
         } catch (error) {
           // Before the work started, the refusal is the dispatch's own answer.
           // After it, the work ran and could not be certified: its conversation is told.
@@ -588,8 +613,11 @@ export function createPlaybookWindow(deps: PlaybookWindowDeps): PlaybookWindow {
     standing: (sessionId) =>
       ask(playbookResultSchemas.standing, (id) => ({ type: 'standing', id, sessionId })),
     openReview: async (sessionId, files, children) => {
-      // Nothing a child changed can be under review: no worker, no journal read.
-      const isOrchestrated = files.length > 0 && children.some((child) => child.files.length > 0)
+      // The governor's own classification, before any worker or journal read:
+      // no reviewed file is a child's, and the review is an ordinary one.
+      const isOrchestrated =
+        deps.workspaceRoot !== undefined &&
+        reviewedChanges(deps.workspaceRoot, sessionId, files, children).length > 0
       if (isOrchestrated && !deps.isWorkspaceTrusted()) throw unavailable()
       const reviewId = randomUUID()
       const opening = isOrchestrated
@@ -604,9 +632,12 @@ export function createPlaybookWindow(deps: PlaybookWindowDeps): PlaybookWindow {
         : ORDINARY
       return opening.kind === 'ordinary' ? undefined : review(sessionId, reviewId, opening.modules)
     },
-    dispatch: async (request, effect, completion) =>
+    dispatch: async (request, effect, completion) => {
+      const isJournalled = await hasJournals()
+      open()
       // No journal on this machine: nothing was ever reviewed here, so nothing is governed.
-      (await hasJournals()) ? await governed(request, effect, completion) : await effect(),
+      return isJournalled ? await governed(request, effect, completion) : await effect()
+    },
     answer: async (sessionId, moduleId, answers) => {
       const done = await ask(playbookResultSchemas.done, (id) => ({
         type: 'answer',

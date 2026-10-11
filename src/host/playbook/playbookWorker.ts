@@ -71,8 +71,8 @@ export function servePlaybook(port: PlaybookWorkerPort, data: PlaybookWorkerData
       ? new ContainedJob({
           assemblyPath: data.assemblyPath,
           systemRoot: data.systemRoot,
-          onJob: (name) => {
-            send({ type: 'job', ...(name !== undefined && { name }) })
+          onJob: (names) => {
+            send({ type: 'job', names: [...names] })
           },
         })
       : undefined

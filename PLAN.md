@@ -18486,6 +18486,21 @@ repository's own working rule (AGENTS.md rule 14).
     - **Windows.** The worker binds `PlaybookHookAdmission.runContained` to
       one named job per decision over the shipped MuseSparkJob type (§9,
       FIXM116P3-Windows-job-binding, closed).
+    - **Review RVCM1166A (2026-10-11), one P1 and five P2, all fixed.**
+      The classification above is one function (`reviewedChanges` in
+      `panelLanes.ts`) that the window and the governor both call, so a
+      review the governor would call ordinary never reaches a worker, a
+      journal or Restricted Mode's refusal. It compares files by resolved
+      identity (`resolvedLongPath`: links, junctions, drive spellings, 8.3
+      names, and case where the file system has none), and the journal names
+      each file by its real path under the real workspace. "No journal on
+      the machine" means the journal folder is confirmed absent (`ENOENT`);
+      a folder that cannot be looked at refuses. A window that has closed
+      starts nothing, whenever the request was made, and a worker that is
+      lost aborts the admitted work that was still running. On Windows the
+      job is kill-on-close on its helper's own handle and is never forgotten
+      before its end was seen; on macOS and Linux a lost supervisor's process
+      group is ended by its caller (§9).
 
 ---
 
@@ -36755,7 +36770,15 @@ D96.16. Three commits, each reviewed on its own.
    that passes neither a port nor the channel, or a window with no folder,
    shows the map exactly as before; with no journal on the machine no worker
    starts for the rows.
-3. **Enforcement.** The panel's `/review`, subagent, `delegate` and
+3. **Review RVCM1166A of commit 1 (committed third).** One P1 and five P2,
+   each fixed as a class with a regression test and a red drill
+   (`docs/certification/m116.md`, "Review RVCM1166A"): the Windows job dies
+   with its helper and is not forgotten before its end was seen, and a lost
+   POSIX supervisor's group is ended by its caller; a lost worker aborts
+   running work; only a confirmed-absent journal folder is "no journal"; a
+   closed window starts nothing; files compare by resolved identity; one
+   shared classification decides what a playbook review is.
+4. **Enforcement.** The panel's `/review`, subagent, `delegate` and
    best-of-N dispatches go through the window's playbook on both backends;
    why-notes appear in the transcript; the third strike offers **Plan a
    redesign**; the walked-back claims return with the code that makes each
@@ -36992,6 +37015,12 @@ core.hooksPath`, an edit under `.husky/`, a delegate re-asking a refused
   (564,335; the loader, the data it needs and the two controller ports),
   `dist/conversation.js` +1,397 bytes (252,704 of 256,000; M126 F9's answer
   and the channel's case), the webview's playbook closure 21.9 of 25 KiB.
+  After review RVCM1166A: `dist/playbook.js` 116.1 KiB (118,836 bytes: the
+  job's lifetime, its names and the resolved file identities), and
+  `dist/extension.js` 560,070 bytes, 4,265 fewer than before: the POSIX
+  supervisor's source was a tagged template at module level in
+  `processTree.ts`, which the bundler kept in the activation bundle, and is
+  returned by a function now. The lane's activation growth is negative.
 - **Size.** S–M: about 60 lane-hours.
 - **Certification checklist** (§6.0, plus):
   - [ ] The fake review loop's round-3 switch and its drill
@@ -44308,6 +44337,52 @@ FIXM107DK4 qualification below supersedes that earlier claim.
     terminates the job. A closed or idle pipe terminates the job, the helper
     included; a worker stopped in the middle of a decision has its job
     terminated by name from the window.
+  - **A lost helper (review RVCM1166A, P1, 2026-10-11).** The job is
+    kill-on-close and the helper holds its only handle, so a helper that
+    dies, however it dies, takes its whole job with it by the operating
+    system's rule, with nobody left to ask (measured here: a contained
+    process was gone 33 ms after its helper was killed). `Join` does not
+    set that limit, and decision 3 allows no new native code, so the helper
+    sets it on the handle it holds through the loaded type's own Win32
+    binding (`held`, and `SetInformationJobObject` with a `uint` length);
+    a type without them fails before any pipe exists, and a unit check on
+    every OS reads the shipped source for both. A job's name is published
+    from before its first call until its end was seen: the helper gone, or
+    a termination by name that then finds the job empty. A failed call does
+    not return, and a decision does not close, before that; a job that
+    cannot be confirmed over keeps its name, is tried again before the next
+    one opens, and is ended by name by the window when its worker stops. A
+    lost helper is a refused call and a kill, never a forgotten job.
+    Follow-up: a public kill-on-close join on the type itself, at the next
+    reviewed change to `native/windows/MuseSparkJob.cs`.
+  - **The same bound on macOS and Linux.** There the call's containment is
+    `runTreeSync`'s supervisor process. The supervisor now leads a process
+    group of its own and the call is born into it (the supervisor refuses to
+    start a call when it does not lead its group), so the caller knows the
+    group from the supervisor's pid alone, with nothing the supervisor has
+    to say first. After every call the caller ends what is left of that
+    group and waits to see it gone: nothing, after a supervisor that
+    finished; the whole call, after one that was lost (killed, or cut off at
+    the caller's bound), and that call fails. A first version had the
+    supervisor report its child's group on a pipe; a call that killed its
+    supervisor at once won that race on the Linux rig, so the report is
+    gone. The supervisor's own walk treats a member of its group as the
+    call's whoever its parent is by now, which is what its native group
+    sweep did before (it cannot signal its own group without ending itself;
+    the caller's sweep is the native one). Lead's conditions (2026-10-11),
+    since `processTree.ts` is shared with the CLI and the ACP agent: the
+    caller makes the supervisor a group leader with `detached` on
+    `spawnSync`, which Node honours but does not document (the two places in
+    its source are quoted in `docs/certification/m116.md`), so the design
+    rests on the supervisor's own check and not on the option: a test runs
+    it through a spawn that drops the option and sees the refusal, and
+    another pins, on the Node that runs the suite, that the call's group is
+    the one the supervisor's pid names and is not the caller's. The group is
+    new with each call, so ending it reaches the call's own processes or
+    nobody. Residual, unchanged in kind: a
+    descendant that left the group is known only to the supervisor, so a
+    lost supervisor cannot end it; the governed cgroup binding (FIXM116P4,
+    below) is the handoff for that.
   - **Why one job per decision, not per call.** A governed round here is
     about sixty git and hook calls. Measured on the owner's machine
     (2026-10-11): a Windows PowerShell start per call is 0.16 to 0.2 s

@@ -24,6 +24,7 @@ import {
   execFile,
   spawnSync,
   type SpawnSyncOptions,
+  type SpawnSyncOptionsWithBufferEncoding,
   type SpawnSyncReturns,
 } from 'node:child_process'
 import { stopResourceTree } from '../core/resources/admission'
@@ -452,7 +453,13 @@ export async function killTree(
 // The journal reducer is synchronous. A separate trusted supervisor keeps
 // enumerating while its caller is in spawnSync, before timeout reparents any
 // detached descendants. This is the POSIX fallback to a governed cgroup/job.
-const POSIX_TREE_SUPERVISOR = String.raw`
+// The supervisor leads its own process group and the call is born into it, so
+// the caller knows that group from the moment the supervisor exists and ends
+// it itself, whatever became of the supervisor (runTreeSync, below).
+// A function, not a constant: a tagged template at module level is kept by the
+// bundler in every bundle that imports this file, the activation bundle too.
+function posixTreeSupervisor(): string {
+  return String.raw`
 const { spawn, execFileSync } = require('node:child_process');
 const { readFileSync } = require('node:fs');
 const spec = JSON.parse(readFileSync(0, 'utf8'));
@@ -462,14 +469,15 @@ let ending = false;
 let child;
 let poll;
 let deadline;
+let late;
 const counts = { stdout: 0, stderr: 0 };
 function table() {
-  return execFileSync('/bin/ps', ['-axo', 'pid=,ppid=,lstart='], {
+  return execFileSync('/bin/ps', ['-axo', 'pid=,ppid=,pgid=,lstart='], {
     encoding: 'utf8', timeout: spec.cleanupMs, maxBuffer: spec.maxBuffer,
     env: { ...process.env, LC_ALL: 'C' }
   }).split('\n').flatMap(line => {
-    const match = /^\s*(\d+)\s+(\d+)\s+(.+?)\s*$/.exec(line);
-    return match ? [{ pid: Number(match[1]), parent: Number(match[2]), start: match[3] }] : [];
+    const match = /^\s*(\d+)\s+(\d+)\s+(\d+)\s+(.+?)\s*$/.exec(line);
+    return match ? [{ pid: Number(match[1]), parent: Number(match[2]), group: Number(match[3]), start: match[4] }] : [];
   });
 }
 function identity(row) {
@@ -488,6 +496,14 @@ function capture() {
   if (!known.has(child.pid)) {
     const root = current.get(child.pid);
     if (root) known.set(root.pid, { ...root, identity: identity(root) });
+  }
+  // A member of this supervisor's group is the call's own, whoever its parent
+  // is by now. (The supervisor's other children are its own looks at the table.)
+  for (const row of rows) {
+    if (row.group !== process.pid || row.pid === process.pid ||
+        row.parent === process.pid || known.has(row.pid)) continue;
+    const stamp = identity(row);
+    if (stamp !== undefined) known.set(row.pid, { ...row, identity: stamp });
   }
   let added;
   do {
@@ -540,13 +556,32 @@ function endTree() {
       try { signal(row, 'SIGKILL'); }
       catch (error) { failed = true; process.stderr.write(String(error.message)); }
     }
-    // Same-group processes get the native group sweep as well.
-    try { if (child.pid > 0) process.kill(-child.pid, 'SIGKILL'); }
-    catch (error) { if (error.code !== 'ESRCH') failed = true; }
+    // The native sweep of the whole group is the caller's, once this supervisor
+    // is gone. A member that began during the sweep above may hold the child's
+    // streams open until then, so look again until they close.
+    const until = Date.now() + spec.cleanupMs;
+    late = setInterval(() => {
+      try {
+        const seen = new Set(known.keys());
+        capture();
+        for (const row of known.values()) if (!seen.has(row.pid)) signal(row, 'SIGKILL');
+        if (Date.now() < until) return;
+      } catch (error) { process.stderr.write(String(error.message)); }
+      // Still open: the call fails, and the caller's sweep ends what is left.
+      failed = true;
+      process.exitCode = 1;
+      clearInterval(late);
+      for (const stream of ['stdout', 'stderr']) child[stream].destroy();
+    }, spec.pollMs);
   }
 }
-table(); // Refuse before dispatch when the process table is unavailable.
-child = spawn(spec.command, spec.args, { detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
+// Refuse before dispatch when the process table is unavailable, or when this
+// supervisor does not lead its own group: the caller ends the call by that group.
+if (!table().some(row => row.pid === process.pid && row.group === process.pid)) {
+  throw new Error('The supervisor does not lead its process group');
+}
+// Not detached: the call is born into the supervisor's group and cannot start outside it.
+child = spawn(spec.command, spec.args, { stdio: ['ignore', 'pipe', 'pipe'] });
 for (const stream of ['stdout', 'stderr']) child[stream].on('data', chunk => {
   counts[stream] += chunk.length;
   if (counts[stream] > spec.maxBuffer) { failed = true; endTree(); return; }
@@ -554,7 +589,10 @@ for (const stream of ['stdout', 'stderr']) child[stream].on('data', chunk => {
 });
 child.on('error', error => { failed = true; process.stderr.write(error.message); endTree(); });
 child.on('exit', endTree);
-child.on('close', code => { process.exitCode = failed || code === null ? 1 : code; });
+child.on('close', code => {
+  clearInterval(late);
+  process.exitCode = failed || code === null ? 1 : code;
+});
 poll = setInterval(() => {
   try { capture(); }
   catch (error) { failed = true; process.stderr.write(error.message); endTree(); }
@@ -565,17 +603,65 @@ deadline = setTimeout(() => {
   endTree();
 }, spec.timeout);
 `
+}
+
+/**
+ * Ends what is left of a supervisor's process group, and waits to see it gone.
+ * After a supervisor that finished there is nothing left and this returns at
+ * once. After one that was lost (killed, or cut off at its caller's bound)
+ * this is the only end its call gets. A descendant that left the group was
+ * known to the supervisor alone (PLAN.md §9).
+ */
+function endGroup(group: number): void {
+  // Never the caller's own group (0), and never every process (-1).
+  if (!Number.isSafeInteger(group) || group <= 1) return
+  const deadline = Date.now() + POSIX_TREE_EXIT_WAIT_MS
+  const wait = new Int32Array(new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT))
+  let pause = 1
+  for (;;) {
+    try {
+      process.kill(-group, SIGKILL)
+    } catch {
+      // No such group any more: every member has ended and been collected.
+      return
+    }
+    if (Date.now() >= deadline) return
+    Atomics.wait(wait, 0, 0, pause)
+    pause = Math.min(pause * 2, POSIX_TREE_EXIT_POLL_MS)
+  }
+}
+
+/**
+ * The supervisor's options. `detached` makes it lead a process group of its
+ * own, which its pid then names. Node's synchronous spawn honours the option
+ * as its asynchronous one does: `normalizeSpawnArguments` in
+ * `lib/child_process.js` returns `detached: !!options.detached` to both, and
+ * `SyncProcessRunner::ParseOptions` in `src/spawn_sync.cc` turns it into
+ * `UV_PROCESS_DETACHED` (both read at v22.0.0 and v24.20.0). The
+ * documented options of `spawnSync` and its types leave it out, hence this
+ * declared type. Nothing rests on that alone: the supervisor checks that it
+ * leads its group and refuses the call otherwise, so a runtime that ignored
+ * the option would fail every call closed.
+ */
+type SupervisorOptions = SpawnSyncOptionsWithBufferEncoding & { readonly detached: true }
 
 /** POSIX synchronous caller, asynchronous tree supervision. The supplied
- * environment is already scrubbed by the caller; no shell parses the effect. */
+ * environment is already scrubbed by the caller; no shell parses the effect.
+ * `start` is `spawnSync`; a test stands in a runtime that ignores `detached`. */
 export function runTreeSync(
   command: string,
   args: readonly string[],
   options: SpawnSyncOptions,
+  start: (
+    file: string,
+    args: readonly string[],
+    options: SupervisorOptions,
+  ) => SpawnSyncReturns<Buffer> = (file, argv, supervisor) => spawnSync(file, argv, supervisor),
 ): SpawnSyncReturns<Buffer> {
   const maxBuffer = options.maxBuffer ?? GIT_OUTPUT_MAX_BYTES
-  return spawnSync(process.execPath, ['-e', POSIX_TREE_SUPERVISOR], {
+  const supervised: SupervisorOptions = {
     ...options,
+    detached: true,
     // Child streams keep the caller's bound. Reserve room for the
     // supervisor's failure text so the caller cannot kill it mid-cleanup.
     maxBuffer: maxBuffer * 2,
@@ -591,5 +677,14 @@ export function runTreeSync(
     ),
     timeout: (options.timeout ?? PROCESS_TABLE_TIMEOUT_MS) + POSIX_TREE_EXIT_WAIT_MS * 2,
     encoding: 'buffer',
-  })
+  }
+  const result = start(process.execPath, ['-e', posixTreeSupervisor()], supervised)
+  // Whatever became of the supervisor, nothing of its group outlives the call.
+  // The group is new with this call and is the supervisor's alone: a pid is
+  // not handed out again while a group still carries it, and a supervisor
+  // that did not come to lead a group (it refuses the call then) leaves no
+  // group under its pid. So this signals the call's own processes or nobody,
+  // and never the caller's group.
+  endGroup(result.pid)
+  return result
 }
