@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { EFFORT_LEVELS } from '../../src/shared/constants'
 import {
+  catalogueSliderProps,
   effortAt,
   effortForThinking,
   effortIndex,
@@ -38,6 +39,32 @@ describe('effort helpers', () => {
     expect(effortLevelsFor('muse-spark-1.2')).toEqual(['minimal', 'low', 'medium', 'high', 'xhigh'])
     expect(effortLevelsFor('some-future-model')).toBe(EFFORT_LEVELS)
     expect(effortLevelsFor(undefined)).toBe(EFFORT_LEVELS)
+  })
+
+  it('builds no catalogue props where the row carries no catalogue', () => {
+    expect(catalogueSliderProps(undefined, 'high', vi.fn())).toBeUndefined()
+    expect(catalogueSliderProps({ variants: undefined }, 'high', vi.fn())).toBeUndefined()
+  })
+
+  it('builds the slider catalogue path with the row default and current', () => {
+    const onSelectTier = vi.fn()
+    expect(
+      catalogueSliderProps(
+        {
+          variants: ['minimal', 'turbo'],
+          reasoningEffortVariants: [{ tier: 'turbo', description: 'Fastest' }],
+          defaultReasoningEffort: 'turbo',
+        },
+        'turbo',
+        onSelectTier,
+      ),
+    ).toEqual({
+      variants: ['minimal', 'turbo'],
+      reasoningEffortVariants: [{ tier: 'turbo', description: 'Fastest' }],
+      defaultReasoningEffort: 'turbo',
+      current: 'turbo',
+      onSelect: onSelectTier,
+    })
   })
 
   it('maps tiers to slider positions and clamps positions back to tiers', () => {

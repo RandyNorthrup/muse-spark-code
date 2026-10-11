@@ -273,6 +273,16 @@ export interface ModelSummary {
   readonly isPinned?: boolean | undefined
   readonly trainsOnContent?: boolean | undefined
   readonly planLimitsUrl?: string | undefined
+  /**
+   * A served catalogue's effort tiers (C-M106-3): the ordered selectable
+   * tiers, their display strings, and the row's default, as `model/list`
+   * sent them. Absent where the backend reports none; unknown tiers ride
+   * verbatim so a later tier never breaks the list.
+   */
+  readonly variants?: readonly string[] | 'unknown' | undefined
+  readonly reasoningEffortVariants?:
+    readonly { readonly tier: string; readonly description?: string | undefined }[] | undefined
+  readonly defaultReasoningEffort?: string | undefined
 }
 
 export interface SkillSummary {

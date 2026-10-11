@@ -907,6 +907,38 @@ describe('the ACP agent (M63)', () => {
     expect(effort).toMatchObject({ id: 'effort', category: 'thought_level', currentValue: 'high' })
   })
 
+  it('starts on the catalogue default with the catalogue tier names', async () => {
+    const h = harness()
+    h.host.models = [
+      {
+        modelId: 'muse-spark-1.3',
+        displayLabel: 'Muse Spark 1.3',
+        contextLimit: 1_000_000,
+        isDefault: true,
+        isActive: true,
+        variants: ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'],
+        reasoningEffortVariants: [{ tier: 'xhigh', description: 'Deepest analysis' }],
+        defaultReasoningEffort: 'max',
+      },
+    ]
+    const created = await h.run((client) => start(client))
+    expect(h.host.sessions[0]?.setReasoningEffort).toHaveBeenCalledWith('max')
+    const [, effort] = created.configOptions ?? []
+    expect(effort).toMatchObject({
+      id: 'effort',
+      category: 'thought_level',
+      currentValue: 'max',
+    })
+    expect(effort && 'options' in effort ? effort.options : []).toEqual([
+      { value: 'minimal', name: 'Minimal' },
+      { value: 'low', name: 'Low' },
+      { value: 'medium', name: 'Medium' },
+      { value: 'high', name: 'High' },
+      { value: 'xhigh', name: 'Deepest analysis' },
+      { value: 'max', name: 'Max' },
+    ])
+  })
+
   it('lists contributor models and Bypass permissions only when the flags allow them', async () => {
     const h = harness({ canBypass: true, allowsContributorModels: true })
     const created = await h.run((client) => start(client))

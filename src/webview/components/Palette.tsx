@@ -19,7 +19,7 @@ import {
   useState,
 } from 'react'
 import { UI_TEXT, PALETTE_LISTBOX_ID } from '../../shared/constants'
-import { effortAt, effortIndex } from '../../shared/effort'
+import { catalogueSliderProps, effortAt, effortIndex, isEffortLevel } from '../../shared/effort'
 import { fill } from '../../shared/l10n/text'
 import {
   type PaletteContext,
@@ -325,6 +325,14 @@ function Widget({
                   onStep(effortIndex(widget.levels, level))
                 }
           }
+          model={catalogueSliderProps(widget.catalogue, widget.current, (tier) => {
+            // Known tiers step the row; a tier outside the vocabulary has no
+            // step on the EffortLevel-typed row.
+            if (onStep === undefined || !isEffortLevel(tier)) return
+            const index = effortIndex(widget.levels, tier)
+            if (index < 0) return
+            onStep(index)
+          })}
         />
       )
     }

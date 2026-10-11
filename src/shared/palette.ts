@@ -11,6 +11,7 @@ import {
   type PermissionMode,
 } from './constants'
 import type { BackendKind, ModelOption, SkillOption } from './protocol'
+import type { CatalogueTiers } from './effort'
 import type { ReviewRequest } from './reviewCommand'
 
 export type PaletteWidget =
@@ -21,6 +22,8 @@ export type PaletteWidget =
       /** The tiers the current model serves, lowest first. */
       readonly levels: readonly EffortLevel[]
       readonly current: EffortLevel
+      /** The served catalogue's tiers, as the dots render them (C-M106-3). */
+      readonly catalogue?: CatalogueTiers | undefined
     }
 
 export type PaletteAction =

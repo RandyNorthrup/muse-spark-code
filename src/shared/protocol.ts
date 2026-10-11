@@ -314,6 +314,17 @@ const modelOptionSchema = z.object({
   /** The provider or route may train on the content (hidden when confidential). */
   trainsOnContent: z.optional(booleanSchema),
   effortLevels: z.optional(z.array(z.enum(EFFORT_LEVELS))),
+  /**
+   * The served catalogue's effort tiers (C-M106-3): the ordered selectable
+   * tiers, their display strings, and the row's default. Plain strings, so
+   * a later tier rides through instead of rejecting the model list the way
+   * an unknown `effortLevels` entry would.
+   */
+  variants: z.optional(z.union([z.literal('unknown'), z.array(stringSchema)])),
+  reasoningEffortVariants: z.optional(
+    z.array(z.object({ tier: stringSchema, description: z.optional(stringSchema) })),
+  ),
+  defaultReasoningEffort: z.optional(stringSchema),
 })
 export type ModelOption = z.infer<typeof modelOptionSchema>
 
