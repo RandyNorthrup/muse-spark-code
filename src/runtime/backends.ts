@@ -45,6 +45,7 @@ import { jobSourceReader } from '../host/backend/jobSource'
 import { createMemoryIo, systemPath } from '../host/backend/memoryIo'
 import { ModelApiBackendManager } from '../host/backend/modelApiBackendManager'
 import { MuseCodeBackendManager, type ProxySettings } from '../host/backend/museCodeBackendManager'
+import { NATIVE_MUSE_CODE_FEATURE_PORTS } from '../core/backends/musecode/MuseCodeHost'
 import { shellJobAssembly } from '../host/backend/shellJob'
 import { createToolIo } from '../host/backend/toolIo'
 import { AccountHosts, connectAccountSession } from '../host/auth/accountHost'
@@ -187,6 +188,10 @@ function museCodeManager(deps: RuntimeBackendDeps, workspaceRoot: string | undef
       : undefined
   return new Manager({
     ...(windowsJobAssembly !== undefined && { shellJobAssembly: windowsJobAssembly }),
+    // The same captured-frame readers as the VS Code window (C-M106-3R2),
+    // so the CLI and the ACP agent read effort extras, the note-only
+    // feedback receipt and the deletion refusal identically.
+    featurePorts: NATIVE_MUSE_CODE_FEATURE_PORTS,
     // This records the actual scope boundary; it does not certify a VS Code fence.
     beforeWorkspaceHostStart: () => independentEditorStartupPolicy(log),
     log,

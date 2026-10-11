@@ -123,7 +123,13 @@ import {
 import { failureForLog } from './logText'
 import { redactSecrets } from '../../../shared/redact'
 import { PromptLedger } from './promptLedger'
-import { submitMuseFeedback, type FeedbackOutcomeReader, type FeedbackRequest } from './feedback'
+import {
+  NATIVE_FEEDBACK_READER,
+  submitMuseFeedback,
+  type FeedbackOutcomeReader,
+  type FeedbackRequest,
+} from './feedback'
+import { NATIVE_MODEL_EFFORTS } from './modelEfforts'
 import {
   historyOutcome,
   sessionClosedSchema,
@@ -167,6 +173,16 @@ export interface MuseCodeFeaturePorts {
   readonly modelEfforts?: {
     parseModel(row: unknown): MuseCodeEffortInfo
   }
+}
+
+// The captured-frame readers every backend construction binds (C-M106-3R2):
+// the 1.4.4 `model/list` effort extras and the note-only `feedback/submit`
+// receipt (test/fixtures/m106/msp-1.4.4-host-feedback.json). No lifecycle
+// reader: 1.4.4 sends no delete frames, so deletion stays refused with
+// sessionDeleteUnsupported and History stays archive-only.
+export const NATIVE_MUSE_CODE_FEATURE_PORTS: MuseCodeFeaturePorts = {
+  feedback: NATIVE_FEEDBACK_READER,
+  modelEfforts: NATIVE_MODEL_EFFORTS,
 }
 
 const SESSION_LIST_CHANGED = 'session/listChanged'
@@ -965,6 +981,10 @@ export class MuseSession implements ScheduledAgentSession {
   private restoringScheduleMode: Promise<void> = Promise.resolve()
   private readonly leaseGeneration: number
 
+  /** The host's feedback disclosure ports, bound by `track` (absent in tests). */
+  public readonly previewFeedbackNote?: (note: string) => string
+  public readonly submitFeedback?: (input: FeedbackRequest) => Promise<string>
+
   public constructor(
     public readonly sessionId: string,
     public modelId: string,
@@ -974,11 +994,21 @@ export class MuseSession implements ScheduledAgentSession {
     private readonly canRunUserShell: boolean,
     private readonly usageDeltas?: MuseUsageDeltas,
     initialApprovalMode?: string,
+    feedback?: {
+      readonly previewNote: (note: string) => string
+      readonly submit: (input: FeedbackRequest) => Promise<string>
+    },
   ) {
     this.owner = new SessionOwner(initialApprovalMode)
     this.log = channel.log
     this.timeouts = channel.timeouts
     this.leaseGeneration = channel.generation
+    if (feedback === undefined) {
+      return
+    }
+
+    this.previewFeedbackNote = feedback.previewNote
+    this.submitFeedback = feedback.submit
   }
 
   /** One MSP command against this session with a freshly minted commandId. */
@@ -2298,6 +2328,10 @@ export class MuseCodeHost implements AgentHost {
         ? undefined
         : new MuseUsageDeltas(this.usageRecording, record.sessionId, modelId, isNew),
       initialApprovalMode,
+      {
+        previewNote: (note) => this.previewFeedbackNote(note),
+        submit: (input) => this.submitFeedback(input),
+      },
     )
     this.sessions.set(record.sessionId, handle)
     const waiting = this.unclaimed.get(record.sessionId) ?? []

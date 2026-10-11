@@ -102,7 +102,7 @@ import {
   isUsageWriterBundle,
   type UsageRecording,
 } from './core/usage/recording'
-import { MuseCodeHost } from './core/backends/musecode/MuseCodeHost'
+import { NATIVE_MUSE_CODE_FEATURE_PORTS, MuseCodeHost } from './core/backends/musecode/MuseCodeHost'
 import { agentDataFolder } from './runtime/dataFolder'
 import { requireFile } from './host/lazyBundle'
 import { isJudgeEngineOn } from './core/judge/engine'
@@ -1489,6 +1489,9 @@ async function activateWindow(
     voice,
   )
   const backend = new MuseCodeBackendManager({
+    // The captured-frame readers (C-M106-3R2): effort extras on `model/list`
+    // rows, the note-only `feedback/submit` receipt; deletion stays refused.
+    featurePorts: NATIVE_MUSE_CODE_FEATURE_PORTS,
     shellJobAssembly: () => windowsJobAssembly?.() ?? Promise.resolve(undefined),
     beforeWorkspaceHostStart: async () => {
       await checkpoints.markNativeBackend()

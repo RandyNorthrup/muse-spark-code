@@ -32,7 +32,10 @@
 // MUSE_FAKE_START_MS). MUSE_FAKE_WEDGE=<method>: from the first request
 // for that method on, it answers nothing at all and stays up (the wedged
 // `muse serve` of 2026-10-03, one core busy and not a frame written; the
-// watchdog drill of the CLI recovery). Node built-ins
+// watchdog drill of the CLI recovery). MUSE_FAKE_MODEL_LIST=capture serves
+// the captured 1.4.4 `model/list` catalogue (with effort extras) instead of
+// the synthetic row. `feedback/submit` always answers the captured note-only
+// receipt. Node built-ins
 // only: the file is copied beside the executable the resolver spawns.
 //
 // The credential file under XDG_CONFIG_HOME (never the developer's own) is
@@ -739,6 +742,42 @@ function envelope(session) {
   }
 }
 
+// The C-M106-3 1.4.4 `model/list` catalogue and `feedback/submit` receipt,
+// read lazily from the capture beside this fake (never copied with it, so
+// other suites pay nothing and see no change). `MUSE_FAKE_MODEL_LIST=capture`
+// serves the captured catalogue rows with their effort extras; the default
+// stays the single synthetic row. `feedback/submit` always answers the
+// captured note-only receipt: the host shows its outcome, never its
+// identifiers.
+function capturedM106Frame(id) {
+  const frames = JSON.parse(
+    readFileSync(
+      new URL('../../fixtures/m106/msp-1.4.4-host-feedback.json', import.meta.url),
+      'utf8',
+    ),
+  ).frames
+  const frame = frames.find((entry) => entry.direction === 'received' && entry.frame.id === id)
+  if (frame === undefined) throw new Error(`missing captured response ${String(id)}`)
+  return frame.frame.result
+}
+function modelListRows(params) {
+  if (env['MUSE_FAKE_MODEL_LIST'] === 'capture') {
+    return capturedM106Frame(2).models
+  }
+  return [
+    {
+      modelId: MODEL_ID,
+      displayLabel: 'Muse Spark 1.3',
+      contextLimit: CONTEXT_WINDOW,
+      isDefault: true,
+      isActive: params.sessionId !== undefined,
+    },
+  ]
+}
+function capturedFeedbackReceipt() {
+  return capturedM106Frame(5)
+}
+
 const handlers = {
   initialize: (params) => {
     state.clientName = String(params.clientInfo?.name ?? 'unknown')
@@ -974,16 +1013,12 @@ const handlers = {
   },
   'model/list': (params) => ({
     providerId: 'meta',
-    models: [
-      {
-        modelId: MODEL_ID,
-        displayLabel: 'Muse Spark 1.3',
-        contextLimit: CONTEXT_WINDOW,
-        isDefault: true,
-        isActive: params.sessionId !== undefined,
-      },
-    ],
+    models: modelListRows(params),
   }),
+  // The 1.4.4 note-only `feedback/submit` receipt, served verbatim from the
+  // C-M106-3 capture: `outcome` `uploaded` with no session record attached.
+  // The host shows the outcome only; the identifiers stay server-side.
+  'feedback/submit': () => capturedFeedbackReceipt(),
   'skill/list': () => ({ skills: [] }),
   'usage/read': () => (state.usage === undefined ? {} : { usage: state.usage }),
   'account/read': () => {
