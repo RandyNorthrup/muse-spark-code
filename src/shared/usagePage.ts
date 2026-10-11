@@ -24,9 +24,9 @@ import {
 } from './usageJournal'
 import { resourceHistorySchema } from './resourceHistory'
 
-export const usageGroupBySchema = z.enum(['provider', 'model', 'kind', 'client'])
-export const usageMetricSchema = z.enum(['cost', 'tokens', 'requests', 'time'])
-export const usageQuerySchema = z
+export const usageGroupBySchema = /* @__PURE__ */ z.enum(['provider', 'model', 'kind', 'client'])
+export const usageMetricSchema = /* @__PURE__ */ z.enum(['cost', 'tokens', 'requests', 'time'])
+export const usageQuerySchema = /* @__PURE__ */ z
   .strictObject({
     range: z.enum(['today', '7d', '30d', '90d', 'custom']),
     // Inclusive local dates. Presets are resolved by the service's clock.
@@ -43,15 +43,15 @@ export const usageQuerySchema = z
     ),
   )
 export type UsageQuery = z.infer<typeof usageQuerySchema>
-export const usageExportFormatSchema = z.enum(['callsCsv', 'summaryCsv', 'json'])
+export const usageExportFormatSchema = /* @__PURE__ */ z.enum(['callsCsv', 'summaryCsv', 'json'])
 
-const certaintyTotalSchema = z.strictObject({
+const certaintyTotalSchema = /* @__PURE__ */ z.strictObject({
   certainty: usageCertaintySchema,
   records: usageCountSchema,
   usd: z.optional(usageUsdSchema),
   apiEquivalentUsd: z.optional(usageUsdSchema),
 })
-export const usageTotalsSchema = z.strictObject({
+export const usageTotalsSchema = /* @__PURE__ */ z.strictObject({
   records: usageCountSchema,
   tokens: usageTokensSchema,
   units: usageUnitsSchema,
@@ -67,20 +67,20 @@ export const usageTotalsSchema = z.strictObject({
   tokensPerSecond: z.optional(usageAmountSchema),
 })
 export type UsageTotals = z.infer<typeof usageTotalsSchema>
-const breakdownRowSchema = z.strictObject({
+const breakdownRowSchema = /* @__PURE__ */ z.strictObject({
   id: usageLabelSchema,
   label: usageLabelSchema,
   provider: z.optional(usageLabelSchema),
   model: z.optional(usageLabelSchema),
   totals: usageTotalsSchema,
 })
-const bucketSchema = z.strictObject({
+const bucketSchema = /* @__PURE__ */ z.strictObject({
   at: usageCountSchema,
   day: usageDaySchema,
   totals: usageTotalsSchema,
   groups: z.array(breakdownRowSchema),
 })
-export const usageBudgetSchema = z.strictObject({
+export const usageBudgetSchema = /* @__PURE__ */ z.strictObject({
   id: usageIdSchema,
   kind: z.enum(['paidDaily', 'tabDaily', 'vscodeChatDaily', 'conversation', 'headless']),
   spentUsd: usageUsdSchema,
@@ -91,7 +91,7 @@ export const usageBudgetSchema = z.strictObject({
   projectedUsd: z.optional(usageUsdSchema),
   resetsAt: z.optional(usageCountSchema),
 })
-const modelDetailSchema = z.strictObject({
+const modelDetailSchema = /* @__PURE__ */ z.strictObject({
   provider: usageLabelSchema,
   model: usageLabelSchema,
   totals: usageTotalsSchema,
@@ -109,7 +109,7 @@ const modelDetailSchema = z.strictObject({
   ),
   pricedLater: z.boolean(),
 })
-export const usagePageStateSchema = z.strictObject({
+export const usagePageStateSchema = /* @__PURE__ */ z.strictObject({
   v: z.literal(USAGE_JOURNAL_VERSION),
   query: usageQuerySchema,
   generatedAt: usageCountSchema,
@@ -178,7 +178,7 @@ export const usagePageStateSchema = z.strictObject({
 })
 export type UsagePageState = z.infer<typeof usagePageStateSchema>
 
-export const usagePageToServiceMessageSchema = z.discriminatedUnion('type', [
+export const usagePageToServiceMessageSchema = /* @__PURE__ */ z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('usage/ready') }),
   z.strictObject({ type: z.literal('usage/query'), query: usageQuerySchema }),
   z.strictObject({ type: z.literal('usage/refresh') }),
@@ -207,7 +207,7 @@ export const usagePageToServiceMessageSchema = z.discriminatedUnion('type', [
   }),
 ])
 export type UsagePageToServiceMessage = z.infer<typeof usagePageToServiceMessageSchema>
-export const usageServiceToPageMessageSchema = z.discriminatedUnion('type', [
+export const usageServiceToPageMessageSchema = /* @__PURE__ */ z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('usage/state'), state: usagePageStateSchema }),
   z.strictObject({
     type: z.literal('usage/result'),
