@@ -6,6 +6,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { loadL10n } from '../../scripts/lib/l10nSource.mjs'
 import { browserTextKeys, compactBrowserUiText } from '../../scripts/lib/uiTextRegions.mjs'
 import { removeFolder } from './helpers/temporaryFolders'
+import { TABLE_LOCALES } from '../../src/shared/l10n/locales'
+import { DEVICE_LIMITS } from '../../src/shared/constants'
 
 const entries = {
   main: 'src/webview/main.tsx',
@@ -31,6 +33,8 @@ beforeAll(async () => {
   writeFileSync(
     probe,
     `
+import { DEVICE_LIMITS } from '../../src/shared/constants';
+export const bounds = () => ({idChars: DEVICE_LIMITS.idChars, portMax: DEVICE_LIMITS.portMax});
 export { EN, EN_SHAPE } from '${english}';
 export { UI_TEXT, setUiText, uiLocale } from '${text}';
 export { installEmbeddedTable } from '${installer}';
@@ -68,6 +72,36 @@ afterAll(async () => {
 })
 
 describe('the production browser English and full-table contract', () => {
+  it('retains exact canonical values in the lazy browser Devices limits', () => {
+    expect(fixture.browser.bounds()).toEqual({
+      idChars: DEVICE_LIMITS.idChars,
+      portMax: DEVICE_LIMITS.portMax,
+    })
+  })
+
+  it.each([
+    ['DEVICE_LIMITS[key]', 'Nonliteral browser Devices limit reader'],
+    ['DEVICE_LIMITS.notARealLimit', 'Unknown browser Devices limit reader'],
+    ['Object.keys(DEVICE_LIMITS)', 'Unsupported browser Devices limits binding'],
+  ])('refuses unsupported Devices limit reader %s before emission', async (reader, message) => {
+    const source = path.join(fixture.folder, 'bad-limit-' + message.split(' ', 1)[0] + '.ts')
+    writeFileSync(
+      source,
+      `import { DEVICE_LIMITS } from '../../src/shared/constants'; const key = 'idChars'; export const value = ${reader};`,
+    )
+    await expect(
+      build({
+        entryPoints: [source],
+        bundle: true,
+        write: false,
+        format: 'esm',
+        platform: 'browser',
+        plugins: [compactBrowserUiText],
+        logLevel: 'silent',
+      }),
+    ).rejects.toThrow(message)
+  })
+
   it('keeps unreachable Help prose outside a standalone account graph', () => {
     const source = path.join(fixture.folder, 'accounts-only.ts')
     writeFileSync(source, 'const label = UI_TEXT.accounts;')
@@ -154,8 +188,8 @@ describe('the production browser English and full-table contract', () => {
     expect(UI_TEXT.referenceCliOptions).toEqual(canonical.referenceCliOptions)
   })
 
-  it('checks every installed language against the same complete canonical shape and slots', () => {
-    const { EN, TABLE_LOCALES, tableFileName, tableProblems } = fixture.canonical
+  it('rejects malformed tables against the same complete canonical shape and slots', () => {
+    const { EN, tableProblems } = fixture.canonical
     const { EN_SHAPE, installEmbeddedTable } = fixture.browser
     const options = { locale: 'en', isStrict: false }
     const broken = [
@@ -172,23 +206,28 @@ describe('the production browser English and full-table contract', () => {
       expect(expected.length).toBeGreaterThan(0)
       expect(tableProblems(EN_SHAPE, table, options)).toEqual(expected)
     }
-    for (const locale of TABLE_LOCALES) {
-      const table = JSON.parse(readFileSync(path.join('l10n', tableFileName(locale)), 'utf8'))
-      expect(tableProblems(EN_SHAPE, table, { locale, isStrict: false }), locale).toEqual(
-        tableProblems(EN, table, { locale, isStrict: false }),
-      )
-      expect(
-        installEmbeddedTable({
-          querySelector: () => ({ textContent: JSON.stringify({ locale, table }) }),
-        }),
-        locale,
-      ).toBeUndefined()
-    }
     expect(
       installEmbeddedTable({
         querySelector: () => ({ textContent: JSON.stringify({ locale: 'en', table: broken[0] }) }),
       })?.message,
     ).toContain('execBudgetRequired: missing')
+  })
+
+  // Each language keeps the repository's five-second case deadline; the
+  // full-table checks are independent and every language is still verified.
+  it.each(TABLE_LOCALES)('checks %s against the complete canonical shape and slots', (locale) => {
+    const { EN, tableFileName, tableProblems } = fixture.canonical
+    const { EN_SHAPE, installEmbeddedTable } = fixture.browser
+    const table = JSON.parse(readFileSync(path.join('l10n', tableFileName(locale)), 'utf8'))
+    expect(tableProblems(EN_SHAPE, table, { locale, isStrict: false }), locale).toEqual(
+      tableProblems(EN, table, { locale, isStrict: false }),
+    )
+    expect(
+      installEmbeddedTable({
+        querySelector: () => ({ textContent: JSON.stringify({ locale, table }) }),
+      }),
+      locale,
+    ).toBeUndefined()
   })
 
   it('does not eagerly load an English group for a technical command word', () => {

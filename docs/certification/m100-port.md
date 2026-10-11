@@ -36,6 +36,32 @@ specified below; generated files are regenerated from the combined sources.
 | `PLAN.md`, `docs/orchestration-gotchas.md`                                                                                                 | M100 implementation, certification, escape hatches and G50–52           | Current plans, gates, status grammar, archived historical M98 text and newer gotchas                                    | Keep device records and release requirements; use recognized historical prose, a phase-2 subheading and canonical lane columns. Retain release's removal of duplicated M98 sections (archived). Regenerate roadmap.                                                                     |
 | Generated reference, roadmap and host inventory                                                                                            | Device coverage                                                         | Current release coverage                                                                                                | Regenerate; no hand-merged generated content.                                                                                                                                                                                                                                           |
 
+## Follow-up integration repairs
+
+- Command registration checks now resolve the actual tuple/Object.entries arrow
+  bindings and the invoked schedule/vault factories, including recording IDs.
+  Missing factory calls are exercised as negative cases; no command is inferred
+  merely from an unused helper file.
+- Production generation proof retains its dedicated context key and now covers
+  release `design/` inputs and `CHANGELOG.md`; changing either invalidates it.
+- The browser source graph keeps group-valued technical words out of eager
+  English, preserves each guarded loader's catch, and installs Devices English
+  independently. All fourteen language checks remain, as separate default-deadline
+  cases. Provider-only `providerText`/`acpChatGpt` move to existing account English.
+- A generated browser-only constants module retains canonical `DEVICE_LIMITS`
+  values only for literal fields read by the browser graph. Computed and unknown
+  readers refuse the build. Node hosts retain the full canonical object.
+  The Devices chunk-load failure uses the existing accessible `UnavailableSurface`
+  and document reload recovery, preserving the original catch and lazy boundary.
+- Cycle roots include the actual Devices UI and both QR dynamic entrypoints.
+  Gotcha definitions preserve the release's G60/G61 identities; accepted Vitest
+  records become G95/G96, with references updated in the plan. Duplicate
+  definitions are folded into the existing rule, and receipt references are
+  marked as references rather than new rules.
+- Regression expectations preserve 0.17.1's `acceptEdits` label and its permitted
+  extension-bearing `NUL.txt` resolved-path policy. Ready-handshake guards now
+  include `devicesReady` without changing the other three surfaces.
+
 ## Verification
 
 The pre-merge typecheck exposed fixture adaptations: paid hook daily budgets
@@ -45,13 +71,27 @@ formatter. The worktree initially contained SDK 1.3.0 while the merged lock
 pins 1.4.4. `npm ci --ignore-scripts --no-audit` installed all 903 pinned
 packages into a private `$TMPDIR/portm100-deps-*` directory (exit 0); the
 original hard-linked install is preserved at
-`$TMPDIR/portm100-deps-*/original-node_modules`, and `node_modules` links to the private
-install. No dependency version changed. Repository hooks were installed again
+`$TMPDIR/portm100-deps-*/original-node_modules`. Initially linking the private
+install exposed dependency paths outside the repository in esbuild metafiles,
+so the fresh install was copied to this worktree's regular `node_modules`
+directory, with the private copy retained until final cleanup. No original
+shared/hard-linked dependency bytes were modified and no dependency version or
+gate changed. The repository's dependency ignore stays unchanged.
+Repository hooks were installed again
 using `scripts/install-git-hooks.mjs`.
 
 Pre-merge `npm run typecheck`: exit **0**, all five projects (host, webview,
 unit, e2e, integration), merged lockfile install, macmini. Follow-up receipts
 are appended after the commands run.
+Follow-up `npm run typecheck`: exit **0**, all five projects. Eight deliberate
+regressions produced exit **1**, then restored original file SHA-256 exactly:
+combined Devices/document identity; dedicated generation key; design input;
+changelog input; group-valued technical words; computed limit reads; unknown
+limit reads; unsupported whole-object limit binding. Logs and full restoration
+hashes are in `temp/portm100/all-drill-results.json`. Command registration also
+removes each factory call in an in-memory source and verifies its commands
+are absent; every fourteen-language table check still runs at the default deadline.
+
 Full aggregate `npm run quality`, coverage, hosted CI and four-machine
 qualification are delegated to the lead by this lane's explicit brief and
 shared rules; they are not claimed as passed here. Vitest runs select at most
@@ -80,3 +120,8 @@ three complete files, `--maxWorkers=3`, repository-default timeouts.
    compares fingerprints on both machines, approves repository/base/offer and
    the scoped OS listener/firewall permission, and approves paid uses locally.
    Remote/web/ACP/headless hosts retain separate host/key-location qualification.
+
+Merge checkpoint: **`143667fbd8ea0b3927f2e92e18264dfb2cf2c963`**, parents
+`1630f022d` and `35d7b6f`. Hooks passed ESLint/Prettier and gitleaks
+(44.52 MB, no leaks). The shell wrapper then hit zsh’s read-only `status`
+variable; the commit itself succeeded and its two parents were verified.

@@ -4,9 +4,11 @@ import { isProtectedPath } from '../../src/core/protectedPaths'
 
 describe('workspace path policy after shared identity extraction', () => {
   it.each(['a./child', 'a../child', 'a. /child', 'name. .', 'NUL', 'NUL.txt'])(
-    'retains the Windows write refusal for %s',
+    'retains the current Windows identity rule for %s',
     (given) => {
-      expect(resolveWorkspacePath('C:/repo', given, 'win32').ok).toBe(false)
+      // 0.17.1 judges extension-bearing names by identity; bare devices and
+      // trailing-dot/space aliases stay refused.
+      expect(resolveWorkspacePath('C:/repo', given, 'win32').ok).toBe(given === 'NUL.txt')
       expect(resolveWorkspacePath('/repo', given, 'linux').ok).toBe(true)
     },
   )

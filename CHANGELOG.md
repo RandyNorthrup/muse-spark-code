@@ -9,6 +9,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- Port the pending paired Devices integration onto 0.17.1, preserving the
+  current provider/account stores and lazy loading budgets. Native and paired-host
+  qualification still gate availability.
+
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
   reads and writes, and 1-hour cache writes settle at their own price.
   The shared retry classifier refuses known quota codes and excessive

@@ -30,7 +30,8 @@ export { UI_TEXT, setUiText } from '${source('src/shared/l10n/text.ts')}';
 export { loadDeferredEnglish } from '${source('src/shared/l10n/deferredEnglish.ts')}';
 export { installEmbeddedTable } from '${source('src/webview/installTable.ts')}';
 export { installVaultEnglish } from '${source('src/shared/l10n/vaultEnglish.ts')}';
-export const loadResourceEnglish = () => import('browser-resource-english');`,
+export const loadResourceEnglish = () => import('browser-resource-english');
+export const loadDevicesEnglish = () => import('browser-devices-english');`,
   )
   const result = await build({
     entryPoints: {
