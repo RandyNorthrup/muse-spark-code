@@ -130,8 +130,22 @@
     {
       "id": "team-workers",
       "name": { "ui": "paidTeamWorkersName" },
-      "summary": { "setting": "modelApiTeamWorkers" },
-      "description": { "setting": "modelApiTeamWorkers" },
+      "summary": {
+        "conditions": [
+          {
+            "when": "teamIntegration=incomplete&workerNativeHelper=available",
+            "text": { "ui": "referenceTeamFiles" }
+          }
+        ]
+      },
+      "description": {
+        "conditions": [
+          {
+            "when": "teamIntegration=incomplete&workerNativeHelper=available",
+            "text": { "ui": "referenceTeamFiles" }
+          }
+        ]
+      },
       "commands": [],
       "settings": ["museSpark.modelApiTeamWorkers"],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#the-panel",

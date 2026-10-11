@@ -463,6 +463,12 @@ const teamFileIoOptions = {
   outfile: TEAM_FILE_IO_OUTFILE,
 }
 
+const teamCreateOptions = {
+  ...modelApiOptions,
+  entryPoints: ['src/core/team/workers/workerCreateEntry.ts'],
+  outfile: 'dist/teamCreate.js',
+}
+
 const teamMergeOptions = {
   ...teamOptions,
   entryPoints: [TEAM_MERGE_ENTRY],
@@ -1223,6 +1229,7 @@ if (isWatch) {
     esbuild.context(teamRunnersOptions),
     esbuild.context(teamHostOptions),
     esbuild.context(teamFileIoOptions),
+    esbuild.context(teamCreateOptions),
     esbuild.context(teamMergeOptions),
     esbuild.context(teamSchedulerOptions),
     esbuild.context(foreignHooksOptions),
@@ -1340,6 +1347,7 @@ if (isWatch) {
     teamRunners: esbuild.build(teamRunnersOptions),
     teamHost: esbuild.build(teamHostOptions),
     teamFileIo: esbuild.build(teamFileIoOptions),
+    teamCreate: esbuild.build(teamCreateOptions),
     teamMerge: esbuild.build(teamMergeOptions),
     teamScheduler: esbuild.build(teamSchedulerOptions),
     foreignHooks: esbuild.build(foreignHooksOptions),

@@ -700,7 +700,7 @@
     {
       "id": "M96",
       "title": "Agent roles and teams",
-      "summary": "Planned roles with charters, tools, model pools and task limits, and isolated teams whose hidden service enforces per-attempt claims, uncertain liability, file policy and worker slots while remaining bindings and certification are pending.",
+      "summary": "Planned roles with charters, tools, model pools and task limits, plus isolated teams whose hidden service enforces per-attempt claims, uncertain liability, native file creation, file policy and worker slots; integration and certification are pending.",
       "area": "agents"
     },
     {

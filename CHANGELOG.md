@@ -32,6 +32,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- Hidden M96 worker file creation now uses the packaged native helper on
+  POSIX and the Windows job-helper contract. Engine and ACP writers prove
+  root, parent and file identities, enforce role write paths before creation
+  and again before contents are written, and create exclusively. Reservations
+  fill binary bytes or release an unchanged empty file. Missing native support
+  refuses with its actual reason. The implementation loads on first creation;
+  teams remain unavailable pending integration and cross-platform certification.
+
 - Hidden M96 team-host correctness: each response settles its own reserved
   claim with the sent model's known price, including bare Meta and zero-cost
   plan models; transport retries reuse one live claim. Refused worker writes

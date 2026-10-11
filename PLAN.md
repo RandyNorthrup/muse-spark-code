@@ -24076,6 +24076,27 @@ bound, `TEAM_COLLECT_WAIT_MAX_SECONDS_ENGINE` (60 s, golden `08-team-on`
 updated); the Muse Code team server keeps `TEAM_COLLECT_WAIT_MAX_SECONDS`
 (0) until lane P's timeout capture.
 
+**CM963NF verified worker creation (2026-10-11).** Build the missing
+new-file operation in the engine and ACP writers. The existing native
+created-path helper gains worker create/check/release operations: walk from
+the retained root with no-follow directory handles, prove the admitted root
+and parent identities, create exclusively, and report the exact file identity.
+The engine reopens without creation, checks that identity and repeats the
+retained-root/role admission before writing. Reservations use the same proof
+for fill and native empty-file release. Missing helper support refuses with
+its actual reason; no pathname creation fallback. Native walks and file I/O
+load on first creation in a separately budgeted chunk; existing caps stay.
+Linux x64/arm64 and macOS reuse their current helper builds; Windows uses the
+existing C# job assembly. The admission shim forwards fixed native calls to
+the governor's shared bounded runner, preserving resource policy ownership.
+Certification goes in `docs/certification/m96-3.md`.
+All editors using the portable engine and ACP share this authority. Teams
+remain hidden pending other lanes, native Windows/macOS receipts, independent
+boundary review and the lead's hosted three-OS/full-quality gates. The rig
+brief overrides shared common.md's stale merge step: no merge, push, rebase,
+subagents, live calls or aggregate quality here. Scoped whole-file tests use
+repository deadlines and at most three files/workers per run.
+
 **C-M96-3 round 6 accounting repair (2026-10-11, RVCM963F).**
 The lead's design replaces round 5's request-chain shortcut: each worker
 transport attempt reserves separately and closes exactly once through
@@ -38134,6 +38155,16 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**CM963NF scoped rig verification (2026-10-11, kubuntu).** The lane brief
+and shared common.md prohibit aggregate quality and full-suite execution;
+lead qualification owns them. Run direct complete file-operation/native/
+packaged-factory owners with repository deadlines and no more than three
+files/workers, five type projects, changed-file lint/format, plain knip,
+duplication, localization, reference, host API, plan/roadmap and the production
+build. Preserve existing budgets and hooks. Native Windows and macOS execution,
+Linux arm64 artifacts, independent boundary review and hosted three-OS gates
+remain lead receipts; this Linux x64 lane does not infer them from source.
 
 **CIR4MAC scoped hosted-CI repair (2026-10-09, macmini).** Reproduce
 round 4's macOS target-size deadline and palette failure-render ordering

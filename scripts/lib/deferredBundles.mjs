@@ -239,6 +239,11 @@ export const DEFERRED = [
     files: ['src/core/team/workers/workerToolIoEntry.ts', 'src/core/team/workers/workerToolIo.ts'],
   },
   {
+    output: 'dist/teamCreate.js',
+    metafile: 'dist/meta/teamCreate.json',
+    files: ['src/core/team/workers/workerCreateEntry.ts'],
+  },
+  {
     output: 'dist/teamMerge.js',
     metafile: 'dist/meta/teamMerge.json',
     files: ['src/core/team/teamMergeFlow.ts'],
@@ -1017,6 +1022,7 @@ const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/host/runners/teamRunnersEntry.ts'), 'dist/teamRunners.js'],
   [path.resolve('src/host/team/teamHostEntry.ts'), 'dist/teamHost.js'],
   [path.resolve('src/core/team/workers/workerToolIoEntry.ts'), 'dist/teamFileIo.js'],
+  [path.resolve('src/core/team/workers/workerCreateEntry.ts'), 'dist/teamCreate.js'],
   [path.resolve('src/core/team/teamMergeFlow.ts'), 'dist/teamMerge.js'],
   [path.resolve('src/core/backends/modelapi/schedulesEntry.ts'), 'dist/schedules.js'],
   [path.resolve('src/core/backends/modelapi/reviewerEntry.ts'), 'dist/reviewer.js'],
@@ -1052,7 +1058,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|teamHostEntry|teamMergeFlow|workerToolIoEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry)(?:\.[jt]s)?$/,
+          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|teamHostEntry|teamMergeFlow|workerToolIoEntry|workerCreateEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         if (
