@@ -145,6 +145,15 @@ async function send(rig: Awaited<ReturnType<typeof setup>>) {
   await done
 }
 
+/** One turn under a stored output cap the host must refuse: nothing is requested. */
+async function sendRefusedCap(cap: number) {
+  const rig = await setup({ modelOutputMaxTokens: () => cap })
+  rig.api.script({ text: 'Never requested.' })
+  await send(rig)
+  expect(rig.api.responseBodies()).toHaveLength(0)
+  return rig
+}
+
 async function attemptOverwrite(rig: Awaited<ReturnType<typeof setup>>) {
   rig.api.script(
     {
@@ -426,10 +435,7 @@ describe('M106 loop guarantees', () => {
 
   it('refuses stored Meta output caps below sixteen before dispatch', async () => {
     for (const cap of [0, 1, 15]) {
-      const rig = await setup({ modelOutputMaxTokens: () => cap })
-      rig.api.script({ text: 'Never requested.' })
-      await send(rig)
-      expect(rig.api.responseBodies()).toHaveLength(0)
+      const rig = await sendRefusedCap(cap)
       expect(rig.events).toContainEqual(
         expect.objectContaining({
           type: 'turnCompleted',
@@ -447,10 +453,7 @@ describe('M106 loop guarantees', () => {
 
   it('refuses invalid model output records before dispatch', async () => {
     for (const cap of [0, -1, 1.5, Infinity, NaN]) {
-      const rig = await setup({ modelOutputMaxTokens: () => cap })
-      rig.api.script({ text: 'Never requested.' })
-      await send(rig)
-      expect(rig.api.responseBodies()).toHaveLength(0)
+      const rig = await sendRefusedCap(cap)
       expect(
         rig.events.some(
           (event) =>

@@ -1245,10 +1245,18 @@ export function App({
     // `/loop` below stays on the v1 store until its migration ships.
     if (/^\/schedule(?:\s|$)/i.test(text.trim())) {
       if (!OPTIONAL_RUNTIME_AVAILABILITY.schedules) {
-        dispatch({
-          type: 'noticeRaised',
-          level: 'warning',
-          text: UI_TEXT.scheduleV2.runtime.unavailable,
+        // The reason's words belong to the schedule surfaces' English, which
+        // startup does not carry (STARTUP017): the lazy prompt mapping reads
+        // them, as it does for a bound command below. The draft stays.
+        void loadSchedulePrompt().then((mapping) => {
+          dispatch({
+            type: 'noticeRaised',
+            level: 'warning',
+            text:
+              mapping === undefined
+                ? UI_TEXT.scheduleCommandFailed
+                : mapping.scheduleUnavailableReason(),
+          })
         })
         return
       }

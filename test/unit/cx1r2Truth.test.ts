@@ -82,7 +82,16 @@ describe('RVCX1B F3: v2 schedule delivery claims are removed on every surface', 
 
   it('Help omits v2 command, settings and CLI routes after complete inventory validation', () => {
     expect(help.commands.map((command) => command.id)).not.toContain('museSpark.schedulePrompt')
-    expect(help.settings.map((setting) => setting.id)).not.toContain('museSpark.schedules')
+    // CX1R6 keeps the switch in Help: it still controls the legacy /loop
+    // shortcut, and its description says scheduled execution is unavailable.
+    // The agent-creation setting has no effect yet and stays out of Help.
+    const schedulesSwitch = help.settings.find((setting) => setting.id === 'museSpark.schedules')
+    expect(schedulesSwitch?.description).toBe(
+      'Controls the legacy /loop shortcut in Muse Code chat. Schedule management and scheduled prompt execution are unavailable.',
+    )
+    expect(help.settings.map((setting) => setting.id)).not.toContain(
+      'museSpark.scheduleAgentCreation',
+    )
     expect(help.cli.map((command) => command.route)).not.toContain('schedule')
     expect(help.cli.some((command) => command.name.includes('--scheduled-prompts'))).toBe(false)
   })

@@ -29,7 +29,9 @@ describe('SPAWN017 new spawn sites wait for resource admission', () => {
 
   it('describes unavailable recorder and vault builders honestly in Help', () => {
     expect(EN.referenceScreenRecording).toContain('unavailable in this build')
-    expect(EN.referenceVaultPanel).toContain('broker is not installed')
+    // C-X-1: the vault has no Help entry until its broker is bound; its
+    // reference text is the in-progress placeholder, never a description.
+    expect(EN.referenceVaultPanel).toBe(EN.referenceInProgress)
   })
   it('routes clipboard and browser sharing through the handoff profile', async () => {
     const source = await readFile(path.resolve('src/runtime/sharing/sharingEntry.ts'), 'utf8')

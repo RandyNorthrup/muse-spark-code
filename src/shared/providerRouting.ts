@@ -6,7 +6,12 @@ import {
   MODEL_API_MIN_OUTPUT_TOKENS,
   MODEL_API_MODEL_PREFIX,
 } from './constants'
-import { plural, UI_TEXT } from './l10n/text'
+import { UI_TEXT } from './l10n/text'
+import { outputTokenMinimumMessage } from './outputTokenMinimum'
+
+// The message has a leaf of its own for the browser's team settings; provider
+// code keeps reading it from here.
+export { outputTokenMinimumMessage } from './outputTokenMinimum'
 
 export const openRouterRoutingSchema = z.object({
   privacy: z.enum(['zdr', 'no-training', 'any']),
@@ -61,11 +66,6 @@ export const modelLimitsSchema = z
       error: () => UI_TEXT.providerText.schema.outputCap,
     }),
   )
-
-/** One refusal message shared by configuration and request dispatch. */
-export function outputTokenMinimumMessage(minimum: number): string {
-  return plural(UI_TEXT.outputCapBelowMinimum, minimum)
-}
 
 /** A custom entry at Meta's captured endpoint retains its provider minimum. */
 export function providerOutputMinimum(
