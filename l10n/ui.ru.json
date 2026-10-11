@@ -485,6 +485,12 @@
   "playbookCommandUsage": "Используйте `playbook status|record|settings`.",
   "playbookSave": "Сохранить настройки",
   "playbookSaved": "Настройки регламента сохранены.",
+  "playbookAnswerReason": "Причина",
+  "playbookAnswerWhySafe": "Почему это пока безопасно",
+  "playbookAnswerFollowUp": "Дальнейший шаг",
+  "playbookNotCertified": "Регламент: этот раунд не удалось подтвердить, поэтому он не считается пройденным.",
+  "playbookSpawnEachAsked": "Регламент: пока модуль на ревью, каждый субагент одобряется по отдельности.",
+  "playbookSpawnsNotAdmitted": "Регламент: здесь Muse Code запускает субагентов без запроса (режим «{auto}», режим «{bypass}» или ваше собственное правило разрешения), поэтому регламент их не допускает. Их изменения учитываются при следующем ревью.",
   "playbookStrikeBadge": {
     "one": "{count} раунд ревью",
     "other": "{count} раунда ревью",

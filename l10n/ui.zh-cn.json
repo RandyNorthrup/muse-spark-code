@@ -485,6 +485,12 @@
   "playbookCommandUsage": "请使用 `playbook status|record|settings`。",
   "playbookSave": "保存设置",
   "playbookSaved": "操作手册设置已保存。",
+  "playbookAnswerReason": "原因",
+  "playbookAnswerWhySafe": "目前为何安全",
+  "playbookAnswerFollowUp": "后续跟进",
+  "playbookNotCertified": "工作准则：本轮无法得到确认，因此不计为通过。",
+  "playbookSpawnEachAsked": "工作准则：模块处于审查期间，每个子代理都需逐一批准。",
+  "playbookSpawnsNotAdmitted": "工作准则：在这里 Muse Code 不经询问就启动子代理（“{auto}”模式、“{bypass}”模式，或您自己的允许规则），因此工作准则不会放行它们。它们所做的更改会在下次审查时计入。",
   "playbookStrikeBadge": {
     "other": "{count} 轮审查"
   },

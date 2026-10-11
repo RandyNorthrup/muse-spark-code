@@ -720,6 +720,8 @@ describe('a window that is closing, or cannot see its journal', () => {
     await expect(
       setup.window.agents([{ itemId: 'row-1', agentId: 'subagent-1', sessionId: 'child-1' }]),
     ).rejects.toThrow(UI_TEXT.playbookUnavailable)
+    // Nor is "nothing is under review" said of a conversation whose journal may be there.
+    await expect(setup.window.standing(SESSION)).rejects.toThrow(UI_TEXT.playbookUnavailable)
     expect(setup.startWorker).not.toHaveBeenCalled()
     expect(setup.lines).toContain(
       'error: The playbook journal folder could not be read; the request is refused',
@@ -738,6 +740,8 @@ describe('a window that is closing, or cannot see its journal', () => {
       ),
     ).resolves.toBe('started')
     expect(access).toHaveBeenCalledOnce()
+    // With no journal nothing is under review either, and no thread is started to say so.
+    await expect(setup.window.standing(SESSION)).resolves.toEqual([])
     expect(setup.startWorker).not.toHaveBeenCalled()
   })
 

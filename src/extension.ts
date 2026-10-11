@@ -2555,6 +2555,8 @@ async function activateWindow(
       prepareCheckpointTurn(checkpoints, turnRecorder, sessionId, turnId, log, top),
     afterTurnRuns: (sessionId, turnId, end) =>
       finishCheckpointTurn(checkpoints, turnRecorder, sessionId, turnId, end),
+    // A conversation's new child work starts through the window's playbook (M116).
+    playbook: (...work) => playbook().admit(...work),
     getApiKey: () => credentials.getApiKey(),
     workspaceRoot,
     io: checkpointedIo,
@@ -3291,7 +3293,8 @@ async function activateWindow(
         platform: process.platform,
         systemRoot: process.env['SystemRoot'],
         shellJobAssembly: windowsJobAssembly,
-        reviewCharter: () => bundledSkillsBundle().playbookReviewerCharter(),
+        reviewCharter: (targets) => bundledSkillsBundle().playbookReviewerCharter(targets),
+        ui: vscode.window,
         log,
       },
       UI_TEXT,
@@ -3391,9 +3394,10 @@ async function activateWindow(
             locale: l10n.locale,
             log,
           } satisfies PlaybookSource,
-          playbookPanel: (message, reply) => {
+          playbook: (host) => playbook().conversation(host),
+          playbookPanel: (message, reply, panel) => {
             try {
-              void playbook().panel(message, reply)
+              void playbook().panel(message, reply, panel)
             } catch {
               // The loader logged why; the map then shows no playbook.
             }

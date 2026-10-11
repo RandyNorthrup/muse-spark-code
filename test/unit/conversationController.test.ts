@@ -182,8 +182,7 @@ import { PendingPrompts } from '../../src/core/sessionBoard'
 import { BestOfNCoordinator } from '../../src/core/bestOfN/bestOfNCoordinator'
 import { removeFolder } from './helpers/temporaryFolders'
 import { buildModelApiBundle } from './helpers/modelApiBundle'
-import { integrationFixture } from './helpers/playbookIntegration'
-import { latestRound, reviewBlock } from './playbookPolicyFixture'
+import { fakePlaybookConversation, SPAWN_CHOICES } from './helpers/playbook/fakeConversation'
 import { fakeManagerDeps } from './helpers/modelApiManager'
 import { ModelApiBackendManager } from '../../src/host/backend/modelApiBackendManager'
 import { EditReview, type ReviewNotice } from '../../src/host/editor/editReview'
@@ -7170,11 +7169,36 @@ describe('ConversationController chat references (M17)', () => {
 })
 
 describe('ConversationController subagent controls (M18, M48)', () => {
-  it('M116 refuses a laundered follow-up before the native delegate starts', async () => {
-    const f = integrationFixture()
-    const t = setup({ playbook: () => f.panel })
+  it('M116 sends a follow-up to a subagent through the playbook, and a plain note past it', async () => {
+    const f = fakePlaybookConversation()
+    const t = setup({ playbook: f.factory })
     await t.send('l1', 'hi')
-    f.policy.recordRefusal(f.work.commands[0]!, f.work.requester, 'permission')
+    t.server.handle('subagent/followupTask', () => ({ status: 'accepted' }))
+    t.server.handle('subagent/sendMessage', () => ({ status: 'accepted' }))
+    await t.controller.handle({
+      type: 'subagentMessage',
+      subagentId: 'sub-1',
+      body: 'continue',
+      isFollowup: true,
+    })
+    expect(f.dispatches).toEqual([{ kind: 'delegate', sessionId: 's1', targetId: 'sub-1' }])
+    expect(t.server.requestsFor('subagent/followupTask')).toHaveLength(1)
+    // A note is no new work for the child: it is not the playbook's.
+    await t.controller.handle({
+      type: 'subagentMessage',
+      subagentId: 'sub-1',
+      body: 'fyi',
+      isFollowup: false,
+    })
+    expect(f.dispatches).toHaveLength(1)
+    t.controller.dispose()
+    expect(f.playbook.dispose).toHaveBeenCalledOnce()
+  })
+
+  it('M116 sends no follow-up the playbook refused, and says why', async () => {
+    const f = fakePlaybookConversation({ refusal: new Error('Answer the open findings first.') })
+    const t = setup({ playbook: f.factory })
+    await t.send('l1', 'hi')
     t.server.handle('subagent/followupTask', () => ({ status: 'accepted' }))
     await t.controller.handle({
       type: 'subagentMessage',
@@ -7183,8 +7207,12 @@ describe('ConversationController subagent controls (M18, M48)', () => {
       isFollowup: true,
     })
     expect(t.server.requestsFor('subagent/followupTask')).toEqual([])
-    expect(f.events.note.mock.calls.some(([note]) => note.code === 'permissionLaundering')).toBe(
-      true,
+    expect(t.surface.posted).toContainEqual(
+      expect.objectContaining({
+        type: 'notice',
+        level: 'error',
+        text: `${UI_TEXT.agentControlFailed}: Answer the open findings first.`,
+      }),
     )
     t.controller.dispose()
   })
@@ -7398,6 +7426,52 @@ function acceptApprovalDecisions(t: ReturnType<typeof setup>): void {
   }))
 }
 
+/** The choices of each approval card the panel was shown, by choice id. */
+function spawnCards(t: ReturnType<typeof setup>): string[][] {
+  return agentEvents(t).flatMap((event) =>
+    event.type === 'approvalRequested'
+      ? [event.availableChoices.map((choice) => choice.choiceId)]
+      : [],
+  )
+}
+
+/** Muse Code's word that a subagent's row began, in the conversation's running turn. */
+function subagentStarted(id: string) {
+  return {
+    sessionId: 's1',
+    item: {
+      itemId: id,
+      kind: 'subagent',
+      status: 'inProgress',
+      turnId: 't1',
+      subagentId: id,
+      childSessionId: `child-${id}`,
+      role: 'explorer',
+      objective: 'Map files',
+    },
+  }
+}
+
+/** Muse Code's word that the person resolved an approval, and how. */
+function resolvedBy(approvalId: string, decision: string) {
+  return {
+    sessionId: 's1',
+    approvalId,
+    itemId: `item-${approvalId}`,
+    decision,
+    resolvedBy: 'user',
+  }
+}
+
+/** A Muse Code conversation with a playbook, in a turn, ready to be asked about a subagent. */
+async function spawnAsked(options: Parameters<typeof fakePlaybookConversation>[0] = {}) {
+  const f = fakePlaybookConversation(options)
+  const t = setup({ hasApprovalUi: true, playbook: f.factory })
+  await t.send('l1', 'hi')
+  t.server.notify('turn/started', { sessionId: 's1', turnId: 't1', viewCursor: 'v' })
+  return { f, t }
+}
+
 describe('ConversationController: permission hardening (D24)', () => {
   const choices = [
     { choiceId: 'allow_once', label: 'Allow Once', decision: 'approved', scope: 'once' },
@@ -7425,6 +7499,180 @@ describe('ConversationController: permission hardening (D24)', () => {
   ) {
     t.server.notify('approval/requested', approvalParams(approvalId, overrides))
   }
+
+  describe('a subagent Muse Code asks about (M116, D96.17)', () => {
+    // The CLI's own request, as captured live (M18; test/harness `approval-tool`).
+    const spawn = {
+      toolName: 'subagent_spawn',
+      subject: { kind: 'tool', toolName: 'subagent_spawn' },
+      availableChoices: SPAWN_CHOICES,
+    }
+
+    /** One spawn request, shown to the person, and the decision it was resolved with. */
+    async function spawnAnswered(
+      t: ReturnType<typeof setup>,
+      approvalId: string,
+      decision: string,
+    ) {
+      const shown = spawnCards(t).length
+      requestApproval(t, approvalId, spawn)
+      await vi.waitFor(() => {
+        expect(spawnCards(t)).toHaveLength(shown + 1)
+      })
+      t.server.notify('approval/resolved', resolvedBy(approvalId, decision))
+      await settle()
+    }
+
+    it('asks the playbook first, and shows the card it hands back exactly as it came', async () => {
+      const { f, t } = await spawnAsked()
+      requestApproval(t, 'a1', spawn)
+      await vi.waitFor(() => {
+        expect(spawnCards(t)).toEqual([['allow_once', 'allow_session', 'abort']])
+      })
+      expect(f.playbook.spawnRequest).toHaveBeenCalledExactlyOnceWith(
+        's1',
+        expect.objectContaining({ approvalId: 'a1', toolName: 'subagent_spawn' }),
+        expect.any(Function),
+      )
+      expect(t.server.requestsFor('approval/decide')).toEqual([])
+      t.controller.dispose()
+    })
+
+    it('shows the request as the playbook changed it', async () => {
+      const { t } = await spawnAsked({
+        // An admitted spawn comes back without the choice that would stop the asking.
+        spawnRequest: (_sessionId, request) =>
+          Promise.resolve({
+            ...request,
+            availableChoices: request.availableChoices.filter((choice) => choice.scope === 'once'),
+          }),
+      })
+      requestApproval(t, 'a1', spawn)
+      await vi.waitFor(() => {
+        expect(spawnCards(t)).toEqual([['allow_once', 'abort']])
+      })
+      t.controller.dispose()
+    })
+
+    it('shows no card for a spawn the playbook answered, and its answer reaches the backend', async () => {
+      const { t } = await spawnAsked({
+        // A refusal: the playbook rejects the request itself, with its reason.
+        spawnRequest: async (_sessionId, request, decide) => {
+          await decide({
+            approvalId: request.approvalId,
+            choiceId: 'abort',
+            requirementId: request.requirementId,
+            feedback: 'Plan a redesign of src/core first.',
+          })
+          return undefined
+        },
+      })
+      acceptApprovalDecisions(t)
+      requestApproval(t, 'a1', spawn)
+      await vi.waitFor(() => {
+        expect(t.server.requestsFor('approval/decide').map((request) => request.params)).toEqual([
+          expect.objectContaining({
+            approvalId: 'a1',
+            choiceId: 'abort',
+            feedback: 'Plan a redesign of src/core first.',
+          }),
+        ])
+      })
+      await settle()
+      expect(spawnCards(t)).toEqual([])
+      t.controller.dispose()
+    })
+
+    it('asks the person, and says why, when the playbook cannot even load', async () => {
+      const t = setup({
+        hasApprovalUi: true,
+        playbook: () => {
+          throw new Error('dist/playbook.js is missing')
+        },
+      })
+      await t.send('l1', 'hi')
+      t.server.notify('turn/started', { sessionId: 's1', turnId: 't1', viewCursor: 'v' })
+      requestApproval(t, 'a1', spawn)
+      await vi.waitFor(() => {
+        expect(spawnCards(t)).toEqual([['allow_once', 'allow_session', 'abort']])
+      })
+      expect(t.surface.posted).toContainEqual(
+        expect.objectContaining({
+          type: 'notice',
+          level: 'error',
+          text: UI_TEXT.playbookUnavailable,
+        }),
+      )
+      t.controller.dispose()
+    })
+
+    it('learns from a child nobody was asked about that Muse Code does not ask here, for good', async () => {
+      const { f, t } = await spawnAsked()
+      // One request shown and approved, then its child: the backend asked.
+      await spawnAnswered(t, 'a1', 'approved')
+      const [host] = f.hosts
+      if (host === undefined) throw new Error('The playbook was not asked for')
+      t.server.notify('item/started', subagentStarted('sub-1'))
+      await settle()
+      expect(host.asksBeforeSpawn()).toBe(true)
+      // The same row said again is no new child.
+      t.server.notify('item/started', subagentStarted('sub-1'))
+      await settle()
+      expect(host.asksBeforeSpawn()).toBe(true)
+      // A second child that no request preceded: an allow rule the host cannot read.
+      t.server.notify('item/started', subagentStarted('sub-2'))
+      await settle()
+      expect(host.asksBeforeSpawn()).toBe(false)
+      // Being asked again later does not undo what was seen.
+      await spawnAnswered(t, 'a2', 'approved')
+      expect(host.asksBeforeSpawn()).toBe(false)
+      expect(f.playbook.spawnDeclined).not.toHaveBeenCalled()
+      t.controller.dispose()
+    })
+
+    it('ends the round of a spawn the person turned down, which speaks for no child', async () => {
+      const { f, t } = await spawnAsked()
+      await spawnAnswered(t, 'a1', 'abort')
+      // No child starts: the round the playbook opened for the request is over.
+      expect(f.playbook.spawnDeclined).toHaveBeenCalledExactlyOnceWith('s1')
+      const [host] = f.hosts
+      if (host === undefined) throw new Error('The playbook was not asked for')
+      expect(host.asksBeforeSpawn()).toBe(true)
+      // A child after it was asked about by nobody.
+      t.server.notify('item/started', subagentStarted('sub-1'))
+      await settle()
+      expect(host.asksBeforeSpawn()).toBe(false)
+      t.controller.dispose()
+    })
+
+    it('says nothing to the playbook about the end of any other approval', async () => {
+      const { f, t } = await spawnAsked()
+      requestApproval(t, 'a1')
+      await settle()
+      t.server.notify('approval/resolved', resolvedBy('a1', 'abort'))
+      await settle()
+      expect(f.playbook.spawnDeclined).not.toHaveBeenCalled()
+      t.controller.dispose()
+    })
+
+    it('leaves every other approval alone, and a conversation that has no playbook', async () => {
+      const { f, t } = await spawnAsked()
+      requestApproval(t, 'a1')
+      await vi.waitFor(() => {
+        expect(spawnCards(t)).toEqual([['allow_once', 'abort']])
+      })
+      expect(f.playbook.spawnRequest).not.toHaveBeenCalled()
+      t.controller.dispose()
+      const plain = setup({ hasApprovalUi: true })
+      await plain.send('l1', 'hi')
+      plain.server.notify('turn/started', { sessionId: 's1', turnId: 't1', viewCursor: 'v' })
+      requestApproval(plain, 'a1', spawn)
+      await vi.waitFor(() => {
+        expect(spawnCards(plain)).toEqual([['allow_once', 'allow_session', 'abort']])
+      })
+      plain.controller.dispose()
+    })
+  })
 
   it('never takes a message typed while a card waits for a decision (Roo #11211)', async () => {
     const t = setup({ hasApprovalUi: true })
@@ -11089,55 +11337,6 @@ const turnStartText = (t: ReturnType<typeof setup>, index = 0) => {
 // M70 (PLAN.md D49): `/review` on both backends, the review pane's reads and
 // reverts, and a comment on a line reaching the agent.
 describe('ConversationController: review (M70)', () => {
-  it('M116 consumes only a completed review and cancels its listener when the session leaves', async () => {
-    const f = integrationFixture()
-    const t = setup({ initialPermissionMode: 'plan', playbook: () => f.panel })
-    await t.controller.handle({
-      type: 'startReview',
-      localId: 'r1',
-      text: '/review inspect the declared module',
-      request: { scope: 'custom', focus: 'general', instructions: 'inspect the declared module' },
-    })
-    // The M79 captured completed-message frame, with extension-owned review text.
-    t.server.notify('item/completed', {
-      ...PLAN_REPLY_COMPLETED,
-      sessionId: 's1',
-      item: {
-        ...PLAN_REPLY_COMPLETED.item,
-        turnId: 't1',
-        text: `\`\`\`muse-review\n${JSON.stringify(reviewBlock())}\n\`\`\``,
-      },
-    })
-    t.finishTurn()
-    await vi.waitFor(() => {
-      expect(latestRound(f.policy).round).toBe(1)
-    })
-    expect(f.registry.review).toHaveBeenCalledWith('s1', [])
-    await t.controller.handle({ type: 'clearConversation' })
-    t.controller.dispose()
-  })
-
-  it('M116 refuses a configured playbook that cannot load before any review request', async () => {
-    const t = setup({
-      initialPermissionMode: 'plan',
-      playbook: () => {
-        throw new Error(UI_TEXT.playbookUnavailable)
-      },
-    })
-    await t.controller.handle({
-      type: 'startReview',
-      localId: 'r1',
-      text: '/review inspect the declared module',
-      request: { scope: 'custom', focus: 'general', instructions: 'inspect the declared module' },
-    })
-    expect(t.server.requestsFor('turn/start')).toEqual([])
-    expect(t.surface.posted).toContainEqual({
-      type: 'sendFailed',
-      localId: 'r1',
-      reason: UI_TEXT.playbookUnavailable,
-    })
-    t.controller.dispose()
-  })
   const GIT_MATERIAL: ReviewCollection = {
     kind: 'material',
     isCurrent: () => true,
@@ -11163,6 +11362,84 @@ describe('ConversationController: review (M70)', () => {
     })
     return { ...t, collect }
   }
+
+  /** A subagent's row: the host's own record that this conversation has a child agent. */
+  async function withChildAgent(t: ReturnType<typeof reviewSetup>) {
+    await t.send('l1', 'hi')
+    t.server.notify('turn/started', { sessionId: 's1', turnId: 't1' })
+    t.server.notify('item/started', subagentStarted('sub-1'))
+    t.finishTurn()
+    await settle()
+  }
+
+  /** A review asked for in a conversation that has a child agent, under `playbook`. */
+  async function reviewedWithChild(playbook: ConversationDeps['playbook']) {
+    const t = reviewSetup({ initialPermissionMode: 'plan', playbook })
+    await withChildAgent(t)
+    await startReview(t)
+    return t
+  }
+
+  /** No review turn went out, and the review's card says why. */
+  function expectReviewRefused(t: ReturnType<typeof reviewSetup>, reason: string): void {
+    expect(t.server.requestsFor('turn/start')).toHaveLength(1)
+    expect(t.surface.posted).toContainEqual(
+      expect.objectContaining({ type: 'sendFailed', localId: 'r1', reason }),
+    )
+  }
+
+  describe('the playbook’s part in a review (M116)', () => {
+    it('sends a review of a conversation with no child agent exactly as a window without a playbook does, and never loads it', async () => {
+      const plain = reviewSetup({ initialPermissionMode: 'plan' })
+      await startReview(plain)
+      const f = fakePlaybookConversation()
+      const governed = reviewSetup({ initialPermissionMode: 'plan', playbook: f.factory })
+      await startReview(governed)
+      // Golden: the request's input is the same, byte for byte.
+      expect(turnStartText(plain)).not.toBe('')
+      expect(turnStartText(governed)).toBe(turnStartText(plain))
+      expect(f.factory).not.toHaveBeenCalled()
+      plain.controller.dispose()
+      governed.controller.dispose()
+    })
+
+    it('sends a review through the playbook once the host recorded a child agent, with the files under review', async () => {
+      const f = fakePlaybookConversation()
+      const t = await reviewedWithChild(f.factory)
+      expect(f.reviews).toHaveLength(1)
+      expect(f.reviews[0]).toMatchObject({
+        sessionId: 's1',
+        files: ['src/a.ts'],
+        agents: [{ agentId: 'sub-1', sessionId: 'child-sub-1' }],
+      })
+      // The turn that goes out is the one the playbook submitted.
+      expect(t.server.requestsFor('turn/start')).toHaveLength(2)
+      t.controller.dispose()
+    })
+
+    it('sends nothing when the playbook refuses the review, and says why on its card', async () => {
+      const f = fakePlaybookConversation({
+        review: () => Promise.reject(new Error('Answer the open findings first.')),
+      })
+      const t = await reviewedWithChild(f.factory)
+      expectReviewRefused(t, 'Answer the open findings first.')
+      t.controller.dispose()
+    })
+
+    it('refuses a child agent’s review when the playbook cannot load, and no other review', async () => {
+      const unavailable = (): never => {
+        throw new Error(UI_TEXT.playbookUnavailable)
+      }
+      const t = await reviewedWithChild(unavailable)
+      expectReviewRefused(t, UI_TEXT.playbookUnavailable)
+      t.controller.dispose()
+      // With no child agent the same window sends its review: the playbook is not asked.
+      const other = reviewSetup({ initialPermissionMode: 'plan', playbook: unavailable })
+      await startReview(other)
+      expect(other.server.requestsFor('turn/start')).toHaveLength(1)
+      other.controller.dispose()
+    })
+  })
 
   describe('native material admission', () => {
     let folder: string
@@ -16435,6 +16712,26 @@ function shutJournal(): Promise<never> {
   return Promise.reject(new Error('the journal stays shut in this test'))
 }
 
+/** A journal source whose every answer is canned: `journal says: <view>`. */
+function cannedJournal() {
+  const loadBundle = vi.fn(() => ({
+    ...localPlaybookBundle,
+    // Surface creation only computes paths; the canned run below never reads it.
+    createPlaybookSurface: () => ({ read: shutJournal, change: shutJournal }),
+    runPlaybookCommand: (command: { view: string }) =>
+      Promise.resolve({ ok: true, text: `journal says: ${command.view}` }),
+  }))
+  const playbookSource: PlaybookSource = {
+    loadBundle,
+    agentDataFolder: '/data',
+    workspaceRoot: '/work/alpha',
+    table: UI_TEXT,
+    locale: 'en',
+    log: new FakeLogOutputChannel(),
+  }
+  return { loadBundle, playbookSource }
+}
+
 describe('/playbook local answer (M116, M126 F9)', () => {
   it('uses the real persistent journal with zero ordinary model sends', async () => {
     const directory = mkdtempSync(path.join(tmpdir(), 'm126c-playbook-'))
@@ -16520,21 +16817,7 @@ describe('/playbook local answer (M116, M126 F9)', () => {
   })
   it('answers from the journal and never starts a turn, even while signed out', async () => {
     const t = setup({ status: 'signedOut' })
-    const loadBundle = vi.fn(() => ({
-      ...localPlaybookBundle,
-      // Surface creation only computes paths; the canned run below never reads it.
-      createPlaybookSurface: () => ({ read: shutJournal, change: shutJournal }),
-      runPlaybookCommand: (command: { view: string }) =>
-        Promise.resolve({ ok: true, text: `journal says: ${command.view}` }),
-    }))
-    const playbookSource: PlaybookSource = {
-      loadBundle,
-      agentDataFolder: '/data',
-      workspaceRoot: '/work/alpha',
-      table: UI_TEXT,
-      locale: 'en',
-      log: new FakeLogOutputChannel(),
-    }
+    const { loadBundle, playbookSource } = cannedJournal()
     const ensureHost = vi.fn<ConversationDeps['ensureHost']>()
     const controller = new ConversationController({ ...t.deps, ensureHost, playbookSource })
     for (const text of ['/playbook', '/playbook status', '/playbook record', '/playbook nope'])
@@ -16578,6 +16861,35 @@ describe('/playbook local answer (M116, M126 F9)', () => {
     expect(t.server.requestsFor('turn/start')).toHaveLength(0)
     controller.dispose()
   })
+
+  it('adds the line a governed conversation is owed about unasked subagents, to a journal answer only (D96.17)', async () => {
+    const gap = 'Subagents are not admitted in this mode.'
+    const f = fakePlaybookConversation({ gap })
+    const t = setup()
+    const { playbookSource } = cannedJournal()
+    const controller = new ConversationController({
+      ...t.deps,
+      playbookSource,
+      playbook: f.factory,
+    })
+    for (const text of ['/playbook status', '/playbook nope'])
+      await controller.handle({ type: 'sendMessage', localId: text, text, attachmentIds: [] })
+    expect(t.surface.posted).toContainEqual({
+      type: 'sendFailed',
+      localId: '/playbook status',
+      reason: `journal says: status\n\n${gap}`,
+      attachmentsKept: true,
+    })
+    // A usage line is not the journal's answer: nothing is added, and nothing asked.
+    expect(t.surface.posted).toContainEqual({
+      type: 'sendFailed',
+      localId: '/playbook nope',
+      reason: UI_TEXT.playbookCommandUsage,
+      attachmentsKept: true,
+    })
+    expect(f.playbook.gap).toHaveBeenCalledExactlyOnceWith(undefined)
+    controller.dispose()
+  })
 })
 
 describe('the playbook’s panel channel (M116, C-M116-6)', () => {
@@ -16594,9 +16906,12 @@ describe('the playbook’s panel channel (M116, C-M116-6)', () => {
       const controller = new ConversationController({ ...t.deps, ensureHost, playbookPanel })
       await controller.handle({ type: 'playbook', message: { type: 'playbookHello' } })
       // The message goes on exactly as it came: the bundle parses it, not the controller.
+      // With it goes what the map needs to know of the conversation: none yet, and a
+      // backend that asks before a spawn in this mode (D96.17).
       expect(playbookPanel).toHaveBeenCalledExactlyOnceWith(
         { type: 'playbookHello' },
         expect.any(Function),
+        { sessionId: undefined, asksBeforeSpawn: true },
       )
       expect(t.surface.posted.filter((message) => message.type === 'playbook')).toEqual([
         { type: 'playbook', message: { type: 'playbookHello', workspaceId: 'journal-1' } },
@@ -16616,6 +16931,147 @@ describe('the playbook’s panel channel (M116, C-M116-6)', () => {
     await controller.handle({ type: 'playbook', message: { type: 'playbookHello' } })
     expect(t.surface.posted).toHaveLength(before)
     controller.dispose()
+  })
+
+  it('tells the map when the conversation’s mode starts subagents unasked (D96.17)', async () => {
+    const playbookPanel = vi.fn<NonNullable<ConversationDeps['playbookPanel']>>()
+    const t = setup({ hasApprovalUi: true, initialPermissionMode: 'auto' })
+    const controller = new ConversationController({ ...t.deps, playbookPanel })
+    await controller.handle({ type: 'playbook', message: { type: 'playbookHello' } })
+    expect(playbookPanel.mock.calls[0]?.[2]).toEqual({
+      sessionId: undefined,
+      asksBeforeSpawn: false,
+    })
+    controller.dispose()
+  })
+})
+
+/** A conversation whose playbook was asked for once, by the button on one of its notes. */
+async function lentPlaybook(options: Parameters<typeof setup>[0] = {}) {
+  const f = fakePlaybookConversation()
+  const t = setup({ hasApprovalUi: true, ...options, playbook: f.factory })
+  await t.send('l1', 'hi')
+  await t.controller.handle({ type: 'hostAction', action: 'openPlaybook' })
+  const [host] = f.hosts
+  if (host === undefined) throw new Error('The playbook was not asked for')
+  return { f, t, host }
+}
+
+describe('what a conversation lends its window’s playbook (M116, D96.17)', () => {
+  it('answers a why-note’s button in the playbook itself, for the conversation it is on', async () => {
+    const { f, t } = await lentPlaybook()
+    expect(f.playbook.act).toHaveBeenCalledExactlyOnceWith('s1')
+    // One playbook for the conversation, however often it is asked for.
+    await t.controller.handle({ type: 'hostAction', action: 'openPlaybook' })
+    expect(f.factory).toHaveBeenCalledOnce()
+    expect(f.playbook.act).toHaveBeenCalledTimes(2)
+    t.controller.dispose()
+    expect(f.playbook.dispose).toHaveBeenCalledOnce()
+  })
+
+  it('says so when the button’s playbook cannot load, and does nothing else', async () => {
+    const t = setup({
+      playbook: () => {
+        throw new Error('dist/playbook.js is missing')
+      },
+    })
+    await t.send('l1', 'hi')
+    await t.controller.handle({ type: 'hostAction', action: 'openPlaybook' })
+    expect(t.surface.posted).toContainEqual(
+      expect.objectContaining({
+        type: 'notice',
+        level: 'error',
+        text: UI_TEXT.playbookUnavailable,
+      }),
+    )
+    t.controller.dispose()
+  })
+
+  it('says what its playbook tells it as a notice, with the playbook’s button only where asked', async () => {
+    const { t, host } = await lentPlaybook()
+    host.notice('warning', 'Playbook: answer the open findings first.', true)
+    host.notice('info', 'Playbook: all checks passed.', false)
+    expect(t.surface.posted.filter((message) => message.type === 'notice').slice(-2)).toEqual([
+      {
+        type: 'notice',
+        level: 'warning',
+        text: 'Playbook: answer the open findings first.',
+        actions: ['openPlaybook'],
+      },
+      { type: 'notice', level: 'info', text: 'Playbook: all checks passed.' },
+    ])
+    t.controller.dispose()
+  })
+
+  it('lends its own backend, for what a child session’s items say it changed', async () => {
+    const { t, host } = await lentPlaybook()
+    expect(host.backend).toBe(t.deps.ensureHost)
+    t.controller.dispose()
+  })
+
+  it.each([
+    { mode: 'manual', asks: true },
+    { mode: 'acceptEdits', asks: true },
+    // Plan starts no subagent at all.
+    { mode: 'plan', asks: true },
+    { mode: 'auto', asks: false },
+    { mode: 'bypassPermissions', asks: false },
+  ] as const)('knows whether Muse Code asks before a subagent in $mode: $asks', async (row) => {
+    const { t, host } = await lentPlaybook({
+      initialPermissionMode: row.mode,
+      isBypassAllowed: true,
+    })
+    expect(host.asksBeforeSpawn()).toBe(row.asks)
+    t.controller.dispose()
+  })
+
+  it('counts the Model API as asking in every mode: the host itself admits each child there', async () => {
+    const { t, host } = await lentPlaybook({
+      backendKind: 'modelApi',
+      initialPermissionMode: 'bypassPermissions',
+      isBypassAllowed: true,
+    })
+    expect(host.asksBeforeSpawn()).toBe(true)
+    t.controller.dispose()
+  })
+
+  it('starts a best-of-N run through the playbook, and none it refused', async () => {
+    const start = {
+      type: 'startBestOfN',
+      prompt: 'refactor this',
+      attempts: 2,
+      requestCeilingPerAttempt: 2,
+    } as const
+    const f = fakePlaybookConversation()
+    const t = setup({ playbook: f.factory })
+    await t.send('l1', 'hi')
+    // The playbook is asked first; the run is then the manager's to refuse on this backend.
+    expect(await lastNoticeText(t, start)).toBe(UI_TEXT.bestOfNModelApiOnly)
+    expect(f.dispatches).toEqual([{ kind: 'bestOfN', sessionId: 's1', targetId: undefined }])
+    t.controller.dispose()
+    const refusing = fakePlaybookConversation({
+      refusal: new Error('Answer the open findings first.'),
+    })
+    const refused = setup({ playbook: refusing.factory })
+    await refused.send('l1', 'hi')
+    expect(await lastNoticeText(refused, start)).toBe(
+      `${UI_TEXT.bestOfNTitle}: Answer the open findings first.`,
+    )
+    refused.controller.dispose()
+  })
+
+  it('ends a round with its child’s row, once the row itself has ended', async () => {
+    const { f, t } = await lentPlaybook()
+    const row = subagentStarted('sub-1')
+    t.server.notify('turn/started', { sessionId: 's1', turnId: 't1' })
+    t.server.notify('item/started', row)
+    await settle()
+    // A child at work ends nothing.
+    expect(f.playbook.ended).not.toHaveBeenCalled()
+    t.server.notify('item/completed', { ...row, item: { ...row.item, status: 'completed' } })
+    await settle()
+    expect(f.playbook.ended).toHaveBeenCalledWith('s1', 'sub-1')
+    t.controller.dispose()
   })
 })
 

@@ -1,8 +1,12 @@
 // The VS Code panel's channel to its window's playbook (M116, C-M116-6): what
 // the Agent map's page and rows are answered, and what is never answered.
 import { describe, expect, it, vi } from 'vitest'
-import { createPlaybookPanel } from '../../src/host/playbook/playbookPanel'
+import {
+  createPlaybookPanel,
+  type PlaybookPanelContext,
+} from '../../src/host/playbook/playbookPanel'
 import type { PlaybookWindow } from '../../src/host/playbook/playbookWindow'
+import type { PanelModuleSummary } from '../../src/runtime/playbook/governor'
 import {
   playbookAgentsSchema,
   playbookHelloSchema,
@@ -14,6 +18,16 @@ import { surfacePort, surfaceRound, surfaceSnapshot } from './playbookSurfaceFix
 
 const BRIDGE = PANEL_BRIDGE
 const ROW = { itemId: 'row-1', agentId: 'subagent-1', sessionId: 'child-1' }
+/** A module the window says is under review. */
+const OPEN_MODULE: PanelModuleSummary = {
+  moduleId: 'module-1',
+  moduleKey: 'src/core/schedules',
+  round: 1,
+  phase: 'fix',
+  findings: [],
+  isEscalated: false,
+  isRedesignDue: false,
+}
 
 function unused(): Promise<never> {
   return Promise.reject(new Error('the panel never asks for this'))
@@ -43,10 +57,14 @@ function panelOver(overrides: Partial<PlaybookWindow> = {}, hasWorkspace = true)
   }
   const replies: PlaybookPanelResponse[] = []
   const panel = createPlaybookPanel(window, hasWorkspace)
-  const ask = async (message: unknown) => {
-    await panel(message, (reply) => {
-      replies.push(reply)
-    })
+  const ask = async (message: unknown, context?: PlaybookPanelContext) => {
+    await panel(
+      message,
+      (reply) => {
+        replies.push(reply)
+      },
+      context,
+    )
     return replies.at(-1)
   }
   return { window, surface, replies, ask }
@@ -78,6 +96,38 @@ describe('the panel’s playbook channel', () => {
       type: 'playbookUnavailable',
       ...scope,
     })
+  })
+
+  it('tells the map of subagents the playbook is not asked about, only where that is so', async () => {
+    const underReview = vi.fn((_sessionId: string) => Promise.resolve([OPEN_MODULE]))
+    const unasked = { sessionId: 'session-1', asksBeforeSpawn: false }
+    const governed = panelOver({ standing: underReview })
+    // A module under review, in a mode that starts subagents without asking.
+    expect(await governed.ask({ type: 'playbookHello' }, unasked)).toMatchObject({
+      type: 'playbookHello',
+      spawnGap: true,
+    })
+    expect(underReview).toHaveBeenCalledExactlyOnceWith('session-1')
+    // A backend that asks has no gap, and the journal is not even read for it.
+    const asking = await governed.ask(
+      { type: 'playbookHello' },
+      { sessionId: 'session-1', asksBeforeSpawn: true },
+    )
+    expect(asking).not.toHaveProperty('spawnGap')
+    // Nor has a panel with no conversation yet, or one whose caller names none.
+    expect(
+      await governed.ask({ type: 'playbookHello' }, { ...unasked, sessionId: undefined }),
+    ).not.toHaveProperty('spawnGap')
+    expect(await governed.ask({ type: 'playbookHello' })).not.toHaveProperty('spawnGap')
+    expect(underReview).toHaveBeenCalledOnce()
+    // Nothing under review, or a journal that cannot be read: nothing to say.
+    for (const standing of [
+      () => Promise.resolve([]),
+      () => Promise.reject(new Error('private detail')),
+    ])
+      expect(
+        await panelOver({ standing }).ask({ type: 'playbookHello' }, unasked),
+      ).not.toHaveProperty('spawnGap')
   })
 
   it('reads and changes the journal through the window, answering the bridge that asked', async () => {

@@ -19,6 +19,7 @@ import type {
   BundledSkillsRemoveResult,
   BundledSkillsStatus,
 } from './bundledSkillsInstall'
+import type { PlaybookCharterTarget } from './playbookReviewerCharter'
 
 /** The installer and playbook charter entries, shipped and loaded together. */
 export interface BundledSkillsBundle {
@@ -28,7 +29,7 @@ export interface BundledSkillsBundle {
   ) => Promise<BundledSkillsInstallResult>
   readonly removeBundledSkills: (paths: BundledSkillsPaths) => Promise<BundledSkillsRemoveResult>
   /** I binds this only to playbook reviews; ordinary request builders never read it. */
-  readonly playbookReviewerCharter: () => string
+  readonly playbookReviewerCharter: (targets?: readonly PlaybookCharterTarget[]) => string
 }
 
 const BUNDLE_FUNCTIONS = [

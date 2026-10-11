@@ -69,6 +69,11 @@ export type PlaybookPanelRequest = z.infer<typeof playbookPanelRequestSchema>
 export const playbookHelloSchema = z.strictObject({
   type: z.literal('playbookHello'),
   workspaceId: z.optional(workspaceId),
+  /**
+   * The conversation has a module under review while its mode lets the
+   * backend start subagents without asking: the map says so (D96.17).
+   */
+  spawnGap: z.optional(z.boolean()),
 })
 /** The rows' records; an empty answer when the journal could not be read. */
 export const playbookAgentsSchema = z.strictObject({

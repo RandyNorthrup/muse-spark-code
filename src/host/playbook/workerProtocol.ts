@@ -162,6 +162,7 @@ export const panelModuleSummarySchema = z.strictObject({
   findings: z.array(finding).check(z.maxLength(REVIEW_FINDINGS_MAX)),
   design: z.optional(z.enum(['pending', 'impossible', 'caught', 'remains'])),
   isEscalated: z.boolean(),
+  isRedesignDue: z.boolean(),
 })
 
 /** Each request's own answer; the window parses `result.value` with the one it asked for. */

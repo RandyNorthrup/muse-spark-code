@@ -485,6 +485,12 @@
   "playbookCommandUsage": "Utilisez `playbook status|record|settings`.",
   "playbookSave": "Enregistrer les paramètres",
   "playbookSaved": "Les paramètres du guide ont été enregistrés.",
+  "playbookAnswerReason": "Motif",
+  "playbookAnswerWhySafe": "Pourquoi c’est sûr pour l’instant",
+  "playbookAnswerFollowUp": "Suivi",
+  "playbookNotCertified": "Guide : ce tour n’a pas pu être certifié ; il ne compte donc pas comme réussi.",
+  "playbookSpawnEachAsked": "Guide : tant qu’un module est en revue, chaque sous-agent est approuvé un par un.",
+  "playbookSpawnsNotAdmitted": "Guide : ici, Muse Code lance les sous-agents sans demander (mode {auto}, mode {bypass} ou l’une de vos règles d’autorisation) ; le guide ne les admet donc pas. Leurs modifications sont comptées à la prochaine revue.",
   "playbookStrikeBadge": {
     "one": "{count} cycle de revue",
     "other": "{count} cycles de revue",

@@ -19,10 +19,23 @@ import {
   type PlaybookWindow,
   type PlaybookWindowDeps,
 } from './playbookWindow'
+import type { SubagentAdmission } from '../../core/backends/modelapi/subagentTools'
+import {
+  createPlaybookConversation,
+  playbookAdmission,
+  type PlaybookConversation,
+  type PlaybookConversationHost,
+  type PlaybookUi,
+} from './playbookConversation'
 import { createPlaybookPanel, type PlaybookPanel } from './playbookPanel'
 import { servePlaybook } from './playbookWorker'
 import { playbookWorkerDataSchema } from './workerProtocol'
 
+export type {
+  PlaybookConversation,
+  PlaybookConversationHost,
+  PlaybookReviewRequest,
+} from './playbookConversation'
 export type {
   PlaybookConversationEvents,
   PlaybookDispatch,
@@ -46,11 +59,19 @@ export interface PlaybookWindowBundle extends PlaybookWindow {
   answerBundle(): PlaybookAnswerBundle
   /** The panel's own channel: the Agent map's page and the rows' records. */
   readonly panel: PlaybookPanel
+  /** One conversation's reviews, dispatches and answers, over what it lends. */
+  conversation(host: PlaybookConversationHost): PlaybookConversation
+  /** A Model API conversation's new child work (`ModelApiHostDeps.playbook`). */
+  readonly admit: SubagentAdmission
 }
 
 /** The window's playbook; the caller's table is installed before any of it words a result. */
 export function createPlaybookWindow(
-  deps: Omit<PlaybookWindowDeps, 'startWorker'> & Partial<Pick<PlaybookWindowDeps, 'startWorker'>>,
+  deps: Omit<PlaybookWindowDeps, 'startWorker'> &
+    Partial<Pick<PlaybookWindowDeps, 'startWorker'>> & {
+      /** VS Code's pickers (`vscode.window`), for the answers a person gives. */
+      readonly ui: PlaybookUi
+    },
   table: UiText,
   locale: string,
 ): PlaybookWindowBundle {
@@ -65,6 +86,8 @@ export function createPlaybookWindow(
   return {
     ...window,
     panel: createPlaybookPanel(window, deps.workspaceRoot !== undefined),
+    conversation: (host) => createPlaybookConversation(window, deps.ui, host),
+    admit: playbookAdmission(window),
     answerBundle: () => ({
       parsePlaybookCommand,
       createPlaybookSurface: () => window.surface,

@@ -915,6 +915,24 @@ describe('Transcript rows (M25)', () => {
     expect(screen.getByText('Muse Code refuses every message')).toBeInTheDocument()
   })
 
+  it('puts the playbook’s button on a why-note, and says which note it was pressed on (M116)', () => {
+    const onNoticeAction = vi.fn()
+    renderTranscript(
+      [
+        {
+          kind: 'notice',
+          id: 'n1',
+          level: 'warning',
+          text: 'Playbook: answer the open findings on src/core/schedules first.',
+          actions: ['openPlaybook'],
+        },
+      ],
+      { onNoticeAction },
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Orchestrator Playbook' }))
+    expect(onNoticeAction.mock.calls).toEqual([['n1', 'openPlaybook']])
+  })
+
   it('shows how many times a notice was said after its text, read out in words (D26)', () => {
     renderTranscript(
       [

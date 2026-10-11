@@ -416,6 +416,8 @@ function setup(
     store?: SessionStore
     budgetScope?: ModelApiHostDeps['budgetScope']
     admitResponseAttempt?: ModelApiHostDeps['admitResponseAttempt']
+    /** The window's playbook, for new child work (M116). */
+    playbook?: ModelApiHostDeps['playbook']
     compactionModel?: ModelApiHostDeps['compactionModel']
     models?: ModelApiHostDeps['models']
     admitSummaryFork?: ModelApiHostDeps['admitSummaryFork']
@@ -585,6 +587,7 @@ function setup(
     ...(options.admitResponseAttempt !== undefined && {
       admitResponseAttempt: options.admitResponseAttempt,
     }),
+    ...(options.playbook !== undefined && { playbook: options.playbook }),
     describeEnvironment: options.describeEnvironment ?? (() => Promise.resolve({ git: undefined })),
     isPaidFeatureOn: (feature) => options.paid?.includes(feature) === true,
     notePaidUse: (feature, units) => {
@@ -8083,6 +8086,89 @@ async function completePaidChild(
   return t.api.responseBodies().length
 }
 
+// What a window's playbook answers a refused round with (M116): English for
+// the model, and the display language for the tool's row.
+const REFUSAL = 'The playbook did not admit this (rule: threeStrikes; reason: redesignRequired).'
+const SHOWN = 'Three review rounds found the same kind of problem: plan a redesign.'
+
+/** A playbook that records each round and when it ended, and refuses the kinds it is told to. */
+function admitting(refuses: readonly string[] = []) {
+  const rounds: { kind: string; sessionId: string; targetId: string | undefined }[] = []
+  const ended: string[] = []
+  const playbook: NonNullable<ModelApiHostDeps['playbook']> = async (
+    kind,
+    sessionId,
+    targetId,
+    effect,
+    isOver,
+    refused,
+  ) => {
+    rounds.push({ kind, sessionId, targetId })
+    if (refuses.includes(kind)) return refused(REFUSAL, SHOWN)
+    const value = await effect()
+    // The round ends the first time the host says its child's work is over.
+    const wake = (): void => {
+      if (isOver(wake) && !ended.includes(kind)) ended.push(kind)
+    }
+    wake()
+    return value
+  }
+  return { playbook, rounds, ended }
+}
+
+function subagentRows(session: ModelApiSession) {
+  return session.history().items.filter((item) => item.kind === 'subagent')
+}
+
+/** The last row of a tool the model called. */
+function toolRow(session: ModelApiSession, tool: string) {
+  return session.history().items.findLast((item) => item.tool === tool)
+}
+
+/** Whether any request the model was sent carried `text`. */
+function wasModelTold(t: ReturnType<typeof setup>, text: string): boolean {
+  return t.api.responseBodies().some((body) => JSON.stringify(body['input']).includes(text))
+}
+
+/** One `subagent_send_message` call to the first child, then the scripted replies. */
+function scriptChildMessage(
+  t: ReturnType<typeof setup>,
+  callId: string,
+  message: string,
+  ...replies: readonly ScriptedReply[]
+): void {
+  const call = {
+    name: 'subagent_send_message',
+    arguments: JSON.stringify({ subagent_id: 'subagent-1', message }),
+    callId,
+  }
+  t.api.script({ calls: [call] }, ...replies)
+}
+
+/** A spawn whose child stays at work until `hold` is let go; the parent's turn ends. */
+async function spawnHeldChild(
+  t: ReturnType<typeof setup>,
+  session: ModelApiSession,
+  callId: string,
+) {
+  const hold = Promise.withResolvers<undefined>()
+  t.api.script(
+    {
+      calls: [
+        {
+          name: 'subagent_spawn',
+          arguments: '{"role":"explorer","objective":"Map files"}',
+          callId,
+        },
+      ],
+    },
+    { text: 'Parent continues.' },
+    { text: 'Mapped.', hold: hold.promise },
+  )
+  await delegateAndWaitForChild(session, { controlStatus: 'running' }, true)
+  return hold
+}
+
 describe('ModelApiSession subagents (M48)', () => {
   it('rechecks a child grant after resource admission and closes an expired queued child', async () => {
     const hold = Promise.withResolvers<ResourceLease>()
@@ -9658,6 +9744,115 @@ describe('ModelApiSession subagents (M48)', () => {
       requiresAsking: false,
     })
     expect(hasApprovalCard(events)).toBe(false)
+  })
+
+  describe('new child work and the window’s playbook (M116)', () => {
+    it('starts a new child through the playbook, and ends the round with the child’s result', async () => {
+      const p = admitting()
+      const t = setupSubagents({ playbook: p.playbook })
+      const { session } = await startApprovedSubagentSession(t)
+      const hold = await spawnHeldChild(t, session, 'governed_spawn')
+      try {
+        expect(p.rounds).toEqual([
+          { kind: 'subagent', sessionId: session.sessionId, targetId: undefined },
+        ])
+        // The child is still at work: its round is open.
+        expect(p.ended).toEqual([])
+      } finally {
+        hold.resolve(undefined)
+      }
+      await vi.waitFor(() => {
+        expect(p.ended).toEqual(['subagent'])
+      })
+      expect(subagentRows(session)[0]).toMatchObject({ controlStatus: 'resultReady' })
+    })
+
+    it('starts no child the playbook refused, and says why to the model and on the row', async () => {
+      const p = admitting(['subagent'])
+      const t = setupSubagents({ playbook: p.playbook })
+      const { session, turnDone } = await startApprovedSubagentSession(t)
+      scriptExplorerSpawn(t, 'refused_spawn')
+      await session.sendTurn([{ type: 'text', text: 'delegate' }])
+      await turnDone()
+      expect(subagentRows(session)).toEqual([])
+      expect(t.paidUses).toEqual([])
+      expect(wasModelTold(t, REFUSAL)).toBe(true)
+      expect(toolRow(session, 'subagent_spawn')).toMatchObject({ failureReason: SHOWN })
+    })
+
+    it('asks the playbook nothing for a note to a child that is still at work', async () => {
+      const p = admitting(['delegate'])
+      const t = setupSubagents({ playbook: p.playbook })
+      const { session } = await startApprovedSubagentSession(t)
+      const hold = await spawnHeldChild(t, session, 'spawn_for_governed_note')
+      try {
+        scriptChildMessage(t, 'governed_note', 'Check the next file', { text: 'Parent noted.' })
+        await session.sendTurn([{ type: 'text', text: 'send a note' }])
+        // The parent's turn ends; its child is still held.
+        await vi.waitFor(() => {
+          expect(session.status).toBe('idle')
+          expect(wasModelTold(t, 'governed_note')).toBe(true)
+        })
+        expect(p.rounds.map((round) => round.kind)).toEqual(['subagent'])
+        expect(wasModelTold(t, REFUSAL)).toBe(false)
+      } finally {
+        hold.resolve(undefined)
+      }
+    })
+
+    it('gives a new task for a child to the playbook as its own round, and a refusal to the model', async () => {
+      const p = admitting(['delegate'])
+      const t = setupSubagents({ playbook: p.playbook })
+      const { session, turnDone } = await startApprovedSubagentSession(t)
+      await completePaidChild(t, session, 'spawn_before_refused_followup')
+      const paidBefore = t.paidUses.length
+      scriptChildMessage(t, 'refused_followup', 'Next task', { text: 'Parent done.' })
+      await session.sendTurn([{ type: 'text', text: 'give the child another task' }])
+      await turnDone()
+      expect(p.rounds.at(-1)).toEqual({
+        kind: 'delegate',
+        sessionId: session.sessionId,
+        targetId: 'subagent-1',
+      })
+      // The child was given nothing: it still holds its first result, and nothing more was spent.
+      expect(subagentRows(session)[0]).toMatchObject({ controlStatus: 'resultReady' })
+      expect(t.paidUses).toHaveLength(paidBefore)
+      expect(wasModelTold(t, REFUSAL)).toBe(true)
+      expect(toolRow(session, 'subagent_send_message')).toMatchObject({ failureReason: SHOWN })
+    })
+
+    it('ends a new task’s round with that task’s result, not the one before it', async () => {
+      const p = admitting()
+      const t = setupSubagents({ playbook: p.playbook })
+      const { session } = await startApprovedSubagentSession(t)
+      await completePaidChild(t, session, 'spawn_before_governed_followup')
+      await vi.waitFor(() => {
+        expect(p.ended).toEqual(['subagent'])
+      })
+      const hold = Promise.withResolvers<undefined>()
+      scriptChildMessage(
+        t,
+        'governed_followup',
+        'Next task',
+        // The parent's reply and the child's, whichever asks first: both wait.
+        { text: 'One of the two.', hold: hold.promise },
+        { text: 'The other.', hold: hold.promise },
+      )
+      try {
+        await session.sendTurn([{ type: 'text', text: 'give the child another task' }])
+        await vi.waitFor(() => {
+          expect(subagentRows(session)[0]).toMatchObject({ controlStatus: 'running' })
+        })
+        // The child holds its first result no longer: the new round waits for the second.
+        expect(p.ended).toEqual(['subagent'])
+      } finally {
+        hold.resolve(undefined)
+      }
+      await vi.waitFor(() => {
+        expect(p.ended).toEqual(['subagent', 'delegate'])
+      })
+      await session.settled()
+    })
   })
 
   it('lets a running-child note use its existing grant without renewing consent', async () => {

@@ -485,6 +485,12 @@
   "playbookCommandUsage": "`playbook status|record|settings` kullanın.",
   "playbookSave": "Ayarları kaydet",
   "playbookSaved": "İşleyiş kılavuzu ayarları kaydedildi.",
+  "playbookAnswerReason": "Gerekçe",
+  "playbookAnswerWhySafe": "Şimdilik neden güvenli",
+  "playbookAnswerFollowUp": "Takip adımı",
+  "playbookNotCertified": "Kılavuz: bu tur doğrulanamadı, bu yüzden geçmiş sayılmaz.",
+  "playbookSpawnEachAsked": "Kılavuz: bir modül incelenirken her alt aracı tek tek onaylanır.",
+  "playbookSpawnsNotAdmitted": "Kılavuz: Muse Code burada alt aracıları sormadan başlatır ({auto} modu, {bypass} modu veya kendi izin kuralınız), bu yüzden kılavuz onları kabul etmez. Yaptıkları değişiklikler bir sonraki incelemede sayılır.",
   "playbookStrikeBadge": {
     "one": "{count} inceleme turu",
     "other": "{count} inceleme turu"

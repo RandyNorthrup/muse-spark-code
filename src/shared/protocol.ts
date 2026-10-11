@@ -273,6 +273,11 @@ export const HOST_ACTIONS = [
   'manageModels',
   /** The palette's "What's New" (M99, PLAN.md D79): this version's release notes in an editor tab. */
   'showWhatsNew',
+  /**
+   * A why-note's button (M116): what the conversation owes its playbook, asked
+   * in VS Code's own pickers. The conversation controller answers it itself.
+   */
+  'openPlaybook',
 ] as const
 export type HostAction = (typeof HOST_ACTIONS)[number]
 
@@ -289,6 +294,7 @@ export const NOTICE_ACTIONS = [
   'installBundledSkills',
   'updateBundledSkills',
   'declineBundledSkills',
+  'openPlaybook',
 ] as const
 export type NoticeAction = (typeof NOTICE_ACTIONS)[number]
 

@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import * as z from 'zod/mini'
 import { PLAYBOOK_PANEL_TIMEOUT_MS, UI_TEXT } from '../../shared/constants'
+import { fill } from '../../shared/l10n/text'
 import type { PlaybookRecord } from '../../shared/playbook'
 import type { PlaybookSurfacePort } from '../../runtime/playbook/command'
 import {
@@ -40,16 +41,20 @@ function inner(data: unknown): unknown {
 /**
  * The VS Code panel's link to its window's playbook: asks which journal the
  * window reads, hands the map that journal's port, and reads the rows'
- * records. It shows nothing itself. A host that never answers leaves the map
- * exactly as it was.
+ * records. It shows one thing itself: the line a governed conversation is
+ * owed while its mode starts subagents without asking. A host that never
+ * answers leaves the map exactly as it was.
  */
 export function PlaybookLink({ post, agents, onPort, onRecords }: PlaybookLinkProps) {
   const [workspaceId, setWorkspaceId] = useState<string>()
+  const [hasSpawnGap, setSpawnGap] = useState(false)
   const sequence = useRef(0)
   useEffect(() => {
     const receive = (event: MessageEvent<unknown>) => {
       const hello = playbookHelloSchema.safeParse(inner(event.data))
-      if (hello.success) setWorkspaceId(hello.data.workspaceId)
+      if (!hello.success) return
+      setWorkspaceId(hello.data.workspaceId)
+      setSpawnGap(hello.data.spawnGap === true)
     }
     window.addEventListener('message', receive)
     post({ type: 'playbookHello' })
@@ -83,7 +88,14 @@ export function PlaybookLink({ post, agents, onPort, onRecords }: PlaybookLinkPr
       window.removeEventListener('message', receive)
     }
   }, [workspaceId, rows, post, onRecords])
-  return null
+  return hasSpawnGap ? (
+    <p className="usage-row-meta" role="note">
+      {fill(UI_TEXT.playbookSpawnsNotAdmitted, {
+        auto: UI_TEXT.permissionModes.auto,
+        bypass: UI_TEXT.permissionModes.bypassPermissions,
+      })}
+    </p>
+  ) : null
 }
 
 export function PlaybookMap({

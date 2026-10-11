@@ -3,7 +3,6 @@ import {
   PlaybookRefusedError,
   runPlaybookWork,
 } from '../../src/core/orchestration/playbookIntegration'
-import { dispatchPlaybookSubagent } from '../../src/core/backends/modelapi/subagentTools'
 import { collectPlaybookReport } from '../../src/core/orchestration/playbookReports'
 import { renderPlaybookBrief } from '../../src/core/orchestration/playbookBrief'
 import { PLAYBOOK_LAUNDER_WINDOW_MS } from '../../src/shared/constants'
@@ -117,7 +116,7 @@ describe('M116 planner integrations', () => {
         { kind: 'shell', command: 'git commit --no-verify', effect: 'commit', subject: 'repo' },
       ],
     })
-    await expect(dispatchPlaybookSubagent(f.panel, 's1', undefined, effect)).rejects.toThrow(
+    await expect(f.panel.dispatch('subagent', 's1', undefined, effect)).rejects.toThrow(
       PlaybookRefusedError,
     )
     expect(effect).not.toHaveBeenCalled()
