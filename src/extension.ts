@@ -59,6 +59,7 @@ import {
   TURN_CHECKPOINTS_SETTING,
   MODEL_API_SESSIONS_DIR,
   PAID_FEATURE_SETTINGS,
+  IS_AUTO_COMPACTION_EVALUATED,
   PAID_DAILY_BUDGET,
   type PaidFeature,
   PERSONAL_SKILLS_GLOB,
@@ -1148,6 +1149,7 @@ async function activateWindow(
     workspaceState: context.workspaceState,
     isSettingOn: (feature) => isActivationPaidSettingOn(feature, currentSettings()),
     isJudgeOn: () => isJudgeEngineOn(currentSettings()['judge.engine']),
+    autoCompactionEvaluated: () => IS_AUTO_COMPACTION_EVALUATED,
     isAvailable: (feature) =>
       feature === 'tab' || paidBackend === 'modelApi' || !isDefaultPaidOn(feature),
     isDefaultOn: isDefaultPaidOn,
@@ -2724,6 +2726,28 @@ async function activateWindow(
         throw error
       }
     },
+    // C-M101-1: the D78 daily claim behind automatic compaction. Exact-USD,
+    // like the reservationUsd branch above; without it the host has no
+    // production admission and automatic compaction stays dormant.
+    paidDailyBudgetUsd: () => dailyPaid.capUsd(),
+    reserveAutoCompaction: async (amount, signal) => {
+      signal.throwIfAborted()
+      const claim = await dailyPaid.reserveExact(amount)
+      try {
+        signal.throwIfAborted()
+      } catch (error: unknown) {
+        await claim.settle(Usd.from(0).toAmount())
+        throw error
+      }
+      return {
+        reservedUsd: claim.reservedUsd,
+        check: () => {
+          signal.throwIfAborted()
+          claim.check()
+        },
+        settle: (actual, hasUnknownCost) => claim.settle(actual, hasUnknownCost, true),
+      }
+    },
     showReplyUsage: () => currentSettings().modelApiReplyUsage,
     // Muse Code's MCP servers, run by this window for the Model API backend
     // (M50, PLAN.md D42): started in a trusted workspace only, stopped with
@@ -2753,6 +2777,7 @@ async function activateWindow(
     isObservationPackingOn: () => currentSettings().modelApiObservationPacking,
     pacingOwner: requestPacingOwner,
     isAutoCompactionOn: () => currentSettings().modelApiAutoCompaction,
+    autoCompactionEvaluated: () => IS_AUTO_COMPACTION_EVALUATED,
     strictTools: () => currentSettings().modelApiStrictTools,
     parallelReads: () => currentSettings().modelApiParallelReads,
     webSearchMaxPerRequest: () => currentSettings().webSearchMaxPerRequest,
@@ -2760,6 +2785,7 @@ async function activateWindow(
     allowsPaidUse: async (request, requiresAsking) =>
       await paid.consent.allows(request, requiresAsking),
     isPaidUseRemembered: (feature) => paid.consent.isRemembered(feature),
+    paidUseFence: (feature) => paid.consent.fence(feature),
     noteSubagentUsage: (modelId, usage) => {
       paid.usage.addSubagentUsage(modelId, usage)
     },

@@ -25362,7 +25362,33 @@ joined with M57, M58 and PR #49's sign-in
 **Status 2026-10-05: planned.**
 
 Status detail retained: planned; lanes start from `m101/base` (the M95
-integration branch plus this plan). The item numbers below are the
+integration branch plus this plan). C-M101-1 (2026-10-10, lane CM1011,
+`docs/certification/m101-admission.md`): production
+`admitAutoCompaction`/`autoCompactModel` from the panel and runtime backend
+managers through one shared D78 gate and ledger; dormant behind
+`IS_AUTO_COMPACTION_EVALUATED`. CM1011R4 repairs all three RVCM1011C
+findings: hide help options by structured identity while retaining both
+manuals and sharing the formatter with invalid-argument help; treat revoked
+consent, switch, trust or evaluation as refusal of that compaction only,
+with no summary send and no ledger-failure turn abort; disclose the native
+Settings editor's dormant preference accurately in its description and README.
+Regression tests and byte-exact red drills are recorded in the certification.
+CM1011R3 fixes all six RVCM1011B
+findings through ONE admission authority: reserve the actual request's estimated
+input at list price and full output allowance, settle reported usage and refund;
+fence live consent, paid switch, trust and evaluation at preparation and final
+send for every attempt. While unevaluated, omit automatic compaction from
+paid surfaces, consent and ACP/CLI help; the native setting remains visible
+as an inactive preference. Price acceptance names its
+rates; manual summaries keep their own identity; ACP Once is per workspace
+within the process. No new dependency, live call or evaluation-latch flip.
+CM1011R2 repairs RVCM1011: first-charge
+consent uses the existing paid gate; Stop/storage fail closed; each HTTP
+attempt owns one claim, refunds nonsends and awaits settlement before further
+spending; runtime transport owns its existing daily debit. ACP gains the
+explicit `--auto-compaction` paid opt-in through its existing flag/consent
+mechanism; exec paid defaults stay off. BYO cards and the
+latch flip remain with C-M101-3/C-M101-4. The item numbers below are the
 research report's (`docs/research/pi-solpi-2026-10-05.md`): plain numbers are
 its sections 1–2 (harness), "BYO n" its section 3 (providers).
 
