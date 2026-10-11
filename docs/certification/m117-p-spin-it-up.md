@@ -135,3 +135,61 @@ fake-only estimator e2e files, repository default timeout. Earlier host/unit
 typechecks passed; enabled commit hooks lint/format this slice. The e2e
 resolves a fixture milestone through G, schedules it through S and submits
 its audited contract wave before the next merged-prerequisite wave.
+
+## Slice 2 receipts (C-M117-6, 2026-10-11, linuxlt)
+
+Portable provisioning lifecycle in `src/core/estimator/provision/lifecycle.ts`
+(`quoteProvisioning`, `EstimateProvisioner`), tested by
+`test/unit/estimatorProvision.test.ts` (16 tests, fakes only, repository
+default timeout). Behavior: exact nano-USD quotes per server
+(`hourlyUsd × maxBilledHours`, `scaleUsdNanos`, never binary arithmetic)
+with the batch total fixed before any confirmation; one confirmation per
+spend through the injected callback, denied when it answers false or throws;
+an explicit non-negative run budget with no default, enforced before any
+provider request or confirmation; liability reserved before create and
+retained on every uncertain outcome (failed create, failed install/pair,
+failed wipe, unconfirmed deletion); install then pair through the injected
+`EstimateNodePort`; idle `Keep` returning without touching the funded
+lifetime; teardown answers rechecking activity first; wipe before provider
+deletion with a `deleted` status receipt before liability release. No
+timers, no provider network client, no payment field (the brokered create
+path is covered by Slice 1's payment-field drills), no command, no UI, no
+new string, no new dependency. Unknown servers refuse without touching the
+provider. Rented provisioning stays advice-only behind `M117-P-M109-provider`
+until the M109 broker and M110d/M110f bindings land (handoffs above
+unchanged); no editor rows are owed by this lane — U/W bind the preview,
+modal and notice surfaces later.
+
+Slice 2 guard-fire drills (each mutation exits 1 at its named test; source
+restored byte-exact, SHA-256 `d309a716e3f9b9640b104fb404f697a2532144031856b5c7ac371422b6ec86d9`
+before and after; the first drill pass ran pre-lint and was repeated on the
+final source after the lint fixes, and `L5` was fired a third time after its
+stub became a `FakeEstimateProvider` subclass (exactly 1 failed, 15 passed,
+same restore hash):
+
+| Drill                            | Intended named failing regression                                  | Exit |
+| -------------------------------- | ------------------------------------------------------------------ | ---- |
+| `L1-no-unconfirmed-spend`        | denies without confirmation                                        | 1    |
+| `L2-cap-never-refuses`           | refuses a server past the cap before any request or confirmation   | 1    |
+| `L3-delete-before-wipe`          | wipes before provider deletion and requires the deleted receipt    | 1    |
+| `L4-release-on-uncertain-create` | retains liability on an uncertain create                           | 1    |
+| `L5-no-deletion-receipt`         | keeps liability when the status receipt never shows deleted        | 1    |
+| `L6-keep-tears-down`             | keeps an idle server on Keep without extending its funded lifetime | 1    |
+| `L7-no-batch-total`              | shows every price and the total before any confirmation            | 1    |
+
+Billing/payment/sign-up/account endpoint refusal stays Slice 1's P03–P06
+drills; the lifecycle's broker integration test provisions and
+decommissions through the allow-listed broker. Gates for this slice:
+`tsc` host and unit projects, `eslint --max-warnings=0`, `prettier --check`,
+`check:l10n` (0 problems, no new keys), `npm run build` (exit 1 only on the
+pre-existing `dist/webview` estimator panel OVER, 25.3 KiB vs 25 KiB on the
+untouched base: the module has no production importer and none of its
+strings appear in any bundle, so this lane adds zero bytes; cap changes are
+the owner's call),
+`knip`, `check:reference` and `check:host-api` unchanged, plus the
+neighbour provider/start/fakes suites. Self review, one pass by class:
+validation (zod batch/size/image/hours/cloudInit/budget boundaries),
+security (cap before request, no credential or payment surface, errors name
+only the operation), failure paths (deny, retain, refuse-unknown, all
+covered above), concurrency/lifecycle (one `EstimateSerialOwner`,
+clone-before-queue, no timers). Codex + Grok review remains lead-owned.
