@@ -488,10 +488,10 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 
 | Module                   | Files |
 | ------------------------ | ----- |
-| `node:async_hooks`       | 2     |
-| `node:buffer`            | 62    |
-| `node:child_process`     | 27    |
-| `node:crypto`            | 175   |
+| `node:async_hooks`       | 3     |
+| `node:buffer`            | 65    |
+| `node:child_process`     | 30    |
+| `node:crypto`            | 178   |
 | `node:dgram`             | 1     |
 | `node:dns`               | 1     |
 | `node:dns/promises`      | 6     |
@@ -500,12 +500,12 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `node:fs/promises`       | 113   |
 | `node:http`              | 15    |
 | `node:https`             | 2     |
-| `node:module`            | 4     |
-| `node:net`               | 23    |
-| `node:os`                | 37    |
-| `node:path`              | 204   |
-| `node:perf_hooks`        | 2     |
-| `node:process`           | 16    |
+| `node:module`            | 2     |
+| `node:net`               | 20    |
+| `node:os`                | 38    |
+| `node:path`              | 207   |
+| `node:perf_hooks`        | 4     |
+| `node:process`           | 11    |
 | `node:readline`          | 1     |
 | `node:readline/promises` | 1     |
 | `node:stream`            | 22    |

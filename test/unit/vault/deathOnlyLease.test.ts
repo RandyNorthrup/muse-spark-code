@@ -11,7 +11,12 @@ import { nodeLeasePort } from '../../../src/core/locks/nodeLeasePort'
 import { exactCurrentProcessOwner, isProcessOwnerGone } from '../../../src/core/locks/processOwner'
 import { NodeVaultFiles } from '../../../src/core/vault/store'
 import { VaultWriterError } from '../../../src/core/vault/crypto'
-import { vaultRefusalMessage } from '../../../src/core/vault/broker/manageClient'
+import {
+  vaultRefusalMessage,
+  VaultManageSession,
+} from '../../../src/core/vault/broker/manageClient'
+import { vaultBrokerResponseSchema } from '../../../src/shared/vaultProtocol'
+import { VAULT_PROTOCOL_VERSION } from '../../../src/shared/constants'
 import { removeFolder } from '../helpers/temporaryFolders'
 import * as owners from '../../../src/core/locks/processOwner'
 import { managementFixture, lockedVault } from './managementFixture'
@@ -52,6 +57,43 @@ async function fixture() {
   }
 }
 describe('vault takeover requires proven death', () => {
+  it('validates value-free writer facts and displays them in the shared host client', async () => {
+    const writer = { kind: 'held', pid: 123, acquiredAt: 1000, otherMachine: false }
+    const input = {
+      v: VAULT_PROTOCOL_VERSION,
+      sequence: 1,
+      response: { kind: 'refused', reason: 'busy', writer },
+    }
+    const frame = vaultBrokerResponseSchema.parse(input)
+    expect(
+      vaultBrokerResponseSchema.safeParse({
+        ...input,
+        response: { ...input.response, writer: { ...writer, otherMachine: 'unknown' } },
+      }).success,
+    ).toBe(false)
+    expect(
+      vaultBrokerResponseSchema.safeParse({
+        ...input,
+        response: { ...input.response, writer: { ...writer, path: 'not-a-writer-fact' } },
+      }).success,
+    ).toBe(false)
+    const session = new VaultManageSession(() =>
+      Promise.resolve({
+        send: () => Promise.resolve(frame.response),
+        close: () => undefined,
+        watch: () => Promise.resolve(),
+        closed: () => Promise.resolve(),
+      }),
+    )
+    await expect(session.snapshot()).rejects.toThrow(
+      vaultRefusalMessage('busy', {
+        kind: 'held',
+        pid: 123,
+        acquiredAt: 1000,
+        otherMachine: false,
+      }),
+    )
+  })
   it('preserves the typed writer refusal through setup and reset management', async () => {
     const busy = new VaultWriterError({
       kind: 'held',
@@ -62,6 +104,11 @@ describe('vault takeover requires proven death', () => {
     const setup = managementFixture()
     vi.spyOn(setup.files, 'withWriter').mockRejectedValue(busy)
     await expect(setup.management.setup()).rejects.toBe(busy)
+    const confirmation = managementFixture()
+    const shown = await confirmation.management.setup()
+    shown.code.fill(0)
+    vi.spyOn(confirmation.files, 'withWriter').mockRejectedValue(busy)
+    await expect(confirmation.management.confirmSetup(shown.setupId)).rejects.toBe(busy)
     const reset = managementFixture()
     const code = await lockedVault(reset)
     code.fill(0)
