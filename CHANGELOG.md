@@ -92,6 +92,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Release-train bundle diet (repository only, no user-visible change):
+  shared top-level initialisers the bundler cannot drop (computed
+  `Math.ceil`, `String.raw`, `String.fromCodePoint`, `'0'.repeat`,
+  templates over constants, call-argument `new Set`) are literals or pure
+  factories now, and single-surface schemas live behind pure builders, so
+  small bundles stop carrying them: usagePanel.js back under its cap with
+  room to spare. Recorded in `docs/certification/train-bundle-diet.md`.
+
 - Local report sources sort every tied list to a total order, so the same
   inputs produce byte-identical source facts whatever order records arrive
   in: Git commits, tags, branches and worktrees break key ties on their
