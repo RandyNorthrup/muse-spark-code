@@ -32684,6 +32684,21 @@ Each joins when its dependency merges, and none blocks the others.
 
 ### M108 — Several accounts per provider, with use thresholds (D88)
 
+**C-M108-2 retained implementation; binding hidden (2026-10-11).** Accepted
+lane P merged first (`327e1b1e9`). Request leases, account clients, durable
+claims/blocks, credential revisions and paid-worker question propagation are
+implemented. The owner requires completed certification before surfacing:
+`ACCOUNT_REQUEST_CERTIFICATION.isComplete` stays false, so installed switching and
+pooling retain their prior refusals. Typecheck, changed-file lint,
+localization/reference, roadmap, host API, exec schemas, deadcode and production
+budgets passed before the final hide gate; 22 owning tests passed. Duplication
+found four new test clones plus inherited clones. Broader affected suites,
+red drills, post-hide verification and fresh Codex/Grok review remain.
+The time box ended; no gate was weakened, no push or extra merge occurred.
+Next slice: finish C-M108-2 certification, then enable its binding; C-M108-3
+still owns graphical surfaces, C-M108-6/7 placement/profiles and C-M108-8 the
+vault. Evidence and precise pending work: `docs/certification/cm1082.md`.
+
 **M108P2 review repair (2026-10-09).** RVM108P's two P2 findings are in
 scope before non-default billing is enabled. Each question captures the
 binding's durable epoch, shared feature/quote revocation generation and
@@ -32752,12 +32767,11 @@ account its key reads through. Choices where this plan left one open:
   K's pre-K activation guard read 2,940 of its 3,072 B before M108P2). `dist/modelApi.js`,
   `dist/acp.js` and `dist/headless.js` are byte-identical in size.
 
-Still open, named: no interactive surface bills a non-default account yet.
-VS Code's stored key is Meta's default account, ACP `serve` bills the default,
-and headless `exec --account` keeps its explicit paid policy, so account
-consent activates when M95/M109's per-request selection and the profile pool
-bind the billing port. Tallying each charge by account and checking the
-account store's removal generation in `isCurrent` wait for that same owner.
+C-M108-2 now binds this consent to native Meta runtime request leases and
+account credential revisions, with per-account model claims and held-answer
+revocation checks. VS Code's graphical binding and the other billing-route
+joins remain their named owners; headless keeps its explicit paid policy.
+The receipt below records lane P's original pre-binding base.
 Receipts: `docs/certification/m108.md` (M108P).
 
 **FIXM108DX3 (2026-10-07):** replace the remote pool's transient vendor-limit
@@ -39544,6 +39558,15 @@ clone (that file is byte-identical to `cd362298e`); the lane's test clones
 were removed. Neither gate was relaxed. These two inherited failures are
 deferred to the release lead outside this bounded repair.
 `docs/certification/m108.md` records results and byte-exact red drills.
+
+**C-M108-2 bounded-rig verification (2026-10-11).** The rig brief and shared
+lane rules explicitly prohibit aggregate `npm run quality` and the full test
+suite here. Run the owning files at repository timeouts, changed-file lint
+and formatting, typecheck, deadcode/duplication, localization/reference,
+host API, roadmap and production split/size gates directly on macbook. The
+lead retains aggregate quality, fresh Codex/Grok review and cross-platform
+closure. This is a lane gate deferral, not a reduced gate or a milestone
+completion claim. Receipts: `docs/certification/cm1082.md`.
 
 **FIXM108P / FIXM108P2 bounded-lane certification (2026-10-06).** The rig brief and
 shared rules prohibit aggregate quality/full unit runs, merges and network

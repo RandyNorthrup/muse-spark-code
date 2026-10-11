@@ -319,7 +319,7 @@
     "model": "Das Modell für diesen Lauf wählen.",
     "provider": "--provider: Anbieter",
     "account": "--account <id>                    Das zu verwendende Konto (auth set, exec).",
-    "account-pool": "--account-pool                  Kontenpool anfordern; erst verfügbar, wenn sein Ressourcenverwalter angebunden ist. Nie mit key-stdin in CI.",
+    "account-pool": "--account-pool: Model API wählt Konten an der Anfragegrenze; bestehende Budgets gelten weiterhin. Nicht mit --key-stdin in CI kombinierbar.",
     "effort": "Wählen, wie viel Mühe Muse in jede Antwort steckt.",
     "output": "Das Ergebnisformat wählen: text, json oder jsonl.",
     "max-budget-usd": "Das feste Ausgabenlimit in USD für diesen Lauf festlegen.",
@@ -5228,5 +5228,6 @@
       "one": "{count} Freigabe",
       "other": "{count} Freigaben"
     }
-  }
+  },
+  "referenceAccountRequests": "Native Meta-Anfragen in ACP wählen Konten an der Anfragegrenze. Im Headless-Modus aktiviert --account-pool den Pool; Kontolimits und gemeinsame Budgets gelten weiterhin."
 }

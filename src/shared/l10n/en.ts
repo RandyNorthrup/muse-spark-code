@@ -402,7 +402,7 @@ export const EN = {
       '--provider <id>                   The provider the account belongs to (auth set/status/clear).',
     account: '--account <id>                    The account to use (auth set, exec).',
     'account-pool':
-      '--account-pool                  Request account pooling. Requires a bound resource owner; excludes key-stdin in CI.',
+      '--account-pool                  Model API: pool at request boundaries; existing budgets still bind. Excludes key-stdin in CI.',
     effort: 'Choose how much effort Muse puts into each reply.',
     output: 'Choose the result format: text, json or jsonl.',
     'max-budget-usd': 'Set the hard spending limit in USD for this run.',
@@ -437,6 +437,8 @@ export const EN = {
   referenceVaultLock: 'Lock the per-user credential vault now, ending every use in every window.',
   referenceAuthClear: 'Remove the stored Model API key.',
   referenceAuthStatus: 'Check whether a Model API key is stored.',
+  referenceAccountRequests:
+    'ACP native Meta requests select accounts at request boundaries. Headless --account-pool opts into pooling; account caps and shared budgets still bind.',
   referenceAccountsTitle: 'Several accounts per provider',
   referenceAccounts:
     'Manage the accounts of one provider: list, add, remove, order and thresholds. Credentials come only from standard input. Paid uses billed to the default account keep this workspace’s consent; another account’s first paid use asks for that account, naming its price and the shared daily budget.',

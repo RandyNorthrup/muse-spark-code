@@ -319,7 +319,7 @@
     "model": "選擇本次執行的模型。",
     "provider": "--provider: 供應商",
     "account": "--account <id>                    要使用的帳號（auth set、exec）。",
-    "account-pool": "--account-pool                  要求帳戶集區；連接其資源管理元件之前無法使用。CI 中不可與 key-stdin 一起使用。",
+    "account-pool": "--account-pool：Model API 在每次請求開始時選擇帳戶，保留既有預算。不能與 CI 的 --key-stdin 一起使用。",
     "effort": "選擇 Muse 在每則回答上投入的心力。",
     "output": "選擇結果格式：text、json或jsonl。",
     "max-budget-usd": "以USD設定本次執行的硬性支出上限。",
@@ -5075,5 +5075,6 @@
     "grantsCount": {
       "other": "{count} 個授權"
     }
-  }
+  },
+  "referenceAccountRequests": "ACP 的原生 Meta 請求在每次請求開始時選擇帳戶。無介面執行透過 --account-pool 啟用帳戶池；帳戶額度與共用預算仍然有效。"
 }

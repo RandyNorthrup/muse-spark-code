@@ -319,7 +319,7 @@
     "model": "A futtatás modelljének kiválasztása.",
     "provider": "--provider: Szolgáltató",
     "account": "--account <id>                    A használandó fiók (auth set, exec).",
-    "account-pool": "--account-pool                  Fiókcsoportot kér; az erőforrás-kezelő csatlakoztatásáig nem érhető el. CI-ben soha nem használható key-stdin mellett.",
+    "account-pool": "--account-pool: A Model API a kérés kezdetén választ fiókot; a meglévő keretek érvényesek maradnak. CI-ben nem használható a --key-stdin kapcsolóval.",
     "effort": "Válassza ki, mennyi erőfeszítést tegyen a Muse az egyes válaszokba.",
     "output": "Az eredmény formátumának kiválasztása: text, json vagy jsonl.",
     "max-budget-usd": "A futtatás szigorú kiadási korlátjának megadása USD-ben.",
@@ -5228,5 +5228,6 @@
       "one": "{count} engedély",
       "other": "{count} engedély"
     }
-  }
+  },
+  "referenceAccountRequests": "Az ACP natív Meta-kérései a kérés kezdetén választanak fiókot. Felület nélküli futtatáskor az --account-pool engedélyezi a közös készletet; a fiókkorlátok és a megosztott keretek továbbra is érvényesek."
 }

@@ -69,6 +69,33 @@ async function expectRefusedAcrossRestart(t: ReturnType<typeof rig>): Promise<vo
 }
 
 describe('M108 lane P account paid service', () => {
+  it('ends kept account consent after credential revision changes, including restart', async () => {
+    const t = rig()
+    const first = { ...WORK, credentialRevision: 'revision-one' }
+    t.state.billing = first
+    t.ask.mockResolvedValue('always')
+    expect(await t.service.decide(first, VOICE, false)).toBe(true)
+    const replacement = { ...WORK, credentialRevision: 'revision-two' }
+    t.state.billing = replacement
+    t.ask.mockResolvedValue('deny')
+    expect(await t.service.decide(replacement, VOICE, false)).toBe(false)
+    expect(await t.create().decide(replacement, VOICE, false)).toBe(false)
+    expect(t.ask).toHaveBeenCalledTimes(3)
+  })
+
+  it('refuses a held answer when its payer credential is revoked and stores no grant', async () => {
+    const t = rig()
+    let isCurrent = true
+    const billing = { ...WORK, credentialRevision: 'held-revision', isCurrent: () => isCurrent }
+    t.state.billing = billing
+    t.ask.mockImplementationOnce(() => {
+      isCurrent = false
+      return Promise.resolve('always')
+    })
+    expect(await t.service.decide(billing, VOICE, false)).toBe(false)
+    expect(readdirSync(t.folder)).toEqual([])
+  })
+
   it('keys a grant by language-neutral tariff data, never by the display price', () => {
     const search = quotedSearch('0.0025', 'muse-spark-1.3')
     const english = paidUseTariff(search)

@@ -136,12 +136,17 @@ export class AccountSecrets implements AccountCredentialVault {
     return record
   }
 
-  public async write(binding: AccountBinding, value: AccountCredential): Promise<void> {
+  public validate(binding: AccountBinding, value: AccountCredential): AccountCredential {
     this.check(binding)
     const record = boundCredential(value, binding)
     if (binding.provider === 'meta' && !isValidModelApiKey(record.secret)) {
       throw new AccountStoreError('invalidCredential')
     }
+    return record
+  }
+
+  public async write(binding: AccountBinding, value: AccountCredential): Promise<void> {
+    const record = this.validate(binding, value)
     // Even a failed storage call may echo the attempted value in an error.
     this.register(record.secret)
     try {

@@ -1,3 +1,4 @@
+import type { PaidUseRequest } from '../../../shared/paid'
 import { notify } from '../../events/notify'
 import type { PaidAuthority } from '../../paid/paidAuthority'
 import type { PaidQuote, SearchSettlement } from '../../../shared/paid'
@@ -58,6 +59,7 @@ import type { AuthHeaders, AuthSource } from './authSource'
 import { DeadlineError, withDeadline } from '../../timeouts'
 
 export interface TransportDeps {
+  readonly isCredentialCurrent?: () => boolean
   readonly vaultScrub?: SecretScrubPort
   readonly streamIdleMs?: number
   readonly pacing?: RequestPacer
@@ -347,6 +349,7 @@ export interface RetryBudget {
 
 /** In-memory identity of an explicitly confirmed scheduled Model API run. */
 export interface ConfirmedModelRequest {
+  readonly paidRequest?: PaidUseRequest
   readonly modelId: string
   readonly keyDigest: string
   readonly providerId?: string | undefined
@@ -377,6 +380,8 @@ export function rateLimitHeaders(headers: Headers): UsageHeaders {
 }
 
 export interface ResponseAttemptGuard {
+  readonly beforeRequestStarted?: () => void
+  readonly paidRequest?: PaidUseRequest
   readonly mediaAccounting?: MediaRequestAccounting
   readonly pacingClass?: PacingClass
   readonly searchQuote?: PaidQuote
@@ -885,6 +890,7 @@ export class RequestTransport {
       )
         throw new Error(UI_TEXT.sessionBudgetSearchUnavailable)
       admitAttempt?.mediaAccounting?.check()
+      if (this.deps.isCredentialCurrent?.() === false) throw new MissingApiKeyError()
       admitAttempt?.(credentials.keyDigest)
       if (isAborted(signal)) {
         throw new ModelApiError('cancelled', NETWORK_FAILURE_STATUS, undefined, undefined)
@@ -929,6 +935,7 @@ export class RequestTransport {
         ...(init.body !== undefined && { body: wireBody ?? JSON.stringify(init.body) }),
         ...(signal !== undefined && { signal }),
       }
+      admitAttempt?.beforeRequestStarted?.()
       confirmed?.onRequestStarted()
       admitAttempt?.onRequestStarted?.()
       if (init.paid !== undefined) {

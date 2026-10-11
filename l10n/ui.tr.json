@@ -319,7 +319,7 @@
     "model": "Bu çalıştırmanın modelini seçin.",
     "provider": "--provider: Sağlayıcı",
     "account": "--account <id>                    Kullanılacak hesap (auth set, exec).",
-    "account-pool": "--account-pool                  Hesap havuzu ister; kaynak yöneticisi bağlanana kadar kullanılamaz. CI içinde key-stdin ile asla kullanılamaz.",
+    "account-pool": "--account-pool: Model API her isteğin başlangıcında hesap seçer; mevcut bütçeler geçerliliğini korur. CI içinde --key-stdin ile kullanılamaz.",
     "effort": "Muse'un her yanıta ayırdığı çabayı seçin.",
     "output": "Sonuç biçimini seçin: text, json veya jsonl.",
     "max-budget-usd": "Bu çalıştırma için USD cinsinden kesin harcama sınırı belirleyin.",
@@ -5228,5 +5228,6 @@
       "one": "{count} izin",
       "other": "{count} izin"
     }
-  }
+  },
+  "referenceAccountRequests": "ACP içindeki yerel Meta istekleri her isteğin başlangıcında hesap seçer. Arayüzsüz çalıştırmada --account-pool havuzu açar; hesap sınırları ve ortak bütçeler geçerliliğini korur."
 }

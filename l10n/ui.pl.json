@@ -319,7 +319,7 @@
     "model": "Wybierz model dla tego uruchomienia.",
     "provider": "--provider: Dostawca",
     "account": "--account <id>                    Konto do użycia (auth set, exec).",
-    "account-pool": "--account-pool                  Żąda puli kont; niedostępna do czasu podłączenia zarządcy zasobów. Nigdy z key-stdin w CI.",
+    "account-pool": "--account-pool: Model API wybiera konto na początku każdego żądania; dotychczasowe budżety nadal obowiązują. Nie można łączyć z --key-stdin w CI.",
     "effort": "Wybierz, ile wysiłku Muse wkłada w każdą odpowiedź.",
     "output": "Wybierz format wyniku: text, json lub jsonl.",
     "max-budget-usd": "Ustaw twardy limit wydatków w USD dla tego uruchomienia.",
@@ -5534,5 +5534,6 @@
       "few": "{count} uprawnienia",
       "many": "{count} uprawnień"
     }
-  }
+  },
+  "referenceAccountRequests": "Natywne żądania Meta w ACP wybierają konto na początku każdego żądania. W trybie bez interfejsu --account-pool włącza pulę; limity kont i wspólne budżety nadal obowiązują."
 }

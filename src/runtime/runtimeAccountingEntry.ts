@@ -188,9 +188,9 @@ export function withRuntimeAccounting(
               ticket = admission
             },
             onRequestStarted: () => {
+              guard?.onRequestStarted?.()
               wasSent = true
               if (ticket !== undefined) accounting?.started(ticket.n)
-              guard?.onRequestStarted?.()
             },
           },
         )
@@ -221,6 +221,12 @@ export function withRuntimeAccounting(
         : await client.models.resolve(ref),
     )
   return {
+    ...(client.withAccountKey !== undefined && {
+      withAccountKey: (apiKey: () => Promise<string>, isCurrent?: () => boolean) => {
+        if (client.withAccountKey === undefined) throw new Error(UI_TEXT.accounts.unavailable)
+        return withRuntimeAccounting(client.withAccountKey(apiKey, isCurrent), daily, accounting)
+      },
+    }),
     currentKeyDigest: client.currentKeyDigest.bind(client),
     countInputTokens: client.countInputTokens.bind(client),
     listModels: client.listModels.bind(client),

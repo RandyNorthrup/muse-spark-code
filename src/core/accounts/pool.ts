@@ -28,6 +28,7 @@ export interface AccountRequestEstimate {
   readonly requests: number
 }
 export interface AccountPoolClaim {
+  readonly started?: () => void
   /** Excludes this owned pending projection only. Already-sent attempts and
    * settled/uncertain liability (including earlier retries) remain visible. */
   readonly journal: AccountJournalReader
@@ -61,7 +62,11 @@ export interface AccountPoolDeps {
   readonly record: (event: AccountEvent) => Promise<void>
   /** Owner transaction: call adopt and publish the event synchronously together.
    * A thrown fence/I/O refusal commits neither. No await or reentry between them. */
-  readonly commit: (event: AccountEvent, adopt: () => void) => void
+  readonly commit: (
+    event: AccountEvent,
+    adopt: () => () => void,
+    request?: AccountPoolRequest,
+  ) => void
   readonly sharedGroupNotice: (account: string) => Promise<void>
 }
 export interface AccountPoolRequest {
@@ -75,6 +80,8 @@ export interface AccountPoolRequest {
   readonly isInteractive: boolean
   /** H enables this only with --account-pool; CI stdin-key callers never set it. */
   readonly hasPoolFlag?: boolean
+  readonly checkSharedCaps?: () => void
+  readonly isCurrent?: () => boolean
   readonly hasOfferedRecovery?: boolean
 }
 
@@ -310,6 +317,7 @@ export class AccountPool {
     const selected = await this.select(request, isEligible)
     const claim = await this.deps.reserve(selected.account, selected.estimate, request)
     const check = () => {
+      if (request.isCurrent?.() === false) throw new Error(UI_TEXT.accounts.invalidAccount)
       const account = this.rows().find((row) => row.id === selected.account.id)
       const row = this.deps.policy()
       if (
@@ -359,18 +367,11 @@ export class AccountPool {
     )
   }
 
-  /** Only admissions serialize. Requests already sent keep their client and liability. */
-  public async run<T>(
+  /** Select/reserve once; the caller owns completion even after failure or abort. */
+  public async acquire(
     request: AccountPoolRequest,
-    dispatch: (admission: {
-      readonly account: string
-      readonly estimate: AccountRequestEstimate
-      readonly check: () => void
-      /** Call synchronously immediately before EVERY send/retry, after credential lookup. */
-      readonly beforeSend: () => void
-    }) => Promise<{ readonly value: T; readonly actualUsd: Usd | null }>,
     isEligible: (account: Account) => boolean = () => true,
-  ): Promise<T> {
+  ) {
     request = Object.freeze({ ...request, estimate: Object.freeze({ ...request.estimate }) })
     const owner = this.owner(request)
     if (this.active.has(owner)) throw new AccountPoolBusyError()
@@ -389,58 +390,120 @@ export class AccountPool {
     })()
     try {
       const admitted = await operation
-      const state = { hasSent: false }
-      const hasSent = () => state.hasSent
-      let actualUsd: Usd | null = null
-      try {
-        const result = await dispatch({
-          account: admitted.account.id,
-          estimate: admitted.estimate,
-          check: admitted.check,
-          beforeSend: () => {
-            const adopt = () => {
-              admitted.check()
-              this.sticky.set(owner, {
+      const sent = { value: false }
+      const didSend = () => sent.value
+      let isSettled = false
+      return {
+        account: admitted.account.id,
+        estimate: admitted.estimate,
+        check: () => {
+          if (isSettled) throw new Error(UI_TEXT.accounts.invalidAccount)
+          admitted.check()
+        },
+        beforeSend: () => {
+          if (isSettled) throw new Error(UI_TEXT.accounts.invalidAccount)
+          const adopt = () => {
+            admitted.check()
+            admitted.claim.started?.()
+            const previous = this.sticky.get(owner)
+            const wasSent = sent.value
+            this.sticky.set(owner, {
+              account: admitted.account.id,
+              decision: admitted.decision,
+              trigger: admitted.policyTrigger,
+            })
+            sent.value = true
+            return () => {
+              if (previous === undefined) this.sticky.delete(owner)
+              else this.sticky.set(owner, previous)
+              sent.value = wasSent
+            }
+          }
+          if (sent.value || admitted.previousAccount === admitted.account.id) adopt()
+          else {
+            const trigger = admitted.trigger
+            this.deps.commit(
+              accountEventSchema.parse({
+                provider: this.deps.provider,
                 account: admitted.account.id,
-                decision: admitted.decision,
-                trigger: admitted.policyTrigger,
-              })
-              state.hasSent = true
-            }
-            if (state.hasSent || admitted.previousAccount === admitted.account.id) adopt()
-            else {
-              const trigger = admitted.trigger
-              this.deps.commit(
-                accountEventSchema.parse({
-                  provider: this.deps.provider,
-                  account: admitted.account.id,
-                  time: new Date(this.deps.now()).toISOString(),
-                  ...(trigger === undefined
-                    ? { type: 'spread', workerId: request.owner }
-                    : {
-                        type: 'swap',
-                        previousAccount: admitted.previousAccount,
-                        trigger,
-                        coldCacheUsd: usdDecimal(admitted.coldCacheUsd),
-                      }),
-                }),
-                adopt,
-              )
-              if (!hasSent()) throw new Error(UI_TEXT.accounts.invalidAccount)
-            }
-          },
-        })
-        if (!hasSent()) throw new Error(UI_TEXT.accounts.invalidAccount)
-        if (result.actualUsd !== null && result.actualUsd < parseUsd(0))
-          throw new Error(UI_TEXT.accounts.invalidAccount)
-        actualUsd = result.actualUsd
-        return result.value
-      } finally {
-        await admitted.claim.settle(state.hasSent ? actualUsd : parseUsd(0), state.hasSent)
+                time: new Date(this.deps.now()).toISOString(),
+                ...(trigger === undefined
+                  ? { type: 'spread', workerId: request.owner }
+                  : {
+                      type: 'swap',
+                      previousAccount: admitted.previousAccount,
+                      trigger,
+                      coldCacheUsd: usdDecimal(admitted.coldCacheUsd),
+                    }),
+              }),
+              adopt,
+              request,
+            )
+            if (!didSend()) throw new Error(UI_TEXT.accounts.invalidAccount)
+          }
+        },
+        settle: async (actualUsd: Usd | null, didDispatch = sent.value) => {
+          if (isSettled) throw new Error(UI_TEXT.accounts.invalidAccount)
+          if (actualUsd !== null && actualUsd < parseUsd(0))
+            throw new Error(UI_TEXT.accounts.invalidAccount)
+          isSettled = true
+          try {
+            await admitted.claim.settle(didDispatch ? actualUsd : parseUsd(0), didDispatch)
+          } finally {
+            this.active.delete(owner)
+          }
+        },
       }
-    } finally {
+    } catch (error: unknown) {
       this.active.delete(owner)
+      throw error
     }
+  }
+
+  /** Only admissions serialize. Requests already sent keep their client and liability. */
+  public async run<T>(
+    request: AccountPoolRequest,
+    dispatch: (admission: {
+      readonly account: string
+      readonly estimate: AccountRequestEstimate
+      readonly check: () => void
+      readonly beforeSend: () => void
+    }) => Promise<{ readonly value: T; readonly actualUsd: Usd | null }>,
+    isEligible: (account: Account) => boolean = () => true,
+  ): Promise<T> {
+    const admitted = await this.acquire(request, isEligible)
+    let actualUsd: Usd | null = null
+    const sent = { value: false }
+    try {
+      const result = await dispatch({
+        ...admitted,
+        beforeSend: () => {
+          admitted.beforeSend()
+          sent.value = true
+        },
+      })
+      if (!sent.value) throw new Error(UI_TEXT.accounts.invalidAccount)
+      if (result.actualUsd !== null && result.actualUsd < parseUsd(0))
+        throw new Error(UI_TEXT.accounts.invalidAccount)
+      actualUsd = result.actualUsd
+      return result.value
+    } finally {
+      await admitted.settle(actualUsd)
+    }
+  }
+
+  /** A user's explicit selection is fenced against an active request. */
+  public use(
+    kind: AccountPoolRequest['kind'],
+    owner: string,
+    account: string,
+    canCommit: () => boolean,
+  ): void {
+    const key = JSON.stringify([kind, owner])
+    if (this.active.has(key)) throw new AccountPoolBusyError()
+    if (this.rows().every((row) => row.id !== account) || !canCommit())
+      throw new Error(UI_TEXT.accounts.invalidAccount)
+    this.sticky.set(key, { account, trigger: undefined, decision: undefined })
   }
 
   public current(kind: AccountPoolRequest['kind'], owner: string): string | undefined {

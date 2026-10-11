@@ -128,6 +128,9 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
   mcp?.setUiText(deps.uiText, deps.uiLocale)
   const host = new ModelApiHost({
     ...hostDeps,
+    ...(deps.createAccountRequests !== undefined && {
+      accountRequests: await deps.createAccountRequests(client),
+    }),
     modelFacts: hostDeps.modelFacts ?? metaModelFacts,
     sideCallFormats: hostDeps.sideCallFormats ?? metaSideCallFormats,
     modelCapabilities: hostDeps.modelCapabilities ?? metaHostedCapabilities,

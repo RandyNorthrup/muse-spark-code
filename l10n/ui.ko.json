@@ -319,7 +319,7 @@
     "model": "이 실행에 사용할 모델을 선택합니다.",
     "provider": "--provider: 공급자",
     "account": "--account <id>                    사용할 계정 (auth set, exec).",
-    "account-pool": "--account-pool                  계정 풀을 요청합니다. 리소스 관리자가 연결될 때까지 사용할 수 없습니다. CI에서 key-stdin과 함께 사용할 수 없습니다.",
+    "account-pool": "--account-pool: Model API는 각 요청을 시작할 때 계정을 선택하며 기존 예산을 유지합니다. CI의 --key-stdin과 함께 사용할 수 없습니다.",
     "effort": "각 답변에 Muse가 들이는 노력을 선택합니다.",
     "output": "결과 형식을 text, json 또는 jsonl로 선택합니다.",
     "max-budget-usd": "이 실행의 엄격한 지출 한도를 USD로 설정합니다.",
@@ -5075,5 +5075,6 @@
     "grantsCount": {
       "other": "{count} 개 권한"
     }
-  }
+  },
+  "referenceAccountRequests": "ACP의 기본 Meta 요청은 각 요청을 시작할 때 계정을 선택합니다. 헤드리스 실행에서는 --account-pool로 풀을 활성화하며, 계정 한도와 공유 예산은 계속 적용됩니다."
 }

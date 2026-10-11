@@ -399,6 +399,11 @@ export class ModelApiSchedules {
       let hasStarted = false
       return {
         modelId: confirmed.modelId,
+        paidRequest: {
+          feature: 'scheduledPrompts',
+          prompt: job.prompt,
+          modelId: confirmed.modelId,
+        },
         keyDigest: job.accountId,
         isStillAllowed: () =>
           !this.port.isDisposed() &&

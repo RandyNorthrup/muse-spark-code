@@ -1,3 +1,4 @@
+import type { AccountRequestPort } from '../../core/accounts/requestWriter'
 import type { CreateResponseBody, StreamEvent } from '../../core/backends/modelapi/schemas'
 import type { ResponseAttemptGuard } from '../../core/backends/modelapi/client'
 // The Model API backend's bundle as the activation bundle sees it (M57,
@@ -37,6 +38,7 @@ export interface ModelApiBundleDeps {
   readonly uiLocale: string
   readonly client: ModelApiClientDeps
   readonly createProviders?: (() => Promise<ModelResolver>) | undefined
+  readonly createAccountRequests?: (client: ProviderClient) => Promise<AccountRequestPort>
   readonly createProviderClient?: (meta: ProviderClient) => Promise<ProviderClient>
   /** The host's, but for what the bundle makes itself: the client, the hooks and the MCP pool. */
   readonly host: Omit<ModelApiHostDeps, 'client' | 'loadHooks' | 'mcpServers'>
