@@ -11040,7 +11040,12 @@ export class ConversationController {
           )
         const registry = this.session === undefined ? undefined : sessionQuestions.get(this.session)
         if (registry === undefined)
-          return Promise.reject(new Error(UI_TEXT.reportSourceReasons.unbound))
+          // Same owned brand as above: no open session (or no attached
+          // registry yet) leaves this source unbound, never a failed read
+          // (RVCM1132C finding 4).
+          return Promise.reject(
+            Object.assign(new Error('unbound'), { isLocalSourceError: true, code: 'unbound' }),
+          )
         const snapshot = registry.snapshot()
         return Promise.resolve({
           observedAt: context.asOf,
