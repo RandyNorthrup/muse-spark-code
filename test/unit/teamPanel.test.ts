@@ -7,7 +7,8 @@ import { teamPanelExportSchema } from '../../src/shared/teamPanel'
 import { parsePanelToHostMessage } from '../../src/shared/modelsPanel'
 import { TEAM_WORKSPACE_KEYS, readTeamWorkspaceHint } from '../../src/shared/teamConversation'
 import { TEAM_EXPORT_FORMAT, TEAM_PANEL_EXPORT_VERSION, UI_TEXT } from '../../src/shared/constants'
-import type { TeamCap } from '../../src/shared/teamConfig'
+import { teamSnapshotSchema, type TeamCap } from '../../src/shared/teamConfig'
+import { readOrchestratorOverride } from '../../src/core/team/orchestratorSlot'
 
 async function pairSlice(rig: ReturnType<typeof panelRig>) {
   await rig.read()
@@ -313,6 +314,30 @@ describe('M96 U1 portable panel', () => {
     await rig.controller.handle({ type: 'roles/preview', sample: 'review-branch' })
     const snapshot15 = await rig.read()
     expect(snapshot15.preview.steps).toHaveLength(1)
+    expect(rig.reload).not.toHaveBeenCalled()
+  })
+  it('saves charters into the runtime schema and Reset to Default clears the canonical override', async () => {
+    const rig = panelRig()
+    await pairSlice(rig)
+    const fields = { purpose: 'Build safely', done: 'Checks pass', guidance: 'Do not widen tools' }
+    await rig.controller.handle({ type: 'roles/updateRole', role: 'engineering', fields })
+    await rig.controller.handle({ type: 'roles/orchestrator', modelRef: 'reviewer/reviewer' })
+    await rig.controller.handle({ type: 'roles/save' })
+    expect(
+      teamSnapshotSchema.parse(rig.store.get(TEAM_WORKSPACE_KEYS.team)).roles[0],
+    ).toMatchObject(fields)
+    const state = { get: (key: string) => rig.store.get(key) }
+    expect(readOrchestratorOverride(state)?.modelId).toBe('reviewer')
+    await rig.controller.handle({ type: 'roles/orchestrator' })
+    await rig.controller.handle({ type: 'roles/save' })
+    expect(readOrchestratorOverride(state)).toBeUndefined()
+  })
+  it('refused orchestrator confirmation leaves the saved workspace unchanged', async () => {
+    const rig = panelRig({ confirmOrchestrator: () => Promise.reject(new Error('refused')) })
+    await pairSlice(rig)
+    await rig.controller.handle({ type: 'roles/orchestrator', modelRef: 'reviewer/reviewer' })
+    await expect(rig.controller.handle({ type: 'roles/save' })).rejects.toThrow('refused')
+    expect(rig.update).not.toHaveBeenCalled()
     expect(rig.reload).not.toHaveBeenCalled()
   })
   it('round trips charter text, settings and intensity while import remains an unsaved draft', async () => {

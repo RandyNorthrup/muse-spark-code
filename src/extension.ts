@@ -3476,6 +3476,32 @@ async function activateWindow(
           tasksTab,
           auth,
           ensureHost: ensureSelectedHost,
+          orchestratorSlot: {
+            resolveForNewConversation: async (_pickerModelId, host) => {
+              if (!teamHost.canConfigure()) return
+              const { readOrchestratorOverride } = await import('./core/team/teamPanelEntry')
+              const override = readOrchestratorOverride({
+                get: (key) => context.workspaceState.get(key),
+              })
+              if (override === undefined) return
+              const kind = override.backend === 'modelApi' ? 'modelApi' : 'museCode'
+              if (
+                host.info.kind !== kind &&
+                (await vscode.window.showWarningMessage(
+                  kind === 'modelApi' ? UI_TEXT.modelApiBackendNotice : UI_TEXT.backendMuseCode,
+                  { modal: true },
+                  UI_TEXT.wizardContinue,
+                  UI_TEXT.wizardCancel,
+                )) !== UI_TEXT.wizardContinue
+              )
+                return
+              return {
+                host:
+                  kind === 'modelApi' ? await modelApi.ensureHost() : await backend.ensureHost(),
+                modelId: override.modelId,
+              }
+            },
+          },
           team: teamHost,
           workspaceRoot,
           modelId: DEFAULT_MODEL_ID,

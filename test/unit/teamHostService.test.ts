@@ -8,6 +8,7 @@ import { createTeamHostService, TEAM_TASKS_STATE_KEY } from '../../src/core/team
 import type {
   TeamCardItem,
   TeamHostServiceDeps,
+  TeamHostService,
   TeamMergeOutcome,
   TeamTaskSpec,
   TeamWorkerOutcome,
@@ -275,6 +276,54 @@ async function finishedTeam() {
 }
 
 describe('the team host service', () => {
+  it('runs a complete saved custom charter and refuses an incomplete custom role before dispatch', async () => {
+    for (const isComplete of [true, false]) {
+      const role: TeamRoleConfig = {
+        role: 'custom-audit',
+        workspace: 'read-only',
+        tools: ['read', 'report'],
+        report: 'summary',
+        pool: [entry('custom-entry', WORKER_MODEL)],
+        ...(isComplete && {
+          purpose: 'Audit the policy',
+          done: 'Evidence recorded',
+          guidance: 'Read only',
+        }),
+      }
+      const h = harness({ intensity: 'minimal', roles: [role] })
+      const service = createTeamHostService(h.deps)
+      try {
+        await service.probeEntries()
+        const result = await service.teamRunner.delegate(
+          {
+            tasks: [
+              {
+                role: role.role,
+                brief: 'Audit',
+                reason: { code: 'specialty', detail: 'Saved charter' },
+              },
+            ],
+          },
+          context(),
+        )
+        if (isComplete) {
+          expect(h.started[0]?.role).toMatchObject({
+            purpose: role.purpose,
+            done: role.done,
+            guidance: role.guidance,
+          })
+          h.finish(0)
+          await settle()
+        } else {
+          expect(result.output).toContain('not offered')
+          expect(h.started).toEqual([])
+        }
+      } finally {
+        await service.dispose()
+      }
+    }
+  })
+
   it('reads no team as no decision, no tree and no roster', () => {
     const service = createTeamHostService(harness(undefined).deps)
     expect(service.teamDecisionSource(ORCHESTRATOR)).toBeUndefined()
@@ -615,7 +664,11 @@ const UNUSED_ENGINE: EngineTeamPortsDeps = {
 function binding(
   stored: unknown,
   factory = vi.fn(),
-  options: { isTeamOn?: () => boolean; canRunKind?: (kind: string) => boolean } = {},
+  options: {
+    isTeamOn?: () => boolean
+    canRunKind?: (kind: string) => boolean
+    create?: () => TeamHostService | Promise<TeamHostService>
+  } = {},
 ) {
   const h = harness(stored)
   const trees: unknown[] = []
@@ -633,7 +686,7 @@ function binding(
     loadFactory: () => {
       factory()
       // The fakes stand in for the engine ports dist/team.js would build.
-      return Promise.resolve(() => createTeamHostService(h.deps))
+      return Promise.resolve(options.create ?? (() => createTeamHostService(h.deps)))
     },
     uiText: () => UI_TEXT,
     uiLocale: () => 'en',
@@ -650,6 +703,30 @@ function binding(
 }
 
 describe('the window binding', () => {
+  it('disposes an asynchronous team factory that finishes after the window closes', async () => {
+    const h = harness(team([entry('e1', WORKER_MODEL)]))
+    const service = createTeamHostService(h.deps)
+    const dispose = vi.spyOn(service, 'dispose')
+    const gate = Promise.withResolvers<TeamHostService>()
+    let isCreating = false
+    const t = binding(team([entry('e1', WORKER_MODEL)]), vi.fn(), {
+      create: () => {
+        isCreating = true
+        return gate.promise
+      },
+    })
+    const opening = t.bound.open()
+    await vi.waitFor(() => {
+      expect(isCreating).toBe(true)
+    })
+    await t.bound.dispose()
+    gate.resolve(service)
+    await opening
+    expect(dispose).toHaveBeenCalledOnce()
+    expect(h.probes).toEqual([])
+    expect(t.bound.tree()).toBeUndefined()
+  })
+
   it('allows first-time configuration without a stored team, loading or probing', async () => {
     const { bound, factory, h } = binding(undefined)
     expect(bound.canConfigure()).toBe(true)

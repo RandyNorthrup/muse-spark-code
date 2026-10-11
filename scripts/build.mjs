@@ -469,6 +469,12 @@ const teamHostOptions = {
   outfile: TEAM_HOST_OUTFILE,
 }
 
+const teamEngineOptions = {
+  ...teamOptions,
+  entryPoints: ['src/host/team/teamEngineEntry.ts'],
+  outfile: 'dist/teamEngine.js',
+}
+
 const teamFileIoOptions = {
   ...teamOptions,
   entryPoints: [TEAM_FILE_IO_ENTRY],
@@ -1236,6 +1242,7 @@ if (isWatch) {
     esbuild.context(teamPanelOptions),
     esbuild.context(teamRunnersOptions),
     esbuild.context(teamHostOptions),
+    esbuild.context(teamEngineOptions),
     esbuild.context(teamFileIoOptions),
     esbuild.context(teamMergeOptions),
     esbuild.context(teamSchedulerOptions),
@@ -1354,6 +1361,7 @@ if (isWatch) {
     teamPanel: esbuild.build(teamPanelOptions),
     teamRunners: esbuild.build(teamRunnersOptions),
     teamHost: esbuild.build(teamHostOptions),
+    teamEngine: esbuild.build(teamEngineOptions),
     teamFileIo: esbuild.build(teamFileIoOptions),
     teamMerge: esbuild.build(teamMergeOptions),
     teamScheduler: esbuild.build(teamSchedulerOptions),

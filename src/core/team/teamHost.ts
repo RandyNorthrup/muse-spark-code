@@ -1069,7 +1069,15 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
     const taken = new Map<string, number>()
     return parsed.data.tasks.map((item): PlanStep => {
       const role = roles().find((candidate) => candidate.role === item.role)
-      if (role === undefined || builtinRole(item.role) === undefined) {
+      if (
+        role === undefined ||
+        (builtinRole(item.role) === undefined &&
+          (role.purpose?.trim() === undefined ||
+            role.purpose.trim() === '' ||
+            role.workspace === undefined ||
+            role.tools === undefined ||
+            role.report === undefined))
+      ) {
         return { item, refused: fill(TEAM_MODEL_TEXT.hostRoleNotOffered, { role: item.role }) }
       }
       if (roleMode(role) === 'in-place') {

@@ -5868,3 +5868,10 @@ host replies. Manual Default concurrency stays within the resolved model's
 ceiling. Tool search uses translated labels; pool filters include model
 families and fractional price limits, with prices formatted in the display
 language.
+
+Hidden team configuration preserves each saved role’s purpose, done criteria and
+guidance in the worker charter. Workspace orchestrator overrides apply to new
+conversations; Reset to Default and Save restores the composer’s selection.
+Backend changes and contributor models retain their confirmations. These
+bindings remain behind the team availability gate pending the remaining ports
+and certification.

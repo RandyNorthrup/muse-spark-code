@@ -361,7 +361,7 @@ export function featureCatalog(): readonly Feature[] {
       ['modelsAndAgents'],
       [],
       'team-configuration',
-      ['modelApi'],
+      ['modelApi', 'museCode'],
     ),
     feature(
       'team-workers',

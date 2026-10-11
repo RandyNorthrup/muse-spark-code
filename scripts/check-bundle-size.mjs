@@ -123,6 +123,7 @@ const BUDGETS = [
   // (112.2 KiB, production build on Kubuntu, 2026-10-10) x 1.15 = 132,145
   // bytes (129.05 KiB), rounded up to the KiB (lead, 2026-10-10).
   { path: 'dist/teamHost.js', budgetKiB: 130 },
+  { path: 'dist/teamEngine.js', budgetKiB: 100 },
   // R4: first-use file adapter, 8.5 KiB measured +15%, rounded up.
   { path: 'dist/teamFileIo.js', budgetKiB: 10 },
   // R4 follow-up: first-merge flow, 9.6 KiB measured +15%, rounded up.

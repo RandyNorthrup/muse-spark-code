@@ -41,7 +41,11 @@ export interface TeamHostBindingDeps {
   readonly ports: TeamHostBundleDeps
   /** dist/team.js's factory, required only for a workspace that stores a team. */
   readonly loadFactory: () => Promise<
-    (table: UiText, locale: string, deps: TeamHostBundleDeps) => TeamHostService
+    (
+      table: UiText,
+      locale: string,
+      deps: TeamHostBundleDeps,
+    ) => TeamHostService | Promise<TeamHostService>
   >
   readonly uiText: () => UiText
   readonly uiLocale: () => string
@@ -88,6 +92,10 @@ export class TeamHostBinding implements TeamSurfacePort {
 
   public constructor(private readonly deps: TeamHostBindingDeps) {}
 
+  private closed(): boolean {
+    return this.isDisposed
+  }
+
   private async load(): Promise<TeamHostService | undefined> {
     if (this.service !== undefined) return this.service
     if (
@@ -104,7 +112,11 @@ export class TeamHostBinding implements TeamSurfacePort {
       try {
         const create = await this.deps.loadFactory()
         if (this.isDisposed) return
-        const service = create(this.deps.uiText(), this.deps.uiLocale(), this.deps.ports)
+        const service = await create(this.deps.uiText(), this.deps.uiLocale(), this.deps.ports)
+        if (this.closed()) {
+          await service.dispose()
+          return
+        }
         this.service = service
         this.unsubscribe = service.onTreeChange((tree) => {
           this.deps.showTree(tree)

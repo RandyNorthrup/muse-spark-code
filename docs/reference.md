@@ -77,7 +77,7 @@ teamWorkerBinding=absent|teamConfigurationBinding=absent: Roles and Agents stay 
 
 Alt+Up / Alt+Down move this entry in its pool.
 
-Surfaces: vscode:modelApi. Paid: no extra feature charge; model usage still applies.
+Surfaces: vscode:modelApi, vscode:museCode. Paid: no extra feature charge; model usage still applies.
 
 Commands: `museSpark.modelsAndAgents`. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#team-configuration)
 
