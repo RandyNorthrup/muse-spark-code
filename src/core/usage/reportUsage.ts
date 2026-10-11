@@ -332,14 +332,21 @@ export function usageReportFacts(input: {
   const range = { from: query.from, to: query.to }
   const by: BreakdownBy = input.by ?? 'model'
   const partials: string[] = input.journal.partial === undefined ? [] : [input.journal.partial]
+  // Partial reasons are a set: the journal's own reason may already name a
+  // sentence below (a thrown budget read leaves budgetsUnavailable while
+  // budgets stay unset), so no sentence is ever appended twice (RVCM1132C
+  // finding 5).
+  const pushPartial = (reason: string): void => {
+    if (!partials.includes(reason)) partials.push(reason)
+  }
   let breakdown: UsageFacts['breakdown']
   if (by === 'tool') {
     breakdown = []
-    partials.push(UI_TEXT.reportDetailReasons.toolBreakdownUnavailable)
+    pushPartial(UI_TEXT.reportDetailReasons.toolBreakdownUnavailable)
   } else if (by === 'session' || by === 'account') {
     breakdown = journalBreakdown(input.journal.records, range.from, range.to, by)
     if (input.journal.rollups.some((row) => row.day >= range.from && row.day <= range.to))
-      partials.push(UI_TEXT.reportDetailReasons.rolledUpBreakdownExcluded)
+      pushPartial(UI_TEXT.reportDetailReasons.rolledUpBreakdownExcluded)
   } else {
     breakdown = pageBreakdown(aggregation, by)
   }
@@ -348,7 +355,7 @@ export function usageReportFacts(input: {
   const period = input.scope === '' ? 'today' : input.scope
   const facts = finishSums(totals, period)
   const cappedBreakdown = capRows(breakdown)
-  if (cappedBreakdown.capped) partials.push(sourceReason('limit'))
+  if (cappedBreakdown.capped) pushPartial(sourceReason('limit'))
   const limits = [
     ...journalLimits(input.journal.limits, range.from, range.to, Date.parse(input.asOf)),
   ]
@@ -358,7 +365,7 @@ export function usageReportFacts(input: {
     input.journal.budgetDay < range.from ||
     input.journal.budgetDay > range.to
   ) {
-    partials.push(UI_TEXT.reportDetailReasons.budgetsUnavailable)
+    pushPartial(UI_TEXT.reportDetailReasons.budgetsUnavailable)
   } else {
     for (const { budget } of input.journal.budgets) {
       if (budget.capUsd === undefined) continue
@@ -372,8 +379,7 @@ export function usageReportFacts(input: {
     }
   }
   const cappedLimits = capRows(limits.toSorted((a, b) => codeUnitCompare(a.key, b.key)))
-  if (cappedLimits.capped && !partials.includes(sourceReason('limit')))
-    partials.push(sourceReason('limit'))
+  if (cappedLimits.capped) pushPartial(sourceReason('limit'))
   return {
     usage: { ...facts, breakdown: cappedBreakdown.rows, limits: cappedLimits.rows },
     observedAt: input.asOf,

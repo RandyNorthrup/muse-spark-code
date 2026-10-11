@@ -152,12 +152,12 @@ export function createReportJournalReader(input: {
               .split('T', 1)[0] ?? ''
           return { ...journal, budgets, budgetDay }
         } catch {
-          return {
-            ...journal,
-            partial: [journal.partial, UI_TEXT.reportDetailReasons.budgetsUnavailable]
-              .filter((reason) => reason !== undefined)
-              .join(' '),
-          }
+          // Partial reasons are a set: a reason already present is never
+          // appended again (RVCM1132C finding 5).
+          const reasons = [journal.partial, UI_TEXT.reportDetailReasons.budgetsUnavailable].filter(
+            (reason) => reason !== undefined,
+          )
+          return { ...journal, partial: [...new Set(reasons)].join(' ') }
         }
       })()
       runs.set(context.run ?? context.options, pending)
@@ -341,13 +341,18 @@ export function createSessionReportReader(input: {
       // The session totals below sum only the records still attributable to
       // this session; rolled-up days can never be attributed back to it, so
       // the disclosure says excluded, never included (RVCM1132B finding 1).
+      // Partial reasons are a set: no sentence appears twice (RVCM1132C
+      // finding 5).
+      const pushPartial = (reason: string): void => {
+        if (!partials.includes(reason)) partials.push(reason)
+      }
       if (journal.rollups.length > 0)
-        partials.push(UI_TEXT.reportDetailReasons.rolledUpSessionExcluded)
+        pushPartial(UI_TEXT.reportDetailReasons.rolledUpSessionExcluded)
       if (
         history.items.length > 0 &&
         journal.records.every((record) => record.session !== history.sessionId)
       )
-        partials.push(UI_TEXT.reportDetailReasons.sessionUsageUnavailable)
+        pushPartial(UI_TEXT.reportDetailReasons.sessionUsageUnavailable)
       const turns =
         history.turnIds.length > 0 ? history.turnIds.length : sessionTurnCount(history.items)
       return {
