@@ -38242,7 +38242,44 @@ keeping its detailed native qualification catalogue generated too.
 Installed VS Code on Win11, a real Visual Studio run and resource-chip parity
 in JetBrains/Visual Studio/Eclipse/companion remain open for their next lanes.
 
-**Status 2026-10-09: waiting.** All five phase-2 lanes are joined locally on Kubuntu. Verification retains the portable graph cap, duplication and SAST findings, four ACP fixture failures, two JetBrains settled-diagnostic/version failures, installed qualification and the next resource-chip parity lane as blockers. F1 adopts the frozen MHP 1.5 closed-input contract and repairs native schema vocabulary, theme roles and the authored readiness fixture; its matrix and drill receipts follow. Retained requirements and receipts follow.
+**Status 2026-10-09: waiting.** All five phase-2 lanes are joined locally on Kubuntu. F1 adopts the frozen MHP 1.5 closed-input contract and repairs native schema vocabulary, theme roles and the authored readiness fixture; JBDIAG repairs the two JetBrains settled-diagnostic tests in their harness, production unchanged. M104 F2 repairs the sixteen reported SAST sites with regressions and an offline 16-to-zero reproduction; its review follow-ups restore shell-free Windows npm-agent discovery and absolute Node/script overrides in Eclipse, and confine discovered packages beneath the canonical npm prefix. The unchanged registry SAST rescan remains lead-owned under the lane's network restriction. Verification still retains the portable graph cap, duplication, four ACP fixture failures, installed qualification and the next resource-chip parity lane as blockers. Their matrix and drill receipts and the retained requirements follow.
+
+**M104 F2 follow-up round 2 / RVM104F2D (2026-10-09, before code).**
+Confine Windows npm-shim discovery to the expected package root beneath the
+canonical shim prefix. Require each directory from that prefix through
+`node_modules/muse-spark-code-acp/dist` to be a real directory whose canonical
+path equals its expected path, refusing symbolic links and Windows junctions
+with the existing layout-failure word. Keep the explicit JSON Node/script
+pair's documented canonical package semantics. Add package-directory and
+`node_modules` ancestor regressions, retain the launcher and SAST suites, and
+remove the confinement guard in a byte-exact red/restored drill. Scoped rig
+checks replace aggregate quality; registry SAST, installed Windows qualification
+and the existing integration blockers remain lead-owned. No merge, push,
+paid/live call, dependency, hook, deadline or gate change.
+
+**Round-two receipt (2026-10-09).** Both linked-ancestor regressions refuse
+discovery and retain explicit-pair acceptance. Removing confinement fails
+both cases; byte-exact restoration passes all eleven launcher cases. The
+87 retained SAST tests and four-rule offline scan pass, as do scoped static
+checks. Full Eclipse retains 71 schema errors, the embedded suite one contract
+assertion, duplication twelve clones and the build its portable graph overage.
+Receipts: `docs/certification/m104.md`, F2 follow-up round 2; M104 stays waiting.
+
+**M104 F2 follow-up / RVM104F2C (2026-10-09, before code).** Repair
+Windows Eclipse discovery for the npm-installed ACP agent. Resolve the prefix's
+`muse-spark-code-acp.cmd` to an absolute native `node.exe` and
+`node_modules/muse-spark-code-acp/dist/acp.js`, using npm's global layout,
+never interpreting shim contents or invoking cmd.exe. The generated ACP
+manifest names the package `muse-spark-code-acp` (the brief abbreviates it as
+`muse-spark-code`); require that actual name in package.json and a real script
+inside that package. Keep native `.exe` installs. `MUSE_SPARK_RUNTIME` accepts
+an absolute shim/native path or a strict JSON pair of absolute Node and ACP
+script paths; pass fixed `panel`, `--stdio` arguments separately. Add discovery,
+override, installed-layout/startup and spoof-refusal regressions, exact-base
+failures and byte-exact guard drills. Run Eclipse and retained SAST regressions
+and scoped gates under the shared rig rules. Full quality, registry SAST and
+Windows installed-editor qualification remain lead-owned; no merge, push,
+credential, live/paid call, dependency, shell or gate weakening.
 
 **FIXM104PB / RVM104PB (2026-10-06).** Repair all four P2 findings and the
 P3 evidence error inside B's paid engines and their shared guards. One
@@ -38993,16 +39030,47 @@ guards and assertions; do not make cosmetic token changes or add excludes to
 hide equivalent implementations during this blocked integration join. Record
 the exact clone locations and retain duplication as a main-integration blocker.
 
-**M104INT SAST review deferral (2026-10-09).** The unchanged auto-rule
-scan reports sixteen blocking findings in six joined owners: Eclipse's
-launcher ProcessBuilder, JetBrains resource/script interpolation and embedded
-schema RegExp, Xcode generated HTML escaping, shared page HTML escaping and
-the portable page's text/session-id escaping. Retain each finding for the
-native/HTML boundary review; do not label them safe merely because they are
-audits or add suppression comments to obtain green. The scan also reports
-one default rule timeout in ModelApiHost's express-SSRF analysis. No rule,
-exclude, deadline or dependency is changed. These results block main integration
-alongside the portable cap, duplication, ACP and native qualification failures.
+**M104INT SAST review deferral (2026-10-09; F2 repair below).** The original
+unchanged auto-rule scan reports sixteen blocking findings in six joined owners:
+Eclipse's launcher, JetBrains script placeholders and dynamic schema RegExp,
+Xcode generated XML and shared/portable page entity escaping. M104 F2 replaces
+the reported sites with validated executable argument lists, native-owned bridge
+insertion, reviewed literal patterns and the existing contextual serializers.
+Regressions and byte-exact red drills cover all sixteen; an offline four-pattern
+Semgrep reproduction reports the original 1/2/1/3/4/5 counts and zero after repair.
+This supplemental scan does not certify the registry's complete auto rule set.
+The shared lane rules prohibit registry network reads, so the unchanged full
+SAST rescan remains a main-integration requirement, including resolution or
+qualification of the original ModelApiHost express-SSRF rule timeout. No rule,
+exclude, deadline, dependency or suppression is changed. The portable cap,
+duplication, ACP and native qualification failures remain with their owners.
+
+**M104 F2 SAST boundary repair (2026-10-09, before implementation).** Repair
+the sixteen findings in those six owners with explicit executable argument
+lists, the existing contextual HTML/JSON serializers, XML-safe generated
+labels, fixed nonce-bearing bridge markup and a finite reviewed schema-pattern
+allowlist. No suppression, dependency, rule, exclusion or deadline changes.
+Add hostile-input regressions for every finding and byte-exact red drills in
+`docs/certification/m104.md`; run only the touched suites, scoped format/lint
+and all compiler projects on this rig. The lane brief substitutes these checks
+for aggregate quality; native contracts, ACP fixtures, portable budgets and
+duplication remain with their separate owners. No merge, push or live call.
+
+**M104 F2 completed boundaries (2026-10-09, kubuntu).** Eclipse resolves a
+regular executable from an absolute override or absolute PATH directory;
+the fixed `panel`/`--stdio` arguments stay separate. The RVM104F2C follow-up
+also resolves Windows npm shims to verified native Node and the installed ACP
+script, retaining `.exe` installs and refusing shell-command strings. All sixteen plugin Java
+sources compile against cached target jars, and the portable launcher JUnit
+regressions pass. RVM104F2D additionally confines discovered npm packages to
+the canonical shim prefix without links or junctions below it; explicit JSON
+pairs retain their canonical package semantics. JetBrains page generation emits no executable bridge
+placeholder; the existing native insertion path supplies its reviewed script
+and nonce. Its seven frozen panel/state patterns are literal-only, with unknown
+source refused and contract-inventory/acceptance/refusal tests. Keep the existing
+embedded unknown-member assertion unchanged: its failure remains the separate
+native-input contract blocker. Scope/gate receipts and fifteen byte-exact red
+drills are in `docs/certification/m104.md` and `m104-f2-drills.json`.
 
 **M104INT aggregate formatting cleanup (2026-10-09).** The single final
 quality attempt stops at formatting because native test runs left ignored

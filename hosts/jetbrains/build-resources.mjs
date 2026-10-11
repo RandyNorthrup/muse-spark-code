@@ -49,16 +49,14 @@ for (const locale of ['en', ...renderer.TABLE_LOCALES]) {
       : JSON.parse(await readFile(path.join(root, `l10n/ui.${locale}.json`), 'utf8'))
   renderer.setUiText(table, locale)
   for (const kind of ['chat', 'tasks']) {
-    const html = renderer
-      .buildWebviewHtml({
-        scriptUri: `${base}main.js`,
-        styleUri: `${base}main.css`,
-        cspSource: base,
-        nonce: '__MUSE_NONCE__',
-        l10n: { locale, table },
-        ...(kind === 'tasks' && { surface: kind }),
-      })
-      .replace('</head>', '<script nonce="__MUSE_NONCE__">__MUSE_BRIDGE__</script></head>')
+    const html = renderer.buildWebviewHtml({
+      scriptUri: `${base}main.js`,
+      styleUri: `${base}main.css`,
+      cspSource: base,
+      nonce: '__MUSE_NONCE__',
+      l10n: { locale, table },
+      ...(kind === 'tasks' && { surface: kind }),
+    })
     await writeFile(path.join(output, `${kind}.${locale}.html`), html)
   }
   const notes = renderer.renderWhatsNewPage({
@@ -72,10 +70,7 @@ for (const locale of ['en', ...renderer.TABLE_LOCALES]) {
     styleUri: `${base}whatsNew.css`,
     locale,
   })
-  await writeFile(
-    path.join(output, `whatsNew.${locale}.html`),
-    notes.html.replace('</head>', '<script nonce="__MUSE_NONCE__">__MUSE_BRIDGE__</script></head>'),
-  )
+  await writeFile(path.join(output, `whatsNew.${locale}.html`), notes.html)
   await writeFile(
     path.join(output, `notes.${locale}.json`),
     JSON.stringify({ links: notes.links, tries: notes.tries }),

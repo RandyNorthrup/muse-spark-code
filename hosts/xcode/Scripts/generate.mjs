@@ -17,7 +17,7 @@ await build({
   format: 'esm',
   logLevel: 'silent',
 })
-const { nativeTables } = await import(pathToFileURL(modulePath).href)
+const { nativeTables, escapeHtml } = await import(pathToFileURL(modulePath).href)
 const manifest = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'))
 const contract = await readFile(path.join(root, 'src/shared/hostApi/mhp-v1.1.schema.json'), 'utf8')
 if (JSON.parse(contract).protocol !== nativeTables.mhp.version) throw new Error('MHP_VERSION_LOCK')
@@ -105,12 +105,11 @@ await writeFile(
   path.join(generated, 'NativeModelText.swift'),
   `// Generated from the native-only XCODE_MODEL_TEXT block.\nimport Foundation\nenum NativeModelText {\n${modelText}\n}\n`,
 )
-const brand = nativeTables.english.xcodeTitle
-const xmlEscape = (value) =>
-  value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+// XML character data admits the same five entities as the shared serializer.
+const brand = escapeHtml(nativeTables.english.xcodeTitle)
 const header =
   '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "https://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0"><dict>'
-const base = `<key>CFBundleDevelopmentRegion</key><string>en</string><key>CFBundleDisplayName</key><string>${brand}</string><key>CFBundleExecutable</key><string>$(EXECUTABLE_NAME)</string><key>CFBundleIdentifier</key><string>$(PRODUCT_BUNDLE_IDENTIFIER)</string><key>CFBundleInfoDictionaryVersion</key><string>6.0</string><key>CFBundleName</key><string>${brand}</string><key>CFBundleShortVersionString</key><string>${xmlEscape(manifest.version)}</string><key>CFBundleVersion</key><string>1</string>`
+const base = `<key>CFBundleDevelopmentRegion</key><string>en</string><key>CFBundleDisplayName</key><string>${brand}</string><key>CFBundleExecutable</key><string>$(EXECUTABLE_NAME)</string><key>CFBundleIdentifier</key><string>$(PRODUCT_BUNDLE_IDENTIFIER)</string><key>CFBundleInfoDictionaryVersion</key><string>6.0</string><key>CFBundleName</key><string>${brand}</string><key>CFBundleShortVersionString</key><string>${escapeHtml(manifest.version)}</string><key>CFBundleVersion</key><string>1</string>`
 await writeFile(
   path.join(generated, 'App-Info.plist'),
   `${header}${base}<key>CFBundlePackageType</key><string>APPL</string><key>LSMinimumSystemVersion</key><string>14.0</string><key>NSPrincipalClass</key><string>NSApplication</string><key>CFBundleURLTypes</key><array><dict><key>CFBundleURLSchemes</key><array><string>muse-spark-xcode</string></array></dict></array><key>NSAppTransportSecurity</key><dict><key>NSAllowsLocalNetworking</key><true/></dict></dict></plist>\n`,
@@ -124,7 +123,7 @@ const commands = [
 ]
   .map(
     ([id, key]) =>
-      `<dict><key>XCSourceEditorCommandClassName</key><string>$(PRODUCT_MODULE_NAME).SourceEditorCommand</string><key>XCSourceEditorCommandIdentifier</key><string>org.muse-spark-code.xcode.${id}</string><key>XCSourceEditorCommandName</key><string>${xmlEscape(nativeTables.english[key])}</string></dict>`,
+      `<dict><key>XCSourceEditorCommandClassName</key><string>$(PRODUCT_MODULE_NAME).SourceEditorCommand</string><key>XCSourceEditorCommandIdentifier</key><string>org.muse-spark-code.xcode.${id}</string><key>XCSourceEditorCommandName</key><string>${escapeHtml(nativeTables.english[key])}</string></dict>`,
   )
   .join('')
 await writeFile(

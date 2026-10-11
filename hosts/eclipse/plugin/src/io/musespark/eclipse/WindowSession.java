@@ -51,10 +51,7 @@ public final class WindowSession implements MhpPeer.Host, AutoCloseable {
     private volatile boolean disposed;
     private final CompletableFuture<JsonElement> initialization;
     private static Process launch() throws Exception {
-        String launcher = System.getenv("MUSE_SPARK_RUNTIME");
-        if (launcher == null || launcher.isBlank()) launcher = "muse-spark-code-acp";
-        else if (!Path.of(launcher).isAbsolute()) throw new IllegalArgumentException("MHP_RUNTIME_PATH_INVALID");
-        ProcessBuilder builder = new ProcessBuilder(launcher, "panel", "--stdio");
+        ProcessBuilder builder = new ProcessBuilder(RuntimeProcess.panelCommand(System.getenv("MUSE_SPARK_RUNTIME"), System.getenv("PATH")));
         Map<String, String> clean = Assets.environment(builder.environment()); builder.environment().clear(); builder.environment().putAll(clean);
         builder.directory(ResourcesPlugin.getWorkspace().getRoot().getLocation().toFile());
         return builder.start();
