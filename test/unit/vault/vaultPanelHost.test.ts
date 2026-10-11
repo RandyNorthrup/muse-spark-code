@@ -207,7 +207,16 @@ describe('U authenticated panel host', () => {
     const f = fixture()
     vi.mocked(f.service.snapshot).mockResolvedValue({ ...panel(), value: randomBytes(32) })
     await f.host.refresh()
-    expect(f.deps.publish).not.toHaveBeenCalled()
+    // No valid snapshot can be had: the one publish is the explicit
+    // unavailable state with no item labels — never the malformed frame
+    // and never its value field (RVCM1091E CLASS 1).
+    expect(f.deps.publish).toHaveBeenCalledOnce()
+    const frame = f.deps.publish.mock.calls[0]?.[0] as {
+      state: ReturnType<typeof panel>
+    }
+    expect(frame.state.status.state).toBe('unavailable')
+    expect(frame.state.items).toEqual([])
+    expect(JSON.stringify(frame)).not.toContain('test-secret')
     expect(f.deps.showError).toHaveBeenCalledOnce()
     f.host.dispose()
   })

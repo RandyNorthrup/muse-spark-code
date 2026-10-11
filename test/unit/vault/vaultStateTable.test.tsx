@@ -90,6 +90,35 @@ describe('RVCM1091D vault state table', () => {
     }
   })
 
+  it('a vault that cannot be opened shows no protection in its detail rows', () => {
+    for (const entry of [
+      { state: 'uncreated', reason: 'locked' },
+      { state: 'setupPending', reason: null },
+      { state: 'unavailable', reason: 'vaultLost' },
+    ] as const) {
+      // The true post-fix shape: the snapshot carries no slot (RVCM1091E P3).
+      const state = panel()
+      state.status = status({ ...entry, tier: null, provider: null, silentUnlock: false })
+      const { unmount } = render(<VaultSection state={state} post={vi.fn()} />)
+      const card = screen.getByRole('status')
+      const cells = [...card.querySelectorAll('dd')].map((cell) => cell.textContent)
+      expect(cells[0]).toBe('—')
+      expect(cells[1]).toBe('—')
+      expect(cells[2]).toBe(UI_TEXT.toggleOff)
+      unmount()
+    }
+  })
+
+  it('an unreachable broker is not a lost vault', () => {
+    expect(tierWarning(status({ state: 'unavailable', tier: null, reason: 'brokerBlocked' }))).toBe(
+      UI_TEXT.vault.brokerBlocked,
+    )
+    expect(tierWarning(status({ state: 'unavailable', tier: null, reason: 'vaultLost' }))).toBe(
+      UI_TEXT.vault.vaultLost,
+    )
+    expect(UI_TEXT.vault.brokerBlocked.toLowerCase()).not.toContain('reset')
+  })
+
   it('an open vault with no observed slot names no protection and no unlock', () => {
     expect(tierWarning(status({ state: 'unlocked', tier: null, reason: null }))).toBe(
       UI_TEXT.vault.tierUnknown,
@@ -102,14 +131,14 @@ describe('RVCM1091D vault state table', () => {
       {
         state: 'uncreated',
         reason: 'locked',
-        tier: 'osStore',
+        tier: null,
         heading: UI_TEXT.vault.stateUncreated,
         sentence: UI_TEXT.vault.setupNeeded,
       },
       {
         state: 'setupPending',
         reason: null,
-        tier: 'osStore',
+        tier: null,
         heading: UI_TEXT.vault.stateSetupPending,
         sentence: UI_TEXT.vault.setupPending,
       },
@@ -130,7 +159,7 @@ describe('RVCM1091D vault state table', () => {
       {
         state: 'unavailable',
         reason: 'vaultLost',
-        tier: 'osStore',
+        tier: null,
         heading: UI_TEXT.vault.stateUnavailable,
         sentence: UI_TEXT.vault.vaultLost,
       },

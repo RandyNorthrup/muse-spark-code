@@ -16,6 +16,7 @@ describe('RVCM1091D mounted vault scenes', () => {
       'mounted-uncreated',
       'mounted-setup-pending',
       'mounted-unavailable',
+      'mounted-unreachable',
       'mounted-first-party-only',
     ])
     for (const scenario of VAULT_MOUNTED_SCENARIOS) {
@@ -50,6 +51,15 @@ describe('RVCM1091D mounted vault scenes', () => {
       state: 'unavailable',
       reason: 'vaultLost',
     })
+    // RVCM1091E: the host's no-snapshot state is unavailable with the
+    // broker-blocked sentence, never Reset, and no item labels.
+    expect(vaultScenarioState('mounted-unreachable', 1000)?.status).toMatchObject({
+      state: 'unavailable',
+      reason: 'brokerBlocked',
+      tier: null,
+      provider: null,
+      itemCount: 0,
+    })
     expect(vaultScenarioState('mounted-first-party-only', 1000)?.status).toMatchObject({
       state: 'firstPartyOnly',
       reason: 'brokerBlocked',
@@ -58,6 +68,7 @@ describe('RVCM1091D mounted vault scenes', () => {
       'mounted-uncreated',
       'mounted-setup-pending',
       'mounted-unavailable',
+      'mounted-unreachable',
       'mounted-first-party-only',
     ] as const) {
       expect(vaultScenarioState(scenario, 1000)?.items).toEqual([])

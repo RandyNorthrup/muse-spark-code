@@ -32,6 +32,7 @@ const scenarios = [
   'mounted-uncreated',
   'mounted-setup-pending',
   'mounted-unavailable',
+  'mounted-unreachable',
   'mounted-first-party-only',
 ]
 const themes = isDrill
