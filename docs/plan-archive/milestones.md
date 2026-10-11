@@ -15,6 +15,12 @@ Since that day the design record of §2 decisions is in
 [gates.md](gates.md); every decision keeps its heading and its rule in force
 in PLAN.md §2.
 
+A block whose marker carries `at` was moved later with `npm run plan:archive`
+and stands at the end of its own section; its `lines` are the passage's line
+numbers in PLAN.md at that commit. Those are the checklists and closing notes
+PLAN.md still held for sections already here: its stub for them is now the
+heading, the status rows, any Goal, Depends on or Gates field and the pointer.
+
 ## FIX0160X — Repair release CI composition (2026-10-07, macmini)
 
 **Status 2026-10-07: released.** Shipped in 0.16.0 (§10).
@@ -149,6 +155,20 @@ Version remains 0.15.0. Entries belong under Unreleased. The rig brief permits
 these two merges and full fresh-clone verification; no other merge, push,
 rebase, paid/live model call, timeout or gate relaxation is authorized.
 
+<!-- plan-archive:begin id="milestones-bb25544b7-16649" lines="16649-16657" at="bb25544b7" bytes="648" sha256="61032e1f055f9cef1f71814b10da7d2f74b3023f567939e300b8a3d0b0291ca5" -->
+
+- [x] Merge QPIN `dcac54ea5` with `git merge --no-ff`, retaining current
+      release repairs and the pinned question surface.
+- [x] Merge agent outcomes `c79cd749a` with `git merge --no-ff`, retaining
+      current team, question and agent-map behavior and all localized keys.
+- [x] Audit the older agent-outcomes changes against current runtime paths;
+      add regression tests and prove any repair with a byte-restored red drill.
+- [ ] Run the accessibility harness; regenerate README screenshots and replace
+      only images changed by these features. Record commands, counts, drills
+      and blockers in `docs/certification/int0160ux.md`.
+
+<!-- plan-archive:end id="milestones-bb25544b7-16649" -->
+
 ## QPIN — One question card, pinned above the composer (2026-10-07)
 
 **Status 2026-10-07: released.** Shipped in 0.16.0 (§10).
@@ -176,6 +196,19 @@ Record receipts in docs/certification/question-pinned.md. Shared common.md
 and review-common.md were absent from both C:/lanes/_ctx and the rig note's
 ~/lanes/_ctx; the rig brief and repository rules govern this repair.
 
+<!-- plan-archive:begin id="milestones-bb25544b7-16665" lines="16665-16672" at="bb25544b7" bytes="565" sha256="baa4539798f494b0950a7528d398d09d7538af4df82b44d45ae69960f737381e" -->
+
+- [x] Implement the marker and explicit dock navigation; owning tests and
+      a deliberate duplicate-card regression drill with byte-exact restore.
+- [x] Restore question.png beside approval; regenerate question-related
+      README shots and question accessibility scenes in all four themes.
+- [x] Commit with hooks; verify a fresh clone with npm ci and CI=true:
+      complete owning suites three times at default timeouts, five
+      typechecks, lint, format, plain knip, duplication, build, reference
+      and localization, keeping all thresholds unchanged.
+
+<!-- plan-archive:end id="milestones-bb25544b7-16665" -->
+
 ## FLAKETH20 — Explain and repair the Windows team harness hang (2026-10-07)
 
 **Status 2026-10-07: built.** Scoped Windows receipts are in `docs/certification/flake-team-harness-20.md`; Linux integration certification remains separate.
@@ -193,6 +226,20 @@ and review-common.md were absent from both C:/lanes/_ctx and the rig note's
 Scope is browser harness readiness and its owning regressions. No model call,
 merge, rebase, push, dependency or gate change. The shared lane rules delegate
 aggregate quality to the lead; run the scoped gates directly on this rig.
+
+<!-- plan-archive:begin id="milestones-bb25544b7-16738" lines="16738-16746" at="bb25544b7" bytes="665" sha256="cf198c7611bfc3e7c955e7feafa46047e1a42efb4f42ed1116beb06c827fa533" -->
+
+- [x] Measure the unchanged full file and case 20 with CI=true and V8 coverage.
+- [x] Keep bounded console, page-error and request-failure evidence on failed
+      harness readiness, with a wait shorter than the existing case deadline.
+- [x] Repair the evidenced cause without raising deadlines, adding retries or
+      skipping cases; prove the regression fails before the repair.
+- [x] Certify 100 consecutive case-20 passes and 30 complete-file passes on
+      Windows, plus ten Linux file passes if a Linux machine is reachable.
+- [x] Record counts, cause, fix and restored drills in
+      docs/certification/flake-team-harness-20.md; commit with normal hooks.
+
+<!-- plan-archive:end id="milestones-bb25544b7-16738" -->
 
 ## M43–M56 — Parity with everything Muse Code and the Model API offer (D36)
 
@@ -246,6 +293,35 @@ translations. The order is D36's table:
 - [x] Record macOS round 3 results and byte-exact regression drills in
       `docs/certification/train-0.15.0.md`. No merge, rebase, push, credential
       disclosure, live or paid model call is authorized.
+
+<!-- plan-archive:begin id="milestones-bb25544b7-17216" lines="17216-17239" at="bb25544b7" bytes="1864" sha256="1d70677f4d88e3bbf6986a99482bf6fdc88cb239a9278e6b136f249f54cb82f8" -->
+
+- [x] Reproduce the journal coverage timeout and companion authentication race;
+      replace per-byte JavaScript newline scanning with typed-array searches,
+      retaining every line, size, UTF-8, version and schema check. Prepare the
+      full benchmark in `beforeAll` at the default hook deadline. Control the
+      browser fixture's server clock so valid sessions do not expire under load;
+      expiry remains an explicit clock advance, with real browser/socket timers.
+- [x] Reproduce static gates and the native dictation build/disclaim job. Fix
+      causes without changing gates, budgets, test deadlines or assertions.
+- [x] Repair the full-shard `checkSlots` fixture cost: create its immutable Git
+      baseline once in `beforeAll`, copy it per isolated case, and certify each
+      descendant/transport-failure scenario as its own test at the default
+      deadline. Preserve real snapshot, install, credential and cache checks.
+- [x] Start the forced browser-restart discovery phase after bounded runtime
+      preparation completes (or the check ends). A first verified download must
+      not spend the unchanged discovery poll budget before the browser exists.
+      Preserve every restart, resolver, proxy, challenge and cleanup assertion.
+- [x] Commit locally with normal hooks and explicit paths, then reproduce all four
+      coverage shards, merged coverage and each locally runnable macOS workflow
+      job from fresh clones with Node 22 and `CI=true`, including installed
+      packages. Report shared failures and the installed E5 timeout; record
+      hosted W as unverified. These receipts do not claim all macOS CI jobs pass.
+- [x] Record macOS round 3 results and byte-exact regression drills in
+      `docs/certification/train-0.15.0.md`. No merge, rebase, push, credential
+      disclosure, live or paid model call is authorized.
+
+<!-- plan-archive:end id="milestones-bb25544b7-17216" -->
 
 ## FIX0150R — Release review repairs for runners and usage (2026-10-07, macmini)
 
@@ -318,6 +394,18 @@ listener and cleanup assertion. No new retry, launch delay, timeout or skip.
 - [x] Record each job's result under round 3 Windows in
       `docs/certification/train-0.15.0.md` and report exact remaining failures.
 
+<!-- plan-archive:begin id="milestones-bb25544b7-17253" lines="17253-17259" at="bb25544b7" bytes="517" sha256="9a44ceecf4bdca3f4e07ee98aa64a1e9d6574cfd5b482a021426fba5b45e4233" -->
+
+- [x] Attempt owned-failure reproductions and inspect round-2 Windows priority.
+- [x] Fix scoped causes, prove regression guards fire, and commit with hooks.
+- [x] Attempt every locally executable Windows job command in fresh committed
+      clones, including installed-package, pinned-browser and integration
+      checks; remove clones and record unavailable hosted W execution.
+- [x] Record each job's result under round 3 Windows in
+      `docs/certification/train-0.15.0.md` and report exact remaining failures.
+
+<!-- plan-archive:end id="milestones-bb25544b7-17253" -->
+
 ## CI0150C — Clean-checkout platform and logic CI repairs (2026-10-07, macmini)
 
 **Status 2026-10-07: built.** Implementation/integration receipts remain below; this is not full certification.
@@ -358,6 +446,23 @@ and demote main's 0.15 section only with the authorized version promotion.
 Rerun the complete affected batch at default deadlines; do not relax either
 guard or bump early.
 
+<!-- plan-archive:begin id="milestones-bb25544b7-17267" lines="17267-17278" at="bb25544b7" bytes="961" sha256="e428bbdf52c1f0e5c5a2c6c54e9c4a35a4bd1a3588bc9eb3ef85b774d7bdee0c" -->
+
+- [x] Repair the lane's journal canonical-root checks, Windows short-name fixture,
+      native child priority observation, ACP model fixture, legal focus readiness,
+      prompt-menu harness readiness, pending release note and browser resolution.
+- [x] Validate newly added README images from checked-out files while retaining
+      public URL checks for images already on main and missing-file refusals.
+- [x] Run every touched owning test file three times from a clean checkout with
+      `CI=true`, at most three files per run and repository default timeouts;
+      run all five typechecks, lint, formatting, plain knip and duplication.
+- [x] Prove a repaired behaviour fails when deliberately broken, restore exact
+      bytes and record results in `docs/certification/ci0150c.md`; commit locally
+      with hooks and explicit paths. Hosted cross-platform results remain the
+      lead's release checks; no live or paid calls, push or merge is authorized.
+
+<!-- plan-archive:end id="milestones-bb25544b7-17267" -->
+
 ## CI0150B — Hosted CI test setup repair (2026-10-07, win11)
 
 **Status 2026-10-07: built.** Implementation/integration receipts remain below; this is not full certification.
@@ -372,6 +477,21 @@ guard or bump early.
 - [x] Prove a repaired guard fails under deliberate regression and restore exact
       bytes; record timings and checks in `docs/certification/ci0150b.md`.
       Commit locally with hooks; no push, merge, rebase or live/paid calls.
+
+<!-- plan-archive:begin id="milestones-bb25544b7-17286" lines="17286-17295" at="bb25544b7" bytes="784" sha256="12323709fced5d1af02929189686541eed18f2c290533d7458a00abe984afb14" -->
+
+- [x] Profile the ten lane-owned suites from a clean checkout with `CI=true`.
+      Share invariant transforms, source fixtures and cold setup; build only the
+      Usage browser artifacts required by its real CSP and chunk test.
+- [x] Preserve all assertions, history scales, performance budgets and default
+      deadlines; remove wall-clock races and normalize Windows fixture paths.
+- [x] Run every owned whole file three times after clean-tree removal, all five
+      typecheck projects, lint, changed-file formatting, plain knip and duplication.
+- [x] Prove a repaired guard fails under deliberate regression and restore exact
+      bytes; record timings and checks in `docs/certification/ci0150b.md`.
+      Commit locally with hooks; no push, merge, rebase or live/paid calls.
+
+<!-- plan-archive:end id="milestones-bb25544b7-17286" -->
 
 ## REL0150M — Bring 0.14.4 and 0.14.5 into 0.15.0 (2026-10-06, linuxlt)
 
@@ -463,6 +583,27 @@ the lead under common.md; this lane records its components separately. No new
 live/paid model requests, dependency, command, setting or escape hatch is planned.
 The earlier 0.14.4 universal cap was 2525 KiB from 2,457,606 measured bytes;
 the release train's existing 2775-KiB cap remains until fresh measurement.
+
+<!-- plan-archive:begin id="milestones-bb25544b7-17303" lines="17303-17318" at="bb25544b7" bytes="1244" sha256="71c6afc0ce75583ecb641d35ff2e29001baa9a7c6a4ceceadfdc335eeb0a75ef" -->
+
+- [x] Merge `rel-0145` then `chore/infra-0150-m`, each with `git merge --no-ff`;
+      preserve all train and sharing features, newer translated text and both
+      harness readiness inventories. Regenerate reference and host API records.
+- [x] Keep version 0.15.0 and the dependency union; regenerate the lock and prove
+      clean installation. Keep one current What's New, with Earlier 0.14.5 and
+      Earlier 0.14.4 before older notes; preserve every changelog release.
+- [x] Run the complete configured suite in batches of at most three files using
+      repository default timeouts, full ESLint with zero warnings, all five
+      compiler projects, formatting, plain knip, duplication, cycles and inventories.
+- [ ] Measure production bundles and actual universal VSIX/ACP packages; apply
+      only the brief-authorized measured universal size plus 5%, rounded up to
+      25 KiB rule, and record each changed cap with its measured reason.
+- [x] Run every accessibility scenario in four themes; regenerate and view every
+      README screenshot with the compact bookmark composer menu.
+- [x] Record all checks, fixes and byte-exact regression drills in
+      `docs/certification/train-0.15.0.md`; commit locally with hooks, never push.
+
+<!-- plan-archive:end id="milestones-bb25544b7-17303" -->
 
 ## TRAIN15E — Join M95/M102 and finish bounded accounting (2026-10-06)
 
@@ -602,6 +743,44 @@ guard widening, paid/live call, merge, push or rebase; 90-minute repair box.
       commits only, no network/live/paid calls, merge, push or rebase. The lane's
       shared rules reserve aggregate quality/coverage for the lead; 120-minute box.
 
+<!-- plan-archive:begin id="milestones-bb25544b7-17336" lines="17336-17368" at="bb25544b7" bytes="2426" sha256="297103aef39b0fb612bb74de7a5467e3d160b7e2236c42d079e73f0500992138" -->
+
+- [x] Measure M96's shared browser graph and existing packed-data inventory.
+- [x] Move the post-tool event tail into the lazy team runtime; certify behavior.
+- [x] Measure universal VSIX, apply only the explicitly authorized cap if needed.
+- [x] Merge and measure `m96/ifix-win4`, then `m97/sr`; resolve by meaning.
+- [x] Complete scoped compiler/lint/l10n/host/schema/owning-suite checks and drills.
+
+- [x] Repair P2, run the complete suite without checkout build output, drill.
+- [x] Repair P1, compare every packaged module and callable regression, drill.
+- [x] Run scoped static/build/package gates and record sizes and receipts.
+
+- [x] Reproduce the 0.14.0 universal VSIX with the checksum-verified published
+      helper and rank every member by compressed bytes. Keep the 2,252,800-byte cap.
+- [x] Pack runtime translations and generated lazy English regions together at
+      Brotli quality 11, using Node's built-in bounded decoder and today's table
+      validation. Use the same archive in ACP; keep manifest translations readable
+      by VS Code and source JSON checked by the localization gate.
+- [x] Measure deterministic lossless package improvements, targeting at least
+      150,000 bytes of universal headroom with no activation growth or text changes.
+      Preserve all licences/notices, runtime assets and editor behavior.
+- [x] Solid-compress the exact existing lazy CommonJS bundle sources in an
+      independent archive: translation damage must preserve backend availability.
+      Keep activation, recorder, shared parsers and
+      ACP entry code ordinary CommonJS. Compile each selected, SHA-256-checked
+      original through Node's CommonJS module loader with its original filename;
+      retain independent inline English-region fallbacks for archive damage.
+- [x] Prove every locale's exact compact JSON round-trip, English-region lazy
+      loading, missing/corrupt fallback, and packaged ACP/CLI loading. Drill new
+      guards and restore each file byte-exact with SHA-256 receipts.
+- [x] Run scoped owning/importing suites in batches of at most three files,
+      static gates, all production caps and universal packaging on Kubuntu. Record
+      before/after members in `docs/certification/vsix-diet-2.md`; hook-on local
+      commits only, no network/live/paid calls, merge, push or rebase. The lane's
+      shared rules reserve aggregate quality/coverage for the lead; 120-minute box.
+
+<!-- plan-archive:end id="milestones-bb25544b7-17336" -->
+
 ## TRAIN15B — Resume the 0.15.0 batch within the existing caps (2026-10-05)
 
 **Status 2026-10-07: built.** Implementation/integration receipts remain below; this is not full certification.
@@ -694,6 +873,16 @@ continuation.
 - [ ] Recover measured size through existing deferred chunks or package exclusions without dropping shipped functionality. If M101 still exceeds the VSIX cap without an owner product decision, record the largest twenty exact archive deltas and stop.
 - [ ] Record merges, conflicts, resolutions, checks and per-merge sizes in `docs/certification/train-0.15.0.md`. Commit locally with hooks, no push/rebase, live/paid calls or unrelated merges. Full quality and the two unfinished inputs belong to the later continuation; time box 120 minutes.
 
+<!-- plan-archive:begin id="milestones-bb25544b7-17382" lines="17382-17386" at="bb25544b7" bytes="1295" sha256="d655b4df236ad74e90f717df014bbd7fd3d414a961d91d6f7eb733572c6b7a1d" -->
+
+- [ ] Merge `perf/vsix-diet-2-fix`, `m101/int`, `m96/int3d`, `m96/ifix-win4` and `m97/sr` in that order with two-parent merge commits, preserving every input's intent.
+- [ ] Keep one Unreleased section with at most five contributed-command/setting Highlights; retain every released section byte-identical to `6a0207c1`. Union decisions, milestones and real translations; regenerate generated records.
+- [ ] After every merge, run scoped owning tests (at most three files, three workers, 120-second test admission), typecheck, changed-file lint/format, localization, host API, help reference when present, production build and a CI-shaped VSIX with the checksum-verified universal helper from the shared 0.13.0 archive. Keep all existing caps unchanged.
+- [ ] Recover measured size through existing deferred chunks or package exclusions without dropping shipped functionality. If M101 still exceeds the VSIX cap without an owner product decision, record the largest twenty exact archive deltas and stop.
+- [ ] Record merges, conflicts, resolutions, checks and per-merge sizes in `docs/certification/train-0.15.0.md`. Commit locally with hooks, no push/rebase, live/paid calls or unrelated merges. Full quality and the two unfinished inputs belong to the later continuation; time box 120 minutes.
+
+<!-- plan-archive:end id="milestones-bb25544b7-17382" -->
+
 ## PR132M — Verify the 0.14.4 merge into infrastructure (2026-10-06)
 
 **Status 2026-10-07: built.** Implementation/integration receipts remain below; this is not full certification.
@@ -730,6 +919,25 @@ The lane brief explicitly authorizes the full configured suite in bounded
 batches; shared rules still prohibit aggregate `npm run quality`, external
 requests, additional merges and pushes. Coverage, accessibility and hosted
 cross-platform quality remain with the lead. No live or paid model calls.
+
+<!-- plan-archive:begin id="milestones-bb25544b7-17394" lines="17394-17407" at="bb25544b7" bytes="1008" sha256="4297c20f9f9b3ec201bc4c26cd9a4108288cdeaf0fdbbbc28927aea5324b994e" -->
+
+- [x] Complete App suite: 161 tests pass, including all palette routes.
+- [x] Complete configured unit/process-e2e suite in bounded batches.
+      All 560 files ran: 11,841 passed, 74 existing skips and one failure also
+      reproduced on clean main `aa4e3fa83`. The checkpoint fixture disposes
+      only after successful filter discovery, but a filter-free repository
+      makes Git exit 1 before disposal. The lane permits this trivial test-only
+      correction: dispose in `finally`, preserving Git's discovery result.
+      Corrected owning file passes all 16 tests. The original fixture,
+      omitted merged warm-up import and unexplained sharing timer each fail
+      deliberately; all three restore SHA-256-exact source.
+- [x] Five compiler projects, lint, changed-file format, plain Knip,
+      duplication, localization, host API, reference and production build.
+- [x] Record results and any failure drills in `docs/certification/pr132w.md`;
+      commit locally with hooks and explicit paths.
+
+<!-- plan-archive:end id="milestones-bb25544b7-17394" -->
 
 ## PR132W — Diagnose the Windows built-exec failure (2026-10-06)
 
@@ -931,6 +1139,18 @@ Next slice: repair the inherited ACP fixture duplication, then integrate this
 fix into the release branch and run full quality/hosted CI. Native and companion panel mounting remains M104 work;
 ACP/editor-owned chat UIs do not render this composer and retain their editor's
 context menus. Evidence lives in `docs/certification/promptmenu-hosts.md`.
+
+<!-- plan-archive:begin id="milestones-bb25544b7-17445" lines="17445-17451" at="bb25544b7" bytes="524" sha256="a20e85f0d737f30dd1b73f5a2968740a2d1b24c8ddc4a189ea593b3b757cd89e" -->
+
+- [x] Inventory actual panel mounts and native/MHP dependency evidence.
+- [x] Shared composer fallback, pointer placement and native-menu guard.
+- [ ] Complete owning tests at default timeouts; deliberate failures with
+      byte-exact restoration; five typechecks, lint, formatting, plain knip,
+      duplication, localization/reference/host checks and capped build.
+- [x] Composer accessibility scenes and visual inspection in four themes.
+- [x] Certification, changelog and Help & Reference updated; local hooked commit.
+
+<!-- plan-archive:end id="milestones-bb25544b7-17445" -->
 
 ## REL0144 — Release 0.14.4 preparation (2026-10-06)
 
@@ -1160,6 +1380,13 @@ timeouts, hooks and all budgets unchanged; no merge, push, tag, publication,
 live/paid calls or aggregate quality. Record baseline failure and deliberate
 guard failures in `docs/certification/rel0142.md`.
 
+<!-- plan-archive:begin id="milestones-bb25544b7-17495" lines="17495-17496" at="bb25544b7" bytes="156" sha256="68dab2ff684f85c4f30f9c366e16762af9ace0d428ef5a162a42e367841a4790" -->
+
+- [x] Resolve and certify the main integration, then commit with hooks on.
+- [x] Prepare the release metadata and user-facing notes; repeat release checks.
+
+<!-- plan-archive:end id="milestones-bb25544b7-17495" -->
+
 ## BADGEFIX — Exact package versions on store pages (2026-10-05)
 
 **Status 2026-10-05: built.** Status evidence: `docs/certification/badgefix.md`.
@@ -1184,6 +1411,25 @@ quality for the lead. Run the bounded owning tests and static/build gates here,
 with hooks on. Badge-check public requests are the brief's sole added network
 exception; release cache refresh remains CI-only. Time box: 60 minutes.
 
+<!-- plan-archive:begin id="milestones-bb25544b7-17504" lines="17504-17517" at="bb25544b7" bytes="1085" sha256="8b4b74796c6ae183a4a87c49df36c21893a861f69d16310d5579156fbec632a1" -->
+
+- [x] Generate static Marketplace/Open VSX and npm/GitHub release version
+      badges from the manifest while staging each package. Landing-page templates
+      use `{version}`; installed READMEs contain the exact package version.
+      Keep GitHub's root README versions and all count badges dynamic.
+- [x] Discover all README badge images, including Markdown/reference images and
+      GitHub's trusted workflow badge; fetch them before purging GitHub camo.
+- [x] Add `check:badges` to quality and CI: HTTPS image targets, trusted store
+      SVG hosts, no dynamic store versions, exact staged versions and valid SVG
+      responses. Keep PNG screenshots as HTTPS content images. Network skips
+      require a named local reason and are refused in CI; packaging checks the
+      exact staged READMEs. No model calls, dependencies or runtime UI changes.
+- [x] Package and inspect the VSIX and ACP tarball; prove dynamic-version and
+      version-mismatch failures, restore byte-exact, and record focused/static
+      checks and artifact versions in `docs/certification/badgefix.md`.
+
+<!-- plan-archive:end id="milestones-bb25544b7-17504" -->
+
 ## CIFIX14T — Timed-out monitor cleanup on macOS (2026-10-05)
 
 **Status 2026-10-05: built.** Status evidence: `docs/certification/cifix14-monitor.md`.
@@ -1207,6 +1453,24 @@ brief prohibits pushes, merges, rebases and paid/live calls; the shared lane
 rules reserve aggregate quality and integrated coverage for the lead. Test
 deadlines, retries, skips and every existing gate remain unchanged. Shared
 shell execution covers the extension and ACP/headless runtime on every editor.
+
+<!-- plan-archive:begin id="milestones-bb25544b7-17525" lines="17525-17537" at="bb25544b7" bytes="983" sha256="948575d60ffdc8a4a97f2e80b2e6f0d19791f72fd1ef623e4114c0173bf4ab07" -->
+
+- [x] Collect 30 complete baseline owning-file runs under twelve CPU load
+      workers. Capture a running descendant after return with a 300-call
+      native diagnostic; prove Mac zombies also accept signal zero.
+- [x] Fix the proven product race: SIGKILL returned before a descendant
+      exited (loaded native probe: PID 60465, parent 1, group 60423, state R).
+      Await POSIX group exit for up to two seconds, then signal again and log.
+      Exclude Linux zombies from running groups and make the Mac test probe
+      recognize exited zombies and already-reaped PIDs. Preserve Windows jobs.
+- [x] Prove 30/30 loaded runs (210 tests), with the wait removed failing 3/3
+      loaded drills. All seven guard drills restore exact SHA-256 bytes.
+      Five owning shell files pass 113 tests, with six existing Windows skips.
+- [x] Complete static/build checks and prepare the hook-on local repair
+      commit within the 60-minute lane. No push, merge, rebase or paid/live call.
+
+<!-- plan-archive:end id="milestones-bb25544b7-17525" -->
 
 ## STARTDIET — Chat startup headroom (2026-10-05)
 
@@ -1284,6 +1548,22 @@ Use the installed dependency tree and an offline scratch-prefix tarball install.
 The lead retains the integrated full quality and hosted universal-helper checks.
 The existing strict equality check and every budget remain unchanged.
 
+<!-- plan-archive:begin id="milestones-bb25544b7-17551" lines="17551-17561" at="bb25544b7" bytes="819" sha256="1655a617e48a3afc71746a5ea24c3b8db85eae6dba57fa6cfdecded3a22e6642" -->
+
+- [x] Reproduce the release job's strict English fallback check against the
+      installed production ACP tarball, and trace both help strings through
+      the generated runtime region and package copy.
+- [x] Fold the existing translated Setup command into `acpUsage` in English
+      and all 14 translations; remove the separate key and appended write.
+      Both help and argument errors read the complete canonical usage once.
+- [x] Prove exact help/table equality and Setup visibility in process tests,
+      including a translated locale; run the release package steps, localization
+      checks and ACP regressions directly on Kubuntu in bounded batches.
+- [x] Record gate-fire drills, artifact sizes and unavailable platform steps in
+      `docs/certification/cifix14-acp-usage.md`; commit locally with hooks.
+
+<!-- plan-archive:end id="milestones-bb25544b7-17551" -->
+
 ## CIFIX14W2 — Windows short paths in the kept shell directory (2026-10-05)
 
 **Status 2026-10-05: built.** Status evidence: `docs/certification/cifix14-shortpath.md`.
@@ -1302,6 +1582,21 @@ The existing strict equality check and every budget remain unchanged.
 Evidence belongs in `docs/certification/cifix14-shortpath.md`. Shared lane
 rules reserve the integrated full quality run for the lead; all existing
 gates and timeouts remain unchanged.
+
+<!-- plan-archive:begin id="milestones-bb25544b7-17569" lines="17569-17578" at="bb25544b7" bytes="789" sha256="7989ab9ffefe8f0ef893bc0ada4cc166614427b37ec7484dd4c5c1503ca6eb1a" -->
+
+- [x] Resolve Windows workspace roots and shell-reported directories to the
+      native long form before containment, relative tails and command cwd use.
+      Keep POSIX path handling unchanged and retain link/junction confinement.
+- [x] Reproduce with a real 8.3 directory on the Windows 11 rig; assert the
+      canonical tracked directory, the `sub` tail, root silence and escape reset.
+      Exercise both short/long input directions with injected path functions.
+- [x] Remove canonicalization, observe the complete owning file fail, restore
+      byte-exact and collect the shell suites with default CLI timeouts and
+      three workers. Run the shared lane's static/build checks and commit locally
+      with hooks; no push, merge, rebase or paid/live calls. Time box: 60 minutes.
+
+<!-- plan-archive:end id="milestones-bb25544b7-17569" -->
 
 ## CIFIX14M — macOS hosted CI repair for 0.14.0 (2026-10-05)
 
@@ -1325,6 +1620,23 @@ The explicit lane brief authorizes full shard coverage but shared rules prohibit
 timeout, retry or skip policy is changed. Evidence is recorded in
 `docs/certification/cifix14-macos.md`.
 
+<!-- plan-archive:begin id="milestones-bb25544b7-17586" lines="17586-17597" at="bb25544b7" bytes="953" sha256="c014a9bb0f9cb665c7d23052b603324f6deae23432d3dbf7bf1ec4f900c665d2" -->
+
+- [x] Collect all four CI unit/process-e2e shards on the Mac mini, in the rig
+      brief's batches of at most three files with three workers. Preserve coverage
+      collection and merge the complete map against the unchanged thresholds.
+- [x] Repair the deferred-bundle tests' dependency on pre-existing `dist/`
+      artifacts: build and load every required support bundle from private fixtures,
+      using the production English compression plugin for the exact-value check.
+      Preserve activation's assertions that action bundles remain unloaded.
+- [x] Fix any further macOS failures at their root, prove regression assertions
+      fire, then collect two consecutive green complete runs and per-file receipts.
+- [x] Run typecheck, scoped lint/format and the available static/build gates;
+      commit locally with hooks. No push, merge, rebase or paid/live call. VS Code
+      integration is outside the macOS CI matrix. Time box: 90 minutes.
+
+<!-- plan-archive:end id="milestones-bb25544b7-17586" -->
+
 ## TRAIN14B — Complete the 0.14.0 release train (2026-10-05)
 
 **Status 2026-10-05: built.** Status evidence: `docs/certification/train-0.14.0.md`.
@@ -1340,6 +1652,19 @@ timeout, retry or skip policy is changed. Evidence is recorded in
 
 Train 0.14.0 final gate repair: update ACP fixtures for required split bundles, await the lazy report, and use VSCE’s actual listFiles API without CLI startup. Optimize the build-only lossless English codec without changing output or timeouts. M91 extension hooks must use M71’s held-project trust both before loading and before running, including manual hooks; certify the activation wiring regression.
 
+<!-- plan-archive:begin id="milestones-bb25544b7-17605" lines="17605-17612" at="bb25544b7" bytes="2740" sha256="ceedf5a059d2b230c3d697979f0eed93b06eb876c938a29c6c4ca54ea899e5cf" -->
+
+- [x] Merge origin-main (#121), M91/M91b, M93, Knip constants, DEFLAKE4 and M98 phase 1 in the brief's order, retaining every source head and both split-check speed fixes. Skip unready m94/kw and ci/refresh-badges for the lead.
+- [x] Connect metered Judge claim/settle/refund/lookupByClaimId/latestDay to D78's shared daily ledger and test shared reservation plus subscription-only consent behavior.
+- [x] Adapt ACTDIET prototype commits after the merges; activation at most 600,000 bytes, shared English under the original 125 KiB, webview startup under 921,600 bytes, all other caps unchanged.
+- [x] If the actual universal package still exceeds its unchanged cap, use measured shared Node wire schemas and one bounded lossless translation archive, preserving exact locale values, source tables, browser parsing and ACP JSON compatibility. Before startup repair the real universal VSIX is 2,436,399 bytes; fourteen individual Brotli tables occupy 605,236 ZIP bytes. A language-major values matrix measures 434,140 Brotli bytes, and shared existing protocol/agent-event schemas save about 20.6 KiB compressed across five measured Node consumers before conversation/ACP. No dependency or existing cap changes.
+- [x] Preserve the browser’s synchronous inline English fallback with a build-only dictionary over repeated text and label-key fragments; decode all keys, values and plural forms exactly before localization state is created. Register every new exact bundle path in M93’s frame vocabulary, preserving package-only stack privacy. Rebalance Share and the small Session Board into eager imports so the unchanged 50-KiB deferred cap and 900-KiB startup cap both hold. The lossless key/value probe saves 38,451 bytes; no user copy, functionality, dependency or cap is removed.
+- [x] Preserve both full What’s New releases through a lossless Node-only Brotli envelope when the plain tree exceeds its unchanged 40-KiB on-disk cap. The measured 60,873-byte tree needs a new 75-KiB decoded bound (measured plus 15%, rounded to 25 KiB); validate the envelope and decoded tree, retain small/plain compatibility, and prove round-trip and expansion limits. This follows the existing packed Node fallback and keeps all release content.
+- [x] Prepare 0.14.0 with one dated changelog section, at most five Highlights, byte-identical older releases, and matching full/Marketplace README sections and install versions.
+- [ ] Run full quality directly on Kubuntu and measure a CI-shaped VSIX with the checksum-verified universal helper from the authorized 0.13.0 archive. Record conflicts, sizes, drills, gate tail and PR description in the train certification. Local hook-on commits only, no push, rebase, paid/live call; 180-minute time box.
+
+<!-- plan-archive:end id="milestones-bb25544b7-17605" -->
+
 ## TRAIN14A — Start the 0.14.0 release batch (2026-10-05)
 
 **Status 2026-10-05: built.** Status evidence: `docs/certification/train-0.14.0.md`.
@@ -1354,6 +1679,16 @@ checks fail under deliberate bypasses, then restore exact source bytes.
 - [x] Run each branch's scoped tests (at most three files, three workers, 120-second test timeout), typecheck, changed-file lint/format, localization, host API, production build and package after every merge. Full quality belongs to the later completed train and is explicitly excluded by this brief.
 - [ ] Certify each CI-shaped VSIX with the actual universal helper. Its measured prior-train ZIP contribution gives estimates within the cap after the repairs; Q-TRAIN14 records the missing artifact and read/network fence.
 - [x] Record conflict decisions, checks, gate-fire drills if new guards are needed, and exact per-merge bundle/archive bytes in `docs/certification/train-0.14.0.md`. Commit locally with hooks; no push, main merge, rebase, credential access or paid/live call. Time box: 100 minutes on Kubuntu.
+
+<!-- plan-archive:begin id="milestones-bb25544b7-17620" lines="17620-17624" at="bb25544b7" bytes="1295" sha256="d4e28bffd9ae32de33acc25128bc4f797444c290f17a519ef3af9e91488b2c57" -->
+
+- [x] Merge M94 Tab, M71 git/PRs, M100 multi-device plan and DEFLAKE3 in that order, each as a two-parent merge commit. Preserve all decisions, translations and byte-identical released changelog sections from `7820bd30`.
+- [x] Resolve integration overlaps by retaining D78 default availability and M94 first-use consent, then regenerate generated inventories. Defer a merged feature's optional UI through the existing chunks if required; every current size cap stays unchanged.
+- [x] Run each branch's scoped tests (at most three files, three workers, 120-second test timeout), typecheck, changed-file lint/format, localization, host API, production build and package after every merge. Full quality belongs to the later completed train and is explicitly excluded by this brief.
+- [ ] Certify each CI-shaped VSIX with the actual universal helper. Its measured prior-train ZIP contribution gives estimates within the cap after the repairs; Q-TRAIN14 records the missing artifact and read/network fence.
+- [x] Record conflict decisions, checks, gate-fire drills if new guards are needed, and exact per-merge bundle/archive bytes in `docs/certification/train-0.14.0.md`. Commit locally with hooks; no push, main merge, rebase, credential access or paid/live call. Time box: 100 minutes on Kubuntu.
+
+<!-- plan-archive:end id="milestones-bb25544b7-17620" -->
 
 ## KNIPC — Restore dead-export analysis of shared constants (2026-10-05)
 
@@ -1376,6 +1711,23 @@ The KNIPC rig brief and shared lane rules prohibit full quality/full-unit
 runs and integration merges/pushes. The lead retains full quality, coverage,
 accessibility and integration certification; this lane runs the required
 scoped checks directly on macmini, with all existing gates unchanged.
+
+<!-- plan-archive:begin id="milestones-bb25544b7-17632" lines="17632-17643" at="bb25544b7" bytes="877" sha256="55521d6d7cd1210e66954450e6aadefe906d6791e52e469a687b0286eaad0edc" -->
+
+- [x] Reproduce the Knip 6.38.0 blind spot and bisect a scratch copy of
+      `src/shared/constants.ts`; identify the source construct or entry/config
+      classification that suppresses its exports.
+- [x] Fix the cause without an ignore or weakened gate; remove genuinely
+      unused constants and tests that only keep those constants alive.
+      The whole-module enumeration in `execSchema.test.ts` and disabled
+      namespace issue types were the two blockers. Named imports plus additive
+      `nsExports`/`nsTypes` inclusion expose both planted value/type exports;
+      every existing constant remains referenced, so none is removed.
+- [x] Plant an unused export, observe plain Knip exit 1, restore byte-exact
+      and observe exit 0. Record evidence and scoped static/build/test checks
+      in `docs/certification/knip-constants.md`; commit locally with hooks on.
+
+<!-- plan-archive:end id="milestones-bb25544b7-17632" -->
 
 ## DEFLAKE4 — Deterministic deferred-bundle split drills (2026-10-05)
 
@@ -1408,6 +1760,25 @@ for D4-C despite common.md's ordinary rig-only/one-process rules.
 - [ ] Recover the merged webview startup overage within unchanged startup and
       deferred budgets: inspect model-text overcarriage, then defer optional
       dialogs with the existing loading/focus affordance only if measurements fit.
+
+<!-- plan-archive:begin id="milestones-bb25544b7-17651" lines="17651-17664" at="bb25544b7" bytes="933" sha256="ee70c5d2ac05f13f1700e5bd0cef7ad3a44e2afc90fc33316af0765b3ce05dce" -->
+
+- [x] D4-A: build real shipped entries once per test file and cache their
+      metafiles; each case mutates an isolated in-memory copy.
+- [x] D4-B: every existing split drill observes its exact rejection and
+      restored green, with SHA-256 byte-exact restoration; deliberate guard
+      defects must make the owning tests fail.
+- [x] D4-C: run the entire owning file 50 times on this Windows host with
+      another Vitest run alongside; report each test's maximum and mean,
+      comfortably below 2 seconds, in `docs/certification/deflake4.md`.
+- [x] D4-D: run the lane's scoped/static/build gates, update changelog and
+      certification, then commit explicit paths with hooks enabled.
+
+- [ ] Recover the merged webview startup overage within unchanged startup and
+      deferred budgets: inspect model-text overcarriage, then defer optional
+      dialogs with the existing loading/focus affordance only if measurements fit.
+
+<!-- plan-archive:end id="milestones-bb25544b7-17651" -->
 
 ## DEFAULTS — Available enhancements and interactive daily paid admission (D78)
 
@@ -1455,6 +1826,23 @@ should reconcile that report when it is supplied.
 
 The lane brief overrides §6.0's full local quality run: the lead owns the
 aggregate gate. This lane commits with configured hooks and does not push.
+
+<!-- plan-archive:begin id="milestones-bb25544b7-17688" lines="17688-17699" at="bb25544b7" bytes="894" sha256="02332994fea6f77b8ab01b66b90373f11b0d10d7f93a2436be042c837af31cbb" -->
+
+- [x] Verify all three digests against the SDK research artifacts and release evidence.
+- [x] Test both successor mappings and log outcomes, plus the SDK's own pin;
+      remove the 1.4.2 entry, observe failure, then restore byte-exact.
+- [x] Run the backend/host/account tests and the process-level fake CLI e2e
+      on Kubuntu, including an explicit 1.4.2 served fingerprint while the
+      default fake continues to use SDK 1.3.0's `EXPECTED_SCHEMA_FINGERPRINT`.
+- [x] Correct provider selection, model effort metadata, session deletion,
+      feedback, voice and Windows workaround facts; preserve dated evidence
+      and append dated notes where needed.
+- [x] Run typecheck, scoped lint/format, deadcode, duplication, localization,
+      host API and production build on Kubuntu; keep package files unchanged.
+- [x] Record results in `docs/certification/sdk142.md` and update its index.
+
+<!-- plan-archive:end id="milestones-bb25544b7-17688" -->
 
 ## M0 — Scaffold and gates (this session)
 
@@ -10727,6 +11115,17 @@ common.md; this lane runs the listed gates directly on macmini. No live/paid
 calls, credentials, new dependencies, increased budgets or timeout changes.
 Receipts belong in `docs/certification/macslow.md`.
 
+<!-- plan-archive:begin id="milestones-bb25544b7-33201" lines="33201-33206" at="bb25544b7" bytes="474" sha256="aa93f45417995f5744f4d45e7bebf3839965f1a8c32b6bbaff0f79ee35d5dd7b" -->
+
+- [ ] Measure and repair each owned cause without timeout changes, retries or skips.
+- [ ] Prove compiler coverage and changed fixture/security checks fail on deliberate
+      regressions, restoring every mutation byte-exact.
+- [ ] Run three clean `CI=true` complete-file passes at default test deadlines
+      with at most three workers, plus measured compiler and scoped static/build gates.
+- [ ] Commit finished pieces with hooks and explicit paths; never merge or push.
+
+<!-- plan-archive:end id="milestones-bb25544b7-33201" -->
+
 ## CI0150L — Linux hosted CI round 3 (2026-10-07)
 
 **Status 2026-10-07: built.** Certification: `docs/certification/train-0.15.0.md`.
@@ -11071,6 +11470,46 @@ integration locally with hooks, and do not merge steps 3–5. This is a justifie
 review-candidate deferral under rule 2, never a green release claim. The lead
 owns a further size-recovery decision and the later continuation/full gate.
 
+<!-- plan-archive:begin id="milestones-bb25544b7-33243" lines="33243-33277" at="bb25544b7" bytes="2339" sha256="e76dfcb346d2e3747959186e4525280a3614a532015131e44593125e71f9ab97" -->
+
+SECWINPATH (2026-10-08): the owner's shared lane rules prohibit aggregate
+`npm run quality` on the shared rig and delegate it to the lead. This lane
+qualifies its committed fresh clone with every owning suite three times,
+repository deadlines, five typechecks, changed-file lint/format, plain knip,
+duplication, cycles, localization/reference/host API and capped production
+build instead. No gate or threshold is changed; aggregate qualification is
+a lead handoff, not a claim that it ran here. See its certification record.
+
+**FIXCYCLES2 scoped rig verification (2026-10-08).** Follow the lane's scoped
+cycles/unit-typecheck/lint/format/knip gates and three complete guard runs at
+repository deadlines, with the common rules' additional static/build checks.
+Aggregate `npm run quality`, coverage and hosted qualification remain with the
+lead. Preserve every threshold and record the hard-coded-glob failure drill
+and byte-exact restoration in `docs/certification/fixcycles.md`.
+
+**FIXCYCLES scoped rig verification (2026-10-08).** The lane brief requires
+fresh-clone individual gates and owning test batches of at most three files.
+The shared rules prohibit aggregate quality; the lead retains that run and
+hosted multi-OS qualification. No threshold, ignore, assertion or timeout is
+relaxed. `docs/certification/fixcycles.md` records actual checks and drills.
+
+**FIX0160W2 scoped Windows qualification (2026-10-07).** The named lane
+brief and shared common rules prohibit aggregate quality and delegate it to
+the lead. This lane runs complete owned suites with short TEMP/TMP and
+repository deadlines, every prescribed individual compiler/static/build gate,
+and deliberate byte-exact failure drills. No gate, timeout, assertion or native
+guard is weakened. Hosted Windows replay remains the release's qualification;
+`docs/certification/fix0160w2.md` records the local evidence and its limits.
+
+**FIX0160X scoped release repair (2026-10-07).** The shared lane brief
+prohibits aggregate quality and reserves it for the lead. This lane runs
+every named owning file at repository deadlines and all prescribed individual
+compiler/static/build/package checks. No threshold, deadline, assertion or
+package refusal is waived. Hosted cross-platform qualification remains with
+the joined release; receipts are in `docs/certification/fix0160x.md`.
+
+<!-- plan-archive:end id="milestones-bb25544b7-33243" -->
+
 ## FIXM112U — RVM112U surface repairs (2026-10-06)
 
 **Status 2026-10-06: built.** Status evidence: `docs/certification/m112-u.md`.
@@ -11161,6 +11600,28 @@ Authority: the rig brief and lead decisions, refining D92/M112 from
       scoped rig gates and hooks-on local commits; record in
       `docs/certification/m112-u.md`. Lead retains aggregate quality and existing
       Q/A/editor integration handoffs. No merge, push, dependency or gate widening.
+
+<!-- plan-archive:begin id="milestones-bb25544b7-33318" lines="33318-33334" at="bb25544b7" bytes="1224" sha256="cdaff1854c5cc04137d3d181af0e333ed47c7608c458ddbc53cdfe950f00ae26" -->
+
+- [x] P2-1: the same-session snapshot owns the open set. An absent active
+      transcript card becomes locally unavailable, retaining any known terminal
+      state. Counts, chip, navigation and delivery use the same derived set.
+- [x] P2-2: one same-session history merge preserves approval outcomes and
+      question cards/outcomes, including retired terminal records.
+- [x] P2-3: approvals first, then newest waiting question; protect a question
+      focus or typing in its draft; retain inactive drafts. Reminders rank only
+      among deferred questions.
+- [x] P3: separate lazy question renderer/dock region/chip from the small
+      startup draft context and approval shell. Keep a minimal loading card;
+      preserve drafts. Measure startup against the 3 KiB target and allocate the
+      question closure measured size +15%, rounded up to 25 KiB, independently
+      of the unchanged unclassified deferred cap.
+- [x] Complete-file regressions, red drills with byte-exact restoration,
+      scoped rig gates and hooks-on local commits; record in
+      `docs/certification/m112-u.md`. Lead retains aggregate quality and existing
+      Q/A/editor integration handoffs. No merge, push, dependency or gate widening.
+
+<!-- plan-archive:end id="milestones-bb25544b7-33318" -->
 
 ## FIXAGENTOUT — Independent M119 review repairs (2026-10-07)
 
@@ -11554,6 +12015,21 @@ future-version fixture proves no manual badge bump is needed. The Kubuntu
 package lacks the compiled macOS helper; hosted universal packaging remains
 unchanged. Receipts: `docs/certification/badgefix.md`.
 
+<!-- plan-archive:begin id="milestones-bb25544b7-33418" lines="33418-33427" at="bb25544b7" bytes="755" sha256="8968b0545a689397ba4ce2a44d8189327afc9ee2ecfe45c48b382f1aa53449cd" -->
+
+- [x] Measure main `e56b795a` with the production metafile: startup 813,180 B
+      (794.1 KiB); original deferred aggregate 51,157 B (49.96 KiB).
+- [x] Reduce startup by at least 60 KiB and original deferred aggregate to
+      at most 35 KiB without raising either existing cap or adding dependencies.
+      Keep transcript, composer and approvals eager; defer optional surfaces
+      and preserve the complete inline English fallback with lossless encoding.
+- [x] Accessible loading, local load failure and retry; shared-host CSP/asset
+      proof; owning tests and intentional static-import red drill.
+- [x] Fix RVMDIET1 P2-1, P2-2 and P3 with owning regressions and byte-exact
+      red drills; final 628-page accessibility matrix exits 0 on macmini.
+
+<!-- plan-archive:end id="milestones-bb25544b7-33418" -->
+
 ## FIXHELPREF4 — Final focused help audit repairs (2026-10-06)
 
 **Status 2026-10-06: built.** Status evidence: `docs/certification/help-reference.md`.
@@ -11583,6 +12059,14 @@ Evidence: `docs/certification/help-reference.md`. The rig brief reserves full
 quality and release integration for the lead. No new dependency, paid/live
 call, guard weakening or cap change is authorized; time box: ninety minutes.
 
+<!-- plan-archive:begin id="milestones-bb25544b7-33435" lines="33435-33437" at="bb25544b7" bytes="210" sha256="c5b919fb4ddf73c3d0c3b32525feb6d765156cea44025bad378f9f80ba9fb6d8" -->
+
+- [x] Budget truth regression, all translations and generated outputs.
+- [x] Vocabulary/output-walk regressions and byte-exact red drills.
+- [x] Scoped Kubuntu validation and hook-on commits; no merge or push.
+
+<!-- plan-archive:end id="milestones-bb25544b7-33435" -->
+
 ## FIXHELPREF3 — Third truth audit repairs (2026-10-06)
 
 **Status 2026-10-06: built.** Status evidence: `docs/certification/help-reference.md`.
@@ -11603,6 +12087,14 @@ human-written catalogue description against its code path and record corrections
 Evidence: `docs/certification/help-reference.md`. The rig brief prohibits
 aggregate quality; integrated quality remains the lead's gate. No new dependency,
 live/paid request, relaxed guard or budget change is authorized.
+
+<!-- plan-archive:begin id="milestones-bb25544b7-33445" lines="33445-33447" at="bb25544b7" bytes="232" sha256="dcaa2f23446abfebb6bce3afcb5ee71dbde80b46dc7332f843a0f3fc1e8cc033" -->
+
+- [x] Six regressions and twelve deliberate red drills, with SHA-256 restoration.
+- [x] Whole-catalogue truth pass, translated tables and generated reference.
+- [x] Scoped Kubuntu checks and hook-on local commits; no merge or push.
+
+<!-- plan-archive:end id="milestones-bb25544b7-33445" -->
 
 ## REDHELPREF — Runtime-owned reference facts (2026-10-05)
 
@@ -11629,6 +12121,14 @@ CLI consume the same lazy reference through their existing bridges.
 The rig brief forbids aggregate quality, merge, rebase and push. Hook-on local
 commits follow scoped green checks. Receipts: docs/certification/help-reference.md.
 
+<!-- plan-archive:begin id="milestones-bb25544b7-33455" lines="33455-33457" at="bb25544b7" bytes="218" sha256="289b2b6fd93e2de23dc83871e7cac017f31dcd6e5f616decaf84a3bcc8fd807b" -->
+
+- [x] Runtime-owned typed sources and translated catalogue descriptions.
+- [x] Complete action coverage, independent truth tests and 19 red drills.
+- [x] Search/navigation, fixtures and scoped static/build validation.
+
+<!-- plan-archive:end id="milestones-bb25544b7-33455" -->
+
 ## FIXHELPREF — Reference truth audit repairs (2026-10-05)
 
 **Status 2026-10-05: built.** Status evidence: `docs/certification/help-reference.md`.
@@ -11652,6 +12152,15 @@ byte-exact restoration in `docs/certification/help-reference.md`.
 The rig brief overrides common.md's old merge step: no merge, push or rebase.
 Scoped checks run on Kubuntu; aggregate quality remains the lead's gate. No
 dependency, live/paid call, credential access or gate/cap weakening.
+
+<!-- plan-archive:begin id="milestones-bb25544b7-33465" lines="33465-33468" at="bb25544b7" bytes="324" sha256="8565f38f9e5353bdbe321cdc025eb0d23562b22facf5c91abf2082af22f2f9d1" -->
+
+- [x] Repair all 23 findings, with exact implemented surfaces and complete contracts.
+- [x] Certify 571 scoped tests and 59 deliberate failures with byte-exact restoration.
+- [x] Pass existing static/build gates, production help parity/localization and
+      wide/narrow English/French accessibility; preserve every budget.
+
+<!-- plan-archive:end id="milestones-bb25544b7-33465" -->
 
 ## HELPREF — Generated Help & Reference (2026-10-05, release 0.14.1)
 
@@ -11690,6 +12199,26 @@ push, merge and rebase; the lead retains integrated quality/release approval.
 Scoped tests and all available static/build checks run directly here. No paid
 or live model calls, dependency changes, credential access or cap changes.
 Certification: `docs/certification/help-reference.md`.
+
+<!-- plan-archive:begin id="milestones-bb25544b7-33476" lines="33476-33490" at="bb25544b7" bytes="1167" sha256="7ef269ff2e538945177ab28a4685f2439adc48d0db56969a6c77e910db73c344" -->
+
+- [x] Generate the lazy reference model and `docs/reference.md` from the
+      manifest, palette, typed feature catalogue and ACP/CLI command table.
+      Validate coverage, descriptions, links and freshness in `check:reference`;
+      add that check to local quality and CI without changing any cap.
+- [x] Add shared React reference page, translated controls, current/default
+      values, settings links and an explicit safe command allowlist. Host bridge
+      messages are schema-validated. VS Code filters settings by `@id:`; native
+      bridges use their settings page anchors with the same requested key.
+- [x] Wire panel `/help`, Open Help & Reference palette command, ACP's compact
+      `/help`, CLI `help --all` and headless help. The generated GitHub reference
+      is the companion link for ACP editors; the React page is portable through
+      the shared bridge. No backend or model invocation is required for help.
+- [x] Prove generator/page tests and red drills; check accessibility in all
+      four themes, capture wide/narrow light/dark, measure unchanged startup caps,
+      update README, CONTRIBUTING, AGENTS and CHANGELOG, commit with hooks.
+
+<!-- plan-archive:end id="milestones-bb25544b7-33476" -->
 
 ## M98 — Muse Judge: a calibrated judge for any agent (D77, phase 1 integration)
 
@@ -12324,6 +12853,35 @@ size and external blocker; it does not claim hosted/platform/live certification.
 
 <!-- plan-archive:end id="6-INT0180" -->
 
+<!-- plan-archive:begin id="milestones-bb25544b7-16504" lines="16504-16527" at="bb25544b7" bytes="1841" sha256="8679cbfa6877c227e932f90c402407d21d8df9f929484677e100398b040b9ab1" -->
+
+- [x] Merge M105 media; resolve by meaning, regenerate and check.
+- [x] Merge M108 accounts; resolve by meaning, regenerate and check.
+- [x] Merge M109 vault and its fix round; regenerated; English fixture resolved.
+- [x] Merge M117 estimator; candidate build passes; startup regression remains failed.
+      M108's colliding local nano-USD, credential binding and account-usage text
+      contracts retain separate modules beside the release contracts. Both implementations
+      and their regression suites remain; provider envelopes, media and lazy runtime stay.
+      Account argument parsing separates from credential-bearing command runners; runners
+      load through runtimeAccounts. Its three new provider-account sources have exact
+      first-use ownership, and shared account schemas avoid eager provider-envelope code.
+
+- [ ] Repair integration failures with failing-before/passing-after tests and
+      byte-exact restored guard drills; no increased caps or timeouts.
+      Listed repairs are committed; remaining hard failures and assigned
+      stop-rule deferrals remain active in §7 and the certification record.
+- [x] Fresh-clone committed source, `npm ci`, `CI=true`: exact Linux static
+      job, four coverage shards and merged coverage, integration, packages,
+      secrets, SAST and accessibility jobs from `.github/workflows/build.yml`.
+      Run heavy jobs serially on this rig; scoped development runs use at most
+      three files and three workers. Record missing hosted artifacts honestly.
+      Final tested source `ba4c2ad6`: all commands attempted; required aggregate
+      failed. Legal accessibility and real team scenes pass; full axe times out.
+- [x] Finish `docs/certification/int0180.md`, hooks-on explicit-path commits,
+      merge/job results and lead handoff. No push, extra merges or model calls.
+
+<!-- plan-archive:end id="milestones-bb25544b7-16504" -->
+
 ## FIXCYCLES2 — Share the build's integration-test roots (2026-10-08, Kubuntu)
 
 <!-- plan-archive:begin id="6-FIXCYCLES2" lines="21726-21741" bytes="1144" sha256="ea39f99dcc1e1ee039d2db9dab29db97b64a6df70681482d841aac43c25f2281" -->
@@ -12548,3 +13106,13 @@ pass. This is built integration with recorded certification blockers, not a
 release claim. See `docs/certification/int0170.md` and `int0170-ci.json`.
 
 <!-- plan-archive:end id="6-INT0170" -->
+
+<!-- plan-archive:begin id="milestones-bb25544b7-17204" lines="17204-17208" at="bb25544b7" bytes="494" sha256="7d1b9ba4f12ab714e05ca3c2801672f38e0201c22d0357960031e4ee674f36d6" -->
+
+- [x] M113 reports merged (`9a449170`), current workflows retained.
+- [x] M114 design merged (`bdf277a3`), captures inspected, caps unchanged.
+- [x] M116 merged (`3dbc8be4`): focused 119 tests, typechecks/build and 480 harness scans pass.
+- [x] Final committed-tree fresh-clone macOS commands and full standalone accessibility executed on `a30efbad`; aggregate remains red (see certification record).
+- [ ] Release lane: 0.17.0 version/README summary, hosted cross-platform CI and publication.
+
+<!-- plan-archive:end id="milestones-bb25544b7-17204" -->

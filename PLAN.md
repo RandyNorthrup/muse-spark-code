@@ -16501,31 +16501,6 @@ before completion. No push, rebase, model calls or fabricated native artifacts.
 
 **Status 2026-10-07: built.** Linux receipts in `docs/certification/int0180.md`; the package job stays red without genuine macOS artifacts.
 
-- [x] Merge M105 media; resolve by meaning, regenerate and check.
-- [x] Merge M108 accounts; resolve by meaning, regenerate and check.
-- [x] Merge M109 vault and its fix round; regenerated; English fixture resolved.
-- [x] Merge M117 estimator; candidate build passes; startup regression remains failed.
-      M108's colliding local nano-USD, credential binding and account-usage text
-      contracts retain separate modules beside the release contracts. Both implementations
-      and their regression suites remain; provider envelopes, media and lazy runtime stay.
-      Account argument parsing separates from credential-bearing command runners; runners
-      load through runtimeAccounts. Its three new provider-account sources have exact
-      first-use ownership, and shared account schemas avoid eager provider-envelope code.
-
-- [ ] Repair integration failures with failing-before/passing-after tests and
-      byte-exact restored guard drills; no increased caps or timeouts.
-      Listed repairs are committed; remaining hard failures and assigned
-      stop-rule deferrals remain active in §7 and the certification record.
-- [x] Fresh-clone committed source, `npm ci`, `CI=true`: exact Linux static
-      job, four coverage shards and merged coverage, integration, packages,
-      secrets, SAST and accessibility jobs from `.github/workflows/build.yml`.
-      Run heavy jobs serially on this rig; scoped development runs use at most
-      three files and three workers. Record missing hosted artifacts honestly.
-      Final tested source `ba4c2ad6`: all commands attempted; required aggregate
-      failed. Legal accessibility and real team scenes pass; full axe times out.
-- [x] Finish `docs/certification/int0180.md`, hooks-on explicit-path commits,
-      merge/job results and lead handoff. No push, extra merges or model calls.
-
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### SECWINPATH2 — Windows identity and ordinary-workspace repair (2026-10-08, win11)
@@ -16646,30 +16621,11 @@ Scope is the browser harness and its owning tests. No push; the lead pushes.
 
 **Status 2026-10-07: released.** Shipped in 0.16.0 (§10).
 
-- [x] Merge QPIN `dcac54ea5` with `git merge --no-ff`, retaining current
-      release repairs and the pinned question surface.
-- [x] Merge agent outcomes `c79cd749a` with `git merge --no-ff`, retaining
-      current team, question and agent-map behavior and all localized keys.
-- [x] Audit the older agent-outcomes changes against current runtime paths;
-      add regression tests and prove any repair with a byte-restored red drill.
-- [ ] Run the accessibility harness; regenerate README screenshots and replace
-      only images changed by these features. Record commands, counts, drills
-      and blockers in `docs/certification/int0160ux.md`.
-
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### QPIN — One question card, pinned above the composer (2026-10-07)
 
 **Status 2026-10-07: released.** Shipped in 0.16.0 (§10).
-
-- [x] Implement the marker and explicit dock navigation; owning tests and
-      a deliberate duplicate-card regression drill with byte-exact restore.
-- [x] Restore question.png beside approval; regenerate question-related
-      README shots and question accessibility scenes in all four themes.
-- [x] Commit with hooks; verify a fresh clone with npm ci and CI=true:
-      complete owning suites three times at default timeouts, five
-      typechecks, lint, format, plain knip, duplication, build, reference
-      and localization, keeping all thresholds unchanged.
 
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
@@ -16734,16 +16690,6 @@ before accepting it (D3, "DEP138 selection").
 ### FLAKETH20 — Explain and repair the Windows team harness hang (2026-10-07)
 
 **Status 2026-10-07: built.** Scoped Windows receipts are in `docs/certification/flake-team-harness-20.md`; Linux integration certification remains separate.
-
-- [x] Measure the unchanged full file and case 20 with CI=true and V8 coverage.
-- [x] Keep bounded console, page-error and request-failure evidence on failed
-      harness readiness, with a wait shorter than the existing case deadline.
-- [x] Repair the evidenced cause without raising deadlines, adding retries or
-      skipping cases; prove the regression fails before the repair.
-- [x] Certify 100 consecutive case-20 passes and 30 complete-file passes on
-      Windows, plus ten Linux file passes if a Linux machine is reachable.
-- [x] Record counts, cause, fix and restored drills in
-      docs/certification/flake-team-harness-20.md; commit with normal hooks.
 
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
@@ -17201,42 +17147,11 @@ separate from Linux rig receipts.
 
 **Status 2026-10-07: built.** Implementation/integration receipts remain below; this is not full certification.
 
-- [x] M113 reports merged (`9a449170`), current workflows retained.
-- [x] M114 design merged (`bdf277a3`), captures inspected, caps unchanged.
-- [x] M116 merged (`3dbc8be4`): focused 119 tests, typechecks/build and 480 harness scans pass.
-- [x] Final committed-tree fresh-clone macOS commands and full standalone accessibility executed on `a30efbad`; aggregate remains red (see certification record).
-- [ ] Release lane: 0.17.0 version/README summary, hosted cross-platform CI and publication.
-
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### CI0150M — Round 3 macOS CI repairs (2026-10-07, macmini)
 
 **Status 2026-10-07: built.** Implementation/integration receipts remain below; this is not full certification.
-
-- [x] Reproduce the journal coverage timeout and companion authentication race;
-      replace per-byte JavaScript newline scanning with typed-array searches,
-      retaining every line, size, UTF-8, version and schema check. Prepare the
-      full benchmark in `beforeAll` at the default hook deadline. Control the
-      browser fixture's server clock so valid sessions do not expire under load;
-      expiry remains an explicit clock advance, with real browser/socket timers.
-- [x] Reproduce static gates and the native dictation build/disclaim job. Fix
-      causes without changing gates, budgets, test deadlines or assertions.
-- [x] Repair the full-shard `checkSlots` fixture cost: create its immutable Git
-      baseline once in `beforeAll`, copy it per isolated case, and certify each
-      descendant/transport-failure scenario as its own test at the default
-      deadline. Preserve real snapshot, install, credential and cache checks.
-- [x] Start the forced browser-restart discovery phase after bounded runtime
-      preparation completes (or the check ends). A first verified download must
-      not spend the unchanged discovery poll budget before the browser exists.
-      Preserve every restart, resolver, proxy, challenge and cleanup assertion.
-- [x] Commit locally with normal hooks and explicit paths, then reproduce all four
-      coverage shards, merged coverage and each locally runnable macOS workflow
-      job from fresh clones with Node 22 and `CI=true`, including installed
-      packages. Report shared failures and the installed E5 timeout; record
-      hosted W as unverified. These receipts do not claim all macOS CI jobs pass.
-- [x] Record macOS round 3 results and byte-exact regression drills in
-      `docs/certification/train-0.15.0.md`. No merge, rebase, push, credential
-      disclosure, live or paid model call is authorized.
 
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
@@ -17250,32 +17165,11 @@ separate from Linux rig receipts.
 
 **Status 2026-10-07: built.** Implementation/integration receipts remain below; this is not full certification.
 
-- [x] Attempt owned-failure reproductions and inspect round-2 Windows priority.
-- [x] Fix scoped causes, prove regression guards fire, and commit with hooks.
-- [x] Attempt every locally executable Windows job command in fresh committed
-      clones, including installed-package, pinned-browser and integration
-      checks; remove clones and record unavailable hosted W execution.
-- [x] Record each job's result under round 3 Windows in
-      `docs/certification/train-0.15.0.md` and report exact remaining failures.
-
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### CI0150C — Clean-checkout platform and logic CI repairs (2026-10-07, macmini)
 
 **Status 2026-10-07: built.** Implementation/integration receipts remain below; this is not full certification.
-
-- [x] Repair the lane's journal canonical-root checks, Windows short-name fixture,
-      native child priority observation, ACP model fixture, legal focus readiness,
-      prompt-menu harness readiness, pending release note and browser resolution.
-- [x] Validate newly added README images from checked-out files while retaining
-      public URL checks for images already on main and missing-file refusals.
-- [x] Run every touched owning test file three times from a clean checkout with
-      `CI=true`, at most three files per run and repository default timeouts;
-      run all five typechecks, lint, formatting, plain knip and duplication.
-- [x] Prove a repaired behaviour fails when deliberately broken, restore exact
-      bytes and record results in `docs/certification/ci0150c.md`; commit locally
-      with hooks and explicit paths. Hosted cross-platform results remain the
-      lead's release checks; no live or paid calls, push or merge is authorized.
 
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
@@ -17283,39 +17177,11 @@ separate from Linux rig receipts.
 
 **Status 2026-10-07: built.** Implementation/integration receipts remain below; this is not full certification.
 
-- [x] Profile the ten lane-owned suites from a clean checkout with `CI=true`.
-      Share invariant transforms, source fixtures and cold setup; build only the
-      Usage browser artifacts required by its real CSP and chunk test.
-- [x] Preserve all assertions, history scales, performance budgets and default
-      deadlines; remove wall-clock races and normalize Windows fixture paths.
-- [x] Run every owned whole file three times after clean-tree removal, all five
-      typecheck projects, lint, changed-file formatting, plain knip and duplication.
-- [x] Prove a repaired guard fails under deliberate regression and restore exact
-      bytes; record timings and checks in `docs/certification/ci0150b.md`.
-      Commit locally with hooks; no push, merge, rebase or live/paid calls.
-
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### REL0150M — Bring 0.14.4 and 0.14.5 into 0.15.0 (2026-10-06, linuxlt)
 
 **Status 2026-10-07: built.** Implementation/integration receipts remain below; this is not full certification.
-
-- [x] Merge `rel-0145` then `chore/infra-0150-m`, each with `git merge --no-ff`;
-      preserve all train and sharing features, newer translated text and both
-      harness readiness inventories. Regenerate reference and host API records.
-- [x] Keep version 0.15.0 and the dependency union; regenerate the lock and prove
-      clean installation. Keep one current What's New, with Earlier 0.14.5 and
-      Earlier 0.14.4 before older notes; preserve every changelog release.
-- [x] Run the complete configured suite in batches of at most three files using
-      repository default timeouts, full ESLint with zero warnings, all five
-      compiler projects, formatting, plain knip, duplication, cycles and inventories.
-- [ ] Measure production bundles and actual universal VSIX/ACP packages; apply
-      only the brief-authorized measured universal size plus 5%, rounded up to
-      25 KiB rule, and record each changed cap with its measured reason.
-- [x] Run every accessibility scenario in four themes; regenerate and view every
-      README screenshot with the compact bookmark composer menu.
-- [x] Record all checks, fixes and byte-exact regression drills in
-      `docs/certification/train-0.15.0.md`; commit locally with hooks, never push.
 
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
@@ -17333,40 +17199,6 @@ separate from Linux rig receipts.
 
 **Status 2026-10-07: built.** Implementation/integration receipts remain below; this is not full certification.
 
-- [x] Measure M96's shared browser graph and existing packed-data inventory.
-- [x] Move the post-tool event tail into the lazy team runtime; certify behavior.
-- [x] Measure universal VSIX, apply only the explicitly authorized cap if needed.
-- [x] Merge and measure `m96/ifix-win4`, then `m97/sr`; resolve by meaning.
-- [x] Complete scoped compiler/lint/l10n/host/schema/owning-suite checks and drills.
-
-- [x] Repair P2, run the complete suite without checkout build output, drill.
-- [x] Repair P1, compare every packaged module and callable regression, drill.
-- [x] Run scoped static/build/package gates and record sizes and receipts.
-
-- [x] Reproduce the 0.14.0 universal VSIX with the checksum-verified published
-      helper and rank every member by compressed bytes. Keep the 2,252,800-byte cap.
-- [x] Pack runtime translations and generated lazy English regions together at
-      Brotli quality 11, using Node's built-in bounded decoder and today's table
-      validation. Use the same archive in ACP; keep manifest translations readable
-      by VS Code and source JSON checked by the localization gate.
-- [x] Measure deterministic lossless package improvements, targeting at least
-      150,000 bytes of universal headroom with no activation growth or text changes.
-      Preserve all licences/notices, runtime assets and editor behavior.
-- [x] Solid-compress the exact existing lazy CommonJS bundle sources in an
-      independent archive: translation damage must preserve backend availability.
-      Keep activation, recorder, shared parsers and
-      ACP entry code ordinary CommonJS. Compile each selected, SHA-256-checked
-      original through Node's CommonJS module loader with its original filename;
-      retain independent inline English-region fallbacks for archive damage.
-- [x] Prove every locale's exact compact JSON round-trip, English-region lazy
-      loading, missing/corrupt fallback, and packaged ACP/CLI loading. Drill new
-      guards and restore each file byte-exact with SHA-256 receipts.
-- [x] Run scoped owning/importing suites in batches of at most three files,
-      static gates, all production caps and universal packaging on Kubuntu. Record
-      before/after members in `docs/certification/vsix-diet-2.md`; hook-on local
-      commits only, no network/live/paid calls, merge, push or rebase. The lane's
-      shared rules reserve aggregate quality/coverage for the lead; 120-minute box.
-
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### TRAIN15B — Resume the 0.15.0 batch within the existing caps (2026-10-05)
@@ -17379,32 +17211,11 @@ separate from Linux rig receipts.
 
 **Status 2026-10-07: built.** Implementation/integration receipts remain below; this is not full certification.
 
-- [ ] Merge `perf/vsix-diet-2-fix`, `m101/int`, `m96/int3d`, `m96/ifix-win4` and `m97/sr` in that order with two-parent merge commits, preserving every input's intent.
-- [ ] Keep one Unreleased section with at most five contributed-command/setting Highlights; retain every released section byte-identical to `6a0207c1`. Union decisions, milestones and real translations; regenerate generated records.
-- [ ] After every merge, run scoped owning tests (at most three files, three workers, 120-second test admission), typecheck, changed-file lint/format, localization, host API, help reference when present, production build and a CI-shaped VSIX with the checksum-verified universal helper from the shared 0.13.0 archive. Keep all existing caps unchanged.
-- [ ] Recover measured size through existing deferred chunks or package exclusions without dropping shipped functionality. If M101 still exceeds the VSIX cap without an owner product decision, record the largest twenty exact archive deltas and stop.
-- [ ] Record merges, conflicts, resolutions, checks and per-merge sizes in `docs/certification/train-0.15.0.md`. Commit locally with hooks, no push/rebase, live/paid calls or unrelated merges. Full quality and the two unfinished inputs belong to the later continuation; time box 120 minutes.
-
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### PR132M — Verify the 0.14.4 merge into infrastructure (2026-10-06)
 
 **Status 2026-10-07: built.** Implementation/integration receipts remain below; this is not full certification.
-
-- [x] Complete App suite: 161 tests pass, including all palette routes.
-- [x] Complete configured unit/process-e2e suite in bounded batches.
-      All 560 files ran: 11,841 passed, 74 existing skips and one failure also
-      reproduced on clean main `aa4e3fa83`. The checkpoint fixture disposes
-      only after successful filter discovery, but a filter-free repository
-      makes Git exit 1 before disposal. The lane permits this trivial test-only
-      correction: dispose in `finally`, preserving Git's discovery result.
-      Corrected owning file passes all 16 tests. The original fixture,
-      omitted merged warm-up import and unexplained sharing timer each fail
-      deliberately; all three restore SHA-256-exact source.
-- [x] Five compiler projects, lint, changed-file format, plain Knip,
-      duplication, localization, host API, reference and production build.
-- [x] Record results and any failure drills in `docs/certification/pr132w.md`;
-      commit locally with hooks and explicit paths.
 
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
@@ -17441,14 +17252,6 @@ separate from Linux rig receipts.
 ### PROMPTMENU2 — Composer context menu across panel hosts (2026-10-06)
 
 **Status 2026-10-07: built.** Implementation/integration receipts remain below; this is not full certification.
-
-- [x] Inventory actual panel mounts and native/MHP dependency evidence.
-- [x] Shared composer fallback, pointer placement and native-menu guard.
-- [ ] Complete owning tests at default timeouts; deliberate failures with
-      byte-exact restoration; five typechecks, lint, formatting, plain knip,
-      duplication, localization/reference/host checks and capped build.
-- [x] Composer accessibility scenes and visual inspection in four themes.
-- [x] Certification, changelog and Help & Reference updated; local hooked commit.
 
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
@@ -17492,49 +17295,17 @@ separate from Linux rig receipts.
 
 **Status 2026-10-06: built.** Status evidence: `docs/certification/rel0142.md`.
 
-- [x] Resolve and certify the main integration, then commit with hooks on.
-- [x] Prepare the release metadata and user-facing notes; repeat release checks.
-
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### BADGEFIX — Exact package versions on store pages (2026-10-05)
 
 **Status 2026-10-05: built.** Status evidence: `docs/certification/badgefix.md`.
 
-- [x] Generate static Marketplace/Open VSX and npm/GitHub release version
-      badges from the manifest while staging each package. Landing-page templates
-      use `{version}`; installed READMEs contain the exact package version.
-      Keep GitHub's root README versions and all count badges dynamic.
-- [x] Discover all README badge images, including Markdown/reference images and
-      GitHub's trusted workflow badge; fetch them before purging GitHub camo.
-- [x] Add `check:badges` to quality and CI: HTTPS image targets, trusted store
-      SVG hosts, no dynamic store versions, exact staged versions and valid SVG
-      responses. Keep PNG screenshots as HTTPS content images. Network skips
-      require a named local reason and are refused in CI; packaging checks the
-      exact staged READMEs. No model calls, dependencies or runtime UI changes.
-- [x] Package and inspect the VSIX and ACP tarball; prove dynamic-version and
-      version-mismatch failures, restore byte-exact, and record focused/static
-      checks and artifact versions in `docs/certification/badgefix.md`.
-
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### CIFIX14T — Timed-out monitor cleanup on macOS (2026-10-05)
 
 **Status 2026-10-05: built.** Status evidence: `docs/certification/cifix14-monitor.md`.
-
-- [x] Collect 30 complete baseline owning-file runs under twelve CPU load
-      workers. Capture a running descendant after return with a 300-call
-      native diagnostic; prove Mac zombies also accept signal zero.
-- [x] Fix the proven product race: SIGKILL returned before a descendant
-      exited (loaded native probe: PID 60465, parent 1, group 60423, state R).
-      Await POSIX group exit for up to two seconds, then signal again and log.
-      Exclude Linux zombies from running groups and make the Mac test probe
-      recognize exited zombies and already-reaped PIDs. Preserve Windows jobs.
-- [x] Prove 30/30 loaded runs (210 tests), with the wait removed failing 3/3
-      loaded drills. All seven guard drills restore exact SHA-256 bytes.
-      Five owning shell files pass 113 tests, with six existing Windows skips.
-- [x] Complete static/build checks and prepare the hook-on local repair
-      commit within the 60-minute lane. No push, merge, rebase or paid/live call.
 
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
@@ -17548,34 +17319,11 @@ separate from Linux rig receipts.
 
 **Status 2026-10-05: built.** Status evidence: `docs/certification/cifix14-acp-usage.md`.
 
-- [x] Reproduce the release job's strict English fallback check against the
-      installed production ACP tarball, and trace both help strings through
-      the generated runtime region and package copy.
-- [x] Fold the existing translated Setup command into `acpUsage` in English
-      and all 14 translations; remove the separate key and appended write.
-      Both help and argument errors read the complete canonical usage once.
-- [x] Prove exact help/table equality and Setup visibility in process tests,
-      including a translated locale; run the release package steps, localization
-      checks and ACP regressions directly on Kubuntu in bounded batches.
-- [x] Record gate-fire drills, artifact sizes and unavailable platform steps in
-      `docs/certification/cifix14-acp-usage.md`; commit locally with hooks.
-
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### CIFIX14W2 — Windows short paths in the kept shell directory (2026-10-05)
 
 **Status 2026-10-05: built.** Status evidence: `docs/certification/cifix14-shortpath.md`.
-
-- [x] Resolve Windows workspace roots and shell-reported directories to the
-      native long form before containment, relative tails and command cwd use.
-      Keep POSIX path handling unchanged and retain link/junction confinement.
-- [x] Reproduce with a real 8.3 directory on the Windows 11 rig; assert the
-      canonical tracked directory, the `sub` tail, root silence and escape reset.
-      Exercise both short/long input directions with injected path functions.
-- [x] Remove canonicalization, observe the complete owning file fail, restore
-      byte-exact and collect the shell suites with default CLI timeouts and
-      three workers. Run the shared lane's static/build checks and commit locally
-      with hooks; no push, merge, rebase or paid/live calls. Time box: 60 minutes.
 
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
@@ -17583,33 +17331,11 @@ separate from Linux rig receipts.
 
 **Status 2026-10-05: built.** Status evidence: `docs/certification/cifix14-macos.md`.
 
-- [x] Collect all four CI unit/process-e2e shards on the Mac mini, in the rig
-      brief's batches of at most three files with three workers. Preserve coverage
-      collection and merge the complete map against the unchanged thresholds.
-- [x] Repair the deferred-bundle tests' dependency on pre-existing `dist/`
-      artifacts: build and load every required support bundle from private fixtures,
-      using the production English compression plugin for the exact-value check.
-      Preserve activation's assertions that action bundles remain unloaded.
-- [x] Fix any further macOS failures at their root, prove regression assertions
-      fire, then collect two consecutive green complete runs and per-file receipts.
-- [x] Run typecheck, scoped lint/format and the available static/build gates;
-      commit locally with hooks. No push, merge, rebase or paid/live call. VS Code
-      integration is outside the macOS CI matrix. Time box: 90 minutes.
-
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### TRAIN14B — Complete the 0.14.0 release train (2026-10-05)
 
 **Status 2026-10-05: built.** Status evidence: `docs/certification/train-0.14.0.md`.
-
-- [x] Merge origin-main (#121), M91/M91b, M93, Knip constants, DEFLAKE4 and M98 phase 1 in the brief's order, retaining every source head and both split-check speed fixes. Skip unready m94/kw and ci/refresh-badges for the lead.
-- [x] Connect metered Judge claim/settle/refund/lookupByClaimId/latestDay to D78's shared daily ledger and test shared reservation plus subscription-only consent behavior.
-- [x] Adapt ACTDIET prototype commits after the merges; activation at most 600,000 bytes, shared English under the original 125 KiB, webview startup under 921,600 bytes, all other caps unchanged.
-- [x] If the actual universal package still exceeds its unchanged cap, use measured shared Node wire schemas and one bounded lossless translation archive, preserving exact locale values, source tables, browser parsing and ACP JSON compatibility. Before startup repair the real universal VSIX is 2,436,399 bytes; fourteen individual Brotli tables occupy 605,236 ZIP bytes. A language-major values matrix measures 434,140 Brotli bytes, and shared existing protocol/agent-event schemas save about 20.6 KiB compressed across five measured Node consumers before conversation/ACP. No dependency or existing cap changes.
-- [x] Preserve the browser’s synchronous inline English fallback with a build-only dictionary over repeated text and label-key fragments; decode all keys, values and plural forms exactly before localization state is created. Register every new exact bundle path in M93’s frame vocabulary, preserving package-only stack privacy. Rebalance Share and the small Session Board into eager imports so the unchanged 50-KiB deferred cap and 900-KiB startup cap both hold. The lossless key/value probe saves 38,451 bytes; no user copy, functionality, dependency or cap is removed.
-- [x] Preserve both full What’s New releases through a lossless Node-only Brotli envelope when the plain tree exceeds its unchanged 40-KiB on-disk cap. The measured 60,873-byte tree needs a new 75-KiB decoded bound (measured plus 15%, rounded to 25 KiB); validate the envelope and decoded tree, retain small/plain compatibility, and prove round-trip and expansion limits. This follows the existing packed Node fallback and keeps all release content.
-- [x] Prepare 0.14.0 with one dated changelog section, at most five Highlights, byte-identical older releases, and matching full/Marketplace README sections and install versions.
-- [ ] Run full quality directly on Kubuntu and measure a CI-shaped VSIX with the checksum-verified universal helper from the authorized 0.13.0 archive. Record conflicts, sizes, drills, gate tail and PR description in the train certification. Local hook-on commits only, no push, rebase, paid/live call; 180-minute time box.
 
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
@@ -17617,51 +17343,17 @@ separate from Linux rig receipts.
 
 **Status 2026-10-05: built.** Status evidence: `docs/certification/train-0.14.0.md`.
 
-- [x] Merge M94 Tab, M71 git/PRs, M100 multi-device plan and DEFLAKE3 in that order, each as a two-parent merge commit. Preserve all decisions, translations and byte-identical released changelog sections from `7820bd30`.
-- [x] Resolve integration overlaps by retaining D78 default availability and M94 first-use consent, then regenerate generated inventories. Defer a merged feature's optional UI through the existing chunks if required; every current size cap stays unchanged.
-- [x] Run each branch's scoped tests (at most three files, three workers, 120-second test timeout), typecheck, changed-file lint/format, localization, host API, production build and package after every merge. Full quality belongs to the later completed train and is explicitly excluded by this brief.
-- [ ] Certify each CI-shaped VSIX with the actual universal helper. Its measured prior-train ZIP contribution gives estimates within the cap after the repairs; Q-TRAIN14 records the missing artifact and read/network fence.
-- [x] Record conflict decisions, checks, gate-fire drills if new guards are needed, and exact per-merge bundle/archive bytes in `docs/certification/train-0.14.0.md`. Commit locally with hooks; no push, main merge, rebase, credential access or paid/live call. Time box: 100 minutes on Kubuntu.
-
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### KNIPC — Restore dead-export analysis of shared constants (2026-10-05)
 
 **Status 2026-10-05: built.** Status evidence: `docs/certification/knip-constants.md`.
 
-- [x] Reproduce the Knip 6.38.0 blind spot and bisect a scratch copy of
-      `src/shared/constants.ts`; identify the source construct or entry/config
-      classification that suppresses its exports.
-- [x] Fix the cause without an ignore or weakened gate; remove genuinely
-      unused constants and tests that only keep those constants alive.
-      The whole-module enumeration in `execSchema.test.ts` and disabled
-      namespace issue types were the two blockers. Named imports plus additive
-      `nsExports`/`nsTypes` inclusion expose both planted value/type exports;
-      every existing constant remains referenced, so none is removed.
-- [x] Plant an unused export, observe plain Knip exit 1, restore byte-exact
-      and observe exit 0. Record evidence and scoped static/build/test checks
-      in `docs/certification/knip-constants.md`; commit locally with hooks on.
-
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### DEFLAKE4 — Deterministic deferred-bundle split drills (2026-10-05)
 
 **Status 2026-10-05: built.** Status evidence: `docs/certification/deflake4.md`.
-
-- [x] D4-A: build real shipped entries once per test file and cache their
-      metafiles; each case mutates an isolated in-memory copy.
-- [x] D4-B: every existing split drill observes its exact rejection and
-      restored green, with SHA-256 byte-exact restoration; deliberate guard
-      defects must make the owning tests fail.
-- [x] D4-C: run the entire owning file 50 times on this Windows host with
-      another Vitest run alongside; report each test's maximum and mean,
-      comfortably below 2 seconds, in `docs/certification/deflake4.md`.
-- [x] D4-D: run the lane's scoped/static/build gates, update changelog and
-      certification, then commit explicit paths with hooks enabled.
-
-- [ ] Recover the merged webview startup overage within unchanged startup and
-      deferred budgets: inspect model-text overcarriage, then defer optional
-      dialogs with the existing loading/focus affordance only if measurements fit.
 
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
@@ -17684,19 +17376,6 @@ separate from Linux rig receipts.
 ### SDK142 — Muse Code 1.4.2 fingerprint and documentation (2026-10-02)
 
 **Status 2026-10-02: built.** Status evidence: `docs/certification/sdk142.md`.
-
-- [x] Verify all three digests against the SDK research artifacts and release evidence.
-- [x] Test both successor mappings and log outcomes, plus the SDK's own pin;
-      remove the 1.4.2 entry, observe failure, then restore byte-exact.
-- [x] Run the backend/host/account tests and the process-level fake CLI e2e
-      on Kubuntu, including an explicit 1.4.2 served fingerprint while the
-      default fake continues to use SDK 1.3.0's `EXPECTED_SCHEMA_FINGERPRINT`.
-- [x] Correct provider selection, model effort metadata, session deletion,
-      feedback, voice and Windows workaround facts; preserve dated evidence
-      and append dated notes where needed.
-- [x] Run typecheck, scoped lint/format, deadcode, duplication, localization,
-      host API and production build on Kubuntu; keep package files unchanged.
-- [x] Record results in `docs/certification/sdk142.md` and update its index.
 
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
@@ -33198,13 +32877,6 @@ Record regression failures, byte-exact red drills and bounded checks in
 
 **Status 2026-10-07: built.** Certification: `docs/certification/macslow.md`.
 
-- [ ] Measure and repair each owned cause without timeout changes, retries or skips.
-- [ ] Prove compiler coverage and changed fixture/security checks fail on deliberate
-      regressions, restoring every mutation byte-exact.
-- [ ] Run three clean `CI=true` complete-file passes at default test deadlines
-      with at most three workers, plus measured compiler and scoped static/build gates.
-- [ ] Commit finished pieces with hooks and explicit paths; never merge or push.
-
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### CI0150L — Linux hosted CI round 3 (2026-10-07)
@@ -33239,42 +32911,6 @@ Record regression failures, byte-exact red drills and bounded checks in
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### FIXM116P4 — Final outcome verification repairs (2026-10-06)
-
-SECWINPATH (2026-10-08): the owner's shared lane rules prohibit aggregate
-`npm run quality` on the shared rig and delegate it to the lead. This lane
-qualifies its committed fresh clone with every owning suite three times,
-repository deadlines, five typechecks, changed-file lint/format, plain knip,
-duplication, cycles, localization/reference/host API and capped production
-build instead. No gate or threshold is changed; aggregate qualification is
-a lead handoff, not a claim that it ran here. See its certification record.
-
-**FIXCYCLES2 scoped rig verification (2026-10-08).** Follow the lane's scoped
-cycles/unit-typecheck/lint/format/knip gates and three complete guard runs at
-repository deadlines, with the common rules' additional static/build checks.
-Aggregate `npm run quality`, coverage and hosted qualification remain with the
-lead. Preserve every threshold and record the hard-coded-glob failure drill
-and byte-exact restoration in `docs/certification/fixcycles.md`.
-
-**FIXCYCLES scoped rig verification (2026-10-08).** The lane brief requires
-fresh-clone individual gates and owning test batches of at most three files.
-The shared rules prohibit aggregate quality; the lead retains that run and
-hosted multi-OS qualification. No threshold, ignore, assertion or timeout is
-relaxed. `docs/certification/fixcycles.md` records actual checks and drills.
-
-**FIX0160W2 scoped Windows qualification (2026-10-07).** The named lane
-brief and shared common rules prohibit aggregate quality and delegate it to
-the lead. This lane runs complete owned suites with short TEMP/TMP and
-repository deadlines, every prescribed individual compiler/static/build gate,
-and deliberate byte-exact failure drills. No gate, timeout, assertion or native
-guard is weakened. Hosted Windows replay remains the release's qualification;
-`docs/certification/fix0160w2.md` records the local evidence and its limits.
-
-**FIX0160X scoped release repair (2026-10-07).** The shared lane brief
-prohibits aggregate quality and reserves it for the lead. This lane runs
-every named owning file at repository deadlines and all prescribed individual
-compiler/static/build/package checks. No threshold, deadline, assertion or
-package refusal is waived. Hosted cross-platform qualification remains with
-the joined release; receipts are in `docs/certification/fix0160x.md`.
 
 **DEP138 rig verification.** The lane's rig note limits each test invocation
 to three files. Certify every configured unit/process-e2e file in batches of
@@ -33314,24 +32950,6 @@ Final evidence is recorded in `docs/certification/macslow.md`.
 ### FIXM112U — RVM112U surface repairs (2026-10-06)
 
 **Status 2026-10-06: built.** Status evidence: `docs/certification/m112-u.md`.
-
-- [x] P2-1: the same-session snapshot owns the open set. An absent active
-      transcript card becomes locally unavailable, retaining any known terminal
-      state. Counts, chip, navigation and delivery use the same derived set.
-- [x] P2-2: one same-session history merge preserves approval outcomes and
-      question cards/outcomes, including retired terminal records.
-- [x] P2-3: approvals first, then newest waiting question; protect a question
-      focus or typing in its draft; retain inactive drafts. Reminders rank only
-      among deferred questions.
-- [x] P3: separate lazy question renderer/dock region/chip from the small
-      startup draft context and approval shell. Keep a minimal loading card;
-      preserve drafts. Measure startup against the 3 KiB target and allocate the
-      question closure measured size +15%, rounded up to 25 KiB, independently
-      of the unchanged unclassified deferred cap.
-- [x] Complete-file regressions, red drills with byte-exact restoration,
-      scoped rig gates and hooks-on local commits; record in
-      `docs/certification/m112-u.md`. Lead retains aggregate quality and existing
-      Q/A/editor integration handoffs. No merge, push, dependency or gate widening.
 
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
@@ -33415,26 +33033,11 @@ recovery; interrupted Resume remains the captured control.
 
 **Status 2026-10-06: built.** Status evidence: `docs/certification/diet1.md`.
 
-- [x] Measure main `e56b795a` with the production metafile: startup 813,180 B
-      (794.1 KiB); original deferred aggregate 51,157 B (49.96 KiB).
-- [x] Reduce startup by at least 60 KiB and original deferred aggregate to
-      at most 35 KiB without raising either existing cap or adding dependencies.
-      Keep transcript, composer and approvals eager; defer optional surfaces
-      and preserve the complete inline English fallback with lossless encoding.
-- [x] Accessible loading, local load failure and retry; shared-host CSP/asset
-      proof; owning tests and intentional static-import red drill.
-- [x] Fix RVMDIET1 P2-1, P2-2 and P3 with owning regressions and byte-exact
-      red drills; final 628-page accessibility matrix exits 0 on macmini.
-
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### FIXHELPREF4 — Final focused help audit repairs (2026-10-06)
 
 **Status 2026-10-06: built.** Status evidence: `docs/certification/help-reference.md`.
-
-- [x] Budget truth regression, all translations and generated outputs.
-- [x] Vocabulary/output-walk regressions and byte-exact red drills.
-- [x] Scoped Kubuntu validation and hook-on commits; no merge or push.
 
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
@@ -33442,19 +33045,11 @@ recovery; interrupted Resume remains the captured control.
 
 **Status 2026-10-06: built.** Status evidence: `docs/certification/help-reference.md`.
 
-- [x] Six regressions and twelve deliberate red drills, with SHA-256 restoration.
-- [x] Whole-catalogue truth pass, translated tables and generated reference.
-- [x] Scoped Kubuntu checks and hook-on local commits; no merge or push.
-
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### REDHELPREF — Runtime-owned reference facts (2026-10-05)
 
 **Status 2026-10-05: built.** Status evidence: `docs/certification/help-reference.md`.
-
-- [x] Runtime-owned typed sources and translated catalogue descriptions.
-- [x] Complete action coverage, independent truth tests and 19 red drills.
-- [x] Search/navigation, fixtures and scoped static/build validation.
 
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
@@ -33462,32 +33057,11 @@ recovery; interrupted Resume remains the captured control.
 
 **Status 2026-10-05: built.** Status evidence: `docs/certification/help-reference.md`.
 
-- [x] Repair all 23 findings, with exact implemented surfaces and complete contracts.
-- [x] Certify 571 scoped tests and 59 deliberate failures with byte-exact restoration.
-- [x] Pass existing static/build gates, production help parity/localization and
-      wide/narrow English/French accessibility; preserve every budget.
-
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### HELPREF — Generated Help & Reference (2026-10-05, release 0.14.1)
 
 **Status 2026-10-05: built.** Status evidence: `docs/certification/help-reference.md`.
-
-- [x] Generate the lazy reference model and `docs/reference.md` from the
-      manifest, palette, typed feature catalogue and ACP/CLI command table.
-      Validate coverage, descriptions, links and freshness in `check:reference`;
-      add that check to local quality and CI without changing any cap.
-- [x] Add shared React reference page, translated controls, current/default
-      values, settings links and an explicit safe command allowlist. Host bridge
-      messages are schema-validated. VS Code filters settings by `@id:`; native
-      bridges use their settings page anchors with the same requested key.
-- [x] Wire panel `/help`, Open Help & Reference palette command, ACP's compact
-      `/help`, CLI `help --all` and headless help. The generated GitHub reference
-      is the companion link for ACP editors; the React page is portable through
-      the shared bridge. No backend or model invocation is required for help.
-- [x] Prove generator/page tests and red drills; check accessibility in all
-      four themes, capture wide/narrow light/dark, measure unchanged startup caps,
-      update README, CONTRIBUTING, AGENTS and CHANGELOG, commit with hooks.
 
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
