@@ -169,3 +169,50 @@ release keeps the other rows…` fails (1 failed, 10 passed).
 
 No `eslint-disable`, `@ts-expect-error`, `any` or non-narrowing `as`
 added. No l10n, reference, roadmap or host-API change.
+
+## R5 (RVCM1136D fixes, 2026-10-11)
+
+Lane CM1136R5, same worktree/branch (`c/m113-6`). Every RVCM1136D finding
+(P2, P3) is fixed with no residuals; the read is redesigned instead of
+patched. No network calls on this lane; no paid or live model calls. No
+new dependency; no guard widened.
+
+Correction to R4: its "no residuals" sentence overclaimed the tag-page
+path (RVCM1136D P2). The contract below replaces it: the suite now fails
+a failed second tag page on purpose and keeps the page-1 rows.
+
+| Finding                                                                                                                                                | Fix                                                                                                                                                                                                                                                                                                                                                | Regression test (fails without it)                                                                                                                                                                                                                                                                                                                                   |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P2: a failed later tag page threw before `/releases` and the runs read, blanking every release and release-run row                                     | `readElements` returns per-page results instead of throwing: each tag, release and run page records its own paged refusal (`tags-page-2: http-500`) and pagination continues past it; only the shared page bound ends the walk. The assembly keeps rows from every request that succeeded (`src/core/reporting/sources/githubWorkflowReleases.ts`) | `test/unit/githubWorkflowReleaseIsolation.test.ts`: ONE property test over 6 requests × 5 ways (HTTP error, invalid JSON, oversize body, timeout, refused host) asserting the surviving rows stay and the partial reason names exactly the failed page; plus the request-list gate (a new request without a case fails `covers exactly the read's own request list`) |
+| P3: an unparseable tag was dropped with no reason of its own (surfaced, if at all, as `release-commit-required` on another record)                     | Tag page reasons join the port's own; tag names are read off corrupt elements, and a release or run whose tag was corrupt or whose tag page failed is skipped silently — its cause already named — never with a substitute blame                                                                                                                   | `a corrupt tag keeps its own reason…` (review scenario verbatim) and `a corrupt extra tag…is partial, never ok`                                                                                                                                                                                                                                                      |
+| Unconfirmed note: a row passing the loose port shape but failing the strict fact shape threw away the whole section as `workflow-releases-unavailable` | `githubReportSource` validates each additional row against the strict shape and skips failures with `release-response-invalid` / `run-response-invalid`; only a misshapen envelope stays generic (`src/core/reporting/sources/github.ts`)                                                                                                          | `a row failing the strict fact shape is skipped…` via a stub port                                                                                                                                                                                                                                                                                                    |
+
+## R5 red-drill record
+
+Pre-drill hashes in `temp/cm1136r5-drill-sha.txt` (removed after the
+round); every file verified with `sha256sum -c` after its restore (3/3
+OK each round).
+
+1. D9 `githubWorkflowReleases.ts` tag throw restored: all 10 tag-page
+   property cases fail (10 failed, 24 passed); restored, SHA OK.
+2. D10 tag page reasons dropped from the port's list: the 10 tag-page
+   property cases plus both P3 cases fail (12 failed, 22 passed);
+   restored, SHA OK.
+3. D11 `github.ts` assembly back to one whole-parse: the strict-assembly
+   test fails (1 failed, 33 passed); restored, SHA OK.
+
+Neighbor suites green at the repository timeout (`--maxWorkers=3`):
+`githubWorkflowReleases` + `githubReportSource` +
+`reportProductionTransport` 53/53; `storeReportSource` +
+`storeProject` + `reportEngineStores` 42/42; new isolation file 34/34.
+`tsc` (src and unit), `eslint --max-warnings=0`, `prettier --check` and
+`node scripts/check-l10n.mjs` clean; no user-visible strings added
+(reason codes are machine codes). `npm run build`: every reporting
+bundle inside budget (`reportingNetwork.js` 61.9 → 63.3 KiB of 75;
+extension 550.7 of 600; modelApi 515.8 of 525) with the same
+pre-existing `dist/usagePanel.js` 75.1 KiB overage R3 recorded
+(no file this lane touches feeds it).
+
+No `eslint-disable`, `@ts-expect-error`, `any` or non-narrowing `as`
+added (test casts narrow `JSON.parse` output exactly like the existing
+suites). No l10n, reference, roadmap or host-API change. Time box held.
