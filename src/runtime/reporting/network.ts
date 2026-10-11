@@ -21,9 +21,12 @@ import { githubReportSource, ghReportTransport } from '../../core/reporting/sour
 import { storesReportSource, type ReportStoreAdapter } from '../../core/reporting/sources/stores'
 import { GITHUB_API_BASE_URL, LEGAL_REGISTRY_HOSTS } from '../../shared/constants'
 import { githubWorkflowReleasesPort } from '../../core/reporting/sources/githubWorkflowReleases'
-import { marketplaceStoreAdapter } from '../../core/reporting/sources/marketplaceStore'
+import {
+  MARKETPLACE_HOST,
+  marketplaceStoreAdapter,
+} from '../../core/reporting/sources/marketplaceStore'
 import { npmStoreAdapter } from '../../core/reporting/sources/npmStore'
-import { openVsxStoreAdapter } from '../../core/reporting/sources/openVsxStore'
+import { OPEN_VSX_HOST, openVsxStoreAdapter } from '../../core/reporting/sources/openVsxStore'
 import type { ReportStoreProject } from '../../core/reporting/sources/storeProject'
 import { reportScrubber } from '../../core/reporting/render/redaction'
 import { reportGitIo } from './sources'
@@ -42,21 +45,25 @@ const GITHUB_API_HOST = new URL(GITHUB_API_BASE_URL).hostname
 const NPM_REGISTRY_HOST = LEGAL_REGISTRY_HOSTS.npm
 
 /**
- * Production transport composition (RVCM1136 P1): one transport behind the
- * reader, routed by host. `api.github.com` keeps the surface's own lane —
- * the editor's credential-owning fetch, or the CLI/ACP `gh` child process —
- * so GitHub traffic never leaves its lane (the GitHub sweep: its binding is
- * unchanged, only addressed). The public npm registry rides the
- * credential-free public fetch, under the same policy and egress consent the
- * reader already enforces before any transport runs. Any other host is
- * refused, exactly as the `gh` lane refused it before.
+ * Production transport composition (RVCM1136 P1, RVCM1136B P1): one
+ * transport behind the reader, routed by host. `api.github.com` keeps the
+ * surface's own lane — the editor's credential-owning fetch, or the CLI/ACP
+ * `gh` child process — so GitHub traffic never leaves its lane (the GitHub
+ * sweep: its binding is unchanged, only addressed) and the editor Bearer [REDACTED]
+ * never reaches a gallery. The public store hosts (npm plus both galleries
+ * the production binding binds) ride the credential-free public fetch, under
+ * the same policy and egress consent the reader already enforces before any
+ * transport runs. The reader's own allow-list, gallery-POST rule and size
+ * bounds still apply first; any other host is refused, exactly as the `gh`
+ * lane refused it before.
  */
 export function routeReportTransport(github: ReportNetworkTransport): ReportNetworkTransport {
   const publicTransport = publicReportTransport((input, init) => globalThis.fetch(input, init))
   return async (request, etag, signal) => {
     const hostname = new URL(request.url).hostname
     if (hostname === GITHUB_API_HOST) return await github(request, etag, signal)
-    if (hostname === NPM_REGISTRY_HOST) return await publicTransport(request, etag, signal)
+    if ([NPM_REGISTRY_HOST, MARKETPLACE_HOST, OPEN_VSX_HOST].includes(hostname))
+      return await publicTransport(request, etag, signal)
     throw new ReportNetworkFailure('gh-endpoint-refused')
   }
 }

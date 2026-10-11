@@ -23,7 +23,7 @@ import * as z from 'zod/mini'
 import { ReportNetworkFailure } from './cache'
 import type { ReportStoreAdapter } from './stores'
 
-const MARKETPLACE_HOST = 'marketplace.visualstudio.com'
+export const MARKETPLACE_HOST = 'marketplace.visualstudio.com'
 const MARKETPLACE_API_VERSION = '3.0-preview.1'
 
 const extensionSchema = z.looseObject({
