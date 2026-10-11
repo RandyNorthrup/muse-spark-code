@@ -217,6 +217,8 @@ describe('M108 account metadata and clients', () => {
   it('rebinds the existing account to a changed origin only after explicit confirmation', async () => {
     const h = credentialHarness()
     await h.store.setCredential('vendor', 'work', workRecord)
+    const originalAccounts = await h.store.list('vendor')
+    expect(originalAccounts).toEqual([{ ...work, credentialRevision: expect.any(String) }])
     const nextOrigin = 'https://changed.invalid'
     h.configure({ origin: nextOrigin })
     const deny = vi.fn(() => Promise.resolve(false))
@@ -228,7 +230,7 @@ describe('M108 account metadata and clients', () => {
     const allow = vi.fn(() => Promise.resolve(true))
     await h.store.rebindOrigin('vendor', 'work', allow)
     expect(allow).toHaveBeenCalledWith(workBinding, { ...workBinding, origin: nextOrigin })
-    expect(await h.store.list('vendor')).toEqual([work])
+    expect(await h.store.list('vendor')).toEqual(originalAccounts)
     const use = vi.fn((_binding: AccountBinding, credential: AccountCredential | undefined) =>
       Promise.resolve(credential),
     )
