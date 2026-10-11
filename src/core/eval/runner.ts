@@ -43,7 +43,13 @@ import type {
 import { evalWindowTokens, type EvalTask } from './tasks'
 import { freezeEvalHarness, frozenBundleChange } from './mechanisms'
 import type { ArmBundle } from './armSources'
-import { createEvalWire, wireTotals, type EvalBudget, type EvalWire } from './wire'
+import {
+  createEvalWire,
+  wireTotals,
+  type EvalBudget,
+  type EvalWire,
+  type EvalWireTruncation,
+} from './wire'
 import {
   createEvalWorkspace,
   evalWorkspaceFailureForReport,
@@ -182,8 +188,9 @@ async function runTask(
   order: number,
   admission: EvalCompactionAdmission,
   ledger: ReturnType<typeof createEvalCompactionLedger>,
-): Promise<EvalTaskResult> {
+): Promise<{ result: EvalTaskResult; truncated: readonly EvalWireTruncation[] }> {
   const wire = createEvalWire({ fetch: deps.fetch, baseUrl: deps.client.baseUrl, budget })
+  const settledBefore = ledger.tally.settled
   const steps: string[] = []
   const folders = await step(
     'the workspace could not be made',
@@ -210,28 +217,35 @@ async function runTask(
   deps.log.info(
     `Evaluation ${arm.name} ${task.id}: ${isPassed ? 'passed' : 'failed'} after ${String(totals.attempts)} attempts`,
   )
+  // The D78 admissions this task settled (R2): the compaction evidence,
+  // counted by the ledger around the turn — zero where nothing compacted.
+  const compactionsSettled = ledger.tally.settled - settledBefore
   return {
-    taskId: task.id,
-    title: task.title,
-    split: task.split,
-    passed: isPassed,
-    terminal: outcome?.terminal ?? EVAL_TURN_NOT_RUN,
-    failures,
-    attempts: totals.attempts,
-    requests: totals.requests,
-    inputTokens: totals.inputTokens,
-    cachedTokens: totals.cachedTokens,
-    outputTokens: totals.outputTokens,
-    costUsd: totals.costUsd,
-    toolCalls: outcome?.tools.length ?? 0,
-    approvals: outcome?.approvals ?? 0,
-    questions: outcome?.questions ?? 0,
-    paidRefusals: outcome?.paidRefusals ?? 0,
-    order,
-    ...(outcome?.packedTokensAvoided !== undefined && {
-      packedTokensAvoided: outcome.packedTokensAvoided,
-    }),
-    recalls: outcome?.recalledOutputs.length ?? 0,
+    result: {
+      taskId: task.id,
+      title: task.title,
+      split: task.split,
+      passed: isPassed,
+      terminal: outcome?.terminal ?? EVAL_TURN_NOT_RUN,
+      failures,
+      attempts: totals.attempts,
+      requests: totals.requests,
+      inputTokens: totals.inputTokens,
+      cachedTokens: totals.cachedTokens,
+      outputTokens: totals.outputTokens,
+      costUsd: totals.costUsd,
+      toolCalls: outcome?.tools.length ?? 0,
+      approvals: outcome?.approvals ?? 0,
+      questions: outcome?.questions ?? 0,
+      paidRefusals: outcome?.paidRefusals ?? 0,
+      order,
+      ...(outcome?.packedTokensAvoided !== undefined && {
+        packedTokensAvoided: outcome.packedTokensAvoided,
+      }),
+      recalls: outcome?.recalledOutputs.length ?? 0,
+      compactionsSettled,
+    },
+    truncated: wire.truncated,
   }
 }
 
@@ -270,11 +284,34 @@ function floorFor(split: EvalSplit): number {
   return split === 'accept' ? EVAL_FLOOR_ACCEPT_PASS_RATE : EVAL_FLOOR_HELDOUT_PASS_RATE
 }
 
-function verdictOf(floors: readonly EvalFloorResult[]): EvalReport['verdict'] {
+function verdictOf(
+  floors: readonly EvalFloorResult[],
+  stoppedEarly: readonly string[],
+): EvalReport['verdict'] {
+  // A truncated run decided nothing: refusals manufacture failures, so the
+  // missing sends are neither a pass nor a fail, whatever the floors say.
+  if (stoppedEarly.length > 0) {
+    return 'incomplete'
+  }
   if (floors.some((floor) => floor.tasks > 0 && !floor.held)) {
     return 'fail'
   }
   return floors.some((floor) => floor.tasks === 0) ? 'incomplete' : 'pass'
+}
+
+/** The receipt's words for why the run stopped before every task could send. */
+function stopReason(code: EvalWireTruncation, budget: EvalBudget): string {
+  switch (code) {
+    case 'call-ceiling': {
+      return `the run stopped at its call ceiling of ${String(budget.maxAttempts)} model calls`
+    }
+    case 'budget-spent': {
+      return `the run stopped after its budget of $${EVAL_BUDGET_USD.toFixed(2)} was spent`
+    }
+    case 'unknown-usage': {
+      return 'the run stopped because a sent model call has unknown usage'
+    }
+  }
 }
 
 /** Runs the tasks on every arm (the first is the baseline) and builds the report. */
@@ -308,11 +345,26 @@ export async function runPairedEval(
     bundle: frozen.bundles.get(arm.name),
     results: [] as EvalTaskResult[],
   }))
+  const stoppedEarly: string[] = []
   for (const [index, task] of tasks.entries()) {
     for (const [position, run] of runOrder(runs, index).entries()) {
-      run.results.push(
-        await runTask(task, run.arm, run.bundle, deps, budget, position + 1, admission, ledger),
+      const finished = await runTask(
+        task,
+        run.arm,
+        run.bundle,
+        deps,
+        budget,
+        position + 1,
+        admission,
+        ledger,
       )
+      run.results.push(finished.result)
+      for (const code of finished.truncated) {
+        const reason = stopReason(code, budget)
+        if (!stoppedEarly.includes(reason)) {
+          stoppedEarly.push(reason)
+        }
+      }
     }
   }
   const reports: EvalArmReport[] = runs.map(({ arm, results }) => ({
@@ -341,6 +393,7 @@ export async function runPairedEval(
     ...(frozen.bundles.size === arms.length && { harnessDigest: frozen.sha256 }),
     arms: reports,
     floors,
-    verdict: verdictOf(floors),
+    ...(stoppedEarly.length > 0 && { stoppedEarly }),
+    verdict: verdictOf(floors, stoppedEarly),
   }
 }

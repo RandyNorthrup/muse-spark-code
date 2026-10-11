@@ -51,6 +51,13 @@ export const evalTaskResultSchema = z.object({
   packedTokensAvoided: z.optional(z.number()),
   /** `recall_output` calls that succeeded (M73); absent in reports made before it. */
   recalls: z.optional(z.number()),
+  /**
+   * D78 admissions the run settled on this task (M101 lane E R2): the
+   * settled summary round trips, counted by the runner's ledger, not by
+   * attempt counts. Absent in reports made before it, which read as never
+   * engaged.
+   */
+  compactionsSettled: z.optional(z.number()),
 })
 export type EvalTaskResult = z.infer<typeof evalTaskResultSchema>
 
@@ -62,6 +69,7 @@ const legacyTaskResultSchema = z.object({
   order: z.optional(z.never()),
   packedTokensAvoided: z.optional(z.never()),
   recalls: z.optional(z.never()),
+  compactionsSettled: z.optional(z.never()),
 })
 
 export const evalSplitSummarySchema = z.object({
@@ -124,18 +132,19 @@ const evalPackingEngagementSchema = z.object({
 })
 
 /**
- * Lane E's acceptance beside the floors: the auto-compaction arm sent more
- * attempts than the baseline on every long-context task it ran — the extra
- * sends are the summary round trips, counted from the trace. A run that
- * holds the floors without compacting proves nothing about compaction, so
- * it fails the run. Attempt counts, not bodies: the trace never keeps
- * bodies.
+ * Lane E's acceptance beside the floors: the D78 admission settled a
+ * summary on every long-context task the auto-compaction arm ran (R2: the
+ * runner's settled-admission count per task — more model calls than the
+ * baseline is not evidence). A run that holds the floors without a
+ * settled compaction proves nothing about compaction, so it fails the
+ * run. A selection with no long-context task holds nothing: it is
+ * incomplete, never a pass.
  */
 const evalCompactionEngagementSchema = z.object({
   arm: z.string(),
   /** The long-context tasks the run selected. */
   longContextTasks: z.array(z.string()),
-  /** Those on which the arm sent no more attempts than the baseline. */
+  /** Those on which the admission settled no summary. */
   unengaged: z.array(z.string()),
   held: z.boolean(),
 })
@@ -154,6 +163,13 @@ export const evalReportSchema = z.discriminatedUnion('version', [
     packingEngagement: z.optional(evalPackingEngagementSchema),
     /** Recorded by a run with an auto-compaction arm (M101 lane E); absent otherwise. */
     compactionEngagement: z.optional(evalCompactionEngagementSchema),
+    /**
+     * The run stopped before every selected task could send: the call
+     * ceiling, the dollar budget or an unmeasurable reply ended it. A
+     * truncated run is `incomplete`, never `pass`: the missing sends are
+     * not evidence. Absent when every task ran to its own end.
+     */
+    stoppedEarly: z.optional(z.array(z.string())),
     /** Present only when every arm executed its frozen bundle snapshot. */
     harnessDigest: z.optional(z.string()),
   }),
@@ -324,6 +340,27 @@ export function formatEvalReportMarkdown(report: EvalReport): string {
       `| ${engagement.arm} | ${listed(engagement.longContextTasks)} | ${listed(engagement.unengaged)} | ${engagement.held ? 'yes' : 'no'} |`,
       ``,
     )
+    // The settled-admission count per long-context task: the evidence the
+    // acceptance above judges, beside the floors.
+    if (engagement.longContextTasks.length > 0) {
+      const arm = report.arms.find((candidate) => candidate.name === engagement.arm)
+      lines.push(
+        `| Task | Settled compactions |`,
+        `| --- | --- |`,
+        ...engagement.longContextTasks.map(
+          (taskId) =>
+            `| ${taskId} | ${recordedCount(arm?.results.find((result) => result.taskId === taskId)?.compactionsSettled)} |`,
+        ),
+        ``,
+      )
+    }
+  }
+  if (
+    report.version === EVAL_REPORT_VERSION &&
+    report.stoppedEarly !== undefined &&
+    report.stoppedEarly.length > 0
+  ) {
+    lines.push(`## Stopped early`, ``, ...report.stoppedEarly.map((reason) => `- ${reason}`), ``)
   }
   return lines.join('\n')
 }

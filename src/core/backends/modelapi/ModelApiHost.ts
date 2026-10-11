@@ -416,6 +416,7 @@ import {
 import {
   AutoCompactionNotAuthorizedError,
   isAutoCompactionNotAuthorizedError,
+  isMissingEvalAdmissionError,
 } from '../../paid/paidConsent'
 import type {
   ContextModel,
@@ -14655,6 +14656,10 @@ export class ModelApiSession implements ScheduledAgentSession {
       return true
     } catch (error: unknown) {
       this.autoCompact.failed()
+      // The frozen evaluation arm without its parent's admission fails
+      // closed: rethrown, so the turn fails instead of running uncompacted
+      // as if that were the mechanism (M101 lane E R2).
+      if (isMissingEvalAdmissionError(error)) throw error
       if (
         ledger.hasFailed ||
         (error instanceof Error && error.message === UI_TEXT.sessionBudgetStoreUnavailable)

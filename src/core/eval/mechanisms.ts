@@ -3,6 +3,7 @@
 // production code under test remains outside the freeze.
 
 import { createHash } from 'node:crypto'
+import { MissingEvalAdmissionError } from '../paid/paidConsent'
 import {
   EVAL_APPROVAL_MODE,
   MODEL_API_CONTEXT_WINDOW,
@@ -56,7 +57,7 @@ export const OBSERVATION_PACKING_ARM: EvalArm = {
 export const AUTO_COMPACTION_ARM: EvalArm = {
   name: 'auto-compaction',
   mechanism:
-    'automatic compaction (M74): the eval host compacts at a settled tool boundary as evaluated, with an evaluation admission that admits and settles every extra attempt without charge',
+    'automatic compaction (M74): the eval host compacts at a settled tool boundary as evaluated, with an evaluation admission that reserves every extra attempt against the run budget and settles it there',
   program: ARM_PROGRAM,
   change: frozenChange('auto-compaction'),
 }
@@ -121,11 +122,14 @@ export function frozenBundleChange(bundle: ArmBundle): EvalHostChange {
       // The frozen arm declares that it compacts; the spend authority is
       // the parent's real D78 admission, never a double built here. Without
       // one the arm fails closed with its reason, instead of compacting
-      // for free or running uncompacted as if that were the mechanism.
+      // for free or running uncompacted as if that were the mechanism
+      // (the host rethrows this marker, so the turn fails).
       admitAutoCompaction: (request) => {
         const parent = deps.admitAutoCompaction
         if (parent === undefined)
-          throw new Error('the auto-compaction arm needs the evaluation admission its parent binds')
+          throw new MissingEvalAdmissionError(
+            'the auto-compaction arm needs the evaluation admission its parent binds',
+          )
         return parent(request)
       },
     }),

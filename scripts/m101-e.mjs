@@ -13,14 +13,16 @@ import path from 'node:path'
 import process from 'node:process'
 
 /**
- * The counted live evaluation's call plan (M101 lane E). Base attempts come
- * from the fake pairs (test/unit/eval/evalRunner.test.ts: fourteen small
- * tasks at three attempts on every arm, two long-context tasks at three on
- * every arm but auto-compaction's six — one summary round trip each). Live
- * attempts vary, so the hard ceiling below adds bounded-retry headroom; the
- * wire refuses past it, failing tasks closed instead of sending more.
- * test/unit/eval/evalPlan.test.ts pins every count below against EVAL_TASKS
- * and EVAL_ARMS, so the plan cannot drift from the frozen task set.
+ * The counted live evaluation's call plan (M101 lane E R2). Base attempts
+ * come from the fake pairs (test/unit/eval/evalRunner.test.ts: fourteen
+ * small tasks at three attempts on every arm, two long-context tasks at
+ * three on every arm but auto-compaction's six — one summary round trip
+ * each). The printed plan is EXACTLY what the run may send: no probe, no
+ * extra round, no headroom. The hard ceiling equals the plan; the wire
+ * refuses past it, and a run that would exceed it stops and is
+ * `incomplete`, never a pass. test/unit/eval/evalPlan.test.ts pins every
+ * count below against EVAL_TASKS and EVAL_ARMS, so the plan cannot drift
+ * from the frozen task set.
  */
 const M101_EVAL_PLAN = {
   model: 'muse-spark-1.3-contributor',
@@ -31,19 +33,17 @@ const M101_EVAL_PLAN = {
     { name: 'auto-compaction', smallAttempts: 3, longAttempts: 6 },
     { name: 'strict-tools', smallAttempts: 3, longAttempts: 3 },
   ],
-  /** One /compact and one token-budgeted goal round in an empty workspace. */
-  cacheProbeAttempts: 8,
   liveAttemptsHere: 0,
   budgetUsd: 0.5,
-  /** Model calls the plan expects before retries: 198 + the probe. */
-  plannedCalls: 206,
-  /** Hard ceiling enforced by the trace wire (MUSE_EVAL_MAX_ATTEMPTS). */
-  callCeiling: 300,
-  m75: '16 tasks × 4 arms (baseline/packing/auto-compaction/strict-tools): base 198 calls from the fake pairs, plus the cache probe. The ceiling adds bounded-retry headroom. Existing trace stops future sends at its $0.50 estimate, unknown usage or the ceiling; this is not a reservation theorem.',
+  /** Model calls the plan sends: exactly what the live run may send. */
+  plannedCalls: 198,
+  /** Hard ceiling enforced by the trace wire (MUSE_EVAL_MAX_ATTEMPTS): the plan, exactly. */
+  callCeiling: 198,
+  m75: '16 tasks × 4 arms (baseline/packing/auto-compaction/strict-tools): 198 calls from the fake pairs, and the ceiling is that plan exactly — no headroom, no probe. The wire refuses past it and the run stops incomplete; the trace also stops future sends at its $0.50 estimate or on unknown usage, stopping incomplete the same way. This is not a reservation theorem.',
   autoCompaction:
-    'The auto-compaction arm admits through the real shared D78 gate and settles every extra attempt against the run budget (src/core/eval/driver.ts, runner.ts); the report records its engagement on the long-context tasks beside the floors. Never flips the production latch from this launcher.',
+    'The auto-compaction arm admits through the real shared D78 gate and settles every extra attempt against the run budget (src/core/eval/driver.ts, runner.ts); the report records the settled-admission count per task and requires at least one settled admission on every long-context task of that arm, beside the floors. Never flips the production latch from this launcher.',
   captures:
-    'Record workspace, contributor model, every actual attempt, cached tokens, admitted compaction settlements, overflow kind and incomplete call status. Store sanitized captures and passing paired report in docs/certification/m101-e.md.',
+    'Record workspace, contributor model, every actual attempt, cached tokens, the settled-admission count per task, per-task terminal and stopped-early reasons. Store sanitized captures and passing paired report in docs/certification/m101-e.md.',
 }
 
 function main() {
@@ -91,10 +91,16 @@ function main() {
     process.stderr.write(
       'OPT-IN LIVE M75: bills the existing OS-stored Model API key; subscription pays none. The printed plan above is what it may send.\n',
     )
-    // The plan's ceiling, unless the lead narrowed it explicitly. The
+    // The ceiling is the printed plan, exactly: a pre-set value never
+    // survives, so the JSON above cannot disagree with the run. The
     // enabled test refuses a non-positive-integer value without sending.
     env['MUSE_LIVE_MODEL_API'] = '1'
-    env['MUSE_EVAL_MAX_ATTEMPTS'] ??= String(M101_EVAL_PLAN.callCeiling)
+    env['MUSE_EVAL_MAX_ATTEMPTS'] = String(M101_EVAL_PLAN.callCeiling)
+    if (env['MUSE_EVAL_TASKS'] !== undefined && env['MUSE_EVAL_TASKS'] !== '') {
+      process.stderr.write(
+        `Selection: ${env['MUSE_EVAL_TASKS'] ?? ''} — a narrowed selection sends fewer than the printed plan and cannot pass: no long-context task means verdict incomplete, and any missing split does too.\n`,
+      )
+    }
     // Scrubbed receipts beside the report: the run masks workspace paths,
     // scans every folder and both artifacts for the key before writing,
     // and fails instead of writing a receipt that holds it.
