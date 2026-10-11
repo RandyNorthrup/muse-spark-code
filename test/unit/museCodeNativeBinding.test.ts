@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as sdk from '@muse-code/sdk'
@@ -72,10 +73,13 @@ describe('Native reader binding: VS Code backend manager', () => {
   })
 
   it('binds the native ports the window constructs with', async () => {
-    // Mirrors src/extension.ts: the window passes the native reader. The
-    // effort reader is preloaded by the manager on first spawn (lane K
-    // budget); the catalogue assertions below prove it reads the captured
-    // rows all the same.
+    // Reads the production wiring in src/extension.ts, not a copy of it:
+    // deleting `featurePorts` from the window's manager construction fails
+    // this test (RVCM1063 #7). The effort reader is preloaded by the
+    // manager on first spawn (lane K budget); the catalogue assertions
+    // below prove it reads the captured rows all the same.
+    const windowSource = readFileSync('src/extension.ts', 'utf8')
+    expect(windowSource).toMatch(/featurePorts:\s*NATIVE_MUSE_CODE_FEATURE_PORTS/)
     expect(NATIVE_MUSE_CODE_FEATURE_PORTS.feedback).toBe(NATIVE_FEEDBACK_READER)
     expect(NATIVE_MUSE_CODE_FEATURE_PORTS.modelEfforts).toBeUndefined()
     expect(NATIVE_MUSE_CODE_FEATURE_PORTS.lifecycle).toBeUndefined()
