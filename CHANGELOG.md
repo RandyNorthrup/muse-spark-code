@@ -29,6 +29,20 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **Estimate report kind is real end to end** (M113 C-M113-4, part B).
+  `/report estimate <goal>` runs M117's estimator for the D97.2 goal in the
+  report scope with `--by <date>` as the deadline and `--fleet
+  current|minimum|optimum` as the fleet, and reports P50 and P90, the
+  critical path, the limiting resource, the setups with their marginal
+  values, the inputs and the calibration sample sizes. Any D97.2 goal text
+  parses; goals M117's snapshot cannot resolve yet (issues and labels until
+  M113 N links them) refuse with their names instead of invented rows, and
+  run `/estimate` on the same goal carries the refusal's full detail. The
+  report forecasts cost on every editor so the numbers match; stamps with an
+  explicit offset are normalized to the same UTC instant the estimator
+  requires. Works in VS Code (through the lazy estimator bundle), ACP and
+  the terminal (through the headless estimator for the report's workspace
+  root) without a model call.
 - **Session and usage report kinds are real end to end** (M113 C-M113-2).
   `/report session` reads the current conversation in the editor, or a stored
   Model API session by id (`--session <id>` in the terminal and ACP); turns

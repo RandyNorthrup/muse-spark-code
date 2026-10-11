@@ -1,6 +1,7 @@
 import { agentUsageSource, type AgentUsageAgent, type AgentUsageFiles } from './agentUsage'
 import { certificationSource } from './certification'
 import { changelogSource } from './changelog'
+import { estimateSource, type ReportEstimateReader } from './estimate'
 import { gitSource, type ReportGitIo } from './git'
 import { localSource, LocalSourceError, type LocalFileIo, type SourceScrub } from './local'
 import { packageSource } from './package'
@@ -15,6 +16,8 @@ export interface LocalReportSourceDeps {
   readonly roots: readonly string[]
   readonly session?: ReportSessionReader
   readonly questions?: ReportQuestionsReader
+  /** M117's estimator adapter, supplied by its owner; the run is never guessed. */
+  readonly estimate?: ReportEstimateReader
   /** M102's aggregate adapter, supplied by its owner; no journal parser is guessed. */
   readonly usage?: (context: SourceReadContext) => Promise<{
     usage: UsageFacts
@@ -35,6 +38,7 @@ export type LocalReportSources = Pick<
   | 'questions'
   | 'usage'
   | 'agentUsage'
+  | 'estimate'
 >
 /** All editors, CLI and ACP bind the same readers in the lazy reporting bundle. */
 export function createLocalReportSources(deps: LocalReportSourceDeps): LocalReportSources {
@@ -56,6 +60,7 @@ export function createLocalReportSources(deps: LocalReportSourceDeps): LocalRepo
       deps.scrub,
     ),
     questions: questionsSource(deps.questions, deps.scrub),
+    estimate: estimateSource(deps.estimate, deps.scrub),
     usage: localSource('usage', async (context) => {
       if (!['usage', 'project'].includes(context.options.kind))
         throw new LocalSourceError('disabled')

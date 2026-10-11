@@ -399,6 +399,7 @@ describe('session, registry and shared report adapters', () => {
       'agentUsage',
       'certification',
       'changelog',
+      'estimate',
       'git',
       'package',
       'questions',

@@ -21,7 +21,9 @@ import type { BackendKind } from '../../shared/protocol'
 import type { AgentHost } from '../../core/agent/agentBackend'
 import { itemSnapshotSchema, type ItemSnapshot } from '../../shared/agentEvents'
 import { LocalSourceError } from '../../core/reporting/sources/local'
+import type { ReportEstimateReader } from '../../core/reporting/sources/estimate'
 import type { ReportSessionReader } from '../../core/reporting/sources/session'
+import type { EstimateRequest } from '../../shared/estimate'
 import type { LocalReportSourceDeps } from '../../core/reporting/sources'
 import type { SourceReadContext } from '../../core/reporting/sources/types'
 import {
@@ -261,6 +263,23 @@ export async function readStoredReportSession(
     ...(session.name !== undefined && { name: session.name }),
     items: session.transcript.map((entry) => entry.item),
     turnIds: session.turnIds,
+  }
+}
+
+/**
+ * The reporting `estimate` source from M117's run: the host owns the engine
+ * (VS Code's lazy estimator bundle, the headless one per workspace root), so
+ * only the validated request crosses into this bundle and only the run's
+ * result crosses back. The core source validates, scrubs and projects it.
+ */
+export function createEstimateReportReader(input: {
+  readonly run: (request: EstimateRequest, signal: AbortSignal) => Promise<unknown>
+}): ReportEstimateReader {
+  return {
+    read: async (request, context) => {
+      const section = await input.run(request, context.signal)
+      return { section, observedAt: new Date().toISOString() }
+    },
   }
 }
 
