@@ -739,3 +739,74 @@ restore (`registry.ts` `0e15efe9…46accc66`,
   merge was performed.
 
 No RVCM1062G finding remains open; no external blocker was encountered.
+
+### R9 (RVCM1062H, kubuntu lane CM1062R3) — the last confirmed-dispatch paths
+
+Both findings are the same class as the last two rounds: a provider path
+deciding a confirmed dispatch by itself instead of the shared helper.
+
+- **P2** (`providerClient.ts:200`): a still-allowed schedule or hook
+  confirmation on a configured provider leaves `origin` unset
+  (`ModelApiHost.scheduleConfirmation`, `schedulesEntry.requestFor`, the
+  hook confirmation), and the bound client adds only `providerId`. The
+  codec's strict `confirmed.origin !== this.provider.origin` check refused
+  it before the helper, and the bound `catch` showed the Models & Agents
+  sentence. The codec now routes its provider/origin check through
+  `assertConfirmedAllowed` with an unset-means-pass tolerance matching the
+  transport fence; the refusal, when one is due, is the helper's.
+- **P3** (`configured.ts:707`): the bound `catch` mapped every failure to
+  `modelsPanelUnavailable`, discarding the helper's lapse guidance. It now
+  rethrows stale-confirmation errors unchanged, and the helper runs before
+  the wrong-client fence so a confirmed mismatch refuses with the run's
+  own guidance. The lifecycle table's configured branch and the
+  `credential rotation` boundary case now expect the helper sentence.
+- **Sibling sweep**: every `ConfirmedModelRequest` / confirmed-parameter
+  site in `src` re-checked (11 files). Transport's key/origin fences and
+  the Copilot `confirmation-expired` mapping stay as RVCM1062H blessed
+  them; both are allowlisted with reasons in the new inventory test.
+- **Lifecycle table**: new `configured-provider-schedule` branch (14
+  cases) drives the production path exactly as the client builds it — the
+  confirmation carries no origin and no provider id, the bound client
+  under test adds only the provider id — for every run kind. 70 cases.
+- **Inventory test** (`test/unit/confirmedDispatchInventory.test.ts`):
+  walks `src`, flags any refusal-shaped line near a confirmed reference,
+  and fails on any site outside the read-and-reasoned allowlist; a second
+  test fails if `staleConfirmedError(` is ever built outside
+  `transport.ts`. Paths are normalised to `/` before comparing.
+
+### R9 red drills (guards broken on purpose, files restored byte-exact)
+
+Baseline SHA-256 recorded before drilling; `sha256sum -c` OK after every
+restore. Repository timeouts throughout, `--maxWorkers=3`.
+
+1. **Strict origin pre-check restored** (`providerClient.ts`, P2 as
+   shipped): 4 failed — the still-allowed `configured-provider-schedule`
+   table cases across all four run kinds; the inventory test additionally
+   failed its 2 refusal tests on the reintroduced site.
+2. **Stale rethrow removed** (`configured.ts`, P3 as shipped): 4 failed —
+   the lapsed configured table cases in the `-t lapsed` slice — plus the
+   `credential rotation` boundary case (1 failed / 23 skipped).
+3. An earlier drill attempt that failed to match the prettier-formatted
+   gate text changed nothing and stayed green; it was discarded and
+   re-done on the exact current text above.
+
+### R9 verification (kubuntu, repository timeout, `--maxWorkers=3`)
+
+- `modelApiProviders` (99, incl. the 70-case table),
+  `confirmedDispatchInventory` (3), `copilotClient`: **153 passed**.
+- `modelApiClient`, `configuredProviders`: **99 passed**, 1 failed — the
+  `pins a loopback HTTP request` case times out at 5000 ms. It fails
+  identically on the clean base worktree (HEAD `e56467e87` plus a
+  node_modules symlink, same sandbox): loopback TCP is blocked here, and
+  that test passes no confirmation, so the changed lines are no-ops for
+  it. Named for the lead to run outside the sandbox, as in R8.
+- `npm run typecheck`: clean. ESLint `--max-warnings=0` and Prettier
+  `--check` on all changed files: clean (17 lint diagnostics fixed in the
+  new/edited code, all `unicorn/*` and `prefer-const`). `check:l10n`:
+  14 UI tables, 14 usage tables, 0 problems (no string added or changed).
+- Final `npm run build`: extension **550.1 / 600 KiB**; Model API
+  **517.5 / 525 KiB** — unchanged from R8, no budget raised.
+- No new dependency, no widened guard, no browser, live/paid call,
+  credential read, install, push, rebase or merge.
+
+No RVCM1062H finding remains open; no external blocker was encountered.
