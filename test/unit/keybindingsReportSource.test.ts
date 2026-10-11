@@ -304,15 +304,23 @@ function announcedNames(
   return run
 }
 
-/** The report's gate words for one announced command back to registrar gates. */
-function observedGates(when: string | undefined): Set<string> {
-  return new Set(
-    (when ?? '')
-      .split('|')
-      .map((gate) => gate.split(',', 1)[0] ?? '')
-      .map((gate) => gate.trim())
-      .filter((gate) => gate !== ''),
-  )
+/**
+ * Every qualifier of the report's full gate, as a set: each `|` alternative
+ * contributes each of its comma-separated qualifiers (`media, not headless`
+ * contributes both `media` and `not headless`). Comparing only the first
+ * word lets a dropped qualifier stay green, so the parity test compares
+ * this whole set against what the registrar does in each mode.
+ */
+function observedQualifiers(when: string | undefined): Set<string> {
+  return when === undefined
+    ? new Set<string>()
+    : new Set(
+        when
+          .split('|')
+          .flatMap((alternative) => alternative.split(','))
+          .map((qualifier) => qualifier.trim().replaceAll(/\s+/gu, ' '))
+          .filter((qualifier) => qualifier !== ''),
+      )
 }
 
 /**
@@ -334,6 +342,70 @@ const GATE_COMMANDS: Record<AcpGate, Set<string>> = {
   media: new Set(['attach', 'record']),
   estimate: new Set(['estimate']),
   questions: new Set(['answer', 'questions']),
+}
+
+/**
+ * Every registrar gate, in binding order: the typed key list, so the tests
+ * iterate gates without narrowing `Object.keys` through a type assertion.
+ */
+const ACP_GATES: readonly AcpGate[] = [
+  'sharing',
+  'vault',
+  'accounts',
+  'legalScan',
+  'usage',
+  'resources',
+  'playbook',
+  'schedules',
+  'media',
+  'estimate',
+  'questions',
+]
+
+/**
+ * The full gate the registrar honours for one command, as a set: the gates
+ * that announce it, plus `not headless` exactly when the all-ports run
+ * announces it normally but withholds it headless. A reported `when` whose
+ * qualifiers differ — a dropped `not headless`, a removed gate, an added
+ * word — mismatches, so the parity test fails it.
+ */
+function expectedQualifiers(
+  name: string,
+  announcedNormal: ReadonlySet<string>,
+  announcedHeadless: ReadonlySet<string>,
+): Set<string> {
+  const expected = new Set<string>(ACP_GATES.filter((gate) => GATE_COMMANDS[gate].has(name)))
+  if (announcedNormal.has(name) && !announcedHeadless.has(name)) expected.add('not headless')
+  return expected
+}
+
+/** Exact set equality: size plus every member present on both sides. */
+function hasSameQualifiers(left: ReadonlySet<string>, right: ReadonlySet<string>): boolean {
+  if (left.size !== right.size) return false
+  for (const qualifier of left) {
+    if (!right.has(qualifier)) return false
+  }
+  return true
+}
+
+/** The reported commands whose full gate differs from the registrar's. */
+function fullGateMismatches(
+  reported: ReadonlyMap<string, string | undefined>,
+  baseline: ReadonlySet<string>,
+  announcedNormal: ReadonlySet<string>,
+  announcedHeadless: ReadonlySet<string>,
+): string[] {
+  const mismatches: string[] = []
+  for (const [name, when] of reported) {
+    if (baseline.has(name)) {
+      if (when !== undefined) mismatches.push(name)
+      continue
+    }
+    const expected = expectedQualifiers(name, announcedNormal, announcedHeadless)
+    const observed = observedQualifiers(when)
+    if (!hasSameQualifiers(observed, expected)) mismatches.push(name)
+  }
+  return mismatches
 }
 
 /** Editor scopes carry the platform plus the binding's `when`, when it has one. */
@@ -687,51 +759,73 @@ describe('keybindings report facts', () => {
     expect(baseline).toEqual(new Set(['help', 'compact', 'report', 'agents']))
     const announced = new Set(await announcedNames('all', false))
     expect(announced).toEqual(new Set(reported.keys()))
+    // The typed gate list covers every registrar gate: a new gate fails
+    // here until the list learns it, so no test narrows `Object.keys`.
+    expect(new Set<string>(ACP_GATES)).toEqual(new Set(Object.keys(GATE_COMMANDS)))
     // Every announced command answers to at least one bound gate: a command
     // no single gate explains fails here as unclassifiable.
     for (const name of announced) {
       if (baseline.has(name)) continue
-      const explaining = (Object.keys(GATE_COMMANDS) as AcpGate[]).filter((gate) =>
-        GATE_COMMANDS[gate].has(name),
-      )
+      const explaining = ACP_GATES.filter((gate) => GATE_COMMANDS[gate].has(name))
       expect(explaining, name).not.toEqual([])
     }
   })
 
   it('attributes each announced command to its registrar gate', async () => {
     // One gate bound at a time: the commands beyond the always-announced
-    // baseline are that gate's, and the report must carry them as its gate.
+    // baseline are that gate's, and the report must carry the FULL gate —
+    // every qualifier, as a set — that the registrar honours in each mode
+    // (normal and headless), so dropping `not headless` fails here.
     const baseline = new Set(await announcedNames('baseline', false))
     const reported = new Map<string, string | undefined>(
       ACP_COMMAND_FACTS.map((entry) => [entry.name, entry.when]),
     )
-    for (const [gate, expected] of Object.entries(GATE_COMMANDS) as [AcpGate, Set<string>][]) {
+    for (const gate of ACP_GATES) {
       const announced = await announcedNames(gate, false)
       const added = new Set<string>()
       for (const name of announced) {
         if (!baseline.has(name)) added.add(name)
       }
-      expect(added, gate).toEqual(expected)
+      expect(added, gate).toEqual(GATE_COMMANDS[gate])
     }
-    for (const [name, when] of reported) {
-      if (baseline.has(name)) {
-        expect(when, name).toBeUndefined()
-        continue
-      }
-      const gates = (Object.keys(GATE_COMMANDS) as AcpGate[]).filter((gate) =>
-        GATE_COMMANDS[gate].has(name),
-      )
-      expect(new Set(gates), name).toEqual(observedGates(when))
-    }
+    const announcedNormal = new Set(await announcedNames('all', false))
+    const announcedHeadless = new Set(await announcedNames('all', true))
+    expect(fullGateMismatches(reported, baseline, announcedNormal, announcedHeadless)).toEqual([])
+  })
+
+  it('flags a reported gate that drops `not headless`', () => {
+    // RVCM1135D P3(1): reporting attach and record as `media` while the
+    // registrar withholds them headless passed the old first-word
+    // comparison; the full-gate comparison must flag both.
+    const baseline = new Set(['help'])
+    const announcedNormal = new Set(['help', 'attach', 'record'])
+    const announcedHeadless = new Set(['help'])
+    const honest = new Map<string, string | undefined>([
+      ['help', undefined],
+      ['attach', 'media, not headless'],
+      ['record', 'media, not headless'],
+    ])
+    expect(fullGateMismatches(honest, baseline, announcedNormal, announcedHeadless)).toEqual([])
+    const mutated = new Map(honest).set('attach', 'media').set('record', 'media')
+    expect(
+      fullGateMismatches(mutated, baseline, announcedNormal, announcedHeadless).toSorted(compare),
+    ).toEqual(['attach', 'record'])
   })
 
   it('withholds the media commands when headless', async () => {
     // `media, not headless` is behaviour, not a second gate: with every
     // port bound but headless on, attach and record stay silent while every
-    // other reported command still announces.
+    // other reported command still announces. The report carries the same
+    // condition as its full gate, so dropping `not headless` fails here too.
     const announced = new Set(await announcedNames('all', true))
     expect(announced.has('attach')).toBe(false)
     expect(announced.has('record')).toBe(false)
+    const reported = new Map(ACP_COMMAND_FACTS.map((entry) => [entry.name, entry.when]))
+    for (const name of ['attach', 'record']) {
+      expect(observedQualifiers(reported.get(name)), name).toEqual(
+        new Set(['media', 'not headless']),
+      )
+    }
     for (const entry of ACP_COMMAND_FACTS) {
       if (entry.name === 'attach' || entry.name === 'record') continue
       expect(announced.has(entry.name), entry.name).toBe(true)
