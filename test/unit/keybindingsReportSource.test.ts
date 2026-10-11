@@ -14,7 +14,11 @@ import {
   REPORT_SECTION_ROWS,
   SLASH_COMMAND_NAMES,
 } from '../../src/shared/constants'
-import { reportSectionSchema, type ReportSection } from '../../src/shared/reportSchema'
+import {
+  reportSectionSchema,
+  type ReportRow,
+  type ReportSection,
+} from '../../src/shared/reportSchema'
 import { LocalSourceError } from '../../src/core/reporting/sources/local'
 import {
   ACP_COMMAND_FACTS,
@@ -23,6 +27,7 @@ import {
 } from '../../src/core/reporting/sources/keybindings'
 import { acpSharingCommands } from '../../src/acp/sharing'
 import { resourceCommands } from '../../src/acp/resources'
+import { compare } from '../../src/core/reporting/collect/common'
 import { collectKeybindingSections } from '../../src/core/reporting/collect/keybindings'
 import { keybindingsManifestReader } from '../../src/runtime/reporting/reportInputs'
 import { createReportingEngine } from '../../src/runtime/reporting/engine'
@@ -73,6 +78,41 @@ function cells(section: ReportSection, command: string, scope: string) {
         entry.cells['scope'].value === scope,
     )
     .map((entry) => entry.cells['shortcut'])
+}
+
+/** A conflict row's scope cell as text; every conflict scope is a text cell. */
+function scopeText(entry: ReportRow): string {
+  const scope = entry.cells['scope']
+  if (scope?.type !== 'text') throw new Error('Expected a text scope cell')
+  return scope.value
+}
+
+/** The port gating a guarded `refreshCommands` spread; unknown shapes throw. */
+function gateForGuard(guard: string): string {
+  if (guard.includes('deps.sharing')) return 'sharing'
+  if (guard.includes('deps.vault')) return 'vault'
+  if (guard.includes('this.accounts')) return 'accounts'
+  if (guard.includes('deps.legalScan')) return 'legalScan'
+  if (guard.includes('deps.usage')) return 'usage'
+  if (guard.includes('deps.resources')) return 'resources'
+  if (guard.includes('deps.playbookFor')) return 'playbook'
+  if (guard.includes('deps.schedules')) return 'schedules'
+  if (guard.includes('deps.media')) return 'media, not headless'
+  if (guard.includes('deps.estimate')) return 'estimate'
+  if (guard.includes('questionRegistry')) return 'questions'
+  throw new Error(`Unknown ACP command guard: ${guard}`)
+}
+
+const acpNamePattern =
+  /name:\s*(?:'([^']+)'|((?:SLASH_COMMAND_NAMES|ACP_COMPACT_COMMAND))(?:\.(\w+))?)/g
+
+/** One announced name from the agent table: a literal or a shared constant. */
+function resolveAcpName(match: RegExpMatchArray): string {
+  const [, literal, holder, key] = match
+  if (literal !== undefined) return literal
+  return holder === 'ACP_COMPACT_COMMAND' && key === undefined
+    ? ACP_COMPACT_COMMAND
+    : SLASH_COMMAND_NAMES[key as keyof typeof SLASH_COMMAND_NAMES]
 }
 
 /** Editor scopes carry the platform plus the binding's `when`, when it has one. */
@@ -207,28 +247,44 @@ describe('keybindings report facts', () => {
   })
 
   it('flags same-chord same-when editor bindings and nothing else', () => {
+    // Two clashes share one chord but fire under different clauses: each is
+    // its own conflict, and each row names the clause it fires under.
     const editor = [
-      { command: 'a.first', key: 'Ctrl+K' },
-      { command: 'b.second', key: 'ctrl+k' },
-      { command: 'c.scoped', key: 'ctrl+k', when: 'editorTextFocus' },
-      { command: 'd.other', key: 'ctrl+k', when: 'terminalFocus' },
+      { command: 'a.first', key: 'Ctrl+K', when: 'editorTextFocus' },
+      { command: 'b.second', key: 'ctrl+k', when: 'editorTextFocus' },
+      { command: 'c.third', key: 'ctrl+k', when: 'terminalFocus' },
+      { command: 'd.fourth', key: 'ctrl+k', when: 'terminalFocus' },
     ]
-    // The same clash on all three platforms is one row per platform.
+    // Each clash on all three platforms is one row per platform per clause.
     const [conflicts] = collectKeybindingSections({ editor, panel: [], acp: [] }).slice(1)
-    expect(conflicts!.rows).toHaveLength(3)
+    expect(conflicts!.rows).toHaveLength(6)
     for (const entry of conflicts!.rows) {
       // The cell keeps the normalized chord, not the first fact's casing.
       expect(entry.cells['shortcut']).toEqual({ type: 'text', value: 'ctrl+k' })
+    }
+    const rowsUnder = (when: string) =>
+      conflicts!.rows.filter((entry) => scopeText(entry).endsWith(`(${when})`))
+    const textClash = rowsUnder('editorTextFocus')
+    expect(textClash).toHaveLength(3)
+    for (const entry of textClash) {
       expect(entry.cells['command']).toEqual({
         type: 'textList',
         value: ['a.first', 'b.second'],
+      })
+    }
+    const terminalClash = rowsUnder('terminalFocus')
+    expect(terminalClash).toHaveLength(3)
+    for (const entry of terminalClash) {
+      expect(entry.cells['command']).toEqual({
+        type: 'textList',
+        value: ['c.third', 'd.fourth'],
       })
     }
     expect(
       conflicts!.rows
         .map((entry) => entry.cells['scope'])
         .filter((scope, index, all) => all.indexOf(scope) === index),
-    ).toHaveLength(3)
+    ).toHaveLength(6)
     // Different `when` clauses shadow by design; other platforms never collide.
     const scoped = collectKeybindingSections({
       editor: [
@@ -270,6 +326,13 @@ describe('keybindings report facts', () => {
       acp: [],
     })
     expect(reversed).toEqual(forward)
+    // No clause to share: the clash reads editor-wide on every platform.
+    const scopes = forward[1]!.rows.map((entry) => {
+      const scope = entry.cells['scope']
+      if (scope?.type !== 'text') throw new Error('Expected a text scope cell')
+      return scope.value
+    })
+    expect(new Set(scopes)).toEqual(new Set(['editor/linux', 'editor/macos', 'editor/windows']))
   })
 
   it('marks the source partial with its reason when a blank chord is skipped', async () => {
@@ -285,10 +348,13 @@ describe('keybindings report facts', () => {
     const result = await keybindingsSource(() => base).read(keybindingsContext())
     expect(result.record.status).toBe('partial')
     expect(result.record.reason).toBe(EN.reportSourceReasons.invalid)
-    // One skipped platform row per platform on each section; the kept
-    // binding still reports all three of its own rows.
+    // One skipped platform row per platform on the bindings section; the
+    // kept binding still reports all three of its own rows. A blank chord
+    // names no gesture, so it cannot clash: the conflicts section counts
+    // nothing for it and stays an empty table, not "N more".
     expect(result.data?.[0]?.omittedRows).toBe(3)
-    expect(result.data?.[1]?.omittedRows).toBe(3)
+    expect(result.data?.[1]?.rows).toEqual([])
+    expect(result.data?.[1]?.omittedRows).toBe(0)
     expect(editorCells(result.data![0]!, 'museSpark.focusInput', 'linux')).toEqual([
       { type: 'text', value: 'ctrl+escape' },
     ])
@@ -296,11 +362,23 @@ describe('keybindings report facts', () => {
   })
 
   it('pins the ACP table to the announced agent command table', () => {
-    const reported = new Set(ACP_COMMAND_FACTS.map((entry) => entry.name))
+    const reported = new Map<string, string | undefined>(
+      ACP_COMMAND_FACTS.map((entry) => [entry.name, entry.when]),
+    )
+    // Command name to every gate that announces it; absent means always announced.
+    const announced = new Map<string, (string | undefined)[]>()
+    const announce = (name: string, gate: string | undefined): void => {
+      announced.set(name, [...(announced.get(name) ?? []), gate])
+    }
     // The registrar modules own their names: a new sharing or resource
-    // command fails here until the report lists it.
-    for (const command of [...acpSharingCommands(), ...resourceCommands()])
-      expect(reported.has(command.name), command.name).toBe(true)
+    // command fails here until the report lists it. `help` is announced
+    // unconditionally instead (the agent's spread filters it out); the rest
+    // ride the sharing port, and the resource commands ride `resources`.
+    for (const command of acpSharingCommands()) {
+      if (command.name === SLASH_COMMAND_NAMES.help) continue
+      announce(command.name, 'sharing')
+    }
+    for (const command of resourceCommands()) announce(command.name, 'resources')
     // The rest of the table lives in the agent's refreshCommands: read its
     // announced names back, so a new literal there fails here too.
     const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
@@ -310,20 +388,55 @@ describe('keybindings report facts', () => {
       agent.indexOf('private mediaPort'),
     )
     expect(table.length).toBeGreaterThan(0)
-    const announced = new Set<string>()
-    for (const match of table.matchAll(
-      /name:\s*(?:'([^']+)'|((?:SLASH_COMMAND_NAMES|ACP_COMPACT_COMMAND))(?:\.(\w+))?)/g,
-    )) {
-      const [, literal, holder, key] = match
-      if (literal !== undefined) announced.add(literal)
-      else if (holder === 'ACP_COMPACT_COMMAND' && key === undefined)
-        announced.add(ACP_COMPACT_COMMAND)
-      else announced.add(SLASH_COMMAND_NAMES[key as keyof typeof SLASH_COMMAND_NAMES])
+    // Each `...(guard ? [] : [...])` spread announces its names only while
+    // the guard's port is bound, so the report must carry that port as the
+    // command's gate: removing a gate fails below. An unknown guard shape
+    // throws here, until the mapping above learns it.
+    const spreads = Array.from(
+      table.matchAll(/\.\.\.\((this\.[^?]+?)\? \[\]\s*:\s*\[([\s\S]*?)\]\)/g),
+      (spread) => ({
+        guard: gateForGuard(spread[1]!),
+        body: spread[2]!,
+        index: spread.index,
+        length: spread[0].length,
+      }),
+    )
+    // Nine guarded spreads today: vault, accounts, legal, usage, playbook,
+    // schedules, media, estimate, questions. Sharing and resources ride
+    // their registrar spreads above; a new spread fails here until mapped.
+    expect(spreads.map((spread) => spread.guard).toSorted(compare)).toEqual(
+      [
+        'accounts',
+        'estimate',
+        'legalScan',
+        'media, not headless',
+        'playbook',
+        'questions',
+        'schedules',
+        'usage',
+        'vault',
+      ].toSorted(compare),
+    )
+    for (const spread of spreads) {
+      for (const match of spread.body.matchAll(acpNamePattern))
+        announce(resolveAcpName(match), spread.guard)
     }
-    for (const command of [...acpSharingCommands(), ...resourceCommands()])
-      announced.add(command.name)
+    let unguarded = ''
+    let cursor = 0
+    for (const spread of spreads) {
+      unguarded += table.slice(cursor, spread.index)
+      cursor = spread.index + spread.length
+    }
+    unguarded += table.slice(cursor)
+    for (const match of unguarded.matchAll(acpNamePattern))
+      announce(resolveAcpName(match), undefined)
     // Dynamic skills announce per session and stay out of the static table.
-    expect(announced).toEqual(reported)
+    expect(new Set(announced.keys())).toEqual(new Set(reported.keys()))
+    for (const [name, gates] of announced) {
+      const expected = new Set(gates.filter((gate) => gate !== undefined))
+      const actual = new Set((reported.get(name) ?? '').split('|').filter((gate) => gate !== ''))
+      expect(actual, name).toEqual(expected)
+    }
   })
 
   it('documents the keybindings adapter where it runs', () => {

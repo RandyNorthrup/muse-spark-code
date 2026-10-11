@@ -20,19 +20,23 @@ bindings are phase c (M111a, M110a0's lane T) and stay out.
   source port. The installed manifest is the only host-varying input,
   validated by a zod schema (commands and keybindings shapes with text
   caps); panel gestures come from `referenceKeyboardActions()` and ACP's
-  static local commands from `ACP_COMMAND_NAMES`, pinned to `/help`'s
-  `referenceAcp` list. Bindings for built-in commands (the manifest rebinds
+  static local commands from `ACP_COMMAND_FACTS`: the 18 names
+  `refreshCommands` (`src/acp/agent.ts`) announces, each with the port
+  that gates it (absent means always announced; `/resources resume` and
+  `/usage resources` are argument forms, not commands). Bindings for built-in commands (the manifest rebinds
   `editor.action.inlineSuggest.trigger`) are listed, not refused; shape
   validation is the corruption guard. Section labels stay identifier keys;
   no display text is read at module load or in the source.
 - `src/core/reporting/collect/keybindings.ts` (new): pure mapping to the
   `keybindings` and `conflicts` facets. Editor bindings expand to one row
-  per platform (linux/macos/windows, mac/win fall back to the base chord);
+  per platform (linux/macos/windows, each falling back to the base chord);
   scope carries platform and the binding's `when`. A conflict is two editor
-  bindings for the same platform chord whose `when` clauses are equal (both
-  empty counts); different `when` clauses are shadowing by design, and other
-  platforms never collide. Both facets emit uncapped with no omissions; the
-  collector's forward caps rows for display.
+  bindings sharing a platform chord and `when` clause (both empty counts):
+  the row names the shared clause in its scope, different `when` clauses
+  are shadowing by design, and other platforms never collide. Both facets
+  emit uncapped; a blank chord is partial with its skipped rows counted on
+  the bindings section only, and the collector's forward caps rows for
+  display.
 - `src/runtime/reporting/engine.ts`: only the kind table's keybindings
   line — bound when the context carries a manifest reader, `unavailable`
   otherwise — plus the additive `ReportingContext.keybindings` field.
@@ -201,3 +205,66 @@ not a finding; still withdrawn). The ACP section describes the command
 table with per-command port gates because report time cannot see which
 ports the running host bound — the conditions are the honest static
 form, pinned to the live table by the parity test.
+
+## R3 — RVCM1135B repairs (lane CM1135AR3, 2026-10-11, rig kubuntu)
+
+All four findings fixed, no residuals. Suite is still 12 tests in
+`test/unit/keybindingsReportSource.test.ts`, all passing at the
+repository timeout with `--maxWorkers=3`. No new dependency, no guard
+widened, no new UI string. PLAN's C-M113-5a paragraph and this file's
+Implementation section above now describe the current behaviour.
+
+- P2 conflict rows merged across `when` clauses
+  (`collect/keybindings.ts`): the group key is platform, normalized
+  chord AND `when` clause, and the row shows the shared clause in its
+  scope through the same `scopeFor` helper as binding rows
+  (`editor/linux (editorTextFocus)`; bare `editor/<platform>` when
+  ungated). Sweep: the row key carries the clause too, so two clauses
+  with identical command sets stay distinct rows; single-command groups
+  emit nothing, as before. Regression: the conflict test fixtures two
+  clashes on one chord under different clauses and expects six rows
+  (three platforms times two clauses) with pair lists and clause scopes;
+  the order-independence test pins the bare scope on the ungated clash.
+- P3 blank chord inflated the conflicts omission
+  (`collect/keybindings.ts`): `conflictRows` no longer counts blank
+  chords — a blank names no gesture, so it cannot clash — and always
+  reports `omittedRows` 0. The bindings section counts the 3 skipped
+  platform rows and the source stays `partial`, so `--full` still
+  refuses. Sweep: `collect/index.ts` only forwards section counts, so no
+  change was needed there. Regression: the blank-chord test expects
+  conflicts rows empty with omitted 0 beside bindings omitted 3.
+- P3 parity checked names only (test): the ACP parity test now reads
+  each announced command's gate as well as its name — the nine guarded
+  `refreshCommands` spreads mapped guard to port, sharing and resource
+  registrar names mapped to their ports — and requires the reported
+  `when` to match for every gated command, so removing any gate fails
+  the suite. A new spread shape throws until mapped, and the spread-gate
+  pin fails on a new unmapped spread. Sweep: unconditional entries
+  (`help`, `compact`, `report`, `agents`) are read back from the table
+  remainder, not assumed; dynamic `skill.selector` entries still match
+  no name pattern and stay out.
+- P3 stale record: PLAN's C-M113-5a paragraph now names
+  `ACP_COMMAND_FACTS` with gates, clause-keyed conflicts with clause
+  scopes, and the bindings-only blank omission.
+
+Red drills (break guard → named test fails → restore byte-exact,
+SHA-256 verified after each restore; final SHAs below):
+
+| Finding  | Break                                           | Named test                                              | Result                                                                           |
+| -------- | ----------------------------------------------- | ------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| P2       | group key back to platform plus chord           | flags same-chord same-when editor bindings              | 1 failed / 11 skipped (`expected 3 rows to have length 6`)                       |
+| P3 blank | conflictRows counts blank chords again          | marks the source partial                                | 1 failed / 11 skipped (`expected 3 to be +0`)                                    |
+| P3 ACP   | `when: 'sharing'` removed from share and prompt | pins the ACP table to the announced agent command table | 1 failed / 11 skipped (`share: expected Set{} to deeply equal Set{ 'sharing' }`) |
+
+Post-drill: 12 passed, and every drilled file matched its pre-drill
+SHA-256 (verified after each restore with `sha256sum -c`).
+
+| File                                        | SHA-256                                                                                 |
+| ------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `src/core/reporting/collect/keybindings.ts` | `836896340ec1b3e824cbdfedcb5a2c7197bafe4e798daf940235a98ef61d20d9`                      |
+| `src/core/reporting/sources/keybindings.ts` | `fdc83a230ee0455bfdebcc5926c32353a45d862906d0f5ac87eaad803b7a93cb` (unchanged since R2) |
+| `test/unit/keybindingsReportSource.test.ts` | `7a33723accb62b277b6eabdb40215b519fa43ce4cae24e11f987eeae091b0ffb`                      |
+| `PLAN.md`                                   | `63659630daec0b8aaee3e81646757d2e18fc5bb06780c35347482fd539e09cda`                      |
+
+Decisions recorded: CHANGELOG untouched (the unreleased kind entry
+already covers this behaviour; the fixes correct it pre-release).

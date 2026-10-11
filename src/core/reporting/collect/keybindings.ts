@@ -109,30 +109,37 @@ function bindingRows(facts: KeybindingsFacts): { rows: ReportRow[]; omitted: num
  * A conflict is two editor bindings for the same platform chord whose `when`
  * clauses are equal (both empty counts): both fire together and the winner is
  * registration order. Different `when` clauses are shadowing by design — the
- * narrower context wins there — so they are not conflicts.
+ * narrower context wins there — so they are not conflicts. The group key
+ * carries the `when` clause, and the row shows the shared clause in its
+ * scope, so a clash under one clause never reads as an editor-wide clash.
  */
 interface ChordGroup {
   readonly chord: string
   readonly platform: string
+  readonly when: string | undefined
   readonly facts: EditorKeybindingFact[]
 }
 
 function conflictRows(facts: KeybindingsFacts): { rows: ReportRow[]; omitted: number } {
   const groups = new Map<string, ChordGroup>()
-  let omitted = 0
   for (const fact of facts.editor) {
     for (const { platform, chord } of EDITOR_PLATFORMS) {
       const gesture = chord(fact).trim()
-      if (gesture === '') {
-        omitted += 1
-        continue
-      }
-      const identity = `${platform}${normalizeChord(gesture)}`
+      // A blank chord names no gesture, so it cannot clash: the bindings
+      // section counts the skip and the source reports partial, and this
+      // section stays silent about it.
+      if (gesture === '') continue
+      const identity = `${platform}${normalizeChord(gesture)}${fact.when ?? ''}`
       const group = groups.get(identity)
       // The cell keeps the normalized chord, so the same bindings render
       // the same bytes no matter which fact arrived first.
       if (group === undefined)
-        groups.set(identity, { chord: normalizeChord(gesture), platform, facts: [fact] })
+        groups.set(identity, {
+          chord: normalizeChord(gesture),
+          platform,
+          when: fact.when,
+          facts: [fact],
+        })
       else group.facts.push(fact)
     }
   }
@@ -140,30 +147,22 @@ function conflictRows(facts: KeybindingsFacts): { rows: ReportRow[]; omitted: nu
   // content-digest keys, so output never depends on fact order.
   const rows: ReportRow[] = []
   for (const group of groups.values()) {
-    const colliding = group.facts.filter((fact) =>
-      group.facts.some(
-        (other) =>
-          other !== fact &&
-          other.command !== fact.command &&
-          (other.when ?? '') === (fact.when ?? ''),
-      ),
-    )
-    if (colliding.length === 0) continue
-    const commands = [...new Set(colliding.map((fact) => fact.command))].toSorted(compare)
+    const commands = [...new Set(group.facts.map((fact) => fact.command))].toSorted(compare)
+    if (commands.length < 2) continue
     rows.push(
       row(
         'keybindingConflict',
-        [group.platform, group.chord, ...commands],
+        [group.platform, group.chord, group.when ?? '', ...commands],
         {
           shortcut: text(group.chord),
           command: list(commands),
-          scope: text(`editor/${group.platform}`),
+          scope: text(scopeFor(group.when, `editor/${group.platform}`)),
         },
         ['keybindings'],
       ),
     )
   }
-  return { rows, omitted }
+  return { rows, omitted: 0 }
 }
 
 function deduplicate(rows: ReportRow[]): ReportRow[] {
@@ -179,7 +178,7 @@ function deduplicate(rows: ReportRow[]): ReportRow[] {
 /**
  * Both facets uncapped: the collector's forward caps rows for display, and
  * `--full` refuses a source that omitted any itself. A skipped blank chord
- * counts on its own section, so the gap stays visible either way.
+ * counts on the bindings section only, so the gap stays visible either way.
  */
 export function collectKeybindingSections(facts: KeybindingsFacts): readonly ReportSection[] {
   const section = (
