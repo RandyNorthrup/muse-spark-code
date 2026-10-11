@@ -20,7 +20,7 @@ export function createEstimateReportReader(
   locale: string,
 ) {
   setUiText(table, locale)
-  return estimateReader(input)
+  return estimateReader(input, table, locale)
 }
 export function createSessionReportReader(
   input: Parameters<typeof sessionReader>[0],

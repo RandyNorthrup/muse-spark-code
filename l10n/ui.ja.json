@@ -191,6 +191,9 @@
   "estimateSeed": "シミュレーションのシード",
   "estimateAsOf": "スナップショット時刻",
   "estimateMarginal": "このマシンの追加で短縮される時間",
+  "estimateMissingMore": {
+    "other": "あと {count} 件"
+  },
   "estimateHourly": "時間当たりの価格",
   "estimateCatalog": "{date} 時点のカタログ価格であり、見積価格ではありません。",
   "estimateNoPrice": "公開カタログ価格はありません。",

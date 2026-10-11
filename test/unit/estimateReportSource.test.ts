@@ -17,14 +17,17 @@ function textCell(entry: ReportRow, key: string): string | undefined {
   const cell = entry.cells[key]
   return cell?.type === 'text' ? cell.value : undefined
 }
+import { readFileSync } from 'node:fs'
 import { fakeEstimate } from './helpers/estimator/fixtures'
 import { ESTIMATOR_AS_OF } from './helpers/estimator/fakes'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { installGerman, restoreEnglish } from './helpers/germanTable'
 import germanTable from '../../l10n/ui.de.json'
-import { EN } from '../../src/shared/l10n/en'
-import { fill } from '../../src/shared/l10n/text'
-import type { EstimateRefusalTemplates } from '../../src/core/reporting/sources/estimate'
+import { loadUiTable } from '../../src/host/l10n'
+import { EN, type UiText } from '../../src/shared/l10n/en'
+import { fill, setUiText } from '../../src/shared/l10n/text'
+import { buildPlanSnapshot } from '../../src/core/estimator/planSnapshot'
+import { parseEstimateGoal } from '../../src/shared/estimate'
 import { availableSource, reportOptions, REPORT_FIXTURE_AS_OF } from './helpers/reporting/snapshot'
 import { fullSnapshot, getSection } from './helpers/reporting/collect'
 import { renderAllFormats, renderTestCollector } from './helpers/reporting/render'
@@ -56,6 +59,24 @@ function readerFor(section: unknown, observedAt = ESTIMATOR_AS_OF): ReportEstima
 
 function sectionIds(data: readonly { id: string }[]): string[] {
   return data.map((entry) => entry.id)
+}
+
+function throwing(diagnostic: string, message: string): Error {
+  return Object.assign(new Error(message), { estimateDiagnostic: diagnostic })
+}
+
+async function estimateReason(error: Error, context?: SourceReadContext): Promise<unknown> {
+  const result = await estimateSource(
+    {
+      read: () => {
+        throw error
+      },
+    },
+    scrub,
+  ).read(context ?? estimateContext())
+  expect(result.record.status).toBe('unavailable')
+  expect(result.data).toBeNull()
+  return result.record.reason
 }
 
 describe('estimate report source', () => {
@@ -231,13 +252,21 @@ describe('estimate report source', () => {
       Object.assign(new Error(`Estimate failed: ${diagnostic}`), {
         estimateDiagnostic: diagnostic,
       })
+    const generic = UI_TEXT.reportSourceReasons.failed
+    const goalJson = '{"kind":"milestone","milestoneId":"M117"}'
     const refusals: readonly (readonly [name: string, error: Error, reason: string])[] = [
       [
         'snapshot missing hours',
         typed('missing-estimate: M117:C-M117-9'),
         'Estimate failed: missing-estimate: M117:C-M117-9',
       ],
-      ['unknown goal', typed('unknown-goal: M999'), 'Estimate failed: unknown-goal: M999'],
+      ['unknown goal', typed('unknown-goal: M999'), 'Goal not found: M999'],
+      [
+        'bare unknown goal names the request goal',
+        typed('unknown-goal'),
+        `Goal not found: ${goalJson}`,
+      ],
+      ['typed capacity', typed('no-capacity'), UI_TEXT.estimateNoCapacity],
       [
         'unknown prerequisite',
         typed('unknown-prerequisite: M117:zzz'),
@@ -287,37 +316,39 @@ describe('estimate report source', () => {
         typed('unknown-prerequisite: M117:private-canary'),
         'Estimate failed: unknown-prerequisite: M117:[redacted]',
       ],
+      // A bare sentence carries no typed diagnostic: generic, never named.
+      ['engine no feasible setup', new Error('Estimate failed: no-feasible-setup'), generic],
+      ['engine missing fit', new Error('Estimate failed: missing-fit'), generic],
+      ['schedule unschedulable', new Error('Estimate failed: unschedulable:M117:x'), generic],
+      ['capacity sentence without a diagnostic', new Error(UI_TEXT.estimateNoCapacity), generic],
       [
-        'engine no feasible setup',
-        new Error('Estimate failed: no-feasible-setup'),
-        'Estimate failed: no-feasible-setup',
-      ],
-      [
-        'engine missing fit',
-        new Error('Estimate failed: missing-fit'),
-        'Estimate failed: missing-fit',
-      ],
-      [
-        'schedule unschedulable',
-        new Error('Estimate failed: unschedulable:M117:x'),
-        'Estimate failed: unschedulable:M117:x',
-      ],
-      ['no fleet capacity', new Error(UI_TEXT.estimateNoCapacity), UI_TEXT.estimateNoCapacity],
-      [
-        'goal not found',
+        'goal sentence without a diagnostic',
         new Error('Goal not found: {"kind":"milestone"}'),
-        'Goal not found: {"kind":"milestone"}',
+        generic,
       ],
-      ['unshaped failure stays generic', new Error('boom'), UI_TEXT.reportSourceReasons.failed],
+      ['unshaped failure stays generic', new Error('boom'), generic],
       [
         'forged diagnostic stays generic',
         Object.assign(new Error('nope'), { estimateDiagnostic: '../../etc/passwd' }),
-        UI_TEXT.reportSourceReasons.failed,
+        generic,
+      ],
+      ['bare diagnostic text stays generic', new Error('missing-estimate: M117:C-M117-9'), generic],
+      [
+        'retired goal seam stays generic',
+        Object.assign(new Error('nope'), { estimateDiagnostic: `goal-not-found: ${goalJson}` }),
+        generic,
       ],
       [
-        'bare diagnostic text stays generic',
-        new Error('missing-estimate: M117:C-M117-9'),
-        UI_TEXT.reportSourceReasons.failed,
+        'attached refusal stays generic',
+        Object.assign(new Error('nope'), { estimateRefusal: { kind: 'noCapacity' } }),
+        generic,
+      ],
+      [
+        'attached goal sentence stays generic',
+        Object.assign(new Error('nope'), {
+          estimateRefusal: { kind: 'notFound', goal: 'This is a pre-rendered English sentence' },
+        }),
+        generic,
       ],
     ]
     for (const [name, error, reason] of refusals) {
@@ -335,198 +366,309 @@ describe('estimate report source', () => {
     }
   })
 
-  it('E17 names every refusal in the report language, whichever language the estimator rendered', async () => {
-    interface BundleShapes {
-      readonly failed: string
-      readonly noCapacity: string
-      readonly notFound: string
-    }
-    const englishShapes: BundleShapes = {
-      failed: EN.estimateFailed,
-      noCapacity: EN.estimateNoCapacity,
-      notFound: EN.estimateNotFound,
-    }
-    // The shipped German table's three refusal templates: what a German
-    // estimator bundle renders (RVCM1134E P2 scenario, both directions).
-    const germanShapes: BundleShapes = {
-      failed: germanTable.estimateFailed,
-      noCapacity: germanTable.estimateNoCapacity,
-      notFound: germanTable.estimateNotFound,
-    }
-    const templatesOf = (shapes: BundleShapes): EstimateRefusalTemplates => ({
-      failed: shapes.failed,
-      noCapacity: shapes.noCapacity,
-      notFound: shapes.notFound,
-    })
+  it('E17 names every refusal in the report language; estimator sentences never cross', async () => {
     const goalJson = '{"kind":"milestone","milestoneId":"M117"}'
+    // Messages the estimator may render in any language (or none at all):
+    // the report consumes only the typed diagnostic, so every one of these
+    // is ignored. (RVCM1134G P1: no sentence decoding survives.)
+    const messages = [
+      EN.estimateNoCapacity,
+      germanTable.estimateNoCapacity,
+      fill(EN.estimateFailed, { detail: 'kaput' }),
+      'kaput',
+    ]
     interface RefusalCase {
       readonly name: string
-      /** The error an estimator bundle throws, message in its language. */
-      readonly throwing: (shapes: BundleShapes) => Error
-      /** The expected reason once the report language is installed. */
-      readonly expected: () => string
+      readonly diagnostic: string
+      readonly german: () => string
+      readonly english: () => string
     }
     const refusals: readonly RefusalCase[] = [
       {
         name: 'grammar diagnostic',
-        throwing: (shapes) =>
-          Object.assign(
-            new Error(fill(shapes.failed, { detail: 'missing-estimate: M117:C-M117-9' })),
-            { estimateDiagnostic: 'missing-estimate: M117:C-M117-9' },
-          ),
-        expected: () => fill(UI_TEXT.estimateFailed, { detail: 'missing-estimate: M117:C-M117-9' }),
+        diagnostic: 'missing-estimate: M117:C-M117-9',
+        german: () =>
+          fill(germanTable.estimateFailed, { detail: 'missing-estimate: M117:C-M117-9' }),
+        english: () => fill(EN.estimateFailed, { detail: 'missing-estimate: M117:C-M117-9' }),
       },
       {
         name: 'engine no feasible setup',
-        throwing: (shapes) => new Error(fill(shapes.failed, { detail: 'no-feasible-setup' })),
-        expected: () => fill(UI_TEXT.estimateFailed, { detail: 'no-feasible-setup' }),
-      },
-      {
-        name: 'engine missing fit',
-        throwing: (shapes) => new Error(fill(shapes.failed, { detail: 'missing-fit' })),
-        expected: () => fill(UI_TEXT.estimateFailed, { detail: 'missing-fit' }),
+        diagnostic: 'no-feasible-setup',
+        german: () => fill(germanTable.estimateFailed, { detail: 'no-feasible-setup' }),
+        english: () => fill(EN.estimateFailed, { detail: 'no-feasible-setup' }),
       },
       {
         name: 'schedule unschedulable',
-        throwing: (shapes) => new Error(fill(shapes.failed, { detail: 'unschedulable:M117:x' })),
-        expected: () => fill(UI_TEXT.estimateFailed, { detail: 'unschedulable:M117:x' }),
+        diagnostic: 'unschedulable:M117:x',
+        german: () => fill(germanTable.estimateFailed, { detail: 'unschedulable:M117:x' }),
+        english: () => fill(EN.estimateFailed, { detail: 'unschedulable:M117:x' }),
       },
       {
         name: 'no fleet capacity',
-        throwing: (shapes) => new Error(shapes.noCapacity),
-        expected: () => UI_TEXT.estimateNoCapacity,
+        diagnostic: 'no-capacity',
+        german: () => germanTable.estimateNoCapacity,
+        english: () => EN.estimateNoCapacity,
       },
       {
-        name: 'goal not found',
-        throwing: (shapes) => new Error(fill(shapes.notFound, { goal: goalJson })),
-        expected: () => fill(UI_TEXT.estimateNotFound, { goal: goalJson }),
+        name: 'unknown goal',
+        diagnostic: 'unknown-goal: M999',
+        german: () => fill(germanTable.estimateNotFound, { goal: 'M999' }),
+        english: () => fill(EN.estimateNotFound, { goal: 'M999' }),
       },
       {
-        name: 'seam diagnostic capacity',
-        throwing: (shapes) =>
-          Object.assign(new Error(fill(shapes.failed, { detail: 'estimate-unavailable' })), {
-            estimateDiagnostic: 'no-capacity',
-          }),
-        expected: () => UI_TEXT.estimateNoCapacity,
-      },
-      {
-        name: 'seam diagnostic goal',
-        throwing: (shapes) =>
-          Object.assign(new Error(fill(shapes.failed, { detail: 'estimate-unavailable' })), {
-            estimateDiagnostic: `goal-not-found: ${goalJson}`,
-          }),
-        expected: () => fill(UI_TEXT.estimateNotFound, { goal: goalJson }),
-      },
-      {
-        name: 'seam diagnostic engine code',
-        throwing: (shapes) =>
-          Object.assign(new Error(fill(shapes.failed, { detail: 'estimate-unavailable' })), {
-            estimateDiagnostic: 'no-feasible-setup',
-          }),
-        expected: () => fill(UI_TEXT.estimateFailed, { detail: 'no-feasible-setup' }),
-      },
-      {
-        name: 'attached refusal',
-        throwing: (shapes) =>
-          Object.assign(new Error(fill(shapes.failed, { detail: 'estimate-unavailable' })), {
-            estimateRefusal: { kind: 'noCapacity' },
-          }),
-        expected: () => UI_TEXT.estimateNoCapacity,
+        name: 'bare unknown goal',
+        diagnostic: 'unknown-goal',
+        german: () => fill(germanTable.estimateNotFound, { goal: goalJson }),
+        english: () => fill(EN.estimateNotFound, { goal: goalJson }),
       },
     ]
-    async function reasonFor(error: Error, templates: EstimateRefusalTemplates): Promise<unknown> {
-      const result = await estimateSource(
-        {
-          read: () => {
-            throw error
-          },
-          refusalTemplates: templates,
-        },
-        scrub,
-      ).read(estimateContext())
-      expect(result.record.status).toBe('unavailable')
-      expect(result.data).toBeNull()
-      return result.record.reason
-    }
     expect(await installGerman(new FakeLogOutputChannel())).toBe('de')
     try {
       for (const refusal of refusals) {
-        // German report over an English estimator bundle: the report
-        // language's sentence, never the bundle's.
-        expect(
-          await reasonFor(refusal.throwing(englishShapes), templatesOf(englishShapes)),
-          `${refusal.name} (German report, English bundle)`,
-        ).toBe(refusal.expected())
-        // The report bytes do not depend on the bundle's language: the same
-        // refusal through a German estimator bundle seals identical bytes.
-        expect(
-          await reasonFor(refusal.throwing(germanShapes), templatesOf(germanShapes)),
-          `${refusal.name} (bundle-language independence)`,
-        ).toBe(refusal.expected())
+        for (const message of messages) {
+          // A German report over any estimator sentence: the report
+          // language's sentence, never the estimator's words.
+          expect(
+            await estimateReason(throwing(refusal.diagnostic, message)),
+            `${refusal.name} (German report, message ${JSON.stringify(message)})`,
+          ).toBe(refusal.german())
+        }
       }
     } finally {
       restoreEnglish()
     }
-    // And the reverse: an English report over a German estimator bundle.
+    // And the reverse: an English report over German estimator sentences.
     for (const refusal of refusals) {
-      expect(
-        await reasonFor(refusal.throwing(germanShapes), templatesOf(germanShapes)),
-        `${refusal.name} (English report, German bundle)`,
-      ).toBe(refusal.expected())
+      for (const message of messages) {
+        expect(
+          await estimateReason(throwing(refusal.diagnostic, message)),
+          `${refusal.name} (English report, message ${JSON.stringify(message)})`,
+        ).toBe(refusal.english())
+      }
     }
   })
 
   it('E18 keeps forged failure sentences generic in every language', async () => {
-    async function reasonFor(error: Error, templates: EstimateRefusalTemplates): Promise<unknown> {
-      const result = await estimateSource(
-        {
-          read: () => {
-            throw error
-          },
-          refusalTemplates: templates,
-        },
-        scrub,
-      ).read(estimateContext())
-      expect(result.record.status).toBe('unavailable')
-      expect(result.data).toBeNull()
-      return result.record.reason
-    }
-    const englishTemplates: EstimateRefusalTemplates = {
-      failed: EN.estimateFailed,
-      noCapacity: EN.estimateNoCapacity,
-      notFound: EN.estimateNotFound,
-    }
     // A message that merely starts with the failure prefix but carries a
-    // path traversal is kept by no template: generic, not the raw message.
-    expect(await reasonFor(new Error('Estimate failed: ../../etc/passwd'), englishTemplates)).toBe(
+    // path traversal is decoded by no channel: generic, not the raw message.
+    expect(await estimateReason(new Error('Estimate failed: ../../etc/passwd'))).toBe(
       UI_TEXT.reportSourceReasons.failed,
     )
     expect(await installGerman(new FakeLogOutputChannel())).toBe('de')
     try {
       expect(
-        await reasonFor(
+        await estimateReason(
           new Error(fill(germanTable.estimateFailed, { detail: '../../etc/passwd' })),
-          {
-            failed: germanTable.estimateFailed,
-            noCapacity: germanTable.estimateNoCapacity,
-            notFound: germanTable.estimateNotFound,
-          },
         ),
       ).toBe(UI_TEXT.reportSourceReasons.failed)
       // A forged diagnostic travels generic too, whatever it claims.
       expect(
-        await reasonFor(
+        await estimateReason(
           Object.assign(new Error('nope'), { estimateDiagnostic: '../../etc/passwd' }),
-          {
-            failed: germanTable.estimateFailed,
-            noCapacity: germanTable.estimateNoCapacity,
-            notFound: germanTable.estimateNotFound,
-          },
+        ),
+      ).toBe(UI_TEXT.reportSourceReasons.failed)
+      // An invalid diagnostic with a MATCHING capacity sentence still stays
+      // generic: the sentence is never decoded into a named refusal
+      // (RVCM1134G P1 scenario).
+      expect(
+        await estimateReason(
+          Object.assign(new Error(germanTable.estimateNoCapacity), {
+            estimateDiagnostic: '../../etc/passwd',
+          }),
         ),
       ).toBe(UI_TEXT.reportSourceReasons.failed)
     } finally {
       restoreEnglish()
     }
+    // And in English with the English capacity sentence.
+    expect(
+      await estimateReason(
+        Object.assign(new Error(EN.estimateNoCapacity), {
+          estimateDiagnostic: '../../etc/passwd',
+        }),
+      ),
+    ).toBe(UI_TEXT.reportSourceReasons.failed)
+  })
+
+  it('E20 never guesses a named refusal from a malformed diagnostic', async () => {
+    // RVCM1134G P1's scenarios: each of these guessed a named refusal
+    // before; each stays the honest generic refusal now.
+    const refusals: readonly (readonly [name: string, error: Error])[] = [
+      [
+        'garbage goal JSON',
+        Object.assign(new Error('Ziel nicht gefunden: {"kind":"garbage"}'), {
+          estimateDiagnostic: 'goal-not-found: {"kind":"garbage","description":"English sentence"}',
+        }),
+      ],
+      [
+        'attached goal sentence',
+        Object.assign(new Error('Estimate failed: estimate-unavailable'), {
+          estimateRefusal: { kind: 'notFound', goal: 'This is a pre-rendered English sentence' },
+        }),
+      ],
+      [
+        'attached capacity',
+        Object.assign(new Error('Estimate failed: estimate-unavailable'), {
+          estimateRefusal: { kind: 'noCapacity' },
+        }),
+      ],
+      [
+        'path traversal with a capacity-shaped message',
+        Object.assign(new Error('No compatible fleet capacity is available.'), {
+          estimateDiagnostic: '../../etc/passwd',
+        }),
+      ],
+      [
+        'invented code with an engine-shaped message',
+        Object.assign(new Error('Estimate failed: garbage'), { estimateDiagnostic: 'garbage' }),
+      ],
+    ]
+    expect(await installGerman(new FakeLogOutputChannel())).toBe('de')
+    try {
+      for (const [name, error] of refusals) {
+        // The generic German sentence, never a named German refusal.
+        expect(await estimateReason(error), `${name} (German report)`).toBe(
+          UI_TEXT.reportSourceReasons.failed,
+        )
+      }
+    } finally {
+      restoreEnglish()
+    }
+    for (const [name, error] of refusals) {
+      expect(await estimateReason(error), `${name} (English report)`).toBe(
+        UI_TEXT.reportSourceReasons.failed,
+      )
+    }
+  })
+
+  it('E21 overlapping generations keep their own refusal language when estimator calls resolve out of order', async () => {
+    // RVCM1134G P2's scenario through the production reader factory: a
+    // German generation starts an estimate and waits; another session's
+    // English services install their language while it waits; the English
+    // estimator call resolves first. Each reason still renders in its own
+    // report's language, from the text captured when its request started.
+    const loaded = await loadUiTable({
+      language: 'de',
+      readExtensionFile: () =>
+        Promise.resolve(readFileSync(new URL('../../l10n/ui.de.json', import.meta.url), 'utf8')),
+      log: new FakeLogOutputChannel(),
+    })
+    if (loaded.locale !== 'de') throw new Error('German table failed to load')
+    const germanTableText: UiText = loaded.table
+    const refusal = (): Error =>
+      Object.assign(new Error('No compatible fleet capacity is available.'), {
+        estimateDiagnostic: 'no-capacity',
+      })
+    const germanCall = Promise.withResolvers<unknown>()
+    const englishCall = Promise.withResolvers<unknown>()
+    const germanReader = createEstimateReportReader(
+      {
+        run: () => germanCall.promise,
+      },
+      germanTableText,
+      'de',
+    )
+    try {
+      // The German generation starts first and waits on its estimator call.
+      const german = estimateSource(germanReader, scrub).read(estimateContext())
+      // Another session constructs English services while it waits.
+      setUiText(EN, 'en')
+      const englishReader = createEstimateReportReader(
+        {
+          run: () => englishCall.promise,
+        },
+        EN,
+        'en',
+      )
+      const english = estimateSource(englishReader, scrub).read(estimateContext())
+      // The estimator calls resolve in the opposite order: English first.
+      englishCall.reject(refusal())
+      const englishResult = await english
+      expect(englishResult.record.status).toBe('unavailable')
+      expect(englishResult.record.reason).toBe(EN.estimateNoCapacity)
+      germanCall.reject(refusal())
+      const germanResult = await german
+      expect(germanResult.record.status).toBe('unavailable')
+      expect(germanResult.record.reason).toBe(germanTableText.estimateNoCapacity)
+    } finally {
+      restoreEnglish()
+    }
+  })
+
+  it('E22 renders a real twelve-lane missing-estimate refusal from data, in the report language', async () => {
+    // RVCM1134G P3's scenario with the actual producer, not a fabricated
+    // error: twelve unfinished lanes without hours make the real
+    // `buildPlanSnapshot` refuse with ten named lanes `and 2 more`.
+    const lanes = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']
+    const rows = lanes
+      .map(
+        (lane, index) =>
+          `| ${lane} | 1 | \`src/${lane.toLowerCase()}.ts\` | ${index === 0 ? 'First' : `after ${lanes[index - 1] ?? ''}`} | Kubuntu | — |`,
+      )
+      .join('\n')
+    const plan = `## 6. Milestones
+
+### M912 — Hour-less work (2026-10-10)
+
+**Status 2026-10-10: building.**
+
+- **Goal.** Twelve lanes.
+- **Depends on.** Nothing new.
+- **Gates.** The full gate.
+
+| Lane | Items | Files it owns | Starts | Rig | Hours |
+| ---- | ----- | ------------- | ------ | --- | ----- |
+${rows}
+
+### Delivery order (2026-10-10)
+
+1. **M912** — First. Needs: main only.
+
+## 10. Releases
+
+### 0.16.0 — 2026-10-01
+
+Release notes.
+`
+    const goal = parseEstimateGoal('M912')
+    if (goal === undefined) throw new Error('unparseable goal')
+    let diagnostic: string
+    try {
+      buildPlanSnapshot(plan, goal, ESTIMATOR_AS_OF, {})
+      throw new Error('hour-less plan estimated without refusing')
+    } catch (error: unknown) {
+      if (
+        typeof error === 'object' &&
+        error !== null &&
+        'estimateDiagnostic' in error &&
+        typeof error.estimateDiagnostic === 'string'
+      ) {
+        diagnostic = error.estimateDiagnostic
+      } else throw error
+    }
+    const shown = lanes.slice(0, 10).map((lane) => `M912:${lane}`)
+    expect(diagnostic).toBe(`missing-estimate: ${shown.join(', ')} and 2 more`)
+    const hostile = Object.assign(new Error(`Schätzung fehlgeschlagen: ${diagnostic}`), {
+      estimateDiagnostic: diagnostic,
+    })
+    expect(await installGerman(new FakeLogOutputChannel())).toBe('de')
+    try {
+      // The lanes and the count cross as data; the report renders its own
+      // words around them — no English `and 2 more` in a German reason.
+      const german = await estimateReason(hostile, estimateContext({ scope: 'M912' }))
+      expect(german).toBe(
+        fill(germanTable.estimateFailed, {
+          detail: `missing-estimate: ${shown.join(', ')} und 2 weitere`,
+        }),
+      )
+      expect(german).not.toContain(' and 2 more')
+    } finally {
+      restoreEnglish()
+    }
+    // The English report seals the producer's bytes.
+    expect(await estimateReason(hostile, estimateContext({ scope: 'M912' }))).toBe(
+      `Estimate failed: ${diagnostic}`,
+    )
   })
 
   it('E19 projects sections from codes only: the installed language changes no byte', async () => {

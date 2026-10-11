@@ -191,6 +191,10 @@
   "estimateSeed": "Szimulációs kezdőérték",
   "estimateAsOf": "Pillanatkép ideje",
   "estimateMarginal": "Az új gép által megtakarított idő",
+  "estimateMissingMore": {
+    "one": "és további {count}",
+    "other": "és további {count}"
+  },
   "estimateHourly": "Óránkénti ár",
   "estimateCatalog": "A {date} dátumú katalógusár, nem árajánlat.",
   "estimateNoPrice": "Nem érhető el nyilvános katalógusár.",

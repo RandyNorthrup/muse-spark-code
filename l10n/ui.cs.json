@@ -191,6 +191,12 @@
   "estimateSeed": "Počáteční hodnota simulace",
   "estimateAsOf": "Čas snímku",
   "estimateMarginal": "Čas ušetřený tímto přidaným strojem",
+  "estimateMissingMore": {
+    "one": "a {count} další",
+    "few": "a {count} další",
+    "many": "a {count} dalšího",
+    "other": "a {count} dalších"
+  },
   "estimateHourly": "Hodinová cena",
   "estimateCatalog": "Katalogová cena ze dne {date}, nikoli nabídka.",
   "estimateNoPrice": "Není k dispozici veřejná katalogová cena.",

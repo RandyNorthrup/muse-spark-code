@@ -191,6 +191,11 @@
   "estimateSeed": "Seme della simulazione",
   "estimateAsOf": "Ora dell’istantanea",
   "estimateMarginal": "Tempo risparmiato con questa macchina aggiuntiva",
+  "estimateMissingMore": {
+    "one": "e {count} altra",
+    "many": "e {count} altre",
+    "other": "e {count} altre"
+  },
   "estimateHourly": "Prezzo orario",
   "estimateCatalog": "Un prezzo di catalogo del {date}, non un preventivo.",
   "estimateNoPrice": "Nessun prezzo di catalogo pubblico disponibile.",
