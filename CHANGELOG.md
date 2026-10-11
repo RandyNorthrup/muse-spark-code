@@ -18,6 +18,15 @@ happened, not what was planned; superseded entries are kept.
   with announced loading and a chunk-failure retry; existing bundle caps
   remain fixed, with a measured cap for the table.
 
+- Local-model limits come from one resolver read at use time (M95 C-M95-4
+  R5, RVCM954C). The request cap, manual and automatic compaction, the
+  windowless refusal and the panel all read the saved provider record when
+  they run: editing a window after a warm listing changes the next compact
+  and send, and no per-host cap copy survives the edit. Manual compact
+  resolves the model first and sizes its summary from that same resolution.
+  Limits exist only for ticked models: unticking drops the manual window,
+  saves keep limits for listed models only, and loads prune the rest.
+
 - **llama.cpp server and LM Studio presets in the Models panel** (M95
   C-M95-4). Both are listed once their own live wire captures landed
   (`docs/certification/m95-captures/<llamacpp|lmstudio>/`, 31 frames, free
@@ -127,8 +136,9 @@ happened, not what was planned; superseded entries are kept.
   and automatic compact sees it (the legacy Meta window still applies
   where it did). The closed-scan and save refusal reasons moved into
   the translated UI table. Note: the LM Studio list reports no window,
-  so a saved LM Studio model refuses until a window is known; entering
-  one by hand has no UI yet.
+  so a saved LM Studio model refuses until a window is known; enter one by
+  hand in the provider wizard, the quick pick, the Models table, or
+  `providers add --context-window` (M95 C-M95-4 R4).
 
 - On macOS 26, a process that `ps` lists with an unknown state (`?`) while
   it changes no longer voids every resource tree's membership read, which

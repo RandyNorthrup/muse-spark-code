@@ -259,6 +259,95 @@ describe('Models host contract', () => {
     expect(store.current[0]?.modelLimits).toEqual({})
   })
 
+  it('drops a wizard window on untick so the save stores no limits for it', async () => {
+    // C-M95-4 R5 (RVCM954C finding 3): tick, set a window, untick, save.
+    // The unticked model's limit must not reach the file, and a later
+    // re-tick must not resurrect it.
+    const store = memoryProvidersStore()
+    const { providers } = testProvidersHost({
+      deps: {
+        store,
+        fetcher: {
+          fetchModels: () =>
+            Promise.resolve({ rows: [localWindowedRow('m1'), localWindowedRow('m2')] }),
+        },
+      },
+    })
+    const { panel } = setup({ providers })
+    await chooseOllama(panel)
+    await testWizardDraft(panel)
+    await send(
+      panel,
+      { type: 'models/tick', scope: { scope: 'wizard' }, ref: 'ollama/m1', ticked: true },
+      () => {
+        expect(latestState(panel).drafts.wizard?.models).toEqual(['m1'])
+      },
+    )
+    await send(
+      panel,
+      { type: 'models/tick', scope: { scope: 'wizard' }, ref: 'ollama/m2', ticked: true },
+      () => {
+        expect(latestState(panel).drafts.wizard?.models).toEqual(['m1', 'm2'])
+      },
+    )
+    await send(
+      panel,
+      {
+        type: 'models/contextWindow',
+        scope: { scope: 'wizard' },
+        ref: 'ollama/m1',
+        contextTokens: 1_000_000,
+      },
+      () => {
+        expect(latestState(panel).drafts.wizard?.modelLimits?.['m1']?.contextTokens).toBe(1_000_000)
+      },
+    )
+    await send(
+      panel,
+      {
+        type: 'models/contextWindow',
+        scope: { scope: 'wizard' },
+        ref: 'ollama/m2',
+        contextTokens: 4096,
+      },
+      () => {
+        expect(latestState(panel).drafts.wizard?.modelLimits?.['m2']?.contextTokens).toBe(4096)
+      },
+    )
+    await send(
+      panel,
+      { type: 'models/tick', scope: { scope: 'wizard' }, ref: 'ollama/m1', ticked: false },
+      () => {
+        expect(latestState(panel).drafts.wizard?.models).toEqual(['m2'])
+      },
+    )
+    expect(latestState(panel).drafts.wizard?.modelLimits?.['m1']).toBeUndefined()
+    await send(
+      panel,
+      { type: 'models/tick', scope: { scope: 'wizard' }, ref: 'ollama/m1', ticked: true },
+      () => {
+        expect(latestState(panel).drafts.wizard?.models).toEqual(['m2', 'm1'])
+      },
+    )
+    expect(latestState(panel).drafts.wizard?.modelLimits?.['m1']).toBeUndefined()
+    await send(
+      panel,
+      { type: 'models/tick', scope: { scope: 'wizard' }, ref: 'ollama/m1', ticked: false },
+      () => {
+        expect(latestState(panel).drafts.wizard?.models).toEqual(['m2'])
+      },
+    )
+    await send(panel, { type: 'providers/save', useNow: false }, () => {
+      expect(latestState(panel).drafts.wizard).toBeUndefined()
+    })
+    expect(store.current[0]?.models).toEqual(['m2'])
+    expect(store.current[0]?.modelLimits?.['m1']).toBeUndefined()
+    expect(store.current[0]?.modelLimits?.['m2']).toEqual({
+      contextTokens: 4096,
+      outputTokens: 4096,
+    })
+  })
+
   it('rejects invalid or cross-provider manual windows without persistence', async () => {
     const { panel, warnings } = setup()
     await chooseOpenRouter(panel)

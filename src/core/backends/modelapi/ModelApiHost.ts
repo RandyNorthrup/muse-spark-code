@@ -2548,7 +2548,6 @@ export class ModelApiSession implements ScheduledAgentSession {
   private readonly parallelReads: boolean
   private readonly outputContinuation: boolean
   private outputFormat: CreateResponseBody['text']
-  private readonly outputCaps = new Map<string, number>()
   private readonly repeatGuard = new RepeatGuard()
   /**
    * The ledger total a resumed session brought (M73), kept so a save keeps
@@ -4234,14 +4233,14 @@ export class ModelApiSession implements ScheduledAgentSession {
   }
 
   private outputCap(): number {
-    const cached = this.outputCaps.get(this.modelId)
-    if (cached !== undefined) return cached
+    // C-M95-4 R5: no per-host copy. The policy comes from the turn's fresh
+    // resolution (`resolveModel` re-reads the saved record), so a Models
+    // table edit after a warm listing changes the cap this send carries.
     const requested = this.deps.modelOutputMaxTokens?.(this.modelId) ?? MODEL_API_MAX_OUTPUT_TOKENS
     if (!Number.isSafeInteger(requested) || requested < 1)
       throw new RangeError('invalid output.maxTokens')
     const cap = outputLimitFor(this.modelPolicy(), requested)
     if (!Number.isSafeInteger(cap) || cap < 1) throw new RangeError('invalid output.maxTokens')
-    this.outputCaps.set(this.modelId, cap)
     return cap
   }
 
@@ -14493,7 +14492,14 @@ export class ModelApiSession implements ScheduledAgentSession {
     )
       return false
     const sent = this.compactionPrefix
-    const window = contextModelFor(this.deps, this.modelId)?.contextTokens
+    // C-M95-4 R5: a registry (`provider/model`) window comes from the
+    // turn's fresh resolution (the turn resolved this same ref before the
+    // loop); anything else keeps the synchronous seam, whose static Meta
+    // window a stored resolution must never shadow.
+    const window =
+      (this.modelId.includes('/')
+        ? this.resolvedModels.get(this.modelId)?.contextTokens
+        : undefined) ?? contextModelFor(this.deps, this.modelId)?.contextTokens
     if (
       window === undefined ||
       sent?.body.model !== this.modelId ||
@@ -14636,6 +14642,13 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     await unlessStopped(this.context.load(), signal)
     const wasBudgetLimited = this.goal?.status === GOAL_STATUS.budgetLimited
+    // C-M95-4 R5: resolve the model first and size the summary from that
+    // same resolution, so the summary always fits the window the send
+    // below (`collectText` re-resolves this same ref) will use. Only a
+    // registry (`provider/model`) resolution carries a live window; a
+    // stored Meta resolution's static window must never shadow the seam.
+    const resolved = await unlessStopped(this.resolveModel(), signal)
+    const liveContextTokens = this.modelId.includes('/') ? resolved.contextTokens : undefined
     let tail: readonly ReplayItem[] = []
     let snapshot = ''
     const makeBody = (canUseTools: boolean, attempt: SideCallAttempt): CreateResponseBody => {
@@ -14645,6 +14658,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       const model = this.deps.compactionModel?.(modelId)
       const windowTokens =
         model?.contextTokens ??
+        liveContextTokens ??
         contextModelFor(this.deps, modelId)?.contextTokens ??
         MODEL_API_CONTEXT_WINDOW
       const canReplayReasoning =

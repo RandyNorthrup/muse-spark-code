@@ -2,6 +2,7 @@
 // every send rechecks configuration, credential origin and pinned DNS answers.
 import { createHash, randomUUID } from 'node:crypto'
 import { lookup } from 'node:dns/promises'
+import { readFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { pathToFileURL } from 'node:url'
 import { request as httpRequest } from 'node:http'
@@ -761,14 +762,41 @@ export function createConfiguredProviderServices(
       presets.planKeyPresetById(records.get(ref)?.entry.preset ?? '') !== undefined ||
       meta?.isPlanModel?.(ref) === true,
     readPlanUsage: () => [...(meta?.readPlanUsage?.() ?? []), ...plans],
-    // C-M95-4 R3: the last listing's window for a configured model, for
-    // compaction sizing (the host's `contextModel` seam is synchronous).
-    // A carried `modelLimits` window wins over the catalogue record; an
-    // unlisted model or an unknown window reads undefined.
+    // C-M95-4 R5: the saved record read at use time, for compaction
+    // sizing (the host's `contextModel` seam is synchronous). The file is
+    // tiny; a synchronous parse keeps every writer (panel, wizard, CLI,
+    // ACP) current with no snapshot to invalidate. A carried
+    // `modelLimits` window wins; otherwise the last listing's catalogue
+    // window stands (catalogue records are static). An unlisted model or
+    // an unknown window reads undefined.
     peekContextModel: (ref) => {
+      const parsed = modelRef.parseModelRef(ref)
+      const native = parsed?.modelId
+      if (parsed === undefined || native === undefined) return
+      try {
+        const saved = providersFile.providersFileSchema.safeParse(
+          JSON.parse(readFileSync(options.configFile, 'utf8')) as unknown,
+        )
+        if (parsed.providerId !== 'meta' && saved.success) {
+          const entry = saved.data.providers.find((row) => row.id === parsed.providerId)
+          const windowTokens = entry?.modelLimits?.[native]?.contextTokens
+          if (
+            entry !== undefined &&
+            windowTokens !== undefined &&
+            Number.isSafeInteger(windowTokens) &&
+            windowTokens > 0
+          ) {
+            const format = providersFile.providerFormatSchema.safeParse(
+              entry.format ?? presetFor(entry).format,
+            )
+            if (format.success) return { format: format.data, contextTokens: windowTokens }
+          }
+        }
+      } catch {
+        // An unreadable file keeps the last listing's answer below.
+      }
       const bound = records.get(ref)
-      const native = modelRef.parseModelRef(ref)?.modelId
-      if (bound === undefined || native === undefined) return
+      if (bound === undefined) return
       const windowTokens =
         bound.entry.modelLimits?.[native]?.contextTokens ?? bound.record.limits.contextTokens
       if (windowTokens === undefined || !Number.isSafeInteger(windowTokens) || windowTokens <= 0)

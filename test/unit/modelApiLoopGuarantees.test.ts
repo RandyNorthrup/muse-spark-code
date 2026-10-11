@@ -361,10 +361,12 @@ describe('M106 loop guarantees', () => {
     await rig.host.close()
   })
 
-  it('uses the selected per-model output cap and fixes it for that model', async () => {
-    const cap = vi.fn((modelId: string) =>
-      modelId === 'muse-spark-1.3' ? MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS : 4096,
-    )
+  it('reads the selected per-model output cap at use time', async () => {
+    // C-M95-4 R5: no per-host cap copy. The selected cap is consulted for
+    // the model each send carries, so a later change applies to the next
+    // send instead of the first send's value sticking for the host's life.
+    let selected = MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS
+    const cap = vi.fn((modelId: string) => (modelId === 'muse-spark-1.3' ? selected : 4096))
     const rig = await setup({ modelOutputMaxTokens: cap })
     rig.api.script({ text: 'first' }, { text: 'next' })
     await send(rig)
@@ -372,16 +374,17 @@ describe('M106 loop guarantees', () => {
     expect(rig.api.responseBodies().map((body) => body['max_output_tokens'])).toEqual([
       131_072, 131_072,
     ])
-    expect(cap).toHaveBeenCalledExactlyOnceWith('muse-spark-1.3')
+    expect(cap).toHaveBeenCalledWith('muse-spark-1.3')
     await rig.session.setModel('muse-spark-1.2')
     rig.api.script({ text: 'Other model.' })
     await send(rig)
     expect(rig.api.responseBodies().at(-1)?.['max_output_tokens']).toBe(4096)
+    expect(cap).toHaveBeenCalledWith('muse-spark-1.2')
+    selected = 8192
     await rig.session.setModel('muse-spark-1.3')
     rig.api.script({ text: 'Original model.' })
     await send(rig)
-    expect(cap).toHaveBeenCalledTimes(2)
-    expect(rig.api.responseBodies().at(-1)?.['max_output_tokens']).toBe(131_072)
+    expect(rig.api.responseBodies().at(-1)?.['max_output_tokens']).toBe(8192)
     await rig.host.close()
   })
 
