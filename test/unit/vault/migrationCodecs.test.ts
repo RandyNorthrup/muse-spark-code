@@ -21,6 +21,7 @@ import { accountSecretMigrationCredential } from '../../../src/core/vault/migrat
 import { providerCredentialMigrationCredential } from '../../../src/core/vault/migrate/providerCredentials'
 import { modelApiMigrationCredential } from '../../../src/core/vault/migrate/modelApi'
 import {
+  VaultMigrationFault,
   type MigrationCredential,
   type MigrationDeps,
   type MigrationLease,
@@ -569,6 +570,35 @@ describe('C-M109-4 account secret codecs', () => {
     ])
   })
 
+  it('refuses an invalid id with the same typed fault from every factory', () => {
+    // RVCM1094C finding 6: the account factory once let zod's throw escape
+    // while the provider factory threw `VaultMigrationFault('invalid')`.
+    // Both factories refuse every bad id with the fault, never a bare zod
+    // error, so a caller mapping fault codes sees one shape.
+    for (const [provider, account] of [
+      ['Open AI', 'work'],
+      ['openai', 'Work'],
+      ['openai', 'a'.repeat(33)],
+      ['Open AI', ACCOUNT_DEFAULT_ID],
+    ] as const) {
+      try {
+        accountSecretMigrationCredential(provider, account, () => 1000)
+        expect.unreachable(`(${provider}, ${account}) must be refused`)
+      } catch (error) {
+        expect(error).toBeInstanceOf(VaultMigrationFault)
+        expect(error).toMatchObject({ code: 'invalid' })
+      }
+    }
+    // The reference shape: the provider factory throws the same fault.
+    try {
+      providerCredentialMigrationCredential('Open AI', () => 1000)
+      expect.unreachable('an invalid provider id must be refused')
+    } catch (error) {
+      expect(error).toBeInstanceOf(VaultMigrationFault)
+      expect(error).toMatchObject({ code: 'invalid' })
+    }
+  })
+
   it('migrates an oauth account opaquely and refuses a cross-account copy', async () => {
     const f = accountFixture()
     await f.secrets.store(
@@ -911,6 +941,33 @@ describe('C-M109-4 R3 vault item names', () => {
     for (const [key, value] of stored) expect(f.entries.get(key)).toBe(value)
     expect(f.journal.size).toBe(0)
     expect(await f.vault.list()).toEqual([])
+  })
+
+  it('refuses a credential whose decode builds a different name before any write', async () => {
+    // RVCM1094C finding 4: the shared-name refusal can be bypassed by a
+    // codec whose declared name differs from the name its decode builds.
+    // The constructor binds the name check, so migrate refuses with
+    // `conflict` before any journal row, comparison or write, and the
+    // legacy copy stays byte-identical. Without the wrapper this migrates
+    // to `active` under the wrong name.
+    const base = providerCredentialMigrationCredential('openai', () => 1000)
+    const lying: MigrationCredential = {
+      ...base,
+      key: `${base.key}.copy`,
+      name: 'provider-openai-copy',
+    }
+    const f = codecsFixture([lying])
+    const stored = JSON.stringify({
+      v: 1,
+      auth: 'apiKey',
+      origin: 'https://api.openai.com',
+      secret: 'synthetic-lying-key',
+    })
+    await f.secrets.store(lying.key, stored)
+    await expect(f.service.migrate(lying.key)).rejects.toMatchObject({ code: 'conflict' })
+    expect(f.journal.size).toBe(0)
+    expect(await f.vault.list()).toEqual([])
+    expect(f.entries.get(lying.key)).toBe(stored)
   })
 
   it('reports a legacy copy changed behind the vault instead of returning active', async () => {

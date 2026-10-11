@@ -71,7 +71,15 @@ export function accountSecretMigrationCredential(
 ): MigrationCredential {
   if (provider === 'meta' && account === ACCOUNT_DEFAULT_ID) return modelApiMigrationCredential(now)
   if (account === ACCOUNT_DEFAULT_ID) return providerCredentialMigrationCredential(provider, now)
-  const key = accountSecretKey(provider, account)
+  // `accountSecretKey` parses both ids with zod: translate its throw into
+  // the same typed vault fault the provider factory throws, so callers that
+  // map fault codes see one refusal shape from every factory.
+  let key: string
+  try {
+    key = accountSecretKey(provider, account)
+  } catch {
+    throw new VaultMigrationFault('invalid')
+  }
   const itemId = createHash('sha256').update(key).digest('hex').slice(0, VAULT_KEY_BYTES)
   return migrationCodec(
     key,

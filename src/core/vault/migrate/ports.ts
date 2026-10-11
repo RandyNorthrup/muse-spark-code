@@ -38,7 +38,11 @@ export interface LegacyCredentialPort {
 export interface MigrationCredential {
   readonly key: string
   readonly itemId: string
-  /** The vault item name `decode` builds; the constructor refuses a shared one. */
+  /**
+   * The vault item name `decode` builds, always equal to it: the constructor
+   * binds a wrapper that refuses any other decoded name with `conflict`, and
+   * refuses a name shared by two credentials outright.
+   */
   readonly name: string
   decode(value: Uint8Array): VaultItem
   encode(item: VaultItem): Uint8Array
