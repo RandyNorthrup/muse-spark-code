@@ -111,10 +111,10 @@ export type ProviderKey = z.infer<typeof providerKeySchema>
 
 /** OpenRouter's key usage, limit and remainder, in USD. */
 export const providerKeyUsageSchema = z.strictObject({
-  dayUsd: z.optional(z.number()),
-  monthUsd: z.optional(z.number()),
-  limitUsd: z.optional(z.number()),
-  remainingUsd: z.optional(z.number()),
+  dayUsd: z.optional(legacyUsdSchema),
+  monthUsd: z.optional(legacyUsdSchema),
+  limitUsd: z.optional(legacyUsdSchema),
+  remainingUsd: z.optional(legacyUsdSchema),
 })
 export type ProviderKeyUsage = z.infer<typeof providerKeyUsageSchema>
 

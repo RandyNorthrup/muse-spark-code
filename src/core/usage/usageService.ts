@@ -35,6 +35,8 @@ export interface UsageJournalRead {
   readonly recordCount: number
   readonly newerVersionRecords: number
   readonly tornLines: number
+  /** Version 1 records refused because their dollars would not convert exactly (M121). */
+  readonly inexactRecords?: number
   readonly since?: string
 }
 export interface UsageJournalPort {
@@ -170,6 +172,7 @@ export function createUsageService(deps: UsageServiceDeps): UsageService {
         recordCount: journal.recordCount,
         newerVersionRecords: journal.newerVersionRecords,
         tornLines: journal.tornLines,
+        inexactRecords: journal.inexactRecords ?? 0,
         ...(journal.since !== undefined && { since: journal.since }),
       },
       totals: aggregated.totals,

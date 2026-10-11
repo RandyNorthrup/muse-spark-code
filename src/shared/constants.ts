@@ -4407,7 +4407,10 @@ export const SECONDS_PER_MINUTE = 60
 export const USAGE_COUNTDOWN_REFRESH_MS = MILLISECONDS_PER_SECOND * SECONDS_PER_MINUTE
 
 // M102 / D82: machine-local usage history, independent of spend ledgers.
-export const USAGE_JOURNAL_VERSION = 1
+// Version 2 (M121) stores dollars as exact decimal text. Both versions share
+// the `v1` folder: a 0.17 reader counts version 2 lines as newer, never loses
+// them, and this reader converts version 1 lines exactly.
+export const USAGE_JOURNAL_VERSION = 2
 export const USAGE_FOLDER = 'usage'
 export const USAGE_SETTINGS_FILE = 'usage-settings.json'
 export const USAGE_VERSION_FOLDER = 'v1'
@@ -7212,41 +7215,41 @@ export const TEAM_ROLE_BASE_EFFORT = {
 
 // One control from Minimal to Max (D75): each level sets the running caps,
 // the effort shift from the role's base, the tokens per task and the team's
-// daily budgets. `ceiling` means the computed ceiling, never hard-coded.
+// daily budgets (dollars as exact decimal text, M121). `ceiling` means the computed ceiling, never hard-coded.
 export const TEAM_INTENSITY_LEVELS = {
   minimal: {
     runningPerRole: 1,
     effortShift: -2,
     tokensPerTask: 100_000,
-    dailyUsd: 2,
+    dailyUsd: '2',
     dailyTokens: 1_000_000,
   },
   light: {
     runningPerRole: 2,
     effortShift: -1,
     tokensPerTask: 200_000,
-    dailyUsd: 5,
+    dailyUsd: '5',
     dailyTokens: 2_500_000,
   },
   balanced: {
     runningPerRole: 4,
     effortShift: 0,
     tokensPerTask: 400_000,
-    dailyUsd: 10,
+    dailyUsd: '10',
     dailyTokens: 5_000_000,
   },
   heavy: {
     runningPerRole: 8,
     effortShift: 1,
     tokensPerTask: 800_000,
-    dailyUsd: 25,
+    dailyUsd: '25',
     dailyTokens: 12_000_000,
   },
   max: {
     runningPerRole: 'ceiling',
     effortShift: 2,
     tokensPerTask: 1_500_000,
-    dailyUsd: 50,
+    dailyUsd: '50',
     dailyTokens: 25_000_000,
   },
 } as const
@@ -7256,7 +7259,8 @@ export const TEAM_INTENSITY_ORDER = ['minimal', 'light', 'balanced', 'heavy', 'm
 export const TEAM_LEARNED_MIN_TASKS = 5
 export const TEAM_MINUTES_PER_HOUR = 60
 export const TEAM_TOKENS_PER_MTOK = 1_000_000
-export const TEAM_PREVIEW_OUTPUT_SHARE = 0.3
+// The output share of a preview step's tokens, in whole percent (exact money, M121).
+export const TEAM_PREVIEW_OUTPUT_PERCENT = 30
 export const TEAM_PREVIEW_USD_FRACTION_DIGITS = 4
 export const TEAM_EXPORT_FORMAT = 'muse-spark-team'
 export const TEAM_EXPORT_VERSION = 1

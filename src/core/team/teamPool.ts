@@ -856,7 +856,7 @@ export class TeamScheduler {
             outputTokens: 0,
             reasoningTokens: 0,
             modelCalls: 0,
-            costUsd: 0,
+            costUsd: Usd.from(0).toAmount(),
             accuracy: 'reported',
           },
         }

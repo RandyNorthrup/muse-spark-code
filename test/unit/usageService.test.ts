@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { Usd } from '../../src/shared/usd'
 import { createUsageService } from '../../src/core/usage/usageService'
 import { usageServiceToPageMessageSchema } from '../../src/shared/usagePage'
 import { serveUsageStdio } from '../../src/runtime/usage/usageServiceEntry'
@@ -58,7 +59,7 @@ describe('shared usage service', () => {
     const state = await service.snapshot()
     expect(state.totals.tokens.input).toBe(100)
     expect(state.breakdown[0]?.totals).toEqual(state.totals)
-    expect(state.budgets[0]?.projectedUsd).toBe(4)
+    expect(state.budgets[0]?.projectedUsd).toBe('4')
     expect(state.attempts).toEqual([{ day: usageLocalDay(usageNow), origin: 'turn', attempts: 31 }])
     expect(state.unreportedLimits).toEqual([
       { provider: 'openai', consoleUrl: 'https://platform.openai.com/usage' },
@@ -206,13 +207,16 @@ describe('shared usage service', () => {
   })
   it('passes the same cent-exact settlements to page buckets, tables and every export format', async () => {
     const records = [0.005, 0.005, 0.005, 0.003, 0.002, 0.003, 0.001, 0.001].map((usd, index) =>
-      usageFixtureRecord({ id: `call-${String(index)}`, cost: { certainty: 'computed', usd } }),
+      usageFixtureRecord({
+        id: `call-${String(index)}`,
+        cost: { certainty: 'computed', usd: Usd.from(usd).toAmount() },
+      }),
     )
     const deps = usageFixtureDeps(records)
     const service = createUsageService(deps)
     const query = { range: 'today', groupBy: 'provider', metric: 'cost' } as const
     const state = await service.snapshot(query)
-    expect(state.totals.costs[0]?.usd).toBe(0.025)
+    expect(state.totals.costs[0]?.usd).toBe('0.025')
     expect(state.buckets[0]?.totals.costs).toEqual(state.totals.costs)
     expect(state.breakdown[0]?.totals.costs).toEqual(state.totals.costs)
     for (const format of ['callsCsv', 'summaryCsv', 'json'] as const) {
@@ -253,7 +257,7 @@ describe('shared usage service', () => {
       usageFixtureRecord({
         id: 'second',
         provider: 'openrouter',
-        cost: { certainty: 'reported', usd: 2 },
+        cost: { certainty: 'reported', usd: Usd.from('2').toAmount() },
       }),
     ]
     const before = JSON.stringify(records)
@@ -342,7 +346,9 @@ describe('shared usage service', () => {
   it('labels a view-only later price and keeps original journal, page totals and trend settlements untouched', async () => {
     const records = [usageFixtureRecord({ cost: { certainty: 'unpriced' } })]
     const before = JSON.stringify(records)
-    const laterRecord = usageFixtureRecord({ cost: { certainty: 'computed', usd: 3 } })
+    const laterRecord = usageFixtureRecord({
+      cost: { certainty: 'computed', usd: Usd.from('3').toAmount() },
+    })
     const later = aggregateUsage(
       [laterRecord],
       [],

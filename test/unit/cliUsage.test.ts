@@ -183,7 +183,7 @@ describe('usage command line', () => {
     ports.receive.mockImplementation(() => {
       ports.connections[0]?.post({
         type: 'usage/state',
-        state: Object.assign(usageState(), { v: 2 }),
+        state: Object.assign(usageState(), { v: 3 }),
       })
       return Promise.resolve()
     })

@@ -72,6 +72,10 @@
     "one": "Kihagyott {count} hiányos sor",
     "other": "Kihagyott {count} hiányos sor"
   },
+  "inexactRecords": {
+    "one": "{count} régebbi rekord nincs beszámítva: az összege nem olvasható be pontosan",
+    "other": "{count} régebbi rekord nincs beszámítva: az összegük nem olvasható be pontosan"
+  },
   "recordCount": {
     "one": "{count} rekord",
     "other": "{count} rekord"

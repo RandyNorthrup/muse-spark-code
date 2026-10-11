@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { act, render, screen, within } from '@testing-library/react'
+import { Usd } from '../../src/shared/usd'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { LimitCard, LimitsSection, BudgetCard } from '../../src/webview/usage/LimitsSection'
 import { usageStateFor } from './helpers/usageFixtures'
@@ -136,7 +137,12 @@ describe('usage limits', () => {
       source: 'openRouter',
       observedAt: NOW,
       windows: [],
-      account: { usedUsd: 2, limitUsd: 10, remainingUsd: 8, period: 'monthly' },
+      account: {
+        usedUsd: Usd.from('2').toAmount(),
+        limitUsd: Usd.from('10').toAmount(),
+        remainingUsd: Usd.from('8').toAmount(),
+        period: 'monthly',
+      },
     })
     const { rerender } = render(<LimitsSection state={state} post={vi.fn()} now={() => NOW} />)
     const account = screen
@@ -149,10 +155,15 @@ describe('usage limits', () => {
       '$2.00 of $10.00',
     )
     expect(within(account).getByText('$8.00 remaining')).toBeInTheDocument()
-    state.limits.at(-1)!.account = { usedUsd: 9, limitUsd: 10, remainingUsd: 1, period: 'monthly' }
+    state.limits.at(-1)!.account = {
+      usedUsd: Usd.from('9').toAmount(),
+      limitUsd: Usd.from('10').toAmount(),
+      remainingUsd: Usd.from('1').toAmount(),
+      period: 'monthly',
+    }
     rerender(<LimitsSection state={state} post={vi.fn()} now={() => NOW} />)
     expect(within(account).getByText('At least 90% of the limit is used.')).toHaveTextContent('⚠')
-    state.limits.at(-1)!.account = { usedUsd: 2, period: 'monthly' }
+    state.limits.at(-1)!.account = { usedUsd: Usd.from('2').toAmount(), period: 'monthly' }
     rerender(<LimitsSection state={state} post={vi.fn()} now={() => NOW} />)
     expect(within(account).queryByRole('progressbar')).toBeNull()
     expect(within(account).getByText('$2.00 of Unknown')).toBeInTheDocument()

@@ -226,7 +226,10 @@ export interface ModelPricePolicy {
   readonly reserve: (usage: ModelPricedUsage) => UsdAmount | undefined
   readonly settle: (
     usage: ModelPricedUsage,
-    reported?: { readonly cost?: number | undefined; readonly costInUsdTicks?: number | undefined },
+    reported?: {
+      readonly cost?: UsdAmount | undefined
+      readonly costInUsdTicks?: number | undefined
+    },
   ) => UsdAmount | undefined
 }
 

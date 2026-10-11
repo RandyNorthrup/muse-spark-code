@@ -40,6 +40,7 @@ import { isCredentialVariable } from './credentialEnvironment'
 // data they carry is here, so both surfaces read one shape.
 
 import * as z from 'zod/mini'
+import { legacyUsdSchema } from './usdSchema'
 
 // An agent is a model the user can run, by who runs the tools (D75): the
 // extension (`engine`, on the Model API or an M95 provider), a hidden
@@ -293,7 +294,8 @@ export const teamUsageSchema = z.object({
   output: z.int().check(z.nonnegative()),
   reasoning: z.int().check(z.nonnegative()),
   modelCalls: z.int().check(z.nonnegative()),
-  costUsd: z.optional(z.number().check(z.nonnegative())),
+  // Older rows held a number; it reads as the same exact decimal (M121).
+  costUsd: z.optional(legacyUsdSchema),
   estimated: z.boolean(),
 })
 export type TeamUsage = z.infer<typeof teamUsageSchema>
@@ -616,7 +618,7 @@ export const teamAttemptUsageSchema = z.strictObject({
   outputTokens: count,
   reasoningTokens: count,
   modelCalls: count,
-  costUsd: amount,
+  costUsd: legacyUsdSchema,
   accuracy: z.enum(['reported', 'estimated']),
 })
 export const teamAttemptSchema = z
@@ -754,8 +756,8 @@ export const teamTrafficMetricsSchema = z
     reassignments: count,
     candidatesReturned: count,
     mergedChanges: count,
-    reportedCostUsd: amount,
-    estimatedCostUsd: amount,
+    reportedCostUsd: legacyUsdSchema,
+    estimatedCostUsd: legacyUsdSchema,
     reportedTokens: count,
     estimatedTokens: count,
     timeToMergeMedianMs: z.nullable(amount),

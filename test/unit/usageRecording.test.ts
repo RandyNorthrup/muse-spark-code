@@ -275,13 +275,19 @@ describe('recording taps', () => {
       observedAt: 100,
       windows: [],
     })
+    const account = {
+      usedUsd: Usd.from('0.3').toAmount(),
+      limitUsd: Usd.from('1').toAmount(),
+      remainingUsd: Usd.from('0.7').toAmount(),
+      period: 'month',
+    }
     port.limit({
       backend: 'modelApi',
       provider: 'openrouter',
       source: 'openRouter',
       observedAt: 100,
       windows: [],
-      account: { usedUsd: 0.3, limitUsd: 1, remainingUsd: 0.7, period: 'month' },
+      account,
     })
     await port.flush()
     expect(load).not.toHaveBeenCalled()
@@ -290,7 +296,7 @@ describe('recording taps', () => {
         expect.objectContaining({ provider: 'museCode' }),
         expect.objectContaining({
           provider: 'openrouter',
-          account: { usedUsd: 0.3, limitUsd: 1, remainingUsd: 0.7, period: 'month' },
+          account,
         }),
       ]),
     )
@@ -325,7 +331,7 @@ describe('recording taps', () => {
   it('reads today from the journal and keeps old days out of the modal', async () => {
     const journal = writer()
     const base = usageRecordSchema.parse({
-      v: 1,
+      v: 2,
       type: 'usage',
       id: 'today',
       at: 100,

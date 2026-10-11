@@ -89,7 +89,7 @@ describe('the paid-use popup (M58)', () => {
     const opened = vi.spyOn(Date, 'now').mockReturnValue(100)
     try {
       const record = usageRecordSchema.parse({
-        v: 1,
+        v: 2,
         type: 'usage',
         id: 'old',
         at: 99,
@@ -103,7 +103,7 @@ describe('the paid-use popup (M58)', () => {
         kind: 'image',
         tokens: {},
         units: { images: 2 },
-        cost: { certainty: 'computed', usd: 0.01 },
+        cost: { certainty: 'computed', usd: '0.01' },
         outcome: 'completed',
       })
       const read = Promise.withResolvers<readonly (typeof record)[]>()

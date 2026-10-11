@@ -3,6 +3,7 @@
 // pattern, the actions, the read-only render, the header pill and the
 // AgentMap region. Single-model mode renders no team tree: that is today's
 // map, covered by AgentMap.test.tsx.
+import { Usd } from '../../src/shared/usd'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
@@ -52,9 +53,14 @@ const tree: TeamTreeData = {
               elapsedMs: 90_000,
               inputTokens: 70_000,
               outputTokens: 7600,
-              costUsd: 0.12,
+              costUsd: Usd.from('0.12').toAmount(),
             },
-            { taskId: 't2', brief: 'Fix the test', status: 'done', costUsd: 0.03 },
+            {
+              taskId: 't2',
+              brief: 'Fix the test',
+              status: 'done',
+              costUsd: Usd.from('0.03').toAmount(),
+            },
           ],
         },
         {
@@ -82,8 +88,8 @@ const tree: TeamTreeData = {
       interrupted: [],
     },
   ],
-  spentUsdToday: 1.2,
-  budgetUsdToday: 50,
+  spentUsdToday: Usd.from('1.2').toAmount(),
+  budgetUsdToday: Usd.from('50').toAmount(),
 }
 
 function actions(): TeamTreeActions {

@@ -53,8 +53,8 @@ describe('M95 first-run wire', () => {
           pricing: 'priced',
           inputTokens: 1200,
           outputTokens: 300,
-          costUsd: 0.001,
-          keyUsage: { todayUsd: 0.4, monthUsd: 2.1, limitUsd: 10, remainingUsd: 7.9 },
+          costUsd: '0.001',
+          keyUsage: { todayUsd: '0.4', monthUsd: '2.1', limitUsd: '10', remainingUsd: '7.9' },
         },
         {
           providerId: 'ollama',
@@ -66,6 +66,30 @@ describe('M95 first-run wire', () => {
       ],
     }
     expect(parseHostToWebviewMessage(message)).toEqual({ ok: true, message })
+  })
+
+  it('reads an older numeric provider row as exact dollars (M121)', () => {
+    const result = parseHostToWebviewMessage({
+      type: 'usageReport',
+      backend: 'modelApi',
+      providers: [
+        {
+          providerId: 'openrouter',
+          providerLabel: 'OpenRouter',
+          pricing: 'priced',
+          inputTokens: 1,
+          outputTokens: 1,
+          costUsd: 0.1 + 0.2,
+          keyUsage: { todayUsd: 0.4, monthUsd: 2.1, limitUsd: 10, remainingUsd: 7.9 },
+        },
+      ],
+    })
+    expect(result.ok && result.message.type === 'usageReport' && result.message.providers).toEqual([
+      expect.objectContaining({
+        costUsd: '0.30000000000000004',
+        keyUsage: { todayUsd: '0.4', monthUsd: '2.1', limitUsd: '10', remainingUsd: '7.9' },
+      }),
+    ])
   })
 
   it('refuses a provider row without its price kind', () => {

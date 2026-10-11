@@ -64,8 +64,10 @@ export function formatUsdAtPrecision(exact: Usd, precision: number, locale?: str
   const currency: Intl.NumberFormatOptions = {
     style: 'currency',
     currency: 'USD',
-    minimumFractionDigits: precision,
-    maximumFractionDigits: precision,
+    // Only the pattern comes from Intl; the exact digits replace its fraction
+    // below, so arbitrarily small amounts need no oversized Intl precision.
+    minimumFractionDigits: Math.min(precision, 2),
+    maximumFractionDigits: Math.min(precision, 2),
   }
   const plain: Intl.NumberFormatOptions = { useGrouping: false }
   const formatter =

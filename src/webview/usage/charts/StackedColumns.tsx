@@ -1,7 +1,18 @@
 import { USAGE_TEXT } from '../../../shared/l10n/usageTable'
 import { fill, formatDateTime } from '../../../shared/l10n/text'
 import type { UsagePageState, UsageQuery } from '../../../shared/usagePage'
-import { dayLabel, groupLabel, knownSum, metricLabel, metricText, metricValue } from '../display'
+import {
+  billedCost,
+  costLabel,
+  dayLabel,
+  groupLabel,
+  knownSum,
+  metricLabel,
+  metricText,
+  metricValue,
+  money,
+  usdSum,
+} from '../display'
 import {
   ChartFrame,
   ColumnBucket,
@@ -25,6 +36,9 @@ export function groupedChart(state: UsagePageState): {
     colour: CHART_PALETTE[index] ?? 'other',
   }))
   if (remaining.length > 0) series.push({ id: 'other', label: USAGE_TEXT.other, colour: 'other' })
+  // Cost labels show the original amounts; geometry stays whole
+  // nano-dollars and every other metric already formats exactly (M121 P2-2).
+  const isCost = state.query.metric === 'cost'
   const points = state.buckets.map((bucket, index) => ({
     id: String(index),
     label: state.query.range === 'today' ? formatDateTime(bucket.at) : dayLabel(bucket.day),
@@ -41,6 +55,23 @@ export function groupedChart(state: UsagePageState): {
             return row === undefined ? undefined : metricValue(row.totals, state.query.metric)
           })(),
     ),
+    ...(isCost && {
+      texts: series.map((item) =>
+        item.sourceId === undefined
+          ? money(
+              usdSum(
+                remaining.map((row) => {
+                  const group = bucket.groups.find((candidate) => candidate.id === row.id)
+                  return group === undefined ? undefined : billedCost(group.totals)
+                }),
+              ),
+            )
+          : (() => {
+              const row = bucket.groups.find((group) => group.id === item.sourceId)
+              return row === undefined ? USAGE_TEXT.unknown : costLabel(row.totals)
+            })(),
+      ),
+    }),
   }))
   return { series, points }
 }

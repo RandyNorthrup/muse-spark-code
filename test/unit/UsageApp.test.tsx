@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { Usd } from '../../src/shared/usd'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { UsageApp } from '../../src/webview/usage/UsageApp'
 import { USAGE_EN } from '../../src/shared/l10n/usageEn'
@@ -76,7 +77,7 @@ describe('UsageApp', () => {
     send({ type: 'usage/state', state })
     expect(screen.getByText('No usage in the previous period.')).toBeInTheDocument()
     state.previousTotals = usageTotals('reported')
-    state.previousTotals.costs[0]!.usd = 0
+    state.previousTotals.costs[0]!.usd = Usd.from('0').toAmount()
     state.query.metric = 'cost'
     send({ type: 'usage/state', state })
     expect(screen.queryByText(/compared with the previous period/)).toBeNull()
@@ -388,7 +389,7 @@ describe('UsageApp', () => {
     state.totals.tokens = {}
     state.totals.durationMs = undefined
     state.totals.costs.push(
-      { certainty: 'uncertain', records: 1, usd: 0.04 },
+      { certainty: 'uncertain', records: 1, usd: Usd.from('0.04').toAmount() },
       { certainty: 'unpriced', records: 1 },
     )
     setup(state)

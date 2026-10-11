@@ -6,10 +6,11 @@
 import { useState } from 'react'
 import { UI_TEXT } from '../../shared/constants'
 import { fill, plural } from '../../shared/l10n/text'
+import type { UsdAmount } from '../../shared/usdSchema'
 import { useFormatUsd } from '../money'
 
 /** A usage amount with the lazy money chunk's exact display. */
-function UsageAmount({ usd }: { readonly usd: number }) {
+function UsageAmount({ usd }: { readonly usd: UsdAmount }) {
   const formatted = useFormatUsd(usd, 2)
   return formatted === undefined ? null : <>{formatted}</>
 }
@@ -98,7 +99,7 @@ function KeyUsage({ provider }: { readonly provider: ProviderState }) {
       </p>
     ) : null
   }
-  const rows: (readonly [string, number])[] = []
+  const rows: (readonly [string, UsdAmount])[] = []
   if (usage.dayUsd !== undefined) {
     rows.push([UI_TEXT.usageToday, usage.dayUsd])
   }

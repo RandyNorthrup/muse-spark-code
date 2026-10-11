@@ -1,7 +1,7 @@
 import { noScheduleCost } from '../../src/shared/scheduleV2'
 import { describe, expect, it, vi } from 'vitest'
 import * as z from 'zod/mini'
-import { createScheduleJournal } from '../../src/core/schedules/journal'
+import { createScheduleJournal, parseScheduleStoredJson } from '../../src/core/schedules/journal'
 import { createScheduleStore, scheduleStorageHash } from '../../src/core/schedules/store'
 import {
   SCHEDULE_JOURNAL_MAX_BYTES,
@@ -12,6 +12,8 @@ import {
 } from '../../src/shared/constants'
 import { fakeSchedule } from './helpers/schedules/fixtures'
 import { MemoryScheduleFs } from './helpers/schedules/storage'
+import { withholdReviverSource } from './helpers/withholdReviverSource'
+import { INEXACT_MONEY_LITERALS } from './helpers/inexactMoneyLiterals'
 
 const counterSchema = z.object({ values: z.record(z.string(), z.int()) })
 function counter(fs: MemoryScheduleFs) {
@@ -466,5 +468,67 @@ describe('bounded schedule generations', () => {
     await store.maintain(job.workspaceKey, job.createdAtMs + SCHEDULE_AUDIT_MAX_AGE_MS + 1)
     expect(await store.fires(job.workspaceKey)).toEqual([])
     expect(await store.claim(runId)).toBe(false)
+  })
+})
+
+describe('version 1 schedule money (M121 P2-1)', () => {
+  it.each(INEXACT_MONEY_LITERALS)(
+    'refuses exotic literal %s through the actual store (RVM121B)',
+    async (literal) => {
+      const fs = new MemoryScheduleFs()
+      const job = fakeSchedule()
+      const store = createScheduleStore(fs)
+      await store.create(job)
+      const snapshot = generationNames(fs)[0]!
+      const bytes = fs.files.get(snapshot)!
+      expect(bytes).toContain('"paidCapUsd":"0"')
+      fs.files.set(
+        snapshot,
+        bytes.replace('"paidCapUsd":"0"', () => `"paidCapUsd":${literal}`),
+      )
+      await expect(store.list(job.workspaceKey)).rejects.toThrow('scheduleStoredJsonInvalid')
+      expect(fs.files.get(snapshot)).toContain(`"paidCapUsd":${literal}`)
+    },
+  )
+
+  const REVIEWER = '0.123456789012345678901'
+  function refusesReviewerLiteral(): void {
+    expect(() => parseScheduleStoredJson(`{"paidCapUsd":${REVIEWER}}`)).toThrow(
+      'scheduleStoredJsonInvalid',
+    )
+    expect(() =>
+      parseScheduleStoredJson(`{"moneyVersion":2,"revision":0,"value":{"x":{"usd":${REVIEWER}}}}`),
+    ).toThrow('scheduleStoredJsonInvalid')
+    // Stored corruption never quotes the record.
+    try {
+      parseScheduleStoredJson(`{"paidCapUsd":${REVIEWER}}`)
+      expect.unreachable()
+    } catch (error: unknown) {
+      expect(error).toBeInstanceOf(Error)
+      expect((error as Error).message).toBe('scheduleStoredJsonInvalid')
+    }
+  }
+
+  it('reads an exact version 1 cap as its written decimal', () => {
+    expect(parseScheduleStoredJson('{"moneyVersion":2,"paidCapUsd":"1.1"}')).toEqual({
+      moneyVersion: 2,
+      paidCapUsd: '1.1',
+    })
+    expect(parseScheduleStoredJson('{"paidCapUsd":0.17}')).toEqual({ paidCapUsd: 0.17 })
+  })
+
+  it('refuses the reviewer literal a double cannot carry', refusesReviewerLiteral)
+
+  it('refuses the reviewer literal with the reviver source withheld (Node 20)', () => {
+    const restore = withholdReviverSource()
+    try {
+      refusesReviewerLiteral()
+    } finally {
+      restore()
+    }
+  })
+
+  it('still refuses corrupt text without quoting it', () => {
+    expect(() => parseScheduleStoredJson('{"paidCapUsd":')).toThrow('scheduleStoredJsonInvalid')
   })
 })

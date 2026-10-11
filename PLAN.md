@@ -21293,7 +21293,7 @@ fresh-clone receipts and lead-owned integrated gates are in that record.
 
 ### M121 — Exact money everywhere (current money ports) (2026-10-08)
 
-**Status 2026-10-08 (lead decision): planned.** PORTS017D's honest guard
+**Status 2026-10-08 (lead decision, superseded by M121A): planned.** PORTS017D's honest guard
 (`test/unit/paidMoneyStructure.test.ts`) inventories every remaining numeric
 money field as `trackedDebt`: the usage journal and usage page, `usage.ts`,
 the models panel (including its spread-copies), `accountUsage` internals, the
@@ -21323,6 +21323,69 @@ all of them; the `trackedDebt` category is the complete inventory it found.
 - Mini `_default`;
 - quoted keys;
 - a plain `interface { fooUsd: Record<string, number> }`.
+
+**Sanctioned numeric money (M121 decision, 2026-10-09).** The type-checker
+guard reads all of `src` (host, runtime, ACP and webview too), so it judges
+more than the 0.17 inventory. Four kinds of number stay numeric, each listed
+in the guard's `sanctioned` category with this paragraph as its citation:
+(1) per-unit rates — USD per million tokens, per token or per hour on a price
+card or catalog row, display and comparison only, settled through `Usd`;
+(2) vendor wire units captured as sent (xAI `cost_in_usd_ticks`), converted
+exactly at the named boundary; (3) VS Code number settings and their declared
+defaults/limits (`paidDailyBudgetUsd`, `tabDailyBudgetUsd`,
+`modelApiSessionBudgetUsd`, `PAID_DAILY_BUDGET` limits), which VS Code stores
+as JSON numbers and every reader converts with `Usd.from` on read; (4) the
+estimator's demand quantities (RVM121A P3-3, 2026-10-09: `accountUsdPerHour`
+and the `usd` rate read from it), USD/hour forecasts compared as numbers
+inside scheduling math beside requests/tokens/percent per hour through the
+shared number-based `Quantity` machinery — converting one unit would fracture
+it, so conversion waits for estimator-milestone work. Everything
+else is converted to `UsdAmount`; old persisted numbers are read through a
+versioned schema whose number member pipes straight to the canonical string.
+
+**Status 2026-10-09 (M121A): built.** Every `trackedDebt` field is now
+`UsdAmount` and the category is gone: the usage journal and usage page,
+`usage.ts`, the models panel (including its spread copies), `accountUsage`
+internals, the usage aggregate, team and team view costs and budgets,
+schedule v2 caps and liabilities, the codec-normalized provider cost, and
+team preview totals. The journal moved to version 2 (canonical decimal
+text); version 1 numbers read through a versioned reader that converts
+exactly, and the team ledger keeps its versioned v1 read the same way. The
+0.17 runtime guard is replaced by the type-checker guard with a regression
+probe for each RVPORTS017D case; the remaining numeric money is the
+sanctioned list above. Receipts: `docs/certification/m121.md`. Two findings
+for the lead, both reproduced on the 0.17.0 base and out of this lane's
+scope: `npm run build` stops at What's New (the 0.17.0 notes exceed the
+75 KiB content budget), and `usageIntegration.test.ts`'s panel-auth case
+expects 401 but the server answers 502.
+
+**RVM121B repair scope (2026-10-09, M121A round 3).** Refuse every legacy
+money literal whose exactness cannot be proved, including canonicalization
+failures, negative zero and out-of-range exponents, through the shared JSON
+reader used by journals and schedules. Calculate period changes and money
+ordering from original `UsdAmount` values in the usage page and portable text;
+numeric chart values serve geometry only. Resolve mapped properties through
+apparent types, union/intersection members and inherited interfaces in the
+type-checker guard, resolving numeric generic constraints before apparent-type
+boxing can hide them. Add reviewer and generated-literal regressions, prove each
+repair with byte-exact red drills, and retain every existing bundle cap.
+Receipts and scoped verification belong in `docs/certification/m121.md`;
+aggregate quality and the inherited What's New build blocker stay with the lead.
+The generated comparison extremes exposed a money-label failure beyond Intl's
+fraction-digit limit: reuse its localized currency pattern with at most two
+fraction digits, then substitute the original exact fractional digits as before.
+
+**RVM121CG repair scope (2026-10-09, M121A round 4).** Decide legacy monthly
+rollup exactness before validating money, refuse the entire unproved month
+without aborting the remaining journal read, preserve its bytes and show the
+installed-language refusal notice. Count refused records using validated
+non-money metadata. Whole-percent changes that round to zero return positive
+zero. The type-checker guard examines mapped declarations beneath ordinary
+names, arrays and promises, and resolves generic mapped key constraints.
+Regression tests and byte-exact red drills cover all three review findings;
+owning usage/money suites, one unit-project typecheck, lint, formatting and
+scoped production measurements retain every cap, including usagePanel's.
+Aggregate quality and the inherited build blocker remain with the lead.
 
 ### INT0180B — Complete the 0.18.0 integration (2026-10-07, linuxlt)
 
@@ -39548,6 +39611,24 @@ manifest and pixel thresholds remain unchanged; full visual verification
 stays open with the lead rather than altering the unrelated harness.
 Receipts, default-timeout suites, red drills and production measurements:
 `docs/certification/m94kr3.md`.
+
+**M121A rounds 3–4 gate ownership (2026-10-09, kubuntu).** The rig brief and
+shared lane rules forbid aggregate quality in this worktree; the lead owns
+that gate before integration. This lane runs the owning usage/money/schedule
+files at repository timeouts, typecheck, changed-file lint/format, localization
+and the remaining scoped static checks. Full production build retains the
+inherited What's New content-budget refusal; measure current production
+options/plugins in memory without editing the build or raising a cap. Byte
+counts and exact failure receipts are in `docs/certification/m121.md`.
+The unchanged zero-clone duplication gate also retains one six-line clone in
+`test/unit/windowsTrustedPath.test.ts`; that file matches `1494fbf87` byte for
+byte and is outside this lane's money scope. The touched migration test's
+duplicate setup is consolidated without dropping assertions. The lead owns
+the remaining Windows-test repair and the full artifact size/split replay:
+the refused build removes stale browser chunks before stopping, so those
+artifact checks cannot certify a complete current build. No gate is weakened.
+Round 4 replays the owning usage/money files, one unit-project typecheck and
+the scoped static checks and production measurements at the unchanged caps.
 
 **CIFIXM macOS CI repair scope (2026-10-09).** Reproduce the reporting
 journals/cache/engine, schedule-runtime and M114 panel/conversation failures

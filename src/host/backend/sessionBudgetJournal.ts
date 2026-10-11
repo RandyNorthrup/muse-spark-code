@@ -37,12 +37,17 @@ const SESSION_ID = /^[A-Za-z0-9_-]+$/
 const ACCOUNT_ID = /^[a-f0-9]{64}$/
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/
 
+// Version 1 stored JSON numbers; each reads as its exact decimal text (M121).
+const legacyUsdSchema = z.pipe(
+  z.number().check(z.nonnegative()),
+  z.transform((amount) => Usd.from(amount).toString()),
+)
 const legacySeedSchema = z.object({
   version: z.literal(1),
   scopeId: z.string().check(z.regex(UUID)),
   sessionId: z.string().check(z.regex(SESSION_ID)),
   accountId: z.string().check(z.regex(ACCOUNT_ID)),
-  spentUsd: z.number().check(z.nonnegative()),
+  spentUsd: legacyUsdSchema,
   hasUnknownHistoricalFees: z.boolean(),
 })
 const usdSchema = z.string().check(z.regex(/^\d+(?:\.\d+)?$/))
@@ -67,9 +72,9 @@ const legacyClaimSchema = z.object({
   ownerId: z.string().check(z.regex(UUID)),
   sessionId: z.string().check(z.regex(SESSION_ID)),
   accountId: z.string().check(z.regex(ACCOUNT_ID)),
-  reservedUsd: z.number().check(z.nonnegative()),
-  settledUsd: z.optional(z.number().check(z.nonnegative())),
-  retainedUsd: z.optional(z.number().check(z.nonnegative())),
+  reservedUsd: legacyUsdSchema,
+  settledUsd: z.optional(legacyUsdSchema),
+  retainedUsd: z.optional(legacyUsdSchema),
   hasUnknownCost: z.optional(z.boolean()),
   isUnbounded: z.optional(z.boolean()),
 })

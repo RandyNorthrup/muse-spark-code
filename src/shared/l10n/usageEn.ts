@@ -86,6 +86,10 @@ export const USAGE_EN = {
     one: '{count} incomplete line skipped',
     other: '{count} incomplete lines skipped',
   }),
+  inexactRecords: forms({
+    one: '{count} older record not counted: its dollars could not be read exactly',
+    other: '{count} older records not counted: their dollars could not be read exactly',
+  }),
   recordCount: forms({ one: '{count} record', other: '{count} records' }),
   requestCount: forms({ one: '{count} request', other: '{count} requests' }),
   inputTokens: 'Input Tokens',
