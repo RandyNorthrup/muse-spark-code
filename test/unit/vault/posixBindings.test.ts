@@ -9,6 +9,8 @@ import { createVaultBrokerBindings } from '../../../src/runtime/vault/brokerBind
 import { createVaultBrokerProcess } from '../../../src/runtime/vault/vaultBrokerEntry'
 import { posixVaultClientPlatform } from '../../../src/runtime/vault/posixClientPlatform'
 import { vaultClientPlatform } from '../../../src/runtime/vault/clientPlatform'
+import * as nativeModule from '../../../src/runtime/vault/posixNative'
+import { isPosixVaultHost, registerPosixVaultHost } from '../../../src/runtime/vault/posixHost'
 import { vaultPeerExecutable } from '../../../src/runtime/vault/posixNative'
 import { VaultBrokerClient } from '../../../src/core/vault/broker/client'
 import { VaultManageSession } from '../../../src/core/vault/broker/manageClient'
@@ -27,6 +29,7 @@ vi.mock(
   '../../../src/core/resources/launcher',
   async () => await import('../helpers/vault/brokerChildLauncher'),
 )
+vi.mock('../../../src/runtime/vault/posixNative', { spy: true })
 const seen: { broker?: VaultBroker } = {}
 vi.mock('../../../src/core/vault/broker/broker', async (original) => {
   const module = await original<typeof BrokerModule>()
@@ -314,6 +317,96 @@ describe.skipIf(process.platform === 'win32')('installed POSIX binding compositi
       await f.handle.close()
     }
   })
+  it('requires exact executable and user identity at the host binding', async () => {
+    const f = await composition()
+    try {
+      const identity = await f.platform.process.identity(process.pid)
+      expect(
+        await isPosixVaultHost(f.context.runDirectory, identity, f.hostId, f.hostSession),
+      ).toBe(true)
+      expect(
+        await isPosixVaultHost(
+          f.context.runDirectory,
+          { ...identity, executable: identity.executable + '.other' },
+          f.hostId,
+          f.hostSession,
+        ),
+      ).toBe(false)
+      expect(
+        await isPosixVaultHost(
+          f.context.runDirectory,
+          { ...identity, userId: identity.userId + '0' },
+          f.hostId,
+          f.hostSession,
+        ),
+      ).toBe(false)
+      await expect(
+        f.base.identify(
+          { ...identity, executable: identity.executable + '.other' },
+          f.hostId,
+          f.hostSession,
+        ),
+      ).rejects.toThrow(UI_TEXT.vault.noAccess)
+      // A self-consistent foreign-user record still cannot grant this user's binding authority.
+      const foreign = { ...identity, userId: identity.userId + '0' }
+      const record = path.join(f.context.runDirectory, 'hosts', f.hostId)
+      await writeFile(
+        record,
+        JSON.stringify({ ...foreign, hostId: f.hostId, hostSession: f.hostSession }),
+        { mode: 0o600 },
+      )
+      const probe = vi.spyOn(nativeModule, 'vaultProcessIdentity').mockResolvedValue(foreign)
+      try {
+        await expect(f.base.identify(foreign, f.hostId, f.hostSession)).rejects.toThrow(
+          UI_TEXT.vault.noAccess,
+        )
+      } finally {
+        probe.mockRestore()
+      }
+    } finally {
+      await f.handle.close()
+      f.platform.dispose?.()
+    }
+  })
+  it('refuses registration when the native process user differs from the binding user', async () => {
+    const f = await composition()
+    const identity = await f.platform.process.identity(process.pid)
+    const probe = vi
+      .spyOn(nativeModule, 'vaultProcessIdentity')
+      .mockResolvedValue({ ...identity, userId: identity.userId + '0' })
+    try {
+      await expect(
+        registerPosixVaultHost(
+          f.context.runDirectory,
+          vaultPeerExecutable(native.root),
+          'd'.repeat(32),
+          f.hostSession,
+        ),
+      ).rejects.toThrow(UI_TEXT.vault.noAccess)
+      expect(await readdir(path.join(f.context.runDirectory, 'hosts'))).not.toContain(
+        'd'.repeat(32),
+      )
+    } finally {
+      probe.mockRestore()
+      await f.handle.close()
+      f.platform.dispose?.()
+    }
+  })
+  it('refuses discovery repair for a live owner with a malformed boot token', async () => {
+    const f = await composition()
+    try {
+      await writeFile(path.join(f.platform.discovery.directory, 'boot-token'), 'malformed', {
+        mode: 0o600,
+      })
+      await expect(f.platform.discovery.discover(f.platform.process.identity)).rejects.toThrow(
+        UI_TEXT.vault.noAccess,
+      )
+      expect(await stat(path.join(f.platform.discovery.directory, 'broker.lock'))).toBeDefined()
+    } finally {
+      await f.handle.close()
+      f.platform.dispose?.()
+    }
+  })
   it('keeps the public availability switch off and refuses unregistered, wrong-session and stale-birth peers', async () => {
     const f = await composition()
     try {
@@ -325,7 +418,7 @@ describe.skipIf(process.platform === 'win32')('installed POSIX binding compositi
           hostId: f.hostId,
           hostSession: f.hostSession,
         }),
-      ).rejects.toThrow(UI_TEXT.vault.brokerBlocked)
+      ).rejects.toThrow(UI_TEXT.vault.brokerDisabled)
       await expect(
         VaultBrokerClient.open(f.handle.location, 'e'.repeat(32), f.hostSession, f.platform.peers),
       ).rejects.toThrow()

@@ -40,6 +40,7 @@ export interface VaultPanelEntryDeps extends Omit<
 function brokerService(distDir: string): {
   service: VaultPanelService
   probe: () => Promise<void>
+  dispose: () => void
 } {
   // The same per-user vault every editor and the ACP agent open (D89.1).
   const dataDir = agentDataFolder({
@@ -70,6 +71,14 @@ function brokerService(distDir: string): {
     )
   }
   return {
+    dispose: () => {
+      void connection?.then(
+        ({ platform }) => platform.dispose?.(),
+        () => {
+          /* The command already reports a failed platform load. */
+        },
+      )
+    },
     service: vaultPanelService(new VaultManageSession(connect), {
       ambientFiles: () => discoverAmbientFiles(homedir()),
     }),
@@ -200,6 +209,7 @@ export function createVaultPanelHost(
     },
     dispose: () => {
       host.dispose()
+      broker?.dispose()
       status.dispose()
     },
   }

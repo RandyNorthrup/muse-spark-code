@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { execFileSync, spawn, type SpawnOptions } from 'node:child_process'
-import { mkdtemp, rm, stat, writeFile, symlink, chmod } from 'node:fs/promises'
+import { mkdtemp, rm, stat, writeFile, readFile, symlink, chmod } from 'node:fs/promises'
 import type * as nodeFsPromises from 'node:fs/promises'
 import { createServer, createConnection, type Socket } from 'node:net'
 import type * as nodeNet from 'node:net'
@@ -386,6 +386,25 @@ describe.skipIf(process.platform === 'win32')('POSIX vault broker lifecycle', ()
     const handle = await start(f.options)
     await handle.close()
   })
+  it('spares a live owner during stale recovery even without its startup guardian', async () => {
+    const f = await fixture('live-recovery', 1000)
+    const discovery = new VaultBrokerDiscovery(f.options.runDirectory, f.options.userSession)
+    const identity = await vaultProcessIdentity(native.helper, process.pid)
+    if (!identity) throw new Error('generated owner disappeared')
+    const claim = await discovery.claim(identity, path.join(discovery.directory, 'broker.sock'))
+    const before = await readFile(path.join(discovery.directory, 'broker.lock'))
+    const channel = vi.fn(f.options.channel)
+    try {
+      await expect(start({ ...f.options, channel })).rejects.toThrow('No access')
+      expect(channel).not.toHaveBeenCalled()
+      const after = await readFile(path.join(discovery.directory, 'broker.lock'))
+      expect(after.equals(before)).toBe(true)
+      expect(await stat(path.join(discovery.directory, 'boot-token'))).toBeDefined()
+    } finally {
+      await claim.release()
+      await f.f.broker.dispose()
+    }
+  })
   it('refuses a symlink and a permissive startup lock before any channel starts', async () => {
     const f = await fixture('hostile')
     const discovery = new VaultBrokerDiscovery(f.options.runDirectory, f.options.userSession)
@@ -462,6 +481,10 @@ describe.skipIf(process.platform === 'win32')('POSIX vault broker lifecycle', ()
     const exited = once(child, 'exit')
     child.kill('SIGKILL')
     await exited
+    for (const file of ['broker.lock', 'boot-token', 'broker.sock', 'startup.lock']) {
+      const discovery = new VaultBrokerDiscovery(f.options.runDirectory, f.options.userSession)
+      expect(await stat(path.join(discovery.directory, file))).toBeDefined()
+    }
     const handle = await start(f.options)
     try {
       const client = await VaultBrokerClient.open(

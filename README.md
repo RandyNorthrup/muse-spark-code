@@ -5163,7 +5163,7 @@ use in every window. The panel host and the native editor ship in
 and starts no broker. The installed POSIX client and broker factory are bound behind an off
 availability switch. Until the shared writer lease, Windows binding, panel mount
 and reviews join ([the POSIX receipt](docs/certification/cm109-join-posix.md)),
-both commands report the broker installation failure and refuse access. No value is ever logged, and no handle is substituted into a command,
+both commands report that the installed broker is switched off pending integration checks and refuse access. No value is ever logged, and no handle is substituted into a command,
 a file or the model's text.
 
 Settings (all machine-scoped, so no workspace can change them):
@@ -5183,7 +5183,12 @@ The terminal/ACP/headless handlers are implemented against the shared vault
 contracts. The installed POSIX broker factory and client are available internally; the
 panel mount and cross-platform join from M109 W/U/M104 remain open. Public
 commands still refuse while availability is off.
-No activation read or broker start is added. Internal broker composition,
+No activation read or broker start is added. On POSIX, the session owns a broker
+started through governed handoff: closing its first window or CLI does not stop
+other clients. Simultaneous starts wait for one broker; the last disconnect
+starts the 30-second idle period, then Lock runs before exit. Signal shutdown
+uses the same cleanup. Client registrations are removed on exit, and a later
+start prunes proven-dead registrations. Internal broker composition,
 its installed-runtime contract and the native receipts are documented in
 [the broker process contract](docs/design/vault-broker-process.md) and
 [the POSIX certification](docs/certification/cm109-1b.md).
@@ -5197,7 +5202,12 @@ it does not use the Secure Enclave.
 The terminal, ACP and headless commands load `dist/vaultRuntime.js` on the
 first vault need. Its POSIX connection and broker factory ship as lazy installed siblings;
 availability remains off until the shared-lease and Windows join is reviewed,
-so public commands report the broker installation failure and refuse access. No activation read or broker start is added.
+so public commands report that the installed broker is switched off pending integration checks and refuse access. No activation read or broker start is added. On POSIX, the session owns a broker
+started through governed handoff: closing its first window or CLI does not stop
+other clients. Simultaneous starts wait for one broker; the last disconnect
+starts the 30-second idle period, then Lock runs before exit. Signal shutdown
+uses the same cleanup. Client registrations are removed on exit, and a later
+start prunes proven-dead registrations.
 
 The terminal grammar is `muse-spark-code-acp vault` followed by `setup`,
 `recover`, `reset`, `status`,

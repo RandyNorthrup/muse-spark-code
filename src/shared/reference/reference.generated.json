@@ -1900,12 +1900,18 @@
       "name": { "command": "museSpark.vault" },
       "summary": {
         "conditions": [
-          { "when": "vaultBroker=disabledPendingJoin", "text": { "ui": "referenceVaultPanel" } }
+          {
+            "when": "vaultBroker=installedDisabledPendingJoin",
+            "text": { "ui": "referenceVaultPanel" }
+          }
         ]
       },
       "description": {
         "conditions": [
-          { "when": "vaultBroker=disabledPendingJoin", "text": { "ui": "referenceVaultPanel" } }
+          {
+            "when": "vaultBroker=installedDisabledPendingJoin",
+            "text": { "ui": "referenceVaultPanel" }
+          }
         ]
       },
       "commands": ["museSpark.vault", "museSpark.lockVault"],
@@ -2637,10 +2643,13 @@
       "nameKey": "command.vault.title",
       "category": "Muse Spark",
       "categoryKey": "command.category",
-      "description": "vaultBroker=disabledPendingJoin: The credential vault is unavailable in this build because the broker is not installed.",
+      "description": "vaultBroker=installedDisabledPendingJoin: The credential vault is switched off in this build pending integration checks.",
       "text": {
         "conditions": [
-          { "when": "vaultBroker=disabledPendingJoin", "text": { "ui": "referenceVaultPanel" } }
+          {
+            "when": "vaultBroker=installedDisabledPendingJoin",
+            "text": { "ui": "referenceVaultPanel" }
+          }
         ]
       },
       "canRun": false
@@ -2651,10 +2660,13 @@
       "nameKey": "command.lockVault.title",
       "category": "Muse Spark",
       "categoryKey": "command.category",
-      "description": "vaultBroker=disabledPendingJoin: The credential vault is unavailable in this build because the broker is not installed.",
+      "description": "vaultBroker=installedDisabledPendingJoin: The credential vault is switched off in this build pending integration checks.",
       "text": {
         "conditions": [
-          { "when": "vaultBroker=disabledPendingJoin", "text": { "ui": "referenceVaultPanel" } }
+          {
+            "when": "vaultBroker=installedDisabledPendingJoin",
+            "text": { "ui": "referenceVaultPanel" }
+          }
         ]
       },
       "canRun": false
