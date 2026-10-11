@@ -31408,6 +31408,25 @@ evidence (action dialogs 22.7/25, surface English 24.4/25, modelEfforts
 `feedback-narrow` visual scenes (320 px, six themes) with baselines,
 `npm run test:a11y` (sandbox-blocked here), and the opt-in live receipt.
 
+**C-M106-3R3 review repairs (RVCM1063, 2026-10-11, macmini).** All four P2
+and four P3 findings fixed with no residuals. Only an `uploaded` receipt
+resolves: every other SDK outcome refuses with its own sentence in all 14
+tables, the dialog shows the refusal it carries, and a reply with neither
+outcome nor error rejects. The note stops at the protocol maximum with a
+counter; refused previews and submits settle with their reason. Request ids
+are unique for the webview lifetime, close settles preview waiters too, and
+a session change closes the bridge. The captured variants, descriptions and
+catalogue default flow through the controller's model rows to the Modes
+footer and palette dots and the ACP (which starts on the catalogue
+default); malformed rows read tierless, and unknown tiers ride open-string
+fields. The form uses the question-card/secret-prompt classes with three
+authored narrow scenes and end-state readiness gates; the Italian bad-result
+label reads `Brutto risultato`; the VS Code binding test reads the
+window's production wiring. Twelve red drills with hash-verified byte-exact
+restores; evidence in `docs/certification/m106-native-readers.md`. Open for
+the reviewer: render and review the scene baselines, `npm run
+check:visual`, `npm run test:a11y`, and the opt-in live receipt.
+
 **M106W continuation 3 (2026-10-06, macmini).** Resolve the 15 full-suite
 blockers recorded by W: reconcile only D86-authorized behavior changes, repair
 stale fake package/capability/lazy UI fixtures, and fix shipped frame coverage.

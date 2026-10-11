@@ -279,3 +279,60 @@ received 1` posture); `conversationController.ts` restored
 - `npm run test:a11y` (blocked here: EPERM on `127.0.0.1` listen).
 - Opt-in live receipt against a real 1.4.4 `muse serve` is still open
   (owner's key, per the R1 record).
+
+## C-M106-3R3 review repairs (RVCM1063, 2026-10-11, macmini)
+
+All four P2 and four P3 findings fixed and shipped; no residuals. Commits
+`9b028535e` (findings 1/2/5/8), `65e962c44` (finding 3), `5ebd79a55`
+(findings 4/6/7), plus the docs commit below. Every drill broke the guard,
+saw the named test fail, and restored byte-exact (hash-verified).
+
+| Finding             | Fix                                                                                                                                                                                                                                                                                                                                                                                                  | Regression test (fails without it)                                                                                                                                                                                                           | Red drill                                                                                                           |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| 1, dialog honesty   | `parseFeedbackOutcome` resolves only `uploaded`; every other SDK outcome (`recorded`, `acceptedWithoutReceipt`, `trackingFailed`, `trackingUncertain`, `dark`, `disabled`, `noCredential`, `authRejected`, `rateLimited`, `failed`, future strings) refuses with its own sentence in all 14 tables; the dialog shows `error.message`, never the generic failure over a reason                        | `museCodeNativeReaders`: per-outcome refusal table + unknown-outcome line; `FeedbackDialog`: sign-in refusal, rate-limit sentence, reasonless refusal                                                                                        | reader guard returned verbatim: 10 failed; dialog `refusalOf` forced generic: 1 failed                              |
+| 8, false success    | bridge rejects a reply with neither outcome nor error (`feedbackFailed`)                                                                                                                                                                                                                                                                                                                             | `feedbackBridge`: neither-outcome-nor-error rejects                                                                                                                                                                                          | resolve-instead-of-reject: 1 failed                                                                                 |
+| 2, note limit       | textarea `maxLength={FEEDBACK_NOTE_MAX_CHARS}` + `{used} of {max}` counter; bridge refuses overlong preview/submit with the too-long sentence before posting, so nothing waits                                                                                                                                                                                                                       | `FeedbackDialog`: maxLength attribute + counter text, refused preview settles with reason and re-enables Preview; `feedbackBridge`: overlong preview/submit reject with reason, zero posts                                                   | maxLength removed: 1 failed; bridge pre-check removed: 1 failed                                                     |
+| 5, request ids      | module-lifetime id holder (no two bridges share an id); `close()` rejects preview waiters too; App closes the bridge when the session changes                                                                                                                                                                                                                                                        | `feedbackBridge`: ids unique across bridges, stale answer settles nothing; `App`: session change unmounts the dialog and removes the bridge listener                                                                                         | per-bridge ids: 1 failed; App effect removed: 1 failed (proves the test is not a false positive on the render hide) |
+| 3, effort catalogue | `variants`/`reasoningEffortVariants`/`defaultReasoningEffort` ride `ModelSummary` → controller `toModelOption` → `modelOptionSchema` (open strings, so a later tier never rejects the list); footer and palette dots render the catalogue via `catalogueSliderProps`; ACP options name the catalogue tiers and new sessions start on its default; malformed rows read tierless with a logged warning | `effortCatalogue`: captured frame → host → mapping → wire parse → rendered tiers (descriptions, `max` pressed), plus a `turbo` row riding the wire; host isolation, `effort` helper, palette registry, App footer, ACP default/options tests | mapping drops `variants`: composition fails; `catch`→`finally`: isolation fails                                     |
+| 4, styling + scenes | form uses `question-input`, `question-actions`, `button-primary/secondary`; block labels, full-width controls, counter; modal title wraps beside its close button; `feedback(-preview/-sent)-narrow` scenes drive the real dialog with end-state readiness gates                                                                                                                                     | `feedbackScenes.test.mjs`: registration, 320 px sizing, steps, readiness markers, label key, host answers                                                                                                                                    | renamed scene step: 1 failed                                                                                        |
+| 6, Italian label    | `feedbackClassificationBadResult` reads `Brutto risultato` again                                                                                                                                                                                                                                                                                                                                     | `feedbackL10n`: pins the corrected wording                                                                                                                                                                                                   | reverted wording: 1 failed                                                                                          |
+| 7, binding test     | VS Code case asserts `src/extension.ts` carries `featurePorts: NATIVE_MUSE_CODE_FEATURE_PORTS`                                                                                                                                                                                                                                                                                                       | `museCodeNativeBinding`: production-wiring read                                                                                                                                                                                              | wiring line deleted: 1 failed                                                                                       |
+
+Deliberate non-changes, with reasons:
+
+- The panel composer keeps the `high` default (`constants.ts` documents the
+  TUI agreement); the controller imposes it on every session start, so the
+  footer honestly shows the running effort. The catalogue default takes the
+  dot whenever the session runs it, and ACP starts on it.
+- A catalogue tier outside the extension's vocabulary (and the SDK's closed
+  `ReasoningEffort` union) renders with its catalogue name but is not
+  selectable through the `EffortLevel`-typed path; ACP does not offer it.
+- The receipt's `cause`, `sessionNote`, `localTracingNote` and `retryAfterMs`
+  stay host-side: no captured frame certifies showing them, and free text
+  from the server never reaches the panel.
+- The twelve new sentences are first-draft translations by this lane, as the
+  earlier sets were; a native speaker has not reviewed them.
+
+Gates run on the rig: `node scripts/check-l10n.mjs` 0 problems (14 UI
+tables); `npm run typecheck:host`, `typecheck:webview` clean; `npm run
+build` exits 0 with budgets held; eslint/prettier clean on every touched
+file. Full files green: `FeedbackDialog` (12), `feedbackBridge` (8),
+`museCodeNativeReaders`, `protocol`, `EffortSlider`, `effort`,
+`paletteRegistry`, `effortCatalogue` (composition), `conversationController`
+(686), `App` (188). `acpAgent`: 142 pass including the new catalogue test;
+`exposes all three ChatGPT actions` fails identically on the untouched lane
+base `f48fb0e7d` (verified in a clean worktree) — pre-existing, unrelated to
+this lane. One earlier single-test flake in `App.test.tsx` passed on the
+next three consecutive runs.
+
+## For the reviewer (browser + loopback, outside the lane sandbox) — updated
+
+- The three narrow scenes are AUTHORED (`feedback-narrow`,
+  `feedback-preview-narrow`, `feedback-sent-narrow` in
+  `test/harness/index.html`, registered in `scripts/lib/harnessServer.mjs`,
+  pinned by `test/unit/feedbackScenes.test.mjs`). Still the reviewer's:
+  render and review baselines (`npm run harness:shots` incl. `--lang=pseudo`,
+  six themes), regenerate the visual manifest/audit entries, run
+  `npm run check:visual` and `npm run test:a11y`.
+- Opt-in live receipt against a real 1.4.4 `muse serve` is still open
+  (owner's key, per the R1 record).
