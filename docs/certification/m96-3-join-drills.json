@@ -1,0 +1,11 @@
+[
+  {
+    "port": 1,
+    "mutation": "Require a loaded service in setup readiness",
+    "command": "npx vitest run test/unit/teamHostService.test.ts test/unit/modelsPanelEntry.test.ts test/unit/teamActivationGraph.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "beforeSha256": "662e432fec65fad90b287fa5e98af38646b428c980d6a9b571f0dddcc2cb1208",
+    "restoredSha256": "662e432fec65fad90b287fa5e98af38646b428c980d6a9b571f0dddcc2cb1208",
+    "regression": "allows first-time configuration without a stored team, loading or probing"
+  }
+]

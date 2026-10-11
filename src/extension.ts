@@ -4189,15 +4189,8 @@ async function activateWindow(
           log,
           globalState: context.globalState,
           team: {
-            // The same availability that admits a team conversation. Until
-            // C-M96-3 installs its engine worker, neither U1 section is exposed.
-            isEnabled: () =>
-              vscode.workspace
-                .getConfiguration(SETTINGS_SECTION)
-                .get<unknown>(TEAM_SWITCH_SETTING) !== false &&
-              teamHost.seams
-                .teamDecisionSource()
-                ?.customEntries.some((entry) => entry.isAvailable) === true,
+            // Setup has no saved-entry prerequisite; the configuration registry gates U1.
+            isEnabled: () => teamHost.canConfigure(),
             state: {
               get: (key) => context.workspaceState.get(key),
               update: async (key, value) => {

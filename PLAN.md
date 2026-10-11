@@ -24054,6 +24054,26 @@ live) and the controller filters its id as well.
 
 ### M96 — Agent roles and the team (D75)
 
+**CM963J configuration join (2026-10-11, kubuntu).** Join the reviewed
+Roles/Agents editor (`787ee0311`) to engine round 5 (`8bd374471`), committing
+the merged base alone. Bind setup readiness independently of a saved team,
+then the actual model/discovery registry, durable remaining-budget/history
+reads, saved charters and new-conversation overrides, and paid Try. Every
+binding receives a regression and a byte-exact red/restored drill in
+`docs/certification/m96-3.md`. No guessed model controls, provider ceilings,
+preset balance or empty history substitutes are permitted. Keep sections and
+`museSpark.team` hidden until all required sources and a saved VS Code team
+run are proven. Models split awaits acceptance of `fix/models-split`; its
+current reviewed head is unaccepted. Accounting and draft-identity siblings
+retain their reserved files. Full quality and native Mac/Windows adapter
+replay remain lead-owned under the rig brief; no paid/live calls or cap changes.
+
+**CM963J port 1 — first-time setup.** `TeamHostBinding.canConfigure()` reads
+the live switch, workspace trust, editor engine support and disposal state;
+it never requires a stored custom entry, loads a bundle or probes. The
+Models adapter binds that predicate. Its separate required configuration
+registry gate still keeps Roles/Agents absent while that source is missing.
+
 **C-M96-2 review RVCM962B repair (2026-10-10, kubuntu).** Fix all six P2
 and two P3 findings by class: reconcile composite drafts per answered field
 without dropping outstanding edits, preserve custom Default concurrency within

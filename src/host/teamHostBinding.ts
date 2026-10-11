@@ -123,6 +123,16 @@ export class TeamHostBinding implements TeamSurfacePort {
     return await this.loading
   }
 
+  /** First-time setup is independent of a saved, runnable worker entry. */
+  public canConfigure(): boolean {
+    return (
+      !this.isDisposed &&
+      this.deps.ports.settings.isTeamOn() &&
+      this.deps.ports.settings.isTrusted() &&
+      this.deps.canRunKind('engine')
+    )
+  }
+
   /**
    * Loads the service and runs the declared setup probes, once, when a
    * surface that shows the team opens. A workspace with no stored team, or
