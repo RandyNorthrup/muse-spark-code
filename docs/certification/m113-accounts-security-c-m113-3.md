@@ -19,17 +19,27 @@ Acceptance: goldens; canary absent. Certification: drills; Codex review
 
 - `security` kind: sections `security/vault` (state, tier, item count),
   `security/breakdown` (items by kind), `security/grants` (by
-  roles/workspaces shape), `security/usage` (allows by kind and authority),
+  roles/workspaces shape), `security/usage` (allows by kind and outcome),
   `security/denials` (deny decisions and denied outcomes),
   `security/locks` (locked outcomes), `security/developerAudit` (actions by
-  source). Counts, kinds, decisions and authorities only.
-- `accounts` kind: sections `accounts/accounts` (per provider with order
-  and limit group), `accounts/limits` (spend/count/percent thresholds),
-  `accounts/usage`, `accounts/swaps`, `accounts/refusals` (stops),
-  `accounts/confirmations`. Labels resolved locally.
+  source). Counts, kinds, decisions and outcomes only (RVCM1133: the
+  Outcome column used to carry the authority).
+- `accounts` kind: sections `accounts/accounts` (per provider with limit
+  group; Count counts the account, never its placement order — RVCM1133),
+  `accounts/limits` (spend/count/percent thresholds), `accounts/usage`,
+  `accounts/swaps`, `accounts/refusals` (stops), `accounts/confirmations`.
+  Labels resolved locally.
 - Sources validate every fact with strict zod schemas, sort by code unit,
   and stay kind-scoped (`disabled` outside their kind, `unbound` without a
-  reader, `missing`/`invalid`/`failed` with the shared reasons).
+  reader, `missing`/`invalid`/`failed`/`refused` with the shared reasons).
+  One `keepReason` helper (`src/runtime/reporting/reportInputs.ts`) keeps
+  each source's own true reason in its partial beside the good rows: a
+  schema-invalid registry entry is skipped with the invalid reason while
+  the good entries still report (only a registry with no good entry reads
+  as invalid); a vault view that fails validation is invalid and never
+  hides a readable developer audit; with neither vault nor developer audit
+  the kind is partial naming both reasons, never a generic missing file;
+  linked registry and audit files refuse like linked session files.
 - Runtime binds the on-disk registry (`providers.json`, metadata only) and
   the developer audit (both rotations) in both engine constructions.
   Unbound facets stay empty and are named in the partial, never invented.
@@ -72,12 +82,50 @@ SHA-256; no red mutation is retained.
   `kind` in `src/runtime/reporting/reportInputs.ts`. All four
   `reportSecurityCanary` cases failed. Restored to
   `1c83fe2991eca1d52316c38c9ba2f79a299c58784efdee905711b14567da40c0`.
-  (An earlier variant leaking into the projected `outcome` stayed green
-  by design: the collector never renders fact outcomes, only authorities.)
+  (Before RVCM1133 a variant leaking into the projected `outcome` stayed
+  green by design, because the collector never rendered fact outcomes;
+  since the Outcome column honestly renders outcomes, that variant fails
+  the canary suite too.)
 - Drill 2 (golden guard fires): renamed the vault state row in
   `src/core/reporting/collect/security.ts`. The security golden case
   failed. Restored to
   `f6ba0826634f51d90c089a85dcc34e1f3b6893d04f49c0b9678276a904a425f7`.
+
+## RVCM1133 red-drill receipts (2026-10-11, this lane)
+
+Each fix below was broken on purpose, the named test failed, and the
+file was restored byte-exact (SHA-256 compared against a backup before
+and after; no red mutation is retained). Base commit `a222a4187`.
+
+| Finding                          | Breakage                                            | Named test failure                                                         | Restored SHA-256                                 |
+| -------------------------------- | --------------------------------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------ |
+| P2 both-absent security          | re-added `return null` for vault+audit absent       | `reportSourceReasons` > security/both absent (1 failed, 10 passed)         | `2eea078c…e7ff8dd07d` (`reportInputs.ts`)        |
+| P2 registry entries              | dropped the bad-entry `continue`                    | `reportSourceReasons` > one bad entry + no good entry (2 failed, 9 passed) | `2eea078c…e7ff8dd07d` (`reportInputs.ts`)        |
+| P3 accounts Count                | `count(1)` back to `count(account.order)`           | `reportAccountsSecurityGoldens` > accounts golden (1 failed, 1 passed)     | `0cc74714…8035f5f2` (`collect/accounts.ts`)      |
+| P3 security Outcome              | usage grouping back to `entry.authority`            | `collect.security` > vault aggregates case (1 failed, 3 passed)            | `85ce97f3…03f41ab03f883` (`collect/security.ts`) |
+| P3 linked files                  | ELOOP mapping back to `failed`                      | `reportSourceReasons` > both linked cases (2 failed, 9 passed)             | `2eea078c…e7ff8dd07d` (`reportInputs.ts`)        |
+| P3 vault before audit            | `keepReason` replaced with `throw invalid`          | `reportSourceReasons` > invalid vault keeps audit (1 failed, 10 passed)    | `2eea078c…e7ff8dd07d` (`reportInputs.ts`)        |
+| Outcome-leak canary (cert claim) | canary snapshot outcome set to `canary-target-Z9x8` | `reportSecurityCanary` all 4 formats failed                                | `3a36585c…4c03d3c5448b` (`canaryVault.ts`)       |
+
+## RVCM1133 gates (kubuntu, this lane)
+
+- `npm run typecheck`: exit 0, all five projects (re-run after the dedup below).
+- ESLint `--max-warnings=0` over every changed file: exit 0. Prettier: clean.
+- `node scripts/check-l10n.mjs`: 0 problems (no new key; the fixes reuse
+  the shared invalid/refused sentences and the existing detail reasons).
+- `npx jscpd`: 0 clones. The first run of this round found 2: the new
+  table test's repeated source-read tails (mine), and the e2e/unit
+  developer-audit write block the lane's 0-clone claim missed
+  (pre-existing duplication between two files this lane owns, byte-identical
+  at the base `c51b6dc34`). Extracted `readAccounts`/`readSecurity` plus
+  shared want blocks, and a shared `writeDeveloperAudit` fixture helper now
+  used by the e2e setup, both unit reader files and the table test.
+- `npm run deadcode` (knip): only the two pre-existing configuration hints.
+- `npm run build`: every reporting budget holds (`reportInputs.js`
+  87.8 KiB of 100 KiB, up 0.4 KiB for the reason propagation). One failure
+  is pre-existing and untouched by this lane: `dist/usagePanel.js`
+  75.1 KiB over its 75 KiB budget (identical size on the untouched base;
+  no lane file feeds that bundle).
 
 ## Gates and results (kubuntu, this lane)
 

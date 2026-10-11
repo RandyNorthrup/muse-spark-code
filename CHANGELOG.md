@@ -9,6 +9,15 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **Accounts and security reports keep each source's true reason** (RVCM1133).
+  A security read with neither vault nor developer audit is partial naming
+  both reasons instead of a generic missing file; a schema-invalid registry
+  entry is skipped with the invalid reason while good entries still report;
+  the accounts Count column counts the account instead of showing its
+  placement order; usage, denial and lock rows show the audit outcome
+  instead of the authority; linked registry and audit files refuse like
+  linked session files; and a vault view that fails validation no longer
+  hides a readable developer audit.
 - **Session and usage reports agree with their notes and show the shared daily budget everywhere** (CM1132R3).
   Session totals exclude rolled-up history and say so; budget stamps use the
   machine-local day like the report period; terminal and ACP usage reports show

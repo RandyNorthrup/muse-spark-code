@@ -17,6 +17,7 @@ import { build } from 'esbuild'
 import { sharedResourceAdmission } from '../../scripts/lib/deferredBundles.mjs'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { UsageJournalStore } from '../../src/core/usage/journalStore'
+import { writeDeveloperAudit } from '../unit/helpers/reporting/tempDir'
 import { NodeUsageFs } from '../../src/runtime/usage/nodeUsageFs'
 import {
   agentDataFolder,
@@ -225,11 +226,9 @@ beforeAll(async () => {
       },
     }),
   )
-  await mkdir(path.join(dataDir, 'developer'), { recursive: true })
-  await writeFile(
-    path.join(dataDir, 'developer', 'developer-audit.jsonl'),
+  await writeDeveloperAudit(dataDir, 'developer-audit.jsonl', [
     `${JSON.stringify({ v: 1, time: 1, action: 'unlock', source: 'palette' })}\n`,
-  )
+  ])
   journal.append({
     v: 1,
     type: 'usage',
