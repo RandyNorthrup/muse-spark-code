@@ -4897,7 +4897,8 @@
     "usageThreshold": "{period} の {metric} の上限: {threshold}",
     "usageEvents": "アカウントのイベント",
     "usageRateTokens": "トークン",
-    "usageUnavailable": "現在の使用状況データはありません。"
+    "usageUnavailable": "現在の使用状況データはありません。",
+    "certificationPending": "アカウント切り替えと複数アカウントへのリクエスト分散は認証待ちです。"
   },
   "developer": {
     "title": "開発者向けオプション",

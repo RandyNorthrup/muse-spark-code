@@ -1609,13 +1609,15 @@
           "type": "boolean",
           "default": true,
           "description": "%config.accountSwap.description%",
-          "scope": "machine"
+          "scope": "machine",
+          "deprecationMessage": "%config.accountSwap.description%"
         },
         "museSpark.accountParallel": {
           "type": "boolean",
           "default": true,
           "description": "%config.accountParallel.description%",
-          "scope": "machine"
+          "scope": "machine",
+          "deprecationMessage": "%config.accountParallel.description%"
         },
         "museSpark.accounts.severalOnThisDevice": {
           "type": "boolean",

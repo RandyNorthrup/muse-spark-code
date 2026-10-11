@@ -1,3 +1,4 @@
+import { ACCOUNT_REQUEST_CERTIFICATION } from '../shared/constants'
 import { ESTIMATE_OPTIONS } from './estimator/options'
 import type { UiText } from '../shared/l10n/en'
 import { sharingHelp } from '../shared/featureCatalog'
@@ -10,7 +11,9 @@ export function formatAcpUsage(table: UiText, command: string): string {
     fill(table.acpChatGpt.usage, { command }),
     sharingHelp(table),
     fill(table.accounts.cliUsage, { command }),
-    fill(table.accounts.execHelp, { command }),
+    ACCOUNT_REQUEST_CERTIFICATION.isComplete
+      ? fill(table.accounts.execHelp, { command })
+      : fill(table.accounts.execHelp, { command }).replace(' [--account-pool]', ''),
     table.scheduleV2.runtime.usage,
     `${command} resources [status|history|resume] [--json]`,
     `${command} usage resources [--json]`,

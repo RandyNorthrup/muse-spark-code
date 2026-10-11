@@ -5988,6 +5988,7 @@ export const EN = {
   legalScanAgain: 'Scan again',
   // M108: shared by the Models panel, usage page, ACP and runtime.
   accounts: {
+    certificationPending: 'Account switching and pooling await certification.',
     none: 'No account selected',
     id: 'Account id',
     use: 'Use account',

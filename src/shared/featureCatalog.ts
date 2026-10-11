@@ -707,9 +707,9 @@ export function featureCatalog(): readonly Feature[] {
         [],
         ['accountSwap', 'accountParallel', 'accounts.severalOnThisDevice', 'paidDailyBudgetUsd'],
         'several-accounts-per-provider',
-        undefined,
+        ['modelApi'],
         false,
-        ['vscode', 'acp'],
+        ACCOUNT_REQUEST_CERTIFICATION.isComplete ? ['vscode', 'acp'] : ['acp'],
       ),
       details: (ACCOUNT_REQUEST_CERTIFICATION.isComplete
         ? [{ ui: 'referenceDeveloper' }, { ui: 'referenceAccountRequests' }]

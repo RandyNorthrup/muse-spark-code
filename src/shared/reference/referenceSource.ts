@@ -1,6 +1,7 @@
 // The generator's build entry: its imports are visible to the dead-code gate.
 export { featureCatalog, COMMAND_REFERENCE, referenceDescription } from '../featureCatalog'
-export { COMMAND_IDS } from '../constants'
+export { COMMAND_IDS, ACCOUNT_REQUEST_CERTIFICATION } from '../constants'
+import { ACCOUNT_REQUEST_CERTIFICATION } from '../constants'
 export { buildPalette } from '../paletteRegistry'
 export { slashCommandsOf } from './slashReference'
 export { cliCommands } from '../cliCommands'
@@ -147,7 +148,12 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   // M116: the playbook journal and settings ride no model call.
   ['orchestrator-playbook', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   // M108/W: several accounts per provider on Settings, the CLI and ACP alike.
-  ['accounts', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
+  [
+    'accounts',
+    ACCOUNT_REQUEST_CERTIFICATION.isComplete
+      ? ['vscode:modelApi', 'acp:modelApi']
+      : ['acp:modelApi'],
+  ],
   // M109: the vault panel and lock in VS Code, /vault and permission mapping
   // in ACP, on either backend; values never reach either surface.
   ['vault', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],

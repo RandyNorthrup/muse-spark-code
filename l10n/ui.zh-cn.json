@@ -4897,7 +4897,8 @@
     "usageThreshold": "{period}的{metric}上限：{threshold}",
     "usageEvents": "账户事件",
     "usageRateTokens": "令牌数",
-    "usageUnavailable": "暂无当前使用情况数据。"
+    "usageUnavailable": "暂无当前使用情况数据。",
+    "certificationPending": "账号切换和跨账号请求分配正在等待认证。"
   },
   "developer": {
     "title": "开发者选项",

@@ -5197,7 +5197,8 @@
     "usageThreshold": "Limite de {metric} para {period}: {threshold}",
     "usageEvents": "Eventos das contas",
     "usageRateTokens": "Tokens de uso",
-    "usageUnavailable": "Não há dados de uso atuais."
+    "usageUnavailable": "Não há dados de uso atuais.",
+    "certificationPending": "A troca de contas e a distribuição de solicitações entre contas aguardam certificação."
   },
   "developer": {
     "title": "Opções do desenvolvedor",

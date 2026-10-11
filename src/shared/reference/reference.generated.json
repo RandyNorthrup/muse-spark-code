@@ -971,12 +971,12 @@
         "museSpark.paidDailyBudgetUsd"
       ],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#several-accounts-per-provider",
-      "backends": ["museCode", "modelApi"],
+      "backends": ["modelApi"],
       "paid": false,
-      "surfaces": ["vscode:museCode", "vscode:modelApi", "acp:museCode", "acp:modelApi"],
+      "surfaces": ["acp:modelApi"],
       "details": [{ "ui": "referenceDeveloper" }],
       "facts": {},
-      "editors": ["vscode", "acp"]
+      "editors": ["acp"]
     },
     {
       "id": "permissions",
@@ -4239,24 +4239,34 @@
     {
       "id": "museSpark.accountSwap",
       "name": "museSpark.accountSwap",
-      "description": "Swap to the next account with room at the next request boundary after a threshold trip. Each account keeps its own limits. On by default; only this machine’s setting is used.",
+      "description": "Account switching and pooling await certification.",
       "descriptionKey": "config.accountSwap.description",
       "type": "boolean",
       "default": true,
       "scope": "machine",
       "refinements": [],
-      "schema": { "type": "boolean", "default": true }
+      "schema": {
+        "type": "boolean",
+        "default": true,
+        "deprecationMessage": "Account switching and pooling await certification.",
+        "deprecationMessageKey": "config.accountSwap.description"
+      }
     },
     {
       "id": "museSpark.accountParallel",
       "name": "museSpark.accountParallel",
-      "description": "Spread background work across accounts by headroom; each worker sticks to its account. On by default; only this machine’s setting is used.",
+      "description": "Account switching and pooling await certification.",
       "descriptionKey": "config.accountParallel.description",
       "type": "boolean",
       "default": true,
       "scope": "machine",
       "refinements": [],
-      "schema": { "type": "boolean", "default": true }
+      "schema": {
+        "type": "boolean",
+        "default": true,
+        "deprecationMessage": "Account switching and pooling await certification.",
+        "deprecationMessageKey": "config.accountParallel.description"
+      }
     },
     {
       "id": "museSpark.accounts.severalOnThisDevice",
@@ -6654,18 +6664,6 @@
       "description": "--account <id>                    The account to use (auth set, exec).",
       "text": { "cli": "account" },
       "contract": { "type": "string", "repeatable": false, "purpose": "account" }
-    },
-    {
-      "route": "exec",
-      "name": "exec: --account-pool",
-      "description": "--account-pool                  Model API: pool at request boundaries; existing budgets still bind. Excludes key-stdin in CI.",
-      "text": { "cli": "account-pool" },
-      "contract": {
-        "type": "boolean",
-        "repeatable": false,
-        "default": false,
-        "purpose": "account-pool"
-      }
     },
     {
       "route": "exec",

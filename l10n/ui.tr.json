@@ -5047,7 +5047,8 @@
     "usageThreshold": "{period} dönemi için {metric} sınırı: {threshold}",
     "usageEvents": "Hesap olayları",
     "usageRateTokens": "Token sayısı",
-    "usageUnavailable": "Güncel kullanım verisi yok."
+    "usageUnavailable": "Güncel kullanım verisi yok.",
+    "certificationPending": "Hesap değiştirme ve istekleri hesaplar arasında dağıtma, sertifikasyonu bekliyor."
   },
   "developer": {
     "title": "Geliştirici seçenekleri",
