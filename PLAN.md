@@ -35273,6 +35273,30 @@ design, owned by a later K/collector change. This record closes the
 lane-level repair only; the whole M113 milestone stays planned until W
 integrates and the §6.0 checklist boxes are checked per milestone.
 
+**C-M113-5a keybindings kind (2026-10-11, lane CM1135A, status:
+implemented).** Bind the keybindings kind for phase-a editors
+(`src/core/reporting/sources/keybindings.ts`,
+`src/core/reporting/collect/keybindings.ts`, the kind table's keybindings
+line in `src/runtime/reporting/engine.ts`): the installed manifest's editor
+bindings per platform with command and scope, the panel's gestures from
+`referenceKeyboardActions()`, and ACP's static local commands pinned to
+`/help`'s list; same-chord same-when editor bindings flag conflicts, while
+different `when` clauses stay shadowing by design. Each host passes its own
+install's manifest through `keybindingsManifestReader` in
+`dist/reportInputs.js`, so VS Code, ACP and the CLI report the same
+numbers; a missing or broken manifest is an unavailable source with its
+reason. Checklist: `test/unit/keybindingsReportSource.test.ts` (real
+manifest, invalid shapes, conflicts, order-independence, ACP parity,
+collector caps, reader codes, engine bound/unbound); byte-exact red drill
+in `docs/certification/m113-keybindings-c-m113-5.md`; CHANGELOG entry under
+`[Unreleased]`; README row; new `shortcut`/`command` column labels in all
+14 tables; no new command, setting, dependency or bundle-cap change.
+Recorded (not changed): bindings for built-in commands (the manifest
+rebinds `editor.action.inlineSuggest.trigger`) are listed, not refused;
+desktop and TUI bindings wait for phase c (M111a, M110a0's lane T); the
+fleet kind waits for lane CM1135B. This record closes the keybindings scope
+only; the whole M113 milestone stays planned until W integrates.
+
 Lanes P, S, R and V start once lane 0's contracts freeze, which can be as
 soon as M112's lane 0 has published the registry's types (for the session
 kind). The usage kind waits for M102, the native-host rows for M104b–d.

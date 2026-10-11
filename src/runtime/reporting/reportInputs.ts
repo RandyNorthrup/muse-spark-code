@@ -52,7 +52,8 @@ export function keybindingsManifestReader(packageJsonPath: string): () => unknow
       throw new LocalSourceError('failed')
     }
     try {
-      return JSON.parse(raw) as unknown
+      const parsed: unknown = JSON.parse(raw)
+      return parsed
     } catch {
       throw new LocalSourceError('invalid')
     }
