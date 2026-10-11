@@ -146,6 +146,9 @@ function playedScene(find: (selector: string) => unknown) {
   const page = {
     ...context,
     EventTarget,
+    // The section reads the page's bundle name (the Models page publishes its
+    // pending-work probe); these scenes play on the main page.
+    harnessBundle: 'main',
     document: {
       querySelector: find,
       documentElement: { dataset },
