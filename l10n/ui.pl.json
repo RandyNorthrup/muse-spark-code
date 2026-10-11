@@ -3576,6 +3576,7 @@
   "acpKeyPresent": "Klucz Meta Model API jest zapisany: {store}.",
   "acpKeyAbsent": "Nie zapisano klucza Meta Model API.",
   "acpKeyCleared": "Klucz Meta Model API został usunięty z magazynu poświadczeń tego komputera.",
+  "acpCredentialStoreNoAnswer": "Magazyn poświadczeń nie odpowiedział. To żądanie nie zostało wysłane; spróbuj ponownie.",
   "acpStoreUnavailable": "Nie można użyć magazynu poświadczeń tego komputera ({reason}). W systemie Linux agent potrzebuje uruchomionej i odblokowanej usługi Secret Service, takiej jak GNOME Keyring lub KWallet.",
   "acpStoreNames": {
     "windows": "Menedżer poświadczeń systemu Windows",

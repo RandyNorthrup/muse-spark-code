@@ -3503,6 +3503,7 @@
   "acpKeyPresent": "Une clé Meta Model API est enregistrée : {store}.",
   "acpKeyAbsent": "Aucune clé Meta Model API n’est enregistrée.",
   "acpKeyCleared": "La clé Meta Model API a été supprimée du magasin d’identifiants de cet ordinateur.",
+  "acpCredentialStoreNoAnswer": "Le magasin d’identifiants n’a pas répondu. Cette requête n’a pas été envoyée ; réessayez.",
   "acpStoreUnavailable": "Le magasin d’identifiants de cet ordinateur est inutilisable ({reason}). Sous Linux, l’agent a besoin d’un Secret Service lancé et déverrouillé, comme GNOME Keyring ou KWallet.",
   "acpStoreNames": {
     "windows": "Gestionnaire d’identification Windows",

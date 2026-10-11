@@ -3357,6 +3357,7 @@
   "acpKeyPresent": "已存储 Meta Model API 密钥：{store}。",
   "acpKeyAbsent": "未存储 Meta Model API 密钥。",
   "acpKeyCleared": "已从这台计算机的凭据存储中移除 Meta Model API 密钥。",
+  "acpCredentialStoreNoAnswer": "凭据存储未响应。此请求未发送，请重试。",
   "acpStoreUnavailable": "无法使用这台计算机的凭据存储（{reason}）。在 Linux 上，代理需要一个正在运行且已解锁的 Secret Service，例如 GNOME Keyring 或 KWallet。",
   "acpStoreNames": {
     "windows": "Windows 凭据管理器",

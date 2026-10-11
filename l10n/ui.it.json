@@ -3503,6 +3503,7 @@
   "acpKeyPresent": "È salvata una chiave Meta Model API: {store}.",
   "acpKeyAbsent": "Nessuna chiave Meta Model API salvata.",
   "acpKeyCleared": "La chiave Meta Model API è stata rimossa dall’archivio delle credenziali di questo computer.",
+  "acpCredentialStoreNoAnswer": "L’archivio delle credenziali non ha risposto. Questa richiesta non è stata inviata; riprova.",
   "acpStoreUnavailable": "Impossibile usare l’archivio delle credenziali di questo computer ({reason}). Su Linux l’agente richiede un Secret Service avviato e sbloccato, come GNOME Keyring o KWallet.",
   "acpStoreNames": {
     "windows": "Gestione credenziali di Windows",
