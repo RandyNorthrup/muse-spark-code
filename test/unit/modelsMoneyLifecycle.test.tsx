@@ -176,3 +176,23 @@ describe('paid check consent against the money chunk', () => {
     expectNoConsent(post, UI_TEXT.suggestionAccept)
   })
 })
+
+it('marks every key usage amount until the held money chunk has formatted it', async () => {
+  const { makeProvider, makeKeyUsage, makeState } = await import('./modelsPanelFixtures')
+  const { UI_TEXT } = await mountPanel(
+    makeState({ providers: [makeProvider({ keyUsage: makeKeyUsage() })] }),
+  )
+  const amounts = document.querySelectorAll('.models-usage dd')
+  expect(amounts).toHaveLength(4)
+  for (const amount of amounts) {
+    expect(amount.querySelector('[data-deferred-loading]')).not.toBeNull()
+    expect(amount).toHaveTextContent('')
+  }
+  await release()
+  expect(await screen.findByText('$1.20')).toBeInTheDocument()
+  expect(screen.getByText('$3.40')).toBeInTheDocument()
+  expect(screen.getByText('$10.00')).toBeInTheDocument()
+  expect(screen.getByText('$6.60')).toBeInTheDocument()
+  expect(document.querySelector('.models-usage [data-deferred-loading]')).toBeNull()
+  expect(screen.queryByText(UI_TEXT.moneyLoadFailed)).toBeNull()
+})

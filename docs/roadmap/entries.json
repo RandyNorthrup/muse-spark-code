@@ -679,7 +679,7 @@
     {
       "id": "M95",
       "title": "Bring your own models",
-      "summary": "Add keys for OpenAI, Anthropic, Gemini, OpenRouter and other providers, or local model servers, with each key bound to the address it was entered for and features matched to each model's capabilities.",
+      "summary": "Use cloud or local models with keys bound to their provider's address and features matched to each model's capabilities, in a panel that keeps its section visible during loading and restores its measured height on reload.",
       "area": "models-providers",
       "release": "0.15.0"
     },

@@ -28064,6 +28064,25 @@ OpenCode plugin hooks").
 
 ### M95 — Bring-your-own model providers (D74)
 
+**MODELSPLIT4 redesign (2026-10-11, kubuntu).** Fix every RVMODELSPLIT3
+finding in the shared Models webview, without new dependencies or higher caps.
+Section navigation uses a React transition and one stable Suspense boundary:
+the visible section stays mounted until the next chunk is ready, with a tab
+loading indication after 150 ms. Start the default Providers import when the
+entry evaluates. First section paint reserves its last measured height in
+validated webview state; without a saved height, estimate from the host rows.
+The first-ever estimate may adjust once; record its measured difference.
+Later identical-state reloads must keep the skeleton and settled boxes equal.
+Hold each real section chunk across navigation and reload in browser checks;
+assert changed host content before DOM identity. Mark every Models money
+reader while loading and wait for outstanding requests even without markers.
+The capture also waits for counted harness actions after lazy content arrives;
+chunk-failure reserves cannot feed their own measured height back into growth.
+Add and inspect all filtered-table visual baselines through the existing
+capture/manifest workflow. Record failing regression drills, byte-exact
+restoration, measurements and scoped gates in `docs/certification/models-split.md`.
+The brief delegates aggregate quality to the lead and forbids a merge.
+
 **M95R5 integration (2026-10-05, Windows 11).** Merge lane T with
 `--no-ff`, then merge a single sanitized squash of X's net changes on its
 merge-base. Remove the scanner-flagged certification line unseen before
@@ -38015,6 +38034,16 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**MODELSPLIT4 scoped rig qualification (2026-10-11, kubuntu).** The
+explicit lane/common brief forbids aggregate `npm run quality` and reserves
+it for the lead's integrated tree. This lane runs complete owning test files
+at repository deadlines, all five type projects, changed-file lint/format,
+plain knip, duplication, localization, reference, host API, token, plan and
+roadmap checks, production budgets, real held/failed-chunk browser cases and
+all Models panel visual comparisons. No gate, cap, coverage threshold or
+timeout is relaxed. Nine byte-restored red drills and the documented
+first-ever estimate are in `docs/certification/models-split.md`.
 
 **CIR4MAC scoped hosted-CI repair (2026-10-09, macmini).** Reproduce
 round 4's macOS target-size deadline and palette failure-render ordering

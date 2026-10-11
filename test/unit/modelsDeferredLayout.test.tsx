@@ -1,131 +1,218 @@
 // @vitest-environment jsdom
-// The Models panel's deferred sections paint no stand-in: while a section
-// chunk loads, the content slot holds no `<section>` and no overlay, only
-// the visually hidden loading announcement — and after load it holds the
-// real section, which later host states never replace (RVMODELSPLIT2 P2:
-// the old fallback painted an empty `<section>` whose 0 px box jumped to
-// the content box on commit, and the harness `.models-panel section`
-// waiter fired on that empty reserve before "Pick a provider" existed).
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { useEffect, useReducer } from 'react'
+// Hold both real section imports: keep the visible document through a
+// transition and reserve the remembered box on the next document.
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { ModelsPanelState, PanelToHostMessage } from '../../src/shared/modelsPanel'
+import type { ModelsPanelState } from '../../src/shared/modelsPanel'
+import type { HostBridge } from '../../src/webview/hostBridge'
 
-const chunk = { gate: Promise.withResolvers<undefined>() }
+const chunks = {
+  providers: Promise.withResolvers<undefined>(),
+  models: Promise.withResolvers<undefined>(),
+}
 
-afterEach(cleanup)
-
+afterEach(() => {
+  cleanup()
+  vi.restoreAllMocks()
+  vi.unstubAllGlobals()
+})
 beforeEach(() => {
-  chunk.gate = Promise.withResolvers<undefined>()
+  chunks.providers = Promise.withResolvers<undefined>()
+  chunks.models = Promise.withResolvers<undefined>()
   vi.resetModules()
-  // Hold the providers chunk until the test releases it; everything else
-  // loads for real.
   vi.doMock('../../src/webview/models/ProvidersSection', async (importOriginal) => {
-    await chunk.gate.promise
+    await chunks.providers.promise
+    return await importOriginal()
+  })
+  vi.doMock('../../src/webview/models/ModelsSection', async (importOriginal) => {
+    await chunks.models.promise
     return await importOriginal()
   })
 })
 
-async function mountProviders() {
-  const [{ ModelsPanel }, { INITIAL_PANEL_UI, panelUiReducer }, { UI_TEXT }, fixtures] =
-    await Promise.all([
-      import('../../src/webview/models/panel'),
-      import('../../src/webview/models/reducer'),
-      import('../../src/shared/constants'),
-      import('./modelsPanelFixtures'),
-    ])
-  const state: ModelsPanelState = fixtures.makeState({
+function refresh(next: ModelsPanelState) {
+  act(() => {
+    window.dispatchEvent(
+      new MessageEvent('message', { data: { type: 'modelsPanel/state', state: next } }),
+    )
+  })
+}
+
+async function mountProviders(saved?: unknown) {
+  const [{ ModelsApp }, { UI_TEXT }, fixtures] = await Promise.all([
+    import('../../src/webview/models/panel'),
+    import('../../src/shared/constants'),
+    import('./modelsPanelFixtures'),
+  ])
+  const state = fixtures.makeState({
     providers: [fixtures.makeProvider()],
     models: [fixtures.makeRow()],
     totalModels: 1,
   })
-  const post = vi.fn<(message: PanelToHostMessage) => void>()
-  let refresh!: (next: ModelsPanelState) => void
-  function Panel() {
-    const [ui, dispatch] = useReducer(panelUiReducer, INITIAL_PANEL_UI)
-    refresh = (next) => {
-      dispatch({ type: 'host-state', state: next })
-    }
-    useEffect(() => {
-      dispatch({ type: 'host-state', state })
-    }, [])
-    return <ModelsPanel panelState={state} ui={ui} post={post} dispatch={dispatch} />
-  }
-  const view = render(<Panel />)
-  return {
-    view,
-    UI_TEXT,
-    refresh: (next: ModelsPanelState) => {
-      act(() => {
-        refresh(next)
-      })
+
+  const host: HostBridge = {
+    messages: window,
+    savedState: () => {
+      if (saved instanceof Error) throw saved
+      return saved
     },
-    state,
+    saveState: vi.fn(),
+    post: vi.fn<HostBridge['post']>((message) => {
+      if (message.type === 'modelsPanel/ready')
+        window.dispatchEvent(
+          new MessageEvent('message', { data: { type: 'modelsPanel/state', state } }),
+        )
+    }),
   }
+  const view = render(<ModelsApp host={host} report={vi.fn()} />)
+  return { view, UI_TEXT, state, refresh, host }
 }
 
-async function releaseChunk(): Promise<void> {
+async function release(section: keyof typeof chunks) {
   await act(async () => {
-    chunk.gate.resolve(undefined)
-    // Let the held section import settle before act closes.
-    await chunk.gate.promise
+    chunks[section].resolve(undefined)
+    await chunks[section].promise
   })
 }
 
-describe('deferred Models sections paint no stand-in before the chunk commits', () => {
-  it('holds no section and no overlay while loading, then commits the real section', async () => {
+describe('Models sections retain their document across chunk loading', () => {
+  it('reserves host rows on first paint and mounts real content before wizard actions', async () => {
     const { view, UI_TEXT } = await mountProviders()
-    // While the chunk is in flight the slot holds no section — the harness
-    // `.models-panel section` waiter cannot fire early — and no overlay.
-    expect(view.container.querySelector(':scope .models-panel > section')).toBeNull()
+    expect(view.container.querySelector(':scope section')).toBeNull()
     expect(view.container.querySelector(':scope div.palette')).toBeNull()
-    expect(view.container.querySelector(':scope .models-panel > section[aria-busy]')).toBeNull()
-    // Loading is still announced for assistive tech and for the visual
-    // capture's `[data-deferred-loading]` wait …
-    const status = await screen.findByRole('status')
-    expect(status).toHaveTextContent(UI_TEXT.loadingOutput)
-    const marker = view.container.querySelector('[data-deferred-loading]')
-    expect(marker).not.toBeNull()
-    expect(marker).toBe(status)
-    // … but the marker claims no visible box: it is clipped absolute, and
-    // nothing else in-flow stands in for the section (no placeholder box
-    // beside the always-present navigation).
-    expect(marker?.classList.contains('models-visually-hidden')).toBe(true)
-    const inFlowStandIns = [...(marker?.parentElement?.children ?? [])].filter(
-      (element) =>
-        !element.classList.contains('models-nav') &&
-        !element.classList.contains('models-visually-hidden'),
-    )
-    expect(inFlowStandIns).toEqual([])
-    await releaseChunk()
-    expect(await screen.findByText('Ollama')).toBeInTheDocument()
-    // After load the slot holds the real section with its final name, the
-    // marker is gone, and there is still no overlay.
-    const section = view.container.querySelector(':scope .models-panel > section')
-    expect(section?.getAttribute('aria-label')).toBe(UI_TEXT.providersSectionTitle)
-    expect(section?.getAttribute('aria-busy')).toBeNull()
-    expect(view.container.querySelector('[data-deferred-loading]')).toBeNull()
-    expect(view.container.querySelector(':scope div.palette')).toBeNull()
-    // The wizard opener the harness scenarios click is really there: the
-    // scenario step that threw on the empty reserve now finds its button.
-    const pick = screen.getByRole('button', { name: UI_TEXT.wizardPickProvider })
-    act(() => {
-      fireEvent.click(pick)
+    expect(screen.getByRole('status')).toHaveTextContent(UI_TEXT.loadingOutput)
+    expect(view.container.querySelector(':scope .models-section-skeleton')).toHaveStyle({
+      height: '246px',
     })
+    await release('providers')
+    expect(await screen.findByText('Ollama')).toBeInTheDocument()
+    expect(view.container.querySelector(':scope [data-deferred-loading]')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.wizardPickProvider }))
     expect(view.container.querySelector(':scope .models-select input')).not.toBeNull()
   })
 
-  it('keeps the committed section element across later host states', async () => {
-    const { view, refresh, state } = await mountProviders()
-    await releaseChunk()
-    expect(await screen.findByText('Ollama')).toBeInTheDocument()
-    const section = view.container.querySelector(':scope .models-panel > section')
-    expect(section).not.toBeNull()
-    // A later host state (scan progress, usage refresh) must not unmount
-    // and replace the section: the committed box is never swapped out.
-    refresh({ ...state })
-    expect(view.container.querySelector(':scope .models-panel > section')).toBe(section)
-    expect(section?.isConnected).toBe(true)
-    expect(view.container.querySelectorAll(':scope .models-panel > section')).toHaveLength(1)
+  it('keeps Providers visible throughout a held Models transition and announces its pending tab', async () => {
+    const { view, UI_TEXT } = await mountProviders()
+    await release('providers')
+    await screen.findByText('Ollama')
+    const section = view.container.querySelector(':scope section')
+    const models = screen.getByRole('button', { name: UI_TEXT.modelsSectionTitle })
+    fireEvent.click(models)
+    expect(section).toBeVisible()
+    expect(view.container.querySelector(':scope section')).toBe(section)
+    expect(view.container.querySelector(':scope .models-section-skeleton')).toBeNull()
+    await waitFor(() => {
+      expect(models).toHaveAttribute('aria-busy', 'true')
+    })
+    expect(section).toBeVisible()
+    await release('models')
+    expect(await screen.findByRole('row', { name: 'ollama/qwen3:8b' })).toBeInTheDocument()
+    expect(view.container.querySelector(':scope section')).not.toBe(section)
+    expect(models).not.toHaveAttribute('aria-busy')
   })
+
+  it('keeps Models visible when navigating back to the still-held Providers preload', async () => {
+    const { view, UI_TEXT } = await mountProviders()
+    await release('models')
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.modelsSectionTitle }))
+    await screen.findByRole('row', { name: 'ollama/qwen3:8b' })
+    const section = view.container.querySelector(':scope section')
+    const providers = screen.getByRole('button', {
+      name: UI_TEXT.providersSectionTitle,
+    })
+    fireEvent.click(providers)
+    expect(section).toBeVisible()
+    expect(view.container.querySelector(':scope section')).toBe(section)
+    expect(view.container.querySelector(':scope .models-section-skeleton')).toBeNull()
+    await waitFor(() => {
+      expect(providers).toHaveAttribute('aria-busy', 'true')
+    })
+    await release('providers')
+    expect(await screen.findByText('Ollama')).toBeInTheDocument()
+  })
+
+  it('applies changed provider, scan and usage content before checking section identity', async () => {
+    const { view, state, refresh, UI_TEXT } = await mountProviders()
+    await release('providers')
+    await screen.findByText('Ollama')
+    const section = view.container.querySelector(':scope section')
+    const provider = state.providers[0]
+    if (provider === undefined) throw new Error('fixture provider missing')
+    refresh({
+      ...state,
+      providers: [{ ...provider, label: 'Refreshed provider', keyUsage: { dayUsd: 1.2 } }],
+      scans: { ollama: { providerId: 'ollama', status: 'scanning' } },
+    })
+    expect(await screen.findByText('Refreshed provider')).toBeInTheDocument()
+    expect(await screen.findByText('$1.20')).toBeInTheDocument()
+    expect(screen.getByText(UI_TEXT.providersScanning)).toBeInTheDocument()
+    expect(view.container.querySelector(':scope section')).toBe(section)
+    expect(section).toBeVisible()
+  })
+
+  it('remembers the settled section box after its deferred content commits', async () => {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(
+      new DOMRect(0, 0, 666, 538),
+    )
+    const { host } = await mountProviders()
+    await release('providers')
+    expect(await screen.findByText('Ollama')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(host.saveState).toHaveBeenCalledWith({
+        snapshot: { modelsSectionHeights: { providers: 538 } },
+      })
+    })
+  })
+
+  it('uses the saved measured height while Providers is held on reload', async () => {
+    const { view } = await mountProviders({
+      snapshot: { modelsSectionHeights: { providers: 538 } },
+    })
+    expect(view.container.querySelector(':scope .models-section-skeleton')).toHaveStyle({
+      height: '538px',
+    })
+    await release('providers')
+    expect(await screen.findByText('Ollama')).toBeInTheDocument()
+  })
+
+  it('keeps a failed section from feeding its own larger box into the reserve', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const measurement = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+    measurement.mockReturnValue(new DOMRect(0, 0, 666, 538))
+    const { view, UI_TEXT } = await mountProviders()
+    await release('providers')
+    await screen.findByText('Ollama')
+    const slot = view.container.querySelector(':scope .models-section-slot')
+    expect(slot).toHaveStyle({ '--ms-models-section-height': '538px' })
+    measurement.mockReturnValue(new DOMRect(0, 0, 666, 700))
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.modelsSectionTitle }))
+    await act(async () => {
+      chunks.models.reject(new Error('section transport failed'))
+      await expect(chunks.models.promise).rejects.toThrow('section transport failed')
+    })
+    expect(await screen.findByRole('alert')).toHaveTextContent(UI_TEXT.surfaceLoadFailed)
+    expect(slot).toHaveStyle({ '--ms-models-section-height': '538px' })
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.providersSectionTitle }))
+    expect(await screen.findByText('Ollama')).toBeInTheDocument()
+  })
+
+  it.each([-1, 0])('ignores an invalid remembered height of %s', async (height) => {
+    const { view } = await mountProviders({
+      snapshot: { modelsSectionHeights: { providers: height } },
+    })
+    expect(view.container.querySelector(':scope .models-section-skeleton')).toHaveStyle({
+      height: '246px',
+    })
+    await release('providers')
+    expect(await screen.findByText('Ollama')).toBeInTheDocument()
+  })
+})
+
+it('renders when the native host refuses webview storage', async () => {
+  const { view } = await mountProviders(new Error('storage unavailable'))
+  expect(view.container.querySelector(':scope .models-section-skeleton')).toHaveStyle({
+    height: '246px',
+  })
+  await release('providers')
+  expect(await screen.findByText('Ollama')).toBeInTheDocument()
 })

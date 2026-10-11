@@ -9,7 +9,7 @@ import { useState } from 'react'
 import { usdInputSchema } from '../../shared/usdSchema'
 import { UI_TEXT } from '../../shared/constants'
 import { fill, plural } from '../../shared/l10n/text'
-import { loadMoneyDisplay, useMoneyDisplay } from '../money'
+import { loadMoneyDisplay, useMoneyLoad } from '../money'
 import type {
   ModelsCustomFormat,
   ModelsPanelState,
@@ -550,7 +550,8 @@ function SuggestionsStep({
   // The suggested budget's exact display arrives with the lazy money chunk;
   // its Accept waits for it, and a failed load is said with Retry above the
   // section (the panel's notice).
-  const money = useMoneyDisplay()
+  const moneyLoad = useMoneyLoad()
+  const money = moneyLoad.status === 'ready' ? moneyLoad.display : undefined
   const ticked = draft.models
   return (
     <div className="models-wizard-step">
@@ -579,6 +580,7 @@ function SuggestionsStep({
             reason={suggestion.reason}
             value={money?.formatMoney(suggestion.usd, 2) ?? ''}
             isValueShown={money !== undefined}
+            isValueLoading={moneyLoad.status === 'idle' || moneyLoad.status === 'loading'}
             accepted={suggestion.accepted}
             onAccept={() => {
               post({ type: 'suggestions/accept', kind: 'sessionBudget' })

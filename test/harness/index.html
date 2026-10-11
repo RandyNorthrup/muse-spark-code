@@ -246,6 +246,9 @@
       const FIND_INTERVAL_MS = 50
       const FIND_TIMEOUT_MS = 3000
       let pendingFinds = 0
+      // Models captures finish counted actions after a lazy section arrives.
+      if (harnessBundle === 'models')
+        globalThis.harnessSceneWorkPending = () => pendingScenarioEvents > 0 || pendingFinds > 0
       const whenFound = (selector, fn) => {
         if (isScenarioDone) refuse(`scene work after scenarioDone() in ${playingScenario}`)
         pendingFinds += 1
