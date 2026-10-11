@@ -21,6 +21,7 @@ import { randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 import type { AcpBackend, BackendReadiness } from '../acp/agent'
+import { accountErrorText, isInvalidProvidersFileError } from '../acp/accountText'
 import { AcpPaidUse, type HeadlessPaidPolicy } from '../acp/paid'
 import type { AgentHost } from '../core/agent/agentBackend'
 import type { CliSignIn } from '../core/backends/musecode/credentialFile'
@@ -624,6 +625,11 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     try {
       key = await deps.secrets.get(SECRET_KEYS.modelApiKey)
     } catch (error: unknown) {
+      // A refused providers file is not a keyring outage: the runtime is
+      // already on the account service, so its own refusal stands as read
+      // through the runtime's wrapped metadata port.
+      if (isInvalidProvidersFileError(error))
+        return { state: 'unavailable', message: accountErrorText(error) }
       return {
         state: 'unavailable',
         message: fill(UI_TEXT.acpStoreUnavailable, { reason: describe(error) }),

@@ -277,14 +277,13 @@ function feature(
 }
 
 // CX1R3: retained for coverage validation, omitted from published Help.
-// CX1R4 F1: accounts joins the list; CM108ACC re-adds it when the runtime lands.
+// Accounts left the list with CM108ACC: the terminal and ACP serve them.
 export const REFERENCE_IN_PROGRESS_FEATURES: readonly string[] = [
   'team-workers',
   'vault',
   'estimator',
   'auto-compaction',
   'argument-preview',
-  'accounts',
 ]
 
 export function featureCatalog(): readonly Feature[] {
@@ -1134,6 +1133,9 @@ export function featureCatalog(): readonly Feature[] {
 
 export const REFERENCE_SURFACES: Readonly<Record<string, readonly string[]>> = {
   'orchestrator-playbook': ['acp:museCode', 'acp:modelApi'],
+  // CM108ACC: the terminal and ACP sessions on the Model API backend; the
+  // editor's Accounts page is not mounted.
+  accounts: ['acp:modelApi'],
   'web-fetch': ['vscode:museCode', 'vscode:modelApi', 'acp:modelApi'],
   search: ['vscode:modelApi', 'acp:modelApi'],
   images: ['vscode:museCode', 'vscode:modelApi', 'acp:modelApi'],

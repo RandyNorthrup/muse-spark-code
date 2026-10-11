@@ -649,6 +649,16 @@ Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model
 
 Commands: `museSpark.signOut`, `museSpark.restartMuseCode`, `museSpark.openInTerminal`. Settings: `museSpark.backend`, `museSpark.museBinaryPath`, `museSpark.environmentVariables`, `museSpark.modelApiReplyUsage`, `museSpark.modelApiSessionBudgetUsd`, `museSpark.confidentialWorkspace`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#get-started)
 
+### Several Accounts per Provider
+
+Manage the accounts of one provider: list, add, remove, order and thresholds. Credentials come only from standard input. Paid consent stays per workspace for now.
+
+Show or unlock machine-local developer options. Profile operations require a connected resource owner.
+
+Surfaces: acp:modelApi. Paid: no extra feature charge; model usage still applies.
+
+Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#several-accounts-per-provider)
+
 ### Permission Mode
 
 Choose how Muse asks before it acts.
@@ -3376,6 +3386,7 @@ These are defaults; editor customizations take precedence.
 - `setup`: Run Setup hooks for init from spark-hooks.json in a trusted workspace.
 - `exec`: Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.
 - `scan-secrets`: Scan a UTF-8 patch file for secrets and fail on detection. --key-stdin also checks for the exact in-memory Model API key; no key is stored.
+- `providers accounts`: Manage the accounts of one provider: list, add, remove, order and thresholds. Credentials come only from standard input. Paid consent stays per workspace for now.
 - `developer`: Show or unlock machine-local developer options. Profile operations require a connected resource owner.
 - `report`: Usage:
   muse-spark-code-acp report [--out &lt;file&gt;] [--description &lt;text&gt;] [--no-facts] [--no-events]
@@ -3518,6 +3529,7 @@ These are defaults; editor customizations take precedence.
 - `authSet: --usage-history <value>`: --usage-history: Track cost, tokens and limits across editors. `{"type":"string","repeatable":false,"enum":["on","off"],"default":"on","purpose":"acceptedUnused"}`
 - `authSet: --provider <value>`: --provider &lt;id&gt; The provider the account belongs to (auth set/status/clear). `{"type":"string","repeatable":false}`
 - `authSet: --backend <value>`: --backend museCode|modelApi Who pays: Muse Code (the default) or the Model API key `{"type":"string","repeatable":false,"enum":["museCode","modelApi"],"default":"museCode","purpose":"acceptedUnused"}`
+- `authSet: --account <value>`: --account &lt;id&gt; The account to use (auth set, exec). `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `authSet: --trust-workspace`: --trust-workspace Load the folder’s rules, skills and memory `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authSet: --maintenance`: Run the Setup maintenance event instead of init. `{"type":"boolean","refused":true,"repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authSet: --muse-binary <value>`: --muse-binary &lt;path&gt; The Muse Code CLI to run `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
@@ -3590,6 +3602,7 @@ These are defaults; editor customizations take precedence.
 - `exec: --record`: Refused for headless runs: nobody is there to preview a recording. `{"type":"boolean","repeatable":false,"default":false,"refused":true,"purpose":"record"}`
 - `exec: --permission-mode <value>`: Choose how Muse asks before it acts. `{"type":"string","repeatable":false,"enum":["plan","acceptEdits"],"default":"plan","purpose":"permission-mode"}`
 - `exec: --model <value>`: Choose the model for this run. `{"type":"string","repeatable":false,"purpose":"model"}`
+- `exec: --account <value>`: --account &lt;id&gt; The account to use (auth set, exec). `{"type":"string","repeatable":false,"purpose":"account"}`
 - `exec: --effort <value>`: Choose how much effort Muse puts into each reply. `{"type":"string","repeatable":false,"enum":["minimal","low","medium","high","xhigh","max"],"purpose":"effort"}`
 - `exec: --output <value>`: Choose the result format: text, json or jsonl. `{"type":"string","repeatable":false,"enum":["text","json","jsonl"],"default":"text","purpose":"output"}`
 - `exec: --max-budget-usd <value>`: Set the hard spending limit in USD for this run. `{"type":"string","repeatable":false,"exclusiveMinimum":0,"maximum":20,"decimals":6,"required":"modelApi","unit":"USD","purpose":"max-budget-usd"}`
