@@ -491,7 +491,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | Module                   | Files |
 | ------------------------ | ----- |
 | `node:async_hooks`       | 2     |
-| `node:buffer`            | 62    |
+| `node:buffer`            | 63    |
 | `node:child_process`     | 27    |
 | `node:crypto`            | 169   |
 | `node:dgram`             | 1     |

@@ -378,7 +378,7 @@
   "referenceSetup": "Ejecutar los hooks Setup de init de spark-hooks.json en un espacio de trabajo de confianza.",
   "referenceSkills": "SKILL.md. museCode: Activar o desactivar las aptitudes de Muse Code. modelApi: SKILL.md.",
   "referenceDictation": "El dictado por voz no está disponible en Linux: ninguna distribución incluye un reconocedor de voz y esta extensión no añade ningún motor de terceros. El dictado por voz no está disponible en una ventana remota (SSH, WSL, un contenedor, un túnel o un codespace): la extensión se ejecuta en la máquina remota, que no puede oír el micrófono de este equipo. Abra la carpeta en una ventana local para dictar.",
-  "referenceVoice": "La voz de pago no está disponible en Model API en esta versión. Muse Code requiere una ventana local, una clave Model API guardada y activación explícita. Linux también necesita arecord o parec.",
+  "referenceVoice": "Muse Voice de pago funciona en ambos backends en una ventana local con una clave Model API guardada; Muse Code exige activación explícita. Las grabaciones se detienen a los tres minutos y reservan el presupuesto diario y cualquier límite de conversación antes de conectar. Linux necesita arecord o parec. Los segundos finales indicados determinan la estimación; no se puede consultar la factura del proveedor.",
   "referenceBestOfN": "Best-of-N Aplica y prepara exactamente la vista previa seleccionada. No crea un commit; excluye los archivos ignorados.",
   "referenceNativeAgentsConditions": "Cuando run.subagent_delegation_mode=\"auto\", Muse Code puede delegar en agentes. Con \"off\", las herramientas de delegación no están disponibles. run.workflow_trigger_mode: auto / explicit / off.",
   "referenceNativeAgents": "run.workflow_trigger_mode: auto / explicit / off. Controles de delegación de agentes de Muse Code.",
@@ -407,7 +407,7 @@
   "referenceNativeSearch": "La búsqueda web y el cron nativo de Muse Code usan la suscripción. El cron nativo no tiene controles MSP; la búsqueda y las programaciones de la extensión son funciones Model API de pago separadas.",
   "referenceCustomAgents": "Define agentes en archivos AGENT.md del proyecto o personales. Selecciona un agente o pide explore o second-opinion; las listas de herramientas limitan sus capacidades. Las tareas secundarias Model API requieren consentimiento para subagentes de pago.",
   "referenceCodeOutput": "Copiar copia el código; Insertar escribe en el cursor; Aplicar reemplaza la selección del editor. Abre la salida para leerla completa; la salida recortada se puede paginar. Seleccionar texto de la conversación para citarlo en el cuadro de entrada, preguntar sobre él, comentar o copiarlo.",
-  "referencePaidContexts": "Los extras interactivos Model API piden permiso antes de gastar y usan el presupuesto diario compartido. Las imágenes y la voz de Muse Code requieren una clave Model API guardada y activación explícita; ese presupuesto no las cubre. Las funciones ACP de pago están desactivadas por defecto y requieren opciones Model API y permiso del editor; ACP normal no exige un presupuesto estricto. Las imágenes sin interfaz requieren acceptEdits, la opción y un presupuesto estricto. Cuenta y uso permite olvidar permisos del espacio de trabajo.",
+  "referencePaidContexts": "Los extras interactivos de Model API preguntan antes de gastar y comparten el presupuesto diario. Las imágenes de Muse Code requieren una clave Model API guardada y activación explícita; su gasto queda fuera de ese registro diario. Muse Voice reserva el presupuesto diario compartido en ambos backends. Las funciones de pago ACP están desactivadas por defecto y requieren opciones de Model API y permiso del editor. Las solicitudes Model API de ACP y sin interfaz reservan el presupuesto diario del runtime; sin interfaz también se exige un presupuesto estricto por ejecución. Las imágenes sin interfaz requieren acceptEdits y la opción de imagen. Cuenta y uso permite olvidar los permisos de pago del espacio de trabajo.",
   "referenceAcp": "Las habilidades instaladas añaden comandos dinámicos que esta referencia estática no enumera. ACP solo gestiona /help, /report, /playbook, /compact, /legal, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share, /agents locales y habilidades instaladas; los comandos del panel, ajustes y diálogos de la referencia enlazada son flujos de la extensión.",
   "referenceWebFetchTitle": "Lectura web",
   "referenceWebFetchDetail": "Obtener páginas web públicas como texto legible, con comprobaciones de permisos y red.",
@@ -2607,7 +2607,7 @@
   "sessionBudgetSearchUnavailable": "La búsqueda web no está disponible con un límite de gasto finito: el número de consultas facturadas no tiene un máximo verificado. El chat normal y la lectura gratuita de páginas web siguen disponibles.",
   "sessionBudgetRetryUnavailable": "La solicitud anterior puede haberse facturado. Se conservó toda su reserva; envía un nuevo mensaje para reintentar con una nueva asignación.",
   "sessionBudgetUnknownCharge": "El uso no se verificó. {amount} sigue reservado como posible cargo; no es una factura confirmada.",
-  "sessionBudgetVoiceUnavailable": "Muse Voice no está disponible con un límite de gasto finito: la duración de audio facturada no tiene un máximo verificado. Use el dictado gratuito del sistema.",
+  "sessionBudgetVoiceUnavailable": "La transcripción de archivos de Muse Voice no está disponible con un límite de gasto finito: la duración de audio facturada no tiene un máximo verificado. Use el dictado gratuito del sistema.",
   "sessionBudgetVoiceContextChanged": "Muse Voice se detuvo porque cambió la conversación o sus permisos. Inicia una nueva grabación en la conversación actual.",
   "sessionBudgetUnpriced": "Detenido: el presupuesto de sesión no se puede respetar con {model}, cuyo precio esta extensión no conoce. La solicitud no se envió.",
   "sessionBudgetOutputLimited": "La respuesta alcanzó el límite de salida que le dejó el presupuesto de sesión (max_output_tokens {tokens}) y puede estar incompleta.",
@@ -3750,7 +3750,7 @@
   "paidSearchQuote": "Proveedor: {provider} · Modelo: {model}.",
   "paidUseWebSearchDetail": "Muse puede buscar en la web mientras responde. Cada búsqueda se factura a su clave de Model API a {price}, además de los tokens que añaden sus resultados. “Denegar” envía el prompt sin búsqueda web.",
   "paidUseVoiceTitle": "¿Grabar con Muse Voice?",
-  "paidUseVoiceDetail": "Muse Voice transcribe esta grabación, y se factura a su clave de Model API a {price}. “Denegar” deja el micrófono apagado.",
+  "paidUseVoiceDetail": "Muse Voice cobra a su clave Model API a {price}. Las grabaciones se detienen a los tres minutos. Permitir una vez cubre esta ventana; Siempre cubre este espacio de trabajo hasta su revocación. Se muestran la duración y el coste estimado; no se puede consultar la factura del proveedor. Denegar deja el micrófono apagado.",
   "paidWebSearchPrice": "{price} por 1000 búsquedas",
   "paidImagePrice": "{price} por imagen",
   "paidVoicePrice": "{price} por hora de audio",
@@ -3758,7 +3758,7 @@
   "paidConfirmTitle": "¿Activar {feature}?",
   "paidConfirmWebSearch": "El modelo puede buscar en la web mientras responde. Cada búsqueda se factura a su clave de Model API a {price}, además de los tokens que añaden sus resultados. Cada prompt pregunta primero, salvo que permita siempre la búsqueda web en esta área de trabajo. Solo se usa en el back-end de Model API.",
   "paidConfirmImage": "El modelo puede crear archivos de imagen en el área de trabajo, o editar imágenes del área de trabajo para convertirlas en otras nuevas. Cada imagen se factura a su clave de Model API a {price}, y se le pregunta antes de cada una, en todos los modos de permisos, salvo que permita siempre las imágenes en esta área de trabajo. Se usa en el back-end de Model API, y en el back-end de Muse Code mientras haya una clave guardada (nunca se factura a la suscripción).",
-  "paidConfirmVoice": "El micrófono enviará lo que grabe a Muse Voice Transcribe de Meta en lugar de al reconocedor de voz de su propio equipo, y se facturará a su clave de Model API a {price}. Cada grabación pregunta primero, salvo que permita siempre Muse Voice en esta área de trabajo. Se usa en el back-end de Model API, y en el back-end de Muse Code mientras haya una clave guardada.",
+  "paidConfirmVoice": "Muse Voice envía las grabaciones a Meta y cobra a su clave Model API a {price}, en ambos backends. Se detienen a los tres minutos y reservan el presupuesto diario y cualquier límite de conversación antes de conectar. Permitir una vez cubre esta ventana; Siempre cubre este espacio de trabajo hasta su revocación. No se puede consultar la factura del proveedor.",
   "paidConfirmScheduled": "Un prompt programado vencido espera a que lo ejecutes. Cada ejecución pide confirmación antes de cualquier llamada a Model API, salvo que permitas siempre las ejecuciones programadas en esta área de trabajo. {price}. Se factura a tu clave de Model API; el total varía según los tokens usados.",
   "paidConfirmSubagents": "Los agentes secundarios realizan solicitudes adicionales facturadas a su clave de Model API. {price} Cada tarea nueva requiere aprobación en todos los modos de permisos, incluido Bypass, salvo que permita siempre los subagentes en esta área de trabajo. El coste real depende de los tokens utilizados; las demás herramientas de pago tienen un coste adicional. Solo para el back-end de Model API.",
   "paidBestOfNName": "Best-of-N",
@@ -5430,5 +5430,11 @@
       "other": "{count} autorizaciones",
       "many": "{count} autorizaciones"
     }
-  }
+  },
+  "museVoiceIdle": "Muse Voice cerró la grabación porque el audio dejó de llegar a ritmo de tiempo real.",
+  "museVoiceTransportFailed": "Falló la conexión con Muse Voice; la grabación se detuvo.",
+  "museVoiceInvalidDuration": "Muse Voice indicó una duración de audio inválida; la grabación se detuvo.",
+  "museVoiceUsageReported": "Muse Voice: {duration}, estimación de {cost} según la duración indicada. No se puede consultar la factura del proveedor.",
+  "museVoiceUsageEstimated": "Muse Voice: {duration}, estimación de {cost} según el audio enviado. No llegó la duración final; toda la reserva sigue siendo incierta. No se puede consultar la factura del proveedor.",
+  "museVoiceUsageEmpty": "Muse Voice: {duration}, estimación de {cost}. No se envió audio; no se espera ningún cargo por audio. No se puede consultar la factura del proveedor."
 }

@@ -172,7 +172,7 @@ Best of N Apply and stage exactly the selected preview. No commit is created; ig
 
 bestOfNAdmission: Candidates require Model API, the paid feature enabled, a trusted Git workspace, Git 2.36 or newer, and no configured Git filter or hook programs. A finite session budget requires an owned parent budget scope shared by candidates. Set attempt and request limits, compare results or cancel, then take selected changes by applying and staging without a commit.
 
-Interactive Model API extras ask before spending and share the daily budget. Muse Code images and voice need a stored Model API key and explicit opt-in; their spending is outside that daily ledger. ACP paid features default off and require Model API flags and editor permission. ACP and headless Model API requests reserve against the runtime daily budget; headless also requires a hard run budget. Headless images require acceptEdits and the image flag. Account & usage can forget workspace paid-use grants.
+Interactive Model API extras ask before spending and share the daily budget. Muse Code images need a stored Model API key and explicit opt-in; their spending is outside that daily ledger. Muse Voice reserves the shared daily budget on both backends. ACP paid features default off and require Model API flags and editor permission. ACP and headless Model API requests reserve against the runtime daily budget; headless also requires a hard run budget. Headless images require acceptEdits and the image flag. Account & usage can forget workspace paid-use grants.
 
 ```json
 {
@@ -386,7 +386,7 @@ Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/m
 
 Define custom agents in project or personal AGENT.md files. Select an agent or ask for explore or second-opinion; tool allowlists narrow its abilities. Model API child tasks require paid subagent consent.
 
-Interactive Model API extras ask before spending and share the daily budget. Muse Code images and voice need a stored Model API key and explicit opt-in; their spending is outside that daily ledger. ACP paid features default off and require Model API flags and editor permission. ACP and headless Model API requests reserve against the runtime daily budget; headless also requires a hard run budget. Headless images require acceptEdits and the image flag. Account & usage can forget workspace paid-use grants.
+Interactive Model API extras ask before spending and share the daily budget. Muse Code images need a stored Model API key and explicit opt-in; their spending is outside that daily ledger. Muse Voice reserves the shared daily budget on both backends. ACP paid features default off and require Model API flags and editor permission. ACP and headless Model API requests reserve against the runtime daily budget; headless also requires a hard run budget. Headless images require acceptEdits and the image flag. Account & usage can forget workspace paid-use grants.
 
 ```json
 {
@@ -889,17 +889,21 @@ Commands: `museSpark.downloadBrowserCheckRuntime`. Settings: `museSpark.browserC
 
 ### Muse Voice
 
-backend&localWindow&voiceAdmission: Paid voice is unavailable on Model API in this version. Muse Code needs a local window, a stored Model API key and explicit opt-in. Linux also needs arecord or parec.
+backend&localWindow&voiceAdmission: Paid Muse Voice works on both backends in a local window with a stored Model API key; Muse Code requires explicit opt-in. Recordings stop at three minutes and reserve the daily budget and any conversation cap before connecting. Linux needs arecord or parec. Final reported seconds determine the estimate; the provider’s bill cannot be read back.
 
-Interactive Model API extras ask before spending and share the daily budget. Muse Code images and voice need a stored Model API key and explicit opt-in; their spending is outside that daily ledger. ACP paid features default off and require Model API flags and editor permission. ACP and headless Model API requests reserve against the runtime daily budget; headless also requires a hard run budget. Headless images require acceptEdits and the image flag. Account & usage can forget workspace paid-use grants.
+Interactive Model API extras ask before spending and share the daily budget. Muse Code images need a stored Model API key and explicit opt-in; their spending is outside that daily ledger. Muse Voice reserves the shared daily budget on both backends. ACP paid features default off and require Model API flags and editor permission. ACP and headless Model API requests reserve against the runtime daily budget; headless also requires a hard run budget. Headless images require acceptEdits and the image flag. Account & usage can forget workspace paid-use grants.
 
 ```json
 {
-  "modelApi": "unavailable",
-  "museCode": ["local", "storedModelApiKey", "explicitOptIn"],
+  "modelApi": ["local", "storedModelApiKey", "boundedBudgetAdmission"],
+  "museCode": ["local", "storedModelApiKey", "explicitOptIn", "boundedBudgetAdmission"],
   "platforms": ["win32", "darwin", "linux"],
   "remote": false,
   "linuxRecorders": ["arecord", "parec"],
+  "maximumRecordingSeconds": 180,
+  "frameMs": 80,
+  "reservedMs": 180080,
+  "settlement": "finalAudioProcessedMsWholeSeconds",
   "paidFeature": "voice",
   "paidSettings": ["museSpark.modelApiVoice"],
   "configuredDefaults": {
@@ -932,22 +936,31 @@ Interactive Model API extras ask before spending and share the daily budget. Mus
       "configuredDefault": false,
       "key": "SecretStorage",
       "explicitOptIn": true,
-      "consent": "use",
+      "consent": "window",
       "ledger": false
+    },
+    "vscode:modelApi": {
+      "defaultState": {
+        "type": "boolean",
+        "value": true
+      },
+      "key": "SecretStorage",
+      "consent": "window",
+      "ledger": "paidDailyBudgetUsd"
     }
   }
 }
 ```
 
-Surfaces: vscode:museCode. Paid: yes; consent required; admission depends on the surface.
+Surfaces: vscode:museCode, vscode:modelApi. Paid: yes; consent required; admission depends on the surface.
 
-Commands: —. Settings: `museSpark.dictationEngine`, `museSpark.modelApiVoice`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#voice-dictation)
+Commands: —. Settings: `museSpark.dictationEngine`, `museSpark.modelApiVoice`, `museSpark.modelApiSessionBudgetUsd`, `museSpark.paidDailyBudgetUsd`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#voice-dictation)
 
 ### Web Search
 
 Turn paid web search on or off.
 
-Interactive Model API extras ask before spending and share the daily budget. Muse Code images and voice need a stored Model API key and explicit opt-in; their spending is outside that daily ledger. ACP paid features default off and require Model API flags and editor permission. ACP and headless Model API requests reserve against the runtime daily budget; headless also requires a hard run budget. Headless images require acceptEdits and the image flag. Account & usage can forget workspace paid-use grants.
+Interactive Model API extras ask before spending and share the daily budget. Muse Code images need a stored Model API key and explicit opt-in; their spending is outside that daily ledger. Muse Voice reserves the shared daily budget on both backends. ACP paid features default off and require Model API flags and editor permission. ACP and headless Model API requests reserve against the runtime daily budget; headless also requires a hard run budget. Headless images require acceptEdits and the image flag. Account & usage can forget workspace paid-use grants.
 
 ```json
 {
@@ -1006,7 +1019,7 @@ Commands: —. Settings: `museSpark.modelApiWebSearch`, `museSpark.webSearchMaxP
 
 Turn paid image generation on or off.
 
-Interactive Model API extras ask before spending and share the daily budget. Muse Code images and voice need a stored Model API key and explicit opt-in; their spending is outside that daily ledger. ACP paid features default off and require Model API flags and editor permission. ACP and headless Model API requests reserve against the runtime daily budget; headless also requires a hard run budget. Headless images require acceptEdits and the image flag. Account & usage can forget workspace paid-use grants.
+Interactive Model API extras ask before spending and share the daily budget. Muse Code images need a stored Model API key and explicit opt-in; their spending is outside that daily ledger. Muse Voice reserves the shared daily budget on both backends. ACP paid features default off and require Model API flags and editor permission. ACP and headless Model API requests reserve against the runtime daily budget; headless also requires a hard run budget. Headless images require acceptEdits and the image flag. Account & usage can forget workspace paid-use grants.
 
 ```json
 {
@@ -1133,7 +1146,7 @@ Commands: —. Settings: `museSpark.modelApiScheduledPrompts`, `museSpark.schedu
 
 Turn paid subagents on or off.
 
-Interactive Model API extras ask before spending and share the daily budget. Muse Code images and voice need a stored Model API key and explicit opt-in; their spending is outside that daily ledger. ACP paid features default off and require Model API flags and editor permission. ACP and headless Model API requests reserve against the runtime daily budget; headless also requires a hard run budget. Headless images require acceptEdits and the image flag. Account & usage can forget workspace paid-use grants.
+Interactive Model API extras ask before spending and share the daily budget. Muse Code images need a stored Model API key and explicit opt-in; their spending is outside that daily ledger. Muse Voice reserves the shared daily budget on both backends. ACP paid features default off and require Model API flags and editor permission. ACP and headless Model API requests reserve against the runtime daily budget; headless also requires a hard run budget. Headless images require acceptEdits and the image flag. Account & usage can forget workspace paid-use grants.
 
 ```json
 {
@@ -1186,7 +1199,7 @@ Commands: —. Settings: `museSpark.modelApiSubagents`. [Documentation](https://
 
 Turn the paid Auto reviewer on or off.
 
-Interactive Model API extras ask before spending and share the daily budget. Muse Code images and voice need a stored Model API key and explicit opt-in; their spending is outside that daily ledger. ACP paid features default off and require Model API flags and editor permission. ACP and headless Model API requests reserve against the runtime daily budget; headless also requires a hard run budget. Headless images require acceptEdits and the image flag. Account & usage can forget workspace paid-use grants.
+Interactive Model API extras ask before spending and share the daily budget. Muse Code images need a stored Model API key and explicit opt-in; their spending is outside that daily ledger. Muse Voice reserves the shared daily budget on both backends. ACP paid features default off and require Model API flags and editor permission. ACP and headless Model API requests reserve against the runtime daily budget; headless also requires a hard run budget. Headless images require acceptEdits and the image flag. Account & usage can forget workspace paid-use grants.
 
 ```json
 {
@@ -2136,7 +2149,7 @@ Type: `"boolean"`. Default: `true`. Scope: `machine`.
 
 ### museSpark.modelApiVoice
 
-voiceAdmission: Offers Muse Voice ($0.18 per audio hour); free OS dictation remains the default. Muse Voice is unavailable under a finite budget. Available by default on Model API. Before spending, asks Allow once / Allow always in this workspace / Deny with the price and shared daily budget. Explicit false disables it.
+voiceAdmission: Muse Voice sends recordings to Meta, billed to your Model API key at $0.18 per hour of audio, on either backend. Recordings stop at three minutes and reserve the daily budget and any conversation cap before connecting. Allow once covers this window; Always covers this workspace until revoked. The provider’s bill cannot be read back.
 
 Type: `"boolean"`. Default: `true`. Scope: `machine`.
 
@@ -2397,7 +2410,7 @@ Type: `"boolean"`. Default: `true`. Scope: `window`.
 
 ### museSpark.modelApiSessionBudgetUsd
 
-sessionBudget: Spend cap in US dollars for each Model API conversation; 0 means no cap. Shared durable reservations cover ordinary token requests and image fees before sending; a request that cannot fit what is left is not sent, and input estimates may differ from billed usage. Web search is unavailable while capped because its billed query count has no verified limit. Unknown sent requests keep their reservation; automatic retries after ambiguous failures are refused. Requires working session storage. Separate paid consent still applies. Paid Muse Voice is also unavailable with a cap because no billed-duration bound is verified; use system dictation. Child requests are counted when usage is reported, without reserving against the parent cap, and can exceed it.
+sessionBudget: Spend cap in US dollars for each Model API conversation; 0 means no cap. Shared durable reservations cover ordinary token requests and image fees before sending; a request that cannot fit what is left is not sent, and input estimates may differ from billed usage. Web search is unavailable while capped because its billed query count has no verified limit. Unknown sent requests keep their reservation; automatic retries after ambiguous failures are refused. Requires working session storage. Separate paid consent still applies. Child requests are counted when usage is reported, without reserving against the parent cap, and can exceed it. Paid Muse Voice works on both backends in a local window with a stored Model API key; Muse Code requires explicit opt-in. Recordings stop at three minutes and reserve the daily budget and any conversation cap before connecting. Linux needs arecord or parec. Final reported seconds determine the estimate; the provider’s bill cannot be read back.
 
 Type: `"number"`. Default: `0`. Scope: `machine`.
 

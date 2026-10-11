@@ -252,7 +252,7 @@
     {
       "id": "M35",
       "title": "Muse Voice dictation",
-      "summary": "Optional paid dictation with Meta's Muse Voice Transcribe, while your computer's free speech recogniser stays the default; the Model API backend currently refuses it, because its billed audio length has no verified limit.",
+      "summary": "Optional paid dictation with Meta's Muse Voice Transcribe on both backends, with three-minute recordings reserved before connection and estimates settled from final reported duration, while free system dictation stays the default.",
       "area": "voice-media",
       "release": "0.9.0"
     },
