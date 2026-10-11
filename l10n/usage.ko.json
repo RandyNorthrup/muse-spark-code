@@ -66,6 +66,9 @@
   "tornLines": {
     "other": "불완전한 줄 {count}건을 건너뛰었습니다"
   },
+  "inexactRecords": {
+    "other": "금액을 정확히 읽을 수 없는 이전 기록 {count}건은 집계에 포함되지 않았습니다"
+  },
   "recordCount": {
     "other": "기록 {count}건"
   },

@@ -1,3 +1,4 @@
+import { isAutoCompactionEvaluated } from '../shared/constants'
 import { ESTIMATE_OPTIONS } from './estimator/options'
 import type { UiText } from '../shared/l10n/en'
 import { sharingHelp } from '../shared/featureCatalog'
@@ -5,6 +6,10 @@ import { fill } from '../shared/l10n/text'
 
 /** Compact CLI help, also checked against the installed package's tables. */
 export function formatAcpUsage(table: UiText, command: string): string {
+  const options = {
+    [ACP_PAID_FLAGS.autoCompaction]: table.referenceCliOptions[ACP_PAID_FLAGS.autoCompaction],
+    'no-auto-compaction': table.referenceCliOptions['no-auto-compaction'],
+  }
   return [
     fill(table.acpUsage, { command }),
     fill(table.acpChatGpt.usage, { command }),
@@ -12,6 +17,13 @@ export function formatAcpUsage(table: UiText, command: string): string {
     fill(table.accounts.cliUsage, { command }),
     fill(table.accounts.execHelp, { command }),
     table.scheduleV2.runtime.usage,
+    ...Object.entries(options)
+      .filter(
+        ([option]) =>
+          isAutoCompactionEvaluated() ||
+          (option !== ACP_PAID_FLAGS.autoCompaction && option !== 'no-auto-compaction'),
+      )
+      .map(([option, description]) => `  --${option} ${description}`),
     `${command} resources [status|history|resume] [--json]`,
     `${command} usage resources [--json]`,
     ...(['resource-governor', 'cpu-max', 'memory-max'] as const).map(
@@ -55,6 +67,7 @@ const COMMON_OPTIONS = {
   'shell-sandbox': { type: 'string' },
   'allow-dangerously-skip-permissions': { type: 'boolean' },
   'allow-contributor-models': { type: 'boolean' },
+  [ACP_PAID_FLAGS.autoCompaction]: { type: 'boolean' },
   [ACP_PAID_FLAGS.webSearch]: { type: 'boolean' },
   [ACP_PAID_FLAGS.imageGeneration]: { type: 'boolean' },
   verbose: { type: 'boolean' },
@@ -184,6 +197,7 @@ export const CLI_OPTION_TEXT = {
   stdio: 'stdio',
   registry: 'registry',
   backend: 'backend',
+  'auto-compaction': 'auto-compaction',
   'no-auto-compaction': 'no-auto-compaction',
   'trust-workspace': 'trust-workspace',
   maintenance: 'maintenance',

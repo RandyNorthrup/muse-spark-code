@@ -133,6 +133,10 @@ const UNBUNDLED = new Set(['hookFormats/clineDiscover.ts', 'files.ts'])
 
 // The backend's files the activation bundle may carry, each with its reason.
 const ACTIVATION_ALLOWED = new Map([
+  [
+    'autoCompactionAdmission.ts',
+    'shared paid admission bound by panel and runtime managers (M101)',
+  ],
   ['schemas.ts', 'shared boundary schemas used by activation and ACP'],
   ['imageGeneration.ts', "the IDE server's image tools on Muse Code (M44)"],
   ['imageToolDefinitions.ts', "the IDE server's image tools on Muse Code (M44)"],

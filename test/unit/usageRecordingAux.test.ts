@@ -21,7 +21,7 @@ function port(): UsageRecording {
   }
 }
 const record = usageRecordSchema.parse({
-  v: 1,
+  v: 2,
   type: 'usage',
   id: 'one',
   at: 100,
@@ -82,14 +82,14 @@ describe('auxiliary recording', () => {
         kind: 'image',
         units: { images: 1 },
         outcome: 'failed',
-        cost: { certainty: 'uncertain', usd: 0.01 },
+        cost: { certainty: 'uncertain', usd: Usd.from('0.01').toAmount() },
       },
       {
         ...record,
         id: 'returned',
         kind: 'image',
         units: { images: 1 },
-        cost: { certainty: 'computed', usd: 0.01 },
+        cost: { certainty: 'computed', usd: Usd.from('0.01').toAmount() },
       },
     ])
     expect(usage.current.images).toBe(1)
@@ -102,35 +102,35 @@ describe('auxiliary recording', () => {
         ...record,
         kind: 'search',
         units: { searches: 2 },
-        cost: { certainty: 'computed', usd: 0.005 },
+        cost: { certainty: 'computed', usd: Usd.from('0.005').toAmount() },
       },
       {
         ...record,
         id: 'image',
         kind: 'image',
         units: { images: 2 },
-        cost: { certainty: 'computed', usd: 0.02 },
+        cost: { certainty: 'computed', usd: Usd.from('0.02').toAmount() },
       },
       {
         ...record,
         id: 'voice',
         kind: 'voice',
         units: { audioSeconds: 1.5 },
-        cost: { certainty: 'uncertain', usd: 0.01 },
+        cost: { certainty: 'uncertain', usd: Usd.from('0.01').toAmount() },
       },
       {
         ...record,
         id: 'child',
         kind: 'subagent',
         tokens: { input: 20, output: 10 },
-        cost: { certainty: 'uncertain', usd: 0.5 },
+        cost: { certainty: 'uncertain', usd: Usd.from('0.5').toAmount() },
       },
       {
         ...record,
         id: 'review',
         kind: 'reviewer',
         tokens: { input: 10, output: 5 },
-        cost: { certainty: 'reported', usd: 0.1 },
+        cost: { certainty: 'reported', usd: Usd.from('0.1').toAmount() },
       },
       {
         ...record,
@@ -146,7 +146,7 @@ describe('auxiliary recording', () => {
         session: 'attempt-session',
         kind: 'bestOfN',
         tokens: { input: 10, output: 5 },
-        cost: { certainty: 'computed', usd: 0.1 },
+        cost: { certainty: 'computed', usd: Usd.from('0.1').toAmount() },
       },
     ])
     const expected = { ...usage.current }
@@ -208,7 +208,7 @@ describe('auxiliary recording', () => {
     ])
   })
   it('uses injected BYO settlement for reported and local prices, withholding plan and uncertainty', () => {
-    let cost: UsageCost | undefined = { certainty: 'reported', usd: 0.12 }
+    let cost: UsageCost | undefined = { certainty: 'reported', usd: Usd.from('0.12').toAmount() }
     const translator = new UpdateTranslator('/workspace', false, () => cost, 'modelApi')
     translator.updates({
       type: 'tokenUsage',
@@ -222,12 +222,12 @@ describe('auxiliary recording', () => {
         _meta: { museSpark: { costCertainty: 'reported' } },
       }),
     ])
-    cost = { certainty: 'local', usd: 0 }
+    cost = { certainty: 'local', usd: Usd.from('0').toAmount() }
     expect(translator.updates(context)).toEqual([
       expect.objectContaining({ cost: { amount: 0, currency: 'USD' } }),
     ])
     for (const certainty of ['plan', 'uncertain', 'unpriced'] as const) {
-      cost = { certainty, usd: 1 }
+      cost = { certainty, usd: Usd.from('1').toAmount() }
       expect(translator.updates(context)).toEqual([
         { sessionUpdate: 'usage_update', used: 12, size: 100 },
       ])

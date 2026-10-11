@@ -418,6 +418,8 @@ export const EN = {
     description: '--description <text>  What was happening, in your own words',
     'no-facts': '--no-facts           Leave the support facts out',
     'no-events': '--no-events          Leave the recent events out',
+    'auto-compaction':
+      'Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. Inactive until evaluation passes.',
     'no-auto-compaction': 'Disable automatic compaction',
     'output-schema':
       'Validate the final answer against a bounded JSON schema file (Model API only).',
@@ -3059,6 +3061,11 @@ export const EN = {
   installOrKeyDetail:
     'The Muse Code CLI hosts conversations for this extension; without it you can still use a Meta Model API key.',
   compactionDone: 'Context compacted',
+  referenceManualCompaction:
+    'Summarize the conversation with /compact and keep recent turns verbatim.',
+  autoCompactionName: 'Automatic compaction',
+  paidConfirmAutoCompaction:
+    'Automatic compaction uses the selected model at {price}. The subscription does not pay for it.',
   autoCompactionAwaitingEvaluation: 'Automatic compaction is awaiting evaluation and is inactive.',
   autoCompactionFailed: 'Automatic compaction failed; continuing with the original context.',
   contextWindowFull: 'Context window full: /compact or /handoff',
@@ -4135,7 +4142,6 @@ export const EN = {
     '  --allow-contributor-models       List contributor-tier models (Meta may train on their content)',
     '  --web-search                     Offer paid web search (Model API backend; its price is asked first)',
     '  --image-generation               Offer paid image generation (Model API backend; its price is asked first)',
-    '  --no-auto-compaction             Disable automatic compaction',
     '  --verbose                        Log every detail on stderr',
     '  --help, --version',
     '  {command} --trust-workspace setup [--maintenance]  Run the Setup hooks and exit',

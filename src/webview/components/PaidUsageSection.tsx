@@ -160,7 +160,7 @@ function PaidRow({ feature, paid }: { readonly feature: PaidFeature; readonly pa
   const isEntirelyUnknown = isTokenFeature && requests > 0 && requests === unknown
   const cost = formatUsd(paidCostUsd(feature, paid.tally))
   let costDetail = cost
-  if (feature === 'scheduledPrompts') {
+  if (feature === 'scheduledPrompts' || feature === 'autoCompaction') {
     costDetail = UI_TEXT.usageScheduledIncluded
   } else if (isTokenFeature) {
     costDetail = fill(
@@ -188,6 +188,7 @@ function PaidRow({ feature, paid }: { readonly feature: PaidFeature; readonly pa
 }
 
 function paidUseText(feature: PaidFeature, tally: PaidTally): string {
+  if (feature === 'autoCompaction') return formatNumber(tally.autoCompactionRequests ?? 0)
   if (feature === 'legalExplanation') return formatNumber(tally.legalExplanations ?? 0)
   if (feature === 'voice')
     return fill(UI_TEXT.usagePaidAudio, {
