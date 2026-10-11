@@ -539,11 +539,16 @@ describe('manual local context fields', () => {
     })
     for (const value of ['0', '1.5']) {
       fireEvent.change(input, { target: { value } })
+      fireEvent.blur(input)
       expect(input.getAttribute('aria-invalid')).toBe('true')
       expect(screen.getByRole('alert').textContent).toBe(UI_TEXT.localContextWindowInvalid)
       expect(post).not.toHaveBeenCalled()
     }
-    fireEvent.change(input, { target: { value: '8192' } })
+    for (const value of ['8', '81', '819', '8192']) {
+      fireEvent.change(input, { target: { value } })
+      expect(post).not.toHaveBeenCalled()
+    }
+    fireEvent.blur(input)
     expect(post).toHaveBeenLastCalledWith({
       type: 'models/contextWindow',
       scope: { scope: 'wizard' },
@@ -573,7 +578,10 @@ describe('manual local context fields', () => {
       name: `${UI_TEXT.localContextWindow} (ollama/qwen3:8b)`,
     })
     expect(input).toHaveProperty('value', '4096')
+    input.focus()
     fireEvent.change(input, { target: { value: '2048' } })
+    expect(post).not.toHaveBeenCalled()
+    fireEvent.keyDown(input, { key: 'Enter' })
     expect(post).toHaveBeenLastCalledWith({
       type: 'models/contextWindow',
       scope: { scope: 'provider', providerId: 'ollama' },
@@ -601,6 +609,7 @@ it('edits the loaded window of an existing local provider without rescanning', (
   fireEvent.click(screen.getByRole('button', { name: UI_TEXT.providerEdit }))
   const input = screen.getByRole('spinbutton', { name: `${UI_TEXT.localContextWindow} (qwen3:8b)` })
   fireEvent.change(input, { target: { value: '8192' } })
+  fireEvent.blur(input)
   expect(post).toHaveBeenLastCalledWith({
     type: 'models/contextWindow',
     scope: { scope: 'wizard', providerId: 'ollama' },

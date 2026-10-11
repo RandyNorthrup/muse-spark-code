@@ -28084,8 +28084,9 @@ existing startup, Models-body and deferred-aggregate cap.
 Run scoped gates and default-timeout tests directly on this rig; drill each
 guard and restore byte-exact. No model server, live/paid call, dependency,
 merge, push or gate change. Full quality belongs to the lead per lane brief.
-Plan: implementation, 22 byte-exact red/restored drills and 290 tests across
+Plan: implementation, 23 byte-exact red/restored drills and 290 tests across
 17 complete files pass. Scoped static/build gates pass within unchanged caps.
+Fields commit on blur/Enter, preserving output caps while typing.
 Finish visual review/certification and hook-enabled commits; full quality and
 installed-editor qualification remain the lead's integration gates.
 
