@@ -263,3 +263,41 @@ partially delivered/open, while this release-base port's assigned merge,
 headless tests and static/budget checks are complete. Next slice is lead
 integration/duplicate cleanup and native qualification, then owner device
 receipts and recording-driver binding, in the ordered inventory above.
+
+## Round 2 — existing-file delivery and merge gates (2026-10-11, macmini)
+
+### Part 1: duplication cleanup
+
+The initial unchanged checker reproduced 29 clones (376 duplicated lines).
+Extract shared RIFF chunk headers and test-only scratch directories, empty
+session records, Files receipts, streamed sources, batch WAV/body fixtures,
+exact-money settlements and repeated production factory/turn/request fixtures.
+Every original test case and assertion remains; no wire shape, capability,
+threshold, ignore, timeout or production behavior changes. Shared release-side
+hunks: `test/unit/modelApiHost.test.ts` and
+`test/unit/modelApiLoopGuarantees.test.ts` now share their repeated refusal
+fixtures locally. The rejected PORTM105 duplication deferral is deleted from
+PLAN section 7. The earlier failure above remains a historical receipt.
+
+Final unchanged `npm run duplication` output (ANSI removed):
+
+```text
+Found 0 clones.
+time: 1.41s
+```
+
+Deliberate failure: restore HEAD's duplicated RIFF header parsing, run the
+unchanged checker, observe exit 1 (one clone, seven lines, 64 tokens), then
+restore the repaired file byte-exact. SHA-256 before/after restoration:
+`14b47873f8ec42eeae7014bd11325fda48598096fd7e78648ba82172ea74d513`.
+Local logs: `temp/port-r2-duplication-red.log` and
+`temp/port-r2-part1-duplication.log`.
+
+Scoped macmini verification, repository default timeouts and at most three
+files per run: 880 tests passed in 12 affected/adjacent files (36 audio/batch/
+production, 59 upload/session/media, 731 host/loop/sniff, 54 malformed/fixture/
+replay). All five typecheck projects, changed-file ESLint and Prettier, knip,
+production build with unchanged budgets/split checks, localization (zero
+problems), host API (zero problems), plan (zero drift), roadmap freshness and
+`git diff --check` passed. The lane brief reserves aggregate quality for the
+lead; this lane did not run it. No case was removed or skipped.

@@ -2931,6 +2931,16 @@ describe('ModelApiSession: per-reply usage (M82)', () => {
   })
 })
 
+async function expectBudgetRefusal(t: ReturnType<typeof setup>) {
+  const watched = await startSession(t)
+  await budgetTurn(t, watched, 'hi', { text: 'never sent' })
+  expect(t.api.responseBodies()).toEqual([])
+  expect(watched.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+    terminal: 'failed',
+  })
+  expect(lastReason(watched.events)).toContain('It was not sent.')
+}
+
 describe('ModelApiSession: session budget (M82)', () => {
   it('estimates the first request from its bytes and fits its output to what is left', async () => {
     setUiText(EN, BASE_LOCALE)
@@ -3002,13 +3012,7 @@ describe('ModelApiSession: session budget (M82)', () => {
   it('never sends a request the cap cannot fit, and the turn says why', async () => {
     setUiText(EN, BASE_LOCALE)
     const t = setup({ sessionBudgetUsd: Usd.from(0.000001).toAmount() })
-    const watched = await startSession(t)
-    await budgetTurn(t, watched, 'hi', { text: 'never sent' })
-    expect(t.api.responseBodies()).toEqual([])
-    expect(watched.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
-      terminal: 'failed',
-    })
-    expect(lastReason(watched.events)).toContain('It was not sent.')
+    await expectBudgetRefusal(t)
   })
 
   it('stops with the budget message when the cap affords fewer than sixteen output tokens', async () => {
@@ -3025,13 +3029,7 @@ describe('ModelApiSession: session budget (M82)', () => {
       .add(Usd.from('4.25').times(10).divide(1_000_000))
       .toAmount()
     const t = setup({ sessionBudgetUsd: capUsd })
-    const watched = await startSession(t)
-    await budgetTurn(t, watched, 'hi', { text: 'never sent' })
-    expect(t.api.responseBodies()).toEqual([])
-    expect(watched.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
-      terminal: 'failed',
-    })
-    expect(lastReason(watched.events)).toContain('It was not sent.')
+    await expectBudgetRefusal(t)
   })
 
   it('stops a turn at the request that no longer fits, after the ones that did', async () => {

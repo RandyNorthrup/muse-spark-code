@@ -1,5 +1,17 @@
 # PLAN — Muse Spark for VS Code (unofficial)
 
+**PORTM105 round 2 (2026-10-11, macmini).** Remove all 29 inherited
+duplication clones through shared helpers without changing behavior; the
+section 7 duplication deferral is withdrawn. Then prove existing-file video
+and audio attachment delivery through production VS Code, ACP and exec
+composition, including distinct transcribe/sendAudio routing, admission and
+exact reservation/settlement. Repair any missing binding, with failing
+regressions and byte-exact red drills. Keep every visibility hold and recorder
+unchanged; inventory switches and precise missing vendor/platform receipts in
+`docs/certification/m105-port.md`, round 2. No new dependency, raised cap,
+merge, push, paid/live call, browser or GUI. Scoped rig gates only; aggregate
+quality remains lead-owned under the explicit common rules.
+
 **PORTM105 release-base port (2026-10-11, MacBook).** Merge accepted
 M105 V/VB/redesign tip `eda2fdfe6` with release base
 `35d7b6f54280e6b6235ae4b90e079b865c3e4ff4`, keeping both features and
@@ -38440,17 +38452,6 @@ lane A's first step.
 ---
 
 ## 7. Gates
-
-**PORTM105 inherited duplication deferral (2026-10-11, MacBook).** All
-assigned type/lint/format/media/localization/reference/roadmap/plan/knip/build
-gates pass. The extra full-tree jscpd exits 1 at its unchanged zero threshold:
-29 clones. Fresh read-only source archives reproduce 27 on accepted
-`eda2fdfe6` and two on release `35d7b6f54`; 29 equals their combined count.
-Cleaning up the accepted multi-suite media fixtures and the unrelated base
-host/loop fixtures exceeds this bounded release-base port's semantic scope.
-The lead owns that integration cleanup before aggregate quality; no threshold,
-ignore or test is weakened. Exact comparison and failing output tail:
-`docs/certification/m105-port.md`. Temporary source archives were removed.
 
 **PORTM105 gate boundary (2026-10-11, MacBook).** The authorized rig brief
 and common rules prohibit aggregate quality/full tests and all browser, GUI,

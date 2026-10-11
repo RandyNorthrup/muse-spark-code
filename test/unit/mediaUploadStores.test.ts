@@ -1,3 +1,6 @@
+import { mediaByteSource } from './helpers/media/replay'
+import { emptyStoredSession } from './helpers/fakeSessionStore'
+import { scratchDirectories } from './helpers/media/scratch'
 // MEDIAW: the upload ledger and the calibration store share the
 // repository's cross-process mutex (core/fileLock, the session-budget
 // design); ledgers are per account; settlements merge under the lock.
@@ -5,12 +8,11 @@
 // absent there, and sequential settlements lose one observation (24 of 25).
 import { spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { mkdir, readdir, readFile, stat } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { afterAll, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { withMkdirLock } from '../../src/core/fileLock'
 import { MediaCostEstimator } from '../../src/core/media/mediaCost'
 import {
@@ -43,16 +45,7 @@ const MODEL = 'muse-spark-1.3-contributor'
 const KEY_B = 'mediaw-second-account-key'
 const ACCOUNT_B = createHash('sha256').update(KEY_B).digest('hex')
 
-const folders: string[] = []
-afterAll(() => {
-  for (const folder of folders) rmSync(folder, { recursive: true, force: true })
-})
-
-function scratchDir(): string {
-  const folder = mkdtempSync(path.join(tmpdir(), 'muse-upload-stores-'))
-  folders.push(folder)
-  return folder
-}
+const scratchDir = scratchDirectories('muse-upload-stores-')
 
 /** One lock contender as a real OS process, importing the real mutex. */
 function contenderScript(lockFile: string, orderFile: string, id: string, holdMs: number): string {
@@ -230,7 +223,6 @@ async function uploadedRef(
   const bytes = new Uint8Array(2048)
   for (let index = 0; index < bytes.length; index++) bytes[index] = (index * 7) % 251
   const sha256 = createHash('sha256').update(bytes).digest('hex')
-  const chunk = Promise.resolve(bytes)
   return await replay.upload(
     {
       name: 'clip.mp4',
@@ -244,14 +236,7 @@ async function uploadedRef(
         height: 240,
       },
       sha256,
-      source: {
-        name: 'clip.mp4',
-        mime: 'video/mp4',
-        bytes: bytes.length,
-        open: async function* () {
-          yield await chunk
-        },
-      },
+      source: mediaByteSource('clip.mp4', 'video/mp4', bytes),
     },
     MODEL,
     AbortSignal.timeout(10_000),
@@ -260,22 +245,8 @@ async function uploadedRef(
 
 describe('session store ownership over the real ledger', () => {
   const LAST_ACTIVITY = '2026-09-22T10:00:00.000Z'
-  const stored = (sessionId: string): StoredSession => ({
-    version: 1,
-    sessionId,
-    workspaceRoot: '/ws',
-    modelId: 'muse-spark-1.3',
-    approvalMode: 'allowAll',
-    effort: 'high',
-    createdAt: '2026-09-22T09:00:00.000Z',
-    lastActivityAt: LAST_ACTIVITY,
-    turnIds: [],
-    todos: [],
-    replay: [],
-    transcript: [],
-    outputs: {},
-    usage: { inputTokens: 0, outputTokens: 0, cachedTokens: 0, reasoningTokens: 0 },
-  })
+  const stored = (sessionId: string, name?: string): StoredSession =>
+    emptyStoredSession(sessionId, LAST_ACTIVITY, name)
 
   function boundStore(options?: {
     readonly failDeletes?: boolean
@@ -416,15 +387,7 @@ describe('per-account upload ledgers', () => {
     const bytes = new Uint8Array(4096)
     for (let index = 0; index < bytes.length; index++) bytes[index] = index % 251
     const sha256 = createHash('sha256').update(bytes).digest('hex')
-    const chunk = Promise.resolve(bytes)
-    const source = () => ({
-      name: 'clip.mp4',
-      mime: 'video/mp4',
-      bytes: bytes.length,
-      open: async function* () {
-        yield await chunk
-      },
-    })
+    const source = () => mediaByteSource('clip.mp4', 'video/mp4', bytes)
     const media = (digest: string) => ({
       name: 'clip.mp4',
       info: {
@@ -468,15 +431,19 @@ describe('per-account upload ledgers', () => {
   })
 })
 
+function calibrationStore(folder: string, log: FakeLogOutputChannel) {
+  return fileCalibrationStore(folder, log, {
+    sleep: () => Promise.resolve(),
+    attempts: 50,
+    waitMs: 1,
+  })
+}
+
 describe('calibration settlement merge', () => {
   it('keeps both sessions settlements: 25 points, not 24', async () => {
     const folder = scratchDir()
     const log = new FakeLogOutputChannel()
-    const store = fileCalibrationStore(folder, log, {
-      sleep: () => Promise.resolve(),
-      attempts: 50,
-      waitMs: 1,
-    })
+    const store = calibrationStore(folder, log)
     const estimatorFor = () =>
       new MediaCostEstimator({
         read: store.read,
@@ -503,11 +470,7 @@ describe('calibration settlement merge', () => {
   it('writes staging files with unique names per writer', async () => {
     const folder = scratchDir()
     const log = new FakeLogOutputChannel()
-    const store = fileCalibrationStore(folder, log, {
-      sleep: () => Promise.resolve(),
-      attempts: 50,
-      waitMs: 1,
-    })
+    const store = calibrationStore(folder, log)
     const estimator = new MediaCostEstimator({
       read: store.read,
       write: store.write,
