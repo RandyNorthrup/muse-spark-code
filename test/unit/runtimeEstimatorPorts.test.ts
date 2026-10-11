@@ -22,6 +22,7 @@ import {
   runRuntimeEstimateCommand,
   runtimeEstimatorPorts,
 } from '../../src/runtime/estimator/ports'
+import { resourceMachineStore } from '../../src/runtime/resources/settings'
 import { chainLanes } from './helpers/estimator/fixtures'
 import { ESTIMATOR_AS_OF } from './helpers/estimator/fakes'
 
@@ -44,14 +45,15 @@ function neverSnapshotBundle(): unknown {
   throw new Error('snapshot must stay on disk for this test')
 }
 
-function portsWithoutSnapshot() {
+function portsWithoutSnapshot(loadBundle: (file: string) => unknown = neverSnapshotBundle) {
   return runtimeEstimatorPorts({
     snapshotBundlePath: 'dist/planSnapshot.js',
     log,
     root: '/workspace',
+    loadResourceBundle: () => ({ resourceMachineStore }),
     machineDir: '/workspace',
     accounts: { list: () => Promise.resolve([]) },
-    loadBundle: neverSnapshotBundle,
+    loadBundle,
   })
 }
 
@@ -118,14 +120,7 @@ afterEach(() => {
 describe('M117 headless estimator bindings', () => {
   it('reads the snapshot from the plan instead of the plan-reader handoff', async () => {
     // The loader's module is handed in: the bundle itself stays out of the test.
-    const ports = runtimeEstimatorPorts({
-      snapshotBundlePath: 'dist/planSnapshot.js',
-      log,
-      root: '/workspace',
-      machineDir: '/workspace',
-      accounts: { list: () => Promise.resolve([]) },
-      loadBundle: workingSnapshotBundle,
-    })
+    const ports = portsWithoutSnapshot(workingSnapshotBundle)
     // The adapter runs and reports the unknown goal instead of refusing with
     // the retired handoff name.
     await expect(
@@ -134,14 +129,7 @@ describe('M117 headless estimator bindings', () => {
     expect(log.error).not.toHaveBeenCalled()
   })
   it('refuses estimateUnavailable when the snapshot bundle is missing', async () => {
-    const ports = runtimeEstimatorPorts({
-      snapshotBundlePath: 'dist/planSnapshot.js',
-      log,
-      root: '/workspace',
-      machineDir: '/workspace',
-      accounts: { list: () => Promise.resolve([]) },
-      loadBundle: missingSnapshotBundle,
-    })
+    const ports = portsWithoutSnapshot(missingSnapshotBundle)
     await expect(
       ports.snapshot({ kind: 'milestone', milestoneId: 'M999' }, ESTIMATOR_AS_OF),
     ).rejects.toThrow(UI_TEXT.estimateUnavailable)
@@ -175,6 +163,7 @@ describe('M117 headless estimator bindings', () => {
       bundlePath: 'estimator.js',
       log,
       loadBundle,
+      loadResourceBundle: () => ({ resourceMachineStore }),
       machineDir: '/workspace',
       accounts: { list: () => Promise.resolve([]) },
     })
@@ -186,6 +175,7 @@ describe('M117 headless estimator bindings', () => {
     const estimate = createRuntimeEstimate({
       bundlePath: 'estimator.js',
       log,
+      loadResourceBundle: () => ({ resourceMachineStore }),
       machineDir: '/workspace',
       accounts: { list: () => Promise.resolve([]) },
       loadBundle: () => {
@@ -205,6 +195,7 @@ describe('M117 headless estimator bindings', () => {
     const estimate = createRuntimeEstimate({
       bundlePath: 'estimator.js',
       log,
+      loadResourceBundle: () => ({ resourceMachineStore }),
       machineDir: '/workspace',
       accounts: { list: () => Promise.resolve([]) },
       loadBundle: (file: string) => {
@@ -272,6 +263,7 @@ describe('M117 headless estimator bindings', () => {
           error: (text) => {
             err += text
           },
+          loadResourceBundle: () => ({ resourceMachineStore }),
           machineDir: folder,
           accounts,
           loadBundle: () => fleetEchoEngine(),
@@ -339,6 +331,7 @@ describe('M117 headless estimator bindings', () => {
         bundlePath: 'estimator.js',
         log,
         loadBundle: () => fleetEchoEngine(),
+        loadResourceBundle: () => ({ resourceMachineStore }),
         machineDir: folder,
         accounts: { list: () => Promise.resolve([{ id: 'studio' }]) },
       })
@@ -367,19 +360,12 @@ describe('M117 headless estimator bindings', () => {
   })
   it('installs the caller language table in the snapshot bundle', async () => {
     const installed: { locale: string; notFound: string }[] = []
-    const ports = runtimeEstimatorPorts({
-      snapshotBundlePath: 'dist/planSnapshot.js',
-      log,
-      root: '/workspace',
-      machineDir: '/workspace',
-      accounts: { list: () => Promise.resolve([]) },
-      loadBundle: () => ({
-        installPlanSnapshotText: (table: typeof EN, locale: string) => {
-          installed.push({ locale, notFound: table.estimateNotFound })
-        },
-        createPlanSnapshotSource: () => rejectedSnapshot,
-      }),
-    })
+    const ports = portsWithoutSnapshot(() => ({
+      installPlanSnapshotText: (table: typeof EN, locale: string) => {
+        installed.push({ locale, notFound: table.estimateNotFound })
+      },
+      createPlanSnapshotSource: () => rejectedSnapshot,
+    }))
     setUiText({ ...EN, estimateNotFound: 'Nicht gefunden: {goal}' }, 'de')
     await expect(
       ports.snapshot({ kind: 'milestone', milestoneId: 'M999' }, ESTIMATOR_AS_OF),

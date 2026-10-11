@@ -4119,10 +4119,12 @@ describe('M117 estimator in the real App', () => {
     deliver({
       type: 'estimatorFailure',
       requestId: request.requestId,
-      reason: 'fake-source-failed',
+      reason: 'fleet-account-blocked meta/work reset unknown',
     })
     await vi.waitFor(() => expect(run).not.toBeDisabled())
-    expect(screen.getByRole('alert').textContent).toContain('estimate-unavailable')
+    expect(screen.getByRole('alert').textContent).toContain(
+      'fleet-account-blocked meta/work reset unknown',
+    )
   })
   it('starts the existing fleet independently of rental-provider readiness', async () => {
     const { post } = await estimateInApp(true)

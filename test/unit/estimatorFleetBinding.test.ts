@@ -262,12 +262,12 @@ describe('M117 fleet binding', () => {
         {
           id: 'local',
           providerId: 'local',
-          statedLimits: [`Unknown: no account reader on ${surface}.`],
+          statedLimits: [`Unknown account limits on ${surface}.`],
         },
       ])
       expect(fleet.slots.map((slot) => slot.accountId)).toEqual(['local'])
       const trial = prepareEstimateSchedule(lanes, fleet).run(undefined)
-      expect(trial.unknownLimits).toContain(`Unknown: no account reader on ${surface}.`)
+      expect(trial.unknownLimits).toContain(`Unknown account limits on ${surface}.`)
       expect(trial.unknownLimits).toContain('local:requestsPerMinute')
       expect(trial.unknownLimits).toContain('local:tokensPerMinute')
       expect(trial.unknownLimits).toContain('local:usageLimits')
@@ -581,7 +581,7 @@ describe('M117 fleet binding', () => {
       {
         id: 'local',
         providerId: 'local',
-        statedLimits: ['Unknown: no account reader on editor.'],
+        statedLimits: ['Unknown account limits on editor.'],
       },
     ])
     // A governor that is off states no threshold row.

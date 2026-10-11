@@ -29,6 +29,7 @@ import { reportCommandArguments } from '../reporting/reportCommand'
 // (permission mode, effort, thinking) and for the images waiting to be sent.
 
 import type { EstimateSection } from '../../shared/estimate'
+import { estimateFailureText } from '../../runtime/estimator/command'
 import path from 'node:path'
 import { Buffer } from 'node:buffer'
 import { AttachmentStore } from '../../core/attachments'
@@ -9358,7 +9359,7 @@ export class ConversationController {
       } catch (error: unknown) {
         if (pending.signal.aborted || generation !== this.sendInvalidationEpoch || this.isDisposed)
           return
-        const reason = describe(error)
+        const reason = estimateFailureText(error)
         this.deps.log.error(`The estimate failed: ${reason}`)
         this.post({ type: 'estimatorFailure', ...correlation, reason })
         this.notice('warning', reason)

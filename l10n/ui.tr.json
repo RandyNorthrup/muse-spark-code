@@ -5227,7 +5227,7 @@
       "other": "{count} izin"
     }
   },
-  "estimateNoAccountReader": "Bilinmiyor: {source} üzerinde hesap okuyucusu yok.",
+  "estimateNoAccountReader": "{source} üzerindeki hesap limitleri bilinmiyor.",
   "estimateLimitsUnread": "Bilinmiyor: {source} sınırları okunmadı.",
   "estimateRefillUnknown": "Gelecekteki yenileme dönemi ve hızı bilinmiyor: {source}.",
   "estimatePlanWindowUnknown": "{source}: {percent} kullanıldı; {reset}; pencere dönemi ve görev talebi bilinmiyor.",

@@ -5380,7 +5380,7 @@
       "many": "{count} autorizzazioni"
     }
   },
-  "estimateNoAccountReader": "Sconosciuto: nessun lettore di account su {source}.",
+  "estimateNoAccountReader": "Limiti dell’account sconosciuti su {source}.",
   "estimateLimitsUnread": "Sconosciuto: limiti non letti per {source}.",
   "estimateRefillUnknown": "Periodo e velocità di ripristino futuri sconosciuti: {source}.",
   "estimatePlanWindowUnknown": "{source}: {percent} utilizzato; {reset}; periodo della finestra e richiesta delle attività sconosciuti.",

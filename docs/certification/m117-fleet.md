@@ -173,11 +173,11 @@ byte-exact red drill.
 
 ## Surface table (new state)
 
-| Surface         | Entry                                                                                              | Machine capacity                                                                        | Settings source                                                                                                                                       | Accounts                                                                                                                                                                                                                                                                                                                     | CI                     |
-| --------------- | -------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
-| VS Code panel   | `src/extension.ts` `estimatorSourcePorts` ← `fleetIoFromSources(extensionFleetSources({inspect}))` | Certified one serial slot; live thresholds as caps facts; nothing with the governor off | Live workspace configuration (`readResourceSettings` over the configuration's own `inspect`)                                                          | `unknown: no account reader in this editor` (typed seam; the panel reads the AccountStore registry and static capability names, live usage sits on the backend's account home, and `MuseCodeAccountHomes` is never constructed in production, but the existing usage/read and usage/changed readers were left unbound in R3) | `ci unknown: not read` |
-| CLI `estimate`  | `src/runtime/main.ts` `runRuntimeEstimateCommand` ← `runtimeEstimatorPorts`                        | Same one slot; same facts/off rule                                                      | The headless governor's own `resourceMachineStore` over `<agent data>/resources.json` (missing file: schema defaults; present file: configured value) | Registry identity (`meta` account named, limits unknown) or `unknown: no account reader in this runtime`                                                                                                                                                                                                                     | `ci unknown: not read` |
-| ACP `/estimate` | `src/runtime/main.ts` `createRuntimeEstimate` ← the same ports                                     | Same                                                                                    | Same file and reader as CLI (the ACP agent's `resources` object shares the agent data folder)                                                         | Same as CLI                                                                                                                                                                                                                                                                                                                  | `ci unknown: not read` |
+| Surface         | Entry                                                                                              | Machine capacity                                                                        | Settings source                                                                                                                                       | Accounts                                                                                                                                                                                                                  | CI                     |
+| --------------- | -------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
+| VS Code panel   | `src/extension.ts` `estimatorSourcePorts` ← `fleetIoFromSources(extensionFleetSources({inspect}))` | Certified one serial slot; live thresholds as caps facts; nothing with the governor off | Live workspace configuration (`readResourceSettings` over the configuration's own `inspect`)                                                          | R3 left the existing usage/read and usage/changed owners unbound and emitted an unknown editor row; R4 binds those owners. `MuseCodeAccountHomes` is not constructed in production and is not required for these readers. | `ci unknown: not read` |
+| CLI `estimate`  | `src/runtime/main.ts` `runRuntimeEstimateCommand` ← `runtimeEstimatorPorts`                        | Same one slot; same facts/off rule                                                      | The headless governor's own `resourceMachineStore` over `<agent data>/resources.json` (missing file: schema defaults; present file: configured value) | Registry identity (`meta` account named, limits unknown) or `unknown: no account reader in this runtime`                                                                                                                  | `ci unknown: not read` |
+| ACP `/estimate` | `src/runtime/main.ts` `createRuntimeEstimate` ← the same ports                                     | Same                                                                                    | Same file and reader as CLI (the ACP agent's `resources` object shares the agent data folder)                                                         | Same as CLI                                                                                                                                                                                                               | `ci unknown: not read` |
 
 No fourth assembly calls `estimatorSourcePorts`. On CI templates: no
 repository reader exists — the only `concurrentJobs`/`occupiedJobs`
@@ -333,20 +333,20 @@ regression separately failed before the owner origin was carried. No model
 attempt, credential access, install, merge, push, hook substitution or cap
 increase occurred. Full quality remains lead-owned under the rig/common brief.
 
-| Finding | Fix                                                                                                            | Regression in estimatorFleetReview.test.ts                                         | Drill                              |
-| ------- | -------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | ---------------------------------- |
-| 1       | Bind backend usage/read and the UI's live usage/changed recording; standalone CLI reads registry identity only | real recording on panel/ACP; restored panel reader test                            | D1                                 |
-| 2       | Current allowance/reset, future refill/rate unknown; no rate from time remaining                               | same bucket at minutes 0/50                                                        | D2                                 |
-| 3       | Full captured percent window retains 100% allowance and its period after initial reset                         | full three-hour lane ends at 19:20, not 16:00                                      | D3                                 |
-| 4       | Initial admission uses latest simultaneous reset                                                               | state/reset/vendor table, later vendor and later plan window                       | D4                                 |
-| 5       | Full unknown reset refuses, never becomes absent                                                               | full/null/vendor table                                                             | D5                                 |
-| 6       | Raw owner schema validates before translation; registry errors retain owner code                               | malformed limits; metadata unavailable                                             | D6, D6b                            |
-| 7       | Invocation-owned memo shared only by that request's fleet and candidate pool                                   | overlapping estimates, equal and unequal timestamps                                | D7                                 |
-| 8       | CI uncertainty applies only to demanded CI capacity                                                            | actual first-wave starter, zero CI demand                                          | D8                                 |
-| 9       | Allowlisted diagnostics keep source/reset; raw IO errors stay private                                          | safe formatting and CLI failure                                                    | D9                                 |
-| 10      | Runtime templates in English and all fourteen translations; Intl numbers/percent/dates                         | installed language read at estimate time                                           | D10                                |
-| 11      | Per-threshold default/configured origin travels with the value and forecast qualification                      | equal thresholds with distinct origins; default forecast sentence; runtime sources | D11                                |
-| 12      | Correct inherited vs added panel bytes; cap repair and final build receipts follow below                       | existing production size gate                                                      | baseline build exits 1 at 25,908 B |
+| Finding | Fix                                                                                                            | Regression in estimatorFleetReview.test.ts                                         | Drill                            |
+| ------- | -------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | -------------------------------- |
+| 1       | Bind backend usage/read and the UI's live usage/changed recording; standalone CLI reads registry identity only | real recording on panel/ACP; restored panel reader test                            | D1                               |
+| 2       | Current allowance/reset, future refill/rate unknown; no rate from time remaining                               | same bucket at minutes 0/50                                                        | D2                               |
+| 3       | Full captured percent window retains 100% allowance and its period after initial reset                         | full three-hour lane ends at 19:20, not 16:00                                      | D3                               |
+| 4       | Initial admission uses latest simultaneous reset                                                               | state/reset/vendor table, later vendor and later plan window                       | D4                               |
+| 5       | Full unknown reset refuses, never becomes absent                                                               | full/null/vendor table                                                             | D5                               |
+| 6       | Raw owner schema validates before translation; registry errors retain owner code                               | malformed limits; metadata unavailable                                             | D6, D6b                          |
+| 7       | Invocation-owned memo shared only by that request's fleet and candidate pool                                   | overlapping estimates, equal and unequal timestamps                                | D7                               |
+| 8       | CI uncertainty applies only to demanded CI capacity                                                            | actual first-wave starter, zero CI demand                                          | D8                               |
+| 9       | Allowlisted diagnostics keep source/reset; raw IO errors stay private                                          | safe formatting and CLI failure; host/panel boundary regressions                   | D9, D9H, D9P                     |
+| 10      | Runtime templates in English and all fourteen translations; Intl numbers/percent/dates                         | installed language read at estimate time                                           | D10                              |
+| 11      | Per-threshold default/configured origin travels with the value and forecast qualification                      | equal thresholds with distinct origins; default forecast sentence; runtime sources | D11                              |
+| 12      | Correct inherited vs added panel bytes; cap repair and final build receipts follow below                       | existing production size/split gates                                               | D12, D12L; baseline gate failure |
 
 ## Surface ownership
 
@@ -395,3 +395,135 @@ estimatorFleetBinding (25, restored reader test; no skip), runtimeEstimatorPorts
 regression failed with unknown-capacity before repair, then passed. Initial
 five-project typecheck passed; final provenance/build checks follow in the
 completion record. Baseline panel 25,908 B, estimator 69,555 B; no cap changes.
+
+### R4 boundary and budget completion
+
+The real panel port had a second generic-error catch. It now distinguishes a
+validated, localized host refusal from a raw client error. The host uses the
+same allowlisted formatter as CLI, ACP and report output before sending that
+refusal. The panel and real App regressions check source/reset retention;
+the host and panel regressions also prove raw filesystem errors stay private.
+Their assertions failed before repair (panel: one failed assertion; host:
+one failed assertion, one existing source-retention assertion passed).
+
+The panel's shared contract reuses identical scalar schemas and uniqueness
+checks. Disclosure traversal uses one accumulator, and section validation
+indexes lanes/machines while retaining unknown-reference rejection. The panel
+reuses date formatting and setup selection and its already parsed initial
+section. Defaults and uncertainty sentences are made in the estimator engine,
+not computed in panel rendering. No DOM structure, style, token, accessibility
+attribute, gate threshold or dependency changes.
+
+The shared common brief's 2026-10-11 hub-file exception applies: changed English,
+feature catalog and generated reference hubs are marked **HUB: integration run**.
+Local related selection covers every other changed source plus the affected
+localization/reference identifier suites. The initial all-hub inventory of
+1,141 suites was a selection count, not an execution result.
+
+Additional restoration receipts:
+
+- D9H: `src/host/conversation/conversationController.ts`; mutant exit 1; before/after SHA-256 `d87af2fb991e132f7395a5f4a0591a64ac34e9826159c9e82444771994943378`.
+- D9P: `src/webview/estimator/EstimatorPanel.tsx`; mutant exit 1; before/after SHA-256 `7da51213f7103a8db47b78658fd8206bc623885cd9519990b69914f4176d8578`.
+- D12: `dist/webview/chunks/NB6XDKWK.js`; mutant exit 1; before/after SHA-256 `ddc8db400b704c6612d21e74f82e379ecd6d296a117196e7c35a18a715645e5c`.
+
+D12 appended 132 bytes to one emitted panel chunk, making the production
+size gate fail, then restored the chunk exactly. Source bytes and caps were
+unchanged. The initial reviewed-source build also failed this gate.
+
+The production split gate then exposed the existing direct runtime settings
+import in ACP. The estimator now loads the same resourceMachineStore through
+the existing resourceGovernor bundle, on first estimate use; settings remain
+read-only and no governor/process is started. Its factory is exported from
+that owner's existing entry and the loader validates the export. No split
+allowlist or cap was changed.
+
+| Production estimator row             | Reviewed HEAD (74b85d6fb) | R4 bytes | Unchanged cap |
+| ------------------------------------ | ------------------------: | -------: | ------------: |
+| Estimator panel dependency aggregate |                    25,908 |   25,568 |        25,600 |
+| dist/estimator.js                    |                    69,555 |   70,084 |        76,800 |
+
+Panel components now: 861 + 9,236 + 11,065 + 2,453 + 140 + 1,813 =
+25,568 B. Relative to R3: shared schema −191 B, panel rendering −149 B;
+340 B total saved. The base's 258 B and R3's added 50 B were real overage,
+not byte-identical artifacts. Build is green through sizes, splits, host
+globals and 92 third-party notices. Settings factory changes do not change
+the panel/engine bytes. Five-project typecheck passed; localization has all
+fourteen tables and zero problems; reference, roadmap and host API are current.
+
+### Related execution and rig restriction
+
+All 376 selected dependent suites ran at repository defaults, in 126 sequential
+batches of at most three specifications with maxWorkers=3. Vitest's returned
+module collection is cumulative across batches; totals are taken from the final
+collection, not added across receipts. The first pass: 362 passing suites,
+9 opt-in/platform skips, 5 failed suites; 8,748 passing assertions and four
+failed assertions, plus one hook timeout. No live opt-in was enabled.
+
+One assertion pinned unconditional CI uncertainty despite having zero CI demand.
+Its fixture now declares CI demand and keeps its original unread-capacity and
+input-immutability assertions; the zero-CI starter regression remains separate.
+The hung-compiler deadline, usageIntegration deadline and windowsTrustedPath
+hook are rerun separately below without increasing their deadlines.
+
+The foreign-user probe in test/unit/vault/peer.test.ts is externally blocked:
+its compiled client lives under /var/tmp/l-CM1173, which is owner-only mode 700.
+`sudo -n -u nobody -- <client> <socket>` reported client command not found;
+that UID cannot traverse the parent. The fixture does make its own child folder
+searchable, but cannot change its private parent. No chmod of the rig root,
+alternate launcher, path relocation, shim or other bypass was attempted.
+The lead must run that probe from its permitted test environment before a green
+integration claim. The suite itself ran; its foreign-user client did not.
+
+The review's four baseline setup failures did not reproduce here: all 681
+conversationController assertions passed, including native material admission /
+held Host admission retarget=false/true and held Plan admission retarget=false/true.
+Those paths were not changed to cure the historical setup failures.
+
+Isolated default-timeout follow-up: estimatorSchedule + estimatorPanel +
+runtimeEstimatorPorts passed all 72 assertions; spawnBootstrap passed its full
+suite, and windowsTrustedPath passed its full suite. usageIntegration's
+integrated authenticated-page case still times out at 5 s. Its read-only base
+comparison uses 74b85d6fb source supplied by an in-memory Vite plugin; no base
+checkout or file mutation. A first baseline probe mistakenly selected too many
+files and was cancelled; its results are excluded. The corrected baseline
+probe asserts that exactly this one specification is selected before running.
+
+D12L rejected the valid settings factory deliberately: CLI owner regression
+failed, exit 1; src/runtime/estimator/ports.ts SHA-256 before/after
+`ffbdb20e28725b8dfb146d4a13bfe8bb926ebc90f6fc460842004ce7229b5f59`. Final owner suites passed 55 assertions;
+final boundary/schedule/runtime suites passed 72.
+
+The usageIntegration authenticated-page deadline failure was reproduced with
+all changed source supplied from reviewed HEAD 74b85d6fb in memory: the same
+case timed out at 5 s, with its other two assertions passing. It is inherited,
+not cured by increasing a timeout or changing unrelated host code. The lead
+owns this baseline issue alongside the blocked foreign-user probe. Full quality,
+coverage and other-OS integration remain lead-owned as explicitly required by
+the rig/common brief. No skipped test or gate weakening was added.
+
+The mandatory broad dependency run and final verification exceeded the brief's
+90-minute timebox. This record does not claim the timebox was met.
+
+Shared rig load observed during final verification: 10.95 / 23.42 / 25.81
+(1 / 5 / 15 minute averages). Deadline failures were isolated and rerun with
+the repository defaults; no deadline was raised.
+
+Final production build exits 0 through tokens, size budgets, split ownership,
+host globals and third-party notices. Panel 25,568 B (32 B under its unchanged
+25,600 B cap), estimator 70,084 B (76,800 B cap). A literal restoration of the
+price JSX briefly produced 25,608 B and failed the size gate; using one fragment
+outside the same price conditional preserves empty custom-price rendering and
+removes the duplicated emitted wrappers. No gate or fallback policy changed.
+
+Final static receipts: all five typecheck projects pass; ESLint passes at
+max-warnings=0; deadcode passes (two inherited configuration hints), jscpd
+reports zero clones, and localization reports zero problems across fourteen
+UI and fourteen usage tables. Reference and host API checks pass.
+
+Canonical estimator visual subset: all 72 captures (six states in each of
+six themes at 320 and 690 px), zero changed pixels. Baseline revision
+`6636c84beb804af52e49363ac10ede3223d3d295`, Chrome `150.0.7871.186`, Linux;
+rasterization fingerprint matches the stored manifest. Uses captureMatrix,
+manifest coverage/hash validation and comparePixels with the production
+tolerance; no baseline updates. This is the complete estimator subset, not
+the full 9,792-image visual gate. `node dist/acp.js estimate --help` exits 0.

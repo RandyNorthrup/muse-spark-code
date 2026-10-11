@@ -19180,6 +19180,11 @@ in-tree junctions below it, drive-letter spelling) and
 
 ## 3. Open questions (need the owner)
 
+- **CM1173R4 rig gates (2026-10-11):** which permitted integration environment
+  should run the foreign-user vault probe outside its private TMPDIR, and how
+  should M102's inherited five-second authenticated-page deadline be resolved?
+  The local evidence and gate deferrals are in §7 and m117-fleet certification.
+
 **Q-VISREGEN2 resolved by lead (2026-10-09).** Preserve every 0.17.0
 change and Highlight while tightening only that release's wording below
 72,000 decoded bytes. Keep 0.16.0 and older notes byte-exact and all content
@@ -36638,6 +36643,11 @@ Write regressions before fixes, record byte-exact red drills and exact bundle
 bytes in docs/certification/m117-fleet.md; run five typechecks and all related
 suites at repository deadlines. No merge, push, dependency, paid/live call or
 aggregate quality (lead-owned under the rig brief).
+R4 panel budget repair also deduplicates shared validation and panel date/setup
+rendering without changing DOM/styles. The real host-to-panel refusal bridge
+retains safe source/reset diagnostics and hides raw I/O failures. Hub files
+follow the common brief's identifier-suite/integration exception; exact final
+build and related-test receipts live in docs/certification/m117-fleet.md.
 
 **C-M117-3R3 redesign on the real contracts (2026-10-11, Kubuntu; review
 RVCM1173B).** Third round, so the binding is redesigned, not patched: the
@@ -38149,6 +38159,20 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**CM1173R4 local certification limit (2026-10-11).** No threshold, timeout,
+ignore or skipped test was changed. The authorized rig brief reserves aggregate
+quality and cross-OS integration to the lead. The fleet repairs and local build
+are reviewable; integration green remains contingent on these unrelated checks:
+
+| Check                                  | Evidence and justified local deferral                                                                                                                                                                                          | Owner       |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------- |
+| Native foreign-user vault probe        | `test/unit/vault/peer.test.ts` ran, but nobody could not execute its compiled client through the rig's owner-only mode-700 TMPDIR. No parent chmod or alternate launcher/path bypass. Run in the lead's permitted environment. | Lead        |
+| M102 authenticated usage-page deadline | `usageIntegration.test.ts` times out at the unchanged 5-second default on current code and with reviewed 74b85d6fb sources supplied in memory. Other two cases pass; no unrelated host rewrite or timeout increase.            | M102 / lead |
+
+Full receipts and passing reruns of the compiler/Windows path tests are in
+`docs/certification/m117-fleet.md`. The review's four controller setup failures
+passed here; they were not patched.
 
 **CIR4MAC scoped hosted-CI repair (2026-10-09, macmini).** Reproduce
 round 4's macOS target-size deadline and palette failure-render ordering

@@ -16,6 +16,7 @@ import {
   uiLocale,
 } from '../../shared/l10n/text'
 import { useFormatUsd } from '../money'
+import { EstimatorHostFailure } from './failure'
 import './estimator.css'
 
 /**
@@ -30,7 +31,7 @@ function MachinePrice({
   readonly price: CatalogPrice
 }) {
   const formatted = useFormatUsd(price.hourlyUsd, 2)
-  return port.price === undefined ? <>{formatted ?? null}</> : <>{port.price(price)}</>
+  return <>{port.price === undefined ? formatted : port.price(price)}</>
 }
 
 export interface EstimatorPanelPort {
@@ -48,15 +49,24 @@ export interface EstimatorPanelPort {
       }
 }
 
+function dateText(value: string): string {
+  return formatDateTime(Date.parse(value))
+}
+function selectSetup(next: EstimateSection, previous: EstimateSection['setups'][number]['kind']) {
+  return next.setups.some((setup) => setup.kind === previous)
+    ? previous
+    : (next.setups[0]?.kind ?? 'current')
+}
+
 function setupName(kind: EstimateSection['setups'][number]['kind']): string {
-  const names = {
-    current: UI_TEXT.estimateCurrent,
-    minimumP50: `${UI_TEXT.estimateMinimum} · ${UI_TEXT.estimateP50}`,
-    minimumP90: `${UI_TEXT.estimateMinimum} · ${UI_TEXT.estimateP90}`,
-    optimumCost: `${UI_TEXT.estimateOptimum} · ${UI_TEXT.estimateCost}`,
-    optimumSpeed: `${UI_TEXT.estimateOptimum} · ${UI_TEXT.estimateSpeed}`,
-  }
-  return names[kind]
+  if (kind === 'current') return UI_TEXT.estimateCurrent
+  const detail = {
+    minimumP50: UI_TEXT.estimateP50,
+    minimumP90: UI_TEXT.estimateP90,
+    optimumCost: UI_TEXT.estimateCost,
+    optimumSpeed: UI_TEXT.estimateSpeed,
+  }[kind]
+  return `${kind.startsWith('minimum') ? UI_TEXT.estimateMinimum : UI_TEXT.estimateOptimum} · ${detail}`
 }
 function resourceName(kind: EstimateSection['limitingResource']['kind']): string {
   return {
@@ -93,11 +103,9 @@ export default function EstimatorPanel({
   )
   // A section without a current setup still opens on its first available
   // setup; the radio must never point at a card that is not rendered.
-  const [selected, setSelected] = useState<EstimateSection['setups'][number]['kind']>(() => {
-    if (initialSection === undefined) return 'current'
-    const parsed = estimateSectionSchema.parse(initialSection)
-    return parsed.setups[0]?.kind ?? 'current'
-  })
+  const [selected, setSelected] = useState<EstimateSection['setups'][number]['kind']>(
+    () => section?.setups[0]?.kind ?? 'current',
+  )
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [spinning, setSpinning] = useState(false)
@@ -116,11 +124,7 @@ export default function EstimatorPanel({
       setDeadline(next.inputs.request.deadline ?? '')
       setFleet(next.inputs.request.fleet)
       setOptimize(next.inputs.request.optimize)
-      setSelected((previous) =>
-        next.setups.some((setup) => setup.kind === previous)
-          ? previous
-          : (next.setups[0]?.kind ?? 'current'),
-      )
+      setSelected((previous) => selectSetup(next, previous))
     }
   }
   useEffect(() => {
@@ -149,11 +153,7 @@ export default function EstimatorPanel({
       setBusy(false)
       setError('')
       setSection(next)
-      setSelected((previous) =>
-        next.setups.some((setup) => setup.kind === previous)
-          ? previous
-          : (next.setups[0]?.kind ?? 'current'),
-      )
+      setSelected((previous) => selectSetup(next, previous))
     })
     return () => {
       // The adapter is being replaced (or the panel closed): drop its request,
@@ -206,17 +206,17 @@ export default function EstimatorPanel({
       if (JSON.stringify(next.inputs.request) !== expectedRequest)
         throw new Error('request-mismatch')
       setSection(next)
-      setSelected(
-        next.setups.some((setup) => setup.kind === selected)
-          ? selected
-          : (next.setups[0]?.kind ?? 'current'),
-      )
+      setSelected(selectSetup(next, selected))
     } catch (error: unknown) {
       if (
         !controller.signal.aborted &&
         !(error instanceof DOMException && error.name === 'AbortError')
       )
-        setError(fill(UI_TEXT.estimateFailed, { detail: 'estimate-unavailable' }))
+        setError(
+          error instanceof EstimatorHostFailure
+            ? error.message
+            : fill(UI_TEXT.estimateFailed, { detail: 'estimate-unavailable' }),
+        )
     } finally {
       if (pending.current === controller && !controller.signal.aborted) setBusy(false)
     }
@@ -322,11 +322,11 @@ export default function EstimatorPanel({
           <dl className="estimator-forecast">
             <dt>{UI_TEXT.estimateP50}</dt>
             <dd>
-              <time dateTime={section.p50}>{formatDateTime(Date.parse(section.p50))}</time>
+              <time dateTime={section.p50}>{dateText(section.p50)}</time>
             </dd>
             <dt>{UI_TEXT.estimateP90}</dt>
             <dd>
-              <time dateTime={section.p90}>{formatDateTime(Date.parse(section.p90))}</time>
+              <time dateTime={section.p90}>{dateText(section.p90)}</time>
             </dd>
             <dt>{UI_TEXT.estimateBottleneck}</dt>
             <dd>
@@ -380,10 +380,10 @@ export default function EstimatorPanel({
                   {setupName(card.kind)}
                 </span>
                 <span>
-                  {UI_TEXT.estimateP50}: {formatDateTime(Date.parse(card.p50))}
+                  {UI_TEXT.estimateP50}: {dateText(card.p50)}
                 </span>
                 <span>
-                  {UI_TEXT.estimateP90}: {formatDateTime(Date.parse(card.p90))}
+                  {UI_TEXT.estimateP90}: {dateText(card.p90)}
                 </span>
                 {card.machines.map((machine) => (
                   <span key={machine.classId}>
@@ -460,8 +460,8 @@ export default function EstimatorPanel({
               </pre>
             </details>
             <p>
-              {UI_TEXT.estimateAsOf}: {formatDateTime(Date.parse(section.asOf))} ·{' '}
-              {UI_TEXT.estimateSeed}: {section.seed}
+              {UI_TEXT.estimateAsOf}: {dateText(section.asOf)} · {UI_TEXT.estimateSeed}:{' '}
+              {section.seed}
             </p>
           </section>
         </>
@@ -531,7 +531,7 @@ function Gantt({ section }: { readonly section: EstimateSection }) {
               {row.laneId}
               {row.critical && ` · ${UI_TEXT.estimateCriticalPath}`}
               <br />
-              {formatDateTime(Date.parse(row.start))} → {formatDateTime(Date.parse(row.end))}
+              {dateText(row.start)} → {dateText(row.end)}
             </button>
             <div className="estimator-track" aria-hidden="true">
               <span

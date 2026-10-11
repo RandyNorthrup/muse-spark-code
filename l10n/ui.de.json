@@ -5227,7 +5227,7 @@
       "other": "{count} Freigaben"
     }
   },
-  "estimateNoAccountReader": "Unbekannt: kein Kontoleser auf {source}.",
+  "estimateNoAccountReader": "Unbekannte Kontolimits auf {source}.",
   "estimateLimitsUnread": "Unbekannt: Limits für {source} nicht gelesen.",
   "estimateRefillUnknown": "Künftiger Auffüllzeitraum und Rate unbekannt: {source}.",
   "estimatePlanWindowUnknown": "{source}: {percent} verbraucht; {reset}; Fensterzeitraum und Arbeitsbedarf unbekannt.",

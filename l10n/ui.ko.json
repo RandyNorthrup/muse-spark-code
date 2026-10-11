@@ -5074,7 +5074,7 @@
       "other": "{count} 개 권한"
     }
   },
-  "estimateNoAccountReader": "알 수 없음: {source}에 계정 읽기 원본이 없습니다.",
+  "estimateNoAccountReader": "{source}의 계정 한도를 알 수 없습니다.",
   "estimateLimitsUnread": "알 수 없음: {source}의 한도를 읽지 않았습니다.",
   "estimateRefillUnknown": "향후 충전 주기와 속도를 알 수 없습니다: {source}.",
   "estimatePlanWindowUnknown": "{source}: {percent} 사용; {reset}; 창 주기와 작업 수요를 알 수 없습니다.",

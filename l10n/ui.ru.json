@@ -5533,7 +5533,7 @@
       "many": "{count} разрешений"
     }
   },
-  "estimateNoAccountReader": "Неизвестно: нет средства чтения аккаунтов на {source}.",
+  "estimateNoAccountReader": "Лимиты аккаунта на {source} неизвестны.",
   "estimateLimitsUnread": "Неизвестно: лимиты для {source} не прочитаны.",
   "estimateRefillUnknown": "Будущий период и скорость пополнения неизвестны: {source}.",
   "estimatePlanWindowUnknown": "{source}: использовано {percent}; {reset}; период окна и потребность задач неизвестны.",

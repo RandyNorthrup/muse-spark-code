@@ -53,6 +53,7 @@ import { parseLoopPrompt } from '../core/backends/modelapi/schedules'
 import { fill, formatNumber, plural, templateParts } from '../shared/l10n/text'
 import type { EstimateRequest, EstimateSection } from '../shared/estimate'
 import type { EstimatorPanelPort } from './estimator/EstimatorPanel'
+import { EstimatorHostFailure } from './estimator/failure'
 import { isEstimateCommandText } from './estimator/commandPrefix'
 import {
   availablePermissionModes,
@@ -1006,7 +1007,9 @@ export function App({
     if (estimatorFailure === undefined) return
     const requestId = estimatorFailure.requestId ?? estimateCurrentId.current
     if (requestId === undefined) return
-    estimatePendings.current.get(requestId)?.reject(new Error(estimatorFailure.reason))
+    estimatePendings.current
+      .get(requestId)
+      ?.reject(new EstimatorHostFailure(estimatorFailure.reason))
     estimatePendings.current.delete(requestId)
   }, [estimatorFailure])
   const estimatorStarted = state.estimatorStarted

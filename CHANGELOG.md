@@ -124,6 +124,8 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Keep the Estimator panel within its existing byte budget, retain safe host refusal details through the panel, and load headless settings from their existing resource bundle on first estimate.
+
 - **Strict estimator snapshots** (M117 C-M117-1R3). Unresolved prerequisites,
   release members and unfinished rig names now refuse together by name;
   duplicate lane identities cannot merge silently. Completion follows origin's

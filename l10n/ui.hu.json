@@ -5227,7 +5227,7 @@
       "other": "{count} engedély"
     }
   },
-  "estimateNoAccountReader": "Ismeretlen: nincs fiókolvasó ezen: {source}.",
+  "estimateNoAccountReader": "Ismeretlen fiókkorlátok itt: {source}.",
   "estimateLimitsUnread": "Ismeretlen: a(z) {source} korlátai nincsenek beolvasva.",
   "estimateRefillUnknown": "A jövőbeli feltöltési időszak és sebesség ismeretlen: {source}.",
   "estimatePlanWindowUnknown": "{source}: {percent} felhasználva; {reset}; az időablak és a feladatok igénye ismeretlen.",

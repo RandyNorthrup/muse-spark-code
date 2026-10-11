@@ -199,28 +199,25 @@ function applyAccountSource(
     )
     return { ...base, accounts: [row], slots: spend('local') }
   }
-  if (source.kind === 'registry') {
-    const row = unknownAccountRow(
-      source.accountId,
-      source.providerId,
-      fill(UI_TEXT.estimateLimitsUnread, { source: `${source.providerId}/${source.accountId}` }),
-    )
-    return { ...base, accounts: [row], slots: spend(source.accountId) }
-  }
+  const unread = (accountId: string, providerId: string): FleetSnapshot => ({
+    ...base,
+    accounts: [
+      unknownAccountRow(
+        accountId,
+        providerId,
+        fill(UI_TEXT.estimateLimitsUnread, { source: `${providerId}/${accountId}` }),
+      ),
+    ],
+    slots: spend(accountId),
+  })
+  if (source.kind === 'registry') return unread(source.accountId, source.providerId)
   const translated = fleetAccountFromLimits({
     providerId: source.providerId,
     account: { id: source.accountId },
     limits: source.snapshot,
     nowMs: source.nowMs ?? Date.parse(base.asOf),
   })
-  if (translated === undefined) {
-    const row = unknownAccountRow(
-      source.accountId,
-      source.providerId,
-      fill(UI_TEXT.estimateLimitsUnread, { source: `${source.providerId}/${source.accountId}` }),
-    )
-    return { ...base, accounts: [row], slots: spend(source.accountId) }
-  }
+  if (translated === undefined) return unread(source.accountId, source.providerId)
   return {
     ...base,
     accounts: [

@@ -29,6 +29,7 @@ import { WindowsResourceTreeReader } from './trees/windows'
 import type { ResourceAdmission, ResourceLaunchRequest } from './queue'
 // POSTSPAWN: the launcher and helper preparation live in dist/resourceProcess.js.
 export { createResources } from '../../runtime/resources/entry'
+export { resourceMachineStore } from '../../runtime/resources/settings'
 // U–C1: the window's status item and pause notices load with the governor, never at activation.
 export {
   createResourceStatus,

@@ -404,7 +404,7 @@ describe('M117 resource list scheduling', () => {
     delete fleet.accounts[0]!.tokensPerMinute
     delete fleet.ci[0]!.minutesRemaining
     const before = JSON.stringify(fleet)
-    const result = prepareEstimateSchedule([scheduleLane('A')], fleet).run()
+    const result = prepareEstimateSchedule(ciLanes(['A']), fleet).run()
     expect(result.unknownLimits).toEqual([
       'account-1:tokensPerMinute',
       'account-1:usageLimits',
