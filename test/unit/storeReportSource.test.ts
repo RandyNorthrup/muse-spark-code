@@ -218,7 +218,10 @@ describe('store report source', () => {
     })
   })
 
-  it('does not request npm for a private extension', async () => {
+  it('refuses npm for a private extension without requesting it', async () => {
+    // C-M113-6: a private manifest publishes no npm package under its own
+    // name, so the npm row is refused with the true reason even when an
+    // adapter is bound; the manifest name is never queried.
     const { reader, transport } = healthyStores()
     const result = await storesReportSource({
       reader,
@@ -226,7 +229,14 @@ describe('store report source', () => {
       releaseVersion: '0.14.2',
       adapters,
     }).read(networkContext())
-    expect(result.data?.map((row) => row.channel)).toEqual(['Marketplace', 'Open VSX'])
+    expect(result.data?.map((row) => row.channel)).toEqual(['Marketplace', 'Open VSX', 'npm'])
+    expect(result.data?.find((row) => row.channel === 'npm')).toEqual({
+      channel: 'npm',
+      version: null,
+      url: 'https://www.npmjs.com/package/fixture',
+      status: 'unavailable',
+      reason: 'npm-private-manifest',
+    })
     expect(transport).toHaveBeenCalledTimes(2)
   })
 

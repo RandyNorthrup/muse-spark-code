@@ -258,8 +258,15 @@ export function githubReportSource(options: ReportGitHubOptions): ReportSourcePo
               )
               runs.push(...additional.runs)
               releases = additional.releases
-            } catch {
-              reasons.push('workflow-releases-unavailable')
+            } catch (error: unknown) {
+              // A refused wire shape keeps its own reason (C-M113-6: a null
+              // run conclusion, a draft or prerelease release, a release tag
+              // without a commit); only an unshaped failure stays generic.
+              reasons.push(
+                error instanceof ReportNetworkFailure
+                  ? error.message
+                  : 'workflow-releases-unavailable',
+              )
             }
           }
           return {

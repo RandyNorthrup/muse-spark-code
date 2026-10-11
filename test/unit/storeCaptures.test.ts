@@ -37,6 +37,19 @@ describe('store capture fixtures', () => {
     ).toEqual(CAPTURES.toSorted(byName))
   })
 
+  it('reads the latest release from the first page, never a separate shape', async () => {
+    // The capture record states `/releases/latest` equals page 1's first
+    // element: the adapter pages `/releases` only, so no second release
+    // shape is parsed.
+    const latest = JSON.parse(
+      await readFile(path.join(STORES, 'github-releases-latest', 'response.body.json'), 'utf8'),
+    ) as unknown
+    const page = JSON.parse(
+      await readFile(path.join(STORES, 'github-releases-page1', 'response.body.json'), 'utf8'),
+    ) as unknown[]
+    expect(latest).toEqual(page[0])
+  })
+
   it.each(CAPTURES)('matches the receipt hash for %s', async (capture) => {
     const folder = path.join(STORES, capture)
     const receipt = JSON.parse(await readFile(path.join(folder, 'receipt.json'), 'utf8')) as {

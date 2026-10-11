@@ -18,9 +18,12 @@ import {
   type ReportNetworkTransport,
 } from '../../core/reporting/sources/cache'
 import { githubReportSource, ghReportTransport } from '../../core/reporting/sources/github'
-import { storesReportSource } from '../../core/reporting/sources/stores'
+import { storesReportSource, type ReportStoreAdapter } from '../../core/reporting/sources/stores'
 import { GITHUB_API_BASE_URL, LEGAL_REGISTRY_HOSTS } from '../../shared/constants'
+import { githubWorkflowReleasesPort } from '../../core/reporting/sources/githubWorkflowReleases'
+import { marketplaceStoreAdapter } from '../../core/reporting/sources/marketplaceStore'
 import { npmStoreAdapter } from '../../core/reporting/sources/npmStore'
+import { openVsxStoreAdapter } from '../../core/reporting/sources/openVsxStore'
 import type { ReportStoreProject } from '../../core/reporting/sources/storeProject'
 import { reportScrubber } from '../../core/reporting/render/redaction'
 import { reportGitIo } from './sources'
@@ -114,10 +117,33 @@ export function reportingResponseCache(storageRoot: string): ReportResponseCache
 /**
  * CLI uses gh's own identity; editors inject their credential-owning HTTPS
  * transport. Without a workspace project the stores source stays unbound, as
- * before; with one, the npm channel reads through its captured adapter while
- * Marketplace, Open VSX, workflow runs and releases stay honestly
- * unavailable until their captures land.
+ * before; with one, every channel reads through its captured adapter
+ * (Marketplace, Open VSX, npm) and GitHub reads workflow runs and releases
+ * through the captured port. A private manifest's npm row refuses with
+ * `npm-private-manifest` (the manifest publishes no npm package under its
+ * own name); uncaptured shapes refuse with their own reasons.
  */
+/**
+ * The captured channel adapters for one workspace identity, mirroring the
+ * source's own channel applicability: the gallery channels only for an
+ * extension identity (publisher plus `engines.vscode`), the npm channel
+ * always (the source itself refuses it for a private manifest, whose
+ * published name it cannot know without hard-coding one).
+ */
+function storeAdapters(project: ReportStoreProject): ReportStoreAdapter[] {
+  const adapters: ReportStoreAdapter[] = [npmStoreAdapter(project.name)]
+  if (
+    project.publisher !== undefined &&
+    project.publisher !== '' &&
+    project.engines?.vscode !== undefined
+  )
+    adapters.unshift(
+      marketplaceStoreAdapter(project.publisher, project.name),
+      openVsxStoreAdapter(project.publisher, project.name),
+    )
+  return adapters
+}
+
 export function createReportingNetwork(
   context: ReportingNetworkContext,
   git: GitFacts | null | (() => GitFacts | null),
@@ -166,6 +192,7 @@ export function createReportingNetwork(
             remote: remote.stdout.trim(),
             headSha: facts.head,
             defaultBranch: facts.defaultBranch,
+            additional: githubWorkflowReleasesPort(),
           }).read(readContext)
         } catch (error) {
           return await localSource('github', () =>
@@ -186,7 +213,7 @@ export function createReportingNetwork(
               ...(project.private !== undefined && { private: project.private }),
             },
             releaseVersion: project.releaseVersion,
-            adapters: [npmStoreAdapter(project.name)],
+            adapters: storeAdapters(project),
           }),
   }
 }
