@@ -10,7 +10,10 @@ import process from 'node:process'
 import { vaultPrivateDirectory } from '../../../src/core/vault/broker/files'
 import os from 'node:os'
 import { build } from 'esbuild'
-import { startVaultBrokerProcess } from '../../../src/runtime/vault/brokerProcess'
+import {
+  startVaultBrokerProcess,
+  type VaultBrokerProcessOptions,
+} from '../../../src/runtime/vault/brokerProcess'
 import {
   vaultProcessIdentity,
   vaultSocketDescriptors,
@@ -530,10 +533,7 @@ describe.skipIf(process.platform === 'win32')('POSIX vault broker lifecycle', ()
       // learned it (RVCM1091B2 P2): without that, the server stays bound
       // here and the broker process never exits.
       expect(server.server.listening).toBe(false)
-      const discovery = new VaultBrokerDiscovery(f.options.runDirectory, f.options.userSession)
-      await expect(stat(path.join(discovery.directory, 'broker.sock'))).rejects.toMatchObject({
-        code: 'ENOENT',
-      })
+      await expectMissingSocket(f.options)
     } finally {
       // Always let the permission fix settle: with a broken guard the startup
       // below would otherwise stay pending on the gate and strand its kernel
@@ -557,12 +557,16 @@ describe.skipIf(process.platform === 'win32')('POSIX vault broker lifecycle', ()
         start({ ...f.options, helper: native.suicide, channel: reachedChannel }),
       ).rejects.toThrow()
       expect(reachedChannel).not.toHaveBeenCalled()
-      const discovery = new VaultBrokerDiscovery(f.options.runDirectory, f.options.userSession)
-      await expect(stat(path.join(discovery.directory, 'broker.sock'))).rejects.toMatchObject({
-        code: 'ENOENT',
-      })
+      await expectMissingSocket(f.options)
     } finally {
       await f.f.broker.dispose()
     }
   })
 })
+
+async function expectMissingSocket(options: VaultBrokerProcessOptions) {
+  const discovery = new VaultBrokerDiscovery(options.runDirectory, options.userSession)
+  await expect(stat(path.join(discovery.directory, 'broker.sock'))).rejects.toMatchObject({
+    code: 'ENOENT',
+  })
+}

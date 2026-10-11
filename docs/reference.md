@@ -1553,7 +1553,7 @@ Commands: `museSpark.showLogs`, `museSpark.diagnostics`, `museSpark.reportProble
 
 ### Vault
 
-vaultBroker=absent: The credential vault is unavailable in this build because the broker is not installed.
+vaultBroker=disabledPendingJoin: The credential vault is unavailable in this build because the broker is not installed.
 
 Work with the per-user credential vault from a terminal: setup, recover, reset, status, unlock, lock, list, add, grants, audit, import and watch. Values never print; the broker holds them.
 
@@ -1905,11 +1905,11 @@ Available when: `activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark
 
 ### Muse Spark: Vault
 
-`museSpark.vault` — vaultBroker=absent: The credential vault is unavailable in this build because the broker is not installed.
+`museSpark.vault` — vaultBroker=disabledPendingJoin: The credential vault is unavailable in this build because the broker is not installed.
 
 ### Muse Spark: Lock vault now
 
-`museSpark.lockVault` — vaultBroker=absent: The credential vault is unavailable in this build because the broker is not installed.
+`museSpark.lockVault` — vaultBroker=disabledPendingJoin: The credential vault is unavailable in this build because the broker is not installed.
 
 ### Muse Spark: Open Estimator
 

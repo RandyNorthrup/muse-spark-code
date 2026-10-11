@@ -9,24 +9,13 @@ import {
 } from '../../../src/core/vault/broker/ports'
 import type { VaultManagement } from '../../../src/core/vault/broker/management'
 import { KeyringVaultAnchor, VAULT_ANCHOR_ACCOUNT } from '../../../src/runtime/vault/keyringAnchor'
-import { type KeyringEntryFactory } from '../../../src/runtime/keyStore'
+import { memoryKeyring } from '../helpers/keyring'
 import { approval, grant, metadata } from '../helpers/vault/fixtures'
 import { freshVault } from './storeFixtures'
 import { lockedVault, managementFixture, stateOf } from './managementFixture'
 
 /** The OS store as a map; values are generated anchor records, never credentials. */
-function memoryKeyring() {
-  const entries = new Map<string, string>()
-  const factory: KeyringEntryFactory = (service, account) => ({
-    getPassword: () => Promise.resolve(entries.get(`${service}/${account}`) ?? null),
-    setPassword: (password) => {
-      entries.set(`${service}/${account}`, password)
-      return Promise.resolve()
-    },
-    deletePassword: () => Promise.resolve(entries.delete(`${service}/${account}`)),
-  })
-  return { entries, factory }
-}
+
 async function itemsOf(management: VaultManagement) {
   const snapshot = await management.snapshot()
   return snapshot.items
@@ -75,8 +64,8 @@ describe('C-M109-1 store v2 grants', () => {
 
 describe('C-M109-1 keyring rollback anchor', () => {
   it('F6: reset compares the complete expected state before retiring the anchor', async () => {
-    const keyring = memoryKeyring()
-    const anchor = new KeyringVaultAnchor(keyring.factory)
+    const keyring = memoryKeyring(true)
+    const anchor = new KeyringVaultAnchor(keyring.openEntry)
     const { anchor: generated, vaultId, key } = await freshVault()
     key.fill(0)
     const first = await generated.minimum(vaultId)
@@ -98,8 +87,8 @@ describe('C-M109-1 keyring rollback anchor', () => {
     expect(await anchor.vaultId()).toBeNull()
   })
   it('names one vault, advances only from its exact prior state and refuses another vault', async () => {
-    const keyring = memoryKeyring()
-    const anchor = new KeyringVaultAnchor(keyring.factory)
+    const keyring = memoryKeyring(true)
+    const anchor = new KeyringVaultAnchor(keyring.openEntry)
     const vaultId = 'a'.repeat(32)
     const first = {
       generation: 1,
@@ -109,7 +98,7 @@ describe('C-M109-1 keyring rollback anchor', () => {
     }
     expect(await anchor.vaultId()).toBeNull()
     await anchor.advance(vaultId, first, null)
-    expect(keyring.entries.has(`${KEYRING_SERVICE}/${VAULT_ANCHOR_ACCOUNT}`)).toBe(true)
+    expect(keyring.values.has(`${KEYRING_SERVICE}/${VAULT_ANCHOR_ACCOUNT}`)).toBe(true)
     expect(await anchor.vaultId()).toBe(vaultId)
     expect(await anchor.minimum(vaultId)).toEqual(first)
     const second = { ...first, generation: 2, stateDigest: '2'.repeat(64) }
@@ -117,7 +106,7 @@ describe('C-M109-1 keyring rollback anchor', () => {
     await expect(anchor.advance(vaultId, first, first)).rejects.toMatchObject({ code: 'rollback' })
     await anchor.advance(vaultId, second, first)
     await expect(anchor.minimum('b'.repeat(32))).rejects.toMatchObject({ code: 'rollback' })
-    keyring.entries.set(`${KEYRING_SERVICE}/${VAULT_ANCHOR_ACCOUNT}`, '{"v":1}')
+    keyring.values.set(`${KEYRING_SERVICE}/${VAULT_ANCHOR_ACCOUNT}`, '{"v":1}')
     await expect(anchor.minimum(vaultId)).rejects.toMatchObject({ code: 'rollback' })
   })
   it('reports an unusable OS store as its fixed repair, never as no history (RVCM1091B 4)', async () => {
@@ -129,8 +118,8 @@ describe('C-M109-1 keyring rollback anchor', () => {
     await expect(anchor.vaultId()).rejects.toBeInstanceOf(VaultStoreUnavailableError)
   })
   it('resets exactly this vault by compare-and-delete and refuses another vault (round-3 anchor)', async () => {
-    const keyring = memoryKeyring()
-    const anchor = new KeyringVaultAnchor(keyring.factory)
+    const keyring = memoryKeyring(true)
+    const anchor = new KeyringVaultAnchor(keyring.openEntry)
     const vaultId = 'a'.repeat(32)
     const state = {
       generation: 1,
@@ -138,12 +127,15 @@ describe('C-M109-1 keyring rollback anchor', () => {
       auditHead: '0'.repeat(64),
       stateDigest: '1'.repeat(64),
     }
-    // No record: reset is a no-op, never a failure.
-    await anchor.reset(vaultId)
+    // Round 5 requires the exact protected record, even when it disappeared.
+    const authorize = vi.fn()
+    await expect(anchor.reset(vaultId, null, authorize)).rejects.toMatchObject({ code: 'rollback' })
     await anchor.advance(vaultId, state, null)
-    await expect(anchor.reset('b'.repeat(32))).rejects.toMatchObject({ code: 'rollback' })
+    await expect(anchor.reset('b'.repeat(32), state, authorize)).rejects.toMatchObject({
+      code: 'rollback',
+    })
     expect(await anchor.vaultId()).toBe(vaultId)
-    await anchor.reset(vaultId)
+    await anchor.reset(vaultId, state, authorize)
     expect(await anchor.vaultId()).toBeNull()
   })
 })

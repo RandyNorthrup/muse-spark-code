@@ -83,6 +83,8 @@ import {
   sharedModelApiBoundaries,
   englishZodLocales,
   sharedRedaction,
+  sharedVaultStore,
+  sharedVaultPosix,
 } from './lib/deferredBundles.mjs'
 import {
   CONTENT_FILE as WHATS_NEW_CONTENT_OUTFILE,
@@ -710,7 +712,16 @@ const agentImportOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const vaultOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, sharedWire, sharedModelApiBoundaries],
+  plugins: [
+    sharedUiText,
+    sharedValidation,
+    sharedWire,
+    sharedModelApiBoundaries,
+    deferredCohort,
+    sharedResourceAdmission,
+    sharedVaultStore,
+    sharedVaultPosix,
+  ],
   entryPoints: [VAULT_ENTRY],
   outfile: VAULT_OUTFILE,
   platform: 'node',
@@ -966,6 +977,7 @@ const runtimeAccountsOptions = {
 }
 const vaultRuntimeOptions = {
   ...acpQuestionsOptions,
+  plugins: [...acpQuestionsOptions.plugins, sharedVaultStore, sharedVaultPosix],
   entryPoints: [VAULT_RUNTIME_ENTRY],
   outfile: VAULT_RUNTIME_OUTFILE,
 }
@@ -1005,9 +1017,29 @@ const validationOptions = {
 
 const vaultBrokerOptions = {
   ...modelApiOptions,
+  plugins: [...modelApiOptions.plugins, sharedVaultStore],
   entryPoints: ['src/runtime/vault/vaultBrokerEntry.ts'],
   outfile: 'dist/vaultBroker.js',
   external: ['@napi-rs/keyring'],
+}
+
+const vaultPosixOptions = {
+  ...modelApiOptions,
+  plugins: [...modelApiOptions.plugins, sharedVaultStore],
+  entryPoints: ['src/runtime/vault/posixEntry.ts'],
+  outfile: 'dist/vaultPosix.js',
+}
+
+const vaultStoreOptions = {
+  ...modelApiOptions,
+  entryPoints: ['src/runtime/vault/storeEntry.ts'],
+  outfile: 'dist/vaultStore.js',
+}
+
+const vaultBrokerBindingsOptions = {
+  ...vaultBrokerOptions,
+  entryPoints: ['src/runtime/vault/brokerBindings.ts'],
+  outfile: 'dist/vaultBrokerBindings.js',
 }
 
 const vaultBoundariesOptions = {
@@ -1265,6 +1297,9 @@ if (isWatch) {
     esbuild.context(extensionHooksOptions),
     esbuild.context(vaultOptions),
     esbuild.context(vaultBrokerOptions),
+    esbuild.context(vaultStoreOptions),
+    esbuild.context(vaultPosixOptions),
+    esbuild.context(vaultBrokerBindingsOptions),
     esbuild.context(reportOptions),
     esbuild.context(estimatorOptions),
     esbuild.context(recorderOptions),
@@ -1379,6 +1414,9 @@ if (isWatch) {
     extensionHooks: esbuild.build(extensionHooksOptions),
     vault: esbuild.build(vaultOptions),
     vaultBroker: esbuild.build(vaultBrokerOptions),
+    vaultStore: esbuild.build(vaultStoreOptions),
+    vaultPosix: esbuild.build(vaultPosixOptions),
+    vaultBrokerBindings: esbuild.build(vaultBrokerBindingsOptions),
     report: esbuild.build(reportOptions),
     estimator: esbuild.build(estimatorOptions),
     recorder: esbuild.build(recorderOptions),
@@ -1515,6 +1553,7 @@ if (isWatch) {
   reportSize(EXTENSION_HOOKS_OUTFILE)
   reportSize(VAULT_OUTFILE)
   reportSize('dist/vaultBroker.js')
+  reportSize('dist/vaultBrokerBindings.js')
   reportSize(REPORT_OUTFILE)
   reportSize(ESTIMATOR_OUTFILE)
   reportSize(RECORDER_OUTFILE)

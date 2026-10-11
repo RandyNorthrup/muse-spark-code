@@ -705,6 +705,35 @@ for (const file of [
     if (inputs.has(file))
       problems.push(`${output} carries ${file}, which belongs to the broker child`)
 }
+const VAULT_BINDINGS = {
+  output: 'dist/vaultBrokerBindings.js',
+  metafile: 'dist/meta/vaultBrokerBindings.json',
+}
+const vaultBindings = inputsOf(VAULT_BINDINGS)
+if (!vaultBindings.has('src/runtime/vault/brokerBindings.ts'))
+  problems.push(`${VAULT_BINDINGS.output} no longer carries the installed binding factory`)
+for (const [output, inputs] of [...loaders, [BUNDLES.modelApi.output, modelApi]])
+  if (inputs.has('src/runtime/vault/brokerBindings.ts'))
+    problems.push(`${output} carries the child-only vault binding factory`)
+const VAULT_STORE = { output: 'dist/vaultStore.js', metafile: 'dist/meta/vaultStore.json' }
+const vaultStore = inputsOf(VAULT_STORE)
+for (const file of ['src/core/vault/store.ts', 'src/core/vault/crypto.ts']) {
+  if (!vaultStore.has(file)) problems.push(`${VAULT_STORE.output} no longer carries ${file}`)
+  for (const [output, inputs] of [
+    [VAULT.output, vault],
+    [VAULT_BROKER.output, vaultBroker],
+    [VAULT_BINDINGS.output, vaultBindings],
+  ])
+    if (inputs.has(file))
+      problems.push(`${output} duplicates the shared vault store/error identity`)
+}
+const VAULT_POSIX = { output: 'dist/vaultPosix.js', metafile: 'dist/meta/vaultPosix.json' }
+const vaultPosix = inputsOf(VAULT_POSIX)
+if (!vaultPosix.has('src/runtime/vault/posixClientPlatform.ts'))
+  problems.push(`${VAULT_POSIX.output} no longer carries POSIX discovery and launch`)
+for (const [output, inputs] of [...loaders, [VAULT.output, vault]])
+  if (inputs.has('src/runtime/vault/posixClientPlatform.ts'))
+    problems.push(`${output} duplicates the first-use POSIX vault platform`)
 // M83: the import from other agents loads on the first import.
 const IMPORT_ONLY = [
   'src/host/agentImportEntry.ts',

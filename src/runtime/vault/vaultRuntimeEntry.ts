@@ -2,12 +2,16 @@
 // and headless runs load this on first vault need. No `vscode` import. The
 // platform's connection (discovery, broker launch and peer check) comes from
 // vaultClientPlatform, which lanes C-M109-1b (POSIX) and C-M109-1c (Windows)
-// bind; until then every vault command refuses with the broker-blocked reason.
+// bind; availability remains off pending the reviewed shared-lease/platform join.
 
+import { createRequire } from 'node:module'
+import path from 'node:path'
+import type * as BrokerBindingsModule from './brokerBindings'
+import type { VaultBrokerBindings, VaultBrokerContext } from './vaultBrokerEntry'
 import { randomBytes } from 'node:crypto'
 import { Readable } from 'node:stream'
 import { UI_TEXT, VAULT_LIMITS } from '../../shared/constants'
-import { setUiText } from '../../shared/l10n/text'
+import { setUiText, uiLocale } from '../../shared/l10n/text'
 import {
   vaultRequesterSchema,
   type VaultRequester,
@@ -30,8 +34,8 @@ import {
 import { VaultBrokerProcess } from '../../host/vault/brokerProcess'
 import { vaultClientPlatform } from './clientPlatform'
 import { HeadlessVaultSession, type ExecVaultContext, type ExecVaultSession } from './execVault'
-import { type VaultCommandPort } from './vaultCommand'
-import { type RuntimeVaultBinding, type RuntimeVaultContext } from './vaultRuntime'
+import type { VaultCommandPort } from './vaultCommand'
+import type { RuntimeVaultBinding, RuntimeVaultContext } from './vaultRuntime'
 
 const newId = (): string => randomBytes(VAULT_LIMITS.idBytes).toString('hex')
 
@@ -193,9 +197,14 @@ export async function createRuntimeVault(
   context: RuntimeVaultContext,
 ): Promise<RuntimeVaultBinding> {
   setUiText(context.uiText, context.locale)
-  const platform = await vaultClientPlatform({ dataDir: context.dataDir, distDir: context.distDir })
   const hostId = newId()
   const hostSession = newId()
+  const platform = await vaultClientPlatform({
+    dataDir: context.dataDir,
+    distDir: context.distDir,
+    hostId,
+    hostSession,
+  })
   const broker = new VaultBrokerProcess(platform.discovery, platform.process)
   const connect: VaultConnect = async () =>
     await VaultBrokerClient.open(await broker.get(), hostId, hostSession, platform.peers)
@@ -207,4 +216,18 @@ export async function createRuntimeVault(
         await openHeadlessVault(connect, execContext, hostId, context.processId),
     },
   }
+}
+
+/** Child-only binding code stays in its installed lazy sibling, preserving this bundle's cap. */
+export async function createVaultBrokerBindings(
+  context: VaultBrokerContext,
+): Promise<VaultBrokerBindings> {
+  // Same-build installed sibling contract; check the factory before calling (PLAN §8).
+  const module = createRequire(__filename)(
+    path.join(__dirname, 'vaultBrokerBindings.js'),
+  ) as typeof BrokerBindingsModule
+  if (typeof module.createVaultBrokerBindings !== 'function')
+    throw new Error(UI_TEXT.vault.brokerBlocked)
+  module.setUiText(UI_TEXT, uiLocale())
+  return await module.createVaultBrokerBindings(context)
 }

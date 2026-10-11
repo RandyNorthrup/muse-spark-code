@@ -7800,6 +7800,8 @@ export const VAULT_FORMAT_VERSION = 1
 // Lead decisions 2026-10-10 (C-M109-1): protocol v2 adds the management kinds,
 // private write frames and pushed events; the store document v2 carries grants
 // in its encrypted index. No v1 vault or broker exists in the field.
+// CM109JOINB: the lead enables this only after the joined broker/panel reviews.
+export const VAULT_AVAILABILITY = { isBrokerAvailable: false }
 export const VAULT_PROTOCOL_VERSION = 2
 export const VAULT_STORE_FORMAT_VERSION = 2
 export const VAULT_APPROVAL_TTL_MS = 120_000

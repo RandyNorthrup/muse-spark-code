@@ -1,3 +1,4 @@
+import type { VaultBrokerBindings } from '../../../../src/runtime/vault/vaultBrokerEntry'
 import { randomBytes } from 'node:crypto'
 import {
   vaultItemSchema,
@@ -238,4 +239,59 @@ export class FakeVaultChannel implements VaultChannelPort {
   close(): void {
     this.isClosed = true
   }
+}
+
+const noScreenLock = () => {
+  /* Generated fixture has no screen-lock source. */
+}
+
+/** Common generated platform slots used by composed management fixtures. */
+export function fakeOsStoreProvider(
+  slot: FakeVaultSlot,
+  beforeWrap?: (key: Uint8Array) => Promise<void>,
+) {
+  return {
+    slotFor: (record: VaultSlotRecord) => (record.tier === 'osStore' ? slot : null),
+    osStore: (vaultId: string, slotId: string) => ({
+      tier: 'osStore' as const,
+      wrap: async (key: Uint8Array) => {
+        if (beforeWrap) await beforeWrap(key)
+        const record = await slot.wrap(key)
+        return { ...record, vaultId, id: slotId }
+      },
+      unwrap: (record: VaultSlotRecord, use: string) => slot.unwrap(record, use),
+    }),
+    presence: () => Promise.resolve(false),
+    onScreenLock: () => noScreenLock,
+  }
+}
+
+/** Same trusted generated host channel; execution intentionally refuses in both composition rigs. */
+export function fakeHostChannelPorts() {
+  return {
+    identity: {
+      verifyHost: () => Promise.resolve(true),
+      verifyLaunched: () => Promise.resolve(false),
+    },
+    identify: (identity, hostId) =>
+      Promise.resolve({
+        peer: { hostId, userId: identity.userId, processId: identity.processId, ui: true },
+        requester: null,
+        firstParty: true,
+        manage: true,
+      }),
+    ceiling: () => 'ask',
+    lifetime: () => ({
+      close: () => {
+        /* No generated execution. */
+      },
+      terminate: () => Promise.resolve(true),
+    }),
+    perform: () => Promise.reject(new Error('fake execution unavailable')),
+    taint: () => Promise.resolve({ tainted: false, reasons: [] }),
+    scrub: (text) => Promise.resolve(text),
+  } satisfies Pick<
+    VaultBrokerBindings,
+    'identity' | 'identify' | 'ceiling' | 'lifetime' | 'perform' | 'taint' | 'scrub'
+  >
 }

@@ -1,7 +1,16 @@
 import path from 'node:path'
 import { build } from 'esbuild'
 import { compactBrowserEnglish } from '../../../scripts/lib/uiTextRegions.mjs'
-import { sharedUiText, sharedValidation } from '../../../scripts/lib/deferredBundles.mjs'
+import {
+  sharedUiText,
+  sharedValidation,
+  sharedWire,
+  sharedModelApiBoundaries,
+  deferredCohort,
+  sharedResourceAdmission,
+  sharedVaultStore,
+  sharedVaultPosix,
+} from '../../../scripts/lib/deferredBundles.mjs'
 
 /** W uses these same entries/options in the joined build; existing entry budgets are unchanged. */
 export async function buildVaultSurfaces(outdir, hasHarness = false) {
@@ -36,7 +45,16 @@ export async function buildVaultSurfaces(outdir, hasHarness = false) {
     format: 'cjs',
     target: 'node20.18',
     external: ['vscode'],
-    plugins: [sharedUiText, sharedValidation],
+    plugins: [
+      sharedUiText,
+      sharedValidation,
+      sharedWire,
+      sharedModelApiBoundaries,
+      deferredCohort,
+      sharedResourceAdmission,
+      sharedVaultStore,
+      sharedVaultPosix,
+    ],
     logLevel: 'silent',
   })
   return { browser: browser.metafile, host: host.metafile }

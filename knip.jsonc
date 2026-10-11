@@ -55,6 +55,11 @@
     // Vault schemas shared by real Node bundle readers (D6).
     "src/shared/vaultBoundariesEntry.ts",
     "src/runtime/vault/vaultBrokerEntry.ts",
+    "src/runtime/vault/vaultRuntimeEntry.ts",
+    // Installed lazy vault siblings, loaded by their same-build runtime paths.
+    "src/runtime/vault/brokerBindings.ts",
+    "src/runtime/vault/posixEntry.ts",
+    "src/runtime/vault/storeEntry.ts",
     // Tab's lazy provider, engine and ledger (M94), loaded by path.
     "src/host/tab/tabEntry.ts",
     "src/core/legal/entry.ts",
@@ -177,6 +182,8 @@
     "test/unit/helpers/questions/queuedTurnCrash.ts",
     // POSIX broker SIGKILL fixture is another esbuild entry launched by path.
     "test/unit/helpers/vault/brokerProcessChild.ts",
+    // Built once by writerCrashPosix.test.ts; a real generated-only SIGKILL child.
+    "test/unit/helpers/vault/writerCrashChild.ts",
     // The never-ending monitor the M92b bounded-run proof starts by path.
     "test/fixtures/never-ending-monitor.mjs",
     // M116 playbook scenes: the axe runner (an npm script knip already sees)

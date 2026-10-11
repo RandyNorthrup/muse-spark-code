@@ -27,7 +27,7 @@ const UI_CONDITIONS: Readonly<
   Partial<Record<Extract<PlainReferenceText, { ui: unknown }>['ui'], string>>
 > = {
   referenceScreenRecording: 'nativeRecorder=absent',
-  referenceVaultPanel: 'vaultBroker=absent',
+  referenceVaultPanel: 'vaultBroker=disabledPendingJoin',
   referenceNativeAgentsConditions: 'run.subagent_delegation_mode',
   resourceCpuMaxPercentDescription: 'resourceCpuThreshold',
   resourceMemoryMaxPercentDescription: 'resourceMemoryThreshold&memoryHeadroom=available',
@@ -1034,7 +1034,7 @@ export function featureCatalog(): readonly Feature[] {
       ['showWhatsNewOnUpdate'],
       'help-and-reference',
     ),
-    // C-M109-1b adds internal POSIX broker composition; installed editor bindings remain closed.
+    // CM109JOINB binds installed POSIX broker ports; availability stays off pending the reviewed join.
     feature(
       'vault',
       { command: COMMAND_IDS.vault },
