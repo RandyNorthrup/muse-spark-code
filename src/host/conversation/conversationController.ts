@@ -66,7 +66,12 @@ import {
   type TurnPart,
   type TurnSubmission,
 } from '../../core/agent/agentBackend'
-import { editAutomaticallyChoice, isReviewableApproval } from '../../core/agent/approvalRules'
+import {
+  editAutomaticallyChoice,
+  isApprovingChoice,
+  isReviewableApproval,
+  sideChatRefusalChoice,
+} from '../../core/agent/approvalRules'
 import { scrubSecretApproval } from '../../core/agent/approvalSecrets'
 import { countSecretMatches, redactDiagnosticEvent, redactSecrets } from '../../core/redact'
 import { toSessionRow } from '../../core/agent/sessionRows'
@@ -1264,6 +1269,16 @@ export class ConversationController {
   /** Approvals "Edit Automatically" answered itself (D24): their resolution is labelled so. */
   private readonly autoApproved = new Set<string>()
   /**
+   * A Muse Code side chat's cards (M53, C-M53-3): kept so an approving click
+   * on a card the host left to the user can be refused. A card the policy
+   * refused itself is also marked in `sideRefused` until it resolves.
+   */
+  private readonly sideChatCards = new Map<
+    string,
+    Extract<AgentEvent, { type: 'approvalRequested' }>
+  >()
+  private readonly sideRefused = new Set<string>()
+  /**
    * The Auto reviewer on Muse Code (M90, PLAN.md D69): this conversation's
    * approvals in its hands (and its breaker), made on the first review.
    */
@@ -1974,6 +1989,8 @@ export class ConversationController {
       this.importedSessionIds.delete(session.sessionId)
     }
     this.questionApprovals.clear()
+    this.sideChatCards.clear()
+    this.sideRefused.clear()
     session?.dispose()
     this.session = undefined
     this.activeTurnId = undefined
@@ -2080,6 +2097,38 @@ export class ConversationController {
       this.autoApproved.delete(event.approvalId)
       this.deps.log.warn(`Edit automatically could not approve: ${describeForLog(error)}`)
       this.forward(event)
+    }
+  }
+
+  /**
+   * Refuse a Muse Code side chat's approval on the policy's behalf (M53,
+   * C-M53-3): the card never asks, so a read-only branch cannot approve a
+   * write. A refusal the host will not take leaves the card to the user,
+   * whose approving clicks are refused instead; the resolution is labelled
+   * with the policy and its reason.
+   */
+  private async refuseSideChatApproval(
+    event: Extract<AgentEvent, { type: 'approvalRequested' }>,
+    refusal: ApprovalChoice,
+  ): Promise<void> {
+    const session = this.session
+    if (session === undefined) {
+      return
+    }
+    this.sideRefused.add(event.approvalId)
+    this.deps.log.info(
+      `Approval ${event.approvalId} refused by the side-chat policy: ${refusal.choiceId}`,
+    )
+    try {
+      await session.decideApproval({
+        approvalId: event.approvalId,
+        choiceId: refusal.choiceId,
+        requirementId: event.requirementId,
+      })
+    } catch (error: unknown) {
+      this.sideRefused.delete(event.approvalId)
+      this.deps.log.warn(`The side-chat policy could not refuse: ${describeForLog(error)}`)
+      this.forward(scrubSecretApproval(event))
     }
   }
 
@@ -2428,6 +2477,21 @@ export class ConversationController {
         }
         // The tool, never its input (M39).
         this.deps.log.info(`Approval ${event.approvalId} asked for ${event.toolName}`)
+        // A Muse Code side chat is read-only (M53, C-M53-3): refuse what it
+        // asks instead of showing a card that could approve a write. The raw
+        // card is kept (choices unscrubbed) so an approving click on it can
+        // still be refused when the host offered no refusal.
+        if (this.isSideChat && this.sessionKind === 'museCode') {
+          this.sideChatCards.set(event.approvalId, event)
+          // Without a session there is nothing to answer through: the card
+          // is shown, as before the policy.
+          const refusal = this.session === undefined ? undefined : sideChatRefusalChoice(event)
+          if (refusal !== undefined) {
+            void this.refuseSideChatApproval(event, refusal)
+            return
+          }
+          break
+        }
         const choice = this.autoApprovalChoice(event)
         if (choice !== undefined) {
           void this.autoApprove(event, choice)
@@ -2441,6 +2505,14 @@ export class ConversationController {
         break
       }
       case 'approvalUpdated': {
+        // A staged side-chat card's next step brings new choices (M53, C-M53-3).
+        const retained = this.sideChatCards.get(event.approvalId)
+        if (retained !== undefined) {
+          this.sideChatCards.set(event.approvalId, {
+            ...retained,
+            availableChoices: event.availableChoices,
+          })
+        }
         this.judgeCards.get(event.approvalId)?.discard()
         this.judgeCards.delete(event.approvalId)
         if (this.reviews?.updated(event) === true) {
@@ -2460,6 +2532,18 @@ export class ConversationController {
           this.forward({ ...event, resolvedBy: UI_TEXT.editAutomaticallyResolver })
           return
         }
+        // The side-chat policy's own refusal (M53, C-M53-3): labelled with
+        // the policy and its reason, whatever the host reports.
+        if (this.sideRefused.delete(event.approvalId)) {
+          this.sideChatCards.delete(event.approvalId)
+          this.forward({
+            ...event,
+            resolvedBy: UI_TEXT.sideChatResolver,
+            reason: UI_TEXT.sideChatWriteRefused,
+          })
+          return
+        }
+        this.sideChatCards.delete(event.approvalId)
         // The Auto reviewer allowed it: the transcript names it and its reason (M90).
         const reason = this.reviews?.resolved(event)
         if (reason !== undefined) {
@@ -2928,6 +3012,21 @@ export class ConversationController {
     if (this.session === undefined) {
       return
     }
+    // A Muse Code side chat never approves (M53, C-M53-3): an approving click
+    // is refused with the policy's reason, and the card is offered again so
+    // the user can still refuse it. A reject click passes through below.
+    if (this.isSideChat && this.sessionKind === 'museCode') {
+      const card = this.sideChatCards.get(message.approvalId)
+      const choice = card?.availableChoices.find((held) => held.choiceId === message.choiceId)
+      if (choice !== undefined && isApprovingChoice(choice)) {
+        this.deps.log.info(
+          `Approval ${message.approvalId} kept read-only: an approving side-chat click was refused`,
+        )
+        this.notice('info', UI_TEXT.sideChatWriteRefused)
+        this.post({ type: 'approvalReopened', approvalId: message.approvalId })
+        return
+      }
+    }
     // The stage is logged: a multi-command line is one approval decided
     // stage by stage, which read as repeated answers without it.
     this.deps.log.info(
@@ -2979,9 +3078,15 @@ export class ConversationController {
       return
     }
     this.notice('info', promptSettledText(error.reason))
-    if (error.reason === 'gone') {
-      this.post({ type: 'promptDropped', ...prompt })
+    if (error.reason !== 'gone') {
+      return
     }
+    // A prompt the host no longer holds keeps no side-chat card (M53, C-M53-3).
+    if ('approvalId' in prompt) {
+      this.sideChatCards.delete(prompt.approvalId)
+      this.sideRefused.delete(prompt.approvalId)
+    }
+    this.post({ type: 'promptDropped', ...prompt })
   }
 
   /** An elicitation form's answer (M91 lane M): accept, decline or cancel. */
