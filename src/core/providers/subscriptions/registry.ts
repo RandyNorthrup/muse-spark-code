@@ -213,7 +213,14 @@ export function createSubscriptionClient(
         if ('response' in event && event.response.usage != null) usage = event.response.usage
       }
       try {
-        if (confirmed !== undefined)
+        // A confirmed run may use a plan model: the hook model is the session
+        // model, and reviews and scheduled prompts keep their confirmed one.
+        // Like the other clients, proceed while still allowed and refuse with
+        // the run's guidance only once the confirmation has lapsed.
+        if (
+          confirmed !== undefined &&
+          (body.model !== confirmed.modelId || !confirmed.isStillAllowed())
+        )
           throw new Error(
             confirmed.runKind === 'hookModel'
               ? UI_TEXT.requestStaleHookModel

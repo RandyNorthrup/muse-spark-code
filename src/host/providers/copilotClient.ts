@@ -283,7 +283,14 @@ class CopilotClient implements ProviderClient {
     if (body.model !== this.model.id && body.model !== `copilot/${this.model.id}`)
       throw this.fail('unavailable')
     this.checkConsent()
-    if (confirmed !== undefined) throw this.fail('confirmation-expired')
+    // The registry never forwards a confirmation here today, but a direct
+    // caller may: like the other clients, run while still allowed and refuse
+    // only a lapsed or mismatched confirmation before dispatch.
+    if (
+      confirmed !== undefined &&
+      (confirmed.modelId !== body.model || !confirmed.isStillAllowed())
+    )
+      throw this.fail('confirmation-expired')
     const cancellation = this.api.cancellation()
     const abort = (): void => {
       cancellation.cancel()
