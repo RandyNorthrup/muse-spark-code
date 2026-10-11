@@ -233,7 +233,10 @@ visible as unavailable.
 | Schedules / keybindings | `/report schedules`, `/report keybindings`; owning host bindings unavailable                                                                             |
 
 Each table shows at most ten rows with an omitted-row count; `--full` retains
-all available rows. Next steps follow the plan's declared delivery order and
+all available rows. Accounts and security reads retain independently valid
+records and name invalid, unavailable or bounded facets in their partial reason;
+one malformed limit or vault view cannot erase the other evidence.
+Next steps follow the plan's declared delivery order and
 only become ready when their required milestones are complete. At most three
 next steps are shown. Session turn
 and approval totals require retained activity facts; transcript row counts

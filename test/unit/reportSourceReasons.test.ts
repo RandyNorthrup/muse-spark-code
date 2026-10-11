@@ -19,6 +19,7 @@ import {
   createSecurityReportReader,
   type SecurityVaultSnapshot,
 } from '../../src/runtime/reporting/reportInputs'
+import { malformed } from './helpers/reporting/reasonCases'
 import { tempDirTracker, writeDeveloperAudit } from './helpers/reporting/tempDir'
 import { canaryVaultSnapshot } from './helpers/reporting/canaryVault'
 import {
@@ -84,13 +85,13 @@ const checkAccounts =
     readonly confirmations?: number
   }): ((data: unknown) => void) =>
   (data) => {
-    const facts = data as AccountsFacts
-    if (want.providers !== undefined)
-      expect(facts.providers.map((entry) => entry.provider)).toEqual(want.providers)
-    if (want.usage !== undefined) expect(facts.usage).toHaveLength(want.usage)
-    if (want.events !== undefined) expect(facts.events).toHaveLength(want.events)
-    if (want.confirmations !== undefined)
-      expect(facts.confirmations).toHaveLength(want.confirmations)
+    if (want.providers !== undefined) {
+      expect(data).toHaveProperty('providers.length', want.providers.length)
+      for (const [index, provider] of want.providers.entries())
+        expect(data).toHaveProperty(`providers.${String(index)}.provider`, provider)
+    }
+    for (const facet of ['usage', 'events', 'confirmations'] as const)
+      if (want[facet] !== undefined) expect(data).toHaveProperty(`${facet}.length`, want[facet])
   }
 
 const enableRow = { action: 'enable', source: 'page' }
@@ -107,30 +108,20 @@ const checkSecurity =
     readonly developerAudit?: number | readonly unknown[]
   }): ((data: unknown) => void) =>
   (data) => {
-    const facts = data as {
-      readonly vault: {
-        readonly state: string
-        readonly itemCount: number
-        readonly grants: readonly unknown[]
-      } | null
-      readonly audit: readonly unknown[]
-      readonly developerAudit: readonly unknown[]
-    }
     if (want.vault !== undefined) {
-      if (want.vault === null) expect(facts.vault).toBeNull()
+      if (want.vault === null) expect(data).toHaveProperty('vault', null)
       else {
-        expect(facts.vault?.state).toBe(want.vault.state)
-        expect(facts.vault?.itemCount).toBe(want.vault.itemCount)
+        expect(data).toHaveProperty('vault.state', want.vault.state)
+        expect(data).toHaveProperty('vault.itemCount', want.vault.itemCount)
         if (want.vault.grants !== undefined)
-          expect(facts.vault?.grants).toHaveLength(want.vault.grants)
+          expect(data).toHaveProperty('vault.grants.length', want.vault.grants)
       }
     }
-    if (typeof want.audit === 'number') expect(facts.audit).toHaveLength(want.audit)
-    else if (want.audit !== undefined) expect(facts.audit).toEqual(want.audit)
-    if (typeof want.developerAudit === 'number')
-      expect(facts.developerAudit).toHaveLength(want.developerAudit)
-    else if (want.developerAudit !== undefined)
-      expect(facts.developerAudit).toEqual(want.developerAudit)
+    for (const facet of ['audit', 'developerAudit'] as const) {
+      const value = want[facet]
+      if (typeof value === 'number') expect(data).toHaveProperty(`${facet}.length`, value)
+      else if (value !== undefined) expect(data).toHaveProperty(facet, value)
+    }
   }
 
 const cases: readonly ReasonCase[] = [
@@ -350,11 +341,12 @@ const goodEventsResult = (): Pick<AccountsFacts, 'events' | 'confirmations'> => 
 const writeGoodRegistry = (dataDir: string) =>
   writeFile(path.join(dataDir, 'providers.json'), registryWith({ meta: goodMetaEntry() }))
 
-const writeGoodAudits = (dataDir: string) =>
-  Promise.all([
+const writeGoodAudits = async (dataDir: string): Promise<void> => {
+  await Promise.all([
     writeDeveloperAudit(dataDir, 'developer-audit.jsonl', [auditLine('unlock', 'palette')]),
     writeDeveloperAudit(dataDir, 'developer-audit.jsonl.previous', [auditLine('enable', 'page')]),
   ])
+}
 
 const readAccountsFull = (
   dataDir: string,
@@ -409,26 +401,24 @@ const linkAuditRotation =
     await hardLinkBeside(path.join(dataDir, 'developer', file))
   }
 
-const [firstUsageRow] = goodUsageRows()
-const malformedUsageRow = { provider: 'meta' } as unknown as AccountsFacts['usage'][number]
-const futureUsageRow = {
-  ...firstUsageRow,
-  future: 'x',
-} as unknown as AccountsFacts['usage'][number]
+const firstUsageRow = goodUsageRows()[0]
+if (firstUsageRow === undefined) throw new Error('Missing usage fixture')
+const malformedUsageRow = malformed<AccountsFacts['usage'][number]>({ provider: 'meta' })
+const futureUsageRow = malformed<AccountsFacts['usage'][number]>({ ...firstUsageRow, future: 'x' })
 const goodEvents = goodEventsResult()
 const [firstEvent] = goodEvents.events
-const bogusEventRow = {
-  ...firstEvent,
-  type: 'bogus',
-} as unknown as AccountsFacts['events'][number]
+const bogusEventRow = malformed<AccountsFacts['events'][number]>({ ...firstEvent, type: 'bogus' })
 const [firstConfirmation] = goodEvents.confirmations
-const futureConfirmationRow = {
+const futureConfirmationRow = malformed<AccountsFacts['confirmations'][number]>({
   ...firstConfirmation,
   future: 'x',
-} as unknown as AccountsFacts['confirmations'][number]
+})
 const canarySnapshot = canaryVaultSnapshot()
 const [firstVaultAudit] = canarySnapshot.audit
-const futureVaultAuditRow = { ...(firstVaultAudit as Record<string, unknown>), v: 2 }
+const futureVaultAuditRow = {
+  ...(typeof firstVaultAudit === 'object' && firstVaultAudit),
+  v: 2,
+}
 
 interface AccountsResilienceEntry {
   readonly kind: 'accounts'
@@ -530,7 +520,7 @@ const resilienceEntries: readonly ResilienceEntry[] = [
     mode: 'unparseable',
     setup: writeGoodRegistry,
     overrides: {
-      readUsage: () => Promise.resolve('{nope}' as unknown as AccountsFacts['usage']),
+      readUsage: () => Promise.resolve(malformed<AccountsFacts['usage']>('{nope}')),
     },
     reasons: [EN.reportSourceReasons.invalid],
     providers: ['meta'],
@@ -585,10 +575,12 @@ const resilienceEntries: readonly ResilienceEntry[] = [
     setup: writeGoodRegistry,
     overrides: {
       readEvents: () =>
-        Promise.resolve({
-          events: 'x',
-          confirmations: goodEvents.confirmations,
-        } as unknown as Pick<AccountsFacts, 'events' | 'confirmations'>),
+        Promise.resolve(
+          malformed<Pick<AccountsFacts, 'events' | 'confirmations'>>({
+            events: 'x',
+            confirmations: goodEvents.confirmations,
+          }),
+        ),
     },
     reasons: [EN.reportSourceReasons.invalid],
     usage: 1,
@@ -603,10 +595,12 @@ const resilienceEntries: readonly ResilienceEntry[] = [
     setup: writeGoodRegistry,
     overrides: {
       readEvents: () =>
-        Promise.resolve({
-          events: [...goodEvents.events, bogusEventRow],
-          confirmations: goodEvents.confirmations,
-        } as unknown as Pick<AccountsFacts, 'events' | 'confirmations'>),
+        Promise.resolve(
+          malformed<Pick<AccountsFacts, 'events' | 'confirmations'>>({
+            events: [...goodEvents.events, bogusEventRow],
+            confirmations: goodEvents.confirmations,
+          }),
+        ),
     },
     reasons: [EN.reportSourceReasons.invalid],
     events: 1,
@@ -620,10 +614,12 @@ const resilienceEntries: readonly ResilienceEntry[] = [
     setup: writeGoodRegistry,
     overrides: {
       readEvents: () =>
-        Promise.resolve({
-          events: goodEvents.events,
-          confirmations: [futureConfirmationRow],
-        } as unknown as Pick<AccountsFacts, 'events' | 'confirmations'>),
+        Promise.resolve(
+          malformed<Pick<AccountsFacts, 'events' | 'confirmations'>>({
+            events: goodEvents.events,
+            confirmations: [futureConfirmationRow],
+          }),
+        ),
     },
     reasons: [EN.reportSourceReasons.invalid],
     events: 1,
@@ -648,13 +644,15 @@ const resilienceEntries: readonly ResilienceEntry[] = [
     mode: 'unparseable',
     setup: writeGoodAudits,
     readVault: () =>
-      Promise.resolve({
-        state: 'unlocked',
-        tier: 'osStore',
-        items: 'x',
-        grants: [],
-        audit: [],
-      } as unknown as SecurityVaultSnapshot),
+      Promise.resolve(
+        malformed<SecurityVaultSnapshot>({
+          state: 'unlocked',
+          tier: 'osStore',
+          items: 'x',
+          grants: [],
+          audit: [],
+        }),
+      ),
     reasons: [EN.reportSourceReasons.invalid],
     vault: { state: 'unlocked', itemCount: 0 },
     developerAudit: 2,
@@ -679,7 +677,7 @@ const resilienceEntries: readonly ResilienceEntry[] = [
     mode: 'wrongVersion',
     setup: writeGoodAudits,
     readVault: () =>
-      Promise.resolve({ ...canarySnapshot, state: 'bogus' } as unknown as SecurityVaultSnapshot),
+      Promise.resolve(malformed<SecurityVaultSnapshot>({ ...canarySnapshot, state: 'bogus' })),
     reasons: [EN.reportSourceReasons.invalid],
     vault: null,
     developerAudit: 2,
@@ -795,7 +793,7 @@ const resilienceEntries: readonly ResilienceEntry[] = [
 /** Every way each sub-source can fail. A sub-source that gains a new way
  * to fail grows this map, which fails the coverage test until its case
  * exists. */
-const REQUIRED_MODES: Record<string, readonly ResilienceCase['mode'][]> = {
+const REQUIRED_MODES: Record<string, readonly ResilienceEntry['mode'][]> = {
   registry: ['unreadable', 'unparseable', 'badRecord', 'wrongVersion'],
   usage: ['unreadable', 'unparseable', 'badRecord', 'wrongVersion'],
   events: ['unreadable', 'unparseable', 'badRecord', 'wrongVersion'],
@@ -820,10 +818,10 @@ describe('accounts and security sub-source resilience', () => {
       const result = await readAccountsFull(dataDir, entry.overrides)
       assertReasonRecord(result, { status: 'partial', reasons: entry.reasons })
       checkAccounts({
-        providers: entry.providers,
-        usage: entry.usage,
-        events: entry.events,
-        confirmations: entry.confirmations,
+        ...(entry.providers !== undefined && { providers: entry.providers }),
+        ...(entry.usage !== undefined && { usage: entry.usage }),
+        ...(entry.events !== undefined && { events: entry.events }),
+        ...(entry.confirmations !== undefined && { confirmations: entry.confirmations }),
       })(result.data)
     } else {
       const result = await readSecurityFull(dataDir, {
@@ -831,9 +829,9 @@ describe('accounts and security sub-source resilience', () => {
       })
       assertReasonRecord(result, { status: 'partial', reasons: entry.reasons })
       checkSecurity({
-        vault: entry.vault,
-        audit: entry.audit,
-        developerAudit: entry.developerAudit,
+        ...(entry.vault !== undefined && { vault: entry.vault }),
+        ...(entry.audit !== undefined && { audit: entry.audit }),
+        ...(entry.developerAudit !== undefined && { developerAudit: entry.developerAudit }),
       })(result.data)
     }
   })
@@ -850,7 +848,7 @@ describe('accounts and security sub-source resilience', () => {
     }
     const outside = resilienceEntries.filter(
       (candidate) =>
-        !(inventories as readonly string[]).includes(candidate.subSource) ||
+        inventories.every((source) => source !== candidate.subSource) ||
         !(REQUIRED_MODES[candidate.subSource] ?? []).includes(candidate.mode),
     )
     expect(outside).toEqual([])

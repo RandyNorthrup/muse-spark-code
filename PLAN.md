@@ -35270,6 +35270,21 @@ lane T and M111b. One short live check per backend (step 3).
 
 ### M113 — Deterministic reports: `/report` (D93)
 
+**CM1133R4 review repair (2026-10-11, kubuntu).** Close all five P2 and
+the P3 from RVCM1133C within the accounts/security lane. First enumerate
+reader, adapter, record, decode, validation and admission boundaries from
+the source and inject failures through the real readers and final sources.
+Retain independently accepted evidence and accumulated reasons; absent
+adapters name unavailable facets. Validate provider/account metadata and
+each threshold independently, separate vault audits from view validation,
+and enforce every row/byte bound before final assembled-facts validation.
+No network/page/request boundary exists in these local readers. Prove each
+repair with failing regressions and byte-exact restoration drills; all five
+typechecks and dependent suites run at repository deadlines before commit.
+Aggregate quality remains lead-owned under the rig/common brief; the inherited
+exact-money guard and usagePanel budget failures remain outside this lane.
+Receipts: `docs/certification/m113-accounts-security-c-m113-3.md`.
+
 **CM1132R2 review repair (2026-10-10, linuxlt).** Fix all 22 RVCM1132
 findings by class within the session/usage lane. One request-scoped, read-only
 journal snapshot follows pending recording; damaged and unattributed evidence
@@ -38200,6 +38215,16 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**CM1133R4 bounded review gates (2026-10-11, kubuntu).** The rig/common
+brief delegates aggregate `npm run quality` to the lead and requires scoped
+checks, five typechecks and every dependent suite at repository deadlines.
+The owner explicitly leaves this branch's inherited exact-money guard
+(`core/usage/journalStore.ts` and `core/usage/reportingAmount.ts` numeric fields)
+and the `usagePanel.js` 138-byte budget overage outside this repair. Neither
+guard, limit, ignore nor hook is changed. All accounts/security findings are
+closed with regression and restoration receipts in
+`docs/certification/m113-accounts-security-c-m113-3.md`.
 
 CM1132R2's rig/common brief delegates aggregate `npm run quality` to the lead
 and prohibits it in the lane. This qualification runs five typechecks,
@@ -42849,6 +42874,10 @@ aggregate quality/coverage/platform matrix before integration/release. No
 threshold, ignore or rule is changed.
 
 ## 8. Escape hatches register
+
+| CM1133R4 location                                      | Escape hatch | Reason                                                                                                                                                                                                                                       |
+| ------------------------------------------------------ | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `test/unit/helpers/reporting/reasonCases.ts:malformed` | `value as T` | Test-only malformed adapters deliberately bypass their typed ports to exercise runtime refusals. The reasons and boundary suites use this single helper; assertion helpers use matcher narrowing without casts. No production input is cast. |
 
 | PORTS017 escape                                                                           | Reason                                                                                                                                                                                                                          |
 | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

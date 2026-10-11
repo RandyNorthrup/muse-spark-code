@@ -20,7 +20,7 @@ const period = z.enum(['day', 'week', 'month'])
 const rows = <T extends z.ZodMiniType>(entry: T) =>
   z.array(entry).check(z.maxLength(REPORT_MAX_ROWS))
 
-const thresholdsSchema = z.strictObject({
+export const accountsThresholdsSchema = z.strictObject({
   spendUsd: rows(
     z.strictObject({
       period,
@@ -74,23 +74,23 @@ export const accountsConfirmationRowSchema = z.strictObject({
   answeredAt: z.iso.datetime({ offset: true }),
 })
 
+export const accountsAccountRowSchema = z.strictObject({
+  id: name,
+  label: name,
+  order: count,
+  limitGroup: z.nullable(name),
+  thresholds: accountsThresholdsSchema,
+})
+
+export const accountsProviderRowSchema = z.strictObject({
+  provider: name,
+  product: name,
+  auth: name,
+  accounts: rows(accountsAccountRowSchema),
+})
+
 const factsSchema = z.strictObject({
-  providers: rows(
-    z.strictObject({
-      provider: name,
-      product: name,
-      auth: name,
-      accounts: rows(
-        z.strictObject({
-          id: name,
-          label: name,
-          order: count,
-          limitGroup: z.nullable(name),
-          thresholds: thresholdsSchema,
-        }),
-      ),
-    }),
-  ),
+  providers: rows(accountsProviderRowSchema),
   usage: rows(accountsUsageRowSchema),
   events: rows(accountsEventRowSchema),
   confirmations: rows(accountsConfirmationRowSchema),

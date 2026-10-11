@@ -9,6 +9,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **Accounts and security reports preserve independently valid evidence at every read boundary** (CM1133R4).
+  Account metadata and individual limits survive malformed siblings. Vault audits
+  survive invalid view fields; absent adapter results name unavailable facets.
+  Row limits apply before admission, and bounded file reads tolerate short reads
+  while retaining other sources after read, decode or validation failures. All
+  five TypeScript projects validate the fault-injection tests, whose sole malformed
+  port cast is documented in the escape-hatch register.
 - **Accounts and security reports keep each source's true reason** (RVCM1133).
   A security read with neither vault nor developer audit is partial naming
   both reasons instead of a generic missing file; a schema-invalid registry

@@ -235,3 +235,155 @@ clean `git status` before continuing.
   `fs.link` and reason assertions avoid separator compares, and the
   `nlink`/`sameFile` checks mirror the session reader that already runs
   on Windows CI.
+
+## CM1133R4 / RVCM1133C repairs (2026-10-11, kubuntu)
+
+Input branch `c/m113-3`, base `f58bbc3e8`. This round fixes all five P2
+findings and the P3. Before changing the readers, `reportInputBoundaries.test.ts` injected failures across the actual
+reader graph; its first run exposed null adapters, nested accounts/limits,
+invalid vault scalars, missing-registry early return, short body reads and
+row-limit rejection at final validation. Test preparation failures (a native
+ESM spy and an inventory spelling mismatch) were corrected separately from
+product failures. The first typecheck overlapped an exploratory test launch;
+that excluded run is not the final verification receipt. Subsequent Vitest, tsc, ESLint and
+production-build commands ran serially.
+
+The mechanical inventory follows local helper calls from both reader factories
+and the final source wrappers. It counts repeated boundaries, including both
+file-identity checks and all collection sites, and connects each entry to a
+real test title. Adding an awaited boundary or a reachable validation helper
+without a case fails the inventory. Network bodies, pages and request limits
+are absent from these local readers; their owning network suite is included
+in the dependency replay. File bodies are exercised with ordinary stream
+exceptions, later-read failures, invalid UTF-8, short reads, growing files and
+unchanged byte caps. Each case goes through the real source's final validation.
+
+| Review finding               | Repair                                                                                                                                                                                                                                                       | Regression oracle                                                                                  | Deliberate red drill                                                                               |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| P2 unit typecheck            | Correct the union name, void setup return, required fixture row and exact optional properties; typed split-body mock has no implicit `any`.                                                                                                                  | All five repository typecheck projects.                                                            | Restore the nonexistent `ResilienceCase` type; unit compiler must reject it.                       |
+| P2 nested account/limit loss | Validate provider metadata, account metadata and every limit independently; retain the strict stored-contract invalid disclosure and validate projected rows against the final source's own schemas.                                                         | `threshold records`, `registry records`, malformed threshold containers and future account fields. | Reintroduce whole-account-array validation in the provider envelope.                               |
+| P2 vault view/audit loss     | Validate the envelope before access; parse the audit independently of state/tier. Isolate throwing snapshot getters and record validators.                                                                                                                   | `vault results/scalars`, `throwing snapshot facet`, `throwing record getters`.                     | Gate audits on valid state; drop undefined availability handling; rethrow record/facet exceptions. |
+| P2 null adapters             | Both null and undefined results name usage or swaps/confirmations as unavailable; successful empty arrays remain successful reads.                                                                                                                           | `adapter results`, `usage absence`, existing empty-history case.                                   | Skip the null usage result without its unavailable reason.                                         |
+| P2 unbounded collection      | Every row is admitted through the unchanged `REPORT_MAX_ROWS` cap, including limits, accounts, providers, injected histories, vault records and combined developer rotations. Byte caps take precedence where they cannot physically contain that many rows. | `row bounds ... final assembled validation`, byte bounds and growing-body cases.                   | Admit row 20,001 with `>` instead of `>=`.                                                         |
+| P3 escape-hatch accounting   | Remove assertion-helper and fixture casts from the original table; all malformed ports use one test-only cast with an inline reason and PLAN §8 entry, optionally inferred from a valid exemplar.                                                            | `records the only malformed-port cast ...`.                                                        | Remove the helper's register entry; the accounting test must fail.                                 |
+
+Additional guards: a missing registry still reads bound adapters, ordinary
+short reads continue to EOF, accepted rows before and after throwing record
+getters survive, and an unknown account field is disclosed instead of silently
+accepted. The body-loop, exception and new-boundary inventory drills exercise
+these siblings of the reviewed class. No live/captured vendor frame was added;
+existing canary vault contracts and local synthetic fixtures are reused. No
+credential access, network request, paid/live model call, dependency, hook,
+cap or gate setting changed.
+
+Final gate and byte-exact restoration receipts follow below.
+
+### R4 byte-exact restoration receipts
+
+Every test drill exited 1; the compiler drill exited 2 and included
+the named `ResilienceCase` diagnostic. Every mutation was restored from
+the exact original bytes in `finally`, then SHA-256 compared. No red mutation
+is retained. The compiler also caught two preparation errors in the new
+boundary fixture (union-key indexing and the overloaded file-read mock);
+these were repaired with narrowed keys and a Buffer type guard, without casts.
+The compact-provider fixture now reaches row admission within the unchanged
+file-byte bound; its final admission drill proves that provider guard too.
+
+| Drill                  | Named failures                                                                                   | Restored SHA-256                                                   |
+| ---------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------ |
+| nested-account         | threshold records / registry records / row bounds: 16 failed, 129 passed                         | `6fdb45c94a01219de9f6336471ec0cb9c00c44fb220a9ad66ec2db500f635a8c` |
+| vault-audit            | vault results/scalars (bogus state), throwing snapshot state: 3 failed, 142 passed               | `6fdb45c94a01219de9f6336471ec0cb9c00c44fb220a9ad66ec2db500f635a8c` |
+| vault-undefined        | vault results/scalars (undefined): 1 failed, 144 passed                                          | `6fdb45c94a01219de9f6336471ec0cb9c00c44fb220a9ad66ec2db500f635a8c` |
+| null-adapters          | usage absence (null): 1 failed, 144 passed                                                       | `6fdb45c94a01219de9f6336471ec0cb9c00c44fb220a9ad66ec2db500f635a8c` |
+| row-admission          | usage/events/confirmations/limits/accounts/vault row bounds: 8 failed, 137 passed                | `6fdb45c94a01219de9f6336471ec0cb9c00c44fb220a9ad66ec2db500f635a8c` |
+| split-body             | split body reads: 1 failed, 144 passed                                                           | `6fdb45c94a01219de9f6336471ec0cb9c00c44fb220a9ad66ec2db500f635a8c` |
+| escape-register        | malformed-port escape register: 1 failed, 144 passed                                             | `1cbc5dbd041d30d43ebe25fbcd4a91f96bb600ef4cacb239ebb84e215169a289` |
+| inventory-new-boundary | mechanical boundary inventory: 1 failed, 144 passed                                              | `6fdb45c94a01219de9f6336471ec0cb9c00c44fb220a9ad66ec2db500f635a8c` |
+| record-exception       | throwing record getters (all six record streams): 6 failed, 139 passed                           | `6fdb45c94a01219de9f6336471ec0cb9c00c44fb220a9ad66ec2db500f635a8c` |
+| snapshot-exception     | throwing snapshot facets (all five): 5 failed, 140 passed                                        | `6fdb45c94a01219de9f6336471ec0cb9c00c44fb220a9ad66ec2db500f635a8c` |
+| unit-typecheck         | ResilienceCase compiler diagnostic: compiler exit 2                                              | `d52255a527dee72e324c294d91907f654ad8c3dc8b5a2fccc28c954ce4d50b67` |
+| final-admission        | all nine reachable row-bound cases, including the compact providers fixture: 9 failed, 98 passed | `e550b928bede5d5e4d146ecc8b2d94694a36544b24c9bab36ee6f15db0668f0b` |
+| account-facet          | throwing account facet events plus inventory: 2 failed, 107 passed                               | `b46e5d9fe7550b2b344010b5628125d5033b9688a0369ecce7b48098080a440e` |
+| validation-split       | bundle split rejects unavailable zod/mini.omit: gate exit 1                                      | `8014b96446ba8de43eeafc1c31cc727835130065d56ad7927340ec4d6bd6ca66` |
+
+The final sweep added two account-result getter cases. Before their source
+repair, `throwing account facet events retains its sibling and earlier reasons`
+failed (1 failed, 108 passed): confirmations vanished. The same per-facet
+reader used for vault snapshots now isolates events and confirmations too.
+The follow-up deliberate guard removal failed in the named regression and
+mechanical inventory, then restored the source byte-exact as recorded above.
+
+### R4 final dependency and host replay
+
+All tests ran directly on kubuntu, serially between commands, at repository
+default timeouts with `--maxWorkers=3` and at most three files per run. No
+suite was blocked or skipped. No Windows/macOS or installed-editor
+qualification is claimed; path comparisons normalize Windows separators.
+
+`npx vitest related --run src/runtime/reporting/reportInputs.ts
+src/core/reporting/sources/accounts.ts src/core/reporting/sources/security.ts
+--shard=N/6 --maxWorkers=3` ran every N from 1 through 6: 24, 26, 115,
+66, 25 and 21 passed tests, with the one inherited exact-money failure in
+shard 5. Total: 277 passed, 1 inherited failure; 16 passing files and 1
+failing file. The selected unit files were accountsReportSource,
+agentUsageSource, changelogSource, gitSource, paidMoneyStructure,
+reportEngine, reportInputBoundaries, reportInputs,
+reportInputsAccountsSecurity, reportNetworkBinding, reportSecurityCanary,
+reportSourceReasons, reportsEntry, reportsHost, securityReportSource,
+sessionReportSource and spawnBoundaries (each `.test.ts`).
+
+Additional owning-host coverage: reportInputBoundaries + acpReports +
+reportAccountsSecurityGoldens: 117 passed; collect.accounts +
+collect.security + test/e2e/reports.e2e.test.ts: 32 passed, including all
+24 fake-only CLI cases. Removing the repeated boundary suite gives 317
+passing tests and the one inherited failure across 22 unique files.
+The final boundary/reason/reader replay passed all 153 tests after the two
+new fixture callbacks were changed to explicit Promise returns to satisfy
+`require-await`; no lint rule was suppressed or weakened.
+
+The exact-money failure still names only unchanged fields:
+`core/usage/journalStore.ts:{apiEquivalentUsd,usd}` and
+`core/usage/reportingAmount.ts:{capUsd,spentUsd,uncertainUsd}`. The owner
+expressly excluded this inherited failure; its guard and fields are untouched.
+
+The separate production split check exposed `zod/mini.omit` and
+`zod/mini.pick` calls absent from the shared shipped validation bundle.
+Account metadata and vault view projection now reuse the original individual
+field schemas directly. Their accepted values, strict vault view and final
+source caps are preserved; no validation export or split guard was changed.
+The additional validation-split red drill above restores the final reader
+byte-exact. These production-compatible forms receive the full dependency,
+ACP/CLI and five-project compiler replay below.
+
+Final production-compatible source replay: the same six dependency shards
+again passed 277 tests with only the unchanged exact-money failure.
+acpReports + reportAccountsSecurityGoldens + collect.accounts passed 12;
+collect.security + all 24 fake CLI cases passed 28. Total remains 317
+passed, one inherited failure, across all 22 selected/owning files.
+Changed-file ESLint again exited 0 after direct field-schema reuse.
+
+### R4 scoped gate receipts
+
+- Final `npm run typecheck`: exit 0 for host, webview, unit, e2e and
+  integration, after the production-compatible schema projection.
+- Changed-file ESLint `--max-warnings=0`: exit 0. All 12 changed files
+  passed Prettier. Plain knip, jscpd and cycles exited 0; duplication
+  reported zero clones. No ignore, rule, threshold or hook changed.
+- Localization, host API, reference, roadmap and plan checks: exit 0.
+  No new localization key, command, setting or feature catalogue entry.
+  The existing M113 roadmap entry was updated and regenerated.
+- Final `npm run build`: exit 1 only for the owner-excluded, unchanged
+  `dist/usagePanel.js` 76,938 bytes against 76,800 (138 bytes over).
+  `dist/reportInputs.js` is 95,599 bytes, 93.4 KiB against 100 KiB.
+- The checks after the budget step ran separately: bundle split, host
+  globals and third-party notices each exited 0. A smoke check loaded the
+  actual production `dist/reportInputs.js` and shared English bundle:
+  account metadata and its valid spend limit survived an invalid request
+  limit; the vault view parsed its original state/tier. Both passed.
+  Its isolated scratch directory was removed in finally.
+- Aggregate `npm run quality` is explicitly lead-owned and was not run.
+  No UI/CSS paint changed; no visual or installed-editor qualification
+  is claimed. No live or paid call, credential read, network call,
+  dependency change, hook edit, push, merge or rebase was performed.
+- Mandatory final verification extended slightly past the 90-minute box
+  after the production split repair; implementation was already finished.
