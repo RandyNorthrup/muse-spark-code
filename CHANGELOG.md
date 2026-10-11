@@ -18,6 +18,13 @@ happened, not what was planned; superseded entries are kept.
   disclosed zero-sample assumptions until calibration replaces them per kind.
   Starting lanes, price catalogs, history and multi-machine fleets still refuse
   with their handoff names until their lanes land.
+- **Estimator fleet binding** (M117 C-M117-3). The `fleet` and `candidatePool`
+  ports accept M107 capacity caps, M108 account rows and GitHub CI concurrency
+  through injected readers and apply them fail-closed onto this machine's
+  measured fleet. With no readers attached the forecast fleet is unchanged:
+  one serial local row, a demand-budgeted account, no CI rows and no device
+  or node rows. A lane whose affinity names a paired device or node stays
+  unschedulable with its reason.
 - **`estimate --check-plan`** (M117 CM1171R4). The headless `estimate` command
   and the ACP agent's `/estimate` accept `--check-plan`, which lists every
   estimator plan problem in `PLAN.md` — duplicate lanes, malformed `Starts`
