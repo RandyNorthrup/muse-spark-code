@@ -6,13 +6,20 @@ import {
   type FeedbackClassification,
   type FeedbackSubmitPort,
 } from '../../core/backends/musecode/feedback'
-import { UI_TEXT } from '../../shared/constants'
+import { FEEDBACK_NOTE_MAX_CHARS, UI_TEXT } from '../../shared/constants'
+import { fill } from '../../shared/l10n/text'
 import { Modal } from './Modal'
 
 export interface FeedbackDialogProps {
   readonly sessionId: string
   readonly port: FeedbackSubmitPort
   readonly onClose: () => void
+}
+
+const NOTE_ROWS = 6
+
+function refusalOf(error: unknown): string {
+  return error instanceof Error ? error.message : UI_TEXT.feedbackFailed
 }
 
 function FeedbackForm({ sessionId, port, onClose }: FeedbackDialogProps) {
@@ -37,12 +44,15 @@ function FeedbackForm({ sessionId, port, onClose }: FeedbackDialogProps) {
   const [previewed, setPreviewed] = useState(false)
   const [isSending, setIsSending] = useState(false)
   const [result, setResult] = useState<string>()
-  const [failed, setFailed] = useState(false)
+  const [failure, setFailure] = useState<string>()
   const sending = useRef(false)
   const canSend =
     classifications.some((choice) => choice.classification === classification) &&
     (classification !== 'bug' || note.trim().length > 0)
-  const status = failed ? UI_TEXT.feedbackFailed : (result ?? '')
+  // The status names what actually happened: the upload line on success, the
+  // refusal's own sentence otherwise (a sign-in request, a rate limit, an
+  // unknown outcome), never the generic failure over a real reason.
+  const status = failure ?? result ?? ''
   let submitText = previewed ? UI_TEXT.feedbackSend : UI_TEXT.reportPreviewLabel
   if (isSending) submitText = previewed ? UI_TEXT.feedbackSending : UI_TEXT.reportUpdating
 
@@ -52,7 +62,7 @@ function FeedbackForm({ sessionId, port, onClose }: FeedbackDialogProps) {
     sending.current = true
     setIsSending(true)
     setResult(undefined)
-    setFailed(false)
+    setFailure(undefined)
     try {
       if (!previewed) {
         setNote(await scrubMuseFeedbackNote(note, port))
@@ -66,8 +76,8 @@ function FeedbackForm({ sessionId, port, onClose }: FeedbackDialogProps) {
           note,
         ),
       )
-    } catch {
-      setFailed(true)
+    } catch (error: unknown) {
+      setFailure(refusalOf(error))
       if (previewed) {
         try {
           setNote(await scrubMuseFeedbackNote(note, port))
@@ -85,10 +95,14 @@ function FeedbackForm({ sessionId, port, onClose }: FeedbackDialogProps) {
     <Modal title={UI_TEXT.feedbackTitle} titleId="feedback-title" onClose={onClose}>
       <form onSubmit={(event) => void submit(event)}>
         <p>{UI_TEXT.feedbackPrivacy}</p>
-        <fieldset disabled={isSending}>
-          <label>
-            {UI_TEXT.feedbackClassification}
+        <fieldset disabled={isSending} className="feedback-fields">
+          <div>
+            <label className="feedback-label" htmlFor="feedback-classification">
+              {UI_TEXT.feedbackClassification}
+            </label>
             <select
+              id="feedback-classification"
+              className="question-input feedback-input"
               value={classification}
               onChange={(event) => {
                 const selected = feedbackClassificationSchema.safeParse(event.target.value)
@@ -102,10 +116,17 @@ function FeedbackForm({ sessionId, port, onClose }: FeedbackDialogProps) {
                 </option>
               ))}
             </select>
-          </label>
-          <label>
-            {UI_TEXT.feedbackNote}
+          </div>
+          <div>
+            <label className="feedback-label" htmlFor="feedback-note">
+              {UI_TEXT.feedbackNote}
+            </label>
             <textarea
+              id="feedback-note"
+              className="question-input feedback-input feedback-note"
+              rows={NOTE_ROWS}
+              maxLength={FEEDBACK_NOTE_MAX_CHARS}
+              aria-describedby="feedback-note-counter"
               value={note}
               readOnly={previewed}
               required={classification === 'bug'}
@@ -113,10 +134,17 @@ function FeedbackForm({ sessionId, port, onClose }: FeedbackDialogProps) {
                 setNote(event.target.value)
               }}
             />
-          </label>
+            <span id="feedback-note-counter" className="feedback-counter">
+              {fill(UI_TEXT.feedbackNoteCounter, {
+                used: note.length,
+                max: FEEDBACK_NOTE_MAX_CHARS,
+              })}
+            </span>
+          </div>
           {previewed && (
             <button
               type="button"
+              className="button-secondary"
               onClick={() => {
                 setPreviewed(false)
               }}
@@ -125,9 +153,11 @@ function FeedbackForm({ sessionId, port, onClose }: FeedbackDialogProps) {
             </button>
           )}
         </fieldset>
-        <button type="submit" disabled={isSending || !canSend}>
-          {submitText}
-        </button>
+        <div className="question-actions feedback-actions">
+          <button type="submit" className="button-primary" disabled={isSending || !canSend}>
+            {submitText}
+          </button>
+        </div>
         <p role="status">{status}</p>
       </form>
     </Modal>

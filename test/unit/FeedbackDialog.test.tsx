@@ -5,11 +5,12 @@ import {
   FeedbackDialog,
   type FeedbackDialogProps,
 } from '../../src/webview/components/FeedbackDialog'
-import { REDACTED_MARK, UI_TEXT } from '../../src/shared/constants'
+import { FEEDBACK_NOTE_MAX_CHARS, REDACTED_MARK, UI_TEXT } from '../../src/shared/constants'
+import { fill } from '../../src/shared/l10n/text'
 import { redactSecrets } from '../../src/shared/redact'
 
 function setup(overrides: Partial<FeedbackDialogProps> = {}) {
-  const submit = vi.fn().mockResolvedValue('trackingUncertain')
+  const submit = vi.fn().mockResolvedValue(UI_TEXT.feedbackUploaded)
   const props: FeedbackDialogProps = {
     sessionId: 's',
     port: { submit },
@@ -145,7 +146,56 @@ describe('FeedbackDialog: the captured disclosure only', () => {
     expect(screen.getByRole('status').textContent).toBe(UI_TEXT.feedbackFailed)
   })
 
-  it('shows the reader outcome verbatim, never wrapped', async () => {
+  it('shows the refusal sentence, not the generic failure, when signed out', async () => {
+    const submit = vi.fn().mockRejectedValue(new Error(UI_TEXT.notSignedInReason))
+    setup({ port: { submit } })
+    fireEvent.change(noteBox(), { target: { value: 'A wrong answer' } })
+    await send()
+    await screen.findByText(UI_TEXT.notSignedInReason)
+    expect(screen.getByRole('status').textContent).toBe(UI_TEXT.notSignedInReason)
+  })
+
+  it('shows a non-upload outcome sentence as the failure, never as success', async () => {
+    const submit = vi.fn().mockRejectedValue(new Error(UI_TEXT.feedbackRateLimited))
+    setup({ port: { submit } })
+    fireEvent.change(noteBox(), { target: { value: 'A wrong answer' } })
+    await send()
+    await screen.findByText(UI_TEXT.feedbackRateLimited)
+    expect(screen.getByRole('status').textContent).toBe(UI_TEXT.feedbackRateLimited)
+  })
+
+  it('shows the generic failure for a refusal carrying no reason', async () => {
+    const submit = vi.fn().mockRejectedValue('gone')
+    setup({ port: { submit } })
+    fireEvent.change(noteBox(), { target: { value: 'A wrong answer' } })
+    await send()
+    await screen.findByText(UI_TEXT.feedbackFailed)
+    expect(screen.getByRole('status').textContent).toBe(UI_TEXT.feedbackFailed)
+  })
+
+  it('stops the note at the protocol maximum and counts down to it', () => {
+    setup()
+    const box = noteBox()
+    expect(box).toHaveAttribute('maxLength', String(FEEDBACK_NOTE_MAX_CHARS))
+    expect(
+      screen.getByText(fill(UI_TEXT.feedbackNoteCounter, { used: 0, max: 2000 })),
+    ).toBeDefined()
+    fireEvent.change(box, { target: { value: 'hello' } })
+    expect(
+      screen.getByText(fill(UI_TEXT.feedbackNoteCounter, { used: 5, max: 2000 })),
+    ).toBeDefined()
+  })
+
+  it('settles a refused preview with its reason instead of waiting', async () => {
+    const reason = fill(UI_TEXT.feedbackNoteTooLong, { max: FEEDBACK_NOTE_MAX_CHARS })
+    setup({ port: { submit: vi.fn(), scrubNote: () => Promise.reject(new Error(reason)) } })
+    fireEvent.change(noteBox(), { target: { value: 'A wrong answer' } })
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.reportPreviewLabel }))
+    await screen.findByText(reason)
+    expect(screen.getByRole('button', { name: UI_TEXT.reportPreviewLabel })).not.toBeDisabled()
+  })
+
+  it('shows the upload line on success, the only success the reader resolves', async () => {
     const submit = vi.fn().mockResolvedValue(UI_TEXT.feedbackUploaded)
     setup({ port: { submit } })
     fireEvent.change(noteBox(), { target: { value: 'A wrong answer' } })
