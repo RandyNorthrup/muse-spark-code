@@ -1,7 +1,9 @@
 // One uploaded-files report (and ledger double) for the suites driving the
 // binding (M105 lane F): the same fixture everywhere, so the suites do not
 // duplicate it.
-import { vi } from 'vitest'
+import { type Mock, vi } from 'vitest'
+import type { AcpUploadsPort } from '../../../src/acp/uploads'
+import type { UploadedFilesLedger } from '../../../src/core/media/uploadedFiles'
 import type { UploadedFilesReport } from '../../../src/shared/media'
 
 /** Two ledger files: ours and another app's, both unreferenced. */
@@ -32,8 +34,23 @@ export function uploadedFilesReportFixture(): UploadedFilesReport {
   }
 }
 
+/** The counting ledger double's type: the port surface plus the posted report. */
+export interface FakeUploadedFilesLedger extends AcpUploadsPort, UploadedFilesLedger {
+  readonly read: Mock<() => Promise<UploadedFilesReport>>
+  readonly accountReport: Mock<() => Promise<UploadedFilesReport>>
+  readonly deleteFile: Mock<
+    (
+      fileId: string,
+      isForeignDeletionConfirmed: (name: string) => Promise<boolean>,
+    ) => Promise<void>
+  >
+  readonly deleteAllOurs: Mock<() => Promise<void>>
+  readonly post: Mock<(report: UploadedFilesReport) => void>
+  readonly confirmForeign: Mock<(question: string) => Promise<boolean>>
+}
+
 /** A counting ledger double over the shared report, for port-level suites. */
-export function fakeUploadedFilesLedger(report: UploadedFilesReport) {
+export function fakeUploadedFilesLedger(report: UploadedFilesReport): FakeUploadedFilesLedger {
   return {
     read: vi.fn(() => Promise.resolve(report)),
     accountReport: vi.fn(() => Promise.resolve(report)),

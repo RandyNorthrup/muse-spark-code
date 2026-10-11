@@ -4,15 +4,19 @@ import {
   emptyUploadedFilesReport,
 } from '../../src/core/media/uploadedFiles'
 import { uploadedFilesReportSchema } from '../../src/shared/media'
-import { fakeUploadedFilesLedger, uploadedFilesReportFixture } from './helpers/uploadedFiles'
+import {
+  fakeUploadedFilesLedger,
+  type FakeUploadedFilesLedger,
+  uploadedFilesReportFixture,
+} from './helpers/uploadedFiles'
 
 const report = uploadedFilesReportFixture()
 
-function setup(ledger: unknown) {
+function setup(ledger: FakeUploadedFilesLedger | undefined) {
   const post = vi.fn()
   const confirmForeign = vi.fn(() => Promise.resolve(true))
   const port = createUploadedFilesPort({
-    ledger: () => Promise.resolve(ledger as never),
+    ledger: () => Promise.resolve(ledger),
     post,
     confirmForeign,
   })

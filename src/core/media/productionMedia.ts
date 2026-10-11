@@ -172,7 +172,8 @@ export function createProductionMediaReplay(deps: ProductionMediaDeps): ReplayMe
     // upload asks nothing beyond decision 7. The ledger still binds every
     // request to the key digest and refuses on an account change.
     authorizeUpload: () => Promise.resolve(),
-    expirySeconds: uploadExpirySeconds(deps.expiryDays?.()),
+    // The setting is read on every upload, never frozen here.
+    expirySeconds: () => uploadExpirySeconds(deps.expiryDays?.()),
   })
   const accountDirectory = productionMediaDirectory(deps.directory, deps.accountId)
   const ledger = new UploadLedger({

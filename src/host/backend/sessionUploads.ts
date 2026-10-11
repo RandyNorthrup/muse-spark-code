@@ -42,8 +42,9 @@ export function createSessionUploads(
           provider: 'meta',
           // U6c (D85.6): storage is not billed; the upload asks nothing
           // beyond decision 7, like the replay's own Files binding.
+          // The setting is read on every upload, never frozen here.
           authorizeUpload: () => Promise.resolve(),
-          expirySeconds: uploadExpirySeconds(deps.expiryDays?.()),
+          expirySeconds: () => uploadExpirySeconds(deps.expiryDays?.()),
         }),
         accountId,
         provider: 'meta',

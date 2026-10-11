@@ -78,7 +78,8 @@ export interface FilesApiDeps {
     storage: { readonly bytes: number; readonly expirySeconds: number; readonly provider: string },
   ) => Promise<void>
   readonly maxBytes?: number
-  readonly expirySeconds?: number
+  /** Read on every upload, so a changed setting applies to the next one. */
+  readonly expirySeconds?: number | (() => number)
   readonly expectedAccountId?: string
 }
 
@@ -97,7 +98,11 @@ export class FilesApi {
     expectedSha256?: string,
   ): Promise<UploadedMediaRef> {
     signal.throwIfAborted()
-    const expiry = this.deps.expirySeconds ?? MEDIA_FILE_EXPIRY_DEFAULT_S
+    const configured =
+      typeof this.deps.expirySeconds === 'function'
+        ? this.deps.expirySeconds()
+        : this.deps.expirySeconds
+    const expiry = configured ?? MEDIA_FILE_EXPIRY_DEFAULT_S
     if (
       !Number.isSafeInteger(expiry) ||
       expiry < MEDIA_FILE_EXPIRY_MIN_S ||

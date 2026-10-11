@@ -4,12 +4,12 @@ import {
   runDeleteUploadedFilesCommand,
 } from '../../src/host/conversation/uploadedFilesBinding'
 import { UI_TEXT } from '../../src/shared/constants'
-import { uploadedFilesReportFixture } from './helpers/uploadedFiles'
+import { type FakeUploadedFilesLedger, uploadedFilesReportFixture } from './helpers/uploadedFiles'
 
 const report = uploadedFilesReportFixture()
 
 function setup(options?: { missingAccount?: boolean }) {
-  const ledger = {
+  const ledger: Pick<FakeUploadedFilesLedger, 'accountReport' | 'deleteFile' | 'deleteAllOurs'> = {
     accountReport: vi.fn(() => Promise.resolve(report)),
     deleteFile: vi.fn((_id: string, _isConfirmed: (name: string) => Promise<boolean>) =>
       Promise.resolve(),
@@ -18,7 +18,7 @@ function setup(options?: { missingAccount?: boolean }) {
   }
   const uploads = vi.fn(() => Promise.resolve(ledger))
   const binding = createUploadedFilesBinding({
-    uploads: uploads as never,
+    uploads,
     getAccountId: () =>
       Promise.resolve(options?.missingAccount === true ? undefined : 'a'.repeat(64)),
     post: vi.fn(),
@@ -99,8 +99,7 @@ describe('uploaded-files host binding', () => {
       confirmForeign,
       dialogs: fakeDialogs(['file-other']),
     })
-    const confirm = t.ledger.deleteFile.mock.calls[0]?.[1] as
-      ((name: string) => Promise<boolean>) | undefined
+    const confirm = t.ledger.deleteFile.mock.calls[0]?.[1]
     expect(confirm).toBeDefined()
     await confirm?.('other.pdf')
     expect(confirmForeign).toHaveBeenCalledWith(
