@@ -71,6 +71,30 @@ function wipe(item: VaultItem): void {
   }
 }
 
+/**
+ * A refusal the broker or a guard below named with a fixed localized
+ * sentence keeps that sentence; anything else (native text, connection
+ * errors) stays the generic failure (RVCM1091B 4: never native text).
+ * Exact match only: no foreign text can quote a full sentence.
+ */
+function refusalMessage(error: unknown): string {
+  const named: readonly string[] = [
+    UI_TEXT.vault.locked, // protocol refusal `locked`
+    UI_TEXT.vault.setupNeeded, // `uncreated`
+    UI_TEXT.vault.setupExists, // `exists`
+    UI_TEXT.vault.busy, // `busy`
+    UI_TEXT.vault.rollback, // `rollback`
+    UI_TEXT.vault.storeUnavailable, // `storeUnavailable`
+    UI_TEXT.vault.operationFailed, // `invalid`, `io`
+    UI_TEXT.vault.noAccess, // an unexpected broker shape
+    UI_TEXT.vault.useChanged, // a guard below
+    UI_TEXT.vault.approvalExpired, // a guard below
+  ]
+  return error instanceof Error && named.includes(error.message)
+    ? error.message
+    : UI_TEXT.vault.operationFailed
+}
+
 /** One serialized owner. Lock and disposal synchronously invalidate every older effect. */
 export class VaultPanelHost {
   private generation = 0
@@ -123,9 +147,11 @@ export class VaultPanelHost {
   }
 
   /** Late completions after disposal report nothing: there is no window left. */
-  private reportError(generation: number): void {
+  private reportError(generation: number, error?: unknown): void {
     if (!this.disposed && generation === this.generation)
-      this.deps.showError(UI_TEXT.vault.operationFailed)
+      this.deps.showError(
+        error === undefined ? UI_TEXT.vault.operationFailed : refusalMessage(error),
+      )
   }
 
   private showLocked(lockEpoch?: number): void {
@@ -150,8 +176,8 @@ export class VaultPanelHost {
   /** Prompt publish outside the queue; the queued editor keeps its own generation. */
   private refreshNow(): void {
     const generation = this.generation
-    void this.load(generation).catch(() => {
-      this.reportError(generation)
+    void this.load(generation).catch((error: unknown) => {
+      this.reportError(generation, error)
     })
   }
 
@@ -179,8 +205,8 @@ export class VaultPanelHost {
         await previous
         this.authorize(generation)
         await task(generation)
-      } catch {
-        this.reportError(generation)
+      } catch (error: unknown) {
+        this.reportError(generation, error)
       }
     })()
     return this.queue
@@ -223,8 +249,8 @@ export class VaultPanelHost {
     try {
       await this.deps.service.lock()
       await this.refresh()
-    } catch {
-      this.reportError(generation)
+    } catch (error: unknown) {
+      this.reportError(generation, error)
     }
   }
 
@@ -414,6 +440,16 @@ export class VaultPanelHost {
             authorizeImport()
             await this.load(this.generation)
           } catch (error: unknown) {
+            if (!this.disposed && !signal.aborted) {
+              // A failed Delete leaves the imported items behind: reload
+              // so the section shows them, not the pre-import snapshot.
+              // Best-effort: the failure below is reported either way.
+              try {
+                await this.load(this.generation)
+              } catch {
+                /* The reload loses; the original failure is reported below. */
+              }
+            }
             if (generation !== this.generation && !signal.aborted) this.reportError(this.generation)
             throw error
           } finally {

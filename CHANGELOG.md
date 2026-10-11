@@ -107,6 +107,17 @@ happened, not what was planned; superseded entries are kept.
     Reset detects lost documents and damaged pending transactions, refuses
     unlocked stores, checks every destructive boundary and retires the exact
     anchor while holding the writer lock.
+  - Vault part D (CM1091DADOPT): the Models & Agents panel's vault section
+    adopts the reviewed core. The section offers Set Up Vault (the one-time
+    recovery code stays in the native dialog), Unlock, Lock, Import with the
+    native Keep-or-Delete question, and Reset Vault with the typed word, the
+    last only for a lost vault. A failed source deletion reloads so the
+    section shows the imported items. Typed refusals keep their own
+    sentences (an unavailable OS store names its repair); anything else
+    stays the generic failure, never native text. The lock toggle is
+    disabled while the vault is unavailable or first-party-only, so nothing
+    is offered that the broker would refuse. The section stays hidden until
+    the broker binds, as before; no new user-visible string.
 - `@muse-code/sdk` moves from 1.4.2 to 1.4.4 (SDK144). Muse Code 1.4.4
   (1.4.4-R5419.1) serves the new pin's schema fingerprint, so it connects
   without a mismatch warning; a 1.4.2 host now logs one, as older hosts did

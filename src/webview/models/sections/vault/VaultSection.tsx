@@ -50,6 +50,10 @@ export function VaultSection({
   const isUncreated = state.status.state === 'uncreated'
   const isSetupPending = state.status.state === 'setupPending'
   const isLost = state.status.reason === 'vaultLost'
+  // The broker cannot act while unavailable or first-party-only: an Unlock
+  // there would only be refused, so the toggle stays disabled and Reset
+  // (when lost) is the only action offered.
+  const canToggleLock = state.status.state === 'locked' || state.status.state === 'unlocked'
   const audit = state.audit.filter(
     (row) =>
       (itemFilter === '' || row.handle === itemFilter) &&
@@ -107,6 +111,7 @@ export function VaultSection({
         ) : (
           <button
             type="button"
+            disabled={!canToggleLock}
             onClick={() => {
               post({ type: isUnlocked ? 'vaultLock' : 'vaultUnlock' })
             }}
