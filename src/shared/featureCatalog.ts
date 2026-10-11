@@ -794,6 +794,8 @@ export function featureCatalog(): readonly Feature[] {
       ['modelApiHooks', 'hookHttpAllowedHosts', 'modelApiShellKeepsDirectory'],
       'hooks',
     ),
+    // M123P9: runtime checkout uses the same installed display language;
+    // uncertain record writes have a translated failure, with CAS cleanup.
     feature(
       'git',
       { ui: 'groupGit' },

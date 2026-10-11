@@ -14,13 +14,13 @@
 // or junction on the way, or a name the volume reads as another, refuses
 // the checkout, and the half-written worktree is removed.
 
-import { Buffer } from 'node:buffer'
+import { type Buffer } from 'node:buffer'
 import { mkdir } from 'node:fs/promises'
 import path from 'node:path'
 import { isCommitSha } from '../../core/git/github'
-import { foldName, heldTree, type HeldEntry, unsafePathReason } from '../../core/git/heldTree'
+import { BlobAnswers, heldDestination } from '../../core/git/heldCheckoutCore'
+import { heldTree, type HeldEntry, unsafePathReason } from '../../core/git/heldTree'
 import { isSamePath } from '../../core/paths'
-import { confineWorkspacePath } from '../../core/workspacePath'
 import { worktreeAddHeldArgs } from '../../core/worktrees'
 import {
   GIT_WORKTREE_TIMEOUT_MS,
@@ -74,91 +74,18 @@ interface Target {
   readonly check: () => void
 }
 
-const LINE_FEED = 0x0a
 const BATCH_ARGS = ['cat-file', '--batch']
 
 function unreadable(): Error {
   return new GitUnavailableError(UI_TEXT.openPullRequestUnreadable)
 }
 
-/**
- * `git cat-file --batch`'s answers, in the order asked: `<oid> blob <size>`,
- * LF, the bytes and LF for each blob. Anything else (a missing object,
- * another size, a byte past the last answer) refuses the checkout.
- */
-class BlobAnswers {
-  private chunks: Buffer[] = []
-  private length = 0
-  private next = 0
-
-  public constructor(
-    private readonly blobs: readonly HeldEntry[],
-    private readonly write: (entry: HeldEntry, bytes: Buffer) => Promise<void>,
-  ) {}
-
-  /** One chunk of stdout: every answer it completes is written before git goes on. */
-  public async take(chunk: Buffer): Promise<void> {
-    this.chunks.push(chunk)
-    this.length += chunk.length
-    const waiting = this.blobs[this.next]
-    if (waiting === undefined) {
-      throw unreadable()
-    }
-    if (this.length <= headerOf(waiting).length + waiting.size) {
-      return
-    }
-    const answers = Buffer.concat(this.chunks, this.length)
-    let offset = 0
-    for (let blob = this.blobs[this.next]; blob !== undefined; blob = this.blobs[this.next]) {
-      const header = headerOf(blob)
-      const end = offset + header.length + blob.size
-      if (answers.length <= end) {
-        break
-      }
-      if (
-        !answers.subarray(offset, offset + header.length).equals(header) ||
-        answers[end] !== LINE_FEED
-      ) {
-        throw unreadable()
-      }
-      await this.write(blob, answers.subarray(offset + header.length, end))
-      offset = end + 1
-      this.next += 1
-    }
-    const rest = answers.subarray(offset)
-    this.chunks = rest.length === 0 ? [] : [rest]
-    this.length = rest.length
-    if (this.next === this.blobs.length && this.length > 0) {
-      throw unreadable()
-    }
-  }
-
-  /** Every blob was answered, and nothing more came. */
-  public finish(): void {
-    if (this.next !== this.blobs.length || this.length !== 0) {
-      throw unreadable()
-    }
-  }
-}
-
-function headerOf(blob: HeldEntry): Buffer {
-  return Buffer.from(`${blob.oid} blob ${String(blob.size)}\n`)
-}
-
-/**
- * Where a path of the commit lands: inside the worktree, with nothing on the
- * way that leads elsewhere. Every folder on the way was made by this
- * checkout with the commit's spelling, so any other canonical spelling is a
- * link, a junction or a name the volume reads as another (a short name).
- */
+/** Where a path of the commit lands (`heldDestination`), or the refusal. */
 async function destinationOf(platform: NodeJS.Platform, folder: string, entryPath: string) {
-  const resolution = await confineWorkspacePath(folder, entryPath, platform, {
+  const resolution = await heldDestination(platform, folder, entryPath, {
     realPath: canonicalPath,
   })
-  if (
-    !resolution.ok ||
-    foldName(resolution.canonical, platform) !== foldName(resolution.relative, platform)
-  ) {
+  if (resolution === undefined) {
     throw new GitUnavailableError(unsafePathReason(entryPath))
   }
   return resolution
@@ -211,7 +138,11 @@ async function writeEntries(
   if (blobs.length === 0) {
     return
   }
-  const answers = new BlobAnswers(blobs, (entry, bytes) => writeBlob(deps, target, entry, bytes))
+  const answers = new BlobAnswers(
+    blobs,
+    (entry, bytes) => writeBlob(deps, target, entry, bytes),
+    unreadable,
+  )
   target.check()
   await deps.gitProcess([...UNTRUSTED_CHECKOUT_OPTIONS, ...BATCH_ARGS], {
     cwd: target.cwd,
