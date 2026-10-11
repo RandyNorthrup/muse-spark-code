@@ -33,6 +33,33 @@ export interface FeedbackOutcomeReader {
   readonly secretLiterals?: () => readonly string[]
 }
 
+// Native reader for the Muse Code `feedback/submit` receipt, written from
+// the captured 1.4.4 note-only upload frame
+// (test/fixtures/m106/msp-1.4.4-host-feedback.json, id 5): `outcome`
+// `uploaded` with no session record attached. The receipt's identifiers stay
+// in the host: only the outcome is returned, never the bundle path. A
+// record-attached receipt has no captured frame, so it refuses with the
+// upstream request instead of reporting an uncertified disclosure; any other
+// future outcome is shown exactly as it arrived.
+const feedbackReceiptSchema = z.looseObject({
+  outcome: z.string().check(z.minLength(1)),
+  sessionRecordAttached: z.optional(z.boolean()),
+})
+
+/** Validate one captured receipt; throw on malformed or uncertified receipts. */
+export function parseFeedbackOutcome(receipt: unknown): string {
+  const parsed = feedbackReceiptSchema.parse(receipt)
+  if (parsed.sessionRecordAttached === true) {
+    throw new Error(UI_TEXT.feedbackRecordUnsupported)
+  }
+  return parsed.outcome === 'uploaded' ? UI_TEXT.feedbackUploaded : parsed.outcome
+}
+
+/** The captured-frame feedback reader to bind at the host constructions. */
+export const NATIVE_FEEDBACK_READER: FeedbackOutcomeReader = {
+  parseOutcome: parseFeedbackOutcome,
+}
+
 export interface FeedbackSubmitPort {
   /** The host scrubs registered literals; the shared detector also runs locally. */
   readonly scrubNote?: (note: string) => Promise<string>

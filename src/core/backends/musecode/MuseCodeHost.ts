@@ -2474,7 +2474,7 @@ export class MuseCodeHost implements AgentHost {
   /** The caller confirms permanent deletion before invoking this operation. */
   public async deleteSession(sessionId: string): Promise<MuseCodeLifecycleEvent> {
     const reader = this.features.lifecycle
-    if (reader === undefined) throw new Error(UI_TEXT.memoryDeleteAction)
+    if (reader === undefined) throw new Error(UI_TEXT.sessionDeleteUnsupported)
     const signal = this.deletionStopped.signal
     signal.throwIfAborted()
     const commandId = this.channel.connection.mintCommandId()
