@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import * as vscode from 'vscode'
@@ -22,7 +22,7 @@ import {
   runOpenRouterUsage,
   openRouterAuthenticationMethods,
 } from '../../src/runtime/openRouterCommands'
-import { providersAdd } from '../../src/runtime/providersCommands'
+import { providersAdd, userFileIo } from '../../src/runtime/providersCommands'
 import type { ProvidersDeps } from '../../src/runtime/providersCommands'
 import { formatStoredProviderSecret } from '../../src/runtime/keyStore'
 import { EN } from '../../src/shared/l10n/en'
@@ -414,6 +414,24 @@ describe('CM952 terminal and ACP routes', () => {
       ['providers', 'usage', 'openrouter'],
     ])
     for (const method of methods) expect(await method.verify?.()).toBeUndefined()
+  })
+  it('connects on first run without a providers file and refuses a malformed file', async () => {
+    const f = await fixture()
+    const firstRunFile = path.join(path.dirname(f.configFile), 'first-run.json')
+    const deps = { ...f.deps, ...userFileIo(firstRunFile) }
+    f.setPayload({ key: KEY })
+    expect(await runOpenRouterConnect(deps, f.services)).toBe(0)
+    for (const method of openRouterAuthenticationMethods(deps))
+      expect(await method.verify?.()).toBeUndefined()
+    await expect(readFile(firstRunFile)).rejects.toMatchObject({ code: 'ENOENT' })
+    f.setPayload(f.usage)
+    expect(await runOpenRouterUsage(deps, f.services, 'openrouter')).toBe(0)
+    await writeFile(firstRunFile, '{}')
+    expect(await runOpenRouterConnect(deps, f.services)).toBe(1)
+    for (const method of openRouterAuthenticationMethods(deps))
+      expect(await method.verify?.()).toBe(UI_TEXT.providerKeyNotStored)
+    expect(f.errors).toEqual([UI_TEXT.providerConnectFailed])
+    expect(f.calls).toHaveLength(2)
   })
   it('reports usage through the stored key and refuses an unbound ACP sign-in', async () => {
     const f = await fixture()

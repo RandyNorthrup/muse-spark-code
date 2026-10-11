@@ -877,11 +877,11 @@ export async function keyTargetFor(
   | { readonly ok: false; readonly reason: string }
 > {
   const unknown = fill(UI_TEXT.providerUnknown, { provider: providerId })
-  const read = await readUserFile()
-  if (!read.ok) {
-    return { ok: false, reason: read.reason === 'missing' ? unknown : read.detail }
+  const loaded = fileOrError(await readUserFile())
+  if ('reason' in loaded) {
+    return { ok: false, reason: loaded.reason }
   }
-  const entry = read.file.providers.find((candidate) => candidate.id === providerId)
+  const entry = loaded.file.providers.find((candidate) => candidate.id === providerId)
   if (entry !== undefined) {
     const preset = presetById(entry.preset)
     if (preset === undefined) {

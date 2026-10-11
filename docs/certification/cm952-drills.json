@@ -305,5 +305,22 @@
         "sha256": "2c9592f7b00b7d0b3af9092dc2298996cc033019036e370b601deded3d029443"
       }
     ]
+  },
+  {
+    "drill": "first-run-key-target",
+    "exit": 1,
+    "seconds": 16.31,
+    "timing": "Vitest reported duration",
+    "files": ["test/unit/openRouterComposition.test.ts"],
+    "failures": [
+      "× connects on first run without a providers file and refuses a malformed file 28ms",
+      "FAIL  test/unit/openRouterComposition.test.ts > CM952 terminal and ACP routes > connects on first run without a providers file and refuses a malformed file"
+    ],
+    "restoredSha256": [
+      {
+        "file": "src/runtime/providersCommands.ts",
+        "sha256": "3aedd5f52f9e9ecbf72499613146be2f86acad181a410fd82833480a35e35700"
+      }
+    ]
   }
 ]
