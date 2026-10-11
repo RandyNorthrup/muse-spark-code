@@ -1842,6 +1842,16 @@ export const PLAYBOOK_JOB_ENVIRONMENT = {
   idleMs: 'MUSE_SPARK_PLAYBOOK_IDLE_MS',
   sweepMs: 'MUSE_SPARK_PLAYBOOK_SWEEP_MS',
 } as const
+// The job dies with the last handle to it, and the helper holds the only
+// one: Win32's JOBOBJECT_EXTENDED_LIMIT_INFORMATION (information class 9),
+// zeroed but for JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE in its LimitFlags.
+export const PLAYBOOK_JOB_KILL_ON_CLOSE = {
+  informationClass: 9,
+  flag: 0x20_00,
+  flagOffset: 16,
+  bytes64: 144,
+  bytes32: 112,
+} as const
 // The helper's answer flags for one call.
 export const PLAYBOOK_JOB_FLAGS = {
   timedOut: 1,

@@ -26,8 +26,15 @@ import { gitWorkspace } from './gitWorkspace'
  * A counted review is dozens of real git processes, and a governed round
  * about sixty with the repository's own hooks, each a process tree of its
  * own; Windows starts each several times slower. No fake stands in for them.
+ *
+ * These tests wait on nothing but that work: the governor's are synchronous
+ * calls with no timer in them, and the window's poll for the decision itself
+ * (`eventually`), so this is a ceiling on real work and never a wait.
+ * Measured 2026-10-11: the slowest governed round took 9 s on Linux, 15 s on
+ * Windows, and 80 to 92 s on the Windows rig while a review ran on it beside
+ * the suite (428 s for the file against 59 to 70 s). Twice that worst case.
  */
-export const GOVERNED_ROUND_TIMEOUT_MS = 60_000
+export const GOVERNED_ROUND_TIMEOUT_MS = 180_000
 
 export const PANEL_FILES = {
   store: 'src/core/schedules/store.ts',

@@ -15,6 +15,7 @@
 // No model text enters here. Synchronous, no `vscode`.
 
 import { createHash, randomUUID } from 'node:crypto'
+import path from 'node:path'
 import {
   PLAYBOOK_ID_MAX_CHARS,
   PLAYBOOK_MODULE_DIRECTORY_DEPTH,
@@ -31,6 +32,7 @@ import type {
   PlaybookReviewAgents,
   PlaybookRound,
 } from '../../shared/playbook'
+import { resolvedLongPath } from '../pathIdentity'
 import type { PlaybookHookAdmission } from './playbook/outcomes'
 import {
   fileIdentities,
@@ -77,6 +79,65 @@ export function moduleKeyOf(file: string): string {
 
 function sorted(values: Iterable<string>): string[] {
   return [...new Set(values)].toSorted((a, b) => Number(a > b) - Number(a < b))
+}
+
+/**
+ * A path as the journal names it: the real file under the real workspace,
+ * relative, with forward slashes. Links, junctions, drive spellings, 8.3
+ * names and (where the file system ignores it) case are resolved first, so
+ * two spellings of one file are one path here. Undefined when the path is
+ * not inside the workspace or cannot be resolved.
+ */
+export function workspaceFile(workspaceFolder: string, file: string): string | undefined {
+  const folder = resolvedLongPath(path.resolve(workspaceFolder))
+  const resolved = resolvedLongPath(path.resolve(workspaceFolder, file))
+  if (folder === undefined || resolved === undefined) return undefined
+  const relative = path.relative(folder, resolved)
+  if (relative === '' || path.isAbsolute(relative)) return undefined
+  try {
+    return modulePath(relative)
+  } catch {
+    return undefined
+  }
+}
+
+/** What two spellings of one file share: Windows names files without regard to case. */
+function fileKey(file: string): string {
+  return process.platform === 'win32' ? file.toLowerCase() : file
+}
+
+/**
+ * The one classification of a review (D96.16), for the window and the
+ * governor alike: each reviewed file that a child of the conversation
+ * changed, by resolved file identity, with the child that changed it. The
+ * conversation's own session is never its child. Empty: an ordinary review,
+ * for which nothing else may be read.
+ */
+export function reviewedChanges(
+  workspaceFolder: string,
+  sessionId: string,
+  files: readonly string[],
+  children: readonly PanelChild[],
+): { readonly file: string; readonly child: PanelChild }[] {
+  const reviewed = new Map<string, string>()
+  for (const raw of files) {
+    const file = workspaceFile(workspaceFolder, raw)
+    if (file !== undefined) reviewed.set(fileKey(file), file)
+  }
+  const changes: { readonly file: string; readonly child: PanelChild }[] = []
+  if (reviewed.size === 0) return changes
+  for (const child of children) {
+    if (child.sessionId === sessionId) continue
+    const seen = new Set<string>()
+    for (const raw of child.files) {
+      const changed = workspaceFile(workspaceFolder, raw)
+      const file = changed === undefined ? undefined : reviewed.get(fileKey(changed))
+      if (file === undefined || seen.has(file)) continue
+      seen.add(file)
+      changes.push({ file, child })
+    }
+  }
+  return changes
 }
 
 /** The journal's current module for a key: the last one declared under it. */
@@ -193,17 +254,11 @@ export function reviewModules(
   files: readonly string[],
   children: readonly PanelChild[],
 ): PanelReviewModule[] {
-  const reviewed = new Set(files.map((file) => modulePath(file)))
   const byKey = new Map<string, { files: string[]; child: PanelChild }>()
   // Later children win a key: the latest change is the one under review.
-  for (const child of children) {
-    if (child.sessionId === sessionId) continue
-    for (const raw of child.files) {
-      const file = modulePath(raw)
-      if (!reviewed.has(file)) continue
-      const key = moduleKeyOf(file)
-      byKey.set(key, { files: [...(byKey.get(key)?.files ?? []), file], child })
-    }
+  for (const { file, child } of reviewedChanges(deps.workspaceFolder, sessionId, files, children)) {
+    const key = moduleKeyOf(file)
+    byKey.set(key, { files: [...(byKey.get(key)?.files ?? []), file], child })
   }
   if (byKey.size === 0) return []
   const records = deps.records()

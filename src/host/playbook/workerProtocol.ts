@@ -212,8 +212,12 @@ export const fromPlaybookWorkerSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('offer'), sessionId: session, moduleId: id, moduleKey: file }),
   z.strictObject({ type: z.literal('hookOutput'), sessionId: session, output: z.string() }),
   z.strictObject({ type: z.literal('failure'), sessionId: session }),
-  // Windows: the decision's job, so the window can end it by name; absent when it ended.
-  z.strictObject({ type: z.literal('job'), name: z.optional(z.string()) }),
+  // Windows: every job whose end the worker has not seen, so the window can
+  // end by name whatever is still listed when its worker stops.
+  z.strictObject({
+    type: z.literal('job'),
+    names: z.array(z.string()).check(z.maxLength(PLAYBOOK_RECORD_MAX)),
+  }),
   // Sent before every contained call: the worker is working, not stuck.
   z.strictObject({ type: z.literal('alive') }),
 ])

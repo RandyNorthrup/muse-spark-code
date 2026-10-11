@@ -23,7 +23,19 @@ happened, not what was planned; superseded entries are kept.
   FIXM116P3-Windows-job-binding. A review counts as a playbook round only for
   files that a child agent of the conversation changed; any other review, and
   any dispatch from a conversation with no module under review, is left
-  exactly as it was. **The record in the panel:** `/playbook
+  exactly as it was. **After review RVCM1166A (one P1, five P2):** that
+  Windows job is kill-on-close and is not forgotten before its end was seen,
+  so a helper that is lost takes its call's processes with it; on macOS and
+  Linux the supervisor of every playbook git or hook call (the CLI's and the
+  ACP agent's too) leads its own process group, and its caller ends what is
+  left of that group after every call, so a lost supervisor's call is ended
+  as well. A worker that is lost aborts the admitted work that was still
+  running, a window that has closed starts nothing, only a journal folder
+  that is confirmed absent counts as "no journal" (one that cannot be read
+  refuses), and the window and the governor decide what a playbook review is
+  with one function that compares files by resolved identity (links,
+  junctions, drive spellings, and case on Windows). **The record in the
+  panel:** `/playbook
   <status|record|settings ...>` in the composer answers from the workspace
   journal without a model turn, signed in or not (M126 F9's handler, with the
   window's bundle as its source); the Agent map offers **Playbook Settings**

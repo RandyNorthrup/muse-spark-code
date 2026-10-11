@@ -2,13 +2,13 @@
 // file, a real git repository and its real hooks. What counts, what is left
 // alone, and what the third strike does to a conversation's next dispatch.
 import { randomUUID } from 'node:crypto'
-import { existsSync, mkdirSync } from 'node:fs'
+import { existsSync, mkdirSync, symlinkSync } from 'node:fs'
 import path from 'node:path'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { UI_TEXT } from '../../src/shared/constants'
 import type { PlaybookRecord } from '../../src/shared/playbook'
 import type { ReviewBlock } from '../../src/shared/reviewFindings'
-import type { PanelChild } from '../../src/core/orchestration/panelLanes'
+import { reviewedChanges, type PanelChild } from '../../src/core/orchestration/panelLanes'
 import {
   PanelGovernor,
   type PanelModuleSummary,
@@ -320,6 +320,84 @@ describe('what a review counts in', { timeout: GOVERNED_ROUND_TIMEOUT_MS }, () =
     expect(setup.governor.bindReview(partial, 'partial')).toEqual({ isClosed: true, rounds: [] })
     expect(setup.events.notes.at(-1)?.note.code).toBe('coverageIncomplete')
     expect(rounds(await journal(setup))).toEqual([])
+  })
+})
+
+/** A second way to the same directory, as a relocated folder or a junction gives. */
+function linked(setup: Governed): string {
+  const { workspace } = setup.repository
+  symlinkSync(path.join(workspace, 'src', 'core'), path.join(workspace, 'alias'), 'junction')
+  return 'alias/schedules/store.ts'
+}
+
+describe('which file a path names', { timeout: GOVERNED_ROUND_TIMEOUT_MS }, () => {
+  it('counts a child’s file reviewed through a link to it, under the file’s own name', () => {
+    const setup = governed()
+    const through = linked(setup)
+    const progress = review(setup, coveredReview([{ ...RACE, file: through }]), [through], [CHILD])
+    expect(progress.rounds).toEqual([
+      expect.objectContaining({
+        moduleKey: SCHEDULES,
+        round: 1,
+        findings: [expect.objectContaining({ file: PANEL_FILES.store })],
+      }),
+    ])
+  })
+
+  it('counts it when the host recorded the child’s change through the link', () => {
+    const setup = governed()
+    const through = path.join(setup.repository.workspace, linked(setup))
+    // An absolute path through the link, as a backend may report a change.
+    const child = { ...CHILD, files: [through] }
+    expect(review(setup, coveredReview([RACE]), [PANEL_FILES.store], [child]).rounds).toEqual([
+      expect.objectContaining({ moduleKey: SCHEDULES, round: 1 }),
+    ])
+  })
+
+  it('counts it in another case where the file system has no case, and only there', () => {
+    const setup = governed()
+    const shouted = PANEL_FILES.store.replace('src', 'SRC')
+    const opening = setup.governor.openReview(randomUUID(), SESSION, [shouted], [CHILD])
+    // One file under two spellings is one file; two files stay two.
+    expect(opening.kind).toBe(
+      existsSync(path.join(setup.repository.workspace, shouted)) ? 'playbook' : 'ordinary',
+    )
+  })
+
+  it('classifies a review once, for the window and the governor alike', () => {
+    const setup = governed()
+    const { workspace } = setup.repository
+    const through = linked(setup)
+    const outside = path.join(setup.repository.root, 'elsewhere.ts')
+    const changes = (files: readonly string[], children: readonly PanelChild[]) =>
+      reviewedChanges(workspace, SESSION, files, children).map((change) => change.file)
+    // Each reviewed file a child changed, once, under the journal's name for it.
+    expect(
+      changes(
+        [through, PANEL_FILES.store, PANEL_FILES.notes, outside],
+        [{ ...CHILD, files: [PANEL_FILES.store, through, PANEL_FILES.clock, outside] }],
+      ),
+    ).toEqual([PANEL_FILES.store])
+    // No overlap, no child, or only the conversation's own session: an ordinary review.
+    expect(changes([PANEL_FILES.notes], [CHILD])).toEqual([])
+    expect(changes([PANEL_FILES.store], [])).toEqual([])
+    expect(changes([PANEL_FILES.store], [{ ...CHILD, sessionId: SESSION }])).toEqual([])
+    expect(changes([], [CHILD])).toEqual([])
+  })
+
+  it('knows a file that is gone by its spelling, without regard to case on Windows alone', () => {
+    const setup = governed()
+    const shouted = 'src/core/schedules/REMOVED.ts'
+    const changes = reviewedChanges(
+      setup.repository.workspace,
+      SESSION,
+      [shouted],
+      [{ ...CHILD, files: [shouted.toLowerCase()] }],
+    )
+    // Nothing on disk can say whether the two are one file; Windows names files without case.
+    expect(changes.map((change) => change.file)).toEqual(
+      process.platform === 'win32' ? [shouted] : [],
+    )
   })
 })
 

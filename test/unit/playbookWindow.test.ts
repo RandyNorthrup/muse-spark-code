@@ -260,6 +260,18 @@ async function refusedWork(window: PlaybookWindow) {
 }
 
 /** A window whose worker is a stand-in that only does what the test says. */
+/**
+ * A stand-in worker's side of one dispatch: it admits the work and has it
+ * started, and when the window reports the start it does `then`.
+ */
+function started(then: (boundary: ReturnType<typeof thread>) => void) {
+  return (boundary: ReturnType<typeof thread>, request: unknown): void => {
+    if (typeof request !== 'object' || request === null || !('type' in request)) return
+    if (request.type === 'dispatch') boundary.say({ type: 'effect', dispatch: 1 })
+    else if (request.type === 'effectDone') then(boundary)
+  }
+}
+
 function standIn(
   overrides: Partial<PlaybookWindowDeps> = {},
   hear: (boundary: ReturnType<typeof thread>, request: unknown) => void = () => undefined,
@@ -355,8 +367,29 @@ describe('a window and its worker', { timeout: GOVERNED_ROUND_TIMEOUT_MS }, () =
     await expect(
       setup.window.openReview(SESSION, [PANEL_FILES.notes], [CHILD]),
     ).resolves.toBeUndefined()
+    // A child that is the conversation's own session is no child of it.
+    await expect(
+      setup.window.openReview(SESSION, [PANEL_FILES.store], [{ ...CHILD, sessionId: SESSION }]),
+    ).resolves.toBeUndefined()
     expect(setup.events.note).not.toHaveBeenCalled()
+    expect(setup.startWorker).not.toHaveBeenCalled()
     expect(existsSync(setup.repository.dataFolder)).toBe(false)
+  })
+
+  it('keeps such a review ordinary where a playbook review would be refused', async () => {
+    // Restricted Mode, and a worker that cannot start: neither is asked about files no child changed.
+    const startWorker = vi.fn<PlaybookWindowDeps['startWorker']>(() => {
+      throw new Error('this worker must never start')
+    })
+    const setup = live({ isWorkspaceTrusted: () => false, startWorker })
+    await expect(
+      setup.window.openReview(SESSION, [PANEL_FILES.notes], [CHILD]),
+    ).resolves.toBeUndefined()
+    expect(startWorker).not.toHaveBeenCalled()
+    // The same child's own file, there, is refused: that one is the playbook's.
+    await expect(setup.window.openReview(SESSION, [PANEL_FILES.store], [CHILD])).rejects.toThrow(
+      UI_TEXT.playbookUnavailable,
+    )
   })
 
   it('counts a child’s review, adds only the charter, and tells the conversation its round', async () => {
@@ -541,21 +574,31 @@ describe('a window that cannot believe its worker', () => {
     expect(setup.startWorker).toHaveBeenCalledTimes(2)
   })
 
-  it('ends a worker that says nothing while it owes an answer, and its job by name', async () => {
-    // The decision's job is announced; then nothing more comes.
+  it('ends a worker that says nothing while it owes an answer, and every job it had not seen end', async () => {
+    const STUCK = String.raw`Local\MuseSparkPlaybook-stuck`
+    const EARLIER = String.raw`Local\MuseSparkPlaybook-earlier`
+    // The worker names two jobs whose end it has not seen; then nothing more comes.
     const setup = standIn({ silenceMs: 60 }, (boundary) => {
-      boundary.say({ type: 'job', name: String.raw`Local\MuseSparkPlaybook-stuck` })
+      boundary.say({ type: 'job', names: [EARLIER, STUCK] })
     })
     await expect(setup.window.surface.read()).rejects.toThrow(UI_TEXT.playbookUnavailable)
     expect(setup.lines).toContain(
       'error: The playbook worker said nothing while it owed an answer; its pending requests are refused',
     )
     expect(setup.threads[0]?.terminate).toHaveBeenCalledOnce()
-    expect(setup.endJob).toHaveBeenCalledWith(
-      String.raw`Local\MuseSparkPlaybook-stuck`,
-      'job.dll',
-      String.raw`C:\Windows`,
-    )
+    for (const name of [EARLIER, STUCK])
+      expect(setup.endJob).toHaveBeenCalledWith(name, 'job.dll', String.raw`C:\Windows`)
+    expect(setup.endJob).toHaveBeenCalledTimes(2)
+  })
+
+  it('ends no job the worker has seen end', async () => {
+    const setup = standIn({}, (boundary) => {
+      boundary.say({ type: 'job', names: [String.raw`Local\MuseSparkPlaybook-done`] })
+      boundary.say({ type: 'job', names: [] })
+      boundary.crash()
+    })
+    await expect(setup.window.surface.read()).rejects.toThrow(UI_TEXT.playbookUnavailable)
+    expect(setup.endJob).not.toHaveBeenCalled()
   })
 
   it('keeps believing a worker that reports each call, however long the answer takes', async () => {
@@ -604,12 +647,13 @@ describe('a window that cannot believe its worker', () => {
   })
 
   it('tells the conversation when work that started could not be certified', async () => {
-    const setup = standIn({ agentDataFolder: journalFolder() }, (boundary, request) => {
-      // The work is admitted and started; the worker dies before it can verify it.
-      if (typeof request !== 'object' || request === null || !('type' in request)) return
-      if (request.type === 'dispatch') boundary.say({ type: 'effect', dispatch: 1 })
-      else if (request.type === 'effectDone') boundary.crash()
-    })
+    // The work is admitted and started; the worker dies before it can verify it.
+    const setup = standIn(
+      { agentDataFolder: journalFolder() },
+      started((boundary) => {
+        boundary.crash()
+      }),
+    )
     await expect(
       setup.window.dispatch(
         { kind: 'delegate', sessionId: SESSION, targetId: 'subagent-1' },
@@ -631,6 +675,91 @@ describe('a window that cannot believe its worker', () => {
     expect(setup.lines.filter((line) => line.startsWith('error:'))).toEqual([])
     await expect(setup.window.surface.read()).rejects.toThrow(UI_TEXT.playbookUnavailable)
     expect(setup.startWorker).toHaveBeenCalledOnce()
+  })
+})
+
+/** A look at a journal folder that is not there. */
+function absent(): Promise<never> {
+  return Promise.reject(Object.assign(new Error('absent'), { code: 'ENOENT' }))
+}
+
+describe('a window that is closing, or cannot see its journal', () => {
+  it('aborts admitted work that is still running when its worker is lost, or the window closes', async () => {
+    for (const lose of ['crash', 'dispose'] as const) {
+      // The work is admitted, started, and its end is being waited for.
+      const setup = standIn(
+        { agentDataFolder: journalFolder() },
+        started((boundary) => {
+          boundary.say({ type: 'completion', dispatch: 1 })
+        }),
+      )
+      const waiting = Promise.withResolvers<AbortSignal>()
+      await setup.window.dispatch(
+        { kind: 'delegate', sessionId: SESSION, targetId: 'subagent-1' },
+        () => Promise.resolve('running'),
+        (_submission, signal) => {
+          waiting.resolve(signal)
+          // The child's end never comes by itself in this test.
+          return new Promise(() => undefined)
+        },
+      )
+      const signal = await waiting.promise
+      expect(signal.aborted).toBe(false)
+      if (lose === 'crash') setup.threads[0]?.crash()
+      else setup.window.dispose()
+      expect(signal.aborted).toBe(true)
+    }
+  })
+
+  it('refuses a dispatch when the journal folder cannot be looked at', async () => {
+    const setup = standIn({
+      access: () => Promise.reject(Object.assign(new Error('private path'), { code: 'EACCES' })),
+    })
+    expect(await refusedWork(setup.window)).not.toHaveBeenCalled()
+    // Nor are an Agent map's rows read past a folder that cannot be looked at.
+    await expect(
+      setup.window.agents([{ itemId: 'row-1', agentId: 'subagent-1', sessionId: 'child-1' }]),
+    ).rejects.toThrow(UI_TEXT.playbookUnavailable)
+    expect(setup.startWorker).not.toHaveBeenCalled()
+    expect(setup.lines).toContain(
+      'error: The playbook journal folder could not be read; the request is refused',
+    )
+    expect(setup.lines.join('\n')).not.toContain('private path')
+  })
+
+  it('runs a dispatch as it always did only when the journal folder is confirmed absent', async () => {
+    const access = vi.fn(absent)
+    const setup = standIn({ access })
+    await expect(
+      setup.window.dispatch(
+        { kind: 'bestOfN', sessionId: SESSION, targetId: undefined },
+        () => Promise.resolve('started'),
+        () => Promise.resolve(),
+      ),
+    ).resolves.toBe('started')
+    expect(access).toHaveBeenCalledOnce()
+    expect(setup.startWorker).not.toHaveBeenCalled()
+  })
+
+  it('starts nothing once the window has closed, though it was asked before', async () => {
+    const look = Promise.withResolvers<undefined>()
+    const setup = standIn({
+      access: async () => {
+        await look.promise
+        await absent()
+      },
+    })
+    const effect = vi.fn(() => Promise.resolve('started after disposal'))
+    const asked = setup.window.dispatch(
+      { kind: 'bestOfN', sessionId: SESSION, targetId: undefined },
+      effect,
+      () => Promise.resolve(),
+    )
+    setup.window.dispose()
+    // Only now does the look at the folder come back: there is no journal.
+    look.resolve(undefined)
+    await expect(asked).rejects.toThrow(UI_TEXT.playbookUnavailable)
+    expect(effect).not.toHaveBeenCalled()
   })
 })
 
