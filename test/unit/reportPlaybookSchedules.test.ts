@@ -1,7 +1,6 @@
 // M113 C-M113-4: the playbook and schedules inputs over real directories,
 // through the real journal and store into generated reports.
-import { mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { FilePlaybookJournal } from '../../src/core/orchestration/playbook/journal'
@@ -11,13 +10,15 @@ import { createReportingServices } from '../../src/runtime/reporting/engine'
 import {
   createPlaybookReportReader,
   createSchedulesReportReader,
-} from '../../src/runtime/reporting/reportInputs'
+} from '../../src/runtime/reporting/playbookSchedulesInputs'
 import { createNodeScheduleFs } from '../../src/runtime/schedules/nodeScheduleFs'
 import { workspaceKey } from '../../src/runtime/dataFolder'
 import { SCHEDULE_STORE_SUBFOLDER } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
 import { scheduleV2Schema } from '../../src/shared/scheduleV2'
+import { removeFolder, temporaryDir } from './helpers/temporaryFolders'
+import { playbookModuleFixture, scheduleFixture } from './helpers/reporting/reportKindFixtures'
 import { REPORT_FIXTURE_AS_OF } from './helpers/reporting/snapshot'
 
 setUiText(EN, 'en')
@@ -25,16 +26,15 @@ setUiText(EN, 'en')
 const roots: string[] = []
 afterEach(async () => {
   setUiText(EN, 'en')
-  for (const root of roots.splice(0)) await rm(root, { recursive: true, force: true })
+  for (const root of roots.splice(0)) await removeFolder(root)
 })
 async function dir(prefix: string): Promise<string> {
-  const root = await realpath(await mkdtemp(path.join(tmpdir(), prefix)))
+  const root = await temporaryDir(prefix)
   roots.push(root)
   return root
 }
 
-const MODULE = { id: 'm1', key: 'src/alpha', files: ['src/alpha/index.ts'], source: 'lane' }
-const moduleLine = { kind: 'module', value: { module: MODULE, at: 1000 } }
+const moduleLine = { kind: 'module', value: { module: playbookModuleFixture(), at: 1000 } }
 const context = (kind: 'playbook' | 'schedules') => ({
   asOf: REPORT_FIXTURE_AS_OF,
   workspaceKey: 'fixture',
@@ -50,34 +50,7 @@ const context = (kind: 'playbook' | 'schedules') => ({
 })
 
 function schedule(key: string) {
-  return scheduleV2Schema.parse({
-    version: 2,
-    revision: 0,
-    id: 'sched-1',
-    name: 'Morning build',
-    workspaceKey: key,
-    action: { kind: 'prompt', prompt: 'Run the gates' },
-    trigger: { kind: 'interval', everyMs: 3_600_000, anchorMs: 1000 },
-    target: { kind: 'newConversation', backend: 'modelApi' },
-    delivery: 'newConversation',
-    whenClosed: 'open',
-    catchUp: 'runOnce',
-    mode: 'manual',
-    grant: { rules: [], destinationIds: [], paidCapUsd: '0' },
-    paidCapUsd: '0',
-    parallel: false,
-    creator: { kind: 'user' },
-    depth: 0,
-    allowAgentReschedule: false,
-    pinned: false,
-    zone: 'UTC',
-    paused: false,
-    createdAtMs: 1000,
-    updatedAtMs: 1000,
-    nextFireAtMs: 2000,
-    fireCount: 0,
-    consecutiveFailures: 0,
-  })
+  return scheduleV2Schema.parse(scheduleFixture(key))
 }
 
 describe('playbook and schedules inputs', () => {

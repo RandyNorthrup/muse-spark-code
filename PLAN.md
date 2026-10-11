@@ -35273,6 +35273,42 @@ design, owned by a later K/collector change. This record closes the
 lane-level repair only; the whole M113 milestone stays planned until W
 integrates and the §6.0 checklist boxes are checked per milestone.
 
+**C-M113-4 playbook and schedules kinds (2026-10-11, lane CM1134A,
+status: implemented; independent review pending).** Wire the D93.4
+playbook and schedules rows end to end: `sources/playbook.ts` replays
+M116's journal through the owner's `moduleStates` (strike counts per
+module and class, design decisions with outcomes, gate drill records,
+disabled rules with reasons and actors, safety-rule route-around
+refusals); `sources/schedules.ts` reads M115's store and fire record
+(timeline with collisions, triggers/targets/delivery/grants/creators,
+fires with outcomes, refused actions, cost with a summed total);
+`collect/playbook.ts` and `collect/schedules.ts` hold the pure
+section builders (`--module <glob>`, `--milestone <id>` filter
+modules; out-of-range stamps stay visible as numbers); new
+`playbookSchedulesInputs.js` readers feed every engine construction
+(VS Code, ACP, CLI) through a `namedBundleLoader` shape guard; only the
+playbook and schedules kind-table lines flip, so estimate, fleet,
+security, accounts, issues and keybindings stay unavailable as before.
+Until delivery is registered (CM1151) no v2 fire exists and the fire
+sections stay empty. The replay and store machinery would overflow the
+session/usage chunk (68.7 KiB of its 100 KiB budget), so the readers
+ride their own lazy chunk (50.5 KiB measured, 75 KiB budget); no
+existing budget moves. Checklist: collect regressions in
+`test/unit/collect.playbook.test.ts` and
+`test/unit/collect.schedules.test.ts`, source regressions in
+`test/unit/playbookReportSource.test.ts` and
+`test/unit/schedulesReportSource.test.ts`, real-directory readers and
+end-to-end generation in
+`test/unit/reportPlaybookSchedules.test.ts`, shared shapes in
+`test/unit/helpers/reporting/reportKindFixtures.ts`, live-CLI cases in
+`test/e2e/reports.e2e.test.ts`; red drills with byte-exact restores in
+`docs/certification/m113-playbook-schedules-c-m113-4.md`; README kinds
+table and prose, CHANGELOG entry under `[Unreleased]`; no new string,
+command, setting, dependency or activation change. This record closes
+the lane-level change only; the whole M113 milestone stays planned
+until W integrates and the §6.0 checklist boxes are checked per
+milestone.
+
 Lanes P, S, R and V start once lane 0's contracts freeze, which can be as
 soon as M112's lane 0 has published the registry's types (for the session
 kind). The usage kind waits for M102, the native-host rows for M104b–d.
