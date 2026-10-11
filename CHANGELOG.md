@@ -89,9 +89,11 @@ happened, not what was planned; superseded entries are kept.
   stop names the blocked account and its reset even with no usage page
   bundled; `exec --account-pool` names the missing pool owner instead of
   the connection text. The Models panel stop notice names the blocked
-  account too, and a refused providers file (a malformed row or unparsable
-  JSON) says the file was refused and left unchanged instead of the
-  connection sentence.
+  account too, and a refused providers file (a malformed row, unparsable
+  JSON, duplicate account ids, or a provider id that does not match its
+  key) says the file was refused and left unchanged instead of the
+  connection sentence — on the terminal, through ACP list/current/thresholds
+  and picker selection, and as the Models panel's own error.
 
 - On macOS 26, a process that `ps` lists with an unknown state (`?`) while
   it changes no longer voids every resource tree's membership read, which

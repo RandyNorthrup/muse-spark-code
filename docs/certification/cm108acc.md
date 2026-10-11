@@ -260,3 +260,78 @@ Red drills (break guard, named test fails, restore byte-exact —
 Held for the lead (Muse sandbox cannot run them): the packaged serve/CLI
 account round-trip on both backends, and any browser or socket test. No
 live model calls; installed nothing.
+
+## Repair — review RVCM108ACC3 (2026-10-10, same lane)
+
+Every finding fixed, no residuals. Siblings swept by class; each fix has a
+regression that fails without it and a red drill below. Correction to the
+R2 record above: its "ACP renders the same sentence" claim held only for
+the `accountErrorText` helper — the runtime session port and the ACP
+controller catches replaced the brand with the connection sentence on the
+real operation path. That path is fixed below; the helper claim stands.
+
+- **F1 (P2, runtime-service suite expects the old copy).**
+  `test/unit/runtimeAccountsService.test.ts:175` now expects
+  `accounts.providersInvalid` for the corrupt-file refusal, matching the R3
+  `commandError` mapping. No source change: the committed copy was already
+  correct.
+- **F2 (P3, branded refusal lost on the ACP/panel operation paths).** The
+  store brand (`AccountStoreError` name + `invalidProvidersFile` code) now
+  travels the whole path instead of becoming the connection sentence. New
+  shared guard `isInvalidProvidersFileError` (`src/acp/accountText.ts`,
+  reused by `accountErrorText` with identical behaviour); the runtime
+  session `read` rethrows the branded error (`src/runtime/providers/
+runtimeServices.ts`); the ACP controller rethrows it from `refresh`,
+  the selection `use` catch and `start` (`src/acp/accounts.ts`); the agent
+  maps it to the honest sentence with no change (`accountRequestError`
+  via `accountErrorText`); the panel handler answers the new
+  `accounts/error` code `providersInvalid` (`src/shared/hostApi/accounts.ts`
+  enum, `src/host/models/accountsHandler.ts`, companion bridge) and the
+  section renders its sentence (`src/webview/models/sections/accounts/
+AccountsSection.tsx`). Retained: the initial-adoption drop
+  (`startAccounts` still drops a failing port and the session continues),
+  the no-adoption selection refusal (`currentAccount === null` stays
+  `unavailable`), generation fences, and every genuinely-unavailable case.
+  Class sweep of every other `accounts.unavailable` throw on these paths
+  (`runtime/main.ts` usage errors, `runExec.ts` unbound-port guards,
+  `agent.ts` missing-port guards, schedule `consentRequired`/`unavailable`
+  copies): each names a real absence, none masks a store refusal.
+- **F3 (P3, duplicate pool ids and key-mismatched identities get connection
+  copy).** `storedProviderOf` (`src/runtime/providers/
+providersFileStore.ts`) validates the whole entry before metadata
+  returns it: the entry id must equal its map key and a present `accounts`
+  field must pass `accountPoolSchema` (uniqueness + length), else the
+  branded `invalidProvidersFile` refusal on both `read` and `writeAccounts`
+  with the file untouched. The CLI then renders the providers-file
+  sentence (exit 1) instead of the connection one.
+
+Tests (repository timeouts, never raised): `providersFileStore` 19,
+`runtimeAccountsService` 10, `acpAccounts` 38, `accountsPanelHost` 21,
+`accountsPanel` 29, `accountsCommand` 25; `accountStore` + `execAccounts` +
+`cliAccount` 71; `runtimeAccountStore` + `accounts` + `accountSecrets` 77.
+New regressions: corrupt-file assertion fix (F1); file-store each-table
+siblings + CLI-level refusal cases (F3); production store + runtime port +
+ACP controller post-corruption test (F2); controller refresh/selection/
+start brand tests + agent honest-sentence tests for `/accounts` and picker
+routes + companion code test (F2); panel handler code + section render
+tests (F2).
+
+Red drills (break guard, named test fails, restore byte-exact —
+`sha256sum -c` on all five files OK after each restore):
+
+- **D15** `commandError` mapping back to `unavailable`:
+  `reports a corrupt file instead of clobbering it` fails (1 failed, 9
+  skipped). Restored.
+- **D16** runtime session `read` catch back to a bare `unavailable`:
+  `keeps the branded refusal through session reads and ACP operations…`
+  fails (1 failed, 9 skipped). Restored.
+- **D17** ACP selection catch brand check removed:
+  `keeps a branded providers-file refusal…` and `answers a branded
+providers-file refusal…` fail (2 failed, 36 skipped). Restored.
+- **D18** panel handler brand check removed:
+  `reports a refused providers file with its own code…` fails (1 failed,
+  20 skipped). Restored.
+- **D19** file-store `read` back to row-only `providerOf`:
+  `reports refused file content…: duplicate account ids` and `: a provider
+id that does not match its key` fail (2 failed, 5 passed, 12 skipped).
+  Restored.
