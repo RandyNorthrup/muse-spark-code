@@ -49,6 +49,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- Account availability now restores its registered release text, setting
+  descriptions and Help pooling row together during reference generation.
+  Certification stays off; local profiles and Muse Code accounts remain held.
+
 - Resource CLI certification shares its compiled setup and runs independent
   reads together; repository test deadlines and product behavior stay unchanged.
 

@@ -5047,7 +5047,8 @@
     "usageThreshold": "Limit für {metric} im Zeitraum {period}: {threshold}",
     "usageEvents": "Kontoereignisse",
     "usageRateTokens": "Tokenanzahl",
-    "usageUnavailable": "Keine aktuellen Nutzungsdaten."
+    "usageUnavailable": "Keine aktuellen Nutzungsdaten.",
+    "certificationPending": "Kontowechsel und die Verteilung von Anfragen auf Konten warten auf die Zertifizierung."
   },
   "developer": {
     "title": "Entwickleroptionen",

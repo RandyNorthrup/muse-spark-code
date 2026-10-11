@@ -4897,7 +4897,8 @@
     "usageThreshold": "{period}의 {metric} 한도: {threshold}",
     "usageEvents": "계정 이벤트",
     "usageRateTokens": "토큰",
-    "usageUnavailable": "현재 사용량 데이터가 없습니다."
+    "usageUnavailable": "현재 사용량 데이터가 없습니다.",
+    "certificationPending": "계정 전환과 여러 계정에 대한 요청 분산은 인증을 기다리고 있습니다."
   },
   "developer": {
     "title": "개발자 옵션",

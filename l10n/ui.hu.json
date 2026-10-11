@@ -5047,7 +5047,8 @@
     "usageThreshold": "{metric} korlátja a következő időszakra: {period}: {threshold}",
     "usageEvents": "Fiókesemények",
     "usageRateTokens": "Tokenek",
-    "usageUnavailable": "Nincsenek aktuális használati adatok."
+    "usageUnavailable": "Nincsenek aktuális használati adatok.",
+    "certificationPending": "A fiókváltás és a kérelmek fiókok közötti elosztása tanúsításra vár."
   },
   "developer": {
     "title": "Fejlesztői beállítások",

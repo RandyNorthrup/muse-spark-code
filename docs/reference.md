@@ -703,7 +703,7 @@ Manage the accounts of one provider: list, add, remove, order and thresholds. Cr
 
 Show or unlock machine-local developer options. Profile operations require a connected resource owner.
 
-Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
+Surfaces: acp:modelApi. Paid: no extra feature charge; model usage still applies.
 
 Commands: —. Settings: `museSpark.accountSwap`, `museSpark.accountParallel`, `museSpark.accounts.severalOnThisDevice`, `museSpark.paidDailyBudgetUsd`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#several-accounts-per-provider)
 
@@ -3439,27 +3439,31 @@ Type: `"string"`. Default: `"transcribe"`. Scope: `machine`.
 
 ### museSpark.accountSwap
 
-Swap to the next account with room at the next request boundary after a threshold trip. Each account keeps its own limits. On by default; only this machine’s setting is used.
+Account switching and pooling await certification.
 
 Type: `"boolean"`. Default: `true`. Scope: `machine`.
 
 ```json
 {
   "type": "boolean",
-  "default": true
+  "default": true,
+  "deprecationMessage": "Account switching and pooling await certification.",
+  "deprecationMessageKey": "config.accountSwap.description"
 }
 ```
 
 ### museSpark.accountParallel
 
-Spread background work across accounts by headroom; each worker sticks to its account. On by default; only this machine’s setting is used.
+Account switching and pooling await certification.
 
 Type: `"boolean"`. Default: `true`. Scope: `machine`.
 
 ```json
 {
   "type": "boolean",
-  "default": true
+  "default": true,
+  "deprecationMessage": "Account switching and pooling await certification.",
+  "deprecationMessageKey": "config.accountParallel.description"
 }
 ```
 
@@ -3860,7 +3864,6 @@ These are defaults; editor customizations take precedence.
 - `exec: --permission-mode <value>`: Choose how Muse asks before it acts. `{"type":"string","repeatable":false,"enum":["plan","acceptEdits"],"default":"plan","purpose":"permission-mode"}`
 - `exec: --model <value>`: Choose the model for this run. `{"type":"string","repeatable":false,"purpose":"model"}`
 - `exec: --account <value>`: --account &lt;id&gt; The account to use (auth set, exec). `{"type":"string","repeatable":false,"purpose":"account"}`
-- `exec: --account-pool`: --account-pool Model API: pool at request boundaries; existing budgets still bind. Excludes key-stdin in CI. `{"type":"boolean","repeatable":false,"default":false,"purpose":"account-pool"}`
 - `exec: --effort <value>`: Choose how much effort Muse puts into each reply. `{"type":"string","repeatable":false,"enum":["minimal","low","medium","high","xhigh","max"],"purpose":"effort"}`
 - `exec: --output <value>`: Choose the result format: text, json or jsonl. `{"type":"string","repeatable":false,"enum":["text","json","jsonl"],"default":"text","purpose":"output"}`
 - `exec: --max-budget-usd <value>`: Set the hard spending limit in USD for this run. `{"type":"string","repeatable":false,"exclusiveMinimum":0,"maximum":20,"decimals":6,"required":"modelApi","unit":"USD","purpose":"max-budget-usd"}`
