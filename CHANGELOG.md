@@ -98,8 +98,11 @@ happened, not what was planned; superseded entries are kept.
     into a first-party hidden vault item bound to its origin with equal
     SHA-256, stays mirrored for the previous release until two minor releases
     pass, and can be undone. The previous release's code still reads its key
-    from the mirror. Nothing is wired to these codecs yet, so no behaviour
-    changes.
+    from the mirror. Vault item names are one-to-one across kinds, ids and
+    both forms; `migrate` on an `active` slot reports a legacy copy changed
+    behind the vault as `diverged`; the 113 readers, writers and deleters of
+    the three key families are inventoried for the vault join. Nothing is
+    wired to these codecs yet, so no behaviour changes.
   - Review repairs (RVCM1091A3): queued work loses authority at Lock; imports
     verify every parent and held file within the home, retain private profile
     and field identity in encrypted material, and cancel sent requests when

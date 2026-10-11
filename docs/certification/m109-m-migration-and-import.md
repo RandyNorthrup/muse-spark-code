@@ -239,6 +239,118 @@ documents there are refused exactly as the installed reader rejects them.
 All drills ran at the repository timeout (no `--testTimeout`) and every file
 was restored byte-exact (SHA-256 verified against the pre-drill hash).
 
+## RVCM1094B R3 repairs (lane CM1094R3, 2026-10-11, linuxlt)
+
+Branch `c/m109-4`, base `4425e81ef`. This module has now had two review
+rounds, so the third round redesigns the part that keeps failing instead of
+patching it: `migrationItemName` (`src/core/vault/migrate/material.ts`) is
+replaced by a one-to-one contract. Every finding below, P3 included, is
+fixed as a class. Zero model attempts, paid calls, network calls or real
+credentials. Tests use generated material only.
+
+**No compatibility path.** Nothing shipped with the old names: no
+production file imports `providerCredentialMigrationCredential`,
+`accountSecretMigrationCredential`, `migrationItemName` or
+`accountRecordCanonicalJson` (only the codec modules import each other, and
+only `migrationCodecs.test.ts` imports them in tests). The two generic
+adapters (`migrateSecretStorage` in
+`src/host/vault/migrateSecretStorage.ts`, `migrateKeyStore` in
+`src/runtime/vault/migrateKeyStore.ts`) import the `VaultMigration` engine,
+never a codec factory, so no migrated item exists anywhere. The one
+old-name expectation in the suite (`account-openai-work`) is updated to the
+new contract (`account-6-openai-work`); no other test or source named an old
+name.
+
+| Finding                                                                         | Fix                                                                                                                                                                                                                                                                                                                                                                         | Regression test                                                                                                                                                                                                                                                                                                                                                      | Red drill (break → named failure → restore)                                                                    |
+| ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| P2 name join collides, readable and hashed                                      | `migrationItemName(kind, ...ids)` with a closed `MigrationItemKind` union (`material.ts`): one id stays `provider-<id>`; two or more ids write every id but the last as `<length>-<id>` with the last bare; past 48 chars the name is `<kind>-<hex>` over the canonical JSON array `[kind, id1, ...]`; every id validated, invalid refused with `invalid`, never normalised | `gives the review's colliding pairs different names and migrates all four to active` (exact readable names, hashed shape, one `VaultMigration` to `active` ×4); `keeps a closed kind union`; exhaustive 170 ids × kinds/shapes (29,070 names, all distinct, handle pattern, deterministic); seeded 400-tuple run with dash-shift partners; 48/49-char boundary cases | length prefix replaced by a bare join → pairs test fails; restored SHA-256 `ddc779b0…` OK                      |
+| P2 defence in depth: constructor takes two credentials sharing a name           | `MigrationCredential.name` (set by `migrationCodec` and the modelApi codec) and a third `conflict` refusal beside the key/id checks (`migrate.ts:29`)                                                                                                                                                                                                                       | `refuses two credentials that share an item name before any journal row or write` (sources byte-identical, journal empty, vault empty)                                                                                                                                                                                                                               | name-set line dropped → constructor test fails; restored SHA-256 `317d467e…` OK                                |
+| P3 hand-off list names readers/helpers, leaves out writers/deleters             | Full sweep: 113 call sites checked into `migrationKeyInventory.test.ts`, found by `collectKeyFamilySites` (`migrationKeySites.ts`) scanning `src/`; per-file multisets, so a new call in an already-listed file still fails                                                                                                                                                 | `lists every reader, writer and deleter of the three key families`                                                                                                                                                                                                                                                                                                   | one `EXPECTED_SITES` entry dropped → inventory test fails (113 vs 112); restored SHA-256 `54771247…` OK        |
+| P3 join scenario has no acceptance case                                         | Skipped test naming lane W with the assertion written out, in `migrationCodecs.test.ts`                                                                                                                                                                                                                                                                                     | `vault join (lane W): a key set after its slot is active goes through the vault` (`it.skip`)                                                                                                                                                                                                                                                                         | skipped by design; the body typechecks and mirrors the passing `store` path                                    |
+| P3 `migrate` on `active` returns as if nothing happened after a back-door write | `migrate` reports a distinct typed state `diverged`: `legacyDiverged` reuses `verifyLegacy` (same compare, same wiping, fixed words only) and reports a boolean — mismatched or undecodable legacy → `diverged`, anything else still throws; `verifyLegacy` unchanged                                                                                                       | `reports a legacy copy changed behind the vault instead of returning active` (valid overwrite → `diverged`, journal stays `active`, undo still `conflict`, garbage → `diverged`, journal/listing carry no `synthetic-` bytes)                                                                                                                                        | `legacyDiverged` call dropped → diverged test fails; restored byte-exact (re-drilled after the clone refactor) |
+
+All drills ran at the repository timeout (no `--testTimeout`) and every
+file was restored byte-exact (SHA-256 verified against the pre-drill hash;
+the inventory file's later one-word comment fix, 108 → 113, is the only
+subsequent edit).
+
+**Owed by the vault join (replaces the R2 list as a class).** The sweep
+covers `src/` host and runtime (CLI, ACP and exec): 113 sites — 35 for
+`museSpark.modelApiKey`, 65 for `museSpark.provider.<id>`, 13 for
+`museSpark.provider.<id>.account.<id>` — checked into
+`test/unit/vault/migrationKeyInventory.test.ts` and scanned by
+`test/unit/vault/migrationKeySites.ts` (import statements and `//`/`/*`
+comments excluded; multi-line imports tracked). After a slot is `active`, a
+write or delete must go through the vault (`store`/`delete`), reads through
+`resolve`, and the legacy copy must never be written on its own.
+
+Model API key (35): builders and choke points
+`src/shared/constants.ts:5459` (definition),
+`src/host/auth/credentialStore.ts:46` (read), `:65` (write), `:69`
+(delete), `:94` (provider presence), `:111` (internal read; defs at `:43`,
+`:60`, `:68` carry no dot-call and are covered by their bodies);
+`src/host/auth/authService.ts:842` (read before rotate), `:858` (write via
+`activateApiKey`), `:941` (delete); `src/extension.ts:1244`, `:2012`
+(adapter closures), `:1259`, `:2857`, `:3497`, `:4556` (presence reads);
+`src/host/backend/modelApiBackendManager.ts:362`, `:617` (request reads);
+`src/host/prompts/promptEntry.ts:440` (read);
+`src/host/providers/subscriptionFeatures.ts:88`, `:161` (presence reads);
+`src/runtime/chatGptProviderCommands.ts:66`, `:79` (presence reads);
+`src/runtime/authCommands.ts:56` (write, `auth set`), `:67` (read), `:81`
+(delete); `src/runtime/backends.ts:331`, `:615` (reads), `:341` (adapter
+closure); `src/runtime/main.ts:900`, `:1480` (startup reads);
+`src/core/vault/migrate/modelApi.ts:17`, `:22` (the codec);
+`src/core/providers/accountCredentialRecord.ts:75` (meta/default routing);
+`src/runtime/providers/runtimeServices.ts:246` (non-key routing guard);
+`src/runtime/exec/keyInput.ts:13` (run-scoped seeded memory store);
+`src/runtime/exec/runExec.ts:638` (exec-env guard). The join owes: route
+`:858`, `:56`, `:65` and any future writer through `store` (the reviewer's
+scenario), `:941`, `:81`, `:69` through `delete`, and the readers through
+`resolve`; the exec memory stores never write back.
+
+Provider slot (65): `src/host/providers/credentialRecords.ts:54` (def),
+`:55` (build), `:59` (def), `:64` (write), `:72` (def), `:76` (read), `:94`
+(def), `:95` (delete), `:43`, `:46`, `:49` (`ProviderCredentialStore`
+wrappers); callers `src/host/providers/providersHost.ts:147` (scan read),
+`:248` (raw presence), `:252` (test read),
+`src/host/providers/wizardSave.ts:86` (read), `:101` (write), `:116`
+(rollback delete), `:118` (rollback write),
+`src/host/providers/providerRemoval.ts:78` (delete),
+`src/host/providers/importExport.ts:176` (clear on import),
+`src/host/auth/credentialStore.ts:94` (presence read),
+`src/core/providers/configured.ts:171`, `:768` (send-path reads);
+`src/core/vault/migrate/providerCredentials.ts:95` (the codec);
+`src/runtime/keyStore.ts:67` (def), `:68` (build), `:84`, `:98` (record
+serde defs); `src/runtime/authCommands.ts:128` (write), `:159` (read),
+`:196` (delete), `:130`, `:173` (serde);
+`src/runtime/providersCommands.ts:183` (resolve), `:187` (read), `:198`,
+`:199` (compensating delete/write), `:207` (delete), `:208` (write), `:734`,
+`:804` (serde), `:793`, `:794` (test read);
+`src/runtime/exec/providerExec.ts:291` (resolve), `:295`, `:296` (read),
+`:305` (parse), `:478` (resolve), `:500`, `:524` (run-scoped memory
+mirrors). The join owes: every writer through `store` (`providers add`
+lands at `:208` via `:734`), every deleter through `delete`, every reader
+through `resolve`; the `providers add` compensation at `:198`/`:199` must
+not restore the legacy copy on its own after the slot is active.
+
+Account slot (13): `src/core/providers/accountCredentialRecord.ts:72`
+(def), `:76` (build), `:77` (segmented build);
+`src/host/providers/accountSecrets.ts:27` (def), `:30` (read), `:76`–`:77`
+(write), `:83` (delete); `src/core/providers/accounts.ts:182` (write),
+`:222` (remove), `:241` (read) via the vault port, `:117` (in-memory
+staging map only, no bytes); `src/runtime/providers/accountStore.ts:20`,
+`src/runtime/providers/runtimeServices.ts:224` (vault composition);
+`src/core/vault/migrate/accountSecrets.ts:74` (the codec). The join owes
+the same routing through the composed vault.
+
+ChatGPT slot (M95b-owned, refused by this codec as `invalid`):
+`src/extension.ts:1783`, `:2538`,
+`src/host/providers/subscriptionFeatures.ts:130`, `:153`, `:183`,
+`src/host/providers/chatgptSignIn.ts:287`, `src/runtime/chatGptHost.ts:16`,
+`src/runtime/chatGptProviderCommands.ts:41`,
+`src/runtime/backends.ts:415`, `:625`. The join must not register this
+lane's factory there; the owner lane's codec applies.
+
 **Owed by the vault join (copied from RVCM1094 §Wiring call sites).** These
 codecs are still unwired: no production file imports either factory. On the
 vault join, call `resume` then `migrate` for each owned key once the vault is
