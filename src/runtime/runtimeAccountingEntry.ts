@@ -133,7 +133,7 @@ export function withRuntimeAccounting(
         let response: ResponseObject | undefined
         let hasEof = false
         const settle = async () => {
-          if (claim === undefined) return
+          if (claim === undefined && ticket === undefined) return
           const owned = claim
           claim = undefined
           const actual =
@@ -144,9 +144,14 @@ export function withRuntimeAccounting(
               : undefined
           const cost = actual === undefined ? undefined : ceilUsd(actual)
           // A sent request without a verified price keeps its original durable reservation.
-          if (!wasSent || cost !== undefined)
+          if (owned !== undefined && (!wasSent || cost !== undefined))
             await owned.settle(wasSent ? (cost ?? owned.reservedUsd) : Usd.from(0).toAmount())
           if (ticket !== undefined && accounting !== undefined) {
+            if (!wasSent) {
+              accounting.ledger.releaseUnsent(ticket)
+              ticket = undefined
+              return
+            }
             const result = accounting.ledger.settleResponse(
               ticket,
               {
@@ -179,7 +184,11 @@ export function withRuntimeAccounting(
             prepare: async () => {
               await settle()
               await guard?.prepare?.()
-              claim = await daily.reserve(reserveUsd, signal)
+              // Free local models hold concurrency, but require no paid journal or key.
+              claim =
+                model.policy.pricing.kind === 'local'
+                  ? undefined
+                  : await daily.reserve(reserveUsd, signal)
               if (accounting === undefined) return
               const pricing = model.policy.pricing
               const price =

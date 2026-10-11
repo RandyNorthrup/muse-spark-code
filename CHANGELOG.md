@@ -7,6 +7,8 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Headless team groundwork: concurrent worker reservations share the exact run budget; unsent engine attempts release only their own claim. Team dispatch remains gated until the runner is complete.
+
 ### Added
 
 - **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
