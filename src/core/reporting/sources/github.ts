@@ -99,7 +99,13 @@ const githubFactsSchema = z.strictObject({
   ...additionalSchema.shape,
 })
 
-/** N-captures: bind workflow/release readers only after approved wire captures. */
+/**
+ * N-captures: bind workflow/release readers only after approved wire captures.
+ * A port returns its facts as `{ runs, releases }` (validated below) and may
+ * return `reasons: string[]` naming the rows it skipped per row (RVCM1136B
+ * P2): those reasons join the source's own partial reason while the
+ * surviving rows stay.
+ */
 export interface ReportGitHubAdditionalPort {
   read(
     context: SourceReadContext,
@@ -107,6 +113,11 @@ export interface ReportGitHubAdditionalPort {
     repository: GitHubRepository,
   ): Promise<unknown>
 }
+const additionalPortEnvelopeSchema = z.looseObject({
+  runs: z.unknown(),
+  releases: z.unknown(),
+  reasons: z.optional(z.array(z.string())),
+})
 export interface ReportGitHubOptions {
   readonly reader: ReportNetworkReader
   readonly remote: string
@@ -253,11 +264,16 @@ export function githubReportSource(options: ReportGitHubOptions): ReportSourcePo
           if (options.additional === undefined) reasons.push('workflow-release-capture-required')
           else {
             try {
-              const additional = additionalSchema.parse(
+              const envelope = additionalPortEnvelopeSchema.parse(
                 await options.additional.read(context, query, repository),
               )
+              const additional = additionalSchema.parse({
+                runs: envelope.runs,
+                releases: envelope.releases,
+              })
               runs.push(...additional.runs)
               releases = additional.releases
+              reasons.push(...(envelope.reasons ?? []))
             } catch (error: unknown) {
               // A refused wire shape keeps its own reason (C-M113-6: a null
               // run conclusion, a draft or prerelease release, a release tag
