@@ -31,6 +31,41 @@ function getWith(agent: Agent, url: string): Promise<number> {
 }
 
 describe('the OAuth loopback server', () => {
+  it('retains a callback arriving before its waiter is claimed', async () => {
+    const loopback = await startOAuthLoopback(STATE, 1000)
+    try {
+      const response = await callback(loopback, `?code=early&state=${STATE}`)
+      expect(response.status).toBe(200)
+      await expect(loopback.waitForCode()).resolves.toMatchObject({ code: 'early' })
+    } finally {
+      loopback.close()
+    }
+  })
+  it('refuses a second waiter without replacing the first', async () => {
+    const loopback = await startOAuthLoopback(STATE, 1000)
+    try {
+      const waited = loopback.waitForCode()
+      await expect(loopback.waitForCode()).rejects.toThrow('already settled')
+      await callback(loopback, `?code=first&state=${STATE}`)
+      await expect(waited).resolves.toMatchObject({ code: 'first' })
+    } finally {
+      loopback.close()
+    }
+  })
+  it('refuses duplicate callback parameters', async () => {
+    const loopback = await startOAuthLoopback(STATE, 1000)
+    const rejection = expect(loopback.waitForCode()).rejects.toThrow('duplicate')
+    await callback(loopback, `?code=a&code=b&state=${STATE}`)
+    await rejection
+  })
+  it('does not echo a provider refusal or account detail', async () => {
+    const loopback = await startOAuthLoopback(STATE, 1000)
+    const rejection = expect(loopback.waitForCode()).rejects.toThrow(
+      /^The provider refused the connection$/,
+    )
+    await callback(loopback, '?error=synthetic-secret&error_description=synthetic-account')
+    await rejection
+  })
   it('serves localized callback text as plain text, including HTML metacharacters', async () => {
     const text = '<script>alert("synthetic")</script> & "done"'
     setUiText({ ...EN, oauthCallbackDone: text }, 'en')

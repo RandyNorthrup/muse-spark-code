@@ -182,6 +182,8 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
   >()
   const enteredCredentials = new WeakSet<PanelDraft>()
   let isDisposed = false
+  const lifetime = new AbortController()
+  let connectionRequest: AbortController | undefined
   let navigation: ModelsPanelNavigate | undefined
   let operations = Promise.resolve()
   const post = (message: HostToPanelMessage): void => {
@@ -393,7 +395,8 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     }
     return record?.secret
   }
-  const refresh = async (): Promise<void> => {
+  const refresh = async (shouldReadUsage = false): Promise<void> => {
+    const previousUsage = new Map(state.providers.map((row) => [row.id, row]))
     state.presets = providers.presetIds().flatMap((id) => {
       const preset = providers.preset(id)
       if (preset === undefined) {
@@ -506,9 +509,41 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
           test: { status: 'untested' },
           models: [...entry.models],
           pinned: [...(entry.pinned ?? [])],
+          ...(isBound &&
+            previousUsage.get(entry.id)?.address === entry.address && {
+              keyUsage: previousUsage.get(entry.id)?.keyUsage,
+              keyUsageError: previousUsage.get(entry.id)?.keyUsageError,
+            }),
         },
       ]
     })
+    if (shouldReadUsage) {
+      for (const row of state.providers) {
+        if (row.presetId !== 'openrouter' || row.key.state !== 'stored') continue
+        row.keyUsage = undefined
+        row.keyUsageError = undefined
+        try {
+          const entry = providerStates.find((item) => item.entry.id === row.id)?.entry
+          const key = entry === undefined ? undefined : await providers.storedCredential(entry)
+          if (key === undefined) continue
+          const snapshot = await providers.openRouterUsage(key)
+          if (snapshot === undefined) throw new Error(UI_TEXT.providerUsageFailed)
+          if (entry === undefined || (await providers.storedCredential(entry)) !== key)
+            throw new Error(UI_TEXT.providerUsageFailed)
+          row.keyUsage = {
+            totalUsd: snapshot.usedTotal,
+            unlimited: snapshot.unlimited,
+            dayUsd: snapshot.usedToday,
+            weekUsd: snapshot.usedThisWeek,
+            monthUsd: snapshot.usedThisMonth,
+            limitUsd: snapshot.limit,
+            remainingUsd: snapshot.remaining,
+          }
+        } catch {
+          row.keyUsageError = UI_TEXT.providerUsageFailed
+        }
+      }
+    }
     const all: ModelRow[] = []
     const families = new Map<string, string>()
     for (const [providerId, models] of rows) {
@@ -680,7 +715,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         for (const cached of cachedScans) {
           rows.set(cached.providerId, cached.rows)
         }
-        await refresh()
+        await refresh(true)
         publish()
         if (navigation !== undefined) {
           post({
@@ -797,10 +832,23 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         ) {
           throw new Error(UI_TEXT.actionFailed)
         }
-        const connection =
-          message.type === 'providers/connect'
-            ? await providers.connectOpenRouter(deps.isRemote === true)
-            : undefined
+        let connection: { readonly key: string } | undefined
+        if (message.type === 'providers/connect') {
+          draft.connecting = true
+          publish()
+          try {
+            connection = await providers.connectOpenRouter(
+              deps.isRemote === true,
+              AbortSignal.any([
+                lifetime.signal,
+                ...(connectionRequest === undefined ? [] : [connectionRequest.signal]),
+              ]),
+            )
+          } finally {
+            draft.connecting = false
+            publish()
+          }
+        }
         const secret =
           message.type === 'providers/connect'
             ? connection?.key
@@ -820,6 +868,9 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
           savedConnections.delete(draft)
           draft.test = undefined
         }
+        break
+      }
+      case 'providers/readUsage': {
         break
       }
       case 'providers/test': {
@@ -894,7 +945,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         // Every outcome refreshes through this catch. Earlier outcome text survives.
         const finish = async (isSaved: boolean): Promise<void> => {
           try {
-            await refresh()
+            await refresh(isSaved)
           } catch {
             hasRefreshFailed = true
             log.warn('Models panel could not refresh after provider save')
@@ -1181,10 +1232,14 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       }
     }
     syncDraftBlockers()
-    await refresh()
+    await refresh(message.type === 'providers/readUsage')
     publish()
   }
   const enqueue = (message: PanelToHostMessage): void => {
+    if (message.type === 'providers/connect') {
+      if (connectionRequest !== undefined) return
+      connectionRequest = new AbortController()
+    }
     let savingDraft: PanelDraft | undefined
     if (message.type === 'providers/save') {
       savingDraft =
@@ -1213,6 +1268,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
           error,
         )
       } finally {
+        if (message.type === 'providers/connect') connectionRequest = undefined
         if (savingDraft !== undefined) {
           savingDraft.saving = false
           publish()
@@ -1230,10 +1286,13 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       providers.cancelScan(parsed.message.providerId)
       return
     }
+    if (parsed.message.type === 'providers/wizard' && parsed.message.event !== 'next')
+      connectionRequest?.abort()
     enqueue(parsed.message)
   })
   const cleanup = (): void => {
     isDisposed = true
+    lifetime.abort()
     credentials.clear()
     subscription.dispose()
   }

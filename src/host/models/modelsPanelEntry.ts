@@ -20,7 +20,7 @@ import { ProviderCredentialStore as CredentialStore } from '../providers/credent
 import type { UiTable } from '../l10n'
 import type { Logger } from '../logger'
 import { showPickOne } from '../quickPick'
-import { startOAuthLoopback } from '../providers/oauthLoopback'
+import { startOAuthLoopback } from '../backend/providersEntry'
 import { createModelsPanel, type ModelsPanel, type ModelsPanelNavigate } from './modelsPanel'
 import { runAddProviderQuickPick, type ProviderQuickPickOutcome } from './modelsQuickPick'
 import { createSessionBudgetConfig } from './sessionBudget'
@@ -299,9 +299,10 @@ export function createModelsPanelFeatures(
           UI_TEXT.providerPrivateConfirmLabel,
           UI_TEXT.wizardCancel,
         )) === UI_TEXT.providerPrivateConfirmLabel,
-      openBrowser: (url) => {
-        void vscode.env.openExternal(vscode.Uri.parse(url))
-        return Promise.resolve()
+      openBrowser: async (url) => {
+        if (!(await vscode.env.openExternal(vscode.Uri.parse(url)))) {
+          throw new Error(UI_TEXT.providerConnectFailed)
+        }
       },
     },
   })

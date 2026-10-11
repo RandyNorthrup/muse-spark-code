@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url'
 export const REVIEW_BROWSER_KEY = 'reviewBrowser'
 export const REVIEW_RASTERIZATION_KEY = 'reviewRasterization'
 const suites = [
+  '/openRouterChrome.test.mjs',
   '/visualCapture.test.mjs',
   '/visualReadiness.test.mjs',
   '/visualStability.test.mjs',

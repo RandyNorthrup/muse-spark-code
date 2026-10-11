@@ -150,6 +150,39 @@ function providersReport(): Partial<UsageDialogProps> {
 }
 
 describe('UsageDialog', () => {
+  it('shows OpenRouter total and weekly usage, an explicit unlimited limit and read failures', async () => {
+    await renderDialog({
+      report: {
+        backend: 'modelApi',
+        subscription: undefined,
+        account: undefined,
+        insights: undefined,
+        providers: [
+          {
+            providerId: 'openrouter',
+            providerLabel: 'OpenRouter',
+            pricing: 'priced',
+            inputTokens: 0,
+            outputTokens: 0,
+            keyUsage: { totalUsd: 4, todayUsd: 1, weekUsd: 2, monthUsd: 3, unlimited: true },
+          },
+          {
+            providerId: 'router-failed',
+            providerLabel: 'Router failed',
+            pricing: 'priced',
+            inputTokens: 0,
+            outputTokens: 0,
+            keyUsageError: EN.providerUsageFailed,
+          },
+        ],
+      },
+    })
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toHaveTextContent(`${EN.usageKeyTotal}$4.00`)
+    expect(dialog).toHaveTextContent(`${EN.usageWeekly}$2.00`)
+    expect(dialog).toHaveTextContent(`${EN.usageLimit}${EN.usageUnlimited}`)
+    expect(dialog).toHaveTextContent(EN.providerUsageFailed)
+  })
   it('shows validated service status and opens its public page', async () => {
     const readServiceStatus = vi.fn((_signal: AbortSignal) =>
       Promise.resolve({

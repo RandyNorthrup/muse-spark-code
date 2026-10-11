@@ -9,6 +9,7 @@
 // the usage validation.
 
 import { createHash } from 'node:crypto'
+import { UI_TEXT } from '../../shared/constants'
 import type { CredentialRecord } from './credentialRecords'
 import type { OAuthLoopback } from './oauthLoopback'
 import type { CodeExchanger, KeyUsageReader, KeyUsageSnapshot, PkceSource } from './providerPorts'
@@ -60,6 +61,7 @@ export interface OpenRouterConnectDeps {
   readonly promptForPastedCode: () => Promise<string | undefined>
   /** True in a remote window: no loopback callback is attempted. */
   readonly isRemote: boolean
+  readonly signal?: AbortSignal
 }
 
 export interface OpenRouterConnection {
@@ -78,6 +80,7 @@ export interface OpenRouterConnection {
 export async function connectOpenRouterAccount(
   deps: OpenRouterConnectDeps,
 ): Promise<OpenRouterConnection | undefined> {
+  deps.signal?.throwIfAborted()
   const pair = deps.pkce.create()
   const state = deps.pkce.newState()
   let code: string | undefined
@@ -93,7 +96,17 @@ export async function connectOpenRouterAccount(
     code = pasted.trim()
   } else {
     const server = await deps.startServer(state)
+    const close = () => {
+      server.close()
+    }
+    deps.signal?.addEventListener('abort', close, { once: true })
     try {
+      deps.signal?.throwIfAborted()
+      // Listen before opening the browser; a fast callback must not be lost.
+      const waited = server.waitForCode()
+      void waited.catch(() => {
+        /* The awaited promise below reports this failure. */
+      })
       redirectUri = server.redirectUri
       await deps.openBrowser(
         openRouterAuthorizeUrl({
@@ -102,15 +115,18 @@ export async function connectOpenRouterAccount(
           redirectUri,
         }),
       )
-      const callback = await server.waitForCode()
+      const callback = await waited
       code = callback.code
     } finally {
       server.close()
+      deps.signal?.removeEventListener('abort', close)
     }
   }
+  deps.signal?.throwIfAborted()
   const key = await deps.exchange.exchange({ code, verifier: pair.verifier, redirectUri })
+  deps.signal?.throwIfAborted()
   if (key.trim() === '') {
-    throw new Error('OpenRouter returned an empty key')
+    throw new Error(UI_TEXT.providerConnectFailed)
   }
   const secret = key.trim()
   return { key: secret, record: { v: 1, auth: 'apiKey', origin: OPENROUTER_ORIGIN, secret } }
@@ -131,6 +147,7 @@ export async function readOpenRouterKeyUsage(
 ): Promise<KeyUsageSnapshot> {
   const snapshot = await reader.read(credential)
   const numbers = [
+    ...(snapshot.usedTotal === undefined ? [] : [snapshot.usedTotal]),
     snapshot.usedToday,
     snapshot.usedThisWeek,
     snapshot.usedThisMonth,
@@ -138,7 +155,7 @@ export async function readOpenRouterKeyUsage(
     ...(snapshot.remaining === undefined ? [] : [snapshot.remaining]),
   ]
   if (numbers.some((usage) => !isValidUsage(usage))) {
-    throw new Error('OpenRouter answered its key usage with invalid numbers')
+    throw new Error(UI_TEXT.providerUsageFailed)
   }
   return snapshot
 }

@@ -6,6 +6,7 @@
 // unit-tested against real loopback requests.
 
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
+import * as z from 'zod/mini'
 import { HTTP_STATUS, OAUTH_LOOPBACK_TIMEOUT_MS, UI_TEXT } from '../../shared/constants'
 
 /** The loopback listens here, and nowhere else. */
@@ -56,10 +57,28 @@ export async function startOAuthLoopback(
   timeoutMs: number = OAUTH_LOOPBACK_TIMEOUT_MS,
 ): Promise<OAuthLoopback> {
   const server: Server = createServer()
-  let settle: ((callback: OAuthCallback) => void) | undefined
-  let rejectWait: ((error: Error) => void) | undefined
+  const callbackSchema = z.object({
+    code: z.string().check(z.minLength(1)),
+    state: z.literal(state),
+  })
   let isSettled = false
   let timer: ReturnType<typeof setTimeout> | undefined
+  let settle: ((callback: OAuthCallback) => void) | undefined
+  let rejectWait: ((error: Error) => void) | undefined
+  // Node 20 (VS Code's minimum host) lacks Promise.withResolvers. Keep
+  // the native resolvers inside the executor's delivery closures.
+  const waited = new Promise<OAuthCallback>((resolve, reject) => {
+    settle = (callback) => {
+      resolve(callback)
+    }
+    rejectWait = (error) => {
+      reject(error)
+    }
+  })
+  // A browser may fail before the caller claims the callback promise.
+  void waited.catch(() => {
+    /* waitForCode returns the original rejection. */
+  })
 
   const finish = (
     outcome: { readonly callback: OAuthCallback } | { readonly error: Error },
@@ -113,11 +132,15 @@ export async function startOAuthLoopback(
       response.end()
       return
     }
+    if (['state', 'code', 'error'].some((name) => url.searchParams.getAll(name).length > 1)) {
+      settleOnceAnswered({ error: new Error('The callback carried duplicate parameters') })
+      answer(response, HTTP_STATUS.badRequest, UI_TEXT.oauthCallbackDone)
+      return
+    }
     const refused = url.searchParams.get('error')
     if (refused !== null) {
-      const detail = url.searchParams.get('error_description') ?? refused
       answer(response, HTTP_STATUS.badRequest, UI_TEXT.oauthCallbackDone)
-      settleOnceAnswered({ error: new Error(`The provider refused the connection: ${detail}`) })
+      settleOnceAnswered({ error: new Error('The provider refused the connection') })
       return
     }
     if (url.searchParams.get('state') !== state) {
@@ -131,12 +154,15 @@ export async function startOAuthLoopback(
       settleOnceAnswered({ error: new Error('The callback carried no code') })
       return
     }
-    const params: Record<string, string> = {}
-    url.searchParams.forEach((value, name) => {
-      params[name] = value
-    })
+    const params = z.record(z.string(), z.string()).parse(Object.fromEntries(url.searchParams))
+    const parsed = callbackSchema.safeParse(params)
+    if (!parsed.success) {
+      settleOnceAnswered({ error: new Error('The callback was invalid') })
+      answer(response, HTTP_STATUS.badRequest, UI_TEXT.oauthCallbackDone)
+      return
+    }
     answer(response, HTTP_STATUS.ok, UI_TEXT.oauthCallbackDone)
-    settleOnceAnswered({ callback: { code, params } })
+    settleOnceAnswered({ callback: { code: parsed.data.code, params } })
   })
 
   await new Promise<void>((resolve, reject) => {
@@ -152,23 +178,20 @@ export async function startOAuthLoopback(
     throw new Error('The OAuth callback server has no address')
   }
   const redirectUri = `http://127.0.0.1:${String(address.port)}${CALLBACK_PATH}`
+  let isClaimed = false
+  timer = setTimeout(() => {
+    finish({ error: new Error('The OAuth callback timed out') })
+  }, timeoutMs)
+  timer.unref()
 
   return {
     bindHost: LOOPBACK_HOST,
     redirectUri,
-    waitForCode: () =>
-      new Promise<OAuthCallback>((resolve, reject) => {
-        if (isSettled) {
-          reject(new Error('The OAuth callback already settled'))
-          return
-        }
-        settle = resolve
-        rejectWait = reject
-        timer = setTimeout(() => {
-          finish({ error: new Error('The OAuth callback timed out') })
-        }, timeoutMs)
-        timer.unref()
-      }),
+    waitForCode: () => {
+      if (isClaimed) return Promise.reject(new Error('The OAuth callback already settled'))
+      isClaimed = true
+      return waited
+    },
     close: () => {
       finish({ error: new Error('The OAuth callback server closed') })
     },

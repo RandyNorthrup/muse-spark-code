@@ -28482,6 +28482,25 @@ OpenCode plugin hooks").
 
 ### M95 — Bring-your-own model providers (D74)
 
+**C-M95-2 implementation (2026-10-11, CM952, macmini).** Complete the
+production OpenRouter PKCE Connect and remote password-box code route,
+parse key usage from the 2026-10-04 `/api/v1/key` capture, and show total,
+daily/weekly/monthly usage, limit and remainder in Models & Agents and
+Account & usage. Add terminal `providers connect openrouter` and
+`providers usage <id>` with ACP terminal authentication entries, using the
+same origin-bound OS credential path. ZDR stays the existing default.
+OAuth exchange follows the public OpenRouter PKCE documentation; the lead
+must capture the real exchange and browser callback after fake-backed
+certification. No account, credential, live request or model attempt is
+available/authorized in this lane. Scope, review, red drills, editor rows
+and capture instructions: `docs/certification/cm952.md`. Shared native
+Models panels wait for C-M104-1; installed editor/OS receipts wait for
+C-M95-7. The lane brief delegates aggregate quality to the lead; scoped
+rig gates run here without altered timeouts or gates.
+Portable OAuth helpers ship in the existing lazy `dist/providers.js`:
+the first composed build exceeded Models & Agents' unchanged 125 KiB cap,
+and the shared provider bundle has room for those reusable helpers.
+
 **Provider panel, 0.17.1 residual (PROVWIZ9, lead decision 2026-10-09).**
 Two editor windows saving the same provider at the same moment: last writer wins for fields both changed; no secret is exposed; follow-up PROVSTORE-LOCKLIB moves the provider store and key rotation onto the shared lease after M123 lands on main.
 
@@ -38474,6 +38493,18 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**CM952 scoped gate boundary (2026-10-11).** The C-M95-2 rig brief and
+shared lane rules expressly forbid the aggregate `npm run quality` here:
+the lead owns that run and the hosted Windows/macOS/Linux matrix. CM952
+runs changed-file lint/format, all typecheck projects, relevant full test
+files at repository timeouts, l10n/reference/roadmap/host-API checks,
+deadcode/duplication/build, real loopback/Chrome drills, and supported visual
+shards. The full 9,792-image-per-revision visual matrix belongs to the lead
+with aggregate quality: measured serial rendering exceeds this lane time box.
+No threshold, ignore, rule level or timeout is changed. Owner-account OAuth captures
+and installed editor/OS receipts are the lead's external actions;
+exact evidence is in `docs/certification/cm952.md`.
 
 **REL0171B final 0.17.1 branch (2026-10-10, linuxlt + Kubuntu).** Merge
 MENUFAN and VIS0171 onto `release/0.17.1` by meaning, regenerate every

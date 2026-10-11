@@ -32,7 +32,7 @@ const UI_CONDITIONS: Readonly<
   resourceCpuMaxPercentDescription: 'resourceCpuThreshold',
   resourceMemoryMaxPercentDescription: 'resourceMemoryThreshold&memoryHeadroom=available',
   resourceMemoryMinFreeGiBDescription: 'memoryHeadroom=available',
-  providerOpenRouterServices: 'openRouterServices=absent',
+  providerOpenRouterServices: 'provider=openrouter',
   privacyNoRetentionDetail: 'provider=openrouter&privacy=zdr',
   referenceOutputCapMinimum: 'outputMinimum=known',
   referenceSandbox: 'platform=win32&shellSandbox',
@@ -330,6 +330,9 @@ export function featureCatalog(): readonly Feature[] {
         'connectChatGpt',
         'connectCopilot',
       ],
+      // OpenRouter Connect is composed with the pinned exchange transport;
+      // local callbacks need no paste and remote/ACP terminal flows paste an
+      // authorization code. Both usage surfaces show captured key observations.
       // Saved custom limits persist directly from Edit without a new test
       // while the connection is unchanged; pre-write failures retain the draft.
       // Edit and Change key share a full saved snapshot; unchanged routing,

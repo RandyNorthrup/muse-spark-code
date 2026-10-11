@@ -395,6 +395,20 @@ async function providersDeps(): Promise<ProvidersDeps> {
   }
 }
 
+async function openRouterApi() {
+  const entry = await import('../host/backend/configuredProvidersEntry')
+  entry.setUiText(UI_TEXT, uiLocale())
+  return entry.createConfiguredProviderServices(undefined, {
+    configFile: path.join(
+      process.env['XDG_CONFIG_HOME'] ?? path.join(homedir(), '.config'),
+      PROVIDERS_CONFIG_DIR_NAME,
+      PROVIDERS_FILE_NAME,
+    ),
+    catalogFile: path.join(distDir, 'providerCatalog.json'),
+    secrets,
+  })
+}
+
 function signInMethod(options: ServeOptions): SignInMethod {
   if (options.backend === 'modelApi') {
     const { id, args } = ACP_AUTH_METHODS.modelApiKey
@@ -722,6 +736,10 @@ async function serve(
     // "Allow always" lapses for a paid feature started without its flag (M58).
     await runtime.forgetUnflaggedGrants()
     const providerCommands = await chatGptDeps()
+    const openRouterCommands = await import('./openRouterCommands')
+    const openRouterSignIns = openRouterCommands.openRouterAuthenticationMethods(
+      await providersDeps(),
+    )
     const legalRegistryNotices = new Map<string, Set<string>>()
     const agentLegalBundle = legalScanLoader({
       bundlePath: path.join(distDir, LEGAL_SCAN_BUNDLE_FILE),
@@ -811,7 +829,7 @@ async function serve(
         }),
       },
       signIn: signInMethod(options),
-      providerSignIns: providerCommands.signIns,
+      providerSignIns: [...providerCommands.signIns, ...openRouterSignIns],
       defaultCwd: process.cwd(),
       sharing: {
         commands: acpSharingCommands,
@@ -1400,6 +1418,18 @@ async function main(): Promise<number> {
     case 'providersList': {
       const { providersList } = await import('./providersCommands')
       return await providersList(await providersDeps())
+    }
+    case 'openRouterConnect': {
+      const { runOpenRouterConnect } = await import('./openRouterCommands')
+      return await runOpenRouterConnect(await providersDeps(), await openRouterApi())
+    }
+    case 'providerKeyUsage': {
+      const { runOpenRouterUsage } = await import('./openRouterCommands')
+      return await runOpenRouterUsage(
+        await providersDeps(),
+        await openRouterApi(),
+        command.provider,
+      )
     }
     case 'providersAdd': {
       const { providersAdd } = await import('./providersCommands')

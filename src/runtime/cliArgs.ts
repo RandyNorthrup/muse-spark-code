@@ -151,6 +151,8 @@ export type RuntimeCommand =
   | { readonly command: 'providersAdd'; readonly options: ProvidersAddOptions }
   | { readonly command: 'providersTest'; readonly provider: string }
   | { readonly command: 'providersRemove'; readonly provider: string }
+  | { readonly command: 'openRouterConnect' }
+  | { readonly command: 'providerKeyUsage'; readonly provider: string }
   | {
       readonly command: 'authSet'
       readonly provider?: string | undefined
@@ -439,6 +441,20 @@ function parseProviders(
   rest: readonly string[],
 ): RuntimeCommand {
   switch (verb) {
+    case 'connect': {
+      return rest.length === 1 && rest[0] === 'openrouter' && Object.keys(values).length === 0
+        ? { command: 'openRouterConnect' }
+        : invalid('providers connect openrouter')
+    }
+    case 'usage': {
+      const [provider] = rest
+      return provider !== undefined &&
+        rest.length === 1 &&
+        isProviderId(provider) &&
+        Object.keys(values).length === 0
+        ? { command: 'providerKeyUsage', provider }
+        : invalid('providers usage <id>')
+    }
     case 'list': {
       return rest.length === 0 ? { command: 'providersList' } : invalid('providers list')
     }

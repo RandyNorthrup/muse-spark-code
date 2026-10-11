@@ -18,6 +18,7 @@ import {
   modelRef,
   ollama,
   presets,
+  pkce,
   priceCard,
   providersFile,
   responses,
@@ -38,7 +39,12 @@ import { parseNdjson } from '../backends/modelapi/ndjson'
 import { parseSse } from '../backends/modelapi/sse'
 import { ApiKeyAuthSource, NoAuthSource } from '../backends/modelapi/authSource'
 import { CodecClient, type WireCodec } from '../backends/modelapi/providerClient'
-import { RequestTransport, parseJsonResponse, ModelApiError } from '../backends/modelapi/transport'
+import {
+  RequestTransport,
+  parseJsonResponse,
+  readBoundedText,
+  ModelApiError,
+} from '../backends/modelapi/transport'
 import { withDeadline } from '../timeouts'
 import { Usd } from '../../shared/usd'
 import {
@@ -87,6 +93,20 @@ const costSchema = z.object({
   cache_read: z.optional(z.number().check(z.nonnegative())),
   cache_write: z.optional(z.number().check(z.nonnegative())),
 })
+// GET /api/v1/key: m95-captures/openrouter/02-key-usage.json (2026-10-04).
+const keyDollars = z.number().check(z.nonnegative())
+const openRouterUsageSchema = z.object({
+  data: z.object({
+    usage: keyDollars,
+    usage_daily: keyDollars,
+    usage_weekly: keyDollars,
+    usage_monthly: keyDollars,
+    limit: z.nullable(keyDollars),
+    limit_remaining: z.nullable(keyDollars),
+  }),
+})
+// Public PKCE documentation, read 2026-10-11; live exchange receipt pending CM952.
+const openRouterExchangeSchema = z.object({ key: z.string().check(z.minLength(1)) })
 const digest = (value: string) => createHash('sha256').update(value).digest('hex')
 const fail = (): never => {
   throw new Error(UI_TEXT.modelsPanelUnavailable)
@@ -327,6 +347,9 @@ export function createConfiguredProviderServices(
         const verdict = endpointPolicy.checkEndpointUrl(base.href, answers)
         if (
           verdict.kind === 'refused' ||
+          (preset.origin.kind === 'fixed' &&
+            verdict.kind === 'ok' &&
+            verdict.network !== 'public') ||
           (verdict.kind === 'confirm-private' &&
             (keyTestOrigin !== undefined || entry.privateNetwork !== true))
         )
@@ -819,6 +842,73 @@ export function createConfiguredProviderServices(
     client,
     registry,
     scan,
+    openRouterExchange: async (code: string, verifier: string) => {
+      try {
+        if (code.trim() === '' || !pkce.isPkceVerifier(verifier)) return fail()
+        const origin = presets.presetById('openrouter')?.origin
+        if (origin?.kind !== 'fixed') return fail()
+        const entry: ProviderEntry = {
+          id: 'openrouter',
+          preset: 'openrouter',
+          address: origin.origin,
+          auth: 'none',
+          models: [],
+        }
+        // No credential, retries or redirects: a code can be exchanged only once.
+        const bound = transportFor(entry, '')
+        const url = presets.OPENROUTER_TOKEN_URL
+        await bound.verifyEndpoint(url)
+        const response = await bound.transport.fetch(url, {
+          method: 'POST',
+          redirect: 'error',
+          signal: AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code, code_verifier: verifier, code_challenge_method: 'S256' }),
+        })
+        if (!response.ok) {
+          await response.body?.cancel()
+          return fail()
+        }
+        const value: unknown = JSON.parse(await readBoundedText(response))
+        const key = openRouterExchangeSchema.parse(value).key
+        return presets.isKeyShape(presets.presetById('openrouter')?.keyShape ?? fail(), key)
+          ? key
+          : fail()
+      } catch {
+        // Never expose a response body, authorization code, verifier or returned key.
+        throw new Error(UI_TEXT.providerConnectFailed)
+      }
+    },
+    openRouterUsage: async (entry: ProviderEntry, supplied?: string) => {
+      try {
+        const origin = presets.presetById('openrouter')?.origin
+        if (
+          origin?.kind !== 'fixed' ||
+          entry.preset !== 'openrouter' ||
+          entry.auth !== 'apiKey' ||
+          entry.address !== origin.origin
+        )
+          return fail()
+        const value = await getJson(
+          entry,
+          '/api/v1/key',
+          supplied,
+          AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
+        )
+        const { data } = openRouterUsageSchema.parse(value)
+        return {
+          usedTotal: data.usage,
+          unlimited: data.limit === null,
+          usedToday: data.usage_daily,
+          usedThisWeek: data.usage_weekly,
+          usedThisMonth: data.usage_monthly,
+          limit: data.limit ?? undefined,
+          remaining: data.limit_remaining ?? undefined,
+        }
+      } catch {
+        throw new Error(UI_TEXT.providerUsageFailed)
+      }
+    },
     accountId: async () => {
       const file = await read()
       for (const entry of file.providers) {

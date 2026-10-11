@@ -184,7 +184,7 @@ describe('CX1R4 F5: corrected English keys ship fresh translations', () => {
     'reportUi.unsupportedKind': 'Report kind {kind} is unavailable.',
     'reportSourceReasons.unbound': 'This source integration is unavailable.',
     providerOpenRouterServices:
-      'OpenRouter account connection and key usage are unavailable. Paste a key to use models.',
+      'Connect your OpenRouter account and view the key’s usage, limit and remaining balance.',
   }
   // Stale markers from the superseded translations: any table value still
   // matching its language marker keeps the old translation for that key.

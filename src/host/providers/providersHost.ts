@@ -14,8 +14,7 @@ import type {
   ProviderCredentialStore as CredentialStore,
 } from './credentialRecords'
 import { isOriginBound } from './credentialRecords'
-import { readOpenRouterKeyUsage } from './openRouter'
-import { connectOpenRouterAccount } from './openRouter'
+import { readOpenRouterKeyUsage, connectOpenRouterAccount } from '../backend/providersEntry'
 import type { OAuthLoopback } from './oauthLoopback'
 import { promptForProviderKey } from './keyPrompt'
 import { probeLocalServers, type LocalProbeResult } from './localProbe'
@@ -128,7 +127,10 @@ export interface ProvidersHost {
     text: string,
     shouldImport: (preview: ImportPreview) => Promise<boolean>,
   ) => Promise<number>
-  readonly connectOpenRouter: (isRemote: boolean) => Promise<{ key: string } | undefined>
+  readonly connectOpenRouter: (
+    isRemote: boolean,
+    signal?: AbortSignal,
+  ) => Promise<{ key: string } | undefined>
   readonly openRouterUsage: (credential: string) => Promise<KeyUsageSnapshot | undefined>
   readonly probe: (preset: PresetInfo) => Promise<readonly LocalProbeResult[]>
   readonly suggestDefaultModel: (
@@ -303,28 +305,35 @@ export function createProvidersHost(deps: ProvidersHostDeps): ProvidersHost {
           text,
         ),
       ),
-    connectOpenRouter: async (isRemote) => {
-      if (deps.exchanger === undefined) return
-      const connection = await connectOpenRouterAccount({
-        pkce: deps.pkce,
-        exchange: deps.exchanger,
-        openBrowser: deps.ui.openBrowser,
-        startServer: deps.startLoopback,
-        promptForPastedCode: () =>
-          Promise.resolve(
-            deps.ui.showInputBox({
-              title: fill(UI_TEXT.providerConnect, { provider: 'OpenRouter' }),
-              prompt: fill(UI_TEXT.providerConnectWaiting, { provider: 'OpenRouter' }),
-              password: true,
-              ignoreFocusOut: true,
-            }),
-          ),
-        isRemote,
-      })
-      return connection === undefined ? undefined : { key: connection.key }
+    connectOpenRouter: async (isRemote, signal) => {
+      const exchanger = deps.exchanger
+      if (exchanger === undefined) throw new Error(UI_TEXT.providerConnectFailed)
+      try {
+        const connection = await connectOpenRouterAccount({
+          pkce: deps.pkce,
+          exchange: exchanger,
+          openBrowser: deps.ui.openBrowser,
+          startServer: deps.startLoopback,
+          promptForPastedCode: () =>
+            Promise.resolve(
+              deps.ui.showInputBox({
+                title: fill(UI_TEXT.providerConnect, { provider: 'OpenRouter' }),
+                prompt: UI_TEXT.providerPasteCode,
+                password: true,
+                ignoreFocusOut: true,
+              }),
+            ),
+          isRemote,
+          ...(signal !== undefined && { signal }),
+        })
+        return connection === undefined ? undefined : { key: connection.key }
+      } catch {
+        if (signal?.aborted) return
+        throw new Error(UI_TEXT.providerConnectFailed)
+      }
     },
     openRouterUsage: async (credential) => {
-      if (deps.usage === undefined) return
+      if (deps.usage === undefined) throw new Error(UI_TEXT.providerUsageFailed)
       const snapshot = await readOpenRouterKeyUsage(deps.usage, credential)
       deps.onKeyUsage?.(snapshot)
       return snapshot

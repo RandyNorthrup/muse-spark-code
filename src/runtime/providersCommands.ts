@@ -601,10 +601,26 @@ export async function providersAdd(
   }
   let key: string | undefined
   if (preset.auth === 'apiKey') {
-    if (!options.keyFromStdin) {
-      return failed(deps, fill(UI_TEXT.providerKeyNeeded, { provider: id }))
+    let typed: string
+    if (options.keyFromStdin) {
+      typed = await deps.readSecret(fill(UI_TEXT.providerKeyPrompt, { provider: id }))
+    } else {
+      if (preset.id !== 'openrouter')
+        return failed(deps, fill(UI_TEXT.providerKeyNeeded, { provider: id }))
+      const account = providerSecretAccount(id)
+      const stored = account === undefined ? undefined : await deps.secrets.get(account)
+      let value: unknown
+      try {
+        value = stored === undefined ? undefined : JSON.parse(stored)
+      } catch {
+        return failed(deps, fill(UI_TEXT.providerSecretUnreadable, { provider: id }))
+      }
+      const parsed = parseStoredProviderSecret(value)
+      if (parsed === undefined || !isCredentialBound(parsed.record, address.origin)) {
+        return failed(deps, fill(UI_TEXT.providerKeyNeeded, { provider: id }))
+      }
+      typed = parsed.key
     }
-    const typed = await deps.readSecret(fill(UI_TEXT.providerKeyPrompt, { provider: id }))
     if (typed.trim() === '') {
       return failed(deps, UI_TEXT.providerKeyNotStored)
     }
