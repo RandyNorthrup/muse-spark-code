@@ -37507,6 +37507,9 @@ No merge, push, live/paid calls or aggregate quality; lead owns integration.
   - P, panel: the preference editor and "Move to…" in every editor;
   - W, wiring into D75 pools, M100/M110 routing, the judge engine, M95
     provider order and M116 dispatch.
+  - 5, outcomes: the per-role, per-candidate recorder, reorder suggestions
+    and opt-in per-role auto-order (D103 19076-19086); receipt
+    `docs/certification/m120-5.md`.
 - **Acceptance:**
   - the preferred candidate is used when available, and the next one when
     it isn't, with the reason shown;

@@ -85,6 +85,12 @@ export const teamPreferenceListSchema = z.extend(teamRoleConfigSchema, {
   pool: z.array(teamCandidateSchema),
   areaHints: z.optional(teamAreaHintsSchema),
   borrow: z.optional(teamBorrowTimersSchema),
+  /**
+   * Opt-in auto-order (D103, M120 lane 5): only while true may recorded
+   * outcomes reorder this pool, and only as the suggestion orders it.
+   * Absent is off, so a D75 role config still parses to the same value.
+   */
+  autoOrder: z.optional(z.boolean()),
 })
 export type TeamPreferenceList = z.infer<typeof teamPreferenceListSchema>
 

@@ -7234,6 +7234,10 @@ export type TeamIntensityLevel = keyof typeof TEAM_INTENSITY_LEVELS
 // A workspace that never picked a level runs here (D75).
 export const TEAM_INTENSITY_ORDER = ['minimal', 'light', 'balanced', 'heavy', 'max'] as const
 export const TEAM_LEARNED_MIN_TASKS = 5
+// A reorder suggestion needs a clear gap, not just a rank: the better
+// candidate's first-review acceptance rate must lead by this much (D103,
+// M120 lane 5). Both candidates still need TEAM_LEARNED_MIN_TASKS tasks.
+export const TEAM_OUTCOME_MIN_RATE_GAP = 0.25
 export const TEAM_MINUTES_PER_HOUR = 60
 export const TEAM_TOKENS_PER_MTOK = 1_000_000
 export const TEAM_PREVIEW_OUTPUT_SHARE = 0.3

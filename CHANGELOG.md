@@ -16,6 +16,14 @@ happened, not what was planned; superseded entries are kept.
   and handoff execution remain pending; existing unconfigured selection and
   requests stay unchanged.
 
+- M120 outcome stats (D103): per-role, per-candidate records of reviewed
+  tasks (first-review acceptance, findings by severity, rounds, time,
+  redesigns), reorder suggestions with their figures once both candidates
+  have five tasks and the acceptance-rate gap is clear, and opt-in
+  per-role auto-order that applies the suggestion. Panel display and pool
+  wiring arrive with lanes P and W; nothing reorders unless the role opts
+  in.
+
 - **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
   first governed launch, a **Resources** chip sits beside the heartbeat, or
   above the composer between turns. Its popover shows CPU, memory in use and
