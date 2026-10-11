@@ -3370,9 +3370,13 @@ side-chat request is ignored if the original tab has since changed sessions.
 On the Model API backend, the side branch keeps Plan mode after reopen,
 suppresses local hooks and refuses external MCP tools, including ones their
 server labels read only. It also refuses scheduled prompt creation, cancellation
-and paid runs before any job claim or Model API request. Muse Code applies its
-own project and session rules in Plan mode;
-review those rules before treating that branch as read only. Close the side
+and paid runs before any job claim or Model API request. On the Muse Code
+backend, the side branch stays in Plan mode and the panel refuses every
+approval it raises — answered with the card's own rejection, or, when the
+card has to be shown, by refusing any approving click on it — so the branch
+cannot approve a write. Writes the CLI's own project and session allow rules
+already cover still run without asking;
+review those rules before treating that branch as strictly read only. Close the side
 tab to return to the main one; its branch stays in History. It uses the
 selected backend's normal model allowance or key billing; it does not route
 Model API calls through a Muse subscription. In a side chat, `Shift+Tab`
