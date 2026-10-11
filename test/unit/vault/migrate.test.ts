@@ -50,7 +50,11 @@ describe('D89.14 credential migration', () => {
     const f = migrationFixture()
     await f.service.store(f.credential.key, generatedKey())
     vi.mocked(f.deps.vault.remove).mockRejectedValueOnce(new Error('interrupted delete'))
-    await expect(f.service.delete(f.credential.key)).rejects.toThrow()
+    // Born-in-vault rows are retired with no legacy copy, so the vault copy
+    // is the only copy: deleting it needs the confirmed flag.
+    await expect(
+      f.service.delete(f.credential.key, { destroyLastCopyConfirmed: true }),
+    ).rejects.toThrow()
     const second = new VaultMigration(f.deps, [f.credential])
     await Promise.all([f.service.resume(f.credential.key), second.resume(f.credential.key)])
     expect(f.journal.get(f.credential.key)?.phase).toBe('deleted')
@@ -295,7 +299,7 @@ describe('D89.14 credential migration', () => {
     await f.service.store(f.credential.key, generatedKey())
     expect(f.legacy.size).toBe(0)
     expect(f.deps.legacy.write).not.toHaveBeenCalled()
-    await f.service.delete(f.credential.key)
+    await f.service.delete(f.credential.key, { destroyLastCopyConfirmed: true })
     expect(await f.service.resolve(f.credential.key)).toBeNull()
     expect(await f.vault.list()).toEqual([])
   })

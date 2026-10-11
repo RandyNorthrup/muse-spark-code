@@ -12,6 +12,10 @@ export const migrationRecordSchema = z
     // A trusted release-history ordinal; patches do not advance it.
     startedRelease: release,
     retainLegacy: z.boolean(),
+    // Set while `retire` runs, before it removes the legacy copy: a missing
+    // legacy copy with this flag is the engine's own interrupted retire, one
+    // without it is a deletion behind the vault. Cleared on completion.
+    retireIntent: z.optional(z.boolean()),
     phase: z.enum(['copying', 'active', 'writing', 'deleting', 'deleted', 'undone', 'retired']),
     digest: z.nullable(z.string().check(z.regex(/^[a-f0-9]{64}$/u))),
     previous: z.optional(
