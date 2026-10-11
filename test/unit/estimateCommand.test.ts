@@ -8,6 +8,7 @@ import {
   estimateDrift,
   estimateSlashArguments,
   parseEstimateOptions,
+  parseEstimateComposer,
   renderEstimate,
   runEstimateCommand,
   type EstimateCommandOptions,
@@ -20,6 +21,7 @@ import { ESTIMATOR_AS_OF } from './helpers/estimator/fakes'
 import { UI_TEXT } from '../../src/shared/l10n/text'
 import { wasEstimateComposerHandled } from '../../src/webview/estimator/composer'
 import { isEstimateCommandText } from '../../src/webview/estimator/commandPrefix'
+import { checkPlan } from '../../src/core/estimator/planSnapshot'
 
 const context = { asOf: ESTIMATOR_AS_OF, optimize: 'cost' } as const
 const options: EstimateCommandOptions = {
@@ -60,6 +62,18 @@ function settleSuperseded(pending: PendingRun[]): { older: PendingRun; newer: Pe
 }
 
 describe('M117 estimate command', () => {
+  it('F1 keeps the command parser out of the browser composer closure', () => {
+    const compiled = buildSync({
+      entryPoints: ['src/webview/estimator/composer.ts'],
+      bundle: true,
+      write: false,
+      metafile: true,
+      platform: 'browser',
+    })
+    expect(
+      Object.keys(compiled.metafile.inputs).map((file) => file.replaceAll('\\', '/')),
+    ).not.toContain('src/runtime/estimator/command.ts')
+  })
   it('renders byte-identical terminal output across process time zones and languages', () => {
     const compiled = buildSync({
       entryPoints: ['src/runtime/estimator/command.ts'],
@@ -86,7 +100,15 @@ describe('M117 estimate command', () => {
   it('routes composer estimates to the injected local panel and leaves ordinary prompts alone', () => {
     const open = vi.fn()
     const notice = vi.fn()
-    const port = { context: () => context, open, notice }
+    const port = {
+      submit: (text: string) => {
+        try {
+          open(parseEstimateComposer(text, context))
+        } catch (error: unknown) {
+          notice(error instanceof Error ? error.message : '')
+        }
+      },
+    }
     expect(wasEstimateComposerHandled('ordinary prompt', port)).toBe(false)
     expect(wasEstimateComposerHandled('/estimate M117 --fleet minimum', port)).toBe(true)
     expect(open).toHaveBeenCalledWith({ ...fakeEstimate().inputs.request, fleet: 'minimum' })
@@ -385,14 +407,38 @@ describe('M117 estimate command', () => {
     expect(error).toHaveBeenCalledWith(expect.stringContaining('estimate-unavailable'))
   })
 
+  it('F5 exits nonzero for an empty or unstructured plan without starting an estimate', async () => {
+    for (const text of ['', 'ordinary unstructured text', '## 6. Milestones\n']) {
+      const port = runner()
+      const write = vi.fn()
+      expect(
+        await runEstimateCommand(['--check-plan'], {
+          context: () => context,
+          runner: port,
+          money,
+          write,
+          error: vi.fn(),
+          signal: new AbortController().signal,
+          checkPlan: () => Promise.resolve(checkPlan(text)),
+        }),
+      ).toBe(1)
+      expect(write).toHaveBeenCalledWith(expect.stringContaining('plan-drift:'))
+      expect(port.estimate).not.toHaveBeenCalled()
+    }
+  })
+
   it('notices panel --check-plan as usage without opening an estimate', () => {
     const open = vi.fn()
     const notice = vi.fn()
     expect(
       wasEstimateComposerHandled('/estimate --check-plan', {
-        context: () => ({ asOf: context.asOf, optimize: 'cost' as const }),
-        open,
-        notice,
+        submit: (text) => {
+          try {
+            open(parseEstimateComposer(text, context))
+          } catch (error: unknown) {
+            notice(error instanceof Error ? error.message : '')
+          }
+        },
       }),
     ).toBe(true)
     expect(open).not.toHaveBeenCalled()

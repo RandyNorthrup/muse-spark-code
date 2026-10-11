@@ -1,3 +1,4 @@
+import { parseEstimateComposer } from '../../src/runtime/estimator/command'
 import type { EstimateRequest } from '../../src/shared/estimate'
 import { fakeEstimate } from './helpers/estimator/fixtures'
 import { questionAnswerText } from './helpers/questions/registry'
@@ -17757,6 +17758,7 @@ describe('M105 E1 attachment handler', () => {
 
 function fakeEstimatorBinding() {
   return {
+    parseCommand: parseEstimateComposer,
     estimate: vi.fn((_request: EstimateRequest, _signal: AbortSignal) =>
       Promise.resolve(fakeEstimate()),
     ),
@@ -17766,6 +17768,36 @@ function fakeEstimatorBinding() {
   }
 }
 describe('M117 estimates belong to their conversation', () => {
+  it('F1 parses composer commands in the host and never dispatches invalid input', async () => {
+    const t = setup()
+    const run = fakeEstimatorBinding()
+    const controller = new ConversationController({ ...t.deps, estimator: run })
+    const context = { asOf: fakeEstimate().asOf, optimize: 'cost' } as const
+    await controller.handle({
+      type: 'estimateCommand',
+      requestId: 'composer',
+      command: '/estimate M117',
+      context,
+    })
+    expect(run.estimate).toHaveBeenCalledWith(
+      fakeEstimate().inputs.request,
+      expect.any(AbortSignal),
+    )
+    await controller.handle({
+      type: 'estimateCommand',
+      requestId: 'bad',
+      command: '/estimate M117 --unknown',
+      context,
+    })
+    expect(run.estimate).toHaveBeenCalledTimes(1)
+    expect(t.surface.posted).toContainEqual({
+      type: 'estimatorFailure',
+      requestId: 'bad',
+      reason: UI_TEXT.estimateUsage,
+    })
+    controller.dispose()
+  })
+
   it('returns a correlated failure when the source rejects', async () => {
     const t = setup()
     const run = fakeEstimatorBinding()

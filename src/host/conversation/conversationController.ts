@@ -9338,18 +9338,26 @@ export class ConversationController {
   }
 
   private async handleEstimateMessage(
-    message: Extract<WebviewToHostMessage, { type: 'estimateRun' | 'estimateSpinUp' }>,
+    message: Extract<
+      WebviewToHostMessage,
+      { type: 'estimateRun' | 'estimateSpinUp' | 'estimateCommand' }
+    >,
   ): Promise<void> {
     const estimator = this.deps.estimator
     const generation = this.sendInvalidationEpoch
     const correlation = message.requestId === undefined ? {} : { requestId: message.requestId }
-    if (message.type === 'estimateRun') {
+    if (message.type !== 'estimateSpinUp') {
       this.invalidateEstimate()
       const pending = new AbortController()
       this.estimatePending = pending
       try {
         if (estimator === undefined) throw new Error(UI_TEXT.estimateUnavailable)
-        const section = await estimator.estimate(message.request, pending.signal)
+        const request =
+          message.type === 'estimateRun'
+            ? message.request
+            : estimator.parseCommand?.(message.command, message.context)
+        if (request === undefined) throw new Error(UI_TEXT.estimateUnavailable)
+        const section = await estimator.estimate(request, pending.signal)
         if (pending.signal.aborted || generation !== this.sendInvalidationEpoch || this.isDisposed)
           return
         this.lastEstimateInputs = section.inputs
@@ -10428,6 +10436,7 @@ export class ConversationController {
         await this.handleReportMessage(message)
         break
       }
+      case 'estimateCommand':
       case 'estimateRun':
       case 'estimateSpinUp': {
         await this.handleEstimateMessage(message)

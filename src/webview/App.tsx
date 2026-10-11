@@ -999,6 +999,7 @@ export function App({
       estimatePendings.current.get(estimatorRequestId)?.resolve(estimatorSection)
       estimatePendings.current.delete(estimatorRequestId)
     }
+    setEstimateLastRequest(estimatorSection.inputs.request)
     for (const listener of estimateSubscribers.current) listener(estimatorSection)
   }, [estimatorSection, estimatorRequestId])
   const estimatorFailure = state.estimatorFailure
@@ -1198,19 +1199,27 @@ export function App({
     }
     // `/estimate …` opens the estimator panel, not a message (M117): the
     // draft clears and the host's `estimatorSection` reveals it. The full
-    // parse loads with the composer so startup carries only the prefix check.
+    // parse runs in the host so startup carries only the prefix check.
     if (isEstimateCommandText(text)) {
       dispatch({ type: 'draftChanged', draft: '' })
       setIsPinnedToEnd(true)
       void import('./estimator/composer')
         .then(({ wasEstimateComposerHandled }) => {
           wasEstimateComposerHandled(text, {
-            context: () => ({ asOf: new Date().toISOString(), optimize: estimatorOptimize }),
-            open: (request) => {
-              postEstimateRun(request)
-            },
-            notice: (noticeText) => {
-              dispatch({ type: 'noticeRaised', level: 'warning', text: noticeText })
+            submit: (command) => {
+              const id = `estimate-${String(++estimateSequence.current)}`
+              estimateCurrentId.current = id
+              setEstimateDisplayId(id)
+              for (const [pendingId, pending] of estimatePendings.current) {
+                pending.reject(new DOMException('The estimate was replaced', 'AbortError'))
+                estimatePendings.current.delete(pendingId)
+              }
+              postMessage({
+                type: 'estimateCommand',
+                requestId: id,
+                command,
+                context: { asOf: new Date().toISOString(), optimize: estimatorOptimize },
+              })
             },
           })
         })
@@ -1382,7 +1391,6 @@ export function App({
     onReview,
     onLegalScan,
     onHandoff,
-    postEstimateRun,
     estimatorOptimize,
   ])
   // Send exactly the payload the dialog previewed. The composer may now

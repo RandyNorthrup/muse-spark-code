@@ -12,6 +12,22 @@ describe('first-use estimator contracts', () => {
     expect(lazy.parseHostToEstimatorMessage(frame)).toEqual({ ok: true, message: frame })
     const request = { type: 'estimateRun', request: section.inputs.request }
     expect(lazy.parseEstimatorToHostMessage(request)).toEqual({ ok: true, message: request })
+    const command = {
+      type: 'estimateCommand',
+      command: '/estimate M117',
+      context: {
+        asOf: section.asOf,
+        optimize: 'cost',
+      },
+    }
+    expect(lazy.parseEstimatorToHostMessage(command)).toEqual({ ok: true, message: command })
+    expect(
+      lazy.parseEstimatorToHostMessage({
+        ...command,
+        context: { asOf: 'invalid', optimize: 'cost' },
+      }).ok,
+    ).toBe(false)
+    expect(lazy.parseEstimatorToHostMessage({ ...command, unexpected: true }).ok).toBe(false)
     expect(
       lazy.parseHostToEstimatorMessage({ ...frame, section: { ...section, disclosures: [] } }).ok,
     ).toBe(false)
