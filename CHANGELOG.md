@@ -9,6 +9,16 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **GitHub report reads retain accepted facts across every read failure** (CM1136R6).
+  Failed body streams and invalid UTF-8 name their page without discarding
+  earlier rows. A failed endpoint stops immediately, preserving other
+  endpoints' share of the ten-request allowance. Pulls, scoped checks,
+  workflow runs, releases and adapter reasons validate independently;
+  a nameless corrupt tag keeps its own reason, and missing facets,
+  conflicting facts and row bounds leave explicit reasons; distinct run
+  identities remain distinct when tags or workflow names contain separators
+  while accepted rows remain. The isolation gate compares observed requests
+  directly with its executable fault cases.
 - **Workflow and release report reads survive any single failed request** (CM1136R5).
   Each tag, release and workflow-run page returns its own rows or its own
   paged refusal (`tags-page-2: http-500`) while the other pages' rows stay;
