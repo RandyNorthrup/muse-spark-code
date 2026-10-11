@@ -4816,7 +4816,10 @@
     "licenseFile": "ライセンスファイル",
     "bundleLoad": "{file} を読み込めませんでした",
     "bundleShape": "{file} は想定外の形式です",
-    "invalidResult": "スキャンが無効な結果を返しました"
+    "invalidResult": "スキャンが無効な結果を返しました",
+    "reviewedReceipt": "確認記録により審査済み: {reason}",
+    "receiptRenew": "新しいバージョンやライセンスのバイト列の変更には、新たな審査と確認記録が必要です。",
+    "invalidReceipt": "未確認: {file} は有効なライセンス審査記録ファイルではありません"
   },
   "legalScanAgain": "再スキャン",
   "accounts": {
@@ -5085,5 +5088,6 @@
     "grantsCount": {
       "other": "{count} 件の許可"
     }
-  }
+  },
+  "legalScanReceiptHelp": "ローカルのライセンス検査。任意の licence-review.json の確認記録は、審査済みの SPDX ライセンスを、理由とともにパッケージ、正確なバージョン、SHA-256 に紐付けます。バイト列やバージョンが変わると再審査が必要です。"
 }

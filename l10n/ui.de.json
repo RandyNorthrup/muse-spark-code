@@ -4966,7 +4966,10 @@
     "licenseFile": "eine Lizenzdatei",
     "bundleLoad": "{file} konnte nicht geladen werden",
     "bundleShape": "{file} hat eine unerwartete Struktur",
-    "invalidResult": "die Prüfung lieferte ein ungültiges Ergebnis"
+    "invalidResult": "die Prüfung lieferte ein ungültiges Ergebnis",
+    "reviewedReceipt": "Durch Prüfnachweis geprüft: {reason}",
+    "receiptRenew": "Eine neue Version oder geänderte Lizenzbytes erfordern eine neue Prüfung und einen neuen Nachweis.",
+    "invalidReceipt": "nicht geprüft: {file} ist keine gültige Datei mit Lizenzprüfnachweisen"
   },
   "legalScanAgain": "Erneut scannen",
   "accounts": {
@@ -5239,5 +5242,6 @@
       "one": "{count} Freigabe",
       "other": "{count} Freigaben"
     }
-  }
+  },
+  "legalScanReceiptHelp": "Lokale Lizenzprüfung; optionale Nachweise in licence-review.json binden eine geprüfte SPDX-Lizenz mit Begründung an das Paket, die genaue Version und SHA-256. Geänderte Bytes oder Versionen erfordern eine erneute Prüfung."
 }

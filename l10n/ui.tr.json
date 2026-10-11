@@ -4966,7 +4966,10 @@
     "licenseFile": "lisans dosyası",
     "bundleLoad": "{file} yüklenemedi",
     "bundleShape": "{file} beklenmeyen biçimde",
-    "invalidResult": "tarama geçersiz sonuç döndürdü"
+    "invalidResult": "tarama geçersiz sonuç döndürdü",
+    "reviewedReceipt": "İnceleme kaydıyla doğrulandı: {reason}",
+    "receiptRenew": "Yeni bir sürüm veya değişen lisans baytları yeni inceleme ve kayıt gerektirir.",
+    "invalidReceipt": "kontrol edilmedi: {file} geçerli bir lisans inceleme kaydı dosyası değil"
   },
   "legalScanAgain": "Yeniden tara",
   "accounts": {
@@ -5239,5 +5242,6 @@
       "one": "{count} izin",
       "other": "{count} izin"
     }
-  }
+  },
+  "legalScanReceiptHelp": "Yerel lisans taraması; isteğe bağlı licence-review.json kayıtları, incelenen SPDX lisansını gerekçesiyle birlikte pakete, tam sürüme ve SHA-256 değerine bağlar. Baytlar veya sürümler değişirse yeniden inceleme gerekir."
 }

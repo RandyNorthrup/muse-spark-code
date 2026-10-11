@@ -4104,9 +4104,36 @@ match pinned SPDX License List texts exactly; excerpts, modified texts and
 unrecognized prose stay heuristic with named incomplete reasons. Holder and
 party slots accept names of at most eight normalized tokens, reject restriction vocabulary in every supported
 language after case and separator splitting, and keep suspicious slot text quoted
-for review. Coverage gaps for dependencies that provably do not ship are
+for review. Copyright notices also accept the closed `and affiliates.` and
+`et al.` suffixes, a final period after a two-word capitalized name, and a parenthesized
+email/URL pair; these forms still pass the restriction guards. Coverage gaps for dependencies that provably do not ship are
 informational; a shipped declaration/text disagreement stays a named conflict. **Not legal
 advice; for distribution decisions consult a lawyer.**
+
+A reviewed notice-only difference can use an optional `licence-review.json`
+array in the scanned workspace root. Each entry names `package`, exact
+`version`, the licence file bytes' `sha256`, the found single `spdx` identifier,
+and a one-line `reason`. For example:
+
+```json
+[
+  {
+    "package": "lz-string",
+    "version": "1.5.0",
+    "sha256": "433fc9dfe659dbfb1e91eed8351f13651e97bfa3ac6d03394c3d63f61d4bbc80",
+    "spdx": "MIT",
+    "reason": "MIT terms are unchanged; only the holder notice differs."
+  }
+]
+```
+
+The package, version, byte hash and found SPDX identifier must all agree with
+its declared single licence. Changed bytes or a version bump require review
+again. An applied receipt appears as **Reviewed by receipt** with its reason
+in the panel, text, JSON and Markdown reports; it resolves only that licence
+text check, leaving conflicts and other incomplete evidence visible. Malformed
+receipt files leave the scan incomplete. A receipt records a human decision;
+create one only after reviewing the actual file and its template comparison.
 
 Select findings or choose **Fix all safe ones** to review exact patches before
 applying them. Supported fixes add missing SPDX/copyright headers from the

@@ -1,0 +1,96 @@
+[
+  {
+    "id": "R5-H1-affiliates",
+    "exit": 1,
+    "failures": [
+      "\u00d7 reads the real @muse-code/sdk text as MIT with its strict holder result 168ms",
+      "\u00d7 reads the real react text as MIT with its strict holder result 5ms",
+      "\u00d7 reads the real react-dom text as MIT with its strict holder result 5ms",
+      "\u00d7 reads the real scheduler text as MIT with its strict holder result 8ms",
+      "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 4 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      "FAIL  test/unit/legalVendorHolders.test.ts > real shipped vendor holder forms > reads the real @muse-code/sdk text as MIT with its strict holder result",
+      "FAIL  test/unit/legalVendorHolders.test.ts > real shipped vendor holder forms > reads the real react text as MIT with its strict holder result",
+      "FAIL  test/unit/legalVendorHolders.test.ts > real shipped vendor holder forms > reads the real react-dom text as MIT with its strict holder result",
+      "FAIL  test/unit/legalVendorHolders.test.ts > real shipped vendor holder forms > reads the real scheduler text as MIT with its strict holder result",
+      "Tests  4 failed | 13 passed (17)"
+    ],
+    "sha256": "7cb31561fd7415adc48c30bb422f4c1f27103c1b9a381f870603ca8b919efe84",
+    "file": "src/core/legal/licenseTemplates.ts",
+    "command": "npx vitest run test/unit/legalVendorHolders.test.ts --maxWorkers=3",
+    "sha256Restored": "7cb31561fd7415adc48c30bb422f4c1f27103c1b9a381f870603ca8b919efe84"
+  },
+  {
+    "id": "R5-H2-et-al",
+    "exit": 1,
+    "failures": [
+      "\u00d7 reads the real smol-toml text as BSD-3-Clause with its strict holder result 10ms",
+      "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      "FAIL  test/unit/legalVendorHolders.test.ts > real shipped vendor holder forms > reads the real smol-toml text as BSD-3-Clause with its strict holder result",
+      "Tests  1 failed | 16 passed (17)"
+    ],
+    "sha256": "7cb31561fd7415adc48c30bb422f4c1f27103c1b9a381f870603ca8b919efe84",
+    "file": "src/core/legal/licenseTemplates.ts",
+    "command": "npx vitest run test/unit/legalVendorHolders.test.ts --maxWorkers=3",
+    "sha256Restored": "7cb31561fd7415adc48c30bb422f4c1f27103c1b9a381f870603ca8b919efe84"
+  },
+  {
+    "id": "R5-H3-terminal-period",
+    "exit": 1,
+    "failures": [
+      "\u00d7 reads the real highlight.js text as BSD-3-Clause with its strict holder result 11ms",
+      "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      "FAIL  test/unit/legalVendorHolders.test.ts > real shipped vendor holder forms > reads the real highlight.js text as BSD-3-Clause with its strict holder result",
+      "Tests  1 failed | 16 passed (17)"
+    ],
+    "sha256": "7cb31561fd7415adc48c30bb422f4c1f27103c1b9a381f870603ca8b919efe84",
+    "file": "src/core/legal/licenseTemplates.ts",
+    "command": "npx vitest run test/unit/legalVendorHolders.test.ts --maxWorkers=3",
+    "sha256Restored": "7cb31561fd7415adc48c30bb422f4c1f27103c1b9a381f870603ca8b919efe84"
+  },
+  {
+    "id": "R5-H4-contact-pair",
+    "exit": 1,
+    "failures": [
+      "\u00d7 reads the real parse5 text as MIT with its strict holder result 12ms",
+      "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      "FAIL  test/unit/legalVendorHolders.test.ts > real shipped vendor holder forms > reads the real parse5 text as MIT with its strict holder result",
+      "Tests  1 failed | 16 passed (17)"
+    ],
+    "sha256": "7cb31561fd7415adc48c30bb422f4c1f27103c1b9a381f870603ca8b919efe84",
+    "file": "src/core/legal/licenseTemplates.ts",
+    "command": "npx vitest run test/unit/legalVendorHolders.test.ts --maxWorkers=3",
+    "sha256Restored": "7cb31561fd7415adc48c30bb422f4c1f27103c1b9a381f870603ca8b919efe84"
+  },
+  {
+    "id": "R5-H5-restriction-controls",
+    "exit": 1,
+    "failures": [
+      "\u00d7 reads the real lz-string text as MIT with its strict holder result 9ms",
+      "\u00d7 keeps restrictions in the and affiliates. form under review 2ms",
+      "\u00d7 keeps restrictions in the terminal name period form under review 1ms",
+      "\u00d7 keeps restrictions in the parenthesized contact pair form under review 1ms",
+      "\u00d7 keeps restrictions in the et al. form under review 1ms",
+      "\u00d7 keeps an unlisted holder form under review: Example and selected beneficiaries. 1ms",
+      "\u00d7 keeps an unlisted holder form under review: Example et selected parties. 1ms",
+      "\u00d7 keeps an unlisted holder form under review: Example (Contact The Author For Permission) 1ms",
+      "\u00d7 keeps an unlisted holder form under review: Example (ifaaan@gmail.com, https://github.com/inikulin) Restricted 1ms",
+      "\u00d7 keeps an unlisted holder form under review: Example. A Further Condition Applies. 1ms",
+      "\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 10 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      "FAIL  test/unit/legalVendorHolders.test.ts > real shipped vendor holder forms > reads the real lz-string text as MIT with its strict holder result",
+      "FAIL  test/unit/legalVendorHolders.test.ts > real shipped vendor holder forms > keeps restrictions in the and affiliates. form under review",
+      "FAIL  test/unit/legalVendorHolders.test.ts > real shipped vendor holder forms > keeps restrictions in the terminal name period form under review",
+      "FAIL  test/unit/legalVendorHolders.test.ts > real shipped vendor holder forms > keeps restrictions in the parenthesized contact pair form under review",
+      "FAIL  test/unit/legalVendorHolders.test.ts > real shipped vendor holder forms > keeps restrictions in the et al. form under review",
+      "FAIL  test/unit/legalVendorHolders.test.ts > real shipped vendor holder forms > keeps an unlisted holder form under review: Example and selected beneficiaries.",
+      "FAIL  test/unit/legalVendorHolders.test.ts > real shipped vendor holder forms > keeps an unlisted holder form under review: Example et selected parties.",
+      "FAIL  test/unit/legalVendorHolders.test.ts > real shipped vendor holder forms > keeps an unlisted holder form under review: Example (Contact The Author For Permission)",
+      "FAIL  test/unit/legalVendorHolders.test.ts > real shipped vendor holder forms > keeps an unlisted holder form under review: Example (ifaaan@gmail.com, https://github.com/inikulin) Restricted",
+      "FAIL  test/unit/legalVendorHolders.test.ts > real shipped vendor holder forms > keeps an unlisted holder form under review: Example. A Further Condition Applies.",
+      "Tests  10 failed | 7 passed (17)"
+    ],
+    "sha256": "7cb31561fd7415adc48c30bb422f4c1f27103c1b9a381f870603ca8b919efe84",
+    "file": "src/core/legal/licenseTemplates.ts",
+    "command": "npx vitest run test/unit/legalVendorHolders.test.ts --maxWorkers=3",
+    "sha256Restored": "7cb31561fd7415adc48c30bb422f4c1f27103c1b9a381f870603ca8b919efe84"
+  }
+]

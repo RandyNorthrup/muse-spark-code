@@ -166,9 +166,9 @@ describe('SPDX template matching', () => {
     'Example非商业',
     'Alpha Beta Gamma Delta Epsilon Zeta Eta Theta Iota',
     'J. Doe',
-    'Example Mr.',
-    'Example Prof.',
-    'Example Access.',
+    'Example Mr. Access',
+    'Example Prof. Access',
+    'Example Access. Extra',
     'Example: Access',
   ])('keeps the quoted MIT holder under review: %s', (holder) => {
     const match = identifyLicenseText(

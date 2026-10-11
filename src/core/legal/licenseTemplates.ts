@@ -15,6 +15,7 @@
 
 import {
   LEGAL_TEMPLATE_ALIGN_MIN,
+  LEGAL_TEMPLATE_SLOT_WORDS,
   LEGAL_TEMPLATE_CAPITALS_RUN_MAX,
   LEGAL_TEMPLATE_NAME_TOKENS_MAX,
   LEGAL_TEMPLATE_EXPECTED_TOKENS,
@@ -62,6 +63,7 @@ interface TemplateVariable {
   readonly requiresMarker: boolean
   readonly maxChars: number
   readonly vocabulary: ReadonlySet<string>
+  readonly restrictionWords: ReadonlySet<string>
 }
 
 type Instruction =
@@ -93,6 +95,7 @@ interface LicenseTemplate {
 }
 
 interface Equivalences {
+  readonly restrictionWords: ReadonlySet<string>
   /** Variant token sequences, longest first, each with its canonical form. */
   readonly variants: readonly { readonly from: readonly string[]; readonly to: readonly string[] }[]
 }
@@ -155,35 +158,18 @@ const NAME_CONNECTORS: ReadonlySet<string> = new Set(
  * Nonprofit Projects Only`) keeps human review. The list only ever forces
  * review; it never makes a text match.
  */
-// Suffix packing preserves every one of the 312 distinct words below;
-// the independent test fixture expands the original language lists. This
-// keeps multilingual review inside the scanner's unchanged bundle budget.
-const RESTRICTION_WORDS: ReadonlySet<string> = new Set(
-  [
-    'academic allowed apenas ausschließlich beschränkt bezahlt bildung||szwecke charge client|es|i|s comercia|is|l|les commercia|l|le|les|li|ux csak',
-    'customer||s członk|owie|ów demo educacional educati|on|onal|va|vo edukacyjn|e|y esclusivamente evaluation except exclu|ding|sivamente|sively',
-    'eğit|im|sel fee||s fizető||s forbidden gemeinnützig||e hobby||ist inter|dit|dite|nal jen kar kereskedelmi kizárólag kişisel klien|ci|tów',
-    'komer|cyjne|cyjny|ční kommerziell||e|en|es korlátozott kunden kâr limit|ada|ado|ata|ato|ed|é|ée lucrati|f|va|ve|vo lucro magán||célú',
-    'memb|er|ers|res|ri|ros miembros military mitglieder must müşteriler nekomerční nemkereskedelmi never neziskov|é|ý nichtkommerziell niedochodowy',
-    'niekomercyjn|e|y no noncommercial||e nonprofit not nur ograniczon|e|y oktatási omezen|é|ý only osob|iste|isty|ní paga|do|mento|ndo|ntes|nti pago',
-    'paid pay||ant|ants|ing|ment permi|ssion|tted person|al|ale|nel|nelle persönlich||e|en pessoal placen|é|ý pouze',
-    'priv|ada|ado|at|ata|ate|aten|ater|ato|é|ée|ées|és prohib|ida|ido|it|ited|é|ée proibi|da|do|ta|to prywatn|e|ego|y purpose||s pädagogisch',
-    'pła|cący|tny require||d|s restrict|ed|ion|ions royalt|ies|y sadece seulement shall sol|amente|ely|o|tanto somente soukrom|é|ý strictly személyes',
-    'sólo sınırlı tagok ticari til|os|tott training trial tylko uniquement unless untersagt usage use vedado verboten vietat|a|o vzdělávací without',
-    'wyłącznie yalnızca yasak||lanmış|tır zabronion|e|y zahlende zakazane zakáz|aný|áno zákazní|ci|ky éducati|f|ve ödeyen özel únicamente ücretli',
-    'ügyfelek üyeler člen|ové|y запрещ|ен|ено|ён клиент|ов|ы коммерческ|ая|ие|ий|ое личн|ого|ое|ый некоммерческ|ая|ий|их|ое нельзя образовательн|ое|ый',
-    'ограничен|ный|о плат|ный|ящих только участники частн|ого|ое|ый членов のみ 不可 不得 个人 仅限 付費 付费 会员 会員 個人 僅限 商业 商業 商用 客戶 客户 教育 會員 有料 營利 禁止 私人 私的 营利 限制',
-    '限定 非商业 非商業 非商用 非営利 非營利 非营利 顧客 개인 고객 교육 금지 불가 비상업 비영리 사적 상업 유료 전용 제한 지불 회원',
-  ].flatMap((line) =>
-    line
-      .split(' ')
+function restrictionWords(text: string): ReadonlySet<string> {
+  return new Set(
+    text
+      .trim()
+      .split(/\s+/u)
       .flatMap((entry) => {
         const [stem = '', ...suffixes] = entry.split('|')
         return suffixes.length === 0 ? [stem] : suffixes.map((suffix) => stem + suffix)
       })
       .map((word) => word.replaceAll('ı', 'i').replaceAll('ß', 'ss')),
-  ),
-)
+  )
+}
 // Keep compound restrictions intact: neither `non` nor `profit` alone
 // implies a restriction (Profit Inc. is an ordinary company name).
 const RESTRICTION_PHRASES = ['non profit', 'non commercial', 'no ai']
@@ -202,7 +188,7 @@ function nameTokens(text: string): string[] {
     .filter((part) => part !== '')
 }
 
-function isRestrictionWord(text: string): boolean {
+function isRestrictionWord(text: string, restricted: ReadonlySet<string>): boolean {
   const tokens = nameTokens(text)
   const joined = tokens.join(' ')
   const unsplit = text
@@ -212,8 +198,8 @@ function isRestrictionWord(text: string): boolean {
     .replaceAll('ı', 'i')
     .replaceAll('ß', 'ss')
   return (
-    RESTRICTION_WORDS.has(unsplit) ||
-    tokens.some((part) => RESTRICTION_WORDS.has(part)) ||
+    restricted.has(unsplit) ||
+    tokens.some((part) => restricted.has(part)) ||
     RESTRICTION_PHRASES.some((phrase) => ` ${joined} `.includes(` ${phrase} `))
   )
 }
@@ -317,7 +303,7 @@ function keyOf(text: string, equivalences: Equivalences): string {
     .join(' ')
 }
 
-function parseEquivalences(text: string): Equivalences {
+function parseEquivalences(text: string, restricted: ReadonlySet<string>): Equivalences {
   const groups: string[][] = []
   for (const line of text.split(/\r?\n/u)) {
     const entries = line
@@ -341,7 +327,10 @@ function parseEquivalences(text: string): Equivalences {
     for (const form of forms)
       if (form.join(' ') !== canonical.join(' ')) variants.push({ from: form, to: canonical })
   }
-  return { variants: variants.toSorted((a, b) => b.from.length - a.from.length) }
+  return {
+    variants: variants.toSorted((a, b) => b.from.length - a.from.length),
+    restrictionWords: restricted,
+  }
 }
 
 /**
@@ -411,6 +400,7 @@ function parseVariable(body: string, equivalences: Equivalences): TemplateVariab
         ? LEGAL_TEMPLATE_VARIABLE_MAX_CHARS
         : Math.min(Number(bounded), LEGAL_TEMPLATE_VARIABLE_MAX_CHARS),
     vocabulary: vocabularyOf(original),
+    restrictionWords: equivalences.restrictionWords,
   }
 }
 
@@ -595,7 +585,7 @@ export function loadLicenseTemplates(
   files: readonly SpdxTemplateFile[] = SPDX_TEMPLATE_FILES,
 ): LicenseTemplateSet {
   const problems: string[] = []
-  const read = (file: SpdxTemplateFile): string | undefined => {
+  const read = (file: Pick<SpdxTemplateFile, 'path' | 'sha256'>): string | undefined => {
     // The digest covers the exact bytes (strict UTF-8, any byte-order
     // mark kept), so altered, truncated or non-UTF-8 data never loads.
     const bytes = readPinnedLegalData(file.path, directory)
@@ -608,7 +598,9 @@ export function loadLicenseTemplates(
   const wordsFile = files.find((file) => file.kind === 'equivalentWords')
   if (wordsFile === undefined) problems.push('equivalentwords.txt')
   const wordsText = wordsFile === undefined ? undefined : read(wordsFile)
-  const equivalences = parseEquivalences(wordsText ?? '')
+  const slots = read(LEGAL_TEMPLATE_SLOT_WORDS)
+  const equivalences = parseEquivalences(wordsText ?? '', restrictionWords(slots ?? ''))
+  if (slots === undefined) return { templates: [], problems, equivalences }
   const templates: LicenseTemplate[] = []
   for (const file of files) {
     if (file.kind !== 'template') continue
@@ -676,13 +668,17 @@ function isNameWord(word: string, lower: string, vocabulary: ReadonlySet<string>
  * restriction vocabulary in any case, or text in a script without letter
  * case never passes.
  */
-function isNameShaped(text: string, vocabulary: ReadonlySet<string>): boolean {
+function isNameShaped(
+  text: string,
+  vocabulary: ReadonlySet<string>,
+  restricted: ReadonlySet<string>,
+): boolean {
   const body = collapse(text)
   if (
     body === '' ||
     TERMINATORS.test(body) ||
     body.split(/\s+/u).length > LEGAL_TEMPLATE_NAME_TOKENS_MAX ||
-    isRestrictionWord(body) ||
+    isRestrictionWord(body, restricted) ||
     nameTokens(body).length > LEGAL_TEMPLATE_NAME_TOKENS_MAX
   )
     return false
@@ -707,7 +703,7 @@ function isNameShaped(text: string, vocabulary: ReadonlySet<string>): boolean {
     if (word === '' || /[^\p{Lu}\p{Ll}\p{Lt}\p{N}\p{M}._'’-]/u.test(word)) return false
     if (word.includes('.') && !/^(?:\p{L}\.)+\p{L}$/u.test(word)) return false
     if (isAfterAbbreviation && /^\p{Lu}/u.test(word)) return false
-    if (isRestrictionWord(word)) return false
+    if (isRestrictionWord(word, restricted)) return false
     // Capitals-only words in a row outside the variable's own wording
     // read as a clause (`NO COMMERCIAL USE`), not a name.
     const isShout =
@@ -736,7 +732,7 @@ const WORK_LEAD_IN_WORDS: ReadonlySet<string> = new Set(
  * work Copyright …`): closed lead-in words plus at most one name word,
  * never restriction vocabulary or a terminator. Otherwise the line as is.
  */
-function withoutWorkLeadIn(line: string): string {
+function withoutWorkLeadIn(line: string, restricted: ReadonlySet<string>): string {
   const at = line.search(/\b(?:copyright\b|copr\.)|\(c\)|©/iu)
   if (at <= 0) return line
   const words = line.slice(0, at).trim().split(/\s+/u)
@@ -744,7 +740,10 @@ function withoutWorkLeadIn(line: string): string {
   const isWorkName =
     words.length <= WORK_LEAD_IN_WORDS_MAX &&
     others.length <= 1 &&
-    others.every((word) => /^[\p{L}\p{N}][\p{L}\p{N}._-]*$/u.test(word) && !isRestrictionWord(word))
+    others.every(
+      (word) =>
+        /^[\p{L}\p{N}][\p{L}\p{N}._-]*$/u.test(word) && !isRestrictionWord(word, restricted),
+    )
   return isWorkName ? line.slice(at) : line
 }
 
@@ -753,12 +752,20 @@ function withoutWorkLeadIn(line: string): string {
  * (or is `All rights reserved`); a variable whose original carries no
  * marker also accepts one unmarked notice line.
  */
+// Closed notice-only forms captured from react, smol-toml, highlight.js
+// and parse5 (CM971R5). Strip only the literal collectives/contact shape;
+// the remaining holder still passes every strict name/restriction guard.
+const HOLDER_COLLECTIVE = / (?:and affiliates\.|et al\.)$/iu
+const HOLDER_CONTACT_PAIR = / \([\w.+-]+@[\w-]+(?:\.[\w-]+)+, https?:\/\/[\w.-]+(?:\/[\w.-]+)*\)$/iu
+const HOLDER_FINAL_PERIOD = /^\p{Lu}[\p{Ll}\p{M}]+ \p{Lu}[\p{Ll}\p{M}]+\.$/u
+
 function isCopyrightNotice(
   text: string,
   vocabulary: ReadonlySet<string>,
   requiresMarker: boolean,
+  restricted: ReadonlySet<string>,
 ): boolean {
-  const lines = contentLines(text).map((line) => withoutWorkLeadIn(line))
+  const lines = contentLines(text).map((line) => withoutWorkLeadIn(line, restricted))
   if (lines.length === 0) return true
   const isMarked = lines.every(
     (line) => COPYRIGHT_MARKER.test(line) || RIGHTS_RESERVED_LINE.test(line),
@@ -768,12 +775,18 @@ function isCopyrightNotice(
     if (RIGHTS_RESERVED_LINE.test(line)) continue
     for (const statement of line.split(/(?<=\.)\s+(?=copyright\b|\(c\)|©)/iu)) {
       // Collapsed first, so no pattern below meets a long whitespace run.
-      const body = collapse(statement)
+      let body = collapse(statement)
         .replace(LEADING_MARKERS, '')
         .replace(RIGHTS_RESERVED, '')
         .replaceAll(YEARS, ' ')
+      body = body
+        .replace(HOLDER_COLLECTIVE, '')
+        .replace(HOLDER_CONTACT_PAIR, '')
         .replaceAll(',', ' , ')
-      if (collapse(body.replaceAll(',', '')) !== '' && !isNameShaped(body, vocabulary)) return false
+      if (HOLDER_FINAL_PERIOD.test(collapse(body.replaceAll(',', ''))))
+        body = body.trimEnd().slice(0, -1)
+      if (collapse(body.replaceAll(',', '')) !== '' && !isNameShaped(body, vocabulary, restricted))
+        return false
     }
   }
   return true
@@ -788,14 +801,19 @@ function hasRoleShape(variable: TemplateVariable, raw: string, value: string): b
       return value === '' || LIST_MARKER.test(value)
     }
     case 'notice': {
-      return isCopyrightNotice(raw, variable.vocabulary, variable.requiresMarker)
+      return isCopyrightNotice(
+        raw,
+        variable.vocabulary,
+        variable.requiresMarker,
+        variable.restrictionWords,
+      )
     }
     default: {
       // An unmatched optional group captures `undefined` at run time.
       const isWildcardShaped = (captured: string | undefined): boolean =>
         captured === undefined ||
         captured.trim() === '' ||
-        isNameShaped(captured, variable.vocabulary)
+        isNameShaped(captured, variable.vocabulary, variable.restrictionWords)
       return (
         variable.wildcards
           .exec(value)
@@ -1024,8 +1042,8 @@ export function readLicenseText(
     const variants = new Set([
       tokens,
       untitled,
-      withoutEdgeNotices(tokens, text),
-      withoutEdgeNotices(untitled, text),
+      withoutEdgeNotices(tokens, text, set.equivalences.restrictionWords),
+      withoutEdgeNotices(untitled, text, set.equivalences.restrictionWords),
     ])
     for (const variant of variants) {
       if (isAligned(template, { ...input, tokens: variant }, 0, newFailure()))
@@ -1049,7 +1067,11 @@ export function readLicenseText(
  * three each): a notice outside the template's own slot carries no terms
  * when it passes the same notice check a copyright variable applies.
  */
-function withoutEdgeNotices(tokens: readonly Token[], text: string): readonly Token[] {
+function withoutEdgeNotices(
+  tokens: readonly Token[],
+  text: string,
+  restricted: ReadonlySet<string>,
+): readonly Token[] {
   const lines = [...new Set(tokens.map((token) => token.line))]
   const isNotice = (line: number): boolean => {
     const own = tokens.filter((token) => token.line === line)
@@ -1058,7 +1080,7 @@ function withoutEdgeNotices(tokens: readonly Token[], text: string): readonly To
     return (
       first !== undefined &&
       last !== undefined &&
-      isCopyrightNotice(text.slice(first.start, last.end), EMPTY_VOCABULARY, true)
+      isCopyrightNotice(text.slice(first.start, last.end), EMPTY_VOCABULARY, true, restricted)
     )
   }
   const dropped = new Set<number>()

@@ -5266,7 +5266,10 @@
     "licenseFile": "plik licencji",
     "bundleLoad": "nie można załadować {file}",
     "bundleShape": "{file} ma nieoczekiwaną strukturę",
-    "invalidResult": "skan zwrócił nieprawidłowy wynik"
+    "invalidResult": "skan zwrócił nieprawidłowy wynik",
+    "reviewedReceipt": "Sprawdzono na podstawie potwierdzenia: {reason}",
+    "receiptRenew": "Nowa wersja lub zmienione bajty licencji wymagają ponownego przeglądu i potwierdzenia.",
+    "invalidReceipt": "nie sprawdzono: {file} nie jest prawidłowym plikiem potwierdzeń przeglądu licencji"
   },
   "legalScanAgain": "Skanuj ponownie",
   "accounts": {
@@ -5547,5 +5550,6 @@
       "few": "{count} uprawnienia",
       "many": "{count} uprawnień"
     }
-  }
+  },
+  "legalScanReceiptHelp": "Lokalna analiza licencji; opcjonalne potwierdzenia w licence-review.json wiążą sprawdzoną licencję SPDX z pakietem, dokładną wersją i SHA-256 wraz z uzasadnieniem. Zmiana bajtów lub wersji wymaga ponownego przeglądu."
 }

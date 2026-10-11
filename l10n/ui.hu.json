@@ -4966,7 +4966,10 @@
     "licenseFile": "licencfájl",
     "bundleLoad": "{file} nem tölthető be",
     "bundleShape": "{file} szerkezete váratlan",
-    "invalidResult": "a vizsgálat érvénytelen eredményt adott"
+    "invalidResult": "a vizsgálat érvénytelen eredményt adott",
+    "reviewedReceipt": "Felülvizsgálati bizonylattal ellenőrizve: {reason}",
+    "receiptRenew": "Új verzió vagy megváltozott licencbájtok esetén új felülvizsgálat és bizonylat szükséges.",
+    "invalidReceipt": "nincs ellenőrizve: {file} nem érvényes licencfelülvizsgálati bizonylatfájl"
   },
   "legalScanAgain": "Új vizsgálat",
   "accounts": {
@@ -5239,5 +5242,6 @@
       "one": "{count} engedély",
       "other": "{count} engedély"
     }
-  }
+  },
+  "legalScanReceiptHelp": "Helyi licencvizsgálat; a licence-review.json választható bizonylatai indoklással kötik a felülvizsgált SPDX-licencet a csomaghoz, a pontos verzióhoz és a SHA-256 értékhez. Megváltozott bájtok vagy verziók új felülvizsgálatot igényelnek."
 }

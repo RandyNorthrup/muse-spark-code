@@ -4816,7 +4816,10 @@
     "licenseFile": "许可证文件",
     "bundleLoad": "无法加载 {file}",
     "bundleShape": "{file} 结构不符合预期",
-    "invalidResult": "扫描返回无效结果"
+    "invalidResult": "扫描返回无效结果",
+    "reviewedReceipt": "依据审核记录确认: {reason}",
+    "receiptRenew": "新版本或许可证字节变更需要重新审核并提供记录。",
+    "invalidReceipt": "未检查: {file} 不是有效的许可证审核记录文件"
   },
   "legalScanAgain": "重新扫描",
   "accounts": {
@@ -5085,5 +5088,6 @@
     "grantsCount": {
       "other": "{count} 个授权"
     }
-  }
+  },
+  "legalScanReceiptHelp": "本地许可证扫描；可选的 licence-review.json 记录将已审核的 SPDX 许可证及其理由与软件包、确切版本和 SHA-256 绑定。字节或版本变更后需重新审核。"
 }

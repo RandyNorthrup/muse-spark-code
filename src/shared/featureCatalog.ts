@@ -364,10 +364,10 @@ export function featureCatalog(): readonly Feature[] {
     feature(
       'legal',
       { ui: 'legalScanTitle' },
-      { ui: 'legalScanItemDetail' },
+      { ui: 'legalScanReceiptHelp' },
       ['legalScan'],
       ['legalHeaderPolicy', 'legalRegistryLookups'],
-      // Exact template slots reject restrictive text; coverage follows shipped material.
+      // Exact slots admit measured benign notice forms, reject restrictions and follow shipped material.
       'legal-scan-m97',
       ['museCode', 'modelApi'],
       false,
