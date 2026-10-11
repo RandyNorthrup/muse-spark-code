@@ -35,7 +35,7 @@ import {
 } from './uploadLedgerStorage'
 import type { CoreLogger } from '../logging'
 import type { ModelApiClient } from '../backends/modelapi/client'
-import { FilesApi } from '../backends/modelapi/files'
+import { FilesApi, uploadExpirySeconds } from '../backends/modelapi/files'
 import type { ToolIo } from '../backends/modelapi/tools'
 import { pathModule } from '../workspaceRoot'
 import { MediaCostEstimator, calibrationPointSchema, type CalibrationPoint } from './mediaCost'
@@ -133,6 +133,8 @@ export interface ProductionMediaDeps {
   /** The host's attached-media registry resolving `media` parts (lane V). */
   readonly attachment?: ReplayMediaDeps['attachment']
   readonly compactionTail?: ReplayMediaDeps['compactionTail']
+  /** `museSpark.mediaUploadExpiryDays`, read per use; absent keeps the default. */
+  readonly expiryDays?: () => number
   /** The session's cap, read per request (D85.6: unknown refuses only when capped). */
   readonly isCapped: () => boolean
   /** Whether the session is disposed: then nothing is read or uploaded (RVMEDIAV3 2). */
@@ -170,6 +172,7 @@ export function createProductionMediaReplay(deps: ProductionMediaDeps): ReplayMe
     // upload asks nothing beyond decision 7. The ledger still binds every
     // request to the key digest and refuses on an account change.
     authorizeUpload: () => Promise.resolve(),
+    expirySeconds: uploadExpirySeconds(deps.expiryDays?.()),
   })
   const accountDirectory = productionMediaDirectory(deps.directory, deps.accountId)
   const ledger = new UploadLedger({

@@ -4,7 +4,7 @@
 // Both production hosts (extension.ts, runtime/backends.ts) bind the same
 // helper, so VS Code and CLI/ACP sessions share one ownership path.
 import type { ModelApiClient } from '../../core/backends/modelapi/client'
-import { FilesApi } from '../../core/backends/modelapi/files'
+import { FilesApi, uploadExpirySeconds } from '../../core/backends/modelapi/files'
 import {
   accountLedgerDirectory,
   fileUploadLedgerStorage,
@@ -19,6 +19,8 @@ export interface SessionUploadsDeps {
   readonly currentAccountId: () => Promise<string | undefined>
   /** A Files-capable client with the stored key; read per use, never stored. */
   readonly filesClient: () => Pick<ModelApiClient, 'requestFile'>
+  /** `museSpark.mediaUploadExpiryDays`, read per use; absent keeps the default. */
+  readonly expiryDays?: () => number
   /** Epoch milliseconds. */
   readonly now?: () => number
 }
@@ -37,6 +39,7 @@ export function createSessionUploads(
           // U6c (D85.6): storage is not billed; the upload asks nothing
           // beyond decision 7, like the replay's own Files binding.
           authorizeUpload: () => Promise.resolve(),
+          expirySeconds: uploadExpirySeconds(deps.expiryDays?.()),
         }),
         accountId,
         provider: 'meta',

@@ -374,6 +374,7 @@ function modelApiManager(
                     : createHash('sha256').update(key).digest('hex')
                 },
                 filesClient: () => filesClient(),
+                expiryDays: () => SETTING_DEFAULTS.mediaUploadExpiryDays,
               })(accountId)
             },
           }),
@@ -561,6 +562,7 @@ function modelApiManager(
     isWorkspaceTrusted,
     store: deps.exec === undefined ? store : headlessStore,
     ...(uploadLedgerDir !== undefined && { uploadLedgerDir }),
+    uploadExpiryDays: () => SETTING_DEFAULTS.mediaUploadExpiryDays,
     describeEnvironment: () =>
       describeEnvironment({
         runGit: deps.runGit,

@@ -91,24 +91,41 @@ export class UploadLedger implements SessionUploadLifecycle {
     if (!(await this.isCurrentAccount())) throw new Error(UI_TEXT.media.filesReadOnly)
   }
 
-  /** Delete only durable zero-reference entries. Failed deletions remain retryable. */
+  /**
+   * Delete one entry through the provider. A file the provider already
+   * removed is recorded as gone, never as an error; any other failure
+   * keeps the row durable and retryable.
+   */
+  private async removeEntry(
+    state: UploadLedgerState,
+    entry: UploadLedgerState['entries'][number],
+  ): Promise<void> {
+    try {
+      await this.files.delete(entry.file.fileId)
+    } catch (error: unknown) {
+      if (!isModelApiError(error) || error.status !== HTTP_STATUS.notFound) throw error
+    }
+    state.entries = state.entries.filter((value) => value !== entry)
+    state.cachedFiles = state.cachedFiles.filter((file) => file.fileId !== entry.file.fileId)
+    await this.deps.storage.write(state)
+  }
+
+  /**
+   * Offer unreferenced uploads for automatic clean-up once the provider's
+   * own expiry has passed (`museSpark.mediaUploadExpiryDays` set it at
+   * upload). A younger orphan stays listed until then; explicit deletion
+   * removes it early. Failed deletions remain retryable.
+   */
   private async cleanup(
     state: UploadLedgerState,
     isCurrent: () => boolean = () => true,
   ): Promise<void> {
     if (!(await this.isCurrentAccount())) return
     for (const entry of state.entries) {
-      if (entry.sessions.length > 0) continue
+      if (entry.sessions.length > 0 || this.deps.now() < entry.file.expiresAt) continue
       await this.requireAccount()
       if (!isCurrent()) return
-      try {
-        await this.files.delete(entry.file.fileId)
-      } catch (error: unknown) {
-        if (!isModelApiError(error) || error.status !== HTTP_STATUS.notFound) throw error
-      }
-      state.entries = state.entries.filter((value) => value !== entry)
-      state.cachedFiles = state.cachedFiles.filter((file) => file.fileId !== entry.file.fileId)
-      await this.deps.storage.write(state)
+      await this.removeEntry(state, entry)
     }
   }
 
@@ -296,11 +313,20 @@ export class UploadLedger implements SessionUploadLifecycle {
     })
   }
 
+  /**
+   * Explicit early removal (Delete uploaded files): every unreferenced own
+   * upload goes now, however young. An upload another session still
+   * references is never deleted.
+   */
   public async deleteAllOurs(): Promise<void> {
     await this.deps.storage.withLock(async () => {
       const state = await this.read()
       await this.requireAccount()
-      await this.cleanup(state)
+      for (const entry of state.entries) {
+        if (entry.sessions.length > 0) continue
+        await this.requireAccount()
+        await this.removeEntry(state, entry)
+      }
     })
   }
 }

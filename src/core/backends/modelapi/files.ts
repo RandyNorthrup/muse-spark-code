@@ -6,9 +6,13 @@ import {
   MEDIA_FILE_EXPIRY_DEFAULT_S,
   MEDIA_FILE_EXPIRY_MIN_S,
   MEDIA_FILE_EXPIRY_MAX_S,
+  MEDIA_UPLOAD_EXPIRY_MIN_DAYS,
+  MEDIA_UPLOAD_EXPIRY_MAX_DAYS,
+  MEDIA_UPLOAD_EXPIRY_DEFAULT_DAYS,
   MEDIA_NAME_MAX_CHARS,
   MEDIA_MAX_UPLOAD_DEFAULT_MIB,
   BYTES_PER_MIB,
+  SECONDS_PER_DAY,
   MODEL_API_REQUEST_TIMEOUT_MS,
   UI_TEXT,
 } from '../../../shared/constants'
@@ -36,6 +40,26 @@ const listSchema = z.object({
 })
 const deletionSchema = z.object({ id: fileId, object: z.literal('file'), deleted: z.literal(true) })
 export type ProviderFile = z.infer<typeof fileSchema>
+
+/**
+ * `museSpark.mediaUploadExpiryDays` as Files `expires_after` seconds,
+ * clamped to the setting's 1–30 days and the wire's bounds; anything else
+ * keeps the 7-day default.
+ */
+export function uploadExpirySeconds(days: unknown): number {
+  const fallback = MEDIA_FILE_EXPIRY_DEFAULT_S
+  if (typeof days !== 'number' || !Number.isSafeInteger(days)) return fallback
+  const clampedDays = Math.min(
+    Math.max(days, MEDIA_UPLOAD_EXPIRY_MIN_DAYS),
+    MEDIA_UPLOAD_EXPIRY_MAX_DAYS,
+  )
+  return clampedDays === MEDIA_UPLOAD_EXPIRY_DEFAULT_DAYS
+    ? fallback
+    : Math.min(
+        Math.max(clampedDays * SECONDS_PER_DAY, MEDIA_FILE_EXPIRY_MIN_S),
+        MEDIA_FILE_EXPIRY_MAX_S,
+      )
+}
 
 /** Open a fresh bounded disk stream each time, after confinement and approval. */
 export interface UploadSource {
