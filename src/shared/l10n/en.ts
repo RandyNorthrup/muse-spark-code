@@ -406,6 +406,7 @@ export const EN = {
     effort: 'Choose how much effort Muse puts into each reply.',
     output: 'Choose the result format: text, json or jsonl.',
     'max-budget-usd': 'Set the hard spending limit in USD for this run.',
+    team: '--team: Ask for a team run (Model API backend, acceptEdits and a hard budget; refused until the team runner lane lands: every request exits 2).',
     'max-requests': 'Set the maximum number of model requests.',
     timeout: 'Set the run deadline in seconds.',
     'fail-on-denial': 'Stop the run when a permission request is denied.',
@@ -1634,6 +1635,11 @@ export const EN = {
     'No MCP server is loaded: {servers} set both “required” and “mode”. Keep only “mode”.',
   mcpNoServersUnreadable:
     'No MCP server is loaded: Muse Code’s settings file could not be read ({reason}).',
+  // Shared resources (M96 lane B, D75): the registry, the leases and the bridge.
+  // M96b (PLAN.md D75): a worker approval's title starts with the role and
+  // the agent. {role}: the worker's role; {agent}: the agent running it;
+  // {detail}: what the approval is about.
+  acpTeamPermissionTitle: '{role} · {agent}: {detail}',
   // Shared resources (M96 lane B, D75): the registry, the leases and the bridge.
   teamResourcesTitle: 'Tools and devices',
   teamResourcesDetail: 'Which MCP servers and devices the team shares, and who may use them',
@@ -4162,6 +4168,8 @@ export const EN = {
   execWebSearchUnbounded: 'Hosted web search has no bounded allowance and is refused.',
   execPaidNeedsEdits: 'Image generation requires acceptEdits.',
   execModelApiOnly: 'These options require the Model API backend.',
+  execTeamNeedsEdits: '--team needs --permission-mode acceptEdits.',
+  execTeamNotReady: 'Team runs need the team runner lane; request validation passed.',
   execMuseCodeOnly: 'These options require the Muse Code backend.',
   execModelUnpriced: 'This model has no known tariff.',
   execPromptMissing: 'Provide one nonempty prompt.',
