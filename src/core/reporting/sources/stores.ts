@@ -1,6 +1,6 @@
 import * as z from 'zod/mini'
 import { UI_TEXT } from '../../../shared/constants'
-import { compareVersions } from '../../whatsNew/whatsNewVersions'
+import { compareVersions, isVersion } from '../../whatsNew/whatsNewVersions'
 import type { ReportSourcePayloads, ReportSourcePort } from './types'
 import {
   ReportNetworkFailure,
@@ -21,6 +21,11 @@ export interface ReportStoreAdapter {
   readonly channel: Channel
   readonly request: ReportNetworkRequest
   readonly schema: z.ZodMiniType<z.infer<typeof storeFactSchema>>
+  /**
+   * Pre-dispatch refusal (RVCM1136 P2): the channel row is unavailable with
+   * this reason and no request is ever sent. The request value is unused.
+   */
+  readonly refused?: string
 }
 export interface ReportStoreOptions {
   readonly reader: ReportNetworkReader
@@ -100,13 +105,34 @@ export function storesReportSource(options: ReportStoreOptions): ReportSourcePor
             })
             continue
           }
+          if (adapter.refused !== undefined) {
+            rows.push({
+              ...target,
+              version: null,
+              status: 'unavailable',
+              reason: adapter.refused,
+            })
+            continue
+          }
           try {
             const fact = await query(adapter.request, adapter.schema, storeFactSchema)
-            const isLagging =
-              compareVersions(
-                fact.version.replace(/^v/, ''),
-                options.releaseVersion.replace(/^v/, ''),
-              ) < 0
+            const served = fact.version.replace(/^v/, '')
+            const release = options.releaseVersion.replace(/^v/, '')
+            // A non-semver local version is reported as what it is: the
+            // served version stands, and the reason names the manifest, not
+            // the registry document (RVCM1136 P3). A non-semver served
+            // version is a bad document, as before.
+            if (!isVersion(release)) {
+              rows.push({
+                ...target,
+                version: fact.version,
+                status: 'unavailable',
+                reason: 'release-version-invalid',
+              })
+              continue
+            }
+            if (!isVersion(served)) throw new ReportNetworkFailure('store-response-invalid')
+            const isLagging = compareVersions(served, release) < 0
             rows.push({
               ...target,
               version: fact.version,

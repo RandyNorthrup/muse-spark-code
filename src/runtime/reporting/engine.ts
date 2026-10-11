@@ -208,10 +208,13 @@ export function createReportingServices(context: ReportingContext): ReportsServi
       latestGit = git.data
       activeNetwork =
         typeof context.network === 'function' ? await context.network() : context.network
+      // Workspace identity is read on every networked report, never latched:
+      // a version bump or a newly declared manifest shows up on the next
+      // refresh of the long-lived editor engine (RVCM1136 P2). The response
+      // cache stays shared by storage root; only the binding is rebuilt.
       if (
         root !== undefined &&
         activeNetwork !== undefined &&
-        boundNetwork === undefined &&
         context.networkSources === undefined &&
         activeNetwork.policy.mode !== 'off' &&
         (activeNetwork.policy.surface === 'editor' || options.network)
