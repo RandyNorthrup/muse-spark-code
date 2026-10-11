@@ -1642,6 +1642,7 @@
   "gitCommitAction": "Fazer commit",
   "gitCommitConfirm": "Criar um commit com estas alterações?",
   "gitOperationChanged": "O repositório, a conversa ou a confiança mudou. Abra o formulário novamente.",
+  "gitMachineBusy": "O Git não pôde ser executado porque a máquina está ocupada. Tente novamente.",
   "gitCommandConsequences": "O Git pode executar hooks do repositório, programas de assinatura ou auxiliares de credenciais. Cancelar interrompe as próximas etapas; uma chamada ao Git ou GitHub já iniciada pode terminar.",
   "gitCommitting": "Fazendo commit…",
   "gitCancel": "Cancelar",

@@ -1600,6 +1600,7 @@
   "gitCommitAction": "認可",
   "gitCommitConfirm": "提交這些變更？",
   "gitOperationChanged": "儲存庫、對話或信任狀態已變更。請重新開啟表單。",
+  "gitMachineBusy": "電腦忙碌中，Git 無法執行。請重試。",
   "gitCommandConsequences": "Git 可能執行儲存庫掛鉤、簽署程式或認證助手。取消會停止後續步驟；已開始的 Git 或 GitHub 呼叫仍可能完成。",
   "gitCommitting": "正在認可…",
   "gitCancel": "取消",

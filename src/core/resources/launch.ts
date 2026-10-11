@@ -126,6 +126,24 @@ export function isResourceMemoryLimit(error: unknown): error is ResourceMemoryLi
     error.code === 'memoryLimit'
   )
 }
+
+/**
+ * A launch the governor would not run: paused or throttled by policy, out
+ * of admitted children or memory, or with no admission to run under. The
+ * two plain-word failures are the launcher's own (its bundle holds no
+ * typed error for them); the typed refusals match structurally, as
+ * documented above, since the launcher lives in another bundle.
+ */
+export function isGovernedRefusal(error: unknown): boolean {
+  return (
+    isResourcePaused(error) ||
+    isResourceCapRefused(error) ||
+    isResourceMemoryLimit(error) ||
+    (error instanceof Error &&
+      (error.message.includes('Resource admission unavailable') ||
+        error.message.includes('Native governed process launch unavailable')))
+  )
+}
 export interface ResourcePipedProcess extends ResourceInteractiveProcess {
   /** Settles after exit; undefined where the platform attests nothing (POSIX, bootstrap). */
   outcome: () => Promise<ResourceTreeOutcome | undefined>

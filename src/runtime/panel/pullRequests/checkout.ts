@@ -15,23 +15,19 @@
 // credential helpers, SSH agent and token variables, as a terminal would,
 // with `GIT_TERMINAL_PROMPT=0`, and nothing of ours); every other Git call
 // keeps the quiet environment (no credentials, no prompt). Git runs
-// through the injected port: lane G owns the shared native runner, so this
-// port carries the documented untrusted-lane arguments until integration
-// converges them (see `untrustedCheckoutArgs`).
+// through the governed launcher behind the injected port, with the
+// documented untrusted-lane arguments (see `untrustedCheckoutArgs`): reads
+// take the `probe` profile, mutations the `contained` one.
 //
 // Every git this module starts goes through `runGit` or `startGitBatch`,
-// which call the caller's gate and then start the process in the same
-// synchronous turn: nothing can change between the check and the spawn
-// (PLAN.md M123's lock protocol). A checkout's gate asks that the project
-// is still trusted, that Cancel was not pressed, and that the record is
-// still exactly this checkout's reservation (its fence).
+// which call the caller's gate before the governed launch: a launch the
+// governor would not run reaches the checkout as its own translated
+// reason, never as a hang or a generic failure. A checkout's gate asks
+// that the project is still trusted, that Cancel was not pressed, and
+// that the record is still exactly this checkout's reservation (its
+// fence).
 
-import {
-  execFile,
-  spawn,
-  type ChildProcess,
-  type ChildProcessWithoutNullStreams,
-} from 'node:child_process'
+import type { ChildProcess } from 'node:child_process'
 import { Buffer } from 'node:buffer'
 import { randomUUID } from 'node:crypto'
 import type { BigIntStats } from 'node:fs'
@@ -54,6 +50,8 @@ import {
   WORKTREE_RECORD_SAVE_ATTEMPTS,
 } from '../../../shared/constants'
 import { fill, formatBytes } from '../../../shared/l10n/text'
+import { execResourceFile, spawnResourceProcess } from '../../../core/resources/launcher'
+import { isGovernedRefusal, type ResourcePipedProcess } from '../../../core/resources/launch'
 import { GitHubClient, isCommitSha, type PullRequest } from '../../../core/git/github'
 import { repositoryLabel } from '../../../core/git/githubRemote'
 import {
@@ -241,6 +239,8 @@ export interface GitRunOptions {
   readonly signal: AbortSignal
   readonly timeout: number
   readonly maxBuffer: number
+  /** A mutation (fetch, index, worktree): the contained profile. Reads take probe. */
+  readonly writes?: boolean
 }
 
 /** How the batch child starts. */
@@ -249,38 +249,89 @@ export interface GitStartOptions {
   readonly env: NodeJS.ProcessEnv
   readonly signal: AbortSignal
   readonly timeout: number
-  /** Its own process group on POSIX. */
+  /** Kept for port compatibility; the governed launch owns its tree on every platform. */
   readonly detached: boolean
 }
 
 /**
- * How git processes start: node's, or a test's that records each start.
- * Both start the process before they return.
+ * How git processes start: the governed launcher's, or a test's that
+ * records each start. A launch the governor would not run rejects with
+ * its own translated reason.
  */
+/** A started batch child: piped standard streams, owned by its governor tree. */
+export type GitBatchChild = ResourcePipedProcess['child']
+
 export interface GitProcessPort {
   /** Runs to completion; resolves with the standard output. */
   run(file: string, args: readonly string[], options: GitRunOptions): Promise<string>
-  /** Starts with piped standard streams. */
+  /** Starts with piped standard streams; resolves once the process has started. */
   start(
     file: string,
     args: readonly string[],
     options: GitStartOptions,
-  ): ChildProcessWithoutNullStreams
+  ): GitBatchChild | Promise<GitBatchChild>
 }
 
-/** Node's processes: explicit argument arrays, no shell, hidden windows. */
+/** A launch the governor would not run, in the checkout's words. */
+function governedCheckoutRefusal(): Error {
+  return new PullRequestServiceError(UI_TEXT.gitMachineBusy)
+}
+
+/** Node's processes through the governed launcher: explicit argument arrays, no shell. */
 export const nodeGitProcesses: GitProcessPort = {
-  run: (file, args, options) =>
-    new Promise<string>((resolve, reject) => {
-      execFile(file, [...args], { ...options, windowsHide: true }, (error, stdout) => {
-        if (error === null) {
-          resolve(stdout)
-          return
-        }
-        reject(error instanceof Error ? error : new PullRequestServiceError(failureText(error)))
+  run: async (file, args, options) => {
+    const call = {
+      cwd: options.cwd,
+      env: options.env,
+      encoding: 'utf8' as const,
+      windowsHide: true,
+      timeout: options.timeout,
+      maxBuffer: options.maxBuffer,
+      signal: options.signal,
+    }
+    try {
+      const launched =
+        options.writes === true
+          ? await execResourceFile('contained', file, args, call)
+          : await execResourceFile('probe', file, args, call)
+      return launched.stdout
+    } catch (error: unknown) {
+      if (isGovernedRefusal(error)) {
+        throw governedCheckoutRefusal()
+      }
+      // An overfull listing still refuses as too large: the launcher
+      // reports it as a capped failure carrying what it had read.
+      if (
+        typeof error === 'object' &&
+        error !== null &&
+        'stdout' in error &&
+        typeof error.stdout === 'string' &&
+        error.stdout.length >= options.maxBuffer &&
+        !options.signal.aborted
+      ) {
+        throw Object.assign(new Error('stdout maxBuffer length exceeded'), {
+          code: 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER',
+        })
+      }
+      throw error instanceof Error ? error : new PullRequestServiceError(failureText(error))
+    }
+  },
+  start: async (file, args, options) => {
+    try {
+      const launched = await spawnResourceProcess('probe', file, args, {
+        cwd: options.cwd,
+        env: options.env,
+        windowsHide: true,
+        signal: options.signal,
       })
-    }),
-  start: (file, args, options) => spawn(file, [...args], { ...options, windowsHide: true }),
+      return launched.child
+    } catch (error: unknown) {
+      if (isGovernedRefusal(error)) {
+        throw governedCheckoutRefusal()
+      }
+      throw error instanceof Error ? error : new PullRequestServiceError(failureText(error))
+    }
+  },
 }
 
 export interface NodePullRequestCheckoutGitOptions {
@@ -338,11 +389,13 @@ interface RunHow {
   readonly env?: NodeJS.ProcessEnv
   /** The owner's signal unless named (a cleanup bounds itself). */
   readonly signal?: AbortSignal
+  /** A mutation (fetch, index, worktree): the contained profile. Reads take probe. */
+  readonly writes?: boolean
 }
 
 /**
- * Runs git to completion once `gate` allows it: the gate, then the start,
- * in one synchronous turn. With `startGitBatch`, the only way this module
+ * Runs git to completion once `gate` allows it: the gate, then the
+ * governed launch. With `startGitBatch`, the only way this module
  * starts git.
  */
 function runGit(
@@ -359,26 +412,28 @@ function runGit(
     signal: how.signal ?? git.signal,
     timeout: GIT_WORKTREE_TIMEOUT_MS,
     maxBuffer: GIT_OUTPUT_MAX_BYTES,
+    ...(how.writes === true && { writes: true as const }),
   })
 }
 
-/** Starts the batch child once `gate` allows it, in the same synchronous turn. */
+/** Starts the batch child once `gate` allows it, through the governed launch. */
 function startGitBatch(
   git: NodeGitRunner,
   gate: GitGate,
   args: readonly string[],
   cwd: string,
-): ChildProcessWithoutNullStreams {
+): Promise<GitBatchChild> {
   gate()
-  return git.processes.start(git.gitPath, args, {
-    cwd,
-    env: git.quietEnv,
-    signal: git.signal,
-    timeout: GIT_WORKTREE_TIMEOUT_MS,
-    // Its own group on POSIX, so the deadline stops the helpers it
-    // spawned with it, not just the root.
-    detached: git.platform !== 'win32',
-  })
+  return Promise.resolve(
+    git.processes.start(git.gitPath, args, {
+      cwd,
+      env: git.quietEnv,
+      signal: git.signal,
+      timeout: GIT_WORKTREE_TIMEOUT_MS,
+      // Kept for port compatibility; the governed launch owns its tree.
+      detached: git.platform !== 'win32',
+    }),
+  )
 }
 
 /**
@@ -577,7 +632,7 @@ async function writeHeldBlobs(
       }),
     unreadable,
   )
-  const child = startGitBatch(
+  const child = await startGitBatch(
     git,
     gates.run,
     [...untrustedCheckoutArgs(git.platform), 'cat-file', '--batch'],
@@ -739,7 +794,7 @@ async function addWorktree(
   cwd: string,
   made: MadeFolder,
 ): Promise<void> {
-  await runGit(git, gate, args, cwd)
+  await runGit(git, gate, args, cwd, { writes: true })
   made.hasAdded = true
 }
 
@@ -776,7 +831,10 @@ export function createNodePullRequestCheckoutGit(
   }
   return {
     fetch: async (cwd, remote, ref, gate) => {
-      await runGit(git, gate, ['fetch', remote, ref], cwd, { env: options.userEnv })
+      await runGit(git, gate, ['fetch', remote, ref], cwd, {
+        env: options.userEnv,
+        writes: true,
+      })
     },
     readFetchHead: async (cwd, gate) => {
       const head = await runGit(
@@ -849,7 +907,9 @@ export function createNodePullRequestCheckoutGit(
         )
         // In the worktree, so named hooks its own configuration defines are found and switched off.
         const worktreeOverrides = await hookOverrides(git, folder, gates.run)
-        await runGit(git, gates.run, [...worktreeOverrides, 'read-tree', sha], folder)
+        await runGit(git, gates.run, [...worktreeOverrides, 'read-tree', sha], folder, {
+          writes: true,
+        })
         for (const entry of tree.entries) {
           if (entry.kind !== 'submodule') {
             continue
@@ -1008,7 +1068,7 @@ async function isMadeGoneOnceRemoved(
         gate,
         [...untrustedCheckoutArgs(git.platform), ...worktreeRemoveArgs(folder, true)],
         cwd,
-        { signal: AbortSignal.timeout(HELD_CLEANUP_TIMEOUT_MS) },
+        { signal: AbortSignal.timeout(HELD_CLEANUP_TIMEOUT_MS), writes: true },
       )
     } catch (error: unknown) {
       git.log.warn(`A checkout's worktree was not removed by git: ${failureText(error)}`)

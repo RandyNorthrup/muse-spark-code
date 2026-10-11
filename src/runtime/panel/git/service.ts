@@ -24,7 +24,7 @@
 //
 // Around it:
 // - The user's `git` (`RuntimeGitDeps.gitPath`, absolute) runs through the
-//   bounded runner (`createGitProcess`: output caps, deadlines, M107
+//   bounded runner (the governed launcher: output caps, deadlines,
 //   admission, whole-tree stop), with explicit argument arrays and no
 //   shell. Every argument list passes `assertNativeGitArgs`.
 // - Environments are allow-lists per operation: reads, commits and
@@ -45,8 +45,7 @@
 // - Nothing secret is logged, thrown in clear, or shown: failures carry
 //   git's words to the caller, which redacts them before any cut.
 
-import { spawn } from 'node:child_process'
-import { existsSync, readFileSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { mkdir } from 'node:fs/promises'
 import path from 'node:path'
 import {
@@ -61,7 +60,16 @@ import {
 } from '../../../core/fs/fileIdentity'
 import { withoutCredentials } from '../../../core/credentialEnvironment'
 import { canonicalPath, isMissingPath } from '../../../host/canonicalPath'
-import { createGitProcess, quietGitEnvironment, type GitProcess } from '../../../host/git'
+import {
+  cappedStderr,
+  GitExitError,
+  GitMissingError,
+  quietGitEnvironment,
+  type GitProcess,
+  type GitProcessOptions,
+} from '../../../host/git'
+import { execResourceFile } from '../../../core/resources/launcher'
+import { isGovernedRefusal } from '../../../core/resources/launch'
 import {
   commitMessageProblem,
   nativeCommitArgs,
@@ -93,7 +101,9 @@ import {
 import { newFileDiff } from '../../../core/git/gitText'
 import type { RuntimeGitDeps } from '../../../core/git/runtimeGit'
 import {
+  GIT_OUTPUT_MAX_BYTES,
   GIT_PUSH_CREDENTIAL_VARIABLES,
+  GIT_STDERR_MAX_CHARS,
   GIT_TIMEOUT_MS,
   PULL_REQUEST_WORKTREES_DIR,
 } from '../../../shared/constants'
@@ -322,6 +332,102 @@ export function fixedGitLocator(
   return () => (isAbsolute ? executable : undefined)
 }
 
+/** Reads take the probe profile; every mutation takes contained. */
+function isGitReadArgs(args: readonly string[]): boolean {
+  return ['status', 'diff', 'rev-parse', 'config', 'remote'].includes(args[0] ?? '')
+}
+
+/** A launch the governor would not run is `busy`; anything else passes through. */
+function governedRefusalOf(error: unknown): NativeGitRefusal | undefined {
+  return isGovernedRefusal(error) ? 'busy' : undefined
+}
+
+/**
+ * One git command through the governed launcher, as the `GitProcess` the
+ * service runs: the caller's check first, then the read (`probe`) or write
+ * (`contained`) launch with the same working directory, environment, output
+ * cap and deadline git always had. Failures keep git's shapes: a non-zero
+ * exit is a `GitExitError`, Cancel and the window closing keep the stopped
+ * words, an overfull output keeps the overfull words, and a launch the
+ * governor would not run is `busy`. The launcher's own deadline covers its
+ * admission and the run together, so a launch throttled past it reports as
+ * a timeout, never a hang.
+ */
+async function governedGitRun(
+  locate: () => string | undefined,
+  args: readonly string[],
+  options: GitProcessOptions,
+): Promise<Buffer> {
+  options.beforeRun?.()
+  const git = locate()
+  if (git === undefined) {
+    throw new GitMissingError()
+  }
+  const [subcommand = 'git'] = args
+  const deadline = AbortSignal.timeout(options.timeoutMs)
+  const signal =
+    options.signal === undefined ? deadline : AbortSignal.any([options.signal, deadline])
+  const call = {
+    cwd: options.cwd,
+    env: options.env,
+    encoding: 'utf8' as const,
+    windowsHide: true,
+    timeout: options.timeoutMs,
+    maxBuffer: GIT_OUTPUT_MAX_BYTES,
+    signal,
+  }
+  try {
+    const launched = isGitReadArgs(args)
+      ? await execResourceFile('probe', git, args, call)
+      : await execResourceFile('contained', git, args, call)
+    return Buffer.from(launched.stdout, 'utf8')
+  } catch (error: unknown) {
+    if (error instanceof NativeGitRefusalError) {
+      throw error
+    }
+    const busy = governedRefusalOf(error)
+    if (busy !== undefined) {
+      throw new NativeGitRefusalError(busy)
+    }
+    if (options.signal?.aborted === true) {
+      throw new Error(`git ${subcommand} was stopped: the window is closing`, { cause: error })
+    }
+    if (deadline.aborted) {
+      throw new Error(`git ${subcommand} timed out after ${String(options.timeoutMs)} ms`, {
+        cause: error,
+      })
+    }
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      typeof error.code === 'number' &&
+      Number.isSafeInteger(error.code) &&
+      'stderr' in error &&
+      typeof error.stderr === 'string'
+    ) {
+      const capped = error.stderr.slice(0, GIT_STDERR_MAX_CHARS)
+      throw new GitExitError(
+        error.code,
+        cappedStderr(capped, error.stderr.length > capped.length),
+        subcommand,
+      )
+    }
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      'stdout' in error &&
+      typeof error.stdout === 'string' &&
+      error.stdout.length >= GIT_OUTPUT_MAX_BYTES
+    ) {
+      throw new Error(`git ${subcommand} wrote more than ${String(GIT_OUTPUT_MAX_BYTES)} bytes`, {
+        cause: error,
+      })
+    }
+    throw error
+  }
+}
+
 export class CommitRefusedError extends Error {
   public constructor(
     public readonly problem: CommitMessageProblem | 'nothingStaged' | 'nothingToCommit',
@@ -337,9 +443,11 @@ export class CommitRefusedError extends Error {
  * does): the adapter shows each in the panel's words. `closed` is an
  * aborted window or operation (Cancel, a session change, disposal);
  * `changed` a moved repository, root, plan or form; `untrusted` a lost
- * trust; `refused` an argument git must not see.
+ * trust; `refused` an argument git must not see; `busy` a launch the
+ * resource governor would not run (paused, throttled past its deadline,
+ * or refused a child process).
  */
-export type NativeGitRefusal = 'untrusted' | 'changed' | 'refused' | 'closed'
+export type NativeGitRefusal = 'untrusted' | 'changed' | 'refused' | 'closed' | 'busy'
 
 /** A refusal: nothing ran past the check that threw it. */
 export class NativeGitRefusalError extends Error {
@@ -483,7 +591,7 @@ function headBranch(gitDir: string): string | undefined {
 }
 
 export interface NativeGitServiceOptions {
-  /** The bounded runner; the production `createGitProcess` wiring unless a test passes its own. */
+  /** The bounded runner; the production governed launch below unless a test passes its own. */
   readonly run?: GitProcess | undefined
 }
 
@@ -518,16 +626,9 @@ export class NativeGitService {
     private readonly deps: RuntimeGitDeps,
     options: NativeGitServiceOptions = {},
   ) {
-    this.run =
-      options.run ??
-      createGitProcess({
-        platform: process.platform,
-        env: process.env,
-        fileExists: existsSync,
-        spawn,
-        // The git the host resolved, never another one on PATH.
-        locate: fixedGitLocator(process.platform, deps.gitPath),
-      })
+    // The git the host resolved, never another one on PATH.
+    const locate = fixedGitLocator(process.platform, deps.gitPath)
+    this.run = options.run ?? ((args, runOptions) => governedGitRun(locate, args, runOptions))
     // The directory approved now is the one every later operation must
     // find: its identity is taken in this same tick.
     this.bound = bindRoot(deps.repositoryRoot, identityAtConstruction(deps.repositoryRoot))
@@ -582,7 +683,7 @@ export class NativeGitService {
     }
   }
 
-  private async spawn(
+  private async runGit(
     args: readonly string[],
     root: ConfinedRoot,
     guard: Guard,
@@ -620,7 +721,7 @@ export class NativeGitService {
 
   /** The quiet runner over the bound root, for the core readers. */
   private reader(root: ConfinedRoot, guard: Guard): GitProcess {
-    return (args) => this.spawn(args, root, guard, false)
+    return (args) => this.runGit(args, root, guard, false)
   }
 
   private context(root: ConfinedRoot, guard: Guard): NativeGitContext {
@@ -646,7 +747,7 @@ export class NativeGitService {
     guard.check()
     expectSame(slashed(current) === slashed(root.path) && sameFile(identity, root.identity))
     // git's own toplevel is that same directory, by identity.
-    const directories = await this.spawn(REV_PARSE_ARGS, root, guard, false)
+    const directories = await this.runGit(REV_PARSE_ARGS, root, guard, false)
     const [toplevel = '', gitDir = '', commonDir = ''] = directories
       .toString('utf8')
       .split(/\r?\n/, REV_PARSE_LINES)
@@ -999,10 +1100,10 @@ export class NativeGitService {
       }
       let commitSeal = seal
       if (isUnstagedIncluded) {
-        await this.spawn(nativeStageAllArgs(), repo, guard, false, this.stillSealed(held, seal))
+        await this.runGit(nativeStageAllArgs(), repo, guard, false, this.stillSealed(held, seal))
         commitSeal = await this.stagedAsConfirmed(held, snapshot, worktree)
       }
-      await this.spawn(
+      await this.runGit(
         nativeCommitArgs(trimmed),
         repo,
         guard,
@@ -1053,7 +1154,7 @@ export class NativeGitService {
         ...plan.configFiles,
       ])
       await this.replanned(repo, guard, plan)
-      await this.spawn(nativePushArgs(plan), repo, guard, true, this.stillSealed(held, seal))
+      await this.runGit(nativePushArgs(plan), repo, guard, true, this.stillSealed(held, seal))
     })
     // The push went out: a Cancel after it never turns it into a failure.
     this.deps.log.info('Pushed through the native service')
@@ -1081,7 +1182,7 @@ export class NativeGitService {
     const repo = await this.rootFor(guard)
     await this.transaction(repo, guard, async (held) => {
       const seal = this.sealNow(repo)
-      await this.spawn(
+      await this.runGit(
         nativeFetchArgs(remote, ref),
         repo,
         guard,
@@ -1125,7 +1226,7 @@ export class NativeGitService {
     await this.transaction(repo, guard, async (held) => {
       const seal = this.sealNow(repo)
       const stillSealed = this.stillSealed(held, seal)
-      await this.spawn(args, repo, guard, false, () => {
+      await this.runGit(args, repo, guard, false, () => {
         this.parentHeld(parent)
         stillSealed()
       })

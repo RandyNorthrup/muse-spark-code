@@ -1642,6 +1642,7 @@
   "gitCommitAction": "Confirmar",
   "gitCommitConfirm": "¿Confirmar estos cambios?",
   "gitOperationChanged": "El repositorio, la conversación o la confianza han cambiado. Abre el formulario de nuevo.",
+  "gitMachineBusy": "Git no pudo ejecutarse porque el equipo está ocupado. Inténtalo de nuevo.",
   "gitCommandConsequences": "Git puede ejecutar hooks del repositorio, programas de firma o asistentes de credenciales. Cancelar detiene los pasos posteriores; una llamada a Git o GitHub ya iniciada puede terminar.",
   "gitCommitting": "Confirmando…",
   "gitCancel": "Cancelar",
