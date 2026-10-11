@@ -215,16 +215,23 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     }
     return record?.secret
   }
-  const refresh = async (): Promise<void> => {
-    if (deps.team !== undefined) {
-      teamPanel ??= await deps.team.load()
-      if (isDisposed) {
-        teamPanel?.dispose()
-        return
-      }
-      state.roles = await teamPanel?.read()
-      state.agents = state.roles === undefined ? undefined : { tree: deps.team.tree() }
+  const isClosed = (): boolean => isDisposed
+  const readTeamState = async (): Promise<void> => {
+    // A failed fresh source read cannot leave an older balance or roster visible.
+    state.roles = undefined
+    state.agents = undefined
+    teamPanel ??= await deps.team?.load()
+    if (isDisposed) {
+      teamPanel?.dispose()
+      return
     }
+    const roles = await teamPanel?.read()
+    if (isClosed()) return
+    state.roles = roles
+    state.agents = roles === undefined ? undefined : { tree: deps.team?.tree() }
+  }
+  const refresh = async (): Promise<void> => {
+    await readTeamState()
     state.presets = providers.presetIds().flatMap((id) => {
       const preset = providers.preset(id)
       if (preset === undefined) {
@@ -418,7 +425,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
   const handle = async (message: PanelToHostMessage): Promise<void> => {
     const teamMessage = teamPanelMessageSchema.safeParse(message)
     if (teamMessage.success) {
-      state.roles = await teamPanel?.read()
+      await readTeamState()
       if (teamPanel === undefined || state.roles === undefined) {
         state.agents = undefined
         publish()

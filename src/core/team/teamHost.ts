@@ -10,7 +10,6 @@
 //
 // Loads with dist/teamHost.js, and only for a workspace that stores a team.
 
-import * as z from 'zod/mini'
 import {
   MILLISECONDS_PER_SECOND,
   TEAM_EXHAUSTED_DEFAULT,
@@ -30,9 +29,6 @@ import {
 import { fill } from '../../shared/l10n/text'
 import { redactSecrets } from '../redact'
 import {
-  teamAgentRefSchema,
-  teamPoolEntrySchema,
-  teamRoleConfigSchema,
   teamSnapshotSchema,
   teamUsageSchema,
   type TeamAgentRef,
@@ -42,8 +38,7 @@ import {
   type TeamSnapshot,
   type TeamUsage,
 } from '../../shared/team'
-import { teamReportSchema } from '../../shared/teamReport'
-import { reviewFindingSchema, type ReviewFinding } from '../../shared/reviewFindings'
+import type { ReviewFinding } from '../../shared/reviewFindings'
 import type { TeamTreeData, TeamWorker } from '../../shared/teamView'
 import type { TeamWorkerConfirmation } from '../../shared/paid'
 import {
@@ -71,8 +66,8 @@ import type {
 } from './teamHostService'
 import type * as teamMergeFlow from './teamMergeFlow'
 
-/** The workspace-state key the tasks are written under (one window's team record). */
-export const TEAM_TASKS_STATE_KEY = 'museSpark.team.tasks'
+import { TEAM_TASKS_STATE_KEY, storedTasksSchema, type TaskPhase } from './teamTaskState'
+export { TEAM_TASKS_STATE_KEY } from './teamTaskState'
 const REVIEW_ROLE = 'code-review'
 
 export type StaffedEntry = TeamPoolEntry & {
@@ -83,20 +78,6 @@ export type StaffedEntry = TeamPoolEntry & {
 
 type DelegateItem = DelegateArgs['tasks'][number]
 
-/** Where a task is. `starting` holds its slot while consent is asked. */
-const TASK_PHASES = [
-  'queued',
-  'starting',
-  'running',
-  'done',
-  'failed',
-  'stopped',
-  'merged',
-  'discarded',
-  'continued',
-  'interrupted',
-] as const
-type TaskPhase = (typeof TASK_PHASES)[number]
 /** Finished tasks that may still hold a copy to merge, discard or recover. */
 const SETTLED_PHASES: ReadonlySet<TaskPhase> = new Set(['done', 'failed', 'interrupted'])
 
@@ -179,64 +160,6 @@ const ZERO_USAGE: TeamUsage = {
   modelCalls: 0,
   estimated: false,
 }
-
-const workspaceSchema = z.object({
-  folder: z.string(),
-  baseCommit: z.string(),
-  branch: z.optional(z.string()),
-  agentsRef: z.optional(z.string()),
-})
-const outcomeSchema = z.object({
-  report: teamReportSchema,
-  usage: teamUsageSchema,
-  branch: z.optional(z.string()),
-  baseCommit: z.optional(z.string()),
-  head: z.optional(z.string()),
-  changedFiles: z.optional(z.array(z.string())),
-  folder: z.optional(z.string()),
-  agentsRef: z.optional(z.string()),
-})
-const storedTaskSchema = z.object({
-  taskId: z.string(),
-  role: teamRoleConfigSchema,
-  brief: z.string(),
-  files: z.array(z.string()),
-  reason: z.string(),
-  sessionId: z.string(),
-  startMs: z.number(),
-  endMs: z.optional(z.number()),
-  entry: z.optional(z.object({ ...teamPoolEntrySchema.shape, agent: teamAgentRefSchema })),
-  isDefault: z.optional(z.boolean()),
-  phase: z.enum(TASK_PHASES),
-  usage: teamUsageSchema,
-  workspace: z.optional(workspaceSchema),
-  outcome: z.optional(outcomeSchema),
-  failure: z.optional(z.string()),
-  reviewedHead: z.optional(z.string()),
-  review: z.optional(z.enum(['reviewed', 'same-model'])),
-  reviewSummary: z.optional(z.string()),
-  reviewVerdict: z.optional(z.string()),
-  reviewFindings: z.optional(z.array(reviewFindingSchema)),
-  continueFrom: z.optional(z.string()),
-  writerModels: z.optional(z.array(z.string())),
-  ordinal: z.optional(z.number()),
-  isRaised: z.optional(z.boolean()),
-  claims: z.optional(
-    z.array(
-      z.object({
-        ordinal: z.number(),
-        atMs: z.number(),
-        usage: teamUsageSchema,
-        isSettled: z.boolean(),
-        reported: z.optional(teamUsageSchema),
-      }),
-    ),
-  ),
-})
-const storedTasksSchema = z.union([
-  z.array(storedTaskSchema),
-  z.object({ tasks: z.array(storedTaskSchema), resets: z.record(z.string(), z.number()) }),
-])
 
 /** The stored team, parsed; anything that does not parse is no team. */
 export function readStoredTeam(state: TeamStatePort): TeamSnapshot | undefined {

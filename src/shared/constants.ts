@@ -7268,6 +7268,7 @@ export type TeamIntensityLevel = keyof typeof TEAM_INTENSITY_LEVELS
 // A workspace that never picked a level runs here (D75).
 export const TEAM_INTENSITY_ORDER = ['minimal', 'light', 'balanced', 'heavy', 'max'] as const
 export const TEAM_LEARNED_MIN_TASKS = 5
+export const TEAM_LEARNED_RECENT_TASKS = 12
 export const TEAM_MINUTES_PER_HOUR = 60
 export const TEAM_TOKENS_PER_MTOK = 1_000_000
 export const TEAM_PREVIEW_OUTPUT_SHARE = 0.3

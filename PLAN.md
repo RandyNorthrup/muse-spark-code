@@ -24112,6 +24112,15 @@ measurements plus 15%, rounded up to 25 KiB, set these new caps; existing
 startup and deferred caps remain unchanged. The unchanged Models body budget
 is an integration blocker (see §7). Certification: `docs/certification/m96-u1.md`.
 
+**CM963J port 3 — durable configuration snapshots.** Bind remaining USD to
+D78's exact shared-day journal (settled spend and retained request liability),
+and role samples to the engine's validated durable task state, including cold
+reads and the latest twelve settled terminal samples per role. Interrupted
+and uncertain usage does not become a learned sample. Reuse the engine's
+existing task schemas rather than a second guessed record. Async getters read
+fresh on every derived view; absent sources keep both sections hidden, and a
+failed read refuses instead of returning empty history or a preset balance.
+
 **C-M96-3 team host service (2026-10-10, host lane, `c/m96-3`).** The
 interface every surface binds to is `src/core/team/teamHostService.ts`; its
 implementation `createTeamHostService` and the engine worker and merge ports
