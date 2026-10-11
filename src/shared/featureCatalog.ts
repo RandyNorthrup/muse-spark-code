@@ -130,6 +130,7 @@ export function referenceDescription(text: ReferenceText): ReferenceText {
         when = 'permission=denied'
         break
       }
+      case 'auto-compaction':
       case 'no-auto-compaction': {
         when = 'autoCompactionEvaluation'
         break
@@ -407,9 +408,9 @@ export function featureCatalog(): readonly Feature[] {
     feature(
       'compaction',
       { ui: 'compactItem' },
-      { ui: 'autoCompactionAwaitingEvaluation' },
+      { ui: 'referenceManualCompaction' },
       [],
-      ['modelApiAutoCompaction'],
+      [],
       'observation-packing-model-api',
       ['modelApi'],
       false,
@@ -498,17 +499,20 @@ export function featureCatalog(): readonly Feature[] {
       false,
       ['vscode', 'acp'],
     ),
-    feature(
-      'auto-compaction',
-      { setting: 'modelApiAutoCompaction' },
-      { setting: 'modelApiAutoCompaction' },
-      [],
-      ['modelApiAutoCompaction'],
-      'agent-loop-guarantees',
-      ['modelApi'],
-      false,
-      ['vscode', 'acp'],
-    ),
+    {
+      ...feature(
+        'auto-compaction',
+        { ui: 'autoCompactionName' },
+        { ui: 'autoCompactionAwaitingEvaluation' },
+        [],
+        ['modelApiAutoCompaction'],
+        'agent-loop-guarantees',
+        ['modelApi'],
+        true,
+        ['vscode', 'acp'],
+      ),
+      details: [{ setting: 'modelApiAutoCompaction' }],
+    },
     feature(
       'argument-preview',
       { ui: 'toolArgumentPreviewLabel' },
