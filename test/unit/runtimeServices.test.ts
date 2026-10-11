@@ -12,6 +12,11 @@ import { createRuntimeBackend } from '../../src/runtime/backends'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
 import { memoryKeyring } from './helpers/keyring'
 import { CURRENT_SHAPE_KEYS } from './helpers/modelApiKeys'
+import {
+  duplicateAccountsEntry,
+  mismatchedIdEntry,
+  providersFileOf,
+} from './helpers/refusedProviders'
 
 const dirs: string[] = []
 
@@ -48,6 +53,43 @@ function rig() {
 }
 
 const ROW = { id: 'work', label: 'Work', order: 0, thresholds: {} } as const
+const META_ORIGIN = new URL(MODEL_API_BASE_URL).origin
+
+/** A served Model API runtime's dependencies that reach no key, Git or network. */
+function inertDeps(folder = ''): Parameters<ReturnType<typeof rig>['exec']['create']>[0] {
+  const parsed = parseCommandLine(['--backend', 'modelApi'])
+  if (parsed.command !== 'serve') throw new Error('missing test serve options')
+  return {
+    options: parsed.options,
+    version: 'test',
+    distDir: folder,
+    platform: process.platform,
+    env: {},
+    homeDir: folder,
+    secrets: {
+      get: () => Promise.resolve(undefined),
+      store: () => Promise.resolve(),
+      delete: () => Promise.resolve(),
+    },
+    runGit: () => Promise.reject(new Error('unexpected git')),
+    fetch: () => Promise.reject(new Error('unexpected fetch')),
+    sleep: () => Promise.resolve(),
+    log: { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+  }
+}
+
+/** A developer owner whose `work` profile was recorded before its unbound launch failed. */
+async function ownerWithRecordedProfile(services: ReturnType<typeof rig>) {
+  await services.store.add('vendor', { ...ROW, order: 1 })
+  const owner = await services.developer({
+    readLine: () => Promise.resolve(UI_TEXT.accounts.confirm),
+    print: vi.fn(),
+  })
+  await owner.unlock('terminal')
+  await owner.setMultiple(true)
+  await expect(owner.addProfile('vendor', 'work')).rejects.toThrow(UI_TEXT.developer.unavailable)
+  return owner
+}
 
 describe('createRuntimeAccountServices', () => {
   it('manages accounts through the file-backed store', async () => {
@@ -227,29 +269,11 @@ describe('createRuntimeAccountServices', () => {
   it('refuses --account-pool with the pool limitation instead of the connection text', () => {
     const services = rig()
     try {
-      const parsed = parseCommandLine(['--backend', 'modelApi'])
-      if (parsed.command !== 'serve') throw new Error('missing test serve options')
       const createBackend = vi.fn(createRuntimeBackend)
       // The throw happens before any backend or credential is touched.
       expect(() =>
         services.exec.create(
-          {
-            options: parsed.options,
-            version: 'test',
-            distDir: '',
-            platform: process.platform,
-            env: {},
-            homeDir: '',
-            secrets: {
-              get: () => Promise.resolve(undefined),
-              store: () => Promise.resolve(),
-              delete: () => Promise.resolve(),
-            },
-            runGit: () => Promise.reject(new Error('unexpected git')),
-            fetch: () => Promise.reject(new Error('unexpected fetch')),
-            sleep: () => Promise.resolve(),
-            log: { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
-          },
+          inertDeps(),
           { account: 'default', hasPoolFlag: true, isInteractive: false },
           createBackend,
         ),
@@ -381,38 +405,8 @@ describe('createRuntimeAccountServices', () => {
 
   it.each([
     ['unparsable JSON', '{not json'],
-    [
-      'duplicate account ids',
-      JSON.stringify({
-        providers: {
-          meta: {
-            id: 'meta',
-            policyProvider: 'meta',
-            product: 'model-api',
-            auth: 'apiKey',
-            origin: new URL(MODEL_API_BASE_URL).origin,
-            accounts: [
-              { id: 'default', label: 'Default', order: 0, thresholds: {} },
-              { id: 'default', label: 'Copy', order: 1, thresholds: {} },
-            ],
-          },
-        },
-      }),
-    ],
-    [
-      'a provider id that does not match its key',
-      JSON.stringify({
-        providers: {
-          meta: {
-            id: 'other',
-            policyProvider: 'meta',
-            product: 'model-api',
-            auth: 'apiKey',
-            origin: new URL(MODEL_API_BASE_URL).origin,
-          },
-        },
-      }),
-    ],
+    ['duplicate account ids', providersFileOf(duplicateAccountsEntry(META_ORIGIN))],
+    ['a provider id that does not match its key', providersFileOf(mismatchedIdEntry(META_ORIGIN))],
   ])(
     'reports a refused providers file as its own refusal from exec readiness: %s',
     async (_label, text) => {
@@ -420,26 +414,8 @@ describe('createRuntimeAccountServices', () => {
       const folder = dirs[0]
       if (folder === undefined) throw new Error('missing test folder')
       writeFileSync(runtimeProvidersFile(folder), text, 'utf8')
-      const parsed = parseCommandLine(['--backend', 'modelApi'])
-      if (parsed.command !== 'serve') throw new Error('missing test serve options')
       const configured = services.exec.create(
-        {
-          options: parsed.options,
-          version: 'test',
-          distDir: folder,
-          platform: process.platform,
-          env: {},
-          homeDir: folder,
-          secrets: {
-            get: () => Promise.resolve(undefined),
-            store: () => Promise.resolve(),
-            delete: () => Promise.resolve(),
-          },
-          runGit: () => Promise.reject(new Error('unexpected git')),
-          fetch: () => Promise.reject(new Error('unexpected fetch')),
-          sleep: () => Promise.resolve(),
-          log: { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
-        },
+        inertDeps(folder),
         { account: 'work', hasPoolFlag: false, isInteractive: false },
         createRuntimeBackend,
       )
@@ -477,17 +453,7 @@ describe('createRuntimeAccountServices', () => {
   it('opens developer multiple-accounts with the providers-file sentence instead of a raw failure', async () => {
     const services = rig()
     try {
-      await services.store.add('vendor', { ...ROW, order: 1 })
-      const owner = await services.developer({
-        readLine: () => Promise.resolve(UI_TEXT.accounts.confirm),
-        print: vi.fn(),
-      })
-      await owner.unlock('terminal')
-      await owner.setMultiple(true)
-      // The profile is recorded before its unbound launch fails.
-      await expect(owner.addProfile('vendor', 'work')).rejects.toThrow(
-        UI_TEXT.developer.unavailable,
-      )
+      await ownerWithRecordedProfile(services)
       const folder = dirs[0]
       if (folder === undefined) throw new Error('missing test folder')
       const file = runtimeProvidersFile(folder)
@@ -516,16 +482,7 @@ describe('createRuntimeAccountServices', () => {
   it('keeps the start refusal when enabling multiple accounts over a refused file', async () => {
     const services = rig()
     try {
-      await services.store.add('vendor', { ...ROW, order: 1 })
-      const owner = await services.developer({
-        readLine: () => Promise.resolve(UI_TEXT.accounts.confirm),
-        print: vi.fn(),
-      })
-      await owner.unlock('terminal')
-      await owner.setMultiple(true)
-      await expect(owner.addProfile('vendor', 'work')).rejects.toThrow(
-        UI_TEXT.developer.unavailable,
-      )
+      const owner = await ownerWithRecordedProfile(services)
       // The disable lands even though stopping the unbound profile fails.
       await expect(owner.setMultiple(false)).rejects.toThrow(UI_TEXT.developer.unavailable)
       const folder = dirs[0]
@@ -540,16 +497,7 @@ describe('createRuntimeAccountServices', () => {
   it('refuses unbound profile cleanup and retains ownership after a failed launch', async () => {
     const services = rig()
     try {
-      await services.store.add('vendor', { ...ROW, order: 1 })
-      const owner = await services.developer({
-        readLine: () => Promise.resolve(UI_TEXT.accounts.confirm),
-        print: vi.fn(),
-      })
-      await owner.unlock('terminal')
-      await owner.setMultiple(true)
-      await expect(owner.addProfile('vendor', 'work')).rejects.toThrow(
-        UI_TEXT.developer.unavailable,
-      )
+      const owner = await ownerWithRecordedProfile(services)
       await expect(owner.addProfile('vendor', 'default')).rejects.toThrow(
         UI_TEXT.developer.unavailable,
       )
