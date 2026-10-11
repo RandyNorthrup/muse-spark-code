@@ -491,7 +491,7 @@ export function responseOutputsByCall(api: FakeModelApi, index: number): Map<str
   return found
 }
 
-export function fakeModelApi(): FakeModelApi {
+export function fakeModelApi(options: { readonly keys?: readonly string[] } = {}): FakeModelApi {
   const requests: RecordedRequest[] = []
   let replies: ScriptedReply[] = [{ text: 'ok' }]
   let consumed = 0
@@ -536,7 +536,11 @@ export function fakeModelApi(): FakeModelApi {
       )
       const body = typeof init?.body === 'string' ? (JSON.parse(init.body) as unknown) : undefined
       requests.push({ path: url.pathname.replace(/^\/v1/, ''), method, headers, body })
-      if ((headers['Authorization'] ?? headers['authorization']) !== 'Bearer LLM|1|secret') {
+      if (
+        (options.keys ?? ['LLM|1|secret']).every(
+          (key) => (headers['Authorization'] ?? headers['authorization']) !== `Bearer ${key}`,
+        )
+      ) {
         return Promise.resolve(
           json(
             {

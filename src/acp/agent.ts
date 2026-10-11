@@ -1521,12 +1521,18 @@ class AcpSession {
     if (configId === ACP_CONFIG_IDS.account) {
       if (this.accounts === undefined)
         throw RequestError.internalError(undefined, UI_TEXT.accounts.unavailable)
-      if (this.pending !== undefined || this.preparing !== undefined)
+      if (
+        !this.accounts.supportsNextRequestSelection &&
+        (this.pending !== undefined || this.preparing !== undefined)
+      )
         throw RequestError.invalidRequest(undefined, UI_TEXT.acpPromptBusy)
       try {
         await this.accounts.use(
           value,
-          () => !this.isDisposed && this.pending === undefined && this.preparing === undefined,
+          () =>
+            !this.isDisposed &&
+            (this.accounts?.supportsNextRequestSelection === true ||
+              (this.pending === undefined && this.preparing === undefined)),
         )
       } catch (error) {
         throw accountRequestError(error)

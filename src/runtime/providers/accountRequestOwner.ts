@@ -39,7 +39,11 @@ export async function createAccountRequestOwner(deps: {
   readonly metadata: AccountsMetadataPort
   readonly directory: string
   readonly now: () => number
-  readonly publish: (owner: string, event: AccountEvent) => void
+  readonly publish: (owner: string, event: AccountEvent, accounts: readonly Account[]) => void
+  readonly settings?: (() => { isSwapOn: boolean; isParallelOn: boolean }) | undefined
+  readonly isHeld?: (() => boolean) | undefined
+  readonly askPolicy?:
+    ((row: Parameters<AccountConfirmations['obtain']>[0]) => Promise<unknown>) | undefined
 }) {
   let rows: Account[] = []
   let entry: AccountProvider | undefined
@@ -56,7 +60,7 @@ export async function createAccountRequestOwner(deps: {
   const confirmations = new AccountConfirmations({
     machineId: await loadDeveloperMachineId(deps.directory),
     now: deps.now,
-    ask: () => Promise.reject(new Error(UI_TEXT.accounts.unavailable)),
+    ask: deps.askPolicy ?? (() => Promise.reject(new Error(UI_TEXT.accounts.unavailable))),
     store: {
       read: async (provider, product) => {
         try {
@@ -109,7 +113,12 @@ export async function createAccountRequestOwner(deps: {
           rows.find((row) => row.id === account),
         ),
     }),
-    gate: new RuntimePolicyGate(confirmations),
+    gate:
+      deps.askPolicy === undefined
+        ? new RuntimePolicyGate(confirmations)
+        : new AccountPolicyGate(confirmations),
+    ...(deps.settings !== undefined && { settings: deps.settings }),
+    ...(deps.isHeld !== undefined && { isHeld: deps.isHeld }),
     now: deps.now,
     usageUrl: '',
     headroom: (account) => journal.headroom(account, deps.provider),
@@ -136,12 +145,13 @@ export async function createAccountRequestOwner(deps: {
     commit: (event, adopt, request) => {
       if (request === undefined) throw new Error(UI_TEXT.accounts.invalidAccount)
       journal.commit(event, adopt)
-      deps.publish(request.owner, event)
+      deps.publish(request.owner, event, rows)
     },
     sharedGroupNotice: () => Promise.reject(new Error(UI_TEXT.accounts.vendorLimit)),
   })
   return {
     pool,
+    confirmations,
     refresh,
     requests: (
       client: ProviderClient,

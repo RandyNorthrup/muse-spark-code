@@ -137,6 +137,9 @@ export function createConfiguredProviderServices(
   }
   const delegate = () => meta ?? fail()
   const base: ProviderClient = {
+    ...(meta?.withAccountKey !== undefined && {
+      withAccountKey: (apiKey, isCurrent) => meta.withAccountKey?.(apiKey, isCurrent) ?? fail(),
+    }),
     hasPaidDailyBudget: meta?.hasPaidDailyBudget ?? false,
     currentKeyDigest: () => delegate().currentKeyDigest(),
     listModels: () => delegate().listModels(),

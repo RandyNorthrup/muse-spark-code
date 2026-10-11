@@ -16,6 +16,14 @@ function mockWebviewMeta(meta, models, whatsNew) {
     ...modelsMeta,
     outputs: {
       ...modelsMeta.outputs,
+      'dist/webview/chunks/accounts-loader.js': {
+        imports: [],
+        entryPoint: 'src/webview/models/ModelAccounts.tsx',
+      },
+      'dist/webview/chunks/accounts-body.js': {
+        imports: [],
+        entryPoint: 'src/webview/models/sections/accounts/AccountsSurface.tsx',
+      },
       'dist/webview/chunks/models-body.js': {
         imports: [],
         entryPoint: 'src/webview/models/panel.tsx',
@@ -60,8 +68,9 @@ describe('bundled What’s New content budget', () => {
   it.each([
     ['models', 75],
     ['usage', 50],
+    ['model accounts', 175],
   ])('bounds the complete lazy %s body at %i KiB', async (name, budget) => {
-    const body = `dist/webview/chunks/${name}-body.js`
+    const body = `dist/webview/chunks/${name === 'model accounts' ? 'accounts' : name}-body.js`
     statSync.mockImplementation((file) => ({ size: file === body ? budget * 1024 : 0 }))
     await import('../../scripts/check-bundle-size.mjs')
     expect(process.exit).not.toHaveBeenCalled()

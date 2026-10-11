@@ -47,6 +47,7 @@ export interface AccountPoolDeps {
   readonly now: () => number
   readonly usageUrl: string
   readonly settings?: () => { readonly isSwapOn: boolean; readonly isParallelOn: boolean }
+  readonly isHeld?: () => boolean
   /** Comparable integer capacity, incorporating outstanding reservations. */
   readonly headroom: (account: Account, request: AccountPoolRequest) => bigint
   /** M95's account-specific model scan/capability record for the selected model. */
@@ -133,6 +134,7 @@ export class AccountPool {
     }
   >()
   private readonly active = new Set<string>()
+  private readonly next = new Map<string, string>()
   private admission: Promise<void> = Promise.resolve()
 
   public constructor(public readonly deps: AccountPoolDeps) {}
@@ -317,6 +319,7 @@ export class AccountPool {
     const selected = await this.select(request, isEligible)
     const claim = await this.deps.reserve(selected.account, selected.estimate, request)
     const check = () => {
+      if (this.deps.isHeld?.() === true) throw new AccountPoolBusyError()
       if (request.isCurrent?.() === false) throw new Error(UI_TEXT.accounts.invalidAccount)
       const account = this.rows().find((row) => row.id === selected.account.id)
       const row = this.deps.policy()
@@ -359,6 +362,14 @@ export class AccountPool {
     }
   }
 
+  private release(owner: string): void {
+    this.active.delete(owner)
+    const next = this.next.get(owner)
+    this.next.delete(owner)
+    if (next !== undefined)
+      this.sticky.set(owner, { account: next, trigger: undefined, decision: undefined })
+  }
+
   /** Offers consult the same full-group limits as admission, before reservation. */
   public hasRoom(account: Account, request: AccountPoolRequest): boolean {
     return (
@@ -373,6 +384,7 @@ export class AccountPool {
     isEligible: (account: Account) => boolean = () => true,
   ) {
     request = Object.freeze({ ...request, estimate: Object.freeze({ ...request.estimate }) })
+    if (this.deps.isHeld?.() === true) throw new AccountPoolBusyError()
     const owner = this.owner(request)
     if (this.active.has(owner)) throw new AccountPoolBusyError()
     this.active.add(owner)
@@ -450,12 +462,12 @@ export class AccountPool {
           try {
             await admitted.claim.settle(didDispatch ? actualUsd : parseUsd(0), didDispatch)
           } finally {
-            this.active.delete(owner)
+            this.release(owner)
           }
         },
       }
     } catch (error: unknown) {
-      this.active.delete(owner)
+      this.release(owner)
       throw error
     }
   }
@@ -506,8 +518,26 @@ export class AccountPool {
     this.sticky.set(key, { account, trigger: undefined, decision: undefined })
   }
 
+  /** Queue an explicit selection without changing an admitted request's payer. */
+  public useNext(
+    kind: AccountPoolRequest['kind'],
+    owner: string,
+    account: string,
+    canCommit: () => boolean,
+  ): void {
+    const key = JSON.stringify([kind, owner])
+    if (!this.active.has(key)) {
+      this.use(kind, owner, account, canCommit)
+      return
+    }
+    if (this.rows().every((row) => row.id !== account) || !canCommit())
+      throw new Error(UI_TEXT.accounts.invalidAccount)
+    this.next.set(key, account)
+  }
+
   public current(kind: AccountPoolRequest['kind'], owner: string): string | undefined {
-    return this.sticky.get(JSON.stringify([kind, owner]))?.account
+    const key = JSON.stringify([kind, owner])
+    return this.next.get(key) ?? this.sticky.get(key)?.account
   }
 }
 

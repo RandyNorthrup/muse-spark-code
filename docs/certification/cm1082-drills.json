@@ -251,5 +251,145 @@
         "sha256": "8f8e8286e725e2afc53baf66e05121144c803dc0668dbd5ad873c2a163fe94bc"
       }
     ]
+  },
+  {
+    "name": "queued-choice",
+    "exit": 1,
+    "failed": [
+      "queues manual choice while admitted A keeps its payer through final send and settlement 24ms"
+    ],
+    "restoration": [
+      {
+        "file": "src/core/accounts/pool.ts",
+        "sha256": "aeb32173dfd475e6a1659695f0a26146cc52d3c7ae4f585291d8ca9c07f1ff38"
+      }
+    ],
+    "restoredByteExact": true
+  },
+  {
+    "name": "queued-settlement",
+    "exit": 1,
+    "failed": [
+      "queues manual choice while admitted A keeps its payer through final send and settlement 26ms"
+    ],
+    "restoration": [
+      {
+        "file": "src/core/accounts/pool.ts",
+        "sha256": "aeb32173dfd475e6a1659695f0a26146cc52d3c7ae4f585291d8ca9c07f1ff38"
+      }
+    ],
+    "restoredByteExact": true
+  },
+  {
+    "name": "held-admission",
+    "exit": 1,
+    "failed": [
+      "holds admission and final dispatch, refunds nonsends, and rejects stale queued selection 15ms"
+    ],
+    "restoration": [
+      {
+        "file": "src/core/accounts/pool.ts",
+        "sha256": "aeb32173dfd475e6a1659695f0a26146cc52d3c7ae4f585291d8ca9c07f1ff38"
+      }
+    ],
+    "restoredByteExact": true
+  },
+  {
+    "name": "held-final-send",
+    "exit": 1,
+    "failed": [
+      "holds admission and final dispatch, refunds nonsends, and rejects stale queued selection 12ms"
+    ],
+    "restoration": [
+      {
+        "file": "src/core/accounts/pool.ts",
+        "sha256": "aeb32173dfd475e6a1659695f0a26146cc52d3c7ae4f585291d8ca9c07f1ff38"
+      }
+    ],
+    "restoredByteExact": true
+  },
+  {
+    "name": "acp-queued-selection",
+    "exit": 1,
+    "failed": [
+      "ACP config selection during a live prompt keeps A settlement and chooses B at next request 184ms"
+    ],
+    "restoration": [
+      {
+        "file": "src/acp/agent.ts",
+        "sha256": "70dde4c6d4fd20c7cff42cafaf033d40d6763e1ad32bde816e7c4792d6628ddb"
+      }
+    ],
+    "restoredByteExact": true
+  },
+  {
+    "name": "configured-native-rebinding",
+    "exit": 1,
+    "failed": [
+      "VS Code Models panel queues an in-flight switch; original payer settles and next request uses B 5026ms"
+    ],
+    "restoration": [
+      {
+        "file": "src/core/providers/configured.ts",
+        "sha256": "da1d5c47a81ae57706a47611b8a27413de07359379d3a62a03af328724399d4c"
+      }
+    ],
+    "restoredByteExact": true
+  },
+  {
+    "name": "panel-request-route",
+    "exit": 1,
+    "failed": [
+      "VS Code Models panel queues an in-flight switch; original payer settles and next request uses B 1251ms"
+    ],
+    "restoration": [
+      {
+        "file": "src/host/models/modelsPanel.ts",
+        "sha256": "8ee9326dbbbd412ee65c9b51f676054635facba40db8de70a9aca6d1e7ab6c52"
+      }
+    ],
+    "restoredByteExact": true
+  },
+  {
+    "name": "reply-correlation",
+    "exit": 1,
+    "failed": [
+      "rejects mismatched or secret-bearing replies and gives an honest request failure at its unchanged bound 103ms"
+    ],
+    "restoration": [
+      {
+        "file": "src/webview/models/sections/accounts/AccountsSurface.tsx",
+        "sha256": "3bb8fe710e4625cc3e55092448015005efa49ffc950c65bf78056fe2a7a2b118"
+      }
+    ],
+    "restoredByteExact": true
+  },
+  {
+    "name": "strict-account-envelope",
+    "exit": 1,
+    "failed": [
+      "rejects mismatched or secret-bearing replies and gives an honest request failure at its unchanged bound 24ms"
+    ],
+    "restoration": [
+      {
+        "file": "src/shared/modelAccountsProtocol.ts",
+        "sha256": "b4226b04c6c6bf5f6f42218681c4c305029c03b533fb15a88bcbcc3683740f86"
+      }
+    ],
+    "restoredByteExact": true
+  },
+  {
+    "name": "independent-durable-claims",
+    "exit": 1,
+    "failed": [
+      "real second process recovers a lost send reservation once and sends next admitted request on B 956ms"
+    ],
+    "restoration": [
+      {
+        "file": "src/runtime/providers/accountRequestJournal.ts",
+        "sha256": "8f8e8286e725e2afc53baf66e05121144c803dc0668dbd5ad873c2a163fe94bc"
+      }
+    ],
+    "restoredByteExact": true
   }
 ]

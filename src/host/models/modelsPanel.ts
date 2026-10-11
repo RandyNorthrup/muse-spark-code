@@ -1,3 +1,7 @@
+import {
+  modelAccountsRequestSchema,
+  modelAccountsMessageSchema,
+} from '../../shared/modelAccountsProtocol'
 // Lane M's strict bridge is shared by both sides. Credentials stay in this
 // host-owned draft and never join state, exceptions, logs or postMessage.
 import * as vscode from 'vscode'
@@ -36,6 +40,7 @@ import type { WizardSaveOutcome } from '../providers/wizardSave'
 import { OPENROUTER_ORIGIN } from '../providers/openRouter'
 
 export interface ModelsPanelDeps {
+  readonly accounts?: { request(value: unknown): Promise<unknown> } | undefined
   readonly connectChatGpt?: (() => Promise<void>) | undefined
   readonly connectCopilot?: (() => Promise<void>) | undefined
   readonly removeSubscription?: ((id: string) => Promise<void>) | undefined
@@ -56,6 +61,7 @@ export interface ModelsPanelNavigate {
   readonly wizard?: boolean | undefined
 }
 export interface ModelsPanel {
+  readonly accountsChanged: () => void
   readonly reveal: (navigate?: ModelsPanelNavigate) => void
   readonly onDidDispose: (run: () => void) => vscode.Disposable
   readonly dispose: () => void
@@ -137,6 +143,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
   const rows = new Map<string, readonly ProviderModelRow[]>()
   const newModels = new Set<string>()
   let isDisposed = false
+  const isClosed = () => isDisposed
   let navigation: ModelsPanelNavigate | undefined
   let operations = Promise.resolve()
   const post = (message: HostToPanelMessage): void => {
@@ -781,6 +788,33 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     })()
   }
   const subscription = panel.webview.onDidReceiveMessage((raw: unknown) => {
+    const account = modelAccountsRequestSchema.safeParse(raw)
+    if (account.success) {
+      if (deps.accounts === undefined) return
+      if (account.data.type === 'modelAccounts/ready') {
+        void panel.webview.postMessage({ type: 'modelAccounts/available' })
+        return
+      }
+      const request = account.data
+      const previous = operations
+      operations = (async () => {
+        await previous
+        if (isDisposed) return
+        let value: unknown
+        try {
+          value = await deps.accounts?.request(request.request)
+        } catch {
+          value = { type: 'accounts/error', code: 'unavailable' }
+        }
+        const reply = modelAccountsMessageSchema.safeParse({
+          type: 'modelAccounts/reply',
+          requestId: request.requestId,
+          value,
+        })
+        if (reply.success && !isClosed()) await panel.webview.postMessage(reply.data)
+      })()
+      return
+    }
     const parsed = parsePanelToHostMessage(raw)
     if (!parsed.ok) {
       log.warn('Dropped malformed models panel message')
@@ -799,6 +833,10 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
   }
   panel.onDidDispose(cleanup)
   return {
+    accountsChanged: () => {
+      if (!isDisposed && deps.accounts !== undefined)
+        void panel.webview.postMessage({ type: 'modelAccounts/available' })
+    },
     reveal: (navigate) => {
       panel.reveal(vscode.ViewColumn.One)
       navigation = navigate

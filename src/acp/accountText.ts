@@ -78,3 +78,27 @@ export function accountUsageUrl(port: AccountUsagePort, provider: string): strin
 }
 
 export { accountStopText } from '../core/usage/accountUsageText'
+
+/** One translated notice for native editor and ACP account boundaries. */
+export function accountEventText(
+  event: AccountEvent,
+  accounts: readonly Pick<Account, 'id' | 'label'>[],
+): string {
+  const label = (id: string) => accounts.find((row) => row.id === id)?.label ?? id
+  if (event.type === 'swap') {
+    const trigger = event.trigger
+    const threshold =
+      trigger.kind === 'vendorLimit'
+        ? UI_TEXT.accounts.vendorLimit
+        : `${trigger.metric}: ${trigger.metric === 'spendUsd' ? formatUsd(parseUsd(trigger.threshold)) : formatNumber(trigger.threshold)} (${trigger.period})`
+    return `${fill(UI_TEXT.accounts.swapNotice, { provider: event.provider, account: label(event.account), previous: label(event.previousAccount), threshold })} ${fill(UI_TEXT.accounts.coldCache, { cost: formatUsd(parseUsd(event.coldCacheUsd)) })}`
+  }
+  return event.type === 'spread'
+    ? `${UI_TEXT.accounts.spreadEvent}: ${event.provider} · ${label(event.account)}`
+    : accountStopText(event, label(event.account))
+}
+
+import type { Account, AccountEvent } from '../shared/accounts'
+import { formatNumber } from '../shared/l10n/text'
+import { formatUsd, parseUsd } from '../shared/accountUsd'
+import { accountStopText } from '../core/usage/accountUsageText'

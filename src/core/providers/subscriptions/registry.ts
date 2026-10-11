@@ -146,6 +146,13 @@ export function createSubscriptionClient(
     return ref
   }
   const client: ProviderClient = {
+    ...(meta.withAccountKey !== undefined && {
+      withAccountKey: (apiKey, isCurrent) => {
+        const selected = meta.withAccountKey?.(apiKey, isCurrent)
+        if (selected === undefined) throw new Error(UI_TEXT.accounts.unavailable)
+        return selected
+      },
+    }),
     hasPaidDailyBudget: meta.hasPaidDailyBudget,
     isPlanModel,
     modelContextLimit: (model) => {

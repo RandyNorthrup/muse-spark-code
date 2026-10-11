@@ -67,3 +67,13 @@ export async function runTerminalDeveloperCommand(
 }
 
 export { runAccountsCommand, runAccountAuthSet } from './accountsCommand'
+
+import { createEditorAccountServices } from '../../host/providers/editorAccounts'
+export function createEditorAccountServicesForLocale(
+  table: UiText,
+  locale: string,
+  input: Parameters<typeof createEditorAccountServices>[0],
+) {
+  setUiText(table, locale)
+  return createEditorAccountServices(input)
+}
