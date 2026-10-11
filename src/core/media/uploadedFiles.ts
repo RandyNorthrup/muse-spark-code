@@ -11,10 +11,10 @@ import type { UploadLedger } from './uploadLedger'
 export interface UploadedFilesPortDeps {
   /** The current account's ledger; undefined while there is none. */
   readonly ledger: () => Promise<UploadLedger | undefined>
-  /** Shows the report on this surface. */
-  readonly post: (report: UploadedFilesReport) => void
-  /** Asks whether a file another app may still use may go. */
-  readonly confirmForeign: (question: string) => Promise<boolean>
+  /** Shows the report on this surface; absent drops it (a text surface answers itself). */
+  readonly post?: (report: UploadedFilesReport) => void
+  /** Asks whether a file another app may still use may go; absent refuses. */
+  readonly confirmForeign?: (question: string) => Promise<boolean>
 }
 
 export interface UploadedFilesPort {
@@ -47,7 +47,7 @@ export function createUploadedFilesPort(deps: UploadedFilesPortDeps): UploadedFi
       return ledger === undefined ? emptyUploadedFilesReport() : await ledger.accountReport()
     },
     post(report: UploadedFilesReport): void {
-      deps.post(uploadedFilesReportSchema.parse(report))
+      deps.post?.(uploadedFilesReportSchema.parse(report))
     },
     async deleteFile(
       fileId: string,
@@ -63,7 +63,7 @@ export function createUploadedFilesPort(deps: UploadedFilesPortDeps): UploadedFi
       await ledger.deleteAllOurs()
     },
     async confirmForeign(question: string): Promise<boolean> {
-      return await deps.confirmForeign(question)
+      return (await deps.confirmForeign?.(question)) === true
     },
   }
 }
