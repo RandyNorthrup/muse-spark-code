@@ -8,6 +8,7 @@ import { compactVsix } from './lib/compactVsix.mjs'
 import { pathToFileURL } from 'node:url'
 import { listFiles, pack } from '@vscode/vsce/out/package.js'
 import { assertNoVsixFonts } from './notices-fonts.mjs'
+import { assertPackagedBundles } from './check-packaged-bundles.mjs'
 import { renderPackageReadme } from './check-badges.mjs'
 
 const RECENT_RELEASES = 2
@@ -37,6 +38,7 @@ export async function stageVsix(root, stage) {
   if (stage !== path.join(root, 'dist', 'vsix-package')) throw new Error('Invalid VSIX stage')
   const files = await listFiles({ cwd: root, dependencies: false })
   assertNoVsixFonts(files)
+  assertPackagedBundles(root, files)
   for (const page of [
     'webview',
     'modelsWebview',

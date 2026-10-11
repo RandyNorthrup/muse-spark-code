@@ -5183,7 +5183,7 @@ The terminal/ACP/headless handlers are implemented against the shared vault
 contracts. The installed POSIX broker factory and client are available internally; the
 panel mount and cross-platform join from M109 W/U/M104 remain open. Public
 commands still refuse while availability is off.
-No activation read or broker start is added. On POSIX, the session owns a broker
+No activation read or broker start is added. The VSIX package check follows production build and lazy-loader dependencies and refuses every omitted sibling bundle. On POSIX, the session owns a broker
 started through governed handoff: closing its first window or CLI does not stop
 other clients. Simultaneous starts wait for one broker; the last disconnect
 starts the 30-second idle period, then Lock runs before exit. Signal shutdown
@@ -5202,7 +5202,7 @@ it does not use the Secure Enclave.
 The terminal, ACP and headless commands load `dist/vaultRuntime.js` on the
 first vault need. Its POSIX connection and broker factory ship as lazy installed siblings;
 availability remains off until the shared-lease and Windows join is reviewed,
-so public commands report that the installed broker is switched off pending integration checks and refuse access. No activation read or broker start is added. On POSIX, the session owns a broker
+so public commands report that the installed broker is switched off pending integration checks and refuse access. No activation read or broker start is added. The VSIX package check follows production build and lazy-loader dependencies and refuses every omitted sibling bundle. On POSIX, the session owns a broker
 started through governed handoff: closing its first window or CLI does not stop
 other clients. Simultaneous starts wait for one broker; the last disconnect
 starts the 30-second idle period, then Lock runs before exit. Signal shutdown

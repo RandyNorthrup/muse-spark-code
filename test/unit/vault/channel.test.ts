@@ -995,6 +995,16 @@ describe.skipIf(!hasUnixPeer)('native authenticated broker channel', () => {
     })
     await expect(process.get()).rejects.toThrow('test launch denied')
   })
+  it('a session handoff readiness failure preserves its error without client stop authority', async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), 'm109-b-handoff-fail-')),
+      failure = new Error('generated handoff readiness failure')
+    directories.push(directory)
+    const process = new VaultBrokerProcess(new VaultBrokerDiscovery(directory, 'session'), {
+      identity: identify,
+      launch: () => Promise.resolve({ ready: Promise.reject(failure) }),
+    })
+    await expect(process.get()).rejects.toBe(failure)
+  })
   it('a child reporting ready without its authenticated discovery record is stopped', async () => {
     const directory = await mkdtemp(path.join(os.tmpdir(), 'm109-b-start-fail-'))
     directories.push(directory)

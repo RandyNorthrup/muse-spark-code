@@ -25,7 +25,9 @@ export function admitResource(): Promise<ResourceLease> {
   active.add(lease)
   return Promise.resolve(lease)
 }
-export const admitBootstrap = admitResource
+export async function admitBootstrap(): Promise<ResourceLease> {
+  return await admitResource()
+}
 export const resourceWindowsJob = () => Promise.resolve(undefined)
 export async function stopResourceTree(lease: ResourceLease): Promise<void> {
   await lease.kill?.()

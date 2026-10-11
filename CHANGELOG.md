@@ -44,6 +44,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- POSIX vault packaging includes the four installed sibling bundles and derives
+  package coverage from production output and lazy-loader dependencies. Protected
+  audit intents recover interrupted checkpoint transitions while independent
+  advances still refuse access.
+
 - POSIX vault brokers belong to the user session and survive the window or CLI
   that starts them. Concurrent clients wait for one broker; closed launcher
   streams cannot crash it. The last client disconnect triggers idle Lock and
