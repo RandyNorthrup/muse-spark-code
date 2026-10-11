@@ -25,7 +25,9 @@ import {
   TEAM_WRITE_SET_MAX,
   UI_TEXT,
 } from './constants'
-import { outputTokenMinimumMessage } from './providerRouting'
+// From its leaf, never providerRouting.ts: that module's provider-file English
+// (UI_TEXT.providerText) must stay out of the browser bundles this file is in.
+import { outputTokenMinimumMessage } from './outputTokenMinimum'
 import { isCredentialVariable } from './credentialEnvironment'
 // The team: agents, roles, pools, tasks and the ledger (M96, PLAN.md D75),
 // as the host, the wire protocol and the webview share them. Lane 0 owns

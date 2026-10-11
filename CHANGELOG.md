@@ -190,6 +190,16 @@ happened, not what was planned; superseded entries are kept.
   the session and its failure stopped it. A session now also opens when that
   service fails to start, without account controls (CX1).
 
+- ACP editors refuse `/schedule`, `/estimate` and `/accounts` the same way
+  when they are typed after spaces, tabs or blank lines. Such a prompt used
+  to skip the refusal and run a workspace skill of that name, or go to the
+  model as an ordinary message (RVCX1F).
+
+- The panel's deferred English is back within its 25 KiB budget: the
+  output-minimum message no longer brings the provider file's own text into
+  the browser. Chat startup no longer loads the schedule surfaces' English
+  to refuse `/schedule`, and stays within its first-paint baseline.
+
 - Muse Code approval-ledger fault notices now give the update command on
   versions older than 1.4.3. A live Windows 1.4.3 check accepted the approval
   without that fault; detection remains active on every version. Rename and

@@ -83,7 +83,7 @@ import {
 import { effortForThinking, effortLabel, effortLevelsFor, isEffortLevel } from '../shared/effort'
 import { fill, formatBytes, formatUnit, uiLocale } from '../shared/l10n/text'
 import type { AcpAttachment, AcpMediaFactory, AcpMediaPort } from './media'
-import { parseSkillInvocation } from '../shared/mentions'
+import { parseSkillInvocation, slashCommandText } from '../shared/mentions'
 import type { PaidUseRequest } from '../shared/paid'
 import {
   approvalModeFor,
@@ -1696,8 +1696,12 @@ class AcpSession {
         preparing.abort.signal,
       )
       if (!parsed.ok) throw RequestError.invalidParams(undefined, parsed.reason)
-      const estimatePart = blocks.find((block) => block.type === 'text')
-      if (estimatePart !== undefined && /^\/estimate(?:\s|$)/.test(estimatePart.text.trim())) {
+      // Every local command below is decided on this one text, the same one
+      // the skill parser reads (withSkill). Matching the text as sent let
+      // " /schedule list" pass the schedule refusal and still run a workspace
+      // skill of that name, or start a model turn (RVCX1F F1).
+      const typed = slashCommandText(parsed.displayText)
+      if (/^\/estimate(?:\s|$)/.test(typed)) {
         const controller = preparing.abort
         try {
           await this.announceCommands()
@@ -1714,7 +1718,7 @@ class AcpSession {
             this.deps.estimate.isAvailable !== false &&
             parsed.parts.length === 1
           )
-            text = await this.deps.estimate.run(estimatePart.text, this.cwd, controller.signal)
+            text = await this.deps.estimate.run(typed, this.cwd, controller.signal)
           if ('error' in preparing) throw preparing.error
           if (this.wasEstimateCancelled(preparing)) return 'cancelled'
           this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
@@ -1738,11 +1742,11 @@ class AcpSession {
       }
 
       if (
-        ['/legal', '/legal --offline'].includes(parsed.displayText.trim()) &&
+        ['/legal', '/legal --offline'].includes(typed) &&
         this.deps.legalScan !== undefined &&
         parsed.parts.every((part) => part.type === 'text')
       )
-        return await this.runLegalScan(this.deps.legalScan, parsed.displayText.trim() === '/legal')
+        return await this.runLegalScan(this.deps.legalScan, typed === '/legal')
       const [part] = parsed.parts
       isCompact =
         parsed.parts.length === 1 &&
@@ -1776,13 +1780,13 @@ class AcpSession {
         },
       )
       if (local === undefined) await this.announceCommands()
-      if (/^\/schedule(?:\s|$)/.test(parsed.displayText)) {
+      if (/^\/schedule(?:\s|$)/.test(typed)) {
         const result =
           this.deps.schedules === undefined ||
           this.deps.schedules.isAvailable === false ||
           !this.isScheduleHostAvailable
             ? UI_TEXT.scheduleV2.runtime.unavailable
-            : await this.deps.schedules.run(parsed.displayText, {
+            : await this.deps.schedules.run(typed, {
                 cwd: this.cwd,
                 sessionId: this.sessionId,
                 backend: this.deps.backend.kind,
@@ -1794,8 +1798,7 @@ class AcpSession {
         await this.outbox
         return 'end_turn'
       }
-      const first = parsed.parts[0]
-      if (first?.type === 'text' && /^\/accounts(?:\s|$)/.test(first.text)) {
+      if (/^\/accounts(?:\s|$)/.test(typed)) {
         if (this.accounts === undefined)
           throw RequestError.internalError(undefined, UI_TEXT.accounts.unavailable)
         if (parsed.parts.length !== 1)
@@ -1803,7 +1806,7 @@ class AcpSession {
         let text: string | undefined
         try {
           text = await this.accounts.command(
-            first.text,
+            typed,
             () => !this.isDisposed && !preparing.isCancelled && !('error' in preparing),
           )
         } catch (error) {

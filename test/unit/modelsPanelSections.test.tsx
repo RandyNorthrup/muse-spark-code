@@ -156,7 +156,7 @@ describe('ProvidersSection', () => {
     expect(screen.queryByRole('button', { name: UI_TEXT.reconnectAccount })).toBeNull()
     expect(
       screen.getByText(
-        'OpenRouter account connection and key usage are not available yet. Paste a key to use models.',
+        'OpenRouter account connection and key usage are unavailable. Paste a key to use models.',
       ),
     ).toBeDefined()
     rerender(
@@ -178,7 +178,7 @@ describe('ProvidersSection', () => {
     expect(screen.queryByRole('button', { name: 'Connect OpenRouter Account' })).toBeNull()
     expect(
       screen.getByText(
-        'OpenRouter account connection and key usage are not available yet. Paste a key to use models.',
+        'OpenRouter account connection and key usage are unavailable. Paste a key to use models.',
       ),
     ).toBeDefined()
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.enterKey }))

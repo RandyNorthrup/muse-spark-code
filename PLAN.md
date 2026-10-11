@@ -1,5 +1,23 @@
 # PLAN — Muse Spark for VS Code (unofficial)
 
+**REL0171C release assembly (2026-10-11, host with Kubuntu, the Mac mini,
+Win11 and linuxlt; 0.17.1).** Merge the accepted share-preview fix (SHAREFIX
+`a7052b708`) and the truth pass (C-X-1 `99e9b4106`) into `rel0171/final`.
+The truth pass wins on what is claimed, 0.17.1 on labels; tables merge key by
+key and generated files are regenerated. Notes that 0.17.1 files under
+`[0.17.0]` and whose subject is a feature the truth pass lists as not working
+take its archive marker, text unchanged. Then one fix batch on the branch:
+RVCX1F's two P2 findings (one normalisation for every ACP local-command
+decision; the CX1R2 assertion follows round 6's contract), the suites the
+truth pass left red, its chat-startup English regression (the `/schedule`
+refusal reads its words through the lazy prompt module), MINOUT's surface
+English overage (the output-minimum message gets a leaf of its own; no cap
+changes), two inherited test clones and the host API record. Each fix has a
+named regression and a red drill restored byte for byte. Then one reviewed
+What's New visual update and the full gate. No push, pull request, tag,
+dependency, cap, deadline or gate change. Certification:
+`docs/certification/rel0171c.md` and `docs/certification/cx1.md` (CX1R7).
+
 **MINOUT round 2 (2026-10-10, macmini).** Close static output caps below
 a selected provider's captured minimum, including provider-file capability
 overrides and custom limits, team settings, the shared request builder and
