@@ -20,3 +20,6 @@ export function createFileSessionStore(
   setUiText(table, locale)
   return createStore(deps)
 }
+
+// Pure stored-session readers share this owner without loading a second parser.
+export * from '../../core/backends/modelapi/sessionStore'

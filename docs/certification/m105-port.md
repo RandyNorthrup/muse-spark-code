@@ -32,6 +32,54 @@ invokes those exact helpers. Generated artifacts use the repository generators.
 | `docs/ide-compatibility/host-api.md`                                                                                                          | Older host importer counts                                                               | New generated inventory                                                           | Regenerate on merged source. Host API gate.                                                                                                                                                  |
 | `src/runtime/reference.node.generated.ts`, `src/shared/reference/reference.generated.ts`, `src/shared/reference/referenceSchema.generated.ts` | Accepted media reference expansion                                                       | New release catalog/reference                                                     | Regenerate complete merged catalog; no hand merge. Reference gate and owning round-trip suites.                                                                                              |
 
+## Gate repair audit
+
+Merge `f8db55035` passed normal hooks. Re-read staged and committed source
+diffs; the hook changed no source against the pre-hook snapshot. Initial core
+regressions: 3 files, 102 passed. Initial bundle suite: 115 passed / 3 failed:
+eager attached-registry source, Model API 533,555 > 530,883 B diet, and the
+production cap smoke. Initial build overages: audio 78,662/76,800 B, usage
+panel 75.2/75 KiB and surface English 27,217/25,600 B.
+
+| Change                                                                            | Reason and evidence                                                                                                                                                                                                                                                                                                                                  |
+| --------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `attachedMediaPort.ts`, activation/runtime imports                                | Move the unchanged forwarding shim into a type-only leaf. Registry/hash/schema implementation remains first-use only. Existing emitted source-boundary regression went red before this change.                                                                                                                                                       |
+| `resourceProcessEntry.ts`, `productionAudioEntry.ts`, process ownership inventory | Load the Windows encoder job from the existing lazy process chunk. Its memory/output/deadline policy is unchanged; audio no longer carries a second MCP launcher. Emitted ownership assertions cover both bundles.                                                                                                                                   |
+| `modelApiBoundariesEntry.ts`, boundary resolver                                   | Share pure usage-journal schemas through the existing Node boundary. Keeps the usage panel under its original cap. Browser validation remains inline.                                                                                                                                                                                                |
+| `fileSessionStoreEntry.ts`, boundary resolver                                     | Share pure session parsing through its existing store owner. A first attempt through the wire's boundary caused a cold-load cycle: wire-first stored-media parse failed with `Cannot read properties of undefined (reading '_zod')`. The final owner avoids that cycle; both first-import orders parse a real stored upload in fresh Node processes. |
+| `uiTextRegions.mjs`, `webviewBundles.mjs`                                         | Keep media words in first paint. Deferred playbook English gets a separate 25 KiB closure, measured 3.2 KiB; original surface-English cap stays 25 KiB (24.3 KiB now). Complete shape/slots and installed languages remain unchanged, through the existing loader/failure/retry path. No CSS/layout changes.                                         |
+| `deferredBundles.test.ts`                                                         | Build the actual session-store owner and production boundary plugins in the fixture; add Windows encoder ownership and cold stored-media cases. No assertion, cap or ignore weakened.                                                                                                                                                                |
+| `browserUiText.test.mjs`                                                          | The old all-language loop exceeded the default 5 s during concurrent bundle builds. Retain every assertion; run each language as its own test at the same default deadline. Corrupt-table cases remain.                                                                                                                                              |
+| `browserEnglish.test.mjs`, `bundleSize.test.mjs`                                  | Verify distinct deferred playbook English and the new closure's unchanged D6 budget formula.                                                                                                                                                                                                                                                         |
+
+Final layout production build passes every token, size, split, host-global and
+third-party-notice check. Bundle/language regression: 3 complete files,
+141 passed at repository deadlines, including every installed locale and both
+cold parser orders. Prototype failures remain in ignored raw logs; they are
+not final gate results. No dependency pin, existing cap, timeout or ignore changed. The Model API
+diet ratchet strengthens from 530,883 to 523,629 B, following D6.
+
+The parser move also adds `modelApiSessions.js` to both the production ACP
+package and private test-package admission list. The tarball regression requires
+that member, preserving the same behavior outside VS Code. No new runtime
+command or setting is introduced. Final all-project typecheck exits 0.
+
+## Deliberate failure controls
+
+| Control                                        | Result                                                                                                                                      | Byte-exact restoration                  |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
+| Payload sampler uses launcher PID              | `mediaConvert`: new payload-PID assertion fails                                                                                             | SHA-256 matched                         |
+| Converter kills child instead of governed tree | `mediaConvert`: new whole-tree Stop assertion fails                                                                                         | SHA-256 matched                         |
+| Missing malformed-Windows-root check           | `tokenFile`: all four malformed-root cases fail                                                                                             | SHA-256 matched                         |
+| Registry import pointed back at old module     | Compiler rejects the removed export; owning suite setup fails. Initial pre-repair bundle test separately proved eager registry reachability | SHA-256 matched                         |
+| Session parser moved back to wire dependency   | 13 owning failures, including both cold parser/ownership controls                                                                           | All three source SHA-256 hashes matched |
+| Playbook English closure exceeds 25 KiB        | `bundleSize` negative case observes refusal without raising original deferred cap                                                           | Test-owned artifact only                |
+
+All five source mutations exit 1; no test timeout flag is supplied. Final
+restored-source verification follows in the complete headless sweep. The
+new parser/encoder export and language tests also pass the real emitted
+factories; setup/compile rejection is reported distinctly from a guard assertion.
+
 ## Verification
 
 Initial host/webview typechecks passed. Unit typecheck exposed the inherited

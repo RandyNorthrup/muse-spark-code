@@ -43,6 +43,7 @@ function fixture() {
     'headless',
     'sharingRuntime',
     'modelApi',
+    'modelApiSessions',
     'modelApiHooks',
     'modelApiMcp',
     'productionMedia',
@@ -209,6 +210,7 @@ describe('usage assets in the ACP package', () => {
     // Windows job launcher ship, or Windows conversion would refuse there.
     for (const file of [
       'dist/runtimeMedia.js',
+      'dist/modelApiSessions.js',
       'dist/productionAudio.js',
       'native/windows/MuseSparkMcpLauncher.cs',
     ])

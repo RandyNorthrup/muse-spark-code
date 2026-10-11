@@ -654,6 +654,21 @@ quality`) and as a CI job.
 
 ### D6 — Bundle budgets (Phase 6)
 
+**PORTM105 scoped gate repair (2026-10-11).** The release-base merge is
+`f8db55035`. Initial build: productionAudio 78,662/76,800 B, usagePanel
+75.2/75 KiB, deferred surface English 27,217/25,600 B. The existing bundle
+suite also catches eager registry-source reachability and Model API
+533,555 B over its unchanged 530,883 B diet ratchet. Repair by extracting
+the registry forwarding shim into a type-only leaf, sharing usage
+boundary schemas through the existing Node boundary chunk and stored-session
+parsing through its existing store chunk, and loading the
+Windows encoder job helper from the existing process chunk. Playbook fallback
+English gets its own deferred closure under D6's measured +15%, rounded to
+25 KiB rule; the original 25 KiB surface-English cap stays fixed. Every
+language/value and first-use failure/retry behavior remains. Prove new guards
+and rerun owning production/locale/usage/store/process suites. Model API
+ratchet falls from 530,883 to 523,629 B. No cap rises.
+
 **INT0170 (2026-10-08, kubuntu).** Three lane merges broke the Node bundles
 under unchanged caps; each is fixed at the root and held by the split check.
 Activation took classic zod through `paidConsent.ts` (1,033,339 B, two
@@ -38425,6 +38440,17 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**PORTM105 gate boundary (2026-10-11, MacBook).** The authorized rig brief
+and common rules prohibit aggregate quality/full tests and all browser, GUI,
+microphone and capture launches. Run all five typecheck projects, scoped
+ESLint/Prettier, complete owned files in batches of at most three at repository
+deadlines, localization/reference/roadmap/plan/host API, plain knip,
+duplication/cycles and production build; record exact results in
+`docs/certification/m105-port.md`. Lead owns aggregate quality, coverage,
+installed-editor/native qualification, actual `check:visual`/accessibility,
+and `companionMediaBrowser.test.mjs` on a Linux desktop rig. No skip or timeout
+is added to any test; existing cross-platform skips are reported as such.
 
 **REL0171B final 0.17.1 branch (2026-10-10, linuxlt + Kubuntu).** Merge
 MENUFAN and VIS0171 onto `release/0.17.1` by meaning, regenerate every

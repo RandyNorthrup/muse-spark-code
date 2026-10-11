@@ -8,6 +8,7 @@ import path from 'node:path'
 import { createRequire } from 'node:module'
 import vm from 'node:vm'
 import { build } from 'esbuild'
+import { uploaded, videoMedia } from './helpers/media/replay'
 import { compressedModelText } from '../../scripts/lib/compressedModelText.mjs'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
@@ -137,6 +138,7 @@ beforeAll(async () => {
       usageService: 'src/runtime/usage/usageServiceEntry.ts',
       usageCompanion: 'src/runtime/usage/usageCompanionEntry.ts',
       usagePanel: 'src/host/usage/usagePanelEntry.ts',
+      modelApiSessions: 'src/host/backend/fileSessionStoreEntry.ts',
       headless: 'src/runtime/exec/runExec.ts',
       modelsPanel: 'src/host/models/modelsPanelEntry.ts',
       sessionBoard: 'src/host/sessionBoardEntry.ts',
@@ -234,9 +236,9 @@ beforeAll(async () => {
     }),
     build({
       ...common,
-      outdir: 'dist',
-      entryPoints: { modelApiBoundaries: 'src/core/nodeBoundariesEntry.ts' },
-      plugins: [sharedUiText, sharedValidation],
+      outfile: 'dist/modelApiBoundaries.js',
+      entryPoints: ['src/core/nodeBoundariesEntry.ts'],
+      plugins: [sharedUiText, sharedValidation, compressedModelText(true)],
     }),
     build({
       ...common,
@@ -614,6 +616,11 @@ describe('deferred cohort bundles', () => {
     for (const parent of ['extension', 'modelApi', 'runtimeEngine'])
       expect(bundleText(parent)).toContain('import("./productionMedia.js")')
     expect(bundleText('modelApi')).toContain('import("./productionAudio.js")')
+    // The Windows encoder shares the existing process bundle, never the audio bundle.
+    expect(inputs('productionAudio')).not.toContain('src/host/backend/mediaJobRun.ts')
+    expect(inputs('resourceProcess')).toContain('src/host/backend/mediaJobRun.ts')
+    expect(bundleText('productionAudio')).toContain('import("./resourceProcess.js")')
+
     // Lane V seam 5: ACP serve's and exec's media port and the runtime's
     // registry load on the first media prompt, not with the engine.
     for (const source of ['src/acp/mediaPort.ts', 'src/runtime/runtimeMediaEntry.ts']) {
@@ -892,7 +899,8 @@ describe('deferred cohort bundles', () => {
     // workspacePath) and its MODEL_TEXT keys that activation reads +221.
     // Re-measured and ratcheted down when m105/media-w2 moves media to the
     // deferred dist/productionMedia.js.
-    expect(Buffer.byteLength(bundleText('modelApi'))).toBeLessThanOrEqual(530_883)
+    // PORTM105: the media/store split ratchets the original diet downward.
+    expect(Buffer.byteLength(bundleText('modelApi'))).toBeLessThanOrEqual(523_629)
     const schedules = new Set(inputs('schedules'))
     for (const file of [
       'src/core/backends/modelapi/schedulesEntry.ts',
@@ -1019,6 +1027,48 @@ describe('deferred cohort bundles', () => {
       expect(inputs('headless')).not.toContain(file)
     expect(inputs('headless')).toContain('src/acp/accountText.ts')
   })
+
+  it.each(['wire', 'modelApiBoundaries'])(
+    'loads emitted stored-media parsing after a cold %s import',
+    (first) => {
+      const file = uploaded(videoMedia())
+      const session = {
+        version: 1,
+        sessionId: 'cold-port',
+        workspaceRoot: '/ws',
+        modelId: 'muse-spark-1.3',
+        approvalMode: 'allowAll',
+        effort: 'high',
+        createdAt: '2026-10-11T00:00:00.000Z',
+        lastActivityAt: '2026-10-11T00:00:00.000Z',
+        turnIds: [],
+        todos: [],
+        replay: [],
+        transcript: [],
+        outputs: {},
+        usage: { inputTokens: 0, outputTokens: 0, cachedTokens: 0, reasoningTokens: 0 },
+        accountId: 'a'.repeat(64),
+        fileRefs: [file],
+      }
+      const script = `
+const fs = require('node:fs'), path = require('node:path');
+require(path.join(process.argv[1], 'dist', process.argv[2] + '.js'));
+const store = require(path.join(process.argv[1], 'dist', 'modelApiSessions.js'));
+const parsed = store.parseStoredSession(JSON.parse(fs.readFileSync(0, 'utf8')));
+if (!parsed.ok) throw new Error(parsed.reason);
+process.stdout.write(parsed.session.fileRefs[0].fileId);
+`
+      const result = spawnSync(process.execPath, ['-e', script, fixtureRoot, first], {
+        input: JSON.stringify(session),
+        encoding: 'utf8',
+      })
+      expect(result.status, result.stderr).toBe(0)
+      expect(result.stdout).toBe(file.fileId)
+      expect(inputs('modelApi')).not.toContain('src/core/backends/modelapi/sessionStore.ts')
+      expect(inputs('modelApiSessions')).toContain('src/core/backends/modelapi/sessionStore.ts')
+      expect(bundleText('modelApiBoundaries')).not.toContain('require("./wire.js")')
+    },
+  )
 
   it('CAPS017: the ACP engine ships only zod English locale and still loads', () => {
     const engine = inputs('runtimeEngine')

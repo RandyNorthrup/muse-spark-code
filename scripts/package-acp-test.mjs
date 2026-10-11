@@ -34,6 +34,7 @@ for (const file of [
     'structuredSchema.js',
     'estimator.js',
     'modelApi.js',
+    'modelApiSessions.js',
     'recorder.js',
     'uiText.js',
     'uiTextRuntime.js',
