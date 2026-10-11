@@ -17,6 +17,13 @@ happened, not what was planned; superseded entries are kept.
   render dollars as dollars and percentages as percents; session files reached
   through linked folders read normally while linked files still refuse; and
   another session's questions report as unbound rather than missing history.
+- **Report row identity is guaranteed centrally so duplicated ids never fail a report** (CM1132R6).
+  The document builder makes row keys unique itself — the first row keeps the
+  bare key and each later duplicate takes a stable positional suffix — so no
+  collector can fail validation through a repeated milestone id, release
+  version, question, risk, residual, lane, check run, tag, pull request or
+  forwarded row. A repeated release record in the same form is plan drift
+  (`release-duplicate`); preparation beside its released record stays clean.
 - **Session and usage reports preserve source honesty and identity** (CM1132R2).
   Concurrent sources share a flushed journal snapshot. Damage, newer versions,
   missing session attribution and unavailable budget snapshots produce partial
