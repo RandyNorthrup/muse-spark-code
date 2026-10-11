@@ -49,6 +49,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- Resource CLI certification shares its compiled setup and runs independent
+  reads together; repository test deadlines and product behavior stay unchanged.
+
 - Models provider import editor loads only when opened, with its own loading,
   failure and retry states; the original first-paint cap stays unchanged.
 

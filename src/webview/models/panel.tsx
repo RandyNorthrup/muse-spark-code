@@ -74,7 +74,7 @@ export function ModelsApp({
   return (
     <>
       <ModelsPanel panelState={panelState} ui={ui} post={post} dispatch={dispatch} />
-      {hasAccounts ? <ModelAccounts host={host} label={UI_TEXT.accounts.title} /> : null}
+      {hasAccounts ? <ModelAccounts host={host} label={UI_TEXT.accounts.title} className="accounts-section" /> : null}
     </>
   )
 }

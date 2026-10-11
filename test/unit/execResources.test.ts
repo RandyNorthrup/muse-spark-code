@@ -5,7 +5,7 @@ import path from 'node:path'
 import { PassThrough } from 'node:stream'
 import { promisify } from 'node:util'
 import { build } from 'esbuild'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import * as runtimeBackends from '../../src/runtime/backends'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
 import { agentDataFolder } from '../../src/runtime/dataFolder'
@@ -57,7 +57,60 @@ function noSignals() {
   return ignoreSignals
 }
 
+// Compile the real CLI once outside per-case deadlines; each case keeps fresh machine state.
+const cliBuild: { dist?: string; folder?: string } = {}
+beforeAll(async () => {
+  const builtFolder = await mkdtemp(path.join(tmpdir(), 'm107h-cli-build-'))
+  cliBuild.folder = builtFolder
+  const dist = path.join(builtFolder, 'dist')
+  await mkdir(dist)
+  await build({
+    entryPoints: ['src/runtime/main.ts', 'src/runtime/resources/entry.ts'],
+    outdir: dist,
+    entryNames: '[name]',
+    bundle: true,
+    platform: 'node',
+    format: 'cjs',
+    target: 'node22',
+    external: ['@napi-rs/keyring'],
+    logLevel: 'silent',
+  })
+  // The release names are W's binding; test the exact loader filename here.
+  const { rename } = await import('node:fs/promises')
+  await rename(path.join(dist, 'entry.js'), path.join(dist, 'resourceGovernor.js'))
+  await writeFile(path.join(builtFolder, 'package.json'), '{"version":"test"}')
+  cliBuild.dist = dist
+})
+afterAll(async () => {
+  if (cliBuild.folder !== undefined) await removeFolder(cliBuild.folder)
+})
+
+function invokeResourceCli(args: string[], machine: string, home: string) {
+  if (cliBuild.dist === undefined) throw new Error('CLI build did not complete')
+  return promisify(execFile)(process.execPath, [path.join(cliBuild.dist, 'main.js'), ...args], {
+    env: {
+      LOCALAPPDATA: machine,
+      USERPROFILE: home,
+      HOME: home,
+      XDG_DATA_HOME: machine,
+      LANG: 'en_US.UTF-8',
+    },
+    timeout: 30_000,
+  })
+}
+
 describe('M107 H headless flags and v2 egress', () => {
+  it('starts help without an account, Model API or key-store bundle installed', async () => {
+    const folder = await mkdtemp(path.join(tmpdir(), 'm107h-help-'))
+    folders.push(folder)
+    const result = await invokeResourceCli(
+      ['--help'],
+      path.join(folder, 'machine'),
+      path.join(folder, 'home'),
+    )
+    expect(result.stdout).toContain('--resource-governor on|off')
+    expect(result.stderr).toBe('')
+  })
   it('parses terminal resources and validates headless flags without replacing omitted machine values', () => {
     expect(parseCommandLine(['resources', '--json'])).toEqual({
       command: 'resources',
@@ -303,36 +356,9 @@ describe('M107 H headless flags and v2 egress', () => {
   it('runs terminal resources against the real lazy entry without any key-store or model access', async () => {
     const folder = await mkdtemp(path.join(tmpdir(), 'm107h-cli-'))
     folders.push(folder)
-    const dist = path.join(folder, 'dist')
-    await mkdir(dist)
-    await build({
-      entryPoints: ['src/runtime/main.ts', 'src/runtime/resources/entry.ts'],
-      outdir: dist,
-      entryNames: '[name]',
-      bundle: true,
-      platform: 'node',
-      format: 'cjs',
-      target: 'node22',
-      external: ['@napi-rs/keyring'],
-      logLevel: 'silent',
-    })
-    // The release names are W's binding; test the exact loader filename here.
-    const { rename } = await import('node:fs/promises')
-    await rename(path.join(dist, 'entry.js'), path.join(dist, 'resourceGovernor.js'))
-    await writeFile(path.join(folder, 'package.json'), '{"version":"test"}')
     const machine = path.join(folder, 'machine')
     const home = path.join(folder, 'home')
-    const invoke = (args: string[]) =>
-      promisify(execFile)(process.execPath, [path.join(dist, 'main.js'), ...args], {
-        env: {
-          LOCALAPPDATA: machine,
-          USERPROFILE: home,
-          HOME: home,
-          XDG_DATA_HOME: machine,
-          LANG: 'en_US.UTF-8',
-        },
-        timeout: 30_000,
-      })
+    const invoke = (args: string[]) => invokeResourceCli(args, machine, home)
     const status = await invoke(['resources', '--json'])
     const raw: unknown = JSON.parse(status.stdout)
     expect(resourceStatusSchema.parse(raw)).toMatchObject({
@@ -348,14 +374,15 @@ describe('M107 H headless flags and v2 egress', () => {
       homeDir: home,
     })
     expect(await readFile(path.join(storage, 'resource-resume.json'), 'utf8')).toContain('untilMs')
-    const help = await invoke(['--help'])
+    // These reads own no shared mutation; avoid three serial cold CLI starts.
+    const [help, ...histories] = await Promise.all([
+      invoke(['--help']),
+      invoke(['resources', 'history', '--json']),
+      invoke(['usage', 'resources', '--json']),
+    ])
     expect(help.stdout).toContain('--resource-governor on|off')
     // Terminal history reads the machine journal: empty on a fresh machine, never invented.
-    for (const args of [
-      ['resources', 'history', '--json'],
-      ['usage', 'resources', '--json'],
-    ]) {
-      const history = await invoke(args)
+    for (const history of histories) {
       expect(resourceHistorySchema.parse(JSON.parse(history.stdout))).toEqual({
         minutes: [],
         events: [],

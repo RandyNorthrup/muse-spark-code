@@ -32684,6 +32684,8 @@ Each joins when its dependency merges, and none blocks the others.
 
 ### M108 — Several accounts per provider, with use thresholds (D88)
 
+**C-M108-2 base-comparison receipts (2026-10-11).** `scheduleMigrate` reproduces four failures on `47ba74845`, left inherited. `scheduleFs` passes 14/14 on both base and lane in isolation. Real-CLI resource proof's serial fixture build/reads caused 5 s misses; shared build setup plus parallel independent reads preserves all assertions and default deadlines, with a new cold-help regression. Scope follows the rig's explicit slow-setup repair guidance; production sources of all three paths remain unchanged.
+
 **C-M108-2 release-readiness continuation (2026-10-11).** Remove Models first-paint overage by deferring its optional import editor with section loading/failure/retry; preserve all caps. Compare three red suites against `47ba74845`, bind the supplied WB-153/154/159/165/167/171/175/251 restore list to the certification switch, and execute non-hub dependents plus identifier-owning hub suites in three-file batches. Keep the switch false; no browser/GUI or paid/live call.
 
 **C-M108-2 production composition; availability held (2026-10-11).**

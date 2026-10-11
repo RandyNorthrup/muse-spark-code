@@ -1742,6 +1742,116 @@
       "fiveTypechecks": 0,
       "eslint": 0,
       "build": 0
+    },
+    "item2": {
+      "comparisons": [
+        {
+          "file": "test/unit/execResources.test.ts",
+          "revision": "47ba74845",
+          "label": "base",
+          "exit": 0,
+          "seconds": 27.140176926041022,
+          "load": "16:10  up 25 days,  7:44, 1 user, load averages: 12.45 12.93 14.11",
+          "summary": ["Test Files  1 passed (1)", "Tests  6 passed (6)"],
+          "failures": [],
+          "log": "temp/cm1082-r3-execResources-base.log"
+        },
+        {
+          "file": "test/unit/execResources.test.ts",
+          "revision": "item1 commit",
+          "label": "lane",
+          "exit": 1,
+          "seconds": 23.08775838499423,
+          "load": "16:11  up 25 days,  7:45, 1 user, load averages: 9.61 12.20 13.80",
+          "summary": [
+            "Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+            "Test Files  1 failed (1)",
+            "Tests  1 failed | 5 passed (6)"
+          ],
+          "failures": [
+            "test/unit/execResources.test.ts > M107 H headless flags and v2 egress > runs terminal resources against the real lazy entry without any key-store or model access"
+          ],
+          "log": "temp/cm1082-r3-execResources-lane.log"
+        },
+        {
+          "file": "test/unit/scheduleMigrate.test.ts",
+          "revision": "47ba74845",
+          "label": "base",
+          "exit": 1,
+          "seconds": 47.845393634052016,
+          "load": "16:11  up 25 days,  7:45, 1 user, load averages: 10.95 12.34 13.81",
+          "summary": [
+            "Tests 4 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+            "Test Files  1 failed (1)",
+            "Tests  4 failed | 11 passed (15)"
+          ],
+          "failures": [
+            "test/unit/scheduleMigrate.test.ts > M115 verified M52 migration > reconciles a raced v1 receipt after copy while preserving a later v2 authority edit",
+            "test/unit/scheduleMigrate.test.ts > M115 verified M52 migration > verifies a post-copy v2 edit using its receipt and migrates later jobs despite one interrupted source",
+            "test/unit/scheduleMigrate.test.ts > M115 verified M52 migration > commits reconciliation and its migration receipt atomically across a crash after reconciliation",
+            "test/unit/scheduleMigrate.test.ts > M115 verified M52 migration > carries empty, corrupt and invalid crash receipts into permanent v2 replay fences"
+          ],
+          "log": "temp/cm1082-r3-scheduleMigrate-base.log"
+        },
+        {
+          "file": "test/unit/scheduleMigrate.test.ts",
+          "revision": "item1 commit",
+          "label": "lane",
+          "exit": 1,
+          "seconds": 56.97952462104149,
+          "load": "16:12  up 25 days,  7:46, 1 user, load averages: 9.62 11.65 13.46",
+          "summary": [
+            "Tests 4 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+            "Test Files  1 failed (1)",
+            "Tests  4 failed | 11 passed (15)"
+          ],
+          "failures": [
+            "test/unit/scheduleMigrate.test.ts > M115 verified M52 migration > reconciles a raced v1 receipt after copy while preserving a later v2 authority edit",
+            "test/unit/scheduleMigrate.test.ts > M115 verified M52 migration > verifies a post-copy v2 edit using its receipt and migrates later jobs despite one interrupted source",
+            "test/unit/scheduleMigrate.test.ts > M115 verified M52 migration > commits reconciliation and its migration receipt atomically across a crash after reconciliation",
+            "test/unit/scheduleMigrate.test.ts > M115 verified M52 migration > carries empty, corrupt and invalid crash receipts into permanent v2 replay fences"
+          ],
+          "log": "temp/cm1082-r3-scheduleMigrate-lane.log"
+        },
+        {
+          "file": "test/unit/scheduleFs.test.ts",
+          "revision": "47ba74845",
+          "label": "base",
+          "exit": 0,
+          "seconds": 29.473001935053617,
+          "load": "16:13  up 25 days,  7:47, 1 user, load averages: 8.74 11.15 13.17",
+          "summary": ["Test Files  1 passed (1)", "Tests  14 passed (14)"],
+          "failures": [],
+          "log": "temp/cm1082-r3-scheduleFs-base.log"
+        },
+        {
+          "file": "test/unit/scheduleFs.test.ts",
+          "revision": "item1 commit",
+          "label": "lane",
+          "exit": 0,
+          "seconds": 36.621067901025526,
+          "load": "16:13  up 25 days,  7:47, 1 user, load averages: 8.25 10.82 12.98",
+          "summary": ["Test Files  1 passed (1)", "Tests  14 passed (14)"],
+          "failures": [],
+          "log": "temp/cm1082-r3-scheduleFs-lane.log"
+        }
+      ],
+      "execFix": "shared beforeAll build; parallel independent help/history reads; 7 passed; same default timeout",
+      "isolatedRerun": "16:14  up 25 days,  7:48, 1 user, load averages: 12.02 11.52 13.13",
+      "drill": {
+        "file": "src/runtime/main.ts",
+        "sha256": "d01cc673c619bca38c8d76bcdb60d763a2140e1f883809c3da9bbef3e8c21910",
+        "exit": 1
+      },
+      "restoredRun": {
+        "files": [
+          "test/unit/execResources.test.ts",
+          "test/unit/accountRestore.test.mjs",
+          "test/unit/accountAvailability.test.ts"
+        ],
+        "passed": 9,
+        "defaultTimeout": true
+      }
     }
   }
 }
