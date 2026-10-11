@@ -9,6 +9,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **Estimator refusal diagnostics** (M117 CM1171R6). Late self dependencies
+  and cycles retain their named reason across the panel, CLI, ACP and TUI.
+  All estimator guards and schema failures carry typed diagnostics through
+  one localized renderer; raw external errors hide private details. A core
+  throw-site inventory rejects new untyped refusals.
+
 - **Estimator plan grammar and boundaries** (M117 CM1171R5). Explicit local
   M-number lanes retain their prerequisites; ordering cannot hide in notes.
   Every row is parsed before closure validation, so unrelated reader drift and

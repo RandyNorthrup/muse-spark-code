@@ -1,3 +1,4 @@
+import { EstimateDiagnosticError } from '../../core/estimator/diagnostic'
 // The estimator as the activation bundle sees it (M117, PLAN.md D6):
 // dist/estimator.js, built from estimatorEntry.ts and required the first
 // time an estimate runs. Only types come from the entry here: a value
@@ -55,12 +56,12 @@ export function lazyEstimator(deps: LazyEstimatorDeps): EstimatorRun {
       bundle = loadBundle(bundlePath)
     } catch (error: unknown) {
       deps.log.error(`The estimator ${bundlePath} could not be loaded: ${describe(error)}`)
-      throw new Error(UI_TEXT.estimateUnavailable, { cause: error })
+      throw new EstimateDiagnosticError('estimate-unavailable', UI_TEXT.estimateUnavailable)
     }
     if (!isEstimatorBundle(bundle)) {
       deps.log.error(`${bundlePath} does not export the estimator`)
       if (deps.loadBundle === undefined) forgetFile(bundlePath)
-      throw new Error(UI_TEXT.estimateUnavailable)
+      throw new EstimateDiagnosticError('estimate-unavailable', UI_TEXT.estimateUnavailable)
     }
     run = bundle.createEstimatorRun(deps.ports(), UI_TEXT, uiLocale())
     return run
@@ -68,7 +69,8 @@ export function lazyEstimator(deps: LazyEstimatorDeps): EstimatorRun {
   return {
     parseCommand: (text, context) => {
       const entry = loaded()
-      if (entry.parseCommand === undefined) throw new Error(UI_TEXT.estimateUnavailable)
+      if (entry.parseCommand === undefined)
+        throw new EstimateDiagnosticError('estimate-unavailable', UI_TEXT.estimateUnavailable)
       return entry.parseCommand(text, context)
     },
     estimate: async (request, signal) => await loaded().estimate(request, signal),

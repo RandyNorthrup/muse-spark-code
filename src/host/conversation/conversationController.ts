@@ -1,3 +1,4 @@
+import { EstimateDiagnosticError, estimateFailureText } from '../../core/estimator/diagnostic'
 import type { UsageRecording } from '../../core/usage/recording'
 import type { ProviderUsageRow, AccountFacts, SubscriptionUsage } from '../../shared/usage'
 import type { ChatShareSource } from '../../core/sharing/chatShare'
@@ -9351,12 +9352,12 @@ export class ConversationController {
       const pending = new AbortController()
       this.estimatePending = pending
       try {
-        if (estimator === undefined) throw new Error(UI_TEXT.estimateUnavailable)
+        if (estimator === undefined) throw new EstimateDiagnosticError('estimate-unavailable')
         const request =
           message.type === 'estimateRun'
             ? message.request
             : estimator.parseCommand?.(message.command, message.context)
-        if (request === undefined) throw new Error(UI_TEXT.estimateUnavailable)
+        if (request === undefined) throw new EstimateDiagnosticError('estimate-unavailable')
         const section = await estimator.estimate(request, pending.signal)
         if (pending.signal.aborted || generation !== this.sendInvalidationEpoch || this.isDisposed)
           return
@@ -9366,7 +9367,7 @@ export class ConversationController {
       } catch (error: unknown) {
         if (pending.signal.aborted || generation !== this.sendInvalidationEpoch || this.isDisposed)
           return
-        const reason = describe(error)
+        const reason = estimateFailureText(error)
         this.deps.log.error(`The estimate failed: ${reason}`)
         this.post({ type: 'estimatorFailure', ...correlation, reason })
         this.notice('warning', reason)
@@ -9376,7 +9377,7 @@ export class ConversationController {
       return
     }
     try {
-      if (estimator === undefined) throw new Error(UI_TEXT.estimateUnavailable)
+      if (estimator === undefined) throw new EstimateDiagnosticError('estimate-unavailable')
       const section = this.lastEstimateSection
       const kind = message.setup ?? 'current'
       const setup = section?.setups.find((setup) => setup.kind === kind)
@@ -9384,8 +9385,8 @@ export class ConversationController {
       let inputs = this.lastEstimateInputs
       if (fleet) inputs = { ...section.inputs, fleet }
       else if (kind !== 'current') inputs = undefined
-      if (inputs === undefined || setup === undefined) throw new Error(UI_TEXT.estimateUsage)
-      if (setup.provisioning !== 'existing') throw new Error(UI_TEXT.estimateAdvice)
+      if (inputs === undefined || setup === undefined) throw new EstimateDiagnosticError('usage')
+      if (setup.provisioning !== 'existing') throw new EstimateDiagnosticError('advice-only')
       const started = await estimator.startWave(inputs)
       if (generation !== this.sendInvalidationEpoch || this.isDisposed) return
       this.post({ type: 'estimatorStarted', ...correlation })
@@ -9393,8 +9394,8 @@ export class ConversationController {
     } catch (error: unknown) {
       if (generation !== this.sendInvalidationEpoch || this.isDisposed) return
       this.deps.log.error(`The first wave failed: ${describe(error)}`)
-      this.post({ type: 'estimatorStarted', ...correlation, error: describe(error) })
-      this.notice('warning', describe(error))
+      this.post({ type: 'estimatorStarted', ...correlation, error: estimateFailureText(error) })
+      this.notice('warning', estimateFailureText(error))
     }
   }
 

@@ -439,6 +439,7 @@
   "referenceTasks": "在单独的编辑器标签页中打开此对话的任务列表。",
   "referenceDiagnostics": "显示本地后端和扩展诊断信息。",
   "referenceReport": "保存或发送前预览已清理的问题报告。",
+  "estimateDiagnosticHelp": "计划和引擎的拒绝会在面板、CLI 和 ACP 中显示相同的具名诊断；外部错误会隐藏私密详情。",
   "referenceEstimate": "估计目标在当前舰队下何时交付，或某个日期所需的配置。",
   "referenceTerminal": "在编辑器终端中打开 Muse Code CLI。",
   "referenceRules": "在工作区根目录创建或打开 AGENTS.md。",

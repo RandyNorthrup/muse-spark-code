@@ -439,6 +439,7 @@
   "referenceTasks": "Bu görüşmenin görevlerini ayrı bir düzenleyici sekmesinde aç.",
   "referenceDiagnostics": "Yerel arka uç ve uzantı tanılama bilgilerini göster.",
   "referenceReport": "Kaydetmeden veya göndermeden önce temizlenmiş sorun raporunu önizle.",
+  "estimateDiagnosticHelp": "Plan ve motor retleri panelde, CLI ve ACP’de aynı adlandırılmış tanıyı gösterir; dış hatalar özel ayrıntıları gizler.",
   "referenceEstimate": "Bir hedefin mevcut filoyla ne zaman hazır olacağını veya bir tarihin hangi kuruluma ihtiyaç duyduğunu tahmin eder.",
   "referenceTerminal": "Muse Code CLI’yi düzenleyicinin terminalinde aç.",
   "referenceRules": "Çalışma alanı kökünde AGENTS.md oluştur veya aç.",

@@ -36583,6 +36583,17 @@ single-rig milestone forecasts P50/P90 deterministically. Receipts in
 `docs/certification/m117-snapshot.md`. Still waiting: board, catalog,
 history, multi-machine fleets, and issue lane linkage (M113 N).
 
+**C-M117-1R6 diagnostic repair (2026-10-11, macmini; review RVCM1171E).**
+Every estimator refusal carries an application diagnostic, including late DAG
+self edges/cycles, validation, calibration, capacity and provisioning guards.
+CLI, ACP, TUI and panel render the same validated diagnostic in the caller's
+installed language; unknown failures expose only the fixed unavailable reason.
+Keep reference-code and character validation plus secret redaction. Inventory
+all core throw sites and schema refusals so a new untyped refusal fails a test.
+Prove self edges, cycles, cross-surface parity and the inventory with red drills
+and byte-exact restoration in `docs/certification/m117.md`. No dependency,
+cap, hook, paid/live call, merge or push changes; aggregate quality is lead-owned.
+
 **C-M117-1R5 grammar redesign (2026-10-11, macmini; review RVCM1171D).**
 Repair all nine findings in the plan reader, command and their boundaries.
 Tokenize Starts and parse its grammar with explicit local-lane, milestone and

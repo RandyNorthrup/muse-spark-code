@@ -1,3 +1,4 @@
+import { parseEstimate, EstimateDiagnosticError } from './diagnostic'
 // The estimator's plan snapshot (M117 C-M117-1, PLAN.md D97.2): the shared
 // core adapter every host's snapshot binding reads. It projects one bounded
 // EstimateGoalSnapshot from M113's readPlan (lane tables, Starts, rigs,
@@ -100,16 +101,6 @@ const RIG_OS: ReadonlyMap<
   ['win11', { os: 'windows', arch: null }],
   ['windows', { os: 'windows', arch: null }],
 ])
-
-/** Named application diagnostics cross independent bundles by validated shape. */
-export class EstimateDiagnosticError extends Error {
-  public constructor(
-    public readonly estimateDiagnostic: string,
-    message: string,
-  ) {
-    super(message)
-  }
-}
 
 function refuse(detail: string): never {
   throw new EstimateDiagnosticError(detail, fill(UI_TEXT.estimateFailed, { detail }))
@@ -681,8 +672,8 @@ export function buildPlanSnapshot(
   asOf: string,
   evidence: PlanSnapshotEvidence = {},
 ): EstimateGoalSnapshot {
-  const parsedGoal = estimateGoalSchema.parse(goal)
-  const instant = estimateRequestSchema.shape.asOf.parse(asOf)
+  const parsedGoal = parseEstimate(estimateGoalSchema, goal)
+  const instant = parseEstimate(estimateRequestSchema.shape.asOf, asOf)
   // readPlan's evidence carries only what the reader matches (branch names
   // and merged flags; commits stay empty: the reader never reads them).
   // Reader drift is collected with its row before goal selection; a reached

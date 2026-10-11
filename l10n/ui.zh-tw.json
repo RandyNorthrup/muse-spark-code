@@ -439,6 +439,7 @@
   "referenceTasks": "在獨立的編輯器分頁中開啟此對話的工作清單。",
   "referenceDiagnostics": "顯示本機後端和擴充功能的診斷資訊。",
   "referenceReport": "儲存或傳送前預覽已清理的問題報告。",
+  "estimateDiagnosticHelp": "計畫和引擎的拒絕會在面板、CLI 和 ACP 中顯示相同的具名診斷；外部錯誤會隱藏私人詳細資訊。",
   "referenceEstimate": "估計目標在目前艦隊下何時交付，或某個日期所需的配置。",
   "referenceTerminal": "在編輯器終端機中開啟 Muse Code CLI。",
   "referenceRules": "在工作區根目錄建立或開啟 AGENTS.md。",

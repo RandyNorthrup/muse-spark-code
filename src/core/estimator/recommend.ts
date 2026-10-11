@@ -1,3 +1,4 @@
+import { parseEstimate, EstimateDiagnosticError } from './diagnostic'
 import { USD_LIABILITY_DECIMALS } from '../../shared/usdConstants'
 import * as z from 'zod/mini'
 import {
@@ -19,7 +20,6 @@ import {
   MINUTES_PER_HOUR,
   SECONDS_PER_MINUTE,
 } from '../../shared/constants'
-import { fill, UI_TEXT } from '../../shared/l10n/text'
 import {
   addUsdNanos,
   compareUsdNanos,
@@ -75,13 +75,13 @@ const quantilesSchema = z.strictObject({
   p90Hours: z.number().check(z.nonnegative()),
 })
 function refuse(detail: string): never {
-  throw new Error(fill(UI_TEXT.estimateFailed, { detail }))
+  throw new EstimateDiagnosticError(detail)
 }
 function byId<T extends { id: string }>(entries: readonly T[]): T[] {
   return entries.toSorted((a, b) => compareEstimateIds(a.id, b.id))
 }
 function normalize(fleet: FleetSnapshot): FleetSnapshot {
-  return fleetSnapshotSchema.parse({
+  return parseEstimate(fleetSnapshotSchema, {
     ...fleet,
     machines: byId(fleet.machines),
     slots: byId(fleet.slots),
@@ -132,7 +132,7 @@ export function recommendEstimate(
   port: EstimateRecommendationPort,
   catalogPrices: readonly { machineId: string; price: CatalogPrice }[] = [],
 ): EstimateRecommendation {
-  const inputs = estimateInputsSchema.parse(input)
+  const inputs = parseEstimate(estimateInputsSchema, input)
   const current = normalize(inputs.fleet)
   const pool = normalize(candidatePool)
   if (pool.asOf !== inputs.request.asOf) refuse('pool-as-of')
@@ -145,7 +145,7 @@ export function recommendEstimate(
   }
   if (pool.roles.length !== current.roles.length || pool.ci.length !== current.ci.length)
     refuse('pool-changes-shared-resources')
-  const classes = machineClassesSchema.parse(machineClasses)
+  const classes = parseEstimate(machineClassesSchema, machineClasses)
   for (const machine of pool.machines) {
     if (machine.source !== 'rented') continue
     const size = classes.find((size) => size.id === machine.classId)
@@ -158,7 +158,7 @@ export function recommendEstimate(
     )
       refuse('rental-class-mismatch')
   }
-  const prices = pricesSchema.parse(catalogPrices)
+  const prices = parseEstimate(pricesSchema, catalogPrices)
   const hourlyCosts = new Map(prices.map((row) => [row.machineId, usdNanos(row.price.hourlyUsd)]))
   if (new Set(prices.map((row) => row.machineId)).size !== prices.length) refuse('duplicate-price')
   for (const row of prices) {
@@ -190,7 +190,7 @@ export function recommendEstimate(
     const forecast = structuredClone(port.forecast(structuredClone({ ...inputs, fleet })))
     let rentalCostP90Usd: UsdAmount | undefined
     if (forecast.status === 'feasible') {
-      const { p50, p90, p50Hours, p90Hours } = quantilesSchema.parse({
+      const { p50, p90, p50Hours, p90Hours } = parseEstimate(quantilesSchema, {
         p50: forecast.simulation.p50,
         p90: forecast.simulation.p90,
         p50Hours: forecast.simulation.p50Hours,
@@ -366,7 +366,7 @@ export function recommendEstimate(
     })
     // One row per machine preserves every marginal and distinct offer. U can
     // sum class counts, but must not add accounts shared across these rows.
-    const setup = estimateSectionSchema.shape.setups.def.element.parse({
+    const setup = parseEstimate(estimateSectionSchema.shape.setups.def.element, {
       kind: choice.kind,
       machines: machineRows,
       p50: entry.simulation.p50,

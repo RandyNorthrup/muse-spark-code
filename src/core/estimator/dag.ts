@@ -1,6 +1,7 @@
+import { parseEstimate, EstimateDiagnosticError } from './diagnostic'
 import { estimateLaneSchema, type EstimateLane } from '../../shared/estimate'
 import { ESTIMATE_MAX_ITEMS } from '../../shared/constants'
-import { UI_TEXT, fill } from '../../shared/l10n/text'
+import { UI_TEXT } from '../../shared/l10n/text'
 import { compareEstimateIds, remainingHours } from './goal'
 
 /** A node's duration with its evidence, frozen: an eight-hour plan
@@ -66,7 +67,7 @@ export interface EstimateDag {
 }
 
 function invalid(detail: string): never {
-  throw new Error(fill(UI_TEXT.estimateFailed, { detail }))
+  throw new EstimateDiagnosticError(detail)
 }
 
 /** A plan duration with no measurement behind it: an assumption of zero samples. */
@@ -91,7 +92,7 @@ export function buildEstimateDag(
   durations?: ReadonlyMap<string, EstimateDurationEvidence>,
 ): EstimateDag {
   if (input.length > ESTIMATE_MAX_ITEMS) invalid('lane-limit')
-  const lanes = input.map((lane) => estimateLaneSchema.parse(lane))
+  const lanes = input.map((lane) => parseEstimate(estimateLaneSchema, lane))
   const byId = new Map(lanes.map((lane) => [lane.id, lane]))
   if (byId.size !== lanes.length) invalid('duplicate-lane')
   if (
@@ -129,9 +130,9 @@ export function buildEstimateDag(
     })
     pending.set(lane.id, lane.dependencies.length)
     for (const dependency of lane.dependencies) {
-      if (dependency === lane.id) invalid('self-dependency')
+      if (dependency === lane.id) invalid(`self-dependency: ${lane.id}`)
       const children = successors.get(dependency)
-      if (!children) invalid('missing-dependency')
+      if (!children) invalid(`missing-dependency: ${lane.id}:${dependency}`)
       children.add(lane.id)
     }
   }
@@ -168,7 +169,15 @@ export function buildEstimateDag(
     }
     ready = ready.toSorted(compareEstimateIds)
   }
-  if (order.length !== lanes.length) throw new Error(UI_TEXT.estimateCycle)
+  if (order.length !== lanes.length)
+    throw new EstimateDiagnosticError(
+      `cycle: ${lanes
+        .filter((lane) => !order.includes(lane.id))
+        .map((lane) => lane.id)
+        .toSorted(compareEstimateIds)
+        .join(', ')}`,
+      UI_TEXT.estimateCycle,
+    )
   let finishHours = 0
   let endpoint: string | undefined
   for (const id of order.toSorted(compareEstimateIds)) {

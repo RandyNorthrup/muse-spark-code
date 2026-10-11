@@ -1,3 +1,4 @@
+import { EstimateDiagnosticError, estimateFailureText } from '../../src/core/estimator/diagnostic'
 import { parseEstimateComposer } from '../../src/runtime/estimator/command'
 import type { EstimateRequest } from '../../src/shared/estimate'
 import { fakeEstimate } from './helpers/estimator/fixtures'
@@ -17798,6 +17799,31 @@ describe('M117 estimates belong to their conversation', () => {
     controller.dispose()
   })
 
+  it.each(['self-dependency: M112:Q', 'cycle: M112:A, M112:Q', '/private/account'])(
+    'R6 renders %s through the shared diagnostic path',
+    async (detail) => {
+      const t = setup()
+      const run = fakeEstimatorBinding()
+      const error = detail.startsWith('/')
+        ? new Error(detail)
+        : new EstimateDiagnosticError(detail, '/private/raw-message')
+      run.estimate.mockRejectedValue(error)
+      const controller = new ConversationController({ ...t.deps, estimator: run })
+      await controller.handle({
+        type: 'estimateRun',
+        requestId: 'diagnostic',
+        request: fakeEstimate().inputs.request,
+      })
+      expect(t.surface.posted).toContainEqual({
+        type: 'estimatorFailure',
+        requestId: 'diagnostic',
+        reason: estimateFailureText(error),
+      })
+      expect(JSON.stringify(t.surface.posted)).not.toContain('/private')
+      controller.dispose()
+    },
+  )
+
   it('returns a correlated failure when the source rejects', async () => {
     const t = setup()
     const run = fakeEstimatorBinding()
@@ -17811,7 +17837,7 @@ describe('M117 estimates belong to their conversation', () => {
     expect(t.surface.posted).toContainEqual({
       type: 'estimatorFailure',
       requestId: 'estimate-1',
-      reason: 'source-unavailable',
+      reason: estimateFailureText(new Error('source-unavailable')),
     })
     controller.dispose()
   })

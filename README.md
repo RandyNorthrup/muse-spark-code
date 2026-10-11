@@ -2195,7 +2195,9 @@ Failed or incomplete enabled evidence collection refuses by source name. Git-onl
 forecasts remain available while network reads are disabled; PR goals then refuse.
 Editor network reads follow the current Reports network/sign-in policy and trust
 admission on every estimate. ACP/headless network reads remain disabled.
-ACP, CLI and TUI preserve the named refusal so the plan or source can be repaired.
+The panel, ACP, CLI and TUI show the same named diagnostic for plan and engine
+refusals, including self dependencies and cycles. External errors show only
+the fixed unavailable reason, so private paths and content stay hidden.
 `muse-spark-code-acp estimate --help` shows the
 standalone syntax without starting a model or asking for credentials.
 

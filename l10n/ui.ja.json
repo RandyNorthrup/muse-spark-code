@@ -439,6 +439,7 @@
   "referenceTasks": "この会話のタスク一覧を別のエディタータブで開きます。",
   "referenceDiagnostics": "ローカルのバックエンドと拡張機能の診断を表示します。",
   "referenceReport": "保存または送信する前に、機密情報を除去した問題レポートを確認します。",
+  "estimateDiagnosticHelp": "計画とエンジンによる拒否は、パネル、CLI、ACPで同じ名前付き診断を表示します。外部エラーでは個人情報を含む詳細を非表示にします。",
   "referenceEstimate": "現在のフリートで目標がいつ出荷できるか、または期限に必要な構成を見積もります。",
   "referenceTerminal": "エディターのターミナルで Muse Code CLI を開きます。",
   "referenceRules": "ワークスペースのルートに AGENTS.md を作成または開きます。",

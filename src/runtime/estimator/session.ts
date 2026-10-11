@@ -1,10 +1,11 @@
-import { z } from 'zod/mini'
+import { EstimateDiagnosticError, parseEstimate } from '../../core/estimator/diagnostic'
+import * as z from 'zod/mini'
 import {
   estimateLaneSchema,
   estimateRequestSchema,
   type EstimateSection,
 } from '../../shared/estimate'
-import { UI_TEXT, fill } from '../../shared/l10n/text'
+import { UI_TEXT } from '../../shared/l10n/text'
 import {
   collectEstimate,
   estimateFailureText,
@@ -42,12 +43,12 @@ export class EstimateViewSession {
     private readonly publish: (section: EstimateSection) => void,
     private readonly error: (text: string) => void,
   ) {
-    this.latestAsOf = estimateRequestSchema.shape.asOf.parse(context.asOf)
+    this.latestAsOf = parseEstimate(estimateRequestSchema.shape.asOf, context.asOf)
     this.unsubscribe = finished.subscribe((event) => {
       if (this.disposed) return
       const parsed = finishedSchema.safeParse(event)
       if (!parsed.success) {
-        this.error(fill(UI_TEXT.estimateFailed, { detail: 'invalid-lane-finished' }))
+        this.error(estimateFailureText(new EstimateDiagnosticError('invalid-lane-finished')))
         return
       }
       // Before the first result lands the lane set is unknown, so a completion
@@ -76,7 +77,7 @@ export class EstimateViewSession {
     if (this.disposed) return
     const parsed = estimateRequestSchema.shape.asOf.safeParse(asOf)
     if (!parsed.success || Date.parse(asOf) < Date.parse(this.latestAsOf)) {
-      this.error(fill(UI_TEXT.estimateFailed, { detail: 'invalid-snapshot' }))
+      this.error(estimateFailureText(new EstimateDiagnosticError('invalid-snapshot')))
       return
     }
     this.latestAsOf = asOf
@@ -128,7 +129,7 @@ export async function openEstimateTui(
   const view = deps.view({
     refresh: () => {
       return state.session === undefined
-        ? Promise.reject(new Error(UI_TEXT.estimateRunning))
+        ? Promise.reject(new EstimateDiagnosticError('running', UI_TEXT.estimateRunning))
         : state.session.refresh()
     },
     close: () => {
