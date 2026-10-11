@@ -47,8 +47,20 @@ happened, not what was planned; superseded entries are kept.
   you), and never sends credentials. The report engine binds it from the
   workspace package.json (name, version, publisher, engines, private): a
   workspace that declares no name or version keeps the previous unbound row.
-  Marketplace, Open VSX, GitHub Actions workflow runs and GitHub releases
-  stay honestly unavailable until their wire captures land.
+- **Store, workflow and release channels report from the lead's captures** (CM1136R3).
+  The Marketplace channel sends the captured query-form POST and reads
+  `versions[0].version` (an empty gallery answer refuses as not listed); Open
+  VSX reads `version` from the extension record (a 404 refuses as `http-404`).
+  GitHub reads release-workflow runs as release-tag CI, final releases with
+  asset names, and tag-to-commit joins (releases name no commit themselves);
+  pages are sized to the 2 MiB bound (releases 30, tags and runs 100) and
+  anything past the shared page bound refuses instead of truncating. A null
+  run conclusion, a run off any known tag, a draft or prerelease release and
+  a tagless release commit each refuse with their own reason. The npm row
+  means the workspace's own published package: a private manifest publishes
+  none under its own name, so its row refuses as `npm-private-manifest`
+  without a request (this repository's npm artifact comes from the ACP
+  agent's generated manifest, which is not in the workspace to read).
 - **Session and usage report kinds are real end to end** (M113 C-M113-2).
   `/report session` reads the current conversation in the editor, or a stored
   Model API session by id (`--session <id>` in the terminal and ACP); turns

@@ -271,7 +271,9 @@ The terminal requires `--network` on every collection, and uses `gh`'s own
 identity. CI egress remains denied. Cache reads and writes use confined,
 owner-only storage, validated decoded data and ETags; interrupted requests
 retain honest unavailable or partial status. Store, workflow and release
-adapters await approved live captures. Posting, scheduled destinations,
+channels read their captured public endpoints (Marketplace, Open VSX, npm,
+GitHub Actions runs, releases with tag commits); uncaptured shapes refuse
+with named reasons. Posting, scheduled destinations,
 mail/vault and node-browser integration await their owning milestones;
 the tab does not offer them yet.
 
