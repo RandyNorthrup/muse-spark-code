@@ -587,6 +587,22 @@ function runtimeReports(
                 l10n.table,
                 l10n.locale,
               )(context),
+            // C-M113-3: the registry and developer audit read from the same
+            // data folder. M108's use/swaps adapters and an unlock-capable
+            // vault view bind here when their owning lanes land; until then
+            // those facets stay empty and named.
+            accounts: {
+              read: (context) =>
+                inputs()
+                  .createAccountsReportReader({ dataDir: dataFolder }, l10n.table, l10n.locale)
+                  .read(context),
+            },
+            security: {
+              read: (context) =>
+                inputs()
+                  .createSecurityReportReader({ dataDir: dataFolder }, l10n.table, l10n.locale)
+                  .read(context),
+            },
             network: {
               policy: {
                 surface: 'terminal',

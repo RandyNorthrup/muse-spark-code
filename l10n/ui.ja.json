@@ -1910,7 +1910,10 @@
     "rolledUpSessionExcluded": "ロールアップされた履歴は、このセッションの合計と内訳から除外されます。",
     "journalIncomplete": "使用状況の記録には破損、不完全、または新しいバージョンの項目が含まれています。合計からは除外されています。",
     "sessionUsageUnavailable": "保存された記録ではこのセッションの使用状況を特定できないため、トークン数と費用の合計は利用できません。",
-    "budgetsUnavailable": "選択した期間の予算スナップショットは利用できません。"
+    "budgetsUnavailable": "選択した期間の予算スナップショットは利用できません。",
+    "accountsFacetsUnavailable": "利用できないアカウントの詳細: {facets}。",
+    "securityVaultUnavailable": "保管庫はロックされているか、利用できません。",
+    "securityDeveloperAuditUnavailable": "開発者監査は利用できません。"
   },
   "reportRowsMore": {
     "other": "ほか {count} 行"

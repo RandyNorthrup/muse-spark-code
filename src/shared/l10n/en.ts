@@ -2301,6 +2301,9 @@ export const EN = {
     rolledUpBreakdownExcluded: 'Rolled-up history is included in totals but not in this breakdown.',
     rolledUpSessionExcluded:
       'Rolled-up history is excluded from this session’s totals and breakdown.',
+    accountsFacetsUnavailable: 'Unavailable account details: {facets}.',
+    securityVaultUnavailable: 'The vault is locked or unavailable.',
+    securityDeveloperAuditUnavailable: 'The developer audit is unavailable.',
   },
   reportRowsMore: forms({ one: '{count} more', other: '{count} more' }),
   reportCliUsage:

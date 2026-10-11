@@ -1938,7 +1938,10 @@
     "rolledUpSessionExcluded": "Toplanmış geçmiş bu oturumun toplamlarına ve dökümüne dahil değildir.",
     "journalIncomplete": "Kullanım günlüğü hasarlı, eksik veya daha yeni sürümlü kayıtlar içeriyor; toplamlar bunları hariç tutar.",
     "sessionUsageUnavailable": "Saklanan günlükte kullanım bu oturuma atanamıyor; belirteç ve maliyet toplamları kullanılamıyor.",
-    "budgetsUnavailable": "Seçilen dönem için bütçe anlık görüntüleri kullanılamıyor."
+    "budgetsUnavailable": "Seçilen dönem için bütçe anlık görüntüleri kullanılamıyor.",
+    "accountsFacetsUnavailable": "Kullanılamayan hesap ayrıntıları: {facets}.",
+    "securityVaultUnavailable": "Kasa kilitli veya kullanılamıyor.",
+    "securityDeveloperAuditUnavailable": "Geliştirici denetimi kullanılamıyor."
   },
   "reportRowsMore": {
     "one": "{count} satır daha",

@@ -1994,7 +1994,10 @@
     "rolledUpSessionExcluded": "Shrnutá historie je vyloučena ze součtů i rozpadu této relace.",
     "journalIncomplete": "Deník využití obsahuje poškozené, neúplné záznamy nebo záznamy novější verze; součty je nezahrnují.",
     "sessionUsageUnavailable": "V uchovaném deníku nelze využití přiřadit této relaci; součty tokenů a nákladů nejsou dostupné.",
-    "budgetsUnavailable": "Snímky rozpočtu pro vybrané období nejsou dostupné."
+    "budgetsUnavailable": "Snímky rozpočtu pro vybrané období nejsou dostupné.",
+    "accountsFacetsUnavailable": "Nedostupné podrobnosti účtu: {facets}.",
+    "securityVaultUnavailable": "Trezor je uzamčený nebo nedostupný.",
+    "securityDeveloperAuditUnavailable": "Audit pro vývojáře není k dispozici."
   },
   "reportRowsMore": {
     "one": "Další {count} řádek",

@@ -16,14 +16,32 @@ import {
   SESSION_EXPORT_MAX_BYTES,
   STORED_SESSION_VERSION,
   REPORT_STORAGE_LINK_COUNT,
+  EXEC_UNTRUSTED_FILE_MAX_BYTES,
+  DEVELOPER_AUDIT_MAX_BYTES,
+  DEVELOPER_FILES,
 } from '../../shared/constants'
+import { fill } from '../../shared/l10n/text'
 import type { BackendKind } from '../../shared/protocol'
 import type { AgentHost } from '../../core/agent/agentBackend'
 import { itemSnapshotSchema, type ItemSnapshot } from '../../shared/agentEvents'
 import { LocalSourceError } from '../../core/reporting/sources/local'
 import type { ReportSessionReader } from '../../core/reporting/sources/session'
+import type { ReportAccountsReader } from '../../core/reporting/sources/accounts'
+import type { ReportSecurityReader } from '../../core/reporting/sources/security'
 import type { LocalReportSourceDeps } from '../../core/reporting/sources'
-import type { SourceReadContext } from '../../core/reporting/sources/types'
+import type {
+  AccountsFacts,
+  SecurityFacts,
+  SourceReadContext,
+} from '../../core/reporting/sources/types'
+import { accountIdSchema, accountSchema } from '../../shared/accounts'
+import { developerAuditSchema } from '../../shared/developerOptions'
+import {
+  vaultAuditRecordSchema,
+  vaultGrantSchema,
+  vaultItemMetadataSchema,
+} from '../../shared/vault'
+import type { VaultStatus } from '../../shared/vaultStatus'
 import {
   sessionTurnCount,
   sessionUsageFacts,
@@ -318,6 +336,233 @@ export function createSessionReportReader(input: {
         },
         usage: sessionUsageFacts(journal.records, history.sessionId),
         checkRuns: [],
+        observedAt: context.asOf,
+        ...(partials.length > 0 && { partial: partials.join(' ') }),
+      }
+    },
+  }
+}
+
+/**
+ * M108's account registry file: metadata only, never a credential (the
+ * runtime's providers file keeps secrets and vendor responses on separate
+ * injected ports). A missing file is a fresh install, never an error; a
+ * corrupt one is invalid, never an empty registry.
+ */
+const registryEntrySchema = z.object({
+  id: accountIdSchema,
+  product: accountIdSchema,
+  auth: z.enum(['apiKey', 'oauth', 'subscription', 'none']),
+  accounts: z.optional(z.array(accountSchema)),
+})
+
+async function readDataFile(directory: string, file: string, maxBytes: number) {
+  const target = path.join(directory, file)
+  let handle
+  try {
+    handle = await open(target, fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW)
+  } catch (error) {
+    if (errorCode(error) === 'ENOENT') return null
+    throw new LocalSourceError('failed')
+  }
+  try {
+    const info = await handle.stat()
+    if (!info.isFile() || info.size > maxBytes) throw new LocalSourceError('limit')
+    const buffer = Buffer.alloc(info.size)
+    await handle.read(buffer, 0, buffer.length, 0)
+    try {
+      return new TextDecoder('utf-8', { fatal: true }).decode(buffer)
+    } catch {
+      throw new LocalSourceError('invalid')
+    }
+  } catch (error) {
+    if (error instanceof LocalSourceError) throw error
+    throw new LocalSourceError('failed')
+  } finally {
+    await handle.close()
+  }
+}
+
+function projectThresholds(
+  thresholds: z.infer<typeof accountSchema.shape.thresholds>,
+): AccountsFacts['providers'][number]['accounts'][number]['thresholds'] {
+  type SpendUsd = AccountsFacts['providers'][number]['accounts'][number]['thresholds']['spendUsd']
+  const spendUsd: { period: SpendUsd[number]['period']; value: SpendUsd[number]['value'] }[] = []
+  for (const period of ['day', 'week', 'month'] as const) {
+    const value = thresholds.spendUsd?.[period]
+    if (value !== undefined) spendUsd.push({ period, value })
+  }
+  const counts: {
+    metric: 'inputTokens' | 'outputTokens' | 'requests'
+    period: 'day' | 'week' | 'month'
+    value: number
+  }[] = []
+  for (const metric of ['inputTokens', 'outputTokens', 'requests'] as const) {
+    for (const period of ['day', 'week', 'month'] as const) {
+      const value = thresholds[metric]?.[period]
+      if (value !== undefined) counts.push({ metric, period, value })
+    }
+  }
+  const percents: { name: string; value: number }[] = []
+  const planWindows = Object.entries(thresholds.planWindowPercent ?? {})
+  for (const [name, value] of planWindows) percents.push({ name, value })
+  const headroom = thresholds.rateLimitHeadroomPercent
+  if (headroom?.requests !== undefined)
+    percents.push({ name: 'rateLimitHeadroom/requests', value: headroom.requests })
+  if (headroom?.tokens !== undefined)
+    percents.push({ name: 'rateLimitHeadroom/tokens', value: headroom.tokens })
+  return { spendUsd, counts, percents }
+}
+
+/**
+ * The reporting `accounts` source from M108's registry on disk, with use,
+ * swaps and confirmations from injected adapters. Facets no adapter supplies
+ * stay empty and are named in the partial, never invented.
+ */
+export function createAccountsReportReader(input: {
+  readonly dataDir: string
+  readonly readUsage?: (context: SourceReadContext) => Promise<AccountsFacts['usage'] | null>
+  readonly readEvents?: (
+    context: SourceReadContext,
+  ) => Promise<Pick<AccountsFacts, 'events' | 'confirmations'> | null>
+}): ReportAccountsReader {
+  return {
+    read: async (context: SourceReadContext) => {
+      const text = await readDataFile(
+        input.dataDir,
+        'providers.json',
+        EXEC_UNTRUSTED_FILE_MAX_BYTES,
+      )
+      if (text === null) return null
+      let raw: unknown
+      try {
+        raw = JSON.parse(text)
+      } catch {
+        throw new LocalSourceError('invalid')
+      }
+      const envelope = z.object({ providers: z.record(z.string(), z.unknown()) }).safeParse(raw)
+      if (!envelope.success) throw new LocalSourceError('invalid')
+      const providers = Object.values(envelope.data.providers).map((entry) => {
+        const parsed = registryEntrySchema.parse(entry)
+        return {
+          provider: parsed.id,
+          product: parsed.product,
+          auth: parsed.auth,
+          accounts: (parsed.accounts ?? []).map((account) => ({
+            id: account.id,
+            label: account.label,
+            order: account.order,
+            limitGroup: account.limitGroup ?? null,
+            thresholds: projectThresholds(account.thresholds),
+          })),
+        }
+      })
+      const missing: string[] = []
+      let usage: AccountsFacts['usage'] = []
+      if (input.readUsage === undefined) missing.push('usage')
+      else usage = (await input.readUsage(context)) ?? []
+      let events: AccountsFacts['events'] = []
+      let confirmations: AccountsFacts['confirmations'] = []
+      if (input.readEvents === undefined) missing.push('swaps', 'confirmations')
+      else {
+        const read = await input.readEvents(context)
+        events = read?.events ?? []
+        confirmations = read?.confirmations ?? []
+      }
+      return {
+        facts: { providers, usage, events, confirmations },
+        observedAt: context.asOf,
+        ...(missing.length > 0 && {
+          partial: fill(UI_TEXT.reportDetailReasons.accountsFacetsUnavailable, {
+            facets: missing.join(', '),
+          }),
+        }),
+      }
+    },
+  }
+}
+
+/** An unlock-capable vault view. Raw records never leave the report bundle:
+ * the reader projects them to counts and kinds before returning. */
+export interface SecurityVaultSnapshot {
+  readonly state: VaultStatus['state']
+  readonly tier: VaultStatus['tier']
+  readonly items: readonly unknown[]
+  readonly grants: readonly unknown[]
+  readonly audit: readonly unknown[]
+}
+
+/**
+ * The reporting `security` source from the developer audit on disk and an
+ * injected unlock-capable vault view. Without values throughout: the vault
+ * contributes its tier, item counts by kind, grant scopes and audit
+ * aggregates; the developer audit contributes action counts. A locked or
+ * unbound vault leaves the vault facets empty with its reason; without the
+ * developer audit either, the source is missing.
+ */
+export function createSecurityReportReader(input: {
+  readonly dataDir: string
+  readonly readVault?: (context: SourceReadContext) => Promise<SecurityVaultSnapshot | null>
+}): ReportSecurityReader {
+  return {
+    read: async (context: SourceReadContext) => {
+      const partials: string[] = []
+      let vault: SecurityFacts['vault'] = null
+      let audit: SecurityFacts['audit'] = []
+      const snapshot = input.readVault === undefined ? null : await input.readVault(context)
+      if (snapshot === null) partials.push(UI_TEXT.reportDetailReasons.securityVaultUnavailable)
+      else {
+        const items = z.array(vaultItemMetadataSchema).parse(snapshot.items)
+        const grants = z.array(vaultGrantSchema).parse(snapshot.grants)
+        const itemsByKind = new Map<string, number>()
+        for (const item of items) itemsByKind.set(item.kind, (itemsByKind.get(item.kind) ?? 0) + 1)
+        const grantsByScope = new Map<string, number>()
+        for (const grant of grants) {
+          const scope = `${grant.roles === 'any' ? 'any' : 'named'}/${grant.workspaces === 'any' ? 'any' : 'named'}`
+          grantsByScope.set(scope, (grantsByScope.get(scope) ?? 0) + 1)
+        }
+        vault = {
+          state: snapshot.state,
+          tier: snapshot.tier,
+          itemCount: items.length,
+          itemsByKind: Array.from(itemsByKind, ([kind, count]) => ({ kind, count })),
+          grants: Array.from(grantsByScope, ([scope, count]) => ({ scope, count })),
+        }
+        audit = snapshot.audit.map((record) => {
+          const parsed = vaultAuditRecordSchema.parse(record)
+          return {
+            kind: parsed.kind,
+            decision: parsed.decision,
+            authority: parsed.authority,
+            outcome: parsed.outcome,
+          }
+        })
+      }
+      const directory = path.join(input.dataDir, 'developer')
+      let developerAudit: SecurityFacts['developerAudit'] | null = null
+      const auditFiles = [DEVELOPER_FILES.audit, `${DEVELOPER_FILES.audit}.previous`]
+      for (const file of auditFiles) {
+        const text = await readDataFile(directory, file, DEVELOPER_AUDIT_MAX_BYTES)
+        if (text === null) continue
+        try {
+          const parsed = text
+            .trim()
+            .split('\n')
+            .filter((line) => line !== '')
+            .map((line) => {
+              const entry = developerAuditSchema.parse(JSON.parse(line))
+              return { action: entry.action, source: entry.source }
+            })
+          developerAudit = [...(developerAudit ?? []), ...parsed]
+        } catch {
+          throw new LocalSourceError('invalid')
+        }
+      }
+      if (developerAudit === null)
+        partials.push(UI_TEXT.reportDetailReasons.securityDeveloperAuditUnavailable)
+      if (vault === null && developerAudit === null) return null
+      return {
+        facts: { vault, audit, developerAudit: developerAudit ?? [] },
         observedAt: context.asOf,
         ...(partials.length > 0 && { partial: partials.join(' ') }),
       }

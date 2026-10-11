@@ -1,3 +1,4 @@
+import { accountsSource, type ReportAccountsReader } from './accounts'
 import { agentUsageSource, type AgentUsageAgent, type AgentUsageFiles } from './agentUsage'
 import { certificationSource } from './certification'
 import { changelogSource } from './changelog'
@@ -5,6 +6,7 @@ import { gitSource, type ReportGitIo } from './git'
 import { localSource, LocalSourceError, type LocalFileIo, type SourceScrub } from './local'
 import { packageSource } from './package'
 import { questionsSource, type ReportQuestionsReader } from './questions'
+import { securitySource, type ReportSecurityReader } from './security'
 import { scrubUsage, sessionSource, type ReportSessionReader } from './session'
 import type { ReportSourcePorts, SourceReadContext, UsageFacts } from './types'
 
@@ -22,6 +24,10 @@ export interface LocalReportSourceDeps {
     /** Breakdowns the journal cannot attribute stay partial, never invented. */
     partial?: string
   }>
+  /** M108's registry adapter, supplied by its owner; credentials never enter. */
+  readonly accounts?: ReportAccountsReader
+  /** M109's vault audit and the developer audit, supplied by their owners. */
+  readonly security?: ReportSecurityReader
   readonly enabledAgents: readonly AgentUsageAgent[]
   readonly agentFiles: AgentUsageFiles
 }
@@ -35,6 +41,8 @@ export type LocalReportSources = Pick<
   | 'questions'
   | 'usage'
   | 'agentUsage'
+  | 'accounts'
+  | 'security'
 >
 /** All editors, CLI and ACP bind the same readers in the lazy reporting bundle. */
 export function createLocalReportSources(deps: LocalReportSourceDeps): LocalReportSources {
@@ -68,5 +76,7 @@ export function createLocalReportSources(deps: LocalReportSourceDeps): LocalRepo
       }
     }),
     agentUsage: agentUsageSource(deps.enabledAgents, deps.agentFiles, deps.scrub),
+    accounts: accountsSource(deps.accounts, deps.scrub),
+    security: securitySource(deps.security, deps.scrub),
   }
 }

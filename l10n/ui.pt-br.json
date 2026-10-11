@@ -1966,7 +1966,10 @@
     "rolledUpSessionExcluded": "O histórico acumulado está excluído dos totais e do detalhamento desta sessão.",
     "journalIncomplete": "O registro contém entradas danificadas, incompletas ou de uma versão mais recente; os totais as excluem.",
     "sessionUsageUnavailable": "O uso desta sessão não pode ser atribuído no registro preservado; os totais de tokens e custos estão indisponíveis.",
-    "budgetsUnavailable": "Os registros de orçamento do período selecionado estão indisponíveis."
+    "budgetsUnavailable": "Os registros de orçamento do período selecionado estão indisponíveis.",
+    "accountsFacetsUnavailable": "Detalhes de conta indisponíveis: {facets}.",
+    "securityVaultUnavailable": "O cofre está bloqueado ou indisponível.",
+    "securityDeveloperAuditUnavailable": "A auditoria de desenvolvedor está indisponível."
   },
   "reportRowsMore": {
     "one": "Mais {count} linha",
