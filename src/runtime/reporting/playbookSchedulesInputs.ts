@@ -49,6 +49,33 @@ export function createPlaybookReportReader(input: {
  * fires with outcomes and cost. Until delivery is registered (CM1151) no v2
  * fire exists; the fires read empty and the report shows that truthfully.
  */
+/**
+ * Store-content failures the reader maps to `invalid`, like the playbook
+ * reader maps malformed journals: damaged JSON, a workspace or identity
+ * mismatch, a broken revision chain and every zod parse rejection. Genuine
+ * I/O failures stay `failed`. A corrupt store is never an empty success and
+ * never a generic read failure with the store's reason discarded.
+ */
+const SCHEDULE_CONTENT_FAILURES = new Set([
+  'scheduleStoredJsonInvalid',
+  'scheduleWorkspaceMismatch',
+  'scheduleOutcomeIdentityMissing',
+  'scheduleFireIdentityMismatch',
+  'scheduleIndexRevisionMismatch',
+  'scheduleIndexDeltaInvalid',
+  'scheduleJournalLimitExceeded',
+])
+
+function isScheduleContentFailure(error: unknown): boolean {
+  if (error instanceof Error) {
+    if (SCHEDULE_CONTENT_FAILURES.has(error.message)) return true
+    // zod/mini v4 rejects across the lazy bundle boundary, where
+    // `instanceof` cannot recognize its copy; the name travels intact.
+    if (error.name === '$ZodError') return true
+  }
+  return false
+}
+
 export function createSchedulesReportReader(input: {
   readonly storeRoot: string
   readonly workspaceKey: string
@@ -64,8 +91,8 @@ export function createSchedulesReportReader(input: {
           fires: [...fires],
           observedAt: context.asOf,
         }
-      } catch {
-        throw new LocalSourceError('failed')
+      } catch (error) {
+        throw new LocalSourceError(isScheduleContentFailure(error) ? 'invalid' : 'failed')
       }
     },
   }

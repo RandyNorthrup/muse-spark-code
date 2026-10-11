@@ -26,9 +26,9 @@ const BUDGETS = [
   { path: 'dist/reportingNetwork.js', budgetKiB: 75 },
   // C-M113-2: session and usage inputs, 84.1 KiB measured +15%, rounded up.
   { path: 'dist/reportInputs.js', budgetKiB: 100 },
-  // C-M113-4: playbook and schedules inputs, 50.5 KiB measured +15%,
-  // rounded to 25 KiB.
-  { path: 'dist/playbookSchedulesInputs.js', budgetKiB: 75 },
+  // C-M113-4: playbook and schedules inputs, 52090 bytes (50.9 KiB)
+  // measured +15% = 58.5 KiB, rounded up to the next whole KiB.
+  { path: 'dist/playbookSchedulesInputs.js', budgetKiB: 59 },
   { path: 'dist/reportingDestinations.js', budgetKiB: 75 },
   { path: 'dist/reportingPanel.js', budgetKiB: 50 },
   // M112 A: question forms, commands and late-answer admission, loaded on first use.

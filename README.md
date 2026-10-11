@@ -254,7 +254,8 @@ usage page's snapshots when available in that period. Historical or unbound
 budget snapshots are explicitly unavailable. The playbook report reads the
 orchestrator journal through the same replay the policy uses, so its
 three-strikes counts per module and class match enforcement: design
-decisions with their outcomes, gate drill records, every rule turned off
+decisions with their outcomes, hook-verification receipts with their
+pass/fail results, every rule turned off
 with its reason and actor, and the route-around refusals. `--module
 <glob>` keeps matching modules (`*` stays inside one path segment, `**`
 crosses them); `--milestone <id>` keeps modules, lanes and decisions

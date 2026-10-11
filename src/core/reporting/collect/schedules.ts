@@ -7,10 +7,14 @@
 import { sumUsd } from '../../../shared/usd'
 import type { ReportOptions, ReportSection, ReportValue } from '../../../shared/reportSchema'
 import type { ScheduleFireRecord, ScheduleV2 } from '../../../shared/scheduleV2'
-import { list, row, section, text } from './common'
+import { label, list, row, section, text } from './common'
 
 export interface SchedulesScheduleView {
   readonly schedule: ScheduleV2
+  // Pre-rendered by the source in the installed language, like dates:
+  // collectors read only the injected view, never the text table.
+  readonly triggerText: string
+  readonly grantText: string
   readonly nextFireIso: string | undefined
 }
 export interface SchedulesFireView {
@@ -27,34 +31,10 @@ function dateCell(ms: number, iso: string | undefined): ReportValue {
   return iso === undefined ? text(String(ms)) : { type: 'timestamp', value: iso }
 }
 
-function triggerSummary(schedule: ScheduleV2): string {
-  const trigger = schedule.trigger
-  switch (trigger.kind) {
-    case 'once': {
-      return 'once'
-    }
-    case 'interval': {
-      return `every ${String(trigger.everyMs)} ms`
-    }
-    case 'daily': {
-      return `every ${String(trigger.everyDays)}d ${String(trigger.times.length)}x daily`
-    }
-    case 'weekdays': {
-      return `${String(trigger.times.length)}x on weekdays`
-    }
-    case 'weekly': {
-      return `${String(trigger.days.length)}d weekly`
-    }
-    case 'cron': {
-      return trigger.expression
-    }
-    case 'event': {
-      return `on ${trigger.source}:${trigger.event}`
-    }
-    case 'afterEvent': {
-      return `after ${trigger.event.source}:${trigger.event.event}`
-    }
-  }
+function triggerCell(entry: SchedulesScheduleView): ReportValue {
+  // A parameterless `once` is a label; every other trigger arrives
+  // pre-rendered by the source, like dates.
+  return entry.schedule.trigger.kind === 'once' ? label('once') : text(entry.triggerText)
 }
 
 function targetSummary(schedule: ScheduleV2): string {
@@ -81,12 +61,12 @@ function targetSummary(schedule: ScheduleV2): string {
   }
 }
 
-function grantSummary(schedule: ScheduleV2): string {
-  return `${String(schedule.grant.rules.length)} rules, ${String(schedule.grant.destinationIds.length)} destinations, cap ${schedule.grant.paidCapUsd}`
-}
-
-function creatorSummary(schedule: ScheduleV2): string {
-  return schedule.creator.kind === 'user' ? 'user' : `agent:${schedule.creator.agentId}`
+function creatorCell(schedule: ScheduleV2): ReportValue {
+  // The agent id is technical detail spliced after its label; the plain
+  // word is a label.
+  return schedule.creator.kind === 'user'
+    ? label('user')
+    : text(`agent:${schedule.creator.agentId}`)
 }
 
 function certaintyLabel(certainty: ScheduleFireRecord['cost']['certainty']): ReportValue {
@@ -96,9 +76,14 @@ function certaintyLabel(certainty: ScheduleFireRecord['cost']['certainty']): Rep
 }
 
 export function schedulesSections(view: SchedulesView, options: ReportOptions): ReportSection[] {
+  // The timeline is upcoming fires. A paused schedule keeps its stored
+  // next-fire time but the scheduler will not fire it (`canRun` is false
+  // while paused), so listing it would promise a fire that never comes. It
+  // stays in the schedules table with its paused status, never silently
+  // dropped, and stays out of other schedules' collision lists.
   const upcoming = view.schedules.filter(
     (entry): entry is SchedulesScheduleView & { schedule: ScheduleV2 & { nextFireAtMs: number } } =>
-      entry.schedule.nextFireAtMs !== undefined,
+      entry.schedule.nextFireAtMs !== undefined && !entry.schedule.paused,
   )
   const timeline = upcoming.map((entry) => {
     const atMs = entry.schedule.nextFireAtMs
@@ -125,12 +110,12 @@ export function schedulesSections(view: SchedulesView, options: ReportOptions): 
       [schedule.id],
       {
         name: text(schedule.name),
-        trigger: text(triggerSummary(schedule)),
+        trigger: triggerCell(entry),
         target: text(targetSummary(schedule)),
         delivery: text(schedule.delivery),
-        grant: text(grantSummary(schedule)),
-        creator: text(creatorSummary(schedule)),
-        status: text(schedule.paused ? 'paused' : 'active'),
+        grant: text(entry.grantText),
+        creator: creatorCell(schedule),
+        status: label(schedule.paused ? 'paused' : 'active'),
       },
       ['schedules'],
     )
@@ -215,7 +200,7 @@ export function schedulesSections(view: SchedulesView, options: ReportOptions): 
         'cost',
         ['total'],
         {
-          name: text('total'),
+          name: label('total'),
           cost: {
             type: 'usd',
             value: sumUsd(...view.fires.map((entry) => entry.fire.cost.usd)),

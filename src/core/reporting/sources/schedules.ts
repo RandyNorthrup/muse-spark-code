@@ -4,7 +4,9 @@
 // actions and cost. Reads only through the injected reader; only the
 // schedules kind binds it.
 import * as z from 'zod/mini'
-import { REPORT_MAX_ROWS } from '../../../shared/constants'
+import { REPORT_MAX_ROWS, UI_TEXT } from '../../../shared/constants'
+import { fill } from '../../../shared/l10n/text'
+import type { ScheduleV2 } from '../../../shared/scheduleV2'
 import { scheduleFireRecordSchema, scheduleV2Schema } from '../../../shared/scheduleV2'
 import { schedulesSections } from '../collect/schedules'
 import {
@@ -25,6 +27,55 @@ export interface SchedulesReportReader {
     observedAt: string
     partial?: string
   }>
+}
+
+/**
+ * Trigger and grant prose in the installed language, read here (after the
+ * input bundle installs the caller's table) so the pure collector never
+ * touches the text table — like dates, which arrive pre-rendered.
+ * Technical details spliced after a label (`on src:event`, a cron
+ * expression, an agent id) stay as they came.
+ */
+export function triggerText(schedule: ScheduleV2): string {
+  const trigger = schedule.trigger
+  const cells = UI_TEXT.reportScheduleCells
+  switch (trigger.kind) {
+    case 'once': {
+      return UI_TEXT.reportLabels.once
+    }
+    case 'interval': {
+      return fill(cells.triggerInterval, { everyMs: String(trigger.everyMs) })
+    }
+    case 'daily': {
+      return fill(cells.triggerDaily, {
+        everyDays: String(trigger.everyDays),
+        times: String(trigger.times.length),
+      })
+    }
+    case 'weekdays': {
+      return fill(cells.triggerWeekdays, { times: String(trigger.times.length) })
+    }
+    case 'weekly': {
+      return fill(cells.triggerWeekly, { days: String(trigger.days.length) })
+    }
+    case 'cron': {
+      return trigger.expression
+    }
+    case 'event': {
+      return `on ${trigger.source}:${trigger.event}`
+    }
+    case 'afterEvent': {
+      return `after ${trigger.event.source}:${trigger.event.event}`
+    }
+  }
+}
+
+export function grantText(schedule: ScheduleV2): string {
+  return fill(UI_TEXT.reportScheduleCells.scheduleGrant, {
+    rules: String(schedule.grant.rules.length),
+    destinations: String(schedule.grant.destinationIds.length),
+    cap: schedule.grant.paidCapUsd,
+  })
 }
 
 export function schedulesSource(reader: SchedulesReportReader | undefined, scrub: SourceScrub) {
@@ -48,6 +99,8 @@ export function schedulesSource(reader: SchedulesReportReader | undefined, scrub
           .toSorted((left, right) => codeUnitCompare(left.id, right.id))
           .map((schedule) => ({
             schedule,
+            triggerText: triggerText(schedule),
+            grantText: grantText(schedule),
             nextFireIso:
               schedule.nextFireAtMs === undefined ? undefined : isoDateMs(schedule.nextFireAtMs),
           })),
