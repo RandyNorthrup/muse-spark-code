@@ -94,4 +94,28 @@ describe('prompt privacy adapter', () => {
       'https://example.org/page ordinary words',
     )
   })
+  it.each(['user', 'home', 'src', 'team'])(
+    'is a fixed point for %s across nested paths and both separators',
+    (user) => {
+      const privacy = promptPrivacy({
+        workspaceRoots: ['/work', String.raw`C:\work`],
+        home: `/home/${user}`,
+        user,
+        registeredSecrets: () => [],
+      })
+      const messages = [
+        `/work/team/${user}/src/main.ts`,
+        `/work/team/${user}/src/main.ts`.replaceAll('/', '\\'),
+        `C:\\work\\team\\${user}\\src\\main.ts`,
+        `/home/${user}/team/${user}/src/main.ts`,
+        `/work/a/${user}/b/${user}/c.ts`,
+        `see /work/team/${user}/src/main.ts for details`,
+        `owner: ${user}`,
+      ]
+      for (const message of messages) {
+        const once = scrubShareText(message, privacy)
+        expect(scrubShareText(once, privacy), message).toBe(once)
+      }
+    },
+  )
 })
