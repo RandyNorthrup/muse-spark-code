@@ -30,6 +30,7 @@ import {
   UI_TEXT,
 } from '../../../../shared/constants'
 import { resolveReasoning } from '../../../../shared/effort'
+import { fill } from '../../../../shared/l10n/text'
 import { cleanWireText, isBlankWireText, nativeCallId, type CallIdFormat } from './shared'
 export { parseNativeModelsList as parseChatModelsList } from '../../../providers/modelMetadata'
 import type {
@@ -325,18 +326,21 @@ function textOfParts(parts: readonly InputContentPart[]): string {
 function contentOfParts(
   parts: readonly InputContentPart[],
   vision: boolean | undefined,
+  model: string,
 ): ChatUserMessage['content'] {
-  if (parts.every((part) => part.type !== 'input_image')) {
+  if (parts.every((part) => part.type !== 'input_image' && part.type !== 'input_video')) {
     return textOfParts(parts)
   }
   if (vision === undefined) {
     throw new Error(UI_TEXT.execUnknownModel)
   }
-  // M101 lane P1 (BYO item 1): media rides as the image-omitted placeholder
-  // where the model takes no images, so the turn keeps its shape.
+  // M101 lane P1 (BYO item 1): images ride as the image-omitted placeholder
+  // where the model takes no images, so the turn keeps its shape. M105 lane
+  // V: video has no Chat shape without a vendor capture behind it, so it is
+  // refused with the model's own reason instead of a placeholder.
   const blocks: (ChatTextPart | ChatImagePart)[] = []
   for (const part of parts) {
-    const block = chatBlockFor(part, vision)
+    const block = chatBlockFor(part, vision, model)
     if (block !== undefined) blocks.push(block)
   }
   return blocks
@@ -346,6 +350,7 @@ function contentOfParts(
 function chatBlockFor(
   part: InputContentPart,
   hasVision: boolean,
+  model: string,
 ): ChatTextPart | ChatImagePart | undefined {
   switch (part.type) {
     case 'input_image': {
@@ -356,7 +361,7 @@ function chatBlockFor(
         : { type: 'text', text: CODEC_IMAGE_WITHOUT_VISION }
     }
     case 'input_video': {
-      return { type: 'text', text: CODEC_IMAGE_WITHOUT_VISION }
+      throw new Error(fill(UI_TEXT.media.videoUnknown, { model }))
     }
     case 'input_text':
     case 'output_text': {
@@ -455,7 +460,7 @@ export function encodeChatRequest(
           flushAssistant()
           messages.push({
             role: 'user',
-            content: contentOfParts(item.content, options?.capabilities?.vision),
+            content: contentOfParts(item.content, options?.capabilities?.vision, model),
           })
         }
 
@@ -505,7 +510,7 @@ export function encodeChatRequest(
         if (images.length > 0) {
           pendingImages.push({
             role: 'user',
-            content: contentOfParts(images, options?.capabilities?.vision),
+            content: contentOfParts(images, options?.capabilities?.vision, model),
           })
         }
 

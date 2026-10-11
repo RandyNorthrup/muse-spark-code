@@ -287,6 +287,12 @@ happened, not what was planned; superseded entries are kept.
   into the run ledger;
   stopped reads cannot publish a new proof.
 
+- Video reaching a Chat Completions or Gemini request now refuses with the
+  model's own reason ("{model} is not known to take video."), read from the
+  installed language table. Previously the turn kept its shape with the
+  image-omitted placeholder, which named the wrong kind and hid that no
+  vendor outside Meta has a captured media wire yet (M105 lane V).
+
 ## [0.17.1] - 2026-10-10
 
 ### Highlights
