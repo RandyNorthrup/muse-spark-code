@@ -1,10 +1,10 @@
-// Bound session, usage, playbook and schedules report inputs (M113 lanes
-// C-M113-2 and C-M113-4, PLAN.md D93.4). Every engine construction (VS Code,
-// ACP, CLI) builds these from the same durable sources: M84's session
-// history, M102's usage journal through aggregate.ts, M116's playbook
-// journal and M115's schedule store with its fire record. Ships in
-// dist/reportInputs.js; the hosts pass only identifiers and directories, so
-// activation carries no new import.
+// Bound session and usage report inputs (M113 lane C-M113-2, PLAN.md D93.4).
+// Every engine construction (VS Code, ACP, CLI) builds these from the same
+// durable sources: M84's session history and M102's usage journal through
+// aggregate.ts. Ships in dist/reportInputs.js; the hosts pass only identifiers
+// and directories, so activation carries no new import. The playbook and
+// schedules inputs ride their own chunk (dist/playbookSchedulesInputs.js,
+// M113 lane C-M113-4) beside this one.
 import { open, realpath } from 'node:fs/promises'
 import { constants as fsConstants } from 'node:fs'
 import { handleIdentity, lstatIdentity, sameFile } from '../../core/fs/fileIdentity'
@@ -22,14 +22,7 @@ import {
 import type { BackendKind } from '../../shared/protocol'
 import type { AgentHost } from '../../core/agent/agentBackend'
 import { itemSnapshotSchema, type ItemSnapshot } from '../../shared/agentEvents'
-import {
-  FilePlaybookJournal,
-  PlaybookHistoryLostError,
-} from '../../core/orchestration/playbook/journal'
-import { createScheduleStore } from '../../core/schedules/store'
 import { LocalSourceError } from '../../core/reporting/sources/local'
-import type { PlaybookReportReader } from '../../core/reporting/sources/playbook'
-import type { SchedulesReportReader } from '../../core/reporting/sources/schedules'
 import type { ReportSessionReader } from '../../core/reporting/sources/session'
 import type { LocalReportSourceDeps } from '../../core/reporting/sources'
 import type { SourceReadContext } from '../../core/reporting/sources/types'
@@ -40,7 +33,6 @@ import {
   type UsageReportJournal,
 } from '../../core/usage/reportUsage'
 import { UsageJournalStore, toAggregateRow } from '../../core/usage/journalStore'
-import { createNodeScheduleFs } from '../schedules/nodeScheduleFs'
 import { NodeUsageFs } from '../usage/nodeUsageFs'
 import type { UsageAggregateRow } from '../../core/usage/aggregate'
 import type { UsageBudgetRead } from '../../core/usage/usageService'
@@ -271,59 +263,6 @@ export async function readStoredReportSession(
     ...(session.name !== undefined && { name: session.name }),
     items: session.transcript.map((entry) => entry.item),
     turnIds: session.turnIds,
-  }
-}
-
-/**
- * The reporting `playbook` source from M116's journal: the same file the
- * orchestrator replays, read-only. A lost journal (the marker without its
- * lines) is a failure with its reason, never an empty success; a workspace
- * with no journal yet reads empty, never an error.
- */
-export function createPlaybookReportReader(input: {
-  readonly agentDataFolder: string
-  readonly workspaceRoot: string
-}): PlaybookReportReader {
-  return {
-    read: (context: SourceReadContext) => {
-      let records: readonly unknown[]
-      try {
-        records = new FilePlaybookJournal(input.agentDataFolder, input.workspaceRoot).read()
-      } catch (error) {
-        const isReadFailure =
-          error instanceof PlaybookHistoryLostError || (error instanceof Error && 'code' in error)
-        return Promise.reject(new LocalSourceError(isReadFailure ? 'failed' : 'invalid'))
-      }
-      return Promise.resolve({ records, observedAt: context.asOf })
-    },
-  }
-}
-
-/**
- * The reporting `schedules` source from M115's store and fire record: the
- * workspace's schedules with their triggers and grants, and the settled
- * fires with outcomes and cost. Until delivery is registered (CM1151) no v2
- * fire exists; the fires read empty and the report shows that truthfully.
- */
-export function createSchedulesReportReader(input: {
-  readonly storeRoot: string
-  readonly workspaceKey: string
-}): SchedulesReportReader {
-  return {
-    read: async (context: SourceReadContext) => {
-      const store = createScheduleStore(createNodeScheduleFs(input.storeRoot))
-      try {
-        const schedules = await store.list(input.workspaceKey)
-        const fires = await store.fires(input.workspaceKey)
-        return {
-          schedules: [...schedules],
-          fires: [...fires],
-          observedAt: context.asOf,
-        }
-      } catch {
-        throw new LocalSourceError('failed')
-      }
-    },
   }
 }
 
