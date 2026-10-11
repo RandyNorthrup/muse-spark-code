@@ -1663,6 +1663,7 @@
   "gitCommitAction": "Potvrdit",
   "gitCommitConfirm": "Potvrdit tyto změny?",
   "gitOperationChanged": "Repozitář, konverzace nebo důvěra se změnily. Otevřete formulář znovu.",
+  "gitMachineBusy": "Git se nespustil, protože je počítač zaneprázdněný. Zkuste to znovu.",
   "gitCommandConsequences": "Git může spustit háčky repozitáře, podpisové programy nebo pomocníky přihlašovacích údajů. Zrušení zastaví další kroky; již zahájené volání Gitu nebo GitHubu může doběhnout.",
   "gitCommitting": "Potvrzuje se…",
   "gitCancel": "Zrušit",

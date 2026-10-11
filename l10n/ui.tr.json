@@ -1621,6 +1621,7 @@
   "gitCommitAction": "İşle",
   "gitCommitConfirm": "Bu değişiklikler kaydedilsin mi?",
   "gitOperationChanged": "Depo, konuşma veya güven durumu değişti. Formu yeniden açın.",
+  "gitMachineBusy": "Makine meşgul olduğu için Git çalıştırılamadı. Tekrar deneyin.",
   "gitCommandConsequences": "Git depo kancalarını, imzalama programlarını veya kimlik bilgisi yardımcılarını çalıştırabilir. İptal sonraki adımları durdurur; başlamış bir Git veya GitHub çağrısı tamamlanabilir.",
   "gitCommitting": "İşleniyor…",
   "gitCancel": "İptal",

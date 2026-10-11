@@ -56,6 +56,16 @@
     "reason": "M75 paired-evaluation verifier: reachable only from the eval runner, which only tests and live drills call (proved by the guard)."
   },
   {
+    "site": "src/core/locks/processOwner.ts#call:execFile:1",
+    "profile": "contained",
+    "reason": "Considered exemption: the shared file lease's liveness probe stays a direct launch, so a lock decision never waits on the governor pressure it may be resolving; fixed program, no shell, caller pid digits-only, bounded timeout and output."
+  },
+  {
+    "site": "src/core/locks/processOwner.ts#import:1",
+    "profile": "contained",
+    "reason": "Considered exemption: the shared file lease's liveness probe stays a direct launch, so a lock decision never waits on the governor pressure it may be resolving; fixed program, no shell, caller pid digits-only, bounded timeout and output."
+  },
+  {
     "site": "src/core/media/convert.ts#call:spawnResourceProcess:1",
     "profile": "probe",
     "reason": "Media tool version probe (`-version`): bounded, reads stdout only, writes nothing; contained tree, no temp root."
@@ -477,6 +487,36 @@
     "site": "src/runtime/main.ts#call:spawnResourceProcess:1",
     "profile": "interactive",
     "reason": "`muse login` runs in the user’s terminal session, group and TTY; Ctrl+C reaches it; stopped if the CLI shuts down."
+  },
+  {
+    "site": "src/runtime/panel/git/service.ts#call:execResourceFile:1",
+    "profile": "probe",
+    "reason": "Git reads (status, diff, rev-parse, config, remote) through the governed probe launch: read-only, bounded, credential-free; a refused launch is `busy`."
+  },
+  {
+    "site": "src/runtime/panel/git/service.ts#call:execResourceFile:2",
+    "profile": "contained",
+    "reason": "Git writes (add, commit, push, fetch, worktree) through the governed contained launch with the caller's allow-listed environment; a refused launch is `busy`."
+  },
+  {
+    "site": "src/runtime/panel/pullRequests/checkout.ts#call:execResourceFile:1",
+    "profile": "contained",
+    "reason": "Pull request fetch, index and worktree writes through the governed contained launch; a refused launch is the checkout's own translated reason."
+  },
+  {
+    "site": "src/runtime/panel/pullRequests/checkout.ts#call:execResourceFile:2",
+    "profile": "probe",
+    "reason": "Pull request git reads (version, config, rev-parse, listing) through the governed probe launch; read-only and bounded."
+  },
+  {
+    "site": "src/runtime/panel/pullRequests/checkout.ts#call:spawnResourceProcess:1",
+    "profile": "probe",
+    "reason": "The held batch (`cat-file --batch`) reads through the governed probe launch under the checkout's deadline and tree stop."
+  },
+  {
+    "site": "src/runtime/panel/pullRequests/checkout.ts#import:1",
+    "profile": "contained",
+    "reason": "Type-only process interfaces for the checkout's git port; every launch goes through the governed launcher."
   },
   {
     "site": "src/runtime/reporting/sources.ts#call:execResourceFile:1",

@@ -1600,6 +1600,7 @@
   "gitCommitAction": "提交",
   "gitCommitConfirm": "提交这些更改？",
   "gitOperationChanged": "仓库、对话或信任状态已更改。请重新打开表单。",
+  "gitMachineBusy": "计算机繁忙，Git 无法运行。请重试。",
   "gitCommandConsequences": "Git 可能运行仓库钩子、签名程序或凭据助手。取消会停止后续步骤；已开始的 Git 或 GitHub 调用仍可能完成。",
   "gitCommitting": "正在提交…",
   "gitCancel": "取消",
