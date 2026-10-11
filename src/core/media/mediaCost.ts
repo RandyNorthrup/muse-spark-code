@@ -1,6 +1,7 @@
 // M105 C / D85.6–7. Metadata and billed usage only; never encoded media or
 // input_tokens media counts. The caller injects evidence, tariffs and stores.
 import * as z from 'zod/mini'
+import { UserRefusalError } from '../refusal'
 import {
   MEDIA_CONTRIBUTOR_CHOICES,
   MEDIA_ID_MAX_CHARS,
@@ -104,7 +105,7 @@ export class MediaCostEstimator {
     const calibrated = matches.filter((point) => !point.upperOnly)
     if (measured.units === null || calibrated.length === 0) {
       if (isCapped) {
-        throw new Error(
+        throw new UserRefusalError(
           measured.units === null && ['video', 'audio'].includes(variant.kind)
             ? UI_TEXT.media.cappedDurationUnknown
             : fill(UI_TEXT.media.cappedRateUnknown, { model: modelId }),
@@ -260,7 +261,7 @@ export async function reserveMediaRequest(request: {
   for (const item of request.items) {
     const estimate = request.estimator.estimate(request.provider, request.modelId, item, true)
     if (estimate === undefined)
-      throw new Error(fill(UI_TEXT.media.cappedRateUnknown, { model: request.modelId }))
+      throw new UserRefusalError(fill(UI_TEXT.media.cappedRateUnknown, { model: request.modelId }))
     inputTokens += estimate.upperBoundInputTokens
   }
   tokens.parse(inputTokens)

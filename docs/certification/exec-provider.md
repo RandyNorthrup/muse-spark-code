@@ -24,3 +24,23 @@ Red drill: disabled recovery and replaced run withdrawal with close: six tests
 failed (unstarted tickets plus dead-owner recovery). Byte-exact SHA-256 restoration
 `1c5c6e6ad46dbe39e3ab0ae5f61945b14b87975562608c672b1fa642fad7d835`.
 Final verification and remaining items are recorded below as completed.
+
+## A3: refusal identity
+
+One `isUserRefusal` predicate in `src/core/refusal.ts` guards configured, Meta,
+codec and subscription wrappers. Dynamic media and Gemini capability refusals
+are tagged locally, and durable budget refusal uses its budget error class.
+The headless daily-budget refusal latches the budget exit before dispatch.
+Subscription adapters preserve prepare guards.
+
+Green: providerRefusals, providerTransport, runtimeAccounting: 56/56. The table
+passes every typed refusal through Meta and all five configured wire formats,
+asserting object identity and zero sends; unknown errors keep the generic
+sentence. HTTP diagnostics still redact keys, account text and kind/code fields
+(the existing privacy suite caught an initial overly broad preservation path;
+the corrected boundary preserves redaction).
+
+Additional A3 suites: mediaCost/mediaAccounting/geminiCodec 103/103;
+subscriptionIntegration/copilotClient/modelApiClient 132/132; host typecheck 0.
+Red drill: predicate forced false, six table cases failed; SHA-256 byte-exact
+restoration `c95b0ccdf96d2115084c25e53c3c96ce8dda42e46ef10473cacc7789de76edec`.

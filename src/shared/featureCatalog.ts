@@ -321,6 +321,7 @@ export function featureCatalog(): readonly Feature[] {
     ),
     feature(
       'providers',
+      // M95: configured clients preserve local refusal reasons and budget exits.
       { ui: 'modelsPanelTitle' },
       { ui: 'startWithOwnModelDetail' },
       [

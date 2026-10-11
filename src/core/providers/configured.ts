@@ -38,7 +38,12 @@ import { parseNdjson } from '../backends/modelapi/ndjson'
 import { parseSse } from '../backends/modelapi/sse'
 import { ApiKeyAuthSource, NoAuthSource } from '../backends/modelapi/authSource'
 import { CodecClient, type WireCodec } from '../backends/modelapi/providerClient'
-import { RequestTransport, parseJsonResponse, ModelApiError } from '../backends/modelapi/transport'
+import {
+  RequestTransport,
+  parseJsonResponse,
+  ModelApiError,
+  isUserRefusal,
+} from '../backends/modelapi/transport'
 import { withDeadline } from '../timeouts'
 import { Usd } from '../../shared/usd'
 import {
@@ -272,7 +277,8 @@ export function createConfiguredProviderServices(
                 target.url.protocol !== 'http:',
               )
             }
-          } catch {
+          } catch (error: unknown) {
+            if (isUserRefusal(error) || signal.aborted) throw error
             // A pinned send can have reached the provider; retain its liability
             // and refuse an ambiguous retry, with no echoed diagnostic text.
             throw new ModelApiError(UI_TEXT.modelsPanelUnavailable, 0, undefined, undefined)
@@ -759,12 +765,7 @@ export function createConfiguredProviderServices(
             yield event
           }
         } catch (error) {
-          // A typed codec refusal (an unsupported reasoning effort and its
-          // localized reason) and the output-cap minimum refusal (MINOUT)
-          // reach the caller; genuinely unknown errors keep the generic
-          // unavailable error (lane FIXDSTHINK2 finding 3).
-          if (chat.isChatCodecError(error)) throw error
-          if (error instanceof RangeError) throw error
+          if (isUserRefusal(error) || signal.aborted) throw error
           return fail()
         } finally {
           if (presets.planKeyPresetById(entry.preset) !== undefined)

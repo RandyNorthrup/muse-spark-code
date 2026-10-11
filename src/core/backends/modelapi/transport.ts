@@ -196,6 +196,8 @@ export function isModelApiError(value: unknown): value is ModelApiError {
   )
 }
 
+export { isUserRefusal } from '../../refusal'
+
 /** Diagnostics cross the privacy boundary; executable/model content stays intact. */
 export function redactStreamDiagnostics(
   event: StreamEvent,

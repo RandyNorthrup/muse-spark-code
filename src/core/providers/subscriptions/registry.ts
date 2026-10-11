@@ -4,6 +4,7 @@ function isPlanModel(model: string): boolean {
 // M95b's subscription dispatch. Only the account catalogue chooses ChatGPT
 // models; neither tokens nor service error text cross the host bridge.
 import { createHash } from 'node:crypto'
+import { isUserRefusal } from '../../backends/modelapi/transport'
 import * as z from 'zod/mini'
 import type { ProviderClient } from '../../backends/modelapi/client'
 import {
@@ -219,6 +220,7 @@ export function createSubscriptionClient(
           if (adapter === undefined) throw new Error(UI_TEXT.actionFailed)
           const account = await deps.accountId()
           const guard = Object.assign(() => admitAttempt?.(account), {
+            ...admitAttempt,
             onRequestStarted: () => {
               isDispatched = true
               admitAttempt?.onRequestStarted?.()
@@ -242,7 +244,9 @@ export function createSubscriptionClient(
         const stop = new AbortController()
         const codec = createResponsesCodec({ profile: 'chatgpt', toolNamespace: 'functions' })
         const request = codec.encodeRequest({ ...body, model: ref.modelId })
-        admitAttempt?.(await deps.accountId())
+        const account = await deps.accountId()
+        await admitAttempt?.prepare?.()
+        admitAttempt?.(account)
         if (signal.aborted) throw signal.reason
         admitAttempt?.onRequestStarted?.()
         isDispatched = true
@@ -313,7 +317,7 @@ export function createSubscriptionClient(
           } else throw error
         }
       } catch (error) {
-        if (signal.aborted) throw error
+        if (isUserRefusal(error) || signal.aborted) throw error
         if (ref.providerId === 'copilot' && error instanceof Error) {
           yield { type: 'error', message: error.message }
           return
