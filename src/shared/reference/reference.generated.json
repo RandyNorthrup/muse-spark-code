@@ -142,6 +142,21 @@
       "editors": ["vscode", "acp"]
     },
     {
+      "id": "uploads",
+      "name": { "ui": "uploadsName" },
+      "summary": { "ui": "referenceUploadedFiles" },
+      "description": { "ui": "referenceUploadedFiles" },
+      "commands": ["museSpark.deleteUploadedFiles"],
+      "settings": ["museSpark.mediaUploadExpiryDays"],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#the-panel",
+      "backends": ["modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:modelApi", "acp:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode", "acp"]
+    },
+    {
       "id": "team-workers",
       "name": { "ui": "paidTeamWorkersName" },
       "summary": { "setting": "modelApiTeamWorkers" },

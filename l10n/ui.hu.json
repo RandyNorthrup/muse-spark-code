@@ -99,6 +99,7 @@
   "modelApiServiceFailure": "A szolgáltatás hibát jelzett. Ellenőrizze az állapotát, vagy próbálja újra.",
   "feedbackFailed": "A visszajelzést nem sikerült elküldeni.",
   "usagePageTitle": "Használat és költség",
+  "uploadsName": "Feltöltött fájlok",
   "paletteUsagePage": "Költségek, tokenek és korlátok követése minden szerkesztőben.",
   "openUsagePage": "Használati oldal megnyitása",
   "acpUsageDescription": "Az összes modell használatának és költségének megjelenítése, vagy a használati oldal megnyitása.",

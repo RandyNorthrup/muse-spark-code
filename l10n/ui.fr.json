@@ -99,6 +99,7 @@
   "modelApiServiceFailure": "Le service a renvoyé une erreur. Vérifiez son état ou réessayez.",
   "feedbackFailed": "Impossible d’envoyer le retour.",
   "usagePageTitle": "Utilisation et coût",
+  "uploadsName": "Fichiers téléversés",
   "paletteUsagePage": "Suivre les coûts, les jetons et les limites dans tous les éditeurs.",
   "openUsagePage": "Ouvrir la page d’utilisation",
   "acpUsageDescription": "Afficher l’utilisation et le coût de tous les modèles, ou ouvrir la page d’utilisation.",

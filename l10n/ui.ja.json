@@ -99,6 +99,7 @@
   "modelApiServiceFailure": "サービスがエラーを返しました。状態を確認するか、再試行してください。",
   "feedbackFailed": "フィードバックを送信できませんでした。",
   "usagePageTitle": "使用量と費用",
+  "uploadsName": "アップロード済みファイル",
   "paletteUsagePage": "各エディターの費用、トークン、上限を追跡します。",
   "openUsagePage": "使用量ページを開く",
   "acpUsageDescription": "モデル全体の使用量と費用を表示するか、使用量ページを開きます。",

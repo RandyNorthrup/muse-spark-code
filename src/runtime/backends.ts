@@ -235,6 +235,28 @@ interface MuseHomes {
   readonly xdgDataHome: string | undefined
 }
 
+/**
+ * A Files-capable client over the pinned transport: the stored key, read
+ * per use and never handed to a child process. Shared by the session
+ * store's upload binding and the /uploads port.
+ */
+function newFilesClient(input: {
+  readonly fetch: typeof fetch
+  readonly apiKey: () => Promise<string | undefined>
+  readonly sleep: (ms: number) => Promise<void>
+  readonly log: Logger
+}): ModelApiClient {
+  return new ModelApiClient({
+    fetch: input.fetch,
+    baseUrl: MODEL_API_BASE_URL,
+    apiKey: input.apiKey,
+    sleep: input.sleep,
+    now: () => Date.now(),
+    random: () => Math.random(),
+    log: input.log,
+  })
+}
+
 function modelApiManager(
   deps: RuntimeBackendDeps,
   credentials: CredentialStore,
@@ -340,13 +362,10 @@ function modelApiManager(
   // never handed to a child process.
   let filesClientValue: ModelApiClient | undefined
   const filesClient = () =>
-    (filesClientValue ??= new ModelApiClient({
+    (filesClientValue ??= newFilesClient({
       fetch: deps.fetch,
-      baseUrl: MODEL_API_BASE_URL,
       apiKey: () => credentials.getApiKey(),
       sleep: deps.sleep,
-      now: () => Date.now(),
-      random: () => Math.random(),
       log,
     }))
   // Production media ledger and calibration (MONEY017D, D85.2/D85.6); the
@@ -830,6 +849,13 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     return key === undefined ? undefined : createHash('sha256').update(key).digest('hex')
   }
   let uploadsClient: ModelApiClient | undefined
+  const uploadsFilesClient = () =>
+    (uploadsClient ??= newFilesClient({
+      fetch: deps.fetch,
+      apiKey: () => credentials.getApiKey(),
+      sleep: deps.sleep,
+      log: deps.log,
+    }))
   const uploads: AcpUploadsPort = createUploadedFilesPort({
     ledger: async (): Promise<UploadLedger | undefined> => {
       if (agentUploadLedgerDir === undefined) return undefined
@@ -840,16 +866,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
       return await media.createSessionUploads({
         uploadLedgerDir: agentUploadLedgerDir,
         currentAccountId: uploadsAccountId,
-        filesClient: () =>
-          (uploadsClient ??= new ModelApiClient({
-            fetch: deps.fetch,
-            baseUrl: MODEL_API_BASE_URL,
-            apiKey: () => credentials.getApiKey(),
-            sleep: deps.sleep,
-            now: () => Date.now(),
-            random: () => Math.random(),
-            log: deps.log,
-          })),
+        filesClient: uploadsFilesClient,
         expiryDays: () => SETTING_DEFAULTS.mediaUploadExpiryDays,
       })(accountId)
     },

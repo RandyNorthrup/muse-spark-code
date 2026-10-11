@@ -99,6 +99,7 @@
   "modelApiServiceFailure": "Hizmet bir hata döndürdü. Durumunu kontrol edin veya yeniden deneyin.",
   "feedbackFailed": "Geri bildirim gönderilemedi.",
   "usagePageTitle": "Kullanım ve maliyet",
+  "uploadsName": "Yüklenen dosyalar",
   "paletteUsagePage": "Tüm düzenleyicilerde maliyetleri, belirteçleri ve sınırları izleyin.",
   "openUsagePage": "Kullanım sayfasını aç",
   "acpUsageDescription": "Tüm modellerin kullanımını ve maliyetini gösterin veya kullanım sayfasını açın.",

@@ -4,23 +4,9 @@ import {
   emptyUploadedFilesReport,
 } from '../../src/core/media/uploadedFiles'
 import { uploadedFilesReportSchema } from '../../src/shared/media'
+import { fakeUploadedFilesLedger, uploadedFilesReportFixture } from './helpers/uploadedFiles'
 
-const report = {
-  provider: 'meta',
-  isReadOnly: false,
-  poolBytes: 100,
-  usedBytes: 3,
-  files: [
-    {
-      fileId: 'file-one',
-      name: 'clip.mp4',
-      bytes: 3,
-      expiresAt: 1_800_000_000,
-      ours: true,
-      sessions: ['s1'],
-    },
-  ],
-}
+const report = uploadedFilesReportFixture()
 
 function setup(ledger: unknown) {
   const post = vi.fn()
@@ -35,12 +21,7 @@ function setup(ledger: unknown) {
 
 describe('uploaded-files port', () => {
   it('reads the ledger report and posts it back validated', async () => {
-    const ledger = {
-      accountReport: vi.fn(() => Promise.resolve(report)),
-      deleteFile: vi.fn(() => Promise.resolve()),
-      deleteAllOurs: vi.fn(() => Promise.resolve()),
-    }
-    const t = setup(ledger)
+    const t = setup(fakeUploadedFilesLedger(report))
     expect(await t.port.read()).toEqual(report)
     t.port.post(report)
     expect(t.post).toHaveBeenCalledWith(report)
@@ -50,11 +31,7 @@ describe('uploaded-files port', () => {
   })
 
   it('deletes the chosen files through the ledger and confirms foreign ones outside it', async () => {
-    const ledger = {
-      accountReport: vi.fn(() => Promise.resolve(report)),
-      deleteFile: vi.fn(() => Promise.resolve()),
-      deleteAllOurs: vi.fn(() => Promise.resolve()),
-    }
+    const ledger = fakeUploadedFilesLedger(report)
     const t = setup(ledger)
     const confirmed = vi.fn(() => Promise.resolve(true))
     await t.port.deleteFile('file-one', confirmed)
@@ -78,11 +55,8 @@ describe('uploaded-files port', () => {
   })
 
   it('lets a failed provider delete reach the caller with its reason', async () => {
-    const ledger = {
-      accountReport: vi.fn(() => Promise.resolve(report)),
-      deleteFile: vi.fn(() => Promise.reject(new Error('Offline'))),
-      deleteAllOurs: vi.fn(() => Promise.resolve()),
-    }
+    const ledger = fakeUploadedFilesLedger(report)
+    ledger.deleteFile.mockRejectedValueOnce(new Error('Offline'))
     const t = setup(ledger)
     await expect(t.port.deleteFile('file-one', () => Promise.resolve(true))).rejects.toThrow(
       'Offline',

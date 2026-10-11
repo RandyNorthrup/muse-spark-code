@@ -99,6 +99,7 @@
   "modelApiServiceFailure": "Usługa zwróciła błąd. Sprawdź jej stan lub spróbuj ponownie.",
   "feedbackFailed": "Nie udało się wysłać opinii.",
   "usagePageTitle": "Użycie i koszty",
+  "uploadsName": "Przesłane pliki",
   "paletteUsagePage": "Śledź koszty, tokeny i limity we wszystkich edytorach.",
   "openUsagePage": "Otwórz stronę użycia",
   "acpUsageDescription": "Pokaż użycie i koszty wszystkich modeli lub otwórz stronę użycia.",

@@ -4,7 +4,8 @@
 // deletions with a modal; the runtime answers through ACP. A missing ledger
 // (no storage, no account) reads as an empty read-only report and deletes
 // nothing; it never throws, so the command says so instead.
-import { MEDIA_PROVIDER_POOL_BYTES } from '../../shared/constants'
+import { MEDIA_PROVIDER_POOL_BYTES, MILLISECONDS_PER_SECOND, UI_TEXT } from '../../shared/constants'
+import { fill, formatDateTime } from '../../shared/l10n/text'
 import { uploadedFilesReportSchema, type UploadedFilesReport } from '../../shared/media'
 import type { UploadLedger } from './uploadLedger'
 
@@ -26,6 +27,15 @@ export interface UploadedFilesPort {
   ): Promise<void>
   deleteAllOurs(): Promise<void>
   confirmForeign(question: string): Promise<boolean>
+}
+
+/** One file's expiry in words, shared by every surface listing the ledger. */
+export function uploadExpiryText(expiresAt: number | undefined): string {
+  return expiresAt === undefined
+    ? UI_TEXT.media.fileNoExpiry
+    : fill(UI_TEXT.media.fileExpiry, {
+        expiry: formatDateTime(expiresAt * MILLISECONDS_PER_SECOND),
+      })
 }
 
 /** The empty report a missing ledger reads as: nothing listed, nothing deletable. */

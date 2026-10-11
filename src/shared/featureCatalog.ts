@@ -372,6 +372,17 @@ export function featureCatalog(): readonly Feature[] {
       ['vscode', 'acp'],
     ),
     feature(
+      'uploads',
+      { ui: 'uploadsName' },
+      { ui: 'referenceUploadedFiles' },
+      ['deleteUploadedFiles'],
+      ['mediaUploadExpiryDays'],
+      'the-panel',
+      ['modelApi'],
+      false,
+      ['vscode', 'acp'],
+    ),
+    feature(
       'team-workers',
       { ui: 'paidTeamWorkersName' },
       { setting: 'modelApiTeamWorkers' },

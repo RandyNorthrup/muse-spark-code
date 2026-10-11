@@ -36,6 +36,7 @@ import { AttachmentStore } from '../../core/attachments'
 import type { MediaAttachmentPort } from '../media/mediaAttach'
 import type { RecordingCommandDeps } from '../media/screenRecordBundle'
 import type { ScreenRecordingPreview } from '../../core/media/record/driver'
+import type { UploadedFilesPort } from '../../core/media/uploadedFiles'
 import { isProtectedPath } from '../../core/protectedPaths'
 import {
   type AgentHost,
@@ -224,7 +225,7 @@ import type {
 import type { UsageInsightsReport } from '../../runtime/usage/traceLogs'
 import type { EstimateInputs } from '../../shared/estimate'
 import type { EstimatorRun } from '../estimator/estimatorBundle'
-import { uploadedFilesReportSchema, type UploadedFilesReport } from '../../shared/media'
+import { uploadedFilesReportSchema } from '../../shared/media'
 import type { AuthPort } from '../auth/authService'
 import type { CheckpointPort } from '../checkpoints/checkpointHost'
 import type { DescribedFile, EditReviewActions, ReviewNotice } from '../editor/editReview'
@@ -704,17 +705,12 @@ export interface ConversationDeps {
   readonly log: Logger
 }
 
-/** Lane W supplies the validated webview/MHP messages and the account-scoped ledger. */
-export interface ConversationUploadedFilesPort {
-  read(): Promise<unknown>
-  post(report: UploadedFilesReport): void
-  deleteFile(
-    fileId: string,
-    isForeignDeletionConfirmed: (name: string) => Promise<boolean>,
-  ): Promise<void>
-  deleteAllOurs(): Promise<void>
-  confirmForeign(question: string): Promise<boolean>
-}
+/**
+ * The conversation's uploaded-files port (M105 lane F): one core shape over
+ * the account ledger, bound per host. Lane W supplies the validated
+ * webview/MHP messages and the account-scoped ledger.
+ */
+export type ConversationUploadedFilesPort = UploadedFilesPort
 
 const IDLE_STATUS = 'idle'
 const NOOP_STATUS = 'noop'
