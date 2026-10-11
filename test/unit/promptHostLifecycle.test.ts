@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { mkdtemp, rm, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { tmpdir } from 'node:os'
+import type * as Os from 'node:os'
 import { runInNewContext } from 'node:vm'
 import { transformSync } from 'esbuild'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -12,7 +13,13 @@ import { createPromptHost, type PromptActivationPorts } from '../../src/host/pro
 import { SurfaceRegistry } from '../../src/host/views/surfaceRegistry'
 import { PromptStore } from '../../src/core/prompts/promptStore'
 import { EN } from '../../src/shared/l10n/en'
-import { PROMPT_SYNC_KEY, PROMPT_SYNC_SETTING, SETTINGS_SECTION } from '../../src/shared/constants'
+import {
+  PROMPT_LIMITS,
+  PROMPT_COMMAND_IDS,
+  PROMPT_SYNC_KEY,
+  PROMPT_SYNC_SETTING,
+  SETTINGS_SECTION,
+} from '../../src/shared/constants'
 import { savedPromptFixture } from './helpers/sharingFixtures'
 import { inform, pickOne } from './helpers/vscodeViews'
 import { fakeSurface } from './helpers/fakes'
@@ -37,6 +44,11 @@ vi.mock('vscode', async (importOriginal) => {
         Promise.resolve({ getText: () => content }),
     },
   }
+})
+// Keep the common-account regression deterministic on every rig.
+vi.mock('node:os', async (importOriginal) => {
+  const actual = await importOriginal<typeof Os>()
+  return { ...actual, userInfo: () => ({ username: 'user' }) }
 })
 const roots: string[] = []
 const contexts: PromptActivationPorts['context'][] = []
@@ -87,6 +99,102 @@ async function rig() {
 }
 
 describe('M118 prompt host lifecycle', () => {
+  it.each([
+    {
+      action: 'saveDraft',
+      payload: {
+        draft: {
+          title: 'Public',
+          body: 'x'.repeat(PROMPT_LIMITS.body + 1),
+          tags: [],
+          scope: 'user',
+        },
+      },
+      reason: EN.promptLimits,
+    },
+    {
+      action: 'saveDraft',
+      payload: { draft: { title: '', body: 'Public', tags: [], scope: 'user' } },
+      reason: EN.promptLimits,
+    },
+    {
+      action: 'saveDraft',
+      payload: { draft: { title: 'Public', body: 'Public', tags: [], scope: 'unsupported' } },
+      reason: EN.promptFileInvalid,
+    },
+    ...[
+      'remove',
+      'duplicate',
+      'insert',
+      'importPreview',
+      'acceptImport',
+      'confirmPromptShare',
+      'shareText',
+      'saveHistory',
+    ].map((action) => ({ action, payload: {}, reason: EN.promptFileInvalid })),
+  ])('keeps defined panel input refusals for $action', async ({ action, payload, reason }) => {
+    const t = await rig()
+    const host = createPromptHost(t.ports, EN, 'en')
+    await host.handle(t.surface, { type: 'sharingAction', id: 'invalid', action, payload })
+    expect(t.post).toHaveBeenCalledWith({
+      type: 'sharingResult',
+      id: 'invalid',
+      value: undefined,
+      error: reason,
+    })
+    expect(t.ports.log.warn).not.toHaveBeenCalled()
+  })
+  it('sanitises the actual Prompt Library command and logs only the root fault name', async () => {
+    const t = await rig()
+    control.isSyncOn = true
+    t.get.mockImplementationOnce(() => {
+      throw new TypeError('/home/someone/private sentinel-library-fault')
+    })
+    const host = createPromptHost(t.ports, EN, 'en')
+    await expect(host.run(PROMPT_COMMAND_IDS.library)).rejects.toThrow(EN.actionFailed)
+    expect(t.ports.log.warn).toHaveBeenCalledWith(expect.stringContaining('TypeError'))
+    expect(JSON.stringify(vi.mocked(t.ports.log.warn).mock.calls)).not.toMatch(
+      /someone|sentinel-library-fault/,
+    )
+    expect(t.post).not.toHaveBeenCalled()
+  })
+  it('retries failed initialization through the actual Prompt Library command', async () => {
+    const t = await rig()
+    control.isSyncOn = true
+    t.get
+      .mockImplementationOnce(() => {
+        throw new TypeError('failed mirror')
+      })
+      .mockReturnValue([])
+    const host = createPromptHost(t.ports, EN, 'en')
+    await expect(host.run(PROMPT_COMMAND_IDS.library)).rejects.toThrow()
+    await expect(host.run(PROMPT_COMMAND_IDS.library)).resolves.toBeUndefined()
+    expect(t.get).toHaveBeenCalledTimes(2)
+    expect(t.post).toHaveBeenCalledWith({ type: 'openSharing', surface: 'prompts' })
+  })
+  it('retries panel initialization and logs the original fault by name', async () => {
+    const t = await rig()
+    control.isSyncOn = true
+    t.get
+      .mockImplementationOnce(() => {
+        throw new TypeError('/private/panel sentinel-panel')
+      })
+      .mockReturnValue([])
+    const host = createPromptHost(t.ports, EN, 'en')
+    const message = { type: 'sharingAction' as const, id: 'list', action: 'list', payload: {} }
+    await host.handle(t.surface, message)
+    expect(t.post).toHaveBeenCalledWith(expect.objectContaining({ error: EN.actionFailed }))
+    expect(t.ports.log.warn).toHaveBeenCalledWith(expect.stringContaining('TypeError'))
+    expect(JSON.stringify(vi.mocked(t.ports.log.warn).mock.calls)).not.toMatch(
+      /private|sentinel-panel/,
+    )
+    t.post.mockClear()
+    await host.handle(t.surface, message)
+    expect(t.post).toHaveBeenCalledWith(
+      expect.objectContaining({ value: expect.objectContaining({ prompts: [] }) }),
+    )
+    expect(t.get).toHaveBeenCalledTimes(2)
+  })
   it('cancels a prompt release while the Save dialog is open on the same active chat', async () => {
     const t = await rig()
     const host = createPromptHost(t.ports, EN, 'en')

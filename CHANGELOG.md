@@ -89,7 +89,12 @@ happened, not what was planned; superseded entries are kept.
   could-not-complete reason (never as a prompt-file error), and the
   underlying fault is logged server-side by name — never a path or prompt
   text. Defined refusals (an empty chat, an unreadable prompt store, a bad
-  prompt file) keep their own sentences on every surface.
+  prompt file) keep their own sentences on every surface. Malformed imports,
+  unsupported prompt schemas, editable prompt limits and headless argument
+  refusals now retain their localized reason. The native Prompt Library and
+  panel retry failed initialization safely. Export scrubbing recognizes OS
+  usernames in paths and identity fields, preserving ordinary words and
+  personal-prompt metadata even for usernames such as `user`, `admin` and `test`.
 
 - On macOS 26, a process that `ps` lists with an unknown state (`?`) while
   it changes no longer voids every resource tree's membership read, which

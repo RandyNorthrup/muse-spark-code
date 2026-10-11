@@ -308,20 +308,126 @@ account service through `accountRequestError`; sharing shaped bad arguments
 restored to `internalError` failed the auth test; `exportNothing` removed
 failed the empty-share test; both restored byte-exact.
 
+## Round 5 — all RVDFACPERR4 findings repaired (4 P2, 1 P3), 2026-10-10
+
+Base `9945d153f`, same worktree and branch, directly on macmini. No new
+command, setting, localization key, dependency, wire shape or model call.
+The rig brief reserves the aggregate quality run for the lead; this lane
+runs the required targeted suites and static/build gates directly.
+
+| Finding                              | Fix and sibling sweep                                                                                                                                                                                                                                                                                                                                                                                                                              | Regression                                                                                                                                                                                                                                                                                                                                                                            | Red drill          |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
+| P2 invalid-file/limit classification | `shared/prompts.ts` classifies malformed JSON, strict metadata/schema and body-variable mismatches as `promptFileInvalid`. `PromptImporter` classifies invalid sources; `PromptLibrary.prepare` preserves title/body limits and rejects invalid draft shapes. Prompt-panel schemas classify caller input before their internal catch. File and stdin readers classify only Node's defined malformed UTF-8 error; unrelated errors still propagate. | `promptEntry`: native malformed JSON, unsupported schema, inconsistent variables, UTF-8 and oversized composer text, with installed French reasons; `promptHostLifecycle`: draft and panel input refusals; `promptImport`: invalid source; `runtimeSharing`: UTF-8 stdin.                                                                                                             | R5-D1–D5, R5-D10   |
+| P2 native Library privacy/retry      | All command/panel initialization uses `hostCommands`, which evicts only its own rejected promise. The actual `createPromptHost.run(PROMPT_COMMAND_IDS.library)` route sanitizes failures and logs the original cause by name. The panel uses the same initialization retry and logs once at its sanitizing boundary.                                                                                                                               | `promptHostLifecycle`: actual native Library sanitization and retry, plus panel fault logging and retry; existing cached-command locale regression remains.                                                                                                                                                                                                                           | R5-D6–D8           |
+| P2 headless argument honesty         | `runRuntimeSharing` preserves typed `SharingArgumentError` before the unexpected-fault fallback, for every flag classified by the shared command engine.                                                                                                                                                                                                                                                                                           | `runtimeSharing`: invalid `--exported-at` and empty `--attachment-content` retain their French flag-specific reason, with zero backend reads/warnings.                                                                                                                                                                                                                                | R5-D9              |
+| P2 common-username export failure    | Prompt and chat adapters share `scrubUserIdentity`: ordinary words and structural fields stay intact; full path segments and explicit identity fields are scrubbed. Neighbor filenames such as `test-guide` and `prefix.test` stay intact. Registered-secret checks still cover the complete final serialization.                                                                                                                                  | `promptImport`: actual file release/metadata round trip for `user`, `admin`, `test`, `randy.northrup`, and a newly registered structural secret; both privacy suites cover identity fields, POSIX/Windows paths, name boundaries and escaped regex characters. `promptHostLifecycle` retains the real Save-dialog cancellation regression and pins username `user` on every platform. | R5-D11–D14, R5-D16 |
+| P3 certification scope               | Corrected the lead note: cause-aware logging applies to sharing/prompt catches; legal/vault catches use `failureForLog` on the outer error; installation loaders keep their existing path/load diagnostics. Removed the obsolete residual-timeout claim.                                                                                                                                                                                           | `logText`: wrapped faults return `TypeError` at cause-aware sites and `Error` through the legacy reader, without the personal message. Existing loader and ACP tests verify their actual contracts.                                                                                                                                                                                   | R5-D15             |
+
+Baseline regressions reproduced all four production findings: three malformed
+import cases and a composer limit returned `actionFailed`; the native Library
+leaked its raw mirror error and cached the rejection; both typed headless
+flags lost their reason; all four ordinary account-name exports changed text.
+The unchanged Save-dialog cancellation test, with username `user`, timed out
+at the repository's five-second deadline before the privacy repair and passes
+afterward. A second privacy sweep reproduced eight partial-segment failures
+before tightening the segment boundary. No deadline was raised.
+
+The unchanged zero-duplication gate also fired on eight test-fixture clones,
+four inherited in ACP sharing and four in runtime sharing. Consolidated setup
+and privacy assertions in those owning suites, retaining every wire code,
+message, cause, backend/release fence and negative privacy assertion. The
+second cleanup removed the last remaining clone; the gate reports zero.
+
+### Round 5 deliberate red/restored receipts
+
+Every command below ran whole test files, at most three per run, with
+`--maxWorkers=3` and repository deadlines. Each mutation produced exit 1 at
+the named regression; restoration used the saved bytes in `finally`, and
+SHA-256 before/after matched. R5-D11–D14 precede the additional complete-path
+segment refinement; R5-D16 verifies that final refinement separately.
+R5-D9, R5-D10 and R5-D16 were replayed after the final lint cleanup;
+their receipts below are those final byte-exact restorations.
+
+| Drill                   | Deliberate break / named failing regression                                            | Restored SHA-256                                                   |
+| ----------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| R5-D1-file              | Restore raw JSON/zod parsing → native malformed-import refusal                         | `997d08218d4c73e45b5832d1bce16bd4bcf7d32f22c08e4cd7c63dcdbad8a913` |
+| R5-D2-draft             | Restore raw draft parsing → oversized-composer localized limit                         | `895835961b1373a04381078975dd3e0f076b6c150c4bb8c26504d5fab8d92226` |
+| R5-D3-panel             | Replace panel input reasons with actionFailed → defined saveDraft/input refusals       | `31faa7286774c04db4582d6f3e4d802187647fb36756933ebac95efd00945d2d` |
+| R5-D4-source            | Replace invalid import-source reason → malformed/oversized import inputs               | `000c8f7776f8d5c9c3a2e24b429c14af614f2389f6e48d529a7511ce14e58c65` |
+| R5-D5-file-encoding     | Disable the known UTF-8 classification → native invalid UTF-8 import                   | `26771ec72015d159ffdfc90b4530d908d7260632d904c8f85a132f6e100e2cc9` |
+| R5-D6-native-catch      | Rethrow the raw native Library initialization error → actual Library sanitization      | `09f3ffb7815e0ece47698268265e020a5f4b3398152b3536a268b063c09431ed` |
+| R5-D7-eviction          | Remove rejected-promise eviction → actual Library and panel retries                    | `09f3ffb7815e0ece47698268265e020a5f4b3398152b3536a268b063c09431ed` |
+| R5-D8-panel-log         | Drop the panel logger → original root-fault-name assertion                             | `09f3ffb7815e0ece47698268265e020a5f4b3398152b3536a268b063c09431ed` |
+| R5-D9-typed-argument    | Disable typed argument recognition → localized exported-at/attachment-content refusals | `4d04c072c7ca99d2830265ea04bd0405c04ed32f40904c3cd58ac8ec30c13b0c` |
+| R5-D10-stdin-encoding   | Disable the known stdin UTF-8 classification → malformed UTF-8 stdin refusal           | `4d04c072c7ca99d2830265ea04bd0405c04ed32f40904c3cd58ac8ec30c13b0c` |
+| R5-D11-ordinary-words   | Restore whole-word replacement → ordinary personal exports for all four usernames      | `5535c8728b475eb98ba294c1cbc8ddf0eb4e6ed4581804cba66247d7e6548bd1` |
+| R5-D12-path-segments    | Remove path-segment replacement → prompt/chat path privacy regressions                 | `5535c8728b475eb98ba294c1cbc8ddf0eb4e6ed4581804cba66247d7e6548bd1` |
+| R5-D13-identity         | Remove identity-field replacement → prompt/chat identity privacy regressions           | `5535c8728b475eb98ba294c1cbc8ddf0eb4e6ed4581804cba66247d7e6548bd1` |
+| R5-D14-escaping         | Remove username regex escaping → literal-metacharacter privacy regressions             | `5535c8728b475eb98ba294c1cbc8ddf0eb4e6ed4581804cba66247d7e6548bd1` |
+| R5-D15-log-scope        | Log the wrapper instead of the root → cause-aware vs legacy root-name regression       | `9db3a54e9a9bb8aa7d1844ce3336c5f0fa2abe57d8930d8a3a635de1731e422f` |
+| R5-D16-complete-segment | Remove complete-segment admission → ordinary neighboring filename regressions          | `9ed930f2dd320af0e106176f5b32872375c5c11f9e6ccca1ef6cb61c79d48827` |
+
+### Round 5 final test receipt
+
+Whole files, directly on macmini, repository timeouts, no `--testTimeout`,
+no skipped or filtered cases:
+
+| Files passed to `npx vitest run … --maxWorkers=3`              |  Passed |
+| -------------------------------------------------------------- | ------: |
+| `promptEntry`, `promptHostLifecycle`, `runtimeSharing`         |      40 |
+| `promptImport`, `promptPrivacy`, `chatShareScrub`              |      37 |
+| `prompts`, `logText`, `acpSharing`                             |      77 |
+| `acpAgent`, `acpVault`, `acpAccounts`                          |     202 |
+| `promptNative`, `promptStore`, `promptWorkspaceIntegration`    |      20 |
+| `chatShareRange`, `chatShareFilter`, `chatShareFormats`        |      17 |
+| `chatShareRelease`, `chatShareDestinations`, `chatSharingHost` |      19 |
+| **Total: 21 files**                                            | **412** |
+
+All names above resolve to `test/unit/<name>.test.ts`. `acpAgent` passes
+150/150, including ChatGPT actions. The native Library/panel regressions,
+UTF-8 refusals and the common-account Save-dialog cancellation case all
+pass at the repository's five-second macOS deadline. The two aliases in
+runtime sharing pass. No review finding remains open.
+
+### Round 5 gates and delivery
+
+- `npm run typecheck`: exit 0 across all five projects on the final source.
+- Targeted `npx eslint --max-warnings=0`: exit 0 across every changed TS file.
+- `npx prettier --check` on all changed files and `git diff --check`: exit 0.
+- `npm run deadcode`: exit 0 using plain knip; its two existing configuration
+  hints remain unchanged. `npx jscpd`: zero clones, unchanged zero threshold.
+- `npm run check:l10n`: 14 UI tables, 14 usage tables, 0 problems.
+- `npm run check:host-api`: 375 APIs, 48 VS Code-importing files, 0 problems.
+- `npm run check:reference`: 77 features, 71 commands, 100 settings,
+  29 slash commands and 257 CLI entries, current; sharing catalog matches.
+- `node scripts/check-plan.mjs PLAN.md DFACPERR`: built.
+  Roadmap regenerated; `npm run check:roadmap`: exit 0, 208 entries current.
+- `npm run build`: exit 0, including token, size, split, host-global and
+  notice checks. Extension 550.1/600 KiB; prompts 163.5/200 KiB;
+  sharing runtime 162.3/175 KiB. Every existing budget is retained.
+- No visual/style change, new feature/command/setting, dependency install,
+  live/paid model call, credential access, branch merge, push or rebase.
+  All tests are local fakes or owned local-file operations; model attempts 0.
+  The rig brief reserves `npm run quality` for the lead.
+
 ## Notes for the lead
 
-- The `-32603` message for unexpected sharing, prompt and headless faults is
-  the fixed `actionFailed` sentence (same on the CLI surface); for
-  legal/vault faults it is also `actionFailed`. Every such sentence says the
-  log has the details, and every site logs the underlying fault's name
-  server-side via `internalFaultForLog` (a name only, never raw text).
+- The `-32603` message for unexpected sharing, prompt and headless faults
+  is the fixed `actionFailed` sentence. Cause-aware names-only logging via
+  `internalFaultForLog` applies to the ACP sharing catch, headless sharing
+  boundary, and editor prompt command/panel catches. Legal/vault catches
+  also return `actionFailed`, but use `failureForLog`, which names the outer
+  error and does not traverse its cause. The two installation loaders use
+  `lazyBundleLoader`: its own diagnostic includes the installation path
+  and load-error message. Those loader diagnostics are outside the
+  cause-aware names-only contract; round 4 did not change their logger.
 - Future `instanceof AcpSharingFailure` outside its own bundle would miss
   silently; the guard and the bundled-copy test carry this. Not added to
   the eslint `instanceof` rule (brief: no widened guards).
-- Pre-existing failures left open (verified on pristine lane HEAD
-  `153a2ca04` in a temporary worktree, since removed): the ChatGPT actions
-  test in acpAgent.test.ts (authenticate flow) and two 5 s-timeout tests in
-  promptHostLifecycle.test.ts (this rig). The round-2/round-3 `aliased
-workspace` pair in runtimeSharing.test.ts now passes here: its failure was
-  this sandbox's missing passwd entry (`os.userInfo()` throws `SystemError`),
-  and the file now pins the user name.
+- The previously reported ACP ChatGPT-actions failure and prompt host
+  lifecycle timeouts are not residual findings: RVDFACPERR4 passed the
+  ChatGPT-actions test and identified the Save-dialog timeout as the common
+  username collision fixed in round 5. Round 5 reruns the complete owning
+  suites with repository deadlines and pins `user` for that lifecycle case.
+  The runtime aliased-workspace pair pins its account name because workers
+  without a passwd entry cannot call `os.userInfo()` successfully.

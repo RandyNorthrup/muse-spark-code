@@ -71,7 +71,18 @@ export class PromptLibrary {
 
   /** Prepare ephemeral shares without storing the message or composer text. */
   public prepare(input: PromptDraft, existing?: SavedPrompt): SavedPrompt {
-    const draft = promptDraftSchema.parse(input)
+    const parsed = promptDraftSchema.safeParse(input)
+    if (!parsed.success)
+      throw new Error(
+        parsed.error.issues.every(
+          (issue) =>
+            (issue.path[0] === 'title' || issue.path[0] === 'body') &&
+            issue.code !== 'invalid_type',
+        )
+          ? UI_TEXT.promptLimits
+          : UI_TEXT.promptFileInvalid,
+      )
+    const draft = parsed.data
     const now = this.identity.now()
     const names = promptVariableNames(draft.body)
     const prompt = validatePrompt({

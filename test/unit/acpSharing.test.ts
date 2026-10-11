@@ -82,6 +82,49 @@ async function refusedWire(
   return undefined
 }
 
+/** The adapter's direct failure before the engine turns it into a RequestError. */
+async function adapterShareFailure(port: AcpSharingPort): Promise<unknown> {
+  try {
+    await port.execute('/share chat', {
+      cwd: SHARING_CWD,
+      sessionId: 's',
+      isActive: () => true,
+      signal: new AbortController().signal,
+    })
+  } catch (error: unknown) {
+    return error
+  }
+  return undefined
+}
+
+function expectAdapterFailure(
+  failure: unknown,
+  expected: { code: number; message: unknown },
+): void {
+  expect(isAcpSharingFailure(failure)).toBe(true)
+  expect(failure).toMatchObject(expected)
+}
+
+function expectPrivateInternalFailure(failure: unknown, privateTexts: readonly string[]): void {
+  expect(failure).toMatchObject({
+    code: acp.RequestError.internalError().code,
+    message: expect.stringContaining(UI_TEXT.actionFailed),
+  })
+  const wire = JSON.stringify(failure)
+  for (const value of [...privateTexts, UI_TEXT.promptFileInvalid])
+    expect(wire).not.toContain(value)
+}
+
+function expectSharingFaultLog(
+  log: ReturnType<typeof acpHarness>['log'],
+  privateTexts: readonly string[],
+): void {
+  expect(log.warn).toHaveBeenCalledWith(expect.stringContaining('sharing command failed'))
+  expect(log.warn).toHaveBeenCalledWith(expect.stringContaining('TypeError'))
+  const logged = JSON.stringify(log.warn.mock.calls)
+  for (const value of ['AcpSharingFailure', ...privateTexts]) expect(logged).not.toContain(value)
+}
+
 /** A sharing prompt refused without a model turn, release or backend call. */
 async function refusedPrompt(
   text: string,
@@ -327,19 +370,8 @@ describe('M118 ACP local commands over the SDK prompt path', () => {
       const local = sharingHarness()
       local.renderPreview.mockRejectedValueOnce(new Error(UI_TEXT.exportNothing))
       const port = createAcpSharing(local.commands, () => local.ui)
-      let failure: unknown
-      try {
-        await port.execute('/share chat', {
-          cwd: SHARING_CWD,
-          sessionId: 's',
-          isActive: () => true,
-          signal: new AbortController().signal,
-        })
-      } catch (error: unknown) {
-        failure = error
-      }
-      expect(isAcpSharingFailure(failure)).toBe(true)
-      expect(failure).toMatchObject({
+      const failure = await adapterShareFailure(port)
+      expectAdapterFailure(failure, {
         code: acp.RequestError.invalidRequest().code,
         message: expect.stringContaining(UI_TEXT.exportNothing),
       })
@@ -387,45 +419,23 @@ describe('M118 ACP local commands over the SDK prompt path', () => {
       const h = acpHarness(createAcpSharing(local.commands, () => local.ui))
       await h.run(async (client, sessionId) => {
         const failure = await refusedWire(client, sessionId, '/share chat')
-        expect(failure).toMatchObject({
-          code: acp.RequestError.internalError().code,
-          message: expect.stringContaining(UI_TEXT.actionFailed),
-        })
-        const wire = JSON.stringify(failure)
-        expect(wire).not.toContain('/home/someone')
-        expect(wire).not.toContain('sentinel-prompt-text')
-        expect(wire).not.toContain(UI_TEXT.promptFileInvalid)
+        expectPrivateInternalFailure(failure, ['/home/someone', 'sentinel-prompt-text'])
       })
       expect(local.release).not.toHaveBeenCalled()
-      expect(h.log.warn).toHaveBeenCalledWith(expect.stringContaining('sharing command failed'))
-      // The log names the underlying fault, not the adapter's wrapper.
-      expect(h.log.warn).toHaveBeenCalledWith(expect.stringContaining('TypeError'))
-      expect(JSON.stringify(h.log.warn.mock.calls)).not.toContain('AcpSharingFailure')
-      expect(JSON.stringify(h.log.warn.mock.calls)).not.toContain('/home/someone')
-      expect(JSON.stringify(h.log.warn.mock.calls)).not.toContain('sentinel-prompt-text')
+      expectSharingFaultLog(h.log, ['/home/someone', 'sentinel-prompt-text'])
     })
     it('carries the original fault as cause on an internal sharing failure', async () => {
       const fault = new TypeError('lstat failed under /home/someone/private')
       const local = sharingHarness()
       local.renderPreview.mockRejectedValueOnce(fault)
       const port = createAcpSharing(local.commands, () => local.ui)
-      let failure: unknown
-      try {
-        await port.execute('/share chat', {
-          cwd: SHARING_CWD,
-          sessionId: 's',
-          isActive: () => true,
-          signal: new AbortController().signal,
-        })
-      } catch (error: unknown) {
-        failure = error
-      }
-      expect(isAcpSharingFailure(failure)).toBe(true)
-      expect(failure).toMatchObject({
+      const failure = await adapterShareFailure(port)
+      expectAdapterFailure(failure, {
         code: acp.RequestError.internalError().code,
         message: UI_TEXT.actionFailed,
       })
-      expect((failure as Error).cause).toBe(fault)
+      if (!isAcpSharingFailure(failure)) throw new Error('Missing sharing failure')
+      expect(failure.cause).toBe(fault)
     })
     it('keeps a prompt-store failure internal with no raw text', async () => {
       const local = sharingHarness()
@@ -437,19 +447,9 @@ describe('M118 ACP local commands over the SDK prompt path', () => {
       const h = acpHarness(createAcpSharing(local.commands, () => local.ui))
       await h.run(async (client, sessionId) => {
         const failure = await refusedWire(client, sessionId, '/prompt list')
-        expect(failure).toMatchObject({
-          code: acp.RequestError.internalError().code,
-          message: expect.stringContaining(UI_TEXT.actionFailed),
-        })
-        const wire = JSON.stringify(failure)
-        expect(wire).not.toContain('/home/someone')
-        expect(wire).not.toContain(UI_TEXT.promptFileInvalid)
+        expectPrivateInternalFailure(failure, ['/home/someone'])
       })
-      expect(h.log.warn).toHaveBeenCalledWith(expect.stringContaining('sharing command failed'))
-      // The log names the underlying fault, not the adapter's wrapper.
-      expect(h.log.warn).toHaveBeenCalledWith(expect.stringContaining('TypeError'))
-      expect(JSON.stringify(h.log.warn.mock.calls)).not.toContain('AcpSharingFailure')
-      expect(JSON.stringify(h.log.warn.mock.calls)).not.toContain('/home/someone')
+      expectSharingFaultLog(h.log, ['/home/someone'])
     })
     it.each([['/share chat --typo'], [String.raw`/share "a\xb"`]])(
       'refuses bad slash syntax in the installed language: %s',
