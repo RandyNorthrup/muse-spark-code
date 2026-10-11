@@ -78,7 +78,8 @@ Formal drill on the committed files: `panel: [...]` replaced with
 matches, 9 passed. Authentic earlier failures during development (same
 suite): the built-in-command refusal (fixed by listing), the per-platform
 conflict count (fixed test expectation), and the synchronous reader throw
-(fixed test harness).
+(fixed test harness). The SHA-256 table below is Part A state, superseded
+by the R2 table (the R2 repairs changed all three files).
 
 | File                                        | SHA-256                                                            |
 | ------------------------------------------- | ------------------------------------------------------------------ |
@@ -99,3 +100,104 @@ and keyed distinctly from neighbouring suites.
   sources are `package.json` and the feature catalogue.
 - The fleet kind (controller sessions, subagents, best-of-N, schedules,
   tasks, M96 team, M100/M110a rows) waits for lane CM1135B.
+
+## R2 — RVCM1135A repairs (lane CM1135AR2, 2026-10-11, rig kubuntu)
+
+All six findings fixed, no residuals. Suite is now 12 tests in
+`test/unit/keybindingsReportSource.test.ts` (was 9), all passing at the
+repository timeout with `--maxWorkers=3`. No new dependency, no guard
+widened, no new UI string (`check:l10n` clean by reuse: scope gates are
+port identifiers spliced like editor `when` clauses).
+
+- P2-1 `linux` chord dropped (`sources/keybindings.ts` schema,
+  `collect/keybindings.ts` `EDITOR_PLATFORMS`): the manifest schema now
+  keeps `linux`, and the Linux platform row uses
+  `fact.linux ?? fact.key`, which also fixes Linux conflict detection
+  (same platform table drives both paths). Sweep: `mac`/`win` were
+  already kept; `scripts/lib/reference.mjs` already renders the Linux
+  override; `package.json` has exactly one `linux` override
+  (`museSpark.toggleThinking` → `ctrl+alt+o`). Regression: real-manifest
+  `toggleThinking` spot checks per platform (linux/mac/windows).
+- P2-2 ACP section was a copy of the help sentence
+  (`sources/keybindings.ts`): `ACP_COMMAND_NAMES` (14 prose-derived
+  strings) is replaced by `ACP_COMMAND_FACTS` (18 entries), the names
+  `refreshCommands` (`src/acp/agent.ts`) announces, each with the port
+  that gates it (`sharing`, `vault`, `accounts`, `legalScan`,
+  `usage|resources`, `resources`, `playbook`, `schedules`,
+  `media, not headless`, `estimate`, `questions`; absent means always
+  announced). Shared names come from the same constants the agent reads
+  (`SLASH_COMMAND_NAMES.report`, `.estimate`, `ACP_COMPACT_COMMAND`);
+  the registrar modules are deliberately not imported (they would drag
+  featureCatalog/sharing runtime into `dist/reporting.js`). Added the
+  missing `vault`, `accounts`, `schedule`, `attach`, `record`,
+  `estimate`; `/resources resume` and `/usage resources` are no longer
+  commands (argument forms of `resources`/`usage`). Regression: the
+  parity test reads the agent's announced table back — registrar names
+  from the live `acpSharingCommands()`/`resourceCommands()` plus every
+  `name:` literal in `refreshCommands` — and requires exact set equality
+  with the report, so a new registrar entry fails until listed.
+- P2-3 panel rows dropped the setting gate
+  (`sources` + `collect/keybindings.ts`): panel facts carry `when` from
+  `referenceKeyboardActions()` (its context-name fallback means
+  `when === command` is no gate), and the panel scope renders it via the
+  same `scopeFor` helper as editor rows. `composer.send` now reads
+  `panel (Enter: useCtrlEnterToSend=false; Ctrl/Cmd+Enter:
+useCtrlEnterToSend=true)`; gateless gestures keep bare `panel`.
+  Regression: gate text asserted on the send row, bare scope asserted on
+  `team.tree`.
+- P3-4 conflict cell kept first-fact casing
+  (`collect/keybindings.ts`): the group stores the normalized chord, so
+  both fact orders render identical bytes. Display is now the lowercase
+  canonical form (`ctrl+k`). Regression: reversed case-variant fixtures
+  collect byte-equal; existing expectation updated to `ctrl+k`.
+- P3-5 blank chord skipped silently (`sources` + `collect/keybindings.ts`):
+  both skip sites count, each section carries its own `omittedRows`, and
+  the source reports `partial` with `sourceReason('invalid')` whenever
+  the total is above zero (which also makes `--full` refuse, per the
+  existing forward contract). Empty-string chords still fail the whole
+  source as `invalid`, as before. Regression: whitespace-chord manifest
+  yields `partial` + reason + 3/3 omitted rows with the kept binding intact.
+- P3-6 docs: `docs/ide-compatibility/hosts.md` no longer names
+  keybindings among the unavailable adapters and states the adapter is
+  available in VS Code, ACP and the CLI (install-manifest readers wired);
+  `docs/acp.md` lists `report keybindings` among the local reports.
+  Regression: doc-content test pins both sentences (same pattern as
+  `acpNpmReadme.test.ts`).
+
+Incidental test repair: `generates the kind … in every host` now runs
+`full` because the capped view keeps digest-hash row order — membership
+in it is luck, not a contract manifest content can pin (the kind
+previously passed only by hash luck once the ACP rows grew 14 → 18).
+
+Red drills (break guard → named test fails → restore byte-exact,
+SHA-256 verified after each restore; final SHAs below):
+
+| Finding | Break                                  | Named test                                              | Result                |
+| ------- | -------------------------------------- | ------------------------------------------------------- | --------------------- |
+| P2-1    | linux platform back to `fact.key`      | lists every installed editor binding                    | 1 failed / 11 skipped |
+| P2-2    | bogus extra ACP entry                  | pins the ACP table to the announced agent command table | 1 failed / 11 skipped |
+| P2-3    | panel facts without `when`             | lists every installed editor binding (send gate)        | 1 failed / 11 skipped |
+| P3-4    | group chord stores raw gesture         | renders the same conflict bytes                         | 1 failed / 11 skipped |
+| P3-5    | source returns no `partial`            | marks the source partial                                | 1 failed / 11 skipped |
+| P3-6    | hosts.md availability sentence removed | documents the keybindings adapter                       | 1 failed / 11 skipped |
+
+Post-drill: 12 passed, and every file matched its pre-drill SHA-256
+(verified after each restore). `prettier --write` afterwards reformatted
+only the test and cert files (whitespace; suite re-run green), so the
+table carries the final SHAs.
+
+| File                                        | SHA-256                                                            |
+| ------------------------------------------- | ------------------------------------------------------------------ |
+| `src/core/reporting/sources/keybindings.ts` | `fdc83a230ee0455bfdebcc5926c32353a45d862906d0f5ac87eaad803b7a93cb` |
+| `src/core/reporting/collect/keybindings.ts` | `14fca20eb5cceedcd3b291dab1b6c9f06e3d1cc00b344487fbc536b739957ef6` |
+| `test/unit/keybindingsReportSource.test.ts` | `b4181c05a7dd4111f1dc343ef19ca53d151188b6325667851c3b18b97c84e963` |
+| `docs/ide-compatibility/hosts.md`           | `e550065fe07526cc9761f5b1f4879472eb71dcd750a4598d04b6230042b99d1c` |
+| `docs/acp.md`                               | `ec0377ed5fa4a232c1d8d420a2e0c7f27d1c6505860b0c2a7673f7985cbda214` |
+
+Decisions recorded: CHANGELOG untouched (the unreleased kind entry
+already describes this behaviour; the fixes correct it pre-release).
+`featureCatalog` keeps no keybindings-kind help row (truth-pass item,
+not a finding; still withdrawn). The ACP section describes the command
+table with per-command port gates because report time cannot see which
+ports the running host bound — the conditions are the honest static
+form, pinned to the live table by the parity test.
