@@ -38,6 +38,7 @@ import { compareReports, reportDiffNotice, reportDiffSection } from '../../core/
 import { ReportStorage, ReportHistory } from '../../core/reporting/history'
 import { CheckRunJournal } from '../../core/reporting/checkRuns'
 import { createRuntimeReportSources, reportFileIo, reportGitIo } from './sources'
+import { readStoreProject } from '../../core/reporting/sources/storeProject'
 import type { ReportingNetworkContext } from './network'
 import { reportingNetworkLoader } from './networkLoader'
 import type { Logger } from '../../host/logger'
@@ -215,6 +216,9 @@ export function createReportingServices(context: ReportingContext): ReportsServi
         activeNetwork.policy.mode !== 'off' &&
         (activeNetwork.policy.surface === 'editor' || options.network)
       ) {
+        const storeProject = await readStoreProject(() =>
+          reportFileIo(root, process.platform).read('package.json', readContext.signal),
+        )
         const policy = activeNetwork.policy
         boundNetwork = reportingNetworkLoader(
           context.log ?? {
@@ -249,6 +253,7 @@ export function createReportingServices(context: ReportingContext): ReportsServi
             }),
           },
           () => latestGit,
+          storeProject,
         )
       }
       const network =

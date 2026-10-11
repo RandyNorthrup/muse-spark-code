@@ -34,10 +34,11 @@ happened, not what was planned; superseded entries are kept.
   `GET https://registry.npmjs.org/<name>/<version>` capture: it reads only the
   `version` field of the `<name>/latest` version document, compares it against
   the release version for channel lag (lagging channels stay first in Needs
-  you), and never sends credentials. Marketplace, Open VSX, GitHub Actions
-  workflow runs and GitHub releases stay honestly unavailable until their wire
-  captures land, and the adapter is not yet bound into the editor or terminal
-  report path.
+  you), and never sends credentials. The report engine binds it from the
+  workspace package.json (name, version, publisher, engines, private): a
+  workspace that declares no name or version keeps the previous unbound row.
+  Marketplace, Open VSX, GitHub Actions workflow runs and GitHub releases
+  stay honestly unavailable until their wire captures land.
 - **Session and usage report kinds are real end to end** (M113 C-M113-2).
   `/report session` reads the current conversation in the editor, or a stored
   Model API session by id (`--session <id>` in the terminal and ACP); turns
