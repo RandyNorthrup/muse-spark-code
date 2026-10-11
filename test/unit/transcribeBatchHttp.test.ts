@@ -1,3 +1,10 @@
+import { stereoSource } from './helpers/media/batchFixtures'
+import {
+  synthWav,
+  collectTranscriptionBody,
+  attachedAudioBytes,
+  expectTranscriptionPost,
+} from './helpers/media/batchFixtures'
 // U18: the product converts to 16 kHz mono WAV before the batch send, never
 // the container. Through the real `prepareAudioAttachment` with the real
 // ports: a fake encoder stands in for ffmpeg's bytes (its own rendering is
@@ -73,30 +80,6 @@ async function verifyDocumentedInstall(
 }
 
 /** Minimal PCM WAV the sniffer reads with an exact duration. */
-function synthWav(
-  seconds: number,
-  format?: { readonly channels?: number; readonly sampleRate?: number },
-): Uint8Array {
-  const channels = format?.channels ?? 1
-  const sampleRate = format?.sampleRate ?? 16_000
-  const byteRate = sampleRate * channels * 2
-  const dataBytes = Math.round(seconds * byteRate)
-  const buffer = Buffer.alloc(44 + dataBytes)
-  buffer.write('RIFF', 0)
-  buffer.writeUInt32LE(36 + dataBytes, 4)
-  buffer.write('WAVE', 8)
-  buffer.write('fmt ', 12)
-  buffer.writeUInt32LE(16, 16)
-  buffer.writeUInt16LE(1, 20)
-  buffer.writeUInt16LE(channels, 22)
-  buffer.writeUInt32LE(sampleRate, 24)
-  buffer.writeUInt32LE(byteRate, 28)
-  buffer.writeUInt16LE(channels * 2, 32)
-  buffer.writeUInt16LE(16, 34)
-  buffer.write('data', 36)
-  buffer.writeUInt32LE(dataBytes, 40)
-  return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength)
-}
 
 interface Posted {
   route: string
@@ -129,24 +112,10 @@ function rig(options?: {
       options?.read === undefined
         ? new Uint8Array(await readFile(absolutePath))
         : await options.read(absolutePath),
-    readSource:
-      options?.readSource ??
-      async function* (source) {
-        const file = paths.get(source.pathToken)
-        if (file === undefined) throw new Error('not attached')
-        yield new Uint8Array(await readFile(file))
-      },
+    readSource: options?.readSource ?? ((source) => attachedAudioBytes(paths, source.pathToken)),
     postTranscription: async (request) => {
       // The transport's final admission, immediately before its fetch.
-      request.dispatch()
-      const chunks: Uint8Array[] = []
-      const reader = request.body.getReader()
-      for (;;) {
-        const next = await reader.read()
-        if (next.done) break
-        chunks.push(next.value)
-      }
-      const raw = Buffer.concat(chunks)
+      const raw = await collectTranscriptionBody(request)
       posted.push({
         route: request.route,
         contentType: request.contentType,
@@ -239,10 +208,7 @@ describe('U18 WAV conversion before the batch send', () => {
     const prepared = await r.prepare(mp3Source)
     expect(prepared.transcript?.text).toBe('The Blue Llama.')
     expect(r.posted).toHaveLength(1)
-    const post = r.posted[0]
-    if (post === undefined) throw new Error('expected one transcription POST')
-    expect(post.route).toMatch(/^\/asr\/transcribe\?sessionId=/)
-    expect(post.contentType).toMatch(/^multipart\/form-data; boundary=/)
+    const post = expectTranscriptionPost(r.posted[0])
     // Text parts lead; the WAV bytes follow. Slice so a failure never dumps them.
     const head = post.body.slice(0, 800)
     expect(head).toContain('"audioEncoding":"WAV"')
@@ -282,8 +248,7 @@ describe('U18 WAV conversion before the batch send', () => {
     const prepared = await r.prepare(video)
     expect(prepared.transcript?.text).toContain('blue llama')
     expect(prepared.media).toEqual(video)
-    const post = r.posted[0]
-    if (post === undefined) throw new Error('expected one transcription POST')
+    const post = expectTranscriptionPost(r.posted[0])
     const head = post.body.slice(0, 800)
     expect(head).toContain('"mode":"DIARIZATION"')
     expect(head).toContain('filename="clip30.wav"')
@@ -443,16 +408,7 @@ describe('U18 WAV conversion before the batch send', () => {
     try {
       const stereoPath = path.join(root, 'stereo.wav')
       await writeFile(stereoPath, stereo)
-      const source: AudioSource = {
-        name: 'stereo.wav',
-        pathToken: 'confined-stereo',
-        info: {
-          kind: 'audio',
-          mediaType: 'audio/wav',
-          sizeBytes: stereo.length,
-          durationSeconds: 2,
-        },
-      }
+      const source = stereoSource(stereo.length)
       const r = rig({
         encoderWav: renderedContract,
         respond: () => Response.json({ transcript: 'Stereo rendered.', audioDurationMs: 1500 }),
@@ -526,16 +482,7 @@ describe('U18 WAV conversion before the batch send', () => {
     try {
       const stereoPath = path.join(root, 'stereo.wav')
       await writeFile(stereoPath, stereo)
-      const source: AudioSource = {
-        name: 'stereo.wav',
-        pathToken: 'confined-stereo',
-        info: {
-          kind: 'audio',
-          mediaType: 'audio/wav',
-          sizeBytes: stereo.length,
-          durationSeconds: 2,
-        },
-      }
+      const source = stereoSource(stereo.length)
       const admitted: string[] = []
       const r = rig({
         locate: () => Promise.resolve({ ok: false, reason: UI_TEXT.media.converterUnavailable }),

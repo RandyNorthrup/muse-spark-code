@@ -1,3 +1,9 @@
+import {
+  synthWav,
+  collectTranscriptionBody,
+  attachedAudioBytes,
+  expectTranscriptionPost,
+} from './helpers/media/batchFixtures'
 // MEDIAW finding 7: the Model API factory's `prepareAudioMessage` runs
 // attached audio through the real routing, conversion and batch adapters,
 // so an attached MP3 converts to contract WAV before transcription. The
@@ -43,26 +49,6 @@ const mp3Source: AudioSource = {
   info: { kind: 'audio', mediaType: 'audio/mpeg', sizeBytes: 1000, durationSeconds: 2 },
 }
 
-function synthWav(seconds: number): Uint8Array {
-  const sampleRate = 16_000
-  const dataBytes = seconds * sampleRate * 2
-  const buffer = Buffer.alloc(44 + dataBytes)
-  buffer.write('RIFF', 0)
-  buffer.writeUInt32LE(36 + dataBytes, 4)
-  buffer.write('WAVE', 8)
-  buffer.write('fmt ', 12)
-  buffer.writeUInt32LE(16, 16)
-  buffer.writeUInt16LE(1, 20)
-  buffer.writeUInt16LE(1, 22)
-  buffer.writeUInt32LE(sampleRate, 24)
-  buffer.writeUInt32LE(sampleRate * 2, 28)
-  buffer.writeUInt16LE(2, 32)
-  buffer.writeUInt16LE(16, 34)
-  buffer.write('data', 36)
-  buffer.writeUInt32LE(dataBytes, 40)
-  return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength)
-}
-
 interface Rig {
   readonly prepare: ReturnType<typeof createPrepareAudioMessage>
   readonly posted: { readonly route: string; readonly contentType: string; readonly body: string }[]
@@ -78,21 +64,9 @@ function rig(options?: { readonly voiceOn?: boolean; readonly isAllowed?: boolea
   let voiceSeconds = 0
   const ports = createTranscriptionPorts({
     readAudioBytes: async (absolutePath) => new Uint8Array(await readFile(absolutePath)),
-    readSource: async function* (source) {
-      const file = paths.get(source.pathToken)
-      if (file === undefined) throw new Error('not attached')
-      yield new Uint8Array(await readFile(file))
-    },
+    readSource: (source) => attachedAudioBytes(paths, source.pathToken),
     postTranscription: async (request) => {
-      request.dispatch()
-      const chunks: Uint8Array[] = []
-      const reader = request.body.getReader()
-      for (;;) {
-        const next = await reader.read()
-        if (next.done) break
-        chunks.push(next.value)
-      }
-      const raw = Buffer.concat(chunks)
+      const raw = await collectTranscriptionBody(request)
       posted.push({
         route: request.route,
         contentType: request.contentType,
@@ -146,27 +120,28 @@ function rig(options?: { readonly voiceOn?: boolean; readonly isAllowed?: boolea
   return { prepare, posted, paths, settled, voiceSeconds: () => voiceSeconds }
 }
 
+function prepareParts(r: Rig, parts: readonly TurnPart[]) {
+  return r.prepare({
+    sessionId: 'session-1',
+    turnId: 'turn-1',
+    modelId: 'muse-spark-1.3-contributor',
+    parts,
+    signal: new AbortController().signal,
+  })
+}
+
 describe('Model API factory audio preparation (MEDIAW finding 7)', () => {
   it('converts an attached MP3 before the batch POST and returns its transcript', async () => {
     const r = rig()
     r.paths.set(mp3Source.pathToken, path.resolve(MP3_FIXTURE))
-    const prepared = await r.prepare({
-      sessionId: 'session-1',
-      turnId: 'turn-1',
-      modelId: 'muse-spark-1.3-contributor',
-      parts: [{ type: 'text', text: MARKER }],
-      signal: new AbortController().signal,
-    })
+    const prepared = await prepareParts(r, [{ type: 'text', text: MARKER }])
     expect(prepared?.modelId).toBe('muse-spark-1.3-contributor')
     expect(prepared?.parts).toHaveLength(1)
     const transcript = prepared?.parts[0]
     if (transcript?.type !== 'textFile') throw new Error('expected a transcript textFile part')
     expect(transcript.text).toBe('The Blue Llama.')
     expect(r.posted).toHaveLength(1)
-    const post = r.posted[0]
-    if (post === undefined) throw new Error('expected one transcription POST')
-    expect(post.route).toMatch(/^\/asr\/transcribe\?sessionId=/)
-    expect(post.contentType).toMatch(/^multipart\/form-data; boundary=/)
+    const post = expectTranscriptionPost(r.posted[0])
     // The converted WAV rides the wire, never the mp3 container.
     expect(post.body.includes('RIFF')).toBe(true)
     expect(post.body.includes('ID3')).toBe(false)
@@ -181,13 +156,10 @@ describe('Model API factory audio preparation (MEDIAW finding 7)', () => {
     // The fake converter never reads its input; any confined file stands in.
     r.paths.set(videoSource.pathToken, path.resolve(MP3_FIXTURE))
     const videoPart: TurnPart = { type: 'text', text: VIDEO_MARKER }
-    const prepared = await r.prepare({
-      sessionId: 'session-1',
-      turnId: 'turn-1',
-      modelId: 'muse-spark-1.3-contributor',
-      parts: [{ type: 'text', text: 'What happens here?' }, videoPart],
-      signal: new AbortController().signal,
-    })
+    const prepared = await prepareParts(r, [
+      { type: 'text', text: 'What happens here?' },
+      videoPart,
+    ])
     expect(prepared?.parts).toHaveLength(3)
     // The original video part survives, in place, for the replay to upload.
     expect(prepared?.parts[1]).toBe(videoPart)
@@ -203,13 +175,7 @@ describe('Model API factory audio preparation (MEDIAW finding 7)', () => {
 
   it('resolves undefined when no part is transcribable, like an absent port', async () => {
     const r = rig()
-    const prepared = await r.prepare({
-      sessionId: 'session-1',
-      turnId: 'turn-1',
-      modelId: 'muse-spark-1.3-contributor',
-      parts: [{ type: 'text', text: 'just text' }],
-      signal: new AbortController().signal,
-    })
+    const prepared = await prepareParts(r, [{ type: 'text', text: 'just text' }])
     expect(prepared).toBeUndefined()
     expect(r.posted).toHaveLength(0)
   })
@@ -237,13 +203,7 @@ describe('Model API factory audio preparation (MEDIAW finding 7)', () => {
   it('leaves the turn untouched when the voice feature is off, like an absent port', async () => {
     const r = rig({ voiceOn: false })
     r.paths.set(mp3Source.pathToken, path.resolve(MP3_FIXTURE))
-    const prepared = await r.prepare({
-      sessionId: 'session-1',
-      turnId: 'turn-1',
-      modelId: 'muse-spark-1.3-contributor',
-      parts: [{ type: 'text', text: MARKER }],
-      signal: new AbortController().signal,
-    })
+    const prepared = await prepareParts(r, [{ type: 'text', text: MARKER }])
     expect(prepared).toBeUndefined()
     expect(r.posted).toHaveLength(0)
   })

@@ -9,6 +9,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- PORTM105 round 2: remove all 29 inherited duplication clones through shared
+  media fixtures, receipt builders and RIFF chunk parsing, preserving existing
+  behavior and the unchanged zero-clone gate.
+
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
   reads and writes, and 1-hour cache writes settle at their own price.
   The shared retry classifier refuses known quota codes and excessive

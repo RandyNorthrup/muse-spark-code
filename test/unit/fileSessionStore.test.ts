@@ -1,3 +1,4 @@
+import { emptyStoredSession } from './helpers/fakeSessionStore'
 import { FakeQuestionStore } from './helpers/questions/store'
 import { questionFixture } from './helpers/questions/fixtures'
 import { mkdtempSync } from 'node:fs'
@@ -40,23 +41,8 @@ const uploadedFile = {
   mime: 'video/mp4',
 }
 
-const stored = (sessionId: string, name?: string): StoredSession => ({
-  version: 1,
-  sessionId,
-  workspaceRoot: '/ws',
-  modelId: 'muse-spark-1.3',
-  approvalMode: 'allowAll',
-  effort: 'high',
-  ...(name !== undefined && { name }),
-  createdAt: '2026-09-22T09:00:00.000Z',
-  lastActivityAt: LAST_ACTIVITY,
-  turnIds: [],
-  todos: [],
-  replay: [],
-  transcript: [],
-  outputs: {},
-  usage: { inputTokens: 0, outputTokens: 0, cachedTokens: 0, reasoningTokens: 0 },
-})
+const stored = (sessionId: string, name?: string): StoredSession =>
+  emptyStoredSession(sessionId, LAST_ACTIVITY, name)
 
 /** A file-system error with its code, as Node raises one. */
 function busy(code: string): Error {

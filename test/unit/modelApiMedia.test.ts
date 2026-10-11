@@ -1,3 +1,4 @@
+import { boundedMediaSettlement } from './helpers/media/replay'
 import { Usd as PortUsd } from '../../src/shared/usd'
 import { describe, expect, it, vi } from 'vitest'
 import { createHash } from 'node:crypto'
@@ -145,10 +146,7 @@ function scheduledMediaReserve(isBelowCap: boolean) {
         const cap = Usd.from(expected).subtract(Usd.from('0.000000001'))
         if (Usd.from(amount).compare(cap) > 0) throw new Error('schedule cap')
       }
-      const settle = vi.fn((cost: UsdAmount, isUnknown?: boolean) => {
-        expect(Usd.from(cost).compare(Usd.from(amount))).toBeLessThanOrEqual(0)
-        return Promise.resolve({ spentUsd: cost, hasUnknownHistoricalFees: isUnknown === true })
-      })
+      const settle = boundedMediaSettlement(amount)
       settlements.push(settle)
       return Promise.resolve({
         claimId: 'media-fire',
