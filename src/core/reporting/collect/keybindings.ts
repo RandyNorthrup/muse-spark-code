@@ -7,6 +7,7 @@ import { compare, list, row, text } from './common'
 export interface EditorKeybindingFact {
   readonly command: string
   readonly key: string
+  readonly linux?: string | undefined
   readonly mac?: string | undefined
   readonly win?: string | undefined
   readonly when?: string | undefined
@@ -14,9 +15,11 @@ export interface EditorKeybindingFact {
 export interface PanelKeybindingFact {
   readonly context: string
   readonly key: string
+  readonly when?: string | undefined
 }
 export interface AcpCommandFact {
   readonly name: string
+  readonly when?: string | undefined
 }
 export interface KeybindingsFacts {
   readonly editor: readonly EditorKeybindingFact[]
@@ -31,7 +34,7 @@ const KEYBINDINGS_COLUMNS: { readonly key: string; readonly label: ReportLabelKe
 ]
 
 const EDITOR_PLATFORMS = [
-  { platform: 'linux', chord: (fact: EditorKeybindingFact) => fact.key },
+  { platform: 'linux', chord: (fact: EditorKeybindingFact) => fact.linux ?? fact.key },
   { platform: 'macos', chord: (fact: EditorKeybindingFact) => fact.mac ?? fact.key },
   { platform: 'windows', chord: (fact: EditorKeybindingFact) => fact.win ?? fact.key },
 ] as const
@@ -45,12 +48,18 @@ function scopeFor(when: string | undefined, scope: string): string {
   return when === undefined ? scope : `${scope} (${when})`
 }
 
-function bindingRows(facts: KeybindingsFacts): ReportRow[] {
+function bindingRows(facts: KeybindingsFacts): { rows: ReportRow[]; omitted: number } {
   const rows: ReportRow[] = []
+  let omitted = 0
   for (const fact of facts.editor) {
     for (const { platform, chord } of EDITOR_PLATFORMS) {
       const gesture = chord(fact).trim()
-      if (gesture === '') continue
+      // A blank chord names no gesture, so it is omitted and counted: the
+      // section's omittedRows and the source's partial status name the gap.
+      if (gesture === '') {
+        omitted += 1
+        continue
+      }
       rows.push(
         row(
           'keybindings',
@@ -69,11 +78,11 @@ function bindingRows(facts: KeybindingsFacts): ReportRow[] {
     rows.push(
       row(
         'keybindings',
-        ['panel', fact.context, fact.key],
+        ['panel', fact.context, fact.key, fact.when ?? ''],
         {
           shortcut: text(fact.key),
           command: text(fact.context),
-          scope: text('panel'),
+          scope: text(scopeFor(fact.when, 'panel')),
         },
         ['keybindings'],
       ),
@@ -87,13 +96,13 @@ function bindingRows(facts: KeybindingsFacts): ReportRow[] {
         {
           shortcut: text(`/${fact.name}`),
           command: text(fact.name),
-          scope: text('acp'),
+          scope: text(scopeFor(fact.when, 'acp')),
         },
         ['keybindings'],
       ),
     )
   }
-  return rows
+  return { rows, omitted }
 }
 
 /**
@@ -108,15 +117,22 @@ interface ChordGroup {
   readonly facts: EditorKeybindingFact[]
 }
 
-function conflictRows(facts: KeybindingsFacts): ReportRow[] {
+function conflictRows(facts: KeybindingsFacts): { rows: ReportRow[]; omitted: number } {
   const groups = new Map<string, ChordGroup>()
+  let omitted = 0
   for (const fact of facts.editor) {
     for (const { platform, chord } of EDITOR_PLATFORMS) {
       const gesture = chord(fact).trim()
-      if (gesture === '') continue
+      if (gesture === '') {
+        omitted += 1
+        continue
+      }
       const identity = `${platform}${normalizeChord(gesture)}`
       const group = groups.get(identity)
-      if (group === undefined) groups.set(identity, { chord: gesture, platform, facts: [fact] })
+      // The cell keeps the normalized chord, so the same bindings render
+      // the same bytes no matter which fact arrived first.
+      if (group === undefined)
+        groups.set(identity, { chord: normalizeChord(gesture), platform, facts: [fact] })
       else group.facts.push(fact)
     }
   }
@@ -137,7 +153,7 @@ function conflictRows(facts: KeybindingsFacts): ReportRow[] {
     rows.push(
       row(
         'keybindingConflict',
-        [group.platform, normalizeChord(group.chord), ...commands],
+        [group.platform, group.chord, ...commands],
         {
           shortcut: text(group.chord),
           command: list(commands),
@@ -147,7 +163,7 @@ function conflictRows(facts: KeybindingsFacts): ReportRow[] {
       ),
     )
   }
-  return rows
+  return { rows, omitted }
 }
 
 function deduplicate(rows: ReportRow[]): ReportRow[] {
@@ -161,20 +177,28 @@ function deduplicate(rows: ReportRow[]): ReportRow[] {
 }
 
 /**
- * Both facets uncapped with no omissions: the collector's forward caps rows
- * for display, and `--full` refuses a source that omitted any itself.
+ * Both facets uncapped: the collector's forward caps rows for display, and
+ * `--full` refuses a source that omitted any itself. A skipped blank chord
+ * counts on its own section, so the gap stays visible either way.
  */
 export function collectKeybindingSections(facts: KeybindingsFacts): readonly ReportSection[] {
-  const section = (id: string, label: ReportLabelKey, rows: ReportRow[]): ReportSection => ({
+  const section = (
+    id: string,
+    label: ReportLabelKey,
+    rows: ReportRow[],
+    omittedRows: number,
+  ): ReportSection => ({
     id,
     label,
     sortKey: 'key',
     columns: [...KEYBINDINGS_COLUMNS],
     rows: deduplicate(rows).toSorted((left, right) => compare(left.key, right.key)),
-    omittedRows: 0,
+    omittedRows,
   })
+  const bindings = bindingRows(facts)
+  const conflicts = conflictRows(facts)
   return [
-    section('keybindings/keybindings', 'keybindings', bindingRows(facts)),
-    section('keybindings/conflicts', 'conflicts', conflictRows(facts)),
+    section('keybindings/keybindings', 'keybindings', bindings.rows, bindings.omitted),
+    section('keybindings/conflicts', 'conflicts', conflicts.rows, conflicts.omitted),
   ]
 }
