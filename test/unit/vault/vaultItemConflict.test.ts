@@ -14,6 +14,9 @@ import { cleanupTempHomes, lockedVault, managementFixture, tempHome } from './ma
 afterEach(cleanupTempHomes)
 
 const unsubscribe = (): void => undefined
+function unusedRoute(): never {
+  throw new Error('unused route')
+}
 
 describe('RVCM1091D item collisions refuse as conflict', () => {
   it('adding an item with a duplicate id or name refuses as conflict', async () => {
@@ -75,11 +78,27 @@ describe('RVCM1091D item collisions refuse as conflict', () => {
   it('the panel host keeps the conflict sentence instead of the generic failure', async () => {
     const state = panel()
     const showError = vi.fn()
-    const deps = {
+    // A complete host contract, so no cast: only Add is driven.
+    const deps: VaultPanelHostDeps = {
       service: {
         snapshot: () => Promise.resolve(structuredClone(state)),
         subscribe: () => unsubscribe,
+        unlock: () => Promise.resolve(),
+        lock: () => Promise.resolve(),
         write: () => Promise.reject(new Error(UI_TEXT.vault.itemConflict)),
+        updateMetadata: () => Promise.resolve(),
+        remove: () => Promise.resolve(),
+        grant: () => Promise.resolve(),
+        revoke: () => Promise.resolve(),
+        answer: () => Promise.resolve(),
+        importFile: unusedRoute,
+        keepImport: () => Promise.resolve(),
+        deleteImport: () => Promise.resolve(),
+        resetBegin: unusedRoute,
+        resetConfirm: () => Promise.resolve(),
+        setup: unusedRoute,
+        confirmSetup: () => Promise.resolve(),
+        cancelSetup: () => Promise.resolve(),
       },
       now: () => 1000,
       editItem: () => Promise.resolve(item()),
@@ -91,7 +110,7 @@ describe('RVCM1091D item collisions refuse as conflict', () => {
       importDone: () => Promise.resolve('keep' as const),
       confirmReset: () => Promise.resolve(null),
       showRecoveryCode: () => Promise.resolve(true),
-    } as unknown as VaultPanelHostDeps
+    }
     const host = new VaultPanelHost(deps)
     await host.handle({ type: 'vaultAdd' })
     expect(showError).toHaveBeenCalledWith(UI_TEXT.vault.itemConflict)
