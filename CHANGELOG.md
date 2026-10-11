@@ -34,8 +34,13 @@ happened, not what was planned; superseded entries are kept.
   that is confirmed absent counts as "no journal" (one that cannot be read
   refuses), and the window and the governor decide what a playbook review is
   with one function that compares files by resolved identity (links,
-  junctions, drive spellings, and case on Windows). **The record in the
-  panel:** `/playbook
+  junctions, drive spellings, and case on Windows). Inside VS Code, whose
+  extension host carries Electron's `ELECTRON_RUN_AS_NODE` and the window's
+  own `VSCODE_*` variables, that supervisor alone is given the switch it
+  needs to run as Node, and no git or hook command the playbook starts
+  inherits any of them on any OS, by the same list the shell tools use (a
+  hook that launched `code` with the switch got a bare Node). **The record
+  in the panel:** `/playbook
   <status|record|settings ...>` in the composer answers from the workspace
   journal without a model turn, signed in or not (M126 F9's handler, with the
   window's bundle as its source); the Agent map offers **Playbook Settings**

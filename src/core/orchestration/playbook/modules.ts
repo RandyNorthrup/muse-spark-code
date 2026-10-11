@@ -22,6 +22,7 @@ import {
 } from '../../../shared/constants'
 import type { PlaybookLease } from '../../../shared/playbook'
 import { withoutCredentials } from '../../credentialEnvironment'
+import { withoutHostVariables } from '../../hostVariables'
 import { runTreeSync } from '../../../host/processTree'
 import type { PlaybookHookAdmission } from './outcomes'
 
@@ -224,7 +225,7 @@ export function renamedFiles(
       throw new Error(UI_TEXT.playbookUnavailable)
     const options: SpawnSyncOptions = {
       cwd: workspace,
-      env: withoutCredentials(process.env),
+      env: withoutHostVariables(withoutCredentials(process.env)),
       encoding: 'buffer',
       timeout: GIT_TIMEOUT_MS,
       maxBuffer: GIT_OUTPUT_MAX_BYTES,

@@ -25,6 +25,7 @@ import {
 } from '../../../shared/playbook'
 import { redactSecrets } from '../../../shared/redact'
 import { withoutCredentials } from '../../credentialEnvironment'
+import { withoutHostVariables } from '../../hostVariables'
 import { runTreeSync } from '../../../host/processTree'
 
 /** Tagged effects go through the harness's ordinary tool policy. Hooks receive
@@ -87,7 +88,7 @@ export class PlaybookOutcomes {
     const options = {
       cwd: effect.cwd,
       env: Object.fromEntries(
-        Object.entries(withoutCredentials(process.env)).filter(
+        Object.entries(withoutHostVariables(withoutCredentials(process.env))).filter(
           ([name]) => !/^(?:GIT_.*|HUSKY|HUSKY_SKIP_HOOKS)$/iu.test(name),
         ),
       ),

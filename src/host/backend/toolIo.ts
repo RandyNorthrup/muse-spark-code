@@ -46,6 +46,7 @@ import { isPdf } from '../../core/pdf'
 import type { ToolImageIo } from '../../core/toolImages'
 import { isSamePath } from '../../core/paths'
 import { isCredentialVariable, withoutCredentials } from '../../core/credentialEnvironment'
+import { isHostOnlyVariable } from '../../core/hostVariables'
 import { powerShellQuoted } from '../../core/shellQuote'
 import {
   BOUNDED_FILE_READ_CHUNK_BYTES,
@@ -243,18 +244,6 @@ const HOOK_ENV_NAMES = [
 ] as const
 const WINDOWS_HOOK_ENV_NAMES = ['COMSPEC', 'PATHEXT', 'SystemRoot', 'WINDIR'] as const
 
-// The variables VS Code's terminal strips from the extension host's
-// environment before a shell sees it (`sanitizeProcessEnvironment`,
-// microsoft/vscode src/vs/base/common/processes.ts): Electron's switches
-// (`ELECTRON_RUN_AS_NODE` turns a `code` command into plain Node), the
-// window's IPC handles, and the Snap and GDK loader paths.
-const HOST_ONLY_VARIABLES: readonly RegExp[] = [
-  /^ELECTRON_.+$/,
-  /^VSCODE_(?!(?:PORTABLE|SHELL_LOGIN|ENV_REPLACE|ENV_APPEND|ENV_PREPEND)$).+$/,
-  /^SNAP(?:|_.*)$/,
-  /^GDK_PIXBUF_.+$/,
-]
-
 function isMissingFile(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'code' in error && error.code === ENOENT
 }
@@ -337,7 +326,8 @@ export function shellEnvironment(
   const clean: NodeJS.ProcessEnv = {}
   const entries = Object.entries(withoutCredentials(env, passNames, platform))
   for (const [key, value] of entries) {
-    if (HOST_ONLY_VARIABLES.every((pattern) => !pattern.test(key))) {
+    // The editor host's own variables are no shell's: one list, in core/hostVariables.
+    if (!isHostOnlyVariable(key)) {
       clean[key] = value
     }
   }
