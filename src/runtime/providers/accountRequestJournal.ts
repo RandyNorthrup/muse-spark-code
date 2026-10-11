@@ -144,9 +144,12 @@ export class AccountRequestJournal implements AccountJournalReader {
       const row = this.row(file)
       if (row.time >= query.end || row.provider !== query.provider || row.account !== query.account)
         continue
-      if (!row.isClosed) reserved = reserved.add(Usd.from(row.reservedUsd))
+      // A receipt is already durable settlement evidence, even if the process
+      // died before closing its claim. Charge it once, never also reserve it.
+      const isResolved = row.isClosed || row.settledUsd !== null
+      if (!isResolved) reserved = reserved.add(Usd.from(row.reservedUsd))
       else if (row.settledUsd === null) uncertain = uncertain.add(Usd.from(row.reservedUsd))
-      if (row.isClosed && !(row.time >= query.start)) {
+      if (isResolved && !(row.time >= query.start)) {
         continue
       }
 
@@ -209,7 +212,7 @@ export class AccountRequestJournal implements AccountJournalReader {
           hasSent,
           isClosed: true,
           settledUsd:
-            cost === null ? null : (current.settledUsd ?? Usd.from(usdDecimal(cost)).toAmount()),
+            current.settledUsd ?? (cost === null ? null : Usd.from(usdDecimal(cost)).toAmount()),
           ...(!hasSent && { inputTokens: 0, outputTokens: 0, requests: 0 }),
         }
         this.write(file, row)

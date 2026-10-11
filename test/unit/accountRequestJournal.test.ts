@@ -38,6 +38,25 @@ function rig() {
 }
 
 describe('durable account request journal', () => {
+  it('recovers an exact durable receipt before claim closure without reserving or charging twice', async () => {
+    const t = rig()
+    const claim = t.journal.reserve('meta', 'a', t.request.estimate, t.request)
+    claim.started?.()
+    t.journal.receipt(t.request, { inputTokens: 2, outputTokens: 1 }, Usd.from('0.03').toAmount())
+    const recovered = new AccountRequestJournal(t.folder, () => POOL_NOW)
+    expect(recovered.read(t.query)).toMatchObject({
+      settledUsd: '0.03',
+      reservedUsd: '0',
+      uncertainUsd: '0',
+      requests: 1,
+    })
+    await claim.settle(null, true)
+    expect(recovered.read(t.query).settledUsd).toBe('0.03')
+    expect(
+      recovered.read({ ...t.query, start: '2026-10-07T00:00:00Z', end: '2026-10-08T00:00:00Z' })
+        .settledUsd,
+    ).toBe('0')
+  })
   it('keeps pending counters across midnight and attributes the send to its actual day', async () => {
     const t = rig()
     const claim = t.journal.reserve('meta', 'a', t.request.estimate, t.request)

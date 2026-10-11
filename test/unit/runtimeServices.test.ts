@@ -1,9 +1,10 @@
+import { ACCOUNT_REQUEST_CERTIFICATION } from '../../src/shared/constants'
 import { fakeRuntimeBackendDeps } from './helpers/runtimeBackend'
 import { duplicateMetaAccounts } from './helpers/runtimeAccounts'
 import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MODEL_API_BASE_URL, SECRET_KEYS, UI_TEXT } from '../../src/shared/constants'
 import { AccountStoreError } from '../../src/core/providers/accountCredentialRecord'
 import { runtimeProvidersFile } from '../../src/runtime/providers/providersFileStore'
@@ -14,8 +15,12 @@ import { memoryKeyring } from './helpers/keyring'
 import { CURRENT_SHAPE_KEYS } from './helpers/modelApiKeys'
 
 const dirs: string[] = []
+beforeEach(() => {
+  ACCOUNT_REQUEST_CERTIFICATION.isComplete = true
+})
 
 afterEach(() => {
+  ACCOUNT_REQUEST_CERTIFICATION.isComplete = false
   for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true })
 })
 

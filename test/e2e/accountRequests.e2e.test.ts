@@ -1,3 +1,4 @@
+import { ACCOUNT_REQUEST_CERTIFICATION } from '../../src/shared/constants'
 // Fake-only installed request path. Responses use the existing captured Meta
 // codec fixtures; loopback is private and receives only test credentials.
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
@@ -83,6 +84,7 @@ const server = createServer((request, response) => {
 })
 
 beforeAll(async () => {
+  ACCOUNT_REQUEST_CERTIFICATION.isComplete = true
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
   const address = server.address()
   if (address === null || typeof address === 'string') throw new Error('missing loopback address')
@@ -96,6 +98,7 @@ afterEach(async () => {
   fixture.was429 = false
 })
 afterAll(async () => {
+  ACCOUNT_REQUEST_CERTIFICATION.isComplete = false
   await new Promise<void>((resolve, reject) =>
     server.close((error) => {
       if (error === undefined) resolve()
