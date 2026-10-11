@@ -45,14 +45,14 @@ export async function waitForUsageSettled(page) {
 
 export async function assertUsageError(page, { title, message }) {
   const alert = page.getByRole('alert')
+  // A strict locator rejects here unless the page shows exactly one alert:
+  // nothing to wait for, or — RVCM1141F P3 — a page-level `usage/error`
+  // beside the section-level resource failure (`UsageApp.tsx:161` beside
+  // `ResourcesSection.tsx:162`), which throws a strict-mode violation
+  // before any text is read. Reaching the text check therefore means
+  // exactly one alert; the old count guard could never fire past this wait
+  // and was removed.
   await alert.waitFor()
-  // RVCM1141E P3: a page-level `usage/error` and a section-level resource
-  // failure are different alerts on one page (`UsageApp.tsx:161` beside
-  // `ResourcesSection.tsx:162`). Either assertion must see exactly the
-  // alert it certifies, never a same-role alert from the other scope.
-  const total = await alert.count()
-  if (total !== 1)
-    throw new Error(`${title}: expected one page error "${message}", saw ${String(total)} alerts`)
   const text = await alert.textContent()
   if (text === null || !text.includes(message))
     throw new Error(`${title}: expected error "${message}", saw "${text ?? ''}"`)
