@@ -79,4 +79,12 @@ describe('captured plan-key presets', () => {
       expect(planKeyPresetById(id)).toBeUndefined()
     }
   })
+  it('gives every plan key its documented key page for the wizard link', () => {
+    for (const preset of PLAN_KEY_PRESETS) {
+      expect(preset.keyPage, preset.id).toMatch(/^https:\/\//)
+    }
+    expect(planKeyPresetById('minimax-plan')?.keyPage).toBe(
+      'https://platform.minimax.io/console/plan',
+    )
+  })
 })

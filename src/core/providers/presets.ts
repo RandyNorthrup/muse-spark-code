@@ -526,6 +526,8 @@ const MINIMAX_PLAN_PRESET: PlanKeyPreset = {
   origin: { kind: 'fixed', origin: 'https://api.minimax.io' },
   auth: 'apiKey',
   authHeader: 'bearer',
+  // The plan FAQ points key management at the console's plan page.
+  keyPage: 'https://platform.minimax.io/console/plan',
   docsUrl: 'https://platform.minimax.io/docs/m-plan/faq',
   keyShape: { kind: 'any', minLength: 16 },
   get keyHint() {
