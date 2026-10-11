@@ -1899,10 +1899,14 @@
       "id": "vault",
       "name": { "command": "museSpark.vault" },
       "summary": {
-        "conditions": [{ "when": "vaultBroker=absent", "text": { "ui": "referenceVaultPanel" } }]
+        "conditions": [
+          { "when": "vaultBroker=disabledPendingJoin", "text": { "ui": "referenceVaultPanel" } }
+        ]
       },
       "description": {
-        "conditions": [{ "when": "vaultBroker=absent", "text": { "ui": "referenceVaultPanel" } }]
+        "conditions": [
+          { "when": "vaultBroker=disabledPendingJoin", "text": { "ui": "referenceVaultPanel" } }
+        ]
       },
       "commands": ["museSpark.vault", "museSpark.lockVault"],
       "settings": [
@@ -2633,9 +2637,11 @@
       "nameKey": "command.vault.title",
       "category": "Muse Spark",
       "categoryKey": "command.category",
-      "description": "vaultBroker=absent: The credential vault is unavailable in this build because the broker is not installed.",
+      "description": "vaultBroker=disabledPendingJoin: The credential vault is unavailable in this build because the broker is not installed.",
       "text": {
-        "conditions": [{ "when": "vaultBroker=absent", "text": { "ui": "referenceVaultPanel" } }]
+        "conditions": [
+          { "when": "vaultBroker=disabledPendingJoin", "text": { "ui": "referenceVaultPanel" } }
+        ]
       },
       "canRun": false
     },
@@ -2645,9 +2651,11 @@
       "nameKey": "command.lockVault.title",
       "category": "Muse Spark",
       "categoryKey": "command.category",
-      "description": "vaultBroker=absent: The credential vault is unavailable in this build because the broker is not installed.",
+      "description": "vaultBroker=disabledPendingJoin: The credential vault is unavailable in this build because the broker is not installed.",
       "text": {
-        "conditions": [{ "when": "vaultBroker=absent", "text": { "ui": "referenceVaultPanel" } }]
+        "conditions": [
+          { "when": "vaultBroker=disabledPendingJoin", "text": { "ui": "referenceVaultPanel" } }
+        ]
       },
       "canRun": false
     },

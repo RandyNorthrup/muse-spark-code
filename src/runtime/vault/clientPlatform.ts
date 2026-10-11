@@ -3,9 +3,10 @@
 // and macOS (owner-only run directory, peer.c peer check, node launch of
 // dist/vaultBroker.js); lane C-M109-1c on Windows (the pipe helper's
 // owner-only files, lock-bound pipe check). Until a lane binds this
-// platform, the vault refuses with the broker-blocked reason, as 0.17.0 does.
+// platform and the reviewed availability switch is on, public callers refuse.
 
-import { UI_TEXT } from '../../shared/constants'
+import { uiLocale } from '../../shared/l10n/text'
+import { UI_TEXT, VAULT_AVAILABILITY } from '../../shared/constants'
 import type { VaultBrokerDiscovery } from '../../core/vault/broker/discovery'
 import type { VaultPeerVerifier } from '../../core/vault/broker/peer'
 import type { VaultBrokerProcessPort } from '../../host/vault/brokerProcess'
@@ -23,11 +24,16 @@ export interface VaultClientPlatformContext {
   readonly dataDir: string
   /** dist/ beside the running bundle (vaultBroker.js, native helpers). */
   readonly distDir: string
+  readonly hostId: string
+  readonly hostSession: string
 }
 
-/** Bound per OS by lanes C-M109-1b and C-M109-1c; refuses until then. */
-export function vaultClientPlatform(
-  _context: VaultClientPlatformContext,
+/** The reviewed availability switch gates every public host before any platform read or launch. */
+export async function vaultClientPlatform(
+  context: VaultClientPlatformContext,
 ): Promise<VaultClientPlatform> {
-  return Promise.reject(new Error(UI_TEXT.vault.brokerBlocked))
+  if (!VAULT_AVAILABILITY.isBrokerAvailable) throw new Error(UI_TEXT.vault.brokerBlocked)
+  const { posixVaultClientPlatform, setUiText } = await import('./posixClientPlatform')
+  setUiText(UI_TEXT, uiLocale())
+  return await posixVaultClientPlatform(context)
 }

@@ -9,6 +9,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- Installed POSIX vault client and broker bindings now connect the shared editor,
+  CLI and ACP management ports to real native peer checks, encrypted storage,
+  protected OS-store anchors and authenticated audit history. The vault remains
+  hidden pending the Windows/shared-lease join, panel mount and reviews.
+
 - Internal vault broker composition uses the shared v2 repository, management
   and OS-store anchor, with a lazy child bundle, POSIX peer checks, kernel startup
   serialization, stale-socket recovery and lock-before-idle-exit cleanup. Linux

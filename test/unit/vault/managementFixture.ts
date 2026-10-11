@@ -6,7 +6,6 @@ import { vi } from 'vitest'
 import { mkdtemp, rm } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
-import { type VaultSlotRecord } from '../../../src/shared/vault'
 import { type VaultStatus } from '../../../src/shared/vaultProtocol'
 import { VaultManagement } from '../../../src/core/vault/broker/management'
 import {
@@ -14,7 +13,7 @@ import {
   VaultStoreRepository,
   type VaultAnchorPort,
 } from '../../../src/core/vault/broker/repository'
-import { FakeVaultClock, FakeVaultSlot } from '../helpers/vault/core'
+import { FakeVaultClock, FakeVaultSlot, fakeOsStoreProvider } from '../helpers/vault/core'
 import { MemoryVaultAnchor, MemoryVaultFiles } from './storeFixtures'
 import { VaultError } from '../../../src/core/vault/crypto'
 import type { VaultGenerationState } from '../../../src/core/vault/store'
@@ -48,9 +47,6 @@ export class AnchorWithId extends MemoryVaultAnchor implements VaultAnchorPort {
     return Promise.resolve()
   }
 }
-const noUnsubscribe = (): void => {
-  /* The fake platform reports no screen lock. */
-}
 export async function stateOf(management: VaultManagement): Promise<string> {
   const snapshot = await management.snapshot()
   return snapshot.status.state
@@ -65,22 +61,11 @@ export function managementFixture(wrapHold?: Promise<void>, homeDir?: string) {
   const osStore = new FakeVaultSlot('osStore')
   const wrapped: Uint8Array[] = []
   const wrapping = { started: 0 }
-  const slots = {
-    slotFor: (record: VaultSlotRecord) => (record.tier === 'osStore' ? osStore : null),
-    osStore: (vaultId: string, slotId: string) => ({
-      tier: 'osStore' as const,
-      wrap: async (key: Uint8Array) => {
-        wrapping.started += 1
-        await wrapHold
-        wrapped.push(Uint8Array.from(key))
-        const record = await osStore.wrap(key)
-        return { ...record, vaultId, id: slotId }
-      },
-      unwrap: (slot: VaultSlotRecord, use: string) => osStore.unwrap(slot, use),
-    }),
-    presence: () => Promise.resolve(false),
-    onScreenLock: () => noUnsubscribe,
-  }
+  const slots = fakeOsStoreProvider(osStore, async (key) => {
+    wrapping.started += 1
+    await wrapHold
+    wrapped.push(Uint8Array.from(key))
+  })
   const unlock = new VaultSlotUnlock(files, anchor, slots)
   let status: VaultStatus = {
     state: 'locked',

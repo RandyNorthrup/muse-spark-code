@@ -1228,3 +1228,34 @@ export const nodeReferenceData = {
     }))
   },
 }
+
+/** @type {import('esbuild').Plugin} */
+// Keep the immutable core store in one lazy sibling, including its error identity.
+export const sharedVaultStore = {
+  name: 'shared-vault-store',
+  setup(build) {
+    build.onResolve({ filter: /\/(?:store|crypto|ports)(?:\.[jt]s)?$/ }, (args) => {
+      const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
+      return [
+        'src/core/vault/store.ts',
+        'src/core/vault/crypto.ts',
+        'src/core/vault/broker/ports.ts',
+      ].some((file) => source === path.resolve(file))
+        ? { path: './vaultStore.js', external: true }
+        : undefined
+    })
+  },
+}
+
+/** @type {import('esbuild').Plugin} */
+export const sharedVaultPosix = {
+  name: 'shared-vault-posix',
+  setup(build) {
+    build.onResolve({ filter: /\/posixClientPlatform(?:\.[jt]s)?$/ }, (args) =>
+      path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts')) ===
+      path.resolve('src/runtime/vault/posixClientPlatform.ts')
+        ? { path: './vaultPosix.js', external: true }
+        : undefined,
+    )
+  },
+}

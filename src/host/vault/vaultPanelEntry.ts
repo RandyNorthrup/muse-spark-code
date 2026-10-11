@@ -52,7 +52,7 @@ function brokerService(distDir: string): {
   let connection: Promise<{ platform: VaultClientPlatform; broker: VaultBrokerProcess }> | undefined
   const connect = async () => {
     connection ??= (async () => {
-      const platform = await vaultClientPlatform({ dataDir, distDir })
+      const platform = await vaultClientPlatform({ dataDir, distDir, hostId, hostSession })
       return { platform, broker: new VaultBrokerProcess(platform.discovery, platform.process) }
     })()
     let ready: Awaited<typeof connection>

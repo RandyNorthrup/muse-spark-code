@@ -1,0 +1,349 @@
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { execFileSync } from 'node:child_process'
+import { mkdtemp, mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises'
+import path from 'node:path'
+import os from 'node:os'
+import process from 'node:process'
+import { randomBytes } from 'node:crypto'
+import { createVaultBrokerBindings } from '../../../src/runtime/vault/brokerBindings'
+import { createVaultBrokerProcess } from '../../../src/runtime/vault/vaultBrokerEntry'
+import { posixVaultClientPlatform } from '../../../src/runtime/vault/posixClientPlatform'
+import { vaultClientPlatform } from '../../../src/runtime/vault/clientPlatform'
+import { vaultPeerExecutable } from '../../../src/runtime/vault/posixNative'
+import { VaultBrokerClient } from '../../../src/core/vault/broker/client'
+import { VaultManageSession } from '../../../src/core/vault/broker/manageClient'
+import type { VaultBroker } from '../../../src/core/vault/broker/broker'
+import type { VaultStoreRepository } from '../../../src/core/vault/broker/repository'
+import type * as BrokerModule from '../../../src/core/vault/broker/broker'
+import { vaultCommandDigest } from '../../../src/core/vault/broker/policy'
+import { vaultPrivateReadSchema } from '../../../src/shared/vaultProtocol'
+import { VAULT_ANCHOR_ACCOUNT } from '../../../src/runtime/vault/keyringAnchor'
+import { OsStoreVaultSlot } from '../../../src/runtime/vault/slots/osStoreVaultSlot'
+import { UI_TEXT, VAULT_AVAILABILITY, VAULT_RESET_WORD } from '../../../src/shared/constants'
+import { memoryKeyring } from '../helpers/keyring'
+import { metadata, requester, use, grant } from '../helpers/vault/fixtures'
+
+vi.mock(
+  '../../../src/core/resources/launcher',
+  async () => await import('../helpers/vault/brokerChildLauncher'),
+)
+const seen: { broker?: VaultBroker } = {}
+vi.mock('../../../src/core/vault/broker/broker', async (original) => {
+  const module = await original<typeof BrokerModule>()
+  return {
+    ...module,
+    VaultBroker: class extends module.VaultBroker {
+      constructor(...args: ConstructorParameters<typeof VaultBroker>) {
+        super(...args)
+        seen.broker = this
+      }
+    },
+  }
+})
+const native = { root: '' }
+beforeAll(async () => {
+  if (process.platform === 'win32') return
+  native.root = await mkdtemp(path.join(os.tmpdir(), 'vp-'))
+  const helper = vaultPeerExecutable(native.root)
+  await mkdir(path.dirname(helper), { recursive: true })
+  execFileSync('/usr/bin/cc', [
+    '-Os',
+    '-Wall',
+    '-Wextra',
+    '-Werror',
+    'native/posix/vaultPeer.c',
+    '-o',
+    helper,
+  ])
+})
+afterAll(async () => {
+  if (native.root) await rm(native.root, { recursive: true, force: true })
+})
+
+async function composition() {
+  const dataDir = await mkdtemp(path.join(native.root, 'd-'))
+  const home = path.join(dataDir, 'home')
+  await mkdir(home, { mode: 0o700 })
+  const hostId = randomBytes(16).toString('hex'),
+    hostSession = randomBytes(16).toString('hex')
+  const platform = await posixVaultClientPlatform({
+    dataDir,
+    distDir: path.join(native.root, 'dist'),
+    hostId,
+    hostSession,
+  })
+  const context = {
+    dataDir: path.join(dataDir, 'vault'),
+    runDirectory: path.join(dataDir, 'vault', 'run'),
+    installRoot: native.root,
+    userSession: platform.discovery.userSession,
+  }
+  const { openEntry: keyring, values: entries } = memoryKeyring()
+  const secrets = new Map<string, Uint8Array>()
+  const secretEntry = (_service: string, account: string) => ({
+    getSecret: () => Promise.resolve(secrets.get(account)?.slice() ?? null),
+    setSecret: (value: Uint8Array) => {
+      secrets.set(account, Uint8Array.from(value))
+      return Promise.resolve()
+    },
+    deleteCredential: () => Promise.resolve(secrets.delete(account)),
+  })
+  const slot = (record: ConstructorParameters<typeof OsStoreVaultSlot>[0]) =>
+    new OsStoreVaultSlot(record, process.platform, secretEntry)
+  const base = await createVaultBrokerBindings(context, {
+    keyring,
+    home,
+    slots: {
+      slotFor: slot,
+      osStore: (vaultId, id) =>
+        slot({
+          vaultId,
+          id,
+          lastGeneration: 0,
+          auditGeneration: 0,
+          auditHead: '0'.repeat(64),
+          createdAt: Date.now(),
+        }),
+      presence: () => Promise.resolve(false),
+      onScreenLock: () => {
+        throw new Error('screen lock is unavailable in the generated fixture')
+      },
+    },
+  })
+  const owner: { repository?: VaultStoreRepository } = {}
+  const handle = await createVaultBrokerProcess(context, {
+    ...base,
+    audit: (repository) => {
+      owner.repository = repository
+      return base.audit(repository)
+    },
+  })
+  const connect = async () =>
+    await VaultBrokerClient.open(
+      (await platform.discovery.discover(platform.process.identity)) ?? handle.location,
+      hostId,
+      hostSession,
+      platform.peers,
+    )
+  const session = new VaultManageSession(connect)
+  return {
+    context,
+    home,
+    entries,
+    secrets,
+    platform,
+    base,
+    handle,
+    hostId,
+    hostSession,
+    connect,
+    session,
+    owner,
+  }
+}
+
+describe.skipIf(process.platform === 'win32')('installed POSIX binding composition', () => {
+  it('sets up once, unlocks, stores, reads privately, locks, imports Keep/Delete and resets the anchored lost vault', async () => {
+    const f = await composition()
+    const value = randomBytes(32)
+    const origin = 'https://generated.example.test'
+    try {
+      const uncreated = await f.session.snapshot()
+      expect(uncreated.status.state).toBe('uncreated')
+      const shown = await f.session.setup()
+      expect(shown.code.toString('ascii')).toMatch(/^[a-f0-9]{40}$/u)
+      const setupPending = await f.session.snapshot()
+      expect(setupPending.status.state).toBe('setupPending')
+      shown.code.fill(0)
+      await f.session.confirmSetup(shown.setupId)
+      await f.session.lock()
+      await f.session.unlock(null)
+      await f.session.write(
+        {
+          metadata: {
+            ...metadata(),
+            kind: 'apiKey',
+            hidden: true,
+            firstParty: true,
+            policy: { mode: 'never', unattendedAllowed: false, allowDisclosure: false },
+            bindings: [{ kind: 'origin', origin }],
+          },
+          material: { kind: 'apiKey', value, origin, auth: 'bearer' },
+        },
+        false,
+      )
+      const client = await f.connect()
+      try {
+        const read = await client.firstPartyRead(
+          vaultPrivateReadSchema.parse({
+            v: 2,
+            kind: 'firstPartyRead',
+            itemId: metadata().id,
+            origin,
+            client: 'provider',
+          }),
+        )
+        expect(read.equals(value)).toBe(true)
+        read.fill(0)
+        const scrubbed = await client.send({ kind: 'scrub', text: value.toString('base64') })
+        expect(scrubbed.kind).toBe('scrubbed')
+        expect(JSON.stringify(scrubbed)).not.toContain(value.toString('base64'))
+      } finally {
+        client.close()
+      }
+      const ciphertext = await readFile(path.join(f.context.dataDir, 'vault.v1'))
+      expect(ciphertext.includes(value)).toBe(false)
+      const file = path.join(f.home, '.git-credentials')
+      const secret = randomBytes(16).toString('hex')
+      await writeFile(file, `https://generated-user:${secret}@example.test\n`, { mode: 0o600 })
+      const kept = await f.session.importFile(file)
+      expect(JSON.stringify(kept)).not.toContain(secret)
+      await f.session.keepImport(kept.receipt)
+      const retained = await stat(file)
+      expect(retained.isFile()).toBe(true)
+      await writeFile(
+        file,
+        `https://generated-user:${randomBytes(16).toString('hex')}@other.example.test\n`,
+        { mode: 0o600 },
+      )
+      const deleted = await f.session.importFile(file)
+      await f.session.deleteImport(deleted.receipt)
+      await expect(stat(file)).rejects.toMatchObject({ code: 'ENOENT' })
+      await f.session.lock()
+      await rm(path.join(f.context.dataDir, 'slots.v1'))
+      const lost = await f.session.snapshot()
+      expect(lost.status.reason).toBe('vaultLost')
+      const reset = await f.session.resetBegin()
+      expect(reset.word).toBe(VAULT_RESET_WORD)
+      await f.session.resetConfirm(reset.resetId, reset.word)
+      expect(f.entries.has(VAULT_ANCHOR_ACCOUNT)).toBe(false)
+      const resetState = await f.session.snapshot()
+      expect(resetState.status.state).toBe('uncreated')
+      const replacement = await f.session.setup()
+      replacement.code.fill(0)
+      await f.session.confirmSetup(replacement.setupId)
+      const recreated = await f.session.snapshot()
+      expect(recreated.status.state).toBe('unlocked')
+      const auditVaults = await readdir(path.join(f.context.dataDir, 'audit'))
+      expect(auditVaults).toHaveLength(2)
+    } finally {
+      value.fill(0)
+      for (const secret of f.secrets.values()) secret.fill(0)
+      await f.handle.close()
+    }
+  })
+  it('a trusted transport reads through a persisted bounded grant; missing transports remain denied', async () => {
+    const f = await composition()
+    const value = randomBytes(32)
+    const broker = seen.broker
+    if (!broker) throw new Error('composition did not construct the production broker')
+    try {
+      const shown = await f.session.setup()
+      shown.code.fill(0)
+      await f.session.confirmSetup(shown.setupId)
+      const target = use()
+      const binding = {
+        kind: 'environment' as const,
+        commandDigest: vaultCommandDigest(target.command),
+        names: target.names,
+      }
+      await f.session.write(
+        {
+          metadata: {
+            ...metadata(),
+            bindings: [binding],
+            policy: { ...metadata().policy, mode: 'alwaysAllow' },
+          },
+          material: { kind: 'secret', value },
+        },
+        false,
+      )
+      await f.session.grant({ ...grant(), target: binding })
+      const req = { ...requester(), peerProcessId: process.pid, hostId: f.hostId }
+      const peer = {
+        hostId: f.hostId,
+        processId: process.pid,
+        userId: String(process.getuid?.()),
+        ui: true,
+      }
+      // The transport's known provenance is supplied in-process; no wire claim can clear taint.
+      await broker.register(peer, req, 'ask')
+      const result = await broker.request(req, metadata().handle, target, {
+        tainted: false,
+        reasons: [],
+      })
+      expect(result.kind).toBe('ticket')
+      if (result.kind !== 'ticket') throw new Error('grant was not admitted')
+      const lease = { close: vi.fn(), terminate: () => Promise.resolve(false) }
+      const redeemed = await broker.redeem(req.id, result.ticket, target, lease)
+      expect(redeemed.kind).toBe('ticket')
+      await broker.withApprovedMaterial(result.ticket.id, req.id, target, async (item) => {
+        expect(item.material.kind).toBe('secret')
+        if (item.material.kind === 'secret')
+          expect(Buffer.from(item.material.value).equals(value)).toBe(true)
+        await Promise.resolve()
+      })
+      await broker.finish(result.ticket.id, true)
+      const used = await f.session.snapshot()
+      expect(used.grants[0]?.uses).toBe(1)
+      const audit = await f.session.audit()
+      expect(audit.length).toBeGreaterThan(0)
+      expect(f.base.ceiling(req)).toBe('none')
+      await expect(f.base.taint(req)).rejects.toThrow(UI_TEXT.vault.noAccess)
+    } finally {
+      value.fill(0)
+      await f.handle.close()
+    }
+  })
+  it('refuses an independently advanced store audit checkpoint even when protected checkpoint and audit file still agree', async () => {
+    const f = await composition()
+    try {
+      const shown = await f.session.setup()
+      shown.code.fill(0)
+      await f.session.confirmSetup(shown.setupId)
+      const audit = await f.session.audit()
+      expect(audit).toEqual([])
+      const repository = f.owner.repository
+      if (!repository) throw new Error('audit binding did not receive its real repository')
+      const store = repository.current()
+      const snapshot = await store.exportSnapshot()
+      // A crash after the store's commit but before the protected checkpoint write must refuse.
+      await store.commitAudit(snapshot.slots.auditGeneration + 1, 'f'.repeat(64))
+      await expect(f.session.audit()).rejects.toThrow()
+    } finally {
+      await f.handle.close()
+    }
+  })
+  it('keeps the public availability switch off and refuses unregistered, wrong-session and stale-birth peers', async () => {
+    const f = await composition()
+    try {
+      expect(VAULT_AVAILABILITY.isBrokerAvailable).toBe(false)
+      await expect(
+        vaultClientPlatform({
+          dataDir: f.context.dataDir,
+          distDir: path.join(native.root, 'dist'),
+          hostId: f.hostId,
+          hostSession: f.hostSession,
+        }),
+      ).rejects.toThrow(UI_TEXT.vault.brokerBlocked)
+      await expect(
+        VaultBrokerClient.open(f.handle.location, 'e'.repeat(32), f.hostSession, f.platform.peers),
+      ).rejects.toThrow()
+      await expect(
+        VaultBrokerClient.open(f.handle.location, f.hostId, 'f'.repeat(32), f.platform.peers),
+      ).rejects.toThrow()
+      const identity = await f.platform.process.identity(process.pid)
+      await expect(
+        f.base.identify(
+          { ...identity, startedAt: identity.startedAt + 1 },
+          f.hostId,
+          f.hostSession,
+        ),
+      ).rejects.toThrow()
+      const snapshot = await f.session.snapshot()
+      expect(snapshot.status.state).toBe('uncreated')
+    } finally {
+      await f.handle.close()
+    }
+  })
+})

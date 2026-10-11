@@ -16642,6 +16642,18 @@ model.
   `npm run schema:exec -- --check` (M80).
 - **PLAN.md drifts, and a reader must say so.** At `4c7b064b5`, `## 7.
 
+**CM109JOINB scoped qualification (2026-10-11, Kubuntu).** The rig/common
+brief explicitly reserves aggregate `npm run quality` for the lead; this lane
+runs the requested scoped gates and the complete vault file list in batches
+of at most three at repository deadlines. No gate, cap or timeout is weakened.
+Real Linux sockets, native peer credentials, an isolated generated-only Secret
+Service and the copied installed POSIX bundles are exercised. The executable
+Reset/Restore SIGKILL suite alone remains skipped by the brief, naming
+CM109JOINA's pending shared writer lease. macOS/Windows replay, cross-platform
+factory dispatch, panel mount, transport ownership and joined quality remain
+lead-owned before availability changes. Evidence:
+`docs/certification/cm109-join-posix.md`.
+
 M113 W first-paint repair: the optional palette registry loads with the first
 palette or slash menu, within the existing 25 KiB Palette closure. Its filtered
 slash list uses accessible loading and failure/retry text until data arrives;
@@ -33254,7 +33266,14 @@ Move POSIX identity/startup-lock commands beside the native helper, reusing
 core's peer check, and synchronize the cold epoch through the existing port.
 Adopt anchored loss checks, headless Reset wording, failed-Delete receipt reload
 and typed refusals. Bind the installed POSIX client and broker factory for every
-VS Code/CLI/ACP caller behind an off availability switch. Certify real socket,
+VS Code/CLI/ACP caller behind an off availability switch. Its child-only
+factory ships in `vaultBrokerBindings.js` with its own measured 32 KiB budget;
+existing bundle caps stay unchanged. The immutable core store and crypto/error
+identity share `vaultStore.js` (new measured 50 KiB cap) rather than expanding
+any existing broker or runtime cap. POSIX discovery/launch ships only on
+first use in `vaultPosix.js` (new 25 KiB cap). Agent execution/provenance transport owners
+must bind their ports before enabling agent use; management and first-party
+private reads are operational, and missing transports refuse explicitly. Certify real socket,
 native peer and generated-only isolated Secret Service paths; drive setup,
 unlock, encrypted storage, granted use, Lock, Keep/Delete and Reset end to end.
 Add executable SIGKILL transaction cases for Reset/Restore and live-owner refusal;
@@ -42912,6 +42931,11 @@ threshold, ignore or rule is changed.
 
 ## 8. Escape hatches register
 
+| CM109JOINB location                                  | Escape hatch                                              | Reason                                                                                                                                                                                | Removal                           |
+| ---------------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
+| `src/runtime/vault/vaultBrokerEntry.ts` (CM109JOINB) | Installed governor cast to its `createResources` contract | The same-build `resourceGovernor.js` factory is checked before use; it supplies the real machine policy and admission, without copying Windows runtime drivers into the POSIX broker. | A typed generated sibling loader. |
+| `src/runtime/vault/vaultRuntimeEntry.ts`             | Installed sibling cast to `typeof BrokerBindingsModule`   | Only the same-build `vaultBrokerBindings.js` is loaded; its factory is checked before calling. The sibling keeps child-only dependencies out of the existing runtime budget.          | A typed generated sibling loader. |
+
 | C-M109-1b location                      | Escape hatch                                                 | Reason                                                                                                                                                                            | Removal                                                    |
 | --------------------------------------- | ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
 | `src/runtime/vault/posixNative.ts`      | `Reflect.get(socket, '_handle')`, then zod validates `fd`    | M109 lead decision 9 explicitly approves Node's internal descriptor for this exact live `Socket`; the native helper checks its kernel credentials, and no wire field supplies it. | A supported public Node socket descriptor API.             |
@@ -43261,6 +43285,18 @@ before a repaired one loads (2026-09-30).
 | `test/unit/providerCredentialRecords.test.ts` | `eslint-disable-next-line unicorn/prefer-https` on one origin-binding assertion     | The test proves a downgraded `http:` scheme is refused as a different origin; an `https:` URL cannot exercise that leg. One literal, test-only.                                                                                                             | 2026-10-05 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **CM109JOINB installed POSIX binding handoffs (2026-10-11).** Native host
+  registration binds PID/UID/birth/image to owner-only files; it does not
+  attest against arbitrary hostile same-user code rewriting those files
+  (D89.15's residual). Management/private reads are bound; installed agent
+  T/X/S/O execution, lifetime and trusted provenance owners remain absent and
+  explicitly refused. Audit checkpoint updates commit the authenticated store
+  before the protected checkpoint; interruption between those writes refuses
+  reopening rather than guessing an anchor. Joined recovery must certify that
+  failure path before availability is enabled. CM109JOINA supplies the writer
+  lease; panel/settings mount, keyring VSIX packaging and cross-platform/editor
+  acceptance stay lead-owned. No public vault support is claimed by this lane.
 
 - **M107-D100-native-birth-enforcement (FIXM107W; qualification blocker).**
   G13 now stops only the offending registered job after more than 128 observed

@@ -1,4 +1,8 @@
 import path from 'node:path'
+import { setTimeout as delay } from 'node:timers/promises'
+import { configureResources } from '../../core/resources/admission'
+import type * as ResourceGovernor from '../../core/resources/resourceGovernorEntry'
+import { uiLocale } from '../../shared/l10n/text'
 import { createRequire } from 'node:module'
 // Lazy Node bundles keep their own language state; the installed runtime calls this before use.
 export { setUiText } from '../../shared/l10n/text'
@@ -232,6 +236,10 @@ export async function runVaultBrokerEntry(
   }
 }
 
+function resourceFailure(): void {
+  process.stderr.write('vault-resource-refused\n')
+}
+
 /** Internal child entry: only the installed sibling runtime may supply the trusted bindings. */
 async function main(): Promise<void> {
   for (const name of Object.keys(process.env))
@@ -246,9 +254,46 @@ async function main(): Promise<void> {
   if (typeof runtime.createVaultBrokerBindings !== 'function')
     throw new Error(UI_TEXT.vault.brokerBlocked)
   const createBindings = runtime.createVaultBrokerBindings
-  await runVaultBrokerEntry(
-    async () => await createVaultBrokerProcess(context, await createBindings(context)),
-  )
+  let disposeResources: (() => void) | undefined
+  try {
+    await runVaultBrokerEntry(async () => {
+      // Same-build governor factory; validate its export before use (PLAN §8).
+      const module = createRequire(__filename)(path.join(__dirname, 'resourceGovernor.js')) as Pick<
+        typeof ResourceGovernor,
+        'createResources'
+      >
+      if (typeof module.createResources !== 'function') throw new Error(UI_TEXT.vault.brokerBlocked)
+      const resources = await module.createResources(
+        {
+          machineDir: path.dirname(context.dataDir),
+          sleep: async (ms) => {
+            await delay(ms)
+          },
+          onError: resourceFailure,
+        },
+        UI_TEXT,
+        uiLocale(),
+      )
+      const disposeAdmission = configureResources({
+        // The broker owns a separate creation registry; live editor registries must not overwrite it.
+        registryFile: path.join(context.runDirectory, 'resource-created', 'registry.json'),
+        inspect: () => ({}),
+        onError: resourceFailure,
+        admission: async (request, signal) => {
+          await resources.status(signal)
+          signal?.throwIfAborted()
+          return await resources.admit(request, undefined, signal)
+        },
+      })
+      disposeResources = () => {
+        disposeAdmission()
+        resources.dispose()
+      }
+      return await createVaultBrokerProcess(context, await createBindings(context))
+    })
+  } finally {
+    disposeResources?.()
+  }
 }
 if (require.main === module) {
   void main().catch(() => {

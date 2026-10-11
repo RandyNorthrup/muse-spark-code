@@ -5160,10 +5160,10 @@ The `Vault` command (`museSpark.vault`) opens the vault panel and `Lock vault
 now` (`museSpark.lockVault`, Ctrl+Alt+Shift+L / Cmd+Alt+Shift+L) ends every
 use in every window. The panel host and the native editor ship in
 `dist/vault.js`, loaded on the first vault command; activation reads no vault
-and starts no broker. Until the broker-backed service lands
-([the M109 record](docs/certification/m109.md)), both commands report that the
-broker installation is missing and refuse access instead of opening an empty
-vault. No value is ever logged, and no handle is substituted into a command,
+and starts no broker. The installed POSIX client and broker factory are bound behind an off
+availability switch. Until the shared writer lease, Windows binding, panel mount
+and reviews join ([the POSIX receipt](docs/certification/cm109-join-posix.md)),
+both commands report the broker installation failure and refuse access. No value is ever logged, and no handle is substituted into a command,
 a file or the model's text.
 
 Settings (all machine-scoped, so no workspace can change them):
@@ -5180,20 +5180,24 @@ offered: the required Apple Developer ID is unavailable (M109 decision 10).
 Linux hardware unlock and screen-lock integration remain in C-M109-2.
 
 The terminal/ACP/headless handlers are implemented against the shared vault
-contracts. This branch still needs the installed broker factory and panel
-bindings from M109 W/U/M104. It does not claim a working packaged vault:
-missing bindings report the broker installation failure and refuse access.
+contracts. The installed POSIX broker factory and client are available internally; the
+panel mount and cross-platform join from M109 W/U/M104 remain open. Public
+commands still refuse while availability is off.
 No activation read or broker start is added. Internal broker composition,
 its installed-runtime contract and the native receipts are documented in
 [the broker process contract](docs/design/vault-broker-process.md) and
 [the POSIX certification](docs/certification/cm109-1b.md).
+The generated-only Linux native receipt runs with a private bus and keyring:
+`sh test/hosts/run-vault-posix.sh` (requires `dbus-run-session`,
+`gnome-keyring-daemon`, and a production build). It checks the native OS-store
+slot and installed broker without reading the desktop vault or calling a model.
 On macOS the composed broker wraps the key with the login Keychain only;
 it does not use the Secure Enclave.
 
 The terminal, ACP and headless commands load `dist/vaultRuntime.js` on the
-first vault need. Its broker process and per-OS connection are not installed
-in this build: until they are, every command reports the broker installation
-failure and refuses access. No activation read or broker start is added.
+first vault need. Its POSIX connection and broker factory ship as lazy installed siblings;
+availability remains off until the shared-lease and Windows join is reviewed,
+so public commands report the broker installation failure and refuse access. No activation read or broker start is added.
 
 The terminal grammar is `muse-spark-code-acp vault` followed by `setup`,
 `recover`, `reset`, `status`,

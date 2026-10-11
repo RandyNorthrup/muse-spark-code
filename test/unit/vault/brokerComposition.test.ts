@@ -1,3 +1,4 @@
+import { fakeHostChannelPorts } from '../helpers/vault/core'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { execFileSync } from 'node:child_process'
 import { mkdtemp, mkdir, readFile, rm } from 'node:fs/promises'
@@ -114,29 +115,9 @@ async function bindings() {
       },
       vaultSocketDescriptors,
     ),
-    identity: {
-      verifyHost: () => Promise.resolve(true),
-      verifyLaunched: () => Promise.resolve(false),
-    },
     audit: vi.fn(() => f.deps.audit),
     onAuditFailure: vi.fn(),
-    identify: (identity, hostId) =>
-      Promise.resolve({
-        peer: { hostId, userId: identity.userId, processId: identity.processId, ui: true },
-        requester: null,
-        firstParty: true,
-        manage: true,
-      }),
-    ceiling: () => 'ask',
-    lifetime: () => ({
-      close: () => {
-        /* No fake execution. */
-      },
-      terminate: () => Promise.resolve(true),
-    }),
-    perform: () => Promise.reject(new Error('fake execution unavailable')),
-    taint: () => Promise.resolve({ tainted: false, reasons: [] }),
-    scrub: (text) => Promise.resolve(text),
+    ...fakeHostChannelPorts(),
     // Round-3 contracts: the importer runs inside management over this home.
     home: await homeDir(),
     lockOnScreenLock: false,

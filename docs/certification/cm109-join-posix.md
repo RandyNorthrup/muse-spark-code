@@ -1,6 +1,6 @@
 # CM109JOINB — POSIX join preparation
 
-2026-10-11, Kubuntu, `c/m109-join-posix`. No live or paid model calls.
+2026-10-11, Kubuntu, `c/m109-join-posix`, workspace `/home/randy/lanes/CM109JOINB`. No live or paid model calls.
 Aggregate quality and Windows/macOS replay remain lead-owned under the rig brief.
 
 ## Core round 5 adoption
@@ -20,3 +20,135 @@ timeouts, `--maxWorkers=3`. These are real sockets and compiled POSIX helper
 calls, including the formerly sandbox-blocked cases. No sandbox workaround.
 
 The availability switch stays off until the lead joins and reviews all parts.
+
+## Installed POSIX bindings
+
+The shared VS Code panel and CLI/ACP runtime call `vaultClientPlatform` with
+the same host/session facts used by their channel. Its availability flag is
+**false**. When enabled by the reviewed join it loads only `vaultPosix.js`,
+registers native PID/UID/birth/image facts in private files, discovers or starts
+the installed broker, and checks the actual socket peer before hello. The
+child loads `vaultRuntime.js`'s installed `createVaultBrokerBindings` export;
+its child-only implementation is `vaultBrokerBindings.js`. Native launch uses
+real resource admission, shared machine policy and a separate broker creation
+registry. No credentials are inherited. `vaultStore.js` shares immutable core
+store/crypto/typed-error identity across these siblings; existing caps are
+unchanged.
+
+The factory supplies actual OS-store slots/anchors, authenticated audit history
+and its protected rotation checkpoint, native host checks, and material-backed
+scrubbing with unconditional byte erasure. Management and first-party reads
+work. T/X/S/O must supply trusted launch/provenance/execution ownership before
+agent transports can run: their default ceiling is none, and missing taint or
+perform bindings refuse explicitly. The granted-use composition exercises the
+real broker with known in-process provenance; it does not certify an installed
+agent execution transport.
+
+`posixBindings.test.ts` uses real sockets and the compiled installed helper,
+the actual management/repository and OS-slot implementation with generated-only
+in-memory protected storage. It covers one-time setup, unlock, encrypted write,
+private read and scrub, persisted bounded granted material use, Lock, Keep/Delete,
+anchored loss/RESET, replacement setup, denied wrong host/session/birth, and an
+independently advanced store audit checkpoint. Native launcher admission is
+covered by the installed receipt instead of this fixture's direct child launcher.
+
+## Linux native receipt
+
+Kubuntu, Node 24.18.0, system C compiler, existing `dbus-run-session`,
+`gnome-keyring-daemon` and pinned `@napi-rs/keyring`; no installation, policy
+change, desktop keyring read or model attempt. All values are generated in
+memory. A private bus and empty test keyring are destroyed afterward.
+
+`test/hosts/vault-os-store.mjs`: **PASS**, native create/read/delete and absence
+of plaintext in the public slot record. The copied installed-bundle receipt:
+**PASS**, actual governed broker launch, native peer verification, v2 setup,
+protected slot/anchor, encrypted write, private read, Lock and reopen. The
+initial installed attempt exposed missing child admission; the real governor
+binding fixed it. Sharing an editor creation registry caused a publish refusal;
+the broker's separate registry fixed it. Fixture removal originally raced
+asynchronous resource retirement; removal now happens on natural process exit.
+Reusable runner: `sh test/hosts/run-vault-posix.sh`.
+
+macOS compilation/login Keychain and Windows replay were not run on this Linux
+machine and remain lead-owned. Availability stays off.
+
+## Deliberate guard failures
+
+The complete owning composition file was run for each source mutation, with
+repository deadlines and no test-name filter. Removing session matching,
+process-birth matching, the off availability check, the store/protected audit
+checkpoint agreement check, and the audit factory's per-vault cache identity
+all fail their regression. Reset now proves a separate physical audit directory
+for its replacement vault; the earlier smoke-only assertion was insufficient.
+Deleting each new sibling's carried entry from the output graph separately
+fires the binding/store/POSIX split guards. Every file is restored byte-exact,
+with matching SHA-256 in `cm109-join-posix-drills.json`. Initial metadata probes
+edited esbuild's raw input list, which the gate does not consume; the recorded
+successful probes edit the actual output graph consumed by the gate.
+
+## Writer-lease handoff: executable, intentionally skipped
+
+`writerCrashPosix.test.ts` has exactly **17** skipped cases with its one-line
+CM109JOINA reason. A once-per-suite built real child uses production
+`NodeVaultFiles`, `VaultStore.resetLost` and `restoreEncryptedBackup`, a
+file-backed generated-only protected-anchor fake outside the vault, and a key
+sent only over private stdin. It pauses immediately after each physical stage,
+then is killed with SIGKILL; a different process must recover and another must
+open the result. Holder/contender processes are killed/awaited in finally.
+
+Exact case names are `SIGKILL during reset at <stage> recovers in a new process`
+and `SIGKILL during restore at <stage> recovers in a new process`:
+
+| Reset (7)           | Restore (7)         |
+| ------------------- | ------------------- |
+| writer-acquired     | writer-acquired     |
+| reset.v1-written    | quarantine-retained |
+| quarantine-retained | pending.v1-written  |
+| vault.v1-removed    | vault.v1-written    |
+| slots.v1-removed    | slots.v1-written    |
+| pending.v1-removed  | anchor-advanced     |
+| anchor-retired      | pending.v1-removed  |
+
+The three remaining names are `a live writer is never taken over by open`,
+`a live writer is never taken over by reset`, and
+`a live writer is never taken over by restore`.
+
+The complete suite was deliberately unskipped once at repository deadlines:
+**17/17 failed** with stale `writer.lock` refusing recovery as `busy` after
+SIGKILL. All stages were reached; live contenders were refused while their
+holder remained alive. The skipped file was restored byte-exact. This proves
+an executable lease requirement, not a passing crash-recovery claim. JOINA
+must integrate its lease and unskip/replay the suite; no writer implementation
+is changed here.
+
+## Join-gate repairs
+
+The scoped duplicate gate found five clones exposed by joining the two
+pre-existing fixtures: service-aware keyring maps, generated OS-slot/channel
+ports and the repeated absent-socket check. Reuse the helpers with unchanged
+behavior; **5 → 0 clones**, no ignore or threshold change. The native slot
+fixture is typed to its actual constructor context, not the schema's full
+post-parse record. The plain knip gate registers the real installed runtime
+and sibling entries plus the compiled SIGKILL child; no dead export remains.
+
+The host harness initially inlined the new POSIX/resource dependencies and
+failed its unchanged 50 KiB cap at **213.8 KiB**. It now uses the exact production
+external sibling mappings shared from the existing build library. The complete
+owning `vaultPanelBuild`, `brokerAdoption`, `vaultManagement` files pass
+**21/21**, retaining their original caps and assertions. The pre-repair
+composition and process-inventory files also passed; after the repair the
+complete vault list is replayed below.
+
+## Scoped verification before the binding commit
+
+All five typecheck projects pass; the unit project passes again after fixture
+consolidation. Changed-file ESLint exits 0 with zero warnings; plain knip exits
+0 and jscpd reports zero clones. Localization: 14 UI/usage tables, zero problems.
+Reference, roadmap, plan format and regenerated host API gates pass. The final
+production build passes sizes, split/global checks and 92 dependency notices;
+activation 550.1/600 KiB, Model API 515.8/525 KiB, vault host 32.8/50 KiB,
+broker 109.1/116.49 KiB, runtime 19.6/25 KiB, bindings 25.8/32 KiB,
+store 33.0/50 KiB and POSIX 16.9/25 KiB. Existing caps are unchanged.
+`sh test/hosts/run-vault-posix.sh` exits 0: both native OS-slot and installed
+broker receipts pass, and the private bus/keyring and helper processes close.
+No live/paid call. The complete vault replay follows this committed piece.

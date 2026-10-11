@@ -207,6 +207,9 @@ const BUDGETS = [
   { path: 'dist/vaultBoundaries.js', budgetKiB: 50 },
   // C-M109-1b: 103,730 bytes measured on Kubuntu; exactly 15% headroom, rounded to one byte.
   { path: 'dist/vaultBroker.js', budgetKiB: 119_290 / 1024 },
+  { path: 'dist/vaultBrokerBindings.js', budgetKiB: 32 },
+  { path: 'dist/vaultStore.js', budgetKiB: 50 },
+  { path: 'dist/vaultPosix.js', budgetKiB: 25 },
   // The report dialog (M93): the builder, its second scrub, the export paths
   // and the handler, loaded on the first open. 63.6 KiB when split out (its
   // own zod), plus 15%, rounded up to 25 KiB (PLAN.md D6).

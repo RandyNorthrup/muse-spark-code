@@ -10,7 +10,6 @@ import process from 'node:process'
 import { randomBytes } from 'node:crypto'
 import { VAULT_PROTOCOL_VERSION, VAULT_RESET_WORD } from '../../../src/shared/constants'
 import { vaultBrokerLockSchema } from '../../../src/shared/vaultProtocol'
-import type { VaultSlotRecord } from '../../../src/shared/vault'
 import type { VaultManagement } from '../../../src/core/vault/broker/management'
 import type { VaultBroker } from '../../../src/core/vault/broker/broker'
 import type * as brokerModule from '../../../src/core/vault/broker/broker'
@@ -24,8 +23,8 @@ import {
   type VaultBrokerBindings,
 } from '../../../src/runtime/vault/vaultBrokerEntry'
 import { NodeVaultFiles } from '../../../src/core/vault/store'
-import type { KeyringEntryFactory } from '../../../src/runtime/keyStore'
-import { FakeVaultSlot } from '../helpers/vault/core'
+import { memoryKeyring } from '../helpers/keyring'
+import { FakeVaultSlot, fakeOsStoreProvider, fakeHostChannelPorts } from '../helpers/vault/core'
 import { brokerFixture } from './brokerFixture'
 import { cleanupTempHomes, tempHome } from './managementFixture'
 
@@ -94,14 +93,6 @@ function resetSeen(): void {
   seen.broker = undefined
 }
 
-/** Fake platform has no screen-lock source. */
-function withoutScreenLock(): void {
-  /* Nothing to stop. */
-}
-function screenLockSubscription(): () => void {
-  return withoutScreenLock
-}
-
 afterEach(cleanupTempHomes)
 
 /** A generated home holding one `.git-credentials` with a generated secret. */
@@ -112,75 +103,30 @@ async function homeWithGitCredentials(home: string): Promise<{ file: string; sec
   return { file, secret }
 }
 
-function memoryKeyring(): { factory: KeyringEntryFactory; entries: Map<string, string> } {
-  const entries = new Map<string, string>()
-  const factory: KeyringEntryFactory = (service, account) => ({
-    getPassword: () => Promise.resolve(entries.get(`${service}/${account}`) ?? null),
-    setPassword: (password) => {
-      entries.set(`${service}/${account}`, password)
-      return Promise.resolve()
-    },
-    deletePassword: () => Promise.resolve(entries.delete(`${service}/${account}`)),
-  })
-  return { factory, entries }
-}
-
 async function bindings(
   home: string,
 ): Promise<{ ports: VaultBrokerBindings; anchors: Map<string, string> }> {
   // The broker's own audit over a proven in-memory port.
   const broker = await brokerFixture()
   await broker.broker.dispose()
-  const keyring = memoryKeyring()
+  const keyring = memoryKeyring(true)
   const osStore = new FakeVaultSlot('osStore')
   const ports: VaultBrokerBindings = {
-    keyring: keyring.factory,
-    slots: {
-      slotFor: (record: VaultSlotRecord) => (record.tier === 'osStore' ? osStore : null),
-      osStore: (vaultId: string, slotId: string) => ({
-        tier: 'osStore' as const,
-        wrap: async (key: Uint8Array) => {
-          const record = await osStore.wrap(key)
-          return { ...record, vaultId, id: slotId }
-        },
-        unwrap: (slot: VaultSlotRecord, use: string) => osStore.unwrap(slot, use),
-      }),
-      presence: () => Promise.resolve(false),
-      onScreenLock: screenLockSubscription,
-    },
+    keyring: keyring.openEntry,
+    slots: fakeOsStoreProvider(osStore),
     peers: {
       verify: () => Promise.reject(new Error('no peer without a socket')),
-    },
-    identity: {
-      verifyHost: () => Promise.resolve(true),
-      verifyLaunched: () => Promise.resolve(false),
     },
     audit: () => broker.deps.audit,
     onAuditFailure: () => {
       throw new Error('generated audit failure')
     },
-    identify: (identity, hostId) =>
-      Promise.resolve({
-        peer: { hostId, userId: identity.userId, processId: identity.processId, ui: true },
-        requester: null,
-        firstParty: true,
-        manage: true,
-      }),
-    ceiling: () => 'ask',
-    lifetime: () => ({
-      close: () => {
-        /* No fake execution. */
-      },
-      terminate: () => Promise.resolve(true),
-    }),
-    perform: () => Promise.reject(new Error('fake execution unavailable')),
-    taint: () => Promise.resolve({ tainted: false, reasons: [] }),
-    scrub: (text) => Promise.resolve(text),
+    ...fakeHostChannelPorts(),
     home,
     lockOnScreenLock: false,
     idleMs: 1000,
   }
-  return { ports, anchors: keyring.entries }
+  return { ports, anchors: keyring.values }
 }
 
 async function compose(): Promise<{

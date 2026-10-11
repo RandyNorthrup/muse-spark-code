@@ -509,6 +509,21 @@
     "reason": "Share copy (xclip, pbcopy, Set-Clipboard) and browser (xdg-open, open, explorer) adapters; scrubbed stdin, credential-free environment; pause is refused with the governor’s words."
   },
   {
+    "site": "src/runtime/vault/posixClientPlatform.ts#call:spawnResourceProcess:1",
+    "profile": "contained",
+    "reason": "Installed vault broker/native kernel lock uses admission, a credential-free environment and owned whole-tree cleanup."
+  },
+  {
+    "site": "src/runtime/vault/posixNative.ts#call:execResourceFile:1",
+    "profile": "probe",
+    "reason": "Bounded read-only vault native process identity probe; no temp root, credential environment or shell."
+  },
+  {
+    "site": "src/runtime/vault/posixNative.ts#call:spawnResourceProcess:1",
+    "profile": "contained",
+    "reason": "Installed vault broker/native kernel lock uses admission, a credential-free environment and owned whole-tree cleanup."
+  },
+  {
     "site": "src/runtime/vault/slots/macVaultTransport.ts#call:spawnResourceProcess:1",
     "profile": "contained",
     "reason": "Private vault slot transport selects contained launch with an empty credential environment."

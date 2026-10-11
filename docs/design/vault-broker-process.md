@@ -50,10 +50,22 @@ any connected client suspends that timer. Native identity execution and startup-
 five-second response bounds. `close()` is idempotent and cleanup still runs when lock
 or disposal fails.
 
-Part A's merged building-block commit does not yet export the installed
-binding factory. The released editor surfaces remain closed. Part A must
-also package the pinned keyring module for the VSIX (the ACP package already
-installs it as a dependency). Installed VS Code/CLI/ACP/headless receipts
-belong to that integration; the other editor receipts belong to C-M109-10.
-The Mac mini native receipt is blocked by SSH host-key verification; no
-trust settings were changed. See [certification](../certification/cm109-1b.md).
+CM109JOINB now exports the installed factory through `vaultRuntime.js`, with
+child-only bindings in `vaultBrokerBindings.js`, immutable store/error identity
+in `vaultStore.js`, and the lazy POSIX client in `vaultPosix.js`. The child
+configures the real governor with shared machine settings and a broker-owned
+creation registry under its run directory; concurrent editor launches cannot
+overwrite that registry. Management and first-party private reads are wired.
+Agent execution, ceilings and provenance still require T/X/S/O transport
+bindings and refuse explicitly until then. Host registration is owner-only and
+checked against kernel PID/UID/birth/image facts, with the same-user rewrite
+residual in D89.15; it is not an attestation against hostile code running as the
+same OS user.
+
+Availability stays off pending CM109JOINA's shared writer lease, Windows join,
+Models & Agents/settings mount and reviewed installed-editor acceptance. Part A
+must also package the pinned keyring module for the VSIX (the ACP package already
+installs it as a dependency). Kubuntu's generated-only installed launch and
+Secret Service receipt is in [join certification](../certification/cm109-join-posix.md).
+macOS login Keychain and other editor acceptance remain lead-owned; no trust
+settings were changed.
