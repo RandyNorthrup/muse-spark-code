@@ -50,20 +50,39 @@ bindings are phase c (M111a, M110a0's lane T) and stay out.
 
 ## Validation (repository timeouts, `--maxWorkers=3`, kubuntu)
 
-`test/unit/keybindingsReportSource.test.ts`, 9 tests:
+`test/unit/keybindingsReportSource.test.ts`, 15 tests:
 
-- Real-manifest: every declared binding on all three platforms, per-platform
-  chord spot checks, panel and ACP rows, schema-valid sections, and the
-  shipped defaults conflict-free (a new default clash fails on purpose).
+- Real-manifest: every declared binding on all three platforms,
+  per-platform chord spot checks (including the `linux` override), panel
+  and ACP rows, schema-valid sections, and the shipped defaults
+  conflict-free (a new default clash fails on purpose).
 - Built-in targets listed; empty/misshapen manifests refused as unavailable.
-- Conflicts: same chord same when flags (one row per platform, case
-  insensitive); different `when` or platform does not.
-- Order-independence and deduplication of facts; ACP table pinned to
-  `/help`'s list; real sections through the shared forward with row caps
-  and `--full`; reader missing/invalid codes mapped by the source port;
-  engine generates the kind bound and leaves it unbound without input.
+- Conflicts: same chord same `when` flags (one row per platform per shared
+  clause, case insensitive, the clause in scope); different `when` clauses
+  shadow by design and other platforms never collide.
+- Order-independence and deduplication of facts; the same conflict bytes in
+  either fact order (the normalized chord, not the first fact's casing).
+- Generated bindings: the conflicts are exactly the sets sharing platform,
+  chord and clause — nested comparison, never a group key — in forward,
+  rotated and reversed input order, including the aliasing pairs a
+  concatenated key would merge.
+- Blank chord: the source is partial with its reason, the 3 skipped rows
+  counted on the bindings section, the conflicts section empty with
+  omission 0.
+- ACP table pinned to the registrar's announced commands: the real agent
+  over the ACP client announces the baseline (`help`/`compact`/`report`/
+  `agents`) with no ports and exactly `ACP_COMMAND_FACTS` with every port
+  bound — in any registration syntax — and a command no single gate
+  explains fails as unclassifiable.
+- Gate attribution: each bound port adds exactly its commands, and each
+  reported `when` matches the announcing gates; the media pair announces
+  only while not headless (an all-ports headless run withholds it).
+- Docs pin the adapter sentences; real sections through the shared forward
+  with row caps and `--full`; reader missing/invalid codes mapped by the
+  source port; engine generates the kind bound and leaves it unbound
+  without input.
 
-Final run: 9 passed. `tsc --noEmit`, ESLint zero warnings on touched
+Final run: 15 passed. `tsc --noEmit`, ESLint zero warnings on touched
 files, Prettier clean, `check:l10n` 0 problems, `check:reference` current.
 
 Pre-existing build-gate failure (not this lane): `npm run build` exits 1
@@ -140,6 +159,8 @@ port identifiers spliced like editor `when` clauses).
   from the live `acpSharingCommands()`/`resourceCommands()` plus every
   `name:` literal in `refreshCommands` — and requires exact set equality
   with the report, so a new registrar entry fails until listed.
+  (Mechanism redesigned in R4 below: the test now runs the registrar
+  itself instead of scanning its source.)
 - P2-3 panel rows dropped the setting gate
   (`sources` + `collect/keybindings.ts`): panel facts carry `when` from
   `referenceKeyboardActions()` (its context-name fallback means
@@ -216,15 +237,17 @@ Implementation section above now describe the current behaviour.
 
 - P2 conflict rows merged across `when` clauses
   (`collect/keybindings.ts`): the group key is platform, normalized
-  chord AND `when` clause, and the row shows the shared clause in its
-  scope through the same `scopeFor` helper as binding rows
-  (`editor/linux (editorTextFocus)`; bare `editor/<platform>` when
-  ungated). Sweep: the row key carries the clause too, so two clauses
-  with identical command sets stay distinct rows; single-command groups
-  emit nothing, as before. Regression: the conflict test fixtures two
-  clashes on one chord under different clauses and expects six rows
-  (three platforms times two clauses) with pair lists and clause scopes;
-  the order-independence test pins the bare scope on the ungated clash.
+  chord AND `when` clause (redesigned as a JSON tuple in R4 below, after
+  this round's concatenation was found to alias), and the row shows the
+  shared clause in its scope through the same `scopeFor` helper as
+  binding rows (`editor/linux (editorTextFocus)`; bare
+  `editor/<platform>` when ungated). Sweep: the row key carries the
+  clause too, so two clauses with identical command sets stay distinct
+  rows; single-command groups emit nothing, as before. Regression: the
+  conflict test fixtures two clashes on one chord under different clauses
+  and expects six rows (three platforms times two clauses) with pair
+  lists and clause scopes; the order-independence test pins the bare
+  scope on the ungated clash.
 - P3 blank chord inflated the conflicts omission
   (`collect/keybindings.ts`): `conflictRows` no longer counts blank
   chords — a blank names no gesture, so it cannot clash — and always
@@ -239,7 +262,9 @@ Implementation section above now describe the current behaviour.
   registrar names mapped to their ports — and requires the reported
   `when` to match for every gated command, so removing any gate fails
   the suite. A new spread shape throws until mapped, and the spread-gate
-  pin fails on a new unmapped spread. Sweep: unconditional entries
+  pin fails on a new unmapped spread. (Mechanism redesigned in R4 below:
+  the source scan could not see every spread shape, so the test now runs
+  the registrar itself.) Sweep: unconditional entries
   (`help`, `compact`, `report`, `agents`) are read back from the table
   remainder, not assumed; dynamic `skill.selector` entries still match
   no name pattern and stay out.
@@ -268,3 +293,76 @@ SHA-256 (verified after each restore with `sha256sum -c`).
 
 Decisions recorded: CHANGELOG untouched (the unreleased kind entry
 already covers this behaviour; the fixes correct it pre-release).
+
+## R4 — RVCM1135C repairs (lane CM1135AR4, 2026-10-11, rig kubuntu)
+
+All three findings fixed, no residuals. This was the third review, so two
+parts are redesigned instead of patched, as the brief required. Suite is
+now 15 tests in `test/unit/keybindingsReportSource.test.ts` (was 12), all
+passing at the repository timeout with `--maxWorkers=3`. No new
+dependency, no guard widened, no new UI string. The diff stays inside this
+lane's files (`collect/keybindings.ts`, the suite, this record); the
+registrar itself is untouched — the new parity test only drives it.
+
+- P3-1 conflict group key aliased (redesigned,
+  `collect/keybindings.ts`): the key is now the JSON of the tuple
+  (platform, normalised chord, `when` clause) — structured, never
+  concatenated — so `ctrl+k` under `when: 'ab'` can never share a key
+  with ungated `ctrl+kab`, and neither can a chord sequence with a chord
+  plus a clause. Each row is built from the group's members in a sorted,
+  stated order (by command, duplicates dropped), so the bytes never
+  depend on input order either. Sweep: the lane's only other stringified
+  key (`deduplicate`) was already a JSON array; no other concatenation
+  keys remain in the lane's files. Regression: a property test over
+  seeded generated bindings (case/whitespace variants, `linux`
+  overrides, blank chords, both aliasing pairs) requires the conflicts
+  to be exactly the sets sharing platform, chord and clause — worked out
+  by nested comparison, never a group key — in forward, rotated and
+  reversed input order.
+- P3-2 parity scanner blind to spread shapes (redesigned, suite only):
+  the source-text scan of `agent.ts` (`name:` literals plus one spread
+  regex) is gone. The suite now runs the real registrar — a full agent
+  over the ACP client, one `session/new`, then read-only `/agents` —
+  against fakes: baseline (no ports), each of the eleven gates bound
+  alone, every port bound, and every port bound headless. It requires the
+  baseline to be exactly `help`/`compact`/`report`/`agents`, the all-ports
+  announcement to equal `ACP_COMMAND_FACTS`, each gate to add exactly its
+  commands (`GATE_COMMANDS`), each reported `when` to match the
+  announcing gates, and the headless run to withhold `attach`/`record`
+  only. A command no single gate explains fails as unclassifiable, so a
+  new spread shape — or any other registration syntax — fails until
+  listed instead of passing silently. Sweep: the scanner was the lane's
+  only source-text check of `agent.ts`; the docs-content test still reads
+  markdown, which is its subject, not code under test.
+- P3-3 stale Validation (this file): the opening section above now
+  describes the current 15-test suite and behaviour (per-platform
+  per-clause conflicts, registrar-run parity with gates, 15 passed), and
+  the R2/R3 bullets that described the withdrawn scanner and the
+  concatenated key carry supersession notes pointing here.
+
+Red drills (break guard → named test fails → restore byte-exact,
+SHA-256 verified after each restore; final SHAs below):
+
+| Finding | Break                                                           | Named test                                                               | Result               |
+| ------- | --------------------------------------------------------------- | ------------------------------------------------------------------------ | -------------------- |
+| P3-1    | group key back to concatenation                                 | groups generated bindings by platform, chord and when in any input order | 1 failed / 12 passed |
+| P3-2    | unguarded `{ name: 'fleet' }` in `refreshCommands` (any syntax) | pins the ACP table to the registrar announced commands                   | 1 failed / 14 passed |
+| P3-2    | `when: 'sharing'` removed from share                            | attributes each announced command to its registrar gate                  | 1 failed / 14 passed |
+
+Post-drill: 15 passed, and every drilled file matched its pre-drill
+SHA-256 (verified after each restore with `sha256sum`; the registrar
+drill touched `src/acp/agent.ts` outside the lane and restored it to its
+committed SHA `d7680d3b5f593e77b46c5d9c364e4c3e933b1fe41a4ce39528fa74c650b039e6`).
+
+| File                                        | SHA-256                                                                                 |
+| ------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `src/core/reporting/collect/keybindings.ts` | `2a567e31c70fbe54035026c774dab1058d853d3432583cb1e2ccfd8e0872cd0a`                      |
+| `src/core/reporting/sources/keybindings.ts` | `fdc83a230ee0455bfdebcc5926c32353a45d862906d0f5ac87eaad803b7a93cb` (unchanged since R2) |
+| `test/unit/keybindingsReportSource.test.ts` | `23ebd859e99eb17e63354ef02b6fd3368d2f2212a4fc63929000d5ead1509464`                      |
+
+Decisions recorded: CHANGELOG untouched (the unreleased kind entry
+already covers this behaviour; the fixes correct it pre-release).
+`featureCatalog` keeps no keybindings-kind help row (truth-pass item,
+not a finding; still withdrawn). PLAN's C-M113-5a paragraph is
+behaviour-level and still accurate (name and gate parity, clause-keyed
+conflicts, bindings-only blank omission), so it stands unchanged.
