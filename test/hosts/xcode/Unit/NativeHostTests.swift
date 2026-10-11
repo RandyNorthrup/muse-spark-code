@@ -581,7 +581,7 @@ final class NativeHostTests: XCTestCase {
     }
     for (language, expected) in [
       ("zh-Hans-CN", "打开面板"), ("zh-Hant-TW", "開啟面板"), ("de-DE", "Panel öffnen"),
-      ("en-US", "Open panel"),
+      ("en-US", "Open Panel"),
     ] {
       setenv("MUSE_UI_LANGUAGE", language, 1)
       XCTAssertEqual(UI_TEXT.xcodeOpenPanel, expected)
