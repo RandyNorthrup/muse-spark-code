@@ -183,6 +183,11 @@ Use this order for a candidate branch:
 - No new dependency without a reason in the pull request and a
   compatibility check; no suppressed lint rule or `any` without an inline
   reason and a row in PLAN.md §8.
+- A test or script that cites `PLAN.md`, `README.md` or `CHANGELOG.md` names
+  a heading and quotes a phrase from under it
+  (`test/unit/helpers/planCitation.ts`), never a line number. Every branch
+  moves the lines; the phrase must be found exactly once, under that
+  heading, or the check fails.
 - Keep secrets out: the pre-commit hook runs gitleaks, and nothing in the
   repository may contain a real credential.
 - The pre-commit hook runs staged lint and format tasks serially to limit

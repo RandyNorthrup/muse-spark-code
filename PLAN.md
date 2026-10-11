@@ -21343,6 +21343,15 @@ it, so conversion waits for estimator-milestone work. Everything
 else is converted to `UsdAmount`; old persisted numbers are read through a
 versioned schema whose number member pipes straight to the canonical string.
 
+**Citations by text (INT0180, 2026-10-11).** The guard cites the four clauses
+above by this milestone's heading and their own words
+(`test/unit/helpers/planCitation.ts`, `moneyPlanCitations.ts`), not by line
+number: a line number moved with every edit above it, and the old check only
+asked that the numbered line was not blank. Each clause must now be in this
+file exactly once, under this heading; rewording or moving one is a deliberate
+change that updates its citation in the same commit. Record:
+`docs/certification/m121.md`.
+
 **Status 2026-10-09 (M121A): built.** Every `trackedDebt` field is now
 `UsdAmount` and the category is gone: the usage journal and usage page,
 `usage.ts`, the models panel (including its spread copies), `accountUsage`

@@ -184,6 +184,13 @@ happened, not what was planned; superseded entries are kept.
   times its charge. The exact-money type guard now also sees through
   finite-key records and mapped types.
 
+- Tests only: the exact-money guard cites PLAN.md by heading and quoted
+  phrase instead of by line number. A line number named a different sentence
+  after every edit above it, and the old check only asked that the numbered
+  line was not blank; each sanctioned entry's clause must now be in PLAN.md
+  exactly once, under M121's heading, so PLAN edits elsewhere no longer turn
+  the suite red and a deleted, reworded, duplicated or moved clause does.
+
 ### Pending
 
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
