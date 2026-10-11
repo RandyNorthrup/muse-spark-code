@@ -107,6 +107,11 @@ export interface SubagentUsage {
 
 /** One key-billed team task the popup names (M96 lane A, PLAN.md D75). */
 export interface TeamWorkerConfirmation {
+  readonly rates?: {
+    readonly input: number
+    readonly output: number
+    readonly cachedInput?: number
+  }
   /** Missing means Meta; other key-billed providers use the unknown-price path. */
   readonly provider?: string
   /** The adapter's tariff identity; changing it asks again even for the same model. */

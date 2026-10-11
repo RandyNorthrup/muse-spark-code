@@ -601,6 +601,8 @@ export interface ModelApiPaidHooks {
 }
 
 export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDeps {
+  /** Host restriction at both declaration and dispatch. */
+  readonly toolAllowlist?: readonly string[] | undefined
   /** M105-A: M2 binds the attachment choices to the portable sound router in
    * dist/media.js. Absent until that lane is integrated; no eager media load. */
   readonly prepareAudioMessage?: (request: {
@@ -4423,7 +4425,12 @@ export class ModelApiSession implements ScheduledAgentSession {
    */
   private canRunShell(): boolean {
     const allowed = this.agent?.toolAllowlist
-    return allowed === undefined || allowed.includes(shellToolFor(this.deps.platform).name)
+    const host = this.deps.toolAllowlist
+    const shell = shellToolFor(this.deps.platform).name
+    return (
+      (host === undefined || host.includes(shell)) &&
+      (allowed === undefined || allowed.includes(shell))
+    )
   }
 
   /**
@@ -4432,7 +4439,11 @@ export class ModelApiSession implements ScheduledAgentSession {
    */
   private canRunVerifyCommands(): boolean {
     const allowed = this.agent?.toolAllowlist
-    return this.canRunShell() || allowed?.includes(VERIFY_TOOLS.runChecks) === true
+    return (
+      (this.deps.toolAllowlist === undefined ||
+        this.deps.toolAllowlist.includes(VERIFY_TOOLS.runChecks)) &&
+      (this.canRunShell() || allowed?.includes(VERIFY_TOOLS.runChecks) === true)
+    )
   }
 
   /** Packing needs the selected model's tool-calling capability for recall. */
@@ -4496,11 +4507,13 @@ export class ModelApiSession implements ScheduledAgentSession {
       ? [...offered, { type: MODEL_API_WEB_SEARCH_TOOL }]
       : offered
     // A custom agent keeps only its allowlist of the offered tools (M76).
-    if (this.agent?.toolAllowlist === undefined) {
-      return withSearch
-    }
-    const allowed = new Set(this.agent.toolAllowlist)
-    return withSearch.filter((tool) => allowed.has(toolNameOf(tool)))
+    return withSearch.filter(
+      (tool) =>
+        (this.deps.toolAllowlist === undefined ||
+          this.deps.toolAllowlist.includes(toolNameOf(tool))) &&
+        (this.agent?.toolAllowlist === undefined ||
+          this.agent.toolAllowlist.includes(toolNameOf(tool))),
+    )
   }
 
   /** The extension's own IDE tools, as the model calls them (M50). */
@@ -11723,7 +11736,10 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     // The allowlist binds every dispatcher, including memory's specialized
     // path: definitions alone cannot stop a model calling a tool by name.
-    if (this.agent?.toolAllowlist !== undefined && !this.agent.toolAllowlist.includes(call.name)) {
+    if (
+      (this.deps.toolAllowlist !== undefined && !this.deps.toolAllowlist.includes(call.name)) ||
+      (this.agent?.toolAllowlist !== undefined && !this.agent.toolAllowlist.includes(call.name))
+    ) {
       return {
         outcome: toolFailure(MODEL_API_MODEL_TEXT.agentToolNotOffered, UI_TEXT.agentToolNotOffered),
         isRejected: false,

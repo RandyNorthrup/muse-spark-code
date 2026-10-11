@@ -5148,5 +5148,14 @@
     "docs": "文件"
   },
   "referenceTeamConfiguration": "團隊代理和設定連線安裝完成之前，角色和代理維持隱藏。",
-  "referenceTeamPoolKeys": "Alt+上 / Alt+下可在集區中移動此項目。"
+  "referenceTeamPoolKeys": "Alt+上 / Alt+下可在集區中移動此項目。",
+  "teamControlLabels": {
+    "thinkingBudget": "思考預算",
+    "outputCap": "輸出上限",
+    "parallelToolCalls": "平行工具呼叫",
+    "temperature": "溫度",
+    "topP": "Top-p 取樣機率"
+  },
+  "teamTryTally": "付費預覽：{attempts}；已收費 {charged}；保留責任金額 {retained}。",
+  "teamTryDenied": "已拒絕付費計畫預覽。未產生費用。"
 }

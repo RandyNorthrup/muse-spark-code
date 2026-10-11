@@ -7496,6 +7496,30 @@ export const TEAM_BOOTSTRAP_MODEL_TEXT = {
 // no branch, folder, task id or date, so every task of one role and entry
 // starts with the same bytes.
 
+/** Native discovery shapes committed under docs/certification/m95-captures. */
+export const TEAM_TRY_MAX_REQUESTS = 3
+export const TEAM_TRY_MAX_OUTPUT_TOKENS = 2048
+export const TEAM_TRY_TIMEOUT_MS = 120_000
+export const TEAM_TRY_MODEL_TEXT = {
+  teamTryPlanningInstructions:
+    'Plan only. Explain how this exact team would handle the sample: role, model, brief, expected checks and integration order. Respect every saved charter, tool and path restriction and budget. Do not execute work, invent available agents or request tools. This is a paid planning preview, not a worker run.',
+}
+export const TEAM_CAPTURED_PROVIDER_PRESETS: readonly string[] = [
+  'openai',
+  'anthropic',
+  'gemini',
+  'xai',
+  'openrouter',
+  'groq',
+  'mistral',
+  'together',
+  'fireworks',
+  'deepseek',
+  'huggingface',
+  'zai',
+  'ollama',
+]
+
 export const TEAM_MODEL_SETTINGS = [
   'effort',
   'thinking',

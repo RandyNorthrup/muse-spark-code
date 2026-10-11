@@ -5454,5 +5454,14 @@
     "docs": "Documentación"
   },
   "referenceTeamConfiguration": "Roles y Agentes permanecen ocultos hasta que se instalen las conexiones de los agentes del equipo y de la configuración.",
-  "referenceTeamPoolKeys": "Alt+Arriba / Alt+Abajo mueve esta entrada en su grupo."
+  "referenceTeamPoolKeys": "Alt+Arriba / Alt+Abajo mueve esta entrada en su grupo.",
+  "teamControlLabels": {
+    "thinkingBudget": "Presupuesto de razonamiento",
+    "outputCap": "Límite de salida",
+    "parallelToolCalls": "Llamadas a herramientas en paralelo",
+    "temperature": "Temperatura",
+    "topP": "Probabilidad Top-p"
+  },
+  "teamTryTally": "Vista previa de pago: {attempts}; cobrado {charged}; responsabilidad retenida {retained}.",
+  "teamTryDenied": "Vista previa del plan de pago denegada. No se cobró nada."
 }

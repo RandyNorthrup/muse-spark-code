@@ -5148,5 +5148,14 @@
     "docs": "文書"
   },
   "referenceTeamConfiguration": "チームのエージェントと設定の接続が実装されるまで、ロールとエージェントは非表示のままです。",
-  "referenceTeamPoolKeys": "Alt+上 / Alt+下でプール内のこの項目を移動します。"
+  "referenceTeamPoolKeys": "Alt+上 / Alt+下でプール内のこの項目を移動します。",
+  "teamControlLabels": {
+    "thinkingBudget": "思考予算",
+    "outputCap": "出力上限",
+    "parallelToolCalls": "並列ツール呼び出し",
+    "temperature": "温度",
+    "topP": "Top-p サンプリング確率"
+  },
+  "teamTryTally": "有料プレビュー：{attempts}、請求額 {charged}、保留中の負担額 {retained}。",
+  "teamTryDenied": "有料計画プレビューを拒否しました。課金はありません。"
 }

@@ -5607,5 +5607,14 @@
     "docs": "Dokumentacja"
   },
   "referenceTeamConfiguration": "Role i Agenci pozostają ukryte do czasu zainstalowania połączeń agentów zespołu i konfiguracji.",
-  "referenceTeamPoolKeys": "Alt+Góra / Alt+Dół przesuwa ten wpis w puli."
+  "referenceTeamPoolKeys": "Alt+Góra / Alt+Dół przesuwa ten wpis w puli.",
+  "teamControlLabels": {
+    "thinkingBudget": "Budżet rozumowania",
+    "outputCap": "Limit wyjścia",
+    "parallelToolCalls": "Równoległe wywołania narzędzi",
+    "temperature": "Temperatura",
+    "topP": "Prawdopodobieństwo Top-p"
+  },
+  "teamTryTally": "Płatny podgląd: {attempts}; naliczono {charged}; zatrzymane zobowiązanie {retained}.",
+  "teamTryDenied": "Odmówiono płatnego podglądu planu. Nie naliczono opłaty."
 }

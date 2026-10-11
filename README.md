@@ -5875,3 +5875,8 @@ conversations; Reset to Default and Save restores the composer’s selection.
 Backend changes and contributor models retain their confirmations. These
 bindings remain behind the team availability gate pending the remaining ports
 and certification.
+
+The hidden Roles panel's paid Try sends the current draft to an isolated
+planning conversation. It asks once before spending, names the model's rates
+and shared daily budget, runs no tools or workers, and displays charged cost
+and retained liability for uncertain responses. Closing the panel cancels it.

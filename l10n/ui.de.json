@@ -5301,5 +5301,14 @@
     "docs": "Dokumentation"
   },
   "referenceTeamConfiguration": "Rollen und Agenten bleiben ausgeblendet, bis die Anbindungen für Teamagenten und Konfiguration installiert sind.",
-  "referenceTeamPoolKeys": "Alt+Auf / Alt+Ab verschiebt diesen Eintrag im Pool."
+  "referenceTeamPoolKeys": "Alt+Auf / Alt+Ab verschiebt diesen Eintrag im Pool.",
+  "teamControlLabels": {
+    "thinkingBudget": "Denkbudget",
+    "outputCap": "Ausgabelimit",
+    "parallelToolCalls": "Parallele Werkzeugaufrufe",
+    "temperature": "Temperatur",
+    "topP": "Top-p-Wahrscheinlichkeit"
+  },
+  "teamTryTally": "Kostenpflichtige Vorschau: {attempts}; berechnet {charged}; zurückbehaltene Haftung {retained}.",
+  "teamTryDenied": "Kostenpflichtige Planungsvorschau abgelehnt. Es wurden keine Kosten berechnet."
 }

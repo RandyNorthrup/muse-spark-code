@@ -5607,5 +5607,14 @@
     "docs": "Документация"
   },
   "referenceTeamConfiguration": "Разделы «Роли» и «Агенты» скрыты до установки подключений агентов команды и конфигурации.",
-  "referenceTeamPoolKeys": "Alt+Вверх / Alt+Вниз перемещает эту запись в пуле."
+  "referenceTeamPoolKeys": "Alt+Вверх / Alt+Вниз перемещает эту запись в пуле.",
+  "teamControlLabels": {
+    "thinkingBudget": "Бюджет размышлений",
+    "outputCap": "Предел вывода",
+    "parallelToolCalls": "Параллельные вызовы инструментов",
+    "temperature": "Температура",
+    "topP": "Вероятность Top-p"
+  },
+  "teamTryTally": "Платный просмотр: {attempts}; списано {charged}; удержанное обязательство {retained}.",
+  "teamTryDenied": "Платный просмотр плана отклонён. Плата не списана."
 }

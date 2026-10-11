@@ -5607,5 +5607,14 @@
     "docs": "Dokumentace"
   },
   "referenceTeamConfiguration": "Sekce Role a Agenti zůstanou skryté, dokud nejsou nainstalována propojení týmových agentů a konfigurace.",
-  "referenceTeamPoolKeys": "Alt+Nahoru / Alt+Dolů přesune tuto položku ve skupině."
+  "referenceTeamPoolKeys": "Alt+Nahoru / Alt+Dolů přesune tuto položku ve skupině.",
+  "teamControlLabels": {
+    "thinkingBudget": "Rozpočet uvažování",
+    "outputCap": "Limit výstupu",
+    "parallelToolCalls": "Paralelní volání nástrojů",
+    "temperature": "Teplota",
+    "topP": "Pravděpodobnost Top-p"
+  },
+  "teamTryTally": "Placený náhled: {attempts}; účtováno {charged}; zadržený závazek {retained}.",
+  "teamTryDenied": "Placený náhled plánu zamítnut. Nic nebylo účtováno."
 }

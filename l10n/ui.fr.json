@@ -5460,8 +5460,8 @@
     "outputCap": "Limite de sortie",
     "parallelToolCalls": "Appels d’outils parallèles",
     "temperature": "Température",
-    "topP": "Top-p"
+    "topP": "Probabilité Top-p"
   },
-  "teamTryTally": "Aperçu payant : {attempts} tentatives ; facturé {charged} ; montant réservé {retained}.",
+  "teamTryTally": "Aperçu payant : {attempts} ; facturé {charged} ; montant réservé {retained}.",
   "teamTryDenied": "Aperçu du plan payant refusé. Aucun montant facturé."
 }

@@ -7,6 +7,8 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Bind paid team planning previews to one consent popup, shared daily admission and per-attempt settlement, with an explicit cost/liability tally and cancellation.
+
 ### Added
 
 - **Roles and Agents editor** (M96 U1, C-M96-2), kept hidden behind the team

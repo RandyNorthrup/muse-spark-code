@@ -5454,5 +5454,14 @@
     "docs": "Documentação"
   },
   "referenceTeamConfiguration": "Papéis e Agentes ficam ocultos até que as conexões dos agentes da equipe e da configuração sejam instaladas.",
-  "referenceTeamPoolKeys": "Alt+Cima / Alt+Baixo move esta entrada no grupo."
+  "referenceTeamPoolKeys": "Alt+Cima / Alt+Baixo move esta entrada no grupo.",
+  "teamControlLabels": {
+    "thinkingBudget": "Orçamento de raciocínio",
+    "outputCap": "Limite de saída",
+    "parallelToolCalls": "Chamadas de ferramentas em paralelo",
+    "temperature": "Temperatura",
+    "topP": "Probabilidade Top-p"
+  },
+  "teamTryTally": "Prévia paga: {attempts}; cobrado {charged}; responsabilidade retida {retained}.",
+  "teamTryDenied": "Prévia do plano paga negada. Nenhuma cobrança foi feita."
 }

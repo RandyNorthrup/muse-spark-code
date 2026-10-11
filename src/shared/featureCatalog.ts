@@ -39,7 +39,8 @@ const UI_CONDITIONS: Readonly<
   referenceBestOfNRequirements: 'bestOfNAdmission',
   referenceSecretPrompt: 'secretDetected',
   referenceTabMenu: 'copilotYield',
-  referenceTeamConfiguration: 'teamWorkerBinding=absent|teamConfigurationBinding=absent',
+  referenceTeamConfiguration:
+    'teamWorkerBinding=absent|teamConfigurationBinding=absent|teamPreview=paid',
   referenceConversationActions: 'turnState',
   referencePermissionLimits: 'backend&permissionMode&autoReviewer',
   museCodeReviewerNotice: 'permissionMode=auto&museCodeAutoReviewer=true',

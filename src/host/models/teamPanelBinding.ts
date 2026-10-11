@@ -6,6 +6,7 @@ import type { TeamSurfaceMessage } from '../teamHostBinding'
 import type { TeamPanelMessage } from '../../shared/teamPanel'
 
 export interface TeamPanelBinding {
+  readonly dryRun?: TeamPanelDeps['dryRun']
   readonly configuration?: Pick<
     TeamPanelDeps,
     'offers' | 'defaultRef' | 'maxWorkers' | 'confirmOrchestrator' | 'dryRun'

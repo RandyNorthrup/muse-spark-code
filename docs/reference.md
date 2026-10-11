@@ -73,7 +73,7 @@ Commands: `museSpark.openUsagePage`. Settings: `museSpark.usageHistory`, `museSp
 
 ### Roles
 
-teamWorkerBinding=absent|teamConfigurationBinding=absent: Roles and Agents stay hidden until the team worker and configuration bindings are installed.
+teamWorkerBinding=absent|teamConfigurationBinding=absent|teamPreview=paid: Roles and Agents stay hidden until the team worker and configuration bindings are installed.
 
 Alt+Up / Alt+Down move this entry in its pool.
 
