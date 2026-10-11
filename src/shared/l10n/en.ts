@@ -425,6 +425,7 @@ export const EN = {
     'estimate-by': '--by <date>: Deadline',
     fleet: '--fleet current|minimum|optimum: Current / Minimum / Optimum',
     'estimate-format': '--format md|html|json|text: Output format',
+    'estimate-check-plan': '--check-plan: List every plan problem instead of estimating',
     seed: '--seed <seed>: Simulation seed',
   },
   referenceScanSecrets:

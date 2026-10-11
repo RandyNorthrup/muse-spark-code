@@ -57,10 +57,11 @@ import type { EstimateStartPort } from '../../shared/estimate'
 
 /** The milestone bindings, injected: each refuses with its handoff until it merges. */
 export interface EstimatorSourcePorts extends EstimateGoalSourcesPort {
-  /** This estimate's lanes ride along so the fleet can offer them capacity. */
-  fleet(lanes: readonly EstimateLane[]): Promise<unknown>
+  /** This estimate's lanes ride along so the fleet can offer them capacity.
+   * The fleet is stamped with the request's asOf, never a second clock. */
+  fleet(lanes: readonly EstimateLane[], asOf: string): Promise<unknown>
   history(): Promise<unknown>
-  candidatePool(lanes: readonly EstimateLane[]): Promise<unknown>
+  candidatePool(lanes: readonly EstimateLane[], asOf: string): Promise<unknown>
   board(): EstimateStartPort
   prices(): EstimatePricePort
   priceLookup(): Omit<EstimatePriceLookup, 'asOf'>
@@ -129,10 +130,10 @@ export function createEstimatorRun(
       const parsed = estimateRequestSchema.parse(request)
       signal.throwIfAborted()
       const lanes = await resolveEstimateGoal(parsed.goal, parsed.asOf, {
-        snapshot: (goal, asOf) => ports.snapshot(goal, asOf),
+        snapshot: (goal, asOf) => ports.snapshot(goal, asOf, signal),
       })
       signal.throwIfAborted()
-      const fleet = fleetSnapshotSchema.parse(await ports.fleet(lanes))
+      const fleet = fleetSnapshotSchema.parse(await ports.fleet(lanes, parsed.asOf))
       const history = z.array(historyRecordSchema).parse(await ports.history())
       signal.throwIfAborted()
       const inputs = estimateInputsSchema.parse({
@@ -141,7 +142,7 @@ export function createEstimatorRun(
         fleet,
         history,
       })
-      const pool = fleetSnapshotSchema.parse(await ports.candidatePool(inputs.lanes))
+      const pool = fleetSnapshotSchema.parse(await ports.candidatePool(inputs.lanes, parsed.asOf))
       signal.throwIfAborted()
       const pairs: { kind: string; machineClassId: string }[] = []
       for (const lane of inputs.lanes)

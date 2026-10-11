@@ -224,6 +224,11 @@ const REPORT_ENTRY = 'src/host/support/reportEntry.ts'
 const REPORT_OUTFILE = 'dist/report.js'
 const ESTIMATOR_ENTRY = 'src/host/estimator/estimatorEntry.ts'
 const ESTIMATOR_OUTFILE = 'dist/estimator.js'
+// M117 C-M117-1: the shared core adapter over M113's plan reader with the
+// host's git and `gh` reads, loaded the first time an estimate needs a plan
+// snapshot.
+const PLAN_SNAPSHOT_ENTRY = 'src/host/estimator/planSnapshotEntry.ts'
+const PLAN_SNAPSHOT_OUTFILE = 'dist/planSnapshot.js'
 const RECORDER_ENTRY = 'src/host/support/recorderEntry.ts'
 const RECORDER_OUTFILE = 'dist/recorder.js'
 const PAGE_WORKER_ENTRY = 'src/host/web/pageWorker.ts'
@@ -536,6 +541,20 @@ const estimatorOptions = {
   plugins: [sharedUiText, sharedValidation, sharedWire],
   entryPoints: [ESTIMATOR_ENTRY],
   outfile: ESTIMATOR_OUTFILE,
+  platform: 'node',
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+// The estimator's plan snapshot (M117 C-M117-1, PLAN.md D6, D97), loaded the
+// first time an estimate needs a plan snapshot; it reads no `vscode`, so a
+// stray import fails this build.
+/** @type {import('esbuild').BuildOptions} */
+const planSnapshotOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation, sharedWire],
+  entryPoints: [PLAN_SNAPSHOT_ENTRY],
+  outfile: PLAN_SNAPSHOT_OUTFILE,
   platform: 'node',
   format: 'cjs',
   target: HOST_NODE_TARGET,
@@ -1256,6 +1275,7 @@ if (isWatch) {
     esbuild.context(vaultOptions),
     esbuild.context(reportOptions),
     esbuild.context(estimatorOptions),
+    esbuild.context(planSnapshotOptions),
     esbuild.context(recorderOptions),
     esbuild.context(whatsNewOptions),
     esbuild.context(judgeOptions),
@@ -1370,6 +1390,7 @@ if (isWatch) {
     vault: esbuild.build(vaultOptions),
     report: esbuild.build(reportOptions),
     estimator: esbuild.build(estimatorOptions),
+    planSnapshot: esbuild.build(planSnapshotOptions),
     recorder: esbuild.build(recorderOptions),
     whatsNew: esbuild.build(whatsNewOptions),
     judge: esbuild.build(judgeOptions),

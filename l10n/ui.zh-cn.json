@@ -339,6 +339,7 @@
     "estimate-by": "--by <date>: 截止日期",
     "fleet": "--fleet current|minimum|optimum: 当前设备群 / 最小配置 / 最优配置",
     "estimate-format": "--format md|html|json|text: 输出格式",
+    "estimate-check-plan": "--check-plan: List every plan problem instead of estimating",
     "seed": "--seed <seed>: 模拟种子"
   },
   "referenceScanSecrets": "扫描 UTF-8 补丁文件中的秘密信息，检测到时以失败退出。--key-stdin 还会检查内存中的 Model API 密钥原值；不保存密钥。",

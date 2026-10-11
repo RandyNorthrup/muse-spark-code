@@ -7,6 +7,7 @@ import {
 import { UI_TEXT, fill } from '../../shared/l10n/text'
 import {
   collectEstimate,
+  estimateFailureText,
   estimateDrift,
   renderEstimate,
   type EstimateCommandOptions,
@@ -94,9 +95,8 @@ export class EstimateViewSession {
       const result = this.current === undefined ? section : estimateDrift(section, this.current)
       this.current = result
       this.publish(result)
-    } catch {
-      if (this.isCurrent(generation, controller))
-        this.error(fill(UI_TEXT.estimateFailed, { detail: 'estimate-unavailable' }))
+    } catch (error: unknown) {
+      if (this.isCurrent(generation, controller)) this.error(estimateFailureText(error))
     } finally {
       if (this.isCurrent(generation, controller)) this.pending = undefined
     }

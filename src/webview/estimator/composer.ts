@@ -14,6 +14,11 @@ export function wasEstimateComposerHandled(
   const args = estimateSlashArguments(text)
   if (args === undefined) return false
   const parsed = parseEstimateOptions(args)
+  if (parsed.kind === 'check-plan') {
+    // The panel has no plan-text port: `--check-plan` is a CLI/ACP command.
+    port.notice(UI_TEXT.estimateUsage)
+    return true
+  }
   if (parsed.kind !== 'estimate') {
     port.notice(
       parsed.kind === 'help'
