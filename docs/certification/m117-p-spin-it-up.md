@@ -193,3 +193,53 @@ security (cap before request, no credential or payment surface, errors name
 only the operation), failure paths (deny, retain, refuse-unknown, all
 covered above), concurrency/lifecycle (one `EstimateSerialOwner`,
 clone-before-queue, no timers). Codex + Grok review remains lead-owned.
+
+## RVCM1176 fixes (CM1176R2, 2026-10-11, linuxlt)
+
+All six findings fixed, no residuals. One class: every outcome sequence
+keeps the liability invariant (reserved before create; kept on every
+uncertain outcome; released only on a deleted receipt for the torn-down
+id; never released twice; never below zero), and every input feeding a
+price or budget is validated before use. The review's outcome-sequence
+table is now a table-driven suite (`outcome-sequence liability` in
+`test/unit/estimatorProvision.test.ts`: 10 rows asserting `liabilityUsd`
+and tracked-server count after each sequence, plus the single-case
+regressions below). 32 tests, fakes only, repository default timeout
+(no `--testTimeout`). No new dependency, no new l10n key (the honest
+budget error reuses `estimateFailed` with a technical detail), no guard
+widened, no `as` cast, no eslint-disable.
+
+| Finding                            | Fix (`lifecycle.ts`)                                                                                                                                                                                                               | Regression test                                                                                                                                                            | Drill (guard broken → named failure, exit 1)                                                                       |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| P2 quote mutation (`:175`)         | `snapshotQuote`: the callback receives a frozen copy; `admit` reserves, creates and records the pre-confirmation values (`admit`, `provision`)                                                                                     | `hands the confirmation a frozen copy and spends the quoted values` (write attempts fail via `Reflect.set`; spend keeps `small`/`0.06`; copy + cost + size + image frozen) | R1 unfreeze: the named test fails                                                                                  |
+| P2 duplicate create id (`:185`)    | `admit` refuses an already-tracked id with `duplicate-server-id`; the earlier record keeps its cost and the new reservation stays pending                                                                                          | `keeps both liabilities when create returns an already-tracked id` (liability `0.12`, one tracked server)                                                                  | R2 guard removed: the named test fails                                                                             |
+| P2 re-entrant callback (`:168`)    | confirmations (`provision`) and the idle check (`settleIdle`) run without holding `EstimateSerialOwner`; each confirmed server is cap-checked and reserved atomically in `admit`, and teardown re-reads the record under the owner | `lets a confirmation tear down an earlier server without deadlocking` (deny-after-teardown leaves no servers, liability `0`)                                               | R3 confirm back under the lock: the named test times out at the repo default (5000 ms), the review's exact symptom |
+| P3 foreign receipt (`:199`)        | `teardown` releases only on `state === 'deleted'` **and** `receipt.id` matching the torn-down server                                                                                                                               | `keeps the server on a foreign deletion receipt` + `status-foreign` table row (kept, liability `0.06`)                                                                     | R4 id check removed: the named test fails                                                                          |
+| P3 sub-nano budget (`:149`)        | the constructor's precision failure throws `estimateFailed` with `budget-unrepresentable`, not the "no default" sentence                                                                                                           | `reports an unrepresentable budget honestly instead of "no default"`                                                                                                       | R5 second catch restored to `refusedBudget()`: the named test fails                                                |
+| P3 install/pair retention (`:184`) | order kept (reserve → create → track → install → pair); the suite now covers the reviewer's named mutation                                                                                                                         | `install-throws` / `pair-throws` / `delete-throws` / `confirm-throws` table rows (all keep `0.06`; confirms keep `0`)                                                      | R6 `managed.set` moved after `pair`: both named rows fail                                                          |
+
+Drill restores byte-exact: `lifecycle.ts` `ead9efa7836bdd5709c677e89c1e3f0285f31316fbda0d36da4221be9446bf28`
+and `estimatorProvision.test.ts`
+`50c23e84aa11f4e297877b23ada3ef00f92f9b762e917bd034fa29738172d0e6`
+before and after every drill (R1–R6; R3's red run ends in the 5 s repo
+timeout). Post-drill lint/type fixes touched both files again; final
+hashes: `lifecycle.ts`
+`fdf88c07bb4b8373070f2677cc7f0863753349a036d9310f7e805c68ebe424d3`,
+`estimatorProvision.test.ts`
+`c76f3eb24b73525068f14c0b35830210d7f2b94e0a90157adc5674877cb7e2de`.
+
+Sweep for siblings: `settleIdle`'s activity check got the same
+outside-the-lock treatment as the spend confirmation (it awaited
+`isIdleNow` on the turn); the check now receives a copy of the server
+record. `quoteProvisioning` inputs were already zod-validated
+(size/image schemas, finite positive hours, non-empty cloud-init);
+budget precision is the remaining price/budget input and is now
+validated in the constructor. No other `managed.set` / `pending` /
+receipt-release sites exist in the lane.
+
+Planned call sites (review §"Planned call sites") are still a handoff:
+no production importer of `lifecycle.ts` exists, so none of this is
+reachable from Spin it up today. The callback contract the call sites
+must keep is now enforced in code, not only prose: the quote cannot be
+rewritten through the copy, and a callback may await `decommission` /
+`settleIdle` on the same instance.
