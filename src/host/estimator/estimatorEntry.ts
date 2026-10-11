@@ -31,6 +31,7 @@ import {
   estimateSectionSchema,
   fleetSnapshotSchema,
   historyRecordSchema,
+  historySkippedSchema,
   type CatalogPrice,
   type EstimateInputs,
   type EstimateLane,
@@ -61,6 +62,8 @@ export interface EstimatorSourcePorts extends EstimateGoalSourcesPort {
    * The fleet is stamped with the request's asOf, never a second clock. */
   fleet(lanes: readonly EstimateLane[], asOf: string): Promise<unknown>
   history(): Promise<unknown>
+  /** The history listing's skip diagnostics, when the history comes from a journal. */
+  historySkipped?(): Promise<unknown>
   candidatePool(lanes: readonly EstimateLane[], asOf: string): Promise<unknown>
   board(): EstimateStartPort
   prices(): EstimatePricePort
@@ -135,6 +138,7 @@ export function createEstimatorRun(
       signal.throwIfAborted()
       const fleet = fleetSnapshotSchema.parse(await ports.fleet(lanes, parsed.asOf))
       const history = z.array(historyRecordSchema).parse(await ports.history())
+      const historySkipped = historySkippedSchema.parse((await ports.historySkipped?.()) ?? [])
       signal.throwIfAborted()
       const inputs = estimateInputsSchema.parse({
         request: parsed,
@@ -318,6 +322,7 @@ export function createEstimatorRun(
         qualifications,
         calibration,
         risks: baseRisks(inputs.lanes, parsed.asOf),
+        ...(historySkipped.length > 0 && { historySkipped }),
       }
       const disclosures: Disclosure[] = []
       for (const [path] of disclosureTargets(draft)) {

@@ -271,6 +271,7 @@ import { WindowHold, WorktreeRegistry } from './host/git/worktreeRegistry'
 import { lazyReview } from './host/review/reviewBundle'
 import { lazyEstimator } from './host/estimator/estimatorBundle'
 import { estimatorSourcePorts } from './host/estimator/localFleet'
+import { estimateHistoryDirectory, fileHistoryPorts } from './host/estimator/historyStore'
 import { planSnapshotLoader } from './host/estimator/planSnapshotBundle'
 import { PendingPrompts, type BoardSession } from './core/sessionBoard'
 import { BestOfNCoordinator } from './core/bestOfN/bestOfNCoordinator'
@@ -2378,6 +2379,16 @@ async function activateWindow(
           catalogUrls: [],
         }),
         snapshot,
+        // The history journal in the agent data folder (M117 C-M117-2).
+        fileHistoryPorts(
+          estimateHistoryDirectory(
+            agentDataFolder({
+              platform: process.platform,
+              env: process.env,
+              homeDir: homedir(),
+            }),
+          ),
+        ),
       )
     },
   })
