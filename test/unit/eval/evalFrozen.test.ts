@@ -65,7 +65,7 @@ describe('the frozen evaluation harness', () => {
 
   it('keeps the frozen digest', () => {
     expect(evalHarnessDigest()).toBe(
-      '475cd2c8a6f760a49f00fc0dd0197d48d531bd8ad213ebea06a89cbf59d754d3',
+      'f5b07747b08e64b2aa4b1abca856b04bbb2b45b4a628d5b062cabd91820c2cd3',
     )
   })
 

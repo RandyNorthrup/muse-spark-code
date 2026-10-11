@@ -6965,6 +6965,25 @@ export const EVAL_ARM_SOURCE_SEARCH_DEPTH = 12
 // A frozen arm computes configuration only; it never runs a model turn.
 export const EVAL_ARM_PROCESS_TIMEOUT_MS = 2000
 export const EVAL_ARM_OUTPUT_MAX_BYTES = 1_048_576
+// The frozen arm allowlist (reviews RVCM1012H finding 1, RVCM1012I): an arm
+// program may load only these Node built-in modules, with or without the
+// `node:` prefix. The freeze reads the bundler's own metafile and refuses
+// every other external load — an unknown built-in fails, so there is no
+// deny-list to fall out of date. `node:sqlite`, child processes, workers,
+// the network and the inspector are not on it because the child permission
+// grants do not confine them. This stops accidental undeclared inputs (a
+// stray import); a deliberately hostile arm is out of scope (PLAN.md M101
+// threat model: arms change only through review).
+export const EVAL_ARM_ALLOWED_BUILTINS = ['fs', 'path', 'url', 'util'] as const
+// The evaluation child needs the permission flags (`--permission`), which
+// Node carries unflagged from 22.13.0 and 23.5.0 (review RVCM1012I finding
+// 3: the 23.0–23.4 line still gates the flag behind `--experimental`). The
+// evaluation refuses to run below those floors; the product floor stays
+// `>=22`.
+export const EVAL_ARM_MIN_NODE_VERSION = '22.13.0'
+// The second floor the version gate enforces: the first 23.x with unflagged
+// `--permission` (review RVCM1012I finding 3).
+export const EVAL_ARM_MIN_NODE_VERSION_23 = '23.5.0'
 
 // --- Bring-your-own model providers (M95, PLAN.md D74) ---
 //
