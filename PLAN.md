@@ -13,9 +13,22 @@ truth pass left red, its chat-startup English regression (the `/schedule`
 refusal reads its words through the lazy prompt module), MINOUT's surface
 English overage (the output-minimum message gets a leaf of its own; no cap
 changes), two inherited test clones and the host API record. Each fix has a
-named regression and a red drill restored byte for byte. Then one reviewed
-What's New visual update and the full gate. No push, pull request, tag,
-dependency, cap, deadline or gate change. Certification:
+named regression and a red drill restored byte for byte. After the batch:
+the `/schedule` refusal stays in the conversation it was typed in
+(RVREL0171FIX P3); the integration test expects the Title Case tab title;
+the provider forms' error list is a list inside its alert (the
+accessibility gate's `listitem` finding, so screen readers announce several
+provider-save errors as a list); the badge check makes a request that got no
+answer again, at most twice more under the same 10 s deadline, never after
+an answer (one request past its deadline failed three hosted jobs of one
+run); and `browserUiText`'s source-graph walks run in its setup hook (the
+fix batch's pin had put a whole-graph walk inside a case, which missed its
+5 s deadline on hosted Linux). `CHANGELOG.md` is a capture input and gets no
+line for the two fixes here; 0.18.0's Fixed section carries "Screen readers
+announce several provider-save errors as a list (shipped in 0.17.1)". Then
+one reviewed What's New visual update (108 frames in two scenes, every one
+inspected) and the gates one by one. No push, pull request, tag, dependency,
+cap or deadline change. Certification:
 `docs/certification/rel0171c.md` and `docs/certification/cx1.md` (CX1R7).
 
 **MINOUT round 2 (2026-10-10, macmini).** Close static output caps below
