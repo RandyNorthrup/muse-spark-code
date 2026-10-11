@@ -41,8 +41,12 @@ describe('InlineError', () => {
     rerender(<InlineError messages={['Bad address']} />)
     expect(screen.getByRole('alert').textContent).toBe('Bad address')
     rerender(<InlineError messages={['First', 'Second']} />)
-    const items = within(screen.getByRole('alert')).getAllByRole('listitem')
+    // Several messages are a real list inside the alert: an alert role on
+    // the list itself would leave its items outside any list (axe: listitem).
+    const list = within(screen.getByRole('alert')).getByRole('list')
+    const items = within(list).getAllByRole('listitem')
     expect(items.map((item) => item.textContent)).toEqual(['First', 'Second'])
+    expect(items.every((item) => item.parentElement === list)).toBe(true)
   })
 })
 
