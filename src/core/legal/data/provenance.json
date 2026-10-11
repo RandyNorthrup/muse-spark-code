@@ -195,6 +195,20 @@
       "licenseUrl": "https://creativecommons.org/licenses/by/3.0/",
       "attribution": "SPDX License List 3.28.0 license templates (spdx/license-list-data) and the SPDX equivalent-words list (spdx/license-list-XML), Linux Foundation and its Contributors. The license texts inside the templates keep their own terms.",
       "modifications": "None: every file is byte-identical to the pinned upstream file (SHA-256 per file above); the scanner verifies each hash before use. The build copies them to dist/legal-data/ beside the scanner."
+    },
+    {
+      "name": "holder-slot-words",
+      "version": "1",
+      "vendoredOn": "2026-10-11",
+      "files": [
+        {
+          "path": "slot-words.txt",
+          "sha256": "33d392c38b9dc51013097abd1bedacbec14174933fbe4d05d4b267fb9056b292"
+        }
+      ],
+      "license": "MIT",
+      "attribution": "Original Muse Spark Code holder-slot review vocabulary from CM971R4; not SPDX data.",
+      "modifications": "Moved the same packed entries out of the legal bundle; unchanged expansion and 312 distinct restriction words."
     }
   ]
 }

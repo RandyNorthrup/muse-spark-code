@@ -140,6 +140,13 @@ this ACP command itself stays free. Native editor UI adapters retain their
 existing compatibility milestones. **Not legal advice; for distribution
 decisions consult a lawyer.**
 
+An optional workspace-root `licence-review.json` array holds reviewed licence
+receipts: `package`, exact `version`, licence-byte `sha256`, the found single
+`spdx` identifier and a one-line `reason`. Applied receipts appear visibly as
+**Reviewed by receipt** in every report format and resolve only that text
+check. Changed versions or bytes need review again; conflicts and other gaps
+remain. See [the receipt example](../README.md#legal-scan-m97).
+
 ## Choose who pays
 
 The agent runs on one backend, chosen when the editor starts it; it never

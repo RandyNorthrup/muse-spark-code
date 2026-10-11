@@ -5620,6 +5620,8 @@ export const EN = {
   legalConfidenceLabel: 'Confidence: {confidence}',
   legalScanItem: '/legal',
   legalCommandUsage: 'Usage: /legal [workspace-relative path …]. Options are not supported.',
+  legalScanReceiptHelp:
+    'Local licence scan; optional licence-review.json receipts bind a reviewed SPDX licence to its package, exact version and SHA-256, with a reason. Changed bytes or versions require review again.',
   legalScanItemDetail: 'Scan the workspace for licensing, attribution and header findings',
   legalScanBusy: 'A legal scan starts once the current turn has ended.',
   legalScanUntrusted:
@@ -5976,6 +5978,9 @@ export const EN = {
       other: '{count} more advice findings for {v0} are not listed; nothing else was left out',
     }),
     m210: 'Scan a smaller set of paths to list them.',
+    reviewedReceipt: 'Reviewed by receipt: {reason}',
+    receiptRenew: 'A new version or changed licence bytes need a new review and receipt.',
+    invalidReceipt: 'not checked: {file} is not a valid licence-review receipt file',
     unknown: 'unknown',
     unresolved: 'unresolved',
     noLicense: 'no license',

@@ -32,6 +32,15 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- Legal scans recognize the literal affiliate and `et al.` notice suffixes,
+  terminal periods after holder names, and paired email/URL contacts found in
+  shipped vendor licences, while keeping restrictive holder text under review.
+  Optional workspace-root `licence-review.json` receipts bind a reviewed text
+  to its package, exact version, SHA-256 and SPDX id and appear visibly as
+  **Reviewed by receipt** in all formats; changed bytes or versions need review
+  again. The restriction vocabulary moves unchanged beside the pinned templates,
+  preserving the legal bundle cap.
+
 - Legal scans reject restrictive holder/party text in pinned SPDX templates,
   including Title Case, camelCase and multilingual variants, while recognizing
   ordinary names such as Profit Inc. Coverage follows shipped dependencies,

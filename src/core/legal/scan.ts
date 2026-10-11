@@ -27,13 +27,14 @@ import {
   LEGAL_PATH_MAX_CHARS,
   LEGAL_UNSHIPPED_NAMES_SHOWN,
   LEGAL_DEPENDENCIES_MAX,
+  LEGAL_REVIEW_FILE,
   type LegalHeaderPolicy,
 } from '../../shared/constants'
 import { legalScanResultSchema, type LegalScanResult } from '../../shared/legal'
 import { prepareLegalHeaderPatches } from './headerFix'
 import { evaluateCompatibility } from './compat'
 import { SPDX_DATA_VERSION } from './data'
-import { evaluateDependencyLicenses } from './depLicenses'
+import { evaluateDependencyLicenses, readLicenceReviews } from './depLicenses'
 import {
   parseJson,
   recordOf,
@@ -592,6 +593,8 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
     const scoped = preShipped.shippedFiles === undefined ? result : reader(view, isReviewed)
     incomplete.push(...scoped.incomplete.filter((entry) => !isAbsentEcosystemNote(entry)))
   }
+  const reviews = readLicenceReviews(bounded, incomplete)
+  const receiptFindings = new Map<string, LegalFindingDraft>()
   const informational = new Set<string>()
   const observed: LegalDependency[] = []
   let hasUnrecognizedLicenseText = false
@@ -626,6 +629,32 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
       // terms under review; disagreeing ids still surface through the
       // observed relabel, so genuine conflicts stay visible as conflicts.
       if (!match.exact) {
+        const hash =
+          bounded.readFileHash === undefined ? fingerprint(text) : bounded.readFileHash(file)
+        const receipt = reviews.find(
+          (entry) =>
+            entry.package === dep.name &&
+            entry.version === dep.version &&
+            entry.sha256 === hash &&
+            entry.spdx === match.id &&
+            dep.licenseRaw === match.id,
+        )
+        if (receipt !== undefined) {
+          receiptFindings.set(JSON.stringify([dep.name, dep.version, file]), {
+            severity: 'advice',
+            category: 'dependencyLicense',
+            packageName: dep.name,
+            packageVersion: receipt.version,
+            licenseExpression: receipt.spdx,
+            file,
+            evidenceSource: LEGAL_REVIEW_FILE,
+            confidence: 1,
+            fixable: false,
+            explanation: fill(UI_TEXT.legalScanner.reviewedReceipt, { reason: receipt.reason }),
+            recommendation: UI_TEXT.legalScanner.receiptRenew,
+          })
+          continue
+        }
         incomplete.push(fill(UI_TEXT.legalScanner.m199, { v0: dep.name, v1: file }))
         hasUnrecognizedLicenseText = true
         if (hasLicenseTextAgreement(dep.licenseRaw, match.id)) continue
@@ -695,6 +724,7 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
     ...project.findings.map((finding) => ({ rule: ruleOf(finding.category), finding })),
     ...headers.findings.map((finding) => ({ rule: ruleOf(finding.category), finding })),
     ...licensed.findings.map((finding) => ({ rule: 'dependency', finding })),
+    ...Array.from(receiptFindings.values(), (finding) => ({ rule: 'receipt', finding })),
     ...unshippedFindings(unshipped.findings, informational).map((finding) => ({
       rule: 'dependency',
       finding,
@@ -729,7 +759,8 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
   const perRule = new Map<string, number>()
   const omittedAdvice = new Map<string, number>()
   const omit = (rule: string, finding: LegalFindingDraft, reason: string): void => {
-    if (finding.severity === 'advice') omittedAdvice.set(rule, (omittedAdvice.get(rule) ?? 0) + 1)
+    if (rule !== 'receipt' && finding.severity === 'advice')
+      omittedAdvice.set(rule, (omittedAdvice.get(rule) ?? 0) + 1)
     else if (!incomplete.includes(reason)) incomplete.push(reason)
   }
   const withinRules = findings.filter(({ rule, finding }) => {

@@ -4816,7 +4816,10 @@
     "licenseFile": "라이선스 파일",
     "bundleLoad": "{file}를 로드할 수 없습니다",
     "bundleShape": "{file}의 형식이 예상과 다릅니다",
-    "invalidResult": "검사가 잘못된 결과를 반환했습니다"
+    "invalidResult": "검사가 잘못된 결과를 반환했습니다",
+    "reviewedReceipt": "검토 기록으로 확인됨: {reason}",
+    "receiptRenew": "새 버전이나 라이선스 바이트 변경에는 새 검토와 기록이 필요합니다.",
+    "invalidReceipt": "확인하지 않음: {file}은 유효한 라이선스 검토 기록 파일이 아닙니다"
   },
   "legalScanAgain": "다시 검사",
   "accounts": {
@@ -5085,5 +5088,6 @@
     "grantsCount": {
       "other": "{count} 개 권한"
     }
-  }
+  },
+  "legalScanReceiptHelp": "로컬 라이선스 검사. 선택적 licence-review.json 기록은 검토한 SPDX 라이선스를 사유와 함께 패키지, 정확한 버전, SHA-256에 연결합니다. 바이트나 버전이 변경되면 다시 검토해야 합니다."
 }

@@ -108,7 +108,9 @@ cpSync('src/core/legal/legal-data', 'dist/legal-data', { recursive: true, force:
   const { datasets } = JSON.parse(readFileSync('src/core/legal/data/provenance.json', 'utf8'))
   const pinned = datasets.find((dataset) => dataset.name === 'spdx-license-templates')
   if (pinned === undefined) throw new Error('provenance.json lost the SPDX template dataset')
-  for (const file of pinned.files) {
+  const slots = datasets.find((dataset) => dataset.name === 'holder-slot-words')
+  if (slots === undefined) throw new Error('provenance.json lost the holder-slot dataset')
+  for (const file of [...pinned.files, ...slots.files]) {
     const digest = createHash('sha256')
       .update(readFileSync(path.join('dist/legal-data', file.path)))
       .digest('hex')

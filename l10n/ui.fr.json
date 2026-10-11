@@ -5116,7 +5116,10 @@
     "licenseFile": "un fichier de licence",
     "bundleLoad": "{file} n’a pas pu être chargé",
     "bundleShape": "{file} a une structure inattendue",
-    "invalidResult": "l’analyse a renvoyé un résultat invalide"
+    "invalidResult": "l’analyse a renvoyé un résultat invalide",
+    "reviewedReceipt": "Examiné sur justificatif : {reason}",
+    "receiptRenew": "Une nouvelle version ou des octets de licence modifiés nécessitent un nouvel examen et un nouveau justificatif.",
+    "invalidReceipt": "non vérifié : {file} n’est pas un fichier valide de justificatifs d’examen des licences"
   },
   "legalScanAgain": "Analyser à nouveau",
   "accounts": {
@@ -5393,5 +5396,6 @@
       "other": "{count} autorisations",
       "many": "{count} autorisations"
     }
-  }
+  },
+  "legalScanReceiptHelp": "Analyse locale des licences ; les justificatifs facultatifs de licence-review.json associent une licence SPDX examinée à son paquet, sa version exacte et son SHA-256, avec un motif. Tout changement d’octets ou de version nécessite un nouvel examen."
 }

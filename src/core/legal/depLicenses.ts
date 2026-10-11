@@ -1,12 +1,22 @@
 import { fill } from '../../shared/l10n/text'
-import { UI_TEXT } from '../../shared/constants'
+import {
+  UI_TEXT,
+  LEGAL_REVIEW_FILE,
+  LEGAL_DEPENDENCIES_MAX,
+  LEGAL_TEXT_MAX_CHARS,
+  LEGAL_VERSION_MAX_CHARS,
+  LEGAL_EVIDENCE_EXCERPT_MAX_CHARS,
+} from '../../shared/constants'
+import * as z from 'zod/mini'
+import { canonicalLicenseId } from './data'
+import type { LegalFileSnapshot } from './files'
 // Per-dependency license declarations (M97, PLAN.md D76): malformed
 // expressions, unknown or deprecated ids, custom references and
 // proprietary markers become findings; absent declarations stay with the
 // readers' coverage gaps. Every evaluated dependency keeps its parsed
 // alternatives for the compatibility reader.
 
-import type { LegalDependency } from './dependencies'
+import { parseJson, type LegalDependency } from './dependencies'
 import type { LegalFindingDraft } from './finding'
 import { excerpt } from './files'
 import { parseSpdxExpression, type SpdxExpression } from './spdx'
@@ -206,4 +216,44 @@ export function evaluateDependencyLicenses(
     incomplete.push(fill(UI_TEXT.legalScanner.m033, { v0: first.name }))
   }
   return { findings, evaluated, incomplete, requiresReview }
+}
+
+// CM971R5: a receipt resolves only the reviewed bytes of one exact package
+// version. No paths or executable configuration enter this boundary.
+const reviewText = z.string().check(z.minLength(1), z.maxLength(LEGAL_TEXT_MAX_CHARS))
+const licenceReviewsSchema = z
+  .array(
+    z.strictObject({
+      package: reviewText,
+      version: z.string().check(z.minLength(1), z.maxLength(LEGAL_VERSION_MAX_CHARS)),
+      sha256: z.string().check(z.regex(/^[0-9a-f]{64}$/u)),
+      spdx: reviewText,
+      reason: z
+        .string()
+        .check(
+          z.maxLength(LEGAL_EVIDENCE_EXCERPT_MAX_CHARS),
+          z.regex(/^[^\p{Cc}\u{2028}\u{2029}]+$/u),
+          z.regex(/\S/u),
+        ),
+    }),
+  )
+  .check(z.maxLength(LEGAL_DEPENDENCIES_MAX))
+
+type LicenceReview = z.infer<typeof licenceReviewsSchema>[number]
+
+export function readLicenceReviews(
+  snapshot: LegalFileSnapshot,
+  incomplete: string[],
+): readonly LicenceReview[] {
+  if (!snapshot.files.includes(LEGAL_REVIEW_FILE)) return []
+  const text = snapshot.readFile(LEGAL_REVIEW_FILE)
+  const parsed = licenceReviewsSchema.safeParse(text === undefined ? undefined : parseJson(text))
+  if (
+    !parsed.success ||
+    parsed.data.some((entry) => canonicalLicenseId(entry.spdx) !== entry.spdx)
+  ) {
+    incomplete.push(fill(UI_TEXT.legalScanner.invalidReceipt, { file: LEGAL_REVIEW_FILE }))
+    return []
+  }
+  return parsed.data
 }

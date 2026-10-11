@@ -5116,7 +5116,10 @@
     "licenseFile": "un archivo de licencia",
     "bundleLoad": "no se pudo cargar {file}",
     "bundleShape": "{file} tiene estructura inesperada",
-    "invalidResult": "el análisis devolvió un resultado inválido"
+    "invalidResult": "el análisis devolvió un resultado inválido",
+    "reviewedReceipt": "Revisado mediante constancia: {reason}",
+    "receiptRenew": "Una versión nueva o cambios en los bytes de la licencia requieren otra revisión y constancia.",
+    "invalidReceipt": "sin comprobar: {file} no es un archivo válido de constancias de revisión de licencias"
   },
   "legalScanAgain": "Analizar de nuevo",
   "accounts": {
@@ -5393,5 +5396,6 @@
       "other": "{count} autorizaciones",
       "many": "{count} autorizaciones"
     }
-  }
+  },
+  "legalScanReceiptHelp": "Análisis local de licencias; las constancias opcionales de licence-review.json vinculan una licencia SPDX revisada con su paquete, versión exacta y SHA-256, con un motivo. Los cambios de bytes o versiones requieren una nueva revisión."
 }

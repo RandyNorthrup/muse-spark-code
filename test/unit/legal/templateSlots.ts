@@ -7,7 +7,7 @@ import { PINNED_TEMPLATE_IDS, canonicalText } from './templates'
 const LEGAL_DATA = path.join(__dirname, '../../../src/core/legal/legal-data')
 
 /** RVCM971C: each language and every pinned variable, including closed slots. */
-const RESTRICTION_SENTENCES = [
+export const RESTRICTION_SENTENCES = [
   'Redistribution Is Limited To Members Of Example Corp.',
   'Paying Customers Get Access.',
   'ExampleNonprofit',

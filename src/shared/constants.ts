@@ -7604,6 +7604,13 @@ export const LEGAL_PATH_MAX_CHARS = 1024
 export const LEGAL_TEXT_MAX_CHARS = 2000
 // Rule/data versions (`2026-10-04`, a dataset tag): a tag, not prose.
 export const LEGAL_VERSION_MAX_CHARS = 64
+/** Optional workspace-root reviewed licence receipts (M97). */
+export const LEGAL_REVIEW_FILE = 'licence-review.json'
+/** Original holder restriction vocabulary, byte-pinned and loaded with legal templates. */
+export const LEGAL_TEMPLATE_SLOT_WORDS = {
+  path: 'slot-words.txt',
+  sha256: '33d392c38b9dc51013097abd1bedacbec14174933fbe4d05d4b267fb9056b292',
+}
 // Explicit file subset a tool call may name: small enough to stay a subset,
 // not a second whole scan past the file bound by another name.
 export const LEGAL_SCAN_PATHS_MAX = 100

@@ -5116,7 +5116,10 @@
     "licenseFile": "un file di licenza",
     "bundleLoad": "impossibile caricare {file}",
     "bundleShape": "{file} ha una struttura inattesa",
-    "invalidResult": "l’analisi ha restituito un risultato non valido"
+    "invalidResult": "l’analisi ha restituito un risultato non valido",
+    "reviewedReceipt": "Esaminato tramite attestazione: {reason}",
+    "receiptRenew": "Una nuova versione o modifiche ai byte della licenza richiedono un nuovo esame e una nuova attestazione.",
+    "invalidReceipt": "non verificato: {file} non è un file valido di attestazioni di esame delle licenze"
   },
   "legalScanAgain": "Analizza di nuovo",
   "accounts": {
@@ -5393,5 +5396,6 @@
       "other": "{count} autorizzazioni",
       "many": "{count} autorizzazioni"
     }
-  }
+  },
+  "legalScanReceiptHelp": "Analisi locale delle licenze; le attestazioni facoltative di licence-review.json collegano una licenza SPDX esaminata al pacchetto, alla versione esatta e allo SHA-256, con una motivazione. Modifiche ai byte o alle versioni richiedono un nuovo esame."
 }

@@ -5266,7 +5266,10 @@
     "licenseFile": "soubor licence",
     "bundleLoad": "nelze načíst {file}",
     "bundleShape": "{file} má neočekávanou strukturu",
-    "invalidResult": "kontrola vrátila neplatný výsledek"
+    "invalidResult": "kontrola vrátila neplatný výsledek",
+    "reviewedReceipt": "Zkontrolováno podle záznamu: {reason}",
+    "receiptRenew": "Nová verze nebo změněné bajty licence vyžadují novou kontrolu a záznam.",
+    "invalidReceipt": "nezkontrolováno: {file} není platný soubor záznamů o kontrole licencí"
   },
   "legalScanAgain": "Skenovat znovu",
   "accounts": {
@@ -5547,5 +5550,6 @@
       "few": "{count} oprávnění",
       "many": "{count} oprávnění"
     }
-  }
+  },
+  "legalScanReceiptHelp": "Místní kontrola licencí; volitelné záznamy v licence-review.json vážou zkontrolovanou licenci SPDX na balíček, přesnou verzi a SHA-256 s uvedením důvodu. Změna bajtů nebo verze vyžaduje novou kontrolu."
 }

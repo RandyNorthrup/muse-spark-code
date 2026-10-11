@@ -19180,18 +19180,16 @@ in-tree junctions below it, drive-letter spelling) and
 
 ## 3. Open questions (need the owner)
 
-**CM971R4 vendor evidence blocker (2026-10-10).** RVCM971C's required
-strict slot grammar and the required repository exit 0/1 conflict on the
-currently shipped upstream texts. `@muse-code/sdk`, `react`, `react-dom` and
-`scheduler` end their holder line with `affiliates.`; `highlight.js` ends a
-personal holder name with a sentence period; `parse5`'s holder/contact slot
-exceeds eight normalized tokens; `lz-string` uses the bare lowercase holder `pieroxy`; `smol-toml` uses `et al.`. These are external
-licence bytes, never edited by this lane. The conservative matcher retains
-review, so the repository scan has nine incomplete reasons (eight named
-texts plus the human-review caveat) and exit 2. Every size/split/host-global/
-notice gate and all 87 build records pass. The lead must decide the grammar
-or obtain admissible upstream evidence before the repository scan can pass;
-no whitelist, threshold, or incomplete-coverage guard is weakened here.
+**CM971R4 vendor evidence blocker — resolved by lead (2026-10-11).**
+The original strict grammar retained eight shipped upstream texts under review.
+CM971R5's ruling in M97 admits only measured benign notice forms and permits
+version-and-byte-pinned receipts for reviewed notice-only differences. Seven
+texts now match exactly; only `lz-string@1.5.0` needs and receives a receipt.
+The production build and repository scan pass with unchanged gates and exits.
+`@muse-code/sdk@1.4.4` declares MIT and its actual text matches the same MIT
+notice and terms as React; no SDK receipt is written. Its metadata and first
+five licence lines are recorded in `docs/certification/m97.md`; the owner's
+redistribution decision remains separate from deterministic matching.
 
 **Q-VISREGEN2 resolved by lead (2026-10-09).** Preserve every 0.17.0
 change and Highlight while tightening only that release's wording below
@@ -36978,6 +36976,23 @@ Record regression failures, byte-exact red drills and bounded checks in
   (MIT-0 added). Omitted advice in a long report is summarized, not an
   incomplete reason.
 
+- **Decision 2026-10-11 (lead, CM971R5).** Keep strict default matching
+  and exits unchanged. Admit only benign holder/notice forms measured on the
+  eight shipped upstream texts: the literal `and affiliates.` and `et al.`
+  suffixes, a final full stop after a two-word capitalized name, and a parenthesized email/URL pair.
+  Existing copyright markers, year lists/ranges and rights-reserved notices
+  retain their guards; restriction sentences, including Title Case and every
+  supported language, still require review. Remaining notice-only differences
+  may use root `licence-review.json` receipts pinned to package, exact version,
+  exact licence-byte SHA-256 and the found single SPDX identifier, with a reason.
+  Report every applied receipt visibly as advice in all formats and resolve
+  only that text check; declaration conflicts and other gaps remain. Never
+  issue an SDK receipt: report its metadata and first five licence lines for
+  the owner's redistribution decision. Preserve the legal 150-KiB cap by
+  simplifying existing bundle code if necessary, without new dependencies.
+  Record per-package comparisons, red/restored guards and repository scan in
+  `docs/certification/m97.md`; full aggregate quality remains the lead's gate.
+
 - **CM971R4 repair scope (2026-10-10, RVCM971C).** Exact variable
   matches require short names (at most eight tokens), multilingual restriction
   rejection after Unicode case/separator splitting, and no sentence punctuation
@@ -38063,6 +38078,16 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**CM971R5 gate receipt (2026-10-11).** The lead's closed holder forms
+and the reviewed `lz-string` receipt resolve the earlier eight-vendor blocker.
+The 312-word review vocabulary moves unchanged to hash-pinned
+`legal-data/slot-words.txt`, verified at build and load; missing or changed
+vocabulary disables exact matching. This makes room for the receipt reader:
+`legalScan.js` is 148.4 KiB against the unchanged 150-KiB cap. The production
+build passes; 87 bundles / 1,910 files verify and the repository scan reports
+zero incomplete checks, blockers or should-fix findings (exit 0). Full aggregate
+quality remains reserved for the lead by the explicit lane rules.
 
 **CM971R4 gate receipt (2026-10-10).** The unchanged production build gate
 refuses eight upstream licence texts under the owner's strict slot grammar;
