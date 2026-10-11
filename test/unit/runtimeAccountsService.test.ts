@@ -217,6 +217,50 @@ describe('installed runtime account service', () => {
     },
   )
 
+  it('reads a refused providers file as its own sentence through the shared metadata port', async () => {
+    const h = rig()
+    const file = path.join(h.dataDir, 'providers.json')
+    writeFileSync(
+      file,
+      JSON.stringify({
+        providers: {
+          meta: {
+            id: 'meta',
+            policyProvider: 'meta',
+            product: 'model-api',
+            auth: 'apiKey',
+            origin: 'https://api.meta.ai',
+            accounts: [
+              { id: 'default', label: 'Default', order: 0, thresholds: {} },
+              { id: 'default', label: 'Copy', order: 1, thresholds: {} },
+            ],
+          },
+        },
+      }),
+      'utf8',
+    )
+    const before = readFileSync(file, 'utf8')
+    // The one mapping point keeps the brand for typed checks and carries the
+    // person-facing sentence as the message.
+    await expect(h.services.metadata.read('meta')).rejects.toThrow(
+      UI_TEXT.accounts.providersInvalid,
+    )
+    try {
+      await h.services.metadata.read('meta')
+      expect.unreachable()
+    } catch (error: unknown) {
+      expect(error).toMatchObject({
+        name: 'AccountStoreError',
+        code: 'invalidProvidersFile',
+      })
+    }
+    expect(await accounts(h.services, h.print, h.printError, ['list', '--provider', 'meta'])).toBe(
+      1,
+    )
+    expect(h.printError).toHaveBeenCalledWith(UI_TEXT.accounts.providersInvalid)
+    expect(readFileSync(file, 'utf8')).toBe(before)
+  })
+
   it('keeps the branded refusal through session reads and ACP operations after the file corrupts', async () => {
     const h = rig()
     const run = (args: string[]) => accounts(h.services, h.print, h.printError, args)

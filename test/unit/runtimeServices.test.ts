@@ -1,4 +1,4 @@
-import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -374,6 +374,164 @@ describe('createRuntimeAccountServices', () => {
       const secrets = services.secretsFor('vendor', 'work', fallback)
       await expect(secrets.get(SECRET_KEYS.modelApiKey)).resolves.toBe('vendor-secret')
       await expect(secrets.get('something-else')).resolves.toBe('fallback')
+    } finally {
+      services.dispose()
+    }
+  })
+
+  it.each([
+    ['unparsable JSON', '{not json'],
+    [
+      'duplicate account ids',
+      JSON.stringify({
+        providers: {
+          meta: {
+            id: 'meta',
+            policyProvider: 'meta',
+            product: 'model-api',
+            auth: 'apiKey',
+            origin: new URL(MODEL_API_BASE_URL).origin,
+            accounts: [
+              { id: 'default', label: 'Default', order: 0, thresholds: {} },
+              { id: 'default', label: 'Copy', order: 1, thresholds: {} },
+            ],
+          },
+        },
+      }),
+    ],
+    [
+      'a provider id that does not match its key',
+      JSON.stringify({
+        providers: {
+          meta: {
+            id: 'other',
+            policyProvider: 'meta',
+            product: 'model-api',
+            auth: 'apiKey',
+            origin: new URL(MODEL_API_BASE_URL).origin,
+          },
+        },
+      }),
+    ],
+  ])(
+    'reports a refused providers file as its own refusal from exec readiness: %s',
+    async (_label, text) => {
+      const services = rig()
+      const folder = dirs[0]
+      if (folder === undefined) throw new Error('missing test folder')
+      writeFileSync(runtimeProvidersFile(folder), text, 'utf8')
+      const parsed = parseCommandLine(['--backend', 'modelApi'])
+      if (parsed.command !== 'serve') throw new Error('missing test serve options')
+      const configured = services.exec.create(
+        {
+          options: parsed.options,
+          version: 'test',
+          distDir: folder,
+          platform: process.platform,
+          env: {},
+          homeDir: folder,
+          secrets: {
+            get: () => Promise.resolve(undefined),
+            store: () => Promise.resolve(),
+            delete: () => Promise.resolve(),
+          },
+          runGit: () => Promise.reject(new Error('unexpected git')),
+          fetch: () => Promise.reject(new Error('unexpected fetch')),
+          sleep: () => Promise.resolve(),
+          log: { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+        },
+        { account: 'work', hasPoolFlag: false, isInteractive: false },
+        createRuntimeBackend,
+      )
+      try {
+        // The keyring-outage sentence would misreport this: the runtime is
+        // already on the account service and the file was left untouched.
+        await expect(configured.runtime.backend.readiness(false)).resolves.toEqual({
+          state: 'unavailable',
+          message: UI_TEXT.accounts.providersInvalid,
+        })
+      } finally {
+        await configured.runtime.close()
+        services.dispose()
+      }
+    },
+  )
+
+  it('reads a refused providers file as its own refusal through the ACP session port', async () => {
+    const services = rig()
+    const folder = dirs[0]
+    if (folder === undefined) throw new Error('missing test folder')
+    writeFileSync(runtimeProvidersFile(folder), '{not json', 'utf8')
+    try {
+      const read = services.sessions('meta').read('session-a')
+      await expect(read).rejects.toThrow(UI_TEXT.accounts.providersInvalid)
+      await expect(read).rejects.toMatchObject({
+        name: 'AccountStoreError',
+        code: 'invalidProvidersFile',
+      })
+    } finally {
+      services.dispose()
+    }
+  })
+
+  it('opens developer multiple-accounts with the providers-file sentence instead of a raw failure', async () => {
+    const services = rig()
+    try {
+      await services.store.add('vendor', { ...ROW, order: 1 })
+      const owner = await services.developer({
+        readLine: () => Promise.resolve(UI_TEXT.accounts.confirm),
+        print: vi.fn(),
+      })
+      await owner.unlock('terminal')
+      await owner.setMultiple(true)
+      // The profile is recorded before its unbound launch fails.
+      await expect(owner.addProfile('vendor', 'work')).rejects.toThrow(
+        UI_TEXT.developer.unavailable,
+      )
+      const folder = dirs[0]
+      if (folder === undefined) throw new Error('missing test folder')
+      const file = runtimeProvidersFile(folder)
+      writeFileSync(file, '{not json', 'utf8')
+      const before = readFileSync(file, 'utf8')
+      const reopen = services.developer({
+        readLine: () => Promise.resolve(UI_TEXT.accounts.confirm),
+        print: vi.fn(),
+      })
+      await expect(reopen).rejects.toThrow(UI_TEXT.accounts.providersInvalid)
+      try {
+        await reopen
+        expect.unreachable()
+      } catch (error: unknown) {
+        expect(error).toMatchObject({
+          name: 'AccountStoreError',
+          code: 'invalidProvidersFile',
+        })
+      }
+      expect(readFileSync(file, 'utf8')).toBe(before)
+    } finally {
+      services.dispose()
+    }
+  })
+
+  it('keeps the start refusal when enabling multiple accounts over a refused file', async () => {
+    const services = rig()
+    try {
+      await services.store.add('vendor', { ...ROW, order: 1 })
+      const owner = await services.developer({
+        readLine: () => Promise.resolve(UI_TEXT.accounts.confirm),
+        print: vi.fn(),
+      })
+      await owner.unlock('terminal')
+      await owner.setMultiple(true)
+      await expect(owner.addProfile('vendor', 'work')).rejects.toThrow(
+        UI_TEXT.developer.unavailable,
+      )
+      // The disable lands even though stopping the unbound profile fails.
+      await expect(owner.setMultiple(false)).rejects.toThrow(UI_TEXT.developer.unavailable)
+      const folder = dirs[0]
+      if (folder === undefined) throw new Error('missing test folder')
+      writeFileSync(runtimeProvidersFile(folder), '{not json', 'utf8')
+      await expect(owner.setMultiple(true)).rejects.toThrow(UI_TEXT.accounts.providersInvalid)
     } finally {
       services.dispose()
     }

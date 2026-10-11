@@ -9,6 +9,7 @@ import { randomBytes } from 'node:crypto'
 // stays with the fixed account or an explicit error, never a silent default.
 import { hostname } from 'node:os'
 import { AccountStore, type AccountsMetadataPort } from '../../core/providers/accounts'
+import { AccountStoreError } from '../../core/providers/accountCredentialRecord'
 import type { Account, AccountThresholds } from '../../shared/accounts'
 import { AccountSwitchRefusedError, isInvalidProvidersFileError } from '../../acp/accountText'
 import {
@@ -223,10 +224,34 @@ function developerUnavailableProfile(): Promise<void> {
   return Promise.reject(new Error(UI_TEXT.developer.unavailable))
 }
 
+/** The one mapping point for a refused providers file: every runtime caller
+ * (exec `--account`, the ACP store, developer multiple-accounts open, the
+ * CLI account commands) reads through this port, so the brand reaches the
+ * person as its own refusal sentence here — never a keyring-outage message
+ * and never a raw code. The brand is kept so typed checks (the ACP store's
+ * `providersInvalid` code, the CLI command's sentence) still match; only the
+ * message becomes the person-facing sentence. Sibling typed failures pass
+ * through untouched, each keeping its own refusal. */
+function withProvidersFileRefusal(metadata: AccountsMetadataPort): AccountsMetadataPort {
+  return {
+    read: async (provider) => {
+      try {
+        return await metadata.read(provider)
+      } catch (error: unknown) {
+        if (!isInvalidProvidersFileError(error)) throw error
+        const refusal = new AccountStoreError('invalidProvidersFile')
+        refusal.message = UI_TEXT.accounts.providersInvalid
+        throw refusal
+      }
+    },
+    writeAccounts: (provider, accounts) => metadata.writeAccounts(provider, accounts),
+  }
+}
+
 export function createRuntimeAccountServices(
   input: RuntimeAccountServicesInput,
 ): RuntimeAccountServices {
-  const metadata = fileAccountsMetadata(input.dataDir)
+  const metadata = withProvidersFileRefusal(fileAccountsMetadata(input.dataDir))
   const credentials = new AccountSecrets({
     vault: secretStorageAccountVault(keyringSecretStore(input.openEntry)),
     revokeSignIn: runtimeRevokeSignIn,
