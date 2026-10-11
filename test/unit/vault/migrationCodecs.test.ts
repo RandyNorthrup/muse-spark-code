@@ -127,6 +127,20 @@ async function activeItem(f: CodecFixture): Promise<VaultItem> {
   return await f.vault.read(f.credential.itemId)
 }
 
+/** Migrates a provider slot to `active`, then applies what happened behind the vault. */
+async function behindActive(mutate: (f: CodecFixture) => Promise<void>): Promise<CodecFixture> {
+  const f = providerFixture()
+  await saveProviderCredential(f.secrets, 'openai', {
+    v: 1,
+    auth: 'apiKey',
+    origin: 'https://api.openai.com',
+    secret: 'synthetic-table-original',
+  })
+  expect(await f.service.migrate(f.credential.key)).toBe('active')
+  await mutate(f)
+  return f
+}
+
 /** SHA-256 equality without leaving the copied bytes behind. */
 function expectSameBytes(actual: Uint8Array, expected: Uint8Array | string): void {
   try {
@@ -766,9 +780,15 @@ describe('C-M109-4 R3 vault item names', () => {
 
   it('keeps a closed kind union no other kind can meet', () => {
     const kinds: MigrationItemKind[] = ['provider', 'account']
-    expect(kinds).toHaveLength(2)
-    expect(migrationItemName('provider', 'openai')).toBe('provider-openai')
-    expect(migrationItemName('account', 'openai', 'work')).toBe('account-6-openai-work')
+    // Every closed kind names items, and no two kinds meet on one name:
+    // both assertions read the implementation's output, so either can fail.
+    const named = kinds.map((kind) =>
+      kind === 'provider'
+        ? migrationItemName(kind, 'openai')
+        : migrationItemName(kind, 'openai', 'work'),
+    )
+    expect(named).toEqual(['provider-openai', 'account-6-openai-work'])
+    expect(new Set(named).size).toBe(kinds.length)
     const untyped = migrationItemName as (...args: string[]) => string
     for (const kind of ['meta', 'chatgpt', '', 'provider-', 'account ']) {
       try {
@@ -859,11 +879,15 @@ describe('C-M109-4 R3 vault item names', () => {
       expect(name).toMatch(HANDLE_PATTERN)
       expect(migrationItemName('account', provider, account)).toBe(name)
       // A readable multi-id name carries a dash within three characters
-      // after the kind; a hash carries none anywhere in its hex body.
+      // after the kind and embeds the ids verbatim; a hash carries no dash
+      // anywhere in its hex body. Both branches read the name, so either
+      // can fail.
       expect(name.startsWith('account-')).toBe(true)
       const body = name.slice('account-'.length)
-      if (/^\d{1,2}-/u.test(body)) expect(body).toMatch(/^\d{1,2}-/u)
-      else expect(name).toMatch(/^account-[0-9a-f]{40}$/)
+      if (/^\d{1,2}-/u.test(body)) {
+        expect(body).toContain(provider)
+        expect(body).toContain(account)
+      } else expect(name).toMatch(/^account-[0-9a-f]{40}$/)
       const clash = seen.get(name)
       expect(clash, `(${provider},${account}) meets ${String(clash)}`).toBeUndefined()
       seen.set(name, `(${provider},${account})`)
@@ -996,12 +1020,100 @@ describe('C-M109-4 R3 vault item names', () => {
     expect(await f.service.migrate(f.credential.key)).toBe('diverged')
   })
 
+  it('reports a legacy copy deleted behind an active slot and never writes it back', async () => {
+    // RVCM1094C finding 1: a deleted legacy copy is a change like an
+    // overwrite. `migrate` reports it with its own typed state, `undo`
+    // refuses with a reason and leaves the source absent, and `retire`
+    // completes without resurrecting anything. Table over what can happen
+    // to the legacy copy behind an active slot, crossed with migrate, undo
+    // and retire; every cell uses the real installed writer and reader.
+    // Unchanged: everything still verifies.
+    {
+      const f = await behindActive(() => Promise.resolve())
+      expect(await f.service.migrate(f.credential.key)).toBe('active')
+      await f.service.undo(f.credential.key)
+      expect(f.journal.get(f.credential.key)?.phase).toBe('undone')
+      expect(await readProviderCredential(f.secrets, 'openai')).toMatchObject({
+        secret: 'synthetic-table-original',
+      })
+    }
+    {
+      const f = await behindActive(() => Promise.resolve())
+      expect(await f.service.retire(f.credential.key)).toBe(false)
+    }
+    // Overwritten: diverged, undo refuses, the new bytes stay put.
+    {
+      const f = await behindActive((fixture) =>
+        saveProviderCredential(fixture.secrets, 'openai', {
+          v: 1,
+          auth: 'apiKey',
+          origin: 'https://api.openai.com',
+          secret: 'synthetic-table-overwritten',
+        }),
+      )
+      expect(await f.service.migrate(f.credential.key)).toBe('diverged')
+      expect(f.journal.get(f.credential.key)?.phase).toBe('active')
+      await expect(f.service.undo(f.credential.key)).rejects.toMatchObject({ code: 'conflict' })
+      expect(await readProviderCredential(f.secrets, 'openai')).toMatchObject({
+        secret: 'synthetic-table-overwritten',
+      })
+      expect(await f.service.retire(f.credential.key)).toBe(false)
+      f.advanceRelease()
+      f.advanceRelease()
+      await expect(f.service.retire(f.credential.key)).rejects.toMatchObject({ code: 'conflict' })
+    }
+    // Deleted: its own typed state, undo refuses and leaves it absent,
+    // retire completes with the vault item still present.
+    {
+      const f = await behindActive((fixture) => fixture.secrets.delete(fixture.credential.key))
+      expect(await f.service.migrate(f.credential.key)).toBe('legacyDeleted')
+      expect(f.journal.get(f.credential.key)?.phase).toBe('active')
+      await expect(f.service.undo(f.credential.key)).rejects.toMatchObject({ code: 'conflict' })
+      expect(f.entries.has(f.credential.key)).toBe(false)
+      expect(await f.service.retire(f.credential.key)).toBe(false)
+      f.advanceRelease()
+      f.advanceRelease()
+      expect(await f.service.retire(f.credential.key)).toBe(true)
+      expect(f.entries.has(f.credential.key)).toBe(false)
+      const listing = await f.vault.list()
+      expect(listing.map((metadata) => metadata.id)).toContain(f.credential.itemId)
+      expect(JSON.stringify(listing)).not.toContain('synthetic-')
+    }
+    // Replaced by another shape: undecodable here, so diverged; undo and
+    // late retire refuse with `invalid` and touch nothing.
+    {
+      const f = await behindActive((fixture) =>
+        fixture.secrets.store(fixture.credential.key, JSON.stringify({ v: 1, unexpected: true })),
+      )
+      expect(await f.service.migrate(f.credential.key)).toBe('diverged')
+      await expect(f.service.undo(f.credential.key)).rejects.toMatchObject({ code: 'invalid' })
+      expect(f.entries.get(f.credential.key)).toBe(JSON.stringify({ v: 1, unexpected: true }))
+      expect(await f.service.retire(f.credential.key)).toBe(false)
+      f.advanceRelease()
+      f.advanceRelease()
+      await expect(f.service.retire(f.credential.key)).rejects.toMatchObject({ code: 'invalid' })
+    }
+    // Unreadable bytes: same refusal shape as another shape.
+    {
+      const f = await behindActive((fixture) =>
+        fixture.secrets.store(fixture.credential.key, 'not JSON at all'),
+      )
+      expect(await f.service.migrate(f.credential.key)).toBe('diverged')
+      await expect(f.service.undo(f.credential.key)).rejects.toMatchObject({ code: 'invalid' })
+      expect(f.entries.get(f.credential.key)).toBe('not JSON at all')
+    }
+  })
+
   it.skip('vault join (lane W): a key set after its slot is active goes through the vault', async () => {
     // Owed by the vault join: once `migrate` reports `active`, a key set
-    // through `activateApiKey`, `auth set` or `providers add` must reach the
-    // vault (the join routes the write through `store`), the legacy mirror
-    // must match, and `migrate` must report `active` rather than `diverged`
-    // while undo still verifies. Un-skip when the join lands.
+    // through the installed writer (`activateApiKey`, `auth set` and
+    // `providers add` all land on `saveProviderCredential`) must reach the
+    // vault — the join routes the write through `store` — so the vault
+    // carries the rotated value, the legacy mirror matches, and `migrate`
+    // reports `active` rather than `diverged`. This goes through the real
+    // writer, never the service directly. RED today: nothing routes the
+    // installed writer, so the vault keeps the first key and `migrate`
+    // reports `diverged`. Un-skip when the join lands.
     const f = providerFixture()
     await saveProviderCredential(f.secrets, 'openai', {
       v: 1,
@@ -1016,7 +1128,14 @@ describe('C-M109-4 R3 vault item names', () => {
       origin: 'https://api.openai.com',
       secret: 'synthetic-second-key',
     }
-    await f.service.store(f.credential.key, Buffer.from(JSON.stringify(rotated), 'utf8'))
+    await saveProviderCredential(f.secrets, 'openai', rotated)
+    const item = await f.vault.read(f.credential.itemId)
+    try {
+      expect(item.metadata.name).toBe('provider-openai')
+      expectSameBytes(f.credential.encode(item), Buffer.from(JSON.stringify(rotated), 'utf8'))
+    } finally {
+      eraseItem(item)
+    }
     expect(await readProviderCredential(f.secrets, 'openai')).toEqual(rotated)
     expect(await f.service.migrate(f.credential.key)).toBe('active')
     await f.service.undo(f.credential.key)
