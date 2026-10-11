@@ -12,6 +12,7 @@ import { vaultClientPlatform } from '../../../src/runtime/vault/clientPlatform'
 import * as nativeModule from '../../../src/runtime/vault/posixNative'
 import { isPosixVaultHost, registerPosixVaultHost } from '../../../src/runtime/vault/posixHost'
 import { vaultPeerExecutable } from '../../../src/runtime/vault/posixNative'
+import { VaultStoreUnavailableError } from '../../../src/core/vault/broker/ports'
 import { VaultBrokerClient } from '../../../src/core/vault/broker/client'
 import { VaultManageSession } from '../../../src/core/vault/broker/manageClient'
 import type { VaultBroker } from '../../../src/core/vault/broker/broker'
@@ -63,7 +64,14 @@ afterAll(async () => {
   if (native.root) await rm(native.root, { recursive: true, force: true })
 })
 
-async function composition() {
+function hasProtectedIntent(entries: Map<string, string>): boolean {
+  for (const key of entries.keys()) if (key.startsWith('vault-audit-pending-v1:')) return true
+  return false
+}
+
+async function composition(
+  interruption?: 'beforeStore' | 'beforeCommit' | 'afterStore' | 'afterCheckpoint',
+) {
   const dataDir = await mkdtemp(path.join(native.root, 'd-'))
   const home = path.join(dataDir, 'home')
   await mkdir(home, { mode: 0o700 })
@@ -81,7 +89,43 @@ async function composition() {
     installRoot: native.root,
     userSession: platform.discovery.userSession,
   }
-  const { openEntry: keyring, values: entries } = memoryKeyring()
+  const { openEntry, values: entries } = memoryKeyring()
+  const checkpoint = { shouldInterrupt: false, didInterrupt: false }
+  const keyring: typeof openEntry = (service, account) => {
+    const entry = openEntry(service, account)
+    return {
+      getPassword: entry.getPassword,
+      deletePassword: async () => {
+        if (
+          interruption === 'afterCheckpoint' &&
+          checkpoint.shouldInterrupt &&
+          !checkpoint.didInterrupt &&
+          account.startsWith('vault-audit-pending-v1:')
+        ) {
+          checkpoint.didInterrupt = true
+          throw new Error('generated checkpoint interruption')
+        }
+        return await entry.deletePassword()
+      },
+      setPassword: async (value) => {
+        const isTarget =
+          (interruption === 'beforeStore' && account.startsWith('vault-audit-pending-v1:')) ||
+          (interruption === 'afterStore' && account.startsWith('vault-audit-v1:'))
+        const shouldFail = checkpoint.shouldInterrupt && !checkpoint.didInterrupt && isTarget
+        if (shouldFail && interruption === 'afterStore') {
+          checkpoint.didInterrupt = true
+          throw new Error('generated checkpoint interruption')
+        }
+        await entry.setPassword(value)
+        if (!shouldFail) {
+          return
+        }
+
+        checkpoint.didInterrupt = true
+        throw new Error('generated checkpoint interruption')
+      },
+    }
+  }
   const secrets = new Map<string, Uint8Array>()
   const secretEntry = (_service: string, account: string) => ({
     getSecret: () => Promise.resolve(secrets.get(account)?.slice() ?? null),
@@ -133,6 +177,7 @@ async function composition() {
     context,
     home,
     entries,
+    checkpoint,
     secrets,
     platform,
     base,
@@ -298,6 +343,74 @@ describe.skipIf(process.platform === 'win32')('installed POSIX binding compositi
       await f.handle.close()
     }
   })
+  for (const interruption of [
+    'beforeStore',
+    'beforeCommit',
+    'afterStore',
+    'afterCheckpoint',
+  ] as const) {
+    it(`recovers the protected audit intent after an interruption ${interruption}`, async () => {
+      const f = await composition(interruption)
+      const material = randomBytes(32)
+      let restarted: Awaited<ReturnType<typeof createVaultBrokerProcess>> | undefined
+      try {
+        const setup = await f.session.setup()
+        setup.code.fill(0)
+        await f.session.confirmSetup(setup.setupId)
+        await f.session.write(
+          { metadata: metadata(), material: { kind: 'secret', value: material } },
+          false,
+        )
+        const broker = seen.broker
+        if (!broker) throw new Error('generated broker was not composed')
+        const req = { ...requester(), peerProcessId: process.pid, hostId: f.hostId }
+        await broker.register(
+          {
+            hostId: f.hostId,
+            processId: process.pid,
+            userId: String(process.getuid?.()),
+            ui: true,
+          },
+          req,
+          'ask',
+        )
+        if (interruption === 'beforeCommit') {
+          const repository = f.owner.repository
+          if (!repository) throw new Error('generated audit repository missing')
+          vi.spyOn(repository.current(), 'commitAudit').mockImplementationOnce(() => {
+            f.checkpoint.didInterrupt = true
+            return Promise.reject(new VaultStoreUnavailableError())
+          })
+        }
+        f.checkpoint.shouldInterrupt = true
+        await expect(
+          broker.request(req, metadata().handle, use(), {
+            tainted: false,
+            reasons: [],
+          }),
+        ).rejects.toThrow('storeUnavailable')
+        expect(f.checkpoint.didInterrupt).toBe(true)
+        expect(hasProtectedIntent(f.entries)).toBe(true)
+        await f.handle.close()
+        restarted = await createVaultBrokerProcess(f.context, f.base)
+        await f.session.unlock(null)
+        const audit = await f.session.audit()
+        expect(audit).toHaveLength(interruption === 'beforeStore' ? 0 : 1)
+        expect(hasProtectedIntent(f.entries)).toBe(false)
+        expect(await f.session.audit()).toEqual(audit)
+        const repository = f.owner.repository
+        if (!repository) throw new Error('generated audit repository missing')
+        // The new factory supplies its own repository; its persisted slot/checkpoint agree on reopen.
+        const reopened = await f.session.snapshot()
+        expect(reopened.status.state).toBe('unlocked')
+      } finally {
+        material.fill(0)
+        await restarted?.close()
+        await f.handle.close()
+        f.platform.dispose?.()
+      }
+    })
+  }
   it('refuses an independently advanced store audit checkpoint even when protected checkpoint and audit file still agree', async () => {
     const f = await composition()
     try {
@@ -310,7 +423,7 @@ describe.skipIf(process.platform === 'win32')('installed POSIX binding compositi
       if (!repository) throw new Error('audit binding did not receive its real repository')
       const store = repository.current()
       const snapshot = await store.exportSnapshot()
-      // A crash after the store's commit but before the protected checkpoint write must refuse.
+      // An independently advanced store without a matching protected intent must refuse.
       await store.commitAudit(snapshot.slots.auditGeneration + 1, 'f'.repeat(64))
       await expect(f.session.audit()).rejects.toThrow()
     } finally {

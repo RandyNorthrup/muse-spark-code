@@ -5,9 +5,16 @@ import * as z from 'zod/mini'
 import { VaultAuditLog, type VaultAuditAnchorPort } from '../../core/vault/broker/audit'
 import { VaultError, eraseVaultMaterial } from '../../core/vault/crypto'
 import { VaultStoreUnavailableError } from '../../core/vault/broker/ports'
+import { UnixVaultPrivateFiles, isVaultFileMissing } from '../../core/vault/broker/files'
+import { vaultAuditRecordSchema } from '../../shared/vault'
 import { VaultScrubber } from '../../core/vault/scrub'
 import type { VaultStoreRepository } from '../../core/vault/broker/repository'
-import { KEYRING_SERVICE, UI_TEXT, VAULT_LIMITS } from '../../shared/constants'
+import {
+  KEYRING_SERVICE,
+  UI_TEXT,
+  VAULT_LIMITS,
+  VAULT_AUDIT_MAX_BYTES,
+} from '../../shared/constants'
 import type { KeyringEntryFactory } from '../keyStore'
 import type { VaultBrokerBindings, VaultBrokerContext } from './vaultBrokerEntry'
 import { isPosixVaultHost } from './posixHost'
@@ -31,38 +38,111 @@ function auditLog(
 ): VaultAuditLog {
   const vaultId = repository.current().vaultId
   const account = `vault-audit-v1:${vaultId}`
+  const pendingAccount = `vault-audit-pending-v1:${vaultId}`
   const directory = path.join(context.dataDir, 'audit', vaultId)
   let tail: Promise<unknown> = Promise.resolve()
+  const readProtected = async (name: string): Promise<string | null | undefined> => {
+    try {
+      return await keyring(KEYRING_SERVICE, name).getPassword()
+    } catch {
+      throw new VaultStoreUnavailableError()
+    }
+  }
+  const checkpoint = (value: string | null | undefined) => {
+    const zero = '0'.repeat(VAULT_LIMITS.sha256Hex)
+    return auditAnchorSchema.parse(
+      value == null
+        ? { generation: 0, hash: zero, baseGeneration: 0, baseHash: zero }
+        : JSON.parse(value),
+    )
+  }
+  const writeProtected = async (
+    record: ReturnType<typeof auditAnchorSchema.parse>,
+  ): Promise<void> => {
+    try {
+      await keyring(KEYRING_SERVICE, account).setPassword(JSON.stringify(record))
+      await keyring(KEYRING_SERVICE, pendingAccount).deletePassword()
+    } catch {
+      throw new VaultStoreUnavailableError()
+    }
+  }
+  const pendingSchema = z
+    .strictObject({ previous: auditAnchorSchema, next: auditAnchorSchema })
+    .check(z.refine((value) => value.next.generation === value.previous.generation + 1))
   const anchors: VaultAuditAnchorPort = {
     read: async () => {
-      let value: string | null | undefined
+      let record = checkpoint(await readProtected(account))
+      const pendingValue = await readProtected(pendingAccount)
+      const snapshot = await repository.current().exportSnapshot()
+      if (pendingValue != null) {
+        const pending = pendingSchema.parse(JSON.parse(pendingValue))
+        const isPrevious = JSON.stringify(record) === JSON.stringify(pending.previous)
+        const isNext = JSON.stringify(record) === JSON.stringify(pending.next)
+        const slots = snapshot.slots
+        const isStorePrevious =
+          slots.auditGeneration === pending.previous.generation &&
+          slots.auditHead === pending.previous.hash
+        const isStoreNext =
+          slots.auditGeneration === pending.next.generation && slots.auditHead === pending.next.hash
+        if (
+          (!isPrevious && !isNext) ||
+          (!isStorePrevious && !isStoreNext) ||
+          (isNext && !isStoreNext)
+        )
+          throw new VaultError('rollback')
+        if (isStorePrevious) {
+          let bytes: Buffer
+          try {
+            bytes = await new UnixVaultPrivateFiles().read(
+              path.join(directory, 'audit.v1.jsonl'),
+              VAULT_AUDIT_MAX_BYTES,
+            )
+          } catch (error: unknown) {
+            if (!isVaultFileMissing(error)) throw error
+            bytes = Buffer.alloc(0)
+          }
+          const lines = bytes.toString('utf8').trimEnd().split('\n')
+          const last = lines.at(-1)
+          const physical = last ? vaultAuditRecordSchema.parse(JSON.parse(last)) : null
+          // An authorized prepare that never appended (death or cancellation) changes no head.
+          if (physical?.hash !== pending.next.hash) {
+            if (physical !== null && physical.hash !== pending.previous.hash)
+              throw new VaultError('rollback')
+            try {
+              await keyring(KEYRING_SERVICE, pendingAccount).deletePassword()
+            } catch {
+              throw new VaultStoreUnavailableError()
+            }
+            return record
+          }
+          // The protected intent binds this exact physical head; core still verifies every MAC.
+          await repository.current().commitAudit(pending.next.generation, pending.next.hash)
+        }
+        await writeProtected(pending.next)
+        record = pending.next
+      } else if (
+        snapshot.slots.auditGeneration !== record.generation ||
+        snapshot.slots.auditHead !== record.hash
+      ) {
+        throw new VaultError('rollback')
+      }
+      return record
+    },
+    prepare: async (record) => {
+      const parsed = auditAnchorSchema.parse(record)
+      const previous = checkpoint(await readProtected(account))
+      const pending = pendingSchema.parse({ previous, next: parsed })
+      // Protected intent precedes both physical append and the store update.
       try {
-        value = await keyring(KEYRING_SERVICE, account).getPassword()
+        await keyring(KEYRING_SERVICE, pendingAccount).setPassword(JSON.stringify(pending))
       } catch {
         throw new VaultStoreUnavailableError()
       }
-      const zero = '0'.repeat(VAULT_LIMITS.sha256Hex)
-      const record = auditAnchorSchema.parse(
-        value == null
-          ? { generation: 0, hash: zero, baseGeneration: 0, baseHash: zero }
-          : JSON.parse(value),
-      )
-      const snapshot = await repository.current().exportSnapshot()
-      if (
-        snapshot.slots.auditGeneration !== record.generation ||
-        snapshot.slots.auditHead !== record.hash
-      )
-        throw new VaultError('rollback')
-      return record
     },
     write: async (record) => {
       const parsed = auditAnchorSchema.parse(record)
       await repository.current().commitAudit(parsed.generation, parsed.hash)
-      try {
-        await keyring(KEYRING_SERVICE, account).setPassword(JSON.stringify(parsed))
-      } catch {
-        throw new VaultStoreUnavailableError()
-      }
+      await writeProtected(parsed)
     },
     transaction: async (run) => {
       const previous = tail

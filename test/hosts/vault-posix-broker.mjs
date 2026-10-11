@@ -1,6 +1,9 @@
 // Generated-only installed broker receipt. Run in an isolated unlocked Secret Service.
 import assert from 'node:assert/strict'
-import { cp, mkdtemp, mkdir, readFile, symlink } from 'node:fs/promises'
+import { spawn } from 'node:child_process'
+import { once } from 'node:events'
+import { performance } from 'node:perf_hooks'
+import { cp, mkdtemp, mkdir, readFile, readdir, symlink } from 'node:fs/promises'
 import { rmSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { randomBytes } from 'node:crypto'
@@ -12,6 +15,14 @@ import { build } from 'esbuild'
 if (process.platform !== 'linux' || process.env['MUSE_VAULT_TEST_ISOLATED'] !== '1')
   throw new Error('Run through test/hosts/run-vault-posix.sh with its isolated Secret Service')
 
+function stopReceiptBroker(pid) {
+  try {
+    process.kill(pid, 'SIGTERM')
+  } catch (error) {
+    if (error.code !== 'ESRCH') throw error
+  }
+}
+
 const workspace = process.cwd()
 const root = await mkdtemp(path.join(os.tmpdir(), 'vi-'))
 // Keep registry files until asynchronous admission retirement finishes and Node exits.
@@ -20,6 +31,9 @@ const distDir = path.join(root, 'dist')
 let handle
 let client
 let resources
+let platform
+let brokerPid
+const pressure = []
 const value = randomBytes(32)
 try {
   await cp(path.join(workspace, 'dist'), distDir, { recursive: true })
@@ -61,29 +75,62 @@ try {
   const { createVaultBrokerBindings } = require(path.join(distDir, 'vaultRuntime.js'))
   assert.equal(typeof createVaultBrokerBindings, 'function')
   const { VaultBrokerClient, VaultManageSession, lazyRuntimeResources } = require(testClient)
-  const resourceError = () => {
-    process.stderr.write('native resource receipt failed\n')
+  const resourceError = (kind) => {
+    const frame = new Error('resource receipt diagnostic').stack
+      ?.split('\n')
+      .map((line) =>
+        line
+          .replaceAll('\\', '/')
+          .match(/\/(resource(?:Governor|Admission|Process|Journal)\.js):([0-9]+):([0-9]+)/)
+          ?.slice(1)
+          .join(':'),
+      )
+      .find((line) => line !== undefined)
+    process.stderr.write(
+      `native resource receipt failed: ${kind}; ${frame ?? 'no package frame'}\n`,
+    )
     process.exitCode = 1
   }
   resources = lazyRuntimeResources({
     machineDir: path.join(root, 'data'),
     distDir,
     sleep: delay,
-    onError: resourceError,
-    log: { trace: resourceError, info: resourceError, warn: resourceError, error: resourceError },
+    onError: () => resourceError('runtime'),
+    log: {
+      trace: () => resourceError('trace'),
+      info: () => resourceError('info'),
+      warn: () => resourceError('warn'),
+      error: () => resourceError('error'),
+    },
   })
   const hostId = randomBytes(16).toString('hex'),
     hostSession = randomBytes(16).toString('hex')
-  const platform = await posixVaultClientPlatform({
+  platform = await posixVaultClientPlatform({
     dataDir: path.join(root, 'data'),
     distDir,
     hostId,
     hostSession,
   })
+  for (let count = 0; count < 2; count++) {
+    const child = spawn(process.execPath, ['-e', 'for (;;) Math.sqrt(Math.random())'], {
+      env: {},
+      detached: true,
+      stdio: 'ignore',
+    })
+    pressure.push(child)
+    await once(child, 'spawn')
+  }
+  const startedAt = performance.now()
   handle = await platform.process.launch()
   await handle.ready
+  const launchMs = Math.round(performance.now() - startedAt)
+  process.stdout.write(
+    `MEASURE: governed broker launch under two CPU workers: ${launchMs} ms; comparison window 5000 ms\n`,
+  )
+  assert.ok(launchMs < 5000, 'observed governed launch under the five-second comparison window')
   const location = await platform.discovery.discover(platform.process.identity)
   assert.ok(location)
+  brokerPid = location.lock.processId
   const checkedPeers = {
     verify: async (socket) => {
       const peer = await platform.peers.verify(socket)
@@ -161,6 +208,29 @@ try {
 } finally {
   value.fill(0)
   client?.close()
-  await handle?.stop()
-  resources?.dispose()
+  try {
+    await handle?.stop?.()
+    // Receipt ownership ends the broker explicitly; client shutdown itself never signals it.
+    if (brokerPid !== undefined) {
+      stopReceiptBroker(brokerPid)
+      for (let count = 0; count < 100; count++) {
+        const identity = await platform.process.identity(brokerPid)
+        if (!identity.startedAt) break
+        await delay(10)
+      }
+      const files = await readdir(platform.discovery.directory)
+      assert.deepEqual(
+        files.toSorted((a, b) => a.localeCompare(b)),
+        ['launch.lock', 'startup.lock'],
+      )
+    }
+  } finally {
+    platform?.dispose?.()
+    for (const child of pressure) {
+      const exited = once(child, 'exit')
+      process.kill(-child.pid, 'SIGKILL')
+      await exited
+    }
+    resources?.dispose()
+  }
 }

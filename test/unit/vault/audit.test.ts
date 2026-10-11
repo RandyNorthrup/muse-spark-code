@@ -284,6 +284,35 @@ describe.skipIf(!hasUnixFiles)('authenticated vault audit', () => {
     expect(fixture.anchor().generation).toBe(0)
   })
 
+  it.each(['close', 'revoke'] as const)(
+    'rechecks %s after protected prepare and before a physical append',
+    async (action) => {
+      const fixture = await setup(),
+        writer = await fixture.log.openWriter(fixture.key),
+        entered = Promise.withResolvers<undefined>(),
+        waiting = Promise.withResolvers<undefined>()
+      let isAllowed = true
+      fixture.anchors.prepare = async () => {
+        entered.resolve(undefined)
+        await waiting.promise
+      }
+      const append = writer.append(fixture.record, () => isAllowed)
+      const observed =
+        action === 'close'
+          ? expect(append).rejects.toThrow()
+          : expect(append).resolves.toBeUndefined()
+      await entered.promise
+      if (action === 'close') writer.close()
+      else isAllowed = false
+      waiting.resolve(undefined)
+      await observed
+      writer.close()
+      await fixture.log.open(fixture.key)
+      expect(await fixture.log.read()).toEqual([])
+      expect(fixture.anchor().generation).toBe(0)
+    },
+  )
+
   it('callers cannot override broker-owned audit identity or generation', async () => {
     const fixture = await setup()
     await expect(

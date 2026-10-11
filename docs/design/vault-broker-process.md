@@ -54,10 +54,14 @@ recorded birth is never removed. Socket and discovery live in the existing
 0700 per-session/protocol directory, with a 0600 socket. At most 64 clients
 are admitted. The broker locks and exits after 30 seconds without a client;
 any connected client suspends that timer. Native identity execution and startup-lock readiness have
-five-second response bounds. The same bound covers waiting for the client
-launch lock and waiting for socket readiness after governed handoff; it includes
-broker resource admission, native keyring import and initial protected-anchor
-read. Admission before handoff has the governor's own deadline. A failed client
+five-second response bounds. The client launch-lock response has the same bound
+once its governed helper has spawned. Socket-readiness retries use a five-second
+window after governed handoff; broker resource admission, native keyring import
+and initial protected-anchor read happen during that window. It is checked
+between probes, which retain their own native timeout, so an in-flight probe
+can finish after the retry window. These are per-operation response/retry
+windows, not a five-second bound on the whole launch. Admission before handoff
+has the governor's own deadline. A failed client
 wait never signals a session broker. A locked keyring or loaded machine can
 exceed the readiness bound and receives a real startup failure; a later need
 rechecks the broker. Host registrations are removed at client/window shutdown;
@@ -75,6 +79,21 @@ bindings and refuse explicitly until then. Host registration is owner-only and
 checked against kernel PID/UID/birth/image facts, with the same-user rewrite
 residual in D89.15; it is not an attestation against hostile code running as the
 same OS user.
+
+POSIX audit appends first persist a value-free previous/next head intent in the
+protected OS store. The portable audit port's optional prepare hook rechecks the
+writer and authorization after that await. A successor under the audit kernel
+lock abandons a prepared head with no physical append, or completes its exact
+physical/store/protected checkpoint transition; every record still passes the
+core hash/MAC chain verification. Unrelated checkpoint advances refuse rollback.
+No writer lease or store takeover rule changes here.
+
+The VSIX allowlist and package report frame paths include `vaultStore.js`,
+`vaultPosix.js`, `vaultRuntime.js` and `vaultBrokerBindings.js`. Before staging,
+`package-vsix.mjs` derives the reachable sibling closure from the production
+build outputs/configuration and installed lazy-loader call sites and reports
+all omitted bundles. The pinned native keyring module remains a part-A join
+obligation.
 
 Availability stays off pending CM109JOINA's shared writer lease, Windows join,
 Models & Agents/settings mount and reviewed installed-editor acceptance. Part A

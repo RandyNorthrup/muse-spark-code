@@ -5,7 +5,11 @@ import type { VaultProcessIdentity } from '../../core/vault/broker/peer'
 export interface VaultBrokerProcessPort {
   identity(pid: number): Promise<VaultProcessIdentity>
   /** W launches the installed dist/vaultBroker.js with a narrow credential-free environment. */
-  launch(): Promise<{ ready: Promise<void>; stop(): Promise<void> }>
+  launch(): Promise<{
+    ready: Promise<void>
+    /** Present only while the launcher owns a starting process; session handoffs expose no stop. */
+    stop?: () => Promise<void>
+  }>
 }
 /** Only called at the first vault need; construction starts no process and reads no vault. */
 export class VaultBrokerProcess {
@@ -24,7 +28,7 @@ export class VaultBrokerProcess {
       if (!location) throw new Error(UI_TEXT.vault.brokerBlocked)
       return location
     } catch (error: unknown) {
-      await child.stop()
+      await child.stop?.()
       throw error
     }
   }

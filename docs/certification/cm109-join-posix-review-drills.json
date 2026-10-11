@@ -142,5 +142,101 @@
     "exit": 1,
     "fired": true,
     "sha256": "2d362a3f863111ec02c5e3c968f83bd0d884e13796420a6356ab1de16539c0ad"
+  },
+  {
+    "name": "package-closure",
+    "file": "scripts/check-packaged-bundles.mjs",
+    "suite": "test/unit/packagedBundles.test.mjs",
+    "exit": 1,
+    "fired": true,
+    "sha256": "bce6e70478e203f1b441d287d095313c39ca7dd6ef9e973c7833dafccc8f55cf"
+  },
+  {
+    "name": "package-allowlist-vaultStore",
+    "file": ".vscodeignore",
+    "suite": "test/unit/packagedBundles.test.mjs",
+    "exit": 1,
+    "fired": true,
+    "sha256": "9bfd6bed8ef30764ff876016f280eff5c42977c3e1714c1cba9da8dee960c772"
+  },
+  {
+    "name": "package-allowlist-vaultPosix",
+    "file": ".vscodeignore",
+    "suite": "test/unit/packagedBundles.test.mjs",
+    "exit": 1,
+    "fired": true,
+    "sha256": "9bfd6bed8ef30764ff876016f280eff5c42977c3e1714c1cba9da8dee960c772"
+  },
+  {
+    "name": "package-allowlist-vaultRuntime",
+    "file": ".vscodeignore",
+    "suite": "test/unit/packagedBundles.test.mjs",
+    "exit": 1,
+    "fired": true,
+    "sha256": "9bfd6bed8ef30764ff876016f280eff5c42977c3e1714c1cba9da8dee960c772"
+  },
+  {
+    "name": "package-allowlist-vaultBrokerBindings",
+    "file": ".vscodeignore",
+    "suite": "test/unit/packagedBundles.test.mjs",
+    "exit": 1,
+    "fired": true,
+    "sha256": "9bfd6bed8ef30764ff876016f280eff5c42977c3e1714c1cba9da8dee960c772"
+  },
+  {
+    "name": "protected-prepare",
+    "file": "src/runtime/vault/brokerBindings.ts",
+    "suite": "test/unit/vault/posixBindings.test.ts",
+    "exit": 1,
+    "fired": true,
+    "sha256": "2cfc60d5759ba021250e094bd786e4cfad6bfec71a00a2f739127079cb8a3aeb"
+  },
+  {
+    "name": "protected-recovery",
+    "file": "src/runtime/vault/brokerBindings.ts",
+    "suite": "test/unit/vault/posixBindings.test.ts",
+    "exit": 1,
+    "fired": true,
+    "sha256": "2cfc60d5759ba021250e094bd786e4cfad6bfec71a00a2f739127079cb8a3aeb"
+  },
+  {
+    "name": "authorization-after-prepare",
+    "file": "src/core/vault/broker/audit.ts",
+    "suite": "test/unit/vault/audit.test.ts",
+    "exit": 1,
+    "fired": true,
+    "sha256": "9712ca231f06dde088ec3c9d4a164f210c66bc1c07f91482f8d336073b786294"
+  },
+  {
+    "name": "package-windows-paths",
+    "file": "scripts/check-packaged-bundles.mjs",
+    "suite": "test/unit/packagedBundles.test.mjs",
+    "exit": 1,
+    "fired": true,
+    "sha256": "9c57953473bb017c99517c16d7e075a565de57511249a564afbd2924707bbdf2"
+  },
+  {
+    "name": "help-disabled-honesty",
+    "file": "src/shared/l10n/en.ts",
+    "suite": "test/unit/spawnBoundaries.test.ts",
+    "exit": 1,
+    "fired": true,
+    "sha256": "4004eb48ba639a1acd2d342f9b8ca38766f8c87340fc960d50b9d56d01d0f3e2"
+  },
+  {
+    "name": "package-framepaths",
+    "file": "src/shared/constants.ts",
+    "suite": "test/unit/flightRecorder.test.ts",
+    "exit": 1,
+    "fired": true,
+    "sha256": "a10631d94ae3013fe6af6a1908a6f5387eff8d592332357808a2c6dcd93148f4"
+  },
+  {
+    "name": "handoff-no-stop",
+    "file": "src/host/vault/brokerProcess.ts",
+    "suite": "test/unit/vault/channel.test.ts",
+    "exit": 1,
+    "fired": true,
+    "sha256": "cc4387b850c4a6d842aa0f1dabb9854f5eb7b7a178b5d6d9c7a9f9ad58e4b723"
   }
 ]

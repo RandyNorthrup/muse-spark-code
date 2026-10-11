@@ -182,6 +182,8 @@
     "test/unit/helpers/questions/queuedTurnCrash.ts",
     // POSIX broker SIGKILL fixture is another esbuild entry launched by path.
     "test/unit/helpers/vault/brokerProcessChild.ts",
+    // esbuild replaces the production admission module with this generated-client entry.
+    "test/unit/helpers/vault/sessionAdmission.ts",
     "test/unit/helpers/vault/sessionClientChild.ts",
     "test/unit/helpers/vault/sessionBrokerChild.ts",
     // Built once by writerCrashPosix.test.ts; a real generated-only SIGKILL child.

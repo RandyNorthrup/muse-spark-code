@@ -136,11 +136,8 @@ export async function posixVaultClientPlatform(
             await held.release()
           }
         })()
-        return {
-          ready,
-          // A session broker belongs to no client; startup failures clean themselves or idle out.
-          stop: () => Promise.resolve(),
-        }
+        // A handed-off session broker belongs to no client and exposes no client stop.
+        return { ready }
       },
     },
   }

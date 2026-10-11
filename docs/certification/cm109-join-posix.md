@@ -243,3 +243,158 @@ lead-owned under the explicit scoped rig instruction.
 
 Packaging, protected audit interruption recovery, installed load measurement
 and final dependent/gate receipts follow in the next piece.
+
+## RVCM109JB review repair — packaging, audit and final verification (2026-10-11)
+
+The VSIX allowlist and report frame vocabulary now include `vaultStore.js`,
+`vaultPosix.js`, `vaultRuntime.js` and `vaultBrokerBindings.js`. The pre-stage
+package guard derives configured outputs, production esbuild import edges and
+installed lazy-loader/worker/handoff references; it checks the reachable
+closure against VSCE's actual file list. The current production probe visits
+**240** bundles. Removing the four siblings reports **all four**, and each
+independent omission fails its owning test. Windows separators are tested in
+output keys, sibling imports and packaged file names. Report frame coverage
+remains tied to the extension allowlist by the existing flight-recorder test.
+The pinned keyring module remains part A's separate VSIX join obligation.
+
+A protected, value-free previous/next audit-head intent precedes physical
+append. The portable audit port adds only an optional prepare hook, bound by
+POSIX; existing callers retain their sequencing. It rechecks key lifetime and
+authorization after the await. Under the audit kernel lock a successor abandons
+an intent with no physical append or finishes the exact physical/store/protected
+checkpoint transition. Core still verifies the full hash/MAC chain, and an
+independent store checkpoint advance remains refused. Four interruption cases
+cover prepared-before-append, physical-before-store, store-before-protected,
+and protected-before-intent-deletion; repeat reads prove recovery is idempotent.
+Neither the core store nor shared lock helpers changed. A handed-off process
+exposes no client stop operation, rather than an empty successful stop stub;
+its failure preserves the original error while owned starts still stop.
+
+The **30** deliberate review mutations all fail their complete owning files,
+then restore the source byte-exact with SHA-256 checked. The appended JSON
+manifest records each guard, suite, exit and source hash. The final restored
+`channel`, `spawnBoundaries` and `flightRecorder` run passes **128/128**.
+The existing Help assertion initially expected the misleading missing-broker
+sentence; it now positively checks switched-off/integration wording and rejects
+"not installed". The existing VSIX archive tests caught the new translated
+key's order differing from English: all 14 tables were aligned, and the full
+VSIX suite passes **79/79**, including every byte-exact locale round trip.
+No assertion, timeout or gate was relaxed.
+
+| Finding                        | Fix                                                                                                    | Complete regression                                                         | Deliberate red drill                                                                                |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| 1, audit interruption          | Protected intent before append, exact checkpoint recovery, optional client stop authority              | `posixBindings`, `audit`, `channel`                                         | `protected-prepare`, `protected-recovery`, `authorization-after-prepare`, `handoff-no-stop`         |
+| 4, omitted siblings            | Derived production closure before VSIX staging and complete frame vocabulary                           | `packagedBundles`, `vsixPackaging`, `flightRecorder`                        | `package-closure`, four `package-allowlist-*`, `package-windows-paths`, `package-framepaths`        |
+| 7, misleading disabled wording | Runtime/panel refusal and reference in English/all 14 tables                                           | `vaultRuntimeEntry`, `vaultPanelBundle`, `spawnBoundaries`, `vsixPackaging` | `disabled-runtime-reason`, `disabled-panel-reason`, `disabled-translation`, `help-disabled-honesty` |
+| 8, timing claim                | Per-response/retry windows distinguished from total governor admission; full installed launch measured | Isolated Secret Service installed receipt                                   | Measurements below; native timeout/recovery tests retain repository deadlines                       |
+
+Final verification selects **19** complete dependent files from the **11**
+changed non-hub sources, using `vitest related --run` in seven CLI shards with
+at most three files each. The hub identifier/reference/packaging checks and
+three named-review supplements run as complete CLI files, again at most three
+per invocation. Latest results across **39 distinct files: 642 passed, zero
+failed, 18 skipped**. The skips are the unchanged 17 writer-crash cases plus
+one Windows-only audit case on Linux. The native foreign-user peer test passes;
+real lifecycle, protocol, editor, CLI/ACP, exec, management and OS-slot files
+all ran. Existing named long-operation timeouts in the VSIX fixture were kept;
+no CLI `--testTimeout` was used. Six hub source/generated files and the 14
+language tables remain marked **HUB: integration run** under the shared rule.
+Selection, exact commands, latest per-file counts, source hashes, gate results
+and bundle bytes are in `cm109-join-posix-verification.json`.
+
+The installed private-Secret-Service receipt is **not green**. Both runs finish
+setup, private read, encrypted-store check, Lock and reopen, but exit **1** on
+warnings from the existing registered-tree sampler's refusal catch. Diagnostics
+retain only a fixed kind and a package frame (`resourceGovernor.js:3:51102`),
+never the underlying error, path, key or item value. The cause is not attributed;
+PLAN sections 3 and 7 defer it to the resource owner/lead. No warning is
+suppressed and no resource code outside this lane is changed. Full governed
+launch under two additional CPU workers measures **1,042 ms**, then **570 ms**,
+both below the 5,000 ms comparison window. This measures observed full launch,
+not a hard total-launch bound: identity/lock responses and readiness retries
+have their own five-second windows; governor admission has its own deadline,
+and an in-flight probe can finish after the retry window.
+
+The session handoff removes ordinary window/CLI closure as a source of abrupt
+broker termination. SIGKILL writer recovery remains owned by CM109LEASE/join;
+the 17 cases stay skipped here. macOS must rerun the native compile/sign checks,
+peer UID/PID/birth/image refusals, kernel lock contention/recovery, real client
+lifetime/start-race/early-death/closed-pipe cases, login Keychain/installed receipt,
+launch measurement and the scoped dependent/gate checks. Availability, resource
+limits, existing bundle caps and paid defaults stay unchanged.
+
+All five type projects, changed-source lint, plain knip, zero duplication,
+localization, reference, host API, plan, roadmap and final production build
+pass; every existing cap is unchanged. The seven vault bundle byte counts are
+recorded in the verification JSON. The fixture's esbuild admission replacement
+is a real dynamic knip entry (not an ignored export); its bootstrap alias is a
+wrapper, so duplicate-export checking stays enabled.
+
+Cleanup after the suites: a scoped `/proc` scan found **zero** owned brokers,
+native guardians, private keyring/bus daemons or CPU workers. A no-symlink walk
+of the lane's private `TMPDIR` found **zero** sockets, broker/launch/startup/writer/
+audit locks or boot tokens. Retained kernel lock files inside test roots are
+removed with those owned roots; no other lane is inspected or changed.
+
+### Modified file manifest
+
+- `.vscodeignore`
+- `CHANGELOG.md`
+- `PLAN.md`
+- `README.md`
+- `ROADMAP.md`
+- `docs/certification/cm109-join-posix-review-drills.json`
+- `docs/certification/cm109-join-posix-verification.json`
+- `docs/certification/cm109-join-posix.md`
+- `docs/design/vault-broker-process.md`
+- `docs/ide-compatibility/host-api.md`
+- `docs/reference.md`
+- `docs/roadmap/entries.json`
+- `knip.jsonc`
+- `l10n/ui.cs.json`
+- `l10n/ui.de.json`
+- `l10n/ui.es.json`
+- `l10n/ui.fr.json`
+- `l10n/ui.hu.json`
+- `l10n/ui.it.json`
+- `l10n/ui.ja.json`
+- `l10n/ui.ko.json`
+- `l10n/ui.pl.json`
+- `l10n/ui.pt-br.json`
+- `l10n/ui.ru.json`
+- `l10n/ui.tr.json`
+- `l10n/ui.zh-cn.json`
+- `l10n/ui.zh-tw.json`
+- `native/posix/vaultPeer.c`
+- `scripts/check-packaged-bundles.mjs`
+- `scripts/package-vsix.mjs`
+- `src/core/vault/broker/audit.ts`
+- `src/host/vault/brokerProcess.ts`
+- `src/host/vault/vaultPanelBundle.ts`
+- `src/host/vault/vaultPanelEntry.ts`
+- `src/runtime/reference.node.generated.ts`
+- `src/runtime/vault/brokerBindings.ts`
+- `src/runtime/vault/clientPlatform.ts`
+- `src/runtime/vault/posixClientPlatform.ts`
+- `src/runtime/vault/posixHost.ts`
+- `src/runtime/vault/posixNative.ts`
+- `src/runtime/vault/vaultBrokerEntry.ts`
+- `src/runtime/vault/vaultRuntime.ts`
+- `src/shared/constants.ts`
+- `src/shared/featureCatalog.ts`
+- `src/shared/l10n/en.ts`
+- `src/shared/reference/reference.generated.json`
+- `src/shared/reference/reference.generated.ts`
+- `test/hosts/vault-posix-broker.mjs`
+- `test/unit/helpers/vault/sessionAdmission.ts`
+- `test/unit/helpers/vault/sessionBrokerChild.ts`
+- `test/unit/helpers/vault/sessionClientChild.ts`
+- `test/unit/packagedBundles.test.mjs`
+- `test/unit/spawnBoundaries.test.ts`
+- `test/unit/vault/audit.test.ts`
+- `test/unit/vault/brokerProcess.test.ts`
+- `test/unit/vault/brokerSession.test.ts`
+- `test/unit/vault/channel.test.ts`
+- `test/unit/vault/posixBindings.test.ts`
+- `test/unit/vault/vaultPanelBundle.test.ts`
+- `test/unit/vault/vaultRuntimeEntry.test.ts`

@@ -37,6 +37,8 @@ type Anchor = z.infer<typeof anchorSchema>
 /** C persists this authenticated anchor and holds the shared audit writer transaction. */
 export interface VaultAuditAnchorPort {
   read(): Promise<Anchor>
+  /** An installed journal may prepare the exact head before the physical append. */
+  prepare?(anchor: Anchor): Promise<void>
   write(anchor: Anchor): Promise<void>
   transaction<T>(run: () => Promise<T>): Promise<T>
 }
@@ -151,12 +153,19 @@ class VaultAuditWriterSession implements VaultAuditWriter {
     if (!canCommit()) return
     const writer = this.writer
     if (!writer) throw new Error(UI_TEXT.vault.locked)
-    if (this.size + line.byteLength > this.maxBytes) {
+    const shouldRotate = this.size + line.byteLength > this.maxBytes
+    if (shouldRotate) {
       // The authenticated slot checkpoint retains the capped prefix's head, so rotation has no gap.
       next.baseGeneration = anchor.generation
       next.baseHash = anchor.hash
-      writer.replace(line)
-    } else writer.append(line)
+    }
+    if (this.anchors.prepare !== undefined) {
+      await this.anchors.prepare(next)
+      this.check()
+      if (!canCommit()) return
+    }
+    if (shouldRotate) writer.replace(line)
+    else writer.append(line)
     this.check()
     try {
       // Physical commit already happened in this tick. Finish its anchor under the writer transaction, even on close.

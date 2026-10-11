@@ -129,6 +129,10 @@
 !dist/reportingNetwork.js
 !dist/vault.js
 !dist/vaultBroker.js
+!dist/vaultStore.js
+!dist/vaultPosix.js
+!dist/vaultRuntime.js
+!dist/vaultBrokerBindings.js
 !dist/vaultBoundaries.js
 !dist/estimator.js
 !dist/estimateContracts.js
