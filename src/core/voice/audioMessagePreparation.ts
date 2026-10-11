@@ -6,7 +6,7 @@
 // host-owned transcription POST, converter presence and the paid seams,
 // and supplies no port until then. A turn with nothing
 // transcribable resolves undefined, byte-identical to an absent port.
-import { UI_TEXT } from '../../shared/constants'
+import { UI_TEXT, type MEDIA_AUDIO_ACTION_OPTIONS } from '../../shared/constants'
 import type { TurnPart } from '../agent/agentBackend'
 import type { PaidFeatureGate, PaidUsage } from '../paid/paidFeatures'
 import type { PaidUseConsent } from '../paid/paidConsent'
@@ -43,6 +43,7 @@ export interface AudioMessageSeams {
 
 export interface AudioMessagePreparationDeps {
   readonly contextFor: (modelId: string) => AudioRoutingContext
+  readonly audioAction?: (() => (typeof MEDIA_AUDIO_ACTION_OPTIONS)[number]) | undefined
   readonly conversion: AudioConversionPort
   readonly batch: BatchTranscriptionPort
   readonly gate: Pick<PaidFeatureGate, 'isOn'>
@@ -78,9 +79,11 @@ export function createPrepareAudioMessage(deps: AudioMessagePreparationDeps) {
         prepared.push(part)
         continue
       }
-      // The router's own default: transcription is never assumed, and a
-      // part the router cannot route stays for the established refusal.
-      const action = audioRouteOptions(source.info, context).defaultAction
+      // An explicit standalone-audio choice must be supported; it never
+      // falls back to a different action. Video keeps its soundtrack route.
+      const defaultAction = audioRouteOptions(source.info, context).defaultAction
+      const action =
+        source.info.kind === 'audio' ? (deps.audioAction?.() ?? defaultAction) : defaultAction
       if (action === undefined) {
         prepared.push(part)
         continue

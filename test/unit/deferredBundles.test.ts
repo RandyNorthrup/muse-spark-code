@@ -623,13 +623,19 @@ describe('deferred cohort bundles', () => {
 
     // Lane V seam 5: ACP serve's and exec's media port and the runtime's
     // registry load on the first media prompt, not with the engine.
-    for (const source of ['src/acp/mediaPort.ts', 'src/runtime/runtimeMediaEntry.ts']) {
+    for (const source of [
+      'src/acp/mediaPort.ts',
+      'src/runtime/runtimeMediaEntry.ts',
+      'src/runtime/exec/filesTransport.ts',
+    ]) {
       expect(inputs('runtimeMedia')).toContain(source)
       for (const parent of [...parents, 'productionMedia', 'productionAudio'])
         expect(inputs(parent)).not.toContain(source)
     }
     expect(inputs('runtimeEngine')).not.toContain('src/core/media/attachedMedia.ts')
     expect(bundleText('runtimeEngine')).toContain('import("./runtimeMedia.js")')
+    expect(inputs('headless')).not.toContain('src/runtime/exec/filesTransport.ts')
+    expect(bundleText('headless')).toContain('import("./runtimeMedia.js")')
   })
 
   it('loads media inspection only on first use and rejects an ACP inline copy', async () => {
@@ -686,7 +692,11 @@ describe('deferred cohort bundles', () => {
       media.createMediaInspector(EN, 'en')
       const attachments = media.createMediaAttachments(
         createMediaAttachDeps(
-          () => ({ mediaMaxUploadMiB: 1, screenRecordingMaxSeconds: 1 }),
+          () => ({
+            mediaMaxUploadMiB: 1,
+            screenRecordingMaxSeconds: 1,
+            mediaAudioAction: 'transcribe',
+          }),
           () => Promise.resolve(undefined),
           { attached: new AttachedMedia() },
         ),

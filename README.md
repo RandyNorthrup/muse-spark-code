@@ -3039,9 +3039,11 @@ integration owners; editor font settings continue to decide inside editors.
   found it silently ignored: a WAV or MP3 is attached only while Muse Voice is
   on (`--muse-voice` for the ACP agent) and becomes its transcript. A 16 or
   24 kHz mono 16-bit WAV is sent as it is; anything else converts first.
-  `exec` has no Muse Voice, and embedded ACP audio cannot be transcribed (no
-  file to convert). `mediaAudioAction` is not read yet: the default route,
-  Transcribe, applies.
+  `exec` has no Muse Voice and explicitly refuses standalone audio. ACP
+  linked audio and embedded contract WAV are transcribed with `--muse-voice`.
+  `museSpark.mediaAudioAction` selects `transcribe` or `sendAudio` in VS Code.
+  `sendAudio` is refused on captured Meta models, which ignore standalone
+  audio; it never falls back to transcription.
   The converter is the machine's configured `ffmpeg`
   (`museSpark.mediaConverterPath`, or `mediaConverterPath` in the agent's
   `settings.json`), which must pass the trusted-path check or is refused with
@@ -4474,7 +4476,7 @@ Bypass at once.
 | `mediaMaxUploadMiB` | `200` | Uploaded media cap in MiB, 1–1024; machine-scoped. An attachment over it is refused before it is read |
 | `mediaUploadExpiryDays` | `7` | Uploaded media expiry in days, 1–30; machine-scoped. **Delete Uploaded Files…** removes them early |
 | `screenRecordingMaxSeconds` | `120` | Screen recording length cap in seconds, 10–600; machine-scoped. Shorter bounds are clamped, not refused |
-| `mediaAudioAction` | `"transcribe"` | What pasted or dropped audio becomes: `transcribe` (free text the model reads) or `sendAudio` (a playable clip); machine-scoped. Not read yet: attached audio is transcribed |
+| `mediaAudioAction` | `"transcribe"` | What attached audio becomes: `transcribe` (paid Muse Voice, consent first) or `sendAudio` (only on a model with captured audio support; otherwise an explicit refusal); machine-scoped |
 | `mediaConverterPath` | `""` | Absolute path to the `ffmpeg` that converts attached sound for transcription; empty uses documented installs only, never `PATH`. A set path is the only candidate and must pass the trusted-path check; machine-scoped |
 
 The Model API backend's shell tool applies `terminal.integrated.env.*` the

@@ -12,7 +12,12 @@
 // machine's configured path alone or else its documented installs. A turn
 // with no attached sound returns undefined, byte-identical to no port.
 import { lstat, readFile } from 'node:fs/promises'
-import { BYTES_PER_MIB, MEDIA_MAX_UPLOAD_MIB, UI_TEXT } from '../../shared/constants'
+import {
+  BYTES_PER_MIB,
+  MEDIA_MAX_UPLOAD_MIB,
+  UI_TEXT,
+  type MEDIA_AUDIO_ACTION_OPTIONS,
+} from '../../shared/constants'
 import type { TurnPart } from '../agent/agentBackend'
 import type { AttachedMediaPort } from '../media/attachedMedia'
 import {
@@ -36,6 +41,7 @@ export interface ProductionAudioDeps extends Omit<VoiceBatchSeamDeps, 'sessionId
   readonly postTranscription: TranscriptionPostDeps['postTranscription']
   /** The machine-scoped converter path; empty or absent: documented installs. */
   readonly converterPath: () => string | undefined
+  readonly audioAction?: (() => (typeof MEDIA_AUDIO_ACTION_OPTIONS)[number]) | undefined
   /** The platform's encoder bindings (owner-only folder, memory watch); the trusted-path port is added here. */
   readonly conversionOptions?: () => MediaConversionOptions | Promise<MediaConversionOptions>
   /** Discovery itself; tests inject it, production uses `locateMediaConverter`. */
@@ -110,7 +116,14 @@ export function createProductionAudio(deps: ProductionAudioDeps) {
     const isVoiceOn = deps.isPaidFeatureOn('voice')
     const context = (canExtractWav: boolean) =>
       createModelApiAudioContext({ modelId: request.modelId, canExtractWav, isVoiceOn })
-    assertConvertible(sources, located, context, configuredConverters.length > 0)
+    assertConvertible(
+      sources.filter(
+        (source) => source.info.kind !== 'audio' || deps.audioAction?.() !== 'sendAudio',
+      ),
+      located,
+      context,
+      configuredConverters.length > 0,
+    )
     const ports = createTranscriptionPorts({
       postTranscription: deps.postTranscription,
       readAudioBytes,
@@ -124,6 +137,7 @@ export function createProductionAudio(deps: ProductionAudioDeps) {
         createModelApiAudioContext({ modelId, canExtractWav: located.ok, isVoiceOn }),
       ...ports,
       ...seams,
+      audioAction: deps.audioAction,
       resolveSource: (part) => deps.attached.audio(part),
       // Stop, the host's model revision and the Muse Voice setting, after
       // every await and at the dispatch itself: a change abandons the

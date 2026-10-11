@@ -57,7 +57,12 @@ interface Rig {
   readonly voiceSeconds: () => number
 }
 
-function rig(options?: { readonly voiceOn?: boolean; readonly isAllowed?: boolean }): Rig {
+function rig(options?: {
+  readonly voiceOn?: boolean
+  readonly isAllowed?: boolean
+  readonly action?: 'transcribe' | 'sendAudio'
+  readonly nativeAudio?: boolean
+}): Rig {
   const posted: Rig['posted'] = []
   const paths = new Map<string, string>()
   const settled: (string | undefined)[] = []
@@ -86,13 +91,19 @@ function rig(options?: { readonly voiceOn?: boolean; readonly isAllowed?: boolea
       await writeFile(runOptions.outputPath, synthWav(2))
     }),
   })
+  const action = options?.action
   const prepare = createPrepareAudioMessage({
-    contextFor: (modelId) =>
-      createModelApiAudioContext({
+    contextFor: (modelId) => {
+      const context = createModelApiAudioContext({
         modelId,
         canExtractWav: true,
         isVoiceOn: options?.voiceOn ?? true,
-      }),
+      })
+      return options?.nativeAudio === true
+        ? { ...context, model: { ...context.model, audio: 'yes', audioFormats: ['audio/mpeg'] } }
+        : context
+    },
+    ...(action !== undefined && { audioAction: () => action }),
     ...ports,
     gate: { isOn: () => options?.voiceOn ?? true },
     usage: {
@@ -207,4 +218,19 @@ describe('Model API factory audio preparation (MEDIAW finding 7)', () => {
     expect(prepared).toBeUndefined()
     expect(r.posted).toHaveLength(0)
   })
+  it.each(['transcribe', 'sendAudio'] as const)(
+    'honors explicit %s on a synthetic model that hears audio',
+    async (action) => {
+      const r = rig({ action, nativeAudio: true })
+      r.paths.set(mp3Source.pathToken, MP3_FIXTURE)
+      const result = await prepareParts(r, [{ type: 'text', text: MARKER }])
+      expect(r.posted).toHaveLength(action === 'transcribe' ? 1 : 0)
+      if (action === 'transcribe')
+        expect(result?.parts).toMatchObject([{ type: 'textFile', text: 'The Blue Llama.' }])
+      else {
+        expect(result).toBeUndefined()
+        expect(r.settled).toEqual([])
+      }
+    },
+  )
 })

@@ -11,6 +11,13 @@ unchanged; inventory switches and precise missing vendor/platform receipts in
 `docs/certification/m105-port.md`, round 2. No new dependency, raised cap,
 merge, push, paid/live call, browser or GUI. Scoped rig gates only; aggregate
 quality remains lead-owned under the explicit common rules.
+Production composition also covers the first-turn session-journal seed before
+paid transcription on a capped conversation; bind the existing host budget
+initialization if that path lacks it.
+Bind U6's exact Files routes to headless egress for existing-video delivery,
+with bounded multipart streams and the existing origin, redirect and lifetime
+fences. U6c's selected not-billed storage policy applies; transcription stays
+unavailable in exec.
 
 **PORTM105 release-base port (2026-10-11, MacBook).** Merge accepted
 M105 V/VB/redesign tip `eda2fdfe6` with release base
@@ -45658,9 +45665,11 @@ FIXM107DK4 qualification below supersedes that earlier claim.
     conversion refuses on macOS.
   - `exec` has no Muse Voice: its run ledger does not admit transcription
     spend.
-  - Embedded ACP audio cannot be transcribed, because there is no file to
-    convert.
-  - `mediaAudioAction` is not read yet.
+  - (Closed PORTM105R2.) Embedded contract WAV is transcribed from the
+    runtime registry, without needing a filesystem path; composition proved
+    the session/prompt route. Other embedded formats still need conversion.
+  - (Closed PORTM105R2.) `mediaAudioAction` is bound at VS Code attach and
+    production preparation; an unsupported explicit action refuses.
   - Attach-chip UI for the sound choices (Use 1.2, Send without sound) is
     still not wired: the router's default applies, and declining
     transcription sends a video without its sound.
