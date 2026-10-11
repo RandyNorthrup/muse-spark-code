@@ -18,8 +18,18 @@ import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { ToolIo } from '../../src/core/backends/modelapi/tools'
 import { fenceWorkerToolIo } from '../../src/core/team/workers/workerToolIo'
-import { WORKER_NATIVE_IO, assertWorkerRoot } from '../../src/core/team/workers/workerFence'
+import {
+  WORKER_NATIVE_IO,
+  assertWorkerRoot,
+  type WorkerPathInput,
+} from '../../src/core/team/workers/workerFence'
 import type { WorkerRolePolicy } from '../../src/core/team/workers/workerTypes'
+import { acpFsWrite } from '../../src/core/team/workers/acpWorker'
+import {
+  confineWorkerPath,
+  MuseWorkerFolderError,
+  withWorkerFile,
+} from '../../src/host/team/teamHostEntry'
 
 const roots: string[] = []
 afterEach(async () => {
@@ -86,6 +96,35 @@ async function setup(role: WorkerRolePolicy = WRITER, admit: () => void = () => 
   const base = plainIo()
   const io = fenceWorkerToolIo(base, { input: { ...input, grant }, role, admit })
   return { temp, user, copy, base, io, input: { ...input, grant } }
+}
+
+async function replaceCopy(copy: string): Promise<void> {
+  await rename(copy, `${copy}-old`)
+  await mkdir(path.join(copy, 'src'), { recursive: true })
+  await writeFile(path.join(copy, 'src', 'a.ts'), 'replacement')
+}
+
+function openingFence(
+  base: ToolIo,
+  input: WorkerPathInput,
+  beforeOpen: () => Promise<void>,
+): ToolIo {
+  const nativeOpen = WORKER_NATIVE_IO.openFile
+  if (nativeOpen === undefined) return refuse()
+  return fenceWorkerToolIo(base, {
+    input: {
+      ...input,
+      io: {
+        ...WORKER_NATIVE_IO,
+        openFile: async (absolute, isWrite) => {
+          await beforeOpen()
+          return await nativeOpen(absolute, isWrite)
+        },
+      },
+    },
+    role: WRITER,
+    admit: () => undefined,
+  })
 }
 
 describe("an engine worker's fenced file tools", () => {
@@ -166,9 +205,7 @@ describe('RVCM963C operation-bound handles', () => {
       {
         ...base,
         readFile: async (absolute) => {
-          await rename(copy, `${copy}-old`)
-          await mkdir(path.join(copy, 'src'), { recursive: true })
-          await writeFile(path.join(copy, 'src', 'a.ts'), 'replacement')
+          await replaceCopy(copy)
           return await readFile(absolute, 'utf8')
         },
       },
@@ -179,24 +216,7 @@ describe('RVCM963C operation-bound handles', () => {
 
   it('R4-1: refuses a root replaced between admission and the opened handle', async () => {
     const { copy, base, input } = await setup()
-    const nativeOpen = WORKER_NATIVE_IO.openFile
-    if (nativeOpen === undefined) throw new Error('native handle port missing')
-    const io = fenceWorkerToolIo(base, {
-      input: {
-        ...input,
-        io: {
-          ...WORKER_NATIVE_IO,
-          openFile: async (absolute, isWrite) => {
-            await rename(copy, `${copy}-old`)
-            await mkdir(path.join(copy, 'src'), { recursive: true })
-            await writeFile(path.join(copy, 'src', 'a.ts'), 'replacement')
-            return await nativeOpen(absolute, isWrite)
-          },
-        },
-      },
-      role: WRITER,
-      admit: () => undefined,
-    })
+    const io = openingFence(base, input, () => replaceCopy(copy))
     await expect(io.writeFile(path.join(copy, 'src', 'a.ts'), 'attack')).rejects.toThrow()
     expect(await readFile(path.join(copy, 'src', 'a.ts'), 'utf8')).toBe('replacement')
   })
@@ -214,26 +234,9 @@ describe('RVCM963C operation-bound handles', () => {
   it('R4-1: refuses a parent symlink or junction swapped before open', async () => {
     const { copy, user, base, input } = await setup()
     await writeFile(path.join(user, 'a.ts'), 'secret')
-    const nativeOpen = WORKER_NATIVE_IO.openFile
-    if (nativeOpen === undefined) throw new Error('native handle port missing')
-    const io = fenceWorkerToolIo(base, {
-      input: {
-        ...input,
-        io: {
-          ...WORKER_NATIVE_IO,
-          openFile: async (absolute, isWrite) => {
-            await rename(path.join(copy, 'src'), path.join(copy, 'src-old'))
-            await symlink(
-              user,
-              path.join(copy, 'src'),
-              process.platform === 'win32' ? 'junction' : 'dir',
-            )
-            return await nativeOpen(absolute, isWrite)
-          },
-        },
-      },
-      role: WRITER,
-      admit: () => undefined,
+    const io = openingFence(base, input, async () => {
+      await rename(path.join(copy, 'src'), path.join(copy, 'src-old'))
+      await symlink(user, path.join(copy, 'src'), process.platform === 'win32' ? 'junction' : 'dir')
     })
     await expect(io.writeFile(path.join(copy, 'src', 'a.ts'), 'attack')).rejects.toThrow()
     expect(await readFile(path.join(user, 'a.ts'), 'utf8')).toBe('secret')
@@ -248,4 +251,140 @@ it('R4-1: a case alias of a protected directory cannot receive a write', async (
   await writeFile(protectedFile, 'before')
   await expect(io.writeFile(protectedFile, 'attack')).rejects.toThrow()
   expect(await readFile(protectedFile, 'utf8')).toBe('before')
+})
+
+describe('RVCM963E write admission', () => {
+  it.each(
+    [
+      {
+        name: 'read-only',
+        role: { ...WRITER, workspaceMode: 'read-only' as const },
+        file: 'src/new.ts',
+      },
+      { name: 'no write group', role: { ...WRITER, toolGroups: [] }, file: 'src/new.ts' },
+      { name: 'write-paths', role: { ...WRITER, writePaths: ['docs/**'] }, file: 'src/new.ts' },
+      { name: 'protected path', role: WRITER, file: '.git/new-hook' },
+      { name: 'protected case alias', role: WRITER, file: '.GiT/new-hook' },
+    ].flatMap((testCase) => [false, true].map((isExisting) => ({ ...testCase, isExisting }))),
+  )(
+    'R5-3: refused $name write neither opens nor creates its target (existing=$isExisting)',
+    async ({ role, file, isExisting }) => {
+      const { copy, base, input } = await setup(role)
+      await mkdir(path.dirname(path.join(copy, file)), { recursive: true })
+      const target = path.join(copy, file)
+      if (isExisting) await writeFile(target, 'before')
+      let opens = 0
+      const checkedInput: typeof input = {
+        ...input,
+        io: {
+          ...WORKER_NATIVE_IO,
+          openFile: async (...args) => {
+            opens += 1
+            return WORKER_NATIVE_IO.openFile === undefined
+              ? refuse()
+              : await WORKER_NATIVE_IO.openFile(...args)
+          },
+        },
+      }
+      const io = fenceWorkerToolIo(base, {
+        input: checkedInput,
+        role,
+        admit: () => undefined,
+      })
+      await expect(io.writeFile(target, 'attack')).rejects.toThrow()
+      expect(opens).toBe(0)
+      await expect(acpFsWrite({ ...checkedInput, role }, target, 'attack')).resolves.toHaveProperty(
+        'error',
+      )
+      expect(opens).toBe(0)
+      if (isExisting) expect(await readFile(target, 'utf8')).toBe('before')
+      else await expect(readFile(target)).rejects.toMatchObject({ code: 'ENOENT' })
+    },
+  )
+
+  it.each([false, true])(
+    'R5-3: a new path through an outside parent leaves no file (swap=%s)',
+    async (isSwapped) => {
+      const { copy, user, base, input } = await setup()
+      const nativeOpen = WORKER_NATIVE_IO.openFile
+      if (nativeOpen === undefined) return refuse()
+      const swap = async () => {
+        await rename(path.join(copy, 'src'), path.join(copy, 'src-old'))
+        await symlink(
+          user,
+          path.join(copy, 'src'),
+          process.platform === 'win32' ? 'junction' : 'dir',
+        )
+      }
+      if (isSwapped) await writeFile(path.join(copy, 'src', 'planted.ts'), 'before')
+      else await swap()
+      const io = fenceWorkerToolIo(base, {
+        input: {
+          ...input,
+          io: {
+            ...WORKER_NATIVE_IO,
+            openFile: async (...args) => {
+              if (isSwapped) await swap()
+              return await nativeOpen(...args)
+            },
+          },
+        },
+        role: WRITER,
+        admit: () => undefined,
+      })
+      await expect(io.writeFile(path.join(copy, 'src', 'planted.ts'), 'attack')).rejects.toThrow()
+      await expect(readFile(path.join(user, 'planted.ts'))).rejects.toMatchObject({
+        code: 'ENOENT',
+      })
+      if (isSwapped)
+        expect(await readFile(path.join(copy, 'src-old', 'planted.ts'), 'utf8')).toBe('before')
+      else
+        await expect(readFile(path.join(copy, 'src-old', 'planted.ts'))).rejects.toMatchObject({
+          code: 'ENOENT',
+        })
+    },
+  )
+
+  it('R5-3: a parent switched to a protected directory after preflight cannot change its bytes', async () => {
+    const { copy, base, input } = await setup()
+    const protectedFile = path.join(copy, '.git', 'a.ts')
+    await writeFile(protectedFile, 'before')
+    const io = openingFence(base, input, async () => {
+      await rename(path.join(copy, 'src'), path.join(copy, 'src-old'))
+      await symlink(
+        path.join(copy, '.git'),
+        path.join(copy, 'src'),
+        process.platform === 'win32' ? 'junction' : 'dir',
+      )
+    })
+    await expect(io.writeFile(path.join(copy, 'src', 'a.ts'), 'attack')).rejects.toThrow()
+    expect(await readFile(protectedFile, 'utf8')).toBe('before')
+  })
+
+  it('R5-3: portable native writes never create even an allowed new target', async () => {
+    const { copy, io } = await setup()
+    const target = path.join(copy, 'src', 'new.ts')
+    await expect(io.writeFile(target, 'new')).rejects.toThrow()
+    await expect(readFile(target)).rejects.toMatchObject({ code: 'ENOENT' })
+    const opening = (async () => {
+      const handle = await WORKER_NATIVE_IO.openFile?.(target, true)
+      await handle?.close()
+    })()
+    await expect(opening).rejects.toMatchObject({
+      code: 'ENOENT',
+    })
+  })
+
+  it('R5-bundle: the lazy host entry exports the retained grant authority', async () => {
+    const { copy, user, input } = await setup()
+    expect(await confineWorkerPath(input, path.join(copy, 'src', 'a.ts'))).toMatchObject({
+      ok: true,
+    })
+    expect(await withWorkerFile(input, 'src/a.ts', false, (handle) => handle.read(100))).toBe('a\n')
+    const outside = path.join(user, 'outside.ts')
+    await writeFile(outside, 'outside')
+    await expect(
+      withWorkerFile(input, outside, false, (handle) => handle.read(100)),
+    ).rejects.toBeInstanceOf(MuseWorkerFolderError)
+  })
 })

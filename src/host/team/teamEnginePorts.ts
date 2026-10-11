@@ -218,7 +218,18 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
     const isNewCopy = previous?.folder === undefined
     let usage = EMPTY_USAGE
     let meterWrites = Promise.resolve()
-    let requestOrdinal: number | undefined
+    let hasReservations = false
+    const recordWrite = (saved: Promise<void>): void => {
+      const previousWrite = meterWrites
+      meterWrites = (async () => {
+        await Promise.all([previousWrite, saved])
+      })()
+      // Completion and the next reservation await this write. The synchronous
+      // usage observer cannot await it; the service already records a failure.
+      void meterWrites.catch(() => {
+        /* Failure is surfaced by the next await. */
+      })
+    }
     try {
       await spec.meter.noteWorkspace({
         folder: workspace.folder,
@@ -249,7 +260,7 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
         }) => {
           check()
           await meterWrites
-          requestOrdinal = await spec.meter.reserveRequest({
+          const requestOrdinal = await spec.meter.reserveRequest({
             ...EMPTY_USAGE,
             input: maximum.inputTokens,
             output: maximum.outputTokens,
@@ -257,7 +268,21 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
             estimated: true,
             ...(maximum.costUsd !== undefined && { costUsd: Number(maximum.costUsd) }),
           })
+          hasReservations = true
           check()
+          // The callback closes over this claim, never the most recent ordinal.
+          return (reported: SubagentUsage): void => {
+            recordWrite(
+              spec.meter.settleRequest(requestOrdinal, {
+                ...EMPTY_USAGE,
+                input: reported.inputTokens,
+                cachedInput: reported.cachedTokens,
+                output: reported.outputTokens,
+                modelCalls: 1,
+                ...(reported.costUsd !== undefined && { costUsd: Number(reported.costUsd) }),
+              }),
+            )
+          }
         },
       })
       const { fenceWorkerToolIo } = await import('../../core/team/workers/workerToolIoEntry')
@@ -270,26 +295,7 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
         admit,
         noteUsage: (_modelId, reported) => {
           usage = addUsage(usage, reported)
-          const saved =
-            requestOrdinal === undefined
-              ? spec.meter.noteUsage(usage)
-              : spec.meter.settleRequest(requestOrdinal, {
-                  ...EMPTY_USAGE,
-                  input: reported.inputTokens,
-                  cachedInput: reported.cachedTokens,
-                  output: reported.outputTokens,
-                  modelCalls: 1,
-                  ...(reported.costUsd !== undefined && { costUsd: Number(reported.costUsd) }),
-                })
-          const previousWrite = meterWrites
-          meterWrites = (async () => {
-            await Promise.all([previousWrite, saved])
-          })()
-          // Completion and the next reservation await this write; the rejection
-          // is consumed here because the engine's usage callback is synchronous.
-          void meterWrites.catch(() => {
-            // The write already recorded its failure on the service.
-          })
+          if (!hasReservations) recordWrite(spec.meter.noteUsage(usage))
         },
         parentSessionId: spec.parentSessionId,
         fenceIo: (io) =>

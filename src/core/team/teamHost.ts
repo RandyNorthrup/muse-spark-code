@@ -802,7 +802,10 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
       throw new Error(
         fill(TEAM_MODEL_TEXT.hostMaxWorkers, { max: String(deps.settings.maxWorkers()) }),
       )
-    if (task.isRaised ? !isUsable(entry) : !hasHeadroom(entry))
+    if (
+      running(entry.id) >= entry.concurrent ||
+      (task.isRaised ? !isUsable(entry) : !hasHeadroom(entry))
+    )
       throw new Error(fill(TEAM_MODEL_TEXT.hostExhausted, { role: task.role.role }))
     const source = task.continueFrom
     if (

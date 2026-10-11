@@ -3806,6 +3806,12 @@ daily token ceilings. Billing uses each task provider's API key.
 Always is scoped to the provider, model and price tier that was approved;
 a different model asks again. Single-model activation asks no team question.
 The M96 team feature remains unavailable until its integration is complete.
+Its hidden worker service retains one reservation through transport retries
+and settles the exact claim from the response's known model price. Raise can
+lift entry caps for one task; it cannot lift concurrent worker limits. Worker
+file writes check the role before opening and use verified existing-file
+handles. Portable new-file creation is unavailable until a native operation
+can bind creation to a verified parent handle.
 
 **Every paid use then asks first, in a popup**, in every permission mode,
 Bypass included. The popup names what is about to be billed, its price and the shared daily budget,

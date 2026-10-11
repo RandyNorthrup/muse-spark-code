@@ -345,9 +345,7 @@ describe('the team host service', () => {
 
   it("refuses merge in Plan mode and another conversation's task", async () => {
     const h = harness(team([entry('e1', WORKER_MODEL)]))
-    const service = createTeamHostService(h.deps)
-    await service.probeEntries()
-    await service.teamRunner.delegate(delegateOne, context())
+    const service = await startedTask(h)
     h.finish(0)
     await settle()
     expect(
@@ -444,9 +442,7 @@ describe('the team host service', () => {
 
   it('discards a finished task from the tree without a merge', async () => {
     const h = harness(team([entry('e1', WORKER_MODEL)]))
-    const service = createTeamHostService(h.deps)
-    await service.probeEntries()
-    await service.teamRunner.delegate(delegateOne, context())
+    const service = await startedTask(h)
     h.finish(0)
     await settle()
     await service.decideMerge('task-1', 'discard')
@@ -454,10 +450,17 @@ describe('the team host service', () => {
     expect(h.merged).toEqual([])
   })
   it('asks the user when every entry is at its limits, and starts on Raise', async () => {
-    const h = harness(team([entry('a', WORKER_MODEL, 1)]))
-    const service = createTeamHostService(h.deps)
-    await service.probeEntries()
-    await service.teamRunner.delegate(delegateOne, context())
+    const h = harness(
+      team([
+        {
+          ...entry('a', WORKER_MODEL, 1),
+          caps: [{ measure: 'tasks', window: 'lifetime', amount: 1 }],
+        },
+      ]),
+    )
+    const service = await startedTask(h)
+    h.finish(0)
+    await settle()
     const second = service.teamRunner.delegate(delegateOne, context())
     await settle()
     const card = h.cards.at(-1)
@@ -477,17 +480,9 @@ describe('the team host service', () => {
 
   it("queues on the user's answer and starts the task when headroom returns", async () => {
     const h = harness(team([entry('a', WORKER_MODEL, 1)]))
-    const service = createTeamHostService(h.deps)
-    await service.probeEntries()
-    await service.teamRunner.delegate(delegateOne, context())
-    const second = service.teamRunner.delegate(delegateOne, context())
-    await settle()
-    const card = h.cards.at(-1)
-    await service.answerWaiting(
-      card?.item.kind === 'teamWaiting' ? card.item.teamWaiting.waitingId : '',
-      'queue',
-    )
-    const queued = json(await output(second))
+    const service = await startedTask(h)
+    const answered = await waitingDecision(h, service, 'queue')
+    const queued = json(answered.output)
     expect(queued['tasks']).toEqual([expect.objectContaining({ state: 'queued' })])
     expect(h.started).toHaveLength(1)
     expect(service.tree()?.roles[0]?.queued).toHaveLength(1)
@@ -504,22 +499,14 @@ describe('the team host service', () => {
       const service = createTeamHostService(h.deps)
       await service.probeEntries()
       await service.teamRunner.delegate(delegateOne, context())
-      const second = service.teamRunner.delegate(delegateOne, context())
-      await settle()
-      const card = h.cards.at(-1)
-      await service.answerWaiting(
-        card?.item.kind === 'teamWaiting' ? card.item.teamWaiting.waitingId : '',
-        choice,
-      )
-      expect(await output(second)).toContain(
+      const answered = await waitingDecision(h, service, choice)
+      expect(answered.output).toContain(
         choice === 'self' ? TEAM_MODEL_TEXT.hostWaitingSelf : TEAM_MODEL_TEXT.hostWaitingCancelled,
       )
       expect(h.started).toHaveLength(1)
     }
     const h = harness(team([entry('a', WORKER_MODEL, 1)], {}, { exhausted: 'queue' }))
-    const service = createTeamHostService(h.deps)
-    await service.probeEntries()
-    await service.teamRunner.delegate(delegateOne, context())
+    const service = await startedTask(h)
     const queued = json(await output(service.teamRunner.delegate(delegateOne, context())))
     expect(queued['tasks']).toEqual([expect.objectContaining({ state: 'queued' })])
     expect(h.cards).toEqual([])
@@ -528,9 +515,7 @@ describe('the team host service', () => {
 
   it('waits in collect until a task finishes, never past its bound', async () => {
     const h = harness(team([entry('e1', WORKER_MODEL)]))
-    const service = createTeamHostService(h.deps)
-    await service.probeEntries()
-    await service.teamRunner.delegate(delegateOne, context())
+    const service = await startedTask(h)
     const waited = service.teamRunner.collect({ wait_seconds: 60 }, context())
     await settle()
     h.finish(0)
@@ -544,9 +529,7 @@ describe('the team host service', () => {
 
   it('continues a finished task on its own copy, and closes the earlier one', async () => {
     const h = harness(team([entry('e1', WORKER_MODEL)]))
-    const service = createTeamHostService(h.deps)
-    await service.probeEntries()
-    await service.teamRunner.delegate(delegateOne, context())
+    const service = await startedTask(h)
     h.finish(0)
     await settle()
     const reopened = {
@@ -705,11 +688,48 @@ function usage(input: number, output = 0): TeamWorkerOutcome['usage'] {
   return { input, cachedInput: 0, output, reasoning: 0, modelCalls: 1, estimated: false }
 }
 
-/** A finished own-branch task, ready for a merge. */
-async function finishedTask(h: Harness) {
+function tokenCappedTeam(): TeamSnapshot {
+  return team([
+    { ...entry('e1', WORKER_MODEL), caps: [{ measure: 'tokens', window: 'lifetime', amount: 10 }] },
+  ])
+}
+
+async function waitingDecision(
+  h: Harness,
+  service: ReturnType<typeof createTeamHostService>,
+  choice: 'queue' | 'self' | 'cancel',
+) {
+  const pending = service.teamRunner.delegate(delegateOne, context())
+  await settle()
+  const card = h.cards.at(-1)
+  await service.answerWaiting(
+    card?.item.kind === 'teamWaiting' ? card.item.teamWaiting.waitingId : '',
+    choice,
+  )
+  return await pending
+}
+
+async function finishedReview(h: Harness, report?: TeamWorkerOutcome['report']) {
+  const service = await finishedTask(h)
+  await service.teamRunner.merge({ task_id: 'task-1' }, context())
+  h.finish(1, {
+    report: report ?? { status: 'done', summary: 'review complete' },
+    folder: undefined,
+  })
+  await settle()
+  return service
+}
+
+async function startedTask(h: Harness) {
   const service = createTeamHostService(h.deps)
   await service.probeEntries()
   await service.teamRunner.delegate(delegateOne, context())
+  return service
+}
+
+/** A finished own-branch task, ready for a merge. */
+async function finishedTask(h: Harness) {
+  const service = await startedTask(h)
   h.finish(0)
   await settle()
   return service
@@ -718,9 +738,7 @@ async function finishedTask(h: Harness) {
 describe('RVCM963 review findings', () => {
   it('1+4: a running task asks the service before every request: trust, the paid switch', async () => {
     const h = harness(team([keyEntry('k', WORKER_MODEL)]))
-    const service = createTeamHostService(h.deps)
-    await service.probeEntries()
-    await service.teamRunner.delegate(delegateOne, context())
+    await startedTask(h)
     const meter = h.started[0]?.meter
     expect(() => meter?.admitRequest()).not.toThrow()
     h.controls.isTeamWorkersOn = false
@@ -739,9 +757,7 @@ describe('RVCM963 review findings', () => {
       ],
     }
     const h = harness(team([capped], {}, { exhausted: 'self' }))
-    const service = createTeamHostService(h.deps)
-    await service.probeEntries()
-    await service.teamRunner.delegate(delegateOne, context())
+    const service = await startedTask(h)
     const meter = h.started[0]?.meter
     await meter?.noteUsage(usage(60, 30))
     expect(() => meter?.admitRequest()).not.toThrow()
@@ -903,9 +919,7 @@ describe('RVCM963 review findings', () => {
 
   it('10: a failed writer keeps its copy to discard, and a failed continuation hands the copy back', async () => {
     const h = harness(team([entry('e1', WORKER_MODEL)]))
-    const service = createTeamHostService(h.deps)
-    await service.probeEntries()
-    await service.teamRunner.delegate(delegateOne, context())
+    const service = await startedTask(h)
     h.finish(0, { report: { status: 'failed', summary: 'broke' } })
     await settle()
     expect(service.tree()?.roles[0]?.unmerged).toEqual([
@@ -989,9 +1003,7 @@ describe('RVCM963 review findings', () => {
 
   it('14: the merge card approves the protected paths it lists', async () => {
     const h = harness(team([entry('e1', WORKER_MODEL)]))
-    const service = createTeamHostService(h.deps)
-    await service.probeEntries()
-    await service.teamRunner.delegate(delegateOne, context())
+    const service = await startedTask(h)
     h.finish(0, { changedFiles: ['.github/workflows/ci.yml'] })
     await settle()
     const merging = service.teamRunner.merge({ task_id: 'task-1' }, context())
@@ -1064,6 +1076,26 @@ function reviewedTeam(reviewers = [entry('r1', 'reviewer-model')]): TeamSnapshot
 }
 
 describe('RVCM963C ownership redesign', () => {
+  it('R5-4: Raise cannot borrow a second concurrent slot on the same entry', async () => {
+    const h = harness(team([entry('e1', WORKER_MODEL, 1)]), { maxWorkers: 4 })
+    const service = createTeamHostService(h.deps)
+    try {
+      await service.probeEntries()
+      await service.teamRunner.delegate(delegateOne, context())
+      const pending = service.teamRunner.delegate(delegateOne, context())
+      await settle()
+      const card = h.cards.at(-1)?.item
+      if (card?.kind !== 'teamWaiting') throw new Error('waiting card missing')
+      await service.answerWaiting(card.teamWaiting.waitingId, 'raise')
+      const result = await pending
+      expect(h.started).toHaveLength(1)
+      expect(result.output).toContain('refused')
+      expect(h.signals[0]?.aborted).toBe(false)
+    } finally {
+      await service.dispose()
+    }
+  })
+
   it('R4-2: reserves concurrent requests and retains unreported liability', async () => {
     const h = harness(
       team([keyEntry('e1', WORKER_MODEL, 2, [{ measure: 'spendUsd', window: 'day', amount: 1 }])]),
@@ -1257,19 +1289,11 @@ describe('RVCM963C ownership redesign', () => {
 
   it('R4-11: structured findings keep severity, location and detail through the card', async () => {
     const h = harness(reviewedTeam())
-    const service = await finishedTask(h)
-    await service.teamRunner.merge({ task_id: 'task-1' }, context())
-    h.finish(1, {
-      report: {
-        status: 'done',
-        summary: 'review complete',
-        findings: [
-          { file: 'a.ts', line: 2, severity: 'P1', title: 'unsafe', detail: 'race detail' },
-        ],
-      },
-      folder: undefined,
+    const service = await finishedReview(h, {
+      status: 'done',
+      summary: 'review complete',
+      findings: [{ file: 'a.ts', line: 2, severity: 'P1', title: 'unsafe', detail: 'race detail' }],
     })
-    await settle()
     const merging = service.teamRunner.merge({ task_id: 'task-1' }, context())
     await settle()
     const card = h.cards.at(-1)?.item
@@ -1321,14 +1345,7 @@ describe('RVCM963C ownership redesign', () => {
   })
 
   it('R4-14: reset boundaries survive reload without erasing uncertain requests', async () => {
-    const h = harness(
-      team([
-        {
-          ...entry('e1', WORKER_MODEL),
-          caps: [{ measure: 'tokens', window: 'lifetime', amount: 10 }],
-        },
-      ]),
-    )
+    const h = harness(tokenCappedTeam())
     const service = await finishedTask(h)
     await service.resetEntry('e1')
     const restored = createTeamHostService(h.deps)
@@ -1339,14 +1356,7 @@ describe('RVCM963C ownership redesign', () => {
   })
 
   it('R4-15: Raise carries its one-task ceiling exception through request admission', async () => {
-    const h = harness(
-      team([
-        {
-          ...entry('e1', WORKER_MODEL),
-          caps: [{ measure: 'tokens', window: 'lifetime', amount: 10 }],
-        },
-      ]),
-    )
+    const h = harness(tokenCappedTeam())
     const service = await finishedTask(h)
     const delegated = service.teamRunner.delegate(delegateOne, context())
     await settle()
@@ -1378,9 +1388,7 @@ describe('RVCM963C ownership redesign', () => {
 
   it('R4-17: Stop racing the final outcome retains a discardable copy', async () => {
     const h = harness(team([entry('e1', WORKER_MODEL)]))
-    const service = createTeamHostService(h.deps)
-    await service.probeEntries()
-    await service.teamRunner.delegate(delegateOne, context())
+    const service = await startedTask(h)
     h.finish(0)
     await service.stopTask('task-1')
     await settle()
@@ -1424,10 +1432,7 @@ describe('RVCM963C ownership redesign', () => {
 
   it('R4-21: completed review verdict and findings survive reload', async () => {
     const h = harness(reviewedTeam())
-    const service = await finishedTask(h)
-    await service.teamRunner.merge({ task_id: 'task-1' }, context())
-    h.finish(1, { report: { status: 'done', summary: 'review complete' }, folder: undefined })
-    await settle()
+    const service = await finishedReview(h)
     const restored = createTeamHostService(h.deps)
     const merging = restored.teamRunner.merge({ task_id: 'task-1' }, context())
     await settle()

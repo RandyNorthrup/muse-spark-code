@@ -4,7 +4,7 @@ import type { AcpPermissionInput, AcpPermissionVerdict, AcpPreset, AcpPresetId }
 // One admission authority for every team worker (PLAN.md M96 W-F1-W-F3).
 // Names locate objects; only native identities establish containment.
 import { lstat, open, realpath } from 'node:fs/promises'
-import { constants as fsFlags, type Stats } from 'node:fs'
+import { constants as fsFlags } from 'node:fs'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { handleIdentity } from '../../fs/fileIdentity'
@@ -41,33 +41,15 @@ export interface WorkerFileHandle {
 }
 
 async function openWorkerFile(absolute: string, isWrite: boolean): Promise<WorkerFileHandle> {
-  // A missing write target is created atomically: O_EXCL refuses a name planted
-  // between the check and the open (a symlink counts as existing), and
-  // O_NOFOLLOW refuses a symlink final component. The handle is still verified
-  // below, so a swapped parent is caught before any content is written; at most
-  // an empty file was created outside the copy. Reads never create.
-  let named: Stats | undefined
-  try {
-    named = await lstat(absolute)
-  } catch (error: unknown) {
-    if (!isWrite || !(error instanceof Error) || !('code' in error) || error.code !== 'ENOENT')
-      throw error
-  }
-  if (named?.isSymbolicLink() === true) throw new MuseWorkerFolderError()
-  const handle =
-    named === undefined
-      ? await open(
-          absolute,
-          fsFlags.O_RDWR |
-            fsFlags.O_CREAT |
-            fsFlags.O_EXCL |
-            (process.platform === 'win32' ? 0 : fsFlags.O_NOFOLLOW),
-        )
-      : await open(
-          absolute,
-          (isWrite ? fsFlags.O_RDWR : fsFlags.O_RDONLY) |
-            (process.platform === 'win32' ? 0 : fsFlags.O_NOFOLLOW),
-        )
+  // Node has no portable parent-handle-relative creation. Never create or
+  // truncate by pathname, including when a parent moves after admission.
+  const named = await lstat(absolute)
+  if (named.isSymbolicLink()) throw new MuseWorkerFolderError()
+  const handle = await open(
+    absolute,
+    (isWrite ? fsFlags.O_RDWR : fsFlags.O_RDONLY) |
+      (process.platform === 'win32' ? 0 : fsFlags.O_NOFOLLOW),
+  )
   const bytes = async (maxBytes: number): Promise<Uint8Array> => {
     const before = await handleIdentity(handle)
     if (
@@ -326,6 +308,7 @@ export async function withWorkerFile<T>(
   given: string,
   isWrite: boolean,
   work: (handle: WorkerFileHandle, path: Extract<WorkerPath, { ok: true }>) => Promise<T>,
+  role?: WorkerRolePolicy,
 ): Promise<T> {
   const grant = input.grant ?? (await assertWorkerRoot(input))
   const root = await recheckWorkerRoot(input, grant)
@@ -338,6 +321,11 @@ export async function withWorkerFile<T>(
   const absolute = p.resolve(root, expanded)
   if (windowsPathProblem(absolute, input.platform, root) !== undefined)
     throw new MuseWorkerFolderError()
+  if (isWrite) {
+    const target = await confineWorkerPath({ ...input, grant }, absolute)
+    if (role === undefined || !target.ok || !isCheckedWorkerWriteAllowed(role, target))
+      throw new MuseWorkerFolderError()
+  }
   const handle = await input.io.openFile(absolute, isWrite)
   try {
     const target = await handle.identify()
@@ -363,6 +351,8 @@ export async function withWorkerFile<T>(
       canonical,
     }
     await recheckWorkerRoot(input, grant)
+    if (isWrite && (role === undefined || !isCheckedWorkerWriteAllowed(role, confined)))
+      throw new MuseWorkerFolderError()
     return await work(handle, confined)
   } finally {
     await handle.close()

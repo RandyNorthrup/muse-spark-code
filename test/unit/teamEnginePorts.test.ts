@@ -14,11 +14,12 @@ import type {
   TeamTaskMeter,
   TeamTaskSpec,
   TeamTaskWorkspace,
-  TeamUsage,
 } from '../../src/core/team/teamHostService'
 import type { ToolIo } from '../../src/core/backends/modelapi/tools'
 import type { SubagentUsage } from '../../src/shared/paid'
-import type { TeamPoolEntry, TeamRoleConfig } from '../../src/shared/team'
+import type { ResponseAttemptGuard } from '../../src/core/backends/modelapi/transport'
+import type { TeamPoolEntry, TeamRoleConfig, TeamUsage } from '../../src/shared/team'
+import { Usd } from '../../src/shared/usd'
 import { FakeAgentSession } from './helpers/fakeAgent'
 import { cleanupTeamRoots, teamFixtureRepo, teamGitRunner, trackTeamRoot } from './helpers/teamGit'
 
@@ -47,7 +48,7 @@ async function setup(edit: (folder: string) => Promise<void>, message = REPORT) 
   const started: {
     folder: string
     approvalMode: string
-    admit: (keyDigest: string | undefined) => void
+    admit: ResponseAttemptGuard
     noteUsage: (modelId: string, usage: SubagentUsage) => void
     fenceIo: (io: ToolIo) => ToolIo
   }[] = []
@@ -112,6 +113,14 @@ function spec(
 
 const ENGINEERING: TeamRoleConfig = { role: 'engineering', pool: [ENTRY] }
 const RESEARCH: TeamRoleConfig = { role: 'research', pool: [ENTRY] }
+
+async function changedTask() {
+  const fixture = await setup(async (folder) => {
+    await writeFile(path.join(folder, 'tracked.txt'), 'after\n')
+  })
+  const outcome = await fixture.ports.workers.run(spec(ENGINEERING), new AbortController().signal)
+  return { ...fixture, outcome }
+}
 
 async function isPresent(file: string): Promise<boolean> {
   try {
@@ -206,10 +215,7 @@ describe('the engine worker port', () => {
   })
 
   it('discards a finished task: its copy and its ref go', async () => {
-    const { root, ports } = await setup(async (folder) => {
-      await writeFile(path.join(folder, 'tracked.txt'), 'after\n')
-    })
-    const outcome = await ports.workers.run(spec(ENGINEERING), new AbortController().signal)
+    const { root, ports, outcome } = await changedTask()
     await ports.merges.discard({ taskId: 'task1', role: ENGINEERING, outcome })
     expect(await isPresent(outcome.folder ?? '')).toBe(false)
     await expect(runGit(['rev-parse', '--verify', outcome.agentsRef ?? ''], root)).rejects.toThrow()
@@ -308,14 +314,11 @@ describe('the engine worker port after the RVCM963 review', () => {
       new AbortController().signal,
     )
     expect(outcome.report.status).toBe('done')
-    const admit = started[0]?.admit as unknown as {
-      reserveUsage: (maximum: {
-        inputTokens: number
-        outputTokens: number
-        costUsd?: string | undefined
-      }) => Promise<void>
-    }
-    await admit.reserveUsage({ inputTokens: 80, outputTokens: 20, costUsd: '0.75' })
+    const settleClaim = await started[0]?.admit.reserveUsage?.({
+      inputTokens: 80,
+      outputTokens: 20,
+      costUsd: Usd.from('0.75').toAmount(),
+    })
     expect(reserved).toEqual([
       {
         input: 80,
@@ -327,11 +330,12 @@ describe('the engine worker port after the RVCM963 review', () => {
         costUsd: 0.75,
       },
     ])
-    started[0]?.noteUsage('agent-1', {
+    if (settleClaim === undefined) throw new Error('settlement callback missing')
+    settleClaim({
       inputTokens: 80,
       outputTokens: 20,
       cachedTokens: 5,
-      costUsd: '0.30',
+      costUsd: Usd.from('0.30').toAmount(),
     })
     expect(settled).toEqual([
       {
@@ -347,6 +351,25 @@ describe('the engine worker port after the RVCM963 review', () => {
         },
       },
     ])
+    const settleNext = await started[0]?.admit.reserveUsage?.({
+      inputTokens: 10,
+      outputTokens: 2,
+      costUsd: Usd.from('0.5').toAmount(),
+    })
+    if (settleNext === undefined) throw new Error('next settlement callback missing')
+    settleNext({
+      inputTokens: 5,
+      outputTokens: 1,
+      cachedTokens: 0,
+      costUsd: Usd.from('0.1').toAmount(),
+    })
+    settleClaim({
+      inputTokens: 80,
+      outputTokens: 20,
+      cachedTokens: 5,
+      costUsd: Usd.from('0.2').toAmount(),
+    })
+    expect(settled.map((claim) => claim.ordinal)).toEqual([1, 2, 1])
   })
 
   it('14: merges a protected path only with the approval the merge card gave', async () => {
@@ -376,10 +399,7 @@ describe('the engine worker port after the RVCM963 review', () => {
   })
 
   it('5: a merge whose call was cancelled writes nothing', async () => {
-    const { root, ports } = await setup(async (folder) => {
-      await writeFile(path.join(folder, 'tracked.txt'), 'after\n')
-    })
-    const outcome = await ports.workers.run(spec(ENGINEERING), new AbortController().signal)
+    const { root, ports, outcome } = await changedTask()
     const controller = new AbortController()
     controller.abort()
     await expect(
