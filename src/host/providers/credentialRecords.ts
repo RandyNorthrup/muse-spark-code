@@ -20,7 +20,7 @@ export interface RecordStore {
   delete(key: string): PromiseLike<void>
 }
 
-const credentialRecordSchema = z.object({
+export const credentialRecordSchema = z.object({
   v: z.literal(1),
   auth: z.enum(['apiKey', 'oauth', 'subscription']),
   origin: z.url(),
