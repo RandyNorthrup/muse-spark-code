@@ -10,7 +10,6 @@ import {
   assertConfirmedAllowed,
   ignoreClosingError,
   redactModelApiError,
-  staleConfirmedError,
   ModelApiError,
   parseJsonResponse,
   type TransportDeps,
@@ -195,13 +194,16 @@ export class CodecClient implements ProviderClient {
     ...args: Parameters<ProviderClient['streamResponse']>
   ): AsyncGenerator<StreamEvent> {
     const [body, signal, onRetry, budget, admitAttempt, confirmed] = args
-    if (
-      confirmed !== undefined &&
-      (confirmed.providerId !== this.provider.id || confirmed.origin !== this.provider.origin)
-    ) {
-      throw staleConfirmedError(confirmed)
-    }
-    assertConfirmedAllowed(body.model, confirmed)
+    // The shared helper is the only confirmed-dispatch decision: an unset
+    // provider or origin passes, like the transport fence, so a still-allowed
+    // schedule or hook confirmation without one dispatches.
+    assertConfirmedAllowed(body.model, confirmed, (confirmedModelId, requestModel) =>
+      confirmed === undefined
+        ? confirmedModelId === requestModel
+        : confirmedModelId === requestModel &&
+          (confirmed.providerId === undefined || confirmed.providerId === this.provider.id) &&
+          (confirmed.origin === undefined || confirmed.origin === this.provider.origin),
+    )
     const model = this.deps.modelFor(body.model)
     const request = this.deps.codec.encode(body, model)
     const { response, redact, redactContent, eventParsed } = await this.transport.streamRequest(
