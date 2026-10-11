@@ -1,3 +1,4 @@
+import { asEstimateDiagnostic } from '../../src/core/estimator/diagnostic'
 import { readdirSync, readFileSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { spawnSync } from 'node:child_process'
@@ -121,6 +122,9 @@ describe('M117 R6 diagnostic refusals', () => {
   })
   it.each([
     ...inventory('src/core/estimator'),
+    ...inventory('src/shared').filter(({ site }) =>
+      site.startsWith('src/shared/estimateDiagnostic.ts:'),
+    ),
     ...inventory('src/runtime/estimator'),
     ...inventory('src/host/estimator'),
     ...inventory('src/acp').filter(({ site }) => site.startsWith('src/acp/estimate.ts:')),
@@ -192,8 +196,9 @@ describe('M117 R6 diagnostic refusals', () => {
           context,
           runner,
           finished,
-          vi.fn(),
-          output,
+          (state) => {
+            if (state.status === 'failed') output(estimateFailureText(state.diagnostic))
+          },
         )
         await view.refresh()
         view.dispose()
@@ -203,6 +208,15 @@ describe('M117 R6 diagnostic refusals', () => {
       }
     },
   )
+  it('preserves typed diagnostics from other bundles through wrapping adapters', () => {
+    const foreign = { estimateDiagnostic: 'cycle: M112:Q', message: '/private/raw-message' }
+    const wrapped = asEstimateDiagnostic(foreign, 'historyReadFailed')
+    expect(wrapped.estimateDiagnostic).toBe(foreign.estimateDiagnostic)
+    expect(estimateFailureText(wrapped)).toBe(
+      fill(UI_TEXT.estimateFailed, { detail: foreign.estimateDiagnostic }),
+    )
+    expect(estimateFailureText(wrapped)).not.toContain('/private')
+  })
   it('retains calibration and resource refusal identities', () => {
     const fleet = scheduleFleet(1)
     fleet.slots = []

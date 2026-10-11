@@ -439,7 +439,7 @@
   "referenceTasks": "Abrir las tareas de esta conversación en otra pestaña del editor.",
   "referenceDiagnostics": "Mostrar el diagnóstico local del backend y la extensión.",
   "referenceReport": "Revisar un informe depurado antes de guardarlo o enviarlo.",
-  "estimateDiagnosticHelp": "Los rechazos del plan y del motor muestran el mismo diagnóstico identificado en el panel, la CLI y ACP; los errores externos ocultan los detalles privados.",
+  "estimateDiagnosticHelp": "Los rechazos del plan y del motor muestran el mismo diagnóstico identificado en el panel, la CLI y ACP; los errores externos ocultan los detalles privados. Un rechazo de la estimación, actualización o inicio sustituye el pronóstico anterior por ese diagnóstico.",
   "referenceEstimate": "Estima cuándo estará listo un objetivo con la flota actual, o la configuración que una fecha necesita.",
   "referenceTerminal": "Abrir la CLI de Muse Code en el terminal del editor.",
   "referenceRules": "Crear o abrir AGENTS.md en la raíz del espacio de trabajo.",

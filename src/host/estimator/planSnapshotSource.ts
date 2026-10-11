@@ -27,7 +27,7 @@ import {
   GITHUB_API_BASE_URL,
   UI_TEXT,
 } from '../../shared/constants'
-import { fill, setUiText } from '../../shared/l10n/text'
+import { setUiText } from '../../shared/l10n/text'
 
 import {
   isReportNetworkAllowed,
@@ -131,7 +131,7 @@ function lines(output: string): string[] {
 }
 
 function refuseSource(detail: string): never {
-  throw new EstimateDiagnosticError(detail, fill(UI_TEXT.estimateFailed, { detail }))
+  throw new EstimateDiagnosticError(detail)
 }
 
 async function required(

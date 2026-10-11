@@ -11,17 +11,30 @@ import {
   parseEstimateComposer,
   renderEstimate,
   runEstimateCommand,
+  estimateFailureText,
   type EstimateCommandOptions,
   type EstimateRunPort,
 } from '../../src/runtime/estimator/command'
 import { EstimateViewSession, openEstimateTui } from '../../src/runtime/estimator/session'
-import { estimateSectionSchema, type EstimateRequest } from '../../src/shared/estimate'
+import {
+  estimateSectionSchema,
+  type EstimateRequest,
+  type EstimateSection,
+} from '../../src/shared/estimate'
 import { fakeEstimate } from './helpers/estimator/fixtures'
 import { ESTIMATOR_AS_OF } from './helpers/estimator/fakes'
 import { UI_TEXT } from '../../src/shared/l10n/text'
 import { wasEstimateComposerHandled } from '../../src/webview/estimator/composer'
 import { isEstimateCommandText } from '../../src/webview/estimator/commandPrefix'
+import type { EstimateViewState } from '../../src/shared/estimateView'
 import { checkPlan } from '../../src/core/estimator/planSnapshot'
+
+function stateObserver(publish: (section: EstimateSection) => void, error: (text: string) => void) {
+  return (state: EstimateViewState) => {
+    if (state.status === 'showing') publish(state.section)
+    else if (state.status === 'failed') error(estimateFailureText(state.diagnostic))
+  }
+}
 
 const context = { asOf: ESTIMATOR_AS_OF, optimize: 'cost' } as const
 const options: EstimateCommandOptions = {
@@ -478,8 +491,7 @@ describe('M117 re-estimation and TUI', () => {
           return unsubscribe
         },
       },
-      publish,
-      error,
+      stateObserver(publish, error),
     )
     await view.refresh()
     event({ laneId: 'unrelated', asOf: '2026-10-06T12:30:00.000Z' })
@@ -530,8 +542,7 @@ describe('M117 re-estimation and TUI', () => {
           return vi.fn()
         },
       },
-      publish,
-      error,
+      stateObserver(publish, error),
     )
     const first = view.refresh()
     expect(pending).toHaveLength(1)
@@ -569,8 +580,7 @@ describe('M117 re-estimation and TUI', () => {
           }),
       },
       { subscribe: () => vi.fn() },
-      publish,
-      error,
+      stateObserver(publish, error),
     )
     const first = view.refresh()
     const second = view.refresh('2026-10-06T12:30:00.000Z')
@@ -600,7 +610,7 @@ describe('M117 re-estimation and TUI', () => {
       money,
       view: (callbacks) => {
         controls = callbacks
-        return { show, error: vi.fn() }
+        return { show }
       },
     })
     expect(show).toHaveBeenCalledWith(
@@ -608,10 +618,10 @@ describe('M117 re-estimation and TUI', () => {
       expect.stringContaining(UI_TEXT.estimatePrior),
     )
     await controls?.refresh()
-    expect(show).toHaveBeenCalledTimes(2)
+    expect(show).toHaveBeenCalledTimes(4)
     controls?.close()
     await session.refresh()
-    expect(show).toHaveBeenCalledTimes(2)
+    expect(show).toHaveBeenCalledTimes(4)
   })
 })
 

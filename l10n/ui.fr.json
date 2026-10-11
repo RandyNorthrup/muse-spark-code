@@ -439,7 +439,7 @@
   "referenceTasks": "Ouvrir les tâches de cette conversation dans un onglet distinct.",
   "referenceDiagnostics": "Afficher le diagnostic local du backend et de l’extension.",
   "referenceReport": "Prévisualiser un rapport nettoyé avant de l’enregistrer ou de l’envoyer.",
-  "estimateDiagnosticHelp": "Les refus du plan et du moteur affichent le même diagnostic nommé dans le panneau, la CLI et ACP ; les erreurs externes masquent les détails privés.",
+  "estimateDiagnosticHelp": "Les refus du plan et du moteur affichent le même diagnostic nommé dans le panneau, la CLI et ACP ; les erreurs externes masquent les détails privés. Un refus de l’estimation, de l’actualisation ou du démarrage remplace la prévision précédente par ce diagnostic.",
   "referenceEstimate": "Estime quand un objectif sera livré avec la flotte actuelle, ou la configuration qu’une date exige.",
   "referenceTerminal": "Ouvrir la CLI Muse Code dans le terminal de l’éditeur.",
   "referenceRules": "Créer ou ouvrir AGENTS.md à la racine de l’espace de travail.",

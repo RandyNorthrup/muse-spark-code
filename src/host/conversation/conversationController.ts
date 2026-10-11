@@ -1,4 +1,8 @@
-import { EstimateDiagnosticError, estimateFailureText } from '../../core/estimator/diagnostic'
+import {
+  EstimateDiagnosticError,
+  estimateDiagnostic,
+  estimateFailureText,
+} from '../../shared/estimateDiagnostic'
 import type { UsageRecording } from '../../core/usage/recording'
 import type { ProviderUsageRow, AccountFacts, SubscriptionUsage } from '../../shared/usage'
 import type { ChatShareSource } from '../../core/sharing/chatShare'
@@ -9367,9 +9371,10 @@ export class ConversationController {
       } catch (error: unknown) {
         if (pending.signal.aborted || generation !== this.sendInvalidationEpoch || this.isDisposed)
           return
-        const reason = estimateFailureText(error)
+        const diagnostic = estimateDiagnostic(error)
+        const reason = estimateFailureText(diagnostic)
         this.deps.log.error(`The estimate failed: ${reason}`)
-        this.post({ type: 'estimatorFailure', ...correlation, reason })
+        this.post({ type: 'estimatorFailure', ...correlation, diagnostic })
         this.notice('warning', reason)
       } finally {
         if (this.estimatePending === pending) this.estimatePending = undefined
@@ -9393,9 +9398,11 @@ export class ConversationController {
       this.notice('info', fill(UI_TEXT.estimateWaveStarted, { lanes: started.join(', ') }))
     } catch (error: unknown) {
       if (generation !== this.sendInvalidationEpoch || this.isDisposed) return
-      this.deps.log.error(`The first wave failed: ${describe(error)}`)
-      this.post({ type: 'estimatorStarted', ...correlation, error: estimateFailureText(error) })
-      this.notice('warning', estimateFailureText(error))
+      const diagnostic = estimateDiagnostic(error)
+      const reason = estimateFailureText(diagnostic)
+      this.deps.log.error(`The first wave failed: ${reason}`)
+      this.post({ type: 'estimatorStarted', ...correlation, diagnostic })
+      this.notice('warning', reason)
     }
   }
 

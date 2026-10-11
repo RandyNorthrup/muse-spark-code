@@ -29,6 +29,7 @@ import {
   deferredCohort,
   sharedUiText,
   sharedValidation,
+  sharedRedaction,
   nodeReferenceData,
   sharedWire,
   sharedResourceAdmission,
@@ -108,6 +109,7 @@ beforeAll(async () => {
       vaultBoundaries: 'src/shared/vaultBoundariesEntry.ts',
       estimator: 'src/host/estimator/estimatorEntry.ts',
       estimateContracts: 'src/shared/estimateContractsEntry.ts',
+      planSnapshot: 'src/host/estimator/planSnapshotEntry.ts',
       media: 'src/host/media/mediaEntry.ts',
       runtimeAccounts: 'src/runtime/providers/accountsEntry.ts',
       questionNotes: 'src/core/questions/deferralEntry.ts',
@@ -162,6 +164,7 @@ beforeAll(async () => {
         plugins: [
           sharedUiText,
           sharedValidation,
+          ...(name === 'estimateContracts' ? [sharedRedaction] : []),
           deferredCohort,
           sharedWire,
           sharedResourceAdmission,
@@ -1201,6 +1204,7 @@ describe('deferred cohort bundles', () => {
 
   it.each([
     ['estimateContracts', 'src/shared/estimate.ts', 'missing'],
+    ['planSnapshot', 'src/core/estimator/planSnapshot.ts', 'missing'],
     ['modelApi', 'src/shared/estimate.ts', 'on its first action'],
     ['vaultBoundaries', 'src/shared/vault.ts', 'missing'],
     ['modelApi', 'src/shared/vault.ts', 'on its first action'],

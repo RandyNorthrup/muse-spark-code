@@ -9,6 +9,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **Estimator refusal state** (M117 CM1171R7). Typed diagnostics survive the
+  webview boundary and appear unchanged in the real card, including first-wave
+  refusals. One shared display state replaces old forecasts on every failed
+  estimate or refresh in the panel, view session and terminal. The diagnostic
+  inventory is crossed with all six surfaces in regression tests.
+
 - **Estimator refusal diagnostics** (M117 CM1171R6). Late self dependencies
   and cycles retain their named reason across the panel, CLI, ACP and TUI.
   All estimator guards and schema failures carry typed diagnostics through

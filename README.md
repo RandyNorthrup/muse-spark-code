@@ -2200,6 +2200,8 @@ refusals, including self dependencies and cycles. External errors show only
 the fixed unavailable reason, so private paths and content stay hidden.
 `muse-spark-code-acp estimate --help` shows the
 standalone syntax without starting a model or asking for credentials.
+A refused estimate, refresh or first-wave start replaces the previous forecast with its
+diagnostic; old P50/P90, schedule rows and setup cards are removed.
 
 `muse-spark-code-acp estimate --check-plan` and ACP `/estimate --check-plan`
 check the entire workspace plan without estimating, reading git or calling a

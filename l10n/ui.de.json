@@ -439,7 +439,7 @@
   "referenceTasks": "Aufgabenliste dieser Unterhaltung in einem eigenen Editor-Tab öffnen.",
   "referenceDiagnostics": "Lokale Backend- und Erweiterungsdiagnose anzeigen.",
   "referenceReport": "Bereinigten Problembericht vor dem Speichern oder Senden prüfen.",
-  "estimateDiagnosticHelp": "Ablehnungen des Plans und der Berechnung zeigen dieselbe benannte Diagnose im Panel, in der CLI und in ACP; externe Fehler verbergen private Details.",
+  "estimateDiagnosticHelp": "Ablehnungen des Plans und der Berechnung zeigen dieselbe benannte Diagnose im Panel, in der CLI und in ACP; externe Fehler verbergen private Details. Eine abgelehnte Schätzung, Aktualisierung oder Ausführung ersetzt die vorherige Prognose durch diese Diagnose.",
   "referenceEstimate": "Schätzt, wann ein Ziel mit der aktuellen Flotte fertig wird, oder welches Setup ein Termin braucht.",
   "referenceTerminal": "Muse Code CLI im Terminal des Editors öffnen.",
   "referenceRules": "AGENTS.md im Arbeitsbereich erstellen oder öffnen.",

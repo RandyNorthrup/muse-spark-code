@@ -1,5 +1,6 @@
 import { createRoot } from 'react-dom/client'
 import { fakeEstimate, fakeDisclosures } from '../../unit/helpers/estimator/fixtures'
+import type { EstimateViewState } from '../../../src/shared/estimateView'
 import { type EstimateSection } from '../../../src/shared/estimate'
 
 /** Mutation-driven harness scenarios; no delay guesses or production fakes. */
@@ -33,7 +34,7 @@ async function mount(): Promise<void> {
   let current = fakeEstimate()
   const first = current.setups[0]
   if (first === undefined) throw new Error('missing fixture setup')
-  let emit: ((value: unknown) => void) | undefined
+  let emit: ((value: EstimateViewState) => void) | undefined
   current.setups.push(
     ...(['minimumP50', 'minimumP90', 'optimumCost', 'optimumSpeed'] as const).map((kind) => ({
       ...structuredClone(first),
@@ -79,7 +80,7 @@ async function mount(): Promise<void> {
     current.p90 = '2026-10-06T15:00:00.000Z'
     current.drift = { previousAsOf: previous, p50Hours: 1, p90Hours: 1 }
     if (emit === undefined) throw new Error('missing view subscription')
-    emit(evidence(current))
+    emit({ status: 'showing', section: evidence(current) })
   })
 }
 

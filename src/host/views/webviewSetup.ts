@@ -1,3 +1,4 @@
+import { estimateFailureText } from '../../shared/estimateDiagnostic'
 // Shared wiring for both webview surfaces (sidebar view and editor panel):
 // options, HTML with a fresh CSP nonce and document id (M107), the inbound message handler, and the
 // `ChatSurface` handle (chatSurface.ts) the rest of the host uses to talk back.
@@ -144,6 +145,14 @@ export function configureWebview(
           const parsed = parser.parseEstimatorToHostMessage(raw)
           if (!parsed.ok) {
             context.log.warn(`Dropped malformed webview message: ${parsed.error}`)
+            surface.post({
+              type: 'estimatorFailure',
+              diagnostic: { estimateDiagnostic: 'invalid-input' },
+            })
+            surface.post({
+              type: 'estimatorStarted',
+              diagnostic: { estimateDiagnostic: 'invalid-input' },
+            })
             return
           }
           context.onConversationMessage(surface, parsed.message)
@@ -151,9 +160,19 @@ export function configureWebview(
         .catch((error: unknown) => {
           if (!isActive || generation !== estimatorGeneration) return
           context.log.error(`Estimator boundary unavailable: ${String(error)}`)
-          surface.post({ type: 'estimatorFailure', reason: UI_TEXT.estimateUnavailable })
-          surface.post({ type: 'estimatorStarted', error: UI_TEXT.estimateUnavailable })
-          surface.post({ type: 'notice', level: 'warning', text: UI_TEXT.estimateUnavailable })
+          surface.post({
+            type: 'estimatorFailure',
+            diagnostic: { estimateDiagnostic: 'estimate-unavailable' },
+          })
+          surface.post({
+            type: 'estimatorStarted',
+            diagnostic: { estimateDiagnostic: 'estimate-unavailable' },
+          })
+          surface.post({
+            type: 'notice',
+            level: 'warning',
+            text: estimateFailureText({ estimateDiagnostic: 'estimate-unavailable' }),
+          })
         })
       return
     }

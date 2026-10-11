@@ -1,4 +1,5 @@
-import { EstimateDiagnosticError, estimateFailureText } from '../../src/core/estimator/diagnostic'
+import { ESTIMATE_DIAGNOSTIC_CASES, diagnosticSentence } from './helpers/estimator/diagnosticMatrix'
+import { EstimateDiagnosticError, estimateDiagnostic } from '../../src/shared/estimateDiagnostic'
 import { parseEstimateComposer } from '../../src/runtime/estimator/command'
 import type { EstimateRequest } from '../../src/shared/estimate'
 import { fakeEstimate } from './helpers/estimator/fixtures'
@@ -17769,6 +17770,30 @@ function fakeEstimatorBinding() {
   }
 }
 describe('M117 estimates belong to their conversation', () => {
+  it.each(ESTIMATE_DIAGNOSTIC_CASES)(
+    '$code → transcript notice and typed frame after a successful forecast',
+    async ({ diagnostic }) => {
+      const t = setup()
+      const run = fakeEstimatorBinding()
+      const controller = new ConversationController({ ...t.deps, estimator: run })
+      const request = fakeEstimate().inputs.request
+      await controller.handle({ type: 'estimateRun', requestId: 'first', request })
+      run.estimate.mockRejectedValue(diagnostic)
+      await controller.handle({ type: 'estimateRun', requestId: 'refresh', request })
+      expect(t.surface.posted).toContainEqual({
+        type: 'estimatorFailure',
+        requestId: 'refresh',
+        diagnostic,
+      })
+      expect(t.surface.posted).toContainEqual({
+        type: 'notice',
+        level: 'warning',
+        text: diagnosticSentence(diagnostic.estimateDiagnostic),
+      })
+      controller.dispose()
+    },
+  )
+
   it('F1 parses composer commands in the host and never dispatches invalid input', async () => {
     const t = setup()
     const run = fakeEstimatorBinding()
@@ -17794,7 +17819,7 @@ describe('M117 estimates belong to their conversation', () => {
     expect(t.surface.posted).toContainEqual({
       type: 'estimatorFailure',
       requestId: 'bad',
-      reason: UI_TEXT.estimateUsage,
+      diagnostic: { estimateDiagnostic: 'usage' },
     })
     controller.dispose()
   })
@@ -17817,7 +17842,7 @@ describe('M117 estimates belong to their conversation', () => {
       expect(t.surface.posted).toContainEqual({
         type: 'estimatorFailure',
         requestId: 'diagnostic',
-        reason: estimateFailureText(error),
+        diagnostic: estimateDiagnostic(error),
       })
       expect(JSON.stringify(t.surface.posted)).not.toContain('/private')
       controller.dispose()
@@ -17837,7 +17862,7 @@ describe('M117 estimates belong to their conversation', () => {
     expect(t.surface.posted).toContainEqual({
       type: 'estimatorFailure',
       requestId: 'estimate-1',
-      reason: estimateFailureText(new Error('source-unavailable')),
+      diagnostic: { estimateDiagnostic: 'estimate-unavailable' },
     })
     controller.dispose()
   })

@@ -103,7 +103,7 @@ const RIG_OS: ReadonlyMap<
 ])
 
 function refuse(detail: string): never {
-  throw new EstimateDiagnosticError(detail, fill(UI_TEXT.estimateFailed, { detail }))
+  throw new EstimateDiagnosticError(detail)
 }
 
 /** The snapshot's canonical milestone id: what the goal grammar parses. */
