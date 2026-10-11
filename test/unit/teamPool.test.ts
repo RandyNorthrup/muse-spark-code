@@ -98,15 +98,20 @@ describe('teamPool: the five switching tests', () => {
     expect(
       change && formatSwitchRow(change, 'Opus 5.5 (Anthropic key)', 'Opus 5.5 (OpenRouter)'),
     ).toContain('engineering: Opus 5.5 (Anthropic key) → Opus 5.5 (OpenRouter)')
-    const payload = switchHookPayload(change!, first.agent, second.agent)
+    const payload = switchHookPayload(change!, first.agent, second.agent, 'session-7')
     expect(payload).toMatchObject({
       role_id: 'engineering',
       from_entry_id: 'eng-1',
       to_entry_id: 'eng-2',
+      from_agent_profile: 'opus',
+      to_agent_profile: 'opus-openrouter',
+      from_model: first.agent.modelId,
+      to_model: second.agent.modelId,
       reason: 'cap',
       amount: 10_000,
       used: 10_000,
       task_id: 'task-2',
+      parent_session_id: 'session-7',
     })
   })
 

@@ -1,4 +1,4 @@
-// M91 lane E: spark-hooks.json and the 21 extension events (PLAN.md M91
+// M91 lane E: spark-hooks.json and the 22 extension events (PLAN.md M91
 // acceptance 3, 4, 13; SoL-Pi rules 2 and 7). Payloads follow Claude Code's
 // documented hook fields (https://code.claude.com/docs/en/hooks): the
 // envelope (`hook_event_name`, `session_id`, `cwd`, `transcript_path`,
@@ -33,6 +33,7 @@ import {
   type ExtensionHookDefinition,
 } from '../../src/core/backends/modelapi/extensionHooks'
 import type { HookLoadDeps } from '../../src/core/backends/modelapi/hooks'
+import { TEAM_BUILTIN_ROLE_IDS } from '../../src/shared/constants'
 import { memoryContextIo } from './helpers/fakeContextIo'
 
 function spark(hooks: unknown): string {
@@ -146,6 +147,88 @@ describe('parseSparkHooksConfig', () => {
     expect(parsed.hooks).toEqual([])
     expect(parsed.warnings).toEqual([
       'project spark-hooks.json: MessageDisplay: matcher is not valid for MessageDisplay',
+    ])
+  })
+
+  it('matches TeamAgentSwitch on role ids only', () => {
+    const parsed = parseSparkHooksConfig(
+      spark({
+        TeamAgentSwitch: [
+          { matcher: 'engineering|research', hooks: [{ type: 'command', command: 's' }] },
+        ],
+      }),
+      'project',
+      'linux',
+    )
+    expect(parsed.warnings).toEqual([])
+    expect(parsed.hooks).toHaveLength(1)
+    expect(parsed.hooks[0]?.event).toBe('TeamAgentSwitch')
+    expect(parsed.hooks[0]?.matcher).toEqual({
+      kind: 'exact',
+      names: new Set(['engineering', 'research']),
+    })
+  })
+
+  it('names every valid TeamAgentSwitch role id: all built-ins plus hyphenated customs', () => {
+    const ids = [...TEAM_BUILTIN_ROLE_IDS, 'my-team-2']
+    const parsed = parseSparkHooksConfig(
+      spark({
+        TeamAgentSwitch: [{ matcher: ids.join('|'), hooks: [{ type: 'command', command: 's' }] }],
+      }),
+      'project',
+      'linux',
+    )
+    expect(parsed.warnings).toEqual([])
+    expect(parsed.hooks).toHaveLength(1)
+    expect(parsed.hooks[0]?.matcher).toEqual({ kind: 'exact', names: new Set(ids) })
+  })
+
+  it('refuses a TeamAgentSwitch matcher no role id allows', () => {
+    for (const matcher of ['Engineering', 'code review', 'engineering|']) {
+      const parsed = parseSparkHooksConfig(
+        spark({
+          TeamAgentSwitch: [{ matcher, hooks: [{ type: 'command', command: 's' }] }],
+        }),
+        'project',
+        'linux',
+      )
+      expect(parsed.hooks).toEqual([])
+      expect(parsed.warnings).toEqual([
+        'project spark-hooks.json: TeamAgentSwitch: matcher must be a role id or role ids',
+      ])
+    }
+  })
+
+  it('keeps tool-name matchers as strict as before: no hyphens', () => {
+    const parsed = parseSparkHooksConfig(
+      spark({
+        PermissionDenied: [{ matcher: 'read-file', hooks: [{ type: 'command', command: 's' }] }],
+      }),
+      'project',
+      'linux',
+    )
+    expect(parsed.hooks).toEqual([])
+    expect(parsed.warnings).toEqual([
+      'project spark-hooks.json: PermissionDenied: matcher must be a name or names',
+    ])
+  })
+
+  it('refuses an asynchronous TeamAgentSwitch handler: a refusal must reach the fold', () => {
+    const parsed = parseSparkHooksConfig(
+      spark({
+        TeamAgentSwitch: [
+          {
+            matcher: 'engineering',
+            hooks: [{ type: 'command', command: 's', async: true }],
+          },
+        ],
+      }),
+      'project',
+      'linux',
+    )
+    expect(parsed.hooks).toEqual([])
+    expect(parsed.warnings).toEqual([
+      'project spark-hooks.json: TeamAgentSwitch: TeamAgentSwitch hooks decide the switch, so they cannot be asynchronous',
     ])
   })
 
@@ -305,6 +388,30 @@ describe('extension payloads', () => {
       name: 'attempt 2',
       siblings_running: 2,
     })
+    expect(
+      teammateIdleFields({
+        name: 'task-2',
+        siblingsRunning: 1,
+        team: {
+          teammateName: 'task-2',
+          roleId: 'engineering',
+          entryId: 'eng-2',
+          agentProfileId: 'opus-openrouter',
+          taskId: 'task-2',
+          parentSessionId: 'session-7',
+        },
+      }),
+    ).toEqual({
+      name: 'task-2',
+      siblings_running: 1,
+      teammate_name: 'task-2',
+      role_id: 'engineering',
+      entry_id: 'eng-2',
+      agent_profile_id: 'opus-openrouter',
+      task_id: 'task-2',
+      parent_session_id: 'session-7',
+    })
+    // teamAgentSwitchFields' full wire mapping lives in teamHookEvents.test.ts.
     expect(beforeToolSelectionFields(['read_file', 'bash'])).toEqual({
       tools: ['read_file', 'bash'],
     })
@@ -318,6 +425,8 @@ describe('parseExtensionHookAnswer', () => {
       'UserPromptExpansion',
       'PreModelSwitch',
       'Elicitation',
+      // M96 lane H: a switch refusal exhausts the role, never another entry.
+      'TeamAgentSwitch',
     ] as const) {
       expect(parseExtensionHookAnswer(event, 2, '', 'no, because reasons').status).toBe('refused')
       expect(parseExtensionHookAnswer(event, 2, '', 'no, because reasons').reason).toBe(
@@ -344,7 +453,19 @@ describe('parseExtensionHookAnswer', () => {
   it('takes a deny decision on refusing events, and fails it elsewhere', () => {
     const deny = JSON.stringify({ decision: { behavior: 'deny', message: 'not yet' } })
     expect(parseExtensionHookAnswer('TaskCompleted', 0, deny, '').status).toBe('refused')
+    expect(parseExtensionHookAnswer('TeamAgentSwitch', 0, deny, '').status).toBe('refused')
     expect(parseExtensionHookAnswer('FileChanged', 0, deny, '').status).toBe('failed')
+  })
+
+  it('never lets a TeamAgentSwitch answer widen: no entry, tools or context', () => {
+    const narrowed = JSON.stringify({ allowedTools: ['read_file'] })
+    expect(parseExtensionHookAnswer('TeamAgentSwitch', 0, narrowed, '').status).toBe('failed')
+    const context = JSON.stringify({ additionalContext: 'prefer eng-1' })
+    expect(parseExtensionHookAnswer('TeamAgentSwitch', 0, context, '').status).toBe('failed')
+    const keep = JSON.stringify({ continue: false, stopReason: 'stay' })
+    expect(parseExtensionHookAnswer('TeamAgentSwitch', 0, keep, '').status).toBe('failed')
+    const rewrite = JSON.stringify({ displayText: 'switched' })
+    expect(parseExtensionHookAnswer('TeamAgentSwitch', 0, rewrite, '').status).toBe('failed')
   })
 
   it('rewrites the display text only on MessageDisplay', () => {

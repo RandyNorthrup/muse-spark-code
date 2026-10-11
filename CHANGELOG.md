@@ -62,6 +62,14 @@ happened, not what was planned; superseded entries are kept.
   a finishing probe cannot start queued work after disposal. Teams remain
   unavailable pending the milestone's remaining bindings and certification.
 
+- Hidden M96 team hook events (lane H): `TeamAgentSwitch` joins the
+  extension hook events with D75's payload (both agent profiles and models,
+  the cap, the task and the parent session; a refusal exhausts the role and
+  no answer can choose an entry), and `SubagentStart`, `SubagentStop` and
+  `TeammateIdle` carry D75's team fields. Nothing fires them yet; teams
+  remain unavailable pending the milestone's remaining bindings (lane X) and
+  certification.
+
 - `@muse-code/sdk` moves from 1.4.2 to 1.4.4 (SDK144). Muse Code 1.4.4
   (1.4.4-R5419.1) serves the new pin's schema fingerprint, so it connects
   without a mismatch warning; a 1.4.2 host now logs one, as older hosts did
@@ -124,6 +132,14 @@ happened, not what was planned; superseded entries are kept.
   attempts release their claims, including admission revoked during a durable
   save. Final outcomes close reservations without presenting unknown usage as
   verified cost. Teams remain unavailable pending integration.
+- Hidden M96 team hook events (lane H review fixes): a `TeamAgentSwitch`
+  hook matcher now names every valid role id, including hyphenated ids
+  such as built-in `code-review` and custom role ids; an asynchronous
+  `TeamAgentSwitch` handler is refused at load because its dropped output
+  could never exhaust the role; and a team task's `working_copy_path`
+  reaches the wire with `/` separators on every platform. Nothing fires
+  these events yet; teams remain unavailable pending the milestone's
+  remaining bindings (lane X) and certification.
 
 - On macOS 26, a process that `ps` lists with an unknown state (`?`) while
   it changes no longer voids every resource tree's membership read, which
