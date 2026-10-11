@@ -122,8 +122,16 @@ export function estimatorSourcePorts(
   snapshot: EstimatorSourcePorts['snapshot'],
   fleetIo?: FleetBindingIo,
 ): EstimatorSourcePorts {
-  const fleet = (lanes: readonly EstimateLane[], asOf: string): Promise<FleetSnapshot> =>
-    applyFleetBinding(localFleet(lanes, asOf), fleetIo ?? {})
+  // One estimate reads the fleet once: the current fleet and the candidate
+  // pool derive from the same snapshot, so a setting that changes mid-read
+  // cannot describe two different machines in one forecast.
+  let cached: { readonly key: string; readonly fleet: Promise<FleetSnapshot> } | undefined
+  const fleet = (lanes: readonly EstimateLane[], asOf: string): Promise<FleetSnapshot> => {
+    const key = `${asOf}\n${JSON.stringify(lanes)}`
+    if (cached?.key !== key)
+      cached = { key, fleet: applyFleetBinding(localFleet(lanes, asOf), fleetIo ?? {}) }
+    return cached.fleet
+  }
   return {
     snapshot,
     fleet: (lanes, asOf) => fleet(lanes, asOf),

@@ -209,10 +209,21 @@ export class MuseCodeAccountHomes implements AccountLimitsReader {
       throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
     const usage = this.usage.get(account)
     if (usage === undefined) return {}
-    const window = (value: SubscriptionUsage['weekly']) => ({
-      usedPercent: Math.min(100, value.usedPercent),
-      resetAt: new Date(value.resetsAtMs).toISOString(),
-    })
+    // The short window carries the provider's own window length; the weekly
+    // window carries none, so only the short window keeps its duration.
+    const window = (value: SubscriptionUsage['weekly'] | SubscriptionUsage['window']) => {
+      const duration =
+        'windowDurationMins' in value &&
+        Number.isSafeInteger(value.windowDurationMins) &&
+        value.windowDurationMins > 0
+          ? { windowDurationMins: value.windowDurationMins }
+          : undefined
+      return {
+        usedPercent: Math.min(100, value.usedPercent),
+        resetAt: new Date(value.resetsAtMs).toISOString(),
+        ...(duration !== undefined && duration),
+      }
+    }
     const full = [usage.window, usage.weekly].filter(
       (value) => value.usedPercent >= 100 && value.resetsAtMs > now,
     )

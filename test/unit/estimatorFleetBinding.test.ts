@@ -1,11 +1,20 @@
-// M117 C-M117-3R2: the fleet binding applies M107's caps (ceilings shape
-// admission, not just percent fields), M108's ACTIVE account row and CI
-// concurrency onto this machine's measured fleet, fail-closed with named
-// details. Both production assemblies (extension, headless) pass their real
-// settings through the tested source helpers; the selection and translation
-// run against the real store/reader shapes. Acceptance 3 runs through the
-// real fleet port, not engine fakes.
-// Repository default timeout; no skips.
+// M117 C-M117-3R3: the fleet binding reads every fleet value from the
+// component that owns it and never computes one. Machine parallelism stays
+// the certified one serial slot; M107's settings ride the caps as threshold
+// facts. M108's account row carries only read limits, stated when it cannot
+// be converted, unknown with its source named when nothing was read. Each
+// source refuses with its own detail on the production reader shape.
+// Repository default timeout.
+//
+// Deleted round-3 pins of invented numbers (each failed while the governor
+// contract was ignored): fleetSlotsForCaps unit pins (8/100/100 slots),
+// caps-shaping-admission (governorSlots 6, six slots), the 1h-vs-2h slot
+// finish split, the demand-budgeted row kept for an undefined reader, the
+// rolling plan window over the time remaining, the zeroed blocked rates, and
+// the fleet/candidatePool double read.
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { findEstimateBottleneck } from '../../src/core/estimator/bottleneck'
 import { canEstimateMachineRun, prepareEstimateSchedule } from '../../src/core/estimator/schedule'
@@ -15,12 +24,12 @@ import {
   extensionFleetSources,
   fleetAccountFromLimits,
   fleetIoFromSources,
-  fleetSlotsForCaps,
   headlessFleetSources,
   selectFleetAccount,
   type FleetBindingIo,
   type FleetSources,
 } from '../../src/host/estimator/fleetBinding'
+import { resourceMachineStore } from '../../src/runtime/resources/settings'
 import { fleetSnapshotSchema } from '../../src/shared/estimate'
 import {
   RESOURCE_CPU_DEFAULT_PERCENT,
@@ -47,6 +56,17 @@ const portsFor = (fleetIo?: FleetBindingIo) =>
     fleetIo,
   )
 
+/** Workspace settings with the governor switched off and legal 50/50 ceilings. */
+const offInspect: ResourceSettingsReader = (key) => {
+  const values: Record<string, number | boolean> = {
+    resourceGovernor: false,
+    resourceCpuMaxPercent: 50,
+    resourceMemoryMaxPercent: 50,
+  }
+  const globalValue = values[key]
+  return globalValue === undefined ? {} : { globalValue }
+}
+
 const boundFleet = async (fleetIo?: FleetBindingIo) => {
   const lanes = [scheduleLane('A'), scheduleLane('B')]
   return {
@@ -55,12 +75,15 @@ const boundFleet = async (fleetIo?: FleetBindingIo) => {
   }
 }
 
+/** Every production assembly defines every reader: the error-blame tests use it. */
+const productionIo = (sources: FleetSources): FleetBindingIo => fleetIoFromSources(sources)
+
 describe('M117 fleet binding', () => {
   it('keeps the measured fleet byte-identical without readers', async () => {
     const base = fleetFromHost({ ...HOST }, chainLanes(), AS_OF)
     expect(await applyFleetBinding(base)).toEqual(base)
   })
-  it('stamps the request asOf through the real fleet and candidatePool ports', async () => {
+  it('stamps the request asOf and reads the fleet once per estimate', async () => {
     const lanes = [scheduleLane('A'), scheduleLane('B')]
     const ports = portsFor()
     const fleet = fleetSnapshotSchema.parse(await ports.fleet(lanes, AS_OF))
@@ -70,95 +93,132 @@ describe('M117 fleet binding', () => {
     expect(fleet.machines).toHaveLength(1)
     expect(fleet.ci).toEqual([])
   })
-  it('derives forecast slots from the ceilings, never a hard-coded 1', () => {
-    expect(fleetSlotsForCaps(8, 100, 100)).toBe(8)
-    expect(fleetSlotsForCaps(8, 85, 90)).toBe(7)
-    expect(fleetSlotsForCaps(8, 1, 1)).toBe(1)
-    expect(fleetSlotsForCaps(8, 0, 0)).toBe(0)
-    expect(() => fleetSlotsForCaps(8, -1, 70)).toThrow(/fleet-caps-invalid/)
-    expect(() => fleetSlotsForCaps(8, 80, 101)).toThrow(/fleet-caps-invalid/)
-    expect(() => fleetSlotsForCaps(0, 80, 70)).toThrow(/fleet-caps-invalid/)
+  it('derives the current fleet and the candidate pool from one snapshot', async () => {
+    const calls = { settings: 0, activeAccount: 0, ci: 0 }
+    const sources: FleetSources = {
+      settings: () => {
+        calls.settings += 1
+        return { cpuMaxPercent: 50, memoryMaxPercent: 60, enabled: true }
+      },
+      activeAccount: () => {
+        calls.activeAccount += 1
+        return { kind: 'no-reader', surface: 'runtime' }
+      },
+      ci: () => {
+        calls.ci += 1
+        return []
+      },
+    }
+    const lanes = [scheduleLane('A')]
+    const ports = portsFor(productionIo(sources))
+    const fleet = await ports.fleet(lanes, AS_OF)
+    // A setting that changes between the two reads cannot describe two
+    // different machines in one forecast: the pool reuses the fleet read.
+    await ports.candidatePool(lanes, AS_OF)
+    expect(calls).toEqual({ settings: 1, activeAccount: 1, ci: 1 })
+    expect(fleetSnapshotSchema.parse(fleet).machines[0]?.caps).toMatchObject({
+      cpuPercent: 50,
+      memoryPercent: 60,
+    })
+    // A new estimate reads again: the memo never freezes the owners.
+    await ports.fleet(lanes, '2026-10-06T13:00:00.000Z')
+    expect(calls).toEqual({ settings: 2, activeAccount: 2, ci: 2 })
   })
-  it("applies M107's configured caps and refuses ceilings it cannot honour", async () => {
+  it('states the throttle thresholds as facts and never writes a slot count', async () => {
     const base = fleetFromHost({ ...HOST }, chainLanes(), AS_OF)
-    const capped = await applyFleetBinding(base, {
-      capacityCaps: () => ({ cpuMaxPercent: 80, memoryMaxPercent: 70 }),
+    const stated = await applyFleetBinding(base, {
+      settings: () => ({ cpuMaxPercent: 50, memoryMaxPercent: 60, enabled: true }),
     })
-    expect(capped.machines[0]).toMatchObject({
-      governorSlots: 6,
-      caps: { slots: 6, cpuPercent: 80, memoryPercent: 70 },
+    expect(stated.machines[0]).toMatchObject({
+      governorSlots: 1,
+      capacityByKind: expect.any(Array),
+      caps: { slots: 1, cpuPercent: 50, memoryPercent: 60 },
     })
-    expect(capped.machines[0]?.capacityByKind).toEqual([
-      { kind: 'contracts', slots: 6 },
-      { kind: 'core', slots: 6 },
-    ])
-    expect(capped.slots).toHaveLength(6)
-    for (const caps of [
-      { cpuMaxPercent: -1, memoryMaxPercent: 70 },
-      { cpuMaxPercent: 80, memoryMaxPercent: 101 },
-    ])
-      await expect(applyFleetBinding(base, { capacityCaps: () => caps })).rejects.toThrow(
-        /fleet-caps-invalid/,
-      )
-  })
-  it('finishes the same lanes at a different time under 1/1 than 100/100', async () => {
+    expect(stated.machines[0]?.capacityByKind).toEqual(
+      base.machines[0]?.capacityByKind.map((capacity) => ({ ...capacity })),
+    )
+    expect(stated.slots).toEqual(base.slots)
+    // The schedule never reads those percents for admission: an 8-core
+    // machine at 50/60 still runs its one certified serial slot.
     const lanes = [scheduleLane('A'), scheduleLane('B')]
-    const tight = await applyFleetBinding(fleetFromHost({ ...HOST }, lanes, AS_OF), {
-      capacityCaps: () => ({ cpuMaxPercent: 1, memoryMaxPercent: 1 }),
+    const serial = await applyFleetBinding(fleetFromHost({ ...HOST }, lanes, AS_OF), {
+      settings: () => ({ cpuMaxPercent: 50, memoryMaxPercent: 60, enabled: true }),
     })
-    const ample = await applyFleetBinding(fleetFromHost({ ...HOST }, lanes, AS_OF), {
-      capacityCaps: () => ({ cpuMaxPercent: 100, memoryMaxPercent: 100 }),
-    })
-    expect(tight.machines[0]?.governorSlots).toBe(1)
-    expect(ample.machines[0]?.governorSlots).toBe(8)
-    expect(prepareEstimateSchedule(lanes, tight).run(undefined).finishHours).toBe(2)
-    expect(prepareEstimateSchedule(lanes, ample).run(undefined).finishHours).toBe(1)
+    expect(prepareEstimateSchedule(lanes, serial).run(undefined).finishHours).toBe(2)
   })
-  it("binds M108's active row and keeps the measured row without one", async () => {
+  it('keeps the certified row with the governor off or no reading', async () => {
     const base = fleetFromHost({ ...HOST }, chainLanes(), AS_OF)
-    const bound = await applyFleetBinding(base, {
-      accounts: () => ({
-        id: 'work',
-        providerId: 'meta',
-        requestsPerMinute: 60,
-        usageLimits: [
-          {
-            id: 'daily',
-            kind: 'calendar',
-            period: 'day',
-            timeZone: 'UTC',
-            unit: 'requests',
-            remaining: 100,
-            allowance: 1000,
-            resetsAt: '2026-10-07T00:00:00.000Z',
-          },
-        ],
+    // Switched off: no throttle scenario and no threshold row.
+    expect(
+      await applyFleetBinding(base, {
+        settings: () => ({ cpuMaxPercent: 50, memoryMaxPercent: 60, enabled: false }),
       }),
-    })
-    expect(bound.accounts).toHaveLength(1)
-    expect(bound.accounts[0]).toMatchObject({ id: 'work', providerId: 'meta' })
-    expect(bound.slots.map((slot) => slot.accountId)).toEqual(['work'])
-    // Zero accounts, or no usable limits, keep the measured row: a normal
-    // multi-account user is never met with an 'ambiguous' refusal.
-    expect(await applyFleetBinding(base, { accounts: () => undefined })).toEqual(base)
-  })
-  it('refuses a corrupt account row with a named detail, never a raw $ZodError', async () => {
-    const base = fleetFromHost({ ...HOST }, chainLanes(), AS_OF)
-    await expect(
-      applyFleetBinding(base, {
-        accounts: () => ({ id: '!!!', providerId: 'meta', requestsPerMinute: 60 }),
-      }),
-    ).rejects.toThrow(/Estimate failed: fleet-account-invalid/)
-    const stripped = fleetSnapshotSchema.parse({
+    ).toEqual({ ...base, ci: base.ci })
+    expect(await applyFleetBinding(base, { settings: () => undefined })).toEqual({
       ...base,
-      accounts: [],
-      slots: [],
+      ci: base.ci,
     })
-    await expect(
-      applyFleetBinding(stripped, { accounts: () => ({ id: 'work', providerId: 'meta' }) }),
-    ).rejects.toThrow(/Estimate failed: fleet-account-invalid/)
   })
-  it('carries CI concurrency rows and refuses a corrupt one with a named detail', async () => {
+  it('refuses a corrupt machine reading with fleet-caps-invalid', async () => {
+    const base = fleetFromHost({ ...HOST }, chainLanes(), AS_OF)
+    const cpu = (cpuMaxPercent: number) =>
+      applyFleetBinding(base, {
+        settings: () => ({ cpuMaxPercent, memoryMaxPercent: 70, enabled: true }),
+        activeAccount: () => ({ kind: 'no-reader', surface: 'runtime' }),
+        ci: () => [],
+      })
+    await expect(cpu(RESOURCE_CPU_DEFAULT_PERCENT)).resolves.toBeDefined()
+    for (const cpuMaxPercent of [-1, 101, NaN])
+      await expect(cpu(cpuMaxPercent)).rejects.toThrow(/Estimate failed: fleet-caps-invalid/)
+  })
+  it('refuses a broken fleet structure with fleet-binding-invalid', async () => {
+    const base = fleetFromHost({ ...HOST }, chainLanes(), AS_OF)
+    // Two slots on a one-slot machine break the slot invariant (type-valid,
+    // schema-invalid: no cast needed for the schema-level refusal).
+    const broken = {
+      ...base,
+      slots: [...base.slots, { ...base.slots[0]!, id: 'local-1' }],
+    }
+    await expect(
+      applyFleetBinding(broken, {
+        settings: () => ({ cpuMaxPercent: 50, memoryMaxPercent: 60, enabled: true }),
+        activeAccount: () => ({ kind: 'no-reader', surface: 'runtime' }),
+        ci: () => [],
+      }),
+    ).rejects.toThrow(/Estimate failed: fleet-binding-invalid/)
+  })
+  it('names the account source on the production reader shape, never the CI row', async () => {
+    const base = fleetFromHost({ ...HOST }, chainLanes(), AS_OF)
+    // A corrupt account id is the account's detail even with CI defined.
+    await expect(
+      applyFleetBinding(
+        base,
+        productionIo({
+          settings: () => ({ cpuMaxPercent: 50, memoryMaxPercent: 60, enabled: true }),
+          activeAccount: () => ({
+            kind: 'limits',
+            providerId: 'meta',
+            accountId: '!!!',
+            snapshot: {},
+            nowMs: NOW_MS,
+          }),
+          ci: () => [],
+        }),
+      ),
+    ).rejects.toThrow(/Estimate failed: fleet-account-invalid/)
+    // A corrupt CI row is the CI detail with the account reader defined.
+    await expect(
+      applyFleetBinding(
+        base,
+        productionIo({
+          settings: () => ({ cpuMaxPercent: 50, memoryMaxPercent: 60, enabled: true }),
+          activeAccount: () => ({ kind: 'no-reader', surface: 'runtime' }),
+          ci: () => [{ id: 'ci-1', concurrentJobs: 1, occupiedJobs: 2 }],
+        }),
+      ),
+    ).rejects.toThrow(/Estimate failed: fleet-ci-invalid/)
+  })
+  it('carries CI concurrency rows but never invents one', async () => {
     const base = fleetFromHost({ ...HOST }, chainLanes(), AS_OF)
     const bound = await applyFleetBinding(base, {
       ci: () => [
@@ -180,9 +240,64 @@ describe('M117 fleet binding', () => {
         periodEndsAt: '2026-11-01T00:00:00.000Z',
       },
     ])
-    await expect(
-      applyFleetBinding(base, { ci: () => [{ id: 'ci-1', concurrentJobs: 1, occupiedJobs: 2 }] }),
-    ).rejects.toThrow(/Estimate failed: fleet-ci-invalid/)
+    // No reader, no row: the schedule records it as not read.
+    const lanes = [scheduleLane('A')]
+    const trial = prepareEstimateSchedule(
+      lanes,
+      await applyFleetBinding(fleetFromHost({ ...HOST }, lanes, AS_OF), {
+        activeAccount: () => ({ kind: 'no-reader', surface: 'runtime' }),
+        ci: () => [],
+      }),
+    ).run(undefined)
+    expect(trial.unknownLimits).toContain('ci unknown: not read')
+  })
+  it('reads unknown limits with the no-reader seam, never a demand rate', async () => {
+    for (const surface of ['editor', 'runtime'] as const) {
+      const lanes = [scheduleLane('A')]
+      const fleet = await applyFleetBinding(fleetFromHost({ ...HOST }, lanes, AS_OF), {
+        activeAccount: () => ({ kind: 'no-reader', surface }),
+      })
+      expect(fleet.accounts).toEqual([
+        {
+          id: 'local',
+          providerId: 'local',
+          statedLimits: [`unknown: no account reader in this ${surface}`],
+        },
+      ])
+      expect(fleet.slots.map((slot) => slot.accountId)).toEqual(['local'])
+      const trial = prepareEstimateSchedule(lanes, fleet).run(undefined)
+      expect(trial.unknownLimits).toContain(`unknown: no account reader in this ${surface}`)
+      expect(trial.unknownLimits).toContain('local:requestsPerMinute')
+      expect(trial.unknownLimits).toContain('local:tokensPerMinute')
+      expect(trial.unknownLimits).toContain('local:usageLimits')
+      expect(trial.finishHours).toBe(1)
+    }
+  })
+  // The extension host and the headless runtime construct no account-limits
+  // reader today (the panel reads the registry; live usage sits on the
+  // backend's account home, which is never built in production). This names
+  // the binding that must replace the seam above.
+  it.skip('reads the active account limits through the panel reader', () => {
+    // Bind AccountStore's active row plus a live AccountLimitsReader and
+    // un-skip: the seam test above must then fail, since the row carries
+    // read rates instead of unknown markers.
+  })
+  it('names a registry account with unknown limits', async () => {
+    const lanes = [scheduleLane('A')]
+    const fleet = await applyFleetBinding(fleetFromHost({ ...HOST }, lanes, AS_OF), {
+      activeAccount: () => ({ kind: 'registry', providerId: 'meta', accountId: 'shop' }),
+    })
+    expect(fleet.accounts).toEqual([
+      {
+        id: 'shop',
+        providerId: 'meta',
+        statedLimits: ['unknown: limits unread for meta shop'],
+      },
+    ])
+    expect(fleet.slots.map((slot) => slot.accountId)).toEqual(['shop'])
+    const trial = prepareEstimateSchedule(lanes, fleet).run(undefined)
+    expect(trial.unknownLimits).toContain('unknown: limits unread for meta shop')
+    expect(trial.unknownLimits).toContain('shop:requestsPerMinute')
   })
   it('selects the active account across zero, one and several rows', () => {
     expect(selectFleetAccount([], null)).toBeUndefined()
@@ -191,7 +306,7 @@ describe('M117 fleet binding', () => {
     expect(selectFleetAccount([{ id: 'a' }, { id: 'b' }], 'b')).toBe('b')
     expect(selectFleetAccount([{ id: 'a' }], 'gone')).toBe('a')
   })
-  it('translates rate buckets and plan windows into the fleet row', () => {
+  it('translates rate buckets at their sustainable rate', () => {
     const row = fleetAccountFromLimits({
       providerId: 'meta',
       account: { id: 'work' },
@@ -200,22 +315,112 @@ describe('M117 fleet binding', () => {
           requests: { limit: 120, remaining: 60, resetAt: '2026-10-06T13:00:00.000Z' },
           tokens: { limit: 600, remaining: 300, resetAt: '2026-10-06T13:00:00.000Z' },
         },
-        planWindows: { daily: { usedPercent: 25, resetAt: '2026-10-07T00:00:00.000Z' } },
       },
       nowMs: NOW_MS,
     })
-    expect(row).toMatchObject({ id: 'work', providerId: 'meta', requestsPerMinute: 2 })
-    expect(row?.tokensPerMinute).toBe(10)
-    expect(row?.usageLimits?.map((window) => window.id)).toEqual([
-      'work-requests',
-      'work-tokens',
-      'work-daily',
-    ])
-    expect(row?.usageLimits?.find((window) => window.id === 'work-daily')).toMatchObject({
-      unit: 'percent',
-      remaining: 75,
-      allowance: 100,
+    expect(row).toMatchObject({ requestsPerMinute: 2, tokensPerMinute: 10 })
+    expect(row?.usageLimits?.map((window) => window.id)).toEqual(['work-requests', 'work-tokens'])
+    expect(row?.usageLimits?.[0]).toMatchObject({
+      kind: 'rolling',
+      periodSeconds: 3600,
+      unit: 'requests',
+      remaining: 60,
+      allowance: 120,
     })
+    expect(row?.statedLimits).toEqual([])
+  })
+  it('shapes a plan window only from its captured duration and states the rest', () => {
+    const row = fleetAccountFromLimits({
+      providerId: 'meta',
+      account: { id: 'work' },
+      limits: {
+        planWindows: {
+          window: {
+            usedPercent: 60,
+            resetAt: '2026-10-06T13:00:00.000Z',
+            windowDurationMins: 300,
+          },
+          weekly: { usedPercent: 25, resetAt: '2026-10-13T00:00:00.000Z' },
+        },
+      },
+      nowMs: NOW_MS,
+    })
+    // The short window is fixed over the provider's own five hours, never
+    // over the one hour remaining until this reset.
+    expect(row?.usageLimits).toEqual([
+      {
+        id: 'work-window',
+        kind: 'rolling',
+        periodSeconds: 18_000,
+        unit: 'percent',
+        remaining: 40,
+        allowance: 100,
+        resetsAt: '2026-10-06T13:00:00.000Z',
+        timeZone: 'UTC',
+      },
+    ])
+    // The weekly window reports no period, so it is stated, never shaped.
+    expect(row?.statedLimits).toEqual([
+      'work-weekly: 25% used, resets 2026-10-13T00:00:00.000Z; percent demand of these lanes unknown',
+    ])
+  })
+  it('states an unconvertible percent window instead of throwing unknown-demand', async () => {
+    const lanes = [scheduleLane('A')]
+    const fleet = await applyFleetBinding(fleetFromHost({ ...HOST }, lanes, AS_OF), {
+      activeAccount: () => ({
+        kind: 'limits',
+        providerId: 'meta',
+        accountId: 'work',
+        snapshot: {
+          planWindows: {
+            window: {
+              usedPercent: 60,
+              resetAt: '2026-10-06T13:00:00.000Z',
+              windowDurationMins: 300,
+            },
+            weekly: { usedPercent: 25, resetAt: '2026-10-13T00:00:00.000Z' },
+          },
+        },
+        nowMs: NOW_MS,
+      }),
+    })
+    // Plan-snapshot lanes leave percent demand unknown: both windows are
+    // stated and the forecast continues with what it knows.
+    const trial = prepareEstimateSchedule(lanes, fleet).run(undefined)
+    expect(trial.finishHours).toBe(1)
+    expect(trial.unknownLimits).toContain(
+      'work:work-window resets 2026-10-06T13:00:00.000Z; percent demand of these lanes unknown',
+    )
+    expect(trial.unknownLimits).toContain(
+      'work-weekly: 25% used, resets 2026-10-13T00:00:00.000Z; percent demand of these lanes unknown',
+    )
+  })
+  it('enforces a read percent window once the lanes price percent demand', async () => {
+    const lane = scheduleLane('A')
+    lane.resources.accountPercentPerHour = amount(60)
+    const fleet = await applyFleetBinding(fleetFromHost({ ...HOST }, [lane], AS_OF), {
+      activeAccount: () => ({
+        kind: 'limits',
+        providerId: 'meta',
+        accountId: 'work',
+        snapshot: {
+          planWindows: {
+            window: {
+              usedPercent: 90,
+              resetAt: '2026-10-06T13:00:00.000Z',
+              windowDurationMins: 300,
+            },
+          },
+        },
+        nowMs: NOW_MS,
+      }),
+    })
+    // Ten percent of the window is left and the lane burns sixty per hour:
+    // the lane starts ten minutes before the fixed reset, spends the
+    // remainder, and renews across it instead of an invented cadence.
+    const trial = prepareEstimateSchedule([lane], fleet).run(undefined)
+    expect(trial.schedule[0]?.start).toBe('2026-10-06T12:50:00.000Z')
+    expect(trial.schedule[0]?.end).toBe('2026-10-06T13:50:00.000Z')
   })
   it('drops expired buckets and keeps nothing when no limit is usable', () => {
     const row = fleetAccountFromLimits({
@@ -239,14 +444,68 @@ describe('M117 fleet binding', () => {
       }),
     ).toBeUndefined()
   })
-  it('pins a blocked account at zero and refuses a broken clock', () => {
-    const row = fleetAccountFromLimits({
-      providerId: 'meta',
-      account: { id: 'work' },
-      limits: { blocked: { reason: 'rateLimited', resetAt: '2026-10-06T13:00:00.000Z' } },
-      nowMs: NOW_MS,
+  it('waits for the reset behind a full window with a read rate', async () => {
+    const lanes = [scheduleLane('A'), scheduleLane('B')]
+    const fleet = await applyFleetBinding(fleetFromHost({ ...HOST }, lanes, AS_OF), {
+      activeAccount: () => ({
+        kind: 'limits',
+        providerId: 'meta',
+        accountId: 'work',
+        snapshot: {
+          rateLimits: {
+            requests: { limit: 120, remaining: 0, resetAt: '2026-10-07T00:00:00.000Z' },
+          },
+          planWindows: {
+            weekly: { usedPercent: 100, resetAt: '2026-10-07T00:00:00.000Z' },
+          },
+        },
+        nowMs: NOW_MS,
+      }),
     })
-    expect(row).toMatchObject({ requestsPerMinute: 0, tokensPerMinute: 0 })
+    // Paid work cannot start before the reset: the forecast waits for it and
+    // names the account rate as its bottleneck.
+    const trial = prepareEstimateSchedule(lanes, fleet).run(undefined)
+    expect(trial.finishHours).toBeGreaterThan(2)
+    expect(findEstimateBottleneck(lanes, fleet)).toMatchObject({ kind: 'accountRate' })
+  })
+  it('refuses a full window without a read rate, naming the reset', async () => {
+    const base = fleetFromHost({ ...HOST }, chainLanes(), AS_OF)
+    const blocked = (
+      snapshot: { planWindows?: Record<string, { usedPercent: number; resetAt: string | null }> },
+      nowMs: number = NOW_MS,
+    ) =>
+      applyFleetBinding(
+        base,
+        productionIo({
+          settings: () => ({ cpuMaxPercent: 50, memoryMaxPercent: 60, enabled: true }),
+          activeAccount: () => ({
+            kind: 'limits',
+            providerId: 'meta',
+            accountId: 'work',
+            snapshot,
+            nowMs,
+          }),
+          ci: () => [],
+        }),
+      )
+    // A weekly window at 100 percent used cannot start paid work before its
+    // reset, and no read rate bounds what follows: the forecast refuses
+    // instead of finishing on slot math alone.
+    await expect(
+      blocked({
+        planWindows: { weekly: { usedPercent: 100, resetAt: '2026-10-07T00:00:00.000Z' } },
+      }),
+    ).rejects.toThrow(/Estimate failed: fleet-account-blocked meta\/work 2026-10-07T00:00:00\.000Z/)
+    // A vendor block with no reset refuses without a date to wait for.
+    expect(() =>
+      fleetAccountFromLimits({
+        providerId: 'meta',
+        account: { id: 'work' },
+        limits: { blocked: { reason: 'rateLimited', resetAt: null } },
+        nowMs: NOW_MS,
+      }),
+    ).toThrow(/fleet-account-blocked meta\/work no-reset/)
+    await expect(blocked({ planWindows: {} })).resolves.toBeDefined()
     expect(() =>
       fleetAccountFromLimits({
         providerId: 'meta',
@@ -265,7 +524,11 @@ describe('M117 fleet binding', () => {
         : {}
     }
     const sources = extensionFleetSources({ inspect })
-    expect(await sources.settings()).toEqual({ cpuMaxPercent: 50, memoryMaxPercent: 50 })
+    expect(await sources.settings()).toEqual({
+      cpuMaxPercent: 50,
+      memoryMaxPercent: 50,
+      enabled: true,
+    })
     for (const key of [
       'resourceGovernor',
       'resourceCpuMaxPercent',
@@ -277,81 +540,105 @@ describe('M117 fleet binding', () => {
       'resourceRelocate',
     ])
       expect(seen).toContain(key)
-    expect(await sources.activeAccount()).toBeUndefined()
+    // The editor holds no account-limits reader: the seam, never a stub.
+    expect(await sources.activeAccount()).toEqual({ kind: 'no-reader', surface: 'editor' })
     expect(await sources.ci()).toEqual([])
+    // The production assembly states the thresholds as facts on the
+    // certified one serial slot, through the real fleet port.
     const bound = await applyFleetBinding(
       fleetFromHost({ ...HOST }, chainLanes(), AS_OF),
-      fleetIoFromSources(sources),
+      productionIo(sources),
     )
-    expect(bound.machines[0]).toMatchObject({ caps: { cpuPercent: 50, memoryPercent: 50 } })
-    expect(bound.machines[0]?.governorSlots).toBe(4)
+    expect(bound.machines[0]).toMatchObject({
+      caps: { slots: 1, cpuPercent: 50, memoryPercent: 50 },
+    })
+    expect(bound.machines[0]?.governorSlots).toBe(1)
+    expect(bound.slots).toHaveLength(1)
+    expect(bound.accounts).toEqual([
+      {
+        id: 'local',
+        providerId: 'local',
+        statedLimits: ['unknown: no account reader in this editor'],
+      },
+    ])
+    // A governor that is off states no threshold row.
+    const off = extensionFleetSources({ inspect: offInspect })
+    const offFleet = await applyFleetBinding(
+      fleetFromHost({ ...HOST }, chainLanes(), AS_OF),
+      productionIo(off),
+    )
+    expect(offFleet.machines[0]?.caps).toMatchObject({ cpuPercent: 100, memoryPercent: 100 })
     const corrupt = extensionFleetSources({
       inspect: (key) => (key === 'resourceCpuMaxPercent' ? { globalValue: 999 } : undefined),
     })
     await expect(
-      applyFleetBinding(
-        fleetFromHost({ ...HOST }, chainLanes(), AS_OF),
-        fleetIoFromSources(corrupt),
-      ),
+      applyFleetBinding(fleetFromHost({ ...HOST }, chainLanes(), AS_OF), productionIo(corrupt)),
     ).rejects.toThrow(/fleet-caps-invalid/)
   })
-  it('reads the headless defaults through the same settings contract', async () => {
-    const sources = headlessFleetSources()
-    expect(await sources.settings()).toEqual({
-      cpuMaxPercent: RESOURCE_CPU_DEFAULT_PERCENT,
-      memoryMaxPercent: RESOURCE_MEMORY_DEFAULT_PERCENT,
-    })
-    const bound = await applyFleetBinding(
-      fleetFromHost({ ...HOST }, chainLanes(), AS_OF),
-      fleetIoFromSources(sources),
-    )
-    expect(bound.machines[0]).toMatchObject({
-      caps: {
+  it('reads headless settings through the governor resources.json reader', async () => {
+    // Lane scratch lives under TMPDIR (a /tmp tmpfs quota is shared); the
+    // fallback keeps Windows CI green where TMPDIR is unset.
+    const folder = mkdtempSync(path.join(process.env['TMPDIR'] ?? tmpdir(), 'cm1173-fleet-'))
+    try {
+      const settingsFile = path.join(folder, 'resources.json')
+      const owners = (accounts: { list(): { id: string }[] }) =>
+        headlessFleetSources({
+          readSettings: () =>
+            resourceMachineStore({
+              settingsFile,
+              resumeFile: path.join(folder, 'resource-resume.json'),
+              sleep: () => Promise.resolve(),
+            }).readSettings(),
+          listAccounts: () => Promise.resolve(accounts.list()),
+        })
+      // A missing file carries the schema defaults the governor itself runs.
+      expect(await owners({ list: () => [] }).settings()).toMatchObject({
+        cpuMaxPercent: RESOURCE_CPU_DEFAULT_PERCENT,
+        memoryMaxPercent: RESOURCE_MEMORY_DEFAULT_PERCENT,
+        enabled: true,
+      })
+      const missing = await applyFleetBinding(
+        fleetFromHost({ ...HOST }, chainLanes(), AS_OF),
+        productionIo(owners({ list: () => [] })),
+      )
+      expect(missing.machines[0]?.caps).toMatchObject({
         cpuPercent: RESOURCE_CPU_DEFAULT_PERCENT,
         memoryPercent: RESOURCE_MEMORY_DEFAULT_PERCENT,
-      },
-    })
-    expect(bound.machines[0]?.governorSlots).toBe(7)
-  })
-  it('drives all three sources through the real fleet port to one forecast', async () => {
-    const calls = { settings: 0, activeAccount: 0, ci: 0 }
-    const sources: FleetSources = {
-      settings: () => {
-        calls.settings += 1
-        return { cpuMaxPercent: 100, memoryMaxPercent: 100 }
-      },
-      activeAccount: () => {
-        calls.activeAccount += 1
-        return fleetAccountFromLimits({
+      })
+      expect(missing.machines[0]?.governorSlots).toBe(1)
+      // A present file is the configured value: CPU 40 (a legal setting)
+      // reaches the forecast, and the registry names the account read.
+      writeFileSync(settingsFile, JSON.stringify({ 'museSpark.resourceCpuMaxPercent': 40 }))
+      const configured = await applyFleetBinding(
+        fleetFromHost({ ...HOST }, chainLanes(), AS_OF),
+        productionIo(owners({ list: () => [{ id: 'shop' }] })),
+      )
+      expect(configured.machines[0]?.caps).toMatchObject({ cpuPercent: 40 })
+      expect(configured.accounts).toEqual([
+        {
+          id: 'shop',
           providerId: 'meta',
-          account: { id: 'work' },
-          limits: {
-            rateLimits: {
-              requests: { limit: 60, remaining: 0, resetAt: '2026-10-07T00:00:00.000Z' },
-            },
-          },
-          nowMs: NOW_MS,
-        })
-      },
-      ci: () => {
-        calls.ci += 1
-        return [{ id: 'ci-1', concurrentJobs: 1, occupiedJobs: 0 }]
-      },
+          statedLimits: ['unknown: limits unread for meta shop'],
+        },
+      ])
+      // A governor that is off states no threshold row.
+      writeFileSync(settingsFile, JSON.stringify({ 'museSpark.resourceGovernor': false }))
+      const off = await applyFleetBinding(
+        fleetFromHost({ ...HOST }, chainLanes(), AS_OF),
+        productionIo(owners({ list: () => [] })),
+      )
+      expect(off.machines[0]?.caps).toMatchObject({ cpuPercent: 100, memoryPercent: 100 })
+      // A malformed file refuses: the governor cannot run on it either.
+      writeFileSync(settingsFile, '{"museSpark.resourceCpuMaxPercent":')
+      await expect(
+        applyFleetBinding(
+          fleetFromHost({ ...HOST }, chainLanes(), AS_OF),
+          productionIo(owners({ list: () => [] })),
+        ),
+      ).rejects.toThrow(/fleet-caps-invalid/)
+    } finally {
+      rmSync(folder, { recursive: true, force: true })
     }
-    const lanes = [scheduleLane('A'), scheduleLane('B')]
-    const fleet = fleetSnapshotSchema.parse(
-      await portsFor(fleetIoFromSources(sources)).fleet(lanes, AS_OF),
-    )
-    expect(calls).toEqual({ settings: 1, activeAccount: 1, ci: 1 })
-    expect(fleet.machines[0]).toMatchObject({ caps: { cpuPercent: 100, memoryPercent: 100 } })
-    expect(fleet.machines[0]?.governorSlots).toBe(fleet.slots.length)
-    expect(fleet.ci).toHaveLength(1)
-    expect(fleet.accounts[0]).toMatchObject({ id: 'work' })
-    // The depleted window pins the forecast past the reset, not at the
-    // two serial hours: the account source really shaped it.
-    const trial = prepareEstimateSchedule(lanes, fleet).run(undefined)
-    expect(trial.finishHours).toBeGreaterThan(2)
-    expect(findEstimateBottleneck(lanes, fleet)).toMatchObject({ kind: 'accountRate' })
   })
   it('leaves paired-device and node rows absent with their true reason', async () => {
     const { fleet } = await boundFleet()
@@ -397,41 +684,5 @@ describe('M117 fleet binding', () => {
       ),
     )
     expect(prepareEstimateSchedule(lanes, fitting).run(undefined).finishHours).toBe(1)
-  })
-  it("fails closed through the real fleet port when M108's rate binds", async () => {
-    const lanes = [scheduleLane('A')]
-    const bound = fleetSnapshotSchema.parse(
-      await portsFor({
-        accounts: () => ({ id: 'local', providerId: 'local', requestsPerMinute: 0.5 / 60 }),
-      }).fleet(lanes, AS_OF),
-    )
-    expect(() => prepareEstimateSchedule(lanes, bound).run(undefined)).toThrow(/unschedulable:A/)
-    const { fleet: budgeted } = await boundFleet()
-    expect(prepareEstimateSchedule(lanes, budgeted).run(undefined).finishHours).toBe(1)
-  })
-  it('proves async readers run at fleet-call time, once per call', async () => {
-    const seen: string[] = []
-    const fleetIo: FleetBindingIo = {
-      capacityCaps: () => {
-        seen.push('caps')
-        return { cpuMaxPercent: 100, memoryMaxPercent: 100 }
-      },
-      accounts: () => {
-        seen.push('accounts')
-        return undefined
-      },
-      ci: async () => {
-        seen.push('ci')
-        await Promise.resolve()
-        return []
-      },
-    }
-    const lanes = [scheduleLane('A')]
-    const first = fleetSnapshotSchema.parse(await portsFor(fleetIo).fleet(lanes, AS_OF))
-    expect(seen).toEqual(['caps', 'accounts', 'ci'])
-    expect(first.machines[0]?.governorSlots).toBe(first.slots.length)
-    seen.length = 0
-    await portsFor(fleetIo).candidatePool(lanes, AS_OF)
-    expect(seen).toEqual(['caps', 'accounts', 'ci'])
   })
 })

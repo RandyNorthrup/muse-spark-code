@@ -823,6 +823,17 @@ async function serve(
       estimate: createRuntimeEstimate({
         bundlePath: path.join(distDir, ESTIMATOR_BUNDLE_FILE),
         log,
+        // The ACP agent's own fleet owners (M117 C-M117-3R3): the same agent
+        // data folder the running governor reads resources.json from, and
+        // the runtime's account registry (identity only, read lazily).
+        machineDir: agentDataFolder({
+          platform: process.platform,
+          env: process.env,
+          homeDir: homedir(),
+        }),
+        accounts: {
+          list: (provider: string) => loadAccounts().store.list(provider),
+        },
       }),
       questions: (input) => {
         const registry = loadQuestions().createRuntimeQuestionRegistry(
@@ -1429,6 +1440,13 @@ async function main(): Promise<number> {
         },
         error: (text) => {
           writeLine(process.stderr, text)
+        },
+        // The same owners as the ACP agent: the agent data folder the
+        // headless governor reads resources.json from, and the runtime's
+        // account registry (identity only, read lazily).
+        machineDir: servicesInput.dataDir,
+        accounts: {
+          list: (provider: string) => loadAccounts(log).store.list(provider),
         },
       })
     }
