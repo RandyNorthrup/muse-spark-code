@@ -9,6 +9,15 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- M106's native Muse Code readers for the captured 1.4.4 frames: the
+  `model/list` effort catalogue (ordered variants, tier descriptions and
+  default, future tiers shown as they arrive) and the note-only
+  `feedback/submit` receipt (uploads report **Feedback uploaded** without
+  exposing receipt identifiers). Where Muse Code sends no frame, the
+  feature refuses with an upstream SDK request: record-attached feedback
+  outcomes and session deletion stay unavailable, and History stays
+  archive-only. Reader binding at the host constructions remains for
+  integration.
 - **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
   first governed launch, a **Resources** chip sits beside the heartbeat, or
   above the composer between turns. Its popover shows CPU, memory in use and
