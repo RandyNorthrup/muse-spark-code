@@ -87,14 +87,43 @@ export async function readUsageReportJournal(dataFolder: string): Promise<UsageR
   }
 }
 
+const reportOffsetByRun = new WeakMap<object, number>()
+
+/**
+ * One machine-local offset per report run, shared by the budget day and the
+ * period day: a DST change or midnight between the two samples must not
+ * stamp them on different days (RVCM1132C finding 3). Runs are fresh objects
+ * per generation, so entries never outlive their report.
+ */
+export function reportTimezoneOffset(context: SourceReadContext): number {
+  const key = context.run ?? context.options
+  let offset = reportOffsetByRun.get(key)
+  if (offset === undefined) {
+    offset = new Date().getTimezoneOffset()
+    reportOffsetByRun.set(key, offset)
+  }
+  return offset
+}
+
+function resolveTimezoneOffset(
+  value: number | ((context: SourceReadContext) => number) | undefined,
+  context: SourceReadContext,
+): number | undefined {
+  return typeof value === 'function' ? value(context) : value
+}
+
 /** One snapshot per generation, shared by concurrent session and usage sources. */
 export function createReportJournalReader(input: {
   readonly dataFolder: string
   readonly beforeRead?: () => Promise<void>
   readonly readBudgets?: () => Promise<readonly UsageBudgetRead[]>
   readonly now?: () => number
-  /** Machine-local day, like M102's page; callers pass getTimezoneOffset(). */
-  readonly timezoneOffsetMins?: number
+  /**
+   * Machine-local day, like M102's page. Callers pass reportTimezoneOffset
+   * so the budget stamp shares the report's single sample (RVCM1132C
+   * finding 3); a plain number keeps a fixed day for tests.
+   */
+  readonly timezoneOffsetMins?: number | ((context: SourceReadContext) => number)
 }): (context: SourceReadContext) => Promise<UsageReportJournal> {
   const runs = new WeakMap<object, Promise<UsageReportJournal>>()
   return (context) => {
@@ -114,7 +143,7 @@ export function createReportJournalReader(input: {
           const budgets = await input.readBudgets()
           // The same calendar as the report period (usageReportQuery): the
           // machine-local day, never the UTC stamp (RVCM1132B finding 2).
-          const offset = input.timezoneOffsetMins ?? 0
+          const offset = resolveTimezoneOffset(input.timezoneOffsetMins, context) ?? 0
           const budgetDay =
             new Date(
               (input.now?.() ?? Date.now()) - offset * MILLISECONDS_PER_SECOND * SECONDS_PER_MINUTE,
@@ -141,7 +170,12 @@ export function createReportJournalReader(input: {
 export function createUsageReportReader(input: {
   readonly dataFolder: string
   readonly readJournal?: (context: SourceReadContext) => Promise<UsageReportJournal>
-  readonly timezoneOffsetMins: number
+  /**
+   * Machine-local day, like M102's page. Callers pass reportTimezoneOffset
+   * so the period shares the budget stamp's single sample (RVCM1132C
+   * finding 3); a plain number keeps a fixed day for tests.
+   */
+  readonly timezoneOffsetMins: number | ((context: SourceReadContext) => number)
   readonly now?: () => number
 }): NonNullable<LocalReportSourceDeps['usage']> {
   return async (context: SourceReadContext) => {
@@ -152,7 +186,7 @@ export function createUsageReportReader(input: {
       by: context.options.by,
       now: input.now?.() ?? Date.parse(context.asOf),
       asOf: context.asOf,
-      timezoneOffsetMins: input.timezoneOffsetMins,
+      timezoneOffsetMins: resolveTimezoneOffset(input.timezoneOffsetMins, context) ?? 0,
     })
     return {
       usage: facts.usage,
