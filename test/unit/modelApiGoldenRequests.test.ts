@@ -41,6 +41,9 @@ import {
 } from '../../src/core/backends/modelapi/ModelApiHost'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { fakeModelApi, fakeModelApiClientSettings, type FakeModelApi } from './helpers/fakeModelApi'
+import { fakeManagerDeps } from './helpers/modelApiManager'
+import { ModelApiBackendManager } from '../../src/host/backend/modelApiBackendManager'
+import * as modelApiEntry from '../../src/host/backend/modelApiEntry'
 import { memoryToolIo, type MemoryToolIo } from './helpers/fakeToolIo'
 import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
 import { watchSessionTurns } from './helpers/sessionTurns'
@@ -96,6 +99,20 @@ interface Harness {
   readonly turnDone: () => Promise<void>
 }
 
+/** Record raw POST /responses bodies while delegating to the fake transport. */
+function capturingFetch(api: FakeModelApi, rawBodies: string[]): typeof fetch {
+  return (input, init) => {
+    const url = new URL(input instanceof Request ? input.url : String(input))
+    if (url.pathname === '/v1/responses' && init?.method === 'POST') {
+      if (typeof init.body !== 'string') {
+        throw new TypeError('expected a raw Model API request body string')
+      }
+      rawBodies.push(init.body)
+    }
+    return api.fetch(input, init)
+  }
+}
+
 async function baseSetup(
   files: Record<string, string>,
   options: {
@@ -113,16 +130,7 @@ async function baseSetup(
   const io = memoryToolIo(files, ROOT)
   const client = new ModelApiClient({
     ...fakeModelApiClientSettings(log),
-    fetch: (input, init) => {
-      const url = new URL(input instanceof Request ? input.url : String(input))
-      if (url.pathname === '/v1/responses' && init?.method === 'POST') {
-        if (typeof init.body !== 'string') {
-          throw new TypeError('expected a raw Model API request body string')
-        }
-        rawBodies.push(init.body)
-      }
-      return api.fetch(input, init)
-    },
+    fetch: capturingFetch(api, rawBodies),
   })
   const base = fakeModelApiHostDeps({ client, workspaceRoot: ROOT, io, log })
   const deps: ModelApiHostDeps = {
@@ -895,5 +903,66 @@ describe('M98-G judge invariance (Model API)', () => {
     expect(main).toEqual(before)
     expect(rig.errors).toEqual([])
     await harness.host.close()
+  })
+})
+
+describe('M106 production-default golden byte diff', () => {
+  it('changes only max_output_tokens between legacy and production defaults', async () => {
+    // RVCM1062 P3: golden evidence runs through the production defaults.
+    // Both arms drive the same unmanaged production path (manager → entry
+    // → host → fake transport): the off arm forces the legacy defaults with
+    // caller deps, the on arm lets the entry bind them. A plain turn on the
+    // uncaptured muse-spark-1.3 model withholds previews in both arms, so
+    // D86.1's required default-on byte diff is exactly the cap: 32768 off,
+    // 131072 on. Any other byte change fails this test, and the checked-in
+    // M91 fixtures above stay untouched.
+    const run = async (shouldForceLegacy: boolean): Promise<readonly string[]> => {
+      const api = fakeModelApi()
+      const rawBodies: string[] = []
+      const manager = new ModelApiBackendManager(
+        fakeManagerDeps(api, new FakeLogOutputChannel(), {
+          workspaceRoot: '/ws',
+          store: undefined,
+          bundlePath: 'src/host/backend/modelApiEntry.ts',
+          loadBundle: () => modelApiEntry,
+          fetch: capturingFetch(api, rawBodies),
+          ...(shouldForceLegacy && {
+            argumentPreviewCapabilities: () => undefined,
+            modelOutputMaxTokens: () => undefined,
+          }),
+        }),
+      )
+      try {
+        const host = await manager.ensureHost()
+        const session = await host.startSession({
+          workspaceRoot: '/ws',
+          modelId: 'muse-spark-1.3',
+          approvalMode: 'allowAll',
+        })
+        const watched = watchSessionTurns(session)
+        api.script({ text: 'Hello back.' })
+        await session.sendTurn([{ type: 'text', text: 'Hello.' }])
+        await watched.turnDone()
+        expect(api.responseBodies()).toHaveLength(1)
+        return [...rawBodies]
+      } finally {
+        await manager.dispose()
+      }
+    }
+    const offBodies = await run(true)
+    const onBodies = await run(false)
+    expect(offBodies.length).toBeGreaterThan(0)
+    expect(onBodies).toHaveLength(offBodies.length)
+    for (const [index, offRaw] of offBodies.entries()) {
+      const onRaw = onBodies[index]
+      if (onRaw === undefined) throw new Error('the production run sent fewer requests')
+      expect(offRaw).toContain('"max_output_tokens":32768')
+      expect(onRaw).toContain('"max_output_tokens":131072')
+      expect(onRaw).toBe(
+        offRaw.replaceAll('"max_output_tokens":32768', '"max_output_tokens":131072'),
+      )
+      expect(offRaw).not.toContain('argumentPreview')
+      expect(onRaw).not.toContain('argumentPreview')
+    }
   })
 })

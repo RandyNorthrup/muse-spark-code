@@ -2026,6 +2026,48 @@ or GitHub. Its GitHub Marketplace listing is awaiting GitHub's review.
 <!-- Marketplace listing (draft, pending GitHub review): https://github.com/marketplace/muse-spark-code-u
      Turn this into a link in the release that follows approval. -->
 
+<!-- reference: streamed-argument-previews -->
+
+## Streamed argument previews
+
+On the Model API backend, a selected model with verified streamed-argument
+support shows an **Argument preview** in its tool row, in the shared panel
+and in ACP. The preview shows only declared top-level string fields after
+their closing quote validates: file paths, shell commands, search patterns
+and fetch URLs. These values pass through the existing credential scrubber
+before display. File content, edits, nested values and other fields stay
+hidden. An offered IDE or MCP tool declares its own string fields the same
+way; a tool the request never offered shows a received byte count only.
+
+One model has that verified record today: `muse-spark-1.3-contributor`.
+Every other model keeps the completed-call row until its own stream is
+captured.
+
+An unfinished string never appears. Malformed JSON, duplicate keys,
+non-string values for declared fields or excessive nesting freeze the last
+safe display with **Preparing arguments…** until valid complete arguments
+arrive. Retained input and display text are bounded at 16,000 characters;
+the byte count continues after that bound. Updates coalesce every 100 ms,
+with a final safe flush before interruption. A preview does not execute a
+tool, request approval or run a hook; only the existing completed-response
+path admits execution. Previews never enter model replay.
+
+Completion, promotion and interruption clear a call's preview. Reloading
+the panel clears saved previews even while the same turn continues, because
+a turn ID cannot prove a tool is still pending. A fresh update restores an
+active preview to its original call row. Recognized credential patterns
+and registered literals are scrubbed; arbitrary unregistered secrets in a
+declared field remain outside that scrubber's contract.
+
+VS Code and interactive ACP use the selected record’s documented output
+maximum (131,072 tokens for Muse Spark), clamped by their budget. Headless
+`exec` requests at most 32,768 output tokens, or the record’s smaller maximum:
+its run ledger reserves the worst case before dispatch, so raising that cap
+would change what existing headless money budgets can run. Headless exec
+records completed tools and does not display live argument previews.
+
+<!-- /reference: streamed-argument-previews -->
+
 ## Code intelligence
 
 The agent finds its way around code the way the editor does: from VS Code's
@@ -4985,7 +5027,6 @@ schedules, workers and hooks always remain fenced.
 
 The unbound features include:
 
-- <a id="streamed-argument-previews"></a>Tool argument previews
 - <a id="estimates"></a>Capacity estimates
 - <a id="the-vault"></a>Credential vault
 
@@ -5460,6 +5501,24 @@ without rebuilding.
 - **Webview is blank after a change** — run `npm run build:dev` (F5 does this
   via the pre-launch task) and reload the window.
 
+#### M106 wire captures
+
+`node scripts/capture-m106-meta.mjs --help` explains the developer capture
+tool; `node scripts/capture-m106-meta.mjs --plan` prints its six requests
+without network access. Live collection requires an explicit paid-capture
+opt-in and a key on standard input. It runs two status GETs and four
+contributor-model POST attempts without retries, including a request with
+the recommended 131,072-token output cap. It writes counted, scrubbed
+receipts into a new directory and exits unsuccessfully if a required wire
+contract is refused or missing. The lead supplies the key and reviews the
+receipts before installing fixtures or enabling a capability.
+
+The [C-M106-1 capture record](docs/certification/m106-completion-captures.md)
+contains Muse Code 1.4.4's observed effort, feedback and lifecycle frames,
+the missing credential or local runtime for every provider, and the remaining
+live checks. The collector is a developer tool shared across Windows,
+macOS and Linux; editor bindings belong to the later completion lanes.
+
 PNG/JPEG images are resized before entering Model API replay when the selected
 model record supplies vision support and documented pixel limits. The portable
 worker preserves aspect ratio, never upscales, and bounds bytes, pixels, memory,
@@ -5618,7 +5677,8 @@ Always remains revocable. Unknown prices cannot spend under a dollar cap.
 Charges and durable claims use exact decimal USD, and uncertain dispatches
 retain liability.
 
-Structured side calls prefer a captured
+Argument previews use a separate lazy chunk and are available only with
+recorded streaming-argument support. Structured side calls prefer a captured
 schema format, allow one repair and retain the text fallback. Git commit and
 pull-request drafts apply this contract to the user's own turn, with repairs
 under the session's hooks and budget. Judge uses the selected model's captured
