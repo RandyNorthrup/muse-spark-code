@@ -7,6 +7,8 @@ import type { AgentHost, AgentSession } from '../../src/core/agent/agentBackend'
 import type { RuntimeScheduleDeliveryPorts } from '../../src/runtime/schedules/delivery'
 import type { ScheduledAgentSession } from '../../src/core/schedules/unattended'
 import { createScheduleEngine } from '../../src/runtime/schedules/engine'
+import { RuntimeScheduleHost } from '../../src/runtime/schedules/host'
+import { ScheduleBackgroundTargets } from '../../src/host/schedules/backgroundTarget'
 import { createWorkspaceRegistry } from '../../src/runtime/schedules/registry'
 import { FakeScheduleBackground } from './helpers/schedules/background'
 import { createAuthorityStore } from '../../src/runtime/schedules/authorityStore'
@@ -17,6 +19,7 @@ import {
   type ScheduleApprovalAction,
 } from '../../src/shared/scheduleV2'
 import { Usd } from '../../src/shared/usd'
+import { scheduleEventRunId } from '../../src/shared/scheduleEvents'
 import { FakeAgentHost, FakeAgentSession } from './helpers/fakeAgent'
 import { fakeSchedule } from './helpers/schedules/fixtures'
 import { MemoryScheduleFs, memoryScheduleQueue } from './helpers/schedules/storage'
@@ -56,7 +59,13 @@ class ScheduledSession extends FakeAgentSession {
   })
 }
 
-function fixture(input: { fs?: MemoryScheduleFs; backend?: 'museCode' | 'modelApi' } = {}) {
+function fixture(
+  input: {
+    fs?: MemoryScheduleFs
+    backend?: 'museCode' | 'modelApi'
+    paid?: RuntimeScheduleDeliveryPorts['paid']
+  } = {},
+) {
   const fs = input.fs ?? new MemoryScheduleFs()
   const backend = input.backend ?? 'museCode'
   const host = new FakeAgentHost()
@@ -89,7 +98,13 @@ function fixture(input: { fs?: MemoryScheduleFs; backend?: 'museCode' | 'modelAp
     fs,
     queue: memoryScheduleQueue(fs),
     now: () => Date.parse('2026-10-08T12:00:00Z'),
-    runtimeDelivery: { backendFor, allowsContributorModels: false, row, deferQuestions: vi.fn() },
+    runtimeDelivery: {
+      backendFor,
+      allowsContributorModels: false,
+      row,
+      deferQuestions: vi.fn(),
+      ...(input.paid !== undefined && { paid: input.paid }),
+    },
     verifyWake: () => Promise.resolve({ scheduledPrompts: false }),
     platform: 'linux',
     backgroundEntry: new FakeScheduleBackground(),
@@ -131,6 +146,12 @@ async function firstFire<T>(
   })
   const [fire] = await engine.store.fires(key)
   return project === undefined ? fire : project(fire)
+}
+
+async function retiredFire(engine: ReturnType<typeof createScheduleEngine>, key: string) {
+  const fire = await firstFire(engine, key)
+  expect(await engine.store.pending(key)).toEqual([])
+  return fire
 }
 
 describe('runtime schedule session supplier', () => {
@@ -307,28 +328,572 @@ describe('runtime schedule session supplier', () => {
     },
   )
 
-  it('ends an interrupt waiting for backend idle when the runtime closes', async () => {
-    const rig = fixture()
-    const agent = new ScheduledSession('live', 'muse-spark-1.3')
-    await rig.borrow(agent, 'user')
-    const schedule = rig.job({ delivery: 'interrupt' })
-    await rig.engine.store.create(schedule)
-    const run = rig.engine.scheduler.request(
-      { method: 'schedules/runNow', workspaceKey: schedule.workspaceKey, id: schedule.id },
-      'closing-interrupt',
-    )
-    try {
-      await vi.waitFor(() => {
-        expect(agent.cancel).toHaveBeenCalledOnce()
+  it.each(['interrupt', 'whenIdle'] as const)(
+    'settles %s waiting for backend idle when runtime closes',
+    async (delivery) => {
+      const rig = fixture()
+      const agent = new ScheduledSession('live', 'muse-spark-1.3')
+      const listen = vi.spyOn(agent, 'onEvent')
+      await rig.borrow(agent, 'user')
+      const schedule = rig.job({ delivery })
+      await rig.engine.store.create(schedule)
+      const run = rig.engine.scheduler.request(
+        { method: 'schedules/runNow', workspaceKey: schedule.workspaceKey, id: schedule.id },
+        'closing-interrupt',
+      )
+      try {
+        await vi.waitFor(() => {
+          if (delivery === 'interrupt') expect(agent.cancel).toHaveBeenCalledOnce()
+          else expect(listen.mock.calls.length).toBeGreaterThanOrEqual(2)
+        })
+        await rig.engine.runtime.close()
+        expect(await run).toMatchObject({ kind: 'refused' })
+        expect(await firstFire(rig.engine, schedule.workspaceKey)).toMatchObject({
+          outcome: delivery === 'interrupt' ? 'skipped' : 'missed',
+          reason: expect.any(String),
+        })
+        expect(await rig.engine.store.pending(schedule.workspaceKey)).toEqual([])
+        expect(agent.sendScheduledTurn).not.toHaveBeenCalled()
+        expect(agent.dispose).not.toHaveBeenCalled()
+      } finally {
+        await rig.engine.runtime.close()
+      }
+    },
+  )
+  it.each(['close', 'detach', 'late-admission', 'withdrawing'] as const)(
+    'withdraws and durably settles borrowed queue on %s without cancelling user work',
+    async (exit) => {
+      const rig = fixture(),
+        agent = new ScheduledSession('live', 'muse-spark-1.3')
+      const entered = Promise.withResolvers<undefined>(),
+        resume = Promise.withResolvers<undefined>()
+      agent.sendScheduledTurn.mockImplementation(async () => {
+        entered.resolve(undefined)
+        if (exit === 'late-admission') await resume.promise
+        return { turnId: 'queued-turn', userMessageId: 'queued-message', disposition: 'queued' }
       })
+      if (exit === 'withdrawing')
+        agent.withdrawQueued.mockImplementation(async (ref) => {
+          await resume.promise
+          agent.emit({ type: 'turnWithdrawn', turnId: ref.turnId, reason: 'fixture withdrawn' })
+          return { status: 'withdrawn', images: [] }
+        })
+      const detach = await rig.borrow(agent, 'user'),
+        schedule = rig.job({ delivery: 'queue' })
+      const request = rig.fire(schedule, 'closing-queue')
+      await entered.promise
+      const closing = exit === 'detach' ? detach() : rig.engine.runtime.close()
+      if (exit === 'withdrawing')
+        await vi.waitFor(() => {
+          expect(agent.withdrawQueued).toHaveBeenCalledOnce()
+        })
+      resume.resolve(undefined)
+      await closing
+      await request
+      expect(await retiredFire(rig.engine, schedule.workspaceKey)).toMatchObject({
+        outcome: 'skipped',
+        reason: expect.any(String),
+      })
+      expect(agent.withdrawQueued).toHaveBeenCalledOnce()
+      expect(agent.withdrawQueued).toHaveBeenCalledWith(
+        expect.objectContaining({ userMessageId: 'queued-message' }),
+      )
+      expect(agent.cancel).not.toHaveBeenCalled()
       await rig.engine.runtime.close()
-      await run
-      expect(agent.sendScheduledTurn).not.toHaveBeenCalled()
-      expect(agent.dispose).not.toHaveBeenCalled()
-    } finally {
-      await rig.engine.runtime.close()
+      const restarted = fixture({ fs: rig.fs })
+      await restarted.engine.runtime.holdWorkspace(root)
+      await restarted.engine.scheduler.recover(schedule.workspaceKey)
+      expect(restarted.host.resumeSession).not.toHaveBeenCalled()
+      await restarted.engine.runtime.close()
+    },
+  )
+  it.each([
+    'backend',
+    'readiness',
+    'host',
+    'models',
+    'resume',
+    'start',
+    'rename',
+    'send',
+    'steer',
+    'cancel',
+    'paid',
+    'cost',
+    'audit',
+    'acknowledge',
+    'record',
+    'root',
+    'lookup',
+    'advance',
+    'load',
+    'release',
+    'grant-read',
+  ] as const)('joins and settles close during %s await', async (stage) => {
+    const entered = Promise.withResolvers<undefined>(),
+      resume = Promise.withResolvers<undefined>()
+    const hold = async <T>(value: T): Promise<T> => {
+      entered.resolve(undefined)
+      await resume.promise
+      return value
     }
+    const paid: NonNullable<RuntimeScheduleDeliveryPorts['paid']> = (_schedule, agent) => {
+      const value = {
+        policy: {
+          modelId: agent.modelId,
+          accountId: 'fake',
+          allows: () => false,
+          reserve: () => Promise.reject(new Error('unused reservation')),
+        },
+        cost: () => (stage === 'cost' ? hold(noScheduleCost()) : Promise.resolve(noScheduleCost())),
+      }
+      return stage === 'paid' ? hold(value) : Promise.resolve(value)
+    }
+    const rig = fixture({ ...(['paid', 'cost'].includes(stage) && { paid }) })
+    const agent = new ScheduledSession('live', 'muse-spark-1.3')
+    const backend = await rig.backendFor('museCode')
+    switch (stage) {
+      case 'root': {
+        vi.spyOn(rig.engine.registry, 'root').mockImplementationOnce(() => hold(root))
+        break
+      }
+      case 'lookup': {
+        vi.spyOn(RuntimeScheduleHost.prototype, 'lookupRun').mockImplementationOnce(() =>
+          hold({ status: 'absent' }),
+        )
+        break
+      }
+      case 'advance': {
+        const original = rig.engine.store.advance.bind(rig.engine.store)
+        vi.spyOn(rig.engine.store, 'advance').mockImplementationOnce(
+          async (intent) => await hold(await original(intent)),
+        )
+
+        break
+      }
+      case 'load':
+      case 'grant-read': {
+        const original = rig.engine.store.list.bind(rig.engine.store)
+        vi.spyOn(rig.engine.store, 'list').mockImplementation(async (key) => {
+          const jobs = await original(key)
+          if (
+            (stage === 'load' && jobs[0]?.fireCount === 1) ||
+            (stage === 'grant-read' && rig.owned[0]?.sendScheduledTurn.mock.calls.length === 1)
+          )
+            await hold(undefined)
+          return jobs
+        })
+
+        break
+      }
+      case 'release': {
+        const original = ScheduleBackgroundTargets.prototype.fresh
+        const fresh = vi.spyOn(ScheduleBackgroundTargets.prototype, 'fresh')
+        fresh.mockImplementationOnce(async (job, occurrence) => {
+          const receiver = fresh.mock.contexts[0]
+          if (!(receiver instanceof ScheduleBackgroundTargets))
+            throw new Error('missing target receiver')
+          const lease = await original.call(receiver, job, occurrence)
+          return {
+            ...lease,
+            release: async () => {
+              await hold(undefined)
+              await lease.release()
+            },
+          }
+        })
+
+        break
+      }
+      case 'backend': {
+        rig.backendFor.mockImplementationOnce(() => hold(backend))
+        break
+      }
+      case 'readiness': {
+        vi.spyOn(backend, 'readiness').mockImplementationOnce(() =>
+          hold({ state: 'ready' as const }),
+        )
+        break
+      }
+      case 'host': {
+        vi.spyOn(backend, 'hostFor').mockImplementationOnce(() => hold(rig.host))
+        break
+      }
+      case 'models': {
+        rig.host.listModels.mockImplementationOnce(() => hold(rig.host.models))
+        break
+      }
+      case 'resume': {
+        const loaded = await rig.host.resumeSession('live', agent.modelId)
+        rig.host.resumeSession.mockImplementationOnce(() => hold(loaded))
+
+        break
+      }
+      default: {
+        if (['start', 'rename', 'send', 'cost'].includes(stage))
+          rig.host.startSession.mockImplementationOnce(async () => {
+            rig.owned.push(agent)
+            if (stage === 'rename') agent.rename.mockImplementationOnce(() => hold(undefined))
+            else if (stage === 'send')
+              agent.sendScheduledTurn.mockImplementationOnce(() =>
+                hold({ turnId: 'scheduled', disposition: 'started' as const }),
+              )
+            return stage === 'start' ? await hold(agent) : agent
+          })
+        else if (stage === 'steer')
+          agent.steerScheduledTurn.mockImplementationOnce(() =>
+            hold({ turnId: 'user', disposition: 'steered' as const }),
+          )
+        else if (stage === 'cancel') agent.cancel.mockImplementationOnce(() => hold(undefined))
+      }
+    }
+    const isAfterSettlement = stage === 'acknowledge' || stage === 'record'
+    if (isAfterSettlement) {
+      const original = rig.engine.store[stage].bind(rig.engine.store)
+      vi.spyOn(rig.engine.store, stage).mockImplementationOnce(async (fire) => {
+        await hold(undefined)
+        await original(fire)
+      })
+    } else if (stage === 'audit') {
+      const original = rig.fs.replace.bind(rig.fs)
+      vi.spyOn(rig.fs, 'replace').mockImplementation(async (file, content, guard) => {
+        if (file === 'runtime/grant-audits.json') await hold(undefined)
+        await original(file, content, guard)
+      })
+    }
+    rig.backendFor.mockResolvedValue(backend)
+    let delivery: ScheduleV2['delivery'] = stage === 'steer' ? 'steer' : 'newConversation'
+    if (stage === 'cancel') delivery = 'interrupt'
+    const isBorrowed = stage === 'steer' || stage === 'cancel'
+    await rig.engine.runtime.holdWorkspace(
+      root,
+      isBorrowed
+        ? {
+            agent,
+            backend: 'museCode',
+            row: vi.fn(),
+            deferQuestions: vi.fn(),
+            activeTurnId: 'user',
+          }
+        : undefined,
+    )
+    const schedule = rig.job({
+      delivery,
+      ...(!isBorrowed && {
+        target:
+          stage === 'resume'
+            ? { kind: 'conversation', backend: 'museCode', sessionId: 'live' }
+            : { kind: 'newConversation', backend: 'museCode' },
+      }),
+      ...(stage === 'resume' && { delivery: 'queue' }),
+      ...(stage === 'audit' && {
+        grant: {
+          rules: [{ id: 'status', kind: 'command', prefix: 'git status' }],
+          destinationIds: [],
+          paidCapUsd: Usd.from(0).toAmount(),
+        },
+      }),
+    })
+    const request = rig.fire(schedule, `close-${stage}`)
+    await entered.promise
+    const closing = rig.engine.runtime.close()
+    resume.resolve(undefined)
+    await closing
+    await request
+    const fires = await rig.engine.store.fires(schedule.workspaceKey)
+    expect(fires).toHaveLength(1)
+    expect(fires.every((fire) => fire.outcome === 'ran' || typeof fire.reason === 'string')).toBe(
+      true,
+    )
+    expect(await rig.engine.store.pending(schedule.workspaceKey)).toEqual([])
   })
+  it.each(['throw', 'tooLate'] as const)(
+    'settles target exit and %s withdrawal failure without leaving an admitted claim',
+    async (failure) => {
+      const rig = fixture(),
+        schedule = rig.job({
+          delivery: 'newConversation',
+          target: { kind: 'newConversation', backend: 'museCode' },
+        })
+      rig.host.startSession.mockImplementationOnce(() => {
+        const agent = new ScheduledSession('background', 'muse-spark-1.3')
+        agent.sendScheduledTurn.mockResolvedValue({
+          turnId: 'queued',
+          userMessageId: 'message',
+          disposition: 'queued',
+        })
+        if (failure === 'throw')
+          agent.withdrawQueued.mockRejectedValue(new Error('withdrawal unavailable'))
+        else agent.withdrawQueued.mockResolvedValue({ status: 'tooLate' })
+        rig.owned.push(agent)
+        return Promise.resolve(agent)
+      })
+      await rig.engine.runtime.holdWorkspace(root)
+      const request = rig.fire(schedule, 'target-exit')
+      await vi.waitFor(() => {
+        expect(rig.owned[0]?.sendScheduledTurn).toHaveBeenCalledOnce()
+      })
+      rig.host.exit('fixture target closed')
+      await request
+      expect(await firstFire(rig.engine, schedule.workspaceKey)).toMatchObject({
+        outcome: 'failed',
+      })
+      expect(await rig.engine.store.pending(schedule.workspaceKey)).toEqual([])
+      await rig.engine.runtime.close()
+    },
+  )
+  it('refuses run-now when another dispatcher still owns a claim without a fire', async () => {
+    const rig = fixture(),
+      agent = new ScheduledSession('live', 'muse-spark-1.3')
+    agent.sendScheduledTurn.mockResolvedValue({ turnId: 'queued', disposition: 'queued' })
+    await rig.borrow(agent, 'user')
+    const schedule = rig.job({ delivery: 'queue' }),
+      request = rig.fire(schedule, 'overlap')
+    await vi.waitFor(() => {
+      expect(agent.sendScheduledTurn).toHaveBeenCalledOnce()
+    })
+    expect(
+      await rig.engine.scheduler.request(
+        { method: 'schedules/runNow', workspaceKey: schedule.workspaceKey, id: schedule.id },
+        'overlap',
+      ),
+    ).toMatchObject({ kind: 'refused' })
+    expect(await rig.engine.store.fires(schedule.workspaceKey)).toEqual([])
+    await rig.engine.runtime.close()
+    await request
+  })
+  it('keeps the acquired owner lifetime when its ACP target is replaced during borrow', async () => {
+    const rig = fixture(),
+      old = new ScheduledSession('live', 'muse-spark-1.3'),
+      replacement = new ScheduledSession('live', 'muse-spark-1.3')
+    const detach = await rig.borrow(old),
+      entered = Promise.withResolvers<undefined>(),
+      resume = Promise.withResolvers<undefined>()
+    const find = ScheduleBackgroundTargets.prototype.find,
+      borrow = vi.spyOn(ScheduleBackgroundTargets.prototype, 'find')
+    borrow.mockImplementationOnce(async (job) => {
+      const receiver = borrow.mock.contexts[0]
+      if (!(receiver instanceof ScheduleBackgroundTargets))
+        throw new Error('missing borrower receiver')
+      const lease = await find.call(receiver, job)
+      entered.resolve(undefined)
+      await resume.promise
+      return lease
+    })
+    const schedule = rig.job({ whenClosed: 'skip' }),
+      request = rig.fire(schedule, 'replace-during-borrow')
+    await entered.promise
+    await detach()
+    await rig.borrow(replacement)
+    resume.resolve(undefined)
+    await request
+    expect(await firstFire(rig.engine, schedule.workspaceKey)).toMatchObject({
+      outcome: 'missed',
+      reason: expect.any(String),
+    })
+    expect(old.sendScheduledTurn).not.toHaveBeenCalled()
+    expect(replacement.sendScheduledTurn).not.toHaveBeenCalled()
+    await rig.engine.runtime.close()
+  })
+  it('joins a CLI delivery through durable settlement before close returns', async () => {
+    const rig = fixture(),
+      agent = new ScheduledSession('live', 'muse-spark-1.3'),
+      resume = Promise.withResolvers<undefined>()
+    rig.host.resumeSession.mockImplementationOnce(() =>
+      Promise.resolve({
+        session: agent,
+        record: { sessionId: 'live', createdAt: '', updatedAt: '', status: 'idle', turnCount: 0 },
+        history: { mode: 'inline', items: [], name: undefined, todos: [] },
+        activeTurnId: undefined,
+      }),
+    )
+    agent.sendScheduledTurn.mockImplementationOnce(async () => {
+      await resume.promise
+      return { turnId: 'queued', userMessageId: 'message', disposition: 'queued' }
+    })
+    const schedule = rig.job({ delivery: 'queue' })
+    await rig.engine.registry.add(schedule.workspaceKey, root)
+    await rig.engine.store.create(schedule)
+    const request = rig.engine.runtime.command(
+      { operation: 'run-now', isJson: true, id: schedule.id },
+      root,
+    )
+    await vi.waitFor(() => {
+      expect(agent.sendScheduledTurn).toHaveBeenCalledOnce()
+    })
+    let hasClosed = false
+    const closing = (async () => {
+      await rig.engine.runtime.close()
+      hasClosed = true
+    })()
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 0))
+      expect(hasClosed).toBe(false)
+    } finally {
+      resume.resolve(undefined)
+      await closing
+      await request
+    }
+    expect({
+      records: await rig.engine.store.fires(schedule.workspaceKey),
+      intents: await rig.engine.store.pending(schedule.workspaceKey),
+      withdrawals: agent.withdrawQueued.mock.calls.length,
+    }).toMatchObject({
+      records: [expect.objectContaining({ outcome: 'skipped' })],
+      intents: [],
+      withdrawals: 1,
+    })
+  })
+  it('recovers an abandoned admitted claim without delivering it again', async () => {
+    const rig = fixture(),
+      schedule = rig.job()
+    await rig.engine.store.create(schedule)
+    const event = {
+      source: 'manual' as const,
+      eventKey: 'abandoned',
+      kind: 'manual' as const,
+      fields: {},
+      observedAt: Date.parse('2026-10-08T12:00:00Z'),
+    }
+    const intent = {
+      schedule,
+      runId: scheduleEventRunId(schedule.id, event),
+      occurrenceMs: event.observedAt,
+      event,
+      advancesTime: false,
+    }
+    await rig.engine.store.admit(intent)
+    await rig.engine.store.advance(intent)
+    vi.spyOn(rig.engine.store, 'abandoned').mockResolvedValue([intent])
+    await rig.engine.runtime.holdWorkspace(root)
+    await rig.engine.scheduler.recover(schedule.workspaceKey)
+    expect(await retiredFire(rig.engine, schedule.workspaceKey)).toMatchObject({
+      outcome: 'skipped',
+      reason: expect.any(String),
+    })
+    expect(rig.backendFor).not.toHaveBeenCalled()
+    await rig.engine.runtime.close()
+  })
+  it('retains liability after paid settlement failure and recovers persistence once', async () => {
+    const cost = vi.fn(() => Promise.reject(new Error('ledger unavailable')))
+    const rig = fixture({
+      backend: 'modelApi',
+      paid: (_job, agent) =>
+        Promise.resolve({
+          policy: {
+            modelId: agent.modelId,
+            accountId: 'fake',
+            allows: () => false,
+            reserve: () => Promise.reject(new Error('unused reservation')),
+          },
+          cost,
+        }),
+    })
+    const agent = new ScheduledSession('live', 'muse-spark-1.3')
+    await rig.borrow(agent)
+    const schedule = rig.job({
+      grant: { rules: [], destinationIds: [], paidCapUsd: Usd.from('1').toAmount() },
+    })
+    const record = rig.engine.store.record.bind(rig.engine.store)
+    vi.spyOn(rig.engine.store, 'record')
+      .mockRejectedValueOnce(new Error('disk unavailable'))
+      .mockImplementation(record)
+    await Promise.allSettled([rig.fire(schedule, 'ledger-failure')])
+    await vi.waitFor(() => {
+      expect(cost).toHaveBeenCalledOnce()
+    })
+    await rig.engine.scheduler.recover(schedule.workspaceKey)
+    expect(await firstFire(rig.engine, schedule.workspaceKey)).toMatchObject({
+      outcome: 'failed',
+      cost: { certainty: 'unknown', retainedLiabilityUsd: '1' },
+    })
+    expect(cost).toHaveBeenCalledOnce()
+    expect(agent.sendScheduledTurn).toHaveBeenCalledOnce()
+    expect(await rig.engine.store.pending(schedule.workspaceKey)).toEqual([])
+    await rig.engine.runtime.close()
+  })
+  it.each(['acknowledge', 'record'] as const)(
+    'settles a transient %s failure during close without replaying on restart',
+    async (operation) => {
+      const rig = fixture(),
+        schedule = rig.job()
+      await rig.engine.registry.add(schedule.workspaceKey, root)
+      await rig.engine.store.create(schedule)
+      const original = rig.engine.store[operation].bind(rig.engine.store)
+      vi.spyOn(rig.engine.store, operation)
+        .mockRejectedValueOnce(new Error('transient durable write failure'))
+        .mockImplementation(original)
+      await rig.engine.runtime.command(
+        { operation: 'run-now', id: schedule.id, isJson: true },
+        root,
+      )
+      expect(await rig.engine.store.pending(schedule.workspaceKey)).toHaveLength(1)
+      await rig.engine.runtime.close()
+      expect(await retiredFire(rig.engine, schedule.workspaceKey)).toMatchObject({
+        outcome: 'ran',
+        cost: noScheduleCost(),
+      })
+      expect(rig.owned[0]?.sendScheduledTurn).toHaveBeenCalledOnce()
+      const restarted = fixture({ fs: rig.fs })
+      await restarted.engine.runtime.holdWorkspace(root)
+      await restarted.engine.scheduler.recover(schedule.workspaceKey)
+      expect(restarted.backendFor).not.toHaveBeenCalled()
+      await restarted.engine.runtime.close()
+    },
+  )
+  it.each(['newConversation', 'background', 'borrowed'] as const)(
+    'routes %s output only to its owner or stderr with two attached sessions',
+    async (target) => {
+      const rig = fixture(),
+        first = vi.fn(),
+        second = vi.fn()
+      await rig.borrow(new ScheduledSession('first', 'muse-spark-1.3'), undefined, first)
+      await rig.borrow(new ScheduledSession('second', 'muse-spark-1.3'), undefined, second)
+      const schedule = rig.job({
+        target:
+          target === 'newConversation'
+            ? { kind: 'newConversation', backend: 'museCode' }
+            : {
+                kind: 'conversation',
+                backend: 'museCode',
+                sessionId: target === 'borrowed' ? 'second' : 'unattached',
+              },
+        delivery: target === 'newConversation' ? 'newConversation' : 'queue',
+      })
+      rig.host.startSession.mockImplementationOnce(() => {
+        const agent = new ScheduledSession('background', 'muse-spark-1.3')
+        agent.sendScheduledTurn.mockImplementation(() => {
+          agent.emit(
+            {
+              type: 'itemCompleted',
+              item: {
+                itemId: 'reply',
+                kind: 'agentMessage',
+                status: 'completed',
+                text: 'private background output',
+              },
+            },
+            { type: 'turnCompleted', turnId: 'scheduled', terminal: 'completed' },
+          )
+          return Promise.resolve({ turnId: 'scheduled', disposition: 'started' })
+        })
+        return Promise.resolve(agent)
+      })
+      await rig.fire(schedule, 'output')
+      await firstFire(rig.engine, schedule.workspaceKey)
+      expect(first).not.toHaveBeenCalled()
+      if (target === 'borrowed') {
+        expect(second).toHaveBeenCalledOnce()
+        expect(rig.row).not.toHaveBeenCalled()
+      } else {
+        expect(second).not.toHaveBeenCalled()
+        expect(rig.row).toHaveBeenCalled()
+        if (target === 'newConversation')
+          expect(rig.row).toHaveBeenCalledWith('private background output')
+      }
+      await rig.engine.runtime.close()
+    },
+  )
   it('borrows ACP ownership and records refused actions without interactive approval', async () => {
     const rig = fixture()
     const agent = new ScheduledSession('live', 'muse-spark-1.3')

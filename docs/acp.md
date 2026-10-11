@@ -356,6 +356,9 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
   model turn.
   M115's `/schedule` (list, add, remove, run-now, pause, resume, fire and
   timeline; `run-due` and background maintenance are refused here).
+  Scheduled output belongs only to its target session; unattached/background
+  output goes to standard error. Connection shutdown withdraws scheduled queued
+  input and records settlement without cancelling a borrowed user turn.
   M108's `/accounts <list|current|use <id>|thresholds [id]>`, answered
   locally with no model turn.
   M117's `/estimate <goal> [--by <date>] [--fleet current|minimum|optimum]`

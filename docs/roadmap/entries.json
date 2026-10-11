@@ -848,7 +848,7 @@
     {
       "id": "M115",
       "title": "Scheduled prompts v2",
-      "summary": "Durable schedule records support unattended Muse Code delivery in ACP and the terminal; VS Code delivery registration and Model API per-schedule paid consent remain separate completion lanes.",
+      "summary": "ACP and terminal Muse Code schedules settle on shutdown, retire abandoned claims and route output to their owning session; VS Code registration and Model API paid consent remain separate completion lanes.",
       "area": "agents",
       "release": "0.17.0"
     },

@@ -2362,6 +2362,12 @@ resume in the background, and **New conversation** creates a separate session.
 Steer, interrupt, queue and when-idle delivery use the backend's scheduled
 entry points. Approvals outside the standing grant refuse immediately and
 their rows reach the ACP session; questions defer for later answering.
+Output reaches only the session that owns the scheduled target. Background
+and unattached-target output goes to the runtime's standard error stream.
+Shutdown or target detachment withdraws that schedule's queued message without
+cancelling a borrowed user turn, and records the final outcome. Recovery
+retires abandoned claims instead of sending their prompts again. Run now
+reports acceptance only after a successful durable fire record exists.
 The subscription pays for Muse Code turns. Model API delivery remains refused
 until its per-schedule paid policy is installed.
 

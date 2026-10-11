@@ -788,7 +788,9 @@
     }
   },
   "scheduledMediaSupport": "Geplante Durchläufe unterstützen Text- und Bildeingaben; Video- und Audioeingaben werden in dieser Version nicht unterstützt.",
-  "referenceSchedules": "Der v2-Planungseditor, die Liste und die Zeitleiste verwalten dauerhafte Einträge. Die automatische Übermittlung von Prompts ist deaktiviert. Model-API-/loop-Aufträge starten, wenn Sie Jetzt ausführen wählen.",
+  "referenceSchedules": "Der v2-Planungseditor, die Liste und die Zeitleiste verwalten dauerhafte Datensätze. Die automatische Zustellung von v2-Prompts in VS Code ist deaktiviert. Model API-/loop-Aufträge laufen, wenn Sie Jetzt ausführen wählen.",
+  "runtimeSchedulesItem": "Laufzeitpläne",
+  "runtimeSchedulesItemDetail": "Unbeaufsichtigte Muse Code-Prompts in ACP oder im Terminal planen",
   "media": {
     "recordingScreenPermissionRequired": "Die Berechtigung zur Bildschirmaufnahme wurde nicht erteilt.",
     "recordingMicrophonePermissionDenied": "Die Mikrofonberechtigung wurde verweigert.",

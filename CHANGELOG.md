@@ -32,6 +32,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- **Runtime schedule review repairs** (C-M115-2 R2). Shutdown and target
+  detachment withdraw queued scheduled input and settle admitted claims;
+  recovery retires abandoned claims without replay. Run now requires a
+  successful durable fire before reporting acceptance. Output follows its
+  owning ACP session, with background output on standard error. Help gives
+  runtime schedules their own title and detail in all 14 languages and scopes
+  disabled automatic delivery to VS Code v2.
+
 - Native IDE calls can carry a session-bound identity. Unattended callers
   use their own grants, retired callers lose access, and colliding request
   ids cannot cancel another caller's tool. Interactive-only tools refuse
@@ -43,7 +51,7 @@ happened, not what was planned; superseded entries are kept.
   Fake backend tests cover collision order, interrupt, event isolation,
   background targets and Model API queue withdrawal/parallel runs; a real
   three-process journal test admits one fire. This composition is unregistered:
-  automatic v2 prompt delivery stays disabled. README and translated Help now
+  automatic VS Code v2 prompt delivery stays disabled. README and translated Help now
   state that boundary and distinguish the manual Model API `/loop` flow.
 
 - Shared schedule polling retains each workspace holder, so closing one panel

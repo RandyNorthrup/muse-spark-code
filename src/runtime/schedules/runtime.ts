@@ -35,6 +35,7 @@ export class ScheduleRuntime implements RuntimeSchedulesBinding {
   private readonly leases = new Set<() => Promise<void>>()
   private readonly acp
   private closed = false
+  private closing: Promise<void> | undefined
   private isMacWake = false
   constructor(private readonly deps: ScheduleRuntimeDeps) {
     this.acp = acpSchedules((context) =>
@@ -188,18 +189,24 @@ export class ScheduleRuntime implements RuntimeSchedulesBinding {
     return release
   }
   async close(): Promise<void> {
-    if (this.closed) return
-    this.closed = true
-    try {
-      const results = await Promise.allSettled([...this.leases].map((release) => release()))
-      if (results.some((result) => result.status === 'rejected'))
-        throw new Error(UI_TEXT.scheduleV2.runtime.unavailable)
-    } finally {
-      try {
-        await this.deps.close()
-      } finally {
-        if (!this.isMacWake) await this.deps.background.reconcile()
-      }
+    if (this.closing !== undefined) {
+      await this.closing
+      return
     }
+    this.closed = true
+    this.closing = (async () => {
+      try {
+        const results = await Promise.allSettled([...this.leases].map((release) => release()))
+        if (results.some((result) => result.status === 'rejected'))
+          throw new Error(UI_TEXT.scheduleV2.runtime.unavailable)
+      } finally {
+        try {
+          await this.deps.close()
+        } finally {
+          if (!this.isMacWake) await this.deps.background.reconcile()
+        }
+      }
+    })()
+    await this.closing
   }
 }

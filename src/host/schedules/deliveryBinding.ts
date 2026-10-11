@@ -26,6 +26,8 @@ export interface ScheduleEditorDeliveryPorts {
   readonly dialect: ShellDialect
   readonly io: RealPathIo
   readonly signal: AbortSignal
+  /** A borrowed target's owner can detach independently of the workspace. */
+  signalFor?(session: BackendSession): AbortSignal
   /** Trust, credentials, settings and the owning workspace remain live. */
   isActive(): boolean
   readonly host: ScheduleBackgroundTargetDeps['host']
@@ -65,6 +67,10 @@ interface PendingRun {
   run?: UnattendedRun
   cost?: () => Promise<ScheduleRunSettlement['cost']>
   stopListening?: () => void
+  stopLifecycle?: () => void
+  signal?: AbortSignal
+  agent?: BackendSession
+  submitted?: TurnSubmission
 }
 
 /** Lazy host composition. The scheduler owns claims and ordering; the backend
@@ -87,6 +93,13 @@ export function createScheduleDeliveryBinding(
         throw new Error(UI_TEXT.scheduleV2.messages.targetUnavailable)
       if (agent.sendScheduledTurn === undefined || agent.steerScheduledTurn === undefined)
         throw new Error(UI_TEXT.scheduleV2.messages.targetUnavailable)
+      entry.agent = agent
+      entry.stopLifecycle?.()
+      entry.signal = AbortSignal.any([ports.signal, ports.signalFor?.(agent) ?? ports.signal])
+      const abort = () => entry.reject?.(new Error(UI_TEXT.scheduleV2.messages.targetClosed))
+      entry.signal.addEventListener('abort', abort, { once: true })
+      entry.stopLifecycle = () => entry.signal?.removeEventListener('abort', abort)
+      if (entry.signal.aborted) throw new Error(UI_TEXT.scheduleV2.messages.targetClosed)
       if (entry.run === undefined) {
         const paid = await ports.paid?.(entry.schedule, agent)
         if (
@@ -104,7 +117,8 @@ export function createScheduleDeliveryBinding(
           io: ports.io,
           matcher: new ScheduleGrants(ports.dialect),
           now: Date.now,
-          isActive: () => ports.isActive() && !ports.signal.aborted && pending.has(context.runId),
+          isActive: () =>
+            ports.isActive() && entry.signal?.aborted !== true && pending.has(context.runId),
           readGrant: async () => {
             const current = await authority.read(entry.schedule.workspaceKey, entry.schedule.id)
             return current === undefined ||
@@ -131,7 +145,7 @@ export function createScheduleDeliveryBinding(
         if (event.type === 'userMessageTurnChanged') {
           promoted.set(event.userMessageId, event.turnId)
           if (submitted?.userMessageId === event.userMessageId)
-            submitted = { ...submitted, turnId: event.turnId }
+            entry.submitted = submitted = { ...submitted, turnId: event.turnId }
         } else if (event.type === 'turnCompleted' || event.type === 'turnWithdrawn') {
           terminals.set(event.turnId, event)
         }
@@ -146,6 +160,7 @@ export function createScheduleDeliveryBinding(
         const promotedTurn =
           submitted.userMessageId === undefined ? undefined : promoted.get(submitted.userMessageId)
         if (promotedTurn !== undefined) submitted = { ...submitted, turnId: promotedTurn }
+        entry.submitted = submitted
         const terminal = terminals.get(submitted.turnId)
         if (terminal !== undefined) entry.resolve?.(terminal)
         return submitted
@@ -208,43 +223,58 @@ export function createScheduleDeliveryBinding(
         void entry.terminal.catch(String)
         let result: Omit<ScheduleRunSettlement, 'cost'>
         try {
-          if (ports.signal.aborted) throw new Error(UI_TEXT.scheduleV2.messages.targetClosed)
-          await dispatch()
-          if (entry.run === undefined) result = { outcome: 'missed', refusedActions: [] }
-          else {
-            const terminal = await entry.terminal
-            let outcome: ScheduleRunSettlement['outcome'] = 'skipped'
-            if (terminal.type === 'turnCompleted')
-              outcome = terminal.terminal === 'completed' ? 'ran' : 'failed'
-            result = {
-              outcome,
-              ...(terminal.type === 'turnCompleted' &&
-                terminal.reason !== undefined && { reason: terminal.reason }),
-              refusedActions: entry.run.refusedActions,
+          try {
+            if (ports.signal.aborted) throw new Error(UI_TEXT.scheduleV2.messages.targetClosed)
+            await dispatch()
+            if (entry.run === undefined)
+              result = {
+                outcome: 'missed',
+                reason: UI_TEXT.scheduleV2.messages.targetClosed,
+                refusedActions: [],
+              }
+            else {
+              const terminal = await entry.terminal
+              let outcome: ScheduleRunSettlement['outcome'] = 'skipped'
+              if (terminal.type === 'turnCompleted')
+                outcome = terminal.terminal === 'completed' ? 'ran' : 'failed'
+              result = {
+                outcome,
+                ...(terminal.reason !== undefined && { reason: terminal.reason }),
+                refusedActions: entry.run.refusedActions,
+              }
+            }
+          } catch {
+            if (ports.signal.aborted || entry.signal?.aborted === true || !_session.isOpen()) {
+              // Withdrawal addresses this run's queued message, never the user's
+              // running turn. Admission may have returned only after close.
+              if (entry.submitted?.disposition === 'queued') {
+                const withdrawal = await entry.agent?.withdrawQueued?.({
+                  ...entry.submitted,
+                  userMessageId: entry.submitted.userMessageId,
+                })
+                if (withdrawal?.status !== 'withdrawn')
+                  throw new Error(UI_TEXT.scheduleV2.messages.targetClosed)
+              } else if (entry.submitted?.disposition === 'started') await entry.agent?.cancel()
+              result = {
+                outcome: 'skipped',
+                reason: UI_TEXT.scheduleV2.messages.targetClosed,
+                refusedActions: entry.run?.refusedActions ?? [],
+              }
+            } else {
+              result = {
+                outcome: 'failed',
+                reason: UI_TEXT.scheduleCommandFailed,
+                refusedActions: entry.run?.refusedActions ?? [],
+              }
             }
           }
-        } catch (error: unknown) {
-          // Losing the host is not a settled turn. Retain the durable admission
-          // fence for recovery rather than recording a bill before settlement.
-          if (ports.signal.aborted) {
-            entry.stopListening?.()
-            pending.delete(context.runId)
-            throw error
-          }
-          result = {
-            outcome: 'failed',
-            reason: UI_TEXT.scheduleCommandFailed,
-            refusedActions: entry.run?.refusedActions ?? [],
-          }
-        } finally {
-          ports.signal.removeEventListener('abort', abort)
-        }
-        try {
-          // A ledger failure keeps S's admitted recovery fence; never retry a
-          // settlement callback or invent a zero bill after it throws.
+          // Settle the paid ledger once; the runtime retains conservative
+          // liability if this callback throws.
           return { ...result, cost: await (entry.cost?.() ?? Promise.resolve(noScheduleCost())) }
         } finally {
+          ports.signal.removeEventListener('abort', abort)
           entry.stopListening?.()
+          entry.stopLifecycle?.()
           pending.delete(context.runId)
         }
       },

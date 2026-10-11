@@ -1,4 +1,3 @@
-import { Usd } from '../../shared/usd'
 import { homedir } from 'node:os'
 import path from 'node:path'
 import { performance } from 'node:perf_hooks'
@@ -21,9 +20,14 @@ import {
   SCHEDULE_POLL_INTERVAL_MS,
   UI_TEXT,
 } from '../../shared/constants'
-import { scheduleEventSchema, type ScheduleEvent } from '../../shared/scheduleEvents'
+import {
+  scheduleEventRunId,
+  scheduleEventSchema,
+  type ScheduleEvent,
+} from '../../shared/scheduleEvents'
 import {
   scheduleFireRecordSchema,
+  scheduleRequestSchema,
   noScheduleCost,
   type ScheduleBackgroundPort,
   type ScheduleDeliveryResult,
@@ -148,30 +152,67 @@ export function createScheduleEngine(options: ScheduleEngineOptions) {
     ((error: unknown) => {
       if (errors.length < SCHEDULE_ENGINE_ERROR_MAX) errors.push(error)
     })
-  const scheduler = createScheduler({
-    store,
-    runs: store,
+  // Runtime retirement always carries a reason, including S's unsent exits.
+  const terminalReason = (fire: ScheduleDeliveryResult): ScheduleDeliveryResult =>
+    fire.reason === undefined && (fire.outcome === 'skipped' || fire.outcome === 'missed')
+      ? {
+          ...fire,
+          reason:
+            fire.outcome === 'missed'
+              ? UI_TEXT.scheduleV2.messages.catchUpSkipped
+              : UI_TEXT.scheduleV2.messages.targetClosed,
+        }
+      : fire
+  const admitted = new Set<string>()
+  const retirement = (intent: ScheduleRunIntent, isUncertain: boolean): ScheduleDeliveryResult =>
+    scheduleFireRecordSchema.parse({
+      runId: intent.runId,
+      scheduleId: intent.schedule.id,
+      workspaceKey: intent.schedule.workspaceKey,
+      occurrenceMs: intent.occurrenceMs,
+      observedAtMs: now(),
+      target: intent.schedule.target,
+      delivery: intent.schedule.delivery,
+      outcome: 'skipped',
+      reason: UI_TEXT.scheduleV2.messages.targetClosed,
+      refusedActions: [],
+      cost:
+        isUncertain && intent.schedule.action.kind !== 'report'
+          ? {
+              ...noScheduleCost(),
+              certainty: 'unknown',
+              retainedLiabilityUsd: intent.schedule.grant.paidCapUsd,
+            }
+          : noScheduleCost(),
+      ...(intent.event !== undefined && { event: intent.event }),
+    })
+  const coreScheduler = createScheduler({
+    store: {
+      ...store,
+      list: (workspace) => store.list(workspace),
+      record: async (fire) => {
+        await store.record(terminalReason(fire))
+        admitted.delete(fire.runId)
+      },
+    },
+    runs: {
+      ...store,
+      advance: (intent) => {
+        admitted.add(intent.runId)
+        return store.advance(intent)
+      },
+      acknowledge: (fire) => store.acknowledge(terminalReason(fire)),
+    },
     queue: options.queue,
     host,
     time: { plan: (schedule, clock) => scheduleTimePlan(schedule, clock) },
     failureSettlement: (intent: ScheduleRunIntent) =>
       Promise.resolve(
         scheduleFireRecordSchema.parse({
-          runId: intent.runId,
-          scheduleId: intent.schedule.id,
-          workspaceKey: intent.schedule.workspaceKey,
-          occurrenceMs: intent.occurrenceMs,
-          observedAtMs: now(),
-          target: intent.schedule.target,
-          delivery: intent.schedule.delivery,
+          ...retirement(intent, false),
           outcome: 'failed',
-          refusedActions: [],
-          cost: {
-            usd: Usd.from(0).toAmount(),
-            certainty: 'unknown',
-            retainedLiabilityUsd: Usd.from(0).toAmount(),
-          },
-          ...(intent.event !== undefined && { event: intent.event }),
+          reason: UI_TEXT.scheduleCommandFailed,
+          cost: { ...noScheduleCost(), certainty: 'unknown' },
         }),
       ),
     deferEvent: async (schedule: ScheduleV2, event: ScheduleEvent) => {
@@ -200,6 +241,66 @@ export function createScheduleEngine(options: ScheduleEngineOptions) {
       )
     },
   })
+  const activeDispatches = new Set<Promise<unknown>>()
+  const trackDispatch = async <T>(work: Promise<T>): Promise<T> => {
+    activeDispatches.add(work)
+    try {
+      return await work
+    } finally {
+      activeDispatches.delete(work)
+    }
+  }
+  const scheduler = {
+    ...coreScheduler,
+    request: (...args: Parameters<typeof coreScheduler.request>) =>
+      trackDispatch(
+        (async () => {
+          const response = await coreScheduler.request(...args)
+          const request = scheduleRequestSchema.parse(args[0])
+          if (response.kind !== 'accepted' || request.method !== 'schedules/runNow') return response
+          const runId = scheduleEventRunId(request.id, {
+            source: 'manual',
+            eventKey: args[1],
+          })
+          const fires = await store.fires(request.workspaceKey)
+          const fire = fires.find((fire) => fire.runId === runId)
+          return fire?.outcome === 'ran'
+            ? response
+            : {
+                kind: 'refused' as const,
+                reason: fire?.reason ?? UI_TEXT.scheduleV2.messages.targetClosed,
+              }
+        })(),
+      ),
+    poll: (...args: Parameters<typeof coreScheduler.poll>) =>
+      trackDispatch(coreScheduler.poll(...args)),
+    fireEvent: (...args: Parameters<typeof coreScheduler.fireEvent>) =>
+      trackDispatch(coreScheduler.fireEvent(...args)),
+    recover: (workspace: string) =>
+      trackDispatch(
+        (async () => {
+          if (!host.holds(workspace)) return
+          // A dead owner cannot prove whether its input reached the backend. Keep
+          // any acknowledged accounting, otherwise retire the claim without replay.
+          const abandoned = await store.abandoned(workspace)
+          for (const intent of abandoned) {
+            const key = intent.schedule.parallel
+              ? `run:${intent.runId}`
+              : `${workspace}:${JSON.stringify(intent.schedule.target)}`
+            await options.queue.serialize(key, async () => {
+              const outstanding = await store.pending(workspace)
+              if (
+                (await store.acknowledged(workspace, intent.runId)) !== undefined ||
+                outstanding.every((entry) => entry.runId !== intent.runId)
+              )
+                return
+              await store.acknowledge(retirement(intent, true))
+            })
+          }
+          await coreScheduler.recover(workspace)
+        })(),
+      ),
+  }
   const consent = createBackgroundConsentStore(options.fs, 'runtime/background-consent.json')
   const platform = options.platform ?? process.platform
   const homeDir = options.homeDir ?? homedir()
@@ -387,7 +488,26 @@ export function createScheduleEngine(options: ScheduleEngineOptions) {
     dueWorkspaces: () => registry.list(),
     close: async () => {
       await runtimeDelivery?.close()
+      await Promise.allSettled(activeDispatches)
       await Promise.allSettled(activeTicks)
+      // A transient acknowledgement/record error must not turn a closed
+      // runtime's completed dispatch into a replayable live-process claim.
+      const workspaces = new Set([...controls.keys(), ...(await registry.list())])
+      for (const workspace of workspaces) {
+        const pending = await store.pending(workspace)
+        for (const intent of pending) {
+          if (!admitted.has(intent.runId)) continue
+          const known = await store.acknowledged(workspace, intent.runId)
+          const state = await host.lookupRun(intent.runId)
+          if (state.status === 'admitted') throw new Error(UI_TEXT.scheduleV2.runtime.unavailable)
+          const fire = terminalReason(
+            known ?? (state.status === 'absent' ? retirement(intent, false) : state.fire),
+          )
+          await store.acknowledge(fire)
+          await store.record(fire)
+          admitted.delete(intent.runId)
+        }
+      }
       controls.clear()
     },
     verifyWake: options.verifyWake ?? (() => Promise.resolve({ scheduledPrompts: false })),

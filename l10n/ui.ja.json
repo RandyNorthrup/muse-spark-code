@@ -785,7 +785,9 @@
     }
   },
   "scheduledMediaSupport": "スケジュールされたターンはテキストと画像の入力に対応しています。動画と音声の入力はこのバージョンでは対応していません。",
-  "referenceSchedules": "v2 のスケジュールエディター、一覧、タイムラインは永続レコードを管理します。プロンプトの自動送信は無効です。Model API の /loop ジョブは「今すぐ実行」を選択すると実行されます。",
+  "referenceSchedules": "v2 スケジュールのエディター、一覧、タイムラインは永続的な記録を管理します。VS Code での v2 プロンプトの自動配信は無効です。Model API の /loop ジョブは「今すぐ実行」を選択すると実行されます。",
+  "runtimeSchedulesItem": "ランタイムのスケジュール",
+  "runtimeSchedulesItemDetail": "ACP またはターミナルで Muse Code の無人プロンプトをスケジュール",
   "media": {
     "recordingScreenPermissionRequired": "画面録画のアクセス権は付与されていません。",
     "recordingMicrophonePermissionDenied": "マイクのアクセス権が拒否されました。",

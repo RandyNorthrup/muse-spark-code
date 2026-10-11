@@ -35873,6 +35873,17 @@ Total: about 165 lane-hours: the panel's part (0, A, P1, P2, C, F, S) about
 
 ### M115 — Scheduled prompts v2: unattended, stacked, with a delivery mode (D95)
 
+**C-M115-2 R2 review repair (2026-10-11, macbook).** Fix all three
+RVCM1152 findings are implemented and regression-tested: settle every runtime
+delivery exit, withdraw borrowed
+queued messages on shutdown/detach, recover abandoned claims without replay,
+require a durable fire before Run now acceptance, route output by session
+ownership, and give runtime scheduling its own translated Help entry.
+Interruption boundaries, sixteen byte-exact red drills and the sibling
+concurrent-close/borrowed-owner replacement checks are recorded in
+`docs/certification/m115-cm1152.md`. No dependency, guard or budget changes.
+C-M115-3 remains the next slice: production paid consent and ledger binding.
+
 **C-M115-2 runtime delivery (2026-10-11, macbook).** Bind the shared delivery
 engine to ACP-owned live sessions and lazily opened CLI/background sessions.
 Persist and validate workspace path bindings for global `run-due`; retain the
@@ -38041,6 +38052,16 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**C-M115-2 R2 verification (2026-10-11, macbook).** All RVCM1152 findings
+are fixed, with sixteen byte-exact red guards and interrupted-write shutdown
+reconciliation. The scoped rig brief delegates aggregate quality to the lead.
+Production build/full visual replay retain the accepted What's New decode
+hold; jscpd retains only the two unchanged base clones. An additional direct
+native-backend probe reproduces five unchanged native-queue failures with
+HEAD English; its backend sources and tests are outside this lane and are
+unchanged. Certification names all five and retains the control receipt.
+No gate, timeout, dependency or budget is weakened.
 
 **C-M115-2 gate ownership (2026-10-11, macbook).** Scoped runtime/ACP/CLI
 checks and red/restoration controls belong to this lane; aggregate quality,

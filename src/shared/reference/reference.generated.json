@@ -1524,7 +1524,8 @@
             { "when": "scheduleDeliveryBinding=absent", "text": { "ui": "referenceSchedules" } }
           ]
         },
-        { "ui": "scheduledMediaSupport" }
+        { "ui": "scheduledMediaSupport" },
+        { "ui": "referenceAttachments" }
       ],
       "facts": {
         "defaultIntervalMs": 600000,
@@ -1560,16 +1561,16 @@
     },
     {
       "id": "runtime-schedules",
-      "name": { "ui": "loopItem" },
-      "summary": { "ui": "referenceRuntimeSchedules" },
-      "description": { "ui": "referenceRuntimeSchedules" },
+      "name": { "ui": "runtimeSchedulesItem" },
+      "summary": { "ui": "runtimeSchedulesItemDetail" },
+      "description": { "ui": "runtimeSchedulesItemDetail" },
       "commands": [],
       "settings": [],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#runtime-scheduled-delivery",
       "backends": ["museCode"],
       "paid": false,
       "surfaces": ["acp:museCode"],
-      "details": [],
+      "details": [{ "ui": "referenceRuntimeSchedules" }],
       "facts": {},
       "editors": ["acp"]
     },

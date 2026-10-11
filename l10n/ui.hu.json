@@ -788,7 +788,9 @@
     }
   },
   "scheduledMediaSupport": "Az ütemezett körök szöveges és képes bemeneteket támogatnak; a videó- és hangbemenetek ebben a verzióban nem támogatottak.",
-  "referenceSchedules": "A v2 ütemezésszerkesztő, lista és idővonal tartós rekordokat kezel. A kérések automatikus küldése ki van kapcsolva. A Model API /loop feladatai a Futtatás most választásakor indulnak.",
+  "referenceSchedules": "A v2 ütemezésszerkesztő, lista és idővonal tartós rekordokat kezel. A v2 promptok automatikus kézbesítése VS Code-ban ki van kapcsolva. A Model API /loop feladatai a Futtatás most kiválasztásakor futnak.",
+  "runtimeSchedulesItem": "Futtatókörnyezeti ütemezések",
+  "runtimeSchedulesItemDetail": "Felügyelet nélküli Muse Code-promptok ütemezése ACP-ben vagy terminálban",
   "media": {
     "recordingScreenPermissionRequired": "A képernyőfelvétel engedélye nincs megadva.",
     "recordingMicrophonePermissionDenied": "A mikrofon engedélyét megtagadták.",

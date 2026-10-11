@@ -910,8 +910,8 @@ export function featureCatalog(): readonly Feature[] {
     {
       ...feature(
         'runtime-schedules',
-        { ui: 'loopItem' },
-        { ui: 'referenceRuntimeSchedules' },
+        { ui: 'runtimeSchedulesItem' },
+        { ui: 'runtimeSchedulesItemDetail' },
         [],
         [],
         'runtime-scheduled-delivery',
@@ -924,6 +924,7 @@ export function featureCatalog(): readonly Feature[] {
         durableClaims: true,
         terminal: true,
       },
+      details: [{ ui: 'referenceRuntimeSchedules' }] as const,
     },
     feature(
       'subagents',
@@ -1126,6 +1127,7 @@ const REFERENCE_DETAILS: Readonly<
   'structured-side-calls': ['structuredOutputRepair', 'structuredOutputFallback'],
   budget: ['referenceBudget'],
   voice: ['referencePaidContexts'],
+  schedules: ['referenceAttachments'],
   auto: ['referencePaidContexts'],
   subagents: ['referencePaidContexts'],
   'best-of-n': ['referenceBestOfNRequirements', 'referencePaidContexts'],

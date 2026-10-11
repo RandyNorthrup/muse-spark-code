@@ -794,7 +794,9 @@
     }
   },
   "scheduledMediaSupport": "Zaplanowane tury obsługują tekst i obrazy na wejściu; wideo i audio na wejściu nie są obsługiwane w tej wersji.",
-  "referenceSchedules": "Edytor, lista i oś czasu harmonogramów v2 zarządzają trwałymi rekordami. Automatyczne wysyłanie poleceń jest wyłączone. Zadania Model API /loop uruchamiają się po wybraniu Uruchom teraz.",
+  "referenceSchedules": "Edytor, lista i oś czasu harmonogramów v2 zarządzają trwałymi zapisami. Automatyczne dostarczanie promptów v2 w VS Code jest wyłączone. Zadania Model API /loop uruchamiają się po wybraniu Uruchom teraz.",
+  "runtimeSchedulesItem": "Harmonogramy środowiska uruchomieniowego",
+  "runtimeSchedulesItemDetail": "Planuj nienadzorowane prompty Muse Code w ACP lub terminalu",
   "media": {
     "recordingScreenPermissionRequired": "Nie udzielono uprawnienia do nagrywania ekranu.",
     "recordingMicrophonePermissionDenied": "Odmówiono uprawnienia do mikrofonu.",

@@ -791,7 +791,9 @@
     }
   },
   "scheduledMediaSupport": "I turni pianificati supportano input di testo e immagini; gli input video e audio non sono supportati in questa versione.",
-  "referenceSchedules": "L’editor, l’elenco e la cronologia delle pianificazioni v2 gestiscono record persistenti. L’invio automatico dei prompt è disattivato. I processi /loop di Model API si avviano quando scegli Esegui ora.",
+  "referenceSchedules": "L’editor, l’elenco e la cronologia delle pianificazioni v2 gestiscono record persistenti. La consegna automatica dei prompt v2 in VS Code è disattivata. I processi /loop di Model API vengono eseguiti quando scegli Esegui ora.",
+  "runtimeSchedulesItem": "Pianificazioni del runtime",
+  "runtimeSchedulesItemDetail": "Pianifica prompt Muse Code non presidiati in ACP o nel terminale",
   "media": {
     "recordingScreenPermissionRequired": "L’autorizzazione alla registrazione dello schermo non è stata concessa.",
     "recordingMicrophonePermissionDenied": "L’autorizzazione del microfono è stata negata.",

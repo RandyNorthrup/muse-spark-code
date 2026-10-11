@@ -44,6 +44,7 @@ export function createRuntimeScheduleDelivery(
     {
       readonly owner: AcpScheduleSession
       readonly root: string
+      readonly abort: AbortController
       activeTurnId: string | undefined
       status: string
     }
@@ -54,25 +55,27 @@ export function createRuntimeScheduleDelivery(
     Promise<Pick<ScheduleDeliveryDeps, 'targets' | 'runs' | 'prompt'>>
   >()
   const readyBindings = new Map<string, Pick<ScheduleDeliveryDeps, 'targets' | 'runs' | 'prompt'>>()
+  const sessionAborts = new Map<BackendSession, AbortController>()
   const liveKey = (root: string, backend: AcpBackend['kind'], sessionId: string) =>
     JSON.stringify([workspaceKey(root), backend, sessionId])
-  const leaseFor = (lease: ScheduleTargetLease): ScheduleTargetLease => {
+  const leaseFor = (lease: ScheduleTargetLease, lifetime = abort.signal): ScheduleTargetLease => {
     const session = lease.session
+    const signal = AbortSignal.any([abort.signal, lifetime])
     return {
       release: () => lease.release(),
       session: {
         backend: session.backend,
         sessionId: session.sessionId,
-        isOpen: () => !abort.signal.aborted && session.isOpen(),
+        isOpen: () => !signal.aborted && session.isOpen(),
         isRunning: () => session.isRunning(),
         send: (prompt, context) => session.send(prompt, context),
         steer: (prompt, context) => session.steer(prompt, context),
         queue: (prompt, context) => session.queue(prompt, context),
         withdraw: (id) => session.withdraw(id),
         cancel: () => session.cancel(),
-        waitUntilIdle: (signal) => session.waitUntilIdle(AbortSignal.any([signal, abort.signal])),
-        queueWhenIdle: (prompt, context, signal) =>
-          session.queueWhenIdle(prompt, context, AbortSignal.any([signal, abort.signal])),
+        waitUntilIdle: (waiting) => session.waitUntilIdle(AbortSignal.any([waiting, signal])),
+        queueWhenIdle: (prompt, context, waiting) =>
+          session.queueWhenIdle(prompt, context, AbortSignal.any([waiting, signal])),
       },
     }
   }
@@ -93,9 +96,14 @@ export function createRuntimeScheduleDelivery(
           const readiness = await runtime.readiness(false)
           if (runtime.kind !== backend || readiness.state !== 'ready') throw unavailable()
           const host = await runtime.hostFor(root)
+          const owned = new Set<BackendSession>()
           return {
             info: host.info,
-            onExit: (listener: Parameters<typeof host.onExit>[0]) => host.onExit(listener),
+            onExit: (listener: Parameters<typeof host.onExit>[0]) =>
+              host.onExit((event) => {
+                for (const session of owned) sessionAborts.get(session)?.abort()
+                listener(event)
+              }),
             startSession: async (...args: Parameters<typeof host.startSession>) => {
               const session = await host.startSession(...args)
               if (abort.signal.aborted) {
@@ -103,6 +111,8 @@ export function createRuntimeScheduleDelivery(
                 throw unavailable()
               }
               fullSessions.set(session, session)
+              owned.add(session)
+              sessionAborts.set(session, new AbortController())
               return session
             },
             resumeSession: async (...args: Parameters<typeof host.resumeSession>) => {
@@ -112,17 +122,16 @@ export function createRuntimeScheduleDelivery(
                 throw unavailable()
               }
               fullSessions.set(loaded.session, loaded.session)
+              owned.add(loaded.session)
+              sessionAborts.set(loaded.session, new AbortController())
               return loaded
             },
           }
         }
-        const row = (text: string) => {
-          for (const entry of live.values()) {
-            if (entry.root !== root) continue
-            entry.owner.row(text)
-            return
-          }
-          ports.row(text)
+        const row = (session: BackendSession, text: string) => {
+          const owner = ownerFor(session)
+          if (owner === undefined) ports.row(text)
+          else owner.row(text)
         }
         const binding = createScheduleDeliveryBinding(
           {
@@ -131,6 +140,7 @@ export function createRuntimeScheduleDelivery(
             dialect: process.platform === 'win32' ? 'powershell' : 'bash',
             io: { realPath: realpath },
             signal: abort.signal,
+            signalFor: (session) => sessionAborts.get(session)?.signal ?? abort.signal,
             isActive: () => !abort.signal.aborted,
             host: (backend) => hostFor(backend),
             options: async (job) => {
@@ -167,26 +177,23 @@ export function createRuntimeScheduleDelivery(
               const agent = fullSessions.get(session)
               if (agent === undefined || abort.signal.aborted) throw unavailable()
               background.set(session, { agent, backend: details.backend })
-              row(details.notice)
+              row(session, details.notice)
               const stop = session.onEvent((event) => {
                 if (
                   event.type === 'itemCompleted' &&
                   event.item.kind === 'agentMessage' &&
                   event.item.text !== undefined
                 )
-                  row(event.item.text)
+                  row(session, event.item.text)
               })
               return () => {
                 stop()
                 background.delete(session)
                 fullSessions.delete(session)
+                sessionAborts.delete(session)
               }
             },
-            row: (session, text) => {
-              const owner = ownerFor(session)
-              if (owner === undefined) row(text)
-              else owner.row(text)
-            },
+            row,
             deferQuestions: async (session, event, context) => {
               const owner = ownerFor(session)
               if (owner !== undefined) {
@@ -220,8 +227,20 @@ export function createRuntimeScheduleDelivery(
       targets: {
         find: async (schedule) => {
           const binding = await bindingFor(schedule)
+          // Capture the same owner findLive borrows before acquisition yields;
+          // a replacement with the same id cannot lend its lifetime to this lease.
+          const owner =
+            schedule.target.kind === 'conversation'
+              ? live.get(
+                  JSON.stringify([
+                    schedule.workspaceKey,
+                    schedule.target.backend,
+                    schedule.target.sessionId,
+                  ]),
+                )
+              : undefined
           const lease = await binding.targets.find(schedule)
-          return lease === undefined ? undefined : leaseFor(lease)
+          return lease === undefined ? undefined : leaseFor(lease, owner?.abort.signal)
         },
         open: async (schedule) => {
           const binding = await bindingFor(schedule)
@@ -252,10 +271,12 @@ export function createRuntimeScheduleDelivery(
       const entry = {
         owner,
         root,
+        abort: new AbortController(),
         activeTurnId: owner.activeTurnId,
         status: owner.activeTurnId === undefined ? 'idle' : 'running',
       }
       live.set(key, entry)
+      sessionAborts.set(owner.agent, entry.abort)
       const childIds = new Set<string>()
       const stop = owner.agent.onEvent((event) => {
         if (
@@ -276,7 +297,9 @@ export function createRuntimeScheduleDelivery(
         if (event.type === 'sessionStatus') entry.status = event.status
       })
       return () => {
+        entry.abort.abort()
         if (live.get(key) === entry) live.delete(key)
+        if (sessionAborts.get(owner.agent) === entry.abort) sessionAborts.delete(owner.agent)
         stop()
       }
     },
@@ -284,6 +307,7 @@ export function createRuntimeScheduleDelivery(
       abort.abort()
       await Promise.allSettled(Array.from(background.values(), (entry) => entry.agent.cancel()))
       live.clear()
+      sessionAborts.clear()
       bindings.clear()
       readyBindings.clear()
     },

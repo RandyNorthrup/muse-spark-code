@@ -791,7 +791,9 @@
     }
   },
   "scheduledMediaSupport": "Les tours planifiés prennent en charge les entrées de texte et d’image ; les entrées vidéo et audio ne sont pas prises en charge dans cette version.",
-  "referenceSchedules": "L’éditeur, la liste et la chronologie des planifications v2 gèrent des enregistrements persistants. L’envoi automatique des instructions est désactivé. Les tâches /loop de Model API s’exécutent lorsque vous choisissez Exécuter maintenant.",
+  "referenceSchedules": "L’éditeur, la liste et la chronologie des planifications v2 gèrent des enregistrements persistants. La livraison automatique des invites v2 dans VS Code est désactivée. Les tâches /loop de Model API s’exécutent lorsque vous choisissez Exécuter maintenant.",
+  "runtimeSchedulesItem": "Planifications du runtime",
+  "runtimeSchedulesItemDetail": "Planifiez des invites Muse Code sans surveillance dans ACP ou le terminal",
   "media": {
     "recordingScreenPermissionRequired": "L’autorisation d’enregistrement de l’écran n’a pas été accordée.",
     "recordingMicrophonePermissionDenied": "L’autorisation du microphone a été refusée.",

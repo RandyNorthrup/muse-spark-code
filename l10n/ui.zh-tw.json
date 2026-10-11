@@ -785,7 +785,9 @@
     }
   },
   "scheduledMediaSupport": "排程回合支援文字與圖像輸入；此版本不支援影片與音訊輸入。",
-  "referenceSchedules": "v2 排程編輯器、清單和時間軸管理持久記錄。提示詞自動傳送已停用。選擇「立即執行」後，Model API 的 /loop 工作才會執行。",
+  "referenceSchedules": "v2 排程編輯器、清單和時間軸管理持久記錄。VS Code 中的 v2 提示自動投遞已停用。選擇「立即執行」時，Model API /loop 工作才會執行。",
+  "runtimeSchedulesItem": "執行階段排程",
+  "runtimeSchedulesItemDetail": "在 ACP 或終端機中安排無人值守的 Muse Code 提示",
   "media": {
     "recordingScreenPermissionRequired": "尚未授予螢幕錄製權限。",
     "recordingMicrophonePermissionDenied": "麥克風權限遭到拒絕。",

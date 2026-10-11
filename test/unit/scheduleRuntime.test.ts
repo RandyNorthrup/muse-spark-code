@@ -77,6 +77,25 @@ function setup(platform?: NodeJS.Platform, overrides: Partial<ScheduleRuntimeDep
   }
 }
 describe('schedule runtime lifecycle', () => {
+  it('joins concurrent close calls until resource cleanup and settlement finish', async () => {
+    const { runtime, close } = setup()
+    const cleanup = Promise.withResolvers<undefined>()
+    close.mockImplementation(() => cleanup.promise)
+    const first = runtime.close()
+    let hasReturned = false
+    const second = (async () => {
+      await runtime.close()
+      hasReturned = true
+    })()
+    await vi.waitFor(() => {
+      expect(close).toHaveBeenCalledOnce()
+    })
+    expect(hasReturned).toBe(false)
+    cleanup.resolve(undefined)
+    await Promise.all([first, second])
+    expect(hasReturned).toBe(true)
+    expect(close).toHaveBeenCalledOnce()
+  })
   it('breaks the macOS cycle when a wake publishes its marker during reconciliation next-fire lookup', async () => {
     vi.useFakeTimers()
     const lookup = Promise.withResolvers<number | undefined>(),
