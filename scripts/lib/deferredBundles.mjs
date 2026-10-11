@@ -409,6 +409,24 @@ export const ON_FIRST_USE = [
       'src/core/vault/scrub.ts',
     ],
   },
+  // M108 lane P: another account's paid consent, its store and its tariff;
+  // activation and the ACP engine carry only the tiny route (accountPaidRoute.ts).
+  {
+    output: 'dist/accountPaid.js',
+    metafile: 'dist/meta/accountPaid.json',
+    use: 'the first paid use billed to another account',
+    parents: [
+      BUNDLES.activation,
+      BUNDLES.modelApi,
+      BUNDLES.acp,
+      { output: 'dist/runtimeEngine.js', metafile: 'dist/meta/runtimeEngine.json' },
+    ],
+    files: [
+      'src/host/paid/accountPaidEntry.ts',
+      'src/host/paid/accountPaidFiles.ts',
+      'src/core/paid/accountPaidConsent.ts',
+    ],
+  },
   {
     output: 'dist/legalScan.js',
     metafile: 'dist/meta/legalScan.json',
@@ -977,6 +995,7 @@ const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/core/resources/resourceGovernorEntry.ts'), 'dist/resourceGovernor.js'],
   [path.resolve('src/core/resources/resourceProcessEntry.ts'), 'dist/resourceProcess.js'],
   [path.resolve('src/host/backend/mcpVaultEntry.ts'), 'dist/mcpVault.js'],
+  [path.resolve('src/host/paid/accountPaidEntry.ts'), 'dist/accountPaid.js'],
   [path.resolve('src/runtime/runtimeEngineEntry.ts'), 'dist/runtimeEngine.js'],
   [path.resolve('src/host/backend/providerPolicyEntry.ts'), 'dist/providerPolicy.js'],
   [path.resolve('src/runtime/runtimeAccountingEntry.ts'), 'dist/runtimeAccounting.js'],
@@ -1029,7 +1048,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry)(?:\.[jt]s)?$/,
+          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|accountPaidEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         if (

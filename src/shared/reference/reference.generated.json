@@ -967,7 +967,8 @@
       "settings": [
         "museSpark.accountSwap",
         "museSpark.accountParallel",
-        "museSpark.accounts.severalOnThisDevice"
+        "museSpark.accounts.severalOnThisDevice",
+        "museSpark.paidDailyBudgetUsd"
       ],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#several-accounts-per-provider",
       "backends": ["museCode", "modelApi"],
@@ -4793,7 +4794,7 @@
     {
       "route": "accounts",
       "name": "providers accounts",
-      "description": "Manage the accounts of one provider: list, add, remove, order and thresholds. Credentials come only from standard input. Paid consent stays per workspace for now.",
+      "description": "Manage the accounts of one provider: list, add, remove, order and thresholds. Credentials come only from standard input. Paid uses billed to the default account keep this workspace’s consent; another account’s first paid use asks for that account, naming its price and the shared daily budget.",
       "text": { "ui": "referenceAccounts" }
     },
     {

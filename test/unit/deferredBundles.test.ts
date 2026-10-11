@@ -99,6 +99,7 @@ beforeAll(async () => {
       resourceGovernor: 'src/core/resources/resourceGovernorEntry.ts',
       resourceProcess: 'src/core/resources/resourceProcessEntry.ts',
       mcpVault: 'src/host/backend/mcpVaultEntry.ts',
+      accountPaid: 'src/host/paid/accountPaidEntry.ts',
       resourceJournal: 'src/runtime/resources/resourceJournalEntry.ts',
       resourceAdmission: 'src/core/resources/admissionEntry.ts',
       mcpPool: 'src/core/backends/modelapi/mcpPoolEntry.ts',
@@ -502,6 +503,35 @@ describe('deferred cohort bundles', () => {
     ).toContain(
       'dist/extension.js carries src/core/vault/scrub.ts, which loads only on the first vault-backed MCP server',
     )
+  })
+  it('M108 lane P loads another account’s paid consent on its first use, never at activation or in the ACP engine', () => {
+    for (const file of [
+      'src/host/paid/accountPaidEntry.ts',
+      'src/host/paid/accountPaidFiles.ts',
+      'src/core/paid/accountPaidConsent.ts',
+    ]) {
+      expect(inputs('accountPaid')).toContain(file)
+      expect(inputs('extension')).not.toContain(file)
+      expect(inputs('runtimeEngine')).not.toContain(file)
+    }
+    // Both editors keep only the route and require the same bundle on first use.
+    expect(bundleText('extension')).toContain('./accountPaid.js')
+    expect(bundleText('runtimeEngine')).toContain('./accountPaid.js')
+    for (const output of ['dist/extension.js', 'dist/runtimeEngine.js']) {
+      const parent = {
+        output,
+        metafile: output.replace('dist/', 'dist/meta/').replace('.js', '.json'),
+      }
+      const copied = new Map(bundleInputs(parent))
+      copied.set('src/core/paid/accountPaidConsent.ts', 1)
+      expect(
+        checkDeferredBundles((bundle) =>
+          bundle.output === parent.output ? copied : bundleInputs(bundle),
+        ),
+      ).toContain(
+        `${output} carries src/core/paid/accountPaidConsent.ts, which loads only on the first paid use billed to another account`,
+      )
+    }
   })
   it('INT0170 loads the resource journal once for the governor and the usage service', () => {
     const journal = [

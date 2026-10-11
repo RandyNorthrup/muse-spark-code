@@ -150,6 +150,15 @@ export const ACCOUNT_POLICY_VERSION = '2026-10-05.1'
 // `[counter, hostGeneration]` array, so an instance-counter-era grant can
 // never match a durable revocation epoch.
 export const ACCOUNT_QUOTE_GRANT_VERSION = 2
+// M108 lane P: account-bound paid consent's store, one owner-only folder per
+// workspace (host/paid/accountPaidFiles.ts). Bindings and quote keys are named
+// by the start of their SHA-256, never by an account's label or a credential.
+export const ACCOUNT_PAID_STORE = {
+  folder: 'paid-accounts',
+  digestChars: 32,
+  folderMode: 0o700,
+  fileMode: 0o600,
+} as const
 
 // Must match package.json `publisher` and `name`; test/unit/manifest.test.ts
 // fails if they drift.

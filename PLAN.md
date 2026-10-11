@@ -32684,6 +32684,82 @@ Each joins when its dependency merges, and none blocks the others.
 
 ### M108 — Several accounts per provider, with use thresholds (D88)
 
+**M108P2 review repair (2026-10-09).** RVM108P's two P2 findings are in
+scope before non-default billing is enabled. Each question captures the
+binding's durable epoch, shared feature/quote revocation generation and
+price-acceptance generation when asked. Held answers, Once, window grants
+and persisted Always must match all captures at use; persistence never
+samples replacement generations at write time. This includes Forget from
+a window that never loaded account consent and ACP `forgetUnflagged()`.
+User/machine budget changes retain Always: the user's ceiling still binds.
+A repository-supplied budget changes both memory and persisted consent
+keys and re-asks before the next first charge, naming the new amount.
+`museSpark.paidDailyBudgetUsd` is declared `machine`; the VS Code reader uses
+merged `get`, so the lazy adapter also checks workspace/folder (including
+language override) provenance. ACP's own data-folder setting is user-owned.
+Caller regressions, byte-exact red drills and scoped gates are recorded in
+`docs/certification/m108.md`; aggregate quality remains the lead's gate.
+Final scoped tests: 797 passed across 19 complete files, default timeouts.
+The fix adds 48 B at activation (564,340 B); lane K's guard is 2,988/3,072 B.
+`accountPaid` measures 43,763 B within its unchanged 50 KiB cap. Default
+consent emitted code and Model API/ACP/headless bytes match the base.
+
+**M108P paid consent per account (2026-10-09, `m108/p` from 0.17.0's
+`8f0a75ea1`).** Lane P closes RVCONSENT017D's three prerequisites (§9) and
+binds `AccountPaidUseConsent` into the production callers: VS Code's paid
+features (`createPaidFeatures`, behind every `paid.consent.allows`) and the
+ACP agent's `AcpPaidUse` (every ACP editor), with the runtime naming the
+account its key reads through. Choices where this plan left one open:
+
+- **Prerequisite 1:** every use hands the inner consent a fresh request
+  object, and the popup wrapper captures the durable epoch for that question
+  alone (a `WeakMap`); the inner `decide()` refuses, caches nothing and keeps
+  nothing when `isAnswerCurrent(question)` is false. No capture means no
+  grant, never the epoch found now.
+- **Prerequisite 2:** the clear ports carry the revocation's epoch as a
+  cutoff (`clearGrantsBefore`, `revokeQuoteGrants(binding, before)`), rather
+  than a store-owned advance-plus-clear transaction, so a failed clear still
+  rejects honestly with every leftover stale.
+- **Prerequisite 3:** window-once authority includes the durable epoch and
+  every shared feature/quote and price generation, so revocation from even
+  an unloaded window ends it. A held answer from a revoked question is
+  refused for every use that shared it and never persisted under new generations.
+- **Routing:** the provider's default account keeps the workspace consent
+  exactly as before (a single-account user's popup, grants and stores are
+  unchanged, and `dist/accountPaid.js` never loads); any other billing
+  account asks D48's question again for that account, with the account line
+  (`accounts.paidConsent`: provider · account, price, shared daily budget).
+- **Binding:** grants are keyed by language-neutral tariff data
+  (`PaidAccountBinding.tariff`), so a display-language change never asks
+  again; user/machine shared-budget changes keep Always because the user's
+  ceiling still binds; a repository-supplied budget is part of both memory
+  and persisted keys and re-quotes the next first-charge question with its
+  new amount;
+  an account's Always lapses with the feature's price acceptance and with
+  Account & usage's **Ask again**. Team Always is not offered for another
+  account until account-scoped team grants exist.
+- **Store:** one file store for both editors (`host/paid/accountPaidFiles.ts`):
+  exclusive `epoch-<n>` markers make the advance a cross-process
+  compare-and-set that only grows; every record is named for its approval
+  epoch, so reads see only the current epoch and clears remove only older
+  ones. VS Code keeps it in the workspace's storage folder; the agent in its
+  data folder per workspace key.
+- **Lazy:** the consent, its store and the tariff map load as
+  `dist/accountPaid.js` (41.6 KiB, new 50 KiB budget) on the first use billed
+  to another account; activation and the ACP engine carry only the shared
+  route (`core/paid/accountPaidRoute.ts`). The seam adds 944 B to
+  `dist/extension.js` (563,348 to 564,292 B of the unchanged 600 KiB cap; lane
+  K's pre-K activation guard read 2,940 of its 3,072 B before M108P2). `dist/modelApi.js`,
+  `dist/acp.js` and `dist/headless.js` are byte-identical in size.
+
+Still open, named: no interactive surface bills a non-default account yet.
+VS Code's stored key is Meta's default account, ACP `serve` bills the default,
+and headless `exec --account` keeps its explicit paid policy, so account
+consent activates when M95/M109's per-request selection and the profile pool
+bind the billing port. Tallying each charge by account and checking the
+account store's removal generation in `isCurrent` wait for that same owner.
+Receipts: `docs/certification/m108.md` (M108P).
+
 **FIXM108DX3 (2026-10-07):** replace the remote pool's transient vendor-limit
 filter with one durable, sender-local block per provider and conversation/worker
 owner. Capture the blocked account, its group and the effective scope from the
@@ -39455,6 +39531,20 @@ workers. Scoped static/build checks and normal hooks certify local commits;
 W retains full integrated quality, coverage, installed editor and packaging
 checks. No threshold or gate is weakened.
 
+**M108P2 bounded-lane certification (2026-10-09).** The fix-round rig brief
+prohibits aggregate `quality` and assigns it to the lead. This lane runs
+complete scoped paid/account/default-consent and bundle tests, typecheck,
+changed-file ESLint/Prettier, l10n/plan/reference/roadmap checks, deadcode,
+duplication, host-API and the unmodified production build. The inherited
+What's New decoded-content failure remains release-lead owned; comparable
+in-memory production builds measure sizes without changing the script or
+cap. Its two released notes are 79,510 decoded bytes on base and head, over
+76,800 B. `jscpd` retains only the inherited `windowsTrustedPath.test.ts`
+clone (that file is byte-identical to `cd362298e`); the lane's test clones
+were removed. Neither gate was relaxed. These two inherited failures are
+deferred to the release lead outside this bounded repair.
+`docs/certification/m108.md` records results and byte-exact red drills.
+
 **FIXM108P / FIXM108P2 bounded-lane certification (2026-10-06).** The rig brief and
 shared rules prohibit aggregate quality/full unit runs, merges and network
 calls. Run complete owning test files with repository timeouts and at most
@@ -44800,6 +44890,15 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   1. Capture the durable epoch per individual question and answer, including forced `requiresAsking` questions. A feature-keyed map can hand a revoked answer the epoch of a different popup. Never fall back to the current epoch for an answer whose capture was lost. Add the held-answer plus forced-question regression.
   2. Fence the clear paths against the owning revocation. An older revoke's `revokeQuoteGrants()` must not purge grants approved under a newer epoch: either the clear port carries an epoch cutoff, or the store owns advance plus clear as one transaction. Add the held-clear regression (post-advance interleaving).
   3. Window-once authority must be invalidated on durable revocation. Inner `decide()` must not cache an answer the outer epoch fence refused. Add the held-Once regression.
+
+  **Closed by M108P (2026-10-09).** All three hold in
+  `src/core/paid/accountPaidConsent.ts`, each with a regression that failed
+  on `8f0a75ea1` and a byte-exact guard drill (`docs/certification/m108.md`,
+  M108P). The production store (`src/host/paid/accountPaidFiles.ts`) gives
+  the atomic port contract across processes with exclusive epoch markers and
+  epoch-named records, so no in-process queue is relied on. Residual: account
+  consent is bound in VS Code and ACP but dormant until a non-default account
+  can bill an interactive request (M95/M109's per-request selection).
 
 - **FIXM108P-EVENT-TRANSACTION (P-M95-PER-REQUEST / U / H / J / W).**
   `AccountPoolDeps.commit(event, adopt)` is a required synchronous owner
