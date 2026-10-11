@@ -9,6 +9,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **Workflow and release report reads survive any single failed request** (CM1136R5).
+  Each tag, release and workflow-run page returns its own rows or its own
+  paged refusal (`tags-page-2: http-500`) while the other pages' rows stay;
+  a corrupt tag keeps its own reason and is never blamed on the release or
+  run that named it; and a row that fails the strict fact shape is skipped
+  with its reason instead of dropping the whole section.
+
+
 - **Session and usage reports agree with their notes and show the shared daily budget everywhere** (CM1132R3).
   Session totals exclude rolled-up history and say so; budget stamps use the
   machine-local day like the report period; terminal and ACP usage reports show
