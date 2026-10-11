@@ -35873,6 +35873,20 @@ Total: about 165 lane-hours: the panel's part (0, A, P1, P2, C, F, S) about
 
 ### M115 — Scheduled prompts v2: unattended, stacked, with a delivery mode (D95)
 
+**SCHEDJOIN redesign (2026-10-11, macbook).** Merge C-M115-1/2/3 first;
+move durable terminal ownership and dispatch write-ahead recovery into the core
+scheduler, retain unknown spend after ambiguous dispatch and failed cost reads,
+and preserve session-owned output and truthful inactive refusals. Certify all
+delivery exits/kinds, real-process crash boundaries and production host assembly.
+Reduce schedules bytes using existing lazy owners; no cap increases. Automatic
+delivery remains behind certification. Browser/GUI qualification runs on Linux,
+never this owner's MacBook. Receipts: `docs/certification/m115-join.md`.
+
+- [ ] Join all three reviewed heads with both authority and lifecycle behavior.
+- [ ] Core settlement, durable dispatch state and at-most-once recovery.
+- [ ] Existing lazy owners meet every production byte cap.
+- [ ] Dependent suites, red drills and scoped gates; lead cross-platform replay.
+
 **C-M115-1 review repair (2026-10-11):** repair RVCM1151B/G as classes:
 one final scheduled dispatch gate after asynchronous work, live schedule and
 billing authority, per-file unattended IDE policy, stable native queued-message
@@ -35881,6 +35895,36 @@ prompt-free tool executors, a window-owned workspace hold, and deterministic
 three-process claim qualification. Delivery stays unregistered; consent/args
 remain with CM1153. Regressions and byte-exact red drills are recorded in
 `docs/certification/m115-cm1151.md` before local commits.
+
+**C-M115-2 R2 review repair (2026-10-11, macbook).** All three RVCM1152
+findings are implemented and regression-tested. Delivery exits settle; borrowed
+queued messages withdraw on shutdown/detach; abandoned claims retire without
+replay; Run now requires a durable fire; output follows session ownership;
+runtime scheduling has its own translated Help entry.
+Interruption boundaries, sixteen byte-exact red drills and the sibling
+concurrent-close/borrowed-owner replacement checks are recorded in
+`docs/certification/m115-cm1152.md`. No dependency added; no guard or budget
+is weakened.
+C-M115-3 remains the next slice: production paid consent and ledger binding.
+
+**C-M115-2 runtime delivery (2026-10-11, macbook).** Bind the shared delivery
+engine to ACP-owned live sessions and lazily opened CLI/background sessions.
+Persist and validate workspace path bindings for global `run-due`; retain the
+existing claim, unattended grant, queue and paid-policy ports. Missing paid
+authority refuses before dispatch; C-M115-3 supplies consent, not this lane.
+Certify runtime acceptance 1, 5 and 7 with fake backends over stdio, default
+test deadlines and byte-exact red drills. No host UI changes or paid/live calls.
+Native editor surfaces remain C-M115-9, OS wake installation C-M115-6, and
+independent Codex/Grok review plus Windows/Linux receipts remain lead gates.
+The supplier preserves parent turn identity across child events, joins idle
+waits to shutdown, normalizes workspace spellings before hashing, and locks
+grant-audit appends so parallel uses cannot overwrite one another.
+
+- [x] C-M115-2: runtime/ACP/CLI targets, runs, persisted roots and live-session
+      handoff implemented; fake backend/stdin/loopback and byte-exact drill
+      receipts are in `docs/certification/m115-cm1152.md`.
+- [ ] Joined-tree build, independent Codex/Grok review and Windows/Linux
+      execution: lead gates; C-M115-3 supplies production paid consent next.
 
 **C-M115-1 completion lane (2026-10-10, win11).** Bind the VS Code workspace
 lifetime and conversation delivery to the existing shared scheduler, unattended
@@ -35951,7 +35995,7 @@ registration remains held for the complete controller/money/OS receipts.
       not installed VS Code windows or the ACP editor adapter. C-M115-2 and
       C-M115-9 retain the other editor/runtime bindings above.
 
-**Status 2026-10-06: planned.** It comes right after M112 in the delivery
+**Status 2026-10-11: building.** It comes right after M112 in the delivery
 order: it shares M112's deferral and the unattended machinery, and builds on
 M52's store, claim and cron matcher. No model call is needed outside one live
 check (step 3). Lanes T, S, U, D, G, V and X start on lane 0's contracts and
@@ -38055,6 +38099,27 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**C-M115-2 R2 verification (2026-10-11, macbook).** All RVCM1152 findings
+are fixed, with sixteen byte-exact red guards and interrupted-write shutdown
+reconciliation. The scoped rig brief delegates aggregate quality to the lead.
+Production build/full visual replay retain the accepted What's New decode
+hold; jscpd retains only the two unchanged base clones. An additional direct
+native-backend probe reproduces five unchanged native-queue failures with
+HEAD English; its backend sources and tests are outside this lane and are
+unchanged. Certification names all five and retains the control receipt.
+No gate, timeout, dependency or budget is weakened.
+
+**C-M115-2 gate ownership (2026-10-11, macbook).** Scoped runtime/ACP/CLI
+checks and red/restoration controls belong to this lane; aggregate quality,
+independent Codex/Grok review and Windows/Linux execution remain with the
+lead. The production build retains C-M115-1's accepted-base What's New decode
+refusal; integrate the already accepted `fix/whatsnew-budget`, then replay
+size/split/host-global checks on the complete artifacts. No cap is raised.
+The zero-clone gate retains unchanged clones in `test/unit/ideMcpServer.test.ts`
+and `test/unit/windowsTrustedPath.test.ts`, outside this lane's ownership.
+Owned duplicate fixture setup is consolidated; no rule or ignore is relaxed.
+See `docs/certification/m115-cm1152.md`.
 
 **C-M115-1 gate ownership (2026-10-10, win11).** The rig brief and shared
 lane rules forbid aggregate quality in this worktree; the lead owns

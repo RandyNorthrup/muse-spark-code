@@ -786,7 +786,9 @@
     }
   },
   "scheduledMediaSupport": "예약된 턴은 텍스트와 이미지 입력을 지원합니다. 동영상과 오디오 입력은 이 버전에서 지원되지 않습니다.",
-  "referenceSchedules": "v2 일정 편집기, 목록 및 타임라인은 영구 기록을 관리합니다. 프롬프트 자동 전송은 비활성화되어 있습니다. Model API /loop 작업은 지금 실행을 선택하면 실행됩니다.",
+  "referenceSchedules": "v2 일정 편집기, 목록, 타임라인은 영구 기록을 관리합니다. VS Code의 v2 프롬프트 자동 전달은 비활성화되어 있습니다. Model API /loop 작업은 지금 실행을 선택하면 실행됩니다.",
+  "runtimeSchedulesItem": "런타임 일정",
+  "runtimeSchedulesItemDetail": "ACP 또는 터미널에서 무인 Muse Code 프롬프트 예약",
   "media": {
     "recordingScreenPermissionRequired": "화면 녹화 권한이 부여되지 않았습니다.",
     "recordingMicrophonePermissionDenied": "마이크 권한이 거부되었습니다.",
@@ -5074,5 +5076,6 @@
     "grantsCount": {
       "other": "{count} 개 권한"
     }
-  }
+  },
+  "referenceRuntimeSchedules": "ACP 또는 터미널에서 지속적인 권한, 영구 실행 기록 및 백그라운드 대화 대상을 사용하여 Muse Code 프롬프트를 무인 실행합니다."
 }

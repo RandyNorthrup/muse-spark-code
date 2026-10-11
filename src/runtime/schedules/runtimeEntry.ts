@@ -16,10 +16,13 @@ import {
 import { agentFileBeside, createVerifyWake } from './wake'
 import { createScheduleBilling } from '../../host/schedules/paidBinding'
 
+import type { RuntimeScheduleDeliveryPorts } from './delivery'
+
 export function createRuntimeSchedules(
   table: UiText,
   locale: string,
   delivery?: ScheduleEditorDeliveryPorts,
+  runtimeDelivery?: RuntimeScheduleDeliveryPorts,
 ): Promise<RuntimeSchedulesBinding> {
   setUiText(table, locale)
   const platform = process.platform
@@ -40,6 +43,8 @@ export function createRuntimeSchedules(
     verifyWake: createVerifyWake(process.execPath, agentFile),
     ...(delivery?.caller !== undefined && { caller: delivery.caller }),
     ...(billing !== undefined && { consent: (schedule) => billing.consent(schedule) }),
+
+    ...(runtimeDelivery !== undefined && { runtimeDelivery }),
     ...(delivery !== undefined && {
       delivery: (authority) => createScheduleDeliveryBinding(delivery, authority, billing),
     }),

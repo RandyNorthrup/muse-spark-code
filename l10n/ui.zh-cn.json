@@ -786,7 +786,9 @@
     }
   },
   "scheduledMediaSupport": "计划回合支持文本和图像输入；此版本不支持视频和音频输入。",
-  "referenceSchedules": "v2 计划编辑器、列表和时间线管理持久记录。提示词自动发送已禁用。选择“立即运行”后，Model API 的 /loop 任务才会运行。",
+  "referenceSchedules": "v2 计划编辑器、列表和时间线管理持久记录。VS Code 中的 v2 提示自动投递已禁用。选择“立即运行”时，Model API /loop 任务才会运行。",
+  "runtimeSchedulesItem": "运行时计划",
+  "runtimeSchedulesItemDetail": "在 ACP 或终端中安排无人值守的 Muse Code 提示",
   "media": {
     "recordingScreenPermissionRequired": "尚未授予屏幕录制权限。",
     "recordingMicrophonePermissionDenied": "麦克风权限被拒绝。",
@@ -5074,5 +5076,6 @@
     "grantsCount": {
       "other": "{count} 个授权"
     }
-  }
+  },
+  "referenceRuntimeSchedules": "通过 ACP 或终端无人值守运行 Muse Code 提示词，使用持续授权、持久执行记录和后台对话目标。"
 }

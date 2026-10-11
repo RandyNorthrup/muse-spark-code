@@ -965,7 +965,11 @@ export const EN = {
   scheduledMediaSupport:
     'Scheduled turns support text and image inputs; video and audio inputs are unsupported in this version.',
   referenceSchedules:
-    'The v2 schedule editor, list and timeline manage durable records. Automatic prompt delivery is disabled. Model API /loop jobs run when you choose Run now.',
+    'The v2 schedule editor, list and timeline manage durable records. Automatic VS Code v2 prompt delivery is disabled. Model API /loop jobs run when you choose Run now.',
+  runtimeSchedulesItem: 'Runtime schedules',
+  runtimeSchedulesItemDetail: 'Schedule unattended Muse Code prompts in ACP or the terminal',
+  referenceRuntimeSchedules:
+    'Run unattended Muse Code prompts from ACP or the terminal, with standing grants, persistent fire records and background conversation targets.',
   media: {
     recordingScreenPermissionRequired: 'Screen Recording permission has not been granted.',
     recordingMicrophonePermissionDenied: 'Microphone permission was denied.',

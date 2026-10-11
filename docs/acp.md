@@ -355,8 +355,10 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
   M116's `/playbook <status|record|settings ...>`, answered locally with no
   model turn.
   M115's `/schedule` (list, add, remove, run-now, pause, resume, fire and
-  timeline; `run-due` and background maintenance are refused here), offered
-  only with `--scheduled-prompts`.
+  timeline; `run-due` and background maintenance are refused here).
+  Scheduled output belongs only to its target session; unattached/background
+  output goes to standard error. Connection shutdown withdraws scheduled queued
+  input and records settlement without cancelling a borrowed user turn.
   M108's `/accounts <list|current|use <id>|thresholds [id]>`, answered
   locally with no model turn.
   M117's `/estimate <goal> [--by <date>] [--fleet current|minimum|optimum]`
@@ -520,11 +522,17 @@ price, and the agent log counts each billed use. Subagents,
 best-of-N, the Auto reviewer and Muse Voice are not offered: the agent has no flag for them
 (Muse Voice needs the VS Code panel's microphone).
 
-Scheduled prompts are offered with `--scheduled-prompts` (Model API
-backend only) together with `--max-budget-usd`. Each billed run asks in
-the editor's permission prompt, naming its price and the shared daily
-budget, unless allowed always in this workspace; a run without a positive
-budget is refused before dispatch.
+`/schedule` delivers unattended Muse Code prompts to live ACP sessions or
+background targets through the shared schedule engine. Approval requests
+outside the standing grant refuse immediately; their rows appear as session
+updates, and questions defer into the persistent question registry. Closing
+ACP releases borrowed sessions and cancels owned background work.
+
+Model API schedule creation requires `--scheduled-prompts` together with
+`--max-budget-usd`. These flags do not establish per-schedule paid consent:
+delivery requires the installed schedule paid policy, and an absent policy
+records a refused fire without a response request. `exec` still refuses to
+create or host schedules.
 
 ## Networks and proxies
 

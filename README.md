@@ -2302,7 +2302,7 @@ is absent. Paid consent and the shared daily budget still apply.
 The Command Palette's **Schedule this prompt…**, **Show schedules** and
 **Show schedule timeline** open the v2 editor, list and timeline in the
 active chat, opening a chat when needed. The schedule surface loads on
-first use and manages durable records. Automatic v2 prompt delivery is
+first use and manages durable records. Automatic VS Code v2 prompt delivery is
 disabled: its candidate holds the workspace independently of open chats and
 rechecks authority immediately before sending. Unattended IDE tools enforce
 resolved-file policy and use prompt-free executors, with offline legal scans.
@@ -2351,14 +2351,36 @@ jobs beyond `/loop`: `schedule add --draft <JSON>` (with
 `--scheduled-prompts --max-budget-usd <USD>` to validate paid authority under
 that hard cap), `list`, `remove`, `run-now`, `pause`, `resume`, `fire`,
 `timeline`, `run-due` and `background`. Without a positive budget, paid
-authorization for an unattended run is refused. These flags do not install
-a backend delivery binding. Without one, a due prompt delivery records an explicit
-failure and makes no model request. Runtime/ACP prompt delivery is disabled
-in this build. The durable journal prevents competing holders from dispatching
-the same claimed fire. The ACP `/schedule` command
-offers the same list, except `run-due` and background maintenance, and only
-while the agent runs with `--scheduled-prompts` (again with
-`--max-budget-usd`).
+authorization for an unattended run is refused. Flags alone do not grant
+Model API spending: runtime delivery also requires the schedule's paid policy;
+without that policy the fire is recorded as refused before any response request.
+The durable journal prevents competing holders from dispatching the same
+claimed fire. The ACP `/schedule` command offers the same list, except
+`run-due` and background maintenance.
+
+### Runtime scheduled delivery
+
+ACP and the terminal deliver Muse Code scheduled prompts through the shared
+unattended engine. Live ACP targets are borrowed; closed targets with **Open**
+resume in the background, and **New conversation** creates a separate session.
+Steer, interrupt, queue and when-idle delivery use the backend's scheduled
+entry points. Approvals outside the standing grant refuse immediately and
+their rows reach the ACP session; questions defer for later answering.
+Output reaches only the session that owns the scheduled target. Background
+and unattached-target output goes to the runtime's standard error stream.
+Shutdown or target detachment withdraws that schedule's queued message without
+cancelling a borrowed user turn, and records the final outcome. Recovery
+retires abandoned claims instead of sending their prompts again. Run now
+reports acceptance only after a successful durable fire record exists.
+The subscription pays for Muse Code turns. Model API delivery remains refused
+until its per-schedule paid policy is installed.
+
+The private schedule registry retains workspace paths for terminal `run-due`,
+which opens each due target in its recorded workspace, records the outcome,
+and exits. Old registry entries containing only workspace hashes need the
+workspace opened in ACP or a newly created schedule to establish the path;
+the runtime never guesses it. `exec` still cannot create or host schedules.
+OS wake registration is a separate opt-in path.
 
 Muse Code has its own subscription-backed `cron_create`, `cron_list` and
 `cron_delete` tools. Ask it in chat to schedule, list or cancel its jobs;

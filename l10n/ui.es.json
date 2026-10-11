@@ -792,7 +792,9 @@
     }
   },
   "scheduledMediaSupport": "Los turnos programados admiten entradas de texto e imágenes; las entradas de vídeo y audio no son compatibles con esta versión.",
-  "referenceSchedules": "El editor, la lista y la cronología de programaciones v2 gestionan registros persistentes. El envío automático de instrucciones está desactivado. Las tareas /loop de Model API se ejecutan al elegir Ejecutar ahora.",
+  "referenceSchedules": "El editor, la lista y la cronología de programaciones v2 gestionan registros duraderos. La entrega automática de instrucciones v2 en VS Code está desactivada. Los trabajos /loop de Model API se ejecutan cuando eliges Ejecutar ahora.",
+  "runtimeSchedulesItem": "Programaciones del entorno de ejecución",
+  "runtimeSchedulesItemDetail": "Programa instrucciones desatendidas de Muse Code en ACP o la terminal",
   "media": {
     "recordingScreenPermissionRequired": "No se ha concedido permiso para grabar la pantalla.",
     "recordingMicrophonePermissionDenied": "Se ha denegado el permiso del micrófono.",
@@ -5380,5 +5382,6 @@
       "other": "{count} autorizaciones",
       "many": "{count} autorizaciones"
     }
-  }
+  },
+  "referenceRuntimeSchedules": "Ejecuta instrucciones de Muse Code sin supervisión desde ACP o la terminal, con permisos permanentes, registros persistentes de ejecución y conversaciones en segundo plano como destino."
 }

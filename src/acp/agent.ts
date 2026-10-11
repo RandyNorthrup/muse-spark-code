@@ -2029,7 +2029,22 @@ class AcpSession {
 
   public async holdSchedules(): Promise<void> {
     try {
-      const release = await this.deps.schedules?.holdWorkspace?.(this.cwd)
+      const release = await this.deps.schedules?.holdWorkspace?.(this.cwd, {
+        agent: this.session,
+        backend: this.deps.backend.kind,
+        ...(this.activeTurnId !== undefined && { activeTurnId: this.activeTurnId }),
+        row: (text) => {
+          this.questionNotice(text)
+        },
+        deferQuestions: async (event, context) => {
+          if (this.questionRegistry === undefined) throw new Error(UI_TEXT.questionAnswerFailed)
+          await this.questionRegistry.register(event, {
+            askedAt: Date.now(),
+            turnId: this.activeTurnId ?? context.runId,
+          })
+          await this.questionRegistry.defer(event.userInputId)
+        },
+      })
       if (this.isDisposed) await release?.()
       else this.releaseSchedules = release
     } catch {

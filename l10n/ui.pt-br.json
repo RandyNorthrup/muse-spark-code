@@ -792,7 +792,9 @@
     }
   },
   "scheduledMediaSupport": "Os turnos agendados aceitam entradas de texto e imagem; entradas de vídeo e áudio não são aceitas nesta versão.",
-  "referenceSchedules": "O editor, a lista e a linha do tempo dos agendamentos v2 gerenciam registros persistentes. O envio automático de prompts está desativado. As tarefas /loop da Model API são executadas ao escolher Executar agora.",
+  "referenceSchedules": "O editor, a lista e a linha do tempo de agendamentos v2 gerenciam registros persistentes. A entrega automática de prompts v2 no VS Code está desativada. Os trabalhos /loop da Model API são executados quando você escolhe Executar agora.",
+  "runtimeSchedulesItem": "Agendamentos do runtime",
+  "runtimeSchedulesItemDetail": "Agende prompts autônomos do Muse Code no ACP ou no terminal",
   "media": {
     "recordingScreenPermissionRequired": "A permissão para gravar a tela não foi concedida.",
     "recordingMicrophonePermissionDenied": "A permissão do microfone foi negada.",
@@ -5380,5 +5382,6 @@
       "other": "{count} autorizações",
       "many": "{count} autorizações"
     }
-  }
+  },
+  "referenceRuntimeSchedules": "Execute prompts do Muse Code sem supervisão pelo ACP ou terminal, com permissões permanentes, registros persistentes de execução e conversas em segundo plano como destinos."
 }

@@ -11,7 +11,11 @@ import { workspaceKey } from '../../src/runtime/dataFolder'
 import { FakeAgentHost, FakeAgentSession } from './helpers/fakeAgent'
 import { memoryToolIo } from './helpers/fakeToolIo'
 import { fakeRunContext, fakeSchedule } from './helpers/schedules/fixtures'
-import type { TurnSubmission } from '../../src/core/agent/agentBackend'
+import type {
+  AgentSession,
+  TurnSubmission,
+  WithdrawOutcome,
+} from '../../src/core/agent/agentBackend'
 import { FakeScheduleApprovalStream } from './helpers/schedules/approvals'
 
 function queuedSubmission(): Promise<TurnSubmission> {
@@ -29,7 +33,12 @@ function unusedPaidPolicy(modelId: string): NonNullable<ScheduleRunDeps['paid']>
   }
 }
 
+function withdrawnSubmission(): Promise<WithdrawOutcome> {
+  return Promise.resolve({ status: 'withdrawn', images: [] })
+}
+
 class ScheduledSession extends FakeAgentSession implements ScheduledAgentSession {
+  readonly withdrawQueued = vi.fn<NonNullable<AgentSession['withdrawQueued']>>(withdrawnSubmission)
   readonly getScheduledRun = vi.fn<ScheduledAgentSession['getScheduledRun']>()
   readonly sendScheduledTurn = vi.fn<ScheduledAgentSession['sendScheduledTurn']>(queuedSubmission)
   readonly steerScheduledTurn = vi.fn<ScheduledAgentSession['steerScheduledTurn']>(unusedSteer)
@@ -275,16 +284,16 @@ describe('unregistered schedule delivery factory', () => {
     }
   })
 
-  it('retains recovery ownership after lifecycle abort instead of inventing settlement', async () => {
+  it('settles lifecycle abort without cancelling a borrowed user turn', async () => {
     const rig = await fixture()
     const result = rig.run()
-    const rejected = expect(result).rejects.toThrow()
     try {
       await vi.waitFor(() => {
         expect(rig.agent.sendScheduledTurn).toHaveBeenCalledOnce()
       })
       rig.abort.abort()
-      await rejected
+      expect(await result).toMatchObject({ outcome: 'skipped', cost: noScheduleCost() })
+      expect(rig.agent.withdrawQueued).toHaveBeenCalledOnce()
       expect(rig.agent.cancel).not.toHaveBeenCalled()
       // The user may own another queued turn. The binding cannot cancel it.
       expect(rig.agent.dispose).not.toHaveBeenCalled()
@@ -302,13 +311,13 @@ describe('unregistered schedule delivery factory', () => {
     const running = rig.binding.runs.run(lease.session, rig.schedule, rig.context, async () => {
       await lease.session.queue('follow up', rig.context)
     })
-    const rejected = expect(running).rejects.toThrow()
+    const retired = expect(running).resolves.toMatchObject({ outcome: 'skipped' })
     try {
       await vi.waitFor(() => {
         expect(rig.agent.sendScheduledTurn).toHaveBeenCalledOnce()
       })
       panel.abort()
-      await rejected
+      await retired
       expect(rig.abort.signal.aborted).toBe(false)
       expect(rig.agent.cancel).not.toHaveBeenCalled()
       expect(rig.agent.dispose).not.toHaveBeenCalled()

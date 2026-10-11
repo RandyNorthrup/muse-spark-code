@@ -795,7 +795,9 @@
     }
   },
   "scheduledMediaSupport": "Plánované tahy podporují textové a obrazové vstupy; video a zvukové vstupy nejsou v této verzi podporovány.",
-  "referenceSchedules": "Editor, seznam a časová osa plánů v2 spravují trvalé záznamy. Automatické odesílání výzev je vypnuté. Úlohy Model API /loop se spustí, když zvolíte Spustit nyní.",
+  "referenceSchedules": "Editor, seznam a časová osa plánů v2 spravují trvalé záznamy. Automatické doručování promptů v2 ve VS Code je vypnuté. Úlohy Model API /loop se spustí, když zvolíte Spustit nyní.",
+  "runtimeSchedulesItem": "Plány běhového prostředí",
+  "runtimeSchedulesItemDetail": "Naplánujte bezobslužné prompty Muse Code v ACP nebo terminálu",
   "media": {
     "recordingScreenPermissionRequired": "Oprávnění k nahrávání obrazovky nebylo uděleno.",
     "recordingMicrophonePermissionDenied": "Oprávnění k mikrofonu bylo zamítnuto.",
@@ -5533,5 +5535,6 @@
       "few": "{count} oprávnění",
       "many": "{count} oprávnění"
     }
-  }
+  },
+  "referenceRuntimeSchedules": "Spouštějte příkazy Muse Code bez dozoru z ACP nebo terminálu s trvalými oprávněními, uloženými záznamy spuštění a cílovými konverzacemi na pozadí."
 }

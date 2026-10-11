@@ -1,3 +1,4 @@
+import path from 'node:path'
 import { Usd as PortUsd } from '../../src/shared/usd'
 import { describe, expect, it, vi } from 'vitest'
 import { ScheduleRuntime, type ScheduleRuntimeDeps } from '../../src/runtime/schedules/runtime'
@@ -45,7 +46,7 @@ function setup(platform?: NodeJS.Platform, overrides: Partial<ScheduleRuntimeDep
   const controlFor = vi.fn().mockResolvedValue(control),
     dueWorkspaces = vi
       .fn<() => Promise<readonly string[]>>()
-      .mockResolvedValue([workspaceKey('/one'), workspaceKey('/two')])
+      .mockResolvedValue([workspaceKey(path.resolve('/one')), workspaceKey(path.resolve('/two'))])
   const verifyWake = vi
     .fn<(id?: string) => Promise<ScheduleWakeAuthorization>>()
     .mockResolvedValue({ scheduledPrompts: false })
@@ -76,6 +77,25 @@ function setup(platform?: NodeJS.Platform, overrides: Partial<ScheduleRuntimeDep
   }
 }
 describe('schedule runtime lifecycle', () => {
+  it('joins concurrent close calls until resource cleanup and settlement finish', async () => {
+    const { runtime, close } = setup()
+    const cleanup = Promise.withResolvers<undefined>()
+    close.mockImplementation(() => cleanup.promise)
+    const first = runtime.close()
+    let hasReturned = false
+    const second = (async () => {
+      await runtime.close()
+      hasReturned = true
+    })()
+    await vi.waitFor(() => {
+      expect(close).toHaveBeenCalledOnce()
+    })
+    expect(hasReturned).toBe(false)
+    cleanup.resolve(undefined)
+    await Promise.all([first, second])
+    expect(hasReturned).toBe(true)
+    expect(close).toHaveBeenCalledOnce()
+  })
   it('breaks the macOS cycle when a wake publishes its marker during reconciliation next-fire lookup', async () => {
     vi.useFakeTimers()
     const lookup = Promise.withResolvers<number | undefined>(),
@@ -130,7 +150,10 @@ describe('schedule runtime lifecycle', () => {
     })()
     await entered.promise
     isWakeLive = true
-    const command = runtime.command({ operation: 'run-due', isJson: true }, '/launcher')
+    const command = runtime.command(
+      { operation: 'run-due', isJson: true },
+      path.resolve('/launcher'),
+    )
     lookup.resolve(61_000)
     try {
       await vi.advanceTimersByTimeAsync(0)
@@ -164,11 +187,11 @@ describe('schedule runtime lifecycle', () => {
             scheduledPrompts: true,
             maxBudgetUsd: PortUsd.from(100).toAmount(),
           },
-          '/launcher',
+          path.resolve('/launcher'),
         ),
       ).toMatchObject({ exitCode: 0 })
       expect(verifyWake).toHaveBeenCalledWith('verified-record')
-      expect(controlFor).toHaveBeenCalledWith('/launcher', {
+      expect(controlFor).toHaveBeenCalledWith(path.resolve('/launcher'), {
         source: 'cli',
         isInteractive: false,
         ...authorization,
@@ -182,7 +205,7 @@ describe('schedule runtime lifecycle', () => {
     expect(
       await runtime.command(
         { operation: 'run-due', isJson: true, registrationId: 'record' },
-        '/launcher',
+        path.resolve('/launcher'),
       ),
     ).toMatchObject({ exitCode: 1 })
     expect(controlFor).not.toHaveBeenCalled()
@@ -194,7 +217,10 @@ describe('schedule runtime lifecycle', () => {
     vi.spyOn(background, 'wakeBarrier').mockRejectedValue(
       new Error(UI_TEXT.scheduleV2.runtime.wakeBarrierTimeout),
     )
-    const result = await runtime.command({ operation: 'run-due', isJson: true }, '/launcher')
+    const result = await runtime.command(
+      { operation: 'run-due', isJson: true },
+      path.resolve('/launcher'),
+    )
     expect(JSON.parse(result.output)).toEqual({
       kind: 'refused',
       reason: UI_TEXT.scheduleV2.runtime.wakeBarrierTimeout,
@@ -209,7 +235,10 @@ describe('schedule runtime lifecycle', () => {
     const { runtime, control, controlFor, background } = setup('darwin')
     const held = Promise.withResolvers<undefined>()
     const barrier = vi.spyOn(background, 'wakeBarrier').mockReturnValue(held.promise)
-    const command = runtime.command({ operation: 'run-due', isJson: true }, '/launcher')
+    const command = runtime.command(
+      { operation: 'run-due', isJson: true },
+      path.resolve('/launcher'),
+    )
     await Promise.resolve()
     expect(barrier).toHaveBeenCalledOnce()
     expect(controlFor).not.toHaveBeenCalled()
@@ -220,7 +249,7 @@ describe('schedule runtime lifecycle', () => {
   it('leaves macOS wake rearm to the independent after-exit helper after engine settlement', async () => {
     const { runtime, control, close, reconcile } = setup('darwin')
     expect(
-      await runtime.command({ operation: 'run-due', isJson: true }, '/launcher'),
+      await runtime.command({ operation: 'run-due', isJson: true }, path.resolve('/launcher')),
     ).toMatchObject({ exitCode: 0 })
     expect(control.runDue).toHaveBeenCalledOnce()
     expect(close).toHaveBeenCalledOnce()
@@ -248,12 +277,12 @@ describe('schedule runtime lifecycle', () => {
         if (source === 'cli') {
           const command = await runtime.command(
             { operation: 'add', isJson: true, draft, ...authorization },
-            '/one',
+            path.resolve('/one'),
           )
           result = command.output
         } else {
           result = await runtime.run(`/schedule add ${draft}`, {
-            cwd: '/one',
+            cwd: path.resolve('/one'),
             sessionId: 'session-1',
             backend: 'modelApi',
             ...authorization,
@@ -266,12 +295,12 @@ describe('schedule runtime lifecycle', () => {
       if (source === 'cli')
         await runtime.command(
           { operation: 'add', isJson: true, draft, ...authorization },
-          '/one',
+          path.resolve('/one'),
           false,
         )
       else
         await runtime.run(`/schedule add ${draft}`, {
-          cwd: '/one',
+          cwd: path.resolve('/one'),
           sessionId: 'session-1',
           backend: 'modelApi',
           ...authorization,
@@ -280,9 +309,13 @@ describe('schedule runtime lifecycle', () => {
         source,
         isInteractive: source === 'acp',
         ...authorization,
-        ...(source === 'acp' && { cwd: '/one', sessionId: 'session-1', backend: 'modelApi' }),
+        ...(source === 'acp' && {
+          cwd: path.resolve('/one'),
+          sessionId: 'session-1',
+          backend: 'modelApi',
+        }),
       }
-      expect(controlFor).toHaveBeenLastCalledWith('/one', caller)
+      expect(controlFor).toHaveBeenLastCalledWith(path.resolve('/one'), caller)
       expect(control.request).toHaveBeenLastCalledWith(
         expect.objectContaining({ method: 'schedules/create' }),
         caller,
@@ -295,14 +328,16 @@ describe('schedule runtime lifecycle', () => {
     async (platform) => {
       const { runtime, control, host, unwatch, close, reconcile } = setup(platform)
       // Global run-due takes persisted keys; existing session watches close too.
-      await runtime.holdWorkspace('/one')
-      await runtime.holdWorkspace('/two')
+      await runtime.holdWorkspace(path.resolve('/one'))
+      await runtime.holdWorkspace(path.resolve('/two'))
       vi.mocked(control.runDue).mockImplementation(() => {
-        expect(host.holds(workspaceKey('/one'))).toBe(true)
-        expect(host.holds(workspaceKey('/two'))).toBe(true)
+        expect(host.holds(workspaceKey(path.resolve('/one')))).toBe(true)
+        expect(host.holds(workspaceKey(path.resolve('/two')))).toBe(true)
         return Promise.resolve()
       })
-      expect(await runtime.command({ operation: 'run-due', isJson: true }, '/launcher')).toEqual({
+      expect(
+        await runtime.command({ operation: 'run-due', isJson: true }, path.resolve('/launcher')),
+      ).toEqual({
         exitCode: 0,
         output: '{"kind":"accepted"}',
       })
@@ -311,32 +346,35 @@ describe('schedule runtime lifecycle', () => {
       expect(unwatch).toHaveBeenCalledTimes(2)
       expect(close).toHaveBeenCalledOnce()
       expect(reconcile).toHaveBeenCalledTimes(platform === 'darwin' ? 0 : 1)
-      expect(host.holds(workspaceKey('/one'))).toBe(false)
+      expect(host.holds(workspaceKey(path.resolve('/one')))).toBe(false)
       await runtime.close()
       expect(close).toHaveBeenCalledOnce()
-      await expect(runtime.holdWorkspace('/one')).rejects.toThrow()
+      await expect(runtime.holdWorkspace(path.resolve('/one'))).rejects.toThrow()
     },
   )
   it('releases every due-workspace lease and engine even when a run fails', async () => {
     const { runtime, control, host, unwatch, close } = setup()
     // Global run-due takes persisted keys; existing session watches close too.
-    await runtime.holdWorkspace('/one')
-    await runtime.holdWorkspace('/two')
+    await runtime.holdWorkspace(path.resolve('/one'))
+    await runtime.holdWorkspace(path.resolve('/two'))
     vi.mocked(control.runDue).mockRejectedValue(new Error('Engine failed'))
-    const result = await runtime.command({ operation: 'run-due', isJson: true }, '/launcher')
+    const result = await runtime.command(
+      { operation: 'run-due', isJson: true },
+      path.resolve('/launcher'),
+    )
     expect(result.exitCode).toBe(1)
     expect(unwatch).toHaveBeenCalledTimes(2)
     expect(close).toHaveBeenCalledOnce()
-    expect(host.holds(workspaceKey('/one'))).toBe(false)
+    expect(host.holds(workspaceKey(path.resolve('/one')))).toBe(false)
   })
   it('reports failed due-workspace teardown after attempting every release', async () => {
     const { runtime, unwatch, close } = setup()
     // Global run-due takes persisted keys; existing session watches close too.
-    await runtime.holdWorkspace('/one')
-    await runtime.holdWorkspace('/two')
+    await runtime.holdWorkspace(path.resolve('/one'))
+    await runtime.holdWorkspace(path.resolve('/two'))
     unwatch.mockRejectedValueOnce(new Error('Watcher failed'))
     expect(
-      await runtime.command({ operation: 'run-due', isJson: true }, '/launcher'),
+      await runtime.command({ operation: 'run-due', isJson: true }, path.resolve('/launcher')),
     ).toMatchObject({
       exitCode: SCHEDULE_CLEANUP_EXIT_CODE,
       output: '{"kind":"accepted"}',
@@ -348,17 +386,17 @@ describe('schedule runtime lifecycle', () => {
   it('routes ACP locally through its scoped control and never runs global due work', async () => {
     const { runtime, control, close } = setup()
     await runtime.run('/schedule list', {
-      cwd: '/one',
+      cwd: path.resolve('/one'),
       sessionId: 'session-1',
       backend: 'museCode',
     })
     expect(control.request).toHaveBeenCalledWith(
       {
         method: 'schedules/list',
-        workspaceKey: workspaceKey('/one'),
+        workspaceKey: workspaceKey(path.resolve('/one')),
       },
       {
-        cwd: '/one',
+        cwd: path.resolve('/one'),
         sessionId: 'session-1',
         backend: 'museCode',
         source: 'acp',
@@ -374,26 +412,26 @@ describe('schedule runtime lifecycle', () => {
   it('does not leak a lease on failed or late workspace startup', async () => {
     const { runtime, watchWorkspace, host, close, unwatch } = setup()
     watchWorkspace.mockRejectedValueOnce(new Error('Watcher failed'))
-    await expect(runtime.holdWorkspace('/one')).rejects.toThrow('Watcher failed')
-    expect(host.holds(workspaceKey('/one'))).toBe(false)
+    await expect(runtime.holdWorkspace(path.resolve('/one'))).rejects.toThrow('Watcher failed')
+    expect(host.holds(workspaceKey(path.resolve('/one')))).toBe(false)
     const starting = Promise.withResolvers<() => Promise<void>>()
     watchWorkspace.mockReturnValue(starting.promise)
-    const pending = runtime.holdWorkspace('/two')
+    const pending = runtime.holdWorkspace(path.resolve('/two'))
     await runtime.close()
     starting.resolve(unwatch)
     await expect(pending).rejects.toThrow()
-    expect(host.holds(workspaceKey('/two'))).toBe(false)
+    expect(host.holds(workspaceKey(path.resolve('/two')))).toBe(false)
     expect(unwatch).toHaveBeenCalledOnce()
     expect(close).toHaveBeenCalledOnce()
   })
   it('closes a late control and attempts all releases after one fails', async () => {
     const { runtime, controlFor, control, unwatch, close } = setup()
-    await runtime.holdWorkspace('/one')
-    await runtime.holdWorkspace('/two')
+    await runtime.holdWorkspace(path.resolve('/one'))
+    await runtime.holdWorkspace(path.resolve('/two'))
     unwatch.mockRejectedValueOnce(new Error('Watcher failed'))
     const pendingControl = Promise.withResolvers<ScheduleControlPort>()
     controlFor.mockReturnValue(pendingControl.promise)
-    const command = runtime.command({ operation: 'list', isJson: true }, '/one')
+    const command = runtime.command({ operation: 'list', isJson: true }, path.resolve('/one'))
     await expect(runtime.close()).rejects.toThrow()
     pendingControl.resolve(control)
     await expect(command).rejects.toThrow()
@@ -404,11 +442,11 @@ describe('schedule runtime lifecycle', () => {
   })
   it('releases a workspace lease idempotently across replacement and close', async () => {
     const { runtime, host, unwatch } = setup()
-    const release = await runtime.holdWorkspace('/one')
+    const release = await runtime.holdWorkspace(path.resolve('/one'))
     await release()
     await release()
     await runtime.close()
     expect(unwatch).toHaveBeenCalledOnce()
-    expect(host.holds(workspaceKey('/one'))).toBe(false)
+    expect(host.holds(workspaceKey(path.resolve('/one')))).toBe(false)
   })
 })

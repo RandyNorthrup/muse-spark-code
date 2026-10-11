@@ -30,6 +30,7 @@ export interface ScheduleEditorDeliveryPorts {
   readonly dialect: ShellDialect
   readonly io: RealPathIo
   readonly signal: AbortSignal
+  signalFor?(session: BackendSession): AbortSignal
   /** Trust, credentials, settings and the owning workspace remain live. */
   isActive(): boolean
   generation?(): number
@@ -74,7 +75,10 @@ export interface ScheduleEditorDeliveryPorts {
 }
 
 interface PendingRun {
-  readonly signal: AbortSignal
+  signal: AbortSignal
+  agent?: BackendSession
+  submitted?: TurnSubmission
+  stopLifecycle?: () => void
   readonly schedule: ScheduleV2
   readonly context: ScheduleRunContext
   readonly terminal: Promise<Terminal>
@@ -108,6 +112,14 @@ export function createScheduleDeliveryBinding(
         throw new Error(UI_TEXT.scheduleV2.messages.targetUnavailable)
       if (agent.sendScheduledTurn === undefined || agent.steerScheduledTurn === undefined)
         throw new Error(UI_TEXT.scheduleV2.messages.targetUnavailable)
+      entry.agent = agent
+      entry.signal = AbortSignal.any([entry.signal, ports.signalFor?.(agent) ?? ports.signal])
+      const abort = () => entry.reject?.(new Error(UI_TEXT.scheduleV2.messages.targetClosed))
+      entry.signal.addEventListener('abort', abort, { once: true })
+      entry.stopLifecycle = () => {
+        entry.signal.removeEventListener('abort', abort)
+      }
+      if (entry.signal.aborted) throw new Error(UI_TEXT.scheduleV2.messages.targetClosed)
       if (entry.run === undefined) {
         const paid =
           billing !== undefined &&
@@ -196,7 +208,7 @@ export function createScheduleDeliveryBinding(
             submitted?.userMessageId === event.userMessageId ||
             submitted?.turnId === event.userMessageId
           ) {
-            submitted = { ...submitted, turnId: event.turnId }
+            entry.submitted = submitted = { ...submitted, turnId: event.turnId }
             publish()
           }
         } else if (event.type === 'turnCompleted' || event.type === 'turnWithdrawn') {
@@ -217,6 +229,7 @@ export function createScheduleDeliveryBinding(
           submitted = { ...submitted, turnId: promotedTurn }
           promotedTurn = promoted.get(promotedTurn)
         }
+        entry.submitted = submitted
         const terminal = terminals.get(submitted.turnId)
         if (terminal !== undefined) entry.resolve?.(terminal)
         publish()
@@ -315,24 +328,33 @@ export function createScheduleDeliveryBinding(
         } catch (error: unknown) {
           // Losing the host is not a settled turn. Retain the durable admission
           // fence for recovery rather than recording a bill before settlement.
-          if (signal.aborted) {
-            entry.stopListening?.()
-            pending.delete(context.runId)
-            throw error
-          }
-          result = {
-            outcome:
-              entry.run !== undefined &&
-              (entry.run.dispatchRefusal !== undefined || !entry.run.isActive())
-                ? 'refused'
-                : 'failed',
-            reason:
-              entry.run?.dispatchRefusal ??
-              (entry.run !== undefined && !entry.run.isActive()
-                ? UI_TEXT.scheduleV2.messages.changedConsent
-                : UI_TEXT.scheduleCommandFailed),
-            refusedActions: entry.run?.refusedActions ?? [],
-          }
+          if (entry.signal.aborted || !session.isOpen()) {
+            if (entry.submitted?.disposition === 'queued') {
+              const withdrawal = await entry.agent?.withdrawQueued?.({
+                ...entry.submitted,
+                userMessageId: entry.submitted.userMessageId,
+              })
+              if (withdrawal?.status !== 'withdrawn') throw error
+            } else if (entry.submitted?.disposition === 'started') await entry.agent?.cancel()
+            result = {
+              outcome: 'skipped',
+              reason: UI_TEXT.scheduleV2.messages.targetClosed,
+              refusedActions: entry.run?.refusedActions ?? [],
+            }
+          } else
+            result = {
+              outcome:
+                entry.run !== undefined &&
+                (entry.run.dispatchRefusal !== undefined || !entry.run.isActive())
+                  ? 'refused'
+                  : 'failed',
+              reason:
+                entry.run?.dispatchRefusal ??
+                (entry.run !== undefined && !entry.run.isActive()
+                  ? UI_TEXT.scheduleV2.messages.changedConsent
+                  : UI_TEXT.scheduleCommandFailed),
+              refusedActions: entry.run?.refusedActions ?? [],
+            }
         } finally {
           signal.removeEventListener('abort', abort)
         }
@@ -342,6 +364,7 @@ export function createScheduleDeliveryBinding(
           return { ...result, cost: await (entry.cost?.() ?? Promise.resolve(noScheduleCost())) }
         } finally {
           entry.stopListening?.()
+          entry.stopLifecycle?.()
           pending.delete(context.runId)
         }
       },

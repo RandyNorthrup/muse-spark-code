@@ -848,7 +848,7 @@
     {
       "id": "M115",
       "title": "Scheduled prompts v2",
-      "summary": "The VS Code schedule editor manages durable records, with candidate dispatch, file policy, queued identity and workspace lifetime repairs under review while automatic delivery stays disabled pending cross-platform certification.",
+      "summary": "Joined VS Code, ACP and terminal delivery candidates preserve dispatch authority, owner-only output and paid consent; automatic delivery stays disabled pending shared settlement and cross-platform certification.",
       "area": "agents",
       "release": "0.17.0"
     },

@@ -1,0 +1,24 @@
+# M115 join certification
+
+MacBook lane, 2026-10-11. No browser, GUI, live model or paid calls.
+Automatic delivery remains disabled until lead qualification.
+
+## Join resolution
+
+- Runtime head `792ebc525`: deliveryBinding keeps VS Code final authority,
+  generation, consent and complete promotion-chain checks; adds runtime owner
+  lifetime, submitted-message identity and queued withdrawal on close.
+- Engine keeps shared-window polling serialization and adds runtime tick/dispatch
+  shutdown tracking and persisted workspace roots.
+- runtimeEntry keeps editor billing/caller ports and runtime delivery ports.
+- scheduleClaims keeps round-three IPC barriers, warm admission and assertions
+  inside the default-timeout test; no timing-based race or weakened assertions.
+- README scopes disabled delivery to VS Code; PLAN and CHANGELOG retain both
+  lanes' records. Roadmap describes joined candidates. Generated Help/reference
+  and roadmap use their generators after merging source records.
+
+## Outstanding proof
+
+Core settlement, crash recovery, host composition, red drills, byte receipts and
+all dependent/static gates are pending. Browser and installed-GUI suites must
+run on Linux. Windows process/storage/native queue checks remain lead replay.

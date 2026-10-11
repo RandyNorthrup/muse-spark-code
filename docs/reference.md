@@ -1130,9 +1130,11 @@ Commands: —. Settings: `museSpark.modelApiImageGeneration`. [Documentation](ht
 
 Schedule a prompt in this Model API conversation.
 
-scheduleDeliveryCertified=false: The v2 schedule editor, list and timeline manage durable records. Automatic prompt delivery is disabled. Model API /loop jobs run when you choose Run now.
+scheduleDeliveryCertified=false: The v2 schedule editor, list and timeline manage durable records. Automatic VS Code v2 prompt delivery is disabled. Model API /loop jobs run when you choose Run now.
 
 Scheduled turns support text and image inputs; video and audio inputs are unsupported in this version.
+
+Attach files by selecting or dropping them, and paste images into the composer. PNG, JPEG, GIF and WebP images require a selected model with vision. PDF attachments require Model API. Trusted indexed workspace text files can be attached; protected or confidential files are refused. The limits below apply before sending.
 
 ```json
 {
@@ -1186,6 +1188,16 @@ Scheduled turns support text and image inputs; video and audio inputs are unsupp
 Surfaces: vscode:modelApi. Paid: yes; consent required; admission depends on the surface.
 
 Commands: `museSpark.schedulePrompt`, `museSpark.showSchedules`, `museSpark.showScheduleTimeline`. Settings: `museSpark.modelApiScheduledPrompts`, `museSpark.schedules`, `museSpark.scheduleDefaultDelivery`, `museSpark.scheduleAgentCreation`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#scheduled-prompts-model-api)
+
+### Runtime schedules
+
+Schedule unattended Muse Code prompts in ACP or the terminal
+
+Run unattended Muse Code prompts from ACP or the terminal, with standing grants, persistent fire records and background conversation targets.
+
+Surfaces: acp:museCode. Paid: no extra feature charge; model usage still applies.
+
+Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#runtime-scheduled-delivery)
 
 ### /agents
 

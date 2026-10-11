@@ -8,6 +8,8 @@ import type { ScheduleCommandOptions } from './args'
 import type { ScheduleCommandResult } from './settle'
 import type { AcpSchedulePort } from '../../acp/schedules'
 import type { ScheduleEditorDeliveryPorts } from '../../host/schedules/deliveryBinding'
+import type { RuntimeScheduleDeliveryPorts } from './delivery'
+import type { AcpScheduleSession } from '../../acp/schedules'
 
 export interface RuntimeSchedulesBinding extends AcpSchedulePort {
   command(
@@ -16,7 +18,7 @@ export interface RuntimeSchedulesBinding extends AcpSchedulePort {
     isInteractive?: boolean,
   ): Promise<ScheduleCommandResult>
   /** ACP/native/companion workspace lifetime; S binds the polling engine here. */
-  holdWorkspace(cwd: string): Promise<() => Promise<void>>
+  holdWorkspace(cwd: string, session?: AcpScheduleSession): Promise<() => Promise<void>>
   /** The VS Code panel's request port over the same workspace control. */
   message(input: unknown, cwd: string): Promise<unknown>
   close(): Promise<void>
@@ -27,6 +29,7 @@ interface RuntimeSchedulesModule {
     table: UiText,
     locale: string,
     delivery?: ScheduleEditorDeliveryPorts,
+    runtimeDelivery?: RuntimeScheduleDeliveryPorts,
   ): Promise<RuntimeSchedulesBinding>
 }
 
@@ -44,6 +47,7 @@ export function runtimeSchedulesBinding(
   log: Logger,
   loadBundle?: (file: string) => unknown,
   delivery?: ScheduleEditorDeliveryPorts,
+  runtimeDelivery?: RuntimeScheduleDeliveryPorts,
 ): () => Promise<RuntimeSchedulesBinding> {
   const load = lazyBundleLoader({
     bundlePath,
@@ -55,10 +59,14 @@ export function runtimeSchedulesBinding(
   })
   let binding: Promise<RuntimeSchedulesBinding> | undefined
   return async () => {
-    binding ??=
-      delivery === undefined
-        ? load().createRuntimeSchedules(UI_TEXT, uiLocale())
-        : load().createRuntimeSchedules(UI_TEXT, uiLocale(), delivery)
+    if (binding === undefined) {
+      if (runtimeDelivery === undefined) {
+        binding =
+          delivery === undefined
+            ? load().createRuntimeSchedules(UI_TEXT, uiLocale())
+            : load().createRuntimeSchedules(UI_TEXT, uiLocale(), delivery)
+      } else binding = load().createRuntimeSchedules(UI_TEXT, uiLocale(), delivery, runtimeDelivery)
+    }
     try {
       return await binding
     } catch (error: unknown) {

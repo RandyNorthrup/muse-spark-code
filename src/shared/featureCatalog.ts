@@ -909,6 +909,25 @@ export function featureCatalog(): readonly Feature[] {
       ),
       details: [{ ui: 'referenceSchedules' }, { ui: 'scheduledMediaSupport' }] as const,
     },
+    {
+      ...feature(
+        'runtime-schedules',
+        { ui: 'runtimeSchedulesItem' },
+        { ui: 'runtimeSchedulesItemDetail' },
+        [],
+        [],
+        'runtime-scheduled-delivery',
+        ['museCode'],
+        false,
+        ['acp'],
+      ),
+      facts: {
+        unattended: true,
+        durableClaims: true,
+        terminal: true,
+      },
+      details: [{ ui: 'referenceRuntimeSchedules' }] as const,
+    },
     feature(
       'subagents',
       { ui: 'agentsCommand' },
@@ -1110,6 +1129,7 @@ const REFERENCE_DETAILS: Readonly<
   'structured-side-calls': ['structuredOutputRepair', 'structuredOutputFallback'],
   budget: ['referenceBudget'],
   voice: ['referencePaidContexts'],
+  schedules: ['referenceAttachments'],
   auto: ['referencePaidContexts'],
   subagents: ['referencePaidContexts'],
   'best-of-n': ['referenceBestOfNRequirements', 'referencePaidContexts'],

@@ -16,6 +16,18 @@ function detailKeys(id: string): string[] {
 }
 
 describe('feature catalogue details merge', () => {
+  it('names runtime schedules separately from Model API loop and scopes disabled delivery to VS Code', () => {
+    const runtime = featureCatalog().find((entry) => entry.id === 'runtime-schedules')
+    expect(runtime).toMatchObject({
+      name: { ui: 'runtimeSchedulesItem' },
+      description: { ui: 'runtimeSchedulesItemDetail' },
+    })
+    expect(EN.runtimeSchedulesItem).toBe('Runtime schedules')
+    expect(EN.runtimeSchedulesItemDetail).toContain('ACP or the terminal')
+    expect(EN.referenceSchedules).toContain('Automatic VS Code v2 prompt delivery is disabled.')
+    expect(EN.referenceRuntimeSchedules).toContain('unattended Muse Code prompts')
+    expect(detailKeys('runtime-schedules')).toContain('referenceRuntimeSchedules')
+  })
   it('keeps the schedules feature-level details beside reference details', () => {
     expect(detailKeys('schedules')).toContain('referenceAttachments')
     expect(detailKeys('schedules')).toContain('scheduledMediaSupport')
