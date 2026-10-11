@@ -1874,7 +1874,7 @@ Reports share the existing 50 KiB mini-parser; every runtime API read is guarded
 
 **`dist/museCodeReviewer.js` budget rationale.** (M90: the Auto reviewer on Muse Code, its side session and approvals with M78's reviewer core, loaded on the first review; measured 45.4 KiB plus 15%, rounded up to 25 KiB)
 
-**`dist/playbook.js` budget rationale.** (M116 lane C-M116-6, 2026-10-11: the VS Code window's playbook, its client and, as its worker thread, the governor, loaded on the first playbook request; measured 109.9 KiB plus 15%, rounded up to 25 KiB = 150 KiB)
+**`dist/playbook.js` budget rationale.** (M116 lane C-M116-6, 2026-10-11: the VS Code window's playbook, its client and, as its worker thread, the governor, loaded on the first playbook request; measured 111.5 KiB plus 15%, rounded up to 25 KiB = 150 KiB)
 
 ### D7 — Permission modes map onto MSP approval modes; prompting modes wait for M4
 
@@ -36739,9 +36739,22 @@ D96.16. Three commits, each reviewed on its own.
    budget, split guard, package, inventory and layout rows. Suites
    `playbookGovernor`, `playbookWindow` and `playbookContainedJob` (native
    on Windows); drills in `docs/certification/m116.md`.
-2. **The record in the panel.** The window loads the bundle on first use;
-   the Agent map's playbook page and strike slots read the journal; and
-   `/playbook` in the composer answers from it.
+2. **The record in the panel (committed second).** Activation holds a loader
+   and data only (`src/host/playbook/playbookBundle.ts`); the window's
+   playbook loads on the first request. The panel speaks to it over one
+   envelope each way (`playbook`), parsed in the lazy bundle on the host and
+   in the Agent map's lazy chunk in the webview
+   (`src/runtime/playbook/panelWire.ts`, `src/host/playbook/playbookPanel.ts`,
+   `PlaybookLink` in `src/webview/playbook/PlaybookMap.tsx`). The Agent map
+   offers **Playbook Settings** (status, record, settings) once the window
+   names a journal, and its rows read their records by the ids the host
+   recorded the agents under. `/playbook` in the composer answers from the
+   same journal through M126 F9's handler, taken byte-identical
+   (`playbookAnswer.ts`), with its source supplied by the window's bundle
+   rather than `dist/acpPlaybook.js`, which the VSIX does not ship. A host
+   that passes neither a port nor the channel, or a window with no folder,
+   shows the map exactly as before; with no journal on the machine no worker
+   starts for the rows.
 3. **Enforcement.** The panel's `/review`, subagent, `delegate` and
    best-of-N dispatches go through the window's playbook on both backends;
    why-notes appear in the transcript; the third strike offers **Plan a
@@ -36969,11 +36982,16 @@ core.hooksPath`, an edit under `.husky/`, a delegate re-asking a refused
   that calls it (`dist/team.js` once M96 merges; before that a lazy
   `dist/playbook.js` with the panel's orchestration); `dist/extension.js`
   gains at most 1 KiB, and no cap rises. C-M116-6 (2026-10-11):
-  `dist/playbook.js` is 109.9 KiB (the window's client and, as its worker
-  thread, the governor with the policy, journal, outcomes and the Windows job
-  runner), under a 150 KiB budget by D6's rule; it shares `dist/uiText.js`,
+  `dist/playbook.js` is 111.5 KiB (the window's client and its panel
+  channel and, as its worker thread, the governor with the policy, journal,
+  outcomes and the Windows job runner; 109.7 KiB before the panel's channel),
+  under a 150 KiB budget by D6's rule; it shares `dist/uiText.js`,
   `dist/validation.js`, `dist/wire.js`, `dist/resourceAdmission.js` and
-  the redaction bundle rather than carrying copies.
+  the redaction bundle rather than carrying copies. Measured against the
+  commit before the window loads it: `dist/extension.js` +911 bytes
+  (564,335; the loader, the data it needs and the two controller ports),
+  `dist/conversation.js` +1,397 bytes (252,704 of 256,000; M126 F9's answer
+  and the channel's case), the webview's playbook closure 21.9 of 25 KiB.
 - **Size.** S–M: about 60 lane-hours.
 - **Certification checklist** (§6.0, plus):
   - [ ] The fake review loop's round-3 switch and its drill
@@ -43647,6 +43665,7 @@ before a repaired one loads (2026-09-30).
 | `src/host/conversation/conversationBundle.ts`   | `value is ConversationBundle`                                              | Checks the same-build factory export; the packaged implementation receives the installed table before construction. The controller suite loads the real CommonJS build and refuses malformed exports.                                                                                                                                                                                                                                                                                             | 2026-09-30 |
 | `src/host/agentImportBundle.ts`                 | `value is AgentImportBundle` (`isAgentImportBundle`, a type predicate)     | M83: `require` of `dist/agentImport.js` returns `unknown`; the guard checks that `importFromAgents` and `runAgentImport` are functions, not their parameter and result types, which are trusted because entry, loader and package come from one source tree and one build. `agentImportBundle.test.ts` builds the actual entry as `scripts/build.mjs` does, requires it, runs a real import through it, and refuses missing and malformed modules.                                                | 2026-09-30 |
 | `src/host/skills/bundledSkills.ts`              | `value is BundledSkillsBundle` (`isBundledSkillsBundle`, a type predicate) | M89: `require` of `dist/bundledSkills.js` returns `unknown`; the guard checks that `bundledSkillsStatus`, `installBundledSkills` and `removeBundledSkills` are functions, not their parameter and result types, which are trusted because entry, loader and package come from one source tree and one build. `bundledSkillsInstall.test.ts` builds the actual entry as `scripts/build.mjs` does, requires it through the loader, installs and removes through it, and refuses a malformed module. | 2026-10-03 |
+| `src/host/playbook/playbookBundle.ts`           | `value is typeof PlaybookEntry` (`isPlaybookWindowBundle`, type predicate) | M116 C-M116-6: `require` of `dist/playbook.js` returns `unknown`; the guard checks that `createPlaybookWindow` is a function, not its parameter and result types, which are trusted because entry, loader and package come from one source tree and one build. `playbookWindowBundle.test.ts` builds the actual entry as `scripts/build.mjs` does, requires it through the loader, reads and changes a journal through it, and refuses a malformed module.                                        | 2026-10-11 |
 | `src/host/review/reviewBundle.ts`               | `value is ReviewBundle`                                                    | Checks the factory function from the same build and package; its signature is trusted as described above and the real built module is exercised.                                                                                                                                                                                                                                                                                                                                                  | 2026-09-30 |
 | `src/host/git/conversationGitBundle.ts`         | `value is ConversationGitBundle`                                           | MG78: checks the packaged factory is a function; its signature is trusted only across one source/build/package. The shipped-bundle test verifies installed language, trust refusal, loader repair and activation's error identities.                                                                                                                                                                                                                                                              | 2026-10-02 |
 

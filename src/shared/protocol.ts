@@ -919,6 +919,8 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
     type: z.literal('reportWebviewError'),
     ...reportWebviewErrorSchema.shape,
   }),
+  // The playbook's own channel (M116): its lazy bundle parses what is inside.
+  z.object({ type: z.literal('playbook'), message: z.unknown() }),
 ])
 
 export type WebviewToHostMessage =
@@ -1396,6 +1398,8 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   // The extension's `museSpark.estimate` command: focus the composer with
   // `/estimate ` ready for the goal.
   z.object({ type: z.literal('openEstimator') }),
+  // The playbook's own channel (M116): the Agent map's lazy chunk parses it.
+  z.object({ type: z.literal('playbook'), message: z.unknown() }),
 ])
 
 export type HostToWebviewMessage =

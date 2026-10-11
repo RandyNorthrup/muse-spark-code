@@ -53,17 +53,24 @@ describe('RVCX1B F1: live argument claims are removed', () => {
   })
 })
 
-describe('RVCX1B F2: playbook panel claims are removed', () => {
-  it('catalog and generated Help advertise only ACP journal/settings surfaces', () => {
+// C-M116-6 (2026-10-11) inverted the first assertion: the VS Code panel now
+// reads the journal (`/playbook` in the composer, the Agent map's page), so
+// the catalogue lists it. The panel's enforcement claims stay removed until
+// the commit that routes its dispatches through the playbook.
+describe('RVCX1B F2: playbook panel claims say only what the panel does', () => {
+  it('catalog and generated Help advertise the journal surfaces: VS Code and ACP', () => {
     for (const features of [featureCatalog(), help.features]) {
       expect(features.find((feature) => feature.id === 'orchestrator-playbook')?.surfaces).toEqual([
+        'vscode:museCode',
+        'vscode:modelApi',
         'acp:museCode',
         'acp:modelApi',
       ])
     }
   })
 
-  it('README and current release highlights do not claim panel or Agent-map access', () => {
+  it('README claims the journal in the panel, and no enforcement there yet', () => {
+    expect(readme).toContain("journal's status, record and settings (**Playbook Settings**)")
     expect(readme).not.toContain('The panel, Agent map, ACP and CLI read the same journal')
     expect(readme).not.toContain('Nine rules govern orchestrated work')
     expect(readme).toContain('The CLI `playbook')

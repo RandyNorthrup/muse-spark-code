@@ -25,6 +25,7 @@ import {
   mkdtempSync,
   readFileSync,
   realpathSync,
+  rmSync,
   unlinkSync,
   writeFileSync,
 } from 'node:fs'
@@ -32,6 +33,8 @@ import { mkdir, readFile, rename, symlink, unlink, writeFile } from 'node:fs/pro
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import * as localPlaybookBundle from '../../src/runtime/playbook/playbookEntry'
+import type { PlaybookSource } from '../../src/host/playbook/playbookAnswer'
 import { fileURLToPath } from 'node:url'
 import vm from 'node:vm'
 import { build } from 'esbuild'
@@ -16423,6 +16426,195 @@ describe('report a problem wiring (M93, PLAN.md D72)', () => {
     )
     expect(t.server.requestsFor('session/start')).toHaveLength(0)
     expect(t.auth.calls).toHaveLength(authCalls)
+    controller.dispose()
+  })
+})
+
+/** A journal port for a test whose canned run never reads it. */
+function shutJournal(): Promise<never> {
+  return Promise.reject(new Error('the journal stays shut in this test'))
+}
+
+describe('/playbook local answer (M116, M126 F9)', () => {
+  it('uses the real persistent journal with zero ordinary model sends', async () => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'm126c-playbook-'))
+    const workspaceRoot = path.join(directory, 'workspace')
+    mkdirSync(workspaceRoot)
+    const t = setup()
+    const ensureHost = vi.fn<ConversationDeps['ensureHost']>()
+    const source: PlaybookSource = {
+      loadBundle: () => localPlaybookBundle,
+      agentDataFolder: path.join(directory, 'data'),
+      workspaceRoot,
+      table: UI_TEXT,
+      locale: 'en',
+      log: new FakeLogOutputChannel(),
+    }
+    const controller = new ConversationController({ ...t.deps, ensureHost, playbookSource: source })
+    try {
+      for (const text of [
+        '/playbook status',
+        '/playbook settings offload off local test reason',
+        '/playbook record',
+        '/playbook settings',
+      ]) {
+        await controller.handle({ type: 'sendMessage', localId: text, text, attachmentIds: [] })
+        expect(t.surface.posted).toContainEqual(
+          expect.objectContaining({ type: 'sendFailed', localId: text }),
+        )
+      }
+      const reader = localPlaybookBundle.createPlaybookSurface(
+        {
+          agentDataFolder: source.agentDataFolder,
+          workspaceFolder: workspaceRoot,
+          teamId: 'panel',
+          laneId: 'surface',
+        },
+        UI_TEXT,
+        'en',
+      )
+      const snapshot = localPlaybookBundle.runPlaybookCommand(
+        { view: 'settings' },
+        reader,
+        UI_TEXT,
+        'en',
+      )
+      const answer = await snapshot
+      expect(answer.text).toContain('local test reason')
+      expect(t.surface.posted).toContainEqual(
+        expect.objectContaining({
+          type: 'sendFailed',
+          localId: '/playbook settings',
+          reason: expect.stringContaining('local test reason'),
+        }),
+      )
+      expect(ensureHost).not.toHaveBeenCalled()
+      expect(t.server.requestsFor('turn/start')).toHaveLength(0)
+      expect(t.server.requestsFor('session/start')).toHaveLength(0)
+    } finally {
+      controller.dispose()
+      rmSync(directory, { recursive: true, force: true })
+    }
+  })
+
+  it('answers locally when no journal source is installed, even while signed in', async () => {
+    const t = setup()
+    const ensureHost = vi.fn<ConversationDeps['ensureHost']>()
+    const controller = new ConversationController({ ...t.deps, ensureHost })
+    await controller.handle({
+      type: 'sendMessage',
+      localId: 'missing-playbook',
+      text: '/playbook status',
+      attachmentIds: [],
+    })
+    expect(t.surface.posted).toContainEqual({
+      type: 'sendFailed',
+      localId: 'missing-playbook',
+      reason: UI_TEXT.playbookUnavailable,
+      attachmentsKept: true,
+    })
+    expect(ensureHost).not.toHaveBeenCalled()
+    expect(t.server.requestsFor('turn/start')).toHaveLength(0)
+    expect(t.server.requestsFor('session/start')).toHaveLength(0)
+    controller.dispose()
+  })
+  it('answers from the journal and never starts a turn, even while signed out', async () => {
+    const t = setup({ status: 'signedOut' })
+    const loadBundle = vi.fn(() => ({
+      ...localPlaybookBundle,
+      // Surface creation only computes paths; the canned run below never reads it.
+      createPlaybookSurface: () => ({ read: shutJournal, change: shutJournal }),
+      runPlaybookCommand: (command: { view: string }) =>
+        Promise.resolve({ ok: true, text: `journal says: ${command.view}` }),
+    }))
+    const playbookSource: PlaybookSource = {
+      loadBundle,
+      agentDataFolder: '/data',
+      workspaceRoot: '/work/alpha',
+      table: UI_TEXT,
+      locale: 'en',
+      log: new FakeLogOutputChannel(),
+    }
+    const ensureHost = vi.fn<ConversationDeps['ensureHost']>()
+    const controller = new ConversationController({ ...t.deps, ensureHost, playbookSource })
+    for (const text of ['/playbook', '/playbook status', '/playbook record', '/playbook nope'])
+      await controller.handle({
+        type: 'sendMessage',
+        localId: `playbook-${text}`,
+        text,
+        attachmentIds: ['kept-image'],
+      })
+    expect(loadBundle).toHaveBeenCalledTimes(4)
+    expect(ensureHost).not.toHaveBeenCalled()
+    expect(t.server.requestsFor('turn/start')).toHaveLength(0)
+    expect(t.server.requestsFor('session/start')).toHaveLength(0)
+    for (const { text, reason } of [
+      { text: '/playbook', reason: 'journal says: status' },
+      { text: '/playbook record', reason: 'journal says: record' },
+      // A command the grammar does not know is answered with its usage, not a turn.
+      { text: '/playbook nope', reason: UI_TEXT.playbookCommandUsage },
+    ])
+      expect(t.surface.posted).toContainEqual({
+        type: 'sendFailed',
+        localId: `playbook-${text}`,
+        reason,
+        attachmentsKept: true,
+      })
+    // Ordinary text is not a playbook command: the bundle never loads for it,
+    // and its send takes the model path, refused here for sign-in.
+    await controller.handle({
+      type: 'sendMessage',
+      localId: 'ordinary',
+      text: 'hello',
+      attachmentIds: [],
+    })
+    expect(loadBundle).toHaveBeenCalledTimes(4)
+    expect(t.surface.posted).toContainEqual({
+      type: 'sendFailed',
+      localId: 'ordinary',
+      reason: UI_TEXT.notSignedInReason,
+      attachmentsKept: true,
+    })
+    expect(t.server.requestsFor('turn/start')).toHaveLength(0)
+    controller.dispose()
+  })
+})
+
+describe('the playbook’s panel channel (M116, C-M116-6)', () => {
+  it('hands the panel’s message to the window’s playbook and posts back each answer', async () => {
+    for (const status of ['signedIn', 'signedOut'] as const) {
+      const t = setup({ status })
+      const playbookPanel = vi.fn<NonNullable<ConversationDeps['playbookPanel']>>(
+        (_message, reply) => {
+          reply({ type: 'playbookHello', workspaceId: 'journal-1' })
+          reply({ type: 'playbookAgents', requestId: 1, records: {} })
+        },
+      )
+      const ensureHost = vi.fn<ConversationDeps['ensureHost']>()
+      const controller = new ConversationController({ ...t.deps, ensureHost, playbookPanel })
+      await controller.handle({ type: 'playbook', message: { type: 'playbookHello' } })
+      // The message goes on exactly as it came: the bundle parses it, not the controller.
+      expect(playbookPanel).toHaveBeenCalledExactlyOnceWith(
+        { type: 'playbookHello' },
+        expect.any(Function),
+      )
+      expect(t.surface.posted.filter((message) => message.type === 'playbook')).toEqual([
+        { type: 'playbook', message: { type: 'playbookHello', workspaceId: 'journal-1' } },
+        { type: 'playbook', message: { type: 'playbookAgents', requestId: 1, records: {} } },
+      ])
+      // The journal is read without a session, a sign-in or a model.
+      expect(ensureHost).not.toHaveBeenCalled()
+      expect(t.server.requestsFor('session/start')).toHaveLength(0)
+      controller.dispose()
+    }
+  })
+
+  it('says nothing on a host that has no window playbook', async () => {
+    const t = setup()
+    const controller = new ConversationController({ ...t.deps })
+    const before = t.surface.posted.length
+    await controller.handle({ type: 'playbook', message: { type: 'playbookHello' } })
+    expect(t.surface.posted).toHaveLength(before)
     controller.dispose()
   })
 })
