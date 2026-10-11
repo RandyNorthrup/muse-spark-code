@@ -1065,7 +1065,9 @@ describe('C-M109-4 R3 vault item names', () => {
     // Deleted: its own typed state, undo refuses and leaves it absent,
     // retire completes with the vault item still present.
     {
-      const f = await behindActive((fixture) => fixture.secrets.delete(fixture.credential.key))
+      const f = await behindActive(async (fixture) => {
+        await fixture.secrets.delete(fixture.credential.key)
+      })
       expect(await f.service.migrate(f.credential.key)).toBe('legacyDeleted')
       expect(f.journal.get(f.credential.key)?.phase).toBe('active')
       await expect(f.service.undo(f.credential.key)).rejects.toMatchObject({ code: 'conflict' })
@@ -1082,9 +1084,12 @@ describe('C-M109-4 R3 vault item names', () => {
     // Replaced by another shape: undecodable here, so diverged; undo and
     // late retire refuse with `invalid` and touch nothing.
     {
-      const f = await behindActive((fixture) =>
-        fixture.secrets.store(fixture.credential.key, JSON.stringify({ v: 1, unexpected: true })),
-      )
+      const f = await behindActive(async (fixture) => {
+        await fixture.secrets.store(
+          fixture.credential.key,
+          JSON.stringify({ v: 1, unexpected: true }),
+        )
+      })
       expect(await f.service.migrate(f.credential.key)).toBe('diverged')
       await expect(f.service.undo(f.credential.key)).rejects.toMatchObject({ code: 'invalid' })
       expect(f.entries.get(f.credential.key)).toBe(JSON.stringify({ v: 1, unexpected: true }))
@@ -1095,9 +1100,9 @@ describe('C-M109-4 R3 vault item names', () => {
     }
     // Unreadable bytes: same refusal shape as another shape.
     {
-      const f = await behindActive((fixture) =>
-        fixture.secrets.store(fixture.credential.key, 'not JSON at all'),
-      )
+      const f = await behindActive(async (fixture) => {
+        await fixture.secrets.store(fixture.credential.key, 'not JSON at all')
+      })
       expect(await f.service.migrate(f.credential.key)).toBe('diverged')
       await expect(f.service.undo(f.credential.key)).rejects.toMatchObject({ code: 'invalid' })
       expect(f.entries.get(f.credential.key)).toBe('not JSON at all')
