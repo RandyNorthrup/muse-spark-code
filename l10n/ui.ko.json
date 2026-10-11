@@ -879,6 +879,11 @@
     "recordingStart": "녹화 시작",
     "recordingStop": "녹화 중지",
     "uploadDeleteFailed": "{name}을(를) 삭제하지 못했습니다: {reason}",
+    "deleteUploadedFilesPick": "선택한 파일이 제공업체에서 삭제됩니다",
+    "uploadsDescription": "업로드된 파일을 나열하고 미리 삭제",
+    "uploadsUsage": "사용법: /uploads [delete <file> | delete-all]",
+    "uploadNotFound": "업로드된 파일 {id}이(가) 목록에 없습니다.",
+    "uploadForeignKept": "{name}을(를) 유지했습니다. 다른 앱에서 아직 사용할 수 있습니다.",
     "conversionFailed": "변환 실패: {reason}",
     "replayMetadata": "미디어: {name} ({duration}, {size})",
     "replayMetadataNoDuration": "미디어: {name} ({size})"

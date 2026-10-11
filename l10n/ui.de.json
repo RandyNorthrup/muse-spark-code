@@ -883,6 +883,11 @@
     "recordingStart": "Aufnahme starten",
     "recordingStop": "Aufnahme stoppen",
     "uploadDeleteFailed": "{name} konnte nicht gelöscht werden: {reason}",
+    "deleteUploadedFilesPick": "Markierte Dateien werden beim Anbieter gelöscht",
+    "uploadsDescription": "Hochgeladene Dateien auflisten und vorzeitig löschen",
+    "uploadsUsage": "Verwendung: /uploads [delete <file> | delete-all]",
+    "uploadNotFound": "Die hochgeladene Datei {id} ist nicht aufgeführt.",
+    "uploadForeignKept": "{name} wurde behalten: Eine andere App verwendet sie möglicherweise noch.",
     "conversionFailed": "Umwandlung fehlgeschlagen: {reason}",
     "replayMetadata": "Medien: {name} ({duration}, {size})",
     "replayMetadataNoDuration": "Medien: {name} ({size})"

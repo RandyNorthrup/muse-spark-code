@@ -891,6 +891,11 @@
     "recordingStart": "Начать запись",
     "recordingStop": "Остановить запись",
     "uploadDeleteFailed": "Не удалось удалить {name}: {reason}",
+    "deleteUploadedFilesPick": "Отмеченные файлы будут удалены у провайдера",
+    "uploadsDescription": "Список загруженных файлов и досрочное удаление",
+    "uploadsUsage": "Использование: /uploads [delete <file> | delete-all]",
+    "uploadNotFound": "Загруженный файл {id} отсутствует в списке.",
+    "uploadForeignKept": "Файл {name} сохранен: его может использовать другое приложение.",
     "conversionFailed": "Не удалось преобразовать: {reason}",
     "replayMetadata": "Медиа: {name} ({duration}, {size})",
     "replayMetadataNoDuration": "Медиа: {name} ({size})"

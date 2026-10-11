@@ -9,7 +9,7 @@ import {
   accountLedgerDirectory,
   fileUploadLedgerStorage,
 } from '../../core/media/uploadLedgerStorage'
-import { UploadLedger, type SessionUploadLifecycle } from '../../core/media/uploadLedger'
+import { UploadLedger } from '../../core/media/uploadLedger'
 import { MEDIA_PROVIDER_POOL_BYTES } from '../../shared/constants'
 
 export interface SessionUploadsDeps {
@@ -25,10 +25,14 @@ export interface SessionUploadsDeps {
   readonly now?: () => number
 }
 
-/** The file session store's `uploads` factory over the real provider ledger. */
+/**
+ * The file session store's `uploads` factory over the real provider ledger.
+ * The declared ledger also serves the uploaded-files port: an `UploadLedger`
+ * is a `SessionUploadLifecycle`.
+ */
 export function createSessionUploads(
   deps: SessionUploadsDeps,
-): (accountId: string) => Promise<SessionUploadLifecycle> {
+): (accountId: string) => Promise<UploadLedger> {
   return (accountId: string) =>
     Promise.resolve(
       new UploadLedger({

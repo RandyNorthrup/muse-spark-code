@@ -258,6 +258,10 @@ import {
 } from './host/skills/bundledSkills'
 import { hasClaimedVersion, createWhatsNew } from './host/whatsNew/whatsNew'
 import { createSessionTransferFiles } from './host/conversation/transferDialogs'
+import {
+  createUploadedFilesBinding,
+  runDeleteUploadedFilesCommand,
+} from './host/conversation/uploadedFilesBinding'
 import { createWorktreeFeatures } from './host/worktreeFeatures'
 import { heldWorktreesRoot, holdFor } from './core/worktreeConversations'
 import {
@@ -2530,6 +2534,26 @@ async function activateWindow(
   // dist/mediaHost.js on the first attach (RVMEDIAV 8).
   let mediaRegistry: AttachedMedia | undefined
   const attachedMedia = lazyAttachedMedia(() => mediaRegistry)
+  // The account upload ledger (M105 lane F, D85.2): the session store's
+  // ownership binding and the conversation's uploaded-files port share one
+  // loader, so both hosts clean the same rows through the same lock.
+  const loadSessionUploads = async (accountId: string) => {
+    const media = await import('./host/backend/productionMediaEntry.js')
+    media.setUiText(UI_TEXT, uiLocale())
+    return await media.createSessionUploads({
+      uploadLedgerDir: path.join(storageRoot, MODEL_API_UPLOADS_DIR),
+      currentAccountId: () => modelApi.accountId(),
+      filesClient: () => keyClient(),
+      expiryDays: () => currentSettings().mediaUploadExpiryDays,
+    })(accountId)
+  }
+  // A file another app may still use is deleted only after a modal yes.
+  const isForeignDeletionConfirmed = async (question: string): Promise<boolean> =>
+    (await vscode.window.showWarningMessage(
+      question,
+      { modal: true },
+      UI_TEXT.memoryDeleteAction,
+    )) === UI_TEXT.memoryDeleteAction
   const modelApi: ModelApiBackendManager = new ModelApiBackendManager({
     attachedMedia,
     // Machine scope only (lane V seam 3B): a repository never picks the converter.
@@ -2643,16 +2667,7 @@ async function activateWindow(
                 }),
               // The lazy session store releases provider uploads on deletion/purge.
               // Production media and its account ledger load only on first use.
-              uploads: async (accountId) => {
-                const media = await import('./host/backend/productionMediaEntry.js')
-                media.setUiText(UI_TEXT, uiLocale())
-                return await media.createSessionUploads({
-                  uploadLedgerDir: path.join(storageRoot, MODEL_API_UPLOADS_DIR),
-                  currentAccountId: () => modelApi.accountId(),
-                  filesClient: () => keyClient(),
-                  expiryDays: () => currentSettings().mediaUploadExpiryDays,
-                })(accountId)
-              },
+              uploads: (accountId) => loadSessionUploads(accountId),
             },
           }),
     scheduleStore:
@@ -3571,6 +3586,16 @@ async function activateWindow(
             }
           },
           usageInsights: () => insights.read(),
+          // M105 lane F: the uploaded-files port over the account ledger.
+          // The report posts to this surface; foreign deletions ask with a modal.
+          uploadedFiles: createUploadedFilesBinding({
+            uploads: (accountId) => loadSessionUploads(accountId),
+            getAccountId: () => modelApi.accountId(),
+            post: (report) => {
+              surface.post({ type: 'uploadedFilesReport', report })
+            },
+            confirmForeign: isForeignDeletionConfirmed,
+          }).port,
           // Only the sidebar reopens on its last session; a tab is a new
           // conversation by construction (M6).
           isRestorable: surface.id === SIDEBAR_SURFACE_ID,
@@ -4426,13 +4451,49 @@ async function activateWindow(
         }),
       ),
     ),
-    // M105 W: the uploaded-files deletion. The E3/F ledger binding is
-    // lead-owned; until it lands the controller refuses explicitly.
+    // M105 lane F: Delete Uploaded Files lists the ledger's files and
+    // deletes the chosen ones through the provider. The dialog's own
+    // delete buttons call the controller instead.
     registerLoggedCommand(
       log,
       COMMAND_IDS.deleteUploadedFiles,
       forActiveConversation(async (controller) => {
-        await controller.deleteUploadedFiles()
+        const binding = createUploadedFilesBinding({
+          uploads: (accountId) => loadSessionUploads(accountId),
+          getAccountId: () => modelApi.accountId(),
+          post: (report) => {
+            registry.active?.post({ type: 'uploadedFilesReport', report })
+          },
+          confirmForeign: isForeignDeletionConfirmed,
+        })
+        await runDeleteUploadedFilesCommand({
+          list: binding.list,
+          remove: binding.remove,
+          confirmForeign: isForeignDeletionConfirmed,
+          dialogs: {
+            pick: async (files) => {
+              const chosen = await vscode.window.showQuickPick(
+                files.map((file) => ({
+                  label: file.label,
+                  description: file.description,
+                  fileId: file.fileId,
+                })),
+                {
+                  canPickMany: true,
+                  placeHolder: UI_TEXT.media.deleteUploadedFilesPick,
+                },
+              )
+              return chosen === undefined ? undefined : chosen.map((item) => item.fileId)
+            },
+            inform: (message) => {
+              void vscode.window.showInformationMessage(message)
+            },
+            fail: (message) => {
+              void vscode.window.showErrorMessage(message)
+            },
+          },
+        })
+        await controller.readUploadedFiles()
       }),
     ),
     registerLoggedCommand(log, COMMAND_IDS.newConversation, async () => {

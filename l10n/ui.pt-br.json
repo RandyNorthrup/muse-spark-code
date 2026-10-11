@@ -887,6 +887,11 @@
     "recordingStart": "Iniciar gravação",
     "recordingStop": "Parar gravação",
     "uploadDeleteFailed": "Não foi possível excluir {name}: {reason}",
+    "deleteUploadedFilesPick": "Os arquivos marcados são excluídos do provedor",
+    "uploadsDescription": "Listar arquivos enviados e excluí-los antecipadamente",
+    "uploadsUsage": "Uso: /uploads [delete <file> | delete-all]",
+    "uploadNotFound": "O arquivo enviado {id} não está na lista.",
+    "uploadForeignKept": "{name} foi mantido: outro aplicativo ainda pode usá-lo.",
     "conversionFailed": "Falha na conversão: {reason}",
     "replayMetadata": "Mídia: {name} ({duration}, {size})",
     "replayMetadataNoDuration": "Mídia: {name} ({size})"

@@ -879,6 +879,11 @@
     "recordingStart": "開始錄製",
     "recordingStop": "停止錄製",
     "uploadDeleteFailed": "無法刪除 {name}：{reason}",
+    "deleteUploadedFilesPick": "選取的檔案將從提供商處刪除",
+    "uploadsDescription": "列出已上傳的檔案並提前刪除",
+    "uploadsUsage": "用法：/uploads [delete <file> | delete-all]",
+    "uploadNotFound": "清單中沒有已上傳的檔案 {id}。",
+    "uploadForeignKept": "已保留 {name}：其他應用程式可能仍在使用它。",
     "conversionFailed": "轉換失敗：{reason}",
     "replayMetadata": "媒體：{name}（{duration}、{size}）",
     "replayMetadataNoDuration": "媒體：{name}（{size}）"
