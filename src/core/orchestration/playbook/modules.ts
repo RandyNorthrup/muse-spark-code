@@ -170,13 +170,29 @@ function contentIdentity(content: string): string {
   return `${createHash('sha256').update(content).digest('hex')}:${fingerprints.join(',')}`
 }
 
-export function hasSimilarContent(left: string, right: string): boolean {
+function hasSimilarContent(left: string, right: string): boolean {
   if (left.split(':', 1)[0] === right.split(':', 1)[0]) return true
   const a = left.split(':', 2)[1]?.split(',').filter(Boolean) ?? []
   const b = new Set(right.split(':', 2)[1]?.split(',').filter(Boolean))
   const common = a.filter((line) => b.has(line)).length
   return (
     common > 0 && common * 100 >= Math.max(a.length, b.size) * PLAYBOOK_CONTENT_SIMILARITY_PERCENT
+  )
+}
+
+/** Whether any of these files holds content a module's journal fingerprints
+ * already record as that module's own. */
+export function hasRecordedContent(
+  records: readonly PlaybookRecord[],
+  moduleId: string,
+  identities: readonly { readonly hash: string }[],
+): boolean {
+  return records.some(
+    (record) =>
+      record.kind === 'note' &&
+      record.value.laneId === PLAYBOOK_IDENTITY_NOTE &&
+      record.value.workerId === moduleId &&
+      identities.some((identity) => hasSimilarContent(identity.hash, record.value.reason ?? '')),
   )
 }
 

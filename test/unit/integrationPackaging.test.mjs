@@ -4,7 +4,13 @@ import { listFiles } from '@vscode/vsce/out/package.js'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { removeFolder } from './helpers/temporaryFolders'
 
-const bundles = ['vault.js', 'vaultBoundaries.js', 'estimator.js', 'estimateContracts.js']
+const bundles = [
+  'vault.js',
+  'vaultBoundaries.js',
+  'estimator.js',
+  'estimateContracts.js',
+  'playbook.js',
+]
 const nativeFiles = [
   'dist/native/darwin/muse-vault',
   'native/windows/MuseSparkVault.cs',

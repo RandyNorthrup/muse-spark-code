@@ -153,6 +153,7 @@ beforeAll(async () => {
       browserRuntime: 'src/host/browser/browserRuntimeEntry.ts',
       checkpointStore: 'src/host/checkpoints/checkpointStoreEntry.ts',
       pageWorker: 'src/host/web/pageWorker.ts',
+      playbook: 'src/host/playbook/playbookEntry.ts',
       searchWorker: 'src/host/backend/searchWorker.ts',
     }).map(([name, entry]) =>
       build({

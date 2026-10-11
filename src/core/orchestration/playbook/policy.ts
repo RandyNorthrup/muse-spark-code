@@ -47,7 +47,7 @@ import {
   hasOverlappingFiles,
   fileIdentities,
   renamedFiles,
-  hasSimilarContent,
+  hasRecordedContent,
   PLAYBOOK_BRIEF_NOTE,
   PLAYBOOK_IDENTITY_NOTE,
   PLAYBOOK_USER_NOTE,
@@ -310,15 +310,7 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
                   { ...module, files: [rename.from] },
                 ),
             ) ||
-            this.records.some(
-              (record) =>
-                record.kind === 'note' &&
-                record.value.laneId === PLAYBOOK_IDENTITY_NOTE &&
-                record.value.workerId === state.module.id &&
-                identities.some((identity) =>
-                  hasSimilarContent(identity.hash, record.value.reason ?? ''),
-                ),
-            )),
+            hasRecordedContent(this.records, state.module.id, identities)),
       )
     const isUnlinked =
       (existing !== undefined && !isUnchanged && predecessors.length === 0) ||

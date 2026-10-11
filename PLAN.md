@@ -1874,6 +1874,8 @@ Reports share the existing 50 KiB mini-parser; every runtime API read is guarded
 
 **`dist/museCodeReviewer.js` budget rationale.** (M90: the Auto reviewer on Muse Code, its side session and approvals with M78's reviewer core, loaded on the first review; measured 45.4 KiB plus 15%, rounded up to 25 KiB)
 
+**`dist/playbook.js` budget rationale.** (M116 lane C-M116-6, 2026-10-11: the VS Code window's playbook, its client and, as its worker thread, the governor, loaded on the first playbook request; measured 109.9 KiB plus 15%, rounded up to 25 KiB = 150 KiB)
+
 ### D7 — Permission modes map onto MSP approval modes; prompting modes wait for M4
 
 `muse --help` (1.3.0) names the CLI's own modes `untrusted | on-request |
@@ -18441,6 +18443,49 @@ repository's own working rule (AGENTS.md rule 14).
     job/tree runner and refuse without it.
     Each review finding receives a named regression and byte-exact red drill
     in `docs/certification/m116-p.md`. No new dependency or relaxed gate.
+
+16. **The panel's install before M96 (C-M116-6, 2026-10-11).** The VS Code
+    window binds the same policy, journal and outcomes the CLI and the ACP
+    agent use; there is no second implementation.
+    - **What a playbook review is.** A panel `/review` counts as a round
+      only when the host itself saw a child agent of the conversation (a
+      subagent, or a taken best-of-N attempt) change one of the reviewed
+      files. That child is the implementer and the conversation the reviewer
+      (`conversation:<sessionId>`), each with its own session; no role id is
+      minted for a session that would be both. Every other review keeps its
+      request bytes: no charter, no round, no note, no journal read.
+    - **Modules** are item 1's default: the directory at
+      `PLAYBOOK_MODULE_DIRECTORY_DEPTH` under the root, a root file being its
+      own. The id is the journal's. A module whose file set grows is declared
+      again as itself (`renamedFrom` its own id); code moved in from another
+      module names it (`splitFrom`, `mergedFrom`), so strikes travel with it.
+    - **Dispatches.** A subagent spawn, a `delegate` follow-up and a
+      best-of-N run from a conversation with an open module (findings owed,
+      a pending redesign or an escalation) are a fix or redesign round on
+      that module: admitted before the work starts, held until the child
+      ends, then the hook receipts of what it committed are verified. With
+      nothing open, or no journal on the machine at all, the dispatch is not
+      the playbook's and runs exactly as before.
+    - **A redesign's board** is its design decision: the decision the person
+      accepted in the panel is the merged, reviewed contracts lane, and the
+      redesign lane (`panel-redesign-<uuid>`) starts after it. That
+      acceptance is the only override authority, for exactly that module and
+      only while it is being recorded. The panel merges nothing and offloads
+      nothing, so drill requirements and check admission fail closed there.
+    - **Where it runs.** The policy is synchronous (a durable journal write
+      per decision, git plumbing, the repository's own hooks), so the window
+      runs it on a worker thread that loads the same `dist/playbook.js` the
+      window requires on first use. Requests and answers are validated in
+      both directions. A worker that crashes, exits, speaks outside the
+      protocol, or says nothing for `PLAYBOOK_WORKER_SILENCE_MS` while it
+      owes an answer is ended and everything it owed is refused as
+      unavailable, never allowed; work that had already started is reported
+      to its conversation as not certified. Restricted Mode opens no playbook
+      review and governs no round. The CLI and the ACP agent keep their
+      in-process path over the same modules.
+    - **Windows.** The worker binds `PlaybookHookAdmission.runContained` to
+      one named job per decision over the shipped MuseSparkJob type (§9,
+      FIXM116P3-Windows-job-binding, closed).
 
 ---
 
@@ -36682,6 +36727,32 @@ Total: about 100 lane-hours.
 
 ### M116 — The orchestrator playbook (D96)
 
+**Lane C-M116-6: the playbook in the VS Code panel (2026-10-11, building).**
+D96.16. Three commits, each reviewed on its own.
+
+1. **The governor (committed first; nothing calls it yet).**
+   `src/core/orchestration/panelLanes.ts` (the panel's lane facts),
+   `src/runtime/playbook/governor.ts` (the policy, the journal and the panel
+   integration bound to them), `src/host/playbook/` (`workerProtocol.ts`,
+   `playbookWorker.ts`, `playbookWindow.ts`, `playbookEntry.ts`,
+   `containedJob.ts`), and the lazy bundle `dist/playbook.js` with its
+   budget, split guard, package, inventory and layout rows. Suites
+   `playbookGovernor`, `playbookWindow` and `playbookContainedJob` (native
+   on Windows); drills in `docs/certification/m116.md`.
+2. **The record in the panel.** The window loads the bundle on first use;
+   the Agent map's playbook page and strike slots read the journal; and
+   `/playbook` in the composer answers from it.
+3. **Enforcement.** The panel's `/review`, subagent, `delegate` and
+   best-of-N dispatches go through the window's playbook on both backends;
+   why-notes appear in the transcript; the third strike offers **Plan a
+   redesign**; the walked-back claims return with the code that makes each
+   true.
+
+Not built in this lane, tracked: why-notes attached to a tool row (the
+transcript shows them as notices); a standalone playbook page outside the
+Agent map; an `override` answer for a P1 finding (the panel offers fixed,
+disputed and residual).
+
 **Round-four delivery repair (FIXM116I4, 2026-10-07, implemented and certified locally).**
 Commit an ACP queued-answer lease only when its carrying turn reaches the
 model. A `queued` submission keeps ownership bound to its turn id until
@@ -36897,7 +36968,12 @@ core.hooksPath`, an edit under `.husky/`, a delegate re-asking a refused
 - **Performance and bundles.** The policy is pure and loads with the planner
   that calls it (`dist/team.js` once M96 merges; before that a lazy
   `dist/playbook.js` with the panel's orchestration); `dist/extension.js`
-  gains at most 1 KiB, and no cap rises.
+  gains at most 1 KiB, and no cap rises. C-M116-6 (2026-10-11):
+  `dist/playbook.js` is 109.9 KiB (the window's client and, as its worker
+  thread, the governor with the policy, journal, outcomes and the Windows job
+  runner), under a 150 KiB budget by D6's rule; it shares `dist/uiText.js`,
+  `dist/validation.js`, `dist/wire.js`, `dist/resourceAdmission.js` and
+  the redaction bundle rather than carrying copies.
 - **Size.** S–M: about 60 lane-hours.
 - **Certification checklist** (§6.0, plus):
   - [ ] The fake review loop's round-3 switch and its drill
@@ -44194,17 +44270,53 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   their named owners. RVM114P2's header, pressed-state and History-claim findings
   are fixed; none is accepted as a residual.
 
-- **FIXM116P3-Windows-job-binding (M116 I/W handoff).** The synchronous
-  policy cannot call the existing asynchronous job registry directly. Its
-  trusted `PlaybookHookAdmission.runContained` port requires the prepared
-  job/tree runner, the original effect and scrubbed spawn options, and returns
-  only after the entire tree has ended. No Git child (including ref/index plumbing and worktree cleanup)
-  dispatches on Windows without that port. Safe for now: missing containment
-  refuses verification before dispatch; the policy remains unshipped pending
-  I/U/W binding. Follow-up: bind the real Windows job registry in I/W and run
-  the native parent/grandchild timeout fixture. macmini proves native POSIX
-  group cleanup and the Windows admission/options branches with fixture doubles;
-  it does not certify a native Windows job run.
+- **FIXM116P3-Windows-job-binding (M116 I/W handoff; closed by C-M116-6,
+  2026-10-11).** The synchronous policy cannot call the existing asynchronous
+  job registry directly. Its trusted `PlaybookHookAdmission.runContained`
+  port requires the prepared job/tree runner, the original effect and scrubbed
+  spawn options, and returns only after the entire tree has ended. No Git
+  child (including ref/index plumbing and worktree cleanup) dispatches on
+  Windows without that port.
+  - **The binding.** The VS Code window's playbook worker binds the port to
+    `src/host/playbook/containedJob.ts` over the shipped MuseSparkJob type;
+    no native code was added. One named job per decision: a helper process
+    joins a fresh job and serves each git and hook call over a private pipe.
+    Everything a call starts belongs to that job from its creation. After
+    each call the helper ends every other member of the job, each by its
+    start identity, and answers only once it is the job's only member, so
+    the call's whole tree has ended before `runContained` returns. A tree
+    it cannot end within `PLAYBOOK_JOB_SWEEP_MS` fails the call and
+    terminates the job. A closed or idle pipe terminates the job, the helper
+    included; a worker stopped in the middle of a decision has its job
+    terminated by name from the window.
+  - **Why one job per decision, not per call.** A governed round here is
+    about sixty git and hook calls. Measured on the owner's machine
+    (2026-10-11): a Windows PowerShell start per call is 0.16 to 0.2 s
+    before any work, and longer when it starts cold; the shared helper costs
+    one start (about 0.18 s to connect, warm) and then 37 ms per git call
+    against 38 ms for git alone.
+  - **Fail closed.** No helper, no assembly, a file that is not the
+    assembly, a pipe that cannot be reached within `PLAYBOOK_JOB_CONNECT_MS`
+    or a damaged frame: the call fails and nothing runs uncontained. Without
+    the job type the worker binds nothing, and the policy refuses every git
+    call as before.
+  - **Certified natively** on the win11 rig by
+    `playbookContainedJob.test.ts`: the parent/grandchild timeout fixture
+    (both gone when the call returns), a detached child left by a successful
+    call, exact bytes of both streams, the environment, directory and
+    arguments, output past the bound, a program that cannot start, job
+    termination on close and at the end of the synchronous stretch, and the
+    fail-closed cases. `playbookWindow.test.ts` runs whole review and
+    dispatch rounds through it there. Drills: `docs/certification/m116.md`.
+  - **Residual.** The helper's pipe has the default access list, so another
+    account on the same machine that finds the random pipe name could connect
+    first, read-only. It cannot ask for a call, and it is given no output
+    (the helper answers only calls); the worker then cannot connect and the
+    decision fails closed. Safe for now: a local denial only, and never an
+    allow. Follow-up: an explicit current-user access list on the pipe when
+    the helper moves off Windows PowerShell 5.1's framework. The CLI's and the
+    ACP agent's `/playbook` read and change the journal and run no git, so
+    they bind no job.
 - **FIXM116P4-M107-governed-tree-binding (M116 I/W handoff).** The shared
   synchronous runner prefers `PlaybookHookAdmission.runContained` on Linux
   when a prepared cgroup/scope is available. I/W must bind M107's governed

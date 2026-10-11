@@ -101,6 +101,7 @@ beforeAll(async () => {
   for (const file of [
     'dist/extension.js',
     'dist/estimator.js',
+    'dist/playbook.js',
     'dist/resourceGovernor.js',
     'dist/resourceProcess.js',
     'dist/resourceJournal.js',
@@ -321,6 +322,7 @@ describe('VSIX packaging', () => {
     expect(packaged).toEqual(
       expect.arrayContaining([
         'dist/estimator.js',
+        'dist/playbook.js',
         'dist/validation.js',
         'dist/resourceGovernor.js',
         'dist/resourceProcess.js',

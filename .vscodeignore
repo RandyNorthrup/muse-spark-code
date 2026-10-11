@@ -59,6 +59,7 @@
 !dist/wire.js
 !dist/searchWorker.js
 !dist/pageWorker.js
+!dist/playbook.js
 !dist/imageResizeWorker.js
 !dist/report.js
 !dist/recorder.js

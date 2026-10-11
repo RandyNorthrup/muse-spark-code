@@ -133,6 +133,23 @@ export class PlaybookOutcomes {
     return this.run({ kind: 'git', cwd, command: 'git', args }).trimEnd()
   }
 
+  /** The checked-out branch, when there is one, and its commit: what a dispatch brief records. */
+  head(): { readonly ref: string | undefined; readonly commit: string } {
+    const ref = this.run(
+      {
+        kind: 'git',
+        cwd: this.workspace,
+        command: 'git',
+        args: ['symbolic-ref', '--quiet', 'HEAD'],
+      },
+      true,
+    ).trimEnd()
+    return {
+      ref: ref === '' ? undefined : ref,
+      commit: this.git(['rev-parse', '--verify', 'HEAD^{commit}']),
+    }
+  }
+
   reachable(refs: readonly string[]): string[] {
     if (refs.length === 0 || refs.some((ref) => !ref.startsWith('refs/') || /[\s\0]/u.test(ref)))
       throw new Error(UI_TEXT.playbookUnavailable)
