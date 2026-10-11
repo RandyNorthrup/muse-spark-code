@@ -32,6 +32,7 @@ const { isProviderId, parseModelRef } = modelRef
 import type { ServeOptions } from '../cliArgs'
 import { accountIdSchema } from '../../shared/accounts'
 import { ACCOUNT_DEFAULT_ID } from '../../shared/constants'
+import { teamExecAdmission } from '../../acp/teamAdmission'
 
 export type ExecMode = 'plan' | 'acceptEdits'
 export type ExecOutput = 'text' | 'json' | 'jsonl'
@@ -55,6 +56,8 @@ export interface ExecOptions {
    */
   readonly provider: string | undefined
   readonly model: string | undefined
+  /** M96b: ask for a team run. The runner lane admits; until then parsing refuses out loud. */
+  readonly team: boolean
   readonly effort: EffortLevel | undefined
   readonly allowsContributorModels: boolean
   readonly output: ExecOutput
@@ -78,6 +81,7 @@ export interface ExecOptions {
 
 const BOOLEAN_OPTIONS = new Set([
   'allow-contributor-models',
+  'team',
   'image-generation',
   'no-auto-compaction',
   'fail-on-denial',
@@ -298,12 +302,20 @@ export function parseExec(
   if (rawModel !== undefined && model === undefined) {
     return invalid(UI_TEXT.execUnknownModel)
   }
+  // The team refusal runs after every other request check, so a team request
+  // never masks a missing prompt, a duplicate source or an unknown provider —
+  // and `execTeamNotReady` only says validation passed once it really did.
+  if (values['team'] === true) {
+    const admission = teamExecAdmission({ mode, backend })
+    if (!admission.ok) return invalid(admission.reason)
+  }
   return {
     ok: true,
     options: {
       ...(typeof values['account'] === 'string' && { account: values['account'] }),
       ...(values['account-pool'] === true && { accountPool: true }),
       backend,
+      team: values['team'] === true,
       cwd: stringValue('cwd'),
       prompt,
       untrustedFiles,

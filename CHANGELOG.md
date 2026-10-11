@@ -30,6 +30,37 @@ happened, not what was planned; superseded entries are kept.
   chip and status adapter once their M104 bridges bind them; none does yet.
   ACP and terminals keep `/resources` and `resources status|resume`.
 
+- **Team contracts for other editors and headless runs** (M96b, contracts
+  only). The frozen mapping those surfaces will use: a worker approval
+  becomes an ACP permission request titled `{role} · {agent}: {detail}`; a
+  task is a `tool_call` whose report is text content and whose diff is
+  `diff` content; the merge is a permission request carrying the diff; the
+  agent map goes out as a `plan` with one entry per running task.
+  `exec --team` parses and validates (Model API backend, `acceptEdits`,
+  hard budget) but exits 2 with an explicit error; it never runs a `--team`
+  request as a single session. Team runs in the ACP agent and headless
+  follow in their own lanes. Review hardening: a merge permission carries
+  at least one real diff; option kinds are exactly the SDK's; a completed
+  task re-sends the diffs it showed; Help says `--team` is refused until
+  the runner lane lands; the refusal runs after full request validation.
+  Every structured builder now validates its final frozen shape and throws
+  a typed contract error for invalid caller content, including empty diff
+  paths, unsupported media/terminal content, empty option ids and plan titles.
+  Plan validation covers the complete returned collection and its entry count;
+  sparse plans, content and permission-option arrays are refused rather than
+  emitted with missing entries. Builders parse shape once and build from the
+  parsed values: unknown input keys fail, array elements are validated and
+  required strings are non-empty where the contract needs them. Content and
+  permission-option extras must be JSON, including the outer text wrapper;
+  accepted extras are copied so later caller changes cannot alter a result.
+  Content branches use their type discriminator without revisiting the
+  original nested diff. Parse failures become the same typed error without
+  inspecting arbitrary thrown objects. These builders receive the project's
+  own values from already-validated wire data; hostile JavaScript callers
+  are outside their threat model. The mapping uses only the shipped shared
+  parser API, and CLI/headless admission is separate so ACP schemas do not
+  consume the unchanged headless bundle budget.
+
 ### Changed
 
 - Hidden M96 team-host correctness: each response settles its own reserved

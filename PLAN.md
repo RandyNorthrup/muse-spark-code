@@ -26458,9 +26458,43 @@ serve`."
 
 ### M96b — The team in the ACP agent and headless runs (D75)
 
-**Status 2026-10-04: planned.**
+**Status 2026-10-10 (C-M96b-0 contracts; acceptance review pending): building.**
 
-Status detail retained: planned; starts after M96 merges.
+Status detail retained: planned; starts after M96 merges. C-M96b-0 froze the
+ACP mapping and exec flag contracts (`src/acp/teamContracts.ts`, certified in
+`docs/certification/m96b-0.md`); the wiring follows in C-M96b-1/2.
+
+RVCM96B0B round 3 strengthens builder/schema consistency before lead
+acceptance: structured builders validate their frozen shapes and refuse
+invalid content with a typed contract error. The
+sweep includes diff/report builders, task updates, Bypass merges, permission
+options and plan entries. Regression expectations come from the ACP SDK's
+exported schema, including every option and content kind; seeded random
+builder inputs must either throw or produce a schema-valid value. Red drills
+and scoped rig receipts live in `docs/certification/m96b.md`. No contract
+widening, dependency, runtime wiring or paid/live call is part of this repair.
+
+RVCM96B0C round 4 repairs the remaining plan-collection gap: validate the
+complete returned plan array, including its length and every slot, rather
+than only the entries visited by `map`. Extend regressions and seeded
+property coverage to empty, dense, multi-entry and sparse collections for
+plans, content and permission options; prove the collection guard with a
+byte-exact restored red drill in `docs/certification/m96b.md`. C-M96b-0 lead
+acceptance remains pending; runtime wiring remains C-M96b-1/2's next slice.
+
+RVCM96B0G round 8 repairs production-parser compatibility, the unchanged
+headless 100 KiB budget, complete JSON validation and isolation of text
+content (including its outer wrapper), repeated nested diff reads and
+non-throwing failure inspection. The lead's threat model is explicit:
+builders receive values our own code produced from already-validated wire
+data, validate shape once and refuse malformed input with TeamContractError;
+hostile caller getters, proxies and custom iterators are out of scope.
+Keep admission separate from ACP mapping schemas, use only the shipped
+shared-parser API, and prove production imports plus every repair with
+regressions and byte-exact restored drills in `docs/certification/m96b.md`.
+Correct superseded round-7 claims. C-M96b-0 acceptance remains pending;
+C-M96b-1/2 wiring, C-M96b-3 single-model proofs and C-M96b-4 editor receipts
+remain subsequent slices.
 
 - **Goal.** The same team, roles, pools and caps work in the ACP agent (D62)
   and in headless `exec` (D65), with each surface's own way of asking.
@@ -42739,9 +42773,10 @@ threshold, ignore or rule is changed.
 | `test/unit/transcribeBatch.test.ts`: `'NaN' as UsdAmount`                                 | Intentional malformed canonical port; constructors refuse it, so the existing runtime refusal probe bypasses the brand without a credential or paid call.                                                                       |
 | `test/unit/paidMoneyStructure.test.ts` `trackedDebt` allow-list (41 numeric money fields) | Numeric current money the 0.17 ports did not convert; each entry names milestone M121, which converts it to `UsdAmount` and empties the category. The guard fails on any unlisted money leaf, so the list cannot grow silently. |
 
-| Location                                              | Escape hatch         | Reason                                                                                                                                                                                                                                                                                                                                 |
-| ----------------------------------------------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `test/unit/schedulePaid.test.ts:74` (`MALFORMED_USD`) | `'NaN' as UsdAmount` | Defense-in-depth probes inject malformed money into the estimate and durable reservation ports. `Usd.from` and the schema both reject NaN, so no valid constructor can produce this branded value; constructing it inside the probe would bypass the production refusal being tested. Test-only; both refusal assertions are retained. |
+| Location                                              | Escape hatch         | Reason                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ----------------------------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `test/unit/schedulePaid.test.ts:74` (`MALFORMED_USD`) | `'NaN' as UsdAmount` | Defense-in-depth probes inject malformed money into the estimate and durable reservation ports. `Usd.from` and the schema both reject NaN, so no valid constructor can produce this branded value; constructing it inside the probe would bypass the production refusal being tested. Test-only; both refusal assertions are retained.                                                                                            |
+| `test/unit/acpTeamContracts.test.ts` (`atRuntime`)    | `as T`               | Defense-in-depth and seeded property probes inject malformed caller values and SDK-schema-derived strings through typed builder ports. The SDK types cannot spell invalid inputs; this test-only helper exercises production refusal without validating the input first. Every returned value is checked against its frozen schema; valid option and content expectations come independently from the SDK's exported JSON schema. |
 
 | SPAWN017B location          | Escape hatch                               | Reason                                                                                                                                                                   | Removal                                                                            |
 | --------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
