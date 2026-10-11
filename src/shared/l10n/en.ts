@@ -162,6 +162,28 @@ export const EN = {
   // reporting an uncertified outcome.
   feedbackRecordUnsupported:
     'This Muse Code version cannot verify a session-record feedback upload (upstream SDK request pending). The outcome is unknown.',
+  // C-M106-3R3 (RVCM1063 #1/#8): every outcome the receipt type can carry
+  // (the SDK's FeedbackSubmitOutcome taxonomy) gets its own sentence. Only
+  // `uploaded` reads as success; anything else settles the dialog as a
+  // failure with the sentence for what actually happened.
+  feedbackRecorded:
+    'Feedback was recorded without an upload receipt, so the upload is unconfirmed.',
+  feedbackAcceptedWithoutReceipt:
+    'Feedback was accepted but no receipt was returned, so the upload is unconfirmed.',
+  feedbackTrackingFailed: 'Feedback was sent but its delivery could not be tracked.',
+  feedbackTrackingUncertain: 'Feedback was sent but its delivery is uncertain.',
+  feedbackDark: 'Feedback is switched off in this version of Muse Code, so nothing was sent.',
+  feedbackDisabled: 'Feedback is disabled, so nothing was sent.',
+  feedbackNoCredential:
+    'No credential is stored, so the feedback was not sent. Sign in and try again.',
+  feedbackAuthRejected:
+    'The sign-in was rejected, so the feedback was not sent. Sign in again and retry.',
+  feedbackRateLimited: 'The feedback service is rate limited. Try again later.',
+  feedbackUnknownOutcome: 'The feedback upload ended with an unrecognized outcome ({outcome}).',
+  // C-M106-3R3 (RVCM1063 #2): the note stops at the protocol maximum, with
+  // a counter; a refused preview or submit settles the dialog with why.
+  feedbackNoteTooLong: 'The note is over the {max}-character limit. Shorten it and try again.',
+  feedbackNoteCounter: '{used} of {max}',
   // C-M106-3: 1.4.4 answers session/delete with methodNotFound and sends no
   // deleteCompleted frame, so deletion refuses with this upstream request.
   sessionDeleteUnsupported:

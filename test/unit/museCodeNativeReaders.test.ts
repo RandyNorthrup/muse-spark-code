@@ -134,8 +134,25 @@ describe('Native feedback reader from the captured 1.4.4 receipt', () => {
     expect(() => parseFeedbackOutcome(receipt)).toThrow(UI_TEXT.feedbackRecordUnsupported)
   })
 
-  it('shows a future outcome exactly as it arrived', () => {
-    expect(parseFeedbackOutcome({ outcome: 'stored', sessionRecordAttached: false })).toBe('stored')
+  it.each([
+    ['recorded', UI_TEXT.feedbackRecorded],
+    ['acceptedWithoutReceipt', UI_TEXT.feedbackAcceptedWithoutReceipt],
+    ['trackingFailed', UI_TEXT.feedbackTrackingFailed],
+    ['trackingUncertain', UI_TEXT.feedbackTrackingUncertain],
+    ['dark', UI_TEXT.feedbackDark],
+    ['disabled', UI_TEXT.feedbackDisabled],
+    ['noCredential', UI_TEXT.feedbackNoCredential],
+    ['authRejected', UI_TEXT.feedbackAuthRejected],
+    ['rateLimited', UI_TEXT.feedbackRateLimited],
+    ['failed', UI_TEXT.feedbackFailed],
+  ] as const)('refuses a non-upload outcome with its own sentence: %s', (outcome, sentence) => {
+    expect(() => parseFeedbackOutcome({ outcome, sessionRecordAttached: false })).toThrow(sentence)
+  })
+
+  it('refuses an outcome outside the taxonomy with the unrecognized-outcome line', () => {
+    expect(() => parseFeedbackOutcome({ outcome: 'stored', sessionRecordAttached: false })).toThrow(
+      'stored',
+    )
   })
 
   it('refuses a malformed receipt', () => {

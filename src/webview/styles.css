@@ -158,6 +158,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--ms-gap);
   padding: var(--ms-gap) calc(var(--ms-gap) * 1.5);
   border-bottom: 1px solid var(--ms-border);
 }
@@ -2830,6 +2831,44 @@ export row. Long lines wrap so the dialog holds a 320 px panel. */
   margin: var(--ms-space-8) 0 var(--ms-space-4);
 }
 
+/* The feedback dialog (C-M106-3R3): the classified note in the question
+   card and secret prompt's shape. Block labels with full-width controls
+   hold a 320 px panel; the counter sits under the note. */
+.feedback-fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ms-space-8);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.feedback-label {
+  display: block;
+  margin-bottom: calc(var(--ms-space-12) / 2);
+}
+
+.feedback-input {
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.feedback-note {
+  resize: vertical;
+}
+
+.feedback-counter {
+  display: block;
+  margin-top: calc(var(--ms-space-12) / 2);
+  color: var(--ms-muted);
+  font-size: var(--ms-font-small);
+  text-align: right;
+}
+
+.feedback-actions {
+  margin-top: var(--ms-space-8);
+}
+
 /* The Agent map's owner controls and note box (M18). */
 .agent-controls {
   display: flex;
@@ -3299,8 +3338,14 @@ li:focus-within > .row-actions .row-actions-button,
 
 .modal-title {
   margin: 0;
+  min-width: 0;
   font-size: var(--ms-font-size);
   font-weight: var(--ms-weight-bold);
+  overflow-wrap: anywhere;
+}
+
+.modal-header > button {
+  flex-shrink: 0;
 }
 
 .usage-toggle {

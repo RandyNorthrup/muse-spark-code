@@ -1472,9 +1472,16 @@ export function App({
     },
     [],
   )
-  // A session change hides the dialog (its bridge closes on the next open,
-  // close or unmount); a send for the old session would be refused before
-  // dispatch anyway.
+  // A session change closes the bridge at once: the hidden dialog's late
+  // answers settle nothing, and its waiters reject instead of hanging. Only
+  // the bridge closes here (no state write); the render below already hides
+  // the dialog, and the next open replaces the port. A send for the old
+  // session would be refused before dispatch anyway.
+  useEffect(() => {
+    if (feedback === null || feedback.sessionId === state.sessionId) return
+    feedbackBridgeRef.current?.close()
+    feedbackBridgeRef.current = null
+  }, [feedback, state.sessionId])
   const feedbackDialog =
     feedback !== null && feedback.sessionId === state.sessionId ? (
       <FeedbackDialog sessionId={feedback.sessionId} port={feedback.port} onClose={closeFeedback} />
