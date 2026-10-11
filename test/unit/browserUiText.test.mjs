@@ -39,6 +39,7 @@ export async function loadPalette() { return await import('../../src/shared/pale
 export async function loadHelp() { await Promise.all([import('browser-surface-english'), import('browser-reference-english'), import('browser-account-english'), import('browser-schedule-english')]) }
 export async function loadResources() { await import('browser-resource-english') }
 export async function loadAccounts() { await import('../../src/webview/models/sections/accounts/accountsEntry') }
+export async function loadVault() { await import('../../src/webview/models/sections/vault/VaultSurface') }
 export async function loadDeveloper() { await import('../../src/webview/developer/DeveloperOptionsPage') }
 `,
   )
@@ -95,7 +96,17 @@ describe('the production browser English and full-table contract', () => {
       installVaultEnglish,
     } = fixture.browser
     expect(Object.keys(EN).toSorted(byText)).toEqual([...fixture.keys].toSorted(byText))
+    // C-X-1: Help no longer names accounts or the vault, and the installed
+    // entries mount neither surface, so production carries neither group. The
+    // probe mounts both (loadAccounts, loadVault) to keep their loading pinned.
+    const installed = browserTextKeys(Object.values(entries), canonical).keys
+    expect(installed.has('accounts')).toBe(false)
+    expect(installed.has('vault')).toBe(false)
     expect(Object.hasOwn(EN, 'execBudgetRequired')).toBe(false)
+    // MINOUT: the provider file's English is Node-only. Team settings take
+    // their output-minimum message from its own leaf, never providerRouting.ts.
+    expect(installed.has('providerText')).toBe(false)
+    expect(Object.hasOwn(EN, 'providerText')).toBe(false)
     expect(EN.composerLabel).toBe(canonical.composerLabel)
     expect(() => EN.referenceSearch).toThrow('English surface is not loaded')
     expect(() => EN.accounts).toThrow('English surface is not loaded')

@@ -1,4 +1,5 @@
 import { legalScanLoader } from '../host/ide/legalScanBundle'
+import { failureForLog } from '../core/backends/musecode/logText'
 // `muse-spark-code-acp` (PLAN.md D62): the Muse Spark agent for editors that
 // speak the Agent Client Protocol, and the sign-in commands their terminal
 // sign-ins run (D61). stdout carries the protocol; everything the user or
@@ -731,8 +732,17 @@ async function serve(
       log,
     })
     const reports = runtimeReports(log)
+    let accounts: Awaited<ReturnType<RuntimeAccountServices['sessionsIfPresent']>>
+    if (options.backend === 'modelApi') {
+      try {
+        accounts = await loadAccounts().sessionsIfPresent('meta')
+      } catch (error: unknown) {
+        log.warn(`ACP accounts unavailable: ${failureForLog(error)}`)
+      }
+    }
     const agent = engine.createAcpAgent({
       schedules: {
+        isAvailable: false,
         async holdWorkspace(cwd) {
           loadedSchedules ??= await loadSchedules()
           return await loadedSchedules.holdWorkspace(cwd)
@@ -762,8 +772,7 @@ async function serve(
           uiLocale(),
         ),
       reports: { format: 'md', execute: (args, context) => reports().acp.execute(args, context) },
-      vault: acpVault,
-      ...(options.backend === 'modelApi' && { accounts: loadAccounts().sessions('meta') }),
+      ...(accounts !== undefined && { accounts }),
       legalScan: async (cwd, signal, isRegistryOn, allowsRegistryLookup) => {
         const bundle = agentLegalBundle()
         const handle = await bundle.runLegalScan({ workspaceRoot: cwd, input: {}, signal })
