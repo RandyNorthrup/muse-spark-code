@@ -88,6 +88,11 @@ happened, not what was planned; superseded entries are kept.
     - First creation and Reset Vault re-check Lock at the physical commit,
       including while their writes are staged. Import labels format their
       ordinal using the installed language.
+    - A Lock during setup confirmation, recovery, Reset Vault or an import
+      now stops that operation. The vault is never left unlocked and nothing
+      is committed after the Lock.
+    - A headless run cancelled while opening the vault gets no session, and
+      its connection closes.
   - Migration codecs for provider credentials (M95) and account secrets
     (M108) underneath (C-M109-4, acceptance 17): each installed record moves
     into a first-party hidden vault item bound to its origin with equal
@@ -95,11 +100,6 @@ happened, not what was planned; superseded entries are kept.
     pass, and can be undone. The previous release's code still reads its key
     from the mirror. Nothing is wired to these codecs yet, so no behaviour
     changes.
-    - A Lock during setup confirmation, recovery, Reset Vault or an import
-      now stops that operation. The vault is never left unlocked and nothing
-      is committed after the Lock.
-    - A headless run cancelled while opening the vault gets no session, and
-      its connection closes.
   - Review repairs (RVCM1091A3): queued work loses authority at Lock; imports
     verify every parent and held file within the home, retain private profile
     and field identity in encrypted material, and cancel sent requests when
