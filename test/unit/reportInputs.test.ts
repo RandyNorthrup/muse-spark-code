@@ -161,6 +161,10 @@ function fakeReportHost<const Items extends readonly unknown[]>(
   }
 }
 
+function partialOccurrences(partial: string | undefined, sentence: string): number {
+  return partial === undefined ? 0 : partial.split(sentence).length - 1
+}
+
 async function journalWith(dataFolder: string, entries: readonly unknown[]): Promise<void> {
   const store = new UsageJournalStore(new NodeUsageFs(dataFolder), {
     writerId: 'test-writer',
@@ -737,6 +741,44 @@ describe('RVCM1132 input regressions', () => {
     } finally {
       zone.mockRestore()
     }
+  })
+
+  it('RVCM1132C never repeats a partial reason on the usage or session source', async () => {
+    const data = await dir('dedupe-partial-report-')
+    await journalWith(data, [usageEntry('r1', 's1')])
+    const readJournal = createReportJournalReader({
+      dataFolder: data,
+      now: () => NOW,
+      timezoneOffsetMins: 0,
+      readBudgets: () => Promise.reject(new Error('ledger gone')),
+    })
+    const unavailable = EN.reportDetailReasons.budgetsUnavailable
+    // A thrown budget read leaves budgetsUnavailable while budgets stay
+    // unset, which used to append the same sentence again below. The journal
+    // read needs a usage kind, or the budget machinery never runs.
+    const run = {}
+    const usageOptions = { ...context().options, kind: 'usage' as const, scope: 'today' }
+    const journal = await readJournal({ ...context(), run, options: usageOptions })
+    expect(partialOccurrences(journal.partial, unavailable)).toBe(1)
+    const usage = await createUsageReportReader({
+      dataFolder: data,
+      readJournal,
+      now: () => NOW,
+      timezoneOffsetMins: 0,
+    })({ ...context(), run, options: usageOptions })
+    expect(partialOccurrences(usage.partial, unavailable)).toBe(1)
+    const session = await createSessionReportReader({
+      resolveSession: () =>
+        Promise.resolve({
+          sessionId: 's1',
+          backend: 'modelApi' as const,
+          modelId: 'fixture-model',
+          items: [],
+          turnIds: [],
+        }),
+      readJournal,
+    }).read({ ...context(), run, options: { ...usageOptions, sessionId: 's1' } })
+    expect(partialOccurrences(session.partial, unavailable)).toBe(1)
   })
 
   it('RVCM1132B surfaces a failed session resolution as a failure, not missing history', async () => {
