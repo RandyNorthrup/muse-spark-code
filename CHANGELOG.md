@@ -9,6 +9,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **Repeated report rows preserve saved identities without delaying the host** (CM1132R7).
+  Duplicate suffixes reserve every original key, including later rows and
+  maximum-length keys, and allocation advances without rescanning. Definitive
+  release records for one version produce plan drift across heading, bold and
+  status forms; preparation followed by release remains the normal lifecycle.
+
 - **Session and usage reports agree with their notes and show the shared daily budget everywhere** (CM1132R3).
   Session totals exclude rolled-up history and say so; budget stamps use the
   machine-local day like the report period; terminal and ACP usage reports show
@@ -22,7 +28,7 @@ happened, not what was planned; superseded entries are kept.
   bare key and each later duplicate takes a stable positional suffix — so no
   collector can fail validation through a repeated milestone id, release
   version, question, risk, residual, lane, check run, tag, pull request or
-  forwarded row. A repeated release record in the same form is plan drift
+  forwarded row. A repeated definitive release record is plan drift
   (`release-duplicate`); preparation beside its released record stays clean.
 - **Session and usage reports preserve source honesty and identity** (CM1132R2).
   Concurrent sources share a flushed journal snapshot. Damage, newer versions,

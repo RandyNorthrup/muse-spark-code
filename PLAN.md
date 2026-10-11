@@ -35079,6 +35079,18 @@ lane T and M111b. One short live check per backend (step 3).
 
 ### M113 — Deterministic reports: `/report` (D93)
 
+**CM1132R7 review repair (2026-10-11, macmini).** Fix all five RVCM1132F
+findings in the existing reporting lane. Reserve every original row key before
+allocating duplicate suffixes; retain allocation progress per suffix namespace
+so probe work is linear, including capped-key collisions. Preserve unique rows
+and saved identities. Treat every non-preparation release form as definitive
+for duplicate drift. Bind duplicate coverage to collector row calls and the
+kind/section registry, and remove the four pre-parse assertions by narrowing.
+Count probes at the 20,000-row limit, drill each repair with byte-exact
+restoration, run all related suites and five typechecks, and correct the
+round-six certification claims. Scoped gates replace aggregate quality under
+the explicit rig brief; no merge, push, dependency, cap or guard widening.
+
 **CM1132R2 review repair (2026-10-10, linuxlt).** Fix all 22 RVCM1132
 findings by class within the session/usage lane. One request-scoped, read-only
 journal snapshot follows pending recording; damaged and unattributed evidence
@@ -38017,6 +38029,19 @@ roadmap, host API and production build gates, plus complete owned test files
 at repository deadlines. No threshold, timeout, ignore or hook is relaxed.
 Receipts and deliberate failure/restoration drills are recorded in
 `docs/certification/m113-session-usage-c-m113-2.md`.
+
+CM1132R7's dependent replay also reproduces the inherited exact-money
+inventory failure: `journalStore.ts`'s `apiEquivalentUsd`/`usd` and
+`reportingAmount.ts`'s `capUsd`/`spentUsd`/`uncertainUsd` lack registered
+inventory entries. Both modules and the guard are byte-identical to
+`6188566f1`, outside this reporting repair. This remains a lead-owned release
+gate blocker; no ignore, inventory widening or green aggregate claim is made.
+The production build also reproduces `usagePanel.js` at 76,938 bytes against
+its unchanged 76,800-byte cap (138 bytes over). Its metafile contains neither
+changed production module. This inherited usage-panel size recovery remains
+lead-owned; reporting's 152,769/179,200 and inputs' 70,918/102,400 byte budgets
+pass. The lane records these unchanged blockers before a local review commit;
+they prevent release qualification, and no gate is weakened.
 
 **CIR4MAC scoped hosted-CI repair (2026-10-09, macmini).** Reproduce
 round 4's macOS target-size deadline and palette failure-render ordering

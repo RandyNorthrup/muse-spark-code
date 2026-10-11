@@ -1,13 +1,23 @@
-import { describe, expect, it } from 'vitest'
-import { REPORT_KINDS } from '../../src/shared/constants'
+import { describe, expect, it, vi } from 'vitest'
+import { REPORT_KINDS, REPORT_MAX_ID_CHARS, REPORT_MAX_ROWS } from '../../src/shared/constants'
 import {
   reportDocumentSchema,
   type ReportDocument,
+  type ReportRow,
   type ReportValue,
 } from '../../src/shared/reportSchema'
 import { readPlan } from '../../src/core/reporting/plan/reader'
-import { compare } from '../../src/core/reporting/collect/common'
-import type { PlanFacts, SourceSnapshot } from '../../src/core/reporting/sources/types'
+import {
+  compare,
+  dedupeRowKeys,
+  dedupeUnknownRowKeys,
+} from '../../src/core/reporting/collect/common'
+import { compareReports } from '../../src/core/reporting/diff'
+import type {
+  PlanFacts,
+  PlanMilestone,
+  SourceSnapshot,
+} from '../../src/core/reporting/sources/types'
 import { collectFixture, fullSnapshot, getSection } from './helpers/reporting/collect'
 import { availableSource } from './helpers/reporting/snapshot'
 import { PLAN_FORMAT_FIXTURE } from './helpers/reporting/plans'
@@ -46,14 +56,59 @@ function needsYouNames(document: ReportDocument): string[] {
     .map((cell) => cell.value)
 }
 
+const duplicatePlanQuestions: PlanFacts['questions'] = [
+  { id: 'Q-DUP', text: 'First body', milestoneIds: ['M12'], state: 'open' },
+  { id: 'Q-DUP', text: 'Second body', milestoneIds: ['M12'], state: 'open' },
+]
+
+function withPlan(snapshot: SourceSnapshot, patch: Partial<PlanFacts>): SourceSnapshot {
+  return {
+    ...snapshot,
+    sources: {
+      ...snapshot.sources,
+      plan: availableSource('plan', {
+        ...snapshot.sources.plan.data!,
+        ...patch,
+      }),
+    },
+  }
+}
+
 function withPlanQuestions(
   snapshot: SourceSnapshot,
   questions: PlanFacts['questions'],
 ): SourceSnapshot {
-  const plan = snapshot.sources.plan.data!
+  return withPlan(snapshot, { questions })
+}
+
+function withMilestone(snapshot: SourceSnapshot, patch: Partial<PlanMilestone>): SourceSnapshot {
+  return withPlan(snapshot, {
+    milestones: snapshot.sources.plan.data!.milestones.map((entry) =>
+      entry.id === 'M12' ? { ...entry, ...patch } : entry,
+    ),
+  })
+}
+
+function duplicateLaneSnapshot(snapshot: SourceSnapshot): SourceSnapshot {
+  const lane = snapshot.sources.plan.data!.milestones[0]!.lanes[0]!
+  return withMilestone(snapshot, { lanes: [lane, { ...lane }] })
+}
+
+function duplicateGithubReleaseSnapshot(
+  snapshot: SourceSnapshot,
+  assets?: readonly string[],
+): SourceSnapshot {
+  const github = snapshot.sources.github.data!
+  const release = github.releases[0]!
   return {
     ...snapshot,
-    sources: { ...snapshot.sources, plan: availableSource('plan', { ...plan, questions }) },
+    sources: {
+      ...snapshot.sources,
+      github: availableSource('github', {
+        ...github,
+        releases: [release, { ...release, assets: assets ?? release.assets }],
+      }),
+    },
   }
 }
 
@@ -102,11 +157,7 @@ const cases: readonly RowIdentityCase[] = [
   {
     kind: 'project',
     name: 'duplicated plan question id stays twice in needs you',
-    mutate: (snapshot) =>
-      withPlanQuestions(snapshot, [
-        { id: 'Q-DUP', text: 'First body', milestoneIds: ['M12'], state: 'open' },
-        { id: 'Q-DUP', text: 'Second body', milestoneIds: ['M12'], state: 'open' },
-      ]),
+    mutate: (snapshot) => withPlanQuestions(snapshot, duplicatePlanQuestions),
     records: (document) => {
       expect(needsYouNames(document).filter((name) => name === 'Q-DUP')).toHaveLength(2)
     },
@@ -160,21 +211,7 @@ const cases: readonly RowIdentityCase[] = [
   {
     kind: 'project',
     name: 'duplicated lane triple keeps both lane rows',
-    mutate: (snapshot) => {
-      const plan = snapshot.sources.plan.data!
-      const milestone = plan.milestones[0]!
-      const lane = milestone.lanes[0]!
-      return {
-        ...snapshot,
-        sources: {
-          ...snapshot.sources,
-          plan: availableSource('plan', {
-            ...plan,
-            milestones: [{ ...milestone, lanes: [lane, { ...lane }] }, ...plan.milestones.slice(1)],
-          }),
-        },
-      }
-    },
+    mutate: duplicateLaneSnapshot,
     records: (document) => {
       expect(textCells(document, 'lanes').filter((name) => name === 'K')).toHaveLength(2)
     },
@@ -222,8 +259,7 @@ const cases: readonly RowIdentityCase[] = [
     name: 'duplicated question bodies stay visible, including a byte-identical pair',
     mutate: (snapshot) =>
       withPlanQuestions(snapshot, [
-        { id: 'Q-DUP', text: 'First body', milestoneIds: ['M12'], state: 'open' },
-        { id: 'Q-DUP', text: 'Second body', milestoneIds: ['M12'], state: 'open' },
+        ...duplicatePlanQuestions,
         { id: 'Q-SAME', text: 'Same body', milestoneIds: ['M12'], state: 'open' },
         { id: 'Q-SAME', text: 'Same body', milestoneIds: ['M12'], state: 'open' },
       ]),
@@ -234,23 +270,7 @@ const cases: readonly RowIdentityCase[] = [
   {
     kind: 'milestone',
     name: 'duplicated lane triple keeps every lane row',
-    mutate: (snapshot) => {
-      const plan = snapshot.sources.plan.data!
-      const milestone = plan.milestones[0]!
-      const lane = milestone.lanes[0]!
-      return {
-        ...snapshot,
-        sources: {
-          ...snapshot.sources,
-          plan: availableSource('plan', {
-            ...plan,
-            milestones: plan.milestones.map((entry) =>
-              entry.id === 'M12' ? { ...entry, lanes: [lane, { ...lane }] } : entry,
-            ),
-          }),
-        },
-      }
-    },
+    mutate: duplicateLaneSnapshot,
     records: (document) => {
       expect(getSection(document, 'milestoneLanes').rows).toHaveLength(2)
     },
@@ -258,30 +278,14 @@ const cases: readonly RowIdentityCase[] = [
   {
     kind: 'milestone',
     name: 'repeated checklist text keeps every checklist row',
-    mutate: (snapshot) => {
-      const plan = snapshot.sources.plan.data!
-      return {
-        ...snapshot,
-        sources: {
-          ...snapshot.sources,
-          plan: availableSource('plan', {
-            ...plan,
-            milestones: plan.milestones.map((entry) =>
-              entry.id === 'M12'
-                ? {
-                    ...entry,
-                    checklist: [
-                      { text: 'Same line', done: true },
-                      { text: 'Same line', done: false },
-                      { text: 'Same line', done: true },
-                    ],
-                  }
-                : entry,
-            ),
-          }),
-        },
-      }
-    },
+    mutate: (snapshot) =>
+      withMilestone(snapshot, {
+        checklist: [
+          { text: 'Same line', done: true },
+          { text: 'Same line', done: false },
+          { text: 'Same line', done: true },
+        ],
+      }),
     records: (document) => {
       expect(textCells(document, 'checklist')).toEqual(['Same line', 'Same line', 'Same line'])
     },
@@ -289,21 +293,7 @@ const cases: readonly RowIdentityCase[] = [
   {
     kind: 'milestone',
     name: 'duplicated dependency id keeps both dependency rows',
-    mutate: (snapshot) => {
-      const plan = snapshot.sources.plan.data!
-      return {
-        ...snapshot,
-        sources: {
-          ...snapshot.sources,
-          plan: availableSource('plan', {
-            ...plan,
-            milestones: plan.milestones.map((entry) =>
-              entry.id === 'M12' ? { ...entry, dependencies: ['M1', 'M1'] } : entry,
-            ),
-          }),
-        },
-      }
-    },
+    mutate: (snapshot) => withMilestone(snapshot, { dependencies: ['M1', 'M1'] }),
     records: (document) => {
       expect(getSection(document, 'milestoneDependencies').rows).toHaveLength(2)
     },
@@ -311,21 +301,7 @@ const cases: readonly RowIdentityCase[] = [
   {
     kind: 'milestone',
     name: 'duplicated gate name keeps both gate rows',
-    mutate: (snapshot) => {
-      const plan = snapshot.sources.plan.data!
-      return {
-        ...snapshot,
-        sources: {
-          ...snapshot.sources,
-          plan: availableSource('plan', {
-            ...plan,
-            milestones: plan.milestones.map((entry) =>
-              entry.id === 'M12' ? { ...entry, requiredGates: ['quality', 'quality'] } : entry,
-            ),
-          }),
-        },
-      }
-    },
+    mutate: (snapshot) => withMilestone(snapshot, { requiredGates: ['quality', 'quality'] }),
     records: (document) => {
       expect(
         textCells(document, 'gateDeclarations').filter((name) => name === 'quality'),
@@ -345,20 +321,7 @@ const cases: readonly RowIdentityCase[] = [
   {
     kind: 'release',
     name: 'two GitHub releases share one version with different assets',
-    mutate: (snapshot) => {
-      const github = snapshot.sources.github.data!
-      const release = github.releases[0]!
-      return {
-        ...snapshot,
-        sources: {
-          ...snapshot.sources,
-          github: availableSource('github', {
-            ...github,
-            releases: [release, { ...release, assets: ['other.vsix'] }],
-          }),
-        },
-      }
-    },
+    mutate: (snapshot) => duplicateGithubReleaseSnapshot(snapshot, ['other.vsix']),
     records: (document) => {
       expect(textCells(document, 'assets')).toEqual(['v0.14.2', 'v0.14.2'])
     },
@@ -366,17 +329,7 @@ const cases: readonly RowIdentityCase[] = [
   {
     kind: 'release',
     name: 'two GitHub releases share one version and the same assets',
-    mutate: (snapshot) => {
-      const github = snapshot.sources.github.data!
-      const release = github.releases[0]!
-      return {
-        ...snapshot,
-        sources: {
-          ...snapshot.sources,
-          github: availableSource('github', { ...github, releases: [release, { ...release }] }),
-        },
-      }
-    },
+    mutate: duplicateGithubReleaseSnapshot,
     records: (document) => {
       expect(getSection(document, 'assets').rows).toHaveLength(2)
     },
@@ -582,6 +535,31 @@ const cases: readonly RowIdentityCase[] = [
   },
   {
     kind: 'quality',
+    name: 'duplicated package script names keep both gate and missing-run rows',
+    mutate: (snapshot) => {
+      const pkg = snapshot.sources.package.data!
+      const script = pkg.qualityScripts.find((entry) => entry.name === 'check:reference')!
+      return {
+        ...snapshot,
+        sources: {
+          ...snapshot.sources,
+          package: availableSource('package', {
+            qualityScripts: [...pkg.qualityScripts, { ...script }],
+          }),
+        },
+      }
+    },
+    records: (document) => {
+      expect(
+        textCells(document, 'gates').filter((name) => name === 'check:reference'),
+      ).toHaveLength(2)
+      expect(
+        textCells(document, 'lastLocalRuns').filter((name) => name === 'check:reference'),
+      ).toHaveLength(2)
+    },
+  },
+  {
+    kind: 'quality',
     name: 'duplicated certification path keeps both certification rows',
     mutate: (snapshot) => {
       const certification = snapshot.sources.certification.data!
@@ -689,9 +667,127 @@ const forwarded: readonly RowIdentityCase[] = forwardedKinds.map(([kind, name]) 
 
 const table: readonly RowIdentityCase[] = [...cases, ...forwarded]
 
-const seenSections = new Map<ReportKind, Set<string>>()
-
 describe('report row identity', () => {
+  it('narrows only row keys while retaining malformed shapes for schema rejection', () => {
+    const invalid = [null, 'row', {}, { key: 1 }, { rows: null }]
+    const section = { rows: [...invalid, { key: 'k', extra: true }, { key: 'k', extra: false }] }
+    expect(dedupeUnknownRowKeys([null, 'section', {}, { rows: null }, section])).toEqual([
+      null,
+      'section',
+      {},
+      { rows: null },
+      { rows: [...invalid, { key: 'k', extra: true }, { key: 'k/2', extra: false }] },
+    ])
+    expect(section.rows.at(-1)).toEqual({ key: 'k', extra: false })
+    for (const value of invalid) expect(dedupeUnknownRowKeys(value)).toBe(value)
+  })
+
+  it.each([true, false])('reserves later original keys and saved identities (full=%s)', (full) => {
+    const snapshot = fullSnapshot()
+    const facet = snapshot.sources.fleet.data![0]!
+    const first: ReportRow = { ...facet.rows[0]!, key: 'fleet/item' }
+    const legitimate: ReportRow = { ...facet.rows[1]!, key: 'fleet/item/2' }
+    const duplicate: ReportRow = {
+      ...first,
+      cells: { detail: { type: 'text', value: 'duplicate' } },
+    }
+    const collect = (rows: ReportRow[]) =>
+      collectFixture(
+        'fleet',
+        { full },
+        {
+          ...snapshot,
+          sources: { ...snapshot.sources, fleet: availableSource('fleet', [{ ...facet, rows }]) },
+        },
+      )
+    const before = collect([first, legitimate])
+    const after = collect([first, duplicate, legitimate])
+    const result = getSection(after, facet.id).rows
+    expect(result.find((row) => row.key === legitimate.key)).toEqual(
+      getSection(before, facet.id).rows.find((row) => row.key === legitimate.key),
+    )
+    expect(result.find((row) => row.cells['detail']?.value === 'duplicate')?.key).toBe(
+      'fleet/item/3',
+    )
+    const diff = compareReports(before, after).sections.find((section) => section.id === facet.id)!
+    expect(diff).toMatchObject({ changed: [], removed: [], unchangedRows: 2 })
+    expect(diff.added).toHaveLength(1)
+    const raw = dedupeRowKeys([first, duplicate, legitimate])
+    expect(raw[0]).toBe(first)
+    expect(raw[2]).toBe(legitimate)
+    expect(dedupeUnknownRowKeys([{ ...facet, rows: [first, duplicate, legitimate] }])).toEqual([
+      { ...facet, rows: raw },
+    ])
+    expect(dedupeRowKeys(raw)).toEqual(raw)
+  })
+
+  it('preserves maximum-length originals sharing a truncated suffix stem', () => {
+    const stem = 'k'.repeat(REPORT_MAX_ID_CHARS - String(Number.MAX_SAFE_INTEGER).length - 1)
+    const first: ReportRow = {
+      key: `${stem}${'a'.repeat(REPORT_MAX_ID_CHARS - stem.length)}`,
+      cells: { name: { type: 'text', value: 'first' } },
+      sourceIds: [],
+    }
+    const second = { ...first, key: `${stem}${'b'.repeat(REPORT_MAX_ID_CHARS - stem.length)}` }
+    const reserved = { ...first, key: `${stem}/2` }
+    const rows = [first, first, second, second, reserved]
+    const result = dedupeRowKeys(rows)
+    expect(result.map((row) => row.key)).toEqual([
+      first.key,
+      `${stem}/3`,
+      second.key,
+      `${stem}/4`,
+      reserved.key,
+    ])
+    expect(rows).toEqual([first, first, second, second, reserved])
+  })
+
+  it.each(['repeated', 'suffix-chain', 'shared-stem'] as const)(
+    'bounds counted allocation probes for 20,000 %s rows',
+    (shape) => {
+      const base: ReportRow = {
+        key: 'k',
+        cells: { name: { type: 'text', value: 'row' } },
+        sourceIds: [],
+      }
+      const stem = 'k'.repeat(REPORT_MAX_ID_CHARS - String(Number.MAX_SAFE_INTEGER).length - 1)
+      let chain = 'k'
+      const rows = Array.from({ length: REPORT_MAX_ROWS }, (_, index) => {
+        if (shape === 'repeated') return base
+        if (shape === 'shared-stem')
+          return { ...base, key: `${stem}/${String(Math.floor(index / 2))}` }
+        // Include a duplicate before the nested originals; the raw pre-parse
+        // allocator also sees overlong keys before schema rejection.
+        if (index > 1) chain += '/2'
+        return { ...base, key: chain }
+      })
+      const originalHas = Set.prototype.has
+      let probes = 0
+      const limit = rows.length * 4
+      const spy = vi.spyOn(Set.prototype, 'has').mockImplementation(function (
+        this: Set<unknown>,
+        value: unknown,
+      ) {
+        probes += 1
+        // Abort a quadratic regression promptly, before it can freeze the host.
+        if (probes > limit) throw new Error(`Allocation probe budget exceeded: ${String(probes)}`)
+        return originalHas.call(this, value)
+      })
+      let result: ReportRow[]
+      try {
+        result = dedupeRowKeys(rows)
+      } finally {
+        spy.mockRestore()
+      }
+      expect(probes).toBeLessThanOrEqual(limit)
+      expect(new Set(result.map((row) => row.key)).size).toBe(rows.length)
+      const originals = new Set(rows)
+      for (const row of result) {
+        if (!originals.has(row)) expect(row.key.length).toBeLessThanOrEqual(REPORT_MAX_ID_CHARS)
+      }
+    },
+  )
+
   it('covers every report kind in the table', () => {
     expect([...new Set(table.map((testCase) => testCase.kind))].toSorted(compare)).toEqual(
       [...REPORT_KINDS].toSorted(compare),
@@ -717,21 +813,9 @@ describe('report row identity', () => {
       if (testCase.drift !== undefined) {
         expect(textCells(document, 'planFormat')).toContain(testCase.drift)
       }
-      if (isFull) {
-        const seen = seenSections.get(testCase.kind) ?? new Set<string>()
-        for (const section of document.sections) seen.add(section.id)
-        seen.add(document.needsYou.id)
-        seenSections.set(testCase.kind, seen)
-      }
       expect(JSON.stringify(collectFixture(testCase.kind, options, snapshot))).toBe(
         JSON.stringify(document),
       )
     }
-  })
-
-  it.each([...REPORT_KINDS])('%s cases touch every section the kind emits', (kind) => {
-    const clean = collectFixture(kind, { full: true })
-    const expected = new Set([clean.needsYou.id, ...clean.sections.map((section) => section.id)])
-    expect(seenSections.get(kind)).toEqual(expected)
   })
 })
