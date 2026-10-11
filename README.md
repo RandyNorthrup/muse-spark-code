@@ -2207,6 +2207,13 @@ standalone syntax without starting a model or asking for credentials.
   partial forecast; per-lane metered demands the plan never carries are
   disclosed zero-sample assumptions until calibration replaces them per kind.
   Issue and label goals resolve once their lane associations land with M113 N.
+- **Owner observations.** The panel and ACP read the existing subscription
+  usage feed. Full plan windows and vendor blocks wait for the latest known
+  reset; a full window with no reset refuses and names the account. Current
+  request/token allowance never implies a refill period or future rate.
+  Unreported limits stay unknown with their source; corrupt sources refuse.
+  Machine thresholds say whether each value is default or configured.
+  Standalone CLI has no running usage feed and names registry-only limits.
 - **Existing fleet.** The panel sends an audited, contract-first first-wave
   request independently of rental readiness. Production dispatch still
   refuses with `M117-W-M96-board`. Finished-lane history updates and automatic

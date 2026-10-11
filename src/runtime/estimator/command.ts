@@ -16,7 +16,21 @@ import {
   MINUTES_PER_HOUR,
   SECONDS_PER_MINUTE,
 } from '../../shared/constants'
-import { fill, formatNumber, formatUnit, UI_TEXT, uiLocale } from '../../shared/l10n/text'
+import {
+  fill,
+  formatNumber,
+  formatUnit,
+  formatDateTime,
+  UI_TEXT,
+  uiLocale,
+} from '../../shared/l10n/text'
+
+/** Fixed fleet diagnostics only: raw I/O paths and arbitrary errors stay private. */
+export function fleetFailure(detail: string): Error {
+  return Object.assign(new Error(estimateFailureText({ estimateDiagnostic: detail })), {
+    estimateDiagnostic: detail,
+  })
+}
 
 /** Only validated application diagnostics reach host output; raw IO errors do not. */
 export function estimateFailureText(error: unknown): string {
@@ -25,12 +39,20 @@ export function estimateFailureText(error: unknown): string {
       .string()
       .check(
         z.regex(
-          /^(?:missing-associations|missing-plan|unknown-goal|unknown-prerequisite|unknown-release-member|unknown-rig|duplicate-lane|malformed-starts|missing-estimate|source-unavailable|source-incomplete|invalid-lane|plan-drift|lane-limit):?[\w .,:;-]*$/,
+          /^(?:fleet-(?:caps-invalid|account-invalid|ci-invalid|binding-invalid)(?: [\w-]+)*|fleet-account-blocked [\w.-]+\/[\w.-]+ (?:\d{4}-\d{2}-\d{2}T[\d:.]+Z|reset unknown)|(?:missing-associations|missing-plan|unknown-goal|unknown-prerequisite|unknown-release-member|unknown-rig|duplicate-lane|malformed-starts|missing-estimate|source-unavailable|source-incomplete|invalid-lane|plan-drift|lane-limit):?[\w .,:;-]*)$/,
         ),
       )
     const parsed = estimateDiagnosticSchema.safeParse(error.estimateDiagnostic)
     if (parsed.success && redactSecrets(parsed.data) === parsed.data)
-      return fill(UI_TEXT.estimateFailed, { detail: parsed.data })
+      return fill(UI_TEXT.estimateFailed, {
+        detail: parsed.data
+          .replace(/reset unknown$/, () => UI_TEXT.estimateResetUnknown)
+          .replace(/\d{4}-\d{2}-\d{2}T[\d:.]+Z$/, (value) =>
+            Number.isFinite(Date.parse(value))
+              ? formatDateTime(Date.parse(value))
+              : UI_TEXT.estimateResetUnknown,
+          ),
+      })
   }
   return fill(UI_TEXT.estimateFailed, { detail: 'estimate-unavailable' })
 }

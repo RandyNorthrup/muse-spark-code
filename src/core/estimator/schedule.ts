@@ -13,7 +13,7 @@ import {
   MINUTES_PER_HOUR,
   SECONDS_PER_MINUTE,
 } from '../../shared/constants'
-import { UI_TEXT, fill } from '../../shared/l10n/text'
+import { UI_TEXT, fill, formatDateTime } from '../../shared/l10n/text'
 import { buildEstimateDag, isEstimateDurationEvidence, type EstimateDurationEvidence } from './dag'
 import { compareEstimateIds } from './goal'
 
@@ -110,6 +110,7 @@ function localStamp(instant: number, formatter: Intl.DateTimeFormat): number {
  * This is a scheduling assumption, not a claim about a provider's behavior.
  */
 function renewals(window: Window, until: number): number[] {
+  if (window.kind === 'current') return [Date.parse(window.resetsAt)]
   const anchor = Date.parse(window.resetsAt)
   const formatter = new Intl.DateTimeFormat('en', {
     timeZone: window.timeZone,
@@ -362,10 +363,28 @@ export function prepareEstimateSchedule(
     for (const note of stated) unknownLimits.add(note)
   }
   for (const ci of fleet.ci)
-    if (ci.minutesRemaining === undefined) unknownLimits.add(`${ci.id}:minutesRemaining`)
+    if (
+      ci.minutesRemaining === undefined &&
+      lanes.some(
+        (lane) =>
+          lane.state !== 'merged' &&
+          lane.resources.ciId === ci.id &&
+          known(lane.resources.ciMinutes, `${lane.id}:ciMinutes`) > 0,
+      )
+    )
+      unknownLimits.add(`${ci.id}:minutesRemaining`)
   // No captured shape names CI concurrency, so an empty CI section means the
   // row was not read, never a zeroed row.
-  if (fleet.ci.length === 0) unknownLimits.add('ci unknown: not read')
+  if (
+    fleet.ci.length === 0 &&
+    lanes.some(
+      (lane) =>
+        lane.state !== 'merged' &&
+        (known(lane.resources.ciJobs, `${lane.id}:ciJobs`) > 0 ||
+          known(lane.resources.ciMinutes, `${lane.id}:ciMinutes`) > 0),
+    )
+  )
+    unknownLimits.add(UI_TEXT.estimateCiUnread)
 
   let quotaHints: number[] = []
   function isFeasible(
@@ -375,6 +394,16 @@ export function prepareEstimateSchedule(
   ): boolean {
     quotaHints = []
     const { lane, machine, start, end } = candidate
+    if (relaxation !== 'accountRate') {
+      for (const account of accounts) {
+        if (account.availableAt === undefined || accountShare(candidate, account.id) === 0) continue
+        const ready = (Date.parse(account.availableAt) - asOf) / HOUR_MS
+        if (start < ready) {
+          quotaHints.push(ready)
+          return false
+        }
+      }
+    }
     const kindSlots = machine.capacityByKind.find((entry) => entry.kind === lane.kind)?.slots ?? 0
     const requiresTimeline =
       relaxation === 'slots' ||
@@ -518,11 +547,12 @@ export function prepareEstimateSchedule(
               ...resets.filter((reset) => reset > 0 && reset < horizon),
             ]),
           ].toSorted((a, b) => a - b)
-          let remaining = resets.some((reset) => reset <= 0) ? window.allowance : window.remaining
+          const renewedAllowance = window.kind === 'current' ? Infinity : window.allowance
+          let remaining = resets.some((reset) => reset <= 0) ? renewedAllowance : window.remaining
           for (let index = 0; index < boundaries.length - 1; index++) {
             const time = boundaries[index] ?? refuse('missing-boundary')
             const next = boundaries[index + 1] ?? refuse('missing-boundary')
-            if (resets.includes(time)) remaining = window.allowance
+            if (resets.includes(time)) remaining = renewedAllowance
             remaining -= users
               .filter((entry) => entry.start <= time && time < entry.end)
               .reduce(
@@ -623,7 +653,10 @@ export function prepareEstimateSchedule(
             users.some((lane) => !isDemandKnown(lane, window.unit))
           ) {
             unknownLimits.add(
-              `${account.id}:${window.id} resets ${window.resetsAt}; percent demand of these lanes unknown`,
+              fill(UI_TEXT.estimatePercentDemandUnknown, {
+                source: `${account.id}/${window.id}`,
+                reset: formatDateTime(Date.parse(window.resetsAt)),
+              }),
             )
             return false
           }

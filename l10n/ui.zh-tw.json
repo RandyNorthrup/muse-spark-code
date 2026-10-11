@@ -5073,5 +5073,15 @@
     "grantsCount": {
       "other": "{count} 個授權"
     }
-  }
+  },
+  "estimateNoAccountReader": "未知：{source} 上沒有帳戶讀取來源。",
+  "estimateLimitsUnread": "未知：尚未讀取 {source} 的限額。",
+  "estimateRefillUnknown": "未來的補充週期和速率未知：{source}。",
+  "estimatePlanWindowUnknown": "{source}：已使用 {percent}；{reset}；視窗週期和工作需求未知。",
+  "estimatePercentDemandUnknown": "這些工作的百分比需求未知：{source}；重設 {reset}。",
+  "estimateResetUnknown": "重設時間未知",
+  "estimateCiUnread": "CI 容量未知：沒有讀取來源。",
+  "estimateSettingsDefault": "預設設定：{source}。",
+  "estimateSettingsConfigured": "已配置的設定：{source}。",
+  "referenceEstimateFacts": "預測保留已觀察到的帳戶封鎖狀態，註明未讀取的容量，並區分預設閾值與已設定閾值。未來的補充速率在回報前仍為未知。"
 }

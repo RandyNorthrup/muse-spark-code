@@ -5532,5 +5532,15 @@
       "few": "{count} uprawnienia",
       "many": "{count} uprawnień"
     }
-  }
+  },
+  "estimateNoAccountReader": "Nieznane: brak czytnika kont na {source}.",
+  "estimateLimitsUnread": "Nieznane: nie odczytano limitów dla {source}.",
+  "estimateRefillUnknown": "Przyszły okres i tempo uzupełniania nieznane: {source}.",
+  "estimatePlanWindowUnknown": "{source}: wykorzystano {percent}; {reset}; okres okna i zapotrzebowanie zadań nieznane.",
+  "estimatePercentDemandUnknown": "Procentowe zapotrzebowanie tych zadań nieznane: {source}; reset {reset}.",
+  "estimateResetUnknown": "czas resetu nieznany",
+  "estimateCiUnread": "Pojemność CI nieznana: brak czytnika.",
+  "estimateSettingsDefault": "Ustawienia domyślne: {source}.",
+  "estimateSettingsConfigured": "Ustawienia skonfigurowane: {source}.",
+  "referenceEstimateFacts": "Prognozy zachowują zaobserwowane blokady kont, wskazują nieodczytaną pojemność i rozróżniają progi domyślne od skonfigurowanych. Przyszłe tempo uzupełniania pozostaje nieznane, dopóki nie zostanie zgłoszone."
 }

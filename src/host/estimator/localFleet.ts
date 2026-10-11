@@ -2,17 +2,12 @@
 // nothing invented. Cores and RAM come from the OS; disks stay unknown
 // (Node cannot read headroom); the machine runs one lane at a time
 // (governor and caps of one) with one slot per lane kind the estimate holds.
-// API rate limits are not modeled here: the one `local` account is budgeted
-// to the lanes' own declared demand, so it never binds, until the account
-// bindings merge. A local estimate never claims quota it cannot see (see
+// Account rates are unknown until their owner reports them.
+// A local estimate never claims quota it cannot see (see
 // docs/certification/m117.md). Unsupported platforms refuse instead of
 // guessing a class.
 import * as os from 'node:os'
-import {
-  ESTIMATE_BYTES_PER_GIB,
-  ESTIMATE_RAM_ROUND_GIB,
-  MINUTES_PER_HOUR,
-} from '../../shared/constants'
+import { ESTIMATE_BYTES_PER_GIB, ESTIMATE_RAM_ROUND_GIB } from '../../shared/constants'
 import { fill, UI_TEXT } from '../../shared/l10n/text'
 import { fleetSnapshotSchema, type EstimateLane, type FleetSnapshot } from '../../shared/estimate'
 import type { EstimatorSourcePorts } from './estimatorBundle'
@@ -52,21 +47,6 @@ export function fleetFromHost(
     if (left === right) return 0
     return left < right ? -1 : 1
   })
-  // The local account is budgeted to the lanes' own declared demand, so it
-  // never rate-limits: this machine spends the user's own subscriptions,
-  // whose limits the estimator cannot see. Undeclared demand budgets zero;
-  // the schedule refuses lanes whose demand it cannot read.
-  const demand = (unit: 'requests' | 'tokens'): number => {
-    let total = 0
-    for (const lane of lanes) {
-      const quantity =
-        unit === 'requests'
-          ? lane.resources.accountRequestsPerHour
-          : lane.resources.accountTokensPerHour
-      total += quantity.status === 'known' ? quantity.value : 0
-    }
-    return total
-  }
   return fleetSnapshotSchema.parse({
     asOf,
     machines: [
@@ -94,8 +74,6 @@ export function fleetFromHost(
       {
         id: 'local',
         providerId: 'local',
-        requestsPerMinute: Math.ceil(demand('requests') / MINUTES_PER_HOUR),
-        tokensPerMinute: Math.ceil(demand('tokens') / MINUTES_PER_HOUR),
       },
     ],
     slots: [{ id: 'local-0', machineId: 'local', roleId: 'local', accountId: 'local' }],
@@ -122,21 +100,20 @@ export function estimatorSourcePorts(
   snapshot: EstimatorSourcePorts['snapshot'],
   fleetIo?: FleetBindingIo,
 ): EstimatorSourcePorts {
-  // One estimate reads the fleet once: the current fleet and the candidate
-  // pool derive from the same snapshot, so a setting that changes mid-read
-  // cannot describe two different machines in one forecast.
-  let cached: { readonly key: string; readonly fleet: Promise<FleetSnapshot> } | undefined
-  const fleet = (lanes: readonly EstimateLane[], asOf: string): Promise<FleetSnapshot> => {
-    const key = `${asOf}\n${JSON.stringify(lanes)}`
-    if (cached?.key !== key)
-      cached = { key, fleet: applyFleetBinding(localFleet(lanes, asOf), fleetIo ?? {}) }
-    return cached.fleet
-  }
+  const read = (lanes: readonly EstimateLane[], asOf: string): Promise<FleetSnapshot> =>
+    applyFleetBinding(localFleet(lanes, asOf), fleetIo ?? {})
   return {
     snapshot,
-    fleet: (lanes, asOf) => fleet(lanes, asOf),
+    fleet: read,
     history: () => Promise.resolve([]),
-    candidatePool: (lanes, asOf) => fleet(lanes, asOf),
+    candidatePool: read,
+    beginEstimate: () => {
+      // This memo belongs only to the requesting invocation, including concurrent ones.
+      let snapshot: Promise<FleetSnapshot> | undefined
+      const once = (lanes: readonly EstimateLane[], asOf: string): Promise<FleetSnapshot> =>
+        (snapshot ??= read(lanes, asOf))
+      return { fleet: once, candidatePool: once }
+    },
     board: () => ({
       audit: () => missingEstimateBinding('M117-W-M96-board'),
       start: () => missingEstimateBinding('M117-W-M96-board'),

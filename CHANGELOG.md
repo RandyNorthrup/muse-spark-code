@@ -36,20 +36,15 @@ happened, not what was planned; superseded entries are kept.
   of a raw parse error. No CI row is carried yet (no captured shape names
   concurrency), so a lane declaring CI demand refuses with the schedule's
   reason.
-- **Estimator fleet binding R3 redesign** (M117 C-M117-3R3). The estimator no
-  longer computes a fleet number: machine parallelism stays the certified one
-  serial slot on every surface, and M107's throttle thresholds ride the local
-  row's caps as read facts (nothing while the governor is off). CLI `estimate`
-  and ACP `/estimate` read `resources.json` through the headless governor's
-  own settings reader — a missing file carries the defaults the governor runs,
-  a present file is the configured value. M108's account row carries only read
-  limits: the runtime registry names the account with its limits unknown, and
-  the editor names its missing reader; read rate buckets become the rates, a
-  plan window with a captured duration becomes a fixed window over that
-  period, any other percent window is stated, never converted, and a full
-  window with no read rate refuses naming the reset instead of finishing on
-  slot math. This supersedes R2's "selected and translated" account claim,
-  which was never true in production. CI stays not read on every surface.
+- **Estimator fleet owner constraints** (M117 C-M117-3R4). Panel and ACP
+  forecasts read the existing subscription usage feed and retain blocking
+  plan windows. Current request/token allowance no longer invents a repeating
+  period or sustainable rate. Full captured windows retain their allowance
+  after reset; simultaneous blocks wait for the latest reset, and an unknown
+  reset refuses. Corrupt owners return named source errors. Concurrent estimates
+  each share their own fleet/pool snapshot. Missing CI qualifies only work
+  that uses CI. Default/configured thresholds retain their provenance and
+  explanations use the installed language.
 - **`estimate --check-plan`** (M117 CM1171R4). The headless `estimate` command
   and the ACP agent's `/estimate` accept `--check-plan`, which lists every
   estimator plan problem in `PLAN.md` — duplicate lanes, malformed `Starts`

@@ -36623,6 +36623,22 @@ estimator-panel OVER (25.3 KiB vs 25 KiB, also OVER at pristine HEAD);
 `dist/extension.js` 554.1 KiB (budget 600), `dist/modelApi.js` 515.8 KiB
 (budget 525).
 
+**C-M117-3R4 review repair (2026-10-11, Kubuntu; RVCM1173C).**
+Fix all eight P2 and four P3 findings as classes within the fleet lane.
+Bind the existing backend usage reader and usage/changed recording on the
+panel and ACP; standalone CLI names registry-only limits when no live owner
+exists. Preserve current bucket allowance without inventing refill cadence,
+retain captured full-window periods, combine simultaneous blocks by latest
+reset, and refuse a full window with unknown reset. Validate raw owner
+snapshots and propagate named source diagnostics. Scope fleet/pool snapshots
+to each estimate invocation, and qualify missing CI only for CI demand.
+Carry default/configured provenance and localize every explanatory sentence
+in all fourteen tables. Remove panel overage without changing its cap.
+Write regressions before fixes, record byte-exact red drills and exact bundle
+bytes in docs/certification/m117-fleet.md; run five typechecks and all related
+suites at repository deadlines. No merge, push, dependency, paid/live call or
+aggregate quality (lead-owned under the rig brief).
+
 **C-M117-3R3 redesign on the real contracts (2026-10-11, Kubuntu; review
 RVCM1173B).** Third round, so the binding is redesigned, not patched: the
 estimator never computes a fleet number (`fleetSlotsForCaps` deleted with
@@ -36635,11 +36651,10 @@ off. CLI `estimate` and ACP `/estimate` read `resources.json` through the
 headless governor's own `resourceMachineStore` (missing file carries the
 schema defaults; the ACP agent's `resources` object and the estimate share
 the agent data folder). M108's account row carries only read values: the
-runtime registry names the account with limits unknown, the editor carries
-the typed no-reader seam (`unknown: no account reader in this editor`, plus
-a skipped test naming the unbuilt reader); `MuseCodeAccountHomes` is never
-constructed in production, so no live limits reader exists on any surface
-today — the headless `AccountStore` gives identity, not limits. A plan window
+runtime registry names the account with limits unknown, R3 left the editor usage/read and shared usage/changed readers unbound.
+MuseCodeAccountHomes is not constructed in production, but those existing
+readers do not require it; R4 binds them. The standalone headless registry
+gives identity, not live limits. A plan window
 with a captured duration shapes a fixed rolling window over that period (the
 short window's `windowDurationMins`, now carried by `accountHomes.read`); any
 other percent window is stated, never converted, and the schedule states a
@@ -36656,10 +36671,10 @@ every surface (no captured shape; no repository CI-concurrency reader found —
 the CI templates carry no concurrent-job or occupied-count field). Receipts
 (24 binding tests with 5 red drills, CLI/ACP composition tests through the
 production assemblies, accountHomes duration test) in
-`docs/certification/m117-fleet.md`. No new UI strings (unknown rows are
-technical splices under the existing uncertainty label), commands, settings,
-dependencies or cap changes. `npm run build`: panel OVER unchanged (25.3 KiB
-vs 25 KiB, pre-existing); `dist/extension.js` 556.8 KiB (budget 600),
+`docs/certification/m117-fleet.md`. R3 mistakenly treated new explanatory sentences as technical splices;
+R4 registers and translates them. No commands, settings, dependencies or
+cap changes. R3 production build: panel 25,908 B against 25,600 B, including
+258 B inherited and 50 B added by R3 shared account validation; `dist/extension.js` 556.8 KiB (budget 600),
 `dist/estimator.js` 67.9 KiB (budget 75), `dist/acp.js` 245.4 KiB (budget
 850), `dist/modelApi.js` 515.8 KiB (budget 525).
 

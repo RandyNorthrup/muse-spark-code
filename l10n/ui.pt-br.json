@@ -5379,5 +5379,15 @@
       "other": "{count} autorizações",
       "many": "{count} autorizações"
     }
-  }
+  },
+  "estimateNoAccountReader": "Desconhecido: não há leitor de contas em {source}.",
+  "estimateLimitsUnread": "Desconhecido: limites não lidos para {source}.",
+  "estimateRefillUnknown": "Período e taxa de reposição futuros desconhecidos: {source}.",
+  "estimatePlanWindowUnknown": "{source}: {percent} usado; {reset}; período da janela e demanda das tarefas desconhecidos.",
+  "estimatePercentDemandUnknown": "Demanda percentual destas tarefas desconhecida: {source}; redefinição {reset}.",
+  "estimateResetUnknown": "redefinição desconhecida",
+  "estimateCiUnread": "Capacidade de CI desconhecida: não há leitor.",
+  "estimateSettingsDefault": "Configurações padrão: {source}.",
+  "estimateSettingsConfigured": "Configurações definidas: {source}.",
+  "referenceEstimateFacts": "As previsões mantêm os bloqueios de contas observados, indicam a capacidade não lida e distinguem os limites padrão dos configurados. As taxas futuras de reposição permanecem desconhecidas até serem informadas."
 }

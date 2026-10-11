@@ -188,6 +188,8 @@ const windowFields = {
 const usageWindowSchema = z
   .discriminatedUnion('kind', [
     z.strictObject({ kind: z.literal('rolling'), periodSeconds: positiveCount, ...windowFields }),
+    // Current allowance only; its owner supplied no renewal period or future rate.
+    z.strictObject({ kind: z.literal('current'), ...windowFields }),
     // Repeat the reset's local time/day; clamp month-end to the last local day.
     z.strictObject({
       kind: z.literal('calendar'),
@@ -300,6 +302,13 @@ const machineSchema = z.strictObject({
     slots: count,
     cpuPercent: z.number().check(z.nonnegative(), z.maximum(100)),
     memoryPercent: z.number().check(z.nonnegative(), z.maximum(100)),
+    origin: z.optional(
+      z.strictObject({
+        source: id,
+        cpuPercent: z.enum(['default', 'configured']),
+        memoryPercent: z.enum(['default', 'configured']),
+      }),
+    ),
   }),
 })
 const accountSchema = z.strictObject({
@@ -312,6 +321,8 @@ const accountSchema = z.strictObject({
   // binding replaces it with what the account owner said.
   requestsPerMinute: z.optional(hours),
   tokensPerMinute: z.optional(hours),
+  // Initial admission is independent of whether lane percent demand is known.
+  availableAt: z.optional(instant),
   // Multiple hard windows may apply at once (for example daily and weekly).
   usageLimits: z.optional(
     z.array(usageWindowSchema).check(

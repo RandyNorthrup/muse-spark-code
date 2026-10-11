@@ -11,8 +11,8 @@
 //   above them); the schedule never reads those percents for admission. With
 //   the governor switched off there is no threshold row: the certified row
 //   stands unchanged.
-// - M108's account row carries only what the account owner said. A read rate
-//   bucket becomes the rate; a read plan window with a captured duration
+// - M108's account row carries only what the account owner said. A rate
+//   bucket keeps its current allowance; future refill and rates stay unknown; a read plan window with a captured duration
 //   becomes a fixed rolling window over that captured period (never over the
 //   time remaining); a window without one, and any percent window the lanes
 //   cannot price, is stated, never converted and never dropped. With no read
@@ -24,12 +24,8 @@
 // When the owner cannot say, the row reads unknown and names the source. Each
 // source validates on its own, so a corrupt machine reading, account or CI
 // row refuses with its own detail on the production reader shape.
-import { fill, UI_TEXT } from '../../shared/l10n/text'
-import {
-  MILLISECONDS_PER_MINUTE,
-  MINUTES_PER_HOUR,
-  SECONDS_PER_MINUTE,
-} from '../../shared/constants'
+import { fill, formatDateTime, formatPercent, UI_TEXT } from '../../shared/l10n/text'
+import { ACCOUNT_DEFAULT_ID, SECONDS_PER_MINUTE } from '../../shared/constants'
 import {
   readResourceSettings,
   type ResourceSettings,
@@ -37,7 +33,13 @@ import {
 } from '../../shared/resources'
 import { fleetSnapshotSchema, type FleetSnapshot } from '../../shared/estimate'
 import type { Account } from '../../shared/accounts'
-import type { AccountLimitsSnapshot } from '../../core/accounts/thresholds'
+import {
+  accountLimitsSnapshotSchema,
+  type AccountLimitsSnapshot,
+} from '../../core/accounts/thresholds'
+import { usageLimitSnapshotSchema, type UsageLimitSnapshot } from '../../shared/usageJournal'
+import { subscriptionUsageSchema, type SubscriptionUsage } from '../../shared/usage'
+import { fleetFailure } from '../../runtime/estimator/command'
 
 type FleetMachine = FleetSnapshot['machines'][number]
 type FleetAccount = FleetSnapshot['accounts'][number]
@@ -49,6 +51,7 @@ export interface FleetMachineReading {
   readonly cpuMaxPercent: number
   readonly memoryMaxPercent: number
   readonly enabled: boolean
+  readonly origin?: FleetMachine['caps']['origin'] | undefined
 }
 
 /**
@@ -63,7 +66,7 @@ export type FleetAccountSource =
       readonly providerId: string
       readonly accountId: string
       readonly snapshot: AccountLimitsSnapshot
-      readonly nowMs: number
+      readonly nowMs?: number | undefined
     }
   | { readonly kind: 'registry'; readonly providerId: string; readonly accountId: string }
   | { readonly kind: 'no-reader'; readonly surface: 'editor' | 'runtime' }
@@ -93,7 +96,7 @@ export interface FleetBindingIo {
 }
 
 function refuse(detail: string): never {
-  throw new Error(fill(UI_TEXT.estimateFailed, { detail }))
+  throw fleetFailure(detail)
 }
 
 /** A corrupt machine reading refuses instead of widening the forecast. */
@@ -143,6 +146,7 @@ export async function applyFleetBinding(
                 slots: entry.caps.slots,
                 cpuPercent: reading.cpuMaxPercent,
                 memoryPercent: reading.memoryMaxPercent,
+                ...(reading.origin !== undefined && { origin: reading.origin }),
               },
             }
           : entry,
@@ -191,7 +195,7 @@ function applyAccountSource(
     const row = unknownAccountRow(
       'local',
       'local',
-      `unknown: no account reader in this ${source.surface}`,
+      fill(UI_TEXT.estimateNoAccountReader, { source: source.surface }),
     )
     return { ...base, accounts: [row], slots: spend('local') }
   }
@@ -199,7 +203,7 @@ function applyAccountSource(
     const row = unknownAccountRow(
       source.accountId,
       source.providerId,
-      `unknown: limits unread for ${source.providerId} ${source.accountId}`,
+      fill(UI_TEXT.estimateLimitsUnread, { source: `${source.providerId}/${source.accountId}` }),
     )
     return { ...base, accounts: [row], slots: spend(source.accountId) }
   }
@@ -207,13 +211,13 @@ function applyAccountSource(
     providerId: source.providerId,
     account: { id: source.accountId },
     limits: source.snapshot,
-    nowMs: source.nowMs,
+    nowMs: source.nowMs ?? Date.parse(base.asOf),
   })
   if (translated === undefined) {
     const row = unknownAccountRow(
       source.accountId,
       source.providerId,
-      `unknown: no usable limits for ${source.providerId} ${source.accountId}`,
+      fill(UI_TEXT.estimateLimitsUnread, { source: `${source.providerId}/${source.accountId}` }),
     )
     return { ...base, accounts: [row], slots: spend(source.accountId) }
   }
@@ -223,6 +227,7 @@ function applyAccountSource(
       {
         id: source.accountId,
         providerId: source.providerId,
+        ...(translated.availableAt !== undefined && { availableAt: translated.availableAt }),
         ...(translated.requestsPerMinute !== undefined && {
           requestsPerMinute: translated.requestsPerMinute,
         }),
@@ -237,14 +242,6 @@ function applyAccountSource(
   }
 }
 
-/** Minutes from now until a limit reset; null when the window already lapsed. */
-function minutesUntilReset(resetAt: string, nowMs: number): number | null {
-  const resetMs = Date.parse(resetAt)
-  return !Number.isFinite(resetMs) || resetMs <= nowMs
-    ? null
-    : (resetMs - nowMs) / MILLISECONDS_PER_MINUTE
-}
-
 export interface FleetAccountLimits {
   readonly providerId: string
   readonly account: Pick<Account, 'id'>
@@ -254,143 +251,84 @@ export interface FleetAccountLimits {
 
 /** The translated row: read rates, convertible windows, and stated limits. */
 export interface FleetTranslatedAccount {
+  readonly availableAt?: string | undefined
   readonly requestsPerMinute?: number | undefined
   readonly tokensPerMinute?: number | undefined
   readonly usageLimits?: FleetAccount['usageLimits'] | undefined
   readonly statedLimits: readonly string[]
 }
 
-/**
- * M108's account snapshot translated as what it is (PLAN.md D97). Rate
- * buckets become requests/tokens per minute at their sustainable allowance
- * rate over the current window. A plan window with a captured duration
- * becomes a fixed percent window over that captured period; a plan window
- * without one is stated, never shaped from the time remaining. A full window
- * (or vendor block) with a future reset and a read rate becomes a
- * zero-remaining requests window, so the forecast waits for the reset and
- * names the account rate as its bottleneck; without a read rate the account
- * cannot be forecast past the block and refuses as `fleet-account-blocked`
- * naming the account and the reset. An expired or absent bucket constrains
- * nothing. Returns undefined when nothing usable was read. A vendor block
- * with no reset refuses: paid work on that account cannot start.
- */
+/** Preserve owner allowance/reset separately from unknown future refill and rates. */
 export function fleetAccountFromLimits(
   input: FleetAccountLimits,
 ): FleetTranslatedAccount | undefined {
-  const { providerId, account, limits, nowMs } = input
-  if (!Number.isFinite(nowMs)) refuse('fleet-account-invalid')
+  const { providerId, account, nowMs } = input
+  const parsed = accountLimitsSnapshotSchema.safeParse(input.limits)
+  if (!parsed.success || !Number.isFinite(nowMs)) refuse('fleet-account-invalid limits')
+  const limits = parsed.data
   const windows: NonNullable<FleetAccount['usageLimits']> = []
   const stated: string[] = []
-  const bucket = (
-    id: string,
-    unit: 'requests' | 'tokens',
-    entry: { limit: number; remaining: number; resetAt: string } | undefined,
-  ): number | undefined => {
-    if (entry === undefined) return undefined
-    const minutes = minutesUntilReset(entry.resetAt, nowMs)
-    if (minutes === null) return undefined
-    const periodSeconds = Math.max(1, Math.round(minutes * SECONDS_PER_MINUTE))
+  const resets: string[] = []
+  const block = (reset: string | null): void => {
+    if (reset === null) refuse(`fleet-account-blocked ${providerId}/${account.id} reset unknown`)
+    if (Date.parse(reset) > nowMs) resets.push(reset)
+  }
+  for (const unit of ['requests', 'tokens'] as const) {
+    const entry = limits.rateLimits?.[unit]
+    if (entry === undefined) continue
+    if (entry.remaining > entry.limit) refuse('fleet-account-invalid limits')
+    if (Date.parse(entry.resetAt) <= nowMs) continue
     windows.push({
-      id,
-      kind: 'rolling',
-      periodSeconds,
+      id: `${account.id}-${unit}`,
+      kind: 'current',
       unit,
       remaining: entry.remaining,
       allowance: entry.limit,
       resetsAt: entry.resetAt,
       timeZone: 'UTC',
     })
-    // The sustainable rate, never the remaining: a depleted bucket must wait
-    // for its reset through the window above, not refuse every rate check.
-    return entry.limit / Math.max(1 / MINUTES_PER_HOUR, minutes)
+    stated.push(
+      fill(UI_TEXT.estimateRefillUnknown, { source: `${providerId}/${account.id}/${unit}` }),
+    )
   }
-  const requestsPerMinute = bucket(
-    `${account.id}-requests`,
-    'requests',
-    limits.rateLimits?.requests,
-  )
-  const tokensPerMinute = bucket(`${account.id}-tokens`, 'tokens', limits.rateLimits?.tokens)
-  const fullResets: string[] = []
   const planWindows = Object.entries(limits.planWindows ?? {})
   for (const [name, window] of planWindows) {
-    if (window.resetAt === null) continue
-    const minutes = minutesUntilReset(window.resetAt, nowMs)
-    if (minutes === null) continue
-    if (window.usedPercent >= 100) {
-      fullResets.push(window.resetAt)
+    if (
+      window.resetAt !== null &&
+      Date.parse(window.resetAt) <= nowMs &&
+      window.windowDurationMins === undefined
+    )
       continue
-    }
-    if (window.windowDurationMins === undefined) {
-      stated.push(
-        `${account.id}-${name}: ${String(window.usedPercent)}% used, resets ${window.resetAt}; percent demand of these lanes unknown`,
-      )
-    } else {
+    if (window.usedPercent >= 100) block(window.resetAt)
+    if (window.resetAt !== null && window.windowDurationMins !== undefined) {
       windows.push({
         id: `${account.id}-${name}`,
         kind: 'rolling',
-        periodSeconds: Math.max(1, Math.round(window.windowDurationMins * SECONDS_PER_MINUTE)),
+        periodSeconds: window.windowDurationMins * SECONDS_PER_MINUTE,
         unit: 'percent',
         remaining: 100 - window.usedPercent,
         allowance: 100,
         resetsAt: window.resetAt,
         timeZone: 'UTC',
       })
-    }
-  }
-  const hasVendorBlock =
-    limits.blocked !== undefined &&
-    (limits.blocked.resetAt === null || Date.parse(limits.blocked.resetAt) > nowMs)
-  // undefined: no vendor block; null: blocked with no reset; string: dated.
-  const vendorReset: string | null | undefined = hasVendorBlock
-    ? (limits.blocked?.resetAt ?? null)
-    : undefined
-  const latestFull = fullResets.toSorted((left, right) => Date.parse(right) - Date.parse(left))[0]
-  if (vendorReset === undefined && latestFull === undefined) {
-    // No block: rates, convertible windows and stated limits stand as read.
-  } else if (vendorReset === null) {
-    refuse(`fleet-account-blocked ${providerId}/${account.id} no-reset`)
-  } else {
-    const resetAt = vendorReset ?? latestFull ?? refuse('fleet-account-blocked')
-    if (requestsPerMinute === undefined) {
-      refuse(`fleet-account-blocked ${providerId}/${account.id} ${resetAt}`)
     } else {
-      const minutes = minutesUntilReset(resetAt, nowMs)
-      if (minutes === null) {
-        // The reset lapsed while translating: the block no longer constrains.
-      } else {
-        const periodSeconds = Math.max(1, Math.round(minutes * SECONDS_PER_MINUTE))
-        windows.push({
-          id: `${account.id}-blocked`,
-          kind: 'rolling',
-          periodSeconds,
-          unit: 'requests',
-          remaining: 0,
-          allowance: requestsPerMinute * minutes,
-          resetsAt: resetAt,
-          timeZone: 'UTC',
-        })
-        if (tokensPerMinute !== undefined) {
-          windows.push({
-            id: `${account.id}-blocked-tokens`,
-            kind: 'rolling',
-            periodSeconds,
-            unit: 'tokens',
-            remaining: 0,
-            allowance: tokensPerMinute * minutes,
-            resetsAt: resetAt,
-            timeZone: 'UTC',
-          })
-        }
-      }
+      stated.push(
+        fill(UI_TEXT.estimatePlanWindowUnknown, {
+          source: `${providerId}/${account.id}/${name}`,
+          percent: formatPercent(window.usedPercent),
+          reset:
+            window.resetAt === null
+              ? UI_TEXT.estimateResetUnknown
+              : formatDateTime(Date.parse(window.resetAt)),
+        }),
+      )
     }
   }
-  return requestsPerMinute !== undefined ||
-    tokensPerMinute !== undefined ||
-    windows.length > 0 ||
-    stated.length > 0
+  if (limits.blocked !== undefined) block(limits.blocked.resetAt)
+  const availableAt = resets.toSorted((a, b) => Date.parse(b) - Date.parse(a))[0]
+  return availableAt !== undefined || windows.length > 0 || stated.length > 0
     ? {
-        ...(requestsPerMinute !== undefined && { requestsPerMinute }),
-        ...(tokensPerMinute !== undefined && { tokensPerMinute }),
+        ...(availableAt !== undefined && { availableAt }),
         ...(windows.length > 0 && { usageLimits: windows }),
         statedLimits: stated,
       }
@@ -431,74 +369,158 @@ export function fleetIoFromSources(sources: FleetSources): FleetBindingIo {
   }
 }
 
-function machineReading(settings: ResourceSettings): FleetMachineReading {
+function machineReading(
+  settings: ResourceSettings,
+  origin?: FleetMachineReading['origin'],
+): FleetMachineReading {
   return {
     cpuMaxPercent: settings.cpuMaxPercent,
     memoryMaxPercent: settings.memoryMaxPercent,
     enabled: settings.enabled,
+    ...(origin !== undefined && { origin }),
   }
 }
 
-/**
- * The extension host's sources: M107's settings read live from the workspace
- * configuration through readResourceSettings (thresholds as facts, slots
- * untouched); the extension host constructs no account-limits reader (the
- * panel's accounts view reads the AccountStore registry and static
- * capability names, and live usage sits on the backend's account home), so
- * the account source is the typed no-reader seam, never a silent stub; no
- * captured shape names CI concurrency, so CI stays not read. `inspect` is
- * the configuration's own inspect function, so the test proves the exact
- * keys.
- */
-export function extensionFleetSources(deps: {
-  readonly inspect: ResourceSettingsReader
-}): FleetSources {
+/** Existing usage owners: the backend's usage/read and the UI's recording feed. */
+export interface FleetUsageOwners {
+  readonly readLiveLimits?: (() => MaybeAsync<readonly UsageLimitSnapshot[]>) | undefined
+  readonly readUsage?: (() => Promise<SubscriptionUsage | undefined>) | undefined
+}
+
+async function liveAccountSource(deps: FleetUsageOwners): Promise<FleetAccountSource | undefined> {
+  let usage: SubscriptionUsage | undefined
+  try {
+    usage = await deps.readUsage?.()
+  } catch {
+    refuse('fleet-account-invalid usage-read unavailable')
+  }
+  let windows: UsageLimitSnapshot['windows'] | undefined
+  if (usage !== undefined) {
+    const parsed = subscriptionUsageSchema.safeParse(usage)
+    if (!parsed.success) refuse('fleet-account-invalid usage-read')
+    windows = [
+      {
+        id: 'window',
+        usedPercent: parsed.data.window.usedPercent,
+        resetsAt: parsed.data.window.resetsAtMs,
+        windowMins: parsed.data.window.windowDurationMins,
+      },
+      {
+        id: 'weekly',
+        usedPercent: parsed.data.weekly.usedPercent,
+        resetsAt: parsed.data.weekly.resetsAtMs,
+      },
+    ]
+  }
+  let observations: readonly UsageLimitSnapshot[]
+  try {
+    observations = (await deps.readLiveLimits?.()) ?? []
+  } catch {
+    refuse('fleet-account-invalid usage-changed unavailable')
+  }
+  for (const raw of observations) {
+    const parsed = usageLimitSnapshotSchema.safeParse(raw)
+    if (!parsed.success) refuse('fleet-account-invalid usage-changed')
+    if (windows === undefined && parsed.data.source === 'museCode') windows = parsed.data.windows
+  }
+  if (windows === undefined) return undefined
+  const snapshot: AccountLimitsSnapshot = {
+    planWindows: Object.fromEntries(
+      windows.map((window) => [
+        window.id,
+        {
+          usedPercent: Math.min(100, window.usedPercent),
+          resetAt: window.resetsAt === undefined ? null : new Date(window.resetsAt).toISOString(),
+          ...(window.windowMins !== undefined && { windowDurationMins: window.windowMins }),
+        },
+      ]),
+    ),
+  }
+  return { kind: 'limits', providerId: 'meta', accountId: ACCOUNT_DEFAULT_ID, snapshot }
+}
+
+/** Live workspace configuration and the same live usage readers as Account & usage. */
+export function extensionFleetSources(
+  deps: {
+    readonly inspect: ResourceSettingsReader
+  } & FleetUsageOwners,
+): FleetSources {
   return {
     settings: () => {
       try {
-        return machineReading(readResourceSettings(deps.inspect))
+        const captured = new Map<string, ReturnType<ResourceSettingsReader>>()
+        const settings = readResourceSettings((key) => {
+          const value = deps.inspect(key)
+          captured.set(key, value)
+          return value
+        })
+        return machineReading(settings, {
+          source: 'configuration',
+          cpuPercent:
+            captured.get('resourceCpuMaxPercent')?.globalValue === undefined
+              ? 'default'
+              : 'configured',
+          memoryPercent:
+            captured.get('resourceMemoryMaxPercent')?.globalValue === undefined
+              ? 'default'
+              : 'configured',
+        })
       } catch {
         refuse('fleet-caps-invalid')
       }
     },
-    activeAccount: () => ({ kind: 'no-reader', surface: 'editor' }) as const,
+    activeAccount: async () =>
+      (await liveAccountSource(deps)) ?? { kind: 'no-reader', surface: 'editor' },
     ci: () => [],
   }
 }
 
-/**
- * The headless runtime's sources: M107's settings through the same
- * resources.json reader the headless governor uses (a missing file carries
- * the schema defaults the governor itself runs); M108's account identity
- * through the runtime's account registry, whose limits no headless reader
- * holds, so a listed account is named with unknown limits and anything else
- * is the typed no-reader seam; networked `gh` reads stay off headless (M80,
- * D65), so CI stays not read with the schedule's true refusal for lanes that
- * declare it.
- */
-export function headlessFleetSources(deps: {
-  readonly readSettings: () => Promise<ResourceSettings>
-  readonly listAccounts: () => Promise<readonly { readonly id: string }[]>
-}): FleetSources {
+/** Standalone CLI has a registry; ACP also supplies the running usage owners. */
+export function headlessFleetSources(
+  deps: {
+    readonly readSettings: () => Promise<ResourceSettings>
+    readonly readSettingsWithOrigin?:
+      | (() => Promise<{
+          settings: ResourceSettings
+          origin: NonNullable<FleetMachineReading['origin']>
+        }>)
+      | undefined
+    readonly listAccounts: () => Promise<readonly { readonly id: string }[]>
+  } & FleetUsageOwners,
+): FleetSources {
   return {
     settings: async () => {
       try {
+        if (deps.readSettingsWithOrigin !== undefined) {
+          const reading = await deps.readSettingsWithOrigin()
+          return machineReading(reading.settings, reading.origin)
+        }
         return machineReading(await deps.readSettings())
       } catch {
         refuse('fleet-caps-invalid')
       }
     },
     activeAccount: async () => {
+      // Corrupt metadata is a refusal even when the live reader has observations.
       let rows: readonly { readonly id: string }[]
       try {
         rows = await deps.listAccounts()
-      } catch {
-        return { kind: 'no-reader', surface: 'runtime' } as const
+      } catch (error: unknown) {
+        const reason =
+          typeof error === 'object' &&
+          error !== null &&
+          'code' in error &&
+          error.code === 'unavailable'
+            ? 'unavailable'
+            : 'invalidAccount'
+        refuse(`fleet-account-invalid registry ${reason}`)
       }
+      const live = await liveAccountSource(deps)
+      if (live !== undefined) return live
       const id = selectFleetAccount(rows, null)
       return id === undefined
-        ? ({ kind: 'no-reader', surface: 'runtime' } as const)
-        : ({ kind: 'registry', providerId: 'meta', accountId: id } as const)
+        ? { kind: 'no-reader', surface: 'runtime' }
+        : { kind: 'registry', providerId: 'meta', accountId: id }
     },
     ci: () => [],
   }
