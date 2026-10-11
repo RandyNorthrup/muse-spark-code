@@ -93,6 +93,7 @@ import {
 import type { ChatGptProviderAction } from './chatGptProviderCommands'
 import type { ProvidersDeps } from './providersCommands'
 import { takeCredentials } from './credentialVariables'
+import { keepGitCredentialRoutes } from './gitUserEnvironment'
 import { displayLanguage } from './locale'
 import { envProxyWarning } from './proxyWarning'
 import type { Logger } from '../host/logger'
@@ -155,8 +156,11 @@ const HEADLESS_WIRING_EXIT = {
 const wasEnvironmentApiKeyPresent = process.env[META_API_KEY_VARIABLE] !== undefined
 // Credential variables leave the agent's own environment before anything
 // starts a process; no child gets them back (FIXM95X). Removed values remain
-// in memory only for D98 sharing redaction, never for authentication or children.
+// in memory for D98 sharing redaction, and their Git routes (no model or
+// provider key) for D104's named exception only: the user's confirmed push
+// and pull request fetch (M123, gitUserEnvironment.ts). No other child.
 const sharingCredentials = takeCredentials(process.env)
+keepGitCredentialRoutes(sharingCredentials)
 // The package root holds `package.json` and `l10n/`; this file runs from `dist/`.
 const distDir = __dirname
 const packageRoot = path.dirname(distDir)

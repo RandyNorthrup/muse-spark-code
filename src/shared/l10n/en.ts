@@ -1874,6 +1874,7 @@ export const EN = {
   worktreeDetachedHead: 'the commit checked out now',
   worktreeFolderExists: 'That folder already exists:',
   worktreeAddFailed: 'git could not create the worktree',
+  worktreeRecordsWriteUnknown: 'The worktree records may have been written',
   worktreeCreated: 'Worktree ready at {path}',
   worktreeOpen: 'Open in New Window',
   worktreeListFailed: 'git could not list the worktrees',
@@ -2045,6 +2046,7 @@ export const EN = {
   openPullRequestConfirm: 'Open pull request #{number} in a new window?',
   openPullRequestBy: 'By {author}',
   openPullRequestBranches: 'From {head} into {base}',
+  openPullRequestRepository: 'Repository: {repository}',
   openPullRequestOwnDetail:
     'Your own pull request: checked out at its head commit in a worktree beside the repository.',
   openPullRequestHeldDetail:
