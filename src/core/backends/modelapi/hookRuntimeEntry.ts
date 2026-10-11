@@ -20,7 +20,3 @@ export {
   validateElicitationSchema,
   validateElicitationValues,
 } from './mcp/elicitation'
-
-// Paid-use questions share this on-demand runtime in editor and ACP callers.
-export { paidUseQuestion } from '../../paid/paidUseQuestion'
-export { setUiText } from '../../../shared/l10n/text'
