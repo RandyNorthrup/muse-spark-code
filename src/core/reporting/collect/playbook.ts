@@ -31,6 +31,7 @@ export interface PlaybookDrillView {
   readonly dateIso: string | undefined
 }
 export interface PlaybookDisabledRuleView {
+  readonly teamId?: string
   readonly rule: string
   readonly actor: string | undefined
   readonly reason: string | undefined
@@ -183,8 +184,9 @@ export function playbookSections(view: PlaybookView, options: ReportOptions): Re
   const disabledRules = view.disabledRules.map((entry) =>
     row(
       'disabled',
-      [entry.rule, entry.actor ?? '', entry.reason ?? '', String(entry.at)],
+      [entry.teamId ?? '', entry.rule, entry.actor ?? '', entry.reason ?? '', String(entry.at)],
       {
+        team: text(entry.teamId ?? ''),
         rule: text(entry.rule),
         actor: text(entry.actor ?? ''),
         reason: text(entry.reason ?? ''),
@@ -257,6 +259,7 @@ export function playbookSections(view: PlaybookView, options: ReportOptions): Re
       'playbook/disabledRules',
       'disabledRules',
       [
+        { key: 'team', label: 'scope' },
         { key: 'rule', label: 'name' },
         { key: 'actor', label: 'name' },
         { key: 'reason', label: 'reason' },

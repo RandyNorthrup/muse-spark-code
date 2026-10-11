@@ -190,7 +190,7 @@ export function createScheduleJournal<T extends Collections>(
       }
       revision = delta.revision
       if (delta.fencingToken !== undefined) {
-        if (delta.fencingToken < fencingToken) throw new Error('scheduleJournalOwnershipLost')
+        if (delta.fencingToken < fencingToken) throw new Error('scheduleJournalFencingRegression')
         fencingToken = delta.fencingToken
       }
       bytes += Buffer.byteLength(deltaContent)

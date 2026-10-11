@@ -5,7 +5,7 @@
 // Reads only through the injected reader; only the playbook kind binds it.
 import { moduleStates } from '../../orchestration/playbook/modules'
 import { validatedRecords } from '../../orchestration/playbook/journal'
-import type { PlaybookRecord } from '../../../shared/playbook'
+import type { PlaybookSettings, PlaybookRecord } from '../../../shared/playbook'
 import {
   isRouteAroundRefusal,
   playbookSections,
@@ -52,27 +52,27 @@ function project(records: readonly PlaybookRecord[]): PlaybookView {
   const drills: PlaybookDrillView[] = []
   const disabledRules: PlaybookDisabledRuleView[] = []
   const refusals: PlaybookRefusalView[] = []
-  // Every settings save snapshots every switched-off rule, and every later
-  // policy acknowledgement journals another `ruleDisabled` note stamped with
-  // its own time, so one switch would fill the section with copies of
-  // itself and hide a second disabled rule past the row cap. One
-  // switched-off rule is one row, however many snapshots and notes repeat
-  // it: rows are keyed by rule identity and keep the earliest record (the
-  // switch-off itself, which precedes its acknowledgements in the journal).
-  const seenDisabled = new Set<string>()
-  for (const record of records)
-    projectRecord(record, { designs, drills, disabledRules, refusals, seenDisabled })
+  // Policy replays the latest complete settings snapshot for each team.
+  // Notes acknowledge decisions; they cannot restore an obsolete switch-off.
+  const settings = new Map<string, PlaybookSettings>()
+  for (const record of records) {
+    if (record.kind === 'settings') settings.set(record.value.teamId, record.value)
+    projectRecord(record, { designs, drills, refusals })
+  }
+  for (const current of settings.values()) {
+    for (const [rule, setting] of Object.entries(current.rules)) {
+      if (!setting.enabled)
+        disabledRules.push({
+          teamId: current.teamId,
+          rule,
+          actor: setting.actor,
+          reason: setting.reason,
+          at: setting.at,
+          dateIso: isoDateMs(setting.at),
+        })
+    }
+  }
   return { modules, designs, drills, disabledRules, refusals }
-}
-
-function pushDisabledRule(
-  sink: { disabledRules: PlaybookDisabledRuleView[]; seenDisabled: Set<string> },
-  entry: PlaybookDisabledRuleView,
-): void {
-  const identity = entry.rule
-  if (sink.seenDisabled.has(identity)) return
-  sink.seenDisabled.add(identity)
-  sink.disabledRules.push(entry)
 }
 
 function projectRecord(
@@ -80,9 +80,7 @@ function projectRecord(
   sink: {
     designs: PlaybookDesignView[]
     drills: PlaybookDrillView[]
-    disabledRules: PlaybookDisabledRuleView[]
     refusals: PlaybookRefusalView[]
-    seenDisabled: Set<string>
   },
 ): void {
   switch (record.kind) {
@@ -109,29 +107,8 @@ function projectRecord(
       })
       break
     }
-    case 'settings': {
-      for (const [rule, setting] of Object.entries(record.value.rules)) {
-        if (!setting.enabled)
-          pushDisabledRule(sink, {
-            rule,
-            actor: setting.actor,
-            reason: setting.reason,
-            at: setting.at,
-            dateIso: isoDateMs(setting.at),
-          })
-      }
-      break
-    }
     case 'note': {
       const note = record.value
-      if (note.code === 'ruleDisabled')
-        pushDisabledRule(sink, {
-          rule: note.rule,
-          actor: note.actor,
-          reason: note.reason,
-          at: note.at,
-          dateIso: isoDateMs(note.at),
-        })
       if (isRouteAroundRefusal(note.rule, note.code))
         sink.refusals.push({
           code: note.code,

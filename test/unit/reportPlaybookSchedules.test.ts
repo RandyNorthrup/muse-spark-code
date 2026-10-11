@@ -1,6 +1,6 @@
 // M113 C-M113-4: the playbook and schedules inputs over real directories,
 // through the real journal and store into generated reports.
-import { rm, writeFile } from 'node:fs/promises'
+import { rm, writeFile, readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { FilePlaybookJournal } from '../../src/core/orchestration/playbook/journal'
@@ -13,8 +13,12 @@ import {
 } from '../../src/runtime/reporting/playbookSchedulesInputs'
 import { createNodeScheduleFs } from '../../src/runtime/schedules/nodeScheduleFs'
 import { workspaceKey } from '../../src/runtime/dataFolder'
-import { SCHEDULE_STORE_SUBFOLDER } from '../../src/shared/constants'
+import { SCHEDULE_STORE_SUBFOLDER, UI_TEXT } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
+import { installGerman } from './helpers/germanTable'
+import { FakeLogOutputChannel } from './helpers/fakes'
+import { reportOptions } from './helpers/reporting/snapshot'
+import { sectionById, fireFixture } from './helpers/reporting/reportKindFixtures'
 import { setUiText } from '../../src/shared/l10n/text'
 import { scheduleV2Schema } from '../../src/shared/scheduleV2'
 import { removeFolder, temporaryDir } from './helpers/temporaryFolders'
@@ -54,6 +58,109 @@ function schedule(key: string) {
 }
 
 describe('playbook and schedules inputs', () => {
+  it('keeps overlapping German and English generations in their request language', async () => {
+    await installGerman(new FakeLogOutputChannel())
+    const german = { ...UI_TEXT }
+    const workspace = await dir('muse-language-ws-')
+    const data = await dir('muse-language-data-')
+    const job = scheduleV2Schema.parse(
+      scheduleFixture('fixture-workspace', {
+        trigger: { kind: 'event', source: 'github', event: 'pullRequestOpened', conditions: [] },
+        target: { kind: 'worker', workerId: 'worker-1' },
+        delivery: 'steer',
+        creator: { kind: 'agent', agentId: 'agent-1', sessionId: 's1', orchestratorId: 'o1' },
+      }),
+    )
+    const suspended = Promise.withResolvers<{
+      schedules: readonly unknown[]
+      fires: readonly unknown[]
+      observedAt: string
+    }>()
+    const entered = Promise.withResolvers<undefined>()
+    const germanServices = createReportingServices({
+      workspaceRoot: workspace,
+      storageRoot: data,
+      // The engine must snapshot even a caller's mutable process-table alias.
+      l10n: { table: UI_TEXT, locale: 'de' },
+      generatorVersion: 'test',
+      keepHistory: false,
+      enabledAgents: [],
+      schedules: {
+        read: () => {
+          entered.resolve(undefined)
+          return suspended.promise
+        },
+      },
+    })
+    const options = reportOptions('schedules')
+    const pendingGerman = germanServices.generate!(options)
+    await entered.promise
+    const englishServices = createReportingServices({
+      workspaceRoot: workspace,
+      storageRoot: data,
+      l10n: { table: EN, locale: 'en' },
+      generatorVersion: 'test',
+      keepHistory: false,
+      enabledAgents: [],
+      schedules: {
+        read: () =>
+          Promise.resolve({
+            schedules: [job],
+            fires: [fireFixture({ outcome: 'ran' })],
+            observedAt: options.asOf,
+          }),
+      },
+    })
+    const english = await englishServices.generate!(options)
+    suspended.resolve({
+      schedules: [job],
+      fires: [fireFixture({ outcome: 'ran' })],
+      observedAt: options.asOf,
+    })
+    const deutsch = await pendingGerman
+    for (const [result, table] of [
+      [english, EN],
+      [deutsch, german],
+    ] as const) {
+      if (result.status !== 'generated') throw new Error('Expected generated report')
+      const cells = sectionById(result.document.sections, 'schedules/schedules').rows[0]!.cells
+      expect(cells['target']?.value).toBe(`${table.scheduleV2.targets.worker}: worker-1`)
+      expect(cells['delivery']?.value).toBe(table.scheduleV2.delivery.steer)
+      expect(cells['creator']?.value).toBe(`${table.scheduleV2.labels.creator}: agent-1`)
+      expect(cells['trigger']?.value).toBe(
+        `${table.scheduleV2.triggers.event}: github:pullRequestOpened`,
+      )
+      expect(cells['grant']?.value).toBe(
+        table.reportScheduleCells.scheduleGrant
+          .replace('{rules}', '0')
+          .replace('{destinations}', '0')
+          .replace('{cap}', '0'),
+      )
+      expect(
+        sectionById(result.document.sections, 'schedules/fires').rows[0]!.cells['outcome']?.value,
+      ).toBe(table.scheduleSettlement.outcomes.ran)
+      expect(result.document.sources.find((source) => source.id === 'playbook')?.reason).toBe(
+        table.reportSourceReasons.disabled,
+      )
+    }
+  })
+
+  it('keeps the lane budget and translated-string sentences aligned with the shipped guards', async () => {
+    const plan = await readFile(new URL('../../PLAN.md', import.meta.url), 'utf8')
+    const gate = await readFile(
+      new URL('../../scripts/check-bundle-size.mjs', import.meta.url),
+      'utf8',
+    )
+    const budget = /path: 'dist\/playbookSchedulesInputs\.js', budgetKiB: (\d+)/.exec(gate)?.[1]
+    if (budget === undefined) throw new Error('Expected a reader bundle budget')
+    const lane = plan
+      .split('**C-M113-4 playbook and schedules kinds', 2)[1]
+      ?.split('\nLanes P, S, R and V', 1)[0]
+    expect(lane).toContain(`${budget} KiB budget`)
+    expect(lane).not.toContain('no new string')
+    expect(lane).toContain('`ended` label')
+  })
+
   it('reads an empty journal and store on a fresh workspace', async () => {
     const data = await dir('muse-playbook-empty-')
     const workspace = await dir('muse-playbook-ws-')

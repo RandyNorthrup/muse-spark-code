@@ -2,12 +2,24 @@ import { readFile } from 'node:fs/promises'
 import { createHash } from 'node:crypto'
 import path from 'node:path'
 import * as z from 'zod/mini'
+import { fromJSONSchema } from 'zod'
+import shipped from '../../docs/schemas/report-v1.schema.json'
+import { schedulesSource } from '../../src/core/reporting/sources/schedules'
+import { playbookSource } from '../../src/core/reporting/sources/playbook'
+import { collectFixture, fullSnapshot } from './helpers/reporting/collect'
+import {
+  fireFixture,
+  scheduleFixture,
+  playbookJournalFixture,
+  FIXTURE_WORKSPACE_KEY,
+} from './helpers/reporting/reportKindFixtures'
+import { scheduleFireRecordSchema } from '../../src/shared/scheduleV2'
 import { describe, expect, it } from 'vitest'
 import entry from '../../docs/schemas/report-v1.entry.json'
-import { reportDocumentSchema } from '../../src/shared/reportSchema'
+import { reportDocumentSchema, reportSectionSchema } from '../../src/shared/reportSchema'
 import type { ReportDocument } from '../../src/shared/reportSchema'
 import { buildSessionExport } from '../../src/core/export/sessionTransfer'
-import { reportDocument } from './helpers/reporting/snapshot'
+import { reportDocument, reportOptions, availableSource } from './helpers/reporting/snapshot'
 
 // Executable contract handoff only: R owns canonical ordering and the renderer.
 // The actual M84 scrub is used; no fake redactor can make this assertion green.
@@ -63,6 +75,105 @@ describe('report-v1 schema handoff to lane R', () => {
     expect(entry.export).toBe('reportDocumentSchema')
     expect(entry.format).toBe('report-v1')
   })
+  it('validates every emitted playbook/schedules label against the shipped schema', async () => {
+    // JSON imports widen fixed schema discriminants. The freshness test above
+    // checks the complete generated shape; this validates emitted documents.
+    const validate = fromJSONSchema(shipped as Parameters<typeof fromJSONSchema>[0])
+    const outcomes = scheduleFireRecordSchema.shape.outcome.options
+    const certainties = scheduleFireRecordSchema.shape.cost.shape.certainty.options
+    const schedules = [
+      scheduleFixture(FIXTURE_WORKSPACE_KEY),
+      scheduleFixture(FIXTURE_WORKSPACE_KEY, { id: 'paused', paused: true }),
+      scheduleFixture(FIXTURE_WORKSPACE_KEY, { id: 'ended', end: { afterRuns: 1 }, fireCount: 1 }),
+      scheduleFixture(FIXTURE_WORKSPACE_KEY, {
+        id: 'complete',
+        trigger: { kind: 'once', atMs: 1500 },
+        nextFireAtMs: undefined,
+        fireCount: 1,
+      }),
+      scheduleFixture(FIXTURE_WORKSPACE_KEY, { id: 'once', trigger: { kind: 'once', atMs: 2000 } }),
+    ]
+    const fires = outcomes.flatMap((outcome) =>
+      certainties.map((certainty) =>
+        fireFixture({
+          runId: `${outcome}-${certainty}`,
+          outcome,
+          cost: { usd: '0', retainedLiabilityUsd: '0', certainty },
+        }),
+      ),
+    )
+    const labels = new Set<string>()
+    for (const kind of ['playbook', 'schedules'] as const) {
+      const options = { ...reportOptions(kind), full: true }
+      const context = {
+        options,
+        asOf: options.asOf,
+        workspaceKey: FIXTURE_WORKSPACE_KEY,
+        signal: new AbortController().signal,
+      }
+      const source =
+        kind === 'playbook'
+          ? playbookSource(
+              {
+                read: () =>
+                  Promise.resolve({ records: playbookJournalFixture(), observedAt: options.asOf }),
+              },
+              (text) => text,
+            )
+          : schedulesSource(
+              { read: () => Promise.resolve({ schedules, fires, observedAt: options.asOf }) },
+              (text) => text,
+            )
+      const result = await source.read(context)
+      expect(result.record.status).toBe('ok')
+      const snapshot = fullSnapshot()
+      const document = collectFixture(
+        kind,
+        { full: true },
+        {
+          ...snapshot,
+          sources: { ...snapshot.sources, [kind]: availableSource(kind, result.data) },
+        },
+      )
+      expect(validate.safeParse(document).success).toBe(true)
+      for (const section of [document.needsYou, ...document.sections]) {
+        labels.add(section.label)
+        for (const column of section.columns) labels.add(column.label)
+        for (const row of section.rows)
+          for (const cell of Object.values(row.cells))
+            if (cell.type === 'label') labels.add(cell.value)
+      }
+    }
+    // Schema-driven fixtures cover every lifecycle/cost branch, including
+    // headings/columns and common forwarded/plan-format labels.
+    for (const value of labels) {
+      const document = reportDocument()
+      // Whole documents above validate labels used outside cells too. This
+      // dedicated cell check ensures all emitted keys are in the value enum.
+      document.sections[0]!.rows[0]!.cells['state'] = {
+        type: 'label',
+        value: reportSectionSchema.shape.label.parse(value),
+      }
+      expect(validate.safeParse(document).success, value).toBe(true)
+    }
+    expect([...labels]).toEqual(
+      expect.arrayContaining([
+        'ended',
+        'paused',
+        'complete',
+        'active',
+        'once',
+        'user',
+        'total',
+        'all',
+        'hookVerification',
+        'reported',
+        'estimated',
+        'unknown',
+      ]),
+    )
+  })
+
   it('scrubs canonical output before hashing and exempts only the structural hash', async () => {
     const document = reportDocument()
     const canary = `LLM_${'x'.repeat(32)}`

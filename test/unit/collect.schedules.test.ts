@@ -7,6 +7,7 @@ import {
   FIXTURE_WORKSPACE_KEY,
   fireFixture,
   scheduleFixture,
+  scheduleTriggerFixtures,
 } from './helpers/reporting/reportKindFixtures'
 import { availableSource, reportOptions } from './helpers/reporting/snapshot'
 
@@ -42,7 +43,12 @@ const view: SchedulesView = {
     },
   ],
   fires: [
-    { fire: fire(), scheduleName: 'Morning build', occurrenceIso: '1970-01-01T00:00:01.500Z' },
+    {
+      fire: fire(),
+      outcomeText: 'Refused',
+      scheduleName: 'Morning build',
+      occurrenceIso: '1970-01-01T00:00:01.500Z',
+    },
   ],
 }
 
@@ -210,6 +216,61 @@ describe('schedules sections', () => {
       .map((row) => (row.cells['name']?.type === 'text' ? row.cells['name'].value : ''))
       .toSorted(compare)
     expect(timeline).toEqual(['Live interval', 'One-shot armed'])
+  })
+
+  it.each([
+    {
+      name: 'manual once',
+      trigger: { kind: 'once', atMs: 2000 },
+      fireCount: 1,
+      lastFireAtMs: 3000,
+      nextFireAtMs: 2000,
+      status: 'complete',
+      upcoming: false,
+    },
+    {
+      name: 'once cursor',
+      trigger: { kind: 'once', atMs: 2000 },
+      fireCount: 0,
+      lastFireAtMs: 2000,
+      nextFireAtMs: 2000,
+      status: 'complete',
+      upcoming: false,
+    },
+    {
+      name: 'once before end',
+      trigger: { kind: 'once', atMs: 2000 },
+      end: { atMs: 3000 },
+      nextFireAtMs: 2000,
+      status: 'active',
+      upcoming: true,
+    },
+    ...scheduleTriggerFixtures(3000).flatMap((trigger) =>
+      [3000, 4000].map((nextFireAtMs) => ({
+        name: `${trigger.kind} next ${String(nextFireAtMs)} at/beyond end`,
+        trigger,
+        end: { atMs: 3000 },
+        nextFireAtMs,
+        status: 'active',
+        upcoming: false,
+      })),
+    ),
+  ])('omits exhausted/cutoff occurrence: $name', (testCase) => {
+    const sections = schedulesSections(
+      {
+        schedules: [
+          entry(
+            Object.fromEntries(
+              Object.entries(testCase).filter(([key]) => key !== 'status' && key !== 'upcoming'),
+            ),
+          ),
+        ],
+        fires: [],
+      },
+      { ...reportOptions('schedules'), asOf: '1970-01-01T00:00:01.500Z' },
+    )
+    expect(sections[1]!.rows[0]!.cells['status']?.value).toBe(testCase.status)
+    expect(sections[0]!.rows).toHaveLength(testCase.upcoming ? 1 : 0)
   })
 
   it('lists refused fires with their refused actions and summed cost', () => {

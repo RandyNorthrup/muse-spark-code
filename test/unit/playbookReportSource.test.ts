@@ -3,7 +3,9 @@ import {
   playbookSource,
   type PlaybookReportReader,
 } from '../../src/core/reporting/sources/playbook'
-import { UI_TEXT } from '../../src/shared/constants'
+import { codeUnitCompare } from '../../src/core/reporting/sources/local'
+import { defaultPlaybookSettings } from '../../src/shared/playbook'
+import { UI_TEXT, PLAYBOOK_CONFIGURABLE_RULES } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
 import {
@@ -165,6 +167,69 @@ describe('playbook source', () => {
       value: '1970-01-01T00:00:06.000Z',
     })
   })
+
+  it.each(PLAYBOOK_CONFIGURABLE_RULES)(
+    'replays current disabled state for %s per team',
+    async (rule) => {
+      const off = (teamId: string, actor = 'lead', reason = 'Too noisy', at = 6000) => {
+        const settings = defaultPlaybookSettings(teamId)
+        settings.rules[rule] = { enabled: false, actor, reason, at }
+        return { kind: 'settings', value: settings }
+      }
+      const on = { kind: 'settings', value: defaultPlaybookSettings('t1') }
+      const note = {
+        kind: 'note',
+        value: {
+          rule,
+          code: 'ruleDisabled',
+          actor: 'lead',
+          reason: 'Old acknowledgement',
+          at: 12_000,
+          needsUser: false,
+        },
+      }
+      const cases = [
+        { records: [off('t1'), on, note], expected: [] },
+        {
+          records: [off('t1'), on, off('t1', 'owner', 'Maintenance window', 10_000), note],
+          expected: [['t1', 'owner', 'Maintenance window', '1970-01-01T00:00:10.000Z']],
+        },
+        {
+          records: [off('t1'), off('t1', 'owner', 'Changed reason', 11_000), note],
+          expected: [['t1', 'owner', 'Changed reason', '1970-01-01T00:00:11.000Z']],
+        },
+        {
+          records: [off('t1'), off('t2')],
+          expected: [
+            ['t1', 'lead', 'Too noisy', '1970-01-01T00:00:06.000Z'],
+            ['t2', 'lead', 'Too noisy', '1970-01-01T00:00:06.000Z'],
+          ],
+        },
+        {
+          records: [off('t1'), off('t2', 'owner', 'Team two', 10_000), on, note],
+          expected: [['t2', 'owner', 'Team two', '1970-01-01T00:00:10.000Z']],
+        },
+        { records: [note], expected: [] },
+      ]
+      for (const testCase of cases) {
+        const result = await playbookSource(reader(testCase.records), scrub).read(context())
+        expect(result.record.status).toBe('ok')
+        const rows = sectionById(result.data, 'playbook/disabledRules').rows
+        expect(
+          rows
+            .map((row) => ['team', 'actor', 'reason', 'date'].map((key) => row.cells[key]?.value))
+            .toSorted((left, right) =>
+              codeUnitCompare(JSON.stringify(left), JSON.stringify(right)),
+            ),
+        ).toEqual(
+          testCase.expected.toSorted((left, right) =>
+            codeUnitCompare(JSON.stringify(left), JSON.stringify(right)),
+          ),
+        )
+        for (const row of rows) expect(row.cells['rule']?.value).toBe(rule)
+      }
+    },
+  )
 
   it('heads the receipts section with what the journal holds', async () => {
     const result = await playbookSource(reader(journal), scrub).read(context())

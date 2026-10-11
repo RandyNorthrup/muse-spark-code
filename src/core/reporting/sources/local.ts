@@ -1,3 +1,4 @@
+import type { UiText } from '../../../shared/l10n/en'
 import { createHash } from 'node:crypto'
 import {
   ACP_WORKSPACE_HASH_CHARS,
@@ -26,6 +27,7 @@ export type LocalFailure =
   | 'disabled'
   | 'unbound'
   | 'history'
+  | 'busy'
 const LOCAL_FAILURES: Record<string, LocalFailure | undefined> = {
   missing: 'missing',
   invalid: 'invalid',
@@ -36,6 +38,7 @@ const LOCAL_FAILURES: Record<string, LocalFailure | undefined> = {
   disabled: 'disabled',
   unbound: 'unbound',
   history: 'history',
+  busy: 'busy',
 }
 export class LocalSourceError extends Error {
   /**
@@ -70,8 +73,8 @@ export interface LocalFileIo {
     signal: AbortSignal,
   ): Promise<readonly { name: string; directory: boolean }[]>
 }
-export function sourceReason(code: LocalFailure): string {
-  return UI_TEXT.reportSourceReasons[code]
+export function sourceReason(code: LocalFailure, reportText: UiText = UI_TEXT): string {
+  return code === 'busy' ? reportText.teamHostBusy : reportText.reportSourceReasons[code]
 }
 export function codeUnitCompare(a: string, b: string): number {
   if (a === b) return 0
@@ -120,6 +123,7 @@ export function localSource<K extends ReportSourceKind>(
     kind,
     id: kind,
     async read(context): Promise<SourceResult<ReportSourcePayloads[K]>> {
+      const reportText = context.reportText ?? { ...UI_TEXT }
       const signal = AbortSignal.any([
         context.signal,
         AbortSignal.timeout(REPORT_SOURCE_TIMEOUT_MS),
@@ -136,7 +140,7 @@ export function localSource<K extends ReportSourceKind>(
             signal.removeEventListener('abort', abort)
           }
         })
-        const result = await Promise.race([read({ ...context, signal }), cancelled])
+        const result = await Promise.race([read({ ...context, reportText, signal }), cancelled])
         signal.throwIfAborted()
         const observedAt = result.observedAt ?? context.asOf
         const freshness = sourceFreshness(context.asOf, observedAt)
@@ -165,7 +169,7 @@ export function localSource<K extends ReportSourceKind>(
           record: {
             id: kind,
             status: code === 'disabled' ? 'notApplicable' : 'unavailable',
-            reason: sourceReason(code),
+            reason: sourceReason(code, reportText),
             observedAt: null,
             freshness: { state: 'unknown', ageMs: null },
           },

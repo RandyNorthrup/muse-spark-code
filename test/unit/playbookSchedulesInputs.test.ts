@@ -4,12 +4,18 @@
 // with the store's reason discarded and never an empty success.
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { localFailureOf } from '../../src/core/reporting/sources/local'
 import { createScheduleStore } from '../../src/core/schedules/store'
 import { createSchedulesReportReader } from '../../src/runtime/reporting/playbookSchedulesInputs'
 import { createNodeScheduleFs } from '../../src/runtime/schedules/nodeScheduleFs'
-import { scheduleV2Schema } from '../../src/shared/scheduleV2'
+import * as nodeSchedules from '../../src/runtime/schedules/nodeScheduleFs'
+import { MemoryScheduleFs } from './helpers/schedules/storage'
+import { schedulesSource } from '../../src/core/reporting/sources/schedules'
+import { scheduleTimePlan } from '../../src/runtime/schedules/timePlan'
+import { UI_TEXT, SCHEDULE_FS_RETRY_ATTEMPTS } from '../../src/shared/constants'
+import { fireFixture, sectionById } from './helpers/reporting/reportKindFixtures'
+import { scheduleV2Schema, scheduleFireRecordSchema } from '../../src/shared/scheduleV2'
 import { FIXTURE_WORKSPACE_KEY, scheduleFixture } from './helpers/reporting/reportKindFixtures'
 import { REPORT_FIXTURE_AS_OF, reportOptions } from './helpers/reporting/snapshot'
 import { removeFolder, temporaryDir } from './helpers/temporaryFolders'
@@ -47,6 +53,135 @@ function readerFor(storeRoot: string) {
 }
 
 describe('schedules report reader failures', () => {
+  it('reconciles a manual one-shot fire between schedule and history reads', async () => {
+    const fs = new MemoryScheduleFs()
+    const store = createScheduleStore(fs)
+    const job = scheduleV2Schema.parse(
+      scheduleFixture(FIXTURE_WORKSPACE_KEY, { trigger: { kind: 'once', atMs: 2000 } }),
+    )
+    await store.create(job)
+    const originalLock = fs.lock.bind(fs)
+    let isInterleave = true
+    vi.spyOn(fs, 'lock').mockImplementation(async (key, work) => {
+      const result = await originalLock(key, work)
+      if (isInterleave) {
+        isInterleave = false
+        const intent = {
+          schedule: job,
+          runId: `${job.id}:3000`,
+          occurrenceMs: 3000,
+          advancesTime: false,
+        }
+        expect(await store.admit(intent)).toBe(true)
+        expect(await store.advance(intent)).toBe(true)
+        await store.record(
+          scheduleFireRecordSchema.parse(
+            fireFixture({
+              runId: intent.runId,
+              occurrenceMs: 3000,
+              observedAtMs: 3000,
+              outcome: 'ran',
+              refusedActions: [],
+            }),
+          ),
+        )
+      }
+      return result
+    })
+    const createFs = vi.spyOn(nodeSchedules, 'createNodeScheduleFs').mockReturnValue(fs)
+    try {
+      const read = await readerFor('memory').read(context())
+      const observed = scheduleV2Schema.parse(read.schedules[0])
+      expect(observed.fireCount).toBe(1)
+      expect(observed.nextFireAtMs).toBe(2000)
+      expect(
+        scheduleTimePlan(observed, {
+          nowMs: 3000,
+          monotonicMs: 3000,
+          wallDeltaMs: 1,
+          monotonicDeltaMs: 1,
+          hasJumped: false,
+          isStartup: false,
+        }),
+      ).toEqual({ missed: false })
+      const result = await schedulesSource(
+        { read: () => Promise.resolve(read) },
+        (text) => text,
+      ).read(context())
+      expect(sectionById(result.data, 'schedules/timeline').rows).toEqual([])
+      expect(sectionById(result.data, 'schedules/schedules').rows[0]!.cells['status']?.value).toBe(
+        'complete',
+      )
+      expect(read.fires).toHaveLength(1)
+    } finally {
+      createFs.mockRestore()
+    }
+  })
+
+  it('retries a valid writer winning the reader fencing CAS', async () => {
+    const fs = new MemoryScheduleFs()
+    const store = createScheduleStore(fs)
+    const job = scheduleV2Schema.parse(scheduleFixture(FIXTURE_WORKSPACE_KEY))
+    await store.create(job)
+    let token = 0
+    vi.spyOn(fs, 'lock').mockImplementation(
+      async (_key, work) =>
+        await work(Object.assign(() => Promise.resolve(), { fencingToken: ++token })),
+    )
+    const entered = Promise.withResolvers<undefined>()
+    const resume = Promise.withResolvers<undefined>()
+    const publish = fs.publish.bind(fs)
+    let isPark = true
+    vi.spyOn(fs, 'publish').mockImplementation(async (file, bytes, guard) => {
+      if (isPark && /\/index\/[^/]+\/\d+\.json$/.test(file.replaceAll('\\', '/'))) {
+        isPark = false
+        await guard?.()
+        entered.resolve(undefined)
+        await resume.promise
+      }
+      return await publish(file, bytes, guard)
+    })
+    const createFs = vi.spyOn(nodeSchedules, 'createNodeScheduleFs').mockReturnValue(fs)
+    try {
+      const pending = readerFor('memory').read(context())
+      // Attach rejection immediately; a losing reader is an expected race.
+      const result = (async () => {
+        try {
+          return { value: await pending }
+        } catch (error: unknown) {
+          return { error }
+        }
+      })()
+      await entered.promise
+      expect(await store.update({ ...job, name: 'Winning writer' })).toBe(true)
+      resume.resolve(undefined)
+      const observed = await result
+      expect(observed).toHaveProperty('value')
+      if (!('value' in observed)) throw new Error('Expected contention to retry')
+      expect(scheduleV2Schema.parse(observed.value.schedules[0]).name).toBe('Winning writer')
+    } finally {
+      resume.resolve(undefined)
+      createFs.mockRestore()
+    }
+  })
+
+  it.each(['scheduleJournalOwnershipLost', 'scheduleQueueOwnershipLost'])(
+    'names persistent %s as busy, never corrupt',
+    async (message) => {
+      const fs = new MemoryScheduleFs()
+      vi.spyOn(fs, 'lock').mockRejectedValue(new Error(message))
+      const createFs = vi.spyOn(nodeSchedules, 'createNodeScheduleFs').mockReturnValue(fs)
+      try {
+        const result = await schedulesSource(readerFor('memory'), (text) => text).read(context())
+        expect(result.record.status).toBe('unavailable')
+        expect(result.record.reason).toBe(UI_TEXT.teamHostBusy)
+        expect(fs.lock).toHaveBeenCalledTimes(SCHEDULE_FS_RETRY_ATTEMPTS)
+      } finally {
+        createFs.mockRestore()
+      }
+    },
+  )
+
   it('reads damaged stored JSON as invalid, never a generic failure', async () => {
     await withSchedulesRoot('schedules-corrupt-', async (root) => {
       await mkdir(path.join(root, FIXTURE_WORKSPACE_KEY, 'fires'), { recursive: true })

@@ -146,3 +146,19 @@ export function sectionById(data: readonly ReportSection[] | null, id: string): 
   if (section === undefined) throw new Error(`Missing section ${id}`)
   return section
 }
+
+/** All trigger alternatives in the store schema, shared by the lifecycle
+ * and overlapping-language matrices. Each suite checks its own behavior. */
+export function scheduleTriggerFixtures(atMs = 2000) {
+  const event = { kind: 'event', source: 'github', event: 'pullRequestOpened', conditions: [] }
+  return [
+    { kind: 'once', atMs },
+    { kind: 'interval', everyMs: 3_600_000, anchorMs: 1000 },
+    { kind: 'daily', everyDays: 1, times: [{ hour: 12, minute: 0 }], anchorDate: '1970-01-01' },
+    { kind: 'weekdays', times: [{ hour: 12, minute: 0 }] },
+    { kind: 'weekly', days: [{ weekday: 1, times: [{ hour: 12, minute: 0 }] }] },
+    { kind: 'cron', expression: '0 12 * * *' },
+    event,
+    { kind: 'afterEvent', event, time: { kind: 'once', atMs } },
+  ]
+}

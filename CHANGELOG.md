@@ -9,6 +9,15 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **Playbook and schedules reports reflect current state and their request language** (CM1134AR4).
+  Disabled rules replay the latest settings per team, with current actor, reason
+  and date. Schedule reports reconcile revisions around fire history, omit fired
+  one-shots and occurrences at or beyond their end date, and retry writer
+  contention as busy. Every recent-fire outcome uses the request's language;
+  overlapping reports retain their own table. The shipped report schema now
+  accepts every emitted label, including `ended`. The plan records the existing
+  59 KiB reader budget and translated labels/templates.
+
 - **Session and usage reports agree with their notes and show the shared daily budget everywhere** (CM1132R3).
   Session totals exclude rolled-up history and say so; budget stamps use the
   machine-local day like the report period; terminal and ACP usage reports show

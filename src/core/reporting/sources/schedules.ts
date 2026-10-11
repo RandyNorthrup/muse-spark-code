@@ -4,6 +4,7 @@
 // actions and cost. Reads only through the injected reader; only the
 // schedules kind binds it.
 import * as z from 'zod/mini'
+import type { UiText } from '../../../shared/l10n/en'
 import { REPORT_MAX_ROWS, UI_TEXT } from '../../../shared/constants'
 import { fill } from '../../../shared/l10n/text'
 import type { ScheduleV2 } from '../../../shared/scheduleV2'
@@ -36,12 +37,12 @@ export interface SchedulesReportReader {
  * Technical details spliced after a label (a trigger's `source:event`, a
  * target or creator id, a cron expression) stay as they came.
  */
-export function triggerText(schedule: ScheduleV2): string {
+export function triggerText(schedule: ScheduleV2, reportText: UiText): string {
   const trigger = schedule.trigger
-  const cells = UI_TEXT.reportScheduleCells
+  const cells = reportText.reportScheduleCells
   switch (trigger.kind) {
     case 'once': {
-      return UI_TEXT.reportLabels.once
+      return reportText.reportLabels.once
     }
     case 'interval': {
       return fill(cells.triggerInterval, { everyMs: String(trigger.everyMs) })
@@ -62,10 +63,10 @@ export function triggerText(schedule: ScheduleV2): string {
       return trigger.expression
     }
     case 'event': {
-      return `${UI_TEXT.scheduleV2.triggers.event}: ${trigger.source}:${trigger.event}`
+      return `${reportText.scheduleV2.triggers.event}: ${trigger.source}:${trigger.event}`
     }
     case 'afterEvent': {
-      return `${UI_TEXT.scheduleV2.triggers.afterEvent}: ${trigger.event.source}:${trigger.event.event}`
+      return `${reportText.scheduleV2.triggers.afterEvent}: ${trigger.event.source}:${trigger.event.event}`
     }
   }
 }
@@ -75,8 +76,8 @@ export function triggerText(schedule: ScheduleV2): string {
  * the technical id spliced after it (`Label: detail` over a session, worker,
  * role, team or node id), like dates arrive pre-rendered.
  */
-export function targetText(schedule: ScheduleV2): string {
-  const words = UI_TEXT.scheduleV2.targets
+export function targetText(schedule: ScheduleV2, reportText: UiText): string {
+  const words = reportText.scheduleV2.targets
   const target = schedule.target
   switch (target.kind) {
     case 'conversation': {
@@ -101,8 +102,8 @@ export function targetText(schedule: ScheduleV2): string {
 }
 
 /** Delivery prose in the installed language, read at use time. */
-export function deliveryText(schedule: ScheduleV2): string {
-  return UI_TEXT.scheduleV2.delivery[schedule.delivery]
+export function deliveryText(schedule: ScheduleV2, reportText: UiText): string {
+  return reportText.scheduleV2.delivery[schedule.delivery]
 }
 
 /**
@@ -110,14 +111,14 @@ export function deliveryText(schedule: ScheduleV2): string {
  * word with the technical agent id spliced after it. A user creator reads
  * as the `user` label, so this is `undefined` for one.
  */
-export function creatorText(schedule: ScheduleV2): string | undefined {
+export function creatorText(schedule: ScheduleV2, reportText: UiText): string | undefined {
   return schedule.creator.kind === 'user'
     ? undefined
-    : `${UI_TEXT.scheduleV2.labels.creator}: ${schedule.creator.agentId}`
+    : `${reportText.scheduleV2.labels.creator}: ${schedule.creator.agentId}`
 }
 
-export function grantText(schedule: ScheduleV2): string {
-  return fill(UI_TEXT.reportScheduleCells.scheduleGrant, {
+export function grantText(schedule: ScheduleV2, reportText: UiText): string {
+  return fill(reportText.reportScheduleCells.scheduleGrant, {
     rules: String(schedule.grant.rules.length),
     destinations: String(schedule.grant.destinationIds.length),
     cap: schedule.grant.paidCapUsd,
@@ -128,6 +129,7 @@ export function schedulesSource(reader: SchedulesReportReader | undefined, scrub
   return localSource('schedules', async (context) => {
     if (context.options.kind !== 'schedules') throw new LocalSourceError('disabled')
     if (reader === undefined) throw new LocalSourceError('unbound')
+    const reportText = context.reportText ?? { ...UI_TEXT }
     const read = await reader.read(context)
     let view: Parameters<typeof schedulesSections>[0]
     try {
@@ -145,11 +147,11 @@ export function schedulesSource(reader: SchedulesReportReader | undefined, scrub
           .toSorted((left, right) => codeUnitCompare(left.id, right.id))
           .map((schedule) => ({
             schedule,
-            triggerText: triggerText(schedule),
-            targetText: targetText(schedule),
-            deliveryText: deliveryText(schedule),
-            creatorText: creatorText(schedule),
-            grantText: grantText(schedule),
+            triggerText: triggerText(schedule, reportText),
+            targetText: targetText(schedule, reportText),
+            deliveryText: deliveryText(schedule, reportText),
+            creatorText: creatorText(schedule, reportText),
+            grantText: grantText(schedule, reportText),
             nextFireIso:
               schedule.nextFireAtMs === undefined ? undefined : isoDateMs(schedule.nextFireAtMs),
           })),
@@ -162,6 +164,7 @@ export function schedulesSource(reader: SchedulesReportReader | undefined, scrub
           )
           .map((fire) => ({
             fire,
+            outcomeText: reportText.scheduleSettlement.outcomes[fire.outcome],
             scheduleName: names.get(fire.scheduleId) ?? fire.scheduleId,
             occurrenceIso: isoDateMs(fire.occurrenceMs),
           })),

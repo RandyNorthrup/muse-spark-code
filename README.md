@@ -255,14 +255,18 @@ budget snapshots are explicitly unavailable. The playbook report reads the
 orchestrator journal through the same replay the policy uses, so its
 three-strikes counts per module and class match enforcement: design
 decisions with their outcomes, hook-verification receipts with their
-pass/fail results, every rule turned off
-with its reason and actor, and the route-around refusals. `--module
+pass/fail results, currently disabled rules per team with their latest
+reason, actor and date, and the route-around refusals. `--module
 <glob>` keeps matching modules (`*` stays inside one path segment, `**`
 crosses them); `--milestone <id>` keeps modules, lanes and decisions
 naming it; workspace-wide rows stay in both cases. The schedules report
 reads the workspace's schedules and fire record: the timeline of upcoming
 fires with collisions, each schedule's trigger, target, delivery, grant
-and creator, recent fires with outcomes, refused actions and cost. Until
+and creator, recent fires with translated outcomes, refused actions and cost.
+Schedule revisions reconcile around the fire-history read; admitted one-shots,
+paused/ended schedules and occurrences at or beyond the end date stay off the
+upcoming timeline. Writer contention retries and is named as busy if it persists.
+Each report keeps the language table captured when its request starts. Until
 delivery is registered no v2 fire exists, so the fire sections stay
 empty instead of invented. Both kinds work in VS Code, ACP and the
 terminal without a model call.
