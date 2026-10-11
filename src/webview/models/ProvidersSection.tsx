@@ -28,6 +28,12 @@ import { ScanStatus } from './components/ScanStatus'
 import { UndoBar } from './components/UndoBar'
 import type { SectionProps } from './sections'
 import { Wizard } from './Wizard'
+import { deferred } from '../components/DeferredSurface'
+
+const ImportPane = deferred(async () => {
+  const chunk = await import('./ImportPane')
+  return { default: chunk.ImportPane }
+})
 
 function TestLine({
   provider,
@@ -335,77 +341,6 @@ function ProviderRow({
   )
 }
 
-function ImportPane({
-  panelState,
-  post,
-  onClose,
-}: {
-  readonly panelState: ModelsPanelState
-  readonly post: SectionProps['post']
-  readonly onClose: () => void
-}) {
-  const [json, setJson] = useState('')
-  const preview = panelState.importPreview
-  return (
-    <div className="models-import">
-      <h3>{UI_TEXT.providerImport}</h3>
-      <label className="models-field" htmlFor="models-import-json">
-        <span>{UI_TEXT.providerImport}</span>
-        <textarea
-          id="models-import-json"
-          rows={6}
-          value={json}
-          onChange={(event) => {
-            setJson(event.target.value)
-          }}
-        />
-      </label>
-      <div className="models-row-actions">
-        <button
-          type="button"
-          className="models-button-primary"
-          onClick={() => {
-            post({ type: 'providers/import', json, confirmed: false })
-          }}
-        >
-          {UI_TEXT.providerImport}
-        </button>
-        <button type="button" className="models-button" onClick={onClose}>
-          {UI_TEXT.wizardCancel}
-        </button>
-      </div>
-      {preview !== undefined && (
-        <div className="models-import-preview">
-          <h4>{UI_TEXT.providerImportPreviewTitle}</h4>
-          <p className="models-hint">{UI_TEXT.importUntrusted}</p>
-          <ul>
-            {preview.providers.map((provider) => (
-              <li key={provider.id}>
-                <span>{provider.label ?? provider.id}</span>
-                <span className="models-origin">{provider.address}</span>
-                <span className="models-needs-key">{UI_TEXT.importNeedsKey}</span>
-              </li>
-            ))}
-          </ul>
-          <InlineError messages={preview.errors} />
-          <div className="models-row-actions">
-            <button
-              type="button"
-              className="models-button-primary"
-              disabled={preview.errors.length > 0 || preview.providers.length === 0}
-              onClick={() => {
-                post({ type: 'providers/import', json, confirmed: true })
-              }}
-            >
-              {UI_TEXT.providerImport}
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
 export function ProvidersSection(props: SectionProps) {
   const { panelState, post, wizardOpen, wizardLife, importOpen, dispatch } = props
   // The pick step is local: before the host's draft arrives (right after
@@ -520,6 +455,7 @@ export function ProvidersSection(props: SectionProps) {
       </div>
       {importOpen && (
         <ImportPane
+          label={UI_TEXT.providerImport}
           panelState={panelState}
           post={post}
           onClose={() => {

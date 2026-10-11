@@ -24,6 +24,10 @@ function mockWebviewMeta(meta, models, whatsNew) {
         imports: [],
         entryPoint: 'src/webview/models/sections/accounts/AccountsSurface.tsx',
       },
+      'dist/webview/chunks/model import-body.js': {
+        imports: [],
+        entryPoint: 'src/webview/models/ImportPane.tsx',
+      },
       'dist/webview/chunks/models-body.js': {
         imports: [],
         entryPoint: 'src/webview/models/panel.tsx',
@@ -69,6 +73,7 @@ describe('bundled What’s New content budget', () => {
     ['models', 75],
     ['usage', 50],
     ['model accounts', 175],
+    ['model import', 25],
   ])('bounds the complete lazy %s body at %i KiB', async (name, budget) => {
     const body = `dist/webview/chunks/${name === 'model accounts' ? 'accounts' : name}-body.js`
     statSync.mockImplementation((file) => ({ size: file === body ? budget * 1024 : 0 }))

@@ -345,6 +345,13 @@ const webview = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8'))
 for (const { name, source, budgetKiB, label = name } of [
   // TRAIN15G: full lazy closure 56.3 KiB +15%, rounded up to 25 KiB.
   { name: 'models', source: 'src/webview/models/panel.tsx', budgetKiB: 75 },
+  // C-M108-2: optional import editor, measured +15%, rounded to 25 KiB.
+  {
+    name: 'models',
+    label: 'model import',
+    source: 'src/webview/models/ImportPane.tsx',
+    budgetKiB: 25,
+  },
   // TRAIN15G: full lazy closure 35.4 KiB +15%, rounded up to 25 KiB.
   { name: 'usage', source: 'src/webview/usage/UsageApp.tsx', budgetKiB: 50 },
   // C-M108-2: 134,934 B measured closure +15%, rounded to 25 KiB.

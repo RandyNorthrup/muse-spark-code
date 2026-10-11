@@ -1687,5 +1687,61 @@
     "independent Codex/Grok review",
     "hosted Windows/Linux/macOS aggregate quality"
   ],
-  "availability": false
+  "availability": false,
+  "round3": {
+    "machine": "macbook",
+    "base": "47ba74845",
+    "availability": false,
+    "item1": {
+      "modelsBody": {
+        "before": 77698,
+        "after": 76274,
+        "cap": 76800
+      },
+      "modelImport": {
+        "bytes": 2128,
+        "cap": 25600
+      },
+      "modelApi": {
+        "before": 533136,
+        "after": 533136,
+        "cap": 537600
+      },
+      "tests": [
+        {
+          "files": [
+            "test/unit/modelsPanelSections.test.tsx",
+            "test/unit/modelAccountsSurface.test.tsx",
+            "test/unit/bundleSize.test.mjs"
+          ],
+          "passed": 81
+        },
+        {
+          "files": ["test/unit/modelsImportFailure.test.tsx"],
+          "passed": 1
+        },
+        {
+          "files": ["test/unit/bundleSize.test.mjs", "test/unit/modelsImportFailure.test.tsx"],
+          "passed": 61,
+          "restored": true
+        }
+      ],
+      "drills": {
+        "exit": 1,
+        "restored": [
+          {
+            "file": "scripts/check-bundle-size.mjs",
+            "sha256": "03e952209567e01e86abfa2d91f6835f8e85e822102b8d71b36163cddb7c1a4f"
+          },
+          {
+            "file": "src/webview/models/ProvidersSection.tsx",
+            "sha256": "9b6b02f96d6ee44860a8e5dcd1e6d95e3e6f0c68b8b186f6644f1a23aac8eedd"
+          }
+        ]
+      },
+      "fiveTypechecks": 0,
+      "eslint": 0,
+      "build": 0
+    }
+  }
 }
