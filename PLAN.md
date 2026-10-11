@@ -36598,6 +36598,31 @@ unschedulable with their reason. Live readers wire later at
 `docs/certification/m117-fleet.md`. No dependencies, strings, commands,
 settings or cap changes.
 
+**C-M117-3R2 review fixes (2026-10-11, Kubuntu; review RVCM1173).** Fix all
+four findings in the lane's files plus the two production call sites. Both
+assemblies pass `fleetIo`: the extension reads M107's settings live through
+`readResourceSettings` over the workspace configuration
+(`src/extension.ts:2367`); headless applies the configured defaults through
+the same contract (`src/runtime/estimator/ports.ts:39`). Ceilings shape
+admission: `fleetSlotsForCaps` derives governor/cap/kind slots and the slot
+rows from cores scaled by the tighter ceiling (ceil keeps the serial lane;
+zeroed ceilings forecast zero slots), so two 1-hour lanes finish in 2 h
+under 1/1 and 1 h under 100/100. The active account is selected
+(`selectFleetAccount`: active wins, else first, never an ambiguous refusal)
+and translated (`fleetAccountFromLimits`: sustainable allowance rates plus
+measured-remaining rolling windows; depleted waits for reset; blocked pins
+zero; expired/absent keeps the measured row). Corrupt readers refuse named
+(`fleet-caps-invalid`, `fleet-account-invalid`, `fleet-ci-invalid`), never a
+raw `$ZodError`; async readers run at fleet-call time. Production carries no
+account row (the M108 registry is not instantiated in the extension host)
+and no CI row (no captured shape names concurrency, rule 14): CI-demanding
+lanes refuse with the schedule's true reason. Receipts (20 tests, 4 drills)
+in `docs/certification/m117-fleet.md`. No dependencies, strings, commands,
+settings or cap changes. `npm run build` keeps the pre-existing webview
+estimator-panel OVER (25.3 KiB vs 25 KiB, also OVER at pristine HEAD);
+`dist/extension.js` 554.1 KiB (budget 600), `dist/modelApi.js` 515.8 KiB
+(budget 525).
+
 **C-M117-1R3 strict redesign (2026-10-10, macmini; review RVCM1171B).**
 Repair all thirteen P2 and two P3 findings within the snapshot lane. Validate
 all declared lane prerequisites, milestone references, release members and

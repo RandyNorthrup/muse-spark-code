@@ -1,98 +1,161 @@
 # M117 C-M117-3 certification — estimator fleet binding (2026-10-11, kubuntu)
 
 Lane CM1173, branch `c/m117-3`, base `7d0410526` (c/m117-1 round 4).
-Scope: `fleet` and `candidatePool` ports only, plus one new module and its
-tests. Not touched: `history`/`prices` ports (CM1172/CM1174), provision
-(CM1176), `planSnapshot*.ts` (C-M117-1 in review).
+R2 fixes review RVCM1173 (all four findings) in the lane's files plus the
+two production call sites `src/extension.ts` and
+`src/runtime/estimator/ports.ts`.
 
-## What was built
+## What was built (R2)
 
-- `src/host/estimator/fleetBinding.ts` (new): `applyFleetBinding(base, io)`
-  overlays three injected reader rows onto the measured local fleet and
-  re-parses the whole snapshot through `fleetSnapshotSchema`, so a corrupt
-  reader refuses instead of widening the fleet:
-  - M107 `capacityCaps`: configured CPU/memory ceilings, validated 0–100
-    (`fleet-caps-invalid` otherwise). Serial capacity (one lane at a time,
-    one slot per lane kind) is unchanged.
-  - M108 `accounts`: exactly one row rebinds the local slot to it; zero or
-    several refuse (`fleet-accounts-ambiguous`) — one serial slot cannot
-    choose between accounts. Usage-limit windows pass through validated;
-    absent windows keep the schedule's existing unknown-limits disclosure.
-  - CI `ci`: limit-with-occupied rows pass through validated; absent keeps
-    `ci: []`, and lanes demanding CI without a row refuse via the schedule.
-- `src/host/estimator/localFleet.ts`: `estimatorSourcePorts` takes an
-  optional third argument (`fleetIo`); both `fleet` and `candidatePool`
-  return `applyFleetBinding(localFleet(lanes, asOf), fleetIo ?? {})`. With
-  no readers the fleet is byte-identical to the certified row (proven by
-  test).
+- `src/host/estimator/fleetBinding.ts`:
+  - `applyFleetBinding(base, io)` is async; every reader may resolve
+    synchronously or as a promise, and readers run at fleet-call time, once
+    per `fleet`/`candidatePool` call (proven by test).
+  - M107 `capacityCaps` set the percent fields AND derive admission:
+    `fleetSlotsForCaps(cores, cpuMax, memMax)` (ceil of cores scaled by the
+    tighter ceiling; a nonzero ceiling keeps the serial lane, a zeroed one
+    forecasts zero slots) drives `governorSlots`, `caps.slots`,
+    `capacityByKind` and the `local-N` slot rows. The same two 1-hour lanes
+    finish in 2 h under 1/1 and 1 h under 100/100 on an 8-core fleet.
+    The governor's live `capacity()` is deliberately not sampled: a forecast
+    predicts configured capacity (D97 acceptance 2).
+  - M108 `accounts` takes the pre-selected ACTIVE row or undefined
+    (`FleetAccountDraft`; an absent rate inherits the measured demand budget
+    for that one dimension). Zero accounts or no usable limits keep the
+    measured row — never a `fleet-accounts-ambiguous` refusal for a normal
+    multi-account user. `selectFleetAccount` (active wins, else first by
+    order) and `fleetAccountFromLimits` (sustainable allowance rates plus
+    measured-remaining rolling windows; depleted waits for reset; blocked
+    pins zero; expired/absent yields undefined) run against the real
+    `Account`/`AccountLimitsReader` shapes.
+  - CI `ci` rows pass through validated. No captured shape names a
+    concurrency limit (AGENTS.md rule 14), so production carries no CI row
+    and a lane declaring CI demand refuses with the schedule's true reason
+    (`unschedulable:<lane>`).
+  - Every override re-parses through `fleetSnapshotSchema`; a corrupt row
+    refuses named (`fleet-caps-invalid`, `fleet-account-invalid`,
+    `fleet-ci-invalid`), never a raw `$ZodError` and never a widened fleet.
+    Corrupt workspace settings refuse as `fleet-caps-invalid`.
+- `src/host/estimator/localFleet.ts`: `fleet` and `candidatePool` await the
+  binding. With no readers the fleet is byte-identical to the certified row.
+- `src/extension.ts:2367`: passes `fleetIo` built by `extensionFleetSources`
+  over the live workspace configuration (`readResourceSettings` with the
+  configuration's own `inspect`, so the test proves the exact keys). The M108
+  registry is not instantiated in the extension host and no captured shape
+  names CI concurrency, so those stay absent with the measured row and the
+  schedule's true refusals standing in (named in code).
+- `src/runtime/estimator/ports.ts:39`: passes `fleetIo` built by
+  `headlessFleetSources` — the configured defaults (85/90) through the same
+  settings contract; networked `gh` reads stay off (M80, D65).
 - Device/node rows: absent, never guessed. GPU-requiring and device-class
-  lanes have no runnable machine; the schedule refuses them as
-  `unschedulable:<lane>` / `estimateNoCapacity` (their true reasons).
-- Deliberately not sampled: the governor's volatile level (throttle/pause).
-  A forecast predicts configured capacity; sampling live load would make
-  identical goals forecast differently minute to minute (acceptance 2).
+  lanes have no runnable machine (their true reason).
 - No new user strings (existing `estimateFailed` details only), no commands,
-  settings, dependencies or cap changes.
+  settings, dependencies or cap changes. No `eslint-disable`, no cast, no
+  `any`.
 
 ## Tests (repository timeouts, never `--testTimeout`)
 
-`test/unit/estimatorFleetBinding.test.ts`, 9 tests, all passing on kubuntu:
+`test/unit/estimatorFleetBinding.test.ts`, 20 tests, all passing on kubuntu:
 
-- Default binding reproduces the measured fleet exactly.
+- Default binding reproduces the measured fleet exactly (async).
 - `asOf` passthrough through the real `fleet` and `candidatePool` ports;
   both ports agree.
-- M107 caps apply; out-of-range ceilings refuse (`fleet-caps-invalid`).
-- M108 single-row rebind incl. usage windows; 0/2 rows refuse.
-- CI rows carried; `occupiedJobs > concurrentJobs` refuses.
-- Device/node absent; GPU and device-class lanes unrunnable.
-- Acceptance 3 through the real fleet port: two serial lanes name
-  `machines` via `findEstimateBottleneck`. Slots/rate/CI isolation is
-  impossible on a one-slot fleet (any of those relaxations still leaves the
-  serial slot, so they couple — verified during development); the rows bind
-  fail-closed instead: over-committed CI refuses `unschedulable:A`, a rate
-  below a single lane's demand refuses `unschedulable:A`, fitting rows
-  schedule. Full five-kind bottleneck naming stays covered by
-  `test/unit/estimatorBottleneck.test.ts` on engine fakes (22 tests green
-  with the neighbouring `estimatorLocalFleet` and `runtimeEstimatorPorts`
-  suites).
+- Slots derivation unit table (8/100/100→8, 85/90→7, 1/1→1, 0/0→0,
+  out-of-range and zero-core refuse).
+- M107 caps apply (percents, governor/cap/kind slots, 6 slot rows) and
+  out-of-range ceilings refuse (`fleet-caps-invalid`).
+- Finish-time shaping: two 1-hour lanes finish in 2 h under 1/1, 1 h under
+  100/100, through the real port plus `prepareEstimateSchedule`.
+- Active-row rebind incl. usage windows; undefined keeps the measured row
+  (no ambiguous refusal).
+- Corrupt account row → `Estimate failed: fleet-account-invalid`; account
+  draft without a rate on a fleet without accounts → same (fail-closed).
+- CI rows carried; `occupiedJobs > concurrentJobs` →
+  `Estimate failed: fleet-ci-invalid`.
+- Selector: 0→undefined, 1→it, N→first, active honoured, unknown active
+  falls back to first.
+- Translator: buckets→rates/windows values; expired buckets dropped; empty
+  limits→undefined; blocked→zero rates; broken clock refuses.
+- Extension sources: the 8 real settings keys are read (spy), 50/50 caps
+  flow to a 4-slot fleet, corrupt settings refuse.
+- Headless sources: 85/90 defaults flow to a 7-slot fleet on 8 cores.
+- Composition: all three sources through the real fleet port to one
+  forecast — each source read once; caps shape slots; the depleted window
+  pins the forecast past the reset (`finishHours > 2`) with an `accountRate`
+  bottleneck; the CI row is carried.
+- Device/node absent with true reason; machines bottleneck on the serial
+  row; CI over-commit refuses `unschedulable:A` while fitting rows finish in
+  1 h; a binding rate refuses `unschedulable:A` while the budgeted row
+  finishes in 1 h; async readers run once per call on both ports.
+
+Neighbour suites green: `estimatorLocalFleet` (5), `estimatorBottleneck`
+(9), `runtimeEstimatorPorts` (8) — 22 tests.
 
 ## Red drills (byte-exact restore, SHA-256)
 
 Pre-drill:
-`60d7cc373e8b29960504bbadf5dfb9b956b994555c8ccd9c5b1670daaabb9864`
+`176fa28902030765d3c9c88eb3ede21ca5e94107060582269685f4b0d601046c`
 fleetBinding.ts,
-`472fcdbc6f78942efde5127f3195e4f73e496ddd6587e1cabc9ea4e0b2744777`
+`09b6634cad666106e056e7e7fc858ab19788a9febf50c9a780c917d89eb9d7b2`
 estimatorFleetBinding.test.ts.
 
-1. Removed the final `fleetSnapshotSchema.parse` (returned the widened
-   object cast): `carries CI concurrency rows and refuses a corrupt one`
-   failed (corrupt row passed through). Restored; hash matches.
-2. Weakened caps validation to a bare `typeof` check: `applies M107's
-configured caps and refuses ceilings it cannot honour` failed (-1/101
-   accepted). Restored; hash matches.
+1. Replaced the final `fleetSnapshotSchema.safeParse` with an
+   always-successful stub: `carries CI concurrency rows and refuses a
+corrupt one with a named detail` failed (corrupt row passed through).
+   Restored; hash matches.
+2. Weakened caps validation to a bare finiteness check: `applies M107's
+configured caps and refuses ceilings it cannot honour` failed
+   (`fleet-binding-invalid` instead of `fleet-caps-invalid`). Restored; hash
+   matches.
+3. Forced `parallel = 1` (the old hard-coded serial row): `finishes the same
+lanes at a different time under 1/1 than 100/100` failed (`expected 1 to
+be 8`). Restored; hash matches.
+4. Translated buckets at the remaining rate instead of the allowance rate:
+   `drives all three sources through the real fleet port to one forecast`
+   failed (`unschedulable:A` — the rate check bound permanently instead of
+   waiting for the reset). Restored; hash matches.
 
-Post-drill suite: 9/9 green at repository timeouts.
+Post-drill suite: 20/20 green at repository timeouts.
 
-## Review pass by class
+## Review pass by class (corrections to the R1 record)
 
-- Validation/security: reader rows re-parsed; no credentials, paths or
-  network in the binding (no file reads, no `gh`, no handles).
+- Validation/security: reader rows re-parsed with named details; no
+  credentials, paths or network in the binding (no file reads, no `gh`, no
+  handles). R1's claim that "slots/rate/CI cannot be named on a one-slot
+  fleet" is superseded: slots are now derived, and rate/CI rows bind
+  fail-closed with their lane.
 - Failure paths/honesty: corrupt/ambiguous readers refuse with named
   details; missing CI/device rows refuse via existing schedule reasons;
-  unknown account windows stay disclosed as unknown, never zero.
-- Concurrency/lifecycle: pure synchronous overlay, no shared state; ports
-  stay `(lanes, asOf)`-pure with the request stamp passed through.
-- Docs: CHANGELOG `[Unreleased]`, PLAN.md C-M117-3 record, this file.
+  unknown account windows stay disclosed as unknown, never zero; zero
+  accounts keep the measured row.
+- Concurrency/lifecycle: async overlay, no shared state; ports stay
+  `(lanes, asOf)`-pure with the request stamp passed through; readers run
+  once per call.
+- Docs: CHANGELOG `[Unreleased]` (R2 entry), PLAN.md C-M117-3R2 record, this
+  file. R1's recorded drill hashes did not match the committed bytes
+  (finding 4); R2 hashes above are `sha256sum` of the working files at drill
+  time, verified byte-exact after each restore.
 
 ## Open for the lead
 
-- Live readers are not wired: the call sites are `src/extension.ts:2367`
-  (`estimatorSourcePorts(`) for settings-backed caps and
-  `src/runtime/estimator/ports.ts:39` for headless. The M108 registry mapping
-  (which account backs the local slot) belongs to the accounts owner.
+- Production carries no account row: the M108 registry (store, limits
+  reader, active selector) is not instantiated in the extension host, and
+  headless estimator ports have no providers path or keyring in their deps.
+  The selection (`selectFleetAccount`) and translation
+  (`fleetAccountFromLimits`) run against the real store/reader shapes and
+  are proven with fakes; the accounts owner plugs in a constructed store.
+- Production carries no CI row: no captured wire shape names a concurrency
+  limit or occupied count (rule 14); the port, the named refusal and the
+  over-commit test are ready for the milestone that captures one.
+- `npm run build` exits 1 on the pre-existing webview estimator-panel OVER
+  (25.3 KiB vs 25 KiB budget) — reproduced at pristine HEAD `768259f23` in
+  a clean worktree, so not this lane's. `dist/extension.js` 554.1 KiB
+  (budget 600, +1.6 KiB over HEAD's 552.5), `dist/modelApi.js` 515.8 KiB
+  (budget 525, unchanged).
 - Restore list (0.17.1 truth pass): nothing in this lane's scope was
   removed or hidden — no release text, command, setting or Help row to
   restore. No Help row added (no new command, setting or surfaced feature).
 - Editors/OS: no UI changed; the binding runs wherever the estimator runs
-  (extension, ACP/headless). Windows/macOS/Linux need no special path (no
-  file-path comparison in this code). Cross-rig and a11y remain lead-owned.
+  (extension, ACP/headless). No file-path comparison in this code; slot ids
+  are constructed (`local-N`), never matched. Cross-rig and a11y remain
+  lead-owned.

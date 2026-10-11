@@ -25,6 +25,17 @@ happened, not what was planned; superseded entries are kept.
   one serial local row, a demand-budgeted account, no CI rows and no device
   or node rows. A lane whose affinity names a paired device or node stays
   unschedulable with its reason.
+- **Estimator fleet binding R2** (M117 C-M117-3R2). Both production assemblies
+  now pass the binding: the extension reads M107's resource ceilings live from
+  the workspace configuration and headless applies the configured defaults, so
+  the ceilings shape admission — the local machine offers cores scaled by the
+  tighter ceiling (two 1-hour lanes finish in 2 h under 1/1, 1 h under
+  100/100). M108's active account is selected (active wins, else first, never
+  an ambiguous refusal) and translated to allowance rates with
+  measured-remaining windows; corrupt readers refuse with named details instead
+  of a raw parse error. No CI row is carried yet (no captured shape names
+  concurrency), so a lane declaring CI demand refuses with the schedule's
+  reason.
 - **`estimate --check-plan`** (M117 CM1171R4). The headless `estimate` command
   and the ACP agent's `/estimate` accept `--check-plan`, which lists every
   estimator plan problem in `PLAN.md` — duplicate lanes, malformed `Starts`
