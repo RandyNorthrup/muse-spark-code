@@ -15,7 +15,8 @@ import { buildHostBundles, buildModelApiBundle } from '../unit/helpers/modelApiB
 import { buildPortableBundle } from '../unit/helpers/portableBundle'
 import { removeFolder } from '../unit/helpers/temporaryFolders'
 import { installFakeCredential, installFakeMuse } from './fakeMuse'
-import { buildLinuxHelper } from '../../scripts/build-linux-helper.mjs'
+import { JOB_SOURCE_FILES } from '../../src/host/backend/jobSource'
+import { buildCreatedHelper } from './createdHelperFixture'
 
 /** Builds and launches only private, fake-keyring artifacts; no installed agent or real API. */
 export async function panelProcessFixture() {
@@ -98,8 +99,13 @@ export async function panelProcessFixture() {
     target: 'node22',
     logLevel: 'silent',
   })
-  // On Linux the governor confirms created paths through the helper beside dist/.
-  buildLinuxHelper(packageRoot)
+  // The governor confirms created paths through the helper the package ships
+  // (Linux and macOS), and on Windows compiles its job helpers from the C#
+  // under native/windows/ before any governed launch (jobSource.ts): the same
+  // layout as the ACP fixture.
+  buildCreatedHelper(root, packageRoot)
+  for (const file of Object.values(JOB_SOURCE_FILES))
+    cpSync(path.join(root, file), path.join(packageRoot, file))
   await buildHostBundles(dist, {
     runtimePanel: path.join(root, 'src/runtime/panel/panelEntry.ts'),
     runtimePanelPorts: path.join(root, 'src/runtime/panel/runtimeFeaturesEntry.ts'),
@@ -147,10 +153,13 @@ export async function panelProcessFixture() {
         stdio: 'pipe',
         env: {
           PATH: process.env['PATH'],
+          // Windows: the job helpers and PowerShell are found from SystemRoot.
+          SystemRoot: process.env['SystemRoot'],
           NODE_PATH: path.join(root, 'node_modules'),
           XDG_CONFIG_HOME: config,
           XDG_DATA_HOME: data,
           HOME: data,
+          USERPROFILE: data,
           LOCALAPPDATA: data,
           MUSE_FAKE_NODE: process.execPath,
           MUSE_FAKE_FINGERPRINT: EXPECTED_SCHEMA_FINGERPRINT,

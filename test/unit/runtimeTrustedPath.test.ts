@@ -10,6 +10,7 @@ import { afterAll, describe, expect, it, vi } from 'vitest'
 import * as z from 'zod/mini'
 import { verifyTrustedPath } from '../../src/runtime/trustedPath'
 import { trustedPrivateRoot } from '../../src/runtime/privateDirectory'
+import { JOB_SOURCE_FILES } from '../../src/host/backend/jobSource'
 import { darwinProcessHelper } from './helpers/darwinProcessHelper'
 import { removeFolder } from './helpers/temporaryFolders'
 
@@ -333,8 +334,12 @@ describe('one full-path trust rule', () => {
       'v1.0',
       'powershell.exe',
     )
-    const source = path.resolve('native/windows/MuseSparkJob.cs').replaceAll("'", "''")
-    const script = `$ErrorActionPreference='Stop'; Add-Type -Path '${source}'; $vectors=[Console]::In.ReadToEnd() | ConvertFrom-Json; $results=@(foreach($vector in $vectors) { $ok=$true; for($i=0;$i -lt $vector.components.Count;$i++) { $r=$vector.components[$i]; $ok=$ok -and [MuseSparkPrivateDirectory]::AllowsComponent($r.owner,$r.directory,$r.symlink,$r.acl,$r.writableForeign,($i -eq $vector.components.Count-1)) }; $ok }); ConvertTo-Json -InputObject $results -Compress`
+    // The helper's own file and the Win32 half it shares, as the product
+    // compiles them (privateDirectory.ts): MuseSparkJob.cs alone no longer builds.
+    const sources = [JOB_SOURCE_FILES.shellJob, JOB_SOURCE_FILES.shared]
+      .map((file) => `'${path.resolve(file).replaceAll("'", "''")}'`)
+      .join(', ')
+    const script = `$ErrorActionPreference='Stop'; Add-Type -Path ${sources}; $vectors=[Console]::In.ReadToEnd() | ConvertFrom-Json; $results=@(foreach($vector in $vectors) { $ok=$true; for($i=0;$i -lt $vector.components.Count;$i++) { $r=$vector.components[$i]; $ok=$ok -and [MuseSparkPrivateDirectory]::AllowsComponent($r.owner,$r.directory,$r.symlink,$r.acl,$r.writableForeign,($i -eq $vector.components.Count-1)) }; $ok }); ConvertTo-Json -InputObject $results -Compress`
     const results = z
       .array(z.boolean())
       .parse(
