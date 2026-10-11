@@ -63,18 +63,15 @@ const checksSchema = z.object({
     .check(z.maxLength(GITHUB_CHECKS_PAGE_SIZE)),
 })
 type GitHubFacts = ReportSourcePayloads['github']
+const githubReleaseSchema = z.strictObject({
+  version: z.string(),
+  commit: z.string(),
+  at: z.iso.datetime({ offset: true }),
+  assets: z.array(z.string()),
+})
 const additionalSchema = z.strictObject({
   runs: z.array(reportCiRunSchema).check(z.maxLength(REPORT_MAX_ROWS)),
-  releases: z
-    .array(
-      z.strictObject({
-        version: z.string(),
-        commit: z.string(),
-        at: z.iso.datetime({ offset: true }),
-        assets: z.array(z.string()),
-      }),
-    )
-    .check(z.maxLength(REPORT_MAX_ROWS)),
+  releases: z.array(githubReleaseSchema).check(z.maxLength(REPORT_MAX_ROWS)),
 })
 const githubFactsSchema = z.strictObject({
   pullRequests: z.array(
@@ -267,9 +264,28 @@ export function githubReportSource(options: ReportGitHubOptions): ReportSourcePo
               const envelope = additionalPortEnvelopeSchema.parse(
                 await options.additional.read(context, query, repository),
               )
+              // RVCM1136D: a row that passes the port's loose shape but not
+              // the strict fact shape is skipped with its own reason while
+              // the other rows stay; only a misshapen envelope stays
+              // generic. The assembly never throws one row's failure over
+              // the rows the requests did return.
+              if (!Array.isArray(envelope.runs) || !Array.isArray(envelope.releases))
+                throw new ReportNetworkFailure('workflow-releases-unavailable')
+              const additionalRuns: z.infer<typeof reportCiRunSchema>[] = []
+              for (const run of envelope.runs) {
+                const parsed = reportCiRunSchema.safeParse(run)
+                if (parsed.success) additionalRuns.push(parsed.data)
+                else reasons.push('run-response-invalid')
+              }
+              const additionalReleases: z.infer<typeof githubReleaseSchema>[] = []
+              for (const release of envelope.releases) {
+                const parsed = githubReleaseSchema.safeParse(release)
+                if (parsed.success) additionalReleases.push(parsed.data)
+                else reasons.push('release-response-invalid')
+              }
               const additional = additionalSchema.parse({
-                runs: envelope.runs,
-                releases: envelope.releases,
+                runs: additionalRuns,
+                releases: additionalReleases,
               })
               runs.push(...additional.runs)
               releases = additional.releases
