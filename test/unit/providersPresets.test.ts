@@ -2,7 +2,9 @@
 // fields, and OpenRouter's routing and attribution are exactly D74's.
 
 import { describe, expect, it } from 'vitest'
+import { UI_TEXT } from '../../src/shared/l10n/text'
 import {
+  azureDeploymentRefusal,
   azureOrigin,
   buildOpenRouterAuthUrl,
   customQuirksFor,
@@ -18,6 +20,7 @@ import {
   PRESETS,
   quirksOf,
   isKeyShape,
+  responsesTurnPath,
   FORMAT_QUIRKS,
   type ProviderPreset,
 } from '../../src/core/providers/presets'
@@ -31,8 +34,8 @@ function preset(id: string): ProviderPreset {
 }
 
 describe('the preset table', () => {
-  it('holds eighteen presets with unique, valid ids', () => {
-    expect(PRESETS.length).toBe(18)
+  it('holds twenty presets with unique, valid ids', () => {
+    expect(PRESETS.length).toBe(20)
     const ids = PRESETS.map((candidate) => candidate.id)
     expect(new Set(ids).size).toBe(ids.length)
     for (const id of ids) {
@@ -58,9 +61,38 @@ describe('the preset table', () => {
     ]) {
       expect(listed).toContain(id)
     }
-    for (const id of ['azure', 'ollama', 'lmstudio', 'vllm', 'llamacpp', 'custom']) {
+    for (const id of [
+      'azure',
+      'moonshot',
+      'ollama-cloud',
+      'ollama',
+      'lmstudio',
+      'vllm',
+      'llamacpp',
+      'custom',
+    ]) {
       expect(listed).not.toContain(id)
     }
+  })
+
+  it('defines Moonshot and Ollama Cloud uncaptured until the lead records their wires', () => {
+    const moonshot = preset('moonshot')
+    expect(moonshot.origin).toEqual({ kind: 'fixed', origin: 'https://api.moonshot.ai' })
+    expect(moonshot.format).toBe('chat')
+    expect(moonshot.authHeader).toBe('bearer')
+    expect(moonshot.keyPage).toBe('https://platform.kimi.ai/console/api-keys')
+    expect(moonshot.keyTest).toEqual({ kind: 'models-list' })
+    expect(moonshot.modelsList.path).toBe('/v1/models')
+    expect(moonshot.wireCapture).toBe(false)
+    const cloud = preset('ollama-cloud')
+    expect(cloud.origin).toEqual({ kind: 'fixed', origin: 'https://ollama.com' })
+    expect(cloud.format).toBe('chat')
+    expect(cloud.authHeader).toBe('bearer')
+    expect(cloud.keyPage).toBe('https://ollama.com/settings/keys')
+    expect(cloud.keyTest).toEqual({ kind: 'models-list' })
+    expect(cloud.wireCapture).toBe(false)
+    expect(isUserSuppliedOrigin(moonshot)).toBe(false)
+    expect(isUserSuppliedOrigin(cloud)).toBe(false)
   })
 
   it('gives every preset a label, a description and a category', () => {
@@ -199,6 +231,23 @@ describe('the preset table', () => {
     expect(azureOrigin('has space')).toBeUndefined()
     expect(azureOrigin('ab')).toBeUndefined()
     expect(azureOrigin('has.dot')).toBeUndefined()
+  })
+
+  it('posts an Azure deployment turn under its resource path, with the deployment as model', () => {
+    // The address already ends in `/openai/v1`, so the turn and the list
+    // read relative to it; the deployment is the request's model.
+    expect(responsesTurnPath(preset('azure'))).toBe('/responses')
+    expect(responsesTurnPath(preset('openai'))).toBe('/v1/responses')
+    expect(responsesTurnPath(preset('xai'))).toBe('/v1/responses')
+    expect(preset('azure').modelsList.path).toBe('/models')
+  })
+
+  it('refuses an unknown Azure deployment in plain words, and nothing else', () => {
+    expect(azureDeploymentRefusal(404)).toBe(UI_TEXT.azureDeploymentInvalid)
+    expect(UI_TEXT.azureDeploymentInvalid.trim()).not.toBe('')
+    expect(azureDeploymentRefusal(401)).toBeUndefined()
+    expect(azureDeploymentRefusal(429)).toBeUndefined()
+    expect(azureDeploymentRefusal(500)).toBeUndefined()
   })
 })
 

@@ -573,12 +573,26 @@ export function createConfiguredProviderServices(
             return ollama.parseOllamaError(status, value, '')
           }
           default: {
-            return new ModelApiError(UI_TEXT.modelsPanelUnavailable, status, undefined, undefined)
+            // Azure names a missing deployment with a 404 on the resource:
+            // refuse it in plain words instead of a generic failure. A 404
+            // is in no retry table, so this is never retried.
+            const azureRefusal =
+              preset.origin.kind === 'azure-resource'
+                ? presets.azureDeploymentRefusal(status)
+                : undefined
+            return new ModelApiError(
+              azureRefusal ?? UI_TEXT.modelsPanelUnavailable,
+              status,
+              undefined,
+              undefined,
+            )
           }
         }
       },
       encode: (body) => {
-        let path = '/v1/responses'
+        // The deployment rides as the request's model, as the v1 API
+        // names it (research §1.2); the path is the preset's own.
+        let path = presets.responsesTurnPath(preset)
         let wire: unknown
         let extras: Readonly<Record<string, string>> = {}
         switch (format) {
