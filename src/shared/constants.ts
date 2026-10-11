@@ -4496,8 +4496,15 @@ export const OUTPUT_DOCUMENTS_KEPT = 20
 // The IDE tool server `muse serve` reaches over loopback (session MCP), the
 // `session/listChanged` stream behind the History dialog (M6), and the
 // TUI's `!` escape, `session/userShell` (M46, PLAN.md D39). The first stays
-// first: the IDE server's warning names it.
-export const MSP_REQUESTED_CAPABILITIES = ['sessionMcp', 'sessionListStream', 'userShell'] as const
+// first: the IDE server's warning names it. `feedback` is last: the 1.4.4
+// capture grants exactly what its client asks for (sessionListStream,
+// feedback), and the feedback dialog sends only while it is granted.
+export const MSP_REQUESTED_CAPABILITIES = [
+  'sessionMcp',
+  'sessionListStream',
+  'userShell',
+  'feedback',
+] as const
 export const MSP_USER_SHELL_CAPABILITY = 'userShell'
 // How long the extension waits on `muse serve` (PLAN.md D25; the SDK has no
 // timeouts of its own, INV-006): the handshake, an ordinary command, and the
