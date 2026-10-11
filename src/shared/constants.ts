@@ -4214,6 +4214,9 @@ export type TaskRequest = (typeof TASK_REQUESTS)[number]
 export const CLARIFICATION_FORMAT = 'text'
 export const CLARIFICATION_MAX_CHARS = 500
 export const QUESTION_OUTCOME_CLARIFIED = 'clarified'
+// A feedback note (C-M106-3R2): free text with its classification, at most
+// this many characters, inside the MSP frame budget with room to spare.
+export const FEEDBACK_NOTE_MAX_CHARS = 2000
 
 // Questions that never block (M112, PLAN.md D92). These limits apply in
 // the process holding the session, on every interactive editor surface.

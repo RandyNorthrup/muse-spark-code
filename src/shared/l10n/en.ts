@@ -141,6 +141,22 @@ export const EN = {
   modelApiServiceFailure: 'The service returned an error. Check its status or try again.',
   feedbackFailed: 'Could not submit feedback.',
   feedbackUploaded: 'Feedback uploaded.',
+  // C-M106-3R2: the restored feedback dialog offers exactly what the 1.4.4
+  // capture certifies: a note with its classification. Files and the session
+  // record are never offered (record-attached receipts keep refusing), so
+  // the privacy line promises a note-only upload. Read only by the lazy
+  // dialog chunk, except the title, which also labels the turn-menu entry.
+  feedbackTitle: 'Send feedback to Muse Code',
+  feedbackClassification: 'Classification',
+  feedbackNote: 'Note',
+  feedbackPrivacy:
+    'Muse Code uploads your classification and note. No files or session record are attached.',
+  feedbackSend: 'Send feedback',
+  feedbackSending: 'Sending feedback…',
+  feedbackClassificationBug: 'Bug',
+  feedbackClassificationBadResult: 'Bad result',
+  feedbackClassificationGoodResult: 'Good result',
+  feedbackClassificationOther: 'Other',
   // C-M106-3: the 1.4.4 capture certifies the note-only receipt only; a
   // record-attached receipt refuses with this upstream request instead of
   // reporting an uncertified outcome.

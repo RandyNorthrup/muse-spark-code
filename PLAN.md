@@ -31386,6 +31386,28 @@ binding at the host constructions, the FeedbackDialog restore and History
 deletion wiring remain for integration. Evidence:
 `docs/certification/m106-native-readers.md`.
 
+**C-M106-3R2 end-to-end binding and dialog restore (2026-10-11, macmini).**
+The R1 readers are bound where the backend is constructed:
+`NATIVE_MUSE_CODE_FEATURE_PORTS` (note-only `feedback/submit` receipt)
+into `MuseCodeBackendManager` in `src/extension.ts` and
+`src/runtime/backends.ts`, the `feedback` handshake grant appended last,
+and the effort catalogue reader preloaded from the new
+`dist/modelEfforts.js` on first spawn (static binding broke the lane K
+activation budget at 3237 vs 3072; the split measures 2689 with identical
+behaviour). The feedback dialog is restored on the real reader
+(`FeedbackDialog.tsx` lazy turn-menu entry, `feedbackBridge.ts` zod
+bridge, controller answers with refusal before dispatch, ten strings in
+all 14 tables, `native-feedback` Help entry, reference at 78 features):
+note with classification only, no Files/Session-record controls (still
+refused, upstream request 2). Session delete stays refused with
+`sessionDeleteUnsupported`; History stays archive-only (upstream request
+1). Eight red drills (D4–D11) with SHA-256 byte-exact restores; bundle
+evidence (action dialogs 22.7/25, surface English 24.4/25, modelEfforts
+1.3/25) and the walked-back/still-hidden lists are in
+`docs/certification/m106-native-readers.md`. Open for the reviewer:
+`feedback-narrow` visual scenes (320 px, six themes) with baselines,
+`npm run test:a11y` (sandbox-blocked here), and the opt-in live receipt.
+
 **M106W continuation 3 (2026-10-06, macmini).** Resolve the 15 full-suite
 blockers recorded by W: reconcile only D86-authorized behavior changes, repair
 stale fake package/capability/lazy UI fixtures, and fix shipped frame coverage.

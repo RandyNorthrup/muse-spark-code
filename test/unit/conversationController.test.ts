@@ -57,7 +57,12 @@ import {
   parseSparkHooksConfig,
   type ExtensionHookDefinition,
 } from '../../src/core/backends/modelapi/extensionHooks'
-import { type CommandTimeouts, MuseCodeHost } from '../../src/core/backends/musecode/MuseCodeHost'
+import {
+  type CommandTimeouts,
+  type MuseCodeFeaturePorts,
+  MuseCodeHost,
+  NATIVE_MUSE_CODE_FEATURE_PORTS,
+} from '../../src/core/backends/musecode/MuseCodeHost'
 import type { ShellSandboxPosture } from '../../src/core/backends/musecode/sandbox'
 import type { EditorContext } from '../../src/core/editorContext'
 import type { AuthPort, AuthSnapshot } from '../../src/host/auth/authService'
@@ -407,6 +412,8 @@ function setup(
     teamMcp?: ConversationDeps['teamMcp']
     orchestratorSlot?: ConversationDeps['orchestratorSlot']
     grantedCapabilities?: readonly string[]
+    /** Captured-frame readers, as the backend manager binds them in production. */
+    featurePorts?: MuseCodeFeaturePorts
     shellSandbox?: ShellSandboxPosture
     /** Contributor-tier guard (M7). */
     isConfidentialWorkspace?: boolean
@@ -580,6 +587,7 @@ function setup(
     },
     log,
     options.timeouts,
+    options.featurePorts,
   )
   const auth = fakeAuth(options.status)
   const gitFake = fakeGitWindow(options.git)
@@ -1841,6 +1849,41 @@ describe('ConversationController: composer controls', () => {
   })
 })
 
+// The production reader binding and the captured note-only receipt behind
+// the feedback dialog tests below: the same readers the backend manager
+// binds, and the 1.4.4 `feedback/submit` receipt they read.
+const NATIVE_PORTS: MuseCodeFeaturePorts = NATIVE_MUSE_CODE_FEATURE_PORTS
+type FeedbackSubmitMessage = Extract<ConversationMessage, { type: 'submitFeedback' }>
+function feedbackSubmit(
+  requestId: number,
+  sessionId: string,
+  classification: string,
+): FeedbackSubmitMessage {
+  return { type: 'submitFeedback', requestId, sessionId, classification, note: 'A wrong answer' }
+}
+// A live session behind the feedback dialog tests: the grant the capture
+// proves, the native readers, the captured receipt served, and a finished
+// first turn. An empty grant list covers the ungranted refusal.
+async function startFeedbackSession(
+  grantedCapabilities: readonly string[] = ['feedback'],
+): Promise<ReturnType<typeof setup>> {
+  const t = setup({ grantedCapabilities, featurePorts: NATIVE_PORTS })
+  t.server.handle('feedback/submit', () => ({ ...FEEDBACK_RECEIPT }))
+  await t.send('l1', 'hi')
+  t.finishTurn()
+  return t
+}
+const FEEDBACK_RECEIPT: Record<string, unknown> = (
+  JSON.parse(
+    readFileSync(new URL('../fixtures/m106/msp-1.4.4-host-feedback.json', import.meta.url), 'utf8'),
+  ) as {
+    frames: { direction: string; frame: { id?: number; result?: unknown } }[]
+  }
+).frames.find((row) => row.direction === 'received' && row.frame.id === 5)?.frame.result as Record<
+  string,
+  unknown
+>
+
 describe('ConversationController: context', () => {
   it('answers mention searches with the request id, even on failure', async () => {
     const t = setup()
@@ -1853,6 +1896,94 @@ describe('ConversationController: context', () => {
         { path: 'app/', isFolder: true },
       ],
     })
+  })
+
+  it('previews a feedback note without a session, scrubbed of nothing registered', async () => {
+    const t = setup()
+    await t.controller.handle({ type: 'previewFeedback', requestId: 3, note: 'A wrong answer' })
+    expect(t.surface.posted.at(-1)).toEqual({
+      type: 'feedbackPreview',
+      requestId: 3,
+      note: 'A wrong answer',
+    })
+    expect(t.server.requestsFor('feedback/submit')).toHaveLength(0)
+    t.controller.dispose()
+  })
+
+  it('refuses a feedback send without a session before dispatch', async () => {
+    const t = setup({ grantedCapabilities: ['feedback'], featurePorts: NATIVE_PORTS })
+    await t.controller.handle(feedbackSubmit(4, 's1', 'badResult'))
+    expect(t.surface.posted.at(-1)).toEqual({
+      type: 'feedbackOutcome',
+      requestId: 4,
+      error: UI_TEXT.feedbackFailed,
+    })
+    expect(t.server.requestsFor('feedback/submit')).toHaveLength(0)
+    expect(t.server.requestsFor('session/start')).toHaveLength(0)
+    t.controller.dispose()
+  })
+
+  it('sends the approved feedback note with byte-identical wire order', async () => {
+    const t = await startFeedbackSession()
+    await t.controller.handle(feedbackSubmit(5, 's1', 'badResult'))
+    expect(t.server.requestsFor('feedback/submit')).toHaveLength(1)
+    expect(t.server.requestsFor('feedback/submit')[0]?.params).toEqual({
+      sessionId: 's1',
+      classification: 'badResult',
+      note: 'A wrong answer',
+      withFiles: false,
+      attachSessionRecord: false,
+    })
+    // Byte-identical wire order for a fixed note, end to end.
+    expect(JSON.stringify(t.server.requestsFor('feedback/submit')[0]?.params)).toBe(
+      '{"sessionId":"s1","classification":"badResult","note":"A wrong answer","withFiles":false,"attachSessionRecord":false}',
+    )
+    expect(t.surface.posted.filter((message) => message.type === 'feedbackOutcome')).toEqual([
+      {
+        type: 'feedbackOutcome',
+        requestId: 5,
+        outcome: UI_TEXT.feedbackUploaded,
+      },
+    ])
+    t.controller.dispose()
+  })
+
+  it('refuses a feedback send for another session, an unknown classification, or no grant', async () => {
+    const t = await startFeedbackSession()
+    await t.controller.handle(feedbackSubmit(6, 'other', 'badResult'))
+    await t.controller.handle(feedbackSubmit(7, 's1', 'futureClassification'))
+    // A turn-completed event can land between the two answers; filter it out.
+    expect(t.surface.posted.filter((message) => message.type === 'feedbackOutcome')).toEqual([
+      { type: 'feedbackOutcome', requestId: 6, error: UI_TEXT.feedbackFailed },
+      { type: 'feedbackOutcome', requestId: 7, error: UI_TEXT.feedbackFailed },
+    ])
+    expect(t.server.requestsFor('feedback/submit')).toHaveLength(0)
+    const ungranted = await startFeedbackSession([])
+    await ungranted.controller.handle(feedbackSubmit(8, 's1', 'badResult'))
+    expect(
+      ungranted.surface.posted.filter((message) => message.type === 'feedbackOutcome'),
+    ).toEqual([
+      {
+        type: 'feedbackOutcome',
+        requestId: 8,
+        error: UI_TEXT.feedbackFailed,
+      },
+    ])
+    expect(ungranted.server.requestsFor('feedback/submit')).toHaveLength(0)
+    t.controller.dispose()
+    ungranted.controller.dispose()
+  })
+
+  it('answers the sign-in refusal for a feedback send while signed out', async () => {
+    const t = setup({ status: 'signedOut' })
+    await t.controller.handle(feedbackSubmit(9, 's1', 'badResult'))
+    expect(t.surface.posted.at(-1)).toEqual({
+      type: 'feedbackOutcome',
+      requestId: 9,
+      error: UI_TEXT.notSignedInReason,
+    })
+    expect(t.server.requestsFor('session/start')).toHaveLength(0)
+    t.controller.dispose()
   })
 
   it('attaches picked images and mentions other picked files', async () => {

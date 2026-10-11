@@ -26,6 +26,7 @@ import {
   DICTATION_UI_STATUSES,
   EFFORT_LEVELS,
   EXPORT_FORMATS,
+  FEEDBACK_NOTE_MAX_CHARS,
   GOAL_COMMANDS,
   MAX_ATTACHMENT_BASE64_CHARS,
   MODEL_PRICINGS,
@@ -642,6 +643,24 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
     userInputId: stringSchema,
     text: stringSchema.check(z.maxLength(CLARIFICATION_MAX_CHARS)),
   }),
+  // "Send feedback" on an assistant turn's menu (C-M106-3R2): the dialog
+  // first previews the scrubbed note, then sends the approved note with its
+  // classification. Files and the session record are never attached: no
+  // captured frame certifies them. `requestId` drops stale answers; the
+  // classification travels as a plain string and the host re-validates it
+  // against the client-selected vocabulary before dispatch.
+  z.object({
+    type: z.literal('previewFeedback'),
+    requestId: numberSchema,
+    note: stringSchema.check(z.maxLength(FEEDBACK_NOTE_MAX_CHARS)),
+  }),
+  z.object({
+    type: z.literal('submitFeedback'),
+    requestId: numberSchema,
+    sessionId: stringSchema,
+    classification: stringSchema,
+    note: stringSchema.check(z.maxLength(FEEDBACK_NOTE_MAX_CHARS)),
+  }),
   // A running command to the background (the row's button, M46); Ctrl+B is
   // the host's own command.
   z.object({ type: z.literal('moveToBackground'), itemId: stringSchema }),
@@ -1254,6 +1273,16 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     type: z.literal('mentionResults'),
     requestId: numberSchema,
     items: z.array(mentionItemSchema),
+  }),
+  // The feedback dialog's answers, correlated by its `requestId`: the
+  // scrubbed preview, then the send's outcome or its refusal. Stale answers
+  // (a closed dialog's id) are dropped by the bridge.
+  z.object({ type: z.literal('feedbackPreview'), requestId: numberSchema, note: stringSchema }),
+  z.object({
+    type: z.literal('feedbackOutcome'),
+    requestId: numberSchema,
+    outcome: z.optional(stringSchema),
+    error: z.optional(stringSchema),
   }),
   z.object({
     type: z.literal('attachmentAdded'),

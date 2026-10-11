@@ -541,6 +541,15 @@ export function featureCatalog(): readonly Feature[] {
       ['modelApi'],
     ),
     feature(
+      'native-feedback',
+      { ui: 'feedbackTitle' },
+      { ui: 'feedbackPrivacy' },
+      [],
+      [],
+      'agent-loop-guarantees',
+      ['museCode'],
+    ),
+    feature(
       'native-deletion',
       { ui: 'memoryDeleteAction' },
       { ui: 'historyLabel' },

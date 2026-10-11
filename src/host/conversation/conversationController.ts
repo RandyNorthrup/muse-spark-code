@@ -91,6 +91,7 @@ import { type BestOfNError, isBestOfNError } from '../../core/bestOfN/bestOfNErr
 import type { BestOfNCoordinator } from '../../core/bestOfN/bestOfNCoordinator'
 import type { BoardSession, PendingPrompts } from '../../core/sessionBoard'
 import { failureForLog, isMspFailure, stderrForLog } from '../../core/backends/musecode/logText'
+import { feedbackClassificationSchema } from '../../core/backends/musecode/feedback'
 import { chatReferenceText } from '../../core/chatReference'
 import type {
   PlanModeHold,
@@ -795,6 +796,8 @@ const AUTH_REQUIRED_SESSION_ACTIONS: ReadonlySet<ConversationMessage['type']> = 
   'importSession',
   'savePlan',
   'implementPlan',
+  'previewFeedback',
+  'submitFeedback',
   // A handoff's Cancel is not here (M74): releasing an operation the panel
   // owns needs no admission, and the panel has already closed its dialog.
   'requestHandoff',
@@ -8478,6 +8481,61 @@ export class ConversationController {
     }
   }
 
+  /**
+   * The feedback dialog's scrubbed preview (C-M106-3R2): registered literals
+   * stay in the host, so the dialog approves exactly what would be sent. A
+   * session without the port previews the note unchanged; the dialog still
+   * applies the shared credential-pattern detector locally.
+   */
+  private previewFeedback(requestId: number, note: string): void {
+    const preview = this.session?.previewFeedbackNote?.(note) ?? note
+    this.post({ type: 'feedbackPreview', requestId, note: preview })
+  }
+
+  /**
+   * The dialog's confirmed note with its classification. Refused before
+   * dispatch without a session, without the port (the Model API backend has
+   * no `feedback/submit`), for another session, or for a classification
+   * outside the client-selected vocabulary; the host reader refuses
+   * record-attached receipts, which this dialog never offers.
+   */
+  private async submitSessionFeedback(
+    message: Extract<ConversationMessage, { type: 'submitFeedback' }>,
+  ): Promise<void> {
+    const session = this.session
+    const classification = feedbackClassificationSchema.safeParse(message.classification)
+    const submit = session?.submitFeedback
+    if (
+      session === undefined ||
+      submit === undefined ||
+      message.sessionId !== session.sessionId ||
+      !classification.success
+    ) {
+      this.post({
+        type: 'feedbackOutcome',
+        requestId: message.requestId,
+        error: UI_TEXT.feedbackFailed,
+      })
+      return
+    }
+    try {
+      const outcome = await submit({
+        sessionId: message.sessionId,
+        classification: classification.data,
+        note: message.note,
+        withFiles: false,
+        attachSessionRecord: false,
+      })
+      this.post({ type: 'feedbackOutcome', requestId: message.requestId, outcome })
+    } catch (error: unknown) {
+      this.post({
+        type: 'feedbackOutcome',
+        requestId: message.requestId,
+        error: error instanceof Error ? error.message : UI_TEXT.feedbackFailed,
+      })
+    }
+  }
+
   private async searchMentions(requestId: number, query: string): Promise<void> {
     try {
       const items = await this.deps.mentions.search(query, MENTION_RESULT_LIMIT)
@@ -9888,6 +9946,20 @@ export class ConversationController {
           })
           break
         }
+        case 'previewFeedback': {
+          // Without admission there is no host scrub: the dialog falls back
+          // to its local pattern detector over the unchanged note.
+          this.post({ type: 'feedbackPreview', requestId: message.requestId, note: message.note })
+          break
+        }
+        case 'submitFeedback': {
+          this.post({
+            type: 'feedbackOutcome',
+            requestId: message.requestId,
+            error: UI_TEXT.notSignedInReason,
+          })
+          break
+        }
         default: {
           break
         }
@@ -10241,6 +10313,14 @@ export class ConversationController {
       }
       case 'listSkills': {
         await this.listSkills()
+        break
+      }
+      case 'previewFeedback': {
+        this.previewFeedback(message.requestId, message.note)
+        break
+      }
+      case 'submitFeedback': {
+        await this.submitSessionFeedback(message)
         break
       }
       case 'searchMentions': {

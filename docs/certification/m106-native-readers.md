@@ -90,3 +90,192 @@ explicit unknown catalogue and future tiers verbatim` fails; restored,
 - All editors: the readers live in the shared core host serving VS Code,
   ACP and exec; no editor-specific path was added. Windows/macOS/Linux:
   no paths are compared or matched.
+
+---
+
+# C-M106-3R2 certification — end-to-end binding and the feedback dialog (2026-10-11, macmini)
+
+Scope: bind the R1 readers where the backend is constructed (VS Code
+window and CLI/ACP runtime) and restore the feedback dialog on the real
+reader. Round 1 left both "for integration"; this round finishes the
+chain — a reader nobody calls is not implemented.
+
+Commits: `6f4b33c73` (host binding), plus the dialog and split commits of
+this lane. Capture: `test/fixtures/m106/msp-1.4.4-host-feedback.json`
+(workspace `/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/cm1061-msp-RCamx3`,
+CLI `1.4.4-R5419.1`, provider `meta`, 0 model attempts, 6 requests). The
+capture proves three wirings this round relies on: the client requests
+`requestedCapabilities: ["sessionListStream", "feedback"]` and the server
+grants exactly that; `feedback/submit` sends `{classification, note,
+withFiles, attachSessionRecord}` note-only; the receipt (id 5) is
+`{outcome: "uploaded", ...}` with `sessionRecordAttached: false`.
+
+## What was built
+
+- **Binding, both hosts.** `NATIVE_MUSE_CODE_FEATURE_PORTS`
+  (`MuseCodeHost.ts`) carries the note-only `feedback/submit` receipt
+  reader. `src/extension.ts` (VS Code window) and `museCodeManager` in
+  `src/runtime/backends.ts` (CLI and ACP) pass it to
+  `MuseCodeBackendManager`, which forwards it to every `MuseCodeHost`; the
+  handshake now also asks for the `feedback` grant
+  (`MSP_REQUESTED_CAPABILITIES`, appended last so the IDE-server warning's
+  first capability is unchanged). `MuseSession` exposes the host disclosure
+  ports through two new optional `AgentSession` members
+  (`previewFeedbackNote?`, `submitFeedback?`); the Model API backend
+  implements neither, so its sessions refuse before dispatch.
+- **Effort preload split.** The `model/list` effort reader binds the same
+  way, but `MuseCodeBackendManager.spawn` preloads its module from the new
+  `dist/modelEfforts.js` (`modelEffortsEntry.ts`) on first spawn when the
+  construction did not inject one. Static binding measured +684 B on the
+  activation bundle and broke the lane K budget (3237 vs 3072); the split
+  measures 2689 with identical behaviour — same captured catalogue through
+  the same preload in both hosts. An injected reader (tests) wins over the
+  preload.
+- **Feedback dialog, restored.** `src/webview/components/FeedbackDialog.tsx`
+  (lazy chunk, opened from the assistant turn's `⋯` menu) offers exactly
+  what the capture certifies: a note with its classification. No Files and
+  no Session-record checkboxes: no captured frame certifies them, and a
+  record-attached receipt refuses with the upstream request — no control is
+  shown that would be refused. The zod bridge is
+  `src/webview/feedbackBridge.ts` (`previewFeedback`/`submitFeedback` with
+  `requestId` correlation, every answer parsed before use, stale answers
+  dropped, close rejects the in-flight send); the controller answers
+  `feedbackPreview`/`feedbackOutcome` from the current session, refusing
+  before dispatch without a session, without the port, for another session,
+  for an unknown classification, without the grant, or while signed out.
+  Ten strings in all 14 tables (five restored verbatim from the removed
+  dialog, five new: the note-only privacy line and the four classification
+  labels; Italian keeps the loanword `Bug` via `l10n/untranslated.json`) and
+  Help's **Send feedback to Muse Code** (`native-feedback` in
+  `src/shared/featureCatalog.ts`, reference regenerated to 78 features).
+- **Session delete.** Unchanged: still refused with
+  `sessionDeleteUnsupported` (1.4.4 sends no delete frames); History keeps
+  hiding deletion. The upstream draft
+  (`docs/research/m106-s1-upstream.md`) is untouched for the lead to file.
+
+## Bundle evidence (production build, caps unraised)
+
+- `dist/webview action dialogs: 22.7 KiB (budget 25 KiB)` — the dialog rides
+  the lazy chunk with the other action dialogs.
+- `dist/webview surface English: 24.4 KiB (budget 25 KiB)` — nine of the ten
+  new keys load with the dialog; verified in `dist`: all nine are absent
+  from `dist/webview/main.js` and present only in the lazy chunk, while
+  `feedbackTitle` (the turn-menu label) paints with the menu in first
+  paint. `dist/webview/main.js + static imports: 744.7 KiB (900)`.
+- `dist/modelEfforts.js: 1.3 KiB (budget 25 KiB)`, loading only on the
+  first model catalogue read, never at activation; `uiText: false` declared
+  (pure validation, no English of its own).
+- `dist/extension.js: 551.4 KiB (600)`; activation growth 2689 B over the
+  pre-K baseline (561352 → 564041, allowance 3072).
+
+## Tests (repository timeouts, macmini)
+
+- New `test/unit/museCodeNativeBinding.test.ts`: 2 tests. A real `muse
+serve` process over the real SDK transport (fake CLI serving the captured
+  catalogue behind `MUSE_FAKE_MODEL_LIST=capture` and the captured receipt):
+  the grant is asked and echoed, the contributor row arrives with its
+  ordered variants and default, the receipt resolves to the upload line,
+  deletion refuses — in the VS Code manager and in the runtime
+  construction alike.
+- New `test/unit/FeedbackDialog.test.tsx`: 7 React tests — captured
+  disclosure only (four labels, no checkboxes), scrubbed preview before
+  consent with the exact preview sent, re-preview after edit, refreshed
+  preview after a mid-send refusal, bug-requires-note, unknown
+  classification ignored, refusal and verbatim outcome statuses.
+- New `test/unit/feedbackBridge.test.ts`: 5 tests — preview/send
+  round-trips, refusal text, malformed/stale answers dropped, attachable
+  disclosure refused before posting, close rejects the in-flight send.
+- `test/unit/conversationController.test.ts`: 5 new dispatch tests (686
+  total, all pass) — preview echo, no-session refusal with zero dispatch,
+  byte-identical wire order end to end, wrong-session / unknown-class /
+  no-grant refusals, signed-in refusal while signed out.
+- `test/unit/museCodeNativeReaders.test.ts`: +2 (15 total) — the submit
+  params serialise byte-identically, and submit refuses without the reader
+  or the grant before dispatch. `protocol.test.ts`: +9 rows (152 total).
+- Neighbours, unchanged behaviour: `feedback` 14, `museCodeSdk142` 31,
+  `MuseCodeHost` 129, `museCodeBackendManager`, `modelApiGoldenRequests`
+  (byte-identical for users who never open the dialog), `Transcript` +
+  `featureCatalogDetails` 69 — all pass.
+- Static gates: `npm run typecheck` (5 projects) clean,
+  `eslint --max-warnings=0` on all touched files clean, `prettier --check`
+  clean, `node scripts/check-l10n.mjs` 0 problems,
+  `npm run check:reference` current (78 features), `npm run deadcode`
+  (knip) clean, `npm run duplication` (jscpd) 0 clones,
+  `npm run check:host-api` 0 problems, `npm run build` green.
+- Blocked by this rig's sandbox (EPERM on loopback listen; no browser):
+  `npm run test:a11y` and any screenshot run. The reviewer runs those —
+  scenes below.
+
+## Red drills (break → named failure → SHA-256 byte-exact restore)
+
+- D4: removed `feedback` from `MSP_REQUESTED_CAPABILITIES` → both binding
+  tests fail (`expected ['sessionMcp', …(2)] to include 'feedback'`);
+  `constants.ts` restored (`f37424a8…`).
+- D5: manager built without `featurePorts` → captured catalogue reads with
+  `variants: undefined` (`expected undefined to deeply equal ['minimal',
+…]`); test-only drill file removed, production untouched.
+- D6: removed the controller's `message.sessionId !== session.sessionId`
+  check → the wrong-session refusal dispatches (`expected 0 requests,
+received 1` posture); `conversationController.ts` restored
+  (`5314f638…`).
+- D7: added a checkbox to the dialog → the no-attachable-disclosure test
+  fails (plus label ambiguity in four others);
+  `FeedbackDialog.tsx` restored (`b1b778bb…`).
+- D8: bridge resolves the first waiter regardless of `requestId` → the
+  stale-answer test settles early; `feedbackBridge.ts` restored
+  (`1f804f9d…`).
+- D9: removed the protocol note cap → the overlong-note rejection fails;
+  `protocol.ts` restored (`ebe1a6d7…`).
+- D10: reordered `feedbackRequestSchema` fields → both byte-identical
+  goldens fail (wire order is canonicalised by the schema, not the
+  callers); `feedback.ts` restored (`cb4c6253…`).
+- D11: removed the manager effort preload → both binding tests lose the
+  catalogue variants; `museCodeBackendManager.ts` restored (`f4a57629…`).
+
+## Walked-back items this lane restored (R1 → R2)
+
+- `src/webview/components/FeedbackDialog.tsx` (removed in `8f9c83a2c`):
+  restored on the real reader, note + classification only.
+- Its lazy turn-menu entry (`Transcript.tsx` assistant-row menu,
+  `App.tsx` lazy chunk + bridge lifecycle).
+- Its zod bridge (`previewFeedback`/`submitFeedback`/`feedbackPreview`/
+  `feedbackOutcome` in `src/shared/protocol.ts`, answered in
+  `conversationController.ts`, correlated in `feedbackBridge.ts`).
+- Ten strings in all 14 languages (five restored verbatim, five new).
+- Help's Send-feedback entry (`native-feedback` in
+  `src/shared/featureCatalog.ts` + regenerated reference + capability and
+  action maps in `referenceSource.ts`).
+- Reader binding at both constructions (`extension.ts`,
+  `runtime/backends.ts`, `feedback` grant, effort preload).
+
+## Still hidden, with reasons
+
+- Files and Session-record checkboxes: no captured frame certifies them;
+  record-attached receipts refuse with `feedbackRecordUnsupported`
+  (upstream request 2). Offering them would show a control that refuses.
+- Session delete / History deletion: 1.4.4 sends no delete frames;
+  `sessionDeleteUnsupported` stays, History stays archive-only (upstream
+  request 1).
+- The `feedbackClassification*` labels and dialog strings stay out of
+  first paint except `feedbackTitle`, which labels the turn-menu entry and
+  must paint with the menu.
+- ACP/CLI have no interactive feedback prompt: no turn menu exists there;
+  the runtime binds the same readers, so a future headless surface inherits
+  the receipt parsing and refusals unchanged.
+- The five new non-English string sets (privacy line, four labels) are
+  first-draft translations by this lane; a native speaker has not reviewed
+  them.
+
+## For the reviewer (browser + loopback, outside the lane sandbox)
+
+- New harness scenes to author, run and baseline (320 px `*-narrow`
+  pattern, ready `[role="dialog"]`): `feedback-narrow` (idle),
+  `feedback-preview-narrow` (approved preview),
+  `feedback-sent-narrow` (upload outcome) — each across the six themes
+  (`light dark hc-dark hc-light one-dark-pro dracula`), e.g.
+  `node scripts/harness-shots.mjs feedback-narrow --theme=dark`, plus the
+  pseudo-locale pass (`npm run harness:shots -- --lang=pseudo`), then
+  `npm run check:visual` with reviewed baselines named.
+- `npm run test:a11y` (blocked here: EPERM on `127.0.0.1` listen).
+- Opt-in live receipt against a real 1.4.4 `muse serve` is still open
+  (owner's key, per the R1 record).
