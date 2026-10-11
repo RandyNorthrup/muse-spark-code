@@ -1732,6 +1732,11 @@ export const PROCESS_START_TOLERANCE_MS = 1000
 // Reading another process's birth (Windows PowerShell, macOS `ps`) gives
 // up after this.
 export const PROCESS_START_QUERY_TIMEOUT_MS = 10_000
+/** Failed owner evidence is retried after a short bound, never on every operation. */
+export const PROCESS_OWNER_FAILURE_CACHE_MS = 2000
+export const WINDOWS_FILETIME_TICKS_PER_MS = 10_000n
+export const WINDOWS_FILETIME_EPOCH_MS = 11_644_473_600_000n
+export const FILE_LEASE_RELEASE_ATTEMPTS = 3
 // A pending checkout whose folder never appeared is someone's crash after
 // this long, even while its process id looks alive (a reused id whose
 // start time cannot be read): every step before the folder exists is

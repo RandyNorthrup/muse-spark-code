@@ -33221,6 +33221,20 @@ No dependency, endpoint guard, paid default or budget changes. See
 
 ### M109 — A credential vault and broker for agents (D89)
 
+**CM109LEASER2 (2026-10-11, RVCM109LEASE redesign).**
+Record the installation machine id, boot id, Linux PID namespace, PID and
+birth; hostnames are display only. Death requires comparable machine/boot/
+namespace evidence, except a different boot on the same machine proves death.
+Publish complete flushed notes exclusively; never renew a death-only note in
+place. Retry release boundedly and adopt this process's abandoned hold.
+Reset/Restore can explicitly replace an unreadable or foreign hold after the
+existing confirmation warns about another writer losing changes. Use base
+system ps/sysctl on macOS and one Windows query; cache failed probes briefly.
+Resolve fixture temp paths and permanently suspend/terminate real writers on
+all three OSes. Fix findings 1–5 and 7 here; finding 6 (Git transaction timed
+takeover) is lead-owned outside this lane. Preserve caps, dependencies and
+repository deadlines; certification in docs/certification/m109.md.
+
 **CM109LEASE (2026-10-11, lead design; supersedes timed vault takeover).**
 The vault writer permits takeover only after proven death on this machine,
 using exact OS birth evidence; a live, suspended, foreign-machine or unknown

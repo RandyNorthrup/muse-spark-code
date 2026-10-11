@@ -232,6 +232,10 @@ happened, not what was planned; superseded entries are kept.
   past add's pre-check reports a collision; unopenable vaults name no
   protection; and setup confirmation broadcasts once, so its unlock no
   longer loses the writer to a mid-flight snapshot.
+- Vault writer death evidence now binds the installation machine identity, boot
+  and PID namespace before comparing a process ID or its birth. macOS uses
+  base-system tools; Windows reads boot and birth in one bounded query.
+  Failed evidence probes are cached briefly.
 - Vault takeover now requires proven process death on the same machine;
   lease expiry never displaces a suspended or hung writer. Exact OS birth
   evidence is mandatory at acquisition. Busy refusals name the process and
