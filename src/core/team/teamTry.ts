@@ -15,6 +15,8 @@ import { Usd, sumUsd } from '../../shared/usd'
 import {
   UI_TEXT,
   TEAM_TRY_MAX_REQUESTS,
+  TEAM_TRY_MAX_INPUT_TOKENS,
+  TEAM_TRY_MAX_OUTPUT_TOKENS,
   TEAM_TRY_TIMEOUT_MS,
   TEAM_TRY_MODEL_TEXT,
   MODEL_API_PRICES_PER_MILLION,
@@ -56,9 +58,17 @@ export async function tryTeam(
   let retained = Usd.from(0).toAmount()
   const guard: ResponseAttemptGuard = Object.assign(check, {
     onRequestStarted: deps.noteDispatched,
-    reserveUsage: async (maximum: { readonly costUsd?: UsdAmount | undefined }) => {
+    reserveUsage: async (maximum: {
+      readonly costUsd?: UsdAmount | undefined
+      readonly inputTokens?: number | undefined
+    }) => {
       check()
-      if (attempts >= TEAM_TRY_MAX_REQUESTS || maximum.costUsd === undefined)
+      if (
+        attempts >= TEAM_TRY_MAX_REQUESTS ||
+        maximum.costUsd === undefined ||
+        maximum.inputTokens === undefined ||
+        maximum.inputTokens > TEAM_TRY_MAX_INPUT_TOKENS
+      )
         throw new Error(UI_TEXT.teamBudgetUnavailable)
       const claim = await deps.reserve(maximum.costUsd)
       openClaim = claim
@@ -70,12 +80,10 @@ export async function tryTeam(
         const isUncertain =
           outcome.kind === 'ambiguous' ||
           (outcome.kind === 'billed' && outcome.usage.costUsd === undefined)
+        const billedCost =
+          outcome.kind === 'billed' ? (outcome.usage.costUsd ?? maximum.costUsd) : undefined
         const cost =
-          outcome.kind === 'released'
-            ? Usd.from(0).toAmount()
-            : outcome.kind === 'billed' && outcome.usage.costUsd !== undefined
-              ? outcome.usage.costUsd
-              : maximum.costUsd
+          outcome.kind === 'released' ? Usd.from(0).toAmount() : (billedCost ?? maximum.costUsd)
         if (cost === undefined) throw new Error(UI_TEXT.teamBudgetUnavailable)
         await claim.settle(cost, isUncertain)
         if (outcome.kind === 'billed') deps.noteUsage(outcome.usage)
@@ -157,7 +165,8 @@ export function teamTryConfirmation(model: ModelSummary): TeamWorkerConfirmation
     role: UI_TEXT.teamOrchestrator,
     ...(provider !== undefined && { provider }),
     modelId: model.modelId,
-    taskCeilingTokens: 0,
+    taskCeilingTokens:
+      TEAM_TRY_MAX_REQUESTS * (TEAM_TRY_MAX_INPUT_TOKENS + TEAM_TRY_MAX_OUTPUT_TOKENS),
     rates: {
       input: Number(input),
       output: Number(output),

@@ -4057,6 +4057,27 @@ describe('ConversationController: team server and orchestrator slot (M96 lane T)
       modelId: 'saved-model',
     })
   })
+
+  it('applies saved orchestrator effort before the first turn', async () => {
+    const target = new FakeAgentHost([
+      {
+        modelId: 'saved-model',
+        displayLabel: 'Saved',
+        contextLimit: undefined,
+        isDefault: true,
+        isActive: false,
+      },
+    ])
+    target.info = { ...target.info, kind: 'modelApi' }
+    const t = setup({
+      orchestratorSlot: {
+        resolveForNewConversation: () =>
+          Promise.resolve({ host: target, modelId: 'saved-model', settings: { effort: 'high' } }),
+      },
+    })
+    await t.send('configured', 'hello')
+    expect(target.sessions[0]?.setReasoningEffort).toHaveBeenCalledWith('high')
+  })
   it('does not open a conversation after an override resolution outlives its surface', async () => {
     const gate = Promise.withResolvers<{ host: AgentHost; modelId: string } | undefined>()
     const resolve = vi.fn(() => gate.promise)

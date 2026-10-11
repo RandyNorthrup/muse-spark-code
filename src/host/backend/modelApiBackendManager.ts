@@ -202,6 +202,7 @@ const MANAGER_DISPOSED = 'The Model API backend was stopped while it was startin
 
 /** What differs between the window's host and a best-of-N attempt's host. */
 interface HostVariant {
+  readonly outputCap?: number | undefined
   readonly ownsPaidBudget?: boolean | undefined
   readonly toolAllowlist?: readonly string[] | undefined
 
@@ -400,11 +401,14 @@ export class ModelApiBackendManager {
         ...(this.deps.argumentPreviewCapabilities !== undefined && {
           argumentPreviewCapabilities: this.deps.argumentPreviewCapabilities,
         }),
-        ...((variant.ownsPaidBudget === true || this.deps.modelOutputMaxTokens !== undefined) && {
+        ...((variant.outputCap !== undefined ||
+          variant.ownsPaidBudget === true ||
+          this.deps.modelOutputMaxTokens !== undefined) && {
           modelOutputMaxTokens: (modelId) =>
-            variant.ownsPaidBudget
+            variant.outputCap ??
+            (variant.ownsPaidBudget
               ? TEAM_TRY_MAX_OUTPUT_TOKENS
-              : (this.deps.modelOutputMaxTokens?.(modelId) ?? MODEL_API_MAX_OUTPUT_TOKENS),
+              : (this.deps.modelOutputMaxTokens?.(modelId) ?? MODEL_API_MAX_OUTPUT_TOKENS)),
         }),
         ...(this.deps.sideCallFormats !== undefined && {
           sideCallFormats: this.deps.sideCallFormats,
@@ -503,6 +507,7 @@ export class ModelApiBackendManager {
     noteUsage: ((modelId: string, usage: SubagentUsage) => void) | undefined,
     budgetScope: OwnedSessionBudgetScope | undefined,
     kind: {
+      readonly outputCap?: number | undefined
       readonly isIndependentPreview?: boolean
       readonly toolAllowlist?: readonly string[] | undefined
       readonly usageKind: 'bestOfN' | 'worker'
@@ -529,6 +534,7 @@ export class ModelApiBackendManager {
       attemptVerify === undefined ? undefined : { ...attemptVerify, checkCommands: () => [] }
     try {
       return await this.createHost({
+        outputCap: kind.outputCap,
         ownsPaidBudget: kind.isIndependentPreview,
         toolAllowlist: kind.toolAllowlist,
         verify,
@@ -662,6 +668,7 @@ export class ModelApiBackendManager {
     noteUsage: (modelId: string, usage: SubagentUsage) => void,
     budgetScope: OwnedSessionBudgetScope | undefined,
     fenceIo: (io: ToolIo) => ToolIo,
+    outputCap?: number,
   ): Promise<ModelApiHost> {
     return await this.worktreeHost(worktreeRoot, admitRequest, noteUsage, budgetScope, {
       usageKind: 'worker',
@@ -670,6 +677,7 @@ export class ModelApiBackendManager {
       shellRefusal: MODEL_TEXT.shellTeamWorker,
       readyMessage: 'Model API team worker host ready in its working copy',
       fenceIo,
+      outputCap,
     })
   }
 

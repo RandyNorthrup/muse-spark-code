@@ -18,7 +18,7 @@ import type { TeamCap, TeamPoolEntry, TeamRoleConfig, TeamSnapshot } from '../..
 import { TEAM_WORKSPACE_KEYS, decideTeamConversationMode } from '../../src/shared/teamConversation'
 import { TeamHostBinding } from '../../src/host/teamHostBinding'
 import type { EngineTeamPortsDeps } from '../../src/host/team/teamEnginePorts'
-import { TEAM_MODEL_TEXT, UI_TEXT } from '../../src/shared/constants'
+import { TEAM_MODEL_TEXT, UI_TEXT, HOOK_MAX_STOP_CONTINUATIONS } from '../../src/shared/constants'
 
 const ORCHESTRATOR = 'muse-spark-1.3'
 const WORKER_MODEL = 'other-model-7'
@@ -1708,4 +1708,151 @@ it('R6 final claims: unknown-priced receipt retains labelled liability with no o
   } finally {
     await service.dispose()
   }
+})
+
+const hookRig = (stored: TeamSnapshot, shouldRefuseSwitch = false) => {
+  const h = harness(stored)
+  const events: { event: string; fields: Readonly<Record<string, unknown>> }[] = []
+  const service = createTeamHostService({
+    ...h.deps,
+    hooks: {
+      relativePath: () => 'agents/task',
+      fire: (_session, event, fields) => {
+        events.push({ event, fields })
+        return Promise.resolve({
+          keepWorking: event === 'TeammateIdle',
+          refusedReason:
+            shouldRefuseSwitch && event === 'TeamAgentSwitch' ? 'refused switch' : undefined,
+        })
+      },
+    },
+  })
+  return { h, service, events }
+}
+
+describe('team lifecycle hook firing', () => {
+  it('fires Start once and Stop once with the actual child session after cancellation', async () => {
+    const t = hookRig(team([entry('one', WORKER_MODEL)]))
+    await t.service.probeEntries()
+    await t.service.teamRunner.delegate(delegateOne, context())
+    await settle()
+    t.h.started[0]?.meter.noteSession?.('actual-child')
+    await t.service.stopTask('task-1')
+    t.h.finish(0)
+    await settle()
+    expect(t.events.map((item) => item.event)).toEqual(['SubagentStart', 'SubagentStop'])
+    expect(t.events[0]?.fields).not.toHaveProperty('child_session_id')
+    expect(t.events[1]?.fields).toMatchObject({
+      child_session_id: 'actual-child',
+      task_id: 'task-1',
+      parent_session_id: 's1',
+      role_id: 'engineering',
+    })
+    await t.service.dispose()
+  })
+  it('never repeats Stop when its first hook completion fails', async () => {
+    const h = harness(team([entry('one', WORKER_MODEL)]))
+    let stops = 0
+    const service = createTeamHostService({
+      ...h.deps,
+      hooks: {
+        relativePath: () => 'agents/task',
+        fire: (_session, event) => {
+          if (event === 'SubagentStop') {
+            stops += 1
+            if (stops === 1) return Promise.reject(new Error('hook failed'))
+          }
+          return Promise.resolve({ keepWorking: false })
+        },
+      },
+    })
+    await service.probeEntries()
+    await service.teamRunner.delegate(delegateOne, context())
+    await settle()
+    h.finish(0)
+    await settle()
+    expect(stops).toBe(1)
+    await service.dispose()
+  })
+  it('records and refuses one switch, exhausting the role without a third fallback', async () => {
+    const first = {
+      ...entry('one', WORKER_MODEL),
+      caps: [{ measure: 'tasks', window: 'day', amount: 1 }],
+    } satisfies TeamPoolEntry
+    const t = hookRig(
+      team([first, entry('two', 'second-model'), entry('three', 'third-model')]),
+      true,
+    )
+    await t.service.probeEntries()
+    await t.service.teamRunner.delegate(delegateOne, context())
+    await settle()
+    t.h.finish(0)
+    await settle()
+    await t.service.teamRunner.delegate(delegateOne, context())
+    await settle()
+    await t.service.teamRunner.delegate(delegateOne, context())
+    await settle()
+    expect(t.h.started).toHaveLength(1)
+    expect(t.events.filter((item) => item.event === 'TeamAgentSwitch')).toHaveLength(1)
+    expect(t.events.find((item) => item.event === 'TeamAgentSwitch')?.fields).toMatchObject({
+      from_entry_id: 'one',
+      to_entry_id: 'two',
+      reason: 'cap',
+      role_id: 'engineering',
+    })
+    expect(t.h.cards.filter((item) => item.item.kind === 'teamSwitch')).toHaveLength(1)
+    await t.service.dispose()
+  })
+  it('does not fire Idle after a worker reaches its request ceiling', async () => {
+    const t = hookRig(team([entry('one', WORKER_MODEL)]))
+    await t.service.probeEntries()
+    await t.service.teamRunner.delegate(
+      { tasks: [delegateOne.tasks[0], delegateOne.tasks[0]] },
+      context(),
+    )
+    await settle()
+    t.h.finish(0, { isCeilingReached: true })
+    await settle()
+    expect(t.events.filter((item) => item.event === 'TeammateIdle')).toEqual([])
+    t.h.finish(1)
+    await settle()
+    await t.service.dispose()
+  })
+  it('re-admits Idle continuations on the same copy and bounds them', async () => {
+    const t = hookRig(team([entry('one', WORKER_MODEL)]))
+    await t.service.probeEntries()
+    await t.service.teamRunner.delegate(
+      { tasks: [delegateOne.tasks[0], delegateOne.tasks[0]] },
+      context(),
+    )
+    await settle()
+    t.h.finish(0, { isCeilingReached: false })
+    await settle()
+    expect(t.h.started[2]?.continueFrom?.folder).toBe('/copies/x')
+    for (let index = 2; index < 2 + HOOK_MAX_STOP_CONTINUATIONS; index += 1) {
+      t.h.finish(index, { isCeilingReached: false })
+      await settle()
+    }
+    expect(t.events.filter((item) => item.event === 'TeammateIdle')).toHaveLength(
+      HOOK_MAX_STOP_CONTINUATIONS,
+    )
+    expect(t.events.filter((item) => item.event === 'SubagentStart')).toHaveLength(2)
+    t.h.finish(1)
+    await settle()
+    expect(t.events.filter((item) => item.event === 'SubagentStop')).toHaveLength(2)
+    await t.service.dispose()
+  })
+  it('keeps Idle siblings within their delegate call', async () => {
+    const t = hookRig(team([entry('one', WORKER_MODEL)]))
+    await t.service.probeEntries()
+    await t.service.teamRunner.delegate({ ...delegateOne, pipeline: 'shared' }, context())
+    await t.service.teamRunner.delegate({ ...delegateOne, pipeline: 'shared' }, context())
+    await settle()
+    t.h.finish(0, { isCeilingReached: false })
+    await settle()
+    expect(t.events.filter((item) => item.event === 'TeammateIdle')).toEqual([])
+    t.h.finish(1)
+    await settle()
+    await t.service.dispose()
+  })
 })

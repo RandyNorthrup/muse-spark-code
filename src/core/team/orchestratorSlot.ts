@@ -7,11 +7,12 @@
 // started on. Pure: workspace state arrives structurally (core never imports
 // `vscode`), and the backend switch itself stays with M95's lane U.
 
-import { teamSnapshotSchema } from '../../shared/teamConfig'
+import { teamSnapshotSchema, type TeamModelSettings } from '../../shared/teamConfig'
 import { TEAM_WORKSPACE_KEYS } from '../../shared/teamConversation'
 
 /** A workspace's orchestrator override: a model on either backend. */
 export interface OrchestratorOverride {
+  readonly settings?: TeamModelSettings | undefined
   readonly modelId: string
   readonly backend: 'modelApi' | 'musecode'
 }
@@ -29,7 +30,14 @@ export function readOrchestratorOverride(
   const result = teamSnapshotSchema.safeParse(state.get(TEAM_WORKSPACE_KEYS.team))
   const agent = result.success ? result.data.orchestrator?.agent : undefined
   if (agent === undefined || agent.kind === 'external') return
-  return { modelId: agent.model, backend: agent.kind === 'engine' ? 'modelApi' : 'musecode' }
+  return {
+    modelId: agent.model,
+    backend: agent.kind === 'engine' ? 'modelApi' : 'musecode',
+    ...(result.success &&
+      result.data.orchestrator?.settings !== undefined && {
+        settings: result.data.orchestrator.settings,
+      }),
+  }
 }
 
 /** Reset to Default: forget the stored override, so the picker decides again. */

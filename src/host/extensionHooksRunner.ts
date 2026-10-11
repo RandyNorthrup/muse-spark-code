@@ -34,7 +34,11 @@ import {
   type FileChangedThrottle,
   type SetupTrigger,
 } from '../core/backends/modelapi/extensionHooks'
-import type { HookLoadDeps } from '../core/backends/modelapi/hooks'
+import {
+  dispatchHooks,
+  loadHookDefinitions,
+  type HookLoadDeps,
+} from '../core/backends/modelapi/hooks'
 import type { ContextIo } from '../core/context/contextFiles'
 import { isProtectedPath } from '../core/protectedPaths'
 import { confineWorkspacePath, resolveWorkspacePath } from '../core/workspacePath'
@@ -162,6 +166,49 @@ export class ExtensionHookRunner {
       this.deps.notice('info', message)
     }
     return dispatch
+  }
+
+  public async teamEvent(
+    sessionId: string,
+    event: 'TeamAgentSwitch' | 'SubagentStart' | 'SubagentStop' | 'TeammateIdle',
+    fields: Readonly<Record<string, unknown>>,
+    matcher: string,
+    signal: AbortSignal | undefined,
+  ): Promise<{ refusedReason?: string | undefined; keepWorking: boolean }> {
+    if (!this.isArmed()) return { keepWorking: false }
+    if (event === 'SubagentStart' || event === 'SubagentStop') {
+      const hooks = await loadHookDefinitions(this.loadDeps)
+      if (!this.isArmed()) return { keepWorking: false }
+      const dispatch = await dispatchHooks(
+        hooks,
+        event,
+        { hook_event_name: event, session_id: sessionId, cwd: this.deps.workspaceRoot, ...fields },
+        matcher,
+        { runHook: this.deps.runHook },
+        signal,
+        this.deps.warn,
+      )
+      for (const message of dispatch.messages) this.deps.notice('info', message)
+      return { refusedReason: dispatch.blockedReason ?? dispatch.stopReason, keepWorking: false }
+    }
+    await this.reload()
+    const dispatch = await dispatchExtensionHooks({
+      hooks: this.hooks,
+      event,
+      payload: extensionHookPayload(
+        event,
+        { sessionId, workspaceRoot: this.deps.workspaceRoot },
+        fields,
+      ),
+      matcherValue: matcher,
+      io: { runHook: this.deps.runHook },
+      cwd: this.deps.workspaceRoot,
+      signal,
+      warn: this.deps.warn,
+      isAllowed: () => this.isArmed(),
+    })
+    for (const message of dispatch.messages) this.deps.notice('info', message)
+    return { refusedReason: dispatch.refusedReason, keepWorking: dispatch.keepWorking }
   }
 
   public async reload(): Promise<void> {

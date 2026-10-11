@@ -15792,6 +15792,13 @@ export class ModelApiSession implements ScheduledAgentSession {
     )
   }
 
+  public setOutputCap(cap: number): Promise<void> {
+    if (!Number.isSafeInteger(cap) || cap < 1)
+      return Promise.reject(new RangeError('invalid output.maxTokens'))
+    this.outputCaps.set(this.modelId, outputLimitFor(this.modelPolicy(), cap))
+    return Promise.resolve()
+  }
+
   public setReasoningEffort(reasoningEffort: string): Promise<void> {
     if (reasoningEffort === '') {
       return Promise.reject(new Error('reasoning effort must not be empty'))

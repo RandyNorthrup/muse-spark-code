@@ -7497,6 +7497,8 @@ export const TEAM_BOOTSTRAP_MODEL_TEXT = {
 // starts with the same bytes.
 
 /** Native discovery shapes committed under docs/certification/m95-captures. */
+export const TEAM_BOUND_SETTING_KEYS: readonly string[] = ['effort', 'outputCap']
+export const TEAM_TRY_MAX_INPUT_TOKENS = 4096
 export const TEAM_TRY_MAX_REQUESTS = 3
 export const TEAM_TRY_MAX_OUTPUT_TOKENS = 2048
 export const TEAM_TRY_TIMEOUT_MS = 120_000

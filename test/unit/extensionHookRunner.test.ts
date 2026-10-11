@@ -403,3 +403,94 @@ describe('ExtensionHookRunner', () => {
     expect(t.notices).toEqual([{ level: 'info', text: 'setup finished' }])
   })
 })
+
+describe('team hooks on either backend', () => {
+  it('reads lifecycle hooks from hooks.json and team decisions from spark-hooks.json', async () => {
+    const t = setup({
+      files: {
+        [`${ROOT}/.muse/hooks.json`]: JSON.stringify({
+          hooks: {
+            SubagentStart: [
+              { matcher: 'engineering', hooks: [{ type: 'command', command: 'start' }] },
+            ],
+            SubagentStop: [
+              { matcher: 'engineering', hooks: [{ type: 'command', command: 'stop' }] },
+            ],
+          },
+        }),
+        [PROJECT_HOOKS]: sparkDoc({
+          TeamAgentSwitch: [
+            { matcher: 'engineering', hooks: [{ type: 'command', command: 'switch' }] },
+          ],
+          TeammateIdle: [{ matcher: '*', hooks: [{ type: 'command', command: 'idle' }] }],
+        }),
+      },
+      runHook: (command) =>
+        hookResult(command === 'switch' || command === 'idle' ? 'declined' : '', {
+          exitCode: command === 'switch' || command === 'idle' ? 2 : 0,
+          stderr: command === 'switch' || command === 'idle' ? 'declined' : '',
+        }),
+    })
+    await t.runner.teamEvent(
+      'parent',
+      'SubagentStart',
+      { agent_type: 'engineering' },
+      'engineering',
+      undefined,
+    )
+    await t.runner.teamEvent(
+      'parent',
+      'SubagentStop',
+      { agent_type: 'engineering' },
+      'engineering',
+      undefined,
+    )
+    const switched = await t.runner.teamEvent(
+      'parent',
+      'TeamAgentSwitch',
+      { role_id: 'engineering' },
+      'engineering',
+      undefined,
+    )
+    expect(switched.refusedReason).toBeDefined()
+    const idle = await t.runner.teamEvent(
+      'parent',
+      'TeammateIdle',
+      { teammate_name: 'task-1' },
+      'task-1',
+      undefined,
+    )
+    expect(idle.keepWorking).toBe(true)
+    expect(t.hookRuns.map((item) => item.command)).toEqual(['start', 'stop', 'switch', 'idle'])
+    expect(t.hookRuns.every((item) => item.payload['session_id'] === 'parent')).toBe(true)
+  })
+})
+
+it('does not fire team hooks while opted out or untrusted', async () => {
+  for (const isTrusted of [false, true]) {
+    const t = setup({
+      isWorkspaceTrusted: () => isTrusted,
+      isHooksEnabled: () => !isTrusted,
+      files: {
+        [PROJECT_HOOKS]: sparkDoc({
+          TeamAgentSwitch: [{ matcher: '*', hooks: [{ type: 'command', command: 'switch' }] }],
+        }),
+      },
+    })
+    await t.runner.teamEvent(
+      'parent',
+      'TeamAgentSwitch',
+      { role_id: 'engineering' },
+      'engineering',
+      undefined,
+    )
+    await t.runner.teamEvent(
+      'parent',
+      'SubagentStart',
+      { agent_type: 'engineering' },
+      'engineering',
+      undefined,
+    )
+    expect(t.hookRuns).toEqual([])
+  }
+})
