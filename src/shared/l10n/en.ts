@@ -6241,6 +6241,10 @@ export const EN = {
     // RVCM1091D P2: an item or path collision is not a setup failure.
     itemConflict:
       'An item with the same name is already in the vault, or the source changed during the import. Nothing was added.',
+    // RVCM1091E P2: a Delete refused because the source changed after a
+    // successful import is not told that nothing was added.
+    deleteConflict:
+      'The original file changed after its credentials were imported. Nothing was deleted; the imported items stay in the vault.',
     setupPending: 'Save the recovery code, then confirm to finish setting up the vault.',
     setupCancelled: 'Vault setup was cancelled. Nothing was saved.',
     setupHeadless:
@@ -6316,7 +6320,9 @@ export const EN = {
     seUnavailable: 'Secure Enclave protection is unavailable. Use a passphrase for presence.',
     passphraseWarning:
       'A passphrase is required to unlock. It protects a copied disk and prevents silent unlock by programs running as you.',
-    operationFailed: 'The vault operation failed. Unlock the vault and try again.',
+    // RVCM1091E P3: never names an unlock; the section showing Unlocked
+    // after a failed operation would otherwise be told to unlock it.
+    operationFailed: 'The vault operation failed. Try again.',
     invalidFields: 'Check the grant fields and its target.',
     grantHelp:
       'Every scope below limits this grant. Empty count, expiry or time window means no limit.',

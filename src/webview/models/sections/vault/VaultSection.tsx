@@ -27,8 +27,10 @@ export interface VaultSectionProps {
 export function tierWarning(status: VaultStatus): string {
   if (status.state === 'uncreated') return UI_TEXT.vault.setupNeeded
   if (status.state === 'setupPending') return UI_TEXT.vault.setupPending
+  // RVCM1091E P2: an unreachable broker is not a lost vault — Reset is
+  // never the advice when the files may be fine.
   if (status.state === 'unavailable' || status.reason === 'vaultLost')
-    return UI_TEXT.vault.vaultLost
+    return status.reason === 'brokerBlocked' ? UI_TEXT.vault.brokerBlocked : UI_TEXT.vault.vaultLost
   if (status.reason === 'brokerBlocked' || status.state === 'firstPartyOnly')
     return UI_TEXT.vault.brokerBlocked
   if (status.reason === 'rollback') return UI_TEXT.vault.rollback

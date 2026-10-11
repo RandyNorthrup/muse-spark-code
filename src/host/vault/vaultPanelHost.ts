@@ -83,6 +83,7 @@ function refusalMessage(error: unknown): string {
     UI_TEXT.vault.setupNeeded, // `uncreated`
     UI_TEXT.vault.setupExists, // `exists`
     UI_TEXT.vault.itemConflict, // `conflict`: an item or path collision, never setup
+    UI_TEXT.vault.deleteConflict, // `deleteConflict`: a Delete refused after import
     UI_TEXT.vault.busy, // `busy`
     UI_TEXT.vault.rollback, // `rollback`
     UI_TEXT.vault.storeUnavailable, // `storeUnavailable`
@@ -94,6 +95,11 @@ function refusalMessage(error: unknown): string {
   return error instanceof Error && named.includes(error.message)
     ? error.message
     : UI_TEXT.vault.operationFailed
+}
+
+/** A guard veto (a retired or superseded view), never a failure to show. */
+function isVeto(error: unknown): boolean {
+  return error instanceof Error && error.message === UI_TEXT.vault.useChanged
 }
 
 /** One serialized owner. Lock and disposal synchronously invalidate every older effect. */
@@ -118,9 +124,11 @@ export class VaultPanelHost {
         if (!parsed.success || this.disposed) return
         const event = parsed.data
         // Approval cards never wait behind native editors: a held password
-        // box must not starve another requester's expiring card.
+        // box must not starve another requester's expiring card. A lock in
+        // flight owns the next publish — its settle reloads — so an event
+        // now would only steal the writer and report superseded noise.
         if (event.kind === 'approval') {
-          this.refreshNow()
+          if (!this.lockRequested) this.refreshNow()
           return
         }
         // Metadata changes retire older native editors too: a draft finished
@@ -138,11 +146,14 @@ export class VaultPanelHost {
         // The importing owner reloads after Keep/Delete. Starting another
         // snapshot now would compete with its writer transaction.
         if (event.kind === 'changed' && this.importsInFlight > 0) return
+        // A lock in flight owns the next publish for the same reason: its
+        // settle reloads, applying whatever arrived meanwhile (RVCM1091E P3).
+        if (this.lockRequested) return
         void this.refresh()
       },
       () => {
         // The broker's event stream is down: say so once, never stay silent (F7).
-        this.reportError(this.generation)
+        void this.settleFailure(undefined, this.generation)
       },
     )
   }
@@ -153,6 +164,57 @@ export class VaultPanelHost {
       this.deps.showError(
         error === undefined ? UI_TEXT.vault.operationFailed : refusalMessage(error),
       )
+  }
+
+  /**
+   * The one place every failed operation goes through (RVCM1091E CLASS 1):
+   * the section never keeps an optimistic or stale view. A fresh snapshot
+   * is published first, so a change that arrived while the operation was
+   * failing is applied, not dropped; when no snapshot can be had, the
+   * explicit unavailable state (no item labels) is published instead. Then
+   * the failure is reported — unless it is a retirement a barrier already
+   * put on screen, which stays silent.
+   */
+  private async settleFailure(error: unknown, generation: number): Promise<void> {
+    if (this.disposed) return
+    // A retirement a barrier already put on screen stays silent.
+    if (isVeto(error) && generation !== this.generation) return
+    try {
+      await this.load(this.generation)
+    } catch (reloadError: unknown) {
+      // A lock still in flight owns the view, and a vetoed reload keeps the
+      // current vetted view (a rollback snapshot never wipes a newer one):
+      // only a real snapshot failure publishes Unavailable.
+      if (this.lockRequested || isVeto(reloadError)) return
+      this.showUnavailable()
+    }
+    this.reportError(this.generation, error)
+  }
+
+  /** No snapshot can be had: say Unavailable with no item labels, never stale. */
+  private showUnavailable(): void {
+    if (this.disposed) return
+    const state: VaultPanelState = {
+      status: {
+        state: 'unavailable',
+        lockEpoch: this.state?.status.lockEpoch ?? 0,
+        tier: null,
+        provider: null,
+        silentUnlock: false,
+        itemCount: 0,
+        reason: 'brokerBlocked',
+      },
+      notices: this.state?.notices,
+      items: [],
+      grants: [],
+      audit: [],
+      pending: [],
+      ambientFiles: this.state?.ambientFiles ?? [],
+    }
+    this.state = state
+    const message = vaultHostMessageSchema.parse({ type: 'vaultState', state })
+    this.deps.publish(structuredClone(message))
+    this.deps.status(false)
   }
 
   private showLocked(lockEpoch?: number): void {
@@ -178,7 +240,7 @@ export class VaultPanelHost {
   private refreshNow(): void {
     const generation = this.generation
     void this.load(generation).catch((error: unknown) => {
-      this.reportError(generation, error)
+      void this.settleFailure(error, generation)
     })
   }
 
@@ -207,7 +269,7 @@ export class VaultPanelHost {
         this.authorize(generation)
         await task(generation)
       } catch (error: unknown) {
-        this.reportError(generation, error)
+        await this.settleFailure(error, generation)
       }
     })()
     return this.queue
@@ -220,8 +282,10 @@ export class VaultPanelHost {
     })
     const state = message.state
     this.authorize(generation)
+    // A refresh that lands while a lock is in flight is superseded by the
+    // lock's own settle, never a "Locked" report (RVCM1091E P3).
     if (this.lockRequested && state.status.state === 'unlocked')
-      throw new Error(UI_TEXT.vault.locked)
+      throw new Error(UI_TEXT.vault.useChanged)
     // An older broker epoch cannot resurrect a locked panel.
     if (this.state !== undefined && state.status.lockEpoch < this.state.status.lockEpoch) {
       throw new Error(UI_TEXT.vault.useChanged)
@@ -245,22 +309,17 @@ export class VaultPanelHost {
   async lock(): Promise<void> {
     if (this.disposed) return
     this.retire(true)
-    const generation = this.generation
     this.showLocked()
     try {
       await this.deps.service.lock()
       await this.refresh()
     } catch (error: unknown) {
       // A failed Lock never stays on screen as Locked: drop the optimistic
-      // view and reload the vault's real snapshot, so later refreshes of the
-      // still-unlocked vault publish it instead of throwing Locked (RVCM1091D P2).
+      // view and settle through the one failure path, so the real snapshot
+      // (with any change that arrived meanwhile) is published and the real
+      // failure is reported even after an intervening retire (RVCM1091E P2/P3).
       this.lockRequested = false
-      try {
-        await this.load(this.generation)
-      } catch {
-        /* The reload loses; the original failure is reported below. */
-      }
-      this.reportError(generation, error)
+      await this.settleFailure(error, this.generation)
     }
   }
 
@@ -325,6 +384,9 @@ export class VaultPanelHost {
         } finally {
           shown.code.fill(0)
         }
+        // Retired while the code dialog stood open: no doomed snapshot that
+        // could steal the writer from the barrier's own work (RVCM1091E).
+        this.authorize(generation)
         await this.load(generation)
         return
       }
@@ -449,25 +511,17 @@ export class VaultPanelHost {
             else await this.deps.service.keepImport(report.receipt)
             authorizeImport()
             await this.load(this.generation)
-          } catch (error: unknown) {
-            if (!this.disposed && !signal.aborted) {
-              // A failed Delete leaves the imported items behind: reload
-              // so the section shows them, not the pre-import snapshot.
-              // Best-effort: the failure below is reported either way.
-              try {
-                await this.load(this.generation)
-              } catch {
-                /* The reload loses; the original failure is reported below. */
-              }
-            }
-            if (generation !== this.generation && !signal.aborted) this.reportError(this.generation)
-            throw error
           } finally {
+            // Failures settle through the one path below: a failed Delete
+            // still reloads, so the imported items left behind are shown.
             this.importsInFlight -= 1
           }
           return
         }
       }
+      // Retired mid-operation: the barrier owns the view, so no doomed
+      // snapshot that could steal the writer from its work (RVCM1091E).
+      this.authorize(generation)
       await this.load(generation)
     })
   }

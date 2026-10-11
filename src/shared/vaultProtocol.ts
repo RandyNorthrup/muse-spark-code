@@ -217,6 +217,9 @@ export const vaultBrokerResponseSchema = z.strictObject({
         // RVCM1091D P2: an item or path collision is not "a vault already
         // exists"; it has its own reason and sentence.
         'conflict',
+        // RVCM1091E P2: a Delete refused because the source changed after a
+        // successful import is not an add/import collision.
+        'deleteConflict',
         'busy',
         'invalid',
         'rollback',
