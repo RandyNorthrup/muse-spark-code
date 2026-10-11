@@ -395,7 +395,6 @@ function CredentialStep({
   onClose,
 }: Omit<WizardProps, 'onNavigateModels'>) {
   const preset = presetOf(panelState, draft)
-  const [connecting, setConnecting] = useState(false)
   if (draft.auth === 'none') {
     return (
       <div className="models-wizard-step">
@@ -433,8 +432,8 @@ function CredentialStep({
           <button
             type="button"
             className="models-button"
+            disabled={draft.connecting === true}
             onClick={() => {
-              setConnecting(true)
               post({ type: 'providers/connect' })
             }}
           >
@@ -454,7 +453,7 @@ function CredentialStep({
           })}
         </p>
       )}
-      {connecting && !draft.connected && (
+      {draft.connecting === true && !draft.connected && (
         <p className="models-hint" role="status">
           {fill(UI_TEXT.providerConnectWaiting, { provider: preset?.label ?? '' })}
         </p>

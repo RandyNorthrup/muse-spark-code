@@ -111,10 +111,13 @@ export type ProviderKey = z.infer<typeof providerKeySchema>
 
 /** OpenRouter's key usage, limit and remainder, in USD. */
 export const providerKeyUsageSchema = z.strictObject({
-  dayUsd: z.optional(z.number()),
-  monthUsd: z.optional(z.number()),
-  limitUsd: z.optional(z.number()),
-  remainingUsd: z.optional(z.number()),
+  totalUsd: z.optional(z.number().check(z.nonnegative())),
+  unlimited: z.optional(z.boolean()),
+  weekUsd: z.optional(z.number().check(z.nonnegative())),
+  dayUsd: z.optional(z.number().check(z.nonnegative())),
+  monthUsd: z.optional(z.number().check(z.nonnegative())),
+  limitUsd: z.optional(z.number().check(z.nonnegative())),
+  remainingUsd: z.optional(z.number().check(z.nonnegative())),
 })
 export type ProviderKeyUsage = z.infer<typeof providerKeyUsageSchema>
 
@@ -137,6 +140,7 @@ export const providerStateSchema = z.strictObject({
   /** Pinned favourites, first in the composer's picker. */
   pinned: z.array(z.string()),
   keyUsage: z.optional(providerKeyUsageSchema),
+  keyUsageError: z.optional(z.string()),
   lastScannedAtMs: z.optional(z.number()),
 })
 export type ProviderState = z.infer<typeof providerStateSchema>
@@ -285,6 +289,7 @@ export const panelDraftSchema = z.strictObject({
   keyShapeOk: z.boolean(),
   /** OpenRouter's OAuth connect completed (the key arrived with no paste). */
   connected: z.boolean(),
+  connecting: z.optional(z.boolean()),
   costAccepted: z.boolean(),
   /** One queued Save owns this draft until it settles. */
   saving: z.optional(z.boolean()),
@@ -464,6 +469,7 @@ export const panelToHostMessageSchema = z.discriminatedUnion('type', [
     acceptCost: z.boolean(),
     providerId: z.optional(z.string()),
   }),
+  z.strictObject({ type: z.literal('providers/readUsage') }),
   // `next` and `back` walk the wizard; `cancel` discards the open draft
   // (the wizard's, or one provider's edit) with nothing saved. Confirming
   // is `providers/save`.

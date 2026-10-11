@@ -7,6 +7,17 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- OpenRouter account connection now completes browser authorization without
+  copying a key in local editor windows. Remote windows and ACP terminal
+  authentication accept the single-use code; the returned key stays in the
+  system credential store. New setups retain ZDR routing.
+- Models & Agents and Account & usage show OpenRouter’s key usage, limit and
+  remaining balance from its free key endpoint. Terminal `providers connect
+  openrouter` and `providers usage <id>` share those paths, with fixed failure
+  text and no credentials in UI state or output.
+
 ### Pending
 
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached

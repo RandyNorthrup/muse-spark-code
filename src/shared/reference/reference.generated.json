@@ -59,7 +59,7 @@
       "details": [
         {
           "conditions": [
-            { "when": "openRouterServices=absent", "text": { "ui": "providerOpenRouterServices" } }
+            { "when": "provider=openrouter", "text": { "ui": "providerOpenRouterServices" } }
           ]
         },
         { "ui": "pricePerMillion" },
@@ -4383,6 +4383,22 @@
       "name": "providers list",
       "description": "List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.",
       "text": { "ui": "referenceProviders" }
+    },
+    {
+      "route": "openRouterConnect",
+      "name": "providers connect openrouter",
+      "description": "Connect your OpenRouter account and view the key’s usage, limit and remaining balance.",
+      "text": {
+        "conditions": [
+          { "when": "provider=openrouter", "text": { "ui": "providerOpenRouterServices" } }
+        ]
+      }
+    },
+    {
+      "route": "providerKeyUsage",
+      "name": "providers usage <id>",
+      "description": "API Key Usage",
+      "text": { "ui": "usageKeyUsage" }
     },
     {
       "route": "providersAdd",

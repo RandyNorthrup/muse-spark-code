@@ -146,7 +146,7 @@ function typeBudget(value: string): void {
 }
 
 describe('ProvidersSection', () => {
-  it('hides unavailable OpenRouter connect and usage with an honest status (PR136 VE)', () => {
+  it('keeps optional OAuth actions hidden and absent usage unknown when a host does not supply bindings', () => {
     const post = vi.fn()
     const state = makeState({
       providers: [makeProvider({ id: 'openrouter', presetId: 'openrouter', auth: 'apiKey' })],
@@ -154,11 +154,7 @@ describe('ProvidersSection', () => {
     state.presets = state.presets.map((preset) => ({ ...preset, connectOAuth: false }))
     const { rerender } = render(<ProvidersSection {...props(state, post)} />)
     expect(screen.queryByRole('button', { name: UI_TEXT.reconnectAccount })).toBeNull()
-    expect(
-      screen.getByText(
-        'OpenRouter account connection and key usage are unavailable. Paste a key to use models.',
-      ),
-    ).toBeDefined()
+    expect(screen.queryByText(UI_TEXT.usageKeyUsage)).toBeNull()
     rerender(
       <ProvidersSection
         {...props(
@@ -178,7 +174,7 @@ describe('ProvidersSection', () => {
     expect(screen.queryByRole('button', { name: 'Connect OpenRouter Account' })).toBeNull()
     expect(
       screen.getByText(
-        'OpenRouter account connection and key usage are unavailable. Paste a key to use models.',
+        'Connect your OpenRouter account and view the key’s usage, limit and remaining balance.',
       ),
     ).toBeDefined()
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.enterKey }))
@@ -406,11 +402,21 @@ describe('ProvidersSection', () => {
         wizard: makeDraft({ step: 'credential', presetId: 'openrouter' }),
       },
     })
-    render(<ProvidersSection {...props(state, post, { wizardOpen: true })} />)
+    const { rerender } = render(<ProvidersSection {...props(state, post, { wizardOpen: true })} />)
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.enterKey }))
     expect(post).toHaveBeenCalledWith({ type: 'providers/enterKey', mode: 'new' })
     fireEvent.click(screen.getByRole('button', { name: 'Connect OpenRouter Account' }))
     expect(post).toHaveBeenCalledWith({ type: 'providers/connect' })
+    const draft = state.drafts.wizard
+    if (draft === undefined) throw new Error('Expected a wizard draft')
+    draft.connecting = true
+    rerender(<ProvidersSection {...props(state, post, { wizardOpen: true })} />)
+    expect(screen.getByRole('button', { name: 'Connect OpenRouter Account' })).toBeDisabled()
+    expect(screen.getByText('Waiting for OpenRouter in the browser…')).toBeVisible()
+    draft.connecting = false
+    rerender(<ProvidersSection {...props(state, post, { wizardOpen: true })} />)
+    expect(screen.getByRole('button', { name: 'Connect OpenRouter Account' })).toBeEnabled()
+    expect(screen.queryByText('Waiting for OpenRouter in the browser…')).toBeNull()
   })
 
   it('tests free, then accepts the paid check only after its cost', async () => {

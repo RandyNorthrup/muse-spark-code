@@ -552,6 +552,7 @@ export interface ConversationDeps {
   readonly uploadedFiles?: ConversationUploadedFilesPort
   /** The usage modal's insights from the CLI's trace logs (M14); undefined without logs. */
   readonly usageInsights: () => Promise<UsageInsightsReport | undefined>
+  readonly readProviderKeyUsage?: () => Promise<readonly ProviderUsageRow[]>
   /** Whether this surface resumes its last session when it reopens (the sidebar). */
   readonly isRestorable: boolean
   /** Voice dictation (M9): the platform's helper, or why there is none. */
@@ -9179,6 +9180,24 @@ export class ConversationController {
       }
     }
     const insights = host.info.kind === 'museCode' ? await this.deps.usageInsights() : undefined
+    if (this.deps.readProviderKeyUsage !== undefined) {
+      try {
+        const observations = await this.deps.readProviderKeyUsage()
+        for (const observation of observations) {
+          const existing = providers.find((row) => row.providerId === observation.providerId)
+          if (existing === undefined) providers.push(observation)
+          else
+            Object.assign(existing, {
+              providerLabel: observation.providerLabel,
+              keyUsage: observation.keyUsage,
+              keyUsageError: observation.keyUsageError,
+            })
+        }
+      } catch {
+        // A fixed failure is logged; the existing token and spend rows still render.
+        this.deps.log.warn('Provider key usage could not be read')
+      }
+    }
     // An older read or a stopped host must not replace a newer observation.
     if (!this.canPostUsage(host) || this.latestUsage !== shown) {
       return

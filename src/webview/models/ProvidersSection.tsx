@@ -90,15 +90,20 @@ function TestLine({
 }
 
 function KeyUsage({ provider }: { readonly provider: ProviderState }) {
+  if (provider.keyUsageError !== undefined) {
+    return (
+      <p className="models-hint" role="status">
+        {provider.keyUsageError}
+      </p>
+    )
+  }
   const usage = provider.keyUsage
   if (usage === undefined) {
-    return provider.presetId === 'openrouter' ? (
-      <p className="models-hint" role="status">
-        {UI_TEXT.providerOpenRouterServices}
-      </p>
-    ) : null
+    return null
   }
   const rows: (readonly [string, number])[] = []
+  if (usage.totalUsd !== undefined) rows.push([UI_TEXT.usageKeyTotal, usage.totalUsd])
+  if (usage.weekUsd !== undefined) rows.push([UI_TEXT.usageWeekly, usage.weekUsd])
   if (usage.dayUsd !== undefined) {
     rows.push([UI_TEXT.usageToday, usage.dayUsd])
   }
@@ -118,6 +123,12 @@ function KeyUsage({ provider }: { readonly provider: ProviderState }) {
     <div className="models-key-usage">
       <h4>{UI_TEXT.usageKeyUsage}</h4>
       <dl className="models-usage">
+        {usage.unlimited === true ? (
+          <div className="models-usage-row">
+            <dt>{UI_TEXT.usageLimit}</dt>
+            <dd>{UI_TEXT.usageUnlimited}</dd>
+          </div>
+        ) : null}
         {rows.map(([label, usd]) => (
           <div key={label} className="models-usage-row">
             <dt>{label}</dt>
@@ -287,6 +298,17 @@ function ProviderRow({
         }}
       />
       <KeyUsage provider={provider} />
+      {provider.presetId === 'openrouter' && provider.key.state === 'stored' ? (
+        <button
+          type="button"
+          className="models-button"
+          onClick={() => {
+            post({ type: 'providers/readUsage' })
+          }}
+        >
+          {UI_TEXT.gitRefresh}
+        </button>
+      ) : null}
       <ScanStatus
         scan={panelState.scans[provider.id]}
         onRefresh={() => {

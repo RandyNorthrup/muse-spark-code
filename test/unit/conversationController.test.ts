@@ -419,6 +419,7 @@ function setup(
     /** The usage modal's insights (M14). */
     usageInsights?: { day: UsageInsights; week: UsageInsights }
     usageRecording?: ConversationDeps['usageRecording']
+    readProviderKeyUsage?: ConversationDeps['readProviderKeyUsage']
     /** Voice dictation (M9). */
     dictation?: DictationSetup
     /** Muse Voice when it is the microphone's engine (M35). */
@@ -739,6 +740,9 @@ function setup(
       ),
     usageInsights: () => Promise.resolve(options.usageInsights),
     ...(options.usageRecording !== undefined && { usageRecording: options.usageRecording }),
+    ...(options.readProviderKeyUsage !== undefined && {
+      readProviderKeyUsage: options.readProviderKeyUsage,
+    }),
     ...(options.uploadedFiles !== undefined && { uploadedFiles: options.uploadedFiles }),
     ensureHost: async () => {
       await options.beforeEnsureHost?.()
@@ -4585,7 +4589,27 @@ describe('ConversationController: account & usage (M8)', () => {
           },
         ]),
     }
-    const t = setup({ usageRecording })
+    const t = setup({
+      usageRecording,
+      readProviderKeyUsage: () =>
+        Promise.resolve([
+          {
+            providerId: 'openrouter',
+            providerLabel: 'OpenRouter',
+            pricing: 'priced',
+            inputTokens: 99,
+            outputTokens: 99,
+            keyUsage: {
+              totalUsd: 1,
+              todayUsd: 0.2,
+              weekUsd: 0.5,
+              monthUsd: 1,
+              limitUsd: 2,
+              remainingUsd: 1,
+            },
+          },
+        ]),
+    })
     expect(await firstUsageReport(t)).toMatchObject({
       providers: [
         {
@@ -4605,10 +4629,11 @@ describe('ConversationController: account & usage (M8)', () => {
         },
         {
           providerId: 'openrouter',
-          providerLabel: 'openrouter',
+          providerLabel: 'OpenRouter',
           pricing: 'priced',
           inputTokens: 0,
           outputTokens: 0,
+          keyUsage: { totalUsd: 1, limitUsd: 2, remainingUsd: 1 },
         },
       ],
     })

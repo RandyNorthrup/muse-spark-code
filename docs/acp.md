@@ -192,6 +192,19 @@ captured plan-key preset is marked **plan**, links its limits, and records
 request/token tallies outside USD caps. No Meta key is needed for its
 inference. General `providers list|add|test|remove` commands and
 `auth set|status|clear --provider <id>` use the same origin-bound records.
+
+`muse-spark-code-acp providers connect openrouter` prints OpenRouter’s
+PKCE authorization URL. Open it, authorize, then paste the displayed
+single-use code at the hidden prompt; the returned key is never printed.
+The same route is offered in ACP’s terminal authentication UI alongside
+pasting an OpenRouter key and viewing its usage. It works in remote editors
+without a loopback listener. After connecting, `providers add --preset
+openrouter --model <native-model-id>` uses the stored key, with ZDR routing
+by default. `muse-spark-code-acp providers usage openrouter` shows total,
+daily, weekly and monthly key usage, limit and remaining balance; a saved
+OpenRouter alias can replace `openrouter`. Usage reads cost no credits and
+make no model call. Failure text contains no service response or secret.
+
 Free probes use the shared request transport. `exec --provider` validates its
 configuration and key, but refuses before dispatch: its production runner
 still needs provider-aware budget admission and settlement. No supported

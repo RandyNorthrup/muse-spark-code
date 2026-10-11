@@ -26,7 +26,7 @@ Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/m
 
 Add a model provider with an API key and pick a model.
 
-openRouterServices=absent: OpenRouter account connection and key usage are unavailable. Paste a key to use models.
+provider=openrouter: Connect your OpenRouter account and view the key’s usage, limit and remaining balance.
 
 Prices per million tokens.
 
@@ -3364,6 +3364,8 @@ These are defaults; editor customizations take precedence.
 - `usage [summary|daily|models|limits|export|open|serve] [options] / --usage --json`: Show usage and cost across models, or open the usage page.
 - `exec legal-scan --json / legal [--format text|json] [--out <file>] [--registry]`: Scan the workspace for licensing, attribution and header findings
 - `providers list`: List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.
+- `providers connect openrouter`: Connect your OpenRouter account and view the key’s usage, limit and remaining balance.
+- `providers usage <id>`: API Key Usage
 - `providers add --preset <preset> [--as <id>] [--address <url>] [--model <model>] [--privacy <policy>] [--private-ok] [--key-stdin]`: Add a model provider with an API key and pick a model.
 - `providers test <id>`: List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.
 - `providers remove <id>`: List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.

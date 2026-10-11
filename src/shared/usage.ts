@@ -69,12 +69,16 @@ export const providerUsageRowSchema = z.object({
   inputTokens: z.number(),
   outputTokens: z.number(),
   costUsd: z.optional(z.number()),
+  keyUsageError: z.optional(z.string()),
   keyUsage: z.optional(
     z.object({
-      todayUsd: z.number(),
-      monthUsd: z.number(),
-      limitUsd: z.optional(z.number()),
-      remainingUsd: z.optional(z.number()),
+      totalUsd: z.optional(z.number().check(z.nonnegative())),
+      unlimited: z.optional(z.boolean()),
+      weekUsd: z.optional(z.number().check(z.nonnegative())),
+      todayUsd: z.number().check(z.nonnegative()),
+      monthUsd: z.number().check(z.nonnegative()),
+      limitUsd: z.optional(z.number().check(z.nonnegative())),
+      remainingUsd: z.optional(z.number().check(z.nonnegative())),
     }),
   ),
 })

@@ -3513,6 +3513,12 @@ async function activateWindow(
             }
           },
           usageInsights: () => insights.read(),
+          readProviderKeyUsage: async () => {
+            // A Meta-only window keeps the optional provider bundles cold.
+            return subscriptions === undefined && !existsSync(providerConfigFile)
+              ? []
+              : await subscriptionFeatures().readKeyUsage()
+          },
           // Only the sidebar reopens on its last session; a tab is a new
           // conversation by construction (M6).
           isRestorable: surface.id === SIDEBAR_SURFACE_ID,

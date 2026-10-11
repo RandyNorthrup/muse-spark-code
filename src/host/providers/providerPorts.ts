@@ -256,6 +256,8 @@ export interface CodeExchanger {
  * validates the numbers (finite, non-negative) before they are shown.
  */
 export interface KeyUsageSnapshot {
+  readonly usedTotal?: number
+  readonly unlimited?: boolean
   readonly usedToday: number
   readonly usedThisWeek: number
   readonly usedThisMonth: number
