@@ -6,7 +6,7 @@ Generated as of 2026-10-06T12:00:00+00:00
 
 Version: 0.14.2
 
-SHA-256: ae1f81613ac74a796256484a8c216588bfbeffd9f6d06bc679327492e8023e1b
+SHA-256: 88328c8e89c4fae8e396fdc15582c2c305b188e7db4b910b247bb345dd25408e
 
 ## Needs you
 
@@ -20,7 +20,7 @@ SHA-256: ae1f81613ac74a796256484a8c216588bfbeffd9f6d06bc679327492e8023e1b
 
 | Provider | Account | Name | Scope | Count | Status | Reason | Sources |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| meta | primary | Primary |  | 0 | Available |  | accounts |
+| meta | primary | Primary |  | 1 | Available |  | accounts |
 
 ## Limits
 

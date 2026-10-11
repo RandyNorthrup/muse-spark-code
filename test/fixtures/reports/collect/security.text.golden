@@ -3,7 +3,7 @@ Security
 Scope: fixture-workspace
 Generated as of 2026-10-06T12:00:00+00:00
 Version: 0.14.2
-SHA-256: 375419de638f7db7b9239a440677a226a0c08d494f0c55e4cd0dd2fae1b466e3
+SHA-256: e656eb2e6f4323c7d2f80093d261b86e40cbc2131de273dc1642cdc8914bf801
 
 Needs you
 Name: Q-M12
@@ -62,14 +62,14 @@ Sources: security
 
 Usage
 Kind: ssh
-Outcome: mode
+Outcome: locked
 Count: 1
 Status: Available
 Reason:
 Sources: security
 
 Kind: environment
-Outcome: grant
+Outcome: succeeded
 Count: 1
 Status: Available
 Reason:
@@ -77,7 +77,7 @@ Sources: security
 
 Denials
 Kind: environment
-Outcome: user
+Outcome: denied
 Count: 1
 Status: Available
 Reason:
@@ -85,7 +85,7 @@ Sources: security
 
 Locks
 Kind: ssh
-Outcome: mode
+Outcome: locked
 Count: 1
 Status: Available
 Reason:

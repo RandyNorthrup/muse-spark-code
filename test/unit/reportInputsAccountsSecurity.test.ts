@@ -173,9 +173,13 @@ describe('security report reader', () => {
     expect(JSON.stringify(result)).not.toContain('canary')
   })
 
-  it('reads nothing as null and a corrupt audit as invalid', async () => {
+  it('reads nothing as partial facts naming both reasons and a corrupt audit as invalid', async () => {
     const empty = createSecurityReportReader({ dataDir: await dir('m113-security-empty-') })
-    await expect(empty.read(securityContext())).resolves.toBeNull()
+    const read = await empty.read(securityContext())
+    expect(read).not.toBeNull()
+    expect(read!.facts).toEqual({ vault: null, audit: [], developerAudit: [] })
+    expect(read!.partial).toContain(EN.reportDetailReasons.securityVaultUnavailable)
+    expect(read!.partial).toContain(EN.reportDetailReasons.securityDeveloperAuditUnavailable)
     const corruptDir = await dir('m113-security-corrupt-')
     await mkdir(path.join(corruptDir, 'developer'), { recursive: true })
     await writeFile(path.join(corruptDir, 'developer', 'developer-audit.jsonl'), '{nope}\n')

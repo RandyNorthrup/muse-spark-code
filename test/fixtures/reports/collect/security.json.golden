@@ -6,7 +6,7 @@
     "scope": "fixture-workspace",
     "asOf": "2026-10-06T12:00:00+00:00",
     "generatorVersion": "0.14.2",
-    "contentHash": "375419de638f7db7b9239a440677a226a0c08d494f0c55e4cd0dd2fae1b466e3"
+    "contentHash": "e656eb2e6f4323c7d2f80093d261b86e40cbc2131de273dc1642cdc8914bf801"
   },
   "needsYou": {
     "id": "needsYou",
@@ -341,7 +341,7 @@
       ],
       "rows": [
         {
-          "key": "vault-use/0d269d30a1be60782f86b4571485bddf_3fa4efc587102de3d48f21eb83104a47",
+          "key": "vault-use/229edbcd2af2e819a3810229337defe1_d71da3f9fcd2717b58f22e64bfdb0ed7",
           "cells": {
             "count": {
               "type": "count",
@@ -353,7 +353,7 @@
             },
             "outcome": {
               "type": "text",
-              "value": "mode"
+              "value": "locked"
             },
             "reason": {
               "type": "text",
@@ -369,7 +369,7 @@
           ]
         },
         {
-          "key": "vault-use/601a2d53ac959181657d31f24ca4b49e_94e4c6222b1c174262dc1cc6e6054e60",
+          "key": "vault-use/482f8609894e33e1ed6ef0dc722f0575_a558da8095eb4613d4f57ebe621558f8",
           "cells": {
             "count": {
               "type": "count",
@@ -381,7 +381,7 @@
             },
             "outcome": {
               "type": "text",
-              "value": "grant"
+              "value": "succeeded"
             },
             "reason": {
               "type": "text",
@@ -427,7 +427,7 @@
       ],
       "rows": [
         {
-          "key": "vault-denial/e869f73bf869c45ec495c1bf330f4899_e0387690e34989f6bf62d4773f0751a2",
+          "key": "vault-denial/058814b6adb03a0000af0ea1f0da5452_7be04c6ba039d06f4775b8ff45e6dbae",
           "cells": {
             "count": {
               "type": "count",
@@ -439,7 +439,7 @@
             },
             "outcome": {
               "type": "text",
-              "value": "user"
+              "value": "denied"
             },
             "reason": {
               "type": "text",
@@ -485,7 +485,7 @@
       ],
       "rows": [
         {
-          "key": "vault-lock/55c6a6320b306075fb837acde39282b8_0a48c8b11aa2984c65a585fc0400f5fe",
+          "key": "vault-lock/39449bc531c1fec9ab6cca9b063d339e_38e29b9c2aabd139f5b73ddd5dffa011",
           "cells": {
             "count": {
               "type": "count",
@@ -497,7 +497,7 @@
             },
             "outcome": {
               "type": "text",
-              "value": "mode"
+              "value": "locked"
             },
             "reason": {
               "type": "text",

@@ -61,7 +61,9 @@ export function collectAccounts(snapshot: SourceSnapshot, options: ReportOptions
             account: text(account.id),
             name: text(account.label),
             scope: text(account.limitGroup ?? ''),
-            count: count(account.order),
+            // One row names one account: the cell counts accounts, never
+            // the account's placement order (RVCM1133).
+            count: count(1),
           },
           ids,
         ),

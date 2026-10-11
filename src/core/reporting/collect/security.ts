@@ -1,5 +1,5 @@
 // C-M113-3: the `security` kind from M109's vault audit and the developer
-// audit. Counts, kinds, decisions and authorities only: the source projects
+// audit. Counts, kinds, decisions and outcomes only: the source projects
 // away every value before these rows are built, and this collector never
 // reintroduces one.
 import type { ReportOptions, ReportRow, ReportSection } from '../../../shared/reportSchema'
@@ -87,7 +87,7 @@ export function collectSecurity(snapshot: SourceSnapshot, options: ReportOptions
       grouped(
         (facts?.audit ?? [])
           .filter((entry) => entry.decision === 'allow')
-          .map((entry) => [entry.kind, entry.authority] as const),
+          .map((entry) => [entry.kind, entry.outcome] as const),
         'vault-use',
         ids,
         (kind, outcome, total) => ({
@@ -103,7 +103,7 @@ export function collectSecurity(snapshot: SourceSnapshot, options: ReportOptions
       grouped(
         (facts?.audit ?? [])
           .filter((entry) => entry.decision === 'deny' || entry.outcome === 'denied')
-          .map((entry) => [entry.kind, entry.authority] as const),
+          .map((entry) => [entry.kind, entry.outcome] as const),
         'vault-denial',
         ids,
         (kind, outcome, total) => ({
@@ -119,7 +119,7 @@ export function collectSecurity(snapshot: SourceSnapshot, options: ReportOptions
       grouped(
         (facts?.audit ?? [])
           .filter((entry) => entry.outcome === 'locked')
-          .map((entry) => [entry.kind, entry.authority] as const),
+          .map((entry) => [entry.kind, entry.outcome] as const),
         'vault-lock',
         ids,
         (kind, outcome, total) => ({
