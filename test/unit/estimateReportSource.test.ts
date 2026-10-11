@@ -19,6 +19,12 @@ function textCell(entry: ReportRow, key: string): string | undefined {
 }
 import { fakeEstimate } from './helpers/estimator/fixtures'
 import { ESTIMATOR_AS_OF } from './helpers/estimator/fakes'
+import { FakeLogOutputChannel } from './helpers/fakes'
+import { installGerman, restoreEnglish } from './helpers/germanTable'
+import germanTable from '../../l10n/ui.de.json'
+import { EN } from '../../src/shared/l10n/en'
+import { fill } from '../../src/shared/l10n/text'
+import type { EstimateRefusalTemplates } from '../../src/core/reporting/sources/estimate'
 import { availableSource, reportOptions, REPORT_FIXTURE_AS_OF } from './helpers/reporting/snapshot'
 import { fullSnapshot, getSection } from './helpers/reporting/collect'
 import { renderAllFormats, renderTestCollector } from './helpers/reporting/render'
@@ -327,6 +333,227 @@ describe('estimate report source', () => {
       expect(result.record.reason, name).toBe(reason)
       expect(result.data, name).toBeNull()
     }
+  })
+
+  it('E17 names every refusal in the report language, whichever language the estimator rendered', async () => {
+    interface BundleShapes {
+      readonly failed: string
+      readonly noCapacity: string
+      readonly notFound: string
+    }
+    const englishShapes: BundleShapes = {
+      failed: EN.estimateFailed,
+      noCapacity: EN.estimateNoCapacity,
+      notFound: EN.estimateNotFound,
+    }
+    // The shipped German table's three refusal templates: what a German
+    // estimator bundle renders (RVCM1134E P2 scenario, both directions).
+    const germanShapes: BundleShapes = {
+      failed: germanTable.estimateFailed,
+      noCapacity: germanTable.estimateNoCapacity,
+      notFound: germanTable.estimateNotFound,
+    }
+    const templatesOf = (shapes: BundleShapes): EstimateRefusalTemplates => ({
+      failed: shapes.failed,
+      noCapacity: shapes.noCapacity,
+      notFound: shapes.notFound,
+    })
+    const goalJson = '{"kind":"milestone","milestoneId":"M117"}'
+    interface RefusalCase {
+      readonly name: string
+      /** The error an estimator bundle throws, message in its language. */
+      readonly throwing: (shapes: BundleShapes) => Error
+      /** The expected reason once the report language is installed. */
+      readonly expected: () => string
+    }
+    const refusals: readonly RefusalCase[] = [
+      {
+        name: 'grammar diagnostic',
+        throwing: (shapes) =>
+          Object.assign(
+            new Error(fill(shapes.failed, { detail: 'missing-estimate: M117:C-M117-9' })),
+            { estimateDiagnostic: 'missing-estimate: M117:C-M117-9' },
+          ),
+        expected: () => fill(UI_TEXT.estimateFailed, { detail: 'missing-estimate: M117:C-M117-9' }),
+      },
+      {
+        name: 'engine no feasible setup',
+        throwing: (shapes) => new Error(fill(shapes.failed, { detail: 'no-feasible-setup' })),
+        expected: () => fill(UI_TEXT.estimateFailed, { detail: 'no-feasible-setup' }),
+      },
+      {
+        name: 'engine missing fit',
+        throwing: (shapes) => new Error(fill(shapes.failed, { detail: 'missing-fit' })),
+        expected: () => fill(UI_TEXT.estimateFailed, { detail: 'missing-fit' }),
+      },
+      {
+        name: 'schedule unschedulable',
+        throwing: (shapes) => new Error(fill(shapes.failed, { detail: 'unschedulable:M117:x' })),
+        expected: () => fill(UI_TEXT.estimateFailed, { detail: 'unschedulable:M117:x' }),
+      },
+      {
+        name: 'no fleet capacity',
+        throwing: (shapes) => new Error(shapes.noCapacity),
+        expected: () => UI_TEXT.estimateNoCapacity,
+      },
+      {
+        name: 'goal not found',
+        throwing: (shapes) => new Error(fill(shapes.notFound, { goal: goalJson })),
+        expected: () => fill(UI_TEXT.estimateNotFound, { goal: goalJson }),
+      },
+      {
+        name: 'seam diagnostic capacity',
+        throwing: (shapes) =>
+          Object.assign(new Error(fill(shapes.failed, { detail: 'estimate-unavailable' })), {
+            estimateDiagnostic: 'no-capacity',
+          }),
+        expected: () => UI_TEXT.estimateNoCapacity,
+      },
+      {
+        name: 'seam diagnostic goal',
+        throwing: (shapes) =>
+          Object.assign(new Error(fill(shapes.failed, { detail: 'estimate-unavailable' })), {
+            estimateDiagnostic: `goal-not-found: ${goalJson}`,
+          }),
+        expected: () => fill(UI_TEXT.estimateNotFound, { goal: goalJson }),
+      },
+      {
+        name: 'seam diagnostic engine code',
+        throwing: (shapes) =>
+          Object.assign(new Error(fill(shapes.failed, { detail: 'estimate-unavailable' })), {
+            estimateDiagnostic: 'no-feasible-setup',
+          }),
+        expected: () => fill(UI_TEXT.estimateFailed, { detail: 'no-feasible-setup' }),
+      },
+      {
+        name: 'attached refusal',
+        throwing: (shapes) =>
+          Object.assign(new Error(fill(shapes.failed, { detail: 'estimate-unavailable' })), {
+            estimateRefusal: { kind: 'noCapacity' },
+          }),
+        expected: () => UI_TEXT.estimateNoCapacity,
+      },
+    ]
+    async function reasonFor(error: Error, templates: EstimateRefusalTemplates): Promise<unknown> {
+      const result = await estimateSource(
+        {
+          read: () => {
+            throw error
+          },
+          refusalTemplates: templates,
+        },
+        scrub,
+      ).read(estimateContext())
+      expect(result.record.status).toBe('unavailable')
+      expect(result.data).toBeNull()
+      return result.record.reason
+    }
+    expect(await installGerman(new FakeLogOutputChannel())).toBe('de')
+    try {
+      for (const refusal of refusals) {
+        // German report over an English estimator bundle: the report
+        // language's sentence, never the bundle's.
+        expect(
+          await reasonFor(refusal.throwing(englishShapes), templatesOf(englishShapes)),
+          `${refusal.name} (German report, English bundle)`,
+        ).toBe(refusal.expected())
+        // The report bytes do not depend on the bundle's language: the same
+        // refusal through a German estimator bundle seals identical bytes.
+        expect(
+          await reasonFor(refusal.throwing(germanShapes), templatesOf(germanShapes)),
+          `${refusal.name} (bundle-language independence)`,
+        ).toBe(refusal.expected())
+      }
+    } finally {
+      restoreEnglish()
+    }
+    // And the reverse: an English report over a German estimator bundle.
+    for (const refusal of refusals) {
+      expect(
+        await reasonFor(refusal.throwing(germanShapes), templatesOf(germanShapes)),
+        `${refusal.name} (English report, German bundle)`,
+      ).toBe(refusal.expected())
+    }
+  })
+
+  it('E18 keeps forged failure sentences generic in every language', async () => {
+    async function reasonFor(error: Error, templates: EstimateRefusalTemplates): Promise<unknown> {
+      const result = await estimateSource(
+        {
+          read: () => {
+            throw error
+          },
+          refusalTemplates: templates,
+        },
+        scrub,
+      ).read(estimateContext())
+      expect(result.record.status).toBe('unavailable')
+      expect(result.data).toBeNull()
+      return result.record.reason
+    }
+    const englishTemplates: EstimateRefusalTemplates = {
+      failed: EN.estimateFailed,
+      noCapacity: EN.estimateNoCapacity,
+      notFound: EN.estimateNotFound,
+    }
+    // A message that merely starts with the failure prefix but carries a
+    // path traversal is kept by no template: generic, not the raw message.
+    expect(await reasonFor(new Error('Estimate failed: ../../etc/passwd'), englishTemplates)).toBe(
+      UI_TEXT.reportSourceReasons.failed,
+    )
+    expect(await installGerman(new FakeLogOutputChannel())).toBe('de')
+    try {
+      expect(
+        await reasonFor(
+          new Error(fill(germanTable.estimateFailed, { detail: '../../etc/passwd' })),
+          {
+            failed: germanTable.estimateFailed,
+            noCapacity: germanTable.estimateNoCapacity,
+            notFound: germanTable.estimateNotFound,
+          },
+        ),
+      ).toBe(UI_TEXT.reportSourceReasons.failed)
+      // A forged diagnostic travels generic too, whatever it claims.
+      expect(
+        await reasonFor(
+          Object.assign(new Error('nope'), { estimateDiagnostic: '../../etc/passwd' }),
+          {
+            failed: germanTable.estimateFailed,
+            noCapacity: germanTable.estimateNoCapacity,
+            notFound: germanTable.estimateNotFound,
+          },
+        ),
+      ).toBe(UI_TEXT.reportSourceReasons.failed)
+    } finally {
+      restoreEnglish()
+    }
+  })
+
+  it('E19 projects sections from codes only: the installed language changes no byte', async () => {
+    const section = fakeEstimate()
+    const options = reportOptions('estimate', { scope: 'M117' })
+    const collected = estimateReportSections(section, options)
+    expect(await installGerman(new FakeLogOutputChannel())).toBe('de')
+    try {
+      // Labels, units, bottleneck names and assumptions cross from the
+      // estimator as codes; the report renderer owns the words.
+      expect(estimateReportSections(section, options)).toEqual(collected)
+    } finally {
+      restoreEnglish()
+    }
+    const limiting = collected.find((entry) => entry.id === 'estimate/limitingResource')
+    expect(limiting?.rows[0]?.cells['kind']).toEqual({
+      type: 'text',
+      value: section.limitingResource.kind,
+    })
+    const [firstSetup] = section.setups
+    const setups = collected.find((entry) => entry.id === 'estimate/setups')
+    expect(setups?.rows[0]?.cells['setup']).toEqual({ type: 'text', value: firstSetup?.kind })
+    const [firstLane] = section.inputs.lanes
+    const inputs = collected.find((entry) => entry.id === 'estimate/inputs')
+    expect(
+      inputs?.rows.find((entry) => textCell(entry, 'lane') === firstLane?.id)?.cells['state'],
+    ).toEqual({ type: 'label', value: firstLane?.state })
   })
 
   it('E16 stamps the run at the request instant, so the report reads fresh', async () => {
