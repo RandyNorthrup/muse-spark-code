@@ -658,14 +658,31 @@ describe('RVCM1132 input regressions', () => {
     ])
   })
 
-  it('RVCM1132B keeps a read transcript when no model row is flagged active', async () => {
-    const host = fakeReportHost(
-      storedSession('s1').transcript.map((entry) => entry.item),
-      [{ modelId: 'first-model', isActive: false }],
-    )
+  it('RVCM1132C reports an unknown model with its reason when no catalogue row is active', async () => {
+    const items = storedSession('s1').transcript.map((entry) => entry.item)
+    // Every row present but none flagged active (what the host returns when
+    // the wire omits the optional flag on every row): the transcript stays
+    // and the model is unknown, never a guess at the first entry.
+    const host = fakeReportHost(items, [
+      { modelId: 'first-model', isActive: false },
+      { modelId: 'second-model', isActive: false },
+    ])
     const result = await readHostReportSession(host, 's1')
-    expect(result?.modelId).toBe('first-model')
+    expect(result?.modelId).toBe('unknown')
+    expect(result?.partial).toBe(EN.reportDetailReasons.sessionModelUnavailable)
     expect(result?.items).toHaveLength(2)
+    // Through the session source the report is partial with that reason.
+    const data = await dir('unknown-model-report-')
+    const reader = createSessionReportReader({
+      resolveSession: () => Promise.resolve(result!),
+      readJournal: () => readUsageReportJournal(data),
+    })
+    const source = await sessionSource(reader, [], (text) => text).read(
+      context({ sessionId: 's1' }),
+    )
+    expect(source.record.status).toBe('partial')
+    expect(source.record.reason).toContain(EN.reportDetailReasons.sessionModelUnavailable)
+    expect(source.data?.export.modelId).toBe('unknown')
   })
 
   it('RVCM1132B reports an empty model catalogue as a failure, not missing history', async () => {
