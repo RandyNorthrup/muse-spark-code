@@ -1,4 +1,5 @@
 import { createServer, connect, type Socket, type Server } from 'node:net'
+import { type Duplex } from 'node:stream'
 import { chmod } from 'node:fs/promises'
 import { constants } from 'node:fs'
 import path from 'node:path'
@@ -29,9 +30,9 @@ const replySchema = z
   )
 
 /** A disconnected client cannot keep the serialized owner waiting on late peer verification. */
-async function isHelperPeerAllowed(
-  socket: Socket,
-  isAllowed: (socket: Socket) => Promise<boolean>,
+async function isHelperPeerAllowed<S extends Duplex>(
+  socket: S,
+  isAllowed: (socket: S) => Promise<boolean>,
 ): Promise<boolean> {
   if (socket.destroyed) return false
   let onClose: (() => void) | undefined
@@ -50,7 +51,7 @@ async function isHelperPeerAllowed(
 
 export interface VaultExecHelperDeps {
   /** B/P checks OS peer identity, then the native launcher's exact command-tree membership. */
-  readonly authenticate: (socket: Socket) => Promise<boolean>
+  readonly authenticate: (socket: Duplex) => Promise<boolean>
   readonly git?: (operation: string, input: string) => Buffer
   readonly askpass?: () => Buffer
   readonly listener?: VaultSecuredListenerPort
@@ -60,7 +61,7 @@ export interface VaultExecHelperDeps {
 export class VaultExecHelperServer {
   private server: Server | undefined
   private listenerClose: (() => Promise<void>) | undefined
-  private readonly sockets = new Set<Socket>()
+  private readonly sockets = new Set<Duplex>()
   private readonly bytes = new Set<Buffer>()
   private isClosed = false
   private isStarting = false
@@ -71,7 +72,7 @@ export class VaultExecHelperServer {
   private canServe(generation: number): boolean {
     return !this.isClosed && this.generation === generation
   }
-  private accept(socket: Socket): void {
+  private accept(socket: Duplex): void {
     if (this.isClosed) {
       socket.destroy()
       return

@@ -236,6 +236,8 @@ export const COMMAND_REFERENCE: Readonly<Record<CommandKey, CommandReference>> =
   schedulePrompt: { description: { tip: 'schedulePrompt' }, canRun: true },
   showSchedules: { description: { tip: 'schedule' }, canRun: true },
   showScheduleTimeline: { description: { tip: 'scheduleTimeline' }, canRun: true },
+  // Import receipts survive ordinary changes; Lock cancels sent imports.
+  // Lost-document Reset refuses unlocked stores and retires the exact anchor.
   vault: { description: { ui: 'referenceVaultPanel' }, canRun: false },
   lockVault: { description: { ui: 'referenceVaultPanel' }, canRun: false },
 }
@@ -1094,6 +1096,7 @@ export const REFERENCE_SURFACES: Readonly<Record<string, readonly string[]>> = {
 const REFERENCE_DETAILS: Readonly<
   Record<string, readonly Extract<ReferenceText, { ui: unknown }>['ui'][]>
 > = {
+  vault: ['referenceVault'],
   providers: ['providerOpenRouterServices'],
   estimator: ['estimateCliHelp'],
   permissions: ['referencePermissionLimits'],

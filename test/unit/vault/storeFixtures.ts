@@ -9,6 +9,7 @@ import {
   type VaultSnapshot,
 } from '../../../src/core/vault/store'
 import { createRecoverySlot } from '../../../src/core/vault/keyslots'
+import type { VaultItem } from '../../../src/shared/vault'
 import {
   encodeVaultJson,
   hkdfSha256,
@@ -22,23 +23,36 @@ import { FakeVaultClock } from '../helpers/vault/core'
 export class MemoryVaultFiles implements VaultFilePort {
   private writing = false
   readonly maxBytes = 16 * 1024 * 1024
-  readonly data = new Map<'vault.v1' | 'slots.v1' | 'pending.v1', Buffer>()
+  readonly data = new Map<'vault.v1' | 'slots.v1' | 'pending.v1' | 'reset.v1', Buffer>()
   readonly quarantined: Buffer[] = []
-  fail: 'vault.v1' | 'slots.v1' | 'pending.v1' | null = null
-  read(name: 'vault.v1' | 'slots.v1' | 'pending.v1'): Promise<Buffer | null> {
+  fail: 'vault.v1' | 'slots.v1' | 'pending.v1' | 'reset.v1' | null = null
+  /** A test may hold a write after staging, before its commit check (RVCM1091A F2). */
+  hold: ((name: 'vault.v1' | 'slots.v1' | 'pending.v1' | 'reset.v1') => Promise<void>) | null = null
+  read(name: 'vault.v1' | 'slots.v1' | 'pending.v1' | 'reset.v1'): Promise<Buffer | null> {
     const bytes = this.data.get(name)
     return Promise.resolve(bytes ? ownedBytes(bytes) : null)
   }
-  writeAtomic(name: 'vault.v1' | 'slots.v1' | 'pending.v1', bytes: Uint8Array): Promise<void> {
-    if (this.fail === name) return Promise.reject(new VaultError('io'))
+  async writeAtomic(
+    name: 'vault.v1' | 'slots.v1' | 'pending.v1' | 'reset.v1',
+    bytes: Uint8Array,
+    commit?: () => void,
+  ): Promise<void> {
+    if (this.fail === name) throw new VaultError('io')
+    await this.hold?.(name)
+    // As the Node port: the commit check runs immediately before publication.
+    commit?.()
     this.data.set(name, ownedBytes(bytes))
-    return Promise.resolve()
   }
-  remove(name: 'vault.v1' | 'slots.v1' | 'pending.v1'): Promise<void> {
+  remove(
+    name: 'vault.v1' | 'slots.v1' | 'pending.v1' | 'reset.v1',
+    authorize?: () => void,
+  ): Promise<void> {
+    authorize?.()
     this.data.delete(name)
     return Promise.resolve()
   }
-  quarantine(name: 'vault.v1'): Promise<void> {
+  quarantine(name: 'vault.v1', authorize?: () => void): Promise<void> {
+    authorize?.()
     const bytes = this.data.get(name)
     if (bytes) this.quarantined.push(ownedBytes(bytes))
     return Promise.resolve()
@@ -160,4 +174,31 @@ export async function withRngFailure(
     for (const bytes of allocations) bytes.fill(0)
     key.fill(0)
   }
+}
+
+/** Holds a generated file's staged write immediately before its physical commit. */
+export function holdFileWrite(
+  files: MemoryVaultFiles,
+  name: Parameters<MemoryVaultFiles['writeAtomic']>[0],
+) {
+  const held = Promise.withResolvers<undefined>()
+  const state = { isHeld: false }
+  files.hold = (written) => {
+    if (written !== name) return Promise.resolve()
+    state.isHeld = true
+    return held.promise
+  }
+  return { held, state }
+}
+
+/** A fresh vault with one item whose next write of `name` is held until released. */
+export async function heldWriteVault(
+  name: 'vault.v1' | 'slots.v1' | 'pending.v1' | 'reset.v1',
+  item: VaultItem,
+) {
+  const vault = await freshVault()
+  const files = vault.files
+  if (!(files instanceof MemoryVaultFiles)) throw new Error('memory files expected')
+  await vault.store.write(item)
+  return { vault, files, ...holdFileWrite(files, name) }
 }

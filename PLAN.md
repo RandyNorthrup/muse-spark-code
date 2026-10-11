@@ -33157,6 +33157,174 @@ No dependency, endpoint guard, paid default or budget changes. See
 
 **Status 2026-10-09: released.** Shipped in 0.17.0 (merged via INT0180).
 
+**C-M109-1 lead decisions (2026-10-10, lead decision).** In 0.17.0, every
+vault use is refused. The binding layer was never built: the broker process,
+its ports, peer checks, a setup flow, a runtime bundle and a Linux slot are
+all missing. These decisions settle what PLAN left open. Part (a) is
+the host lane; (b) and (c) are separate rig lanes started from (a)'s
+interface commit.
+
+1. **Broker protocol v2** (`VAULT_PROTOCOL_VERSION` 2).
+   - New manage-only request kinds: `snapshot`, `editMetadata`, `remove`,
+     `import`, `publicKey`, `watch`, `setup`, `confirmSetup` and
+     `cancelSetup`.
+   - Item values travel only in private frames (`add`, `edit`, `recover`);
+     the recovery code leaves only as the private `recoveryCode` response.
+   - `watch` turns the connection into a stream of pushed events: lock,
+     revoke, approval and changed.
+   - No v1 vault or broker exists in the field, so there is no
+     compatibility shim.
+2. **Grants live in the encrypted vault document.** The index carries
+   `grants`, and use counts are spent under the cross-process writer lock.
+   The store format is now `VAULT_STORE_FORMAT_VERSION` 2; block, slot,
+   audit and backup formats keep `VAULT_FORMAT_VERSION` 1.
+3. **The rollback anchor** (`VaultGenerationPort`) is a protected record in
+   the OS store through `@napi-rs/keyring`. D89.15 already accepts the
+   same-user rewrite residual; its wording is unchanged.
+4. **Windows.** A C# named-pipe server helper refuses remote clients and
+   relays to the broker, and also carries protect/verify file commands from
+   `MuseSparkVault.cs`'s guard. The contract is
+   `docs/design/vault-windows-pipe-helper.md`; lane (c) on the Win11 rig
+   builds it.
+5. **`dist/vaultRuntime.js`** exports `createRuntimeVault`, has no `vscode`
+   import, ships in the ACP package, and is what `runtimeVaultLoader` loads.
+   `dist/vault.js` stays the VS Code panel bundle.
+6. **The SecretStorage slot is dropped.** Every host uses the OS-store slot
+   through `@napi-rs/keyring`, the store SecretStorage itself rests on. The
+   broker is a separate process with no editor API. This amends D89.2's
+   table and acceptance 1's `basic_text` sentence.
+7. **Linux in this step: the Secret Service OS-store slot only.**
+   systemd-creds, the TPM2 PIN and the screen-lock signal stay in C-M109-2.
+8. **Setup flow.**
+   - Where: Settings > Vault > **Set Up Vault**, or a prompt the first time
+     anything asks to store a secret, in the panel and the CLI
+     (`vault setup`).
+   - `auto` means an OS-store slot plus a one-time recovery code.
+   - The panel shows the code once, in a dialog with **Copy** and an
+     **I Saved It** confirmation, before the vault becomes usable. Nothing
+     is written until that confirmation.
+   - The CLI prints the code once with the same confirmation prompt;
+     headless mode refuses setup without a TTY.
+   - Labels are Title Case, messages sentence case, and every string is in
+     all 14 tables.
+9. **Unix peer checks.** CI builds `peer.c` the way `muse-created` is built
+   (linux x64/arm64; macOS through `build.sh`). The socket descriptor comes
+   from Node's internal handle, with a §8 row landing beside that code in
+   lane (b).
+10. **Named exception: Touch ID / Keychain biometry unlock (lead decision,
+    2026-10-10).**
+    - **Reason:** no Apple Developer ID. It expired, and the owner cannot
+      renew it, so the data-protection keychain's biometry entitlement is
+      unavailable.
+    - **Equivalent:** on macOS, the login Keychain slot, plus the Secure
+      Enclave slot without biometry where `SecureEnclave.isAvailable`.
+    - **Upstream:** none.
+    - Nothing blocks or waits on it. C-M109-11 states it as not offered.
+
+The split:
+
+- **(a)**, the host lane: the protocol, grants, anchor, setup flow,
+  `dist/vaultRuntime.js`, and the VS Code, CLI, ACP and headless bindings
+  against interfaces.
+- **(b)**, Codex on kubuntu: the broker process, POSIX peer checks and the
+  Linux slot.
+- **(c)**, Codex on the Win11 VM: the Windows natives.
+
+**C-M109-1 (a) status (2026-10-10, branch `c/m109-1`).** Built on fakes and
+certified in `docs/certification/m109.md` ("C-M109-1 part (a)"):
+
+- protocol v2 in the channel and the client (watch included);
+- store v2 grants;
+- `KeyringVaultAnchor`;
+- `VaultStoreRepository`, `VaultSlotUnlock` and `VaultManagement` (the setup
+  flow);
+- `VaultManageSession`;
+- `dist/vaultRuntime.js` (CLI `vault setup` / `vault recover`, ACP `/vault`,
+  headless `--vault`);
+- the VS Code bundle's broker-backed `VaultPanelService` and its native
+  recovery-code dialog;
+- **Set Up Vault** in the shared vault section;
+- strings in all 14 tables.
+
+The vault still refuses every use with `vault.brokerBlocked`, as 0.17.0
+does. Three things are open, and the vault goes live when all three land:
+
+1. `vaultClientPlatform` (`src/runtime/vault/clientPlatform.ts`) is bound by
+   lanes (b) and (c).
+2. The broker process composes these pieces.
+3. The Models & Agents panel mounts the vault section. It is not mounted in
+   0.17.0. Settings > Vault > Set Up Vault arrives with M126's settings
+   page.
+
+No checklist item above is ticked by this step.
+
+**CM1091A3 qualification (2026-10-10, linuxlt).** Apply the host agent's
+prepared round, remove both test clones through the existing management
+fixture, then run the complete vault file list in batches of at most three
+at repository deadlines. Reproduce the foreign-user peer failure on
+82d50d5e4. Run scoped static/build gates, review every changed class and
+certify any repair with a failing regression and byte-exact restoration.
+Commit with installed hooks and the prepared message; no merge, push,
+rebase, subagents or paid/live call. Aggregate quality and Windows replay
+remain lead-owned under the explicit rig/common brief.
+
+Review found and repaired missing commit-time Lock checks in first
+creation and the reset audit write, plus an import label that bypassed
+locale number formatting. Both physical commits now check authority; the
+label's numeric slot goes through `fill`. Failing-before regressions and
+six named removal drills certify the repairs, typed Lock refusal, accessible
+lost-vault Reset action and feature catalog detail. Final vault replay:
+1,499 passed, 34 existing skips, only the identical-base peer failure.
+All eleven scoped gates pass; reference owners pass all 135 tests.
+Certification records the exact results without ticking the installed
+broker or panel checklist.
+
+**C-M109-1 (a) additions (2026-10-10, lead decisions).**
+
+**CM1091A4 review repair (2026-10-10, win11).** Close all nine
+RVCM1091A3 findings by class: capture Lock authority at request admission;
+bind imported paths and every parent to held, verified identities within the
+home; classify missing/damaged documents and pending intents consistently;
+refuse Reset while unlocked; authorize every destructive reset boundary and
+retire the exact anchor state inside the writer transaction; cancel sent panel
+imports on retirement while preserving receipt authority across ordinary
+change notifications; retain private imported target identity in encrypted
+material. Generated-only regressions and byte-exact removal drills are recorded
+in `docs/certification/m109.md`. Scoped rig gates replace aggregate quality
+under the explicit common/rig brief. No merge, push, dependency or live call.
+The independent host build first exceeds its unchanged 50 KiB cap at 52,042
+bytes. Reuse the panel's retirement, locked-state publication and fixed-error
+paths, and return service promises directly; retain every cancellation and
+authorization check. The repaired build is 51,174 bytes and both budget owners
+pass alongside the complete panel-host and notification regressions.
+
+- **Reset Vault.** It is offered only when this user's anchor names a vault
+  that no slot or code can open, because its files are missing or damaged.
+  - Two steps: the plain statement of loss, then the typed word `RESET`.
+  - The store re-checks under the writer lock that no complete openable vault
+    or recoverable intent exists before anything changes; Reset refuses an
+    unlocked broker.
+  - It appends a value-free audit line to `reset.v1` and keeps the
+    displaced document aside.
+  - It clears the anchor by compare-and-delete. Rollback protection restarts
+    with the next setup's new anchor.
+  - Surfaces: the panel, the CLI `vault reset` and the ACP agent's
+    terminal.
+- **Import.** `VaultStore.writeBatch` publishes every item with its
+  encrypted receipt in one transaction, after decrypt-and-verify of the staged
+  items, with authority checked at the commit.
+  - `VaultManagement.importFile` imports only files discovered in the home
+    folder. Items are hidden until the user reviews them.
+  - The report carries names and kinds only, and Keep/Delete follows.
+  - A cancelled requester commits nothing.
+  - A refusal at the commit never locks the vault.
+- **RVCM1091A2 (Grok).**
+  - Every Lock raises a lock generation. Setup, confirm, recover, reset and
+    import re-check it at each await, so nothing a Lock overtook ends
+    unlocked or commits.
+  - A headless open closes its connection on abort and re-checks the signal
+    after registration.
+
 **FIXM109W integrated review repair (2026-10-07, Mac mini).** Verify every
 P1/P2 in `_ctx/codex/M109-findings.md` against integration `a1d2b73e7`,
 including already repaired U findings and the L certificate observation.
@@ -38040,6 +38208,24 @@ roadmap, host API and production build gates, plus complete owned test files
 at repository deadlines. No threshold, timeout, ignore or hook is relaxed.
 Receipts and deliberate failure/restoration drills are recorded in
 `docs/certification/m113-session-usage-c-m113-2.md`.
+
+**CM1091A3 scoped rig qualification (2026-10-10, linuxlt).** The explicit
+rig/common brief prohibits aggregate `quality` and delegates it and the
+Windows replay to the lead. Run the complete vault file list at repository
+deadlines, with at most three files per invocation, plus the owning reference
+suite, scoped lint/format, all five type projects, plain knip, duplication,
+localization, reference, host API, plan, roadmap and unchanged bundle budgets.
+The foreign-user peer probe fails identically on base `82d50d5e4` and this
+lane: `sudo-rs` cannot find the generated client under the rig's private
+`TMPDIR`; no assertion, deadline, permission or test is weakened.
+Reviewed repairs and six byte-exact restoration drills are recorded in the
+M109 certification. All eleven scoped gates exit 0. The full visual gate
+starts, but the unchanged 9,792-capture baseline plus candidate render
+exceeds the explicit 120-minute time box at the observed pace; stop its
+owned process group after 288 baseline captures (exit 143), clean only its
+owned directories, and defer full visual approval to the lead with aggregate
+quality. No baseline or tolerance changes. Native Windows replay remains a
+separate lead step.
 
 **CIR4MAC scoped hosted-CI repair (2026-10-09, macmini).** Reproduce
 round 4's macOS target-size deadline and palette failure-render ordering
