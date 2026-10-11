@@ -249,6 +249,20 @@ function releases(body: readonly PlanLine[]): PlanFacts['releases'] {
   return records
 }
 
+/** Empty facts for a plan read that has not been parsed yet; the engine replaces them. */
+export function emptyPlanFacts(): PlanFacts {
+  return {
+    format: 'none',
+    milestones: [],
+    questions: [],
+    risks: [],
+    residuals: [],
+    releases: [],
+    deliveryOrder: [],
+    drift: [],
+  }
+}
+
 /** Pure parser. Decode and scrub every returned string; R scrubs each rendered output again. */
 export function readPlan(text: string, evidence: PlanEvidence = {}): PlanReadResult {
   const result = parsePlan(text, evidence)

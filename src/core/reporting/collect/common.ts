@@ -65,6 +65,34 @@ export function row(
   }
 }
 
+/**
+ * Row identities that stay unique when the plan reuses an item id. The
+ * collision-free entry keeps its bare id so stable keys never churn; entries
+ * sharing an id add their text, and byte-identical copies add an ordinal
+ * (RVCM1132D finding 1). Every report kind routes plan questions, risks,
+ * residuals and lanes through here, so a duplicated id can never fail
+ * document validation the way bare `[id]` keys did.
+ */
+export function planItemIdentities(
+  items: readonly { readonly identity: readonly string[]; readonly text: string }[],
+): string[][] {
+  const counts = new Map<string, number>()
+  for (const item of items) {
+    const fingerprint = JSON.stringify(item.identity)
+    counts.set(fingerprint, (counts.get(fingerprint) ?? 0) + 1)
+  }
+  const copies = new Map<string, number>()
+  return items.map((item) => {
+    if ((counts.get(JSON.stringify(item.identity)) ?? 1) <= 1) return [...item.identity]
+    const fingerprint = JSON.stringify([...item.identity, item.text])
+    const ordinal = copies.get(fingerprint) ?? 0
+    copies.set(fingerprint, ordinal + 1)
+    return ordinal === 0
+      ? [...item.identity, item.text]
+      : [...item.identity, item.text, String(ordinal)]
+  })
+}
+
 export function section(
   id: string,
   heading: ReportLabelKey,

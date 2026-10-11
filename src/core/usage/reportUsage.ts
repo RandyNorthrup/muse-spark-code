@@ -3,7 +3,12 @@
 // the totals come from aggregate.ts itself, so they are the same numbers as
 // M102's page for the same range. No journal parser is guessed here; the
 // host supplies already-validated journal rows.
-import { LocalSourceError, codeUnitCompare, sourceReason } from '../reporting/sources/local'
+import {
+  LocalSourceError,
+  codeUnitCompare,
+  pushPartialReason,
+  sourceReason,
+} from '../reporting/sources/local'
 import { aggregateUsage, usdUnits, shiftUsageDay, type UsageAggregation } from './aggregate'
 import { Usd } from '../../shared/usd'
 import type { UsageLimitSnapshot, UsageRecord } from '../../shared/usageJournal'
@@ -332,12 +337,13 @@ export function usageReportFacts(input: {
   const range = { from: query.from, to: query.to }
   const by: BreakdownBy = input.by ?? 'model'
   const partials: string[] = input.journal.partial === undefined ? [] : [input.journal.partial]
-  // Partial reasons are a set: the journal's own reason may already name a
-  // sentence below (a thrown budget read leaves budgetsUnavailable while
-  // budgets stay unset), so no sentence is ever appended twice (RVCM1132C
-  // finding 5).
+  // Partial reasons are a set of sentences: the journal's own reason may
+  // already name a sentence below (a thrown budget read leaves
+  // budgetsUnavailable while budgets stay unset, joined into one string), so
+  // no sentence is ever appended twice (RVCM1132C finding 5, RVCM1132D
+  // finding 2).
   const pushPartial = (reason: string): void => {
-    if (!partials.includes(reason)) partials.push(reason)
+    pushPartialReason(partials, reason)
   }
   let breakdown: UsageFacts['breakdown']
   if (by === 'tool') {

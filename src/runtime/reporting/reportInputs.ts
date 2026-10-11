@@ -20,7 +20,7 @@ import {
 import type { BackendKind } from '../../shared/protocol'
 import type { AgentHost } from '../../core/agent/agentBackend'
 import { itemSnapshotSchema, type ItemSnapshot } from '../../shared/agentEvents'
-import { LocalSourceError } from '../../core/reporting/sources/local'
+import { LocalSourceError, pushPartialReason } from '../../core/reporting/sources/local'
 import type { ReportSessionReader } from '../../core/reporting/sources/session'
 import type { LocalReportSourceDeps } from '../../core/reporting/sources'
 import type { SourceReadContext } from '../../core/reporting/sources/types'
@@ -152,12 +152,13 @@ export function createReportJournalReader(input: {
               .split('T', 1)[0] ?? ''
           return { ...journal, budgets, budgetDay }
         } catch {
-          // Partial reasons are a set: a reason already present is never
-          // appended again (RVCM1132C finding 5).
-          const reasons = [journal.partial, UI_TEXT.reportDetailReasons.budgetsUnavailable].filter(
-            (reason) => reason !== undefined,
-          )
-          return { ...journal, partial: [...new Set(reasons)].join(' ') }
+          // Partial reasons are a set of sentences: a reason already present
+          // is never appended again (RVCM1132C finding 5, RVCM1132D
+          // finding 2).
+          const reasons: string[] = []
+          if (journal.partial !== undefined) pushPartialReason(reasons, journal.partial)
+          pushPartialReason(reasons, UI_TEXT.reportDetailReasons.budgetsUnavailable)
+          return { ...journal, partial: reasons.join(' ') }
         }
       })()
       runs.set(context.run ?? context.options, pending)
@@ -341,10 +342,10 @@ export function createSessionReportReader(input: {
       // The session totals below sum only the records still attributable to
       // this session; rolled-up days can never be attributed back to it, so
       // the disclosure says excluded, never included (RVCM1132B finding 1).
-      // Partial reasons are a set: no sentence appears twice (RVCM1132C
-      // finding 5).
+      // Partial reasons are a set of sentences: no sentence appears twice
+      // (RVCM1132C finding 5, RVCM1132D finding 2).
       const pushPartial = (reason: string): void => {
-        if (!partials.includes(reason)) partials.push(reason)
+        pushPartialReason(partials, reason)
       }
       if (journal.rollups.length > 0)
         pushPartial(UI_TEXT.reportDetailReasons.rolledUpSessionExcluded)

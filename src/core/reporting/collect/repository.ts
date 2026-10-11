@@ -17,7 +17,15 @@ import {
   text,
   version,
 } from './common'
-import { ReportScopeNotFound, deliveryRows, laneRows, LANE_COLUMNS, nextSteps } from './plan'
+import {
+  ReportScopeNotFound,
+  deliveryRows,
+  laneRows,
+  LANE_COLUMNS,
+  nextSteps,
+  planResidualRows,
+  planRiskRows,
+} from './plan'
 import { usageSections } from './usage'
 
 // Pure selectors need evidence absent from lane 0's facts. The reader supplies
@@ -293,16 +301,8 @@ export function collectProject(
       'risks',
       ['name', 'reason'],
       [
-        ...(risks.data?.risks.map((risk) =>
-          row('risk', [risk.id], { name: text(risk.id), reason: text(risk.text) }, [
-            risks.record.id,
-          ]),
-        ) ?? []),
-        ...(risks.data?.residuals.map((residual) =>
-          row('residual', [residual.id], { name: text(residual.id), reason: text(residual.text) }, [
-            risks.record.id,
-          ]),
-        ) ?? []),
+        ...planRiskRows(risks.data?.risks ?? [], [risks.record.id]),
+        ...planResidualRows(risks.data?.residuals ?? [], [risks.record.id]),
       ],
       [],
       [risks.record],

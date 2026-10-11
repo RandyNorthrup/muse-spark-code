@@ -24,7 +24,7 @@ import {
   reportWorkspaceKey,
 } from '../../core/reporting/sources/local'
 import type { LocalReportSourceDeps } from '../../core/reporting/sources'
-import { readPlan } from '../../core/reporting/plan/reader'
+import { emptyPlanFacts, readPlan } from '../../core/reporting/plan/reader'
 import { createReportCollector } from '../../core/reporting/collect'
 import { ReportScopeNotFound } from '../../core/reporting/collect/plan'
 import { createReportRenderers } from '../../core/reporting/render'
@@ -157,7 +157,11 @@ export function createReportingServices(context: ReportingContext): ReportsServi
             planSignal,
           )
           planText = scrub(text)
-          return { data: readPlan(planText).facts }
+          // The single parse happens below with lane evidence (branches,
+          // pull requests, certification paths); this read only carries the
+          // text, so a multi-megabyte plan is parsed once per report instead
+          // of twice (RVCM1132D finding 4).
+          return { data: emptyPlanFacts() }
         }),
       }
       // All reads share the request stamp; source ports bound time and cancellation.

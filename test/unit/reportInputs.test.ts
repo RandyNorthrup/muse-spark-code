@@ -39,6 +39,7 @@ import { usageLocalDay } from '../../src/core/usage/aggregate'
 import type { UsageReportJournal } from '../../src/core/usage/reportUsage'
 import { UsageJournalStore } from '../../src/core/usage/journalStore'
 import { NodeUsageFs } from '../../src/runtime/usage/nodeUsageFs'
+import { reportingServicesFor } from './helpers/reporting/runtime'
 
 setUiText(EN, 'en')
 
@@ -111,6 +112,36 @@ function storedSession(sessionId: string) {
     outputs: {},
     usage: { inputTokens: 0, outputTokens: 0, cachedTokens: 0, reasoningTokens: 0 },
   }
+}
+
+/**
+ * One kept journal record plus a journal reader whose budget read always
+ * throws, read for the usage kind so the budget machinery runs. With damage,
+ * the journal is already partial (journalIncomplete) before budgets fail.
+ */
+async function rejectedBudgetSetup(data: string, isDamaged: boolean) {
+  await journalWith(data, [usageEntry('r1', 's1')])
+  if (isDamaged)
+    await appendFile(
+      path.join(data, 'usage/v1/days', TODAY, 'writer.jsonl'),
+      '{broken}\n{"v":99}\n{"v":',
+    )
+  const readJournal = createReportJournalReader({
+    dataFolder: data,
+    now: () => NOW,
+    timezoneOffsetMins: 0,
+    readBudgets: () => Promise.reject(new Error('ledger gone')),
+  })
+  const run = {}
+  const usageOptions = { ...context().options, kind: 'usage' as const, scope: 'today' }
+  const journal = await readJournal({ ...context(), run, options: usageOptions })
+  const usage = await createUsageReportReader({
+    dataFolder: data,
+    readJournal,
+    now: () => NOW,
+    timezoneOffsetMins: 0,
+  })({ ...context(), run, options: usageOptions })
+  return { readJournal, run, usageOptions, journal, usage }
 }
 
 function usageEntry(id: string, session: string, day: string = TODAY) {
@@ -742,27 +773,14 @@ describe('RVCM1132 input regressions', () => {
 
   it('RVCM1132C never repeats a partial reason on the usage or session source', async () => {
     const data = await dir('dedupe-partial-report-')
-    await journalWith(data, [usageEntry('r1', 's1')])
-    const readJournal = createReportJournalReader({
-      dataFolder: data,
-      now: () => NOW,
-      timezoneOffsetMins: 0,
-      readBudgets: () => Promise.reject(new Error('ledger gone')),
-    })
-    const unavailable = EN.reportDetailReasons.budgetsUnavailable
     // A thrown budget read leaves budgetsUnavailable while budgets stay
-    // unset, which used to append the same sentence again below. The journal
-    // read needs a usage kind, or the budget machinery never runs.
-    const run = {}
-    const usageOptions = { ...context().options, kind: 'usage' as const, scope: 'today' }
-    const journal = await readJournal({ ...context(), run, options: usageOptions })
+    // unset, which used to append the same sentence again below.
+    const { readJournal, run, usageOptions, journal, usage } = await rejectedBudgetSetup(
+      data,
+      false,
+    )
+    const unavailable = EN.reportDetailReasons.budgetsUnavailable
     expect(partialOccurrences(journal.partial, unavailable)).toBe(1)
-    const usage = await createUsageReportReader({
-      dataFolder: data,
-      readJournal,
-      now: () => NOW,
-      timezoneOffsetMins: 0,
-    })({ ...context(), run, options: usageOptions })
     expect(partialOccurrences(usage.partial, unavailable)).toBe(1)
     const session = await createSessionReportReader({
       resolveSession: () =>
@@ -776,6 +794,20 @@ describe('RVCM1132 input regressions', () => {
       readJournal,
     }).read({ ...context(), run, options: { ...usageOptions, sessionId: 's1' } })
     expect(partialOccurrences(session!.partial, unavailable)).toBe(1)
+  })
+
+  it('RVCM1132D prints the budget-read failure once when the journal was already partial', async () => {
+    const data = await dir('dedupe-partial-damaged-')
+    // The damaged journal already sets journalIncomplete, so the thrown
+    // budget read joins both sentences into one string; the usage facts used
+    // to append the budget sentence again because the set compared whole
+    // elements, not sentences.
+    const { journal, usage } = await rejectedBudgetSetup(data, true)
+    const unavailable = EN.reportDetailReasons.budgetsUnavailable
+    expect(journal.partial).toContain(EN.reportDetailReasons.journalIncomplete)
+    expect(partialOccurrences(journal.partial, unavailable)).toBe(1)
+    expect(partialOccurrences(usage.partial, unavailable)).toBe(1)
+    expect(usage.partial).toContain(EN.reportDetailReasons.journalIncomplete)
   })
 
   it('RVCM1132B surfaces a failed session resolution as a failure, not missing history', async () => {
@@ -899,8 +931,12 @@ describe('RVCM1132C real PLAN.md reports', () => {
     expect(session?.status).toBe('generated')
   })
 
-  it('generates both kinds with a duplicated open-question id instead of failing', async () => {
+  it('generates every kind with a duplicated open-question id instead of failing', async () => {
     const workspace = await dir('duplicate-plan-reports-')
+    // The milestones section keeps this plan parsed (format plan-format-v1),
+    // so both duplicates really attach to M12; without it the reader returns
+    // format none with no questions and the test cannot fail (RVCM1132D
+    // finding 3).
     await writeFile(
       path.join(workspace, 'PLAN.md'),
       [
@@ -908,28 +944,26 @@ describe('RVCM1132C real PLAN.md reports', () => {
         '',
         '## 3. Open questions',
         '- **Q-DUP — First form (2026-10-06).**',
-        '  The first body.',
+        '  The first body for M12.',
         '- **Q-DUP — Second form (2026-10-06).**',
-        '  The second body.',
+        '  The second body for M12.',
         '- **Q-SAME — Same form (2026-10-06).**',
-        '  The same body.',
+        '  The same body for M12.',
         '- **Q-SAME — Same form (2026-10-06).**',
-        '  The same body.',
+        '  The same body for M12.',
+        '',
+        '## 6. Milestones',
+        '### M12 — Fixture',
+        '**Status 2026-10-05: planned.**',
         '',
       ].join('\n'),
     )
-    const duplicated = createReportingServices({
-      workspaceRoot: workspace,
-      storageRoot: path.join(workspace, 'reports'),
-      l10n: { table: EN, locale: 'en' },
-      generatorVersion: 'test',
-      keepHistory: false,
-      enabledAgents: [],
-    })
+    const duplicated = reportingServicesFor(workspace)
     const asOf = new Date().toISOString()
     for (const options of [
       { kind: 'usage', scope: 'today' },
       { kind: 'session', scope: '' },
+      { kind: 'milestone', scope: 'M12' },
     ] as const) {
       const result = await duplicated.generate?.({
         ...options,
@@ -938,7 +972,7 @@ describe('RVCM1132C real PLAN.md reports', () => {
         network: false,
         failOn: [],
       })
-      // Before the fix this threw Invalid report document (exit 1).
+      // Before the fix the milestone kind threw Invalid report document (exit 1).
       expect(result?.status).toBe('generated')
     }
   })

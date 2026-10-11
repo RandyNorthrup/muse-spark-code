@@ -484,6 +484,21 @@ describe('RVCM1132 accounting regressions', () => {
     ).toContain(UI_TEXT.reportDetailReasons.budgetsUnavailable)
   })
 
+  it('RVCM1132D never repeats the budget sentence from an already-joined partial', () => {
+    const joined = [
+      UI_TEXT.reportDetailReasons.journalIncomplete,
+      UI_TEXT.reportDetailReasons.budgetsUnavailable,
+    ].join(' ')
+    // A damaged journal plus a thrown budget read arrives as one joined
+    // string with budgets unset; the budget sentence must not be appended a
+    // second time.
+    const repeated = regressionFacts({
+      journal: { records: [], rollups: [], limits: [], partial: joined },
+    })
+    expect(repeated.partial?.split(UI_TEXT.reportDetailReasons.budgetsUnavailable)).toHaveLength(2)
+    expect(repeated.partial).toContain(UI_TEXT.reportDetailReasons.journalIncomplete)
+  })
+
   it('R20 rejects normalized invalid calendar dates', () => {
     for (const period of [
       '2026-02-30..2026-03-02',

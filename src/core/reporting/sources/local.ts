@@ -73,6 +73,22 @@ export interface LocalFileIo {
 export function sourceReason(code: LocalFailure): string {
   return UI_TEXT.reportSourceReasons[code]
 }
+
+/**
+ * Partial reasons are a set of sentences: a reason already present is never
+ * appended again (RVCM1132C finding 5). Entries may themselves be joined
+ * sentences (a damaged journal plus a thrown budget read arrives as one
+ * string), so the check is per sentence, not per element: an existing entry
+ * containing the sentence skips it, and entries contained in the new reason
+ * fold into it (RVCM1132D finding 2).
+ */
+export function pushPartialReason(partials: string[], reason: string): void {
+  if (partials.some((existing) => existing.includes(reason))) return
+  for (let index = partials.length - 1; index >= 0; index -= 1) {
+    if (reason.includes(partials[index] ?? '')) partials.splice(index, 1)
+  }
+  partials.push(reason)
+}
 export function codeUnitCompare(a: string, b: string): number {
   if (a === b) return 0
   return a < b ? -1 : 1
