@@ -330,6 +330,19 @@ export function browserStartupRoots(entries, root = process.cwd()) {
   })
 }
 
+function deviceLimitsDeclaration(source) {
+  const tree = ts.createSourceFile('constants.ts', source, ts.ScriptTarget.Latest, true)
+  const statement = tree.statements.find(
+    (node) =>
+      ts.isVariableStatement(node) &&
+      node.declarationList.declarations.some(
+        (entry) => ts.isIdentifier(entry.name) && entry.name.text === 'DEVICE_LIMITS',
+      ),
+  )
+  if (statement === undefined) throw new Error('Missing canonical Devices limits')
+  return statement.getText(tree)
+}
+
 /** Production browser readers retain their English; complete translation checks retain their contract. */
 export const compactBrowserUiText = {
   name: 'compact-browser-ui-text',
@@ -366,8 +379,10 @@ export const compactBrowserUiText = {
           /^(?:reference|acp|exec|scanSecrets|reportUsage$)/.test(key) &&
           helpFiles.every((file) => !readFileSync(file, 'utf8').includes(`UI_TEXT.${key}`)),
       )
-      // M108: account and developer English load with their optional surfaces.
-      const accountKeys = deferredKeys.filter((key) => /^(?:accounts|developer)$/.test(key))
+      // Account, developer and provider English load with their optional surfaces.
+      const accountKeys = deferredKeys.filter((key) =>
+        /^(?:accounts|developer|providerText|acpChatGpt)$/.test(key),
+      )
       // STARTUP017: the schedule surfaces' English loads beside them; chat
       // startup paints restored settlement rows from scheduleSettlement alone.
       const scheduleKeys = deferredKeys.filter((key) => key === 'scheduleV2')
@@ -424,6 +439,89 @@ export const compactBrowserUiText = {
         memoryLevel: L10N_BROWSER_COMPRESSION_MEMORY_LEVEL,
       }
     })
+    // Devices' tunables stay canonical in constants.ts, but their browser
+    // readers are all lazy. A separate module prevents esbuild from placing
+    // their whole object beside the constants chat reads on first paint.
+    const deviceLimitsNamespace = 'browser-device-limits'
+    build.onResolve({ filter: /^browser-device-limits$/ }, () => ({
+      path: deviceLimitsNamespace,
+      namespace: deviceLimitsNamespace,
+    }))
+    build.onLoad({ filter: /.*/, namespace: deviceLimitsNamespace }, () => {
+      const used = new Set()
+      for (const file of data.files) {
+        const tree = ts.createSourceFile(
+          file,
+          readFileSync(file, 'utf8'),
+          ts.ScriptTarget.Latest,
+          true,
+        )
+        const visit = (node) => {
+          if (
+            ts.isPropertyAccessExpression(node) &&
+            node.expression.getText(tree) === 'DEVICE_LIMITS'
+          )
+            used.add(node.name.text)
+          if (
+            ts.isElementAccessExpression(node) &&
+            node.expression.getText(tree) === 'DEVICE_LIMITS'
+          )
+            throw new Error(`Nonliteral browser Devices limit reader: ${file}`)
+          if (ts.isIdentifier(node) && node.text === 'DEVICE_LIMITS') {
+            const parent = node.parent
+            const importName = ts.isImportSpecifier(parent) && parent.name.text === 'DEVICE_LIMITS'
+            const declarationName = ts.isVariableDeclaration(parent) && parent.name === node
+            const literalRead = ts.isPropertyAccessExpression(parent) && parent.expression === node
+            if (!importName && !declarationName && !literalRead)
+              throw new Error(`Unsupported browser Devices limits binding: ${file}`)
+          }
+          ts.forEachChild(node, visit)
+        }
+        visit(tree)
+      }
+      const declaration = deviceLimitsDeclaration(readFileSync('src/shared/constants.ts', 'utf8'))
+      const tree = ts.createSourceFile(
+        'device-limits.ts',
+        declaration,
+        ts.ScriptTarget.Latest,
+        true,
+      )
+      const statement = tree.statements[0]
+      const initializer = ts.isVariableStatement(statement)
+        ? statement.declarationList.declarations[0]?.initializer
+        : undefined
+      const literal =
+        initializer !== undefined && ts.isAsExpression(initializer)
+          ? initializer.expression
+          : initializer
+      if (literal === undefined || !ts.isObjectLiteralExpression(literal))
+        throw new Error('Devices limits must be a canonical literal object')
+      const properties = literal.properties.filter(
+        (property) => ts.isPropertyAssignment(property) && used.has(property.name.getText(tree)),
+      )
+      if (properties.length !== used.size) throw new Error('Unknown browser Devices limit reader')
+      return {
+        contents: `export const DEVICE_LIMITS = {${properties.map((property) => property.getText(tree)).join(',')}} as const`,
+        loader: 'ts',
+        watchFiles: ['src/shared/constants.ts', ...data.files],
+      }
+    })
+    build.onResolve({ filter: /(?:^|\/)constants$/ }, (args) => {
+      if (args.namespace === 'browser-device-constants' || args.importer === '') return
+      const source = readFileSync(args.importer, 'utf8')
+      if (!source.includes('DEVICE_LIMITS')) return
+      return { path: 'browser-device-constants', namespace: 'browser-device-constants' }
+    })
+    build.onResolve({ filter: /\.ts$/, namespace: 'browser-device-constants' }, (args) => ({
+      path: args.path,
+      namespace: 'file',
+    }))
+    build.onLoad({ filter: /.*/, namespace: 'browser-device-constants' }, () => ({
+      contents:
+        "export { DEVICE_LIMITS } from 'browser-device-limits';\n" +
+        `export * from '${path.resolve('src/shared/constants.ts').replaceAll('\\', '/')}';`,
+      loader: 'js',
+    }))
     build.onLoad({ filter: /[/\\]l10n[/\\]vaultEnglish\.ts$/ }, (args) => {
       const property = uiTextProperties().find((property) => property.key === 'vault')
       if (property === undefined) throw new Error('Missing canonical vault English')

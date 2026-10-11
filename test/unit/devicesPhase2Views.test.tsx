@@ -263,7 +263,7 @@ describe('M100P2U owners and grants', () => {
     expect(screen.getByText(OWNER_A)).not.toBeNull()
     expect(screen.getByText('d'.repeat(32))).not.toBeNull()
     expect(screen.getByText(/Manual/)).not.toBeNull()
-    expect(screen.getByText(/Edit automatically/)).not.toBeNull()
+    expect(screen.getByText(new RegExp(EN.permissionModes.acceptEdits))).not.toBeNull()
     expect(screen.getByText('e'.repeat(32))).not.toBeNull()
     const revokes = screen.getAllByRole('button', { name: EN.devices.revokeGrant })
     expect(revokes).toHaveLength(2)

@@ -1,4 +1,5 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
+import { execFileSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
@@ -73,6 +74,25 @@ describe('the shared production build (vitest global setup)', () => {
       expect(() => {
         assertCurrentProductionBuild('', folder, inputs)
       }).toThrow('No shared production build in this run')
+    } finally {
+      await rm(folder, { recursive: true, force: true })
+    }
+  })
+
+  it('invalidates the production proof when release design inputs or changelog change', async () => {
+    const folder = await mkdtemp(path.join(tmpdir(), 'm100-release-build-inputs-'))
+    try {
+      await mkdir(path.join(folder, 'design'))
+      await writeFile(path.join(folder, 'design/tokens.json'), '{}')
+      await writeFile(path.join(folder, 'CHANGELOG.md'), '# Changelog')
+      execFileSync('git', ['init', '--quiet', folder])
+      execFileSync('git', ['add', '--', 'design/tokens.json', 'CHANGELOG.md'], { cwd: folder })
+      const original = buildGeneration(folder)
+      await writeFile(path.join(folder, 'design/tokens.json'), '{"color":"red"}')
+      const designChanged = buildGeneration(folder)
+      expect(designChanged).not.toBe(original)
+      await writeFile(path.join(folder, 'CHANGELOG.md'), '# Changed release notes')
+      expect(buildGeneration(folder)).not.toBe(designChanged)
     } finally {
       await rm(folder, { recursive: true, force: true })
     }

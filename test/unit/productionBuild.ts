@@ -23,6 +23,7 @@ const PRODUCTION_BUILD_TIMEOUT_MS = 600_000
 const BUILD_INPUT_FOLDERS: ReadonlySet<string> = new Set([
   'src',
   'scripts',
+  'design',
   'l10n',
   'vendor',
   'native',
@@ -32,7 +33,7 @@ const BUILD_INPUT_FOLDERS: ReadonlySet<string> = new Set([
   'first-party-skills',
 ])
 const BUILD_INPUT_FILE =
-  /^(?:package(?:\.nls(?:\.[\w-]+)?)?\.json|package-lock\.json|tsconfig(?:\.\w+)?\.json|THIRD_PARTY_NOTICES\.txt)$/u
+  /^(?:package(?:\.nls(?:\.[\w-]+)?)?\.json|package-lock\.json|tsconfig(?:\.\w+)?\.json|THIRD_PARTY_NOTICES\.txt|CHANGELOG\.md)$/u
 // The tracked-file listing of a large repository.
 const GIT_LIST_MAX_BYTES = 64 * 1024 * 1024
 

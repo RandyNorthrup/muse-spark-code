@@ -697,7 +697,7 @@ describe('harness scenario event readiness', () => {
 })
 
 describe('harness scenes wait for the controls they touch', () => {
-  it.each(['ready', 'modelsPanel/ready', 'tasksReady'])(
+  it.each(['ready', 'modelsPanel/ready', 'tasksReady', 'devicesReady'])(
     'retains early %s before the scenario script is installed',
     (type) => {
       const window = new EventTarget()
@@ -715,7 +715,7 @@ describe('harness scenes wait for the controls they touch', () => {
         },
       }
       const ready = harnessSection(
-        "if (['ready', 'modelsPanel/ready', 'tasksReady'].includes(message.type)) {",
+        "if (['ready', 'modelsPanel/ready', 'tasksReady', 'devicesReady'].includes(message.type)) {",
         '        },\n      })',
       )
       expect(() => {

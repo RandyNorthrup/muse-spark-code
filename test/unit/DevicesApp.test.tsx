@@ -365,8 +365,11 @@ describe('M100 U explicit webview bridge', () => {
     expect(entry).not.toMatch(/^import .*DevicesApp.*from/gm)
     expect(entry).toContain("await import('./models/sections/agents/DevicesApp')")
     expect(entry).toMatch(/catch \{\s+return \{ default: DevicesUnavailable \}/)
-    expect(entry).toContain('{UI_TEXT.surfaceLoadFailed}')
-    expect(entry).toContain('{UI_TEXT.surfaceLoadRetry}')
+    expect(entry).toContain('<UnavailableSurface isModal={false} failed className="gate" />')
+    const failure = readFileSync(path.resolve('src/webview/components/DeferredSurface.tsx'), 'utf8')
+    expect(failure).toContain('{UI_TEXT.surfaceLoadFailed}')
+    expect(failure).toContain('{UI_TEXT.surfaceLoadRetry}')
+    expect(failure).toContain('onClick={retrySurface}')
     expect(entry).not.toMatch(/UI_TEXT\.devices\./)
     // The document's state, draft and QR chunks are in the lazy chunk, never startup.
     expect(entry).not.toMatch(/zod|savedDevicesState|devicesDraft|qrGeneratorEncoder|QrFigure/)

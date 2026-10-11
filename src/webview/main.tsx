@@ -12,6 +12,7 @@ import { UI_TEXT, WEBVIEW_ROOT_ELEMENT_ID } from '../shared/constants'
 import type { WebviewToHostMessage } from '../shared/protocol'
 import { App } from './App'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { UnavailableSurface } from './components/DeferredSurface'
 import { DeferredReportDialog } from './components/DeferredReportDialog'
 import { type ErrorReporter, reportWebviewErrorMessage, webviewErrorReport } from './errorReport'
 import { vsCodeHostBridge } from './hostBridge'
@@ -88,20 +89,7 @@ if (document.body.dataset['surface'] === 'devices') {
 function DevicesUnavailable() {
   return (
     <main className="body">
-      <section className="gate" role="alert" aria-labelledby="devices-load-title">
-        <h1 id="devices-load-title" className="gate-title">
-          {UI_TEXT.surfaceLoadFailed}
-        </h1>
-        <button
-          type="button"
-          className="button-primary"
-          onClick={() => {
-            window.location.reload()
-          }}
-        >
-          {UI_TEXT.surfaceLoadRetry}
-        </button>
-      </section>
+      <UnavailableSurface isModal={false} failed className="gate" />
     </main>
   )
 }

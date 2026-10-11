@@ -28,6 +28,8 @@ it('keeps account, developer and help values out of startup and loads them exact
   expect(built.bundle.UI_TEXT.sendTitle).toBe(EN.sendTitle)
   expect(() => built.bundle.UI_TEXT.referenceIntro).toThrow('English surface is not loaded')
   expect(() => built.bundle.UI_TEXT.accounts).toThrow('English surface is not loaded')
+  expect(() => built.bundle.EN.providerText).toThrow('English surface is not loaded')
+  expect(() => built.bundle.EN.acpChatGpt).toThrow('English surface is not loaded')
   // STARTUP017: a restored settlement row's words paint with startup; the
   // rest of the schedule English loads only with the schedule surfaces.
   expect(built.bundle.UI_TEXT.scheduleSettlement).toEqual(EN.scheduleSettlement)
@@ -59,6 +61,8 @@ it('keeps account, developer and help values out of startup and loads them exact
   expect(built.bundle.installEmbeddedTable(embedded(german))).toBeUndefined()
   await Promise.all([built.bundle.loadDeferredEnglish(), built.bundle.loadDeferredEnglish()])
   expect(built.bundle.UI_TEXT).toEqual(german)
+  expect(built.bundle.EN.providerText).toEqual(EN.providerText)
+  expect(built.bundle.EN.acpChatGpt).toEqual(EN.acpChatGpt)
   // The vault group's English loads with the vault surface alone (CAPS017).
   expect(() => built.bundle.EN.vault).toThrow('English surface is not loaded: vault')
   built.bundle.installVaultEnglish()
@@ -73,6 +77,8 @@ it('keeps account, developer and help values out of startup and loads them exact
   })
   expect(resourceOnly.length).toBeGreaterThan(0)
   await built.bundle.loadResourceEnglish()
+  expect(() => built.bundle.EN.devices).toThrow('English surface is not loaded: devices')
+  await built.bundle.loadDevicesEnglish()
   for (const [key, value] of Object.entries(built.bundle.EN)) expect(value).toEqual(EN[key])
   built.bundle.setUiText(built.bundle.EN, 'en')
   for (const [key, value] of Object.entries(built.bundle.EN))
@@ -82,6 +88,7 @@ it('validates deferred slots, keys and plurals before installing a translated ta
   await built.bundle.loadDeferredEnglish()
   built.bundle.installVaultEnglish()
   await built.bundle.loadResourceEnglish()
+  await built.bundle.loadDevicesEnglish()
   const german = JSON.parse(readFileSync('l10n/ui.de.json', 'utf8'))
   for (const mutate of [
     (table) => {
