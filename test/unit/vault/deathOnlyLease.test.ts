@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, realpath, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -27,10 +27,18 @@ afterEach(async () => {
   for (const root of roots.splice(0)) await removeFolder(root)
 })
 async function fixture() {
-  const root = await mkdtemp(path.join(tmpdir(), 'm109-death-'))
+  const root = await mkdtemp(path.join(await realpath(tmpdir()), 'm109-death-'))
   roots.push(root)
   let clock = 0
-  const owner = { host: 'test-machine', pid: 123, processStart: 1000, exactBirth: '10000001' }
+  const owner = {
+    host: 'test-machine',
+    pid: 123,
+    processStart: 1000,
+    exactBirth: '10000001',
+    machineId: 'installation',
+    bootId: 'boot',
+    pidNamespace: 'pid:[42]',
+  }
   const env: FileLeaseEnv = {
     port: nodeLeasePort,
     now: () => clock,
@@ -57,6 +65,112 @@ async function fixture() {
   }
 }
 describe('vault takeover requires proven death', () => {
+  it.each([
+    {
+      name: 'same complete live identity',
+      owner: {},
+      self: {},
+      alive: true,
+      birth: '10000001',
+      gone: false,
+    },
+    {
+      name: 'same hostname on another machine',
+      owner: { machineId: 'foreign' },
+      self: {},
+      alive: false,
+      birth: 'other',
+      gone: false,
+    },
+    {
+      name: 'different hostname on same machine',
+      owner: { host: 'renamed' },
+      self: {},
+      alive: false,
+      birth: undefined,
+      gone: true,
+    },
+    {
+      name: 'previous boot on same machine',
+      owner: { bootId: 'old' },
+      self: {},
+      alive: true,
+      birth: undefined,
+      gone: true,
+    },
+    {
+      name: 'other namespace with absent pid',
+      owner: { pidNamespace: 'pid:[43]' },
+      self: {},
+      alive: false,
+      birth: 'other',
+      gone: false,
+    },
+    {
+      name: 'absent pid in comparable namespace',
+      owner: {},
+      self: {},
+      alive: false,
+      birth: undefined,
+      gone: true,
+    },
+    {
+      name: 'reused pid with different birth',
+      owner: {},
+      self: {},
+      alive: true,
+      birth: '10000002',
+      gone: true,
+    },
+    {
+      name: 'failed liveness probe',
+      owner: {},
+      self: {},
+      alive: undefined,
+      birth: 'other',
+      gone: false,
+    },
+    ...['machineId', 'bootId', 'pidNamespace', 'exactBirth'].flatMap((field) => [
+      {
+        name: 'unreadable owner ' + field,
+        owner: { [field]: undefined },
+        self: {},
+        alive: true,
+        birth: 'other',
+        gone: false,
+      },
+      {
+        name: 'unreadable self ' + field,
+        owner: {},
+        self: { [field]: undefined },
+        alive: true,
+        birth: undefined,
+        gone: false,
+      },
+    ]),
+    {
+      name: 'unreadable pid',
+      owner: { pid: NaN },
+      self: {},
+      alive: false,
+      birth: 'other',
+      gone: false,
+    },
+  ])('owner evidence: $name', async ({ owner, self, alive, birth, gone }) => {
+    const f = await fixture()
+    expect(
+      await isProcessOwnerGone(
+        { ...f.owner, ...owner },
+        {
+          self: { ...f.owner, ...self },
+          exactOnly: true,
+          isAlive: () => alive,
+          exactBirthOf: () => Promise.resolve(birth),
+        },
+      ),
+    ).toBe(gone)
+  })
+
   it('validates value-free writer facts and displays them in the shared host client', async () => {
     const writer = { kind: 'held', pid: 123, acquiredAt: 1000, otherMachine: false }
     const input = {
@@ -198,7 +312,7 @@ describe('vault takeover requires proven death', () => {
     ).toBe(false)
     expect(
       await isProcessOwnerGone(
-        { ...f.owner, host: 'another-machine' },
+        { ...f.owner, machineId: 'another-installation', host: 'another-machine' },
         { ...probe, isAlive: () => false },
       ),
     ).toBe(false)
