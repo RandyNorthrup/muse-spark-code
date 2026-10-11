@@ -535,6 +535,12 @@ export const ON_FIRST_USE = [
     files: ['src/acp/questionDeferralEntry.ts', 'src/acp/questionDeferral.ts'],
   },
   {
+    output: 'dist/makerContracts.js',
+    metafile: 'dist/meta/makerContracts.json',
+    use: 'the first maker message or hardware approval',
+    files: ['src/shared/makerProtocol.ts', 'src/shared/makerProtocolPreview.ts'],
+  },
+  {
     output: 'dist/makerHost.js',
     metafile: 'dist/meta/makerHost.json',
     use: 'the first maker UI or device tool',
@@ -543,7 +549,6 @@ export const ON_FIRST_USE = [
       'src/host/maker/vscodeMakerHost.ts',
       'src/host/maker/makerCommands.ts',
       'src/host/ide/makerTools.ts',
-      'src/shared/makerProtocol.ts',
     ],
   },
   {
@@ -1014,6 +1019,21 @@ export const sharedValidation = {
       path: './validation.js',
       external: true,
     }))
+  },
+}
+
+// Maker schemas remain outside startup and are shared by the lazy guard,
+// maker host and standalone runtime instead of being copied into each one.
+export const sharedMakerContracts = {
+  name: 'shared-maker-contracts',
+  setup(build) {
+    build.onResolve({ filter: /\/makerProtocol(?:\.[jt]s)?$/ }, (args) => {
+      const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
+      return source === path.resolve('src/shared/makerProtocol.ts') &&
+        path.resolve(build.initialOptions.outfile ?? '') !== path.resolve('dist/makerContracts.js')
+        ? { path: './makerContracts.js', external: true }
+        : undefined
+    })
   },
 }
 

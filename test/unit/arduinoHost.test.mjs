@@ -1,5 +1,13 @@
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import path from 'node:path'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { pack } from '@vscode/vsce/out/package.js'
@@ -8,6 +16,27 @@ import { run as runArduinoTests } from '../hosts/arduino-test-runner.mjs'
 const launch = vi.hoisted(() => vi.fn())
 const fixture = vi.hoisted(() => ({ root: '' }))
 vi.mock('playwright-core', () => ({ _electron: { launch } }))
+vi.mock('node:child_process', async (importOriginal) => {
+  const child = await importOriginal()
+  return {
+    ...child,
+    execFileSync: (file, args, options) => {
+      // Completion cases fake the editor: stage only their private archive
+      // contents and fake CLI path, without requiring POSIX tools on Windows.
+      if (file === 'unzip') {
+        const destination = args.at(-1)
+        mkdirSync(destination, { recursive: true })
+        cpSync(path.join(fixture.root, 'source'), path.join(destination, 'extension'), {
+          recursive: true,
+        })
+        return ''
+      }
+      return file === 'sh' && args[0].replaceAll('\\', '/').endsWith('/test/hosts/fake-muse.sh')
+        ? path.join(fixture.root, 'fake-muse')
+        : child.execFileSync(file, args, options)
+    },
+  }
+})
 vi.mock('node:fs', async (importOriginal) => {
   const fs = await importOriginal()
   return {

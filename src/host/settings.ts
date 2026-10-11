@@ -356,21 +356,6 @@ function readSetting<K extends SettingKey>(
   if (key === 'scheduleDefaultDelivery') previousKey = 'schedules.defaultDelivery'
   else if (key === 'scheduleAgentCreation') previousKey = 'schedules.agentCreation'
   let raw = config.get(key) ?? (previousKey === undefined ? undefined : config.get(previousKey))
-  if (key === 'vault.enabled') {
-    const configured = config.inspect?.(key)
-    const hasExplicit =
-      configured === undefined
-        ? raw !== undefined
-        : [configured.globalValue, configured.workspaceValue, configured.workspaceFolderValue].some(
-            (value) => value !== undefined,
-          )
-    if (!hasExplicit) {
-      // A legacy scalar collides with the new group defaults, so inspect its
-      // stored value rather than relying on VS Code's merged group object.
-      const legacy = config.inspect?.('vault')?.globalValue ?? config.get('vault')
-      if (typeof legacy === 'boolean') raw = legacy
-    }
-  }
   // Theia accepts repository overrides even for manifest scope "machine".
   // Read those keys from the user's lane; a repository cannot opt into
   // execution, spending or Bypass. Sources without inspection are already
@@ -378,6 +363,23 @@ function readSetting<K extends SettingKey>(
   const inspected = config.inspect?.(key)
   if (machineSettings.has(key) && config.inspect !== undefined)
     raw = inspected?.globalValue ?? inspected?.defaultValue
+  if (key === 'vault.enabled') {
+    const configured = config.inspect?.(key)
+    const hasExplicit =
+      configured === undefined
+        ? raw !== undefined
+        : configured.globalValue !== undefined ||
+          (!machineSettings.has(key) &&
+            [configured.workspaceValue, configured.workspaceFolderValue].some(
+              (value) => value !== undefined,
+            ))
+    if (!hasExplicit) {
+      // A legacy scalar collides with the new group defaults, so inspect its
+      // stored value rather than relying on VS Code's merged group object.
+      const legacy = config.inspect?.('vault')?.globalValue ?? config.get('vault')
+      if (typeof legacy === 'boolean') raw = legacy
+    }
+  }
   // The keyed schema validates its matching default; TypeScript cannot correlate indexed K (PLAN §8).
   const fallback = settingSchemas[key].parse(SETTING_DEFAULTS[key]) as ExtensionSettings[K]
   if (raw === undefined) {

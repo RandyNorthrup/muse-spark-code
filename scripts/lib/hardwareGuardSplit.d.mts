@@ -4,4 +4,5 @@ import type { Plugin } from 'esbuild'
 export const hardwareGuardSplit: Plugin
 export const hardwareShellSplit: Plugin
 export const hardwareConstantTables: Plugin
+export const browserConstantTables: Plugin
 export const browserHardwareText: Plugin

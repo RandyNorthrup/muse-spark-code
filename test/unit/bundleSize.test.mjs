@@ -57,6 +57,18 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks())
 
 describe('bundled What’s New content budget', () => {
+  it('PORTM103 bounds the shared lazy maker contracts at 25 KiB', async () => {
+    const file = 'dist/makerContracts.js'
+    statSync.mockImplementation((path) => ({ size: path === file ? 25 * 1024 : 0 }))
+    await import('../../scripts/check-bundle-size.mjs')
+    expect(process.exit).not.toHaveBeenCalled()
+    vi.resetModules()
+    statSync.mockImplementation((path) => ({ size: path === file ? 25 * 1024 + 1 : 0 }))
+    await expect(import('../../scripts/check-bundle-size.mjs')).rejects.toThrow('exit 1')
+    expect(console.log).toHaveBeenCalledWith(
+      'OVER dist/makerContracts.js: 25.0 KiB (budget 25 KiB)',
+    )
+  })
   it.each([
     ['models', 75],
     ['usage', 50],

@@ -1,6 +1,16 @@
 {
   "options": ["--no-warning", "--no-tree", "--exit-code", "circular:1", "-T"],
   "roots": [
+    "src/core/maker/guardEntry.ts",
+    "src/core/maker/shellEntry.ts",
+    "src/host/maker/makerEntry.ts",
+    "src/host/maker/makerPreviewEntry.ts",
+    "src/host/editor/verifyEditor.ts",
+    "src/runtime/maker/entry.ts",
+    "src/webview/maker/previewMain.ts",
+    "src/webview/maker/reviewEntry.ts",
+    "src/core/verify/jsonDiagnostics.ts",
+    "src/shared/makerProtocol.ts",
     "src/runtime/runtimeEngineEntry.ts",
     "src/host/backend/providerPolicyEntry.ts",
     "src/runtime/runtimeAccountingEntry.ts",
@@ -222,6 +232,10 @@
     "test/harness/reporting/verify.mjs",
     "test/harness/vault/main.tsx",
     "test/harness/vault/run.mjs",
-    "test/unit/helpers/questions/queuedTurnCrash.ts"
+    "test/unit/helpers/questions/queuedTurnCrash.ts",
+    "src/webview/maker/MakerSurface.tsx",
+    "src/webview/maker/boundaries.ts",
+    "src/webview/maker/DevicePanel.tsx",
+    "src/webview/makerEntry.ts"
   ]
 }

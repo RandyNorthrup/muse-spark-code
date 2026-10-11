@@ -82,7 +82,9 @@ describe('native command final owner admission', () => {
     try {
       const io = localIo(['OPENAI_API_KEY'])
       const command =
-        process.platform === 'win32' ? '[Environment]::GetEnvironmentVariables().Values' : 'env'
+        process.platform === 'win32'
+          ? 'foreach($name in [Environment]::GetEnvironmentVariables().Keys){$name+"="+[Environment]::GetEnvironmentVariable($name)}'
+          : 'env'
       for (const isInteractive of [false, true]) {
         const result = await io.runShell(
           command,
@@ -184,7 +186,8 @@ describe('native command final owner admission', () => {
         undefined,
         guard,
       )
-      expect(guard).toHaveBeenCalledOnce()
+      // The governed preparation and the final synchronous spawn fence both check.
+      expect(guard).toHaveBeenCalledTimes(2)
       expect(result.exitCode).toBe(0)
       expect(result.stdout.trim()).toBe('admitted')
     },

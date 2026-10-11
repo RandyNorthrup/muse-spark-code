@@ -7,6 +7,7 @@ import { buildProfile, requireArduinoBuild } from '../../scripts/lib/arduinoBuil
 import { stageArduinoVsix } from '../../scripts/package-arduino.mjs'
 import { stageVsix } from '../../scripts/package-vsix.mjs'
 import { arduinoCompilerOptions } from '../../scripts/typecheck-arduino.mjs'
+import { UI_TEXT_REGIONS } from '../../scripts/lib/uiTextRegions.mjs'
 
 const fixture = { root: '', sourceManifest: '' }
 const digest = (bytes) => createHash('sha256').update(bytes).digest('hex')
@@ -30,6 +31,11 @@ beforeAll(() => {
     'dist/extension.js',
     'dist/validation.js',
     'dist/verifyEditor.js',
+    'dist/hardwareGuard.js',
+    'dist/hardwareShell.js',
+    'dist/makerContracts.js',
+    'native/linux/x64/muse-created',
+    'native/linux/arm64/muse-created',
     'dist/webview/main.js',
     'dist/webview/chunks/maker-test.js',
   ]) {
@@ -47,6 +53,14 @@ beforeAll(() => {
     path.join(fixture.root, 'dist/build-profile.json'),
     JSON.stringify({ ...buildProfile(true), production: true }),
   )
+  for (const page of ['modelsWebview', 'whatsNewPage', 'usageWebview', 'referencePage'])
+    cpSync(
+      path.join(fixture.root, 'dist/meta/webview.json'),
+      path.join(fixture.root, `dist/meta/${page}.json`),
+    )
+  // This manifest/artifact fixture uses minimal valid regional fallback modules.
+  for (const region of UI_TEXT_REGIONS)
+    writeFileSync(path.join(fixture.root, region.output), 'exports.EN={};')
   fixture.sourceManifest = readFileSync(path.join(fixture.root, 'package.json'))
 })
 afterAll(() => rmSync(fixture.root, { recursive: true, force: true }))

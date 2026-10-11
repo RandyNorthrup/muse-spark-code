@@ -20,7 +20,7 @@ describe('readSettings', () => {
       new FakeLogOutputChannel(),
     )
     for (const key of MACHINE_SCOPED_SETTINGS) {
-      expect(settings[key], key).toEqual(SETTING_DEFAULTS[key])
+      expect(settings[key], key).toEqual(defaultSettings()[key])
     }
     expect(
       readSettings(
@@ -91,6 +91,18 @@ describe('readSettings', () => {
       log,
     )
     expect(inherited).toMatchObject({ 'vault.enabled': false })
+    expect(
+      readSettings(
+        {
+          get,
+          inspect: (section: string) =>
+            section === 'vault'
+              ? { globalValue: false }
+              : { workspaceValue: true, workspaceFolderValue: true },
+        },
+        log,
+      ),
+    ).toMatchObject({ 'vault.enabled': false })
     const explicit = readSettings(
       {
         get,

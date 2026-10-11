@@ -76,6 +76,7 @@ import { HOST_PLUGINS } from './lib/hostPlugins.mjs'
 import {
   sharedUiText,
   sharedValidation,
+  sharedMakerContracts,
   nodeReferenceData,
   deferredCohort,
   sharedWire,
@@ -89,6 +90,7 @@ import {
   hardwareGuardSplit,
   hardwareShellSplit,
   hardwareConstantTables,
+  browserConstantTables,
 } from './lib/hardwareGuardSplit.mjs'
 import {
   CONTENT_FILE as WHATS_NEW_CONTENT_OUTFILE,
@@ -359,6 +361,7 @@ const modelApiOptions = {
     deferredCohort,
     sharedWire,
     hardwareGuardSplit,
+    sharedMakerContracts,
     sharedResourceAdmission,
     sharedStructuredSchema,
     sharedModelApiBoundaries,
@@ -846,7 +849,14 @@ const checkpointStoreOptions = {
 
 const hardwareGuardOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, hardwareShellSplit, hardwareConstantTables],
+  plugins: [
+    sharedUiText,
+    sharedValidation,
+    sharedModelApiBoundaries,
+    hardwareShellSplit,
+    sharedMakerContracts,
+    hardwareConstantTables,
+  ],
   entryPoints: [HARDWARE_GUARD_ENTRY],
   outfile: HARDWARE_GUARD_OUTFILE,
   platform: 'node',
@@ -973,7 +983,16 @@ const runtimeQuestionsOptions = {
 // M103 R: native/runtime maker work is absent from ACP and activation startup.
 const runtimeMakerOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, sharedWire],
+  plugins: [
+    sharedUiText,
+    sharedValidation,
+    sharedWire,
+    sharedResourceAdmission,
+    sharedModelApiBoundaries,
+    hardwareShellSplit,
+    deferredCohort,
+    sharedMakerContracts,
+  ],
   entryPoints: ['src/runtime/maker/entry.ts'],
   outfile: 'dist/runtimeMaker.js',
   platform: 'node',
@@ -1125,6 +1144,7 @@ const webviewOptions = {
   plugins: [
     sharedHighlightGrammar,
     ...(isProduction ? [compactBrowserUiText] : []),
+    ...(isProduction ? [browserConstantTables] : []),
     ...(isProduction ? [lazyBrowserKeybindings] : []),
     browserReviewComment,
     resourceBrowserValidation,
@@ -1179,7 +1199,6 @@ function writeWebviewMetafiles(metafile) {
     whatsNewPage: 'dist/webview/whatsNew.js',
     usageWebview: 'dist/webview/usage.js',
     referencePage: 'dist/webview/referencePage.js',
-    makerPreview: 'dist/webview/makerPreview.js',
     resourceSurface: 'dist/webview/resourceSurface.js',
     resourceHistory: 'dist/webview/resourceHistory.js',
     reportingPageWebview: 'dist/webview/reportingPage.js',
@@ -1364,6 +1383,15 @@ if (isWatch) {
   console.log('watching for changes…')
 } else {
   const shipped = {
+    makerContracts: esbuild.build({
+      ...common,
+      plugins: [sharedUiText, sharedValidation],
+      entryPoints: ['src/shared/makerProtocol.ts'],
+      outfile: 'dist/makerContracts.js',
+      platform: 'node',
+      format: 'cjs',
+      target: HOST_NODE_TARGET,
+    }),
     questionNotes: esbuild.build({
       ...modelApiOptions,
       entryPoints: ['src/core/questions/deferralEntry.ts'],

@@ -726,7 +726,15 @@ describe('the Auto reviewer on Muse Code (M90)', () => {
     restarted.exit(1)
     await new Promise((resolve) => setTimeout(resolve, 50))
     const relaunched = answeringHost()
-    const relaunchedHost = new MuseCodeHost(relaunched.host, t.log)
+    const relaunchedHost = new MuseCodeHost(
+      relaunched.host,
+      t.log,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      () => ({ hardwareSessionLatched: false }),
+    )
     t.hold(shellRequest('a5'), 'muse-spark-1.3', relaunchedHost)
     answer(relaunched, await reviewTurn(relaunched, 1), CAPTURED_REPLY)
     await vi.waitFor(() => {

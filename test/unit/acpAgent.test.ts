@@ -348,6 +348,29 @@ function maker() {
 }
 
 describe('M103 ACP hardware lifecycle', () => {
+  it('PORTM103 keeps release local help noninteractive with maker enabled', async () => {
+    const { session, runtime } = maker()
+    const h = harness({ maker: runtime })
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      expect(await prompt(client, sessionId, '/help')).toEqual({ stopReason: 'end_turn' })
+      expect(session.command).not.toHaveBeenCalled()
+      expect(session.setInteractive).not.toHaveBeenCalled()
+      expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+    })
+  })
+  it('PORTM103 releases maker attendance when an ordinary model turn completes', async () => {
+    const { session, runtime } = maker()
+    const h = harness({ maker: runtime })
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      await turn(h, client, sessionId, () => {
+        expect(session.setInteractive).toHaveBeenLastCalledWith(true)
+      })
+      expect(session.setInteractive).toHaveBeenLastCalledWith(false)
+      expect(session.command).not.toHaveBeenCalled()
+    })
+  })
   it('forwards the host tool endpoint and handles slash commands without a model attempt', async () => {
     const { session, runtime } = maker()
     session.command.mockResolvedValue(UI_TEXT.makerHardwareDisabled)

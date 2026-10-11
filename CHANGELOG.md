@@ -80,6 +80,8 @@ happened, not what was planned; superseded entries are kept.
 
 ### M103 Accepted Maker Tools Port
 
+- Preserve maker approvals and Stop across the 0.17.1 provider/resource/question updates; keep maker contracts and fallback English lazy under independent budgets. Qualification and visibility limits remain unchanged.
+
 
 - M103 makers integration: the twelve makers lanes joined additively with
   regenerated reference, localization and host-API records. New lazy bundles

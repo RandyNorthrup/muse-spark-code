@@ -1081,10 +1081,10 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
       resource = await prepareResourceJob(resource, job)
       try {
         assertCanRun?.()
-      } catch {
+      } catch (error: unknown) {
         resource?.complete(true)
-        // No workspace process has started; cancellation is proven at this boundary.
-        return refusedShellEntry()
+        // No workspace process has started; retain the owner's no-entry refusal.
+        return refusedShellEntry(error instanceof Error ? error.message : String(error))
       }
       const isFenced = !isInteractive || (deps.agentFence?.() ?? true)
       return await runCommand({

@@ -840,7 +840,8 @@ function fixture(c: FenceCase) {
           },
         }
       },
-      extraHosts: () => [],
+      // Exact consent for this fake dev origin; private hosts never widen implicitly.
+      extraHosts: () => ['http://localhost:3000'],
       isOffered: () => true,
     },
     codeIntel: heldService(service, point === 'service', held, count),

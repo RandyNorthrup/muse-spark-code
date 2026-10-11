@@ -224,7 +224,20 @@ function startAgent(
       return { outcome: { outcome: 'selected', optionId } }
     })
   const stream = acp.ndJsonStream(Writable.toWeb(child.stdin), webReadable(child.stdout))
-  return { updates, wire, stderr, run: (op) => client.connectWith(stream, op) }
+  return {
+    updates,
+    wire,
+    stderr,
+    run: async (op) => {
+      try {
+        return await client.connectWith(stream, op)
+      } catch (error: unknown) {
+        if (error instanceof Error)
+          error.message += `\nFake ACP error: ${JSON.stringify(error)}\n${stderr.join('')}`
+        throw error
+      }
+    },
+  }
 }
 
 async function newSession(client: acp.ClientContext): Promise<string> {

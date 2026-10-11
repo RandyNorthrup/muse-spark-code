@@ -386,7 +386,9 @@ export const compactBrowserUiText = {
           helpFiles.every((file) => !readFileSync(file, 'utf8').includes(`UI_TEXT.${key}`)),
       )
       // M108: account and developer English load with their optional surfaces.
-      const accountKeys = deferredKeys.filter((key) => /^(?:accounts|developer)$/.test(key))
+      const accountKeys = deferredKeys.filter((key) =>
+        /^(?:accounts|developer|providerText|acpChatGpt)$/.test(key),
+      )
       // STARTUP017: the schedule surfaces' English loads beside them; chat
       // startup paints restored settlement rows from scheduleSettlement alone.
       const scheduleKeys = deferredKeys.filter((key) => key === 'scheduleV2')
@@ -409,6 +411,7 @@ export const compactBrowserUiText = {
           !helpKeys.includes(key) &&
           !accountKeys.includes(key) &&
           !scheduleKeys.includes(key) &&
+          !key.startsWith('maker') &&
           key !== 'vault' &&
           nonResourceKeys.has(key),
       )

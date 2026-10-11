@@ -4960,6 +4960,40 @@ export const EN = {
     other:
       'The checks still failed after {count} rounds of fixes in a row, so they will not run again automatically until your next message.',
   }),
+  // M103-G: the always-on physical-action guard.
+  approvalHardwareNote:
+    'Physical device action. Opening a serial port may reset the board. Review the exact command and target; approval applies once and expires after two minutes.',
+
+  hardwareShellNote:
+    'Hardware workspace: review this exact shell command. Approval applies once and expires after two minutes. Use maker tools for device actions. {warning}',
+
+  hardwareProgramWarning: 'This looks like it programs a board.',
+
+  hardwareConnectWarning: 'This looks like it opens a device port; the board may reset.',
+
+  hardwareActuateWarning: 'This looks like it writes to a port or sends a machine command.',
+
+  hardwareIrreversibleWarning: 'This looks like an irreversible fuse, eFuse or lock-bit write.',
+
+  hardwareTargetNote: 'Target binding: {targets}',
+
+  hardwareRefused:
+    'This device operation is refused. Review and run the command yourself in your own terminal.',
+
+  hardwareUnattended:
+    'Shell commands in hardware workspaces and physical device actions are refused in unattended runs.',
+
+  hardwareStopUnconfirmed:
+    'Stop delivery could not be confirmed. Check the machine and use its physical E-stop.',
+
+  hardwarePresenceRequired:
+    'Focus the visible conversation panel before approving a hardware command.',
+
+  hardwareExpired: 'The device approval expired. Nothing was sent.',
+
+  hardwareBypassNotice:
+    'Bypass permissions are unavailable in hardware workspaces. Use Auto or Manual and approve each device action once.',
+
   exportThenRunLabel: 'Then ran:',
   // {command}: the then_run command; {outcome}: why it did not run.
   exportThenRunSkipped: 'then_run `{command}`: {outcome}',
@@ -6649,40 +6683,6 @@ export const EN = {
   // Shared with the hardware Muse Code Modes menu; retain in browser fallback.
   hardwareBindingUnavailable:
     'This device adapter cannot verify the approved target at process start. Nothing was sent. Use the Model API backend for hardware commands.',
-
-  // M103-G: the always-on physical-action guard.
-  approvalHardwareNote:
-    'Physical device action. Opening a serial port may reset the board. Review the exact command and target; approval applies once and expires after two minutes.',
-
-  hardwareShellNote:
-    'Hardware workspace: review this exact shell command. Approval applies once and expires after two minutes. Use maker tools for device actions. {warning}',
-
-  hardwareProgramWarning: 'This looks like it programs a board.',
-
-  hardwareConnectWarning: 'This looks like it opens a device port; the board may reset.',
-
-  hardwareActuateWarning: 'This looks like it writes to a port or sends a machine command.',
-
-  hardwareIrreversibleWarning: 'This looks like an irreversible fuse, eFuse or lock-bit write.',
-
-  hardwareTargetNote: 'Target binding: {targets}',
-
-  hardwareRefused:
-    'This device operation is refused. Review and run the command yourself in your own terminal.',
-
-  hardwareUnattended:
-    'Shell commands in hardware workspaces and physical device actions are refused in unattended runs.',
-
-  hardwareStopUnconfirmed:
-    'Stop delivery could not be confirmed. Check the machine and use its physical E-stop.',
-
-  hardwarePresenceRequired:
-    'Focus the visible conversation panel before approving a hardware command.',
-
-  hardwareExpired: 'The device approval expired. Nothing was sent.',
-
-  hardwareBypassNotice:
-    'Bypass permissions are unavailable in hardware workspaces. Use Auto or Manual and approve each device action once.',
 }
 
 /** The shape every table has: English's keys, with any language's plural forms. */
