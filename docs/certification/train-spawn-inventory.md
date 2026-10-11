@@ -86,6 +86,20 @@ unlisted, zero stale.
   group-kill timing, 5 s timeouts). The governed routing is pinned by the
   port tests with real git behind the spy; admission is the governor
   suites' subject.
+- Dependents rule (`vitest related` over the four changed source files,
+  repository default timeout): 324 files, 8115 tests — 7825 passed,
+  188 skipped, 102 failed across 17 files, all outside this change's
+  area and all environmental: vault socket suites fail with `listen
+EPERM` (this sandbox blocks Unix-socket listen; confirmed in isolation),
+  the MCP streamable-HTTP test needs loopback it cannot have, and the
+  rest (ChatGPT adapters, voice, browser checks, model matrices) are
+  5 s timeouts under the run's 324-worker oversubscription (the one
+  re-checked in isolation, `execResources`, passes 6/6). Every suite
+  covering the changed files passed in that run, including
+  `spawnInventory`, all nativeGit*, runtimePullRequest*,
+  pullRequestCheckoutGit, heldCheckout*, conversationGit, shellJob,
+  launch, spawnGovernance, spawnProfiles, spawnBoundaries and
+  spawnRuntimeAdmission.
 - Open trade-off (lead decision 1 as ordered): on the production default
   paths the trust/root/seal recheck now runs before governor admission
   rather than synchronously between admission and spawn — the launcher
