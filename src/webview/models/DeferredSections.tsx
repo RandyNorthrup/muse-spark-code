@@ -1,60 +1,170 @@
-// The Models panel's sections stay out of the panel body's closure: the
-// panel loads them on first paint through the shared deferred boundary,
-// which announces loading with a status and retries a failed chunk without
-// taking the panel down (the panel error boundary is never the fallback).
-// While a chunk is in flight the slot holds no section and no overlay
-// placeholder: only the visually hidden loading announcement (absolute,
-// clipped, contributing no box). The first `<section>` the slot paints is
-// the real one, so a stand-in box is never swapped for the content box
-// (RVMODELSPLIT2 P2: the old reserve painted an empty `<section>` whose
-// 0 px box jumped to the content box on commit) and the harness
-// `.models-panel section` waiter cannot fire before the content exists
-// (RVMODELSPLIT2 P2: wizard scenarios started on the empty reserve and
-// threw on the missing "Pick a provider" button). Exact equality between
-// a pre-load box and the content box is not achievable here — the content
-// height depends on the host state that arrives after mount, which no
-// fallback can know — so the slot claims no box at all until commit, and
-// the committed section is never replaced (see the layout test).
-import { UI_TEXT } from '../../shared/constants'
-import { deferred } from '../components/DeferredSurface'
+// One stable boundary owns both sections. A transition keeps its already
+// revealed content on screen while the next section suspends (MODELSPLIT4).
+import { Component, lazy, Suspense, useLayoutEffect, useRef, type ReactNode } from 'react'
+import * as z from 'zod/mini'
+import {
+  MODELS_PROVIDER_ROW_PX,
+  MODELS_SECTION_HEADER_PX,
+  MODELS_TABLE_ROW_PX,
+  UI_TEXT,
+} from '../../shared/constants'
+import type { ModelsPanelSection, ModelsPanelState } from '../../shared/modelsPanel'
+import type { HostBridge } from '../hostBridge'
+import { UnavailableSurface } from '../components/DeferredSurface'
 import type { SectionProps } from './sections'
 
-/**
- * Loading paints no section: the slot holds only the visually hidden
- * loading announcement until the real section commits. The marker keeps
- * `data-deferred-loading` so the visual capture still waits out the chunk
- * and assistive tech still hears the loading status.
- */
-function SectionLoading() {
+const ProvidersSurface = lazy(async () => {
+  const { ProvidersSection } = await import('./ProvidersSection')
+  return { default: ProvidersSection }
+})
+const ModelsSurface = lazy(async () => {
+  const { ModelsSection } = await import('./ModelsSection')
+  return { default: ModelsSection }
+})
+
+const heightSchema = z.object({
+  snapshot: z.object({
+    modelsSectionHeights: z.record(z.string(), z.number().check(z.gt(0))),
+  }),
+})
+
+/** Storage is optional in native hosts and can refuse on a full browser store. */
+function heightsOf(host: HostBridge | undefined): Record<string, number> {
+  try {
+    const saved = heightSchema.safeParse(host?.savedState())
+    return saved.success ? saved.data.snapshot.modelsSectionHeights : {}
+  } catch {
+    return {}
+  }
+}
+
+/** A validated last measurement, or none for this document's first section paint. */
+export function rememberedSectionHeight(
+  host: HostBridge | undefined,
+  section: ModelsPanelSection,
+): number | undefined {
+  return heightsOf(host)[section]
+}
+
+export function SectionLoading({
+  section,
+  panelState,
+  host,
+}: {
+  readonly section: ModelsPanelSection
+  readonly panelState?: ModelsPanelState | undefined
+  readonly host?: HostBridge | undefined
+}) {
+  const rows = section === 'providers' ? panelState?.providers.length : panelState?.models.length
+  const rowHeight = section === 'providers' ? MODELS_PROVIDER_ROW_PX : MODELS_TABLE_ROW_PX
+  const height = heightsOf(host)[section] ?? MODELS_SECTION_HEADER_PX + (rows ?? 0) * rowHeight
   return (
-    <p role="status" data-deferred-loading className="models-visually-hidden">
-      {UI_TEXT.loadingOutput}
-    </p>
+    <div
+      className="models-section-skeleton"
+      style={{ height }}
+      aria-busy="true"
+      data-deferred-loading
+    >
+      <p className="models-hint" role="status">
+        {UI_TEXT.loadingOutput}
+      </p>
+    </div>
   )
 }
 
-const ProvidersSurface = deferred(
-  async () => {
-    const { ProvidersSection } = await import('./ProvidersSection')
-    return { default: ProvidersSection }
-  },
-  false,
-  () => <SectionLoading />,
-)
+class SectionBoundary extends Component<
+  { readonly children: ReactNode; readonly section: ModelsPanelSection },
+  { readonly failed: boolean; readonly section: ModelsPanelSection }
+> {
+  static getDerivedStateFromError() {
+    return { failed: true }
+  }
+  static getDerivedStateFromProps(
+    props: { readonly section: ModelsPanelSection },
+    state: { readonly section: ModelsPanelSection },
+  ) {
+    return props.section === state.section ? null : { failed: false, section: props.section }
+  }
+  override state = { failed: false, section: this.props.section }
+  override render(): ReactNode {
+    return this.state.failed ? (
+      <UnavailableSurface isModal={false} className="models-section-error" failed />
+    ) : (
+      this.props.children
+    )
+  }
+}
 
-const ModelsSurface = deferred(
-  async () => {
-    const { ModelsSection } = await import('./ModelsSection')
-    return { default: ModelsSection }
-  },
-  false,
-  () => <SectionLoading />,
-)
+export function SectionFrame({
+  section,
+  panelState,
+  host,
+  children,
+}: {
+  readonly section: ModelsPanelSection
+  readonly panelState: ModelsPanelState
+  readonly host?: HostBridge | undefined
+  readonly children: ReactNode
+}) {
+  const slot = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    const node = slot.current
+    if (node === null) return
+    const remember = () => {
+      const height = node.getBoundingClientRect().height
+      if (height <= 0 || node.querySelector(':scope .models-section-error') !== null) return
+      // A chunk failure keeps the visible box, including a first-load skeleton.
+      node.style.setProperty('--ms-models-section-height', `${String(height)}px`)
+      // Never persist a skeleton or incomplete money render as settled height.
+      if (
+        host === undefined ||
+        node.querySelector(':scope [data-deferred-loading]') !== null ||
+        node.querySelector(':scope section') === null
+      )
+        return
+      try {
+        host.saveState({
+          snapshot: { modelsSectionHeights: { ...heightsOf(host), [section]: height } },
+        })
+      } catch {
+        // Optional persistence must never break rendering.
+      }
+    }
+    remember()
+    // Money text can settle without resizing its labelled row. Observe the
+    // marker removal as well as the box; never persist an incomplete frame.
+    const paintObserver = new MutationObserver(remember)
+    paintObserver.observe(node, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+      attributes: true,
+      attributeFilter: ['data-deferred-loading'],
+    })
+    const observer =
+      typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(remember)
+    observer?.observe(node)
+    return () => {
+      observer?.disconnect()
+      paintObserver.disconnect()
+    }
+  }, [host, panelState, section])
+  return (
+    <div className="models-section-slot" ref={slot}>
+      <SectionBoundary section={section}>
+        <Suspense
+          fallback={<SectionLoading section={section} panelState={panelState} host={host} />}
+        >
+          {children}
+        </Suspense>
+      </SectionBoundary>
+    </div>
+  )
+}
 
 export function DeferredProvidersSection(props: SectionProps) {
   return <ProvidersSurface {...props} />
 }
-
 export function DeferredModelsSection(props: SectionProps) {
   return <ModelsSurface {...props} />
 }
