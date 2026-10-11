@@ -119,6 +119,12 @@ happened, not what was planned; superseded entries are kept.
   Visual captures wait for money amounts, and filtered model tables now have
   reviewed coverage across every theme, width and interaction state.
 
+- Hidden M96 engine workers reserve and settle each transport attempt separately.
+  Successful retries preserve earlier uncertain liability; refused and unsent
+  attempts release their claims, including admission revoked during a durable
+  save. Final outcomes close reservations without presenting unknown usage as
+  verified cost. Teams remain unavailable pending integration.
+
 - On macOS 26, a process that `ps` lists with an unknown state (`?`) while
   it changes no longer voids every resource tree's membership read, which
   could refuse Stop/kill for a tree while any process on the Mac was mid-transition.
