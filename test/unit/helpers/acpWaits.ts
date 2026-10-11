@@ -2,7 +2,7 @@
 // asynchronously, a command approval as the backend raises it, and one local
 // text prompt answered without a model turn.
 
-import type * as acp from '@agentclientprotocol/sdk'
+import * as acp from '@agentclientprotocol/sdk'
 import type { AgentEvent, ApprovalChoice } from '../../../src/shared/agentEvents'
 
 const POLL_MS = 5
@@ -17,6 +17,19 @@ export async function until(isMet: () => boolean): Promise<void> {
     }
     await new Promise((resolve) => setTimeout(resolve, POLL_MS))
   }
+}
+
+/** The ACP initialize + session/new handshake every router probe repeats. */
+export async function openHandshakeSession(
+  client: acp.ClientContext,
+  cwd: string,
+): Promise<{ sessionId: string }> {
+  await client.request('initialize', {
+    protocolVersion: acp.PROTOCOL_VERSION,
+    clientCapabilities: {},
+  })
+  const opened = await client.request('session/new', { cwd, mcpServers: [] })
+  return { sessionId: opened.sessionId }
 }
 
 /** Send one local text prompt (`/help`, `/vault status`) and return its reply. */

@@ -36,15 +36,18 @@ export function createRuntimeEstimate(deps: RuntimeEstimatorDeps): AcpEstimatePo
     ports: runtimeEstimatorPorts,
     ...(deps.loadBundle !== undefined && { loadBundle: deps.loadBundle }),
   })
-  return createAcpEstimate({
-    // Outside the editor there is no workspace preference: headless runs
-    // optimize for cost under their budget (M80, PLAN.md D65).
-    context: () => ({ asOf: new Date().toISOString(), optimize: 'cost' }),
-    runner: () => ({
-      estimate: (request, signal) => estimator.estimate(request, signal),
+  return {
+    isAvailable: false,
+    ...createAcpEstimate({
+      // Outside the editor there is no workspace preference: headless runs
+      // optimize for cost under their budget (M80, PLAN.md D65).
+      context: () => ({ asOf: new Date().toISOString(), optimize: 'cost' }),
+      runner: () => ({
+        estimate: (request, signal) => estimator.estimate(request, signal),
+      }),
+      money: { price: (price) => estimator.price(price) },
     }),
-    money: { price: (price) => estimator.price(price) },
-  })
+  }
 }
 
 /** Standalone estimate uses the same lazy engine without starting an agent. */

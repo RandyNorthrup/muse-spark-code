@@ -86,9 +86,8 @@ it('hidden automatic compaction preserves the complete ACP and CLI usage manuals
     if (/^\s+--(?:no-)?auto-compaction\b/.test(line)) continue
     expect(usage).toContain(line)
   }
-  for (const chunk of [EN.acpChatGpt.usage, EN.accounts.cliUsage, EN.accounts.execHelp]) {
-    expect(usage).toContain(fill(chunk, { command: 'muse-spark-code-acp' }))
-  }
+  // 0.17.1's truth pass took the account lines out of compact help (CX1R4).
+  expect(usage).toContain(fill(EN.acpChatGpt.usage, { command: 'muse-spark-code-acp' }))
   const help = createReference(table, 'en').all()
   const inventory = referenceModel()
   expect(help).toContain(table.referenceCliOptions.backend)
@@ -109,12 +108,16 @@ it('hidden automatic compaction preserves the complete ACP and CLI usage manuals
   createReference(EN, 'en')
 })
 
-it('documents ACP Once as workspace-scoped within the agent process', () => {
-  for (const file of ['README.md', 'docs/certification/m101-admission.md', 'docs/acp.md']) {
-    expect(readDocumentation(file, 'utf8').replaceAll(/\s+/g, ' ')).toContain(
-      'workspace within this agent process',
-    )
-  }
+// While the evaluation latch is off the README and the ACP page do not
+// describe automatic compaction (0.17.1's truth pass); the record keeps the
+// rule, and the two pages get it back with the feature.
+it('records ACP Once as workspace-scoped within the agent process', () => {
+  const texts = ['docs/certification/m101-admission.md', 'README.md', 'docs/acp.md'].map((file) =>
+    readDocumentation(file, 'utf8').replaceAll(/\s+/g, ' '),
+  )
+  expect(texts[0]).toContain('workspace within this agent process')
+  for (const page of texts.slice(1))
+    expect(page).not.toContain('workspace within this agent process')
 })
 
 describe('M80 structural headless paid policy', () => {

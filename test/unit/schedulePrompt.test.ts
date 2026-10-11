@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { parseLoopPrompt } from '../../src/core/backends/modelapi/schedules'
-import { SCHEDULE_LIFETIME_MS } from '../../src/shared/constants'
+import { SCHEDULE_LIFETIME_MS, UI_TEXT } from '../../src/shared/constants'
 import { draftOf } from '../../src/webview/schedules/ScheduleEditor'
-import { schedulePromptAction } from '../../src/webview/schedules/prompt'
+import { schedulePromptAction, scheduleUnavailableReason } from '../../src/webview/schedules/prompt'
 import { fakeSchedule } from './helpers/schedules/fixtures'
 
 function action(text: string) {
@@ -16,6 +16,12 @@ function action(text: string) {
   )
 }
 describe('M115 schedule and loop prompt entry', () => {
+  it('gives chat the unbound runtime reason from the English of the schedule surfaces', () => {
+    // Chat loads this module on a refused `/schedule`; its startup reads no
+    // schedule English itself (STARTUP017, pinned in browserEnglish).
+    expect(scheduleUnavailableReason()).toBe(UI_TEXT.scheduleV2.runtime.unavailable)
+    expect(scheduleUnavailableReason()).toContain('Schedules are unavailable in this host.')
+  })
   it('refuses a malformed creation draft instead of opening the editor as a valid schedule', () => {
     const schedule = fakeSchedule()
     expect(

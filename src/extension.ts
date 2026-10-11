@@ -20,6 +20,7 @@ import {
   CHAT_PANEL_VIEW_TYPE,
   CHAT_VIEW_ID,
   COMMAND_IDS,
+  OPTIONAL_RUNTIME_AVAILABILITY,
   CONTEXT_KEYS,
   DEFAULT_MODEL_ID,
   EXTENSION_NAME,
@@ -3958,7 +3959,7 @@ async function activateWindow(
     register: (id, action) => registerLoggedCommand(log, id, action),
     active: () => registry.active,
     isReady: (surface) => readyPromptSurfaces.has(surface),
-    isEnabled: () => currentSettings().schedules,
+    isEnabled: () => OPTIONAL_RUNTIME_AVAILABILITY.schedules && currentSettings().schedules,
     openConversation,
     open: async (surface, view) => {
       surface.reveal()
@@ -4525,6 +4526,8 @@ async function activateWindow(
     // Open the capacity estimator (M117, PLAN.md D97): the composer takes
     // `/estimate ` in the conversation in view or one opened for it.
     registerLoggedCommand(log, COMMAND_IDS.estimate, async () => {
+      if (!OPTIONAL_RUNTIME_AVAILABILITY.estimator)
+        throw new Error(UI_TEXT.estimateRuntimeUnavailable)
       const surface = registry.active
       if (surface === undefined) {
         isEstimatePending = true

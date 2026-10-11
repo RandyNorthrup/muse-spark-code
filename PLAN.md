@@ -1,5 +1,23 @@
 # PLAN — Muse Spark for VS Code (unofficial)
 
+**REL0171C release assembly (2026-10-11, host with Kubuntu, the Mac mini,
+Win11 and linuxlt; 0.17.1).** Merge the accepted share-preview fix (SHAREFIX
+`a7052b708`) and the truth pass (C-X-1 `99e9b4106`) into `rel0171/final`.
+The truth pass wins on what is claimed, 0.17.1 on labels; tables merge key by
+key and generated files are regenerated. Notes that 0.17.1 files under
+`[0.17.0]` and whose subject is a feature the truth pass lists as not working
+take its archive marker, text unchanged. Then one fix batch on the branch:
+RVCX1F's two P2 findings (one normalisation for every ACP local-command
+decision; the CX1R2 assertion follows round 6's contract), the suites the
+truth pass left red, its chat-startup English regression (the `/schedule`
+refusal reads its words through the lazy prompt module), MINOUT's surface
+English overage (the output-minimum message gets a leaf of its own; no cap
+changes), two inherited test clones and the host API record. Each fix has a
+named regression and a red drill restored byte for byte. Then one reviewed
+What's New visual update and the full gate. No push, pull request, tag,
+dependency, cap, deadline or gate change. Certification:
+`docs/certification/rel0171c.md` and `docs/certification/cx1.md` (CX1R7).
+
 **MINOUT round 2 (2026-10-10, macmini).** Close static output caps below
 a selected provider's captured minimum, including provider-file capability
 overrides and custom limits, team settings, the shared request builder and
@@ -13,6 +31,42 @@ including its loopback test. Run scoped gates under the rig/common brief;
 aggregate quality and hosted cross-platform checks remain lead-owned. No
 merge, push, subagents, credentials or live/paid calls. Certification:
 `docs/certification/min-output-cap.md`.
+
+**CX1R6 release truth repair (2026-10-10, kubuntu; 0.17.1).** Close all
+six RVCX1E findings and sweep their siblings within C-X-1. Settings describe
+the legacy Muse Code loop shortcut, editor draft, relocation notice and inactive-compaction notice they still
+control, including the interactive shell credential fence found in the sibling
+sweep, with all fifteen manifest tables and the truth matrix updated. Truly
+inert settings keep persisted values but no longer read them at runtime. The
+reference gate verifies ignored values and zero readers rather than assuming
+all contributed controls honor configured inputs; active value/bound checks
+remain and inverse-boolean probes are added. Active controls lose the false
+deprecation marker and retain explicit catalog condition selectors.
+Dormant v2 schedule and estimator commands refuse plainly on invocation and
+stay absent from the chat palette, completions, ACP discovery and Help;
+legacy `/loop` remains unchanged. Reserve built-in schedule discovery against
+workspace-skill collisions. Unavailable team toggles record no price acceptance.
+Update the release schedule-help e2e. Review every intentionally changed
+What's New frame, update only those baselines, and run the full pixel gate,
+fake-only release e2e, xvfb integration and accessibility once at the end.
+The full capture's agent-details scene also exposed a frozen-clock/I/O race:
+advance the existing scenario budget in paint steps, settling chunk requests
+between steps, without changing its timing or failure bounds.
+Each finding gets a named failing regression and SHA-256 restored red drill
+in docs/certification/cx1.md. No dependency, guard relaxation, merge, push,
+subagent or paid/live calls; aggregate quality remains lead-owned.
+
+**CX1R5 truth pass (2026-10-10, kubuntu; 0.17.1).** First isolate optional
+account metadata/startup from ACP session creation and certify a normal turn
+through the real SDK router with absent, present and failing metadata. Audit
+schedule, estimator, vault, teams and reports adoption dependencies. Then close
+RVCX1D F2–F7 across every current publication surface, retaining working
+developer, report, strict-tool, parallel-read, cache, legacy loop and manual
+compaction behavior. One glob-backed publication matrix checks dormant claims;
+archive historical claims without publishing them. Record red drills and
+complete owning suites at repository deadlines in docs/certification/cx1.md.
+No accounts implementation, subagents, merge, push or live/paid calls. Aggregate
+quality remains lead-owned under the rig brief.
 
 **CIR4WIN hosted Windows round 4 (2026-10-09, win11).** Root-cause the
 M117 estimator browser harness's first navigation exceeding its unchanged
@@ -15421,6 +15475,20 @@ Four deliberate routing breaks fail and restore SHA-256-exact bytes; see
 the round-2 PROVWIRE certification. Aggregate quality and hosted/editor/live
 qualification remain lead-owned under the lane rules.
 
+**CX1R3 removal pass (RVCX1B, 2026-10-10; ships in 0.17.1).** Remove dormant
+feature claims and usage from current README, Help, What's New and editor
+records; retain historical changelog text with dated corrections. Put dormant
+work in roadmap In progress without capability or shipped claims. Keep complete
+reference coverage validation before filtering its user-facing publication;
+archive corrected release bullets from What's New rather than qualifying them.
+The compact CLI help is also a current Help surface: remove its v2 schedule
+grammar and inactive automatic-compaction option without altering parsers.
+No feature implementation, dependency, gate widening, merge, push or live call.
+
+Plan: [x] current surfaces and roadmap; [x] regression tests and byte-exact red
+drills for every finding and sibling class; [x] scoped rig gates; [x] hooked
+commits, committed-diff review and certification in `docs/certification/cx1.md`.
+
 ### M125 — The Judge: our own Jev, for speed and accuracy (D107)
 
 **Status 2026-10-10: building.** F1a builds the internal B1 runner and
@@ -20256,9 +20324,11 @@ Each finding gets a regression and a byte-exact restored red drill in
 `docs/certification/m96-k.md`. No dependency, guard widening, live/paid call,
 product wiring or other lane's source change is part of this correction.
 
-**Status 2026-10-04: planned.**
+**Status 2026-10-10 (first parts shipped in 0.15.0; team creation and worker dispatch remain): building.**
 
-Status detail retained: planned on `feature/m96-agent-roles` from main
+Status detail retained: first parts (role charters, tools, pools, limits)
+shipped in 0.15.0; team creation and worker dispatch remain (no team can be
+created: the teamWorkers paid gate has no production availability). Planned on `feature/m96-agent-roles` from main
 `1e93c67c`. The plan is D75 (with its decisions on the open questions),
 M96b, M96c and this section. The research is
 `docs/certification/m96-research.md`. Implementation lanes start after the
@@ -22143,9 +22213,9 @@ serve`."
 
 ### M96b — The team in the ACP agent and headless runs (D75)
 
-**Status 2026-10-04: planned.**
+**Status 2026-10-10 (depends on team integration): waiting.**
 
-Status detail retained: planned; starts after M96 merges.
+Prerequisite: team integration (M96).
 
 - **Goal.** The same team, roles, pools and caps work in the ACP agent (D62)
   and in headless `exec` (D65), with each surface's own way of asking.
@@ -22203,7 +22273,7 @@ Status detail retained: planned; starts after M96 merges.
 
 ### M96c — Scheduler and traffic (D75)
 
-**Status 2026-10-09: built.** Scheduler, scheduler-tool, merge-queue, Traffic-view, runner, collision and orchestration lanes integrated with their review repairs and lazy package adapters; complete integration certified on macmini. Not in a release yet.
+**Status 2026-10-10 (corrects 2026-10-09: the section certification checklist below is still open): building.** Scheduler, scheduler-tool, merge-queue, Traffic-view, runner, collision and orchestration lanes integrated with their review repairs and lazy package adapters; complete integration certified on macmini. Not in a release yet.
 
 **M96CINT round 2 integration (2026-10-05).** Finish the existing partial
 integration by merging reviewed C (`52d04b69`) and then O (`19bb0703`) with
@@ -23185,9 +23255,9 @@ it process lifetime, the journal, hints and the load guard. The research is
 
 ### M96d — The machine coordinator spike, and the scheduler optimisations (D75)
 
-**Status 2026-10-04: planned.**
+**Status 2026-10-10 (depends on team integration): waiting.**
 
-Status detail retained: planned; starts after M96c merges. M96c's first
+Prerequisite: team scheduler integration (M96c). M96c's first
 delivery left these out:
 
 - the machine coordinator, on the lead's round-3 ruling after Codex's
@@ -24158,7 +24228,7 @@ RVM95SC-R-host-api-record (§§7, 9); full quality/package and the separate
 RVM95SC-R-shell-env item remain open for the lead. No numbered review finding
 is deferred; all five fix drills fired and restored SHA-256-exact source.
 
-**Status 2026-10-04: planned.**
+**Status 2026-10-10 (first parts shipped in 0.15.0; M95b sign-ins/plan keys and M95c Bedrock/chat exposure remain): building.**
 
 Status detail retained: planned on `feature/m95-byo-providers` from main
 `1e93c67c`; research in `docs/certification/m95-research.md`. Step 13's
@@ -24671,7 +24741,7 @@ release acceptance are still pending.
 
 ### M95b — Subscription sign-in: ChatGPT plan, Copilot models, plan keys (D74)
 
-**Status 2026-10-05: built.**
+**Status 2026-10-10 (corrects 2026-10-05: acceptance 1–10 still open, so not built; first parts shipped in the 0.15.0 preview, live plan inference, installed-editor receipts and full quality remain): building.**
 
 - **Goal.** A user with a ChatGPT Plus or Pro plan, or a Copilot plan, runs
   the harness on that plan's inference with one click in the same panel,
@@ -25359,7 +25429,7 @@ joined with M57, M58 and PR #49's sign-in
 
 ### M101 — Upstream sync: Pi and SoL-Pi ports, automatic compaction (D81)
 
-**Status 2026-10-05: planned.**
+**Status 2026-10-10 (first parts shipped in 0.15.0; automatic compaction stays off until its evaluation passes and the remaining port items remain): building.**
 
 Status detail retained: planned; lanes start from `m101/base` (the M95
 integration branch plus this plan). C-M101-1 (2026-10-10, lane CM1011,
@@ -25623,7 +25693,7 @@ selects Models, but the merged script tag always loads chat. Restore the M95
 dynamic bundle loader while retaining M87's Tasks surface setup, then remeasure
 all 181 scenarios across four themes; do not suppress or filter failed pages.
 
-**Status 2026-10-06: built.**
+**Status 2026-10-06 (retained detail: reviewed A/C1/C2/O/T/P1/P2 mechanisms integrated; live checks and remaining bindings below still required): building.**
 
 Status detail retained: reviewed A/C1/C2/O/T/P1/P2 mechanisms integrated with
 release 0.14.0 on Kubuntu. The five requested merges are complete. Strict
@@ -26511,7 +26581,7 @@ Acceptance and the exact composed gate receipts live in
 
 ### M92 — Muse Gadgets support (D71)
 
-**Status 2026-10-05: building.** Status evidence: `docs/certification/m92.md`.
+**Status 2026-10-10 (corrects 2026-10-05: every section item is checked and the parts shipped in 0.13.0): built.** Status evidence: `docs/certification/m92.md`.
 
 - **Goal.** Firmware and device work with Muse Spark Code is safe, with tokens
   never leaked, and practical, with bounded flash and monitor runs, without
@@ -26888,7 +26958,7 @@ Each finding gets a failing-before regression and a byte-exact restored red
 drill in `docs/certification/m105-r3-linux-and-companion-recorders-(c).md`.
 No new dependency, guard widening or other lane implementation changes.
 
-**Status 2026-10-05: planned.** The research is
+**Status 2026-10-10 (first parts shipped in 0.17.0; sending video and audio to a model stays unavailable and the remaining deliveries remain): building.** The research is
 `docs/research/meta-coverage-2026-10-05.md` §2. The work lands in four
 deliveries, in order:
 
@@ -27525,7 +27595,7 @@ recorded in `docs/certification/m106-s.md`; no review residual remains.
 The rig brief prohibits aggregate quality and merging; scoped local checks
 and hook-on commits precede the lead's integrated quality gate.
 
-**Status 2026-10-05: planned.** The research is
+**Status 2026-10-10 (first parts shipped in 0.16.0; streamed argument text stays unwired and the remaining lane items remain): building.** The research is
 `docs/research/meta-coverage-2026-10-05.md` §3. Strict tools wait for
 FIXM101P2; everything else starts against lane 0's contracts.
 
@@ -28357,7 +28427,7 @@ dependency, wire shape, setting, command or translated copy. W/lead retains
 joined wiring and full quality; the rig brief prohibits merges and full
 quality in this lane.
 
-**Status 2026-10-05: planned.** No model call is needed anywhere in this
+**Status 2026-10-10 (first parts shipped in 0.16.0; macOS headroom and device relocation stay unavailable and the remaining lanes remain): building.** No model call is needed anywhere in this
 milestone. Lanes S, T, G, A, C1, U and H depend only on main and lane 0's
 contracts. C2 waits for M96 and M96c, R for M100's lanes S and E, J for M102.
 Each joins when its dependency merges, and none blocks the others.
@@ -28783,7 +28853,7 @@ red before each fix and break each guard after fixing it, restoring byte-exact.
 No dependency, endpoint guard, paid default or budget changes. See
 `docs/certification/m108-k.md` for scoped rig receipts and integration limits.
 
-**Status 2026-10-05: planned.** The terms research is
+**Status 2026-10-10 (first parts shipped in 0.17.0; the remaining account lanes remain): building.** The terms research is
 `docs/research/account-terms-2026-10-05.md`.
 
 - **Lanes 0, K, T, U and J** need only M95 and M102.
@@ -29060,7 +29130,7 @@ No dependency, endpoint guard, paid default or budget changes. See
 
 ### M109 — A credential vault and broker for agents (D89)
 
-**Status 2026-10-09: released.** Shipped in 0.17.0 (merged via INT0180).
+**Status 2026-10-10 (corrects 2026-10-09: the broker-backed panel service is still unbound, so both vault commands refuse closed): building.** Vault slots, the broker process, MCP routes and scrub ports merged and certified; the C/B/P/M adapter over the broker channel remains an open handoff (`docs/certification/m109.md`). Not usable in a release yet.
 
 **FIXM109W integrated review repair (2026-10-07, Mac mini).** Verify every
 P1/P2 in `_ctx/codex/M109-findings.md` against integration `a1d2b73e7`,
@@ -31105,7 +31175,7 @@ No dependency, guard weakening or live/model call. Existing W wiring,
 reference and integration-gate handoffs remain; bounded rig checks replace
 aggregate quality for this lane under the explicit rig/shared brief.
 
-**Status 2026-10-05: planned.** No model call is needed anywhere in this
+**Status 2026-10-10 (first parts shipped in 0.17.0: project, quality, milestone, release and change kinds; the remaining deliveries and the ten source-backed kinds remain): building.** No model call is needed anywhere in this
 milestone. It lands in three deliveries:
 
 - **a:** the engine, the schema, the plan reader and its gate, the local
@@ -31539,7 +31609,7 @@ M110, and fake providers for every adapter.
   default-timeout repeated owning suites in a fresh CI clone. Full quality and
   reviewed integrated pixels remain explicit lead gates where unavailable.
 
-**Status 2026-10-06: planned.** No model call is needed. Lane 0's token
+**Status 2026-10-10 (first parts shipped in 0.17.0; the remaining panel lanes remain): building.** No model call is needed. Lane 0's token
 source and lint rule come first and are the prerequisite of every UI-building
 lane after it: M111's TH and its shell and workbench lanes, M110's web UI
 (U1, U2) and TUI design (TD). The panel's part (lanes 0, A, P1, P2, C, F and
@@ -31839,7 +31909,7 @@ Total: about 165 lane-hours: the panel's part (0, A, P1, P2, C, F, S) about
 
 ### M115 — Scheduled prompts v2: unattended, stacked, with a delivery mode (D95)
 
-**Status 2026-10-06: planned.** It comes right after M112 in the delivery
+**Status 2026-10-10 (management store and surfaces merged; production session lookup, open/fresh and run ports are unbound on every surface): building.** It comes right after M112 in the delivery
 order: it shares M112's deferral and the unattended machinery, and builds on
 M52's store, claim and cron matcher. No model call is needed outside one live
 check (step 3). Lanes T, S, U, D, G, V and X start on lane 0's contracts and
@@ -32213,7 +32283,7 @@ control's focus (or the saved rule heading), and announce successful saves
 through a polite live region. Add regressions and byte-exact red drills in
 `docs/certification/m116-u.md`. Existing P/I/W integration handoffs remain.
 
-**Status 2026-10-07: built.**
+**Status 2026-10-10 (CLI/ACP journal commands work; VS Code panel journal/settings and planner binding remain): building.**
 
 Status detail retained: lane W integrated All five lanes merged (`m116/w`;
 `docs/certification/m116.md`); every P1/P2 finding verified fixed; the D100
@@ -32498,7 +32568,7 @@ history remains unknown. Deterministic fakes, regressions, byte-exact red
 drills and all fourteen translations certify these changes. No new dependency
 or runtime surface is introduced; G/C/S/R/U consume the revised contracts.
 
-**Status 2026-10-06: planned.** No model call is needed. It needs M113's plan
+**Status 2026-10-10 (engine and panel merged on fakes and verified with test data; the plan-reader, board and broker bindings still refuse): building.** No model call is needed. It needs M113's plan
 reader, sources, determinism harness and report renderers, and M116's round
 record; the engine and the panel run on fakes until those merge. M107, M100,
 M108 and M110 join as they land; provisioning waits for M109, M110d and
@@ -33468,7 +33538,7 @@ recovery; interrupted Resume remains the captured control.
 
 ### M103 — Makers: boards, firmware and machines (D83)
 
-**Status 2026-10-09: built.** Document-epoch redesign in review.
+**Status 2026-10-10 (corrects 2026-10-09: the document-epoch redesign is still in review with checklist items open): building.** Document-epoch redesign in review.
 
 **Q-M103a–h resolved 2026-10-05 (lead, under the owner's standing
 authorization: "any recommendation you come up with you are authorized").**
@@ -40347,7 +40417,14 @@ output-cap minimum (MINOUT, rounds 1–3; `docs/certification/min-output-cap.md`
 and the companion server's early lifecycle events (RVCOMPSUB3;
 `docs/certification/companion-early-events.md`) and the chat share preview
 fix for ACP and the terminal (SHAREFIX, rounds 1–2, RVSHAREFIX2;
-`docs/certification/share-preview-fix.md`). This is preparation, not publication; the
+`docs/certification/share-preview-fix.md`) and the release truth pass (C-X-1,
+rounds 1–6; `docs/certification/cx1.md`, `docs/certification/cx1r6-visual.md`),
+which removes claims of features that do not work yet from every current
+surface, corrects the vault, teams, scheduled-prompts, estimator, accounts
+and preview wording and statuses to match the code, and lets an ACP session
+on a Model API key start without account metadata. The release branch
+`rel0171/final` carries the merges (`docs/certification/rel0171b.md`,
+`docs/certification/rel0171c.md`). This is preparation, not publication; the
 public roadmap (M122) lists 0.17.1 as the next release until a
 `0.17.1 released (…)` record follows here.
 
