@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { build } from 'esbuild'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import * as z from 'zod/mini'
 import {
   createRuntimeDailyBudget,
@@ -36,7 +36,7 @@ beforeAll(async () => {
   })
   writeFileSync(
     path.join(built, 'race.cjs'),
-    `const { createRuntimeDailyBudget } = require('./accounting.cjs'); const { setTimeout } = require('node:timers/promises'); const budget = createRuntimeDailyBudget({ dataFolder: process.argv[2], now: () => Date.now(), sleep: setTimeout }); process.on('message', async () => { try { const claim = await budget.reserve(1, new AbortController().signal); claim.check(0); process.send({ admitted: true }); } catch { process.send({ admitted: false }); } process.disconnect(); }); process.send({ ready: true });`,
+    `const { createRuntimeDailyBudget } = require('./accounting.cjs'); const { setTimeout } = require('node:timers/promises'); const budget = createRuntimeDailyBudget({ dataFolder: process.argv[2], now: () => Date.now(), sleep: setTimeout }); process.on('message', async () => { try { const claim = await budget.reserve(1, new AbortController().signal); claim.check(0); if (process.argv[3] === "sent") claim.markSent(); process.send({ admitted: true }); } catch { process.send({ admitted: false }); } process.disconnect(); }); process.send({ ready: true });`,
   )
 })
 afterAll(async () => {
@@ -107,11 +107,11 @@ describe('standalone daily admission', () => {
     const root = folder()
     writeFileSync(path.join(root, 'settings.json'), JSON.stringify({ paidDailyBudgetUsd: 1 }))
     const children = [
-      fork(path.join(built, 'race.cjs'), [root], {
+      fork(path.join(built, 'race.cjs'), [root, 'sent'], {
         env: withoutCredentials(process.env),
         silent: true,
       }),
-      fork(path.join(built, 'race.cjs'), [root], {
+      fork(path.join(built, 'race.cjs'), [root, 'sent'], {
         env: withoutCredentials(process.env),
         silent: true,
       }),
@@ -188,6 +188,94 @@ describe('standalone daily admission', () => {
     const claim = await daily.reserve(Usd.from(5).toAmount(), new AbortController().signal)
     expect(claim.check(Usd.from(0).toAmount()).spentUsd).toBe(Usd.from(5).toAmount())
   })
+  it.each(['requests', 'throw', 'cancel', 'stale', 'consent', 'start-callback'])(
+    'releases both reservations when %s prevents dispatch',
+    async (reason) => {
+      const daily = dailyBudgetAt(folder())
+      const api = fakeModelApi()
+      api.script({ text: 'done' })
+      const ledger = createRunLedger({ capUsd: Usd.from(5).toAmount(), maxRequests: 1 })
+      const controller = new AbortController()
+      if (reason === 'requests') {
+        const ticket = ledger.admitResponse({
+          model: body.model,
+          maxOutputTokens: 64,
+          reserveUsd: Usd.from(0).toAmount(),
+          price: {
+            input: Usd.from(0).toAmount(),
+            cachedInput: Usd.from(0).toAmount(),
+            output: Usd.from(0).toAmount(),
+          },
+        })
+        if ('refused' in ticket) throw new Error('fixture admission')
+        ledger.settleResponse(ticket, { kind: 'http', status: 400 })
+      }
+      const client = withRuntimeAccounting(
+        fakeModelApiClient(api, new FakeLogOutputChannel()),
+        daily,
+        {
+          ledger,
+          refuse: vi.fn(),
+          started: vi.fn(),
+          settled: vi.fn(),
+        },
+      )
+      const guard = Object.assign(
+        () => {
+          if (reason === 'cancel') controller.abort()
+          else if (reason !== 'start-callback') throw new Error(reason)
+        },
+        {
+          prepare: () => Promise.resolve(),
+          onRequestStarted: () => {
+            if (reason === 'start-callback') throw new Error(reason)
+          },
+        },
+      )
+      await expect(
+        Array.fromAsync(
+          client.streamResponse(body, controller.signal, undefined, undefined, guard),
+        ),
+      ).rejects.toThrow()
+      expect(api.responseBodies()).toHaveLength(0)
+      expect(ledger.totals().reservedUsd).toBe(Usd.from(0).toAmount())
+      expect(ledger.totals().uncertainUsd).toBe(Usd.from(0).toAmount())
+      expect(ledger.totals().requests).toBe(reason === 'requests' ? 1 : 0)
+      const next = await daily.reserve(Usd.from(5).toAmount(), new AbortController().signal)
+      await next.settle(Usd.from(0).toAmount())
+    },
+  )
+  it.each(['unsent', 'sent'])(
+    'recovers only a dead owner with durable %s evidence',
+    async (sent) => {
+      const root = folder()
+      writeFileSync(path.join(root, 'settings.json'), '{"paidDailyBudgetUsd":1}')
+      const child = fork(path.join(built, 'race.cjs'), [root, sent], {
+        env: withoutCredentials(process.env),
+        silent: true,
+      })
+      const exit = new Promise<void>((resolve, reject) => {
+        child.on('error', reject)
+        child.on('exit', (code) => {
+          if (code === 0) resolve()
+          else reject(new Error('child failed'))
+        })
+      })
+      await new Promise<void>((resolve) =>
+        child.once('message', () => {
+          resolve()
+        }),
+      )
+      child.send({ start: true })
+      await exit
+      const next = dailyBudgetAt(root).reserve(Usd.from(1).toAmount(), new AbortController().signal)
+      if (sent === 'sent') await expect(next).rejects.toThrow()
+      else
+        await expect(next).resolves.toEqual(
+          expect.objectContaining({ reservedUsd: Usd.from(1).toAmount() }),
+        )
+    },
+  )
   it('fails closed on malformed runtime settings and an abandoned process lock', async () => {
     const root = folder()
     writeFileSync(path.join(root, 'settings.json'), '{}')

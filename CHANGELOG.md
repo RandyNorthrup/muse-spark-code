@@ -7,6 +7,12 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- Unsent headless requests refund both their daily and run reservations, including
+  their request count. New unsent daily claims recover after their owner exits;
+  requests that may have reached the provider retain their liability.
+
 ### Pending
 
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached

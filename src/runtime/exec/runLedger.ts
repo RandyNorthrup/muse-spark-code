@@ -69,6 +69,8 @@ export interface RunLedger {
     readonly reserveUsd?: UsdAmount | undefined
   }): ResponseTicket | { refused: Refusal }
   admitImage(endpoint: 'images.generations' | 'images.edits'): ImageTicket | { refused: Refusal }
+  /** Withdraw a ticket that never reached dispatch, including its request count. */
+  releaseResponse(ticket: ResponseTicket): void
   settleResponse(
     ticket: ResponseTicket,
     outcome: ResponseSettlement,
@@ -226,6 +228,10 @@ export function createRunLedger(input: { capUsd: UsdAmount; maxRequests: number 
         reserveUsd: usd(amount),
       })
       return active
+    },
+    releaseResponse(ticket) {
+      take(ticket)
+      requests -= 1
     },
     settleResponse(ticket, outcome, pricing) {
       const amount = take(ticket)

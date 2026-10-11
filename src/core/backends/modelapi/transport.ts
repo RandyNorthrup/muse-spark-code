@@ -29,6 +29,7 @@ import {
 import { createHash } from 'node:crypto'
 
 interface PaidRequestClaim {
+  readonly markSent?: () => void
   readonly reservedUsd: UsdAmount
   check(capUsd: UsdAmount): void
   settle(actualCostUsd: UsdAmount, hasUnknownCost?: boolean): Promise<unknown>
@@ -929,6 +930,7 @@ export class RequestTransport {
         ...(init.body !== undefined && { body: wireBody ?? JSON.stringify(init.body) }),
         ...(signal !== undefined && { signal }),
       }
+      init.paid?.claim.markSent?.()
       confirmed?.onRequestStarted()
       admitAttempt?.onRequestStarted?.()
       if (init.paid !== undefined) {
