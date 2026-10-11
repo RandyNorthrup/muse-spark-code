@@ -29,6 +29,15 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **The npm release channel reports from a captured registry shape** (M113 C-M113-6).
+  The stores source ships a default npm adapter built from M97's verbatim
+  `GET https://registry.npmjs.org/<name>/<version>` capture: it reads only the
+  `version` field of the `<name>/latest` version document, compares it against
+  the release version for channel lag (lagging channels stay first in Needs
+  you), and never sends credentials. Marketplace, Open VSX, GitHub Actions
+  workflow runs and GitHub releases stay honestly unavailable until their wire
+  captures land, and the adapter is not yet bound into the editor or terminal
+  report path.
 - **Session and usage report kinds are real end to end** (M113 C-M113-2).
   `/report session` reads the current conversation in the editor, or a stored
   Model API session by id (`--session <id>` in the terminal and ACP); turns
