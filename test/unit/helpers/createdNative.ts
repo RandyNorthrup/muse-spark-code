@@ -4,7 +4,7 @@ import path from 'node:path'
 import { afterAll, beforeAll } from 'vitest'
 import { powerShellQuoted } from '../../../src/core/shellQuote'
 import { shellJobAssembly } from '../../../src/host/backend/shellJob'
-import { loadJobAssembly } from '../../../src/host/processTree'
+import { loadJobAssembly, runProgram } from '../../../src/host/processTree'
 import { readJobSource } from './jobSource'
 import { removeFolder } from './temporaryFolders'
 import { windowsCreatedVariant } from './createdNativeWindows'
@@ -41,6 +41,8 @@ export function useCreatedNative(): void {
         storageDir: scratch,
         systemRoot,
         readJobSource,
+        // This fixture tests created-path helpers; bootstrap admission has its own suite.
+        run: runProgram,
         log: (message) => {
           errors.push(message)
         },
@@ -115,6 +117,7 @@ export async function compileCreatedVariant(
       storageDir: path.join(state.scratch, path.basename(source, '.c')),
       systemRoot: process.env['SystemRoot']!,
       readJobSource: async (helper) => windowsCreatedVariant(await readJobSource(helper), source),
+      run: runProgram,
       log: () => undefined,
     })()
     if (assembly === undefined) throw new Error('Windows native fixture compilation failed')

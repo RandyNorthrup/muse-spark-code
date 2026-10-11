@@ -205,6 +205,8 @@
   "config.legalExplanation": "可选 Model API 解释：USD。每次使用均征求同意，并共用每日付费预算。",
   "config.paidDailyBudgetUsd": "付费附加功能的共用每日预算：USD。",
   "command.openUsagePage.title": "打开用量与费用",
+  "command.showResources.title": "显示资源",
+  "command.resumeResources.title": "立即恢复工作",
   "setting.usageHistory.description": "在此计算机上本地记录模型用量。关闭后将停止新增记录；实时限额和预算仍然可见。",
   "setting.usageHistoryDays.description": "每日用量汇总的保留天数（30–1825）。每次调用的详细记录保留 30 天。",
   "command.connectChatGpt": "使用 ChatGPT 继续",

@@ -4,7 +4,7 @@ import type { ResourcesSectionProps } from './ResourcesSection'
 
 const ResourcesSection = lazy(() => import('./ResourcesSection'))
 
-/** M102's UsageApp mounts this boundary only when its Resources section is opened. */
+/** M102's UsageApp mounts this boundary once the usage service reports resource history. */
 export function LazyResourcesSection(props: ResourcesSectionProps) {
   return (
     <Suspense fallback={<p role="status">{UI_TEXT.resourceHistory}</p>}>

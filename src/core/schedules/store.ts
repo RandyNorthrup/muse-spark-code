@@ -138,9 +138,8 @@ function fenceFolder(runId: string): string {
 export function createScheduleStore(
   fs: ScheduleFsPort,
 ): ScheduleStoreV2 & ScheduleRunJournalPort & ScheduleMigrationJournalPort {
-  const index = (workspaceKey: string) => {
-    identifier.parse(workspaceKey)
-    return createScheduleJournal(
+  const createIndex = (workspaceKey: string) =>
+    createScheduleJournal(
       fs,
       `${workspaceKey}/index`,
       (raw) => {
@@ -173,6 +172,16 @@ export function createScheduleStore(
         finalizations: {},
       },
     )
+  // One journal per workspace keeps its validated-bytes caches across calls;
+  // a fresh journal per call revalidated every delta on every lease.
+  const journals = new Map<string, ReturnType<typeof createIndex>>()
+  const index = (workspaceKey: string) => {
+    identifier.parse(workspaceKey)
+    const existing = journals.get(workspaceKey)
+    if (existing !== undefined) return existing
+    const created = createIndex(workspaceKey)
+    journals.set(workspaceKey, created)
+    return created
   }
   const read = async <T>(file: string, parse: (raw: unknown) => T): Promise<T | undefined> => {
     const content = await fs.read(file)

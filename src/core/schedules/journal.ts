@@ -43,7 +43,10 @@ const pointerSchema = z.strictObject({
   revision: revisionSchema,
   epoch: revisionSchema,
 })
+// Missing moneyVersion identifies the historical numeric generation. The
+// caller schema normalizes it on read; all new generations declare version 2.
 const envelopeSchema = z.strictObject({
+  moneyVersion: z.optional(z.literal(2)),
   revision: revisionSchema,
   value: z.unknown(),
   fencingToken: z.optional(revisionSchema),
@@ -54,6 +57,7 @@ const changeSchema = z.strictObject({
   value: z.optional(z.unknown()),
 })
 const deltaSchema = z.strictObject({
+  moneyVersion: z.optional(z.literal(2)),
   revision: revisionSchema,
   changes: z.array(changeSchema),
   sealed: z.optional(z.boolean()),
@@ -147,7 +151,11 @@ export function createScheduleJournal<T extends Collections>(
     }
     const snapshot = snapshotCache
     if (snapshot.revision !== active.revision) throw new Error('scheduleIndexRevisionMismatch')
-    const next: Collections = structuredClone(snapshot.value)
+    // Fold over shallow collection copies, so the cached snapshot and deltas
+    // stay untouched, then clone the folded state once for the caller's parser.
+    const next: Collections = Object.fromEntries(
+      Object.entries(snapshot.value).map(([collection, values]) => [collection, { ...values }]),
+    )
     let revision = snapshot.revision
     let bytes = 0
     let ops = 0
@@ -161,14 +169,12 @@ export function createScheduleJournal<T extends Collections>(
       const deltaContent = await fs.read(`${folder}/${name}`)
       if (deltaContent === undefined) throw new Error('scheduleIndexMissing')
       const cached = cachedDeltas.get(name)
-      const validated =
+      const delta =
         cached?.content === deltaContent
           ? cached.delta
           : deltaSchema.parse(parseScheduleStoredJson(deltaContent))
       if (cached !== undefined || cachedDeltas.size < SCHEDULE_JOURNAL_MAX_OPS)
-        cachedDeltas.set(name, { content: deltaContent, delta: validated })
-      // Application and caller parsers never receive the cached envelope itself.
-      const delta = structuredClone(validated)
+        cachedDeltas.set(name, { content: deltaContent, delta })
       if (isSealed || delta.revision !== revision + 1 || name !== `${String(delta.revision)}.json`)
         throw new Error('scheduleIndexRevisionMismatch')
       for (const change of delta.changes) {
@@ -195,7 +201,8 @@ export function createScheduleJournal<T extends Collections>(
       throw new Error('scheduleJournalLimitExceeded')
     return {
       revision,
-      value: parse(next),
+      // Caller parsers never receive the cached snapshot or delta values.
+      value: parse(structuredClone(next)),
       ops,
       bytes,
       generation: active.generation,
@@ -243,6 +250,7 @@ export function createScheduleJournal<T extends Collections>(
     let state = current
     let revision = revisionSchema.parse(state.revision + 1)
     let content = JSON.stringify({
+      moneyVersion: 2,
       revision,
       fencingToken,
       changes: difference(state.value, value),
@@ -277,12 +285,13 @@ export function createScheduleJournal<T extends Collections>(
       const epoch = revisionSchema.parse(state.epoch + 1)
       await fs.publish(
         `${directory}/${generation}/staging.json`,
-        JSON.stringify({ revision: baseRevision, value: null }),
+        JSON.stringify({ moneyVersion: 2, revision: baseRevision, value: null }),
         guard,
       )
       await fs.publish(
         `${directory}/${generation}/state.json`,
         JSON.stringify({
+          moneyVersion: 2,
           revision: baseRevision,
           fencingToken:
             isLarge || state.generation === undefined ? fencingToken : state.fencingToken,

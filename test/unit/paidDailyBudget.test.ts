@@ -1,3 +1,4 @@
+import { Usd as PortUsd } from '../../src/shared/usd'
 import { Usd } from '../../src/shared/usd'
 import { mkdtemp, readFile, readdir, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -169,9 +170,13 @@ async function claimEntries(): Promise<unknown[]> {
   )
 }
 
+async function settleHalfDollar(daily: ReturnType<typeof createPaidDailyBudget>): Promise<void> {
+  await requireClaim(await daily.reserve(IMAGE, 'imageGeneration')).settle(Usd.from(0.5).toAmount())
+}
+
 async function raiseAtCap() {
   const daily = budget(0.5)
-  await requireClaim(await daily.reserve(IMAGE, 'imageGeneration')).settle(Usd.from(0.5).toAmount())
+  await settleHalfDollar(daily)
   vi.mocked(confirmModal).mockImplementationOnce((_title, _options, ...items) =>
     Promise.resolve(items[0]),
   )
@@ -188,7 +193,7 @@ describe('D78 interactive paid daily budget', () => {
     await requireClaim(await daily.reserve(IMAGE, 'imageGeneration')).settle(
       Usd.from(0.1).toAmount(),
     )
-    expect(await daily.judgeLedger.remainingUsd()).toBe('0.7')
+    expect(await daily.judgeLedger.remainingUsd()).toBe(Usd.from('0.7').toAmount())
   })
 
   it('reserves token extras at exact decimal prices', async () => {
@@ -200,7 +205,7 @@ describe('D78 interactive paid daily budget', () => {
         7,
       ),
     )
-    expect(claim.reservedUsd).toBe('0.0000013')
+    expect(claim.reservedUsd).toBe(Usd.from('0.0000013').toAmount())
     await claim.settle(Usd.from(0).toAmount())
   })
 
@@ -216,11 +221,11 @@ describe('D78 interactive paid daily budget', () => {
     }
   })
 
-  it('preserves every decimal of a newly entered cap before publication', async () => {
+  it('preserves a newly entered exact decimal cap before publication', async () => {
     const daily = await raiseAtCap()
     vi.mocked(window.showInputBox).mockResolvedValueOnce('1.0000000001')
     const claim = requireClaim(await daily.reserve(IMAGE, 'imageGeneration'))
-    expect(daily.capUsd()).toBe('1.0000000001')
+    expect(daily.capUsd()).toBe(Usd.from('1.0000000001').toAmount())
     await claim.settle(Usd.from(0).toAmount())
   })
 
@@ -243,9 +248,11 @@ describe('D78 interactive paid daily budget', () => {
           : daily.judgeLedger.reserve(Usd.from(0.01).toAmount()),
       ).rejects.toBe(stop)
       expect(bind).toHaveBeenCalledOnce()
-      expect(await claimEntries()).toEqual([expect.objectContaining({ settledUsd: '0' })])
+      expect(await claimEntries()).toEqual([
+        expect.objectContaining({ settledUsd: Usd.from('0').toAmount() }),
+      ])
       const total = await daily.latestDay()
-      expect(total.spentUsd).toBe('0')
+      expect(total.spentUsd).toBe(Usd.from('0').toAmount())
       expect(confirmModal).not.toHaveBeenCalled()
     },
   )
@@ -281,9 +288,9 @@ describe('D78 interactive paid daily budget', () => {
               provider: 'meta',
               account: 'work',
               time: new Date(state.now).toISOString(),
-              settledUsd: 0,
-              reservedUsd: 0,
-              uncertainUsd: 0,
+              settledUsd: PortUsd.from(0).toAmount(),
+              reservedUsd: PortUsd.from(0).toAmount(),
+              uncertainUsd: PortUsd.from(0).toAmount(),
               inputTokens: 0,
               outputTokens: 0,
               requests: 1,
@@ -308,7 +315,9 @@ describe('D78 interactive paid daily budget', () => {
       expect(bind).toHaveBeenCalledOnce()
       expect(api.imageBodies()).toEqual([])
       expect(api.responseBodies()).toEqual([])
-      expect(await claimEntries()).toEqual([expect.objectContaining({ settledUsd: '0' })])
+      expect(await claimEntries()).toEqual([
+        expect.objectContaining({ settledUsd: Usd.from('0').toAmount() }),
+      ])
     },
   )
 
@@ -325,7 +334,9 @@ describe('D78 interactive paid daily budget', () => {
           ? daily.reserve(IMAGE, 'imageGeneration')
           : daily.judgeLedger.reserve(Usd.from(0.01).toAmount()),
       ).rejects.toBe(failure)
-      expect(await claimEntries()).toEqual([expect.objectContaining({ settledUsd: '0' })])
+      expect(await claimEntries()).toEqual([
+        expect.objectContaining({ settledUsd: Usd.from('0').toAmount() }),
+      ])
       expect(confirmModal).not.toHaveBeenCalled()
     },
   )
@@ -348,7 +359,9 @@ describe('D78 interactive paid daily budget', () => {
     expect(bind).toHaveBeenCalledOnce()
     expect(checks).toBe(3)
     expect(api.imageBodies()).toHaveLength(1)
-    expect(await claimEntries()).toEqual([expect.objectContaining({ settledUsd: '0' })])
+    expect(await claimEntries()).toEqual([
+      expect.objectContaining({ settledUsd: Usd.from('0').toAmount() }),
+    ])
   })
 
   it('does not let an account swap reset D78 daily spend across windows', async () => {
@@ -381,8 +394,12 @@ describe('D78 interactive paid daily budget', () => {
     ).toHaveLength(2)
     await expect(second.latestDay()).rejects.toThrow(UI_TEXT.paidDailyStopped)
     // Both accounts used the same fixed journal scope; Stop did not erase it.
-    expect(entries).toContainEqual(expect.objectContaining({ settledUsd: '0.49' }))
-    expect(entries).toContainEqual(expect.objectContaining({ reservedUsd: '0.01' }))
+    expect(entries).toContainEqual(
+      expect.objectContaining({ settledUsd: Usd.from('0.49').toAmount() }),
+    )
+    expect(entries).toContainEqual(
+      expect.objectContaining({ reservedUsd: Usd.from('0.01').toAmount() }),
+    )
   })
 
   it('keeps Judge final account admission inside the shared daily budget and retains unsettled spend', async () => {
@@ -398,10 +415,10 @@ describe('D78 interactive paid daily budget', () => {
       claim.check()
     }).toThrow('Account unavailable')
     const open = await daily.latestDay()
-    expect(open.spentUsd).toBe('0.5')
+    expect(open.spentUsd).toBe(Usd.from('0.5').toAmount())
     await claim.settle(Usd.from(0).toAmount())
     const settled = await daily.latestDay()
-    expect(settled.spentUsd).toBe('0')
+    expect(settled.spentUsd).toBe(Usd.from('0').toAmount())
   })
 
   it.each([false, true])(
@@ -451,9 +468,7 @@ describe('D78 interactive paid daily budget', () => {
 
   it('keeps a later committed Stop in force when another window publishes a held raise', async () => {
     const daily = budget(0.5)
-    await requireClaim(await daily.reserve(IMAGE, 'imageGeneration')).settle(
-      Usd.from(0.5).toAmount(),
-    )
+    await settleHalfDollar(daily)
     const entered = Promise.withResolvers<undefined>()
     const released = Promise.withResolvers<undefined>()
     const originalWrite = atomicFiles.writeFileAtomically
@@ -735,9 +750,7 @@ describe('D78 interactive paid daily budget', () => {
   it('rechecks the daily cap after key retrieval before the actual fetch', async () => {
     let capUsd = 1
     const daily = budget(() => capUsd)
-    await requireClaim(await daily.reserve(IMAGE, 'imageGeneration')).settle(
-      Usd.from(0.5).toAmount(),
-    )
+    await settleHalfDollar(daily)
     const api = fakeModelApi()
     const instance = new ModelApiClient({
       fetch: api.fetch,

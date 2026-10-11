@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   countSecretMatches,
   MAY_HOLD_SECRET,
@@ -8,6 +8,7 @@ import {
   SECRET_RULES,
   type SecretRule,
 } from '../../src/core/redact'
+import { registerSecretValue, secretRedactor } from '../../src/shared/redact'
 import { isValidModelApiKey } from '../../src/host/auth/credentialStore'
 import { CURRENT_SHAPE_KEYS, OLDER_SHAPE_KEYS } from './helpers/modelApiKeys'
 
@@ -487,6 +488,40 @@ function withoutLiterals(text: string, literals: readonly string[]): string {
 // The prefilter gates the log redactor and the export alike: a rule whose
 // literal it missed would silently never run (RV84 #9). These prove it is a
 // superset of every rule, on the rule's own declaration and on real matches.
+describe("secretRedactor, one stream's redaction", () => {
+  const key = 'opaque-account-secret/+value='
+  const texts = [
+    `raw ${key} end`,
+    JSON.stringify({ k: key }),
+    `b64 ${btoa(key)} x`,
+    `query ${encodeURIComponent(key)} and Authorization: Bearer abc.def.ghi`,
+    'nothing here',
+  ]
+  it('redacts exactly as redactSecrets, with and without the patterns', () => {
+    for (const shouldIncludePatterns of [true, false]) {
+      const redact = secretRedactor([key], shouldIncludePatterns)
+      for (const text of texts)
+        expect(redact(text)).toBe(redactSecrets(text, [key], shouldIncludePatterns))
+    }
+  })
+  it("derives its literals' forms once and still sees a secret registered later", () => {
+    redactSecrets('warm the registered forms')
+    const encode = vi.spyOn(globalThis, 'btoa')
+    const redact = secretRedactor([key], false)
+    for (const text of texts) redact(text)
+    const calls = encode.mock.calls.length
+    const late = 'late-registered-secret'
+    const release = registerSecretValue(late)
+    try {
+      expect(redact(`x ${late} y ${key}`)).toBe('x [redacted] y [redacted]')
+    } finally {
+      release()
+      encode.mockRestore()
+    }
+    expect(calls).toBe(1)
+  })
+})
+
 describe('MAY_HOLD_SECRET, the prefilter in front of every rule', () => {
   const samples = [...SHAPES.map(([, text]) => text), ...EARLIER_SAMPLES]
 

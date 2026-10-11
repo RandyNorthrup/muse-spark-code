@@ -4,30 +4,16 @@ import { createHash } from 'node:crypto'
 import * as z from 'zod/mini'
 import { HTTP_STATUS, MEDIA_SHA256_PATTERN, UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
-import { uploadedMediaRefSchema, type UploadedMediaRef } from '../../shared/media'
+import {
+  uploadedAccountFileSchema as accountFileSchema,
+  uploadedFilesReportSchema,
+  uploadedMediaRefSchema,
+  type UploadedFilesReport,
+  type UploadedMediaRef,
+} from '../../shared/media'
 import { isModelApiError } from '../backends/modelapi/client'
 import type { UploadSource } from '../backends/modelapi/files'
 
-const accountFileSchema = z.strictObject({
-  fileId: z.string(),
-  name: z.string(),
-  bytes: z.int().check(z.gte(0)),
-  expiresAt: z.optional(z.int().check(z.gt(0))),
-})
-export const uploadedFilesReportSchema = z.strictObject({
-  provider: z.string(),
-  isReadOnly: z.boolean(),
-  poolBytes: z.int().check(z.gt(0)),
-  usedBytes: z.int().check(z.gte(0)),
-  files: z.array(
-    z.strictObject({
-      ...accountFileSchema.shape,
-      ours: z.boolean(),
-      sessions: z.array(z.string()),
-    }),
-  ),
-})
-export type UploadedFilesReport = z.infer<typeof uploadedFilesReportSchema>
 const ledgerSchema = z.strictObject({
   version: z.literal(1),
   accountId: z.string().check(z.regex(MEDIA_SHA256_PATTERN)),

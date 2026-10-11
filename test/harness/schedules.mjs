@@ -1,16 +1,5 @@
-// M115 fake-only scenes, running the shipped lazy component and its injected ports.
-export const SCHEDULE_SCENES = [
-  'schedules-v2-background',
-  'schedules-v2-background-narrow',
-  'schedules-v2-list',
-  'schedules-v2-list-narrow',
-  'schedules-v2-editor',
-  'schedules-v2-editor-narrow',
-  'schedules-v2-timeline',
-  'schedules-v2-timeline-narrow',
-  'schedule-settlements',
-  'schedule-settlements-narrow',
-]
+// M115 fake-only scenes (named in scheduleScenes.mjs), running the shipped
+// lazy component and its injected ports.
 
 async function playScheduleHarness() {
   const { mountScheduleSurface } = await import('../../temp/m115-v/surface/ScheduleSurface.js')

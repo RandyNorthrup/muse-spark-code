@@ -1,4 +1,4 @@
-import { mkdtempSync } from 'node:fs'
+import { mkdtempSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { build } from 'esbuild'
@@ -78,7 +78,8 @@ describe('runtime accounts loader', () => {
       canary,
       'de',
       {
-        dataDir: mkdtempSync(path.join(tmpdir(), 'muse-accounts-entry-')),
+        // macOS spells $TMPDIR through a /var symlink the developer root refuses.
+        dataDir: mkdtempSync(path.join(realpathSync.native(tmpdir()), 'muse-accounts-entry-')),
         openEntry: () => {
           throw new Error('the keyring stays closed on an invalid request')
         },

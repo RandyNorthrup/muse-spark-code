@@ -137,7 +137,9 @@ describe('request provenance', () => {
     const host = new ModelApiHost({
       ...t.deps,
       isPaidFeatureOn: () => true,
-      allowsPaidUse: () => Promise.resolve(true),
+      // The money ports (PORTS017) send hosted search only under the exact
+      // quote the user approved, so consent answers with that quote.
+      allowsPaidUse: (request) => Promise.resolve(request.feature !== 'webSearch' || request.quote),
     })
     try {
       const { session, turnDone } = await startWatchedSession(host, '/ws', 'onRequest')

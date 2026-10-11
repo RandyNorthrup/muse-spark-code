@@ -205,6 +205,8 @@
   "config.legalExplanation": "Необязательное объяснение Model API: USD. Каждое использование требует согласия и расходует общий дневной бюджет.",
   "config.paidDailyBudgetUsd": "Общий дневной бюджет платных функций: USD.",
   "command.openUsagePage.title": "Открыть использование и стоимость",
+  "command.showResources.title": "Показать ресурсы",
+  "command.resumeResources.title": "Возобновить работу сейчас",
   "setting.usageHistory.description": "Записывать использование моделей локально на этом компьютере. При отключении новые записи не создаются; текущие лимиты и бюджеты остаются видимыми.",
   "setting.usageHistoryDays.description": "Срок хранения ежедневных сводок использования в днях (30–1825). Подробности каждого вызова хранятся 30 дней.",
   "command.connectChatGpt": "Продолжить с ChatGPT",

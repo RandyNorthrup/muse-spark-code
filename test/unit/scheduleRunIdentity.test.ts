@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 import { describe, expect, it } from 'vitest'
 import { isRunContextOf } from '../../src/core/schedules/runIdentity'
 import { fakeRunContext, fakeSchedule } from './helpers/schedules/fixtures'
@@ -19,7 +20,13 @@ describe('schedule run identity (D100 G22)', () => {
       { ...context, mode: 'plan' as const },
       { ...context, depth: context.depth + 1 },
       { ...context, allowAgentReschedule: !context.allowAgentReschedule },
-      { ...context, grant: { ...context.grant, paidCapUsd: context.grant.paidCapUsd + 1 } },
+      {
+        ...context,
+        grant: {
+          ...context.grant,
+          paidCapUsd: Usd.from(context.grant.paidCapUsd).add(Usd.from(1)).toAmount(),
+        },
+      },
       {
         ...context,
         creator: { kind: 'agent', agentId: 'a', sessionId: 's', orchestratorId: 'o' } as const,

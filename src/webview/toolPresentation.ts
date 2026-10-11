@@ -27,7 +27,7 @@ import { fill, formatBytes, plural } from '../shared/l10n/text'
 import { parseWebPageHeader } from '../shared/webPage'
 import type { PatchSummary } from './state/transcriptEntries'
 import type { ScheduleFireRecord } from '../shared/scheduleV2'
-import { parseScheduleSettlement } from './schedules/presentation'
+import { parseScheduleSettlement } from './schedules/settlement'
 
 export type ToolBody =
   | 'preview'
@@ -262,8 +262,8 @@ export function describeTool(
       return {
         label:
           parsed.fire.outcome === 'ran'
-            ? UI_TEXT.scheduleV2.editor.sent
-            : UI_TEXT.scheduleV2.outcomes[parsed.fire.outcome],
+            ? UI_TEXT.scheduleSettlement.sent
+            : UI_TEXT.scheduleSettlement.outcomes[parsed.fire.outcome],
         summary: parsed.fire.scheduleId,
         settlementOutcome: parsed.fire.outcome,
         body: 'schedule',

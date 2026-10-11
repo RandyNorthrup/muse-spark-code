@@ -16,7 +16,8 @@ import {
   TEAM_PREVIEW_OUTPUT_SHARE,
   TEAM_PREVIEW_USD_FRACTION_DIGITS,
 } from '../../shared/constants'
-import { fill, formatUsd, plural } from '../../shared/l10n/text'
+import { fill, plural } from '../../shared/l10n/text'
+import { formatUsd } from '../../shared/l10n/exactUsd'
 import { typicalTokensFor } from './autofill'
 import type { TeamDraft } from './templates'
 

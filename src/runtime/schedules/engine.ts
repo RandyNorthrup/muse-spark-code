@@ -1,3 +1,4 @@
+import { Usd } from '../../shared/usd'
 import { homedir } from 'node:os'
 import path from 'node:path'
 import { performance } from 'node:perf_hooks'
@@ -125,7 +126,11 @@ export function createScheduleEngine(options: ScheduleEngineOptions) {
           delivery: intent.schedule.delivery,
           outcome: 'failed',
           refusedActions: [],
-          cost: { usd: 0, certainty: 'unknown', retainedLiabilityUsd: 0 },
+          cost: {
+            usd: Usd.from(0).toAmount(),
+            certainty: 'unknown',
+            retainedLiabilityUsd: Usd.from(0).toAmount(),
+          },
           ...(intent.event !== undefined && { event: intent.event }),
         }),
       ),

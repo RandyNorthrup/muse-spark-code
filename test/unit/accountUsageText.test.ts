@@ -7,6 +7,7 @@ import {
   accountUsageText,
 } from '../../src/core/usage/accountUsageText'
 import { EN } from '../../src/shared/l10n/en'
+import { usdInputSchema } from '../../src/shared/usdSchema'
 import { formatPercent, setUiText } from '../../src/shared/l10n/text'
 import {
   USAGE_NOW,
@@ -47,13 +48,13 @@ describe('M108 J account text', () => {
     const text = accountUsageText(report)
     expect(text).toContain('Meta · Work label canary: 1 request; $0.1000 spent.')
     expect(text).toContain('Reserved $0.2000; uncertain $0.000000001.')
-    expect(text).toContain('Input tokens: 10')
-    expect(text).toContain('Output tokens: 2')
+    expect(text).toContain('Input Tokens: 10')
+    expect(text).toContain('Output Tokens: 2')
     expect(text).toContain('$0.3001 / $0.3000')
-    expect(text).toContain('Threshold reached')
+    expect(text).toContain('Threshold Reached')
     expect(text).not.toContain('00000000004')
     expect(text).not.toMatch(/\{\w+\}/)
-    expect(text).not.toContain('Account events')
+    expect(text).not.toContain('Account Events')
   })
 
   it('explains every swap, spread and stop, including cold-cache cost and known or unknown reset', () => {
@@ -66,8 +67,8 @@ describe('M108 J account text', () => {
     )
     expect(lines[0]).toContain('Estimated context re-read cost: $0.000000001.')
     expect(lines[1]).toContain('worker worker-1 assigned.')
-    expect(lines[2]).toContain('stopped at Vendor limit (rateLimited). Reset time is unknown.')
-    expect(accountUsageText(report)).toContain('Account events')
+    expect(lines[2]).toContain('stopped at Vendor Limit (rateLimited). Reset time is unknown.')
+    expect(accountUsageText(report)).toContain('Account Events')
     for (const line of lines) expect(accountUsageText(report)).toContain(line)
     const swap = report.events[0]!
     if (swap.type !== 'swap') throw new Error('Fixture needs a swap')
@@ -81,6 +82,49 @@ describe('M108 J account text', () => {
     expect(accountUsageEventText({ ...swap, provider: 'deleted-provider' }, report)).toContain(
       'deleted-provider · personal',
     )
+  })
+
+  it('shows a sub-nano cap notice at its ceiling, never floored below the trigger', () => {
+    const f = usageFixture()
+    const report = f.report()
+    const swap = usageEvents()[1]!
+    if (
+      swap.type !== 'swap' ||
+      swap.trigger.kind !== 'userCap' ||
+      swap.trigger.metric !== 'spendUsd'
+    )
+      throw new Error('Fixture needs a spend swap')
+    const cap = usdInputSchema.parse('0.1000000000000000001')
+    const text = accountUsageEventText(
+      { ...swap, trigger: { ...swap.trigger, threshold: cap, value: cap } },
+      report,
+    )
+    expect(text).toContain('$0.1001')
+    expect(text).not.toContain('$0.1000')
+  })
+
+  it('never reports a threshold reached for sub-nano spend below a nearby cap', () => {
+    // A1: totalsFor rounded spend up through nano-USD, so the meter text
+    // claimed these caps reached while admission did not.
+    for (const [capText, spendText] of [
+      ['0.1000000005', '0.1000000001'],
+      ['0.1000000000000000002', '0.1000000000000000001'],
+    ] as const) {
+      const f = usageFixture()
+      f.records.splice(
+        0,
+        f.records.length,
+        usageRecord({
+          settledUsd: spendText,
+          reservedUsd: '0',
+          uncertainUsd: '0',
+        }),
+      )
+      f.catalog[0]!.accounts[0] = usageAccount('default', {
+        spendUsd: { day: usdInputSchema.parse(capText) },
+      })
+      expect(accountUsageText(f.report())).not.toContain('Threshold Reached')
+    }
   })
 
   it('shows carried reservations and uncertain liability after a reset while settled spend stays in its period', () => {
@@ -99,7 +143,7 @@ describe('M108 J account text', () => {
     expect(text).toContain('Meta · Work label canary: 0 requests; $0.0000 spent.')
     expect(text).toContain('Reserved $1.00; uncertain $2.00.')
     expect(text).toContain('$3.00 / $0.3000')
-    expect(text).toContain('Threshold reached')
+    expect(text).toContain('Threshold Reached')
   })
 
   it('reads installed strings, plurals, USD, percentages and dates at render time', () => {
@@ -136,7 +180,7 @@ describe('M108 J account text', () => {
         isReached: false,
         resetAt: null,
       }),
-    ).toMatchObject({ label: 'Rate-limit headroom (Tokenanzahl)', value: '28,5 % / 28,75 %' })
+    ).toMatchObject({ label: 'Rate-Limit Headroom (Tokenanzahl)', value: '28,5 % / 28,75 %' })
     expect(
       accountUsageRowText({
         ...report.accounts[0]!,
@@ -157,11 +201,11 @@ describe('M108 J account text', () => {
     const absent = f.report()
     const text = accountUsageText(absent)
     for (const label of [
-      'Input tokens (Day)',
-      'Output tokens (Week)',
+      'Input Tokens (Day)',
+      'Output Tokens (Week)',
       'Requests (Month)',
-      'Plan-window usage (five-hour)',
-      'Rate-limit headroom (Requests)',
+      'Plan-Window Usage (five-hour)',
+      'Rate-Limit Headroom (Requests)',
     ])
       expect(text).toContain(label)
     expect(text).toContain('No current usage snapshot.')

@@ -96,7 +96,7 @@ export function developerBadge(snapshot: DeveloperSnapshot): string | undefined 
   return snapshot.isUnlocked ? UI_TEXT.developer.badge : undefined
 }
 
-export function developerConfirmation(question: 'unlock' | 'multiple' | 'reset'): {
+export function developerConfirmation(question: 'unlock' | 'multiple' | 'reset' | 'resetForeign'): {
   title: string
   message: string
   accept: string
@@ -106,6 +106,7 @@ export function developerConfirmation(question: 'unlock' | 'multiple' | 'reset')
     unlock: UI_TEXT.developer.unlockWarning,
     multiple: UI_TEXT.developer.multipleWarning,
     reset: UI_TEXT.developer.resetWarning,
+    resetForeign: UI_TEXT.developer.foreignResetWarning,
   }
   return {
     title: UI_TEXT.developer.title,

@@ -26,10 +26,15 @@ export type ReferenceText =
 const UI_CONDITIONS: Readonly<
   Partial<Record<Extract<PlainReferenceText, { ui: unknown }>['ui'], string>>
 > = {
+  referenceScreenRecording: 'nativeRecorder=absent',
+  referenceVaultPanel: 'vaultBroker=absent',
   referenceNativeAgentsConditions: 'run.subagent_delegation_mode',
   resourceCpuMaxPercentDescription: 'resourceCpuThreshold',
-  resourceMemoryMaxPercentDescription: 'resourceMemoryThreshold',
+  resourceMemoryMaxPercentDescription: 'resourceMemoryThreshold&memoryHeadroom=available',
+  resourceMemoryMinFreeGiBDescription: 'memoryHeadroom=available',
   providerOpenRouterServices: 'openRouterServices=absent',
+  privacyNoRetentionDetail: 'provider=openrouter&privacy=zdr',
+  referenceOutputCapMinimum: 'outputMinimum=known',
   referenceSandbox: 'platform=win32&shellSandbox',
   autoCompactionAwaitingEvaluation: 'autoCompactionEvaluation',
   referenceBrowser: 'workspaceTrust',
@@ -60,6 +65,7 @@ const SETTING_CONDITIONS: Readonly<
       | keyof typeof SETTING_DEFAULTS
       | 'resourceCpuMaxPercent'
       | 'resourceMemoryMaxPercent'
+      | 'resourceMemoryMinFreeGiB'
       | 'resourceGpuMaxPercent'
       | 'resourceDiskBusyMaxPercent'
       | 'resourceDiskMinFreeGiB'
@@ -75,6 +81,8 @@ const SETTING_CONDITIONS: Readonly<
   sandboxNetwork: 'shellSandbox',
   browserCheckExtraHosts: 'browserNetworkAdmission',
   notifyOnBackgroundTurn: 'turnState&windowFocus',
+  // The provider wizard edits this numeric setting, preserving exact USD
+  // through a validated decimal-to-number boundary.
   modelApiSessionBudgetUsd: 'sessionBudget',
 
   modelApiObservationPacking: 'conversationStart',
@@ -89,7 +97,8 @@ const SETTING_CONDITIONS: Readonly<
   tabTrigger: 'tabTrigger',
   'shell.passEnvironmentVariables': 'backend=modelApi&shellOrigin=interactive',
   resourceCpuMaxPercent: 'resourceThreshold',
-  resourceMemoryMaxPercent: 'resourceThreshold',
+  resourceMemoryMaxPercent: 'resourceThreshold&memoryHeadroom=available',
+  resourceMemoryMinFreeGiB: 'memoryHeadroom=available',
   resourceGpuMaxPercent: 'resourceThreshold',
   resourceDiskBusyMaxPercent: 'resourceThreshold',
   resourceDiskMinFreeGiB: 'resourceDiskThreshold',
@@ -162,6 +171,9 @@ interface CommandReference {
 
 export const COMMAND_REFERENCE: Readonly<Record<CommandKey, CommandReference>> = {
   openUsagePage: { description: { ui: 'paletteUsagePage' }, canRun: true },
+  // M107 U–C1/W: Show opens the chat's chip popover; Resume changes the governor, so no Run.
+  showResources: { description: { command: COMMAND_IDS.showResources }, canRun: true },
+  resumeResources: { description: { command: COMMAND_IDS.resumeResources }, canRun: false },
   legalScan: { description: { ui: 'legalScanItemDetail' }, canRun: false },
   connectChatGpt: { description: { ui: 'startWithOwnModelDetail' }, canRun: false },
   connectCopilot: { description: { ui: 'startWithOwnModelDetail' }, canRun: false },
@@ -229,7 +241,7 @@ export const COMMAND_REFERENCE: Readonly<Record<CommandKey, CommandReference>> =
   showSchedules: { description: { tip: 'schedule' }, canRun: true },
   showScheduleTimeline: { description: { tip: 'scheduleTimeline' }, canRun: true },
   vault: { description: { ui: 'referenceVaultPanel' }, canRun: false },
-  lockVault: { description: { ui: 'referenceVaultLock' }, canRun: false },
+  lockVault: { description: { ui: 'referenceVaultPanel' }, canRun: false },
 }
 
 function feature(
@@ -266,7 +278,7 @@ export function featureCatalog(): readonly Feature[] {
       'resources',
       { ui: 'resourceTitle' },
       { ui: 'referenceResources' },
-      [],
+      ['showResources', 'resumeResources'],
       [
         'resourceGovernor',
         'resourceCpuMaxPercent',
@@ -304,7 +316,23 @@ export function featureCatalog(): readonly Feature[] {
         'connectChatGpt',
         'connectCopilot',
       ],
-      ['suggestedProvider'],
+      // Saved custom limits persist directly from Edit without a new test
+      // while the connection is unchanged; pre-write failures retain the draft.
+      // Edit and Change key share a full saved snapshot; unchanged routing,
+      // limits, consent and the default survive. Save admits one operation
+      // per draft, compares edited fields inside the stored mutation and offers
+      // Reload on conflicts. Untouched fields and rotated/removed keys survive
+      // consent waits; only an entered key replaces a stored credential.
+      // Save validates first, then writes provider/key/default/limit/composer in
+      // order. Completed writes stay on failure; localized outcomes name saved,
+      // failed and skipped steps. Every outcome refreshes without losing earlier
+      // information. Budget-only partial drafts retry on a fresh baseline; other
+      // partial or stale forms reopen. A key bound to an old origin shows missing.
+      // Re-entry compares even origin-refused credential records; only concurrent
+      // changes conflict. Confirmed limit retries retain all completed receipts.
+      // Simultaneous cross-window saves remain last-writer-wins until LOCKLIB.
+      // Earlier steps remain navigable while final Save validates limits.
+      ['suggestedProvider', 'modelApiSessionBudgetUsd'],
       'backends',
       ['museCode', 'modelApi'],
       false,
@@ -550,6 +578,8 @@ export function featureCatalog(): readonly Feature[] {
       'the-panel',
       ['modelApi'],
     ),
+    // M87 MENUFAN: shared row/selection bursts follow visible element anchors;
+    // inside pointer/selected borders keep neighbouring focus rings clear.
     feature(
       'conversation-actions',
       { ui: 'transcriptLabel' },
@@ -698,7 +728,7 @@ export function featureCatalog(): readonly Feature[] {
         false,
         ['vscode', 'acp'],
       ),
-      details: [{ ui: 'referenceDeveloper' }],
+      details: [{ ui: 'referenceDeveloper' }] as const,
     },
     feature(
       'permissions',
@@ -898,7 +928,7 @@ export function featureCatalog(): readonly Feature[] {
         true,
         ['vscode'],
       ),
-      details: [{ ui: 'referenceAttachments' }, { ui: 'scheduledMediaUnavailable' }],
+      details: [{ ui: 'referenceAttachments' }, { ui: 'scheduledMediaSupport' }] as const,
     },
     feature(
       'subagents',
@@ -1062,7 +1092,9 @@ export function featureCatalog(): readonly Feature[] {
         ),
       ],
       paid: Object.values(PAID_USE_REGISTRY).some((paid) => paid.featureId === entry.id),
-      details: (REFERENCE_DETAILS[entry.id] ?? []).map((ui) => ({ ui })),
+      // Feature-level details (schedules, accounts) and REFERENCE_DETAILS
+      // combine: neither source may silently erase the other.
+      details: [...entry.details, ...(REFERENCE_DETAILS[entry.id] ?? []).map((ui) => ({ ui }))],
       facts: {},
     }
   })
@@ -1079,7 +1111,12 @@ export const REFERENCE_SURFACES: Readonly<Record<string, readonly string[]>> = {
 const REFERENCE_DETAILS: Readonly<
   Record<string, readonly Extract<ReferenceText, { ui: unknown }>['ui'][]>
 > = {
-  providers: ['providerOpenRouterServices'],
+  providers: [
+    'providerOpenRouterServices',
+    'pricePerMillion',
+    'privacyNoRetentionDetail',
+    'referenceOutputCapMinimum',
+  ],
   estimator: ['estimateCliHelp'],
   permissions: ['referencePermissionLimits'],
   'native-agents': ['referenceAgentControls', 'referenceNativeAgentsConditions'],
@@ -1105,7 +1142,17 @@ const REFERENCE_DETAILS: Readonly<
   support: ['referenceAcp'],
   cache: ['referenceCache'],
   'custom-agents': ['referencePaidContexts'],
-  'conversation-actions': ['referenceWindowsSessions'],
+  'conversation-actions': [
+    'referenceWindowsSessions',
+    'restoreFilesToHere',
+    'rewindAndRestore',
+    'copyResponse',
+    'replyToOutput',
+    'askAboutThis',
+    'commentOnThis',
+    'promptSave',
+    'sharePrompt',
+  ],
   questions: ['referenceQuestionsDeferral'],
 }
 

@@ -5,7 +5,8 @@ import { legalScanLoader } from '../host/ide/legalScanBundle'
 // the log reads goes to stderr, except the sign-in commands' own output.
 // Exercised through the built `dist/acp.js` by the stdio e2e test.
 
-import { spawn } from 'node:child_process'
+import { spawnResourceProcess, handoffResourceFile } from '../core/resources/launcher'
+import { isResourcePaused } from '../core/resources/launch'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { open, writeFile, realpath, lstat } from 'node:fs/promises'
@@ -68,9 +69,9 @@ import {
 } from './cliArgs'
 import { parseSharingArgs, type SharingCommand } from './sharing/args'
 import { runtimeSharingLoader } from './sharing/sharingBundle'
+import { defaultServeOptions, sharingPorts, type SharingPortsDeps } from './sharing/sharingPorts'
 import { acpSharingCommands } from '../acp/sharing'
 import { boundedAcpStream } from '../shared/acpStream'
-import type { RuntimeSharingPorts } from './sharing/sharingEntry'
 import type { PlaybookCommand, PlaybookSurfacePort } from './playbook/command'
 import { formatAcpUsage } from './cliOptions'
 import { referenceLoader } from '../host/referenceLoader'
@@ -104,7 +105,6 @@ import { runSecretScan } from './exec/scanSecrets'
 import { loadLegalScanner } from './legal/legalScanner'
 import { runLegalCommand } from './legal/runLegal'
 
-import { runProgram } from '../host/processTree'
 import { lazyUsageAdapter, usageCompanionUrl, type UsageAdapter } from './usage/usageAdapter'
 
 import {
@@ -438,7 +438,12 @@ async function runtimeFor(
   })
 }
 
-function resourcesFor(log: Logger, overrides?: Partial<ResourceSettings>) {
+/** `isRecordingHistory` (usage-history consent) is for the long-lived ACP agent only. */
+function resourcesFor(
+  log: Logger,
+  overrides?: Partial<ResourceSettings>,
+  isRecordingHistory?: () => boolean,
+) {
   return lazyRuntimeResources({
     distDir,
     machineDir: agentDataFolder({
@@ -452,6 +457,7 @@ function resourcesFor(log: Logger, overrides?: Partial<ResourceSettings>) {
       log.warn(UI_TEXT.resourceUnavailable)
     },
     ...(overrides !== undefined && { overrides }),
+    ...(isRecordingHistory !== undefined && { isRecordingHistory }),
   })
 }
 
@@ -636,26 +642,16 @@ async function openUsageBrowser(input: string): Promise<void> {
   // The fixed OS opener receives only a checked loopback URL and no credential
   // environment; argument arrays never pass through a shell (D82, rule 8).
   try {
-    if (process.platform === 'linux') {
-      await new Promise<void>((resolve, reject) => {
-        // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- Fixed OS opener, validated loopback URL, credential-stripped environment and shell-free arguments (D82, PLAN.md §8).
-        const handler = spawn(executable, args, {
-          env: process.env,
-          detached: true,
-          stdio: 'ignore',
-        })
-        handler.once('error', reject)
-        handler.once('spawn', () => {
-          // A valid xdg-open handler may stay foreground with the browser.
-          // Its lifetime cannot hold the launcher or decide the page's lifetime.
-          handler.unref()
-          resolve()
-        })
-      })
-    } else await runProgram(executable, args, process.env)
-  } catch {
-    // Opener stderr can repeat the private fragment; it never reaches a log.
-    throw new Error(UI_TEXT.actionFailed)
+    // A valid xdg-open handler may stay in the foreground with the browser: it
+    // is launched once started, and its lifetime never holds the CLI or the page.
+    await handoffResourceFile(executable, args, {
+      env: process.env,
+      ...(process.platform === 'linux' && { until: 'spawn' as const }),
+    })
+  } catch (error: unknown) {
+    if (isResourcePaused(error)) throw error
+    // Opener output goes to the null device; only fixed words are reported.
+    throw new Error(UI_TEXT.actionFailed, { cause: error })
   }
 }
 
@@ -704,10 +700,11 @@ async function serve(
     const runtime = await runtimeFor(options, log, {
       remove: (id) => loadQuestions().removeRuntimeQuestions(directory, id, UI_TEXT, uiLocale()),
     })
-    const resources = resourcesFor(log)
+    const isUsageHistoryOn = options.usageHistory ?? true
+    const resources = resourcesFor(log, undefined, () => isUsageHistoryOn)
     const loadSchedules = runtimeSchedulesBinding(path.join(distDir, 'schedules.js'), log)
     let loadedSchedules: Awaited<ReturnType<typeof loadSchedules>> | undefined
-    const usage = usageFor(log, recording, runtime, options.usageHistory ?? true)
+    const usage = usageFor(log, recording, runtime, isUsageHistoryOn)
     const journal = await reportJournal(log)
     await journal.startup()
     // A proxy the Model API backend's requests will not use is said at once (Q66).
@@ -814,7 +811,7 @@ async function serve(
         commands: acpSharingCommands,
         execute: (text, context) =>
           runtimeSharingLoader(path.join(distDir, 'sharingRuntime.js'), log)()
-            .runtimeAcpSharing(sharingPorts(log, runtime), UI_TEXT, uiLocale())
+            .runtimeAcpSharing(sharingPorts(log, runtime, sharingDeps()), UI_TEXT, uiLocale())
             .execute(text, context),
       },
       paid: runtime.paid,
@@ -893,41 +890,12 @@ async function serve(
   }
 }
 
-function sharingPorts(
-  log: Logger,
-  current?: Awaited<ReturnType<typeof runtimeFor>>,
-): RuntimeSharingPorts {
+/** The sharing ports' live dependencies: the engine, taken credentials, the OS store. */
+function sharingDeps(): SharingPortsDeps {
   return {
-    folders: { platform: process.platform, env: process.env, homeDir: homedir() },
-    registeredSecrets: async () => {
-      const values = sharingCredentials.map(({ value }) => value)
-      if (current?.backend.kind !== 'modelApi') return values
-      try {
-        const key = await secrets.get(SECRET_KEYS.modelApiKey)
-        return key === undefined || key === '' ? values : [...values, key]
-      } catch {
-        // A key refresh that cannot complete grants no share and discloses no store failure.
-        throw new Error(UI_TEXT.sharePreviewExpired)
-      }
-    },
-    read: async (cwd, sessionId, exportedAt) => {
-      const parsed = parseCommandLine(['serve'])
-      if (parsed.command !== 'serve') throw new Error(UI_TEXT.exportHistoryUnavailable)
-      const runtime = current ?? (await runtimeFor(parsed.options, log))
-      try {
-        const host = await runtime.backend.hostFor(cwd)
-        const history = await host.readSession(sessionId)
-        if (history.mode === 'none') throw new Error(UI_TEXT.exportHistoryUnavailable)
-        return {
-          sessionId,
-          title: history.name ?? UI_TEXT.exportDefaultTitle,
-          exportedAt,
-          items: history.items,
-        }
-      } finally {
-        if (current === undefined) await runtime.close()
-      }
-    },
+    createRuntime: (options, rtLog) => runtimeFor(options, rtLog),
+    credentialValues: sharingCredentials.map(({ value }) => value),
+    readModelApiKey: () => secrets.get(SECRET_KEYS.modelApiKey),
   }
 }
 
@@ -1166,7 +1134,13 @@ async function main(): Promise<number> {
         writeLine(process.stdout, await resources.command(command.action, command.json))
         return 0
       } catch {
-        writeLine(process.stderr, UI_TEXT.resourceUnavailable)
+        // An unreadable journal is named as such; it is never printed as empty history.
+        writeLine(
+          process.stderr,
+          command.action === 'history'
+            ? UI_TEXT.resourceHistoryInvalid
+            : UI_TEXT.resourceUnavailable,
+        )
         return EXIT_FAILED
       } finally {
         resources.dispose()
@@ -1229,10 +1203,23 @@ async function main(): Promise<number> {
     }
     case 'share':
     case 'prompts': {
-      return await runtimeSharingLoader(
-        path.join(distDir, 'sharingRuntime.js'),
-        log,
-      )().runRuntimeSharing(command, sharingPorts(log), UI_TEXT, uiLocale())
+      // A chat target reads the real session through the active runtime; other
+      // targets never touch a backend, so they keep today's lazy ports.
+      const requiresSession = command.command === 'share' && command.request.target === 'chat'
+      const runtime = requiresSession ? await runtimeFor(defaultServeOptions(), log) : undefined
+      try {
+        return await runtimeSharingLoader(
+          path.join(distDir, 'sharingRuntime.js'),
+          log,
+        )().runRuntimeSharing(
+          command,
+          sharingPorts(log, runtime, sharingDeps()),
+          UI_TEXT,
+          uiLocale(),
+        )
+      } finally {
+        await runtime?.close()
+      }
     }
     case 'schedule': {
       const load = runtimeSchedulesBinding(path.join(distDir, 'schedules.js'), log)
@@ -1342,9 +1329,11 @@ async function main(): Promise<number> {
       return await login({
         resolveLaunch: () => museCode.resolveLaunch(),
         environment: () => museCode.childEnvironment(),
-        spawnInTerminal: (file, args, env) =>
+        spawnInTerminal: async (file, args, env) => {
           // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- `muse login` as `muse serve` is started: the CLI resolved from its install layout, PATH or an absolute --muse-binary (D1a, D4), its launcher's fixed prefix and MUSE_LOGIN_ARGS, as an argument array with no shell (PLAN.md §8)
-          spawn(file, [...args], { env, stdio: 'inherit' }),
+          const { child } = await spawnResourceProcess('interactive', file, args, { env })
+          return child
+        },
         printError: (line) => {
           writeLine(process.stderr, line)
         },
@@ -1579,6 +1568,11 @@ async function main(): Promise<number> {
 
 /** The process's exit code is the command's; a crash prints its stack and fails. */
 async function run(): Promise<void> {
+  const processResources = resourcesFor(
+    stderrLogger((line) => {
+      writeLine(process.stderr, line)
+    }, 'warn'),
+  )
   try {
     process.exitCode = await main()
   } catch (error: unknown) {
@@ -1587,6 +1581,8 @@ async function run(): Promise<void> {
       redactWhole(error instanceof Error ? (error.stack ?? error.message) : String(error), []),
     )
     process.exitCode = EXIT_FAILED
+  } finally {
+    processResources.dispose()
   }
 }
 

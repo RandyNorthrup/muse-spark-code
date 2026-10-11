@@ -1,3 +1,4 @@
+import { Usd as PortUsd } from '../../src/shared/usd'
 import { describe, expect, it, vi } from 'vitest'
 import { parseScheduleCommand } from '../../src/runtime/schedules/args'
 import { runScheduleCommand } from '../../src/runtime/schedules/command'
@@ -69,8 +70,12 @@ describe('schedule report CLI flags', () => {
       draft: {
         ...fakeScheduleDraft(),
         action,
-        grant: { rules: [], destinationIds: ['saved', 'self'], paidCapUsd: 0 },
-        paidCapUsd: 0,
+        grant: {
+          rules: [],
+          destinationIds: ['saved', 'self'],
+          paidCapUsd: PortUsd.from(0).toAmount(),
+        },
+        paidCapUsd: PortUsd.from(0).toAmount(),
       },
     })
     expect(JSON.stringify(control.request.mock.calls)).not.toContain('self@example')
@@ -120,8 +125,8 @@ describe('schedule report CLI flags', () => {
   it('clears prompt paid caps for a deterministic report and keeps its trigger, target and delivery', async () => {
     const paidDraft = {
       ...fakeScheduleDraft(),
-      grant: { rules: [], destinationIds: [], paidCapUsd: 1 },
-      paidCapUsd: 1,
+      grant: { rules: [], destinationIds: [], paidCapUsd: PortUsd.from(1).toAmount() },
+      paidCapUsd: PortUsd.from(1).toAmount(),
     }
     const parsed = parseScheduleCommand([
       'add',
@@ -139,8 +144,8 @@ describe('schedule report CLI flags', () => {
     expect(control.request.mock.calls[0]?.[0]).toMatchObject({
       draft: {
         action,
-        paidCapUsd: 0,
-        grant: { paidCapUsd: 0 },
+        paidCapUsd: PortUsd.from(0).toAmount(),
+        grant: { paidCapUsd: PortUsd.from(0).toAmount() },
         trigger: paidDraft.trigger,
         target: paidDraft.target,
         delivery: paidDraft.delivery,

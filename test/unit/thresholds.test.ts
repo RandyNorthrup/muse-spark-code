@@ -1,3 +1,5 @@
+import { malformedUsd } from './helpers/malformedUsd'
+import { Usd as PortUsd } from '../../src/shared/usd'
 import { describe, expect, it, vi } from 'vitest'
 import {
   AccountThresholdExceededError,
@@ -11,18 +13,11 @@ import type {
 } from '../../src/shared/accounts'
 import { accountTriggerSchema } from '../../src/shared/accounts'
 import { UI_TEXT } from '../../src/shared/constants'
-import { FakeAccountClock, FakeAccountJournal } from './helpers/accounts/fakes'
+import { emptyAccountUsage, FakeAccountClock, FakeAccountJournal } from './helpers/accounts/fakes'
 
 const NOW = new Date(2026, 9, 6, 12).getTime()
 const TOMORROW = new Date(2026, 9, 7).toISOString()
-const EMPTY: AccountUsageTotals = {
-  settledUsd: 0,
-  reservedUsd: 0,
-  uncertainUsd: 0,
-  inputTokens: 0,
-  outputTokens: 0,
-  requests: 0,
-}
+const EMPTY = emptyAccountUsage()
 
 function setup(thresholds: AccountThresholds = {}, snapshot?: AccountLimitsSnapshot) {
   const clock = new FakeAccountClock(NOW)
@@ -47,7 +42,7 @@ function setup(thresholds: AccountThresholds = {}, snapshot?: AccountLimitsSnaps
   return { clock, journal, read, evaluate, append }
 }
 
-const dollars = (nano: bigint) => Number(`0.${nano.toString().padStart(9, '0')}`)
+const dollars = (nano: bigint) => PortUsd.from(`0.${nano.toString().padStart(9, '0')}`).toAmount()
 const asTotals = (values: bigint[]) => ({
   ...EMPTY,
   settledUsd: dollars(values[0]!),
@@ -62,19 +57,58 @@ describe('M108 T account thresholds', () => {
         provider: 'meta',
         account: { id: 'work', thresholds: { spendUsd: { [period]: 0.3 } } },
         now: NOW,
-        journal: { read: () => ({ ...EMPTY, settledUsd: 0.1 }) },
+        journal: { read: () => ({ ...EMPTY, settledUsd: PortUsd.from(0.1).toAmount() }) },
       }
       expect(
-        evaluateAccountThresholds({ ...base, request: { ...EMPTY, reservedUsd: 0.2 } }),
+        evaluateAccountThresholds({
+          ...base,
+          request: { ...EMPTY, reservedUsd: PortUsd.from(0.2).toAmount() },
+        }),
       ).toEqual([])
       expect(
         evaluateAccountThresholds({
           ...base,
           account: { id: 'work', thresholds: { spendUsd: { [period]: 0.8 } } },
-          journal: { read: () => ({ ...EMPTY, settledUsd: 0.7, reservedUsd: 0.1 }) },
+          journal: {
+            read: () => ({
+              ...EMPTY,
+              settledUsd: PortUsd.from(0.7).toAmount(),
+              reservedUsd: PortUsd.from(0.1).toAmount(),
+            }),
+          },
         }),
-      ).toEqual([expect.objectContaining({ kind: 'userCap', period, value: 0.8, threshold: 0.8 })])
+      ).toEqual([
+        expect.objectContaining({ kind: 'userCap', period, value: '0.8', threshold: '0.8' }),
+      ])
     }
+  })
+
+  it('carries an exact projected spend past binary precision on the reached cap trigger', () => {
+    const triggers = evaluateAccountThresholds({
+      provider: 'meta',
+      account: {
+        id: 'work',
+        thresholds: { spendUsd: { day: PortUsd.from(0.1).toAmount() } },
+      },
+      now: NOW,
+      journal: {
+        read: () => ({ ...EMPTY, settledUsd: PortUsd.from('0.1000000000000000001').toAmount() }),
+      },
+    })
+    expect(triggers).toEqual([
+      expect.objectContaining({
+        kind: 'userCap',
+        metric: 'spendUsd',
+        period: 'day',
+        value: '0.1000000000000000001',
+        threshold: '0.1',
+      }),
+    ])
+    const trigger = triggers[0]
+    if (trigger?.kind !== 'userCap' || trigger.metric !== 'spendUsd')
+      throw new Error('Regression needs a spend userCap trigger')
+    expect(typeof trigger.value).toBe('string')
+    expect(accountTriggerSchema.parse(trigger)).toEqual(trigger)
   })
 
   it('matches independent exact cap comparison for seeded nano-USD reservations', () => {
@@ -97,7 +131,10 @@ describe('M108 T account thresholds', () => {
       )
       const result = evaluateAccountThresholds({
         provider: 'meta',
-        account: { id: 'work', thresholds: { spendUsd: { day: capUsd } } },
+        account: {
+          id: 'work',
+          thresholds: { spendUsd: { day: PortUsd.from(capUsd).toAmount() } },
+        },
         now: NOW,
         journal: { read: () => asTotals(current) },
         request: asTotals(pending),
@@ -166,8 +203,8 @@ describe('M108 T account thresholds', () => {
             kind: 'userCap',
             metric,
             period,
-            value: threshold,
-            threshold,
+            value: metric === 'spendUsd' ? PortUsd.from(threshold).toAmount() : threshold,
+            threshold: metric === 'spendUsd' ? PortUsd.from(threshold).toAmount() : threshold,
           })
           expect(accountTriggerSchema.safeParse(trigger).success).toBe(true)
           const below = setup({ [metric]: { [period]: threshold } })
@@ -179,14 +216,18 @@ describe('M108 T account thresholds', () => {
   )
 
   it('keeps provider and account spend isolated, including outstanding and uncertain liability', () => {
-    const subject = setup({ spendUsd: { day: 6 } })
-    subject.append({ settledUsd: 1, reservedUsd: 2, uncertainUsd: 3 })
-    subject.append({ settledUsd: 100 }, 'work', 'openai')
-    subject.append({ settledUsd: 100 }, 'personal')
-    expect(subject.evaluate()[0]).toMatchObject({ value: 6, threshold: 6 })
+    const subject = setup({ spendUsd: { day: PortUsd.from(6).toAmount() } })
+    subject.append({
+      settledUsd: PortUsd.from(1).toAmount(),
+      reservedUsd: PortUsd.from(2).toAmount(),
+      uncertainUsd: PortUsd.from(3).toAmount(),
+    })
+    subject.append({ settledUsd: PortUsd.from(100).toAmount() }, 'work', 'openai')
+    subject.append({ settledUsd: PortUsd.from(100).toAmount() }, 'personal')
+    expect(subject.evaluate()[0]).toMatchObject({ value: '6', threshold: '6' })
     expect(subject.evaluate('unused')).toEqual([])
     expect(subject.evaluate('work', 'other')).toEqual([])
-    expect(subject.evaluate()[0]).toMatchObject({ value: 6 })
+    expect(subject.evaluate()[0]).toMatchObject({ value: '6' })
   })
 
   it('queries each configured period once, with local half-open calendar boundaries', () => {
@@ -197,7 +238,11 @@ describe('M108 T account thresholds', () => {
       account: {
         id: 'work',
         thresholds: {
-          spendUsd: { day: 0, week: 0, month: 0 },
+          spendUsd: {
+            day: PortUsd.from(0).toAmount(),
+            week: PortUsd.from(0).toAmount(),
+            month: PortUsd.from(0).toAmount(),
+          },
           inputTokens: { day: 0 },
         },
       },
@@ -377,13 +422,16 @@ describe('M108 T account thresholds', () => {
       expect(evaluateAccountThresholds({ ...base, request: { ...EMPTY, [field]: 2 } })).toEqual([])
       expect(
         evaluateAccountThresholds({ ...base, request: { ...EMPTY, [field]: 3 } })[0],
-      ).toMatchObject({ value: 11, threshold: 10 })
+      ).toMatchObject({
+        value: metric === 'spendUsd' ? '11' : 11,
+        threshold: metric === 'spendUsd' ? '10' : 10,
+      })
       expect(
         evaluateAccountThresholds({
           ...base,
           journal: { read: () => ({ ...EMPTY, [field]: 10 }) },
         })[0],
-      ).toMatchObject({ value: 10 })
+      ).toMatchObject({ value: metric === 'spendUsd' ? '10' : 10 })
       expect(() =>
         evaluateAccountThresholds({ ...base, request: { ...EMPTY, [field]: -1 } }),
       ).toThrow(UI_TEXT.sessionBudgetStoreUnavailable)
@@ -450,18 +498,21 @@ describe('M108 T account thresholds', () => {
       )
     expect(read).not.toHaveBeenCalled()
     for (const update of [
-      { settledUsd: -1 },
-      { reservedUsd: NaN },
-      { uncertainUsd: Infinity },
+      { settledUsd: malformedUsd(-1) },
+      { reservedUsd: malformedUsd(NaN) },
+      { uncertainUsd: malformedUsd(Infinity) },
       { inputTokens: 0.5 },
       { outputTokens: -1 },
       { requests: Number.MAX_SAFE_INTEGER + 1 },
-      { settledUsd: Number.MAX_VALUE, reservedUsd: Number.MAX_VALUE },
+      { settledUsd: malformedUsd(Number.MAX_VALUE), reservedUsd: malformedUsd(Number.MAX_VALUE) },
     ])
       expect(() =>
         evaluateAccountThresholds({
           ...base,
-          account: { id: 'work', thresholds: { spendUsd: { day: 1 } } },
+          account: {
+            id: 'work',
+            thresholds: { spendUsd: { day: PortUsd.from(1).toAmount() } },
+          },
           journal: { read: () => ({ ...EMPTY, ...update }) },
         }),
       ).toThrow(UI_TEXT.sessionBudgetStoreUnavailable)

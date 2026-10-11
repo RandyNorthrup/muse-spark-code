@@ -54,6 +54,21 @@ describe('M117 local fleet', () => {
       { status: 'unknown', volumeId: 'primary', roles: ['workspace', 'temp', 'state'] },
     ])
   })
+  it("names Windows by its OS, not Node's win32", () => {
+    const fleet = fleetFromHost(
+      { platform: 'win32', arch: 'x64', cores: 8, ramGiB: 32 },
+      chainLanes(),
+      AS_OF,
+    )
+    expect(fleet.machines[0]).toMatchObject({ classId: 'windows-x64', os: 'windows' })
+    expect(() =>
+      fleetFromHost(
+        { platform: 'windows', arch: 'x64', cores: 8, ramGiB: 32 },
+        chainLanes(),
+        AS_OF,
+      ),
+    ).toThrow(/unsupported-platform/)
+  })
   it('refuses platforms, architectures and measurements it cannot name', () => {
     const kinds = chainLanes()
     for (const host of [

@@ -304,7 +304,7 @@ describe('M113 frozen report contracts', () => {
   it('keeps cost certainty, timestamps and display types explicit', () => {
     for (const value of [
       { type: 'usd', value: null, certainty: 'unknown' },
-      { type: 'usd', value: 1.25, certainty: 'reported' },
+      { type: 'usd', value: '1.25', certainty: 'reported' },
       { type: 'count', value: 12 },
       { type: 'number', value: -1 },
       { type: 'percent', value: 100 },

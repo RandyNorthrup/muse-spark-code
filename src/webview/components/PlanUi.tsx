@@ -13,7 +13,7 @@ import type { UiState } from '../state/uiState'
 import type { UiStore } from '../state/store'
 import { webviewErrorReport } from '../errorReport'
 import type { WebviewToHostMessage } from '../../shared/protocol'
-import { fill, formatNumber } from '../../shared/l10n/text'
+import { fill, formatNumber, plural } from '../../shared/l10n/text'
 import type { PlanUsageRow } from '../../shared/usage'
 import type { ModelOption } from '../../shared/protocol'
 import { Modal } from './Modal'
@@ -237,7 +237,7 @@ export function PlanUsageSection({
             </h4>
             <dl className="usage-facts plan-usage-facts">
               <dt>{UI_TEXT.planUi.requests}</dt>
-              <dd>{formatNumber(row.requests)}</dd>
+              <dd>{plural(UI_TEXT.bestOfNRequests, row.requests)}</dd>
               {(['reported', 'estimated'] as const).map((source) =>
                 row[source].requests === 0 ? null : (
                   <Fragment key={source}>
@@ -259,7 +259,7 @@ export function PlanUsageSection({
               {unknown === 0 ? null : (
                 <>
                   <dt>{UI_TEXT.planUi.unknownTokens}</dt>
-                  <dd>{formatNumber(unknown)}</dd>
+                  <dd>{plural(UI_TEXT.bestOfNRequests, unknown)}</dd>
                 </>
               )}
             </dl>

@@ -19,7 +19,7 @@ import {
   TOKENS_PER_MILLION,
   USD_USAGE_DISPLAY_DECIMALS,
 } from '../../shared/constants'
-import { formatUsd as formatMoney } from '../../shared/l10n/text'
+import { formatUsd as formatMoney } from '../../shared/l10n/exactUsd'
 import { modelApiPaidTier } from '../../shared/paid'
 import type { UsageInsights } from '../../shared/usage'
 import { Usd, type UsdAmount } from '../../shared/usd'

@@ -1,3 +1,4 @@
+import type { UsdAmount } from '../../../shared/usdSchema'
 // Normalized, scrubbed facts supplied by injected readers. These types are
 // application contracts; upstream HTTP/MSP parsers stay with their source owners.
 import * as z from 'zod/mini'
@@ -136,13 +137,13 @@ export interface UsageFacts {
   readonly inputTokens: number
   readonly outputTokens: number
   readonly cachedTokens: number | null
-  readonly costUsd: number | null
+  readonly costUsd: UsdAmount | null
   readonly certainty: 'reported' | 'estimated' | 'unknown'
   readonly breakdown: readonly {
     readonly key: string
     readonly inputTokens: number
     readonly outputTokens: number
-    readonly costUsd: number | null
+    readonly costUsd: UsdAmount | null
     readonly certainty: 'reported' | 'estimated' | 'unknown'
   }[]
   readonly limits: readonly {

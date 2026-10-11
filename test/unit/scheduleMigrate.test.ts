@@ -1,3 +1,4 @@
+import { Usd as PortUsd } from '../../src/shared/usd'
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { readFile, stat, utimes, writeFile, readdir } from 'node:fs/promises'
 import path from 'node:path'
@@ -152,7 +153,7 @@ describe('M115 verified M52 migration', () => {
       grant: {
         rules: [{ id: 'read', kind: 'tool', name: 'read_file' }],
         destinationIds: [],
-        paidCapUsd: 0,
+        paidCapUsd: PortUsd.from(0).toAmount(),
       },
     })
     expect(await migrateSchedules(source, store, 'workspace-1', 'UTC')).toBe(1)
@@ -189,15 +190,15 @@ describe('M115 verified M52 migration', () => {
     await store.update({
       ...copied,
       name: 'Legitimate edit',
-      paidCapUsd: 1,
-      grant: { ...copied.grant, paidCapUsd: 1 },
+      paidCapUsd: PortUsd.from(1).toAmount(),
+      grant: { ...copied.grant, paidCapUsd: PortUsd.from(1).toAmount() },
     })
     vi.restoreAllMocks()
     expect(await migrateSchedules(source, store, 'workspace-1', 'UTC')).toBe(1)
     const afterEdit = await store.list('workspace-1')
     expect(afterEdit.find((entry) => entry.id === job.id)).toMatchObject({
       name: 'Legitimate edit',
-      paidCapUsd: 1,
+      paidCapUsd: PortUsd.from(1).toAmount(),
     })
   })
   it('commits reconciliation and its migration receipt atomically across a crash after reconciliation', async () => {
@@ -244,8 +245,8 @@ describe('M115 verified M52 migration', () => {
     expect(list[0]).toMatchObject({
       paused: true,
       mode: 'manual',
-      grant: { rules: [], destinationIds: [], paidCapUsd: 0 },
-      paidCapUsd: 0,
+      grant: { rules: [], destinationIds: [], paidCapUsd: PortUsd.from(0).toAmount() },
+      paidCapUsd: PortUsd.from(0).toAmount(),
     })
     expect(list[0]?.paidConsent).toBeUndefined()
     await expect(stat(path.join(directory, `${job.id}.json`))).rejects.toMatchObject({
@@ -323,7 +324,7 @@ describe('M115 verified M52 migration', () => {
       grant: {
         rules: [{ id: 'read', kind: 'tool', name: 'read_file' }],
         destinationIds: [],
-        paidCapUsd: 0,
+        paidCapUsd: PortUsd.from(0).toAmount(),
       },
     })
     await expect(migrateSchedules(source, store, 'workspace-1', 'UTC')).rejects.toThrow(

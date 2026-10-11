@@ -67,6 +67,25 @@ function setup(
 }
 
 describe('resource governor levels', () => {
+  it('ends one caller’s wait at its signal without cancelling the shared sample', async () => {
+    const pending = Promise.withResolvers<ResourceSample>()
+    const finish = pending.resolve
+    const sampler: ResourceSampler = { sample: vi.fn(() => pending.promise) }
+    const f = setup(resourceSettingsSchema.parse({}), sampler)
+    const caller = new AbortController()
+    const abandoned = f.governor.refresh(caller.signal)
+    const other = f.governor.refresh()
+    await Promise.resolve()
+    await Promise.resolve()
+    caller.abort(new DOMException('deadline', 'TimeoutError'))
+    await expect(abandoned).rejects.toMatchObject({ name: 'TimeoutError' })
+    finish(sample(0, { memoryUsedPercent: 41 }))
+    await expect(other).resolves.toBeUndefined()
+    expect(sampler.sample).toHaveBeenCalledOnce()
+    expect(f.onError).not.toHaveBeenCalled()
+    expect(f.governor.status([]).sample?.memoryUsedPercent).toBe(41)
+  })
+
   it('backs off two independent harnesses together from the same machine readings', async () => {
     const left = setup()
     const right = setup()

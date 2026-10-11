@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process'
 import { mkdir, mkdtemp, readdir, rm } from 'node:fs/promises'
 import path from 'node:path'
 import { expect, it } from 'vitest'
@@ -10,6 +11,8 @@ it('fails a missing recorded revision and removes its incomplete source reconstr
   const scratch = path.join(root, 'temp')
   await mkdir(scratch)
   try {
+    // Disk-backed private temp may be outside the checkout's Git discovery.
+    execFileSync('git', ['init', '--quiet', root])
     await expect(snapshot(root, '0'.repeat(40))).rejects.toThrow('not a tree object')
     expect(await readdir(scratch)).toEqual([])
   } finally {

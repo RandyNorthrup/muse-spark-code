@@ -548,6 +548,21 @@ describe('encrypted vault store', () => {
   })
 })
 
+// Windows has no POSIX-mode fallback: NodeVaultFiles requires a DACL port
+// there (refused without one, pinned below). These cases are about native
+// file semantics, so on Windows they take a pass-through port; the DACL
+// port's own calls and refusal have their own case.
+const passThroughSecurity = {
+  protect: () => Promise.resolve(),
+  verify: () => Promise.resolve(),
+}
+function nativeFiles(root: string, maxBytes: number) {
+  return new NodeVaultFiles(
+    root,
+    maxBytes,
+    process.platform === 'win32' ? passThroughSecurity : undefined,
+  )
+}
 describe('native files and platform ports', () => {
   it('creates its native fixture under an existing OS temporary parent', async () => {
     const root = await directory()
@@ -569,7 +584,7 @@ describe('native files and platform ports', () => {
   })
   it('keeps the complete old file visible until its fully written replacement is renamed', async () => {
     const root = await directory()
-    const files = new NodeVaultFiles(root, 1024)
+    const files = nativeFiles(root, 1024)
     await files.quarantine('vault.v1')
     expect(await readdir(root)).toEqual([])
     await files.writeAtomic('vault.v1', Buffer.from('complete-old'))
@@ -602,7 +617,7 @@ describe('native files and platform ports', () => {
   })
   it('restores a truncated native document without reading it and retains its owner-only quarantine', async () => {
     const root = await directory()
-    const files = new NodeVaultFiles(root, 4 * 1024 * 1024)
+    const files = nativeFiles(root, 4 * 1024 * 1024)
     const vault = await freshVault(files)
     const secret = item()
     await vault.store.write(secret)
@@ -631,7 +646,7 @@ describe('native files and platform ports', () => {
   })
   it('refuses quarantine after destination identity changes during link creation', async () => {
     const root = await directory()
-    const files = new NodeVaultFiles(root, 1024)
+    const files = nativeFiles(root, 1024)
     await files.writeAtomic('vault.v1', Buffer.from('old-document'))
     const original = await vi.importActual<typeof filesystem>('node:fs/promises')
     vi.mocked(filesystem.link).mockImplementationOnce(async (source, destination) => {
@@ -645,7 +660,7 @@ describe('native files and platform ports', () => {
   })
   it('writes owner-only files with synced atomic replacement and no plaintext in any file', async () => {
     const root = await directory()
-    const files = new NodeVaultFiles(path.join(root, 'vault'), 4 * 1024 * 1024)
+    const files = nativeFiles(path.join(root, 'vault'), 4 * 1024 * 1024)
     const vault = await freshVault(files)
     const secret = item()
     await vault.store.write(secret)
@@ -672,7 +687,7 @@ describe('native files and platform ports', () => {
   })
   it('allows exactly one writer and releases its lock on success and thrown operations', async () => {
     const root = await directory()
-    const files = new NodeVaultFiles(root, 1024)
+    const files = nativeFiles(root, 1024)
     const entered = Promise.withResolvers<undefined>()
     const released = Promise.withResolvers<undefined>()
     const first = files.withWriter(async () => {
@@ -698,17 +713,28 @@ describe('native files and platform ports', () => {
   })
   it('refuses oversized and symbolic-link files and unsafe POSIX permissions', async () => {
     const root = await directory()
-    const files = new NodeVaultFiles(root, 2)
+    const files = nativeFiles(root, 2)
     await expect(files.writeAtomic('vault.v1', Buffer.alloc(3))).rejects.toThrow()
     await writeFile(path.join(root, 'vault.v1'), Buffer.alloc(3), { mode: 0o600 })
     await expect(files.read('vault.v1')).rejects.toThrow()
     await rm(path.join(root, 'vault.v1'))
     await writeFile(path.join(root, 'outside'), Buffer.alloc(1), { mode: 0o600 })
-    await symlink(path.join(root, 'outside'), path.join(root, 'vault.v1'))
-    await expect(files.read('vault.v1')).rejects.toThrow()
-    await expect(files.quarantine('vault.v1')).rejects.toMatchObject({ code: 'io' })
-    const entries = await readdir(root)
-    expect(entries.some((name) => name.endsWith('.quarantine'))).toBe(false)
+    let isLinked = true
+    try {
+      await symlink(path.join(root, 'outside'), path.join(root, 'vault.v1'))
+    } catch (error: unknown) {
+      // Windows file links need the symlink privilege (hosted runners hold it;
+      // an ordinary account does not): there is then no link to refuse.
+      if (process.platform !== 'win32' || !(error instanceof Error && 'code' in error)) throw error
+      if (error.code !== 'EPERM') throw error
+      isLinked = false
+    }
+    if (isLinked) {
+      await expect(files.read('vault.v1')).rejects.toThrow()
+      await expect(files.quarantine('vault.v1')).rejects.toMatchObject({ code: 'io' })
+      const entries = await readdir(root)
+      expect(entries.some((name) => name.endsWith('.quarantine'))).toBe(false)
+    }
     if (process.platform !== 'win32') {
       await chmod(root, 0o755)
       await expect(files.withWriter(() => Promise.resolve())).rejects.toThrow()

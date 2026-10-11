@@ -2,7 +2,8 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { SCHEDULE_DELIVERIES, SCHEDULE_FIRE_OUTCOMES } from '../../src/shared/constants'
 import { SCHEDULE_EVENT_KINDS } from '../../src/shared/scheduleEvents'
 import { EN } from '../../src/shared/l10n/en'
-import { fill, formatUsd, plural, setUiText, UI_TEXT } from '../../src/shared/l10n/text'
+import { fill, plural, setUiText, UI_TEXT } from '../../src/shared/l10n/text'
+import { formatUsd } from '../../src/shared/l10n/exactUsd'
 import { installGerman } from './helpers/germanTable'
 import { FakeLogOutputChannel } from './helpers/fakes'
 
@@ -16,7 +17,9 @@ describe('schedule text contract', () => {
       Object.keys(UI_TEXT.scheduleV2.delivery).toSorted((left, right) => left.localeCompare(right)),
     ).toEqual([...SCHEDULE_DELIVERIES].toSorted((left, right) => left.localeCompare(right)))
     expect(
-      Object.keys(UI_TEXT.scheduleV2.outcomes).toSorted((left, right) => left.localeCompare(right)),
+      Object.keys(UI_TEXT.scheduleSettlement.outcomes).toSorted((left, right) =>
+        left.localeCompare(right),
+      ),
     ).toEqual([...SCHEDULE_FIRE_OUTCOMES].toSorted((left, right) => left.localeCompare(right)))
     expect(
       Object.keys(UI_TEXT.scheduleV2.events).toSorted((left, right) => left.localeCompare(right)),

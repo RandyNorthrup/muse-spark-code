@@ -21,7 +21,8 @@ import {
   type TeamIntensityLevel,
 } from '../../shared/constants'
 export { type TeamIntensityLevel, TEAM_WORKER_TPM_ESTIMATE } from '../../shared/constants'
-import { fill, formatUsd } from '../../shared/l10n/text'
+import { fill } from '../../shared/l10n/text'
+import { formatUsd } from '../../shared/l10n/exactUsd'
 import type { TeamRoleDraft } from './templates'
 
 /** The five intensity levels, cheapest first. */

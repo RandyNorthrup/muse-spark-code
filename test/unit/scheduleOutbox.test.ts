@@ -1,3 +1,4 @@
+import { Usd as PortUsd } from '../../src/shared/usd'
 import { describe, expect, it, vi } from 'vitest'
 import * as z from 'zod/mini'
 import { createScheduler } from '../../src/core/schedules/scheduler'
@@ -134,7 +135,11 @@ function fireOf(
     observedAtMs: now,
     outcome,
     refusedActions: [],
-    cost: { usd: 0.2, certainty: 'unknown', retainedLiabilityUsd: 0.8 },
+    cost: {
+      usd: PortUsd.from(0.2).toAmount(),
+      certainty: 'unknown',
+      retainedLiabilityUsd: PortUsd.from(0.8).toAmount(),
+    },
     ...(intent.event !== undefined && { event: intent.event }),
   }
 }
@@ -389,7 +394,14 @@ describe('schedule outbox reconciliation', () => {
     const uncertain = fireOf(intent, host.now(), 'failed')
     host.ledger.set(intent.runId, {
       status: 'uncertain',
-      fire: { ...uncertain, cost: { usd: 0, certainty: 'exact', retainedLiabilityUsd: 0 } },
+      fire: {
+        ...uncertain,
+        cost: {
+          usd: PortUsd.from(0).toAmount(),
+          certainty: 'exact',
+          retainedLiabilityUsd: PortUsd.from(0).toAmount(),
+        },
+      },
     })
     await expect(scheduler.recover(job.workspaceKey)).rejects.toThrow()
     expect(await store.fires(job.workspaceKey)).toEqual([])

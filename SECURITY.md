@@ -29,6 +29,44 @@ Releases and npm.
 
 ## What the extension protects, and how
 
+- **Windows path aliases.** Every rule holds on any drive letter: Windows, the
+  profile, the workspace and the extension's storage may each be on a
+  different one.
+  - _Refused spellings_ (file admission, the worker/ACP fence and the
+    checkpoint-storage guard, with "This path uses a Windows spelling the
+    extension doesn't accept; use the normal path."): `\\.\`, `\??\`,
+    `\\?\UNC\`, `\\?\GLOBALROOT`, `\\?\Volume{…}` and their forward-slash
+    forms; drive-relative `X:name`; alternate streams (any `:` after the
+    drive); a segment ending in a dot or space; and a reserved device name
+    (CON, PRN, AUX, NUL, CONIN$, CONOUT$, COM1–9, LPT1–9 and the superscript
+    digits), bare or followed only by dots or spaces. A device name with a
+    real extension (`con.d`, `aux.js`, `nul.txt`) is an ordinary name on
+    Windows 11 and is judged by identity; pull-request checkouts still refuse
+    those names. Muse Code's own `\\?\X:\` spelling names the same local file
+    and is judged by its segments like `X:\`.
+  - _UNC_: file requests need a UNC workspace and proven native ancestry.
+  - _Protected writes_: a Muse Code write approval with a refused spelling,
+    a protected name (any case), or a resolved long name that is protected
+    (an 8.3 name such as `CLAUDE~1`, a junction, link or `subst` letter
+    reaching `.claude`, `.git`, `.github\workflows`…) asks manually and offers
+    only a once-only grant. An 8.3-shaped name that nothing resolves counts
+    as protected.
+  - _Checkpoint storage and held pull-request folders_ compare native
+    identity (volume serial plus non-zero file ID): a path is inside exactly
+    when it or an existing ancestor has the folder's identity, after the
+    nearest existing ancestor is resolved, so a junction or link above a
+    workspace or storage root (a relocated Documents or AppData) is ordinary.
+    A target on another volume (another serial, WSL's device 0) is outside;
+    `\\localhost\C$` and `\\localhost\Users` workspaces are outside when the
+    walk ends at a root above the storage. Writes are refused, with "The
+    extension cannot verify that this path is outside checkpoint storage",
+    when identity cannot be read, a same-volume share is rooted elsewhere, or
+    the volume has no usable file IDs below its root. Proven storage keeps
+    "This path is in the extension checkpoint storage". A missing
+    held-worktrees folder is judged by its nearest existing ancestor.
+  - See [the native certifications](docs/certification/sec-win-path-aliases2.md)
+    ([round 1](docs/certification/sec-win-path-aliases.md)).
+
 - **Muse Judge (M98 phase 1).** The same model can only add caution at an
   existing reviewer/card fence; it cannot allow, override a rule or enter an
   ALLOW parser. Off loads no Judge source or admission bundle. Replaced
@@ -652,6 +690,60 @@ marker to the native creation identity. The final same-user empty-name window
 can remove an empty replacement only, never populated file content. Persisted
 registry discovery, retained publication-artifact recovery and macOS/Windows
 native qualification remain required before cleanup is certified.
+
+Resource history removal (retention and **Delete history**, RVM107W2G/W2H)
+never deletes a checked pathname: the entry is renamed to a fresh `.removing-*`
+name in its validated parent and deleted only once that name proves to be the
+validated entry (dev/ino) in the same parent; success means the entry and
+every quarantine of its name, in the current or the earlier
+`.removing-<uuid>` format, are gone. Linux runs every step through the
+parent's no-follow descriptor (`/proc/self/fd`). Windows holds a handle on the
+entry, which makes Windows refuse to rename any of its ancestors, through the
+rename and the delete. Node offers neither on macOS, so a same-user process
+that replaces directories inside the private data folder, timed to the
+operation, can (a) during the rename, move an outside entry to a quarantine
+name in its own directory (that call refuses, never deletes it, and puts it
+back only when it is reachable from the validated parent), and (b) between
+the last proof and the delete, redirect the delete to an entry with that same
+quarantine name under the swapped-in directory; that call is not guaranteed to
+notice (it reports `usageRemoveIncomplete` when the directory is swapped back
+before its final check, and can succeed when it is not). On every platform the
+recursive delete inside a proven quarantine is Node's path-based `fs.rm`, so a
+same-user process writing into that quarantine while it is deleted could swap
+a subdirectory for a link.
+
+A refused removal puts the entry back without replacing anything that took its
+name: a file by `link` (no-replace on every platform) and then unlink; a
+directory on POSIX after claiming the name with an exclusive `mkdir`, so the
+rename can replace only an empty directory (a same-user racer that swaps its
+own empty directory in for the claim in that instant loses that empty
+directory, never content); if that rename fails, the claim is removed again
+with `rmdir`, which never recurses. Windows never renames over a directory but
+does over a file, and cannot claim the name for a directory, so the put-back
+checks that the name is free immediately before the rename and leaves the
+entry quarantined if it is not: a file created at the name between that check
+and the rename is replaced (the residual). Anything not put back stays under
+its quarantine name. A refusal by the commit fence is reported as the fence's
+own error (`resourceHistoryLockLost`); `usagePathChanged` means the entry or
+its parent changed.
+
+Appends, live minutes, daily rows, retention and **Delete history** run under
+one write lease, and every append, live minute, daily-row write and retention
+removal commits through a fence: at the last step, after the destination is
+open or staged (before the write on the open append handle, before the stage's rename, before
+a proven quarantine is deleted), it refuses unless the lease's generation is
+still current and the change is after the reset boundary. A lease is reclaimed
+only once it is 30 s old, and a reclaim moves the generation. A holder paused
+between that check and its final call can land only in the tree it opened or
+staged in. A tree that Delete history removed meanwhile takes that write with
+it: an open append writes to the removed file (POSIX), and a staged write's
+stage is gone, so its rename fails (every platform). On Windows an open append
+handle makes that Delete history fail instead, to be retried.
+Reads drop journal, live and daily-row data at or before the boundary. Static
+links inside the store are refused on every operation; links above the data
+folder (Windows profile junctions, macOS `/var`) are resolved once and are
+normal. Each claim has a test (RVM107W2G and RVM107W2H in
+`test/unit/resourceHistoryReview.test.ts`).
 
 D100's per-job process/birth caps use the independent registered-tree stop API
 only for the offending job. Ordinary machine pressure still never kills work.

@@ -1,3 +1,4 @@
+import { StorageRefusalError } from '../../checkpoints/storageRefusal'
 import type { GitDraftOutputPort } from '../../git/gitText'
 import type * as CodeIntelEntry from './codeIntelEntry'
 import {
@@ -287,7 +288,7 @@ import {
   type MemoryWrites,
   type MemoryIo,
 } from '../../memory/memoryStore'
-import { type CodeIntelDeps, bareName } from '../../codeIntel/codeIntelQuery'
+import type { CodeIntelDeps } from '../../codeIntel/codeIntelQuery'
 import { CodeIntelRefusal } from '../../codeIntel/codeIntelRefusal'
 import { codeIntelToolOf } from '../../codeIntel/definitions'
 import type { LanguageServiceHost } from '../../codeIntel/languageService'
@@ -343,6 +344,7 @@ import {
   type ReplayProducer,
   effortForPolicy,
   metaResolvedModel,
+  minOutputTokensForPolicy,
   modelPolicyFor,
   modelPricedUsage,
   requestImageCount,
@@ -1688,6 +1690,23 @@ function toolFailure(reason: string, visibleReason = reason): ToolOutcome {
   return { output: `Error: ${reason}`, visibleOutput: visibleReason, failureReason: visibleReason }
 }
 
+/**
+ * A tool that threw (a disk error, a directory for a file, an MCP server's
+ * error or deadline): a checkpoint-storage refusal carries the row's own
+ * words in the display language, while the model keeps its fixed English
+ * reason; anything else reads the same on both sides.
+ */
+export function thrownToolOutcome(error: unknown): ToolOutcome {
+  if (error instanceof StorageRefusalError) {
+    return {
+      output: `Error: ${error.modelReason}`,
+      visibleOutput: error.visibleReason,
+      failureReason: error.visibleReason,
+    }
+  }
+  return toolFailure(describe(error))
+}
+
 /** A web fetch that did not happen: the model's reason, the row's in the user's language. */
 function webFetchRefusal(failure: WebFetchFailure): ToolOutcome {
   return {
@@ -2594,7 +2613,6 @@ export class ModelApiSession implements ScheduledAgentSession {
   private readonly parallelReads: boolean
   private readonly outputContinuation: boolean
   private outputFormat: CreateResponseBody['text']
-  private readonly outputCaps = new Map<string, number>()
   private readonly repeatGuard = new RepeatGuard()
   /**
    * The ledger total a resumed session brought (M73), kept so a save keeps
@@ -3730,6 +3748,7 @@ export class ModelApiSession implements ScheduledAgentSession {
               searchPriceUsd: this.approvedSearchQuote?.tariffUsd,
             }),
             maxOutputTokens,
+            minOutputTokens: minOutputTokensForPolicy(selected.policy),
             images: requestImageCount(body),
             ...(body.model.includes('/') && { price: selected.price }),
           })
@@ -4295,14 +4314,12 @@ export class ModelApiSession implements ScheduledAgentSession {
   }
 
   private outputCap(): number {
-    const cached = this.outputCaps.get(this.modelId)
-    if (cached !== undefined) return cached
+    // Recomputed per request from the currently resolved record: a cached cap
+    // outlives a provider-file edit between turns (RVMINOUT P2).
     const requested = this.deps.modelOutputMaxTokens?.(this.modelId) ?? MODEL_API_MAX_OUTPUT_TOKENS
-    if (!Number.isSafeInteger(requested) || requested < 1)
-      throw new RangeError('invalid output.maxTokens')
+    if (!Number.isSafeInteger(requested)) throw new RangeError('invalid output.maxTokens')
     const cap = outputLimitFor(this.modelPolicy(), requested)
     if (!Number.isSafeInteger(cap) || cap < 1) throw new RangeError('invalid output.maxTokens')
-    this.outputCaps.set(this.modelId, cap)
     return cap
   }
 
@@ -8545,7 +8562,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       files: this.policy().files,
       ...(media === undefined &&
         this.getScheduledRun() !== undefined && {
-          media: { reason: UI_TEXT.scheduledMediaUnavailable },
+          media: { reason: UI_TEXT.scheduledMediaSupport },
         }),
       ...(media !== undefined && {
         media: {
@@ -12645,7 +12662,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       // A tool that threw (a disk error, a directory for a file, an MCP
       // server's error or deadline) is a failed call the model is told
       // about, not the end of the turn.
-      result = { outcome: toolFailure(describe(error)), isRejected: false }
+      result = { outcome: thrownToolOutcome(error), isRejected: false }
     }
     if (signal.aborted || result.isRejected || result.outcome.failureReason !== undefined)
       prepared.provisionalSeen.clear()
@@ -14768,8 +14785,10 @@ export class ModelApiSession implements ScheduledAgentSession {
         shouldKeepTools &&
         (prefix === undefined ||
           prefix.body.tools.every((tool) => tool.type !== MODEL_API_WEB_SEARCH_TOOL))
+      // A summary cap below the provider minimum is a rejected request:
+      // floor at what the selected provider accepts before budgeting it.
       const summaryBudget = Math.max(
-        1,
+        minOutputTokensForPolicy(this.modelPolicy()),
         Math.min(
           COMPACTION_SUMMARY_MAX_TOKENS,
           Math.floor(windowTokens * COMPACTION_SUMMARY_WINDOW_FRACTION),
@@ -15390,7 +15409,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     deps: CodeIntelDeps,
     signal: AbortSignal,
   ): Promise<string | undefined> {
-    const { repoMapSection } = await this.codeIntelligence()
+    const { bareName, repoMapSection } = await this.codeIntelligence()
     const root = await deps.io.realPath(deps.workspaceRoot)
     const p = pathModule(deps.platform)
     return await repoMapSection(

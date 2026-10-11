@@ -1,4 +1,3 @@
-import { Usd } from '../../src/shared/usd'
 // MCP elicitation on a live Model API session (M91 lane M): the form in
 // every approval mode including Bypass, accept/decline/cancel, refused
 // answers, declined schemas, the hook seam, timeouts and stops, and values
@@ -14,7 +13,8 @@ import type {
   ElicitationHookSeam,
   ElicitationHookVerdict,
 } from '../../src/core/backends/modelapi/mcp/elicitation'
-import { FAKE_MODEL_API_ACCOUNT_ID, fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
+import { fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
+import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
 import { memoryContextIo } from './helpers/fakeContextIo'
 import { memoryToolIo } from './helpers/fakeToolIo'
 import { FakeLogOutputChannel } from './helpers/fakes'
@@ -92,6 +92,7 @@ function setup(
   }
   let ids = 0
   const host = new ModelApiHost({
+    ...fakeModelApiHostDeps({ client: fakeModelApiClient(api, log), workspaceRoot: ROOT, io, log }),
     client: fakeModelApiClient(api, log),
     workspaceRoot: ROOT,
     platform: 'linux',
@@ -103,18 +104,8 @@ function setup(
     },
     now: () => 1_000_000,
     log,
-    personalSkillsRoot: undefined,
-    personalAgentsRoot: undefined,
-    isWorkspaceTrusted: () => true,
-    isConfidentialWorkspace: () => false,
-    confirmContributorModel: () => Promise.resolve(false),
-    describeEnvironment: () => Promise.resolve({ git: undefined }),
     isPaidFeatureOn: (feature) => feature === 'subagents' && options.hasSubagentForm === true,
     notePaidUse: vi.fn(),
-    promptCacheRetention: () => 'in_memory',
-    sessionBudgetUsd: () => Usd.from(0).toAmount(),
-    showReplyUsage: () => false,
-    getAccountId: () => Promise.resolve(FAKE_MODEL_API_ACCOUNT_ID),
     allowsPaidUse: () => Promise.resolve(true),
     isPaidUseRemembered: () => false,
     noteSubagentUsage: vi.fn(),

@@ -1,3 +1,4 @@
+import type { UsdAmount } from '../shared/usdSchema'
 import { vaultApprovalText } from '../runtime/vault/vaultApproval'
 // The Muse Spark agent over the Agent Client Protocol (PLAN.md D62): one
 // client on stdio, any number of sessions, each an AgentSession of the
@@ -6,7 +7,7 @@ import { vaultApprovalText } from '../runtime/vault/vaultApproval'
 //
 // What the panel guarantees holds here too: an approval is decided only
 // with a choice the backend offered, and one the client did not answer is
-// denied (D62); "Edit automatically" answers only what the panel's rule
+// denied (D62); "Edit Automatically" answers only what the panel's rule
 // allows (`editAutomaticallyChoice`, D24); a paid feature is on only with
 // its flag, and each use asks in the editor first, naming its price (M58,
 // paid.ts). Every update of a turn goes out before the turn's response.
@@ -150,7 +151,7 @@ export interface AcpAgentOptions {
   readonly questionsDeferAfterSeconds?: number
   readonly scheduleAuthorization?: {
     readonly scheduledPrompts: boolean
-    readonly maxBudgetUsd?: number
+    readonly maxBudgetUsd?: UsdAmount
   }
   /** Headless exec cannot invoke user entry points, even through a prompt. */
   readonly isHeadless?: boolean
@@ -1269,6 +1270,17 @@ class AcpSession {
     return agentListingText(latest.items, Date.now())
   }
 
+  private cancelPreparing(): boolean {
+    const preparing = this.preparing
+    if (preparing === undefined) return false
+    preparing.isCancelled = true
+    preparing.reportAbort?.abort()
+    preparing.abandonElicitation?.()
+    preparing.abort.abort()
+    this.preparing = undefined
+    return true
+  }
+
   public async askPaidUse(request: PaidUseRequest, canRemember: boolean): Promise<PaidUseAnswer> {
     const pending = this.pending
     const preparing = this.preparing
@@ -1926,18 +1938,23 @@ class AcpSession {
             this.deps.log.warn(`ACP media cleanup: ${failureForLog(error)}`)
           })
         if (submission.userMessageId !== undefined) pending.userMessageId = submission.userMessageId
-        this.noteTurnId(submission.turnId, submission.disposition)
-        if (submission.disposition !== 'started' && submission.disposition !== 'queued') {
-          throw RequestError.internalError(undefined, UI_TEXT.answerNotAccepted)
-        }
+        const isAccepted =
+          submission.disposition === 'started' || submission.disposition === 'queued'
+        // Decide before noting the turn: a turn that already finished settles
+        // the prompt there, which must not release the answers it delivered.
         if (
+          isAccepted &&
           this.pending === pending &&
           (pending.userMessageId === undefined
-            ? submission.disposition === 'started' || this.activeTurnId === submission.turnId
+            ? submission.disposition === 'started' ||
+              this.activeTurnId === submission.turnId ||
+              this.earlyFinishes.has(submission.turnId)
             : pending.earlyAdmissions.has(pending.userMessageId))
         ) {
           this.commitAnswers(pending)
         }
+        this.noteTurnId(submission.turnId, submission.disposition)
+        if (!isAccepted) throw RequestError.internalError(undefined, UI_TEXT.answerNotAccepted)
       }
     } catch (error: unknown) {
       await this.releaseAnswers(pending)
@@ -1966,12 +1983,7 @@ class AcpSession {
   public async cancel(): Promise<void> {
     this.legalStop?.abort()
     this.cancelVaultRequests()
-    if (this.preparing !== undefined) {
-      this.preparing.isCancelled = true
-      this.preparing.reportAbort?.abort()
-      this.preparing.abandonElicitation?.()
-      this.preparing.abort.abort()
-      this.preparing = undefined
+    if (this.cancelPreparing()) {
       this.deps.log.info(`ACP session ${this.sessionId}: cancelled before its turn started`)
     }
     if (this.pending === undefined && this.activeTurnId === undefined) {
@@ -2051,13 +2063,7 @@ class AcpSession {
     if (this.questions === undefined) this.questionRegistry?.dispose()
     this.accounts?.dispose()
     this.cancelVaultRequests()
-    if (this.preparing !== undefined) {
-      this.preparing.isCancelled = true
-      this.preparing.reportAbort?.abort()
-      this.preparing.abandonElicitation?.()
-      this.preparing.abort.abort()
-      this.preparing = undefined
-    }
+    this.cancelPreparing()
     const wasRunning = this.pending !== undefined || this.activeTurnId !== undefined
     this.pending?.resolve('cancelled')
     this.pending = undefined

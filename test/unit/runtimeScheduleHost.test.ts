@@ -1,3 +1,5 @@
+import { malformedUsd } from './helpers/malformedUsd'
+import { Usd as PortUsd } from '../../src/shared/usd'
 import { describe, expect, it, vi } from 'vitest'
 import { RuntimeScheduleHost } from '../../src/runtime/schedules/host'
 import { fakeRunContext, fakeSchedule } from './helpers/schedules/fixtures'
@@ -19,7 +21,11 @@ function setup() {
     refusedActions: [
       { actionClass: 'physical', tool: 'physical', reason: 'Always refused unattended' },
     ],
-    cost: { usd: 0.1, certainty: 'unknown', retainedLiabilityUsd: 0.2 },
+    cost: {
+      usd: PortUsd.from(0.1).toAmount(),
+      certainty: 'unknown',
+      retainedLiabilityUsd: PortUsd.from(0.2).toAmount(),
+    },
   })
   const deliver = vi.fn().mockResolvedValue(record)
   const host = new RuntimeScheduleHost({ deliver, now: () => 5000, monotonicNow: () => 23 })
@@ -129,7 +135,7 @@ describe('runtime scheduler host', () => {
     const { host, deliver, record, schedule, context } = setup()
     host.hold(schedule.workspaceKey)
     await expect(
-      host.deliver({ ...schedule, paidCapUsd: -1 }, context, record.occurrenceMs),
+      host.deliver({ ...schedule, paidCapUsd: malformedUsd(-1) }, context, record.occurrenceMs),
     ).rejects.toThrow()
     const invalidContext = { ...context }
     Reflect.set(invalidContext, 'unattended', false)

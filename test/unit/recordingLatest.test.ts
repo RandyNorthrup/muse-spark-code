@@ -92,14 +92,18 @@ describe('M105 W Linux latest-file discovery', () => {
       })
     expect(names).toEqual(['new.mp4', 'old.webm'])
     const latest = await latestLinuxRecording(port)
+    // Linux discovery trusts only POSIX roots (production runs it on Linux
+    // alone), so a Windows-shaped root finds nothing instead of guessing.
+    if (process.platform === 'win32') {
+      expect(latest).toMatchObject({ ok: false, reason: UI_TEXT.media.recordingNoRecent })
+      return
+    }
     if (!latest.ok) throw new Error('expected the recent capture')
     expect(latest.preview.path.startsWith(tempRoot)).toBe(true)
     expect(latest.preview.info).toMatchObject({ kind: 'video', mediaType: 'video/mp4' })
-    // Owner-only copies: Windows reports no POSIX modes, so check only there.
-    if (process.platform !== 'win32') {
-      const previewStat = await stat(latest.preview.path)
-      expect(previewStat.mode & 0o777).toBe(0o600)
-    }
+    // Owner-only copies.
+    const previewStat = await stat(latest.preview.path)
+    expect(previewStat.mode & 0o777).toBe(0o600)
     await latest.preview.dispose()
     await expect(stat(latest.preview.path)).rejects.toThrow()
   })

@@ -5,6 +5,8 @@ export {
   _default,
   NEVER,
   nonoptional,
+  // Exact money codecs (scheduleV2) read through the shared wire bundle.
+  codec,
   custom,
   length,
   partialRecord,
@@ -52,6 +54,8 @@ export {
   string,
   transform,
   trim,
+  // Native job event rows (mcpJobLaunch) and launcher exit arguments (resources/process).
+  tuple,
   union,
   undefined,
   unknown,

@@ -1,3 +1,4 @@
+import { usdInputSchema } from '../../../../src/shared/usdSchema'
 import type { Account, AccountEvent, AccountThresholds } from '../../../../src/shared/accounts'
 import {
   readAccountUsage,
@@ -39,7 +40,7 @@ export function usageFixture() {
       provider: 'meta',
       label: 'Meta',
       accounts: [
-        usageAccount('default', { spendUsd: { day: 0.3 } }),
+        usageAccount('default', { spendUsd: { day: usdInputSchema.parse('0.3') } }),
         usageAccount('personal', {}, 1),
       ],
     },
@@ -58,8 +59,8 @@ export function usageEvents(): readonly AccountEvent[] {
     kind: 'userCap',
     metric: 'spendUsd',
     period: 'day',
-    value: 0.3,
-    threshold: 0.3,
+    value: usdInputSchema.parse('0.3'),
+    threshold: usdInputSchema.parse('0.3'),
     resetAt: new Date(2026, 9, 7).toISOString(),
   } as const
   return [
@@ -77,7 +78,7 @@ export function usageEvents(): readonly AccountEvent[] {
       previousAccount: 'default',
       time: new Date(2026, 9, 6, 10).toISOString(),
       trigger: userCap,
-      coldCacheUsd: 0.000000001,
+      coldCacheUsd: usdInputSchema.parse('0.000000001'),
     },
     {
       type: 'spread',

@@ -6,7 +6,7 @@ import path from 'node:path'
 import { withoutCredentials, withoutKeyringRoutes } from './credentialVariables'
 import { runProgram, windowsPowerShell } from '../host/processTree'
 import * as z from 'zod/mini'
-import { IDE_MCP_TOKEN_BYTES } from '../shared/constants'
+import { IDE_MCP_TOKEN_BYTES, UI_TEXT } from '../shared/constants'
 
 const FILE_MODE = constants.S_IRUSR | constants.S_IWUSR
 const DIRECTORY_MODE = FILE_MODE | constants.S_IXUSR
@@ -79,7 +79,8 @@ export async function runWindowsAclScript(
   isDirectory: boolean,
 ): Promise<unknown> {
   const systemRoot = process.env['SystemRoot'] ?? process.env['windir']
-  if (systemRoot === undefined) throw new Error('EOWNER_ONLY')
+  if (systemRoot === undefined || !/^[a-z]:\\/iu.test(systemRoot))
+    throw new Error(UI_TEXT.windowsSystemRootMissing)
   const executable = windowsPowerShell(
     systemRoot,
     withoutKeyringRoutes(withoutCredentials(process.env)),

@@ -15,6 +15,7 @@ import {
   ReaderContent,
 } from '../../src/core/context/recordingReader'
 import { contentHash, ProvenanceLedger } from '../../src/core/schedules/provenance'
+import { numberFormat } from '../../src/shared/l10n/text'
 
 const brandProbe: { lines: readonly number[]; memoryPortRejected: boolean } = {
   lines: [],
@@ -74,6 +75,16 @@ beforeAll(async () => {
 })
 
 describe('structural recording inputs', () => {
+  it('installs the language in the lazy bundle once, not on every recorded read', async () => {
+    const reader = new RecordingReader()
+    const io = memoryContextIo(new Map([['/workspace/AGENTS.md', 'rules']]))
+    const deps = { io, workspaceRoot: '/workspace', platform: 'linux' as const }
+    await reader.run(recordOperation, { kind: 'rules', deps, directory: '' })
+    // An install clears the cached formatters; a repeated read must not.
+    const formatter = numberFormat('recordingReaderProbe', {})
+    await reader.run(recordOperation, { kind: 'rules', deps, directory: '' })
+    expect(numberFormat('recordingReaderProbe', {})).toBe(formatter)
+  })
   it('RVM115U5 reader: file and cached reads in concurrent derivations have separate closed inventories', async () => {
     const reader = new RecordingReader()
     const held = Promise.withResolvers<undefined>()

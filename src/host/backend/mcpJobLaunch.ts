@@ -7,16 +7,158 @@
 import { type ChildProcessWithoutNullStreams, spawn } from 'node:child_process'
 import { Buffer } from 'node:buffer'
 import { randomBytes, randomUUID } from 'node:crypto'
-import { createServer } from 'node:net'
-import { setEnvironmentVariable } from '../../core/backends/musecode/launch'
+import { once } from 'node:events'
+import { createServer, type Socket } from 'node:net'
+import * as z from 'zod/mini'
+import { environmentValue, setEnvironmentVariable } from '../../core/backends/musecode/launch'
 import { redactSecrets } from '../../core/redact'
-import { resourceEnvironment, type ResourceLease } from '../../core/resources/launch'
+import {
+  resourceEnvironment,
+  type ResourceLease,
+  type ResourcePipedProcess,
+} from '../../core/resources/launch'
 import { stopResourceTree } from '../../core/resources/admission'
 import {
   MCP_JOB_CONFIG_VARIABLE,
   MCP_JOB_HANDSHAKE_MAX_CHARS,
   MCP_JOB_NONCE_BYTES,
+  RESOURCE_JOB_INT32_MAX,
+  RESOURCE_JOB_INT32_MIN,
+  RESOURCE_JOB_RECORD_MAX_CHARS,
+  RESOURCE_JOB_RECORD_WAIT_MS,
+  RESOURCE_JOB_UINT32_MAX,
 } from '../../shared/constants'
+import { resourceProcessIdentitySchema, type ResourceProcessIdentity } from '../../shared/resources'
+
+/** SPAWN017C: the limits an attested job enforces itself, in process. */
+export interface JobAttestationLimits {
+  readonly activeProcessLimit: number
+  readonly spawnLimit: number
+  readonly spawnWindowMs: number
+  readonly sampleMs: number
+  readonly emptyTimeoutMs: number
+}
+
+const count = z.number().check(z.int(), z.nonnegative())
+const JOB_LIMITS = ['activeProcess', 'jobMemory', 'processMemory'] as const
+// The native record's own ranges: a Win32 exit code is signed 32-bit, job counts are DWORDs.
+const uint32 = z.number().check(z.int(), z.nonnegative(), z.lte(RESOURCE_JOB_UINT32_MAX))
+const int32 = z
+  .number()
+  .check(z.int(), z.gte(RESOURCE_JOB_INT32_MIN), z.lte(RESOURCE_JOB_INT32_MAX))
+/** The helper's one final record, sent after the job was ended and drained. */
+const jobRecordSchema = z.strictObject({
+  v: z.literal(1),
+  ending: z.enum(['exit', 'stopped', 'owner', 'spawnRate']),
+  exitCode: int32,
+  emptied: z.boolean(),
+  cpuMs: count,
+  peakJobMemoryBytes: count,
+  totalProcesses: uint32,
+  capRefusals: uint32,
+  // Which job limits the kernel enforced (completion-port messages), each at most once.
+  limits: z.array(z.enum(JOB_LIMITS)).check(
+    z.maxLength(JOB_LIMITS.length),
+    z.refine((reasons) => new Set(reasons).size === reasons.length),
+  ),
+  activeProcessLimit: uint32,
+})
+export type JobRecord = z.infer<typeof jobRecordSchema>
+
+export interface AttestedJobControl {
+  /** The payload root, reported by the helper before it resumed it. */
+  readonly root: Promise<ResourceProcessIdentity | undefined>
+  /** The final record; undefined when none valid arrived (usage uncertain, never refused). */
+  readonly record: Promise<JobRecord | undefined>
+  /** Ask the helper to end and drain the whole job; it then reports and exits. */
+  stop: () => void
+}
+
+/** The kept control pipe after GO: PID and RESULT in, STOP out. Anything else ends it. */
+function attestedChannel() {
+  // Each answer settles once: the first event wins, later ones find no listener.
+  const answers = new EventTarget()
+  // A CustomEvent carries an absent answer as null; both mean "never arrived".
+  const root = (async () => {
+    const events: unknown = await once(answers, 'root')
+    const [event] = z
+      .tuple([z.object({ detail: z.nullable(resourceProcessIdentitySchema) })])
+      .parse(events)
+    return event.detail ?? undefined
+  })()
+  const record = (async () => {
+    const events: unknown = await once(answers, 'record')
+    const [event] = z.tuple([z.object({ detail: z.nullable(jobRecordSchema) })]).parse(events)
+    return event.detail ?? undefined
+  })()
+  const answer = (name: 'root' | 'record', detail: unknown): void => {
+    answers.dispatchEvent(new CustomEvent(name, { detail: detail ?? null }))
+  }
+  let socket: Socket | undefined
+  let pending = ''
+  let isStopRequested = false
+  const settle = () => {
+    answer('root', undefined)
+    answer('record', undefined)
+  }
+  const isAccepted = (text: string): boolean => {
+    const pid = /^PID (\d+) (\d+)$/u.exec(text)
+    if (pid?.[1] !== undefined && pid[2] !== undefined) {
+      const parsed = resourceProcessIdentitySchema.safeParse({
+        pid: Number(pid[1]),
+        startTime: pid[2],
+      })
+      if (parsed.success) answer('root', parsed.data)
+      return parsed.success
+    }
+    if (!text.startsWith('RESULT ')) return false
+    try {
+      const parsed = jobRecordSchema.safeParse(JSON.parse(text.slice('RESULT '.length)))
+      if (parsed.success) answer('record', parsed.data)
+      return parsed.success
+    } catch {
+      return false
+    }
+  }
+  return {
+    control: {
+      root,
+      record,
+      stop: () => {
+        isStopRequested = true
+        if (socket?.writable === true) socket.write('STOP\n')
+      },
+    } satisfies AttestedJobControl,
+    bind: (bound: Socket) => {
+      socket = bound
+      bound.unref()
+      bound.on('close', settle)
+      if (isStopRequested) bound.write('STOP\n')
+    },
+    receive: (bytes: Buffer) => {
+      pending += bytes.toString('utf8')
+      for (let end = pending.indexOf('\n'); end !== -1; end = pending.indexOf('\n')) {
+        const text = pending.slice(0, end)
+        // Bounded before parsing: a complete oversized line is refused, not read.
+        if (text.length > RESOURCE_JOB_RECORD_MAX_CHARS) {
+          socket?.destroy()
+          return
+        }
+        pending = pending.slice(end + 1)
+        if (!isAccepted(text)) {
+          // A protocol violation: the helper reads EOF as STOP and ends the job.
+          socket?.destroy()
+          return
+        }
+      }
+      if (pending.length > RESOURCE_JOB_RECORD_MAX_CHARS) socket?.destroy()
+    },
+    /** After the helper exits, a record still absent is never awaited forever. */
+    expire: () => {
+      setTimeout(settle, RESOURCE_JOB_RECORD_WAIT_MS).unref()
+    },
+  }
+}
 
 export interface McpJobLaunch {
   /** Only the pinned browser uses the fixed additional CDP pipe pair. */
@@ -33,12 +175,15 @@ export interface McpJobLaunch {
   readonly log: (message: string) => void
   /** The whole job's memory in bytes (M91b, plugin children); absent sets no limit. */
   readonly jobMemoryLimit?: number | undefined
+  /** SPAWN017C portable launches: an unnamed job that attests its own tree. */
+  readonly attestation?: JobAttestationLimits | undefined
 }
 
 /** The SDK and our process adapters share the same suspended native launch boundary. */
 export function prepareMcpJobLaunch(launch: McpJobLaunch) {
   const controlPipe = `muse-spark-mcp-${randomUUID()}`
   const controlNonce = randomBytes(MCP_JOB_NONCE_BYTES).toString('hex')
+  const attested = launch.attestation === undefined ? undefined : attestedChannel()
   let isClosed = false
   let stop: (() => void) | undefined
   const control = createServer((socket) => {
@@ -48,7 +193,10 @@ export function prepareMcpJobLaunch(launch: McpJobLaunch) {
       launch.log(`the MCP job control pipe closed: ${redactSecrets(error.message)}`)
     })
     socket.on('data', (bytes: Buffer) => {
-      if (isAuthorized) return
+      if (isAuthorized) {
+        attested?.receive(bytes)
+        return
+      }
       request += bytes.toString('utf8')
       if (request.length > MCP_JOB_HANDSHAKE_MAX_CHARS) {
         socket.destroy()
@@ -63,7 +211,11 @@ export function prepareMcpJobLaunch(launch: McpJobLaunch) {
         return
       }
       isAuthorized = true
-      socket.end(`GO ${controlNonce}\n`)
+      if (attested === undefined) socket.end(`GO ${controlNonce}\n`)
+      else {
+        socket.write(`GO ${controlNonce}\n`)
+        attested.bind(socket)
+      }
       closeControl()
     })
   })
@@ -93,13 +245,20 @@ export function prepareMcpJobLaunch(launch: McpJobLaunch) {
       controlNonce,
       ...(launch.jobMemoryLimit !== undefined && { jobMemoryLimit: launch.jobMemoryLimit }),
       ...(launch.debugPipes === true && { debugPipes: true }),
+      ...(launch.attestation !== undefined && { attestation: launch.attestation }),
     }),
     'utf8',
   ).toString('base64')
   const helperEnv = resourceEnvironment(launch.env, launch.resource)
+  // The CLR launcher needs its system directory even when the payload has
+  // an empty environment. The payload's environment above remains separate.
+  const systemRoot = environmentValue(process.env, 'win32', 'SystemRoot')
+  if (systemRoot !== undefined && environmentValue(helperEnv, 'win32', 'SystemRoot') === undefined)
+    setEnvironmentVariable(helperEnv, 'win32', 'SystemRoot', systemRoot)
   setEnvironmentVariable(helperEnv, 'win32', MCP_JOB_CONFIG_VARIABLE, payload)
   return {
     env: helperEnv,
+    attested,
     closeControl,
     stopWith: (action: () => void) => {
       stop = action
@@ -158,6 +317,41 @@ export function spawnMcpJob(launch: McpJobLaunch): ChildProcessWithoutNullStream
   } catch (error: unknown) {
     launch.resource?.failed?.()
     launch.resource?.complete(true)
+    prepared.closeControl()
+    throw error
+  }
+}
+
+/**
+ * SPAWN017C: a portable contained or probe launch. Only the helper's record
+ * saying it drained the job (`emptied: true`) proves the tree gone; a killed
+ * helper's job is ended by the kernel, but that end is not observed. The record
+ * also carries the final usage and any limit the kernel enforced. The caller
+ * registers and completes the lease.
+ */
+export function spawnAttestedJob(
+  launch: McpJobLaunch & { readonly attestation: JobAttestationLimits },
+): { child: ResourcePipedProcess['child']; control: AttestedJobControl } {
+  const prepared = prepareMcpJobLaunch(launch)
+  const attested = prepared.attested
+  if (attested === undefined) throw new Error('Attested job channel unavailable')
+  try {
+    const child = spawn(
+      // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- the same digest-named launcher compiled from the packaged native/windows sources; launch input stays in a private environment value (PLAN.md §8, SPAWN017C).
+      launch.executablePath,
+      [],
+      { cwd: launch.cwd, env: prepared.env, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true },
+    )
+    child.once('exit', () => {
+      prepared.closeControl()
+      attested.expire()
+    })
+    child.once('error', () => {
+      prepared.closeControl()
+      attested.expire()
+    })
+    return { child, control: attested.control }
+  } catch (error: unknown) {
     prepared.closeControl()
     throw error
   }

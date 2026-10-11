@@ -4,7 +4,9 @@ import { type VaultPanelState } from '../../../src/shared/modelsPanel'
 import { type VaultUse } from '../../../src/shared/vault'
 import { VAULT_APPROVAL_TTL_MS } from '../../../src/shared/constants'
 
-const id = () => crypto.randomUUID().replaceAll('-', '')
+// Repeated visual captures need stable public fixture identifiers.
+const sequence = { next: 0 }
+const id = () => (++sequence.next).toString(16).padStart(32, '0')
 const command = {
   executable: '/usr/bin/tool',
   argv: ['--check', '--destination', 'outside.test'],

@@ -50,7 +50,7 @@ describe('M116 shared strings', () => {
         playbookWhyNoteSchema.safeParse({ rule: 'threeStrikes', code, at: 0, needsUser: false })
           .success,
       ).toBe(true)
-    expect(UI_TEXT.playbookDesignPending).toBe('Awaiting redesign review')
+    expect(UI_TEXT.playbookDesignPending).toBe('Awaiting Redesign Review')
   })
 
   it.each(TABLE_LOCALES)(

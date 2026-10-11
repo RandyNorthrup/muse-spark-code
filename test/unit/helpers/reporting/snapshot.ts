@@ -199,6 +199,7 @@ export function reportDocument(
 ): ReportDocument {
   return {
     format: 'report-v1',
+    moneyVersion: 2,
     header: {
       kind,
       scope: 'fixture-workspace',

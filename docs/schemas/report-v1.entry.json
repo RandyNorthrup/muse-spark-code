@@ -14,6 +14,7 @@
     "Source strings are scrubbed at snapshot creation and again over canonical output bytes before hashing.",
     "Then compute contentHash as SHA-256 of the scrubbed canonical JSON excluding /header/asOf and /header/contentHash; verify the same bytes when reading saved reports.",
     "Only /header/contentHash is excluded from output scrubbing by schema path, never by value, key name alone or a general hexadecimal exemption; JSON, display and diff hash metadata preserve it.",
-    "Schema validation alone certifies neither output scrubbing nor content-hash verification."
+    "Schema validation alone certifies neither output scrubbing nor content-hash verification.",
+    "Money version 2 uses canonical decimal USD strings. Historical unmarked version 1 numeric reports are hash-verified before migration."
   ]
 }

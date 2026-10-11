@@ -1,4 +1,4 @@
-import { usdAmountSchema } from './usd'
+import { usdAmountSchema } from './usdSchema'
 // Every tunable and user-visible literal lives here. The no-magic-numbers lint
 // rule is disabled for this file only; everywhere else a bare literal is an
 // error. Keep entries grouped and named for what they mean, not what they are.
@@ -9,6 +9,8 @@ import type { BrowserRuntimeMode } from './browserCheckConstants'
 
 // M107 / D87: portable resource contracts. Nothing is sampled at module load.
 export const RESOURCE_SAMPLE_MS = 5000
+// libuv 1.52 adds inactive/purgeable pages to Darwin's available-memory reading.
+export const RESOURCE_DARWIN_HEADROOM_LIBUV_MIN_MINOR = 52
 // D87.14: free-space policy and owned-tree retention.
 export const RESOURCE_DISK_SAMPLE_MS = 30_000
 export const RESOURCE_DISK_FAST_SAMPLE_MS = 5000
@@ -59,6 +61,38 @@ export const RESOURCE_HISTORY_MAX_EVENTS = 1000
 export const RESOURCE_HISTORY_MAX_EVENT_TOTALS = 65
 export const RESOURCE_HISTORY_MAX_WORK_KINDS = 12
 export const RESOURCE_HISTORY_PAGE_SIZE = 60
+// M107 J/M102: the machine's resource journal, under the usage folder so the
+// usage page's Delete history also clears it. One append-only file per
+// recording process and UTC day; a whole journal read is bounded too.
+export const RESOURCE_JOURNAL_FOLDER = 'resources'
+export const RESOURCE_JOURNAL_VERSION = 1
+export const RESOURCE_JOURNAL_FILE_MAX_BYTES = 4 * 1024 * 1024
+export const RESOURCE_JOURNAL_READ_MAX_BYTES = 32 * 1024 * 1024
+// Day folders older than detail + this margin are removed; readers stop at
+// detail days, so a clock a day apart never reads a folder being removed.
+export const RESOURCE_JOURNAL_REMOVE_MARGIN_DAYS = 2
+// A record stamped further ahead than this (a wrong clock) is out of range.
+export const RESOURCE_JOURNAL_FUTURE_SKEW_MS = 5 * RESOURCE_HISTORY_MINUTE_MS
+// D87.11 under D82's rollups: completed UTC days become one daily row in
+// `rollups/<YYYY-MM>.json`, kept for the usage-history days (at most 1825).
+// A day is rolled up once it ended this long ago, so its last minute is in.
+export const RESOURCE_JOURNAL_ROLLUP_DELAY_MS = 60 * RESOURCE_HISTORY_MINUTE_MS
+// Retention and rollup run at most this often per process.
+export const RESOURCE_JOURNAL_RETAIN_MS = 60 * RESOURCE_HISTORY_MINUTE_MS
+export const RESOURCE_HISTORY_MAX_DAYS = 1825
+// The open minute so far is published to `live/<collector>.json` at most this
+// often, so every surface (including other processes) shows the current minute.
+export const RESOURCE_JOURNAL_LIVE_MS = 15_000
+// Delete history's reset boundary, beside (not inside) the usage folder.
+export const RESOURCE_JOURNAL_RESET_FILE = 'resource-history-reset.json'
+// The journal write lock (RVM107W2G P2-2): appends and live writes hold it for
+// milliseconds, Delete history for its folder removal. A contender retries for
+// at most ATTEMPTS × WAIT (10 s); a lock older than STALE is reclaimed.
+export const RESOURCE_JOURNAL_WRITE_LOCK_STALE_MS = 30_000
+export const RESOURCE_JOURNAL_WRITE_LOCK_WAIT_MS = 50
+export const RESOURCE_JOURNAL_WRITE_LOCK_ATTEMPTS = 200
+// A closing window or agent waits at most this long for its open minute's write.
+export const RESOURCE_HISTORY_FLUSH_TIMEOUT_MS = 2000
 export const RESOURCE_CPU_DEFAULT_PERCENT = 85
 export const RESOURCE_CPU_MIN_PERCENT = 30
 export const RESOURCE_MEMORY_DEFAULT_PERCENT = 90
@@ -69,6 +103,10 @@ export const RESOURCE_MEMORY_MIN_FREE_GIB = 0.5
 export const RESOURCE_MEMORY_MAX_FREE_GIB = 64
 export const RESOURCE_OPTIONAL_MIN_PERCENT = 1
 export const RESOURCE_ID_MAX_LENGTH = 256
+// U–C1: the window status message's JSON text; its strict schema runs in the deferred chip.
+export const RESOURCE_STATUS_MAX_CHARS = 8192
+// M107: the bound on a chat document's id, which the host issues in its HTML.
+export const RESOURCE_NONCE_MAX_CHARS = 64
 export const RESOURCE_LAUNCH_POLL_MS = 100
 export const RESOURCE_MUSE_SHUTDOWN_MS = 30_000
 export const RESOURCE_MUSE_CLOSE_GRACE_MS = 10_000
@@ -107,6 +145,11 @@ export const ACCOUNT_DAY_MS = 86_400_000
 export const ACCOUNT_REMOTE_LIMIT_DEFAULT_MS = 60_000
 export const ACCOUNT_DEFAULTS = { isSwapOn: true, isParallelOn: true } as const
 export const ACCOUNT_POLICY_VERSION = '2026-10-05.1'
+// Durable account quote-grant encoding version (P2 #3, CONSENT017D): the
+// persisted generation is `{ v, epoch, hostGeneration }`, never the old
+// `[counter, hostGeneration]` array, so an instance-counter-era grant can
+// never match a durable revocation epoch.
+export const ACCOUNT_QUOTE_GRANT_VERSION = 2
 
 // Must match package.json `publisher` and `name`; test/unit/manifest.test.ts
 // fails if they drift.
@@ -129,17 +172,14 @@ export const GOOEY_MENU = {
   /** A pill's height, the old bubble's; its ends are half circles. */
   pillHeight: 40,
   edgePadding: 8,
-  /** Between the fan's pills at rest. */
-  gap: 20,
-  /** The least room from the origin to a pill: clears a 26 px control centred there. */
+  /** Fallback for non-CSS layout callers; the renderer derives this from focus tokens. */
+  gap: 6,
+  /** Clear space beyond a neighbouring focus ring. */
+  outlineClearance: 2,
+  /** The least room from the origin to a pill: clears the 24 px row button centred there. */
   reach: 16,
   /** How much farther the fan's middle reaches than its ends: the arc. */
-  bow: 32,
-  /**
-   * The narrowest panel the whole fan must fit (the owner's narrow-view
-   * rule): every pill's width is this less the padding and the bow.
-   */
-  narrowPanel: 320,
+  bow: 16,
   /** Each pill starts its scale-in this long after the one before it. */
   staggerMs: 30,
 } as const
@@ -201,6 +241,9 @@ export const COMMAND_IDS = {
   // M99 (PLAN.md D79): the release notes of this version and the ones before it.
   showWhatsNew: 'museSpark.showWhatsNew',
   openUsagePage: 'museSpark.openUsagePage',
+  // M107 U–C1/W: the window governor's chip and its fifteen-minute override.
+  showResources: 'museSpark.showResources',
+  resumeResources: 'museSpark.resumeResources',
   openHelp: 'museSpark.openHelp',
   savePrompt: 'museSpark.savePrompt',
   useSavedPrompt: 'museSpark.useSavedPrompt',
@@ -266,7 +309,7 @@ export const PAID_APPROVAL_ORDER_DIRECTORY = 'paid-approval-order'
 
 // Extension-private `globalState` keys (never machine-wide configuration).
 export const GLOBAL_STATE_KEYS = {
-  /** "Don't ask again" on the Windows sandbox setup prompt. */
+  /** "Don't Ask Again" on the Windows sandbox setup prompt. */
   sandboxPromptSuppressed: 'museSpark.sandboxPromptSuppressed',
   /** Credential-free sign-out hold, so activation cannot restore an old CLI credential. */
   cliLogoutHold: 'museSpark.cliLogoutHold',
@@ -281,7 +324,7 @@ export const GLOBAL_STATE_KEYS = {
   subagentPriceAcceptance: 'museSpark.subagentPriceAcceptance',
   /**
    * Each paid feature's grant generation (M58): every change to its price
-   * acceptance counts it up, so an "Allow always in this workspace" given
+   * acceptance counts it up, so an "Allow Always in This Workspace" given
    * before the change is void in every workspace.
    */
   paidGrantGenerations: 'museSpark.paidGrantGenerations',
@@ -526,7 +569,7 @@ export const SETTING_DEFAULTS = {
   // Claude Code's `archiveInactiveSessions`: hide sessions idle this many
   // days from the History dialog (1 / 2 / 7 / 14; 0 never). Hidden, not
   // deleted: the extension does not call session/delete (available since
-  // Muse Code 1.4.0-R4302.1), and "Show archived" brings them back.
+  // Muse Code 1.4.0-R4302.1), and "Show Archived" brings them back.
   archiveInactiveSessions: 14,
   // Claude Code's `cleanupPeriodDays` (PLAN.md D26): Model API conversations
   // idle longer than this are deleted when a window reads them; 0 keeps them.
@@ -1174,6 +1217,9 @@ export const WEBVIEW_DIST_SEGMENTS = ['dist', 'webview'] as const
 export const WEBVIEW_SCRIPT_FILE = 'main.js'
 export const WEBVIEW_STYLE_FILE = 'main.css'
 export const WEBVIEW_ROOT_ELEMENT_ID = 'root'
+// M107: the `<body>` attribute naming the document the host built (webviewSetup.ts).
+// A reload builds a new document with a new id; the webview only echoes it.
+export const WEBVIEW_DOCUMENT_ATTRIBUTE = 'data-document-id'
 
 // What's New after an update (M99, PLAN.md D79). Its page is an editor
 // webview (every VS Code fork has webviews; not all have Markdown preview):
@@ -1437,11 +1483,12 @@ export const MAX_DOCUMENT_BYTES = 32_000_000
 // replayed Model API request. Meta's 50 MB inline limit is per file; this
 // separate bound keeps a long session from serializing gigabytes of PDFs.
 export const MAX_ENCODED_MEDIA_CHARS = 48_000_000
-// ACP SDK 1.5.1 refuses an NDJSON line over 32 MiB unless told otherwise, and a
-// valid prompt can carry the whole aggregate media budget above as base64
-// (three near-10 MiB images already exceed 32 MiB). The ACP transport takes
-// that budget plus room for prompt text, embedded resources and the JSON-RPC
-// envelope; the per-image and aggregate checks then answer with a message.
+// ACP SDK 1.5.1 refuses an NDJSON line over 32 MiB unless told otherwise (1.7.0
+// unchanged, SDK144), and a valid prompt can carry the whole aggregate media
+// budget above as base64 (three near-10 MiB images already exceed 32 MiB).
+// The ACP transport takes that budget plus room for prompt text, embedded
+// resources and the JSON-RPC envelope; the per-image and aggregate checks then
+// answer with a message.
 export const ACP_MESSAGE_HEADROOM_BYTES = 16 * 1024 * 1024
 export const ACP_MAX_MESSAGE_BYTES = MAX_ENCODED_MEDIA_CHARS + ACP_MESSAGE_HEADROOM_BYTES
 export const BASE64_DATA_URL_OVERHEAD_CHARS = 'data:;base64,'.length
@@ -1846,7 +1893,7 @@ export const PLAYBOOK_SAFETY_RULE = 'neverAround'
 export const PLAYBOOK_RESOLUTIONS = ['impossible', 'caught', 'remains'] as const
 // The block as the review prompt shows it to the model (English, as all
 // model text is), and what it holds when the review found nothing.
-export const REVIEW_FINDINGS_EXAMPLE = JSON.stringify({
+export const REVIEW_FINDINGS_EXAMPLE = /* @__PURE__ */ JSON.stringify({
   findings: [
     {
       file: 'src/example.ts',
@@ -1857,7 +1904,7 @@ export const REVIEW_FINDINGS_EXAMPLE = JSON.stringify({
     },
   ],
 })
-export const REVIEW_FINDINGS_EMPTY = JSON.stringify({ findings: [] })
+export const REVIEW_FINDINGS_EMPTY = /* @__PURE__ */ JSON.stringify({ findings: [] })
 // The review pane reads at most this many edits' patches, and stops adding
 // files once this many diff lines are listed.
 export const REVIEW_PANE_MAX_EDITS = 200
@@ -2137,6 +2184,11 @@ export const MODEL_API_LEGACY_CONTEXT_MODELS: readonly string[] = [
 ]
 // U8/U10 captured selected model; other models retain unknown capability states.
 export const M106_CAPTURED_META_MODEL = 'muse-spark-1.3-contributor'
+// Live capture 2026-10-10 (muse-spark-1.3-contributor): POST /v1/responses
+// with max_output_tokens 1 is a 400 naming max_output_tokens, "The number
+// must be `>= 16`". Never send a smaller output cap to Meta; a budget that
+// cannot fit this refuses instead (sessionBudget.ts).
+export const MODEL_API_MIN_OUTPUT_TOKENS = 16
 export const MODEL_API_MAX_OUTPUT_TOKENS = 32_768
 // M101 C1: keep whole recent turns; summaries and the tail scale down for small windows.
 export const NO_COMPACTABLE_HISTORY = 'no_compactable_history'
@@ -3815,6 +3867,8 @@ export const SEARCH_WORKER_FILE = 'searchWorker.js'
 // loaded when that backend first starts, not at activation.
 export const CONVERSATION_BUNDLE_FILE = 'conversation.js'
 export const MODEL_API_BUNDLE_FILE = 'modelApi.js'
+// Its session store (D14), required when that backend's host is first built.
+export const MODEL_API_SESSIONS_BUNDLE_FILE = 'modelApiSessions.js'
 // The plan reader's bundle (M79, PLAN.md D6), beside dist/extension.js:
 // the panel's Markdown parser, loaded on the first plan action.
 export const PLAN_MARKDOWN_BUNDLE_FILE = 'planMarkdown.js'
@@ -3943,6 +3997,8 @@ export const SHELL_JOB_NAME_PREFIX = String.raw`Local\MuseSparkShell-`
 export const TREE_EXIT_WAIT_MS = 10_000
 export const ORPHAN_SWEEP_ROUNDS = 5
 export const PROCESS_TABLE_TIMEOUT_MS = 20_000
+/** OS hand-off adapters (opener, clipboard) must return promptly; only their root is owned. Windows PowerShell's cold start for Set-Clipboard sets the bound. */
+export const RESOURCE_HANDOFF_TIMEOUT_MS = 10_000
 export const OUTPUT_REF_PREFIX = 'tool_patch-'
 // The stored output the transcript can page (`item/readOutput` parity).
 export const MODEL_API_OUTPUT_MEDIA_TYPE = 'application/json'
@@ -4008,7 +4064,8 @@ export const EXEC_OBSERVER_HIGH_WATER_BYTES = 16_777_216
 export const EXEC_SCAN_MAX_BYTES = 16_777_216
 export const EXEC_SCAN_TIMEOUT_MS = 30_000
 export const EXEC_SCAN_EXIT_FOUND = 10
-export const EXEC_MIN_OUTPUT_TOKENS = 16
+// Headless runs refuse smaller caps at the same floor Meta enforces.
+export const EXEC_MIN_OUTPUT_TOKENS: number = MODEL_API_MIN_OUTPUT_TOKENS
 export const EXEC_IMAGE_N = 1
 export const EXEC_STREAM_IDLE_MS = 300_000
 export const EXEC_USD_UNITS = 1_000_000
@@ -4110,7 +4167,7 @@ export const ACP_DATA_FOLDER = {
 } as const
 export const ACP_SESSIONS_SUBFOLDER = 'acp'
 export const ACP_WORKSPACE_HASH_CHARS = 16
-// "Allow always in this workspace" for paid uses (M58), every folder's in one
+// "Allow Always in This Workspace" for paid uses (M58), every folder's in one
 // file beside the folders' own, keyed by the same hash.
 export const ACP_PAID_GRANTS_FILE = 'paid-uses.json'
 // M108 (PLAN.md D88.1): the runtime's own providers file beside the session
@@ -4405,7 +4462,7 @@ export const CHOICE_STEERING_NOTE =
   '<harness_note>When you offer the user a choice between options, ask through the request_user_input tool instead of listing the options in prose, so the panel can show a picker.</harness_note>'
 // The verify loop's guidance to Muse Code (M68) rides in a note of its own.
 export const HARNESS_NOTE_TAG = 'harness_note'
-// Collapsed tool bodies show this many lines before "Show more".
+// Collapsed tool bodies show this many lines before "Show More".
 export const OUTPUT_PREVIEW_LINES = 12
 /** Shell IN/OUT previews share a compact five-line limit (M87). */
 export const IO_PREVIEW_LINES = 5
@@ -4419,9 +4476,10 @@ export const OUTPUT_PAGE_BYTES = 256 * 1024
 export const STATUS_VERB_INTERVAL_MS = 4000
 // The working line's heart-monitor beam (M87, D66): a canvas port of Vahid's
 // HTML5 Canvas Heart Monitor (CodePen MWvmvd, MIT; written fresh). The beam
-// advances this far every tick, so the 100-unit box sweeps in about 1.2 s —
-// slower than the reference's 0.6 s, which reads as frantic at this size.
-export const HEARTBEAT_BEAM_TICK_MS = 6
+// advances this far every tick, so the 100-unit box sweeps in about 1.4 s —
+// slower than the reference's 0.6 s, which reads as frantic at this size
+// (1.2 s still read as a little fast: owner, 2026-10-09).
+export const HEARTBEAT_BEAM_TICK_MS = 7
 export const HEARTBEAT_BEAM_STEP_PX = 0.5
 // The beam's trail: the last this-many ticks of its path are drawn, fading
 // from opaque at the beam to nothing (100 ticks = half a sweep, 0.6 s). Nothing
@@ -4449,6 +4507,11 @@ export const USAGE_HISTORY_DAYS_DEFAULT = 365
 export const USAGE_HISTORY_DAYS_MIN = 30
 export const USAGE_HISTORY_DAYS_MAX = 1825
 export const USAGE_RECORD_MAX_BYTES = 4096
+// Usage-folder removal (RVM107W2G): a quarantined `.removing-*` entry older than
+// this is swept by any list, sweep or remove; younger ones may be in flight in
+// another process. A delete retries transient EBUSY/EPERM this many times.
+export const USAGE_TRASH_SWEEP_MS = 60_000
+export const USAGE_REMOVE_RETRIES = 3
 export const USAGE_LINE_FEED_BYTE = 0x0a
 export const USAGE_LABEL_MAX_CHARS = 256
 export const USAGE_ID_MAX_CHARS = 128
@@ -4586,6 +4649,9 @@ export const MSP_LONG_COMMANDS: ReadonlySet<string> = new Set([
 // Windows now and then since 1.3.0, meta-models/muse-code-sdk#29).
 export const MUSE_APPROVAL_REPLAY_FAULT = 'approval replay failed'
 export const MUSE_APPROVAL_LEDGER_FAULT = 'approval ledger durability fence'
+// Upstream's #29 fix floor; the owner-authorized live probe accepted a
+// decision without the ledger fault (docs/certification/muse143.md).
+export const MUSE_APPROVAL_LEDGER_FIXED_VERSION = '1.4.3'
 // A Stop under a part-decided approval rejects its waiting stage first
 // (MuseSession.cancel); a stage that moved on is rejected once more there.
 // Each try waits this long at most, then the Stop goes on: a decision takes
@@ -4636,12 +4702,13 @@ export const MSP_ATTACHMENT_FRAME_BUDGET_BYTES =
   MSP_FRAME_LIMIT_BYTES - MSP_ATTACHMENT_FRAME_HEADROOM_BYTES
 // `session/list` refuses a larger page (msp.d.ts SessionListParams.limit).
 export const MSP_SESSION_LIST_MAX_LIMIT = 200
-// The captured 1.4.2 build now matches the SDK's own pin (M106 S).
-// Keep its identity here; older fingerprints are no longer additive
-// successors of this SDK and must retain the mismatch warning. Future
-// successors need a served capture before they enter this map.
+// The captured 1.4.4 build matches the SDK's own pin (SDK144, served
+// 2026-10-09 by 1.4.4-R5419.1). Keep its identity here; older fingerprints
+// (1.4.2-R4684.1 included) are no longer additive successors of this SDK
+// and must retain the mismatch warning. Future successors need a served
+// capture before they enter this map.
 export const MSP_KNOWN_SCHEMA_FINGERPRINTS: Readonly<Record<string, string>> = {
-  'sha256:61afea3112e0906e9dc3a536144278a74cb4b36fc6e20901a91d4432ba3568e2': '1.4.2-R4684.1',
+  'sha256:7c94f153c41659cb3f1bd3c3e04438be254644cb2a97d65d48edc7449b74858a': '1.4.4-R5419.1',
 }
 // Muse Code's documented exit codes (SDK `classifyExit`) after which a
 // restart cannot help; what each code means is `UI_TEXT.museExitMeanings`.
@@ -5227,7 +5294,11 @@ export const REPORT_HISTORY_MAX_PER_KIND = 50
 export const REPORT_WRITER_LOCK_WAIT_MS = 2000
 export const REPORT_WRITER_LOCK_BACKOFF_MS = 25
 export const REPORT_WRITER_LOCK_BACKOFF_MAX_MS = 100
-export const REPORT_WRITER_LOCK_PROBE_MS = 2000
+// Bounded process-identity probe (own start time, a lock owner's liveness).
+// Windows spawns PowerShell for it: in hosted CI run 37897298018 a cold
+// PowerShell start on windows-latest was killed inside the former 2 s, so a
+// report save failed. 5 s covers that start and stays a hard bound.
+export const REPORT_WRITER_LOCK_PROBE_MS = 5000
 // Linux /proc/<pid>/stat fields after the closing command-name parenthesis start at 3.
 export const REPORT_PROCESS_START_FIELD_INDEX = 19
 export const REPORT_LOCAL_BUDGET_MS = 2000
@@ -5804,7 +5875,9 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/prompts.js',
   'dist/uiText.js',
   'dist/modelApi.js',
+  'dist/modelApiSessions.js',
   'dist/mcpPool.js',
+  'dist/mcpVault.js',
   'dist/modelApiCodeIntel.js',
   'dist/structuredSchema.js',
   'dist/providers.js',
@@ -5870,7 +5943,9 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/uiTextHooks.js',
   'dist/uiTextSurfaces.js',
   'dist/wire.js',
+  'dist/resourceProcess.js',
   'dist/resourceGovernor.js',
+  'dist/resourceJournal.js',
   'dist/resourceAdmission.js',
   'dist/webview/resourceSurface.js',
   'dist/webview/resourceHistory.js',
@@ -5986,6 +6061,12 @@ export const MODEL_TEXT = {
   memoryNoWorkspace: 'no workspace folder is open, so this scope has no memory',
   memoryNoHome: 'the home folder is unknown, so this scope has no memory',
   checkpointStorageWrite: 'This path is in the extension checkpoint storage; tools cannot edit it.',
+  // A refused Windows spelling and an unverifiable storage identity, in the
+  // model's words: fixed English, whatever the display language.
+  checkpointWindowsPathRefused:
+    "This path uses a Windows spelling the extension doesn't accept; use the normal path.",
+  checkpointStorageUncertain:
+    'The extension cannot verify that this path is outside checkpoint storage; tools cannot edit it.',
   imageFileChanged:
     'the reserved file was changed by something else while the image was made; it was left as it is',
   // M68 (PLAN.md D49): the verify loop's words that the activation bundle
@@ -6044,6 +6125,8 @@ export const MODEL_TEXT = {
     "preparing the browser check's browser took longer than {minutes} minutes; nothing was opened",
   // Its confinement: nothing from the page is returned after any of these.
   browserCheckLaunch: "the browser check's browser could not be started; nothing was opened",
+  browserCheckSystemDirectoryUnavailable:
+    'the Windows system directory is unavailable; set SystemRoot to its actual path, so no browser was started',
   browserCheckUnrecognized:
     'the browser check stopped before opening the page: the browser did not match the exact version and setup it expects',
   browserCheckProfile:
@@ -6222,6 +6305,23 @@ export const FILE_REFUSAL_MODEL_TEXT = {
   fileHasUnsavedChanges:
     'has unsaved changes in an editor; ask the user to save or revert them, then try again',
   pathChangedAfterApproval: 'path changed after approval; request a new approval',
+} as const
+
+// SECWINPATH: why a model-given Windows path spelling is refused, in the
+// model's words: fixed English, whatever the display language. Only
+// src/core/windowsPathSpelling.ts reads it, and the Node bundles share that
+// module through dist/modelApiBoundaries.js; a block of its own so that the
+// bundles that resolve a workspace path (the headless preflight through
+// src/runtime/exec/attachArgs.ts among them) do not carry MODEL_TEXT whole
+// (PLAN.md D6, INT0170). The bundle-split gate keeps it in that bundle alone.
+export const WINDOWS_PATH_MODEL_TEXT = {
+  windowsDeviceNamespace: 'names a Windows device namespace',
+  windowsDriveRelative: 'uses a drive-relative Windows path',
+  windowsUncOutsideWorkspace: 'names a UNC path outside a UNC workspace',
+  windowsAlternateStream: 'names an alternate data stream',
+  windowsReservedDevice: 'names a Windows device',
+  windowsTrailingName: 'ends a name with a dot or a space, which Windows drops',
+  windowsUnprovenUncPath: 'path {path} has no proven UNC workspace ancestry',
 } as const
 
 // M80 (PLAN.md D49): a headless run's attached files (`muse-spark exec`),
@@ -7125,6 +7225,11 @@ export const ESTIMATE_LABEL_MAX_CHARS = 256
 // or older is a schedule risk: merging current main has broken such lanes'
 // releases before, so the estimate names it instead of pricing it.
 export const ESTIMATE_STALE_BASE_DAYS = 7
+// The largest P90 rental cost the estimator honestly displays, in whole US
+// dollars. It matches accountUsd's MAX_USD, the bigint nano-USD ceiling of
+// Number.MAX_SAFE_INTEGER whole dollars; a computed cost above this is
+// refused, never rounded or shown.
+export const ESTIMATE_MAX_RENTAL_COST_USD = '9007199254740991'
 
 // What the user reads, in the display language (PLAN.md D33).
 export { UI_TEXT } from './l10n/text'
@@ -7788,6 +7893,19 @@ export const RESOURCE_TRANSPORT_MAX_RESULTS = 100
 export const RESOURCE_TREE_PROCESS_CAP = 128
 export const RESOURCE_TREE_SPAWN_CAP = 64
 export const RESOURCE_TREE_SPAWN_WINDOW_MS = 15_000
+// SPAWN017C: an attested Windows job samples its own birth count in process,
+// drains to empty before it reports, and sends one bounded final record.
+export const RESOURCE_JOB_SAMPLE_MS = 250
+export const RESOURCE_JOB_EMPTY_MS = 5000
+export const RESOURCE_JOB_RECORD_MAX_CHARS = 1024
+export const RESOURCE_JOB_RECORD_WAIT_MS = 2000
+export const RESOURCE_JOB_INT32_MIN = -2_147_483_648
+export const RESOURCE_JOB_INT32_MAX = 2_147_483_647
+export const RESOURCE_JOB_UINT32_MAX = 4_294_967_295
+/** Disposal re-reads a stopped tree this often until TREE_EXIT_WAIT_MS proves or abandons it. */
+export const RESOURCE_DISPOSE_POLL_MS = 250
+/** Settled attested rows kept between history reads; older ones are dropped and counted. */
+export const RESOURCE_SETTLED_ROWS_MAX = 512
 
 // M108 X: machine-local testing options. These never change vendor/paid gates.
 // D88 amendment b: developer options expire after seven days.
@@ -7809,6 +7927,22 @@ export const DEVELOPER_COMMAND_ID = 'museSpark.developerOptions'
 // developer first option, without the developer badge or expiry.
 export const DEVELOPER_SETTING_ID = 'museSpark.accounts.severalOnThisDevice'
 export const DEVELOPER_FILES = { state: 'developer.json', audit: 'developer-audit.jsonl' } as const
+// DEVID017B: the stable machine identity (core/developer/machineId.ts). A
+// random id created once per machine and kept in the machine-scoped data
+// folder every host on this machine shares. It is never derived from the
+// hostname, so renames and `host` vs `host.local` change nothing.
+export const DEVELOPER_MACHINE_ID_FILE = 'machine-id'
+export const DEVELOPER_MACHINE_ID_BYTES = 32
+export const DEVELOPER_MACHINE_ID_READ_ATTEMPTS = 10
+export const DEVELOPER_MACHINE_ID_READ_DELAY_MS = 10
+// DEVID017C: the staged claim file published with `link`
+// (core/developer/machineId.ts): the pid in base 36 plus random bytes,
+// unique per publishing process.
+export const DEVELOPER_MACHINE_ID_TMP_PID_RADIX = 36
+export const DEVELOPER_MACHINE_ID_TMP_SUFFIX_BYTES = 8
+// DEVID017: domain separation for the legacy hostname derivation, kept only
+// to recognise stored state from before DEVID017B (core/developer/machineId.ts).
+export const DEVELOPER_MACHINE_ID_DOMAIN = 'muse-spark-developer-machine/v1'
 // M109 lane 0: vault format, limits and budgets (D89).
 export const VAULT_FORMAT_VERSION = 1
 export const VAULT_PROTOCOL_VERSION = 1

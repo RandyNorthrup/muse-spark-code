@@ -10,10 +10,20 @@ import { LinuxResourceTreeReader } from '../../src/core/resources/trees/linux'
 import { MacResourceTreeReader } from '../../src/core/resources/trees/mac'
 import { ResourceTreeRegistry } from '../../src/core/resources/trees/registry'
 import { signalVerifiedPosix } from '../../src/core/resources/trees/actions'
-import { runTreeProgram } from '../../src/core/resources/trees/run'
+import { runTreeProgram, type ResourceTreeRun } from '../../src/core/resources/trees/run'
 import type { ResourceProcessIdentity, ResourceTicket } from '../../src/shared/resources'
 import { removeFolder } from './helpers/temporaryFolders'
 import { darwinProcessHelper } from './helpers/darwinProcessHelper'
+
+/** True while the pid exists for us, a zombie included (kill(2) signal 0). */
+function isPresent(pid: number): boolean {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch {
+    return false
+  }
+}
 
 describe.runIf(process.platform === 'darwin' || process.platform === 'linux')(
   'native registered lifecycle',
@@ -174,9 +184,34 @@ describe.runIf(process.platform === 'darwin' || process.platform === 'linux')(
     })
     it('kills recorded setsid/double-fork descendants after both parents exit without group signalling', async () => {
       const folder = await mkdtemp(path.join(tmpdir(), 'm107-t2-descendants-'))
+      // The raw OS reads behind a membership answer, kept for a failure message.
+      const reads: { file: string; output?: string; error?: string }[] = []
+      const record: ResourceTreeRun = async (file, args, env) => {
+        try {
+          const output = await runTreeProgram(file, args, env)
+          reads.push({ file: path.basename(file), output })
+          return output
+        } catch (error: unknown) {
+          reads.push({ file: path.basename(file), error: String(error) })
+          throw error
+        }
+      }
+      const evidence = (pids: readonly number[]) =>
+        JSON.stringify(
+          reads.map(({ file, output, error }) => ({
+            file,
+            error,
+            rows: output
+              ?.split(/[\n{]/)
+              .filter((row) =>
+                pids.some((pid) => new RegExp(String.raw`\b${String(pid)}\b`).test(row)),
+              ),
+            unavailable: output?.match(/"unavailable"/g)?.length ?? 0,
+          })),
+        )
       const reader =
         process.platform === 'darwin'
-          ? new MacResourceTreeReader({ helperPath })
+          ? new MacResourceTreeReader({ helperPath, run: record })
           : new LinuxResourceTreeReader()
       const births: ResourceProcessIdentity[] = []
       try {
@@ -229,7 +264,19 @@ describe.runIf(process.platform === 'darwin' || process.platform === 'linux')(
           expect(await reader.identity(detached.pid)).toBeNull()
           rootProcess.stdin.write('q')
           await death
-          expect(await registry.members(ticket)).toEqual([grandchild])
+          // The root never reaps `detached`; launchd or init does once the root
+          // exits. Hosted macOS 26 once read no members here (CIFIX017 round 5,
+          // not reproduced on macOS 15 rigs): wait out that reap, and report the
+          // raw reads if it recurs.
+          for (let attempt = 0; attempt < 100; attempt++) {
+            if (!isPresent(detached.pid)) break
+            await setTimeout(1)
+          }
+          reads.length = 0
+          expect(
+            await registry.members(ticket),
+            evidence([root.pid, detached.pid, grandchild.pid]),
+          ).toEqual([grandchild])
           const result = await registry.kill(ticket)
           expect(result.status).toBe('done')
           expect(result.members).toContainEqual({ identity: grandchild, result: 'done' })

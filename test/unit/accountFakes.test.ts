@@ -1,3 +1,4 @@
+import { Usd as PortUsd } from '../../src/shared/usd'
 import { describe, expect, it } from 'vitest'
 import {
   FakeAccountClock,
@@ -9,6 +10,8 @@ import {
   type FakeAccountUsage,
 } from './helpers/accounts/fakes'
 import type { AccountTrigger, AccountEvent, AccountUsageQuery } from '../../src/shared/accounts'
+
+const money = (value: number | string) => PortUsd.from(value).toAmount()
 
 describe('M108 reusable account fakes', () => {
   it('counts per-account dispatch and preserves Retry-After across a window reset', () => {
@@ -44,17 +47,21 @@ describe('M108 reusable account fakes', () => {
       provider: 'meta',
       account: 'work',
       time: '2026-10-05T12:00:00Z',
-      settledUsd: 1,
-      reservedUsd: 2,
-      uncertainUsd: 3,
+      settledUsd: money(1),
+      reservedUsd: money(2),
+      uncertainUsd: money(3),
       inputTokens: 10,
       outputTokens: 20,
       requests: 1,
     }
     journal.append(row)
-    journal.append({ ...row, account: 'personal', settledUsd: 100 })
-    journal.append({ ...row, provider: 'openai', settledUsd: 100 })
-    journal.append({ ...row, time: '2026-10-06T00:00:00Z', settledUsd: 100 })
+    journal.append({ ...row, account: 'personal', settledUsd: money(100) })
+    journal.append({ ...row, provider: 'openai', settledUsd: money(100) })
+    journal.append({
+      ...row,
+      time: '2026-10-06T00:00:00Z',
+      settledUsd: money(100),
+    })
     const query: AccountUsageQuery = {
       provider: 'meta',
       account: 'work',
@@ -62,9 +69,9 @@ describe('M108 reusable account fakes', () => {
       end: '2026-10-06T00:00:00Z',
     }
     expect(journal.read(query)).toEqual({
-      settledUsd: 1,
-      reservedUsd: 2,
-      uncertainUsd: 3,
+      settledUsd: money(1),
+      reservedUsd: money(2),
+      uncertainUsd: money(3),
       inputTokens: 10,
       outputTokens: 20,
       requests: 1,

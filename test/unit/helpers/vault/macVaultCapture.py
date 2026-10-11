@@ -29,7 +29,8 @@ class NativeProtocol(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(reply["status"], "ok")
         self.assertIsInstance(reply["secureEnclave"], bool)
-        self.assertFalse(reply["certified"])
+        # Q-M109-OK (VaultKey.swift, 2026-10-06): the enclave path is certified.
+        self.assertTrue(reply["certified"])
         self.assertEqual(key, b"")
         print("probe:", json.dumps(reply, sort_keys=True))
 
@@ -74,11 +75,21 @@ class NativeProtocol(unittest.TestCase):
             self.assertEqual(result.returncode, 1)
             self.assertEqual(result.stderr, b"")
 
-    def test_q_m109_refuses_both_modes(self):
+    def test_q_m109_modes_follow_the_enclave(self):
+        # Since Q-M109-OK, hardware and presence slots are offered exactly where
+        # the Secure Enclave is available and refused elsewhere. A wrap keeps
+        # nothing on the machine: the enclave key travels as the container's
+        # blob, and no unwrap (which would need presence) runs here.
+        _, probe, _ = call({"v": 1, "operation": "probe"})
         for tier in ["hardware", "presence"]:
             identity = {"slotId": os.urandom(16).hex(), "vaultId": os.urandom(16).hex(), "tier": tier}
             code, reply, key = call({"v": 1, "operation": "wrap", "identity": identity}, os.urandom(32))
-            self.assertEqual((code, reply["code"], key), (1, "unavailable", b""))
+            if probe["secureEnclave"]:
+                self.assertEqual((code, reply["status"], key), (0, "ok", b""), tier)
+                self.assertEqual(reply["container"]["identity"], identity, tier)
+                self.assertTrue(reply["container"]["keyBlob"], tier)
+            else:
+                self.assertEqual((code, reply["code"], key), (1, "unavailable", b""), tier)
 
 
 def capture_keychain():

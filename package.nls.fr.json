@@ -205,6 +205,8 @@
   "config.legalExplanation": "Explication Model API facultative : USD. Chaque utilisation demande un accord et partage le budget quotidien.",
   "config.paidDailyBudgetUsd": "Budget quotidien partagé des suppléments payants : USD.",
   "command.openUsagePage.title": "Ouvrir l’utilisation et le coût",
+  "command.showResources.title": "Afficher les ressources",
+  "command.resumeResources.title": "Reprendre le travail maintenant",
   "setting.usageHistory.description": "Enregistrer localement l’utilisation des modèles sur cet ordinateur. La désactivation arrête les nouveaux enregistrements ; les limites et budgets actuels restent visibles.",
   "setting.usageHistoryDays.description": "Nombre de jours de conservation des résumés quotidiens d’utilisation (30–1825). Les détails par appel sont conservés pendant 30 jours.",
   "command.connectChatGpt": "Continuer avec ChatGPT",

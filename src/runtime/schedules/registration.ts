@@ -1,3 +1,4 @@
+import { legacyUsdSchema, nonnegativeUsdSchema, type UsdAmount } from '../../shared/usdSchema'
 // OS manifests contain only the trusted installed launcher and fixed arguments.
 import { createHash } from 'node:crypto'
 import path from 'node:path'
@@ -49,10 +50,10 @@ export interface BackgroundRegistration {
 
 export interface ScheduleWakeAuthorization {
   readonly scheduledPrompts: boolean
-  readonly maxBudgetUsd?: number
+  readonly maxBudgetUsd?: UsdAmount
 }
 
-export const backgroundWakeRecordSchema = z.strictObject({
+const wakeRecordShape = {
   id: z.string(),
   nextWakeAtMs: z.int().check(z.gte(0)),
   executable: z.string(),
@@ -64,8 +65,23 @@ export const backgroundWakeRecordSchema = z.strictObject({
   disabledAtMs: z.optional(z.int().check(z.gte(0))),
   nativeDisabledAtMs: z.optional(z.int().check(z.gte(0))),
   scheduledPrompts: z.optional(z.boolean()),
-  maxBudgetUsd: z.optional(z.number().check(z.gt(0))),
+  maxBudgetUsd: z.optional(nonnegativeUsdSchema.check(z.refine((amount) => amount !== '0'))),
+}
+const currentWakeRecordSchema = z.strictObject({ ...wakeRecordShape, moneyVersion: z.literal(2) })
+// Version 1 had no money marker and wrote JSON numbers. Normalize once on read;
+// every subsequent write carries version 2 and canonical decimal amounts.
+const legacyWakeRecordSchema = z.strictObject({
+  ...wakeRecordShape,
+  moneyVersion: z.optional(z.literal(1)),
+  maxBudgetUsd: z.optional(legacyUsdSchema.check(z.refine((amount) => amount !== '0'))),
 })
+export const backgroundWakeRecordSchema = z.union([
+  currentWakeRecordSchema,
+  z.pipe(
+    legacyWakeRecordSchema,
+    z.transform((record) => ({ ...record, moneyVersion: 2 as const })),
+  ),
+])
 
 export function backgroundDefinitionPaths(
   platform: NodeJS.Platform,

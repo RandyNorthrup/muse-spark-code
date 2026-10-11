@@ -19,14 +19,16 @@
 // off), and the extension cannot ask VS Code about a folder before it
 // opens, so the hold never depends on VS Code's answer.
 //
-// Pure: the host reads and writes the global state and the file system.
+// The host owns global state; hold admission samples native file identities.
 
 import { createHash } from 'node:crypto'
 import path from 'node:path'
 import * as z from 'zod/mini'
 import { PULL_REQUEST_WORKTREES_DIR } from '../shared/constants'
 import type { GitHubRepository } from './git/githubRemote'
-import { isSamePath, isWithinFolder } from './paths'
+import { isSamePath } from './paths'
+import { pathIdentityRelation } from './pathIdentity'
+import { isUncPath } from './windowsPathSpelling'
 
 const pullRequestOriginSchema = z.object({
   /** `owner/name`. */
@@ -145,13 +147,22 @@ export function holdFor(
   records: readonly WorktreeRecord[],
   platform: NodeJS.Platform,
 ): WorktreeHold | undefined {
+  const isInside = (candidate: string, folder: string) =>
+    pathIdentityRelation(candidate, folder, platform) === 'inside'
   // The held root itself counts: it holds every pull request checked out there.
   for (const root of roots) {
-    if (heldRoots.every((held) => !isWithinFolder(root, held, platform))) continue
-    const holding = records.filter((entry) => isWithinFolder(root, entry.folder, platform))
+    const relations = new Set(heldRoots.map((held) => pathIdentityRelation(root, held, platform)))
+    if (
+      relations.has('unknown') &&
+      (platform === process.platform || (platform === 'win32' && isUncPath(root)))
+    ) {
+      return { folder: root, pullRequest: undefined }
+    }
+    if (!relations.has('inside')) continue
+    const holding = records.filter((entry) => isInside(root, entry.folder))
     // The records holding one root are all above it, so the deepest lies within every other.
     const deepest = holding.filter((entry) =>
-      holding.every((other) => isWithinFolder(entry.folder, other.folder, platform)),
+      holding.every((other) => isInside(entry.folder, other.folder)),
     )
     const record = deepest.find((entry) => entry.trustConfirmedAt === undefined) ?? deepest[0]
     if (record?.trustConfirmedAt === undefined) {

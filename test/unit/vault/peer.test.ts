@@ -8,7 +8,10 @@ import os from 'node:os'
 import { UnixVaultPeerVerifier } from '../../../src/core/vault/broker/peer'
 import { VAULT_APPROVAL_TTL_MS } from '../../../src/shared/constants'
 
-describe('native Unix foreign-user rejection', () => {
+// A Unix-socket peer check: /usr/bin/id, the system C compiler and a UID.
+// Windows peers are named-pipe clients judged by WindowsVaultPeerVerifier
+// (channel.test.ts covers that seam), so this suite has no Windows half.
+describe.skipIf(process.platform === 'win32')('native Unix foreign-user rejection', () => {
   it('owner-only socket denies another user and OS uid still refuses on a deliberately relaxed test socket', async () => {
     const directory = await mkdtemp(
       path.join(process.platform === 'darwin' ? '/private/tmp' : os.tmpdir(), 'm109-b-peer-uid-'),

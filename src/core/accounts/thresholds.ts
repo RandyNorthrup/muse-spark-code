@@ -1,3 +1,4 @@
+import { Usd, legacyUsdSchema, sumUsd as sumExactUsd } from '../../shared/usd'
 // D88.3–4: local admission data, supplied by the journal and captured codecs.
 // This module never parses a vendor frame or chooses another account.
 import * as z from 'zod/mini'
@@ -10,9 +11,9 @@ import {
   type AccountUsageTotals,
 } from '../../shared/accounts'
 import { DAYS_PER_WEEK, UI_TEXT } from '../../shared/constants'
-import { multiplyUsd, parseUsd, sumUsd, usdNumber } from '../../shared/accountUsd'
+import { multiplyUsd, parseUsd, usdNumber } from '../../shared/accountUsd'
 
-const amount = z.number().check(z.nonnegative())
+const amount = legacyUsdSchema
 const count = z.int().check(z.nonnegative())
 const totalsSchema = z.strictObject({
   settledUsd: amount,
@@ -98,9 +99,9 @@ export function evaluateAccountThresholds(deps: {
   const thresholds = parsed.data
   const request = totalsSchema.safeParse(
     deps.request ?? {
-      settledUsd: 0,
-      reservedUsd: 0,
-      uncertainUsd: 0,
+      settledUsd: '0',
+      reservedUsd: '0',
+      uncertainUsd: '0',
       inputTokens: 0,
       outputTokens: 0,
       requests: 0,
@@ -155,31 +156,43 @@ export function evaluateAccountThresholds(deps: {
     )
     if (!result.success) unavailable()
     const totals = result.data
-    const spend = sumUsd([
-      parseUsd(totals.settledUsd),
-      parseUsd(totals.reservedUsd),
-      parseUsd(totals.uncertainUsd),
-    ])
-    const pendingSpend = sumUsd([
-      parseUsd(request.data.settledUsd),
-      parseUsd(request.data.reservedUsd),
-      parseUsd(request.data.uncertainUsd),
-    ])
+    const spend = Usd.from(sumExactUsd(totals.settledUsd, totals.reservedUsd, totals.uncertainUsd))
+    const pendingSpend = Usd.from(
+      sumExactUsd(request.data.settledUsd, request.data.reservedUsd, request.data.uncertainUsd),
+    )
     for (const metric of metrics) {
-      const threshold = thresholds[metric]?.[period]
-      if (threshold === undefined) continue
-      const value = metric === 'spendUsd' ? spend : BigInt(totals[metric])
-      const projected =
-        value + (metric === 'spendUsd' ? pendingSpend : BigInt(request.data[metric]))
-      const cap = metric === 'spendUsd' ? parseUsd(threshold, 'floor') : BigInt(threshold)
-      if (metric !== 'spendUsd' && projected > BigInt(Number.MAX_SAFE_INTEGER)) unavailable()
-      if (value >= cap || projected > cap)
+      if (metric === 'spendUsd') {
+        const cap = thresholds.spendUsd?.[period]
+        if (cap === undefined) continue
+        // Equality admits the last request; a reached cap cannot admit another.
+        const isReached =
+          spend.compare(Usd.from(cap)) >= 0 || spend.add(pendingSpend).compare(Usd.from(cap)) > 0
+        const projected = spend.add(pendingSpend).toAmount()
+        if (isReached && !Number.isFinite(Number(projected))) unavailable()
+        if (isReached)
+          triggers.push({
+            kind: 'userCap',
+            metric,
+            period,
+            value: projected,
+            threshold: cap,
+            resetAt: range.end,
+          })
+        continue
+      }
+      const cap = thresholds[metric]?.[period]
+      if (cap === undefined) continue
+      const projected = totals[metric] + request.data[metric]
+      if (!Number.isSafeInteger(projected)) unavailable()
+      const isReached = totals[metric] >= cap || projected > cap
+      if (isReached && !Number.isFinite(projected)) unavailable()
+      if (isReached)
         triggers.push({
           kind: 'userCap',
           metric,
           period,
-          value: metric === 'spendUsd' ? usdNumber(projected) : Number(projected),
-          threshold,
+          value: projected,
+          threshold: cap,
           resetAt: range.end,
         })
     }

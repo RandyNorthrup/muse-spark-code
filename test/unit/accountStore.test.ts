@@ -10,6 +10,7 @@ import type {
   AccountCredential,
   AccountCredentialVault,
 } from '../../src/core/providers/accountCredentialRecord'
+import { usdInputSchema } from '../../src/shared/usdSchema'
 import type { Account } from '../../src/shared/accounts'
 import { UI_TEXT } from '../../src/shared/constants'
 import { AccountSecrets, secretStorageAccountVault } from '../../src/host/providers/accountSecrets'
@@ -312,7 +313,10 @@ describe('M108 account metadata and clients', () => {
     await h.store.add('vendor', work)
     await h.store.add('vendor', personal)
     await h.store.update('vendor', { ...work, label: 'Team', limitGroup: 'organisation' })
-    await h.store.thresholds('vendor', 'work', { spendUsd: { day: 20 }, requests: { month: 100 } })
+    await h.store.thresholds('vendor', 'work', {
+      spendUsd: { day: usdInputSchema.parse('20') },
+      requests: { month: 100 },
+    })
     await h.store.order('vendor', ['personal', 'work', 'default'])
     const ordered = await h.store.list('vendor')
     expect(ordered.map((row) => [row.id, row.order])).toEqual([
@@ -323,7 +327,7 @@ describe('M108 account metadata and clients', () => {
     expect(ordered.find((row) => row.id === 'work')).toMatchObject({
       label: 'Team',
       limitGroup: 'organisation',
-      thresholds: { spendUsd: { day: 20 } },
+      thresholds: { spendUsd: { day: '20' } },
     })
     await h.store.setCredential('vendor', 'work', workRecord)
     expect(JSON.stringify(h.saved)).not.toContain(workRecord.secret)

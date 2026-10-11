@@ -1,3 +1,4 @@
+import { Usd, maxUsd, nonnegativeUsdSchema, type UsdAmount } from '../../shared/usd'
 import { randomUUID } from 'node:crypto'
 import { ScheduleGrantEditor } from '../../core/schedules/grantAudit'
 import type { ScheduleAuthorityStore } from '../../core/schedules/grantAudit'
@@ -98,15 +99,15 @@ export function createScheduleControl(deps: ScheduleControlDeps): ScheduleContro
   }
 
   const paidGate = (
-    draft: { paidCapUsd: number; grant: { paidCapUsd: number } },
+    draft: { paidCapUsd: UsdAmount; grant: { paidCapUsd: UsdAmount } },
     caller?: ScheduleCallerContext,
   ): ScheduleResponse | undefined => {
-    const cap = Math.max(draft.paidCapUsd, draft.grant.paidCapUsd)
-    if (cap <= 0) return undefined
+    const cap = maxUsd(draft.paidCapUsd, draft.grant.paidCapUsd)
+    if (cap === '0') return undefined
     return caller?.scheduledPrompts === true &&
       caller.maxBudgetUsd !== undefined &&
-      Number.isFinite(caller.maxBudgetUsd) &&
-      caller.maxBudgetUsd >= cap
+      nonnegativeUsdSchema.safeParse(caller.maxBudgetUsd).success &&
+      Usd.from(caller.maxBudgetUsd).compare(Usd.from(cap)) >= 0
       ? undefined
       : refused(UI_TEXT.scheduleV2.runtime.paidAuthorizationRequired)
   }

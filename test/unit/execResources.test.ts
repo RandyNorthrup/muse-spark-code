@@ -20,6 +20,7 @@ import {
 } from '../../src/shared/constants'
 import type { RuntimeResources } from '../../src/runtime/resources/port'
 import { resourceStatusSchema } from '../../src/shared/resources'
+import { resourceHistorySchema } from '../../src/shared/resourceHistory'
 import { FakeAgentHost } from './helpers/fakeAgent'
 import { memorySecrets } from './helpers/fakes'
 import { outputWriter, resultRecord } from './helpers/execContract'
@@ -349,9 +350,33 @@ describe('M107 H headless flags and v2 egress', () => {
     expect(await readFile(path.join(storage, 'resource-resume.json'), 'utf8')).toContain('untilMs')
     const help = await invoke(['--help'])
     expect(help.stdout).toContain('--resource-governor on|off')
-    await expect(invoke(['resources', 'history', '--json'])).rejects.toMatchObject({
+    // Terminal history reads the machine journal: empty on a fresh machine, never invented.
+    for (const args of [
+      ['resources', 'history', '--json'],
+      ['usage', 'resources', '--json'],
+    ]) {
+      const history = await invoke(args)
+      expect(resourceHistorySchema.parse(JSON.parse(history.stdout))).toEqual({
+        minutes: [],
+        events: [],
+        counts: [],
+        work: [],
+      })
+    }
+    // An unreadable journal exits non-zero and names it, with nothing on stdout.
+    const day = path.join(
+      storage,
+      'usage',
+      'v1',
+      'resources',
+      new Date().toISOString().slice(0, 10),
+    )
+    await mkdir(day, { recursive: true })
+    await writeFile(path.join(day, 'other.0.jsonl'), 'garbage\n')
+    await expect(invoke(['resources', 'history'])).rejects.toMatchObject({
       code: 1,
       stdout: '',
+      stderr: expect.stringContaining(UI_TEXT.resourceHistoryInvalid),
     })
   })
 })

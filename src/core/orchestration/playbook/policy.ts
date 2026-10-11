@@ -281,7 +281,7 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
     const isSameLineage =
       JSON.stringify(existing?.module.lineage) === JSON.stringify(module.lineage)
     const identities = fileIdentities(this.options.workspaceFolder, module)
-    const renames = renamedFiles(this.options.workspaceFolder)
+    const renames = renamedFiles(this.options.workspaceFolder, this.options.hookAdmission)
     const predecessors = predecessorIds(module)
     const namedLineage = new Set(
       predecessors.flatMap((id) => [id, ...(this.states.get(id)?.linked ?? [])]),

@@ -1,10 +1,7 @@
-import * as z from 'zod/mini'
 import { MILLISECONDS_PER_DAY, UI_TEXT } from '../../shared/constants'
 import { fill, uiLocale } from '../../shared/l10n/text'
 import {
-  scheduleFireRecordSchema,
   scheduleTargetSchema,
-  type ScheduleFireRecord,
   type ScheduleCreator,
   type ScheduleTarget,
   type ScheduleGrantRule,
@@ -12,21 +9,8 @@ import {
 
 import type { ScheduleTargetChoice } from './ports'
 
-const settlementSchema = z.strictObject({
-  type: z.literal('scheduleFire'),
-  fire: scheduleFireRecordSchema,
-})
-
-export function parseScheduleSettlement(
-  output: string,
-): { readonly ok: true; readonly fire: ScheduleFireRecord } | { readonly ok: false } {
-  try {
-    const parsed = settlementSchema.safeParse(JSON.parse(output))
-    return parsed.success ? { ok: true, fire: parsed.data.fire } : { ok: false }
-  } catch {
-    return { ok: false }
-  }
-}
+// The lazy schedule surfaces' text helpers. A restored settlement row's parser
+// lives in settlement.ts so chat startup never reaches this module's English.
 
 export function scheduleCreatorText(creator: ScheduleCreator): string {
   return creator.kind === 'user'

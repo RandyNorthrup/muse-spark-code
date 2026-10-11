@@ -139,7 +139,7 @@ try {
       .waitFor()
     shouldRejectDependency = false
     const loaded = failedDependency.page.waitForEvent('load')
-    await failedDependency.page.getByRole('button', { name: 'Try again', exact: true }).click()
+    await failedDependency.page.getByRole('button', { name: 'Try Again', exact: true }).click()
     await loaded
     assert.equal(await prompt.inputValue(), 'Draft survives a failed dependency')
     await failedDependency.page
@@ -181,7 +181,7 @@ try {
         .filter({ hasText: 'This panel could not load.' })
         .waitFor()
       shouldReject = false
-      await failure.page.getByRole('button', { name: 'Try again', exact: true }).click()
+      await failure.page.getByRole('button', { name: 'Try Again', exact: true }).click()
       await failure.page.locator(selector).first().waitFor()
       assert.equal(await failure.page.getByRole('alert').count(), 0)
       console.log(`PASS ${name}: honest load failure and successful retry`)
@@ -210,9 +210,9 @@ try {
         }),
       )
     })
-    const trigger = failedMenu.page.getByLabel('More actions', { exact: true }).last()
+    const trigger = failedMenu.page.getByLabel('More Actions', { exact: true }).last()
     await trigger.click()
-    const retry = failedMenu.page.getByRole('button', { name: 'Try again', exact: true })
+    const retry = failedMenu.page.getByRole('button', { name: 'Try Again', exact: true })
     await retry.focus()
     await failedMenu.page.keyboard.press('Escape')
     assert.equal(await failedMenu.page.getByRole('alert').count(), 0)
@@ -228,7 +228,7 @@ try {
         return
       }
       case 'navigation': {
-        await page.getByLabel('New conversation', { exact: true }).click()
+        await page.getByLabel('New Conversation', { exact: true }).click()
         return
       }
       case 'focus': {
@@ -272,7 +272,7 @@ try {
           }),
         )
       })
-      const trigger = cold.page.getByLabel('More actions', { exact: true }).last()
+      const trigger = cold.page.getByLabel('More Actions', { exact: true }).last()
       await trigger.click()
       await started.promise
       await cold.page.locator('[data-deferred-loading]').waitFor()

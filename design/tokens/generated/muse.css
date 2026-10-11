@@ -5,6 +5,11 @@
   --ms-raised: #242832;
   --ms-overlay: #242832;
   --ms-border: #858b98;
+  --ms-boundary: color-mix(
+    in srgb,
+    var(--vscode-foreground, var(--ms-text)) 70%,
+    var(--vscode-editor-background, var(--ms-surface))
+  );
   --ms-text: #e4e7ed;
   --ms-muted: #aeb6c4;
   --ms-accent: #0a5cff;
@@ -135,6 +140,11 @@
   --ms-raised: #f3f5f8;
   --ms-overlay: #fff;
   --ms-border: #737780;
+  --ms-boundary: color-mix(
+    in srgb,
+    var(--vscode-foreground, var(--ms-text)) 70%,
+    var(--vscode-editor-background, var(--ms-surface))
+  );
   --ms-text: #252932;
   --ms-muted: #575d68;
   --ms-accent: #0a5cff;
@@ -265,6 +275,11 @@
   --ms-raised: #fff;
   --ms-overlay: #fff;
   --ms-border: #000;
+  --ms-boundary: color-mix(
+    in srgb,
+    var(--vscode-foreground, var(--ms-text)) 70%,
+    var(--vscode-editor-background, var(--ms-surface))
+  );
   --ms-text: #000;
   --ms-muted: #292929;
   --ms-accent: #000;
@@ -391,6 +406,11 @@
   --ms-raised: #000;
   --ms-overlay: #000;
   --ms-border: #fff;
+  --ms-boundary: color-mix(
+    in srgb,
+    var(--vscode-foreground, var(--ms-text)) 70%,
+    var(--vscode-editor-background, var(--ms-surface))
+  );
   --ms-text: #fff;
   --ms-muted: #fff;
   --ms-accent: #fff;

@@ -1,3 +1,4 @@
+import { createSchedulesBridge, registerScheduleCommands } from './host/schedules/schedulesBridge'
 import { notify } from './core/events/notify'
 import {
   PAID_APPROVAL_ORDER_DIRECTORY,
@@ -26,6 +27,7 @@ import {
   FIND_FILES_GLOB,
   MODEL_API_BASE_URL,
   MODEL_API_BUNDLE_FILE,
+  MODEL_API_SESSIONS_BUNDLE_FILE,
   MODEL_API_STATUS_READ_TIMEOUT_MS,
   REVIEW_BUNDLE_FILE,
   PLAN_MARKDOWN_BUNDLE_FILE,
@@ -170,11 +172,11 @@ import { chooseAuthorizedHost } from './host/backend/selectedHost'
 import { SandboxSetup } from './host/backend/sandboxSetup'
 import { fileContextIo } from './host/backend/contextIo'
 import { describeEnvironment } from './host/backend/environment'
-import { createFileSessionStore } from './host/backend/fileSessionStore'
+import { lazyFileSessionStore } from './host/backend/fileSessionStoreBundle'
 import type { QuestionStore } from './shared/questions'
 import { modelApiMcpPoolDeps } from './host/backend/mcpServers'
 import { type JobHelper, jobSourceReader } from './host/backend/jobSource'
-import { mcpJobExecutable } from './host/backend/mcpJobExecutable'
+import { mcpJobExecutable, sealedMcpJobExecutable } from './host/backend/mcpJobExecutable'
 import { createCheckpointedMemory } from './host/backend/checkpointedMemory'
 import { systemPath } from './host/backend/memoryIo'
 import {
@@ -277,7 +279,12 @@ import { extensionHooksBundle, type ExtensionHooksModule } from './host/extensio
 import type { ExtensionHookRunner } from './host/extensionHooksEntry'
 import { showPickOne } from './host/quickPick'
 import { processGitLocator, processGitProcess, processGitRunner } from './host/git'
-import { configureResources } from './core/resources/admission'
+import {
+  configureResources,
+  loadResourceWindow,
+  onResourceWindow,
+} from './core/resources/admission'
+import { createResourceWindow } from './host/resources/resourceWindow'
 import {
   createCheckpointPort,
   finishCheckpointTurn,
@@ -431,7 +438,7 @@ async function readTextFile(fsPath: string): Promise<string | undefined> {
   }
 }
 
-/** The usage modal's "Auth method" for the backend in use (M14). */
+/** The usage modal's "Auth Method" for the backend in use (M14). */
 function signInMethodFor(
   kind: BackendKind,
   hasCliSession: boolean,
@@ -548,12 +555,12 @@ const automaticBestOfNGit = processGitRunner({ isAutomatic: true })
  * the shell tool's job assembly (M27) or the direct MCP stdio launcher (M50).
  * Undefined off Windows.
  */
-function windowsJobHelper(
-  build: (deps: ShellJobDeps) => () => Promise<string | undefined>,
+function windowsJobHelper<T>(
+  build: (deps: ShellJobDeps) => () => Promise<T | undefined>,
   storageDir: string,
   readJobSource: (helper: JobHelper) => Promise<string>,
   log: Logger,
-): (() => Promise<string | undefined>) | undefined {
+): (() => Promise<T | undefined>) | undefined {
   const systemRoot = process.env['SystemRoot']
   return systemRoot !== undefined && process.platform === 'win32'
     ? build({
@@ -691,23 +698,35 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     log,
   )
   const resourceMcpJob = windowsJobHelper(
-    mcpJobExecutable,
+    sealedMcpJobExecutable,
     context.globalStorageUri.fsPath,
     resourceJobSource,
     log,
   )
+  // M107 J/M102: the window's governor records into the machine resource
+  // journal under the same usage-history consent as the usage journal.
+  const resourceHistory = {
+    dataFolder: agentDataFolder({
+      platform: process.platform,
+      env: process.env,
+      homeDir: homedir(),
+    }),
+    isEnabled: () =>
+      vscode.workspace.getConfiguration(SETTINGS_SECTION).get<boolean>('usageHistory', true),
+  }
   context.subscriptions.push({
     dispose: configureResources({
+      history: resourceHistory,
       inspect: (key) => vscode.workspace.getConfiguration('museSpark').inspect(key),
       onError: () => {
         log.warn('Resource tree or sampler reading is unavailable')
       },
       windowsJob: async () => {
         const assemblyPath = await resourceAssembly?.()
-        const executablePath = await resourceMcpJob?.()
-        return assemblyPath === undefined || executablePath === undefined
+        const helper = await resourceMcpJob?.()
+        return assemblyPath === undefined || helper === undefined
           ? undefined
-          : { assemblyPath, executablePath }
+          : { assemblyPath, executablePath: helper.path, verify: helper.verify }
       },
     }),
   })
@@ -1131,7 +1150,7 @@ async function activateWindow(
     dailyBudgetUsd: (feature) =>
       paidBackend === 'modelApi' || feature === 'legalExplanation' ? dailyPaid.capUsd() : undefined,
     isKeyStored: () => isKeyStored,
-    // "Allow always in this workspace" (M58) needs a workspace to keep it,
+    // "Allow Always in This Workspace" (M58) needs a workspace to keep it,
     // and never in Restricted Mode.
     canRememberPaidUse: () =>
       vscode.workspace.isTrusted && (vscode.workspace.workspaceFolders?.length ?? 0) > 0,
@@ -2599,33 +2618,39 @@ async function activateWindow(
       containment: pluginJobs.containment,
     },
     // Sessions survive the window (PLAN.md D14) in the workspace storage
-    // directory; no folder open, no storage, no persistence.
+    // directory; no folder open, no storage, no persistence. The store is
+    // dist/modelApiSessions.js, required when the host is first built.
     store:
       context.storageUri === undefined
         ? undefined
-        : createFileSessionStore({
-            directory: path.join(context.storageUri.fsPath, MODEL_API_SESSIONS_DIR),
-            questions: questionsStore,
+        : lazyFileSessionStore({
+            bundlePath: vscode.Uri.joinPath(
+              context.extensionUri,
+              'dist',
+              MODEL_API_SESSIONS_BUNDLE_FILE,
+            ).fsPath,
             log,
-            retentionDays: () => currentSettings().cleanupPeriodDays,
-            now: () => Date.now(),
-            sleep: (ms) =>
-              new Promise((resolve) => {
-                setTimeout(resolve, ms)
-              }),
-            // Production media (P1, D85.2/D85.6): the upload ledger binds
-            // the real session store, so a media turn saves and reopens
-            // and deletion/purge releases that session's provider uploads.
-            // The binding loads from dist/productionMedia.js on the first
-            // save or delete that references an upload, never at activation.
-            uploads: async (accountId) => {
-              const media = await import('./host/backend/productionMediaEntry.js')
-              media.setUiText(UI_TEXT, uiLocale())
-              return await media.createSessionUploads({
-                uploadLedgerDir: path.join(storageRoot, MODEL_API_UPLOADS_DIR),
-                currentAccountId: () => modelApi.accountId(),
-                filesClient: () => keyClient(),
-              })(accountId)
+            store: {
+              directory: path.join(context.storageUri.fsPath, MODEL_API_SESSIONS_DIR),
+              questions: questionsStore,
+              log,
+              retentionDays: () => currentSettings().cleanupPeriodDays,
+              now: () => Date.now(),
+              sleep: (ms) =>
+                new Promise((resolve) => {
+                  setTimeout(resolve, ms)
+                }),
+              // The lazy session store releases provider uploads on deletion/purge.
+              // Production media and its account ledger load only on first use.
+              uploads: async (accountId) => {
+                const media = await import('./host/backend/productionMediaEntry.js')
+                media.setUiText(UI_TEXT, uiLocale())
+                return await media.createSessionUploads({
+                  uploadLedgerDir: path.join(storageRoot, MODEL_API_UPLOADS_DIR),
+                  currentAccountId: () => modelApi.accountId(),
+                  filesClient: () => keyClient(),
+                })(accountId)
+              },
             },
           }),
     scheduleStore:
@@ -3588,6 +3613,12 @@ async function activateWindow(
           isWorktreeHeld: () => windowHold.isHeld,
           createGit: conversationGitFactory(conversationGit, gitFeatures),
           onForegroundTasksChanged: refreshTaskContext,
+          schedulesBridge: createSchedulesBridge({
+            distDir: vscode.Uri.joinPath(context.extensionUri, 'dist').fsPath,
+            log,
+            isEnabled: () => currentSettings().schedules,
+            defaultDelivery: () => currentSettings().scheduleDefaultDelivery,
+          }),
           isScheduledPaidOn: () => paid.gate.isOn('scheduledPrompts'),
           confirmScheduledRun: async (job, modelId) =>
             await paid.consent.allows({ feature: 'scheduledPrompts', prompt: job.prompt, modelId }),
@@ -3747,6 +3778,35 @@ async function activateWindow(
     return controller
   }
 
+  // M107 U–C1/W: the window governor's chip, status item, pause notice and
+  // commands. Only this adapter is in activation; the governor and its status
+  // adapter load with dist/resourceGovernor.js at the first governed spawn.
+  const resourceWindow = createResourceWindow({
+    vscode,
+    onLoad: onResourceWindow,
+    load: loadResourceWindow,
+    surfaces: registry,
+    openConversation: () => startConversation(),
+    conversationId: () => {
+      const surface = registry.active
+      return surface === undefined
+        ? undefined
+        : (controllers.get(surface.id)?.shareSessionId() ?? surface.id)
+    },
+    warn: (message) => {
+      log.warn(message)
+    },
+  })
+  context.subscriptions.push(
+    {
+      dispose: () => {
+        resourceWindow.dispose()
+      },
+    },
+    registerLoggedCommand(log, COMMAND_IDS.showResources, () => resourceWindow.show()),
+    registerLoggedCommand(log, COMMAND_IDS.resumeResources, () => resourceWindow.resume()),
+  )
+
   const hostContext: WebviewHostContext = {
     extensionUri: context.extensionUri,
     l10n,
@@ -3765,9 +3825,11 @@ async function activateWindow(
     },
     onSurfaceReady: (surface, attachmentEpoch) => {
       readyPromptSurfaces.add(surface)
+      resourceWindow.surfaceReady(surface)
       promptHost?.ready(surface)
       const controller = controllerFor(surface)
       controller.surfaceReady(attachmentEpoch)
+      void scheduleCommands.ready(surface).catch(logRejection(log, 'schedule panel'))
       if (isHelpPending) {
         isHelpPending = false
         surface.post({ type: 'openHelp' })
@@ -3832,6 +3894,18 @@ async function activateWindow(
         })
         return
       }
+      if (message.type === 'resourcePull') {
+        resourceWindow.pull(surface, message.nonce)
+        return
+      }
+      if (message.type === 'resourceOpenAck') {
+        resourceWindow.acknowledge(surface, message.seq, message.nonce)
+        return
+      }
+      if (message.type === 'resourceAction') {
+        void resourceWindow.action(message.action).catch(logRejection(log, 'resource action'))
+        return
+      }
       if (message.type === 'sharingAction') {
         void (async () => {
           try {
@@ -3869,15 +3943,34 @@ async function activateWindow(
     void ensureKeyPresence()
     return vscode.commands.executeCommand(`${CHAT_VIEW_ID}.focus`)
   }
-  /** A conversation where the setting says new ones open. */
-  const openConversation = async (): Promise<void> => {
+  /** A conversation where the setting says new ones open, and the surface it opens in. */
+  const startConversation = (): {
+    readonly surfaceId: string
+    readonly opened: Thenable<unknown>
+  } => {
     void ensureKeyPresence()
     if (currentSettings().preferredLocation === 'sidebar') {
-      await openSidebar()
-      return
+      return { surfaceId: SIDEBAR_SURFACE_ID, opened: openSidebar() }
     }
-    openChatPanel(hostContext, registry)
+    const surfaceId = `panel:${crypto.randomUUID()}`
+    openChatPanel(hostContext, registry, { surfaceId })
+    return { surfaceId, opened: Promise.resolve() }
   }
+  const openConversation = async (): Promise<void> => {
+    await startConversation().opened
+  }
+  const scheduleCommands = registerScheduleCommands({
+    register: (id, action) => registerLoggedCommand(log, id, action),
+    active: () => registry.active,
+    isReady: (surface) => readyPromptSurfaces.has(surface),
+    isEnabled: () => currentSettings().schedules,
+    openConversation,
+    open: async (surface, view) => {
+      surface.reveal()
+      await controllerFor(surface).handle({ type: 'openSchedules', view })
+    },
+  })
+  context.subscriptions.push(...scheduleCommands.commands)
   // Sharing loads on first use or when the user changes its machine sync consent.
   const sharing = () =>
     (promptHost ??= promptBundleLoader(
@@ -4275,7 +4368,7 @@ async function activateWindow(
       mentions.invalidate()
       void restartBackend('the workspace was trusted').catch(logRejection(log, 'backend restart'))
       registry.broadcast({ type: 'notice', level: 'info', text: UI_TEXT.trustGrantedNotice })
-      // "Allow always in this workspace" counts only in a trusted one (M58).
+      // "Allow Always in This Workspace" counts only in a trusted one (M58).
       broadcastPaidState()
       // Checkpoints run from now on, and what was queued while untrusted is cleaned up (M72).
       void checkpoints.maintain().catch(logRejection(log, 'checkpoint cleanup'))
@@ -4645,7 +4738,7 @@ async function activateWindow(
       COMMAND_IDS.openShareFile,
       forActiveConversation((controller) => controller.handle({ type: 'openShareFile' })),
     ),
-    // M95 (PLAN.md D74) lane K: the wizard opened at "Pick a provider" (with
+    // M95 (PLAN.md D74) lane K: the wizard opened at "Pick a Provider" (with
     // the workspace's suggested preset chosen, when it names one), the panel,
     // and the quick-pick fast path. Loading a missing bundle refuses with an
     // explicit error, never an empty success.

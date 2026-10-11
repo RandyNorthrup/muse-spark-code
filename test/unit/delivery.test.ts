@@ -1,3 +1,4 @@
+import { Usd as PortUsd } from '../../src/shared/usd'
 import { describe, expect, it, vi } from 'vitest'
 import { SteerRefusedError } from '../../src/core/agent/agentBackend'
 import {
@@ -22,7 +23,11 @@ const occurrenceMs = Date.parse('2026-10-06T12:00:00Z')
 const facts: ScheduleRunSettlement = {
   outcome: 'ran',
   refusedActions: [{ actionClass: 'shell', tool: 'shell', reason: 'Outside the grant' }],
-  cost: { usd: 0.1, certainty: 'estimated', retainedLiabilityUsd: 0.2 },
+  cost: {
+    usd: PortUsd.from(0.1).toAmount(),
+    certainty: 'estimated',
+    retainedLiabilityUsd: PortUsd.from(0.2).toAmount(),
+  },
 }
 
 class DeliverySession extends IdleScheduleSession implements ScheduleDeliverySession {
@@ -244,11 +249,19 @@ describe.each(['museCode', 'modelApi'] as const)('%s schedule delivery', (backen
     rig.terminal.resolve({
       outcome: 'missed',
       refusedActions: [],
-      cost: { usd: 0, certainty: 'exact', retainedLiabilityUsd: 0 },
+      cost: {
+        usd: PortUsd.from(0).toAmount(),
+        certainty: 'exact',
+        retainedLiabilityUsd: PortUsd.from(0).toAmount(),
+      },
     })
     expect(await held.pending).toMatchObject({
       outcome: 'missed',
-      cost: { usd: 0, certainty: 'exact', retainedLiabilityUsd: 0 },
+      cost: {
+        usd: PortUsd.from(0).toAmount(),
+        certainty: 'exact',
+        retainedLiabilityUsd: PortUsd.from(0).toAmount(),
+      },
     })
     expect(rig.session.calls.map((call) => call.kind)).toEqual(['queue', 'withdraw'])
     expect(rig.session.running).toBe(true)
@@ -348,7 +361,7 @@ describe.each(['museCode', 'modelApi'] as const)('%s schedule delivery', (backen
     rig.terminal.resolve(facts)
     const context: ScheduleRunContext = {
       ...rig.context,
-      grant: { ...rig.context.grant, paidCapUsd: 1 },
+      grant: { ...rig.context.grant, paidCapUsd: PortUsd.from(1).toAmount() },
     }
     await expect(rig.delivery.deliver(rig.schedule, context, occurrenceMs)).rejects.toThrow(
       UI_TEXT.scheduleInvalid,
@@ -361,11 +374,11 @@ describe.each(['museCode', 'modelApi'] as const)('%s schedule delivery', (backen
     const held = beginHold(rig)
     const pending = held.pending
     await held.observed()
-    rig.schedule.grant.paidCapUsd = 1
-    rig.context.grant.paidCapUsd = 1
+    rig.schedule.grant.paidCapUsd = PortUsd.from(1).toAmount()
+    rig.context.grant.paidCapUsd = PortUsd.from(1).toAmount()
     rig.session.idleNow()
     await settleStarted(rig, pending)
-    expect(rig.runs.run.mock.calls[0]?.[2].grant.paidCapUsd).toBe(0)
+    expect(rig.runs.run.mock.calls[0]?.[2].grant.paidCapUsd).toBe('0')
   })
 
   it.each([false, true])(
@@ -431,7 +444,10 @@ describe.each(['museCode', 'modelApi'] as const)('%s schedule delivery', (backen
   it('does not even resolve a target without workspace ownership', async () => {
     const rig = setup(backend)
     rig.dropWorkspace()
-    expect(await rig.deliver()).toMatchObject({ outcome: 'missed', cost: { usd: 0 } })
+    expect(await rig.deliver()).toMatchObject({
+      outcome: 'missed',
+      cost: { usd: PortUsd.from(0).toAmount() },
+    })
     expect(rig.targets.find).not.toHaveBeenCalled()
   })
 
@@ -622,7 +638,10 @@ describe('board and report bindings', () => {
         ],
       },
     })
-    expect(await rig.deliver()).toMatchObject({ outcome: 'refused', cost: { usd: 0 } })
+    expect(await rig.deliver()).toMatchObject({
+      outcome: 'refused',
+      cost: { usd: PortUsd.from(0).toAmount() },
+    })
     expect(rig.targets.find).not.toHaveBeenCalled()
     expect(rig.prompt).not.toHaveBeenCalled()
     expect(rig.runs.run).not.toHaveBeenCalled()

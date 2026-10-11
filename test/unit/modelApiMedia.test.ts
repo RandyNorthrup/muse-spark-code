@@ -1,3 +1,4 @@
+import { Usd as PortUsd } from '../../src/shared/usd'
 import { describe, expect, it, vi } from 'vitest'
 import { createHash } from 'node:crypto'
 import {
@@ -168,7 +169,9 @@ function scheduledMediaRun(
     workspaceRoot: '/ws',
     io: h.deps.io,
     context: fakeRunContext(
-      fakeSchedule({ grant: { rules: [], destinationIds: [], paidCapUsd: 1 } }),
+      fakeSchedule({
+        grant: { rules: [], destinationIds: [], paidCapUsd: PortUsd.from(1).toAmount() },
+      }),
     ),
     paid: {
       modelId: 'muse-spark-1.3',

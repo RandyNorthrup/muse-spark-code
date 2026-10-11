@@ -1,3 +1,4 @@
+import { Usd as PortUsd } from '../../src/shared/usd'
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
@@ -25,7 +26,11 @@ function fire(outcome: 'ran' | 'refused' | 'missed') {
             { actionClass: 'physical', tool: 'device', reason: 'Physical actions always refused' },
           ]
         : [],
-    cost: { usd: 0.25, certainty: 'unknown', retainedLiabilityUsd: 1 },
+    cost: {
+      usd: PortUsd.from(0.25).toAmount(),
+      certainty: 'unknown',
+      retainedLiabilityUsd: PortUsd.from(1).toAmount(),
+    },
   })
 }
 
@@ -60,8 +65,8 @@ describe('schedule settlement transcript rows', () => {
       )
       const labels = { ran: 'Sent on schedule', refused: 'Refused', missed: 'Missed' }
       expect(screen.getByText(labels[outcome])).toBeTruthy()
-      expect(container.textContent).toContain('New turn when idle')
-      expect(container.textContent).toContain('Cost: $0.25 (Unknown); Retained liability: $1.00')
+      expect(container.textContent).toContain('New Turn When Idle')
+      expect(container.textContent).toContain('Cost: $0.25 (Unknown); Retained Liability: $1.00')
       if (outcome === 'refused') {
         expect(container.textContent).toContain('Refused: shell · No matching grant')
         expect(container.textContent).toContain('Physical actions always refused')
@@ -85,7 +90,11 @@ describe('schedule settlement transcript rows', () => {
             type: 'scheduleFire',
             fire: {
               ...fire('ran'),
-              cost: { usd: -1, certainty: 'exact', retainedLiabilityUsd: 0 },
+              cost: {
+                usd: -1,
+                certainty: 'exact',
+                retainedLiabilityUsd: PortUsd.from(0).toAmount(),
+              },
             },
           }),
         })}
@@ -132,9 +141,9 @@ describe('schedule settlement transcript rows', () => {
       />,
     )
     expect(container.textContent).toContain('Release review')
-    expect(container.textContent).not.toContain('This conversation')
+    expect(container.textContent).not.toContain('This Conversation')
     if (record.target.kind !== 'conversation') throw new Error('Expected conversation fixture')
     rerender(<ScheduleRunBody entry={entry} currentConversationId={record.target.sessionId} />)
-    expect(container.textContent).toContain('This conversation')
+    expect(container.textContent).toContain('This Conversation')
   })
 })

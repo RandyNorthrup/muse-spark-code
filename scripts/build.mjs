@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { buildLinuxHelper } from './build-linux-helper.mjs'
 import { resourceBrowserValidation, webviewEntryMetafile } from './lib/webviewBundles.mjs'
+import { listIntegrationTests } from './lib/integrationTests.mjs'
 // Bundles the extension host entry, the Model API backend, the review, the search worker,
 // web fetch's page converter worker (M69: parse5 and the HTML converter,
 // loaded on a worker thread started for each page, never at activation), the
@@ -53,15 +54,7 @@ import { resourceBrowserValidation, webviewEntryMetafile } from './lib/webviewBu
 // backend is built once for both.
 
 import { execFileSync } from 'node:child_process'
-import {
-  cpSync,
-  mkdirSync,
-  readFileSync,
-  readdirSync,
-  rmSync,
-  statSync,
-  writeFileSync,
-} from 'node:fs'
+import { cpSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import {
   UI_TEXT_REGIONS,
@@ -77,6 +70,7 @@ import * as esbuild from 'esbuild'
 import { copyCatalogToDist } from './sync-provider-catalog.mjs'
 import { sharedHighlightGrammar } from './lib/highlightGrammar.mjs'
 import { deferredTeamView } from './lib/deferredTeamView.mjs'
+import { HOST_PLUGINS } from './lib/hostPlugins.mjs'
 import {
   sharedUiText,
   sharedValidation,
@@ -86,6 +80,8 @@ import {
   sharedResourceAdmission,
   sharedStructuredSchema,
   sharedModelApiBoundaries,
+  englishZodLocales,
+  sharedRedaction,
 } from './lib/deferredBundles.mjs'
 import {
   CONTENT_FILE as WHATS_NEW_CONTENT_OUTFILE,
@@ -125,7 +121,13 @@ const MODEL_API_ENTRY = 'src/host/backend/modelApiEntry.ts'
 const MODEL_API_OUTFILE = 'dist/modelApi.js'
 const RESOURCE_ENTRY = 'src/core/resources/resourceGovernorEntry.ts'
 const RESOURCE_OUTFILE = 'dist/resourceGovernor.js'
-const RESOURCE_ADMISSION_ENTRY = 'src/core/resources/admission.ts'
+// POSTSPAWN: the governed launcher, beside (never inside) the governor.
+const RESOURCE_PROCESS_ENTRY = 'src/core/resources/resourceProcessEntry.ts'
+const RESOURCE_PROCESS_OUTFILE = 'dist/resourceProcess.js'
+// POSTSPAWN: the vault MCP launch (scrubber, leases), on the first vault-backed server.
+const MCP_VAULT_ENTRY = 'src/host/backend/mcpVaultEntry.ts'
+const MCP_VAULT_OUTFILE = 'dist/mcpVault.js'
+const RESOURCE_ADMISSION_ENTRY = 'src/core/resources/admissionEntry.ts'
 const RESOURCE_ADMISSION_OUTFILE = 'dist/resourceAdmission.js'
 const PROVIDERS_ENTRY = 'src/host/backend/providersEntry.ts'
 const PROVIDERS_OUTFILE = 'dist/providers.js'
@@ -169,6 +171,8 @@ const AGENT_IMPORT_ENTRY = 'src/host/agentImportEntry.ts'
 const AGENT_IMPORT_OUTFILE = 'dist/agentImport.js'
 const CONVERSATION_GIT_ENTRY = 'src/host/git/conversationGitEntry.ts'
 const CONVERSATION_GIT_OUTFILE = 'dist/conversationGit.js'
+const MODEL_API_SESSIONS_ENTRY = 'src/host/backend/fileSessionStoreEntry.ts'
+const MODEL_API_SESSIONS_OUTFILE = 'dist/modelApiSessions.js'
 const BUNDLED_SKILLS_ENTRY = 'src/host/skills/bundledSkillsEntry.ts'
 const BUNDLED_SKILLS_OUTFILE = 'dist/bundledSkills.js'
 const CHECKPOINT_STORE_ENTRY = 'src/host/checkpoints/checkpointStoreEntry.ts'
@@ -249,7 +253,6 @@ const PLAYBOOK_ENTRY = 'src/runtime/playbook/playbookEntry.ts'
 const PLAYBOOK_OUTFILE = 'dist/acpPlaybook.js'
 const RUNTIME_ACCOUNTS_ENTRY = 'src/runtime/providers/accountsEntry.ts'
 const RUNTIME_ACCOUNTS_OUTFILE = 'dist/runtimeAccounts.js'
-const INTEGRATION_TEST_DIR = 'test/integration'
 const INTEGRATION_TEST_OUTDIR = 'dist/test/integration'
 // M95 (PLAN.md D74): exact catalogue values, with no provider runtime logic.
 // The data module uses the same verified solid archive loader as lazy bundles.
@@ -278,15 +281,7 @@ const common = {
 /** @type {import('esbuild').BuildOptions} */
 const hostOptions = {
   ...common,
-  plugins: [
-    sharedUiText,
-    sharedValidation,
-    deferredCohort,
-    sharedWire,
-    sharedResourceAdmission,
-    deferredTeamView,
-    sharedModelApiBoundaries,
-  ],
+  plugins: [...HOST_PLUGINS],
   entryPoints: [HOST_ENTRY],
   outfile: HOST_OUTFILE,
   platform: 'node',
@@ -305,7 +300,13 @@ const conversationOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const sharingRuntimeOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, sharedWire],
+  plugins: [
+    sharedUiText,
+    sharedValidation,
+    sharedWire,
+    sharedResourceAdmission,
+    sharedModelApiBoundaries,
+  ],
   entryPoints: [SHARING_RUNTIME_ENTRY],
   outfile: SHARING_RUNTIME_OUTFILE,
   platform: 'node',
@@ -346,7 +347,10 @@ const referenceOptions = {
 
 const reportingOptions = {
   ...modelApiOptions,
-  plugins: [sharedUiText, sharedValidation, sharedWire],
+  // Report Git/gh reads launch through the window's one admission
+  // configuration (dist/resourceAdmission.js); an inline copy would be
+  // unconfigured and carry the whole governor.
+  plugins: [sharedUiText, sharedValidation, sharedWire, sharedResourceAdmission, sharedRedaction],
   entryPoints: ['src/runtime/reporting/reportsEntry.ts'],
   outfile: 'dist/reporting.js',
 }
@@ -362,7 +366,7 @@ const reportingDestinationsOptions = {
 }
 const reportingPanelOptions = {
   ...hostOptions,
-  plugins: [sharedUiText, sharedValidation, sharedWire],
+  plugins: [sharedUiText, sharedValidation, sharedWire, sharedRedaction],
   entryPoints: ['src/host/reporting/reportPanelEntry.ts'],
   outfile: 'dist/reportingPanel.js',
 }
@@ -370,7 +374,7 @@ const reportingPanelOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const modelApiBoundariesOptions = {
   ...modelApiOptions,
-  entryPoints: ['src/shared/modelApiBoundariesEntry.ts'],
+  entryPoints: ['src/core/nodeBoundariesEntry.ts'],
   outfile: 'dist/modelApiBoundaries.js',
   plugins: [sharedUiText, sharedValidation, compressedModelText(isProduction)],
 }
@@ -380,6 +384,17 @@ const resourceGovernorOptions = {
   ...modelApiOptions,
   entryPoints: [RESOURCE_ENTRY],
   outfile: RESOURCE_OUTFILE,
+}
+const resourceProcessOptions = {
+  ...modelApiOptions,
+  entryPoints: [RESOURCE_PROCESS_ENTRY],
+  outfile: RESOURCE_PROCESS_OUTFILE,
+}
+// INT0170: M107 W2's resource journal, shared by the governor and the usage service.
+const resourceJournalOptions = {
+  ...modelApiOptions,
+  entryPoints: ['src/runtime/resources/resourceJournalEntry.ts'],
+  outfile: 'dist/resourceJournal.js',
 }
 const resourceAdmissionOptions = {
   ...modelApiOptions,
@@ -594,6 +609,13 @@ const webFetchOptions = {
 }
 
 /** @type {import('esbuild').BuildOptions} */
+const mcpVaultOptions = {
+  ...planMarkdownOptions,
+  entryPoints: [MCP_VAULT_ENTRY],
+  outfile: MCP_VAULT_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
 const museCodeReviewerOptions = {
   ...planMarkdownOptions,
   entryPoints: [MUSE_CODE_REVIEWER_ENTRY],
@@ -760,6 +782,15 @@ const conversationGitOptions = {
   target: HOST_NODE_TARGET,
 }
 
+// The Model API backend's session store (D14), required when its host is
+// first built: the store, its budget journal and the stored-session schemas.
+/** @type {import('esbuild').BuildOptions} */
+const modelApiSessionsOptions = {
+  ...conversationGitOptions,
+  entryPoints: [MODEL_API_SESSIONS_ENTRY],
+  outfile: MODEL_API_SESSIONS_OUTFILE,
+}
+
 /** @type {import('esbuild').BuildOptions} */
 const checkpointStoreOptions = {
   ...common,
@@ -866,6 +897,7 @@ const acpOptions = {
     sharedStructuredSchema,
     deferredTeamView,
     sharedModelApiBoundaries,
+    englishZodLocales,
   ],
   entryPoints: [ACP_ENTRY],
   outfile: ACP_OUTFILE,
@@ -1113,13 +1145,6 @@ function writeWebviewMetafiles(metafile) {
   }
 }
 
-function listIntegrationTests() {
-  return readdirSync(INTEGRATION_TEST_DIR, { recursive: true })
-    .map(String)
-    .filter((name) => name.endsWith('.test.ts'))
-    .map((name) => path.join(INTEGRATION_TEST_DIR, name))
-}
-
 /** @type {import('esbuild').BuildOptions} */
 const integrationTestOptions = {
   ...common,
@@ -1174,6 +1199,8 @@ if (isWatch) {
     esbuild.context(sharingRuntimeOptions),
     esbuild.context(modelApiOptions),
     esbuild.context(resourceGovernorOptions),
+    esbuild.context(resourceProcessOptions),
+    esbuild.context(resourceJournalOptions),
     esbuild.context(resourceAdmissionOptions),
     esbuild.context(providersOptions),
     esbuild.context(subscriptionsOptions),
@@ -1236,11 +1263,13 @@ if (isWatch) {
     esbuild.context(screenRecordOptions),
     esbuild.context(agentImportOptions),
     esbuild.context(conversationGitOptions),
+    esbuild.context(modelApiSessionsOptions),
     esbuild.context(bundledSkillsOptions),
     esbuild.context(legalScanOptions),
     esbuild.context(codeIntelOptions),
     esbuild.context(voiceOptions),
     esbuild.context(webFetchOptions),
+    esbuild.context(mcpVaultOptions),
     esbuild.context(museCodeReviewerOptions),
     esbuild.context(modelsPanelOptions),
     esbuild.context(usageServiceOptions),
@@ -1296,6 +1325,8 @@ if (isWatch) {
     sharingRuntime: esbuild.build(sharingRuntimeOptions),
     modelApi: esbuild.build(modelApiOptions),
     resourceGovernor: esbuild.build(resourceGovernorOptions),
+    resourceProcess: esbuild.build(resourceProcessOptions),
+    resourceJournal: esbuild.build(resourceJournalOptions),
     resourceAdmission: esbuild.build(resourceAdmissionOptions),
     providers: esbuild.build(providersOptions),
     subscriptions: esbuild.build(subscriptionsOptions),
@@ -1362,11 +1393,13 @@ if (isWatch) {
     screenRecord: esbuild.build(screenRecordOptions),
     agentImport: esbuild.build(agentImportOptions),
     conversationGit: esbuild.build(conversationGitOptions),
+    modelApiSessions: esbuild.build(modelApiSessionsOptions),
     bundledSkills: esbuild.build(bundledSkillsOptions),
     legalScan: esbuild.build(legalScanOptions),
     codeIntel: esbuild.build(codeIntelOptions),
     voice: esbuild.build(voiceOptions),
     webFetch: esbuild.build(webFetchOptions),
+    mcpVault: esbuild.build(mcpVaultOptions),
     museCodeReviewer: esbuild.build(museCodeReviewerOptions),
     modelsPanel: esbuild.build(modelsPanelOptions),
     usageService: esbuild.build(usageServiceOptions),
@@ -1490,6 +1523,7 @@ if (isWatch) {
   reportSize(SCREEN_RECORD_OUTFILE)
   reportSize(AGENT_IMPORT_OUTFILE)
   reportSize(CONVERSATION_GIT_OUTFILE)
+  reportSize(MODEL_API_SESSIONS_OUTFILE)
   reportSize(BUNDLED_SKILLS_OUTFILE)
   reportSize(LEGAL_SCAN_OUTFILE)
   reportSize(CODE_INTEL_OUTFILE)

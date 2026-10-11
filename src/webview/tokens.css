@@ -4,6 +4,11 @@
   --ms-raised: var(--vscode-editorWidget-background, #242832);
   --ms-overlay: var(--vscode-editorWidget-background, #242832);
   --ms-border: var(--vscode-panel-border, #858b98);
+  --ms-boundary: color-mix(
+    in srgb,
+    var(--vscode-foreground, var(--ms-text)) 70%,
+    var(--vscode-editor-background, var(--ms-surface))
+  );
   --ms-text: var(--vscode-foreground, #e4e7ed);
   --ms-muted: var(--vscode-descriptionForeground, #aeb6c4);
   --ms-accent: var(--vscode-button-background, #0a5cff);

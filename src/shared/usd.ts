@@ -9,6 +9,7 @@ import {
 
 import { usdAmountSchema, type UsdAmount } from './usdSchema'
 export {
+  compareUsdAmounts,
   usdAmountSchema,
   nonnegativeUsdSchema,
   usdInputSchema,
@@ -144,6 +145,23 @@ export function sumUsd(...amounts: readonly UsdAmount[]): UsdAmount {
   let sum = Usd.from(0)
   for (const amount of amounts) sum = sum.add(Usd.from(amount))
   return sum.toAmount()
+}
+
+function extremeUsd(first: UsdAmount, rest: readonly UsdAmount[], isMinimum: boolean): UsdAmount {
+  let result = first
+  for (const amount of rest) {
+    const comparison = Usd.from(amount).compare(Usd.from(result))
+    if (comparison !== 0 && comparison < 0 === isMinimum) result = amount
+  }
+  return result
+}
+
+export function minUsd(first: UsdAmount, ...rest: readonly UsdAmount[]): UsdAmount {
+  return extremeUsd(first, rest, true)
+}
+
+export function maxUsd(first: UsdAmount, ...rest: readonly UsdAmount[]): UsdAmount {
+  return extremeUsd(first, rest, false)
 }
 
 export function multiplyUsd(amount: UsdAmount, count: number): UsdAmount {

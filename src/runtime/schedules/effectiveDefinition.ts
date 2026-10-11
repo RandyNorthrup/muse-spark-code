@@ -52,7 +52,7 @@ export async function verifySystemdSearchDirectories(deps: DefinitionDeps): Prom
   const result = await deps.run('systemd-analyze', ['--user', 'unit-paths'])
   if (result.exitCode !== 0) throw new Error(UI_TEXT.scheduleV2.runtime.unavailable)
   const roots = result.stdout.trim().split(/\r?\n/)
-  if (new Set(roots).size !== roots.length)
+  if (roots.length === 0 || roots.includes('') || new Set(roots).size !== roots.length)
     throw new Error(UI_TEXT.scheduleV2.runtime.invalidResponse)
   for (const root of roots) {
     if (!path.posix.isAbsolute(root) || /[\p{Cc}\\]/u.test(root)) throw unsafeScheduleLauncher(root)

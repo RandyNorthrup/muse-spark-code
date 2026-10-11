@@ -1,5 +1,6 @@
 import { FakeScheduleEventClaims } from './helpers/schedules/events'
-import { describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { fixtureRuntimeAdmission } from './helpers/runtimeAdmission'
 import { mkdtemp, rm, stat } from 'node:fs/promises'
 import type * as FsPromises from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -18,6 +19,13 @@ import type { ScheduleSourceCapability } from '../../src/shared/scheduleEvents'
 import { withoutCredentials } from '../../src/core/credentialEnvironment'
 
 const exec = promisify(execFile)
+const admissionState: { dispose?: () => Promise<void> } = {}
+beforeAll(async () => {
+  admissionState.dispose = await fixtureRuntimeAdmission()
+}, 60_000) // Compile the real Windows containment helpers once, before timed Git reads.
+afterAll(async () => {
+  await admissionState.dispose?.()
+})
 
 vi.mock('node:fs/promises', async (importOriginal) => {
   const original = await importOriginal<typeof FsPromises>()

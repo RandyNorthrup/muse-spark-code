@@ -1,3 +1,4 @@
+import { Usd } from '../../shared/usd'
 import { useId, type ComponentType } from 'react'
 import { CapabilityOptions } from './CapabilityOptions'
 import './reportAction.css'
@@ -55,9 +56,9 @@ export function ReportActionEditor({
     onChange({
       ...value,
       action: next,
-      paidCapUsd: 0,
+      paidCapUsd: Usd.from(0).toAmount(),
       // Q/U must renew complete-destination consent after an action edit.
-      grant: { ...value.grant, destinationIds: [], paidCapUsd: 0 },
+      grant: { ...value.grant, destinationIds: [], paidCapUsd: Usd.from(0).toAmount() },
     })
   }
   return (

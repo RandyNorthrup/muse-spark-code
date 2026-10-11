@@ -3,7 +3,8 @@ import { createElement, lazy, Suspense } from 'react'
 import { createRoot } from 'react-dom/client'
 import { App } from '../../src/webview/App'
 import { ResourceTaskRow } from '../../src/webview/resources/ResourceTaskRow'
-import { createResourceSurfaceLoader } from '../../src/webview/resources/resourcePort'
+import { createResourceSurfaceLoader } from '../../src/webview/resources/resourceLoader'
+import { windowResourceLoader } from '../../src/webview/resources/windowPort'
 import { createUiStore } from '../../src/webview/state/store'
 import { initialUiState } from '../../src/webview/state/uiState'
 import { parseHostToWebviewMessage } from '../../src/shared/protocol'
@@ -20,12 +21,17 @@ import '../../src/webview/styles.css'
 const tableError = installEmbeddedTable(globalThis.document)
 if (tableError !== undefined) throw tableError
 const params = new globalThis.URLSearchParams(globalThis.location.search)
-const level = params.get('level') ?? 'normal'
 const surface = params.get('surface') ?? 'panel'
+// M107 U–C1/W window scenes: throttle, pause, off (governor disabled), refused (schema-refused text).
+const windowScene = surface === 'window' ? (params.get('level') ?? 'throttle') : undefined
+const level =
+  windowScene === undefined
+    ? (params.get('level') ?? 'normal')
+    : ({ throttle: 'throttle', pause: 'pause' }[windowScene] ?? 'normal')
 const state = {
   snapshot: resourceStatusSchema.parse({
     level,
-    settings: { gpuMaxPercent: 50, diskBusyMaxPercent: 50 },
+    settings: { gpuMaxPercent: 50, diskBusyMaxPercent: 50, enabled: windowScene !== 'off' },
     sample: {
       atMs: 0,
       cpuPercent: level === 'normal' ? 20 : 100,
@@ -142,13 +148,32 @@ if (surface === 'companion') {
       },
     },
   })
-  root.render(
-    createElement(App, {
-      store,
-      resources: createResourceSurfaceLoader(port, load),
-      postMessage: (message) => {
-        actions.push(message.type)
-      },
-    }),
-  )
+  // The chip's pull names its document (M107 pull model); Show answers it.
+  let pulledNonce
+  const postMessage = (message) => {
+    if (message.type === 'resourcePull') pulledNonce = message.nonce
+    actions.push(message.type === 'resourceAction' ? message.action : message.type)
+  }
+  if (windowScene !== undefined) {
+    // The production chat path: the host's bounded status text through the
+    // strict wire into the store, mountChat's loader, and resourceOpen for Show.
+    const text = JSON.stringify(state.snapshot)
+    deliver({
+      type: 'resourceStatus',
+      status:
+        windowScene === 'refused' ? `${text.slice(0, -1)},"pid":4242,"command":"npm test"}` : text,
+    })
+  }
+  // Created once, outside render, as mountChat does.
+  const resources =
+    windowScene === undefined
+      ? createResourceSurfaceLoader(port, load)
+      : windowResourceLoader(store, postMessage)
+  // Show resources: the host's open for the id the chip's pull echoed (the body's).
+  globalThis.window.resourceHarness.open = () => {
+    deliver({ type: 'resourceOpen', seq: 1, nonce: pulledNonce })
+  }
+  // The id the chip's pull echoed, for the checker to compare with the body's.
+  globalThis.window.resourceHarness.echoed = () => pulledNonce
+  root.render(createElement(App, { store, resources, postMessage }))
 }

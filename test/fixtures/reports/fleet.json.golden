@@ -1,11 +1,12 @@
 {
   "format": "report-v1",
+  "moneyVersion": 2,
   "header": {
     "kind": "fleet",
     "scope": "Fixture workspace",
     "asOf": "2026-10-06T12:00:00+00:00",
     "generatorVersion": "0.14.2",
-    "contentHash": "1e82dee1e980cdf2257ddf0d707e567d3a760a814b30e75913bd67754d21bab5"
+    "contentHash": "2ec8034c0bc7fca92d119d0af9a0feefce798fa78b69145adbe5affb5224f5a9"
   },
   "needsYou": {
     "id": "needsYou",

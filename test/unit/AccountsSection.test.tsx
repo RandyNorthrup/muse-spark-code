@@ -8,6 +8,7 @@ import {
   accountUsageMeterText,
   accountUsageRowText,
 } from '../../src/core/usage/accountUsageText'
+import { usdInputSchema } from '../../src/shared/usdSchema'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
 import { usageAccount, usageEvents, usageFixture, usageRecord } from './helpers/accounts/usage'
@@ -33,7 +34,7 @@ describe('M108 J shared account section', () => {
       for (const line of accountUsageRowText(row))
         expect(within(account).getByText(line)).toBeVisible()
     }
-    const events = within(screen.getByRole('region', { name: 'Account events' })).getAllByRole(
+    const events = within(screen.getByRole('region', { name: 'Account Events' })).getAllByRole(
       'listitem',
     )
     expect(events).toHaveLength(3)
@@ -45,7 +46,7 @@ describe('M108 J shared account section', () => {
   it('gives every available meter an accessible name and exact text; unavailable meters have no misleading progress bar', () => {
     const f = usageFixture()
     f.catalog[0]!.accounts[0] = usageAccount('default', {
-      spendUsd: { day: 0.3 },
+      spendUsd: { day: usdInputSchema.parse('0.3') },
       requests: { month: 10 },
       planWindowPercent: { 'five-hour': 80 },
     })

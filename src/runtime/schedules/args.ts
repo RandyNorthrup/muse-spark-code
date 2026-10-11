@@ -1,3 +1,4 @@
+import { usdInputSchema, type UsdAmount } from '../../shared/usdSchema'
 // M115 X: parsing does not load the schedule engine into ACP's startup bundle.
 import { parseArgs } from 'node:util'
 import { SCHEDULE_REPORT_FORMATS, SCHEDULE_TIMELINE_HOURS, UI_TEXT } from '../../shared/constants'
@@ -26,7 +27,7 @@ export interface ScheduleCommandOptions {
   readonly reportTo?: readonly string[]
   readonly hours?: string
   readonly scheduledPrompts?: boolean
-  readonly maxBudgetUsd?: number
+  readonly maxBudgetUsd?: UsdAmount
   readonly registrationId?: string
 }
 
@@ -35,14 +36,14 @@ export interface ScheduleCallerContext {
   readonly source: 'cli' | 'acp' | 'interactive'
   readonly isInteractive: boolean
   readonly scheduledPrompts: boolean
-  readonly maxBudgetUsd?: number
+  readonly maxBudgetUsd?: UsdAmount
   readonly sessionId?: string
   readonly backend?: 'museCode' | 'modelApi'
 }
 
-export function scheduleBudgetUsd(value: string): number | undefined {
-  const amount = Number(value)
-  return /^(?:0|[1-9]\d*)(?:\.\d+)?$/.test(value) && Number.isFinite(amount) ? amount : undefined
+export function scheduleBudgetUsd(value: string): UsdAmount | undefined {
+  const parsed = usdInputSchema.safeParse(value)
+  return parsed.success ? parsed.data : undefined
 }
 
 export type ScheduleCommandParse =

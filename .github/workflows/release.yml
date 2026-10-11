@@ -265,7 +265,9 @@ jobs:
     permissions:
       contents: read
       actions: read
-    timeout-minutes: 10
+    # A fresh publish polls registry visibility for up to 30 minutes (npm took
+    # 19 for 0.16.0); the timeout must cover the poll plus the publish itself.
+    timeout-minutes: 40
     # The token lives in this environment, which only version tags may
     # deploy to (a `v*` tag policy): no branch run, and no other job, can
     # read it (M28).
@@ -318,7 +320,9 @@ jobs:
     permissions:
       contents: read
       actions: read
-    timeout-minutes: 10
+    # A fresh publish polls registry visibility for up to 30 minutes; the
+    # timeout must cover the poll plus the publish itself.
+    timeout-minutes: 40
     # Its own job, so either registry failing leaves the other published;
     # the token lives in the same tag-only environment as VSCE_PAT.
     environment: marketplace
@@ -359,7 +363,9 @@ jobs:
     needs: release
     if: ${{ !cancelled() && needs.release.result == 'success' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # A fresh publish polls registry visibility for up to 30 minutes (npm took
+    # 19 for 0.16.0); the timeout must cover the poll plus the publish itself.
+    timeout-minutes: 40
     # npm trusted publishing (OIDC, 2026-10-04): npm trusts this workflow file in
     # this environment to publish muse-spark-code-acp, so no npm token is stored
     # anywhere. Only this job can request the OIDC identity, which also signs the

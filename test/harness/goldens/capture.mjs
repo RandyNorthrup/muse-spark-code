@@ -1,12 +1,14 @@
 // Actual webview components behind the existing test-only fake host.
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
+import { setTimeout as delay } from 'node:timers/promises'
 import { chromium } from 'playwright-core'
 import { findChrome } from '../../../scripts/lib/chrome.mjs'
-import { serveRepo } from '../../../scripts/lib/harnessServer.mjs'
+import { bundleFor, serveRepo } from '../../../scripts/lib/harnessServer.mjs'
 import { ARCHIVE_BUDGET, digest } from '../../../scripts/lib/visualImages.mjs'
 import { captureGroup, surfaceForScene } from '../../../scripts/lib/visualManifest.mjs'
 import { fixtureScenes, makeFixtures } from './fixtures.mjs'
+import { additionalScenes } from './additionalFixtures.mjs'
 
 export const CAPTURE_CONTEXT = Object.freeze({
   viewport: { width: 690, height: 760 },
@@ -35,9 +37,60 @@ export async function rasterizationFingerprint(context) {
   }
 }
 
-async function openScene(page, root, port, scene, theme, width, height, fixtures) {
-  let resource = `test/harness/index.html?scenario=${width === 320 ? scene : scene.replace(/-narrow$/, '')}&theme=${theme}`
+// Chunk requests use real I/O; React's Suspense retry uses the frozen clock.
+// The 100-step bounds below count frozen-clock steps. A busy runner's slow
+// chunk load is waited for here instead of spending those steps on it
+// (hosted run 38032399929: "Deferred renderer did not settle"). A request
+// still open after this long fails the scene rather than hanging the job.
+const REQUEST_SETTLE_MAX_MS = 15_000
+const pendingRequests = new WeakMap()
+
+/** Track the page's in-flight requests for the paint waits below. */
+export function trackRequests(page) {
+  const pending = new Set()
+  pendingRequests.set(page, pending)
+  page.on('request', (request) => pending.add(request))
+  page.on('requestfinished', (request) => pending.delete(request))
+  page.on('requestfailed', (request) => pending.delete(request))
+}
+
+async function requestsSettled(page) {
+  const pending = pendingRequests.get(page)
+  for (let waited = 0; pending !== undefined && pending.size > 0; waited += 10) {
+    if (waited >= REQUEST_SETTLE_MAX_MS)
+      throw new Error(`Requests still open after ${String(REQUEST_SETTLE_MAX_MS)} ms`)
+    await delay(10)
+  }
+}
+
+async function waitForPaint(page, selector) {
+  const target = page.locator(selector).first()
+  for (let attempt = 0; attempt < 100 && !(await target.isVisible()); attempt += 1) {
+    await requestsSettled(page)
+    await page.clock.runFor(100)
+    await delay(10)
+  }
+  if (!(await target.isVisible())) throw new Error(`Missing painted selector: ${selector}`)
+}
+
+/** Question placeholders have their own busy marker, without data-deferred-loading. */
+export async function waitForDeferredPaint(page, scene) {
+  const loading = page.locator('[data-deferred-loading],[data-question-slot][aria-busy="true"]')
+  for (let attempt = 0; attempt < 100 && (await loading.count()) > 0; attempt += 1) {
+    await requestsSettled(page)
+    await page.clock.runFor(100)
+    await delay(10)
+  }
+  if ((await loading.count()) > 0) throw new Error(`Deferred renderer did not settle: ${scene}`)
+}
+
+export async function openScene(page, root, port, scene, theme, width, height, fixtures) {
+  let resource = `test/harness/index.html?scenario=${width === 320 ? scene : scene.replace(/-narrow$/, '')}&theme=${theme}&bundle=${bundleFor(scene)}`
   if (fixtureScenes.has(scene)) resource = `${fixtures}/index.html?scene=${scene}`
+  if (Object.hasOwn(additionalScenes, scene)) {
+    const [entry, params] = additionalScenes[scene]
+    resource = `${fixtures}/${entry}.html?${params}&theme=${theme}`
+  }
   if (scene.startsWith('whats-new'))
     resource = `${fixtures}/${scene === 'whats-new-highlights' ? 'whats-new-highlights' : 'whats-new'}.html`
   await page.setViewportSize({ width, height })
@@ -46,9 +99,10 @@ async function openScene(page, root, port, scene, theme, width, height, fixtures
   // Scenario timers must start after React's initial layout effects commit;
   // advancing a frozen clock before mount races the composer's row fitting.
   if (!fixtureScenes.has(scene) && !scene.startsWith('whats-new'))
-    await page.waitForSelector('textarea,.gate,.todo-surface,.schedule-v2-surface,[role=alert]', {
-      state: 'attached',
-    })
+    await waitForPaint(
+      page,
+      'textarea,.gate,.todo-surface,.schedule-v2-surface,.models-panel,.usage-page,.traffic-view,[role=alert]',
+    )
   const fixture = JSON.parse(
     await readFile(path.join(root, `test/harness/themes/${theme}.json`), 'utf8'),
   )
@@ -56,6 +110,8 @@ async function openScene(page, root, port, scene, theme, width, height, fixtures
     ({ fixture, width }) => {
       const html = globalThis.document.documentElement
       html.style.width = `${width}px`
+      // Match the viewport's available width even on pages with body padding.
+      globalThis.document.body.style.boxSizing = 'border-box'
       globalThis.document.body.style.width = `${width}px`
       for (const [name, value] of Object.entries(fixture.variables))
         html.style.setProperty(name, value)
@@ -70,15 +126,54 @@ async function openScene(page, root, port, scene, theme, width, height, fixtures
     { fixture, width },
   )
   await page.clock.runFor(6500)
+  if (scene === 'playbook-status') await waitForPaint(page, '.playbook-record')
+  if (scene.startsWith('traffic-')) {
+    await waitForPaint(page, '.traffic-tabs')
+    await page.locator(`.traffic-tabs button[id$="-${scene.slice('traffic-'.length)}"]`).click()
+    await page.clock.runFor(100)
+  }
+  for (const [name, selector, label] of [
+    ['accounts-edit', '.accounts-section button', 'Edit'],
+    ['accounts-thresholds', '.accounts-section button', 'Edit'],
+    ['vault-grant', '.vault-actions button', 'Create Grant'],
+    ['resource-controls', '.resource-chip', undefined],
+  ]) {
+    if (scene !== name) continue
+    await waitForPaint(page, selector)
+    const buttons = page.locator(selector)
+    if (label === undefined) await buttons.first().click()
+    else
+      await buttons
+        // Recorded source revisions retain sentence-case action labels.
+        .filter({ hasText: new RegExp(`^${label}$`, 'i') })
+        .first()
+        .click()
+    await page.clock.runFor(100)
+  }
   await page.evaluate(() => globalThis.document.fonts.ready)
   const hasStyles = await page.evaluate(() =>
     globalThis.getComputedStyle(globalThis.document.body).fontFamily.includes('Segoe UI'),
   )
   if (!hasStyles) throw new Error(`Stylesheet failed to load: ${scene}/${theme}/${width}`)
-  if (!fixtureScenes.has(scene))
-    await page.waitForFunction(
-      () => globalThis.document.querySelector('[data-deferred-loading]') === null,
-    )
+  if (!fixtureScenes.has(scene)) {
+    await waitForDeferredPaint(page, scene)
+  }
+  // Two lazy renderers sit behind fallbacks the loop above cannot see: code
+  // highlighting falls back to identical plain markup, and the usage dialog's
+  // account facts fall back to nothing. Capture their settled render.
+  if (scene === 'share' || scene === 'share-narrow')
+    await waitForPaint(page, '.code-block-body code.hljs [class^="hljs-"]')
+  if ((await page.locator('h3.usage-heading', { hasText: /^Account$/ }).count()) > 0) {
+    // Reconstruct both the recorded sentence-case source and Title Case UI.
+    await waitForPaint(page, 'dl.usage-facts dt:text-matches("^Auth method$", "i")')
+    // Its status and usage rows also load lazily behind "Reading usage…".
+    const reading = page.locator('[role="status"]', { hasText: /^Reading usage…$/ })
+    for (let attempt = 0; attempt < 100 && (await reading.count()) > 0; attempt += 1) {
+      await page.clock.runFor(100)
+      await delay(10)
+    }
+    if ((await reading.count()) > 0) throw new Error(`Usage rows did not settle: ${scene}`)
+  }
   if (
     [
       'muse-tools',
@@ -91,6 +186,8 @@ async function openScene(page, root, port, scene, theme, width, height, fixtures
     ].includes(scene)
   ) {
     for (const selector of ['.steps-toggle', '.tool-toggle', '.workflow-header']) {
+      // The folded tools chunk arrives after the steps group's first paint.
+      if (scene === 'muse-tools' && selector === '.tool-toggle') await waitForPaint(page, selector)
       await page.locator(`${selector}[aria-expanded="false"]`).evaluateAll((buttons) => {
         for (const button of buttons) button.click()
       })
@@ -116,9 +213,60 @@ async function openScene(page, root, port, scene, theme, width, height, fixtures
     // Native layout delivers ResizeObserver; the frozen clock runs its RAF.
     await page.clock.runFor(100)
   }
-  if (scene === 'verify') await page.locator('.then-run').scrollIntoViewIfNeeded()
-  else if (scene === 'whats-new-footer')
-    await page.evaluate(() => globalThis.scrollTo(0, globalThis.document.body.scrollHeight))
+  switch (scene) {
+    case 'quote-menu': {
+      // The initial context click can precede fonts and the host's final layout.
+      // Close it first: an open row menu makes its prose inert, so selecting
+      // that prose again would collapse the range and open ordinary row actions.
+      await page.locator('[role="menu"]').dispatchEvent('keydown', { key: 'Escape', bubbles: true })
+      await page.clock.runFor(100)
+      // Reopen through the real handler at the settled passage, like a pointer.
+      await page
+        .locator('.message-assistant .message-body p')
+        .first()
+        .evaluate((passage) => {
+          const range = globalThis.document.createRange()
+          range.selectNodeContents(passage)
+          const selection = globalThis.getSelection()
+          selection.removeAllRanges()
+          selection.addRange(range)
+          const box = passage.getBoundingClientRect()
+          passage.dispatchEvent(
+            new globalThis.MouseEvent('contextmenu', {
+              bubbles: true,
+              cancelable: true,
+              clientX: box.left + box.width / 2,
+              clientY: box.top + box.height / 2,
+            }),
+          )
+        })
+      await page.clock.runFor(100)
+
+      break
+    }
+    case 'palette': {
+      // The filter's autofocus can scroll the document before the theme's
+      // fonts settle, so the offset varied between runs. Replay that focus
+      // scroll on the settled layout without moving focus (blur closes it).
+      await page.locator('.palette-filter').evaluate((filter) => {
+        globalThis.scrollTo(0, 0)
+        filter.scrollIntoView({ block: 'nearest' })
+      })
+      await page.clock.runFor(100)
+      break
+    }
+    case 'verify': {
+      await page.locator('.then-run').scrollIntoViewIfNeeded()
+      break
+    }
+    case 'whats-new-footer': {
+      {
+        await page.evaluate(() => globalThis.scrollTo(0, globalThis.document.body.scrollHeight))
+        // No default
+      }
+      break
+    }
+  }
 }
 
 async function targetFor(page, rows, state) {
@@ -198,78 +346,186 @@ async function stateShot(page, cdp, state, target) {
   return { bytes, applied: isApplied }
 }
 
+/**
+ * The capture page: VS Code's API shim, loopback-only requests, the frozen
+ * clock and focus emulation. One page serves every scene opened on it.
+ */
+export async function openCapturePage(context) {
+  const page = await context.newPage()
+  trackRequests(page)
+  const errors = []
+  page.on('pageerror', (error) => {
+    errors.push(error.message)
+  })
+  await page.addInitScript(() => {
+    Object.defineProperty(globalThis, 'acquireVsCodeApi', {
+      configurable: true,
+      writable: true,
+      value: () => ({
+        postMessage: (message) => message,
+        getState: () => null,
+        setState: (state) => state,
+      }),
+    })
+  })
+  await page.route('**/*', (route) =>
+    new URL(route.request().url()).hostname === '127.0.0.1' ? route.continue() : route.abort(),
+  )
+  await page.clock.install({ time: FIXED_TIME })
+  await page.clock.pauseAt(new Date(FIXED_TIME.getTime() + 60_000))
+  const cdp = await page.context().newCDPSession(page)
+  await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: true })
+  await cdp.send('DOM.enable')
+  await cdp.send('CSS.enable')
+  return { page, cdp, errors }
+}
+
+/**
+ * Open one scene on a capture page and wait until every audited component of
+ * it has painted, with the smallest one scrolled into view.
+ */
+export async function prepareScene({ page, errors, root, port, fixtures }, audit, view) {
+  const { scene, theme, width, height } = view
+  errors.length = 0
+  try {
+    await openScene(page, root, port, scene, theme, width, height, fixtures)
+  } catch (error) {
+    throw new Error(
+      `Visual scene failed: ${scene}/${theme}/${width}/en: ${error.message}; page errors: ${errors.join('; ') || 'none'}`,
+      { cause: error },
+    )
+  }
+  const rows = audit.components.filter((row) => row.scene === scene)
+  for (const row of rows) {
+    try {
+      await waitForPaint(page, row.captureSelector)
+    } catch (error) {
+      const fixtureText = await page.locator('body').textContent()
+      throw new Error(
+        `Missing component render: ${row.file} in ${scene}; page errors: ${errors.join('; ') || 'none'}; fixture text: ${fixtureText.slice(0, 300)}`,
+        { cause: error },
+      )
+    }
+  }
+  const components = await page.evaluate(
+    (rows) =>
+      rows.map((row) => {
+        const element = globalThis.document.querySelector(row.captureSelector)
+        if (
+          element === null ||
+          element.getBoundingClientRect().width === 0 ||
+          element.getBoundingClientRect().height === 0
+        )
+          throw new Error(`Missing component render: ${row.file}`)
+        return row.file
+      }),
+    rows,
+  )
+  // Canonical descendants must appear in the viewport, not merely in
+  // a long page's DOM. Keep parents visible around the smallest scope.
+  const reviewSelector = await page.evaluate(
+    (rows) =>
+      rows
+        .map((row) => ({
+          selector: row.captureSelector,
+          box: globalThis.document.querySelector(row.captureSelector).getBoundingClientRect(),
+        }))
+        .toSorted((a, b) => a.box.width * a.box.height - b.box.width * b.box.height)[0]?.selector,
+    rows,
+  )
+  if (reviewSelector !== undefined)
+    await page.locator(reviewSelector).first().scrollIntoViewIfNeeded()
+  if ((await page.locator('.gooey-menu').count()) > 0) await settleMenuPlacement(page)
+  if (errors.length > 0) throw new Error(`${scene}: ${errors.join('; ')}`)
+  return { rows, components }
+}
+
+const MENU_SETTLE_ATTEMPTS = 10
+
+/**
+ * An open menu follows its opener on animation frames, which the frozen clock
+ * does not run: a row that moves after the menu opened (a lazy part painting)
+ * left the fan where the opener had been, in some captures and not others.
+ * Re-place it through its own resize listener, let React's render task run
+ * (a message posted after it), and repeat until no pill moves.
+ */
+async function settleMenuPlacement(page) {
+  const boxes = () =>
+    page
+      .locator('.gooey-menu-pill')
+      .evaluateAll((pills) =>
+        JSON.stringify(pills.map((pill) => Object.values(pill.getBoundingClientRect().toJSON()))),
+      )
+  for (let attempt = 0; attempt < MENU_SETTLE_ATTEMPTS; attempt += 1) {
+    const before = await boxes()
+    await page.evaluate(
+      () =>
+        new Promise((resolve) => {
+          globalThis.dispatchEvent(new globalThis.Event('resize'))
+          const channel = new globalThis.MessageChannel()
+          channel.port1.addEventListener('message', () => {
+            resolve()
+          })
+          // addEventListener, unlike onmessage, needs the port started.
+          channel.port1.start()
+          channel.port2.postMessage(null)
+        }),
+    )
+    if ((await boxes()) === before) return
+  }
+  throw new Error('Open menu did not settle beside its opener')
+}
+
 /** Streaming comparison avoids retaining thousands of images in memory. */
-export async function captureMatrix(root, audit, matrix, onCapture, groups) {
+/**
+ * `rasterization` is a fingerprint already measured on the browser at
+ * `browserEndpoint` with CAPTURE_CONTEXT (global setup's shared review
+ * browser); without one, the capture measures its own.
+ */
+export async function captureMatrix(
+  root,
+  audit,
+  matrix,
+  onCapture,
+  groups,
+  browserEndpoint,
+  rasterization,
+) {
   const chrome = findChrome()
   if (chrome === undefined) throw new Error('Chrome is required for check:visual')
   const { server, port } = await serveRepo(root)
   let browser
+  let connection
   let profile
   let fixtures
   let totalBytes = 0
   const captures = []
   try {
-    fixtures = await makeFixtures(root, port)
-    profile = await mkdtemp(path.join(root, 'temp/m114-visual-profile-'))
-    browser = await chromium.launchPersistentContext(profile, {
-      ...CAPTURE_CONTEXT,
-      ...(path.isAbsolute(chrome) ? { executablePath: chrome } : { channel: 'chrome' }),
-    })
-    const rasterization = await rasterizationFingerprint(browser)
-    const page = await browser.newPage()
-    const errors = []
-    page.on('pageerror', (error) => {
-      errors.push(error.message)
-    })
-    await page.addInitScript(() => {
-      Object.defineProperty(globalThis, 'acquireVsCodeApi', {
-        configurable: true,
-        writable: true,
-        value: () => ({
-          postMessage: (message) => message,
-          getState: () => null,
-          setState: (state) => state,
-        }),
+    // Ordinary chat scenes use the harness directly; they need none of the
+    // exceptional component/notes bundles that makeFixtures compiles.
+    if (audit.scenes.some((scene) => fixtureScenes.has(scene) || scene.startsWith('whats-new')))
+      fixtures = await makeFixtures(root, port)
+    if (browserEndpoint === undefined) {
+      profile = await mkdtemp(path.join(root, 'temp/m114-visual-profile-'))
+      browser = await chromium.launchPersistentContext(profile, {
+        ...CAPTURE_CONTEXT,
+        ...(path.isAbsolute(chrome) ? { executablePath: chrome } : { channel: 'chrome' }),
       })
-    })
-    await page.route('**/*', (route) =>
-      new URL(route.request().url()).hostname === '127.0.0.1' ? route.continue() : route.abort(),
-    )
-    await page.clock.install({ time: FIXED_TIME })
-    await page.clock.pauseAt(new Date(FIXED_TIME.getTime() + 60_000))
-    const cdp = await page.context().newCDPSession(page)
-    await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: true })
-    await cdp.send('DOM.enable')
-    await cdp.send('CSS.enable')
+    } else {
+      connection = await chromium.connect(browserEndpoint)
+      browser = await connection.newContext(CAPTURE_CONTEXT)
+    }
+    const fingerprint = rasterization ?? (await rasterizationFingerprint(browser))
+    const { page, cdp, errors } = await openCapturePage(browser)
     for (const theme of matrix.themes)
       for (const width of matrix.widths)
         for (const scene of audit.scenes) {
           if (groups !== undefined && !groups.has(captureGroup({ scene, theme, width }))) continue
-          errors.length = 0
-          try {
-            await openScene(page, root, port, scene, theme, width, matrix.height, fixtures)
-          } catch (error) {
-            throw new Error(
-              `Visual scene failed: ${scene}/${theme}/${width}/en: ${error.message}; page errors: ${errors.join('; ') || 'none'}`,
-              { cause: error },
-            )
-          }
-          const rows = audit.components.filter((row) => row.scene === scene)
-          const components = await page.evaluate(
-            (rows) =>
-              rows.map((row) => {
-                const element = globalThis.document.querySelector(row.captureSelector)
-                if (
-                  element === null ||
-                  element.getBoundingClientRect().width === 0 ||
-                  element.getBoundingClientRect().height === 0
-                )
-                  throw new Error(`Missing component render: ${row.file}`)
-                return row.file
-              }),
-            rows,
+          const { rows, components } = await prepareScene(
+            { page, errors, root, port, fixtures },
+            audit,
+            { scene, theme, width, height: matrix.height },
           )
-          if (errors.length > 0) throw new Error(`${scene}: ${errors.join('; ')}`)
           for (const state of matrix.states) {
             const target = await targetFor(page, rows, state)
             const { bytes, applied } = await stateShot(page, cdp, state, target)
@@ -298,12 +554,13 @@ export async function captureMatrix(root, audit, matrix, onCapture, groups) {
     return {
       captures,
       browser: browser.browser().version(),
-      rasterization,
+      rasterization: fingerprint,
       platform: process.platform,
       totalBytes,
     }
   } finally {
     await browser?.close()
+    await connection?.close()
     server.close()
     if (fixtures !== undefined)
       await rm(path.join(root, fixtures), { recursive: true, force: true })

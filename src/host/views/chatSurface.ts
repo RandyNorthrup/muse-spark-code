@@ -19,6 +19,12 @@ export interface ChatSurface {
   readonly id: string
   /** A side chat's surface (M53): opens in Plan and keeps its conversation apart. */
   readonly isSideChat?: boolean
+  /**
+   * The id the host wrote into the current document's HTML (M107). Each build
+   * (the first, and every `reload`) issues a new one and retires the old one at
+   * once; a message naming any other id is not from this document.
+   */
+  readonly documentId: string
   post(message: HostToWebviewMessage): void
   /** Bring the surface into view and give it keyboard focus. */
   reveal(): void

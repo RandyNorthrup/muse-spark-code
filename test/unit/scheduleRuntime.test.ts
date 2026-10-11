@@ -1,3 +1,4 @@
+import { Usd as PortUsd } from '../../src/shared/usd'
 import { describe, expect, it, vi } from 'vitest'
 import { ScheduleRuntime, type ScheduleRuntimeDeps } from '../../src/runtime/schedules/runtime'
 import { RuntimeScheduleHost } from '../../src/runtime/schedules/host'
@@ -150,7 +151,7 @@ describe('schedule runtime lifecycle', () => {
   it('uses verified native authorization for each fire and ignores unverified run-due flags', async () => {
     for (const authorization of [
       { scheduledPrompts: false },
-      { scheduledPrompts: true, maxBudgetUsd: 1 },
+      { scheduledPrompts: true, maxBudgetUsd: PortUsd.from(1).toAmount() },
     ]) {
       const { runtime, controlFor, control, verifyWake } = setup()
       verifyWake.mockResolvedValue(authorization)
@@ -161,7 +162,7 @@ describe('schedule runtime lifecycle', () => {
             isJson: true,
             registrationId: 'verified-record',
             scheduledPrompts: true,
-            maxBudgetUsd: 100,
+            maxBudgetUsd: PortUsd.from(100).toAmount(),
           },
           '/launcher',
         ),
@@ -233,15 +234,15 @@ describe('schedule runtime lifecycle', () => {
       const value = fakeScheduleDraft()
       const draft = JSON.stringify({
         ...value,
-        paidCapUsd: 1,
-        grant: { ...value.grant, paidCapUsd: 1 },
+        paidCapUsd: PortUsd.from(1).toAmount(),
+        grant: { ...value.grant, paidCapUsd: PortUsd.from(1).toAmount() },
       })
       for (const authorization of [
         {},
-        { maxBudgetUsd: 1 },
+        { maxBudgetUsd: PortUsd.from(1).toAmount() },
         { scheduledPrompts: true },
-        { scheduledPrompts: true, maxBudgetUsd: 0 },
-        { scheduledPrompts: true, maxBudgetUsd: 0.5 },
+        { scheduledPrompts: true, maxBudgetUsd: PortUsd.from(0).toAmount() },
+        { scheduledPrompts: true, maxBudgetUsd: PortUsd.from(0.5).toAmount() },
       ]) {
         let result: string
         if (source === 'cli') {
@@ -261,7 +262,7 @@ describe('schedule runtime lifecycle', () => {
         expect(result).toContain(UI_TEXT.scheduleV2.runtime.paidAuthorizationRequired)
         expect(control.request).not.toHaveBeenCalled()
       }
-      const authorization = { scheduledPrompts: true, maxBudgetUsd: 1 }
+      const authorization = { scheduledPrompts: true, maxBudgetUsd: PortUsd.from(1).toAmount() }
       if (source === 'cli')
         await runtime.command(
           { operation: 'add', isJson: true, draft, ...authorization },
@@ -289,30 +290,33 @@ describe('schedule runtime lifecycle', () => {
       await runtime.close()
     },
   )
-  it('hosts persisted due workspaces before firing, settles, closes resources and removes a spent wake', async () => {
-    const { runtime, control, host, unwatch, close, reconcile } = setup()
-    // Global run-due takes persisted keys; existing session watches close too.
-    await runtime.holdWorkspace('/one')
-    await runtime.holdWorkspace('/two')
-    vi.mocked(control.runDue).mockImplementation(() => {
-      expect(host.holds(workspaceKey('/one'))).toBe(true)
-      expect(host.holds(workspaceKey('/two'))).toBe(true)
-      return Promise.resolve()
-    })
-    expect(await runtime.command({ operation: 'run-due', isJson: true }, '/launcher')).toEqual({
-      exitCode: 0,
-      output: '{"kind":"accepted"}',
-    })
-    expect(control.runDue).toHaveBeenCalledOnce()
-    expect(control.close).toHaveBeenCalledOnce()
-    expect(unwatch).toHaveBeenCalledTimes(2)
-    expect(close).toHaveBeenCalledOnce()
-    expect(reconcile).toHaveBeenCalledOnce()
-    expect(host.holds(workspaceKey('/one'))).toBe(false)
-    await runtime.close()
-    expect(close).toHaveBeenCalledOnce()
-    await expect(runtime.holdWorkspace('/one')).rejects.toThrow()
-  })
+  it.each(['linux', 'win32', 'darwin'] as const)(
+    '%s: hosts persisted due workspaces before firing, settles, closes resources and rearms through its platform owner',
+    async (platform) => {
+      const { runtime, control, host, unwatch, close, reconcile } = setup(platform)
+      // Global run-due takes persisted keys; existing session watches close too.
+      await runtime.holdWorkspace('/one')
+      await runtime.holdWorkspace('/two')
+      vi.mocked(control.runDue).mockImplementation(() => {
+        expect(host.holds(workspaceKey('/one'))).toBe(true)
+        expect(host.holds(workspaceKey('/two'))).toBe(true)
+        return Promise.resolve()
+      })
+      expect(await runtime.command({ operation: 'run-due', isJson: true }, '/launcher')).toEqual({
+        exitCode: 0,
+        output: '{"kind":"accepted"}',
+      })
+      expect(control.runDue).toHaveBeenCalledOnce()
+      expect(control.close).toHaveBeenCalledOnce()
+      expect(unwatch).toHaveBeenCalledTimes(2)
+      expect(close).toHaveBeenCalledOnce()
+      expect(reconcile).toHaveBeenCalledTimes(platform === 'darwin' ? 0 : 1)
+      expect(host.holds(workspaceKey('/one'))).toBe(false)
+      await runtime.close()
+      expect(close).toHaveBeenCalledOnce()
+      await expect(runtime.holdWorkspace('/one')).rejects.toThrow()
+    },
+  )
   it('releases every due-workspace lease and engine even when a run fails', async () => {
     const { runtime, control, host, unwatch, close } = setup()
     // Global run-due takes persisted keys; existing session watches close too.

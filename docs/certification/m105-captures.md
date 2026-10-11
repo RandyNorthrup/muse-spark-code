@@ -57,6 +57,25 @@ found 0 occurrences of the key, of its first 12 characters and of its last 12
 characters in every file. The grep for long opaque strings found only public
 build ids, fixture hashes and capture session labels.
 
+Scrub correction (lane MONEY017E, 2026-10-08): the sentence above overstated
+the item-id replacement. Sixteen response output item ids in
+`round1-2026-10-05.jsonl` kept the last four UUID groups after a placeholder
+prefix, shaped `<msg-id-N>-hhhh-hhhh-hhhh-hhhhhhhhhhhh` (and the equivalent
+reasoning-item shape). Each whole id is now a bare labelled placeholder
+(`<msg-id-8>` through `<msg-id-23>`, one per id, each occurring once), so no
+original hex remains and no cross-file label collides. A rescan of every file
+under `docs/research/m105-captures/` with the patterns below now reports zero
+residual private identifiers (before → after: partial-UUID
+`-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}` 16 → 0; full-UUID
+`[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}` 0 → 0; raw
+`msg_…`/`resp_…`/`req_…` ids 0 → 0; email addresses 0 → 0; absolute user paths
+0 → 0). The remaining `file-…` hits are the scrub's own `<file-id-N>`
+placeholders. The remaining 24+-character hex runs are synthetic fixture
+`sha256` values, the public CLI build id in the U16 user agent, and the public
+MSP schema fingerprint — none of them account or key material. The
+`test/unit/m105CaptureScrub.test.ts` suite re-runs this scan, so a future
+capture that reintroduces one of these shapes fails the gate.
+
 ## Calls by type
 
 | Kind                                   | PLAN estimate | Round 3 | U16 | Round 2 (10-05) | Round 1 (10-05) |

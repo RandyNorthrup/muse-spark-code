@@ -40,6 +40,8 @@ import {
   REPORT_FRAME_PATH_MAX_CHARS,
   REPORT_STACK_MAX_FRAMES,
   REPORT_WEBVIEW_ERROR_KINDS,
+  RESOURCE_NONCE_MAX_CHARS,
+  RESOURCE_STATUS_MAX_CHARS,
   SUBAGENT_ACTIONS,
   WEBVIEW_ERROR_MESSAGE_MAX_CHARS,
   WEBVIEW_ERROR_SOURCES,
@@ -67,7 +69,7 @@ import {
   mediaChipSchema,
   mediaContributorChoiceSchema,
 } from './media'
-import { paidStateSchema } from './paid'
+import { paidStateSchema } from './paidBoundary'
 import { patchHunkSchema } from './patchDocument'
 import { reviewRequestSchema } from './reviewCommand'
 import { scheduleCadenceSchema } from './schedule'
@@ -100,6 +102,9 @@ import { teamTreeSchema, teamUsageSchema } from './teamView'
 
 const stringSchema = z.string()
 const numberSchema = z.number()
+// M107: the random id a chat document mints at start; and Show's request number.
+const documentNonceSchema = z.string().check(z.minLength(1), z.maxLength(RESOURCE_NONCE_MAX_CHARS))
+const resourceSeqSchema = z.int().check(z.gte(1))
 const booleanSchema = z.boolean()
 import { parseWith, type ParseResult } from './parseResult'
 
@@ -225,32 +230,32 @@ export const HOST_ACTIONS = [
   'openLog',
   'toggleFocusView',
   'toggleCtrlEnterToSend',
-  /** "Hide these tips" on the empty state: sets museSpark.hideOnboarding (M8). */
+  /** "Hide These Tips" on the empty state: sets museSpark.hideOnboarding (M8). */
   'hideOnboarding',
   /** The error boundary asks for a fresh webview document (M11). */
   'reload',
   /** The Agent map's "open the Muse Code settings file" (M14). */
   'openMuseSettings',
-  /** The palette's "Manage skills…" and "Import skills…" (M30). */
+  /** The palette's "Manage Skills…" and "Import Skills…" (M30). */
   'manageSkills',
   'importSkills',
-  /** The palette's "Import from other agents…" (M83). */
+  /** The palette's "Import From Other Agents…" (M83). */
   'importFromAgents',
-  /** The palette's "MCP servers…" and "Hooks…" (M31). */
+  /** The palette's "MCP Servers…" and "Hooks…" (M31). */
   'showMcpServers',
   'showHooks',
   /** The palette's "Memory…" (M49). */
   'showMemory',
-  /** The palette's "New worktree…" and "Remove a worktree…" (M32). */
+  /** The palette's "New Worktree…" and "Remove a Worktree…" (M32). */
   'newWorktree',
   'removeWorktree',
-  /** The palette's "Open a pull request in a conversation…" (M71). */
+  /** The palette's "Open a Pull Request in a Conversation…" (M71). */
   'openPullRequestInConversation',
   /** A Muse Code fault's notice: stop `muse serve`, the next message starts it (D26). */
   'restartMuseCode',
   'openModelApiStatus',
   /**
-   * The task list's "Open in a tab" (M87, PLAN.md D66): an editor tab that
+   * The task list's "Open in a Tab" (M87, PLAN.md D66): an editor tab that
    * mirrors this conversation's list, which the user can move into a window
    * of its own. The conversation controller answers it itself.
    */
@@ -261,7 +266,7 @@ export const HOST_ACTIONS = [
   'installBundledSkills',
   'updateBundledSkills',
   'declineBundledSkills',
-  /** The first-run screen's third choice (M95): the wizard at "Pick a provider". */
+  /** The first-run screen's third choice (M95): the wizard at "Pick a Provider". */
   'startWithOwnModel',
   /** The model picker's footer rows (M95): the provider quick-pick, the Models & Agents panel. */
   'addModelProvider',
@@ -558,9 +563,9 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
     type: z.literal('openSchedules'),
     view: z.enum(['list', 'timeline', 'editor']),
   }),
-  // "/export" and "Export session log…" (M30): Markdown, or Muse Code's JSON log.
+  // "/export" and "Export Session Log…" (M30): Markdown, or Muse Code's JSON log.
   z.object({ type: z.literal('exportConversation'), format: z.enum(EXPORT_FORMATS) }),
-  // "Import session…" and "Open share file…" (M84): a portable JSON file
+  // "Import Session…" and "Open Share File…" (M84): a portable JSON file
   // picked on the host; the import resumes it on the Model API backend.
   z.object({ type: z.literal('importSession') }),
   z.object({ type: z.literal('openShareFile') }),
@@ -568,13 +573,13 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('listSkills') }),
   // @-mention menu: `requestId` lets the webview drop stale answers.
   z.object({ type: z.literal('searchMentions'), requestId: numberSchema, query: stringSchema }),
-  // "+" / "Attach file…": native open dialog; images (and, on the Model API
+  // "+" / "Attach File…": native open dialog; images (and, on the Model API
   // backend, PDFs: M54) become attachments, other files `@path` mentions.
   z.object({ type: z.literal('pickFile') }),
   mediaAttachmentRequestSchema,
   mediaAttachmentActionSchema,
   mediaContributorChoiceSchema,
-  // "Mention file from this project…": QuickPick over the workspace index.
+  // "Mention File From This Project…": QuickPick over the workspace index.
   z.object({ type: z.literal('pickMentionFile') }),
   // An image pasted or dropped into the composer, or (M54) a PDF: the name
   // stays for the wire's sake; the host tells them apart by their bytes.
@@ -590,6 +595,18 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   // Editor resources dropped onto the composer (`text/uri-list`).
   z.object({ type: z.literal('droppedUris'), uris: z.array(stringSchema) }),
   z.object({ type: z.literal('hostAction'), action: z.enum(HOST_ACTIONS) }),
+  // M107 U–C1: the chip's popover controls; the host runs each through its command.
+  z.strictObject({
+    type: z.literal('resourceAction'),
+    action: z.enum(['show', 'settings', 'resume']),
+  }),
+  // M107 pull model: a document asks for a pending Show, and acknowledges one.
+  z.strictObject({ type: z.literal('resourcePull'), nonce: documentNonceSchema }),
+  z.strictObject({
+    type: z.literal('resourceOpenAck'),
+    seq: resourceSeqSchema,
+    nonce: documentNonceSchema,
+  }),
   z.strictObject({ type: z.literal('openUsagePage') }),
   // Approval card: one of the request's `availableChoices`.
   z.object({
@@ -693,7 +710,7 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('openEditDiff'), itemId: stringSchema, outputRef: stringSchema }),
   // An edit row's Revert (M87, PLAN.md D66 item 17): that edit's stored patch
   // reverse-applied after the file-action confirmation, as one step of
-  // "Rewind code to here" is (M13, M72).
+  // "Rewind Code to Here" is (M13, M72).
   z.object({ type: z.literal('revertEdit'), itemId: z.string(), outputRef: z.string() }),
   // A tool row's path: open the file, selecting the changed lines when known (M16, `LineRange`).
   z.object({
@@ -703,7 +720,7 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
     endLine: z.optional(numberSchema),
   }),
   // Rewind code to a message: revert every edit after it, newest first (M13).
-  // With `fork` ("Fork conversation and rewind code", M72) the host forks
+  // With `fork` ("Fork and Rewind", M72) the host forks
   // after the rewind, in one action: before `lastTurnId`, or a fresh
   // conversation without one.
   z.object({
@@ -739,9 +756,9 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
     hunkIndex: indexSchema,
   }),
   rewindConversationSchema,
-  // "Restore files to here" (M72): the workspace's files back to the
+  // "Restore Files to Here" (M72): the workspace's files back to the
   // checkpoint before this turn; with `rewind`, the conversation rewinds as
-  // well once the files are restored ("Rewind conversation and restore files").
+  // well once the files are restored ("Rewind Conversation and Restore Files").
   z.object({
     type: z.literal('restoreFiles'),
     sourceSessionId: stringSchema.check(z.minLength(1)),
@@ -1104,6 +1121,21 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   // Sent on surfaceReady and on every change.
   z.object({ type: z.literal('paidState'), state: paidStateSchema }),
   z.object({ type: z.literal('judgeState'), state: judgeStatusSchema }),
+  // M107 U–C1: the window governor's checked status as JSON text, bounded here.
+  // resourceStatusSchema checks it strictly in the deferred chip before any
+  // field is shown, so its parser never enters chat's startup bundle.
+  // null: the current status was refused (over the bound, or unreadable), so
+  // the chip says it is unavailable rather than keep an old reading.
+  z.strictObject({
+    type: z.literal('resourceStatus'),
+    status: z.nullable(z.string().check(z.minLength(1), z.maxLength(RESOURCE_STATUS_MAX_CHARS))),
+  }),
+  // Show resources' open, for the document whose nonce it names; it acks the seq.
+  z.strictObject({
+    type: z.literal('resourceOpen'),
+    seq: resourceSeqSchema,
+    nonce: documentNonceSchema,
+  }),
   // A message the host sent itself (M79: a plan's brief): the pending card,
   // as the composer's own Send would have made it. `turnAccepted` or
   // `sendFailed` follows with the same `localId`.
@@ -1186,7 +1218,7 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   }),
   // One backend-agnostic conversation event (see agentEvents.ts).
   // `reportRef` (M93): a failed turn the host recorded; its error row
-  // offers "Report this" with it, never with the row's text.
+  // offers "Report This" with it, never with the row's text.
   z.object({
     type: z.literal('agentEvent'),
     event: agentEventSchema,
@@ -1240,7 +1272,7 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   // `actions` (D26): the buttons of a Muse Code fault's notice.
   // `reportRef` (M93 lane W): the sanitized handoff when the failure was
   // recorded — which journal event the row means, never its text. The row
-  // offers "Report this" only while it is present.
+  // offers "Report This" only while it is present.
   z.object({
     type: z.literal('notice'),
     level: z.enum(NOTICE_LEVELS),
@@ -1257,7 +1289,7 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     isSpent: booleanSchema,
   }),
   // Turn checkpoints (M72): whether this window takes them, and which turns
-  // of the conversation shown have one (their cards offer "Restore files").
+  // of the conversation shown have one (their cards offer "Restore Files").
   z.object({
     type: z.literal('checkpointState'),
     availability: z.enum(CHECKPOINT_AVAILABILITIES),

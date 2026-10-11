@@ -1,3 +1,4 @@
+import { noScheduleCost } from '../../src/shared/scheduleV2'
 import { describe, expect, it, vi } from 'vitest'
 import * as z from 'zod/mini'
 import { createScheduleJournal } from '../../src/core/schedules/journal'
@@ -96,6 +97,46 @@ describe('bounded schedule generations', () => {
       .parse(JSON.parse(fs.files.get(file) ?? 'null'))
     fs.files.set(file, JSON.stringify({ ...snapshot, value: { values: { n: 'corrupt' } } }))
     await expect(journal.read()).rejects.toThrow()
+  })
+  it('never hands a caller the cached snapshot or delta values', async () => {
+    const fs = new MemoryScheduleFs()
+    const schema = z.object({ values: z.record(z.string(), z.unknown()) })
+    const journal = createScheduleJournal(fs, 'nested', (raw) => schema.parse(raw), { values: {} })
+    await journal.transact(() => ({ value: { values: { a: { b: 1 } } }, result: undefined }))
+    await journal.transact((value) => ({
+      value: { values: { ...value.values, c: { d: 1 } } },
+      result: undefined,
+    }))
+    const leased = await journal.read()
+    for (const nested of Object.values(leased.value.values))
+      if (typeof nested === 'object' && nested !== null)
+        for (const key of Object.keys(nested)) Reflect.set(nested, key, 2)
+    const reread = await journal.read()
+    expect(reread.value.values).toEqual({ a: { b: 1 }, c: { d: 1 } })
+  })
+  it('clones the folded state once per read, never each cached delta', async () => {
+    const fs = new MemoryScheduleFs()
+    const journal = counter(fs)
+    for (let index = 0; index < 10; index += 1) await journal.increment()
+    const clone = vi.spyOn(globalThis, 'structuredClone')
+    // A read lease folds the journal twice: before and after its fencing commit.
+    expect(await countOf(journal)).toBe(10)
+    const calls = clone.mock.calls.length
+    clone.mockRestore()
+    expect(calls).toBe(2)
+  })
+  it('lets the store reuse its validated journal across calls', async () => {
+    const fs = new MemoryScheduleFs()
+    const store = createScheduleStore(fs)
+    const job = fakeSchedule()
+    await store.create(job)
+    for (let index = 0; index < 10; index += 1) await store.list(job.workspaceKey)
+    const parse = vi.spyOn(JSON, 'parse')
+    await store.list(job.workspaceKey)
+    // The fence pointer, its new delta and the post-commit pointer: no cached delta again.
+    const calls = parse.mock.calls.length
+    parse.mockRestore()
+    expect(calls).toBeLessThan(5)
   })
   it.each(['read', 'unchanged transaction'] as const)(
     'refuses an in-flight stale commit after a %s takeover acquires a journal token',
@@ -318,7 +359,10 @@ describe('bounded schedule generations', () => {
       await expect(journal.read()).rejects.toThrow('RevisionMismatch')
     },
   )
-  it('bounds the live journal and audit at 10,000 fires while identity fences grow only linearly', async () => {
+  // Ten times the retained audit and about 150 compactions: per-fire cost and
+  // storage are flat past the first compaction, so more fires prove nothing new.
+  const workloadFires = 1000
+  it('bounds the live journal and audit at 1,000 fires while identity fences grow only linearly', async () => {
     const fs = new MemoryScheduleFs()
     const store = createScheduleStore(fs)
     const job = fakeSchedule()
@@ -330,7 +374,7 @@ describe('bounded schedule generations', () => {
       journalOps: number
       journalBytes: number
     }[] = []
-    for (let run = 1; run <= 10_000; run += 1) {
+    for (let run = 1; run <= workloadFires; run += 1) {
       const intent = {
         schedule: job,
         runId: `${job.id}:${String(run)}`,
@@ -349,9 +393,9 @@ describe('bounded schedule generations', () => {
         delivery: job.delivery,
         outcome: 'ran',
         refusedActions: [],
-        cost: { usd: 0, certainty: 'exact', retainedLiabilityUsd: 0 },
+        cost: noScheduleCost(),
       })
-      if (![1, 10, 100, 1000, 10_000].includes(run)) continue
+      if (![1, 10, 100, workloadFires].includes(run)) continue
 
       const pointer = z
         .object({ generation: z.string() })
@@ -379,10 +423,10 @@ describe('bounded schedule generations', () => {
     expect(await store.claim(`${job.id}:1`)).toBe(false)
     expect(await store.pending(job.workspaceKey)).toEqual([])
     const [counted] = await store.list(job.workspaceKey)
-    expect(counted?.fireCount).toBe(10_000)
+    expect(counted?.fireCount).toBe(workloadFires)
     process.stdout.write(`M115 storage growth: ${JSON.stringify(rows)}\n`)
-    // A deliberate 10,000-fire production-storage workload, not a normal unit operation.
-  }, 240_000)
+    // A deliberate 1,000-fire production-storage workload (about 7 s, 15 s under coverage on Kubuntu).
+  }, 60_000)
   it('retains fences through the schedule lifetime and grace, then removes them without recycling the identifier', async () => {
     const fs = new MemoryScheduleFs()
     const store = createScheduleStore(fs)
@@ -417,7 +461,7 @@ describe('bounded schedule generations', () => {
       delivery: job.delivery,
       outcome: 'ran',
       refusedActions: [],
-      cost: { usd: 0, certainty: 'exact', retainedLiabilityUsd: 0 },
+      cost: noScheduleCost(),
     })
     await store.maintain(job.workspaceKey, job.createdAtMs + SCHEDULE_AUDIT_MAX_AGE_MS + 1)
     expect(await store.fires(job.workspaceKey)).toEqual([])

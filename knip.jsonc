@@ -24,7 +24,7 @@
     "test/harness/reporting/verify.mjs",
     "src/extension.ts",
     "src/core/resources/resourceGovernorEntry.ts",
-    "src/core/resources/admission.ts",
+    "src/core/resources/admissionEntry.ts",
     "src/runtime/exec/runExec.ts",
     "src/runtime/runtimeAccountingEntry.ts",
     "src/runtime/runtimeEngineEntry.ts",
@@ -52,7 +52,9 @@
     // The help generator bundles this catalog in memory, then imports its export.
     "src/shared/featureCatalog.ts",
     "src/shared/estimateContractsEntry.ts",
-    "src/shared/modelApiBoundariesEntry.ts",
+    "src/core/nodeBoundariesEntry.ts",
+    // M107 W2's resource journal, shared by the governor and the usage service (INT0170).
+    "src/runtime/resources/resourceJournalEntry.ts",
     // Vault schemas shared by real Node bundle readers (D6).
     "src/shared/vaultBoundariesEntry.ts",
     // Tab's lazy provider, engine and ledger (M94), loaded by path.
@@ -92,6 +94,8 @@
     // The import from other agents' own bundle (M83), required by path on the first import.
     "src/host/agentImportEntry.ts",
     "src/host/git/conversationGitEntry.ts",
+    // The Model API's session store (D14), required by path when its host is first built.
+    "src/host/backend/fileSessionStoreEntry.ts",
     // The bundled skills installer's own bundle (M89), required by path on first use.
     "src/host/skills/bundledSkillsEntry.ts",
     // Code intelligence's `ide` answers and voice's drivers, each required by
@@ -144,9 +148,12 @@
     // by path for the panel scenes and axe (`node test/harness/vault/run.mjs`).
     "test/harness/vault/main.tsx",
     "test/harness/vault/run.mjs",
+    // M115 schedule scenes: test/harness/index.html imports this page module.
+    "test/harness/schedules.mjs",
     "test/unit/**/*.test.{ts,tsx,mjs}",
     // Standalone browser checks invoked by path; usageHost is bundled by them.
     "test/harness/usage-check.mjs",
+    "test/harness/usage-resource-scenes.mjs",
     "test/harness/usage-companion.mjs",
     "test/harness/usage-accounts.mjs",
     "test/harness/usage-contrast.mjs",
@@ -156,6 +163,7 @@
     "test/e2e/**/*.test.ts",
     // DIET1 production browser smoke, invoked directly as documented in README.
     "test/e2e/webviewDiet.mjs",
+    "test/e2e/startupMoney.mjs",
     "test/e2e/fake-muse/serve.mjs",
     // The fake stdio MCP server the M50 tests start as a child process.
     "test/unit/helpers/fakeMcpServer.mjs",
@@ -176,6 +184,8 @@
     // M116 playbook scenes: the axe runner (an npm script knip already sees)
     // bundles this scene file with esbuild, which knip does not trace.
     "test/harness/playbook.mjs",
+    // LEFT017B's real optional surfaces are bundled by the golden generator.
+    "test/harness/goldens/integrated.tsx",
     "test/integration/**/*.test.ts",
     // The TypeScript fixture VS Code's language service reads in the code
     // intelligence integration test (M67); main.ts imports the rest.
@@ -197,7 +207,9 @@
     "test/**/*.{ts,tsx}",
     "test/**/*.mjs",
     "scripts/**/*.mjs",
-    "action/**/*.mjs"
+    "action/**/*.mjs",
+    // The badge Worker (infra/marketplace-hook); wrangler deploys worker.js by path.
+    "infra/**/*.js"
   ],
 
   "ignore": ["vendor/**"],

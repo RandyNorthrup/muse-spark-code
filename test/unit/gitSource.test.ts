@@ -12,6 +12,12 @@ import { redactSecrets } from '../../src/core/redact'
 import { createRuntimeReportSources } from '../../src/runtime/reporting/sources'
 
 vi.mock(import('node:child_process'), { spy: true })
+// Git metadata is a governed probe; the direct bounded execFile here still
+// reaches node:child_process, whose calls this suite inspects.
+vi.mock('../../src/core/resources/launcher', async (original) => {
+  const { withFixtureCommand } = await import('./helpers/resources/fixtureLaunch')
+  return withFixtureCommand(await original())
+})
 
 const context = () => ({
   asOf: REPORT_FIXTURE_AS_OF,

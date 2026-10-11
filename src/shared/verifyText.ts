@@ -1,6 +1,6 @@
 // The verify loop's words for the user (M68, PLAN.md D49), shared by the
 // transcript's rows and the Markdown export so both say the same (the M68
-// review): the line under a "Check edits" or "Run checks" row, and how an
+// review): the line under a "Check Edits" or "Run Checks" row, and how an
 // edit's `then_run` ended. Shared by host and webview: no `vscode`, Node or
 // DOM imports.
 
