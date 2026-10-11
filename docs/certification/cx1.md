@@ -949,3 +949,32 @@ gates on the same tree (Kubuntu): all five typecheck projects, ESLint and
 stylelint with zero warnings, knip, dpdm, jscpd at 0 clones, localization,
 reference, host API, plan, roadmap and tokens, and the production build with
 every budget row ok.
+
+## Independent check of the fix batch (RVREL0171FIX, one P3)
+
+The independent review of `6be5cc909..dbdb55a0e` found F1 and F2 closed, no P1
+or P2, and one P3: the chat refusal for `/schedule` now waits for the lazy
+prompt module, and its notice was dispatched without checking that the
+conversation was still the one the command was typed in. A command submitted
+on first use, followed by New Conversation before the module arrived, left
+"Schedules are unavailable in this host…" (or "The schedule command failed" on
+a failed load) in the new transcript.
+
+Fix (`src/webview/App.tsx`): one `isSameConversation` check (session id and
+attachment epoch at submit) guards the refusal's notice in both outcomes; the
+bound `/schedule` path uses the same function for the check it already made.
+
+Regression (`test/unit/cx1r6Chat.test.tsx`, four cases): a fresh App with the
+prompt module held pending shows the reason, or the failed-load warning, in
+the conversation the command was typed in, and shows neither after New
+Conversation was pressed before the module settled. The suite now warms the
+deferred chunks first (`warmDeferredSurfaces`, as `App.test` does): on a rig at
+load 58 its palette and refusal cases had missed Testing Library's one-second
+`findBy` deadline on cold transforms.
+
+Drill (Kubuntu, whole file, repository deadlines): with
+`if (!isSameConversation()) return` removed, both "leaves a new conversation
+without …" cases fail (2 of 9); restored byte for byte, `App.tsx` SHA-256
+`7d0eb2e32c933fcf48e3e0a9f19d880b78c506ce3f5983389726135675121c5b`. After the
+fix: `cx1r6Chat` 9 of 9 on Kubuntu; `App` 189, `webviewBundle` 57 and
+`browserEnglish` 2 on the Mac mini (the first-paint pin holds).
