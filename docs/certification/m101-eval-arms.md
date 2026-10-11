@@ -17,9 +17,9 @@ the twelve previous tasks unchanged, plus per split one long-context
 compaction task (`isLongContext`) and one two-defect multi-edit task.
 
 Current frozen digest (`evalHarnessDigest`, SHA-256 over each arm's
-guard prefix, self-contained emitted bundle and explicitly declared fixture bytes):
+entry prologue, self-contained emitted bundle and explicitly declared fixture bytes):
 
-`dc7726f6f99def7d4de9845059a90e2944adda2533a82edf96311324cffb01a3`
+`a9f74f858fc976ef837d304aabfd2debd29ad1ab95c30907ac9be19ef6a5f6f0`
 
 R7's fixture set is `armSources.ts`, `mechanisms.ts`, `runner.ts`,
 `heldDeps.ts`, `tasks.ts`, and canonical `conditions.json` (the exact selected task data,
@@ -432,6 +432,78 @@ undeclared _file_ loads stay denied by the permission grants — the
 indirect-loader and file-read suites stay green. That is exactly the
 review's threat model: grants never confined `node:sqlite`, so the
 allowlist has to.
+
+### R9 repairs (2026-10-11, linuxlt; review RVCM1012I findings 1–3)
+
+**Lead threat model (decision, recorded in PLAN.md M101; it settles the
+class the last three reviews kept reopening):** the evaluation arms are
+this project's own reviewed code. The fence exists to catch accidental
+undeclared inputs (a forgotten fixture, a stray import, a file read
+outside the frozen set), so that the digest truly describes what ran. A
+deliberately hostile arm (computed module names, process internals,
+native add-ons) is out of scope: an arm is changed only through review,
+and the digest changes with it. Under that model the enforcement that
+counts is static and complete; the run-time layer is Node's permission
+flags for the file system only; and the Node floor names the exact
+minimum versions with the flags. This section supersedes R8's run-time
+guard design (the `vm` sandbox is gone) and corrects its metafile claim.
+
+Finding 1 (P2, the guard claims what it does not do): `armGuardSource`,
+its `vm` context and the bundle marker are deleted from
+`src/core/eval/armSources.ts`. The bundle entry calls `run` with the arm
+name from `argv` and writes exactly one JSON value to `stdout`, in the
+child host context — it confines nothing by itself, and its comment says
+so. The comments in `armSources.ts` and `src/shared/constants.ts`, the
+README live-eval row and this record now state plainly what each layer
+does and does not do: the freeze-time allowlist stops accidental
+undeclared imports, the permission grants stop undeclared file reads and
+loads, and neither stops a deliberately hostile arm. No claim remains
+anywhere that the run-time layer stops a determined arm.
+
+Finding 2 (P3, bare built-ins freeze and the false metafile reason): the
+build sets `metafile: true` and `refuseNonAllowlistedBuiltinImports`
+reads the same build's own metafile — never a second resolver. Correction
+to the R8 record above: its reason for skipping the metafile was false.
+`outputs[].imports` is indeed empty for the CJS bundle, but the external
+loads live in `inputs[*].imports` with `external: true` (probed on this
+rig: `node:`-prefixed, bare `os`/`crypto`/`process`, `require()` kinds,
+and the `node:fs/../sqlite` dodge). Every external there must base to an
+allow-listed name — bare and `node:` spellings alike, so
+`EVAL_ARM_DENIED_BARE_BUILTINS` is deleted and no deny-list can miss one —
+and a `..` segment fails too. Computed loader names never reach the
+metafile; they are outside the threat model above.
+
+Finding 3 (P3, the 23.0–23.4 line): `requireEvalArmRuntime` accepts
+22.13+, 23.5+ and later majors, and refuses everything else — including
+23.0–23.4, which still gate the flags behind `--experimental-permission`
+— with a message naming both minimums (`22.13.0`, `23.5.0`). The README
+live-eval row names both; the product `engines` floor stays `>=22`.
+
+| Finding                                            | Fix                                                                                    | Regression                                                                                                                                                                                                                                                                                                                     |
+| -------------------------------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| I1 P2 guard claims it does not keep                | `vm` guard deleted; entry prologue confines nothing and says so; every claim corrected | `covers the entry prologue with the frozen digest`; `maps an undeclared file read at run time to a failed task, never a pass`; `blocks dynamic require and computed import of undeclared files at runtime`; rewritten `blocks the whole indirect-loader class` and `blocks module-relative reads` (file grants, not the guard) |
+| I2 P3 bare built-ins freeze; false metafile reason | Metafile allow-list refusal; deny-list deleted; `..` refused                           | `refuses a non-allowlisted built-in at freeze time` (now incl. bare `os`/`crypto`/`process`, `node:test`, `node:fs/../sqlite`); `refuses workers and child processes at freeze time`; `enforces the allowlist from the bundler metafile, with no scanner cast`                                                                 |
+| I3 P3 23.0–23.4 wrongly admitted                   | Exact floors 22.13.0 and 23.5.0, both named in the refusal                             | `refuses to run on a Node without the permission flags and names the minimum` (now incl. `v23.0.0`/`v23.4.0` refused, `v23.5.0`/`v23.6.1` admitted)                                                                                                                                                                            |
+
+R9 re-freeze: review RVCM1012I findings 1–3. The guard prefix is gone and
+the entry prologue is hashed in its place, so all four arm snapshots and
+the harness receipt move from `dc7726f6…fb01a3` to `a9f74f85…5f6f0`
+(recorded here, in `test/unit/eval/evalFrozen.test.ts` and in PLAN.md's
+M101 status line). No arm, task, fixture set or production byte changed
+for behavior: the other five frozen-harness tests pass unchanged, and the
+four pinned arms execute under the new entry.
+
+Every drill runs the complete owning file at repository timeouts, sees the
+named regression fail, then restores the edited file byte-exact. SHA-256
+is compared against the pre-drill bytes after each restoration
+(`src/core/eval/armSources.ts` `f0fa1f4d…796a30f`,
+`src/shared/constants.ts` `5a44dd67…021ea0d` — all `OK`).
+
+| Drill | Deliberate break                      | Named assertion                                                                                           | Result                   | Restored SHA-256              |
+| ----- | ------------------------------------- | --------------------------------------------------------------------------------------------------------- | ------------------------ | ----------------------------- |
+| R9-D1 | Freeze refusal neutered: early return | `refuses workers and child processes at freeze time`; `refuses a non-allowlisted built-in at freeze time` | 2 failed, 19 passed (21) | armSources `f0fa1f4d…796a30f` |
+| R9-D2 | Version gate neutered: early return   | version-floor test                                                                                        | 1 failed, 20 passed (21) | armSources `f0fa1f4d…796a30f` |
+| R9-D3 | Allowlist widened: `sqlite` added     | `refuses a non-allowlisted built-in at freeze time` (the sqlite case)                                     | 1 failed, 20 passed (21) | constants `5a44dd67…021ea0d`  |
 
 Final verification on linuxlt: **443 tests in 18 complete files pass**,
 `npx vitest run <files> --maxWorkers=3`, at most three files per invocation,
