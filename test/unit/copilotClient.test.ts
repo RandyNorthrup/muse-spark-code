@@ -786,6 +786,35 @@ describe('Copilot VS Code client', () => {
     )
   })
 
+  it('accepts a catalogue request id against a session confirmation id', async () => {
+    // RVCM1062G P3: the session stores `copilot/<id>` while a request may
+    // carry the catalogue `<id>`; both name this adapter's model.
+    const tester = rig()
+    const connected = await client(tester)
+    const started = vi.fn()
+    const events: unknown[] = []
+    const stream = connected.streamResponse(
+      { ...body(), model: 'synthetic-model' },
+      new AbortController().signal,
+      undefined,
+      undefined,
+      Object.assign(vi.fn(), { onRequestStarted: started }),
+      {
+        modelId: 'copilot/synthetic-model',
+        keyDigest: 'synthetic',
+        isStillAllowed: () => true,
+        onRequestStarted: vi.fn(),
+      },
+    )
+    for await (const event of stream) {
+      expect(streamEventSchema.safeParse(event).success).toBe(true)
+      events.push(event)
+    }
+    expect(tester.model.sendRequest).toHaveBeenCalledTimes(1)
+    expect(events.length).toBeGreaterThan(0)
+    expect(started).toHaveBeenCalledTimes(1)
+  })
+
   it('refuses requests exceeding the selected model window before dispatch', async () => {
     const tester = rig()
     vi.mocked(tester.model.countTokens).mockResolvedValue(600)
