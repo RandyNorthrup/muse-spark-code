@@ -22,6 +22,9 @@ import * as vscode from 'vscode'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { canonicalPath } from '../../src/host/canonicalPath'
 import { createGitProcess, GitExitError, type GitProcess } from '../../src/host/git'
+import { resolveExecutable } from '../../src/core/executables'
+import * as launcher from '../../src/core/resources/launcher'
+import { ResourcePausedError } from '../../src/core/resources/launch'
 import type { GitSurface } from '../../src/host/conversation/conversationController'
 import { createConversationGit } from '../../src/host/git/conversationGitEntry'
 import { readNativeStatus } from '../../src/core/git/status'
@@ -522,6 +525,36 @@ describe('createRuntimeGit', () => {
       level: 'warning',
       text: UI_TEXT.gitRestricted,
     })
+  })
+
+  it('notices a refused launch in its own words', async () => {
+    const scratch = makeDirtyRepo()
+    try {
+      const gitPath = resolveExecutable('git', {
+        platform: process.platform,
+        pathVariable: process.env['PATH'],
+        fileExists: existsSync,
+      })
+      if (gitPath === undefined) {
+        throw new Error('the tests need git on PATH')
+      }
+      const fake = fakeSurface()
+      const { deps } = fakeRuntimeGitDeps(scratch.dir, { gitPath })
+      // The production governed launch, refused by the governor.
+      const git = createRuntimeGit(fake.surface, deps)
+      vi.spyOn(launcher, 'execResourceFile').mockRejectedValue(new ResourcePausedError())
+      try {
+        await git.handleAction('openCommit')
+      } finally {
+        vi.restoreAllMocks()
+      }
+      expect(fake.notices).toContainEqual({
+        level: 'warning',
+        text: UI_TEXT.gitMachineBusy,
+      })
+    } finally {
+      scratch.cleanup()
+    }
   })
 
   // RVM123G's findings, each against the real git on scratch repositories.

@@ -51,7 +51,7 @@ import {
 } from '../../../shared/constants'
 import { fill, formatBytes } from '../../../shared/l10n/text'
 import { execResourceFile, spawnResourceProcess } from '../../../core/resources/launcher'
-import { isGovernedRefusal, type ResourcePipedProcess } from '../../../core/resources/launch'
+import { isGovernedRefusal } from '../../../core/resources/launch'
 import { GitHubClient, isCommitSha, type PullRequest } from '../../../core/git/github'
 import { repositoryLabel } from '../../../core/git/githubRemote'
 import {
@@ -253,14 +253,18 @@ export interface GitStartOptions {
   readonly detached: boolean
 }
 
+/** A started batch child: a process with piped standard streams. */
+export type GitBatchChild = ChildProcess & {
+  readonly stdin: NonNullable<ChildProcess['stdin']>
+  readonly stdout: NonNullable<ChildProcess['stdout']>
+  readonly stderr: NonNullable<ChildProcess['stderr']>
+}
+
 /**
  * How git processes start: the governed launcher's, or a test's that
  * records each start. A launch the governor would not run rejects with
  * its own translated reason.
  */
-/** A started batch child: piped standard streams, owned by its governor tree. */
-export type GitBatchChild = ResourcePipedProcess['child']
-
 export interface GitProcessPort {
   /** Runs to completion; resolves with the standard output. */
   run(file: string, args: readonly string[], options: GitRunOptions): Promise<string>
@@ -280,6 +284,8 @@ function governedCheckoutRefusal(): Error {
 /** Node's processes through the governed launcher: explicit argument arrays, no shell. */
 export const nodeGitProcesses: GitProcessPort = {
   run: async (file, args, options) => {
+    // Refused before git starts, as node's launch with an aborted signal is.
+    options.signal.throwIfAborted()
     const call = {
       cwd: options.cwd,
       env: options.env,
@@ -296,6 +302,8 @@ export const nodeGitProcesses: GitProcessPort = {
           : await execResourceFile('probe', file, args, call)
       return launched.stdout
     } catch (error: unknown) {
+      // Cancel stays Cancel, even past a governor refusal.
+      options.signal.throwIfAborted()
       if (isGovernedRefusal(error)) {
         throw governedCheckoutRefusal()
       }
@@ -317,6 +325,8 @@ export const nodeGitProcesses: GitProcessPort = {
     }
   },
   start: async (file, args, options) => {
+    // The held batch never spawns its child once Cancel landed.
+    options.signal.throwIfAborted()
     try {
       const launched = await spawnResourceProcess('probe', file, args, {
         cwd: options.cwd,
@@ -326,6 +336,7 @@ export const nodeGitProcesses: GitProcessPort = {
       })
       return launched.child
     } catch (error: unknown) {
+      options.signal.throwIfAborted()
       if (isGovernedRefusal(error)) {
         throw governedCheckoutRefusal()
       }

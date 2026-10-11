@@ -120,6 +120,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The panel Git service and the pull-request checkout launch git through
+  the resource governor (reads take the probe profile, writes take
+  contained) instead of raw process spawns. A launch the governor would
+  not run now reaches the panel as its own reason ("Git could not run
+  because the machine is busy. Try again.") instead of a generic
+  failure, and Cancel still cancels silently. The spawn inventory lists
+  all 111 process sites, including the file-lease liveness probe as a
+  considered direct-launch exemption.
 - Local report sources sort every tied list to a total order, so the same
   inputs produce byte-identical source facts whatever order records arrive
   in: Git commits, tags, branches and worktrees break key ties on their

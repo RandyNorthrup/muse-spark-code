@@ -385,12 +385,13 @@ async function governedGitRun(
     if (error instanceof NativeGitRefusalError) {
       throw error
     }
+    // Cancel stays Cancel, even past a governor refusal.
+    if (options.signal?.aborted === true) {
+      throw new Error(`git ${subcommand} was stopped: the window is closing`, { cause: error })
+    }
     const busy = governedRefusalOf(error)
     if (busy !== undefined) {
       throw new NativeGitRefusalError(busy)
-    }
-    if (options.signal?.aborted === true) {
-      throw new Error(`git ${subcommand} was stopped: the window is closing`, { cause: error })
     }
     if (deadline.aborted) {
       throw new Error(`git ${subcommand} timed out after ${String(options.timeoutMs)} ms`, {
