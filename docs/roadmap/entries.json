@@ -772,7 +772,7 @@
     {
       "id": "M104",
       "title": "Every feature in every editor",
-      "summary": "Shared contract and distribution guards pass for the experimental native and companion panels and LSP; bundle and security gates, ACP fixtures, native MHP 1.5 qualification, installed-editor receipts and resource-chip parity still block qualification.",
+      "summary": "Shared contract, distribution and JetBrains diagnostic tests pass; experimental panels and LSP still need bundle and security gates, ACP fixes, native qualification, installed-editor receipts and resource parity.",
       "area": "editors",
       "labels": ["experimental", "untested"]
     },
