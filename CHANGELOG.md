@@ -7,6 +7,8 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Bind captured engine team discovery, provider ceilings, saved effort/output controls and portable team lifecycle, switch and bounded Idle hook firing; keep unavailable workers and unbound controls absent.
+
 - Bind paid team planning previews to one consent popup, shared daily admission and per-attempt settlement, with an explicit cost/liability tally and cancellation.
 
 ### Added

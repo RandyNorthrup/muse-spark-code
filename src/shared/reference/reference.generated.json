@@ -133,7 +133,7 @@
       "summary": {
         "conditions": [
           {
-            "when": "teamWorkerBinding=absent|teamConfigurationBinding=absent|teamPreview=paid",
+            "when": "teamWorkerBinding=engine|teamConfigurationBinding=captured|teamPreview=paid",
             "text": { "ui": "referenceTeamConfiguration" }
           }
         ]
@@ -141,7 +141,7 @@
       "description": {
         "conditions": [
           {
-            "when": "teamWorkerBinding=absent|teamConfigurationBinding=absent|teamPreview=paid",
+            "when": "teamWorkerBinding=engine|teamConfigurationBinding=captured|teamPreview=paid",
             "text": { "ui": "referenceTeamConfiguration" }
           }
         ]

@@ -700,7 +700,7 @@
     {
       "id": "M96",
       "title": "Agent roles and teams",
-      "summary": "Hidden Roles/Agents have first-time setup, composer and budget/history reads, saved charters and new-conversation overrides; captured discovery and paid Try still need integration.",
+      "summary": "Hidden Roles/Agents bind saved charters, conversation overrides, paid Try, captured engine discovery and lifecycle hooks; scheduler, new-file workers, advanced controls and VS Code composition certification remain open.",
       "area": "agents"
     },
     {

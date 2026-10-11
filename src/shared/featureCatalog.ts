@@ -40,7 +40,7 @@ const UI_CONDITIONS: Readonly<
   referenceSecretPrompt: 'secretDetected',
   referenceTabMenu: 'copilotYield',
   referenceTeamConfiguration:
-    'teamWorkerBinding=absent|teamConfigurationBinding=absent|teamPreview=paid',
+    'teamWorkerBinding=engine|teamConfigurationBinding=captured|teamPreview=paid',
   referenceConversationActions: 'turnState',
   referencePermissionLimits: 'backend&permissionMode&autoReviewer',
   museCodeReviewerNotice: 'permissionMode=auto&museCodeAutoReviewer=true',

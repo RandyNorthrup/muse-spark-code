@@ -24058,10 +24058,12 @@ live) and the controller filters its id as well.
 
 ### M96 — Agent roles and the team (D75)
 
-**CM963JR2 reviewed join (2026-10-11, kubuntu).** The owner authorizes
+CM963JR2 binds captured engine discovery, installed Muse discovery with honest unavailable-worker omissions, documented Meta and observed provider ceilings, and session-carried effort/output controls. Unsupported advanced settings refuse worker dispatch; thinking budgets, sampling, parallel calls and context caps remain absent pending their transport bindings. The team host fires lifecycle, selected-entry switch and bounded same-delegation Idle hooks through its portable port; scheduler stall reassignment remains CM96C1. This lane does not enable the hidden setting. Native editor bindings remain C-M96-5/M96b.
+
+**CM963JR2 reviewed join (2026-10-11, kubuntu).**
 CM963JR2 Port 5 binds one paid planning preview over a frozen draft, with tool declaration and dispatch restricted by the host, once-before-spend consent naming exact tariffs and the shared daily budget, engine per-attempt admission/settlement, a three-attempt ceiling, cancellation and an explicit charged/retained-liability tally. It creates its own planning conversation rather than borrowing a parent worker allowance. Native editor adapters remain with C-M96-5; without a preview port Try is absent.
 
-merging Models split `b92fab054`, engine `efbace8f8`, Roles `6cedc5ffd` and
+The owner authorizes merging Models split `b92fab054`, engine `efbace8f8`, Roles `6cedc5ffd` and
 hooks `20a6de0f4`, each with normal hooks. Retain team-gated navigation and
 ordered validated messages. The Models split exposes the Roles editor's
 previously shared dependencies: load its per-role editor on first use under
@@ -38267,6 +38269,8 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**CM963JR2 qualification (2026-10-11, kubuntu).** Aggregate quality and the broad dependent-suite matrix remain lead-owned under the explicit common brief. Installed VS Code ran the new saved-team composition fixture three times. It reached a real worker branch and automatic review; the last assertion rejects the expected review-start refusal. The two-fix stop rule ended that path, so acceptance is not certified. The fixture and precise next assertion are retained for the lead; no hidden feature is enabled. Scheduler CM96C1, new-file worker CM963NF, unsupported advanced settings, external/Muse worker bindings and native editor bindings remain explicit prerequisites.
 
 **CM963J join qualification (2026-10-11, kubuntu).** The explicit rig/common
 brief forbids aggregate quality and leaves native Mac/Windows editor replay
