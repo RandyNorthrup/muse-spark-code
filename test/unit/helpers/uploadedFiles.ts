@@ -37,7 +37,9 @@ export function fakeUploadedFilesLedger(report: UploadedFilesReport) {
   return {
     read: vi.fn(() => Promise.resolve(report)),
     accountReport: vi.fn(() => Promise.resolve(report)),
+    post: vi.fn(),
     deleteFile: vi.fn(() => Promise.resolve()),
     deleteAllOurs: vi.fn(() => Promise.resolve()),
+    confirmForeign: vi.fn(() => Promise.resolve(false)),
   }
 }
