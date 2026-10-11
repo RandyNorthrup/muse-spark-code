@@ -50,7 +50,7 @@ function stubRegistry(version: string) {
   // channels down the public fetch too, so the fake answers them honestly
   // (404: this fixture was never published there) beside the npm document.
   const seen: string[] = []
-  const fetch = vi.fn((url: string) => {
+  const fetch = vi.fn((url: string, _init?: { method?: string; body?: unknown }) => {
     seen.push(url)
     return Promise.resolve(
       url.startsWith('https://registry.npmjs.org/')
