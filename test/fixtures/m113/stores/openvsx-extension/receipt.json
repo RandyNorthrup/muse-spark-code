@@ -1,0 +1,51 @@
+{
+  "capturedAtUtc": "2026-10-11T17:17:40.164Z",
+  "id": "openvsx",
+  "lane": "CM1136",
+  "source": "openvsx-extension",
+  "method": "GET",
+  "url": "https://open-vsx.org/api/RandyNorthrup/muse-spark-code",
+  "httpStatus": 200,
+  "httpStatusText": "OK",
+  "contentType": "application/json",
+  "contentEncodingOnWire": "identity (none requested)",
+  "elapsedMs": 272,
+  "body": {
+    "file": "response.body.json",
+    "bytes": 4144,
+    "sha256": "9183d8a932adc6f825a34d226052a159d2b64ac193645bef594506c9be7467f1",
+    "bytesBeforeScrub": 4144,
+    "parsesAsJson": true,
+    "exceedsProduct2MiBBound": false
+  },
+  "tool": "node:https, Node v24.20.0 on win32 (capture.mjs sha256 397e8730135edc2bf22965af19d1aa14cb74b5157accfa757808d9991a2e40bb)",
+  "authenticationNeeded": false,
+  "credentialsSent": "none",
+  "scrubbed": {
+    "responseHeaders": "allowlist; values of kept headers scrubbed like the body",
+    "droppedHeaderNames": [
+      "access-control-allow-origin",
+      "connection",
+      "content-security-policy",
+      "strict-transport-security",
+      "via",
+      "x-cache",
+      "x-cache-hits",
+      "x-content-type-options",
+      "x-frame-options",
+      "x-served-by",
+      "x-timer",
+      "x-xss-protection"
+    ],
+    "keptHeaderValueReplacements": 0,
+    "bodyEmailReplacements": 0,
+    "bodyTokenReplacements": 0,
+    "bodyTokenKinds": [],
+    "bodyJsonPathsChanged": [],
+    "markers": {
+      "email": "<email-redacted>",
+      "token": "<token-redacted>"
+    },
+    "otherwise": "byte-exact"
+  }
+}

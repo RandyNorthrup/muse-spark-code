@@ -1,0 +1,48 @@
+{
+  "capturedAtUtc": "2026-10-11T17:17:42.087Z",
+  "id": "npm-latest",
+  "lane": "CM1136",
+  "source": "npm-latest",
+  "method": "GET",
+  "url": "https://registry.npmjs.org/muse-spark-code-acp/latest",
+  "httpStatus": 200,
+  "httpStatusText": "OK",
+  "contentType": "application/json",
+  "contentEncodingOnWire": "identity (none requested)",
+  "elapsedMs": 190,
+  "body": {
+    "file": "response.body.json",
+    "bytes": 2357,
+    "sha256": "265b730e8470348d98353c82f4b10aeeb24e5bd14e210f7833fdfc2d12bb47ef",
+    "bytesBeforeScrub": 2377,
+    "parsesAsJson": true,
+    "exceedsProduct2MiBBound": false
+  },
+  "tool": "node:https, Node v24.20.0 on win32 (capture.mjs sha256 397e8730135edc2bf22965af19d1aa14cb74b5157accfa757808d9991a2e40bb)",
+  "authenticationNeeded": false,
+  "credentialsSent": "none",
+  "scrubbed": {
+    "responseHeaders": "allowlist; values of kept headers scrubbed like the body",
+    "droppedHeaderNames": [
+      "access-control-allow-origin",
+      "cf-cache-status",
+      "cf-ray",
+      "connection",
+      "server",
+      "set-cookie"
+    ],
+    "keptHeaderValueReplacements": 0,
+    "bodyEmailReplacements": 2,
+    "bodyTokenReplacements": 0,
+    "bodyTokenKinds": [],
+    "bodyJsonPathsChanged": [
+      "$._npmUser.email",
+      "$.maintainers[].email"
+    ],
+    "markers": {
+      "email": "<email-redacted>",
+      "token": "<token-redacted>"
+    },
+    "otherwise": "byte-exact"
+  }
+}
