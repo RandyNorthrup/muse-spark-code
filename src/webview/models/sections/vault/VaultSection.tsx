@@ -18,19 +18,59 @@ export interface VaultSectionProps {
   readonly newId?: () => string
 }
 
+/**
+ * The card names the vault's real state first: a vault that is not created,
+ * still pending setup, or lost never asks for an unlock and never claims a
+ * protection its slots cannot give (RVCM1091D P2). Only a locked vault names
+ * an unlock; only an observed slot names a protection.
+ */
 export function tierWarning(status: VaultStatus): string {
+  if (status.state === 'uncreated') return UI_TEXT.vault.setupNeeded
+  if (status.state === 'setupPending') return UI_TEXT.vault.setupPending
+  if (status.state === 'unavailable' || status.reason === 'vaultLost')
+    return UI_TEXT.vault.vaultLost
   if (status.reason === 'brokerBlocked' || status.state === 'firstPartyOnly')
     return UI_TEXT.vault.brokerBlocked
   if (status.reason === 'rollback') return UI_TEXT.vault.rollback
   if (status.reason === 'basicText') return UI_TEXT.vault.basicText
   if (status.reason === 'auditInvalid') return UI_TEXT.vault.auditInvalid
   if (status.reason === 'slotUnavailable') return UI_TEXT.vault.slotUnavailable
-  // A null tier means no slot has been observed (a locked vault), not OS-store protection.
-  if (status.tier === null) return UI_TEXT.vault.unknownTierWarning
+  // A null tier means no slot has been observed, not OS-store protection.
+  // Only a locked vault can ask for the unlock that would reveal it.
+  if (status.tier === null)
+    return status.state === 'locked' ? UI_TEXT.vault.unknownTierWarning : UI_TEXT.vault.tierUnknown
   if (status.tier === 'passphrase') return UI_TEXT.vault.passphraseWarning
   if (status.tier === 'recovery') return UI_TEXT.vault.recoveryWarning
   if (status.tier === 'presence') return UI_TEXT.vault.presenceTierWarning
   return status.tier === 'hardware' ? UI_TEXT.vault.hardwareWarning : UI_TEXT.vault.osStoreWarning
+}
+
+/**
+ * Every vault state has its own true heading, from the core's typed states:
+ * a new state that is not added here fails the build instead of falling
+ * through to 'Locked' (RVCM1091D P2).
+ */
+export function vaultStateHeading(status: VaultStatus): string {
+  switch (status.state) {
+    case 'unlocked': {
+      return UI_TEXT.vault.unlocked
+    }
+    case 'locked': {
+      return UI_TEXT.vault.locked
+    }
+    case 'uncreated': {
+      return UI_TEXT.vault.stateUncreated
+    }
+    case 'setupPending': {
+      return UI_TEXT.vault.stateSetupPending
+    }
+    case 'unavailable': {
+      return UI_TEXT.vault.stateUnavailable
+    }
+    case 'firstPartyOnly': {
+      return UI_TEXT.vault.firstParty
+    }
+  }
 }
 
 /** M95 mounts this lazy section; M104/companion render exactly the same value-free controls. */
@@ -64,7 +104,7 @@ export function VaultSection({
   return (
     <section className="vault-section" aria-label={UI_TEXT.vault.title}>
       <h2>
-        {UI_TEXT.vault.title} — {isUnlocked ? UI_TEXT.vault.unlocked : UI_TEXT.vault.locked}
+        {UI_TEXT.vault.title} — {vaultStateHeading(state.status)}
       </h2>
       <div className="vault-tier" role="status">
         <p>{tierWarning(state.status)}</p>
@@ -81,9 +121,10 @@ export function VaultSection({
           {UI_TEXT.vault[notice]}
         </p>
       ))}
+      {/* The tier card above already names the lost, uncreated and pending
+          states with their own sentences; here only the Reset action remains. */}
       {isLost && (
         <div className="vault-actions">
-          <p role="status">{UI_TEXT.vault.vaultLost}</p>
           <button
             type="button"
             onClick={() => {
@@ -93,9 +134,6 @@ export function VaultSection({
             {UI_TEXT.vault.resetVault}
           </button>
         </div>
-      )}
-      {(isUncreated || isSetupPending) && (
-        <p role="status">{isUncreated ? UI_TEXT.vault.setupNeeded : UI_TEXT.vault.setupPending}</p>
       )}
       <div className="vault-actions">
         {isUncreated || isSetupPending ? (

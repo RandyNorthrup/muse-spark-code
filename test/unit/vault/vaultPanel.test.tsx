@@ -189,7 +189,8 @@ describe('U Vault section', () => {
         post={post}
       />,
     )
-    expect(screen.getByText(UI_TEXT.vault.vaultLost)).toHaveAttribute('role', 'status')
+    // RVCM1091D P2: the tier card names the lost vault once, with no second copy.
+    expect(screen.getByText(UI_TEXT.vault.vaultLost)).toBeInTheDocument()
     const reset = screen.getByRole('button', { name: UI_TEXT.vault.resetVault })
     expect(reset).toBeEnabled()
     reset.focus()
@@ -210,7 +211,8 @@ describe('U Vault section', () => {
     state.status.state = 'uncreated'
     const post = vi.fn()
     const view = render(<VaultSection state={state} post={post} />)
-    expect(screen.getByText(UI_TEXT.vault.setupNeeded)).toHaveAttribute('role', 'status')
+    // RVCM1091D P2: the tier card names the uncreated vault once, with no second copy.
+    expect(screen.getByText(UI_TEXT.vault.setupNeeded)).toBeInTheDocument()
     const setup = screen.getByRole('button', { name: UI_TEXT.vault.setUp })
     expect(setup).toBeEnabled()
     fireEvent.click(setup)
