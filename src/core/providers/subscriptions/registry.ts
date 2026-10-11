@@ -19,10 +19,14 @@ import { responses, modelRef, recordPlanUsage } from '../../../host/backend/prov
 const { ChatgptPlanLimitError, createResponsesCodec, ResponsesOutputCapError } = responses
 const { parseModelRef } = modelRef
 import {
+  MILLISECONDS_PER_SECOND,
   MODEL_API_REQUEST_TIMEOUT_MS,
+  MODEL_API_STREAM_IDLE_MS,
   SUBSCRIPTION_STREAM_MAX_BYTES,
   UI_TEXT,
 } from '../../../shared/constants'
+import { fill } from '../../../shared/l10n/text'
+import { DeadlineError, withDeadline } from '../../timeouts'
 import type { ProvidersFile } from '../providersFile'
 import { type ChatGptSignIn, ChatGptSignInError, chatGptRecordSchema } from './chatgpt'
 import type { PlanUsageRow } from './planUsage'
@@ -128,6 +132,12 @@ export interface SubscriptionRegistryDeps {
   readonly loadUsage?: () => readonly PlanUsageRow[]
   readonly saveUsage?: (rows: readonly PlanUsageRow[]) => void
   readonly copilotUsage?: () => readonly PlanUsageRow[]
+  /**
+   * How long the ChatGPT stream may send nothing, headers or frames, before
+   * it is ended (MODEL_API_STREAM_IDLE_MS when absent). It is the only time
+   * limit on that stream: there is no limit on its total.
+   */
+  readonly streamIdleMs?: number
 }
 
 /** Routes the existing canonical tool loop; image extras still use the separate Meta key. */
@@ -240,23 +250,38 @@ export function createSubscriptionClient(
         const signIn = await deps.chatgpt()
         const token = await signIn.accessToken(RESPONSES_URL, MODEL_API_REQUEST_TIMEOUT_MS)
         const stop = new AbortController()
+        // No limit on the stream's total time. Silence ends it: the wait for
+        // headers and every wait for a frame has the idle limit.
+        const idleMs = deps.streamIdleMs ?? MODEL_API_STREAM_IDLE_MS
+        const withinIdle = async <T>(waiting: Promise<T>): Promise<T> => {
+          try {
+            return await withDeadline(
+              waiting,
+              idleMs,
+              fill(UI_TEXT.modelApiStalled, {
+                seconds: Math.round(idleMs / MILLISECONDS_PER_SECOND),
+              }),
+            )
+          } catch (error) {
+            if (error instanceof DeadlineError) stop.abort()
+            throw error
+          }
+        }
         const codec = createResponsesCodec({ profile: 'chatgpt', toolNamespace: 'functions' })
         const request = codec.encodeRequest({ ...body, model: ref.modelId })
         admitAttempt?.(await deps.accountId())
         if (signal.aborted) throw signal.reason
         admitAttempt?.onRequestStarted?.()
         isDispatched = true
-        const response = await deps.fetch(RESPONSES_URL, {
-          method: 'POST',
-          redirect: 'error',
-          signal: AbortSignal.any([
-            signal,
-            stop.signal,
-            AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
-          ]),
-          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify(request),
-        })
+        const response = await withinIdle(
+          deps.fetch(RESPONSES_URL, {
+            method: 'POST',
+            redirect: 'error',
+            signal: AbortSignal.any([signal, stop.signal]),
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(request),
+          }),
+        )
         if (!response.ok || response.body === null) throw new Error(UI_TEXT.acpChatGpt.failure)
         // The captured endpoint streams SSE without Content-Type. Never branch on that header.
         const reader = response.body.getReader()
@@ -264,7 +289,7 @@ export function createSubscriptionClient(
           let receivedBytes = 0
           try {
             for (;;) {
-              const next = await reader.read()
+              const next = await withinIdle(reader.read())
               if (next.done) return
               const chunk = z.instanceof(Uint8Array).parse(next.value)
               receivedBytes += chunk.byteLength
@@ -316,6 +341,11 @@ export function createSubscriptionClient(
         if (signal.aborted) throw error
         if (ref.providerId === 'copilot' && error instanceof Error) {
           yield { type: 'error', message: error.message }
+          return
+        }
+        if (error instanceof DeadlineError) {
+          // Only the ChatGPT idle limit above raises it: the user is told the stream went silent.
+          yield { type: 'error', code: 'request-failed', message: error.message }
           return
         }
         const code = error instanceof ChatGptSignInError ? error.code : 'request-failed'
