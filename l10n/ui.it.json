@@ -75,6 +75,7 @@
   "resourceRelocateOffDescription": "Mantiene il lavoro su questa macchina.",
   "toolArgumentPreviewLabel": "Anteprima degli argomenti",
   "toolArgumentPreviewTruncated": "Anteprima troncata.",
+  "toolArgumentPreviewDescription": "Mostra gli argomenti degli strumenti convalidati e ripuliti man mano che arrivano, prima di eseguire lo strumento.",
   "toolArgumentPreviewPending": "In attesa degli argomenti completi…",
   "toolArgumentPreviewPreparing": "Preparazione degli argomenti…",
   "modelApiContinuing": "È stato raggiunto il limite di output. Continuazione per una sola volta…",

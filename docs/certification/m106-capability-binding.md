@@ -28,7 +28,7 @@ entry (`src/host/backend/modelApiEntry.ts`), which every host loads:
   supplier reads the stash first. Bare Meta models never reach the
   resolver, so they fall through to `metaOutputMaxTokens`, which now
   delegates to M95's own `modelPolicyFor` (the documented 131,072-token
-  maximum, the same record the host's clamp reads). No lane code names a
+  maximum for VS Code and interactive ACP, the same record the host's clamp reads). Headless exec binds its own resolved ceiling of at most 32,768 to preserve its worst-case reservation. No lane code names a
   model id; an unresolved model fails closed to the legacy cap.
 - Preview: `metaArgumentPreviewCapabilities` stays gated on the U9-captured
   `muse-spark-1.3-contributor` model. Evidence is the counted 2026-10-05
@@ -61,11 +61,11 @@ renders record-emitted previews, covered by the existing
 
 ## Acceptance (PLAN 31780-31826: items 1, 6, 8)
 
-| Item                       | Verdict                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1. Off means today's bytes | Unchanged: golden requests with the feature off are byte-identical (existing M91 fixtures green, untouched); the new off/on golden run proves the default-on byte diff is exactly `max_output_tokens` 32768 → 131072, nothing else.                                                                                                                                                                                               |
-| 6. Previews                | Captured U9 argument bytes drive previews through the unmanaged production path (manager → entry → host → real SSE/transport/parser): snapshots accumulate to the captured length; nothing runs, asks or calls a hook before `.done`; no preview bytes reach replay or requests. R3: declared-tool TEXT now renders from the raw 16-frame capture (see R3 record); the R2 stand-in test below stays as the undeclared-tool guard. |
-| 8. Output                  | Meta turns request 131,072, clamped by the budget; a qualified selected record with `output.maxTokens = 65536` requests 65536 through the production path; one continuation follows `max_output_tokens`, then a notice (existing L2 mechanics, unchanged). Calls in a cut-short reply are answered with an error, never run (existing).                                                                                           |
+| Item                       | Verdict                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1. Off means today's bytes | Unchanged: golden requests with the feature off are byte-identical (existing M91 fixtures green, untouched); the new off/on golden run proves the default-on byte diff is exactly `max_output_tokens` 32768 → 131072, nothing else.                                                                                                                                                                                                                                                 |
+| 6. Previews                | Captured U9 argument bytes drive previews through the unmanaged production path (manager → entry → host → real SSE/transport/parser): snapshots accumulate to the captured length; nothing runs, asks or calls a hook before `.done`; no preview bytes reach replay or requests. R3: declared-tool TEXT now renders from the raw 16-frame capture (see R3 record); the R2 stand-in test below stays as the undeclared-tool guard.                                                   |
+| 8. Output                  | VS Code and interactive ACP Meta turns request 131,072, clamped by the budget; headless exec requests at most 32,768 (or the record’s smaller maximum) to preserve its worst-case reservation; a qualified selected record with `output.maxTokens = 65536` requests 65536 through the production path; one continuation follows `max_output_tokens`, then a notice (existing L2 mechanics, unchanged). Calls in a cut-short reply are answered with an error, never run (existing). |
 
 Provider × item rows: `muse-spark-1.3-contributor` on/on; other bare
 `muse-spark-*` off-preview/on-cap (cap is documented for every Muse Spark
@@ -152,8 +152,10 @@ render in VS Code and ACP only. Headless `exec` drops every
 `tool_call`/`tool_call_update` before its sink (`execClient.ts`) and its
 engine observer emits completed-tool metadata only, so it records
 completed tools and never shows live previews (pinned by the new exec
-test). The output cap binds in all three hosts: it is a request path they
-share. The suites above run on kubuntu; Windows/macOS receipts, the
+test). VS Code and interactive ACP request the documented record maximum;
+headless exec binds at most 32,768 output tokens (or the record’s smaller
+maximum) to preserve its worst-case reservation. All use the shared request
+path, with the headless run supplying its own single cap. The suites above run on kubuntu; Windows/macOS receipts, the
 `~4-turn` live check, Codex + Grok review and the M106 release checklist
 stay with the lead. The entry and selectors use no path, shell or
 platform-dependent code.
@@ -810,3 +812,119 @@ restore. Repository timeouts throughout, `--maxWorkers=3`.
   credential read, install, push, rebase or merge.
 
 No RVCM1062H finding remains open; no external blocker was encountered.
+
+## R10 — headless output cap and complete dependents (kubuntu, 2026-10-11)
+
+The owner's decision keeps headless exec at **at most 32,768 output tokens**,
+or the selected record's smaller maximum. Its ledger reserves the worst case
+before every dispatch; raising that reservation changes which existing money
+budgets can run. VS Code and interactive ACP retain the documented record
+maximum (131,072 for Muse Spark), clamped by their interactive budget.
+
+### Reproduction and repair
+
+At untouched HEAD `c113d3aae`, whole `execRun`, `execFetch` and `execClient`
+files returned **51 failed / 89 passed** (48 failures in execRun, three in
+execFetch); the separate confirmed-dispatch inventory returned **3 passed**.
+Together: **51 failed / 92 passed**. No timeout override or model call.
+The refusing check was `execFetch.ts:34`, the schema's
+`z.lte(MODEL_API_MAX_OUTPUT_TOKENS)`; its `safeParse` refusal returned
+`request_shape` before any dispatch. The shared entry supplied 131,072 while
+the schema, ledger shape check (`runLedger.ts:188`) and start reservation
+(`runExec.ts:986`) still used 32,768.
+
+`resolveExecOutputCap` in `src/runtime/exec/runLedger.ts` is the single cap
+calculation: the smaller of the selected policy maximum and exec's ceiling,
+refusing invalid maxima or anything below exec's existing 16-token minimum.
+`runExec` caches it once per run. Qualified records bind it during their
+accounting-wrapped resolution, before start admission; bare Meta models bind
+from that model's policy. The four readers are:
+
+- **Body:** `runtime/backends.ts` supplies the run's callback to
+  `ModelApiHost.outputCap`, with the exact resolved record.
+- **Schema:** `execFetch` builds its request validator at request time against
+  `ledger.outputCap`, after selection has resolved (never at transport setup).
+- **Ledger:** `admitResponse` checks `m > outputCap()` against the same getter supplier.
+- **Start reservation:** `runExec` calls `previewResponseReservation`, which
+  quotes a separate undispatched ledger with the same `ledger.outputCap`.
+
+The documented worst-case quote is unchanged for Meta: 0.108135 USD on the
+contributor tier at 32,768 tokens. The actual real-runtime/ACP/manager/client
+D1 run is admitted and asserts its request body carries 32,768 even though
+that model's record maximum is 131,072. Every one of the **669 catalogue
+model fixtures** also passes through the real runtime manager and client:
+body cap, schema admission/refusal before ledger access, ledger ticket cap,
+and the actual start-reservation helper agree; smaller records use their own
+maximum. Six invalid/minimum fixtures exercise refusal, with no live metadata.
+
+The first repaired exec replay revealed two further branch regressions:
+D3 and D25 wrote their files but reported empty `filesChanged`. A preview
+announces a tool before full arguments exist, with empty locations. ACP now
+carries locations when complete arguments promote that preview, and the exec
+client refreshes tracked edit locations before completion. No preview payload
+reaches its sink. The new client regression and the unchanged real-stack edit
+cases prove the complete file metadata reaches the result.
+
+The inventory's diagnostic prints the exact unlisted file/line/text and tells
+an integrator to add three narrowly reasoned release-train entries: two
+minimum-output refusals validate model output, and a rethrow after a rate-limit
+notice preserves an upstream failure. Those sites do not exist on this branch;
+no allowlist entry was added for them here.
+
+The argument-preview reference now has its own complete sentence,
+`toolArgumentPreviewDescription`, translated in all 14 UI tables, with the
+reference regenerated. CHANGELOG, README, PLAN D86/M106 and this record name
+the headless ceiling and reservation reason; the 131,072 claim is scoped to
+VS Code/interactive ACP (or the explicitly separate developer capture).
+The M106 roadmap entry and generated ROADMAP carry the corrected limit.
+
+### Deliberate red drills
+
+Repository defaults throughout; only the drills select focused tests. Every
+mutated source was restored byte-exact and its SHA-256 rechecked.
+
+| Broken reader/guard                                        | Observed failures                              |
+| ---------------------------------------------------------- | ---------------------------------------------- |
+| Runtime body supplier asks 131,072                         | 2 fixture cases failed                         |
+| Schema accepts up to 32,768 despite a smaller bound record | 2 fixture cases failed before-ledger assertion |
+| Ledger compares against fixed 32,768                       | 2 fixture cases failed                         |
+| Start reservation asks fixed 32,768                        | 2 fixture cases failed                         |
+| Minimum/integer refusal removed                            | 6 cases failed                                 |
+| ACP promotion locations removed                            | D3 and D25 failed                              |
+| Exec edit-location refresh removed                         | 1 client case failed                           |
+| Help summary reverted to the pending label                 | 1 reference case failed                        |
+
+Restoration hashes: runtime backends `83d9269e…89902eb`, exec fetch
+`a31f236c…5175242`, ledger `a9650ff3…7456f3eb`, ACP translator
+`f7bff799…95db78`, exec client `f6a8ac8d…ad286`, feature catalogue
+`56de597d…2dd8998`. The first promotion drill did not match Prettier's
+indentation and made no change; it was corrected to the exact source text
+and produced the two failures above.
+
+### Verification
+
+Final whole exec files: **816 passed**, including all 669 catalogue fixtures,
+six minimum cases and the new edit-promotion regression. The inventory, ledger
+and reference-detail files add **43 passed**: **859 passed, zero failures**
+across the six owning files, using repository timeouts and three workers.
+The same four reproduction files now total **819 passed, zero failures**
+(the additional 676 cases are the new regressions).
+
+All five typechecks passed (host, webview, unit, e2e and integration). Scoped
+ESLint and Prettier passed; localization reports 14 UI/14 usage tables and zero
+problems. Reference is current (77 features); roadmap is current (207 entries);
+host API reports zero problems. Knip has only its two existing configuration
+hints; jscpd finds zero clones. Production build passes every size, split,
+host-global and notice gate: extension **563,348 bytes**, Model API **529,946
+bytes**, and headless **102,344 bytes** against its unchanged 102,400-byte cap.
+The initial build exceeded headless by 29 bytes; simplifying the pure clamp
+and default handling preserved the guards and saved 85 bytes. The final
+whole owning suites above passed again after that repair.
+
+The complete related selector spans 1,135 suites for the branch's whole source
+diff against `82d50d5e4`, including the shared English-table consumers. Each
+foreground CLI invocation retains the repository configuration and deadlines,
+with only its complete three-file batch included. Final dependent receipts
+are recorded after that replay. Aggregate quality remains lead-owned under
+the explicit rig/common brief; no gate, cap, baseline or repository timeout
+was weakened. No paid/live call, credential read, merge, push or rebase.

@@ -75,6 +75,7 @@
   "resourceRelocateOffDescription": "Ezen a gépen tartja a munkát.",
   "toolArgumentPreviewLabel": "Argumentumok előnézete",
   "toolArgumentPreviewTruncated": "Az előnézet csonkolva.",
+  "toolArgumentPreviewDescription": "A beérkezéskor megjeleníti az ellenőrzött, érzékeny adatoktól megtisztított eszközargumentumokat, még az eszköz futtatása előtt.",
   "toolArgumentPreviewPending": "Várakozás a teljes argumentumokra…",
   "toolArgumentPreviewPreparing": "Argumentumok előkészítése…",
   "modelApiContinuing": "A kimeneti korlát elérve. Egyszeri folytatás…",

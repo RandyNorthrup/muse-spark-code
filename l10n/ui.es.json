@@ -75,6 +75,7 @@
   "resourceRelocateOffDescription": "Mantiene el trabajo en este equipo.",
   "toolArgumentPreviewLabel": "Vista previa de argumentos",
   "toolArgumentPreviewTruncated": "Vista previa truncada.",
+  "toolArgumentPreviewDescription": "Muestra los argumentos de las herramientas validados y depurados a medida que llegan, antes de ejecutar la herramienta.",
   "toolArgumentPreviewPending": "Esperando los argumentos completos…",
   "toolArgumentPreviewPreparing": "Preparando argumentos…",
   "modelApiContinuing": "Se alcanzó el límite de salida. Continuando una vez…",

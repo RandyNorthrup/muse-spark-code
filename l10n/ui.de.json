@@ -75,6 +75,7 @@
   "resourceRelocateOffDescription": "Behält die Arbeit auf diesem Rechner.",
   "toolArgumentPreviewLabel": "Vorschau der Argumente",
   "toolArgumentPreviewTruncated": "Vorschau gekürzt.",
+  "toolArgumentPreviewDescription": "Zeigt validierte, bereinigte Werkzeugargumente bei ihrem Eintreffen an, bevor das Werkzeug ausgeführt wird.",
   "toolArgumentPreviewPending": "Warten auf vollständige Argumente…",
   "toolArgumentPreviewPreparing": "Argumente werden vorbereitet…",
   "modelApiContinuing": "Das Ausgabelimit wurde erreicht. Einmalige Fortsetzung…",

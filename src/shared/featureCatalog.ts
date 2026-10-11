@@ -490,7 +490,7 @@ export function featureCatalog(): readonly Feature[] {
     feature(
       'argument-preview',
       { ui: 'toolArgumentPreviewLabel' },
-      { ui: 'toolArgumentPreviewPending' },
+      { ui: 'toolArgumentPreviewDescription' },
       [],
       [],
       'agent-loop-guarantees',

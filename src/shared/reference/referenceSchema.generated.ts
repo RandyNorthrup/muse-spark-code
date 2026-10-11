@@ -39,7 +39,7 @@ export const textKeys = [
   'attachmentsLabel',
   'referenceAttachments',
   'toolArgumentPreviewLabel',
-  'toolArgumentPreviewPending',
+  'toolArgumentPreviewDescription',
   'incompleteToolCallsNotRun',
   'structuredOutputRepair',
   'structuredOutputFallback',

@@ -75,6 +75,7 @@
   "resourceRelocateOffDescription": "処理をこのマシンで続けます。",
   "toolArgumentPreviewLabel": "引数のプレビュー",
   "toolArgumentPreviewTruncated": "プレビューは省略されています。",
+  "toolArgumentPreviewDescription": "ツールの実行前に、検証済みで機密情報が除去されたツール引数を届いた順に表示します。",
   "toolArgumentPreviewPending": "引数の受信完了を待っています…",
   "toolArgumentPreviewPreparing": "引数を準備しています…",
   "modelApiContinuing": "出力上限に達しました。一度だけ続行します…",
