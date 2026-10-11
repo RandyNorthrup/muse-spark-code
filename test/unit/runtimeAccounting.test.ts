@@ -1,3 +1,5 @@
+import { reserveRequestAmount } from '../../src/core/providers/priceCard'
+import { requestImageCount } from '../../src/core/backends/modelapi/modelPolicy'
 import { Usd } from '../../src/shared/usd'
 import { fork } from 'node:child_process'
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
@@ -82,6 +84,7 @@ describe('standalone daily admission', () => {
     api.script({ text: 'automatic summary', usage: { input: 1000, output: 500, cached: 200 } })
     const client = withRuntimeAccounting(fakeModelApiClient(api, new FakeLogOutputChannel()), daily)
     const admit = createAutoCompactionAdmission({
+      loadPricing: () => Promise.resolve({ reserveRequestAmount, requestImageCount }),
       accounting: 'transport',
       allowsPaidUse: () => Promise.resolve(true),
       isOn: () => true,

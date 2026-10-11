@@ -1,3 +1,5 @@
+import { reserveRequestAmount } from '../../src/core/providers/priceCard'
+import { requestImageCount } from '../../src/core/backends/modelapi/modelPolicy'
 import { Usd } from '../../src/shared/usd'
 import { Buffer } from 'node:buffer'
 import { describe, expect, it, vi } from 'vitest'
@@ -196,6 +198,7 @@ function productionAdmission(
     },
   )
   const admitAutoCompaction = createAutoCompactionAdmission({
+    loadPricing: () => Promise.resolve({ reserveRequestAmount, requestImageCount }),
     accounting: { reserveCompaction },
     allowsPaidUse,
     isOn: () => true,

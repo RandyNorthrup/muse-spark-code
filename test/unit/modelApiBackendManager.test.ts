@@ -23,6 +23,7 @@ import { noopToolIo } from './helpers/fakeToolIo'
 import { fakeManagerDeps } from './helpers/modelApiManager'
 import type { ToolIo } from '../../src/core/backends/modelapi/tools'
 import { ModelApiSession } from '../../src/core/backends/modelapi/ModelApiHost'
+import * as hostModule from '../../src/core/backends/modelapi/ModelApiHost'
 import { VerifyLedger } from '../../src/core/backends/modelapi/verifyLedger'
 import { EditReview } from '../../src/host/editor/editReview'
 
@@ -675,7 +676,7 @@ async function windowHostDeps(
   log: FakeLogOutputChannel,
   reserveAutoCompaction?: () => Promise<undefined>,
 ) {
-  const create = vi.spyOn(modelApiEntry, 'createModelApiHost')
+  const create = vi.spyOn(hostModule, 'ModelApiHost')
   const manager = new ModelApiBackendManager(
     fakeManagerDeps(api, log, {
       workspaceRoot: '/ws',
@@ -686,7 +687,7 @@ async function windowHostDeps(
     }),
   )
   await manager.ensureHost()
-  return { manager, host: create.mock.calls.at(-1)?.[0].host, create }
+  return { manager, host: create.mock.calls.at(-1)?.[0], create }
 }
 
 it('binds the shared automatic-compaction admission and model reader to production host construction', async () => {

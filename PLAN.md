@@ -327,6 +327,16 @@ full quality and installed-editor/platform certification stay with the lead.
 
 ---
 
+**TRAINACT release-train activation repair (2026-10-11, macmini).**
+Move automatic-compaction admission behind the existing Model API backend
+boundary, with pricing supplied by the existing providers chunk. Preserve
+fail-closed reservation, consent, cancellation and per-attempt accounting.
+Measure the unchanged immutable pre-K activation budget after each cut;
+move further on-demand helpers only as needed to retain at least 150 bytes
+of room below 3,072 bytes. No cap, baseline, allow-list, string, behavior,
+wire shape or evaluation-latch change. No merge, push or subagents.
+Certification: `docs/certification/train-activation.md`.
+
 ## 1. Assumptions
 
 | #   | Assumption                                                                                                                                       |
@@ -34061,6 +34071,14 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**TRAINACT scoped qualification.** The explicit rig/common brief reserves
+aggregate `npm run quality` for the lead and forbids it in this lane.
+Run production build and all unchanged caps/split checks; complete owning
+suites at repository timeouts (at most three files per run); host, unit and
+e2e typechecks; changed-file lint/format; knip, cycles, duplication, host API
+and localization. Drill both regressions and restore source byte for byte.
+Record receipts in `docs/certification/train-activation.md`.
 
 **MODELSPLIT4 scoped rig qualification (2026-10-11, kubuntu).** The
 explicit lane/common brief forbids aggregate `npm run quality` and reserves

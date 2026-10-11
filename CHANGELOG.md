@@ -7,6 +7,12 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Engineering
+
+- Keep automatic-compaction admission in the lazy Model API backend and its
+  price-card calculations in the existing providers bundle. Activation
+  behavior, paid admission, displayed text and all bundle limits stay unchanged.
+
 ### Added
 
 - **Several accounts per provider, in the terminal and in ACP** (M108,
