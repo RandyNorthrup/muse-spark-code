@@ -26,6 +26,7 @@ import {
   type ResolvedProvider,
 } from '../../src/runtime/exec/providerExec'
 import { runExec, type ExecDeps } from '../../src/runtime/exec/runExec'
+import { execPanelPort } from '../../src/runtime/panel/panelLoader'
 import { formatStoredProviderSecret, providerSecretAccount } from '../../src/runtime/keyStore'
 import { probeProvider, providersFilePath } from '../../src/runtime/providersCommands'
 import { resolveProvider } from '../../src/runtime/exec/providerExec'
@@ -373,6 +374,7 @@ function depsFor(changes: Partial<ExecDeps> = {}): {
     options: parsed.options,
     version: 'test',
     distDir: RUN_FOLDER,
+    ...execPanelPort(RUN_FOLDER),
     platform: process.platform,
     env: {},
     homeDir: RUN_FOLDER,

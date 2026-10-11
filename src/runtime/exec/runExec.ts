@@ -20,7 +20,7 @@ import {
 } from '../../core/fs/fileIdentity'
 import type { AcpMediaFactory } from '../../acp/media'
 import type { AcpController } from '../../acp/agent'
-import { panelLoader } from '../panel/panelLoader'
+import type { ExecPanelPort } from '../panel/panelLoader'
 import { isValidModelApiKey, type SecretStore } from '../../host/auth/credentialStore'
 import type { Logger } from '../../host/logger'
 import type { AgentEvent } from '../../shared/agentEvents'
@@ -51,8 +51,6 @@ import {
   MODEL_API_IMAGE_MODEL,
   SECRET_KEYS,
   UI_TEXT,
-  RUNTIME_PANEL_BUNDLE_FILE,
-  CONVERSATION_BUNDLE_FILE,
 } from '../../shared/constants'
 import { effortLevelsFor } from '../../shared/effort'
 import { formatUsd as exactUsd, parseUsd } from '../../shared/accountUsd'
@@ -131,7 +129,11 @@ export const execOutputSchemaPort: ExecOutputSchemaPort = {
 }
 export { setUiText } from '../../shared/l10n/text'
 
-export interface ExecDeps {
+// The runtime panel bundle (a headless run holds its conversation on the
+// controller registry, M104 lane B) reaches this module through ExecPanelPort:
+// the process entry binds it, so the guarded bundle loader stays in
+// dist/acp.js and out of dist/headless.js (PLAN.md D6).
+export interface ExecDeps extends ExecPanelPort {
   readonly usageRecording?: UsageRecording | undefined
   readonly isUsageHistoryEnabled?: (() => boolean) | undefined
   readonly accounts?: ExecAccountsPort
@@ -774,10 +776,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       }
       tap = observeBackend(runtime.backend)
       const { createAcpAgent, createExecClient } = engine
-      const panel = panelLoader({
-        bundlePath: path.join(deps.distDir, RUNTIME_PANEL_BUNDLE_FILE),
-        log,
-      })()
+      const panel = deps.panel(log)
       const controllers = new panel.ControllerRegistry<AcpController>(log, (id) =>
         engine.RequestError.resourceNotFound(id),
       )
@@ -794,7 +793,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
               env: deps.env,
               homeDir: deps.homeDir,
             }),
-            conversationBundle: path.join(deps.distDir, CONVERSATION_BUNDLE_FILE),
+            conversationBundle: deps.conversationBundle,
             runGit: deps.runGit,
             log,
             controllers,

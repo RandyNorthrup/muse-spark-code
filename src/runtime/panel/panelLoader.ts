@@ -4,8 +4,14 @@ import type * as RuntimeEnginesBundle from './engineEntry'
 import type * as RuntimePresentationBundle from '../../host/views/runtimePresentationEntry'
 import type * as RuntimePanelPortsBundle from './runtimeFeaturesEntry'
 import type * as RuntimePanelBundle from './panelEntry'
+import path from 'node:path'
 import { lazyBundleLoader, type LazyBundleLoaderOptions } from '../../host/lazyBundle'
-import { UI_TEXT } from '../../shared/constants'
+import type { Logger } from '../../host/logger'
+import {
+  CONVERSATION_BUNDLE_FILE,
+  RUNTIME_PANEL_BUNDLE_FILE,
+  UI_TEXT,
+} from '../../shared/constants'
 
 type Bundle = typeof RuntimePanelBundle
 /** The packaged same-build factory's callable signature is trusted after its entry guard (PLAN §8). */
@@ -30,6 +36,25 @@ export function panelLoader(
     label: 'runtime panel bundle',
     unavailable: () => UI_TEXT.actionFailed,
   })
+}
+
+/** What a headless run needs of the panel: the bundle, loaded with the run's own log, and the conversation bundle's path. */
+export interface ExecPanelPort {
+  panel: (log: Logger) => Bundle
+  conversationBundle: string
+}
+
+/**
+ * The headless run's panel port for a package's `dist` folder. The process
+ * entry calls this (dist/acp.js): the guarded loader and both file names stay
+ * out of dist/headless.js, whose budget has no room for them (PLAN.md D6).
+ */
+export function execPanelPort(distDir: string): ExecPanelPort {
+  return {
+    panel: (log) =>
+      panelLoader({ bundlePath: path.join(distDir, RUNTIME_PANEL_BUNDLE_FILE), log })(),
+    conversationBundle: path.join(distDir, CONVERSATION_BUNDLE_FILE),
+  }
 }
 
 // The signature belongs to this exact packaged build; only callable factories cross the loader.

@@ -133,7 +133,7 @@ import { museSettingsPath } from '../host/backend/museSettings'
 import { walkFiles } from './fileWalk'
 import { shellJobAssembly } from '../host/backend/shellJob'
 import { jobSourceReader } from '../host/backend/jobSource'
-import { panelLoader } from './panel/panelLoader'
+import { execPanelPort, panelLoader } from './panel/panelLoader'
 import { reportsLoader } from './reporting/reportsLoader'
 import type { createRuntimeReports } from './reporting/reportsEntry'
 import { runtimeSchedulesBinding } from './schedules/binding'
@@ -1133,6 +1133,7 @@ async function main(): Promise<number> {
           options: command.options,
           version: packageVersion(),
           distDir,
+          ...execPanelPort(distDir),
           platform: process.platform,
           env: process.env,
           homeDir: homedir(),

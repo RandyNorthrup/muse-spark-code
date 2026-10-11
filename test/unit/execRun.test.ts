@@ -24,6 +24,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { buildSync } from 'esbuild'
 import * as acp from '@agentclientprotocol/sdk'
 import { runExec, type ExecDeps, type ExecOutputSchemaPort } from '../../src/runtime/exec/runExec'
+import { execPanelPort } from '../../src/runtime/panel/panelLoader'
 import * as z from 'zod/mini'
 import { accountSwap, sessionAccountsRig } from './helpers/runtimeAccounts'
 import type { ExecAccountsPort } from '../../src/runtime/exec/execAccounts'
@@ -223,6 +224,7 @@ async function harness(
     options: parsed.options,
     version: 'test',
     distDir: dist,
+    ...execPanelPort(dist),
     platform: process.platform,
     env: {},
     homeDir,
