@@ -2379,12 +2379,15 @@ async function activateWindow(
           catalogUrls: [],
         }),
         snapshot,
-        // The estimate's fleet (M117 C-M117-3, PLAN.md D97): M107's
+        // The estimate's fleet (M117 C-M117-3R3, PLAN.md D97): M107's
         // settings read live from the workspace configuration, so the
-        // configured ceilings shape admission. The M108 account registry
-        // is not instantiated in the extension host and no captured shape
-        // names CI concurrency, so those stay absent (extensionFleetSources
-        // names why) and the measured row stands in.
+        // configured throttle thresholds ride the local row's caps as facts
+        // while its one serial slot stands. The extension host constructs
+        // no account-limits reader (the accounts view reads the registry,
+        // live usage sits on the backend), so the account source is the
+        // typed no-reader seam with its limits unknown; no captured shape
+        // names CI concurrency, so CI stays not read (extensionFleetSources
+        // names why).
         fleetIoFromSources(
           extensionFleetSources({
             inspect: (key) => vscode.workspace.getConfiguration(SETTINGS_SECTION).inspect(key),

@@ -38,6 +38,8 @@ function portsWithoutSnapshot() {
     snapshotBundlePath: 'dist/planSnapshot.js',
     log,
     root: '/workspace',
+    machineDir: '/workspace',
+    accounts: { list: () => Promise.resolve([]) },
     loadBundle: neverSnapshotBundle,
   })
 }
@@ -61,6 +63,8 @@ describe('M117 headless estimator bindings', () => {
       snapshotBundlePath: 'dist/planSnapshot.js',
       log,
       root: '/workspace',
+      machineDir: '/workspace',
+      accounts: { list: () => Promise.resolve([]) },
       loadBundle: workingSnapshotBundle,
     })
     // The adapter runs and reports the unknown goal instead of refusing with
@@ -75,6 +79,8 @@ describe('M117 headless estimator bindings', () => {
       snapshotBundlePath: 'dist/planSnapshot.js',
       log,
       root: '/workspace',
+      machineDir: '/workspace',
+      accounts: { list: () => Promise.resolve([]) },
       loadBundle: missingSnapshotBundle,
     })
     await expect(
@@ -106,7 +112,13 @@ describe('M117 headless estimator bindings', () => {
     const loadBundle = vi.fn(() => {
       throw new Error('engine must stay on disk for --help')
     })
-    const estimate = createRuntimeEstimate({ bundlePath: 'estimator.js', log, loadBundle })
+    const estimate = createRuntimeEstimate({
+      bundlePath: 'estimator.js',
+      log,
+      loadBundle,
+      machineDir: '/workspace',
+      accounts: { list: () => Promise.resolve([]) },
+    })
     const text = await estimate.run('/estimate --help', process.cwd(), new AbortController().signal)
     expect(text).toBe(`${UI_TEXT.estimateUsage}\n${UI_TEXT.estimateCliHelp}`)
     expect(loadBundle).not.toHaveBeenCalled()
@@ -115,6 +127,8 @@ describe('M117 headless estimator bindings', () => {
     const estimate = createRuntimeEstimate({
       bundlePath: 'estimator.js',
       log,
+      machineDir: '/workspace',
+      accounts: { list: () => Promise.resolve([]) },
       loadBundle: () => {
         throw new Error('no engine on disk')
       },
@@ -132,6 +146,8 @@ describe('M117 headless estimator bindings', () => {
     const estimate = createRuntimeEstimate({
       bundlePath: 'estimator.js',
       log,
+      machineDir: '/workspace',
+      accounts: { list: () => Promise.resolve([]) },
       loadBundle: (file: string) => {
         loaded.push(file)
         if (file.endsWith('planSnapshot.js')) {
@@ -187,6 +203,8 @@ describe('M117 headless estimator bindings', () => {
       snapshotBundlePath: 'dist/planSnapshot.js',
       log,
       root: '/workspace',
+      machineDir: '/workspace',
+      accounts: { list: () => Promise.resolve([]) },
       loadBundle: () => ({
         installPlanSnapshotText: (table: typeof EN, locale: string) => {
           installed.push({ locale, notFound: table.estimateNotFound })

@@ -394,6 +394,20 @@ describe('M108 captured subscription windows per account', () => {
     })
   })
 
+  it('carries the short window duration into the limits snapshot', async () => {
+    const s = setup()
+    const home = await s.homes.prepare('work')
+    home.observeUsage(capturedUsage)
+    // The estimator shapes a fixed window only from this captured period.
+    expect(s.homes.read('meta', 'work').planWindows?.['window']).toMatchObject({
+      usedPercent: 0,
+      windowDurationMins: 300,
+    })
+    expect(s.homes.read('meta', 'work').planWindows?.['weekly']).not.toHaveProperty(
+      'windowDurationMins',
+    )
+  })
+
   it('ignores out-of-order usage and refuses invalid or post-invalidation observations', async () => {
     const s = setup()
     const home = await s.homes.prepare('work')

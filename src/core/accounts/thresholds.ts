@@ -27,6 +27,11 @@ const resetAt = z.nullable(z.iso.datetime())
 const windowSchema = z.strictObject({
   usedPercent: z.number().check(z.minimum(0), z.maximum(100)),
   resetAt,
+  // The provider's own window length in minutes, when captured (Muse Code's
+  // short window reports windowDurationMins; its weekly window reports none).
+  // The estimator shapes a fixed window only from this captured period, never
+  // from the time remaining until the reset (M117 C-M117-3R3).
+  windowDurationMins: z.optional(z.int().check(z.positive())),
 })
 const bucketSchema = z.strictObject({
   limit: z.int().check(z.positive()),

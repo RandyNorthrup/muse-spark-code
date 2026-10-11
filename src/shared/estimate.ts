@@ -306,7 +306,11 @@ const accountSchema = z.strictObject({
   // Opaque snapshot alias: never an e-mail address or provider credential.
   id,
   providerId: id,
-  requestsPerMinute: hours,
+  // Absent when no limit was read: the schedule records the requests check
+  // as unknown instead of passing it against a demand-derived number (M117
+  // C-M117-3R3). The measured local row budgets demand only until the fleet
+  // binding replaces it with what the account owner said.
+  requestsPerMinute: z.optional(hours),
   tokensPerMinute: z.optional(hours),
   // Multiple hard windows may apply at once (for example daily and weekly).
   usageLimits: z.optional(
@@ -314,6 +318,12 @@ const accountSchema = z.strictObject({
       z.maxLength(ESTIMATE_MAX_ITEMS),
       z.refine((limits) => areUnique(limits.map((limit) => limit.id))),
     ),
+  ),
+  // Limits the owner stated but the schedule cannot convert (a percent window
+  // with unknown lane demand, a window without a captured period): shown
+  // verbatim in the forecast's unknown limits, never enforced, never dropped.
+  statedLimits: z.optional(
+    z.array(z.string().check(z.minLength(1))).check(z.maxLength(ESTIMATE_MAX_ITEMS)),
   ),
 })
 

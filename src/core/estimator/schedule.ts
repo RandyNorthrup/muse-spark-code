@@ -331,9 +331,12 @@ export function prepareEstimateSchedule(
   // assumes a favourable slot/account split or widens an admission guard.
   const rateAccounts = accounts.filter((account) => {
     const users = usersByAccount.get(account) ?? []
+    // An unread rate constrains nothing: the unknown is recorded below,
+    // never passed against a number the owner did not state.
     return (
-      users.reduce((sum, lane) => sum + laneRate(lane, 'requests'), 0) >
-        account.requestsPerMinute * MINUTES_PER_HOUR ||
+      (account.requestsPerMinute !== undefined &&
+        users.reduce((sum, lane) => sum + laneRate(lane, 'requests'), 0) >
+          account.requestsPerMinute * MINUTES_PER_HOUR) ||
       (account.tokensPerMinute !== undefined &&
         users.reduce((sum, lane) => sum + laneRate(lane, 'tokens'), 0) >
           account.tokensPerMinute * MINUTES_PER_HOUR)
@@ -350,10 +353,19 @@ export function prepareEstimateSchedule(
   )
   for (const account of accounts) {
     if (account.usageLimits === undefined) unknownLimits.add(`${account.id}:usageLimits`)
+    if (account.requestsPerMinute === undefined)
+      unknownLimits.add(`${account.id}:requestsPerMinute`)
     if (account.tokensPerMinute === undefined) unknownLimits.add(`${account.id}:tokensPerMinute`)
+    // Stated limits travel verbatim: the owner said them, the schedule
+    // cannot convert them, and dropping them would hide them.
+    const stated = account.statedLimits ?? []
+    for (const note of stated) unknownLimits.add(note)
   }
   for (const ci of fleet.ci)
     if (ci.minutesRemaining === undefined) unknownLimits.add(`${ci.id}:minutesRemaining`)
+  // No captured shape names CI concurrency, so an empty CI section means the
+  // row was not read, never a zeroed row.
+  if (fleet.ci.length === 0) unknownLimits.add('ci unknown: not read')
 
   let quotaHints: number[] = []
   function isFeasible(
@@ -409,7 +421,11 @@ export function prepareEstimateSchedule(
               (sum, entry) => sum + laneRate(entry.lane, unit) * accountShare(entry, account.id),
               0,
             )
-          if (used('requests') > account.requestsPerMinute * MINUTES_PER_HOUR) return false
+          if (
+            account.requestsPerMinute !== undefined &&
+            used('requests') > account.requestsPerMinute * MINUTES_PER_HOUR
+          )
+            return false
           if (
             account.tokensPerMinute !== undefined &&
             used('tokens') > account.tokensPerMinute * MINUTES_PER_HOUR
@@ -585,16 +601,39 @@ export function prepareEstimateSchedule(
           : Math.max(0, ...(candidates.get(lane.id) ?? []).map((machine) => hours(lane, machine))),
       ]),
     )
+    const isDemandKnown = (lane: EstimateLane, unit: Window['unit']): boolean => {
+      const quantities = {
+        requests: lane.resources.accountRequestsPerHour,
+        tokens: lane.resources.accountTokensPerHour,
+        usd: lane.resources.accountUsdPerHour,
+        percent: lane.resources.accountPercentPerHour,
+      }
+      return quantities[unit].status !== 'unknown'
+    }
     const windowsByAccount = new Map(
       accounts.map((account) => [
         account,
-        (account.usageLimits ?? []).filter(
-          (window) =>
-            (usersByAccount.get(account) ?? []).reduce(
+        (account.usageLimits ?? []).filter((window) => {
+          const users = usersByAccount.get(account) ?? []
+          // A percent window with unknown lane demand is not an error: the
+          // estimate states the window it cannot convert and continues with
+          // what it knows, instead of throwing unknown-demand.
+          if (
+            window.unit === 'percent' &&
+            users.some((lane) => !isDemandKnown(lane, window.unit))
+          ) {
+            unknownLimits.add(
+              `${account.id}:${window.id} resets ${window.resetsAt}; percent demand of these lanes unknown`,
+            )
+            return false
+          }
+          return (
+            users.reduce(
               (sum, lane) => sum + laneRate(lane, window.unit) * (maximumHours.get(lane) ?? 0),
               0,
-            ) > window.remaining,
-        ),
+            ) > window.remaining
+          )
+        }),
       ]),
     )
     const searchWindows: Window[] = []
