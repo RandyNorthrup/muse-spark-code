@@ -57,6 +57,14 @@ class LingeringProvider extends FakeEstimateProvider {
   }
 }
 
+/** A provider whose deletion receipt names a different server. */
+class WrongIdProvider extends FakeEstimateProvider {
+  override async status(id: string): Promise<ProvisionedServer> {
+    const server = await super.status(id)
+    return { ...server, id: 'other', state: 'deleted' }
+  }
+}
+
 function isNanos(value: unknown): value is UsdNanos {
   return (
     value !== null && typeof value === 'object' && typeof (value as UsdNanos).numerator === 'bigint'
@@ -278,6 +286,200 @@ describe('M117 provisioning lifecycle on fakes', () => {
     }
     expect(confirm).not.toHaveBeenCalled()
     expect(fixture.fake.requests).toEqual([])
+  })
+
+  it('hands the confirmation a frozen copy and spends the quoted values', async () => {
+    const { fixture, confirm, provisioner } = setup()
+    const seen: ProvisionQuote[] = []
+    confirm.mockImplementation((_message: string, quote: ProvisionQuote) => {
+      seen.push(quote)
+      // A hostile write attempt through the copy: frozen, so both fail and
+      // the spend below still follows the quoted size and price.
+      expect(Reflect.set(quote, 'costUsd', 0)).toBe(false)
+      expect(Reflect.set(quote.cost, 'numerator', 0n)).toBe(false)
+      expect(Reflect.set(quote.size, 'id', 'huge')).toBe(false)
+      expect(Reflect.set(quote.size, 'hourlyUsd', 50)).toBe(false)
+      return Promise.resolve(true)
+    })
+    const [server] = await provisioner.provision([requestOf(fixture)])
+    expect(server?.server.sizeId).toBe('small')
+    expect(provisioner.liabilityUsd()).toBe(0.06)
+    expect(seen).toHaveLength(1)
+    expect(Object.isFrozen(seen[0])).toBe(true)
+    expect(Object.isFrozen(seen[0]?.cost)).toBe(true)
+    expect(Object.isFrozen(seen[0]?.size)).toBe(true)
+    expect(Object.isFrozen(seen[0]?.image)).toBe(true)
+  })
+
+  it('keeps both liabilities when create returns an already-tracked id', async () => {
+    const { fixture, provisioner } = setup()
+    const created = fixture.fake.create.bind(fixture.fake)
+    fixture.fake.create = async (size, image, cloudInit) => ({
+      ...(await created(size, image, cloudInit)),
+      id: 'same',
+    })
+    await expect(provisioner.provision([requestOf(fixture), requestOf(fixture)])).rejects.toThrow(
+      'duplicate-server-id',
+    )
+    // The first record keeps its cost and the second reservation stays
+    // pending: liability is the sum, never the dropped first cost.
+    expect(provisioner.servers().map((record) => record.server.id)).toEqual(['same'])
+    expect(provisioner.liabilityUsd()).toBe(0.12)
+  })
+
+  it('lets a confirmation tear down an earlier server without deadlocking', async () => {
+    const { fixture, confirm, provisioner } = setup()
+    let firstId = ''
+    const created = fixture.fake.create.bind(fixture.fake)
+    fixture.fake.create = async (size, image, cloudInit) => {
+      const server = await created(size, image, cloudInit)
+      if (firstId === '') firstId = server.id
+      return server
+    }
+    confirm.mockImplementation(async (_message: string, _quote: ProvisionQuote) => {
+      if (firstId === '') return true
+      // Deny the second server while tearing down the first: this awaits
+      // the same instance and must run instead of hanging behind it.
+      await provisioner.decommission(firstId)
+      return false
+    })
+    await expect(provisioner.provision([requestOf(fixture), requestOf(fixture)])).rejects.toThrow(
+      UI_TEXT.estimateDenied,
+    )
+    expect(provisioner.servers()).toEqual([])
+    expect(provisioner.liabilityUsd()).toBe(0)
+  })
+
+  it('admits a quote exactly equal to the remaining budget', async () => {
+    const { fixture, provisioner } = setup('0.06')
+    const servers = await provisioner.provision([requestOf(fixture)])
+    expect(servers).toHaveLength(1)
+    expect(provisioner.liabilityUsd()).toBe(0.06)
+  })
+
+  it('reports an unrepresentable budget honestly instead of "no default"', () => {
+    const fixture = provisionProvider()
+    const create = (): EstimateProvisioner =>
+      new EstimateProvisioner(
+        fixture.fake,
+        fixture.node,
+        (): Promise<boolean> => Promise.resolve(true),
+        '0.0000000001',
+      )
+    expect(create).toThrow('budget-unrepresentable')
+    expect(create).not.toThrow(UI_TEXT.estimateBudgetRequired)
+  })
+
+  it('keeps the server on a foreign deletion receipt', async () => {
+    const fixture = provisionProvider()
+    const provisioner = new EstimateProvisioner(
+      new WrongIdProvider(),
+      fixture.node,
+      (): Promise<boolean> => Promise.resolve(true),
+      BUDGET,
+    )
+    const [server] = await provisioner.provision([requestOf(fixture)])
+    await expect(provisioner.decommission(server?.server.id ?? '')).rejects.toThrow(
+      'deletion-unconfirmed',
+    )
+    expect(provisioner.servers().map((record) => record.server.id)).toEqual([server?.server.id])
+    expect(provisioner.liabilityUsd()).toBe(0.06)
+  })
+
+  describe('outcome-sequence liability', () => {
+    type Fault =
+      | 'confirm-false'
+      | 'confirm-throws'
+      | 'create-throws'
+      | 'install-throws'
+      | 'pair-throws'
+      | 'wipe-throws'
+      | 'delete-throws'
+      | 'status-lingering'
+      | 'status-foreign'
+      | 'none'
+    const rows: {
+      name: Fault
+      flow: 'provision' | 'teardown'
+      liability: number
+      tracked: number
+    }[] = [
+      { name: 'confirm-false', flow: 'provision', liability: 0, tracked: 0 },
+      { name: 'confirm-throws', flow: 'provision', liability: 0, tracked: 0 },
+      { name: 'create-throws', flow: 'provision', liability: 0.06, tracked: 0 },
+      { name: 'install-throws', flow: 'provision', liability: 0.06, tracked: 1 },
+      { name: 'pair-throws', flow: 'provision', liability: 0.06, tracked: 1 },
+      { name: 'wipe-throws', flow: 'teardown', liability: 0.06, tracked: 1 },
+      { name: 'delete-throws', flow: 'teardown', liability: 0.06, tracked: 1 },
+      { name: 'status-lingering', flow: 'teardown', liability: 0.06, tracked: 1 },
+      { name: 'status-foreign', flow: 'teardown', liability: 0.06, tracked: 1 },
+      { name: 'none', flow: 'teardown', liability: 0, tracked: 0 },
+    ]
+    for (const row of rows) {
+      it(`holds liability ${String(row.liability)} with ${String(row.tracked)} tracked on ${row.name}`, async () => {
+        const fixture = provisionProvider()
+        const confirm = vi.fn((_message: string, _quote: ProvisionQuote): Promise<boolean> =>
+          Promise.resolve(true),
+        )
+        switch (row.name) {
+          case 'confirm-false': {
+            confirm.mockResolvedValue(false)
+            break
+          }
+          case 'confirm-throws': {
+            confirm.mockRejectedValue(new Error('surface gone'))
+            break
+          }
+          case 'create-throws': {
+            fixture.fake.create = () => Promise.reject(new Error('socket reset'))
+            break
+          }
+          case 'install-throws': {
+            fixture.node.install = () => Promise.reject(new Error('install failed'))
+            break
+          }
+          case 'pair-throws': {
+            fixture.node.pair = () => Promise.reject(new Error('pair failed'))
+            break
+          }
+          case 'wipe-throws': {
+            fixture.node.teardownAndWipe = () => Promise.reject(new Error('wipe failed'))
+            break
+          }
+          case 'delete-throws': {
+            fixture.fake.delete = () => Promise.reject(new Error('delete failed'))
+            break
+          }
+          default: {
+            break
+          }
+        }
+        let provider: FakeEstimateProvider = fixture.fake
+        if (row.name === 'status-lingering') provider = new LingeringProvider()
+        else if (row.name === 'status-foreign') provider = new WrongIdProvider()
+        const provisioner = new EstimateProvisioner(provider, fixture.node, confirm, BUDGET)
+        if (row.flow === 'provision') {
+          if (row.name === 'confirm-false' || row.name === 'confirm-throws') {
+            await expect(provisioner.provision([requestOf(fixture)])).rejects.toThrow(
+              UI_TEXT.estimateDenied,
+            )
+          } else {
+            await expect(provisioner.provision([requestOf(fixture)])).rejects.toThrow()
+          }
+        } else {
+          const [server] = await provisioner.provision([requestOf(fixture)])
+          expect(provisioner.liabilityUsd()).toBe(0.06)
+          const serverId = server?.server.id ?? ''
+          if (row.name === 'none') {
+            await provisioner.decommission(serverId)
+          } else {
+            await expect(provisioner.decommission(serverId)).rejects.toThrow()
+          }
+        }
+        expect(provisioner.liabilityUsd()).toBe(row.liability)
+        expect(provisioner.servers()).toHaveLength(row.tracked)
+      })
+    }
   })
 
   it('provisions through the allow-listed broker without payment fields', async () => {

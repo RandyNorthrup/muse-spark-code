@@ -92,6 +92,23 @@ function unknownServer(id: string): never {
   throw new Error(fill(UI_TEXT.estimateFailed, { detail: `unknown-server:${id}` }))
 }
 
+/** The callback sees only this frozen copy; admission, reservation and
+ * `create` use the pre-confirmation values the cap already passed. A write
+ * through the copy throws instead of moving money. */
+function snapshotQuote(quote: ProvisionQuote): ProvisionQuote {
+  const snapshot: ProvisionQuote = {
+    size: { ...quote.size },
+    image: { ...quote.image },
+    maxBilledHours: quote.maxBilledHours,
+    cost: { ...quote.cost },
+    costUsd: quote.costUsd,
+  }
+  Object.freeze(snapshot.size)
+  Object.freeze(snapshot.image)
+  Object.freeze(snapshot.cost)
+  return Object.freeze(snapshot)
+}
+
 /** Exact per-server quotes with the batch total, before any confirmation. */
 export function quoteProvisioning(selections: readonly ProvisionRequest[]): ProvisionPreview {
   const requests = provisionBatchSchema.parse(selections)
@@ -146,35 +163,29 @@ export class EstimateProvisioner {
         denominator: ONE,
       }
     } catch {
-      refusedBudget()
+      // The budget parsed but is not representable at liability precision.
+      // That is a different failure from a missing budget: say so honestly.
+      throw new Error(fill(UI_TEXT.estimateFailed, { detail: 'budget-unrepresentable' }))
     }
   }
 
-  private async provisionOne(
-    quote: ProvisionQuote,
-    preview: ProvisionPreview,
-    cloudInit: string,
-  ): Promise<ManagedProvisionedServer> {
+  /** Check-and-reserve under the serial owner, after a confirmation. The
+   * quote is the pre-confirmation snapshot: the callback only saw a frozen
+   * copy, so the reservation and `create` cannot follow a mutated object. */
+  private async admit(quote: ProvisionQuote, cloudInit: string): Promise<ManagedProvisionedServer> {
     if (compareUsdNanos(addUsdNanos(this.liability(), quote.cost), this.budgetNanos) > 0)
       refusedCap()
-    const message = fill(UI_TEXT.estimateConfirmServer, {
-      server: `${quote.size.id}/${quote.image.id}`,
-      price: String(quote.costUsd),
-      total: String(preview.totalUsd),
-      budget: this.budget,
-    })
-    let isConfirmed = false
-    try {
-      isConfirmed = await this.isSpendConfirmed(message, quote)
-    } catch {
-      denied()
-    }
-    if (!isConfirmed) denied()
     // Reserve before create. A failed or uncertain create never releases:
     // the provider may still have made the server.
     this.pending.push(quote.cost)
     const pendingIndex = this.pending.length - 1
     const server = await this.provider.create(quote.size, quote.image, cloudInit)
+    if (this.managed.has(server.id)) {
+      // Two costs must never alias onto one id: the earlier record keeps
+      // its cost and the new reservation stays pending, so liability is the
+      // sum of both instead of silently dropping the first.
+      throw new Error(fill(UI_TEXT.estimateFailed, { detail: `duplicate-server-id:${server.id}` }))
+    }
     const record: ManagedProvisionedServer = {
       server,
       maxBilledHours: quote.maxBilledHours,
@@ -192,11 +203,11 @@ export class EstimateProvisioner {
 
   private async teardown(record: ManagedProvisionedServer): Promise<void> {
     // Wipe precedes provider deletion: a failed wipe keeps the server and
-    // its liability. A non-deleted status keeps the liability too.
+    // its liability. An unconfirmed or foreign deletion receipt keeps it too.
     await this.node.teardownAndWipe(record.server)
     await this.provider.delete(record.server.id)
     const receipt = await this.provider.status(record.server.id)
-    if (receipt.state !== 'deleted')
+    if (receipt.state !== 'deleted' || receipt.id !== record.server.id)
       throw new Error(fill(UI_TEXT.estimateFailed, { detail: 'deletion-unconfirmed' }))
     this.managed.delete(record.server.id)
   }
@@ -229,16 +240,23 @@ export class EstimateProvisioner {
     return fill(UI_TEXT.estimateIdleNotice, { server: serverId, duration })
   }
 
-  /** An idle answer rechecks activity first; Keep never extends funding. */
-  settleIdle(
+  /** An idle answer rechecks activity first; Keep never extends funding.
+   * The activity check runs without holding the serial owner, so it can
+   * call back into this instance (a teardown answer included) instead of
+   * deadlocking against the turn it would otherwise be queued behind. The
+   * record is re-read under the owner before any wipe runs. */
+  async settleIdle(
     serverId: string,
     decision: 'keep' | 'teardown',
     isIdleNow: ProvisionIdleCheck,
   ): Promise<'kept' | 'torn-down'> {
-    return this.owner.run(async () => {
+    const probe = this.managed.get(serverId)
+    if (probe === undefined) unknownServer(serverId)
+    // Short-circuit: Keep never runs the activity check.
+    if (decision === 'keep' || !(await isIdleNow({ ...probe.server }))) return 'kept'
+    return await this.owner.run(async (): Promise<'torn-down'> => {
       const record = this.managed.get(serverId)
       if (record === undefined) unknownServer(serverId)
-      if (decision === 'keep' || !(await isIdleNow(record.server))) return 'kept'
       await this.teardown(record)
       return 'torn-down'
     })
@@ -253,22 +271,45 @@ export class EstimateProvisioner {
     })
   }
 
+  /** Confirmations run without holding the serial owner: a confirmation
+   * that calls back into this instance (denying while tearing down an
+   * earlier server of the batch, for example) runs instead of deadlocking
+   * against its own turn. Admission stays atomic: each confirmed server is
+   * cap-checked and reserved inside one owner turn in `admit`. */
   provision(requests: readonly ProvisionRequest[]): Promise<readonly ManagedProvisionedServer[]> {
     // Clone/validate before queuing, so a caller cannot alter pending work.
     // Every price and the whole total are fixed before any confirmation.
     const parsed = provisionBatchSchema.parse(requests)
     const preview = quoteProvisioning(parsed)
-    return this.owner.run(async () => {
+    return (async () => {
       const created: ManagedProvisionedServer[] = []
       for (const [index, quote] of preview.quotes.entries()) {
         const cloudInit = parsed[index]?.cloudInit ?? ''
-        created.push(await this.provisionOne(quote, preview, cloudInit))
+        // Advisory refusal before the surface is asked; `admit` re-checks
+        // atomically after the confirmation returns.
+        if (compareUsdNanos(addUsdNanos(this.liability(), quote.cost), this.budgetNanos) > 0)
+          refusedCap()
+        const snapshot = snapshotQuote(quote)
+        const message = fill(UI_TEXT.estimateConfirmServer, {
+          server: `${snapshot.size.id}/${snapshot.image.id}`,
+          price: String(snapshot.costUsd),
+          total: String(preview.totalUsd),
+          budget: this.budget,
+        })
+        let isConfirmed = false
+        try {
+          isConfirmed = await this.isSpendConfirmed(message, snapshot)
+        } catch {
+          denied()
+        }
+        if (!isConfirmed) denied()
+        created.push(await this.owner.run(() => this.admit(snapshot, cloudInit)))
       }
       return created.map((record) => ({
         ...record,
         server: { ...record.server },
         cost: { ...record.cost },
       }))
-    })
+    })()
   }
 }
