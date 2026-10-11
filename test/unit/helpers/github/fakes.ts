@@ -4,11 +4,12 @@
 // with every editor call recorded.
 
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { vi } from 'vitest'
+import { resolveExecutable } from '../../../../src/core/executables'
 import { PULL_REQUEST_LINKS_KEPT } from '../../../../src/shared/constants'
 import type {
   PullRequestLinkRecord,
@@ -213,6 +214,19 @@ export function isolateGitEnvironment(): void {
   for (const [name, value] of Object.entries(variables)) {
     vi.stubEnv(name, value)
   }
+}
+
+/** The host's git, resolved absolutely: the only git a native test runs. */
+export function hostGitPath(): string {
+  const found = resolveExecutable('git', {
+    platform: process.platform,
+    pathVariable: process.env['PATH'],
+    fileExists: existsSync,
+  })
+  if (found === undefined) {
+    throw new Error('the tests need git on PATH')
+  }
+  return found
 }
 
 /**

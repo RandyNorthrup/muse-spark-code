@@ -19,10 +19,17 @@ import {
   unlinkSync,
   writeFileSync,
 } from 'node:fs'
-import { execFileSync, spawn } from 'node:child_process'
+import { execFile, execFileSync, spawn } from 'node:child_process'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { canonicalPath } from '../../src/host/canonicalPath'
-import { createGitProcess, type GitProcess, type GitProcessOptions } from '../../src/host/git'
+import {
+  createGitProcess,
+  isGitExitError,
+  type GitProcess,
+  type GitProcessOptions,
+} from '../../src/host/git'
+import * as launcher from '../../src/core/resources/launcher'
+import { ResourcePausedError } from '../../src/core/resources/launch'
 import {
   assertNativeGitArgs,
   CommitRefusedError,
@@ -33,6 +40,7 @@ import {
   nativeWorktreeAddArgs,
   NativeGitRefusalError,
   NativeGitService,
+  refusalOf,
   type NativePushPlan,
 } from '../../src/runtime/panel/git/service'
 import { takeCredentials } from '../../src/runtime/credentialVariables'
@@ -40,7 +48,12 @@ import {
   keepGitCredentialRoutes,
   runtimeGitUserEnvironment,
 } from '../../src/runtime/gitUserEnvironment'
-import { fakeRuntimeGitDeps, isolateGitEnvironment } from './helpers/github/fakes'
+import {
+  dirtyScratchRepository,
+  fakeRuntimeGitDeps,
+  hostGitPath,
+  isolateGitEnvironment,
+} from './helpers/github/fakes'
 import { createFixtureRepositories, type FixtureRepositories } from './helpers/github/repositories'
 import type { RuntimeGitDeps } from '../../src/core/git/runtimeGit'
 
@@ -732,7 +745,14 @@ describe('NativeGitService on the fixture repositories', () => {
     const missing = path.join(tmpdir(), 'm123-no-such-git', 'bin', 'git')
     // The production runner: no `run` override.
     const service = new NativeGitService(depsFor(fixtures().own, { gitPath: missing }))
-    await expect(service.status()).rejects.toThrow(/ENOENT|not found/)
+    const spy = vi.spyOn(launcher, 'execResourceFile')
+    try {
+      await expect(service.status()).rejects.toThrow('Governed command unavailable')
+      // Asked for the missing git itself: never a PATH search instead.
+      expect(spy.mock.calls[0]?.[1]).toBe(missing)
+    } finally {
+      spy.mockRestore()
+    }
   })
 
   it('pushes in the user environment the host captured, not the scrubbed process one', async () => {
@@ -807,6 +827,140 @@ describe('the standalone runtime’s captured Git routes', () => {
       )
     } finally {
       keepGitCredentialRoutes([])
+    }
+  })
+})
+
+/**
+ * Real git behind the launcher spy: the spy records the governed call
+ * (profile, file, arguments) while git itself runs ungoverned. The
+ * governor's own admission is its suites' subject, not this one's.
+ */
+function emulateGit(): void {
+  vi.spyOn(launcher, 'execResourceFile').mockImplementation(
+    async (_profile, file, args, options) =>
+      await new Promise<{ stdout: string; stderr: string }>((resolve, reject) => {
+        execFile(
+          file,
+          [...args],
+          {
+            cwd: options.cwd,
+            env: options.env,
+            timeout: options.timeout,
+            maxBuffer: options.maxBuffer,
+            windowsHide: true,
+            signal: options.signal,
+          },
+          (error, stdout, stderr) => {
+            if (error === null) {
+              resolve({ stdout, stderr })
+              return
+            }
+            const code = 'code' in error && typeof error.code === 'number' ? error.code : -1
+            reject(Object.assign(new Error('Governed command failed'), { stdout, stderr, code }))
+          },
+        )
+      }),
+  )
+}
+
+function governedService(dir: string): NativeGitService {
+  return new NativeGitService(
+    fakeRuntimeGitDeps(dir, { gitPath: hostGitPath(), isTrusted: () => true }).deps,
+  )
+}
+
+describe('the governed launch (train spawn inventory)', () => {
+  beforeEach(() => {
+    isolateGitEnvironment()
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllEnvs()
+  })
+
+  it('runs reads through the probe profile, with the hosted git', async () => {
+    const scratch = dirtyScratchRepository('m123-governed-reads-')
+    emulateGit()
+    try {
+      const { snapshot } = await governedService(scratch.dir).status()
+      expect(snapshot.branch).toBe('main')
+      const spy = vi.mocked(launcher.execResourceFile)
+      expect(spy).toHaveBeenCalled()
+      for (const [profile, file] of spy.mock.calls) {
+        expect(profile).toBe('probe')
+        expect(file).toBe(hostGitPath())
+      }
+    } finally {
+      vi.restoreAllMocks()
+      scratch.cleanup()
+    }
+  })
+
+  it('runs writes through the contained profile and reads through probe', async () => {
+    const scratch = dirtyScratchRepository('m123-governed-writes-')
+    emulateGit()
+    try {
+      const { branch } = await governedService(scratch.dir).commit('Governed write', true)
+      expect(branch).toBe('main')
+      const launches = vi.mocked(launcher.execResourceFile).mock.calls.map(([profile, , args]) => ({
+        profile,
+        subcommand: args[0] ?? '',
+      }))
+      expect(launches).toContainEqual({ profile: 'contained', subcommand: 'add' })
+      expect(launches).toContainEqual({ profile: 'contained', subcommand: 'commit' })
+      for (const launch of launches) {
+        const isWrite = launch.subcommand === 'add' || launch.subcommand === 'commit'
+        expect(launch.profile).toBe(isWrite ? 'contained' : 'probe')
+      }
+    } finally {
+      vi.restoreAllMocks()
+      scratch.cleanup()
+    }
+  })
+
+  it('reports a refused launch as busy, never as git’s failure', async () => {
+    const scratch = dirtyScratchRepository('m123-governed-busy-')
+    vi.spyOn(launcher, 'execResourceFile').mockRejectedValue(new ResourcePausedError())
+    try {
+      const service = governedService(scratch.dir)
+      await expect(service.status()).rejects.toBeInstanceOf(NativeGitRefusalError)
+      let refusal: ReturnType<typeof refusalOf> = undefined
+      try {
+        await service.status()
+      } catch (error: unknown) {
+        refusal = refusalOf(error)
+      }
+      expect(refusal).toBe('busy')
+      expect(vi.mocked(launcher.execResourceFile)).toHaveBeenCalled()
+    } finally {
+      vi.restoreAllMocks()
+      scratch.cleanup()
+    }
+  })
+
+  it('keeps a non-zero exit as git’s own exit error', async () => {
+    const scratch = dirtyScratchRepository('m123-governed-exit-')
+    vi.spyOn(launcher, 'execResourceFile').mockRejectedValue(
+      Object.assign(new Error('Governed command failed'), {
+        stdout: '',
+        stderr: 'fatal: not a git repository',
+        code: 128,
+      }),
+    )
+    try {
+      let failure: unknown
+      try {
+        await governedService(scratch.dir).status()
+      } catch (error: unknown) {
+        failure = error
+      }
+      expect(isGitExitError(failure)).toBe(true)
+      expect(refusalOf(failure)).toBeUndefined()
+    } finally {
+      vi.restoreAllMocks()
+      scratch.cleanup()
     }
   })
 })

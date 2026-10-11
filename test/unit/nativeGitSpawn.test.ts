@@ -27,7 +27,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as admission from '../../src/core/resources/admission'
 import * as jobLaunch from '../../src/host/backend/mcpJobLaunch'
 import type { ResourceLease } from '../../src/core/resources/launch'
-import { resolveExecutable } from '../../src/core/executables'
 import {
   cappedStderr,
   createGitProcess,
@@ -46,6 +45,7 @@ import type { RuntimeGitDeps } from '../../src/core/git/runtimeGit'
 import {
   dirtyScratchRepository,
   fakeRuntimeGitDeps,
+  hostGitPath,
   isolateGitEnvironment,
   TEST_GIT_IDENTITY,
 } from './helpers/github/fakes'
@@ -141,15 +141,7 @@ function removeLink(link: string): void {
 }
 
 function realGit(): string {
-  const found = resolveExecutable('git', {
-    platform: process.platform,
-    pathVariable: process.env['PATH'],
-    fileExists: existsSync,
-  })
-  if (found === undefined) {
-    throw new Error('the tests need git on PATH')
-  }
-  return found
+  return hostGitPath()
 }
 
 /** A scratch repository with one commit and one unstaged change. */
