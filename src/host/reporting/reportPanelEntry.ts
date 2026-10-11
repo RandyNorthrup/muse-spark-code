@@ -23,6 +23,7 @@ import * as vscode from 'vscode'
 import { ReportPanel, type ReportPanelDeps } from './reportPanel'
 import { reportEngineLoader } from './reportEngineBundle'
 import { reportInputsLoader } from '../../runtime/reporting/reportInputsLoader'
+import { playbookSchedulesInputsLoader } from '../../runtime/reporting/playbookSchedulesInputsLoader'
 
 export function createReportPanel(
   deps: ReportPanelDeps,
@@ -77,6 +78,14 @@ export function createReportingWindow(
   // first use, so neither activation nor the reporting engine carries them.
   const loadInputs = reportInputsLoader({
     bundlePath: vscode.Uri.joinPath(deps.context.extensionUri, 'dist', 'reportInputs.js').fsPath,
+    log: deps.context.log,
+  })
+  // M113 C-M113-4: the playbook and schedules inputs ride a second bundle
+  // beside it; the journal replay and schedule store would overflow the
+  // session/usage chunk's budget.
+  const loadPlaybookSchedules = playbookSchedulesInputsLoader({
+    bundlePath: vscode.Uri.joinPath(deps.context.extensionUri, 'dist', 'playbookSchedulesInputs.js')
+      .fsPath,
     log: deps.context.log,
   })
   let journalReader:
@@ -137,7 +146,7 @@ export function createReportingWindow(
           // live under the same agent data folder as the usage journal.
           playbook: {
             read: (context) =>
-              loadInputs()
+              loadPlaybookSchedules()
                 .createPlaybookReportReader(
                   {
                     agentDataFolder: deps.reportUsageDataFolder,
@@ -150,7 +159,7 @@ export function createReportingWindow(
           },
           schedules: {
             read: (context) =>
-              loadInputs()
+              loadPlaybookSchedules()
                 .createSchedulesReportReader(
                   {
                     storeRoot: path.join(deps.reportUsageDataFolder, SCHEDULE_STORE_SUBFOLDER),

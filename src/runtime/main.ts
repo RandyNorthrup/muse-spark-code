@@ -125,6 +125,7 @@ import { shellJobAssembly } from '../host/backend/shellJob'
 import { jobSourceReader } from '../host/backend/jobSource'
 import { reportsLoader } from './reporting/reportsLoader'
 import { reportInputsLoader } from './reporting/reportInputsLoader'
+import { playbookSchedulesInputsLoader } from './reporting/playbookSchedulesInputsLoader'
 import type { createRuntimeReports } from './reporting/reportsEntry'
 import { runtimeSchedulesBinding } from './schedules/binding'
 import { settleScheduleCommand } from './schedules/settle'
@@ -488,6 +489,13 @@ function runtimeReports(
     bundlePath: path.join(distDir, 'reportInputs.js'),
     log,
   })
+  // M113 C-M113-4: the playbook and schedules inputs ride a second chunk
+  // beside it; the journal replay and schedule store would overflow the
+  // session/usage chunk's budget.
+  const playbookSchedules = playbookSchedulesInputsLoader({
+    bundlePath: path.join(distDir, 'playbookSchedulesInputs.js'),
+    log,
+  })
   let reports: ReturnType<typeof createRuntimeReports> | undefined
   return () => {
     reports ??= load().createRuntimeReports({
@@ -594,7 +602,7 @@ function runtimeReports(
             // key (schedulesBridge keyFor), not the report storage key.
             playbook: {
               read: (context) =>
-                inputs()
+                playbookSchedules()
                   .createPlaybookReportReader(
                     { agentDataFolder: dataFolder, workspaceRoot: cwd },
                     l10n.table,
@@ -604,7 +612,7 @@ function runtimeReports(
             },
             schedules: {
               read: (context) =>
-                inputs()
+                playbookSchedules()
                   .createSchedulesReportReader(
                     {
                       storeRoot: path.join(dataFolder, SCHEDULE_STORE_SUBFOLDER),

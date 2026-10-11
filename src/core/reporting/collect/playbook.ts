@@ -128,6 +128,7 @@ export function playbookSections(view: PlaybookView, options: ReportOptions): Re
         {
           name: text(design.id),
           module: text(design.moduleKey),
+          failure: text(design.failureClass),
           outcome: text(design.outcome),
           date: dateCell(design.at, design.dateIso),
         },
@@ -202,6 +203,7 @@ export function playbookSections(view: PlaybookView, options: ReportOptions): Re
       [
         { key: 'name', label: 'name' },
         { key: 'module', label: 'name' },
+        { key: 'failure', label: 'name' },
         { key: 'outcome', label: 'outcome' },
         { key: 'date', label: 'date' },
       ],

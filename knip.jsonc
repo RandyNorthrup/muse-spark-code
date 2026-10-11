@@ -20,6 +20,7 @@
     "src/runtime/reference.node.generated.ts",
     "src/runtime/reporting/reportsEntry.ts",
     "src/runtime/reporting/reportInputsEntry.ts",
+    "src/runtime/reporting/playbookSchedulesInputsEntry.ts",
     "src/host/reporting/reportPanelEntry.ts",
     "src/webview/reporting/main.tsx",
     "test/harness/reporting/verify.mjs",
