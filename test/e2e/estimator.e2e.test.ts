@@ -14,6 +14,7 @@ import { EstimateWaveStarter } from '../../src/core/estimator/provision/start'
 import { FakeEstimateStart } from '../unit/helpers/estimator/fakes'
 import { chainSnapshot } from '../unit/helpers/estimator/fixtures'
 import { scheduleFleet, simulationInputs } from '../unit/helpers/estimatorScheduleFixtures'
+import { FIXTURE_HOOK_TIMEOUT_MS } from '../unit/helpers/fixtureBudget'
 
 const THEMES = ['light', 'dark', 'hc-dark', 'hc-light']
 const ORIGIN = 'https://estimator.invalid'
@@ -63,7 +64,7 @@ beforeAll(async () => {
   } finally {
     await warm.page.close()
   }
-})
+}, FIXTURE_HOOK_TIMEOUT_MS)
 afterAll(async () => {
   await state.browser?.close()
   if (state.directory !== '') await rm(state.directory, { recursive: true, force: true })

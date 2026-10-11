@@ -16,7 +16,15 @@ const entries = {
   resourceSurface: 'src/webview/resources/ResourceSurface.tsx',
   resourceHistory: 'src/webview/usage/ResourcesSection.tsx',
 }
-const fixture = { folder: '', canonical: undefined, browser: undefined, keys: undefined }
+const fixture = {
+  folder: '',
+  canonical: undefined,
+  browser: undefined,
+  keys: undefined,
+  installed: undefined,
+  accountKeys: undefined,
+  resourceKeys: undefined,
+}
 const byText = (left, right) => left.localeCompare(right)
 
 beforeAll(async () => {
@@ -45,6 +53,21 @@ export async function loadDeveloper() { await import('../../src/webview/develope
   )
   fixture.canonical = await loadL10n(process.cwd())
   fixture.keys = browserTextKeys([...Object.values(entries), probe], fixture.canonical.EN).keys
+  // Every walk of the source graph is setup, like the build below: the case
+  // that parsed the whole browser graph a second time missed its deadline
+  // on a slow runner.
+  fixture.installed = browserTextKeys(Object.values(entries), fixture.canonical.EN).keys
+  fixture.accountKeys = browserTextKeys(
+    [
+      'src/webview/models/sections/accounts/accountsEntry.ts',
+      'src/webview/developer/DeveloperOptionsPage.tsx',
+    ],
+    fixture.canonical.EN,
+  ).keys
+  fixture.resourceKeys = browserTextKeys(
+    [entries.resourceSurface, entries.resourceHistory],
+    fixture.canonical.EN,
+  ).keys
   await build({
     entryPoints: { ...entries, probe },
     outdir: path.join(fixture.folder, 'dist'),
@@ -76,13 +99,7 @@ describe('the production browser English and full-table contract', () => {
   })
 
   it('loads surface English on demand, retaining every browser value and installed language', async () => {
-    const accountKeys = browserTextKeys(
-      [
-        'src/webview/models/sections/accounts/accountsEntry.ts',
-        'src/webview/developer/DeveloperOptionsPage.tsx',
-      ],
-      fixture.canonical.EN,
-    ).keys
+    const { accountKeys, installed, resourceKeys } = fixture
     for (const key of accountKeys) expect(fixture.keys.has(key), key).toBe(true)
     const { EN: canonical } = fixture.canonical
     const {
@@ -100,7 +117,6 @@ describe('the production browser English and full-table contract', () => {
     // neither the vault nor the accounts surface. CM108ACC: Help lists accounts
     // again, so production carries that group, out of startup and on demand.
     // The probe mounts both (loadAccounts, loadVault) to keep their loading pinned.
-    const installed = browserTextKeys(Object.values(entries), canonical).keys
     expect(installed.has('accounts')).toBe(true)
     expect(installed.has('vault')).toBe(false)
     expect(Object.hasOwn(EN, 'execBudgetRequired')).toBe(false)
@@ -142,10 +158,6 @@ describe('the production browser English and full-table contract', () => {
     expect(EN.referenceSearch).toEqual(canonical.referenceSearch)
     expect(() => EN.resourceShow).toThrow('English surface is not loaded')
     await loadResources()
-    const resourceKeys = browserTextKeys(
-      [entries.resourceSurface, entries.resourceHistory],
-      canonical,
-    ).keys
     for (const key of resourceKeys) expect(EN[key], key).toEqual(canonical[key])
     // The vault group's English is installed by the vault surface alone; the
     // shared surface English never carries it a second time.

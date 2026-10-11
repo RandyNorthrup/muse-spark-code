@@ -6,6 +6,7 @@ import path from 'node:path'
 import { build } from 'esbuild'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { UI_TEXT } from '../../src/shared/constants'
+import { FIXTURE_HOOK_TIMEOUT_MS } from '../unit/helpers/fixtureBudget'
 
 const directory = mkdtempSync(path.join(os.tmpdir(), 'm115-schedule-cli-'))
 const agent = path.join(directory, 'dist', 'acp.js')
@@ -23,7 +24,7 @@ beforeAll(async () => {
   })
   await writeFile(path.join(directory, 'package.json'), JSON.stringify({ version: '0.0.0-test' }))
   await cp(path.resolve('l10n'), path.join(directory, 'l10n'), { recursive: true })
-})
+}, FIXTURE_HOOK_TIMEOUT_MS)
 afterAll(async () => {
   expect(path.dirname(path.resolve(directory))).toBe(path.resolve(os.tmpdir()))
   await rm(directory, { recursive: true, force: true })

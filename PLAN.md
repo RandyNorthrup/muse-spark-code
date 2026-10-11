@@ -13,9 +13,32 @@ truth pass left red, its chat-startup English regression (the `/schedule`
 refusal reads its words through the lazy prompt module), MINOUT's surface
 English overage (the output-minimum message gets a leaf of its own; no cap
 changes), two inherited test clones and the host API record. Each fix has a
-named regression and a red drill restored byte for byte. Then one reviewed
-What's New visual update and the full gate. No push, pull request, tag,
-dependency, cap, deadline or gate change. Certification:
+named regression and a red drill restored byte for byte. After the batch:
+the `/schedule` refusal stays in the conversation it was typed in
+(RVREL0171FIX P3); the integration test expects the Title Case tab title;
+the provider forms' error list is a list inside its alert (the
+accessibility gate's `listitem` finding, so screen readers announce several
+provider-save errors as a list); the badge check makes a request that got no
+answer again, never after an answer: first at most twice more, then, when
+hosted jobs still got no answer for over half a minute, four attempts of
+15 s with pauses of 3, 10 and 20 s and a failure that names the URL, the
+attempts and the time waited; `browserUiText`'s source-graph walks run in
+its setup hook (the fix batch's pin had put a whole-graph walk inside a
+case, which missed its 5 s deadline on hosted Linux); `m114Panel`'s
+tool-menu scene plays until its menu is attached (an open menu walks every
+ancestor's computed style on each animation frame since this release's menu
+work, which spent that case's deadline on hosted macOS in every run; known
+at release, the walk itself is repaired in 0.18.0); and the four hooks of
+`test/e2e` that build bundles or start processes get one named budget,
+`FIXTURE_HOOK_TIMEOUT_MS` (§8), after `acpStdio`'s hook passed the default
+10 s on hosted macOS in three of four attempts (the other 98 such hooks the
+sweep found go to the train). `CHANGELOG.md` is a capture input and gets no
+line for the two fixes here; 0.18.0's Fixed section carries "Screen readers
+announce several provider-save errors as a list (shipped in 0.17.1)". Then
+one reviewed What's New visual update (108 frames in two scenes, every one
+inspected) and the gates one by one. No push, pull request, tag, dependency
+or cap change; the deadlines changed are the lead's two rulings named in
+the certification. Certification:
 `docs/certification/rel0171c.md` and `docs/certification/cx1.md` (CX1R7).
 
 **MINOUT round 2 (2026-10-10, macmini).** Close static output caps below
@@ -36533,6 +36556,7 @@ INT0170B, 2026-10-07: `READER_BRAND_COMPILE_TIMEOUT_MS` = 20,000 ms in `test/uni
 | `test/unit/ollamaCodec.test.ts` (stream cap), `test/unit/vsixPackaging.test.mjs` (oversized archive), `test/unit/refreshBadges.test.mjs` (README badges), `test/unit/companionBrowser.test.ts` | `OLLAMA_STREAM_CAP_TIMEOUT_MS`, `REAL_OVERSIZED_PACKAGE_TIMEOUT_MS` (30 s), `README_BADGE_PARSE_TIMEOUT_MS` (15 s) per-case; `REAL_BROWSER_CASE_TIMEOUT_MS` (20 s) per-suite | A second sweep at 2 s over two full CI runs: the stream-cap case took 5.2 s and the companion browser case passed 5 s on hosted runners; the others took 3.4 to 4.0 s. The same run showed hosted macOS (3 vCPUs) oversubscribed by four workers plus coverage; `vitest.config.ts` now uses cores minus one there, capped at the measured four.                                                                    | Read the stream cap from a test-sized option; share one browser context per file; drop each deadline once a hosted run measures the case under 2.5 s.     |
 | `vitest.config.ts` (Windows)                                                                                                                                                                   | `WINDOWS_TEST_TIMEOUT_MS` (15 s) and `WINDOWS_HOOK_TIMEOUT_MS` (30 s) as the Windows defaults                                                                                | Windows runs test files one at a time, and its real-OS cases start PowerShell, icacls or job helpers as cold processes. Hosted Windows shards varied from 456 s to 727 s between runs (2026-10-07); `tokenFile` real ACL ownership passed 5 s in one run and not the next, after the same happened to `teamHintsAndLoad` and `vsixCompression`. Assertions are unchanged; explicit per-case deadlines still apply. | Return to the default when a hosted Windows run measures every case under 2.5 s, or when the PowerShell-backed helpers are precompiled once per run.      |
 | `test/unit/treesWindows.test.ts`, `test/unit/actuatorsWindows.test.ts`, `test/unit/resourceWindowsLaunch.test.ts`                                                                              | `REAL_WINDOWS_JOB_TIMEOUT_MS` (60 s) per-suite deadline                                                                                                                      | These suites compile and drive the real Windows job helper (C#) and real child processes. In PR #140 run 2 (0.16.0) they passed the 15 s Windows default on hosted runners, while the Win11 rig ran them in a few seconds. Assertions unchanged.                                                                                                                                                                   | Precompile the job helper once per run into the content-addressed assembly cache, then return to the Windows default.                                     |
+| `test/unit/helpers/fixtureBudget.ts`; the fixture hooks of `test/e2e` (`acpStdio`, `estimator`, `reports`, `schedulesStdio`)                                                                   | `FIXTURE_HOOK_TIMEOUT_MS` (120 s) for a hook that builds bundles or starts real processes                                                                                    | Building fixtures is work that grows with the product, not a wait for readiness. Under the 10 s default `acpStdio`'s hook (seven bundle builds, the created-path helper) failed three of four hosted macOS attempts of 0.17.1's pull request before any assertion ran; the Mac mini built it in 1.3 to 2.2 s at load 26 to 64. Lead's ruling (2026-10-11); `REAL_GIT_TIMEOUT_MS`'s value; assertions unchanged.    | The train applies it to the other 98 such hooks and adds a guard against an unbudgeted one; shorten it when hosted macOS measures these hooks.            |
 
 | REL0144 location                                                | Escape hatch                                                                                                   | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | --------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
