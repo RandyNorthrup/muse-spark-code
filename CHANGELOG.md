@@ -393,6 +393,11 @@ happened, not what was planned; superseded entries are kept.
   but the helper ever refuses a confirmed dispatch again (M106, RVCM1062H;
   `docs/certification/m106-capability-binding.md`).
 
+- Reviewing Git changes now works on machines and repositories with no Git
+  filters configured (for example without Git LFS installed). Broken since
+  0.15.0, it refused every native review there with "Git could not read the
+  changes to review" (lane REVIEWEXIT).
+
 ### Documentation
 
 - PLAN.md had grown to 4,157,477 bytes, 36,827 short of the 4 MiB bound at
