@@ -11,9 +11,16 @@ const SRC = path.join(ROOT, 'src')
 
 /**
  * Fragments that prove a statement touches one of the three key families:
- * the key itself, its builder, its record helpers, or the store methods
- * that move it. One list entry per occurrence, so a new call breaks the
- * comparison even in an already-listed file.
+ * the key itself, its builder, its record helpers, the store methods that
+ * move it, or the account store's own write and delete entry points and
+ * their callers. Writers and deleters that go through `AccountStore` or the
+ * `AccountCredentialVault` port carry none of the key fragments, so the
+ * entry-point method names (`setCredential`, `rebindOrigin`,
+ * `useCredential`, `readForRemoval`), the store delete callers
+ * (`accounts.remove(`), the port calls (`write(binding`, `remove(binding`)
+ * and the route types (`AccountCredentialVault`, `AccountSecrets`) are
+ * matched too. One list entry per occurrence, so a
+ * new call breaks the comparison even in an already-listed file.
  */
 const FRAGMENTS = [
   'SECRET_KEYS.modelApiKey',
@@ -35,6 +42,15 @@ const FRAGMENTS = [
   '.getApiKey(',
   '.setApiKey(',
   '.clearApiKey(',
+  'setCredential(',
+  'rebindOrigin(',
+  'useCredential(',
+  'readForRemoval(',
+  'accounts.remove(',
+  'remove(binding',
+  'write(binding',
+  'AccountCredentialVault',
+  'AccountSecrets',
 ] as const
 
 /** Secret-store calls on a bare `account` variable the runtime proved is a
