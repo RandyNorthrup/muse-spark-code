@@ -35873,15 +35873,15 @@ Total: about 165 lane-hours: the panel's part (0, A, P1, P2, C, F, S) about
 
 ### M115 — Scheduled prompts v2: unattended, stacked, with a delivery mode (D95)
 
-**C-M115-2 R2 review repair (2026-10-11, macbook).** Fix all three
-RVCM1152 findings are implemented and regression-tested: settle every runtime
-delivery exit, withdraw borrowed
-queued messages on shutdown/detach, recover abandoned claims without replay,
-require a durable fire before Run now acceptance, route output by session
-ownership, and give runtime scheduling its own translated Help entry.
+**C-M115-2 R2 review repair (2026-10-11, macbook).** All three RVCM1152
+findings are implemented and regression-tested. Delivery exits settle; borrowed
+queued messages withdraw on shutdown/detach; abandoned claims retire without
+replay; Run now requires a durable fire; output follows session ownership;
+runtime scheduling has its own translated Help entry.
 Interruption boundaries, sixteen byte-exact red drills and the sibling
 concurrent-close/borrowed-owner replacement checks are recorded in
-`docs/certification/m115-cm1152.md`. No dependency, guard or budget changes.
+`docs/certification/m115-cm1152.md`. No dependency added; no guard or budget
+is weakened.
 C-M115-3 remains the next slice: production paid consent and ledger binding.
 
 **C-M115-2 runtime delivery (2026-10-11, macbook).** Bind the shared delivery
