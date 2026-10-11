@@ -84,11 +84,11 @@ The Xcode Editor menu offers:
 
 | Command                  | Behavior                                                                                                                                                                                                                 |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Ask Muse about selection | Opens selection context in the app; enter the question and send it through the companion.                                                                                                                                |
-| Explain selection        | Prepares the shared English explanation prompt; send it through the companion.                                                                                                                                           |
-| Fix selection            | Prepares a replacement-only prompt. Copy the proposed code from the panel, paste it into the app's replacement editor, and explicitly approve. Only the original selection changes, in one XcodeKit command transaction. |
-| Insert Tab completion    | Refuses explicitly until the shared Tab endpoint and budget protocol land. It never substitutes another model request.                                                                                                   |
-| Open panel               | Opens/focuses the companion app; select a workspace if none is open.                                                                                                                                                     |
+| Ask Muse About Selection | Opens selection context in the app; enter the question and send it through the companion.                                                                                                                                |
+| Explain Selection        | Prepares the shared English explanation prompt; send it through the companion.                                                                                                                                           |
+| Fix Selection            | Prepares a replacement-only prompt. Copy the proposed code from the panel, paste it into the app's replacement editor, and explicitly approve. Only the original selection changes, in one XcodeKit command transaction. |
+| Insert Tab Completion    | Refuses explicitly until the shared Tab endpoint and budget protocol land. It never substitutes another model request.                                                                                                   |
+| Open Panel               | Opens/focuses the companion app; select a workspace if none is open.                                                                                                                                                     |
 
 Ask/Explain/Fix sends the existing shared `sendMessage` through the portable
 page's `window.musePanel.postMessage` bridge, which wraps and authenticates it
