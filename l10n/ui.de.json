@@ -1782,6 +1782,8 @@
     "fires": "Auslösungen",
     "keybindings": "Tastenbelegungen",
     "conflicts": "Konflikte",
+    "shortcut": "Tastenkombination",
+    "command": "Befehl",
     "diff": "Unterschied",
     "sources": "Datenquellen",
     "planFormat": "Planformat",

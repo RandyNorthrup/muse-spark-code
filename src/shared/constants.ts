@@ -5290,6 +5290,8 @@ export const REPORT_LABEL_KEYS = [
   'fires',
   'keybindings',
   'conflicts',
+  'shortcut',
+  'command',
   'diff',
   'sources',
   'planFormat',
