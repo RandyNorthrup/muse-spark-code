@@ -5168,6 +5168,7 @@
     "importedSummary": "A tárolóba importálva: {names}",
     "importKeepOrDelete": "Megtartja az eredeti fájlt, vagy törli, mivel a hitelesítő adatai már a tárolóban vannak?",
     "resetVault": "Tároló alaphelyzetbe állítása",
+    "resetHeadless": "A tároló alaphelyzetbe állításához interaktív terminál szükséges; a felügyelet nélküli futtatások nem állíthatják alaphelyzetbe.",
     "resetContinue": "Folytatás",
     "resetWarning": "Az alaphelyzetbe állítás véglegesen törli ezt a tárolót: minden tárolt titok elvész, és a visszaállítás elleni védelem új horgonnyal indul újra, amikor újra beállítja a tárolót.",
     "resetTypeWord": "Írja be: {word} a tároló alaphelyzetbe állításához.",

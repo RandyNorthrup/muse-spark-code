@@ -5018,6 +5018,7 @@
     "importedSummary": "已匯入憑證庫：{names}",
     "importKeepOrDelete": "保留原始檔案，還是在其憑證已存入憑證庫後將其刪除？",
     "resetVault": "重設憑證庫",
+    "resetHeadless": "重設保管庫需要互動式終端機；無頭執行無法重設它。",
     "resetContinue": "繼續",
     "resetWarning": "重設會永久清除此憑證庫：所有已儲存的機密都會消失；重新設定憑證庫時，回復保護將以新的錨點重新開始。",
     "resetTypeWord": "輸入 {word} 以重設憑證庫。",

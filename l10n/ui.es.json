@@ -5318,6 +5318,7 @@
     "importedSummary": "Importado en la bóveda: {names}",
     "importKeepOrDelete": "¿Conservar el archivo original o eliminarlo ahora que sus credenciales están en la bóveda?",
     "resetVault": "Restablecer la bóveda",
+    "resetHeadless": "Para restablecer la bóveda se necesita una terminal interactiva; las ejecuciones sin interacción no pueden restablecerla.",
     "resetContinue": "Continuar",
     "resetWarning": "Restablecer borra esta bóveda para siempre: todos los secretos guardados desaparecen y la protección contra reversión se reinicia con un ancla nueva cuando vuelva a configurar la bóveda.",
     "resetTypeWord": "Escriba {word} para restablecer la bóveda.",

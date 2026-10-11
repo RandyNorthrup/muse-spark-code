@@ -5208,6 +5208,10 @@ lock; a file from the old vault never
 opens again. The Vault section shows **Reset Vault** in the same state, with
 the same two steps. Reset refuses while the vault is unlocked and detects
 missing or damaged documents and pending transactions as well as slot files.
+Its public framing checks also detect impossible MAC, nonce, tag, salt,
+wrapped-key and ciphertext lengths or encodings, inconsistent identities and
+generations, and invalid pending history. Reset requires an interactive
+terminal; a headless refusal names Reset explicitly.
 
 `add` reads private material as one bounded JSON line from standard input,
 with byte fields encoded as base64. Terminal echo stays off while reading;
@@ -5223,6 +5227,9 @@ the encrypted material after source deletion. Import verifies every parent and
 the opened file within your home; replacing a directory with a junction or
 symlink refuses Import and Delete. Closing or locking the panel cancels a sent
 import, while ordinary change notifications preserve your Keep/Delete choice.
+If the report or Keep/Delete step fails after an import committed, the panel
+reloads the stored items and reports the failure. A changed source file is
+kept when Delete refuses.
 You then keep the original file or delete it. `grant` displays every
 scope field and requires explicit terminal confirmation. `watch` displays
 exact requester/use details, asks through the terminal, and answers only the

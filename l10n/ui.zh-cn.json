@@ -5018,6 +5018,7 @@
     "importedSummary": "已导入凭据库：{names}",
     "importKeepOrDelete": "保留原文件，还是在其凭据已存入凭据库后将其删除？",
     "resetVault": "重置凭据库",
+    "resetHeadless": "重置保管库需要交互式终端；无头运行无法重置它。",
     "resetContinue": "继续",
     "resetWarning": "重置会永久清除此凭据库：所有已存储的机密都会消失；重新设置凭据库时，回滚保护将以新的锚点重新开始。",
     "resetTypeWord": "键入 {word} 以重置凭据库。",

@@ -1,6 +1,6 @@
 // Real management/session/panel composition over generated, in-memory transport.
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { writeFile, stat } from 'node:fs/promises'
+import { writeFile, stat, readFile } from 'node:fs/promises'
 import path from 'node:path'
 import {
   VaultManageSession,
@@ -12,6 +12,8 @@ import { vaultPanelService } from '../../../src/host/vault/vaultPanelService'
 import { discoverAmbientFiles } from '../../../src/core/vault/migrate/ambient'
 import { cleanupTempHomes, lockedVault, managementFixture, tempHome } from './managementFixture'
 import { holdFileWrite } from './storeFixtures'
+import { UI_TEXT } from '../../../src/shared/constants'
+import { vaultHostMessageSchema } from '../../../src/shared/hostApi/vaultMessages'
 
 afterEach(cleanupTempHomes)
 const noUnsubscribe = () => undefined
@@ -98,6 +100,57 @@ async function panelFixture() {
 }
 
 describe('RVCM1091A3 panel import lifecycle', () => {
+  it.each(['changed-source', 'dialog', 'keep', 'delete', 'report'] as const)(
+    'RVCM1091A4 F2: %s refusal reloads an already committed import',
+    async (failure) => {
+      const { f, host, deps, file } = await panelFixture()
+      const changed = 'machine example.test login changed-user password changed-password\n'
+      const refusal = new Error('generated post-commit refusal')
+      switch (failure) {
+        case 'changed-source': {
+          vi.mocked(deps.importDone).mockImplementationOnce(async () => {
+            await writeFile(file, changed)
+            return 'delete'
+          })
+          break
+        }
+        case 'dialog': {
+          vi.mocked(deps.importDone).mockRejectedValueOnce(refusal)
+          break
+        }
+        case 'report': {
+          const importFile = deps.service.importFile.bind(deps.service)
+          vi.spyOn(deps.service, 'importFile').mockImplementationOnce(async (...args) => {
+            await importFile(...args)
+            throw refusal
+          })
+          break
+        }
+        default: {
+          vi.mocked(deps.importDone).mockResolvedValueOnce(failure)
+          vi.spyOn(
+            deps.service,
+            failure === 'keep' ? 'keepImport' : 'deleteImport',
+          ).mockRejectedValueOnce(refusal)
+        }
+      }
+      try {
+        await host.handle({ type: 'vaultImport', path: file })
+        expect(await f.repository.current().list()).toHaveLength(1)
+        expect(deps.showError).toHaveBeenCalledExactlyOnceWith(UI_TEXT.vault.operationFailed)
+        const published: unknown = vi.mocked(deps.publish).mock.lastCall?.[0]
+        const last = vaultHostMessageSchema.parse(published)
+        expect(last.state.items).toHaveLength(1)
+        expect(last.state.status.itemCount).toBe(1)
+        const source = await stat(file)
+        expect(source.isFile()).toBe(true)
+        if (failure === 'changed-source') expect(await readFile(file, 'utf8')).toBe(changed)
+      } finally {
+        host.dispose()
+      }
+    },
+  )
+
   it('F7: disposal closes a sent import before commit and opens no late dialog', async () => {
     const { f, host, deps, file, connections } = await panelFixture()
     const { held, state } = holdFileWrite(f.files, 'pending.v1')
