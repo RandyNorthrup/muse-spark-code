@@ -666,7 +666,7 @@
     {
       "id": "M94",
       "title": "Tab completions",
-      "summary": "Ghost-text code completions in the languages you enable, billed to your Model API key after a one-time price prompt and stopped by a separate hard daily budget.",
+      "summary": "Ghost-text completions billed to your Model API key with a hard daily budget; other features preserve Tab's window grant, only Allow always in this workspace saves the model and price, and Allow once saves nothing so each new window asks again.",
       "area": "editors",
       "release": "0.14.0"
     },

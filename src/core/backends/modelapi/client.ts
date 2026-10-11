@@ -586,6 +586,7 @@ export class ModelApiClient implements TransportProviderClient {
           reservedUsd: claim?.reservedUsd ?? searchAllowanceUsd(body.max_tool_calls, searchPrice),
         })
       }
+      admitAttempt?.check?.()
       const { response, redact, redactContent, eventParsed } = await this.transport.streamRequest(
         '/responses',
         {

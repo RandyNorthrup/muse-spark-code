@@ -10862,6 +10862,21 @@ and the two hook points.
     - **Allow once** allows Tab in this window until it closes;
     - **Allow always in this workspace** is D48's revocable grant;
     - **Deny** snoozes Tab in this window.
+    - The question names the request's own model, the one it sends. Consent
+      is keyed by (`tab`, model, price fingerprint) with three scopes:
+      `once` (this request), `window` (memory only) and `always` (persisted
+      in extension-private workspace state with its key). A grant for one
+      key never answers another, Allow always included, so the contributor
+      tier's training note is in an answered question; a pending question
+      is shared only by its full key; a legacy feature-wide Always with no
+      recorded key asks the migration question. Only an Allow always answer
+      records its model and price; Allow once records nothing and the next
+      window asks again (Q-M94b; RVM94KR 3, 2026-10-09; RVM94KR2 and
+      RVM94KR3G, lead decisions 2026-10-09).
+    - Window-once revocation is per feature: accepting image generation's
+      price or turning voice off preserves Tab's Allow once. Ask again and
+      Tab's own price acceptance changes invalidate its consent; a changed
+      model or price asks again for its own key (RVM94KR3G P2).
   - **Shown and counted.** The status bar shows today's spend, and Account &
     usage gains a Tab row (requests, tokens, cached tokens, cost today and
     this window, the budget). `PaidUsage` counts each request. Hooks never
@@ -19862,7 +19877,7 @@ INT0170B integration question (2026-10-07), narrowed by LEFT017 (2026-10-08): th
   `isInlineEdit`/`showRange` to reach a stable `vscode.d.ts` (D73, research
   V16 and V17). Each VS Code release's notes are read for it. When it lands,
   M94b is planned against that release and the engine floor it needs.
-- **M91 Cursor's Tab hooks (D70).** **Resolved 2026-10-04 (owner): (a), a Tab-completions milestone.** M94 builds inline completions on `feature/m94-tab`, and its lane K wires `beforeTabFileRead` and `afterTabFileEdit` to them. Until then M91 imports them as "waiting for inline completions", where they run nothing.
+- **M91 Cursor's Tab hooks (D70).** **Resolved 2026-10-04 (owner): (a), a Tab-completions milestone.** M94 builds inline completions on `feature/m94-tab`, and its lane K (built 2026-10-09 as M94KR, awaiting review) wires `beforeTabFileRead` and `afterTabFileEdit` to them. Other extension-event imports still wait for M91b.
 
 - **M93:** No new owner choice blocks the shipped workflow. Last 50 entries,
   a 2,000-character encoded URL and 20 recorded failures a window a minute are
@@ -20320,7 +20335,7 @@ observe the named tests fail, restore byte-exact and record the evidence in
   `isInlineEdit`/`showRange` to reach a stable `vscode.d.ts` (D73, research
   V16 and V17). Each VS Code release's notes are read for it. When it lands,
   M94b is planned against that release and the engine floor it needs.
-- **M91 Cursor's Tab hooks (D70).** **Resolved 2026-10-04 (owner): (a), a Tab-completions milestone.** M94 builds inline completions on `feature/m94-tab`, and its lane K wires `beforeTabFileRead` and `afterTabFileEdit` to them. Until then M91 imports them as "waiting for inline completions", where they run nothing.
+- **M91 Cursor's Tab hooks (D70).** **Resolved 2026-10-04 (owner): (a), a Tab-completions milestone.** M94 builds inline completions on `feature/m94-tab`, and its lane K (built 2026-10-09 as M94KR, awaiting review) wires `beforeTabFileRead` and `afterTabFileEdit` to them. Other extension-event imports still wait for M91b.
 
 - **M93:** No new owner choice blocks the shipped workflow. Last 50 entries,
   a 2,000-character encoded URL and 20 recorded failures a window a minute are
@@ -30054,10 +30069,51 @@ and is its own pull request, with its own capture and certification
 **Status 2026-10-04: lanes 0/P/C/L/H/U integrated; lane W finishing wiring
 and verification on `feature/m94-tab`, merged with `main-sync`.** The plan
 is D73, Q-M94a–d and this section; the research is
-`docs/certification/m94-research.md`. Lane K waits for M91 and the final live
-check remains with the lead. W also moves the small status item into the
+`docs/certification/m94-research.md`. Lane K is built (revived 2026-10-09
+on the 0.17.0 base as M94KR, M91 merged); review RVM94KR's three P1 and two
+P2 findings were closed on `m94/kr2` (M94KR2); re-review RVM94KR2's five P1
+and one P2 are closed by the round-3 redesign on `m94/kr3` (M94KR3: keyed
+consent, policy epoch at detection, a final synchronous gate at the HTTP
+send, model- and epoch-bound verdicts). RVM94KR3G's follow-up P2 and P3
+are addressed by per-feature revocation and precise migration wording,
+awaiting re-review; the final
+live check remains with the lead. W also moves the small status item into the
 activation shim, translates the multi-line picker, and wires recent-edit
 and definition snippets through the same privacy checks as the current file.
+
+**RVM94KR3G follow-up (2026-10-09, kubuntu).** The shared window-once
+revocation counter is replaced with per-feature generations, retaining every
+Tab revocation and the global Ask again fence. Regressions prove Tab's Allow
+once survives image-generation price acceptance and voice withdrawal,
+including a request waiting to send. The legacy Always migration is explicit:
+only Always persists the keyed record; Allow once leaves nothing recorded
+and every new window asks again. All 30 Tab/paid suites pass (706 tests) at
+repository deadlines; four additional byte-exact red/restored drills and
+scoped checks are recorded in `docs/certification/m94kr3.md`. Aggregate
+quality remains with the lead.
+
+**RVM94KR4G Help correction (2026-10-09, kubuntu).** The remaining
+`referenceTab` description in English and all 14 translations is corrected,
+and the reference is regenerated. A legacy Allow always grant asks a migration question; only
+Allow always in this workspace saves the model and price. Allow once saves
+nothing, covers this window, and every new window asks again. Existing runtime
+behavior and gates are retained; wording, generated-reference freshness,
+182 passing tests and a byte-exact restored drift drill are certified in
+`docs/certification/m94kr3.md`. The inherited E2E typecheck and duplication
+deferrals remain in §7; aggregate quality stays with the lead.
+
+**M94KR3 handoff qualification (2026-10-09, kubuntu).** The inherited
+round-3 implementation was critically reviewed against every RVM94KR2
+reproduction before retaining it. Request-only grants now bind revocation;
+Always persistence rechecks after its asynchronous write. A pure attempt
+check runs after credentials, endpoint verification, pacing and admission,
+and immediately before dispatch without replaying stateful paid admission.
+Fake-clock interleavings cover consent, ledger reservation, scheduler waits
+and client waits, including cancellation. Every review scenario has a
+byte-exact restored red drill (20 total) in `docs/certification/m94kr3.md`.
+Golden request bytes match `bea292208`; the production build preserves all
+caps and activation/Tab headroom. The lane brief prohibits aggregate quality
+and leaves it to the lead; no merges, pushes or paid/live calls.
 The full gate also joins main's M87 palette-tip contract: Tab's paid row
 gets a tip in English and every translated table before it is certified.
 The review fixture follows the shared privacy rule that a bare `.pem`
@@ -30078,8 +30134,9 @@ the exact redacted prompt reservation before the engine receives it.
   protected or ignored file. It never touches a conversation's cache or
   history. Cursor's `beforeTabFileRead` and `afterTabFileEdit` hooks run at
   its two points.
-- **Depends on.** Main, for every lane except K. Lane K needs M91 (D70) on
-  main: its hook runner, `spark-hooks.json` and the Cursor format adapter.
+- **Depends on.** Main, for every lane except K. Lane K needed M91 (D70) on
+  main: its hook runner, `spark-hooks.json` and the Cursor format adapter
+  (merged before the 2026-10-09 revival).
 - **Scope.**
   - D73's provider: the fast and multi-line modes, the debounce, the
     typing-through cache, the filters and partial accept (VS Code's own).
@@ -30167,7 +30224,9 @@ the exact redacted prompt reservation before the engine receives it.
      its loader. Then the integration test against a local fake Model API, at
      the 1.99 floor and at stable.
   6. **Lane U:** the Account & usage row.
-  7. **Lane K (after M91 merges):** the two hook points. Their fixtures come
+  7. **Lane K (built 2026-10-09 as M94KR; RVM94KR closed as M94KR2;
+     RVM94KR2 closed by the M94KR3 redesign, awaiting re-review):** the two
+     hook points. Their fixtures come
      from real hook scripts run on the rigs (a POSIX shell script and a
      PowerShell one, each allowing, denying and crashing), not from a guess
      (AGENTS rule 13: the contract is Cursor's page, the fixtures are the
@@ -30261,6 +30320,21 @@ the exact redacted prompt reservation before the engine receives it.
         invalid JSON, a schema mismatch, a crash, a timeout, and an oversize
         payload (which is never run). `allow` reads.
       - Verdicts are cached and cleared on a configuration change.
+      - A `spark-hooks.json` present but not loaded in full (unreadable,
+        oversize, not text, any diagnostic, or a guard whose matcher never
+        names its event) refuses every read, and the status says why until
+        it is fixed; only a scope with no hook file reads unguarded
+        (RVM94KR 1).
+      - A request is bound to the trust, Tab settings, `files.exclude`
+        scopes, ignore files and hook configuration in force at its start,
+        rechecked after the question, at dispatch and before its answer is
+        shown; any change drops it (RVM94KR 2). The policy epoch moves when
+        a change is detected, before its `ConfigChange` observer runs, and
+        reads refuse until the reload publishes; the last check runs
+        synchronously in the client's send path, after the key read and
+        pacing, so a refused request POSTs nothing (RVM94KR2 3–4).
+      - A cached read verdict is keyed by path, content, model and policy
+        epoch (RVM94KR2 5).
       - `afterTabFileEdit` gets D73's payload on a full accept, gets it with
         `inferred: true` on an Accept Word, and never runs on typing. Its
         queue bound holds.
@@ -30354,10 +30428,10 @@ the exact redacted prompt reservation before the engine receives it.
   - The subscription never pays for Tab.
 - **The two hook points.**
 
-| Hook                | When                                                                                                                                  | Payload (stdin)                                                                                                                                                                                                          | Answer                                             | Bounds                                                                                                                                                                                                |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `beforeTabFileRead` | Before Tab reads any file into a request (the current file each request, each context file); matcher `TabRead`                        | `hook_event_name`, `file_path` (absolute), `content` (the full text, unredacted), `workspace_roots`, `model`, `generation_id` (the Tab request's id)                                                                     | `{"permission": "allow" \| "deny"}`; exit 2 = deny | Stdin ≤ `HOOK_STDIN_MAX_BYTES` (a larger payload refuses the read, unrun); timeout ≤ `TAB_HOOK_TIMEOUT_MS` (1,500 ms); every failure refuses; verdicts cached per path and content digest; M51's caps |
-| `afterTabFileEdit`  | After an accepted Tab edit is in the document: a full accept (the item's `command`) or an inferred partial accept; matcher `TabWrite` | `hook_event_name`, `file_path`, `edits[]` with `old_string`, `new_string`, `range` (1-based lines and columns), `old_line`, `new_line` and, when inferred, `inferred: true`; `workspace_roots`, `model`, `generation_id` | None; output and exit code logged only             | Strings ≤ `HOOK_TOOL_VALUE_PREVIEW_CHARS` each, the cut counted; never blocks the editor; queue ≤ `TAB_EDIT_HOOK_QUEUE` (8), the oldest dropped and logged; M51's caps                                |
+| Hook                | When                                                                                                                                  | Payload (stdin)                                                                                                                                                                                                          | Answer                                             | Bounds                                                                                                                                                                                                                     |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `beforeTabFileRead` | Before Tab reads any file into a request (the current file each request, each context file); matcher `TabRead`                        | `hook_event_name`, `file_path` (absolute), `content` (the full text, unredacted), `workspace_roots`, `model`, `generation_id` (the Tab request's id)                                                                     | `{"permission": "allow" \| "deny"}`; exit 2 = deny | Stdin ≤ `HOOK_STDIN_MAX_BYTES` (a larger payload refuses the read, unrun); timeout ≤ `TAB_HOOK_TIMEOUT_MS` (1,500 ms); every failure refuses; verdicts cached per path, content digest, model and policy epoch; M51's caps |
+| `afterTabFileEdit`  | After an accepted Tab edit is in the document: a full accept (the item's `command`) or an inferred partial accept; matcher `TabWrite` | `hook_event_name`, `file_path`, `edits[]` with `old_string`, `new_string`, `range` (1-based lines and columns), `old_line`, `new_line` and, when inferred, `inferred: true`; `workspace_roots`, `model`, `generation_id` | None; output and exit code logged only             | Strings ≤ `HOOK_TOOL_VALUE_PREVIEW_CHARS` each, the cut counted; never blocks the editor; queue ≤ `TAB_EDIT_HOOK_QUEUE` (8), the oldest dropped and logged; M51's caps                                                     |
 
 - **Docs.**
   - **README.** A Tab section covering default-on behavior, first-charge consent, the price and the
@@ -39441,6 +39515,39 @@ at `test/unit/windowsTrustedPath.test.ts:206,279`, with none in changed
 files; the lead repairs that unrelated Windows fixture before aggregate
 quality. No gate, timeout or cap changes; common.md assigns aggregate
 quality and hosted CI to the lead.
+
+**RVM94KR3G scoped follow-up (2026-10-09, kubuntu).** All 30 Tab/paid
+suites pass (706 tests) at repository deadlines, including four additional
+byte-exact restored red drills. The new fixtures' two duplication findings
+are removed using the existing held-wait helper and the request's feature.
+Full jscpd still reports only the unchanged 51-token
+`test/unit/windowsTrustedPath.test.ts:206,279` clone already deferred below;
+that file has no diff against `84e7df7fc`. No ignore, threshold, assertion,
+timeout or hook is changed. Aggregate quality and the unrelated fixture
+remain with the lead under the shared lane rules. Follow-up receipts are in
+`docs/certification/m94kr3.md`.
+
+**M94KR3 scoped qualification (2026-10-09, kubuntu).** The lane's required
+host typecheck, and the webview and unit projects, pass. The broader E2E
+typecheck fails at unchanged `test/e2e/acpFixture.ts:26,34`: esbuild requires
+a mutable `external` array but receives the readonly `ACP_AGENT_EXTERNALS`
+tuple. The same TS2345 errors reproduce in an untouched `bea292208` archive
+using this rig's installed pins; neither the fixture nor the tuple changed
+in this lane. The integration Tab fixture now uses the keyed grant and
+reloading state and its typecheck passes. Full duplication reports only the
+inherited 51-token clone in `test/unit/windowsTrustedPath.test.ts:206,279`,
+also reproduced unchanged in the base archive; the new binding suite has
+no remaining clone. Leave those unrelated fixture repairs and aggregate
+quality to the lead under the scoped brief; no rule, assertion or threshold
+is waived.
+The additional visual run stopped while reconstructing the committed
+baseline `484964c46c307b48a5f00b127c4bf358dd27aebf`, before candidate comparison:
+Playwright's `scrollIntoViewIfNeeded` found a detached control at
+`test/harness/goldens/capture.mjs:413` after 2,160 baseline captures. The
+manifest and pixel thresholds remain unchanged; full visual verification
+stays open with the lead rather than altering the unrelated harness.
+Receipts, default-timeout suites, red drills and production measurements:
+`docs/certification/m94kr3.md`.
 
 **CIFIXM macOS CI repair scope (2026-10-09).** Reproduce the reporting
 journals/cache/engine, schedule-runtime and M114 panel/conversation failures
