@@ -12,7 +12,9 @@ happened, not what was planned; superseded entries are kept.
 - OpenRouter account connection now completes browser authorization without
   copying a key in local editor windows. Remote windows and ACP terminal
   authentication accept the single-use code; the returned key stays in the
-  system credential store. New setups retain ZDR routing.
+  system credential store. Terminal connection and usage work before a first
+  provider is added; malformed configuration still refuses. New setups retain
+  ZDR routing.
 - Models & Agents and Account & usage show OpenRouter’s key usage, limit and
   remaining balance from its free key endpoint. Terminal `providers connect
   openrouter` and `providers usage <id>` share those paths, with fixed failure
