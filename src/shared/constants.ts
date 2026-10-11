@@ -7806,6 +7806,8 @@ export const VAULT_APPROVAL_TTL_MS = 120_000
 export const VAULT_LOCK_DRAIN_MS = 1000
 // C-M109-1: pace of re-opening a `watch` stream the broker closed.
 export const VAULT_WATCH_RETRY_MS = 1000
+// RVCM1091A F7: the panel's watch backoff doubles up to this while the broker is down.
+export const VAULT_WATCH_RETRY_MAX_MS = 30_000
 export const VAULT_ASKPASS_USES = 3
 export const VAULT_ASKPASS_TTL_MS = 600_000
 export const VAULT_SESSION_MAX_DAYS = 30
@@ -7820,6 +7822,10 @@ export const VAULT_KEY_BYTES = 32
 export const VAULT_NONCE_BYTES = 12
 export const VAULT_TAG_BYTES = 16
 export const VAULT_RECOVERY_BYTES = 20
+// Reset Vault's fixed confirmation word, typed exactly (lead decision 2026-10-10).
+export const VAULT_RESET_WORD = 'RESET'
+// Random bytes in an imported item's name, so a second import never collides.
+export const VAULT_IMPORT_NAME_BYTES = 3
 export const VAULT_KDF = {
   argon2: { memoryKiB: 65_536, iterations: 3, parallelism: 4 },
   scrypt: { N: 131_072, r: 8, p: 1 },

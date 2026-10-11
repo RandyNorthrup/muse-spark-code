@@ -49,6 +49,7 @@ export function VaultSection({
   // Set Up Vault (lead decision 8): the host shows the one-time code natively.
   const isUncreated = state.status.state === 'uncreated'
   const isSetupPending = state.status.state === 'setupPending'
+  const isLost = state.status.reason === 'vaultLost'
   const audit = state.audit.filter(
     (row) =>
       (itemFilter === '' || row.handle === itemFilter) &&
@@ -76,6 +77,19 @@ export function VaultSection({
           {UI_TEXT.vault[notice]}
         </p>
       ))}
+      {isLost && (
+        <div className="vault-actions">
+          <p role="status">{UI_TEXT.vault.vaultLost}</p>
+          <button
+            type="button"
+            onClick={() => {
+              post({ type: 'vaultReset' })
+            }}
+          >
+            {UI_TEXT.vault.resetVault}
+          </button>
+        </div>
+      )}
       {(isUncreated || isSetupPending) && (
         <p role="status">{isUncreated ? UI_TEXT.vault.setupNeeded : UI_TEXT.vault.setupPending}</p>
       )}

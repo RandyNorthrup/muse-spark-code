@@ -5183,7 +5183,7 @@ in this build: until they are, every command reports the broker installation
 failure and refuses access. No activation read or broker start is added.
 
 The terminal grammar is `muse-spark-code-acp vault` followed by `setup`,
-`recover`, `status`,
+`recover`, `reset`, `status`,
 `unlock [slot-id]`, `lock`, `list`, `add <metadata-json>`, `remove <item-id>`,
 `grant <grant-json>`, `revoke <grant-id>`, `audit`, `import <path>`,
 `public-key <item-id>` or `watch`. Every handler was run successfully against
@@ -5198,11 +5198,32 @@ nothing until you answer that you saved it; cancelling leaves no vault.
 refuse without an interactive terminal, so headless runs never set up or
 recover a vault.
 
+`reset` is offered only when the vault can no longer be opened (its files are
+missing or damaged while this user's anchor still names it). It states that
+every stored secret is gone and that rollback protection restarts with a new
+anchor, asks you to continue, then asks you to type `RESET`. It records the
+reset in `reset.v1` beside the vault (a value-free line), keeps a copy of the
+damaged document aside, and clears the exact anchor state under the writer
+lock; a file from the old vault never
+opens again. The Vault section shows **Reset Vault** in the same state, with
+the same two steps. Reset refuses while the vault is unlocked and detects
+missing or damaged documents and pending transactions as well as slot files.
+
 `add` reads private material as one bounded JSON line from standard input,
 with byte fields encoded as base64. Terminal echo stays off while reading;
 base64 is only an input encoding, not encryption. Values never come from an
-argument, environment variable or file. An explicit `import <path>` delegates
-only the chosen credential file to the import owner. `grant` displays every
+argument, environment variable or file. An explicit `import <path>` imports
+only a credential file the vault discovered in your home folder (SSH keys,
+`.git-credentials`, `.netrc`, `.npmrc`, AWS credentials, Docker config). The
+import is all or nothing: every credential in the file goes in under one
+commit, or none does, and a cancelled import writes nothing. It prints each
+imported item's name and kind, never a value; the items are hidden from
+agents until you review them. Profile and field identities remain private in
+the encrypted material after source deletion. Import verifies every parent and
+the opened file within your home; replacing a directory with a junction or
+symlink refuses Import and Delete. Closing or locking the panel cancels a sent
+import, while ordinary change notifications preserve your Keep/Delete choice.
+You then keep the original file or delete it. `grant` displays every
 scope field and requires explicit terminal confirmation. `watch` displays
 exact requester/use details, asks through the terminal, and answers only the
 same unexpired request id and digest. Pipes cannot approve grants or uses.

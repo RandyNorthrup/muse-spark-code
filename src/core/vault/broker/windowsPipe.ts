@@ -37,12 +37,16 @@ export const WINDOWS_VAULT_PIPE_FRAME = {
   fault: 0x05,
   /** Result of a file command; payload windowsVaultPipeFileResultSchema. */
   fileResult: 0x06,
+  /** Result of a server check; payload windowsVaultPipeServerResultSchema. */
+  serverResult: 0x07,
   /** Bytes to the client. */
   send: 0x13,
   /** Disconnect the client (DisconnectNamedPipe, CloseHandle). */
   close: 0x14,
   /** Run a file command; payload windowsVaultPipeFileCommandSchema. */
   file: 0x21,
+  /** Identify a pipe's server natively (`files` mode); payload windowsVaultPipeServerQuerySchema. */
+  server: 0x22,
 } as const
 
 const sid = z.string().check(z.regex(/^S-1-[0-9]+(-[0-9]+){1,14}$/u))
@@ -96,6 +100,32 @@ export const windowsVaultPipeFileResultSchema = z.strictObject({
   result: z.enum(['ok', 'refused', 'missing']),
 })
 
+/** The client side's native check of the broker's pipe (RVCM1091A F9). */
+export const windowsVaultPipeServerQuerySchema = z.strictObject({
+  v: z.literal(WINDOWS_VAULT_PIPE_RELAY_VERSION),
+  id: counter,
+  pipe: windowsVaultPipeNameSchema,
+})
+export const windowsVaultPipeServerResultSchema = z.strictObject({
+  v: z.literal(WINDOWS_VAULT_PIPE_RELAY_VERSION),
+  id: counter,
+  result: z.enum(['ok', 'refused', 'missing']),
+  /** The helper's own token user: the server must equal it. */
+  ownerSid: sid,
+  /** Read from the OS for the pipe's server process; null unless `ok`. */
+  server: z.nullable(windowsVaultPipeClientSchema),
+})
+
+/**
+ * The host side of a Windows connection (lane C-M109-1c): the broker's pipe
+ * server, identified natively, must be this user's broker from the lock.
+ * The verifier refuses unless `server.userId === ownerSid`, `remote` is
+ * false, and the process id and start time equal the lock's.
+ */
+export interface WindowsVaultPipeServerCheck {
+  inspectServer(pipe: string): Promise<z.infer<typeof windowsVaultPipeServerResultSchema>>
+}
+
 /** One relayed client: a stream with the identity the helper read for it. */
 export interface WindowsVaultPipeConnection extends Duplex {
   readonly client: WindowsVaultPipeClient
@@ -112,4 +142,23 @@ export interface WindowsVaultPipeHelper extends VaultSecuredListenerPort, Window
   readonly files: VaultFileSecurityPort & VaultPrivateFilesPort
   /** Ends every connection and the helper; idempotent. */
   stop(): Promise<void>
+}
+
+/**
+ * The host's decision on a server check (RVCM1091A F9): the pipe's server is
+ * this user's broker only when every field the OS reported matches.
+ */
+export function isVaultPipeServerTrusted(
+  answer: unknown,
+  lock: { readonly processId: number; readonly startedAt: number },
+): boolean {
+  const parsed = windowsVaultPipeServerResultSchema.safeParse(answer)
+  if (!parsed.success || parsed.data.result !== 'ok' || parsed.data.server === null) return false
+  const server = parsed.data.server
+  return (
+    server.userId === parsed.data.ownerSid &&
+    !server.remote &&
+    server.processId === lock.processId &&
+    server.startedAt === lock.startedAt
+  )
 }
