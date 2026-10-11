@@ -121,7 +121,7 @@ export interface TeamWorkerConfirmation {
 export const PAID_USE_REGISTRY = {
   webSearch: { featureId: 'search', tally: 'webSearches', once: 'window' },
   imageGeneration: { featureId: 'images', tally: 'images', once: 'use' },
-  voice: { featureId: 'voice', tally: 'voiceSeconds', once: 'use' },
+  voice: { featureId: 'voice', tally: 'voiceSeconds', once: 'window' },
   subagents: {
     featureId: 'subagents',
     tally: 'subagentRequests',

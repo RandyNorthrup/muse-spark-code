@@ -93,6 +93,7 @@ export interface DictationListener {
   ownedBudgetScope?(): Promise<OwnedSessionBudgetScope | undefined>
   /** Captured by the recording once; no key value or journal is required. */
   voiceConsentFence?(): VoiceConsentFence | undefined
+  onVoiceUsage?(message: string): void
   onStatus(status: DictationStatus): void
   /** One recognised phrase, as the engine wrote it. */
   onText(text: string): void

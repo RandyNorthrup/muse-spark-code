@@ -1150,7 +1150,9 @@ async function activateWindow(
       feature === 'tab' || paidBackend === 'modelApi' || !isDefaultPaidOn(feature),
     isDefaultOn: isDefaultPaidOn,
     dailyBudgetUsd: (feature) =>
-      paidBackend === 'modelApi' || feature === 'legalExplanation' ? dailyPaid.capUsd() : undefined,
+      paidBackend === 'modelApi' || feature === 'voice' || feature === 'legalExplanation'
+        ? dailyPaid.capUsd()
+        : undefined,
     isKeyStored: () => isKeyStored,
     // "Allow Always in This Workspace" (M58) needs a workspace to keep it,
     // and never in Restricted Mode.
@@ -1243,6 +1245,7 @@ async function activateWindow(
     },
     {
       apiKey: () => credentials.getApiKey(),
+      reserveDaily: (costUsd) => dailyPaid.reserveExact(costUsd),
       onSeconds: (seconds) => {
         paid.usage.add('voice', seconds)
       },
@@ -3524,11 +3527,11 @@ async function activateWindow(
               !usablePaidFeatures(auth.current.backend, isKeyStored).includes('voice')
             )
               return
-            if (auth.current.backend === 'modelApi') {
-              return currentSettings().dictationEngine === 'system'
-                ? undefined
-                : { isAvailable: false, reason: UI_TEXT.sessionBudgetVoiceUnavailable }
-            }
+            if (
+              auth.current.backend === 'modelApi' &&
+              currentSettings().dictationEngine === 'system'
+            )
+              return
             return museVoiceSetup
           },
           modelApiSessionBudgetUsd: () => currentSettings().modelApiSessionBudgetUsd,

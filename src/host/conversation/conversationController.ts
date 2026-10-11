@@ -9602,16 +9602,6 @@ export class ConversationController {
   /** The engine the microphone uses now, and its setup (M35). */
   private dictationChoice(): { readonly engine: DictationEngine; readonly setup: DictationSetup } {
     const museVoice = this.deps.museVoice()
-    if (
-      museVoice !== undefined &&
-      this.voiceIsModelApi() &&
-      Usd.from(this.deps.modelApiSessionBudgetUsd()).compare(Usd.from(0)) > 0
-    ) {
-      return {
-        engine: 'museVoice',
-        setup: { isAvailable: false, reason: UI_TEXT.sessionBudgetVoiceUnavailable },
-      }
-    }
     return museVoice === undefined
       ? { engine: 'system', setup: this.deps.dictation }
       : { engine: 'museVoice', setup: museVoice }
@@ -9629,11 +9619,11 @@ export class ConversationController {
     if (!this.voiceIsModelApi()) {
       return undefined
     }
-    if (Usd.from(this.deps.modelApiSessionBudgetUsd()).compare(Usd.from(0)) > 0) {
-      throw new Error(UI_TEXT.sessionBudgetVoiceUnavailable)
-    }
+    const requiresJournal = () =>
+      Usd.from(this.deps.modelApiSessionBudgetUsd()).compare(Usd.from(0)) > 0
     const workspaceRoot = this.deps.workspaceRoot
     if (workspaceRoot === undefined) {
+      if (requiresJournal()) throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
       return undefined
     }
     const generation = this.attachmentGeneration
@@ -9648,6 +9638,9 @@ export class ConversationController {
     this.requireCurrentOpening(generation)
     if (!this.isVoiceSessionCurrent(session)) {
       throw new Error(UI_TEXT.turnStoppedByRestart)
+    }
+    if (scope === undefined && requiresJournal()) {
+      throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
     }
     return scope === undefined
       ? undefined
@@ -9727,6 +9720,9 @@ export class ConversationController {
       onError: (reason) => {
         this.notice('error', `${UI_TEXT.dictationFailed}: ${reason}`)
       },
+      onVoiceUsage: (message) => {
+        this.notice('info', message)
+      },
     })
     return this.dictation
   }
@@ -9778,8 +9774,12 @@ export class ConversationController {
           throw new Error(UI_TEXT.sessionBudgetVoiceContextChanged)
         }
         if (!isSending) return
-        if (isModelApi && Usd.from(this.deps.modelApiSessionBudgetUsd()).compare(Usd.from(0)) > 0) {
-          throw new Error(UI_TEXT.sessionBudgetVoiceUnavailable)
+        if (
+          isModelApi &&
+          scope === undefined &&
+          Usd.from(this.deps.modelApiSessionBudgetUsd()).compare(Usd.from(0)) > 0
+        ) {
+          throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
         }
         const current = this.dictationChoice()
         if (current.engine !== 'museVoice' || !current.setup.isAvailable) {
@@ -9791,7 +9791,7 @@ export class ConversationController {
         return
       }
       consentFence(accountId, true)
-      // Each Muse Voice recording is paid: the popup first (M58, PLAN.md D48).
+      // The first paid recording asks; Allow once covers this window (CM352).
       const isAllowed = (await this.deps.allowsPaidUse({ feature: 'voice' })) === true
       if (!isAllowed || !isCurrent() || scope?.isStillAllowed(accountId) === false) {
         this.postDictationState()

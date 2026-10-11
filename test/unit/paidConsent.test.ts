@@ -1,3 +1,4 @@
+import { paidWindowOnceFeatures } from '../../src/shared/paid'
 import { quotedSearch } from './helpers/paidQuote'
 import { freezePaidQuote, type PaidUseRequest } from '../../src/shared/paid'
 import { Usd } from '../../src/shared/usd'
@@ -441,6 +442,20 @@ describe('paidUseQuestion: Tab (M94 lane L, PLAN.md D73)', () => {
 })
 
 describe('window-scoped Allow once (M94 Q-M94a)', () => {
+  it('asks once for voice in the production registry and asks again after revocation', async () => {
+    const voice = tabConsentWith({
+      on: ['voice'],
+      windowOnce: [...paidWindowOnceFeatures()],
+      answers: ['once', 'once'],
+    })
+    await expect(voice.consent.allows({ feature: 'voice' })).resolves.toBe(true)
+    await expect(voice.consent.allows({ feature: 'voice' })).resolves.toBe(true)
+    expect(voice.asked).toHaveLength(1)
+    voice.consent.revokeWindowOnce('voice')
+    await expect(voice.consent.allows({ feature: 'voice' })).resolves.toBe(true)
+    expect(voice.asked).toHaveLength(2)
+  })
+
   it('covers the window after one answer, and asks other features every time', async () => {
     const tab = tabConsentWith({ windowOnce: ['tab'], answers: ['once'] })
     await expect(tab.consent.allows(TAB_REQUEST)).resolves.toBe(true)

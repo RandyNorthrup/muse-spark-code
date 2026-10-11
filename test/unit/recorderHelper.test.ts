@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { Dictation } from '../../src/core/voice/dictation'
 import { type RecorderProcess, recorderHelper } from '../../src/core/voice/recorderHelper'
 import { captureListener, SILENT_LOG } from './helpers/captureListener'
@@ -28,13 +28,14 @@ class FakeRecorder implements RecorderProcess {
   }
 }
 
-function setup() {
+function setup(onStart?: () => void) {
   const recorders: FakeRecorder[] = []
   const recorded = captureListener()
   const dictation = new Dictation({
     invocation: { command: '/usr/bin/arecord', args: ['-q'] },
     spawn: () =>
       recorderHelper('arecord', () => {
+        onStart?.()
         const recorder = new FakeRecorder()
         recorders.push(recorder)
         return recorder
@@ -83,4 +84,63 @@ describe('recorderHelper: the Linux recorders as a capture helper (M35)', () => 
     ])
     expect(t.stopped()).toBe(0)
   })
+})
+
+it('CM352 reports a synchronous Linux start failure and can retry without fake listening', async () => {
+  let shouldFail = true
+  const t = setup(() => {
+    if (shouldFail) throw new Error('EACCES')
+  })
+  try {
+    t.dictation.start()
+    await Promise.resolve()
+    expect(t.errors).toEqual(['arecord: EACCES'])
+    expect(t.statuses).toEqual(['starting', 'idle'])
+    expect(t.recorders).toEqual([])
+    shouldFail = false
+    t.dictation.start()
+    await Promise.resolve()
+    expect(t.statuses.at(-1)).toBe('listening')
+    expect(t.recorders).toHaveLength(1)
+  } finally {
+    t.dictation.dispose()
+  }
+})
+
+it('CM352 ignores old recorder data and closed-adapter restart or readiness', async () => {
+  const recorders: FakeRecorder[] = []
+  const lines: string[] = []
+  const start = vi.fn(() => {
+    const child = new FakeRecorder()
+    recorders.push(child)
+    return child
+  })
+  const helper = recorderHelper('arecord', start)
+  helper.stdout.on('data', (chunk) => {
+    lines.push(chunk.toString())
+  })
+  await Promise.resolve()
+  helper.send('start')
+  recorders[0]?.exitListener?.('exit code 1')
+  helper.send('start')
+  recorders[0]?.dataListener?.(Uint8Array.from([1, 2]))
+  expect(lines.some((line) => line.includes('"type":"audio"'))).toBe(false)
+  const beforeClosing = lines.length
+  helper.send('quit')
+  recorders[1]?.exitListener?.('late close')
+  expect(lines).toHaveLength(beforeClosing)
+  recorders[1]?.dataListener?.(Uint8Array.from([1, 2]))
+  helper.send('start')
+  expect(start).toHaveBeenCalledTimes(2)
+  expect(lines.some((line) => line.includes('"type":"audio"'))).toBe(false)
+  const closedLines: string[] = []
+  const closed = recorderHelper('parec', start)
+  closed.stdout.on('data', (chunk) => {
+    closedLines.push(chunk.toString())
+  })
+  closed.kill()
+  closed.send('start')
+  await Promise.resolve()
+  expect(closedLines).toEqual([])
+  expect(start).toHaveBeenCalledTimes(2)
 })
