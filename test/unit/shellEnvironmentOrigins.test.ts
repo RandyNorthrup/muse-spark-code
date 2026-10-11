@@ -39,6 +39,7 @@ function harness(isNativeShell = false) {
       platform: process.platform,
       systemRoot: process.env['SystemRoot'],
       env: () => process.env,
+      agentFence: () => false,
       passEnvironmentVariables: () => ['OPENAI_API_KEY'],
       listFiles: () => Promise.resolve([]),
       searchWorkerPath: 'unused',
@@ -128,6 +129,7 @@ describe('D89.5 command origins cannot widen unattended environments', () => {
     'retains the $origin origin through directory preparation after backgrounding',
     async (test) => {
       vi.stubEnv('OPENAI_API_KEY', 'envfence-fake-delayed')
+      vi.stubEnv('SSH_AUTH_SOCK', '/ambient/fake-scheduled-route')
       const t = harness(true)
       const { session, events, turnDone } = await startWatchedSession(
         t.host,
@@ -212,6 +214,7 @@ describe('D89.5 command origins cannot widen unattended environments', () => {
         const result = t.shellResults[0]
         expect(result?.exitCode).toBe(0)
         expect(result?.stdout.includes('envfence-fake-delayed')).toBe(!test.isScheduled)
+        expect(result?.stdout.includes('/ambient/fake-scheduled-route')).toBe(!test.isScheduled)
         expect(t.shell.mock.calls[0]?.[6]).toBe(!test.isScheduled)
       } finally {
         release.resolve(undefined)

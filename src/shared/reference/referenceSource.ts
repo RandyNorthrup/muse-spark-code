@@ -1,13 +1,14 @@
 // The generator's build entry: its imports are visible to the dead-code gate.
 export { featureCatalog, COMMAND_REFERENCE, referenceDescription } from '../featureCatalog'
 export { COMMAND_IDS } from '../constants'
-export { buildPalette } from '../palette'
-export { slashCommandsOf } from '../slashCommands'
+export { buildPalette } from '../paletteRegistry'
+export { slashCommandsOf } from './slashReference'
 export { cliCommands } from '../cliCommands'
 export { EN } from '../l10n/en'
 export { permissionModeDetail } from '../permissionModes'
 export { referenceText } from './text'
 export { fill } from '../l10n/text'
+export { Usd } from '../usd'
 export {
   ACP_AGENT_NAME,
   PAID_FEATURE_SETTINGS,
@@ -58,6 +59,21 @@ export { parseHandoffPrompt } from '../handoff'
 // Reviewed host capability inventory: pairs are explicit, never a Cartesian claim.
 // The tooling gate also checks tool/action coverage and host admission witnesses.
 const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
+  ['resources', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
+  ['providers', ['vscode:museCode', 'vscode:modelApi']],
+  ...[
+    'strict-tools',
+    'parallel-reads',
+    'auto-compaction',
+    'cut-short-tools',
+    'structured-side-calls',
+  ].map((id): [string, readonly string[]] => [id, ['vscode:modelApi', 'acp:modelApi']]),
+  ...['argument-preview', 'service-status'].map((id): [string, readonly string[]] => [
+    id,
+    ['vscode:modelApi'],
+  ]),
+  ['native-deletion', ['vscode:museCode']],
+  ['output-schema', ['acp:modelApi']],
   ['providers', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ['usage', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ['legal', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
@@ -120,12 +136,24 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
     'support',
   ].map((id): [string, readonly string[]] => [id, ['vscode:museCode', 'vscode:modelApi']]),
   ...['acp'].map((id): [string, readonly string[]] => [id, ['acp:museCode', 'acp:modelApi']]),
-  ...['prompt-library', 'chat-sharing'].map((id): [string, readonly string[]] => [
-    id,
-    ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi'],
-  ]),
+  ...['prompt-library', 'chat-sharing', 'resources', 'agent-outcomes'].map(
+    (id): [string, readonly string[]] => [
+      id,
+      ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi'],
+    ],
+  ),
   // M112: ACP asks through forms or text and answers with /questions and /answer.
   ['questions', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
+  ['reports', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
+  // M116: the playbook journal and settings ride no model call.
+  ['orchestrator-playbook', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
+  // M108/W: several accounts per provider on Settings, the CLI and ACP alike.
+  ['accounts', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
+  // M109: the vault panel and lock in VS Code, /vault and permission mapping
+  // in ACP, on either backend; values never reach either surface.
+  ['vault', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
+  // M117: the estimator runs the same engine on every surface.
+  ['estimator', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ...['web-fetch', 'images'].map((id): [string, readonly string[]] => [
     id,
     ['vscode:museCode', 'vscode:modelApi', 'acp:modelApi'],
@@ -151,6 +179,10 @@ export const REFERENCE_ACTION_FEATURES = {
   requestLegalExplanation: 'legal-explanation',
   exportLegalReport: 'legal',
   sharingAction: 'prompt-library',
+  runReport: 'reports',
+  resourceAction: 'resources',
+  resourcePull: 'resources',
+  resourceOpenAck: 'resources',
   openSettings: 'support',
   openKeybindings: 'support',
   openLog: 'support',
@@ -169,6 +201,7 @@ export const REFERENCE_ACTION_FEATURES = {
   removeWorktree: 'git',
   openPullRequestInConversation: 'git',
   restartMuseCode: 'chat',
+  openModelApiStatus: 'service-status',
   openTasksTab: 'chat',
   installBundledSkills: 'skills',
   updateBundledSkills: 'skills',
@@ -206,6 +239,8 @@ export const REFERENCE_ACTION_FEATURES = {
   scheduleList: 'schedules',
   scheduleCancel: 'schedules',
   scheduleRun: 'schedules',
+  schedulesRequest: 'schedules',
+  openSchedules: 'schedules',
   exportConversation: 'conversation-actions',
   importSession: 'conversation-actions',
   openShareFile: 'exports',
@@ -219,6 +254,8 @@ export const REFERENCE_ACTION_FEATURES = {
   hostAction: 'chat',
   decideApproval: 'chat',
   cancelQuestion: 'questions',
+  estimateRun: 'estimator',
+  estimateSpinUp: 'estimator',
   elicitationAnswer: 'mcp-elicitation',
   answerQuestion: 'questions',
   clarifyQuestion: 'questions',
@@ -351,7 +388,7 @@ export const REFERENCE_TOOL_FEATURES: Readonly<Record<string, string>> = {
 export { LINUX_RECORDERS } from '../constants'
 
 export { CLI_OPTION_REGISTRY, CLI_OPTION_TEXT } from '../../runtime/cliOptions'
-export { SLASH_REFERENCE } from '../slashCommands'
+export { SLASH_REFERENCE } from './slashReference'
 
 export { PAID_USE_REGISTRY, isPaidSettingOn } from '../paid'
 

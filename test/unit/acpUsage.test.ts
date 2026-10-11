@@ -1,5 +1,6 @@
 import * as acp from '@agentclientprotocol/sdk'
 import { describe, expect, it, vi } from 'vitest'
+import { UI_TEXT } from '../../src/shared/constants'
 import { createAcpAgent } from '../../src/acp/agent'
 import { AcpPaidUse } from '../../src/acp/paid'
 import { FakeAgentHost } from './helpers/fakeAgent'
@@ -107,9 +108,19 @@ describe('ACP local usage command', () => {
         },
         { name: 'compact', description: 'Summarise older context to free the window', input: null },
         {
+          name: 'report',
+          description: UI_TEXT.reportSlashDescription,
+          input: { hint: '<kind> [args] | history' },
+        },
+        {
           name: 'usage',
           description: 'Show usage and cost across models, or open the usage page.',
           input: null,
+        },
+        {
+          name: 'agents',
+          description: UI_TEXT.referenceAgentOutcomes,
+          input: { hint: '[receipt|continue|retry] [ID]' },
         },
       ],
     })
@@ -121,7 +132,7 @@ describe('ACP local usage command', () => {
       sessionUpdate: 'agent_message_chunk',
       content: {
         type: 'text',
-        text: `\n[Open usage page](http://127.0.0.1:1234/#${'a'.repeat(64)})`,
+        text: `\n[Open Usage Page](http://127.0.0.1:1234/#${'a'.repeat(64)})`,
       },
     })
     expect(h.elicitations).toEqual([])
@@ -141,14 +152,14 @@ describe('ACP local usage command', () => {
       expect(h.elicitations).toHaveLength(1)
       expect(h.elicitations[0]).toMatchObject({
         mode: 'url',
-        message: 'Open usage page',
+        message: 'Open Usage Page',
         url: `http://127.0.0.1:1234/#${'a'.repeat(64)}`,
       })
       const links = h.updates.filter(
         (update) =>
           update.sessionUpdate === 'agent_message_chunk' &&
           update.content.type === 'text' &&
-          update.content.text.includes('[Open usage page]'),
+          update.content.text.includes('[Open Usage Page]'),
       )
       expect(links).toHaveLength(isBroken ? 1 : 0)
       expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
@@ -185,7 +196,9 @@ describe('ACP local usage command', () => {
         expect(update.availableCommands.map((item) => item.name)).toEqual([
           'help',
           'compact',
+          'report',
           'usage',
+          'agents',
         ])
   })
 

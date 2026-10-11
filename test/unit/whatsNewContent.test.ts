@@ -8,7 +8,7 @@ import { brotliCompressSync } from 'node:zlib'
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
   CONTENT_FILE,
   contributedIds,
@@ -336,18 +336,17 @@ describe('writeWhatsNewContent', () => {
 })
 
 describe('bounded lossless What’s New artifact', () => {
+  let realReleases: ReturnType<typeof parseChangelog>
+
+  beforeAll(() => {
+    const changelog = readFileSync(path.resolve(import.meta.dirname, '../../CHANGELOG.md'), 'utf8')
+    realReleases = parseChangelog(changelog, contributedIds(manifest), repositoryUrl(manifest))
+  })
+
   it(
     'keeps both complete releases identical after generated artifact encoding',
     () => {
-      const changelog = readFileSync(
-        path.resolve(import.meta.dirname, '../../CHANGELOG.md'),
-        'utf8',
-      )
-      const releases = parseChangelog(
-        changelog,
-        contributedIds(manifest),
-        repositoryUrl(manifest),
-      ).slice(0, 2)
+      const releases = realReleases.slice(0, 2)
       const plain = JSON.stringify({ schema: 1, releases })
       const encoded = encodeWhatsNewContent(plain)
       expect(Buffer.byteLength(encoded)).toBeLessThanOrEqual(40 * 1024)
@@ -363,8 +362,7 @@ describe('bounded lossless What’s New artifact', () => {
   )
 
   it('packs real release notes that exceed the cap and decodes them losslessly', () => {
-    const changelog = readFileSync(path.resolve(import.meta.dirname, '../../CHANGELOG.md'), 'utf8')
-    const all = parseChangelog(changelog, contributedIds(manifest), repositoryUrl(manifest))
+    const all = realReleases
     // A whole release may jump past the decode limit; try the next contiguous run.
     let plain = ''
     for (let start = 0; start < all.length; start++) {

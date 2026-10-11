@@ -1,0 +1,11 @@
+{
+  "kind": "interrupted-baseline-generation",
+  "revision": "c4f37c6f748f2ea009271cb5cf8dbd462a6a88b0",
+  "archive": "/home/randy/archive/m114-s-settled-c4f37c6f7",
+  "retainedPngs": 1650,
+  "totalBytes": 83943615,
+  "exit": 143,
+  "failure": "Process terminated without a visual-comparison failure; partial archive is unaccepted and not referenced by the final manifest.",
+  "replacementArchive": "/home/randy/archive/m114-s-settled-c4f37c6f7-complete",
+  "modelAttempts": 0
+}

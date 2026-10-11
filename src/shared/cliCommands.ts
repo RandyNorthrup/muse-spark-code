@@ -94,10 +94,51 @@ export function cliCommands() {
       text: { ui: 'referenceScanSecrets' },
     },
     {
+      route: 'schedule',
+      name: 'schedule',
+      description: UI_TEXT.scheduleV2.runtime.usage,
+    },
+    {
+      route: 'accounts',
+      name: 'providers accounts',
+      description: UI_TEXT.referenceAccounts,
+      text: { ui: 'referenceAccounts' },
+    },
+    {
+      route: 'developer',
+      name: 'developer',
+      description: UI_TEXT.referenceDeveloper,
+      text: { ui: 'referenceDeveloper' },
+    },
+    {
+      route: 'estimate',
+      name: 'estimate <goal> [--by <date>] [--fleet current|minimum|optimum] [--format md|html|json|text] [--seed <seed>]',
+      description: UI_TEXT.estimateCliHelp,
+      text: { ui: 'estimateCliHelp' },
+    },
+    {
       route: 'report',
       name: 'report',
       description: UI_TEXT.reportUsage,
       text: { ui: 'reportUsage' },
+    },
+    {
+      route: 'report',
+      name: 'report problem',
+      description: UI_TEXT.reportUsage,
+      text: { ui: 'reportUsage' },
+    },
+    {
+      route: 'reports',
+      name: 'report <kind> / report history',
+      description: UI_TEXT.reportCliUsage,
+      text: { ui: 'reportCliUsage' },
+    },
+    {
+      route: 'fontsInstall',
+      name: 'fonts install [--from <directory>]',
+      description: UI_TEXT.acpFontsUsage,
+      text: { ui: 'acpFontsUsage' },
     },
     {
       route: 'help',
@@ -138,6 +179,12 @@ export function cliCommands() {
     ).map(([route, name, key]) => ({ route, name, description: UI_TEXT[key], text: { ui: key } })),
     {
       route: 'acp',
+      name: '/agents [receipt|continue|retry] [ID]',
+      description: UI_TEXT.referenceAgentOutcomes,
+      text: { ui: 'referenceAgentOutcomes' },
+    },
+    {
+      route: 'acp',
       name: '/prompt save|list|use|share',
       description: UI_TEXT.promptRun,
       text: { ui: 'promptRun' },
@@ -149,10 +196,28 @@ export function cliCommands() {
       text: { ui: 'shareReviewPrivacy' },
     },
     {
+      route: 'resources',
+      name: 'resources [status|history|resume] [--json]; usage resources [--json]',
+      description: UI_TEXT.resourceGovernorDescription,
+      text: { ui: 'resourceGovernorDescription' },
+    },
+    {
       route: 'version',
       name: '--version / -v',
       description: UI_TEXT.referenceVersion,
       text: { ui: 'referenceVersion' },
+    },
+    {
+      route: 'vault',
+      name: 'vault',
+      description: UI_TEXT.referenceVault,
+      text: { ui: 'referenceVault' },
+    },
+    {
+      route: 'vaultHelp',
+      name: 'vault --help',
+      description: UI_TEXT.referenceVaultHelp,
+      text: { ui: 'referenceVaultHelp' },
     },
   ]
 }

@@ -6,6 +6,10 @@ import {
   type CommandTimeouts,
   describeExit,
   MuseCodeHost,
+  MuseCodeCommandOwner,
+  stepMuseCodeLease,
+  type MuseCodeLeaseState,
+  type MuseCodeLeaseEvent,
 } from '../../src/core/backends/musecode/MuseCodeHost'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import {
@@ -19,6 +23,7 @@ import { EVENT_LOG_SUBMIT_MESSAGE, eventLogFault } from './helpers/cliRecoveryCa
 import {
   CAPTURED_LAUNCHED_TURN,
   CAPTURED_QUEUED_TURN,
+  LAUNCHED_REPLY_ITEM,
   QUEUED_ACK,
   UNQUEUE_ACK,
   UNQUEUE_ALREADY_APPLIED,
@@ -26,6 +31,8 @@ import {
   UNQUEUED_NOTIFICATION,
 } from './helpers/m87Capture'
 import { FakeLogOutputChannel } from './helpers/fakes'
+import { fakeAccountHome } from './helpers/accountHome'
+import type { MuseCodeAccountHome } from '../../src/core/backends/musecode/accountHomes'
 import { countLogged } from './helpers/logText'
 import {
   fakeInitializeResult,
@@ -68,14 +75,18 @@ const ack = (params: Record<string, unknown>) => ({
 function setup(
   options: {
     timeouts?: CommandTimeouts
+    accountHome?: MuseCodeAccountHome
     /** What the handshake granted (M46: `userShell`); nothing by default. */
     grantedCapabilities?: readonly string[]
   } = {},
 ) {
-  const handle = fakeMspHost({
-    ...fakeInitializeResult,
-    grantedCapabilities: [...(options.grantedCapabilities ?? [])],
-  })
+  const handle = fakeMspHost(
+    {
+      ...fakeInitializeResult,
+      grantedCapabilities: [...(options.grantedCapabilities ?? [])],
+    },
+    options.accountHome,
+  )
   const log = new FakeLogOutputChannel()
   handle.server.handle('session/start', (params) => ({
     session: {
@@ -149,8 +160,15 @@ function setup(
       },
     ],
   }))
-  const host = new MuseCodeHost(handle.host, log, options.timeouts)
-  return { ...handle, log, host }
+  const host = new MuseCodeHost(
+    handle.host,
+    log,
+    options.timeouts,
+    undefined,
+    undefined,
+    options.accountHome,
+  )
+  return { ...handle, log, host, connection: handle.host.connection }
 }
 
 const startOptions = {
@@ -169,7 +187,102 @@ async function listeningSession(host: MuseCodeHost) {
   return { session, events }
 }
 
+describe('MuseCodeHost: guarded notifications (M106)', () => {
+  it.each([
+    { type: 'turnStarted', method: 'turn/started', params: { turnId: 't' } },
+    {
+      type: 'turnCompleted',
+      method: 'turn/completed',
+      params: { turnId: 't', terminal: 'completed' },
+    },
+    { type: 'itemStarted', method: 'item/started', params: { item: LAUNCHED_REPLY_ITEM } },
+    { type: 'itemCompleted', method: 'item/completed', params: { item: LAUNCHED_REPLY_ITEM } },
+    { type: 'textDelta', method: 'item/delta', params: { itemId: 'i', delta: 'text' } },
+    { type: 'turnWithdrawn', method: 'turn/unqueued', params: UNQUEUED_NOTIFICATION },
+    {
+      type: 'approvalResolved',
+      method: 'approval/resolved',
+      params: {
+        approvalId: 'a1',
+        itemId: 'call-1',
+        decision: 'approved',
+        resolvedBy: 'user',
+      },
+    },
+  ])('delivers $type to later listeners after one throws', async ({ type, method, params }) => {
+    const { host, server, log } = setup()
+    const session = await host.startSession(startOptions)
+    session.onEvent(() => {
+      throw new Error('private callback detail')
+    })
+    const later = vi.fn()
+    session.onEvent(later)
+    if (type === 'approvalResolved')
+      server.notify('approval/requested', approvalParams(session.sessionId))
+    server.notify(method, { ...params, sessionId: session.sessionId })
+    await settle()
+    expect(later).toHaveBeenCalledWith(expect.objectContaining({ type }))
+    expect(later).toHaveBeenCalledWith({
+      type: 'backendNotice',
+      level: 'error',
+      text: UI_TEXT.backendListenerFailed,
+    })
+    expect(log.error).toHaveBeenCalledWith('Backend notification listener failed: museCode.event')
+    expect(log.error).toHaveBeenCalledWith(
+      'Backend notification listener failed: backend.diagnostic',
+    )
+    await host.close()
+  })
+
+  it('guards every early replay and returns the subscription after a listener throws', async () => {
+    const { host, server, log } = setup()
+    const session = await host.startSession(startOptions)
+    server.notify('turn/started', { sessionId: session.sessionId, turnId: 't' })
+    server.notify('turn/completed', {
+      sessionId: session.sessionId,
+      turnId: 't',
+      terminal: 'completed',
+    })
+    await settle()
+    const replay = vi.fn((event: AgentEvent) => {
+      if (event.type === 'turnStarted') throw new Error('private replay detail')
+    })
+    const unsubscribe = session.onEvent(replay)
+    expect(replay).toHaveBeenCalledWith(expect.objectContaining({ type: 'turnCompleted' }))
+    expect(log.error).toHaveBeenCalledWith('Backend notification listener failed: museCode.replay')
+    unsubscribe()
+    await host.close()
+  })
+})
+
+/** Observe settlement without asserting until the racing lifecycle action has run. */
+async function recordOutcome(
+  result: Promise<unknown>,
+  accepted: (value: unknown) => void,
+  refused: (error: unknown) => void,
+): Promise<void> {
+  try {
+    accepted(await result)
+  } catch (error: unknown) {
+    refused(error)
+  }
+}
+
 describe('MuseCodeHost', () => {
+  it('disposes every session even when bounded process close reports a forced stop', async () => {
+    const handle = fakeMspHost()
+    handle.server.handle('session/start', () => ({
+      session: { sessionId: 'forced-close-session', modelId: 'muse-spark-1.3', status: 'idle' },
+      viewCursor: '',
+    }))
+    handle.host.close = () => Promise.reject(new Error('forced tree stop'))
+    const host = new MuseCodeHost(handle.host, new FakeLogOutputChannel())
+    const session = await host.startSession(startOptions)
+    const dispose = vi.spyOn(session, 'disposeAll')
+    await expect(host.close()).rejects.toThrow('forced tree stop')
+    expect(dispose).toHaveBeenCalledExactlyOnceWith()
+    handle.server.close()
+  })
   it('reads the server identity from the handshake result', () => {
     const { host } = setup()
     expect(host.info).toEqual({
@@ -488,6 +601,12 @@ describe('MuseCodeHost', () => {
     await expect(session.controlSubagent('opaque-child', 'reopen')).rejects.toThrow(
       'subagent/reopen',
     )
+    await expect(session.controlSubagent('opaque-child', 'continue')).rejects.toThrow(
+      'Continue is unavailable',
+    )
+    await expect(session.controlSubagent('opaque-child', 'retry')).rejects.toThrow(
+      'no isolated worktree checkpoint',
+    )
     for (const method of ['subagent/readResult', 'subagent/reopen']) {
       expect(server.requestsFor(method)).toEqual([])
     }
@@ -499,12 +618,16 @@ describe('MuseCodeHost', () => {
     })
   })
 
-  it('reports a crash to listeners, with what the exit code means (D25)', async () => {
+  it('reports a crash to later listeners after one throws, with what the exit code means (D25)', async () => {
     const { host, exit, log } = setup()
     const listener = vi.fn()
+    host.onExit(() => {
+      throw new Error('private exit detail')
+    })
     host.onExit(listener)
     exit(3, null)
     await settle()
+    expect(log.error).toHaveBeenCalledWith('Backend notification listener failed: museCode.exit')
     expect(listener).toHaveBeenCalledWith({
       description:
         'Muse Code refused its configuration; check its settings.json and museSpark.environmentVariables (exit code 3)',
@@ -534,7 +657,8 @@ describe('MuseCodeHost', () => {
     const { host, server } = setup()
     const session = await host.startSession(startOptions)
     let calls = 0
-    session.onEvent(() => {
+    session.onEvent((event) => {
+      if (event.type !== 'sessionStatus') return
       calls += 1
       if (calls === 1) {
         throw new Error('listener bug')
@@ -546,6 +670,69 @@ describe('MuseCodeHost', () => {
     await settle()
     expect(calls).toBe(2)
   })
+
+  it('delivers a validated completion to the remaining session observer', async () => {
+    const { host, server, log } = setup()
+    const session = await host.startSession(startOptions)
+    const first = vi.fn(() => {
+      throw new Error('disposed completion surface / private observer detail')
+    })
+    const remaining = vi.fn<(event: AgentEvent) => void>()
+    session.onEvent(first)
+    session.onEvent(remaining)
+    server.notify('turn/completed', {
+      sessionId: session.sessionId,
+      turnId: 'turn-1',
+      terminal: 'completed',
+    })
+    await settle()
+    const completion = { type: 'turnCompleted', turnId: 'turn-1', terminal: 'completed' }
+    const diagnostic = {
+      type: 'backendNotice',
+      level: 'error',
+      text: UI_TEXT.backendListenerFailed,
+    }
+    expect(first).toHaveBeenCalledTimes(2)
+    expect(remaining.mock.calls.map(([event]) => event)).toEqual([completion, diagnostic])
+    expect(first).toHaveBeenNthCalledWith(1, completion)
+    expect(first).toHaveBeenNthCalledWith(2, diagnostic)
+    expect(log.error.mock.calls).toEqual([
+      ['Backend notification listener failed: museCode.event'],
+      ['Backend notification listener failed: backend.diagnostic'],
+    ])
+  })
+
+  it.each(['early events', 'open prompts'] as const)(
+    'returns an unsubscribe and replays the remaining %s after an observer throws',
+    async (backlog) => {
+      const { host, server, log } = setup()
+      const session = await host.startSession(startOptions)
+      if (backlog === 'open prompts') session.onEvent(() => undefined)
+      server.notify('approval/requested', approvalParams(session.sessionId, 1))
+      server.notify('userInput/requested', questionParams(session.sessionId))
+      await settle()
+      const listener = vi.fn((_event: AgentEvent) => {
+        throw new Error('disposed replay surface / private observer detail')
+      })
+      const unsubscribe = session.onEvent(listener)
+      expect(listener.mock.calls.map(([event]) => event)).toEqual([
+        expect.objectContaining({ type: 'approvalRequested', isReplayed: true }),
+        { type: 'backendNotice', level: 'error', text: UI_TEXT.backendListenerFailed },
+        expect.objectContaining({ type: 'questionRequested', isReplayed: true }),
+        { type: 'backendNotice', level: 'error', text: UI_TEXT.backendListenerFailed },
+      ])
+      expect(log.error.mock.calls).toEqual([
+        ['Backend notification listener failed: museCode.replay'],
+        ['Backend notification listener failed: backend.diagnostic'],
+        ['Backend notification listener failed: museCode.replay'],
+        ['Backend notification listener failed: backend.diagnostic'],
+      ])
+      unsubscribe()
+      server.notify('session/statusChanged', { sessionId: session.sessionId, status: 'idle' })
+      await settle()
+      expect(listener).toHaveBeenCalledTimes(4)
+    },
+  )
 
   it('fails a command that never answers instead of waiting for ever (D25)', async () => {
     const { host, server } = setup({ timeouts: { normalMs: 50, longMs: 100 } })
@@ -869,9 +1056,12 @@ describe('MuseCodeHost: stored sessions (M6)', () => {
     await expect(fork.session.rename('later')).resolves.toBeUndefined()
   })
 
-  it('delivers list-stream events to their listeners without a session, warning on bad shapes', async () => {
+  it('delivers list-stream events after a listener throws, warning on bad shapes', async () => {
     const { host, server, log } = setup()
     const events: unknown[] = []
+    host.onSessionListEvent(() => {
+      throw new Error('private list detail')
+    })
     const stop = host.onSessionListEvent((event) => {
       events.push(event)
     })
@@ -889,6 +1079,362 @@ describe('MuseCodeHost: stored sessions (M6)', () => {
     server.notify('session/closed', { sessionId: 'old', reason: 'idle', viewCursor: 'v' })
     await settle()
     expect(events).toHaveLength(2)
+    expect(log.error).toHaveBeenCalledWith('Backend notification listener failed: museCode.list')
+  })
+})
+
+describe('MuseCodeHost: account command lease (FIXM108M)', () => {
+  it('requires the matching submission owner before accepting an account host', async () => {
+    const accountHome = fakeAccountHome()
+    const handle = fakeMspHost(fakeInitializeResult, accountHome)
+    const unfenced = {
+      connection: handle.host.connection,
+      initializeResult: handle.host.initializeResult,
+      exited: handle.host.exited,
+      close: handle.host.close,
+    }
+    try {
+      expect(
+        () =>
+          new MuseCodeHost(
+            unfenced,
+            new FakeLogOutputChannel(),
+            undefined,
+            undefined,
+            undefined,
+            accountHome,
+          ),
+      ).toThrow(UI_TEXT.accounts.museCodeUnavailable)
+      expect(
+        () =>
+          new MuseCodeHost(
+            { ...unfenced, commandOwner: new MuseCodeCommandOwner(fakeAccountHome('personal')) },
+            new FakeLogOutputChannel(),
+            undefined,
+            undefined,
+            undefined,
+            accountHome,
+          ),
+      ).toThrow(UI_TEXT.accounts.museCodeUnavailable)
+      expect(
+        () =>
+          new MuseCodeHost(
+            { ...unfenced, commandOwner: new MuseCodeCommandOwner(accountHome) },
+            new FakeLogOutputChannel(),
+            undefined,
+            undefined,
+            undefined,
+            accountHome,
+          ),
+      ).toThrow(UI_TEXT.accounts.museCodeUnavailable)
+      expect(() => handle.host.commandOwner?.connect(handle.server)).toThrow(
+        UI_TEXT.accounts.invalidAccount,
+      )
+    } finally {
+      await handle.host.close()
+    }
+  })
+
+  it('models all revoke/queue/dispatch/resume interleavings against an independent authority model', () => {
+    const events: readonly MuseCodeLeaseEvent[] = [
+      { type: 'queue', id: 1, generation: 0 },
+      { type: 'dispatch', id: 1 },
+      { type: 'revoke' },
+      { type: 'resume', generation: 0 },
+    ]
+    const enumerate = (remaining: readonly MuseCodeLeaseEvent[]): MuseCodeLeaseEvent[][] =>
+      remaining.length === 0
+        ? [[]]
+        : remaining.flatMap((event, index) =>
+            enumerate(remaining.filter((_other, otherIndex) => otherIndex !== index)).map(
+              (tail) => [event, ...tail],
+            ),
+          )
+    const orders = enumerate(events)
+    expect(orders).toHaveLength(24)
+    for (const order of orders) {
+      let state: MuseCodeLeaseState = { generation: 0, status: 'active', queued: new Map() }
+      let isRevoked = false
+      let isQueued = false
+      for (const event of order) {
+        const canAdmit =
+          event.type !== 'revoke' && !isRevoked && (event.type !== 'dispatch' || isQueued)
+        const next = stepMuseCodeLease(state, event)
+        expect(next.effects.admitted, order.map((entry) => entry.type).join('/')).toBe(canAdmit)
+        if (event.type === 'revoke') {
+          isRevoked = true
+          isQueued = false
+        }
+        if (!isRevoked && event.type === 'queue') isQueued = true
+        if (event.type === 'dispatch') isQueued = false
+        state = next.state
+        expect(state.queued.has(1)).toBe(isQueued)
+      }
+      expect(stepMuseCodeLease(state, { type: 'resume', generation: 0 }).effects.admitted).toBe(
+        false,
+      )
+    }
+  })
+
+  it('rejects stale queued generations and duplicate dispatch even while the lease is active', () => {
+    const state: MuseCodeLeaseState = { generation: 1, status: 'active', queued: new Map() }
+    const stale = stepMuseCodeLease(state, { type: 'queue', id: 1, generation: 0 })
+    expect(stale.effects.admitted).toBe(false)
+    expect(stepMuseCodeLease(stale.state, { type: 'dispatch', id: 1 }).effects.admitted).toBe(false)
+    const queued = stepMuseCodeLease(state, { type: 'queue', id: 1, generation: 1 })
+    const dispatched = stepMuseCodeLease(queued.state, { type: 'dispatch', id: 1 })
+    expect(dispatched.effects.admitted).toBe(true)
+    expect(stepMuseCodeLease(dispatched.state, { type: 'dispatch', id: 1 }).effects.admitted).toBe(
+      false,
+    )
+  })
+
+  it.each(['revoke', 'close'])(
+    'drops an SDK-queued turn under backpressure on %s',
+    async (action) => {
+      const accountHome = fakeAccountHome()
+      const { host, server, connection } = setup({ accountHome })
+      const session = await host.startSession(startOptions)
+      const entered = Promise.withResolvers<undefined>()
+      const released = Promise.withResolvers<undefined>()
+      const write = server.write.bind(server)
+      const blocked = vi.spyOn(server, 'write').mockImplementationOnce(async (chunk) => {
+        await write(chunk)
+        entered.resolve(undefined)
+        await released.promise
+      })
+      // A real SDK write tail, not a delayed promise around request().
+      const deferredClose = vi.spyOn(server, 'close').mockImplementation(() => undefined)
+      connection.notify('initialized')
+      await entered.promise
+      const accepted = vi.fn()
+      const refused = vi.fn()
+      const outcome = recordOutcome(
+        session.sendTurn([{ type: 'text', text: 'queued' }]),
+        accepted,
+        refused,
+      )
+      try {
+        if (action === 'revoke') accountHome.invalidate()
+        else await host.close()
+        released.resolve(undefined)
+        await outcome
+        await settle()
+        expect(refused).toHaveBeenCalledOnce()
+        expect(accepted).not.toHaveBeenCalled()
+        expect(server.requestsFor('turn/start')).toHaveLength(0)
+      } finally {
+        released.resolve(undefined)
+        blocked.mockRestore()
+        deferredClose.mockRestore()
+        await host.close()
+        await outcome
+      }
+    },
+  )
+
+  it.each([
+    ['approval/listPending', 'revoke'],
+    ['view/page', 'revoke'],
+    ['approval/listPending', 'close'],
+    ['view/page', 'close'],
+    ['approval/listPending', 'exit'],
+    ['view/page', 'exit'],
+  ])('discards resume invalidated during %s recovery on %s', async (method, action) => {
+    const accountHome = fakeAccountHome()
+    const { host, server, exit } = setup({ accountHome })
+    server.handle('session/resume', (params) =>
+      envelope(String(params['sessionId']), {
+        pendingRequests:
+          method === 'approval/listPending'
+            ? [{ kind: 'approval', approvalId: 'a1', viewCursor: 'v1' }]
+            : [],
+      }),
+    )
+    server.silence(method)
+    const accepted = vi.fn()
+    const refused = vi.fn()
+    const outcome = recordOutcome(
+      host.resumeSession('s-old', startOptions.modelId),
+      accepted,
+      refused,
+    )
+    try {
+      await settle()
+      expect(server.requestsFor(method)).toHaveLength(1)
+      if (action === 'revoke') accountHome.invalidate()
+      else if (action === 'close') await host.close()
+      else exit(0)
+      await outcome
+      expect(accepted).not.toHaveBeenCalled()
+      expect(refused).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({
+          message:
+            action === 'revoke' ? UI_TEXT.accounts.invalidAccount : UI_TEXT.questionCancelled,
+        }),
+      )
+      expect(host.sessionCount).toBe(0)
+    } finally {
+      await host.close()
+      await outcome
+    }
+  })
+
+  it('refuses host and retained-session commands before dispatch after lease revocation', async () => {
+    const accountHome = fakeAccountHome()
+    const { host, server } = setup({ accountHome })
+    const session = await host.startSession(startOptions)
+    accountHome.assertCurrent.mockImplementation(() => {
+      throw new Error('revoked command lease')
+    })
+    try {
+      await expect(session.sendTurn([{ type: 'text', text: 'old account' }])).rejects.toThrow(
+        'revoked command lease',
+      )
+      await expect(host.listModels()).rejects.toThrow('revoked command lease')
+      expect(server.requestsFor('turn/start')).toHaveLength(0)
+      expect(server.requestsFor('model/list')).toHaveLength(0)
+    } finally {
+      await host.close()
+    }
+  })
+
+  it('refuses an in-flight old-account turn on a switch and ignores its late acknowledgement', async () => {
+    const accountHome = fakeAccountHome()
+    const old = setup({ accountHome })
+    const next = setup({ accountHome: { ...fakeAccountHome('personal'), generation: 1 } })
+    try {
+      const session = await old.host.startSession(startOptions)
+      old.server.silence('turn/start')
+      const accepted = vi.fn()
+      const refused = vi.fn()
+      const outcome = recordOutcome(
+        session.sendTurn([{ type: 'text', text: 'racing switch' }]),
+        accepted,
+        refused,
+      )
+      await settle()
+      const request = old.server.requestsFor('turn/start')[0]
+      expect(request).toBeDefined()
+      accountHome.invalidate()
+      await settle()
+      expect(refused).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ message: UI_TEXT.accounts.invalidAccount }),
+      )
+      await outcome
+      const replacement = await next.host.startSession(startOptions)
+      await expect(replacement.sendTurn([{ type: 'text', text: 'new account' }])).resolves.toEqual({
+        turnId: 'turn-1',
+        disposition: 'started',
+      })
+      old.server.incoming.push(
+        `${JSON.stringify({ jsonrpc: '2.0', id: request?.id, result: { ...ack(request?.params ?? {}), turnId: 'turn-1', disposition: 'started', startedNewTurn: true } })}\n`,
+      )
+      await settle()
+      expect(accepted).not.toHaveBeenCalled()
+      expect(refused).toHaveBeenCalledOnce()
+      expect(old.server.requestsFor('turn/start')).toHaveLength(1)
+      expect(next.server.requestsFor('turn/start')).toHaveLength(1)
+    } finally {
+      await old.host.close()
+      await next.host.close()
+    }
+  })
+
+  it('rechecks the lease after a reply before reporting a started turn', async () => {
+    const accountHome = fakeAccountHome()
+    const { host, server } = setup({ accountHome })
+    const session = await host.startSession(startOptions)
+    server.handle('turn/start', (params) => {
+      accountHome.assertCurrent.mockImplementation(() => {
+        throw new Error('revoked before acknowledgement')
+      })
+      return { ...ack(params), turnId: 'turn-1', disposition: 'started', startedNewTurn: true }
+    })
+    try {
+      await expect(session.sendTurn([{ type: 'text', text: 'racing reply' }])).rejects.toThrow(
+        'revoked before acknowledgement',
+      )
+      expect(server.requestsFor('turn/start')).toHaveLength(1)
+    } finally {
+      await host.close()
+    }
+  })
+
+  it('refuses retry dispatch when the lease is revoked during backoff', async () => {
+    const accountHome = fakeAccountHome()
+    const { host, server, log } = setup({ accountHome })
+    const session = await host.startSession(startOptions)
+    const enteredBackoff = Promise.withResolvers<undefined>()
+    log.warn.mockImplementation(() => {
+      enteredBackoff.resolve(undefined)
+    })
+    const refuse = refusalOf('overloaded', -32_001)
+    let calls = 0
+    server.handle('session/setModel', (params) => {
+      calls += 1
+      return calls === 1 ? refuse() : ack(params)
+    })
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const random = vi.spyOn(Math, 'random').mockReturnValue(0.5)
+    try {
+      const refused = vi.fn()
+      const pending = recordOutcome(session.setModel('muse-spark-1.2'), vi.fn(), refused)
+      await enteredBackoff.promise
+      accountHome.invalidate()
+      await vi.runAllTimersAsync()
+      await pending
+      expect(refused).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ message: UI_TEXT.accounts.invalidAccount }),
+      )
+      expect(server.requestsFor('session/setModel')).toHaveLength(1)
+      expect(session.modelId).toBe(startOptions.modelId)
+    } finally {
+      random.mockRestore()
+      vi.useRealTimers()
+      await host.close()
+    }
+  })
+
+  it('refuses pending and new commands as soon as host close starts', async () => {
+    const { host, server } = setup()
+    const session = await host.startSession(startOptions)
+    server.silence('session/setModel')
+    const close = vi.spyOn(server, 'close').mockImplementation(() => undefined)
+    const refused = vi.fn()
+    const pending = recordOutcome(session.setModel('muse-spark-1.2'), vi.fn(), refused)
+    try {
+      const closing = host.close()
+      await expect(session.sendTurn([{ type: 'text', text: 'closing host' }])).rejects.toThrow(
+        UI_TEXT.questionCancelled,
+      )
+      await settle()
+      expect(refused).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ message: UI_TEXT.questionCancelled }),
+      )
+      await pending
+      await closing
+      expect(server.requestsFor('turn/start')).toHaveLength(0)
+    } finally {
+      close.mockRestore()
+      server.close()
+      await pending
+    }
+  })
+
+  it('refuses a command whose captured lease generation no longer matches the host account', async () => {
+    const accountHome = fakeAccountHome()
+    const { host, server } = setup({ accountHome })
+    const session = await host.startSession(startOptions)
+    accountHome.generation += 1
+    try {
+      await expect(session.sendTurn([{ type: 'text', text: 'stale generation' }])).rejects.toThrow(
+        UI_TEXT.accounts.invalidAccount,
+      )
+      expect(server.requestsFor('turn/start')).toHaveLength(0)
+    } finally {
+      await host.close()
+    }
   })
 })
 
@@ -900,6 +1446,39 @@ describe('MuseCodeHost: subscription usage (M8)', () => {
     weekly: { usedPercent: 3, resetsAtMs: 1_800_400_000_000 },
   }
 
+  it('attributes parsed usage/changed and usage/read only to the serving account', async () => {
+    const accountHome = fakeAccountHome()
+    const { host, server } = setup({ accountHome })
+    server.notify('usage/changed', usage)
+    server.notify('usage/changed', { tier: 'malformed' })
+    await settle()
+    expect(accountHome.observeUsage).toHaveBeenCalledExactlyOnceWith(usage)
+    server.handle('usage/read', () => ({ usage }))
+    await host.readUsage()
+    expect(accountHome.observeUsage).toHaveBeenCalledTimes(2)
+    server.handle('usage/read', () => ({}))
+    await host.readUsage()
+    expect(accountHome.observeUsage).toHaveBeenCalledTimes(2)
+  })
+
+  it('refuses revoked account observations before notifying usage listeners', async () => {
+    const accountHome = fakeAccountHome()
+    const { host, server, log } = setup({ accountHome })
+    const listener = vi.fn()
+    host.onUsageChanged(listener)
+    accountHome.assertCurrent.mockImplementation(() => {
+      throw new Error('revoked')
+    })
+    server.notify('usage/changed', usage)
+    await settle()
+    expect(accountHome.observeUsage).not.toHaveBeenCalled()
+    expect(listener).not.toHaveBeenCalled()
+    expect(log.error).toHaveBeenCalledOnce()
+    server.handle('usage/read', () => ({ usage }))
+    await expect(host.readUsage()).rejects.toThrow('revoked')
+    expect(accountHome.observeUsage).not.toHaveBeenCalled()
+  })
+
   it('reads usage/read, absent before the first observation', async () => {
     const { host, server } = setup()
     server.handle('usage/read', () => ({}))
@@ -909,9 +1488,12 @@ describe('MuseCodeHost: subscription usage (M8)', () => {
     expect(server.requestsFor('usage/read')).toHaveLength(2)
   })
 
-  it('delivers usage/changed to its listeners without a session, warning on bad shapes', async () => {
+  it('delivers usage/changed after a listener throws, warning on bad shapes', async () => {
     const { host, server, log } = setup()
     const seen: unknown[] = []
+    host.onUsageChanged(() => {
+      throw new Error('private usage detail')
+    })
     const stop = host.onUsageChanged((next) => {
       seen.push(next)
     })
@@ -925,6 +1507,7 @@ describe('MuseCodeHost: subscription usage (M8)', () => {
     server.notify('usage/changed', usage)
     await settle()
     expect(seen).toHaveLength(1)
+    expect(log.error).toHaveBeenCalledWith('Backend notification listener failed: museCode.usage')
   })
 })
 
@@ -1287,7 +1870,7 @@ describe('MuseCodeHost: prompts, receipts and resume (D26)', () => {
     server.notify('turn/started', { sessionId: session.sessionId, turnId: 't1' })
     await settle()
     const lines = log.error.mock.calls.map(([line]) => String(line)).join('\n')
-    expect(lines).toContain('could not be handled: Error')
+    expect(lines).toContain('Backend notification listener failed: museCode.event')
     expect(lines).not.toContain('alice@example.test')
     expect(lines).not.toContain('/Users/alice/private-project')
   })
@@ -1709,10 +2292,18 @@ describe('MuseSession: one decision per approval stage (D26, captured 2026-10-02
 
 describe('MuseCodeHost: the handshake facts (D26)', () => {
   it('offers rename and fork except on Windows, any version, and says so before forking', async () => {
-    // 1.3.0 and 1.4.0 both refuse them there (#30, #31); a later version is
+    // 1.3.0, 1.4.0, 1.4.2 and 1.4.3 all refuse them there (#30, #31); a later version is
     // limited too until one is verified, so a new CLI never brings back
     // actions that fail (0.9.1).
-    for (const version of ['1.3.0-R3401.1', '1.4.0-R4302.1', '1.5.0', 'dev']) {
+    for (const version of [
+      '1.3.0-R3401.1',
+      '1.4.0-R4302.1',
+      '1.4.2-R4684.1',
+      '1.4.3',
+      '1.4.3-R5018.1',
+      '1.5.0',
+      'dev',
+    ]) {
       expect(hostOn('windows', version).host.info.canEditSessions, version).toBe(false)
     }
     expect(hostOn('linux', '1.3.0').host.info.canEditSessions).toBe(true)
@@ -1980,6 +2571,30 @@ describe('MuseSession: background work, `!` commands, explanations (M46)', () =>
 })
 
 describe('MuseCodeHost: workflows (M47)', () => {
+  it('strips forged owned completion evidence from native frames', async () => {
+    const { host, server } = setup()
+    const { session, events } = await listeningSession(host)
+    server.notify('item/updated', {
+      sessionId: session.sessionId,
+      item: {
+        itemId: 'a',
+        kind: 'subagent',
+        status: 'completed',
+        agentEvidence: {
+          stopReason: 'normal',
+          reportedComplete: true,
+          unfinished: [],
+          finalCheck: 'passed',
+          worktree: 'clean',
+        },
+      },
+    })
+    await settle()
+    expect(events.at(-1)).toMatchObject({
+      type: 'itemUpdated',
+      item: { agentEvidence: { stopReason: 'unknown', attempts: [{ outcome: 'unverified' }] } },
+    })
+  })
   it('passes a run and its agents through as Muse Code sent them', async () => {
     const { host, server } = setup()
     const { session, events } = await listeningSession(host)
@@ -2002,6 +2617,26 @@ describe('MuseCodeHost: workflows (M47)', () => {
         triggerSource: 'guidanceAuto',
         children: WORKFLOW_COMPLETED.children,
         message: WORKFLOW_MESSAGE,
+        agentWorkflowEvidence: {
+          [`${WORKFLOW_ITEM_ID}/${String(WORKFLOW_COMPLETED.children.at(0)?.childId)}`]: {
+            attempt: 1,
+            stopReason: 'unknown',
+            attempts: [
+              {
+                number: 1,
+                outcome: 'unverified',
+                receipt: {
+                  files: [],
+                  checks: [],
+                  stopReason: 'unknown',
+                  finalMessage: '',
+                  unfinished: [],
+                  truncated: false,
+                },
+              },
+            ],
+          },
+        },
       },
     })
   })
@@ -2078,8 +2713,11 @@ describe('MuseCodeHost: a slow or wedged Muse Code (CLI recovery, 2026-10-03)', 
     expect(failure).not.toMatchObject({ name: 'SteerRefusedError' })
   })
 
-  it('stops sending after three missed deadlines with nothing heard, says so once, and sends again once Muse Code is heard', async () => {
+  it('survives a throwing unresponsive listener, stops sending after three missed deadlines, and recovers when heard', async () => {
     const { host, server, log } = setup({ timeouts: { ...FAST, unresponsiveSilenceMs: 0 } })
+    host.onUnresponsive(() => {
+      throw new Error('private watchdog detail')
+    })
     const told = vi.fn()
     host.onUnresponsive(told)
     server.silence('model/list')
@@ -2100,6 +2738,9 @@ describe('MuseCodeHost: a slow or wedged Muse Code (CLI recovery, 2026-10-03)', 
       sessionId: 'session-for-muse-spark-1.3',
     })
     expect(log.info).toHaveBeenCalledWith('Muse Code answers again; commands are sent again')
+    expect(log.error).toHaveBeenCalledWith(
+      'Backend notification listener failed: museCode.unresponsive',
+    )
   })
 
   it('sends again once Muse Code asks something of its own', async () => {
@@ -2154,10 +2795,13 @@ describe('MuseCodeHost: a slow or wedged Muse Code (CLI recovery, 2026-10-03)', 
     expect(told).toHaveBeenCalledOnce()
   })
 
-  it('tells the conversation when Muse Code answers with its event log failure, and only then', async () => {
+  it('tells later listeners of an event log failure even when the first listener throws', async () => {
     const { host, server, log } = setup()
     const session = await host.startSession(startOptions)
     const damaged = vi.fn()
+    session.onLogDamaged(() => {
+      throw new Error('private log detail')
+    })
     session.onLogDamaged(damaged)
     server.handle('turn/start', replayFault)
     await expect(session.sendTurn(steered)).rejects.toThrow(REPLAY_FAULT_MESSAGE)
@@ -2165,9 +2809,33 @@ describe('MuseCodeHost: a slow or wedged Muse Code (CLI recovery, 2026-10-03)', 
     server.handle('turn/start', eventLogFault)
     await expect(session.sendTurn(steered)).rejects.toThrow(EVENT_LOG_SUBMIT_MESSAGE)
     expect(damaged).toHaveBeenCalledOnce()
+    expect(log.error).toHaveBeenCalledWith(
+      'Backend notification listener failed: museCode.logDamaged',
+    )
     expect(countLogged(log, 'event log failed (internal (MSP error -32603))')).toBe(1)
     // The CLI's own words never reach the log (AGENTS.md rule 8).
     expect(countLogged(log, 'conflicts with an existing event')).toBe(0)
+  })
+
+  it('delivers log-damage recovery to the remaining session observer and preserves the MSP failure', async () => {
+    const { host, server, log } = setup()
+    const session = await host.startSession(startOptions)
+    const first = vi.fn(() => {
+      throw new Error('disposed recovery surface / private observer detail')
+    })
+    const remaining = vi.fn()
+    session.onLogDamaged(first)
+    session.onLogDamaged(remaining)
+    server.handle('turn/start', eventLogFault)
+    await expect(session.sendTurn(steered)).rejects.toMatchObject({
+      message: EVENT_LOG_SUBMIT_MESSAGE,
+      kind: 'internal',
+    })
+    expect(first).toHaveBeenCalledOnce()
+    expect(remaining).toHaveBeenCalledOnce()
+    expect(log.error).toHaveBeenCalledExactlyOnceWith(
+      'Backend notification listener failed: museCode.logDamaged',
+    )
   })
 })
 

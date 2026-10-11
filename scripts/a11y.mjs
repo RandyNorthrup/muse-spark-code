@@ -17,13 +17,16 @@
 // that lost it mid-scan closed the composer's menus under axe (the
 // slash-commands race, docs/certification/a11y-focus.md).
 
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
+import { spawn } from 'node:child_process'
+import { pathToFileURL } from 'node:url'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { availableParallelism, tmpdir } from 'node:os'
 import path from 'node:path'
 import { performance } from 'node:perf_hooks'
 import process from 'node:process'
 import { chromium } from 'playwright-core'
+import { sortIncomplete } from './lib/a11yIncomplete.mjs'
 import { findChrome } from './lib/chrome.mjs'
 import { harnessArgs, langQuery, prepareLang } from './lib/harnessLang.mjs'
 import {
@@ -52,12 +55,6 @@ const WINDOWS_MAX_WORKERS = 2
 // readiness still run in real time before each scan.
 const PAGES_PER_WORKER = 2
 const WINDOWS_PAGES_PER_WORKER = 1
-// axe's reasons (messageKey) for a contrast it could not decide: the text is
-// covered, or it could not see the background behind it; or the content is
-// glyphs, not text.
-const CONTRAST_RULE = 'color-contrast'
-const UNSEEN_REASONS = new Set(['elmPartiallyObscured', 'elmPartiallyObscuring', 'bgOverlap'])
-const GLYPH_ONLY_REASON = 'nonBmp'
 // The harness takes these findings out, each only where its own test holds,
 // and they are printed under their own heading with the reason (PLAN.md §8).
 const EXEMPT_REASONS = new Map([
@@ -146,39 +143,6 @@ function elementCount(findings) {
   return findings.reduce((sum, finding) => sum + finding.nodes.length, 0)
 }
 
-/**
- * axe's undecided ("incomplete") results, sorted (the review of PR #18).
- * Two kinds of contrast result are counted, not failed, because no tool
- * decides them here: text axe could not see where it looked (covered by a
- * menu or dialog the user opened, or scrolled out of the transcript's
- * view; the same rows are checked where a scenario shows them), and
- * glyph-only content. Everything else axe could not decide fails, as a
- * violation does.
- */
-function sortIncomplete(findings) {
-  const undecided = []
-  let unseen = 0
-  let glyphOnly = 0
-  for (const finding of findings) {
-    const nodes = finding.nodes.filter((node) => {
-      const isContrast = finding.id === CONTRAST_RULE && node.reasons.length > 0
-      if (isContrast && node.reasons.every((reason) => UNSEEN_REASONS.has(reason))) {
-        unseen += 1
-        return false
-      }
-      if (isContrast && node.reasons.every((reason) => reason === GLYPH_ONLY_REASON)) {
-        glyphOnly += 1
-        return false
-      }
-      return true
-    })
-    if (nodes.length > 0) {
-      undecided.push({ ...finding, nodes })
-    }
-  }
-  return { undecided, unseen, glyphOnly }
-}
-
 /** One of axe's result lists over every page, each finding with its page. */
 function findingsIn(results, list) {
   return results.flatMap((result) =>
@@ -233,6 +197,10 @@ async function main() {
     Array.from({ length: workers }, () => mkdtemp(path.join(tmpdir(), 'muse-a11y-'))),
   )
   const results = []
+  // A complete streamed reply renders hundreds of deltas. Competing axe pages
+  // starve its unchanged readiness deadline; run every such page after the pool.
+  const ordinaryPages = pages.filter((page) => page.scenario !== 'long')
+  const streamedPages = pages.filter((page) => page.scenario === 'long')
   let next = 0
   try {
     // Each worker has a browser on a Chrome profile of its own; each of its
@@ -243,8 +211,8 @@ async function main() {
         try {
           await Promise.all(
             Array.from({ length: pagesPerWorker }, async () => {
-              while (next < pages.length) {
-                const page = pages[next]
+              while (next < ordinaryPages.length) {
+                const page = ordinaryPages[next]
                 next += 1
                 results.push({ ...page, ...(await scan(chrome, context, port, page, lang)) })
               }
@@ -255,6 +223,16 @@ async function main() {
         }
       }),
     )
+    if (streamedPages.length > 0) {
+      const context = await launchWorker(chrome, profiles[0])
+      try {
+        for (const page of streamedPages) {
+          results.push({ ...page, ...(await scan(chrome, context, port, page, lang)) })
+        }
+      } finally {
+        await context.close()
+      }
+    }
   } finally {
     server.close()
     await Promise.all(
@@ -295,9 +273,30 @@ async function main() {
   console.log(
     `\na11y: ${String(results.length)} pages (${String(scenarios.length)} scenarios × ${String(THEMES.length)} themes${lang === undefined ? '' : `, in ${lang}`}), ${String(byRule.size)} rules violated on ${String(nodes)} elements, ${String(undecidedByRule.size)} rules undecided on ${String(elementCount(undecided))} elements, ${String(exempt.length)} exempt, ${String(failed.length)} pages without a result`,
   )
+  if (lang === undefined && requested.length === 0) {
+    const code = await new Promise((resolve, reject) => {
+      const child = spawn(process.execPath, ['test/harness/reporting/verify.mjs', '--shipping'], {
+        stdio: 'inherit',
+      })
+      child.once('error', reject)
+      child.once('exit', (status) => resolve(status))
+    })
+    if (code !== 0) {
+      process.exitCode = 1
+      return
+    }
+    const reports = JSON.parse(readFileSync('docs/certification/m113-w-a11y.json', 'utf8'))
+    console.log(
+      `report a11y: ${reports.checks.length} production pages, ${reports.checks.filter((entry) => entry.errors.length > 0).length} pages without a result; outer frames and exact standalone content both measured`,
+    )
+  }
   if (byRule.size > 0 || undecidedByRule.size > 0 || failed.length > 0) {
     process.exitCode = 1
   }
 }
 
-await main()
+if (
+  process.argv[1] !== undefined &&
+  import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href
+)
+  await main()

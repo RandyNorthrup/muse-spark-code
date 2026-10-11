@@ -9,7 +9,7 @@
 // of 1 to 5 bullets, and its Try its must name contributed commands and
 // settings (the content generator throws otherwise).
 import { readFileSync } from 'node:fs'
-import { describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 import { z } from 'zod'
 import {
   contributedIds,
@@ -23,8 +23,13 @@ const manifestJson: unknown = JSON.parse(
 )
 const manifest = z.object({ version: z.string() }).parse(manifestJson)
 const changelog = readFileSync(new URL('../../CHANGELOG.md', import.meta.url), 'utf8')
-
 describe('CHANGELOG and the manifest version', () => {
+  let releases: ReturnType<typeof parseChangelog>
+
+  beforeAll(() => {
+    releases = parseChangelog(changelog, contributedIds(manifestJson), repositoryUrl(manifestJson))
+  })
+
   it(`has a dated section for ${manifest.version}`, () => {
     const heading = new RegExp(
       String.raw`^## \[${manifest.version.replaceAll('.', String.raw`\.`)}\] - \d{4}-\d{2}-\d{2}$`,
@@ -36,11 +41,6 @@ describe('CHANGELOG and the manifest version', () => {
   })
 
   it(`gives ${manifest.version} the Highlights What's New opens with, when it is a minor or major release`, () => {
-    const releases = parseChangelog(
-      changelog,
-      contributedIds(manifestJson),
-      repositoryUrl(manifestJson),
-    )
     expect(highlightsProblem(releases, manifest.version)).toBeUndefined()
   })
 })

@@ -92,7 +92,7 @@ describe('UsagePanel', () => {
     const { panel, tab } = openPanel()
     expect(window.createWebviewPanel).toHaveBeenCalledWith(
       'museSpark.usagePanel',
-      'Usage & cost',
+      'Usage & Cost',
       1,
       {},
     )
@@ -176,18 +176,18 @@ describe('UsagePanel', () => {
 
   it('requires the counted delete confirmation and routes settings, folder, models and safe consoles', async () => {
     const { ports, context, openModels, panel, usage } = openPanel()
-    expect(await ports.confirmDelete(1234)).toBe(false)
+    expect(await ports.confirmDelete(1234, 0)).toBe(false)
     expect(confirm).toHaveBeenLastCalledWith(
       'Delete usage history?',
       expect.objectContaining({
         modal: true,
         detail: expect.stringContaining('1,234 usage records'),
       }),
-      'Delete history',
+      'Delete History',
       'Cancel',
     )
-    confirm.mockResolvedValue('Delete history')
-    expect(await ports.confirmDelete(1234)).toBe(true)
+    confirm.mockResolvedValue('Delete History')
+    expect(await ports.confirmDelete(1234, 0)).toBe(true)
     await ports.openSettings()
     await ports.revealFolder()
     await ports.openModels('ollama', 'local')
@@ -216,7 +216,7 @@ describe('UsagePanel', () => {
     )
     expect(context.log.warn).not.toHaveBeenCalled()
     panel.dispose()
-    expect(await ports.confirmDelete(1234)).toBe(false)
+    expect(await ports.confirmDelete(1234, 0)).toBe(false)
   })
 
   it('serializes service work, reports errors without raw data, and closes the bridge with its tab', async () => {

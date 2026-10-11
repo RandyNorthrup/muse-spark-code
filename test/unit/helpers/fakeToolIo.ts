@@ -25,11 +25,14 @@ export function hookResult(
  * The real tool io over the real file system: no shell environment, and an
  * editor with unsaved changes at `unsavedFiles` only (none by default).
  */
-export function nativeToolIo(unsavedFiles: () => readonly string[] = () => []): ToolIo {
+export function nativeToolIo(
+  unsavedFiles: () => readonly string[] = () => [],
+  env: () => NodeJS.ProcessEnv = () => ({}),
+): ToolIo {
   return createToolIo({
     platform: process.platform,
     systemRoot: process.env['SystemRoot'],
-    env: () => ({}),
+    env,
     listFiles: () => Promise.resolve([]),
     searchWorkerPath: 'unused',
     log: () => undefined,

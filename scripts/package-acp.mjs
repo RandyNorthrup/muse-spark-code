@@ -29,43 +29,71 @@ import path from 'node:path'
 import process from 'node:process'
 import { promisify } from 'node:util'
 import { renderPackageReadme } from './check-badges.mjs'
+import {
+  DARWIN_HELPER,
+  JOB_SOURCES,
+  LINUX_HELPERS,
+  RUNNER_HELPERS,
+} from './lib/acpNativeSources.mjs'
 import { packRuntimeArchive } from './lib/packageArchive.mjs'
 
 const STAGE = path.join('dist', 'acp-package')
 const BUNDLES = [
   'acp.js',
+  'estimator.js',
   'headless.js',
   'sharingRuntime.js',
   // Lazy shared method factory; receiver qualification still refuses headless hosts.
   'devices.js',
   'acpQuestions.js',
+  'acpPlaybook.js',
   'runtimeQuestions.js',
+  'runtimeAccounts.js',
   'questionNotes.js',
+  'mcpPool.js',
+  'exec.js',
+  'modelApiCodeIntel.js',
+  'structuredSchema.js',
+  'fontsInstall.js',
+  'scheduleBackground.js',
   'modelApi.js',
+  'resourceAdmission.js',
+  'resourceGovernor.js',
+  'resourceProcess.js',
+  'resourceJournal.js',
   'modelApiHooks.js',
   'modelApiMcp.js',
   'runtimeAccounting.js',
   'providerPolicy.js',
   'runtimeEngine.js',
   'modelApiBoundaries.js',
+  'vault.js',
+  'vaultBoundaries.js',
+  'estimateContracts.js',
   'legalScan.js',
   'providers.js',
   'subscriptions.js',
   'configuredProviders.js',
   'providerCatalog.json',
   'providerCatalog.js',
+  'media.js',
   'reviewer.js',
   'team.js',
   'teamRunners.js',
   'teamScheduler.js',
+  'schedules.js',
   'foreignHooks.js',
   'hookRuntime.js',
   'recorder.js',
+  'reporting.js',
+  'reportingNetwork.js',
+  'reportingDestinations.js',
   'reference.js',
   'uiText.js',
   'uiTextRuntime.js',
   'uiTextHooks.js',
   'uiTextSurfaces.js',
+  'uiTextMedia.js',
   'extensionHooks.js',
   'validation.js',
   'wire.js',
@@ -75,30 +103,17 @@ const BUNDLES = [
   'usageService.js',
   'usageCompanion.js',
 ]
-// The C# of the shell tool's Windows job (M27), compiled on first use, as
-// the extension ships it (PLAN.md D6): its own file and the half it shares.
-// No MuseSparkMcpLauncher.cs: ACP forwards MCP servers to Muse Code's own
-// process (src/acp/agent.ts forwardedMcp); its Model API backend runs none.
-// src/runtime/backends.ts composes only shellJobAssembly, never mcpJobExecutable.
-// The lazy devices.js ships with its Windows storage helper's C# (M100).
-const JOB_SOURCES = [
-  path.join('native', 'windows', 'MuseSparkJob.cs'),
-  path.join('native', 'windows', 'MuseSparkMcpJob.cs'),
-  path.join('native', 'windows', 'MuseSparkDeviceStorage.cs'),
-]
 const NATIVE_DEPENDENCY = '@napi-rs/keyring'
-const PACKAGE_NAME = 'muse-spark-code-acp'
-// The package's landing page (docs/npm-readme.md): npm renders
-// GitHub-flavoured Markdown but does not resolve relative links or images,
-// so every link and image in that file is absolute. docs/acp.md stays the
-// detailed guide and is linked from the landing page instead.
-const README = path.join('docs', 'npm-readme.md')
-const NOTICES = 'THIRD_PARTY_NOTICES.txt'
-const SCHEMAS = ['exec-result-v1.schema.json', 'exec-event-v1.schema.json', 'share-v1.schema.json']
+const SCHEMAS = [
+  'exec-result-v1.schema.json',
+  'exec-event-v1.schema.json',
+  'exec-result-v2.schema.json',
+  'exec-event-v2.schema.json',
+  'share-v1.schema.json',
+  'report-v1.schema.json',
+]
 // Standalone full Help reads the manifest's labels beside package.json.
 const NLS_FILES = readdirSync('.').filter((file) => /^package\.nls(?:\.[\w-]+)?\.json$/.test(file))
-const HELP_WORKERS = 3
-const runFile = promisify(execFile)
 
 /** The keyring binding's version, as this repository locks it. */
 function lockedVersion(manifest) {
@@ -152,6 +167,18 @@ function usageAssets() {
 const manifest = JSON.parse(readFileSync('package.json', 'utf8'))
 const keyringVersion = lockedVersion(manifest)
 requireBundles()
+if (!existsSync(DARWIN_HELPER) || !statSync(DARWIN_HELPER).isFile())
+  throw new Error(`Required Darwin created-path helper is missing: ${DARWIN_HELPER}`)
+const PACKAGE_NAME = 'muse-spark-code-acp'
+// The package's landing page (docs/npm-readme.md): npm renders
+// GitHub-flavoured Markdown but does not resolve relative links or images,
+// so every link and image in that file is absolute. docs/acp.md stays the
+// detailed guide and is linked from the landing page instead.
+const README = path.join('docs', 'npm-readme.md')
+const NOTICES = 'THIRD_PARTY_NOTICES.txt'
+for (const helper of LINUX_HELPERS)
+  if (!existsSync(helper) || !statSync(helper).isFile())
+    throw new Error(`Required Linux created-path helper is missing: ${helper}`)
 const pageAssets = usageAssets()
 // Every installed display language needs the usage family too (lane L).
 for (const table of readdirSync('l10n')) {
@@ -184,11 +211,23 @@ for (const source of pageAssets) {
   mkdirSync(path.dirname(target), { recursive: true })
   copyFileSync(source, target)
 }
-for (const source of JOB_SOURCES) {
+for (const source of [...JOB_SOURCES, DARWIN_HELPER, ...LINUX_HELPERS]) {
   mkdirSync(path.join(STAGE, path.dirname(source)), { recursive: true })
   copyFileSync(source, path.join(STAGE, source))
 }
-cpSync('native/runner', path.join(STAGE, 'native/runner'), { recursive: true })
+// Keep every signed resource and executable mode when macOS CI supplied it.
+// Linux-only packages retain the runtime's honest missing-helper refusal.
+const screenBundle = path.join('native', 'darwin', 'muse-dictate-screen.app')
+if (existsSync(screenBundle)) {
+  cpSync(screenBundle, path.join(STAGE, screenBundle), { recursive: true })
+}
+const vaultHelper = path.join('dist', 'native', 'darwin', 'muse-vault')
+if (existsSync(vaultHelper)) {
+  const target = path.join(STAGE, vaultHelper)
+  mkdirSync(path.dirname(target), { recursive: true })
+  copyFileSync(vaultHelper, target)
+}
+cpSync(RUNNER_HELPERS, path.join(STAGE, RUNNER_HELPERS), { recursive: true })
 const tables = readdirSync('l10n')
   .filter((file) => /^ui\.[^/]+\.json$/.test(file))
   .map((file) => [
@@ -205,6 +244,8 @@ execFileSync(process.execPath, ['scripts/check-l10n.mjs', '--packaged-acp', STAG
   stdio: 'inherit',
 })
 for (const file of NLS_FILES) copyFileSync(file, path.join(STAGE, file))
+mkdirSync(path.join(STAGE, 'design', 'fonts'), { recursive: true })
+copyFileSync('design/fonts/manifest.json', path.join(STAGE, 'design', 'fonts', 'manifest.json'))
 copyFileSync('LICENSE', path.join(STAGE, 'LICENSE'))
 writeFileSync(
   path.join(STAGE, 'README.md'),
@@ -246,7 +287,17 @@ const agentManifest = {
     'llm',
   ],
   bin: { [PACKAGE_NAME]: 'dist/acp.js' },
-  files: ['dist', 'native', 'l10n', 'schemas', ...NLS_FILES, 'README.md', 'LICENSE', NOTICES],
+  files: [
+    'dist',
+    'design',
+    'native',
+    'l10n',
+    'schemas',
+    ...NLS_FILES,
+    'README.md',
+    'LICENSE',
+    NOTICES,
+  ],
   engines: { node: manifest.engines.node },
   dependencies: { [NATIVE_DEPENDENCY]: keyringVersion },
 }
@@ -255,6 +306,8 @@ execFileSync(process.execPath, ['scripts/check-badges.mjs', '--packaged-acp', ST
   stdio: 'inherit',
 })
 // Exercise the real staged CLI without credentials, a server or a model call.
+const HELP_WORKERS = 3
+const runFile = promisify(execFile)
 for (let first = 0; first < NLS_FILES.length; first += HELP_WORKERS) {
   // Help checks only read the staged package. Settle each bounded batch so a
   // rejected language does not leave another check running past its failure.

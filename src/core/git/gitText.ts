@@ -7,8 +7,9 @@
 // user edits it, and credential-shaped strings are masked before it is
 // shown.
 //
-// Pure: the host reads the changes through VS Code's git extension.
+// The host reads changes; an injected port continues the user's held draft turn.
 
+import * as z from 'zod/mini'
 import {
   COMMIT_SUBJECT_MAX_CHARS,
   GIT_PROMPT_COMMITS_MAX,
@@ -18,6 +19,15 @@ import {
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import { redactSecrets } from '../redact'
+import { commitDraftSchema, pullRequestDraftSchema } from '../../shared/sideCallSchemas'
+import {
+  sideCallContract,
+  structuredSideCall,
+  type SideCallAttempt,
+  type SideCallFormats,
+} from '../backends/modelapi/structuredOutput'
+import type { TurnPart, TurnSubmission } from '../agent/agentBackend'
+import type { GitDraftKind } from '../../shared/git'
 
 export interface CommitPromptFacts {
   readonly branch: string | undefined
@@ -40,6 +50,71 @@ export interface PullRequestPromptFacts {
 export interface PullRequestText {
   readonly title: string
   readonly body: string
+}
+
+/** M95/host binding: submit owns the prepared user's turn; request continues
+ * that same held turn with its live admission, consent and budget guards. */
+export interface GitDraftOutputPort {
+  readonly submit?: (parts: readonly TurnPart[], displayText?: string) => Promise<TurnSubmission>
+  readonly formats: () => SideCallFormats | undefined
+  readonly prepare: (kind: GitDraftKind, attempt: SideCallAttempt, signal: AbortSignal) => void
+  readonly request: (
+    kind: GitDraftKind,
+    attempt: SideCallAttempt,
+    signal: AbortSignal,
+  ) => Promise<string>
+}
+
+export function gitDraftContract(
+  kind: GitDraftKind,
+  formats: SideCallFormats | undefined,
+): SideCallAttempt {
+  return kind === 'commitMessage'
+    ? sideCallContract(formats, 'commit_draft', commitDraftSchema)
+    : sideCallContract(formats, 'pull_request_draft', pullRequestDraftSchema)
+}
+
+/** Read the first held reply, repair once, then request the existing text format. */
+export async function structuredGitDraft(
+  kind: GitDraftKind,
+  reply: string,
+  formats: SideCallFormats | undefined,
+  port: GitDraftOutputPort,
+  signal: AbortSignal,
+  notice: (text: string) => void,
+): Promise<string | PullRequestText | undefined> {
+  let isFirst = true
+  const request = async (attempt: SideCallAttempt): Promise<string> => {
+    if (isFirst) {
+      isFirst = false
+      return reply
+    }
+    return await port.request(kind, attempt, signal)
+  }
+  const common = { formats, request, signal, notice }
+  if (kind === 'commitMessage') {
+    return await structuredSideCall<string | undefined>({
+      ...common,
+      name: 'commit_draft',
+      schema: z.pipe(
+        commitDraftSchema,
+        z.transform((answer) => redactSecrets(answer.message)),
+      ),
+      fallback: commitMessageFrom,
+    })
+  }
+  return await structuredSideCall<PullRequestText | undefined>({
+    ...common,
+    name: 'pull_request_draft',
+    schema: z.pipe(
+      pullRequestDraftSchema,
+      z.transform((answer) => ({
+        title: redactSecrets(answer.title),
+        body: redactSecrets(answer.body),
+      })),
+    ),
+    fallback: pullRequestTextFrom,
+  })
 }
 
 const BACKTICK_RUN = /`+/g

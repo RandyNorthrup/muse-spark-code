@@ -449,3 +449,25 @@ class ForeignHooks implements ForeignHookAdapter {
 export function createForeignHookAdapter(deps: ForeignHookAdapterDeps): ForeignHookAdapter {
   return new ForeignHooks(deps)
 }
+
+import {
+  sanitizeImportedSession,
+  type SanitizeImportOptions,
+  type SessionExport,
+} from '../../export/sessionTransfer'
+import type { UiText } from '../../../shared/l10n/en'
+import { setUiText } from '../../../shared/l10n/text'
+import type { StoredSession } from './sessionStore'
+
+export function sanitizeSessionImport(
+  doc: SessionExport,
+  options: SanitizeImportOptions,
+  context: {
+    readonly table: UiText
+    readonly locale: string
+    readonly modelText: Parameters<typeof sanitizeImportedSession>[2]
+  },
+): StoredSession {
+  setUiText(context.table, context.locale)
+  return sanitizeImportedSession(doc, options, context.modelText)
+}

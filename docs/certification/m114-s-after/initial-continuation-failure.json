@@ -1,0 +1,10 @@
+{
+  "exit": 1,
+  "capture": "panel/approval-several/default/light/320",
+  "changedPixels": 33778,
+  "allowance": 12,
+  "manifestUnchanged": true,
+  "sourceRevision": "c311144b99ac4d113a1bed7bbdedc4aa05c47665",
+  "productSourceDiffEmpty": true,
+  "rootOnlyRepeatFailurePixels": 2154
+}

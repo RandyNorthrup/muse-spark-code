@@ -1,6 +1,8 @@
 // Shared by the ACP agent's suites: waiting on a condition the agent reaches
-// asynchronously, and a command approval as the backend raises it.
+// asynchronously, a command approval as the backend raises it, and one local
+// text prompt answered without a model turn.
 
+import type * as acp from '@agentclientprotocol/sdk'
 import type { AgentEvent, ApprovalChoice } from '../../../src/shared/agentEvents'
 
 const POLL_MS = 5
@@ -15,6 +17,21 @@ export async function until(isMet: () => boolean): Promise<void> {
     }
     await new Promise((resolve) => setTimeout(resolve, POLL_MS))
   }
+}
+
+/** Send one local text prompt (`/help`, `/vault status`) and return its reply. */
+export async function promptLocalText(
+  run: <T>(work: (client: acp.ClientContext) => Promise<T>) => Promise<T>,
+  start: (client: acp.ClientContext) => Promise<{ sessionId: string }>,
+  text: string,
+): Promise<unknown> {
+  return await run(async (client) => {
+    const { sessionId } = await start(client)
+    return await client.request('session/prompt', {
+      sessionId,
+      prompt: [{ type: 'text', text }],
+    })
+  })
 }
 
 /** A shell command's approval (`npm test`) offering `choices`. */

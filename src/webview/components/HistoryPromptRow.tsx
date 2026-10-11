@@ -9,6 +9,7 @@ import { CloseIcon, HistoryIcon } from './icons'
 import { PaletteSessionRow } from './paletteDialog'
 const ARCHIVE_KEY = WEBVIEW_KEYBINDINGS['history.archive'].archive.keys[0].key
 const ROW_ID_PREFIX = 'history-row-'
+const DELETE_SHORTCUT = 'Shift+Delete'
 export function HistoryPromptRow({
   row,
   isActive,
@@ -18,9 +19,11 @@ export function HistoryPromptRow({
   onHover,
   onResume,
   onSetArchived,
+  onDelete,
   onSavePrompt,
   menuContainer,
 }: {
+  readonly onDelete: ((sessionId: string) => void) | undefined
   readonly menuContainer: HTMLElement | null
   readonly onSavePrompt: ((sessionId: string) => void) | undefined
   readonly row: SessionRow
@@ -70,8 +73,10 @@ export function HistoryPromptRow({
         isCurrent={isCurrent}
         meta={meta}
         // The row is the control: Delete (un)archives it from the search box.
-        keyShortcuts={ARCHIVE_KEY}
-        keyDescription={archiveLabel}
+        keyShortcuts={onDelete === undefined ? ARCHIVE_KEY : `${ARCHIVE_KEY} ${DELETE_SHORTCUT}`}
+        keyDescription={
+          onDelete === undefined ? archiveLabel : `${archiveLabel} · ${UI_TEXT.memoryDeleteAction}`
+        }
         action={
           <>
             {/* For the mouse only: a button inside an option is still reachable by
@@ -90,6 +95,22 @@ export function HistoryPromptRow({
             >
               <CloseIcon />
             </span>
+            {onDelete === undefined ? null : (
+              <span
+                className="icon-button history-archive"
+                title={`${UI_TEXT.memoryDeleteAction} (${DELETE_SHORTCUT})`}
+                aria-hidden="true"
+                onMouseDown={(event) => {
+                  event.preventDefault()
+                }}
+                onClick={(event) => {
+                  event.stopPropagation()
+                  onDelete(row.sessionId)
+                }}
+              >
+                {UI_TEXT.memoryDeleteAction}
+              </span>
+            )}
           </>
         }
         onHover={onHover}

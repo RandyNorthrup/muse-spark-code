@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 import { existsSync } from 'node:fs'
 import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -147,7 +148,7 @@ describe('M98 production window wiring', () => {
     const daily = createPaidDailyBudget({
       directory,
       now: Date.now,
-      capUsd: () => 5,
+      capUsd: () => Usd.from(5).toAmount(),
       sleep: () => Promise.resolve(),
       isModelApi: () => false,
     })

@@ -1,0 +1,79 @@
+{
+  "composition-drills": [
+    {
+      "name": "english-prefix",
+      "file": "scripts/lib/uiTextRegions.mjs",
+      "redExit": 1,
+      "restoredSha256": "9d7bcc2e606c5f217d952b684695d24c3b00cc91328b55586c9c12882d53ab62"
+    },
+    {
+      "name": "team-decimal",
+      "file": "src/core/team/teamMeter.ts",
+      "redExit": 1,
+      "restoredSha256": "8a4895bc1799e4c6bdceb1c9486499ed3d6322e042499c239191a97942fbd2ab"
+    }
+  ],
+  "reporting-drill": {
+    "file": "src/core/usage/reportingAmount.ts",
+    "redExit": 1,
+    "restoredSha256": "f0e77f32d7fa27318ee87aaa8d45a16ad735016daffe2648df8c2b3339b1111b"
+  },
+  "rebuild-drills": [
+    {
+      "name": "english-prefix-final",
+      "file": "scripts/lib/uiTextRegions.mjs",
+      "redExit": 1,
+      "restoredSha256": "c964e7fc5b3be1e2a22df80bb634704734c50fe3aa3a9941f182821b62aa19e7"
+    },
+    {
+      "name": "resource-english-install",
+      "file": "scripts/lib/uiTextRegions.mjs",
+      "redExit": 1,
+      "restoredSha256": "c964e7fc5b3be1e2a22df80bb634704734c50fe3aa3a9941f182821b62aa19e7"
+    },
+    {
+      "name": "native-directory-owner",
+      "file": "native/darwin/MuseSparkCreated.c",
+      "redExit": 1,
+      "restoredSha256": "b6a6723bc910c8036c51377e3436949eb78a83d1742db8205db52f529964e14b"
+    }
+  ],
+  "Darwin-packaging": {
+    "redLog": "/tmp/rel0160b/darwin-package-red.log",
+    "greenLog": "/tmp/rel0160b/native-final.log",
+    "redFailedTests": 1,
+    "greenPassedTests": 49
+  },
+  "provider-decimal": {
+    "file": "src/core/providers/priceCard.ts",
+    "redExit": 1,
+    "redFailedTests": 1,
+    "restoredSha256": "cd906a1a6854747ec3baeedc18ce7913e2cd42c364ad0330f62ddc61e73a9d10",
+    "redLog": "/tmp/rel0160b/provider-decimal-red.log",
+    "greenLog": "/tmp/rel0160b/provider-decimal-green.log"
+  },
+  "security": [
+    {
+      "name": "sast-worker-once",
+      "file": "scripts/sast.mjs",
+      "redExit": 1,
+      "restoredSha256": "b7595dd9a6338f98f0e7d32bbfe516e45ed6164900503a61433909828e34f3be"
+    },
+    {
+      "name": "companion-inert-data",
+      "file": "src/runtime/companion/page.ts",
+      "redExit": 1,
+      "restoredSha256": "4a593df339873b6107907d592dfc9093acc0631383c514e1006a1e88c97b077f"
+    }
+  ],
+  "team-inventory": {
+    "name": "team-inventory-dist",
+    "file": "test/unit/teamHarness.test.mjs",
+    "redExit": 1,
+    "restoredSha256": "c493c56fd43e8e842658d48f1f2e3557457d9c6c84fff80b93ac4f886b4197f7",
+    "greenExit": 0,
+    "command": "CI=true npx vitest run test/unit/teamHarness.test.mjs --maxWorkers=3",
+    "existingSetupTimeoutMs": 60000,
+    "defaultAssertionTimeouts": true
+  }
+}

@@ -1,5 +1,6 @@
+import { Usd } from '../../src/shared/usd'
 import { describe, expect, it } from 'vitest'
-import { advanceFakeTeamDay, refundedTeamOutcome } from './helpers/teamFakes'
+import { advanceFakeTeamDay, refundedTeamOutcome, refusedTeamCap } from './helpers/teamFakes'
 import { settleTeamJournalClaim, type TeamSettlementClaims } from '../../src/host/team/teamJournal'
 
 // Test-only model of lane A's five-operation D78 contract at 8901ea1b.
@@ -16,20 +17,20 @@ const REQUEST = {
   tokens: 1000,
   inputTokens: 800,
   outputTokens: 200,
-  spendUsd: 1,
+  spendUsd: Usd.from(1).toAmount(),
 }
 const REPORTED = {
   kind: 'reported',
   tokens: 200,
   inputTokens: 100,
   outputTokens: 100,
-  spendUsd: 0.2,
+  spendUsd: Usd.from(0.2).toAmount(),
 } as const
 const BUDGETS = {
-  paidDailyBudgetUsd: 4,
-  teamDailyBudgetUsd: 2,
+  paidDailyBudgetUsd: Usd.from(4).toAmount(),
+  teamDailyBudgetUsd: Usd.from(2).toAmount(),
   teamDailyBudgetTokens: 2000,
-  workspaceDailyBudgetUsd: 2,
+  workspaceDailyBudgetUsd: Usd.from(2).toAmount(),
   workspaceDailyBudgetTokens: 2000,
 }
 type Record = NonNullable<Awaited<ReturnType<TeamSettlementClaims['lookupByClaimId']>>> & {
@@ -42,7 +43,9 @@ function sum(
   records: readonly Record[],
   measure: 'tokens' | 'inputTokens' | 'outputTokens' | 'spendUsd',
 ) {
-  return records.reduce((total, row) => total + (row.outcome ?? row.reservation)[measure], 0)
+  let total = Usd.from(0)
+  for (const row of records) total = total.add(Usd.from((row.outcome ?? row.reservation)[measure]))
+  return total.toAmount()
 }
 
 class MemoryClaims implements TeamSettlementClaims {
@@ -98,7 +101,9 @@ class MemoryClaims implements TeamSettlementClaims {
         )
         const checks = [
           [
-            sum(day, 'spendUsd') + (this.state.otherPaidUsd.get(reservation.dayKey) ?? 0),
+            Usd.from(sum(day, 'spendUsd'))
+              .add(Usd.from(this.state.otherPaidUsd.get(reservation.dayKey) ?? 0))
+              .toAmount(),
             limits.budgets.paidDailyBudgetUsd,
             'paid',
             'spendUsd',
@@ -119,8 +124,18 @@ class MemoryClaims implements TeamSettlementClaims {
           ],
         ] as const
         for (const [used, amount, scope, measure] of checks)
-          if (amount === 0 || used > amount)
-            return { ok: false, scope, measure, window: 'day', used, amount } as const
+          if (
+            Usd.from(amount).compare(Usd.from(0)) === 0 ||
+            Usd.from(used).compare(Usd.from(amount)) > 0
+          )
+            return {
+              ok: false,
+              scope,
+              measure,
+              window: 'day',
+              used: Number(used),
+              amount: Number(amount),
+            } as const
         for (const cap of limits.caps) {
           const scope = rows.filter(
             (row) =>
@@ -134,14 +149,7 @@ class MemoryClaims implements TeamSettlementClaims {
             cap.measure === 'tasks'
               ? new Set(scope.map((row) => row.reservation.taskId)).size
               : sum(scope, cap.measure)
-          if (used > cap.amount)
-            return {
-              ok: false,
-              measure: cap.measure,
-              window: cap.window,
-              used,
-              amount: cap.amount,
-            } as const
+          if (Usd.from(used).compare(Usd.from(cap.amount)) > 0) return refusedTeamCap(cap, used)
         }
         return { ok: true } as const
       },
@@ -189,7 +197,7 @@ describe('M96 K injected D78 settlement', () => {
         ...REQUEST,
         tokens: 1800,
         inputTokens: 1600,
-        spendUsd: 1.8,
+        spendUsd: Usd.from(1.8).toAmount(),
       })
       expect(next.check({ budgets: BUDGETS, caps: [] }).ok).toBe(true)
     },
@@ -210,7 +218,7 @@ describe('M96 K injected D78 settlement', () => {
       tokens: 1000,
       inputTokens: 800,
       outputTokens: 200,
-      spendUsd: 1,
+      spendUsd: Usd.from(1).toAmount(),
     })
     await expect(
       settleTeamJournalClaim(restarted, first.reservation.id, { kind: 'nonsent' }),
@@ -241,9 +249,12 @@ describe('M96 K injected D78 settlement', () => {
     const third = await claim(two, { ...REQUEST, workspaceId: 'third' })
     expect(third.check({ budgets: BUDGETS, caps: [] })).toMatchObject({ ok: false, scope: 'team' })
     await settleTeamJournalClaim(two, third.reservation.id, { kind: 'nonsent' })
-    expect(second.check({ budgets: { ...BUDGETS, teamDailyBudgetUsd: 1 }, caps: [] }).ok).toBe(
-      false,
-    )
+    expect(
+      second.check({
+        budgets: { ...BUDGETS, teamDailyBudgetUsd: Usd.from(1).toAmount() },
+        caps: [],
+      }).ok,
+    ).toBe(false)
     expect(one.state.records.size).toBe(3)
     await settleTeamJournalClaim(two, second.reservation.id, { kind: 'nonsent' })
     one.state.otherPaidUsd.set(DAY, 4)

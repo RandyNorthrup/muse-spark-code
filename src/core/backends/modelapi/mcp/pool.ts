@@ -16,9 +16,12 @@ import {
   MCP_TRANSPORTS,
   MILLISECONDS_PER_SECOND,
   MCP_POOL_MODEL_TEXT,
+  UI_TEXT,
 } from '../../../../shared/constants'
 import type { CoreLogger } from '../../../logging'
 import { withDeadline } from '../../../timeouts'
+import type { McpVaultPoolPort } from '../../../vault/mcpSecrets'
+import { mcpSecretReferences } from '../../../vault/mcpReferences'
 import type { McpSettingsEntries } from '../../musecode/museConfigView'
 import type { FunctionToolDefinition } from '../schemas'
 import { McpConnection, McpTimeoutError, type McpTransport } from './connection'
@@ -132,6 +135,8 @@ export interface McpToolSource {
 }
 
 export interface McpPoolDeps {
+  /** O routes: missing bindings refuse secret references before any process or request starts. */
+  readonly vault?: McpVaultPoolPort
   /** The settings file read by M31's reader; may throw when the file cannot be read. */
   readonly readSettings: () => McpSettingsEntries
   /** The extension host's environment, for `${VAR}`. */
@@ -144,6 +149,7 @@ export interface McpPoolDeps {
     launch: McpStdioLaunch,
     cwd: string,
     isCancelled?: () => boolean,
+    signal?: AbortSignal,
   ) => McpChildProcess | Promise<McpChildProcess>
   readonly fetch: typeof fetch
   readonly clientVersion: string
@@ -158,6 +164,7 @@ interface OfferedTool {
 }
 
 interface LiveServer {
+  resourceStop?: AbortController | undefined
   readonly spec: McpServerSpec
   catalogueGeneration: number
   state: McpServerState
@@ -263,19 +270,37 @@ export class McpServerPool implements McpToolSource {
     spec: McpServerSpec,
     launch: McpLaunch,
     isCancelled: () => boolean,
+    signal: AbortSignal,
   ): Promise<McpTransport> {
+    const references = mcpSecretReferences(launch)
+    if (references.size > 0 && this.deps.vault === undefined) {
+      throw new McpError(UI_TEXT.vault.noAccess)
+    }
     if (launch.transport === MCP_TRANSPORTS.stdio) {
-      return new McpStdioTransport(await this.deps.spawn(launch, this.cwdOf(launch), isCancelled), {
+      // The vault port has no signal of its own: Stop counts as cancellation there.
+      const child =
+        references.size > 0 && this.deps.vault !== undefined
+          ? await this.deps.vault.startStdio(
+              spec.name,
+              launch,
+              this.cwdOf(launch),
+              () => isCancelled() || signal.aborted,
+            )
+          : await this.deps.spawn(launch, this.cwdOf(launch), isCancelled, signal)
+      return new McpStdioTransport(child, {
         name: spec.name,
         framing: launch.framing,
         log: this.deps.log,
       })
     }
+    const guardedFetch = this.deps.vault?.fetchFor(spec.name, launch.url, launch.headers)
+    if (guardedFetch === undefined && references.size > 0)
+      throw new McpError(UI_TEXT.vault.noAccess)
     return new McpHttpTransport({
       name: spec.name,
       url: launch.url,
       headers: launch.headers,
-      fetch: this.deps.fetch,
+      fetch: guardedFetch ?? this.deps.fetch,
       log: this.deps.log,
     })
   }
@@ -309,7 +334,8 @@ export class McpServerPool implements McpToolSource {
   private async open(server: LiveServer, launch: McpLaunch): Promise<void> {
     const { spec } = server
     const isCancelled = () => this.isClosed || server.state.status !== 'starting'
-    const transport = await this.transportFor(spec, launch, isCancelled)
+    server.resourceStop = new AbortController()
+    const transport = await this.transportFor(spec, launch, isCancelled, server.resourceStop.signal)
     if (isCancelled()) {
       await transport.close()
       throw new McpError('the servers were closed while it started')
@@ -343,6 +369,7 @@ export class McpServerPool implements McpToolSource {
   }
 
   private fail(server: LiveServer, reason: string): void {
+    server.resourceStop?.abort()
     this.withdraw(server)
     server.state = { status: 'failed', reason }
     this.deps.log.warn(`MCP server ${server.spec.name} could not start: ${reason}`)
@@ -585,6 +612,7 @@ export class McpServerPool implements McpToolSource {
   /** Every server stopped (a stdio one's process tree killed); nothing is offered afterwards. */
   public async close(): Promise<void> {
     this.isClosed = true
+    for (const server of this.servers) server.resourceStop?.abort()
     const connections = this.servers.flatMap((server) => {
       const { connection } = server
       server.connection = undefined

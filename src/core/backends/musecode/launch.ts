@@ -14,9 +14,11 @@
 // end the direct child, so closing a launcher left muse-bin running.
 
 import path from 'node:path'
+import type { MuseCodeAccountHome } from './accountHomes'
 import type { EnvironmentVariable } from '../../../shared/constants'
 import {
   LOOPBACK_NO_PROXY_ENTRIES,
+  HOOK_FORBIDDEN_ENV_NAMES,
   MUSE_BIN_PREFIX,
   MUSE_CMD_FILE,
   MUSE_CREDENTIAL_FILE_SEGMENTS,
@@ -209,6 +211,8 @@ export interface ChildEnvironmentInput {
   readonly extraVariables: readonly EnvironmentVariable[]
   readonly systemRoot: string | undefined
   readonly programFiles: string | undefined
+  /** Supplied only by the capture-gated account owner, never settings or a page. */
+  readonly accountHome?: MuseCodeAccountHome
 }
 
 /**
@@ -301,6 +305,23 @@ export function buildChildEnvironment(input: ChildEnvironmentInput): NodeJS.Proc
   }
   for (const variable of input.extraVariables) {
     setEnvironmentVariable(env, input.platform, variable.name, variable.value)
+  }
+  if (input.accountHome !== undefined) {
+    input.accountHome.assertCurrent()
+  }
+  if (input.accountHome?.configHome !== undefined) {
+    // A CLI account must never silently use another account's inherited key
+    // or the POSIX launcher's auth-file override. The default path keeps D1.
+    for (const name of Object.keys(env)) {
+      const upper = name.toUpperCase()
+      if (
+        upper === 'MUSE_AUTH_PATH' ||
+        upper.endsWith('_API_KEY') ||
+        HOOK_FORBIDDEN_ENV_NAMES.has(upper)
+      )
+        Reflect.deleteProperty(env, name)
+    }
+    setEnvironmentVariable(env, input.platform, 'XDG_CONFIG_HOME', input.accountHome.configHome)
   }
   return env
 }

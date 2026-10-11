@@ -7,6 +7,7 @@ import { packRuntimeArchive } from './lib/packageArchive.mjs'
 import { compactVsix } from './lib/compactVsix.mjs'
 import { pathToFileURL } from 'node:url'
 import { listFiles, pack } from '@vscode/vsce/out/package.js'
+import { assertNoVsixFonts } from './notices-fonts.mjs'
 import { renderPackageReadme } from './check-badges.mjs'
 
 const RECENT_RELEASES = 2
@@ -35,6 +36,7 @@ export async function stageVsix(root, stage) {
   // The stage is build output in this worktree, never a user-selected folder.
   if (stage !== path.join(root, 'dist', 'vsix-package')) throw new Error('Invalid VSIX stage')
   const files = await listFiles({ cwd: root, dependencies: false })
+  assertNoVsixFonts(files)
   for (const page of [
     'webview',
     'modelsWebview',
@@ -49,6 +51,9 @@ export async function stageVsix(root, stage) {
     }
   }
   if (!files.includes('dist/devices.js')) throw new Error('Lazy Devices runtime excluded from VSIX')
+  for (const arch of ['x64', 'arm64'])
+    if (files.every((file) => file.replaceAll('\\', '/') !== `native/linux/${arch}/muse-created`))
+      throw new Error(`Required Linux created-path helper excluded from VSIX: ${arch}`)
   if (!files.includes('dist/validation.js'))
     throw new Error('Shared validation runtime excluded from VSIX')
   rmSync(stage, { recursive: true, force: true })

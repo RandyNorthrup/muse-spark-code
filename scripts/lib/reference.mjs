@@ -1,3 +1,4 @@
+import { brotliCompressSync } from 'node:zlib'
 // HELPREF: code/manifest-derived reference and freshness gate. No model calls.
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import LZString from 'lz-string'
@@ -128,7 +129,7 @@ export async function referenceSources(root) {
   const result = await esbuild.build({
     stdin: {
       contents:
-        "export * from './src/shared/reference/referenceSource'; export { readSettings } from './src/host/settings'; export { parseCommandLine } from './src/runtime/cliArgs'; export { parseLoopPrompt } from './src/core/backends/modelapi/schedules'; export { locateDictationHelper, locateCaptureHelper } from './src/core/voice/helperLocation'",
+        "export * from './src/shared/reference/referenceSource'; export { readSettings } from './src/host/settings'; export { readResourceSettings, resourceSettingsSchema } from './src/shared/resources'; export { parseCommandLine } from './src/runtime/cliArgs'; export { parseLoopPrompt } from './src/core/backends/modelapi/schedules'; export { locateDictationHelper, locateCaptureHelper } from './src/core/voice/helperLocation'",
       resolveDir: root,
       sourcefile: 'reference-tooling.ts',
     },
@@ -143,6 +144,7 @@ export async function referenceSources(root) {
   )
   const files = [
     'src/shared/protocol.ts',
+    'src/shared/estimatorProtocol.ts',
     'src/runtime/backends.ts',
     'src/extension.ts',
     'src/acp/agent.ts',
@@ -406,6 +408,10 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
     .split('export type WebviewToHostMessage', 1)[0]
   const operationNames = [
     ...source.HOST_ACTIONS,
+    ...source.evidence['src/shared/estimatorProtocol.ts']
+      .split('const hostToEstimatorSchema', 1)[0]
+      .matchAll(/type: z.literal\('([^']+)'\)/g)
+      .map((match) => match[1]),
     ...protocol.matchAll(/type: z.literal\('([^']+)'\)/g).map((match) => match[1]),
   ]
   for (const operation of operationNames) {
@@ -562,18 +568,53 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
     )
       errors.push(`Paid registry identity is missing or duplicated: ${feature}`)
   }
+  // Resource settings intentionally use their separate inspected-machine reader.
+  const resourceFields = {
+    resourceGovernor: 'enabled',
+    resourceCpuMaxPercent: 'cpuMaxPercent',
+    resourceMemoryMaxPercent: 'memoryMaxPercent',
+    resourceMemoryMinFreeGiB: 'memoryMinFreeGiB',
+    resourceGpuMaxPercent: 'gpuMaxPercent',
+    resourceDiskBusyMaxPercent: 'diskBusyMaxPercent',
+    resourceDiskMinFreeGiB: 'diskMinFreeGiB',
+    resourceRelocate: 'relocate',
+  }
+  const resourceDefaults = source.resourceSettingsSchema.parse({})
+  const runtimeSetting = (key, value, log) => {
+    const field = resourceFields[key]
+    if (field === undefined)
+      return source.readSettings(
+        { get: (requested) => (requested === key ? value : undefined) },
+        log,
+      )[key]
+    try {
+      return source.readResourceSettings((requested) =>
+        requested === key ? { globalValue: value } : undefined,
+      )[field]
+    } catch {
+      return
+    }
+  }
+  const moneySettings = new Set([
+    'modelApiSessionBudgetUsd',
+    'paidDailyBudgetUsd',
+    'tabDailyBudgetUsd',
+  ])
+  const isSameSetting = (key, actual, expected) =>
+    moneySettings.has(key)
+      ? source.Usd.from(actual).compare(source.Usd.from(expected)) === 0
+      : JSON.stringify(actual) === JSON.stringify(expected)
   for (const [id, schema] of Object.entries(properties)) {
     const key = id.slice('museSpark.'.length)
-    const canonical = source.SETTING_DEFAULTS[key]
+    const field = resourceFields[key]
+    if (field !== undefined && schema.scope !== 'machine')
+      errors.push(`Resource setting is not machine-scoped: ${id}`)
+    const canonical = field === undefined ? source.SETTING_DEFAULTS[key] : resourceDefaults[field]
     if (JSON.stringify(canonical) !== JSON.stringify(schema.default))
       errors.push(`Runtime default mismatch: ${id}`)
     for (const value of [schema.default, ...(schema.enum ?? [])]) {
-      const actual = source.readSettings(
-        { get: (requested) => (requested === key ? value : undefined) },
-        silentLog,
-      )[key]
-      if (JSON.stringify(actual) !== JSON.stringify(value))
-        errors.push(`Runtime value mismatch: ${id}`)
+      const actual = runtimeSetting(key, value, silentLog)
+      if (!isSameSetting(key, actual, value)) errors.push(`Runtime value mismatch: ${id}`)
     }
   }
 
@@ -583,23 +624,22 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
       /* Invalid probes are expected; they are not reference errors. */
     },
   }
-  const readSetting = (key, value) =>
-    source.readSettings({ get: (requested) => (requested === key ? value : undefined) }, probeLog)[
-      key
-    ]
+  const readSetting = (key, value) => runtimeSetting(key, value, probeLog)
   for (const [id, schema] of Object.entries(properties)) {
-    if (!['number', 'integer'].includes(schema.type)) continue
+    if ([schema.type].flat().every((type) => !['number', 'integer'].includes(type))) continue
     const key = id.slice('museSpark.'.length)
     for (const value of [schema.minimum, schema.maximum]) {
       if (value === undefined) continue
-      if (readSetting(key, value) !== value) errors.push(`Runtime bound mismatch: ${id}`)
+      if (!isSameSetting(key, readSetting(key, value), value))
+        errors.push(`Runtime bound mismatch: ${id}`)
     }
     for (const value of [
       schema.minimum === undefined ? undefined : schema.minimum - 1,
       schema.maximum === undefined ? undefined : schema.maximum + 1,
     ]) {
       if (value === undefined) continue
-      if (readSetting(key, value) === value) errors.push(`Runtime bound mismatch: ${id}`)
+      if (isSameSetting(key, readSetting(key, value), value))
+        errors.push(`Runtime bound mismatch: ${id}`)
     }
   }
   const duplicateChecks = [
@@ -796,7 +836,11 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
       errors.push(`CLI option lacks contract: --${option.name}`)
     const routes = option.routes
     for (const route of routes) {
-      let text = { cli: source.CLI_OPTION_TEXT[option.name] }
+      let text = {
+        cli:
+          source.CLI_OPTION_REGISTRY[route]?.text?.[option.name] ??
+          source.CLI_OPTION_TEXT[option.name],
+      }
       if (route === 'exec' && option.name === 'image-generation')
         text = { ui: 'referenceExecImages' }
       else if (
@@ -807,6 +851,15 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
       )
         text = { ui: 'referenceExecContract' }
       text = source.referenceDescription(text)
+
+      // Account targeting is limited to auth set and exec. The release's
+      // provider-only auth status/clear routes still select a provider.
+      if (
+        (option.name === 'account' && !['authSet', 'exec'].includes(route)) ||
+        (option.name === 'provider' &&
+          !['authSet', 'authStatus', 'authClear', 'exec'].includes(route))
+      )
+        continue
 
       cli.push({
         route,
@@ -879,9 +932,12 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
             }),
           ...(route === 'setup' && option.name === 'maintenance' && { event: 'maintenance' }),
           ...(route === 'exec' && {
-            ...(['trust-workspace', 'allow-dangerously-skip-permissions', 'web-search'].includes(
-              option.name,
-            ) && { refused: true }),
+            ...([
+              'trust-workspace',
+              'allow-dangerously-skip-permissions',
+              'web-search',
+              'record',
+            ].includes(option.name) && { refused: true }),
             purpose:
               {
                 'max-requests': 'maxRequests',
@@ -914,6 +970,12 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
       name: 'scan-secrets <file> [--key-stdin]',
       description: source.EN.referenceKeyStdin,
       text: { ui: 'referenceKeyStdin' },
+    },
+    {
+      route: 'playbook',
+      name: 'playbook <status|record|settings ...>',
+      description: source.EN.referencePlaybookCommand,
+      text: { ui: 'referencePlaybookCommand' },
     },
   )
 
@@ -1401,7 +1463,8 @@ export async function generateReference(root, isCheck = false) {
 import * as z from 'zod/mini'
 import LZString from 'lz-string'
 import type { ReferenceModel } from './types'
-const textKeys = ${JSON.stringify(textKeys)} as const
+import { parseReferenceModel } from './referenceSchema.generated'
+export { parseReferenceModel } from './referenceSchema.generated'
 export function referenceModel(): ReferenceModel {
   const referenceRadix = ${source.REFERENCE_POOL_RADIX}
   const numericPrefix = ${JSON.stringify(numericPrefix)}
@@ -1435,7 +1498,6 @@ export function referenceModel(): ReferenceModel {
   }
   return parseReferenceModel(expand(packed.model))
 }
-${schema}
 `,
     { ...formatting, filepath: MODULE },
   )
@@ -1447,6 +1509,20 @@ ${schema}
   const json = await format(JSON.stringify(model), { ...formatting, filepath: JSON_MODEL })
   for (const [file, content] of [
     [MODULE, module],
+    [
+      'src/runtime/reference.node.generated.ts',
+      await format(
+        `// Generated by scripts/gen-reference.mjs; do not edit.\nimport type { ReferenceModel } from '../shared/reference/types'\nimport { parseReferenceModel } from '../shared/reference/referenceSchema.generated'\nimport { brotliDecompressSync } from 'node:zlib'\nexport function referenceModel(): ReferenceModel { return parseReferenceModel(JSON.parse(brotliDecompressSync(Buffer.from('${brotliCompressSync(Buffer.from(JSON.stringify(model))).toString('base64')}', 'base64')).toString('utf8'))) }\n`,
+        { ...formatting, filepath: 'src/runtime/reference.node.generated.ts' },
+      ),
+    ],
+    [
+      'src/shared/reference/referenceSchema.generated.ts',
+      await format(
+        `// Generated by scripts/gen-reference.mjs; do not edit.\nimport * as z from 'zod/mini'\nimport type { ReferenceModel } from './types'\nexport const textKeys = ${JSON.stringify(textKeys)} as const\n${schema}\n`,
+        { ...formatting, filepath: 'src/shared/reference/referenceSchema.generated.ts' },
+      ),
+    ],
     [DOC, markdown],
     [JSON_MODEL, json],
   ]) {

@@ -1,33 +1,49 @@
+import { Usd } from '../../src/shared/usd'
 import type { UsageRecording } from '../../src/core/usage/recording'
 import {
+  constants as fileFlags,
   mkdtempSync,
   mkdirSync,
   readFileSync,
   readdirSync,
   existsSync,
   writeFileSync,
+  symlinkSync,
+  renameSync,
+  unlinkSync,
 } from 'node:fs'
-import { readFile } from 'node:fs/promises'
+import { open, readFile, realpath } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { PassThrough } from 'node:stream'
 import childProcess from 'node:child_process'
 import { syncBuiltinESMExports } from 'node:module'
+import { handleIdentity, lstatIdentity as lstat } from '../../src/core/fs/fileIdentity'
 import * as runtimeBackends from '../../src/runtime/backends'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { buildSync } from 'esbuild'
 import * as acp from '@agentclientprotocol/sdk'
+import { runExec, type ExecDeps, type ExecOutputSchemaPort } from '../../src/runtime/exec/runExec'
 import * as z from 'zod/mini'
-import { runExec, type ExecDeps } from '../../src/runtime/exec/runExec'
+import { accountSwap, sessionAccountsRig } from './helpers/runtimeAccounts'
+import type { ExecAccountsPort } from '../../src/runtime/exec/execAccounts'
+
 import { parseCommandLine } from '../../src/runtime/cliArgs'
 import { createLifecycle } from '../../src/runtime/exec/execLimits'
 import {
   validateResult,
-  execEventSchema,
   type ExecEvent,
+  type ResourceExecEvent,
   type ExecResult,
 } from '../../src/runtime/exec/execProtocol'
-import { EXEC_EXIT, NO_COMPACTABLE_HISTORY, SECRET_KEYS, UI_TEXT } from '../../src/shared/constants'
+import {
+  EXEC_EXIT,
+  NO_COMPACTABLE_HISTORY,
+  SECRET_KEYS,
+  UI_TEXT,
+  EXEC_PROMPT_MAX_BYTES,
+} from '../../src/shared/constants'
+
 import {
   agentDataFolder,
   paidGrantsFile,
@@ -45,10 +61,20 @@ import { outputWriter } from './helpers/execContract'
 import { removeFolder } from './helpers/temporaryFolders'
 import { acpMspHost } from './helpers/acpMsp'
 import { createExecClient } from '../../src/runtime/exec/execClient'
-import { createExecSink } from '../../src/runtime/exec/execOutput'
+import {
+  createExecSink,
+  validateSchemaEvent,
+  validateSchemaResult,
+} from '../../src/runtime/exec/execOutput'
+import { compileOutputSchema } from '../../src/runtime/exec/outputSchema'
+
 import * as providersCommands from '../../src/runtime/providersCommands'
 import { formatStoredProviderSecret } from '../../src/runtime/keyStore'
 import * as keyInput from '../../src/runtime/exec/keyInput'
+import { AcpMedia } from '../../src/acp/media'
+import { acpMediaIo } from './helpers/acpMediaIo'
+import { videoFixture } from './helpers/media/fixtures'
+import { mediaModel } from './helpers/media/replay'
 
 const actualMemoryStore = keyInput.memorySecretStore
 
@@ -87,7 +113,6 @@ function useMuseOptions(deps: ExecDeps): void {
     backend: 'museCode',
     model: undefined,
     budgetUsd: undefined,
-    budgetMicroUsd: undefined,
     maxRequests: undefined,
   }
 }
@@ -132,6 +157,12 @@ beforeAll(async () => {
     external: ['@napi-rs/keyring'],
     logLevel: 'silent',
   })
+  const translations = path.join(path.dirname(path.dirname(builtMain)), 'l10n')
+  mkdirSync(translations, { recursive: true })
+  writeFileSync(
+    path.join(translations, 'ui.de.json'),
+    readFileSync(path.join(process.cwd(), 'l10n', 'ui.de.json')),
+  )
   writeFileSync(
     path.join(path.dirname(path.dirname(builtMain)), 'package.json'),
     '{"version":"test"}',
@@ -216,17 +247,17 @@ async function harness(
   const run = async () => {
     try {
       const code = await runExec(life, deps)
-      const events: ExecEvent[] = out.chunks.flatMap((chunk) =>
+      const events: ResourceExecEvent[] = out.chunks.flatMap((chunk) =>
         chunk
           .trim()
           .split('\n')
-          .map((line): ExecEvent => execEventSchema.parse(JSON.parse(line))),
+          .map((line): ExecEvent => validateSchemaEvent(JSON.parse(line))),
       )
       const records = events.filter((event) => event.type === 'result')
       const result =
         records.length === 0
           ? undefined
-          : validateResult(records[0]?.type === 'result' ? records[0].result : undefined)
+          : validateSchemaResult(records[0]?.type === 'result' ? records[0].result : undefined)
       return { code, events, result }
     } finally {
       life.dispose()
@@ -234,6 +265,386 @@ async function harness(
   }
   return { api, deps, cwd, homeDir, out, err, life, store, run, clock }
 }
+
+function recordBodies(deps: ExecDeps): string[] {
+  const bodies: string[] = []
+  const fetch = deps.fetch
+  deps.fetch = async (url, init) => {
+    if (typeof init?.body === 'string') bodies.push(init.body)
+    return await fetch(url, init)
+  }
+  return bodies
+}
+
+const outputSchemaBytes = new TextEncoder().encode(
+  JSON.stringify({
+    type: 'object',
+    properties: { ok: { type: 'boolean' } },
+    required: ['ok'],
+    additionalProperties: false,
+  }),
+)
+
+function strictSchemaBinding(): ExecOutputSchemaPort {
+  return {
+    formatsFor: () => Promise.resolve(['strict_schema']),
+    configure: () => Promise.resolve(),
+  }
+}
+async function outsideSchemaHarness(
+  kind: 'symlink' | 'traversal' | 'absolute',
+  isAllowed: boolean,
+) {
+  const h = await harness([], [{ text: '{"ok":true}' }])
+  const outside = path.join(h.homeDir, 'answer.json')
+  writeFileSync(outside, outputSchemaBytes)
+  symlinkSync(h.homeDir, path.join(h.cwd, 'linked'), 'junction')
+  const given = {
+    symlink: path.join('linked', 'answer.json'),
+    traversal: path.relative(h.cwd, outside),
+    absolute: outside,
+  }[kind]
+  h.deps.options = {
+    ...h.deps.options,
+    outputSchema: given,
+    ...(isAllowed && { outputSchemaOutside: true }),
+  }
+  h.deps.readFile = vi.fn(h.deps.readFile)
+  h.deps.outputSchema = strictSchemaBinding()
+  return { h, outside }
+}
+
+async function expectPreflightRefusal(h: Awaited<ReturnType<typeof harness>>): Promise<void> {
+  h.deps.fetch = vi.fn(h.deps.fetch)
+  const create = vi.spyOn(runtimeBackends, 'createRuntimeBackend')
+  try {
+    const run = await h.run()
+    expect(run.code).toBe(2)
+    expect(run.result).toBeUndefined()
+    expect(h.deps.fetch).not.toHaveBeenCalled()
+    expect(create).not.toHaveBeenCalled()
+  } finally {
+    create.mockRestore()
+  }
+}
+
+async function schemaSwapHarness(
+  swap: (h: Awaited<ReturnType<typeof harness>>, file: string) => void,
+  phase: 'before' | 'after',
+) {
+  const h = await harness([], [{ text: '{"ok":true}' }])
+  const inside = path.join(h.cwd, 'parent', 'answer.json')
+  mkdirSync(path.dirname(inside))
+  writeFileSync(inside, outputSchemaBytes)
+  h.deps.options = { ...h.deps.options, outputSchema: inside }
+  h.deps.outputSchema = strictSchemaBinding()
+  const reads = vi.fn()
+  const opener = vi.fn(async (file: string, flags: number) => {
+    if (phase === 'before') swap(h, file)
+    const handle = await open(file, flags)
+    if (phase === 'after') swap(h, file)
+    vi.spyOn(handle, 'read').mockImplementation(reads)
+    return handle
+  })
+  h.deps.schemaFileIo = { open: opener, realpath, lstat }
+  return { h, opener, reads }
+}
+
+describe('M106 output schema runtime binding', () => {
+  it('refuses a final symlink swapped immediately before open without reading the outside file', async () => {
+    const { h, opener, reads } = await schemaSwapHarness((fixture, file) => {
+      const outside = path.join(fixture.homeDir, 'answer.json')
+      writeFileSync(outside, outputSchemaBytes)
+      unlinkSync(file)
+      symlinkSync(outside, file)
+    }, 'before')
+    await expectPreflightRefusal(h)
+    expect(opener).toHaveBeenCalledOnce()
+    if (process.platform !== 'win32')
+      expect((opener.mock.calls[0]?.[1] ?? 0) & fileFlags.O_NOFOLLOW).toBe(fileFlags.O_NOFOLLOW)
+    expect(reads).not.toHaveBeenCalled()
+  })
+  it('refuses a symlink parent swapped before open without reading outside the workspace', async () => {
+    const { h, opener, reads } = await schemaSwapHarness((fixture, file) => {
+      writeFileSync(path.join(fixture.homeDir, 'answer.json'), outputSchemaBytes)
+      const parent = path.dirname(file)
+      renameSync(parent, path.join(fixture.cwd, 'saved'))
+      symlinkSync(fixture.homeDir, parent, 'junction')
+    }, 'before')
+    await expectPreflightRefusal(h)
+    expect(opener).toHaveBeenCalledOnce()
+    expect(reads).not.toHaveBeenCalled()
+    expect(h.err.chunks.join('')).toContain('--output-schema-outside')
+  })
+  it('refuses a replaced inside pathname when its inode differs from the open handle', async () => {
+    const { h, opener, reads } = await schemaSwapHarness((fixture, file) => {
+      renameSync(file, path.join(fixture.cwd, 'saved.json'))
+      writeFileSync(file, outputSchemaBytes)
+    }, 'after')
+    await expectPreflightRefusal(h)
+    expect(opener).toHaveBeenCalledOnce()
+    expect(reads).not.toHaveBeenCalled()
+  })
+  it.each([false, true])(
+    'verifies Windows junction containment through the open-handle seam (inside=%s)',
+    async (isInside) => {
+      const h = await harness([], [{ text: '{"ok":true}' }])
+      const inside = path.join(h.cwd, 'answer.json')
+      writeFileSync(inside, outputSchemaBytes)
+      h.deps.platform = 'win32'
+      h.deps.options = { ...h.deps.options, outputSchema: inside }
+      h.deps.outputSchema = strictSchemaBinding()
+      const handles: Awaited<ReturnType<typeof open>>[] = []
+      const opener = vi.fn(async (file: string, flags: number) => {
+        const handle = await open(file, flags)
+        handles.push(handle)
+        vi.spyOn(handle, 'read')
+        return handle
+      })
+      const target = isInside
+        ? String.raw`C:\workspace\linked\answer.json`
+        : String.raw`C:\outside\answer.json`
+      h.deps.schemaFileIo = {
+        open: opener,
+        realpath: (file) => Promise.resolve(file === h.cwd ? String.raw`C:\workspace` : target),
+        lstat: async () => {
+          const handle = handles[0]
+          if (handle === undefined) throw new Error('open must precede verification')
+          // The filesystem seam is Windows; the backend still runs on this rig.
+          h.deps.platform = process.platform
+          return await handleIdentity(handle)
+        },
+      }
+      // Record reads through the held handle without replacing its implementation.
+      if (isInside) {
+        const run = await h.run()
+        expect(run.code).toBe(0)
+        expect(handles[0]?.read).toHaveBeenCalled()
+      } else {
+        await expectPreflightRefusal(h)
+        expect(handles[0]?.read).not.toHaveBeenCalled()
+      }
+      expect(opener).toHaveBeenCalledOnce()
+      expect(opener.mock.calls[0]?.[1]).toBe(0)
+    },
+  )
+
+  it.each(['device', 'nonregular', 'stat-size', 'growth'] as const)(
+    'refuses a schema handle with invalid %s and closes it before backend creation',
+    async (kind) => {
+      const h = await harness()
+      const inside = path.join(h.cwd, 'answer.json')
+      writeFileSync(inside, outputSchemaBytes)
+      h.deps.options = { ...h.deps.options, outputSchema: inside }
+      h.deps.outputSchema = strictSchemaBinding()
+      const handles: Awaited<ReturnType<typeof open>>[] = []
+      h.deps.schemaFileIo = {
+        open: async (file, flags) => {
+          const handle = await open(file, flags)
+          handles.push(handle)
+          const info = await handleIdentity(handle)
+          switch (kind) {
+            case 'device': {
+              info.dev += 1n
+              break
+            }
+            case 'nonregular': {
+              vi.spyOn(info, 'isFile').mockReturnValue(false)
+              break
+            }
+            case 'stat-size': {
+              info.size = BigInt(EXEC_PROMPT_MAX_BYTES + 1)
+              break
+            }
+            case 'growth': {
+              writeFileSync(inside, ' '.repeat(EXEC_PROMPT_MAX_BYTES + 1))
+              break
+            }
+          }
+          vi.spyOn(handle, 'stat').mockResolvedValue(info)
+          vi.spyOn(handle, 'read')
+          vi.spyOn(handle, 'close')
+          return handle
+        },
+        realpath,
+        lstat,
+      }
+      await expectPreflightRefusal(h)
+      expect(handles[0]?.close).toHaveBeenCalledOnce()
+      expect(h.err.chunks.join('')).toContain(
+        UI_TEXT.outputSchemaReadFailed.replace('{detail}', 'file'),
+      )
+      if (kind === 'growth') expect(handles[0]?.read).toHaveBeenCalled()
+      else expect(handles[0]?.read).not.toHaveBeenCalled()
+    },
+  )
+
+  it('refuses invalid/unreadable schemas and an absent binding before backend creation or HTTP', async () => {
+    for (const phase of ['invalid', 'unreadable', 'unbound']) {
+      const h = await harness()
+      h.deps.options = { ...h.deps.options, outputSchema: 'answer.json' }
+      if (phase !== 'unreadable')
+        writeFileSync(
+          path.join(h.cwd, 'answer.json'),
+          phase === 'invalid' ? '{}' : outputSchemaBytes,
+        )
+      if (phase !== 'unbound') h.deps.outputSchema = strictSchemaBinding()
+      await expectPreflightRefusal(h)
+    }
+  })
+  it.each([
+    [['forced_tool', 'json_schema', 'strict_schema'], 'strict_schema'],
+    [['forced_tool', 'json_schema'], 'json_schema'],
+    [['forced_tool'], 'forced_tool'],
+  ] as const)(
+    'selects the strongest captured format %j before the prompt',
+    async (formats, mode) => {
+      const h = await harness([], [{ text: '{"ok":true}' }])
+      h.deps.options = { ...h.deps.options, outputSchema: 'answer.json' }
+      writeFileSync(path.join(h.cwd, 'answer.json'), outputSchemaBytes)
+      h.deps.readFile = vi.fn(h.deps.readFile)
+      const configure = vi.fn(() => {
+        expect(h.api.responseBodies()).toHaveLength(0)
+        return Promise.resolve()
+      })
+      h.deps.outputSchema = { formatsFor: vi.fn(() => Promise.resolve(formats)), configure }
+      const run = await h.run()
+      expect(configure).toHaveBeenCalledWith(
+        expect.objectContaining({
+          model: 'muse-spark-1.3-contributor',
+          mode,
+          schema: compileOutputSchema(outputSchemaBytes).schema,
+          signal: h.life.signal,
+        }),
+      )
+      expect(run.code).toBe(0)
+      expect(run.result).toMatchObject({
+        output: { value: { ok: true }, validation: 'provider' },
+        ledger: {
+          outputSchemaSha256: compileOutputSchema(outputSchemaBytes).sha256,
+        },
+      })
+    },
+  )
+  it('uses prompt-text schema fallback and discloses local validation when no wire format is supported', async () => {
+    const h = await harness([], [{ text: '{"ok":true}' }])
+    writeFileSync(path.join(h.cwd, 'answer.json'), outputSchemaBytes)
+    h.deps.options = { ...h.deps.options, outputSchema: 'answer.json' }
+    const configure = vi.fn(() => Promise.resolve())
+    h.deps.outputSchema = { formatsFor: () => Promise.resolve([]), configure }
+    const run = await h.run()
+    expect(run.code).toBe(0)
+    expect(configure).not.toHaveBeenCalled()
+    expect(h.api.responseBodies()).toHaveLength(1)
+    expect(JSON.stringify(h.api.responseBodies()[0]?.['input'])).toContain(
+      JSON.stringify(new TextDecoder().decode(outputSchemaBytes)).slice(1, -1),
+    )
+    expect(run.result).toMatchObject({
+      output: { value: { ok: true }, validation: 'local' },
+      usage: { requests: 1 },
+      ledger: { outputSchemaSha256: compileOutputSchema(outputSchemaBytes).sha256 },
+    })
+    expect(h.err.chunks.join('')).toContain(UI_TEXT.outputSchemaLocalValidation)
+  })
+  it('fails a text-fallback schema mismatch locally without a repair or extra billable request', async () => {
+    const h = await harness([], [{ text: '{"ok":"wrong"}' }])
+    writeFileSync(path.join(h.cwd, 'answer.json'), outputSchemaBytes)
+    h.deps.options = { ...h.deps.options, outputSchema: 'answer.json' }
+    h.deps.outputSchema = {
+      formatsFor: () => Promise.resolve([]),
+      configure: vi.fn(() => Promise.resolve()),
+    }
+    const run = await h.run()
+    expect(run.code).toBe(10)
+    expect(run.result).toMatchObject({
+      status: 'failed',
+      error: { kind: 'output_schema_mismatch' },
+      usage: { requests: 1 },
+    })
+    expect(Object.hasOwn(run.result ?? {}, 'output')).toBe(false)
+    expect(h.api.responseBodies()).toHaveLength(1)
+    expect(h.err.chunks.join('')).toContain(UI_TEXT.outputSchemaLocalValidation)
+  })
+  it('normalises Windows separators before the schema containment comparison', async () => {
+    const h = await harness()
+    writeFileSync(path.join(h.cwd, 'answer.json'), outputSchemaBytes)
+    h.deps.options = { ...h.deps.options, outputSchema: 'answer.json' }
+    h.deps.readFile = vi.fn(h.deps.readFile)
+    const relative = vi.spyOn(path, 'relative').mockReturnValue(String.raw`..\outside\answer.json`)
+    try {
+      const run = await h.run()
+      expect(run.code).toBe(2)
+      expect(h.deps.readFile).not.toHaveBeenCalled()
+      expect(h.err.chunks.join('')).toContain('--output-schema-outside')
+    } finally {
+      relative.mockRestore()
+    }
+  })
+  it.each(['symlink', 'traversal', 'absolute'] as const)(
+    'refuses an outside schema target through %s before reading or creating a backend',
+    async (kind) => {
+      const { h } = await outsideSchemaHarness(kind, false)
+      await expectPreflightRefusal(h)
+      expect(h.deps.readFile).not.toHaveBeenCalled()
+      expect(h.err.chunks.join('')).toContain('--output-schema-outside')
+    },
+  )
+  it.each(['symlink', 'traversal', 'absolute'] as const)(
+    'reads and reports an explicitly authorised outside schema through %s',
+    async (kind) => {
+      const { h, outside } = await outsideSchemaHarness(kind, true)
+      const run = await h.run()
+      expect(run.code).toBe(0)
+      expect(h.deps.readFile).not.toHaveBeenCalled()
+      expect(run.result?.output).toMatchObject({ value: { ok: true }, validation: 'provider' })
+      expect(h.err.chunks.join('')).toContain(UI_TEXT.outputSchemaOutsideAllowed)
+      expect(JSON.stringify(run.result?.ledger)).not.toContain(outside)
+    },
+  )
+  it('accepts an absolute inside schema and a symlinked workspace by their real paths', async () => {
+    const h = await harness([], [{ text: '{"ok":true}' }])
+    const inside = path.join(h.cwd, 'answer.json')
+    writeFileSync(inside, outputSchemaBytes)
+    const alias = path.join(h.homeDir, 'workspace')
+    symlinkSync(h.cwd, alias, 'junction')
+    h.deps.options = { ...h.deps.options, cwd: alias, outputSchema: inside }
+    h.deps.outputSchema = strictSchemaBinding()
+    const run = await h.run()
+    expect(run.code).toBe(0)
+    expect(h.err.chunks.join('')).not.toContain('--output-schema-outside')
+  })
+  it('propagates a final schema mismatch to the process code while retaining spend and digest', async () => {
+    const h = await harness([], [{ text: '{"ok":"wrong"}' }])
+    h.deps.options = { ...h.deps.options, outputSchema: 'answer.json' }
+    writeFileSync(path.join(h.cwd, 'answer.json'), outputSchemaBytes)
+    h.deps.outputSchema = strictSchemaBinding()
+    const run = await h.run()
+    expect(run.code).toBe(10)
+    expect(run.result).toMatchObject({
+      status: 'failed',
+      exitCode: 10,
+      error: { kind: 'output_schema_mismatch' },
+      ledger: { outputSchemaSha256: compileOutputSchema(outputSchemaBytes).sha256 },
+      usage: { requests: 1 },
+    })
+    expect(Object.hasOwn(run.result ?? {}, 'output')).toBe(false)
+  })
+  it('does not read capabilities or change request bytes without a schema', async () => {
+    const baseline = await harness()
+    const baselineBodies = recordBodies(baseline.deps)
+    await baseline.run()
+    const enhanced = await harness([], [{ text: 'done' }], { processCwd: baseline.cwd })
+    const enhancedBodies = recordBodies(enhanced.deps)
+    const formatsFor = vi.fn(() => Promise.resolve(['strict_schema'] as const))
+    const configure = vi.fn(() => Promise.resolve())
+    enhanced.deps.outputSchema = { formatsFor, configure }
+    await enhanced.run()
+    expect(formatsFor).not.toHaveBeenCalled()
+    expect(configure).not.toHaveBeenCalled()
+    expect(enhancedBodies).toHaveLength(1)
+    expect(enhancedBodies).toEqual(baselineBodies)
+  })
+})
 function result(r: { result: ExecResult | undefined }) {
   if (r.result === undefined) throw new Error('no result')
   return r.result
@@ -268,6 +679,7 @@ function builtCommand(
   shouldHangTable = false,
   shouldBlockStderr = false,
   shouldDrainStderr = false,
+  language = 'en_US.UTF-8',
 ): Promise<{ code: number | null; stdout: string; stderr: string }> {
   const bootstrap = path.join(folder(), 'bootstrap.cjs')
   const trace = `${bootstrap}.trace`
@@ -284,14 +696,22 @@ Module._load = function(name, ...rest) { if(name === '@napi-rs/keyring') throw n
 ${shouldHangTable ? "require('node:fs/promises').readFile = () => new Promise(() => {});" : ''}
 ${shouldBlockStderr ? "require('node:fs/promises').readFile = () => Promise.reject(new Error('x'.repeat(4 * 1024 * 1024))); setTimeout(() => { mark('SIGINT'); process.emit('SIGINT'); setTimeout(() => { mark('SIGTERM'); process.emit('SIGTERM'); }, 10); }, 100);" : ''}`,
   )
+  // A home directory the test owns: the child never touches the runner's
+  // real one, and home lookup cannot fail where the user database is
+  // unavailable.
+  const home = folder()
   const child = childProcess.spawn(process.execPath, ['--require', bootstrap, builtMain, ...args], {
     cwd: path.dirname(bootstrap),
     env: {
       PATH: process.env['PATH'],
       SystemRoot: process.env['SystemRoot'],
-      LANG: shouldHangTable || shouldBlockStderr ? 'de_DE.UTF-8' : 'en_US.UTF-8',
+      LANG: shouldHangTable || shouldBlockStderr ? 'de_DE.UTF-8' : language,
       NODE_OPTIONS: '',
       NODE_PATH: '',
+      HOME: home,
+      USERPROFILE: home,
+      XDG_CONFIG_HOME: home,
+      XDG_DATA_HOME: home,
     },
     stdio: 'pipe',
   })
@@ -370,7 +790,9 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
       summary: vi.fn(),
       onStalled: vi.fn(),
     })
+    const onAccountNotice = vi.fn()
     const client = createExecClient({
+      onAccountNotice,
       sink,
       lifecycle: h.life,
       onDenial: vi.fn(),
@@ -389,6 +811,16 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
       { sessionUpdate: 'future_non_tool', extra: { text: `done ${FAKE_MODEL_API_KEY}` } },
       { sessionUpdate: 'agent_message_chunk.v2', content: { text: 'LLM|1|s' } },
       { sessionUpdate: 'agent_thought_chunk', content: { text: 'LLM|1|s' } },
+      {
+        sessionUpdate: 'agent_message_chunk',
+        _meta: { accountNotice: accountSwap() },
+        content: { text: 'account swap' },
+      },
+      {
+        sessionUpdate: 'agent_message_chunk',
+        _meta: { accountNotice: { ...accountSwap(), secret: 'account-secret-canary' } },
+        content: { text: 'must be suppressed' },
+      },
       { sessionUpdate: 'tool_future_update', rawOutput: 'LLM|1|s', toolCallId: 'x' },
     ]) {
       await writer.write(
@@ -401,7 +833,10 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
     await connection.closed
     expect(h.life.cause).toBeNull()
     h.life.dispose()
-    expect(out.chunks).toHaveLength(1)
+    expect(out.chunks).toHaveLength(2)
+    expect(onAccountNotice).toHaveBeenCalledExactlyOnceWith(accountSwap())
+    expect(out.chunks.join('')).toContain('account_notice')
+    expect(out.chunks.join('')).not.toContain('account-secret-canary')
     expect(out.chunks.join('')).toContain('future_non_tool')
     expect(out.chunks.join('')).not.toContain(FAKE_MODEL_API_KEY)
     expect(out.chunks.join('')).not.toContain('LLM|1|s')
@@ -678,7 +1113,7 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
         requests: 1,
         inputTokens: 10,
         outputTokens: 5,
-        costUsd: { settled: 0.000002, total: 0.000002 },
+        costUsd: { settled: Usd.from(0.000002).toAmount(), total: Usd.from(0.000002).toAmount() },
       },
     })
     expect(h.api.responseBodies()).toHaveLength(1)
@@ -784,7 +1219,10 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
     h.life.latch({ kind: 'timeout' })
     const r = await running
     expect(r.code).toBe(6)
-    expect(result(r).usage.costUsd).toMatchObject({ uncertain: 0.108135, isUpperBound: true })
+    expect(result(r).usage.costUsd).toMatchObject({
+      uncertain: Usd.from(0.108135).toAmount(),
+      isUpperBound: true,
+    })
     expect(result(r).finalMessage).toBe(UI_TEXT.execMessageWithheld)
   })
   it.each([false, true])(
@@ -807,7 +1245,7 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
     const h = await harness([], [{ httpError: { status } }])
     const r = await h.run()
     expect(r.code).toBe(3)
-    expect(result(r).usage.costUsd?.uncertain).toBe(0.108135)
+    expect(result(r).usage.costUsd?.uncertain).toBe(Usd.from(0.108135).toAmount())
   })
   it('D13 catalogue authentication failure is auth/3 before any billable request', async () => {
     const h = await harness()
@@ -842,7 +1280,7 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
     const r = await h.run()
     expect(r.code).toBe(4)
     expect(result(r).usage.requests).toBe(5)
-    expect(result(r).usage.costUsd?.uncertain).toBe(0.540675)
+    expect(result(r).usage.costUsd?.uncertain).toBe(Usd.from(0.540675).toAmount())
   })
   it('D15 reply/key-shaped stderr are redacted; missing terminal prefix withheld whole', async () => {
     const h = await harness([], [{ text: `reply ${FAKE_MODEL_API_KEY}` }])
@@ -978,7 +1416,10 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
     expect(r.code).toBe(4)
     expect(result(r).terminal).toBeNull()
     expect(result(r).finalMessage).toBe(UI_TEXT.execMessageWithheld)
-    expect(result(r).usage.costUsd).toMatchObject({ settled: 0.000002, uncertain: 0.540675 })
+    expect(result(r).usage.costUsd).toMatchObject({
+      settled: Usd.from(0.000002).toAmount(),
+      uncertain: Usd.from(0.540675).toAmount(),
+    })
   })
   it.each([
     [false, false, 0],
@@ -1002,7 +1443,7 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
       expect(r.code).toBe(code)
       expect(result(r).finalMessage).toBe('final')
       expect(result(r).usage.costUsd?.uncertain).toBe(
-        (Number(earlyMissing) + Number(lateMissing)) * 0.108135,
+        Usd.from((Number(earlyMissing) + Number(lateMissing)) * 0.108135).toAmount(),
       )
     },
   )
@@ -1029,7 +1470,7 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
     expect(result(r).usage.paid).toMatchObject({
       imageAttempts: 1,
       imagesReturned: 1,
-      settledUsd: 0.01,
+      settledUsd: Usd.from(0.01).toAmount(),
     })
     expect(existsSync(path.join(h.cwd, 'image.png'))).toBe(true)
     expect(r.events.filter((e) => e.type === 'paid_use').map((e) => e.phase)).toEqual([
@@ -1042,7 +1483,7 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
         expect.objectContaining({
           model: 'muse-image-1.0',
           units: { images: 1 },
-          providerCostUsd: 0.01,
+          providerCostUsd: Usd.from(0.01).toAmount(),
           uncertain: false,
           outcome: 'completed',
         }),
@@ -1075,7 +1516,7 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
     )
     const bad = await invalid.run()
     expect(bad.code).toBe(9)
-    expect(result(bad).usage.costUsd?.uncertain).toBe(0.108135)
+    expect(result(bad).usage.costUsd?.uncertain).toBe(Usd.from(0.108135).toAmount())
     expect(result(bad).finalMessage).toBe(UI_TEXT.execMessageWithheld)
     const imageRun = await imageHarness('image.png', 'must not run')
     imageRun.api.images.push({ count: 2 })
@@ -1097,7 +1538,7 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
         imageAttempts: status === 429 ? 2 : 1,
         imagesReturned: status === 429 ? 1 : 0,
         imagesUncertain: 1,
-        uncertainUsd: 0.01,
+        uncertainUsd: Usd.from(0.01).toAmount(),
       })
       const images = recording.note.mock.calls.filter(([, context]) => context.kind === 'image')
       expect(images).toHaveLength(status === 429 ? 2 : 1)
@@ -1105,7 +1546,7 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
         undefined,
         expect.objectContaining({
           uncertain: true,
-          retainedLiabilityUsd: 0.01,
+          retainedLiabilityUsd: Usd.from(0.01).toAmount(),
           providerCostUsd: undefined,
         }),
       ])
@@ -1166,8 +1607,8 @@ it('refuses a headless Meta request when ACP has already reserved the daily budg
     dataFolder: data,
     now: () => Date.now(),
     sleep: () => Promise.resolve(),
-  }).reserve(1, new AbortController().signal)
-  expect(claim.check(0).spentUsd).toBe(1)
+  }).reserve(Usd.from(1).toAmount(), new AbortController().signal)
+  expect(claim.check(Usd.from(0).toAmount()).spentUsd).toBe(Usd.from(1).toAmount())
   const r = await h.run()
   expect(r.code).not.toBe(0)
   expect(h.api.responseBodies()).toHaveLength(0)
@@ -1285,3 +1726,185 @@ it.each(['1', '0.000001'])(
     }
   },
 )
+describe('M105 headless attachment entry', () => {
+  it('returns usage/2 for unsupported attached media and headless /record without inference', async () => {
+    const h = await harness(['--attach', 'clip.mp4'], [], {
+      media: () =>
+        Promise.resolve({
+          block: () => Promise.resolve(UI_TEXT.media.cappedRateUnknown),
+          attach: () => Promise.reject(new Error('unused')),
+          record: () => Promise.reject(new Error('unused')),
+        }),
+    })
+    writeFileSync(path.join(h.cwd, 'clip.mp4'), videoFixture())
+    const refused = await h.run()
+    expect(refused.code).toBe(2)
+    expect(h.api.responseBodies()).toHaveLength(0)
+    const recording = await harness()
+    recording.deps.options = {
+      ...recording.deps.options,
+      prompt: { kind: 'text', text: '/record' },
+    }
+    const refusedRecording = await recording.run()
+    expect(refusedRecording.code).toBe(2)
+    expect(recording.api.responseBodies()).toHaveLength(0)
+    // A typed headless /attach is a usage error too: no turn sends the queue.
+    const typed = await harness()
+    typed.deps.options = {
+      ...typed.deps.options,
+      prompt: { kind: 'text', text: '/attach clip.mp4' },
+    }
+    const refusedAttach = await typed.run()
+    expect(refusedAttach.code).toBe(2)
+    expect(typed.api.responseBodies()).toHaveLength(0)
+    expect(typed.err.chunks.join('')).toContain(UI_TEXT.media.attachHeadless)
+  })
+  it('returns usage/2 for an escaped path or an unbound media route before an API attempt', async () => {
+    for (const given of ['../private.mp4', 'clip.mp4']) {
+      const h = await harness(['--attach', given])
+      writeFileSync(path.join(h.cwd, 'clip.mp4'), videoFixture())
+      const done = await h.run()
+      expect(done.code).toBe(2)
+      expect(h.api.requests).toHaveLength(0)
+      expect(h.err.chunks.join('')).toContain(
+        given.startsWith('..') ? UI_TEXT.textFilePrivate : UI_TEXT.media.uploadStorageUnknown,
+      )
+    }
+  })
+
+  it('hands repeatable confined links to a noninteractive media port and keeps bytes out of exec output', async () => {
+    const prepare = vi.fn((_input: unknown) =>
+      Promise.resolve({ type: 'text' as const, text: 'test-registered-media' }),
+    )
+    const h = await harness(['--attach', 'clip.mp4', '--attach', 'clip.mp4'], [{ text: 'done' }], {
+      media: (context) => {
+        expect(context.interactive).toBe(false)
+        return Promise.resolve(
+          new AcpMedia({
+            ...context,
+            platform: process.platform,
+            model: () => mediaModel(context.modelId()),
+            io: acpMediaIo(),
+            assertReadable: () => Promise.resolve(),
+            prepare,
+          }),
+        )
+      },
+    })
+    const bytes = videoFixture({ soundtrack: false })
+    writeFileSync(path.join(h.cwd, 'clip.mp4'), bytes)
+    const done = await h.run()
+    expect(done.code).toBe(0)
+    expect(prepare).toHaveBeenCalledTimes(2)
+    expect(result(done).status).toBe('completed')
+    expect(result(done).inputs).toEqual(
+      Array.from({ length: 2 }, () => ({
+        name: 'clip.mp4',
+        bytes: bytes.length,
+        chunks: 0,
+        complete: true,
+      })),
+    )
+    expect(JSON.stringify(h.api.responseBodies())).toContain('test-registered-media')
+    expect([...h.out.chunks, ...h.err.chunks].join('')).not.toContain(
+      Buffer.from(bytes).toString('base64'),
+    )
+  })
+})
+
+describe('M108 account runtime composition', () => {
+  it('refuses unbound terminal account operations before credential access', async () => {
+    for (const argv of [
+      ['providers', 'accounts', 'list', '--provider', 'meta'],
+      ['auth', 'set', '--provider', 'meta', '--account', 'work'],
+    ]) {
+      const r = await builtCommand(argv, 'terminal-account-canary\n', 0)
+      expect(r.code).toBe(1)
+      expect(r.stdout).toBe('')
+      expect(r.stderr).toContain(UI_TEXT.accounts.unavailable)
+      expect(r.stderr).not.toContain('terminal-account-canary')
+      expect(r.stderr).not.toContain('forbidden')
+    }
+  })
+
+  it('renders new CLI usage errors in the installed language before any credential access', async () => {
+    const r = await builtCommand(
+      ['providers', 'accounts', 'list', '--provider', 'META'],
+      '',
+      0,
+      false,
+      false,
+      false,
+      'de_DE.UTF-8',
+    )
+    expect(r.code).toBe(1)
+    expect(r.stdout).toBe('')
+    expect(r.stderr).toContain('Konten:')
+    expect(r.stderr).not.toContain('Accounts:')
+  })
+
+  it('refuses an unbound account before reading keys or dispatching any request', async () => {
+    const h = await harness(['--account', 'work'])
+    const get = vi.spyOn(h.store, 'get')
+    h.deps.options = { ...h.deps.options, prompt: { kind: 'file', path: 'must-not-read' } }
+    const read = vi.fn(() => Promise.reject(new Error('unexpected account prompt-file read')))
+    h.deps.readFile = read
+    const r = await h.run()
+    expect(r.code).toBe(2)
+    expect(h.api.requests).toEqual([])
+    expect(get).not.toHaveBeenCalled()
+    expect(read).not.toHaveBeenCalled()
+    expect(h.err.chunks.join('')).toContain(UI_TEXT.accounts.unavailable)
+  })
+
+  it('refuses uncaptured Muse Code account factories at the programmatic boundary', async () => {
+    const create = vi.fn<ExecAccountsPort['create']>(() => {
+      throw new Error('uncaptured factory called')
+    })
+    const h = await harness(['--account', 'work'], [], { accounts: { create } })
+    h.deps.options = { ...h.deps.options, backend: 'museCode' }
+    const r = await h.run()
+    expect(r.code).toBe(2)
+    expect(create).not.toHaveBeenCalled()
+    expect(h.api.requests).toEqual([])
+    expect(h.err.chunks.join('')).toContain(UI_TEXT.accounts.museCodeUnavailable)
+  })
+
+  it('supplies the chosen account, pool policy and unchanged bounded transport to the injected runtime', async () => {
+    const accounts = sessionAccountsRig()
+    accounts.port.read = () => Promise.resolve({ ...accounts.state(), currentAccount: 'work' })
+    const create = vi.fn<ExecAccountsPort['create']>((deps, selection, createBackend) => {
+      expect(selection).toEqual({ account: 'work', hasPoolFlag: true, isInteractive: false })
+      expect(deps.exec?.isEphemeral).toBe(false)
+      // CAPS017: the engine's own factory, so the accounts bundle carries none.
+      expect(createBackend).toBe(runtimeBackends.createRuntimeBackend)
+      return { runtime: createBackend(deps), accounts: accounts.port }
+    })
+    const h = await harness(['--account', 'work', '--account-pool'], [{ text: 'done' }], {
+      accounts: { create },
+    })
+    const r = await h.run()
+    expect(r.code).toBe(0)
+    expect(create).toHaveBeenCalledOnce()
+    expect(result(r).limits.budgetUsd).toBe(Usd.from(1).toAmount())
+    expect(result(r).ledger?.capUsd).toBe(Usd.from(1).toAmount())
+    expect(result(r).usage.requests).toBe(1)
+    expect(h.api.requests.filter((request) => request.path === '/responses')).toHaveLength(1)
+  })
+
+  it('refuses a runtime that advertises another account before starting a turn', async () => {
+    const accounts = sessionAccountsRig()
+    const h = await harness(['--account', 'work'], [{ text: 'must not send' }], {
+      accounts: {
+        create: (deps) => ({
+          runtime: runtimeBackends.createRuntimeBackend(deps),
+          accounts: accounts.port,
+        }),
+      },
+    })
+    const r = await h.run()
+    expect(r.code).toBe(2)
+    expect(h.api.requests.filter((request) => request.path === '/responses')).toEqual([])
+    expect(h.err.chunks.join('')).toContain(UI_TEXT.accounts.invalidAccount)
+  })
+})

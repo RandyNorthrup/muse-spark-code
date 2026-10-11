@@ -2,7 +2,10 @@
 // its URL placed before any card or modal, what the model reads (English,
 // the page's output between markers) and what the row shows (the display
 // language), and why a check did not happen.
+import { readFileSync } from 'node:fs'
 import { afterEach, describe, expect, it } from 'vitest'
+import { loadUiTable } from '../../src/host/l10n'
+import { FakeLogOutputChannel } from './helpers/fakes'
 import type { BrowserCheckReport, BrowserFailure } from '../../src/core/browser/browserRun'
 import {
   allowedHostsFor,
@@ -240,6 +243,7 @@ describe('the browser check tool (M81)', () => {
       'scopeChanged',
       'notOffered',
       'launch',
+      'systemDirectoryUnavailable',
       'unrecognized',
       'profile',
       'routeUnconfirmed',
@@ -265,6 +269,45 @@ describe('the browser check tool (M81)', () => {
     }
     // Each failure reads differently to the user.
     expect(seen.size).toBe(fixed.length)
+  })
+
+  it('words a missing Windows system directory in every display language, English for the model (SECWINPATH3 P3-2)', async () => {
+    const log = new FakeLogOutputChannel()
+    const locales = [
+      'cs',
+      'de',
+      'es',
+      'fr',
+      'hu',
+      'it',
+      'ja',
+      'ko',
+      'pl',
+      'pt-br',
+      'ru',
+      'tr',
+      'zh-cn',
+      'zh-tw',
+    ]
+    for (const locale of locales) {
+      // The shipped table through the real loader, shape-checked like activation.
+      const { table } = await loadUiTable({
+        language: locale,
+        readExtensionFile: () =>
+          Promise.resolve(
+            readFileSync(new URL(`../../l10n/ui.${locale}.json`, import.meta.url), 'utf8'),
+          ),
+        log,
+      })
+      // The row's sentence is the honest SystemRoot instruction in each language.
+      expect(table.browserCheckSystemDirectoryUnavailable, locale).toBe(
+        table.windowsSystemRootMissing,
+      )
+      expect(browserRefusal({ kind: 'systemDirectoryUnavailable' }), locale).toEqual({
+        model: MODEL_TEXT.browserCheckSystemDirectoryUnavailable,
+        user: table.windowsSystemRootMissing,
+      })
+    }
   })
 
   it('redacts a credential-shaped selector before it reaches the model or the row', () => {

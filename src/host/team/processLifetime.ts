@@ -1,12 +1,37 @@
+import type { ResourceLease } from '../../core/resources/launch'
+import type { ResourcePermit } from '../../core/resources/queue'
+import type { GovernedTeamSlot } from '../../core/team/scheduler/slots'
+
+/** C1/T attach the reserved permit to their registry; no second admission or sampler. */
+export interface TeamProcessRegistryPort {
+  attach(permit: ResourcePermit, onRetired: () => void): ResourceLease
+}
+
+/** M96 K calls before durable launch intent/spawn, then registers through this lease. */
+export function prepareTeamProcess(
+  slot: GovernedTeamSlot,
+  registry: TeamProcessRegistryPort,
+): ResourceLease {
+  try {
+    return registry.attach(slot.permit, () => {
+      slot.release()
+    })
+  } catch (error) {
+    // Nothing has spawned, so a failed binding cannot leave an occupied slot.
+    slot.release()
+    throw error
+  }
+}
+
 import { randomBytes, randomUUID } from 'node:crypto'
-import { spawn } from 'node:child_process'
+import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { readFile } from 'node:fs/promises'
 import { createServer } from 'node:net'
 import os from 'node:os'
 import { setTimeout as delay } from 'node:timers/promises'
 import * as z from 'zod/mini'
 import { Connection, checkServedFingerprint } from '@muse-code/sdk'
-import type { ChildProcessWithoutNullStreams } from 'node:child_process'
+
 import type { TeamJournal } from './teamJournal'
 import { shellJobAssembly, type ShellJobDeps } from '../backend/shellJob'
 import { loadJobAssembly, runProgram, windowsPowerShell } from '../processTree'
@@ -16,17 +41,15 @@ import {
   TEAM_PROCESS_STATUS_MAX_CHARS,
   MCP_JOB_NONCE_BYTES,
   WINDOWS_POWERSHELL_COMMAND_ARGS,
+  MSP_CLIENT_NAME,
+  MSP_HANDSHAKE_TIMEOUT_MS,
+  MSP_REQUESTED_CAPABILITIES,
 } from '../../shared/constants'
 import { createNativeOrphanDriver, createOrphanRecovery } from './orphanRecovery'
 import { createProcessOwnership } from './processOwnership'
 import { MuseCodeHost } from '../../core/backends/musecode/MuseCodeHost'
 import type { CoreLogger } from '../../core/logging'
 import { withDeadline } from '../../core/timeouts'
-import {
-  MSP_CLIENT_NAME,
-  MSP_HANDSHAKE_TIMEOUT_MS,
-  MSP_REQUESTED_CAPABILITIES,
-} from '../../shared/constants'
 
 const NATIVE_POLL_MS = 10
 const NATIVE_CONFIRM_MS = 5000

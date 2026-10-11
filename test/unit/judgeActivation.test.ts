@@ -1,10 +1,11 @@
+import { defaultSettings } from './helpers/defaultSettings'
 import { fileURLToPath } from 'node:url'
 import { build } from 'esbuild'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type * as vscode from 'vscode'
 import { isActivationPaidSettingOn } from '../../src/host/paid/paidActivation'
 import { createPaidFeatures } from '../../src/host/paid/paidHost'
-import { SETTING_DEFAULTS, UI_TEXT } from '../../src/shared/constants'
+import { UI_TEXT } from '../../src/shared/constants'
 import type { ExtensionSettings } from '../../src/host/settings'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { mockJudgePaidConfiguration } from './helpers/judgePaidConfiguration'
@@ -19,6 +20,7 @@ vi.mock('vscode', async (importOriginal) => ({
 function paidAtActivation(settings: ExtensionSettings, isKeyStored = false) {
   const stored = new Map<string, unknown>()
   const state = {
+    keys: () => Array.from(stored, ([key]) => key),
     get: (key: string) => stored.get(key),
     update: vi.fn((key: string, value: unknown) => {
       stored.set(key, value)
@@ -51,7 +53,10 @@ describe('judge activation routing', () => {
     'does not ask or disable a subscription-only judge at startup with %s',
     async (engine) => {
       vi.mocked(confirmModal).mockResolvedValue(UI_TEXT.paidConfirmAccept)
-      const settings = { ...SETTING_DEFAULTS, 'judge.engine': engine }
+      const settings = {
+        ...defaultSettings(),
+        'judge.engine': engine,
+      }
       const paid = paidAtActivation(settings)
       await paid.gate.review()
       expect(confirmModal).not.toHaveBeenCalled()
@@ -66,7 +71,7 @@ describe('judge activation routing', () => {
     vi.mocked(confirmModal).mockResolvedValue(undefined)
     const paid = paidAtActivation(
       {
-        ...SETTING_DEFAULTS,
+        ...defaultSettings(),
         modelApiImageGeneration: true,
         modelApiWebSearch: false,
         modelApiVoice: false,

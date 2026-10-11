@@ -50,7 +50,7 @@ describe('scheduled run paid-use popup (M52, M58)', () => {
     ).resolves.toBe('deny')
     const detail = vi.mocked(window.showWarningMessage).mock.calls[0]?.[1]?.detail
     expect(detail).toContain('$0.100/1M input')
-    expect(detail).toContain('$0.002/1M cached input')
+    expect(detail).toContain('$0.0020/1M cached input')
     expect(detail).toContain('$0.200/1M output')
     expect(detail).not.toContain('$1.250/1M input')
   })

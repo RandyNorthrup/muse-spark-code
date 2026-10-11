@@ -61,7 +61,11 @@ beforeAll(async () => {
   cpSync(path.join(root, 'src/core/whatsNew'), path.join(fixture.root, 'src/core/whatsNew'), {
     recursive: true,
   })
-  mkdirSync(path.join(fixture.root, 'src/runtime'), { recursive: true })
+  mkdirSync(path.join(fixture.root, 'src/runtime/estimator'), { recursive: true })
+  cpSync(
+    path.join(root, 'src/runtime/estimator/options.ts'),
+    path.join(fixture.root, 'src/runtime/estimator/options.ts'),
+  )
   cpSync(
     path.join(root, 'src/runtime/cliOptions.ts'),
     path.join(fixture.root, 'src/runtime/cliOptions.ts'),

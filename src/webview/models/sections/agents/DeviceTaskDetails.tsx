@@ -3,7 +3,7 @@
 import * as z from 'zod/mini'
 import { DEVICE_LIMITS, UI_TEXT } from '../../../../shared/constants'
 import { deviceRouteSchema } from '../../../../shared/devices'
-import { formatUsd } from '../../../../shared/l10n/text'
+import { formatUsd } from '../../../../shared/l10n/exactUsd'
 
 const taskView = z.strictObject({
   taskId: z.string().check(z.regex(/^[a-f0-9]{32}$(?![\s\S])/)),

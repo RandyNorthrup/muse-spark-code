@@ -1,6 +1,9 @@
+import { quotedSearch } from './helpers/paidQuote'
+import { Usd } from '../../src/shared/usd'
 import { memento } from './helpers/memento'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type * as vscode from 'vscode'
+import type { PaidUseAnswer } from '../../src/core/paid/paidConsent'
 import { askPaidUse, createPaidFeatures } from '../../src/host/paid/paidHost'
 import {
   GLOBAL_STATE_KEYS,
@@ -71,7 +74,7 @@ function answerWith(title: string | undefined): void {
 /** What the popup says for one use: its question and its detail. */
 async function details(request: Parameters<typeof askPaidUse>[0]) {
   answerWith(undefined)
-  await askPaidUse(request, true, 5)
+  await askPaidUse(request, true, Usd.from(5).toAmount())
   const call = vi.mocked(confirmModal).mock.calls.at(-1)
   return { title: call?.[0], detail: call?.[1]?.detail ?? '' }
 }
@@ -124,17 +127,25 @@ describe('the paid-use popup (M58)', () => {
   })
   it('offers Allow once, Allow always in this workspace and Deny, Deny closing it', async () => {
     answerWith(UI_TEXT.paidAllowAlways)
-    await expect(askPaidUse({ feature: 'webSearch' }, true)).resolves.toBe('always')
+    await expect(
+      askPaidUse({ feature: 'webSearch', priceUsd: Usd.from(0.0025).toAmount() }, true),
+    ).resolves.toBe('always')
     expect(offeredButtons()).toEqual([UI_TEXT.allowOnce, UI_TEXT.paidAllowAlways, UI_TEXT.paidDeny])
     const deny = vi.mocked(confirmModal).mock.calls[0]?.slice(2).at(-1) as vscode.MessageItem
     expect(deny.isCloseAffordance).toBe(true)
     expect(vi.mocked(confirmModal).mock.calls[0]?.[1]).toMatchObject({ modal: true })
     answerWith(UI_TEXT.allowOnce)
-    await expect(askPaidUse({ feature: 'webSearch' }, true)).resolves.toBe('once')
+    await expect(
+      askPaidUse({ feature: 'webSearch', priceUsd: Usd.from(0.0025).toAmount() }, true),
+    ).resolves.toBe('once')
     answerWith(UI_TEXT.paidDeny)
-    await expect(askPaidUse({ feature: 'webSearch' }, true)).resolves.toBe('deny')
+    await expect(
+      askPaidUse({ feature: 'webSearch', priceUsd: Usd.from(0.0025).toAmount() }, true),
+    ).resolves.toBe('deny')
     answerWith(undefined)
-    await expect(askPaidUse({ feature: 'webSearch' }, true)).resolves.toBe('deny')
+    await expect(
+      askPaidUse({ feature: 'webSearch', priceUsd: Usd.from(0.0025).toAmount() }, true),
+    ).resolves.toBe('deny')
   })
 
   it('refuses an Auto review on a model without verified rates before any popup (M78)', async () => {
@@ -206,7 +217,7 @@ describe('the paid-use popup (M58)', () => {
   })
 
   it('names what each use is and what it costs', async () => {
-    const search = await details({ feature: 'webSearch' })
+    const search = await details({ feature: 'webSearch', priceUsd: Usd.from(0.0025).toAmount() })
     expect(search.title).toBe(UI_TEXT.paidUseWebSearchTitle)
     expect(search.detail).toContain('$2.50 per 1,000 searches')
     expect(search.detail).toContain('$5.00')
@@ -237,6 +248,30 @@ describe('the paid-use popup (M58)', () => {
 })
 
 describe('Allow always in this workspace (M58)', () => {
+  it('persists a quote ceiling and asks again for a higher tariff after reopening the window', async () => {
+    const data = new Map<string, unknown>([[GLOBAL_STATE_KEYS.paidConfirmations, ['webSearch']]])
+    const workspace = new Map<string, unknown>()
+    const first = paidWithSettings(data, ['webSearch'], { workspace }).paid
+    answerWith(UI_TEXT.paidAllowAlways)
+    await first.consent.allows({ feature: 'webSearch', priceUsd: Usd.from('0.0025').toAmount() })
+    const reopened = paidWithSettings(data, ['webSearch'], { workspace }).paid
+    expect(
+      await reopened.consent.allows({
+        feature: 'webSearch',
+        priceUsd: Usd.from('0.001').toAmount(),
+      }),
+    ).toMatchObject({ tariffUsd: Usd.from('0.001').toAmount() })
+    expect(confirmModal).toHaveBeenCalledOnce()
+    answerWith(UI_TEXT.paidDeny)
+    expect(
+      await reopened.consent.allows({
+        feature: 'webSearch',
+        priceUsd: Usd.from('0.01').toAmount(),
+      }),
+    ).toBeUndefined()
+    expect(confirmModal).toHaveBeenCalledTimes(2)
+  })
+
   it('preserves default-on price acceptance and Always through backend unavailability and startup', async () => {
     const data = new Map<string, unknown>()
     const workspace = new Map<string, unknown>()
@@ -315,15 +350,25 @@ describe('Allow always in this workspace (M58)', () => {
     const workspace = new Map<string, unknown>()
     const { paid } = paidWithSettings(data, ['webSearch'], { workspace })
     answerWith(UI_TEXT.paidAllowAlways)
-    await expect(paid.consent.allows({ feature: 'webSearch' })).resolves.toBe(true)
-    await expect(paid.consent.allows({ feature: 'webSearch' })).resolves.toBe(true)
+    await expect(
+      paid.consent.allows({ feature: 'webSearch', priceUsd: Usd.from(0.0025).toAmount() }),
+    ).resolves.toMatchObject({ feature: 'webSearch', tariffUsd: Usd.from('0.0025').toAmount() })
+    await expect(
+      paid.consent.allows({ feature: 'webSearch', priceUsd: Usd.from(0.0025).toAmount() }),
+    ).resolves.toMatchObject({ feature: 'webSearch', tariffUsd: Usd.from('0.0025').toAmount() })
     expect(confirmModal).toHaveBeenCalledTimes(1)
-    expect(workspace.get(WORKSPACE_STATE_KEYS.paidWorkspaceGrants)).toEqual({ webSearch: 0 })
+    expect(
+      Array.from(workspace, ([key]) => key).filter((key) =>
+        key.startsWith(`${WORKSPACE_STATE_KEYS.paidQuoteGrants}:`),
+      ),
+    ).toHaveLength(1)
     expect(paid.state().alwaysAllowed).toEqual(['webSearch'])
     // Another workspace has its own (empty) store: it asks.
     const other = paidWithSettings(data, ['webSearch'])
     answerWith(UI_TEXT.allowOnce)
-    await expect(other.paid.consent.allows({ feature: 'webSearch' })).resolves.toBe(true)
+    await expect(
+      other.paid.consent.allows({ feature: 'webSearch', priceUsd: Usd.from(0.0025).toAmount() }),
+    ).resolves.toMatchObject({ feature: 'webSearch', tariffUsd: Usd.from('0.0025').toAmount() })
     expect(confirmModal).toHaveBeenCalledTimes(2)
     expect(other.paid.state().alwaysAllowed).toEqual([])
   })
@@ -361,7 +406,9 @@ describe('Allow always in this workspace (M58)', () => {
     })
     expect(paid.consent.isRemembered('webSearch')).toBe(false)
     answerWith(UI_TEXT.allowOnce)
-    await expect(paid.consent.allows({ feature: 'webSearch' })).resolves.toBe(true)
+    await expect(
+      paid.consent.allows({ feature: 'webSearch', priceUsd: Usd.from(0.0025).toAmount() }),
+    ).resolves.toMatchObject({ feature: 'webSearch', tariffUsd: Usd.from('0.0025').toAmount() })
     expect(offeredButtons()).toEqual([UI_TEXT.allowOnce, UI_TEXT.paidDeny])
     canRemember = true
     expect(paid.consent.isRemembered('webSearch')).toBe(true)
@@ -407,18 +454,28 @@ describe('Allow always in this workspace (M58)', () => {
 })
 
 describe('M94 Tab wording and window question (lane L, PLAN.md D73)', () => {
-  const TAB = { feature: 'tab', modelId: 'muse-spark-1.3', budgetUsd: 1 } as const
+  const TAB = {
+    feature: 'tab',
+    modelId: 'muse-spark-1.3',
+    budgetUsd: Usd.from(1).toAmount(),
+  } as const
 
   it('refuses Tab on a model without verified rates before any popup', async () => {
     await expect(
-      askPaidUse({ feature: 'tab', modelId: 'muse-spark-future', budgetUsd: 1 }, true),
+      askPaidUse(
+        { feature: 'tab', modelId: 'muse-spark-future', budgetUsd: Usd.from(1).toAmount() },
+        true,
+      ),
     ).resolves.toBe('deny')
     expect(confirmModal).not.toHaveBeenCalled()
   })
 
   it('refuses Tab with an unusable budget before any popup', async () => {
     await expect(
-      askPaidUse({ feature: 'tab', modelId: 'muse-spark-1.3', budgetUsd: NaN }, true),
+      askPaidUse(
+        { feature: 'tab', modelId: 'muse-spark-1.3', budgetUsd: Usd.from(-1).toAmount() },
+        true,
+      ),
     ).resolves.toBe('deny')
     expect(confirmModal).not.toHaveBeenCalled()
   })
@@ -521,7 +578,7 @@ describe('M52 scheduled feature acceptance', () => {
     expect(detail).toContain('muse-spark-1.3-contributor:')
     expect(detail).toContain('$1.250/1M input')
     expect(detail).toContain('$0.100/1M input')
-    expect(detail).toContain('$0.002/1M cached input')
+    expect(detail).toContain('$0.0020/1M cached input')
     expect(paid.gate.isOn('scheduledPrompts')).toBe(true)
   })
 })
@@ -570,7 +627,7 @@ describe('M98 judge first-charge detail', () => {
     expect(get).toHaveBeenCalledWith('paidDailyBudgetUsd')
   })
 
-  it.each([undefined, '12.5', NaN, Infinity, -1])(
+  it.each([undefined, NaN, Infinity, -1])(
     'shows zero rather than an invalid shared daily budget (%s)',
     async (budget) => {
       const { detail } = await judgeDetail(budget)
@@ -580,10 +637,176 @@ describe('M98 judge first-charge detail', () => {
   )
 })
 
+function heldPaidQuoteWriter() {
+  const data = new Map<string, unknown>([[GLOBAL_STATE_KEYS.paidConfirmations, ['webSearch']]])
+  const workspace = new Map<string, unknown>()
+  const entered = Promise.withResolvers<undefined>()
+  const released = Promise.withResolvers<undefined>()
+  const base = memento(workspace)
+  let isFirst = true
+  const paid = createPaidFeatures({
+    globalState: memento(data),
+    workspaceState: {
+      keys: base.keys,
+      get: base.get,
+      update: async (key, value) => {
+        if (isFirst && key.startsWith(`${WORKSPACE_STATE_KEYS.paidQuoteGrants}:`)) {
+          isFirst = false
+          entered.resolve(undefined)
+          await released.promise
+        }
+        await base.update(key, value)
+      },
+    },
+    isSettingOn: () => true,
+    isKeyStored: () => true,
+    canRememberPaidUse: () => true,
+    log: new FakeLogOutputChannel(),
+  })
+  return { data, workspace, paid, entered, released }
+}
+
+describe('R3 Memento grant races', () => {
+  it('P2-1: a model B Always answer after Ask again never restores revoked model A', async () => {
+    const workspace = new Map<string, unknown>()
+    const { paid } = paidWithSettings(
+      new Map([[GLOBAL_STATE_KEYS.paidConfirmations, ['webSearch']]]),
+      ['webSearch'],
+      { workspace },
+    )
+    answerWith(UI_TEXT.paidAllowAlways)
+    await paid.consent.allows(quotedSearch('0.01'))
+    const held = Promise.withResolvers<PaidUseAnswer>()
+    const pending = paid.consent.allows(quotedSearch('0.01', 'model-b'), false, () => held.promise)
+    await paid.consent.forget()
+    held.resolve('always')
+    expect(await pending).toBeUndefined()
+    answerWith(UI_TEXT.paidDeny)
+    expect(await paid.consent.allows(quotedSearch('0.01'))).toBeUndefined()
+    expect(confirmModal).toHaveBeenCalledTimes(2)
+  })
+
+  it.each([true, false])(
+    'R4 P2-1: older approval with three Once answers cannot replace a newer cheaper ceiling (revocation %s)',
+    async (revokes) => {
+      const { data, workspace, paid: first, entered, released } = heldPaidQuoteWriter()
+      for (const id of ['once-a', 'once-b', 'once-c'])
+        await first.consent.allows(quotedSearch('0.01', 'model-a', id), false, () =>
+          Promise.resolve('once'),
+        )
+      const pending = first.consent.allows(quotedSearch('0.01'), true, () =>
+        Promise.resolve('always'),
+      )
+      await entered.promise
+      const second = paidWithSettings(data, ['webSearch'], { workspace }).paid
+      if (revokes) await second.consent.forget()
+      await second.consent.allows(quotedSearch('0.0025'), false, () => Promise.resolve('always'))
+      released.resolve(undefined)
+      expect(await pending).toBeUndefined()
+      const reopened = paidWithSettings(data, ['webSearch'], { workspace }).paid
+      const denied = vi.fn(() => Promise.resolve<PaidUseAnswer>('deny'))
+      expect(await reopened.consent.allows(quotedSearch('0.0025'), false, denied)).toMatchObject({
+        tariffUsd: Usd.from('0.0025').toAmount(),
+      })
+      expect(denied).not.toHaveBeenCalled()
+      expect(await reopened.consent.allows(quotedSearch('0.01'), false, denied)).toBeUndefined()
+      expect(denied).toHaveBeenCalledOnce()
+    },
+  )
+})
+
+it('R4 P2-2: a revoked save completion preserves the same owner replacement approval', async () => {
+  const { paid, entered, released } = heldPaidQuoteWriter()
+  const old = paid.consent.allows(quotedSearch('0.01'), false, () => Promise.resolve('always'))
+  await entered.promise
+  await paid.consent.forget()
+  const fresh = quotedSearch('0.0025', 'model-a', 'replacement')
+  await paid.consent.allows(fresh, false, () => Promise.resolve('always'))
+  expect(paid.consent.authority.canSpend(fresh.quote)).toBe(true)
+  released.resolve(undefined)
+  expect(await old).toBeUndefined()
+  expect(paid.consent.authority.canSpend(fresh.quote)).toBe(true)
+  expect(paid.consent.isRemembered('webSearch')).toBe(true)
+})
+
+it('R4 P2-1: incomparable legacy owner orders ask again in the profile chronology', async () => {
+  const workspace = new Map<string, unknown>()
+  const old = quotedSearch('0.01')
+  const generation = JSON.stringify([0, 0])
+  workspace.set(
+    `${WORKSPACE_STATE_KEYS.paidQuoteGrants}:${JSON.stringify(['webSearch', 'meta', 'model-a'])}:${generation}:100:old`,
+    { generation, order: 100, quote: old.quote },
+  )
+  const { paid } = paidWithSettings(
+    new Map([[GLOBAL_STATE_KEYS.paidConfirmations, ['webSearch']]]),
+    ['webSearch'],
+    { workspace },
+  )
+  const ask = vi.fn(() => Promise.resolve<PaidUseAnswer>('deny'))
+  expect(await paid.consent.allows(old, false, ask)).toBeUndefined()
+  expect(ask).toHaveBeenCalledOnce()
+})
+
+describe('FIXM106W search window consent', () => {
+  it('covers distinct quotes in this window and asks again on model, price, revocation and required asking', async () => {
+    const { paid } = paidWithSettings(
+      new Map([[GLOBAL_STATE_KEYS.paidConfirmations, ['webSearch']]]),
+      ['webSearch'],
+    )
+    const ask = vi.fn(() => Promise.resolve<PaidUseAnswer>('once'))
+    for (const id of ['first', 'second']) {
+      const request = quotedSearch('0.01', 'model-a', id)
+      expect(await paid.consent.allows(request, false, ask)).toEqual(request.quote)
+      expect(paid.consent.authority.canSpend(request.quote)).toBe(true)
+    }
+    expect(ask).toHaveBeenCalledOnce()
+    expect(paid.consent.remembered()).not.toContain('webSearch')
+    await paid.consent.allows(quotedSearch('0.01', 'model-a', 'required'), true, ask)
+    await paid.consent.allows(quotedSearch('0.01', 'model-b', 'model'), false, ask)
+    await paid.consent.allows(quotedSearch('0.02', 'model-b', 'price'), false, ask)
+    expect(ask).toHaveBeenCalledTimes(4)
+    await paid.consent.forget()
+    await paid.consent.allows(quotedSearch('0.01', 'model-a', 'revoked'), false, ask)
+    expect(ask).toHaveBeenCalledTimes(5)
+    const nextWindow = paidWithSettings(
+      new Map([[GLOBAL_STATE_KEYS.paidConfirmations, ['webSearch']]]),
+      ['webSearch'],
+    ).paid
+    await nextWindow.consent.allows(quotedSearch('0.01', 'model-a', 'new-window'), false, ask)
+    expect(ask).toHaveBeenCalledTimes(6)
+  })
+
+  it('shares the first popup between concurrent quotes and refuses its revoked answer', async () => {
+    const { paid } = paidWithSettings(
+      new Map([[GLOBAL_STATE_KEYS.paidConfirmations, ['webSearch']]]),
+      ['webSearch'],
+    )
+    const held = Promise.withResolvers<PaidUseAnswer>()
+    const ask = vi.fn(() => held.promise)
+    const requests = ['a', 'b'].map((id) => quotedSearch('0.01', 'model-a', id))
+    const answers = requests.map((request) => paid.consent.allows(request, false, ask))
+    await vi.waitFor(() => {
+      expect(ask).toHaveBeenCalledOnce()
+    })
+    held.resolve('once')
+    expect(await Promise.all(answers)).toEqual(requests.map((request) => request.quote))
+    await paid.consent.forget()
+    const stale = Promise.withResolvers<PaidUseAnswer>()
+    const staleAsk = vi.fn(() => stale.promise)
+    const pending = paid.consent.allows(quotedSearch('0.01', 'model-a', 'stale'), false, staleAsk)
+    await vi.waitFor(() => {
+      expect(staleAsk).toHaveBeenCalledOnce()
+    })
+    await paid.consent.forget()
+    stale.resolve('once')
+    expect(await pending).toBeUndefined()
+  })
+})
+
 // TRAIN15D: an explanation on Muse Code still names its shared daily budget.
 it('passes the legal explanation feature to daily-budget disclosure before consent', async () => {
   const readBudget = vi.fn((feature?: PaidFeature) =>
-    feature === 'legalExplanation' ? 5 : undefined,
+    feature === 'legalExplanation' ? Usd.from(5).toAmount() : undefined,
   )
   const store = memento(
     new Map<string, unknown>([[GLOBAL_STATE_KEYS.paidConfirmations, ['legalExplanation']]]),

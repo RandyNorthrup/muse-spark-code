@@ -31,12 +31,16 @@ import type { CheckProxy, ProxyObservation } from '../../src/core/browser/checkP
 import { RequestLog } from '../../src/core/browser/requestLog'
 import type { RuntimePreparation, VerifiedRuntime } from '../../src/core/browser/runtimeTypes'
 import { hostBrowserRunDeps } from '../../src/host/browser/browserProcess'
+import { browserCheckOutcome } from '../../src/core/backends/modelapi/browserCalls'
 import {
   BROWSER_CHECK_ENTRY_MAX_CHARS,
   BROWSER_CHECK_MAX_TRACKED_REQUESTS,
   BROWSER_NETWORK_SERVICE_TYPE,
   BROWSER_PROXY_BYPASS,
+  MODEL_TEXT,
 } from '../../src/shared/constants'
+import { FakeLogOutputChannel } from './helpers/fakes'
+import { installGerman, restoreEnglish } from './helpers/germanTable'
 
 // Fails the real folder's profile subdirectories once set: the root and
 // the owner file already exist, so only its own cleanup removes them.
@@ -746,6 +750,29 @@ describe('a browser check on the verified runtime (M81 A1)', () => {
       expect(await run(t), reason).toEqual({ ok: false, failure: { kind: reason } })
       expect(t.spawned).toEqual([])
       expect(t.order).toEqual([])
+    }
+  })
+
+  it('keeps a missing Windows system directory as its own failure and starts no browser (SECWINPATH3 P3-2)', async () => {
+    expect(await installGerman(new FakeLogOutputChannel())).toBe('de')
+    try {
+      const browser = new FakeBrowser(network())
+      const t = setup(browser, { platform: 'win32', env: {} })
+      const result = await run(t)
+      expect(result).toEqual({ ok: false, failure: { kind: 'systemDirectoryUnavailable' } })
+      // No browser was spawned, and the folder, the fixture and the proxy still went away.
+      expect(t.spawned).toEqual([])
+      expect(t.removed).toEqual([FOLDER])
+      expect(browser.net.closed).toEqual(['fixture', 'proxy'])
+      expect(browserCheckOutcome(PAGE, result)).toEqual({
+        output: `Error: ${MODEL_TEXT.browserCheckSystemDirectoryUnavailable}`,
+        visibleOutput:
+          'Das Windows-Systemverzeichnis ist nicht verfügbar; setzen Sie SystemRoot auf seinen tatsächlichen Pfad.',
+        failureReason:
+          'Das Windows-Systemverzeichnis ist nicht verfügbar; setzen Sie SystemRoot auf seinen tatsächlichen Pfad.',
+      })
+    } finally {
+      restoreEnglish()
     }
   })
 

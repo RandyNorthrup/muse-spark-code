@@ -1,0 +1,214 @@
+{
+  "machine": "kubuntu",
+  "date": "2026-10-06",
+  "repositoryDefaultTimeouts": true,
+  "explorations": [
+    {
+      "id": "P2-preview-row-turn-id",
+      "file": "src/webview/state/uiState.ts",
+      "mutation": "    turnId: item.turnId,\n    tool: item.tool ?? item.kind, →     tool: item.tool ?? item.kind,",
+      "test": "clears a restored preview from an older turn while keeping the running turn",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/toolArgumentPreview.test.tsx",
+        "--maxWorkers=3"
+      ],
+      "exit": 0,
+      "observedNamedFailure": false,
+      "sha256Before": "06e69649733e1fd2ecdd2cd1663065c2264c158011d3df5296349a483510ab3c",
+      "sha256After": "06e69649733e1fd2ecdd2cd1663065c2264c158011d3df5296349a483510ab3c",
+      "restoredByteExact": true,
+      "reason": "Live upsert immediately merges new rows, so the constructor mutation requires a historyLoaded regression. The final case covers both creation paths."
+    }
+  ],
+  "drills": [
+    {
+      "id": "P1-inherited-container",
+      "file": "src/core/backends/modelapi/argumentPreview.ts",
+      "mutation": "withheld: isSensitive, → withheld: false,",
+      "test": "inherits whole-value sensitivity at every byte boundary",
+      "command": ["npx", "vitest", "run", "test/unit/argumentPreview.test.ts", "--maxWorkers=3"],
+      "exit": 1,
+      "observedNamedFailure": true,
+      "sha256Before": "01f41589c35032b9d0674781e4565ca1518740462e2b40ee0ffbab6e7c0110e2",
+      "sha256After": "01f41589c35032b9d0674781e4565ca1518740462e2b40ee0ffbab6e7c0110e2",
+      "restoredByteExact": true
+    },
+    {
+      "id": "P1-inherited-editor-surfaces",
+      "file": "src/core/backends/modelapi/argumentPreview.ts",
+      "mutation": "withheld: isSensitive, → withheld: false,",
+      "test": "keeps decoded sensitive values out of events, history and ACP",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/modelApiArgumentPreview.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exit": 1,
+      "observedNamedFailure": true,
+      "sha256Before": "01f41589c35032b9d0674781e4565ca1518740462e2b40ee0ffbab6e7c0110e2",
+      "sha256After": "01f41589c35032b9d0674781e4565ca1518740462e2b40ee0ffbab6e7c0110e2",
+      "restoredByteExact": true
+    },
+    {
+      "id": "P1-sensitive-scalar",
+      "file": "src/core/backends/modelapi/argumentPreview.ts",
+      "mutation": "} else if (!isSensitive) { → } else if (!isWithheld) {",
+      "test": "withholds a sensitive scalar from its first byte until close",
+      "command": ["npx", "vitest", "run", "test/unit/argumentPreview.test.ts", "--maxWorkers=3"],
+      "exit": 1,
+      "observedNamedFailure": true,
+      "sha256Before": "01f41589c35032b9d0674781e4565ca1518740462e2b40ee0ffbab6e7c0110e2",
+      "sha256After": "01f41589c35032b9d0674781e4565ca1518740462e2b40ee0ffbab6e7c0110e2",
+      "restoredByteExact": true
+    },
+    {
+      "id": "P3-registered-prefix",
+      "file": "src/core/backends/modelapi/argumentPreview.ts",
+      "mutation": "if (\n      !this.done ||\n      this.truncated ||\n      this.invalid ||\n      this.containers.length > 0 ||\n      this.string !== undefined\n    ) { → if (false) {",
+      "test": "withholds registered numeric prefixes at every split until redaction",
+      "command": ["npx", "vitest", "run", "test/unit/argumentPreview.test.ts", "--maxWorkers=3"],
+      "exit": 1,
+      "observedNamedFailure": true,
+      "sha256Before": "01f41589c35032b9d0674781e4565ca1518740462e2b40ee0ffbab6e7c0110e2",
+      "sha256After": "01f41589c35032b9d0674781e4565ca1518740462e2b40ee0ffbab6e7c0110e2",
+      "restoredByteExact": true
+    },
+    {
+      "id": "P3-incomplete-done-prefix",
+      "file": "src/core/backends/modelapi/argumentPreview.ts",
+      "mutation": "if (\n      !this.done ||\n      this.truncated ||\n      this.invalid ||\n      this.containers.length > 0 ||\n      this.string !== undefined\n    ) { → if (!this.done) {",
+      "test": "holds registered prefixes through incomplete or truncated done values",
+      "command": ["npx", "vitest", "run", "test/unit/argumentPreview.test.ts", "--maxWorkers=3"],
+      "exit": 1,
+      "observedNamedFailure": true,
+      "sha256Before": "01f41589c35032b9d0674781e4565ca1518740462e2b40ee0ffbab6e7c0110e2",
+      "sha256After": "01f41589c35032b9d0674781e4565ca1518740462e2b40ee0ffbab6e7c0110e2",
+      "restoredByteExact": true
+    },
+    {
+      "id": "P2-processing-timestamp",
+      "file": "src/core/backends/modelapi/ModelApiHost.ts",
+      "mutation": "    entry.previewAt = now\n → ;     this.argumentPreviewRows.set(entry.call.call_id, item)\n →     this.argumentPreviewRows.set(entry.call.call_id, item)\n    entry.previewAt = now\n",
+      "test": "bounds processing of unchanged bounded previews under a burst",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/modelApiArgumentPreview.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exit": 1,
+      "observedNamedFailure": true,
+      "sha256Before": "3db008d7cc15c6f8af1a9e41671a3ade5a4af2b41b78aaf0a61fec0d9305a514",
+      "sha256After": "3db008d7cc15c6f8af1a9e41671a3ade5a4af2b41b78aaf0a61fec0d9305a514",
+      "restoredByteExact": true
+    },
+    {
+      "id": "P2-interrupt-final-flush",
+      "file": "src/core/backends/modelapi/ModelApiHost.ts",
+      "mutation": "    this.argumentPreviewTimers.get(callId)?.flush()\n → ",
+      "test": "flushes a queued redacted preview before interrupt settlement",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/modelApiArgumentPreview.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exit": 1,
+      "observedNamedFailure": true,
+      "sha256Before": "3db008d7cc15c6f8af1a9e41671a3ade5a4af2b41b78aaf0a61fec0d9305a514",
+      "sha256After": "3db008d7cc15c6f8af1a9e41671a3ade5a4af2b41b78aaf0a61fec0d9305a514",
+      "restoredByteExact": true
+    },
+    {
+      "id": "P2-restored-newer-turn",
+      "file": "src/webview/state/uiState.ts",
+      "mutation": "entry.turnId !== message.activeTurnId → false",
+      "test": "settles stale restored previews and preserves only the running turn",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/toolArgumentPreview.test.tsx",
+        "--maxWorkers=3"
+      ],
+      "exit": 1,
+      "observedNamedFailure": true,
+      "sha256Before": "84240443f96b237ad9a291c37a739259b20a2231bf16faf72aacaaddb487fb36",
+      "sha256After": "84240443f96b237ad9a291c37a739259b20a2231bf16faf72aacaaddb487fb36",
+      "restoredByteExact": true
+    },
+    {
+      "id": "P2-snapshot-turn-id",
+      "file": "src/webview/state/transcriptEntries.ts",
+      "mutation": "const toolEntrySchema = z.object({\n  kind: z.literal('tool'),\n  id: z.string(),\n  turnId: z.optional(z.string()), → const toolEntrySchema = z.object({\n  kind: z.literal('tool'),\n  id: z.string(),",
+      "test": "settles stale restored previews and preserves only the running turn",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/toolArgumentPreview.test.tsx",
+        "--maxWorkers=3"
+      ],
+      "exit": 1,
+      "observedNamedFailure": true,
+      "sha256Before": "79f7254771ee5e80c30f82cbf1b1183d8031e065ced65b4e439864918cdadfe3",
+      "sha256After": "79f7254771ee5e80c30f82cbf1b1183d8031e065ced65b4e439864918cdadfe3",
+      "restoredByteExact": true
+    },
+    {
+      "id": "P2-preview-row-turn-id",
+      "file": "src/webview/state/uiState.ts",
+      "mutation": "    turnId: item.turnId,\n    tool: item.tool ?? item.kind, →     tool: item.tool ?? item.kind,",
+      "test": "settles stale restored previews and preserves only the running turn",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/toolArgumentPreview.test.tsx",
+        "--maxWorkers=3"
+      ],
+      "exit": 1,
+      "observedNamedFailure": true,
+      "sha256Before": "84240443f96b237ad9a291c37a739259b20a2231bf16faf72aacaaddb487fb36",
+      "sha256After": "84240443f96b237ad9a291c37a739259b20a2231bf16faf72aacaaddb487fb36",
+      "restoredByteExact": true
+    },
+    {
+      "id": "P2-updated-row-turn-id",
+      "file": "src/webview/state/uiState.ts",
+      "mutation": "        turnId: item.turnId ?? entry.turnId,\n → ",
+      "test": "retains the preview turn when an existing row receives its first preview",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/toolArgumentPreview.test.tsx",
+        "--maxWorkers=3"
+      ],
+      "exit": 1,
+      "observedNamedFailure": true,
+      "sha256Before": "84240443f96b237ad9a291c37a739259b20a2231bf16faf72aacaaddb487fb36",
+      "sha256After": "84240443f96b237ad9a291c37a739259b20a2231bf16faf72aacaaddb487fb36",
+      "restoredByteExact": true
+    },
+    {
+      "id": "P2-restored-array-identity",
+      "file": "src/webview/state/uiState.ts",
+      "mutation": "return transcript.every((entry, index) => entry === live.transcript[index]) → return false",
+      "test": "keeps a restored conversation only when the host holds its session live",
+      "command": ["npx", "vitest", "run", "test/unit/uiState.test.ts", "--maxWorkers=3"],
+      "exit": 1,
+      "observedNamedFailure": true,
+      "sha256Before": "84240443f96b237ad9a291c37a739259b20a2231bf16faf72aacaaddb487fb36",
+      "sha256After": "84240443f96b237ad9a291c37a739259b20a2231bf16faf72aacaaddb487fb36",
+      "restoredByteExact": true
+    }
+  ]
+}

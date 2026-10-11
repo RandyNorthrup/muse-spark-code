@@ -1,3 +1,5 @@
+import { Usd as PortUsd } from '../../src/shared/usd'
+import { Usd } from '../../src/shared/usd'
 import { mkdtemp, readFile, readdir, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -5,7 +7,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as z from 'zod/mini'
 import type { CreateImageBody, CreateResponseBody } from '../../src/core/backends/modelapi/schemas'
 import { ModelApiClient } from '../../src/core/backends/modelapi/client'
-import { estimateInput, requestParts } from '../../src/core/backends/modelapi/sessionBudget'
+import {
+  estimateInput,
+  requestParts,
+  type AccountBudgetAdmission,
+} from '../../src/core/backends/modelapi/sessionBudget'
+import {
+  AccountThresholdExceededError,
+  evaluateAccountThresholds,
+} from '../../src/core/accounts/thresholds'
+import { FakeAccountJournal } from './helpers/accounts/fakes'
 import { createPaidDailyBudget } from '../../src/host/paid/paidDailyBudget'
 import { createPaidFeatures } from '../../src/host/paid/paidHost'
 import * as atomicFiles from '../../src/host/fsAtomic'
@@ -54,13 +65,18 @@ afterEach(async () => {
   await removeFolder(state.directory)
 })
 
-function budget(capUsd = 5, isModelApi = true) {
+function budget(
+  capUsd: number | (() => number) = 5,
+  isModelApi = true,
+  accountAdmission?: AccountBudgetAdmission,
+) {
   return createPaidDailyBudget({
     directory: state.directory,
     now: () => state.now,
-    capUsd: () => capUsd,
+    capUsd: () => Usd.from(typeof capUsd === 'function' ? capUsd() : capUsd).toAmount(),
     isModelApi: () => isModelApi,
     sleep: () => Promise.resolve(),
+    ...(accountAdmission !== undefined && { accountAdmission }),
   })
 }
 function client(daily: ReturnType<typeof budget> | false = budget()) {
@@ -77,13 +93,13 @@ function requireClaim<T>(claim: T | undefined): T {
   return claim
 }
 function defaultImagePaid() {
-  const store = { get: () => undefined, update: () => Promise.resolve() }
+  const store = { keys: () => [], get: () => undefined, update: () => Promise.resolve() }
   return createPaidFeatures({
     globalState: store,
     workspaceState: store,
     isSettingOn: (feature) => feature === 'imageGeneration',
     isDefaultOn: () => true,
-    dailyBudgetUsd: () => 5,
+    dailyBudgetUsd: () => Usd.from(5).toAmount(),
     isKeyStored: () => true,
     canRememberPaidUse: () => false,
     log: new FakeLogOutputChannel(),
@@ -154,16 +170,257 @@ async function claimEntries(): Promise<unknown[]> {
   )
 }
 
+async function settleHalfDollar(daily: ReturnType<typeof createPaidDailyBudget>): Promise<void> {
+  await requireClaim(await daily.reserve(IMAGE, 'imageGeneration')).settle(Usd.from(0.5).toAmount())
+}
+
 async function raiseAtCap() {
   const daily = budget(0.5)
-  await requireClaim(await daily.reserve(IMAGE, 'imageGeneration')).settle(0.5)
+  await settleHalfDollar(daily)
   vi.mocked(confirmModal).mockImplementationOnce((_title, _options, ...items) =>
     Promise.resolve(items[0]),
   )
   return daily
 }
 
+function boundBudget(accountAdmission: AccountBudgetAdmission, capUsd = 0.5) {
+  return budget(capUsd, true, accountAdmission)
+}
+
 describe('D78 interactive paid daily budget', () => {
+  it('returns exact decimal headroom to Judge without binary subtraction', async () => {
+    const daily = budget(0.8)
+    await requireClaim(await daily.reserve(IMAGE, 'imageGeneration')).settle(
+      Usd.from(0.1).toAmount(),
+    )
+    expect(await daily.judgeLedger.remainingUsd()).toBe(Usd.from('0.7').toAmount())
+  })
+
+  it('reserves token extras at exact decimal prices', async () => {
+    const daily = budget()
+    const claim = requireClaim(
+      await daily.reserve(
+        { ...BODY, model: 'muse-spark-1.3-contributor', max_output_tokens: 3 },
+        'subagents',
+        7,
+      ),
+    )
+    expect(claim.reservedUsd).toBe(Usd.from('0.0000013').toAmount())
+    await claim.settle(Usd.from(0).toAmount())
+  })
+
+  it('refuses fractional, negative and unsafe token estimates before reserving', async () => {
+    const daily = budget()
+    for (const value of [0.5, -1, Number.MAX_SAFE_INTEGER + 1]) {
+      await expect(daily.reserve(BODY, 'subagents', value)).rejects.toThrow(
+        UI_TEXT.paidDailyLedgerUnavailable,
+      )
+      await expect(
+        daily.reserve({ ...BODY, max_output_tokens: value }, 'subagents', 1),
+      ).rejects.toThrow(UI_TEXT.paidDailyLedgerUnavailable)
+    }
+  })
+
+  it('preserves a newly entered exact decimal cap before publication', async () => {
+    const daily = await raiseAtCap()
+    vi.mocked(window.showInputBox).mockResolvedValueOnce('1.0000000001')
+    const claim = requireClaim(await daily.reserve(IMAGE, 'imageGeneration'))
+    expect(daily.capUsd()).toBe(Usd.from('1.0000000001').toAmount())
+    await claim.settle(Usd.from(0).toAmount())
+  })
+
+  it.each(['extra', 'judge'] as const)(
+    'refunds a refused %s account preflight and preserves its structured trigger',
+    async (kind) => {
+      const stop = new AccountThresholdExceededError({
+        kind: 'vendorLimit',
+        reason: 'quota',
+        resetAt: null,
+      })
+      const check = () => {
+        throw stop
+      }
+      const bind = vi.fn<AccountBudgetAdmission>(() => check)
+      const daily = boundBudget(bind)
+      await expect(
+        kind === 'extra'
+          ? daily.reserve(IMAGE, 'imageGeneration')
+          : daily.judgeLedger.reserve(Usd.from(0.01).toAmount()),
+      ).rejects.toBe(stop)
+      expect(bind).toHaveBeenCalledOnce()
+      expect(await claimEntries()).toEqual([
+        expect.objectContaining({ settledUsd: Usd.from('0').toAmount() }),
+      ])
+      const total = await daily.latestDay()
+      expect(total.spentUsd).toBe(Usd.from('0').toAmount())
+      expect(confirmModal).not.toHaveBeenCalled()
+    },
+  )
+
+  it.each(['image', 'tokens'] as const)(
+    'rechecks %s account thresholds after key retrieval, before fetch',
+    async (kind) => {
+      const journal = new FakeAccountJournal()
+      const bind = vi.fn<AccountBudgetAdmission>((claim) => {
+        return () => {
+          expect(claim.claimId).toBeTruthy()
+          const trigger = evaluateAccountThresholds({
+            provider: 'meta',
+            account: { id: 'work', thresholds: { requests: { day: 1 } } },
+            now: state.now,
+            journal,
+          })[0]
+          if (trigger !== undefined) throw new AccountThresholdExceededError(trigger)
+        }
+      })
+      const daily = boundBudget(bind)
+      const api = fakeModelApi()
+      const settings = fakeModelApiClientSettings(new FakeLogOutputChannel())
+      let hasRecordedRequest = false
+      const instance = new ModelApiClient({
+        ...settings,
+        fetch: api.fetch,
+        reservePaidRequest: daily.reserve,
+        apiKey: () => {
+          if (!hasRecordedRequest) {
+            hasRecordedRequest = true
+            journal.append({
+              provider: 'meta',
+              account: 'work',
+              time: new Date(state.now).toISOString(),
+              settledUsd: PortUsd.from(0).toAmount(),
+              reservedUsd: PortUsd.from(0).toAmount(),
+              uncertainUsd: PortUsd.from(0).toAmount(),
+              inputTokens: 0,
+              outputTokens: 0,
+              requests: 1,
+            })
+          }
+          return settings.apiKey()
+        },
+      })
+      const signal = new AbortController().signal
+      const guard = Object.assign(() => undefined, {
+        paidFeature: 'subagents' as const,
+        paidEstimatedInputTokens: 100,
+      })
+      await expect(
+        kind === 'image'
+          ? instance.createImage(IMAGE, signal)
+          : Array.fromAsync(instance.streamResponse(BODY, signal, undefined, undefined, guard)),
+      ).rejects.toMatchObject({
+        name: 'AccountThresholdExceededError',
+        trigger: { kind: 'userCap', metric: 'requests', value: 1 },
+      })
+      expect(bind).toHaveBeenCalledOnce()
+      expect(api.imageBodies()).toEqual([])
+      expect(api.responseBodies()).toEqual([])
+      expect(await claimEntries()).toEqual([
+        expect.objectContaining({ settledUsd: Usd.from('0').toAmount() }),
+      ])
+    },
+  )
+
+  it.each(['extra', 'judge'] as const)(
+    'refunds a %s account admission factory failure',
+    async (kind) => {
+      const failure = new Error('Account journal unavailable')
+      const bind: AccountBudgetAdmission = () => {
+        throw failure
+      }
+      const daily = boundBudget(bind)
+      await expect(
+        kind === 'extra'
+          ? daily.reserve(IMAGE, 'imageGeneration')
+          : daily.judgeLedger.reserve(Usd.from(0.01).toAmount()),
+      ).rejects.toBe(failure)
+      expect(await claimEntries()).toEqual([
+        expect.objectContaining({ settledUsd: Usd.from('0').toAmount() }),
+      ])
+      expect(confirmModal).not.toHaveBeenCalled()
+    },
+  )
+
+  it('rechecks the same bound account before a 429 retry and sends no request after revocation', async () => {
+    const stop = new AccountThresholdExceededError({
+      kind: 'vendorLimit',
+      reason: 'rateLimited',
+      resetAt: new Date(state.now + 60_000).toISOString(),
+    })
+    let checks = 0
+    const check = () => {
+      checks++
+      if (checks > 2) throw stop
+    }
+    const bind = vi.fn<AccountBudgetAdmission>(() => check)
+    const { instance, api } = client(boundBudget(bind))
+    api.images.push({ httpError: { status: 429, message: 'Limited' } })
+    await expect(instance.createImage(IMAGE, new AbortController().signal)).rejects.toBe(stop)
+    expect(bind).toHaveBeenCalledOnce()
+    expect(checks).toBe(3)
+    expect(api.imageBodies()).toHaveLength(1)
+    expect(await claimEntries()).toEqual([
+      expect.objectContaining({ settledUsd: Usd.from('0').toAmount() }),
+    ])
+  })
+
+  it('does not let an account swap reset D78 daily spend across windows', async () => {
+    let selected = 'work'
+    const bound: string[] = []
+    const bind: AccountBudgetAdmission = () => {
+      const account = selected
+      bound.push(account)
+      return () => {
+        if (account !== selected) throw new Error('Account changed')
+      }
+    }
+    const first = boundBudget(bind)
+    await requireClaim(await first.reserve(IMAGE, 'imageGeneration')).settle(
+      Usd.from(0.49).toAmount(),
+    )
+    const pending = requireClaim(await first.reserve(IMAGE, 'imageGeneration'))
+    selected = 'personal'
+    expect(() => {
+      pending.check(Usd.from(0).toAmount())
+    }).toThrow('Account changed')
+    const second = boundBudget(bind)
+    await expect(second.reserve(IMAGE, 'imageGeneration')).rejects.toThrow(UI_TEXT.paidDailyStopped)
+    expect(bound).toEqual(['work', 'work', 'personal'])
+    const entries = await claimEntries()
+    expect(
+      entries.filter(
+        (entry) => typeof entry === 'object' && entry !== null && 'settledUsd' in entry,
+      ),
+    ).toHaveLength(2)
+    await expect(second.latestDay()).rejects.toThrow(UI_TEXT.paidDailyStopped)
+    // Both accounts used the same fixed journal scope; Stop did not erase it.
+    expect(entries).toContainEqual(
+      expect.objectContaining({ settledUsd: Usd.from('0.49').toAmount() }),
+    )
+    expect(entries).toContainEqual(
+      expect.objectContaining({ reservedUsd: Usd.from('0.01').toAmount() }),
+    )
+  })
+
+  it('keeps Judge final account admission inside the shared daily budget and retains unsettled spend', async () => {
+    let isAllowed = true
+    const check = vi.fn(() => {
+      if (!isAllowed) throw new Error('Account unavailable')
+    })
+    const daily = boundBudget(() => check)
+    const claim = await daily.judgeLedger.reserve(Usd.from(0.5).toAmount())
+    claim.check()
+    isAllowed = false
+    expect(() => {
+      claim.check()
+    }).toThrow('Account unavailable')
+    const open = await daily.latestDay()
+    expect(open.spentUsd).toBe(Usd.from('0.5').toAmount())
+    await claim.settle(Usd.from(0).toAmount())
+    const settled = await daily.latestDay()
+    expect(settled.spentUsd).toBe(Usd.from('0').toAmount())
+  })
+
   it.each([false, true])(
     'keeps packing=%s ordinary requests byte-exact under daily admission, including tools and cache key',
     async (isPacking) => {
@@ -190,7 +447,7 @@ describe('D78 interactive paid daily budget', () => {
     expect(reserved[0]?.budget.spentUsd).toBeGreaterThan(0)
     expect(reserved[0]?.budget.uncertainUsd).toBe(reserved[0]?.budget.spentUsd)
     expect(await readdir(state.directory)).toEqual(before)
-    await claim.settle(0)
+    await claim.settle(Usd.from(0).toAmount())
     const settled = await daily.readToday()
     expect(settled[0]?.budget.spentUsd).toBe(0)
   })
@@ -211,7 +468,7 @@ describe('D78 interactive paid daily budget', () => {
 
   it('keeps a later committed Stop in force when another window publishes a held raise', async () => {
     const daily = budget(0.5)
-    await requireClaim(await daily.reserve(IMAGE, 'imageGeneration')).settle(0.5)
+    await settleHalfDollar(daily)
     const entered = Promise.withResolvers<undefined>()
     const released = Promise.withResolvers<undefined>()
     const originalWrite = atomicFiles.writeFileAtomically
@@ -249,14 +506,16 @@ describe('D78 interactive paid daily budget', () => {
     expect(() => budget(0.5).capUsd()).toThrow(UI_TEXT.paidDailyStopped)
     expect(outcome).toBeInstanceOf(Error)
     state.now = new Date(2026, 9, 5, 12).getTime()
-    expect(daily.capUsd()).toBe(0.5)
+    expect(daily.capUsd()).toBe(Usd.from(0.5).toAmount())
   })
 
   it.each(['image', 'tokens'] as const)(
     'cancels %s daily admission while its budget popup waits, refunds and ignores the late answer',
     async (kind) => {
       const daily = budget(0.5)
-      await requireClaim(await daily.reserve(IMAGE, 'imageGeneration')).settle(0.5)
+      await requireClaim(await daily.reserve(IMAGE, 'imageGeneration')).settle(
+        Usd.from(0.5).toAmount(),
+      )
       const popup = Promise.withResolvers<string | undefined>()
       let raiseTitle: string | undefined
       vi.mocked(confirmModal).mockImplementationOnce((_title, _options, ...items) => {
@@ -290,7 +549,7 @@ describe('D78 interactive paid daily budget', () => {
         expect(await pending).toMatchObject({ name: 'AbortError' })
         const entries = await claimEntries()
         expect(entries).toHaveLength(2)
-        expect(entries).toContainEqual(expect.objectContaining({ settledUsd: 0 }))
+        expect(entries).toContainEqual(expect.objectContaining({ settledUsd: '0' }))
       } finally {
         abort.abort()
         popup.resolve(raiseTitle)
@@ -300,7 +559,7 @@ describe('D78 interactive paid daily budget', () => {
         setImmediate(resolve)
       })
       expect(window.showInputBox).not.toHaveBeenCalled()
-      expect(daily.capUsd()).toBe(0.5)
+      expect(daily.capUsd()).toBe(Usd.from(0.5).toAmount())
       expect(api.imageBodies()).toEqual([])
       expect(api.responseBodies()).toEqual([])
     },
@@ -331,7 +590,7 @@ describe('D78 interactive paid daily budget', () => {
     await new Promise<void>((resolve) => {
       setImmediate(resolve)
     })
-    expect(daily.capUsd()).toBe(0.5)
+    expect(daily.capUsd()).toBe(Usd.from(0.5).toAmount())
     expect(api.imageBodies()).toEqual([])
   })
 
@@ -374,7 +633,7 @@ describe('D78 interactive paid daily budget', () => {
       await pending
       await finished.promise
     }
-    expect(daily.capUsd()).toBe(0.5)
+    expect(daily.capUsd()).toBe(Usd.from(0.5).toAmount())
     expect(api.imageBodies()).toEqual([])
     await expect(readdir(path.join(state.directory, '2026-10-4'))).rejects.toMatchObject({
       code: 'ENOENT',
@@ -436,33 +695,35 @@ describe('D78 interactive paid daily budget', () => {
     const a = budget(0.5)
     const b = budget(0.5)
     const first = requireClaim(await a.reserve(IMAGE, 'imageGeneration'))
-    first.check(0)
-    await first.settle(0.49)
+    first.check(Usd.from(0).toAmount())
+    await first.settle(Usd.from(0.49).toAmount())
     const second = requireClaim(await b.reserve(IMAGE, 'imageGeneration'))
-    second.check(0)
+    second.check(Usd.from(0).toAmount())
     await expect(a.reserve(IMAGE, 'imageGeneration')).rejects.toThrow(UI_TEXT.paidDailyStopped)
     const call = vi.mocked(confirmModal).mock.calls.at(-1)
     expect(call?.[0]).toBe(UI_TEXT.paidDailyReached)
     expect(call?.[1]?.detail).toContain('$0.50')
     state.now = new Date(2026, 9, 5, 12).getTime()
-    requireClaim(await a.reserve(IMAGE, 'imageGeneration')).check(0)
+    requireClaim(await a.reserve(IMAGE, 'imageGeneration')).check(Usd.from(0).toAmount())
   })
 
   it('rejects a final send if another window reserved the last funds meanwhile', async () => {
     const daily = budget(0.5)
     const seed = requireClaim(await daily.reserve(IMAGE, 'imageGeneration'))
-    await seed.settle(0.48)
+    await seed.settle(Usd.from(0.48).toAmount())
     const a = requireClaim(await daily.reserve(IMAGE, 'imageGeneration'))
     const b = requireClaim(await budget(0.5).reserve(IMAGE, 'imageGeneration'))
-    a.check(0)
-    b.check(0)
+    a.check(Usd.from(0).toAmount())
+    b.check(Usd.from(0).toAmount())
     const answer = Promise.withResolvers<string | undefined>()
     vi.mocked(confirmModal).mockReturnValueOnce(answer.promise)
     const pending = budget(0.5).reserve(IMAGE, 'imageGeneration')
     await vi.waitFor(() => {
       expect(confirmModal).toHaveBeenCalledOnce()
     })
-    expect(() => a.check(0)).toThrow(UI_TEXT.paidDailyLedgerUnavailable)
+    expect(() => {
+      a.check(Usd.from(0).toAmount())
+    }).toThrow(UI_TEXT.paidDailyLedgerUnavailable)
     answer.resolve(undefined)
     await expect(pending).rejects.toThrow(UI_TEXT.paidDailyStopped)
   })
@@ -488,14 +749,8 @@ describe('D78 interactive paid daily budget', () => {
 
   it('rechecks the daily cap after key retrieval before the actual fetch', async () => {
     let capUsd = 1
-    const daily = createPaidDailyBudget({
-      directory: state.directory,
-      now: () => state.now,
-      capUsd: () => capUsd,
-      isModelApi: () => true,
-      sleep: () => Promise.resolve(),
-    })
-    await requireClaim(await daily.reserve(IMAGE, 'imageGeneration')).settle(0.5)
+    const daily = budget(() => capUsd)
+    await settleHalfDollar(daily)
     const api = fakeModelApi()
     const instance = new ModelApiClient({
       fetch: api.fetch,
@@ -519,10 +774,10 @@ describe('D78 interactive paid daily budget', () => {
   it('shares a raise for today, and resets that override tomorrow', async () => {
     const daily = await raiseAtCap()
     vi.mocked(window.showInputBox).mockResolvedValueOnce('1')
-    requireClaim(await daily.reserve(IMAGE, 'imageGeneration')).check(0)
-    expect(budget(0.5).capUsd()).toBe(1)
+    requireClaim(await daily.reserve(IMAGE, 'imageGeneration')).check(Usd.from(0).toAmount())
+    expect(budget(0.5).capUsd()).toBe(Usd.from(1).toAmount())
     state.now = new Date(2026, 9, 5, 12).getTime()
-    expect(daily.capUsd()).toBe(0.5)
+    expect(daily.capUsd()).toBe(Usd.from(0.5).toAmount())
   })
 
   it('settles model token extras at reported prices and preserves the request byte-exact', async () => {
@@ -536,7 +791,7 @@ describe('D78 interactive paid daily budget', () => {
       instance.streamResponse(BODY, new AbortController().signal, undefined, undefined, guard),
     )
     expect(JSON.stringify(api.responseBodies()[0])).toBe(JSON.stringify(BODY))
-    expect(await claimEntries()).toEqual([expect.objectContaining({ settledUsd: 0.000155 })])
+    expect(await claimEntries()).toEqual([expect.objectContaining({ settledUsd: '0.000155' })])
   })
 
   it('refunds final nonsends and retains an ambiguous sent image fee', async () => {
@@ -552,8 +807,8 @@ describe('D78 interactive paid daily budget', () => {
     const entries = await claimEntries()
     expect(entries).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ reservedUsd: 0.01, settledUsd: 0 }),
-        expect.objectContaining({ reservedUsd: 0.01 }),
+        expect.objectContaining({ reservedUsd: '0.01', settledUsd: '0' }),
+        expect.objectContaining({ reservedUsd: '0.01' }),
       ]),
     )
     expect(
@@ -598,13 +853,33 @@ describe('D78 interactive paid daily budget', () => {
   })
 })
 
+it.each(['1.00000000000000015', '0.50000000000000004'])(
+  'R3 P3: preserves newly entered exact daily limit %s without Number parsing',
+  async (entered) => {
+    const daily = budget(0.5)
+    await daily.reserveExact(Usd.from('0.49000000000000004').toAmount())
+    vi.mocked(window.showWarningMessage).mockResolvedValue({ title: UI_TEXT.paidDailyRaise })
+    vi.mocked(window.showInputBox).mockResolvedValue(entered)
+    const claim = await daily.reserve(IMAGE, 'imageGeneration')
+    expect(claim).toBeDefined()
+    const current = await daily.latestDay()
+    expect(current.capUsd).toBe(Usd.from(entered).toAmount())
+    const raw = JSON.parse(
+      await readFile(
+        path.join(state.directory, current.day, PAID_DAILY_BUDGET.overrideFile),
+        'utf8',
+      ),
+    ) as unknown
+    expect(raw).toEqual({ limitUsd: entered, stopped: false })
+  },
+)
 // TRAIN15D: M97 explanations use this ledger even while Muse Code owns chat.
 it('reserves and settles legal explanation spend on Muse Code while other extras keep their backend policy', async () => {
   const daily = budget(5, false)
   expect(await daily.reserve(IMAGE, 'imageGeneration', undefined)).toBeUndefined()
   const claim = requireClaim(await daily.reserve(BODY, 'legalExplanation', 100))
-  expect(claim.reservedUsd).toBeGreaterThan(0)
-  await claim.settle(0.01)
+  expect(Number(claim.reservedUsd)).toBeGreaterThan(0)
+  await claim.settle(Usd.from(0.01).toAmount())
   const settled = await daily.latestDay()
-  expect(settled.spentUsd).toBe(0.01)
+  expect(settled.spentUsd).toBe(Usd.from(0.01).toAmount())
 })

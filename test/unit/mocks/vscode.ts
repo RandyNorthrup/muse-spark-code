@@ -81,6 +81,13 @@ export const ViewColumn = {
   One: 1,
 } as const
 
+/** Where a configuration write goes (the real enum's values, for the settings writers). */
+export const ConfigurationTarget = {
+  Global: 1,
+  Workspace: 2,
+  WorkspaceFolder: 3,
+} as const
+
 export const window = {
   state: { focused: true },
   createWebviewPanel: vi.fn<typeof vscode.window.createWebviewPanel>(),

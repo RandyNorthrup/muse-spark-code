@@ -6,8 +6,11 @@
 // extension never sends its Model API key to it, and never keeps, logs or
 // shows the account's `label` (an e-mail address) or `avatarUrl`.
 
-import { spawnMspConnection, type Connection } from '@muse-code/sdk'
+import { type Connection } from '@muse-code/sdk'
 import * as z from 'zod/mini'
+import { admitResource, resourceWindowsJob } from '../../core/resources/admission'
+import { environmentValue } from '../../core/backends/musecode/launch'
+import { spawnResourceMuseConnection } from '../resources/museResourceLaunch'
 import { wireWordForLog } from '../../core/logging'
 import { unlessAborted, withDeadline } from '../../core/timeouts'
 import {
@@ -212,21 +215,32 @@ export async function connectAccountSession(
   if (isAborted()) {
     throw new Error('The Muse Code account host was cancelled')
   }
+  const resource = await admitResource('museServe', signal)
+  const env = backend.childEnvironment()
   let isStderrReported = false
-  const handshake = spawnMspConnection({
-    command: resolution.launch.command,
-    args: resolution.launch.args,
-    ...(workspaceRoot !== undefined && { cwd: workspaceRoot }),
-    env: backend.childEnvironment(),
-    onStderr: () => {
-      if (isStderrReported) {
-        return
-      }
-
-      log.warn('The Muse Code account host wrote to stderr')
-      isStderrReported = true
+  const handshake = await spawnResourceMuseConnection(
+    {
+      command: resolution.launch.command,
+      args: resolution.launch.args,
+      ...(workspaceRoot !== undefined && { cwd: workspaceRoot }),
+      env,
+      onStderr: () => {
+        if (isStderrReported) return
+        log.warn('The Muse Code account host wrote to stderr')
+        isStderrReported = true
+      },
     },
-  })
+    resource,
+    async () => {
+      const job = await resourceWindowsJob()
+      return job?.assemblyPath
+    },
+    environmentValue(env, process.platform, 'SystemRoot'),
+    async () => {
+      await backend.admitWorkspaceHost()
+      if (isAborted()) throw new Error('The Muse Code account host was cancelled')
+    },
+  )
   try {
     // Not `Promise.withResolvers`, which Node 20 lacks (PLAN.md M62).
     const spawned = await unlessAborted(

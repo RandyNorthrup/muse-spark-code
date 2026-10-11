@@ -128,14 +128,14 @@ describe('manageSkills', () => {
         {
           id: 'bundled:grill',
           label: 'grill',
-          description: 'built-in',
+          description: 'Built-In',
           detail: 'Interview',
           picked: true,
         },
         {
           id: 'user:caveman',
           label: 'caveman',
-          description: 'yours',
+          description: 'Yours',
           detail: 'Terse',
           picked: false,
         },

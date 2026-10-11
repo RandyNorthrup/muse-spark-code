@@ -1,3 +1,4 @@
+import { Usd, type UsdAmount } from '../../shared/usd'
 // Optional paid prose over technical findings. The deterministic scan never
 // calls this port. Editors inject the same D78 consent, claim and HTTP client.
 import {
@@ -30,7 +31,7 @@ import { scrubLegalText } from '../legal/files'
 export interface LegalExplanationDeps {
   readonly gate: Pick<PaidFeatureGate, 'isOn'>
   readonly consent: Pick<PaidUseConsent, 'allows'>
-  readonly capUsd: () => number
+  readonly capUsd: () => UsdAmount
   readonly reserve: NonNullable<ModelApiClientDeps['reservePaidRequest']>
   readonly keyDigest: () => Promise<string | undefined>
   readonly usage: Pick<PaidUsage, 'add' | 'addLegalExplanationUsage'>
@@ -162,7 +163,7 @@ export async function explainLegal(
             cachedTokens: usage.input_tokens_details?.cached_tokens ?? 0,
           }
     if (tokens !== undefined) deps.usage.addLegalExplanationUsage(modelId, tokens)
-    const unreportedCost = dispatch.isSent ? claim.reservedUsd : 0
+    const unreportedCost = dispatch.isSent ? claim.reservedUsd : Usd.from(0).toAmount()
     await claim.settle(
       tokens === undefined ? unreportedCost : estimateCostUsd(tokens, modelId),
       dispatch.isSent && tokens === undefined,

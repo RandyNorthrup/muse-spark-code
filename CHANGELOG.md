@@ -7,6 +7,77 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Pending
+
+- M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
+  reads and writes, and 1-hour cache writes settle at their own price.
+  The shared retry classifier refuses known quota codes and excessive
+  `Retry-After` waits. Provider-specific retry-table binding remains pending for non-Meta transports;
+  this does not certify endpoint quota refusal.
+  One-shot OAuth callbacks retain every parameter and destroy keep-alive
+  connections on settlement. Custom servers accept validated compatibility
+  overrides. Session saves coalesce into one in-flight write plus the latest;
+  parallel save failures are observed immediately while other sessions drain.
+  History listing validates headers without replay/transcript validation.
+
+- M101 lane P1 (BYO codecs): one bad history item no longer breaks later
+  requests. Blank text is dropped, empty tool results ride as
+  `(no tool output)`, non-JSON tool arguments ride as `{}` (Ollama keeps its
+  documented raw-text fallback), PDFs ride as Anthropic `document` blocks,
+  and images for a model without image input ride as an
+  image-omitted placeholder. Tool-call ids are mapped per target format
+  (Anthropic charset, chat length, Mistral preset 9-alphanumeric even under
+  provider aliases) with unique
+  per-response Gemini fallback ids. Responses replays send the call `id`
+  only for the same model with an `fc_` prefix. Gemini replays thought
+  signatures on text parts (empty ones included), counts omitted usage as
+  zero, sends vision-gated tool-result images inside `functionResponse.parts`
+  and full tool schemas through `parametersJsonSchema` on Gemini 3.
+  Gemini rejects proxy-null usage and explicitly rejects negative usage
+  counters instead of retaining an earlier tally. Signed blank parts replay;
+  late response ids salt fallback call ids; `$ref` siblings stay constrained
+  through `allOf`. The Anthropic decoder tolerates
+  proxy-null usage and tool payloads cut off at `max_tokens`, and thinking
+  requests `display: summarized` so newer models stream thinking text.
+  Lone surrogates are removed from every BYO encoder; parsed JSON retains
+  own `__proto__` keys as data, including Anthropic tool arguments.
+  Fakes only; no live
+  or paid model call.
+
+- Provider-specific retry-table binding remains pending for non-Meta transports;
+  the shared retry classifier does not certify endpoint quota refusal.
+
+- DEVID017B (developer machine id, review round 2): the machine id is a
+  random value created once in the machine-scoped data folder instead of a
+  hostname digest, so renames and `host` vs `host.local` keep the unlock and
+  profiles. Legacy raw-hostname and digest grants migrate on open and the
+  raw hostname leaves stored state at once; a different machine identity is
+  refused with an honest message and `developer reset` recovers.
+
+- DEVID017C (developer machine id, review round 3): the id is published by
+  staging the full value to a private temp file, fsyncing it and claiming
+  the final name with `link`, so a racing reader sees no file or the
+  complete id, never a prefix; only the exact 64-lowercase-hex format
+  loads, anything else refuses honestly. Foreign reset asks first with
+  nothing mutated before the answer, never re-binds the grant, and clears
+  without stopping through this machine's resource port; profile folders
+  stay on disk. Cancel leaves everything unchanged.
+
+- DEVID017D (developer machine id, review round 4): a published id loads
+  before any staging, so storage that refuses new files still returns the
+  existing identity, and failed staging removes its temp file. A failed
+  foreign reset never clears without recording it: the reset audit row
+  comes first, and when it cannot be written the stored state is left
+  unchanged. Foreign reset asks its own confirmation, which says exactly
+  what happens: this machine's developer state is cleared, nothing is
+  stopped, and profile folders and credentials stay as they are.
+
+- DEVID017E (developer machine id, lead review fix): foreign Reset writes a
+  distinct `resetForeign` audit row (schema stays `v: 1`, as with `migrate`),
+  so only that clear is withheld when its audit append fails. Every other
+  revocation, own-machine Reset included, is still published after an audit
+  failure, and the caller still gets the persistence error.
+
 ### Added
 
 - Open the Devices tab from the Command Palette (`Muse Spark: Open Devices
@@ -22,11 +93,57 @@ happened, not what was planned; superseded entries are kept.
 - Show the phase-2 Devices views (QR with text fallback, discovery details,
   owners and grants with revoke, step-up prompts, power and pressure, blocked
   recovery) against fakes behind the existing Devices budgets.
+
 - Keep every long-reply accessibility delta while yielding through a task port,
   avoiding nested timer throttling within the existing readiness deadline.
 
 - Check every staged ACP help language in bounded parallel batches, keeping
   cold package certification within its existing deadline.
+
+- Join the unshipped Devices pairing, pinned TLS channel and durable receiver
+  behind an editor-neutral lazy method port. Its callers must supply actual local
+  storage, execution, approval and snapshot authorities. No installed Devices
+  command, physical adapter or unattended receiver is registered by this change.
+
+- Add the generated Devices help inventory and its stale-reference gate.
+
+- Define the unshipped Devices phase-2 contracts every later lane codes
+  against: versioned channel, capability, grant and result envelopes with
+  byte/queue caps and strict zod parsing, pacing helpers (at most 3 pending
+  handshakes, backoff capped at 10 minutes, one failed authentication stops),
+  owner-bound grants with device-answered step-up, typed refusals and result
+  acknowledgements, plus injected channel/capability/grant/result ports with
+  fakes. Phase-2 model guidance rides the declared lazy reader; seven status
+  strings ship in all 14 tables. Bind the SSH-limit rules to gotchas
+  G50–G52 and add the phase-2 threat model with the D101 reconcile note.
+
+- Add the unshipped Devices QR invite, mDNS discovery binding and discovery
+  switch with no new dependencies: a QR invite decodes to the identical text
+  invite, mDNS is off by default and advertises only an opaque service id,
+  port and protocol version, a spoofed record never replaces the saved peer
+  pin, manual entry pairs with discovery fully blocked, and a denied bind
+  answers the fixed Blocked-or-unreachable setup. Discovery choices, live
+  verdicts and asynchronous completions now share one state machine: an older
+  ON cannot undo a blocked verdict, a later OFF wins, failed persistence is
+  reported with a fresh read, and revoked policy settles startup to off.
+  No new UI strings; no real socket opens in tests.
+
+- Verify the unshipped Devices dispatch inputs against a content-addressed
+  manifest before start, refusing missing or mismatched items and bases, and
+  advertise measured device capabilities with live pressure for placement.
+  No listener or second device is added.
+
+- Run unshipped Devices work on Windows, Linux and macOS worker hosts behind
+  one admission contract: per-process policy on Windows with an explicit
+  recorded environment and structured exit-code-plus-JSON results, systemd
+  unit supervision on Linux, and supervised whole-coalition enforcement on
+  macOS; unenforceable caps refuse before activation. No production wiring
+  or installed host is registered by this change.
+
+- Bind the unshipped Devices pairing store and attempt journal to
+  OS-protected storage, with owner-only ACLs and a bounded storage helper
+  owned by the Devices bundle; without a platform protection the stores
+  refuse to open. No user key material moves.
 
 ### Fixed
 
@@ -34,9 +151,11 @@ happened, not what was planned; superseded entries are kept.
   message, release the reservation once, and preserve the failure on reconciliation.
   Bound macOS Aqua detection to the session line and retry preparation after a
   transient capacity rejection.
+
 - Refuse a failed Devices worker launch only when its driver proves nothing
   remains for the attempt; otherwise hold it as uncertain, keeping its occupancy
   and worker slot, until the driver observes reclamation or local recovery runs.
+
 - Wait for the Devices document's ready handshake before host observations and
   harness scenes, replaying cached state on reload. Verify owner revocation
   with a refusal that appears only after revoke; keyboard checks validate
@@ -48,21 +167,1453 @@ happened, not what was planned; superseded entries are kept.
 - Register the lazy Devices QR budget, skip loading without an encoder and
   show loading, failure and retry when configured; fit large QR codes to narrow
   panels while preserving their quiet zone.
+
 - Keep Devices harness setup in correlated replies and bind owner/prompt scenes
   to their peer. Show throttled cards consistently, retain refusal-only grant
   replies, and label all six grant quota dimensions with localized units.
+
 - Include the Devices runtime in isolated ACP/VSIX package fixtures so positive
   archive checks and missing-bundle refusals exercise the complete inventory.
+
 - Keep the real-TLS Devices flood test focused on bounded transport and
   snapshot work, with memory-backed repeated journal advances and separate
   durable-storage coverage at the existing deadline.
+
 - Keep Devices failure and retry text in the shared panel shell so its full
   English prose loads lazily and chat retains its startup review budget.
+
 - Admit the shipped Devices runtime in the recorder's exact package-frame
   vocabulary while continuing to reject arbitrary frame paths.
 
 - Keep the badge checker's conditional CI-token header within the existing
   lint rule while preserving its GitHub-only request binding.
+
+- Enforce the unshipped Devices phase-2 contracts from the shared contract
+  alone: the capability schema refuses advertisements past the byte cap,
+  owner/grant/result-ack queue caps ship as callable guards, a grant ceiling
+  check refuses widened grants with typed `scope-denied`, the handshake
+  backoff jitters from an injected source within a stated bound, and result
+  acknowledgements bind to their epoch. The threat model names each threat
+  with its owning lane and planned test.
+
+- Keep the unshipped Devices panel validators in their own shared module so
+  provider/team schemas retain independent lazy bundles within existing caps.
+
+- Coalesce unshipped Devices background snapshots to one running and one pending
+  capture. Data frames retain the channel's capacity backpressure while Stop
+  stays independent; a flood cannot build an unlimited snapshot queue.
+
+- The Devices reset-Stop test awaits cancellation's complete journal writes
+  before removing its fixture, including when an assertion fails.
+
+- Carry Devices view/request correlation through pairing replies and return the
+  imported public invitation for the full fingerprint comparison. Serialize
+  complete snapshots with a host-owned revision that increases across off states
+  and replies; abort drops UI data without cancelling durable work. The keyboard
+  pairing regression now waits for the focus effect without a fixed sleep.
+
+- The fake-only Devices keyboard check uses the platform's Select All modifier,
+  so confirmation import and cap editing work on Linux and Windows too.
+
+- Register the measured Devices browser closure and separate lazy Node bundle,
+  preserving the existing startup and deferred caps. Bind authenticated channel
+  resets to receiver Stop before reporting or snapshot work.
+
+- The unshipped paired-device receiver cancels live attempts before consulting
+  its journal, including after a failed flush, corruption or file loss. Full
+  attempt identity stays bound to the live lease; unavailable cancellation
+  evidence is reported and occupancy remains held until durable retirement.
+
+- Authenticated device cancellation has a fixed reserved decoder capacity
+  that data cannot consume. Stop reaches its priority path even with 31 queued
+  data frames and data overflow before or after Stop in the same chunk; each
+  excess data frame gets its own capacity refusal. Corrupt framing resets the
+  channel and starts local Stop for every live or pending attempt on that pair
+  before reporting, retaining occupancy and spending liabilities. A pending approval or start
+  confirmation cannot delay Stop. Cancellation identities survive queued
+  dispatch, identical retry, compaction and journal reopen; late cancellation
+  confirmations cannot reblock a durably retired receiver.
+
+- M100 queues receiver grants with pairing actions and preserves a later Pause
+  across pending secret reads and writes; stale grants cannot resume the pair.
+
+- M100's device store keeps expected pairing/grant policy refusals distinct
+  from persistence failures, preserving unrelated pairs after stale requests.
+
+- M100's pairing/storage test fixtures create and clean their own OS temporary
+  directories, so a clean worktree does not need an ignored `temp/` directory.
+
+- Harden the unshipped paired-device transport: listener startup settles on
+  unlink, close or its startup deadline, and a stale listener disposer cannot
+  close a replacement listener or its connections. Setup and incomplete-frame
+  deadlines check monotonic and wall clocks at progress transitions, including
+  backwards wall jumps and delayed timer callbacks. Frame reassembly copies
+  once per completed frame and refuses more than 4,096 fragments.
+
+### Documentation
+
+- M100 phase 2 records its SSH-limit rules (one paced channel per pair, the
+  Windows worker context, one failed authentication stops) in G50–G52 rather
+  than duplicate rows, and its verification rules as G60 (shard membership
+  from the execution sequencer) and G61 (bounded report reduction).
+
+## [0.17.1] - 2026-10-10
+
+### Highlights
+
+- **The provider picker works again.** Models & Agents lists every provider
+  again, Anthropic and custom servers included; 0.16.0 and 0.17.0 showed only
+  "That did not work" and an empty list.
+  <!-- try: command museSpark.modelsAndAgents -->
+- **Saving a provider keeps what worked.** Save checks everything first, then
+  saves in order; if a later step fails, the saved parts stay saved and the
+  panel says what was not. Edit and Change Key keep the saved connection.
+- **The wizard's spending limit is your real conversation limit.** It shows
+  the current limit, writes only when you change it, and asks before
+  replacing a limit someone changed meanwhile.
+- **Title Case labels.** English buttons, menus, tabs and titles capitalize
+  every major word; sentences and messages keep sentence case.
+- **Smaller fixes.** Chat action menus fan close around the row's **…**
+  button, highlighted-text actions included; a question's own-answer field no
+  longer overlaps the options and buttons around it, DeepSeek's Thinking off
+  sends DeepSeek's own switch, a nearly spent budget stops with the budget
+  message instead of a Meta error, and a Muse Code older than 1.4.3 that hits
+  its approval-record fault now gets the update command.
+
+### Changed
+
+- **English titles and labels use Title Case.** Buttons, menu items, tabs,
+  headings, dialog and section titles, chips, badges, column headers, field
+  labels and command titles now capitalize every major word ("Rewind
+  Conversation to Here", "Open in Browser", "Account & Usage"). Sentences,
+  notices, tooltips that are sentences, placeholders and error messages keep
+  sentence case. Other languages keep their own convention; their labels and
+  badges that began in lower case ("aktuell", "payant") now start with a
+  capital. A follow-up pass cases sixty labels the first pass missed (count
+  and state labels such as **1 Background Task** and **Running**) and keeps
+  error text that shares a key with a label in sentence case (`Duration
+  unknown`, `Stop upload`, `All slots busy`), with separate label keys for
+  the chips and buttons that show those words. A later pass splits two more
+  shared keys the same way: the missing-key failure stays `needs a key`
+  while its labels read **Needs a Key**, and the unconfirmed private-network
+  failure stays `Use it anyway` while its dialog button reads **Use It
+  Anyway**.
+
+### Fixed
+
+- A question's "Type your own answer…" field no longer touches the Other
+  option above it or the Submit and Explain instead buttons below it; its
+  focus ring now has room on both sides.
+
+- Chat action menus fan close around the row's **…** button, with 6 px gaps
+  and a shallower arc. Highlighted-text actions open at the selected row's
+  **…** button (the pointer only when the row has none) and follow it through
+  scrolling, content reflow and panel resizing; a menu closes when its opener
+  disappears or scrolls out of view. Narrow menus, the checkpoint **Rewind**
+  submenu at 320 px included, keep their equal-width pills clear of the
+  opener and cut long labels short with the whole label in a tooltip. Hover
+  and pressed borders stay inside each pill, and keyboard focus rings keep
+  2 px clear of the pills beside them.
+
+- A nearly spent session budget now stops the turn with the budget message
+  instead of a Meta error: the output cap is recomputed for each request and
+  never sent below the provider's minimum (16 tokens for Meta), which Meta
+  rejected with HTTP 400.
+
+- Static output caps below the selected provider's known minimum are refused
+  when saved and before sending, with the same translated message naming the
+  minimum (16 tokens for Meta). Older stored caps are refused without a request
+  or a silent increase.
+
+- The companion page server no longer misses a stop request, a transport
+  error or an early transport close that arrives while it is still starting:
+  it handles them instead of hanging or failing with an error nothing catches,
+  and cancelling during startup stops it at once with the cancel's reason
+  instead of waiting for the server to finish binding.
+
+- Sharing a chat now shows its preview in ACP editors (`/share chat`) and in
+  the terminal (`muse-spark-code-acp share chat`). In 0.17.0 both always
+  ended with an error saying the conversation's history was not returned,
+  because the conversation was never read.
+
+- Muse Code approval-ledger fault notices now give the update command on
+  versions older than 1.4.3. A live Windows 1.4.3 check accepted the approval
+  without that fault; detection remains active on every version. Rename and
+  fork still fail on 1.4.3, so their Windows limits remain. The sandbox cwd
+  was correct on the prepared host, but a shell write was denied; the
+  profile-workspace workaround remains until fresh-setup reliability is proven.
+
+- Shorten the existing question-deferral Help summary and its 14 translations,
+  restoring the surface-English bundle to its unchanged 25 KiB budget without
+  adding strings or dropping the question, permission or ACP instructions.
+
+- Reopening provider Edit after an address change whose key write failed can
+  save a newly tested replacement key. Concurrent credential changes still
+  conflict, and the old key remains unusable at the new origin.
+
+- Confirmed quick-pick spending-limit retries preserve receipts for the
+  provider, key and default already saved when a later write fails, in all
+  14 translated languages.
+
+- Provider Save validates before writing, then saves changed provider fields,
+  an entered origin-bound key, an explicitly chosen default, an edited spending
+  limit and the requested conversation model in order. Later failures keep
+  completed writes and name saved, failed and skipped steps in all 14 languages.
+  Rollback and its inverse machinery are removed. A key-write failure after an
+  address change shows the key as missing; the old key cannot serve the new origin.
+
+- Every provider Save outcome attempts panel refresh. A refresh failure appends
+  its warning without hiding entry/key/default/limit errors or saved information.
+  Budget-only partial drafts can retry with a fresh baseline; other partial or
+  stale drafts reopen from the completed writes.
+
+- Provider Save compares edited fields with the opening snapshot inside the
+  stored update. Untouched keys retain later rotations or removals, and untouched
+  provider fields retain changes made during private-network confirmation.
+  Competing edits to the same field stop Save and offer Reload with no overwrite.
+
+- Provider Edit and Change key share a full copy of the saved connection.
+  Unchanged routing, format, model limits, favourites, compatibility, private
+  access and default model stay intact; only an explicit default choice
+  retargets it. Save preserves untouched concurrent fields, ignores duplicate
+  submissions and disables its buttons while working. Declining private-network
+  access asks for confirmation instead of calling the saved address invalid.
+
+- Saved custom-provider limits persist directly from Edit without another
+  connection test when the address, format and key are unchanged.
+  Save reports success or its specific failure; failed saves keep the form and
+  typed limits open for retry, and the next Edit shows the saved values.
+
+- The provider wizard leaves an untouched spending limit alone and compares
+  an edited limit with its prefill at write time. Concurrent changes are shown
+  with a confirmation request. Provider save finishes before the limit write;
+  a later limit failure says the provider was saved and gives the reason,
+  without claiming full success. The panel retains the edit for a safe retry.
+
+- Editing or changing the key of a saved custom provider keeps its model
+  limits, exposes them for editing, and saves them back. Back from incomplete
+  custom limits keeps the typed values and allows returning to Models;
+  final Save still validates every limit.
+
+- The provider wizard stores the conversation spending limit as the number
+  its native setting requires, refusing amounts that would lose decimal
+  precision or overflow at that boundary.
+
+- Models & Agents: **Scan This Computer** offers every local server that answers
+  ("Ollama on Port 11434"); choosing one opens its wizard with the local port
+  filled, and an empty scan says nothing is running yet and names each local app
+  with its usual port. Previously it kept only the first answer, asked for a
+  local port it never used, and said nothing when nothing answered. Mistral's
+  plan key now has its own "Mistral Plan" label and a sentence saying it uses
+  the subscription's credits, not pay-as-you-go billing. The Copilot sign-in
+  has its own sentence (VS Code's granted models, billed to the Copilot plan
+  or AI credits) instead of repeating ChatGPT's notice.
+
+- Editing an OpenRouter provider or changing its key preserves its saved
+  privacy, provider order and fallback choice through Test and Save, including
+  Change key followed by Edit. New providers still default to no data retention.
+
+- A failed model scan stops showing Scanning and offers Refresh with a clear
+  reason. Previous model rows remain available; cancelled scans keep their
+  existing behavior.
+
+- Change key in Models & Agents keeps the replacement when Edit opens.
+  Test uses that draft key; Save keeps it, and Cancel leaves the stored key.
+
+- OpenRouter's key test checks its key endpoint before saying the key works.
+  The panel and CLI share the same free-check contract, so a successful public
+  model list cannot stand in for a credential check.
+
+- New OpenRouter setups in Models & Agents default to no data retention,
+  matching the shared setup flow and saved privacy routing.
+
+- Models & Agents shows captured provider prices and recognizes free cloud
+  models. Free and price filters include the right rows, and a refreshed
+  cache price counts as a price change. Routing metadata updates do not count
+  as price changes.
+
+- Models & Agents can scan Gemini and Ollama after ordinary setup, and
+  Anthropic's scans and key tests send its required version header. Presets
+  supply the wire format when it is absent from saved configuration.
+
+- Models & Agents: the provider picker works again. In 0.16.0 and 0.17.0 it showed only
+  "That did not work" and listed no provider, Anthropic included, because
+  Mistral's plan key carried the Subscription sign-in category the panel's
+  card contract did not accept, and one refused card emptied the list. The
+  contract now has that category, and the host's chip type is derived from
+  it, so the two cannot drift again. ChatGPT and Copilot sign-ins move under
+  the Subscription sign-in chip, where the plan put them, and Custom server
+  (Chat Completions, Responses or Anthropic Messages) is in the picker again.
+  A preset the contract still refuses is left out on its own, with a log line
+  that names the preset and the field but no value. A test opens every
+  shipped preset and adds Anthropic end to end. (The custom-server save in
+  that test used the memory store, so it missed that a custom entry needs
+  per-model limits to save through the production file; corrected below.)
+
+- Models & Agents: four review findings closed. A custom server now asks, per
+  ticked model, for its context window and longest reply (prefilled from the
+  server's model list where reported); Save stays disabled with the reason
+  until each ticked model has valid limits, and the entry saves through the
+  production file, which a new test proves against a real providers file. The
+  first Test of a private endpoint now carries the consent just granted, so it
+  sends once and shows its result; declining still sends nothing. A saved
+  provider whose preset card is refused stays listed as unavailable with its
+  reason instead of hiding every valid provider. Subscription sign-ins follow
+  availability: an unavailable sign-in shows disabled with its reason in the
+  picker (Copilot stays hidden in confidential workspaces, per the README),
+  and choosing one is refused with that reason before any connector runs.
+
+- Models & Agents: the provider wizard's spending limit is now the real
+  conversation spending limit (`museSpark.modelApiSessionBudgetUsd`).
+  Previously the wizard accepted a "Session budget" and reported setup
+  success while the enforced cap stayed unchanged, so a typed USD 2 left the
+  conversation unlimited. The suggestions step now labels the field
+  "Spending Limit per Conversation (USD, 0 = No Limit)", shows "This is your
+  setting for every conversation; it is $X now", prefills the current
+  effective value, and the typed number counts on Continue and on Save. An
+  unchanged value writes nothing; a changed one is written at the scope it
+  is effective from (an existing workspace value stays a workspace value).
+  A failed write keeps the typed value, shows its specific error, and
+  reports no setup success. The quick pick does the same through the same
+  shared function instead of dropping the value.
+
+- DeepSeek Thinking off now sends the documented `thinking: {type:
+  "disabled"}` switch and omits `reasoning_effort` instead of sending the
+  unlisted value `"none"`. Any other effort a model's declared list cannot
+  express is refused with a typed codec error rather than reaching the wire;
+  every other preset's request bytes are unchanged.
+
+- DeepSeek review fixes: an unlisted Thinking-on effort (e.g. `medium`) is
+  refused with the typed `unsupported_reasoning_effort` error instead of
+  silently disabling thinking; the off switch also sends for toggle-only
+  models with no effort list; and the typed refusal now reaches the caller
+  instead of the generic unavailable error.
+
+- Reasoning effort and Thinking off now go through one resolver per
+  selected model and its capability record. DeepSeek: an unlisted
+  Thinking-on level moves to the nearest level the model lists (for
+  example `medium` sends `high`), never to Thinking off; Thinking off is
+  sent only where the model can disable thinking, otherwise it is refused
+  with a translated "Thinking cannot be turned off for the selected
+  model."; a model without effort levels gets no effort field. Every
+  other provider's requests are back to byte-identical with 0.17.0,
+  which also restores short Claude Haiku replies at the default effort.
+
+- Visual review covers 0.17.1's Title Case labels, provider-picker repair,
+  chat menus and current What's New notes across all six themes at 320 and
+  690 px.
+
+- Visual baseline reconstruction accepts the recorded sentence-case account
+  and vault labels alongside 0.17.1's Title Case labels. Pixel, coverage and
+  readiness checks retain their existing limits.
+
+- The visual harness supplies the canonical conversation budget required by
+  the provider panel, so wizard scenes render through its strict message schema.
+
+### Documentation
+
+- README screenshots show 0.17.1's current labels, question-field spacing and
+  chat menus, regenerated through the repository's screenshot script.
+
+- Correct the provider-wizard round-3 certification text to the round-4
+  contract: provider persistence precedes the spending-limit write, and a
+  later limit failure reports partial success with the provider saved.
+
+## [0.17.0] - 2026-10-08
+
+### Highlights
+
+- **Deterministic reports.** `/report` builds project, quality, milestone,
+  release and change reports from local facts, in Markdown, HTML, JSON or text,
+  with saved history and comparisons; nothing is sent to a model.
+  <!-- try: command museSpark.showReport -->
+
+- **Capacity estimates (preview).** `/estimate <goal>` and the Estimator are in
+  place and verified with test data. Real forecasts need the plan reader that
+  comes later; until then they say so instead of guessing.
+
+- **Several accounts per provider.** List provider accounts, see the current
+  one and its thresholds; a vendor limit blocks only the affected account.
+
+- **Orchestrator playbook.** The nine orchestration rules ship as a first-party
+  skill. In the ACP agent and the CLI, `/playbook status`, `record` and
+  `settings` answer locally; the VS Code panel follows.
+
+- **Refreshed design.** Shared design tokens and generated palettes style every
+  panel surface; an optional pinned OFL font pack serves standalone installs.
+
+### Changed
+
+- Update the ACP SDK to 1.5.1, Vitest and V8 coverage to 5.0.3, jscpd to
+  5.4.0 and knip to 6.39.0. Keep typescript-eslint 8.70.1 because 8.71.0
+  regresses lint memory use. Rules, deadlines and bundle budgets stay intact.
+  ACP and team-child streams use the media budget plus 16 MiB instead of
+  the SDK's 32 MiB default, allowing valid multi-image prompts to reach
+  individual image and media checks.
+
+- Restore bundle budgets through shared wire schemas and report redaction,
+  a backend port for accounts, fewer ACP locales, and deferred vault English,
+  Help facts, estimate schemas and exact dollar formatting. Accounts shrink
+  from 348 to 48 KB; the ACP engine from 915 to 639 KB. The provisional
+  universal VSIX cap is 3700 KiB pending hosted measurement.
+
+### Fixed
+
+- Action apply fixtures disable Git auto-gc and maintenance, preventing
+  detached repacks from racing the tests; a guard verifies this.
+
+- `/estimate` recognizes Windows instead of rejecting Node's `win32` name.
+- Developer storage works below linked ancestors, including macOS `/var`,
+  redirected profiles and Windows short names. Links at or below its root
+  are still refused.
+
+- Translated tables ship in English key order; packaged ACP tables match
+  their sources byte for byte.
+
+### Documentation
+
+- [Contributor vetting](docs/contributor-vetting.md) requires person and
+  change review, Codex and Grok reviews, a certification record and the
+  owner's approval before outside code runs, lands or is copied. Hosted PR
+  CI may run after person and change review. All external fork contributors
+  require workflow approval. The earlier contribution has a retrospective
+  record evaluating its tests; CONTRIBUTING documents the policy.
+
+### Fixed
+
+- Compress README captures while preserving every pixel and PNG metadata;
+  unchanged images remain exact.
+
+- Avoid redundant plan-string writes while retaining privacy scrubbing;
+  prepare usage fixtures within their existing deadlines.
+
+- Centre chat in its container, await schedule mounts before accessibility
+  scans, and supply the real report panel input in CI.
+
+- Register both schedule defaults as flat machine-scoped settings beside
+  the schedule switch; keep validated legacy reads.
+
+- Await the named screenshot scenario after the webview handshake so empty
+  welcome screens cannot pass capture or accessibility checks.
+
+- Traverse reader-owned arrays without scrubbing generated indices as text;
+  retain recursive secret scrubbing and the plan performance budget.
+
+- Cache validated journal deltas only while reread bytes match, clone before
+  replay, await workflow controls, and measure heavy engine/browser fixtures.
+
+- Keep recording-reader fixtures within ordinary deadlines; name only the
+  measured TypeScript compiler setup timeout.
+
+- Reuse schedule-journal validation only while serialized bytes match;
+  reread storage and validate every change and lease.
+
+- Include schedule usage in shared CLI help; keep the native theme bridge
+  within budget and validate original role keys.
+
+- Share schedule XML encoding, use maintained report task-glob matching,
+  and verify literal private paths before redaction.
+
+- Use generated tokens for report borders and usage-chart fallbacks; retain
+  native theme overrides and the 4 KiB core token budget.
+
+- Restrict context recording to fixed reader-only builders. Reject unbranded
+  or copied content and filesystem, Git or skill-store imports, including
+  dynamic imports. Sealed scopes cannot create content or rerun adapters.
+
+- Discard late acknowledgements for idle turns; refuse automatic verification
+  as soon as scheduled steering claims the session, before adopting input.
+
+- Record cached scheduled inputs, Git facts and directory indexes in closed
+  reader scopes. Refuse replay of undelivered Git subjects and verification
+  that would read unconfined editor dependencies. Defer schedule authorization
+  and context builders, freeing over 10 KiB in the Model API bundle.
+
+- Retain pending native starts across idle snapshots so schedules cannot
+  claim an ordinary turn acknowledged afterward.
+
+- Require complete cached-context source inventories and derivations, with
+  one canonical workspace boundary for cached and live reads. Omitted or
+  truncated evidence cannot authorize delivery.
+
+- Release stale schedule mode effects and stopped or withdrawn admissions,
+  settle refused queued fires, and validate steer media before claiming a
+  session, allowing later work to proceed.
+
+- Load tool rows and schedule channels on first use with accessible loading,
+  explicit failure and retry; preserve provider, usage, report and schedule
+  behavior alongside playbook fixes.
+
+### Fixed
+
+- Preserve reports, provider/team workflows and playbook during integration;
+  remove duplicate Help, retain prompt scope for a local user named `user`,
+  and generate report palettes from shared tokens.
+
+- Keep universal packaging within budget through lossless localization leaf
+  archives, full English fallback and legacy decoding. Key ordering changes
+  no translated values.
+
+- Fit the planning document within its parser bound without losing decisions,
+  rationale, milestone status or delivery order.
+
+### Fixed
+
+- Preserve provider, team, legal, sharing and local usage workflows alongside
+  reports, design and playbook, within existing bundle caps.
+
+- Load optional English before the first slash registry resolves; Help-only
+  fallback stays in lazy Help.
+
+- Await sandboxed report content and fonts before screenshots; retain main
+  chat readiness checks.
+
+### Added
+
+- Ship the orchestrator-playbook skill with nine rules, a third-strike
+  redesign template and two repository examples. Project or personal skills
+  take precedence on Model API; Install Bundled Skills copies it byte-exact
+  for Muse Code and offers Update when its digest changes. Missing sources,
+  invalid ids, non-file skills and linked roots refuse installation. Its
+  reviewer charter covers eight classes, coverage, dispositions and exact
+  prior-finding resolutions, loading only through the skills bundle.
+  Orchestrated reviewer bindings remain pending.
+
+- ACP `/playbook <status|record|settings ...>` and terminal `playbook` answer
+  locally from a journal without a backend or model turn. Settings record
+  owner and reason; rule opt-outs and fallback reviewers require a user
+  decision. Residuals stay open until lead or owner acceptance and block
+  release while open. Dispatch briefs record hashes before rendering. Help
+  and capability inventories cover all four editor/backend surfaces; full
+  panel enforcement still awaits the planner.
+
+### Fixed
+
+- CLI, ACP and React playbook records show unmatched legacy acceptance reasons
+  and original decisions, distinguish identical entries by journal position,
+  and use browser-safe contracts. All fourteen languages include the labels;
+  queued-answer write failures warn that retained answers may repeat.
+
+- Commit ACP queued-answer leases only when their carrying model turn starts,
+  after hooks and admission. Withdrawal, unqueue, Stop, release, exit and
+  refused or failed submissions retain answers without claiming delivery.
+  Local commands never lease. Failed writes retain answers, warn of repeats,
+  and leave active turns busy and stoppable.
+
+- Panel subagent, delegate, best-of-N and `/review` dispatches use shared
+  playbook policy and offer a Plan redesign at round three. Planner, fleet,
+  schedule and review integrations remain named handoffs.
+
+- Verify native Git hook exit verdicts instead of emulating Husky; invalidate
+  older receipts and discover worktree private refs. Timeout cleanup follows
+  detached descendants by parent and start identity; prepared cgroup/scope
+  runners take precedence, with resource-governor binding pending.
+
+- Detect skipped Husky bodies, new refs and detached worktree commits. Run
+  source hooks by absolute path, clean partial registrations, scrub failures,
+  and handle annotated tags and ref deletions. Reject legacy or invalidated
+  receipts, require renewal/cancellation tokens, enforce hook strikes even
+  without findings, and contain processes in POSIX groups or Windows jobs.
+
+- Persist playbook safety refusals across tools, agents and restart to block
+  same-effect retries. Journal fixtures own and clean their temporary folders.
+
+- Verify shell outcomes: new commits require durable hook receipts before
+  managed push or completion; failures add strikes. Early command checks
+  remain advisory. Bind reviews to lane and lease generation, follow edits
+  through content and Git history, record lineage before admission, and
+  reconcile merged strikes and lifetime counts. Editor/planner bindings
+  remain pending.
+
+- Fence playbook replies by bridge lifetime, request and workspace so disposed
+  surfaces cannot populate another workspace.
+
+- Prioritize owner failures and unresolved redesigns in badges and agent
+  details. Settings preserve other drafts, restore focus and announce saves.
+
+- Refresh saved playbook fields, including another window's lowered round
+  limit, so stale controls cannot overwrite them.
+
+- Local ACP playbook commands settle unused answer leases. Residual acceptance
+  binds to its instance, rationale, follow-up and module. Submodules and
+  separate Git directories without `commondir` work. All deferred playbook
+  wrappers offer accessible loading, failure and retry. Slash/mention menus,
+  edit tally, task panel and effort controls defer startup work; playbook
+  loads separately to restore the ACP 850 KiB budget.
+
+- Legacy name-only acceptance covers only earlier residuals, never a reused
+  name; unmatched records remain visible. Failed wrapper loads stay local
+  with retry. Edit totals and task lists load only when needed.
+
+### Added
+
+- Add shared design tokens, generated editor/Muse palettes, contrast and
+  staleness checks, and raw-colour guards. Accessibility overrides cover
+  html, body and nested scopes; guards catch escaped paint and closing-brace
+  hex values.
+
+- Add an optional pinned OFL font pack, verified `fonts install`, offline
+  seeds, portable UI/code fonts and ligatures, and notice/package guards.
+  Hosts retain control of editor fonts.
+
+- Add pixelmatch regression for all audited panel, Tasks and What's New
+  surfaces across six themes, six states and 320/690 px widths. Hashes and
+  dimensions identify bounded external PNG archives; CI reconstructs the
+  reviewed source in its own rendering environment.
+
+- Load exact money arithmetic, paid tariffs and estimates after first paint.
+  Names, badges and tooltips paint immediately; prices never use guesses.
+  Failed loading offers "Prices could not load." and Try again, rebuilding
+  the panel. Paid and session-budget acceptance waits for the price; cancelled
+  or replaced wizard drafts drop pending budget changes. Schedule prompt
+  mapping loads on submit; failure restores the command in an empty composer
+  with a warning, and closed surfaces or sessions stash nothing. Restored
+  schedule rows use a small English group; other schedule text loads with
+  its surfaces. Exact cap checks avoid startup arithmetic. The first-paint
+  baseline is 760,059 B plus the prior 1.4 KB margin.
+
+### Changed
+
+- Visual checks use antialiasing detection, colour threshold 0.1 and at most
+  0.01% or 12 changed pixels per image. Both CI tiers reconstruct source
+  comparisons; static gates check tokens.
+
+- Polish conversation cards, tools, composer, chips, dock, menus, pickers,
+  dialogs, usage, History, Tasks and What's New with shared tokens and states.
+  Approval choices remain equal on one row at 320 px; gooey pills stay crisp.
+  Header targets stay 24 × 24 px; History retains Arrow/Delete archiving.
+  Reduced motion stops animation; forced colours distinguish hover, focus
+  and pressed states.
+
+- `@muse-code/sdk` moves from 1.4.2 to 1.4.4 (SDK144). Muse Code 1.4.4
+  (1.4.4-R5419.1) serves the new pin's schema fingerprint, so it connects
+  without a mismatch warning; a 1.4.2 host now logs one, as older hosts did
+  after earlier bumps. The SDK now hides the `muse serve` window on Windows
+  itself (meta-models/muse-code-sdk#34). The extension's other Muse Code
+  workarounds were re-checked against 1.4.4 and are still needed
+  (`docs/certification/sdk144.md`).
+
+- `@agentclientprotocol/sdk` moves from 1.5.1 to 1.7.0 (SDK144). The ACP
+  agent, headless `exec` and team workers speak the same ACP v1; the SDK's
+  transport is unchanged, so the agent's 32 MiB line override and the
+  session-router seam carry over as they were.
+
+- **A sent message's menu is shorter and its pills fit their labels.**
+  **Fork conversation from here** is now **Fork Conversation**, and **Fork
+  conversation and rewind code** is now **Fork and Rewind**, in every
+  language. Every radial menu's pills stay one size, but that size is now
+  the longest label's own width instead of a fixed 272 px, so short menus
+  no longer carry empty blue space; only a label wider than the panel ends
+  in an ellipsis with the whole label in its tooltip.
+
+- The README's Resources screenshot is retaken with the rest of the set (the
+  same Linux Chrome build and fonts); the other 18 screenshots still match the
+  current UI and are unchanged.
+
+- README and `docs/acp.md` name all four places the project ships from (VS Code Marketplace, Open VSX, npm, GitHub Releases), add an npm version badge, and install the ACP agent with `npm install -g muse-spark-code-acp` first, the release `.tgz` second.
+- The npm package's README and the Marketplace/Open VSX page list the same four channels as the README (VS Code Marketplace, Open VSX, npm, GitHub Releases); the npm page adds the release `.tgz` install.
+- README adds a total downloads badge (all channels) and a GitHub app installs badge, both served by the project's Cloudflare Worker, now kept in `infra/marketplace-hook` (counters only; not part of any package).
+- README notes the project's unofficial GitHub OAuth app for M123 sign-in and that its GitHub Marketplace listing awaits GitHub's review; the privacy notice adds the app's device flow, `repo` scope, keychain or vault storage and revocation.
+- The working line is calmer: the heartbeat trace sweeps in about 1.4 s instead of
+  1.2 s, and the circle mark before the status text keeps its 0.16.0 loop at 75 % size
+  (12 px instead of 16 px).
+
+- Preserve exact decimal USD across schedule authorization, consent and agent caps,
+  rental cost estimates, reporting facts, account totals and voice consent. Read
+  historical numeric records at validated boundaries; saved reports verify their
+  original hashes before migration to exact money version 2.
+
+- The resource history journal is one shared bundle that the window's
+  governor and the usage page both load, instead of a copy in each; both stay
+  inside their size budgets. Usage records read the account id from a small
+  leaf instead of every account schema.
+
+- The Model API backend's session store loads with that backend instead of
+  at activation (its own `dist/modelApiSessions.js`), taking 24.5 KB off the
+  activation bundle; sessions are kept and read as before (ACTBUD017).
+
+### Fixed
+
+- Keep visual CI shards, integrated question/lazy coverage and revision-bound
+  receipts. Open Questions uses the shared keyboard ring; modal and menu
+  focus stay independent. Theme bundles fit their budget and font errors
+  use the installed language.
+
+- Use six deterministic visual shards, requiring every receipt, matching
+  coverage/environment and combined 512 MiB archive budgets.
+
+- Follow imported generated stylesheets for the complete host theme inventory.
+- Add local `/report` and a report tab with Markdown, HTML, JSON and text,
+  saved history and comparisons. Composer, palette and usage share the lazy
+  engine without model turns; unavailable evidence retains reasons/freshness.
+
+- Add checked plan grammar, report-v1 schema, pure collectors, bounded local
+  readers, canonical redaction and CLI/ACP/native shared contracts.
+
+### Fixed
+
+- `museSpark.reports.network` promises only wired GitHub reads; store, workflow
+  and release adapters remain unavailable pending approved captures.
+
+- Reject reporting bundles that include the paid gate.
+- Render report comparison diffs in every format. Validate decoded redaction,
+  order equal history stamps by save sequence and tied checks consistently,
+  discover Claude subagents, match quality globs like the runner, and resolve
+  workspace aliases through Git. Fixtures use canonical roots and ordinary
+  deadlines; long picker identities wrap at 320 px.
+
+- Cold filtered slash commands await English with accessible loading/failure/
+  retry; browser checks await scenario start before measuring or sending keys.
+
+- Sequence long-reply accessibility after competing axe pages without dropping
+  deltas, themes, scans or readiness deadlines.
+
+- Reuse validated estimator scheduling without report-only timelines or unused
+  reservation sorting; keep all 2,000 draws and the selected P50 schedule.
+
+- Account projections load without unrelated Models, vault, team or keybinding
+  schemas.
+
+- Honor approved audio models for ordinary requests, retaining model, key and
+  consent fences. Include vault/estimator bundles in problem-recorder frames.
+
+- Speed vault scanning without changing redaction or stream boundaries; retain
+  Unicode SSH wildcard matching without regex construction; share HTML encoding
+  for estimator exports.
+
+- Register `museSpark.vault.enabled` and nested defaults in VS Code while
+  preserving opt-outs; use accepted release captures for request baselines.
+
+- Capture diagnostics before team-test timeouts. Retain early ready messages
+  until their scenario handler exists.
+
+### Fixed
+
+- Preserve provider, media and account contracts; defer credential-bearing
+  account commands. Files requests retain endpoint checks and scrubbed errors;
+  upload cleanup requires its ownership ledger. Both packages include vault
+  and estimator assets, with the native macOS helper from CI. Fresh clones
+  retain browser English readers under temporary parents. Unbound vault shell
+  descriptors preserve strict-tool requests; account help shares usage text,
+  GCM decryption pins tag length, and legacy credentials reuse shared validators.
+  Harnesses supply the estimator setting. Budgets remain unchanged.
+
+- Record window/ACP minute resource readings, levels, overrides, deferrals and
+  harness CPU in one flushed local machine journal when usage history is on.
+  Usage **Resources**, `resources history`, `usage resources` and ACP
+  `/usage resources` read it. Keep seven recorded days with bounded files and
+  reads; ignore only a torn final line, report other unreadable data as
+  unavailable, and clear it with **Delete history**.
+
+- Show **This minute so far** across windows/agents and one **Earlier days**
+  row per recorded day. **Delete history** includes the resource-entry count.
+
+- Add [the public roadmap](ROADMAP.md), generated from milestone statuses,
+  release headings and curated entries. Its quality/CI gate rejects stale
+  fingerprints, missing or extra milestones and internal working ids in
+  public text. Prepared releases appear under _In the next release_ until
+  a release record confirms shipment.
+
+### Added
+
+- Add several-account storage, thresholds, confirmations and shared account/
+  usage/developer UI, certified with fake editor ports. `providers accounts`
+  manages metadata; `auth set` reads credentials only from stdin; headless
+  `--account` pins a run; ACP refreshes membership. Machine-scoped
+  `accountSwap`/`accountParallel` default on; `accounts.severalOnThisDevice`
+  defaults off. Installed mounts, pooling, credential-changing selection and
+  profile/device owners remain pending; extra Muse Code accounts await captures.
+  Account changes never reset paid gates or shared budgets. See
+  [policy](docs/certification/m108-policy.md) and
+  [integration evidence](docs/certification/m108.md).
+
+- Resource-history deletion refuses swapped links outside the usage folder
+  on Linux/Windows; macOS retains the same-user race documented in SECURITY.
+  Failed removal reports and retries, leftovers are cleaned, and retention
+  failure logs. Recording, daily upkeep and deletion share a lock; writes
+  recheck ownership and delete order. Readings while history is off or before
+  deletion cannot land later; old daily rows stay hidden. Refused-removal
+  restoration preserves replacements except SECURITY's stated cases. Retried
+  uncertain writes count once; window close flushes its minute. The 32 MiB
+  read bound counts actual bytes.
+
+- Resource-history cards use one column at 320 px and two at 690 px; legends
+  and trailing chart values stay visible.
+
+- Governed launches declare contained work, read-only probes, OS handoffs
+  (including `share` and `prompts share`), terminal `login` or helper builds.
+  CLI shutdown stops owned work; handoffs wait at most ten seconds for the
+  adapter and leave opened browsers running; terminal Ctrl+C reaches login.
+  Pause immediately refuses helper/background launches with `Resources: Paused`,
+  without first-command Windows fallback. Deadlines include sampling; a
+  source guard checks every process against its inventory.
+
+- Windows commands avoid per-launch PowerShell. Jobs enforce process caps and
+  report whole-tree retirement, CPU and memory; real-Git schedules on four
+  CPUs improve from about 12.4 to 8.3 s. Shutdown awaits exit before temporary
+  cleanup; non-exiting trees are retained and reported.
+
+- Windows completion requires a helper report proving the job empty. Killed
+  or undrained helpers retain temporary folders for recovery. Process/memory
+  cap refusals fail commands even after exit 0. Every launch checks helper
+  bytes, refuses changes and rebuilds; shutdown awaits the final report.
+
+- Read-only Git, gh, birth and media-version probes keep admission/containment
+  without temporary folders. This avoids missing-helper refusals in Linux/
+  macOS source checkouts and repeated Windows PowerShell starts. Writers,
+  including converters and schedule OS commands, retain temporary folders;
+  runtime Windows helpers prepare once.
+
+- Helper compilation uses heavy bootstrap admission, bounded output and
+  whole-tree deadlines/cancellation. Runtime admission covers login/browser
+  launches. Windows report leases close before restoration, preserving
+  concurrent journal entries; birth probes avoid module discovery. Help
+  names unavailable recording and vault-broker services.
+
+- Account-scoped Muse Code hosts share governed native jobs and retirement.
+  Vault MCP stdio uses a guarded governed builder. Media, vault helpers,
+  reporting and schedule readers use admission/containment; missing native
+  launch services refuse before spawning.
+
+- **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
+  first governed launch, a **Resources** chip sits beside the heartbeat, or
+  above the composer between turns. Its popover shows CPU, memory in use and
+  available memory against your limits, what is waiting, any override, and
+  that relocation is not available on this build. Its buttons are **Resume
+  now**, **Open settings** and **Show resources** (the Usage & cost page). A
+  status bar item shows while the governor throttles or pauses. At pause, one
+  notice per conversation names the reading and its limit, with the same
+  actions. New commands: **Muse Spark: Show Resources** opens the popover in
+  the chat in view, and **Muse Spark: Resume Work Now** holds this window's
+  governor at normal for fifteen minutes. A governor you switched off stays
+  off. The governor, its status item and the chip still load on first use,
+  never at activation, and chat's first paint stays within its budget.
+  A status the chip cannot trust (unreadable, with unknown fields, or too
+  large) shows as **Resources: Unknown** with a short explanation, never as
+  an older reading. While the chip loads it says so in place, and if it
+  cannot load it offers **Try again** without disturbing the conversation.
+  JetBrains, Visual Studio, Eclipse and the companion page can reuse the same
+  chip and status adapter once their M104 bridges bind them; none does yet.
+  ACP and terminals keep `/resources` and `resources status|resume`.
+
+### Fixed
+
+- Remote vendor limits persist per sender, owner and provider across sticky
+  moves, named sends, account removal and restart. Group/global exclusions
+  share local eligibility; reset or bounded expiry clears blocks, with
+  overlapping limits using the later reset. Frames carry no account/group data.
+
+- Profile create/remove and Reset audit the real calling surface, including
+  terminal commands. Sticky/retry/busy certification follows its regressions.
+
+- Device admission shares local queues, full limit groups and advertised
+  capacity. Threshold changes move sticky routes; deleted accounts cannot
+  wedge them. Refusals distinguish recovery, cancellation, caps, busy owners
+  and missing devices.
+
+- Remote routing skips blocked accounts' full limit group using sender-side
+  pool rows, without frame metadata. Busy conversations report "A prompt is
+  already running for this conversation." in all fourteen languages.
+
+- Unknown profile removal cannot change authority. Revocation stops profiles
+  before saving; failed publication cannot restore revoked grants. Enable/
+  disable audit actual surfaces; stale launches fail and release credentials.
+
+- Account/developer/Help English loads with optional surfaces within startup
+  and deferred budgets. Every translated key, plural and template slot still
+  validates. Help data packs losslessly within budget.
+
+- Unbound runtime profile cleanup reports unavailable and retains its ledger
+  after failed launches.
+
+- Fixed-account surfaces retain backend identity after reordering/removal.
+  Headless ports bind requested credentials; missing accounts or malformed
+  metadata cannot fall back to the legacy Meta key.
+
+- ACP package guards include the lazy account-runtime bundle.
+- Companion uploads support Unicode filenames and omit unrelated loopback
+  cookies: only header metadata is encoded; streamed intake stays guarded.
+  Progress reports start/completion. Closed panels settle recorder startup
+  and dispose late previews; browser tests use OS temporary storage.
+
+- Media keeps exact currency, ceiling display and tariff text outside startup;
+  tool rows offer lazy accessible loading/failure/retry. Patch projections
+  share schemas within existing caps. Headless `--record` help is corrected;
+  pending capture, provider, accounting, recorder and companion bindings are
+  explicit. Packages preserve signed recorder resources and media bundles;
+  macOS CI needs no permission. Estimates round upward and refused fills
+  close reserved descriptors. ACP/VS Code inspect media on first use; shared
+  reference values restore ACP/reference budgets to 850/100 KiB. Attachment
+  and inspection factories install the caller's language before refusals.
+
+- ACP supports between-turn `/attach <path>` and `/record`, capability-gated
+  audio, confined resource links and PDF/video/audio/image/unknown blobs.
+  Headless `exec --attach <path>` repeats, `--record` refuses, and `read_file`
+  reads mp4/mp3/wav within the media budget.
+
+- Files API uploads stream approved media with progress, Stop, SHA-256 and
+  expiry; validate receipts and reject redirects or ambiguous retries.
+  Storage admission and lazy media bindings remain integration work.
+
+- Upload metadata/reference counts persist across sessions. Deletion/purge
+  cleans uploads; missing-file replacement verifies its source. Usage lists
+  files and cleanup with expiry/read-only metadata; editor ports await binding.
+
+- Media and screen recording load on first use with separate budgets/guards;
+  startup stays near 733 KiB. Add Attach screen recording, Attach latest
+  screen recording and Delete uploaded files, plus `mediaMaxUploadMiB`,
+  `mediaUploadExpiryDays`, `screenRecordingMaxSeconds` and `mediaAudioAction`.
+  Recordings return to their starting conversation; picked media uses drop
+  confinement and reasoned refusals. Audio pastes transcribe by default;
+  Gemini/OpenAI-compatible video remains unsupported.
+
+- On macOS 26, a process that `ps` lists with an unknown state (`?`) while
+  it changes no longer voids every resource tree's membership read, which
+  could refuse Stop/kill for a tree while any process on the Mac was mid-transition.
+
+- The two-account Muse Code backend test waits for the usage event that
+  follows a turn instead of assuming both arrive together, and the estimator
+  browser harness pays the browser's first-navigation work once before its
+  matrix, keeping every case's two-second bound.
+
+- The estimator browser harness uses the same packed English fallback as
+  independent production pages, avoiding cold Windows navigation timeouts
+  while keeping its two-second bound and complete accessibility/keyboard matrix.
+
+- macOS UI regressions give each target-size scene its own test and await
+  the palette view's actual lazy-import rejection before checking its failure
+  row, retaining every assertion at the existing deadlines (CIR4MAC).
+
+- macOS runtimes with libuv older than 1.52 report unknown memory headroom
+  instead of counting only free pages, preventing false resource pauses and
+  ACP multi-workspace session timeouts on Node 22 (ACPM118).
+
+- Windows recorder destinations accept native 8.3 temporary-folder spelling
+  while still refusing traversal and existing destinations (CIFIX017W).
+
+- Companion uploads close their inspection handle and remove private bytes
+  before acknowledging the request, avoiding Windows cleanup races.
+  A failed inspection close returns a refusal with private diagnostics withheld.
+
+- Windows resource-history tests wait for durable disposal output before
+  checking or corrupting journal files.
+
+- Windows native probes avoid unnecessary PowerShell module startup;
+  packaging tests share one production build while retaining private outputs.
+
+- Visual capture waits for restored question rows to finish loading before
+  measuring the context-menu passage, preventing a timing-dependent 14 px
+  menu displacement in narrow captures. Pixel allowances are unchanged.
+
+- Schedule runtime tests cover Linux, Windows and macOS rearm ownership
+  explicitly; macOS wake shutdown retains its independent after-exit helper.
+
+- Reporting journal, history-engine and response-cache tests retain real OS
+  process-birth probes on macOS and Windows without requiring unrelated
+  resource-governor installation in their storage fixtures.
+
+- Windows: the ACP agent (`muse-spark-code-acp`) could not start a Muse
+  Code session. Its governed `muse serve` launch was missing the Windows job
+  helper the extension's launch already had, so every new session failed
+  with an internal error.
+
+- Windows: the npm package of the ACP agent now ships the C# of that job
+  helper's launcher (`MuseSparkMcpLauncher.cs`). An agent installed with
+  `npm install -g` still failed every new session with an internal error
+  without it (CIFIX017W2).
+
+- Windows: the trusted-path check behind background schedules reads each
+  folder's attributes and ACL through .NET alone. Its PowerShell no longer
+  loads the modules behind `Get-Item`, `Get-Acl` and `ConvertTo-Json`, which
+  took over 15 s per folder on machines with many PowerShell modules
+  installed, such as hosted CI runners (CIFIX017W2).
+
+- macOS with Node 22 (or an editor on its libuv): the resource governor read
+  free memory pages as headroom, judged an ordinary Mac critically short of
+  memory and held every later process start for 20 seconds, so a second ACP
+  session took over 20 s to open. That reading is now treated as unknown
+  (CIFIX017R3).
+
+- A report save could fail after two seconds when another save released
+  its lock while a third retired one: a lock file being deleted was taken
+  for an unsafe file, and the releasing save kept its lock (CIFIX017R3).
+
+- The report's plan reader no longer parses each plan line three times;
+  this repository's plan reads about 15% faster (CIFIX017R3).
+
+- Windows: `muse-spark-code-acp usage open` and sharing to the clipboard or
+  browser failed with "That did not work". The program lookup added `.exe`
+  to names that already had it (`rundll32.exe.exe`) and found nothing.
+
+- Linux: `muse-spark-code-acp usage open` waited 10 s and then reported
+  failure when `xdg-open` stayed open with the browser, as many handlers do.
+  The opener now counts as launched once it starts, in its own session, and
+  is never stopped. Any OS opener still running at the hand-off limit is
+  detached and counted as launched, not killed; one that exits with an
+  error still fails.
+
+- When a Windows job helper fails to compile, the log names the compiler's
+  errors and exit code again, not only "Bootstrap command failed".
+
+- Visual regression reconstructs the recorded schedule surface inside the
+  served historical revision, so clean CI can load its lazy schedule entry.
+  The current-source audit also records the accounts accessibility stylesheet.
+
+- Native schedules and helpers no longer refuse a Windows profile folder
+  that is a junction or redirected to another drive. Paths are now checked
+  from the folder the extension owns: links above it are accepted by their
+  resolved identity, and a link below it is still refused.
+
+- Scheduled prompts spend about half the time on their store per fire: the
+  store keeps one journal per workspace, so its validated snapshot and deltas
+  are reused between calls, and a read copies the folded state once instead
+  of every journal entry. Every read still rereads and checks the bytes.
+
+- Model API turns no longer reinstall the whole display-language table for
+  every recorded context read (about 4 ms each); the schedules bundle
+  installs it once per language.
+
+- ACP: an answer queued with `/answer` is sent with the next prompt once,
+  even when the backend finishes that turn before it confirms the start.
+  Before, such a turn released the answer instead of marking it sent, so the
+  following prompt carried it again.
+
+- Model API replies stream with less work per event: the stream's key
+  redaction builds its matcher once per reply (and again only when a stored
+  secret changes) instead of for every string in every event. A long reply
+  had spent most of its time there.
+
+- Contributors: a pre-commit hook that fails now stops the commit on Windows
+  even when nothing is reading Git's output any more (for example
+  `git commit … | Select-Object -First 5`). Before, husky's runtime was
+  killed by a broken pipe while reporting the failure, and Git for Windows
+  counted that as a pass. `npm run prepare` installs stubs that rule this
+  out on every OS, and the hook asks for `npm run prepare` in a worktree
+  that still has husky's own stubs.
+
+- Packaged translation tables round-trip byte-exact again: every language
+  table lists its keys in English's order, including the resource history
+  and Windows path strings merged for 0.17.0.
+
+- The dependency-cycle gate now covers every build entry, lazy import target,
+  entry-named module and knip entry, with a guard against root-list drift.
+  Remove the worker admission/environment/ref-fence cycle by sharing the
+  unchanged credential-free environment policy from the worker environment
+  module. The guard now shares integration-test discovery with the build,
+  so changes to its directory or filter also change the required cycle roots.
+
+- Start the team browser tests' card and tree deadline once the harness reports
+  the scene played, keeping bundle start-up, the ready handshake and the
+  steps' settle time outside that wait, and list still-open requests when a
+  team test's wait fails.
+
+- Settle quote-menu capture origins after final layout and isolate source-reconstruction fixtures from temporary-directory placement.
+- Capture settled share-view highlighting, usage-dialog account facts and status rows, and the palette's focus scroll so visual replays no longer race lazy renderers.
+- Complete integrated visual coverage through real optional UI scenes, decode packed update notes in replay, wrap narrow Models actions and use token focus rings.
+- Guard the lazy slash-command registration as a deferred chat entry without adding activation bytes.
+- Restore the Schedule Prompt, Schedules and Schedule Timeline editor commands, including panels opened on demand.
+- Reuse successful time-zone validation during repeated schedule journal reads, preserving storage checks and workload deadlines.
+- Resolve visual replay fixtures from the running gate when historical render sources predate them, and guard Help document IDs against duplication.
+- Prepare browser-English probe scratch space in fresh clones and include the merged Linux helper job in the visual CI test fixture.
+- Give plan-usage request counts localized singular/plural text so contrast checks can measure their visible content.
+- Refresh reviewed README captures from the combined UI and its real ready handshake, retaining the curated media budget.
+- Name and exercise report-root literal regex escaping across all operators and Windows separators.
+- Share ACP preparation cancellation and exact USD display helpers; align merged paid-ledger tests with the exact decimal contract.
+- Batch staged-file tool arguments below the Windows command-shim limit while retaining every hook check.
+- Include lazy account and developer surfaces in the browser English regression probe while preserving deferred fallback checks.
+- Remove the obsolete compact Node reference build plugin and its stale test; the production reference uses the current generated data loader.
+- Draw the independent reporting focus ring and the Models/account boundaries from the M114 token contract instead of direct host colours, so keyboard focus stays visible on low-contrast themes.
+- Give team traffic and Runners buttons the secondary-button token role instead of input-field colours, and draw their keyboard focus ring from the M114 token contract.
+- Draw Models buttons, the accounts picker and traffic buttons from a new assured boundary role that mixes the theme foreground into its background, keeping control boundaries at 3:1 or more in every captured theme.
+- Give the team merge card's path lists their own full-width row so long paths wrap instead of one character per line at narrow widths.
+- Media request tariffs accept exact USD amounts only and reject numeric
+  JavaScript callers before admission. Ordinary session reservations share the
+  atomic-admission lock, preventing competing owners from publishing during an
+  unfinished claim and preserving cap checks at the remaining headroom.
+
+- The Account & usage spend meter sums exact decimal amounts instead of
+  rounding through nano-USD, so sub-nano spend below a nearby cap reports
+  unreached exactly as admission evaluates it.
+
+- The media accounting core claims its calibrated upper bound
+  against both schedule and shared daily caps, including replayed file IDs,
+  settles the admitted media tariff once, and retains uncertain liabilities.
+  Above-reserve bills refuse settlement; daily claim transfers secure their
+  replacement before releasing held budget.
+  Production video/audio uploads remain unavailable in this version pending
+  the production upload and transcription bindings (PLAN D85.6, M105).
+  Scheduled reads now explain that limitation explicitly in every editor.
+  Media read-file references through a bound adapter carry their checked source
+  into the run ledger;
+  stopped reads cannot publish a new proof.
+
+- The 0.17.0 integration's daily-budget and durable schedule tests now assert
+  exact decimal money, including entered limits below nano precision, while
+  account consent fixtures persist quote ceilings and retain account refusal.
+  Account-bound paid consent carries exact decimal budgets through its popup.
+
+- Account-bound paid consent holds "Always" across instances and restarts for
+  the same workspace, provider, account and price through the binding-kept
+  grant when no host quote store is configured; it still asks again when any
+  of them changes, when the quote generation changes, or when only a
+  differently-keyed legacy grant exists.
+
+- Account-bound paid consent no longer fabricates quote approval from the
+  binding's feature grant: it requires an account-scoped quote store and
+  generation, persists the approved quote and generation per account, asks
+  again for a higher tariff or a different model on the same or a new
+  instance, and revoke() clears that account's quote grants too. No
+  production host constructs account-bound consent yet — paid approval stays
+  per workspace until M108 lane P wires it — and Help now says so.
+
+- Account-bound paid consent binds grant authority to a durable revocation
+  epoch persisted per account binding: revoke() advances the epoch before
+  clearing, so leftover grants from a failed clear stay stale on every
+  instance after a restart, and a failed advance rejects with the grants
+  still working. Every grant records its approval epoch; concurrent asks on
+  another instance cannot resurrect a revoked grant. Help says paid consent
+  stays per workspace in all fourteen translated tables.
+
+- Resource history now includes Windows contained and probe commands: the
+  helper's final CPU and memory use is recorded once in this window's
+  history (at most 512 waiting results between reads). The governed process
+  launcher and the start of vault-backed MCP servers now load on first use
+  in bundles of their own (`dist/resourceProcess.js`, new 50 KiB budget;
+  `dist/mcpVault.js`, new 25 KiB budget), so the resource governor is back
+  within its unchanged 125 KiB budget and activation no longer carries the
+  vault MCP start.
+
+### Security
+
+- Refuse ambiguous Windows file names: device namespaces, drive-relative
+  paths, alternate streams, trailing dots/spaces and reserved names (including
+  superscript digits), on every drive. Muse Code approvals for these or
+  protected resolved paths (8.3, junctions, `subst`) require manual once-only
+  consent. Ordinary Muse Code `\\?\X:\` paths retain automatic editing,
+  Auto review and Always allow. Checkpoints/held PRs compare native identities:
+  other volumes, WSL and loopback shares stay outside; linked/relocated profiles
+  work; unprovable identity refuses writes explicitly. `con.d` and `aux.js`
+  remain ordinary Windows 11 names. Browser and token ACL helpers locate
+  Windows through `SystemRoot`, then `windir`, on any drive.
+
+- Document process-tree cleanup after timeouts, explicit background-job
+  handoffs, blind readings for protected processes and no tight security-status
+  polling. Shared orchestration, resource, vault and support policy and the
+  placement playbook adopt these rules across models.
+
+## [0.16.0] - 2026-10-07
+
+### Highlights
+
+- **Loop guarantees.** Strict tool contracts, bounded hosted search and streamed
+  argument previews make Model API work easier to follow; read-only calls can
+  run concurrently while results retain their original order.
+- **Keep your machine responsive.** Machine-scoped CPU and memory thresholds
+  throttle, then pause, new background work. Relocation needs a paired device
+  or runner route and is not available yet, so work stays on this machine.
+  <!-- try: setting museSpark.resourceCpuMaxPercent -->
+- **Protect free disk space.** Disk floors hold back disk-heavy launches and
+  refuse critical-volume writes; cleanup requires recorded ownership and proved
+  process-tree exit.
+  <!-- try: setting museSpark.resourceDiskMinFreeGiB -->
+- **Pinned questions.** One interactive question or MCP form stays above the
+  composer; transcript markers open and focus it.
+- **Agent outcomes.** Activity, evidence-backed outcomes and redacted receipts
+  show attempts and unfinished work, with confirmed Continue and guarded Retry.
+
+### Added
+
+- M106 strict tool contracts and parallel reads have machine-scoped switches;
+  previews load on first use, completed calls remain the execution boundary,
+  cut-short tool replies fail without running tools, and repeat/continuation
+  guards bound the loop.
+- Hosted search has a per-request bound, immutable consent quotes and exact
+  decimal USD accounting. Captured rate-limit headers pace background fan-out;
+  transport idle/retry waits remain bounded and cancellable.
+- Structured side calls validate their answers, permit one repair and retain
+  the text fallback. Headless `--output-schema` validates a bounded schema
+  through a held file handle and withholds an invalid final answer.
+- The headless v2 result/event contract carries canonical decimal USD and
+  structured output alongside resource events; frozen v1 schemas stay shipped.
+- Optional Meta status and the Models & Agents panel have independent lazy
+  bundles. SDK 1.4.2 is pinned; native effort, feedback and deletion remain
+  unavailable until their captured feature readers are bound.
+- M107's portable resource governor, machine-scoped settings, process-tree
+  admission and independent lazy control/history artifacts. Active editor,
+  journal, paired-device and native-platform qualifications remain explicit in
+  [the M107 record](docs/certification/m107.md).
+
+- Agent activity and structured outcomes, with bounded redacted receipts and
+  retained Model API attempt history. Continue asks before resuming the same
+  child and keeps its edits. Retry explains when an isolated checkpoint is
+  unavailable. Native ends without completion evidence remain unverified.
+  ACP editors get local `/agents` listing, receipts and confirmed recovery.
+  Model API children can keep their own task list without replacing the parent's.
+
+### Changed
+
+- Deliver Linux resource cleanup helpers in VSIX and ACP packages, including
+  architecture-specific CI builds and missing-helper package refusal.
+- Resource admission now responds to transport failures and OS service pressure;
+  per-job process and observed spawn-rate caps stop only the offending tree.
+- Correct the security guide to reflect the joined disk-registry race repairs.
+
+- M107 delivery candidate: eight machine-scoped resource settings and generated
+  Help coverage; independent governor/admission/control/history artifacts with
+  measured budgets, split/package guards and exec-event-v2 schema packaging.
+  Editor/runtime/actuator, native delivery/storage and M96/M96c/M100/M102 bindings remain
+  explicitly pending in the integration certification.
+
+- Native PID-reuse verification bounds discovery to its real fixture processes,
+  retaining all 32 births and native identity, membership and signal checks at
+  the default test deadline.
+
+- Complete M107 verification restores session-board change counts when Git has
+  no filters, keeps resource bundle frames in scrubbed reports, and validates
+  exec v2 resource events in the Action while preserving v1 results. Production
+  and fake-only package checks cover the resource artifacts and all three schemas.
+
+- M107's deferred resource parser preserves the startup size regression;
+  lossless English-key and Node reference packing retain complete content
+  under existing caps. Notices resolve deferred parser package paths on
+  Windows and POSIX without omitting their licences.
+
+- Linux resource Stop retains cgroup and parent descriptors until direct
+  registry kills settle, removes empty scopes through a pinned parent and
+  reports late harness insertion explicitly while thawing safely.
+
+- Resource history keeps known minute readings and merges final tree accounting
+  idempotently after a read-time flush, including the same cached sample timestamp.
+- Resource history rejects dates outside the supported formatter range, including
+  override deadlines. Its shared page and text summary use one date formatter.
+- Resource-history detail retains at most seven recorded days/10,080 minute
+  segments and 1,000 events, with charts and tables paged in groups of 60.
+  Work and event totals still include every retained journal record.
+
+- The staged team/check slot adapter rechecks live governor capacity after
+  local slot waiting. Work remains queued at pause or when throttle is full,
+  releasing unstarted reservations before waiting again.
+- The staged resource relocator rechecks policy and cancellation after the
+  final offer callback, preventing dispatch after synchronous revocation.
+- Its headroom probes run concurrently with a five-second bound, and Keep
+  here cancels discovery without waiting for an unresponsive peer.
+- Automatic relocation rotates among equal-headroom peers across attempts,
+  preserving ample-before-some priority and explicit Move to choices.
+
+- Governed shell, MCP, browser, Git, voice and plugin cleanup uses registered
+  member stops, including descendants after root exit. Refused stops retain
+  unknown occupancy and never fall back to a bare process or job kill.
+- The lazy governor artifact exports both the window and runtime factories
+  and ships with the admission shim in the ACP package.
+
+- Runtime resource settings preserve injected class stores' methods. ACP
+  shows one full pause warning per conversation while continuing level updates.
+- Temp quarantine and restore use native no-replace renames. Manifest
+  publication links without replacement and verifies/rolls back POSIX exchanges;
+  stages and displaced manifests are retained to protect exchanged names.
+  Cleanup rechecks each directory name against its held identity immediately
+  before empty-only removal. Creation rejects an older directory swapped into
+  mkdir/open and binds the marker writer to the native creation identity.
+  The final same-user empty-trash-name window and native delivery/artifact
+  qualifications are recorded in PLAN §9 and the M107 DK certification.
+
+- Temp cleanup now walks identity-checked directory handles on Linux and in
+  the native macOS/Windows helpers, refuses filesystem and Linux mount boundaries
+  (including same-device bind mounts), and removes
+  trash entries empty-only. Interrupted or legacy records without stored
+  identity/marker hash are report-only. Creation requires an empty owned handle;
+  registration cannot adopt existing folders. Manifest stage replacements are
+  retained instead of being unlinked by name.
+
+- Disk cleanup rejects forged or public manifests, requires private-base
+  confinement and an ownership marker, and quarantines roots before removal.
+  Linux pins the base directory during cleanup. Creation intent is saved before
+  mkdir, and a refused root no longer blocks cleanup of other eligible roots.
+  Initial OS temp ancestor aliases resolve to the verified canonical base,
+  supporting macOS temp paths without following those aliases during cleanup.
+- Checkpoint Git checks its storage volume and stays available at critical temp
+  pressure without allocating a temp root. Admission abort/disposal no longer
+  waits for sampling; stalled statfs publishes unknown readings within a bound.
+- Account/sign-in Muse children receive the same owned temp environment as chat
+  children. Nonzero/signal exits and SDK initialization/spawn failures retain
+  their temp roots for 24 hours after proved tree exit.
+
+- Staged disk-space protection samples harness write volumes with `fs.statfs`,
+  uses the existing governor's levels and recovery, and blocks disk-heavy
+  admission before the foreground deadline can bypass it. Owned-tree temp
+  environments and a persisted creation registry provide guarded cleanup
+  after proved exit, with 24-hour retention for failed runs and idempotent
+  cleanup when tree exit and disk pressure coincide. Remaining host/device/platform bindings are
+  tracked in the M107 DK certification.
+
+- Windows Muse Code shutdown stops the verified registered job, bounds all
+  SDK close surfaces, reports forced or unproved shutdown honestly, and
+  disposes session handles even when close reports a failure. The CLI inherits
+  the SDK's stdio handles directly instead of PowerShell's native pipeline.
+- User turns queued behind scheduled work keep foreground admission and its
+  20-second wait bound. Rejected concurrent schedules release only their own
+  lease; completion is matched to the running schedule's generation and turn.
+- Short window CLI commands, including rules initialization and diagnostics,
+  and plugin runtime version probes enter resource admission and register
+  native process trees. CLI commands recheck their owner after admission,
+  preserve argument boundaries and stop their tree on cancellation.
+- Resource-governor recovery uses margins scaled to the configured limit
+  and machine memory, so low GPU/disk limits and small containers can recover.
+  Resume override expiry drains older pending reads and waits for a fresh
+  sample before deciding the level.
+- Windows actuator integration verifies the real job's below-normal/idle
+  priority, 50% CPU cap, birth-identity refusal and exact priority/rate
+  restoration alongside the merged governor and actuator review repairs.
+- Staged resource-governor integration admits the window's tool shells,
+  checks, MCP servers, hooks, browser checks, Git, voice/recording and Muse Code hosts, and the
+  Model API's background attempts, children and scheduled runs. Windows
+  launches register named jobs, including the browser's binary CDP pipes;
+  orphan children retain a queryable job until empty, and failed holders or
+  unproved tree readings retain their reservations. The governor loads in
+  its own bundle on the first governed launch.
+- Resource sampler probes prevent libuv from filling missing Windows
+  environment variables from the parent; Linux resource-tree paths retain
+  POSIX semantics when their complete fixtures run on Windows.
+
+- Resource actuators release controls for members explicitly proved exited,
+  including zombies, so the living tree can recover and retire. Unavailable
+  Linux cgroup controls retry opening on later scans with bounded backoff,
+  preserving usable handles and their original policy snapshots.
+- Resource actuators keep unconfirmed irreversible writes unknown during
+  recovery and retirement, verify confirmed policy again, and require a fresh
+  prior-state reading before attempting another irreversible change.
+
+- Linux resource trees pin their cgroup directory before the workload runs.
+  Stop and accounting refuse a removed or replaced directory, and an empty
+  tree retires automatically after its root exits. Stop also reasserts the
+  harness's pinned home placement before kill or freeze; bounded retry failure
+  keeps ownership with an explicit localized status for a later Stop retry.
+
+- Linux resource trees launch behind a gate in their own delegated cgroup.
+  Stop waits for the kernel's empty-cgroup receipt before cleanup, preventing
+  an outside same-tick PID replacement from inheriting tree authority.
+  Undelegated groups refuse small PID namespaces and recheck identity bounds.
+- Registered resource trees expose verified signal and tree-kill actions, with
+  exact birth checks and honest outcomes. Observed descendants retain authority
+  after reparenting or starting another session; recycled PIDs need new proof.
+- Resource trees use the shipped macOS helper's kernel microsecond identities
+  and classify zombie processes as exited instead of live members.
+- Resource-tree readers revalidate an existing POSIX authority anchor before
+  retaining new witnesses, preventing a mixed-time scan from admitting a
+  process in a reused group. Ticket retirement also invalidates pending reads
+  so they cannot restore accounting or overwrite a newer registration. Linux
+  cgroup scans omit vanished rows while keeping genuine read failures unknown.
+- The staged resource-governor sampler honours cgroup v1 memory capacity
+  and enforced ancestor limits, and rejects noncanonical cgroup paths
+  before walking the mount hierarchy.
+- Its optional probes preserve missing/null Windows counters as unknown
+  and combine Linux DRM and Nvidia readings so the busiest GPU is counted.
+- ACP help and argument errors now use one complete localized usage table,
+  including the Setup hooks command, so the installed package passes the
+  release job's strict English fallback check.
+- Windows shell directory tracking now uses the native long workspace path
+  when starting or resetting a command, so 8.3 aliases keep the correct cwd
+  and workspace-relative directory tail.
+- Production bundle regression tests now build their own compressed English and
+  shared wire fixtures, so macOS CI's test job works without a prior build.
+- Windows CI hook fixtures now use the platform their captured paths describe;
+  Cline discovery exercises both POSIX and Windows path handling on every OS.
+  Deferred-bundle checks load their in-memory builds without requiring stale
+  or pre-existing files in `dist`.
+- Cline hook quoting is checked through native PowerShell on Windows and the
+  POSIX shell on Unix, without requiring a Windows Bash installation.
+- Fake-only headless tests recognize MinGit's verified GNU Bash `sh.exe`, and
+  missing-browser-chunk checks accept Windows filesystem error paths.
+- Fake-child plugin dispatch fixtures use drive-qualified plugin paths on
+  Windows while retaining native-platform parsing and containment checks.
+- Retry after a failed optional panel reloads its complete module graph with
+  the conversation and draft saved. Cold menus respect outside dismissal and
+  late imports cannot take focus; failed menus accept Escape and return focus
+  to their trigger.
+
+- Rebuild 0.16.0 on the complete 0.15.0 candidate, preserving loop guarantees,
+  machine resource controls, provider/team/usage/legal features and prompt sharing.
+  Regenerate the combined reference and localization tables. Remove duplicated
+  headless engine loading and measure the combined deferred bundles with D6's
+  authorized 5% margin rounded to 25 KiB.
+
+- Avoid retaining unused exact-money schemas in unrelated lazy bundles while
+  preserving runtime validation of every used price and schema.
+
+### Fixed
+
+- Windows resource stops avoid cold PowerShell module discovery. Native job
+  helpers use verified long paths even when TEMP has an 8.3 spelling; Windows
+  launch qualification reuses its compiled helper and loads JSON support explicitly.
+- The Muse Code feedback dialog is removed until it can work. Nothing opened it,
+  and Muse Code feedback still refuses before dispatch without a captured receipt
+  reader. Help no longer lists **Send feedback to Muse Code**, and its ten
+  dialog-only strings are gone from every language table.
+- A paid search answered **Always** goes ahead once when the profile store
+  cannot hand out an approval order (read-only or corrupt), instead of being
+  denied; the grant is not kept, the next search asks again, and the same
+  "could not be kept" warning is logged as for a failed save.
+- The Model API service-status body is read under the provider body cap, so
+  an oversized status page is cancelled at the cap instead of buffered whole.
+- `npm run quality` runs the legal accessibility suite again, and the
+  dependency-cycle check covers the 22 entry points a merge had dropped
+  (57 roots, no cycles); a manifest test pins both accessibility suites.
+- The `museSpark.resourceRelocate` setting no longer implies relocation works.
+  No paired-device or runner route is bound in this release, so resource status,
+  the pause notice and `resources status` say relocation is not available yet,
+  and the setting's description says so too.
+- Release CI fixtures retain both resource commands and agent outcomes, staged
+  multilingual Help checks, and the harness's signed-in readiness handshake.
+  Cold bundle tests own a complete build, and exec package fixtures supply
+  the required native helpers without relaxing production packaging guards.
+- Action-check builds the real Darwin and both Linux native helpers before
+  producing its fake-only ACP candidate.
+- Restore the merged Windows job helper's compilation for shell commands,
+  resource controls and team process containment. Resource job holders load
+  the same assembly directly without PowerShell module discovery.
+- Keep Windows resource creation, manifest rotation and cleanup bound to
+  verified native handles, including current-user ownership, missing-root
+  completion and preservation of raced directory replacements.
+- Load packed runtime and English regions through explicit CommonJS requires
+  under Node 22 loader hooks, preserving archive digest checks and fallback.
+
+- Keep the GitHub-only badge authorization spread compliant with the existing
+  lint gate, retaining unauthenticated requests when no job token is supplied.
+
+- Deliver every long-reply harness frame before advancing the stream, keeping
+  readiness pending through completion within its existing deadline. Batch
+  validated deltas between paints and wait for the actual composer before
+  scene actions, preventing startup sign-in races in questions and reports.
+
+- Parse the full changelog in release and artifact test setup so version,
+  Highlights and lossless packing assertions keep their existing deadlines
+  under load.
+
+- Screenshot helpers use the harness's bounded scene readiness instead of a
+  removed idle-delay constant, preserving theme, font, paint and error checks.
+
+- ACP cancellation stops the running model turn while local agent inspection
+  waits, and a late cancelled read preserves newer command preparation.
+- Agent receipts read patch references through the child that owns them and
+  preserve earlier native attempt receipts while a new attempt is running.
+- Child completion evidence belongs to the current turn. Parent Model API
+  request bytes and cache prefixes keep their original tool order.
+- Windows shell credential regressions await the matching background completion
+  before cleanup and probe raw environment values within the default test deadline.
+- Prompt host shutdown awaits mirror merges and other admitted operations
+  before releasing storage, preventing Windows cleanup from racing a sync write.
+- Browser package tests build the chat, Help and What's New pages themselves,
+  so a clean CI shard needs no artifacts from an earlier production build.
+- The installed ACP help check validates its complete localization table,
+  retaining prompt and sharing labels in its exact output comparison.
+- Chat-share HTML encodes markup delimiters in one pass. Privacy regexes have
+  literal-metacharacter controls and documented, specific audit exceptions
+  for their escaped workspace, home and username fragments.
+- Keep every long-reply accessibility delta while yielding through a task port,
+  avoiding nested timer throttling within the existing readiness deadline.
+
+- Check every staged ACP help language in bounded parallel batches, keeping
+  cold package certification within its existing deadline.
 
 - Start browser harness scenarios after the webview's ready handshake, keeping
   cold bundle loading outside their DOM deadline and exposing bounded browser
@@ -104,9 +1655,10 @@ happened, not what was planned; superseded entries are kept.
 - Keep Action reviews and low-budget refusals working for large release diffs
   by retaining only the bounded review prefix before exec.
 
-
-
-### Fixed
+- Keep each waiting or deferred question's interactive card pinned above the
+  composer. Its transcript marker's Answer button reopens and focuses that
+  card, including after deferral; MCP forms use the same compact marker.
+  Refresh Help & Reference and the README question screenshots.
 
 - Search usage-journal newlines in native byte arrays so cold scans retain their
   validation and finish within CI's existing deadline under coverage. Companion
@@ -140,105 +1692,56 @@ happened, not what was planned; superseded entries are kept.
   output and repeated cold setup on hosted runners, preserving default deadlines,
   all randomized cases, offline replays and native Windows security checks.
 
-### Pending
+- Keep resource-only English in its independent fallback, removing duplicate
+  deferred-surface bytes while preserving the installed language and size caps.
+- Include all 35 bundled ACP runtime dependencies in its third-party notices,
+  selecting the actual staged shared/lazy bundles and usage browser chunks.
 
-- Provider-specific retry-table binding remains pending for non-Meta transports;
-  the shared retry classifier does not certify endpoint quota refusal.
+- Include esbuild's namespaced resource-validation dependencies in release
+  CycloneDX inventories using normalized POSIX and Windows package paths.
 
-### Added
+- Inventory ACP's actual staged shared/lazy bundles and usage browser assets,
+  retaining their runtime dependencies and excluding extension-only outputs.
 
-- Join the unshipped Devices pairing, pinned TLS channel and durable receiver
-  behind an editor-neutral lazy method port. Its callers must supply actual local
-  storage, execution, approval and snapshot authorities. No installed Devices
-  command, physical adapter or unattended receiver is registered by this change.
-- Add the generated Devices help inventory and its stale-reference gate.
-- Define the unshipped Devices phase-2 contracts every later lane codes
-  against: versioned channel, capability, grant and result envelopes with
-  byte/queue caps and strict zod parsing, pacing helpers (at most 3 pending
-  handshakes, backoff capped at 10 minutes, one failed authentication stops),
-  owner-bound grants with device-answered step-up, typed refusals and result
-  acknowledgements, plus injected channel/capability/grant/result ports with
-  fakes. Phase-2 model guidance rides the declared lazy reader; seven status
-  strings ship in all 14 tables. Bind the SSH-limit rules to gotchas
-  G50–G52 and add the phase-2 threat model with the D101 reconcile note.
-- Add the unshipped Devices QR invite, mDNS discovery binding and discovery
-  switch with no new dependencies: a QR invite decodes to the identical text
-  invite, mDNS is off by default and advertises only an opaque service id,
-  port and protocol version, a spoofed record never replaces the saved peer
-  pin, manual entry pairs with discovery fully blocked, and a denied bind
-  answers the fixed Blocked-or-unreachable setup. Discovery choices, live
-  verdicts and asynchronous completions now share one state machine: an older
-  ON cannot undo a blocked verdict, a later OFF wins, failed persistence is
-  reported with a fresh read, and revoked policy settles startup to off.
-  No new UI strings; no real socket opens in tests.
-- Verify the unshipped Devices dispatch inputs against a content-addressed
-  manifest before start, refusing missing or mismatched items and bases, and
-  advertise measured device capabilities with live pressure for placement.
-  No listener or second device is added.
-- Run unshipped Devices work on Windows, Linux and macOS worker hosts behind
-  one admission contract: per-process policy on Windows with an explicit
-  recorded environment and structured exit-code-plus-JSON results, systemd
-  unit supervision on Linux, and supervised whole-coalition enforcement on
-  macOS; unenforceable caps refuse before activation. No production wiring
-  or installed host is registered by this change.
-- Bind the unshipped Devices pairing store and attempt journal to
-  OS-protected storage, with owner-only ACLs and a bounded storage helper
-  owned by the Devices bundle; without a platform protection the stores
-  refuse to open. No user key material moves.
+- Separate check-slot uncertainty cases and journal benchmark preparation,
+  retaining default test deadlines and the 300-ms warm-read requirement.
 
-### Fixed
+- Run the actual badge/image gate in the ChatGPT package fixture under CI,
+  preserving the prohibition on offline badge overrides.
 
-- Enforce the unshipped Devices phase-2 contracts from the shared contract
-  alone: the capability schema refuses advertisements past the byte cap,
-  owner/grant/result-ack queue caps ship as callable guards, a grant ceiling
-  check refuses widened grants with typed `scope-denied`, the handshake
-  backoff jitters from an injected source within a stated bound, and result
-  acknowledgements bind to their epoch. The threat model names each threat
-  with its owning lane and planned test.
-- Keep the unshipped Devices panel validators in their own shared module so
-  provider/team schemas retain independent lazy bundles within existing caps.
-- Coalesce unshipped Devices background snapshots to one running and one pending
-  capture. Data frames retain the channel's capacity backpressure while Stop
-  stays independent; a flood cannot build an unlimited snapshot queue.
-- The Devices reset-Stop test awaits cancellation's complete journal writes
-  before removing its fixture, including when an assertion fails.
-- Carry Devices view/request correlation through pairing replies and return the
-  imported public invitation for the full fingerprint comparison. Serialize
-  complete snapshots with a host-owned revision that increases across off states
-  and replies; abort drops UI data without cancelling durable work. The keyboard
-  pairing regression now waits for the focus effect without a fixed sleep.
-- The fake-only Devices keyboard check uses the platform's Select All modifier,
-  so confirmation import and cap editing work on Linux and Windows too.
-- Register the measured Devices browser closure and separate lazy Node bundle,
-  preserving the existing startup and deferred caps. Bind authenticated channel
-  resets to receiver Stop before reporting or snapshot work.
+- Reuse the headless tests' existing fake image transport for every package
+  guard, retaining CI and the real badge validator without an offline override.
 
-- The unshipped paired-device receiver cancels live attempts before consulting
-  its journal, including after a failed flush, corruption or file loss. Full
-  attempt identity stays bound to the live lease; unavailable cancellation
-  evidence is reported and occupancy remains held until durable retirement.
-- Authenticated device cancellation has a fixed reserved decoder capacity
-  that data cannot consume. Stop reaches its priority path even with 31 queued
-  data frames and data overflow before or after Stop in the same chunk; each
-  excess data frame gets its own capacity refusal. Corrupt framing resets the
-  channel and starts local Stop for every live or pending attempt on that pair
-  before reporting, retaining occupancy and spending liabilities. A pending approval or start
-  confirmation cannot delay Stop. Cancellation identities survive queued
-  dispatch, identical retry, compaction and journal reopen; late cancellation
-  confirmations cannot reblock a durably retired receiver.
-- M100 queues receiver grants with pairing actions and preserves a later Pause
-  across pending secret reads and writes; stale grants cannot resume the pair.
-- M100's device store keeps expected pairing/grant policy refusals distinct
-  from persistence failures, preserving unrelated pairs after stale requests.
-- M100's pairing/storage test fixtures create and clean their own OS temporary
-  directories, so a clean worktree does not need an ignored `temp/` directory.
+- Inspect the Team harness's real package inventory in an owned publication
+  tree, avoiding other test workers' temporary files within the same setup limit.
 
-- Harden the unshipped paired-device transport: listener startup settles on
-  unlink, close or its startup deadline, and a stale listener disposer cannot
-  close a replacement listener or its connections. Setup and incomplete-frame
-  deadlines check monotonic and wall clocks at progress transitions, including
-  backwards wall jumps and delayed timer callbacks. Frame reassembly copies
-  once per completed frame and refuses more than 4,096 fragments.
+- Compose exact money ports across the provider, team, usage and headless train;
+  keep subscription Plan turns independent of API budget journals and validate
+  output caps before clamping.
+
+- Ship and require the Darwin helper in ACP archives, retain native cleanup
+  refusals, and load each resource surface's own English fallback within its cap.
+
+- Pass Semgrep's worker option once, preserving the serial scan and every rule
+  and deadline after the release merge.
+
+- Install companion launch recovery labels through DOM text content, keeping
+  translated markup inert before the authenticated app starts.
+
+- Keep paid/reply browser fixtures on canonical decimal USD and wait for the
+  real settled harness when capturing README scenes with lazy imports.
+
+- Remove the obsolete source-map-js audit exception once the locked tree no
+  longer reports its advisory; retain the existing audit policy.
+
+- Restore queued late-question answers before ACP manual compaction, so the
+  next ordinary prompt delivers each answer once.
+
+- Count the shared chat/resource browser graph once in the split guard while
+  preserving independent-graph and model-text leak checks.
+
+- Forward the resource-wrapped headless result exit code after structured-output
+  validation, retaining schema mismatch code 10 and its accounted spend.
 
 ### Documentation
 
@@ -260,10 +1763,26 @@ happened, not what was planned; superseded entries are kept.
   sweep hits checked before a bulk edit), with D100 amendments for M96c,
   M107, M116 and M117. The playbook placement chapter gains lessons 11–20
   covering the same failures, still model-agnostic.
-- M100 phase 2 records its SSH-limit rules (one paced channel per pair, the
-  Windows worker context, one failed authentication stops) in G50–G52 rather
-  than duplicate rows, and its verification rules as G60 (shard membership
-  from the execution sequencer) and G61 (bounded report reduction).
+- Seven orchestration gotcha rows G53–G59 (completion only from the
+  runner's observed process exit, review reports attached to the lane
+  ledger, temp cleanup under one harness-owned root that deletes outside it
+  only recorded identities and never changes permissions, deletion chosen by
+  a clone-aware estimate and validated with `df`, heavy gates in reentrant
+  per-machine slots owned by the run's process tree, a staged and committed
+  diff re-read after hooks, no `git stash` in lanes), with D100 amendments
+  for M96c, M107 and M116. D87.14's outside-root leftovers rule is narrowed
+  to match G55. AGENTS.md gains rule 15 (re-read the staged and committed
+  diff after every commit, since the pre-commit hook's `eslint --fix` can
+  rewrite logic); changing the hook itself is left to the owner. The
+  playbook placement chapter gains lessons 21–27 covering the same failures,
+  still model-agnostic.
+
+- A register of orchestration gotchas (`docs/orchestration-gotchas.md`) lists
+  what went wrong while a fleet of agents built this project. For each one it
+  gives the rule that prevents it and the milestone that will enforce that
+  rule in the app's own orchestrator (D100).
+
+- Keep paid-usage formatting and agent presentation labels out of chat startup, preserving the existing startup review baseline; pack their complete English fallback losslessly within its existing budget.
 
 ## [0.15.0] - 2026-10-06
 
@@ -978,7 +2497,6 @@ happened, not what was planned; superseded entries are kept.
   byte-exact restoration checks without repeated full-repository scans,
   child processes, shared `dist/` mutations or longer timeouts.
 
-
 - A blocked M80 `v0` tag update now reports that an administrator must move it,
   while preserving the four release channels' outcomes. Updates require a
   fast-forward; the release guide documents the administrator's recovery command.
@@ -1161,7 +2679,6 @@ happened, not what was planned; superseded entries are kept.
   - **Refusals and Stop:** a runtime the OS refuses to run reads as blocked whether the refusal is thrown or arrives after the spawn returned; a Stop or lost admission during teardown refuses the page instead of returning its report; and the release pin gate fails a pin dated in the future, as the check itself does.
   - **Restore notes it:** a turn that ran a browser check is marked as having run a process, so restoring it says that what the page made a local server change is not undone (M86).
   - **Main integration:** browser output obeys the live permission-policy fence; best-of-N attempts have no window browser check. Widening cards retain their session choice in Bypass, and visual reads use the relocated Model API text constants.
-
 
 - **What's New** (M99, PLAN.md D79). After an update, the release notes of
   recent versions since the one you had open in an editor tab ("What's New in

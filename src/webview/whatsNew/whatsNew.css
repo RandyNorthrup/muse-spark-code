@@ -1,24 +1,25 @@
 /* What's New (M99, PLAN.md D79). Colours and fonts come only from VS Code's
    theme variables, so the page follows light, dark and both high-contrast
-   themes; high-contrast themes set --vscode-contrastBorder, which the
+   themes; high-contrast themes set --ms-contrast-border, which the
    borders below fall back to. The CSP blocks inline styles, so every rule
    lives here. One column, readable from 320 px up. */
 
+@import url('../tokens.css');
+@import url('../../../design/tokens/generated/host-roles.css');
+
 :root {
-  --ms-gap: 8px;
-  --ms-radius: 4px;
-  --ms-measure: 760px;
+  --ms-radius: var(--ms-radius-sm);
 }
 
 body {
   margin: 0;
   padding: calc(var(--ms-gap) * 2);
-  color: var(--vscode-foreground);
-  font-family: var(--vscode-font-family);
-  font-size: var(--vscode-font-size);
-  line-height: 1.5;
+  color: var(--ms-text);
+  font-family: var(--ms-font-ui);
+  font-size: var(--ms-font-size);
+  line-height: var(--ms-line-ui);
   overflow-wrap: anywhere;
-  background: var(--vscode-editor-background);
+  background: var(--ms-editor-surface);
 }
 
 main {
@@ -29,41 +30,48 @@ main {
 footer {
   margin-top: calc(var(--ms-gap) * 4);
   padding-top: calc(var(--ms-gap) * 2);
-  border-top: 1px solid var(--vscode-contrastBorder, var(--vscode-widget-border, transparent));
+  border-top: 1px solid var(--ms-contrast-border);
 }
 
 footer p {
   margin: 0 0 var(--ms-gap);
 }
 
+h1,
+h2,
+h3,
+h4 {
+  font-weight: var(--ms-weight-bold);
+}
+
 h1 {
   margin: 0 0 var(--ms-gap);
-  font-size: 1.6em;
-  line-height: 1.25;
+  font-size: calc(var(--ms-font-large) + var(--ms-space-4));
+  line-height: var(--ms-line-ui);
 }
 
 h2 {
   margin: calc(var(--ms-gap) * 3) 0 0;
   padding-top: calc(var(--ms-gap) * 2);
-  font-size: 1.3em;
-  border-top: 1px solid var(--vscode-contrastBorder, var(--vscode-widget-border, transparent));
+  font-size: var(--ms-font-large);
+  border-top: 1px solid var(--ms-contrast-border);
 }
 
 h3 {
   margin: calc(var(--ms-gap) * 2) 0 var(--ms-gap);
-  font-size: 1.1em;
+  font-size: var(--ms-font-size);
 }
 
 h4 {
   margin: var(--ms-gap) 0;
-  font-size: 1em;
+  font-size: var(--ms-font-size);
 }
 
 .lead,
 .date,
 .note {
   margin: 0 0 var(--ms-gap);
-  color: var(--vscode-descriptionForeground);
+  color: var(--ms-muted);
 }
 
 ul,
@@ -78,7 +86,7 @@ li + li {
 .highlights > li {
   padding: var(--ms-gap);
   list-style: none;
-  border: 1px solid var(--vscode-contrastBorder, var(--vscode-widget-border, transparent));
+  border: 1px solid var(--ms-contrast-border);
   border-radius: var(--ms-radius);
 }
 
@@ -98,23 +106,24 @@ li + li {
 }
 
 a {
-  color: var(--vscode-textLink-foreground);
+  color: var(--ms-info);
 }
 
 a:hover {
-  color: var(--vscode-textLink-activeForeground, var(--vscode-textLink-foreground));
+  color: var(--ms-link-hover);
 }
 
 code {
-  font-family: var(--vscode-editor-font-family);
-  font-size: 0.95em;
-  color: var(--vscode-textPreformat-foreground, inherit);
+  font-family: var(--ms-font-code);
+  font-size: var(--ms-code-size);
+  color: var(--ms-code-text);
 }
 
 pre {
+  scroll-padding: var(--ms-space-4);
   padding: var(--ms-gap);
   overflow-x: auto;
-  background: var(--vscode-textCodeBlock-background, var(--vscode-editorWidget-background));
+  background: var(--ms-code-surface);
   border-radius: var(--ms-radius);
 }
 
@@ -126,29 +135,30 @@ pre code {
 blockquote {
   margin: var(--ms-gap) 0;
   padding-left: var(--ms-gap);
-  border-left: 3px solid var(--vscode-textBlockQuote-border, var(--vscode-contrastBorder));
+  border-left: var(--ms-space-4) solid var(--ms-quote-border);
 }
 
 button {
+  min-height: var(--ms-button-height);
   padding: calc(var(--ms-gap) / 2) calc(var(--ms-gap) * 1.5);
   font: inherit;
-  color: var(--vscode-button-foreground);
-  background: var(--vscode-button-background);
-  border: 1px solid var(--vscode-button-border, var(--vscode-contrastBorder, transparent));
+  color: var(--ms-on-accent);
+  background: var(--ms-accent);
+  border: 1px solid var(--ms-control-border);
   border-radius: var(--ms-radius);
   cursor: pointer;
 }
 
 button:hover {
-  background: var(--vscode-button-hoverBackground);
+  background: var(--ms-pressed);
 }
 
 a:focus-visible,
 button:focus-visible,
 input:focus-visible,
 pre:focus-visible {
-  outline: 1px solid var(--vscode-focusBorder);
-  outline-offset: 2px;
+  outline: var(--ms-focus-width) solid var(--ms-text);
+  outline-offset: var(--ms-focus-offset);
 }
 
 label {
@@ -156,4 +166,24 @@ label {
   gap: var(--ms-gap);
   align-items: center;
   cursor: pointer;
+}
+
+button:disabled {
+  color: var(--ms-disabled);
+  background: var(--ms-input-surface);
+  cursor: default;
+}
+
+button:active:enabled {
+  background: var(--ms-pressed);
+  border-color: var(--ms-on-accent);
+}
+
+a:active {
+  color: var(--ms-text);
+  text-decoration-thickness: var(--ms-focus-width);
+}
+
+pre:focus-visible {
+  outline-offset: calc(-1 * var(--ms-focus-width));
 }

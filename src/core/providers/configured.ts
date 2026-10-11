@@ -25,6 +25,7 @@ import {
   recordPlanUsage,
   metaResolvedModel,
 } from '../../host/backend/providersEntry'
+import { outputTokenMinimumMessage, providerOutputMinimum } from '../../shared/providerRouting'
 import { pinnedHttpsRequest, pinnedPostRequest } from '../../host/backend/modelApiEntry'
 import type { PinnedResponse, PinnedTarget } from '../web/webFetch'
 import type { ProviderClient } from '../backends/modelapi/client'
@@ -39,6 +40,7 @@ import { ApiKeyAuthSource, NoAuthSource } from '../backends/modelapi/authSource'
 import { CodecClient, type WireCodec } from '../backends/modelapi/providerClient'
 import { RequestTransport, parseJsonResponse, ModelApiError } from '../backends/modelapi/transport'
 import { withDeadline } from '../timeouts'
+import { Usd } from '../../shared/usd'
 import {
   ADDRESS_FAMILIES,
   ANTHROPIC_MAX_ARGUMENT_BYTES,
@@ -157,7 +159,9 @@ export function createConfiguredProviderServices(
   const read = async () => {
     const result = await providersFile.readProvidersFile(options.configFile)
     if (!result.ok) {
-      return result.reason === 'missing' ? providersFile.emptyProvidersFile() : fail()
+      if (result.reason === 'missing') return providersFile.emptyProvidersFile()
+      if (result.reason === 'invalid') throw new RangeError(result.detail)
+      return fail()
     }
     revision = digest(JSON.stringify(result.file))
     return result.file
@@ -182,12 +186,15 @@ export function createConfiguredProviderServices(
       ? fail()
       : parsed.data.secret
   }
-  const transportFor = (entry: ProviderEntry, supplied?: string) => {
+  const transportFor = (entry: ProviderEntry, supplied?: string, keyTestOrigin?: string) => {
     const preset = presetFor(entry)
-    const base = new URL(entry.address ?? fail())
+    const configuredUrl = new URL(entry.address ?? fail())
+    const base = new URL(keyTestOrigin ?? configuredUrl.href)
     if (
       (!preset.wireCapture && entry.preset !== 'custom' && entry.auth !== 'none') ||
-      (preset.origin.kind === 'fixed' && base.origin !== preset.origin.origin)
+      (preset.origin.kind === 'fixed' && configuredUrl.origin !== preset.origin.origin) ||
+      (keyTestOrigin !== undefined &&
+        (preset.keyTest.kind !== 'provider-key' || preset.keyTest.origin !== keyTestOrigin))
     )
       return fail()
     const auth =
@@ -301,6 +308,11 @@ export function createConfiguredProviderServices(
       verifyEndpoint: async (url: string) => {
         const parsed = new URL(url)
         if (parsed.origin !== base.origin) return fail()
+        if (
+          keyTestOrigin !== undefined &&
+          (preset.keyTest.kind !== 'provider-key' || parsed.pathname !== preset.keyTest.path)
+        )
+          return fail()
         const host = parsed.hostname.replaceAll(/^\[|\]$/g, '')
         const answers =
           isIP(host) === 0
@@ -312,10 +324,11 @@ export function createConfiguredProviderServices(
                 })
               )(host)
             : [host]
-        const verdict = endpointPolicy.checkEndpointUrl(entry.address ?? '', answers)
+        const verdict = endpointPolicy.checkEndpointUrl(base.href, answers)
         if (
           verdict.kind === 'refused' ||
-          (verdict.kind === 'confirm-private' && entry.privateNetwork !== true)
+          (verdict.kind === 'confirm-private' &&
+            (keyTestOrigin !== undefined || entry.privateNetwork !== true))
         )
           return fail()
         const address = answers[0] ?? fail()
@@ -342,38 +355,54 @@ export function createConfiguredProviderServices(
     const prefix = url.pathname.replace(/\/$/, '')
     return { baseUrl: url.origin, path: prefix + path }
   }
+  const getJson = async (
+    entry: ProviderEntry,
+    path: string,
+    supplied: string | undefined,
+    signal: AbortSignal,
+    keyTestOrigin?: string,
+  ) => {
+    const preset = presetFor(entry)
+    const bound = transportFor(entry, supplied, keyTestOrigin)
+    const address =
+      keyTestOrigin === undefined ? baseAndPath(entry, path) : { baseUrl: keyTestOrigin, path }
+    const transport = new RequestTransport({
+      ...bound.transport,
+      auth: bound.auth,
+      verifyEndpoint: bound.verifyEndpoint,
+      baseUrl: address.baseUrl,
+    })
+    const headers: Record<string, string> = {}
+    if ((entry.format ?? preset.format) === 'anthropic') headers['anthropic-version'] = '2023-06-01'
+    if (preset.id === 'openrouter') {
+      const attribution = presets.OPENROUTER_ATTRIBUTION
+      headers[attribution.refererHeader] = attribution.referer
+      headers[attribution.titleHeader] = attribution.title
+      headers[attribution.categoriesHeader] = attribution.categories
+    }
+    const result = await transport.request(
+      address.path,
+      { method: 'GET', accept: 'application/json', headers, retries: 'rateLimitOnly' },
+      signal,
+    )
+    return await parseJsonResponse(result, (json) => z.json().parse(json))
+  }
   const scan = async (
     entry: ProviderEntry,
     supplied?: string,
     signal = AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
   ): Promise<readonly NativeModelMetadata[]> => {
     try {
-      const bound = transportFor(entry, supplied)
-      const address = baseAndPath(entry, presetFor(entry).modelsList.path)
-      const transport = new RequestTransport({
-        ...bound.transport,
-        auth: bound.auth,
-        verifyEndpoint: bound.verifyEndpoint,
-        baseUrl: address.baseUrl,
-      })
-      const result = await transport.request(
-        address.path,
-        {
-          method: 'GET',
-          accept: 'application/json',
-          ...(entry.format === 'anthropic' && { headers: { 'anthropic-version': '2023-06-01' } }),
-        },
-        signal,
-      )
-      const value = await parseJsonResponse(result, (json) => json)
-      if (entry.format === 'anthropic')
+      const format = entry.format ?? presetFor(entry).format
+      const value = await getJson(entry, presetFor(entry).modelsList.path, supplied, signal)
+      if (format === 'anthropic')
         return anthropic.parseAnthropicModelsList(value).map((row) => row.native ?? fail())
-      if (entry.format === 'gemini')
+      if (format === 'gemini')
         return gemini.parseGeminiModelsList(value).map((row) => ({
           ...(row.native ?? fail()),
           id: row.id,
         }))
-      return entry.format === 'ollama'
+      return format === 'ollama'
         ? ollama.parseOllamaModelsList(value)
         : modelMetadata.parseNativeModelsList(value)
     } catch {
@@ -438,7 +467,14 @@ export function createConfiguredProviderServices(
             effortLevels: capabilities.capabilityEffortLevels(record),
             maxOutputTokens:
               entry.modelLimits?.[nativeModel]?.outputTokens ?? record.output.maxTokens,
+            minOutputTokens: providerOutputMinimum(
+              entry.address,
+              nativeModel,
+              record.output.minTokens ?? 1,
+              entry.format ?? preset.format,
+            ),
             canDisableReasoning: record.reasoning.canDisable.state === 'yes',
+            thinkingOff: preset.quirks.thinkingOff,
           },
           pricing,
           displayLabel: typeof native?.['name'] === 'string' ? native['name'] : nativeModel,
@@ -474,6 +510,16 @@ export function createConfiguredProviderServices(
           ? 'max_completion_tokens'
           : 'max_tokens',
       reasoningParam,
+      // A preset's declared Thinking-off switch (presets.ts) hands the codec
+      // the record facts the shared resolver maps every effort with.
+      ...(preset.quirks.thinkingOff !== undefined && {
+        thinkingOff: preset.quirks.thinkingOff,
+        effortLevels:
+          record.reasoning.effortLevels.state === 'yes'
+            ? record.reasoning.effortLevels.value
+            : undefined,
+        canDisable: record.reasoning.canDisable.state === 'yes',
+      }),
       sendCacheKey: record.cache.acceptsKey,
       includeUsage: true,
       toolStream: preset.id === 'zai',
@@ -678,6 +724,14 @@ export function createConfiguredProviderServices(
       // UTF-8 bytes bound text tokens conservatively and include tool schemas.
       countInputTokens: (body) => Promise.resolve(Buffer.byteLength(JSON.stringify(body))),
       streamResponse: async function* (body, signal, onRetry, budget, admitAttempt, confirmed) {
+        const minimum = providerOutputMinimum(
+          entry.address,
+          native,
+          record.output.minTokens ?? 1,
+          format,
+        )
+        if (body.max_output_tokens < minimum)
+          throw new RangeError(outputTokenMinimumMessage(minimum))
         let usage: Usage | undefined
         const dispatch = { attempts: 0 }
         const observe = Object.assign(
@@ -704,7 +758,13 @@ export function createConfiguredProviderServices(
             if ('response' in event && event.response.usage != null) usage = event.response.usage
             yield event
           }
-        } catch {
+        } catch (error) {
+          // A typed codec refusal (an unsupported reasoning effort and its
+          // localized reason) and the output-cap minimum refusal (MINOUT)
+          // reach the caller; genuinely unknown errors keep the generic
+          // unavailable error (lane FIXDSTHINK2 finding 3).
+          if (chat.isChatCodecError(error)) throw error
+          if (error instanceof RangeError) throw error
           return fail()
         } finally {
           if (presets.planKeyPresetById(entry.preset) !== undefined)
@@ -801,6 +861,52 @@ export function createConfiguredProviderServices(
           ],
         )
         const four = capabilities.capabilitiesOf({ capabilityRecord: record })
+        const listed = priceCard.listedPriceCard(preset.id, native)
+        const card = listed !== undefined && priceCard.isValidPriceCard(listed) ? listed : undefined
+        const isPlan = presets.planKeyPresetById(entry.preset) !== undefined
+        const isLocal = entry.auth === 'none'
+        const isFree =
+          !isPlan &&
+          (isLocal ||
+            (card !== undefined &&
+              [
+                card.input,
+                card.output,
+                card.cachedInput,
+                card.cacheWrite,
+                card.cacheWrite1h,
+                card.request,
+                card.image,
+                card.longContextTier?.input,
+                card.longContextTier?.output,
+                card.longContextTier?.cachedInput,
+              ].every((rate) => (rate ?? 0) === 0)))
+        let priceFingerprint = 'unpriced'
+        if (isPlan) priceFingerprint = 'plan'
+        else if (isLocal) priceFingerprint = 'local'
+        else if (card !== undefined) {
+          const upstreams = z
+            .array(
+              z.object({
+                provider: z.string(),
+                pricing: z.optional(
+                  z.object({
+                    input: z.number().check(z.nonnegative()),
+                    output: z.number().check(z.nonnegative()),
+                  }),
+                ),
+              }),
+            )
+            .safeParse(native['providers'])
+          priceFingerprint = JSON.stringify({
+            card,
+            upstreams: upstreams.success
+              ? upstreams.data.toSorted((left, right) =>
+                  left.provider.localeCompare(right.provider),
+                )
+              : undefined,
+          })
+        }
         return {
           id,
           label: modelRef.sanitizeModelLabel(
@@ -810,16 +916,54 @@ export function createConfiguredProviderServices(
           vision: four.vision,
           reasoning: four.reasoning,
           context: record.limits.contextTokens,
-          priceFingerprint:
-            presets.planKeyPresetById(entry.preset) === undefined ? 'unpriced' : 'plan',
-          isFree: entry.auth === 'none',
-          isLocal: entry.auth === 'none',
+          priceFingerprint,
+          ...(!isPlan &&
+            card !== undefined && {
+              inputPerMillion: Number(Usd.from(card.input).times(TOKENS_PER_MILLION).toAmount()),
+              outputPerMillion: Number(Usd.from(card.output).times(TOKENS_PER_MILLION).toAmount()),
+              cachedPerMillion:
+                card.cachedInput === undefined
+                  ? undefined
+                  : Number(Usd.from(card.cachedInput).times(TOKENS_PER_MILLION).toAmount()),
+            }),
+          isFree,
+          isLocal,
         }
       })
     },
     test: async (entry: ProviderEntry, key: string) => {
-      const rows = await scan(entry, key)
-      return { kind: 'ok' as const, models: rows.length }
+      const outcome = await presets.runProviderKeyTest(
+        presetFor(entry).keyTest,
+        new URL(entry.address ?? fail()).origin,
+        async (origin, path) => {
+          try {
+            await getJson(
+              entry,
+              path,
+              key,
+              AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
+              origin === new URL(entry.address ?? fail()).origin ? undefined : origin,
+            )
+            return { ok: true, modelCount: undefined }
+          } catch {
+            return { ok: false, paid: false, reason: UI_TEXT.providerProbeUnreachable }
+          }
+        },
+        async () => {
+          try {
+            const rows = await scan(entry, key)
+            return { ok: true, modelCount: rows.length }
+          } catch {
+            return { ok: false, paid: false, reason: UI_TEXT.providerProbeUnparseable }
+          }
+        },
+      )
+      if (outcome.ok) return { kind: 'ok' as const, models: outcome.modelCount ?? 0 }
+      // No captured paid-token request is installed; never dispatch one here.
+      return {
+        kind: 'failed' as const,
+        detail: outcome.paid ? UI_TEXT.modelsPanelUnavailable : outcome.reason,
+      }
     },
   }
 }

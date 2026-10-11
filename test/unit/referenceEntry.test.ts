@@ -252,10 +252,7 @@ it('RVHELPREF4 rejects a corrupt packed technical-prefix index', () => {
     new URL('../../src/shared/reference/reference.generated.ts', import.meta.url),
     'utf8',
   )
-  const body = generated.slice(
-    generated.indexOf('const textKeys ='),
-    generated.indexOf('const plainTextSchema ='),
-  )
+  const body = generated.slice(generated.indexOf('export function referenceModel'))
   const code = ts.transpileModule(
     `${body.replace('expand(packed.model)', "expand('~sz:invalid')")}\nreferenceModel()`,
     {

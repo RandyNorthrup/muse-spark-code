@@ -5,8 +5,10 @@
 // leave a patch document shaped like Muse Code's so the transcript rows,
 // Open diff and Revert (M5) work unchanged.
 
+import type { ContentSource } from '../../schedules/provenance'
 import { Buffer } from 'node:buffer'
 import path from 'node:path'
+import type { ResourceKind } from '../../../shared/resources'
 import { setImmediate as yieldToHost } from 'node:timers/promises'
 import * as z from 'zod/mini'
 import {
@@ -26,6 +28,8 @@ import {
   LIST_FILES_DEFAULT_LIMIT,
   MAX_DOCUMENT_BYTES,
   MAX_IMAGE_BYTES,
+  BYTES_PER_MIB,
+  MEDIA_MAX_UPLOAD_DEFAULT_MIB,
   MODEL_API_MODEL_TEXT,
   MODEL_API_SUBAGENT_TOOLS,
   MODEL_API_TOOLS,
@@ -50,7 +54,10 @@ import {
   VERIFY_TOOLS,
 } from '../../../shared/constants'
 import { ADD_MARKER, type PatchFile, REMOVE_MARKER } from '../../../shared/patchDocument'
-import { fill, formatNumber, plural } from '../../../shared/l10n/text'
+import { fill, formatBytes, formatNumber, formatUnit, plural } from '../../../shared/l10n/text'
+import { uploadedMediaRefSchema, type UploadedMediaRef } from '../../../shared/media'
+import type { MediaFileInfo } from '../../media/limits'
+import type { UploadSource } from './files'
 import type { DocumentPart, ImagePart } from '../../agent/agentBackend'
 import type { Owner } from '../../checkpoints/toolWrites'
 import { changeHunk } from '../../codeIntel/codeText'
@@ -81,7 +88,8 @@ import { GOAL_TOOL_DEFINITIONS } from './goals'
 import { MEMORY_TOOL_DEFINITIONS } from './memoryTools'
 
 import type { ToolClass } from './permissions'
-import type { FunctionOutputPart, FunctionToolDefinition } from './schemas'
+import { type FunctionOutputPart, type FunctionToolDefinition, withStrictTools } from './schemas'
+
 import { LEGAL_SCAN_DESCRIPTION, LEGAL_SCAN_PARAMETERS } from './legalScanTool'
 import { RECALL_TOOL_DEFINITION } from './observationPack'
 import { SUBAGENT_TOOL_DEFINITIONS } from './subagentTools'
@@ -89,6 +97,9 @@ import type { TEAM_TOOL_DEFINITIONS } from '../../team/teamTools'
 import { runChecksDefinition, THEN_RUN_PROPERTY } from './verifyTools'
 
 import type { ShellResult } from '../../shellResult'
+import { vaultShellSecretsSchema, type VaultShellSecrets } from '../../vault/exec/schema'
+import { VAULT_EXEC_PARAMETERS } from '../../vault/exec/toolSchema'
+import type { McpTool } from '../../mcp'
 export type { ShellResult } from '../../shellResult'
 
 /**
@@ -159,13 +170,41 @@ export type SearchWorkerMessage =
 
 /** What the host lends the tools: files, a matcher it can stop, and a shell. */
 export interface ToolIo {
+  /** Lazy M105 read: bounded sniff/hash on one checked handle; upload reopens and checks it again. */
+  readonly readMedia?: (
+    absolutePath: string,
+    maxBytes: number,
+    expectedCanonicalPath: string,
+    signal?: AbortSignal,
+    observeSource?: (source: Extract<ContentSource, { kind: 'file' }>) => void,
+  ) => Promise<
+    | ReadMediaFile
+    | { readonly kind: 'other'; readonly reason: string; readonly isPdf?: boolean }
+    | undefined
+  >
+  /** Bound by the trusted session launcher; unavailable until the broker route is installed. */
+  readonly vaultTools?: readonly McpTool[]
+  readonly runVaultShell?: (
+    command: string,
+    cwd: string,
+    timeoutMs: number,
+    secrets: VaultShellSecrets,
+    signal?: AbortSignal,
+    limit?: ShellTimeLimit,
+    assertCanRun?: () => void,
+  ) => Promise<ShellResult>
   /**
    * The file's text, a UTF-8 BOM kept; undefined when it does not exist.
    * Rejects for a file that is not UTF-8 text (binary, UTF-16, Latin-1…):
    * decoding it lossily and writing it back would corrupt it (PLAN.md D27).
    */
   /** A canonical proof comes only from trusted workspace confinement, not tool arguments. */
-  readFile(absolutePath: string, expectedCanonicalPath?: string): Promise<string | undefined>
+  readFile(
+    absolutePath: string,
+    expectedCanonicalPath?: string,
+    signal?: AbortSignal,
+    observeSource?: (source: Extract<ContentSource, { kind: 'file' }>) => void,
+  ): Promise<string | undefined>
   /**
    * The file's bytes (M44: an image to edit); undefined when it does not
    * exist. Rejects, before reading, a file larger than `maxBytes`.
@@ -174,6 +213,8 @@ export interface ToolIo {
     absolutePath: string,
     maxBytes: number,
     expectedCanonicalPath?: string,
+    signal?: AbortSignal,
+    observeSource?: (source: Extract<ContentSource, { kind: 'file' }>) => void,
   ): Promise<Uint8Array | undefined>
   /** Replaces the file whole (a temporary file renamed into place), folders created. */
   writeFile(
@@ -225,9 +266,9 @@ export interface ToolIo {
   /** Absolute paths of the files open in an editor with unsaved changes, as the editor names them. */
   unsavedFiles(): readonly string[]
   /** Workspace-relative, forward-slash paths of every listed file. */
-  listFiles(): Promise<readonly string[]>
+  listFiles(signal?: AbortSignal): Promise<readonly string[]>
   /** Evaluates the pattern off the host thread with a time budget (ReDoS containment). */
-  searchFiles(job: SearchJob): Promise<SearchOutcome>
+  searchFiles(job: SearchJob, signal?: AbortSignal): Promise<SearchOutcome>
   /**
    * A timeout or the signal kills the whole process tree (PLAN.md D25);
    * `limit` lets the caller lift the timeout while it runs (M46).
@@ -244,6 +285,7 @@ export interface ToolIo {
     assertCanRun?: () => void,
     /** D89.5: only an interactive top-level shell may use named credential pass-through. */
     isInteractive?: boolean,
+    resourceKind?: ResourceKind,
   ): Promise<ShellResult>
   /** An explicitly enabled M51 hook, with JSON stdin and a cleared environment. */
   runHook?(
@@ -338,6 +380,10 @@ export interface ToolContext {
   readonly isInteractiveShell?: boolean
   /** Selected model's context window, supplied by the engine (M101). */
   readonly contextTokens?: number | undefined
+  /** W binds selected-model admission, consent, exact reservation and the session upload ledger. */
+  readonly media?:
+    | { readonly prepare: (file: ReadMediaFile, signal?: AbortSignal) => Promise<UploadedMediaRef> }
+    | { readonly reason: string }
   readonly workspaceRoot: string
   readonly platform: NodeJS.Platform
   /**
@@ -376,7 +422,9 @@ export interface ToolContext {
    * (absolute path to a fingerprint): `write_file` replaces only what the
    * model has seen (D27).
    */
-  readonly seen: Map<string, string>
+  readonly seen: ReadonlyMap<string, string>
+  /** Call-owned fingerprints; the dispatcher commits them with the result. */
+  readonly provisionalSeen: Map<string, string>
   /** Format on edit (M68); present only while it is on. */
   readonly formatter?: EditFormatter
   /** Captured owner admission, rechecked by the actual writer after its awaits. */
@@ -421,6 +469,13 @@ export interface VisibleFile {
   readonly part: ImagePart | DocumentPart
 }
 
+/** Private approved source, never serialized with a tool outcome. */
+export interface ReadMediaFile {
+  readonly info: MediaFileInfo
+  readonly sha256: string
+  readonly source: UploadSource
+}
+
 /**
  * The workspace files a call touched (M78), for the dispatcher's live policy
  * fence: the policy as it stands when the outcome is built must still allow
@@ -447,6 +502,8 @@ export interface TouchedFiles {
 }
 
 export interface ToolOutcome {
+  /** Owned process exit, retained separately from its human-readable output. */
+  readonly exitCode?: number
   /** What the model receives as the function result. */
   readonly output: string
   /** The result as content parts instead, when it holds pictures (an MCP tool's, M50). */
@@ -458,6 +515,14 @@ export interface ToolOutcome {
   readonly patch?: { readonly document: string; readonly summary: PatchSummary }
   /** `read_file` of a PDF or an image: the file itself, sent after the round's outputs. */
   readonly visibleFile?: VisibleFile
+  /** Metadata only. W feeds this file-id into M2 replay and its shared media budget after the round. */
+  readonly mediaFile?: {
+    readonly name: string
+    readonly info: MediaFileInfo
+    readonly file: UploadedMediaRef
+    readonly lead: string
+    readonly notDelivered: string
+  }
   /** `run_checks` (M68): what the row sums up. */
   readonly verifySummary?: VerifySummary
   /** An edit's `then_run` (M68): the command's result beside the edit's. */
@@ -569,6 +634,7 @@ const shellArgs = z.object({
   command: z.string(),
   description: z.optional(z.string()),
   timeout_ms: z.optional(z.number()),
+  secrets: z.optional(vaultShellSecretsSchema),
 })
 export const askUserArgs = z.object({ questions: z.array(questionSchema) })
 export const readSkillArgs = z.object({ id: z.string() })
@@ -579,6 +645,14 @@ const PATH_PROPERTY = { type: 'string', description: 'Workspace-relative path' }
 const SHELL_STOPPED_BY_USER = 'stopped by the user'
 
 export interface ToolDefinitionOptions {
+  /** Session setting AND selected-model support, resolved by the caller before cache-key generation. */
+  readonly shouldUseStrictTools?: boolean
+  /** M115 G: validated lazy schedule declarations, supplied only when the
+   * host's charter/capability admission offers them. No engine import here. */
+  readonly scheduleTools?: readonly FunctionToolDefinition[]
+  /** Advertise private shell handles only when a vault runner is bound. */
+  readonly hasVaultShell?: boolean
+  readonly vaultTools?: readonly McpTool[]
   /** False in Restricted Mode: no shell tool is offered (PLAN.md D13). */
   readonly hasShell: boolean
   /**
@@ -614,11 +688,16 @@ export interface ToolDefinitionOptions {
 
 const DEFAULT_TOOL_OPTIONS: ToolDefinitionOptions = { hasShell: true, hasSkills: false }
 
+interface PreviewToolDefinition extends FunctionToolDefinition {
+  /** Host-only, nonenumerable metadata; never serialized into a request. */
+  readonly previewFields?: readonly string[]
+}
+
 /** The function tools offered to the model (dev.meta.ai/docs/tool-calling). */
 export function toolDefinitions(
   platform: NodeJS.Platform,
   options: ToolDefinitionOptions = DEFAULT_TOOL_OPTIONS,
-): readonly FunctionToolDefinition[] {
+): readonly PreviewToolDefinition[] {
   const shell = shellToolFor(platform)
   // `then_run` needs the shell, so it is offered only with it (M68).
   const thenRun = (options.hasThenRun ?? options.hasShell) ? THEN_RUN_PROPERTY : {}
@@ -629,19 +708,34 @@ export function toolDefinitions(
     description: string,
     properties: Record<string, unknown>,
     required: readonly string[],
-  ): FunctionToolDefinition => ({
-    type: 'function',
-    name,
-    description,
-    parameters: {
-      type: 'object',
-      properties,
-      required: [...required],
-      additionalProperties: false,
-    },
-    strict: false,
-  })
-  return [
+    previewFields?: readonly string[],
+  ): PreviewToolDefinition =>
+    Object.defineProperty(
+      {
+        type: 'function',
+        name,
+        description,
+        parameters: {
+          type: 'object',
+          properties,
+          required: [...required],
+          additionalProperties: false,
+        },
+        strict: false,
+      },
+      'previewFields',
+      { value: previewFields },
+    )
+  const definitions: readonly PreviewToolDefinition[] = [
+    ...(options.vaultTools ?? [])
+      .filter((tool) => options.hasShell || tool.name !== 'vault_run')
+      .map((tool): FunctionToolDefinition => ({
+        type: 'function',
+        name: tool.name,
+        description: tool.description,
+        parameters: tool.inputSchema,
+        strict: false,
+      })),
     define(
       MODEL_API_TOOLS.readFile,
       'Read a file from the workspace. A text file comes back numbered by line (use offset and limit for long files); a PDF or an image (PNG, JPEG, GIF, WebP) comes back whole, for you to see.',
@@ -650,6 +744,7 @@ export function toolDefinitions(
         offset: { type: 'integer', description: '1-based first line to return' },
         limit: { type: 'integer', description: 'Maximum lines to return' },
       },
+      ['path'],
       ['path'],
     ),
     define(
@@ -674,12 +769,14 @@ export function toolDefinitions(
         ...thenRun,
       },
       ['path'],
+      ['path'],
     ),
     define(
       MODEL_API_TOOLS.writeFile,
       'Create or overwrite a file with the given content.',
       { path: PATH_PROPERTY, content: { type: 'string' }, ...thenRun },
       ['path', 'content'],
+      ['path'],
     ),
     define(
       MODEL_API_TOOLS.search,
@@ -696,6 +793,7 @@ export function toolDefinitions(
         max_results: { type: 'integer' },
       },
       ['pattern'],
+      ['pattern'],
     ),
     define(
       MODEL_API_TOOLS.listFiles,
@@ -710,6 +808,7 @@ export function toolDefinitions(
             `Run one ${shell.shellName} command line in the workspace root and return its output.`,
             {
               command: { type: 'string' },
+              ...(options.hasVaultShell === true && { secrets: VAULT_EXEC_PARAMETERS.secrets }),
               description: { type: 'string', description: 'One line saying what the command does' },
               timeout_ms: {
                 type: 'integer',
@@ -717,6 +816,7 @@ export function toolDefinitions(
               },
             },
             ['command', 'description'],
+            ['command'],
           ),
         ]
       : []),
@@ -783,34 +883,36 @@ export function toolDefinitions(
             },
             ['questions'],
           ),
-          define(
-            MODEL_API_TOOLS.todoWrite,
-            'Replace your task list, shown to the user while you work.',
-            {
-              items: {
-                type: 'array',
-                items: {
-                  type: 'object',
-                  properties: {
-                    text: { type: 'string' },
-                    status: { type: 'string', enum: ['pending', 'inProgress', 'completed'] },
-                    activeForm: {
-                      type: 'string',
-                      description: 'Present-tense form shown while in progress',
-                    },
-                  },
-                  required: ['text', 'status'],
-                },
+        ]),
+    define(
+      MODEL_API_TOOLS.todoWrite,
+      'Replace your task list, shown to the user while you work.',
+      {
+        items: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              text: { type: 'string' },
+              status: { type: 'string', enum: ['pending', 'inProgress', 'completed'] },
+              activeForm: {
+                type: 'string',
+                description: 'Present-tense form shown while in progress',
               },
             },
-            ['items'],
-          ),
-          // Muse Code's goal tools (M45, PLAN.md D38), offered in every session as
-          // `muse serve` offers them.
-          ...GOAL_TOOL_DEFINITIONS.map((tool) =>
-            define(tool.name, tool.description, tool.properties, tool.required),
-          ),
-        ]),
+            required: ['text', 'status'],
+          },
+        },
+      },
+      ['items'],
+    ),
+    ...(options.isSubagent === true
+      ? []
+      : // Muse Code's goal tools (M45, PLAN.md D38), offered in every session as
+        // `muse serve` offers them.
+        GOAL_TOOL_DEFINITIONS.map((tool) =>
+          define(tool.name, tool.description, tool.properties, tool.required),
+        )),
     ...(options.hasSubagents === true
       ? SUBAGENT_TOOL_DEFINITIONS.map((tool) =>
           define(tool.name, tool.description, tool.properties, tool.required),
@@ -829,7 +931,15 @@ export function toolDefinitions(
     // against the session's store, so it is not in `executeTool`.
     ...(options.hasPackedRecall === true ? [RECALL_TOOL_DEFINITION] : []),
     ...(options.hasWebFetch === true
-      ? [define(MODEL_API_TOOLS.webFetch, WEB_FETCH_DESCRIPTION, WEB_FETCH_PARAMETERS, ['url'])]
+      ? [
+          define(
+            MODEL_API_TOOLS.webFetch,
+            WEB_FETCH_DESCRIPTION,
+            WEB_FETCH_PARAMETERS,
+            ['url'],
+            ['url'],
+          ),
+        ]
       : []),
     ...(options.hasBrowserCheck === true
       ? [
@@ -849,7 +959,9 @@ export function toolDefinitions(
     ...(options.hasLegalScan === true
       ? [define(MODEL_API_TOOLS.legalScan, LEGAL_SCAN_DESCRIPTION, LEGAL_SCAN_PARAMETERS, [])]
       : []),
+    ...(options.scheduleTools ?? []),
   ]
+  return withStrictTools(definitions, options.shouldUseStrictTools === true)
 }
 
 // --- helpers ---
@@ -1064,11 +1176,72 @@ function patchOutcome(
 
 /** What `read_file` sends whole by the path's name (M54): a PDF, an image, or neither. */
 function visualKindOf(relative: string): 'pdf' | 'image' | undefined {
-  const extension = path.extname(relative).toLowerCase()
+  const extension = path.posix.extname(relative.replaceAll('\\', '/')).toLowerCase()
   if (extension === PDF_EXTENSION) {
     return 'pdf'
   }
   return Object.hasOwn(IMAGE_EXTENSIONS, extension) ? 'image' : undefined
+}
+
+async function readMediaFile(
+  file: { readonly relative: string; readonly checkedAbsolute: string },
+  context: ToolContext,
+): Promise<ToolOutcome> {
+  // The confined read and sniff run before any billing words: a renamed
+  // text file is an unknown type, not an unverified account (M105 E2 review).
+  const readMedia = context.io.readMedia
+  const unavailable =
+    context.media !== undefined && 'reason' in context.media
+      ? context.media.reason
+      : UI_TEXT.media.uploadStorageUnknown
+  if (readMedia === undefined) return failure(unavailable)
+  try {
+    context.signal?.throwIfAborted()
+    const read = await readMedia(
+      file.checkedAbsolute,
+      MEDIA_MAX_UPLOAD_DEFAULT_MIB * BYTES_PER_MIB,
+      file.checkedAbsolute,
+      context.signal,
+    )
+    if (read === undefined)
+      return failure(
+        `file not found: ${file.relative}`,
+        fill(UI_TEXT.toolVisualFileMissing, { path: file.relative }),
+      )
+    if ('kind' in read) return failure(read.reason)
+    // Real media with no upload binding: the pipeline is unbound, and only now
+    // is the billing sentence honest.
+    if (context.media === undefined || 'reason' in context.media) return failure(unavailable)
+    const uploaded = uploadedMediaRefSchema.parse(await context.media.prepare(read, context.signal))
+    context.signal?.throwIfAborted()
+    if (
+      uploaded.sha256 !== read.sha256 ||
+      uploaded.bytes !== read.info.sizeBytes ||
+      uploaded.mime !== read.info.mediaType
+    )
+      throw new Error(fill(UI_TEXT.media.sourceChanged, { name: uploaded.name }))
+    const visibleOutput = fill(UI_TEXT.media.replayMetadata, {
+      name: uploaded.name,
+      duration:
+        read.info.durationSeconds === null
+          ? UI_TEXT.media.durationUnknown
+          : formatUnit(read.info.durationSeconds, 'second'),
+      size: formatBytes(read.info.sizeBytes),
+    })
+    return {
+      output: fill(MODEL_API_MODEL_TEXT.toolFileFollows, { path: file.relative }),
+      visibleOutput,
+      mediaFile: {
+        ...readFileLines(file.relative),
+        name: file.relative,
+        info: read.info,
+        file: uploaded,
+      },
+    }
+  } catch (error: unknown) {
+    if (context.signal?.aborted === true) throw error
+    return failure(error instanceof Error ? error.message : String(error))
+  }
 }
 
 /** The model's lines around a file `read_file` read (M54). */
@@ -1176,6 +1349,7 @@ async function readVisual(
       file.checkedAbsolute,
       kind === 'pdf' ? MAX_DOCUMENT_BYTES : MAX_IMAGE_BYTES,
       file.checkedAbsolute,
+      context.signal,
     )
   } catch (error: unknown) {
     // Stop still belongs to the host's cancellation path, not a file error row.
@@ -1185,6 +1359,7 @@ async function readVisual(
     const modelReason = error instanceof Error ? error.message : String(error)
     return failure(modelReason, fill(UI_TEXT.toolVisualReadFailed, { path: file.relative }))
   }
+  context.signal?.throwIfAborted()
   if (bytes === undefined) {
     return failure(
       `file not found: ${file.relative}`,
@@ -1238,6 +1413,7 @@ async function readFile(
   context: ToolContext,
 ): Promise<ToolOutcome> {
   const resolved = await readablePath(args.path, context)
+  context.signal?.throwIfAborted()
   if (!resolved.ok) {
     return failure(resolved.reason)
   }
@@ -1251,14 +1427,21 @@ async function readFile(
     ...(resolved.extraRoot !== undefined && { extraRoot: resolved.extraRoot }),
   }
   const visual = visualKindOf(resolved.relative)
+  if (/\.(?:mp4|mov|mp3|wav|webm|mkv|m4a)$/iu.test(resolved.relative.replaceAll('\\', '/')))
+    return { ...(await readMediaFile(resolved, context)), touched }
   if (visual !== undefined) {
     return { ...(await readVisual(resolved, visual, context)), touched }
   }
-  const raw = await context.io.readFile(resolved.checkedAbsolute, resolved.checkedAbsolute)
+  const raw = await context.io.readFile(
+    resolved.checkedAbsolute,
+    resolved.checkedAbsolute,
+    context.signal,
+  )
+  context.signal?.throwIfAborted()
   if (raw === undefined) {
     return { ...failure(`file not found: ${resolved.relative}`), touched }
   }
-  context.seen.set(resolved.absolute, fingerprint(raw))
+  context.provisionalSeen.set(resolved.absolute, fingerprint(raw))
   const lines = splitLines(modelText(raw, shapeOf(raw)))
   const start = Math.max((args.offset ?? 1) - 1, 0)
   // An offset past the last line is an error, not an empty read (M101): the
@@ -1395,7 +1578,7 @@ async function publishText(
     writeAdmission(file, context),
   )
   const final = await formatWritten(written, file, context)
-  context.seen.set(file.absolute, fingerprint(final))
+  context.provisionalSeen.set(file.absolute, fingerprint(final))
   return final
 }
 
@@ -1654,7 +1837,8 @@ async function listMatching(
 ): Promise<readonly string[]> {
   // Compiled before the listing, so a refused glob costs no file walk.
   const matches = glob === undefined ? undefined : compileGlob(glob)
-  const files = await context.io.listFiles()
+  const files = await context.io.listFiles(context.signal)
+  context.signal?.throwIfAborted()
   // What the permission settings deny is neither listed nor searched (M78).
   return files.filter(
     (file) => (matches === undefined || matches(file)) && context.files?.isDenied([file]) !== true,
@@ -1693,24 +1877,29 @@ async function search(
   try {
     candidates = await listMatching(context, args.glob)
   } catch (error: unknown) {
+    context.signal?.throwIfAborted()
     return failure(error instanceof Error ? error.message : String(error))
   }
   // A workspace too large to search in the budget is searched in part, and
   // the model is told so rather than handed a silent subset (D27).
   const searched = candidates.slice(0, SEARCH_MAX_CANDIDATES)
-  const outcome = await context.io.searchFiles({
-    pattern: args.pattern,
-    root: context.workspaceRoot,
-    maxFileBytes: SEARCH_MAX_FILE_BYTES,
-    maxHits: SEARCH_MAX_HITS,
-    maxHitChars: SEARCH_HIT_MAX_CHARS,
-    denyRead: context.files?.denyGlobs ?? [],
-    globLimits: GLOB_LIMITS,
-    files: searched.map((relative) => ({
-      relative,
-      absolute: p.join(context.workspaceRoot, ...relative.split('/')),
-    })),
-  })
+  const outcome = await context.io.searchFiles(
+    {
+      pattern: args.pattern,
+      root: context.workspaceRoot,
+      maxFileBytes: SEARCH_MAX_FILE_BYTES,
+      maxHits: SEARCH_MAX_HITS,
+      maxHitChars: SEARCH_HIT_MAX_CHARS,
+      denyRead: context.files?.denyGlobs ?? [],
+      globLimits: GLOB_LIMITS,
+      files: searched.map((relative) => ({
+        relative,
+        absolute: p.join(context.workspaceRoot, ...relative.split('/')),
+      })),
+    },
+    context.signal,
+  )
+  context.signal?.throwIfAborted()
   // Every candidate, searched or not: its name may be in a hit or a count.
   const touched: TouchedFiles = { names: candidates, complete: true }
   if (!outcome.ok) {
@@ -1743,6 +1932,7 @@ async function listFiles(
   try {
     files = await listMatching(context, args.glob)
   } catch (error: unknown) {
+    context.signal?.throwIfAborted()
     return failure(error instanceof Error ? error.message : String(error))
   }
   const shown = files.slice(0, limit)
@@ -1762,16 +1952,38 @@ async function shell(args: z.infer<typeof shellArgs>, context: ToolContext): Pro
     Math.max(args.timeout_ms ?? SHELL_DEFAULT_TIMEOUT_MS, 1),
     SHELL_MAX_TIMEOUT_MS,
   )
-  const result = await context.io.runShell(
-    args.command,
-    context.shellCwd ?? context.workspaceRoot,
-    timeoutMs,
-    context.signal,
-    context.limit,
-    context.assertCanRun,
-    context.isInteractiveShell === true,
-  )
-  return shellOutcome(result, timeoutMs, TOOL_OUTPUT_MAX_CHARS, context.wholeShellOutput === true)
+  if (args.command.includes('secret://'))
+    return failure(MODEL_API_MODEL_TEXT.toolRefusedByMode, UI_TEXT.vault.noAccess)
+  if (args.secrets && !context.io.runVaultShell)
+    return failure(MODEL_API_MODEL_TEXT.toolRefusedByMode, UI_TEXT.vault.brokerBlocked)
+  try {
+    const result =
+      args.secrets && context.io.runVaultShell
+        ? await context.io.runVaultShell(
+            args.command,
+            context.shellCwd ?? context.workspaceRoot,
+            timeoutMs,
+            args.secrets,
+            context.signal,
+            context.limit,
+            context.assertCanRun,
+          )
+        : await context.io.runShell(
+            args.command,
+            context.shellCwd ?? context.workspaceRoot,
+            timeoutMs,
+            context.signal,
+            context.limit,
+            context.assertCanRun,
+            context.isInteractiveShell === true,
+          )
+    return args.secrets && result.exitCode === null
+      ? failure(MODEL_API_MODEL_TEXT.toolRefusedByMode, UI_TEXT.vault.noAccess)
+      : shellOutcome(result, timeoutMs, TOOL_OUTPUT_MAX_CHARS, context.wholeShellOutput === true)
+  } catch (error: unknown) {
+    if (args.secrets) return failure(MODEL_API_MODEL_TEXT.toolRefusedByMode, UI_TEXT.vault.noAccess)
+    throw error
+  }
 }
 
 /**
@@ -1874,6 +2086,7 @@ export function shellOutcome(
   return {
     output: body,
     visibleOutput: shown,
+    ...(result.exitCode !== null && { exitCode: result.exitCode }),
     ...((result.isTimedOut || result.isCancelled) && { failureReason: exit }),
   }
 }
@@ -1923,6 +2136,17 @@ export async function executeTool(
       return parsed.success ? await shell(parsed.data, context) : argumentFailure(parsed.error)
     }
     default: {
+      const tool = context.io.vaultTools?.find((tool) => tool.name === name)
+      if (tool) {
+        const args = z.record(z.string(), z.unknown()).safeParse(raw)
+        if (!args.success) return argumentFailure(args.error)
+        try {
+          const output = await tool.call(args.data, context.signal ?? new AbortController().signal)
+          return { output: clip(output), visibleOutput: clip(output) }
+        } catch {
+          return failure(MODEL_API_MODEL_TEXT.toolRefusedByMode, UI_TEXT.vault.noAccess)
+        }
+      }
       return failure(`unknown tool ${name}`)
     }
   }

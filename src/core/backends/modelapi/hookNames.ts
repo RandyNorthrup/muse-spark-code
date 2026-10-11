@@ -42,3 +42,11 @@ export function toolMatcherNames(name: string): readonly string[] {
     }
   }
 }
+
+export const HOOK_MODEL_EVENTS: ReadonlySet<string> = new Set([
+  'PreToolUse',
+  'PermissionRequest',
+  'UserPromptSubmit',
+  'Stop',
+  'SubagentStop',
+])

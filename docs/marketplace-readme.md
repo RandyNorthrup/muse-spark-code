@@ -22,10 +22,64 @@ Code” are Meta trademarks. You bring your own credentials.
 
 [Enjoying Muse Spark Code? A star on GitHub helps other people find it.](https://github.com/RandyNorthrup/muse-spark-code)
 
-**Contents:** [What's new](#whats-new-in-0150) · [Get started](#get-started) ·
+**Contents:** [What's new](#whats-new-in-0171) · [Get started](#get-started) ·
 [Work in the panel](#work-in-the-panel)
 
-## What's new in 0.15.0
+## What's new in 0.17.1
+
+- **The provider picker works again.** Models & Agents lists every provider
+  again, Anthropic and custom servers included; 0.16.0 and 0.17.0 showed only
+  "That did not work" and an empty list.
+- **Saving a provider keeps what worked.** Save checks everything first, then
+  saves in order; if a later step fails, the saved parts stay saved and the
+  panel says what was not. Edit and Change Key keep the saved connection.
+- **The wizard's spending limit is your real conversation limit.** It shows
+  the current limit, writes only when you change it, and asks before
+  replacing a limit someone changed meanwhile.
+- **Title Case labels.** English buttons, menus, tabs and titles capitalize
+  every major word; sentences and messages keep sentence case.
+- **Smaller fixes.** Chat action menus fan close around the row's **…**
+  button, highlighted-text actions included; a question's own-answer field no
+  longer overlaps the options and buttons around it, DeepSeek's Thinking off
+  sends DeepSeek's own switch, a nearly spent budget stops with the budget
+  message instead of a Meta error, and a Muse Code older than 1.4.3 that hits
+  its approval-record fault now gets the update command.
+
+### Earlier in 0.17.0
+
+- **Deterministic reports.** `/report` builds project, quality, milestone,
+  release and change reports from local facts, in Markdown, HTML, JSON or text,
+  with saved history and comparisons; nothing is sent to a model.
+- **Capacity estimates (preview).** `/estimate <goal>` and the Estimator are in
+  place and verified with test data. Real forecasts need the plan reader that
+  comes later; until then they say so instead of guessing.
+- **Several accounts per provider.** List provider accounts, see the current
+  one and its thresholds; a vendor limit blocks only the affected account.
+- **Orchestrator playbook.** The nine orchestration rules ship as a first-party
+  skill. In the ACP agent and the CLI, `/playbook status`, `record` and
+  `settings` answer locally; the VS Code panel follows.
+- **Refreshed design.** Shared design tokens and generated palettes style every
+  panel surface; an optional pinned OFL font pack serves standalone installs.
+
+### Earlier in 0.16.0
+
+- **Loop guarantees.** Strict tool contracts, bounded hosted search and streamed
+  argument previews help you follow Model API tool calls. Independent reads can
+  run concurrently while their results keep call order. The loop bounds
+  continuations, refuses cut-short tool execution and stops repeated unchanged
+  calls. Structured side calls validate answers; headless runs can require a
+  bounded final-answer schema. See [Agent loop guarantees](#agent-loop-guarantees)
+  for capability gates and remaining native-reader qualifications.
+- **CPU and memory thresholds.** Set machine-scoped limits to throttle, then
+  pause, new background work. Relocation needs a paired device or runner route
+  and is not available yet, so work stays on this machine.
+- **Disk floors.** Disk-heavy launches wait below the free-space floor and
+  critical-volume writes refuse with a reason. Temporary cleanup requires
+  recorded ownership and proved tree exit. See
+  [Keeping your machine responsive](#keeping-your-machine-responsive) for the
+  settings, available routes and remaining integration qualifications.
+
+### Earlier in 0.15.0
 
 - **Bring your own models.** Add OpenAI, Anthropic and Gemini keys or local
   models in **Models & Agents**. ChatGPT sign-in is a Subscription Sharing
@@ -73,12 +127,12 @@ Code” are Meta trademarks. You bring your own credentials.
   attention dock above the composer and kept in the transcript. After a minute
   (`museSpark.questions.deferAfterSeconds`), Muse carries on with work that
   does not need the answer.
-- **Answer later.** An unanswered question becomes an **Open question** you can
-  answer any time from its card or the open-question chip; **Dismiss** closes it
+- **Answer later.** An unanswered question becomes an **Open Question** you can
+  answer any time using **Answer** on its transcript marker or the open-question chip; **Dismiss** closes it
   without an answer. A late answer reaches Muse once, as your own message, and
   approves nothing.
 - **Find open questions.** The view badge, tab title and History show how many
-  are open; **Next open question** and **Previous open question**
+  are open; **Next Open Question** and **Previous Open Question**
   (Ctrl+Alt+J and Ctrl+Alt+Shift+J) cycle through them.
 - **ACP editors.** Editors with forms get each question as a form, withdrawn at
   the deadline (`--questions-defer-after`); other editors get the text.
@@ -114,16 +168,16 @@ Code” are Meta trademarks. You bring your own credentials.
 
 **0.14.0**
 
-- **Tab completions** (see [Tab completions](https://github.com/RandyNorthrup/muse-spark-code#tab-completions)). Alt+\ invokes
+- **Tab Completions** (see [Tab completions](https://github.com/RandyNorthrup/muse-spark-code#tab-completions)). Alt+\ invokes
   ghost text. First-use consent names the model price and the separate
   $1.00/day default hard budget; your stored Model API key pays on either backend.
-- **Git and pull requests** (see [Git and pull requests](https://github.com/RandyNorthrup/muse-spark-code#git-and-pull-requests)).
+- **Git and Pull Requests** (see [Git and pull requests](https://github.com/RandyNorthrup/muse-spark-code#git-and-pull-requests)).
   Draft a commit or PR in the conversation, commit and push with confirmation,
   and open a foreign PR in a held worktree until you confirm its trust card.
 - **Hooks and plugins** (see [Hooks](https://github.com/RandyNorthrup/muse-spark-code#hooks)). Import popular agent hook formats,
   run Setup and Manual hooks on both backends, and use bounded Amp and OpenCode
   plugins on the Model API backend. Hooks keep their permission and paid-use limits.
-- **Report a problem** (see [Reporting a problem](https://github.com/RandyNorthrup/muse-spark-code#reporting-a-problem)). Preview
+- **Report a Problem** (see [Reporting a problem](https://github.com/RandyNorthrup/muse-spark-code#reporting-a-problem)). Preview
   the exact scrubbed report, remove items, then copy, save or open an issue.
   The report is built locally and the extension sends nothing.
 - **Muse Judge phase 1** (see [Muse Judge](https://github.com/RandyNorthrup/muse-spark-code#muse-judge)). The conversation model
@@ -148,6 +202,14 @@ Earlier releases are in the
 Requires VS Code engine 1.99 or newer. Muse Code signs in independently; a key
 pasted into this extension is stored in VS Code SecretStorage and never given
 to the CLI. Linux users can use the Model API if the CLI is unavailable.
+
+The project ships from four places: the
+[VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=RandyNorthrup.muse-spark-code),
+[Open VSX](https://open-vsx.org/extension/RandyNorthrup/muse-spark-code),
+[npm](https://www.npmjs.com/package/muse-spark-code-acp) (the ACP agent, for
+editors beyond VS Code) and
+[GitHub Releases](https://github.com/RandyNorthrup/muse-spark-code/releases)
+(both the `.vsix` and the agent's `.tgz`).
 
 ## Work in the panel
 
@@ -179,11 +241,11 @@ to the CLI. Linux users can use the Model API if the CLI is unavailable.
   </tr>
   <tr>
     <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/approval.png" alt="An approval card docked above the message box: Muse wants to Set-Content, step 1 of 2, a feedback box, and Allow once, Always allow in this workspace and Reject, one line each at one height; above it the diff tally, 2 files changed +3 −1 with Review; in the conversation the earlier steps fold into Read a file and edited 2 files, and the PowerShell row says it waits for your approval"><br><sub>An approval card, docked above the message box, with the CLI's own choices</sub></td>
-    <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/open-question.png" alt="An Open question in the attention dock: Colour, Blue, Green, Other, Submit and Explain instead; its folded transcript row and the 1 open question chip with Previous and Next controls remain visible"><br><sub>Answer an open question from the dock; its transcript row and navigation chip keep it easy to find</sub></td>
+    <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/question.png" alt="A compact Open question marker with Answer in the transcript and one question card pinned above the composer, with Colour and Toppings tabs, choices, Other, Submit and Explain instead"><br><sub>One question card, pinned above the message box; Answer on its transcript marker brings it into focus</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/quote.png" alt="A reply right-clicked in its highlighted passage: three blue pills, Copy, Ask about this and Comment on this, fanned out from the pointer"><br><sub>Highlight, right-click: <b>Copy</b>, <b>Ask about this</b> or <b>Comment on this</b></sub></td>
-    <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/rewind.png" alt="A sent message's menu with three blue pills: Fork conversation from here, Fork conversation and rewind code, and Rewind"><br><sub>Every sent message's ⋯: fork, fork and rewind code, or open <b>Rewind</b></sub></td>
+    <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/quote.png" alt="A reply right-clicked in its highlighted passage: three blue pills, Copy, Ask About This and Comment on This, fanned close around the row’s ⋯ button"><br><sub>Highlight, right-click: <b>Copy</b>, <b>Ask About This</b> or <b>Comment on This</b></sub></td>
+    <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/rewind.png" alt="A sent message's menu with five blue pills close to its ⋯: Fork Conversation, Fork and Rewind, Rewind, Save Prompt and Share Prompt…"><br><sub>Every sent message's ⋯: fork, fork and rewind code, or open <b>Rewind</b></sub></td>
   </tr>
   <tr>
     <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/modes.png" alt="The Modes menu: Manual, Edit automatically, Plan and Auto, with descriptions and the effort row"><br><sub>Permission modes and effort; <code>Shift+Tab</code> cycles modes</sub></td>
@@ -194,6 +256,7 @@ to the CLI. Linux users can use the Model API if the CLI is unavailable.
     <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/voice.png" alt="The composer listening: the red microphone and the Listening placeholder over a new conversation with its keyboard tips"><br><sub>Voice dictation: tap or hold, <code>Ctrl+D</code></sub></td>
   </tr>
   <tr>
+    <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/open-question.png" alt="An Open question in the attention dock: Colour, Blue, Green, Other, Submit and Explain instead; its folded transcript row and the 1 open question chip with Previous and Next controls remain visible"><br><sub>Answer an open question from the dock; its transcript row and navigation chip keep it easy to find</sub></td>
     <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/help.png" alt="Help and Reference searched for Next open question, showing question-handling details, the deferral setting, and links to Next and Previous open question"><br><sub>Type <code>/help</code>: search the reference for features, commands, settings and shortcuts</sub></td>
   </tr>
 </table>
@@ -212,7 +275,7 @@ Muse Code uses its own credential and subscription. Ordinary Model API turns
 are billed to your own key. Interactive Model API enhancements are available
 by default, with explicit false settings respected; their paid calls still
 need consent naming the price and shared daily budget. Paid use asks before
-each call unless you choose **Allow always in this workspace**. The
+each call unless you choose **Allow Always in This Workspace**. The
 subscription pays none of those extension-side paid features. ACP and
 headless paid defaults remain off.
 

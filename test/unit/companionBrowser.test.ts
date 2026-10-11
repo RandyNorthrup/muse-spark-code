@@ -1,13 +1,19 @@
 import { createServer } from 'node:http'
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright-core'
-import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { UI_TEXT } from '../../src/shared/l10n/text'
+import { beforeAll, afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { EN } from '../../src/shared/l10n/en'
+import { setUiText, UI_TEXT } from '../../src/shared/l10n/text'
 import { call, headers, startPanel, trackedPanels } from './helpers/companion'
+import { warmBrowser } from './helpers/warmBrowser'
 
 const tracked = trackedPanels()
 // Warm the real browser during file loading, before the assertion hooks. Chrome
 // startup contends with hosted-runner transforms; it is shared by all nine cases.
 const browser: Browser = await chromium.launch({ channel: 'chrome', headless: true })
+// Browser-wide first-page work once, under this hook's own limit (CIFIX017).
+beforeAll(async () => {
+  await warmBrowser(browser)
+})
 // Launch alone does not start a renderer. Warm one before the first timed case;
 // every security case still gets its own fresh context and real navigation.
 const warmContext = await browser.newContext()
@@ -72,6 +78,28 @@ describe('companion browser security', { timeout: REAL_BROWSER_CASE_TIMEOUT_MS }
       }),
     ])
     clearTimeout(timer)
+  })
+  it('renders hostile translated recovery text without creating markup or executing it', async () => {
+    const copy = '</script><img src=x onerror="globalThis.companionXss=true"> & recuperación'
+    setUiText({ ...EN, companionLaunchFailed: copy }, 'es')
+    const context = await browser.newContext()
+    try {
+      const panel = await tracked()
+      const page = await context.newPage()
+      await page.goto(panel.url)
+      const alert = page.getByRole('alert')
+      await alert.waitFor({ state: 'visible' })
+      expect(await alert.textContent()).toBe(copy)
+      expect(await page.title()).toBe(copy)
+      expect(await page.locator('img').count()).toBe(0)
+      expect(await page.evaluate(() => Reflect.get(globalThis, 'companionXss') !== undefined)).toBe(
+        false,
+      )
+      expect(await page.locator('html').getAttribute('lang')).toBe('es')
+    } finally {
+      await context.close()
+      setUiText(EN, 'en')
+    }
   })
   it('exchanges the fragment without leaking it, then refuses a foreign form, fetch, EventSource and WebSocket', async () => {
     const panel = await startPanel()

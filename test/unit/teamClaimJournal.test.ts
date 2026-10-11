@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 import { describe, expect, it } from 'vitest'
 import {
   checkAndReserve,
@@ -12,10 +13,10 @@ import { UI_TEXT } from '../../src/shared/constants'
 const DAY = '2026-10-05'
 const NEXT_DAY = '2026-10-06'
 const BUDGETS: TeamDailyBudgets = {
-  paidDailyBudgetUsd: 50,
-  teamDailyBudgetUsd: 50,
+  paidDailyBudgetUsd: Usd.from(50).toAmount(),
+  teamDailyBudgetUsd: Usd.from(50).toAmount(),
   teamDailyBudgetTokens: 25_000_000,
-  workspaceDailyBudgetUsd: 10,
+  workspaceDailyBudgetUsd: Usd.from(10).toAmount(),
   workspaceDailyBudgetTokens: 5_000_000,
 }
 const REQUEST = {
@@ -26,7 +27,7 @@ const REQUEST = {
   tokens: 9000,
   inputTokens: 9000,
   outputTokens: 0,
-  spendUsd: 0.5,
+  spendUsd: Usd.from(0.5).toAmount(),
   startMs: 1_000_000,
   dayKey: DAY,
   caps: [{ measure: 'tokens', window: 'day', amount: 10_000 }],
@@ -71,7 +72,7 @@ describe('team D78 claim adapter', () => {
         tokens: 0,
         inputTokens: 0,
         outputTokens: 0,
-        spendUsd: 0,
+        spendUsd: Usd.from(0).toAmount(),
         budgets: () => ({ ...BUDGETS, [name]: 0 }),
       })
       expect(stopped).toMatchObject({ ok: false, amount: 0 })
@@ -99,7 +100,7 @@ describe('team D78 claim adapter', () => {
       tokens: 500,
       inputTokens: 400,
       outputTokens: 100,
-      spendUsd: 0.1,
+      spendUsd: Usd.from(0.1).toAmount(),
     })
     const next = await checkAndReserve(emptyMeter(), journal, {
       ...REQUEST,
@@ -134,7 +135,7 @@ describe('team D78 claim adapter', () => {
             reasoningTokens: 0,
             calls: 0,
             tasks: 1,
-            costUsd: 0,
+            costUsd: Usd.from(0).toAmount(),
             hookTokens: 0,
             paidToolTokens: 0,
           },
@@ -161,7 +162,7 @@ describe('team D78 claim adapter', () => {
     if (!result.ok) throw new Error('unreachable')
     expect(journal.calls).toEqual(['claim', 'check'])
     expect(result.check()).toEqual({ ok: true })
-    budgets = { ...budgets, paidDailyBudgetUsd: 0.4 }
+    budgets = { ...budgets, paidDailyBudgetUsd: Usd.from(0.4).toAmount() }
     expect(result.check()).toMatchObject({ ok: false, scope: 'paid', used: 0.5, amount: 0.4 })
     const held = await journal.open()
     expect(held).toHaveLength(1)
@@ -195,9 +196,9 @@ describe('team D78 claim adapter', () => {
       tokens: 8000,
       inputTokens: 8000,
       outputTokens: 0,
-      spendUsd: 0.4,
+      spendUsd: Usd.from(0.4).toAmount(),
     })
-    const budgets = { ...BUDGETS, teamDailyBudgetUsd: 0.8 }
+    const budgets = { ...BUDGETS, teamDailyBudgetUsd: Usd.from(0.8).toAmount() }
     const refused = await checkAndReserve(emptyMeter(), journal, {
       ...REQUEST,
       workspaceId: 'other',
@@ -214,10 +215,10 @@ describe('team D78 claim adapter', () => {
   })
 
   it.each([
-    { workspaceDailyBudgetUsd: 0.4 },
+    { workspaceDailyBudgetUsd: Usd.from(0.4).toAmount() },
     { workspaceDailyBudgetTokens: 8000 },
     { teamDailyBudgetTokens: 8000 },
-    { paidDailyBudgetUsd: 0 },
+    { paidDailyBudgetUsd: Usd.from(0).toAmount() },
   ])('refuses and durably refunds a request exceeding %j', async (limits) => {
     const journal = new FakeTeamJournal()
     const result = await checkAndReserve(emptyMeter(), journal, {
@@ -227,7 +228,7 @@ describe('team D78 claim adapter', () => {
     expect(result.ok).toBe(false)
     expect(journal.calls).toEqual(['claim', 'check', 'refund'])
     expect(await journal.lookupByClaimId('res-1')).toMatchObject({
-      outcome: { kind: 'refunded', tokens: 0, spendUsd: 0 },
+      outcome: { kind: 'refunded', tokens: 0, spendUsd: Usd.from(0).toAmount() },
     })
   })
 
@@ -240,7 +241,7 @@ describe('team D78 claim adapter', () => {
       tokens: 8000,
       inputTokens: 8000,
       outputTokens: 0,
-      spendUsd: 0.4,
+      spendUsd: Usd.from(0.4).toAmount(),
     } as const
     await expect(settleTeamReservation(journal, first.reservation.id, outcome)).rejects.toThrow(
       'Acknowledgement lost',
@@ -259,7 +260,10 @@ describe('team D78 claim adapter', () => {
     if (!next.ok) throw new Error('unreachable')
     expect(next.check()).toEqual({ ok: true })
     await expect(
-      settleTeamReservation(restarted, first.reservation.id, { ...outcome, spendUsd: 0 }),
+      settleTeamReservation(restarted, first.reservation.id, {
+        ...outcome,
+        spendUsd: Usd.from(0).toAmount(),
+      }),
     ).rejects.toThrow()
   })
 
@@ -294,7 +298,7 @@ describe('team D78 claim adapter', () => {
         tokens: 9000,
         inputTokens: 9000,
         outputTokens: 0,
-        spendUsd: 0.5,
+        spendUsd: Usd.from(0.5).toAmount(),
       },
     })
     await settleTeamReservation(restarted, first.reservation.id, { kind: 'unknown' })
@@ -323,7 +327,7 @@ describe('team D78 claim adapter', () => {
       tokens: 8000,
       inputTokens: 8000,
       outputTokens: 0,
-      spendUsd: 0.4,
+      spendUsd: Usd.from(0.4).toAmount(),
     })
     const restarted = new FakeTeamJournal(journal.state)
     const rollback = await checkAndReserve(emptyMeter(), restarted, {

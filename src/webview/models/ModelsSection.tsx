@@ -5,7 +5,8 @@
 // facet messages and renders the rows it gets back.
 
 import { OLLAMA_NUM_CTX_OPTIONS, UI_TEXT } from '../../shared/constants'
-import { fill, formatNumber, formatUsd, plural } from '../../shared/l10n/text'
+import { fill, formatNumber, plural } from '../../shared/l10n/text'
+import { useFormatUsd } from '../money'
 import type { ModelPriceNote, ModelRow, ModelSort } from '../../shared/modelsPanel'
 import { Badge, type BadgeKind } from './components/Badge'
 import { DataTable, type DataColumn } from './components/DataTable'
@@ -50,23 +51,18 @@ function contextCell(row: ModelRow): string {
   return row.contextTokens === undefined ? '—' : formatNumber(row.contextTokens)
 }
 
-function inputPriceCell(row: ModelRow) {
-  return row.priceNote === 'priced' ? (
-    row.inputPerMillion === undefined ? (
-      '—'
-    ) : (
-      formatUsd(row.inputPerMillion, 2)
-    )
-  ) : (
-    <PriceNote priceNote={row.priceNote} />
-  )
+function InputPriceCell({ row }: { readonly row: ModelRow }) {
+  // The exact display arrives with the lazy money chunk; until then the
+  // cell reads as unpriced, never a guessed number.
+  const formatted = useFormatUsd(row.inputPerMillion ?? 0, 2)
+  const text = formatted === undefined || row.inputPerMillion === undefined ? '—' : formatted
+  return row.priceNote === 'priced' ? <>{text}</> : <PriceNote priceNote={row.priceNote} />
 }
 
-function outputPriceCell(row: ModelRow): string {
-  if (row.priceNote !== 'priced') {
-    return ''
-  }
-  return row.outputPerMillion === undefined ? '—' : formatUsd(row.outputPerMillion, 2)
+function OutputPriceCell({ row }: { readonly row: ModelRow }) {
+  const formatted = useFormatUsd(row.outputPerMillion ?? 0, 2)
+  const text = formatted === undefined || row.outputPerMillion === undefined ? '—' : formatted
+  return row.priceNote === 'priced' ? <>{text}</> : null
 }
 
 function RowBadges({ row }: { readonly row: ModelRow }) {
@@ -112,7 +108,9 @@ export function ModelsSection({ panelState, post, highlightedItem }: SectionProp
         : { key: sortKey, direction: 'asc' }
     post({ type: 'models/filter', filter: panelState.filter, sort })
   }
-  const scanning = Object.values(panelState.scans).filter((scan) => scan.status === 'scanning')
+  const scans = Object.values(panelState.scans).filter(
+    (scan) => scan.status === 'scanning' || scan.status === 'failed',
+  )
   return (
     <section aria-label={UI_TEXT.modelsSectionTitle}>
       <h2>{UI_TEXT.modelsSectionTitle}</h2>
@@ -152,8 +150,12 @@ export function ModelsSection({ panelState, post, highlightedItem }: SectionProp
               <RowBadges row={row} />
             </span>,
             <span key="context">{contextCell(row)}</span>,
-            <span key="input">{inputPriceCell(row)}</span>,
-            <span key="output">{outputPriceCell(row)}</span>,
+            <span key="input">
+              <InputPriceCell row={row} />
+            </span>,
+            <span key="output">
+              <OutputPriceCell row={row} />
+            </span>,
             <input
               key="offered"
               type="checkbox"
@@ -232,7 +234,7 @@ export function ModelsSection({ panelState, post, highlightedItem }: SectionProp
         </div>
       )}
       <p className="models-hint">{UI_TEXT.pricePerMillion}</p>
-      {scanning.map((scan) => (
+      {scans.map((scan) => (
         <ScanStatus
           key={scan.providerId}
           scan={scan}

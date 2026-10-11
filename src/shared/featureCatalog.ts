@@ -1,5 +1,4 @@
 import { PAID_USE_REGISTRY } from './paid'
-import { COMMAND_IDS, type SETTING_DEFAULTS } from './constants'
 
 // Documentation inventory. Availability is explicit until installed-host qualification.
 interface DevicesFeature {
@@ -86,6 +85,7 @@ export const FEATURE_CATALOG: readonly DevicesFeature[] = [
 
 // HELPREF: reviewed feature relationships. The generator validates every id
 // against the manifest and reuses its translated text and the palette's tips.
+import { COMMAND_IDS, type SETTING_DEFAULTS, PROMPT_COMMAND_IDS, UI_TEXT } from './constants'
 import type { UiText } from './l10n/en'
 
 type PlainReferenceText =
@@ -110,8 +110,15 @@ export type ReferenceText =
 const UI_CONDITIONS: Readonly<
   Partial<Record<Extract<PlainReferenceText, { ui: unknown }>['ui'], string>>
 > = {
+  referenceScreenRecording: 'nativeRecorder=absent',
+  referenceVaultPanel: 'vaultBroker=absent',
   referenceNativeAgentsConditions: 'run.subagent_delegation_mode',
+  resourceCpuMaxPercentDescription: 'resourceCpuThreshold',
+  resourceMemoryMaxPercentDescription: 'resourceMemoryThreshold&memoryHeadroom=available',
+  resourceMemoryMinFreeGiBDescription: 'memoryHeadroom=available',
   providerOpenRouterServices: 'openRouterServices=absent',
+  privacyNoRetentionDetail: 'provider=openrouter&privacy=zdr',
+  referenceOutputCapMinimum: 'outputMinimum=known',
   referenceSandbox: 'platform=win32&shellSandbox',
   autoCompactionAwaitingEvaluation: 'autoCompactionEvaluation',
   referenceBrowser: 'workspaceTrust',
@@ -128,30 +135,64 @@ const UI_CONDITIONS: Readonly<
   mcpRestartDetail: 'turnState',
 }
 const NLS_CONDITIONS: Readonly<Partial<Record<string, string>>> = {
+  'config.reports.network.enumDescriptions.whenSignedIn': 'reportsNetwork&githubSignIn',
   'config.backend.enumDescriptions.auto': 'backendAvailability',
+  'config.resourceRelocate.enumDescriptions.paired': 'resourceRelocation',
   'config.browserCheckRuntime.enumDescriptions.download': 'browserRuntimeAcquisition',
   'config.tabMultiline.enumDescriptions.auto': 'multilineMode',
   'config.tabTrigger.enumDescriptions.onInvoke': 'tabTrigger',
   'config.judge.engine.enumDescriptions.auto': 'judgeEngine',
 }
-const SETTING_CONDITIONS: Readonly<Partial<Record<keyof typeof SETTING_DEFAULTS, string>>> = {
+const SETTING_CONDITIONS: Readonly<
+  Partial<
+    Record<
+      | keyof typeof SETTING_DEFAULTS
+      | 'resourceCpuMaxPercent'
+      | 'resourceMemoryMaxPercent'
+      | 'resourceMemoryMinFreeGiB'
+      | 'resourceGpuMaxPercent'
+      | 'resourceDiskBusyMaxPercent'
+      | 'resourceDiskMinFreeGiB'
+      | 'resourceRelocate',
+      string
+    >
+  >
+> = {
+  'reports.network': 'reportsNetwork&githubSignIn',
   preferredLocation: 'activeConversation',
   archiveInactiveSessions: 'sessionIdle',
   cleanupPeriodDays: 'sessionList',
   sandboxNetwork: 'shellSandbox',
   browserCheckExtraHosts: 'browserNetworkAdmission',
   notifyOnBackgroundTurn: 'turnState&windowFocus',
+  // The provider wizard edits this numeric setting, preserving exact USD
+  // through a validated decimal-to-number boundary.
   modelApiSessionBudgetUsd: 'sessionBudget',
-  modelApiAutoCompaction: 'autoCompactionEvaluation&modelCapability',
+
   modelApiObservationPacking: 'conversationStart',
+  modelApiAutoCompaction: 'conversationStart&modelPricing',
+  modelApiStrictTools: 'conversationStart&tools.strict',
+  modelApiParallelReads: 'conversationStart',
+  webSearchMaxPerRequest: 'conversationStart&hosted.webSearch',
   showWhatsNewOnUpdate: 'releaseHighlights',
   modelApiPermissionProfile: 'permissionProfile',
   tabLanguages: 'language',
   tabMultiline: 'multilineMode',
   tabTrigger: 'tabTrigger',
   'shell.passEnvironmentVariables': 'backend=modelApi&shellOrigin=interactive',
+  resourceCpuMaxPercent: 'resourceThreshold',
+  resourceMemoryMaxPercent: 'resourceThreshold&memoryHeadroom=available',
+  resourceMemoryMinFreeGiB: 'memoryHeadroom=available',
+  resourceGpuMaxPercent: 'resourceThreshold',
+  resourceDiskBusyMaxPercent: 'resourceThreshold',
+  resourceDiskMinFreeGiB: 'resourceDiskThreshold',
+  resourceRelocate: 'resourceRelocation',
   modelApiVoice: 'voiceAdmission',
   bundledSkills: 'backend&skillInstallation',
+  // M109: the fence description names the off state (workers stay fenced),
+  // and the screen-lock description the reported-lock state.
+  'vault.agentFence': 'shellOrigin=interactive&agentFence',
+  'vault.lockOnScreenLock': 'screenLock',
 }
 
 /** The generator uses these explicit selectors on every description surface. */
@@ -164,6 +205,11 @@ export function referenceDescription(text: ReferenceText): ReferenceText {
   else if ('setting' in text) when = settingConditions[text.setting]
   else if ('cli' in text) {
     switch (text.cli) {
+      case 'cpu-max':
+      case 'memory-max': {
+        when = 'resourceThreshold'
+        break
+      }
       case 'fail-on-denial': {
         when = 'permission=denied'
         break
@@ -208,10 +254,10 @@ interface CommandReference {
 }
 
 export const COMMAND_REFERENCE: Readonly<Record<CommandKey, CommandReference>> = {
-  startWithOwnModel: { description: { ui: 'startWithOwnModelDetail' }, canRun: false },
-  modelsAndAgents: { description: { ui: 'modelsPanelTitle' }, canRun: true },
-  addModelProvider: { description: { ui: 'startWithOwnModelDetail' }, canRun: false },
   openUsagePage: { description: { ui: 'paletteUsagePage' }, canRun: true },
+  // M107 U–C1/W: Show opens the chat's chip popover; Resume changes the governor, so no Run.
+  showResources: { description: { command: COMMAND_IDS.showResources }, canRun: true },
+  resumeResources: { description: { command: COMMAND_IDS.resumeResources }, canRun: false },
   legalScan: { description: { ui: 'legalScanItemDetail' }, canRun: false },
   connectChatGpt: { description: { ui: 'startWithOwnModelDetail' }, canRun: false },
   connectCopilot: { description: { ui: 'startWithOwnModelDetail' }, canRun: false },
@@ -227,6 +273,8 @@ export const COMMAND_REFERENCE: Readonly<Record<CommandKey, CommandReference>> =
   showLogs: { description: { tip: 'log' }, canRun: true },
   diagnostics: { description: { ui: 'referenceDiagnostics' }, canRun: true },
   reportProblem: { description: { ui: 'referenceReport' }, canRun: true },
+  showReport: { description: { ui: 'reportSlashDescription' }, canRun: true },
+  estimate: { description: { ui: 'referenceEstimate' }, canRun: true },
   newConversation: { description: { tip: 'clear' }, canRun: false },
   signOut: { description: { tip: 'signOut' }, canRun: false },
   openInTerminal: { description: { ui: 'referenceTerminal' }, canRun: false },
@@ -259,6 +307,9 @@ export const COMMAND_REFERENCE: Readonly<Record<CommandKey, CommandReference>> =
   tabMenu: { description: { ui: 'referenceTabMenu' }, canRun: false },
   tabLanguages: { description: { ui: 'referenceTabLanguages' }, canRun: false },
   openPullRequestInConversation: { description: { ui: 'gitCheckoutItemDetail' }, canRun: false },
+  startWithOwnModel: { description: { command: COMMAND_IDS.startWithOwnModel }, canRun: false },
+  modelsAndAgents: { description: { command: COMMAND_IDS.modelsAndAgents }, canRun: true },
+  addModelProvider: { description: { command: COMMAND_IDS.addModelProvider }, canRun: false },
   savePrompt: { description: { ui: 'promptSecretsNote' }, canRun: false },
   useSavedPrompt: { description: { ui: 'promptRun' }, canRun: false },
   promptLibrary: { description: { ui: 'promptLibrary' }, canRun: true },
@@ -266,8 +317,16 @@ export const COMMAND_REFERENCE: Readonly<Record<CommandKey, CommandReference>> =
   sharePrompt: { description: { ui: 'shareReviewPrivacy' }, canRun: false },
   shareChat: { description: { ui: 'shareReviewPrivacy' }, canRun: false },
   openHelp: { description: { ui: 'referenceIntro' }, canRun: true },
+  attachScreenRecording: { description: { ui: 'referenceScreenRecording' }, canRun: false },
+  attachLatestScreenRecording: { description: { ui: 'referenceLatestRecording' }, canRun: false },
+  deleteUploadedFiles: { description: { ui: 'referenceUploadedFiles' }, canRun: false },
   nextOpenQuestion: { description: { ui: 'questionNextOpen' }, canRun: false },
   previousOpenQuestion: { description: { ui: 'questionPreviousOpen' }, canRun: false },
+  schedulePrompt: { description: { tip: 'schedulePrompt' }, canRun: true },
+  showSchedules: { description: { tip: 'schedule' }, canRun: true },
+  showScheduleTimeline: { description: { tip: 'scheduleTimeline' }, canRun: true },
+  vault: { description: { ui: 'referenceVaultPanel' }, canRun: false },
+  lockVault: { description: { ui: 'referenceVaultPanel' }, canRun: false },
 }
 
 function feature(
@@ -301,6 +360,37 @@ function feature(
 export function featureCatalog(): readonly Feature[] {
   return [
     feature(
+      'resources',
+      { ui: 'resourceTitle' },
+      { ui: 'referenceResources' },
+      ['showResources', 'resumeResources'],
+      [
+        'resourceGovernor',
+        'resourceCpuMaxPercent',
+        'resourceMemoryMaxPercent',
+        'resourceMemoryMinFreeGiB',
+        'resourceGpuMaxPercent',
+        'resourceDiskBusyMaxPercent',
+        'resourceDiskMinFreeGiB',
+        'resourceRelocate',
+      ],
+      'keeping-your-machine-responsive',
+      undefined,
+      false,
+      ['vscode', 'acp'],
+    ),
+    feature(
+      'agent-outcomes',
+      { ui: 'agentReceipt' },
+      { ui: 'referenceAgentOutcomes' },
+      [],
+      [],
+      'agent-outcomes',
+      ['museCode', 'modelApi'],
+      false,
+      ['vscode', 'acp'],
+    ),
+    feature(
       'providers',
       { ui: 'modelsPanelTitle' },
       { ui: 'startWithOwnModelDetail' },
@@ -311,8 +401,35 @@ export function featureCatalog(): readonly Feature[] {
         'connectChatGpt',
         'connectCopilot',
       ],
-      ['suggestedProvider'],
+      // Saved custom limits persist directly from Edit without a new test
+      // while the connection is unchanged; pre-write failures retain the draft.
+      // Edit and Change key share a full saved snapshot; unchanged routing,
+      // limits, consent and the default survive. Save admits one operation
+      // per draft, compares edited fields inside the stored mutation and offers
+      // Reload on conflicts. Untouched fields and rotated/removed keys survive
+      // consent waits; only an entered key replaces a stored credential.
+      // Save validates first, then writes provider/key/default/limit/composer in
+      // order. Completed writes stay on failure; localized outcomes name saved,
+      // failed and skipped steps. Every outcome refreshes without losing earlier
+      // information. Budget-only partial drafts retry on a fresh baseline; other
+      // partial or stale forms reopen. A key bound to an old origin shows missing.
+      // Re-entry compares even origin-refused credential records; only concurrent
+      // changes conflict. Confirmed limit retries retain all completed receipts.
+      // Simultaneous cross-window saves remain last-writer-wins until LOCKLIB.
+      // Earlier steps remain navigable while final Save validates limits.
+      ['suggestedProvider', 'modelApiSessionBudgetUsd'],
       'backends',
+      ['museCode', 'modelApi'],
+      false,
+      ['vscode', 'acp'],
+    ),
+    feature(
+      'reports',
+      { ui: 'reportShowCommand' },
+      { ui: 'reportSlashDescription' },
+      ['showReport'],
+      ['reports.network', 'reports.keepHistory', 'reports.agentSources'],
+      'report',
       ['museCode', 'modelApi'],
       false,
       ['vscode', 'acp'],
@@ -433,9 +550,107 @@ export function featureCatalog(): readonly Feature[] {
       'attachments',
       { ui: 'attachmentsLabel' },
       { ui: 'referenceAttachments' },
-      [],
-      [],
+      ['attachScreenRecording', 'attachLatestScreenRecording', 'deleteUploadedFiles'],
+      [
+        'mediaMaxUploadMiB',
+        'mediaUploadExpiryDays',
+        'screenRecordingMaxSeconds',
+        'mediaAudioAction',
+      ],
       'the-panel',
+    ),
+    feature(
+      'strict-tools',
+      { setting: 'modelApiStrictTools' },
+      { setting: 'modelApiStrictTools' },
+      [],
+      ['modelApiStrictTools'],
+      'agent-loop-guarantees',
+      ['modelApi'],
+      false,
+      ['vscode', 'acp'],
+    ),
+    feature(
+      'parallel-reads',
+      { setting: 'modelApiParallelReads' },
+      { setting: 'modelApiParallelReads' },
+      [],
+      ['modelApiParallelReads'],
+      'agent-loop-guarantees',
+      ['modelApi'],
+      false,
+      ['vscode', 'acp'],
+    ),
+    feature(
+      'auto-compaction',
+      { setting: 'modelApiAutoCompaction' },
+      { setting: 'modelApiAutoCompaction' },
+      [],
+      ['modelApiAutoCompaction'],
+      'agent-loop-guarantees',
+      ['modelApi'],
+      false,
+      ['vscode', 'acp'],
+    ),
+    feature(
+      'argument-preview',
+      { ui: 'toolArgumentPreviewLabel' },
+      { ui: 'toolArgumentPreviewPending' },
+      [],
+      [],
+      'agent-loop-guarantees',
+      ['modelApi'],
+    ),
+    feature(
+      'cut-short-tools',
+      { ui: 'incompleteToolCallsNotRun' },
+      { ui: 'incompleteToolCallsNotRun' },
+      [],
+      [],
+      'agent-loop-guarantees',
+      ['modelApi'],
+      false,
+      ['vscode', 'acp'],
+    ),
+    feature(
+      'structured-side-calls',
+      { ui: 'structuredOutputRepair' },
+      { ui: 'structuredOutputFallback' },
+      [],
+      [],
+      'agent-loop-guarantees',
+      ['modelApi'],
+      false,
+      ['vscode', 'acp'],
+    ),
+    feature(
+      'output-schema',
+      { cli: 'output-schema' },
+      { cli: 'output-schema' },
+      [],
+      [],
+      'headless-runs',
+      ['modelApi'],
+      false,
+      ['acp'],
+    ),
+    feature(
+      'service-status',
+      { ui: 'modelApiStatusLabel' },
+      { ui: 'modelApiStatusOpen' },
+      [],
+      [],
+      'agent-loop-guarantees',
+      ['modelApi'],
+    ),
+    feature(
+      'native-deletion',
+      { ui: 'memoryDeleteAction' },
+      { ui: 'historyLabel' },
+      [],
+      [],
+      'agent-loop-guarantees',
+      ['museCode'],
     ),
     feature('effort', { ui: 'effortItem' }, { tip: 'effort' }, [], [], 'the-panel'),
     feature(
@@ -447,6 +662,8 @@ export function featureCatalog(): readonly Feature[] {
       'the-panel',
       ['modelApi'],
     ),
+    // M87 MENUFAN: shared row/selection bursts follow visible element anchors;
+    // inside pointer/selected borders keep neighbouring focus rings clear.
     feature(
       'conversation-actions',
       { ui: 'transcriptLabel' },
@@ -456,10 +673,11 @@ export function featureCatalog(): readonly Feature[] {
       'the-panel',
     ),
     feature('code-output', { ui: 'copyCode' }, { ui: 'referenceCodeOutput' }, [], [], 'the-panel'),
+    // ACP queued late answers retire only at model start (request admission on Model API).
     feature(
       'questions',
       { ui: 'questionSubmit' },
-      { ui: 'referenceQuestions' },
+      { ui: 'referenceQuestionsDeferral' },
       ['nextOpenQuestion', 'previousOpenQuestion'],
       ['questions.deferAfterSeconds'],
       'questions',
@@ -582,6 +800,20 @@ export function featureCatalog(): readonly Feature[] {
       ],
       'get-started',
     ),
+    {
+      ...feature(
+        'accounts',
+        { ui: 'referenceAccountsTitle' },
+        { ui: 'referenceAccounts' },
+        [],
+        ['accountSwap', 'accountParallel', 'accounts.severalOnThisDevice'],
+        'several-accounts-per-provider',
+        undefined,
+        false,
+        ['vscode', 'acp'],
+      ),
+      details: [{ ui: 'referenceDeveloper' }] as const,
+    },
     feature(
       'permissions',
       { ui: 'permissionModeItem' },
@@ -756,7 +988,7 @@ export function featureCatalog(): readonly Feature[] {
       { ui: 'paidWebSearchName' },
       { tip: 'paid:webSearch' },
       [],
-      ['modelApiWebSearch'],
+      ['modelApiWebSearch', 'webSearchMaxPerRequest'],
       'paid-features',
       ['modelApi'],
       true,
@@ -771,17 +1003,25 @@ export function featureCatalog(): readonly Feature[] {
       undefined,
       true,
     ),
-    feature(
-      'schedules',
-      { ui: 'loopItem' },
-      { tip: 'loop' },
-      [],
-      ['modelApiScheduledPrompts'],
-      'scheduled-prompts-model-api',
-      ['modelApi'],
-      true,
-      ['vscode'],
-    ),
+    {
+      ...feature(
+        'schedules',
+        { ui: 'loopItem' },
+        { tip: 'loop' },
+        ['schedulePrompt', 'showSchedules', 'showScheduleTimeline'],
+        [
+          'modelApiScheduledPrompts',
+          'schedules',
+          'scheduleDefaultDelivery',
+          'scheduleAgentCreation',
+        ],
+        'scheduled-prompts-model-api',
+        ['modelApi'],
+        true,
+        ['vscode'],
+      ),
+      details: [{ ui: 'referenceAttachments' }, { ui: 'scheduledMediaSupport' }] as const,
+    },
     feature(
       'subagents',
       { ui: 'agentsCommand' },
@@ -878,12 +1118,51 @@ export function featureCatalog(): readonly Feature[] {
       ['vscode'],
     ),
     feature(
+      'orchestrator-playbook',
+      { ui: 'playbookTitle' },
+      { ui: 'playbookRecordHelp' },
+      [],
+      [],
+      'orchestrator-playbook-policy-m116',
+      ['museCode', 'modelApi'],
+      false,
+      ['vscode', 'acp'],
+    ),
+    feature(
+      'estimator',
+      { ui: 'estimateTitle' },
+      { ui: 'referenceEstimate' },
+      ['estimate'],
+      ['estimator.optimize', 'estimator.priceLookup'],
+      'estimates',
+      ['museCode', 'modelApi'],
+      false,
+      ['vscode', 'acp'],
+    ),
+    feature(
       'support',
       { ui: 'groupSupport' },
       { tip: 'issue' },
       ['showLogs', 'diagnostics', 'reportProblem', 'openWalkthrough', 'showWhatsNew', 'openHelp'],
       ['showWhatsNewOnUpdate'],
       'help-and-reference',
+    ),
+    feature(
+      'vault',
+      { command: COMMAND_IDS.vault },
+      { ui: 'referenceVaultPanel' },
+      ['vault', 'lockVault'],
+      [
+        'vault.enabled',
+        'vault.protection',
+        'vault.agentFence',
+        'vault.lockAfterIdleMinutes',
+        'vault.lockOnScreenLock',
+      ],
+      'the-vault',
+      ['museCode', 'modelApi'],
+      false,
+      ['vscode', 'acp'],
     ),
   ].map((entry) => {
     const surfaces = REFERENCE_SURFACES[entry.id] ?? entry.surfaces
@@ -905,13 +1184,16 @@ export function featureCatalog(): readonly Feature[] {
         ),
       ],
       paid: Object.values(PAID_USE_REGISTRY).some((paid) => paid.featureId === entry.id),
-      details: (REFERENCE_DETAILS[entry.id] ?? []).map((ui) => ({ ui })),
+      // Feature-level details (schedules, accounts) and REFERENCE_DETAILS
+      // combine: neither source may silently erase the other.
+      details: [...entry.details, ...(REFERENCE_DETAILS[entry.id] ?? []).map((ui) => ({ ui }))],
       facts: {},
     }
   })
 }
 
 export const REFERENCE_SURFACES: Readonly<Record<string, readonly string[]>> = {
+  estimator: ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi'],
   'web-fetch': ['vscode:museCode', 'vscode:modelApi', 'acp:modelApi'],
   search: ['vscode:modelApi', 'acp:modelApi'],
   images: ['vscode:museCode', 'vscode:modelApi', 'acp:modelApi'],
@@ -921,7 +1203,13 @@ export const REFERENCE_SURFACES: Readonly<Record<string, readonly string[]>> = {
 const REFERENCE_DETAILS: Readonly<
   Record<string, readonly Extract<ReferenceText, { ui: unknown }>['ui'][]>
 > = {
-  providers: ['providerOpenRouterServices'],
+  providers: [
+    'providerOpenRouterServices',
+    'pricePerMillion',
+    'privacyNoRetentionDetail',
+    'referenceOutputCapMinimum',
+  ],
+  estimator: ['estimateCliHelp'],
   permissions: ['referencePermissionLimits'],
   'native-agents': ['referenceAgentControls', 'referenceNativeAgentsConditions'],
   account: ['signInBrowserDetail', 'signInApiKeyDetail', 'installDetail', 'referenceSecretPrompt'],
@@ -935,6 +1223,9 @@ const REFERENCE_DETAILS: Readonly<
   browser: ['referenceBrowser'],
   images: ['referencePaidContexts'],
   search: ['referencePaidContexts'],
+  git: ['structuredOutputRepair', 'structuredOutputFallback'],
+  judge: ['structuredOutputRepair', 'structuredOutputFallback'],
+  'structured-side-calls': ['structuredOutputRepair', 'structuredOutputFallback'],
   budget: ['referenceBudget'],
   voice: ['referencePaidContexts'],
   auto: ['referencePaidContexts'],
@@ -943,11 +1234,19 @@ const REFERENCE_DETAILS: Readonly<
   support: ['referenceAcp'],
   cache: ['referenceCache'],
   'custom-agents': ['referencePaidContexts'],
-  'conversation-actions': ['referenceWindowsSessions'],
+  'conversation-actions': [
+    'referenceWindowsSessions',
+    'restoreFilesToHere',
+    'rewindAndRestore',
+    'copyResponse',
+    'replyToOutput',
+    'askAboutThis',
+    'commentOnThis',
+    'promptSave',
+    'sharePrompt',
+  ],
   questions: ['referenceQuestionsDeferral'],
 }
-
-import { PROMPT_COMMAND_IDS, UI_TEXT } from './constants'
 
 /** Runtime localized inventory for M118; the reference generator uses the English fallback. */
 export function sharingFeatures(table: UiText = UI_TEXT) {

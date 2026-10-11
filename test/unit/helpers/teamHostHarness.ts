@@ -1,3 +1,4 @@
+import { Usd } from '../../../src/shared/usd'
 // A compact ModelApiHost harness for lane T's tests: the real host against
 // the fake Model API, with the raw `POST /responses` bodies recorded,
 // deterministic ids (`gen-N`) and a fixed clock. The team seams (decision
@@ -20,7 +21,7 @@ import type {
 import { FAKE_MODEL_API_ACCOUNT_ID, fakeModelApi, fakeModelApiClientSettings } from './fakeModelApi'
 import type { FakeModelApi } from './fakeModelApi'
 import { memoryContextIo } from './fakeContextIo'
-import { type memorySessionStore } from './fakeSessionStore'
+import type { memorySessionStore } from './fakeSessionStore'
 import { memoryStoreOver } from './fakeMemoryIo'
 import { memoryToolIo } from './fakeToolIo'
 import { FakeLogOutputChannel } from './fakes'
@@ -107,7 +108,7 @@ export function teamHostHarness(
     noteSubagentUsage: () => undefined,
     noteReviewerUsage: () => undefined,
     promptCacheRetention: () => 'in_memory',
-    sessionBudgetUsd: () => 0,
+    sessionBudgetUsd: () => Usd.from(0).toAmount(),
     showReplyUsage: () => false,
     loadHooks: () => Promise.resolve([]),
     memory: memoryStoreOver(io.files, { platform: 'linux' }).store,

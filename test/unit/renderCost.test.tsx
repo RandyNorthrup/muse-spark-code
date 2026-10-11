@@ -75,6 +75,8 @@ describe('render cost (M25)', () => {
       item: { itemId: 'm1', kind: 'agentMessage', status: 'inProgress', text: '' },
     })
     await screen.findByText('const', { selector: '.hljs-keyword' })
+    fireEvent.click(screen.getByRole('button', { name: 'Read 3 files' }))
+    await screen.findByText('t1.ts')
     const rowRender = vi.mocked(presentation.changeSummary)
     const highlight = vi.mocked(highlightModule.highlight)
     const rowRenders = rowRender.mock.calls.length

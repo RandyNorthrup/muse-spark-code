@@ -14,12 +14,12 @@
 //   CHROME_PATH=/path/to/chrome node scripts/harness-shots.mjs
 
 import { existsSync } from 'node:fs'
-import { mkdir, mkdtemp, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
 import { findChrome } from './lib/chrome.mjs'
-import { screenshotUrl } from './lib/harnessCapture.mjs'
+import { screenshotUrl, waitForHarness } from './lib/harnessCapture.mjs'
 import { harnessArgs, langQuery, prepareLang } from './lib/harnessLang.mjs'
 import {
   HARNESS_PATH,
@@ -37,7 +37,10 @@ const MODELS_BUNDLE_PATH = 'dist/webview/models.js'
 const SHOT_WIDTH = 690
 const SHOT_HEIGHT = 760
 const repoRoot = process.cwd()
-const THEMES = new Set(['light', 'dark', 'hc-dark', 'hc-light'])
+const THEMES = new Set(
+  JSON.parse(await readFile(new URL('../test/harness/visual-matrix.json', import.meta.url), 'utf8'))
+    .themes,
+)
 
 async function shoot(chrome, port, scenario, lang, theme, outDir, profileDir) {
   const file = path.join(outDir, `${scenario}.png`)
@@ -45,6 +48,7 @@ async function shoot(chrome, port, scenario, lang, theme, outDir, profileDir) {
   const sized = SIZED_SCENARIOS[scenario]
   if (sized !== undefined) {
     await withSizedPage(chrome, profileDir, url, sized, async (page) => {
+      await waitForHarness(page)
       await page.locator(sized.ready).first().waitFor()
       await page.screenshot({ path: file, animations: 'disabled' })
     })

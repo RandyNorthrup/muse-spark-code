@@ -26,23 +26,39 @@ import {
   UI_TEXT,
 } from '../shared/constants'
 import type { AttachmentSummary } from '../shared/protocol'
+import { fill } from '../shared/l10n/text'
 import { readImageInfo } from './imageDimensions'
 import { isPdf, pdfPageCount } from './pdf'
 import type { TurnPart } from './agent/agentBackend'
 import type { ModelCapabilityRecord } from './providers/capabilityRecord'
 import { textFileInput } from './textAttachment'
+import type { MediaFileInfo, MediaLimitResult } from './media/limits'
+
+/** Installed by the lazy media bundle; M2/E1/E2 bind the selected-model gate and wire. */
+export interface AttachmentMediaPort {
+  readonly sniff: (bytes: Uint8Array) => MediaFileInfo | undefined
+  readonly check: (info: MediaFileInfo) => MediaLimitResult
+  readonly part: (summary: AttachmentSummary, info: MediaFileInfo) => TurnPart
+}
 
 export type AddAttachmentResult =
   | { readonly ok: true; readonly attachment: AttachmentSummary }
   | { readonly ok: false; readonly reason: string }
 
-interface StoredAttachment {
+interface StoredBytesAttachment {
   readonly summary: AttachmentSummary
   readonly bytes: Uint8Array
   readonly text?: string
   readonly mspPartBytes?: number
   readonly modelApiTextBytes?: number
 }
+
+type StoredAttachment =
+  | StoredBytesAttachment
+  | {
+      readonly summary: AttachmentSummary
+      readonly part: () => TurnPart
+    }
 
 const FIRST_PRINTABLE_CODE_POINT = 0x20
 
@@ -81,12 +97,13 @@ export class AttachmentStore {
   public constructor(
     private readonly newId: () => string,
     private readonly maxEncodedMediaChars: number = MAX_ENCODED_MEDIA_CHARS,
+    private media?: AttachmentMediaPort,
   ) {}
 
   /** Encoded data URL characters held for this message's images and PDFs. */
   private mediaChars(): number {
     return Array.from(this.entries.values(), (entry) =>
-      entry.summary.mediaType === TEXT_ATTACHMENT_MEDIA_TYPE
+      !('bytes' in entry) || entry.summary.mediaType === TEXT_ATTACHMENT_MEDIA_TYPE
         ? 0
         : this.encodedChars(entry.bytes, entry.summary.mediaType),
     ).reduce((total, length) => total + length, 0)
@@ -100,18 +117,16 @@ export class AttachmentStore {
 
   /** Serialized MSP attachment parts, before prompt/context and command envelope. */
   private mspAttachmentBytes(): number {
-    return Array.from(this.entries.values(), (entry) => entry.mspPartBytes ?? 0).reduce(
-      (total, length) => total + length,
-      0,
-    )
+    return Array.from(this.entries.values(), (entry) =>
+      'bytes' in entry ? (entry.mspPartBytes ?? 0) : 0,
+    ).reduce((total, length) => total + length, 0)
   }
 
   /** Conservative text-only share of the Model API context window. */
   private modelApiTextBytes(): number {
-    return Array.from(this.entries.values(), (entry) => entry.modelApiTextBytes ?? 0).reduce(
-      (total, length) => total + length,
-      0,
-    )
+    return Array.from(this.entries.values(), (entry) =>
+      'bytes' in entry ? (entry.modelApiTextBytes ?? 0) : 0,
+    ).reduce((total, length) => total + length, 0)
   }
 
   private fitsMediaBytes(bytes: Uint8Array, mediaType: string): boolean {
@@ -298,6 +313,11 @@ export class AttachmentStore {
     return { ok: true, attachment: summary }
   }
 
+  /** The first media action installs its lazy bundle without losing existing attachments. */
+  public installMediaPort(media: AttachmentMediaPort): void {
+    this.media = media
+  }
+
   /**
    * An image, or a PDF when `acceptsDocuments` (the Model API backend); the
    * caller refuses a PDF on Muse Code with its own reason first (M54).
@@ -312,6 +332,8 @@ export class AttachmentStore {
     if (this.entries.size >= MAX_ATTACHMENTS_PER_MESSAGE) {
       return { ok: false, reason: UI_TEXT.attachmentLimit }
     }
+    const mediaInfo = this.media?.sniff(bytes)
+    if (mediaInfo !== undefined) return this.addMedia(name, mediaInfo)
     if (isPdf(bytes)) {
       return canAcceptDocuments
         ? this.addDocument(name, bytes, capabilityRecord)
@@ -320,9 +342,42 @@ export class AttachmentStore {
     if (name.toLowerCase().endsWith(PDF_EXTENSION)) {
       return { ok: false, reason: UI_TEXT.invalidPdf }
     }
-    return canAcceptText && TEXT_ATTACHMENT_EXTENSIONS.has(path.extname(name).toLowerCase())
-      ? this.addText(name, bytes, !canAcceptDocuments)
-      : this.addImage(name, bytes, !canAcceptDocuments, capabilityRecord)
+    if (
+      canAcceptText &&
+      TEXT_ATTACHMENT_EXTENSIONS.has(path.extname(name.replaceAll('\\', '/')).toLowerCase())
+    )
+      return this.addText(name, bytes, !canAcceptDocuments)
+    const image = this.addImage(name, bytes, !canAcceptDocuments, capabilityRecord)
+    return !image.ok && image.reason === UI_TEXT.attachmentUnsupported && this.media !== undefined
+      ? { ok: false, reason: fill(UI_TEXT.media.attachmentUnknownType, { type: 'media' }) }
+      : image
+  }
+
+  /** Host sniffed a confined file. Keep metadata and the injected wire binding, never bytes. */
+  public addMedia(
+    name: string,
+    info: MediaFileInfo,
+    isScreenRecording = false,
+  ): AddAttachmentResult {
+    if (this.entries.size >= MAX_ATTACHMENTS_PER_MESSAGE)
+      return { ok: false, reason: UI_TEXT.attachmentLimit }
+    const media = this.media
+    if (media === undefined) return { ok: false, reason: UI_TEXT.media.museCodeRefusal }
+    const admission = media.check(info)
+    if (!admission.ok) return { ok: false, reason: admission.reason }
+    if (this.weight() + 1 > MODEL_API_MEDIA_PER_REQUEST)
+      return { ok: false, reason: UI_TEXT.documentsOverBudget }
+    const summary: AttachmentSummary = {
+      id: this.newId(),
+      name,
+      mediaType: info.mediaType,
+      sizeBytes: info.sizeBytes,
+      // The recording classification rides with the chip: cost and the
+      // upload lifecycle read it (M105 E1 recording binding).
+      media: { info, ...(isScreenRecording && { isScreenRecording: true as const }) },
+    }
+    this.entries.set(summary.id, { summary, part: () => media.part(summary, info) })
+    return { ok: true, attachment: summary }
   }
 
   public remove(id: string): boolean {
@@ -354,6 +409,10 @@ export class AttachmentStore {
         continue
       }
       const { summary } = entry
+      if ('part' in entry) {
+        parts.push(entry.part())
+        continue
+      }
       if (entry.text !== undefined) {
         parts.push({
           type: 'textFile',

@@ -5,3 +5,5 @@ export * from './teamConversation'
 export * from './paidBoundary'
 export * from './legal'
 export * from '../core/backends/modelapi/legalScanTool'
+
+export * from './usd'

@@ -8,7 +8,7 @@
 // controller supplies its session and host; the dialogs and the file write
 // are injected.
 
-import { redactSecrets } from '../../core/redact'
+import { scrubSecrets, type SecretScrubPort } from '../../shared/redact'
 import type { AgentHost, AgentSession } from '../../core/agent/agentBackend'
 import {
   type BuiltSessionExport,
@@ -27,7 +27,7 @@ import {
 } from '../../shared/constants'
 import type { ItemSnapshot } from '../../shared/agentEvents'
 import { plural } from '../../shared/l10n/text'
-import { backendLabel } from '../../shared/palette'
+import { backendLabel } from '../../shared/paletteFormatting'
 import type { ChatShareRequest, ChatShareSource } from '../../core/sharing/chatShare'
 import type { ChatSharePreview } from '../../core/sharing/shareRelease'
 
@@ -41,6 +41,7 @@ export interface ExportPreview {
 }
 
 export interface ConversationExports {
+  readonly vaultScrub?: SecretScrubPort
   /** Asks where to save the Markdown and writes it; resolves unwritten when dismissed. */
   readonly saveMarkdown: (fileName: string, content: string) => Promise<void>
   /** Asks where to save, then has the CLI write the session's JSON log there. */
@@ -119,8 +120,13 @@ async function portableFile(
   source: SessionExportSource,
   shouldRedact: boolean,
   localRoots: readonly string[],
+  vaultScrub?: SecretScrubPort,
 ): Promise<{ readonly content: string; readonly built: BuiltSessionExport } | undefined> {
-  const built = await buildSessionExport(source, { redact: shouldRedact, localRoots })
+  const built = await buildSessionExport(source, {
+    redact: shouldRedact,
+    localRoots,
+    ...(vaultScrub !== undefined && { vaultScrub }),
+  })
   const content = JSON.stringify(built.doc, undefined, JSON_INDENT)
   return Buffer.byteLength(content) > SESSION_EXPORT_MAX_BYTES ? undefined : { content, built }
 }
@@ -150,7 +156,7 @@ async function exportJson(
     items: history.items,
   }
   const localRoots = exports.localRoots()
-  const redacted = await portableFile(source, true, localRoots)
+  const redacted = await portableFile(source, true, localRoots, exports.vaultScrub)
   if (redacted === undefined) {
     return 'tooLarge'
   }
@@ -176,11 +182,19 @@ async function exportJson(
   if (choice === 'dismissed') {
     return 'dismissed'
   }
-  const chosen = choice === 'full' ? await portableFile(source, false, localRoots) : redacted
+  const chosen =
+    choice === 'full' ? await portableFile(source, false, localRoots, exports.vaultScrub) : redacted
   if (chosen === undefined) {
     return 'tooLarge'
   }
-  await exports.saveJson(fileName, chosen.content)
+  // The preview can remain open while values are added or the vault locks.
+  const safeName = await scrubSecrets(fileName, exports.vaultScrub)
+  const safeContent =
+    exports.vaultScrub === undefined
+      ? chosen.content
+      : await exports.vaultScrub.scrub(chosen.content)
+  JSON.parse(safeContent)
+  await exports.saveJson(safeName, safeContent)
   return 'exported'
 }
 
@@ -192,6 +206,10 @@ export async function exportConversation(
   now: Date,
   exports: ConversationExports,
 ): Promise<ExportOutcome> {
+  // Muse Code writes its raw log itself: refuse this route while vault
+  // scrubbing is required, until its writer can return scrubbed bytes.
+  if (format === 'sessionLog' && exports.vaultScrub !== undefined)
+    throw new Error(UI_TEXT.vaultSessionLogUnavailable)
   if (format === 'sessionLog' && host.info.kind !== 'museCode') {
     return 'logUnavailable'
   }
@@ -199,7 +217,7 @@ export async function exportConversation(
     return await exportJson(host, session, now, exports)
   }
   const history = await host.readSession(session.sessionId)
-  const title = redactSecrets(titleOf(history.name, history.items))
+  const title = await scrubSecrets(titleOf(history.name, history.items), exports.vaultScrub)
   const fileName = exportFileName(title, now, EXPORT_FILE_EXTENSIONS[format])
   if (format === 'sessionLog') {
     await exports.saveSessionLog(session.sessionId, fileName)
@@ -214,7 +232,7 @@ export async function exportConversation(
   }
   await exports.saveMarkdown(
     fileName,
-    redactSecrets(
+    await scrubSecrets(
       renderTranscriptMarkdown({
         title,
         sessionId: session.sessionId,
@@ -223,6 +241,7 @@ export async function exportConversation(
         exportedAt: now.toISOString(),
         items: history.items,
       }),
+      exports.vaultScrub,
     ),
   )
   return 'exported'

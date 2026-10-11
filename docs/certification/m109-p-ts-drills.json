@@ -1,0 +1,314 @@
+[
+  {
+    "file": "src/runtime/vault/slots/macVaultSlot.ts",
+    "guard": "context-validation",
+    "test": "validates context before any helper side effect",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "6d7c59d329eabb9c00a000e6c777865170ef7d8b22a7f5c2d48307bab36242c5"
+  },
+  {
+    "file": "src/runtime/vault/slots/macVaultSlot.ts",
+    "guard": "key-length",
+    "test": "refuses vault-key length 31",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "6d7c59d329eabb9c00a000e6c777865170ef7d8b22a7f5c2d48307bab36242c5"
+  },
+  {
+    "file": "src/runtime/vault/slots/macVaultSlot.ts",
+    "guard": "availability",
+    "test": "refuses unavailable/uncertified",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "6d7c59d329eabb9c00a000e6c777865170ef7d8b22a7f5c2d48307bab36242c5"
+  },
+  {
+    "file": "src/runtime/vault/slots/macVaultSlot.ts",
+    "guard": "certification",
+    "test": "refuses unavailable/uncertified",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "6d7c59d329eabb9c00a000e6c777865170ef7d8b22a7f5c2d48307bab36242c5"
+  },
+  {
+    "file": "src/runtime/vault/slots/macVaultSlot.ts",
+    "guard": "slot-id",
+    "test": "binds slot/provider/reference/container",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "6d7c59d329eabb9c00a000e6c777865170ef7d8b22a7f5c2d48307bab36242c5"
+  },
+  {
+    "file": "src/runtime/vault/slots/macVaultSlot.ts",
+    "guard": "vault-id",
+    "test": "binds slot/provider/reference/container",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "6d7c59d329eabb9c00a000e6c777865170ef7d8b22a7f5c2d48307bab36242c5"
+  },
+  {
+    "file": "src/runtime/vault/slots/macVaultSlot.ts",
+    "guard": "slot-tier",
+    "test": "presence slot relabelled",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "6d7c59d329eabb9c00a000e6c777865170ef7d8b22a7f5c2d48307bab36242c5"
+  },
+  {
+    "file": "src/runtime/vault/slots/macVaultSlot.ts",
+    "guard": "provider",
+    "test": "binds slot/provider/reference/container",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "6d7c59d329eabb9c00a000e6c777865170ef7d8b22a7f5c2d48307bab36242c5"
+  },
+  {
+    "file": "src/runtime/vault/slots/macVaultSlot.ts",
+    "guard": "reference",
+    "test": "binds slot/provider/reference/container",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "6d7c59d329eabb9c00a000e6c777865170ef7d8b22a7f5c2d48307bab36242c5"
+  },
+  {
+    "file": "src/runtime/vault/slots/macVaultSlot.ts",
+    "guard": "nonce",
+    "test": "binds slot/provider/reference/container",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "6d7c59d329eabb9c00a000e6c777865170ef7d8b22a7f5c2d48307bab36242c5"
+  },
+  {
+    "file": "src/runtime/vault/slots/macVaultSlot.ts",
+    "guard": "tag",
+    "test": "binds slot/provider/reference/container",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "6d7c59d329eabb9c00a000e6c777865170ef7d8b22a7f5c2d48307bab36242c5"
+  },
+  {
+    "file": "src/runtime/vault/slots/macVaultSlot.ts",
+    "guard": "backend",
+    "test": "binds slot/provider/reference/container",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "6d7c59d329eabb9c00a000e6c777865170ef7d8b22a7f5c2d48307bab36242c5"
+  },
+  {
+    "file": "src/runtime/vault/slots/macVaultSlot.ts",
+    "guard": "container-bound",
+    "test": "oversized valid JSON",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "6d7c59d329eabb9c00a000e6c777865170ef7d8b22a7f5c2d48307bab36242c5"
+  },
+  {
+    "file": "src/runtime/vault/slots/macVaultSlot.ts",
+    "guard": "canonical-slot",
+    "test": "noncanonical base64",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "6d7c59d329eabb9c00a000e6c777865170ef7d8b22a7f5c2d48307bab36242c5"
+  },
+  {
+    "file": "src/runtime/vault/slots/macVaultSlot.ts",
+    "guard": "container-slot-id",
+    "test": "binds slot/provider/reference/container",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "6d7c59d329eabb9c00a000e6c777865170ef7d8b22a7f5c2d48307bab36242c5"
+  },
+  {
+    "file": "src/runtime/vault/slots/macVaultSlot.ts",
+    "guard": "container-vault-id",
+    "test": "binds slot/provider/reference/container",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "6d7c59d329eabb9c00a000e6c777865170ef7d8b22a7f5c2d48307bab36242c5"
+  },
+  {
+    "file": "src/runtime/vault/slots/macVaultSlot.ts",
+    "guard": "container-tier",
+    "test": "presence slot relabelled",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "6d7c59d329eabb9c00a000e6c777865170ef7d8b22a7f5c2d48307bab36242c5"
+  },
+  {
+    "file": "src/runtime/vault/slots/macVaultSlot.ts",
+    "guard": "key-snapshot",
+    "test": "roundtrips",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "6d7c59d329eabb9c00a000e6c777865170ef7d8b22a7f5c2d48307bab36242c5"
+  },
+  {
+    "file": "src/runtime/vault/slots/macVaultProtocol.ts",
+    "guard": "invocation-key-length",
+    "test": "invalid invocation keys",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "a7e852239272d3040fc07259ec017ff1e790bbac2e0fa2dccad86f5fd2b3bce8"
+  },
+  {
+    "file": "src/runtime/vault/slots/macVaultProtocol.ts",
+    "guard": "request-header-bound",
+    "test": "invalid invocation keys",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "a7e852239272d3040fc07259ec017ff1e790bbac2e0fa2dccad86f5fd2b3bce8"
+  },
+  {
+    "file": "src/runtime/vault/slots/macVaultProtocol.ts",
+    "guard": "frame-header-min",
+    "test": "roundtrips",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "a7e852239272d3040fc07259ec017ff1e790bbac2e0fa2dccad86f5fd2b3bce8"
+  },
+  {
+    "file": "src/runtime/vault/slots/macVaultProtocol.ts",
+    "guard": "response-header-bound",
+    "test": "roundtrips",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "a7e852239272d3040fc07259ec017ff1e790bbac2e0fa2dccad86f5fd2b3bce8"
+  },
+  {
+    "file": "src/runtime/vault/slots/macVaultProtocol.ts",
+    "guard": "response-length",
+    "test": "short unwrap secret",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "a7e852239272d3040fc07259ec017ff1e790bbac2e0fa2dccad86f5fd2b3bce8"
+  },
+  {
+    "file": "src/runtime/vault/slots/macVaultProtocol.ts",
+    "guard": "owned-key-erasure",
+    "test": "erases an owned key",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "a7e852239272d3040fc07259ec017ff1e790bbac2e0fa2dccad86f5fd2b3bce8"
+  },
+  {
+    "file": "src/runtime/vault/slots/macVaultProtocol.ts",
+    "guard": "output-erasure",
+    "test": "erases output",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "a7e852239272d3040fc07259ec017ff1e790bbac2e0fa2dccad86f5fd2b3bce8"
+  },
+  {
+    "file": "src/runtime/vault/slots/macVaultProtocol.ts",
+    "guard": "secret-copy",
+    "test": "roundtrips",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "a7e852239272d3040fc07259ec017ff1e790bbac2e0fa2dccad86f5fd2b3bce8"
+  },
+  {
+    "file": "src/runtime/vault/slots/macVaultProtocol.ts",
+    "guard": "encoded-length",
+    "test": "container format/length/provider fields",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "a7e852239272d3040fc07259ec017ff1e790bbac2e0fa2dccad86f5fd2b3bce8"
+  },
+  {
+    "file": "src/runtime/vault/slots/macVaultProtocol.ts",
+    "guard": "blob-canonical",
+    "test": "container format/length/provider fields",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "a7e852239272d3040fc07259ec017ff1e790bbac2e0fa2dccad86f5fd2b3bce8"
+  },
+  {
+    "file": "src/runtime/vault/slots/macVaultProtocol.ts",
+    "guard": "blob-bound",
+    "test": "container format/length/provider fields",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "a7e852239272d3040fc07259ec017ff1e790bbac2e0fa2dccad86f5fd2b3bce8"
+  },
+  {
+    "file": "src/runtime/vault/slots/macVaultProtocol.ts",
+    "guard": "container-extra-fields",
+    "test": "container format/length/provider fields",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "a7e852239272d3040fc07259ec017ff1e790bbac2e0fa2dccad86f5fd2b3bce8"
+  },
+  {
+    "file": "src/runtime/vault/slots/macVaultTransport.ts",
+    "guard": "absolute-helper",
+    "test": "relative executable paths",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "5093a7d0de8e3866b77cb40e3d9cb5a52eddc7091920a482119aefb00ce30765"
+  },
+  {
+    "file": "src/runtime/vault/slots/macVaultTransport.ts",
+    "guard": "abort-admission",
+    "test": "already-aborted request",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "5093a7d0de8e3866b77cb40e3d9cb5a52eddc7091920a482119aefb00ce30765"
+  },
+  {
+    "file": "src/runtime/vault/slots/macVaultTransport.ts",
+    "guard": "deadline",
+    "test": "presence deadline",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "5093a7d0de8e3866b77cb40e3d9cb5a52eddc7091920a482119aefb00ce30765"
+  },
+  {
+    "file": "src/runtime/vault/slots/macVaultTransport.ts",
+    "guard": "exit-status",
+    "test": "scrubs on nonzero",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "5093a7d0de8e3866b77cb40e3d9cb5a52eddc7091920a482119aefb00ce30765"
+  },
+  {
+    "file": "src/runtime/vault/slots/macVaultTransport.ts",
+    "guard": "output-bound",
+    "test": "scrubs on oversized",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "5093a7d0de8e3866b77cb40e3d9cb5a52eddc7091920a482119aefb00ce30765"
+  },
+  {
+    "file": "src/runtime/vault/slots/macVaultTransport.ts",
+    "guard": "chunk-erasure",
+    "test": "scrubs on error",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "5093a7d0de8e3866b77cb40e3d9cb5a52eddc7091920a482119aefb00ce30765"
+  },
+  {
+    "file": "src/runtime/vault/slots/macVaultTransport.ts",
+    "guard": "stderr-erasure",
+    "test": "never exposes stderr",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "5093a7d0de8e3866b77cb40e3d9cb5a52eddc7091920a482119aefb00ce30765"
+  },
+  {
+    "file": "src/runtime/vault/slots/macVaultTransport.ts",
+    "guard": "empty-environment",
+    "test": "empty argv/environment",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "5093a7d0de8e3866b77cb40e3d9cb5a52eddc7091920a482119aefb00ce30765"
+  },
+  {
+    "file": "src/runtime/vault/slots/macVaultTransport.ts",
+    "guard": "lock-cancellation",
+    "test": "cancels on broker lock",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "5093a7d0de8e3866b77cb40e3d9cb5a52eddc7091920a482119aefb00ce30765"
+  }
+]

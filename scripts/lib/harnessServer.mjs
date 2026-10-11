@@ -3,12 +3,15 @@
 // accessibility gate). Only files under the repository are served.
 
 import { readFile } from 'node:fs/promises'
+import { fileURLToPath } from 'node:url'
 import { createServer } from 'node:http'
 import path from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { chromium } from 'playwright-core'
 import { buildTrafficHarness } from '../../test/harness/buildTraffic.mjs'
 import { build } from 'esbuild'
+import { buildScheduleHarness } from '../../test/harness/build-schedules.mjs'
+import { SCHEDULE_SCENES } from '../../test/harness/scheduleScenes.mjs'
 
 export const LOOPBACK = '127.0.0.1'
 export const HARNESS_PATH = 'test/harness/index.html'
@@ -27,6 +30,17 @@ export const TRAFFIC_SCENARIOS = [
   'team-traffic-hints',
   'team-traffic-recovery',
   'runners',
+]
+// Scenes that end by calling scenarioDone(), so <html data-scenario-played>
+// says they are finished. Tests wait for that mark only on these scenes, and
+// teamHarness.test.mjs checks each of them in a real browser.
+export const PLAYED_SCENARIOS = [
+  'team-tree',
+  'team-tree-320',
+  'team-cards',
+  'question',
+  'legal-preview',
+  'jump',
 ]
 export const SCENARIOS = [
   ...[
@@ -209,6 +223,18 @@ export const SCENARIOS = [
   'agents-details',
   'agents-result',
   'agents-closed',
+  ...[
+    'active',
+    'approval',
+    'input',
+    'queued',
+    'interrupted',
+    'complete',
+    'incomplete',
+    'failed',
+    'cancelled',
+    'unverified',
+  ].map((state) => `agent-${state}`),
   'composer-grow',
   'composer-max',
   'cancelled',
@@ -245,6 +271,7 @@ export const SCENARIOS = [
   'muse-workflow-map',
   'schedules',
   'schedules-narrow',
+  ...SCHEDULE_SCENES,
   'git-held',
   'git-commit',
   'git-pr',
@@ -299,28 +326,54 @@ export const SCENARIOS = [
   'legal-preview',
   'readme-open-question',
   'readme-help',
+  'resources-throttle',
 ]
 const CONTENT_TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript',
+  '.mjs': 'text/javascript',
   '.css': 'text/css',
   '.map': 'application/json',
   '.json': 'application/json',
   '.png': 'image/png',
 }
 
+// The harness bundles a server needs, built once per repository root in this
+// process: a suite that opens many servers no longer rebuilds them each time.
+const harnessBuilds = new Map()
+
+async function buildHarness(repoRoot) {
+  try {
+    await buildTrafficHarness(repoRoot)
+    return await build({
+      // Capture fixtures belong to the running gate, like buildTrafficHarness;
+      // a historical production revision may predate this test-only source.
+      entryPoints: [
+        fileURLToPath(new URL('../../test/unit/helpers/usageFixtures.ts', import.meta.url)),
+      ],
+      outfile: path.join(repoRoot, 'temp/harness-usage.js'),
+      bundle: true,
+      platform: 'browser',
+      format: 'iife',
+      globalName: 'museUsageHarness',
+      write: false,
+    })
+  } catch (error) {
+    // A failed build is retried by the next server instead of cached.
+    harnessBuilds.delete(repoRoot)
+    throw error
+  }
+}
+
+function harnessBuild(repoRoot) {
+  if (!harnessBuilds.has(repoRoot)) harnessBuilds.set(repoRoot, buildHarness(repoRoot))
+  return harnessBuilds.get(repoRoot)
+}
+
 /** Serves `repoRoot` on an unused loopback port: `{ server, port }`. */
 export async function serveRepo(repoRoot) {
-  await buildTrafficHarness()
-  const fixture = await build({
-    entryPoints: [path.join(repoRoot, 'test/unit/helpers/usageFixtures.ts')],
-    outfile: path.join(repoRoot, 'temp/harness-usage.js'),
-    bundle: true,
-    platform: 'browser',
-    format: 'iife',
-    globalName: 'museUsageHarness',
-    write: false,
-  })
+  const fixture = await harnessBuild(repoRoot)
+  let scheduleBuild
   const server = createServer(async (request, response) => {
     const url = new URL(request.url ?? '/', `http://${LOOPBACK}`)
     if (url.pathname === '/usage-harness.js') {
@@ -334,6 +387,10 @@ export async function serveRepo(repoRoot) {
       return
     }
     try {
+      if (url.pathname.endsWith('/test/harness/schedules.mjs')) {
+        scheduleBuild ??= buildScheduleHarness(repoRoot)
+        await scheduleBuild
+      }
       const body = await readFile(target)
       response.writeHead(200, {
         'content-type': CONTENT_TYPES[path.extname(target)] ?? 'application/octet-stream',
@@ -392,6 +449,11 @@ export const SIZED_SCENARIOS = {
   'questions-expired-narrow': { width: 320, ready: '.attention-dock, .question' },
   help: { width: 1000, ready: '#reference-search' },
   'help-narrow': { width: 320, ready: '#reference-search' },
+  'schedules-v2-background-narrow': { width: 320, ready: '.schedule-v2-consent' },
+  'schedules-v2-list-narrow': { width: 320, ready: '[data-schedule-ready]' },
+  'schedules-v2-editor-narrow': { width: 320, ready: '.schedule-v2-editor' },
+  'schedules-v2-timeline-narrow': { width: 320, ready: '.schedule-v2-timeline li' },
+  'schedule-settlements-narrow': { width: 320, ready: '.schedule-v2-fire' },
   'judge-narrow': { width: 320, ready: '.judge-status' },
   judge: { width: 690, ready: '.judge-status' },
   'judge-slow': { width: 690, ready: '.judge-status' },

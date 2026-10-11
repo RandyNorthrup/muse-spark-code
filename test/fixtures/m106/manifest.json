@@ -1,0 +1,96 @@
+{
+  "date": "2026-10-05",
+  "run": "2026-10-06T00-30-19-038Z",
+  "source": "meta-coverage/captures/results.jsonl",
+  "sourceSha256": "82616a945bf8e9e4cd8e1241022784f25a9d2b30a1dd0beab6303af132e2cf89",
+  "workspace": "standalone HTTPS probe; no repository workspace field recorded",
+  "totals": {
+    "inference_calls_post_responses": 9,
+    "inference_calls_refused_non_2xx": 1,
+    "non_inference_calls": 36,
+    "uploaded": 4,
+    "deleted": 4
+  },
+  "fixtures": [
+    {
+      "file": "u8-hosted-bound.json",
+      "sequences": [34],
+      "inferenceAttempts": 1,
+      "refusedInferenceAttempts": 0
+    },
+    {
+      "file": "u9-strict-stream.json",
+      "sequences": [35],
+      "inferenceAttempts": 1,
+      "refusedInferenceAttempts": 0
+    },
+    {
+      "file": "u9-strict-refusal.json",
+      "sequences": [36],
+      "inferenceAttempts": 1,
+      "refusedInferenceAttempts": 1
+    },
+    {
+      "file": "u10-structured-output.json",
+      "sequences": [37],
+      "inferenceAttempts": 1,
+      "refusedInferenceAttempts": 0
+    },
+    {
+      "file": "u11-compaction.json",
+      "sequences": [38, 39, 40],
+      "inferenceAttempts": 1,
+      "refusedInferenceAttempts": 0
+    },
+    {
+      "file": "u12-rate-headers.json",
+      "sequences": [34, 35, 37, 39, 40],
+      "inferenceAttempts": 4,
+      "refusedInferenceAttempts": 0
+    },
+    {
+      "file": "u13-phases.json",
+      "sequences": [34, 37, 40],
+      "inferenceAttempts": 3,
+      "refusedInferenceAttempts": 0
+    },
+    {
+      "file": "status.json",
+      "source": "status-capture.json",
+      "attempts": 2,
+      "inferenceAttempts": 0,
+      "refusedInferenceAttempts": 0
+    },
+    {
+      "file": "u14-models.json",
+      "sequences": [1, 2, 3],
+      "attempts": 3,
+      "inferenceAttempts": 0,
+      "refusedInferenceAttempts": 0
+    }
+  ],
+  "limitations": [
+    "U9 sse_head ends inside sequence 9, before argument delta/done frames. Stream summary is observed metadata, not raw wire frames.",
+    "status-capture.json has no run ID, timestamp, model or workspace; retain null provenance rather than inventing it.",
+    "Fixtures overlap captures: sequence counts are not additive.",
+    "Encrypted reasoning, unrelated response defaults, media bytes, truncated ledger text and account identifiers are omitted."
+  ],
+  "additionalSources": [
+    {
+      "file": "status-capture.json",
+      "sha256": "e1a4f348032db47c57c6d8ae601155db842c585c9b051bd3908b3d1f767b0441"
+    },
+    {
+      "file": "u14-models-plain.json",
+      "sha256": "7758c3f8b4fbe5c51fa7db9ffe974b14a648c6a553e767ad1b4ba71c1b949f88"
+    },
+    {
+      "file": "u14-models-muse-code.json",
+      "sha256": "7758c3f8b4fbe5c51fa7db9ffe974b14a648c6a553e767ad1b4ba71c1b949f88"
+    },
+    {
+      "file": "u14-models-vscode.json",
+      "sha256": "7758c3f8b4fbe5c51fa7db9ffe974b14a648c6a553e767ad1b4ba71c1b949f88"
+    }
+  ]
+}

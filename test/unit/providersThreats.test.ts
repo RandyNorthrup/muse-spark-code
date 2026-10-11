@@ -12,6 +12,7 @@ import { buildSessionExport } from '../../src/core/export/sessionTransfer'
 import { MAY_HOLD_SECRET, redactableSlices, redactSecrets } from '../../src/core/redact'
 import { isCredentialVariable } from '../../src/core/credentialEnvironment'
 import { hookEnvironment } from '../../src/host/backend/toolIo'
+
 import { createLogger } from '../../src/host/logger'
 import { withoutCredentials } from '../../src/runtime/credentialVariables'
 import {
@@ -234,6 +235,18 @@ describe('prefix-less keys', () => {
 })
 
 describe('credential variables', () => {
+  const fencedGitEnvironment = {
+    GIT_ASKPASS: '',
+    GIT_CONFIG_COUNT: '2',
+    GIT_CONFIG_KEY_0: 'credential.helper',
+    GIT_CONFIG_KEY_1: 'credential.useHttpPath',
+    GIT_CONFIG_VALUE_0: '',
+    GIT_CONFIG_VALUE_1: 'true',
+    GIT_TERMINAL_PROMPT: '0',
+    SSH_ASKPASS: '',
+    SUDO_ASKPASS: '',
+  }
+
   it.each(['AWS_BEARER_TOKEN_BEDROCK', 'ANTHROPIC_AUTH_TOKEN', 'HF_TOKEN'])(
     'strips %s, in any case',
     (name) => {
@@ -258,6 +271,10 @@ describe('credential variables', () => {
     expect(isCredentialVariable(name)).toBe(true)
   })
 
+  it('removes CI_TOKEN under the shared process credential fence', () => {
+    expect(isCredentialVariable('CI_TOKEN')).toBe(true)
+  })
+
   it('keeps non-credential variables', () => {
     for (const name of ['PATH', 'HOME', 'OLLAMA_HOST']) {
       expect(isCredentialVariable(name)).toBe(false)
@@ -265,7 +282,9 @@ describe('credential variables', () => {
     expect(isCredentialVariable('CI_TOKEN')).toBe(true)
     expect(isCredentialVariable('ci_token')).toBe(true)
     expect(withoutCredentials({ PATH: '/bin', CI_TOKEN: 'synthetic' })).toEqual({ PATH: '/bin' })
-    expect(hookEnvironment({ CI_TOKEN: 'synthetic' }, 'linux', ['CI_TOKEN'])).toEqual({})
+    expect(hookEnvironment({ CI_TOKEN: 'synthetic' }, 'linux', ['CI_TOKEN'])).toEqual(
+      fencedGitEnvironment,
+    )
   })
 
   it('withholds a provider credential from hooks even when granted', () => {
@@ -275,7 +294,7 @@ describe('credential variables', () => {
         'ANTHROPIC_AUTH_TOKEN',
         'LANG',
       ]),
-    ).toEqual({ LANG: 'en' })
+    ).toEqual({ ...fencedGitEnvironment, LANG: 'en' })
   })
 
   it("strips the agent's own provider credentials before a child starts", () => {

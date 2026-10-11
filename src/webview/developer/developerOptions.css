@@ -1,0 +1,38 @@
+.developer-options {
+  color: var(--vscode-foreground);
+  background: var(--vscode-editor-background);
+  padding: 1rem;
+  overflow-wrap: anywhere;
+  box-sizing: border-box;
+  max-width: 48rem;
+}
+
+.developer-options form,
+.developer-options li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-block: 0.5rem;
+}
+
+.developer-options input {
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  color: var(--vscode-input-foreground);
+  background: var(--vscode-input-background);
+  border: 1px solid var(--vscode-input-border, var(--vscode-contrastBorder, transparent));
+}
+
+.developer-options button {
+  color: var(--vscode-button-foreground);
+  background: var(--vscode-button-background);
+  border: 1px solid var(--vscode-contrastBorder, transparent);
+  padding: 0.25rem 0.5rem;
+}
+
+.developer-options :focus-visible {
+  outline: 2px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
+}

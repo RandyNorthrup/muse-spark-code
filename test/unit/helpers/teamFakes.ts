@@ -1,3 +1,4 @@
+import { Usd, type UsdAmount } from '../../../src/shared/usd'
 // Fakes for the M96 lane A team tests: scripted agents, meter snapshots,
 // a reservation journal and a limit classifier. Production code never sees
 // these; they live in test/** only.
@@ -82,7 +83,7 @@ export function selectionSnapshot(options: SnapshotOptions = {}): TeamSelectionS
       tokens: options.firstTokens ?? 1000,
       inputTokens: options.firstInputTokens ?? options.firstTokens ?? 1000,
       outputTokens: options.firstOutputTokens ?? 0,
-      spendUsd: options.firstSpendUsd ?? 0.01,
+      spendUsd: Usd.from(options.firstSpendUsd ?? 0.01).toAmount(),
     },
     agentLimit: options.agentLimit ?? (() => 8),
     isAgentAvailable: options.available ?? (() => true),
@@ -157,7 +158,9 @@ export class FakeTeamJournal implements TeamReservationJournal {
         scope: 'paid',
         measure: 'spendUsd',
         amount: limits.budgets.paidDailyBudgetUsd,
-        used: sumClaims(day, 'spendUsd') + (this.state.otherPaidUsd.get(own.dayKey) ?? 0),
+        used: Usd.from(sumClaims(day, 'spendUsd'))
+          .add(Usd.from(this.state.otherPaidUsd.get(own.dayKey) ?? 0))
+          .toAmount(),
       },
       {
         scope: 'team',
@@ -185,8 +188,17 @@ export class FakeTeamJournal implements TeamReservationJournal {
       },
     ] as const
     for (const budget of budgetChecks) {
-      if (budget.amount === 0 || budget.used > budget.amount)
-        return { ok: false, window: 'day', ...budget }
+      if (
+        Usd.from(budget.amount).compare(Usd.from(0)) === 0 ||
+        Usd.from(budget.used).compare(Usd.from(budget.amount)) > 0
+      )
+        return {
+          ok: false,
+          window: 'day',
+          ...budget,
+          used: Number(budget.used),
+          amount: Number(budget.amount),
+        }
     }
     for (const cap of limits.caps) {
       const rows = Array.from(this.state.claims, ([, claim]) => claim).filter(
@@ -201,8 +213,7 @@ export class FakeTeamJournal implements TeamReservationJournal {
         cap.measure === 'tasks'
           ? new Set(rows.map(({ reservation }) => reservation.taskId)).size
           : sumClaims(rows, cap.measure)
-      if (used > cap.amount)
-        return { ok: false, measure: cap.measure, window: cap.window, used, amount: cap.amount }
+      if (Usd.from(used).compare(Usd.from(cap.amount)) > 0) return refusedTeamCap(cap, used)
     }
     return { ok: true }
   }
@@ -265,8 +276,11 @@ export class FakeTeamJournal implements TeamReservationJournal {
 function sumClaims(
   claims: readonly TeamClaimRecord[],
   measure: 'tokens' | 'inputTokens' | 'outputTokens' | 'spendUsd',
-): number {
-  return claims.reduce((total, claim) => total + (claim.outcome ?? claim.reservation)[measure], 0)
+): UsdAmount {
+  let total = Usd.from(0)
+  for (const claim of claims)
+    total = total.add(Usd.from((claim.outcome ?? claim.reservation)[measure]))
+  return total.toAmount()
 }
 
 /** Both lane journals use the same monotonic day and zero refund value. */
@@ -275,5 +289,24 @@ export function advanceFakeTeamDay(state: { latest: string }, candidate: string)
   return Promise.resolve(state.latest)
 }
 export function refundedTeamOutcome(): Extract<TeamClaimOutcome, { readonly kind: 'refunded' }> {
-  return { kind: 'refunded', tokens: 0, inputTokens: 0, outputTokens: 0, spendUsd: 0 }
+  return {
+    kind: 'refunded',
+    tokens: 0,
+    inputTokens: 0,
+    outputTokens: 0,
+    spendUsd: Usd.from(0).toAmount(),
+  }
+}
+
+export function refusedTeamCap(
+  cap: TeamClaimLimits['caps'][number],
+  used: number | UsdAmount,
+): Extract<TeamClaimAdmission, { readonly ok: false }> {
+  return {
+    ok: false,
+    measure: cap.measure,
+    window: cap.window,
+    used: Number(used),
+    amount: cap.amount,
+  }
 }

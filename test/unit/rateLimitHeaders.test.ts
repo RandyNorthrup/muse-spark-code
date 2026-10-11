@@ -58,6 +58,7 @@ describe('transport observations', () => {
     const settings = fakeModelApiClientSettings(new FakeLogOutputChannel())
     const client = new ModelApiClient({
       ...settings,
+      now: () => 0,
       fetch: async (input, init) => {
         const response = await api.fetch(input, init)
         response.headers.set('x-ratelimit-remaining-tokens', '120')

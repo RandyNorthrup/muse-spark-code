@@ -50,8 +50,8 @@ import {
   type HookDefinition,
   type HookLoadDeps,
   type HookSource,
-  sparkHooksFiles,
 } from './hooks'
+import { sparkHooksFiles } from './hookNames'
 import { compileGlob } from './globLimits'
 import { boundedHookText } from './toolHookPayload'
 import type { ContextIo } from '../../context/contextFiles'

@@ -25,6 +25,7 @@ import {
   withTerminalOverrides,
 } from '../../src/host/backend/toolIo'
 import { newShellJob, shellJobAssembly } from '../../src/host/backend/shellJob'
+import { vaultFenceEnvironment } from '../../src/core/vault/exec/fence'
 import { canonicalPath } from '../../src/host/canonicalPath'
 import { ShellTimeLimit } from '../../src/core/backends/modelapi/tools'
 import { confineWorkspacePath } from '../../src/core/workspacePath'
@@ -38,6 +39,11 @@ import { readJobSource } from './helpers/jobSource'
 vi.mock('node:fs/promises', async (importOriginal) => ({
   ...(await importOriginal<typeof fs>()),
 }))
+// The real job helper compiles under the bootstrap runner; only its admission is a fixture.
+vi.mock('../../src/core/resources/admission', async (original) => {
+  const { withFixtureBootstrap } = await import('./helpers/resources/fixtureLaunch')
+  return withFixtureBootstrap(await original())
+})
 
 const INSTALLED_SHELLS: ReadonlySet<string> = new Set([
   '/usr/bin/bash',
@@ -158,6 +164,8 @@ describe('shellEnvironment', () => {
       },
       'linux',
       undefined,
+      [],
+      false,
     )
     expect(env).toEqual({
       PATH: '/usr/bin',
@@ -167,11 +175,48 @@ describe('shellEnvironment', () => {
     })
   })
 
+  it('keeps an interactive pass-through name through the vault fence, nothing else credentialed', () => {
+    const env = shellEnvironment(
+      {
+        PATH: '/usr/bin',
+        OPENAI_API_KEY: 'pass-through',
+        META_API_KEY: 'withheld',
+        SSH_AUTH_SOCK: '/ambient/agent',
+      },
+      'linux',
+      undefined,
+      ['OPENAI_API_KEY'],
+      true,
+      {},
+    )
+    expect(env['OPENAI_API_KEY']).toBe('pass-through')
+    expect(env['META_API_KEY']).toBeUndefined()
+    expect(env['SSH_AUTH_SOCK']).toBeUndefined()
+  })
+
+  it('leaves routes alone when the vault fence is off, while credentials stay stripped', () => {
+    const env = shellEnvironment(
+      {
+        PATH: '/usr/bin',
+        META_API_KEY: 'withheld',
+        SSH_AUTH_SOCK: '/ambient/agent',
+      },
+      'linux',
+      undefined,
+      [],
+      false,
+    )
+    expect(env['META_API_KEY']).toBeUndefined()
+    expect(env['SSH_AUTH_SOCK']).toBe('/ambient/agent')
+  })
+
   it('points Windows PowerShell at its own modules, whatever spelling was inherited', () => {
     const env = shellEnvironment(
       { PSMODULEPATH: String.raw`C:\pwsh7\Modules`, ProgramFiles: String.raw`C:\Program Files` },
       'win32',
       String.raw`C:\Windows`,
+      [],
+      false,
     )
     expect(env).toEqual({
       ProgramFiles: String.raw`C:\Program Files`,
@@ -196,11 +241,13 @@ describe('hookEnvironment (M51)', () => {
         'linux',
         ['CI_TOKEN', 'META_API_KEY'],
       ),
-    ).toEqual({
-      HOME: '/home/u',
-      PATH: '/usr/bin:/opt/bin',
-      LANG: 'en_US.UTF-8',
-    })
+    ).toEqual(
+      vaultFenceEnvironment({
+        HOME: '/home/u',
+        PATH: '/usr/bin:/opt/bin',
+        LANG: 'en_US.UTF-8',
+      }),
+    )
   })
 
   it('sanitizes mixed-case Windows PATH and COMSPEC grants too', () => {
@@ -369,6 +416,8 @@ describe('createToolIo (real file system and shell)', () => {
       await expect(reservation.fill(Uint8Array.from([1, 2, 3]))).rejects.toThrow(
         FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval,
       )
+      // Refusal must close the reserved descriptor even if its caller stops here.
+      await expect(reservation.fill(Uint8Array.from([1]))).rejects.toThrow(/closed|EBADF/u)
       await expect(readFile(outsideFile, 'utf8')).resolves.toBe('sentinel-private')
     },
   )

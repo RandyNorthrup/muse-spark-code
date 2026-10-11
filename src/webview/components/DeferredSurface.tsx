@@ -17,7 +17,10 @@ interface SurfaceProps {
   readonly onClose?: (() => void) | undefined
   readonly isModal?: boolean
   readonly keepFocus?: boolean | undefined
+  readonly asListItem?: boolean | undefined
   readonly className?: string | undefined
+  /** Names an inline surface in its loading and failure rows ("Resources: …"). */
+  readonly label?: string | undefined
 }
 
 export function DeferredSurface({
@@ -33,15 +36,17 @@ export function DeferredSurface({
 }
 
 /** Loading and failure retain the same dismissal contract as an open menu. */
-function UnavailableSurface({
+export function UnavailableSurface({
   onClose,
   isModal = true,
   keepFocus = false,
+  asListItem = false,
   failed = false,
   opener,
   className = 'palette history',
+  label,
 }: SurfaceProps & { readonly failed?: boolean; readonly opener?: Element | null }) {
-  const container = useRef<HTMLDivElement>(null)
+  const container = useRef<HTMLElement>(null)
   const closeButton = useRef<HTMLButtonElement>(null)
   const [trigger] = useState(() => opener ?? document.activeElement)
   const close = () => {
@@ -49,20 +54,20 @@ function UnavailableSurface({
     onClose?.()
   }
   useLayoutEffect(() => {
-    if (isModal) return
+    if (isModal || onClose === undefined) return
     if (!keepFocus) closeButton.current?.focus()
     const dismiss = (event: Event) => {
       if (!(event.target instanceof Node) || container.current?.contains(event.target)) return
       // Focus may stay in an attached composer's input while loading.
       if (event.type === 'focusin' && event.target === trigger) return
-      onClose?.()
+      onClose()
     }
     const escape = (event: KeyboardEvent) => {
       if (webviewKey('deferred.close', event) !== 'close') return
       event.preventDefault()
       event.stopPropagation()
       if (trigger instanceof HTMLElement && trigger.isConnected) trigger.focus()
-      onClose?.()
+      onClose()
     }
     document.addEventListener('pointerdown', dismiss)
     document.addEventListener('focusin', dismiss)
@@ -73,15 +78,20 @@ function UnavailableSurface({
       document.removeEventListener('keydown', escape)
     }
   }, [isModal, keepFocus, onClose, trigger])
+  const scope = label === undefined ? '' : `${label}: `
   const row = failed ? (
     <div role="alert">
-      <p>{UI_TEXT.surfaceLoadFailed}</p>
+      <p>
+        {scope}
+        {UI_TEXT.surfaceLoadFailed}
+      </p>
       <button type="button" className="button-secondary" onClick={retrySurface}>
         {UI_TEXT.surfaceLoadRetry}
       </button>
     </div>
   ) : (
     <p role="status" data-deferred-loading>
+      {scope}
       {UI_TEXT.loadingOutput}
     </p>
   )
@@ -96,15 +106,21 @@ function UnavailableSurface({
       </Modal>
     )
   }
+  const Container = asListItem ? 'li' : 'div'
   return (
-    <div ref={container} className={className}>
+    <Container
+      ref={(node: HTMLElement | null) => {
+        container.current = node
+      }}
+      className={asListItem ? 'activity' : className}
+    >
       {row}
       {onClose === undefined ? null : (
         <button ref={closeButton} type="button" className="button-secondary" onClick={close}>
           {UI_TEXT.usageClose}
         </button>
       )}
-    </div>
+    </Container>
   )
 }
 
@@ -130,6 +146,8 @@ export function deferred<P extends object>(
       isModal: props.isModal ?? isModal,
       keepFocus: props.keepFocus,
       className: props.className,
+      asListItem: props.asListItem,
+      label: props.label,
     }
     return (
       <SurfaceBoundary {...surfaceProps} opener={intent.opener}>

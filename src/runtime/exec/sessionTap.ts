@@ -40,6 +40,7 @@ export function observeBackend(backend: AcpBackend): SessionTap {
       },
       listSessions: host.listSessions.bind(host),
       readSession: host.readSession.bind(host),
+      readSessionOutput: host.readSessionOutput.bind(host),
       resumeSession: host.resumeSession.bind(host),
       forkSession: host.forkSession.bind(host),
       onSessionListEvent: host.onSessionListEvent.bind(host),

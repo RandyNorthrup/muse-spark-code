@@ -25,6 +25,7 @@ import {
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { isRunning } from './helpers/processes'
 import { spawnMcpJob } from '../../src/host/backend/mcpJobLaunch'
+import { fakeResourceLease } from './helpers/resources/fakes'
 import {
   FAKE_MCP_SERVER,
   fakeServerLaunch,
@@ -90,6 +91,46 @@ class OrderedProcess implements McpProcessHandle {
     for (const listener of this.closes) listener(0, null)
   }
 }
+
+function registeredMcpDeps(): Parameters<typeof observeMcpProcess>[1] {
+  return {
+    platform: 'win32',
+    systemRoot: undefined,
+    env: () => ({}),
+    isExistingFile: () => false,
+    isExistingDirectory: () => false,
+    log: vi.fn(),
+  }
+}
+
+it.each([false, true])(
+  'routes MCP root-exit cleanup through its registered lease (launcher=%s)',
+  async (isLauncher) => {
+    const node = new OrderedProcess()
+    const rawKill = vi.spyOn(node, 'kill')
+    const resource = fakeResourceLease(true)
+    const child = observeMcpProcess(node, registeredMcpDeps(), Date.now(), isLauncher, resource)
+    node.processExited()
+    expect(resource.kill).toHaveBeenCalledTimes(1)
+    node.streamsClosed()
+    await child.kill()
+    expect(resource.kill).toHaveBeenCalledTimes(1)
+    expect(rawKill).not.toHaveBeenCalled()
+  },
+)
+
+it('refuses an explicit registered MCP stop without signalling its launcher', async () => {
+  const node = new OrderedProcess()
+  const rawKill = vi.spyOn(node, 'kill')
+  const resource = fakeResourceLease()
+  const child = observeMcpProcess(node, registeredMcpDeps(), Date.now(), true, resource)
+  const rejected = expect(child.kill()).rejects.toThrow(
+    'Registered resource tree could not be stopped',
+  )
+  node.streamsClosed()
+  await rejected
+  expect(rawKill).not.toHaveBeenCalled()
+})
 
 it('keeps a final MCP response after process exit until stdout closes', async () => {
   const node = new OrderedProcess()

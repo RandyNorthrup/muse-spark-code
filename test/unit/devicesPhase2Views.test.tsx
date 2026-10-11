@@ -1,3 +1,4 @@
+import { formatUsd } from '../../src/shared/l10n/exactUsd'
 // @vitest-environment jsdom
 // M100 phase 2 lane U: owning UI tests for the phase-2 Devices views
 // (qr, discovery, grants, prompts, power, setup) against fakes.
@@ -6,7 +7,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
 import { DEVICE_LIMITS } from '../../src/shared/constants'
-import { formatBytes, formatNumber, formatUsd, setUiText } from '../../src/shared/l10n/text'
+import { formatBytes, formatNumber, setUiText } from '../../src/shared/l10n/text'
 import { deviceInvitationSchema } from '../../src/shared/devices'
 import type { DeviceCapability, DeviceGrant, DeviceThrottled } from '../../src/shared/devices'
 import { parseDeviceHostMessage, parseDeviceWebviewRequest } from '../../src/shared/devicesPanel'

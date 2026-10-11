@@ -2,7 +2,8 @@
 // same port. Nothing here activates a receiver or reads credentials on mount.
 import { Fragment, type ReactNode, useLayoutEffect, useRef, useState } from 'react'
 import { DEVICE_LIMITS, UI_TEXT } from '../../../../shared/constants'
-import { fill, formatUsd } from '../../../../shared/l10n/text'
+import { fill } from '../../../../shared/l10n/text'
+import { formatUsd } from '../../../../shared/l10n/exactUsd'
 import {
   parseDeviceHostMessage,
   parseDeviceWebviewRequest,

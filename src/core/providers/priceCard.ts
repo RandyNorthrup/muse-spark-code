@@ -1,3 +1,6 @@
+import { Usd, type UsdAmount } from '../../shared/usd'
+import * as z from 'zod/mini'
+import { TOKENS_PER_MILLION } from '../../shared/constants'
 // A model's price card (M95, PLAN.md D74). Prices drive budgets and are
 // never guessed. Sources, in order: the provider's own models list where it
 // prices (OpenRouter, xAI, Together, Groq, Hugging Face's router), the
@@ -8,7 +11,8 @@
 // Reservations take the worst case; settlement takes the provider's actual
 // cost where it reports one (OpenRouter's `cost`, xAI's `cost_in_usd_ticks`
 // in 1e-10 USD). DeepSeek's off-peak half price is ignored (the peak price
-// bounds it). Pure; amounts are plain USD numbers.
+// bounds it). Price-card inputs preserve the captured numeric shape; admission and
+// settlement use canonical decimal USD amounts.
 
 /** Where a price card's numbers came from, in D74's source order. */
 export type PriceSource = 'list' | 'catalogue' | 'user'
@@ -156,6 +160,115 @@ export function parseDecimalPrice(text: string): number | undefined {
   return Number.isFinite(value) && value >= 0 ? value : undefined
 }
 
+/** Captured provider-list rates, converted to the card's USD per-token unit. */
+export function listedPriceCard(
+  preset: string,
+  native: Readonly<Record<string, unknown>>,
+): PriceCard | undefined {
+  const rate = z.number().check(z.nonnegative())
+  if (preset === 'xai') {
+    const prices = z
+      .object({
+        prompt_text_token_price: rate,
+        completion_text_token_price: rate,
+        cached_prompt_text_token_price: z.optional(rate),
+        prompt_text_token_price_long_context: z.optional(rate),
+        completion_text_token_price_long_context: z.optional(rate),
+        cached_prompt_text_token_price_long_context: z.optional(rate),
+        long_context_threshold: z.optional(rate),
+      })
+      .safeParse(native)
+    if (!prices.success) return undefined
+    const p = prices.data
+    return {
+      input: ticksToUsdPerToken(p.prompt_text_token_price) ?? NaN,
+      output: ticksToUsdPerToken(p.completion_text_token_price) ?? NaN,
+      cachedInput:
+        p.cached_prompt_text_token_price === undefined
+          ? undefined
+          : ticksToUsdPerToken(p.cached_prompt_text_token_price),
+      ...(p.long_context_threshold !== undefined &&
+        p.prompt_text_token_price_long_context !== undefined &&
+        p.completion_text_token_price_long_context !== undefined && {
+          longContextTier: {
+            fromTokens: p.long_context_threshold,
+            input: ticksToUsdPerToken(p.prompt_text_token_price_long_context) ?? NaN,
+            output: ticksToUsdPerToken(p.completion_text_token_price_long_context) ?? NaN,
+            cachedInput:
+              p.cached_prompt_text_token_price_long_context === undefined
+                ? undefined
+                : ticksToUsdPerToken(p.cached_prompt_text_token_price_long_context),
+          },
+        }),
+      source: 'list',
+    }
+  }
+  const millionRates = z.object({ input: rate, output: rate, cached_input: z.optional(rate) })
+  if (preset === 'together') {
+    const prices = millionRates.safeParse(native['pricing'])
+    if (!prices.success) return undefined
+    return {
+      input: prices.data.input / TOKENS_PER_MILLION,
+      output: prices.data.output / TOKENS_PER_MILLION,
+      cachedInput:
+        prices.data.cached_input === undefined
+          ? undefined
+          : prices.data.cached_input / TOKENS_PER_MILLION,
+      source: 'list',
+    }
+  }
+  if (preset === 'huggingface') {
+    const upstreams = z
+      .array(
+        z.object({
+          status: z.string(),
+          pricing: z.optional(millionRates),
+        }),
+      )
+      .safeParse(native['providers'])
+    if (!upstreams.success) return undefined
+    const cards = upstreams.data
+      .filter((row) => row.status === 'live' && row.pricing !== undefined)
+      .flatMap((row) => (row.pricing === undefined ? [] : [row.pricing]))
+    if (cards.length === 0) return undefined
+    // The router may choose any live upstream: show the highest captured
+    // input/output rates, rather than promising one cheaper upstream.
+    return {
+      input: Math.max(...cards.map((card) => card.input)) / TOKENS_PER_MILLION,
+      output: Math.max(...cards.map((card) => card.output)) / TOKENS_PER_MILLION,
+      source: 'list',
+    }
+  }
+  const decimal = z.string().check(z.refine((text) => parseDecimalPrice(text) !== undefined))
+  const parsed = z
+    .object({
+      prompt: decimal,
+      completion: decimal,
+      input_cache_read: z.optional(decimal),
+      input_cache_write: z.optional(decimal),
+      input_cache_write_1h: z.optional(decimal),
+      request: z.optional(decimal),
+      image: z.optional(decimal),
+    })
+    .safeParse(native['pricing'])
+  if (!parsed.success) return undefined
+  const input = parseDecimalPrice(parsed.data.prompt)
+  const output = parseDecimalPrice(parsed.data.completion)
+  if (input === undefined || output === undefined) return undefined
+  const optional = (text: string | undefined) =>
+    text === undefined ? undefined : parseDecimalPrice(text)
+  return {
+    input,
+    output,
+    cachedInput: optional(parsed.data.input_cache_read),
+    cacheWrite: optional(parsed.data.input_cache_write),
+    cacheWrite1h: optional(parsed.data.input_cache_write_1h),
+    request: optional(parsed.data.request),
+    image: optional(parsed.data.image),
+    source: 'list',
+  }
+}
+
 /** xAI's integer unit: ticks of 1e-10 USD per token. */
 const XAI_TICKS_PER_USD = 1e10
 
@@ -194,7 +307,7 @@ function longContextRates(
  * estimated cache hits. Known write premiums are reserved in addition;
  * output and a per-request flat price are reserved too.
  */
-export function reserveRequestUsd(card: PriceCard, usage: PricedUsage): number {
+export function reserveRequestAmount(card: PriceCard, usage: PricedUsage): UsdAmount {
   const { tier, isLongContext, inputRate, outputRate } = longContextRates(card, usage)
   // Cold writes are bounded at the dearest applicable write price: the
   // card's own write rates, plus the tier's where the estimate reaches it.
@@ -207,12 +320,16 @@ export function reserveRequestUsd(card: PriceCard, usage: PricedUsage): number {
     )
   }
   const writeRate = Math.max(inputRate, ...writeCandidates)
-  return (
-    usage.inputTokens * inputRate +
-    (usage.cacheWriteTokens ?? 0) * Math.max(0, writeRate - inputRate) +
-    usage.outputTokens * outputRate +
-    (card.request ?? 0)
-  )
+  return Usd.from(inputRate)
+    .times(usage.inputTokens)
+    .add(
+      Usd.from(writeRate)
+        .subtract(Usd.from(inputRate))
+        .times(usage.cacheWriteTokens ?? 0),
+    )
+    .add(Usd.from(outputRate).times(usage.outputTokens))
+    .add(Usd.from(card.request ?? 0))
+    .toAmount()
 }
 
 /**
@@ -236,18 +353,18 @@ export function reserveWorstCaseUsd(
  * rates over the usage. Invalid usage leaves the cost unknown (the session
  * budget then closes) rather than guessing zero.
  */
-export function settleUsageUsd(
+export function settleUsageAmount(
   card: PriceCard,
   usage: PricedUsage,
   reported?: { readonly cost?: number | undefined; readonly costInUsdTicks?: number | undefined },
-): number | undefined {
+): UsdAmount | undefined {
   if (reported?.cost !== undefined && Number.isFinite(reported.cost) && reported.cost >= 0) {
-    return reported.cost
+    return Usd.from(reported.cost).toAmount()
   }
   if (reported?.costInUsdTicks !== undefined) {
     const converted = ticksToUsdPerToken(reported.costInUsdTicks)
     if (converted !== undefined) {
-      return converted
+      return Usd.from(reported.costInUsdTicks).divide(XAI_TICKS_PER_USD).toAmount()
     }
   }
   if (!isValidPriceCard(card) || !isValidUsage(usage)) {
@@ -272,12 +389,27 @@ export function settleUsageUsd(
   const read = usage.cachedTokens ?? 0
   const { standard: written5m, oneHour: written1h } = splitCacheWrites(usage)
   const fresh = usage.inputTokens - read - written5m - written1h
-  return (
-    fresh * inputRate +
-    read * readRate +
-    written5m * writeRate +
-    written1h * write1hRate +
-    usage.outputTokens * outputRate +
-    (card.request ?? 0)
-  )
+  return Usd.from(inputRate)
+    .times(fresh)
+    .add(Usd.from(readRate).times(read))
+    .add(Usd.from(writeRate).times(written5m))
+    .add(Usd.from(write1hRate).times(written1h))
+    .add(Usd.from(outputRate).times(usage.outputTokens))
+    .add(Usd.from(card.request ?? 0))
+    .toAmount()
+}
+
+/** Numeric projections for the existing usage reports. Admission uses exact amounts. */
+export function reserveRequestUsd(card: PriceCard, usage: PricedUsage): number {
+  return Number(reserveRequestAmount(card, usage))
+}
+
+/** Numeric projection for captured usage report schemas. */
+export function settleUsageUsd(
+  card: PriceCard,
+  usage: PricedUsage,
+  reported?: { readonly cost?: number | undefined; readonly costInUsdTicks?: number | undefined },
+): number | undefined {
+  const amount = settleUsageAmount(card, usage, reported)
+  return amount === undefined ? undefined : Number(amount)
 }

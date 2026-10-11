@@ -243,10 +243,10 @@ describe('M100/W unbound lane ports', () => {
       reason: 'unsupported-host',
     })
     await expect(
-      ports.policy.assertPaidBinding(dispatch, { feature: 'webSearch' }),
+      ports.policy.assertPaidBinding(dispatch, { feature: 'voice' }),
     ).rejects.toMatchObject({ reason: 'unsupported-host' })
     expect(ports.policy.paidGate.isOn('voice')).toBe(false)
-    await expect(ports.policy.paidConsent.allows({ feature: 'webSearch' })).resolves.toBe(false)
+    await expect(ports.policy.paidConsent.allows({ feature: 'voice' })).resolves.toBe(false)
     expect(() => {
       ports.source.connected(channel)
     }).toThrow(DevicePairingError)

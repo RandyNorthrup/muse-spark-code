@@ -7,14 +7,7 @@ import { createHash } from 'node:crypto'
 import * as z from 'zod/mini'
 import { build, type Plugin } from 'esbuild'
 import { beforeAll, describe, expect, it } from 'vitest'
-import {
-  sharedUiText,
-  sharedValidation,
-  deferredCohort,
-  sharedWire,
-  sharedModelApiBoundaries,
-} from '../../scripts/lib/deferredBundles.mjs'
-import { deferredTeamView } from '../../scripts/lib/deferredTeamView.mjs'
+import { HOST_PLUGINS } from '../../scripts/lib/hostPlugins.mjs'
 
 const baselineSources = new Map<string, string>()
 beforeAll(() => {
@@ -55,15 +48,8 @@ function externals(): Plugin {
   }
 }
 async function bytes(isBaseline = false): Promise<number> {
-  const plugins = [
-    sharedUiText,
-    sharedValidation,
-    deferredCohort,
-    deferredTeamView,
-    sharedWire,
-    sharedModelApiBoundaries,
-    externals(),
-  ]
+  // The plugins dist/extension.js ships with (scripts/lib/hostPlugins.mjs).
+  const plugins = [...HOST_PLUGINS, externals()]
   if (isBaseline) {
     plugins.push({
       name: 'immutable-baseline',

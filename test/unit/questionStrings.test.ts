@@ -49,7 +49,7 @@ const tableSchema = z.record(z.string(), z.unknown())
 // usable by lanes U/A, before those lanes introduce their own renderers.
 describe('M112 strings handed to U and A', () => {
   it('provides the identifiable open label, distinct settlement labels and announcements', () => {
-    expect(EN.questionOpen).toBe('Open question')
+    expect(EN.questionOpen).toBe('Open Question')
     expect(
       new Set([
         EN.questionAnswered,

@@ -21,13 +21,24 @@ import { brotliDecompressSync } from 'node:zlib'
 import { pathToFileURL } from 'node:url'
 import * as z from 'zod/mini'
 import { build } from 'esbuild'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest'
 import { resolveExecutable } from '../../src/core/executables'
-import { execEventSchema, validateResult } from '../../src/runtime/exec/execProtocol'
-import type { ExecResult } from '../../src/runtime/exec/execProtocol'
+import {
+  execEventV2Schema,
+  validateResult,
+  type ExecResult,
+} from '../../src/runtime/exec/execProtocol'
+
 import { TABLE_LOCALES } from '../../src/shared/l10n/locales'
+import { readArchivedUiTable } from '../../src/shared/l10n/tableArchive'
+import { layOutAcpNativeSources } from '../unit/helpers/acpPackageSources'
 import { removeFolder } from '../unit/helpers/temporaryFolders'
-import { buildProductionPackage, packageImagePreload } from '../unit/helpers/productionPackage'
+import { buildCreatedHelper } from './createdHelperFixture'
+import {
+  PRODUCTION_BUILD_KEY,
+  buildProductionPackage,
+  packageImagePreload,
+} from '../unit/helpers/productionPackage'
 
 const ROOT = path.resolve(import.meta.dirname, '..', '..')
 const TEMP = path.join(ROOT, 'temp')
@@ -45,8 +56,7 @@ const KEY = 'LLM|123456|fabricated%legacy.key-for-m80d'
 // Each package guard gets an independent copy; ordinary operations keep 30 seconds.
 const COLD_PACKAGE_TIMEOUT_MS = 60_000
 const TIMEOUT = 30_000
-// The production build and pack before the built rows: about a minute on the
-// Windows 11 VM, past Vitest's 10 s hook default and a single row's budget.
+// Building the fake process launcher performs real compiler work once per suite.
 const BUILD_TIMEOUT = 300_000
 const BASH = bashForTests()
 // Node passes drive-letter absolute paths; GNU tar treats their colon as a
@@ -92,6 +102,46 @@ afterAll(async () => {
   await removeFolder(WORK)
 })
 
+beforeAll(() => {
+  // Packaging runs the real badge validator in a child. Its HTTP boundary
+  // needs a fake too: a PR's screenshots do not exist on public main yet.
+  // Only this package process tree receives the preload; CI's independent
+  // public badge gate and the agent's own transport are unchanged.
+  writeFileSync(
+    PACKAGE_PRELOAD,
+    String.raw`
+      const { appendFileSync, readFileSync, readdirSync } = require('node:fs');
+      const path = require('node:path');
+      const root = ${JSON.stringify(ROOT)};
+      const images = ${JSON.stringify(PACKAGE_IMAGES)};
+      globalThis.fetch = async input => {
+        const url = new URL(String(input));
+        appendFileSync(images, JSON.stringify(url.href) + '\n');
+        if (url.href === 'https://api.github.com/repos/RandyNorthrup/muse-spark-code/git/trees/main?recursive=1') {
+          const tree = readdirSync(path.join(root, 'media'), { recursive: true })
+            .filter(file => file.endsWith('.png'))
+            .map(file => ({ path: 'media/' + file.replaceAll('\\', '/'), type: 'blob' }));
+          return Response.json({ truncated: false, tree });
+        }
+        if (url.origin === 'https://raw.githubusercontent.com' &&
+            url.pathname.startsWith('/RandyNorthrup/muse-spark-code/main/media/')) {
+          const file = path.join(root, url.pathname.split('/main/')[1]);
+          return new Response(readFileSync(file), { headers: { 'content-type': 'image/png' } });
+        }
+        if (!['img.shields.io', 'badgen.net', 'github.com'].includes(url.hostname)) {
+          throw new Error('Unexpected package image: ' + url.href);
+        }
+        const text = url.pathname.startsWith('/badge/')
+          ? decodeURIComponent(url.pathname.slice('/badge/'.length)).replace(/-[^-]+$/, '')
+          : 'test-owned badge';
+        return new Response('<svg xmlns="http://www.w3.org/2000/svg"><text>' + text + '</text></svg>', {
+          headers: { 'content-type': 'image/svg+xml' },
+        });
+      };
+    `,
+  )
+})
+
 function command(
   file: string,
   cwd: string,
@@ -105,7 +155,10 @@ function command(
       ...process.env,
       LANG: 'en_US.UTF-8',
       LC_ALL: 'en_US.UTF-8',
-      BADGE_CHECK_SKIP_NETWORK: 'Offline TRAIN15E e2e packaging',
+      BADGE_CHECK_SKIP_NETWORK: undefined,
+      ...(path.basename(file) === 'package-acp.mjs' && {
+        NODE_OPTIONS: `--require ${JSON.stringify(PACKAGE_PRELOAD)}`,
+      }),
       ...env,
     },
     encoding: 'utf8',
@@ -129,7 +182,7 @@ function packagingFixture() {
     'dist',
     'dist/webview',
     'dist/meta',
-    'native/windows',
+    'dist/native/darwin',
     'l10n',
     'docs/schemas',
     'test/action',
@@ -137,6 +190,9 @@ function packagingFixture() {
   ]) {
     mkdirSync(path.join(dir, folder), { recursive: true })
   }
+  // The fake-only membership guard needs its own native member; this is never
+  // used as a universal release artifact or executed as a macOS helper.
+  writeFileSync(path.join(dir, 'dist/native/darwin/muse-vault'), 'test-owned native fixture\n')
   for (const script of ['package-acp.mjs', 'package-acp-test.mjs']) {
     cpSync(path.join(ROOT, 'scripts', script), path.join(dir, 'scripts', script))
   }
@@ -238,49 +294,10 @@ for (const file of ['acp.js', 'modelApi.js', 'modelApiBoundaries.js', 'team.js',
       devDependencies: { '@napi-rs/keyring': '2.1.0' },
     }),
   )
-  for (const bundle of [
-    'acp',
-    'headless',
-    'devices',
-    'sharingRuntime',
-    // M112: the lazy ACP forms, the private registry and the deferral note.
-    'acpQuestions',
-    'runtimeQuestions',
-    'questionNotes',
-    'modelApi',
-    'modelApiHooks',
-    'modelApiMcp',
-    'runtimeAccounting',
-    'runtimeEngine',
-    'providerPolicy',
-    'modelApiBoundaries',
-    'providers',
-    'subscriptions',
-    'configuredProviders',
-    'reviewer',
-    'legalScan',
-    'team',
-    'teamScheduler',
-    'teamRunners',
-    // M91: the adapters, the hook and MCP-form runtime, the window's hook runner.
-    'foreignHooks',
-    'hookRuntime',
-    'extensionHooks',
-    'recorder',
-    'reference',
-    'uiText',
-    'uiTextRuntime',
-    'uiTextHooks',
-    'uiTextSurfaces',
-    'wire',
-    'validation',
-    'searchWorker',
-    'imageResizeWorker',
-    'pageWorker',
-    'usageService',
-    'usageCompanion',
-  ]) {
-    cpSync(path.join(BUILD_ROOT, 'dist', `${bundle}.js`), path.join(dir, 'dist', `${bundle}.js`))
+  const productionFiles = readdirSync(path.join(BUILD_ROOT, 'dist'))
+  for (const file of productionFiles) {
+    if (file.endsWith('.js'))
+      cpSync(path.join(BUILD_ROOT, 'dist', file), path.join(dir, 'dist', file))
   }
   cpSync(
     path.join(BUILD_ROOT, 'dist/providerCatalog.json'),
@@ -290,13 +307,13 @@ for (const file of ['acp.js', 'modelApi.js', 'modelApiBoundaries.js', 'team.js',
     path.join(BUILD_ROOT, 'dist/providerCatalog.js'),
     path.join(dir, 'dist/providerCatalog.js'),
   )
-  for (const file of ['MuseSparkJob.cs', 'MuseSparkMcpJob.cs', 'MuseSparkDeviceStorage.cs']) {
-    writeFileSync(path.join(dir, 'native', 'windows', file), '// test-owned native fixture\n')
-  }
+  layOutAcpNativeSources(dir, ROOT)
+  cpSync(path.join(ROOT, 'media'), path.join(dir, 'media'), { recursive: true })
   cpSync(path.join(ROOT, 'src/shared'), path.join(dir, 'src/shared'), { recursive: true })
   mkdirSync(path.join(dir, 'src/core/judge'), { recursive: true })
   cpSync(path.join(ROOT, 'src/core/judge/engine.ts'), path.join(dir, 'src/core/judge/engine.ts'))
-  mkdirSync(path.join(dir, 'src/runtime'), { recursive: true })
+  mkdirSync(path.join(dir, 'src/runtime/estimator'), { recursive: true })
+  cpSync('src/runtime/estimator/options.ts', path.join(dir, 'src/runtime/estimator/options.ts'))
   cpSync(path.join(ROOT, 'src/runtime/cliOptions.ts'), path.join(dir, 'src/runtime/cliOptions.ts'))
   cpSync(path.join(ROOT, 'src/core/whatsNew'), path.join(dir, 'src/core/whatsNew'), {
     recursive: true,
@@ -315,7 +332,14 @@ for (const file of ['acp.js', 'modelApi.js', 'modelApiBoundaries.js', 'team.js',
     path.join(BUILD_ROOT, 'dist/meta/usageWebview.json'),
     path.join(dir, 'dist/meta/usageWebview.json'),
   )
-  cpSync(path.join(ROOT, 'native/runner'), path.join(dir, 'native/runner'), { recursive: true })
+  // M114 F: the packager stages the committed font manifest beside the
+  // runtime-only installer bundle; the fixture carries the real file, as
+  // it does the schemas, so a missing manifest still fails packaging.
+  mkdirSync(path.join(dir, 'design', 'fonts'), { recursive: true })
+  cpSync(
+    path.join(ROOT, 'design', 'fonts', 'manifest.json'),
+    path.join(dir, 'design', 'fonts', 'manifest.json'),
+  )
   writeFileSync(path.join(dir, 'LICENSE'), 'test-owned licence\n')
   writeFileSync(path.join(dir, 'docs', 'acp.md'), '# Test-owned guide\n')
   for (const file of ['README.md', 'docs/npm-readme.md', 'docs/marketplace-readme.md'])
@@ -333,7 +357,7 @@ for (const file of ['acp.js', 'modelApi.js', 'modelApiBoundaries.js', 'team.js',
 
 // Build immutable inputs once during file setup. The cold archive hook's
 // unchanged 60-second budget belongs to packaging, rather than build + pack.
-buildProductionPackage(ROOT, BUILD_ROOT)
+buildProductionPackage(ROOT, BUILD_ROOT, inject(PRODUCTION_BUILD_KEY))
 
 describe('M80 D package guards', { timeout: TIMEOUT }, () => {
   let preparedPackage: { dir: string; run: ReturnType<typeof command> } | undefined
@@ -381,28 +405,16 @@ describe('M80 D package guards', { timeout: TIMEOUT }, () => {
           readFileSync(path.join(ROOT, 'docs', 'schemas', schema), 'utf8'),
         )
       }
-      const tables = z
-        .object({
-          keys: z.array(z.string()),
-          locales: z.array(z.string()),
-          values: z.array(z.array(z.unknown())),
-        })
-        .parse(
-          JSON.parse(
-            brotliDecompressSync(readFileSync(path.join(stage, 'l10n/ui.tables.json.br'))).toString(
-              'utf8',
-            ),
-          ),
-        )
+      const archived = brotliDecompressSync(
+        readFileSync(path.join(stage, 'l10n/ui.tables.json.br')),
+      ).toString('utf8')
+      const tables = z.object({ locales: z.array(z.string()) }).parse(JSON.parse(archived))
       // The package ships every table, independently of the process locale.
-      // Inspect German explicitly; the old assertion belonged to a tiny fixture
-      // that TRAIN15E replaced with the production tables.
+      // Inspect German explicitly through the installed reader: the archive is
+      // the packed (format 1) matrix, restored in English key order.
       expect(tables.locales).toEqual(TABLE_LOCALES.toSorted((a, b) => a.localeCompare(b, 'en')))
-      const expected = z
-        .record(z.string(), z.unknown())
-        .parse(JSON.parse(readFileSync(path.join(dir, 'l10n/ui.de.json'), 'utf8')))
-      expect(tables.values[tables.locales.indexOf('de')]).toEqual(
-        tables.keys.map((key) => expected[key]),
+      expect(readArchivedUiTable(archived, 'de')).toBe(
+        JSON.stringify(JSON.parse(readFileSync(path.join(dir, 'l10n/ui.de.json'), 'utf8'))),
       )
       const manifest: unknown = JSON.parse(readFileSync(path.join(stage, 'package.json'), 'utf8'))
       expect(manifest).toMatchObject({ bin: { 'muse-spark-code-acp': 'dist/acp.js' } })
@@ -439,7 +451,7 @@ describe('M80 D package guards', { timeout: TIMEOUT }, () => {
     'refuses %s schema before replacing stage',
     (fault) => {
       const dir = packagingFixture()
-      const schema = path.join(dir, 'docs', 'schemas', 'exec-result-v1.schema.json')
+      const schema = path.join(dir, 'docs', 'schemas', 'exec-result-v2.schema.json')
       rmSync(schema)
       if (fault === 'directory') mkdirSync(schema)
       else if (fault === 'invalid-json') writeFileSync(schema, '{')
@@ -471,8 +483,8 @@ describe('M80 D package guards', { timeout: TIMEOUT }, () => {
     expect(
       readFileSync(path.join(dir, 'dist', 'acp-package', 'package.json'), 'utf8'),
     ).not.toContain('exec-test-launcher')
-    expect(readFileSync(path.join(testStage, 'schemas', 'exec-event-v1.schema.json'))).toEqual(
-      readFileSync(path.join(ROOT, 'docs', 'schemas', 'exec-event-v1.schema.json')),
+    expect(readFileSync(path.join(testStage, 'schemas', 'exec-event-v2.schema.json'))).toEqual(
+      readFileSync(path.join(ROOT, 'docs', 'schemas', 'exec-event-v2.schema.json')),
     )
   })
 
@@ -625,18 +637,18 @@ describe('M80 D package guards', { timeout: TIMEOUT }, () => {
     switch (state) {
       case 'schema-drift':
       case 'schema-required': {
-        const schema = path.join(stage, 'schemas', 'exec-result-v1.schema.json')
+        const schema = path.join(stage, 'schemas', 'exec-result-v2.schema.json')
         const original = readFileSync(schema, 'utf8')
         writeFileSync(
           schema,
           state === 'schema-drift'
-            ? original.replace('"const": 1', '"const": 2')
+            ? original.replace('"const": 2', '"const": 3')
             : original.replace('    "status",\n', ''),
         )
         break
       }
       case 'schema-empty': {
-        writeFileSync(path.join(stage, 'schemas', 'exec-event-v1.schema.json'), '{"anyOf":[]}')
+        writeFileSync(path.join(stage, 'schemas', 'exec-event-v2.schema.json'), '{"anyOf":[]}')
         break
       }
     }
@@ -737,7 +749,7 @@ function result(stdout: string): ExecResult {
   const events = stdout
     .trim()
     .split('\n')
-    .map((line) => execEventSchema.parse(JSON.parse(line)))
+    .map((line) => execEventV2Schema.parse(JSON.parse(line)))
   expect(events.map((event) => event.seq)).toEqual(events.map((_, index) => index + 1))
   const finals = events.filter((event) => event.type === 'result')
   expect(finals).toHaveLength(1)
@@ -750,6 +762,24 @@ function result(stdout: string): ExecResult {
 describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
   beforeAll(async () => {
     if (INSTALLED === undefined) {
+      const darwinHelper = path.join(BUILD_ROOT, 'native/darwin/muse-dictate')
+      if (process.platform === 'darwin' || process.platform === 'linux') {
+        const currentHelper =
+          process.platform === 'darwin'
+            ? darwinHelper
+            : path.join(BUILD_ROOT, 'native/linux', process.arch, 'muse-created')
+        if (!existsSync(currentHelper)) buildCreatedHelper(ROOT, BUILD_ROOT)
+      }
+      if (process.platform !== 'darwin') {
+        // Foreign helpers are inert fixture bytes; the current helper is real.
+        writeFileSync(darwinHelper, 'test-owned inert Darwin helper\n')
+      }
+      for (const arch of ['x64', 'arm64']) {
+        if (process.platform === 'linux' && process.arch === arch) continue
+        const folder = path.join(BUILD_ROOT, 'native/linux', arch)
+        mkdirSync(folder, { recursive: true })
+        writeFileSync(path.join(folder, 'muse-created'), 'test-owned inert Linux helper\n')
+      }
       packageImagePreload(PACKAGE_PRELOAD, BUILD_ROOT, PACKAGE_IMAGES)
       const packed = command(
         path.join(BUILD_ROOT, 'scripts', 'package-acp.mjs'),
@@ -856,16 +886,16 @@ describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
     expect(run.code).toBe(0)
     expect(run.stdout).toContain('exec')
     expect(run.stdout).toContain('scan-secrets')
-    for (const schema of ['exec-result-v1', 'exec-event-v1']) {
+    for (const schema of ['exec-result-v2', 'exec-event-v2']) {
       const parsed: unknown = JSON.parse(
         readFileSync(path.join(PACKAGE, 'schemas', `${schema}.schema.json`), 'utf8'),
       )
-      if (schema === 'exec-result-v1') expect(parsed).toHaveProperty('properties.v.const', 1)
+      if (schema === 'exec-result-v2') expect(parsed).toHaveProperty('properties.v.const', 2)
       else
         expect(parsed).toMatchObject({
           anyOf: expect.arrayContaining([
             expect.objectContaining({
-              properties: expect.objectContaining({ v: expect.objectContaining({ const: 1 }) }),
+              properties: expect.objectContaining({ v: expect.objectContaining({ const: 2 }) }),
             }),
           ]),
         })

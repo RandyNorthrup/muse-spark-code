@@ -1,3 +1,7 @@
+import { Usd } from '../../src/shared/usd'
+import { EN } from '../../src/shared/l10n/en'
+import { formatUsd } from '../../src/shared/l10n/exactUsd'
+import { fill } from '../../src/shared/l10n/text'
 // Fixtures for the Models panel's unit tests: a host-owned state with a
 // local provider, a scanned model and the wizard at every step. Kept in
 // one file so the suites share builders instead of duplicating them.
@@ -102,7 +106,7 @@ export function makeSuggestion(kind: SuggestionKind): PanelSuggestion {
         reason: 'The cheapest tool-calling model.',
         accepted: false,
       }
-    : { kind, usd: 2.5, reason: 'From your recent sessions.', accepted: false }
+    : { kind, usd: Usd.from(2.5).toAmount(), reason: 'From your recent sessions.', accepted: false }
 }
 
 export function makeDraft(overrides: Partial<PanelDraft> = {}): PanelDraft {
@@ -136,6 +140,13 @@ export function makeState(overrides: Partial<ModelsPanelState> = {}): ModelsPane
     facets: { providers: ['ollama'], families: ['qwen3'] },
     scans: {},
     suggestions: [],
+    sessionBudget: {
+      effectiveUsd: Usd.from(0).toAmount(),
+      nowLine: fill(EN.wizardSessionBudgetNow, {
+        amount: formatUsd('0'),
+        scope: EN.sessionBudgetScopeGlobal,
+      }),
+    },
     lastChoices: {},
     drafts: { edits: {} },
     pendingRemovals: [],

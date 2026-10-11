@@ -1,6 +1,8 @@
+import { Usd } from '../../src/shared/usd'
 import { describe, expect, it } from 'vitest'
 import {
   effortForPolicy,
+  minOutputTokensForPolicy,
   modelPolicyFor,
   modelPricedUsage,
   outputLimitFor,
@@ -60,6 +62,54 @@ describe('resolved model policy', () => {
     )
   })
 
+  it('resolves a declared Thinking-off switch from the record, never by name', () => {
+    // Lane DSTHINK3: only the preset's declared switch changes the mapping.
+    const deepseek = modelPolicyFor('deepseek/deepseek-flash', {
+      effortLevels: ['low', 'high', 'max'],
+      canDisableReasoning: true,
+      thinkingOff: 'thinking-switch',
+    })
+    expect(effortForPolicy(deepseek, 'high')).toBe('high')
+    expect(effortForPolicy(deepseek, 'medium')).toBe('high')
+    expect(effortForPolicy(deepseek, 'minimal')).toBe('low')
+    expect(effortForPolicy(deepseek, 'none')).toBe('none')
+    // Refused and default settings ride unchanged to the codec's resolver.
+    expect(
+      effortForPolicy(
+        { ...deepseek, reasoning: { ...deepseek.reasoning, canDisable: { state: 'no' } } },
+        'none',
+      ),
+    ).toBe('none')
+    expect(
+      effortForPolicy(
+        modelPolicyFor('deepseek/deepseek-flash', {
+          effortLevels: [],
+          thinkingOff: 'thinking-switch',
+        }),
+        'high',
+      ),
+    ).toBe('high')
+    // Same name, no declared switch: the base mapping.
+    const named = modelPolicyFor('deepseek/deepseek-flash', {
+      effortLevels: ['low', 'high', 'max'],
+    })
+    expect(effortForPolicy(named, 'medium')).toBe('none')
+    expect(named.reasoning).not.toHaveProperty('thinkingOff')
+    const openai = modelPolicyFor('openai/gpt-5-nano', {
+      effortLevels: ['minimal', 'low', 'medium', 'high'],
+    })
+    expect(effortForPolicy(openai, 'minimal')).toBe('minimal')
+    expect(
+      modelPolicyFor('muse-spark-1.3', { thinkingOff: 'thinking-switch' }).reasoning,
+    ).not.toHaveProperty('thinkingOff')
+  })
+
+  it('floors Meta requests at the captured provider minimum and leaves others at one', () => {
+    expect(minOutputTokensForPolicy(modelPolicyFor('muse-spark-1.3'))).toBe(16)
+    expect(minOutputTokensForPolicy(modelPolicyFor(ref))).toBe(1)
+    expect(minOutputTokensForPolicy(modelPolicyFor(ref, { minOutputTokens: 32 }))).toBe(32)
+  })
+
   it('retains the exact Meta output cap and effort mapping', () => {
     const policy = modelPolicyFor('muse-spark-1.3')
     expect(outputLimitFor(policy, MODEL_API_MAX_OUTPUT_TOKENS)).toBe(MODEL_API_MAX_OUTPUT_TOKENS)
@@ -70,33 +120,52 @@ describe('resolved model policy', () => {
 
   it('reserves cold cache writes at public price-card rates and settles the reported cost', async () => {
     const model = await registry({ kind: 'priced', card }).resolve(ref)
-    expect(model.price.reserve({ inputTokens: 100, outputTokens: 1 })).toBeCloseTo(0.203)
-    expect(model.price.settle({ inputTokens: 100, outputTokens: 1 }, { cost: 0.7 })).toBe(0.7)
+    expect(Number(model.price.reserve({ inputTokens: 100, outputTokens: 1 }))).toBeCloseTo(0.203)
+    expect(model.price.settle({ inputTokens: 100, outputTokens: 1 }, { cost: 0.7 })).toBe(
+      Usd.from(0.7).toAmount(),
+    )
     const reserved = reserveRequest({
-      capUsd: 0.213,
-      spentUsd: 0,
+      capUsd: Usd.from(0.213).toAmount(),
+      spentUsd: Usd.from(0).toAmount(),
       estimatedInputTokens: 100,
       modelId: ref,
       maxOutputTokens: 100,
       price: model.price,
     })
     expect(reserved.maxOutputTokens).toBe(4)
-    expect(reserved.costUsd).toBeLessThanOrEqual(0.213)
+    expect(Number(reserved.costUsd)).toBeLessThanOrEqual(0.213)
+  })
+
+  it('admits an exact decimal provider quote at the budget boundary', async () => {
+    const model = await registry({
+      kind: 'priced',
+      card: { input: 0.1, output: 0.2, source: 'user' },
+    }).resolve(ref)
+    const reserved = reserveRequest({
+      capUsd: Usd.from('0.3').toAmount(),
+      spentUsd: Usd.from(0).toAmount(),
+      estimatedInputTokens: 1,
+      modelId: ref,
+      maxOutputTokens: 1,
+      price: model.price,
+    })
+    expect(reserved.maxOutputTokens).toBe(1)
+    expect(reserved.costUsd).toBe(Usd.from('0.3').toAmount())
   })
 
   it('keeps local free, unpriced unknown and plan paid by the plan', async () => {
     for (const kind of ['local', 'unpriced', 'plan'] as const) {
       const model = await registry({ kind }).resolve(ref)
       const cost = model.price.settle({ inputTokens: 100, outputTokens: 1 })
-      expect(cost).toBe(kind === 'unpriced' ? undefined : 0)
+      expect(cost).toBe(kind === 'unpriced' ? undefined : Usd.from(0).toAmount())
       expect(model.price.reserve({ inputTokens: 100, outputTokens: 1 })).toBe(
-        kind === 'unpriced' ? undefined : 0,
+        kind === 'unpriced' ? undefined : Usd.from(0).toAmount(),
       )
       if (kind === 'unpriced') {
         expect(() =>
           reserveRequest({
-            capUsd: 1,
-            spentUsd: 0,
+            capUsd: Usd.from(1).toAmount(),
+            spentUsd: Usd.from(0).toAmount(),
             estimatedInputTokens: 100,
             modelId: ref,
             price: model.price,
@@ -105,8 +174,8 @@ describe('resolved model policy', () => {
       } else {
         expect(
           reserveRequest({
-            capUsd: 1,
-            spentUsd: 0,
+            capUsd: Usd.from(1).toAmount(),
+            spentUsd: Usd.from(0).toAmount(),
             estimatedInputTokens: 100,
             modelId: ref,
             maxOutputTokens: 100,
@@ -161,13 +230,13 @@ describe('resolved model policy', () => {
       card: { ...card, request: 0.5, image: 0.6 },
     }).resolve(ref)
     const usage = { inputTokens: 100, outputTokens: 3, images: 2 }
-    expect(priced.price.reserve(usage)).toBeCloseTo(1.909)
-    expect(priced.price.settle(usage)).toBeCloseTo(1.809)
-    expect(priced.price.settle(usage, { cost: 0.25 })).toBe(0.25)
+    expect(Number(priced.price.reserve(usage))).toBeCloseTo(1.909)
+    expect(Number(priced.price.settle(usage))).toBeCloseTo(1.809)
+    expect(priced.price.settle(usage, { cost: 0.25 })).toBe(Usd.from(0.25).toAmount())
     expect(() =>
       reserveRequest({
-        capUsd: 1,
-        spentUsd: 0,
+        capUsd: Usd.from(1).toAmount(),
+        spentUsd: Usd.from(0).toAmount(),
         estimatedInputTokens: 100,
         modelId: ref,
         price: priced.price,
@@ -202,6 +271,21 @@ describe('resolved model policy', () => {
         { inputTokens: 20, outputTokens: 0, cacheWriteTokens: 20, cacheWriteTokens1h: 10 },
         { cost: 0.06 },
       ),
-    ).toBe(0.06)
+    ).toBe(Usd.from(0.06).toAmount())
   })
+})
+
+it('rejects a configured cap or provider ceiling below the selected minimum', () => {
+  for (const cap of [1, 15])
+    expect(() => outputLimitFor(modelPolicyFor('muse-spark-1.3'), cap)).toThrow(
+      'Output cap must be at least 16 tokens.',
+    )
+  expect(() =>
+    outputLimitFor(modelPolicyFor(ref, { minOutputTokens: 32, maxOutputTokens: 31 }), 100),
+  ).toThrow('Output cap must be at least 32 tokens.')
+  expect(outputLimitFor(modelPolicyFor('muse-spark-1.3'), 16)).toBe(16)
+  expect(outputLimitFor(modelPolicyFor(ref), 1)).toBe(1)
+  expect(() => outputLimitFor(modelPolicyFor(ref), 0)).toThrow(
+    'Output cap must be at least 1 token.',
+  )
 })

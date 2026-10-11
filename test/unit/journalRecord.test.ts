@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
@@ -129,8 +130,11 @@ describe('journal records', () => {
       date: '2026-10-04',
     })
     expect(
-      createUsageRecord(usage, { ...priced, providerCostUsd: 0, costInUsdTicks: 10_000_000_000 })
-        .cost,
+      createUsageRecord(usage, {
+        ...priced,
+        providerCostUsd: Usd.from(0).toAmount(),
+        costInUsdTicks: 10_000_000_000,
+      }).cost,
     ).toEqual({ certainty: 'reported', usd: 0 })
     expect(
       createUsageRecord(undefined, { ...context, costInUsdTicks: 2_500_000_000 }).cost,
@@ -142,11 +146,17 @@ describe('journal records', () => {
       certainty: 'local',
       usd: 0,
     })
-    expect(createUsageRecord(usage, { ...context, providerCostUsd: -1 }).cost).toEqual({
+    expect(
+      createUsageRecord(usage, { ...context, providerCostUsd: Usd.from(-1).toAmount() }).cost,
+    ).toEqual({
       certainty: 'unpriced',
     })
     expect(
-      createUsageRecord(undefined, { ...priced, uncertain: true, retainedLiabilityUsd: 10 }).cost,
+      createUsageRecord(undefined, {
+        ...priced,
+        uncertain: true,
+        retainedLiabilityUsd: Usd.from(10).toAmount(),
+      }).cost,
     ).toEqual({ certainty: 'uncertain', usd: 10 })
     const record = createUsageRecord(usage, priced)
     cardCostChange(record.cost.usd)
@@ -196,7 +206,7 @@ describe('journal records', () => {
         {
           ...priced,
           uncertain: true,
-          providerCostUsd: 2,
+          providerCostUsd: Usd.from(2).toAmount(),
         },
       ).cost,
     ).toEqual({ certainty: 'uncertain', usd: 2 })
@@ -212,7 +222,10 @@ describe('journal records', () => {
     })
     expect(createUsageRecord({ output_tokens: 20 }, meta).cost.usd).toBe(0.000085)
     expect(
-      createUsageRecord({ input_tokens: 100 }, { ...priced, providerCostUsd: 2 }).cost,
+      createUsageRecord(
+        { input_tokens: 100 },
+        { ...priced, providerCostUsd: Usd.from(2).toAmount() },
+      ).cost,
     ).toEqual({ certainty: 'reported', usd: 2 })
   })
   it('prices only exact published Meta ids and keeps plan equivalents separate', () => {
@@ -331,7 +344,7 @@ describe('journal records', () => {
         await Array.fromAsync(
           codec.decodeStream(stream, {
             settledCostUsd: (usd) => {
-              costs.push(usd)
+              costs.push(Number(usd))
             },
           }),
         ),
@@ -339,7 +352,7 @@ describe('journal records', () => {
       const record = createUsageRecord(native, {
         ...context,
         provider,
-        ...(costs[0] !== undefined && { providerCostUsd: costs[0] }),
+        ...(costs[0] !== undefined && { providerCostUsd: Usd.from(costs[0]).toAmount() }),
       })
       expect(record.tokens.input).toBe(native.input_tokens)
       expect(record.tokens.output).toBe(native.output_tokens)
@@ -365,13 +378,15 @@ describe('journal records', () => {
       },
       { outputItems: 128, argumentBytes: 65_536, streamBytes: 1_048_576, frameBytes: 65_536 },
     )
-    expect(decoded.providerCostUsd).toBeGreaterThan(0)
+    expect(Number(decoded.providerCostUsd)).toBeGreaterThan(0)
     const record = createUsageRecord(decoded.response.usage ?? undefined, {
       ...context,
       provider: 'openrouter',
-      ...(decoded.providerCostUsd !== undefined && { providerCostUsd: decoded.providerCostUsd }),
+      ...(decoded.providerCostUsd !== undefined && {
+        providerCostUsd: decoded.providerCostUsd,
+      }),
     })
-    expect(record.cost).toEqual({ certainty: 'reported', usd: decoded.providerCostUsd })
+    expect(record.cost).toEqual({ certainty: 'reported', usd: Number(decoded.providerCostUsd) })
     expect(record.tokens.input).toBe(decoded.response.usage?.input_tokens)
   })
   it('replays captured Gemini thoughts and Ollama local usage', async () => {

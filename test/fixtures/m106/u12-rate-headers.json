@@ -1,0 +1,92 @@
+[
+  {
+    "provenance": {
+      "date": "2026-10-05",
+      "run": "2026-10-06T00-30-19-038Z",
+      "seq": 34,
+      "timestamp": "2026-10-06T00:31:49.679Z",
+      "model": "muse-spark-1.3-contributor"
+    },
+    "stream": false,
+    "path": "/responses",
+    "status": 200,
+    "headers": {
+      "x-ratelimit-limit-requests": "150",
+      "x-ratelimit-limit-tokens": "3000000",
+      "x-ratelimit-remaining-requests": "143",
+      "x-ratelimit-remaining-tokens": "2993903"
+    }
+  },
+  {
+    "provenance": {
+      "date": "2026-10-05",
+      "run": "2026-10-06T00-30-19-038Z",
+      "seq": 35,
+      "timestamp": "2026-10-06T00:31:58.907Z",
+      "model": "muse-spark-1.3-contributor"
+    },
+    "stream": true,
+    "path": "/responses",
+    "status": 200,
+    "headers": {
+      "x-ratelimit-limit-requests": "150",
+      "x-ratelimit-limit-tokens": "3000000",
+      "x-ratelimit-remaining-requests": "143",
+      "x-ratelimit-remaining-tokens": "2993903"
+    }
+  },
+  {
+    "provenance": {
+      "date": "2026-10-05",
+      "run": "2026-10-06T00-30-19-038Z",
+      "seq": 37,
+      "timestamp": "2026-10-06T00:32:02.538Z",
+      "model": "muse-spark-1.3-contributor"
+    },
+    "stream": false,
+    "path": "/responses",
+    "status": 200,
+    "headers": {
+      "x-ratelimit-limit-requests": "150",
+      "x-ratelimit-limit-tokens": "3000000",
+      "x-ratelimit-remaining-requests": "141",
+      "x-ratelimit-remaining-tokens": "2990172"
+    }
+  },
+  {
+    "provenance": {
+      "date": "2026-10-05",
+      "run": "2026-10-06T00-30-19-038Z",
+      "seq": 39,
+      "timestamp": "2026-10-06T00:32:04.611Z",
+      "model": "muse-spark-1.3-contributor"
+    },
+    "stream": false,
+    "path": "/responses/input_tokens",
+    "status": 200,
+    "headers": {
+      "x-ratelimit-limit-requests": "150",
+      "x-ratelimit-limit-tokens": "3000000",
+      "x-ratelimit-remaining-requests": "142",
+      "x-ratelimit-remaining-tokens": "2990172"
+    }
+  },
+  {
+    "provenance": {
+      "date": "2026-10-05",
+      "run": "2026-10-06T00-30-19-038Z",
+      "seq": 40,
+      "timestamp": "2026-10-06T00:32:04.988Z",
+      "model": "muse-spark-1.3-contributor"
+    },
+    "stream": false,
+    "path": "/responses",
+    "status": 200,
+    "headers": {
+      "x-ratelimit-limit-requests": "150",
+      "x-ratelimit-limit-tokens": "3000000",
+      "x-ratelimit-remaining-requests": "140",
+      "x-ratelimit-remaining-tokens": "2989532"
+    }
+  }
+]

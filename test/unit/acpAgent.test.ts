@@ -1,7 +1,11 @@
+import { Usd } from '../../src/shared/usd'
 import { fill } from '../../src/shared/l10n/text'
+import type { PlaybookSurfacePort } from '../../src/runtime/playbook/command'
+import { surfacePort } from './playbookSurfaceFixtures'
+import type { AcpSchedulePort } from '../../src/acp/schedules'
 import * as acp from '@agentclientprotocol/sdk'
 import { MspError } from '@muse-code/sdk'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import {
   type AcpAgentDeps,
   type BackendReadiness,
@@ -9,8 +13,25 @@ import {
   type SignInMethod,
 } from '../../src/acp/agent'
 import * as questionFactories from '../../src/acp/questionDeferralEntry'
+import type { AcpAttachment, AcpMediaFactory, AcpMediaPort } from '../../src/acp/media'
 import { AcpPaidUse } from '../../src/acp/paid'
 import * as paidConsent from '../../src/core/paid/paidConsent'
+import type { AcpQuestionRegistryFactory } from '../../src/acp/questionDeferral'
+import { mkdtemp } from 'node:fs/promises'
+import { spawn } from 'node:child_process'
+import { once } from 'node:events'
+import { build } from 'esbuild'
+import * as z from 'zod/mini'
+import { FakeQuestionClock } from './helpers/questions/clock'
+import { hookResult } from './helpers/fakeToolIo'
+import { queuedAnswerBackend } from './helpers/questions/queuedAnswerBackend'
+import { parseHookConfig } from '../../src/core/backends/modelapi/hooks'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
+import * as questionStores from '../../src/runtime/questions/questionStore'
+import { createRuntimeQuestionRegistry } from '../../src/runtime/questions/acpRegistry'
+import { removeFolder } from './helpers/temporaryFolders'
+import { parsePlaybookCommand, runPlaybookCommand } from '../../src/runtime/playbook/command'
 import type { AgentHost, AgentSession, ModelSummary } from '../../src/core/agent/agentBackend'
 import type {
   AgentEvent,
@@ -18,12 +39,18 @@ import type {
   ItemSnapshot,
   Question,
 } from '../../src/shared/agentEvents'
-import { type AcpPaidFeature, type PermissionMode, UI_TEXT } from '../../src/shared/constants'
+import {
+  type AcpPaidFeature,
+  type PermissionMode,
+  MAX_ATTACHMENTS_PER_MESSAGE,
+  UI_TEXT,
+} from '../../src/shared/constants'
 import type { PaidUseRequest } from '../../src/shared/paid'
 import { approvalModeFor } from '../../src/shared/permissionModes'
-import { FAKE_MODELS, FakeAgentHost, type FakeAgentSession } from './helpers/fakeAgent'
+import { FAKE_MODELS, FakeAgentHost, FakeAgentSession } from './helpers/fakeAgent'
 import { memoryPaidGrants } from './helpers/paidGrants'
-import { commandApproval, until } from './helpers/acpWaits'
+import { commandApproval, promptLocalText, until } from './helpers/acpWaits'
+import { childPatchOutput } from './helpers/fakeMsp'
 import { acpMspHost, acpResumeEnvelope, answerMsp } from './helpers/acpMsp'
 import { chatGptAuthenticationMethods } from '../../src/runtime/chatGptProviderCommands'
 import { createRuntimeChatGptHost } from '../../src/runtime/chatGptHost'
@@ -38,7 +65,7 @@ const CWD = process.platform === 'win32' ? String.raw`C:\work\app` : '/work/app'
 const WAIT_MS = 2000
 
 const CHOICES: ApprovalChoice[] = [
-  { choiceId: 'allow_once', label: 'Allow once', decision: 'approved', scope: 'once' },
+  { choiceId: 'allow_once', label: 'Allow Once', decision: 'approved', scope: 'once' },
   {
     choiceId: 'allow_session',
     label: 'Allow for the session',
@@ -69,6 +96,10 @@ interface HarnessOptions {
   readonly legalScan?: AcpAgentDeps['legalScan']
 
   readonly providerSignIns?: readonly SignInMethod[]
+  readonly playbookFor?: (cwd: string, sessionId: string) => PlaybookSurfacePort
+  readonly schedules?: AcpSchedulePort
+  readonly media?: AcpMediaFactory
+  readonly isHeadless?: boolean
   readonly backendHost?: AgentHost
   readonly readiness?: BackendReadiness
   readonly answer?: PermissionAnswer
@@ -85,6 +116,7 @@ interface HarnessOptions {
   /** `--trust-workspace`: "Allow always" is offered and kept (M58). */
   readonly isTrusted?: boolean
   readonly questionPolicy?: AcpAgentDeps['questions']
+  readonly questions?: AcpQuestionRegistryFactory
 }
 
 function harness(options: HarnessOptions = {}): Harness {
@@ -105,6 +137,11 @@ function harness(options: HarnessOptions = {}): Harness {
   })
   const deps: AcpAgentDeps = {
     legalScan: options.legalScan,
+    ...(options.playbookFor !== undefined && {
+      playbookFor: options.playbookFor,
+      playbookBundle: () => ({ parsePlaybookCommand, runPlaybookCommand }),
+    }),
+    ...(options.schedules !== undefined && { schedules: options.schedules }),
     backend: {
       kind,
       readiness: (isRecheck) => {
@@ -113,17 +150,19 @@ function harness(options: HarnessOptions = {}): Harness {
       },
       hostFor: () => Promise.resolve(options.backendHost ?? host),
     },
+    ...(options.media !== undefined && { media: options.media }),
     version: '0.0.0-test',
     questionBundle: () => questionFactories,
     options: {
       canBypass: options.canBypass ?? false,
       allowsContributorModels: options.allowsContributorModels ?? false,
       initialMode: options.initialMode ?? 'manual',
+      ...(options.isHeadless !== undefined && { isHeadless: options.isHeadless }),
     },
     signIn: {
       id: 'muse-code-login',
-      name: 'Sign in',
-      description: 'Sign in to Muse Code',
+      name: 'Sign In',
+      description: 'Sign In to Muse Code',
       args: ['login'],
       command: 'muse-spark-code-acp login',
     },
@@ -131,7 +170,7 @@ function harness(options: HarnessOptions = {}): Harness {
     defaultCwd: CWD,
     paid,
     log,
-    questions: options.questionPolicy ?? fakeAcpQuestions,
+    questions: options.questions ?? options.questionPolicy ?? fakeAcpQuestions,
   }
   const agent = createAcpAgent(deps)
   const client = acp
@@ -165,6 +204,10 @@ function harness(options: HarnessOptions = {}): Harness {
     log,
     run: (op) => client.connectWith(agent, op),
   }
+}
+
+function scheduleReleaseHarness(release: () => Promise<void>): Harness {
+  return harness({ schedules: { run: vi.fn(), holdWorkspace: vi.fn().mockResolvedValue(release) } })
 }
 
 /** Lets the agent act on what it just received, before a test checks it did nothing. */
@@ -493,6 +536,192 @@ describe('the ACP agent (M63)', () => {
     })
     expect(ready.rechecks).toEqual([])
   })
+  it('lists active agents locally while a model turn is running', async () => {
+    const h = harness()
+    vi.spyOn(h.host, 'readSession').mockResolvedValue({
+      mode: 'inline',
+      items: [{ itemId: 'a', kind: 'subagent', subagentId: 'child', status: 'inProgress' }],
+      todos: [],
+      name: undefined,
+    })
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      const running = prompt(client, sessionId)
+      const session = h.host.sessions[0]!
+      await until(() => session.sendTurn.mock.calls.length === 1)
+      await prompt(client, sessionId, '/agents')
+      expect(session.sendTurn).toHaveBeenCalledTimes(1)
+      session.emit({ type: 'turnCompleted', turnId: 'turn-1', terminal: 'completed' })
+      await running
+    })
+  })
+  it.each(['/agents', '/agents receipt child'])(
+    'cancels the running model turn while local inspection waits: %s',
+    async (command) => {
+      const h = harness()
+      const history = { mode: 'inline', items: [], todos: [], name: undefined } as const
+      const held = Promise.withResolvers<typeof history>()
+      const read = vi.spyOn(h.host, 'readSession').mockReturnValue(held.promise)
+      await h.run(async (client) => {
+        const { sessionId, session, response: runningPrompt } = await running(h, client)
+        const inspecting = prompt(client, sessionId, command)
+        await until(() => read.mock.calls.length === 1)
+        await client.notify('session/cancel', { sessionId })
+        try {
+          await until(() => session.cancel.mock.calls.length === 1)
+        } finally {
+          held.resolve(history)
+          session.emit({ type: 'turnCompleted', turnId: 'turn-1', terminal: 'completed' })
+        }
+        expect(await runningPrompt).toEqual({ stopReason: 'cancelled' })
+        expect(await inspecting).toEqual({ stopReason: 'cancelled' })
+        expect(session.cancel).toHaveBeenCalledTimes(1)
+      })
+    },
+  )
+
+  it('keeps newer inspection preparation when a cancelled history read settles late', async () => {
+    const h = harness()
+    const history = { mode: 'inline', items: [], todos: [], name: undefined } as const
+    const old = Promise.withResolvers<typeof history>()
+    const newer = Promise.withResolvers<typeof history>()
+    const read = vi
+      .spyOn(h.host, 'readSession')
+      .mockReturnValueOnce(old.promise)
+      .mockReturnValueOnce(newer.promise)
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      const first = prompt(client, sessionId, '/agents')
+      await until(() => read.mock.calls.length === 1)
+      await client.notify('session/cancel', { sessionId })
+      await until(() =>
+        h.log.info.mock.calls.some(([line]) => String(line).includes('cancelled before its turn')),
+      )
+      const second = prompt(client, sessionId, '/agents')
+      await until(() => read.mock.calls.length === 2)
+      old.resolve(history)
+      expect(await first).toEqual({ stopReason: 'cancelled' })
+      let isSettled = false
+      const regular = (async () => {
+        try {
+          await prompt(client, sessionId)
+          return 'started'
+        } catch (error: unknown) {
+          return error instanceof Error ? error.message : String(error)
+        } finally {
+          isSettled = true
+        }
+      })()
+      try {
+        await until(() => isSettled || h.host.sessions[0]?.sendTurn.mock.calls.length === 1)
+        h.host.sessions[0]?.emit({ type: 'turnCompleted', turnId: 'turn-1', terminal: 'completed' })
+        expect(await regular).toContain(UI_TEXT.acpPromptBusy)
+      } finally {
+        newer.resolve(history)
+      }
+      expect(await second).toEqual({ stopReason: 'end_turn' })
+      expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+    })
+  })
+
+  it('reads ACP child patch evidence through the child session without resuming it', async () => {
+    await withMspSession(async (client, wire) => {
+      wire.server.handle('session/read', (params) => {
+        const value = acpResumeEnvelope()
+        return {
+          ...value,
+          session: { ...value.session, sessionId: params['sessionId'] },
+          history: {
+            ...value.history,
+            items: [
+              params['sessionId'] === 'old-1'
+                ? {
+                    itemId: 'a',
+                    kind: 'subagent',
+                    subagentId: 'child',
+                    childSessionId: 'child-1',
+                    status: 'completed',
+                  }
+                : {
+                    itemId: 'edit',
+                    kind: 'toolCall',
+                    status: 'completed',
+                    patchRef: { id: 'patch', byteLen: 100 },
+                  },
+            ],
+          },
+        }
+      })
+      wire.server.handle('item/readOutput', childPatchOutput)
+      await prompt(client, 'old-1', '/agents receipt child')
+      expect(wire.server.requestsFor('item/readOutput')[0]?.params?.['sessionId']).toBe('child-1')
+      expect(wire.server.requestsFor('session/resume')).toHaveLength(1)
+      expect(wire.server.requestsFor('turn/start')).toHaveLength(0)
+    })
+  })
+
+  it.each(['continue', 'retry'])(
+    'does not recover through local %s after the editor denies',
+    async (action) => {
+      const h = harness({ answer: () => ({ outcome: { outcome: 'selected', optionId: 'deny' } }) })
+      vi.spyOn(h.host, 'readSession').mockResolvedValue({
+        mode: 'inline',
+        items: [{ itemId: 'a', kind: 'subagent', subagentId: 'child', status: 'failed' }],
+        todos: [],
+        name: undefined,
+      })
+      await h.run(async (client) => {
+        const { sessionId } = await start(client)
+        await prompt(client, sessionId, `/agents ${action} child`)
+      })
+      expect(h.host.sessions[0]?.controlSubagent).not.toHaveBeenCalled()
+      expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+      expect(h.permissions).toHaveLength(1)
+    },
+  )
+  it('lists agent evidence and receipts locally, and asks before recovery in Bypass', async () => {
+    const h = harness({
+      canBypass: true,
+      initialMode: 'bypassPermissions',
+      answer: () => ({ outcome: { outcome: 'selected', optionId: 'recover' } }),
+    })
+    const item: ItemSnapshot = {
+      itemId: 'a',
+      kind: 'subagent',
+      subagentId: 'child',
+      status: 'completed',
+      objective: 'Keep objective',
+      agentEvidence: { stopReason: 'budget', unfinished: ['Run Checks'] },
+      result: { summary: 'Final message' },
+    }
+    vi.spyOn(h.host, 'readSession').mockResolvedValue({
+      mode: 'inline',
+      items: [item],
+      name: undefined,
+      todos: [],
+    })
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      await prompt(client, sessionId, '/agents')
+      await prompt(client, sessionId, '/agents receipt child')
+      await prompt(client, sessionId, '/agents continue child')
+      await prompt(client, sessionId, '/agents retry child')
+    })
+    expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+    expect(h.permissions).toHaveLength(2)
+    expect(h.host.sessions[0]?.controlSubagent).toHaveBeenCalledWith('child', 'continue')
+    expect(h.host.sessions[0]?.controlSubagent).toHaveBeenCalledWith('child', 'retry')
+    const messages = h.updates
+      .flatMap((update) =>
+        update.sessionUpdate === 'agent_message_chunk' && update.content.type === 'text'
+          ? [update.content.text]
+          : [],
+      )
+      .join('\n')
+    expect(messages).toContain('Inactive · Incomplete')
+    expect(messages).toContain('Final message')
+  })
+
   it('initializes with its capabilities, and a terminal sign-in only for a client that runs one', async () => {
     const h = harness()
     const [plain, terminal] = await h.run(async (client) => [
@@ -511,7 +740,7 @@ describe('the ACP agent (M63)', () => {
     expect(plain.authMethods).toEqual([
       {
         id: 'muse-code-login',
-        name: 'Sign in',
+        name: 'Sign In',
         description: 'Run “muse-spark-code-acp login” in a terminal, then try again.',
       },
     ])
@@ -519,8 +748,8 @@ describe('the ACP agent (M63)', () => {
       {
         type: 'terminal',
         id: 'muse-code-login',
-        name: 'Sign in',
-        description: 'Sign in to Muse Code',
+        name: 'Sign In',
+        description: 'Sign In to Muse Code',
         args: ['login'],
       },
     ])
@@ -531,15 +760,15 @@ describe('the ACP agent (M63)', () => {
       {
         type: 'terminal',
         id: 'muse-code-login',
-        name: 'Sign in',
-        description: 'Sign in to Muse Code',
+        name: 'Sign In',
+        description: 'Sign In to Muse Code',
         args: ['login'],
       },
     ]
     const byHand = [
       {
         id: 'muse-code-login',
-        name: 'Sign in',
+        name: 'Sign In',
         description: 'Run “muse-spark-code-acp login” in a terminal, then try again.',
       },
     ]
@@ -678,7 +907,7 @@ describe('the ACP agent (M63)', () => {
     expect(effort).toMatchObject({ id: 'effort', category: 'thought_level', currentValue: 'high' })
   })
 
-  it('lists contributor models and Bypass permissions only when the flags allow them', async () => {
+  it('lists contributor models and Bypass Permissions only when the flags allow them', async () => {
     const h = harness({ canBypass: true, allowsContributorModels: true })
     const created = await h.run((client) => start(client))
     expect(created.modes?.availableModes.map((mode) => mode.id)).toContain('bypassPermissions')
@@ -726,16 +955,9 @@ describe('the ACP agent (M63)', () => {
 
   it('answers /help locally with the companion reference and no model turn', async () => {
     const h = harness()
-    await h.run(async (client) => {
-      const { sessionId } = await start(client)
-      expect(
-        await client.request('session/prompt', {
-          sessionId,
-          prompt: [{ type: 'text', text: '/help' }],
-        }),
-      ).toEqual({ stopReason: 'end_turn' })
-      expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
-    })
+    const reply = await promptLocalText((work) => h.run(work), start, '/help')
+    expect(reply).toEqual({ stopReason: 'end_turn' })
+    expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
     expect(h.updates).toContainEqual({
       sessionUpdate: 'agent_message_chunk',
       content: { type: 'text', text: expect.stringContaining('docs/reference.md') },
@@ -746,7 +968,7 @@ describe('the ACP agent (M63)', () => {
       content: {
         type: 'text',
         text: expect.stringContaining(
-          `${UI_TEXT.groupSlashCommands}: /help, /compact, /questions, /answer`,
+          `${UI_TEXT.groupSlashCommands}: /help, /compact, /agents, /questions, /answer`,
         ),
       },
     })
@@ -790,6 +1012,242 @@ describe('the ACP agent (M63)', () => {
     )
   })
 
+  it('handles /playbook locally without starting a model turn', async () => {
+    const port = surfacePort()
+    const factory = vi.fn(() => port)
+    const h = harness({ playbookFor: factory })
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      expect(await prompt(client, sessionId, '/playbook status')).toEqual({
+        stopReason: 'end_turn',
+      })
+      expect(factory).toHaveBeenCalledWith(CWD, sessionId)
+      expect(h.host.sessions.at(-1)?.sendTurn).not.toHaveBeenCalled()
+      expect(h.updates.at(-1)).toMatchObject({
+        sessionUpdate: 'agent_message_chunk',
+        content: { type: 'text', text: expect.stringContaining(UI_TEXT.playbookTitle) },
+      })
+      expect(
+        await prompt(client, sessionId, '/playbook settings offload off worker maintenance'),
+      ).toEqual({ stopReason: 'end_turn' })
+      expect(port.snapshot().settings.rules.offload).toMatchObject({
+        enabled: false,
+        actor: 'owner',
+        reason: 'worker maintenance',
+      })
+      await turn(h, client, sessionId, () => undefined)
+      const announcement = h.updates.find(
+        (update) => update.sessionUpdate === 'available_commands_update',
+      )
+      expect(announcement).toMatchObject({
+        availableCommands: expect.arrayContaining([
+          expect.objectContaining({
+            name: 'playbook',
+            description: UI_TEXT.playbookHelpDescription,
+          }),
+        ]),
+      })
+      expect(factory).toHaveBeenCalledTimes(2)
+    })
+  })
+
+  it('local /playbook never leases or writes queued answers; the next model prompt takes them', async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), 'm116-local-'))
+    onTestFinished(() => removeFolder(directory))
+    const store = questionStores.createQuestionQueueStore(path.join(directory, 'queued'))
+    const save = vi.spyOn(store, 'save')
+    const factory = vi.spyOn(questionStores, 'createQuestionQueueStore').mockReturnValue(store)
+    onTestFinished(() => {
+      factory.mockRestore()
+    })
+    let registry: ReturnType<typeof createRuntimeQuestionRegistry> | undefined
+    const h = harness({
+      playbookFor: () => surfacePort(),
+      questions: (input) => {
+        registry = createRuntimeQuestionRegistry(input, directory, 'museCode', vi.fn())
+        return registry
+      },
+    })
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      await registry!.queue({
+        sessionId,
+        userInputId: 'q-1',
+        text: 'late: blue',
+        displayText: undefined,
+      })
+      save.mockClear()
+      expect(await prompt(client, sessionId, '/playbook status')).toEqual({
+        stopReason: 'end_turn',
+      })
+      expect(h.host.sessions.at(-1)?.sendTurn).not.toHaveBeenCalled()
+      expect(save).not.toHaveBeenCalled()
+      expect(await store.load(sessionId)).toMatchObject([{ text: 'late: blue' }])
+      await turn(h, client, sessionId, () => undefined)
+      expect(h.host.sessions.at(-1)?.sendTurn.mock.calls.at(-1)?.[0]).toContainEqual({
+        type: 'text',
+        text: 'late: blue',
+      })
+      expect(await store.load(sessionId)).toEqual([])
+    })
+    await registry?.flush()
+  })
+
+  it('refuses unbound /playbook rather than sending the command to a model', async () => {
+    const h = harness()
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      expect(await prompt(client, sessionId, '/playbook')).toEqual({ stopReason: 'end_turn' })
+      expect(h.host.sessions.at(-1)?.sendTurn).not.toHaveBeenCalled()
+      expect(h.updates.at(-1)).toMatchObject({
+        sessionUpdate: 'agent_message_chunk',
+        content: { text: UI_TEXT.playbookUnavailable },
+      })
+    })
+  })
+
+  it('routes /schedule locally and holds its workspace only while the ACP session exists', async () => {
+    const release = vi.fn<() => Promise<void>>().mockResolvedValue()
+    const run = vi.fn<AcpSchedulePort['run']>().mockResolvedValue('Schedule list')
+    const holdWorkspace = vi
+      .fn<NonNullable<AcpSchedulePort['holdWorkspace']>>()
+      .mockResolvedValue(release)
+    const h = harness({ schedules: { run, holdWorkspace } })
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      expect(
+        await client.request('session/prompt', {
+          sessionId,
+          prompt: [{ type: 'text', text: '/schedule list' }],
+        }),
+      ).toEqual({ stopReason: 'end_turn' })
+      expect(run).toHaveBeenCalledWith('/schedule list', {
+        cwd: CWD,
+        sessionId,
+        backend: 'museCode',
+      })
+      expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+      expect(holdWorkspace).toHaveBeenCalledWith(CWD)
+      expect(h.updates).toContainEqual({
+        sessionUpdate: 'agent_message_chunk',
+        content: { type: 'text', text: 'Schedule list' },
+      })
+      expect(h.updates[0]).toEqual(
+        expect.objectContaining({
+          sessionUpdate: 'available_commands_update',
+          // The merged announcement also names the built-in help command.
+          availableCommands: expect.arrayContaining([
+            expect.objectContaining({ name: 'schedule' }),
+          ]),
+        }),
+      )
+      await client.request('session/close', { sessionId })
+      expect(release).toHaveBeenCalledOnce()
+    })
+  })
+
+  it('refuses /schedule without a binding instead of starting a model turn', async () => {
+    const h = harness()
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      await client.request('session/prompt', {
+        sessionId,
+        prompt: [{ type: 'text', text: '/schedule add {}' }],
+      })
+      expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+      expect(h.updates).toContainEqual({
+        sessionUpdate: 'agent_message_chunk',
+        content: { type: 'text', text: UI_TEXT.scheduleV2.runtime.unavailable },
+      })
+    })
+  })
+
+  it('stops and disposes a running turn even when schedule lease release fails', async () => {
+    const release = vi
+      .fn<() => Promise<void>>()
+      .mockRejectedValue(new Error('Private watcher failure'))
+    const h = scheduleReleaseHarness(release)
+    await h.run(async (client) => {
+      const { sessionId, session, response } = await running(h, client)
+      await client.request('session/close', { sessionId })
+      expect(await response).toEqual({ stopReason: 'cancelled' })
+      expect(release).toHaveBeenCalledOnce()
+      expect(session.cancel).toHaveBeenCalledOnce()
+      expect(session.dispose).toHaveBeenCalledOnce()
+      expect(h.log.warn).toHaveBeenCalledWith('ACP schedule workspace release failed')
+    })
+  })
+
+  it('starts Stop independently and bounds pending schedule teardown', async () => {
+    const held = Promise.withResolvers<undefined>()
+    const release = vi.fn<() => Promise<void>>().mockReturnValue(held.promise)
+    const h = scheduleReleaseHarness(release)
+    await h.run(async (client) => {
+      const { sessionId, session, response } = await running(h, client)
+      const closing = client.request('session/close', { sessionId })
+      expect(await response).toEqual({ stopReason: 'cancelled' })
+      await until(() => release.mock.calls.length === 1)
+      expect(session.cancel).toHaveBeenCalledOnce()
+      await until(() => session.dispose.mock.calls.length === 1)
+      await closing
+      expect(h.log.warn).toHaveBeenCalledWith('ACP schedule workspace release failed')
+    })
+  })
+
+  it('reports schedule host startup failure and refuses controls while ordinary ACP continues', async () => {
+    const run = vi.fn<AcpSchedulePort['run']>()
+    const h = harness({
+      schedules: {
+        run,
+        holdWorkspace: vi.fn().mockRejectedValue(new Error('private watcher detail')),
+      },
+    })
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      await client.request('session/prompt', {
+        sessionId,
+        prompt: [{ type: 'text', text: '/schedule list' }],
+      })
+      expect(run).not.toHaveBeenCalled()
+      expect(h.log.warn).toHaveBeenCalledWith('ACP schedule workspace startup failed')
+      for (const text of [
+        UI_TEXT.scheduleV2.runtime.hostUnavailable,
+        UI_TEXT.scheduleV2.runtime.unavailable,
+      ])
+        expect(h.updates).toContainEqual({
+          sessionUpdate: 'agent_message_chunk',
+          content: { type: 'text', text },
+        })
+      const response = prompt(client, sessionId)
+      const session = h.host.sessions[0]!
+      await until(() => session.sendTurn.mock.calls.length === 1)
+      session.emit({ type: 'turnCompleted', turnId: 'turn-1', terminal: 'completed' })
+      expect(await response).toEqual({ stopReason: 'end_turn' })
+      expect(JSON.stringify(h.updates)).not.toContain('private watcher detail')
+    })
+  })
+
+  it('releases a late schedule lease when its adopting ACP session already closed', async () => {
+    const held = Promise.withResolvers<() => Promise<void>>()
+    const release = vi.fn<() => Promise<void>>().mockResolvedValue()
+    const holdWorkspace = vi.fn().mockReturnValue(held.promise)
+    const h = harness({ schedules: { run: vi.fn(), holdWorkspace } })
+    await h.run(async (client) => {
+      await client.request('initialize', { protocolVersion: acp.PROTOCOL_VERSION })
+      const loading = client.request('session/load', {
+        sessionId: 'old-1',
+        cwd: CWD,
+        mcpServers: [],
+      })
+      await until(() => holdWorkspace.mock.calls.length === 1)
+      await client.request('session/close', { sessionId: 'old-1' })
+      held.resolve(release)
+      await expect(loading).rejects.toThrow()
+      expect(release).toHaveBeenCalledOnce()
+      expect(h.host.sessions[0]?.dispose).toHaveBeenCalledOnce()
+    })
+  })
+
   it('announces skills as commands and runs /selector as the skill', async () => {
     const h = harness()
     await h.run(async (client) => {
@@ -808,16 +1266,11 @@ describe('the ACP agent (M63)', () => {
       session?.emit({ type: 'turnCompleted', turnId: 'turn-1', terminal: 'completed' })
       await response
     })
-    expect(h.updates[0]).toEqual({
-      sessionUpdate: 'available_commands_update',
-      availableCommands: [
-        { name: 'help', description: UI_TEXT.referenceIntro, input: null },
-        { name: 'compact', description: UI_TEXT.compactDetail, input: null },
+    expect(h.updates[0]).toEqual(
+      expectedQuestionCommandsUpdate([
         { name: 'review', description: 'Review', input: { hint: '<path>' } },
-        { name: 'answer', description: UI_TEXT.acpAnswerHelp, input: { hint: '<n> <text>' } },
-        { name: 'questions', description: UI_TEXT.acpQuestionsHelp, input: null },
-      ],
-    })
+      ]),
+    )
     expect(h.host.sessions[0]?.sendTurn).toHaveBeenCalledWith(
       [{ type: 'skill', selector: 'review', arguments: 'src/app.ts' }],
       '/review src/app.ts',
@@ -1017,7 +1470,7 @@ describe('the ACP agent (M63)', () => {
     expect(h.host.sessions[0]?.decideApproval).not.toHaveBeenCalled()
   })
 
-  it('answers a plain file write itself in Edit automatically, as the panel does', async () => {
+  it('answers a plain file write itself in Edit Automatically, as the panel does', async () => {
     const h = harness()
     await h.run(async (client) => {
       const { sessionId } = await start(client)
@@ -1121,7 +1574,7 @@ describe('the ACP agent (M63)', () => {
     expect(h.host.sessions[0]?.cancelQuestions).toHaveBeenCalledExactlyOnceWith('input-1')
   })
 
-  it('forwards an MCP elicitation through the client form and settles the answer', async () => {
+  it('forwards an MCP Elicitation through the client form and settles the answer', async () => {
     const h = harness({
       elicitation: { action: 'accept', content: { name: 'Ada' } },
     })
@@ -1835,7 +2288,7 @@ function choose(optionId: string): PermissionAnswer {
   return () => ({ outcome: { outcome: 'selected', optionId } })
 }
 
-const WEB_SEARCH = { feature: 'webSearch' } as const
+const WEB_SEARCH = { feature: 'webSearch', priceUsd: Usd.from(0.0025).toAmount() } as const
 const IMAGE = {
   feature: 'imageGeneration',
   kind: 'generate',
@@ -1857,7 +2310,7 @@ async function answersInOneSession(
     const { sessionId } = await start(client)
     const answers: boolean[] = []
     for (const request of requests) {
-      answers.push(await h.paid.allows(CWD, sessionId, request, false))
+      answers.push(Boolean(await h.paid.allows(CWD, sessionId, request, false)))
     }
     return answers
   })
@@ -1875,11 +2328,11 @@ describe('paid features in the agent (M63c, M58)', () => {
         await until(() => h.permissions.length === 1)
         await finishRunningPrompt(client, active, terminal)
         answer.resolve({ outcome: { outcome: 'selected', optionId: 'paid-allow-always' } })
-        expect(await paid).toBe(false)
+        expect(Boolean(await paid)).toBe(false)
         expect(h.paid.isRemembered(CWD, 'webSearch')).toBe(false)
         expect(h.grants.byFolder.size).toBe(0)
         // A fresh use still asks and can be allowed; only the stale answer was refused.
-        expect(await h.paid.allows(CWD, sessionId, WEB_SEARCH, false)).toBe(true)
+        expect(Boolean(await h.paid.allows(CWD, sessionId, WEB_SEARCH, false))).toBe(true)
         expect(h.permissions).toHaveLength(2)
       })
     },
@@ -1892,7 +2345,7 @@ describe('paid features in the agent (M63c, M58)', () => {
       const session = h.host.sessions[0]!
       let isAllowed = true
       session.listSkills.mockImplementation(async () => {
-        isAllowed = await h.paid.allows(CWD, sessionId, WEB_SEARCH, false)
+        isAllowed = Boolean(await h.paid.allows(CWD, sessionId, WEB_SEARCH, false))
         return []
       })
       const response = prompt(client, sessionId)
@@ -1915,7 +2368,7 @@ describe('paid features in the agent (M63c, M58)', () => {
   it('denies a paid use answered after its session closed (Grok on 78a74430)', async () => {
     const answer = Promise.withResolvers<acp.RequestPermissionResponse>()
     const h = harness({ kind: 'modelApi', paid: ['webSearch'], answer: () => answer.promise })
-    const isAllowed = await h.run(async (client) => {
+    const decision = await h.run(async (client) => {
       const { sessionId } = await start(client)
       const asked = h.paid.allows(CWD, sessionId, WEB_SEARCH, false)
       await until(() => h.permissions.length === 1)
@@ -1923,7 +2376,7 @@ describe('paid features in the agent (M63c, M58)', () => {
       answer.resolve({ outcome: { outcome: 'selected', optionId: 'paid-allow-once' } })
       return await asked
     })
-    expect(isAllowed).toBe(false)
+    expect(Boolean(decision)).toBe(false)
     // Nothing more reaches the editor for a session it closed (Grok on ca263c53).
     expect(h.updates.filter((update) => update.sessionUpdate === 'tool_call_update')).toEqual([])
   })
@@ -1954,7 +2407,7 @@ describe('paid features in the agent (M63c, M58)', () => {
           await entered.promise
           await finishRunningPrompt(client, active, terminal)
           released.resolve(undefined)
-          expect(await allowed).toBe(false)
+          expect(await allowed).toBeUndefined()
         })
         expect(h.permissions).toEqual([])
         expect(h.updates.filter((update) => update.sessionUpdate === 'tool_call')).toEqual([])
@@ -1971,7 +2424,7 @@ describe('paid features in the agent (M63c, M58)', () => {
     expect(h.permissions).toEqual([])
   })
 
-  it('asks before each use in its session, naming the price; Allow once allows that use only', async () => {
+  it('asks before each use in its session, naming the price; Allow Once allows that use only', async () => {
     const h = harness({ kind: 'modelApi', paid: ['webSearch'], answer: choose('paid-allow-once') })
     expect(await answersInOneSession(h, [WEB_SEARCH, WEB_SEARCH])).toEqual([true, true])
     expect(h.permissions).toHaveLength(2)
@@ -1982,7 +2435,7 @@ describe('paid features in the agent (M63c, M58)', () => {
     expect(JSON.stringify(asked?.toolCall.content)).toContain('$2.50 per 1,000 searches')
     // Not trusted: "Allow always" is neither offered nor kept.
     expect(asked?.options).toEqual([
-      { optionId: 'paid-allow-once', name: 'Allow once', kind: 'allow_once' },
+      { optionId: 'paid-allow-once', name: 'Allow Once', kind: 'allow_once' },
       { optionId: 'paid-deny', name: 'Deny', kind: 'reject_once' },
     ])
     // Each question its own row, however the session came to be held.
@@ -2018,7 +2471,7 @@ describe('paid features in the agent (M63c, M58)', () => {
       'allow_always',
       'reject_once',
     ])
-    expect(h.grants.byFolder.get(CWD)).toEqual(new Set(['webSearch', 'imageGeneration']))
+    expect(h.grants.read(CWD)).toEqual(new Set(['webSearch', 'imageGeneration']))
     expect(h.paid.isRemembered(CWD, 'webSearch')).toBe(true)
   })
 
@@ -2048,7 +2501,7 @@ describe('paid features in the agent (M63c, M58)', () => {
       },
     })
     expect(await answersInOneSession(h, [WEB_SEARCH])).toEqual([false])
-    expect(await h.paid.allows(CWD, 'not-a-session', WEB_SEARCH, false)).toBe(false)
+    expect(await h.paid.allows(CWD, 'not-a-session', WEB_SEARCH, false)).toBeFalsy()
     expect(h.permissions).toHaveLength(1)
     expect(h.log.warn).toHaveBeenCalledWith(
       expect.stringContaining('the paid-use question failed, denying'),
@@ -2413,7 +2866,7 @@ describe('FIXM101C1 ACP compaction', () => {
         prompt: [{ type: 'text', text: '/compact' }],
       })
       expect(response.stopReason).toBe('end_turn')
-      expect(registry?.queuedParts).not.toHaveBeenCalled()
+      expect(registry?.peekQueued).not.toHaveBeenCalled()
       expect(registry?.queued).toHaveLength(1)
       expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
     })
@@ -2543,3 +2996,460 @@ it('ACP registry disclosure names hosts and honors denial before model dispatch'
     content: { type: 'text', text: 'unknown local metadata' },
   })
 })
+
+/** Real registry and queue file, observed through the ACP SDK and scripted host. */
+async function durableAnswerHarness(options: HarnessOptions = {}) {
+  const directory = await mkdtemp(path.join(tmpdir(), 'm116-delivery-'))
+  const store = questionStores.createQuestionQueueStore(path.join(directory, 'queued'))
+  const save = vi.spyOn(store, 'save')
+  const factory = vi.spyOn(questionStores, 'createQuestionQueueStore').mockReturnValue(store)
+  const registries: ReturnType<typeof createRuntimeQuestionRegistry>[] = []
+  onTestFinished(async () => {
+    factory.mockRestore()
+    await Promise.all(registries.map((registry) => registry.flush()))
+    await removeFolder(directory)
+  })
+  const h = harness({
+    ...options,
+    questions: (input) => {
+      const registry = createRuntimeQuestionRegistry(input, directory, 'modelApi', vi.fn())
+      registries.push(registry)
+      return registry
+    },
+  })
+  const isSent = () => JSON.stringify(h.updates).includes(UI_TEXT.announceLateAnswerSent)
+  const seed = async (sessionId: string) => {
+    await registries[0]!.queue({
+      sessionId,
+      userInputId: 'late',
+      text: 'late: blue',
+      displayText: undefined,
+    })
+    save.mockClear()
+  }
+  const prepare = async (client: acp.ClientContext) => {
+    const { sessionId } = await start(client)
+    await seed(sessionId)
+    return { sessionId, session: h.host.sessions[0]! }
+  }
+  return { h, store, save, registries, isSent, seed, prepare }
+}
+
+describe('FIXM116I4 model-start answer commits', () => {
+  it('queued then process kill retains answers for a fresh registry', async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), 'm116-kill-'))
+    onTestFinished(() => removeFolder(directory))
+    const bundle = path.join(directory, 'crash.cjs')
+    await build({
+      entryPoints: ['test/unit/helpers/questions/queuedTurnCrash.ts'],
+      bundle: true,
+      platform: 'node',
+      format: 'cjs',
+      outfile: bundle,
+      logLevel: 'silent',
+    })
+    const child = spawn(process.execPath, [bundle, directory], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
+    const exited = once(child, 'exit')
+    onTestFinished(async () => {
+      if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL')
+      await exited
+    })
+    const [chunk] = await once(child.stdout, 'data')
+    const { sessionId, isSent } = z
+      .object({ sessionId: z.string(), isSent: z.boolean() })
+      .parse(JSON.parse(String(chunk)))
+    expect(child.kill('SIGKILL')).toBe(true)
+    await exited
+    expect(isSent).toBe(false)
+    const registry = createRuntimeQuestionRegistry(
+      {
+        session: new FakeAgentSession(sessionId, 'test-model'),
+        clock: new FakeQuestionClock(),
+        deliver: () => Promise.resolve('notTaken'),
+      },
+      directory,
+      'modelApi',
+      vi.fn(),
+    )
+    await registry.load()
+    const lease = await registry.peekQueued()
+    expect(lease?.parts).toEqual([{ type: 'text', text: 'late: blue' }])
+    await registry.releaseQueued(lease!.token)
+    registry.dispose()
+    await registry.flush()
+  })
+
+  it.each(['started', 'withdrawn', 'unqueued', 'Stop', 'exit'])(
+    'queued then %s retains its durable lease until model start',
+    async (ending) => {
+      const f = await durableAnswerHarness()
+      await f.h.run(async (client) => {
+        const { sessionId, session } = await f.prepare(client)
+        session.sendTurn.mockResolvedValueOnce({ turnId: 'queued-1', disposition: 'queued' })
+        const response = prompt(client, sessionId)
+        const outcome = didRequestSucceed(response)
+        await until(() => session.sendTurn.mock.calls.length === 1)
+        await prompt(client, sessionId, '/questions') // Flush ACP's earlier updates.
+        expect(f.save).not.toHaveBeenCalled()
+        expect(f.isSent()).toBe(false)
+        expect(await f.store.load(sessionId)).toMatchObject([{ text: 'late: blue' }])
+        session.emit({ type: 'turnStarted', turnId: 'other-turn' })
+        expect(f.save).not.toHaveBeenCalled()
+        switch (ending) {
+          case 'started': {
+            session.emit({ type: 'turnStarted', turnId: 'queued-1' })
+            await until(() => f.save.mock.calls.length === 1)
+            session.emit({ type: 'turnStarted', turnId: 'queued-1' })
+            session.emit({ type: 'turnCompleted', turnId: 'queued-1', terminal: 'completed' })
+            break
+          }
+          case 'exit': {
+            f.h.host.exit('fake process exited')
+            break
+          }
+          case 'Stop': {
+            await client.notify('session/cancel', { sessionId })
+            await until(() => session.cancel.mock.calls.length === 1)
+            session.emit({ type: 'turnStarted', turnId: 'queued-1' })
+            session.emit({ type: 'turnWithdrawn', turnId: 'queued-1', reason: 'stopped' })
+            break
+          }
+          default: {
+            session.emit({ type: 'turnWithdrawn', turnId: 'queued-1', reason: ending })
+          }
+        }
+        expect(await outcome).toBe(ending !== 'exit')
+        await f.registries[0]!.flush()
+        expect(await f.store.load(sessionId)).toEqual(
+          ending === 'started' ? [] : [expect.objectContaining({ text: 'late: blue' })],
+        )
+        expect(f.isSent()).toBe(ending === 'started')
+        expect(f.save).toHaveBeenCalledTimes(ending === 'started' ? 1 : 0)
+        if (ending === 'exit') return
+        const lease = await f.registries[0]!.peekQueued()
+        if (lease !== undefined) await f.registries[0]!.releaseQueued(lease.token)
+      })
+    },
+  )
+
+  it.each(['refused', 'failed'])(
+    '%s send preserves durable answers without announcement',
+    async (disposition) => {
+      const f = await durableAnswerHarness()
+      await f.h.run(async (client) => {
+        const { sessionId, session } = await f.prepare(client)
+        if (disposition === 'failed')
+          session.sendTurn.mockRejectedValueOnce(new Error('fake refusal'))
+        else
+          session.sendTurn.mockImplementationOnce(() => {
+            queueMicrotask(() => {
+              session.emit({ type: 'turnCompleted', turnId: 'refused-1', terminal: 'cancelled' })
+            })
+            return Promise.resolve({ turnId: 'refused-1', disposition })
+          })
+        expect(await didRequestSucceed(prompt(client, sessionId))).toBe(false)
+        expect(await f.store.load(sessionId)).toMatchObject([{ text: 'late: blue' }])
+        expect(f.save).not.toHaveBeenCalled()
+        expect(f.isSent()).toBe(false)
+        const lease = await f.registries[0]!.peekQueued()
+        expect(lease).toBeDefined()
+        await f.registries[0]!.releaseQueued(lease!.token)
+      })
+    },
+  )
+
+  it('commit failure keeps active turn busy, durable and stoppable', async () => {
+    const f = await durableAnswerHarness()
+    await f.h.run(async (client) => {
+      const { sessionId } = await start(client)
+      await f.seed(sessionId)
+      f.save.mockRejectedValueOnce(new Error('PRIVATE-COMMIT-CANARY'))
+      await expect(prompt(client, sessionId)).rejects.toThrow(UI_TEXT.questionQueueCommitFailed)
+      const overlap = didRequestSucceed(prompt(client, sessionId, 'overlap'))
+      await prompt(client, sessionId, '/questions')
+      expect(f.h.host.sessions[0]!.sendTurn).toHaveBeenCalledTimes(1)
+      expect(await overlap).toBe(false)
+      expect(await f.store.load(sessionId)).toMatchObject([{ text: 'late: blue' }])
+      expect(f.isSent()).toBe(false)
+      await client.notify('session/cancel', { sessionId })
+      const session = f.h.host.sessions[0]!
+      await until(() => session.cancel.mock.calls.length === 1)
+      session.emit({ type: 'turnCompleted', turnId: 'turn-1', terminal: 'cancelled' })
+      const retry = prompt(client, sessionId, 'retry')
+      await until(() => session.sendTurn.mock.calls.length === 2)
+      session.emit({ type: 'turnCompleted', turnId: 'turn-2', terminal: 'completed' })
+      await retry
+      expect(await f.store.load(sessionId)).toEqual([])
+      expect(JSON.stringify(f.h.log.warn.mock.calls)).not.toContain('PRIVATE-COMMIT-CANARY')
+    })
+  })
+
+  it.each(['started', 'hook-blocked', 'admission-refused'])(
+    'real Model API %s commits only at request start after hooks',
+    async (ending) => {
+      const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
+      const held = Promise.withResolvers<ReturnType<typeof hookResult>>()
+      const hookStarted = vi.fn(() => held.promise)
+      const { api, host, io } = queuedAnswerBackend(CWD, log, {
+        loadHooks: () =>
+          Promise.resolve(
+            parseHookConfig(
+              JSON.stringify({
+                hooks: {
+                  UserPromptSubmit: [{ hooks: [{ type: 'command', command: 'fake-guard' }] }],
+                },
+              }),
+              'project',
+              process.platform,
+            ).hooks,
+          ),
+        admitResponseAttempt: () => {
+          if (ending === 'admission-refused') throw new Error('fake admission refusal')
+        },
+      })
+      io.runHook = hookStarted
+      onTestFinished(() => {
+        held.resolve(hookResult(''))
+        return host.close()
+      })
+      const f = await durableAnswerHarness({ backendHost: host, kind: 'modelApi' })
+      await f.h.run(async (client) => {
+        const { sessionId } = await start(client)
+        await f.seed(sessionId)
+        api.script({ text: 'accepted' })
+        const response = prompt(client, sessionId)
+        const outcome = didRequestSucceed(response)
+        await until(() => hookStarted.mock.calls.length === 1)
+        expect(api.responseBodies()).toHaveLength(0)
+        expect(await f.store.load(sessionId)).toMatchObject([{ text: 'late: blue' }])
+        expect(f.save).not.toHaveBeenCalled()
+        expect(f.isSent()).toBe(false)
+        held.resolve(
+          hookResult('', {
+            exitCode: ending === 'hook-blocked' ? 2 : 0,
+            stderr: ending === 'hook-blocked' ? 'fake hook blocked' : '',
+          }),
+        )
+        expect(await outcome).toBe(ending !== 'admission-refused')
+        await f.registries[0]!.flush()
+        expect(api.responseBodies()).toHaveLength(ending === 'started' ? 1 : 0)
+        expect(await f.store.load(sessionId)).toHaveLength(ending === 'started' ? 0 : 1)
+        expect(f.isSent()).toBe(ending === 'started')
+      })
+    },
+  )
+
+  it('queued Model API turn does not commit at turnStarted before hooks run', async () => {
+    const f = await durableAnswerHarness()
+    await f.h.run(async (client) => {
+      const { sessionId, session } = await f.prepare(client)
+      const assertRetained = async () => {
+        expect(f.save).not.toHaveBeenCalled()
+        expect(f.isSent()).toBe(false)
+        expect(await f.store.load(sessionId)).toMatchObject([{ text: 'late: blue' }])
+      }
+      // Model API acknowledges the turn as queued with a reserved user id.
+      session.sendTurn.mockResolvedValueOnce({
+        turnId: 'queued-1',
+        disposition: 'queued',
+        userMessageId: 'user-1',
+      })
+      const response = prompt(client, sessionId)
+      const outcome = didRequestSucceed(response)
+      await until(() => session.sendTurn.mock.calls.length === 1)
+      await prompt(client, sessionId, '/questions') // Flush ACP's earlier updates.
+      // The queued turn starts once the earlier running turn ends; submit hooks still to run.
+      session.emit({ type: 'turnStarted', turnId: 'queued-1' })
+      await settled()
+      await assertRetained()
+      // The UserPromptSubmit hook blocks: the user message leaves the replay, the turn ends.
+      session.emit({ type: 'turnWithdrawn', turnId: 'queued-1', reason: 'stopped' })
+      expect(await outcome).toBe(true)
+      await f.registries[0]!.flush()
+      await assertRetained()
+      // The next prompt attaches the retained answer exactly once.
+      session.sendTurn.mockResolvedValueOnce({ turnId: 'queued-2', disposition: 'started' })
+      const retry = prompt(client, sessionId, 'retry')
+      await until(() => session.sendTurn.mock.calls.length === 2)
+      expect(JSON.stringify(session.sendTurn.mock.calls[1]?.[0] ?? [])).toContain('late: blue')
+      await until(() => f.save.mock.calls.length === 1)
+      session.emit({ type: 'turnCompleted', turnId: 'queued-2', terminal: 'completed' })
+      await retry
+      expect(await f.store.load(sessionId)).toEqual([])
+      expect(f.isSent()).toBe(true)
+      expect(f.save).toHaveBeenCalledTimes(1)
+    })
+  })
+})
+
+describe('M105 ACP attachment commands', () => {
+  it('refuses an overfull between-turn attachment queue before preparation', async () => {
+    const { h, port } = mediaHarness()
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      for (let count = 0; count < MAX_ATTACHMENTS_PER_MESSAGE; count++)
+        await prompt(client, sessionId, '/attach clip.mp4')
+      await expect(prompt(client, sessionId, '/attach clip.mp4')).rejects.toThrow(
+        UI_TEXT.attachmentLimit,
+      )
+    })
+    expect(port.attach).toHaveBeenCalledTimes(MAX_ATTACHMENTS_PER_MESSAGE)
+    expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+  })
+  it('reports an attachment preparation refusal by its named reason without a turn', async () => {
+    const { h, port } = mediaHarness()
+    vi.mocked(port.attach).mockRejectedValueOnce(new Error(UI_TEXT.media.durationUnknown))
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      await expect(prompt(client, sessionId, '/attach clip.mp4')).rejects.toThrow(
+        UI_TEXT.media.durationUnknown,
+      )
+    })
+    expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+  })
+  it('advertises audio, queues /attach and preview-approved /record without a model turn', async () => {
+    const { h, factory, dispose } = mediaHarness()
+    await h.run(async (client) => {
+      const init = await client.request('initialize', { protocolVersion: acp.PROTOCOL_VERSION })
+      expect(init.agentCapabilities?.promptCapabilities?.audio).toBe(true)
+      const { sessionId } = await client.request('session/new', { cwd: CWD, mcpServers: [] })
+      expect(factory).not.toHaveBeenCalled()
+      expect(await prompt(client, sessionId, '/attach clip.mp4')).toEqual({
+        stopReason: 'end_turn',
+      })
+      expect(await prompt(client, sessionId, '/record')).toEqual({ stopReason: 'end_turn' })
+      expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+      await turn(h, client, sessionId, (session) => {
+        expect(session.sendTurn.mock.calls[0]?.[0]).toEqual([
+          { type: 'text', text: 'hello' },
+          { type: 'text', text: 'registered-media' },
+          { type: 'text', text: 'registered-media' },
+        ])
+      })
+      await until(() => dispose.mock.calls.length === 2)
+      await turn(h, client, sessionId, (session) => {
+        expect(session.sendTurn.mock.calls[1]?.[0]).toEqual([{ type: 'text', text: 'hello' }])
+      })
+    })
+    expect(h.updates).toContainEqual(
+      expect.objectContaining({
+        sessionUpdate: 'available_commands_update',
+        availableCommands: expect.arrayContaining([
+          expect.objectContaining({ name: 'attach' }),
+          expect.objectContaining({ name: 'record' }),
+        ]),
+      }),
+    )
+    expect(JSON.stringify(h.updates)).not.toContain('registered-media')
+  })
+
+  it('refuses recording in headless prompts before loading any recording port', async () => {
+    const { h, factory, port } = mediaHarness(true)
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      await expect(prompt(client, sessionId, '/record')).rejects.toThrow(
+        UI_TEXT.media.recordingUserOnly,
+      )
+    })
+    expect(factory).not.toHaveBeenCalled()
+    expect(port.record).not.toHaveBeenCalled()
+    expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+  })
+
+  it('refuses a headless /attach instead of queueing a file no turn sends', async () => {
+    const { h, factory, port } = mediaHarness(true)
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      await expect(prompt(client, sessionId, '/attach clip.mp4')).rejects.toThrow(
+        UI_TEXT.media.attachHeadless,
+      )
+    })
+    expect(factory).not.toHaveBeenCalled()
+    expect(port.attach).not.toHaveBeenCalled()
+    expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+  })
+
+  it('acks a queued non-video attachment without a duration', async () => {
+    const { h, port } = mediaHarness()
+    const pdf = '/ws/notes.pdf'
+    vi.mocked(port.attach).mockResolvedValueOnce({
+      part: { type: 'text', text: 'registered-media' },
+      name: 'notes.pdf',
+      info: { kind: 'document', mediaType: 'application/pdf', sizeBytes: 12 },
+      dispose: () => Promise.resolve(),
+    })
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      expect(await prompt(client, sessionId, `/attach ${pdf}`)).toEqual({ stopReason: 'end_turn' })
+    })
+    expect(JSON.stringify(h.updates)).not.toContain('Duration Unknown')
+    expect(h.updates).toContainEqual(
+      expect.objectContaining({
+        sessionUpdate: 'agent_message_chunk',
+        content: expect.objectContaining({
+          type: 'text',
+          text: expect.stringContaining('notes.pdf'),
+        }),
+      }),
+    )
+  })
+
+  it('is busy during media preparation and discards a late cancelled preview', async () => {
+    const { h, port, dispose } = mediaHarness()
+    const attachment = await port.record(new AbortController().signal)
+    const held = Promise.withResolvers<AcpAttachment | undefined>()
+    vi.mocked(port.record)
+      .mockClear()
+      .mockImplementation(() => held.promise)
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      const recording = prompt(client, sessionId, '/record')
+      await until(() => vi.mocked(port.record).mock.calls.length === 1)
+      await expect(prompt(client, sessionId)).rejects.toThrow(UI_TEXT.acpPromptBusy)
+      await client.notify('session/cancel', { sessionId })
+      await until(() => vi.mocked(port.record).mock.calls[0]?.[0].aborted === true)
+      held.resolve(attachment)
+      expect(await recording).toEqual({ stopReason: 'cancelled' })
+    })
+    expect(dispose).toHaveBeenCalledOnce()
+    expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+  })
+
+  it('preserves queued attachments when submission fails and disposes on session close', async () => {
+    const { h, dispose } = mediaHarness()
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      await prompt(client, sessionId, '/attach clip.mp4')
+      h.host.sessions[0]?.sendTurn.mockRejectedValueOnce(new Error('send refused'))
+      await expect(prompt(client, sessionId)).rejects.toMatchObject({ code: -32_603 })
+      expect(dispose).not.toHaveBeenCalled()
+      await client.request('session/close', { sessionId })
+    })
+    expect(dispose).toHaveBeenCalledOnce()
+  })
+})
+
+function mediaHarness(isHeadless = false) {
+  const dispose = vi.fn(() => Promise.resolve())
+  const attachment: AcpAttachment = {
+    part: { type: 'text', text: 'registered-media' },
+    name: 'clip.mp4',
+    info: {
+      kind: 'video',
+      mediaType: 'video/mp4',
+      sizeBytes: 100,
+      durationSeconds: 2,
+      hasSoundtrack: false,
+    },
+    dispose,
+  }
+  const port: AcpMediaPort = {
+    block: vi.fn(() => Promise.resolve(attachment.part)),
+    attach: vi.fn(() => Promise.resolve(attachment)),
+    record: vi.fn(() => Promise.resolve(attachment)),
+  }
+  const factory = vi.fn(() => Promise.resolve(port))
+  return { h: harness({ kind: 'modelApi', media: factory, isHeadless }), port, factory, dispose }
+}

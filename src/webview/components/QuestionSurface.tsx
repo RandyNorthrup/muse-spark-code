@@ -1,4 +1,4 @@
-// The small startup store shared by both lazy question views.
+// The small startup store shared by docked cards and transcript markers.
 import {
   createContext,
   type ReactNode,
@@ -49,7 +49,7 @@ export function useAttentionSurface() {
   return useContext(AttentionContext)
 }
 
-/** One in-memory draft shared by row and dock; a session boundary discards it. */
+/** Keep the dock's draft through lazy remounts; a session boundary discards it. */
 export function QuestionSurface({
   children,
   navigation,

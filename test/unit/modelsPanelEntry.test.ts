@@ -2,10 +2,14 @@
 // the host with the seam — one panel tab, the quick pick end to end, the
 // workspace suggestion, and the startup completion.
 
+import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
+import { createModelsPanelSeam } from '../../src/core/providers/panelSeam'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type * as vscode from 'vscode'
 import { window } from 'vscode'
-import { window as fakeWindow } from './mocks/vscode'
+import { window as fakeWindow, workspace } from './mocks/vscode'
 import { confirmModal, pickMany, pickOne } from './helpers/vscodeViews'
 import {
   createModelsPanelFeatures,
@@ -91,6 +95,7 @@ beforeEach(() => {
     window.showInputBox,
     window.showWarningMessage,
     window.showInformationMessage,
+    workspace.getConfiguration,
   ]) {
     vi.mocked(mock).mockReset()
   }
@@ -126,46 +131,79 @@ describe('createModelsPanelFeatures', () => {
   })
 
   it('runs the quick pick end to end through VS Code', async () => {
-    const { host, secrets, composed } = hostDeps()
-    const built = seam()
-    const features = createModelsPanelFeatures(host, built.seam)
-    // The rows keep the adapter's id beside the label: the single picks
-    // answer with `id`, the multi pick with `quickPickId`.
-    const openRouterRow: vscode.QuickPickItem & { readonly id: string } = {
-      id: 'openrouter',
-      label: 'OpenRouter',
+    const folder = await mkdtemp(path.join(tmpdir(), 'wizard-entry-review-'))
+    try {
+      const { host, secrets, composed } = hostDeps()
+      const production = createModelsPanelSeam({
+        configFile: path.join(folder, 'providers.json'),
+        subscriptionModels: () => Promise.resolve([]),
+      })
+      const built = { seam: { ...seam().seam, store: production.store } }
+      const features = createModelsPanelFeatures(host, built.seam)
+      // The rows keep the adapter's id beside the label: the single picks
+      // answer with `id`, the multi pick with `quickPickId`.
+      const openRouterRow: vscode.QuickPickItem & { readonly id: string } = {
+        id: 'openrouter',
+        label: 'OpenRouter',
+      }
+      const pasteRow: vscode.QuickPickItem & { readonly id: string } = {
+        id: 'paste',
+        label: 'Enter key…',
+      }
+      const modelRows: (vscode.QuickPickItem & { readonly quickPickId: string })[] = [
+        { label: 'm1', quickPickId: 'm1' },
+        { label: 'm2', quickPickId: 'm2' },
+      ]
+      const acceptModelRow: vscode.QuickPickItem & { readonly id: string } = {
+        id: 'accept',
+        label: 'Accept: m1',
+      }
+      // The spending limit IS the conversation spending limit setting: the
+      // configuration starts unlimited, the quick pick is answered 2, and
+      // the answer reaches the setting (no longer dropped).
+      const settings = new Map<string, unknown>()
+      const updates: { section: string; value: unknown }[] = []
+      // Only what the wizard's spending-limit configuration reads and writes
+      // of VS Code's configuration; the mock has no configuration class.
+      vi.mocked(workspace.getConfiguration).mockReturnValue({
+        get: (key: string) =>
+          key === 'modelApiSessionBudgetUsd' ? (settings.get(key) ?? 0) : undefined,
+        inspect: (key: string) =>
+          key === 'modelApiSessionBudgetUsd'
+            ? { workspaceValue: undefined, workspaceFolderValue: undefined }
+            : undefined,
+        update: (key: string, value: unknown) => {
+          settings.set(key, value)
+          updates.push({ section: key, value })
+          return Promise.resolve()
+        },
+      } as unknown as vscode.WorkspaceConfiguration)
+      vi.mocked(pickOne).mockResolvedValueOnce(openRouterRow).mockResolvedValueOnce(pasteRow)
+      vi.mocked(pickMany).mockResolvedValueOnce(modelRows)
+      vi.mocked(pickOne).mockResolvedValueOnce(acceptModelRow)
+      vi.mocked(window.showInputBox)
+        .mockResolvedValueOnce('sk-or-pasted')
+        .mockResolvedValueOnce('2')
+      vi.mocked(confirmModal).mockResolvedValueOnce('Save')
+      const outcome = await features.runQuickPick()
+      expect(outcome).toEqual({
+        providerId: 'openrouter',
+        modelRef: 'openrouter/m1',
+        sessionBudgetUsd: '2',
+      })
+      expect(updates).toEqual([{ section: 'modelApiSessionBudgetUsd', value: 2 }])
+      expect(settings.get('modelApiSessionBudgetUsd')).toBe(2)
+      expect(composed).toEqual(['openrouter/m1'])
+      expect(await built.seam.store.defaultModel()).toBe('openrouter/m1')
+      expect(await readProviderCredential(secrets, 'openrouter')).toEqual({
+        v: 1,
+        auth: 'apiKey',
+        origin: 'https://openrouter.ai',
+        secret: 'sk-or-pasted',
+      })
+    } finally {
+      await rm(folder, { recursive: true, force: true })
     }
-    const pasteRow: vscode.QuickPickItem & { readonly id: string } = {
-      id: 'paste',
-      label: 'Enter key…',
-    }
-    const modelRows: (vscode.QuickPickItem & { readonly quickPickId: string })[] = [
-      { label: 'm1', quickPickId: 'm1' },
-      { label: 'm2', quickPickId: 'm2' },
-    ]
-    const acceptModelRow: vscode.QuickPickItem & { readonly id: string } = {
-      id: 'accept',
-      label: 'Accept: m1',
-    }
-    const acceptBudgetRow: vscode.QuickPickItem & { readonly id: string } = {
-      id: 'accept',
-      label: 'Accept: 5.00',
-    }
-    vi.mocked(pickOne).mockResolvedValueOnce(openRouterRow).mockResolvedValueOnce(pasteRow)
-    vi.mocked(pickMany).mockResolvedValueOnce(modelRows)
-    vi.mocked(pickOne).mockResolvedValueOnce(acceptModelRow).mockResolvedValueOnce(acceptBudgetRow)
-    vi.mocked(window.showInputBox).mockResolvedValueOnce('sk-or-pasted')
-    vi.mocked(confirmModal).mockResolvedValueOnce('Save')
-    const outcome = await features.runQuickPick()
-    expect(outcome).toEqual({ providerId: 'openrouter', modelRef: 'openrouter/m1' })
-    expect(composed).toEqual(['openrouter/m1'])
-    expect(await built.seam.store.defaultModel()).toBe('openrouter/m1')
-    expect(await readProviderCredential(secrets, 'openrouter')).toEqual({
-      v: 1,
-      auth: 'apiKey',
-      origin: 'https://openrouter.ai',
-      secret: 'sk-or-pasted',
-    })
   })
 
   it('reads the workspace suggestion from the setting', () => {

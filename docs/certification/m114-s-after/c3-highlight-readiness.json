@@ -1,0 +1,19 @@
+{
+  "candidateCommit": "f3ee8572abc7bf0c554eb4a1639bd321b2e76aee",
+  "capture": "panel/markdown/default/dracula/690",
+  "exit": 1,
+  "changedPixels": 475,
+  "allowance": 12,
+  "changedBounds": {
+    "minX": 38,
+    "minY": 260,
+    "maxX": 432,
+    "maxY": 290
+  },
+  "baselineSha256": "0624b9494b25c7b5432ac8b892b6029bcb2ed5fc34d3521b88b26ca4e9727263",
+  "candidateSha256": "9858a68ff9c3c1233d99f803f15b4d529e7346aba86fbe89dbf0f995ff042d7c",
+  "cause": "Captured the plain code Suspense fallback before HighlightedCode mounted; visually inspected both PNGs and checked CodeBlock/HighlightedCode source.",
+  "handoff": "H-M114S-code-highlight-readiness: webview/harness owner",
+  "requiredFix": "Mark only the asynchronous HighlightedCode Suspense fallback as pending; include it in the capture settlement barrier under the existing real deadline, coordinating the clock until mount. Keep open/unknown-language plain blocks eligible and support or re-review the recorded source harness.",
+  "modelAttempts": 0
+}

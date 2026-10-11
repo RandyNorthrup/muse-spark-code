@@ -4,7 +4,17 @@ import type { UsagePageState } from '../../shared/usagePage'
 import { dayLabel, type PostUsage } from './display'
 import { TotalsGrid } from './KpiTiles'
 import { StackedColumns } from './charts/StackedColumns'
-import { formatTestCost } from '../models/components/CostNotice'
+import { useMoneyDisplay } from '../money'
+
+/** A per-million rate with the lazy money chunk's exact display. */
+function PriceText({ value }: { readonly value: number | undefined }) {
+  const money = useMoneyDisplay()
+  if (value === undefined) {
+    return <>{USAGE_TEXT.unknown}</>
+  }
+  const cost = money === undefined ? undefined : money.formatTestCost(money.parseAmount(value))
+  return cost === undefined ? null : <>{cost}</>
+}
 
 export function ModelDetail({
   state,
@@ -18,8 +28,6 @@ export function ModelDetail({
   const detail = state.modelDetail
   if (detail === undefined) return null
   const price = detail.price
-  const priceText = (value: number | undefined) =>
-    value === undefined ? USAGE_TEXT.unknown : formatTestCost(value)
   const source =
     price === undefined
       ? USAGE_TEXT.unknown
@@ -57,15 +65,21 @@ export function ModelDetail({
       <dl>
         <div>
           <dt>{USAGE_TEXT.inputTokens}</dt>
-          <dd>{priceText(price?.inputPerMillion)}</dd>
+          <dd>
+            <PriceText value={price?.inputPerMillion} />
+          </dd>
         </div>
         <div>
           <dt>{USAGE_TEXT.cachedTokens}</dt>
-          <dd>{priceText(price?.cachedPerMillion)}</dd>
+          <dd>
+            <PriceText value={price?.cachedPerMillion} />
+          </dd>
         </div>
         <div>
           <dt>{USAGE_TEXT.cacheWriteTokens}</dt>
-          <dd>{priceText(price?.cacheWritePerMillion)}</dd>
+          <dd>
+            <PriceText value={price?.cacheWritePerMillion} />
+          </dd>
         </div>
         <div>
           <dt>
@@ -73,11 +87,15 @@ export function ModelDetail({
               duration: formatUnit(1, 'hour'),
             })}
           </dt>
-          <dd>{priceText(price?.cacheWrite1hPerMillion)}</dd>
+          <dd>
+            <PriceText value={price?.cacheWrite1hPerMillion} />
+          </dd>
         </div>
         <div>
           <dt>{USAGE_TEXT.outputTokens}</dt>
-          <dd>{priceText(price?.outputPerMillion)}</dd>
+          <dd>
+            <PriceText value={price?.outputPerMillion} />
+          </dd>
         </div>
         <div>
           <dt>{USAGE_TEXT.priceSource}</dt>

@@ -4,12 +4,8 @@
 // lanes/checks, quota and expiry, with a revoke action. Typed refusals map
 // to their states; revoking never answers a presence prompt.
 import { UI_TEXT } from '../../../../../shared/constants'
-import {
-  formatBytes,
-  formatDateTime,
-  formatNumber,
-  formatUsd,
-} from '../../../../../shared/l10n/text'
+import { formatBytes, formatDateTime, formatNumber } from '../../../../../shared/l10n/text'
+import { formatUsd } from '../../../../../shared/l10n/exactUsd'
 import type {
   DEVICE_GRANT_REFUSALS,
   DeviceGrant,

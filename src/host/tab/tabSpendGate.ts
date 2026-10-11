@@ -1,3 +1,4 @@
+import { Usd, type UsdAmount } from '../../shared/usd'
 // Tab's spend gate over lane L's ledger (M94, PLAN.md D73): the provider's
 // `TabSpendGate`. `reserve` prices the request's worst case (lane C's
 // arithmetic: one token per UTF-8 byte at the input price plus the mode's
@@ -15,7 +16,7 @@ import type { TabReportedUsage, TabReservation, TabSpendFacts, TabSpendGate } fr
 export interface TabSpendGateDeps {
   readonly ledger: TabLedger
   /** `museSpark.tabDailyBudgetUsd`, read at each request. */
-  readonly budgetUsd: () => number
+  readonly budgetUsd: () => UsdAmount
   readonly now: () => number
   /** The status bar redraws after the total moves. */
   readonly onTotalChanged: () => void
@@ -23,7 +24,7 @@ export interface TabSpendGateDeps {
 }
 
 export function createTabSpendGate(deps: TabSpendGateDeps): TabSpendGate {
-  let totalUsd = 0
+  let totalUsd = Usd.from(0).toAmount()
   let requestsDay = tabDayKey(deps.now())
   let requests = 0
 

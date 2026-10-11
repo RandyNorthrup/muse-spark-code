@@ -1,3 +1,4 @@
+import { Usd, type UsdAmount } from '../../src/shared/usd'
 import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
 // M91 lane H: the `prompt` and `agent` hook handlers on the Model API
 // (PLAN.md D70). A paid use under D30 and D48: the kill switch, the price
@@ -321,22 +322,27 @@ describe('prompt/agent answers cannot widen (M91 D70)', () => {
 describe('prompt on the Model API backend (M91 D70, D48)', () => {
   it('reserves the shared daily budget before a request, and settles actual cost', async () => {
     const check = vi.fn()
-    const settle = vi.fn<(costUsd: number, isUnknown: boolean) => Promise<void>>(() =>
+    const settle = vi.fn<(costUsd: UsdAmount, isUnknown: boolean) => Promise<void>>(() =>
       Promise.resolve(),
     )
     const reserve = vi.fn(() => Promise.resolve({ check, settle }))
-    const t = setupHost(true, { hookModelDailyBudget: { capUsd: () => 2, reserve } })
+    const t = setupHost(true, {
+      hookModelDailyBudget: { capUsd: () => Usd.from(2).toAmount(), reserve },
+    })
     await finishRead(t, MAIN_READ_REPLY, { text: '{}' }, { text: 'done' })
     expect(reserve).toHaveBeenCalledTimes(1)
     expect(check).toHaveBeenCalled()
-    expect(settle).toHaveBeenCalledWith(expect.any(Number), false)
-    expect(settle.mock.calls[0]?.[0]).toBeCloseTo(0.00004375)
+    expect(settle).toHaveBeenCalledWith(
+      expect.stringMatching(/^(?:0|[1-9]\d*)(?:\.\d*[1-9])?$/),
+      false,
+    )
+    expect(Number(settle.mock.calls[0]?.[0])).toBeCloseTo(0.00004375)
   })
 
   it('sends no hook request when daily-budget admission refuses it', async () => {
     const t = setupHost(true, {
       hookModelDailyBudget: {
-        capUsd: () => 1,
+        capUsd: () => Usd.from(1).toAmount(),
         reserve: () => Promise.reject(new Error('daily budget exhausted')),
       },
     })

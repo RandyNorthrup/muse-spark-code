@@ -16,11 +16,13 @@ const HARNESS = 'test/unit/devicesPhase2Harness.test.mjs'
 /** A fake Vitest project that records what the setup provides and its rerun listener. */
 function fakeProject(selected: string[]) {
   const provided: string[] = []
+  const keys: string[] = []
   const listeners: ((specifications: readonly { readonly moduleId: string }[]) => void)[] = []
   const project = {
     config: { root },
     vitest: { state: { getPaths: () => selected } },
-    provide: (_key: 'productionBuild', value: string) => {
+    provide: (key: 'deviceProductionBuild', value: string) => {
+      keys.push(key)
       provided.push(value)
     },
     onTestsRerun: (listener: (typeof listeners)[number]) => {
@@ -30,7 +32,7 @@ function fakeProject(selected: string[]) {
   const rerun = (files: string[]) => {
     for (const listener of listeners) listener(files.map((file) => ({ moduleId: at(file) })))
   }
-  return { project, provided, rerun }
+  return { project, provided, keys, rerun }
 }
 
 describe('the shared production build (vitest global setup)', () => {
@@ -80,10 +82,11 @@ describe('the shared production build (vitest global setup)', () => {
     let generation = 'A'
     const build = vi.fn()
     const setup = productionBuildSetup({ build, generation: () => generation })
-    const { project, provided, rerun } = fakeProject([at(HARNESS)])
+    const { project, provided, keys, rerun } = fakeProject([at(HARNESS)])
     setup(project)
     expect(build).toHaveBeenCalledOnce()
     expect(provided).toEqual(['A'])
+    expect(keys).toEqual(['deviceProductionBuild'])
     generation = 'B'
     rerun([HARNESS])
     expect(build).toHaveBeenCalledTimes(2)

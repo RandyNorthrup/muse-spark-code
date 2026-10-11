@@ -180,9 +180,7 @@ export function PaletteSessionRow({
       aria-selected={isActive}
       aria-keyshortcuts={keyShortcuts}
       aria-description={keyDescription}
-      className={
-        isActive ? 'palette-item history-row palette-item-active' : 'palette-item history-row'
-      }
+      className={`palette-item history-row${isActive ? ' palette-item-active' : ''}`}
       onMouseEnter={onHover}
       onMouseDown={(event) => {
         // Keep the search box focused; the click still resumes.

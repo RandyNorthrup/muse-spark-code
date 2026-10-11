@@ -7,7 +7,7 @@ import { withoutCredentials, withoutKeyringRoutes } from './credentialVariables'
 import { runProgram, windowsPowerShell } from '../host/processTree'
 import { isOwnerOnlyAcl } from '../core/fs/ownerOnlyAcl'
 import * as z from 'zod/mini'
-import { IDE_MCP_TOKEN_BYTES } from '../shared/constants'
+import { IDE_MCP_TOKEN_BYTES, UI_TEXT } from '../shared/constants'
 
 const FILE_MODE = constants.S_IRUSR | constants.S_IWUSR
 const DIRECTORY_MODE = FILE_MODE | constants.S_IXUSR
@@ -69,8 +69,13 @@ $rules = @($verified.GetAccessRules($true, $true, [System.Security.Principal.Sec
 
 const windowsAcl: TokenWindowsAcl = {
   async secure(file, isDirectory) {
+    // Windows sets both to its real directory, on whatever drive; never guess `C:`.
+    const root = process.env['SystemRoot'] ?? process.env['windir']
+    if (root === undefined || !/^[a-z]:\\/iu.test(root)) {
+      throw new Error(UI_TEXT.windowsSystemRootMissing)
+    }
     const executable = windowsPowerShell(
-      process.env['SystemRoot'] ?? String.raw`C:\Windows`,
+      root,
       withoutKeyringRoutes(withoutCredentials(process.env)),
     )
     const payload = Buffer.from(

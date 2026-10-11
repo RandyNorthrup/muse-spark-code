@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 // Lane L: the ledger's history queries — filters, search, sorting, totals,
 // the record's figures and export (M96 acceptance 42, PLAN.md D75 "The team
 // ledger").
@@ -37,7 +38,7 @@ function row(overrides: Partial<TeamHistoryRow> & { readonly taskId: string }): 
     tokens: { input: 100, cachedInput: 20, output: 50, reasoning: 10 },
     estimated: false,
     modelCalls: 3,
-    costUsd: 0.05,
+    costUsd: Usd.from(0.05).toAmount(),
     ...overrides,
   }
 }
@@ -52,7 +53,7 @@ const rows: readonly TeamHistoryRow[] = [
     endTime: NOW - HOUR,
     tokens: { input: 120, cachedInput: 0, output: 60, reasoning: 20 },
     modelCalls: 4,
-    costUsd: 0.1,
+    costUsd: Usd.from(0.1).toAmount(),
     brief: 'migrate the settings page',
   }),
   row({
@@ -76,9 +77,9 @@ const rows: readonly TeamHistoryRow[] = [
     endTime: undefined,
     tokens: { input: 20, cachedInput: 0, output: 10, reasoning: 0 },
     modelCalls: 2,
-    costUsd: 0.01,
+    costUsd: Usd.from(0.01).toAmount(),
     hookAddedTokens: 5,
-    paidToolCostUsd: 0.002,
+    paidToolCostUsd: Usd.from(0.002).toAmount(),
     roundsUsed: 2,
     brief: 'partial refactor of router',
     findingSeverities: ['high'],
@@ -92,7 +93,7 @@ const rows: readonly TeamHistoryRow[] = [
     endTime: NOW - 3 * HOUR + 30 * 60_000,
     tokens: { input: 10, cachedInput: 0, output: 10, reasoning: 0 },
     modelCalls: 1,
-    costUsd: 0.02,
+    costUsd: Usd.from(0.02).toAmount(),
     brief: 'draft the changelog',
   }),
 ]
@@ -199,7 +200,7 @@ describe('totals', () => {
     expect(engineering?.tasks).toBe(2)
     expect(engineering?.tokens).toBe(150 + 180)
     expect(engineering?.estimatedTokens).toBe(0)
-    expect(engineering?.costUsd).toBeCloseTo(0.15, 10)
+    expect(engineering?.costUsd).toBe(Usd.from(0.15).toAmount())
     expect(engineering?.unpricedTasks).toBe(0)
     expect(totals.find((item) => item.roleId === 'docs')?.tasks).toBe(1)
     expect(totals.some((item) => item.roleId === 'code-review')).toBe(false)
@@ -217,7 +218,7 @@ describe('totals', () => {
     expect(reviewed?.tokens).toBe(45)
     expect(reviewed?.estimatedTokens).toBe(45)
     expect(reviewed?.unpricedTasks).toBe(1)
-    expect(reviewed?.costUsd).toBe(0)
+    expect(reviewed?.costUsd).toBe(Usd.from(0).toAmount())
     expect(reviewed?.provider).toBe('model-api')
     expect(reviewed?.model).toBe('other-model')
   })
@@ -263,7 +264,7 @@ describe('totals', () => {
     const engineering = totals.find((item) => item.roleId === 'engineering')
     expect(engineering?.tasks).toBe(3)
     expect(engineering?.hookAddedTokens).toBe(5)
-    expect(engineering?.paidToolCostUsd).toBeCloseTo(0.002, 10)
+    expect(engineering?.paidToolCostUsd).toBe(Usd.from(0.002).toAmount())
     expect(engineering?.tokens).toBe(150 + 180 + 30)
   })
 })
@@ -299,7 +300,7 @@ describe('the record figures', () => {
     expect(first?.findingsBySeverity).toEqual({ high: 1 })
     expect(first?.roundsToPassAvg).toBe(2)
     expect(first?.avgTokens).toBe((150 + 30) / 2)
-    expect(first?.avgCostUsd).toBeCloseTo(0.03, 10)
+    expect(first?.avgCostUsd).toBe(Usd.from(0.03).toAmount())
     expect(first?.avgMinutes).toBe(30)
     const reviewed = figures[2]
     expect(reviewed?.failed).toBe(1)

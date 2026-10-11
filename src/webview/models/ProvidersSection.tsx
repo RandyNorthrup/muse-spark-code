@@ -5,21 +5,29 @@
 
 import { useState } from 'react'
 import { UI_TEXT } from '../../shared/constants'
-import { fill, formatUsd, plural } from '../../shared/l10n/text'
+import { fill, plural } from '../../shared/l10n/text'
+import { useFormatUsd } from '../money'
+
+/** A usage amount with the lazy money chunk's exact display. */
+function UsageAmount({ usd }: { readonly usd: number }) {
+  const formatted = useFormatUsd(usd, 2)
+  return formatted === undefined ? null : <>{formatted}</>
+}
 import type {
   ModelsPanelState,
   PanelDraft,
+  PanelToHostMessage,
   PrefillFields,
   ProviderState,
   ProviderTest,
 } from '../../shared/modelsPanel'
-import { formatTestCost } from './components/CostNotice'
+import { useTestCostDisclosure } from './components/CostNotice'
 import { InlineError } from './components/InlineError'
 import { KeyState } from './components/KeyState'
 import { ScanStatus } from './components/ScanStatus'
 import { UndoBar } from './components/UndoBar'
 import type { SectionProps } from './sections'
-import { Wizard } from './Wizard'
+import { ModelLimitsFields, Wizard } from './Wizard'
 
 function TestLine({
   provider,
@@ -31,6 +39,8 @@ function TestLine({
   // Declining the paid check only puts it away; the next Test asks again.
   const [costDismissed, setCostDismissed] = useState(false)
   const test: ProviderTest = provider.test
+  // The exact cost arrives with the lazy money chunk; Accept waits for it.
+  const cost = useTestCostDisclosure(test.status === 'needs-cost' ? test.costUsd : undefined)
   if (test.status === 'testing') {
     return (
       <p className="models-hint" role="status">
@@ -53,10 +63,11 @@ function TestLine({
   if (!costDismissed && test.status === 'needs-cost' && test.costUsd !== undefined) {
     return (
       <div className="models-cost-notice">
-        <p>{fill(UI_TEXT.providerTestPaid, { cost: formatTestCost(test.costUsd) })}</p>
+        {cost.line}
         <button
           type="button"
           className="models-button-primary"
+          disabled={!cost.isDisclosed}
           onClick={() => {
             onTest(true)
           }}
@@ -110,7 +121,9 @@ function KeyUsage({ provider }: { readonly provider: ProviderState }) {
         {rows.map(([label, usd]) => (
           <div key={label} className="models-usage-row">
             <dt>{label}</dt>
-            <dd>{formatUsd(usd, 2)}</dd>
+            <dd>
+              <UsageAmount usd={usd} />
+            </dd>
           </div>
         ))}
       </dl>
@@ -123,12 +136,14 @@ function EditForm({
   editId,
   onSave,
   onCancel,
+  onReload,
   onPrefill,
 }: {
   readonly draft: PanelDraft
   readonly editId: string
   readonly onSave: () => void
   readonly onCancel: () => void
+  readonly onReload: () => void
   readonly onPrefill: (fields: PrefillFields) => void
 }) {
   return (
@@ -145,12 +160,34 @@ function EditForm({
           }}
         />
       </label>
+      {draft.presetId === 'custom' &&
+        draft.models.map((modelId) => (
+          <div key={modelId}>
+            <p>{modelId}</p>
+            <ModelLimitsFields
+              id={`edit/${editId}/${modelId}`}
+              modelId={modelId}
+              draft={draft}
+              onPrefill={onPrefill}
+            />
+          </div>
+        ))}
       <InlineError messages={[...draft.errors, ...draft.blockers]} />
       <div className="models-row-actions">
+        {draft.saveConflict === true && (
+          <button
+            type="button"
+            className="models-button"
+            disabled={draft.saving === true}
+            onClick={onReload}
+          >
+            {UI_TEXT.crashReload}
+          </button>
+        )}
         <button
           type="button"
           className="models-button-primary"
-          disabled={draft.blockers.length > 0}
+          disabled={draft.saving === true || draft.blockers.length > 0}
           onClick={onSave}
         >
           {UI_TEXT.saveProvider}
@@ -194,12 +231,35 @@ function ProviderRow({
   readonly props: SectionProps
 }) {
   const { post } = props
-  const [editing, setEditing] = useState(false)
+  // A saved provider whose preset card is unavailable stays listed with its
+  // reason instead of its controls; removing it still works.
+  if (provider.unavailable !== undefined)
+    return (
+      <li className="models-provider">
+        <h3 className="models-provider-name">{provider.label}</h3>
+        <p className="models-hint" role="status">
+          {provider.unavailable}
+        </p>
+        <div className="models-row-actions">
+          <button
+            type="button"
+            className="models-button"
+            onClick={() => {
+              post({ type: 'providers/remove', providerId: provider.id })
+            }}
+          >
+            {UI_TEXT.providerRemove}
+          </button>
+        </div>
+      </li>
+    )
   if (provider.auth === 'subscription')
     return (
       <li className="models-provider">
         <h3>{provider.label}</h3>
-        <p>{provider.id === 'chatgpt' ? UI_TEXT.acpChatGpt.notice : UI_TEXT.planUi.aiContent}</p>
+        <p>
+          {provider.id === 'chatgpt' ? UI_TEXT.acpChatGpt.notice : UI_TEXT.planUi.copilotNotice}
+        </p>
         <p>{provider.models.join(', ')}</p>
         <button
           type="button"
@@ -272,12 +332,7 @@ function ProviderRow({
           type="button"
           className="models-button"
           onClick={() => {
-            post(
-              editing
-                ? { type: 'providers/wizard', event: 'cancel', providerId: provider.id }
-                : { type: 'providers/edit', providerId: provider.id },
-            )
-            setEditing(!editing)
+            post({ type: 'providers/edit', providerId: provider.id })
           }}
         >
           {UI_TEXT.providerEdit}
@@ -301,17 +356,18 @@ function ProviderRow({
           {UI_TEXT.providerExport}
         </button>
       </div>
-      {editing && editDraft !== undefined && (
+      {editDraft !== undefined && (
         <EditForm
           draft={editDraft}
           editId={provider.id}
           onSave={() => {
             post({ type: 'providers/save', useNow: false, providerId: provider.id })
-            setEditing(false)
           }}
           onCancel={() => {
             post({ type: 'providers/wizard', event: 'cancel', providerId: provider.id })
-            setEditing(false)
+          }}
+          onReload={() => {
+            post({ type: 'providers/edit', providerId: provider.id, reload: true })
           }}
           onPrefill={(fields) => {
             post({ type: 'providers/prefill', fields, providerId: provider.id })
@@ -370,7 +426,7 @@ function ImportPane({
               <li key={provider.id}>
                 <span>{provider.label ?? provider.id}</span>
                 <span className="models-origin">{provider.address}</span>
-                <span className="models-needs-key">{UI_TEXT.importNeedsKey}</span>
+                <span className="models-needs-key">{UI_TEXT.importNeedsKeyLabel}</span>
               </li>
             ))}
           </ul>
@@ -394,11 +450,19 @@ function ImportPane({
 }
 
 export function ProvidersSection(props: SectionProps) {
-  const { panelState, post, wizardOpen, importOpen, dispatch } = props
+  const { panelState, post, wizardOpen, wizardLife, importOpen, dispatch } = props
   // The pick step is local: before the host's draft arrives (right after
   // `providers/select`, or while the wizard just opened) the panel shows
   // the pick step from this draft, which carries nothing to save.
   const wizard: PanelDraft = panelState.drafts.wizard ?? PICK_DRAFT
+  // Picking a provider or saving ends this draft: the wizard stays open on
+  // a new generation, and work still pending for the old draft is dropped.
+  const wizardPost = (message: PanelToHostMessage): void => {
+    if (message.type === 'providers/select' || message.type === 'providers/save') {
+      dispatch({ type: 'open-wizard' })
+    }
+    post(message)
+  }
   return (
     <section aria-label={UI_TEXT.providersSectionTitle}>
       <h2>{UI_TEXT.providersSectionTitle}</h2>
@@ -412,17 +476,20 @@ export function ProvidersSection(props: SectionProps) {
           >
             {UI_TEXT.acpChatGpt.actions.add}
           </button>
-          {panelState.copilotAvailable === true && (
-            <button
-              type="button"
-              onClick={() => {
-                post({ type: 'providers/connectSubscription', providerId: 'copilot' })
-              }}
-            >
-              {UI_TEXT.planUi.copilotConnect}
-            </button>
-          )}
           <p>{UI_TEXT.acpChatGpt.notice}</p>
+          {panelState.copilotAvailable === true && (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  post({ type: 'providers/connectSubscription', providerId: 'copilot' })
+                }}
+              >
+                {UI_TEXT.planUi.copilotConnect}
+              </button>
+              <p>{UI_TEXT.planUi.copilotNotice}</p>
+            </>
+          )}
         </div>
       )}
       {panelState.notice !== undefined && (
@@ -455,7 +522,8 @@ export function ProvidersSection(props: SectionProps) {
         <Wizard
           panelState={panelState}
           draft={wizard}
-          post={post}
+          life={wizardLife}
+          post={wizardPost}
           onNavigateModels={() => {
             props.navigate('models')
           }}

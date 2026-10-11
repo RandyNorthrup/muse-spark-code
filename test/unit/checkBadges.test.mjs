@@ -287,6 +287,21 @@ describe('checkout images ahead of public main', () => {
       await expect(f.check()).rejects.toThrow()
     }
   })
+  it.each([undefined, ''])(
+    'omits authorization for an absent or empty job token: %s',
+    async (githubToken) => {
+      const f = fixture(['media/readme/new.png'])
+      await expect(
+        checkReadmeBadges([{ ...document(f.url), labels: [] }], version, {
+          repositoryRoot: f.root,
+          fetch: f.fetch,
+          ci: true,
+          githubToken,
+        }),
+      ).resolves.toContain('0 new checkout images')
+      for (const [, options] of f.fetch.mock.calls) expect(options.headers).toBeUndefined()
+    },
+  )
   it('sends a job token to the GitHub API inventory only, never to an image host', async () => {
     const f = fixture(['media/readme/new.png'])
     await expect(

@@ -1,3 +1,4 @@
+import { Usd, type UsdAmount } from '../shared/usd'
 // Durable daily admission for the standalone runtime; no VS Code imports.
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
@@ -14,7 +15,7 @@ import {
 import type { SessionBudgetClaim } from '../core/backends/modelapi/sessionBudget'
 import type { ResponseObject } from '../core/backends/modelapi/schemas'
 import {
-  EXEC_USD_UNITS,
+  EXEC_USD_DECIMALS,
   PAID_DAILY_BUDGET,
   RUNTIME_SETTINGS_FILE,
   SETTING_DEFAULTS,
@@ -32,7 +33,7 @@ const settingsSchema = z.strictObject({
       .check(z.minimum(PAID_DAILY_BUDGET.minimumUsd), z.maximum(PAID_DAILY_BUDGET.maximumUsd)),
   ),
 })
-const ceilUsd = (cost: number) => Math.ceil(cost * EXEC_USD_UNITS) / EXEC_USD_UNITS
+const ceilUsd = (cost: UsdAmount) => Usd.from(cost).ceiling(EXEC_USD_DECIMALS).toAmount()
 
 export function createRuntimeDailyBudget(deps: {
   readonly dataFolder: string
@@ -42,7 +43,8 @@ export function createRuntimeDailyBudget(deps: {
   const journal = createSessionBudgetJournal({
     directory: path.join(deps.dataFolder, PAID_DAILY_BUDGET.directory),
     sleep: deps.sleep,
-    initialBudget: () => Promise.resolve({ spentUsd: 0, hasUnknownHistoricalFees: false }),
+    initialBudget: () =>
+      Promise.resolve({ spentUsd: Usd.from(0).toAmount(), hasUnknownHistoricalFees: false }),
   })
   const day = () => {
     const date = new Date(deps.now())
@@ -61,20 +63,20 @@ export function createRuntimeDailyBudget(deps: {
     }
   }
   return {
-    async reserve(costUsd: number, signal: AbortSignal): Promise<SessionBudgetClaim> {
+    async reserve(costUsd: UsdAmount, signal: AbortSignal): Promise<SessionBudgetClaim> {
       signal.throwIfAborted()
       const scope = day()
       const claim = await journal.reserveAdmitted(
         scope,
         PAID_DAILY_BUDGET.accountId,
         ceilUsd(costUsd),
-        capUsd(),
+        Usd.from(capUsd()).toAmount(),
       )
       try {
         signal.throwIfAborted()
         if (scope !== day()) throw new Error(UI_TEXT.paidDailyStopped)
       } catch (error: unknown) {
-        await claim.settle(0)
+        await claim.settle(Usd.from(0).toAmount())
         throw error
       }
       return {
@@ -82,7 +84,7 @@ export function createRuntimeDailyBudget(deps: {
         check: () => {
           signal.throwIfAborted()
           if (scope !== day()) throw new Error(UI_TEXT.paidDailyStopped)
-          return claim.check(capUsd())
+          return claim.check(Usd.from(capUsd()).toAmount())
         },
       }
     },
@@ -123,7 +125,7 @@ export function withRuntimeAccounting(
           outputTokens: body.max_output_tokens,
           images: requestImageCount(body),
         })
-        if (reserveUsd === undefined || !Number.isFinite(reserveUsd) || reserveUsd < 0)
+        if (reserveUsd === undefined || Usd.from(reserveUsd).compare(Usd.from(0)) < 0)
           throw new Error(UI_TEXT.execModelUnpriced)
         let claim: SessionBudgetClaim | undefined
         let ticket: ResponseTicket | undefined
@@ -143,7 +145,7 @@ export function withRuntimeAccounting(
           const cost = actual === undefined ? undefined : ceilUsd(actual)
           // A sent request without a verified price keeps its original durable reservation.
           if (!wasSent || cost !== undefined)
-            await owned.settle(wasSent ? (cost ?? owned.reservedUsd) : 0)
+            await owned.settle(wasSent ? (cost ?? owned.reservedUsd) : Usd.from(0).toAmount())
           if (ticket !== undefined && accounting !== undefined) {
             const result = accounting.ledger.settleResponse(
               ticket,
@@ -169,7 +171,7 @@ export function withRuntimeAccounting(
         const attempt: ResponseAttemptGuard = Object.assign(
           (digest: string | undefined) => {
             if (!model.isCurrent()) throw new Error(UI_TEXT.scheduleConfirmationExpired)
-            claim?.check(0)
+            claim?.check(Usd.from(0).toAmount())
             guard?.(digest)
           },
           {
@@ -183,12 +185,17 @@ export function withRuntimeAccounting(
               const price =
                 pricing.kind === 'priced'
                   ? {
-                      input: pricing.card.input * TOKENS_PER_MILLION,
-                      cachedInput:
-                        (pricing.card.cachedInput ?? pricing.card.input) * TOKENS_PER_MILLION,
-                      output: pricing.card.output * TOKENS_PER_MILLION,
+                      input: Usd.from(pricing.card.input).times(TOKENS_PER_MILLION).toAmount(),
+                      cachedInput: Usd.from(pricing.card.cachedInput ?? pricing.card.input)
+                        .times(TOKENS_PER_MILLION)
+                        .toAmount(),
+                      output: Usd.from(pricing.card.output).times(TOKENS_PER_MILLION).toAmount(),
                     }
-                  : { input: 0, cachedInput: 0, output: 0 }
+                  : {
+                      input: Usd.from(0).toAmount(),
+                      cachedInput: Usd.from(0).toAmount(),
+                      output: Usd.from(0).toAmount(),
+                    }
               const admission = accounting.ledger.admitResponse({
                 model: body.model,
                 maxOutputTokens: body.max_output_tokens,

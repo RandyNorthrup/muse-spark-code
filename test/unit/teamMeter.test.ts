@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 // Lane A accounting (M96, PLAN.md D75): meters as sums over ledger rows
 // plus open reservations; reported versus estimated; resets.
 
@@ -24,14 +25,14 @@ const REQUEST = {
   tokens: 9000,
   inputTokens: 9000,
   outputTokens: 0,
-  spendUsd: 0.5,
+  spendUsd: Usd.from(0.5).toAmount(),
   dayKey: DAY,
   startMs: 1_000_000,
   budgets: () => ({
-    paidDailyBudgetUsd: 50,
-    teamDailyBudgetUsd: 50,
+    paidDailyBudgetUsd: Usd.from(50).toAmount(),
+    teamDailyBudgetUsd: Usd.from(50).toAmount(),
     teamDailyBudgetTokens: 25_000_000,
-    workspaceDailyBudgetUsd: 50,
+    workspaceDailyBudgetUsd: Usd.from(50).toAmount(),
     workspaceDailyBudgetTokens: 25_000_000,
   }),
 } as const
@@ -277,7 +278,7 @@ describe('teamMeter', () => {
           tokens: 9000,
           inputTokens: 9000,
           outputTokens: 0,
-          spendUsd: 0.5,
+          spendUsd: Usd.from(0.5).toAmount(),
         },
       ],
     })
@@ -286,7 +287,7 @@ describe('teamMeter', () => {
       caps: [{ measure: 'tokens', window: 'day', amount: 10_000 }],
       tokens: 2000,
       inputTokens: 2000,
-      spendUsd: 0.1,
+      spendUsd: Usd.from(0.1).toAmount(),
     })
     expect(refused.ok).toBe(false)
     if (refused.ok) throw new Error('unreachable')
@@ -300,7 +301,7 @@ describe('teamMeter', () => {
       tokens: 8500,
       inputTokens: 8500,
       outputTokens: 0,
-      spendUsd: 0.45,
+      spendUsd: Usd.from(0.45).toAmount(),
     })
     // A different request without reported usage keeps its whole reservation.
     const unknown = await journal.claim({ ...admitted.reservation, taskId: 'unknown' })
@@ -326,7 +327,7 @@ describe('teamMeter', () => {
         tokens: 9000,
         inputTokens: 9000,
         outputTokens: 0,
-        spendUsd: 0.5,
+        spendUsd: Usd.from(0.5).toAmount(),
       }))
     const windowA = new TeamMeter({ rows: emptyScope, openReservations: openOf })
     const windowB = new TeamMeter({ rows: emptyScope, openReservations: openOf })
@@ -357,18 +358,23 @@ describe('teamMeter', () => {
           tasks: 1,
           hookTokens: 200,
           paidToolTokens: 50,
-          costUsd: 0.01,
+          costUsd: Usd.from(0.01).toAmount(),
         }),
       }),
       taskRow('eng-2', 't2', 2000, 1000, {
         estimated: true,
-        usage: usage({ inputTokens: 2000, outputTokens: 1000, tasks: 1, costUsd: 0.02 }),
+        usage: usage({
+          inputTokens: 2000,
+          outputTokens: 1000,
+          tasks: 1,
+          costUsd: Usd.from(0.02).toAmount(),
+        }),
       }),
     ]
     const totals = sumTeamTotals(rows, { dayKey: DAY })
     expect(totals).toEqual({
       tokens: 4500,
-      costUsd: 0.03,
+      costUsd: Usd.from(0.03).toAmount(),
       tasks: 2,
       estimatedTokens: 3000,
       hookTokens: 200,
@@ -386,7 +392,7 @@ describe('teamMeter', () => {
       tokens: 9000,
       inputTokens: 9000,
       outputTokens: 0,
-      spendUsd: 0.5,
+      spendUsd: Usd.from(0.5).toAmount(),
       startMs: 1_000_000,
       dayKey: DAY,
     })
@@ -429,7 +435,7 @@ describe('teamMeter', () => {
       tokens: 9000,
       inputTokens: 8000,
       outputTokens: 1000,
-      spendUsd: 0.5,
+      spendUsd: Usd.from(0.5).toAmount(),
       startMs: 1_000_000,
       dayKey: DAY,
     })
@@ -445,4 +451,28 @@ describe('teamMeter', () => {
       estimated: true,
     })
   })
+})
+
+it('admits exactly ten plus twenty cents beneath a thirty-cent cap', async () => {
+  const rows = [
+    taskRow('eng-1', 'previous', 0, 0, {
+      usage: usage({ costUsd: Usd.from('0.1').toAmount() }),
+    }),
+  ]
+  const meter = meterWith(rows).meter
+  const admitted = await checkAndReserve(meter, new FakeTeamJournal(), {
+    ...REQUEST,
+    spendUsd: Usd.from('0.2').toAmount(),
+    caps: [{ measure: 'spendUsd', window: 'day', amount: 0.3 }],
+  })
+  expect(admitted.ok).toBe(true)
+  expect(
+    sumTeamTotals(
+      [
+        ...rows,
+        taskRow('eng-1', 'next', 0, 0, { usage: usage({ costUsd: Usd.from('0.2').toAmount() }) }),
+      ],
+      { dayKey: DAY },
+    ).costUsd,
+  ).toBe(Usd.from('0.3').toAmount())
 })

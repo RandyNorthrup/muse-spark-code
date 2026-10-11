@@ -21,6 +21,7 @@ import {
   usageTokensSchema,
   usageUnitsSchema,
 } from './usageJournal'
+import { resourceHistorySchema } from './resourceHistory'
 
 export const usageGroupBySchema = z.enum(['provider', 'model', 'kind', 'client'])
 export const usageMetricSchema = z.enum(['cost', 'tokens', 'requests', 'time'])
@@ -168,6 +169,9 @@ export const usagePageStateSchema = z.strictObject({
     packedAvoided: z.optional(usageCountSchema),
   }),
   modelDetail: z.optional(modelDetailSchema),
+  // M107 J: the machine's resource history. Absent: this host reads no resource
+  // journal. null: the journal could not be read, shown as unavailable.
+  resources: z.optional(z.nullable(resourceHistorySchema)),
 })
 export type UsagePageState = z.infer<typeof usagePageStateSchema>
 

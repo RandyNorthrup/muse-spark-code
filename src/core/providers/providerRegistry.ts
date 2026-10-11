@@ -1,3 +1,4 @@
+import { Usd, type UsdAmount } from '../../shared/usd'
 // M95-I: resolution joins identity, capability evidence and price-card
 // operations before dispatch. Client construction is lane T's transport seam.
 import {
@@ -10,7 +11,7 @@ import {
 } from '../backends/modelapi/modelPolicy'
 import { TOKENS_PER_MILLION, UI_TEXT } from '../../shared/constants'
 import { parseModelRef, sanitizeModelLabel } from './modelRef'
-import { reserveRequestUsd, settleUsageUsd, type ModelPricing } from './priceCard'
+import { reserveRequestAmount, settleUsageAmount, type ModelPricing } from './priceCard'
 
 export interface RegistryModel {
   readonly ref: string
@@ -84,14 +85,20 @@ export function createProviderRegistry(deps: ProviderRegistryDeps): ModelResolve
         policy: modelPolicyFor(ref, { ...model.evidence, pricing }),
         price: {
           reserve(usage) {
-            if (pricing.kind === 'local' || pricing.kind === 'plan') return 0
+            if (pricing.kind === 'local' || pricing.kind === 'plan') return Usd.from(0).toAmount()
             return pricing.kind === 'priced'
-              ? reserveRequestUsd(pricing.card, { ...usage, cacheWriteTokens: usage.inputTokens }) +
-                  (usage.images ?? 0) * (pricing.card.image ?? 0)
+              ? Usd.from(
+                  reserveRequestAmount(pricing.card, {
+                    ...usage,
+                    cacheWriteTokens: usage.inputTokens,
+                  }),
+                )
+                  .add(Usd.from(pricing.card.image ?? 0).times(usage.images ?? 0))
+                  .toAmount()
               : undefined
           },
           settle(usage, reported) {
-            if (pricing.kind === 'local' || pricing.kind === 'plan') return 0
+            if (pricing.kind === 'local' || pricing.kind === 'plan') return Usd.from(0).toAmount()
             return pricing.kind === 'priced'
               ? settleWithImages(pricing, usage, reported)
               : undefined
@@ -106,9 +113,9 @@ export function createProviderRegistry(deps: ProviderRegistryDeps): ModelResolve
 function settleWithImages(
   pricing: Extract<ModelPricing, { kind: 'priced' }>,
   usage: ModelPricedUsage,
-  reported: Parameters<typeof settleUsageUsd>[2],
-): number | undefined {
-  const cost = settleUsageUsd(pricing.card, usage, reported)
+  reported: Parameters<typeof settleUsageAmount>[2],
+): UsdAmount | undefined {
+  const cost = settleUsageAmount(pricing.card, usage, reported)
   if (
     cost !== undefined &&
     reported?.cost === undefined &&
@@ -124,5 +131,7 @@ function settleWithImages(
     reported?.cost !== undefined ||
     reported?.costInUsdTicks !== undefined
     ? cost
-    : cost + (usage.images ?? 0) * (pricing.card.image ?? 0)
+    : Usd.from(cost)
+        .add(Usd.from(pricing.card.image ?? 0).times(usage.images ?? 0))
+        .toAmount()
 }

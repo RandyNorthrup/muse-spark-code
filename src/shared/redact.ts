@@ -40,7 +40,28 @@
 // Replacements are functions, not strings, so no `$` sequence in the mark is
 // interpreted (unicorn/no-unsafe-string-replacement).
 
-import { REDACTED_MARK } from './constants'
+import { REDACTED_MARK, REDACT_HEX_RADIX, REDACT_JSON_UNICODE_DIGITS } from './constants'
+
+/** T's broker-backed service. Hosts inject it at each outgoing/storage boundary. */
+export interface SecretScrubPort {
+  scrub(text: string): Promise<string>
+  /**
+   * Rotation counter the sender reads around awaits: when it moves between
+   * the scrub and the dispatch, the body is rebuilt from current values. A
+   * Lock in the same window fails the rebuild, so it never sends either.
+   * Absent for foreign ports, which the sender treats as unchanging.
+   */
+  readonly generation?: number | undefined
+}
+
+/** Scrub exact vault values before patterns; service failures never fall back to delivery. */
+export async function scrubSecrets(
+  text: string,
+  service?: SecretScrubPort,
+  literals: readonly string[] = [],
+): Promise<string> {
+  return redactSecrets(service === undefined ? text : await service.scrub(text), literals)
+}
 
 /** The mark alone, in place of the whole match. */
 function mark(): string {
@@ -396,15 +417,44 @@ function redactPatterns(text: string, matched?: () => void, cuts?: SliceCut[]): 
 
 /**
  * The forms of one exact literal that literal-first redaction replaces (M80,
- * SPEC §4.2): the literal, its percent-encoded form, and what a pattern-only
+ * SPEC §4.2): raw, JSON-escaped, URL/form encoded, UTF-8 base64/base64url
+ * (with and without padding), hexadecimal, and what a pattern-only
  * pass leaves of it. Text that an earlier step already redacted by pattern
  * alone (a network error's description) still carries that residue, such as a
  * legacy key's tail after the `%` its pattern stops at.
  */
 function literalForms(literal: string): string[] {
-  const forms = [literal, JSON.stringify(literal).slice(1, -1)]
+  const json = JSON.stringify(literal).slice(1, -1)
+  const unicode = (unit: string): string =>
+    String.raw`\u${(unit.codePointAt(0) ?? 0).toString(REDACT_HEX_RADIX).padStart(REDACT_JSON_UNICODE_DIGITS, '0')}`
+  const asciiJson = json.replaceAll(/[^ -~]/g, (unit) => unicode(unit))
+  const bytes = new TextEncoder().encode(literal)
+  const base64 = btoa(Array.from(bytes, (byte) => String.fromCodePoint(byte)).join(''))
+  const hex = Array.from(bytes, (byte) => byte.toString(REDACT_HEX_RADIX).padStart(2, '0')).join('')
+  const forms = [
+    literal,
+    json,
+    json.replaceAll('/', String.raw`\/`),
+    asciiJson,
+    asciiJson.replaceAll('/', String.raw`\/`),
+    literal.replaceAll(/[\s\S]/g, (unit) => unicode(unit)),
+    base64,
+    base64.replaceAll('=', ''),
+    base64.replaceAll('+', '-').replaceAll('/', '_'),
+    base64.replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', ''),
+    hex,
+    hex.toUpperCase(),
+  ]
   try {
-    forms.push(encodeURIComponent(literal))
+    for (const encoded of [
+      encodeURIComponent(literal),
+      new URLSearchParams({ value: literal }).toString().slice('value='.length),
+    ]) {
+      forms.push(
+        encoded,
+        encoded.replaceAll(/%[\dA-F]{2}/g, (escape) => escape.toLowerCase()),
+      )
+    }
   } catch {
     // A lone surrogate has no encoded form; the literal itself still applies.
   }
@@ -415,35 +465,160 @@ function literalForms(literal: string): string[] {
   return forms
 }
 
+interface LiteralNode {
+  readonly next: Map<string, LiteralNode>
+  fail: LiteralNode | undefined
+  length: number
+}
+
+/** One shared Aho-Corasick matcher, so overlapping encodings cannot leave a tail. */
+function literalMatcher(forms: readonly string[]): (text: string, matched?: () => void) => string {
+  // No literal registered (the usual case): nothing can match, so skip the per-character walk.
+  if (forms.length === 0) return (text) => text
+  const root: LiteralNode = { next: new Map(), fail: undefined, length: 0 }
+  for (const literal of forms) {
+    let node = root
+    // Code units match String.slice offsets, including lone surrogates.
+    for (let i = 0; i < literal.length; i += 1) {
+      const char = literal.charAt(i)
+      let next = node.next.get(char)
+      if (next === undefined) {
+        next = { next: new Map(), fail: root, length: 0 }
+        node.next.set(char, next)
+      }
+      node = next
+    }
+    node.length = Math.max(node.length, literal.length)
+  }
+  const queue: LiteralNode[] = []
+  root.next.forEach((child) => {
+    queue.push(child)
+  })
+  let at = 0
+  while (at < queue.length) {
+    const parent = queue[at]
+    at += 1
+    if (parent === undefined) continue
+    for (const [char, child] of parent.next) {
+      let fail = parent.fail
+      while (fail !== undefined && !fail.next.has(char)) fail = fail.fail
+      child.fail = fail?.next.get(char) ?? root
+      child.length = Math.max(child.length, child.fail.length)
+      queue.push(child)
+    }
+  }
+  return (text, matched) => {
+    let node = root
+    const ranges: { start: number; end: number }[] = []
+    for (let i = 0; i < text.length; i += 1) {
+      const char = text.charAt(i)
+      while (node !== root && !node.next.has(char)) node = node.fail ?? root
+      node = node.next.get(char) ?? root
+      if (node.length === 0) continue
+      let start = i + 1 - node.length
+      // Merge overlaps, including a later, longer match that encloses earlier ones.
+      let last = ranges.at(-1)
+      while (last !== undefined && last.end > start) {
+        start = Math.min(start, last.start)
+        ranges.pop()
+        last = ranges.at(-1)
+      }
+      ranges.push({ start, end: i + 1 })
+    }
+    const pieces: string[] = []
+    let from = 0
+    for (const range of ranges) {
+      pieces.push(text.slice(from, range.start), REDACTED_MARK)
+      matched?.()
+      from = range.end
+    }
+    pieces.push(text.slice(from))
+    return pieces.join('')
+  }
+}
+
+// Account keys with no recognizable vendor prefix still need literal redaction.
+// Reference counts let independent stores release their own registration only.
+const registeredSecrets = new Map<string, number>()
+const registeredCache: {
+  forms: string[] | undefined
+  matcher: ReturnType<typeof literalMatcher> | undefined
+} = { forms: undefined, matcher: undefined }
+
+function secretForms(literals: Iterable<string>): string[] {
+  const forms = new Set<string>()
+  for (const value of literals) {
+    if (value === '') continue
+    for (const form of literalForms(value)) forms.add(form)
+  }
+  return [...forms]
+}
+
+function currentForms(): string[] {
+  registeredCache.forms ??= secretForms(registeredSecrets.keys())
+  return registeredCache.forms
+}
+
 function redactWith(
   text: string,
   literals: readonly string[],
   matched?: () => void,
   shouldIncludePatterns = true,
 ): string {
-  let result = text
-  const ordered = [
-    ...new Set(literals.filter((value) => value !== '').flatMap((value) => literalForms(value))),
-  ].toSorted((a, b) => b.length - a.length)
-  for (const literal of ordered) {
-    result = result.replaceAll(literal, () => {
-      matched?.()
-      return REDACTED_MARK
-    })
-  }
-  return shouldIncludePatterns ? redactPatterns(result, matched) : result
+  registeredCache.matcher ??= literalMatcher(currentForms())
+  const matcher =
+    literals.length === 0
+      ? registeredCache.matcher
+      : literalMatcher([...currentForms(), ...secretForms(literals)])
+  const redacted = matcher(text, matched)
+  return shouldIncludePatterns ? redactPatterns(redacted, matched) : redacted
 }
 
-/**
- * Exact run keys precede patterns, including legacy keys containing percent
- * signs. Executable payloads omit patterns to preserve their syntax.
- */
+/** Retain for the store/window lifetime, including late errors after removal. */
+export function registerSecretValue(value: string): () => void {
+  registeredCache.forms = undefined
+  registeredCache.matcher = undefined
+  registeredSecrets.set(value, (registeredSecrets.get(value) ?? 0) + 1)
+  let isReleased = false
+  return () => {
+    if (isReleased) return
+    isReleased = true
+    const count = (registeredSecrets.get(value) ?? 1) - 1
+    if (count === 0) {
+      registeredSecrets.delete(value)
+      registeredCache.forms = undefined
+      registeredCache.matcher = undefined
+    } else registeredSecrets.set(value, count)
+  }
+}
+
+/** Exact run/account keys precede patterns, including percent-containing keys. */
 export function redactSecrets(
   text: string,
   literals: readonly string[] = [],
   shouldIncludePatterns = true,
 ): string {
   return redactWith(text, literals, undefined, shouldIncludePatterns)
+}
+
+/**
+ * `redactSecrets` with fixed literals, for one stream's many strings: the
+ * literals' encoded forms and the matcher are built once, and again only
+ * when a registered secret changes, instead of on every call.
+ */
+export function secretRedactor(
+  literals: readonly string[],
+  shouldIncludePatterns = true,
+): (text: string) => string {
+  const fixed = secretForms(literals)
+  let built: { registered: string[]; matcher: ReturnType<typeof literalMatcher> } | undefined
+  return (text) => {
+    const registered = currentForms()
+    if (built?.registered !== registered)
+      built = { registered, matcher: literalMatcher([...registered, ...fixed]) }
+    const redacted = built.matcher(text)
+    return shouldIncludePatterns ? redactPatterns(redacted) : redacted
+  }
 }
 
 /** Counts only changed, nonoverlapping matches in the same order as redaction. */
@@ -532,6 +707,15 @@ function safeCut(text: string, from: number, target: number): number | undefined
     const cut = lineBreak + 1
     if (lineBreak === -1 || cut >= text.length) {
       return undefined
+    }
+    let literalEnd = cut
+    for (const literal of currentForms()) {
+      const start = text.indexOf(literal, Math.max(from, cut - literal.length + 1))
+      if (start !== -1 && start < cut) literalEnd = Math.max(literalEnd, start + literal.length)
+    }
+    if (literalEnd > cut) {
+      at = literalEnd + 1
+      continue
     }
     if (isWordOpen(text, from, cut)) {
       // The match may run through this white space: the next try is the

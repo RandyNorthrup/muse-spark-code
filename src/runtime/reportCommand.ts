@@ -1,3 +1,4 @@
+import type { SecretScrubPort } from '../shared/redact'
 // `muse-spark-code-acp report` (M93, PLAN.md D72): the standalone problem
 // report. It starts no backend, signs in nowhere, opens no browser and makes
 // no network or model call: it reads only the agent's own flight-recorder
@@ -16,7 +17,7 @@ import {
 } from '../core/backends/musecode/credentialFile'
 import { credentialFilePath, resolveMuseLaunch } from '../core/backends/musecode/launch'
 import {
-  buildProblemReportDraft,
+  buildVaultProblemReportDraft,
   type ProblemReportFacts,
   ReportBuildError,
 } from '../core/support/problemReport'
@@ -117,6 +118,7 @@ export function collectReportFacts(deps: ReportFactsDeps): ProblemReportFacts {
 
 /** Everything `runReportCommand` touches; every side effect is a parameter (the owning tests spy). */
 export interface RunReportDeps extends Omit<ReportFactsDeps, 'hasStoredApiKey'> {
+  readonly vaultScrub?: SecretScrubPort
   readonly options: ReportOptions
   /**
    * Whether the OS credential store holds a Model API key. Presence only;
@@ -155,16 +157,20 @@ export async function runReportCommand(
       ...deps,
       hasStoredApiKey: await deps.readStoredKeyPresence(),
     })
-    text = buildProblemReportDraft({
-      description: deps.options.description,
-      includeFacts: deps.options.includeFacts,
-      includeEvents: deps.options.includeEvents,
-      facts,
-      events: journal.entries,
-      recordingUnavailable: journal.recordingUnavailable,
-      nowMs: deps.nowMs,
-      scrub: { workspaceRoots: [], homeDir: deps.homeDir, extraLiterals: [] },
-    }).text
+    const draft = await buildVaultProblemReportDraft(
+      {
+        description: deps.options.description,
+        includeFacts: deps.options.includeFacts,
+        includeEvents: deps.options.includeEvents,
+        facts,
+        events: journal.entries,
+        recordingUnavailable: journal.recordingUnavailable,
+        nowMs: deps.nowMs,
+        scrub: { workspaceRoots: [], homeDir: deps.homeDir, extraLiterals: [] },
+      },
+      deps.vaultScrub,
+    )
+    text = draft.text
   } catch {
     deps.printError(UI_TEXT.reportBuildFailed)
     return EXEC_EXIT.internal

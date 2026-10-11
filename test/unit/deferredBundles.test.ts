@@ -8,8 +8,11 @@ import path from 'node:path'
 import { createRequire } from 'node:module'
 import vm from 'node:vm'
 import { build } from 'esbuild'
+import { compressedModelText } from '../../scripts/lib/compressedModelText.mjs'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+
 import * as z from 'zod/mini'
+import { isEstimatorBundle } from '../../src/host/estimator/estimatorBundle'
 import { EN } from '../../src/shared/l10n/en'
 import { L10N_COMPRESSION_QUALITY } from '../../src/shared/constants'
 import {
@@ -18,15 +21,30 @@ import {
   regionalUiText,
 } from '../../scripts/lib/uiTextRegions.mjs'
 import {
+  RESOURCE_LAUNCH_SHARED,
+  RESOURCE_PROCESS_ONLY,
+  RESOURCE_PROCESS_SHARED,
   checkDeferredBundles,
+  checkResourceBundles,
   deferredCohort,
   sharedUiText,
   sharedValidation,
+  nodeReferenceData,
   sharedWire,
+  sharedResourceAdmission,
+  sharedStructuredSchema,
   sharedModelApiBoundaries,
+  englishZodLocales,
 } from '../../scripts/lib/deferredBundles.mjs'
 import type * as validation from '../../src/shared/validationEntry'
+import type * as resourceGovernor from '../../src/core/resources/resourceGovernorEntry'
+import type * as runtimeResources from '../../src/runtime/resources/entry'
+import { resourceSettingsSchema } from '../../src/shared/resources'
 import { deferredTeamView } from '../../scripts/lib/deferredTeamView.mjs'
+import type { createMediaInspector, createMediaAttachments } from '../../src/host/media/mediaEntry'
+import { createMediaAttachDeps } from '../../src/host/media/mediaProviders'
+import { loadUiTable } from '../../src/host/l10n'
+import { fill, setUiText } from '../../src/shared/l10n/text'
 import { removeFolder } from './helpers/temporaryFolders'
 import { legalReportEnvelopeSchema } from '../../src/runtime/legal/runLegal'
 
@@ -78,6 +96,20 @@ beforeAll(async () => {
   } as const
   const builds = await Promise.all([
     ...Object.entries({
+      resourceGovernor: 'src/core/resources/resourceGovernorEntry.ts',
+      resourceProcess: 'src/core/resources/resourceProcessEntry.ts',
+      mcpVault: 'src/host/backend/mcpVaultEntry.ts',
+      resourceJournal: 'src/runtime/resources/resourceJournalEntry.ts',
+      resourceAdmission: 'src/core/resources/admissionEntry.ts',
+      mcpPool: 'src/core/backends/modelapi/mcpPoolEntry.ts',
+      modelApiCodeIntel: 'src/core/backends/modelapi/codeIntelEntry.ts',
+      schedules: 'src/runtime/schedules/schedulesBundle.ts',
+      scheduleBackground: 'src/runtime/schedules/backgroundEntry.ts',
+      vaultBoundaries: 'src/shared/vaultBoundariesEntry.ts',
+      estimator: 'src/host/estimator/estimatorEntry.ts',
+      estimateContracts: 'src/shared/estimateContractsEntry.ts',
+      media: 'src/host/media/mediaEntry.ts',
+      runtimeAccounts: 'src/runtime/providers/accountsEntry.ts',
       questionNotes: 'src/core/questions/deferralEntry.ts',
       reference: 'src/shared/reference/referenceEntry.ts',
       runtimeEngine: 'src/runtime/runtimeEngineEntry.ts',
@@ -85,8 +117,13 @@ beforeAll(async () => {
       modelApiHooks: 'src/core/backends/modelapi/modelApiHooksEntry.ts',
       modelApiMcp: 'src/core/backends/modelapi/modelApiMcpEntry.ts',
       runtimeAccounting: 'src/runtime/runtimeAccountingEntry.ts',
+      sharingRuntime: 'src/runtime/sharing/sharingEntry.ts',
       legalScan: 'src/core/legal/entry.ts',
       imageResizeWorker: 'src/core/imageResizeWorker.ts',
+      reporting: 'src/runtime/reporting/reportsEntry.ts',
+      reportingNetwork: 'src/runtime/reporting/network.ts',
+      reportingDestinations: 'src/runtime/reporting/destinationsEntry.ts',
+      reportingPanel: 'src/host/reporting/reportPanelEntry.ts',
       extension: 'src/extension.ts',
       conversation: 'src/host/conversation/conversationEntry.ts',
       devices: 'src/host/devices/deviceEntry.ts',
@@ -128,8 +165,16 @@ beforeAll(async () => {
           sharedValidation,
           deferredCohort,
           sharedWire,
+          sharedResourceAdmission,
+          sharedStructuredSchema,
           deferredTeamView,
           sharedModelApiBoundaries,
+          nodeReferenceData,
+          englishZodLocales,
+          // Match the shipped prompt archive before checking real production caps.
+          ...(['modelApi', 'reference', 'codeIntel', 'hookRuntime'].includes(name)
+            ? [compressedModelText(true)]
+            : []),
         ],
         external: ['vscode', '@napi-rs/keyring'],
       }),
@@ -139,17 +184,23 @@ beforeAll(async () => {
       outdir: 'dist',
       target: 'node22',
       entryPoints: {
+        exec: 'src/runtime/exec/execEntry.ts',
         acp: 'src/runtime/main.ts',
         acpQuestions: 'src/acp/questionDeferralEntry.ts',
         runtimeQuestions: 'src/runtime/questions/questionRegistryEntry.ts',
+        runtimeAccounts: 'src/runtime/providers/accountsEntry.ts',
       },
       plugins: [
         sharedUiText,
         sharedValidation,
         deferredCohort,
         sharedWire,
+        sharedResourceAdmission,
+        sharedStructuredSchema,
         deferredTeamView,
         sharedModelApiBoundaries,
+        nodeReferenceData,
+        englishZodLocales,
       ],
       external: ['@napi-rs/keyring'],
     }),
@@ -172,6 +223,8 @@ beforeAll(async () => {
         sharedValidation,
         deferredCohort,
         sharedWire,
+        sharedResourceAdmission,
+        sharedStructuredSchema,
         sharedModelApiBoundaries,
       ],
       external: ['vscode', '@napi-rs/keyring'],
@@ -179,8 +232,13 @@ beforeAll(async () => {
     build({
       ...common,
       outdir: 'dist',
-      entryPoints: { modelApiBoundaries: 'src/shared/modelApiBoundariesEntry.ts' },
+      entryPoints: { modelApiBoundaries: 'src/core/nodeBoundariesEntry.ts' },
       plugins: [sharedUiText, sharedValidation],
+    }),
+    build({
+      ...common,
+      outdir: 'dist',
+      entryPoints: { structuredSchema: 'src/shared/structuredSchemaEntry.ts' },
     }),
     build({
       ...common,
@@ -211,7 +269,7 @@ beforeAll(async () => {
         outputs: { [`dist/${name}.js`]: details },
       })
       fixtures.set(
-        `dist/${['acp', 'headless', 'acpQuestions', 'runtimeQuestions'].includes(name) ? 'meta-acp' : 'meta'}/${name}.json`,
+        `dist/${['acp', 'exec', 'headless', 'acpQuestions', 'runtimeQuestions', 'runtimeAccounts'].includes(name) ? 'meta-acp' : 'meta'}/${name}.json`,
         {
           bytes: Buffer.from(JSON.stringify(meta)),
           meta,
@@ -220,7 +278,6 @@ beforeAll(async () => {
     }
   }
   parsers.push(parserSchema.parse(loadSupportBundle('validation')))
-  expect(checkDeferredBundles(bundleInputs)).toEqual([])
 })
 
 beforeAll(async () => {
@@ -377,12 +434,219 @@ function outputInputs(meta: z.infer<typeof metafileSchema>, output: string) {
 function inputs(name: string): string[] {
   return Object.keys(
     fixture(
-      `dist/${['acp', 'acpQuestions', 'runtimeQuestions'].includes(name) ? 'meta-acp' : 'meta'}/${name}.json`,
+      `dist/${['acp', 'exec', 'headless', 'acpQuestions', 'runtimeQuestions', 'runtimeAccounts'].includes(name) ? 'meta-acp' : 'meta'}/${name}.json`,
     ).meta.inputs,
   ).map((file) => file.split(path.sep).join('/'))
 }
 
 describe('deferred cohort bundles', () => {
+  it('keeps governor execution in its lazy bundle and shares the admission shim', () => {
+    for (const name of ['extension', 'modelApi', 'acp', 'browserCheck']) {
+      expect(inputs(name)).not.toContain('src/core/resources/governor.ts')
+      expect(inputs(name)).not.toContain('src/core/resources/admission.ts')
+      expect(bundleText(name)).toContain('./resourceAdmission.js')
+    }
+    expect(inputs('resourceGovernor')).toContain('src/core/resources/governor.ts')
+    expect(bundleText('resourceAdmission')).toContain('./resourceGovernor.js')
+    expect(inputs('resourceAdmission')).not.toContain('src/core/resources/governor.ts')
+    const original = bundleInputs({
+      output: 'dist/modelApi.js',
+      metafile: 'dist/meta/modelApi.json',
+    })
+    const changed = new Map(original)
+    changed.set('src/core/resources/governor.ts', 1)
+    expect(
+      checkDeferredBundles((bundle) =>
+        bundle.output === 'dist/modelApi.js' ? changed : bundleInputs(bundle),
+      ),
+    ).toContain(
+      'dist/modelApi.js carries src/core/resources/governor.ts, which loads only on the first governed spawn',
+    )
+    expect(checkDeferredBundles(bundleInputs)).toEqual([])
+  })
+  it('POSTSPAWN loads the governed launcher in its own bundle, never inside the governor', () => {
+    for (const file of [...RESOURCE_PROCESS_ONLY, ...RESOURCE_PROCESS_SHARED])
+      expect(inputs('resourceProcess')).toContain(file)
+    for (const file of [...RESOURCE_PROCESS_ONLY, ...RESOURCE_LAUNCH_SHARED])
+      expect(inputs('resourceGovernor')).not.toContain(file)
+    // The helper preparation launches through the launcher, so it rides with
+    // the runtime that calls it, never inside the bundle it loads.
+    expect(inputs('acp')).toContain('src/runtime/resources/jobs.ts')
+    expect(inputs('resourceProcess')).not.toContain('src/runtime/resources/jobs.ts')
+    for (const name of ['extension', 'modelApi', 'acp'])
+      for (const file of RESOURCE_PROCESS_ONLY) expect(inputs(name)).not.toContain(file)
+    expect(bundleText('resourceAdmission')).toContain('./resourceProcess.js')
+    const governor = {
+      output: 'dist/resourceGovernor.js',
+      metafile: 'dist/meta/resourceGovernor.json',
+    }
+    for (const file of ['src/core/resources/process.ts', 'src/host/backend/mcpJobLaunch.ts']) {
+      const copied = new Map(bundleInputs(governor))
+      copied.set(file, 1)
+      expect(
+        checkDeferredBundles((bundle) =>
+          bundle.output === governor.output ? copied : bundleInputs(bundle),
+        ),
+      ).toContainEqual(expect.stringContaining(`dist/resourceGovernor.js carries ${file}`))
+    }
+    expect(checkDeferredBundles(bundleInputs)).toEqual([])
+  })
+  it('POSTSPAWN loads the vault MCP launch with the first vault-backed server, not at activation', () => {
+    for (const file of ['src/host/backend/mcpVault.ts', 'src/core/vault/scrub.ts']) {
+      expect(inputs('mcpVault')).toContain(file)
+      expect(inputs('extension')).not.toContain(file)
+    }
+    expect(bundleText('extension')).toContain('./mcpVault.js')
+    const activation = { output: 'dist/extension.js', metafile: 'dist/meta/extension.json' }
+    const copied = new Map(bundleInputs(activation))
+    copied.set('src/core/vault/scrub.ts', 1)
+    expect(
+      checkDeferredBundles((bundle) =>
+        bundle.output === activation.output ? copied : bundleInputs(bundle),
+      ),
+    ).toContain(
+      'dist/extension.js carries src/core/vault/scrub.ts, which loads only on the first vault-backed MCP server',
+    )
+  })
+  it('INT0170 loads the resource journal once for the governor and the usage service', () => {
+    const journal = [
+      'src/runtime/resources/history.ts',
+      'src/core/usage/resourceJournal.ts',
+      'src/core/usage/resourceRecords.ts',
+    ]
+    for (const name of ['resourceGovernor', 'usageService']) {
+      for (const file of journal) expect(inputs(name)).not.toContain(file)
+      expect(bundleText(name)).toContain('./resourceJournal.js')
+    }
+    for (const file of journal) expect(inputs('resourceJournal')).toContain(file)
+    // Usage records name an account; the usage bundles carry no M108 pool schemas.
+    for (const name of ['usageService', 'usagePanel'])
+      expect(inputs(name)).not.toContain('src/shared/accounts.ts')
+    const governor = {
+      output: 'dist/resourceGovernor.js',
+      metafile: 'dist/meta/resourceGovernor.json',
+    }
+    const copied = new Map(bundleInputs(governor))
+    copied.set('src/core/usage/resourceJournal.ts', 1)
+    expect(
+      checkDeferredBundles((bundle) =>
+        bundle.output === governor.output ? copied : bundleInputs(bundle),
+      ),
+    ).toContain(
+      'dist/resourceGovernor.js carries src/core/usage/resourceJournal.ts, which loads only on the shared resource journal (dist/resourceJournal.js)',
+    )
+  })
+  it('M107 keeps every policy module and admission state out of other shipped cohorts, including Windows paths', () => {
+    const bundles = Array.from(fixtures.keys(), (metafile) => ({
+      metafile,
+      output: `dist/${path.basename(metafile, '.json')}.js`,
+    }))
+    expect(checkResourceBundles(bundleInputs, bundles)).toEqual([])
+    for (const file of [
+      'src/core/resources/sampler/system.ts',
+      'src/core/resources/actuators/controller.ts',
+      'src/core/resources/relocate.ts',
+      'src/core/resources/createdRegistry.ts',
+    ]) {
+      expect(
+        checkResourceBundles(
+          () => new Map([[file.replaceAll('/', '\\'), 1]]),
+          [{ output: path.win32.join('dist', 'voice.js'), metafile: 'unused' }],
+        ),
+      ).toEqual([`dist/voice.js carries resource policy ${file} outside the lazy governor`])
+    }
+    expect(
+      checkResourceBundles(
+        () => new Map([['src/core/resources/admission.ts', 1]]),
+        [{ output: 'dist/pluginHooks.js', metafile: 'unused' }],
+      ),
+    ).toEqual(['dist/pluginHooks.js duplicates resource admission'])
+  })
+  it.each(['src/core/resources/disk.ts', 'src/core/resources/createdRegistry.ts'])(
+    'M107 requires %s in the governor artifact',
+    (file) => {
+      const bundle = {
+        output: 'dist/resourceGovernor.js',
+        metafile: 'dist/meta/resourceGovernor.json',
+      }
+      const changed = new Map(bundleInputs(bundle))
+      changed.delete(file)
+      expect(
+        checkDeferredBundles((entry) =>
+          entry.output === bundle.output ? changed : bundleInputs(entry),
+        ),
+      ).toContain(`${bundle.output} no longer carries ${file}`)
+    },
+  )
+  it('loads media inspection only on first use and rejects an ACP inline copy', async () => {
+    const source = 'src/core/media/limits.ts'
+    expect(inputs('media')).toContain(source)
+    for (const parent of ['extension', 'modelApi', 'acp']) {
+      expect(inputs(parent)).not.toContain(source)
+    }
+    expect(bundleText('extension')).toContain('media.js')
+    expect(bundleText('acp')).toContain('./media.js')
+    const problems = checkDeferredBundles((bundle) =>
+      bundle.output === 'dist/acp.js'
+        ? new Map([...bundleInputs(bundle), [source, 1]])
+        : bundleInputs(bundle),
+    )
+    expect(problems).toContain(
+      'dist/acp.js carries src/core/media/limits.ts, which loads only on the first media attachment or trusted media read',
+    )
+    const media = z
+      .object({
+        createMediaInspector: z.custom<typeof createMediaInspector>(
+          (value) => typeof value === 'function',
+        ),
+        createMediaAttachments: z.custom<typeof createMediaAttachments>(
+          (value) => typeof value === 'function',
+        ),
+      })
+      .parse(loadSupportBundle('media'))
+    const german = await loadUiTable({
+      language: 'de',
+      readExtensionFile: (segments) =>
+        Promise.resolve(readFileSync(path.join(...segments), 'utf8')),
+      log: { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+    })
+    try {
+      const inspector = media.createMediaInspector(german.table, german.locale)
+      expect(
+        await inspector.sniffMedia({
+          sizeBytes: 1,
+          read: () => Promise.resolve(new Uint8Array([0])),
+        }),
+      ).toEqual({
+        ok: false,
+        reason: fill(german.table.media.attachmentUnknownType, { type: 'media' }),
+      })
+      expect(
+        inspector.checkMediaLimits({
+          kind: 'audio',
+          mediaType: 'audio/wav',
+          sizeBytes: 1,
+          durationSeconds: 1,
+        }),
+      ).toEqual({ ok: true })
+      media.createMediaInspector(EN, 'en')
+      const attachments = media.createMediaAttachments(
+        createMediaAttachDeps(
+          () => ({ mediaMaxUploadMiB: 1, screenRecordingMaxSeconds: 1 }),
+          () => Promise.resolve(undefined),
+        ),
+        german.table,
+        german.locale,
+      )
+      expect(await attachments.prepare('unissued', 'modelApi', 'model')).toEqual({
+        ok: false,
+        reason: german.table.attachmentUnreadable,
+      })
+    } finally {
+      media.createMediaInspector(EN, 'en')
+      setUiText(EN, 'en')
+    }
+  })
   it('keeps M112 registry and deferral helpers lazy and rejects inline copies', () => {
     for (const [source, destination] of [
       ['src/runtime/questions/acpRegistry.ts', 'runtimeQuestions'],
@@ -403,6 +667,16 @@ describe('deferred cohort bundles', () => {
       )
     }
   })
+  it('loads the portable session sanitizer only from the lazy hook runtime (FIXM106T budget)', () => {
+    expect(inputs('modelApi')).not.toContain('src/core/export/sessionTransfer.ts')
+    expect(inputs('foreignHooks')).toContain('src/core/export/sessionTransfer.ts')
+    expect(bundleText('modelApi')).toContain('./hookRuntime.js')
+  })
+
+  it('every production bundle passes the deferred-boundary gate', () => {
+    expect(checkDeferredBundles(bundleInputs)).toEqual([])
+  })
+
   it('decodes the complete production English fallback without changing any value', () => {
     expect(bundleText('uiText')).toContain('brotliDecompressSync')
     expect(loadSupportBundle('uiText')).toHaveProperty('EN', EN)
@@ -552,6 +826,59 @@ describe('deferred cohort bundles', () => {
     expect(bundle).toHaveProperty('runChatGptProviderCommand', expect.any(Function))
     expect(bundle).toHaveProperty('chatGptAuthenticationMethods', expect.any(Function))
   })
+  it('RVM115U5 diet: Model API frees ten KiB and records context loaders in the lazy schedules chunk', () => {
+    // M115W re-measurement (Kubuntu, deterministic across trees): the merged
+    // milestone carries 1,161 more bytes than U's pin (the validated v2
+    // protocol, schedules settings and their strings). The diet's mechanism
+    // below is unchanged: the loaders stay out of Model API.
+    // CAPS017 (0.17.0, Kubuntu): the 474,100 pin was taken on int/0170 before
+    // 0.16.0's Model API merged. int/0170's own head measured 483,463 and
+    // 0.16.0 alone 500,400 (no M115 code); the combined tree is 527,373 after
+    // its diet, inside D6's 525 KiB cap. The pin moves to that measurement.
+    // INT0170 (lead decision, Kubuntu): +3,506 B over 527,377 is feature
+    // code, not an accidental dependency, measured after the shared
+    // usdSchema.ts and windowsPathSpelling.ts left this bundle: MONEY017's
+    // scheduled-run media reserve/settle +2,544 (ModelApiHost.ts +2,081,
+    // client.ts +451), PORTS017 +224 (accounts.ts, exactUsd.ts), SECWINPATH
+    // +517 (storageRefusal, ModelApiHost, browserTool, protectedPaths,
+    // workspacePath) and its MODEL_TEXT keys that activation reads +221.
+    // Re-measured and ratcheted down when m105/media-w2 moves media to the
+    // deferred dist/productionMedia.js.
+    expect(Buffer.byteLength(bundleText('modelApi'))).toBeLessThanOrEqual(530_883)
+    const schedules = new Set(inputs('schedules'))
+    for (const file of [
+      'src/core/backends/modelapi/schedulesEntry.ts',
+      'src/core/backends/modelapi/schedules.ts',
+      'src/core/context/catalogFiles.ts',
+    ]) {
+      expect(schedules.has(file)).toBe(true)
+      expect(inputs('modelApi')).not.toContain(file)
+    }
+    expect(bundleText('modelApi')).toContain('./schedules.js')
+  })
+
+  it('M115W: the lazy schedules chunk carries the v2 runtime binding beside v1', () => {
+    const schedules = new Set(inputs('schedules'))
+    for (const file of [
+      'src/runtime/schedules/schedulesBundle.ts',
+      'src/runtime/schedules/runtimeEntry.ts',
+      'src/runtime/schedules/engine.ts',
+      'src/runtime/schedules/control.ts',
+      'src/core/schedules/store.ts',
+      'src/core/schedules/scheduler.ts',
+      'src/core/schedules/delivery.ts',
+    ]) {
+      expect(schedules.has(file)).toBe(true)
+      for (const parent of ['extension', 'modelApi', 'acp'])
+        expect(inputs(parent)).not.toContain(file)
+    }
+    expect(bundleText('schedules')).toContain('createRuntimeSchedules')
+  })
+
+  it('loads the shipped estimator against the shared validation runtime', () => {
+    expect(isEstimatorBundle(loadSupportBundle('estimator'))).toBe(true)
+  })
+
   it('loads the activation entry without requiring either action bundle', () => {
     const entry = bundleFile('extension')
     expect(bundleText('extension')).toContain('conversation.js')
@@ -602,6 +929,65 @@ describe('deferred cohort bundles', () => {
       expect(inputs('extension')).not.toContain(file)
       expect(inputs('conversation')).toContain(file)
     }
+  })
+
+  it('CAPS017: lazy Node bundles share the wire schemas instead of copying them', () => {
+    const schemas = [
+      'src/shared/scheduleV2.ts',
+      'src/shared/scheduleEvents.ts',
+      'src/shared/schedule.ts',
+      'src/shared/media.ts',
+      'src/shared/questions.ts',
+    ]
+    for (const file of schemas) expect(inputs('wire')).toContain(file)
+    for (const name of [
+      'extension',
+      'conversation',
+      'modelApi',
+      'runtimeEngine',
+      'runtimeAccounts',
+      'runtimeQuestions',
+      'usagePanel',
+      'schedules',
+    ])
+      for (const file of schemas) expect(inputs(name)).not.toContain(file)
+    const wire = loadSupportBundle('wire')
+    for (const name of ['scheduleV2Schema', 'uploadedFilesReportSchema'])
+      expect(wire).toHaveProperty(name)
+    // The chat validates the upload report without carrying the ledger or the client.
+    for (const file of [
+      'src/core/media/uploadLedger.ts',
+      'src/core/backends/modelapi/client.ts',
+      'src/core/backends/modelapi/subagentTools.ts',
+    ])
+      expect(inputs('conversation')).not.toContain(file)
+  })
+
+  it('CAPS017: account services take the backend factory through their port', () => {
+    for (const file of [
+      'src/runtime/backends.ts',
+      'src/core/backends/musecode/MuseCodeHost.ts',
+      'src/host/backend/toolIo.ts',
+    ]) {
+      expect(inputs('runtimeAccounts')).not.toContain(file)
+      expect(inputs('runtimeEngine')).toContain(file)
+    }
+    for (const file of ['src/acp/accounts.ts', 'src/shared/hostApi/accounts.ts'])
+      expect(inputs('headless')).not.toContain(file)
+    expect(inputs('headless')).toContain('src/acp/accountText.ts')
+  })
+
+  it('CAPS017: the ACP engine ships only zod English locale and still loads', () => {
+    const engine = inputs('runtimeEngine')
+    expect(engine).toContain('node_modules/zod/v4/locales/en.js')
+    expect(
+      engine
+        .filter((file) => file.startsWith('node_modules/zod/v4/locales/'))
+        .toSorted((left, right) => left.localeCompare(right)),
+    ).toEqual(['node_modules/zod/v4/locales/en.js', 'node_modules/zod/v4/locales/index.js'])
+    const loaded = loadSupportBundle('runtimeEngine')
+    expect(loaded).toHaveProperty('createRuntimeBackend', expect.any(Function))
+    expect(loaded).toHaveProperty('createAcpAgent', expect.any(Function))
   })
 
   it('emits the legal scanner once and keeps it out of both initial bundles', () => {
@@ -724,6 +1110,8 @@ describe('deferred cohort bundles', () => {
 
   it('shares the captured Model API validators and pure team admission across Node consumers', () => {
     for (const source of [
+      'src/core/pathIdentity.ts',
+      'src/core/windowsPathSpelling.ts',
       'src/core/backends/modelapi/schemas.ts',
       'src/shared/teamConversation.ts',
       'src/shared/paidBoundary.ts',
@@ -736,6 +1124,13 @@ describe('deferred cohort bundles', () => {
       }
     }
     expect(bundleText('modelApi')).toContain('./modelApiBoundaries.js')
+    // INT0170: the headless preflight confines attachments through
+    // workspacePath.ts and takes the Windows path rules from the shared bundle.
+    expect(inputs('headless')).toContain('src/core/workspacePath.ts')
+    expect(inputs('headless')).not.toContain('src/core/windowsPathSpelling.ts')
+    expect(bundleText('headless')).toContain('./modelApiBoundaries.js')
+    expect(inputs('sharingRuntime')).not.toContain('src/core/pathIdentity.ts')
+    expect(bundleText('sharingRuntime')).toContain('./modelApiBoundaries.js')
   })
 
   it('keeps paid review execution out of the session first-turn bundle', () => {
@@ -814,37 +1209,14 @@ describe('deferred cohort bundles', () => {
     }
   })
 
-  it('rejects a missing deferred input and restores its metafile byte-exact', () => {
-    const file = 'dist/meta/reviewer.json'
-    const meta = structuredClone(fixture(file).meta)
-    const original = JSON.stringify(meta)
-    const hash = createHash('sha256').update(original).digest('hex')
-    const output = meta.outputs['dist/reviewer.js']
-    if (output === undefined) throw new Error('Missing reviewer output')
-    const source = 'src/core/backends/modelapi/reviewerEntry.ts'
-    const input = output.inputs[source]
-    if (input === undefined) throw new Error('Missing reviewer input')
-    const originalInputs = structuredClone(output.inputs)
-    const check = () => {
-      const changed = outputInputs(meta, 'dist/reviewer.js')
-      return checkDeferredBundles((bundle) =>
-        bundle.metafile === file ? changed : bundleInputs(bundle),
-      )
-    }
-    expect(check()).toEqual([])
-    try {
-      Reflect.deleteProperty(output.inputs, source)
-      expect(check()).toEqual([`dist/reviewer.js no longer carries ${source}`])
-    } finally {
-      output.inputs = originalInputs
-    }
-    expectUnchangedMeta(meta, hash, check)
-  })
-
   it.each([
+    ['estimateContracts', 'src/shared/estimate.ts', 'missing'],
+    ['modelApi', 'src/shared/estimate.ts', 'on its first action'],
+    ['vaultBoundaries', 'src/shared/vault.ts', 'missing'],
+    ['modelApi', 'src/shared/vault.ts', 'on its first action'],
     ['providerPolicy', 'src/host/backend/providerPolicyEntry.ts', 'missing'],
     ['providerPolicy', 'src/core/backends/modelapi/codecs/chat.ts', 'in dist/providers.js'],
-    ['modelApiHooks', 'src/core/backends/modelapi/hookHandlers.ts', 'missing'],
+    ['hookRuntime', 'src/core/backends/modelapi/hookHandlers.ts', 'missing'],
     ['modelApiMcp', 'src/core/backends/modelapi/mcp/pool.ts', 'missing'],
     ['runtimeAccounting', 'src/runtime/runtimeAccountingEntry.ts', 'missing'],
     ['modelApi', 'src/core/backends/modelapi/hookHandlers.ts', 'on its first action'],
@@ -861,6 +1233,26 @@ describe('deferred cohort bundles', () => {
       'src/acp/questionDeferralEntry.ts',
       'on the first ACP question, elicitation or question command',
     ],
+    ['reviewer', 'src/core/backends/modelapi/reviewerEntry.ts', 'missing'],
+    ['modelApiCodeIntel', 'src/core/backends/modelapi/codeIntelCalls.ts', 'missing'],
+    ['mcpPool', 'src/core/backends/modelapi/mcp/pool.ts', 'missing'],
+    ['headless', 'src/runtime/exec/runExec.ts', 'missing'],
+    ['structuredSchema', 'src/shared/structuredSchemaEntry.ts', 'missing'],
+    ['modelApi', 'src/core/backends/modelapi/codeIntelCalls.ts', 'on its first action'],
+    ['modelApi', 'src/core/backends/modelapi/mcp/pool.ts', 'on its first action'],
+    ['acp', 'src/runtime/exec/runExec.ts', 'on its first action'],
+
+    ['foreignHooks', 'src/core/export/sessionTransfer.ts', 'missing'],
+    [
+      'modelApi',
+      'src/runtime/schedules/nodeBackgroundIo.ts',
+      'on the first native schedule wake or maintenance',
+    ],
+    [
+      'modelApi',
+      'src/runtime/schedules/effectiveDefinition.ts',
+      'on the first native schedule wake or maintenance',
+    ],
     ['extension', 'src/host/bestOfN/bestOfNManager.ts', 'on its first action'],
     ['extension', 'src/host/devices/deviceReceiver.ts', 'on an explicit Devices method'],
     ['modelApi', 'src/core/devices/pairing.ts', 'on an explicit Devices method'],
@@ -876,6 +1268,7 @@ describe('deferred cohort bundles', () => {
     ['modelApi', 'src/core/backends/modelapi/hookFormats/engine.ts', 'on its first action'],
     // M91: the hook and MCP-form runtime, required on first use.
     ['modelApi', 'src/core/backends/modelapi/hookRuntimeEntry.ts', 'on its first action'],
+    ['modelApi', 'src/core/export/sessionTransfer.ts', 'on import'],
     // Split out of activation on 2026-10-03 (PLAN.md D6).
     ['extension', 'src/core/codeIntel/codeIntelQuery.ts', 'on the first code intelligence call'],
     ['extension', 'src/core/voice/museVoice.ts', 'on the first recording'],
@@ -927,22 +1320,116 @@ describe('deferred cohort bundles', () => {
       }
       expect(check()).toEqual([])
       const originalInputs = structuredClone(output.inputs)
-      if (use === 'missing') expect(output.inputs).toHaveProperty(source)
+      const isMissing = use === 'missing'
+      if (isMissing) expect(output.inputs).toHaveProperty(source)
       else expect(output.inputs).not.toHaveProperty(source)
       try {
-        if (use === 'missing') Reflect.deleteProperty(output.inputs, source)
+        if (isMissing) Reflect.deleteProperty(output.inputs, source)
         else output.inputs[source] = { bytesInOutput: 1 }
-        expect(check()).toContain(
-          use === 'missing'
-            ? `dist/${name}.js no longer carries ${source}`
-            : `dist/${name}.js carries ${source}, which loads only ${use}`,
+        const problem = isMissing
+          ? `dist/${name}.js no longer carries ${source}`
+          : `dist/${name}.js carries ${source}, which loads only ${use}`
+        if (
+          name === 'reviewer' ||
+          name === 'foreignHooks' ||
+          ['modelApiCodeIntel', 'mcpPool', 'exec', 'structuredSchema'].includes(name)
         )
+          expect(check()).toEqual([problem])
+        else expect(check()).toContain(problem)
       } finally {
         output.inputs = originalInputs
       }
       expectUnchangedMeta(meta, hash, check)
     },
   )
+  it.each(
+    ['reporting', 'reportingNetwork', 'reportingDestinations', 'reportingPanel'].flatMap((name) => [
+      { name, source: 'src/core/backends/modelapi/backend.ts', reason: 'a backend' },
+      { name, source: 'src/core/paid/paidFeatures.ts', reason: 'the paid gate' },
+    ]),
+  )('refuses $reason imports from $name with either path separator', ({ name, source, reason }) => {
+    const file = `dist/meta/${name}.json`
+    const meta = structuredClone(fixture(file).meta)
+    const output = meta.outputs[`dist/${name}.js`]
+    if (output === undefined) throw new Error('Missing output')
+    const hash = createHash('sha256').update(JSON.stringify(meta)).digest('hex')
+    for (const separator of ['/', '\\']) {
+      const key = source.replaceAll('/', () => separator)
+      try {
+        output.inputs[key] = { bytesInOutput: 1 }
+        expect(
+          checkDeferredBundles((bundle) =>
+            bundle.metafile === file ? outputInputs(meta, `dist/${name}.js`) : bundleInputs(bundle),
+          ),
+        ).toContain(`dist/${name}.js carries ${reason}: ${source}`)
+      } finally {
+        Reflect.deleteProperty(output.inputs, key)
+      }
+    }
+    expect(createHash('sha256').update(JSON.stringify(meta)).digest('hex')).toBe(hash)
+  })
+})
+
+it('loads both governor factories with shared validation without probing at construction', async () => {
+  const module = z
+    .object({
+      resourceGovernorHost: z.custom<typeof resourceGovernor.resourceGovernorHost>(
+        (value) => typeof value === 'function',
+      ),
+      createResources: z.custom<typeof runtimeResources.createResources>(
+        (value) => typeof value === 'function',
+      ),
+    })
+    .parse(loadSupportBundle('resourceGovernor'))
+  const host = module.resourceGovernorHost({
+    inspect: () => undefined,
+    onError: () => {
+      throw new Error('Unexpected resource probe')
+    },
+  })
+  expect(host.tickets()).toEqual([])
+  host.dispose()
+  const runtime = await module.createResources(
+    {
+      machineDir: fixtureRoot,
+      sleep: () => Promise.resolve(),
+      onError: () => {
+        throw new Error('Unexpected runtime resource probe')
+      },
+      machine: {
+        readSettings: () => Promise.resolve(resourceSettingsSchema.parse({ enabled: false })),
+        readResumeUntil: () => Promise.resolve(null),
+        writeResumeUntil: () => Promise.resolve(),
+      },
+    },
+    EN,
+    'en',
+  )
+  const status = await runtime.status()
+  expect(status.settings.enabled).toBe(false)
+  runtime.dispose()
+})
+
+it('POSTSPAWN loads the launcher bundle beside the governor, without the runtime helper preparation', () => {
+  const callable = z.custom<(...args: never[]) => unknown>((value) => typeof value === 'function')
+  const launcher = z
+    .object({
+      spawnResourceProcess: callable,
+      execResourceFile: callable,
+      handoffResourceFile: callable,
+    })
+    .safeParse(loadSupportBundle('resourceProcess'))
+  expect(launcher.success).toBe(true)
+  for (const name of ['resourceProcess', 'resourceGovernor'])
+    expect(
+      z.object({ runtimeResourceJobs: callable }).safeParse(loadSupportBundle(name)).success,
+    ).toBe(false)
+  // Admission's state and the lazy launch shims ship together, once.
+  expect(
+    z
+      .object({ configureResources: callable, spawnResourceProcess: callable })
+      .safeParse(loadSupportBundle('resourceAdmission')).success,
+  ).toBe(true)
 })
 
 it('refuses a raster codec leaked into the lazy Model API parent', () => {
