@@ -287,11 +287,16 @@ happened, not what was planned; superseded entries are kept.
   into the run ledger;
   stopped reads cannot publish a new proof.
 
-- Video reaching a Chat Completions or Gemini request now refuses with the
-  model's own reason ("{model} is not known to take video."), read from the
-  installed language table. Previously the turn kept its shape with the
-  image-omitted placeholder, which named the wrong kind and hid that no
-  vendor outside Meta has a captured media wire yet (M105 lane V).
+- Video reaching any non-Meta request now refuses with the model's own
+  reason ("{model} is not known to take video."), read from the installed
+  language table, before anything is sent (M105 lane V R2). The chat and
+  Gemini codecs already refused at the codec stage, but as a plain Error
+  the production client replaced the reason with the generic unavailable
+  message; the refusal is now the typed error the client passes through.
+  Responses requests forwarded Meta's file id uncaptured while Anthropic
+  and Ollama requests dropped the part and sent the rest; every encoder
+  now refuses instead. No vendor outside Meta has a captured media wire
+  yet.
 
 ## [0.17.1] - 2026-10-10
 
