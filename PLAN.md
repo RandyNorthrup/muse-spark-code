@@ -38084,8 +38084,10 @@ and the reviewed `lz-string` receipt resolve the earlier eight-vendor blocker.
 The 312-word review vocabulary moves unchanged to hash-pinned
 `legal-data/slot-words.txt`, verified at build and load; missing or changed
 vocabulary disables exact matching. This makes room for the receipt reader:
-`legalScan.js` is 148.4 KiB against the unchanged 150-KiB cap. The production
-build passes; 87 bundles / 1,910 files verify and the repository scan reports
+`legalScan.js` fits the unchanged 150-KiB cap (final measured sizes are in
+`docs/certification/m97.md`). All 54 complete owning/allied files pass
+11,437 tests at repository timeouts, including 10,240 restriction controls.
+The production build passes; 87 bundles / 1,910 files verify and the repository scan reports
 zero incomplete checks, blockers or should-fix findings (exit 0). Full aggregate
 quality remains reserved for the lead by the explicit lane rules.
 

@@ -208,7 +208,10 @@
       ],
       "license": "MIT",
       "attribution": "Original Muse Spark Code holder-slot review vocabulary from CM971R4; not SPDX data.",
-      "modifications": "Moved the same packed entries out of the legal bundle; unchanged expansion and 312 distinct restriction words."
+      "modifications": "Moved the same packed entries out of the legal bundle; unchanged expansion and 312 distinct restriction words.",
+      "sourceUrl": "https://github.com/RandyNorthrup/muse-spark-code/blob/330f5e5222ac6061ec113a7414e59d5dd6152a8e/src/core/legal/licenseTemplates.ts",
+      "sourceRevision": "330f5e5222ac6061ec113a7414e59d5dd6152a8e",
+      "sourcePath": "src/core/legal/licenseTemplates.ts"
     }
   ]
 }
