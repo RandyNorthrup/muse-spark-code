@@ -57,21 +57,31 @@ export function recorderHelper(recorderName: string, start: () => RecorderProces
     exitListener?.('exit code 0')
   }
   const startRecording = () => {
-    if (recorder !== undefined) {
+    if (hasExited || recorder !== undefined) {
       return
     }
     let stderrTail = ''
-    const running = start()
+    let running: RecorderProcess
+    try {
+      running = start()
+    } catch (error: unknown) {
+      stdout.write({
+        type: 'error',
+        reason: `${recorderName}: ${error instanceof Error ? error.message : String(error)}`,
+      })
+      return
+    }
     recorder = running
     isStopping = false
     running.onData((chunk) => {
+      if (hasExited || recorder !== running) return
       stdout.write({ type: 'audio', data: Buffer.from(chunk).toString('base64') })
     })
     running.onStderr((chunk) => {
       stderrTail = (stderrTail + chunk).slice(-DICTATION_STDERR_TAIL_CHARS)
     })
     running.onExit((description) => {
-      if (recorder !== running) {
+      if (hasExited || recorder !== running) {
         return
       }
       recorder = undefined
@@ -88,6 +98,7 @@ export function recorderHelper(recorderName: string, start: () => RecorderProces
     stdout.write({ type: 'listening' })
   }
   queueMicrotask(() => {
+    if (hasExited) return
     stdout.write({ type: 'ready', language: 'pcm_s16le', recognizer: recorderName })
   })
   return {

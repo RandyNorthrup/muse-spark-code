@@ -16,6 +16,9 @@ export { fill } from '../l10n/text'
 export { Usd } from '../usd'
 export {
   ACP_AGENT_NAME,
+  MUSE_VOICE_MAX_SECONDS,
+  MUSE_VOICE_FRAME_MS,
+  MUSE_VOICE_RESERVED_MS,
   PAID_FEATURE_SETTINGS,
   PAID_FEATURES,
   MUSE_CODE_PAID_FEATURES,
@@ -71,6 +74,7 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   ),
   ...['service-status'].map((id): [string, readonly string[]] => [id, ['vscode:modelApi']]),
   ['native-deletion', ['vscode:museCode']],
+  ['voice', ['vscode:museCode', 'vscode:modelApi']],
   ['output-schema', ['acp:modelApi']],
   ['providers', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ['usage', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
@@ -98,13 +102,9 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   // C-X-1: the shared daily budget also binds headless/ACP runs through the
   // runtime ledger, which reads the same paidDailyBudgetUsd setting.
   ['budget', ['vscode:modelApi', 'acp:modelApi']],
-  ...[
-    'auto-subscription',
-    'native-agents',
-    'native-search-cron',
-    'voice',
-    'judge-subscription',
-  ].map((id): [string, readonly string[]] => [id, ['vscode:museCode']]),
+  ...['auto-subscription', 'native-agents', 'native-search-cron', 'judge-subscription'].map(
+    (id): [string, readonly string[]] => [id, ['vscode:museCode']],
+  ),
   ...[
     'attachments',
     'effort',

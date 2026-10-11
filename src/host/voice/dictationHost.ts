@@ -1,3 +1,4 @@
+import type { MuseVoiceDeps } from '../../core/voice/museVoice'
 // The host side of voice dictation (M9): finds the helper for this platform,
 // at activation, so the microphone says at once whether it can record. One
 // setup per window; each conversation creates its own driver from it on
@@ -60,8 +61,9 @@ export function createDictationSetup(
 export interface MuseVoiceSetupDeps {
   /** The Model API key, read per recording. */
   readonly apiKey: () => Promise<string | undefined>
-  /** Counts whole seconds of audio sent, for the window's tally. */
+  /** Counts reported whole seconds, or local seconds without a final. */
   readonly onSeconds: (seconds: number) => void
+  readonly reserveDaily: MuseVoiceDeps['reserveDaily']
   readonly log: CoreLogger
   /** dist/voice.js, required on the first recording. */
   readonly voice: () => VoiceBundle

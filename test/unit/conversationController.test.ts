@@ -9200,6 +9200,7 @@ function noFolderVoice(
   const scope = vi.fn(() => Promise.resolve(undefined))
   const t = setup({
     workspaceRoot: options.workspaceRoot,
+    modelApiSessionBudgetUsd: options.capUsd ?? 0,
     ownedVoiceBudgetScope: scope,
     ...(options.allowsPaidUse !== undefined && { allowsPaidUse: options.allowsPaidUse }),
     museVoice: () => ({
@@ -9245,6 +9246,15 @@ function noFolderVoice(
                 },
               }
             },
+            reserveDaily: () =>
+              Promise.resolve({
+                check: () => undefined,
+                settle: () =>
+                  Promise.resolve({
+                    spentUsd: Usd.from(0).toAmount(),
+                    hasUnknownHistoricalFees: false,
+                  }),
+              }),
             url: 'wss://voice.example.test/realtime',
             apiKey: options.apiKey ?? (() => Promise.resolve('LLM|1|secret')),
             onSeconds: (count) => {
@@ -9297,11 +9307,14 @@ describe('ConversationController: paid voice without a journal (M82)', () => {
       voice.capture().onAudio?.(new Uint8Array(MUSE_VOICE_BYTES_PER_SECOND))
       await voice.controller.handle({ type: 'dictation', action: 'stop' })
       expect(voice.socket().texts.at(-1)).toBe('{"type":"endStream"}')
-      voice
-        .socket()
-        .handlers.onText(
-          JSON.stringify({ type: 'transcript', transcript: 'no folder text', final: true }),
-        )
+      voice.socket().handlers.onText(
+        JSON.stringify({
+          type: 'transcript',
+          transcript: 'no folder text',
+          final: true,
+          audioProcessedMs: 1200,
+        }),
+      )
       expect(voice.t.surface.posted).toContainEqual({ type: 'insertText', text: 'no folder text ' })
       expect(voice.seconds).toEqual([1])
     } finally {
@@ -9363,19 +9376,23 @@ describe('ConversationController: paid voice without a journal (M82)', () => {
         allowsPaidUse: allows,
         ...(workspaceRoot !== undefined && { workspaceRoot }),
       })
+      const actual = modelApiController(voice.t)
+      const controller = workspaceRoot === undefined ? voice.controller : actual.controller
       try {
-        await voice.controller.handle({ type: 'dictation', action: 'start' })
+        await controller.handle({ type: 'dictation', action: 'start' })
         expect(allows).not.toHaveBeenCalled()
         expect(voice.calls).toEqual([])
         expect(voice.sockets).toEqual([])
-        expect(voice.t.surface.posted).toContainEqual({
-          type: 'dictationState',
-          status: 'unavailable',
-          engine: 'museVoice',
-          reason: UI_TEXT.sessionBudgetVoiceUnavailable,
-        })
+        expect(voice.t.surface.posted).toContainEqual(
+          expect.objectContaining({
+            type: 'notice',
+            text: expect.stringContaining(UI_TEXT.sessionBudgetStoreUnavailable),
+          }),
+        )
       } finally {
+        controller.dispose()
         voice.controller.dispose()
+        await actual.host.close()
       }
     },
   )
@@ -9500,7 +9517,7 @@ describe('ConversationController: the microphone’s engine (M35, PLAN.md D30)',
   )
 
   it.each(['modelApi', 'museCode'] as const)(
-    'applies the finite voice cap to actual %s backend only',
+    'starts bounded paid voice on the actual %s backend with a finite cap',
     async (backend) => {
       const calls: string[] = []
       const allowsPaidUse = vi.fn(() => Promise.resolve(true))
@@ -9510,16 +9527,16 @@ describe('ConversationController: the microphone’s engine (M35, PLAN.md D30)',
         allowsPaidUse,
       })
       t.auth.snapshot = { status: 'signedIn', backend, detail: undefined }
-      await t.controller.handle({ type: 'dictation', action: 'start' })
-      expect(calls).toEqual(backend === 'modelApi' ? [] : ['muse:create', 'muse:start'])
-      expect(allowsPaidUse).toHaveBeenCalledTimes(backend === 'modelApi' ? 0 : 1)
-      if (backend === 'modelApi') {
-        expect(t.surface.posted).toContainEqual({
-          type: 'dictationState',
-          status: 'unavailable',
-          engine: 'museVoice',
-          reason: UI_TEXT.sessionBudgetVoiceUnavailable,
-        })
+      const actual = modelApiController(t, { store: memorySessionStore() })
+      const controller = backend === 'modelApi' ? actual.controller : t.controller
+      try {
+        await controller.handle({ type: 'dictation', action: 'start' })
+        expect(calls).toEqual(['muse:create', 'muse:start'])
+        expect(allowsPaidUse).toHaveBeenCalledExactlyOnceWith({ feature: 'voice' })
+      } finally {
+        controller.dispose()
+        actual.controller.dispose()
+        await actual.host.close()
       }
     },
   )

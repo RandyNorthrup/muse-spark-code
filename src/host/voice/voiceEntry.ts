@@ -1,3 +1,4 @@
+import type { MuseVoiceDeps } from '../../core/voice/museVoice'
 // Voice's shipped CommonJS bundle (M9, M35, PLAN.md D6): the dictation
 // driver, Muse Voice's stream to Meta, and the processes and socket behind
 // them. esbuild builds this file into dist/voice.js, which `voiceLoader`
@@ -40,8 +41,9 @@ export interface MuseVoiceDriverDeps {
   readonly capture: CaptureSource
   /** The Model API key, read per recording. */
   readonly apiKey: () => Promise<string | undefined>
-  /** Counts whole seconds of audio sent, for the window's tally. */
+  /** Counts reported whole seconds, or local seconds without a final. */
   readonly onSeconds: (seconds: number) => void
+  readonly reserveDaily: MuseVoiceDeps['reserveDaily']
   readonly log: CoreLogger
 }
 
@@ -75,6 +77,7 @@ export function createMuseVoice(
       url: MUSE_VOICE_REALTIME_URL,
       apiKey: deps.apiKey,
       onSeconds: deps.onSeconds,
+      reserveDaily: deps.reserveDaily,
       log: deps.log,
     },
     listener,

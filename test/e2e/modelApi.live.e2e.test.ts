@@ -85,6 +85,7 @@ import { estimateCostUsd } from '../../src/core/usage/insights'
 import { Usd } from '../../src/shared/usd'
 import type { DictationHandle, DictationListener } from '../../src/core/voice/dictation'
 import { MuseVoiceDictation } from '../../src/core/voice/museVoice'
+import { createPaidDailyBudget } from '../../src/host/paid/paidDailyBudget'
 import { reviewTurnText } from '../../src/core/review/reviewPrompt'
 import { createReviewCollector, reviewMarker } from '../../src/host/review/reviewCollector'
 import { parseReviewFindings } from '../../src/shared/reviewFindings'
@@ -1959,6 +1960,13 @@ describe.skipIf(!IS_ENABLED)('live Model API sweep (MUSE_LIVE_MODEL_API=1)', () 
     async () => {
       await runCase('case14 voice', { paid: ['voice'] }, async (rig) => {
         expect(rig.gate.isOn('voice')).toBe(true)
+        const daily = createPaidDailyBudget({
+          directory: path.join(rig.root, 'voice-day'),
+          now: Date.now,
+          capUsd: () => Usd.from(BUDGET_USD).toAmount(),
+          sleep: delay,
+          isModelApi: () => true,
+        })
         const pcm = wavPcm(await spokenWav(path.join(rig.root, 'sentence.wav'), VOICE_SENTENCE))
         let dictation: MuseVoiceDictation | undefined
         const closed = Promise.withResolvers<undefined>()
@@ -2006,6 +2014,7 @@ describe.skipIf(!IS_ENABLED)('live Model API sweep (MUSE_LIVE_MODEL_API=1)', () 
                   },
                 })
               },
+              reserveDaily: daily.reserveExact,
               url: MUSE_VOICE_REALTIME_URL,
               apiKey: credentialsForLiveRun().apiKey,
               onSeconds: (seconds) => {

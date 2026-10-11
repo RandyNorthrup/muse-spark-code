@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 import { EventEmitter } from 'node:events'
 import path from 'node:path'
 import { PassThrough, Writable } from 'node:stream'
@@ -247,6 +248,12 @@ describe('createMuseVoiceSetup (M35)', () => {
   const deps = {
     apiKey: () => Promise.resolve('LLM|1|k'),
     onSeconds: () => undefined,
+    reserveDaily: () =>
+      Promise.resolve({
+        check: () => undefined,
+        settle: () =>
+          Promise.resolve({ spentUsd: Usd.from(0).toAmount(), hasUnknownHistoricalFees: false }),
+      }),
     log,
     voice,
   }
@@ -294,6 +301,7 @@ describe('createMuseVoiceSetup (M35)', () => {
       {
         apiKey: deps.apiKey,
         onSeconds: deps.onSeconds,
+        reserveDaily: deps.reserveDaily,
         log,
         capture: expect.objectContaining({ isAvailable: true, kind: 'helper' }),
       },

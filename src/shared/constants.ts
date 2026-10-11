@@ -5065,6 +5065,16 @@ export const MUSE_VOICE_MODE = 'PUSH_TO_TALK'
 export const MUSE_VOICE_PARTIAL_MODE = 'CUMULATIVE'
 export const MUSE_VOICE_SAMPLE_RATE = 16_000
 export const MUSE_VOICE_BYTES_PER_SECOND = MUSE_VOICE_SAMPLE_RATE * 2
+// CM352 capture: 80 ms messages and at most one short tail, on every recorder.
+export const MUSE_VOICE_FRAME_MS = 80
+export const MUSE_VOICE_FRAME_BYTES =
+  (MUSE_VOICE_BYTES_PER_SECOND * MUSE_VOICE_FRAME_MS) / MILLISECONDS_PER_SECOND
+export const MUSE_VOICE_MAX_SECONDS = 180
+export const MUSE_VOICE_MAX_BYTES = MUSE_VOICE_MAX_SECONDS * MUSE_VOICE_BYTES_PER_SECOND
+export const MUSE_VOICE_RESERVED_MS =
+  MUSE_VOICE_MAX_SECONDS * MILLISECONDS_PER_SECOND + MUSE_VOICE_FRAME_MS
+export const MUSE_VOICE_IDLE_ERROR = 'Ingress audio slower than real-time'
+export const MUSE_VOICE_IDLE_CLOSE = 'Ingress below real-time'
 // Meta closes a stream whose handshake is not sent within 10 s; the answer
 // is waited for as long. After `endStream`, the final text has this long.
 export const MUSE_VOICE_HANDSHAKE_TIMEOUT_MS = 10_000

@@ -1,3 +1,6 @@
+import { createPaidDailyBudget } from '../../src/host/paid/paidDailyBudget'
+import { fill } from '../../src/shared/l10n/text'
+import { formatUsd } from '../../src/core/usage/insights'
 import { Usd } from '../../src/shared/usd'
 import { Buffer } from 'node:buffer'
 import { createHash } from 'node:crypto'
@@ -17,6 +20,10 @@ import {
 } from '../../src/core/voice/museVoice'
 import {
   MUSE_VOICE_BYTES_PER_SECOND,
+  MUSE_VOICE_FRAME_BYTES,
+  MUSE_VOICE_MAX_BYTES,
+  MUSE_VOICE_MAX_SECONDS,
+  MUSE_VOICE_RESERVED_MS,
   MUSE_VOICE_FINISH_TIMEOUT_MS,
   MUSE_VOICE_HANDSHAKE_TIMEOUT_MS,
   STORED_SESSION_VERSION,
@@ -122,13 +129,25 @@ describe('MuseVoiceStream (M35)', () => {
     expect(t.socket().binaries).toEqual([])
     t.socket().serverSays({ sessionId: 's1' })
     // What was held goes first, in order; then audio goes as it comes.
-    expect(t.socket().binaries.map((bytes) => bytes.length)).toEqual([16_000, 8000, 4000])
+    expect(t.socket().binaries.map((bytes) => bytes.length)).toEqual(
+      Array.from({ length: 10 }, () => MUSE_VOICE_FRAME_BYTES),
+    )
     t.stream.push(pcm(1.5))
-    t.socket().serverSays({ type: 'transcript', transcript: 'open the', final: false })
+    t.socket().serverSays({
+      type: 'transcript',
+      transcript: 'open the',
+      final: false,
+      audioProcessedMs: 2000,
+    })
     t.socket().serverSays({ type: 'speechStart', turnId: 1, audioProcessedMs: 10 })
     t.stream.finish()
     expect(t.socket().texts.at(-1)).toBe('{"type":"endStream"}')
-    t.socket().serverSays({ type: 'transcript', transcript: 'Open the settings.', final: true })
+    t.socket().serverSays({
+      type: 'transcript',
+      transcript: 'Open the settings.',
+      final: true,
+      audioProcessedMs: 2000,
+    })
     expect(t.finals).toEqual(['Open the settings.'])
     expect(t.failures).toEqual([])
     expect(t.socket().isClosed).toBe(true)
@@ -142,9 +161,10 @@ describe('MuseVoiceStream (M35)', () => {
     t.stream.start(KEY)
     t.stream.push(pcm(0.1))
     t.stream.finish()
+    t.stream.push(pcm(1))
     t.socket().handlers.onOpen()
     t.socket().serverSays({ sessionId: 's1' })
-    expect(t.socket().binaries).toHaveLength(1)
+    expect(t.socket().binaries.map((bytes) => bytes.length)).toEqual([2560, 640])
     expect(t.socket().texts.at(-1)).toBe('{"type":"endStream"}')
   })
 
@@ -153,8 +173,18 @@ describe('MuseVoiceStream (M35)', () => {
     t.stream.start(KEY)
     t.socket().handlers.onOpen()
     t.socket().serverSays({ sessionId: 's1' })
-    t.socket().serverSays({ type: 'transcript', transcript: 'one' })
-    t.socket().serverSays({ type: 'transcript', transcript: 'one two' })
+    t.socket().serverSays({
+      type: 'transcript',
+      transcript: 'one',
+      final: false,
+      audioProcessedMs: 2000,
+    })
+    t.socket().serverSays({
+      type: 'transcript',
+      transcript: 'one two',
+      final: false,
+      audioProcessedMs: 2000,
+    })
     t.stream.finish()
     t.socket().handlers.onClose(1000, '')
     expect(t.finals).toEqual(['one two'])
@@ -173,6 +203,12 @@ describe('MuseVoiceStream (M35)', () => {
           socket.handlers.onClose(1008, 'pacing')
         },
         'Muse Voice refused the recording: pacing',
+      ],
+      [
+        (socket) => {
+          socket.handlers.onClose(1008, 'Ingress below real-time')
+        },
+        UI_TEXT.museVoiceIdle,
       ],
       [
         (socket) => {
@@ -263,6 +299,7 @@ function dictationSetup(
   hasKey = true,
   ownedBudgetScope?: DictationListener['ownedBudgetScope'],
   keyProvider?: () => Promise<string | undefined>,
+  reserveDaily?: ConstructorParameters<typeof MuseVoiceDictation>[0]['reserveDaily'],
 ) {
   const apiKey = hasKey ? KEY : undefined
   const captures: FakeCapture[] = []
@@ -271,6 +308,14 @@ function dictationSetup(
   const errors: string[] = []
   const statuses: string[] = []
   const seconds: number[] = []
+  const daily = {
+    check: vi.fn(),
+    settle: vi.fn(() =>
+      Promise.resolve({ spentUsd: Usd.from(0).toAmount(), hasUnknownHistoricalFees: false }),
+    ),
+  }
+  const reserve = vi.fn(reserveDaily ?? (() => Promise.resolve(daily)))
+  const usage: string[] = []
   const dictation = new MuseVoiceDictation(
     {
       createCapture: (listener) => {
@@ -288,9 +333,13 @@ function dictationSetup(
       onSeconds: (count) => {
         seconds.push(count)
       },
+      reserveDaily: reserve,
       log: new FakeLogOutputChannel(),
     },
     {
+      onVoiceUsage: (message) => {
+        usage.push(message)
+      },
       ...(ownedBudgetScope !== undefined && { ownedBudgetScope }),
       onStatus: (status) => {
         statuses.push(status)
@@ -305,7 +354,19 @@ function dictationSetup(
   )
   const capture = () => captures[0]!
   const socket = (index = 0) => sockets[index]!
-  return { dictation, capture, socket, sockets, texts, errors, statuses, seconds }
+  return {
+    dictation,
+    capture,
+    socket,
+    sockets,
+    texts,
+    errors,
+    statuses,
+    seconds,
+    daily,
+    reserve,
+    usage,
+  }
 }
 
 const budgetDirectory = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'muse-voice-budget-')))
@@ -352,6 +413,12 @@ async function voiceBudget(name: string, capUsd = 0) {
   return { scope, current, store }
 }
 
+const reservation = () =>
+  Usd.from(PAID_PRICES_USD.voicePerHour)
+    .times(MUSE_VOICE_RESERVED_MS)
+    .divideIntegerCeiling(SECONDS_PER_HOUR * 1000)
+    .toAmount()
+
 type VoiceBudgetFixture = Awaited<ReturnType<typeof voiceBudget>>
 
 async function voiceBudgetTotal(budget: VoiceBudgetFixture) {
@@ -392,14 +459,11 @@ async function stopRecordedVoice(t: ReturnType<typeof dictationSetup>, seconds: 
   t.capture().listener.onStopped?.()
 }
 
-async function expectUnknownVoiceEstimate(budget: VoiceBudgetFixture, seconds: number) {
+async function expectUnknownVoiceEstimate(budget: VoiceBudgetFixture) {
   await vi.waitFor(async () => {
     const total = await voiceBudgetTotal(budget)
     expect(total.hasUnknownHistoricalFees).toBe(true)
-    expect(Number(total.spentUsd)).toBeCloseTo(
-      (seconds * Number(PAID_PRICES_USD.voicePerHour)) / SECONDS_PER_HOUR,
-      12,
-    )
+    expect(Number(total.spentUsd)).toBeCloseTo(Number(reservation()), 12)
   })
 }
 
@@ -442,7 +506,7 @@ describe('MuseVoiceDictation shared budget (M82)', () => {
     }
   })
 
-  it('publishes uncertainty before authentication and blocks finite admission while voice is active', async () => {
+  it('reserves bounded liability before authentication and blocks concurrent over-cap admission', async () => {
     const budget = await voiceBudget('pending-before-auth')
     const t = dictationSetup(true, () => Promise.resolve(budget.scope))
     t.dictation.start()
@@ -450,14 +514,15 @@ describe('MuseVoiceDictation shared budget (M82)', () => {
       expect(t.sockets).toHaveLength(1)
     })
     const total = await budget.scope.journal.read(budget.scope.sessionId, budget.scope.accountId)
-    expect(total.hasUnknownHistoricalFees).toBe(true)
+    expect(total.hasUnknownHistoricalFees).toBe(false)
+    expect(total.spentUsd).toBe(reservation())
     expect(t.socket().texts).toEqual([])
     const next = await budget.scope.journal.reserve(
       budget.scope.sessionId,
       budget.scope.accountId,
       Usd.from(0.01).toAmount(),
     )
-    expect(() => next.check(Usd.from(1).toAmount())).toThrow(UI_TEXT.sessionBudgetLegacyFeesUnknown)
+    expect(() => next.check(Usd.from(0.015).toAmount())).toThrow()
     await next.settle(Usd.from(0).toAmount(), false)
     t.dictation.dispose()
     await expectVoiceRefund(budget)
@@ -493,9 +558,14 @@ describe('MuseVoiceDictation shared budget (M82)', () => {
     t.dictation.start()
     await stopRecordedVoice(t, 0.5)
     budget.current.isOwnerCurrent = false
-    t.socket().serverSays({ type: 'transcript', transcript: 'old owner text', final: true })
+    t.socket().serverSays({
+      type: 'transcript',
+      transcript: 'old owner text',
+      final: true,
+      audioProcessedMs: 560,
+    })
     expect(t.texts).toEqual([])
-    await expectUnknownVoiceEstimate(budget, 0.5)
+    await expectVoiceRefund(budget)
     t.dictation.dispose()
   })
 
@@ -509,7 +579,7 @@ describe('MuseVoiceDictation shared budget (M82)', () => {
         expect(t.sockets).toHaveLength(1)
       })
       if (change === 'cap') {
-        budget.current.capUsd = 1
+        budget.current.capUsd = 0.001
       } else {
         budget.current.isOwnerCurrent = false
       }
@@ -517,7 +587,11 @@ describe('MuseVoiceDictation shared budget (M82)', () => {
       expect(t.socket().texts).toEqual([])
       expect(t.errors).toContain(
         change === 'cap'
-          ? UI_TEXT.sessionBudgetVoiceUnavailable
+          ? fill(UI_TEXT.sessionBudgetStopped, {
+              estimate: formatUsd(reservation()),
+              cap: formatUsd(Usd.from('0.001').toAmount()),
+              spent: formatUsd(0),
+            })
           : UI_TEXT.sessionBudgetVoiceContextChanged,
       )
       await expectVoiceRefund(budget)
@@ -526,28 +600,40 @@ describe('MuseVoiceDictation shared budget (M82)', () => {
   )
 
   it.each(['final', 'lost'])(
-    'retains unknown billing after authentication, even with a %s result',
+    'settles a %s result from final duration or retains uncertain liability',
     async (outcome) => {
       const budget = await voiceBudget(`authenticated-${outcome}`)
       const t = dictationSetup(true, () => Promise.resolve(budget.scope))
       t.dictation.start()
       await stopRecordedVoice(t, 0.5)
       if (outcome === 'final') {
-        t.socket().serverSays({ type: 'transcript', transcript: 'known text', final: true })
+        t.socket().serverSays({
+          type: 'transcript',
+          transcript: 'known text',
+          final: true,
+          audioProcessedMs: 560,
+        })
       } else {
         t.socket().handlers.onClose(1011, 'lost')
       }
-      await expectUnknownVoiceEstimate(budget, 0.5)
+      if (outcome === 'final') await expectVoiceRefund(budget)
+      else await expectUnknownVoiceEstimate(budget)
       t.dictation.dispose()
     },
   )
 
   it('refuses capped start before opening a socket and sends no more audio after an owner change', async () => {
-    const capped = await voiceBudget('capped-start', 1)
+    const capped = await voiceBudget('capped-start', 0.001)
     const denied = dictationSetup(true, () => Promise.resolve(capped.scope))
     denied.dictation.start()
     await waitVoicePrepared(denied)
-    expect(denied.errors).toContain(UI_TEXT.sessionBudgetVoiceUnavailable)
+    expect(denied.errors).toEqual([
+      fill(UI_TEXT.sessionBudgetStopped, {
+        estimate: formatUsd(reservation()),
+        cap: formatUsd(Usd.from('0.001').toAmount()),
+        spent: formatUsd(0),
+      }),
+    ])
     expect(denied.sockets).toEqual([])
     denied.dictation.dispose()
     const budget = await voiceBudget('owner-change-audio')
@@ -583,7 +669,12 @@ describe('MuseVoiceDictation (M35)', () => {
     t.dictation.stop()
     expect(t.capture().stops).toBe(1)
     t.capture().listener.onStopped?.()
-    t.socket().serverSays({ type: 'transcript', transcript: '  run the tests  ', final: true })
+    t.socket().serverSays({
+      type: 'transcript',
+      transcript: '  run the tests  ',
+      final: true,
+      audioProcessedMs: 3520,
+    })
     expect(t.texts).toEqual(['run the tests'])
     expect(t.seconds).toEqual([3])
     expect(t.statuses).toEqual(['starting', 'listening', 'idle'])
@@ -603,7 +694,12 @@ describe('MuseVoiceDictation (M35)', () => {
     })
     t.socket(0).handlers.onOpen()
     t.socket(0).serverSays({ sessionId: 's1' })
-    t.socket(0).serverSays({ type: 'transcript', transcript: 'first', final: true })
+    t.socket(0).serverSays({
+      type: 'transcript',
+      transcript: 'first',
+      final: true,
+      audioProcessedMs: 2000,
+    })
     expect(t.texts).toEqual(['first'])
     expect(t.socket(1).isClosed).toBe(false)
   })
@@ -650,8 +746,18 @@ describe('Muse Voice over a real WebSocket (M35)', () => {
       if (typeof frame === 'string' && frame.includes('authorization')) {
         connection.sendText({ sessionId: 'live-1' })
       } else if (frame === '{"type":"endStream"}') {
-        connection.sendText({ type: 'transcript', transcript: 'hello there', final: false })
-        connection.sendText({ type: 'transcript', transcript: 'Hello there.', final: true })
+        connection.sendText({
+          type: 'transcript',
+          transcript: 'hello there',
+          final: false,
+          audioProcessedMs: 3040,
+        })
+        connection.sendText({
+          type: 'transcript',
+          transcript: 'Hello there.',
+          final: true,
+          audioProcessedMs: 3040,
+        })
         connection.close(1000)
       }
     })
@@ -662,7 +768,7 @@ describe('Muse Voice over a real WebSocket (M35)', () => {
         { onFinal: done.resolve, onFailed: done.reject },
       )
       stream.start(KEY)
-      const audio = Uint8Array.from({ length: 48_000 }, (_value, index) => index % 256)
+      const audio = Uint8Array.from({ length: 96_000 }, (_value, index) => index % 256)
       stream.push(audio.subarray(0, 16_000))
       const connection = await server.connection
       await vi.waitFor(() => {
@@ -679,9 +785,280 @@ describe('Muse Voice over a real WebSocket (M35)', () => {
       const sent = Buffer.concat(rest.filter((part): part is Buffer => Buffer.isBuffer(part)))
       expect(sent.equals(Buffer.from(audio))).toBe(true)
       expect(rest.at(-1)).toBe('{"type":"endStream"}')
-      expect(stream.seconds).toBe(1)
+      expect(stream.seconds).toBe(3)
     } finally {
       await server.stop()
     }
   })
+})
+
+describe('CM352 bounded voice admission and receipts', () => {
+  it('admits a finite session cap, settles reported seconds instead of sent seconds, and shows the tally', async () => {
+    const budget = await voiceBudget('finite-reported', 1)
+    const t = dictationSetup(true, () => Promise.resolve(budget.scope))
+    t.dictation.start()
+    await answered(t)
+    expect(t.reserve).toHaveBeenCalledExactlyOnceWith(Usd.from('0.009004').toAmount())
+    const pendingTotal = await voiceBudgetTotal(budget)
+    expect(pendingTotal.spentUsd).toBe(reservation())
+    t.capture().listener.onAudio?.(pcm(1.99))
+    t.capture().listener.onStopped?.()
+    t.socket().serverSays({
+      type: 'transcript',
+      transcript: 'silence also counts',
+      final: true,
+      audioProcessedMs: 2000,
+    })
+    await vi.waitFor(async () => {
+      const settledTotal = await voiceBudgetTotal(budget)
+      expect(settledTotal.spentUsd).toBe(Usd.from('0.0001').toAmount())
+    })
+    expect(t.seconds).toEqual([2])
+    expect(t.daily.settle).toHaveBeenCalledExactlyOnceWith(Usd.from('0.0001').toAmount(), false)
+    expect(t.usage).toEqual([expect.stringContaining('reported duration')])
+    expect(t.usage[0]).toContain('bill cannot be read back')
+    t.dictation.dispose()
+  })
+
+  it('refuses daily admission before opening and refunds a daily claim when the session cannot fit', async () => {
+    const deny = dictationSetup(true, undefined, undefined, () =>
+      Promise.reject(new Error('daily cap')),
+    )
+    deny.dictation.start()
+    await waitVoicePrepared(deny)
+    expect(deny.sockets).toEqual([])
+    expect(deny.errors).toEqual(['daily cap'])
+    deny.dictation.dispose()
+    const budget = await voiceBudget('daily-refund-session-denied', 0.001)
+    const t = dictationSetup(true, () => Promise.resolve(budget.scope))
+    t.dictation.start()
+    await waitVoicePrepared(t)
+    await vi.waitFor(() => {
+      expect(t.daily.settle).toHaveBeenCalledExactlyOnceWith(Usd.from(0).toAmount(), false)
+    })
+    expect(t.sockets).toEqual([])
+    await expectVoiceRefund(budget)
+    t.dictation.dispose()
+  })
+
+  it('checks daily admission before every audio send and retains liability after a sent interruption', async () => {
+    const t = dictationSetup()
+    t.dictation.start()
+    await answered(t)
+    t.capture().listener.onAudio?.(pcm(1))
+    const before = t.socket().binaries.length
+    t.daily.check.mockImplementation(() => {
+      throw new Error('daily changed')
+    })
+    t.capture().listener.onAudio?.(pcm(1))
+    expect(t.socket().binaries).toHaveLength(before)
+    expect(t.errors).toEqual(['daily changed'])
+    await vi.waitFor(() => {
+      expect(t.daily.settle).toHaveBeenCalledExactlyOnceWith(reservation(), true)
+    })
+    expect(t.seconds).toEqual([0])
+    expect(t.usage[0]).toContain('full reservation remains uncertain')
+    t.dictation.dispose()
+  })
+
+  it('refunds an idle captured errorType frame with no audio, and reports the true pacing sentence', async () => {
+    const budget = await voiceBudget('idle-zero', 1)
+    const t = dictationSetup(true, () => Promise.resolve(budget.scope))
+    t.dictation.start()
+    await answered(t)
+    t.socket().serverSays({
+      type: 'error',
+      message: 'Ingress audio slower than real-time',
+      sessionId: 's1',
+      errorType: 'invalid_request_error',
+    })
+    expect(t.errors).toEqual([UI_TEXT.museVoiceIdle])
+    t.socket().handlers.onClose(1008, 'Ingress below real-time')
+    expect(t.errors).toEqual([UI_TEXT.museVoiceIdle])
+    expect(t.seconds).toEqual([0])
+    await expectVoiceRefund(budget)
+    expect(t.daily.settle).toHaveBeenCalledExactlyOnceWith(Usd.from(0).toAmount(), false)
+    expect(t.usage[0]).toContain('No audio was sent')
+    t.dictation.dispose()
+  })
+
+  it('refunds disposal while the daily write is pending, and surfaces settlement failures', async () => {
+    const pending = Promise.withResolvers<ReturnType<typeof dictationSetup>['daily']>()
+    const started = Promise.withResolvers<undefined>()
+    const t = dictationSetup(true, undefined, undefined, () => {
+      started.resolve(undefined)
+      return pending.promise
+    })
+    t.dictation.start()
+    await started.promise
+    t.dictation.dispose()
+    pending.resolve(t.daily)
+    await vi.waitFor(() => {
+      expect(t.daily.settle).toHaveBeenCalledExactlyOnceWith(Usd.from(0).toAmount(), false)
+    })
+    expect(t.sockets).toEqual([])
+    const broken = dictationSetup()
+    broken.daily.settle.mockRejectedValue(new Error('disk unavailable'))
+    broken.dictation.start()
+    await answered(broken)
+    broken.capture().listener.onStopped?.()
+    broken
+      .socket()
+      .serverSays({ type: 'transcript', transcript: '', final: true, audioProcessedMs: 0 })
+    await vi.waitFor(() => {
+      expect(broken.errors).toContain(UI_TEXT.sessionBudgetStoreUnavailable)
+    })
+    broken.dictation.dispose()
+  })
+
+  it.each([4096, 3200, 65_536])(
+    'reframes recorder chunks of %s bytes, enforces the byte cap, and stops the recorder',
+    async (chunkSize) => {
+      const t = dictationSetup()
+      t.dictation.start()
+      await answered(t)
+      const audio = Buffer.alloc(MUSE_VOICE_MAX_BYTES + chunkSize, 7)
+      for (let offset = 0; offset < audio.length; offset += chunkSize) {
+        t.capture().listener.onAudio?.(audio.subarray(offset, offset + chunkSize))
+      }
+      expect(t.capture().stops).toBe(1)
+      expect(t.socket().binaries.every((frame) => frame.length === MUSE_VOICE_FRAME_BYTES)).toBe(
+        true,
+      )
+      expect(
+        Buffer.concat(t.socket().binaries).equals(audio.subarray(0, MUSE_VOICE_MAX_BYTES)),
+      ).toBe(true)
+      expect(t.socket().texts.at(-1)).toBe('{"type":"endStream"}')
+      t.socket().serverSays({
+        type: 'transcript',
+        transcript: '',
+        final: true,
+        audioProcessedMs: MUSE_VOICE_RESERVED_MS,
+      })
+      expect(t.seconds).toEqual([MUSE_VOICE_MAX_SECONDS])
+      await vi.waitFor(() => {
+        expect(t.daily.settle).toHaveBeenCalledExactlyOnceWith(Usd.from('0.009').toAmount(), false)
+      })
+      t.dictation.dispose()
+    },
+  )
+
+  it('ends an elapsed-time capped stream even without incoming audio, and ignores late bytes', () => {
+    vi.useFakeTimers()
+    try {
+      const t = streamSetup()
+      t.stream.start(KEY)
+      t.socket().handlers.onOpen()
+      t.socket().serverSays({ sessionId: 'elapsed' })
+      vi.advanceTimersByTime(MUSE_VOICE_MAX_SECONDS * 1000)
+      expect(t.socket().texts.at(-1)).toBe('{"type":"endStream"}')
+      t.stream.push(pcm(1))
+      expect(t.socket().binaries).toEqual([])
+      t.stream.abort()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it.each([undefined, -1, 1.5, Number.MAX_SAFE_INTEGER + 1])(
+    'rejects invalid reported duration %s',
+    (duration) => {
+      const t = streamSetup()
+      t.stream.start(KEY)
+      t.socket().handlers.onOpen()
+      t.socket().serverSays({ sessionId: 'invalid-duration' })
+      t.stream.finish()
+      t.socket().serverSays({
+        type: 'transcript',
+        transcript: 'unsafe',
+        final: true,
+        audioProcessedMs: duration,
+      })
+      expect(t.finals).toEqual([])
+      expect(t.failures).toEqual([UI_TEXT.museVoiceInvalidDuration])
+    },
+  )
+
+  it('does not clamp an unexpectedly large final report to its reservation', async () => {
+    const t = dictationSetup()
+    t.dictation.start()
+    await stopRecordedVoice(t, 1)
+    t.socket().serverSays({
+      type: 'transcript',
+      transcript: '',
+      final: true,
+      audioProcessedMs: 181_000,
+    })
+    expect(t.seconds).toEqual([181])
+    expect(t.daily.settle).toHaveBeenCalledExactlyOnceWith(Usd.from('0.00905').toAmount(), false)
+    t.dictation.dispose()
+  })
+
+  it('settles once even when a transport send and close both throw', async () => {
+    const t = dictationSetup()
+    t.dictation.start()
+    await answered(t)
+    vi.spyOn(t.socket(), 'sendBinary').mockImplementation(() => {
+      throw new Error('send failed')
+    })
+    vi.spyOn(t.socket(), 'close').mockImplementation(() => {
+      throw new Error('close failed')
+    })
+    t.capture().listener.onAudio?.(pcm(1))
+    expect(t.errors).toEqual([UI_TEXT.museVoiceTransportFailed])
+    expect(t.seconds).toEqual([0])
+    expect(t.daily.settle).toHaveBeenCalledExactlyOnceWith(reservation(), true)
+    t.dictation.dispose()
+  })
+})
+
+it('CM352 shares real daily reservations across Muse Code windows and releases final duration headroom', async () => {
+  const directory = path.join(budgetDirectory, 'real-daily-voice')
+  const daily = () =>
+    createPaidDailyBudget({
+      directory,
+      now: () => 0,
+      capUsd: () => Usd.from('0.5').toAmount(),
+      sleep: () => Promise.resolve(),
+      isModelApi: () => false,
+    })
+  const firstDay = daily()
+  const secondDay = daily()
+  const previous = await firstDay.reserveExact(Usd.from('0.49').toAmount())
+  await previous.settle(Usd.from('0.49').toAmount(), false)
+  const first = dictationSetup(true, undefined, undefined, firstDay.reserveExact)
+  const second = dictationSetup(true, undefined, undefined, secondDay.reserveExact)
+  try {
+    first.dictation.start()
+    await answered(first)
+    second.dictation.start()
+    await waitVoicePrepared(second)
+    expect(second.sockets).toEqual([])
+    expect(second.errors).toHaveLength(1)
+    first.capture().listener.onAudio?.(pcm(3))
+    first.capture().listener.onStopped?.()
+    first
+      .socket()
+      .serverSays({ type: 'transcript', transcript: '', final: true, audioProcessedMs: 3040 })
+    await vi.waitFor(async () => {
+      const total = await firstDay.latestDay()
+      expect(total.spentUsd).toBe(Usd.from('0.49015').toAmount())
+    })
+    second.dictation.start()
+    await answered(second)
+    second.capture().listener.onAudio?.(pcm(3))
+    second.capture().listener.onStopped?.()
+    second
+      .socket()
+      .serverSays({ type: 'transcript', transcript: '', final: true, audioProcessedMs: 3040 })
+    await vi.waitFor(async () => {
+      const total = await secondDay.latestDay()
+      expect(total.spentUsd).toBe(Usd.from('0.4903').toAmount())
+    })
+    expect(first.seconds).toEqual([3])
+    expect(second.seconds).toEqual([0, 3])
+  } finally {
+    first.dictation.dispose()
+    second.dictation.dispose()
+  }
 })

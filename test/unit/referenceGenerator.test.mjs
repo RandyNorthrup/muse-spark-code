@@ -456,17 +456,39 @@ describe('RVHELPREF truth regressions', () => {
     expect(nls['config.modelApiTab.description']).toContain('default trigger is Invoke')
     expect(nls['config.modelApiTab.description']).toContain('either chat backend')
   })
-  it('R10 records actual local voice availability, including zero-cap Model API refusal', () => {
+  it('R10 records bounded paid voice on both backends and all three capture platforms', () => {
     expect(feature('free-dictation').facts).toEqual({
       platforms: ['win32', 'darwin'],
       remote: false,
     })
-    expect(feature('voice').facts.modelApi).toBe('unavailable')
+    expect(feature('voice').facts.modelApi).toEqual([
+      'local',
+      'storedModelApiKey',
+      'boundedBudgetAdmission',
+    ])
+    expect(feature('voice').facts.maximumRecordingSeconds).toBe(180)
+    expect(feature('voice').facts.frameMs).toBe(80)
+    expect(feature('voice').facts.reservedMs).toBe(180_080)
+    expect(feature('voice').facts.settlement).toBe('finalAudioProcessedMsWholeSeconds')
     expect(feature('voice').facts.platforms).toEqual(['win32', 'darwin', 'linux'])
     expect(feature('voice').facts.remote).toBe(false)
     expect(feature('voice').facts.linuxRecorders).toEqual(['arecord', 'parec'])
-    expect(source.EN.referenceVoice).toContain('Linux also needs arecord or parec')
-    expect(feature('voice').surfaces).toEqual(['vscode:museCode'])
+    expect(source.EN.referenceVoice).toContain('Linux needs arecord or parec')
+    expect(feature('voice').surfaces).toEqual(['vscode:museCode', 'vscode:modelApi'])
+  })
+  it('CM352 guards the production free-engine selection and daily budget port', () => {
+    for (const fragment of [
+      "currentSettings().dictationEngine === 'system'",
+      'reserveDaily: (costUsd) => dailyPaid.reserveExact(costUsd)',
+    ]) {
+      const evidence = {
+        ...source.evidence,
+        'src/extension.ts': source.evidence['src/extension.ts'].replace(fragment, ''),
+      }
+      expect(() => build(manifest, { evidence })).toThrow(
+        'Host capability witness changed: src/extension.ts',
+      )
+    }
   })
   it('R11 inventories CLI flags, aliases, ranges and mutually exclusive sources', () => {
     const rows = build().cli

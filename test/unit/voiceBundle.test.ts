@@ -156,6 +156,7 @@ describe('the shipped voice bundle', () => {
         capture: { isAvailable: true, kind: 'helper', invocation: INVOCATION },
         apiKey: () => Promise.resolve(undefined),
         onSeconds: () => undefined,
+        reserveDaily: () => Promise.reject(new Error('No key must not reserve')),
         log: new FakeLogOutputChannel(),
       },
       listener,

@@ -1,4 +1,5 @@
-import { Usd } from '../../shared/usd'
+import { Buffer } from 'node:buffer'
+import { Usd, type UsdAmount } from '../../shared/usd'
 // Muse Voice (M35, PLAN.md D30): the paid, opt-in dictation engine. The
 // microphone's audio comes from a capture helper (the same resident-helper
 // driver as the free engine, with "audio" lines instead of "text"), and is
@@ -8,13 +9,12 @@ import { Usd } from '../../shared/usd'
 // The stream (dev.meta.ai/docs/api-reference/voice/realtime): the first text
 // frame is the handshake carrying the key, answered by `{"sessionId"}`;
 // then binary frames of 16-bit mono PCM at real time (the microphone's own
-// pace, audio recorded while the handshake is answered is held and sent at
-// once, well inside the 5 s Meta allows ahead); then `{"type":"endStream"}`,
+// pace; audio held while the handshake is answered is sent first); then `{"type":"endStream"}`,
 // after which the final transcript arrives and the server closes with 1000.
-// Whole locally sent seconds are counted for the window's estimate; the
-// protocol supplies no billed-duration receipt. Audio leaves this machine
-// only between the press and the
-// release, and only on Meta's endpoint.
+// Final audioProcessedMs supplies the tariff estimate; the provider invoice
+// cannot be read back. All recorders send 80 ms frames and one short tail.
+// Audio captured between start and stop goes only to Meta; held PCM and the
+// tail may finish sending after the microphone stops.
 //
 // No `vscode` and no socket here: the host injects the WebSocket.
 
@@ -25,6 +25,13 @@ import type {
   SessionBudgetClaim,
 } from '../backends/modelapi/sessionBudget'
 import {
+  MILLISECONDS_PER_SECOND,
+  MUSE_VOICE_FRAME_BYTES,
+  MUSE_VOICE_MAX_BYTES,
+  MUSE_VOICE_MAX_SECONDS,
+  MUSE_VOICE_RESERVED_MS,
+  MUSE_VOICE_IDLE_ERROR,
+  MUSE_VOICE_IDLE_CLOSE,
   MUSE_VOICE_AUDIO_ENCODING,
   MUSE_VOICE_BYTES_PER_SECOND,
   MUSE_VOICE_CLOSE_REASONS,
@@ -38,7 +45,8 @@ import {
   UI_TEXT,
   WEBSOCKET_CLOSE_NORMAL,
 } from '../../shared/constants'
-import { fill } from '../../shared/l10n/text'
+import { fill, formatUnit } from '../../shared/l10n/text'
+import { formatUsd } from '../../shared/l10n/exactUsd'
 import type { CoreLogger } from '../logging'
 import type {
   DictationHandle,
@@ -68,12 +76,14 @@ const acknowledgementSchema = z.object({ sessionId: z.string() })
 const transcriptSchema = z.object({
   type: z.literal('transcript'),
   transcript: z.string(),
-  final: z.optional(z.boolean()),
+  final: z.boolean(),
+  audioProcessedMs: z.number().check(z.int(), z.nonnegative()),
 })
 const errorSchema = z.object({
   type: z.literal('error'),
   message: z.string(),
   errorCode: z.optional(z.nullable(z.string())),
+  errorType: z.optional(z.string()),
 })
 
 type StreamState = 'connecting' | 'handshaking' | 'streaming' | 'finishing' | 'done'
@@ -91,10 +101,12 @@ export interface VoiceStreamCallbacks {
   onFinal(text: string): void
   /** The stream failed; no transcript follows. */
   onFailed(reason: string): void
+  onLimit?(): void
 }
 
 /** Why Meta closed a stream, in the user's words; the code is Meta's. */
 function closeReason(code: number, reason: string): string {
+  if (reason === MUSE_VOICE_IDLE_CLOSE) return UI_TEXT.museVoiceIdle
   const kind = (MUSE_VOICE_CLOSE_REASONS as Readonly<Record<number, string>>)[code]
   const detail = reason === '' ? '' : `: ${reason}`
   switch (kind) {
@@ -116,6 +128,11 @@ export class MuseVoiceStream {
   private socket: VoiceSocket | undefined
   private readonly held: Uint8Array[] = []
   private bytesSent = 0
+  private bytesAccepted = 0
+  private tail: Uint8Array = new Uint8Array(0)
+  private finalProcessedMs: number | undefined
+  private limitTimer: ReturnType<typeof setTimeout> | undefined
+  private isLimitReached = false
   private latest = ''
   private isFinishWanted = false
   private timer: ReturnType<typeof setTimeout> | undefined
@@ -124,7 +141,11 @@ export class MuseVoiceStream {
   public constructor(
     private readonly deps: VoiceStreamDeps,
     private readonly callbacks: VoiceStreamCallbacks,
-  ) {}
+  ) {
+    this.limitTimer = setTimeout(() => {
+      this.reachLimit()
+    }, MUSE_VOICE_MAX_SECONDS * MILLISECONDS_PER_SECOND)
+  }
 
   private arm(ms: number, reason: string): void {
     this.disarm()
@@ -146,7 +167,14 @@ export class MuseVoiceStream {
     this.state = 'done'
     this.disarm()
     this.held.length = 0
-    this.socket?.close()
+    this.tail = new Uint8Array(0)
+    this.apiKey = ''
+    this.clearLimit()
+    try {
+      this.socket?.close()
+    } catch {
+      this.deps.log.warn('Muse Voice transport close failed')
+    }
   }
 
   private deliver(text: string): void {
@@ -164,8 +192,13 @@ export class MuseVoiceStream {
     if (!this.canSend()) {
       return
     }
-    this.socket?.sendBinary(bytes)
+    // Count before dispatch: a throwing transport may already have queued it.
     this.bytesSent += bytes.length
+    try {
+      this.socket?.sendBinary(bytes)
+    } catch {
+      this.fail(UI_TEXT.museVoiceTransportFailed)
+    }
   }
 
   private sendEnd(): void {
@@ -173,8 +206,12 @@ export class MuseVoiceStream {
       return
     }
     this.state = 'finishing'
-    this.socket?.sendText(JSON.stringify({ type: 'endStream' }))
     this.arm(MUSE_VOICE_FINISH_TIMEOUT_MS, UI_TEXT.museVoiceNoFinal)
+    try {
+      this.socket?.sendText(JSON.stringify({ type: 'endStream' }))
+    } catch {
+      this.fail(UI_TEXT.museVoiceTransportFailed)
+    }
   }
 
   private onOpen(): void {
@@ -183,16 +220,22 @@ export class MuseVoiceStream {
     }
     this.state = 'handshaking'
     this.deps.onAuthorizationStarted?.()
-    this.socket?.sendText(
-      JSON.stringify({
-        authorization: { accessToken: `Bearer ${this.apiKey}` },
-        audioEncoding: MUSE_VOICE_AUDIO_ENCODING,
-        model: MUSE_VOICE_MODEL,
-        mode: MUSE_VOICE_MODE,
-        partialMode: MUSE_VOICE_PARTIAL_MODE,
-        emitAudioProgress: false,
-      }),
-    )
+    try {
+      this.socket?.sendText(
+        JSON.stringify({
+          authorization: { accessToken: `Bearer ${this.apiKey}` },
+          audioEncoding: MUSE_VOICE_AUDIO_ENCODING,
+          model: MUSE_VOICE_MODEL,
+          mode: MUSE_VOICE_MODE,
+          partialMode: MUSE_VOICE_PARTIAL_MODE,
+          emitAudioProgress: false,
+        }),
+      )
+    } catch {
+      this.fail(UI_TEXT.museVoiceTransportFailed)
+    } finally {
+      this.apiKey = ''
+    }
   }
 
   private canSend(): boolean {
@@ -209,6 +252,7 @@ export class MuseVoiceStream {
   }
 
   private onText(text: string): void {
+    if (this.state === 'done') return
     let frame: unknown
     try {
       frame = JSON.parse(text)
@@ -229,19 +273,32 @@ export class MuseVoiceStream {
     }
     const error = errorSchema.safeParse(frame)
     if (error.success) {
-      this.fail(`${UI_TEXT.museVoiceRefused}: ${error.data.message}`)
+      this.fail(
+        error.data.message === MUSE_VOICE_IDLE_ERROR
+          ? UI_TEXT.museVoiceIdle
+          : `${UI_TEXT.museVoiceRefused}: ${error.data.message}`,
+      )
       return
     }
     const transcript = transcriptSchema.safeParse(frame)
     if (!transcript.success) {
+      if (
+        typeof frame === 'object' &&
+        frame !== null &&
+        'type' in frame &&
+        frame.type === 'transcript'
+      ) {
+        this.fail(UI_TEXT.museVoiceInvalidDuration)
+        return
+      }
       // Speech boundaries, progress, speaker labels: not used here.
       return
     }
     // Cumulative partials: each replaces the one before.
     this.latest = transcript.data.transcript
-    if (transcript.data.final === true && this.state === 'finishing') {
-      this.deliver(this.latest)
-    }
+    if (!transcript.data.final || this.state !== 'finishing') return
+    this.finalProcessedMs = transcript.data.audioProcessedMs
+    this.deliver(this.latest)
   }
 
   private onClose(code: number, reason: string): void {
@@ -256,14 +313,44 @@ export class MuseVoiceStream {
     this.fail(closeReason(code, reason))
   }
 
+  private clearLimit(): void {
+    if (this.limitTimer !== undefined) clearTimeout(this.limitTimer)
+    this.limitTimer = undefined
+  }
+
+  private reachLimit(): void {
+    if (this.isLimitReached || this.state === 'done' || this.state === 'finishing') return
+    this.isLimitReached = true
+    this.finish()
+    this.callbacks.onLimit?.()
+  }
+
+  private queueAudio(bytes: Uint8Array): void {
+    if (bytes.length === 0) return
+    if (this.state === 'streaming') this.sendAudio(bytes)
+    else if (this.state === 'connecting' || this.state === 'handshaking') this.held.push(bytes)
+  }
+
+  private isDone(): boolean {
+    return this.state === 'done'
+  }
+
   /** Locally sent audio bytes, used for the exact local cost estimate. */
   public get audioBytes(): number {
     return this.bytesSent
   }
 
-  /** Whole locally sent seconds, retained for the window's existing estimate. */
+  /** Tariff seconds from the final report, otherwise a local estimate. */
   public get seconds(): number {
-    return Math.floor(this.bytesSent / MUSE_VOICE_BYTES_PER_SECOND)
+    return Math.floor(
+      this.finalProcessedMs === undefined
+        ? this.bytesSent / MUSE_VOICE_BYTES_PER_SECOND
+        : this.finalProcessedMs / MILLISECONDS_PER_SECOND,
+    )
+  }
+
+  public get hasFinalDuration(): boolean {
+    return this.finalProcessedMs !== undefined
   }
 
   /** Ends the stream as failed: the reason goes to `onFailed`, once. */
@@ -271,7 +358,7 @@ export class MuseVoiceStream {
     if (this.state === 'done') {
       return
     }
-    this.deps.log.warn(`Muse Voice stream failed: ${reason}`)
+    this.deps.log.warn('Muse Voice stream failed')
     this.end()
     this.callbacks.onFailed(reason)
   }
@@ -300,22 +387,30 @@ export class MuseVoiceStream {
     }
   }
 
-  /** One piece of the recording, in order. */
+  /** Bounded PCM, reframed identically for Windows, macOS and Linux. */
   public push(bytes: Uint8Array): void {
-    if (this.state === 'streaming') {
-      this.sendAudio(bytes)
-    } else if (this.state === 'connecting' || this.state === 'handshaking') {
-      this.held.push(bytes)
+    if (this.isFinishWanted || this.state === 'done' || this.state === 'finishing') return
+    const accepted = bytes.subarray(0, MUSE_VOICE_MAX_BYTES - this.bytesAccepted)
+    this.bytesAccepted += accepted.length
+    const pending = Buffer.concat([this.tail, accepted])
+    let offset = 0
+    while (offset + MUSE_VOICE_FRAME_BYTES <= pending.length) {
+      this.queueAudio(pending.subarray(offset, offset + MUSE_VOICE_FRAME_BYTES))
+      offset += MUSE_VOICE_FRAME_BYTES
+      if (this.isDone()) return
     }
+    this.tail = Uint8Array.from(pending.subarray(offset))
+    if (this.bytesAccepted >= MUSE_VOICE_MAX_BYTES) this.reachLimit()
   }
 
-  /** The recording ended: the transcript follows through `onFinal`. */
+  /** Send at most one short tail before endStream. */
   public finish(): void {
-    if (this.state === 'streaming') {
-      this.sendEnd()
-    } else if (this.state === 'connecting' || this.state === 'handshaking') {
-      this.isFinishWanted = true
-    }
+    if (this.isFinishWanted || this.state === 'done') return
+    this.isFinishWanted = true
+    this.clearLimit()
+    this.queueAudio(this.tail)
+    this.tail = new Uint8Array(0)
+    if (this.state === 'streaming') this.sendEnd()
   }
 
   /** Drops the stream without a transcript (the panel closed). */
@@ -336,14 +431,23 @@ export interface MuseVoiceDeps {
   readonly url: string
   /** The Model API key, read per recording (never the CLI's credential). */
   readonly apiKey: () => Promise<string | undefined>
-  /** Counts whole seconds sent, for the window's tally. */
+  /** Counts reported whole seconds, or local seconds without a final. */
   readonly onSeconds: (seconds: number) => void
+  /** Durable D78 admission on either backend, before opening the socket. */
+  readonly reserveDaily: (costUsd: UsdAmount) => Promise<VoiceDailyClaim>
   readonly log: CoreLogger
+}
+
+interface VoiceDailyClaim {
+  check(): unknown
+  settle: SessionBudgetClaim['settle']
 }
 
 interface VoiceBudgetState {
   scope: OwnedSessionBudgetScope | undefined
   claim: SessionBudgetClaim | undefined
+  daily: VoiceDailyClaim | undefined
+  isPreparing: boolean
   keyDigest: string | undefined
   hasAuthorizationStarted: boolean
   isSettled: boolean
@@ -402,10 +506,24 @@ export class MuseVoiceDictation implements DictationHandle {
       return
     }
     this.deps.onSeconds(stream.seconds)
+    const estimatedUsageText =
+      stream.audioBytes === 0 ? UI_TEXT.museVoiceUsageEmpty : UI_TEXT.museVoiceUsageEstimated
+    const usageText = stream.hasFinalDuration ? UI_TEXT.museVoiceUsageReported : estimatedUsageText
+    this.listener.onVoiceUsage?.(
+      fill(usageText, {
+        duration: formatUnit(stream.seconds, 'second'),
+        cost: formatUsd(
+          Usd.from(PAID_PRICES_USD.voicePerHour)
+            .times(stream.seconds)
+            .divideIntegerCeiling(SECONDS_PER_HOUR)
+            .toAmount(),
+        ),
+      }),
+    )
     const budget = this.budgets.get(stream)
     this.budgets.delete(stream)
     if (budget !== undefined) {
-      void this.settleBudget(budget, stream.audioBytes)
+      void this.settleBudget(budget, stream)
     }
   }
 
@@ -413,23 +531,31 @@ export class MuseVoiceDictation implements DictationHandle {
     return this.open.has(stream) && !this.isDisposed
   }
 
-  private async settleBudget(state: VoiceBudgetState, bytes: number): Promise<void> {
-    if (state.claim === undefined || state.isSettled) {
-      return
-    }
+  private reservationUsd(): UsdAmount {
+    return Usd.from(PAID_PRICES_USD.voicePerHour)
+      .times(MUSE_VOICE_RESERVED_MS)
+      .divideIntegerCeiling(SECONDS_PER_HOUR * MILLISECONDS_PER_SECOND)
+      .toAmount()
+  }
+
+  private async settleBudget(state: VoiceBudgetState, stream: MuseVoiceStream): Promise<void> {
+    if (state.isPreparing || state.isSettled) return
     state.isSettled = true
-    try {
-      const estimateUsd = state.hasAuthorizationStarted
-        ? Usd.from(PAID_PRICES_USD.voicePerHour)
-            .times(bytes)
-            .divideIntegerCeiling(SECONDS_PER_HOUR * MUSE_VOICE_BYTES_PER_SECOND)
-            .toAmount()
-        : Usd.from(0).toAmount()
-      await state.claim.settle(estimateUsd, state.hasAuthorizationStarted)
-    } catch {
-      this.deps.log.warn('Muse Voice spend was not saved')
-      this.listener.onError(UI_TEXT.sessionBudgetStoreUnavailable)
-    }
+    const isUnknown =
+      state.hasAuthorizationStarted && stream.audioBytes > 0 && !stream.hasFinalDuration
+    const estimate = Usd.from(PAID_PRICES_USD.voicePerHour)
+      .times(stream.seconds)
+      .divideIntegerCeiling(SECONDS_PER_HOUR)
+      .toAmount()
+    // A missing final keeps the reservation; known nonsends and idle refund.
+    const amount = isUnknown ? this.reservationUsd() : estimate
+    const results = await Promise.allSettled([
+      state.claim?.settle(amount, isUnknown),
+      state.daily?.settle(amount, isUnknown),
+    ])
+    if (results.every((result) => result.status === 'fulfilled')) return
+    this.deps.log.warn('Muse Voice spend was not saved')
+    if (!this.isDisposed) this.listener.onError(UI_TEXT.sessionBudgetStoreUnavailable)
   }
 
   private async prepareStream(
@@ -444,26 +570,25 @@ export class MuseVoiceDictation implements DictationHandle {
       if (!this.isStreamOpen(stream)) {
         return
       }
+      if (apiKey === undefined) {
+        stream.fail(UI_TEXT.museVoiceNoKey)
+        return
+      }
+      state.daily = await this.deps.reserveDaily(this.reservationUsd())
+      if (!this.isStreamOpen(stream)) return
       if (state.scope !== undefined) {
-        if (Usd.from(state.scope.capUsd()).compare(Usd.from(0)) > 0) {
-          throw new Error(UI_TEXT.sessionBudgetVoiceUnavailable)
-        }
         state.claim = await state.scope.journal.reserve(
           state.scope.sessionId,
           state.scope.accountId,
-          Usd.from(0).toAmount(),
-          { isUnbounded: true },
+          this.reservationUsd(),
         )
       }
-      if (!this.isStreamOpen(stream)) {
-        await this.settleBudget(state, 0)
-        return
-      }
+      if (!this.isStreamOpen(stream)) return
       // The durable write may have waited while SecretStorage changed.
       // An owned recording reads the actual key again after that await.
-      const sendingKey = state.scope === undefined ? apiKey : await this.deps.apiKey()
+      const sendingKey = await this.deps.apiKey()
       if (!this.isStreamOpen(stream)) {
-        await this.settleBudget(state, 0)
+        await this.settleBudget(state, stream)
         return
       }
       if (sendingKey === undefined) {
@@ -476,19 +601,16 @@ export class MuseVoiceDictation implements DictationHandle {
       stream.start(sendingKey)
     } catch (error: unknown) {
       stream.fail(error instanceof Error ? error.message : String(error))
-      if (!this.open.has(stream)) {
-        await this.settleBudget(state, stream.audioBytes)
-      }
+    } finally {
+      state.isPreparing = false
+      if (!this.open.has(stream)) await this.settleBudget(state, stream)
     }
   }
 
   private admitBudgetSend(state: VoiceBudgetState): void {
-    if (state.scope === undefined) {
-      return
-    }
-    if (Usd.from(state.scope.capUsd()).compare(Usd.from(0)) > 0) {
-      throw new Error(UI_TEXT.sessionBudgetVoiceUnavailable)
-    }
+    state.daily?.check()
+    if (state.scope === undefined) return
+    state.claim?.check(state.scope.capUsd())
     if (state.keyDigest !== state.scope.accountId) {
       throw new Error(UI_TEXT.notSignedInReason)
     }
@@ -502,6 +624,8 @@ export class MuseVoiceDictation implements DictationHandle {
     const state: VoiceBudgetState = {
       scope: undefined,
       claim: undefined,
+      daily: undefined,
+      isPreparing: true,
       keyDigest: undefined,
       hasAuthorizationStarted: false,
       isSettled: false,
@@ -520,6 +644,9 @@ export class MuseVoiceDictation implements DictationHandle {
         },
       },
       {
+        onLimit: () => {
+          if (this.recording === stream) this.capture.stop()
+        },
         onFinal: (text) => {
           this.settle(stream)
           try {

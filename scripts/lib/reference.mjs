@@ -365,13 +365,17 @@ export function referenceFacts(source) {
       rates: source.MODEL_API_PRICES_PER_MILLION,
     },
     voice: {
-      modelApi: 'unavailable',
-      museCode: ['local', 'storedModelApiKey', 'explicitOptIn'],
+      modelApi: ['local', 'storedModelApiKey', 'boundedBudgetAdmission'],
+      museCode: ['local', 'storedModelApiKey', 'explicitOptIn', 'boundedBudgetAdmission'],
       platforms: voicePlatforms,
       remote: platforms.some(
         (platform) => source.locateCaptureHelper(platformProbe(platform, 'remote')).isAvailable,
       ),
       linuxRecorders: source.LINUX_RECORDERS.map((recorder) => recorder.command),
+      maximumRecordingSeconds: source.MUSE_VOICE_MAX_SECONDS,
+      frameMs: source.MUSE_VOICE_FRAME_MS,
+      reservedMs: source.MUSE_VOICE_RESERVED_MS,
+      settlement: 'finalAudioProcessedMsWholeSeconds',
     },
     'free-dictation': {
       platforms: dictationPlatforms,
@@ -455,7 +459,11 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
     'src/extension.ts': [
       "isModelApi: () => paidBackend === 'modelApi'",
       "feature === 'tab' || paidBackend === 'modelApi' || !isDefaultPaidOn(feature)",
-      "if (auth.current.backend === 'modelApi') {\n              return currentSettings().dictationEngine === 'system'",
+      "!paid.gate.isOn('voice')",
+      "!usablePaidFeatures(auth.current.backend, isKeyStored).includes('voice')",
+      "currentSettings().dictationEngine === 'system'",
+      'reserveDaily: (costUsd) => dailyPaid.reserveExact(costUsd)',
+      'return museVoiceSetup',
     ],
     'src/acp/agent.ts': ["if (host.info.kind !== 'museCode')"],
   }
