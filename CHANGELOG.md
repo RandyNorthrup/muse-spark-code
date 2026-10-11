@@ -29,6 +29,15 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **Accounts and security report kinds are real end to end** (M113 C-M113-3).
+  `/report accounts` reads the provider registry on disk with per-account
+  thresholds; use, swaps and confirmations arrive when their M108 adapters
+  bind, and stay empty and named until then. `/report security` reads the
+  developer audit on disk and an injected vault view: the vault tier, item
+  counts by kind, grant scopes and audit aggregates, never a value. A locked
+  or unbound vault leaves the vault facets empty and named; the developer
+  audit still reports. A canary test plants secrets in vault records and
+  proves none reaches any report output.
 - **Session and usage report kinds are real end to end** (M113 C-M113-2).
   `/report session` reads the current conversation in the editor, or a stored
   Model API session by id (`--session <id>` in the terminal and ACP); turns
