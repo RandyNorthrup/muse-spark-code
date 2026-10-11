@@ -22,8 +22,21 @@ const server = await serveRepo(process.cwd())
 let browser
 const require = createRequire(import.meta.url)
 const reports = []
-const scenarios = ['mounted', 'mounted-locked', 'mounted-connecting']
-const themes = isDrill ? ['light'] : ['light', 'dark', 'hc-light', 'hc-dark']
+// RVCM1091D P3: every scenario in scenarios.ts (kept in sync by
+// vaultHarnessScenarios.test.ts), across all six theme files under
+// test/harness/themes/.
+const scenarios = [
+  'mounted',
+  'mounted-locked',
+  'mounted-connecting',
+  'mounted-uncreated',
+  'mounted-setup-pending',
+  'mounted-unavailable',
+  'mounted-first-party-only',
+]
+const themes = isDrill
+  ? ['light']
+  : ['light', 'dark', 'hc-light', 'hc-dark', 'dracula', 'one-dark-pro']
 const widths = isDrill ? [320] : [690, 320]
 const scenes = isDrill ? ['mounted'] : scenarios
 try {
