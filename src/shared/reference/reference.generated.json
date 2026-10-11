@@ -884,6 +884,21 @@
       "editors": ["vscode"]
     },
     {
+      "id": "accounts",
+      "name": { "ui": "referenceAccountsTitle" },
+      "summary": { "ui": "referenceAccounts" },
+      "description": { "ui": "referenceAccounts" },
+      "commands": [],
+      "settings": [],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#several-accounts-per-provider",
+      "backends": ["modelApi"],
+      "paid": false,
+      "surfaces": ["acp:modelApi"],
+      "details": [{ "ui": "referenceDeveloper" }],
+      "facts": {},
+      "editors": ["acp"]
+    },
+    {
       "id": "permissions",
       "name": { "ui": "permissionModeItem" },
       "summary": { "tip": "permissionMode" },
@@ -4457,6 +4472,12 @@
       "text": { "ui": "referenceScanSecrets" }
     },
     {
+      "route": "accounts",
+      "name": "providers accounts",
+      "description": "Manage the accounts of one provider: list, add, remove, order and thresholds. Credentials come only from standard input. Paid consent stays per workspace for now.",
+      "text": { "ui": "referenceAccounts" }
+    },
+    {
       "route": "developer",
       "name": "developer",
       "description": "Show or unlock machine-local developer options. Profile operations require a connected resource owner.",
@@ -5505,6 +5526,13 @@
     },
     {
       "route": "authSet",
+      "name": "authSet: --account <value>",
+      "description": "--account <id>                    The account to use (auth set, exec).",
+      "text": { "cli": "account" },
+      "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
+    },
+    {
+      "route": "authSet",
       "name": "authSet: --trust-workspace",
       "description": "--trust-workspace                Load the folder’s rules, skills and memory",
       "text": { "cli": "trust-workspace" },
@@ -6234,6 +6262,13 @@
       "description": "Choose the model for this run.",
       "text": { "cli": "model" },
       "contract": { "type": "string", "repeatable": false, "purpose": "model" }
+    },
+    {
+      "route": "exec",
+      "name": "exec: --account <value>",
+      "description": "--account <id>                    The account to use (auth set, exec).",
+      "text": { "cli": "account" },
+      "contract": { "type": "string", "repeatable": false, "purpose": "account" }
     },
     {
       "route": "exec",

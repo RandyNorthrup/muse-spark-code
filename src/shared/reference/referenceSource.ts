@@ -148,8 +148,10 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   ['reports', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   // M116: CLI/ACP journal commands work; the VS Code panel has no mount.
   ['orchestrator-playbook', ['acp:museCode', 'acp:modelApi']],
-  // M108/W: several accounts per provider are in progress on every surface.
-  ['accounts', []],
+  // M108 (CM108ACC): the terminal and ACP on the Model API backend list
+  // accounts, show the current one and its thresholds, and hold per-account
+  // keys; the editor's page, swapping and pooling are not bound.
+  ['accounts', ['acp:modelApi']],
   // M109: production vault service is unbound on every surface.
   ['vault', []],
   // M117: the production plan snapshot port refuses on every surface.

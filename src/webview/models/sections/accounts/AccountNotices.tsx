@@ -41,9 +41,13 @@ export function AccountNotices({
             <div key={index}>
               <p>
                 {reset === null
-                  ? fill(UI_TEXT.accounts.resetUnknown, { provider: slice.data.providerLabel })
+                  ? fill(UI_TEXT.accounts.resetUnknown, {
+                      provider: slice.data.providerLabel,
+                      account: names(event.account),
+                    })
                   : fill(UI_TEXT.accounts.stopped, {
                       provider: slice.data.providerLabel,
+                      account: names(event.account),
                       reset: formatDateTime(Date.parse(reset)),
                     })}
               </p>

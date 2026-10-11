@@ -88,8 +88,9 @@ const activeWording: Readonly<Record<string, RegExp>> = {
   'zh-tw': /管理|草稿|提示|通知|命令/,
 }
 const claims: Readonly<Record<string, RegExp>> = {
-  accounts:
-    /List provider accounts|Manage the accounts of one provider|a vendor limit blocks only the affected account|several accounts on this device.*terms confirmation/i,
+  // CM108ACC serves account lists, thresholds and per-account keys in the
+  // terminal and ACP; a second account on one device is still unbound.
+  accounts: /several accounts on this device.*terms confirmation/i,
   previews: /streamed\s+argument previews|while arguments arrive|previews load on first use/i,
   estimator:
     /Capacity estimates \(preview\)|Real forecasts need the plan reader|the plan reader that\s+comes later/i,
@@ -104,7 +105,7 @@ const claims: Readonly<Record<string, RegExp>> = {
     /the VS Code panel follows|shared editor unlocks use seven clicks|Muse Spark: Developer options/i,
 }
 const usage =
-  /providers accounts|exec --account|--account-pool|--scheduled-prompts|--no-auto-compaction|exec --vault|\/schedule(?:\s|`)|\/estimate(?:\s|`)|\/vault(?:\s|`)/
+  /--account-pool|--scheduled-prompts|--no-auto-compaction|exec --vault|\/schedule(?:\s|`)|\/estimate(?:\s|`)|\/vault(?:\s|`)/
 
 function refuseUnavailable(): never {
   throw new Error('optional runtime owner unavailable')
@@ -434,13 +435,10 @@ describe('CX1R5: exhaustive current-publication truth matrix', () => {
     }
     const readme = read('README.md')
     expect(readme).toContain('muse-spark-code-acp developer')
-    for (const heading of [
-      'Several accounts per provider',
-      'Streamed argument previews',
-      'Estimates',
-      'The vault',
-    ])
+    for (const heading of ['Streamed argument previews', 'Estimates', 'The vault'])
       expect(readme).not.toContain(`## ${heading}`)
+    // CM108ACC: the accounts section is back for the terminal and ACP.
+    expect(readme).toContain('## Several accounts per provider')
     expect(readme).toContain('## In progress')
     expect(
       JSON.stringify(releases.find((release) => release.version === '0.17.0')?.sections),

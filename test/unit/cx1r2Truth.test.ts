@@ -110,17 +110,14 @@ describe('RVCX1B F3: v2 schedule delivery claims are removed on every surface', 
 })
 
 describe('CX1R3 sibling sweep: dormant features have no published usage', () => {
-  it.each([
-    'team-workers',
-    'vault',
-    'estimator',
-    'auto-compaction',
-    'argument-preview',
-    'accounts',
-  ])('omits %s from Help and clears its capability inventory', (id) => {
-    expect(help.features.some((feature) => feature.id === id)).toBe(false)
-    expect(featureCatalog().find((feature) => feature.id === id)?.surfaces).toEqual([])
-  })
+  // Accounts left both lists with CM108ACC (cx1r4Truth pins what is published).
+  it.each(['team-workers', 'vault', 'estimator', 'auto-compaction', 'argument-preview'])(
+    'omits %s from Help and clears its capability inventory',
+    (id) => {
+      expect(help.features.some((feature) => feature.id === id)).toBe(false)
+      expect(featureCatalog().find((feature) => feature.id === id)?.surfaces).toEqual([])
+    },
+  )
 
   it('retains only neutral progress text in the dormant source inventory', () => {
     for (const id of [
@@ -129,7 +126,6 @@ describe('CX1R3 sibling sweep: dormant features have no published usage', () => 
       'estimator',
       'auto-compaction',
       'argument-preview',
-      'accounts',
     ]) {
       const feature = featureCatalog().find((entry) => entry.id === id)
       expect(feature?.summary).toEqual({ ui: 'referenceInProgress' })
