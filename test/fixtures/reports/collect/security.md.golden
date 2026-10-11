@@ -6,7 +6,7 @@ Generated as of 2026-10-06T12:00:00+00:00
 
 Version: 0.14.2
 
-SHA-256: 375419de638f7db7b9239a440677a226a0c08d494f0c55e4cd0dd2fae1b466e3
+SHA-256: e656eb2e6f4323c7d2f80093d261b86e40cbc2131de273dc1642cdc8914bf801
 
 ## Needs you
 
@@ -41,20 +41,20 @@ SHA-256: 375419de638f7db7b9239a440677a226a0c08d494f0c55e4cd0dd2fae1b466e3
 
 | Kind | Outcome | Count | Status | Reason | Sources |
 | --- | --- | --- | --- | --- | --- |
-| ssh | mode | 1 | Available |  | security |
-| environment | grant | 1 | Available |  | security |
+| ssh | locked | 1 | Available |  | security |
+| environment | succeeded | 1 | Available |  | security |
 
 ## Denials
 
 | Kind | Outcome | Count | Status | Reason | Sources |
 | --- | --- | --- | --- | --- | --- |
-| environment | user | 1 | Available |  | security |
+| environment | denied | 1 | Available |  | security |
 
 ## Locks
 
 | Kind | Outcome | Count | Status | Reason | Sources |
 | --- | --- | --- | --- | --- | --- |
-| ssh | mode | 1 | Available |  | security |
+| ssh | locked | 1 | Available |  | security |
 
 ## Developer audit
 

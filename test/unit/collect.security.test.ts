@@ -61,19 +61,21 @@ describe('security collector', () => {
           ] as const,
       )
       .toSorted((left, right) => codeUnitCompare(left[0], right[0]))
+    // The Outcome column carries the audit outcome, never the authority
+    // (RVCM1133): the allow rows split by outcome instead of collapsing.
     expect(usage).toEqual([
-      ['environment', 'grant', 1],
-      ['ssh', 'mode', 1],
+      ['environment', 'succeeded', 1],
+      ['ssh', 'locked', 1],
     ])
     expect(getSection(report, 'security/denials').rows[0]!.cells).toMatchObject({
       kind: { type: 'text', value: 'environment' },
-      outcome: { type: 'text', value: 'user' },
+      outcome: { type: 'text', value: 'denied' },
       count: { type: 'count', value: 1 },
     })
     // A locked outcome is a lock even when its decision allowed the attempt.
     expect(getSection(report, 'security/locks').rows[0]!.cells).toMatchObject({
       kind: { type: 'text', value: 'ssh' },
-      outcome: { type: 'text', value: 'mode' },
+      outcome: { type: 'text', value: 'locked' },
       count: { type: 'count', value: 1 },
     })
     expect(

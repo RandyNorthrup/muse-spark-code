@@ -71,6 +71,17 @@ function errorCode(error: unknown): string | undefined {
     : undefined
 }
 
+/**
+ * Name one true failure reason on a reader's partial list (RVCM1133): a
+ * partly unreadable source keeps its good rows and carries the same
+ * sentence a whole-read failure would show, instead of collapsing the
+ * good rows into a generic failure or reporting success with silently
+ * dropped rows.
+ */
+function keepReason(partials: string[], reason: string): void {
+  if (!partials.includes(reason)) partials.push(reason)
+}
+
 /** The durable usage journal, tolerating a fresh install with no history yet. */
 export async function readUsageReportJournal(dataFolder: string): Promise<UsageReportJournal> {
   const store = new UsageJournalStore(new NodeUsageFs(dataFolder), {
@@ -363,9 +374,17 @@ async function readDataFile(directory: string, file: string, maxBytes: number) {
     handle = await open(target, fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW)
   } catch (error) {
     if (errorCode(error) === 'ENOENT') return null
+    // A linked final component is a private path, never an incomplete
+    // read: the sibling session reader refuses it the same way (RVCM1133).
+    if (errorCode(error) === 'ELOOP') throw new LocalSourceError('refused')
     throw new LocalSourceError('failed')
   }
   try {
+    // Where O_NOFOLLOW is a no-op the open above follows a linked final
+    // component instead of failing it: refuse the link before a byte is
+    // parsed. Ancestor links are ordinary directories and stay readable.
+    const link = await lstatIdentity(target)
+    if (link.isSymbolicLink()) throw new LocalSourceError('refused')
     const info = await handle.stat()
     if (!info.isFile() || info.size > maxBytes) throw new LocalSourceError('limit')
     const buffer = Buffer.alloc(info.size)
@@ -417,7 +436,10 @@ function projectThresholds(
 /**
  * The reporting `accounts` source from M108's registry on disk, with use,
  * swaps and confirmations from injected adapters. Facets no adapter supplies
- * stay empty and are named in the partial, never invented.
+ * stay empty and are named in the partial, never invented. A registry entry
+ * that fails validation is skipped with the invalid reason while the good
+ * entries still report; only a registry with no good entry at all reads as
+ * invalid (RVCM1133).
  */
 export function createAccountsReportReader(input: {
   readonly dataDir: string
@@ -442,21 +464,30 @@ export function createAccountsReportReader(input: {
       }
       const envelope = z.object({ providers: z.record(z.string(), z.unknown()) }).safeParse(raw)
       if (!envelope.success) throw new LocalSourceError('invalid')
-      const providers = Object.values(envelope.data.providers).map((entry) => {
-        const parsed = registryEntrySchema.parse(entry)
-        return {
-          provider: parsed.id,
-          product: parsed.product,
-          auth: parsed.auth,
-          accounts: (parsed.accounts ?? []).map((account) => ({
+      const partials: string[] = []
+      const providers: AccountsFacts['providers'][number][] = []
+      let invalidEntries = 0
+      for (const entry of Object.values(envelope.data.providers)) {
+        const parsed = registryEntrySchema.safeParse(entry)
+        if (!parsed.success) {
+          invalidEntries += 1
+          continue
+        }
+        providers.push({
+          provider: parsed.data.id,
+          product: parsed.data.product,
+          auth: parsed.data.auth,
+          accounts: (parsed.data.accounts ?? []).map((account) => ({
             id: account.id,
             label: account.label,
             order: account.order,
             limitGroup: account.limitGroup ?? null,
             thresholds: projectThresholds(account.thresholds),
           })),
-        }
-      })
+        })
+      }
+      if (providers.length === 0 && invalidEntries > 0) throw new LocalSourceError('invalid')
+      if (invalidEntries > 0) keepReason(partials, UI_TEXT.reportSourceReasons.invalid)
       const missing: string[] = []
       let usage: AccountsFacts['usage'] = []
       if (input.readUsage === undefined) missing.push('usage')
@@ -469,14 +500,16 @@ export function createAccountsReportReader(input: {
         events = read?.events ?? []
         confirmations = read?.confirmations ?? []
       }
+      if (missing.length > 0)
+        partials.push(
+          fill(UI_TEXT.reportDetailReasons.accountsFacetsUnavailable, {
+            facets: missing.join(', '),
+          }),
+        )
       return {
         facts: { providers, usage, events, confirmations },
         observedAt: context.asOf,
-        ...(missing.length > 0 && {
-          partial: fill(UI_TEXT.reportDetailReasons.accountsFacetsUnavailable, {
-            facets: missing.join(', '),
-          }),
-        }),
+        ...(partials.length > 0 && { partial: partials.join(' ') }),
       }
     },
   }
@@ -498,7 +531,10 @@ export interface SecurityVaultSnapshot {
  * contributes its tier, item counts by kind, grant scopes and audit
  * aggregates; the developer audit contributes action counts. A locked or
  * unbound vault leaves the vault facets empty with its reason; without the
- * developer audit either, the source is missing.
+ * developer audit either, both reasons travel in the partial instead of a
+ * generic missing file (RVCM1133). A vault view that fails validation is
+ * invalid and never hides a readable developer audit: the vault facets
+ * stay empty while the audit still reports.
  */
 export function createSecurityReportReader(input: {
   readonly dataDir: string
@@ -512,31 +548,41 @@ export function createSecurityReportReader(input: {
       const snapshot = input.readVault === undefined ? null : await input.readVault(context)
       if (snapshot === null) partials.push(UI_TEXT.reportDetailReasons.securityVaultUnavailable)
       else {
-        const items = z.array(vaultItemMetadataSchema).parse(snapshot.items)
-        const grants = z.array(vaultGrantSchema).parse(snapshot.grants)
-        const itemsByKind = new Map<string, number>()
-        for (const item of items) itemsByKind.set(item.kind, (itemsByKind.get(item.kind) ?? 0) + 1)
-        const grantsByScope = new Map<string, number>()
-        for (const grant of grants) {
-          const scope = `${grant.roles === 'any' ? 'any' : 'named'}/${grant.workspaces === 'any' ? 'any' : 'named'}`
-          grantsByScope.set(scope, (grantsByScope.get(scope) ?? 0) + 1)
-        }
-        vault = {
-          state: snapshot.state,
-          tier: snapshot.tier,
-          itemCount: items.length,
-          itemsByKind: Array.from(itemsByKind, ([kind, count]) => ({ kind, count })),
-          grants: Array.from(grantsByScope, ([scope, count]) => ({ scope, count })),
-        }
-        audit = snapshot.audit.map((record) => {
-          const parsed = vaultAuditRecordSchema.parse(record)
-          return {
-            kind: parsed.kind,
-            decision: parsed.decision,
-            authority: parsed.authority,
-            outcome: parsed.outcome,
+        try {
+          const items = z.array(vaultItemMetadataSchema).parse(snapshot.items)
+          const grants = z.array(vaultGrantSchema).parse(snapshot.grants)
+          const itemsByKind = new Map<string, number>()
+          for (const item of items)
+            itemsByKind.set(item.kind, (itemsByKind.get(item.kind) ?? 0) + 1)
+          const grantsByScope = new Map<string, number>()
+          for (const grant of grants) {
+            const scope = `${grant.roles === 'any' ? 'any' : 'named'}/${grant.workspaces === 'any' ? 'any' : 'named'}`
+            grantsByScope.set(scope, (grantsByScope.get(scope) ?? 0) + 1)
           }
-        })
+          vault = {
+            state: snapshot.state,
+            tier: snapshot.tier,
+            itemCount: items.length,
+            itemsByKind: Array.from(itemsByKind, ([kind, count]) => ({ kind, count })),
+            grants: Array.from(grantsByScope, ([scope, count]) => ({ scope, count })),
+          }
+          audit = snapshot.audit.map((record) => {
+            const parsed = vaultAuditRecordSchema.parse(record)
+            return {
+              kind: parsed.kind,
+              decision: parsed.decision,
+              authority: parsed.authority,
+              outcome: parsed.outcome,
+            }
+          })
+        } catch {
+          // Fail closed on the vault view itself, but keep reading the
+          // developer audit below: a bad snapshot is invalid, never a
+          // silent drop of the audit beside it.
+          vault = null
+          audit = []
+          keepReason(partials, UI_TEXT.reportSourceReasons.invalid)
+        }
       }
       const directory = path.join(input.dataDir, 'developer')
       let developerAudit: SecurityFacts['developerAudit'] | null = null
@@ -560,7 +606,8 @@ export function createSecurityReportReader(input: {
       }
       if (developerAudit === null)
         partials.push(UI_TEXT.reportDetailReasons.securityDeveloperAuditUnavailable)
-      if (vault === null && developerAudit === null) return null
+      // Both sources absent is a partial naming both true reasons, never a
+      // bare null that the source would report as a generic missing file.
       return {
         facts: { vault, audit, developerAudit: developerAudit ?? [] },
         observedAt: context.asOf,
