@@ -228,6 +228,8 @@ const RECORDER_ENTRY = 'src/host/support/recorderEntry.ts'
 const RECORDER_OUTFILE = 'dist/recorder.js'
 const PAGE_WORKER_ENTRY = 'src/host/web/pageWorker.ts'
 const PAGE_WORKER_OUTFILE = 'dist/pageWorker.js'
+const PLAYBOOK_WINDOW_ENTRY = 'src/host/playbook/playbookEntry.ts'
+const PLAYBOOK_WINDOW_OUTFILE = 'dist/playbook.js'
 const WEBVIEW_ENTRY = 'src/webview/main.tsx'
 // The Models & Agents panel's own app (M95 lane M), beside the chat.
 const MODELS_WEBVIEW_ENTRY = 'src/webview/models/models.tsx'
@@ -1024,6 +1026,22 @@ const pageWorkerOptions = {
   target: HOST_NODE_TARGET,
 }
 
+// The VS Code window's playbook (M116 lane C-M116-6, PLAN.md D6, D96): the
+// window's client when required on first use, and the governor when that
+// client starts the same file as a worker thread. The policy, its journal and
+// the Windows job runner ship once, here, and never at activation. Git and
+// hook calls launch through the shared admission and redaction bundles.
+/** @type {import('esbuild').BuildOptions} */
+const playbookWindowOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation, sharedWire, sharedResourceAdmission, sharedRedaction],
+  entryPoints: [PLAYBOOK_WINDOW_ENTRY],
+  outfile: PLAYBOOK_WINDOW_OUTFILE,
+  platform: 'node',
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
 // The canonical comment template must stay with ReviewCommentForm when other pages
 // share constants. Build a reader-only module from its exact source declaration.
 const browserReviewComment = {
@@ -1270,6 +1288,7 @@ if (isWatch) {
     esbuild.context(browserRuntimeOptions),
     esbuild.context(searchWorkerOptions),
     esbuild.context(pageWorkerOptions),
+    esbuild.context(playbookWindowOptions),
     esbuild.context(imageResizeWorkerOptions),
     esbuild.context(webviewOptions),
     esbuild.context(fontInstallOptions),
@@ -1381,6 +1400,7 @@ if (isWatch) {
     browserRuntime: esbuild.build(browserRuntimeOptions),
     searchWorker: esbuild.build(searchWorkerOptions),
     pageWorker: esbuild.build(pageWorkerOptions),
+    playbook: esbuild.build(playbookWindowOptions),
     imageResizeWorker: esbuild.build(imageResizeWorkerOptions),
     webview: esbuild.build(webviewOptions),
   }
@@ -1503,6 +1523,7 @@ if (isWatch) {
   reportSize(MODELS_PANEL_OUTFILE)
   reportSize(SEARCH_WORKER_OUTFILE)
   reportSize(PAGE_WORKER_OUTFILE)
+  reportSize(PLAYBOOK_WINDOW_OUTFILE)
   reportSize(IMAGE_RESIZE_WORKER_OUTFILE)
   reportSize(path.join(WEBVIEW_OUTDIR, 'main.js'))
   reportSize(path.join(WEBVIEW_OUTDIR, 'main.css'))

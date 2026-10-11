@@ -97,6 +97,7 @@
     "src/host/extensionHooksEntry.ts",
     "src/host/support/recorderEntry.ts",
     "src/host/support/reportEntry.ts",
+    "src/host/playbook/playbookEntry.ts",
     "src/host/web/pageWorker.ts",
     "src/runtime/chatGptProviderCommands.ts",
     "src/runtime/exec/execEntry.ts",

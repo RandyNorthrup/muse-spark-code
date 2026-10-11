@@ -60,7 +60,7 @@ export interface PanelPlaybookReview {
 }
 
 /** Only the extension-owned fenced format is parsed; this is not a provider wire parser. */
-function reviewBlocks(text: string): readonly ReviewBlock[] {
+export function reviewBlocks(text: string): readonly ReviewBlock[] {
   return Array.from(
     text.matchAll(/^```muse-review[^\S\n]*\r?\n([\s\S]*?)^```[^\S\n]*$/gmu),
     (block) => {

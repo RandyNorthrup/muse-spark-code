@@ -23,6 +23,7 @@ import { withoutCredentials } from '../../src/core/credentialEnvironment'
 import { OrchestratorPlaybook } from '../../src/core/orchestration/playbook/policy'
 import { moduleStates } from '../../src/core/orchestration/playbook/modules'
 import { FAKE_PLAYBOOK_MODULE as MODULE } from './helpers/playbook/fakes'
+import { gitWorkspace } from './helpers/playbook/gitWorkspace'
 import { policyFixture } from './playbookPolicyFixture'
 
 const template = { directory: '' }
@@ -53,13 +54,7 @@ function repository(workspace: string) {
   const fixture = policyFixture(workspace)
   cpSync(template.directory, workspace, { recursive: true, preserveTimestamps: true })
   const env = gitEnvironment()
-  const git = (args: string[]) =>
-    execFileSync('git', args, { cwd: workspace, env, encoding: 'utf8', stdio: 'pipe' }).trim()
-  const hook = (name: string, body: string) => {
-    const file = path.join(workspace, '.git', 'hooks', name)
-    writeFileSync(file, `#!/bin/sh\n${body}\n`)
-    chmodSync(file, 0o755)
-  }
+  const { git, hook } = gitWorkspace(workspace, env)
   // A configured hook set must contain every hook the verifier requires.
   for (const name of ['pre-commit', 'commit-msg', 'pre-push']) hook(name, 'exit 0')
   const range = () => ({

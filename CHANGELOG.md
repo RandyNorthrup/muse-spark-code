@@ -9,6 +9,23 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- M116 lane C-M116-6 (the playbook in the VS Code panel; PLAN.md D96.16),
+  first part: the window's governor. The one policy, journal and outcome
+  verification that the CLI and the ACP agent use can now run for a VS Code
+  window, on a worker thread that loads the lazy `dist/playbook.js`
+  (109.9 KiB against a 150 KiB budget; none of it in the activation bundle).
+  Requests and answers are validated in both directions; a worker that
+  crashes, falls silent while it owes an answer or speaks outside its
+  protocol is ended, and what it owed is refused, never allowed. On Windows
+  every git and hook call of a decision runs in one named job (the shipped
+  MuseSparkJob type) whose whole process tree has ended before the call
+  returns, which closes PLAN §9's FIXM116P3-Windows-job-binding. A review
+  counts as a playbook round only for files that a child agent of the
+  conversation changed; any other review, and any dispatch from a
+  conversation with no module under review, is left exactly as it was.
+  Nothing in the panel calls the governor yet: that is this lane's next two
+  commits. Real git and fakes only; no model call.
+
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
   reads and writes, and 1-hour cache writes settle at their own price.
   The shared retry classifier refuses known quota codes and excessive

@@ -1801,6 +1801,52 @@ export const PLAYBOOK_CONFIGURABLE_RULES = [
 ] as const
 export const PLAYBOOK_SAFETY_RULE = 'neverAround'
 export const PLAYBOOK_RESOLUTIONS = ['impossible', 'caught', 'remains'] as const
+// M116 panel install (C-M116-6). The VS Code window runs the governor on a
+// worker thread: the policy is synchronous (a durable journal write per
+// decision, git plumbing, the repository's own hooks), and the extension
+// host must never wait on it. The worker is tagged so the bundle knows which
+// role it was loaded in.
+export const PLAYBOOK_WORKER_KIND = 'museSparkPlaybook'
+// A pending request with no word from the worker for this long is refused
+// and the worker ended. Every contained call reports before it starts, and
+// one call is bounded by GIT_TIMEOUT_MS plus its tree sweep.
+export const PLAYBOOK_WORKER_SILENCE_MS = 60_000
+// The panel's own orchestration before M96: one team, one planner lane.
+export const PLAYBOOK_PANEL_TEAM = 'panel'
+export const PLAYBOOK_PANEL_LANE = 'panel'
+export const PLAYBOOK_SURFACE_LANE = 'surface'
+// D96.1's default module: the file's directory two levels under the source root.
+export const PLAYBOOK_MODULE_DIRECTORY_DEPTH = 3
+// Windows containment (PLAN.md §9, FIXM116P3-Windows-job-binding): one named
+// job per decision. A helper process joins it, serves each git and hook call
+// over a private pipe, ends every other member of the job after each call,
+// and terminates the job when the decision's pipe closes.
+export const PLAYBOOK_JOB_NAME_PREFIX = String.raw`Local\MuseSparkPlaybook-`
+export const PLAYBOOK_JOB_PIPE_PREFIX = 'muse-spark-playbook-'
+export const PLAYBOOK_JOB_PIPE_ROOT = String.raw`\\.\pipe`
+// A helper that has exited is noticed at once; this bounds only a live one
+// that is slow to start (Windows PowerShell starting cold takes seconds).
+export const PLAYBOOK_JOB_CONNECT_MS = 30_000
+export const PLAYBOOK_JOB_CONNECT_POLL_MS = 10
+// The helper ends its job when no call arrives for this long (a worker that
+// was stopped mid-decision cannot close its pipe).
+export const PLAYBOOK_JOB_IDLE_MS = 30_000
+export const PLAYBOOK_JOB_SWEEP_MS = 5000
+export const PLAYBOOK_JOB_ENVIRONMENT = {
+  job: 'MUSE_SPARK_PLAYBOOK_JOB',
+  assembly: 'MUSE_SPARK_PLAYBOOK_ASSEMBLY',
+  pipe: 'MUSE_SPARK_PLAYBOOK_PIPE',
+  idleMs: 'MUSE_SPARK_PLAYBOOK_IDLE_MS',
+  sweepMs: 'MUSE_SPARK_PLAYBOOK_SWEEP_MS',
+} as const
+// The helper's answer flags for one call.
+export const PLAYBOOK_JOB_FLAGS = {
+  timedOut: 1,
+  overflowed: 2,
+  uncertain: 4,
+  unstarted: 8,
+} as const
+export const PLAYBOOK_JOB_FRAME_HEADER_BYTES = 4
 // The block as the review prompt shows it to the model (English, as all
 // model text is), and what it holds when the review found nothing.
 export const REVIEW_FINDINGS_EXAMPLE = /* @__PURE__ */ JSON.stringify({
@@ -4237,6 +4283,9 @@ export const RUNTIME_QUESTIONS_BUNDLE_FILE = 'runtimeQuestions.js'
 // /playbook's journal-backed surface (M116): the ACP agent and the CLI load
 // it on first use, so the engine bundle carries none of the policy.
 export const PLAYBOOK_BUNDLE_FILE = 'acpPlaybook.js'
+// The VS Code window's playbook (M116, C-M116-6): the window's client when
+// required, the governor when started as a worker. Loaded on first use.
+export const PLAYBOOK_WINDOW_BUNDLE_FILE = 'playbook.js'
 export const RUNTIME_ACCOUNTS_BUNDLE_FILE = 'runtimeAccounts.js'
 export const QUESTION_DEFER_MIN_SECONDS = 10
 export const QUESTION_DEFER_MAX_SECONDS = 3600
@@ -5784,6 +5833,7 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/searchWorker.js',
   'dist/imageResizeWorker.js',
   'dist/pageWorker.js',
+  'dist/playbook.js',
   'dist/webview/main.js',
   'dist/webview/referencePage.js',
   'dist/reference.js',

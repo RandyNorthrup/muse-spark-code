@@ -121,7 +121,7 @@ const leaseToken = z.strictObject({ moduleId: id, laneId: id, ownerId: id, gener
 export type PlaybookLease = z.infer<typeof leaseToken>
 
 /** No review text or file contents in the journal: only host-assigned references. */
-const findingRef = z.strictObject({
+export const playbookFindingRefSchema = z.strictObject({
   id,
   file,
   severity: z.enum(['P1', 'P2', 'P3']),
@@ -153,7 +153,7 @@ export const playbookRoundSchema = z.strictObject({
   class: z.optional(z.enum(PLAYBOOK_FINDING_CLASSES)),
   round: z.int().check(z.gte(1)),
   phase: z.enum(['build', 'fix', 'redesign']),
-  findings: z.array(findingRef).check(z.maxLength(REVIEW_FINDINGS_MAX)),
+  findings: z.array(playbookFindingRefSchema).check(z.maxLength(REVIEW_FINDINGS_MAX)),
   answers: z.array(answer).check(z.maxLength(REVIEW_FINDINGS_MAX)),
   // Redesign answers retain each prior id/outcome/reason, not only an aggregate.
   resolution: z.optional(z.array(reviewResolutionSchema).check(z.maxLength(REVIEW_FINDINGS_MAX))),
