@@ -35095,6 +35095,16 @@ lane T and M111b. One short live check per backend (step 3).
 
 ### M113 — Deterministic reports: `/report` (D93)
 
+**CM1134B estimate kind (2026-10-11, MacBook).** Part B of C-M113-4:
+the `estimate` line of the kind table runs M117's engine through
+`src/core/reporting/sources/estimate.ts` and projects the six D93.4 facets
+in `src/core/reporting/collect/estimate.ts`; inputs ride `reportInputs.js`
+in every host (VS Code's lazy estimator bundle; the headless estimator per
+workspace root for ACP and the terminal). Stamps with an explicit offset
+are normalized to the UTC instant the estimator requires, so `--by` works.
+No new dependency, string, command, cap, hook or live/model call. Playbook
+and schedules stay another lane's (part A).
+
 **CM1132R2 review repair (2026-10-10, linuxlt).** Fix all 22 RVCM1132
 findings by class within the session/usage lane. One request-scoped, read-only
 journal snapshot follows pending recording; damaged and unattributed evidence

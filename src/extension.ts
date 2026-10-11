@@ -3346,6 +3346,10 @@ async function activateWindow(
                 ? (reportController?.reportingSessionHistory() ?? Promise.resolve(null))
                 : Promise.resolve(null),
           }),
+          // M113 C-M113-4: the estimate report runs M117's engine for the
+          // validated request through the lazy estimator bundle, in every
+          // window. The bundle loads on the first estimate report only.
+          reportEstimateRun: (request, signal) => estimator.estimate(request, signal),
           ...(context.storageUri !== undefined && {
             reportStoredSessionDir: path.join(context.storageUri.fsPath, MODEL_API_SESSIONS_DIR),
           }),

@@ -58,6 +58,7 @@ export interface ReportingContext {
   readonly session?: LocalReportSourceDeps['session']
   readonly questions?: LocalReportSourceDeps['questions']
   readonly usage?: LocalReportSourceDeps['usage']
+  readonly estimate?: LocalReportSourceDeps['estimate']
   readonly networkSources?: Pick<ReportSourcePorts, 'github' | 'stores'>
   readonly network?:
     | Omit<ReportingNetworkContext, 'workspaceRoot' | 'storageRoot' | 'l10n'>
@@ -127,6 +128,7 @@ export function createReportingServices(context: ReportingContext): ReportsServi
               ...(context.session !== undefined && { session: context.session }),
               ...(context.questions !== undefined && { questions: context.questions }),
               ...(context.usage !== undefined && { usage: context.usage }),
+              ...(context.estimate !== undefined && { estimate: context.estimate }),
             }).sources
       const readContext = { run: {}, options, asOf: options.asOf, workspaceKey: key, signal }
       let planText: string | undefined
@@ -145,7 +147,7 @@ export function createReportingServices(context: ReportingContext): ReportsServi
         fleet: unavailable('fleet'),
         security: unavailable('security'),
         accounts: unavailable('accounts'),
-        estimate: unavailable('estimate'),
+        estimate: local?.estimate ?? unavailable('estimate'),
         playbook: unavailable('playbook'),
         issues: unavailable('issues'),
         schedules: unavailable('schedules'),
