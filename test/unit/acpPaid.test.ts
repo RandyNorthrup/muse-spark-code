@@ -86,8 +86,10 @@ it('hidden automatic compaction preserves the complete ACP and CLI usage manuals
     if (/^\s+--(?:no-)?auto-compaction\b/.test(line)) continue
     expect(usage).toContain(line)
   }
-  // 0.17.1's truth pass took the account lines out of compact help (CX1R4).
-  expect(usage).toContain(fill(EN.acpChatGpt.usage, { command: 'muse-spark-code-acp' }))
+  // CM108ACC put the accounts line back; the exec line offers pooling and stays out.
+  for (const chunk of [EN.acpChatGpt.usage, EN.accounts.cliUsage])
+    expect(usage).toContain(fill(chunk, { command: 'muse-spark-code-acp' }))
+  expect(usage).not.toContain(fill(EN.accounts.execHelp, { command: 'muse-spark-code-acp' }))
   const help = createReference(table, 'en').all()
   const inventory = referenceModel()
   expect(help).toContain(table.referenceCliOptions.backend)

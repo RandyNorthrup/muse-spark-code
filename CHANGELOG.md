@@ -9,6 +9,19 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **Several accounts per provider, in the terminal and in ACP** (M108,
+  CM108ACC). `providers accounts` lists, adds, removes and orders a
+  provider's accounts and sets their thresholds;
+  `auth set --provider <id> --account <id>` stores one key per account, read
+  from standard input only;
+  `exec --account <id>` pins a headless run to one account. In an ACP session
+  on the Model API backend `/accounts` shows the list, the current account
+  and its thresholds, and the `account` picker shows the same. Meta's Model
+  API entry is built in, so nothing has to exist first; a vendor limit stops
+  only its own account and the stop names it. Still refused, and saying so:
+  changing account inside a session and pooled runs. The three account
+  settings keep no effect, and the editor has no Accounts page yet.
+
 - **Judge benchmark tooling (repository only, lane JEVBENCH, D107/M125).**
   `scripts/judge-bench.mjs` judges a labelled decision set through one
   engine interface (local Ollama SystemOne, local llama-server chat with
@@ -232,6 +245,30 @@ happened, not what was planned; superseded entries are kept.
   continuation. ACP/exec use their transport's sole daily debit. ACP adds
   `--auto-compaction` as an explicit paid opt-in; exec paid defaults remain
   off. The evaluated latch remains false.
+
+- The installed CLI, ACP agent and headless runs share the account service
+  instead of answering "Accounts are unavailable": Meta's Model API entry is
+  built in, so `providers accounts` (list, add, remove, order, thresholds),
+  `auth set --provider meta --account <id>`, `exec --account <id>` and
+  ACP's `/accounts` (list, current, thresholds) work with no pre-existing
+  file. The `account` picker serves the Model API backend only; the Muse
+  Code backend runs on its subscription, and an accounts failure leaves the
+  session working without accounts. Choosing another account in a session
+  stays refused until the pooled owner lands, and says which account the
+  session keeps instead of reporting unavailable — including across the
+  runtime/ACP bundle boundary. A malformed user row refuses and is left
+  untouched (the built-in entry applies only with no file); a vendor-limit
+  stop names the blocked account and its reset even with no usage page
+  bundled; a pooled `exec` run names the missing pool owner instead of
+  the connection text. The Models panel stop notice names the blocked
+  account too, and a refused providers file (a malformed row, unparsable
+  JSON, duplicate account ids, or a provider id that does not match its
+  key) says the file was refused and left unchanged instead of the
+  connection sentence — on the terminal, through ACP list/current/thresholds
+  and picker selection, as the Models panel's own error, from `exec
+  --account` readiness instead of a keyring-outage message, from developer
+  multiple-accounts open instead of a raw stack, and on the terminal crash
+  line as the sentence itself.
 
 ### Documentation
 

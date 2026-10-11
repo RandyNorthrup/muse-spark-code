@@ -437,7 +437,8 @@ export const EN = {
   referenceAuthClear: 'Remove the stored Model API key.',
   referenceAuthStatus: 'Check whether a Model API key is stored.',
   referenceAccountsTitle: 'Several Accounts per Provider',
-  referenceAccounts: 'In progress.',
+  referenceAccounts:
+    'Manage the accounts of one provider: list, add, remove, order and thresholds. Credentials come only from standard input. Paid consent stays per workspace for now.',
   referenceDeveloper:
     'Show or unlock machine-local developer options. Profile operations require a connected resource owner.',
   referenceTabLanguages: 'Choose a language to switch Tab suggestions on or off for it.',
@@ -6083,6 +6084,10 @@ export const EN = {
       'Headless accounts: {command} exec --account <id> [--account-pool]. CI with --key-stdin uses only the default account and never swaps.',
     unavailable:
       'Accounts are unavailable until this runtime is connected to the shared account service.',
+    providersInvalid:
+      'The providers file is invalid, so its entries were refused and the file was left unchanged.',
+    poolUnavailable:
+      'Account pooling is unavailable in this runtime: it needs a bound resource owner. Run again without --account-pool.',
     cliUsage:
       'Accounts: {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [ordered ids]. Credentials: {command} auth set --provider <id> --account <id> (standard input only).',
     slashDescription: 'List accounts, view thresholds, or choose an account.',
@@ -6108,10 +6113,12 @@ export const EN = {
     parallelDescription:
       'Spread background work by headroom and keep each worker on its assigned account.',
     current: 'Current Account',
+    switchUnavailable:
+      'This session stays on {provider} · {account}. Account switching is unavailable in this runtime.',
     swapNotice: 'Now on {provider} · {account}: {previous} reached {threshold}.',
     coldCache: 'Estimated context re-read cost: {cost}.',
-    stopped: '{provider} has no account with room. Resets {reset}.',
-    resetUnknown: '{provider} has no account with room. Reset time is unknown.',
+    stopped: '{provider} · {account} has no room. Resets {reset}.',
+    resetUnknown: '{provider} · {account} has no room. Reset time is unknown.',
     sharedGroup: '{account} shares the same vendor limit group; another key adds no capacity.',
     policy: 'Vendor Account Policy',
     policyOn: 'Pooling Available',

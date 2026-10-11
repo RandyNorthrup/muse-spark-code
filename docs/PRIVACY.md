@@ -89,7 +89,11 @@ The plan notice identifies AI-generated content and includes GitHub's report
 link. Token estimates and dispatched-request tallies stay locally in the
 extension's state; ACP ChatGPT tallies currently live for the process lifetime.
 
-## Developer audit
+## Account metadata and developer audit
+
+M108's local `providers.json` holds opaque account ids, user-chosen labels,
+order, limit groups and thresholds; it holds no credential. Credentials stay
+in each account's origin-bound SecretStorage/OS-store slot.
 
 Machine-local Developer options state holds unlock/expiry, recorded profile
 ids and their provider/account ids. Its append-only `developer/developer-audit.jsonl`
