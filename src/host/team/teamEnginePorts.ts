@@ -50,7 +50,10 @@ import type {
   TeamWorkerOutcome,
   TeamWorkerPort,
 } from '../../core/team/teamHostService'
-import type { ResponseAttemptGuard } from '../../core/backends/modelapi/transport'
+import type {
+  ResponseAttemptGuard,
+  ResponseAttemptOutcome,
+} from '../../core/backends/modelapi/transport'
 import type { ToolIo } from '../../core/backends/modelapi/tools'
 import { assertWorkerRoot } from '../../core/team/workers/workerFence'
 
@@ -269,19 +272,38 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
             ...(maximum.costUsd !== undefined && { costUsd: Number(maximum.costUsd) }),
           })
           hasReservations = true
-          check()
-          // The callback closes over this claim, never the most recent ordinal.
-          return (reported: SubagentUsage): void => {
+          // The host's final synchronous fence runs after it owns this callback.
+          // Every result belongs to this ordinal, including refused/unsent attempts.
+          let hasSettled = false
+          return async (outcome: ResponseAttemptOutcome) => {
+            if (hasSettled) return
+            hasSettled = true
+            const reported = outcome.kind === 'billed' ? outcome.usage : undefined
             recordWrite(
-              spec.meter.settleRequest(requestOrdinal, {
-                ...EMPTY_USAGE,
-                input: reported.inputTokens,
-                cachedInput: reported.cachedTokens,
-                output: reported.outputTokens,
-                modelCalls: 1,
-                ...(reported.costUsd !== undefined && { costUsd: Number(reported.costUsd) }),
-              }),
+              spec.meter.settleRequest(
+                requestOrdinal,
+                {
+                  ...EMPTY_USAGE,
+                  ...(outcome.kind === 'ambiguous' && {
+                    input: maximum.inputTokens,
+                    output: maximum.outputTokens,
+                    modelCalls: 1,
+                    estimated: true,
+                    ...(maximum.costUsd !== undefined && { costUsd: Number(maximum.costUsd) }),
+                  }),
+                  ...(reported !== undefined && {
+                    input: reported.inputTokens,
+                    cachedInput: reported.cachedTokens,
+                    output: reported.outputTokens,
+                    modelCalls: 1,
+                    ...(reported.costUsd !== undefined && { costUsd: Number(reported.costUsd) }),
+                  }),
+                  ...(outcome.kind === 'released' && { costUsd: 0 }),
+                },
+                true,
+              ),
             )
+            await meterWrites
           }
         },
       })

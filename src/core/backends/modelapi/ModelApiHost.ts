@@ -28,6 +28,7 @@ import {
   type StructuredOutputDeps,
 } from './structuredOutput'
 import { notify } from '../../events/notify'
+import type { ResponseAttemptOutcome } from './transport'
 import { isParallelRead, scheduleTools } from './toolScheduler'
 import { RepeatGuard, toolRepeatKey } from './repeatGuard'
 import { recordPaidUse } from '../../paid/paidFeatures'
@@ -2632,7 +2633,15 @@ export class ModelApiSession implements ScheduledAgentSession {
    * at that model's rates, whatever the session switched to meanwhile.
    */
   private sendingModelId: string | undefined
-  private settleWorkerUsage: ((usage: SubagentUsage) => void) | undefined
+  private workerAttempt:
+    | {
+        readonly settle: (outcome: ResponseAttemptOutcome) => void | Promise<void>
+        isSent: boolean
+        isRefused: boolean
+        hasStarted: boolean
+        usage?: SubagentUsage
+      }
+    | undefined
   private sendingContextModel: ContextModel | undefined
   private isSendingCompaction = false
   private previousCacheUsage: { readonly modelId: string; readonly inputTokens: number } | undefined
@@ -3904,7 +3913,24 @@ export class ModelApiSession implements ScheduledAgentSession {
    * as spent. One that never went out, or that Meta explicitly refused
    * before its response began, cost nothing.
    */
-  private async endRequest(): Promise<void> {
+  private async endRequest(isWorkerAttemptOnly = false): Promise<void> {
+    const worker = this.workerAttempt
+    // Consume before persistence: cleanup cannot report the same outcome twice.
+    this.workerAttempt = undefined
+    if (worker !== undefined) {
+      try {
+        await worker.settle(
+          worker.usage === undefined
+            ? { kind: worker.isSent && !worker.isRefused ? 'ambiguous' : 'released' }
+            : { kind: 'billed', usage: worker.usage },
+        )
+      } finally {
+        // Ordinary budget cleanup still runs if worker persistence failed.
+        if (!isWorkerAttemptOnly) await this.endRequest()
+      }
+      return
+    }
+    if (isWorkerAttemptOnly) return
     const reservation = this.openReservation
     if (!this.hasRecordedCall && this.recordedCall !== undefined) {
       const stoppedOutcome =
@@ -3987,6 +4013,8 @@ export class ModelApiSession implements ScheduledAgentSession {
     const isRefused =
       isModelApiError(error) &&
       (error.status === HTTP_STATUS.badRequest || error.status === HTTP_TOO_MANY_REQUESTS)
+    if (this.workerAttempt !== undefined)
+      this.workerAttempt.isRefused ||= !this.workerAttempt.hasStarted && isRefused
     if (isRefused && this.recordedCall !== undefined && reservation?.hasStarted !== true) {
       this.recordedCall = { ...this.recordedCall, outcome: 'refused' }
     }
@@ -4808,8 +4836,6 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (this.isSubagent) paidFeature = 'subagents'
     else if (this.active?.confirmedRequest !== undefined) paidFeature ??= 'scheduledPrompts'
     let paidEstimatedInputTokens: number | undefined
-    let hasWorkerClaim = false
-    let settleWorkerUsage: ((usage: SubagentUsage) => void) | undefined
     if (
       (this.client.hasPaidDailyBudget || this.active?.scheduleRun !== undefined) &&
       (paidFeature !== undefined || directBudget !== undefined)
@@ -4820,9 +4846,11 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     return Object.assign(guard, {
       prepare: async () => {
+        // Finish the previous retry/rebuild before admitting a fresh maximum.
+        await this.endRequest(true)
         await this.deps.admitResponseAttempt?.prepare?.()
         const reserve = this.deps.admitResponseAttempt?.reserveUsage
-        if (reserve === undefined || hasWorkerClaim) return
+        if (reserve === undefined) return
         // M82's same upper bound: one token per serialized UTF-8 byte;
         // media uses its calibrated bound. No cache discount is assumed.
         const inputTokens = estimateInput(
@@ -4832,8 +4860,8 @@ export class ModelApiSession implements ScheduledAgentSession {
         const outputTokens = body.max_output_tokens
         const costUsd = resolved.price.reserve({ inputTokens, outputTokens })
         const claim = await reserve({ inputTokens, outputTokens, costUsd })
-        if (typeof claim === 'function') settleWorkerUsage = claim
-        hasWorkerClaim = true
+        if (typeof claim === 'function')
+          this.workerAttempt = { settle: claim, isSent: false, isRefused: false, hasStarted: false }
       },
       observe: (observation: ResponseObservation) => {
         if (directBudget !== undefined || this.recordedCall === undefined) {
@@ -4872,8 +4900,6 @@ export class ModelApiSession implements ScheduledAgentSession {
           reservation.hasTerminalSearchCount = true
       },
       onRequestStarted: () => {
-        // Retry dispatches retain the same claim; a new request owns a new one.
-        this.settleWorkerUsage = settleWorkerUsage
         this.noteVaultRequest(body)
         if (!isCompaction && directBudget === undefined) {
           const turnIds = this.replay.map((entry) => entry.turnId)
@@ -4906,6 +4932,7 @@ export class ModelApiSession implements ScheduledAgentSession {
           directBudget.isSent = true
         }
         this.deps.admitResponseAttempt?.onRequestStarted?.()
+        if (this.workerAttempt !== undefined) this.workerAttempt.isSent = true
         const turn = this.active
         if (
           turnId === undefined ||
@@ -4933,6 +4960,10 @@ export class ModelApiSession implements ScheduledAgentSession {
   /** A client-generated 429 refusal admitted no work, so this claim can retry. */
   private allowRateLimitedRetry(notice: RetryNotice): void {
     const reservation = this.openReservation
+    if (this.workerAttempt !== undefined)
+      this.workerAttempt.isRefused = notice.reason.startsWith(
+        `HTTP ${String(HTTP_TOO_MANY_REQUESTS)}:`,
+      )
     if (this.wasCallSent && !notice.reason.startsWith(`HTTP ${String(HTTP_TOO_MANY_REQUESTS)}:`)) {
       this.hasAmbiguousCallAttempt = true
     }
@@ -5241,10 +5272,8 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     // An attempt's tally prices the request at the model it was sent to, as the
     // budget does, whatever the session switched to meanwhile (M82).
-    const settleWorkerUsage = this.settleWorkerUsage
-    this.settleWorkerUsage = undefined
     const reported = {
-      ...((settleWorkerUsage !== undefined || sentModelId.includes('/')) && {
+      ...((this.workerAttempt !== undefined || sentModelId.includes('/')) && {
         ...billable,
         costUsd: cost,
       }),
@@ -5252,10 +5281,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       outputTokens: billable.outputTokens,
       cachedTokens: billable.cachedTokens ?? 0,
     }
-    if (settleWorkerUsage !== undefined)
-      this.notifyUsage(() => {
-        settleWorkerUsage(reported)
-      })
+    if (this.workerAttempt !== undefined) this.workerAttempt.usage = reported
     this.notifyUsage(() => this.deps.noteResponseUsage?.(sentModelId, reported))
     this.emitUsage()
     this.noteContext(usage.input_tokens + usage.output_tokens)
@@ -6029,6 +6055,7 @@ export class ModelApiSession implements ScheduledAgentSession {
           : this.client
       ).streamResponse(body, signal, onRetry, budget, admitAttempt, confirmedRequest)
       for await (const event of responseStream) {
+        if (this.workerAttempt !== undefined) this.workerAttempt.hasStarted = true
         if (reservation !== undefined) {
           reservation.hasStarted = true
         }
@@ -14228,6 +14255,10 @@ export class ModelApiSession implements ScheduledAgentSession {
             extraAdmission?.(keyDigest)
           },
           {
+            prepare: async () => {
+              await admitAttempt.prepare?.()
+              await extraAdmission?.prepare?.()
+            },
             onRequestStarted: () => {
               attemptState.didSend = true
               admitAttempt.onRequestStarted?.()
@@ -14280,6 +14311,7 @@ export class ModelApiSession implements ScheduledAgentSession {
             next = await unlessStopped(responseStream.next(), signal)
           ) {
             const event = next.value
+            if (this.workerAttempt !== undefined) this.workerAttempt.hasStarted = true
             if (reservation !== undefined) reservation.hasStarted = true
             if (event.type === 'response.completed') response = event.response
             attemptState.usage = this.collectedUsage(event) ?? attemptState.usage

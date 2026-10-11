@@ -4,7 +4,7 @@
 // git or the disk.
 
 import { beforeAll, describe, expect, it, vi } from 'vitest'
-import { createTeamHostService } from '../../src/core/team/teamHost'
+import { createTeamHostService, TEAM_TASKS_STATE_KEY } from '../../src/core/team/teamHost'
 import type {
   TeamCardItem,
   TeamHostServiceDeps,
@@ -13,7 +13,7 @@ import type {
   TeamWorkerOutcome,
 } from '../../src/core/team/teamHostService'
 import type { TeamToolContext, TeamToolResult } from '../../src/core/team/teamSeams'
-import type { TeamPoolEntry, TeamRoleConfig, TeamSnapshot } from '../../src/shared/team'
+import type { TeamCap, TeamPoolEntry, TeamRoleConfig, TeamSnapshot } from '../../src/shared/team'
 import { TEAM_WORKSPACE_KEYS, decideTeamConversationMode } from '../../src/shared/teamConversation'
 import { TeamHostBinding } from '../../src/host/teamHostBinding'
 import type { EngineTeamPortsDeps } from '../../src/host/team/teamEnginePorts'
@@ -21,6 +21,7 @@ import { TEAM_MODEL_TEXT, UI_TEXT } from '../../src/shared/constants'
 
 const ORCHESTRATOR = 'muse-spark-1.3'
 const WORKER_MODEL = 'other-model-7'
+const LIFETIME_SPEND_CAP = { measure: 'spendUsd', window: 'lifetime', amount: 2 } satisfies TeamCap
 
 // The first merge loads the lazy merge flow; warm it so no test's settle
 // budget pays the transform cost (production loads the built chunk instead).
@@ -1445,11 +1446,7 @@ describe('RVCM963C ownership redesign', () => {
 })
 
 it('R4-2: late per-request settlement preserves known tokens and other uncertain requests', async () => {
-  const h = harness(
-    team([
-      keyEntry('e1', WORKER_MODEL, 1, [{ measure: 'spendUsd', window: 'lifetime', amount: 2 }]),
-    ]),
-  )
+  const h = harness(team([keyEntry('e1', WORKER_MODEL, 1, [LIFETIME_SPEND_CAP])]))
   const service = createTeamHostService(h.deps)
   await service.probeEntries()
   await service.teamRunner.delegate(delegateOne, context())
@@ -1516,4 +1513,66 @@ it('R4-merge: a missing lazy bundle refuses without hanging the card', async () 
     vi.doUnmock('../../src/core/team/teamMergeFlow')
   }
   await service.dispose()
+})
+
+it('R6 release: revocation during durable admission releases the never-dispatched claim', async () => {
+  const h = harness(team([keyEntry('e1', WORKER_MODEL, 1, [LIFETIME_SPEND_CAP])]))
+  let isRevoked = false
+  const service = createTeamHostService({
+    ...h.deps,
+    state: {
+      ...h.deps.state,
+      update: async (key, value) => {
+        await h.deps.state.update(key, value)
+        if (isRevoked) h.controls.isTrusted = false
+      },
+    },
+  })
+  try {
+    await service.probeEntries()
+    await service.teamRunner.delegate(delegateOne, context())
+    isRevoked = true
+    await expect(
+      h.started[0]?.meter.reserveRequest({ ...usage(80), costUsd: 0.75 }),
+    ).rejects.toThrow()
+    expect(service.tree()?.roles[0]?.entries[0]?.caps[0]?.used).toBe(0)
+    expect(h.values.get(TEAM_TASKS_STATE_KEY)).toMatchObject({ tasks: [{ claims: [] }] })
+  } finally {
+    await service.dispose()
+  }
+})
+
+it('R6 final claims: unknown-priced receipt retains labelled liability with no open reservation', async () => {
+  const h = harness(team([keyEntry('e1', WORKER_MODEL, 1, [LIFETIME_SPEND_CAP])]))
+  const service = createTeamHostService(h.deps)
+  try {
+    await service.probeEntries()
+    await service.teamRunner.delegate(delegateOne, context())
+    const meter = h.started[0]?.meter
+    if (meter === undefined) throw new Error('worker missing')
+    const claim = await meter.reserveRequest({ ...usage(80, 20), estimated: true, costUsd: 0.75 })
+    await meter.settleRequest(claim, usage(12, 3), true)
+    h.finish(0, { usage: { ...usage(0), modelCalls: 0, costUsd: 0 } })
+    await settle()
+    expect(service.tree()?.roles[0]?.entries[0]?.caps[0]).toMatchObject({
+      used: 0.75,
+      estimated: true,
+    })
+    expect(h.values.get(TEAM_TASKS_STATE_KEY)).toMatchObject({
+      tasks: [{ claims: [{ isSettled: true }] }],
+    })
+    const restored = createTeamHostService(h.deps)
+    try {
+      expect(restored.tree()?.roles[0]?.entries[0]?.caps[0]).toMatchObject({
+        used: 0.75,
+        estimated: true,
+      })
+      await restored.resetEntry('e1')
+      expect(restored.tree()?.roles[0]?.entries[0]?.caps[0]?.used).toBe(0)
+    } finally {
+      await restored.dispose()
+    }
+  } finally {
+    await service.dispose()
+  }
 })
