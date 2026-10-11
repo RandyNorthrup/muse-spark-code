@@ -1938,7 +1938,9 @@
     "rolledUpSessionExcluded": "Zusammengefasste Verläufe sind in den Summen und der Aufschlüsselung dieser Sitzung nicht enthalten.",
     "journalIncomplete": "Das Nutzungsjournal enthält beschädigte, unvollständige oder neuere Einträge; Summen schließen sie aus.",
     "sessionUsageUnavailable": "Die Nutzung dieser Sitzung ist im gespeicherten Journal nicht zuordenbar; Token- und Kostensummen sind nicht verfügbar.",
-    "budgetsUnavailable": "Budgetaufnahmen für den gewählten Zeitraum sind nicht verfügbar."
+    "budgetsUnavailable": "Budgetaufnahmen für den gewählten Zeitraum sind nicht verfügbar.",
+    "sessionModelUnavailable": "Der Sitzungskatalog nennt kein aktives Modell, daher wird das Modell als unbekannt gemeldet.",
+    "duplicateOpenQuestion": "Diese offene Frage-ID ist in PLAN.md doppelt vorhanden (Planproblem)."
   },
   "reportRowsMore": {
     "one": "{count} weitere Zeile",

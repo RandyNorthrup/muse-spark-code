@@ -1966,7 +1966,9 @@
     "rolledUpSessionExcluded": "L’historique cumulé est exclu des totaux et du détail de cette session.",
     "journalIncomplete": "Le journal contient des entrées endommagées, incomplètes ou de version plus récente ; les totaux les excluent.",
     "sessionUsageUnavailable": "L’utilisation de cette session ne peut pas être attribuée dans le journal conservé ; les totaux de jetons et de coûts sont indisponibles.",
-    "budgetsUnavailable": "Les instantanés de budget pour la période sélectionnée sont indisponibles."
+    "budgetsUnavailable": "Les instantanés de budget pour la période sélectionnée sont indisponibles.",
+    "sessionModelUnavailable": "Le catalogue de session ne nomme aucun modèle actif ; le modèle est donc signalé comme inconnu.",
+    "duplicateOpenQuestion": "Cet identifiant de question ouverte est dupliqué dans PLAN.md (problème de plan)."
   },
   "reportRowsMore": {
     "one": "{count} ligne de plus",

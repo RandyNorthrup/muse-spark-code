@@ -1966,7 +1966,9 @@
     "rolledUpSessionExcluded": "O histórico acumulado está excluído dos totais e do detalhamento desta sessão.",
     "journalIncomplete": "O registro contém entradas danificadas, incompletas ou de uma versão mais recente; os totais as excluem.",
     "sessionUsageUnavailable": "O uso desta sessão não pode ser atribuído no registro preservado; os totais de tokens e custos estão indisponíveis.",
-    "budgetsUnavailable": "Os registros de orçamento do período selecionado estão indisponíveis."
+    "budgetsUnavailable": "Os registros de orçamento do período selecionado estão indisponíveis.",
+    "sessionModelUnavailable": "O catálogo da sessão não nomeia nenhum modelo ativo, por isso o modelo é relatado como desconhecido.",
+    "duplicateOpenQuestion": "Este ID de pergunta aberta está duplicado em PLAN.md (problema do plano)."
   },
   "reportRowsMore": {
     "one": "Mais {count} linha",
