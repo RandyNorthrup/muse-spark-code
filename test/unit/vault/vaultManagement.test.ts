@@ -105,6 +105,24 @@ describe('C-M109-1 keyring rollback anchor', () => {
     }))
     await expect(anchor.vaultId()).rejects.toBeInstanceOf(VaultStoreUnavailableError)
   })
+  it('resets exactly this vault by compare-and-delete and refuses another vault (round-3 anchor)', async () => {
+    const keyring = memoryKeyring()
+    const anchor = new KeyringVaultAnchor(keyring.factory)
+    const vaultId = 'a'.repeat(32)
+    const state = {
+      generation: 1,
+      auditGeneration: 0,
+      auditHead: '0'.repeat(64),
+      stateDigest: '1'.repeat(64),
+    }
+    // No record: reset is a no-op, never a failure.
+    await anchor.reset(vaultId)
+    await anchor.advance(vaultId, state, null)
+    await expect(anchor.reset('b'.repeat(32))).rejects.toMatchObject({ code: 'rollback' })
+    expect(await anchor.vaultId()).toBe(vaultId)
+    await anchor.reset(vaultId)
+    expect(await anchor.vaultId()).toBeNull()
+  })
 })
 
 describe('C-M109-1 setup flow and management', () => {
