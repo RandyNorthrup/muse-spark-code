@@ -6951,6 +6951,9 @@ export const EVAL_COST_DECIMALS = 4
 // How far above the working directory the frozen arm digest looks for the
 // repository root before failing closed (review RVCM1012B).
 export const EVAL_ARM_SOURCE_SEARCH_DEPTH = 12
+// A frozen arm computes configuration only; it never runs a model turn.
+export const EVAL_ARM_PROCESS_TIMEOUT_MS = 2000
+export const EVAL_ARM_OUTPUT_MAX_BYTES = 1_048_576
 
 // --- Bring-your-own model providers (M95, PLAN.md D74) ---
 //

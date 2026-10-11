@@ -33,6 +33,8 @@ import type {
   EvalTaskResult,
 } from './report'
 import { evalWindowTokens, type EvalTask } from './tasks'
+import { freezeEvalHarness, frozenBundleChange } from './mechanisms'
+import type { ArmBundle } from './armSources'
 import { createEvalWire, wireTotals, type EvalBudget, type EvalWire } from './wire'
 import {
   createEvalWorkspace,
@@ -44,6 +46,8 @@ import {
 
 export interface EvalArm {
   readonly name: string
+  /** Frozen program entry; source is bundled, never imported by the parent. */
+  readonly program?: string | undefined
   /** What the arm changes, for the report; absent on the baseline. */
   readonly mechanism?: string | undefined
   readonly change?: EvalHostChange | undefined
@@ -104,6 +108,7 @@ async function step<T>(
 async function runInFolders(
   task: EvalTask,
   arm: EvalArm,
+  bundle: ArmBundle | undefined,
   deps: EvalRunDeps,
   wire: EvalWire,
   folders: EvalFolders,
@@ -124,7 +129,7 @@ async function runInFolders(
       },
       workspace: folders.workspace,
       prompt: task.prompt,
-      change: arm.change,
+      change: bundle === undefined ? arm.change : frozenBundleChange(bundle),
       // The window is harness condition, shared by both arms of the pair
       // (M101 R2): the evaluation window on a long-context task, the
       // shipped window otherwise.
@@ -151,6 +156,7 @@ async function runInFolders(
 async function runTask(
   task: EvalTask,
   arm: EvalArm,
+  bundle: ArmBundle | undefined,
   deps: EvalRunDeps,
   budget: EvalBudget,
   order: number,
@@ -164,7 +170,9 @@ async function runTask(
     evalWorkspaceFailureForReport,
   )
   const outcome =
-    folders === undefined ? undefined : await runInFolders(task, arm, deps, wire, folders, steps)
+    folders === undefined
+      ? undefined
+      : await runInFolders(task, arm, bundle, deps, wire, folders, steps)
   // The report is committed: the temporary path (under the owner's
   // profile) is masked wherever a reason carries it.
   const root = folders?.root
@@ -254,10 +262,15 @@ export async function runPairedEval(
   deps: EvalRunDeps,
 ): Promise<EvalReport> {
   const budget: EvalBudget = { spentUsd: Usd.from(0).toAmount() }
-  const runs = arms.map((arm) => ({ arm, results: [] as EvalTaskResult[] }))
+  const frozen = freezeEvalHarness(arms, tasks)
+  const runs = arms.map((arm) => ({
+    arm,
+    bundle: frozen.bundles.get(arm.name),
+    results: [] as EvalTaskResult[],
+  }))
   for (const [index, task] of tasks.entries()) {
     for (const [position, run] of runOrder(runs, index).entries()) {
-      run.results.push(await runTask(task, run.arm, deps, budget, position + 1))
+      run.results.push(await runTask(task, run.arm, run.bundle, deps, budget, position + 1))
     }
   }
   const reports: EvalArmReport[] = runs.map(({ arm, results }) => ({
@@ -283,6 +296,7 @@ export async function runPairedEval(
     version: EVAL_REPORT_VERSION,
     model: EVAL_MODEL_ID,
     generatedAt: deps.generatedAt,
+    ...(frozen.bundles.size === arms.length && { harnessDigest: frozen.sha256 }),
     arms: reports,
     floors,
     verdict: verdictOf(floors),

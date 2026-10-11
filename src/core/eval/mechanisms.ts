@@ -1,37 +1,35 @@
-// The M75 arms beyond the baseline (PLAN.md D49): one per token-saving
-// mechanism. Each is a change to the harness's own dependencies
-// (`EvalHostChange`), so the two arms of a pair differ in that alone. M73
-// adds observation packing; M74 adds its compaction with its own run; M101
-// item 24 adds strict tool schemas for a capable selected model.
-//
-// `EVAL_ARMS` is the frozen set the counted run uses: arms before it run no
-// counted model call, and `evalHarnessDigest` names the exact frozen bytes
-// (each arm's name, mechanism and change source; every task id, split,
-// prompt, file, verifier, long flag and resolved window; the verifier
-// prelude, the window rule's source, the held-deps list and the frozen
-// window and approval-mode defaults), so lane E's run proves it ran this
-// set unchanged. Multi-edit
-// (item 20) has no host seam to differ on — `edits[]` is always declared —
-// so its pair is task-level: the frozen multi-edit tasks below, each-capable
-// proof that one `edits[]` call and repeated single edits both fix them.
+// Frozen M75 arms (PLAN.md M101): each pure program runs only inside the
+// restricted child. Adapter and harness conditions are declared fixtures;
+// production code under test remains outside the freeze.
 
 import { createHash } from 'node:crypto'
 import type { ResponseAttemptGuard } from '../backends/modelapi/transport'
-import { CONSERVATIVE_CAPABILITIES } from '../providers/capabilities'
-import { FORMAT_QUIRKS } from '../providers/presets'
 import {
   EVAL_APPROVAL_MODE,
   MODEL_API_CONTEXT_WINDOW,
   OBS_PACK_THRESHOLD_CHARS,
   OBS_PACK_WHOLE_SENDS,
 } from '../../shared/constants'
-import { canonicalize, collectArmSources } from './armSources'
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
+import * as z from 'zod/mini'
+import {
+  armRepoRoot,
+  buildArmBundle,
+  canonicalize,
+  executeArmBundle,
+  type ArmBundle,
+  type ArmFixture,
+} from './armSources'
+import type { EvalHostChange } from './driver'
 import { EVAL_HELD_DEPS } from './heldDeps'
 import type { EvalArm } from './runner'
-import { EVAL_TASKS, EVAL_VERIFY_PRELUDE, evalWindowTokens } from './tasks'
+import { EVAL_TASKS, EVAL_VERIFY_PRELUDE, evalWindowTokens, type EvalTask } from './tasks'
+
+const ARM_PROGRAM = 'src/core/eval/armDefinitions.ts'
 
 /** The paired run's control: the harness as it ships, changed in nothing. */
-export const BASELINE_ARM: EvalArm = { name: 'baseline' }
+export const BASELINE_ARM: EvalArm = { name: 'baseline', program: ARM_PROGRAM }
 
 /**
  * Observation packing (M73): the eval host packs as the shipped host does
@@ -42,7 +40,8 @@ export const BASELINE_ARM: EvalArm = { name: 'baseline' }
 export const OBSERVATION_PACKING_ARM: EvalArm = {
   name: 'packing',
   mechanism: `observation packing (M73): a tool result over ${String(OBS_PACK_THRESHOLD_CHARS)} characters rides whole for ${String(OBS_PACK_WHOLE_SENDS)} requests, then as a placeholder with its id, size and first and last lines; recall_output pages the original back`,
-  change: (deps) => ({ ...deps, observationPacking: () => true }),
+  program: ARM_PROGRAM,
+  change: frozenChange('packing'),
 }
 
 /**
@@ -60,15 +59,8 @@ export const AUTO_COMPACTION_ARM: EvalArm = {
   name: 'auto-compaction',
   mechanism:
     'automatic compaction (M74): the eval host compacts at a settled tool boundary as evaluated, with an evaluation admission that admits and settles every extra attempt without charge',
-  change: (deps) => ({
-    ...deps,
-    autoCompaction: () => true,
-    autoCompactionEvaluated: () => true,
-    admitAutoCompaction: () => {
-      const guard: ResponseAttemptGuard = Object.assign(noop, {})
-      return Promise.resolve({ guard, settle: noop })
-    },
-  }),
+  program: ARM_PROGRAM,
+  change: frozenChange('auto-compaction'),
 }
 
 /**
@@ -79,13 +71,8 @@ export const AUTO_COMPACTION_ARM: EvalArm = {
 export const STRICT_TOOLS_ARM: EvalArm = {
   name: 'strict-tools',
   mechanism: 'M101 strict-subset schemas for a capable selected model',
-  change: (deps) => ({
-    ...deps,
-    modelFacts: () => ({
-      capabilities: { ...CONSERVATIVE_CAPABILITIES, supportsStrictTools: true },
-      quirks: FORMAT_QUIRKS.responses,
-    }),
-  }),
+  program: ARM_PROGRAM,
+  change: frozenChange('strict-tools'),
 }
 
 /** A void callback for the evaluation admission: it admits and settles without charge. */
@@ -101,54 +88,109 @@ export const EVAL_ARMS: readonly [EvalArm, ...EvalArm[]] = [
   STRICT_TOOLS_ARM,
 ]
 
-/**
- * The frozen harness in one hash: every arm's name, mechanism and change
- * source with every task's id, split, title, prompt, files, verifier, long
- * flags and resolved window, in run order, beside the harness conditions
- * that decide a run's behaviour (the verifier prelude, the window rule's
- * source, the held-deps list and the frozen window and approval-mode
- * defaults) and the arms' source closure (`src/core/eval/armSources.ts`):
- * every file the arms' imports reach — harness-owned or outside, pinned
- * dependency or helper — by bytes, resolved by the real bundler. A run
- * records it beside its report; a changed harness hashes differently, so
- * no counted run can silently run a different set. A behaviour change
- * that keeps every name and description (flipping the arm's latch,
- * narrowing strict tools, shrinking the window, rewriting an arm helper
- * the callback only references, or changing an accessor implementation
- * behind a value the arm reads) still moves this digest through the
- * change source, the prelude, the rule source or the source closure.
- */
-export function evalHarnessDigest(): string {
-  const canonical = JSON.stringify(
-    canonicalize(
-      {
-        arms: EVAL_ARMS.map((arm) => ({
-          name: arm.name,
-          mechanism: arm.mechanism ?? null,
-          change: arm.change?.toString() ?? null,
-        })),
-        armSources: collectArmSources(),
-        tasks: EVAL_TASKS.map((task) => ({
-          id: task.id,
-          split: task.split,
-          title: task.title,
-          prompt: task.prompt,
-          files: task.files,
-          verify: task.verify,
-          isLongOutput: task.isLongOutput ?? false,
-          isLongContext: task.isLongContext ?? false,
-          windowTokens: evalWindowTokens(task) ?? null,
-        })),
-        harness: {
-          prelude: EVAL_VERIFY_PRELUDE,
-          windowRule: evalWindowTokens.toString(),
-          heldDeps: [...EVAL_HELD_DEPS],
-          defaultWindowTokens: MODEL_API_CONTEXT_WINDOW,
-          approvalMode: EVAL_APPROVAL_MODE,
-        },
+/** The only host options a frozen program may return; held dependencies are unrepresentable. */
+const armOptionsSchema = z.strictObject({
+  name: z.string(),
+  observationPacking: z.optional(z.boolean()),
+  autoCompaction: z.optional(z.boolean()),
+  autoCompactionEvaluated: z.optional(z.boolean()),
+  evaluationAdmission: z.optional(z.boolean()),
+  modelFacts: z.optional(
+    z.strictObject({
+      capabilities: z.strictObject({
+        toolCalling: z.boolean(),
+        vision: z.boolean(),
+        reasoning: z.boolean(),
+        parallelToolCalls: z.boolean(),
+        supportsStrictTools: z.optional(z.boolean()),
+      }),
+      quirks: z.strictObject({ cachedUsageFields: z.array(z.string()) }),
+    }),
+  ),
+})
+
+/** Execute the frozen snapshot, validate the child boundary, then adapt its data. */
+export function frozenBundleChange(bundle: ArmBundle): EvalHostChange {
+  const options = armOptionsSchema.parse(executeArmBundle(bundle))
+  if (options.name !== bundle.name) throw new Error('the frozen arm returned a different name')
+  return (deps) => ({
+    ...deps,
+    ...(options.observationPacking !== undefined && {
+      observationPacking: () => options.observationPacking === true,
+    }),
+    ...(options.autoCompaction !== undefined && {
+      autoCompaction: () => options.autoCompaction === true,
+    }),
+    ...(options.autoCompactionEvaluated !== undefined && {
+      autoCompactionEvaluated: () => options.autoCompactionEvaluated === true,
+    }),
+    ...(options.evaluationAdmission === true && {
+      admitAutoCompaction: () => {
+        const guard: ResponseAttemptGuard = Object.assign(noop, {})
+        return Promise.resolve({ guard, settle: noop })
       },
-      'evalHarnessDigest',
-    ),
+    }),
+    ...(options.modelFacts !== undefined && { modelFacts: () => options.modelFacts }),
+  })
+}
+
+/** Direct driver tests use the same restricted program; the paired runner owns its snapshot. */
+function frozenChange(name: string): EvalHostChange {
+  return (deps) =>
+    frozenBundleChange(buildArmBundle(path.join(armRepoRoot(), ARM_PROGRAM), name))(deps)
+}
+
+export interface FrozenEvalHarness {
+  readonly bundles: ReadonlyMap<string, ArmBundle>
+  readonly sha256: string
+}
+
+/** Freeze once before the run. Source adapters are explicit fixtures, never a discovered closure. */
+export function freezeEvalHarness(
+  arms: readonly EvalArm[] = EVAL_ARMS,
+  tasks: readonly EvalTask[] = EVAL_TASKS,
+): FrozenEvalHarness {
+  const repo = armRepoRoot()
+  const fixtures: ArmFixture[] = ['armSources', 'mechanisms', 'runner', 'heldDeps', 'tasks'].map(
+    (file) => ({
+      path: `${file}.ts`,
+      bytes: readFileSync(path.join(repo, 'src/core/eval', `${file}.ts`)),
+    }),
   )
-  return createHash('sha256').update(canonical, 'utf8').digest('hex')
+  const conditions = canonicalize(
+    {
+      tasks: tasks.map((task) => ({ ...task, windowTokens: evalWindowTokens(task) ?? null })),
+      harness: {
+        prelude: EVAL_VERIFY_PRELUDE,
+        heldDeps: [...EVAL_HELD_DEPS],
+        defaultWindowTokens: MODEL_API_CONTEXT_WINDOW,
+        approvalMode: EVAL_APPROVAL_MODE,
+      },
+    },
+    'evalHarnessDigest',
+  )
+  fixtures.push({ path: 'conditions.json', bytes: Buffer.from(JSON.stringify(conditions), 'utf8') })
+  const bundles = new Map<string, ArmBundle>()
+  for (const arm of arms) {
+    const program =
+      arm.program ??
+      (arm.name === BASELINE_ARM.name && arm.change === undefined ? ARM_PROGRAM : undefined)
+    if (program === undefined) continue // Unfrozen callbacks are fake-test seams; no frozen receipt.
+    if (bundles.has(arm.name)) throw new Error(`repeated frozen evaluation arm: ${arm.name}`)
+    bundles.set(arm.name, buildArmBundle(path.resolve(repo, program), arm.name, fixtures))
+  }
+  const receipt = arms.map((arm) => ({
+    name: arm.name,
+    mechanism: arm.mechanism ?? null,
+    sha256: bundles.get(arm.name)?.sha256 ?? null,
+  }))
+  return {
+    bundles,
+    sha256: createHash('sha256').update(JSON.stringify(receipt), 'utf8').digest('hex'),
+  }
+}
+
+/** SHA-256 of exactly the bundle and declared fixture bytes the counted run executes. */
+export function evalHarnessDigest(): string {
+  return freezeEvalHarness().sha256
 }

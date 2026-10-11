@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync } from 'node:fs'
+import { existsSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -14,9 +14,12 @@ import {
 } from '../../../src/shared/constants'
 import {
   AUTO_COMPACTION_ARM,
+  BASELINE_ARM,
+  freezeEvalHarness,
   OBSERVATION_PACKING_ARM,
   STRICT_TOOLS_ARM,
 } from '../../../src/core/eval/mechanisms'
+import { evalReportSchema } from '../../../src/core/eval/report'
 import { runPairedEval, type EvalArm, type EvalRunDeps } from '../../../src/core/eval/runner'
 import { EVAL_TASKS, evalTasksOfSplit, type EvalTask } from '../../../src/core/eval/tasks'
 import { listWorkspaceFiles } from '../../../src/core/eval/workspace'
@@ -49,7 +52,7 @@ const RUNS_TIMEOUT_MS = 120_000
 const BUDGET_BREAKING_INPUT_TOKENS = 10_000_000
 
 beforeAll(() => {
-  temporary.scratch = mkdtempSync(path.join(tmpdir(), 'muse-eval-runner-'))
+  temporary.scratch = realpathSync(mkdtempSync(path.join(tmpdir(), 'muse-eval-runner-')))
 })
 
 afterAll(async () => {
@@ -371,6 +374,98 @@ describe('runPairedEval', { timeout: RUNS_TIMEOUT_MS }, () => {
     api.script({ httpError: { status: 429 } }, ...canonical(task))
     const report = await runPairedEval([task], [BASELINE], deps)
     expect(report.arms[0]?.results[0]).toMatchObject({ passed: true, attempts: 4, requests: 4 })
+  })
+
+  it('reports restricted arm failures before dispatch and removes every task folder', async () => {
+    const { api, deps, roots } = rig()
+    const program = path.join(temporary.scratch, 'blocked-arm.ts')
+    writeFileSync(
+      program,
+      "import { readFileSync } from 'node:fs'; export const run = () => readFileSync('undeclared-helper.js', 'utf8')",
+    )
+    const arm: EvalArm = { name: 'blocked-arm', program }
+    const report = await runPairedEval([EVAL_TASKS[0]!], [arm], deps)
+    const result = report.arms[0]!.results[0]!
+    expect(result).toMatchObject({ passed: false, terminal: EVAL_TURN_NOT_RUN, attempts: 0 })
+    expect(result.failures.join('\n')).toContain('ERR_ACCESS_DENIED')
+    expect(api.responseBodies()).toHaveLength(0)
+    expect(roots).toHaveLength(1)
+    expect(roots.some((root) => existsSync(root))).toBe(false)
+    expect(evalReportSchema.parse(report)).toHaveProperty('harnessDigest')
+  })
+
+  it('executes the frozen program instead of a replacement parent callback', async () => {
+    const { api, deps } = rig()
+    const task = EVAL_TASKS[0]!
+    api.script(...canonical(task))
+    const arm: EvalArm = {
+      ...STRICT_TOOLS_ARM,
+      change: () => {
+        throw new Error('parent arm callback must never execute')
+      },
+    }
+    const report = await runPairedEval([task], [arm], deps)
+    expect(report.arms[0]!.results[0]).toMatchObject({ passed: true, attempts: 3 })
+    expect(
+      api.responseBodies().every((body) => JSON.stringify(body).includes('"strict":true')),
+    ).toBe(true)
+    expect(evalReportSchema.parse(report)).toHaveProperty('harnessDigest')
+  })
+
+  it('binds the receipt to the exact selected task fixture data', async () => {
+    const { api, deps } = rig()
+    const original = EVAL_TASKS[0]!
+    const altered: EvalTask = {
+      ...original,
+      prompt: original.prompt + '\nAn extra fixture condition.',
+    }
+    api.script(...canonical(altered))
+    const report = await runPairedEval([altered], [BASELINE_ARM], deps)
+    expect(report.arms[0]!.results[0]).toMatchObject({ passed: true, attempts: 3 })
+    const receipt = evalReportSchema.parse(report)
+    if (receipt.version !== EVAL_REPORT_VERSION) throw new Error('the run returned a legacy report')
+    expect(receipt.harnessDigest).toBe(freezeEvalHarness([BASELINE_ARM], [altered]).sha256)
+    expect(receipt.harnessDigest).not.toBe(freezeEvalHarness([BASELINE_ARM], [original]).sha256)
+  })
+
+  it('holds the same frozen arm bytes when source changes after freeze', async () => {
+    const { api, deps } = rig()
+    const program = path.join(temporary.scratch, 'snapshot-arm.ts')
+    writeFileSync(program, 'export const run = name => ({ name, observationPacking: true })')
+    const task = EVAL_TASKS[0]!
+    api.script(...canonical(task))
+    const report = await runPairedEval([task], [{ name: 'snapshot-arm', program }], {
+      ...deps,
+      toolIo: (workspace) => {
+        writeFileSync(
+          program,
+          "export const run = () => { throw new Error('unfrozen source executed') }",
+        )
+        return deps.toolIo(workspace)
+      },
+    })
+    expect(report.arms[0]!.results[0]).toMatchObject({ passed: true, attempts: 3 })
+    expect(evalReportSchema.parse(report)).toHaveProperty('harnessDigest')
+  })
+
+  it('refuses malformed frozen options and never gives unfrozen callbacks a frozen receipt', async () => {
+    const { api, deps } = rig()
+    const task = EVAL_TASKS[0]!
+    const program = path.join(temporary.scratch, 'invalid-arm.ts')
+    for (const options of [
+      { name: 'invalid-arm', workspaceRoot: '/outside' },
+      { name: 'other-arm' },
+      { name: 'invalid-arm', autoCompaction: 'yes' },
+    ]) {
+      writeFileSync(program, `export const run = () => (${JSON.stringify(options)})`)
+      const report = await runPairedEval([task], [{ name: 'invalid-arm', program }], deps)
+      expect(report.arms[0]!.results[0]).toMatchObject({ passed: false, attempts: 0 })
+      expect(report.arms[0]!.results[0]!.failures).not.toHaveLength(0)
+    }
+    expect(api.responseBodies()).toHaveLength(0)
+    api.script(...canonical(task))
+    const unfrozen = await runPairedEval([task], [RECHECK], deps)
+    expect(unfrozen).not.toHaveProperty('harnessDigest')
   })
 
   it('records a turn that could not start, and still removes its folder', async () => {

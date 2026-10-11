@@ -66,6 +66,18 @@ happened, not what was planned; superseded entries are kept.
   evaluation) is refused with file and line unless the bundler's own
   metafile placed its target in the closure. Re-frozen digest
   `9cfc4744…786278`. No user-facing change; production stays off.
+- **Frozen evaluation executes what it hashes** (M101 CM1012R7,
+  review RVCM1012F). Each arm is one self-contained esbuild Node bundle;
+  its emitted bytes and declared fixture snapshots determine the digest.
+  The runner executes that exact snapshot under Node's permission model,
+  granting reads only to its bundle and fixture files, with workers and
+  child processes denied. Undeclared loads and reads fail the task before
+  model dispatch, regardless of loader spelling. Validated declarative
+  options replace parent arm callbacks for frozen runs; their JSON reports
+  retain the receipt. The static scanner and resolver comparison are gone,
+  literal `.jsx` and absolute `.js` resolution work, and temporary paths are
+  canonical on macOS, Windows and Linux. No user-facing feature change;
+  production automatic compaction stays off.
 - **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
   first governed launch, a **Resources** chip sits beside the heartbeat, or
   above the composer between turns. Its popover shows CPU, memory in use and
