@@ -15,7 +15,7 @@ import type { VaultBrokerEvent, VaultBrokerSnapshot } from '../../../shared/vaul
 import { encodeVaultMaterial } from '../crypto'
 import type { VaultBrokerClient } from './client'
 import type { VaultChannelResponse } from './frames'
-import type { VaultManagementRefusal } from './ports'
+import type { VaultImportReport, VaultManagementRefusal } from './ports'
 
 /** What a host needs of one authenticated connection. */
 export type VaultBrokerConnection = Pick<VaultBrokerClient, 'send' | 'close' | 'watch' | 'closed'>
@@ -39,6 +39,9 @@ export function vaultRefusalMessage(reason: VaultManagementRefusal): string {
     case 'rollback': {
       return UI_TEXT.vault.rollback
     }
+    case 'storeUnavailable': {
+      return UI_TEXT.vault.storeUnavailable
+    }
     case 'invalid':
     case 'io': {
       return UI_TEXT.vault.operationFailed
@@ -55,18 +58,38 @@ function expectOk(response: VaultChannelResponse['response']): void {
 export class VaultManageSession {
   constructor(private readonly connect: VaultConnect) {}
 
-  private async call<T>(work: (client: VaultBrokerConnection) => Promise<T>): Promise<T> {
+  /**
+   * `authorize` runs after the connection is acquired, immediately before the
+   * request that commits is sent: a caller retired while the connection was
+   * pending sends nothing (RVCM1091A F5).
+   */
+  private async call<T>(
+    work: (client: VaultBrokerConnection) => Promise<T>,
+    authorize?: () => void,
+    signal?: AbortSignal,
+  ): Promise<T> {
     const client = await this.connect()
+    const stop = () => {
+      client.close()
+    }
+    signal?.addEventListener('abort', stop, { once: true })
     try {
-      return await work(client)
+      if (signal?.aborted) throw new Error(UI_TEXT.vault.useChanged)
+      authorize?.()
+      const result = await work(client)
+      if (signal?.aborted) throw new Error(UI_TEXT.vault.useChanged)
+      return result
     } finally {
+      signal?.removeEventListener('abort', stop)
       client.close()
     }
   }
-  private async simple(
+  private simple(
     request: Parameters<VaultBrokerConnection['send']>[0],
+    authorize?: () => void,
+    signal?: AbortSignal,
   ): Promise<VaultChannelResponse['response']> {
-    return await this.call(async (client) => await client.send(request))
+    return this.call((client) => client.send(request), authorize, signal)
   }
 
   async snapshot(): Promise<VaultBrokerSnapshot> {
@@ -85,46 +108,75 @@ export class VaultManageSession {
     if (response.kind !== 'audit') throw new Error(UI_TEXT.vault.noAccess)
     return response.records
   }
-  async unlock(slotId: string | null): Promise<void> {
-    expectOk(await this.simple({ kind: 'unlock', slotId }))
+  async unlock(slotId: string | null, authorize?: () => void): Promise<void> {
+    expectOk(await this.simple({ kind: 'unlock', slotId }, authorize))
   }
   async lock(): Promise<void> {
     expectOk(await this.simple({ kind: 'lock' }))
   }
   /** add when the id is new, edit otherwise; the encoded material is erased after sending. */
-  async write(item: VaultItem, isEdit: boolean): Promise<void> {
+  async write(item: VaultItem, isEdit: boolean, authorize?: () => void): Promise<void> {
     const encoded = encodeVaultMaterial(item.material)
     try {
       expectOk(
-        await this.simple({
-          v: VAULT_PROTOCOL_VERSION,
-          kind: isEdit ? 'edit' : 'add',
-          metadata: item.metadata,
-          encoding: 'base64',
-          material: encoded.toString('base64'),
-        }),
+        await this.simple(
+          {
+            v: VAULT_PROTOCOL_VERSION,
+            kind: isEdit ? 'edit' : 'add',
+            metadata: item.metadata,
+            encoding: 'base64',
+            material: encoded.toString('base64'),
+          },
+          authorize,
+        ),
       )
     } finally {
       encoded.fill(0)
     }
   }
-  async editMetadata(metadata: VaultItemMetadata): Promise<void> {
-    expectOk(await this.simple({ kind: 'editMetadata', metadata }))
+  async editMetadata(metadata: VaultItemMetadata, authorize?: () => void): Promise<void> {
+    expectOk(await this.simple({ kind: 'editMetadata', metadata }, authorize))
   }
-  async remove(itemId: string): Promise<void> {
-    expectOk(await this.simple({ kind: 'remove', itemId }))
+  async remove(itemId: string, authorize?: () => void): Promise<void> {
+    expectOk(await this.simple({ kind: 'remove', itemId }, authorize))
   }
-  async grant(grant: VaultGrant): Promise<void> {
-    expectOk(await this.simple({ kind: 'grant', grant }))
+  async grant(grant: VaultGrant, authorize?: () => void): Promise<void> {
+    expectOk(await this.simple({ kind: 'grant', grant }, authorize))
   }
   async revoke(grantId: string): Promise<void> {
     expectOk(await this.simple({ kind: 'revoke', grantId }))
   }
-  async answer(answer: VaultApprovalAnswer): Promise<VaultChannelResponse['response']> {
-    return await this.simple({ kind: 'answer', answer })
+  async answer(
+    answer: VaultApprovalAnswer,
+    authorize?: () => void,
+  ): Promise<VaultChannelResponse['response']> {
+    return await this.simple({ kind: 'answer', answer }, authorize)
   }
-  async importFile(path: string): Promise<void> {
-    expectOk(await this.simple({ kind: 'import', path }))
+  /** The per-item report (metadata only) and the receipt for Keep/Delete. */
+  async importFile(
+    path: string,
+    authorize?: () => void,
+    signal?: AbortSignal,
+  ): Promise<VaultImportReport> {
+    const response = await this.simple({ kind: 'import', path }, authorize, signal)
+    if (response.kind === 'refused') throw new Error(vaultRefusalMessage(response.reason))
+    if (response.kind !== 'imported') throw new Error(UI_TEXT.vault.noAccess)
+    return { receipt: response.receipt, items: response.items }
+  }
+  async keepImport(receipt: string): Promise<void> {
+    expectOk(await this.simple({ kind: 'importKeep', receipt }))
+  }
+  async deleteImport(receipt: string, authorize?: () => void, signal?: AbortSignal): Promise<void> {
+    expectOk(await this.simple({ kind: 'importDelete', receipt }, authorize, signal))
+  }
+  async resetBegin(): Promise<{ resetId: string; word: string }> {
+    const response = await this.simple({ kind: 'resetBegin' })
+    if (response.kind === 'refused') throw new Error(vaultRefusalMessage(response.reason))
+    if (response.kind !== 'resetChallenge') throw new Error(UI_TEXT.vault.noAccess)
+    return { resetId: response.resetId, word: response.word }
+  }
+  async resetConfirm(resetId: string, word: string, authorize?: () => void): Promise<void> {
+    expectOk(await this.simple({ kind: 'resetConfirm', resetId, word }, authorize))
   }
   async publicKey(itemId: string): Promise<string> {
     const response = await this.simple({ kind: 'publicKey', itemId })
@@ -139,8 +191,8 @@ export class VaultManageSession {
     if (response.kind !== 'recoveryCode') throw new Error(UI_TEXT.vault.noAccess)
     return { setupId: response.setupId, code: Buffer.from(response.code, 'ascii') }
   }
-  async confirmSetup(setupId: string): Promise<void> {
-    expectOk(await this.simple({ kind: 'confirmSetup', setupId }))
+  async confirmSetup(setupId: string, authorize?: () => void): Promise<void> {
+    expectOk(await this.simple({ kind: 'confirmSetup', setupId }, authorize))
   }
   async cancelSetup(setupId: string): Promise<void> {
     expectOk(await this.simple({ kind: 'cancelSetup', setupId }))
@@ -155,15 +207,24 @@ export class VaultManageSession {
     )
   }
   /**
-   * Pushed events until `signal` aborts; the stream reconnects after a broker
-   * restart, and each reconnect first reports `changed` so views reload.
+   * Pushed events until `signal` aborts. A stream the broker closes is
+   * reopened after `VAULT_WATCH_RETRY_MS`, and each (re)open first reports
+   * `changed` so views reload. A connection or watch that fails rejects, so
+   * every caller reports it; only cancellation ends quietly (RVCM1091A F7).
    */
   async watch(onEvent: (event: VaultBrokerEvent) => void, signal: AbortSignal): Promise<void> {
     while (!signal.aborted) {
       let client: VaultBrokerConnection
       try {
         client = await this.connect()
-      } catch {
+      } catch (error: unknown) {
+        if (isCancelled(signal)) return
+        throw error
+      }
+      // Cancelled while the connection was being acquired: close the late
+      // resource instead of watching forever (RVCM1091A F8).
+      if (isCancelled(signal)) {
+        client.close()
         return
       }
       const stop = () => {
@@ -174,24 +235,32 @@ export class VaultManageSession {
         await client.watch(onEvent)
         onEvent({ kind: 'changed', v: VAULT_PROTOCOL_VERSION })
         await client.closed()
-      } catch {
-        return
+      } catch (error: unknown) {
+        if (isCancelled(signal)) return
+        throw error
       } finally {
         signal.removeEventListener('abort', stop)
         client.close()
       }
-      // A broker that keeps closing the stream is retried at a bounded pace.
-      await new Promise<void>((resolve) => {
-        const timer = setTimeout(resolve, VAULT_WATCH_RETRY_MS)
-        signal.addEventListener(
-          'abort',
-          () => {
-            clearTimeout(timer)
-            resolve()
-          },
-          { once: true },
-        )
-      })
+      await vaultAbortableDelay(VAULT_WATCH_RETRY_MS, signal)
     }
   }
+}
+
+/** Read through a call: an abort can land during any await (no stale narrowing). */
+export function isCancelled(signal: AbortSignal): boolean {
+  return signal.aborted
+}
+/** Resolves after `ms`, or at once when `signal` aborts. */
+export async function vaultAbortableDelay(ms: number, signal: AbortSignal): Promise<void> {
+  if (signal.aborted) return
+  await new Promise<void>((resolve) => {
+    const done = () => {
+      clearTimeout(timer)
+      signal.removeEventListener('abort', done)
+      resolve()
+    }
+    const timer = setTimeout(done, ms)
+    signal.addEventListener('abort', done, { once: true })
+  })
 }

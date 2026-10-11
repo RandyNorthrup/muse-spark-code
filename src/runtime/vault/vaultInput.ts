@@ -194,6 +194,18 @@ export async function chooseVaultDecision(
         label = UI_TEXT.vault.cancelSetup
         break
       }
+      case 'continue': {
+        label = UI_TEXT.vault.resetContinue
+        break
+      }
+      case 'keep': {
+        label = UI_TEXT.vault.keepFile
+        break
+      }
+      case 'delete': {
+        label = UI_TEXT.vault.deleteFile
+        break
+      }
       default: {
         break
       }

@@ -61,6 +61,10 @@ export function fakeManagement(status: VaultBrokerSnapshot['status']) {
       return Promise.resolve()
     },
     importFile: () => Promise.reject(new VaultManagementError('invalid')),
+    keepImport: () => Promise.reject(new VaultManagementError('invalid')),
+    deleteImport: () => Promise.reject(new VaultManagementError('invalid')),
+    resetBegin: () => Promise.reject(new VaultManagementError('invalid')),
+    resetConfirm: () => Promise.reject(new VaultManagementError('invalid')),
     publicKey: (itemId) => {
       const item = items.get(itemId)
       return item?.publicKey

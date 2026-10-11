@@ -1,0 +1,125 @@
+{
+  "rig": "kubuntu",
+  "results": [
+    {
+      "id": "B1 a committed write completes despite a later Lock",
+      "file": "src/core/vault/store.ts",
+      "test": "test/unit/vault/rvcm1091b.test.ts",
+      "exit": 1,
+      "summary": "Tests  1 failed | 6 passed (7)",
+      "failing": [
+        "FAIL  test/unit/vault/rvcm1091b.test.ts > RVCM1091B part A > 1: a grant committed before a Lock completes, reports success and stays"
+      ],
+      "sha256": {
+        "before": "64530f3e1daa78ab65aaafd01aebf3f1dd55d0678cae47849b53e3d8d1cb11f7",
+        "after": "64530f3e1daa78ab65aaafd01aebf3f1dd55d0678cae47849b53e3d8d1cb11f7",
+        "restored": true
+      }
+    },
+    {
+      "id": "B2a recovery while unlocked unwraps nothing",
+      "file": "src/core/vault/broker/management.ts",
+      "test": "test/unit/vault/rvcm1091b.test.ts",
+      "exit": 1,
+      "summary": "Tests  1 failed | 6 passed (7)",
+      "failing": [
+        "FAIL  test/unit/vault/rvcm1091b.test.ts > RVCM1091B part A > 2a: recovery while unlocked unwraps no key"
+      ],
+      "sha256": {
+        "before": "85fb7cc03a0755b7364508af394ace19ea9baaacfc4a40eb160caa5173f3e6f2",
+        "after": "85fb7cc03a0755b7364508af394ace19ea9baaacfc4a40eb160caa5173f3e6f2",
+        "restored": true
+      }
+    },
+    {
+      "id": "B2b Lock erases an unconfirmed setup",
+      "file": "src/core/vault/broker/management.ts",
+      "test": "test/unit/vault/rvcm1091b.test.ts",
+      "exit": 1,
+      "summary": "Tests  1 failed | 6 passed (7)",
+      "failing": [
+        "FAIL  test/unit/vault/rvcm1091b.test.ts > RVCM1091B part A > 2b: Lock erases an unconfirmed setup and its key"
+      ],
+      "sha256": {
+        "before": "85fb7cc03a0755b7364508af394ace19ea9baaacfc4a40eb160caa5173f3e6f2",
+        "after": "85fb7cc03a0755b7364508af394ace19ea9baaacfc4a40eb160caa5173f3e6f2",
+        "restored": true
+      }
+    },
+    {
+      "id": "B2c Lock during a confirmation erases its key",
+      "file": "src/core/vault/broker/management.ts",
+      "test": "test/unit/vault/rvcm1091b.test.ts",
+      "exit": 1,
+      "summary": "Tests  1 failed | 6 passed (7)",
+      "failing": [
+        "FAIL  test/unit/vault/rvcm1091b.test.ts > RVCM1091B part A > 2c: Lock during a failing confirmation erases the key instead of restoring the setup"
+      ],
+      "sha256": {
+        "before": "85fb7cc03a0755b7364508af394ace19ea9baaacfc4a40eb160caa5173f3e6f2",
+        "after": "85fb7cc03a0755b7364508af394ace19ea9baaacfc4a40eb160caa5173f3e6f2",
+        "restored": true
+      }
+    },
+    {
+      "id": "B3a confirming again completes the first intent",
+      "file": "src/core/vault/store.ts",
+      "test": "test/unit/vault/rvcm1091b.test.ts",
+      "exit": 1,
+      "summary": "Tests  1 failed | 6 passed (7)",
+      "failing": [
+        "FAIL  test/unit/vault/rvcm1091b.test.ts > RVCM1091B part A > 3a: a transient first anchor failure is retried by confirming again"
+      ],
+      "sha256": {
+        "before": "64530f3e1daa78ab65aaafd01aebf3f1dd55d0678cae47849b53e3d8d1cb11f7",
+        "after": "64530f3e1daa78ab65aaafd01aebf3f1dd55d0678cae47849b53e3d8d1cb11f7",
+        "restored": true
+      }
+    },
+    {
+      "id": "B3b an abandoned first intent is removed",
+      "file": "src/core/vault/broker/management.ts",
+      "test": "test/unit/vault/rvcm1091b.test.ts",
+      "exit": 1,
+      "summary": "Tests  1 failed | 6 passed (7)",
+      "failing": [
+        "FAIL  test/unit/vault/rvcm1091b.test.ts > RVCM1091B part A > 3b: an abandoned first intent never blocks a fresh setup"
+      ],
+      "sha256": {
+        "before": "85fb7cc03a0755b7364508af394ace19ea9baaacfc4a40eb160caa5173f3e6f2",
+        "after": "85fb7cc03a0755b7364508af394ace19ea9baaacfc4a40eb160caa5173f3e6f2",
+        "restored": true
+      }
+    },
+    {
+      "id": "B4a the OS-store repair reason survives setup and confirm",
+      "file": "src/core/vault/broker/management.ts",
+      "test": "test/unit/vault/rvcm1091b.test.ts",
+      "exit": 1,
+      "summary": "Tests  1 failed | 6 passed (7)",
+      "failing": [
+        "FAIL  test/unit/vault/rvcm1091b.test.ts > RVCM1091B part A > 4: an unusable OS store reaches the person as its fixed repair"
+      ],
+      "sha256": {
+        "before": "85fb7cc03a0755b7364508af394ace19ea9baaacfc4a40eb160caa5173f3e6f2",
+        "after": "85fb7cc03a0755b7364508af394ace19ea9baaacfc4a40eb160caa5173f3e6f2",
+        "restored": true
+      }
+    },
+    {
+      "id": "B4b the OS-store repair reason survives unlock",
+      "file": "src/core/vault/broker/repository.ts",
+      "test": "test/unit/vault/rvcm1091b.test.ts",
+      "exit": 1,
+      "summary": "Tests  1 failed | 6 passed (7)",
+      "failing": [
+        "FAIL  test/unit/vault/rvcm1091b.test.ts > RVCM1091B part A > 4: an unusable OS store reaches the person as its fixed repair"
+      ],
+      "sha256": {
+        "before": "98b03db16fa31c9f297a0831447f0c25282863b03c55ea9d0b33cd446a8ac89e",
+        "after": "98b03db16fa31c9f297a0831447f0c25282863b03c55ea9d0b33cd446a8ac89e",
+        "restored": true
+      }
+    }
+  ]
+}

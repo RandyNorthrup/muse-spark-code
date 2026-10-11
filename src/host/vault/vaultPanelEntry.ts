@@ -26,6 +26,8 @@ export interface VaultPanelEntryDeps extends Omit<
   | 'showError'
   | 'service'
   | 'showRecoveryCode'
+  | 'importDone'
+  | 'confirmReset'
 > {
   /** dist/ beside the running bundle (the broker and its native helpers). */
   readonly distDir: string
@@ -86,6 +88,32 @@ function nativeHostDeps(deps: {
 }): Omit<VaultPanelHostDeps, 'service' | 'publish' | 'status'> {
   return {
     now: deps.now,
+    importDone: async (names) => {
+      // Names and kinds only: never a value (lead decision, C-M109-1).
+      const choice = await vscode.window.showInformationMessage(
+        fill(UI_TEXT.vault.importedSummary, { names: names.join(', ') }),
+        { modal: true, detail: UI_TEXT.vault.importKeepOrDelete },
+        UI_TEXT.vault.keepFile,
+        UI_TEXT.vault.deleteFile,
+      )
+      return choice === UI_TEXT.vault.deleteFile ? 'delete' : 'keep'
+    },
+    confirmReset: async (word, signal) => {
+      // Step 1: what a reset erases, stated plainly; step 2: the typed word.
+      const proceed = await vscode.window.showWarningMessage(
+        UI_TEXT.vault.resetVault,
+        { modal: true, detail: UI_TEXT.vault.resetWarning },
+        UI_TEXT.vault.resetContinue,
+      )
+      if (proceed !== UI_TEXT.vault.resetContinue || signal.aborted) return null
+      const prompt = fill(UI_TEXT.vault.resetTypeWord, { word })
+      const typed = await vscode.window.showInputBox({
+        prompt,
+        ignoreFocusOut: true,
+        validateInput: (value) => (value === word ? null : prompt),
+      })
+      return typed ?? null
+    },
     showRecoveryCode: async (code, signal) => {
       // Shown once, with Copy and I Saved It, before the vault exists (lead decision 8).
       while (!signal.aborted) {

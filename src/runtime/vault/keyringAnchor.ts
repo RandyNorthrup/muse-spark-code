@@ -10,6 +10,7 @@ import * as z from 'zod/mini'
 import { KEYRING_SERVICE, VAULT_LIMITS } from '../../shared/constants'
 import { VaultError } from '../../core/vault/crypto'
 import { type VaultGenerationPort, type VaultGenerationState } from '../../core/vault/store'
+import { VaultStoreUnavailableError } from '../../core/vault/broker/ports'
 import { storeOperation, type KeyringEntryFactory } from '../keyStore'
 
 /** The OS-store account of the anchor record (service: KEYRING_SERVICE). */
@@ -54,7 +55,8 @@ export class KeyringVaultAnchor implements VaultGenerationPort {
         this.openEntry(KEYRING_SERVICE, VAULT_ANCHOR_ACCOUNT).getPassword(),
       )
     } catch {
-      throw new VaultError('io')
+      // No native text: the fixed, localized repair reaches the person (RVCM1091B 4).
+      throw new VaultStoreUnavailableError()
     }
     if (raw === null || raw === undefined) return null
     if (raw.length > VAULT_LIMITS.text) throw new VaultError('rollback')
@@ -72,6 +74,27 @@ export class KeyringVaultAnchor implements VaultGenerationPort {
     return record?.vaultId ?? null
   }
 
+  /** Reset Vault: removes exactly this vault's record; another vault's is refused. */
+  async reset(
+    vaultId: string,
+    expected: VaultGenerationState | null,
+    authorize: () => void,
+  ): Promise<void> {
+    const record = await this.read()
+    authorize()
+    if (record?.vaultId !== vaultId || !isSame(stateOf(record), expected))
+      throw new VaultError('rollback')
+    // No await between authority and dispatch to the OS store. storeOperation
+    // scrubs native failures, so cancellation must be checked outside it.
+    authorize()
+    try {
+      await storeOperation(() =>
+        this.openEntry(KEYRING_SERVICE, VAULT_ANCHOR_ACCOUNT).deletePassword(),
+      )
+    } catch {
+      throw new VaultStoreUnavailableError()
+    }
+  }
   async minimum(vaultId: string): Promise<VaultGenerationState | null> {
     const record = await this.read()
     if (record === null) return null
@@ -100,7 +123,8 @@ export class KeyringVaultAnchor implements VaultGenerationPort {
         this.openEntry(KEYRING_SERVICE, VAULT_ANCHOR_ACCOUNT).setPassword(JSON.stringify(next)),
       )
     } catch {
-      throw new VaultError('io')
+      // No native text: the fixed, localized repair reaches the person (RVCM1091B 4).
+      throw new VaultStoreUnavailableError()
     }
   }
 }
