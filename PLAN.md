@@ -36778,7 +36778,38 @@ D96.16. Three commits, each reviewed on its own.
    running work; only a confirmed-absent journal folder is "no journal"; a
    closed window starts nothing; files compare by resolved identity; one
    shared classification decides what a playbook review is.
-4. **Enforcement.** The panel's `/review`, subagent, `delegate` and
+   - **Activation shrank by 4,265 bytes in that commit** (`dist/extension.js`
+     564,335 to 560,070). The POSIX supervisor's source was a tagged template
+     at module level in `processTree.ts`, which the bundler keeps in every
+     bundle that imports the file; it had been riding in the activation
+     bundle since before this lane. It is returned by a function now, and
+     only the bundles that supervise a tree carry it.
+   - **A suite renamed afterwards** (`aa6785cab9`): commit 2's
+     `playbookPanel.test.ts` collided, on a file system without case, with
+     `PlaybookPanel.test.tsx`, and `lint:js:unit` failed there. It is
+     `playbookPanelChannel.test.ts`.
+4. **The editor host's variables stay with the host (its own commit, lead's
+   rulings 2026-10-11).** A VS Code extension host carries
+   `ELECTRON_RUN_AS_NODE=1` and eight `VSCODE_*` variables (read in a real
+   one, VS Code 1.140.0 on Linux; certification), and its `process.execPath`
+   is VS Code's own binary. The supervisor needs the switch to run as Node;
+   no git or hook command the playbook starts may inherit it, because it
+   turns any Electron program such a command launches into a bare Node, nor
+   the window's own handles. One list decides, the one the shell tools
+   already used, moved unchanged to `src/core/hostVariables.ts` so that both
+   read it (`ELECTRON_*`; `VSCODE_*` but for the five names VS Code's
+   terminal keeps for the person; `SNAP*`; `GDK_PIXBUF_*`). The policy
+   removes those from the environment it builds for every command, which is
+   also what the Windows job's calls are given; `runTreeSync` removes them
+   whatever its caller holds and then gives the supervisor alone the switch
+   when it runs under Electron; the supervisor removes the switch from the
+   call's environment.
+   - **A guard for commit 2's collision**, with it:
+     `test/unit/trackedPaths.test.ts` fails when two tracked paths differ
+     only by letter case, or two TypeScript sources only by case and
+     extension, anywhere in the repository. It runs with the unit suites on
+     every OS.
+5. **Enforcement.** The panel's `/review`, subagent, `delegate` and
    best-of-N dispatches go through the window's playbook on both backends;
    why-notes appear in the transcript; the third strike offers **Plan a
    redesign**; the walked-back claims return with the code that makes each
@@ -44383,6 +44414,18 @@ FIXM107DK4 qualification below supersedes that earlier claim.
     descendant that left the group is known only to the supervisor, so a
     lost supervisor cannot end it; the governed cgroup binding (FIXM116P4,
     below) is the handoff for that.
+  - **The supervisor inside VS Code (2026-10-11).** There
+    `process.execPath` is VS Code's own binary, and it runs the supervisor's
+    source only with `ELECTRON_RUN_AS_NODE` in its environment; without it
+    the same start is VS Code itself (both seen with VS Code 1.140.0 on the
+    Linux rig; certification). The extension host's environment also holds
+    the window's own `VSCODE_*` variables. No command the playbook starts is
+    given any of them: one list (`src/core/hostVariables.ts`, the shell
+    tools' own, which is VS Code's terminal's) is removed by the policy from
+    every command's environment, the Windows job's calls included, and by
+    `runTreeSync` from whatever its caller passes. The supervisor alone is
+    then given `ELECTRON_RUN_AS_NODE` when it runs under Electron, and
+    removes it from the call's environment.
   - **Why one job per decision, not per call.** A governed round here is
     about sixty git and hook calls. Measured on the owner's machine
     (2026-10-11): a Windows PowerShell start per call is 0.16 to 0.2 s

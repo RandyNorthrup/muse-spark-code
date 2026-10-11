@@ -24,6 +24,7 @@ import { OrchestratorPlaybook } from '../../src/core/orchestration/playbook/poli
 import { moduleStates } from '../../src/core/orchestration/playbook/modules'
 import { FAKE_PLAYBOOK_MODULE as MODULE } from './helpers/playbook/fakes'
 import { gitWorkspace } from './helpers/playbook/gitWorkspace'
+import { EXTENSION_HOST_VARIABLES, hostNames } from './helpers/playbook/hostVariables'
 import { policyFixture } from './playbookPolicyFixture'
 
 const template = { directory: '' }
@@ -651,6 +652,9 @@ for (const hasRunner of [false, true])
         vi.stubEnv('GIT_CONFIG_COUNT', '1')
         vi.stubEnv('GIT_CONFIG_KEY_0', 'core.hooksPath')
         vi.stubEnv('GIT_CONFIG_VALUE_0', path.join(fixture.workspace, 'missing'))
+        // Everything a VS Code extension host's environment was seen to carry (M116).
+        for (const [name, value] of Object.entries(EXTENSION_HOST_VARIABLES))
+          vi.stubEnv(name, value)
         const checked = policy.verifyWork(work)
         const calls = fixture.options.hookAdmission.runContained.mock.calls.map(
           ([effect, options]) => ({ kind: effect.kind, args: effect.args, env: options.env }),
@@ -686,6 +690,7 @@ for (const hasRunner of [false, true])
         expect(call.env).not.toHaveProperty('GIT_CONFIG_COUNT')
         expect(call.env).not.toHaveProperty('GIT_CONFIG_KEY_0')
         expect(call.env).not.toHaveProperty('GIT_CONFIG_VALUE_0')
+        expect(hostNames(call.env)).toEqual([])
       }
     },
   )

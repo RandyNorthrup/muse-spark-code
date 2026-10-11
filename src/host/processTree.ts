@@ -30,6 +30,7 @@ import {
 import { stopResourceTree } from '../core/resources/admission'
 import type { ResourceLease } from '../core/resources/launch'
 import { withoutCredentials } from '../core/credentialEnvironment'
+import { withoutHostVariables } from '../core/hostVariables'
 import path from 'node:path'
 import {
   setEnvironmentVariable,
@@ -50,6 +51,8 @@ import {
 } from '../shared/constants'
 
 const SIGKILL = 'SIGKILL'
+// Electron's switch: with it, an Electron binary (VS Code's own) runs as Node.
+const RUN_AS_NODE = 'ELECTRON_RUN_AS_NODE'
 const PS_MODULE_PATH = 'PSModulePath'
 const TERMINATED = 'terminated'
 const ABSENT = 'absent'
@@ -581,7 +584,10 @@ if (!table().some(row => row.pid === process.pid && row.group === process.pid)) 
   throw new Error('The supervisor does not lead its process group');
 }
 // Not detached: the call is born into the supervisor's group and cannot start outside it.
-child = spawn(spec.command, spec.args, { stdio: ['ignore', 'pipe', 'pipe'] });
+// The supervisor's own "run as Node" switch is not the call's to inherit.
+const callEnv = { ...process.env };
+delete callEnv.ELECTRON_RUN_AS_NODE;
+child = spawn(spec.command, spec.args, { stdio: ['ignore', 'pipe', 'pipe'], env: callEnv });
 for (const stream of ['stdout', 'stderr']) child[stream].on('data', chunk => {
   counts[stream] += chunk.length;
   if (counts[stream] > spec.maxBuffer) { failed = true; endTree(); return; }
@@ -645,22 +651,42 @@ function endGroup(group: number): void {
  */
 type SupervisorOptions = SpawnSyncOptionsWithBufferEncoding & { readonly detached: true }
 
+/** What a test stands in for the runtime a supervisor is started under. */
+interface TreeRuntime {
+  /** `spawnSync`; a test's drops `detached`, or looks at what it was given. */
+  readonly start?: (
+    file: string,
+    args: readonly string[],
+    options: SupervisorOptions,
+  ) => SpawnSyncReturns<Buffer>
+  /** `process.versions`; a test's names an Electron. */
+  readonly versions?: Readonly<Record<string, string | undefined>>
+}
+
 /** POSIX synchronous caller, asynchronous tree supervision. The supplied
- * environment is already scrubbed by the caller; no shell parses the effect.
- * `start` is `spawnSync`; a test stands in a runtime that ignores `detached`. */
+ * environment is already scrubbed by the caller; no shell parses the effect. */
 export function runTreeSync(
   command: string,
   args: readonly string[],
   options: SpawnSyncOptions,
-  start: (
-    file: string,
-    args: readonly string[],
-    options: SupervisorOptions,
-  ) => SpawnSyncReturns<Buffer> = (file, argv, supervisor) => spawnSync(file, argv, supervisor),
+  runtime: TreeRuntime = {},
 ): SpawnSyncReturns<Buffer> {
+  const start = runtime.start ?? ((file, argv, supervisor) => spawnSync(file, argv, supervisor))
   const maxBuffer = options.maxBuffer ?? GIT_OUTPUT_MAX_BYTES
+  // Nothing started here inherits the editor host's own variables, whatever
+  // the caller's environment holds (`core/hostVariables`, the list the shell
+  // tools use). Inside VS Code this process is VS Code's own binary: it runs
+  // the supervisor's source only as Node, which is what Electron's switch asks
+  // of it, and without the switch the same start is VS Code itself. So the
+  // supervisor alone is given the switch, and keeps it from the call (its
+  // source, above).
+  const isElectron = (runtime.versions ?? process.versions)['electron'] !== undefined
   const supervised: SupervisorOptions = {
     ...options,
+    env: {
+      ...withoutHostVariables(options.env ?? process.env),
+      ...(isElectron && { [RUN_AS_NODE]: '1' }),
+    },
     detached: true,
     // Child streams keep the caller's bound. Reserve room for the
     // supervisor's failure text so the caller cannot kill it mid-cleanup.

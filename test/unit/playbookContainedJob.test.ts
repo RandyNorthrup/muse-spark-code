@@ -11,7 +11,7 @@ import {
   type SpawnSyncOptionsWithBufferEncoding,
 } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
-import { mkdtemp, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -24,6 +24,9 @@ import {
   windowsArgument,
 } from '../../src/host/playbook/containedJob'
 import { runTreeSync, windowsPowerShell } from '../../src/host/processTree'
+import { shellEnvironment } from '../../src/host/backend/toolIo'
+import { withoutHostVariables } from '../../src/core/hostVariables'
+import { renamedFiles } from '../../src/core/orchestration/playbook/modules'
 import type { PlaybookHookEffect } from '../../src/core/orchestration/playbook/outcomes'
 import {
   PLAYBOOK_JOB_ENVIRONMENT,
@@ -32,6 +35,7 @@ import {
   WINDOWS_POWERSHELL_COMMAND_ARGS,
 } from '../../src/shared/constants'
 import { expectEnded } from './helpers/processes'
+import { EXTENSION_HOST_VARIABLES, hostNames } from './helpers/playbook/hostVariables'
 import { compiledJobAssembly, SYSTEM_ROOT } from './helpers/playbook/jobAssembly'
 import { removeFolder } from './helpers/temporaryFolders'
 
@@ -42,6 +46,9 @@ vi.mock('../../src/core/resources/admission', async (original) => {
 })
 
 const IS_WINDOWS = process.platform === 'win32'
+const RUN_AS_NODE = 'ELECTRON_RUN_AS_NODE'
+/** A shell call that prints every `ELECTRON_*` and `VSCODE_*` variable it was given, or `none`. */
+const SAYS_HOST = "env | grep -E '^(ELECTRON|VSCODE)_' || printf none"
 /** What a contained fixture process reports about itself. */
 const seenSchema = z.object({
   cwd: z.string(),
@@ -211,6 +218,52 @@ describe('ContainedJob', () => {
   })
 })
 
+describe('the environment of a playbook command', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  it('holds none of the editor host’s own variables, by the shell tools’ one list', () => {
+    const kept = { PATH: '/bin', VSCODE_PORTABLE: '/portable' }
+    // The five names VS Code's own terminal keeps for the person stay, as for a shell tool.
+    expect(withoutHostVariables({ ...kept, ...EXTENSION_HOST_VARIABLES })).toEqual(kept)
+    // The shell tools' environment is made with the same list.
+    expect(
+      hostNames(shellEnvironment({ ...kept, ...EXTENSION_HOST_VARIABLES }, 'linux', undefined)),
+    ).toEqual(['VSCODE_PORTABLE'])
+  })
+
+  it('is what the policy gives git when it looks for moved files, whatever its host holds', async () => {
+    const workspace = await mkdtemp(path.join(tmpdir(), 'muse-playbook-environment-'))
+    try {
+      await mkdir(path.join(workspace, '.git'))
+      // Everything a VS Code extension host's environment was seen to carry.
+      for (const [name, value] of Object.entries(EXTENSION_HOST_VARIABLES)) vi.stubEnv(name, value)
+      const given: NodeJS.ProcessEnv[] = []
+      const nothing = Buffer.alloc(0)
+      renamedFiles(workspace, {
+        admit: () => true,
+        // Stands in for the contained runner on every OS: the call's options are the test.
+        runContained: (_effect, options) => {
+          given.push(options.env ?? {})
+          return {
+            pid: 1,
+            output: [null, nothing, nothing],
+            stdout: nothing,
+            stderr: nothing,
+            status: 0,
+            signal: null,
+          }
+        },
+      })
+      expect(given.length).toBeGreaterThan(0)
+      for (const env of given) expect(hostNames(env)).toEqual([])
+    } finally {
+      await removeFolder(workspace)
+    }
+  })
+})
+
 describe.runIf(!IS_WINDOWS)('a lost supervisor on macOS and Linux', () => {
   const storage = { dir: '' }
   const bystanders: { kill: () => boolean }[] = []
@@ -246,24 +299,56 @@ describe.runIf(!IS_WINDOWS)('a lost supervisor on macOS and Linux', () => {
   it('refuses the call and starts nothing under a runtime that ignores detached', () => {
     const marker = path.join(storage.dir, 'started-anyway')
     const beside = bystander()
-    const result = runTreeSync(
-      '/bin/sh',
-      ['-c', `echo started > ${posixQuoted(marker)}`],
-      call(),
+    const result = runTreeSync('/bin/sh', ['-c', `echo started > ${posixQuoted(marker)}`], call(), {
       // The same spawn with the option dropped, as such a runtime would drop it.
-      (file, args, options) => {
+      start: (file, args, options) => {
         const dropped: SpawnSyncOptionsWithBufferEncoding & { detached: boolean } = {
           ...options,
           detached: false,
         }
         return spawnSync(file, args, dropped)
       },
-    )
+    })
     expect(result.status).toBe(1)
     expect(result.stderr.toString('utf8')).toContain('does not lead its process group')
     expect(existsSync(marker)).toBe(false)
     // That supervisor sat in the caller's own group; ending "its" group reached nobody.
     expect(isRunning(beside)).toBe(true)
+  })
+
+  /** A call under a host environment that carries all nine, and what its supervisor was given. */
+  const underHost = (versions: Readonly<Record<string, string | undefined>>) => {
+    const given: string[][] = []
+    const result = runTreeSync(
+      '/bin/sh',
+      ['-c', SAYS_HOST],
+      { ...call(), env: { PATH: process.env['PATH'], ...EXTENSION_HOST_VARIABLES } },
+      {
+        versions,
+        start: (file, args, options) => {
+          given.push(hostNames(options.env))
+          return spawnSync(file, args, options)
+        },
+      },
+    )
+    return { given, status: result.status, said: result.stdout.toString('utf8') }
+  }
+
+  it('gives its supervisor Electron’s run-as-Node switch inside VS Code, and the call none of the host’s variables', () => {
+    // VS Code's binary runs the supervisor's source only with the switch. Of the
+    // nine, that is all the supervisor is given, and the call is given none.
+    expect(underHost({ ...process.versions, electron: '43.7.3' })).toEqual({
+      given: [[RUN_AS_NODE]],
+      status: 0,
+      said: 'none',
+    })
+  })
+
+  it('gives neither the supervisor nor the call any of them outside Electron', () => {
+    const versions = Object.fromEntries(
+      Object.entries(process.versions).filter(([name]) => name !== 'electron'),
+    )
+    expect(underHost(versions)).toEqual({ given: [[]], status: 0, said: 'none' })
   })
 
   it('ends the call’s process group when its supervisor is lost, and fails the call', async () => {
