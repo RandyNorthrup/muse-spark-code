@@ -38,6 +38,7 @@ import {
   type AcpAgentConnection,
 } from '../../src/core/team/workers/acpWorker'
 import type { WorkerRolePolicy, WorkerTask } from '../../src/core/team/workers/workerTypes'
+import { UI_TEXT } from '../../src/shared/constants'
 import { FakeLogOutputChannel } from './helpers/fakes'
 
 const fixtureBase = path.resolve('temp')
@@ -870,7 +871,7 @@ describe('the full stack against the fake agent', () => {
           records,
           (record) => typeof record === 'object' && record !== null && 'fsWrite' in record,
         )
-        expect(write).toMatchObject({ fsWrite: { fsError: 'outside the working copy' } })
+        expect(write).toMatchObject({ fsWrite: { fsError: UI_TEXT.teamFileOutside } })
       } finally {
         connection.close()
       }

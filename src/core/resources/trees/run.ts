@@ -5,6 +5,7 @@ export type ResourceTreeRun = (
   file: string,
   args: readonly string[],
   env?: NodeJS.ProcessEnv,
+  limits?: { readonly timeoutMs?: number; readonly maxBytes?: number },
 ) => Promise<string>
 
 /** Share one in-flight OS table across concurrent trees; never retain an action-time table. */
@@ -21,15 +22,20 @@ export function coalescedTreeRead<T>(read: () => Promise<T>): () => Promise<T> {
 }
 
 /** Probes inherit no credential variables and run only absolute OS/helper paths. */
-export const runTreeProgram: ResourceTreeRun = (file, args, env) =>
+export const runTreeProgram: ResourceTreeRun = (file, args, env, limits) =>
   new Promise((resolve, reject) => {
     execFile(
       file,
       [...args],
-      { env: env ?? { LC_ALL: 'C' }, windowsHide: true, timeout: PROCESS_TABLE_TIMEOUT_MS },
-      (error, stdout) => {
+      {
+        env: env ?? { LC_ALL: 'C' },
+        windowsHide: true,
+        timeout: limits?.timeoutMs ?? PROCESS_TABLE_TIMEOUT_MS,
+        ...(limits?.maxBytes !== undefined && { maxBuffer: limits.maxBytes }),
+      },
+      (error, stdout, stderr) => {
         if (error === null) resolve(stdout)
-        else reject(new Error(error.message, { cause: error }))
+        else reject(Object.assign(new Error(error.message, { cause: error }), { stderr }))
       },
     )
   })

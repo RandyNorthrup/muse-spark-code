@@ -5238,5 +5238,13 @@
       "one": "{count} Freigabe",
       "other": "{count} Freigaben"
     }
-  }
+  },
+  "teamFileHelperMissing": "Der verifizierte native Helfer für Worker-Dateien ist nicht verfügbar.",
+  "teamFileNativeFailed": "Die native Prüfung der Worker-Datei ist fehlgeschlagen; es wurden keine Dateiinhalte geschrieben.",
+  "teamFileOutside": "Die Datei liegt außerhalb der zugelassenen Arbeitskopie.",
+  "teamFileRoleDenied": "Die Rolle erlaubt keinen Schreibzugriff auf diesen Pfad.",
+  "teamFileExists": "Der Pfad der neuen Datei ist bereits belegt.",
+  "teamFileChanged": "Die reservierte Datei oder ihr übergeordnetes Verzeichnis wurde geändert.",
+  "referenceTeamFiles": "Teams bleiben bis zur Integration und Zertifizierung nicht verfügbar. Engine- und ACP-Worker können über den verifizierten nativen Helfer Dateien innerhalb ihrer Arbeitskopie und der für ihre Rolle erlaubten Schreibpfade erstellen.",
+  "teamFileLinked": "Der Dateipfad enthält einen Link oder einen anders interpretierten Bestandteil."
 }

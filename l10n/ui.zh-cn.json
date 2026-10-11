@@ -5085,5 +5085,13 @@
     "grantsCount": {
       "other": "{count} 个授权"
     }
-  }
+  },
+  "teamFileHelperMissing": "无法使用经过验证的工作代理文件原生辅助程序。",
+  "teamFileNativeFailed": "工作代理文件的原生验证失败；未写入文件内容。",
+  "teamFileOutside": "文件位于获准的工作副本之外。",
+  "teamFileRoleDenied": "该角色不允许写入此路径。",
+  "teamFileExists": "新文件路径已被占用。",
+  "teamFileChanged": "预留文件或其父文件夹已更改。",
+  "referenceTeamFiles": "团队在完成集成和认证前仍不可用。引擎和ACP工作代理可通过经过验证的原生辅助程序，在工作副本内及角色允许的写入路径中创建文件。",
+  "teamFileLinked": "文件路径包含链接或被重新解释的路径部分。"
 }

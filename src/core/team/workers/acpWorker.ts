@@ -241,8 +241,7 @@ export async function acpFsWrite(
 ): Promise<{ readonly ok: true } | { readonly error: string }> {
   try {
     const confined = await confineWorkerPath(input, given)
-    if (!confined.ok) return { error: 'outside the working copy' }
-    if (!isCheckedWorkerWriteAllowed(input.role, confined))
+    if (confined.ok && !isCheckedWorkerWriteAllowed(input.role, confined))
       return {
         error:
           input.role.workspaceMode === 'read-only'
@@ -259,8 +258,8 @@ export async function acpFsWrite(
       },
       input.role,
     )
-  } catch {
-    return { error: 'outside the working copy' }
+  } catch (error: unknown) {
+    return { error: error instanceof Error ? error.message : 'outside the working copy' }
   }
 }
 
