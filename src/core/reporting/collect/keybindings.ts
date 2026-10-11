@@ -120,6 +120,17 @@ interface ChordGroup {
   readonly facts: EditorKeybindingFact[]
 }
 
+/**
+ * A conflict group key: the JSON of the tuple (platform, normalised chord,
+ * `when` clause). Structured, never concatenated, so `ctrl+k` under
+ * `when: 'ab'` can never share a key with `ctrl+kab` ungated, and a chord
+ * sequence can never collide with a chord plus a clause either. JSON over a
+ * fixed tuple of strings is injective, so equal keys mean equal groups.
+ */
+function conflictGroupKey(platform: string, gesture: string, when: string | undefined): string {
+  return JSON.stringify([platform, normalizeChord(gesture), when ?? ''])
+}
+
 function conflictRows(facts: KeybindingsFacts): { rows: ReportRow[]; omitted: number } {
   const groups = new Map<string, ChordGroup>()
   for (const fact of facts.editor) {
@@ -129,7 +140,7 @@ function conflictRows(facts: KeybindingsFacts): { rows: ReportRow[]; omitted: nu
       // section counts the skip and the source reports partial, and this
       // section stays silent about it.
       if (gesture === '') continue
-      const identity = `${platform}${normalizeChord(gesture)}${fact.when ?? ''}`
+      const identity = conflictGroupKey(platform, gesture, fact.when)
       const group = groups.get(identity)
       // The cell keeps the normalized chord, so the same bindings render
       // the same bytes no matter which fact arrived first.
@@ -147,7 +158,11 @@ function conflictRows(facts: KeybindingsFacts): { rows: ReportRow[]; omitted: nu
   // content-digest keys, so output never depends on fact order.
   const rows: ReportRow[] = []
   for (const group of groups.values()) {
-    const commands = [...new Set(group.facts.map((fact) => fact.command))].toSorted(compare)
+    // The row is built from the group's members in a sorted, stated order
+    // (by command, duplicates dropped), so its bytes never depend on which
+    // fact arrived first either.
+    const members = group.facts.toSorted((left, right) => compare(left.command, right.command))
+    const commands = [...new Set(members.map((fact) => fact.command))]
     if (commands.length < 2) continue
     rows.push(
       row(
