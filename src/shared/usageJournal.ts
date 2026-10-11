@@ -38,8 +38,8 @@ export const USAGE_CERTAINTIES = [
   'unpriced',
   'estimated',
 ] as const
-export const usageKindSchema = z.enum(USAGE_KINDS)
-export const usageCertaintySchema = z.enum(USAGE_CERTAINTIES)
+export const usageKindSchema = /* @__PURE__ */ z.enum(USAGE_KINDS)
+export const usageCertaintySchema = /* @__PURE__ */ z.enum(USAGE_CERTAINTIES)
 export type UsageKind = z.infer<typeof usageKindSchema>
 export type UsageCertainty = z.infer<typeof usageCertaintySchema>
 
@@ -47,19 +47,19 @@ export type UsageCertainty = z.infer<typeof usageCertaintySchema>
 // identifiers, so a new editor needs no schema release. Headless uses `cli`.
 export const USAGE_CLI_CLIENT_ID = 'cli'
 const CONTROL_CHARACTERS = /\p{Cc}/gu
-export const usageLabelSchema = z
+export const usageLabelSchema = /* @__PURE__ */ z
   .pipe(
     z.string().check(z.maxLength(USAGE_LABEL_MAX_CHARS)),
     z.transform((value) => value.replaceAll(CONTROL_CHARACTERS, '')),
   )
   .check(z.minLength(1))
-export const usageClientIdSchema = usageLabelSchema.clone()
-export const usageIdSchema = z
+export const usageClientIdSchema = /* @__PURE__ */ usageLabelSchema.clone()
+export const usageIdSchema = /* @__PURE__ */ z
   .string()
   .check(z.minLength(1), z.maxLength(USAGE_ID_MAX_CHARS), z.regex(/^[\w.-]+$/))
-export const usageDaySchema = z.iso.date()
-export const usageCountSchema = z.int().check(z.gte(0))
-export const usageAmountSchema = z.number().check(z.gte(0))
+export const usageDaySchema = /* @__PURE__ */ z.iso.date()
+export const usageCountSchema = /* @__PURE__ */ z.int().check(z.gte(0))
+export const usageAmountSchema = /* @__PURE__ */ z.number().check(z.gte(0))
 
 // Explicit names, never a wildcard accepting an account or credential header.
 // These are stored as reported; interpreting one as a meter needs a capture.
@@ -92,13 +92,13 @@ export const USAGE_HEADER_ALLOW_LIST = [
   'ratelimit-policy',
   'retry-after',
 ] as const
-export const usageHeadersSchema = z.partialRecord(
+export const usageHeadersSchema = /* @__PURE__ */ z.partialRecord(
   z.enum(USAGE_HEADER_ALLOW_LIST),
   z.string().check(z.maxLength(USAGE_HEADER_MAX_CHARS), z.regex(/^[\u{20}-\u{7E}]*$/u)),
 )
 export type UsageHeaders = z.infer<typeof usageHeadersSchema>
 
-export const usageTokensSchema = z.strictObject({
+export const usageTokensSchema = /* @__PURE__ */ z.strictObject({
   input: z.optional(usageCountSchema),
   cached: z.optional(usageCountSchema),
   cacheWrite: z.optional(usageCountSchema),
@@ -109,7 +109,7 @@ export const usageTokensSchema = z.strictObject({
   estimated: z.optional(z.boolean()),
 })
 export type UsageTokens = z.infer<typeof usageTokensSchema>
-export const usageUnitsSchema = z.strictObject({
+export const usageUnitsSchema = /* @__PURE__ */ z.strictObject({
   searches: z.optional(usageCountSchema),
   images: z.optional(usageCountSchema),
   audioSeconds: z.optional(usageAmountSchema),
@@ -129,7 +129,8 @@ export function costSchemaWith<M extends typeof usageUsdSchema | typeof legacyUs
     apiEquivalentUsd: z.optional(money),
   })
 }
-export const usageCostSchema = costSchemaWith(usageUsdSchema)
+// Pure factories: composing schemas, no reads or writes outside the result.
+export const usageCostSchema = /* @__PURE__ */ costSchemaWith(usageUsdSchema)
 type CostSchema = typeof usageCostSchema | ReturnType<typeof costSchemaWith<typeof legacyUsdSchema>>
 export type UsageCost = z.infer<typeof usageCostSchema>
 
@@ -174,10 +175,13 @@ export function recordSchemaWith<V extends number, C extends CostSchema>(version
     })
     .check(z.refine(isWithinRecordCap))
 }
-export const usageRecordSchema = recordSchemaWith(USAGE_JOURNAL_VERSION, usageCostSchema)
+export const usageRecordSchema = /* @__PURE__ */ recordSchemaWith(
+  USAGE_JOURNAL_VERSION,
+  usageCostSchema,
+)
 export type UsageRecord = z.infer<typeof usageRecordSchema>
 
-export const usageLimitWindowSchema = z.strictObject({
+export const usageLimitWindowSchema = /* @__PURE__ */ z.strictObject({
   id: usageIdSchema,
   label: z.optional(usageLabelSchema),
   // Reported percentages can exceed 100; never clamp the stored value.
@@ -210,9 +214,12 @@ export function limitSchemaWith<
     })
     .check(z.refine(isWithinRecordCap))
 }
-export const usageLimitSnapshotSchema = limitSchemaWith(USAGE_JOURNAL_VERSION, usageUsdSchema)
+export const usageLimitSnapshotSchema = /* @__PURE__ */ limitSchemaWith(
+  USAGE_JOURNAL_VERSION,
+  usageUsdSchema,
+)
 export type UsageLimitSnapshot = z.infer<typeof usageLimitSnapshotSchema>
-export const usageJournalEntrySchema = z.discriminatedUnion('type', [
+export const usageJournalEntrySchema = /* @__PURE__ */ z.discriminatedUnion('type', [
   usageRecordSchema,
   usageLimitSnapshotSchema,
 ])
@@ -222,4 +229,7 @@ export type UsageJournalEntry = z.infer<typeof usageJournalEntrySchema>
 // Absence denotes a pre-M108 record; the reader resolves it to `default`.
 import { accountIdSchema } from './accountId'
 
-export const usageAccountFields = { account: z.optional(accountIdSchema) }
+// Pure factory: only tests spread these fields, so production bundles drop them.
+export const usageAccountFields = /* @__PURE__ */ (() => {
+  return { account: z.optional(accountIdSchema) }
+})()
