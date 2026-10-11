@@ -65,7 +65,15 @@ async function verdictOf(task: EvalTask, timeoutMs?: number): Promise<EvalVerdic
 }
 
 function probeTask(verify: string, files = [{ path: 'a.js', content: 'export const a = 1\n' }]) {
-  return { id: 'probe', title: 'probe', split: 'accept', prompt: 'probe', files, verify } as const
+  return {
+    id: 'probe',
+    title: 'probe',
+    split: 'accept',
+    prompt: 'probe',
+    files,
+    verify,
+    assertions: (verify.match(/assert\.(?:equal|deepEqual|rejects)\(/gu) ?? []).length,
+  } as const
 }
 
 describe('eval task set', { timeout: VERIFIER_TESTS_TIMEOUT_MS }, () => {
@@ -118,6 +126,49 @@ describe('eval task set', { timeout: VERIFIER_TESTS_TIMEOUT_MS }, () => {
 })
 
 describe('eval workspace and verifier', { timeout: VERIFIER_TESTS_TIMEOUT_MS }, () => {
+  it.each([
+    ['bare exit', 'process.exit(0)'],
+    [
+      'fake completion line',
+      'console.log(JSON.stringify({ token: "guessed", assertions: 2 })); process.exit(0)',
+    ],
+    ['throw at import', 'throw new Error("import failed")'],
+    [
+      'caught assertion error',
+      'process.on("uncaughtException", () => process.exit(0)); export function sumAll() { return 0 }',
+    ],
+    [
+      'override exit',
+      'process.exit = () => {}; process.exit(0); export function sumAll(items) { return items.reduce((a, b) => a + b, 0) }',
+    ],
+    [
+      'exit before last assertion',
+      'export function sumAll(items) { if (items.length === 0) process.exit(0); return 6 }',
+    ],
+  ])('rejects %s from the solution', async (_label, content) => {
+    const task = EVAL_TASKS.find((candidate) => candidate.id === 'accept-off-by-one')!
+    const verdict = await verdictOf(withFixes(task, [{ path: 'total.js', content }]))
+    expect(verdict.passed).toBe(false)
+  })
+
+  it('kills a solution that hangs and handles the ordinary termination signal', async () => {
+    const task = probeTask("await load('a.js')\nassert.equal(1, 1)", [
+      {
+        path: 'a.js',
+        content: "process.on('SIGTERM', () => {}); while (true) {}",
+      },
+    ])
+    const verdict = await verdictOf(task, SHORT_TIMEOUT_MS)
+    expect(verdict.passed).toBe(false)
+  })
+
+  it('rejects a caught assertion failure and a wrong completion count', async () => {
+    const caught = await verdictOf(probeTask('try { assert.equal(1, 2) } catch {}'))
+    const wrongCount = await verdictOf({ ...probeTask('assert.equal(1, 1)'), assertions: 2 })
+    expect(caught.passed).toBe(false)
+    expect(wrongCount.passed).toBe(false)
+  })
+
   it('writes the fixture files and nothing else, and lists them', async () => {
     const task = probeTask('', [
       { path: 'package.json', content: '{}\n' },

@@ -63,6 +63,7 @@ const TASK: EvalTask = {
   prompt: 'Unused because workspace creation fails.',
   files: [{ path: 'source.js', content: 'export const value = 1\n' }],
   verify: '',
+  assertions: 0,
 }
 
 async function failedCreation(task = TASK) {

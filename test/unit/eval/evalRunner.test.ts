@@ -151,6 +151,58 @@ function rig(): Rig {
 }
 
 describe('runPairedEval', { timeout: RUNS_TIMEOUT_MS }, () => {
+  it('fails all 64 bare-exit outputs through the full four-arm verdict and engagement wrappers', async () => {
+    const { api, deps } = rig()
+    const arms = [BASELINE, OBSERVATION_PACKING_ARM, AUTO_COMPACTION_ARM, STRICT_TOOLS_ARM] as const
+    let replaced = 0
+    api.script(
+      ...EVAL_TASKS.flatMap((task, index) => {
+        const order = [...arms.slice(index % arms.length), ...arms.slice(0, index % arms.length)]
+        return order.flatMap((arm) => {
+          let replies = canonical(task)
+          if (arm === AUTO_COMPACTION_ARM && task.isLongContext === true)
+            replies = compactionArmReplies(task)
+          else if (task.isLongOutput === true)
+            replies = longTaskReplies(
+              task,
+              arm === OBSERVATION_PACKING_ARM,
+              EVAL_LONG_EVIDENCE_RECALL_OFFSET,
+            )
+          return replies.map((reply) => ({
+            ...reply,
+            ...(reply.calls !== undefined && {
+              calls: reply.calls.map((call) => {
+                if (call.name !== 'write_file') return call
+                const fix = fixesFor(EVAL_CANONICAL_FIXES, task)[0]!
+                replaced += 1
+                return {
+                  ...call,
+                  arguments: JSON.stringify({ path: fix.path, content: 'process.exit(0)\n' }),
+                }
+              }),
+            }),
+          }))
+        })
+      }),
+    )
+    const raw = await runPairedEval(EVAL_TASKS, arms, { ...deps, maxAttempts: 548 })
+    const report = withCompactionEngagement(
+      withPackingEngagement(raw, 'packing', EVAL_TASKS),
+      'auto-compaction',
+      'baseline',
+      EVAL_TASKS,
+    )
+    if (report.version !== EVAL_REPORT_VERSION) throw new Error('unexpected report version')
+    expect(replaced).toBe(64)
+    expect(
+      report.arms.flatMap((arm) => arm.results).filter((result) => result.passed),
+    ).toHaveLength(0)
+    expect(report.floors.every((floor) => !floor.held)).toBe(true)
+    expect(report.packingEngagement?.held).toBe(true)
+    expect(report.compactionEngagement?.held).toBe(true)
+    expect(report.verdict).toBe('fail')
+  })
+
   it('runs the M75 strict-tools fake pair with unchanged tasks, floors and attempt accounting (M106)', async () => {
     const { api, deps } = rig()
     api.script(...EVAL_TASKS.flatMap((task) => [...canonical(task), ...canonical(task)]))

@@ -5646,6 +5646,8 @@ validate that contract. Re-freeze reviewed harness changes with the offline
 `--check-freeze` verifies that pin using the same before-call guard. Receipts
 include ledger reservations/settlements and sanitized request hashes with
 package module-fact visibility; they contain no prompt or file contents.
+Every verifier must finish its declared assertions and return a fresh private
+completion token; a clean process exit alone cannot pass a task.
 
 PNG/JPEG images are resized before entering Model API replay when the selected
 model record supplies vision support and documented pixel limits. The portable

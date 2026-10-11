@@ -9,8 +9,9 @@
 //
 // A verifier is a Node ES module run after the turn, outside the workspace,
 // so the model never sees it. It imports the fixed files and asserts what
-// they do, so any correct fix passes however it is spelled. It exits 0 when
-// the defect is fixed; an assertion or a thrown error fails it.
+// they do, so any correct fix passes however it is spelled. It reports
+// completed assertions with a private run token; exit 0 alone cannot pass.
+// An assertion or a thrown error fails it.
 
 import * as z from 'zod/mini'
 import {
@@ -40,6 +41,8 @@ export const evalTaskSchema = z.object({
   files: z.array(evalFileSchema),
   /** The verifier's body, after `EVAL_VERIFY_PRELUDE`. */
   verify: z.string(),
+  /** Successful assertions required before the verifier can report completion. */
+  assertions: z.number().check(z.int(), z.minimum(0)),
   /**
    * Built so one tool output is long enough to pack and is needed again
    * after it would be (M73): a packing arm must engage on it.
@@ -69,10 +72,34 @@ export function isEvalPath(path: string): boolean {
  * where it may write scratch files.
  */
 export const EVAL_VERIFY_PRELUDE = [
-  "import assert from 'node:assert/strict'",
-  "import { existsSync, readFileSync, writeFileSync } from 'node:fs'",
+  "import rawAssert from 'node:assert/strict'",
+  "import { existsSync, readFileSync, writeFileSync, writeSync } from 'node:fs'",
   "import { join } from 'node:path'",
   "import { pathToFileURL } from 'node:url'",
+  // Consume the private pipe before any solution loads; the token is never
+  // in a file, argument, environment variable or model-visible workspace.
+  "const completionToken = readFileSync(0, 'utf8')",
+  'const verifierExit = process.exit',
+  'const report = writeSync.bind(undefined, 1)',
+  'const encode = JSON.stringify.bind(JSON)',
+  'let assertions = 0',
+  'let assertionFailed = false',
+  'const counted = (check) => (...args) => {',
+  '  try { check(...args); assertions += 1 }',
+  '  catch (error) { assertionFailed = true; throw error }',
+  '}',
+  'const rejectCheck = rawAssert.rejects.bind(rawAssert)',
+  'const assert = Object.freeze({',
+  '  equal: counted(rawAssert.equal.bind(rawAssert)),',
+  '  deepEqual: counted(rawAssert.deepEqual.bind(rawAssert)),',
+  '  rejects: async (...args) => {',
+  '    try { await rejectCheck(...args); assertions += 1 }',
+  '    catch (error) { assertionFailed = true; throw error }',
+  '  },',
+  '})',
+  'const complete = () => {',
+  '  if (!assertionFailed && process.exit === verifierExit) report(`\\n${encode({ token: completionToken, assertions })}\\n`)',
+  '}',
   'const workspace = process.argv[2]',
   'const load = (file) => import(pathToFileURL(join(workspace, file)).href)',
   "const read = (file) => readFileSync(join(workspace, file), 'utf8')",
@@ -136,6 +163,7 @@ export const EVAL_TASKS: readonly EvalTask[] = [
     id: 'accept-long-compaction',
     title: 'Recover a build number from a long log and record it',
     split: 'accept',
+    assertions: 1,
     prompt: `${LONG_CONTEXT_PROMPT} create answer.js exporting the build number as the number answer. Do not write answer.js before recovering the record.\n\n${compactBulk('required_build=781924')}`,
     files: [PACKAGE_JSON],
     verify: ["const { answer } = await load('answer.js')", 'assert.equal(answer, 781924)'].join(
@@ -147,6 +175,7 @@ export const EVAL_TASKS: readonly EvalTask[] = [
     id: 'heldout-long-compaction',
     title: 'Apply a rule from a long log to a transform',
     split: 'heldout',
+    assertions: 4,
     prompt: `${LONG_CONTEXT_PROMPT} create transform.js exporting transform(value), which applies the record's mapping. Do not write transform.js before recovering the record.\n\n${compactBulk('required mapping: add 4 to the input, then multiply by 6')}`,
     files: [PACKAGE_JSON],
     verify: [
@@ -162,6 +191,7 @@ export const EVAL_TASKS: readonly EvalTask[] = [
     id: 'accept-long-middle-value',
     title: 'Recover a value from the middle of a long tool output',
     split: 'accept',
+    assertions: 1,
     prompt: `${LONG_OUTPUT_PROMPT} create answer.js exporting the record's required value as the number answer. Do not write answer.js before recovering the record.`,
     files: [
       PACKAGE_JSON,
@@ -177,6 +207,7 @@ export const EVAL_TASKS: readonly EvalTask[] = [
     id: 'heldout-long-middle-rule',
     title: 'Apply a rule from the middle of a long tool output',
     split: 'heldout',
+    assertions: 4,
     prompt: `${LONG_OUTPUT_PROMPT} create transform.js exporting transform(value), which applies the record's mapping. Do not write transform.js before recovering the record.`,
     files: [
       PACKAGE_JSON,
@@ -199,6 +230,7 @@ export const EVAL_TASKS: readonly EvalTask[] = [
     id: 'accept-off-by-one',
     title: 'Fix the loop bound that reads past the end',
     split: 'accept',
+    assertions: 2,
     prompt:
       'In total.js, sumAll steps one element past the end of items and adds undefined to the sum. Fix the loop bound so it visits exactly the elements of items.',
     files: [
@@ -219,6 +251,7 @@ export const EVAL_TASKS: readonly EvalTask[] = [
     id: 'accept-null-guard',
     title: 'Greet a friend when the name is missing',
     split: 'accept',
+    assertions: 3,
     prompt:
       "In greet.js, greet throws when name is missing (undefined or null). Return 'Hello, friend!' in that case, and keep the greeting for a real name as it is.",
     files: [
@@ -239,6 +272,7 @@ export const EVAL_TASKS: readonly EvalTask[] = [
     id: 'accept-await-read',
     title: 'Await the file read before parsing',
     split: 'accept',
+    assertions: 1,
     prompt:
       'In load.js, loadConfig does not wait for the file read, so JSON.parse gets a promise instead of the text. Fix it.',
     files: [
@@ -260,6 +294,7 @@ export const EVAL_TASKS: readonly EvalTask[] = [
     id: 'accept-import-path',
     title: 'Point the import at the file that exists',
     split: 'accept',
+    assertions: 2,
     prompt:
       'main.js fails to load: its import names ./util.js, but the helper lives in utils.js. Fix the import in main.js; do not add or rename files.',
     files: [
@@ -284,6 +319,7 @@ export const EVAL_TASKS: readonly EvalTask[] = [
     id: 'accept-no-secret',
     title: 'Read the API key from the environment',
     split: 'accept',
+    assertions: 3,
     prompt:
       'config.js hardcodes an API key. Remove it and read the key from the MUSE_SPARK_API_KEY environment variable instead; keep retries as it is.',
     files: [
@@ -305,6 +341,7 @@ export const EVAL_TASKS: readonly EvalTask[] = [
     id: 'accept-empty-average',
     title: 'Return 0 for the average of nothing',
     split: 'accept',
+    assertions: 2,
     prompt:
       'In average.js, average divides by zero for an empty array and returns NaN. Return 0 when values is empty.',
     files: [
@@ -325,6 +362,7 @@ export const EVAL_TASKS: readonly EvalTask[] = [
     id: 'heldout-strict-equal',
     title: 'Compare the role with strict equality',
     split: 'heldout',
+    assertions: 3,
     prompt:
       "In auth.js, isAdmin uses loose equality, so a value that only converts to 'admin' gets in. Make it accept the string 'admin' only.",
     files: [
@@ -345,6 +383,7 @@ export const EVAL_TASKS: readonly EvalTask[] = [
     id: 'heldout-clear-timer',
     title: 'Stop polling once the status is ready',
     split: 'heldout',
+    assertions: 2,
     prompt:
       "In poll.js, polling goes on after the status is 'ready' and onDone runs again on every tick. Stop polling once it is ready, so onDone runs once; keep poll's parameters as they are.",
     files: [
@@ -371,6 +410,7 @@ export const EVAL_TASKS: readonly EvalTask[] = [
     id: 'heldout-sort-numbers',
     title: 'Sort numbers by value, smallest first',
     split: 'heldout',
+    assertions: 1,
     prompt:
       'In ranking.js, ranking sorts the numbers as text, so 10 comes before 9. Sort them by value, smallest first.',
     files: [
@@ -389,6 +429,7 @@ export const EVAL_TASKS: readonly EvalTask[] = [
     id: 'heldout-await-write',
     title: 'Await the settings write',
     split: 'heldout',
+    assertions: 2,
     prompt:
       'In save.js, saveSettings does not wait for the write, so a failed write goes unnoticed and callers go on before the file is there. Fix it.',
     files: [
@@ -411,6 +452,7 @@ export const EVAL_TASKS: readonly EvalTask[] = [
     id: 'accept-multi-edit',
     title: 'Fix the case of two helpers in one file',
     split: 'accept',
+    assertions: 2,
     prompt:
       'In voice.js, shout lowercases the text when it should uppercase it, and whisper uppercases the text when it should lowercase it. Fix both helpers; keep the punctuation as it is.',
     files: [
@@ -431,6 +473,7 @@ export const EVAL_TASKS: readonly EvalTask[] = [
     id: 'heldout-multi-edit',
     title: 'Clamp both bounds without overshooting',
     split: 'heldout',
+    assertions: 4,
     prompt:
       'In clamp.js, clampLow returns one above the minimum and clampHigh returns one below the maximum. Fix both helpers so each returns exactly its bound.',
     files: [

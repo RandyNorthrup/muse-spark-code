@@ -820,3 +820,58 @@ Final reference, roadmap, plan-format, host API, changed-file format and
 current-pin preflight checks pass. The cached-setup unit typecheck and lint
 rerun pass, followed by the complete plan/frozen files (10 tests in 13.47 s,
 repository deadlines). No gate limit, rule level, ignore or timeout changed.
+
+## CM1013R4 — RVCM1013C review repairs (2026-10-11, kubuntu)
+
+Finding 1 sweeps **all sixteen verifiers**, covering 37 declared assertions
+and all three assertion shapes (`equal`, `deepEqual`, awaited `rejects`).
+Before loading any solution, the verifier consumes a fresh UUID from its
+private stdin pipe. The token is absent from its script, arguments,
+environment and workspace. Captured assertion functions count successful
+checks; a caught failed check permanently prevents completion. Only the
+last verifier statement reports its token and count. The parent validates
+that report with zod and requires the declared count plus exit zero. Its
+hard timeout kills even a solution that handles ordinary termination.
+
+The permanent full counterexample keeps task order, rotating arm order,
+packing reads/recalls, accepted summaries and real offline settlements. It
+replaces all **64** writes with `process.exit(0)`. Both engagement conditions
+hold, but **zero tasks pass**, all eight floors fail and the final verdict
+after packing then compaction is `fail`. This fixes the reviewed false pass
+without tuning an arm or changing an acceptance floor. Additional regressions
+cover guessed completion output, import failure, a caught assertion error,
+exit before the last assertion, exit override, a wrong count and a hanging
+solution. The original two valid fix spellings still pass every verifier.
+
+Initial owning verification: **80 tests / three complete files pass** at
+repository deadlines (`evalTasks`, `evalRunner`, `evalWorkspacePrivacy`).
+No live or paid call, credential read, dependency, production latch change,
+merge or push. Aggregate quality remains lead-owned under the rig brief.
+
+R4-D1 deliberately restores the zero-exit-only success decision in
+`workspace.ts`. Both complete owning files fail: **6 failed / 72 passed**,
+including `fails all 64 bare-exit outputs through the full four-arm verdict
+and engagement wrappers`, which receives 64 passed tasks instead of zero.
+Bare exit, forged output, caught failures, premature last-assertion exit and
+count checks fire. Restore is byte-exact: workspace SHA-256
+`8750629d90eb81585b0cd1cf668a298b2a042ded2983cf8f59753ea901b2425d`.
+The subsequent exit-identity check also refuses a solution that overrides
+exit while otherwise implementing the correct function.
+
+R4-D1b removes the captured exit-identity condition. The complete task file
+fails specifically `rejects override exit from the solution`: **1 failed /
+46 passed**. Restore is byte-exact: tasks SHA-256
+`f68fab593881f6699db2315e8b846c40bd1472e88a662f89ae48f45b7d71da0e`.
+
+Repository `node scripts/m101-e.mjs --freeze` re-pins the verifier repair:
+old `3726c312a20e8abc63cd651bfc10418812dcf811321179d658c6aeac1e55903c`,
+new `42e389ace71ff8a5487384963f1a47d41e3f697258a9d0e789cc76494c170023`
+after the boolean-name lint correction.
+
+Before the verifier commit: all five typecheck projects pass (host, webview,
+unit, e2e, integration); changed-file ESLint passes with zero warnings. The
+complete `vitest related --run src/core/eval/*.ts` sweep, six serial shards
+with at most three files/workers, passes **288 tests in sixteen offline
+files**; the two unchanged opt-in live files skip 25 tests with live mode
+explicitly disabled. The sweep includes every eval suite and uses repository
+timeouts. Host API is regenerated and passes; no gate is weakened.
