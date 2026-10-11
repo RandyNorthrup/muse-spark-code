@@ -49,6 +49,7 @@ import {
   type EvalReport,
 } from '../../src/core/eval/report'
 import {
+  assertEvalHarnessDigest,
   AUTO_COMPACTION_ARM,
   BASELINE_ARM,
   EVAL_ARMS,
@@ -107,6 +108,7 @@ describe.skipIf(!IS_ENABLED)('live paired evaluation (MUSE_LIVE_MODEL_API=1)', (
     async () => {
       const { tasks, reportPath, maxAttempts } = liveEvalSelection(process.env, IS_ENABLED)
       expect(existsSync(SEARCH_WORKER) ? 'built' : 'run npm run build:dev first').toBe('built')
+      const certifiedDigest = assertEvalHarnessDigest()
       const credentials = await loadEvalLiveCredentials(IS_ENABLED)
       const channel = new FakeLogOutputChannel()
       const log = createLogger(channel)
@@ -171,12 +173,16 @@ describe.skipIf(!IS_ENABLED)('live paired evaluation (MUSE_LIVE_MODEL_API=1)', (
       // printed or written, so neither artifact says pass for a run whose
       // packing arm never packed or whose auto-compaction arm never
       // compacted.
-      const report = withCompactionEngagement(
-        withPackingEngagement(result, OBSERVATION_PACKING_ARM.name, tasks),
-        AUTO_COMPACTION_ARM.name,
-        BASELINE_ARM.name,
-        tasks,
-      )
+      const report = {
+        ...withCompactionEngagement(
+          withPackingEngagement(result, OBSERVATION_PACKING_ARM.name, tasks),
+          AUTO_COMPACTION_ARM.name,
+          BASELINE_ARM.name,
+          tasks,
+        ),
+        certifiedDigest,
+        computedDigest: certifiedDigest,
+      }
       const markdown = formatEvalReportMarkdown(report)
       if (logLines(channel).some((line) => credentials.contains(line))) {
         leaks.push('the log')
@@ -191,7 +197,18 @@ describe.skipIf(!IS_ENABLED)('live paired evaluation (MUSE_LIVE_MODEL_API=1)', (
       }
       // Only `pass` counts: a narrowed selection is `incomplete` (R2),
       // and a truncated run stops `incomplete` too — neither may arm the latch.
-      expect(report.verdict).toBe('pass')
+      const isSmoke = process.env['MUSE_EVAL_SMOKE'] === '1'
+      expect(report.verdict).toBe(isSmoke ? 'incomplete' : 'pass')
+      if (isSmoke) {
+        expect(
+          report.version === EVAL_REPORT_VERSION ? report.incompleteReasons : undefined,
+        ).toContain('narrowed selection')
+        expect(
+          report.version === EVAL_REPORT_VERSION ? report.stoppedEarly : undefined,
+        ).toBeUndefined()
+        expect(report.arms.every((arm) => arm.results.every((task) => task.passed))).toBe(true)
+        return
+      }
       expect(
         report.version === EVAL_REPORT_VERSION ? report.packingEngagement?.unengaged : undefined,
       ).toEqual([])

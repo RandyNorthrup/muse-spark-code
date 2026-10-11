@@ -1,68 +1,68 @@
-// Lane E's call plan (M101 C-M101-3, part A; R2 exactness): scripts/m101-e.mjs
-// --plan runs offline and prints the counted run's model calls before
-// anything sends. The printed plan is EXACTLY what the run may send — no
-// probe, no other batch runs under it — and the hard ceiling equals the
-// plan. This pins its numbers against the frozen task set and arms, so the
-// plan cannot drift from what the counted run executes.
-
+// The printed task/arm allowances are the exact global backstop, including
+// narrowed selections. All checks are offline and use the frozen measurement.
 import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import * as z from 'zod/mini'
 import { describe, expect, it } from 'vitest'
 import { EVAL_ARMS } from '../../../src/core/eval/mechanisms'
 import { EVAL_TASKS } from '../../../src/core/eval/tasks'
+import measurement from '../../../src/core/eval/plan.json'
 import { EVAL_BUDGET_USD, EVAL_MODEL_ID } from '../../../src/shared/constants'
 
 const planScript = fileURLToPath(new URL('../../../scripts/m101-e.mjs', import.meta.url))
-
 const planSchema = z.object({
   model: z.string(),
-  tasks: z.object({ total: z.number(), small: z.number(), longContext: z.number() }),
-  arms: z.array(
-    z.object({ name: z.string(), smallAttempts: z.number(), longAttempts: z.number() }),
+  tasks: z.array(
+    z.object({ id: z.string(), callBudget: z.number(), measuredAttempts: z.array(z.number()) }),
   ),
+  arms: z.array(z.string()),
   plannedCalls: z.number(),
   callCeiling: z.number(),
   budgetUsd: z.number(),
+  selection: z.string(),
+  measuredCostEstimateUsd: z.number(),
 })
-
-function loadPlan(): z.infer<typeof planSchema> {
+function loadPlan(selection = ''): z.infer<typeof planSchema> {
   const stdout = execFileSync(process.execPath, [planScript, '--plan'], {
     encoding: 'utf8',
     timeout: 30_000,
+    env: { ...process.env, MUSE_EVAL_TASKS: selection },
   })
-  return planSchema.parse(JSON.parse(stdout) as unknown)
+  const value: unknown = JSON.parse(stdout)
+  return planSchema.parse(value)
 }
-
 describe('the lane E call plan', () => {
-  it('counts the frozen task set', () => {
+  it('prints measured per-task budgets, whose sum is the ceiling', () => {
     const plan = loadPlan()
     expect(plan.model).toBe(EVAL_MODEL_ID)
-    expect(plan.tasks.total).toBe(EVAL_TASKS.length)
-    expect(plan.tasks.longContext).toBe(
-      EVAL_TASKS.filter((task) => task.isLongContext === true).length,
+    expect(plan.tasks.map((task) => task.id)).toEqual(EVAL_TASKS.map((task) => task.id))
+    expect(plan.arms).toEqual(EVAL_ARMS.map((arm) => arm.name))
+    expect(plan.plannedCalls).toBe(
+      plan.tasks.reduce((sum, task) => sum + task.callBudget * plan.arms.length, 0),
     )
-    expect(plan.tasks.small).toBe(EVAL_TASKS.filter((task) => task.isLongContext !== true).length)
-    expect(plan.arms.map((arm) => arm.name)).toEqual(EVAL_ARMS.map((arm) => arm.name))
-  })
-
-  it('plans every arm run from the fake-pair evidence, under a hard ceiling', () => {
-    const plan = loadPlan()
-    const small = plan.tasks.small
-    const long = plan.tasks.longContext
-    const base = plan.arms.reduce(
-      (total, arm) => total + small * arm.smallAttempts + long * arm.longAttempts,
-      0,
-    )
-    // The printed plan is exactly what runs: nothing else sends under it,
-    // so no probe rides along uncounted.
-    expect(plan.plannedCalls).toBe(base)
-    // The certification band is about 150-300 calls: the plan sits inside
-    // it, and the ceiling IS the plan — a run that would exceed it stops
-    // and is incomplete, never a pass.
-    expect(plan.plannedCalls).toBeGreaterThanOrEqual(150)
-    expect(plan.plannedCalls).toBeLessThanOrEqual(300)
+    expect(plan.plannedCalls).toBe(548)
     expect(plan.callCeiling).toBe(plan.plannedCalls)
     expect(plan.budgetUsd).toBe(EVAL_BUDGET_USD)
+    expect(plan.measuredCostEstimateUsd).toBeCloseTo((548 * 0.026384) / 198)
+    for (const task of plan.tasks) {
+      const prior = task.id.includes('compaction') ? 6 : 3
+      const observed = Math.max(...task.measuredAttempts)
+      expect(task.callBudget).toBe(
+        Math.max(6, Math.ceil((observed === 0 ? prior : observed) * 1.5)),
+      )
+    }
+    expect(plan.tasks).toEqual(measurement.tasks)
+  })
+  it('prints the narrowed six-task plan instead of the full ceiling', () => {
+    const ids = [
+      'accept-off-by-one',
+      'heldout-strict-equal',
+      ...EVAL_TASKS.slice(0, 4).map((task) => task.id),
+    ]
+    const plan = loadPlan(ids.join(','))
+    expect(plan.selection).toBe('narrowed selection')
+    expect(plan.tasks).toHaveLength(6)
+    expect(plan.callCeiling).toBe(plan.tasks.reduce((sum, task) => sum + task.callBudget * 4, 0))
+    expect(plan.callCeiling).toBe(224)
   })
 })

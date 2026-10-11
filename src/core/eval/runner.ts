@@ -10,6 +10,7 @@ import { Usd, sumUsd } from '../../shared/usd'
 // either floor fails the run.
 
 import { ModelApiClient, type ModelApiClientDeps } from '../backends/modelapi/client'
+import plan from './plan.json'
 import type { ToolIo } from '../backends/modelapi/tools'
 import type { ContextIo } from '../context/contextFiles'
 import type { CoreLogger } from '../logging'
@@ -40,7 +41,7 @@ import type {
   EvalSplitSummary,
   EvalTaskResult,
 } from './report'
-import { evalWindowTokens, type EvalTask } from './tasks'
+import { EVAL_TASKS, evalWindowTokens, type EvalTask } from './tasks'
 import { freezeEvalHarness, frozenBundleChange } from './mechanisms'
 import type { ArmBundle } from './armSources'
 import {
@@ -84,6 +85,7 @@ export interface EvalRunDeps {
   readonly generatedAt: string
   /** Hard ceiling for model calls the run sends; the counted run sets it from its plan. */
   readonly maxAttempts?: number | undefined
+  readonly maxTaskAttempts?: number | undefined
   readonly turnTimeoutMs?: number | undefined
   /** Looks at a run's folder before it is removed (the live run's key scan). */
   readonly inspect?: ((root: string) => Promise<void>) | undefined
@@ -189,7 +191,14 @@ async function runTask(
   admission: EvalCompactionAdmission,
   ledger: ReturnType<typeof createEvalCompactionLedger>,
 ): Promise<{ result: EvalTaskResult; truncated: readonly EvalWireTruncation[] }> {
-  const wire = createEvalWire({ fetch: deps.fetch, baseUrl: deps.client.baseUrl, budget })
+  const callBudget =
+    deps.maxTaskAttempts ?? plan.tasks.find((row) => row.id === task.id)?.callBudget
+  const wire = createEvalWire({
+    fetch: deps.fetch,
+    baseUrl: deps.client.baseUrl,
+    budget,
+    maxAttempts: callBudget,
+  })
   const settledBefore = ledger.tally.settled
   const steps: string[] = []
   const folders = await step(
@@ -244,6 +253,9 @@ async function runTask(
       }),
       recalls: outcome?.recalledOutputs.length ?? 0,
       compactionsSettled,
+      compactionsApplied: outcome?.compactionsApplied ?? 0,
+      ...(callBudget !== undefined && { callBudget }),
+      overBudget: wire.isOverBudget,
     },
     truncated: wire.truncated,
   }
@@ -286,11 +298,11 @@ function floorFor(split: EvalSplit): number {
 
 function verdictOf(
   floors: readonly EvalFloorResult[],
-  stoppedEarly: readonly string[],
+  incompleteReasons: readonly string[],
 ): EvalReport['verdict'] {
   // A truncated run decided nothing: refusals manufacture failures, so the
   // missing sends are neither a pass nor a fail, whatever the floors say.
-  if (stoppedEarly.length > 0) {
+  if (incompleteReasons.length > 0) {
     return 'incomplete'
   }
   if (floors.some((floor) => floor.tasks > 0 && !floor.held)) {
@@ -386,6 +398,14 @@ export async function runPairedEval(
       }
     }),
   )
+  const incompleteReasons = [...stoppedEarly]
+  if (
+    tasks.length !== EVAL_TASKS.length ||
+    EVAL_TASKS.some((task) => tasks.every((candidate) => candidate.id !== task.id))
+  ) {
+    incompleteReasons.push('narrowed selection')
+  }
+  if (floors.some((floor) => floor.tasks === 0)) incompleteReasons.push('empty split')
   return {
     version: EVAL_REPORT_VERSION,
     model: EVAL_MODEL_ID,
@@ -394,6 +414,7 @@ export async function runPairedEval(
     arms: reports,
     floors,
     ...(stoppedEarly.length > 0 && { stoppedEarly }),
-    verdict: verdictOf(floors, stoppedEarly),
+    ...(incompleteReasons.length > 0 && { incompleteReasons }),
+    verdict: verdictOf(floors, incompleteReasons),
   }
 }

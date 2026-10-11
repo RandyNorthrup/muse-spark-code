@@ -9,6 +9,15 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **Evidence-first M75 harness repair** (CM1013B). Both compaction and packing
+  evidence tasks run before small tasks, each task/arm has an independent
+  measured allowance, and a local overrun cannot starve another task. Applied
+  history replacement and settled admission establish compaction engagement;
+  rejected attempts do not. Narrowed selections and global stops remain
+  incomplete through both verdict wrappers. The live launcher checks the
+  expanded source-graph freeze before credentials are opened; smoke mode
+  expects incomplete. Production automatic compaction stays unevaluated.
+
 - **Frozen M75 evaluation arms and long-context tasks** (M101 C-M101-2).
   The paired harness now freezes four arms (baseline, observation packing,
   automatic compaction, strict tool schemas) and sixteen tasks: the twelve

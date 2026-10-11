@@ -10,6 +10,8 @@ import {
   OBS_PACK_THRESHOLD_CHARS,
   OBS_PACK_WHOLE_SENDS,
 } from '../../shared/constants'
+import { buildSync } from 'esbuild'
+import pin from './frozen.json'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import * as z from 'zod/mini'
@@ -146,6 +148,51 @@ function frozenChange(name: string): EvalHostChange {
 export interface FrozenEvalHarness {
   readonly bundles: ReadonlyMap<string, ArmBundle>
   readonly sha256: string
+  readonly sources: readonly string[]
+}
+
+/** The actual resolver graph, including the live verdict wrappers and launcher. */
+export function evalHarnessSources(): string[] {
+  const repo = armRepoRoot()
+  const graph = buildSync({
+    absWorkingDir: repo,
+    entryPoints: [
+      'test/e2e/eval.live.e2e.test.ts',
+      'scripts/m101-e.mjs',
+      ARM_PROGRAM,
+      'src/host/backend/searchWorker.ts',
+    ],
+    outdir: 'eval-graph',
+    bundle: true,
+    write: false,
+    metafile: true,
+    packages: 'external',
+    platform: 'node',
+    logLevel: 'silent',
+  }).metafile
+  // The expected digest is an output of the freeze, never its own input.
+  // Lockfile and build recipe bind external packages and the search worker.
+  return [
+    ...new Set([
+      ...Object.keys(graph.inputs).map((file) =>
+        file.replaceAll('\\', '/').replace(/ with \{.*\}$/u, ''),
+      ),
+      'package-lock.json',
+      'scripts/build.mjs',
+    ]),
+  ]
+    .filter((file) => file !== 'src/core/eval/frozen.json')
+    .toSorted((left, right) => Number(left > right) - Number(left < right))
+}
+
+/** Live launch and direct live-test execution refuse a mismatch before opening credentials. */
+export function assertEvalHarnessDigest(expected: string = pin.sha256): string {
+  const computed = evalHarnessDigest()
+  if (computed !== expected)
+    throw new Error(
+      `Frozen harness mismatch: pinned ${expected}, computed ${computed}; no live call may run.`,
+    )
+  return computed
 }
 
 /** Freeze once before the run. Source adapters are explicit fixtures, never a discovered closure. */
@@ -154,6 +201,13 @@ export function freezeEvalHarness(
   tasks: readonly EvalTask[] = EVAL_TASKS,
 ): FrozenEvalHarness {
   const repo = armRepoRoot()
+  const sources = evalHarnessSources()
+  const sourceDigests = sources.map((file) => ({
+    path: file,
+    sha256: createHash('sha256')
+      .update(readFileSync(path.join(repo, file), 'utf8').replaceAll('\r\n', '\n'), 'utf8')
+      .digest('hex'),
+  }))
   const fixtures: ArmFixture[] = ['armSources', 'mechanisms', 'runner', 'heldDeps', 'tasks'].map(
     (file) => ({
       path: `${file}.ts`,
@@ -189,7 +243,10 @@ export function freezeEvalHarness(
   }))
   return {
     bundles,
-    sha256: createHash('sha256').update(JSON.stringify(receipt), 'utf8').digest('hex'),
+    sources,
+    sha256: createHash('sha256')
+      .update(JSON.stringify({ receipt, sources: sourceDigests }), 'utf8')
+      .digest('hex'),
   }
 }
 

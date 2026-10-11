@@ -752,7 +752,7 @@
     {
       "id": "M101",
       "title": "Long-task context upgrades",
-      "summary": "Prompts stay cache-stable, packed output is exactly recallable and manual compaction works in ACP editors, while automatic compaction stays off until its frozen evaluation passes; its setting stores a preference and revoked paid authority leaves turns running.",
+      "summary": "Cache-stable prompts, recallable packed output and manual ACP compaction ship; automatic compaction stays off until its complete frozen evaluation passes with accepted summaries and independent evidence-first task budgets.",
       "area": "agents",
       "release": "0.15.0"
     },

@@ -394,7 +394,7 @@ function armResults(
         questions: 0,
         paidRefusals: 0,
         order: 1,
-        ...(settled !== undefined && { compactionsSettled: settled }),
+        ...(settled !== undefined && { compactionsSettled: settled, compactionsApplied: settled }),
       }
     }),
     summaries: [],
@@ -409,7 +409,7 @@ function armResults(
 function compactionReport(
   settled: Readonly<Record<string, number>>,
   attempts: Readonly<Record<string, number>> = {},
-): EvalReport {
+): Extract<EvalReport, { version: typeof EVAL_REPORT_VERSION }> {
   return {
     version: EVAL_REPORT_VERSION,
     model: EVAL_MODEL_ID,
@@ -482,6 +482,46 @@ describe('an auto-compaction run engaged', () => {
     ).toEqual([])
   })
 
+  it.each(['call ceiling', 'money budget', 'unknown usage', 'narrowed selection', 'empty split'])(
+    'preserves incomplete through both live wrappers: %s',
+    (reason) => {
+      const incoming = {
+        ...compactionReport({}),
+        verdict: 'incomplete',
+        incompleteReasons: [reason],
+      } satisfies EvalReport
+      const result = withCompactionEngagement(
+        withPackingEngagement(incoming, 'packing', EVAL_TASKS),
+        'auto-compaction',
+        'baseline',
+        EVAL_TASKS,
+      )
+      expect(result.verdict).toBe('incomplete')
+      expect(result.version === EVAL_REPORT_VERSION ? result.incompleteReasons : undefined).toEqual(
+        [reason],
+      )
+    },
+  )
+  it('preserves the packing wrapper incomplete through the compaction wrapper on the smoke selection', () => {
+    const tasks = EVAL_TASKS.filter((task) =>
+      ['accept-off-by-one', 'heldout-strict-equal'].includes(task.id),
+    )
+    expect(
+      withCompactionEngagement(
+        withPackingEngagement(compactionReport({}), 'packing', tasks),
+        'auto-compaction',
+        'baseline',
+        tasks,
+      ).verdict,
+    ).toBe('incomplete')
+  })
+  it('rejects settled attempts without accepted history replacement', () => {
+    const report = compactionReport(Object.fromEntries(longIds.map((id) => [id, 1])))
+    for (const arm of report.arms) for (const task of arm.results) task.compactionsApplied = 0
+    expect(unengagedCompactionTasks(report, 'auto-compaction', 'baseline', EVAL_TASKS)).toEqual(
+      longIds,
+    )
+  })
   it('counts a missing arm as never engaged', () => {
     const everyLong = Object.fromEntries(longIds.map((id) => [id, 6]))
     expect(
@@ -512,9 +552,9 @@ describe('an auto-compaction run engaged', () => {
       `| auto-compaction | ${longIds.join(', ')} | ${longIds.join(', ')} | no |`,
     )
     // The settled counts ride beside the acceptance: nothing settled here.
-    expect(markdown).toContain('| Task | Settled compactions |')
+    expect(markdown).toContain('| Task | Settled compactions | Applied compactions |')
     for (const id of longIds) {
-      expect(markdown).toContain(`| ${id} | not recorded |`)
+      expect(markdown).toContain(`| ${id} | not recorded | not recorded |`)
     }
   })
 
@@ -530,7 +570,7 @@ describe('an auto-compaction run engaged', () => {
     const markdown = formatEvalReportMarkdown(report)
     expect(markdown).toContain(`| auto-compaction | ${longIds.join(', ')} | none | yes |`)
     for (const id of longIds) {
-      expect(markdown).toContain(`| ${id} | 1 |`)
+      expect(markdown).toContain(`| ${id} | 1 | 1 |`)
     }
   })
 
@@ -558,7 +598,7 @@ describe('an auto-compaction run engaged', () => {
     // that already fell.
     const failed = { ...compactionReport({}), verdict: 'fail' } as EvalReport
     expect(withCompactionEngagement(failed, 'auto-compaction', 'baseline', small).verdict).toBe(
-      'fail',
+      'incomplete',
     )
   })
 })

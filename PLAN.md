@@ -29545,6 +29545,27 @@ joined with M57, M58 and PR #49's sign-in
 
 ### M101 — Upstream sync: Pi and SoL-Pi ports, automatic compaction (D81)
 
+**CM1013B harness repair plan (2026-10-11, kubuntu).** Repair the first
+198-call live run's evidence starvation on fakes only: run both compaction
+and both packing tasks first; assign an independent measured call allowance
+to every task/arm (highest observed arm +50%, rounded up, floor six; unrun
+tasks use the prior plan +50%). The sum is the global backstop; a local
+overrun fails that task and continues, while global money/ceiling/unknown
+usage stops remain incomplete. Preserve incomplete through engagement
+wrappers, label narrowed selections/empty splits, and accept incomplete
+only in the launcher's explicit smoke mode. Record ledger reservations and
+settlements per task/arm/run, investigate the CommonJS failures without
+tuning a mechanism, and add sanitized request evidence if the first receipt
+cannot establish what the writing request saw. Re-freeze with the repository
+digest function; certify all eval files at repository deadlines and the
+three owning type projects. Review RVCM1013B also requires accepted-history
+replacement events (and settled money), full sixteen-task identity, live
+digest preflight and a source-closure completeness guard. Linux reproduces
+the merged f5b07747…2cd3 digest; expand its declared closure without altering
+production admission helpers. No production admission API changes, latch flip,
+live call, merge, push, dependencies or gate changes. Aggregate quality is
+lead-owned under the lane's explicit shared-rule prohibition.
+
 **Status 2026-10-05: planned.**
 
 Status detail retained: planned; lanes start from `m101/base` (the M95
@@ -38231,6 +38252,12 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**CM1013B scoped rig verification (2026-10-11, kubuntu).** The task's named
+shared rules explicitly prohibit aggregate quality and full-suite runs. The
+lead owns those gates before integration. This lane runs every eval suite,
+three owning type projects, changed-file lint/format, localization, reference,
+roadmap and production build without weakening any gate or deadline.
 
 **CIR4MAC scoped hosted-CI repair (2026-10-09, macmini).** Reproduce
 round 4's macOS target-size deadline and palette failure-render ordering

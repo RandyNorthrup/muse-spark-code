@@ -5,6 +5,8 @@
 // recording the new digest here and in docs/certification/m101-eval-arms.md,
 // never by weakening the comparison.
 
+import pin from '../../../src/core/eval/frozen.json'
+import { buildSync } from 'esbuild'
 import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import { EVAL_HELD_DEPS } from '../../../src/core/eval/heldDeps'
@@ -15,6 +17,8 @@ import {
   OBSERVATION_PACKING_ARM,
   STRICT_TOOLS_ARM,
   evalHarnessDigest,
+  evalHarnessSources,
+  assertEvalHarnessDigest,
   freezeEvalHarness,
   frozenBundleChange,
 } from '../../../src/core/eval/mechanisms'
@@ -44,6 +48,10 @@ describe('the frozen evaluation harness', () => {
 
   it('freezes the sixteen tasks in run order', () => {
     expect(EVAL_TASKS.map((task) => [task.id, task.split])).toEqual([
+      ['accept-long-compaction', 'accept'],
+      ['heldout-long-compaction', 'heldout'],
+      ['accept-long-middle-value', 'accept'],
+      ['heldout-long-middle-rule', 'heldout'],
       ['accept-off-by-one', 'accept'],
       ['accept-null-guard', 'accept'],
       ['accept-await-read', 'accept'],
@@ -54,19 +62,46 @@ describe('the frozen evaluation harness', () => {
       ['heldout-clear-timer', 'heldout'],
       ['heldout-sort-numbers', 'heldout'],
       ['heldout-await-write', 'heldout'],
-      ['accept-long-middle-value', 'accept'],
-      ['heldout-long-middle-rule', 'heldout'],
-      ['accept-long-compaction', 'accept'],
-      ['heldout-long-compaction', 'heldout'],
       ['accept-multi-edit', 'accept'],
       ['heldout-multi-edit', 'heldout'],
     ])
   })
 
   it('keeps the frozen digest', () => {
-    expect(evalHarnessDigest()).toBe(
-      'f5b07747b08e64b2aa4b1abca856b04bbb2b45b4a628d5b062cabd91820c2cd3',
-    )
+    expect(evalHarnessDigest()).toBe(pin.sha256)
+    expect(assertEvalHarnessDigest()).toBe(pin.sha256)
+    expect(() => assertEvalHarnessDigest('deliberately wrong')).toThrow('no live call may run')
+  })
+
+  it('freezes every local source in the live-test and launcher resolver graph', () => {
+    const frozen = freezeEvalHarness()
+    expect(frozen.sources).toEqual(evalHarnessSources())
+    const graph = buildSync({
+      entryPoints: ['test/e2e/eval.live.e2e.test.ts', 'scripts/m101-e.mjs'],
+      outdir: 'graph-test',
+      bundle: true,
+      write: false,
+      metafile: true,
+      packages: 'external',
+      platform: 'node',
+    }).metafile
+    for (const input of Object.keys(graph.inputs)) {
+      const file = input.replaceAll('\\', '/').replace(/ with \{.*\}$/u, '')
+      if (file !== 'src/core/eval/frozen.json') expect(frozen.sources).toContain(file)
+    }
+    for (const file of [
+      'src/core/eval/wire.ts',
+      'src/core/eval/driver.ts',
+      'src/core/eval/report.ts',
+      'src/core/eval/workspace.ts',
+      'test/e2e/evalLiveSupport.ts',
+      'test/e2e/eval.live.e2e.test.ts',
+      'scripts/m101-e.mjs',
+      'src/core/eval/tasks.ts',
+      'src/core/eval/plan.json',
+    ])
+      expect(frozen.sources).toContain(file)
+    expect(frozen.sources.some((file) => file.includes('\\'))).toBe(false)
   })
 
   it('changes each arm in one mechanism only, never a held harness dependency', () => {

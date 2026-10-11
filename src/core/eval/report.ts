@@ -58,6 +58,10 @@ export const evalTaskResultSchema = z.object({
    * engaged.
    */
   compactionsSettled: z.optional(z.number()),
+  /** Host accepted the summary and replaced history; rejected attempts never count. */
+  compactionsApplied: z.optional(z.number()),
+  callBudget: z.optional(z.number()),
+  overBudget: z.optional(z.boolean()),
 })
 export type EvalTaskResult = z.infer<typeof evalTaskResultSchema>
 
@@ -70,6 +74,7 @@ const legacyTaskResultSchema = z.object({
   packedTokensAvoided: z.optional(z.never()),
   recalls: z.optional(z.never()),
   compactionsSettled: z.optional(z.never()),
+  compactionsApplied: z.optional(z.never()),
 })
 
 export const evalSplitSummarySchema = z.object({
@@ -172,6 +177,9 @@ export const evalReportSchema = z.discriminatedUnion('version', [
     stoppedEarly: z.optional(z.array(z.string())),
     /** Present only when every arm executed its frozen bundle snapshot. */
     harnessDigest: z.optional(z.string()),
+    certifiedDigest: z.optional(z.string()),
+    computedDigest: z.optional(z.string()),
+    incompleteReasons: z.optional(z.array(z.string())),
   }),
 ])
 export type EvalReport = z.infer<typeof evalReportSchema>
@@ -345,11 +353,11 @@ export function formatEvalReportMarkdown(report: EvalReport): string {
     if (engagement.longContextTasks.length > 0) {
       const arm = report.arms.find((candidate) => candidate.name === engagement.arm)
       lines.push(
-        `| Task | Settled compactions |`,
-        `| --- | --- |`,
+        `| Task | Settled compactions | Applied compactions |`,
+        `| --- | --- | --- |`,
         ...engagement.longContextTasks.map(
           (taskId) =>
-            `| ${taskId} | ${recordedCount(arm?.results.find((result) => result.taskId === taskId)?.compactionsSettled)} |`,
+            `| ${taskId} | ${recordedCount(arm?.results.find((result) => result.taskId === taskId)?.compactionsSettled)} | ${recordedCount(arm?.results.find((result) => result.taskId === taskId)?.compactionsApplied)} |`,
         ),
         ``,
       )
@@ -361,6 +369,14 @@ export function formatEvalReportMarkdown(report: EvalReport): string {
     report.stoppedEarly.length > 0
   ) {
     lines.push(`## Stopped early`, ``, ...report.stoppedEarly.map((reason) => `- ${reason}`), ``)
+  }
+  if (report.version === EVAL_REPORT_VERSION && report.incompleteReasons !== undefined) {
+    lines.push(
+      `## Incomplete evidence`,
+      ``,
+      ...report.incompleteReasons.map((reason) => `- ${reason}`),
+      ``,
+    )
   }
   return lines.join('\n')
 }
