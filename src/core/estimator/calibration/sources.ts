@@ -22,21 +22,13 @@ import {
 } from '../../../shared/constants'
 import { validatedRecords } from '../../orchestration/playbook/journal'
 import { knownFindingClass } from '../../../shared/playbook'
-import { branchLane } from '../planSnapshot'
+import { branchLane, outputLines } from '../planSnapshot'
 import { calibrationFailure } from './records'
 
 const runFile = promisify(execFile)
 
 const shaPattern = /^[a-f\d]+$/i
 const branchPattern = /^[\w./-]+$/
-
-function lines(output: string): string[] {
-  return output
-    .replaceAll('\r\n', '\n')
-    .split('\n')
-    .map((line) => line.trim())
-    .filter((line) => line !== '')
-}
 
 /** A git invocation with no credential in the environment, a timeout and no console window. */
 export function historyGitIo(root: string): {
@@ -85,7 +77,7 @@ async function laneTip(
   runGit: (args: readonly string[]) => Promise<string>,
   branch: string,
 ): Promise<string | undefined> {
-  const tip = lines(await runGit(['rev-parse', '--verify', '--quiet', branch]))[0]
+  const tip = outputLines(await runGit(['rev-parse', '--verify', '--quiet', branch]))[0]
   return tip !== undefined && shaPattern.test(tip) ? tip : undefined
 }
 
@@ -116,7 +108,9 @@ export function gitDurationSource(deps: HistoryGitDeps): {
     duration: async (laneId) => {
       let branches: string[]
       try {
-        branches = lines(await runGit(['for-each-ref', '--format=%(refname:short)', 'refs/heads']))
+        branches = outputLines(
+          await runGit(['for-each-ref', '--format=%(refname:short)', 'refs/heads']),
+        )
       } catch {
         return
       }
@@ -127,7 +121,8 @@ export function gitDurationSource(deps: HistoryGitDeps): {
       let tip: string | undefined
       try {
         defaultRef =
-          lines(await runGit(['symbolic-ref', '--quiet', 'refs/remotes/origin/HEAD']))[0] ?? ''
+          outputLines(await runGit(['symbolic-ref', '--quiet', 'refs/remotes/origin/HEAD']))[0] ??
+          ''
         tip = await laneTip(runGit, branch)
       } catch {
         return
@@ -139,11 +134,11 @@ export function gitDurationSource(deps: HistoryGitDeps): {
       let first: string | undefined
       let merged: string | undefined
       try {
-        base = lines(await runGit(['merge-base', defaultRef, tip]))[0] ?? ''
-        first = lines(
+        base = outputLines(await runGit(['merge-base', defaultRef, tip]))[0] ?? ''
+        first = outputLines(
           await runGit(['log', '-1', '--format=%cI', '--reverse', `${base}..${tip}`]),
         )[0]
-        merged = lines(
+        merged = outputLines(
           await runGit([
             'log',
             '-1',
@@ -320,7 +315,9 @@ export function ciDurationSource(deps: HistoryCiDeps): {
       if (runs.length === 0) return
       let branches: string[]
       try {
-        branches = lines(await runGit(['for-each-ref', '--format=%(refname:short)', 'refs/heads']))
+        branches = outputLines(
+          await runGit(['for-each-ref', '--format=%(refname:short)', 'refs/heads']),
+        )
       } catch {
         return
       }

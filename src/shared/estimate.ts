@@ -563,18 +563,23 @@ export function disclosureTargets(value: unknown, pointer = ''): Map<string, num
   return targets
 }
 
-/** M117 C-M117-2: the journal's per-list skip diagnostics, shared with the run. */
-export const historySkippedSchema = z.array(
-  z.strictObject({
-    recordId: id,
-    code: z.enum([
-      'unknownHistoryVersion',
-      'unknownHistoryBasis',
-      'mixedHistoryBasis',
-      'conflictingLaneIdentity',
-    ]),
-  }),
-)
+/** M117 C-M117-2: the journal's per-list skip diagnostics, shared with the run.
+ * The run validates ports against this strict shape; the section field below
+ * stays loose on purpose, so the webview panel chunk (which embeds the
+ * section schema) keeps its budget. */
+// Pure builder, so bundles that never read skipped diagnostics drop it.
+export const historySkippedSchema = /* @__PURE__ */ (() =>
+  z.array(
+    z.strictObject({
+      recordId: id,
+      code: z.enum([
+        'unknownHistoryVersion',
+        'unknownHistoryBasis',
+        'mixedHistoryBasis',
+        'conflictingLaneIdentity',
+      ]),
+    }),
+  ))()
 export type HistorySkipped = z.infer<typeof historySkippedSchema>
 
 /** Section payload for M113 report-v1; lane W binds its envelope when merged. */
@@ -648,7 +653,16 @@ export const estimateSectionSchema = z
     // M117 C-M117-2: history records the journal skipped while listing, by
     // opaque file id and fixed code. Strings only, so the disclosure walk
     // gains no targets; the run discloses what calibration could not use.
-    historySkipped: z.optional(historySkippedSchema),
+    // Loose here for the panel chunk's budget; the run validates the strict
+    // shape above before attaching it.
+    historySkipped: z.optional(
+      z.array(
+        z.strictObject({
+          recordId: id,
+          code: z.string().check(z.minLength(1)),
+        }),
+      ),
+    ),
     drift: z.optional(
       z.strictObject({
         previousAsOf: instant,

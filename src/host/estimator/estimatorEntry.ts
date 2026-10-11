@@ -33,6 +33,7 @@ import {
   historyRecordSchema,
   historySkippedSchema,
   type CatalogPrice,
+  type HistorySkipped,
   type EstimateInputs,
   type EstimateLane,
   type EstimateRequest,
@@ -138,7 +139,9 @@ export function createEstimatorRun(
       signal.throwIfAborted()
       const fleet = fleetSnapshotSchema.parse(await ports.fleet(lanes, parsed.asOf))
       const history = z.array(historyRecordSchema).parse(await ports.history())
-      const historySkipped = historySkippedSchema.parse((await ports.historySkipped?.()) ?? [])
+      const historySkipped: HistorySkipped = historySkippedSchema.parse(
+        (await ports.historySkipped?.()) ?? [],
+      )
       signal.throwIfAborted()
       const inputs = estimateInputsSchema.parse({
         request: parsed,
