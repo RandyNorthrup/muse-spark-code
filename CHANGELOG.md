@@ -152,6 +152,11 @@ happened, not what was planned; superseded entries are kept.
   and cancelling during startup stops it at once with the cancel's reason
   instead of waiting for the server to finish binding.
 
+- Sharing a chat now shows its preview in ACP editors (`/share chat`) and in
+  the terminal (`muse-spark-code-acp share chat`). In 0.17.0 both always
+  ended with an error saying the conversation's history was not returned,
+  because the conversation was never read.
+
 - Muse Code approval-ledger fault notices now give the update command on
   versions older than 1.4.3. A live Windows 1.4.3 check accepted the approval
   without that fault; detection remains active on every version. Rename and
