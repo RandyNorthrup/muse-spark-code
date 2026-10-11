@@ -947,94 +947,113 @@ describe('confirmed-dispatch lifecycle across every branch', () => {
   }
 
   const CONFIGURED_REF = 'openai-lifecycle/gpt-5.6-luna'
+  async function driveConfiguredProvider(
+    scenario: RunScenario,
+    runKind: ConfirmedModelRequest['runKind'],
+    origin: string | undefined,
+  ): Promise<LifecycleOutcome> {
+    const root = await mkdtemp(path.join(tmpdir(), 'm106-lifecycle-'))
+    roots.push(root)
+    const secrets = memorySecrets()
+    const entry = providerEntrySchema.parse({
+      id: 'openai-lifecycle',
+      preset: 'openai',
+      address: 'https://api.openai.com',
+      format: 'responses',
+      auth: 'apiKey',
+      models: ['gpt-5.6-luna'],
+    })
+    secrets.values.set(
+      `${PROVIDER_SECRET_PREFIX}${entry.id}`,
+      JSON.stringify({
+        v: 1,
+        auth: 'apiKey',
+        origin: entry.address ?? '',
+        secret: 'lifecycle-key',
+      }),
+    )
+    const configFile = path.join(root, 'providers.json')
+    const written = await writeProvidersFileAtomic(configFile, {
+      v: 1,
+      providers: [entry],
+      defaultModel: CONFIGURED_REF,
+    })
+    expect(written.ok).toBe(true)
+    const send = vi.fn(() => Promise.resolve(lifecyclePinnedResponse()))
+    const services = createConfiguredProviderServices(
+      fakeModelApiClient(fakeModelApi(), new FakeLogOutputChannel()),
+      {
+        configFile,
+        catalogFile: path.resolve('vendor/models-dev/snapshot.json'),
+        secrets,
+        resolve: () => Promise.resolve(['8.8.8.8']),
+        send,
+      },
+    )
+    const resolved = await services.registry.resolve(CONFIGURED_REF)
+    const state = { allowed: scenario !== 'lapsed' }
+    const started = vi.fn()
+    const guard = lifecycleGuard(scenario, state)
+    // The bytes never matter here: the stubbed decoder yields the completed
+    // event, so no captured wire shape is parsed.
+    const codec = responsesCodec.createResponsesCodec({
+      sendPromptCacheRetention: false,
+      sendPromptCacheKey: false,
+    })
+    const spy = vi.spyOn(responsesCodec, 'createResponsesCodec').mockReturnValue({
+      ...codec,
+      decodeStream: async function* (): AsyncGenerator<StreamEvent> {
+        await Promise.resolve()
+        yield {
+          type: 'response.completed',
+          response: { id: 'lifecycle', status: 'completed', output: [] },
+        }
+      },
+    })
+    try {
+      const stream = resolved.client.streamResponse(
+        { ...planBody(CONFIGURED_REF), instructions: 'Test' },
+        lifecycleSignal(scenario),
+        undefined,
+        undefined,
+        guard,
+        {
+          modelId: scenario === 'mismatched' ? 'openai-lifecycle/other' : CONFIGURED_REF,
+          keyDigest: await resolved.client.currentKeyDigest(),
+          // The production schedule and hook confirmations leave origin
+          // unset; the bound client adds only the provider id. An origin
+          // here exercises the review-style confirmation that carries one.
+          ...(origin !== undefined && { origin }),
+          ...(runKind !== undefined && { runKind }),
+          isStillAllowed: () => state.allowed,
+          onRequestStarted: started,
+        },
+      )
+      return await collectLifecycle(
+        stream,
+        () => send.mock.calls.length > 0,
+        () => started.mock.calls.length,
+      )
+    } finally {
+      spy.mockRestore()
+    }
+  }
+
   const configuredBranch: LifecycleBranch = {
     name: 'configured-provider',
-    // The bound client maps every dispatch failure to its unavailable text.
-    refusalText: () => UI_TEXT.modelsPanelUnavailable,
-    drive: async (scenario, runKind) => {
-      const root = await mkdtemp(path.join(tmpdir(), 'm106-lifecycle-'))
-      roots.push(root)
-      const secrets = memorySecrets()
-      const entry = providerEntrySchema.parse({
-        id: 'openai-lifecycle',
-        preset: 'openai',
-        address: 'https://api.openai.com',
-        format: 'responses',
-        auth: 'apiKey',
-        models: ['gpt-5.6-luna'],
-      })
-      secrets.values.set(
-        `${PROVIDER_SECRET_PREFIX}${entry.id}`,
-        JSON.stringify({
-          v: 1,
-          auth: 'apiKey',
-          origin: entry.address ?? '',
-          secret: 'lifecycle-key',
-        }),
-      )
-      const configFile = path.join(root, 'providers.json')
-      const written = await writeProvidersFileAtomic(configFile, {
-        v: 1,
-        providers: [entry],
-        defaultModel: CONFIGURED_REF,
-      })
-      expect(written.ok).toBe(true)
-      const send = vi.fn(() => Promise.resolve(lifecyclePinnedResponse()))
-      const services = createConfiguredProviderServices(
-        fakeModelApiClient(fakeModelApi(), new FakeLogOutputChannel()),
-        {
-          configFile,
-          catalogFile: path.resolve('vendor/models-dev/snapshot.json'),
-          secrets,
-          resolve: () => Promise.resolve(['8.8.8.8']),
-          send,
-        },
-      )
-      const resolved = await services.registry.resolve(CONFIGURED_REF)
-      const state = { allowed: scenario !== 'lapsed' }
-      const started = vi.fn()
-      const guard = lifecycleGuard(scenario, state)
-      // The bytes never matter here: the stubbed decoder yields the completed
-      // event, so no captured wire shape is parsed.
-      const codec = responsesCodec.createResponsesCodec({
-        sendPromptCacheRetention: false,
-        sendPromptCacheKey: false,
-      })
-      const spy = vi.spyOn(responsesCodec, 'createResponsesCodec').mockReturnValue({
-        ...codec,
-        decodeStream: async function* (): AsyncGenerator<StreamEvent> {
-          await Promise.resolve()
-          yield {
-            type: 'response.completed',
-            response: { id: 'lifecycle', status: 'completed', output: [] },
-          }
-        },
-      })
-      try {
-        const stream = resolved.client.streamResponse(
-          { ...planBody(CONFIGURED_REF), instructions: 'Test' },
-          lifecycleSignal(scenario),
-          undefined,
-          undefined,
-          guard,
-          {
-            modelId: scenario === 'mismatched' ? 'openai-lifecycle/other' : CONFIGURED_REF,
-            keyDigest: await resolved.client.currentKeyDigest(),
-            origin: 'https://api.openai.com',
-            ...(runKind !== undefined && { runKind }),
-            isStillAllowed: () => state.allowed,
-            onRequestStarted: started,
-          },
-        )
-        return await collectLifecycle(
-          stream,
-          () => send.mock.calls.length > 0,
-          () => started.mock.calls.length,
-        )
-      } finally {
-        spy.mockRestore()
-      }
-    },
+    // A lapse keeps the run's own guidance (RVCM1062H): the bound client
+    // rethrows the shared helper's refusal instead of its unavailable text.
+    refusalText: (stale) => stale,
+    drive: (scenario, runKind) =>
+      driveConfiguredProvider(scenario, runKind, 'https://api.openai.com'),
+  }
+  const configuredScheduleBranch: LifecycleBranch = {
+    name: 'configured-provider-schedule',
+    // The production schedule/hook path exactly as the client builds it: the
+    // confirmation carries no origin and no provider id, and the bound client
+    // under test adds only the provider id before the shared gate.
+    refusalText: (stale) => stale,
+    drive: (scenario, runKind) => driveConfiguredProvider(scenario, runKind, undefined),
   }
 
   class LifecycleText implements vscode.LanguageModelTextPart {
@@ -1274,6 +1293,7 @@ describe('confirmed-dispatch lifecycle across every branch', () => {
   const branches: readonly LifecycleBranch[] = [
     modelApiBranch,
     configuredBranch,
+    configuredScheduleBranch,
     copilotBranch,
     chatgptBranch,
   ]
