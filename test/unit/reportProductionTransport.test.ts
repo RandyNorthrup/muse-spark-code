@@ -128,7 +128,14 @@ beforeAll(async () => {
       l10n: { table: EN, locale: 'en' },
       policy: policy('terminal'),
     },
-    { head: '82d50d5e456d17205623064b0a70caf8a6e34471', defaultBranch: 'main', commits: [] },
+    {
+      head: '82d50d5e456d17205623064b0a70caf8a6e34471',
+      defaultBranch: 'main',
+      commits: [],
+      tags: [],
+      branches: [],
+      worktrees: [],
+    },
     project,
   )
   const storeResult = await stores.stores.read(networkContext())
@@ -172,7 +179,14 @@ beforeAll(async () => {
       policy: policy('editor'),
       transport: githubLane,
     },
-    { head: '82d50d5e456d17205623064b0a70caf8a6e34471', defaultBranch: 'main', commits: [] },
+    {
+      head: '82d50d5e456d17205623064b0a70caf8a6e34471',
+      defaultBranch: 'main',
+      commits: [],
+      tags: [],
+      branches: [],
+      worktrees: [],
+    },
     project,
   )
   const githubResult = await github.github.read(networkContext())
