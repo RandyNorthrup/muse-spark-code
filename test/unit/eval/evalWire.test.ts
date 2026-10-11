@@ -30,6 +30,22 @@ function modelCall(model: string | null = EVAL_MODEL_ID): RequestInit {
   }
 }
 
+/** Pause a model body so a different request can settle before its send. */
+function heldModelBody() {
+  const held = Promise.withResolvers<undefined>()
+  const entered = Promise.withResolvers<undefined>()
+  const body = new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      entered.resolve(undefined)
+      await held.promise
+      controller.enqueue(new TextEncoder().encode(JSON.stringify({ model: EVAL_MODEL_ID })))
+      controller.close()
+    },
+  })
+  const init = { ...modelCall(), body, duplex: 'half' }
+  return { held, entered, init }
+}
+
 function wireOn(fetch: typeof globalThis.fetch, budget?: EvalBudget) {
   return createEvalWire({
     fetch,
@@ -145,17 +161,7 @@ describe('eval wire', () => {
     api.script({ text: 'ok' })
     const budget: EvalBudget = { spentUsd: Usd.from(0).toAmount(), maxAttempts: 1 }
     const wire = wireOn(api.fetch, budget)
-    const held = Promise.withResolvers<undefined>()
-    const entered = Promise.withResolvers<undefined>()
-    const body = new ReadableStream<Uint8Array>({
-      async pull(controller) {
-        entered.resolve(undefined)
-        await held.promise
-        controller.enqueue(new TextEncoder().encode(JSON.stringify({ model: EVAL_MODEL_ID })))
-        controller.close()
-      },
-    })
-    const init = { ...modelCall(), body, duplex: 'half' }
+    const { held, entered, init } = heldModelBody()
     const waiting = wire.fetch(RESPONSES_URL, init)
     await entered.promise
     // The previous reply settles while this body is held: the budget spends.
@@ -438,17 +444,7 @@ describe('eval wire', () => {
     api.script({ text: 'ok' })
     const budget: EvalBudget = { spentUsd: Usd.from(0).toAmount() }
     const wire = wireOn(api.fetch, budget)
-    const held = Promise.withResolvers<undefined>()
-    const entered = Promise.withResolvers<undefined>()
-    const body = new ReadableStream<Uint8Array>({
-      async pull(controller) {
-        entered.resolve(undefined)
-        await held.promise
-        controller.enqueue(new TextEncoder().encode(JSON.stringify({ model: EVAL_MODEL_ID })))
-        controller.close()
-      },
-    })
-    const init = { ...modelCall(), body, duplex: 'half' }
+    const { held, entered, init } = heldModelBody()
     const waiting = wire.fetch(RESPONSES_URL, init)
     await entered.promise
     if (kind === 'unknown') {

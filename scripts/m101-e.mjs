@@ -49,7 +49,7 @@ function planFor(selection) {
 }
 
 /** Execute only the reviewed freeze adapter, offline; no arm source executes in this process. */
-function digestOffline() {
+function digestOffline(isChecking = false) {
   const root = fileURLToPath(new URL('..', import.meta.url))
   const scratch = mkdtempSync(path.join(tmpdir(), 'm101-freeze-'))
   try {
@@ -69,7 +69,7 @@ function digestOffline() {
     if (output === undefined) throw new Error('The freeze adapter emitted no code.')
     writeFileSync(target, output.contents)
     const adapter = createRequire(import.meta.url)(target)
-    const digest = adapter.evalHarnessDigest()
+    const digest = isChecking ? adapter.assertEvalHarnessDigest() : adapter.evalHarnessDigest()
     if (typeof digest !== 'string' || !/^[a-f0-9]{64}$/.test(digest))
       throw new Error('The freeze adapter returned an invalid digest.')
     return digest
@@ -81,10 +81,16 @@ function digestOffline() {
 function main() {
   const mode = process.argv[2] ?? '--plan'
   if (
-    !['--plan', '--fake', '--live-m75', '--smoke-m75', '--freeze'].includes(mode) ||
+    !['--plan', '--fake', '--live-m75', '--smoke-m75', '--freeze', '--check-freeze'].includes(
+      mode,
+    ) ||
     process.argv.length > 3
   ) {
-    throw new Error('Use --plan, --fake, --live-m75, --smoke-m75 or --freeze')
+    throw new Error('Use --plan, --fake, --live-m75, --smoke-m75, --freeze or --check-freeze')
+  }
+  if (mode === '--check-freeze') {
+    process.stdout.write(`${digestOffline(true)}\n`)
+    return
   }
   if (mode === '--freeze') {
     const sha256 = digestOffline()
@@ -130,12 +136,18 @@ function main() {
             'test/unit/autoCompactionAdmission.test.ts',
             'test/unit/modelApiAutoCompact.test.ts',
           ],
+          [
+            'test/unit/eval/evalArmSources.test.ts',
+            'test/unit/eval/evalTasks.test.ts',
+            'test/unit/eval/evalWorkspacePrivacy.test.ts',
+          ],
+          ['test/unit/eval/evalMultiEdit.test.ts', 'test/unit/eval/evalWire.test.ts'],
           ['test/unit/modelApiOverflow.test.ts'],
         ]
       : [['test/e2e/eval.live.e2e.test.ts']]
   const env = { ...process.env }
   if (mode === '--live-m75' || isSmoke) {
-    const computed = digestOffline()
+    const computed = digestOffline(true)
     const pinned = JSON.parse(
       readFileSync(new URL('../src/core/eval/frozen.json', import.meta.url), 'utf8'),
     ).sha256

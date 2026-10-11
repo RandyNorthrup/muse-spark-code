@@ -24,6 +24,22 @@ const evalCountFields = {
   costUsd: legacyUsdSchema,
 }
 
+const compactionLedgerSchema = z.object({
+  /** Cumulative accepted reservations, not simultaneous headroom. */
+  reservedUsd: legacyUsdSchema,
+  /** Known settlements only; already included in trace cost, never added twice. */
+  settledUsd: legacyUsdSchema,
+  outstandingUsd: legacyUsdSchema,
+  /** Unknown settlements retain this liability and stop the run. */
+  retainedUsd: legacyUsdSchema,
+})
+const requestEvidenceSchema = z.object({
+  sha256: z.string(),
+  packageTypeModuleVisible: z.boolean(),
+  /** Tool names returned on this attempt, never their arguments or contents. */
+  responseTools: z.array(z.string()),
+})
+
 const evalTaskFields = {
   taskId: z.string(),
   title: z.string(),
@@ -52,16 +68,17 @@ export const evalTaskResultSchema = z.object({
   /** `recall_output` calls that succeeded (M73); absent in reports made before it. */
   recalls: z.optional(z.number()),
   /**
-   * D78 admissions the run settled on this task (M101 lane E R2): the
-   * settled summary round trips, counted by the runner's ledger, not by
-   * attempt counts. Absent in reports made before it, which read as never
-   * engaged.
+   * Released D78 claims, including rejected and failed attempts. This is
+   * attempt accounting, never evidence of accepted history replacement.
    */
   compactionsSettled: z.optional(z.number()),
   /** Host accepted the summary and replaced history; rejected attempts never count. */
   compactionsApplied: z.optional(z.number()),
   callBudget: z.optional(z.number()),
   overBudget: z.optional(z.boolean()),
+  compactionsAttempted: z.optional(z.number()),
+  compactionLedger: z.optional(compactionLedgerSchema),
+  requestEvidence: z.optional(z.array(requestEvidenceSchema)),
 })
 export type EvalTaskResult = z.infer<typeof evalTaskResultSchema>
 
@@ -75,6 +92,9 @@ const legacyTaskResultSchema = z.object({
   recalls: z.optional(z.never()),
   compactionsSettled: z.optional(z.never()),
   compactionsApplied: z.optional(z.never()),
+  compactionsAttempted: z.optional(z.never()),
+  compactionLedger: z.optional(z.never()),
+  requestEvidence: z.optional(z.never()),
 })
 
 export const evalSplitSummarySchema = z.object({
@@ -96,6 +116,7 @@ const evalArmFields = {
 export const evalArmReportSchema = z.object({
   ...evalArmFields,
   results: z.array(evalTaskResultSchema),
+  compactionLedger: z.optional(compactionLedgerSchema),
 })
 export type EvalArmReport = z.infer<typeof evalArmReportSchema>
 
@@ -115,7 +136,7 @@ const evalReportFields = {
   generatedAt: z.string(),
   floors: z.array(evalFloorResultSchema),
   /**
-   * `incomplete`: every floor that ran held, but a split did not run.
+   * `incomplete`: a narrowed selection, empty split or global stop leaves evidence incomplete.
    * `fail`: a floor fell, or a mechanism's own acceptance failed (M73's
    * packing engagement or lane E's compaction engagement, below).
    */
@@ -177,6 +198,7 @@ export const evalReportSchema = z.discriminatedUnion('version', [
     stoppedEarly: z.optional(z.array(z.string())),
     /** Present only when every arm executed its frozen bundle snapshot. */
     harnessDigest: z.optional(z.string()),
+    compactionLedger: z.optional(compactionLedgerSchema),
     certifiedDigest: z.optional(z.string()),
     computedDigest: z.optional(z.string()),
     incompleteReasons: z.optional(z.array(z.string())),
@@ -244,6 +266,21 @@ function armLines(arm: ReportArm): string[] {
     )
   }
   lines.push(``)
+  for (const result of arm.results) {
+    if (result.compactionLedger === undefined) continue
+    const money = result.compactionLedger
+    lines.push(
+      `${result.taskId} compaction ledger: reserved $${money.reservedUsd}, settled $${money.settledUsd}, outstanding $${money.outstandingUsd}, retained unknown $${money.retainedUsd}.`,
+      ``,
+    )
+  }
+  if ('compactionLedger' in arm && arm.compactionLedger !== undefined) {
+    const money = arm.compactionLedger
+    lines.push(
+      `Arm compaction ledger: reserved $${money.reservedUsd}, settled $${money.settledUsd}, outstanding $${money.outstandingUsd}, retained unknown $${money.retainedUsd}.`,
+      ``,
+    )
+  }
   const packed = arm.results.filter((result) => result.packedTokensAvoided !== undefined)
   if (packed.length > 0) {
     lines.push(
@@ -304,6 +341,19 @@ export function formatEvalReportMarkdown(report: EvalReport): string {
     `Model: ${report.model} · generated ${report.generatedAt} · verdict: ${report.verdict}`,
     ``,
   ]
+  if (report.version === EVAL_REPORT_VERSION && report.compactionLedger !== undefined) {
+    const money = report.compactionLedger
+    lines.push(
+      `Run compaction ledger: reserved $${money.reservedUsd}, settled $${money.settledUsd}, outstanding $${money.outstandingUsd}, retained unknown $${money.retainedUsd}.`,
+      ``,
+    )
+  }
+  if (report.version === EVAL_REPORT_VERSION && report.computedDigest !== undefined) {
+    lines.push(
+      `Certified digest: ${report.certifiedDigest ?? 'not recorded'} · computed: ${report.computedDigest}`,
+      ``,
+    )
+  }
   for (const arm of report.arms) {
     lines.push(...armLines(arm))
   }

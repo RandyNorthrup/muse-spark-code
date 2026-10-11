@@ -1,6 +1,7 @@
 // Frozen M75 arms (PLAN.md M101): each pure program runs only inside the
 // restricted child. Adapter and harness conditions are declared fixtures;
-// production code under test remains outside the freeze.
+// The fixed parent and production system under test contribute source provenance
+// without gaining any additional arm execution permissions.
 
 import { createHash } from 'node:crypto'
 import { MissingEvalAdmissionError } from '../paid/paidConsent'
@@ -161,6 +162,7 @@ export function evalHarnessSources(): string[] {
       'scripts/m101-e.mjs',
       ARM_PROGRAM,
       'src/host/backend/searchWorker.ts',
+      'scripts/build.mjs',
     ],
     outdir: 'eval-graph',
     bundle: true,
@@ -168,6 +170,7 @@ export function evalHarnessSources(): string[] {
     metafile: true,
     packages: 'external',
     platform: 'node',
+    format: 'esm',
     logLevel: 'silent',
   }).metafile
   // The expected digest is an output of the freeze, never its own input.
@@ -178,7 +181,9 @@ export function evalHarnessSources(): string[] {
         file.replaceAll('\\', '/').replace(/ with \{.*\}$/u, ''),
       ),
       'package-lock.json',
-      'scripts/build.mjs',
+      'native/windows/MuseSparkJob.cs',
+      'native/windows/MuseSparkMcpJob.cs',
+      'native/windows/MuseSparkMcpLauncher.cs',
     ]),
   ]
     .filter((file) => file !== 'src/core/eval/frozen.json')
@@ -195,7 +200,7 @@ export function assertEvalHarnessDigest(expected: string = pin.sha256): string {
   return computed
 }
 
-/** Freeze once before the run. Source adapters are explicit fixtures, never a discovered closure. */
+/** Freeze arm execution snapshots and the complete parent source provenance before the run. */
 export function freezeEvalHarness(
   arms: readonly EvalArm[] = EVAL_ARMS,
   tasks: readonly EvalTask[] = EVAL_TASKS,
@@ -211,7 +216,13 @@ export function freezeEvalHarness(
   const fixtures: ArmFixture[] = ['armSources', 'mechanisms', 'runner', 'heldDeps', 'tasks'].map(
     (file) => ({
       path: `${file}.ts`,
-      bytes: readFileSync(path.join(repo, 'src/core/eval', `${file}.ts`)),
+      bytes: Buffer.from(
+        readFileSync(path.join(repo, 'src/core/eval', `${file}.ts`), 'utf8').replaceAll(
+          '\r\n',
+          '\n',
+        ),
+        'utf8',
+      ),
     }),
   )
   const conditions = canonicalize(

@@ -64,7 +64,8 @@ export async function driveEvalTurn(options: {
   readonly windowTokens?: number | undefined
   readonly memory?: MemoryStore | undefined
   readonly approvalMode?: ApprovalMode | undefined
-  readonly admission?: EvalCompactionAdmission | undefined
+  /** Explicit null exercises the driver's missing-admission refusal. */
+  readonly admission?: EvalCompactionAdmission | null | undefined
 }): Promise<DrivenEvalTurn> {
   const api = fakeModelApi()
   api.script(...options.replies)
@@ -86,7 +87,8 @@ export async function driveEvalTurn(options: {
       },
       turnTimeoutMs: options.turnTimeoutMs,
       memory: options.memory,
-      admission: options.admission ?? testEvalAdmission(),
+      admission:
+        options.admission === null ? undefined : (options.admission ?? testEvalAdmission()),
     },
     workspace: EVAL_TURN_ROOT,
     prompt: options.prompt,

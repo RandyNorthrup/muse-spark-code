@@ -752,7 +752,7 @@
     {
       "id": "M101",
       "title": "Long-task context upgrades",
-      "summary": "Cache-stable prompts, recallable packed output and manual ACP compaction ship; automatic compaction stays off until its complete frozen evaluation passes with accepted summaries and independent evidence-first task budgets.",
+      "summary": "Cache-stable prompts, recallable packed output and manual ACP compaction ship; automatic compaction stays off until its complete frozen evaluation passes with accepted summaries and independent evidence-first task budgets totalling 548 calls.",
       "area": "agents",
       "release": "0.15.0"
     },

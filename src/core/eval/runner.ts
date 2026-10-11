@@ -199,7 +199,8 @@ async function runTask(
     budget,
     maxAttempts: callBudget,
   })
-  const settledBefore = ledger.tally.settled
+  const ledgerBefore = { ...ledger.tally }
+  const settledBefore = ledgerBefore.settled
   const steps: string[] = []
   const folders = await step(
     'the workspace could not be made',
@@ -226,8 +227,8 @@ async function runTask(
   deps.log.info(
     `Evaluation ${arm.name} ${task.id}: ${isPassed ? 'passed' : 'failed'} after ${String(totals.attempts)} attempts`,
   )
-  // The D78 admissions this task settled (R2): the compaction evidence,
-  // counted by the ledger around the turn — zero where nothing compacted.
+  // Released D78 claims remain attempt evidence; accepted history replacement
+  // and its known settlement are recorded independently below.
   const compactionsSettled = ledger.tally.settled - settledBefore
   return {
     result: {
@@ -256,6 +257,22 @@ async function runTask(
       compactionsApplied: outcome?.compactionsApplied ?? 0,
       ...(callBudget !== undefined && { callBudget }),
       overBudget: wire.isOverBudget,
+      compactionsAttempted: ledger.tally.started - ledgerBefore.started,
+      compactionLedger: {
+        reservedUsd: Usd.from(ledger.tally.reservedUsd)
+          .subtract(Usd.from(ledgerBefore.reservedUsd))
+          .toAmount(),
+        settledUsd: Usd.from(ledger.tally.settledUsd)
+          .subtract(Usd.from(ledgerBefore.settledUsd))
+          .toAmount(),
+        outstandingUsd: ledger.tally.outstandingUsd,
+        retainedUsd: Usd.from(ledger.tally.retainedUsd)
+          .subtract(Usd.from(ledgerBefore.retainedUsd))
+          .toAmount(),
+      },
+      requestEvidence: wire.calls.flatMap((call) =>
+        call.requestEvidence === undefined ? [] : [call.requestEvidence],
+      ),
     },
     truncated: wire.truncated,
   }
@@ -379,11 +396,35 @@ export async function runPairedEval(
       }
     }
   }
+  if (budget.hasUnknownUsage === true) {
+    const reason = stopReason('unknown-usage', budget)
+    if (!stoppedEarly.includes(reason)) stoppedEarly.push(reason)
+  }
+  if (Usd.from(budget.spentUsd).compare(Usd.from(EVAL_BUDGET_USD)) >= 0) {
+    const reason = stopReason('budget-spent', budget)
+    if (!stoppedEarly.includes(reason)) stoppedEarly.push(reason)
+  }
   const reports: EvalArmReport[] = runs.map(({ arm, results }) => ({
     name: arm.name,
     ...(arm.mechanism !== undefined && { mechanism: arm.mechanism }),
     results,
     summaries: EVAL_SPLITS.map((split) => summarize(split, results)),
+    compactionLedger: {
+      reservedUsd: sumUsd(
+        ...results.map((result) => result.compactionLedger?.reservedUsd ?? Usd.from(0).toAmount()),
+      ),
+      settledUsd: sumUsd(
+        ...results.map((result) => result.compactionLedger?.settledUsd ?? Usd.from(0).toAmount()),
+      ),
+      outstandingUsd: sumUsd(
+        ...results.map(
+          (result) => result.compactionLedger?.outstandingUsd ?? Usd.from(0).toAmount(),
+        ),
+      ),
+      retainedUsd: sumUsd(
+        ...results.map((result) => result.compactionLedger?.retainedUsd ?? Usd.from(0).toAmount()),
+      ),
+    },
   }))
   const floors: EvalFloorResult[] = reports.flatMap((arm) =>
     arm.summaries.map((summary) => {
@@ -412,6 +453,12 @@ export async function runPairedEval(
     generatedAt: deps.generatedAt,
     ...(frozen.bundles.size === arms.length && { harnessDigest: frozen.sha256 }),
     arms: reports,
+    compactionLedger: {
+      reservedUsd: ledger.tally.reservedUsd,
+      settledUsd: ledger.tally.settledUsd,
+      outstandingUsd: ledger.tally.outstandingUsd,
+      retainedUsd: ledger.tally.retainedUsd,
+    },
     floors,
     ...(stoppedEarly.length > 0 && { stoppedEarly }),
     ...(incompleteReasons.length > 0 && { incompleteReasons }),

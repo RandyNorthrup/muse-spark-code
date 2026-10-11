@@ -14,6 +14,7 @@ import { Usd, sumUsd, type UsdAmount } from '../../shared/usd'
 // it and does not retry. The request is read as `fetch` itself would read
 // it (a `Request` built from the arguments), so its shape cannot slip past.
 
+import { createHash } from 'node:crypto'
 import * as z from 'zod/mini'
 import { EVAL_BUDGET_USD, EVAL_MODEL_ID } from '../../shared/constants'
 import { parseSse } from '../backends/modelapi/sse'
@@ -43,6 +44,11 @@ export interface EvalWireCall {
   inputTokens: number
   cachedTokens: number
   outputTokens: number
+  readonly requestEvidence?: {
+    readonly sha256: string
+    readonly packageTypeModuleVisible: boolean
+    readonly responseTools: string[]
+  }
 }
 
 /** The run's spend so far, shared by every task's wire. */
@@ -61,8 +67,9 @@ export type EvalWireTruncation = 'call-ceiling' | 'budget-spent' | 'unknown-usag
 
 export interface EvalWire {
   readonly fetch: typeof fetch
-  /** The requests sent, in order. */
+  /** A local allowance refusal; this task fails while later tasks retain their budgets. */
   readonly isOverBudget: boolean
+  /** The requests sent, in order. */
   readonly calls: readonly EvalWireCall[]
   /** The requests refused before sending, by reason. */
   readonly refusals: readonly string[]
@@ -85,11 +92,18 @@ export interface EvalWireTotals {
   readonly costUsd: UsdAmount
 }
 
-const modelBodySchema = z.object({ model: z.optional(z.string()) })
+const modelBodySchema = z.object({
+  model: z.optional(z.string()),
+  instructions: z.optional(z.string()),
+  input: z.optional(z.array(z.json())),
+})
 
 const terminalFrameSchema = z.object({
   type: z.enum(['response.completed', 'response.incomplete', 'response.failed']),
-  response: z.object({ usage: z.optional(z.nullable(usageSchema)) }),
+  response: z.object({
+    usage: z.optional(z.nullable(usageSchema)),
+    output: z.optional(z.array(z.object({ type: z.string(), name: z.optional(z.string()) }))),
+  }),
 })
 
 function parseJson(text: string): unknown {
@@ -104,6 +118,20 @@ function parseJson(text: string): unknown {
 function modelOf(body: string): string | undefined {
   const parsed = modelBodySchema.safeParse(parseJson(body))
   return parsed.success ? parsed.data.model : undefined
+}
+
+/** Recognize the explicit package fact, including JSON-encoded tool results. */
+function isModuleFactVisible(value: unknown): boolean {
+  if (typeof value === 'string') {
+    if (/"type"\s*:\s*"module"/u.test(value)) return true
+    const decoded = parseJson(value)
+    return decoded !== undefined && decoded !== value && isModuleFactVisible(decoded)
+  }
+  return Array.isArray(value)
+    ? value.some((item: unknown) => isModuleFactVisible(item))
+    : typeof value === 'object' &&
+        value !== null &&
+        Object.values(value).some((item: unknown) => isModuleFactVisible(item))
 }
 
 function describe(error: unknown): string {
@@ -243,7 +271,15 @@ export function createEvalWire(deps: EvalWireDeps): EvalWire {
     let hasUsage = false
     try {
       for await (const frame of parseSse(stream)) {
-        const usage = terminalFrameSchema.safeParse(parseJson(frame.data)).data?.response.usage
+        const response = terminalFrameSchema.safeParse(parseJson(frame.data)).data?.response
+        const usage = response?.usage
+        if (call.requestEvidence !== undefined) {
+          call.requestEvidence.responseTools.push(
+            ...(response?.output ?? []).flatMap((item) =>
+              item.type === 'function_call' && item.name !== undefined ? [item.name] : [],
+            ),
+          )
+        }
         if (usage == null) {
           continue
         }
@@ -290,7 +326,8 @@ export function createEvalWire(deps: EvalWireDeps): EvalWire {
     if (!ALLOWED_REQUESTS.has(endpoint)) {
       return refuse(`the evaluation sends no ${endpoint}`)
     }
-    const model = request.method === 'GET' ? undefined : modelOf(await request.clone().text())
+    const body = request.method === 'GET' ? '' : await request.clone().text()
+    const model = request.method === 'GET' ? undefined : modelOf(body)
     const isModelCall = endpoint === MODEL_CALL
     if (model !== EVAL_MODEL_ID && (isModelCall || model !== undefined)) {
       return refuse(`the evaluation runs on ${EVAL_MODEL_ID} only, not ${String(model)}`)
@@ -333,6 +370,15 @@ export function createEvalWire(deps: EvalWireDeps): EvalWire {
       inputTokens: 0,
       cachedTokens: 0,
       outputTokens: 0,
+      ...(isModelCall && {
+        requestEvidence: {
+          sha256: createHash('sha256').update(body, 'utf8').digest('hex'),
+          packageTypeModuleVisible: isModuleFactVisible(
+            modelBodySchema.safeParse(parseJson(body)).data,
+          ),
+          responseTools: [],
+        },
+      }),
     }
     calls.push(call)
     // Send the validated snapshot, including a streamed body and copied headers.

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { existsSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -20,6 +21,7 @@ import {
   OBSERVATION_PACKING_ARM,
   STRICT_TOOLS_ARM,
 } from '../../../src/core/eval/mechanisms'
+import { Usd, sumUsd } from '../../../src/shared/usd'
 import { evalReportSchema } from '../../../src/core/eval/report'
 import { runPairedEval, type EvalArm, type EvalRunDeps } from '../../../src/core/eval/runner'
 import plan from '../../../src/core/eval/plan.json'
@@ -590,6 +592,7 @@ describe('runPairedEval', { timeout: RUNS_TIMEOUT_MS }, () => {
     // The settled-admission count rides on every task result: one on each
     // long-context run of the arm, zero everywhere else — the baseline
     // settled nothing on any task.
+    if (report.version !== EVAL_REPORT_VERSION) throw new Error('unexpected report version')
     const [baselineArm, compactionArm] = report.arms
     const baselineResults = baselineArm?.results ?? []
     for (const result of baselineResults) {
@@ -600,8 +603,34 @@ describe('runPairedEval', { timeout: RUNS_TIMEOUT_MS }, () => {
       expect(result.compactionsSettled).toBe(longIds.has(result.taskId) ? 1 : 0)
       expect(result.compactionsApplied).toBe(longIds.has(result.taskId) ? 1 : 0)
     }
+    const money = report.compactionLedger
+    expect(Number(money?.reservedUsd)).toBeGreaterThan(0)
+    expect(Number(money?.settledUsd)).toBeGreaterThan(0)
+    expect(money?.outstandingUsd).toBe(Usd.from(0).toAmount())
+    expect(money?.retainedUsd).toBe(Usd.from(0).toAmount())
+    const armedMoney = compactionArm?.compactionLedger
+    expect(armedMoney).toEqual(money)
+    expect(baselineArm?.compactionLedger?.reservedUsd).toBe(Usd.from(0).toAmount())
+    expect(
+      sumUsd(
+        ...compactionResults.map(
+          (result) => result.compactionLedger?.reservedUsd ?? Usd.from(0).toAmount(),
+        ),
+      ),
+    ).toBe(money?.reservedUsd)
+    expect(
+      sumUsd(
+        ...compactionResults.map(
+          (result) => result.compactionLedger?.settledUsd ?? Usd.from(0).toAmount(),
+        ),
+      ),
+    ).toBe(money?.settledUsd)
+    const parsed = evalReportSchema.parse(structuredClone(report))
+    expect(parsed.version === EVAL_REPORT_VERSION ? parsed.compactionLedger : undefined).toEqual(
+      money,
+    )
     // A full run names no early stop.
-    expect(report.version === EVAL_REPORT_VERSION ? report.stoppedEarly : undefined).toBeUndefined()
+    expect(report.stoppedEarly).toBeUndefined()
   })
 
   it('calls a run that hits its call ceiling incomplete, with the reason', async () => {
@@ -664,6 +693,69 @@ describe('runPairedEval', { timeout: RUNS_TIMEOUT_MS }, () => {
       ).toEqual([task.id])
     },
   )
+
+  it('records module-fact visibility and a digest for each writing request without prompt contents', async () => {
+    const { api, deps } = rig()
+    const task = EVAL_TASKS.find((candidate) => candidate.id === 'accept-long-middle-value')
+    if (task === undefined) throw new Error('missing packing task')
+    const fix = fixesFor(EVAL_CANONICAL_FIXES, task)[0]
+    api.script(
+      { calls: [{ name: 'read_file', arguments: JSON.stringify({ path: 'package.json' }) }] },
+      { calls: [{ name: 'write_file', arguments: JSON.stringify(fix) }] },
+      { text: 'Complete.' },
+    )
+    const report = await runPairedEval([task], [BASELINE], deps)
+    const evidence = report.arms[0]?.results[0]?.requestEvidence
+    expect(evidence).toHaveLength(3)
+    expect(evidence?.map((request) => request.packageTypeModuleVisible)).toEqual([
+      false,
+      true,
+      true,
+    ])
+    expect(evidence?.[1]?.responseTools).toEqual(['write_file'])
+    for (const [index, body] of api.responseBodies().entries()) {
+      expect(evidence?.[index]?.sha256).toBe(
+        createHash('sha256').update(JSON.stringify(body)).digest('hex'),
+      )
+    }
+    const json = JSON.stringify(evidence)
+    expect(json).not.toContain(task.prompt)
+    expect(json).not.toContain(task.files.find((file) => file.path === 'package.json')?.content)
+    expect(json).not.toContain(fix?.content)
+    const parsed = evalReportSchema.parse(structuredClone(report))
+    expect(parsed.arms[0]?.results[0]?.requestEvidence).toEqual(evidence)
+  })
+
+  it.each(['money', 'unknown'])('records a %s stop even on the very last call', async (kind) => {
+    const { api, deps } = rig()
+    const lastReply: ScriptedReply =
+      kind === 'money'
+        ? { text: 'Complete.', usage: { input: BUDGET_BREAKING_INPUT_TOKENS, output: 0 } }
+        : { text: 'Complete.', omitUsage: true }
+    api.script(
+      ...EVAL_TASKS.flatMap((task, index) =>
+        index === EVAL_TASKS.length - 1
+          ? [...canonical(task).slice(0, -1), lastReply]
+          : canonical(task),
+      ),
+    )
+    const raw = await runPairedEval(EVAL_TASKS, [BASELINE], deps)
+    expect(raw.floors.every((floor) => floor.held)).toBe(true)
+    expect(raw.verdict).toBe('incomplete')
+    expect(raw.version === EVAL_REPORT_VERSION ? raw.stoppedEarly : undefined).toEqual([
+      kind === 'money'
+        ? `the run stopped after its budget of $${EVAL_BUDGET_USD.toFixed(2)} was spent`
+        : 'the run stopped because a sent model call has unknown usage',
+    ])
+    expect(
+      withCompactionEngagement(
+        withPackingEngagement(raw, 'packing', EVAL_TASKS),
+        'auto-compaction',
+        'baseline',
+        EVAL_TASKS,
+      ).verdict,
+    ).toBe('incomplete')
+  })
 
   it('records a local overrun and still runs the next task', async () => {
     const { api, deps } = rig()
@@ -787,14 +879,16 @@ describe('runPairedEval', { timeout: RUNS_TIMEOUT_MS }, () => {
         },
       ],
     }
-    expect(
-      withCompactionEngagement(
-        withPackingEngagement(report, 'packing', tasks),
-        'auto-compaction',
-        'baseline',
-        tasks,
-      ).verdict,
-    ).toBe('incomplete')
+    const engaged = withCompactionEngagement(
+      withPackingEngagement(report, 'packing', tasks),
+      'auto-compaction',
+      'baseline',
+      tasks,
+    )
+    if (engaged.version !== EVAL_REPORT_VERSION) throw new Error('unexpected report version')
+    expect(engaged.packingEngagement?.held).toBe(true)
+    expect(engaged.compactionEngagement?.held).toBe(true)
+    expect(engaged.verdict).toBe('incomplete')
     expect(raw.incompleteReasons).toEqual(['narrowed selection'])
   })
 

@@ -2,6 +2,7 @@
 // this process. No key comes from arguments, environment or a fixture file.
 // Native entry access is deferred until the owner enables the live test.
 
+import { Usd } from '../../src/shared/usd'
 import { createHash } from 'node:crypto'
 import * as z from 'zod/mini'
 import type { ToolIo } from '../../src/core/backends/modelapi/tools'
@@ -199,6 +200,15 @@ export function unengagedLongOutputTasks(
     .map((task) => task.id)
 }
 
+function engagementVerdict(
+  verdict: EvalReport['verdict'],
+  isHeld: boolean,
+  taskCount: number,
+): EvalReport['verdict'] {
+  if (isHeld || verdict === 'incomplete') return verdict
+  return taskCount === 0 ? 'incomplete' : 'fail'
+}
+
 /**
  * The report with M73's packing acceptance recorded in it (PLAN.md M73):
  * the arm's engagement on the run's long-output tasks, and the verdict
@@ -220,10 +230,6 @@ export function withPackingEngagement(
   const unengaged = unengagedLongOutputTasks(report, armName, tasks)
   // An empty list is not held: nothing ran to engage on.
   const isHeld = longTasks.length > 0 && unengaged.length === 0
-  let verdict = report.verdict
-  if (!isHeld && verdict !== 'incomplete') {
-    verdict = longTasks.length === 0 ? 'incomplete' : 'fail'
-  }
   return {
     ...report,
     packingEngagement: {
@@ -232,14 +238,14 @@ export function withPackingEngagement(
       unengaged,
       held: isHeld,
     },
-    verdict,
+    verdict: engagementVerdict(report.verdict, isHeld, longTasks.length),
   }
 }
 
 /**
  * The long-context tasks on which the D78 admission settled no summary
  * for the arm (M101 lane E R2): "compaction engaged" means the runner's
- * settled-admission count reached at least one on the task — more model
+ * accepted-history count reached at least one and its admission settled with no outstanding or unknown liability — more model
  * calls than the baseline is not evidence, in either direction. A shorter
  * continuation after a real summary still engaged; an extra tool round
  * without one never did. A task from before the settled count (absent) or
@@ -260,13 +266,17 @@ export function unengagedCompactionTasks(
       const result = arm.find((result) => result.taskId === task.id)
       const settled = result?.compactionsSettled
       const applied = result?.compactionsApplied
+      const money = result?.compactionLedger
       const ran = baseline.find((result) => result.taskId === task.id)
       return (
         ran === undefined ||
         settled === undefined ||
         applied === undefined ||
         applied < 1 ||
-        settled < applied
+        settled < applied ||
+        money === undefined ||
+        Usd.from(money.outstandingUsd).compare(Usd.from(0)) !== 0 ||
+        Usd.from(money.retainedUsd).compare(Usd.from(0)) !== 0
       )
     })
     .map((task) => task.id)
@@ -294,10 +304,6 @@ export function withCompactionEngagement(
   const unengaged = unengagedCompactionTasks(report, armName, baselineName, tasks)
   // An empty list is not held: nothing ran to engage on.
   const isHeld = longTasks.length > 0 && unengaged.length === 0
-  let verdict = report.verdict
-  if (!isHeld && verdict !== 'incomplete') {
-    verdict = longTasks.length === 0 ? 'incomplete' : 'fail'
-  }
   return {
     ...report,
     compactionEngagement: {
@@ -306,7 +312,7 @@ export function withCompactionEngagement(
       unengaged,
       held: isHeld,
     },
-    verdict,
+    verdict: engagementVerdict(report.verdict, isHeld, longTasks.length),
   }
 }
 
