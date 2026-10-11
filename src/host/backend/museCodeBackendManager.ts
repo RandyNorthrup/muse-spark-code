@@ -366,11 +366,20 @@ export class MuseCodeBackendManager {
     let host: MuseCodeHost
     try {
       this.deps.accountHome?.assertCurrent()
+      // The effort catalogue reader loads on first spawn, not at activation:
+      // dist/modelEfforts.js stays out of the activation bundle (lane K
+      // budget) while every spawn reads the same captured catalogue. An
+      // injected reader (tests) wins over the preload.
+      let modelEfforts = this.deps.featurePorts?.modelEfforts
+      if (modelEfforts === undefined) {
+        const entry = await import('../../core/backends/musecode/modelEffortsEntry')
+        modelEfforts = { parseModel: entry.parseModelEffortExtras }
+      }
       host = new MuseCodeHost(
         mspHost,
         this.deps.log,
         this.deps.commandTimeouts,
-        this.deps.featurePorts,
+        { ...this.deps.featurePorts, modelEfforts },
         undefined,
         this.deps.accountHome,
       )

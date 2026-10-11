@@ -1,9 +1,11 @@
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as sdk from '@muse-code/sdk'
-import { NATIVE_MUSE_CODE_FEATURE_PORTS } from '../../src/core/backends/musecode/MuseCodeHost'
+import {
+  NATIVE_MUSE_CODE_FEATURE_PORTS,
+  type MuseCodeHost,
+} from '../../src/core/backends/musecode/MuseCodeHost'
 import { NATIVE_FEEDBACK_READER } from '../../src/core/backends/musecode/feedback'
-import { NATIVE_MODEL_EFFORTS } from '../../src/core/backends/musecode/modelEfforts'
 import { UI_TEXT } from '../../src/shared/constants'
 import { createRuntimeBackend } from '../../src/runtime/backends'
 import type { ServeOptions } from '../../src/runtime/cliArgs'
@@ -36,15 +38,46 @@ function mockServe() {
   )
 }
 
+// The captured frames in at the transport seam, and the behaviour out: the
+// grant the handshake asks for, the catalogue with its ordered variants and
+// default, the note-only receipt as the upload line, and the deletion
+// refusal with no delete frames behind it.
+async function expectNativeBehaviour(host: MuseCodeHost) {
+  // The handshake asks for the grant the capture proves (1.4.4 grants
+  // exactly what its client asks for), so the dialog may send.
+  expect(host.info.grantedCapabilities).toContain('feedback')
+  // The captured catalogue arrives with its ordered variants and default.
+  const models = await host.listModels()
+  const contributor = models.find((model) => model.modelId === 'muse-spark-1.3-contributor')
+  expect(contributor?.variants).toEqual(['minimal', 'low', 'medium', 'high', 'xhigh', 'max'])
+  expect(contributor).toMatchObject({ defaultReasoningEffort: 'max' })
+  // The captured note-only receipt comes out as the upload line, with
+  // none of its identifiers.
+  await expect(
+    host.submitFeedback({
+      sessionId: 's',
+      classification: 'badResult',
+      note: 'A wrong answer',
+      withFiles: false,
+      attachSessionRecord: false,
+    }),
+  ).resolves.toBe(UI_TEXT.feedbackUploaded)
+  // No delete frames exist, so deletion stays refused before dispatch.
+  await expect(host.deleteSession('s')).rejects.toThrow(UI_TEXT.sessionDeleteUnsupported)
+}
+
 describe('Native reader binding: VS Code backend manager', () => {
   afterEach(() => {
     vi.restoreAllMocks()
   })
 
   it('binds the native ports the window constructs with', async () => {
-    // Mirrors src/extension.ts: the window passes the native readers.
+    // Mirrors src/extension.ts: the window passes the native reader. The
+    // effort reader is preloaded by the manager on first spawn (lane K
+    // budget); the catalogue assertions below prove it reads the captured
+    // rows all the same.
     expect(NATIVE_MUSE_CODE_FEATURE_PORTS.feedback).toBe(NATIVE_FEEDBACK_READER)
-    expect(NATIVE_MUSE_CODE_FEATURE_PORTS.modelEfforts).toBe(NATIVE_MODEL_EFFORTS)
+    expect(NATIVE_MUSE_CODE_FEATURE_PORTS.modelEfforts).toBeUndefined()
     expect(NATIVE_MUSE_CODE_FEATURE_PORTS.lifecycle).toBeUndefined()
     mockServe()
     const manager = fakeMuseCodeManager({
@@ -53,28 +86,7 @@ describe('Native reader binding: VS Code backend manager', () => {
     })
     vi.spyOn(manager, 'credentialFileVerdict').mockReturnValue('absent')
     try {
-      const host = await manager.ensureHost()
-      // The handshake asks for the grant the capture proves (1.4.4 grants
-      // exactly what its client asks for), so the dialog may send.
-      expect(host.info.grantedCapabilities).toContain('feedback')
-      // The captured catalogue arrives with its ordered variants and default.
-      const models = await host.listModels()
-      const contributor = models.find((model) => model.modelId === 'muse-spark-1.3-contributor')
-      expect(contributor?.variants).toEqual(['minimal', 'low', 'medium', 'high', 'xhigh', 'max'])
-      expect(contributor).toMatchObject({ defaultReasoningEffort: 'max' })
-      // The captured note-only receipt comes out as the upload line, with
-      // none of its identifiers.
-      await expect(
-        host.submitFeedback({
-          sessionId: 's',
-          classification: 'badResult',
-          note: 'A wrong answer',
-          withFiles: false,
-          attachSessionRecord: false,
-        }),
-      ).resolves.toBe(UI_TEXT.feedbackUploaded)
-      // No delete frames exist, so deletion stays refused before dispatch.
-      await expect(host.deleteSession('s')).rejects.toThrow(UI_TEXT.sessionDeleteUnsupported)
+      await expectNativeBehaviour(await manager.ensureHost())
     } finally {
       await manager.dispose()
     }
@@ -117,22 +129,7 @@ describe('Native reader binding: CLI/ACP runtime', () => {
     })
     vi.spyOn(runtime.museCode, 'credentialFileVerdict').mockReturnValue('absent')
     try {
-      const host = await runtime.museCode.ensureHost()
-      expect(host.info.grantedCapabilities).toContain('feedback')
-      const models = await host.listModels()
-      const contributor = models.find((model) => model.modelId === 'muse-spark-1.3-contributor')
-      expect(contributor?.variants).toEqual(['minimal', 'low', 'medium', 'high', 'xhigh', 'max'])
-      expect(contributor).toMatchObject({ defaultReasoningEffort: 'max' })
-      await expect(
-        host.submitFeedback({
-          sessionId: 's',
-          classification: 'bug',
-          note: 'A wrong answer with steps',
-          withFiles: false,
-          attachSessionRecord: false,
-        }),
-      ).resolves.toBe(UI_TEXT.feedbackUploaded)
-      await expect(host.deleteSession('s')).rejects.toThrow(UI_TEXT.sessionDeleteUnsupported)
+      await expectNativeBehaviour(await runtime.museCode.ensureHost())
     } finally {
       await runtime.close()
     }
