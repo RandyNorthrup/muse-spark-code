@@ -808,7 +808,7 @@
     {
       "id": "M109",
       "title": "Credential vault for agents",
-      "summary": "An encrypted vault gives agents approved, logged uses without values; setup, imports and anchored reset have installed POSIX broker bindings; availability remains off pending the shared writer lease, Windows join, panel mount and reviews.",
+      "summary": "An encrypted credential vault provides approved, audited uses through session-owned POSIX brokers with serialized startup; availability stays off pending writer recovery, Windows integration, the panel mount and reviews.",
       "area": "security",
       "release": "0.17.0"
     },

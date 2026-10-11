@@ -198,6 +198,10 @@ type VaultBrokerProcessHandle = Pick<
   'close' | 'closed'
 >
 
+function streamError(): void {
+  /* The socket, not these diagnostic streams, carries broker availability. */
+}
+
 export async function runVaultBrokerEntry(
   start: () => Promise<VaultBrokerProcessHandle>,
   signals: NodeJS.EventEmitter = process,
@@ -215,6 +219,10 @@ export async function runVaultBrokerEntry(
         process.exitCode = 1
       })
   }
+  // Readiness/diagnostic writes must survive a launcher closing its reading ends.
+  process.stdin.on('error', streamError)
+  process.stdout.on('error', streamError)
+  process.stderr.on('error', streamError)
   signals.on('SIGINT', stop)
   signals.on('SIGTERM', stop)
   try {
@@ -231,6 +239,9 @@ export async function runVaultBrokerEntry(
       await handle.closed
     }
   } finally {
+    process.stdin.removeListener('error', streamError)
+    process.stdout.removeListener('error', streamError)
+    process.stderr.removeListener('error', streamError)
     signals.removeListener('SIGINT', stop)
     signals.removeListener('SIGTERM', stop)
   }
@@ -296,6 +307,10 @@ async function main(): Promise<void> {
   }
 }
 if (require.main === module) {
+  for (const stream of [process.stdin, process.stdout, process.stderr])
+    stream.on('error', () => {
+      /* Fixed failure diagnostics cannot depend on a surviving launcher's pipes. */
+    })
   void main().catch(() => {
     process.stderr.write('vault-broker-refused\n')
     process.exitCode = 1

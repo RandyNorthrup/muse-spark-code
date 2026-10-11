@@ -12,6 +12,7 @@ import {
   vaultCommandPort,
 } from '../../../src/runtime/vault/vaultRuntimeEntry'
 import { type ExecVaultContext } from '../../../src/runtime/vault/execVault'
+import { runtimeVaultLoader } from '../../../src/runtime/vault/vaultRuntime'
 import { AcpVault } from '../../../src/acp/vault'
 import { metadata, panel } from '../helpers/vault/fixtures'
 
@@ -81,7 +82,7 @@ describe('C-M109-1 manage session', () => {
 })
 
 describe('C-M109-1 dist/vaultRuntime.js', () => {
-  it('refuses with the broker-blocked reason until a platform lane binds the connection', async () => {
+  it('reports the installed broker as switched off pending integration', async () => {
     await expect(
       createRuntimeVault({
         uiText: UI_TEXT,
@@ -91,7 +92,24 @@ describe('C-M109-1 dist/vaultRuntime.js', () => {
         processId: 1,
         acp: new AcpVault(() => Promise.reject(new Error('unused'))),
       }),
-    ).rejects.toThrow(UI_TEXT.vault.brokerBlocked)
+    ).rejects.toThrow(UI_TEXT.vault.brokerDisabled)
+  })
+  it('preserves disabled availability through the installed runtime loader', async () => {
+    const load = runtimeVaultLoader(
+      {
+        dataDir: '/data',
+        distDir: '/dist',
+        processId: 1,
+        acp: new AcpVault(() => Promise.reject(new Error('unused'))),
+      },
+      () => ({
+        createRuntimeVault: () =>
+          Promise.reject(
+            Object.assign(new Error(UI_TEXT.vault.brokerDisabled), { code: 'vaultDisabled' }),
+          ),
+      }),
+    )
+    await expect(load()).rejects.toThrow(UI_TEXT.vault.brokerDisabled)
   })
   it('lists every item for the CLI from the value-free snapshot', async () => {
     const state = panel()

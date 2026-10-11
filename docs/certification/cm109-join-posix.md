@@ -192,3 +192,54 @@ keyring daemon or private bus. Scratch fixtures were removed. No live/paid call.
    quality on the lead's rigs.
 5. Only then flip the availability switch. Screen-lock/Linux hardware work stays
    with C-M109-2; macOS biometric protection is not offered by this composition.
+
+## RVCM109JB review repair — session lifetime (2026-10-11)
+
+The governed `handoffResourceFile(..., until: 'spawn')` creates the broker in
+its own POSIX session/group with null stdio and retires the launching client's
+lease at spawn. Client shutdown never signals it. Native `launch.lock` queues
+clients before discovery is rechecked; `startup.lock` remains the broker's
+lifetime stale-recovery guard. Both inode-stable owner-only lock files are kept
+by design. Socket connection, rather than a launcher pipe, proves readiness.
+The last connected client starts the existing empty-idle timer; expiry and
+SIGTERM/SIGINT use Lock, channel close, disposal, discovery release and native
+lock release. Every entry standard stream and startup guardian pipe handles
+errors. A startup timeout ends the client's wait without killing the broker.
+
+`brokerSession.test.ts` builds generated-only real clients and a broker once.
+The launch profile, detached group and null stdio are production code; a
+fake-only admission owner exercises client resource disposal. Its four cases
+prove launcher shutdown with another client connected, four simultaneous
+clients on one broker, launcher SIGKILL before readiness, and actual closed
+stdout/stderr reading ends. Native peer/host identity and authenticated v2
+status calls are real. Final restored run with `posixBindings` and
+`brokerProcess`: **24 passed, zero failed**, repository timeout, three workers.
+The existing signal entry suite also passed **2/2**. No value is emitted.
+Registration files are removed on normal client exit/window disposal, and a
+later client prunes the killed client's kernel-proven-dead registration.
+The ordinary window-close path to a stale writer is removed; the **17**
+CM109JOINA writer crash cases remain skipped for CM109LEASE and the join.
+
+Each mutation ran the complete owning file. All **18** review drills fired,
+then the source was restored byte-exact with its SHA-256 verified; commands,
+exits and original hashes are in `cm109-join-posix-review-drills.json`.
+
+| Finding                             | Fix                                                                  | Regression                                                    | Red drill                                                                                                                       |
+| ----------------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| 1: launcher owns broker             | Session handoff and idle Lock                                        | `brokerSession`, `brokerProcess`                              | `session-handoff`, `idle-exit`, `lock-before-close`, `signal-shutdown`                                                          |
+| 2: simultaneous start fails         | Blocking kernel launch lock and winner recheck                       | `brokerSession` real four-client start                        | `kernel-wait`                                                                                                                   |
+| 3: dead launcher pipes crash broker | Null streams, socket readiness, stream error handlers                | `brokerSession` early death and closed pipes                  | `stdout-error`, `stderr-error`                                                                                                  |
+| 5: five guards unproved             | Exact identity assertions and live-owner discovery/recovery fixtures | `posixBindings`, `brokerProcess`                              | `executable-match`, `record-user-match`, `binding-own-user`, `registration-own-user`, `dead-only-launch`, `spare-live-recovery` |
+| 6: registrations accumulate         | Exit/window removal and kernel-dead startup pruning                  | `brokerSession` asserts empty host registry and stale removal | `registration-exit`, `registration-prune`                                                                                       |
+
+Finding 7 now distinguishes the installed but disabled broker from a missing
+or failed installation, in all 14 translated tables, the command refusal,
+runtime loader, catalogue/reference and README. The three extra drills remove
+runtime propagation, restore the misleading panel failure, and delete a new
+translation key; all fail. The restored entry/panel/session files pass **21/21**.
+All five type projects passed before the next audit/packaging piece; changed
+lifecycle lint passes without weakened rules. Aggregate quality remains
+lead-owned under the explicit scoped rig instruction.
+
+Packaging, protected audit interruption recovery, installed load measurement
+and final dependent/gate receipts follow in the next piece.

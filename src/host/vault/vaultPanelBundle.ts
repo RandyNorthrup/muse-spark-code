@@ -109,7 +109,7 @@ export interface VaultControlsDeps extends VaultBundleLoaderDeps {
  * native prompts, clock, webview publisher); the bundle itself builds the
  * broker-backed service (C-M109-1), so activation loads no client. Until the
  * Models & Agents panel mounts the vault section, the caller passes
- * undefined and both commands refuse closed with `vault.brokerBlocked`.
+ * undefined and both commands report `vault.brokerDisabled`.
  */
 export function loadVaultControls(
   deps: VaultControlsDeps,
@@ -117,7 +117,7 @@ export function loadVaultControls(
 ): VaultWindowControls {
   if (connect === undefined) {
     deps.log.error('The vault panel is not mounted in this window; refusing closed')
-    throw new Error(UI_TEXT.vault.brokerBlocked)
+    throw new Error(UI_TEXT.vault.brokerDisabled)
   }
   const bundle = vaultBundleLoader(deps)()
   return bundle.createVaultPanelHost({ distDir: deps.distDir, ...connect() }, UI_TEXT, uiLocale())

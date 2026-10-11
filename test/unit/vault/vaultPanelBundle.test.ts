@@ -114,7 +114,7 @@ describe('loadVaultControls', () => {
       throw new Error('must not be reached')
     })
     expect(() => loadVaultControls(deps({ log, loadBundle }), undefined)).toThrow(
-      UI_TEXT.vault.brokerBlocked,
+      UI_TEXT.vault.brokerDisabled,
     )
     expect(loadBundle).not.toHaveBeenCalled()
     expect(log.error).toHaveBeenCalledExactlyOnceWith(
@@ -164,9 +164,9 @@ describe('registerVaultCommands', () => {
     const { actions, disposable } = registered(() =>
       loadVaultControls(deps({ loadBundle }), undefined),
     )
-    await expect(actions.get('museSpark.vault')?.()).rejects.toThrow(UI_TEXT.vault.brokerBlocked)
+    await expect(actions.get('museSpark.vault')?.()).rejects.toThrow(UI_TEXT.vault.brokerDisabled)
     await expect(actions.get('museSpark.lockVault')?.()).rejects.toThrow(
-      UI_TEXT.vault.brokerBlocked,
+      UI_TEXT.vault.brokerDisabled,
     )
     disposable.dispose()
     expect(actions.size).toBe(0)

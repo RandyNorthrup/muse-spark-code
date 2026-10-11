@@ -33260,6 +33260,20 @@ The split:
   Linux slot.
 - **(c)**, Codex on the Win11 VM: the Windows natives.
 
+**CM109JOINB review repair (2026-10-11, Kubuntu; RVCM109JB).** The
+session owns the POSIX broker: governed spawn handoff, detached session/group,
+null standard streams, socket readiness, last-client idle Lock and orderly
+signal shutdown. An owner-only kernel launch lock serializes clients before
+rechecking discovery; the broker's separate startup lock still protects stale
+recovery for its lifetime. Recover or remove crash remnants and the protected
+audit checkpoint interruption; add real-process launcher-death/start-race
+receipts and red drills for every reviewed guard. Remove ended host
+registrations, prune proven-dead registrations, derive packaged sibling
+coverage, and distinguish disabled availability from failed installation in
+all tables and the reference. The 17 writer crash cases stay skipped pending
+CM109LEASE and the join; no core store/lock change, availability flip or cap
+change belongs here. Aggregate quality and macOS replay remain lead-owned.
+
 **CM109JOINB join preparation (2026-10-11, Kubuntu).** Merge core round 5
 `52a37ad49` without a fast-forward and keep its core vault files byte-identical.
 Move POSIX identity/startup-lock commands beside the native helper, reusing

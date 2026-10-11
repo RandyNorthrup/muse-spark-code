@@ -1,15 +1,18 @@
 import process from 'node:process'
 import path from 'node:path'
 import { homedir } from 'node:os'
-import { UnixVaultPrivateFiles } from '../../core/vault/broker/files'
+import { createConnection } from 'node:net'
+import { setTimeout as delay } from 'node:timers/promises'
+import { UnixVaultPrivateFiles, isVaultFileMissing } from '../../core/vault/broker/files'
 import { vaultBrokerLockSchema } from '../../shared/vaultProtocol'
 import { VaultBrokerDiscovery } from '../../core/vault/broker/discovery'
 import { UnixVaultPeerVerifier } from '../../core/vault/broker/peer'
-import { spawnResourceProcess } from '../../core/resources/launcher'
-import { UI_TEXT, VAULT_BROKER_NATIVE_TIMEOUT_MS, VAULT_LIMITS } from '../../shared/constants'
+import { handoffResourceFile } from '../../core/resources/launcher'
+import { UI_TEXT, VAULT_BROKER_NATIVE_TIMEOUT_MS } from '../../shared/constants'
 import type { VaultClientPlatform, VaultClientPlatformContext } from './clientPlatform'
 import { vaultPeerExecutable, vaultProcessIdentity, vaultSocketDescriptors } from './posixNative'
 import { registerPosixVaultHost } from './posixHost'
+import { holdVaultStartupLock } from './posixNative'
 
 /** Installed POSIX binding; the public dispatcher owns the availability switch. */
 export async function posixVaultClientPlatform(
@@ -32,23 +35,51 @@ export async function posixVaultClientPlatform(
   }
   class PosixDiscovery extends VaultBrokerDiscovery {
     override async discover(identify: typeof identity) {
-      try {
-        return await super.discover(identify)
-      } catch (error: unknown) {
-        // Only a dead owner permits launch; malformed/private-file failures still refuse.
-        const bytes = await new UnixVaultPrivateFiles().read(
-          path.join(this.directory, 'broker.lock'),
-        )
-        const lock = vaultBrokerLockSchema.parse(JSON.parse(bytes.toString()))
-        const live = await vaultProcessIdentity(helper, lock.processId)
-        if (lock.userSession === userSession && live?.startedAt !== lock.startedAt) return null
-        throw error
+      const deadline = Date.now() + VAULT_BROKER_NATIVE_TIMEOUT_MS
+      for (;;) {
+        try {
+          const location = await super.discover(identify)
+          if (!location) return null
+          // Discovery is published before listen; a real socket connection proves readiness.
+          await new Promise<void>((resolve, reject) => {
+            const socket = createConnection(location.lock.socket)
+            socket.once('error', reject)
+            socket.once('connect', () => {
+              socket.destroy()
+              resolve()
+            })
+          })
+          return location
+        } catch (error: unknown) {
+          // Only proven death permits launch. Missing token/socket during live startup waits.
+          const bytes = await new UnixVaultPrivateFiles().read(
+            path.join(this.directory, 'broker.lock'),
+          )
+          const lock = vaultBrokerLockSchema.parse(JSON.parse(bytes.toString()))
+          const live = await vaultProcessIdentity(helper, lock.processId)
+          if (lock.userSession === userSession && live?.startedAt !== lock.startedAt) return null
+          const isStarting =
+            isVaultFileMissing(error) ||
+            (error !== null &&
+              typeof error === 'object' &&
+              'code' in error &&
+              error.code === 'ECONNREFUSED')
+          if (!isStarting || Date.now() >= deadline) throw error
+          await delay(VAULT_BROKER_NATIVE_TIMEOUT_MS / 100)
+        }
       }
     }
   }
-  await registerPosixVaultHost(runDirectory, helper, context.hostId, context.hostSession)
+  const dispose = await registerPosixVaultHost(
+    runDirectory,
+    helper,
+    context.hostId,
+    context.hostSession,
+  )
+  const discovery = new PosixDiscovery(runDirectory, userSession)
   return {
-    discovery: new PosixDiscovery(runDirectory, userSession),
+    dispose,
+    discovery,
     peers: new UnixVaultPeerVerifier(
       helper,
       async (pid) => {
@@ -72,50 +103,44 @@ export async function posixVaultClientPlatform(
           const value = process.env[name]
           if (value !== undefined) env[name] = value
         }
-        const { child, stop } = await spawnResourceProcess(
-          'contained',
-          process.execPath,
-          [
-            path.join(context.distDir, 'vaultBroker.js'),
-            JSON.stringify({
-              dataDir: path.join(context.dataDir, 'vault'),
-              runDirectory,
-              installRoot,
-              userSession,
-            }),
-          ],
-          { cwd: installRoot, env },
+        await new UnixVaultPrivateFiles().directory(discovery.directory)
+        // Clients queue on the kernel lock, then recheck the winner before spawning.
+        const held = await holdVaultStartupLock(
+          helper,
+          path.join(discovery.directory, 'launch.lock'),
+          true,
         )
-        child.stdin.end()
-        child.stderr.resume()
-        const ready = new Promise<void>((resolve, reject) => {
-          let text = ''
-          const timer = setTimeout(() => {
-            reject(new Error(UI_TEXT.vault.brokerBlocked))
-          }, VAULT_BROKER_NATIVE_TIMEOUT_MS)
-          const failed = () => {
-            clearTimeout(timer)
-            reject(new Error(UI_TEXT.vault.brokerBlocked))
-          }
-          child.once('error', failed)
-          child.once('exit', failed)
-          const data = (bytes: Buffer) => {
-            text += bytes.toString()
-            if (Buffer.byteLength(text) > VAULT_LIMITS.text) {
-              failed()
-              return
+        const ready = (async () => {
+          try {
+            if (await discovery.discover(identity)) return
+            await handoffResourceFile(
+              process.execPath,
+              [
+                path.join(context.distDir, 'vaultBroker.js'),
+                JSON.stringify({
+                  dataDir: path.join(context.dataDir, 'vault'),
+                  runDirectory,
+                  installRoot,
+                  userSession,
+                }),
+              ],
+              { env, until: 'spawn' },
+            )
+            const deadline = Date.now() + VAULT_BROKER_NATIVE_TIMEOUT_MS
+            while (Date.now() < deadline) {
+              if (await discovery.discover(identity)) return
+              await delay(VAULT_BROKER_NATIVE_TIMEOUT_MS / 100)
             }
-            if (!text.includes('\n')) return
-            clearTimeout(timer)
-            child.stdout.removeListener('data', data)
-            child.stdout.resume()
-            child.removeListener('exit', failed)
-            if (text === 'vault-broker-ready\n') resolve()
-            else failed()
+            throw new Error(UI_TEXT.vault.brokerBlocked)
+          } finally {
+            await held.release()
           }
-          child.stdout.on('data', data)
-        })
-        return { ready, stop }
+        })()
+        return {
+          ready,
+          // A session broker belongs to no client; startup failures clean themselves or idle out.
+          stop: () => Promise.resolve(),
+        }
       },
     },
   }

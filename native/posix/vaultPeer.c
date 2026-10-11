@@ -98,11 +98,11 @@ int main(int argc, char **argv) {
     if (errno || *end || pid <= 0 || pid > INT_MAX) return 1;
     return identity((pid_t)pid);
   }
-  if (argc == 2 && strcmp(argv[1], "lock") == 0) {
+  if (argc == 2 && (strcmp(argv[1], "lock") == 0 || strcmp(argv[1], "lock-wait") == 0)) {
     struct stat info;
     if (fstat(3, &info) != 0 || !S_ISREG(info.st_mode) || info.st_uid != getuid() ||
         info.st_nlink != 1 || (info.st_mode & (S_IRWXG | S_IRWXO)) != 0) return 1;
-    if (flock(3, LOCK_EX | LOCK_NB) != 0) return errno == EWOULDBLOCK ? 2 : 1;
+    if (flock(3, LOCK_EX | (strcmp(argv[1], "lock-wait") == 0 ? 0 : LOCK_NB)) != 0) return errno == EWOULDBLOCK ? 2 : 1;
     if (puts("{\"v\":1,\"locked\":true}") < 0 || fflush(stdout) != 0) return 1;
     char byte;
     while (read(STDIN_FILENO, &byte, 1) > 0) { /* EOF releases the kernel lock. */ }

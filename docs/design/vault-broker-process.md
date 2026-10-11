@@ -34,12 +34,19 @@ only its installed sibling `dist/vaultRuntime.js`, whose
 `installRoot/dist` must name the entry's own directory. Missing or invalid
 binding installation exits 1 with only `vault-broker-refused` on stderr;
 there is no workspace-selected module, fake port or silent fallback.
+Clients use the governed spawn handoff: a separate POSIX session/process group
+and null standard streams, outside the client's containment. Readiness is a
+successful connection to the published socket, independent of the launcher.
+The entry handles errors on stdin/stdout/stderr even if invoked with pipes.
 Successful startup emits only `vault-broker-ready` on stdout. SIGINT and
 SIGTERM lock, close connections, dispose the broker and release discovery
 and the kernel startup lock. Credential variables are removed at entry;
 native peer/identity/lock children receive an empty environment.
 
-Startup is serialized by `flock` on an owner-only, single-link regular
+Clients queue on blocking `flock` over owner-only `launch.lock` and recheck
+discovery before handing off a broker; a loser connects to the winner. This
+lock is retained on disk, like `startup.lock`, to preserve kernel inode
+identity. Startup is serialized by `flock` on an owner-only, single-link regular
 `startup.lock`, kept on disk. The helper holds it while private stdin stays
 open. EOF releases it after a broker crash. Only a kernel-lock owner can
 recover discovery, boot-token and socket files; a live process with the
@@ -47,7 +54,14 @@ recorded birth is never removed. Socket and discovery live in the existing
 0700 per-session/protocol directory, with a 0600 socket. At most 64 clients
 are admitted. The broker locks and exits after 30 seconds without a client;
 any connected client suspends that timer. Native identity execution and startup-lock readiness have
-five-second response bounds. `close()` is idempotent and cleanup still runs when lock
+five-second response bounds. The same bound covers waiting for the client
+launch lock and waiting for socket readiness after governed handoff; it includes
+broker resource admission, native keyring import and initial protected-anchor
+read. Admission before handoff has the governor's own deadline. A failed client
+wait never signals a session broker. A locked keyring or loaded machine can
+exceed the readiness bound and receives a real startup failure; a later need
+rechecks the broker. Host registrations are removed at client/window shutdown;
+startup prunes records whose owner is proven dead or whose PID birth changed. `close()` is idempotent and cleanup still runs when lock
 or disposal fails.
 
 CM109JOINB now exports the installed factory through `vaultRuntime.js`, with

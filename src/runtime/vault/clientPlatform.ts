@@ -12,6 +12,8 @@ import type { VaultPeerVerifier } from '../../core/vault/broker/peer'
 import type { VaultBrokerProcessPort } from '../../host/vault/brokerProcess'
 
 export interface VaultClientPlatform {
+  /** Removes this client's native registration; it never signals the session broker. */
+  readonly dispose?: () => void
   /** `vault/run` under dataDir, through this OS's owner-only files port. */
   readonly discovery: VaultBrokerDiscovery
   /** Process identity and the credential-free launch of dist/vaultBroker.js. */
@@ -32,7 +34,8 @@ export interface VaultClientPlatformContext {
 export async function vaultClientPlatform(
   context: VaultClientPlatformContext,
 ): Promise<VaultClientPlatform> {
-  if (!VAULT_AVAILABILITY.isBrokerAvailable) throw new Error(UI_TEXT.vault.brokerBlocked)
+  if (!VAULT_AVAILABILITY.isBrokerAvailable)
+    throw Object.assign(new Error(UI_TEXT.vault.brokerDisabled), { code: 'vaultDisabled' })
   const { posixVaultClientPlatform, setUiText } = await import('./posixClientPlatform')
   setUiText(UI_TEXT, uiLocale())
   return await posixVaultClientPlatform(context)

@@ -182,6 +182,8 @@
     "test/unit/helpers/questions/queuedTurnCrash.ts",
     // POSIX broker SIGKILL fixture is another esbuild entry launched by path.
     "test/unit/helpers/vault/brokerProcessChild.ts",
+    "test/unit/helpers/vault/sessionClientChild.ts",
+    "test/unit/helpers/vault/sessionBrokerChild.ts",
     // Built once by writerCrashPosix.test.ts; a real generated-only SIGKILL child.
     "test/unit/helpers/vault/writerCrashChild.ts",
     // The never-ending monitor the M92b bounded-run proof starts by path.

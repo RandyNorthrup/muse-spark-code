@@ -433,7 +433,7 @@ export const EN = {
     'Work with the per-user credential vault from a terminal: setup, recover, reset, status, unlock, lock, list, add, grants, audit, import and watch. Values never print; the broker holds them.',
   referenceVaultHelp: 'Show the per-user credential vault command usage.',
   referenceVaultPanel:
-    'The credential vault is unavailable in this build because the broker is not installed.',
+    'The credential vault is switched off in this build pending integration checks.',
   referenceVaultLock: 'Lock the per-user credential vault now, ending every use in every window.',
   referenceAuthClear: 'Remove the stored Model API key.',
   referenceAuthStatus: 'Check whether a Model API key is stored.',
@@ -6200,6 +6200,8 @@ export const EN = {
     rollback: 'This vault is older than its recorded generation. Restore a current backup.',
     basicText:
       'The basic_text backend provides no secure encryption and cannot protect a vault slot.',
+    brokerDisabled:
+      'The credential vault is switched off in this build pending integration checks. First-party keys still work; agent uses are refused.',
     brokerBlocked:
       'The broker cannot start. First-party keys still work; agent uses are refused. Repair the broker installation.',
     noUnattended:

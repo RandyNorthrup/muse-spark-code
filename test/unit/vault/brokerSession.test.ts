@@ -1,0 +1,201 @@
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { execFileSync, fork, spawn, type ChildProcess } from 'node:child_process'
+import { once } from 'node:events'
+import { mkdtemp, mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises'
+import path from 'node:path'
+import os from 'node:os'
+import * as z from 'zod/mini'
+import { setTimeout as delay } from 'node:timers/promises'
+import { build } from 'esbuild'
+import { vaultPeerExecutable } from '../../../src/runtime/vault/posixNative'
+
+const fixture = { root: '' }
+const children = new Set<ChildProcess>()
+const brokers = new Set<number>()
+beforeAll(async () => {
+  if (process.platform === 'win32') return
+  fixture.root = await mkdtemp(path.join(os.tmpdir(), 'vs-'))
+  const helper = vaultPeerExecutable(fixture.root)
+  await mkdir(path.dirname(helper), { recursive: true })
+  await mkdir(path.join(fixture.root, 'dist'))
+  execFileSync('/usr/bin/cc', [
+    '-Os',
+    '-Wall',
+    '-Wextra',
+    '-Werror',
+    'native/posix/vaultPeer.c',
+    '-o',
+    helper,
+  ])
+  for (const [entry, output] of [
+    ['sessionClientChild', 'client.cjs'],
+    ['sessionBrokerChild', 'vaultBroker.js'],
+  ]) {
+    if (!entry || !output) throw new Error('missing generated build pair')
+    await build({
+      entryPoints: [`test/unit/helpers/vault/${entry}.ts`],
+      outfile: path.join(fixture.root, 'dist', output),
+      bundle: true,
+      external: ['@napi-rs/keyring'],
+      define: { 'require.main': 'undefined' },
+      platform: 'node',
+      format: 'cjs',
+      plugins: [
+        {
+          name: 'generated-admission',
+          setup(builder) {
+            builder.onResolve({ filter: /admission(?:\.js)?$/ }, () => ({
+              path: path.resolve('test/unit/helpers/vault/sessionAdmission.ts'),
+            }))
+          },
+        },
+      ],
+    })
+  }
+})
+afterAll(async () => {
+  for (const child of children) {
+    child.kill('SIGKILL')
+    if (child.exitCode === null && child.signalCode === null) await once(child, 'exit')
+  }
+  for (const pid of brokers) {
+    try {
+      process.kill(pid, 'SIGTERM')
+    } catch {
+      /* Exited. */
+    }
+  }
+  if (!fixture.root) {
+    return
+  }
+
+  await delay(200)
+  await rm(fixture.root, { recursive: true, force: true })
+})
+function client(data: string, id: string) {
+  const child = fork(
+    path.join(fixture.root, 'dist', 'client.cjs'),
+    [data, fixture.root, id.repeat(32)],
+    {
+      env: { HOME: fixture.root },
+      stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
+    },
+  )
+  children.add(child)
+  return Promise.resolve(child)
+}
+async function ready(child: ChildProcess): Promise<{ pid: number; directory: string }> {
+  const messages: unknown = await once(child, 'message')
+  const [message] = z
+    .tuple([z.strictObject({ pid: z.number(), directory: z.string() }), z.unknown()])
+    .parse(messages)
+  brokers.add(message.pid)
+  return message
+}
+async function close(child: ChildProcess) {
+  const exited = once(child, 'exit')
+  child.send('close')
+  await exited
+  children.delete(child)
+}
+async function status(child: ChildProcess) {
+  const reply = once(child, 'message')
+  child.send('status')
+  const messages = await reply
+  expect(messages[0]).toMatchObject({ kind: 'status' })
+}
+async function cleaned(directory: string) {
+  for (let count = 0; count < 100; count++) {
+    const files = await readdir(directory)
+    if (files.toSorted((a, b) => a.localeCompare(b)).join(',') === 'launch.lock,startup.lock') break
+    await delay(10)
+  }
+  const files = await readdir(directory)
+  expect(files.toSorted((a, b) => a.localeCompare(b))).toEqual(['launch.lock', 'startup.lock'])
+  expect(await readdir(path.join(path.dirname(directory), 'hosts'))).toEqual([])
+  for (const file of ['launch.lock', 'startup.lock']) {
+    const sample = await stat(path.join(directory, file))
+    expect(sample.mode & 0o777).toBe(0o600)
+  }
+}
+describe.skipIf(process.platform === 'win32')('session-owned POSIX broker', () => {
+  it('survives orderly launcher resource shutdown and locks only after its last client leaves', async () => {
+    const data = path.join(fixture.root, 'lifetime')
+    const a = await client(data, 'a')
+    const location = await ready(a)
+    const b = await client(data, 'b')
+    const other = await ready(b)
+    expect(other.pid).toBe(location.pid)
+    await close(a)
+    await delay(300)
+    await status(b)
+    await close(b)
+    await cleaned(location.directory)
+  })
+  it('connects simultaneous real clients to one broker through the kernel launch lock', async () => {
+    const data = path.join(fixture.root, 'race')
+    const clients = await Promise.all(['a', 'b', 'c', 'd'].map((id) => client(data, id)))
+    const locations = await Promise.all(clients.map((child) => ready(child)))
+    expect(new Set(locations.map((location) => location.pid)).size).toBe(1)
+    for (const child of clients) await status(child)
+    await Promise.all(clients.map((child) => close(child)))
+    const location = locations[0]
+    if (!location) throw new Error('missing generated location')
+    await cleaned(location.directory)
+  })
+  it('survives its launcher dying between spawn and readiness', async () => {
+    await writeFile(path.join(fixture.root, 'gate'), 'wait')
+    const data = path.join(fixture.root, 'early-death')
+    const a = await client(data, 'a')
+    for (let count = 0; count < 100; count++) {
+      try {
+        brokers.add(Number(await readFile(path.join(fixture.root, 'spawned'), 'utf8')))
+        break
+      } catch {
+        await delay(10)
+      }
+    }
+    const exited = once(a, 'exit')
+    a.kill('SIGKILL')
+    await exited
+    children.delete(a)
+    await writeFile(path.join(fixture.root, 'gate'), 'go')
+    const b = await client(data, 'b')
+    const location = await ready(b)
+    expect(location.pid).toBe(Number(await readFile(path.join(fixture.root, 'spawned'), 'utf8')))
+    await status(b)
+    expect(await readdir(path.join(path.dirname(location.directory), 'hosts'))).toEqual([
+      'b'.repeat(32),
+    ])
+    await close(b)
+    await cleaned(location.directory)
+    await rm(path.join(fixture.root, 'gate'))
+  })
+  it('keeps readiness and diagnostics harmless when actual reading pipes close', async () => {
+    const dataDir = path.join(fixture.root, 'closed-pipes', 'vault')
+    const child = spawn(
+      process.execPath,
+      [
+        path.join(fixture.root, 'dist', 'vaultBroker.js'),
+        JSON.stringify({
+          dataDir,
+          runDirectory: path.join(dataDir, 'run'),
+          installRoot: fixture.root,
+          userSession: 'test',
+        }),
+      ],
+      { env: {}, stdio: ['ignore', 'pipe', 'pipe'] },
+    )
+    children.add(child)
+    if (child.pid !== undefined) brokers.add(child.pid)
+    child.stdout.destroy()
+    child.stderr.destroy()
+    const [code] = await once(child, 'exit')
+    children.delete(child)
+    expect(code).toBe(0)
+    const directories = await readdir(path.join(dataDir, 'run'))
+    const broker = directories.find((name) => name.startsWith('broker-'))
+    if (!broker) throw new Error('missing generated broker directory')
+    expect(await readdir(path.join(dataDir, 'run', broker))).toEqual(['startup.lock'])
+  })
+})

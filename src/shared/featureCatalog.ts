@@ -27,7 +27,7 @@ const UI_CONDITIONS: Readonly<
   Partial<Record<Extract<PlainReferenceText, { ui: unknown }>['ui'], string>>
 > = {
   referenceScreenRecording: 'nativeRecorder=absent',
-  referenceVaultPanel: 'vaultBroker=disabledPendingJoin',
+  referenceVaultPanel: 'vaultBroker=installedDisabledPendingJoin',
   referenceNativeAgentsConditions: 'run.subagent_delegation_mode',
   resourceCpuMaxPercentDescription: 'resourceCpuThreshold',
   resourceMemoryMaxPercentDescription: 'resourceMemoryThreshold&memoryHeadroom=available',

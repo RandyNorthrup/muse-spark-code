@@ -44,6 +44,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- POSIX vault brokers belong to the user session and survive the window or CLI
+  that starts them. Concurrent clients wait for one broker; closed launcher
+  streams cannot crash it. The last client disconnect triggers idle Lock and
+  orderly cleanup. Native client registrations are removed on exit and stale
+  registrations are pruned. Availability remains off pending the reviewed join.
+
 - **Credential vault review repairs (RVCM1091A4 / RVCM1091B4).** Impossible
   public authentication/framing fields, protected anchor mismatches and pending history now qualify a lost
   vault for Reset, using the same checks as the recovery reader. The panel

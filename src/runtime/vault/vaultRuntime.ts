@@ -46,8 +46,10 @@ export function runtimeVaultLoader(
         if (typeof binding.commands !== 'function' || typeof binding.exec.open !== 'function')
           throw new Error(UI_TEXT.vault.brokerBlocked)
         return binding
-      } catch {
-        throw new Error(UI_TEXT.vault.brokerBlocked)
+      } catch (error: unknown) {
+        if (error instanceof Error && 'code' in error && error.code === 'vaultDisabled')
+          throw new Error(UI_TEXT.vault.brokerDisabled, { cause: error })
+        throw new Error(UI_TEXT.vault.brokerBlocked, { cause: error })
       }
     })()
     const pending = loading

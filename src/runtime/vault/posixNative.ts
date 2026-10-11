@@ -71,6 +71,7 @@ export async function vaultProcessIdentity(
 export async function holdVaultStartupLock(
   helper: string,
   file: string,
+  shouldWait = false,
 ): Promise<{
   release(): Promise<void>
   onLost(listener: () => void): void
@@ -90,10 +91,18 @@ export async function holdVaultStartupLock(
       !sameFile(held, await lstatIdentity(file))
     )
       throw new Error(UI_TEXT.vault.noAccess)
-    const { child, stop } = await spawnResourceProcess('contained', helper, ['lock'], { env: {} }, [
-      handle.fd,
-    ])
+    const { child, stop } = await spawnResourceProcess(
+      'contained',
+      helper,
+      [shouldWait ? 'lock-wait' : 'lock'],
+      { env: {} },
+      [handle.fd],
+    )
     child.stderr.resume()
+    for (const stream of [child.stdout, child.stderr])
+      stream.on('error', () => {
+        /* Readiness is bounded; subsequent guardian exit is observed by onLost. */
+      })
     // EOF/lost lock is handled through exit; a broken private input must not be an uncaught error.
     child.stdin.on('error', () => {
       /* Exit notifies onLost and releases the held kernel lock. */
