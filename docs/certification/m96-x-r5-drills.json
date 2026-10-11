@@ -1,0 +1,110 @@
+{
+  "rig": "macbook",
+  "base": "e50477ff7190573cdca01995c14e9a52eef0c294",
+  "date": "2026-10-10",
+  "repositoryTimeouts": true,
+  "drills": [
+    {
+      "drill": "R5-1-cost",
+      "source": "src/core/backends/modelapi/ModelApiHost.ts",
+      "command": "npx vitest run test/unit/teamResponseAccounting.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "failures": [
+        "FAIL  test/unit/teamResponseAccounting.test.ts > RVCM963E response claims > R5-1: muse-spark-1.3 response settles its exact claim with known price only",
+        "FAIL  test/unit/teamResponseAccounting.test.ts > RVCM963E response claims > R5-1: bare-plan response settles its exact claim with known price only"
+      ],
+      "sha256Before": "8fd187e5c127df8ce22f1116fec8b272a514437bd0ee7596b333d6dbc9b67004",
+      "sha256After": "8fd187e5c127df8ce22f1116fec8b272a514437bd0ee7596b333d6dbc9b67004"
+    },
+    {
+      "drill": "R5-2-retry",
+      "source": "src/core/backends/modelapi/ModelApiHost.ts",
+      "command": "npx vitest run test/unit/teamResponseAccounting.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "failures": [
+        "FAIL  test/unit/teamResponseAccounting.test.ts > RVCM963E response claims > R5-2: 429 retry reuses one live claim, next request gets its own",
+        "FAIL  test/unit/teamResponseAccounting.test.ts > RVCM963E response claims > R5-2: 503 retry reuses one live claim, next request gets its own",
+        "FAIL  test/unit/teamResponseAccounting.test.ts > RVCM963E response claims > R5-2: pre-send failure retry reuses one live claim, next request gets its own",
+        "FAIL  test/unit/teamResponseAccounting.test.ts > RVCM963E response claims > R5-2: vault rebuild retry reuses one live claim, next request gets its own"
+      ],
+      "sha256Before": "8fd187e5c127df8ce22f1116fec8b272a514437bd0ee7596b333d6dbc9b67004",
+      "sha256After": "8fd187e5c127df8ce22f1116fec8b272a514437bd0ee7596b333d6dbc9b67004"
+    },
+    {
+      "drill": "R5-1-ordinal",
+      "source": "src/host/team/teamEnginePorts.ts",
+      "command": "npx vitest run test/unit/teamEnginePorts.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "failures": [
+        "FAIL  test/unit/teamEnginePorts.test.ts > the engine worker port after the RVCM963 review > R4-2: the engine reserves each request maximum and settles its usage report"
+      ],
+      "sha256Before": "7d52ef76bbe50e346c3fc3a4e6c60d872b4e3a148e69de5b95944a114f607012",
+      "sha256After": "7d52ef76bbe50e346c3fc3a4e6c60d872b4e3a148e69de5b95944a114f607012"
+    },
+    {
+      "drill": "R5-3-policy",
+      "source": "src/core/team/workers/workerFence.ts",
+      "command": "npx vitest run test/unit/teamWorkerToolIo.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "failures": [
+        "FAIL  test/unit/teamWorkerToolIo.test.ts > RVCM963E write admission > R5-3: refused read-only write neither opens nor creates its target (existing=false)",
+        "FAIL  test/unit/teamWorkerToolIo.test.ts > RVCM963E write admission > R5-3: refused read-only write neither opens nor creates its target (existing=true)",
+        "FAIL  test/unit/teamWorkerToolIo.test.ts > RVCM963E write admission > R5-3: refused no write group write neither opens nor creates its target (existing=false)",
+        "FAIL  test/unit/teamWorkerToolIo.test.ts > RVCM963E write admission > R5-3: refused no write group write neither opens nor creates its target (existing=true)",
+        "FAIL  test/unit/teamWorkerToolIo.test.ts > RVCM963E write admission > R5-3: refused write-paths write neither opens nor creates its target (existing=false)",
+        "FAIL  test/unit/teamWorkerToolIo.test.ts > RVCM963E write admission > R5-3: refused write-paths write neither opens nor creates its target (existing=true)",
+        "FAIL  test/unit/teamWorkerToolIo.test.ts > RVCM963E write admission > R5-3: refused protected path write neither opens nor creates its target (existing=false)",
+        "FAIL  test/unit/teamWorkerToolIo.test.ts > RVCM963E write admission > R5-3: refused protected path write neither opens nor creates its target (existing=true)",
+        "FAIL  test/unit/teamWorkerToolIo.test.ts > RVCM963E write admission > R5-3: refused protected case alias write neither opens nor creates its target (existing=false)",
+        "FAIL  test/unit/teamWorkerToolIo.test.ts > RVCM963E write admission > R5-3: refused protected case alias write neither opens nor creates its target (existing=true)"
+      ],
+      "sha256Before": "27ac32056f5ffc64b9850e35e1fe7eac1d483e932963d0e0d4c82539bb4aaa7c",
+      "sha256After": "27ac32056f5ffc64b9850e35e1fe7eac1d483e932963d0e0d4c82539bb4aaa7c"
+    },
+    {
+      "drill": "R5-3-create",
+      "source": "src/core/team/workers/workerFence.ts",
+      "command": "npx vitest run test/unit/teamWorkerToolIo.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "failures": [
+        "FAIL  test/unit/teamWorkerToolIo.test.ts > RVCM963E write admission > R5-3: a new path through an outside parent leaves no file (swap=true)",
+        "FAIL  test/unit/teamWorkerToolIo.test.ts > RVCM963E write admission > R5-3: portable native writes never create even an allowed new target"
+      ],
+      "sha256Before": "27ac32056f5ffc64b9850e35e1fe7eac1d483e932963d0e0d4c82539bb4aaa7c",
+      "sha256After": "27ac32056f5ffc64b9850e35e1fe7eac1d483e932963d0e0d4c82539bb4aaa7c"
+    },
+    {
+      "drill": "R5-3-handle-policy",
+      "source": "src/core/team/workers/workerFence.ts",
+      "command": "npx vitest run test/unit/teamWorkerToolIo.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "failures": [
+        "FAIL  test/unit/teamWorkerToolIo.test.ts > RVCM963E write admission > R5-3: a parent switched to a protected directory after preflight cannot change its bytes"
+      ],
+      "sha256Before": "27ac32056f5ffc64b9850e35e1fe7eac1d483e932963d0e0d4c82539bb4aaa7c",
+      "sha256After": "27ac32056f5ffc64b9850e35e1fe7eac1d483e932963d0e0d4c82539bb4aaa7c"
+    },
+    {
+      "drill": "R5-bundle-authority",
+      "source": "src/host/team/teamHostEntry.ts",
+      "command": "npx vitest run test/unit/teamWorkerToolIo.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "failures": [
+        "FAIL  test/unit/teamWorkerToolIo.test.ts > RVCM963E write admission > R5-bundle: the lazy host entry exports the retained grant authority"
+      ],
+      "sha256Before": "3c4c8011009e0f6fb60a76106e70067e80d4111a4c386942d12802b2106f4cfa",
+      "sha256After": "3c4c8011009e0f6fb60a76106e70067e80d4111a4c386942d12802b2106f4cfa"
+    },
+    {
+      "drill": "R5-4-slot",
+      "source": "src/core/team/teamHost.ts",
+      "command": "npx vitest run test/unit/teamHostService.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "failures": [
+        "FAIL  test/unit/teamHostService.test.ts > RVCM963C ownership redesign > R5-4: Raise cannot borrow a second concurrent slot on the same entry"
+      ],
+      "sha256Before": "7cc305188b8ccdf3243d93ff3e739ca58d8218ce8c5e73ab08b4fd3ed0c0f70c",
+      "sha256After": "7cc305188b8ccdf3243d93ff3e739ca58d8218ce8c5e73ab08b4fd3ed0c0f70c"
+    }
+  ]
+}

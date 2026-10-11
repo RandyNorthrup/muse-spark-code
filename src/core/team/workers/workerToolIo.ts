@@ -15,7 +15,6 @@ import type { ToolIo } from '../../backends/modelapi/tools'
 import { pathModule } from '../../workspaceRoot'
 import {
   confineWorkerPath,
-  isCheckedWorkerWriteAllowed,
   MuseWorkerFolderError,
   withWorkerFile,
   type WorkerPathInput,
@@ -103,11 +102,16 @@ export function fenceWorkerToolIo(base: ToolIo, fence: WorkerToolFence): ToolIo 
   ): Promise<T> => {
     fence.admit()
     // Opening r+ never creates or truncates; only this verified handle writes.
-    return await withWorkerFile(fence.input, given, true, async (handle, target) => {
-      fence.admit()
-      if (!isCheckedWorkerWriteAllowed(fence.role, target)) throw new MuseWorkerFolderError()
-      return await work(handle)
-    })
+    return await withWorkerFile(
+      fence.input,
+      given,
+      true,
+      async (handle) => {
+        fence.admit()
+        return await work(handle)
+      },
+      fence.role,
+    )
   }
   return {
     readFile: (absolute, _expected, signal) => readText(absolute, signal),

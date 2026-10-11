@@ -24076,6 +24076,24 @@ bound, `TEAM_COLLECT_WAIT_MAX_SECONDS_ENGINE` (60 s, golden `08-team-on`
 updated); the Muse Code team server keeps `TEAM_COLLECT_WAIT_MAX_SECONDS`
 (0) until lane P's timeout capture.
 
+**C-M96-3 round 5 correctness pass (2026-10-10).** RVCM963E found four
+remaining defects on `e50477ff7`. Bind each worker usage settlement to its
+reserved claim, including the sent model's known price for bare Meta,
+qualified, and zero-cost plan models. Reuse one live claim across transport
+retries and vault rebuilds; retain unreported liability. Refuse role-policy
+writes before opening any file, and remove pathname-based native creation:
+portable Node cannot bind creation to a verified parent handle. Existing
+files still use verified handles; new-file creation remains unavailable.
+Raise exempts entry caps only, and still checks the entry's concurrent slot
+through the sole `admit()` path. Sweep sibling paths, prove each regression
+red, restore sources byte-exact, and record scoped gates in
+`docs/certification/m96-x.md`. Teams stay hidden; no live calls, new
+dependency, merge, or changed budget. Next slice remains lead review and
+full cross-platform gates, followed by the remaining M96 bindings above.
+Scoped verification is complete: 263 tests across nine files at repository
+timeouts, all required static/build checks, eight red/restored drills and
+`teamHost.js` at 129.1/130 KiB. All four findings are fixed; M96 remains hidden.
+
 **C-M96-3 round 4 redesign (2026-10-10).** RVCM963C found 21 remaining
 failures on `13d632247`. Replace the clustered admission, accounting, merge
 and recovery paths: one synchronous worker lease owns global/entry/source

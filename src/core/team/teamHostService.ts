@@ -140,7 +140,7 @@ export interface TeamTaskWorkspace {
  */
 export interface TeamTaskMeter {
   readonly admitRequest: (hasReservation?: boolean) => void
-  /** Maximum liability for this exact attempt, durably held before dispatch. */
+  /** Maximum liability for this request chain, durably held across transport retries. */
   readonly reserveRequest: (maximum: TeamUsage) => Promise<number>
   /** Settlement belongs to this exact request, including a late report. */
   readonly settleRequest: (requestOrdinal: number, usage: TeamUsage) => Promise<void>

@@ -20,7 +20,6 @@ export function createTeamHost(
 // The lazy file adapter shares this grant authority, including its WeakMap.
 export {
   confineWorkerPath,
-  isCheckedWorkerWriteAllowed,
   MuseWorkerFolderError,
   withWorkerFile,
 } from '../../core/team/workers/workerFence'

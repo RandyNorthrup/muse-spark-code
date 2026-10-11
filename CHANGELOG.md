@@ -32,6 +32,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- Hidden M96 team-host correctness: each response settles its own reserved
+  claim with the sent model's known price, including bare Meta and zero-cost
+  plan models; transport retries reuse one live claim. Refused worker writes
+  are checked before opening a file, and portable native writes cannot create
+  pathname targets. Raise still requires the entry's concurrent slot. Teams
+  remain unavailable pending the remaining bindings and certification.
+
 - Hidden M96 team-host implementation: setup probes now retain per-entry
   generations; stale results cannot replace a newer model's readiness, and
   a finishing probe cannot start queued work after disposal. Teams remain

@@ -2632,6 +2632,7 @@ export class ModelApiSession implements ScheduledAgentSession {
    * at that model's rates, whatever the session switched to meanwhile.
    */
   private sendingModelId: string | undefined
+  private settleWorkerUsage: ((usage: SubagentUsage) => void) | undefined
   private sendingContextModel: ContextModel | undefined
   private isSendingCompaction = false
   private previousCacheUsage: { readonly modelId: string; readonly inputTokens: number } | undefined
@@ -4807,6 +4808,8 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (this.isSubagent) paidFeature = 'subagents'
     else if (this.active?.confirmedRequest !== undefined) paidFeature ??= 'scheduledPrompts'
     let paidEstimatedInputTokens: number | undefined
+    let hasWorkerClaim = false
+    let settleWorkerUsage: ((usage: SubagentUsage) => void) | undefined
     if (
       (this.client.hasPaidDailyBudget || this.active?.scheduleRun !== undefined) &&
       (paidFeature !== undefined || directBudget !== undefined)
@@ -4819,7 +4822,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       prepare: async () => {
         await this.deps.admitResponseAttempt?.prepare?.()
         const reserve = this.deps.admitResponseAttempt?.reserveUsage
-        if (reserve === undefined) return
+        if (reserve === undefined || hasWorkerClaim) return
         // M82's same upper bound: one token per serialized UTF-8 byte;
         // media uses its calibrated bound. No cache discount is assumed.
         const inputTokens = estimateInput(
@@ -4828,7 +4831,9 @@ export class ModelApiSession implements ScheduledAgentSession {
         ).inputTokens
         const outputTokens = body.max_output_tokens
         const costUsd = resolved.price.reserve({ inputTokens, outputTokens })
-        await reserve({ inputTokens, outputTokens, costUsd })
+        const claim = await reserve({ inputTokens, outputTokens, costUsd })
+        if (typeof claim === 'function') settleWorkerUsage = claim
+        hasWorkerClaim = true
       },
       observe: (observation: ResponseObservation) => {
         if (directBudget !== undefined || this.recordedCall === undefined) {
@@ -4867,6 +4872,8 @@ export class ModelApiSession implements ScheduledAgentSession {
           reservation.hasTerminalSearchCount = true
       },
       onRequestStarted: () => {
+        // Retry dispatches retain the same claim; a new request owns a new one.
+        this.settleWorkerUsage = settleWorkerUsage
         this.noteVaultRequest(body)
         if (!isCompaction && directBudget === undefined) {
           const turnIds = this.replay.map((entry) => entry.turnId)
@@ -5234,17 +5241,22 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     // An attempt's tally prices the request at the model it was sent to, as the
     // budget does, whatever the session switched to meanwhile (M82).
-    this.notifyUsage(() =>
-      this.deps.noteResponseUsage?.(sentModelId, {
-        ...(sentModelId.includes('/') && {
-          ...billable,
-          costUsd: cost,
-        }),
-        inputTokens: billable.inputTokens,
-        outputTokens: billable.outputTokens,
-        cachedTokens: billable.cachedTokens ?? 0,
+    const settleWorkerUsage = this.settleWorkerUsage
+    this.settleWorkerUsage = undefined
+    const reported = {
+      ...((settleWorkerUsage !== undefined || sentModelId.includes('/')) && {
+        ...billable,
+        costUsd: cost,
       }),
-    )
+      inputTokens: billable.inputTokens,
+      outputTokens: billable.outputTokens,
+      cachedTokens: billable.cachedTokens ?? 0,
+    }
+    if (settleWorkerUsage !== undefined)
+      this.notifyUsage(() => {
+        settleWorkerUsage(reported)
+      })
+    this.notifyUsage(() => this.deps.noteResponseUsage?.(sentModelId, reported))
     this.emitUsage()
     this.noteContext(usage.input_tokens + usage.output_tokens)
   }
