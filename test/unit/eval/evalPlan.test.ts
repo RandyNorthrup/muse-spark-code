@@ -1,7 +1,9 @@
-// Lane E's call plan (M101 C-M101-3, part A): scripts/m101-e.mjs --plan runs
-// offline and prints the counted run's model calls before anything sends.
-// This pins its numbers against the frozen task set and arms, so the plan
-// cannot drift from what the counted run executes.
+// Lane E's call plan (M101 C-M101-3, part A; R2 exactness): scripts/m101-e.mjs
+// --plan runs offline and prints the counted run's model calls before
+// anything sends. The printed plan is EXACTLY what the run may send — no
+// probe, no other batch runs under it — and the hard ceiling equals the
+// plan. This pins its numbers against the frozen task set and arms, so the
+// plan cannot drift from what the counted run executes.
 
 import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
@@ -19,7 +21,6 @@ const planSchema = z.object({
   arms: z.array(
     z.object({ name: z.string(), smallAttempts: z.number(), longAttempts: z.number() }),
   ),
-  cacheProbeAttempts: z.number(),
   plannedCalls: z.number(),
   callCeiling: z.number(),
   budgetUsd: z.number(),
@@ -53,12 +54,15 @@ describe('the lane E call plan', () => {
       (total, arm) => total + small * arm.smallAttempts + long * arm.longAttempts,
       0,
     )
-    expect(plan.plannedCalls).toBe(base + plan.cacheProbeAttempts)
+    // The printed plan is exactly what runs: nothing else sends under it,
+    // so no probe rides along uncounted.
+    expect(plan.plannedCalls).toBe(base)
     // The certification band is about 150-300 calls: the plan sits inside
-    // it, and the ceiling stops the run at its edge.
+    // it, and the ceiling IS the plan — a run that would exceed it stops
+    // and is incomplete, never a pass.
     expect(plan.plannedCalls).toBeGreaterThanOrEqual(150)
-    expect(plan.callCeiling).toBe(300)
-    expect(plan.plannedCalls).toBeLessThanOrEqual(plan.callCeiling)
+    expect(plan.plannedCalls).toBeLessThanOrEqual(300)
+    expect(plan.callCeiling).toBe(plan.plannedCalls)
     expect(plan.budgetUsd).toBe(EVAL_BUDGET_USD)
   })
 })

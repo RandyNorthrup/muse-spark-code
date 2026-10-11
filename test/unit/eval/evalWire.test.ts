@@ -140,6 +140,43 @@ describe('eval wire', () => {
     expect(wireTotals(wire).attempts).toBe(1)
   })
 
+  it('does not charge the call ceiling for a send refused after its body read', async () => {
+    const api = fakeModelApi()
+    api.script({ text: 'ok' })
+    const budget: EvalBudget = { spentUsd: Usd.from(0).toAmount(), maxAttempts: 1 }
+    const wire = wireOn(api.fetch, budget)
+    const held = Promise.withResolvers<undefined>()
+    const entered = Promise.withResolvers<undefined>()
+    const body = new ReadableStream<Uint8Array>({
+      async pull(controller) {
+        entered.resolve(undefined)
+        await held.promise
+        controller.enqueue(new TextEncoder().encode(JSON.stringify({ model: EVAL_MODEL_ID })))
+        controller.close()
+      },
+    })
+    const init = { ...modelCall(), body, duplex: 'half' }
+    const waiting = wire.fetch(RESPONSES_URL, init)
+    await entered.promise
+    // The previous reply settles while this body is held: the budget spends.
+    budget.spentUsd = Usd.from(EVAL_BUDGET_USD).toAmount()
+    held.resolve(undefined)
+    expect(await refusalOf(await waiting)).toContain('spent')
+    // Refused, unsent: no ceiling slot consumed, nothing on the network.
+    expect(budget.sentAttempts).toBeUndefined()
+    expect(api.requests).toEqual([])
+    expect(wire.calls).toEqual([])
+    expect(wire.truncated).toEqual(['budget-spent'])
+    // The slot is still free: the next real call sends.
+    budget.spentUsd = Usd.from(0).toAmount()
+    const response = await wire.fetch(RESPONSES_URL, modelCall())
+    await response.text()
+    await wire.settle()
+    expect(budget.sentAttempts).toBe(1)
+    expect(api.requests).toHaveLength(1)
+    expect(wireTotals(wire).attempts).toBe(1)
+  })
+
   it('counts a request that is not a model call as a request only', async () => {
     const api = fakeModelApi()
     const wire = wireOn(api.fetch)

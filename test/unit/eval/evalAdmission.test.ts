@@ -11,15 +11,26 @@ import {
   freezeEvalHarness,
   frozenBundleChange,
 } from '../../../src/core/eval/mechanisms'
-import { bindEvalAdmission, createEvalCompactionLedger } from '../../../src/core/eval/driver'
+import {
+  bindEvalAdmission,
+  createEvalCompactionLedger,
+  runEvalTurn,
+} from '../../../src/core/eval/driver'
 import type { EvalBudget } from '../../../src/core/eval/wire'
+import { EVAL_TASKS, evalWindowTokens } from '../../../src/core/eval/tasks'
 import { EVAL_BUDGET_USD, EVAL_MODEL_ID } from '../../../src/shared/constants'
 import { Usd } from '../../../src/shared/usd'
 import { FakeLogOutputChannel } from '../helpers/fakes'
-import { fakeModelApi, fakeModelApiClient } from '../helpers/fakeModelApi'
+import { memoryContextIo } from '../helpers/fakeContextIo'
+import {
+  FAKE_MODEL_API_ACCOUNT_ID,
+  fakeModelApi,
+  fakeModelApiClient,
+} from '../helpers/fakeModelApi'
 import { memoryToolIo } from '../helpers/fakeToolIo'
 import { fakeModelApiHostDeps } from '../helpers/modelApiHostDeps'
 import { testEvalAdmission } from '../helpers/evalTurn'
+import { compactionArmReplies } from './evalFixes'
 
 function budget(): EvalBudget {
   return { spentUsd: Usd.from(0).toAmount() }
@@ -163,6 +174,43 @@ describe('the frozen auto-compaction change', () => {
     expect(() => changed.admitAutoCompaction!(admissionRequest())).toThrow(
       'the auto-compaction arm needs the evaluation admission its parent binds',
     )
+  })
+
+  it('fails the turn instead of running uncompacted without the admission its parent binds', async () => {
+    const task = EVAL_TASKS.find((candidate) => candidate.id === 'accept-long-compaction')
+    expect(task).toBeDefined()
+    if (task === undefined) throw new Error('the long-context task is missing')
+    const api = fakeModelApi()
+    api.script(...compactionArmReplies(task))
+    const log = new FakeLogOutputChannel()
+    const io = memoryToolIo(
+      Object.fromEntries(task.files.map((file) => [file.path, file.content])),
+      '/ws',
+    )
+    let ids = 0
+    // No admission bound: the host must rethrow the frozen arm's marker
+    // instead of continuing uncompacted as if that were the mechanism.
+    const outcome = await runEvalTurn({
+      deps: {
+        client: fakeModelApiClient(api, log),
+        io,
+        contextIo: memoryContextIo(io.files),
+        platform: 'linux',
+        accountId: FAKE_MODEL_API_ACCOUNT_ID,
+        log,
+        now: () => 0,
+        newId: () => {
+          ids += 1
+          return `id${String(ids)}`
+        },
+      },
+      workspace: '/ws',
+      prompt: task.prompt,
+      change: AUTO_COMPACTION_ARM.change,
+      windowTokens: evalWindowTokens(task),
+    })
+    expect(outcome.terminal).toBe('failed')
+    expect(outcome.reason).toContain('the auto-compaction arm needs the evaluation admission')
   })
 
   it('delegates to the admission its parent binds', async () => {

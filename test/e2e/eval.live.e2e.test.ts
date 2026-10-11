@@ -189,7 +189,9 @@ describe.skipIf(!IS_ENABLED)('live paired evaluation (MUSE_LIVE_MODEL_API=1)', (
       if (reportPath !== undefined) {
         await writeReport(report, path.resolve(reportPath))
       }
-      expect(report.verdict).not.toBe('fail')
+      // Only `pass` counts: a narrowed selection is `incomplete` (R2),
+      // and a truncated run stops `incomplete` too — neither may arm the latch.
+      expect(report.verdict).toBe('pass')
       expect(
         report.version === EVAL_REPORT_VERSION ? report.packingEngagement?.unengaged : undefined,
       ).toEqual([])

@@ -202,9 +202,11 @@ export function unengagedLongOutputTasks(
 /**
  * The report with M73's packing acceptance recorded in it (PLAN.md M73):
  * the arm's engagement on the run's long-output tasks, and the verdict
- * `fail` when it never packed on one, whatever the floors say. Applied
- * before the report is printed or written, so both artifacts say what the
- * run's acceptance decided.
+ * `fail` when it never packed on one, whatever the floors say. A selection
+ * with no long-output task holds nothing: a `pass` becomes `incomplete`,
+ * never stays a pass for want of evidence. Applied before the report is
+ * printed or written, so both artifacts say what the run's acceptance
+ * decided.
  */
 export function withPackingEngagement(
   report: EvalReport,
@@ -214,26 +216,35 @@ export function withPackingEngagement(
   if (report.version !== EVAL_REPORT_VERSION) {
     throw new Error('Packing engagement is recorded only in a current-version report.')
   }
+  const longTasks = tasks.filter((task) => task.isLongOutput === true).map((task) => task.id)
   const unengaged = unengagedLongOutputTasks(report, armName, tasks)
-  const isHeld = unengaged.length === 0
+  // An empty list is not held: nothing ran to engage on.
+  const isHeld = longTasks.length > 0 && unengaged.length === 0
+  let verdict = report.verdict
+  if (!isHeld) {
+    verdict = longTasks.length === 0 && report.verdict === 'pass' ? 'incomplete' : 'fail'
+  }
   return {
     ...report,
     packingEngagement: {
       arm: armName,
-      longOutputTasks: tasks.filter((task) => task.isLongOutput === true).map((task) => task.id),
+      longOutputTasks: longTasks,
       unengaged,
       held: isHeld,
     },
-    verdict: isHeld ? report.verdict : 'fail',
+    verdict,
   }
 }
 
 /**
- * The long-context tasks on which an arm sent no more attempts than the
- * baseline (M74): an auto-compaction run that passes its floors without
- * compacting proves nothing about compaction. The extra sends are the
- * summary round trips, counted from the trace, which never keeps bodies.
- * The baseline arm missing from the report counts as never engaged.
+ * The long-context tasks on which the D78 admission settled no summary
+ * for the arm (M101 lane E R2): "compaction engaged" means the runner's
+ * settled-admission count reached at least one on the task — more model
+ * calls than the baseline is not evidence, in either direction. A shorter
+ * continuation after a real summary still engaged; an extra tool round
+ * without one never did. A task from before the settled count (absent) or
+ * an arm missing from the report counts as never engaged. The baseline
+ * arm missing from the report counts as never engaged.
  */
 export function unengagedCompactionTasks(
   report: EvalReport,
@@ -246,9 +257,9 @@ export function unengagedCompactionTasks(
   return tasks
     .filter((task) => task.isLongContext === true)
     .filter((task) => {
-      const made = arm.find((result) => result.taskId === task.id)?.attempts
-      const plain = baseline.find((result) => result.taskId === task.id)?.attempts
-      return made === undefined || plain === undefined || made <= plain
+      const settled = arm.find((result) => result.taskId === task.id)?.compactionsSettled
+      const ran = baseline.find((result) => result.taskId === task.id)
+      return ran === undefined || settled === undefined || settled < 1
     })
     .map((task) => task.id)
 }
@@ -256,7 +267,9 @@ export function unengagedCompactionTasks(
 /**
  * The report with lane E's compaction acceptance recorded in it (PLAN.md
  * M101): the arm's engagement on the run's long-context tasks, and the
- * verdict `fail` when it never compacted on one, whatever the floors say.
+ * verdict `fail` when it settled no compaction on one, whatever the
+ * floors say. A selection with no long-context task holds nothing: a
+ * `pass` becomes `incomplete`, never stays a pass for want of evidence.
  * Applied before the report is printed or written, so both artifacts say
  * what the run's acceptance decided.
  */
@@ -269,17 +282,23 @@ export function withCompactionEngagement(
   if (report.version !== EVAL_REPORT_VERSION) {
     throw new Error('Compaction engagement is recorded only in a current-version report.')
   }
+  const longTasks = tasks.filter((task) => task.isLongContext === true).map((task) => task.id)
   const unengaged = unengagedCompactionTasks(report, armName, baselineName, tasks)
-  const isHeld = unengaged.length === 0
+  // An empty list is not held: nothing ran to engage on.
+  const isHeld = longTasks.length > 0 && unengaged.length === 0
+  let verdict = report.verdict
+  if (!isHeld) {
+    verdict = longTasks.length === 0 && report.verdict === 'pass' ? 'incomplete' : 'fail'
+  }
   return {
     ...report,
     compactionEngagement: {
       arm: armName,
-      longContextTasks: tasks.filter((task) => task.isLongContext === true).map((task) => task.id),
+      longContextTasks: longTasks,
       unengaged,
       held: isHeld,
     },
-    verdict: isHeld ? report.verdict : 'fail',
+    verdict,
   }
 }
 

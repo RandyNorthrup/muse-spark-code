@@ -56,6 +56,9 @@ export interface EvalBudget {
   sentAttempts?: number | undefined
 }
 
+/** Why the run stopped before every selected task could send (R2). */
+export type EvalWireTruncation = 'call-ceiling' | 'budget-spent' | 'unknown-usage'
+
 export interface EvalWire {
   readonly fetch: typeof fetch
   /** The requests sent, in order. */
@@ -64,6 +67,8 @@ export interface EvalWire {
   readonly refusals: readonly string[]
   /** What could not be read back: a reply whose usage never arrived. */
   readonly problems: readonly string[]
+  /** Why the run stopped early, in order, without repeats; empty on a full run. */
+  readonly truncated: readonly EvalWireTruncation[]
   /** Waits until the usage of every reply streamed so far has been read. */
   settle(): Promise<void>
 }
@@ -203,6 +208,7 @@ export function createEvalWire(deps: EvalWireDeps): EvalWire {
   const calls: EvalWireCall[] = []
   const refusals: string[] = []
   const problems: string[] = []
+  const truncated: EvalWireTruncation[] = []
   const reads: Promise<void>[] = []
 
   const refuse = (reason: string): Response => {
@@ -210,13 +216,22 @@ export function createEvalWire(deps: EvalWireDeps): EvalWire {
     return refusal(reason)
   }
 
+  const noteTruncated = (why: EvalWireTruncation): void => {
+    if (!truncated.includes(why)) {
+      truncated.push(why)
+    }
+  }
+
   const checkBudget = (): Response | undefined => {
     if (deps.budget.hasUnknownUsage === true) {
+      noteTruncated('unknown-usage')
       return refuse('the evaluation stopped because a sent model call has unknown usage')
     }
-    return Usd.from(deps.budget.spentUsd).compare(Usd.from(EVAL_BUDGET_USD)) >= 0
-      ? refuse(`the evaluation's budget of $${EVAL_BUDGET_USD.toFixed(2)} is spent`)
-      : undefined
+    if (Usd.from(deps.budget.spentUsd).compare(Usd.from(EVAL_BUDGET_USD)) >= 0) {
+      noteTruncated('budget-spent')
+      return refuse(`the evaluation's budget of $${EVAL_BUDGET_USD.toFixed(2)} is spent`)
+    }
+    return undefined
   }
 
   /** The usage of a streamed reply, read from its copy. */
@@ -281,16 +296,22 @@ export function createEvalWire(deps: EvalWireDeps): EvalWire {
       // consume it, only validated sends.
       const sent = deps.budget.sentAttempts ?? 0
       if (deps.budget.maxAttempts !== undefined && sent >= deps.budget.maxAttempts) {
+        noteTruncated('call-ceiling')
         return refuse(
           `the evaluation's call ceiling of ${String(deps.budget.maxAttempts)} model calls is reached`,
         )
       }
-      deps.budget.sentAttempts = sent + 1
     }
     // Reading a streamed request body can yield while the prior reply settles.
     const afterBody = checkBudget()
     if (afterBody !== undefined) {
       return afterBody
+    }
+    if (isModelCall) {
+      // Counted only once the send is certain: a refusal after the body
+      // read (R2: the budget spent while the body was held) consumes no
+      // ceiling slot, so the next real call is still allowed.
+      deps.budget.sentAttempts = (deps.budget.sentAttempts ?? 0) + 1
     }
     const call: EvalWireCall = {
       method: request.method,
@@ -344,6 +365,7 @@ export function createEvalWire(deps: EvalWireDeps): EvalWire {
     calls,
     refusals,
     problems,
+    truncated,
     async settle() {
       await Promise.all(reads.splice(0))
     },

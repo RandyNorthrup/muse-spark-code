@@ -584,6 +584,43 @@ describe('runPairedEval', { timeout: RUNS_TIMEOUT_MS }, () => {
         `Evaluation auto-compaction ${taskId}: 1 admitted compaction attempt settled against the run budget`,
       )
     }
+    // The settled-admission count rides on every task result: one on each
+    // long-context run of the arm, zero everywhere else — the baseline
+    // settled nothing on any task.
+    const [baselineArm, compactionArm] = report.arms
+    const baselineResults = baselineArm?.results ?? []
+    for (const result of baselineResults) {
+      expect(result.compactionsSettled).toBe(0)
+    }
+    const compactionResults = compactionArm?.results ?? []
+    for (const result of compactionResults) {
+      expect(result.compactionsSettled).toBe(longIds.has(result.taskId) ? 1 : 0)
+    }
+    // A full run names no early stop.
+    expect(report.version === EVAL_REPORT_VERSION ? report.stoppedEarly : undefined).toBeUndefined()
+  })
+
+  it('calls a run that hits its call ceiling incomplete, with the reason', async () => {
+    const { api, deps } = rig()
+    const [first, second] = EVAL_TASKS
+    if (first === undefined || second === undefined) {
+      throw new Error('the task set is too small')
+    }
+    api.script(...canonical(first), ...canonical(second))
+    const report = await runPairedEval([first, second], [BASELINE], { ...deps, maxAttempts: 1 })
+    // Refusals manufacture failures, so the truncated run decides nothing:
+    // incomplete, never a pass — and the receipt says why.
+    expect(report.verdict).toBe('incomplete')
+    expect(report.version === EVAL_REPORT_VERSION ? report.stoppedEarly : undefined).toEqual([
+      'the run stopped at its call ceiling of 1 model calls',
+    ])
+    const parsed = evalReportSchema.parse(structuredClone(report))
+    expect(parsed.version === EVAL_REPORT_VERSION ? parsed.stoppedEarly : undefined).toEqual([
+      'the run stopped at its call ceiling of 1 model calls',
+    ])
+    const [one, two] = report.arms[0]?.results ?? []
+    expect(one?.failures.some((failure) => failure.includes('call ceiling of 1'))).toBe(true)
+    expect(two?.attempts).toBe(0)
   })
 
   it('records the packing ledger and the recalls of the long-output tasks (M73)', async () => {
