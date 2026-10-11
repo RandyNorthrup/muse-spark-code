@@ -420,7 +420,11 @@ function validateIntentFraming(intent: z.infer<typeof intentSchema>): void {
     throw new VaultError('rollback')
 }
 /** A complete document/slot pair or pending transaction, without opening secret material. */
-async function isVaultOpenable(files: VaultFilePort, vaultId: string): Promise<boolean> {
+async function isVaultOpenable(
+  files: VaultFilePort,
+  vaultId: string,
+  minimum: VaultGenerationState | null,
+): Promise<boolean> {
   const buffers: Buffer[] = []
   try {
     const pending = await files.read('pending.v1')
@@ -429,7 +433,11 @@ async function isVaultOpenable(files: VaultFilePort, vaultId: string): Promise<b
       const intent = intentSchema.safeParse(parseJson(pending))
       if (!intent.success) return false
       validateIntentFraming(intent.data)
-      return intent.data.snapshot.document.vaultId === vaultId
+      return (
+        intent.data.snapshot.document.vaultId === vaultId &&
+        (isSameState(minimum, intent.data.prior) ||
+          isSameState(minimum, stateOf(intent.data.snapshot.slots)))
+      )
     }
     const document = await files.read('vault.v1')
     if (document) buffers.push(document)
@@ -442,7 +450,7 @@ async function isVaultOpenable(files: VaultFilePort, vaultId: string): Promise<b
     })
     if (!pair.success) return false
     validateSnapshotFraming(pair.data)
-    return pair.data.document.vaultId === vaultId
+    return pair.data.document.vaultId === vaultId && isSameState(minimum, stateOf(pair.data.slots))
   } catch (error: unknown) {
     if (error instanceof VaultError && ['invalid', 'rollback'].includes(error.code)) return false
     throw error
@@ -655,8 +663,14 @@ export class VaultStore implements VaultStorePort {
    * vault cannot be opened by any slot or code, because its required files are
    * missing or damaged. Never true for a vault that merely is locked.
    */
-  static async isLost(files: VaultFilePort, anchoredId: string): Promise<boolean> {
-    return await files.withWriter(async () => !(await isVaultOpenable(files, anchoredId)))
+  static async isLost(
+    files: VaultFilePort,
+    anchoredId: string,
+    anchor: VaultGenerationPort,
+  ): Promise<boolean> {
+    return await files.withWriter(
+      async () => !(await isVaultOpenable(files, anchoredId, await anchor.minimum(anchoredId))),
+    )
   }
   /**
    * The reset's file side: appends a value-free audit line to `reset.v1`,
@@ -677,7 +691,7 @@ export class VaultStore implements VaultStorePort {
       authorize()
       if (!isSameState(current, expected)) throw new VaultError('rollback')
       // Rechecked under the writer: a vault that became openable is never reset.
-      if (await isVaultOpenable(files, anchoredId)) throw new VaultError('invalid')
+      if (await isVaultOpenable(files, anchoredId, current)) throw new VaultError('invalid')
       authorize()
       const previous = await files.read('reset.v1')
       try {

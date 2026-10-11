@@ -312,7 +312,10 @@ export class VaultManagement implements VaultManagementPort {
     const broker = await this.deps.broker.status()
     if (pending === null && broker.state !== 'unlocked') {
       const anchored = await this.anchoredId()
-      if (anchored !== null && (await VaultStore.isLost(this.deps.files, anchored)))
+      if (
+        anchored !== null &&
+        (await VaultStore.isLost(this.deps.files, anchored, this.deps.anchor))
+      )
         return {
           status: { ...broker, state: 'unavailable', reason: 'vaultLost' },
           setupId: null,
@@ -451,7 +454,10 @@ export class VaultManagement implements VaultManagementPort {
       this.assertSameLock(generation)
       if (status.state === 'unlocked') throw new VaultManagementError('invalid')
       const anchored = await this.anchoredId()
-      if (anchored === null || !(await VaultStore.isLost(this.deps.files, anchored)))
+      if (
+        anchored === null ||
+        !(await VaultStore.isLost(this.deps.files, anchored, this.deps.anchor))
+      )
         throw new VaultManagementError('invalid')
       this.assertSameLock(generation)
       const resetId = newId()
@@ -598,7 +604,7 @@ export class VaultManagement implements VaultManagementPort {
         store.lock()
         isCreated = true
       } finally {
-        this.confirming = null
+        if (!isCreated) this.confirming = null
         // A failed confirmation stays pending inside its window (retry or
         // cancel); after the window, after a Lock, or once created, the key
         // is erased.
@@ -611,13 +617,18 @@ export class VaultManagement implements VaultManagementPort {
     })
     // A Lock during the confirmation never ends unlocked: the vault exists,
     // locked, and the person unlocks it again (RVCM1091A2 P2).
-    this.assertSameLock(generation)
     try {
-      await this.deps.broker.unlock(null)
-    } catch {
-      // The vault exists; the snapshot shows it locked with the slot's reason.
-      throw new VaultManagementError('locked')
+      this.assertSameLock(generation)
+      try {
+        await this.deps.broker.unlock(null)
+      } catch {
+        // The vault exists; the snapshot shows it locked with the slot's reason.
+        throw new VaultManagementError('locked')
+      }
     } finally {
+      // Until first unlock settles, snapshots must not compete with its writer.
+      this.confirming = null
+      this.isConfirmationCancelled = false
       this.changed()
     }
   }
