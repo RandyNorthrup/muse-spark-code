@@ -1,6 +1,9 @@
+import { execFile } from 'node:child_process'
 import { constants } from 'node:fs'
 import * as fs from 'node:fs/promises'
 import path from 'node:path'
+import { promisify } from 'node:util'
+import { build } from 'esbuild'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { EstimateHistoryJournal } from '../../src/core/estimator/calibration/journal'
 import { fakeHistoryRecord } from './helpers/estimator/fixtures'
@@ -454,6 +457,70 @@ describe('M117 durable metadata-only history journal', () => {
     vi.restoreAllMocks()
     await journal.append(record)
     expect(await journal.list()).toHaveLength(1)
+  })
+
+  it('clears observations, identity claims and staging files but keeps foreign files', async () => {
+    await journal.append(fakeHistoryRecord('M117:first'))
+    await journal.append({
+      ...fakeHistoryRecord('M117:second'),
+      durationBasis: 'gitElapsed',
+      source: 'git',
+    })
+    const folder = path.join(directory, 'history')
+    await fs.writeFile(path.join(folder, 'interrupted.tmp'), 'interrupted')
+    await fs.writeFile(path.join(folder, 'owner-note.txt'), 'not the journal')
+    await journal.clear()
+    expect(await journal.list()).toEqual([])
+    expect(await fs.readdir(folder)).toEqual(['owner-note.txt'])
+  })
+
+  it('clears a missing journal without failing', async () => {
+    await journal.clear()
+    expect(await journal.list()).toEqual([])
+  })
+
+  it('publishes appends from concurrent processes without losing lanes', async () => {
+    const folder = path.join(directory, 'history')
+    const appender = path.join(directory, 'append.mjs')
+    const root = path.resolve('.').replaceAll('\\', '/')
+    await build({
+      stdin: {
+        contents: `import { EstimateHistoryJournal } from ${JSON.stringify(`${root}/src/core/estimator/calibration/journal.ts`)}; const [folder, prefix, start, count] = process.argv.slice(2); const journal = new EstimateHistoryJournal(folder); for (let index = 0; index < Number(count); index += 1) { const laneId = \`\${prefix}-\${String(Number(start) + index).padStart(2, '0')}\`; await journal.append({ laneId, kind: 'core', machineClassId: 'linux-x64-builder', estimatedHours: 2, actualHours: 3, review: { status: 'unknown' }, startedAt: '2026-10-01T08:00:00.000Z', finishedAt: '2026-10-05T10:00:00.000Z', durationBasis: 'agentTime', source: 'board' }); }`,
+        resolveDir: root,
+      },
+      bundle: true,
+      platform: 'node',
+      format: 'esm',
+      outfile: appender,
+    })
+    const run = promisify(execFile)
+    // The fourth process replays the first one's lanes: the replay is idempotent.
+    await Promise.all([
+      run(process.execPath, [appender, folder, 'M117:mp-a', '0', '6']),
+      run(process.execPath, [appender, folder, 'M117:mp-b', '6', '6']),
+      run(process.execPath, [appender, folder, 'M117:mp-c', '12', '6']),
+      run(process.execPath, [appender, folder, 'M117:mp-a', '0', '6']),
+    ])
+    const listed = await journal.list()
+    expect(listed).toHaveLength(18)
+    const expected = [
+      ...Array.from({ length: 6 }, (_, index) => `M117:mp-a-${String(index).padStart(2, '0')}`),
+      ...Array.from({ length: 6 }, (_, index) => `M117:mp-b-${String(index + 6).padStart(2, '0')}`),
+      ...Array.from(
+        { length: 6 },
+        (_, index) => `M117:mp-c-${String(index + 12).padStart(2, '0')}`,
+      ),
+    ].toSorted((left, right) => (left < right ? -1 : Number(left > right)))
+    expect(
+      listed
+        .map((record) => record.laneId)
+        .toSorted((left, right) => (left < right ? -1 : Number(left > right))),
+    ).toEqual(expected)
+    const files = await fs.readdir(folder)
+    expect(files.filter((file) => file.endsWith('.tmp'))).toEqual([])
+    expect(files.filter((file) => file.endsWith('.json'))).toHaveLength(18)
+    expect(files.filter((file) => file.endsWith('.identity'))).toHaveLength(18)
+    expect(journal.skippedRecords).toEqual([])
   })
 
   it('sanitizes cleanup failure and retains an earlier publication failure', async () => {

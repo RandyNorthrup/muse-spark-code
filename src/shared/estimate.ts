@@ -563,6 +563,20 @@ export function disclosureTargets(value: unknown, pointer = ''): Map<string, num
   return targets
 }
 
+/** M117 C-M117-2: the journal's per-list skip diagnostics, shared with the run. */
+export const historySkippedSchema = z.array(
+  z.strictObject({
+    recordId: id,
+    code: z.enum([
+      'unknownHistoryVersion',
+      'unknownHistoryBasis',
+      'mixedHistoryBasis',
+      'conflictingLaneIdentity',
+    ]),
+  }),
+)
+export type HistorySkipped = z.infer<typeof historySkippedSchema>
+
 /** Section payload for M113 report-v1; lane W binds its envelope when merged. */
 export const estimateSectionSchema = z
   .strictObject({
@@ -631,6 +645,10 @@ export const estimateSectionSchema = z
           ),
         ),
     ),
+    // M117 C-M117-2: history records the journal skipped while listing, by
+    // opaque file id and fixed code. Strings only, so the disclosure walk
+    // gains no targets; the run discloses what calibration could not use.
+    historySkipped: z.optional(historySkippedSchema),
     drift: z.optional(
       z.strictObject({
         previousAsOf: instant,

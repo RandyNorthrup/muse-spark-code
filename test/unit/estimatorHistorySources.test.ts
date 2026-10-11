@@ -64,7 +64,9 @@ function fakeGit(scenario: GitScenario = {}): (args: readonly string[]) => Promi
   }
 }
 
-function git(scenario: GitScenario = {}): { duration: (laneId: string) => Promise<unknown> } {
+function git(scenario: GitScenario = {}): {
+  duration: (laneId: string, asOf: string) => Promise<unknown>
+} {
   return gitDurationSource({
     root: '/repo',
     runGit: fakeGit(scenario),

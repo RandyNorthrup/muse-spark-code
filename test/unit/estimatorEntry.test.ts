@@ -362,4 +362,32 @@ describe('M117 estimator bundle assembly', () => {
     expect(isEstimatorBundle({ createEstimatorRun })).toBe(true)
     expect(isEstimatorBundle({})).toBe(false)
   })
+  it('discloses skipped history records without changing calibrated output', async () => {
+    const source = ports()
+    source.historySkipped = () =>
+      Promise.resolve([
+        { recordId: 'a'.repeat(64), code: 'unknownHistoryBasis' },
+        { recordId: 'b'.repeat(64), code: 'conflictingLaneIdentity' },
+      ])
+    const result = await createEstimatorRun(source, EN, BASE_LOCALE).estimate(
+      request(),
+      new AbortController().signal,
+    )
+    expect(result.historySkipped).toEqual([
+      { recordId: 'a'.repeat(64), code: 'unknownHistoryBasis' },
+      { recordId: 'b'.repeat(64), code: 'conflictingLaneIdentity' },
+    ])
+    // Skipped diagnostics are strings only: the disclosure walk gains no targets.
+    expect(
+      result.disclosures.every((disclosure) => !disclosure.path.startsWith('/historySkipped')),
+    ).toBe(true)
+    estimateSectionSchema.parse(structuredClone(result))
+  })
+  it('omits historySkipped when the journal skipped nothing', async () => {
+    const result = await createEstimatorRun(ports(), EN, BASE_LOCALE).estimate(
+      request(),
+      new AbortController().signal,
+    )
+    expect(result).not.toHaveProperty('historySkipped')
+  })
 })
