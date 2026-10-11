@@ -108,6 +108,14 @@ function azureHost(): ModelsPanelDeps['providers'] {
     deps: { catalog: AZURE_CATALOG, store: memoryProvidersStore([]) },
   }).providers
 }
+async function enterKeyAndPassTest(panel: FakeWebviewPanel): Promise<void> {
+  await send(panel, { type: 'providers/enterKey', mode: 'new' }, () => {
+    expect(latestState(panel).drafts.wizard?.keyPresent).toBe(true)
+  })
+  await send(panel, { type: 'providers/test', acceptCost: false }, () => {
+    expect(latestState(panel).drafts.wizard?.test?.status).toBe('ok')
+  })
+}
 describe('Models host contract', () => {
   it('sets editor-chat exposure idempotently and refuses references outside visible rows', async () => {
     const { providers } = selectedProviders()
@@ -237,13 +245,8 @@ describe('Models host contract', () => {
     const { panel, providers, saved } = setup()
     vi.mocked(window.showInputBox).mockResolvedValue('bare-synthetic-secret')
     await chooseOpenRouter(panel)
-    await send(panel, { type: 'providers/enterKey', mode: 'new' }, () => {
-      expect(latestState(panel).drafts.wizard?.keyPresent).toBe(true)
-    })
+    await enterKeyAndPassTest(panel)
     expect(await providers.providers()).toEqual([])
-    await send(panel, { type: 'providers/test', acceptCost: false }, () => {
-      expect(latestState(panel).drafts.wizard?.test?.status).toBe('ok')
-    })
     await send(
       panel,
       { type: 'models/tick', scope: { scope: 'wizard' }, ref: 'openrouter/m1', ticked: true },
@@ -282,12 +285,7 @@ describe('Models host contract', () => {
         )
       },
     )
-    await send(panel, { type: 'providers/enterKey', mode: 'new' }, () => {
-      expect(latestState(panel).drafts.wizard?.keyPresent).toBe(true)
-    })
-    await send(panel, { type: 'providers/test', acceptCost: false }, () => {
-      expect(latestState(panel).drafts.wizard?.test?.status).toBe('ok')
-    })
+    await enterKeyAndPassTest(panel)
     await send(panel, { type: 'providers/save', useNow: true }, () => {
       expect(saved).toHaveBeenCalledOnce()
     })
