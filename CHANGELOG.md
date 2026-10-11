@@ -372,6 +372,11 @@ happened, not what was planned; superseded entries are kept.
   ACP registration retains literal argv. Offline shell tests cover paths
   with spaces and metacharacters; native Zed/Windows qualification is pending.
 
+- The resource-policy mutation test now forces its synthetic leak through the
+  split gate's own resource section instead of calling the gate's library on
+  its own, so removing the gate's resource-policy call fails the suite. A new
+  setup anchor covers that call; no production code, cap or deadline changes.
+
 ## [0.17.1] - 2026-10-10
 
 ### Highlights
