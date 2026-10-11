@@ -245,6 +245,29 @@ describe('UpdateTranslator', () => {
     ).toEqual([{ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'Done.' } }])
   })
 
+  it('sends every advisory only as a negotiated notice, once per session', () => {
+    const translator = new UpdateTranslator(CWD, false, undefined, 'modelApi', true)
+    for (const text of [
+      UI_TEXT.autoCompactionAwaitingEvaluation,
+      'MCP unavailable',
+      'Retry pacing',
+    ]) {
+      const event = { type: 'backendNotice', level: 'info', text } as const
+      expect(translator.updates(event)).toEqual([
+        { sessionUpdate: 'notice', severity: 'info', title: text },
+      ])
+      expect(translator.updates(event)).toEqual([])
+    }
+    expect(
+      translator.itemUpdates(
+        { itemId: 'answer', kind: 'agentMessage', status: 'completed', text: 'Model output' },
+        true,
+      ),
+    ).toEqual([
+      { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'Model output' } },
+    ])
+  })
+
   it('replays the user’s messages only from a loaded history', () => {
     const user: ItemSnapshot = {
       itemId: 'u1',
@@ -274,9 +297,9 @@ describe('UpdateTranslator', () => {
     expect(translator.updates({ type: 'contextUsage', usedTokens: 10, pressure: 'low' })).toEqual(
       [],
     )
-    expect(translator.updates({ type: 'backendNotice', level: 'warning', text: 'Slow' })).toEqual([
-      { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'Slow\n\n' } },
-    ])
+    expect(translator.updates({ type: 'backendNotice', level: 'warning', text: 'Slow' })).toEqual(
+      [],
+    )
     expect(
       translator.updates({
         type: 'todoChanged',

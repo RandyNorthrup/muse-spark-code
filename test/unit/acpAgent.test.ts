@@ -206,6 +206,56 @@ function harness(options: HarnessOptions = {}): Harness {
   }
 }
 
+describe('ACPDOG advisory isolation', () => {
+  it.each([false, true])(
+    'keeps full-turn answer text clean (notices: %s)',
+    async (canShowNotices) => {
+      const h = harness()
+      await h.run(async (client) => {
+        const { sessionId } = await start(
+          client,
+          canShowNotices ? { session: { notices: {} } } : {},
+        )
+        const response = prompt(client, sessionId)
+        const session = h.host.sessions[0]!
+        await until(() => session.sendTurn.mock.calls.length === 1)
+        for (const text of [
+          UI_TEXT.autoCompactionAwaitingEvaluation,
+          'MCP unavailable',
+          'Retry pacing',
+        ]) {
+          session.emit({ type: 'backendNotice', level: 'info', text })
+          session.emit({ type: 'backendNotice', level: 'info', text })
+        }
+        session.emit({
+          type: 'itemCompleted',
+          turnId: 'turn-1',
+          item: {
+            itemId: 'answer',
+            kind: 'agentMessage',
+            status: 'completed',
+            text: 'Model output',
+          },
+        })
+        session.emit({ type: 'turnCompleted', turnId: 'turn-1', terminal: 'completed' })
+        await response
+        expect(
+          h.updates
+            .flatMap((update) =>
+              update.sessionUpdate === 'agent_message_chunk' && update.content.type === 'text'
+                ? [update.content.text]
+                : [],
+            )
+            .join(''),
+        ).toBe('Model output')
+        expect(h.updates.filter((update) => update.sessionUpdate === 'notice')).toHaveLength(
+          canShowNotices ? 3 : 0,
+        )
+      })
+    },
+  )
+})
+
 function scheduleReleaseHarness(release: () => Promise<void>): Harness {
   return harness({ schedules: { run: vi.fn(), holdWorkspace: vi.fn().mockResolvedValue(release) } })
 }

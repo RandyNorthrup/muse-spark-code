@@ -1313,6 +1313,11 @@
       "id": "VSIXDIET2",
       "public": false,
       "note": "package size budget"
+    },
+    {
+      "id": "ACPDOG",
+      "public": false,
+      "note": "ACP and headless dogfood repairs"
     }
   ]
 }
