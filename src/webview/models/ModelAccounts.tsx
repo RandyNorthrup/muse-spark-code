@@ -24,6 +24,6 @@ export function ModelAccounts({ host }: { readonly host: HostBridge }) {
     }
   }, [host])
   return revision === 0 ? null : (
-    <Accounts host={host} revision={revision} label={UI_TEXT.accounts.title} />
+    <Accounts host={host} revision={revision} label={UI_TEXT.accounts.title} className="accounts-section" />
   )
 }

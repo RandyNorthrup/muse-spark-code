@@ -24,6 +24,7 @@ it('failed import chunk keeps its section label, alert, retry and close controls
     />,
   )
   const alert = await screen.findByRole('alert')
+  expect(alert.parentElement).toHaveClass('models-import')
   expect(alert).toHaveTextContent(UI_TEXT.providerImport)
   expect(alert).toHaveTextContent(UI_TEXT.surfaceLoadFailed)
   expect(screen.getByRole('button', { name: UI_TEXT.surfaceLoadRetry })).toBeVisible()

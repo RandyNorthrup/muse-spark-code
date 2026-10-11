@@ -455,6 +455,7 @@ export function ProvidersSection(props: SectionProps) {
       </div>
       {importOpen && (
         <ImportPane
+          className="models-import"
           label={UI_TEXT.providerImport}
           panelState={panelState}
           post={post}
