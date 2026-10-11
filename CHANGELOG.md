@@ -37,14 +37,19 @@ happened, not what was planned; superseded entries are kept.
   values, the inputs and the calibration sample sizes. Any D97.2 goal text
   parses; goals the estimator refuses (unfinished lanes with no hours,
   unknown goals, prerequisites, rigs, releases and plan problems, missing
-  capacity, infeasible schedules) fail the source with the estimator's own
-  typed reason instead of invented rows or the generic sentence, matching
-  what `/estimate` prints for the same goal. `--by <date>` means midnight
-  UTC on the terminal, in VS Code and through ACP, exactly as `/estimate`
-  reads it, so every path asks for the same instant; offset stamps are
-  normalized to the same UTC instant the estimator requires, and the run is
-  stamped at the request instant, so the same generation seals identical
-  bytes. The report forecasts cost on every editor so the numbers match.
+  capacity, infeasible schedules) fail the source naming the same refusal
+  `/estimate` names for the goal, rendered in the report's language,
+  instead of invented rows or the generic sentence. Unshaped engine
+  failures stay generic on both surfaces: `/estimate` prints `Estimate
+  failed: estimate-unavailable` while the report records the failed code
+  with its table sentence. `--by <date>` means midnight UTC
+  (`2026-11-01` asks for `2026-11-01T00:00:00.000Z`) on the terminal, in VS
+  Code and through ACP, exactly as `/estimate` reads it, so every path asks
+  for the same instant; offset stamps the report schema accepts (`--as-of`
+  everywhere, `--by` in the editor) are normalized to the same UTC instant
+  the estimator requires, and the run is stamped at the request instant,
+  so the same generation seals identical bytes. The report forecasts cost
+  on every editor so the numbers match.
   Works in VS Code (through the lazy estimator bundle), ACP and
   the terminal (through the headless estimator for the report's workspace
   root) without a model call.
