@@ -627,6 +627,16 @@ export const EN = {
   playbookCommandUsage: 'Use `playbook status|record|settings`.',
   playbookSave: 'Save Settings',
   playbookSaved: 'Playbook settings saved.',
+  // C-M116-6: the panel's answers to findings, and what a conversation is told.
+  playbookAnswerReason: 'Reason',
+  playbookAnswerWhySafe: 'Why It Is Safe for Now',
+  playbookAnswerFollowUp: 'Follow-up',
+  playbookNotCertified:
+    'Playbook: this round could not be certified, so it does not count as passed.',
+  playbookSpawnEachAsked:
+    'Playbook: while a module is under review, each subagent is approved one at a time.',
+  playbookSpawnsNotAdmitted:
+    'Playbook: Muse Code starts subagents here without asking ({auto} mode, {bypass} mode, or an allow rule of yours), so the playbook does not admit them. What they change is counted at the next review.',
   playbookStrikeBadge: forms({ one: '{count} review round', other: '{count} review rounds' }),
   playbookRules: {
     threeStrikes: 'Redesign After Three Strikes',

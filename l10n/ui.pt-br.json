@@ -485,6 +485,12 @@
   "playbookCommandUsage": "Use o comando `playbook status|record|settings`.",
   "playbookSave": "Salvar configurações",
   "playbookSaved": "As configurações do manual foram salvas.",
+  "playbookAnswerReason": "Motivo",
+  "playbookAnswerWhySafe": "Por que é seguro por enquanto",
+  "playbookAnswerFollowUp": "Acompanhamento",
+  "playbookNotCertified": "Manual: não foi possível certificar esta rodada, então ela não conta como aprovada.",
+  "playbookSpawnEachAsked": "Manual: enquanto um módulo está em revisão, cada subagente é aprovado um por vez.",
+  "playbookSpawnsNotAdmitted": "Manual: aqui o Muse Code inicia subagentes sem perguntar (modo {auto}, modo {bypass} ou uma regra de permissão sua), então o manual não os admite. O que eles alterarem é contado na próxima revisão.",
   "playbookStrikeBadge": {
     "one": "{count} rodada de revisão",
     "other": "{count} rodadas de revisão",

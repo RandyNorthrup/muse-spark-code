@@ -485,6 +485,12 @@
   "playbookCommandUsage": "Használat: `playbook status|record|settings`.",
   "playbookSave": "Beállítások mentése",
   "playbookSaved": "A kézikönyv beállításai mentve.",
+  "playbookAnswerReason": "Indok",
+  "playbookAnswerWhySafe": "Miért biztonságos egyelőre",
+  "playbookAnswerFollowUp": "Követő lépés",
+  "playbookNotCertified": "Kézikönyv: ezt a kört nem sikerült igazolni, ezért nem számít sikeresnek.",
+  "playbookSpawnEachAsked": "Kézikönyv: amíg egy modul felülvizsgálat alatt áll, minden alügynököt egyenként kell jóváhagyni.",
+  "playbookSpawnsNotAdmitted": "Kézikönyv: a Muse Code itt kérdezés nélkül indít alügynököket ({auto} mód, {bypass} mód vagy egy saját engedélyezési szabály), ezért a kézikönyv nem engedélyezi őket. A módosításaik a következő felülvizsgálatkor számítanak.",
   "playbookStrikeBadge": {
     "one": "{count} felülvizsgálati kör",
     "other": "{count} felülvizsgálati kör"

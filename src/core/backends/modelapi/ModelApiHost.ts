@@ -519,6 +519,7 @@ import {
   spawnArgs,
   type SpawnArgs,
   statusArgs,
+  type SubagentAdmission,
   type SubagentState,
   targetArgs,
   waitArgs,
@@ -869,6 +870,12 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
   /** The turn ended (Stop and cancellation alike): its checkpoint ends after its writes. */
   readonly afterTurnRuns?:
     ((sessionId: string, turnId: string, end: TurnEnd) => Promise<void>) | undefined
+  /**
+   * The window's playbook (M116, PLAN.md D96.16): a new child, and a new task
+   * for one, start through it. Absent (the CLI, the ACP agent, a host with
+   * no window playbook): they start exactly as before.
+   */
+  readonly playbook?: SubagentAdmission | undefined
   /**
    * The command rules, permission profiles and repository rules (M78,
    * PLAN.md D49), read at each call so a change applies at once; undefined
@@ -9512,29 +9519,80 @@ export class ModelApiSession implements ScheduledAgentSession {
     if ('refusal' in consent) {
       return { outcome: consent.refusal, isRejected: true }
     }
-    // The waits may have changed the mode: judged again, as every call is
-    // after its card, and the child runs under the policy revision of now.
-    signal.throwIfAborted()
-    const current = this.permissions.judge(query, this.policy())
-    if (
-      current.verdict === 'deny' ||
-      (judgement.verdict === 'allow' && current.verdict === 'ask')
-    ) {
-      return await this.refused(call, current, signal)
-    }
-    const admission = this.admitted(query, current)
-    slot.admission = admission
-    return {
-      outcome: this.spawnChild(parsed.data, turnId, consent, admitted.agent, admission.revision),
-      isRejected: false,
-    }
+    let child: ChildRecord | undefined
+    return await this.throughPlaybook(
+      'subagent',
+      undefined,
+      async (): Promise<CallResult> => {
+        // The waits may have changed the mode: judged again, as every call is
+        // after its card, and the child runs under the policy revision of now.
+        signal.throwIfAborted()
+        const current = this.permissions.judge(query, this.policy())
+        if (
+          current.verdict === 'deny' ||
+          (judgement.verdict === 'allow' && current.verdict === 'ask')
+        ) {
+          return await this.refused(call, current, signal)
+        }
+        const admission = this.admitted(query, current)
+        slot.admission = admission
+        const [outcome, started] = this.spawnChild(
+          parsed.data,
+          turnId,
+          consent,
+          admitted.agent,
+          admission.revision,
+        )
+        child = started
+        return { outcome, isRejected: false }
+      },
+      () => child,
+      (reason, shown) => ({ outcome: subagentFailure(reason, shown), isRejected: true }),
+    )
+  }
+
+  /**
+   * New work for a child goes through the window's playbook where the host
+   * has one (M116, PLAN.md D96.16); without one `start` simply runs. `start`
+   * runs once the round is admitted, and what it throws is thrown on as it
+   * is. A refusal is the tool call's own failure, with the playbook's reason
+   * for the model and for the row, and nothing starts. The round ends with
+   * the result of the child `started` names; a child stopped for a follow-up
+   * that has not begun yet has no result.
+   */
+  private throughPlaybook<T>(
+    kind: 'subagent' | 'delegate',
+    targetId: string | undefined,
+    start: () => Promise<T>,
+    started: () => ChildRecord | undefined,
+    refused: (reason: string, shown: string) => T,
+  ): Promise<T> {
+    return (
+      this.deps.playbook?.(
+        kind,
+        this.sessionId,
+        targetId,
+        start,
+        (wake) => {
+          const child = started()
+          const isOver =
+            child === undefined ||
+            (child.followupAfterStop === undefined && CHILD_RESULT_STATES.has(child.state))
+          // Woken on the child's changes for as long as its work is not over.
+          child?.waiters[isOver ? 'delete' : 'add'](wake)
+          return isOver
+        },
+        refused,
+      ) ?? start()
+    )
   }
 
   /**
    * Starts a child decideAndRunSpawn admitted, on what its last recheck
    * found, with nothing awaited since. A custom agent narrows the run to its
    * prompt, tools, model, effort and permissions; what it asks beyond the
-   * session is refused, never widened (M76).
+   * session is refused, never widened (M76). Answers the call's outcome and
+   * the child it started.
    */
   private spawnChild(
     args: SpawnArgs,
@@ -9542,7 +9600,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     admission: ChildAdmission,
     spawnAgent: AgentDefinition | undefined,
     policyRevision: string,
-  ): ToolOutcome {
+  ): readonly [ToolOutcome, ChildRecord] {
     const { grant } = admission
     const modelId = grant.modelId
     const mode = this.isSideChat
@@ -9619,14 +9677,17 @@ export class ModelApiSession implements ScheduledAgentSession {
     this.recordTranscript(turnId, row)
     this.emit({ type: 'itemStarted', item: row })
     this.startQueuedChildren()
-    return {
-      output: JSON.stringify({
-        subagent_id: id,
-        state: record.state,
-        child_session_id: child.sessionId,
-      }),
-      visibleOutput: `${record.role}: ${childStateLabel(record.state)}`,
-    }
+    return [
+      {
+        output: JSON.stringify({
+          subagent_id: id,
+          state: record.state,
+          child_session_id: child.sessionId,
+        }),
+        visibleOutput: `${record.role}: ${childStateLabel(record.state)}`,
+      },
+      record,
+    ]
   }
 
   private childById(id: string): ChildRecord | undefined {
@@ -9755,40 +9816,51 @@ export class ModelApiSession implements ScheduledAgentSession {
         return subagentFailure('invalid subagent_send_message arguments')
       }
       const child = this.childById(parsed.data.subagent_id)
-      if (child === undefined || child.state === 'closed') {
-        return subagentFailure('subagent is unavailable')
-      }
-      const isNewTask =
-        (parsed.data.interrupt === true && child.state === 'running') ||
-        child.state === 'interrupted' ||
-        child.state === 'result_ready'
-      if (isNewTask) {
-        if (grant === undefined) {
-          return childTaskFailure('consentDeclined')
+      const { interrupt, message } = parsed.data
+      /** Whether the message is a new task for the child, in the state it is in now. */
+      const isNewTask = () =>
+        (interrupt === true && child?.state === 'running') ||
+        child?.state === 'interrupted' ||
+        child?.state === 'result_ready'
+      // The child's state is read where this runs: a playbook's admission may
+      // have been waited for.
+      const send = async (): Promise<ToolOutcome> => {
+        if (child === undefined || child.state === 'closed') {
+          return subagentFailure('subagent is unavailable')
         }
-        this.installChildGrant(child, grant)
-      }
-      if (parsed.data.interrupt === true && child.state === 'running') {
-        child.followupAfterStop = parsed.data.message
-        child.state = 'interrupted'
-        child.resourceStop?.abort()
-        await child.session.cancel()
-      } else if (child.state === 'running') {
-        const activeTurnId = child.session.activeTurnId
-        if (activeTurnId === undefined) {
-          return subagentFailure('subagent turn is settling; retry the message')
+        if (isNewTask()) {
+          if (grant === undefined) {
+            return childTaskFailure('consentDeclined')
+          }
+          this.installChildGrant(child, grant)
         }
-        await child.session.steer(activeTurnId, [{ type: 'text', text: parsed.data.message }])
-      } else {
-        child.pendingMessages.push(parsed.data.message)
-        child.state = 'queued'
-        this.startQueuedChildren()
+        if (interrupt === true && child.state === 'running') {
+          child.followupAfterStop = message
+          child.state = 'interrupted'
+          child.resourceStop?.abort()
+          await child.session.cancel()
+        } else if (child.state === 'running') {
+          const activeTurnId = child.session.activeTurnId
+          if (activeTurnId === undefined) {
+            return subagentFailure('subagent turn is settling; retry the message')
+          }
+          await child.session.steer(activeTurnId, [{ type: 'text', text: message }])
+        } else {
+          child.pendingMessages.push(message)
+          child.state = 'queued'
+          this.startQueuedChildren()
+        }
+        this.updateChild(child)
+        return {
+          output: JSON.stringify({ subagent_id: child.id, state: child.state }),
+          visibleOutput: childStateLabel(child.state),
+        }
       }
-      this.updateChild(child)
-      return {
-        output: JSON.stringify({ subagent_id: child.id, state: child.state }),
-        visibleOutput: childStateLabel(child.state),
-      }
+      // A new task with its consent in hand is a round of its own (M116); a
+      // note to a child at work is no new work.
+      return grant !== undefined && isNewTask()
+        ? await this.throughPlaybook('delegate', child?.id, send, () => child, subagentFailure)
+        : await send()
     }
     const parsed = targetArgs.safeParse(args)
     if (!parsed.success) {

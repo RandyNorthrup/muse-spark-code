@@ -485,6 +485,12 @@
   "playbookCommandUsage": "`playbook status|record|settings` を使用してください。",
   "playbookSave": "設定を保存",
   "playbookSaved": "プレイブックの設定を保存しました。",
+  "playbookAnswerReason": "理由",
+  "playbookAnswerWhySafe": "当面安全である理由",
+  "playbookAnswerFollowUp": "フォローアップ",
+  "playbookNotCertified": "手引き: このラウンドは検証できなかったため、合格として数えられません。",
+  "playbookSpawnEachAsked": "手引き: モジュールのレビュー中は、サブエージェントを 1 つずつ承認します。",
+  "playbookSpawnsNotAdmitted": "手引き: ここでは Muse Code が確認なしでサブエージェントを開始するため ({auto} モード、{bypass} モード、またはご自身の許可ルール)、手引きはそれらを承認しません。変更内容は次のレビューで数えられます。",
   "playbookStrikeBadge": {
     "other": "レビュー {count} ラウンド"
   },

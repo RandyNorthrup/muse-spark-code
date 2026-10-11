@@ -12,6 +12,7 @@ import type { AgentEvent } from '../../shared/agentEvents'
 import {
   PLAYBOOK_PANEL_LANE,
   PLAYBOOK_PANEL_TEAM,
+  PLAYBOOK_PATCH_ROUNDS_MAX,
   PLAYBOOK_SURFACE_LANE,
   REVIEW_FINDING_TEXT_MAX_CHARS,
   REVIEW_FINDINGS_LANGUAGE,
@@ -125,6 +126,8 @@ export interface PanelModuleSummary {
   readonly findings: readonly PanelFinding[]
   readonly design?: PlaybookDesignDecision['outcome'] | undefined
   readonly isEscalated: boolean
+  /** The patch rounds are spent and no design decision is pending: one is due. */
+  readonly isRedesignDue: boolean
 }
 
 export type PanelReviewOpening =
@@ -209,6 +212,16 @@ function countedRounds(records: readonly PlaybookRecord[], moduleId: string): nu
       record.value.class === undefined &&
       record.value.module.id === moduleId,
   ).length
+}
+
+/** Whether the journal's settings and a module's strikes call for a design decision now. */
+function isRedesignDue(records: readonly PlaybookRecord[], standing: PanelModuleStanding): boolean {
+  const settings = records.findLast((record) => record.kind === 'settings')?.value
+  return (
+    settings?.rules.threeStrikes.enabled !== false &&
+    standing.strikes > (settings?.patchRoundsMax ?? PLAYBOOK_PATCH_ROUNDS_MAX) &&
+    standing.design?.outcome !== 'pending'
+  )
 }
 
 function required<T>(value: T | undefined): T {
@@ -322,6 +335,7 @@ export class PanelGovernor {
   private summary(
     standing: PanelModuleStanding,
     titles: ReviewTicket['titles'],
+    records: readonly PlaybookRecord[],
   ): PanelModuleSummary {
     const unused = [...titles]
     return {
@@ -346,6 +360,7 @@ export class PanelGovernor {
       }),
       design: standing.design?.outcome,
       isEscalated: standing.isEscalated,
+      isRedesignDue: isRedesignDue(records, standing),
     }
   }
 
@@ -360,7 +375,7 @@ export class PanelGovernor {
       rounds: review.tickets.flatMap(({ context, counted, titles }) => {
         const standing = standings.find((entry) => entry.module.id === context.module.id)
         return standing !== undefined && countedRounds(records, context.module.id) > counted
-          ? [this.summary(standing, titles)]
+          ? [this.summary(standing, titles, records)]
           : []
       }),
     }
@@ -484,9 +499,10 @@ export class PanelGovernor {
 
   /** The modules this conversation reviews that still owe something. */
   standing(sessionId: string): PanelModuleSummary[] {
-    return conversationModules(this.policy.getRecord(), sessionId)
+    const records = this.policy.getRecord()
+    return conversationModules(records, sessionId)
       .filter((standing) => isOpenModule(standing))
-      .map((standing) => this.summary(standing, []))
+      .map((standing) => this.summary(standing, [], records))
   }
 
   /**

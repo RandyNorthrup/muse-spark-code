@@ -433,13 +433,18 @@ function deliver(message: unknown): void {
 function hostPlaybook(
   workspaceId: string | undefined,
   records: Record<string, PlaybookRecord[]> = {},
+  hasSpawnGap = false,
 ) {
   const journal = surfacePort(surfaceSnapshot())
   const requests: unknown[] = []
   const answer = async (raw: unknown) => {
     const request = playbookPanelRequestSchema.parse(raw)
     if (request.type === 'playbookHello') {
-      deliver({ type: 'playbookHello', ...(workspaceId !== undefined && { workspaceId }) })
+      deliver({
+        type: 'playbookHello',
+        ...(workspaceId !== undefined && { workspaceId }),
+        ...(hasSpawnGap && { spawnGap: true }),
+      })
       return
     }
     if (request.type === 'playbookAgents') {
@@ -548,6 +553,23 @@ describe('AgentMap and its window’s playbook (M116)', () => {
     await waitFor(() => {
       expect(asked()).toBe(2)
     })
+  })
+
+  it('says in one plain line when the window reports subagents the playbook is not asked about', async () => {
+    const host = hostPlaybook('journal-1', {}, true)
+    renderMap({ onPlaybook: host.post })
+    const line = await screen.findByText(
+      'Playbook: Muse Code starts subagents here without asking (Auto mode, Bypass Permissions mode, or an allow rule of yours), so the playbook does not admit them. What they change is counted at the next review.',
+    )
+    expect(line).toHaveAttribute('role', 'note')
+    expect(screen.getByRole('button', { name: 'Playbook Settings' })).toBeInTheDocument()
+  })
+
+  it('says nothing of the kind while the window reports no such thing', async () => {
+    const host = hostPlaybook('journal-1')
+    renderMap({ onPlaybook: host.post })
+    await screen.findByRole('button', { name: 'Playbook Settings' })
+    expect(screen.queryByText(/starts subagents without asking/u)).toBeNull()
   })
 
   it('leaves a host that hands the map its own port alone', async () => {

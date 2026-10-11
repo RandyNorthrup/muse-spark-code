@@ -100,7 +100,7 @@ import type {
   PlanModeRestore,
 } from '../../core/review/planModeHold'
 import type { ReviewMaterial } from '../../core/review/reviewMaterial'
-import type { PanelPlaybookPort, PanelPlaybookReview } from '../../core/orchestration/panelPlaybook'
+import type { PlaybookConversation, PlaybookConversationHost } from '../playbook/playbookEntry'
 import { isPrivateFileName } from '../../shared/privateFiles'
 import { isGitReview, type ReviewRequest } from '../../shared/reviewCommand'
 import type {
@@ -202,6 +202,7 @@ import type { SchedulesBridge } from '../schedules/schedulesBridge'
 import { parseScheduleHostMessage } from '../../shared/scheduleProtocol'
 import { formatMention, parseSkillInvocation } from '../../shared/mentions'
 import { approvalModeFor, untrustedStartMode } from '../../shared/permissionModes'
+import { SUBAGENT_SPAWN_TOOL } from '../../shared/constants'
 import type { MuseCodeReviewerPort } from '../review/museCodeReviewerBundle'
 
 import type { ReviewedApprovals } from '../review/reviewedApprovals'
@@ -443,7 +444,12 @@ export interface ConversationDeps {
    * without one, whose map then shows no playbook.
    */
   readonly playbookPanel?:
-    ((message: unknown, reply: (answer: unknown) => void) => void) | undefined
+    | ((
+        message: unknown,
+        reply: (answer: unknown) => void,
+        context: { readonly sessionId: string | undefined; readonly asksBeforeSpawn: boolean },
+      ) => void)
+    | undefined
   readonly surface: ChatSurface
   readonly auth: AuthPort
   readonly ensureHost: () => Promise<AgentHost>
@@ -517,7 +523,7 @@ export interface ConversationDeps {
   readonly createLegalHold?: ((holdDeps: PlanModeHoldDeps) => PlanModeHold) | undefined
   /** M116 I/W binding: lazy shared-core policy plus the trusted host registry.
    * Absent until the host installs the integration; a configured factory fails closed. */
-  readonly playbook?: (() => PanelPlaybookPort) | undefined
+  readonly playbook?: ((host: PlaybookConversationHost) => PlaybookConversation) | undefined
   /** `/estimate` (M117, PLAN.md D97): the run, from the estimator's own bundle. */
   readonly estimator?: EstimatorRun
   /** A tool output as a read-only editor tab named `title` (M15). */
@@ -1397,8 +1403,17 @@ export class ConversationController {
   private legalScanStop: AbortController | undefined
   private legalScanSequence = 0
   /** Preparation and acknowledgement still belong to a model send before activeTurnId is set. */
-  private playbookPort: PanelPlaybookPort | undefined
-  private readonly playbookReviews = new Map<PanelPlaybookReview, () => void>()
+  private playbookPort: PlaybookConversation | undefined
+  /** Child sessions, each with the subagent the host recorded it under (M116). */
+  private readonly childAgents = new Map<string, string>()
+  /** Spawn requests the playbook was asked about and that went on to be shown, until resolved. */
+  private readonly spawnsAsked = new Set<string>()
+  /**
+   * Spawn requests approved and not yet followed by a child's row. Below
+   * zero, for good: Muse Code started a subagent nobody was asked about
+   * (D96.17).
+   */
+  private spawnsOwed = 0
   /** Mode choices and revocation wait for the outstanding owned request; the newest wins. */
   private reviewModeSettling: Promise<void> | undefined
   private permissionModeSelection = 0
@@ -1925,7 +1940,11 @@ export class ConversationController {
     this.attachmentGeneration += 1
     this.mediaAttachments?.clear()
     this.sessionOpening = undefined
-    for (const stop of this.playbookReviews.values()) stop()
+    this.playbookPort?.dispose()
+    this.playbookPort = undefined
+    this.childAgents.clear()
+    this.spawnsAsked.clear()
+    this.spawnsOwed = 0
     // A review's Plan mode goes with its session (M70): the next session
     // starts, resumes or is adopted in the mode the user had.
     this.releasePlanHold(true)
@@ -2410,6 +2429,9 @@ export class ConversationController {
   }
 
   private onEvent(event: AgentEvent): void {
+    if (event.type === 'approvalRequested' && this.holdsSpawn(event)) {
+      return
+    }
     // Draft parsing reads the original reply before asynchronous display hooks;
     // its turn can finish while the presentation rewrite is still waiting.
     this.git.onEvent(event)
@@ -2463,6 +2485,15 @@ export class ConversationController {
         break
       }
       case 'approvalResolved': {
+        // A spawn request that was shown (M116, D96.17): approved, it speaks for
+        // one child's row; anything else ends the round the playbook opened.
+        if (this.spawnsAsked.delete(event.approvalId)) {
+          if (!event.decision.startsWith(APPROVED_DECISION)) {
+            this.playbookPort?.spawnDeclined(this.session?.sessionId)
+          } else if (this.spawnsOwed >= 0) {
+            this.spawnsOwed += 1
+          }
+        }
         this.questionApprovals.delete(event.approvalId)
         this.judgeCards.get(event.approvalId)?.discard()
         this.judgeCards.delete(event.approvalId)
@@ -2589,10 +2620,31 @@ export class ConversationController {
     return isChildTurn(turnId, this.childSessionIds)
   }
 
-  /** Remember a subagent row's child session, live or from a loaded history. */
-  private noteSubagentRow(item: ItemSnapshot): void {
-    if (item.kind === SUBAGENT_ITEM_KIND && item.childSessionId !== undefined) {
-      this.childSessionIds.add(item.childSessionId)
+  /**
+   * Remember a subagent row's child session, live or from a loaded history.
+   * `isStart`: the row began just now. A child Muse Code starts with no shown
+   * request before it means it does not ask here (D96.17).
+   */
+  private noteSubagentRow(item: ItemSnapshot, isStart = false): void {
+    if (item.kind !== SUBAGENT_ITEM_KIND || item.childSessionId === undefined) {
+      return
+    }
+    if (
+      isStart &&
+      this.spawnsOwed >= 0 &&
+      this.sessionKind === 'museCode' &&
+      !this.childSessionIds.has(item.childSessionId)
+    ) {
+      this.spawnsOwed -= 1
+    }
+    this.childSessionIds.add(item.childSessionId)
+    if (item.subagentId === undefined) {
+      return
+    }
+    this.childAgents.set(item.childSessionId, item.subagentId)
+    // A row that has ended ends the playbook round that waited on it (M116).
+    if (item.status !== IN_PROGRESS_STATUS) {
+      this.playbookPort?.ended(this.session?.sessionId, item.subagentId)
     }
   }
 
@@ -2759,7 +2811,7 @@ export class ConversationController {
       case 'itemStarted': {
         this.noteFileCard(event.item)
         this.noteForegroundShell(event.item)
-        this.noteSubagentRow(event.item)
+        this.noteSubagentRow(event.item, true)
         break
       }
       case 'itemUpdated':
@@ -4462,6 +4514,9 @@ export class ConversationController {
         onUpdate: (run) => {
           this.lastBestOfNRun = run
           this.post({ type: 'bestOfNUpdate', run })
+          if (run.status !== 'running') {
+            this.playbookPort?.ended(this.session?.sessionId, undefined)
+          }
         },
         log: this.deps.log,
       },
@@ -4596,13 +4651,8 @@ export class ConversationController {
       const manager = await this.bestOfN()
       const start = async () =>
         await manager.start({ prompt, attempts, requestCeilingPerAttempt }, host.info.kind)
-      const playbook = this.playbook()
-      if (playbook) {
-        await playbook.dispatch('bestOfN', this.session?.sessionId, undefined, async (signal) => {
-          signal.throwIfAborted()
-          return await start()
-        })
-      } else await start()
+      await (this.playbook()?.dispatch('bestOfN', this.session?.sessionId, undefined, start) ??
+        start())
     } catch (error: unknown) {
       if (generation !== this.sendInvalidationEpoch || this.isDisposed) {
         return
@@ -7231,57 +7281,107 @@ export class ConversationController {
     }
   }
 
-  /** The review turn on the session: the Reviewer's where the backend has one, else in Plan mode. */
-  private playbook(): PanelPlaybookPort | undefined {
-    this.playbookPort ??= this.deps.playbook?.()
+  /**
+   * This conversation's playbook (M116), from the window's lazy bundle on
+   * first use. What it does lives there; the conversation lends it a notice,
+   * its backend and whether that backend asks before a spawn.
+   */
+  private playbook(): PlaybookConversation | undefined {
+    this.playbookPort ??= this.deps.playbook?.({
+      notice: (level, text, hasAction) => {
+        this.deps.log.info(`${NOTICE_PREFIX}${text}`)
+        this.post({ type: 'notice', level, text, ...(hasAction && { actions: ['openPlaybook'] }) })
+      },
+      backend: this.deps.ensureHost,
+      asksBeforeSpawn: () => this.asksBeforeSpawn(),
+    })
     return this.playbookPort
   }
 
+  /**
+   * Muse Code asks the host before a subagent only in the modes that prompt,
+   * and only while no subagent has started here unasked (an allow rule of the
+   * person's own, which the host cannot read; D96.17).
+   */
+  private asksBeforeSpawn(): boolean {
+    const mode = approvalModeFor(this.permissionMode, this.deps.hasApprovalUi)
+    return (
+      (this.sessionKind ?? this.deps.auth.backend) !== 'museCode' ||
+      ((mode === 'promptUnmatched' || mode === 'denyUnmatched') && this.spawnsOwed >= 0)
+    )
+  }
+
+  /**
+   * Muse Code asks before it starts a subagent (M116, D96.17): the playbook
+   * is asked first, in its own bundle. It answers a refusal itself; what it
+   * hands back goes on to the card as any request does.
+   */
+  private holdsSpawn(event: Extract<AgentEvent, { type: 'approvalRequested' }>): boolean {
+    const session = this.session
+    if (
+      session === undefined ||
+      this.deps.playbook === undefined ||
+      this.sessionKind !== 'museCode' ||
+      event.toolName !== SUBAGENT_SPAWN_TOOL ||
+      this.spawnsAsked.has(event.approvalId)
+    ) {
+      return false
+    }
+    void this.answerSpawn(session, event)
+    return true
+  }
+
+  private async answerSpawn(
+    session: AgentSession,
+    event: Extract<AgentEvent, { type: 'approvalRequested' }>,
+  ): Promise<void> {
+    let next: typeof event | undefined = event
+    try {
+      const playbook = this.playbook()
+      if (playbook !== undefined) {
+        next = await playbook.spawnRequest(session.sessionId, event, (decision) =>
+          session.decideApproval(decision),
+        )
+      }
+    } catch (error: unknown) {
+      // A playbook that cannot even load knows of no review: the person is asked, and told.
+      this.notice('error', UI_TEXT.playbookUnavailable, undefined, error)
+    }
+    if (next === undefined || this.session !== session || this.isDisposed) {
+      return
+    }
+    this.spawnsAsked.add(next.approvalId)
+    this.onEvent(next)
+  }
+
+  /**
+   * A review of files no child agent of this conversation changed is sent
+   * exactly as it is, and the playbook's bundle is not even loaded for it.
+   * Otherwise the review turn goes through the playbook (M116, D96.16).
+   */
   private async withPlaybookReview(
     session: AgentSession,
     parts: readonly TurnPart[],
     files: readonly string[],
     submit: (parts: readonly TurnPart[]) => Promise<TurnSubmission>,
   ): Promise<TurnSubmission> {
-    const ticket = this.playbook()?.review(session.sessionId, files)
-    if (!ticket) return await submit(parts)
-    let unsubscribe: (() => void) | undefined
-    const stop = () => {
-      unsubscribe?.()
-      this.playbookReviews.delete(ticket)
-      try {
-        ticket.cancel()
-      } catch (error) {
-        this.notice('error', UI_TEXT.playbookUnavailable, undefined, error)
-      }
+    const bestOfN = this.lastBestOfNRun
+    const playbook =
+      files.length === 0 || (this.childAgents.size === 0 && bestOfN?.takenBranch === undefined)
+        ? undefined
+        : this.playbook()
+    if (playbook === undefined) {
+      return await submit(parts)
     }
-    const failed = (error: unknown) => {
-      stop()
-      this.notice('error', UI_TEXT.playbookUnavailable, undefined, error)
-    }
-    this.playbookReviews.set(ticket, stop)
-    try {
-      unsubscribe = session.onEvent((event) => {
-        try {
-          ticket.observe(event)
-          if (ticket.isClosed) stop()
-        } catch (error) {
-          failed(error)
-        }
-      })
-      const submission = await submit(ticket.parts(parts))
-      // An accepted turn still belongs in the transcript even if its result cannot certify.
-      try {
-        ticket.bind(submission.turnId)
-        if (ticket.isClosed) stop()
-      } catch (error) {
-        failed(error)
-      }
-      return submission
-    } catch (error) {
-      stop()
-      throw error
-    }
+    return await playbook.review({
+      sessionId: session.sessionId,
+      files,
+      agents: Array.from(this.childAgents, ([sessionId, agentId]) => ({ agentId, sessionId })),
+      bestOfN,
+      parts,
+      listen: (listener) => session.onEvent(listener),
+      submit,
+    })
   }
 
   /** The review turn on the session: the Reviewer's where the backend has one, else in Plan mode. */
@@ -9072,6 +9172,15 @@ export class ConversationController {
       this.openTasksTab()
       return
     }
+    if (action === 'openPlaybook') {
+      // A why-note's button (M116): asked and answered in the lazy bundle.
+      try {
+        await this.playbook()?.act(this.session?.sessionId)
+      } catch (error: unknown) {
+        this.notice('error', UI_TEXT.playbookUnavailable, undefined, error)
+      }
+      return
+    }
     // A restart asked for from a fault's notice: the session it names is
     // said again should the fault outlive the restart.
     const restartedFault =
@@ -9273,13 +9382,12 @@ export class ConversationController {
       const send = async () => {
         await session.messageSubagent(subagentId, body.trim(), isFollowup)
       }
-      const playbook = isFollowup ? this.playbook() : undefined
-      if (playbook) {
-        await playbook.dispatch('delegate', session.sessionId, subagentId, async (signal) => {
-          signal.throwIfAborted()
-          await send()
-        })
-      } else await send()
+      await ((isFollowup ? this.playbook() : undefined)?.dispatch(
+        'delegate',
+        session.sessionId,
+        subagentId,
+        send,
+      ) ?? send())
     } catch (error: unknown) {
       if (this.isCurrentSessionAction(session, generation)) {
         this.notice('error', `${UI_TEXT.agentControlFailed}: ${describe(error)}`, undefined, error)
@@ -9903,10 +10011,12 @@ export class ConversationController {
       // is lost.
       const playbook = await answerPlaybookCommand(this.deps.playbookSource, message.text)
       if (playbook !== undefined) {
+        // A governed conversation in a mode that starts subagents unasked is told so (D96.17).
+        const gap = playbook.ok ? await this.playbook()?.gap(this.session?.sessionId) : undefined
         this.post({
           type: 'sendFailed',
           localId: message.localId,
-          reason: playbook.text,
+          reason: gap === undefined ? playbook.text : `${playbook.text}\n\n${gap}`,
           attachmentsKept: true,
         })
         return
@@ -10272,9 +10382,13 @@ export class ConversationController {
         break
       }
       case 'playbook': {
-        this.deps.playbookPanel?.(message.message, (answer) => {
-          this.post({ type: 'playbook', message: answer })
-        })
+        this.deps.playbookPanel?.(
+          message.message,
+          (answer) => {
+            this.post({ type: 'playbook', message: answer })
+          },
+          { sessionId: this.session?.sessionId, asksBeforeSpawn: this.asksBeforeSpawn() },
+        )
         break
       }
       case 'openSchedules': {

@@ -485,6 +485,12 @@
   "playbookCommandUsage": "Verwenden Sie `playbook status|record|settings`.",
   "playbookSave": "Einstellungen speichern",
   "playbookSaved": "Die Einstellungen des Leitfadens wurden gespeichert.",
+  "playbookAnswerReason": "Grund",
+  "playbookAnswerWhySafe": "Warum es vorerst sicher ist",
+  "playbookAnswerFollowUp": "Folgeschritt",
+  "playbookNotCertified": "Leitfaden: Diese Runde konnte nicht bestätigt werden und zählt daher nicht als bestanden.",
+  "playbookSpawnEachAsked": "Leitfaden: Solange ein Modul geprüft wird, wird jeder Subagent einzeln genehmigt.",
+  "playbookSpawnsNotAdmitted": "Leitfaden: Muse Code startet Subagenten hier ohne Rückfrage (Modus {auto}, Modus {bypass} oder eine eigene Erlaubnisregel), daher lässt der Leitfaden sie nicht zu. Ihre Änderungen werden bei der nächsten Prüfung gezählt.",
   "playbookStrikeBadge": {
     "one": "{count} Prüfrunde",
     "other": "{count} Prüfrunden"

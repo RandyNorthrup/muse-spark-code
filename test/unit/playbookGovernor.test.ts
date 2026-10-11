@@ -422,8 +422,14 @@ describe('what the third strike does', { timeout: GOVERNED_ROUND_TIMEOUT_MS }, (
     })
     expect(fourth.effect).not.toHaveBeenCalled()
     expect(fourth.completion).not.toHaveBeenCalled()
+    // The patch rounds are spent and no decision is recorded: one is due, and the panel asks for it.
     expect(setup.governor.standing(SESSION)).toEqual([
-      expect.objectContaining({ moduleId: third.moduleId, round: 3, design: undefined }),
+      expect.objectContaining({
+        moduleId: third.moduleId,
+        round: 3,
+        design: undefined,
+        isRedesignDue: true,
+      }),
     ])
     // The refusal is in the record, for the Agent map and the page.
     expect(setup.governor.agentRecords([{ itemId: 'row-1', ...CHILD }])['row-1']).toContainEqual(
@@ -432,6 +438,21 @@ describe('what the third strike does', { timeout: GOVERNED_ROUND_TIMEOUT_MS }, (
         value: expect.objectContaining({ code: 'redesignRequired', module: SCHEDULES }),
       }),
     )
+  })
+
+  it('says a redesign is due by the journal’s own settings: the limit as lowered, and the rule as switched', async () => {
+    const setup = governed()
+    const first = review(setup, coveredReview([RACE]))
+    // One strike, with two fix rounds allowed: nothing is due.
+    expect(setup.governor.standing(SESSION)[0]).toMatchObject({ round: 1, isRedesignDue: false })
+    answerAll(setup, first.rounds)
+    // The team allows one fix round only: the second strike spends it.
+    await setup.governor.change({ patchRoundsMax: 1 })
+    review(setup, coveredReview([RACE]))
+    expect(setup.governor.standing(SESSION)[0]).toMatchObject({ round: 2, isRedesignDue: true })
+    // With the rule turned off nothing is asked for.
+    await setup.governor.change({ rule: 'threeStrikes', enabled: false, reason: 'A spike.' })
+    expect(setup.governor.standing(SESSION)[0]).toMatchObject({ round: 2, isRedesignDue: false })
   })
 
   it('runs the redesign once its decision is recorded, and closes only on impossible', async () => {
@@ -444,7 +465,11 @@ describe('what the third strike does', { timeout: GOVERNED_ROUND_TIMEOUT_MS }, (
       planLocation: 'PLAN.md#D200',
     }
     expect(setup.governor.recordDesign(SESSION, third.moduleId, decision)).toBe(true)
-    expect(setup.governor.standing(SESSION)[0]?.design).toBe('pending')
+    // A decision that waits for its review is not asked for again.
+    expect(setup.governor.standing(SESSION)[0]).toMatchObject({
+      design: 'pending',
+      isRedesignDue: false,
+    })
     const redesign = callbacks()
     await expect(
       setup.governor.dispatch(

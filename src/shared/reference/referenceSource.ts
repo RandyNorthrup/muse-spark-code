@@ -208,6 +208,7 @@ export const REFERENCE_ACTION_FEATURES = {
   updateBundledSkills: 'skills',
   declineBundledSkills: 'skills',
   showWhatsNew: 'chat',
+  openPlaybook: 'orchestrator-playbook',
 
   readReference: 'support',
   openReferenceSetting: 'support',

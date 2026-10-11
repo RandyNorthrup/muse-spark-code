@@ -610,8 +610,11 @@ export function createPlaybookWindow(deps: PlaybookWindowDeps): PlaybookWindow {
             children: [...children],
           }))
         : {},
-    standing: (sessionId) =>
-      ask(playbookResultSchemas.standing, (id) => ({ type: 'standing', id, sessionId })),
+    standing: async (sessionId) =>
+      // No journal on this machine: nothing is under review, and no worker says so.
+      (await hasJournals())
+        ? await ask(playbookResultSchemas.standing, (id) => ({ type: 'standing', id, sessionId }))
+        : [],
     openReview: async (sessionId, files, children) => {
       // The governor's own classification, before any worker or journal read:
       // no reviewed file is a child's, and the review is an ordinary one.

@@ -18502,6 +18502,59 @@ repository's own working rule (AGENTS.md rule 14).
       before its end was seen; on macOS and Linux a lost supervisor's process
       group is ended by its caller (§9).
 
+17. **Subagents a backend starts itself (C-M116-6, lead's ruling
+    2026-10-11).** Item 16 binds the dispatches the person makes in the
+    panel. A model also starts children on its own; where that is admitted
+    differs by backend, and the claim says exactly where.
+    - **Model API: whole, in every mode.** The host itself starts each
+      child, so the window's playbook is asked from inside the tool call:
+      `subagent_spawn` is a `subagent` round and a `subagent_send_message`
+      that is a new task for a child is a `delegate` round, each asked after
+      the paid consent and the tool's own admission and before anything
+      starts. The round ends with the child's own result. A note to a child
+      at work is not a round, and an exact retry of a spawn starts none. A
+      refusal is the tool call's failure: the model reads the journal's rule
+      and reason codes in English, the row shows the why-note in the display
+      language, no child starts and no grant is spent. A best-of-N attempt's
+      host has no playbook: its children are not the conversation's.
+    - **Muse Code: at its approval request, where it asks.** The CLI starts
+      its own subagents; the one boundary the host has is the CLI's approval
+      request for `subagent_spawn`. In **Manual** and **Edit automatically**
+      the CLI asks first, and while the conversation has a module under
+      review each request is admitted as a round of its own before its card
+      is shown. The card then does not offer "Allow for this session" (one
+      sentence in the transcript says why, once). A refusal answers the
+      request with its own rejection and the reason for the model; no card
+      is shown. A request the person then turns down starts no child, so
+      its round ends with that answer; an approved one ends with its child's
+      row. With nothing under review the request goes on exactly as it
+      came.
+    - **Muse Code in Bypass, in Auto, and under the person's own allow
+      rules: not admitted, and said.** There the CLI starts subagents
+      without asking the host, so nothing is claimed. Auto (`onRequest`) is
+      treated like Bypass in code. An allow rule is not the host's to read,
+      so it is known from evidence: a subagent row that no approved spawn
+      request preceded marks the conversation, for good, as one whose
+      backend starts subagents unasked. In each of these cases one plain
+      line says that subagent spawns are not admitted here and that what
+      they change is still counted at the next review: with `/playbook` in
+      the composer, with each counted round, and in the Agent map. No
+      silent gap.
+    - **The claim, as published:** enforcement of a model's own subagent
+      spawns is whole for the Model API backend; for Muse Code it holds in
+      Manual and Edit automatically, where the CLI asks before it starts a
+      subagent. Not Bypass, not Auto. The truth test asserts exactly that.
+    - **Evidence and what is owed.** That the CLI asks before a spawn is
+      from the Muse Code 1.3.0 capture (M18); a trace from 1.4.4 is owed and
+      named in the certification. Host-decided admission for
+      `subagent_spawn` in every mode is asked for upstream
+      (`docs/research/m116-upstream-subagent-admission.md`).
+    - **When the playbook cannot be asked.** A journal that cannot be read
+      refuses the spawn on both backends. A window bundle that cannot load
+      fails the Model API's tool call (no child starts); on Muse Code the
+      card is shown as it came, with an error notice, because the person is
+      still asked there.
+
 ---
 
 ### D97 — The capacity estimator (M117, 2026-10-06)
@@ -36743,7 +36796,7 @@ Total: about 100 lane-hours.
 ### M116 — The orchestrator playbook (D96)
 
 **Lane C-M116-6: the playbook in the VS Code panel (2026-10-11, building).**
-D96.16. Three commits, each reviewed on its own.
+D96.16 and D96.17. A series of commits, each reviewed.
 
 1. **The governor (committed first; nothing calls it yet).**
    `src/core/orchestration/panelLanes.ts` (the panel's lane facts),
@@ -36809,11 +36862,33 @@ D96.16. Three commits, each reviewed on its own.
      only by letter case, or two TypeScript sources only by case and
      extension, anywhere in the repository. It runs with the unit suites on
      every OS.
-5. **Enforcement.** The panel's `/review`, subagent, `delegate` and
-   best-of-N dispatches go through the window's playbook on both backends;
-   why-notes appear in the transcript; the third strike offers **Plan a
-   redesign**; the walked-back claims return with the code that makes each
-   true.
+5. **Enforcement (its own commit; D96.16 and D96.17).** A conversation's
+   use of its window's playbook lives in the lazy bundle
+   (`src/host/playbook/playbookConversation.ts`); the controller lends it a
+   notice, its backend and whether that backend asks before a spawn, and
+   calls in at a review turn, a `delegate` follow-up, a best-of-N start, a
+   spawn request of Muse Code's and a why-note's button. The Model API host
+   asks from inside `subagent_spawn` and a new task's
+   `subagent_send_message` (`ModelApiHostDeps.playbook`, absent on the CLI,
+   the ACP agent and an attempt's host). Why-notes are transcript notices
+   with the playbook's button; the answers to findings and a redesign's
+   design decision are asked in VS Code's own pickers; a playbook review's
+   charter is followed by the harness's facts about each module. Suites
+   `playbookConversation`, and the M116 groups of `conversationController`,
+   `modelApiHost`, `playbookGovernor`, `playbookSkill`,
+   `playbookPanelChannel`, `AgentMap` and `Transcript`.
+   - **Bundle bytes at this commit** (kubuntu, production build; before is
+     `67d8650f41`): `dist/conversation.js` 252,704 to 254,362 of 256,000
+     (+1,658: the call sites above and the spawn-request bookkeeping of
+     D96.17, nothing of the policy); `dist/modelApi.js` 530,442 to 530,861
+     of 537,600, and under its pin of 530,883 in `deferredBundles.test.ts`
+     by 22 bytes, which is why the wait for a child's result is built in
+     the playbook's bundle and the host only answers "is it over";
+     `dist/playbook.js` 119,412 to 128,101 of 153,600; `dist/extension.js`
+     560,104 to 560,259 of 614,400.
+6. **Restores.** The walked-back claims return with the code that makes
+   each true, in the wording D96.17 fixes; the certification and the red
+   drills of item 5's suites land with them.
 
 Not built in this lane, tracked: why-notes attached to a tool row (the
 transcript shows them as notices); a standalone playbook page outside the

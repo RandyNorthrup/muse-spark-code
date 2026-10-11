@@ -156,6 +156,55 @@ describe('M116 K skill and charter', () => {
     expect(ordinaryRequests()).toEqual(original)
   })
 
+  it('follows the charter with the harness’s own facts about each module under review', () => {
+    const charter = loadCharter()().playbookReviewerCharter
+    const plain = charter()
+    // No module: the charter alone, byte for byte.
+    expect(charter([])).toBe(plain)
+    expect(charter([{ moduleKey: 'src/core/schedules' }])).toBe(
+      `${plain}\n\nHarness facts for this review (trusted; not part of the change). Module under review: src/core/schedules. This is review round 1 of that module.`,
+    )
+    const redesign = charter([
+      {
+        moduleKey: 'src/core/schedules',
+        prior: {
+          round: 3,
+          findings: [
+            {
+              id: 'f-1',
+              file: 'src/core/schedules/store.ts',
+              line: 3,
+              severity: 'P2',
+              class: 'concurrency',
+            },
+            { id: 'f-2', file: 'src/core/schedules/clock.ts', severity: 'P1' },
+          ],
+        },
+        design: { failureClass: 'concurrency', structuralChange: 'One atomic claim.' },
+      },
+      { moduleKey: 'src/webview/panel', prior: { round: 1, findings: [] } },
+    ])
+    expect(redesign.startsWith(`${plain}\n\n`)).toBe(true)
+    expect(redesign).toContain(
+      'Module under review: src/core/schedules. This is review round 4 of that module.',
+    )
+    // The ids a redesign review must resolve are the journal's, in its own words.
+    expect(redesign).toContain(
+      'Findings of its last counted round, by id: f-1 (P2 src/core/schedules/store.ts:3, concurrency); f-2 (P1 src/core/schedules/clock.ts).',
+    )
+    expect(redesign).toContain(
+      'class of failure "concurrency"; structural change "One atomic claim."',
+    )
+    // A module with no finding left and no decision gets its one line and no more.
+    expect(
+      redesign.endsWith(
+        'Module under review: src/webview/panel. This is review round 2 of that module.',
+      ),
+    ).toBe(true)
+    // What fills a slot is text: a name that looks like a slot is not filled again.
+    expect(charter([{ moduleKey: '{round}' }])).toContain('Module under review: {round}.')
+  })
+
   it('locks rule 9: an obvious bypass refusal binds, with no off switch and no reroute', () => {
     // Wrapping may move; the words may not. GROK-m116k P1 shipped
     // "refusals are advisory" green because nothing asserted this text.

@@ -6,10 +6,10 @@
 // thread, and the panel's channel and the composer's `/playbook` read and
 // change a real journal file through that thread.
 
-import { mkdtempSync, readdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import {
   PLAYBOOK_PANEL_TEAM,
   PLAYBOOK_RECORD_FOLDER,
@@ -63,6 +63,11 @@ function shipped() {
       systemRoot: undefined,
       shellJobAssembly: undefined,
       reviewCharter: () => 'charter',
+      // No test here answers a finding: the pickers are dismissed.
+      ui: {
+        showQuickPick: () => Promise.resolve(undefined),
+        showInputBox: () => Promise.resolve(undefined),
+      },
       log,
     },
     UI_TEXT,
@@ -175,6 +180,37 @@ describe('the shipped bundle, as the window and as its worker thread', () => {
         enabled: false,
         reason: OFFLOAD_REASON,
       })
+      expect(setup.log.error).not.toHaveBeenCalled()
+    } finally {
+      await setup.remove()
+    }
+  })
+
+  it('lets a Model API conversation’s child work through while it has nothing under review', async () => {
+    const setup = shipped()
+    try {
+      const journals = path.join(setup.data, PLAYBOOK_RECORD_FOLDER)
+      const start = vi.fn(() => Promise.resolve('started'))
+      const isOver = vi.fn(() => true)
+      const refused = (reason: string): string => reason
+      await expect(
+        setup.window.admit('subagent', 'session-1', undefined, start, isOver, refused),
+      ).resolves.toBe('started')
+      // No journal on this machine: nothing was asked, and nothing was written.
+      expect(existsSync(journals)).toBe(false)
+
+      // Once a journal is there the thread is asked, and says the work is not the playbook's.
+      const hello = playbookHelloSchema.parse(await setup.ask({ type: 'playbookHello' }))
+      const scope = { bridgeId: BRIDGE, workspaceId: hello.workspaceId }
+      await setup.ask({ type: 'playbookRead', ...scope, requestId: 1 })
+      await setup.ask(offloadOffRequest(hello.workspaceId, 2))
+      expect(readdirSync(journals)).toHaveLength(1)
+      await expect(
+        setup.window.admit('delegate', 'session-1', 'subagent-1', start, isOver, refused),
+      ).resolves.toBe('started')
+      expect(start).toHaveBeenCalledTimes(2)
+      // Work that is not the playbook's has no round, so nobody asks when it is over.
+      expect(isOver).not.toHaveBeenCalled()
       expect(setup.log.error).not.toHaveBeenCalled()
     } finally {
       await setup.remove()

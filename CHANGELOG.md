@@ -45,9 +45,28 @@ happened, not what was planned; superseded entries are kept.
   journal without a model turn, signed in or not (M126 F9's handler, with the
   window's bundle as its source); the Agent map offers **Playbook Settings**
   (status, record, settings) and its rows read their own records. The Help
-  reference lists the playbook for VS Code again. The panel's own dispatches
-  do not go through the governor yet: that is this lane's last commit. Real
-  git and fakes only; no model call.
+  reference lists the playbook for VS Code again. **Enforcement in the panel
+  (PLAN.md D96.17):** a `/review` of files that a child agent of the
+  conversation changed is a counted round with the reviewer charter and the
+  module's own facts; a follow-up task for a subagent and a best-of-N run
+  from a conversation with a module under review are admitted before they
+  start and refused with the playbook's reason; why-notes appear in the
+  transcript with a button that records the answers to findings (fixed,
+  disputed, residual) and, at the third strike, the design decision of a
+  redesign. A model's own subagent spawns are admitted on the Model API
+  backend in every mode (`subagent_spawn`, and a new task for a child
+  through `subagent_send_message`): a refusal starts no child, spends no
+  grant, and reaches the model in English and the row in the display
+  language. On Muse Code they are admitted in Manual and Edit automatically,
+  where the CLI asks before it starts a subagent: each request is admitted
+  on its own and its card does not offer "Allow for this session" while a
+  module is under review. Not in Bypass or Auto, nor under an allow rule of
+  the person's own: there one plain line says that subagent spawns are not
+  admitted and that what they change is counted at the next review (with
+  `/playbook`, with each counted round and in the Agent map). A review of
+  files no child changed, and any dispatch from a conversation with nothing
+  under review, goes out exactly as it did before. Real git and fakes only;
+  no model call.
 
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
   reads and writes, and 1-hour cache writes settle at their own price.
