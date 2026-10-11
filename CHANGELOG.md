@@ -9,6 +9,8 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Provider settlement preserves catalogue cache-write rates and prices cache duration classes separately. Unknown class rates use the highest input-side rate and carry an upper-bound marker; usage records retain exact USD amounts.
+
 - OS credential reads retry busy stores with bounded deadlines and backoff. Unsent requests carry a localized credential-store refusal; keys still live only for each request.
 
 - ACP backend advisories use negotiated session notices once per session, keeping model answers free of feature-state and transport notices.

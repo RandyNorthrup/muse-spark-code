@@ -29,3 +29,22 @@ reservation release. Its fix must preserve `credential_store_unavailable`;
 this lane does not edit that catch-all or reservation code.
 
 Green: store + ACP agent + runtime ChatGPT: 3 files / 185 tests; localization 14 languages / 0 problems.
+
+## Item 4 — settlement token classes
+
+The catalogue adapter dropped `cache_write` while constructing its price
+card; only that rate projection is repaired, with no catalogue or reservation
+algorithm changes. The shared exact-money settlement prices fresh input,
+cached reads, 5 m writes, 1 h writes, output (including reasoning) and flat
+request/image prices. Missing cache class prices use the highest input-side
+rate and the journal marks `upperBound: true`. Exact `usdAmount` accompanies
+the existing numeric display field. Reported provider prices remain authoritative.
+Removed the registry's obsolete one-hour uncertainty guard now that settlement
+already supports the captured subset. Invalid fractional counts are refused.
+Red: pricing/configured suites failed 5 tests / passed 46 before fixes;
+`temp/acpdog-4-red.log`. Hand totals include 16,168 writes at $5/M plus
+347 output at $16/M = exact $0.086392. Captured decoder tests cover
+Anthropic TTL, OpenAI/xAI subsets, OpenRouter reported USD, Gemini reasoning
+and Ollama; no new provider shape is invented.
+
+Green: pricing + configured providers passed; journal records + model API providers + provider model policy: 3 files / 48 tests at repository deadlines.

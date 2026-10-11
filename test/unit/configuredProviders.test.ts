@@ -226,6 +226,27 @@ async function consume(events: AsyncIterable<unknown>) {
 }
 
 describe('configured provider production transport', () => {
+  it('preserves the catalogue cache-write rate in settled provider usage', async () => {
+    const f = await fixture()
+    const entry = providerEntrySchema.parse({
+      ...ENTRY,
+      id: 'anthropic',
+      preset: 'anthropic',
+      address: 'https://api.anthropic.com',
+      format: 'anthropic',
+      models: ['claude-sonnet-4-6'],
+    })
+    await writeProvidersFileAtomic(f.configFile, { v: 1, providers: [entry] })
+    const services = createConfiguredProviderServices(undefined, {
+      ...f,
+      resolve: () => Promise.resolve(['8.8.8.8']),
+    })
+    const resolved = await services.registry.resolve('anthropic/claude-sonnet-4-6')
+    expect(
+      resolved.price.settle({ inputTokens: 16_168, cacheWriteTokens: 16_168, outputTokens: 0 }),
+    ).toBe(Usd.from('0.06063').toAmount())
+  })
+
   it.each(['error', 'response.failed'])(
     'scrubs a canonical %s diagnostic before it can reach host events',
     async (type) => {
