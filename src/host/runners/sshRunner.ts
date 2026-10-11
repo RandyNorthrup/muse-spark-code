@@ -129,7 +129,7 @@ export class SshRunner {
     const temporary = `${target}.${randomUUID()}.new`
     const script =
       runner.os === 'win32'
-        ? `$ErrorActionPreference='Stop';$root=${powerShellQuoted(runner.workFolder)};[IO.Directory]::CreateDirectory($root)|Out-Null;$temporary=Join-Path $root '${separator.basename(temporary)}';$source=[IO.MemoryStream]::new([Convert]::FromBase64String('${gzipSync(bytes).toString('base64')}'));$zip=[IO.Compression.GZipStream]::new($source,[IO.Compression.CompressionMode]::Decompress);$file=[IO.File]::Open($temporary,[IO.FileMode]::CreateNew);try{$zip.CopyTo($file)}finally{$file.Dispose();$zip.Dispose();$source.Dispose()};Move-Item -Force -LiteralPath $temporary -Destination (Join-Path $root '${separator.basename(target)}')`
+        ? `$ErrorActionPreference='Stop';$root=${powerShellQuoted(runner.workFolder)};[IO.Directory]::CreateDirectory($root)|Out-Null;$target=Join-Path $root '${separator.basename(target)}';$temporary=$target+'${temporary.slice(target.length)}';$source=[IO.MemoryStream]::new([Convert]::FromBase64String('${gzipSync(bytes).toString('base64')}'));$zip=[IO.Compression.GZipStream]::new($source,[IO.Compression.CompressionMode]::Decompress);$file=[IO.File]::Open($temporary,[IO.FileMode]::CreateNew);try{$zip.CopyTo($file)}finally{$file.Dispose();$zip.Dispose();$source.Dispose()};Move-Item -Force -LiteralPath $temporary -Destination $target`
         : `mkdir -p ${posixQuoted(runner.workFolder)} && printf '%s' ${posixQuoted(bytes.toString('utf8'))} > ${posixQuoted(temporary)} && mv -f ${posixQuoted(temporary)} ${posixQuoted(target)}`
     await this.ssh(runner, script, signal)
     return target
@@ -365,6 +365,7 @@ export class SshRunner {
         encode(runner.setupCommand),
         encode(job.command),
         String(Math.ceil(job.timeoutMs / MILLISECONDS_PER_SECOND)),
+        ...(job.relocation === undefined ? [] : ['resource']),
       ])
       // Check before dispatch uncertainty: every Windows transport command is bounded.
       remoteCommand(runner, start)
@@ -374,6 +375,7 @@ export class SshRunner {
       if (initial.runId !== job.runId) throw new Error(UI_TEXT.teamRunners.testFailed)
       if (initial.state === 'busy') return { kind: 'busy' }
       if (initial.state === 'refused') throw new WindowsCommandTooLongError()
+      if (initial.state === 'running' || initial.state === 'ended') job.onAdmitted?.()
       const deadline = this.deps.now() + job.timeoutMs + RUNNER_CONNECT_TIMEOUT_MS
       let output = ''
       let bytes = Buffer.alloc(0)

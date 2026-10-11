@@ -10,7 +10,6 @@ import {
   type ResourceLinkedDevice,
   type ResourceStatus,
 } from '../../shared/resources'
-import { reportResourceTransport } from './admission'
 import { unlessAborted } from '../timeouts'
 import type { ResourceEvents } from './events'
 
@@ -63,7 +62,11 @@ export interface ResourceRelocationOptions {
   devices(work: ResourceRelocationWork): readonly ResourceRelocationTarget[]
   runnersEnabled(): boolean
   runners(work: ResourceRelocationWork): readonly ResourceRelocationTarget[]
-  ask(work: ResourceRelocationWork, target: ResourceRelocationTarget): Promise<boolean>
+  ask(
+    work: ResourceRelocationWork,
+    target: ResourceRelocationTarget,
+    signal: AbortSignal,
+  ): Promise<boolean>
   /** Must install the task row with target and reason before returning. */
   row(
     work: ResourceRelocationWork,
@@ -72,7 +75,7 @@ export interface ResourceRelocationOptions {
   ): void
   notice(target: ResourceRelocationTarget): void
   traffic(target: ResourceRelocationTarget, event: RelocatedEvent): void
-  transportResult?: (wasSuccessful: boolean) => Promise<void>
+  transportResult(wasSuccessful: boolean): Promise<void>
   onError(error: unknown): void
 }
 
@@ -129,7 +132,7 @@ export class ResourceRelocator {
       const response = await unlessAborted(Promise.race([target.resource(), expired]), signal)
       signal.throwIfAborted()
       const parsed = deviceResourceSchema.safeParse(response)
-      await (this.options.transportResult ?? reportResourceTransport)(parsed.success)
+      await this.options.transportResult(parsed.success)
       return !parsed.success ||
         !canAdmitResourceRelocation(parsed.data.level) ||
         parsed.data.headroom === 'none'
@@ -137,7 +140,7 @@ export class ResourceRelocator {
         : parsed.data.headroom
     } catch (error: unknown) {
       if (!(error instanceof DOMException && error.name === 'AbortError'))
-        await (this.options.transportResult ?? reportResourceTransport)(false)
+        await this.options.transportResult(false)
       throw error
     } finally {
       clear?.()
@@ -240,7 +243,7 @@ export class ResourceRelocator {
       if (target === undefined || status === null) return result
       let isApproved = isManual
       if (!isApproved && status.settings.relocate === 'ask') {
-        isApproved = await this.options.ask(work, target)
+        isApproved = (await unlessAborted(this.options.ask(work, target, signal), signal)) === true
         if (!isApproved) return result
       }
       if (isRunning) {
@@ -253,7 +256,7 @@ export class ResourceRelocator {
       status = this.status(signal, isManual)
       if (status === null || (!isRunning && work.phase() !== 'queued')) return result
       if (!isApproved && status.settings.relocate === 'ask') {
-        isApproved = await this.options.ask(work, target)
+        isApproved = (await unlessAborted(this.options.ask(work, target, signal), signal)) === true
         if (!isApproved || (await this.headroom(work, target, signal)) === null) return result
         status = this.status(signal, isManual)
         if (status === null || (!isRunning && work.phase() !== 'queued')) return result

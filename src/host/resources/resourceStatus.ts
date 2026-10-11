@@ -140,7 +140,9 @@ function pauseText(status: ResourceStatus): string {
     .map((row) => `${row.kind} / ${row.class}: ${formatNumber(row.count)}`)
     .join(', ')
   const text = `${fill(UI_TEXT.resourcePauseNotice, { metric, reading, threshold })} ${UI_TEXT.resourceWaiting}: ${formatNumber(count)} ${waiting}`
-  return status.relocation === 'noRoute' ? `${text} ${UI_TEXT.resourceRelocationNoRoute}` : text
+  return status.relocation === 'noRoute' || status.relocation === 'noTarget'
+    ? `${text} ${UI_TEXT.resourceRelocationNoRoute}`
+    : text
 }
 
 /** Called only after the first governed spawn. MHP supplies createItem for its native widget. */

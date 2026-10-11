@@ -50,6 +50,14 @@ case "$action" in
     # Exclusive allocation lock is never stolen on a timer or on a PID check.
     if ! mkdir "$root/allocate" 2>/dev/null; then printf '{"runId":"%s","state":"busy"}\n' "$id"; exit 0; fi
     trap 'rmdir "$root/allocate"' EXIT
+    # A relocation probe grants no admission: re-read load while holding allocation.
+    if [[ "${10:-}" == resource ]]; then
+      cores=$(getconf _NPROCESSORS_ONLN)
+      load=$(LC_ALL=C uptime | sed -E 's/.*load averages?: *([0-9.]+).*/\1/')
+      if ! awk -v cores="$cores" -v load="$load" 'BEGIN { exit !(cores ~ /^[1-9][0-9]*$/ && load ~ /^[0-9]+([.][0-9]+)?$/ && load < cores) }'; then
+        printf '{"runId":"%s","state":"busy"}\n' "$id"; exit 0
+      fi
+    fi
     slot=
     for ((i=0;i<max;i++)); do
       file="$root/slots/$i"

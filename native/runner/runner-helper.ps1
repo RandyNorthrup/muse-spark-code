@@ -7,7 +7,8 @@ param(
     [string]$CacheKey,
     [string]$Setup,
     [string]$Command,
-    [string]$Timeout
+    [string]$Timeout,
+    [ValidateSet('resource')][string]$Admission
 )
 $ErrorActionPreference = 'Stop'
 foreach ($directory in @('runs','slots','cache')) { [IO.Directory]::CreateDirectory((Join-Path $Root $directory)) | Out-Null }
@@ -183,6 +184,19 @@ switch ($Action) {
         try { $owner = [IO.File]::Open($allocation, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None) }
         catch [IO.IOException] { Write-Protocol @{runId=$RunId;state='busy'}; break }
         try {
+            # A relocation probe grants no admission: read current load inside allocation.
+            if ($Admission -eq 'resource') {
+                $processors = @(Get-CimInstance Win32_Processor)
+                $unknown = @($processors | Where-Object {
+                    $null -eq $_.NumberOfLogicalProcessors -or $_.NumberOfLogicalProcessors -le 0 -or
+                    $null -eq $_.LoadPercentage -or $_.LoadPercentage -lt 0 -or $_.LoadPercentage -gt 100
+                })
+                $cores = ($processors | Measure-Object NumberOfLogicalProcessors -Sum).Sum
+                $load = (($processors | Measure-Object LoadPercentage -Average).Average / 100) * $cores
+                if ($processors.Count -eq 0 -or $unknown.Count -gt 0 -or $null -eq $cores -or $cores -le 0 -or $null -eq $load -or $load -ge $cores) {
+                    Write-Protocol @{runId=$RunId;state='busy'}; break
+                }
+            }
             $slot = $null
             for ($i=0; $i -lt [int]$MaxJobs; $i++) {
                 $file = Join-Path (Join-Path $Root 'slots') $i

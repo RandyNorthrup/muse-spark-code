@@ -49,7 +49,7 @@ export const EN = {
   resourceOverrideNotice: 'Work resumed until {time}.',
   resourceRelocatedNotice: 'Queued work moved to {device} because this machine is busy.',
   resourceRelocationNoRoute:
-    'Relocation requires a paired device or runner route. Work stays on this machine.',
+    'No approved runner route is active. Work stays on this machine. Paired-device relocation is unavailable.',
   resourceUnavailable: 'This reading is unavailable on this machine.',
   resourceGovernorOff: 'Resource limits are off on this machine.',
   resourceStatusRefused: 'The latest resource status could not be read, so no readings are shown.',
@@ -124,8 +124,9 @@ export const EN = {
   resourceDiskBusyMaxPercentDescription:
     'Optional disk busy limit in percent. Unset means no disk probe.',
   resourceRelocateDescription:
-    'Relocation requires a paired device or runner route. Work stays on this machine.',
-  resourceRelocatePairedDescription: 'No paired-device route is bound. Work stays on this machine.',
+    'Where queued heavy checks may move when this machine is busy. Active scheduler routes can use approved SSH runners; paired-device relocation is unavailable.',
+  resourceRelocatePairedDescription:
+    'Use an approved SSH runner for queued heavy checks when scheduler routing is active.',
   resourceRelocateAskDescription: 'Ask before moving queued work.',
   resourceRelocateOffDescription: 'Keep work on this machine.',
   // M106: loop previews, structured answers, health and explicit feedback.

@@ -13,7 +13,13 @@ adapter delivered in the same lazy bundle (never at activation).
 export interface ResourceWindowHost {
   readonly port: Pick<
     ResourceLaunchHost,
-    'status' | 'subscribe' | 'resume' | 'refreshStatus' | 'settingsChanged'
+    | 'status'
+    | 'subscribe'
+    | 'resume'
+    | 'refreshStatus'
+    | 'settingsChanged'
+    | 'createRelocator'
+    | 'routesChanged'
   >
   readonly createStatus: typeof Governor.createResourceStatus
   readonly createVsCodeItem: typeof Governor.createVsCodeResourceStatusItem
@@ -28,9 +34,22 @@ const state: {
   isDisposed: boolean
 } = { isDisposed: false, attachers: new Set() }
 
+const runnerRoutes = new Set<() => boolean>()
+
+/** M96c registers cached approved routes for its lifetime; no probes at activation. */
+export function registerResourceRunnerRoutes(hasTarget: () => boolean): () => void {
+  runnerRoutes.add(hasTarget)
+  state.window?.port.routesChanged()
+  return () => {
+    runnerRoutes.delete(hasTarget)
+    state.window?.port.routesChanged()
+  }
+}
+
 /** Shared, tiny Node bundle: installing settings performs no probe or governor import. */
 export function configureResources(settings: ResourceHostSettings): () => void {
   delete state.pending
+  runnerRoutes.clear()
   // A new configuration loads a new host; the old window's port is not reused.
   state.window = undefined
   state.options = settings
@@ -38,6 +57,7 @@ export function configureResources(settings: ResourceHostSettings): () => void {
   return () => {
     if (state.options !== settings) return
     state.isDisposed = true
+    runnerRoutes.clear()
     state.window = undefined
     state.attachers.clear()
     void disposeHost(settings.onError)
@@ -68,7 +88,12 @@ async function createHost(configured: ResourceHostSettings): Promise<ResourceLau
   if (shared !== undefined) return shared
   const bundle = await import('./resourceGovernorEntry.js')
   state.flush = bundle.flushResourceHistory
-  const host = bundle.resourceGovernorHost(configured)
+  const host = bundle.resourceGovernorHost({
+    ...configured,
+    hasRelocationTarget: () =>
+      configured.hasRelocationTarget?.() === true ||
+      [...runnerRoutes].some((hasTarget) => hasTarget()),
+  })
   if (!state.isDisposed && state.options === configured) {
     const window: ResourceWindowHost = {
       port: host,
