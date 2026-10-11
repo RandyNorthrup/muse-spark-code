@@ -522,7 +522,8 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
             estimated: all.some(
               (task) =>
                 task.entry?.id === entry.id &&
-                (task.usage.estimated || task.claims.some((claim) => !claim.isSettled)),
+                (task.usage.estimated ||
+                  task.claims.some((claim) => !claim.isSettled || claim.usage.estimated)),
             ),
           })),
           running: running(entry.id),
@@ -800,8 +801,16 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
       usage: checked,
       isSettled: false,
     })
-    await persist()
-    admitRequest(task, true)
+    try {
+      await persist()
+      admitRequest(task, true)
+    } catch (error: unknown) {
+      // Dispatch has not been authorized: even revocation during the save costs nothing.
+      task.claims = task.claims.filter((claim) => claim.ordinal !== requestOrdinal)
+      await persist()
+      changed()
+      throw error
+    }
     changed()
     return requestOrdinal
   }
@@ -810,6 +819,7 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
     task: TeamTaskRecord,
     requestOrdinal: number,
     usage: TeamUsage,
+    isFinal = false,
   ): Promise<void> => {
     const claim = task.claims.find((candidate) => candidate.ordinal === requestOrdinal)
     if (claim === undefined) throw new Error(TEAM_MODEL_TEXT.hostInvalidArguments)
@@ -824,6 +834,7 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
       claim.usage = reported
       claim.isSettled = true
     }
+    if (isFinal) claim.isSettled = true
     let total: TeamUsage = ZERO_USAGE
     for (const item of task.claims) {
       const known = item.reported
@@ -932,7 +943,8 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
                 admitRequest(task, hasReservation === true)
               },
               reserveRequest: (maximum) => reserveRequest(task, maximum),
-              settleRequest: (requestOrdinal, usage) => settleRequest(task, requestOrdinal, usage),
+              settleRequest: (requestOrdinal, usage, isFinal) =>
+                settleRequest(task, requestOrdinal, usage, isFinal),
               noteUsage: (usage) => noteUsage(task, usage),
               noteWorkspace: async (workspace) => {
                 task.workspace = workspace

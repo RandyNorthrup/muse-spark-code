@@ -24184,6 +24184,31 @@ bound, `TEAM_COLLECT_WAIT_MAX_SECONDS_ENGINE` (60 s, golden `08-team-on`
 updated); the Muse Code team server keeps `TEAM_COLLECT_WAIT_MAX_SECONDS`
 (0) until lane P's timeout capture.
 
+**C-M96-3 round 6 accounting repair (2026-10-11, RVCM963F).**
+The lead's design replaces round 5's request-chain shortcut: each worker
+transport attempt reserves separately and closes exactly once through
+`endRequest`, beside ordinary session-budget cleanup. Valid usage bills its
+own claim; dispatch without usage retains that attempt's full maximum as
+ambiguous liability; explicit refusal or failure before dispatch releases
+it. A successful retry cannot erase an earlier ambiguous attempt. Final
+outcomes close reservations, including unknown-priced usage, while retaining
+uncertain liability until an explicit reset. Vault rebuilds release their
+unsent claim before fresh admission. Admission revoked after durable
+reservation must release it even before a callback reaches the host.
+Sweep the paid fan-outs and compaction guards for the same shortcut. Prove
+success, 5xx/retry, dispatched timeout/retry, refusal, pre-dispatch failure,
+and abort-between-attempts sequences with regressions and byte-exact red
+drills in `docs/certification/m96-3.md`. Teams remain planned and hidden;
+no UI, dependency, paid/live call, merge or cap change. Scoped testing is
+complete: 285 tests across six files, eleven red/restored accounting drills,
+all five typechecks and the production build. Two older native Git cases
+prepare completed-task fixtures in `beforeAll`; every original assertion
+and merge/continuation action keeps the repository deadline. Scoped static
+checks, zero-duplicate/dead-code gates and the current roadmap pass; both
+RVCM963F findings are fixed and this lane's local certification is complete. The lead owns full
+quality and native cross-platform gates, then C-M96-2, C-M96-4,
+C-M96c-1 and C-M96-5/M96b bindings.
+
 **C-M96-3 round 5 correctness pass (2026-10-10).** RVCM963E found four
 remaining defects on `e50477ff7`. Bind each worker usage settlement to its
 reserved claim, including the sent model's known price for bare Meta,
