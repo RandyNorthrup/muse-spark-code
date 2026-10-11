@@ -1,49 +1,23 @@
-// The mounted-vault harness (C-M109-1 P1): the Models & Agents panel with
-// the vault section offered, as the host serves it once lanes (b) and (c)
-// bind the broker. Scenarios: `mounted` (unlocked section), `mounted-locked`
-// (locked section) and `mounted-connecting` (offered, host not answered
-// yet). Values never appear here; the item carries a fixture label only.
+// The mounted-vault harness (C-M109-1 P1, RVCM1091D P3): the Models & Agents
+// panel with the vault section offered, as the host serves it once lanes (b)
+// and (c) bind the broker. Scenarios (test/harness/vault/scenarios.ts):
+// `mounted` (unlocked section), `mounted-locked` (a real locked snapshot:
+// no items, no observed slot), `mounted-connecting` (offered, host not
+// answered yet), `mounted-uncreated`, `mounted-setup-pending`,
+// `mounted-unavailable` (lost: the disabled toggle and Reset) and
+// `mounted-first-party-only`. Values never appear here; the item carries a
+// fixture label only.
 import { createRoot } from 'react-dom/client'
 import '../../../src/webview/models/models.css'
 import { ModelsPanel } from '../../../src/webview/models/panel'
 import { INITIAL_PANEL_UI } from '../../../src/webview/models/reducer'
 import { type ModelsPanelState } from '../../../src/shared/modelsPanel'
-import { type VaultPanelState } from '../../../src/shared/modelsPanel'
+import { vaultScenarioState, type VaultMountedScenario } from './scenarios'
 
 const query = new URLSearchParams(location.search)
-const scenario = query.get('scenario') ?? 'mounted'
+const scenario = (query.get('scenario') ?? 'mounted') as VaultMountedScenario
 const now = Date.now()
-const item = {
-  id: 'd'.repeat(32),
-  name: 'deploy',
-  handle: 'secret://deploy',
-  label: 'Deployment credential',
-  kind: 'secret' as const,
-  bindings: [],
-  requirePresence: true,
-  hidden: false,
-  firstParty: false,
-  policy: { mode: 'askEveryTime' as const, unattendedAllowed: false, allowDisclosure: false },
-  dates: { createdAt: now, rotatedAt: null, expiresAt: null, lastUsedAt: now },
-  publicKey: null,
-  fingerprint: null,
-}
-const vault: VaultPanelState = {
-  status: {
-    state: scenario === 'mounted-locked' ? 'locked' : 'unlocked',
-    lockEpoch: 1,
-    tier: 'osStore',
-    provider: 'loginKeychain',
-    silentUnlock: true,
-    itemCount: 1,
-    reason: null,
-  },
-  items: [item],
-  grants: [],
-  audit: [],
-  pending: [],
-  ambientFiles: [],
-}
+const vault = vaultScenarioState(scenario, now)
 const panelState: ModelsPanelState = {
   presets: [],
   providers: [],
@@ -71,7 +45,7 @@ createRoot(root).render(
     dispatch={() => {
       /* Test navigation stays put. */
     }}
-    vaultRaw={scenario === 'mounted-connecting' ? undefined : { type: 'vaultState', state: vault }}
+    vaultRaw={vault === undefined ? undefined : { type: 'vaultState', state: vault }}
     vaultPost={() => {
       /* Test host has no secret values. */
     }}
