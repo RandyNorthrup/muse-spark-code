@@ -9,6 +9,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- Runner-route resource relocation joins the lazy check router to the
+  existing governor, SSH admission and resource journal. Complete
+  scheduler bindings supply approved routes, exclusive attempt ownership,
+  Ask, Keep here and task/Traffic rows. Queued heavy checks can move at
+  relocate/pause; ambiguous remote admission never retries locally.
+  Paired-device relocation stays refused.
+
 - The ACP agent's resource history now includes its own work. Each
   `muse-spark-code-acp` process runs one resource governor, shared by the
   agent, a headless `exec` run and terminal commands instead of each
@@ -2316,7 +2323,7 @@ Correction (2026-10-10): Several accounts per provider, credential vault, schedu
   first governed launch, a **Resources** chip sits beside the heartbeat, or
   above the composer between turns. Its popover shows CPU, memory in use and
   available memory against your limits, what is waiting, any override, and
-  that relocation is not available on this build. Its buttons are **Resume
+  whether an approved runner route is active. Its buttons are **Resume
   now**, **Open settings** and **Show resources** (the Usage & cost page). A
   status bar item shows while the governor throttles or pauses. At pause, one
   notice per conversation names the reading and its limit, with the same

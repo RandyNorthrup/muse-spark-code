@@ -790,7 +790,7 @@
     {
       "id": "M107",
       "title": "Resource limits for your machine",
-      "summary": "CPU, memory and disk limits pause new background work through one governor per process, with cancellable first-use waits; older macOS runtimes read reclaimable headroom through a signed helper retired at shutdown, and work history respects shared consent. Moving work to another device is not available yet.",
+      "summary": "CPU, memory and disk limits pause new background work through one governor per process, with cancellable first-use waits; older macOS runtimes read reclaimable headroom through a signed helper retired at shutdown, and work history respects shared consent. Queued heavy checks can move over an active approved SSH runner route; paired-device relocation is unavailable.",
       "area": "platform",
       "release": "0.16.0"
     },

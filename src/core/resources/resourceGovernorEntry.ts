@@ -58,6 +58,8 @@ import {
 import { isErrno } from '../fs/errno'
 
 export interface ResourceHostSettings {
+  /** M96c's cached approved runner routes; registering does no discovery or probing. */
+  readonly hasRelocationTarget?: (() => boolean) | undefined
   /** Runtime shares its existing machine governor's queue with process launches. */
   readonly admission?: (
     request: ResourceLaunchRequest,

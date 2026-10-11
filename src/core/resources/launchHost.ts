@@ -23,6 +23,7 @@ import type { ResourceGovernor } from './governor'
 import type { ResourceDiskSampler } from './disk'
 import type { CreatedRegistry, CreatedCleanup } from './createdRegistry'
 import type { ResourceEvents } from './events'
+import { ResourceRelocator, type ResourceRelocationOptions } from './relocate'
 import {
   ResourceQueue,
   type ResourcePermit,
@@ -486,6 +487,27 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
     return this.snapshot.status
   }
 
+  /** One per conversation, on the same governor and history stream as local launches. */
+  createRelocator(
+    options: Omit<ResourceRelocationOptions, 'clock' | 'events' | 'status' | 'transportResult'>,
+  ): ResourceRelocator {
+    if (this.disposed) throw new Error('Resource launch host disposed')
+    return new ResourceRelocator({
+      ...options,
+      clock: this.options.clock,
+      events: this.options.events,
+      transportResult: (wasSuccessful) => {
+        this.recordTransportResult(wasSuccessful)
+        return Promise.resolve()
+      },
+      status: () => {
+        if (this.disposed) throw new Error('Resource launch host disposed')
+        this.applySettings()
+        return this.status()
+      },
+    })
+  }
+
   /** Disposable change notification; read `status()` inside the callback. */
   subscribe(changed: () => void): () => void {
     if (this.disposed) throw new Error('Resource launch host disposed')
@@ -498,6 +520,11 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
   /** The window's settings changed: apply them now, not at the next governed launch. */
   settingsChanged(): void {
     if (!this.disposed) this.applySettings()
+  }
+
+  /** Cached route eligibility changed without changing a setting value. */
+  routesChanged(): void {
+    if (!this.disposed) this.changed()
   }
 
   /**

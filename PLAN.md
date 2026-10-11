@@ -27879,6 +27879,20 @@ records no harness rows until T–C1's native identity binds portable launches;
 the runtime sampler's disk targets stay DK's handoff; installed-editor
 receipts. Records:
 [`docs/certification/m107.md`](docs/certification/m107.md#m107-hc1--the-runtime-spawn-binding).
+**CM1073 runner-route binding plan (2026-10-11, Kubuntu).** Join the existing
+check router to R's relocation coordinator, consuming M96c's approved-runner,
+attempt-ownership and task/Traffic ports. Automatic SSH movement covers queued
+heavy checks only, at relocate/pause: paired uses an approved route, ask asks,
+off and Keep here retain local admission. Use the window's existing governor,
+events and history; no second sampler. Keep uncertain remote ownership and
+never retry it locally. Report admission from the existing SSH start receipt
+and recheck receiver load at exclusive slot admission. CM96C1 owns production
+scheduler/runner/surface wiring; list its exact adapter contract and shared
+hunks in docs/certification/cm1073.md. Paired devices remain with CM1074;
+ACP/native/companion bindings remain with M96b/C-M96-5 and C-M107-8, and
+headless refuses relocation. Certify default-timeout owning tests, byte-exact
+red drills and scoped gates; the brief delegates full quality, Grok review
+and real three-OS runner receipts to the lead. No dependencies or paid calls.
 
 **M107 W chip — the U–C1/W window binding (2026-10-08, for 0.17).** PR #140's
 review found the chip never mounted. The window's `ResourceLaunchHost` now
@@ -34261,6 +34275,24 @@ lane A's first step.
 ## 7. Gates
 
 - **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
+  **CM1073 inherited integration-size hold (2026-10-11, Kubuntu).** The scoped
+  runner build emits its concrete bindings within existing caps: teamRunners
+  72.9/75 KiB and resourceGovernor 110.4/125 KiB. The build still refuses the
+  CM96C1 merged base's teamHost and Models-body overages (130.5/130 KiB and
+  75.5/75 KiB). CM96C1 owns those production integration bundles; preserve both
+  caps. Independent split/host-global checks and focused tests are recorded in
+  docs/certification/cm1073.md. This is an open release gate, not a waived gate;
+  aggregate quality, the CM96C1 caller join, Grok review and foreign-platform
+  runner receipts remain required before advertising completed relocation.
+
+**CM96C1 merged-base qualification (2026-10-11, linuxlt).** The required
+separate accepted-design merge passes five type projects and focused team
+tests. Its full production build emits all bundles then refuses teamHost's
+130 KiB and Models body's 75 KiB caps (133,408 bytes and 75.5 KiB). Preserve
+these caps; the following binding work closes these integration size seams.
+The deferred-bundle legal-cap test also reports this aggregate size refusal.
+No gate is waived. Aggregate quality and hosted CI remain lead-owned under
+the explicit rig/common brief; receipts: `docs/certification/cm96c1.md`.
 
 **CM971R4 gate receipt (2026-10-10).** The unchanged production build gate
 refuses eight upstream licence texts under the owner's strict slot grammar;
