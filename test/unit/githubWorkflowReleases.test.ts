@@ -127,66 +127,192 @@ describe('github workflow and releases port', () => {
       reader: rig.reader,
       additional: githubWorkflowReleasesPort(),
     }).read(networkContext())
-    // Pulls and checks survive; the refused workflow/releases read leaves
-    // empty facts with the bound named, never truncated rows.
+    // Pulls, checks and the parsed releases survive; only the refused runs
+    // read stays empty, with the bound named and never truncated rows.
     expect(result.record.status).toBe('partial')
     expect(result.record.reason).toContain('page-bound')
-    expect(result.data?.releases).toEqual([])
+    expect(result.data?.releases.map((release) => release.version)).toEqual(['v0.16.0', 'v0.17.0'])
     expect(result.data?.runs).toEqual([])
   })
 
-  it.each<[string, string, { runs?: object[] }, { releases?: object[] }]>([
-    [
-      'a null run conclusion',
-      'run-conclusion-required',
+  it('keeps parsed releases when the release-workflow read 404s', async () => {
+    // Another repository names its own workflow file (the port reads only
+    // `release.yml`): the 404 keeps the releases read before it.
+    const transport = vi.fn((request: { url: string }) => {
+      if (request.url.includes('/pulls?')) return Promise.resolve(Response.json([]))
+      if (request.url.includes('/check-runs?'))
+        return Promise.resolve(Response.json({ total_count: 0, check_runs: [] }))
+      if (request.url.includes('/tags?')) return Promise.resolve(Response.json(TAGS))
+      return request.url.includes('/releases?')
+        ? Promise.resolve(Response.json(RELEASES_PAGE_1))
+        : Promise.resolve(new Response('not found', { status: 404 }))
+    })
+    const rig = networkRig({ transport, maxBytes: REPORT_NETWORK_MAX_BYTES })
+    const result = await githubReportSource({
+      ...options,
+      reader: rig.reader,
+      additional: githubWorkflowReleasesPort(),
+    }).read(networkContext())
+    expect(result.record.status).toBe('partial')
+    expect(result.record.reason).toContain('http-404')
+    expect(result.data?.releases.map((release) => release.version)).toEqual(['v0.16.0', 'v0.17.0'])
+    expect(result.data?.runs).toEqual([])
+  })
+
+  it('parses the second captured releases page', async () => {
+    // The page-2 capture (`per_page=2`) is served as the production
+    // single short page: v0.15.0 joins its tag commit while v0.14.5 names
+    // no captured tag, so that row stays partial with its reason and the
+    // parsed row stays.
+    const page2: unknown = JSON.parse(
+      readFileSync(
+        new URL(
+          '../fixtures/m113/stores/github-releases-page2/response.body.json',
+          import.meta.url,
+        ),
+        'utf8',
+      ),
+    )
+    const transport = vi.fn((request: { url: string }) => {
+      if (request.url.includes('/pulls?')) return Promise.resolve(Response.json([]))
+      if (request.url.includes('/check-runs?'))
+        return Promise.resolve(Response.json({ total_count: 0, check_runs: [] }))
+      if (request.url.includes('/tags?')) return Promise.resolve(Response.json(TAGS))
+      if (request.url.includes('/releases?')) return Promise.resolve(Response.json(page2))
+      if (request.url.includes('/actions/workflows/release.yml/runs?'))
+        return Promise.resolve(Response.json(RELEASE_RUNS))
+      throw new Error(`unexpected request ${request.url}`)
+    })
+    const rig = networkRig({ transport, maxBytes: REPORT_NETWORK_MAX_BYTES })
+    const result = await githubReportSource({
+      ...options,
+      reader: rig.reader,
+      additional: githubWorkflowReleasesPort(),
+    }).read(networkContext())
+    expect(result.record.status).toBe('partial')
+    expect(result.record.reason).toContain('release-commit-required')
+    expect(result.data?.releases).toEqual([
       {
-        runs: [
-          { ...(RELEASE_RUNS as { workflow_runs: object[] }).workflow_runs[0], conclusion: null },
+        version: 'v0.15.0',
+        commit: 'a715a834bd67560e422eda51bfb3cde5c4603e1a',
+        at: '2026-10-07T21:08:04Z',
+        assets: [
+          'SHA256SUMS',
+          'exec-event-v1.schema.json',
+          'exec-result-v1.schema.json',
+          'muse-spark-code-0.15.0.vsix',
+          'muse-spark-code-acp-0.15.0.tgz',
+          'muse-spark-code-acp.cdx.json',
+          'muse-spark-code.cdx.json',
+          'share-v1.schema.json',
         ],
       },
-      {},
-    ],
-    [
-      'a run on an untagged branch',
-      'run-release-tag-required',
-      {
-        runs: [
-          {
-            ...(RELEASE_RUNS as { workflow_runs: object[] }).workflow_runs[0],
-            head_branch: 'main',
-          },
-        ],
-      },
-      {},
-    ],
-    [
-      'a draft release',
-      'release-draft-refused',
-      {},
-      { releases: [{ ...(RELEASES_PAGE_1 as object[])[0], draft: true }] },
-    ],
-    [
-      'a prerelease',
-      'release-prerelease-refused',
-      {},
-      { releases: [{ ...(RELEASES_PAGE_1 as object[])[0], prerelease: true }] },
-    ],
-    [
-      'a release whose tag names no commit',
-      'release-commit-required',
-      {},
-      { releases: [{ ...(RELEASES_PAGE_1 as object[])[0], tag_name: 'v9.9.9' }] },
-    ],
+    ])
+  })
+
+  // RVCM1136B P2: one bad record spliced into the full captured bodies
+  // keeps the other rows with the refusal named — THAT row is partial,
+  // never the whole read. Synthetic modifications of captured bodies, never
+  // claimed as captures: the refused shapes were not observed on the wire.
+  it.each<{
+    label: string
+    reason: string
+    runs: object[] | null
+    releases: object[] | null
+    versions: string[]
+    runNames: string[]
+  }>([
+    {
+      label: 'a null run conclusion',
+      reason: 'run-conclusion-required',
+      runs: [
+        (RELEASE_RUNS as { workflow_runs: object[] }).workflow_runs[0]!,
+        {
+          ...(RELEASE_RUNS as { workflow_runs: object[] }).workflow_runs[1],
+          conclusion: null,
+        },
+      ],
+      releases: null,
+      versions: ['v0.16.0', 'v0.17.0'],
+      runNames: ['v0.17.0'],
+    },
+    {
+      label: 'a run on an untagged branch',
+      reason: 'run-release-tag-required',
+      runs: [
+        (RELEASE_RUNS as { workflow_runs: object[] }).workflow_runs[0]!,
+        {
+          ...(RELEASE_RUNS as { workflow_runs: object[] }).workflow_runs[1],
+          head_branch: 'main',
+        },
+      ],
+      releases: null,
+      versions: ['v0.16.0', 'v0.17.0'],
+      runNames: ['v0.17.0'],
+    },
+    {
+      label: 'an unparseable run',
+      reason: 'run-response-invalid',
+      runs: [
+        (RELEASE_RUNS as { workflow_runs: object[] }).workflow_runs[0]!,
+        { ...(RELEASE_RUNS as { workflow_runs: object[] }).workflow_runs[1], head_sha: null },
+      ],
+      releases: null,
+      versions: ['v0.16.0', 'v0.17.0'],
+      runNames: ['v0.17.0'],
+    },
+    {
+      label: 'a draft release',
+      reason: 'release-draft-refused',
+      runs: null,
+      releases: [
+        (RELEASES_PAGE_1 as object[])[0]!,
+        { ...(RELEASES_PAGE_1 as object[])[1], draft: true },
+      ],
+      versions: ['v0.17.0'],
+      runNames: ['v0.16.0', 'v0.17.0'],
+    },
+    {
+      label: 'a prerelease',
+      reason: 'release-prerelease-refused',
+      runs: null,
+      releases: [
+        { ...(RELEASES_PAGE_1 as object[])[0], prerelease: true },
+        (RELEASES_PAGE_1 as object[])[1]!,
+      ],
+      versions: ['v0.16.0'],
+      runNames: ['v0.16.0', 'v0.17.0'],
+    },
+    {
+      label: 'a release whose tag names no commit',
+      reason: 'release-commit-required',
+      runs: null,
+      releases: [
+        (RELEASES_PAGE_1 as object[])[0]!,
+        { ...(RELEASES_PAGE_1 as object[])[1], tag_name: 'v9.9.9' },
+      ],
+      versions: ['v0.17.0'],
+      runNames: ['v0.16.0', 'v0.17.0'],
+    },
+    {
+      label: 'an unparseable release',
+      reason: 'release-response-invalid',
+      runs: null,
+      releases: [
+        (RELEASES_PAGE_1 as object[])[0]!,
+        { ...(RELEASES_PAGE_1 as object[])[1], tag_name: 42 },
+      ],
+      versions: ['v0.17.0'],
+      runNames: ['v0.16.0', 'v0.17.0'],
+    },
   ])(
-    'refuses %s with its own reason instead of a guessed row',
-    async (_label, reason, runPatch, releasePatch) => {
-      // Synthetic modifications of captured bodies, never claimed as
-      // captures: the refused shapes were not observed on the wire.
+    '$label keeps the other rows with its own reason instead of a guessed row',
+    async ({ reason, runs, releases, versions, runNames }) => {
       const runsBody = {
         ...(RELEASE_RUNS as object),
-        workflow_runs: runPatch.runs ?? (RELEASE_RUNS as { workflow_runs: object[] }).workflow_runs,
+        workflow_runs: runs ?? (RELEASE_RUNS as { workflow_runs: object[] }).workflow_runs,
       }
-      const releasesBody = releasePatch.releases ?? RELEASES_PAGE_1
+      const releasesBody = releases ?? RELEASES_PAGE_1
       const transport = vi.fn((request: { url: string }) => {
         if (request.url.includes('/pulls?')) return Promise.resolve(Response.json([]))
         if (request.url.includes('/check-runs?'))
@@ -204,8 +330,12 @@ describe('github workflow and releases port', () => {
       }).read(networkContext())
       expect(result.record.status).toBe('partial')
       expect(result.record.reason).toContain(reason)
-      expect(result.data?.releases).toEqual([])
-      expect(result.data?.runs).toEqual([])
+      expect(result.data?.releases.map((release) => release.version)).toEqual(versions)
+      expect(
+        result.data?.runs
+          .filter((run) => run.ref.kind === 'release-tag')
+          .map((run) => run.ref.name),
+      ).toEqual(runNames)
     },
   )
 })
