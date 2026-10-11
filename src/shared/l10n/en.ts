@@ -924,7 +924,7 @@ export const EN = {
       deferredQuestions: 'Questions defer immediately and remain open for your answer.',
       allowAlways: 'Allow always for this schedule',
       paidConsent:
-        'Schedule {prompt} on {model}: {price}. Cadence: {cadence}. Schedule cap: {cap} per local day; shared daily budget: {budget}. Consent covers only the selected paid extras.',
+        'Schedule {prompt} on {model}: {price}. Cadence: {cadence}. Schedule cap: {cap} per local day; shared daily budget: {budget}. Consent covers only the selected paid extras. Charges are billed to your Model API key; your subscription does not pay for them.',
       changedConsent:
         'The model, key or price tier changed. Renew this schedule’s consent before its next paid fire.',
       setBy: 'Set by {agent} in {session}',
@@ -966,6 +966,8 @@ export const EN = {
     'Scheduled turns support text and image inputs; video and audio inputs are unsupported in this version.',
   referenceSchedules:
     'The v2 schedule editor, list and timeline manage durable records. Automatic prompt delivery is disabled. Model API /loop jobs run when you choose Run now.',
+  referenceSchedulePaidConsent:
+    'V2 schedule consent binds the paid key, selected model, verified rates and daily caps. Allow once covers one fire; Allow always covers this schedule. A changed model, key or rate requires renewed consent.',
   media: {
     recordingScreenPermissionRequired: 'Screen Recording permission has not been granted.',
     recordingMicrophonePermissionDenied: 'Microphone permission was denied.',

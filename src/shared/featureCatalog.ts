@@ -905,7 +905,11 @@ export function featureCatalog(): readonly Feature[] {
         true,
         ['vscode'],
       ),
-      details: [{ ui: 'referenceSchedules' }, { ui: 'scheduledMediaSupport' }] as const,
+      details: [
+        { ui: 'referenceSchedules' },
+        { ui: 'referenceSchedulePaidConsent' },
+        { ui: 'scheduledMediaSupport' },
+      ] as const,
     },
     feature(
       'subagents',

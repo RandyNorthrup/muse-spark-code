@@ -520,11 +520,15 @@ price, and the agent log counts each billed use. Subagents,
 best-of-N, the Auto reviewer and Muse Voice are not offered: the agent has no flag for them
 (Muse Voice needs the VS Code panel's microphone).
 
-Scheduled prompts are offered with `--scheduled-prompts` (Model API
-backend only) together with `--max-budget-usd`. Each billed run asks in
-the editor's permission prompt, naming its price and the shared daily
-budget, unless allowed always in this workspace; a run without a positive
-budget is refused before dispatch.
+Scheduled prompt authority requires `--scheduled-prompts` (Model API
+backend only) together with `--max-budget-usd`. The v2 consent request uses
+the editor's permission prompt and names the schedule, verified model rates,
+cadence, schedule cap and shared daily budget. Allow once covers one fire;
+Allow always covers this schedule, with workspace grants kept separate.
+A changed model, key or tariff requires renewal before another paid fire.
+Missing flags, a nonpositive budget, stale consent and either exhausted cap
+refuse before HTTP. Runtime/ACP delivery remains disabled pending its complete
+delivery binding and certification.
 
 ## Networks and proxies
 

@@ -7,6 +7,7 @@ import {
   multiplyUsd,
   isPositiveUsd,
   nonnegativeUsdSchema,
+  legacyUsdSchema,
   sumUsd,
 } from './usd'
 // The paid Model API features (M33–M35, PLAN.md D30) as the host, the wire
@@ -32,12 +33,26 @@ import {
   type JudgeEngine,
   type SETTING_DEFAULTS,
   PAID_PRICES_USD,
+  PAID_DAILY_BUDGET,
   type PaidFeature,
   SUBAGENT_TASK_MAX_REQUESTS,
   UI_TEXT,
 } from './constants'
 import { fill, formatNumber } from './l10n/text'
 import { formatUsd } from './l10n/exactUsd'
+
+/** D78's local-day override has the same validated shape in every Node host. */
+export const paidDailyLimitSchema = /* @__PURE__ */ (() =>
+  z.object({
+    limitUsd: legacyUsdSchema.check(
+      z.refine(
+        (amount) =>
+          Usd.from(amount).compare(Usd.from(PAID_DAILY_BUDGET.minimumUsd)) >= 0 &&
+          Usd.from(amount).compare(Usd.from(PAID_DAILY_BUDGET.maximumUsd)) <= 0,
+      ),
+    ),
+    stopped: z.boolean(),
+  }))()
 
 /** Consent and dispatch share this immutable, exact, feature-specific authorization. */
 export const paidQuoteSchema = /* @__PURE__ */ (() =>
@@ -226,7 +241,21 @@ export type PaidUseRequest =
       readonly sources: readonly string[]
       readonly prompt: string
     }
-  | { readonly feature: 'scheduledPrompts'; readonly prompt: string; readonly modelId: string }
+  | {
+      readonly feature: 'scheduledPrompts'
+      readonly prompt: string
+      readonly modelId: string
+      /** D95 consent belongs to this schedule, never the workspace's extra grant. */
+      readonly schedule?: {
+        readonly id: string
+        readonly price: string
+        readonly cadence: string
+        readonly dailyCapUsd: UsdAmount
+        readonly sharedDailyBudgetUsd: UsdAmount
+        readonly extras: readonly PaidFeature[]
+        readonly payerKind: 'paidKey'
+      }
+    }
   | { readonly feature: 'subagents'; readonly task: SubagentTaskConfirmation }
   | {
       readonly feature: 'autoReviewer'

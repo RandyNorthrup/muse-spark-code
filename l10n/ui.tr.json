@@ -755,7 +755,7 @@
       "interruptWarning": "Kesme işlemi kendi çalışan turunuzu durdurabilir.",
       "unattendedRefusal": "Zamanlamada reddedildi: {action} onay gerektiriyor ve bu zamanlamanın izninde yok.",
       "deferredQuestions": "Sorular hemen ertelenir ve yanıtınız için açık kalır.",
-      "paidConsent": "{prompt} istemini {model} ile zamanla: {price}. Sıklık: {cadence}. Sınır: yerel gün başına {cap}; ortak günlük bütçe: {budget}. Onay yalnızca seçilen ücretli ekstraları kapsar.",
+      "paidConsent": "{prompt} istemini {model} ile zamanla: {price}. Sıklık: {cadence}. Sınır: yerel gün başına {cap}; ortak günlük bütçe: {budget}. Onay yalnızca seçilen ücretli ekstraları kapsar. Ücretler Model API anahtarınıza yansıtılır; aboneliğiniz bunları karşılamaz.",
       "changedConsent": "Model, anahtar veya fiyat kademesi değişti. Sonraki ücretli çalıştırmadan önce onayı yenileyin.",
       "setBy": "{session} içinde {agent} tarafından ayarlandı",
       "migrationConsent": "Taşınan zamanlama duraklatıldı. Sürdürmeden önce modu, izni ve ödeme onayını gözden geçirin.",
@@ -790,6 +790,7 @@
   },
   "scheduledMediaSupport": "Zamanlanmış turlar metin ve resim girdilerini destekler; video ve ses girdileri bu sürümde desteklenmez.",
   "referenceSchedules": "v2 zamanlama düzenleyicisi, listesi ve zaman çizelgesi kalıcı kayıtları yönetir. Otomatik istem gönderimi devre dışıdır. Model API /loop işleri Şimdi çalıştır seçildiğinde çalışır.",
+  "referenceSchedulePaidConsent": "v2 zamanlama izni ücretli anahtara, seçilen modele, doğrulanmış ücretlere ve günlük sınırlara bağlıdır. Bir kez izin ver tek çalıştırmayı; Her zaman izin ver bu zamanlamayı kapsar. Model, anahtar veya ücret değiştiğinde yeniden izin gerekir.",
   "media": {
     "recordingScreenPermissionRequired": "Ekran kaydı izni verilmemiş.",
     "recordingMicrophonePermissionDenied": "Mikrofon izni reddedildi.",

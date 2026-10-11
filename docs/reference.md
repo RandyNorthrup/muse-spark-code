@@ -1132,6 +1132,8 @@ Schedule a prompt in this Model API conversation.
 
 scheduleDeliveryCertified=false: The v2 schedule editor, list and timeline manage durable records. Automatic prompt delivery is disabled. Model API /loop jobs run when you choose Run now.
 
+V2 schedule consent binds the paid key, selected model, verified rates and daily caps. Allow once covers one fire; Allow always covers this schedule. A changed model, key or rate requires renewed consent.
+
 Scheduled turns support text and image inputs; video and audio inputs are unsupported in this version.
 
 ```json

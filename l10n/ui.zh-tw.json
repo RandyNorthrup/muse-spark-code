@@ -754,7 +754,7 @@
       "interruptWarning": "中斷可能會停止您自己執行中的回合。",
       "unattendedRefusal": "排程執行遭拒：{action}需要核准，且不在此排程的授權範圍內。",
       "deferredQuestions": "問題會立即延後，並保持開放以便您稍後回答。",
-      "paidConsent": "使用{model}排程{prompt}：{price}。頻率：{cadence}。每個本地日期的排程上限：{cap}；共用每日預算：{budget}。同意僅涵蓋選取的付費附加功能。",
+      "paidConsent": "使用{model}排程{prompt}：{price}。頻率：{cadence}。每個本地日期的排程上限：{cap}；共用每日預算：{budget}。同意僅涵蓋選取的付費附加功能。費用計入你的 Model API 金鑰帳單，訂閱不支付這些費用。",
       "changedConsent": "模型、金鑰或價格級別已變更。請在下次付費執行前重新同意。",
       "setBy": "由{agent}在{session}中設定",
       "migrationConsent": "移轉的排程已暫停。繼續前請檢查模式、授權和付費同意。",
@@ -787,6 +787,7 @@
   },
   "scheduledMediaSupport": "排程回合支援文字與圖像輸入；此版本不支援影片與音訊輸入。",
   "referenceSchedules": "v2 排程編輯器、清單和時間軸管理持久記錄。提示詞自動傳送已停用。選擇「立即執行」後，Model API 的 /loop 工作才會執行。",
+  "referenceSchedulePaidConsent": "v2 排程的同意綁定付費金鑰、所選模型、已驗證費率與每日上限。允許一次僅涵蓋一次執行；一律允許涵蓋此排程。模型、金鑰或費率變更後需要重新同意。",
   "media": {
     "recordingScreenPermissionRequired": "尚未授予螢幕錄製權限。",
     "recordingMicrophonePermissionDenied": "麥克風權限遭到拒絕。",

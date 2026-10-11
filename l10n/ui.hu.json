@@ -755,7 +755,7 @@
       "interruptWarning": "A megszakítás leállíthatja a saját futó körét.",
       "unattendedRefusal": "Ütemezéskor elutasítva: {action} jóváhagyást igényel, és nincs az ütemezés engedélyében.",
       "deferredQuestions": "A kérdések azonnal halasztódnak, és nyitva maradnak a válaszára.",
-      "paidConsent": "{prompt} ütemezése ezzel: {model}; ár: {price}. Gyakoriság: {cadence}. Keret: {cap} helyi naponként; közös napi keret: {budget}. A beleegyezés csak a kiválasztott fizetős extrákra vonatkozik.",
+      "paidConsent": "{prompt} ütemezése ezzel: {model}; ár: {price}. Gyakoriság: {cadence}. Keret: {cap} helyi naponként; közös napi keret: {budget}. A beleegyezés csak a kiválasztott fizetős extrákra vonatkozik. A díjakat a Model API-kulcsodra terheljük; az előfizetés nem fedezi őket.",
       "changedConsent": "A modell, a kulcs vagy az árszint megváltozott. Újítsa meg a beleegyezést a következő fizetős futás előtt.",
       "setBy": "Beállította: {agent}, itt: {session}",
       "migrationConsent": "Az átvitt ütemezés szünetel. Folytatás előtt ellenőrizze a módot, az engedélyt és a fizetési beleegyezést.",
@@ -790,6 +790,7 @@
   },
   "scheduledMediaSupport": "Az ütemezett körök szöveges és képes bemeneteket támogatnak; a videó- és hangbemenetek ebben a verzióban nem támogatottak.",
   "referenceSchedules": "A v2 ütemezésszerkesztő, lista és idővonal tartós rekordokat kezel. A kérések automatikus küldése ki van kapcsolva. A Model API /loop feladatai a Futtatás most választásakor indulnak.",
+  "referenceSchedulePaidConsent": "A v2 ütemezéshez adott beleegyezés a fizetős kulcshoz, a kiválasztott modellhez, az ellenőrzött díjakhoz és a napi keretekhez kötött. Az egyszeri engedély egy futást, az állandó engedély ezt az ütemezést fedezi. A modell, a kulcs vagy a díj változásakor új beleegyezés szükséges.",
   "media": {
     "recordingScreenPermissionRequired": "A képernyőfelvétel engedélye nincs megadva.",
     "recordingMicrophonePermissionDenied": "A mikrofon engedélyét megtagadták.",

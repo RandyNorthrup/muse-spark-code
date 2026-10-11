@@ -755,7 +755,7 @@
       "interruptWarning": "Unterbrechen kann Ihren eigenen laufenden Durchgang stoppen.",
       "unattendedRefusal": "Im Zeitplan abgelehnt: {action} benötigt eine Genehmigung und gehört nicht zur Freigabe dieses Zeitplans.",
       "deferredQuestions": "Fragen werden sofort zurückgestellt und bleiben für Ihre Antwort offen.",
-      "paidConsent": "{prompt} mit {model} planen: {price}. Rhythmus: {cadence}. Zeitplanbudget: {cap} pro lokalem Tag; gemeinsames Tagesbudget: {budget}. Die Zustimmung gilt nur für die ausgewählten kostenpflichtigen Extras.",
+      "paidConsent": "{prompt} mit {model} planen: {price}. Rhythmus: {cadence}. Zeitplanbudget: {cap} pro lokalem Tag; gemeinsames Tagesbudget: {budget}. Die Zustimmung gilt nur für die ausgewählten kostenpflichtigen Extras. Die Kosten werden Ihrem Model-API-Schlüssel berechnet; das Abonnement bezahlt sie nicht.",
       "changedConsent": "Modell, Schlüssel oder Preisstufe haben sich geändert. Erneuern Sie die Zustimmung vor der nächsten kostenpflichtigen Ausführung.",
       "setBy": "Von {agent} in {session} eingerichtet",
       "migrationConsent": "Migrierter Zeitplan pausiert. Prüfen Sie Modus, Freigabe und Kostenzustimmung vor dem Fortsetzen.",
@@ -790,6 +790,7 @@
   },
   "scheduledMediaSupport": "Geplante Durchläufe unterstützen Text- und Bildeingaben; Video- und Audioeingaben werden in dieser Version nicht unterstützt.",
   "referenceSchedules": "Der v2-Planungseditor, die Liste und die Zeitleiste verwalten dauerhafte Einträge. Die automatische Übermittlung von Prompts ist deaktiviert. Model-API-/loop-Aufträge starten, wenn Sie Jetzt ausführen wählen.",
+  "referenceSchedulePaidConsent": "Die Zustimmung zu einem v2-Zeitplan bindet den kostenpflichtigen Schlüssel, das gewählte Modell, geprüfte Tarife und Tageslimits. Einmal erlauben gilt für eine Ausführung; Immer erlauben gilt für diesen Zeitplan. Bei geändertem Modell, Schlüssel oder Tarif ist eine neue Zustimmung erforderlich.",
   "media": {
     "recordingScreenPermissionRequired": "Die Berechtigung zur Bildschirmaufnahme wurde nicht erteilt.",
     "recordingMicrophonePermissionDenied": "Die Mikrofonberechtigung wurde verweigert.",

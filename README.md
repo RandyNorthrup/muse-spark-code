@@ -2357,6 +2357,17 @@ offers the same list, except `run-due` and background maintenance, and only
 while the agent runs with `--scheduled-prompts` (again with
 `--max-budget-usd`).
 
+The v2 billing port asks at creation or renewal for one schedule's prompt,
+selected model, verified rates, cadence and both daily caps. **Allow once**
+covers one fire; **Allow always for this schedule** covers that schedule.
+Workspace-wide paid grants do not authorize it. Changed models, keys, tariffs
+or payer kinds require renewed consent; unattended fires refuse stale consent
+before HTTP. VS Code and ACP use the same question; CLI authorization requires
+both explicit flags and printing that quote. Exact-money reservations share
+the schedule cap and the host's D78 daily ledger, including retained uncertain
+liability. This port remains behind the automatic-delivery certification gate
+described above.
+
 Muse Code has its own subscription-backed `cron_create`, `cron_list` and
 `cron_delete` tools. Ask it in chat to schedule, list or cancel its jobs;
 those are not the Model API jobs shown by this panel. Muse Code 1.3.0 does

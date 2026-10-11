@@ -756,7 +756,7 @@
       "interruptWarning": "Interrumpir puede detener tu propio turno en curso.",
       "unattendedRefusal": "Rechazado en la programación: {action} necesita aprobación y no está incluido en los permisos de esta programación.",
       "deferredQuestions": "Las preguntas se aplazan inmediatamente y quedan abiertas para que respondas.",
-      "paidConsent": "Programar {prompt} con {model}: {price}. Frecuencia: {cadence}. Límite: {cap} por día local; presupuesto diario compartido: {budget}. El consentimiento solo cubre los extras de pago seleccionados.",
+      "paidConsent": "Programar {prompt} con {model}: {price}. Frecuencia: {cadence}. Límite: {cap} por día local; presupuesto diario compartido: {budget}. El consentimiento solo cubre los extras de pago seleccionados. Los cargos se facturan a tu clave de Model API; la suscripción no los cubre.",
       "changedConsent": "El modelo, la clave o la tarifa cambió. Renueva el consentimiento antes de la próxima ejecución de pago.",
       "setBy": "Creado por {agent} en {session}",
       "migrationConsent": "Programación migrada en pausa. Revisa el modo, los permisos y el consentimiento de pago antes de reanudar.",
@@ -793,6 +793,7 @@
   },
   "scheduledMediaSupport": "Los turnos programados admiten entradas de texto e imágenes; las entradas de vídeo y audio no son compatibles con esta versión.",
   "referenceSchedules": "El editor, la lista y la cronología de programaciones v2 gestionan registros persistentes. El envío automático de instrucciones está desactivado. Las tareas /loop de Model API se ejecutan al elegir Ejecutar ahora.",
+  "referenceSchedulePaidConsent": "El consentimiento de una programación v2 se vincula a la clave de pago, el modelo seleccionado, las tarifas verificadas y los límites diarios. Permitir una vez cubre una ejecución; Permitir siempre cubre esta programación. Cambiar el modelo, la clave o la tarifa requiere renovar el consentimiento.",
   "media": {
     "recordingScreenPermissionRequired": "No se ha concedido permiso para grabar la pantalla.",
     "recordingMicrophonePermissionDenied": "Se ha denegado el permiso del micrófono.",

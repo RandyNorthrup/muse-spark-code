@@ -15,6 +15,7 @@ import {
 import { UI_TEXT, type PaidFeature } from '../../src/shared/constants'
 
 import { FakeLogOutputChannel } from './helpers/fakes'
+import { fakeSchedulePaidRequest } from './helpers/schedules/fixtures'
 
 function consentWith(
   options: {
@@ -293,6 +294,21 @@ describe('PaidUseConsent (M58)', () => {
     await expect(t.consent.allows(SEARCH)).resolves.toBeUndefined()
     expect(t.writes).toEqual([])
   })
+  it.each(['once', 'always', 'deny'] as const)(
+    'schedule questions bypass workspace grants and never persist a feature grant (%s)',
+    async (answer) => {
+      const t = consentWith({
+        on: ['scheduledPrompts'],
+        grants: ['scheduledPrompts'],
+        answer: () => Promise.resolve(answer),
+      })
+      const request = fakeSchedulePaidRequest()
+      expect(await t.consent.allows(request)).toBe(answer !== 'deny')
+      expect(await t.consent.allows(request)).toBe(answer !== 'deny')
+      expect(t.ask).toHaveBeenCalledTimes(2)
+      expect(t.writes).toEqual([])
+    },
+  )
 
   it('keeps "always", then stops asking and tells its listeners', async () => {
     const t = consentWith({ answer: () => Promise.resolve('always') })

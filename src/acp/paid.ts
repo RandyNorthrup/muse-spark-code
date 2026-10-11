@@ -26,6 +26,7 @@ import {
 import type { PaidUseRequest, PaidUseDecision } from '../shared/paid'
 import { PaidAuthority, type PaidGrant } from '../core/paid/paidAuthority'
 import type { PaidQuote } from '../shared/paid'
+import { compareUsdAmounts, nonnegativeUsdSchema, type UsdAmount } from '../shared/usdSchema'
 
 /** Where "Allow always in this workspace" is kept, per folder. */
 export interface PaidGrantStore {
@@ -51,6 +52,10 @@ export type PaidUseAsker = (
 export interface AcpPaidUseDeps {
   /** The features whose flags the editor gave. */
   readonly flagged: readonly AcpPaidFeature[]
+  readonly scheduleAuthorization?: {
+    readonly scheduledPrompts: boolean
+    readonly maxBudgetUsd?: UsdAmount
+  }
   /** `--trust-workspace`: where "always" is offered and honoured. */
   readonly canRemember: () => boolean
   readonly grants: PaidGrantStore
@@ -69,10 +74,10 @@ function describe(error: unknown): string {
 }
 
 /** The prompt's options: the popup's answers (D48), "always" only where it is kept. */
-export function paidUseOptions(canRemember: boolean): PermissionOption[] {
+export function paidUseOptions(canRemember: boolean, isSchedule = false): PermissionOption[] {
   const always: PermissionOption = {
     optionId: ACP_PAID_OPTIONS.allowAlways,
-    name: UI_TEXT.paidAllowAlways,
+    name: isSchedule ? UI_TEXT.scheduleV2.messages.allowAlways : UI_TEXT.paidAllowAlways,
     kind: 'allow_always',
   }
   return [
@@ -147,6 +152,8 @@ export class AcpPaidUse {
   }
 
   public isOn(feature: PaidFeature): boolean {
+    if (feature === 'scheduledPrompts')
+      return this.deps.scheduleAuthorization?.scheduledPrompts === true
     const flagged: readonly PaidFeature[] = this.deps.flagged
     return flagged.includes(feature)
   }
@@ -156,6 +163,31 @@ export class AcpPaidUse {
     this.asker = asker
   }
 
+  /** D95 asks for this schedule only; a workspace extra grant never supplies its answer. */
+  public async askScheduleUse(
+    sessionId: string,
+    request: Extract<PaidUseRequest, { feature: 'scheduledPrompts' }>,
+  ): Promise<PaidUseAnswer> {
+    const budget = nonnegativeUsdSchema.safeParse(this.deps.scheduleAuthorization?.maxBudgetUsd)
+    if (
+      request.schedule === undefined ||
+      !this.isOn('scheduledPrompts') ||
+      !budget.success ||
+      budget.data === '0' ||
+      !nonnegativeUsdSchema.safeParse(request.schedule.dailyCapUsd).success ||
+      request.schedule.dailyCapUsd === '0' ||
+      compareUsdAmounts(request.schedule.dailyCapUsd, budget.data) > 0 ||
+      this.deps.headless !== undefined
+    )
+      return 'deny'
+    const canRemember = this.deps.canRemember()
+    const answer = await this.ask(sessionId, request, canRemember)
+    return !this.isOn('scheduledPrompts') ||
+      (answer === 'always' && (!canRemember || !this.deps.canRemember()))
+      ? 'deny'
+      : answer
+  }
+
   /** The popup before a use in the folder's conversation `sessionId` (D48). */
   public async allows(
     workspaceRoot: string,
@@ -163,6 +195,8 @@ export class AcpPaidUse {
     request: PaidUseRequest,
     requiresAsking: boolean,
   ): Promise<PaidUseDecision> {
+    if (request.feature === 'scheduledPrompts' && request.schedule !== undefined)
+      return (await this.askScheduleUse(sessionId, request)) !== 'deny'
     if (this.deps.headless !== undefined) {
       return this.isOn(request.feature) && (await this.deps.headless(request, requiresAsking))
     }
@@ -203,6 +237,7 @@ export class AcpPaidUse {
   /** Whether the feature is on and allowed always in the folder, so it asks nothing. */
   public isRemembered(workspaceRoot: string, feature: PaidFeature): boolean {
     return (
+      feature !== 'scheduledPrompts' &&
       this.deps.headless === undefined &&
       this.isOn(feature) &&
       this.deps.canRemember() &&

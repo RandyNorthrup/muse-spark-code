@@ -232,6 +232,8 @@ export const schedulePaidConsentSchema = z
     modelId: text,
     accountId: text,
     priceTier: text,
+    /** Legacy records remain readable, but cannot authorize a paid-key fire. */
+    payerKind: z.optional(z.enum(['paidKey', 'plan'])),
     grantedAtMs: timestamp,
     dailyCapUsd: money.check(z.refine((amount) => amount !== '0')),
     sharedDailyBudgetUsd: money.check(z.refine((amount) => amount !== '0')),

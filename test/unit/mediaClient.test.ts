@@ -121,6 +121,7 @@ async function scheduledMedia(t: Awaited<ReturnType<typeof setup>>, cap = 1, sha
     modelId: t.body.model,
     accountId: FAKE_MODEL_API_ACCOUNT_ID,
     priceTier: 'contributor',
+    payerKind: 'paidKey' as const,
     price: 'Captured token rates',
     sharedDailyBudgetUsd: Usd.from(sharedCap).toAmount(),
   }
@@ -131,6 +132,7 @@ async function scheduledMedia(t: Awaited<ReturnType<typeof setup>>, cap = 1, sha
       modelId: identity.modelId,
       accountId: identity.accountId,
       priceTier: identity.priceTier,
+      payerKind: identity.payerKind,
       sharedDailyBudgetUsd: Usd.from(sharedCap).toAmount(),
       dailyCapUsd: Usd.from(cap).toAmount(),
       grantedAtMs: 0,
@@ -228,8 +230,8 @@ describe('media accounting at the transport', () => {
     await expect(fire.daily.latestDay()).rejects.toThrow(UI_TEXT.paidDailyLedgerUnavailable)
     const today = await fire.daily.readToday()
     expect(today[0]?.budget).toMatchObject({
-      spentUsd: Number(t.accounting.reservedUsd),
-      uncertainUsd: Number(t.accounting.reservedUsd),
+      spentUsd: t.accounting.reservedUsd,
+      uncertainUsd: t.accounting.reservedUsd,
     })
     expect(fire.scope.cost()).toEqual({
       usd: PortUsd.from(0).toAmount(),

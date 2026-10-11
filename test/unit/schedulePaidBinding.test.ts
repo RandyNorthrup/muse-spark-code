@@ -24,6 +24,9 @@ import { UI_TEXT } from '../../src/shared/constants'
 import { formatUnit } from '../../src/shared/l10n/text'
 import type { ScheduleV2 } from '../../src/shared/scheduleV2'
 import type { ModelPricing } from '../../src/core/providers/priceCard'
+import { askPaidUse } from '../../src/host/paid/paidHost'
+import { window } from './mocks/vscode'
+import type { ScheduleCallerContext } from '../../src/runtime/schedules/args'
 
 function body(model: string, max_output_tokens = 100): CreateResponseBody {
   return {
@@ -45,6 +48,7 @@ function body(model: string, max_output_tokens = 100): CreateResponseBody {
 const folders: string[] = []
 afterEach(async () => {
   for (const folder of folders.splice(0)) await removeFolder(folder)
+  vi.restoreAllMocks()
 })
 
 async function fixture(
@@ -52,6 +56,7 @@ async function fixture(
   cap = 5,
   overrides: Partial<ScheduleV2> = {},
   pricingOverride?: ModelPricing,
+  portOverrides: Partial<ScheduleBillingPorts> = {},
 ) {
   const folder = mkdtempSync(path.join(tmpdir(), 'm115-billing-'))
   folders.push(folder)
@@ -77,7 +82,12 @@ async function fixture(
     modelId: 'muse-spark-1.3',
     approvalMode: 'promptUnmatched',
   })
-  const state = {
+  const state: {
+    generation: number
+    pricing: ModelPricing
+    afterReserve?: () => Promise<void>
+    accountId?: string
+  } = {
     generation: 0,
     pricing: pricingOverride ?? modelPolicyFor(session.modelId).pricing,
   }
@@ -89,6 +99,7 @@ async function fixture(
         schedulePricing: async (modelId) => ({
           ...(await host.schedulePricing(modelId)),
           pricing: state.pricing,
+          ...(state.accountId !== undefined && { accountId: state.accountId }),
         }),
       }),
     generation: () => state.generation,
@@ -96,7 +107,12 @@ async function fixture(
     isActive: () => true,
     isOn: () => true,
     ask,
-    reserve: daily.reserveSchedule,
+    reserve: async (...args) => {
+      const claim = await daily.reserveSchedule(...args)
+      await state.afterReserve?.()
+      return claim
+    },
+    ...portOverrides,
   })
   const fs = new MemoryScheduleFs()
   const store = createScheduleStore(fs)
@@ -281,4 +297,171 @@ describe('editor schedule billing over the actual authority and hard ledger', ()
       await f.host.close()
     }
   })
+
+  it('closing the VS Code modal declines the schedule without authority, reservation or HTTP', async () => {
+    const modal = vi.spyOn(window, 'showWarningMessage').mockResolvedValue(undefined)
+    const f = await fixture('always', 5, {}, undefined, {
+      ask: ({ request }) => askPaidUse(request, true),
+    })
+    try {
+      expect(f.schedule.paidConsent).toBeUndefined()
+      expect(modal).toHaveBeenCalledOnce()
+      const args = modal.mock.calls[0]
+      expect(args?.[1]).toMatchObject({ modal: true })
+      expect(args?.slice(2)).toContainEqual({ title: UI_TEXT.scheduleV2.messages.allowAlways })
+      expect(args?.slice(2)).not.toContainEqual({ title: UI_TEXT.paidAllowAlways })
+      expect(args?.[1]).toMatchObject({ detail: expect.stringContaining('$1.00') })
+      await expect(
+        f.billing.paid(f.schedule, f.session, fakeRunContext(f.schedule), f.authority),
+      ).rejects.toThrow()
+      const day = await f.daily.latestDay()
+      expect(day.spentUsd).toBe('0')
+      expect(f.api.requests).toHaveLength(0)
+    } finally {
+      await f.host.close()
+    }
+  })
+
+  it.each([undefined, '0', '0.5', '1'])(
+    'CLI flags bind the schedule cap and print its quote (%s)',
+    async (budget) => {
+      const reportConsent = vi.fn<NonNullable<ScheduleBillingPorts['reportConsent']>>(() =>
+        Promise.resolve(),
+      )
+      const caller: ScheduleCallerContext = {
+        source: 'cli',
+        isInteractive: false,
+        scheduledPrompts: true,
+        ...(budget !== undefined && { maxBudgetUsd: Usd.from(budget).toAmount() }),
+      }
+      const f = await fixture('always', 5, {}, undefined, { caller: () => caller, reportConsent })
+      try {
+        expect(f.schedule.paidConsent?.scope).toBe(budget === '1' ? 'schedule' : undefined)
+        expect(f.ask).not.toHaveBeenCalled()
+        expect(reportConsent).toHaveBeenCalledTimes(budget === '1' ? 1 : 0)
+        if (budget === '1') {
+          expect(reportConsent.mock.calls[0]?.[0]).toMatchObject({
+            detail: expect.stringContaining('$5.00'),
+          })
+        }
+      } finally {
+        await f.host.close()
+      }
+    },
+  )
+
+  it('refuses CLI consent without a printed quote or after invocation authority changes', async () => {
+    let caller: ScheduleCallerContext = {
+      source: 'cli',
+      isInteractive: false,
+      scheduledPrompts: true,
+      maxBudgetUsd: Usd.from(1).toAmount(),
+    }
+    const f = await fixture('always', 5, {}, undefined, { caller: () => caller })
+    try {
+      expect(f.schedule.paidConsent).toBeUndefined()
+      const reportConsent = vi.fn(() => {
+        caller = { ...caller, scheduledPrompts: false }
+        return Promise.resolve()
+      })
+      const billing = createScheduleBilling({
+        modelId: () => f.session.modelId,
+        host: () => Promise.resolve(f.host),
+        generation: () => 0,
+        capUsd: f.daily.capUsd,
+        isActive: () => true,
+        isOn: () => true,
+        ask: f.ask,
+        caller: () => caller,
+        reportConsent,
+        reserve: f.daily.reserveSchedule,
+      })
+      expect(await billing.consent(f.schedule)).toBeUndefined()
+      expect(reportConsent).toHaveBeenCalledOnce()
+      expect(await billing.consent(f.schedule)).toBeUndefined()
+      expect(reportConsent).toHaveBeenCalledOnce()
+      expect(f.ask).not.toHaveBeenCalled()
+      expect(f.api.requests).toHaveLength(0)
+    } finally {
+      await f.host.close()
+    }
+  })
+
+  it.each(['key', 'tariff', 'revocation'] as const)(
+    'refunds both nonsent claims when %s changes during reservation',
+    async (change) => {
+      const f = await fixture()
+      try {
+        const paid = await f.billing.paid(
+          f.schedule,
+          f.session,
+          fakeRunContext(f.schedule),
+          f.authority,
+        )
+        f.state.afterReserve = async () => {
+          if (change === 'key') f.state.accountId = 'f'.repeat(64)
+          if (change === 'tariff' && f.state.pricing.kind === 'priced')
+            f.state.pricing = { ...f.state.pricing, card: { ...f.state.pricing.card, output: 1 } }
+          if (change !== 'revocation') return
+          const current = await f.authority.read(f.schedule.workspaceKey, f.schedule.id)
+          if (current === undefined) throw new Error('missing schedule')
+          await f.authority.commit(
+            { ...current, paidConsent: undefined },
+            {
+              scheduleId: current.id,
+              atMs: Date.now(),
+              kind: 'revoked',
+            },
+          )
+        }
+        await expect(
+          paid.policy.reserve(body(f.session.modelId), 100, new AbortController().signal),
+        ).rejects.toThrow(UI_TEXT.scheduleV2.messages.changedConsent)
+        const day = await f.daily.latestDay()
+        expect(day.spentUsd).toBe('0')
+        expect(f.api.requests).toHaveLength(0)
+        expect(f.ask).toHaveBeenCalledOnce()
+      } finally {
+        await f.host.close()
+      }
+    },
+  )
+  it.each(['key', 'tariff'] as const)(
+    'requires a new question and persisted consent before a changed %s can fire',
+    async (change) => {
+      const f = await fixture()
+      try {
+        expect(await f.billing.consent(f.schedule)).toEqual(f.schedule.paidConsent)
+        expect(f.ask).toHaveBeenCalledOnce()
+        if (change === 'key') f.state.accountId = 'f'.repeat(64)
+        if (change === 'tariff' && f.state.pricing.kind === 'priced')
+          f.state.pricing = { ...f.state.pricing, card: { ...f.state.pricing.card, output: 1 } }
+        await expect(
+          f.billing.paid(f.schedule, f.session, fakeRunContext(f.schedule), f.authority),
+        ).rejects.toThrow(UI_TEXT.scheduleV2.messages.changedConsent)
+        const consent = await f.billing.consent(f.schedule)
+        expect(consent).toBeDefined()
+        expect(f.ask).toHaveBeenCalledTimes(2)
+        expect(consent?.payerKind).toBe('paidKey')
+        expect(
+          await f.authority.commit(
+            { ...f.schedule, paidConsent: consent },
+            {
+              scheduleId: f.schedule.id,
+              atMs: Date.now(),
+              kind: 'changed',
+            },
+          ),
+        ).toBe(true)
+        const current = await f.authority.read(f.schedule.workspaceKey, f.schedule.id)
+        if (current === undefined) throw new Error('missing schedule')
+        const paid = await f.billing.paid(current, f.session, fakeRunContext(current), f.authority)
+        expect(paid.policy.allows('scheduledPrompts')).toBe(true)
+        expect(f.ask).toHaveBeenCalledTimes(2)
+        expect(f.api.requests).toHaveLength(0)
+      } finally {
+        await f.host.close()
+      }
+    },
+  )
 })

@@ -757,7 +757,7 @@
       "interruptWarning": "Przerwanie może zatrzymać Twoją bieżącą turę.",
       "unattendedRefusal": "Odmowa w harmonogramie: {action} wymaga zatwierdzenia i nie należy do zezwoleń tego harmonogramu.",
       "deferredQuestions": "Pytania są odraczane od razu i pozostają otwarte na Twoją odpowiedź.",
-      "paidConsent": "Zaplanuj {prompt} z {model}: {price}. Częstotliwość: {cadence}. Limit: {cap} na dzień lokalny; wspólny dzienny budżet: {budget}. Zgoda obejmuje tylko wybrane płatne dodatki.",
+      "paidConsent": "Zaplanuj {prompt} z {model}: {price}. Częstotliwość: {cadence}. Limit: {cap} na dzień lokalny; wspólny dzienny budżet: {budget}. Zgoda obejmuje tylko wybrane płatne dodatki. Opłaty są naliczane na klucz Model API; subskrypcja ich nie pokrywa.",
       "changedConsent": "Model, klucz lub taryfa się zmieniły. Odnów zgodę przed kolejnym płatnym uruchomieniem.",
       "setBy": "Ustawione przez {agent} w {session}",
       "migrationConsent": "Przeniesiony harmonogram wstrzymano. Przed wznowieniem sprawdź tryb, zezwolenia i zgodę na opłaty.",
@@ -796,6 +796,7 @@
   },
   "scheduledMediaSupport": "Zaplanowane tury obsługują tekst i obrazy na wejściu; wideo i audio na wejściu nie są obsługiwane w tej wersji.",
   "referenceSchedules": "Edytor, lista i oś czasu harmonogramów v2 zarządzają trwałymi rekordami. Automatyczne wysyłanie poleceń jest wyłączone. Zadania Model API /loop uruchamiają się po wybraniu Uruchom teraz.",
+  "referenceSchedulePaidConsent": "Zgoda na harmonogram v2 jest powiązana z płatnym kluczem, wybranym modelem, zweryfikowanymi stawkami i dziennymi limitami. Zezwól raz obejmuje jedno uruchomienie; Zezwól zawsze obejmuje ten harmonogram. Zmiana modelu, klucza lub stawki wymaga ponownej zgody.",
   "media": {
     "recordingScreenPermissionRequired": "Nie udzielono uprawnienia do nagrywania ekranu.",
     "recordingMicrophonePermissionDenied": "Odmówiono uprawnienia do mikrofonu.",

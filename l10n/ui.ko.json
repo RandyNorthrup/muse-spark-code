@@ -754,7 +754,7 @@
       "interruptWarning": "중단하면 사용자가 실행 중인 턴도 멈출 수 있습니다.",
       "unattendedRefusal": "일정에서 거부됨: {action}은 승인이 필요하며 이 일정의 허용 범위에 없습니다.",
       "deferredQuestions": "질문은 즉시 보류되며 나중에 답할 수 있도록 열린 상태로 유지됩니다.",
-      "paidConsent": "{model}에서 {prompt} 예약: {price}. 주기: {cadence}. 현지 날짜별 한도: {cap}, 공유 일일 예산: {budget}. 동의는 선택한 유료 추가 기능에만 적용됩니다.",
+      "paidConsent": "{model}에서 {prompt} 예약: {price}. 주기: {cadence}. 현지 날짜별 한도: {cap}, 공유 일일 예산: {budget}. 동의는 선택한 유료 추가 기능에만 적용됩니다. 요금은 Model API 키로 청구되며 구독으로 결제되지 않습니다.",
       "changedConsent": "모델, 키 또는 가격 등급이 변경되었습니다. 다음 유료 실행 전에 동의를 갱신하세요.",
       "setBy": "{session}에서 {agent}이(가) 설정",
       "migrationConsent": "이전된 일정이 일시 중지되었습니다. 재개 전에 모드, 허용 범위와 유료 동의를 확인하세요.",
@@ -787,6 +787,7 @@
   },
   "scheduledMediaSupport": "예약된 턴은 텍스트와 이미지 입력을 지원합니다. 동영상과 오디오 입력은 이 버전에서 지원되지 않습니다.",
   "referenceSchedules": "v2 일정 편집기, 목록 및 타임라인은 영구 기록을 관리합니다. 프롬프트 자동 전송은 비활성화되어 있습니다. Model API /loop 작업은 지금 실행을 선택하면 실행됩니다.",
+  "referenceSchedulePaidConsent": "v2 예약 동의는 유료 키, 선택한 모델, 검증된 요금 및 일일 한도에 연결됩니다. 한 번 허용은 한 번의 실행에, 항상 허용은 이 예약에 적용됩니다. 모델, 키 또는 요금이 변경되면 다시 동의해야 합니다.",
   "media": {
     "recordingScreenPermissionRequired": "화면 녹화 권한이 부여되지 않았습니다.",
     "recordingMicrophonePermissionDenied": "마이크 권한이 거부되었습니다.",

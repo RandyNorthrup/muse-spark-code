@@ -1524,6 +1524,7 @@
             { "when": "scheduleDeliveryCertified=false", "text": { "ui": "referenceSchedules" } }
           ]
         },
+        { "ui": "referenceSchedulePaidConsent" },
         { "ui": "scheduledMediaSupport" }
       ],
       "facts": {

@@ -542,6 +542,11 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
   )
   const paid = new AcpPaidUse({
     flagged: deps.options.paidFeatures,
+    scheduleAuthorization: {
+      scheduledPrompts:
+        deps.options.backend === 'modelApi' && deps.options.scheduledPrompts === true,
+      ...(deps.options.maxBudgetUsd !== undefined && { maxBudgetUsd: deps.options.maxBudgetUsd }),
+    },
     canRemember: () => deps.options.trustWorkspace,
     grants: paidGrantFile({
       file: paidGrantsFile({ platform: deps.platform, env: deps.env, homeDir: deps.homeDir }),

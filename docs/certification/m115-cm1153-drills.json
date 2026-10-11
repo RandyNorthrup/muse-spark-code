@@ -1,0 +1,447 @@
+[
+  {
+    "id": "payer",
+    "file": "src/core/paid/paidConsent.ts",
+    "command": [
+      "npx.cmd",
+      "vitest",
+      "run",
+      "test/unit/schedulePaid.test.ts",
+      "test/unit/schedulePaidBinding.test.ts",
+      "--maxWorkers=3",
+      "--no-color"
+    ],
+    "exit": 1,
+    "failedTests": [
+      "test/unit/schedulePaid.test.ts > schedule-scoped paid consent and reservations > requires renewal for a changed model, key, tariff or shared budget",
+      "test/unit/schedulePaid.test.ts > schedule-scoped paid consent and reservations > keeps legacy consent readable but requires explicit paid-key consent"
+    ],
+    "sha256Before": "d217e8e9e0a88d1602573b21d75a67f014ff21fb4adc49e2ad87d49714fce573",
+    "sha256Restored": "d217e8e9e0a88d1602573b21d75a67f014ff21fb4adc49e2ad87d49714fce573"
+  },
+  {
+    "id": "once-renewal",
+    "file": "src/core/paid/paidConsent.ts",
+    "command": [
+      "npx.cmd",
+      "vitest",
+      "run",
+      "test/unit/schedulePaid.test.ts",
+      "--maxWorkers=3",
+      "--no-color"
+    ],
+    "exit": 1,
+    "failedTests": [
+      "test/unit/schedulePaid.test.ts > schedule-scoped paid consent and reservations > asks again after Allow once has been bound to a previous fire, and stores the scoped answer"
+    ],
+    "sha256Before": "d217e8e9e0a88d1602573b21d75a67f014ff21fb4adc49e2ad87d49714fce573",
+    "sha256Restored": "d217e8e9e0a88d1602573b21d75a67f014ff21fb4adc49e2ad87d49714fce573"
+  },
+  {
+    "id": "stored-scope",
+    "file": "src/core/paid/paidConsent.ts",
+    "command": [
+      "npx.cmd",
+      "vitest",
+      "run",
+      "test/unit/schedulePaid.test.ts",
+      "test/unit/schedulePaidBinding.test.ts",
+      "--maxWorkers=3",
+      "--no-color"
+    ],
+    "exit": 1,
+    "failedTests": [
+      "test/unit/schedulePaid.test.ts > schedule-scoped paid consent and reservations > asks again after Allow once has been bound to a previous fire, and stores the scoped answer",
+      "test/unit/schedulePaidBinding.test.ts > editor schedule billing over the actual authority and hard ledger > retains the standing grant while rejecting account generation and tariff drift before reservation",
+      "test/unit/schedulePaidBinding.test.ts > editor schedule billing over the actual authority and hard ledger > CLI flags bind the schedule cap and print its quote (1)"
+    ],
+    "sha256Before": "d217e8e9e0a88d1602573b21d75a67f014ff21fb4adc49e2ad87d49714fce573",
+    "sha256Restored": "d217e8e9e0a88d1602573b21d75a67f014ff21fb4adc49e2ad87d49714fce573"
+  },
+  {
+    "id": "both-caps",
+    "file": "src/core/paid/scheduleBudget.ts",
+    "command": [
+      "npx.cmd",
+      "vitest",
+      "run",
+      "test/unit/schedulePaidBinding.test.ts",
+      "test/unit/runtimeAccounting.test.ts",
+      "--maxWorkers=3",
+      "--no-color"
+    ],
+    "exit": 1,
+    "failedTests": [
+      "test/unit/runtimeAccounting.test.ts > standalone daily admission > refuses scheduled HTTP past the schedule cap and refunds nonsends exactly",
+      "test/unit/runtimeAccounting.test.ts > standalone daily admission > refuses scheduled HTTP past the shared cap and refunds nonsends exactly",
+      "test/unit/runtimeAccounting.test.ts > standalone daily admission > serializes two processes racing the last schedule dollar",
+      "test/unit/runtimeAccounting.test.ts > standalone daily admission > serializes two processes racing the last shared dollar",
+      "test/unit/schedulePaidBinding.test.ts > editor schedule billing over the actual authority and hard ledger > reserves the selected tariff cold-cache and image charges before dispatch",
+      "test/unit/schedulePaidBinding.test.ts > editor schedule billing over the actual authority and hard ledger > refunds both nonsent claims when key changes during reservation",
+      "test/unit/schedulePaidBinding.test.ts > editor schedule billing over the actual authority and hard ledger > refunds both nonsent claims when tariff changes during reservation",
+      "test/unit/schedulePaidBinding.test.ts > editor schedule billing over the actual authority and hard ledger > refunds both nonsent claims when revocation changes during reservation"
+    ],
+    "sha256Before": "0c18ee6c54622d8ef528e6e538e6c1475b52a62151b73967fc2b5d978c274d32",
+    "sha256Restored": "0c18ee6c54622d8ef528e6e538e6c1475b52a62151b73967fc2b5d978c274d32"
+  },
+  {
+    "id": "refunds",
+    "file": "src/core/paid/scheduleBudget.ts",
+    "command": [
+      "npx.cmd",
+      "vitest",
+      "run",
+      "test/unit/runtimeAccounting.test.ts",
+      "--maxWorkers=3",
+      "--no-color"
+    ],
+    "exit": 1,
+    "failedTests": [
+      "test/unit/runtimeAccounting.test.ts > standalone daily admission > refuses scheduled HTTP past the schedule cap and refunds nonsends exactly",
+      "test/unit/runtimeAccounting.test.ts > standalone daily admission > serializes two processes racing the last shared dollar"
+    ],
+    "sha256Before": "0c18ee6c54622d8ef528e6e538e6c1475b52a62151b73967fc2b5d978c274d32",
+    "sha256Restored": "0c18ee6c54622d8ef528e6e538e6c1475b52a62151b73967fc2b5d978c274d32"
+  },
+  {
+    "id": "post-reservation",
+    "file": "src/host/schedules/paidBinding.ts",
+    "command": [
+      "npx.cmd",
+      "vitest",
+      "run",
+      "test/unit/schedulePaidBinding.test.ts",
+      "--maxWorkers=3",
+      "--no-color"
+    ],
+    "exit": 1,
+    "failedTests": [
+      "test/unit/schedulePaidBinding.test.ts > editor schedule billing over the actual authority and hard ledger > refunds both nonsent claims when key changes during reservation",
+      "test/unit/schedulePaidBinding.test.ts > editor schedule billing over the actual authority and hard ledger > refunds both nonsent claims when tariff changes during reservation",
+      "test/unit/schedulePaidBinding.test.ts > editor schedule billing over the actual authority and hard ledger > refunds both nonsent claims when revocation changes during reservation"
+    ],
+    "sha256Before": "265a21198e28a114ed17ec68f55098058dfbfcf8dabd1d17536aee24d15c6f55",
+    "sha256Restored": "265a21198e28a114ed17ec68f55098058dfbfcf8dabd1d17536aee24d15c6f55"
+  },
+  {
+    "id": "identity-renewal",
+    "file": "src/core/paid/paidConsent.ts",
+    "command": [
+      "npx.cmd",
+      "vitest",
+      "run",
+      "test/unit/schedulePaid.test.ts",
+      "test/unit/schedulePaidBinding.test.ts",
+      "--maxWorkers=3",
+      "--no-color"
+    ],
+    "exit": 1,
+    "failedTests": [
+      "test/unit/schedulePaid.test.ts > schedule-scoped paid consent and reservations > requires renewal for a changed model, key, tariff or shared budget",
+      "test/unit/schedulePaidBinding.test.ts > editor schedule billing over the actual authority and hard ledger > requires a new question and persisted consent before a changed key can fire",
+      "test/unit/schedulePaidBinding.test.ts > editor schedule billing over the actual authority and hard ledger > requires a new question and persisted consent before a changed tariff can fire"
+    ],
+    "sha256Before": "d217e8e9e0a88d1602573b21d75a67f014ff21fb4adc49e2ad87d49714fce573",
+    "sha256Restored": "d217e8e9e0a88d1602573b21d75a67f014ff21fb4adc49e2ad87d49714fce573"
+  },
+  {
+    "id": "cli-budget",
+    "file": "src/runtime/schedules/consent.ts",
+    "command": [
+      "npx.cmd",
+      "vitest",
+      "run",
+      "test/unit/schedulePaidBinding.test.ts",
+      "--maxWorkers=3",
+      "--no-color"
+    ],
+    "exit": 1,
+    "failedTests": [
+      "test/unit/schedulePaidBinding.test.ts > editor schedule billing over the actual authority and hard ledger > CLI flags bind the schedule cap and print its quote (undefined)",
+      "test/unit/schedulePaidBinding.test.ts > editor schedule billing over the actual authority and hard ledger > CLI flags bind the schedule cap and print its quote (0)",
+      "test/unit/schedulePaidBinding.test.ts > editor schedule billing over the actual authority and hard ledger > CLI flags bind the schedule cap and print its quote (0.5)",
+      "test/unit/schedulePaidBinding.test.ts > editor schedule billing over the actual authority and hard ledger > refuses CLI consent without a printed quote or after invocation authority changes"
+    ],
+    "sha256Before": "4f442b5b03fb70f408ea147ee93a4fb54fd40a2da85d8dba1656693da6a07477",
+    "sha256Restored": "4f442b5b03fb70f408ea147ee93a4fb54fd40a2da85d8dba1656693da6a07477"
+  },
+  {
+    "id": "cli-print",
+    "file": "src/host/schedules/paidBinding.ts",
+    "command": [
+      "npx.cmd",
+      "vitest",
+      "run",
+      "test/unit/schedulePaidBinding.test.ts",
+      "--maxWorkers=3",
+      "--no-color"
+    ],
+    "exit": 1,
+    "failedTests": [
+      "test/unit/schedulePaidBinding.test.ts > editor schedule billing over the actual authority and hard ledger > refuses CLI consent without a printed quote or after invocation authority changes"
+    ],
+    "sha256Before": "265a21198e28a114ed17ec68f55098058dfbfcf8dabd1d17536aee24d15c6f55",
+    "sha256Restored": "265a21198e28a114ed17ec68f55098058dfbfcf8dabd1d17536aee24d15c6f55"
+  },
+  {
+    "id": "cli-liveness",
+    "file": "src/host/schedules/paidBinding.ts",
+    "command": [
+      "npx.cmd",
+      "vitest",
+      "run",
+      "test/unit/schedulePaidBinding.test.ts",
+      "--maxWorkers=3",
+      "--no-color"
+    ],
+    "exit": 1,
+    "failedTests": [
+      "test/unit/schedulePaidBinding.test.ts > editor schedule billing over the actual authority and hard ledger > refuses CLI consent without a printed quote or after invocation authority changes"
+    ],
+    "sha256Before": "265a21198e28a114ed17ec68f55098058dfbfcf8dabd1d17536aee24d15c6f55",
+    "sha256Restored": "265a21198e28a114ed17ec68f55098058dfbfcf8dabd1d17536aee24d15c6f55"
+  },
+  {
+    "id": "acp-budget",
+    "file": "src/acp/paid.ts",
+    "command": [
+      "npx.cmd",
+      "vitest",
+      "run",
+      "test/unit/acpPaid.test.ts",
+      "--maxWorkers=3",
+      "--no-color"
+    ],
+    "exit": 1,
+    "failedTests": [
+      "test/unit/acpPaid.test.ts > D95 schedule consent in ACP > requires the launch budget before asking the editor (undefined)",
+      "test/unit/acpPaid.test.ts > D95 schedule consent in ACP > requires the launch budget before asking the editor (0)",
+      "test/unit/acpPaid.test.ts > D95 schedule consent in ACP > requires the launch budget before asking the editor (0.5)"
+    ],
+    "sha256Before": "968cb72abc352072222ea39867fd827c830ac5d81aa5b604a43cfea6bfdde691",
+    "sha256Restored": "968cb72abc352072222ea39867fd827c830ac5d81aa5b604a43cfea6bfdde691"
+  },
+  {
+    "id": "acp-trust",
+    "file": "src/acp/paid.ts",
+    "command": [
+      "npx.cmd",
+      "vitest",
+      "run",
+      "test/unit/acpPaid.test.ts",
+      "--maxWorkers=3",
+      "--no-color"
+    ],
+    "exit": 1,
+    "failedTests": [
+      "test/unit/acpPaid.test.ts > D95 schedule consent in ACP > denies cancelled/missing editor requests, an unflagged schedule and a late trust change"
+    ],
+    "sha256Before": "968cb72abc352072222ea39867fd827c830ac5d81aa5b604a43cfea6bfdde691",
+    "sha256Restored": "968cb72abc352072222ea39867fd827c830ac5d81aa5b604a43cfea6bfdde691"
+  },
+  {
+    "id": "acp-options",
+    "file": "src/acp/paid.ts",
+    "command": [
+      "npx.cmd",
+      "vitest",
+      "run",
+      "test/unit/acpAgent.test.ts",
+      "--maxWorkers=3",
+      "--no-color"
+    ],
+    "exit": 1,
+    "failedTests": [
+      "test/unit/acpAgent.test.ts > paid features in the agent (M63c, M58) > asks the editor for schedule-scoped consent and keeps no workspace extra grant (paid-allow-once)",
+      "test/unit/acpAgent.test.ts > paid features in the agent (M63c, M58) > asks the editor for schedule-scoped consent and keeps no workspace extra grant (paid-allow-always)",
+      "test/unit/acpAgent.test.ts > paid features in the agent (M63c, M58) > asks the editor for schedule-scoped consent and keeps no workspace extra grant (paid-deny)"
+    ],
+    "sha256Before": "968cb72abc352072222ea39867fd827c830ac5d81aa5b604a43cfea6bfdde691",
+    "sha256Restored": "968cb72abc352072222ea39867fd827c830ac5d81aa5b604a43cfea6bfdde691"
+  },
+  {
+    "id": "workspace-grants",
+    "file": "src/core/paid/paidConsent.ts",
+    "command": [
+      "npx.cmd",
+      "vitest",
+      "run",
+      "test/unit/paidConsent.test.ts",
+      "--maxWorkers=3",
+      "--no-color"
+    ],
+    "exit": 1,
+    "failedTests": [
+      "test/unit/paidConsent.test.ts > PaidUseConsent (M58) > schedule questions bypass workspace grants and never persist a feature grant (once)",
+      "test/unit/paidConsent.test.ts > PaidUseConsent (M58) > schedule questions bypass workspace grants and never persist a feature grant (always)",
+      "test/unit/paidConsent.test.ts > PaidUseConsent (M58) > schedule questions bypass workspace grants and never persist a feature grant (deny)"
+    ],
+    "sha256Before": "d217e8e9e0a88d1602573b21d75a67f014ff21fb4adc49e2ad87d49714fce573",
+    "sha256Restored": "d217e8e9e0a88d1602573b21d75a67f014ff21fb4adc49e2ad87d49714fce573"
+  },
+  {
+    "id": "modal-close",
+    "file": "src/host/paid/paidHost.ts",
+    "command": [
+      "npx.cmd",
+      "vitest",
+      "run",
+      "test/unit/schedulePaidBinding.test.ts",
+      "--maxWorkers=3",
+      "--no-color"
+    ],
+    "exit": 1,
+    "failedTests": [
+      "test/unit/schedulePaidBinding.test.ts > editor schedule billing over the actual authority and hard ledger > closing the VS Code modal declines the schedule without authority, reservation or HTTP"
+    ],
+    "sha256Before": "b00fa9fb17f6b5a9e50a0771401e566a5a584adbd0aa73a5b70d70ff3a1530ac",
+    "sha256Restored": "b00fa9fb17f6b5a9e50a0771401e566a5a584adbd0aa73a5b70d70ff3a1530ac"
+  },
+  {
+    "id": "durable-stop",
+    "file": "src/runtime/runtimeAccountingEntry.ts",
+    "command": [
+      "npx.cmd",
+      "vitest",
+      "run",
+      "test/unit/runtimeAccounting.test.ts",
+      "--maxWorkers=3",
+      "--no-color"
+    ],
+    "exit": 1,
+    "failedTests": [
+      "test/unit/runtimeAccounting.test.ts > standalone daily admission > honours durable D78 Stop even after the local-day limit is raised"
+    ],
+    "sha256Before": "5bc9ea01ad5426ed9c5cb944487ae4a55a2d68e45771f15db5b140be41a24f4d",
+    "sha256Restored": "5bc9ea01ad5426ed9c5cb944487ae4a55a2d68e45771f15db5b140be41a24f4d"
+  },
+  {
+    "id": "corrupt-override",
+    "file": "src/runtime/runtimeAccountingEntry.ts",
+    "command": [
+      "npx.cmd",
+      "vitest",
+      "run",
+      "test/unit/runtimeAccounting.test.ts",
+      "--maxWorkers=3",
+      "--no-color"
+    ],
+    "exit": 1,
+    "failedTests": [
+      "test/unit/runtimeAccounting.test.ts > standalone daily admission > refuses a corrupt local-day override before reservation",
+      "test/unit/runtimeAccounting.test.ts > standalone daily admission > serializes two processes racing the last schedule dollar"
+    ],
+    "sha256Before": "5bc9ea01ad5426ed9c5cb944487ae4a55a2d68e45771f15db5b140be41a24f4d",
+    "sha256Restored": "5bc9ea01ad5426ed9c5cb944487ae4a55a2d68e45771f15db5b140be41a24f4d"
+  },
+  {
+    "id": "acp-flag",
+    "file": "src/acp/paid.ts",
+    "command": [
+      "npx.cmd",
+      "vitest",
+      "run",
+      "test/unit/acpPaid.test.ts",
+      "--maxWorkers=3",
+      "--no-color"
+    ],
+    "exit": 1,
+    "failedTests": [
+      "test/unit/acpPaid.test.ts > D95 schedule consent in ACP > denies cancelled/missing editor requests, an unflagged schedule and a late trust change"
+    ],
+    "sha256Before": "968cb72abc352072222ea39867fd827c830ac5d81aa5b604a43cfea6bfdde691",
+    "sha256Restored": "968cb72abc352072222ea39867fd827c830ac5d81aa5b604a43cfea6bfdde691"
+  },
+  {
+    "id": "acp-headless",
+    "file": "src/acp/paid.ts",
+    "command": [
+      "npx.cmd",
+      "vitest",
+      "run",
+      "test/unit/acpPaid.test.ts",
+      "--maxWorkers=3",
+      "--no-color"
+    ],
+    "exit": 1,
+    "failedTests": [
+      "test/unit/acpPaid.test.ts > D95 schedule consent in ACP > denies cancelled/missing editor requests, an unflagged schedule and a late trust change"
+    ],
+    "sha256Before": "968cb72abc352072222ea39867fd827c830ac5d81aa5b604a43cfea6bfdde691",
+    "sha256Restored": "968cb72abc352072222ea39867fd827c830ac5d81aa5b604a43cfea6bfdde691"
+  },
+  {
+    "id": "quote-details",
+    "file": "src/core/paid/paidConsent.ts",
+    "command": [
+      "npx.cmd",
+      "vitest",
+      "run",
+      "test/unit/acpAgent.test.ts",
+      "test/unit/schedulePaidBinding.test.ts",
+      "--maxWorkers=3",
+      "--no-color"
+    ],
+    "exit": 1,
+    "failedTests": [
+      "test/unit/acpAgent.test.ts > paid features in the agent (M63c, M58) > asks the editor for schedule-scoped consent and keeps no workspace extra grant (paid-allow-once)",
+      "test/unit/acpAgent.test.ts > paid features in the agent (M63c, M58) > asks the editor for schedule-scoped consent and keeps no workspace extra grant (paid-allow-always)",
+      "test/unit/acpAgent.test.ts > paid features in the agent (M63c, M58) > asks the editor for schedule-scoped consent and keeps no workspace extra grant (paid-deny)",
+      "test/unit/schedulePaidBinding.test.ts > editor schedule billing over the actual authority and hard ledger > names the cadence in localized units rather than exposing trigger JSON in paid consent",
+      "test/unit/schedulePaidBinding.test.ts > editor schedule billing over the actual authority and hard ledger > closing the VS Code modal declines the schedule without authority, reservation or HTTP",
+      "test/unit/schedulePaidBinding.test.ts > editor schedule billing over the actual authority and hard ledger > CLI flags bind the schedule cap and print its quote (1)"
+    ],
+    "sha256Before": "d217e8e9e0a88d1602573b21d75a67f014ff21fb4adc49e2ad87d49714fce573",
+    "sha256Restored": "d217e8e9e0a88d1602573b21d75a67f014ff21fb4adc49e2ad87d49714fce573"
+  },
+  {
+    "id": "help-details",
+    "mutation": "Remove the schedule paid detail and regenerate reference",
+    "command": [
+      "npx.cmd",
+      "vitest",
+      "run",
+      "test/unit/featureCatalogDetails.test.ts",
+      "test/unit/scheduleCommands.test.ts",
+      "--maxWorkers=3",
+      "--no-color"
+    ],
+    "exit": 1,
+    "failedTests": [
+      "test/unit/featureCatalogDetails.test.ts > feature catalogue details merge > keeps the schedules feature-level details beside reference details",
+      "test/unit/featureCatalogDetails.test.ts > feature catalogue details merge > ships the schedules limitation in the generated reference model"
+    ],
+    "restoredFiles": [
+      {
+        "file": "src/shared/featureCatalog.ts",
+        "sha256Before": "8efdde0ea5f9ad89ee692d64a9d452b340a0771dcadca935cbcbbb1cb75d1dc7",
+        "sha256Restored": "8efdde0ea5f9ad89ee692d64a9d452b340a0771dcadca935cbcbbb1cb75d1dc7"
+      },
+      {
+        "file": "docs/reference.md",
+        "sha256Before": "3fbfd692b01d08debe8dff5e4ee9a951097f9ead5aaa294191f7eb45b8a09b7f",
+        "sha256Restored": "3fbfd692b01d08debe8dff5e4ee9a951097f9ead5aaa294191f7eb45b8a09b7f"
+      },
+      {
+        "file": "src/runtime/reference.node.generated.ts",
+        "sha256Before": "9f92f6f6c9691ec3d638615f9cdf6c99294fd0fbd234f9483515aaf0cc9fad56",
+        "sha256Restored": "9f92f6f6c9691ec3d638615f9cdf6c99294fd0fbd234f9483515aaf0cc9fad56"
+      },
+      {
+        "file": "src/shared/reference/reference.generated.json",
+        "sha256Before": "1adf5f32d4278ec5ae3a66ffd79b39dedad7fb6cc56fda1ada378ad6dd4ea6dc",
+        "sha256Restored": "1adf5f32d4278ec5ae3a66ffd79b39dedad7fb6cc56fda1ada378ad6dd4ea6dc"
+      },
+      {
+        "file": "src/shared/reference/reference.generated.ts",
+        "sha256Before": "7364acbf03ae8fa99bd26517f04dfe1cb9fce0d6e61ad88ac36c3fd367ed63a8",
+        "sha256Restored": "7364acbf03ae8fa99bd26517f04dfe1cb9fce0d6e61ad88ac36c3fd367ed63a8"
+      },
+      {
+        "file": "src/shared/reference/referenceSchema.generated.ts",
+        "sha256Before": "b51b27632a9d3a889e422514ead3f1b74a33f0456a404906547db3c758df9178",
+        "sha256Restored": "b51b27632a9d3a889e422514ead3f1b74a33f0456a404906547db3c758df9178"
+      }
+    ]
+  }
+]

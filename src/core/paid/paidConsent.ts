@@ -71,6 +71,7 @@ export interface SchedulePaidIdentity {
   readonly providerId?: string | undefined
   readonly origin?: string | undefined
   readonly priceTier: string
+  readonly payerKind: 'paidKey' | 'plan'
   readonly price: string
   readonly sharedDailyBudgetUsd: UsdAmount
 }
@@ -92,6 +93,8 @@ export function isScheduleConsentCurrent(
     consent.modelId === identity.modelId &&
     consent.accountId === identity.accountId &&
     consent.priceTier === identity.priceTier &&
+    identity.payerKind === 'paidKey' &&
+    consent.payerKind === identity.payerKind &&
     consent.sharedDailyBudgetUsd === identity.sharedDailyBudgetUsd &&
     Usd.from(consent.dailyCapUsd).compare(Usd.from(schedule.paidCapUsd)) <= 0 &&
     Usd.from(consent.dailyCapUsd).compare(Usd.from(schedule.grant.paidCapUsd)) <= 0
@@ -107,15 +110,20 @@ export async function askSchedulePaidConsent(deps: {
   readonly now: () => number
   readonly isOn: () => boolean
   readonly isCurrent: () => boolean
-  readonly ask: (question: { title: string; detail: string }) => Promise<PaidUseAnswer>
-  /** S/W binds revisioned CAS; false refuses rather than restoring stale consent. */
-  readonly remember: (consent: ScheduleConsent) => Promise<boolean>
+  readonly ask: (question: {
+    title: string
+    detail: string
+    request: Extract<PaidUseRequest, { feature: 'scheduledPrompts' }>
+  }) => Promise<PaidUseAnswer>
+  /** Optional standalone CAS; control callers publish the returned consent with the draft. */
+  readonly remember?: (consent: ScheduleConsent) => Promise<boolean>
 }): Promise<ScheduleConsent | undefined> {
   const { schedule, identity } = deps
   if (
     schedule.action.kind !== 'prompt' ||
     !deps.isOn() ||
     !deps.isCurrent() ||
+    identity.payerKind !== 'paidKey' ||
     identity.price.trim() === '' ||
     !nonnegativeUsdSchema.safeParse(identity.sharedDailyBudgetUsd).success ||
     minUsd(schedule.paidCapUsd, schedule.grant.paidCapUsd, identity.sharedDailyBudgetUsd) === '0'
@@ -123,6 +131,7 @@ export async function askSchedulePaidConsent(deps: {
     return undefined
   if (
     isScheduleConsentCurrent(schedule, identity) &&
+    (schedule.paidConsent?.scope !== 'once' || schedule.paidConsent.runId === undefined) &&
     deps.extras.length === schedule.paidConsent?.extras.length &&
     deps.extras.every((feature) => schedule.paidConsent?.extras.includes(feature) === true)
   )
@@ -131,31 +140,35 @@ export async function askSchedulePaidConsent(deps: {
     modelId: identity.modelId,
     accountId: identity.accountId,
     priceTier: identity.priceTier,
+    payerKind: identity.payerKind,
     sharedDailyBudgetUsd: identity.sharedDailyBudgetUsd,
     grantedAtMs: deps.now(),
     dailyCapUsd: minUsd(schedule.paidCapUsd, schedule.grant.paidCapUsd),
     extras: deps.extras,
   })
-  const answer = await deps.ask({
-    title: fill(UI_TEXT.paidConfirmTitle, { feature: UI_TEXT.paidScheduledName }),
-    detail:
-      fill(UI_TEXT.scheduleV2.messages.paidConsent, {
-        prompt: schedule.action.prompt,
-        model: identity.modelId,
-        price: identity.price,
-        cadence: deps.cadence,
-        cap: formatUsd(consent.dailyCapUsd, 2),
-        budget: formatUsd(identity.sharedDailyBudgetUsd, 2),
-      }) +
-      (deps.extras.length === 0
-        ? ''
-        : `\n${deps.extras.map((feature) => `${paidFeatureName(feature)}: ${paidFeaturePrice(feature)}`).join(', ')}`),
-  })
+  const request: Extract<PaidUseRequest, { feature: 'scheduledPrompts' }> = {
+    feature: 'scheduledPrompts',
+    prompt: schedule.action.prompt,
+    modelId: identity.modelId,
+    schedule: {
+      id: schedule.id,
+      price: identity.price,
+      cadence: deps.cadence,
+      dailyCapUsd: consent.dailyCapUsd,
+      sharedDailyBudgetUsd: identity.sharedDailyBudgetUsd,
+      extras: deps.extras,
+      payerKind: identity.payerKind,
+    },
+  }
+  const answer = await deps.ask({ ...(await paidUseQuestion(request)), request })
   if (answer === 'deny' || !deps.isOn() || !deps.isCurrent()) return undefined
-  if (answer === 'always' && !(await deps.remember(consent))) return undefined
-  return deps.isOn() && deps.isCurrent()
-    ? { ...consent, scope: answer === 'once' ? 'once' : 'schedule' }
-    : undefined
+  const approved = schedulePaidConsentSchema.parse({
+    ...consent,
+    scope: answer === 'once' ? 'once' : 'schedule',
+  })
+  if (answer === 'always' && deps.remember !== undefined && !(await deps.remember(approved)))
+    return undefined
+  return deps.isOn() && deps.isCurrent() ? approved : undefined
 }
 
 /** The run's paid port: live identity/gates plus a hard, noninteractive reservation. */
@@ -317,6 +330,24 @@ export async function paidUseQuestion(request: PaidUseRequest): Promise<{
       }
     }
     case 'scheduledPrompts': {
+      if (request.schedule !== undefined) {
+        const scope = request.schedule
+        return {
+          title: fill(UI_TEXT.paidConfirmTitle, { feature: UI_TEXT.paidScheduledName }),
+          detail:
+            fill(UI_TEXT.scheduleV2.messages.paidConsent, {
+              prompt: request.prompt,
+              model: request.modelId,
+              price: scope.price,
+              cadence: scope.cadence,
+              cap: formatUsd(scope.dailyCapUsd, 2),
+              budget: formatUsd(scope.sharedDailyBudgetUsd, 2),
+            }) +
+            (scope.extras.length === 0
+              ? ''
+              : `\n${scope.extras.map((feature) => `${paidFeatureName(feature)}: ${paidFeaturePrice(feature)}`).join(', ')}`),
+        }
+      }
       return {
         title: fill(UI_TEXT.scheduleRunConfirmTitle, { model: request.modelId }),
         detail: [
@@ -773,6 +804,17 @@ export class PaidUseConsent {
     const { feature } = request
     if (!this.isEnabled(feature)) {
       return false
+    }
+    if (request.feature === 'scheduledPrompts' && request.schedule !== undefined) {
+      const generation = this.revocation
+      const canRemember = this.deps.canRemember()
+      const answer = await ask(request, canRemember)
+      return (
+        answer !== 'deny' &&
+        this.isEnabled(feature) &&
+        generation === this.revocation &&
+        (answer !== 'always' || (canRemember && this.deps.canRemember()))
+      )
     }
     if (request.feature === 'teamWorkers') {
       const runtime = await paidTeamRuntime()

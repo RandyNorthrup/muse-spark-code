@@ -754,7 +754,7 @@
       "interruptWarning": "中断すると、あなた自身の実行中のターンが停止する場合があります。",
       "unattendedRefusal": "スケジュールで拒否：{action}には承認が必要で、このスケジュールの許可に含まれていません。",
       "deferredQuestions": "質問はすぐに保留され、後で回答できるよう開いたままになります。",
-      "paidConsent": "{model}で{prompt}を予約：{price}。頻度：{cadence}。現地日ごとの上限：{cap}、共有の1日予算：{budget}。同意は選択した有料オプションのみ対象です。",
+      "paidConsent": "{model}で{prompt}を予約：{price}。頻度：{cadence}。現地日ごとの上限：{cap}、共有の1日予算：{budget}。同意は選択した有料オプションのみ対象です。料金はModel APIキーに請求され、サブスクリプションでは支払われません。",
       "changedConsent": "モデル、キー、または料金区分が変更されました。次の有料実行前に同意を更新してください。",
       "setBy": "{session}で{agent}が設定",
       "migrationConsent": "移行したスケジュールは一時停止中です。再開前にモード、許可、有料利用への同意を確認してください。",
@@ -787,6 +787,7 @@
   },
   "scheduledMediaSupport": "スケジュールされたターンはテキストと画像の入力に対応しています。動画と音声の入力はこのバージョンでは対応していません。",
   "referenceSchedules": "v2 のスケジュールエディター、一覧、タイムラインは永続レコードを管理します。プロンプトの自動送信は無効です。Model API の /loop ジョブは「今すぐ実行」を選択すると実行されます。",
+  "referenceSchedulePaidConsent": "v2の予約の同意は、課金用キー、選択したモデル、確認済み料金、1日の上限に紐づきます。「1回だけ許可」は1回の実行に、「常に許可」はこの予約に適用されます。モデル、キー、料金が変わると再同意が必要です。",
   "media": {
     "recordingScreenPermissionRequired": "画面録画のアクセス権は付与されていません。",
     "recordingMicrophonePermissionDenied": "マイクのアクセス権が拒否されました。",

@@ -2,6 +2,17 @@ import type * as z from 'zod/mini'
 import type { ScheduleFsPort } from '../../core/schedules/journal'
 import { scheduleBackgroundConsentSchema } from '../../shared/scheduleV2'
 import type { BackgroundConsentStore } from './background'
+import { isCliSchedulePaidConsent, type ScheduleCallerContext } from './args'
+import type { ScheduleV2 } from '../../shared/scheduleV2'
+import type { PaidUseAnswer } from '../../core/paid/paidConsent'
+
+/** No terminal confirmation can be inferred from a draft, TTY or a workspace grant. */
+export function cliSchedulePaidAnswer(
+  schedule: ScheduleV2,
+  caller: ScheduleCallerContext,
+): PaidUseAnswer {
+  return isCliSchedulePaidConsent(caller, schedule) ? 'always' : 'deny'
+}
 
 /** The consent file every native host reads; the fs lease serializes writers. */
 export function createBackgroundConsentStore(

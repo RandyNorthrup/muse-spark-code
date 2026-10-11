@@ -17,7 +17,8 @@ function detailKeys(id: string): string[] {
 
 describe('feature catalogue details merge', () => {
   it('keeps the schedules feature-level details beside reference details', () => {
-    expect(detailKeys('schedules')).toContain('referenceAttachments')
+    expect(detailKeys('schedules')).toContain('referenceSchedules')
+    expect(detailKeys('schedules')).toContain('referenceSchedulePaidConsent')
     expect(detailKeys('schedules')).toContain('scheduledMediaSupport')
   })
 
@@ -34,6 +35,7 @@ describe('feature catalogue details merge', () => {
     const schedules = referenceModel().features.find((feature) => feature.id === 'schedules')
     if (schedules === undefined) throw new Error('missing generated schedules feature')
     const keys = schedules.details.flatMap((detail) => ('ui' in detail ? [detail.ui] : []))
+    expect(keys).toContain('referenceSchedulePaidConsent')
     expect(keys).toContain('scheduledMediaSupport')
     expect(EN.scheduledMediaSupport).toContain('unsupported in this version')
   })

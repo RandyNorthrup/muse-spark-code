@@ -35873,6 +35873,28 @@ Total: about 165 lane-hours: the panel's part (0, A, P1, P2, C, F, S) about
 
 ### M115 — Scheduled prompts v2: unattended, stacked, with a delivery mode (D95)
 
+**C-M115-3 paid authority (2026-10-11, win11): implemented; held for certification.**
+The existing schedule billing port supplies schedule-scoped D48 questions in VS Code and ACP,
+explicit CLI authorization, payer/model/key/tariff binding, one-use renewal,
+and the same exact-money schedule/D78 reservation in editor and standalone
+runtime. No unattended fire opens a permission prompt: invalid consent refuses
+before HTTP and must be renewed through an interactive schedule edit. Legacy
+records without a payer binding remain readable but require fresh consent.
+Automatic delivery stays behind the existing certification switch. C-M115-2
+owns runtime/ACP delivery composition and C-M115-9 owns the native editor
+bindings; this lane changes only their paid contracts, not their delivery
+files. Installed native modal, Linux/macOS and independent Codex/Grok review
+receipts are required before the lead enables delivery. Evidence belongs in
+`docs/certification/m115-cm1153.md`; no live/paid call is authorized.
+
+- [x] Creation/renewal and payer/model/key/tariff binding, scoped Once/Always,
+      CLI flags/quote, ACP permission and shared exact-money D78 admission.
+- [x] Win11 scoped regression files, separate-process cap races and 21 red
+      controls with byte-exact SHA-256 restoration.
+- [ ] C-M115-2 runtime composition, C-M115-9 installed editor receipts,
+      native modal decline, Linux/macOS replay and fresh Codex/Grok review.
+      Delivery remains off until the complete certification passes.
+
 **C-M115-1 completion lane (2026-10-10, win11).** Bind the VS Code workspace
 lifetime and conversation delivery to the existing shared scheduler, unattended
 backend entry points and background targets. Certify D95.6–7 and acceptance
@@ -38046,6 +38068,20 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**C-M115-3 gate ownership (2026-10-11, win11).** The rig brief and shared
+lane rules assign aggregate `npm run quality` to the lead; this worktree runs
+complete owned test files at repository timeouts, five-project typecheck,
+changed-file lint/format and scoped static checks. The production build still
+refuses the inherited What's New decode budget before producing a complete
+artifact set; size/split certification awaits the accepted content repair at
+integration. The zero-clone gate retains only the inherited six-line clone in
+`test/unit/windowsTrustedPath.test.ts`; that independent repair remains with
+the lead. No cap, threshold, ignore or rule is weakened. This process runs in
+Windows Session 0 and cannot exercise Session 1's native VS Code modal.
+Native decline, Linux/macOS and independent Codex/Grok receipts remain required,
+and the existing automatic-delivery certification switch stays false. See
+`docs/certification/m115-cm1153.md` for scoped evidence and editor ownership.
 
 **C-M115-1 gate ownership (2026-10-10, win11).** The rig brief and shared
 lane rules forbid aggregate quality in this worktree; the lead owns

@@ -32,6 +32,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- **Schedule paid authority** (C-M115-3). The existing billing port uses
+  schedule-scoped questions in VS Code and ACP, explicit CLI flags with a
+  printed quote, and one exact-money reservation for the schedule and shared
+  daily caps. Consent binds the paid key, model and verified tariff;
+  legacy or changed payer bindings require renewal, and Allow once cannot
+  authorize a later fire. Changes during reservation refund nonsent claims.
+  Automatic delivery remains behind the existing certification switch.
+
 - Native IDE calls can carry a session-bound identity. Unattended callers
   use their own grants, retired callers lose access, and colliding request
   ids cannot cancel another caller's tool. Interactive-only tools refuse

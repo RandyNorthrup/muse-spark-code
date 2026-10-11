@@ -27,6 +27,7 @@ const identity: SchedulePaidIdentity = {
   modelId: 'muse-spark-1.3',
   accountId: FAKE_MODEL_API_ACCOUNT_ID,
   priceTier: 'standard',
+  payerKind: 'paidKey',
   price: 'Verified token rates',
   sharedDailyBudgetUsd: PortUsd.from(5).toAmount(),
 }
@@ -38,6 +39,7 @@ const schedule = () =>
       modelId: identity.modelId,
       accountId: identity.accountId,
       priceTier: identity.priceTier,
+      payerKind: identity.payerKind,
       sharedDailyBudgetUsd: identity.sharedDailyBudgetUsd,
       grantedAtMs: 0,
       dailyCapUsd: PortUsd.from(1).toAmount(),
@@ -208,9 +210,49 @@ describe('schedule-scoped paid consent and reservations', () => {
       { modelId: 'different' },
       { accountId: 'other-digest' },
       { priceTier: 'new-tariff' },
+      { payerKind: 'plan' as const },
       { sharedDailyBudgetUsd: PortUsd.from(1).toAmount() },
     ])
       expect(isScheduleConsentCurrent(schedule(), { ...identity, ...change })).toBe(false)
+  })
+  it('keeps legacy consent readable but requires explicit paid-key consent', () => {
+    const paidConsent = schedule().paidConsent
+    if (paidConsent === undefined) throw new Error('missing fixture consent')
+    const legacy = scheduleV2Schema.parse({
+      ...schedule(),
+      paidConsent: { ...schedule().paidConsent, payerKind: undefined },
+    })
+    expect(isScheduleConsentCurrent(legacy, identity)).toBe(false)
+    expect(
+      isScheduleConsentCurrent(
+        { ...schedule(), paidConsent: { ...paidConsent, payerKind: 'plan' } },
+        identity,
+      ),
+    ).toBe(false)
+  })
+  it('asks again after Allow once has been bound to a previous fire, and stores the scoped answer', async () => {
+    const paidConsent = schedule().paidConsent
+    if (paidConsent === undefined) throw new Error('missing fixture consent')
+    const ask = vi.fn().mockResolvedValue('always')
+    const remember = vi.fn().mockResolvedValue(true)
+    const consent = await askSchedulePaidConsent({
+      schedule: {
+        ...schedule(),
+        paidConsent: { ...paidConsent, scope: 'once', runId: 'earlier-fire' },
+      },
+      identity,
+      cadence: 'Once',
+      extras: ['imageGeneration'],
+      now: () => 1,
+      isOn: () => true,
+      isCurrent: () => true,
+      ask,
+      remember,
+    })
+    expect(ask).toHaveBeenCalledOnce()
+    expect(consent).toMatchObject({ payerKind: 'paidKey', scope: 'schedule' })
+    expect(consent?.runId).toBeUndefined()
+    expect(remember).toHaveBeenCalledWith(consent)
   })
   it('admits only selected enabled extras, rechecks revocation and retains uncertain liability', async () => {
     const { first } = await ledgers()
@@ -396,6 +438,7 @@ describe('schedule-scoped paid consent and reservations', () => {
         modelId: identity.modelId,
         accountId: identity.accountId,
         priceTier: identity.priceTier,
+        payerKind: identity.payerKind,
         sharedDailyBudgetUsd: identity.sharedDailyBudgetUsd,
         grantedAtMs: 0,
         extras: [],

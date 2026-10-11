@@ -756,7 +756,7 @@
       "interruptWarning": "Une interruption peut arrêter votre propre tour en cours.",
       "unattendedRefusal": "Refusé lors de la planification : {action} nécessite une approbation et n’est pas autorisé par cette planification.",
       "deferredQuestions": "Les questions sont immédiatement différées et restent ouvertes pour votre réponse.",
-      "paidConsent": "Planifier {prompt} avec {model} : {price}. Cadence : {cadence}. Plafond : {cap} par jour local ; budget quotidien partagé : {budget}. Le consentement couvre uniquement les options payantes sélectionnées.",
+      "paidConsent": "Planifier {prompt} avec {model} : {price}. Cadence : {cadence}. Plafond : {cap} par jour local ; budget quotidien partagé : {budget}. Le consentement couvre uniquement les options payantes sélectionnées. Les frais sont facturés à votre clé Model API ; votre abonnement ne les couvre pas.",
       "changedConsent": "Le modèle, la clé ou le tarif a changé. Renouvelez le consentement avant la prochaine exécution payante.",
       "setBy": "Créé par {agent} dans {session}",
       "migrationConsent": "Planification migrée en pause. Vérifiez son mode, son autorisation et son consentement payant avant de reprendre.",
@@ -793,6 +793,7 @@
   },
   "scheduledMediaSupport": "Les tours planifiés prennent en charge les entrées de texte et d’image ; les entrées vidéo et audio ne sont pas prises en charge dans cette version.",
   "referenceSchedules": "L’éditeur, la liste et la chronologie des planifications v2 gèrent des enregistrements persistants. L’envoi automatique des instructions est désactivé. Les tâches /loop de Model API s’exécutent lorsque vous choisissez Exécuter maintenant.",
+  "referenceSchedulePaidConsent": "Le consentement à une planification v2 est lié à la clé payante, au modèle choisi, aux tarifs vérifiés et aux plafonds quotidiens. Autoriser une fois couvre une exécution ; Toujours autoriser couvre cette planification. Un changement de modèle, de clé ou de tarif nécessite un nouveau consentement.",
   "media": {
     "recordingScreenPermissionRequired": "L’autorisation d’enregistrement de l’écran n’a pas été accordée.",
     "recordingMicrophonePermissionDenied": "L’autorisation du microphone a été refusée.",

@@ -757,7 +757,7 @@
       "interruptWarning": "Přerušení může zastavit váš probíhající tah.",
       "unattendedRefusal": "Odmítnuto v plánu: {action} vyžaduje schválení a není v povolení tohoto plánu.",
       "deferredQuestions": "Otázky se ihned odloží a zůstávají otevřené pro vaši odpověď.",
-      "paidConsent": "Naplánovat {prompt} s {model}: {price}. Četnost: {cadence}. Limit: {cap} za místní den; sdílený denní rozpočet: {budget}. Souhlas pokrývá pouze vybrané placené doplňky.",
+      "paidConsent": "Naplánovat {prompt} s {model}: {price}. Četnost: {cadence}. Limit: {cap} za místní den; sdílený denní rozpočet: {budget}. Souhlas pokrývá pouze vybrané placené doplňky. Poplatky se účtují vašemu klíči Model API; předplatné je nehradí.",
       "changedConsent": "Model, klíč nebo cenová úroveň se změnily. Obnovte souhlas před dalším placeným spuštěním.",
       "setBy": "Nastavil {agent} v {session}",
       "migrationConsent": "Přenesený plán je pozastaven. Před obnovením zkontrolujte režim, povolení a souhlas s platbami.",
@@ -796,6 +796,7 @@
   },
   "scheduledMediaSupport": "Plánované tahy podporují textové a obrazové vstupy; video a zvukové vstupy nejsou v této verzi podporovány.",
   "referenceSchedules": "Editor, seznam a časová osa plánů v2 spravují trvalé záznamy. Automatické odesílání výzev je vypnuté. Úlohy Model API /loop se spustí, když zvolíte Spustit nyní.",
+  "referenceSchedulePaidConsent": "Souhlas s plánem v2 je vázán na placený klíč, vybraný model, ověřené sazby a denní limity. Povolit jednou platí pro jedno spuštění; Povolit vždy platí pro tento plán. Změna modelu, klíče nebo sazby vyžaduje nový souhlas.",
   "media": {
     "recordingScreenPermissionRequired": "Oprávnění k nahrávání obrazovky nebylo uděleno.",
     "recordingMicrophonePermissionDenied": "Oprávnění k mikrofonu bylo zamítnuto.",

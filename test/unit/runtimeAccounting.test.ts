@@ -17,6 +17,8 @@ import { FakeLogOutputChannel } from './helpers/fakes'
 import { removeFolder } from './helpers/temporaryFolders'
 import type { CreateResponseBody } from '../../src/core/backends/modelapi/schemas'
 import { createRunLedger } from '../../src/runtime/exec/runLedger'
+import { PAID_DAILY_BUDGET, UI_TEXT } from '../../src/shared/constants'
+import { fakeSchedule } from './helpers/schedules/fixtures'
 
 const roots: string[] = []
 const folder = () => {
@@ -36,7 +38,7 @@ beforeAll(async () => {
   })
   writeFileSync(
     path.join(built, 'race.cjs'),
-    `const { createRuntimeDailyBudget } = require('./accounting.cjs'); const { setTimeout } = require('node:timers/promises'); const budget = createRuntimeDailyBudget({ dataFolder: process.argv[2], now: () => Date.now(), sleep: setTimeout }); process.on('message', async () => { try { const claim = await budget.reserve(1, new AbortController().signal); claim.check(0); process.send({ admitted: true }); } catch { process.send({ admitted: false }); } process.disconnect(); }); process.send({ ready: true });`,
+    `const { createRuntimeDailyBudget } = require('./accounting.cjs'); const { setTimeout } = require('node:timers/promises'); const budget = createRuntimeDailyBudget({ dataFolder: process.argv[2], now: () => Date.now(), sleep: setTimeout }); process.on('message', async (message) => { let claim; try { const signal = new AbortController().signal; claim = message.schedule === undefined ? await budget.reserve('1', signal) : await budget.reserveSchedule(message.schedule, '1', signal); claim.check(0); process.send({ admitted: true }); } catch { if (claim !== undefined) await claim.settle('0'); process.send({ admitted: false }); } process.disconnect(); }); process.send({ ready: true });`,
   )
 })
 afterAll(async () => {
@@ -58,6 +60,53 @@ const body: CreateResponseBody = {
 }
 
 describe('standalone daily admission', () => {
+  it.each(['schedule', 'shared'] as const)(
+    'refuses scheduled HTTP past the %s cap and refunds nonsends exactly',
+    async (cap) => {
+      const root = folder()
+      const sharedCap = cap === 'schedule' ? 2 : 1
+      writeFileSync(
+        path.join(root, 'settings.json'),
+        JSON.stringify({ paidDailyBudgetUsd: sharedCap }),
+      )
+      const daily = dailyBudgetAt(root)
+      const schedule = paidSchedule(1, sharedCap)
+      const first = await daily.reserveSchedule(
+        schedule,
+        Usd.from('0.6').toAmount(),
+        new AbortController().signal,
+      )
+      const api = fakeModelApi()
+      const client = fakeModelApiClient(api, new FakeLogOutputChannel())
+      const guard = Object.assign(() => undefined, {
+        paidFeature: 'scheduledPrompts' as const,
+        reservePaidRequest: () =>
+          daily.reserveSchedule(
+            cap === 'shared' ? { ...schedule, id: 'another-schedule' } : schedule,
+            Usd.from('0.5').toAmount(),
+            new AbortController().signal,
+          ),
+      })
+      await expect(
+        Array.fromAsync(
+          client.streamResponse(body, new AbortController().signal, undefined, undefined, guard),
+        ),
+      ).rejects.toThrow()
+      expect(api.requests).toHaveLength(0)
+      await first.settle(Usd.from('0.2').toAmount())
+      const next = await daily.reserveSchedule(
+        schedule,
+        Usd.from('0.8').toAmount(),
+        new AbortController().signal,
+      )
+      await next.settle(Usd.from(0).toAmount())
+      const remaining = await daily.reserve(
+        Usd.from(sharedCap).subtract(Usd.from('0.2')).toAmount(),
+        new AbortController().signal,
+      )
+      expect(remaining.reservedUsd).toBe(Usd.from(sharedCap).subtract(Usd.from('0.2')).toAmount())
+    },
+  )
   it('refuses admission itself when full, before a final dispatch fence', async () => {
     const root = folder()
     writeFileSync(path.join(root, 'settings.json'), '{"paidDailyBudgetUsd":1}')
@@ -103,51 +152,125 @@ describe('standalone daily admission', () => {
     now += 86_400_000
     expect(() => claim.check(Usd.from(0).toAmount())).toThrow()
   })
-  it('serializes two processes racing the last dollar', async () => {
+  it('honours durable D78 Stop even after the local-day limit is raised', async () => {
     const root = folder()
-    writeFileSync(path.join(root, 'settings.json'), JSON.stringify({ paidDailyBudgetUsd: 1 }))
-    const children = [
-      fork(path.join(built, 'race.cjs'), [root], {
-        env: withoutCredentials(process.env),
-        silent: true,
-      }),
-      fork(path.join(built, 'race.cjs'), [root], {
-        env: withoutCredentials(process.env),
-        silent: true,
-      }),
-    ]
-    const results = children.map(
-      (child) =>
-        new Promise<boolean>((resolve, reject) => {
-          child.on('error', reject)
-          child.on('message', (message: unknown) => {
-            const parsed = z
-              .object({ admitted: z.optional(z.boolean()), ready: z.optional(z.boolean()) })
-              .parse(message)
-            if (parsed.admitted !== undefined) resolve(parsed.admitted)
-          })
-          child.on('exit', (code) => {
-            if (code !== 0) reject(new Error('budget child failed'))
-          })
-        }),
+    const now = new Date(2026, 9, 11, 12).getTime()
+    const daily = createRuntimeDailyBudget({ dataFolder: root, now: () => now, sleep: delay })
+    const directory = path.join(root, PAID_DAILY_BUDGET.directory, '2026-10-11')
+    mkdirSync(directory, { recursive: true })
+    writeFileSync(
+      path.join(directory, PAID_DAILY_BUDGET.overrideFile),
+      '{"limitUsd":0.5,"stopped":false}',
     )
-    await Promise.all(
-      children.map(
-        (child) =>
-          new Promise<void>((resolve) =>
-            child.once('message', () => {
-              resolve()
-            }),
-          ),
-      ),
+    const claim = await daily.reserve(Usd.from('0.5').toAmount(), new AbortController().signal)
+    mkdirSync(path.join(directory, PAID_DAILY_BUDGET.stopDirectory))
+    expect(() => claim.check(Usd.from(0).toAmount())).toThrow(UI_TEXT.paidDailyStopped)
+    writeFileSync(
+      path.join(directory, PAID_DAILY_BUDGET.overrideFile),
+      '{"limitUsd":5,"stopped":false}',
     )
-    for (const child of children) child.send({ start: true })
-    const admissions = await Promise.all(results)
-    expect(admissions.toSorted((left, right) => Number(left) - Number(right))).toEqual([
-      false,
-      true,
-    ])
+    await expect(
+      daily.reserve(Usd.from('0.1').toAmount(), new AbortController().signal),
+    ).rejects.toThrow(UI_TEXT.paidDailyStopped)
   })
+  it('refuses a corrupt local-day override before reservation', async () => {
+    const now = new Date(2026, 9, 11, 12).getTime()
+    const brokenRoot = folder()
+    const brokenDirectory = path.join(brokenRoot, PAID_DAILY_BUDGET.directory, '2026-10-11')
+    mkdirSync(brokenDirectory, { recursive: true })
+    writeFileSync(
+      path.join(brokenDirectory, PAID_DAILY_BUDGET.overrideFile),
+      '{"limitUsd":"NaN","stopped":false}',
+    )
+    const broken = createRuntimeDailyBudget({
+      dataFolder: brokenRoot,
+      now: () => now,
+      sleep: delay,
+    })
+    await expect(
+      broken.reserve(Usd.from('0.1').toAmount(), new AbortController().signal),
+    ).rejects.toThrow(UI_TEXT.paidDailyLedgerUnavailable)
+  })
+  it.each(['daily', 'schedule', 'shared'] as const)(
+    'serializes two processes racing the last %s dollar',
+    async (lane) => {
+      const root = folder()
+      const sharedCap = lane === 'schedule' ? 2 : 1
+      writeFileSync(
+        path.join(root, 'settings.json'),
+        JSON.stringify({ paidDailyBudgetUsd: sharedCap }),
+      )
+      const ownCap = lane === 'shared' ? 2 : 1
+      const schedule = paidSchedule(ownCap, sharedCap)
+      const children = [
+        fork(path.join(built, 'race.cjs'), [root], {
+          env: withoutCredentials(process.env),
+          silent: true,
+        }),
+        fork(path.join(built, 'race.cjs'), [root], {
+          env: withoutCredentials(process.env),
+          silent: true,
+        }),
+      ]
+      const results = children.map(
+        (child) =>
+          new Promise<boolean>((resolve, reject) => {
+            child.on('error', reject)
+            child.on('message', (message: unknown) => {
+              const parsed = z
+                .object({ admitted: z.optional(z.boolean()), ready: z.optional(z.boolean()) })
+                .parse(message)
+              if (parsed.admitted !== undefined) resolve(parsed.admitted)
+            })
+            child.on('exit', (code) => {
+              if (code !== 0) reject(new Error('budget child failed'))
+            })
+          }),
+      )
+      await Promise.all(
+        children.map(
+          (child) =>
+            new Promise<void>((resolve) =>
+              child.once('message', () => {
+                resolve()
+              }),
+            ),
+        ),
+      )
+      for (const [index, child] of children.entries())
+        child.send({
+          start: true,
+          ...(lane !== 'daily' && {
+            schedule: {
+              ...schedule,
+              id: lane === 'shared' ? `schedule-${String(index)}` : schedule.id,
+            },
+          }),
+        })
+      const admissions = await Promise.all(results)
+      const admitted = admissions.filter(Boolean).length
+      expect(admitted).toBeLessThanOrEqual(1)
+      // A final synchronous fence may see the other writer's incomplete intent and refuse both.
+      // Once both nonsends are refunded, exactly the last dollar remains available.
+      const daily = dailyBudgetAt(root)
+      if (admitted === 0) {
+        const claim =
+          lane === 'daily'
+            ? await daily.reserve(Usd.from(1).toAmount(), new AbortController().signal)
+            : await daily.reserveSchedule(
+                schedule,
+                Usd.from(1).toAmount(),
+                new AbortController().signal,
+              )
+        expect(claim.reservedUsd).toBe('1')
+      }
+      await expect(
+        lane === 'daily'
+          ? daily.reserve(Usd.from(1).toAmount(), new AbortController().signal)
+          : daily.reserveSchedule(schedule, Usd.from(1).toAmount(), new AbortController().signal),
+      ).rejects.toThrow()
+    },
+  )
   it('refuses before shared transport dispatch when the daily ledger is full', async () => {
     const root = folder()
     writeFileSync(path.join(root, 'settings.json'), JSON.stringify({ paidDailyBudgetUsd: 1 }))
@@ -214,4 +337,22 @@ describe('standalone daily admission', () => {
 
 function dailyBudgetAt(dataFolder: string) {
   return createRuntimeDailyBudget({ dataFolder, now: Date.now, sleep: delay })
+}
+
+function paidSchedule(ownCap: number, sharedCap: number) {
+  return fakeSchedule({
+    paidCapUsd: Usd.from(ownCap).toAmount(),
+    grant: { rules: [], destinationIds: [], paidCapUsd: Usd.from(ownCap).toAmount() },
+    paidConsent: {
+      modelId: body.model,
+      accountId: 'fixture-account',
+      priceTier: 'verified',
+      payerKind: 'paidKey',
+      dailyCapUsd: Usd.from(ownCap).toAmount(),
+      sharedDailyBudgetUsd: Usd.from(sharedCap).toAmount(),
+      grantedAtMs: 0,
+      extras: [],
+      scope: 'schedule',
+    },
+  })
 }

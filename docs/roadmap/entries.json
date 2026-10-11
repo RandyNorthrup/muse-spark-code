@@ -848,7 +848,7 @@
     {
       "id": "M115",
       "title": "Scheduled prompts v2",
-      "summary": "The VS Code schedule editor manages durable records while automatic delivery stays disabled pending certification across operating systems and independent review of its controller, queue, IDE identity and billing bindings.",
+      "summary": "The VS Code editor manages durable schedules with payer-bound consent and hard daily caps, while automatic delivery stays off pending runtime integration, native modal receipts and independent review.",
       "area": "agents",
       "release": "0.17.0"
     },
