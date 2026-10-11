@@ -1,3 +1,5 @@
+import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { fakeSurface } from './helpers/fakeSurface'
 import { describe, expect, it, vi } from 'vitest'
 import {
@@ -249,7 +251,9 @@ describe('portable conversation composition', () => {
     await deps.copyText('hello')
     await deps.saveAll()
     deps.openExternal('https://example.test/page')
-    await deps.openBestOfNWorktree('/ws/attempt')
+    // Absolute on the machine that runs this: Windows gives the path its drive.
+    const attempt = path.resolve('/ws/attempt')
+    await deps.openBestOfNWorktree(attempt)
     expect(await deps.confirmRemoteBypass()).toBe(true)
     r.choose(null)
     expect(await deps.confirmFileAction('Restore', 'Files change', 'Restore')).toBe(false)
@@ -259,7 +263,10 @@ describe('portable conversation composition', () => {
       { method: 'ui/clipboard', params: { text: 'hello' } },
       { method: 'documents/saveAll', params: {} },
       { method: 'ui/openExternal', params: { uri: 'https://example.test/page' } },
-      { method: 'workspace/openFolder', params: { uri: 'file:///ws/attempt', newWindow: true } },
+      {
+        method: 'workspace/openFolder',
+        params: { uri: pathToFileURL(attempt).href, newWindow: true },
+      },
     ])
     expect(r.calls[4]).toEqual({
       method: 'ui/confirm',
