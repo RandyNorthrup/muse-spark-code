@@ -9,6 +9,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **Completed M75 verifier assertions** (CM1013R4, RVCM1013C finding 1).
+  Every frozen task declares its assertion count. A verifier passes only
+  after its last assertion reports a fresh private-input token and that count
+  with a zero exit. Premature exits, fake completion output, caught failures
+  and timed-out solutions fail; all 64 bare-exit outputs fail the full paired
+  verdict. Production automatic compaction stays unevaluated.
+
 - **Evidence-first M75 harness repair** (CM1013B). Both compaction and packing
   evidence tasks run before small tasks, each task/arm has an independent
   measured allowance, and a local overrun cannot starve another task. Applied

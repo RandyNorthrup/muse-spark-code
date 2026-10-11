@@ -29553,6 +29553,21 @@ joined with M57, M58 and PR #49's sign-in
 
 ### M101 — Upstream sync: Pi and SoL-Pi ports, automatic compaction (D81)
 
+**CM1013R4 review repair plan (2026-10-11, kubuntu).** Fix all three
+RVCM1013C P2 classes offline. Every one of the sixteen frozen verifiers
+must report a fresh private-input token and its declared successful assertion
+count after its last assertion; zero exit alone fails. Permanently exercise
+all 64 premature-exit outputs through the four arms and both engagement
+wrappers. Bind the actual Vitest configuration, setup/alias closure, compiler
+and package inputs, process arguments and environment allow-list, plan and
+launcher; attest the executable search worker before credentials. Store only
+offered tool identities or a counted fixed unknown marker; sweep round-three
+evidence for model/workspace free text. Each guard receives a failing regression
+and byte-exact red drill in `docs/certification/m101-eval-arms.md`. Re-freeze
+using the repository step, run all five type projects, every eval suite and
+related suites, and commit the verifier repair first with hooks. No production
+latch flip, live/paid call, dependency, merge, push or gate weakening.
+
 **CM1013B harness repair plan (2026-10-11, kubuntu).** Repair the first
 198-call live run's evidence starvation on fakes only: run both compaction
 and both packing tasks first; assign an independent measured call allowance
