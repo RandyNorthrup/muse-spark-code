@@ -104,7 +104,7 @@ export function readTeamWorkspaceHint(state: TeamWorkspaceStateReader): {
   }
   const template: unknown = 'template' in stored ? stored.template : undefined
   return {
-    soloTemplate: template === 'Solo',
+    soloTemplate: template === 'Solo' || template === 'solo',
     hasStoredTeam: true,
   }
 }

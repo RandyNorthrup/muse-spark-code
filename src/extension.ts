@@ -2638,8 +2638,9 @@ async function activateWindow(
     showTree: (tree) => {
       for (const controller of controllers.values()) controller.showTeamTree(tree)
     },
-    openRoles: async () => {
-      await vscode.commands.executeCommand(COMMAND_IDS.modelsAndAgents)
+    openRoles: (roleId) => {
+      ensureModelsFeatures().openPanel({ section: 'roles', itemId: roleId })
+      return Promise.resolve()
     },
     showDiff: async (_taskId, diff) => {
       const document = await vscode.workspace.openTextDocument({ content: diff, language: 'diff' })
@@ -4187,6 +4188,29 @@ async function activateWindow(
           l10n,
           log,
           globalState: context.globalState,
+          team: {
+            // The same availability that admits a team conversation. Until
+            // C-M96-3 installs its engine worker, neither U1 section is exposed.
+            isEnabled: () =>
+              vscode.workspace
+                .getConfiguration(SETTINGS_SECTION)
+                .get<unknown>(TEAM_SWITCH_SETTING) !== false &&
+              teamHost.seams
+                .teamDecisionSource()
+                ?.customEntries.some((entry) => entry.isAvailable) === true,
+            state: {
+              get: (key) => context.workspaceState.get(key),
+              update: async (key, value) => {
+                await context.workspaceState.update(key, value)
+              },
+            },
+            reload: () => {
+              teamHost.reload()
+            },
+            tree: () => teamHost.tree(),
+            onTreeChange: (listener) => teamHost.onTreeChange(listener),
+            handle: (message) => teamHost.handle(message),
+          },
           suggestedProviderSetting,
           isRemote: vscode.env.remoteName !== undefined,
           setComposerModel,

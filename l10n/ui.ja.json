@@ -4306,6 +4306,29 @@
   },
   "teamInPlaceConfirm": "このロールのワーカーは、あなたの編集と並んで、あなた自身のツリーに書き込みます。このように動作するのは、あなたが許可したライターだけです。リポジトリ、プロジェクトロール、テンプレートが設定することはありません。",
   "teamToolChecklist": "ツールセット",
+  "teamToolGroups": {
+    "read": "読み取り",
+    "codeIntel": "コードインテリジェンス",
+    "rename": "名前変更",
+    "write": "書き込み",
+    "shell": "Shell",
+    "readOnlyShell": "読み取り専用シェル",
+    "testShell": "テスト用シェル",
+    "checks": "チェック",
+    "diagnostics": "診断",
+    "webFetch": "Web 取得",
+    "webSearch": "Web 検索",
+    "images": "画像",
+    "memoryRead": "メモリ読み取り",
+    "skills": "Skills",
+    "report": "レポート"
+  },
+  "teamReportShapes": {
+    "summary": "要約",
+    "review": "レビュー",
+    "qa": "Q&A"
+  },
+  "teamPoolFree": "無料",
   "teamAddEntry": "エントリを追加",
   "teamDefaultEntry": "デフォルト",
   "teamDefaultResolves": "デフォルト（{model}）",
@@ -5085,5 +5108,45 @@
     "grantsCount": {
       "other": "{count} 件の許可"
     }
-  }
+  },
+  "teamEditor": {
+    "purpose": "目的",
+    "done": "完了条件",
+    "guidance": "ガイダンス",
+    "roleId": "ロール ID",
+    "pools": "プール",
+    "concurrent": "同時実行上限",
+    "caps": "上限",
+    "task": "タスク",
+    "day": "日",
+    "lifetime": "累計",
+    "addCap": "上限を追加",
+    "reapply": "レベルを再適用",
+    "empty": "実行中のチームはありません",
+    "save": "チームを保存",
+    "saved": "チームを保存しました。",
+    "invalid": "保存前にチームの無効な値や不足した値を確認してください。",
+    "moveLabel": "{entry} を位置 {position} に移動しました。",
+    "noCalls": "このプレビューはモデルを呼び出さず、費用もかかりません。",
+    "settings": "モデル設定",
+    "agents": "エージェント",
+    "workspace": "ワークスペース",
+    "poolKeys": "Alt+上 / Alt+下でプール内のこの項目を移動します。",
+    "toolSearch": "ツールを検索",
+    "transcript": "トランスクリプトを開く",
+    "diff": "差分を確認",
+    "editRole": "ロールセクションで編集",
+    "stopAll": "チームのタスクをすべて停止"
+  },
+  "teamEditorRoles": {
+    "research": "調査",
+    "design": "設計",
+    "marketing": "マーケティング",
+    "engineering": "開発",
+    "qa": "品質保証",
+    "code-review": "コードレビュー",
+    "docs": "文書"
+  },
+  "referenceTeamConfiguration": "チームのエージェントと設定の接続が実装されるまで、ロールとエージェントは非表示のままです。",
+  "referenceTeamPoolKeys": "Alt+上 / Alt+下でプール内のこの項目を移動します。"
 }

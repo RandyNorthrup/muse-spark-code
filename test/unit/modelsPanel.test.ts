@@ -6,6 +6,10 @@ import { parseHostToPanelMessage, type ModelsPanelState } from '../../src/shared
 import { EN } from '../../src/shared/l10n/en'
 import { TEST_ENTRY, testProvidersHost, testRow } from './helpers/m95kFixtures'
 import { FakeWebviewPanel, memoryProvidersStore } from './helpers/fakes'
+import { panelRig } from './helpers/teamPanelRig'
+
+const noTeamChange = () => undefined
+const subscribeNoTeamChanges = () => noTeamChange
 
 function setup(overrides: Partial<ModelsPanelDeps> = {}): {
   panel: FakeWebviewPanel
@@ -47,6 +51,19 @@ function setup(overrides: Partial<ModelsPanelDeps> = {}): {
   }
   return { panel, warnings, saved, providers: overrides.providers ?? providers }
 }
+function setupTeam(
+  rig: ReturnType<typeof panelRig>,
+  handle: NonNullable<ModelsPanelDeps['team']>['handle'],
+) {
+  return setup({
+    team: {
+      load: () => Promise.resolve(rig.controller),
+      tree: noTeamChange,
+      onTreeChange: subscribeNoTeamChanges,
+      handle,
+    },
+  })
+}
 function latestState(panel: FakeWebviewPanel): ModelsPanelState {
   for (const call of vi.mocked(panel.webview.postMessage).mock.calls.toReversed()) {
     const parsed = parseHostToPanelMessage(call[0])
@@ -73,6 +90,43 @@ beforeEach(() => {
   vi.mocked(window.showInputBox).mockReset()
 })
 describe('Models host contract', () => {
+  it('loads the portable team draft and forwards live actions through the existing host', async () => {
+    const rig = panelRig()
+    const handle = vi
+      .fn<NonNullable<ModelsPanelDeps['team']>['handle']>()
+      .mockResolvedValue(undefined)
+    const { panel } = setupTeam(rig, handle)
+    await send(panel, { type: 'modelsPanel/ready' }, () => {
+      expect(latestState(panel).roles).toBeDefined()
+    })
+    await send(panel, { type: 'roles/template', template: 'pair' }, () => {
+      expect(latestState(panel).roles?.document.roles).toHaveLength(2)
+    })
+    await send(panel, { type: 'roles/save' }, () => {
+      expect(rig.reload).toHaveBeenCalledOnce()
+    })
+    await send(panel, { type: 'agents/stopTask', taskId: 'task-1' }, () => {
+      expect(handle).toHaveBeenCalledWith({ type: 'stopTeamTask', taskId: 'task-1' })
+    })
+    panel.dispose()
+    await expect(rig.controller.handle({ type: 'roles/save' })).rejects.toThrow()
+  })
+  it('conceals team state when availability is withdrawn and refuses actions', async () => {
+    let isEnabled = true
+    const rig = panelRig({ isEnabled: () => isEnabled })
+    const handle = vi.fn().mockResolvedValue(undefined)
+    const { panel } = setupTeam(rig, handle)
+    await send(panel, { type: 'modelsPanel/ready' }, () => {
+      expect(latestState(panel).roles).toBeDefined()
+    })
+    isEnabled = false
+    await send(panel, { type: 'agents/stopAll' }, () => {
+      expect(latestState(panel).roles).toBeUndefined()
+      expect(latestState(panel).notice).toBeDefined()
+    })
+    expect(handle).not.toHaveBeenCalled()
+    expect(latestState(panel).agents).toBeUndefined()
+  })
   it('keeps an OAuth credential bound to its issuer after an edited draft address', async () => {
     const test = vi.fn(() => Promise.resolve({ kind: 'ok' as const, models: 1 }))
     const { providers } = testProvidersHost({

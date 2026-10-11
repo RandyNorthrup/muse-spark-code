@@ -24054,6 +24054,44 @@ live) and the controller filters its id as well.
 
 ### M96 — Agent roles and the team (D75)
 
+**C-M96-2 review RVCM962B repair (2026-10-10, kubuntu).** Fix all six P2
+and two P3 findings by class: reconcile composite drafts per answered field
+without dropping outstanding edits, preserve custom Default concurrency within
+the resolved ceiling, search installed tool labels, await deferred English
+before publishing enabled-team navigation, move U1-only English into its team
+chunk under the unchanged surface cap, validate fractional-price filter saves,
+derive and apply model families, and format option prices through the shared
+Intl money loader. Each fix has a regression and byte-exact red/restored drill
+in `docs/certification/m96-u1.md`. Run the four Chrome owners and the 320 px
+six-theme accessibility/overflow pass directly. No dependencies, paid/live
+calls, guard widening or merge; MODELSPLIT owns the existing Models body cap.
+
+**C-M96-2 Roles and Agents panel (2026-10-10, kubuntu).** Implement U1
+over the unchanged `TeamHostService` interface: strict host-owned drafts,
+templates and four-click setup, role/pool editing, capability and cap
+validation, supported model settings, intensity, local suggestions and
+preview, credential-free transfer, and the shared Agent map. Persist the
+workspace document at `museSpark.team.config`, then call
+`TeamHostBinding.reload()`. Deep links select Roles and the named role.
+The sections remain hidden until the production worker can run a team and
+all configuration ports are supplied. U1 requires the captured offers/control
+registry, actual Default reference, capacity ceiling, exact remaining-dollar
+budget, learned role history and workspace-orchestrator confirmation;
+it never infers missing controls/ceilings/balances/history or changes the current
+composer as a substitute. Tests inject complete enabled bindings. No model or
+paid calls in this lane.
+Shared React and portable controller logic are reusable by all editors;
+JetBrains, Visual Studio, Eclipse, Zed, Xcode, Neovim, Emacs, Sublime and ACP
+panel bindings belong to C-M96-5; headless execution belongs to M96b.
+The engine worker/merge ports, complete captured model-control registry,
+charter consumption, paid dry-run admission, provider adaptation and
+new-conversation orchestrator application remain C-M96-3's responsibility.
+U1 owns separate first-use budgets: portable editor 100 KiB, Roles 25 KiB,
+Agents 50 KiB, validators 25 KiB and configuration English 25 KiB. The initial
+measurements plus 15%, rounded up to 25 KiB, set these new caps; existing
+startup and deferred caps remain unchanged. The unchanged Models body budget
+is an integration blocker (see §7). Certification: `docs/certification/m96-u1.md`.
+
 **C-M96-3 team host service (2026-10-10, host lane, `c/m96-3`).** The
 interface every surface binds to is `src/core/team/teamHostService.ts`; its
 implementation `createTeamHostService` and the engine worker and merge ports
@@ -38109,6 +38147,26 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**C-M96-2 RVCM962B repairs (2026-10-10, kubuntu).** All eight findings
+have regressions and ten byte-exact red/restored drill groups. The explicit
+rig/common brief retains lead ownership of aggregate quality. Actual production
+surface English is 25,502 / 25,600 bytes; Models body is 79,002 / 76,800
+bytes (107 bytes above round 2). The body failure stays with MODELSPLIT on
+main; no cap is raised or build failure waived. Other U1 closures pass their
+unchanged caps. Direct Chrome and six-theme receipts are in the U1 record.
+
+**C-M96-2 U1 scoped rig qualification (2026-10-10, kubuntu).** The explicit
+rig/common brief forbids aggregate quality and delegates hosted qualification
+to the lead. U1 remains hidden behind production team worker availability.
+No new dependency, live call or paid call. The production build refuses the
+Models panel body at 77.0 KiB against its unchanged 75 KiB cap. Moving the
+portable editor into `dist/teamPanel.js` and splitting its configuration
+validators/English reduced the original overrun but two fixes did not clear
+the body cap; common.md requires stopping that optimization path. The lead
+must finish the body split before integration. This deferral does not waive
+the build gate or permit release. Other scoped receipts, drill hashes and
+editor binding gaps are in `docs/certification/m96-u1.md`.
 
 **CIR4MAC scoped hosted-CI repair (2026-10-09, macmini).** Reproduce
 round 4's macOS target-size deadline and palette failure-render ordering

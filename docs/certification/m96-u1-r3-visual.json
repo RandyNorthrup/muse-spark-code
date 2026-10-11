@@ -1,0 +1,1865 @@
+{
+  "review": "CM962R3-Codex-2026-10-10",
+  "sourceRevision": "d531ce7f4532759e1009b827f587ea4c73245319",
+  "sourceSha256": {
+    "l10n/ui.cs.json": "sha256:62580154b3d93036d90723295a72c6b64c1f3d39d07204fe64c214406557ba61",
+    "l10n/ui.de.json": "sha256:00c73b592dc0f42322724a4a97b8f41085ab8112a8164f944b6d2492f14ef7aa",
+    "l10n/ui.es.json": "sha256:04d09bd3a1eadf9fbd49168972ae39086632cfe8d41b1b0e65983061980e45c5",
+    "l10n/ui.fr.json": "sha256:28f5ca164e29985c1859410eae86c09f9f9aa49569b2b69de4fb8b0d76ad58da",
+    "l10n/ui.hu.json": "sha256:427a8ebea1b9448015b56fbe333b33aef8bd1dad1c8cf00c7c308d075e5b38b3",
+    "l10n/ui.it.json": "sha256:5d5be85bce4f0a94f6ed7bac7ebf0894ec14ac9a121584f2a493dbb9e7d63734",
+    "l10n/ui.ja.json": "sha256:0eb36338c39e32c60903840d3e052f22d891dcb02f044dcec85b25d3327a4c8e",
+    "l10n/ui.ko.json": "sha256:87504db02ddccd1123a96ebbdb1570887982462efd878d6b0e6cc8732cbb6b77",
+    "l10n/ui.pl.json": "sha256:640f4c4aa7d9925c0db646b183b74d5d9cb2e6aaf7553d880e80aa271b98e5fb",
+    "l10n/ui.pt-br.json": "sha256:4fcbe21288b560db4352050c99a344d173c53d976ad459813082f7106168bc33",
+    "l10n/ui.ru.json": "sha256:5fa3b90277d5b7494e7ef546f22973afbbb62e30bfdd643363c11bca9da3dfc6",
+    "l10n/ui.tr.json": "sha256:caee0d92e3cb4fbdbf8cdef9f3a2e4504e1522823fda9e849a94266a6adf15be",
+    "l10n/ui.zh-cn.json": "sha256:0d0a5eee6b31153ac9a1885a8f2898a8bf733cf1c2f6e9847ec07dd013e7c3ce",
+    "l10n/ui.zh-tw.json": "sha256:7c854d9ef03b5c82fe3212a43d9ffc68eb17a889247de829eae09e47583875f3",
+    "scripts/build.mjs": "sha256:184fd076a312374f7211b609fc0249adccbb9fcdb4122bc5e6946100a33c68ed",
+    "scripts/lib/deferredBundles.mjs": "sha256:01dae94fcd3f6f6d7d2a9ee54e83919608f939178cc7bab0170a414f7dd16a11",
+    "scripts/lib/uiTextRegions.mjs": "sha256:483f9a3ca04b6e07a013f173346be660641006220a215fade1702cffa63218ac",
+    "scripts/lib/webviewBundles.mjs": "sha256:01ef82fcfcde4e7fe18e8fd6fd9d4007660930a3621e7e3835573a5bfa1bdf96",
+    "src/core/team/teamPanel.ts": "sha256:73311eb8ed25735b55a947e76776cf1961b44c2fbf19de7b7b0aa51674713266",
+    "src/core/team/teamPanelEntry.ts": "sha256:c4825a082e2abc5611140656ef1bbb5b38f8412d983502b2175f0ad3f9c8e922",
+    "src/core/team/teamPanelViews.ts": "sha256:617bf50148aa8fa9e65a40e3dbfa1e9038061cf02e126161de4e42b0306d093f",
+    "src/extension.ts": "sha256:a93595410287d4063ba73fcd8ed932a1438ae25358149d38c4bd8ae7952a5e1a",
+    "src/host/models/modelsPanel.ts": "sha256:c840ace2b05779f2843a6ee6dbf26e6c4b4656e4a24d153a6ca53e81130b7fd7",
+    "src/host/models/modelsPanelEntry.ts": "sha256:555861d05ada3a1ca1619e0506ea8daeb485b1a20e78da7ccf3e999553f00e8b",
+    "src/host/models/teamPanelBinding.ts": "sha256:05367ed188978e00484dfc2fe98cec5b1ec4e54c2ec6d489870a2e920ebec485",
+    "src/host/teamHostBinding.ts": "sha256:df170db95a7de84b64c2d4fed3899fb18645588804910810c2e0beb04c8bf882",
+    "src/runtime/reference.node.generated.ts": "sha256:28ad04786c48b0c06e5de90a37952b3e36451793a5a0f3dda6e5de0540bafb0e",
+    "src/shared/constants.ts": "sha256:b29b70c1fda20e862b22ed7181aa2a5d8743919d28ee55ab488cb465b692deb2",
+    "src/shared/featureCatalog.ts": "sha256:dda72d966b41046983e2fc9d88ef7d032f9026475dd3f6cce8c48537dff87698",
+    "src/shared/keybindings.ts": "sha256:128e3e444863f8273d36269b0de9c1c6169bf1a18763478b29190de11adf3abb",
+    "src/shared/l10n/en.ts": "sha256:d750b8f097e710d2ea3c096791643b6f0e73221a81204feec1279f3f9e69449e",
+    "src/shared/modelsPanel.ts": "sha256:86c5f0d88dcdb4facaf743e99af364081c5e71eb8df990cfbedc09c607061f52",
+    "src/shared/reference/reference.generated.json": "sha256:fa79033fea83aceddf5cb7fe4ea128d2d3663172de010e402cb73ce7fa57d283",
+    "src/shared/reference/reference.generated.ts": "sha256:cb0cbbed1632b45471155bc495026a813c1eea9351a95c6c5d44e0694bbcb247",
+    "src/shared/reference/referenceSchema.generated.ts": "sha256:d9b6ca0dae24e903a21f57a4761701b510fe0b1272e135baf2993df9b8879218",
+    "src/shared/reference/referenceSource.ts": "sha256:31eb4dbd34379571cfc8f9f7910e0fd0a63f3b5a877ccb9afd38fa942196c12f",
+    "src/shared/team.ts": "sha256:32a7ae1634fe3411bdf3c71a24d690749004ae9b35aae95a15847eb225b69b90",
+    "src/shared/teamConfig.ts": "sha256:868f8cc7f8a7454c5c0e0463f9145e56c956af5fc3a5d13d7f7230fb61c6cd4b",
+    "src/shared/teamConversation.ts": "sha256:83fa8a018357eec42edb28320c18a989bcc4ae38930fa54c30c5d8f360c5c797",
+    "src/shared/teamPanel.ts": "sha256:9d9d9ee8c9140f37062559e65cc991af3850dfaefdc6bb2b33c4c2853a5ff06a",
+    "src/shared/teamPanelDefinition.ts": "sha256:0fd5f28fc2fb7bef5a9b4b8993edfcde2b42076fe30f7079275fce4e25adb6b4",
+    "src/webview/components/TeamTree.tsx": "sha256:cfd6995d3c37ec68505cf8723770d77ef5ef8eb5638f2e1c21c98d1dfc6cff98",
+    "src/webview/models/components/FilterBar.tsx": "sha256:f518f30946b26769526bb9a027ba026c7dc478579eba3853aa148c42c28c4b62",
+    "src/webview/models/models.css": "sha256:28c85b1a16f905e449d4a552a52ee8a115e6a5923485d0e7e1b5d0dbc3d081b7",
+    "src/webview/models/panel.tsx": "sha256:3934dc898153072f67255f251319ca5005580da5ea191cdd9d28ee8d8c7ea019",
+    "src/webview/models/sections.ts": "sha256:94d795cbc8b00da266ccf6920e774bfc01dd99222c44a2bb903d8923747496f0",
+    "src/webview/models/sections/agents/AgentsSection.tsx": "sha256:3266df60105946a6aef45cf17807cad3cd2847fb2abb6ff6907b421b6740090f",
+    "src/webview/models/sections/agents/agents.css": "sha256:5fc063ff4720303dedbd03a8ea1bdadc18d76cf460c678bb203b65a2443f68d8",
+    "src/webview/models/sections/roles/PoolEditor.tsx": "sha256:18290dc3d6dd49e6efd05ade35514dcb3e3d51a1a811f41dec974543307f3973",
+    "src/webview/models/sections/roles/RoleEditor.tsx": "sha256:62fba054b3c29c8746920017b447655930fbdf23e00940a7770ca6ed77a02e7f",
+    "src/webview/models/sections/roles/RolesSection.tsx": "sha256:81e78379d96ce4e7257e6d8f6afb232540a6f2d7b4cb27256cd0af05e2d607a7",
+    "src/webview/models/sections/roles/fields.tsx": "sha256:a1d18235ef60e9927f26e0c1bcda84f40f72eb981d3d0555d7b1527a2b2d6cf0",
+    "src/webview/models/sections/roles/propDraft.ts": "sha256:55237fe31e38c134e5738bbd8a0620e162e2a57a6e17fe57e0bfe20b8dc5efbe",
+    "src/webview/models/sections/roles/roles.css": "sha256:d94f39ebf0ddb768c7cca3e93b929b9c415b1d016912db7d32b72dc748ccac57",
+    "src/webview/models/teamPanelBrowser.ts": "sha256:8b7a8779aeb4978629c4c5c0171fc677e5b610228a6f3aca3c573ea35c83b038",
+    "src/webview/money.tsx": "sha256:1f4fadfe699dce10285e300c2e56b9979e89c33483b65c147daf30742a481927",
+    "test/harness/team-roles-check.mjs": "sha256:e6fbad03402da48cbe0e9eb318c04b251de31a2e6243135066a63584320ab076",
+    "test/harness/teamRoles.css": "sha256:52916d5aae669ad10871bdbf2fa4e871c0c454721a35722c4129f0d7d7c1987d",
+    "test/harness/teamRoles.html": "sha256:f4760a6a2e642782c15fb993516c5af1a6d41aa1f842e97753bfc585261012b8",
+    "test/harness/teamRoles.tsx": "sha256:be4f4693c4e091a4b4d665421137c143b01881fc724ecd66e180b81f6f6d3bd9",
+    "test/harness/themes/dracula.json": "sha256:71a56ccbd724d3a688dc075fec7ca0f71dcba84cc47b3cf6da089d44e70f7871",
+    "test/harness/themes/one-dark-pro.json": "sha256:05dd588d527b9ec0d5fa2c2d33ed3e19e1e7754e49e8a8170aba7f960b5770ea"
+  },
+  "command": "npm run harness:team",
+  "rig": "kubuntu",
+  "coverage": [
+    {
+      "language": "en",
+      "theme": "light",
+      "width": 320,
+      "scene": "empty",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "light",
+      "width": 320,
+      "scene": "validation",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "light",
+      "width": 320,
+      "scene": "suggestions",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "light",
+      "width": 320,
+      "scene": "preview",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "light",
+      "width": 320,
+      "scene": "in-place",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "light",
+      "width": 320,
+      "scene": "agents",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "light",
+      "width": 690,
+      "scene": "empty",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "light",
+      "width": 690,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "light",
+      "width": 690,
+      "scene": "validation",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "light",
+      "width": 690,
+      "scene": "suggestions",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "light",
+      "width": 690,
+      "scene": "preview",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "light",
+      "width": 690,
+      "scene": "in-place",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "light",
+      "width": 690,
+      "scene": "agents",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "dark",
+      "width": 320,
+      "scene": "empty",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "dark",
+      "width": 320,
+      "scene": "validation",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "dark",
+      "width": 320,
+      "scene": "suggestions",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "dark",
+      "width": 320,
+      "scene": "preview",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "dark",
+      "width": 320,
+      "scene": "in-place",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "dark",
+      "width": 320,
+      "scene": "agents",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "dark",
+      "width": 690,
+      "scene": "empty",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "dark",
+      "width": 690,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "dark",
+      "width": 690,
+      "scene": "validation",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "dark",
+      "width": 690,
+      "scene": "suggestions",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "dark",
+      "width": 690,
+      "scene": "preview",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "dark",
+      "width": 690,
+      "scene": "in-place",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "dark",
+      "width": 690,
+      "scene": "agents",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "empty",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "validation",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "suggestions",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "preview",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "in-place",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "agents",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "hc-light",
+      "width": 690,
+      "scene": "empty",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "hc-light",
+      "width": 690,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "hc-light",
+      "width": 690,
+      "scene": "validation",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "hc-light",
+      "width": 690,
+      "scene": "suggestions",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "hc-light",
+      "width": 690,
+      "scene": "preview",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "hc-light",
+      "width": 690,
+      "scene": "in-place",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "hc-light",
+      "width": 690,
+      "scene": "agents",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "empty",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "validation",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "suggestions",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "preview",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "in-place",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "agents",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "hc-dark",
+      "width": 690,
+      "scene": "empty",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "hc-dark",
+      "width": 690,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "hc-dark",
+      "width": 690,
+      "scene": "validation",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "hc-dark",
+      "width": 690,
+      "scene": "suggestions",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "hc-dark",
+      "width": 690,
+      "scene": "preview",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "hc-dark",
+      "width": 690,
+      "scene": "in-place",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "hc-dark",
+      "width": 690,
+      "scene": "agents",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "one-dark-pro",
+      "width": 320,
+      "scene": "empty",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "one-dark-pro",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "one-dark-pro",
+      "width": 320,
+      "scene": "validation",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "one-dark-pro",
+      "width": 320,
+      "scene": "suggestions",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "one-dark-pro",
+      "width": 320,
+      "scene": "preview",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "one-dark-pro",
+      "width": 320,
+      "scene": "in-place",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "one-dark-pro",
+      "width": 320,
+      "scene": "agents",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "one-dark-pro",
+      "width": 690,
+      "scene": "empty",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "one-dark-pro",
+      "width": 690,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "one-dark-pro",
+      "width": 690,
+      "scene": "validation",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "one-dark-pro",
+      "width": 690,
+      "scene": "suggestions",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "one-dark-pro",
+      "width": 690,
+      "scene": "preview",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "one-dark-pro",
+      "width": 690,
+      "scene": "in-place",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "one-dark-pro",
+      "width": 690,
+      "scene": "agents",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "dracula",
+      "width": 320,
+      "scene": "empty",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "dracula",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "dracula",
+      "width": 320,
+      "scene": "validation",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "dracula",
+      "width": 320,
+      "scene": "suggestions",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "dracula",
+      "width": 320,
+      "scene": "preview",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "dracula",
+      "width": 320,
+      "scene": "in-place",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "dracula",
+      "width": 320,
+      "scene": "agents",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "dracula",
+      "width": 690,
+      "scene": "empty",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "dracula",
+      "width": 690,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "dracula",
+      "width": 690,
+      "scene": "validation",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "dracula",
+      "width": 690,
+      "scene": "suggestions",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "dracula",
+      "width": 690,
+      "scene": "preview",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "dracula",
+      "width": 690,
+      "scene": "in-place",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "en",
+      "theme": "dracula",
+      "width": 690,
+      "scene": "agents",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "zh-cn",
+      "theme": "light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "zh-cn",
+      "theme": "dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "zh-cn",
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "zh-cn",
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "zh-cn",
+      "theme": "one-dark-pro",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "zh-cn",
+      "theme": "dracula",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "zh-tw",
+      "theme": "light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "zh-tw",
+      "theme": "dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "zh-tw",
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "zh-tw",
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "zh-tw",
+      "theme": "one-dark-pro",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "zh-tw",
+      "theme": "dracula",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "ja",
+      "theme": "light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "ja",
+      "theme": "dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "ja",
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "ja",
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "ja",
+      "theme": "one-dark-pro",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "ja",
+      "theme": "dracula",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "ko",
+      "theme": "light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "ko",
+      "theme": "dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "ko",
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "ko",
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "ko",
+      "theme": "one-dark-pro",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "ko",
+      "theme": "dracula",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "de",
+      "theme": "light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "de",
+      "theme": "dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "de",
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "de",
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "de",
+      "theme": "one-dark-pro",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "de",
+      "theme": "dracula",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "fr",
+      "theme": "light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "fr",
+      "theme": "dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "fr",
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "fr",
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "fr",
+      "theme": "one-dark-pro",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "fr",
+      "theme": "dracula",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "es",
+      "theme": "light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "es",
+      "theme": "dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "es",
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "es",
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "es",
+      "theme": "one-dark-pro",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "es",
+      "theme": "dracula",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "pt-br",
+      "theme": "light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "pt-br",
+      "theme": "dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "pt-br",
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "pt-br",
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "pt-br",
+      "theme": "one-dark-pro",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "pt-br",
+      "theme": "dracula",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "ru",
+      "theme": "light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "ru",
+      "theme": "dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "ru",
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "ru",
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "ru",
+      "theme": "one-dark-pro",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "ru",
+      "theme": "dracula",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "it",
+      "theme": "light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "it",
+      "theme": "dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "it",
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "it",
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "it",
+      "theme": "one-dark-pro",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "it",
+      "theme": "dracula",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "tr",
+      "theme": "light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "tr",
+      "theme": "dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "tr",
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "tr",
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "tr",
+      "theme": "one-dark-pro",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "tr",
+      "theme": "dracula",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "pl",
+      "theme": "light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "pl",
+      "theme": "dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "pl",
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "pl",
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "pl",
+      "theme": "one-dark-pro",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "pl",
+      "theme": "dracula",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "cs",
+      "theme": "light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "cs",
+      "theme": "dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "cs",
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "cs",
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "cs",
+      "theme": "one-dark-pro",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "cs",
+      "theme": "dracula",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "hu",
+      "theme": "light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "hu",
+      "theme": "dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "hu",
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "hu",
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "hu",
+      "theme": "one-dark-pro",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "language": "hu",
+      "theme": "dracula",
+      "width": 320,
+      "scene": "template",
+      "violations": [],
+      "overflow": false,
+      "errors": []
+    }
+  ],
+  "screenshots": [
+    {
+      "file": "temp/cm962-harness/empty-light.png",
+      "sha256": "3fe54439f4286d7e31bfb18d7c306ae774774d920e71485805bef9a489af5eef",
+      "width": 320,
+      "height": 1527
+    },
+    {
+      "file": "temp/cm962-harness/template-light.png",
+      "sha256": "930f8916cb98cd844430bafa5e3b166960a3f0dce69ed70cfeb0a12e7b8babac",
+      "width": 320,
+      "height": 5540
+    },
+    {
+      "file": "temp/cm962-harness/validation-light.png",
+      "sha256": "220d1e2100c060f57874d47766e1d3dce0020a14c5174695e6732a3d96efef45",
+      "width": 320,
+      "height": 5482
+    },
+    {
+      "file": "temp/cm962-harness/suggestions-light.png",
+      "sha256": "b4bad4e5c8c58469544af5af524abca7bb423b81c2a5a101c85f115674c3b936",
+      "width": 320,
+      "height": 6443
+    },
+    {
+      "file": "temp/cm962-harness/preview-light.png",
+      "sha256": "930f8916cb98cd844430bafa5e3b166960a3f0dce69ed70cfeb0a12e7b8babac",
+      "width": 320,
+      "height": 5540
+    },
+    {
+      "file": "temp/cm962-harness/in-place-light.png",
+      "sha256": "72f4d151a2e2fe4d6dd682e8e4b143897734cff7eb3ce49de951fae1649d4cf3",
+      "width": 320,
+      "height": 5540
+    },
+    {
+      "file": "temp/cm962-harness/agents-light.png",
+      "sha256": "f199814e3735c2121ff8b5fcdd174e1ea07b8e7c374d365f7d665b8ac5ce34fc",
+      "width": 320,
+      "height": 917
+    },
+    {
+      "file": "temp/cm962-harness/empty-dark.png",
+      "sha256": "e8b0862e82b2dd3d1501d2304d92ba91c93a6fdba0bc141ab90dac704e4dbe4d",
+      "width": 320,
+      "height": 1527
+    },
+    {
+      "file": "temp/cm962-harness/template-dark.png",
+      "sha256": "3a3a6700ab7e92768e0b05500b8ae6019b6c09907310901bc10b2560b5310938",
+      "width": 320,
+      "height": 5540
+    },
+    {
+      "file": "temp/cm962-harness/validation-dark.png",
+      "sha256": "57af99b5fb406c33c645ed4a79765e018e3f28279ca1eba1db8f4c787f851b32",
+      "width": 320,
+      "height": 5482
+    },
+    {
+      "file": "temp/cm962-harness/suggestions-dark.png",
+      "sha256": "04cc6a718520eb23c3776bb9a074c89ce72af9799eee248e5401f5df2b1576f3",
+      "width": 320,
+      "height": 6443
+    },
+    {
+      "file": "temp/cm962-harness/preview-dark.png",
+      "sha256": "3a3a6700ab7e92768e0b05500b8ae6019b6c09907310901bc10b2560b5310938",
+      "width": 320,
+      "height": 5540
+    },
+    {
+      "file": "temp/cm962-harness/in-place-dark.png",
+      "sha256": "338b0d36504d6883325c0df629bf053baa25e268aa1b003590faa18526c55450",
+      "width": 320,
+      "height": 5540
+    },
+    {
+      "file": "temp/cm962-harness/agents-dark.png",
+      "sha256": "b584673b99447db64eba3f27f24dbf95c1a4bddaa92ceb07be0496e85b4b1be8",
+      "width": 320,
+      "height": 917
+    },
+    {
+      "file": "temp/cm962-harness/empty-hc-light.png",
+      "sha256": "fb378aa76f74d9d3dd3583086cbcbd3930dffc46bfd5b4ca9e21757fcba0495e",
+      "width": 320,
+      "height": 1527
+    },
+    {
+      "file": "temp/cm962-harness/template-hc-light.png",
+      "sha256": "35aed012f8cd52b843afac6caba78302db8b564b6676bf28ab188b3cb633e0c0",
+      "width": 320,
+      "height": 5540
+    },
+    {
+      "file": "temp/cm962-harness/validation-hc-light.png",
+      "sha256": "46ca60cdb2c80f4a08624f3cda1e60e6c1989c40244693f0f056959c32009734",
+      "width": 320,
+      "height": 5482
+    },
+    {
+      "file": "temp/cm962-harness/suggestions-hc-light.png",
+      "sha256": "59d5d7d6dc526ab1c100f951ed791716b3f7c87fcaad9c5c17b765c28dd48628",
+      "width": 320,
+      "height": 6443
+    },
+    {
+      "file": "temp/cm962-harness/preview-hc-light.png",
+      "sha256": "35aed012f8cd52b843afac6caba78302db8b564b6676bf28ab188b3cb633e0c0",
+      "width": 320,
+      "height": 5540
+    },
+    {
+      "file": "temp/cm962-harness/in-place-hc-light.png",
+      "sha256": "85e9cd528a392b1a7525019f00085c2065c836ba590e7d964d89290fc496ce36",
+      "width": 320,
+      "height": 5540
+    },
+    {
+      "file": "temp/cm962-harness/agents-hc-light.png",
+      "sha256": "2c0994dd001c9447dbd7ec8dd4bfb1cc97358d6e34f24588fc2a14a7034bff7c",
+      "width": 320,
+      "height": 917
+    },
+    {
+      "file": "temp/cm962-harness/empty-hc-dark.png",
+      "sha256": "b3f5511329a3e3b73d9a00b173bbc607090f219962cf3ea0f6965458d8354843",
+      "width": 320,
+      "height": 1527
+    },
+    {
+      "file": "temp/cm962-harness/template-hc-dark.png",
+      "sha256": "82d0b78e7bd1cfd3e4c69b7978fff367c1a3827097c39bd69654ac3bd15e0cb9",
+      "width": 320,
+      "height": 5540
+    },
+    {
+      "file": "temp/cm962-harness/validation-hc-dark.png",
+      "sha256": "0f8f1816fc29c6508248ac8afd666d470de155d599ec5db1e61321ce513619de",
+      "width": 320,
+      "height": 5482
+    },
+    {
+      "file": "temp/cm962-harness/suggestions-hc-dark.png",
+      "sha256": "d9d28d0cb82040ea3ee133fa6b88d931eb94f95360e2de4afb24921dfdc8d155",
+      "width": 320,
+      "height": 6443
+    },
+    {
+      "file": "temp/cm962-harness/preview-hc-dark.png",
+      "sha256": "82d0b78e7bd1cfd3e4c69b7978fff367c1a3827097c39bd69654ac3bd15e0cb9",
+      "width": 320,
+      "height": 5540
+    },
+    {
+      "file": "temp/cm962-harness/in-place-hc-dark.png",
+      "sha256": "7b689c9ba6df7ad4f489307284965a3f06676b2782d1257da5c5a2fc4d462edc",
+      "width": 320,
+      "height": 5540
+    },
+    {
+      "file": "temp/cm962-harness/agents-hc-dark.png",
+      "sha256": "ac79ed802a2eed35fe40ec941fe56b54f3fe780c3b072a3c9df94959518bd902",
+      "width": 320,
+      "height": 917
+    },
+    {
+      "file": "temp/cm962-harness/empty-one-dark-pro.png",
+      "sha256": "8394668b8afa6607ca8c74c1d0e9e01f2aa33e443b44bd96c4db9b68df86469d",
+      "width": 320,
+      "height": 1523
+    },
+    {
+      "file": "temp/cm962-harness/template-one-dark-pro.png",
+      "sha256": "fc280fc5637b3d951a742e0cfdbc9651b79bf86351651e8afb238a72f5d6c28c",
+      "width": 320,
+      "height": 5512
+    },
+    {
+      "file": "temp/cm962-harness/validation-one-dark-pro.png",
+      "sha256": "ebe66f9c87ff52d5546a4c6fdaec30fa0b257cae863a0652316f9eeddfebab6e",
+      "width": 320,
+      "height": 5454
+    },
+    {
+      "file": "temp/cm962-harness/suggestions-one-dark-pro.png",
+      "sha256": "223f4888e1c4206d8101c6ca96ba4433209266be71b1e0226cdae0d87ea73953",
+      "width": 320,
+      "height": 6413
+    },
+    {
+      "file": "temp/cm962-harness/preview-one-dark-pro.png",
+      "sha256": "fc280fc5637b3d951a742e0cfdbc9651b79bf86351651e8afb238a72f5d6c28c",
+      "width": 320,
+      "height": 5512
+    },
+    {
+      "file": "temp/cm962-harness/in-place-one-dark-pro.png",
+      "sha256": "3ecd0999bd4be8896a165f22cb64c1a03423cc48f0618ff8486501abf15ea0cc",
+      "width": 320,
+      "height": 5512
+    },
+    {
+      "file": "temp/cm962-harness/agents-one-dark-pro.png",
+      "sha256": "ff30158abb2b66396406d88d844d2e7a1d87750aed8f5fad1e1cc67f58aeb527",
+      "width": 320,
+      "height": 917
+    },
+    {
+      "file": "temp/cm962-harness/empty-dracula.png",
+      "sha256": "efec8baee99841529539b433db69ae774d6053e97bf420812a2a6d38d6d29aef",
+      "width": 320,
+      "height": 1527
+    },
+    {
+      "file": "temp/cm962-harness/template-dracula.png",
+      "sha256": "0333d82c2a97474f1885cf0fa4f1b2740a91932fa4cb03a0305367fd5f11b773",
+      "width": 320,
+      "height": 5540
+    },
+    {
+      "file": "temp/cm962-harness/validation-dracula.png",
+      "sha256": "f1d875f0fe6cb7d0ad7d9ce5a360ccce7dc23e9868844f972949016ece2b48d1",
+      "width": 320,
+      "height": 5482
+    },
+    {
+      "file": "temp/cm962-harness/suggestions-dracula.png",
+      "sha256": "e71f81c60ba0356a96899f36fb7c7a40da02c8b7d365361de1733183984abccf",
+      "width": 320,
+      "height": 6443
+    },
+    {
+      "file": "temp/cm962-harness/preview-dracula.png",
+      "sha256": "0333d82c2a97474f1885cf0fa4f1b2740a91932fa4cb03a0305367fd5f11b773",
+      "width": 320,
+      "height": 5540
+    },
+    {
+      "file": "temp/cm962-harness/in-place-dracula.png",
+      "sha256": "e755b2b7f938ab12344ed23ba92f830f8b0170efc4aedb8ba93850aafeb0bc58",
+      "width": 320,
+      "height": 5540
+    },
+    {
+      "file": "temp/cm962-harness/agents-dracula.png",
+      "sha256": "5b530e3c0ab57a4a711510f974453a9ecf6c6326faeeb5760ef79aaaec226b50",
+      "width": 320,
+      "height": 917
+    }
+  ],
+  "pngsTracked": false,
+  "reviewNotes": "Reviewed the filter controls and Agents at 320 px in light, dark, HC light, HC dark, One Dark Pro and Dracula, plus the complete seven-scene contact sheets. Labels and controls wrap without horizontal overflow; currency labels use Intl and family choices are populated. Consent chrome uses fake host ports, not a production native-dialog receipt. No baseline updated.",
+  "baselineShard": {
+    "revision": "6636c84beb804af52e49363ac10ede3223d3d295",
+    "manifestSha256": "aaa2f8fdf0fd4322083a1fc3b9f0357f648da34bcb345ee1ec70a9ad0cac23ea",
+    "candidateSha256": "1438bc51364397921e77f922b7ad5acc28e2db5abef6d164f5d2a1f218de6081",
+    "shard": {
+      "index": 1,
+      "count": 16
+    },
+    "selectionSha256": "0061833938622d8208799755d9817a12b3a607ec6334d5b02f276cc55371f116",
+    "checked": 612,
+    "changedPixels": 0,
+    "maxImageChangedPixels": 0,
+    "regenerated": false,
+    "baselineBytes": 25464915,
+    "candidateBytes": 25464875,
+    "browser": "150.0.7871.186",
+    "rasterization": "19bff3cb769aebd7c533f170076db49f7c141b902beaaa3aafc78ab8f90373d5",
+    "platform": "linux",
+    "policy": {
+      "threshold": 0.1,
+      "includeAA": false,
+      "maxChangedPixelRatio": 0.0001,
+      "maxChangedPixels": 12
+    }
+  }
+}

@@ -1,0 +1,497 @@
+{
+  "base": "3db06e79bc3a0482dc813dac6512adfd1bd30750",
+  "rig": "kubuntu",
+  "repositoryTimeout": true,
+  "maxWorkers": 3,
+  "restore": "Original and restored SHA-256 are equal for every listed file.",
+  "groups": [
+    {
+      "name": "availability-and-retirement",
+      "files": {
+        "src/core/team/teamPanel.ts": "228c2f61d2fca2a7506c222522a60fd447b991af117e6a17c0c77c08b642f6c4"
+      },
+      "testFiles": ["test/unit/teamPanel.test.ts", "test/unit/modelsPanel.test.ts"],
+      "exitCode": 1,
+      "failures": [
+        "test/unit/modelsPanel.test.ts > Models host contract > conceals team state when availability is withdrawn and refuses actions",
+        "test/unit/teamPanel.test.ts > M96 U1 portable panel > loads nothing and rejects edits with the team gate off",
+        "test/unit/teamPanel.test.ts > M96 U1 portable panel > asks before In Place, and closing while consent waits prevents an edit or save"
+      ]
+    },
+    {
+      "name": "durable-save",
+      "files": {
+        "src/core/team/teamPanel.ts": "228c2f61d2fca2a7506c222522a60fd447b991af117e6a17c0c77c08b642f6c4"
+      },
+      "testFiles": [
+        "test/unit/teamPanel.test.ts",
+        "test/unit/modelsPanel.test.ts",
+        "test/unit/teamRolesSection.test.tsx"
+      ],
+      "exitCode": 1,
+      "failures": [
+        "test/unit/teamPanel.test.ts > M96 U1 portable panel > prefills Pair, saves workspace state and reloads only after durable success",
+        "test/unit/teamPanel.test.ts > M96 U1 portable panel > persists Solo in the format the zero-traffic activation reader recognises",
+        "test/unit/teamPanel.test.ts > M96 U1 portable panel > keeps a failed save dirty and never reloads an unwritten team"
+      ]
+    },
+    {
+      "name": "selection-and-validation",
+      "files": {
+        "src/core/team/teamPanel.ts": "228c2f61d2fca2a7506c222522a60fd447b991af117e6a17c0c77c08b642f6c4"
+      },
+      "testFiles": ["test/unit/teamPanel.test.ts"],
+      "exitCode": 1,
+      "failures": [
+        "test/unit/teamPanel.test.ts > M96 U1 portable panel > preserves custom caps through intensity changes and explicitly reapplies the level",
+        "test/unit/teamPanel.test.ts > M96 U1 portable panel > reorders the exact pool the host will save and leaves Default last when adding",
+        "test/unit/teamPanel.test.ts > M96 U1 portable panel > refuses incapable models, unsupported settings, ceilings and cap inversions at save",
+        "test/unit/teamPanel.test.ts > M96 U1 portable panel > checks Default against the unsaved orchestrator and confirms that choice on save",
+        "test/unit/teamPanel.test.ts > M96 U1 portable panel > accepts the suggested preferred model first while preserving Default last",
+        "test/unit/teamPanel.test.ts > M96 U1 portable panel > rejects unknown import keys and marks unavailable references without substituting an agent"
+      ]
+    },
+    {
+      "name": "dismissals-and-transfer",
+      "files": {
+        "src/core/team/teamPanel.ts": "228c2f61d2fca2a7506c222522a60fd447b991af117e6a17c0c77c08b642f6c4"
+      },
+      "testFiles": ["test/unit/teamPanel.test.ts"],
+      "exitCode": 1,
+      "failures": [
+        "test/unit/teamPanel.test.ts > M96 U1 portable panel > persists suggestion dismissals and never starts a model during a preview",
+        "test/unit/teamPanel.test.ts > M96 U1 portable panel > round trips charter text, settings and intensity while import remains an unsaved draft"
+      ]
+    },
+    {
+      "name": "strict-import-and-messages",
+      "files": {
+        "src/shared/teamPanelDefinition.ts": "41a4719b2a5912cc8cfce08b2dece22cf56252c115396fa48552c5fcd30e6b80"
+      },
+      "testFiles": ["test/unit/teamPanel.test.ts", "test/unit/teamPanelBrowser.test.ts"],
+      "exitCode": 1,
+      "failures": [
+        "test/unit/teamPanel.test.ts > M96 U1 portable panel > rejects unknown import keys and marks unavailable references without substituting an agent",
+        "test/unit/teamPanel.test.ts > M96 U1 portable panel > rejects nested secret and command fields at the panel boundary",
+        "test/unit/teamPanelBrowser.test.ts > M96 optional browser validators > loads the strict canonical validators once a team payload arrives and refuses unknown keys"
+      ]
+    },
+    {
+      "name": "ui-order-purpose-and-errors",
+      "files": {
+        "src/webview/models/sections/roles/PoolEditor.tsx": "624b7ff118960c290efcd41c97a9eb7cdd95bd23f7033368d511e3465cb09ac5",
+        "src/webview/models/sections/roles/RoleEditor.tsx": "c4fb0e0fb8f6053aea88e7d70da02a294ecfdb87ed3ba9bcd9ebe01e158c483b",
+        "src/webview/models/sections/roles/RolesSection.tsx": "6e6481b860a9a63b5a9afa8d71507af5b866a97dc482d8f417a5bb43e905ecbb"
+      },
+      "testFiles": ["test/unit/teamRolesSection.test.tsx"],
+      "exitCode": 1,
+      "failures": [
+        "test/unit/teamRolesSection.test.tsx > M96 U1 Roles UI > posts Alt+Up reordering and exposes only supported settings",
+        "test/unit/teamRolesSection.test.tsx > M96 U1 Roles UI > keeps generated charter read-only and edits the user purpose",
+        "test/unit/teamRolesSection.test.tsx > M96 U1 Roles UI > disables saving a host-reported validation failure"
+      ]
+    },
+    {
+      "name": "ui-gate-and-navigation",
+      "files": {
+        "src/webview/models/panel.tsx": "cac365e2af5428f12f8b17f8cbf12902a7a2ee745499d9ea35daa68d9f9b3001",
+        "src/webview/models/sections/roles/RolesSection.tsx": "6e6481b860a9a63b5a9afa8d71507af5b866a97dc482d8f417a5bb43e905ecbb",
+        "src/webview/models/sections/agents/AgentsSection.tsx": "17530c0b3695f192d1a0c32d610d3e1c37613af602bd65ff7e206130ee5903b9"
+      },
+      "testFiles": ["test/unit/teamRolesSection.test.tsx"],
+      "exitCode": 1,
+      "failures": [
+        "test/unit/teamRolesSection.test.tsx > M96 U1 Roles UI > hides both team sections and ignores their deep links when the gate is off",
+        "test/unit/teamRolesSection.test.tsx > M96 U1 Roles UI > navigates through the registry and opens a deep-linked role",
+        "test/unit/teamRolesSection.test.tsx > M96 U1 Roles UI > shows an honest empty Agent map while no team is running"
+      ]
+    },
+    {
+      "name": "ui-chunk-failure-and-close",
+      "files": {
+        "src/webview/models/panel.tsx": "cac365e2af5428f12f8b17f8cbf12902a7a2ee745499d9ea35daa68d9f9b3001"
+      },
+      "testFiles": ["test/unit/teamRolesSection.test.tsx"],
+      "exitCode": 1,
+      "failures": [
+        "test/unit/teamRolesSection.test.tsx > M96 U1 Roles UI > shows a retry after a deferred validator load fails",
+        "test/unit/teamRolesSection.test.tsx > M96 U1 Roles UI > drops a pending deferred state when its document closes"
+      ]
+    },
+    {
+      "name": "browser-loading",
+      "files": {
+        "src/webview/models/teamPanelBrowser.ts": "8b7a8779aeb4978629c4c5c0171fc677e5b610228a6f3aca3c573ea35c83b038"
+      },
+      "testFiles": ["test/unit/teamPanelBrowser.test.ts"],
+      "exitCode": 1,
+      "failures": [
+        "test/unit/teamPanelBrowser.test.ts > M96 optional browser validators > does not admit a team contract before loading or for an ordinary provider state"
+      ]
+    },
+    {
+      "name": "team-budget-closure",
+      "files": {
+        "scripts/lib/webviewBundles.mjs": "c83141996f3794e6e1ddc7e55c8450a4b83b911ec92bf7207d11db5626d44adf"
+      },
+      "testFiles": ["test/unit/webviewBundles.test.mjs"],
+      "exitCode": 1,
+      "failures": [
+        "test/unit/webviewBundles.test.mjs > webview import budgets > charges a team surface and its CSS independently of the Models body on Windows paths"
+      ]
+    },
+    {
+      "name": "registry",
+      "files": {
+        "src/webview/models/sections.ts": "e10805d4db14c941c10a6957cd27c0fff7f446b069d7966410cb092390370434"
+      },
+      "testFiles": ["test/unit/modelsSections.test.ts"],
+      "exitCode": 1,
+      "failures": [
+        "test/unit/modelsSections.test.ts > MODEL_SECTIONS > registers providers and models, each with a title, icon and Component",
+        "test/unit/modelsSections.test.ts > MODEL_SECTIONS > finds the gated team sections by their deep-link IDs"
+      ]
+    },
+    {
+      "name": "four-click-and-live-actions",
+      "files": {
+        "src/webview/models/sections/roles/RolesSection.tsx": "6e6481b860a9a63b5a9afa8d71507af5b866a97dc482d8f417a5bb43e905ecbb",
+        "src/host/models/teamPanelBinding.ts": "5a13e25a20d58864d5bda404038f563a902efa72b8fb5d38632b3c3e3987703b"
+      },
+      "testFiles": ["test/unit/teamRolesSection.test.tsx", "test/unit/modelsPanel.test.ts"],
+      "exitCode": 1,
+      "failures": [
+        "test/unit/modelsPanel.test.ts > Models host contract > loads the portable team draft and forwards live actions through the existing host",
+        "test/unit/teamRolesSection.test.tsx > M96 U1 Roles UI > saves the first Pair in four clicks with found agents"
+      ]
+    },
+    {
+      "name": "live-tree-subscription",
+      "files": {
+        "src/host/teamHostBinding.ts": "df170db95a7de84b64c2d4fed3899fb18645588804910810c2e0beb04c8bf882"
+      },
+      "testFiles": ["test/unit/teamHostService.test.ts"],
+      "exitCode": 1,
+      "failures": [
+        "test/unit/teamHostService.test.ts > the window binding > notifies the Roles and Agents subscriber and stops notifying after unsubscribe"
+      ]
+    },
+    {
+      "name": "priced-budget-suggestion",
+      "files": {
+        "src/core/team/teamPanelViews.ts": "7b071dc69f7d6b99edabe8bfbf17318150cb50b6bbce4804b0e8a1a18e8c3c3e"
+      },
+      "testFiles": ["test/unit/teamPanel.test.ts"],
+      "exitCode": 1,
+      "failures": [
+        "test/unit/teamPanel.test.ts > M96 U1 portable panel > offers dollar budget suggestions only for priced key entries"
+      ]
+    },
+    {
+      "name": "pool-keyboard-registry-and-fresh-deep-link",
+      "files": {
+        "src/webview/models/sections/roles/RolesSection.tsx": "de877360d2adfafab3983cd0cffe4bb0dcfce8865c6a82d26eccd8100ffab8a1",
+        "src/webview/models/sections/roles/PoolEditor.tsx": "44331a7bf408a04ab1f3bf08a249eaae7d309e7f961405fc4d1b9fe9046257df"
+      },
+      "testFiles": ["test/unit/teamRolesSection.test.tsx"],
+      "exitCode": 1,
+      "failures": [
+        "test/unit/teamRolesSection.test.tsx > M96 U1 Roles UI > keeps local role selection usable and honors a subsequent host deep link",
+        "test/unit/teamRolesSection.test.tsx > M96 U1 Roles UI > posts Alt+Up reordering and exposes only supported settings"
+      ]
+    },
+    {
+      "name": "document-retirement-guard",
+      "files": {
+        "src/webview/models/panel.tsx": "f2f73b9047786da5ef341e3eb8ce1d6dc78de4f380ad35618e5bf4c3128747af"
+      },
+      "testFiles": ["test/unit/teamRolesSection.test.tsx"],
+      "exitCode": 1,
+      "failures": [
+        "test/unit/teamRolesSection.test.tsx > M96 U1 Roles UI > drops a pending deferred state when its document closes"
+      ]
+    },
+    {
+      "name": "accepted-budget-preserves-custom-intensity",
+      "files": {
+        "src/core/team/teamPanel.ts": "ddbe5738e37bbd923606862111133a933135196944c3b25175a5e57a2d4546c4"
+      },
+      "testFiles": ["test/unit/teamPanel.test.ts"],
+      "exitCode": 1,
+      "failures": [
+        "test/unit/teamPanel.test.ts > M96 U1 portable panel > offers dollar budget suggestions only for priced key entries"
+      ]
+    },
+    {
+      "name": "tool-search-filter",
+      "files": {
+        "src/webview/models/sections/roles/RoleEditor.tsx": "70f15b8d8f72e6ddc2e2779caea4a1f472c66ced86910cb37035a1f2f65919a0"
+      },
+      "testFiles": ["test/unit/teamRolesSection.test.tsx"],
+      "exitCode": 1,
+      "failures": [
+        "test/unit/teamRolesSection.test.tsx > M96 U1 Roles UI > filters the allowed tools without changing the selected tool set"
+      ]
+    },
+    {
+      "name": "browser-validator-path-normalization",
+      "files": {
+        "scripts/lib/webviewBundles.mjs": "01ef82fcfcde4e7fe18e8fd6fd9d4007660930a3621e7e3835573a5bfa1bdf96"
+      },
+      "testFiles": ["test/unit/webviewBundles.test.mjs"],
+      "exitCode": 1,
+      "failures": [
+        "test/unit/webviewBundles.test.mjs > webview import budgets > resolves the browser team validator shim with either path separator"
+      ]
+    },
+    {
+      "name": "team-editor-first-use-cohort",
+      "files": {
+        "scripts/lib/deferredBundles.mjs": "01dae94fcd3f6f6d7d2a9ee54e83919608f939178cc7bab0170a414f7dd16a11"
+      },
+      "testFiles": ["test/unit/deferredBundles.test.ts"],
+      "exitCode": 1,
+      "failures": [
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > keeps the team editor in its first-use bundle and refuses an eager copy",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > keeps governor execution in its lazy bundle and shares the admission shim",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > POSTSPAWN loads the governed launcher in its own bundle, never inside the governor",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > every production bundle passes the deferred-boundary gate",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > rejects duplicated wire schemas in an activation input map",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the estimateContracts split guard for src/shared/estimate.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the modelApi split guard for src/shared/estimate.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the vaultBoundaries split guard for src/shared/vault.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the modelApi split guard for src/shared/vault.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the providerPolicy split guard for src/host/backend/providerPolicyEntry.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the providerPolicy split guard for src/core/backends/modelapi/codecs/chat.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the hookRuntime split guard for src/core/backends/modelapi/hookHandlers.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the modelApiMcp split guard for src/core/backends/modelapi/mcp/pool.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the runtimeAccounting split guard for src/runtime/runtimeAccountingEntry.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the modelApi split guard for src/core/backends/modelapi/hookHandlers.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the modelApi split guard for src/core/backends/modelapi/mcp/pool.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the acp split guard for src/runtime/runtimeAccountingEntry.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the reviewer split guard for src/core/backends/modelapi/reviewerEntry.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the acp split guard for src/acp/questionDeferral.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the modelApi split guard for src/acp/questionDeferralEntry.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the reviewer split guard for src/core/backends/modelapi/reviewerEntry.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the modelApiCodeIntel split guard for src/core/backends/modelapi/codeIntelCalls.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the mcpPool split guard for src/core/backends/modelapi/mcp/pool.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the headless split guard for src/runtime/exec/runExec.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the structuredSchema split guard for src/shared/structuredSchemaEntry.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the modelApi split guard for src/core/backends/modelapi/codeIntelCalls.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the modelApi split guard for src/core/backends/modelapi/mcp/pool.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the acp split guard for src/runtime/exec/runExec.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the foreignHooks split guard for src/core/export/sessionTransfer.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the modelApi split guard for src/runtime/schedules/nodeBackgroundIo.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the modelApi split guard for src/runtime/schedules/effectiveDefinition.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the extension split guard for src/host/bestOfN/bestOfNManager.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the extension split guard for src/host/conversation/conversationController.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the acp split guard for src/host/support/recorderEntry.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the acp split guard for src/host/support/reportJournal.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the foreignHooks split guard for src/core/backends/modelapi/pluginHost.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the modelApi split guard for src/core/backends/modelapi/pluginChild.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the modelApi split guard for src/core/backends/modelapi/reviewerEntry.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the modelApi split guard for src/core/backends/modelapi/hookFormats/engine.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the modelApi split guard for src/core/backends/modelapi/hookRuntimeEntry.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the modelApi split guard for src/core/export/sessionTransfer.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the extension split guard for src/core/codeIntel/codeIntelQuery.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the extension split guard for src/core/voice/museVoice.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the extension split guard for src/core/backends/modelapi/codecs/anthropic.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the modelApi split guard for src/core/backends/modelapi/codecs/anthropic.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the acp split guard for src/core/backends/modelapi/codecs/anthropic.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the pageWorker split guard for src/core/backends/modelapi/codecs/future.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the extension split guard for src/core/backends/modelapi/codecs/gemini.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the modelApi split guard for src/core/backends/modelapi/codecs/responses.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the modelsPanel split guard for src/core/providers/providersFile.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the providers split guard for src/core/backends/modelapi/codecs/anthropic.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the providers split guard for src/core/backends/modelapi/codecs/gemini.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the providers split guard for src/core/backends/modelapi/codecs/responses.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the providers split guard for src/core/backends/modelapi/codecs/chat.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the providers split guard for src/core/backends/modelapi/codecs/ollama.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the extension split guard for src/core/legal/entry.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the subscriptions split guard for src/core/providers/subscriptions/chatgpt.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the subscriptions split guard for src/core/providers/subscriptions/registry.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the configuredProviders split guard for src/core/providers/configured.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the configuredProviders split guard for src/core/backends/modelapi/authSource.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the configuredProviders split guard for src/core/backends/modelapi/providerClient.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the usageService split guard for src/runtime/usage/usageAcp.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the acp split guard for src/runtime/usage/usageAcp.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the headless split guard for src/runtime/exec/runExec.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the acp split guard for src/runtime/exec/runExec.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the modelApi split guard for src/core/backends/modelapi/ndjson.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the modelApi split guard for src/core/backends/modelapi/transport.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the modelApi split guard for src/core/backends/modelapi/sse.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the extension split guard for src/core/backends/modelapi/transport.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the acp split guard for src/core/backends/modelapi/authSource.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the providers split guard for src/core/backends/modelapi/sse.ts and restores its metafile byte-exact",
+        "test/unit/deferredBundles.test.ts > deferred cohort bundles > fires the extension split guard for src/host/review/museCodeReviewer.ts and restores its metafile byte-exact"
+      ]
+    },
+    {
+      "name": "import-guide-and-stored-template",
+      "files": {
+        "src/webview/models/sections/roles/RolesSection.tsx": "e2e51e76c7b89ebbc3dcc62135f3ab9e9ed5c26f64a14c7445934332d634c4e4"
+      },
+      "testFiles": ["test/unit/teamRolesSection.test.tsx"],
+      "exitCode": 1,
+      "failures": [
+        "test/unit/teamRolesSection.test.tsx > M96 U1 Roles UI > shows the stored template and keeps an imported draft out of the first-run guide"
+      ]
+    },
+    {
+      "name": "integer-form-constraints",
+      "files": {
+        "src/webview/models/sections/roles/PoolEditor.tsx": "91dca62f4351c4bc2eca7664da9bb947f39e028154df60073b64f422e79dd52e",
+        "src/webview/models/sections/roles/fields.tsx": "190c8d499b96714bf79ef1259f7fbd11bd0644e6d690d72d2811f941c88fa93f"
+      },
+      "testFiles": ["test/unit/teamRolesSection.test.tsx"],
+      "exitCode": 1,
+      "failures": [
+        "test/unit/teamRolesSection.test.tsx > M96 U1 Roles UI > refuses fractional running limits and integer model controls in the form"
+      ]
+    },
+    {
+      "name": "title-case-label-contract",
+      "files": {
+        "src/shared/l10n/en.ts": "fcfa7406a15f780ca0ddc01aecefeb4b2903921ab8a771fa71d77017f582144f"
+      },
+      "testFiles": ["test/unit/TeamTree.test.tsx", "test/unit/teamTemplates.test.ts"],
+      "exitCode": 1,
+      "failures": [
+        "test/unit/TeamTree.test.tsx > TeamTree > sends each action with its task, entry or role",
+        "test/unit/TeamTree.test.tsx > RVM96B tree regressions > 14 has one total Tab stop and exposes every action through F2 and arrows"
+      ]
+    },
+    {
+      "name": "required-configuration-ports",
+      "files": {
+        "src/host/models/modelsPanelEntry.ts": "69bbfad89379242d85f76ff26c279027ea3ac2e0f532ff2233fe31bcb9fa58d9"
+      },
+      "testFiles": ["test/unit/modelsPanelEntry.test.ts"],
+      "exitCode": 1,
+      "failures": [
+        "test/unit/modelsPanelEntry.test.ts > createModelsPanelFeatures > keeps sections hidden when the engine is enabled but configuration ports are absent"
+      ]
+    },
+    {
+      "name": "workspace-orchestrator-not-composer",
+      "files": {
+        "src/host/models/modelsPanelEntry.ts": "69bbfad89379242d85f76ff26c279027ea3ac2e0f532ff2233fe31bcb9fa58d9"
+      },
+      "testFiles": ["test/unit/modelsPanelEntry.test.ts"],
+      "exitCode": 1,
+      "failures": [
+        "test/unit/modelsPanelEntry.test.ts > createModelsPanelFeatures > uses the captured configuration ports and saves without changing the current composer"
+      ]
+    },
+    {
+      "name": "offer-price-and-context-domains",
+      "files": {
+        "src/shared/teamPanelDefinition.ts": "a96c9e43268b60d1820f951ae17e929da10ef6ec9693f33b9809817f1deaf122"
+      },
+      "testFiles": ["test/unit/teamPanel.test.ts"],
+      "exitCode": 1,
+      "failures": [
+        "test/unit/teamPanel.test.ts > M96 U1 portable panel > refuses invalid offer inputRate before showing an estimate",
+        "test/unit/teamPanel.test.ts > M96 U1 portable panel > refuses invalid offer outputRate before showing an estimate",
+        "test/unit/teamPanel.test.ts > M96 U1 portable panel > refuses invalid offer cachedRate before showing an estimate",
+        "test/unit/teamPanel.test.ts > M96 U1 portable panel > refuses invalid offer contextWindow before showing an estimate"
+      ]
+    },
+    {
+      "name": "inherited-settings-and-reset",
+      "files": {
+        "src/webview/models/sections/roles/fields.tsx": "7502e077982478a5d1d8a130a05e9eec49d251ea891c8559ac385c7c7fd8295c"
+      },
+      "testFiles": ["test/unit/teamRolesSection.test.tsx"],
+      "exitCode": 1,
+      "failures": [
+        "test/unit/teamRolesSection.test.tsx > M96 U1 Roles UI > shows inherited numeric settings as Default and can reset an explicit value"
+      ]
+    },
+    {
+      "name": "saved-empty-template-guide",
+      "files": {
+        "src/webview/models/sections/roles/RolesSection.tsx": "73cb216b3e980e510665e61175bd82e4a982b7e236ff1e46cf00068426f90c90"
+      },
+      "testFiles": ["test/unit/teamRolesSection.test.tsx"],
+      "exitCode": 1,
+      "failures": [
+        "test/unit/teamRolesSection.test.tsx > M96 U1 Roles UI > keeps saved solo out of first-run setup",
+        "test/unit/teamRolesSection.test.tsx > M96 U1 Roles UI > keeps saved custom out of first-run setup"
+      ]
+    },
+    {
+      "name": "section-action-labels",
+      "files": {
+        "src/webview/components/TeamTree.tsx": "cfd6995d3c37ec68505cf8723770d77ef5ef8eb5638f2e1c21c98d1dfc6cff98"
+      },
+      "testFiles": ["test/unit/TeamTree.test.tsx", "test/unit/teamRolesSection.test.tsx"],
+      "exitCode": 1,
+      "failures": [
+        "test/unit/TeamTree.test.tsx > TeamTree > uses the section action labels without changing chat defaults",
+        "test/unit/teamRolesSection.test.tsx > M96 U1 Roles UI > gives the Agents section its title-case labels and routes its actions"
+      ]
+    },
+    {
+      "name": "actual-budget-history",
+      "files": {
+        "src/core/team/teamPanelViews.ts": "be8b80aea73629689b91d720280006c473f76c9916289a446c1acb19041a79e2"
+      },
+      "testFiles": ["test/unit/teamPanel.test.ts"],
+      "exitCode": 1,
+      "failures": [
+        "test/unit/teamPanel.test.ts > M96 U1 portable panel > uses the actual remaining budget and history for suggestions"
+      ]
+    },
+    {
+      "name": "remaining-budget-domain",
+      "files": {
+        "src/core/team/teamPanel.ts": "d4c99831bda1c2574ba79d7b19181bfd3f270d1dc4d88eb25fd2c86e7161aa1c"
+      },
+      "testFiles": ["test/unit/teamPanel.test.ts"],
+      "exitCode": 1,
+      "failures": [
+        "test/unit/teamPanel.test.ts > M96 U1 portable panel > refuses an invalid remaining budget before offering suggestions"
+      ]
+    }
+  ],
+  "budgetGates": {
+    "budgets": [
+      {
+        "file": "dist/teamPanel.js",
+        "failure": "OVER dist/teamPanel.js",
+        "restoredSha256": "6a66dc89f812bd24904d7610d30127fd42bd7abe74c98a2727ad9f89d770db2f"
+      },
+      {
+        "file": "dist/webview/chunks/XSENSROJ.js",
+        "failure": "OVER dist/webview Roles section",
+        "restoredSha256": "bbfe9b1feb6dabad84c264a69f19ae38b19898da9d6279857f86bc88dc26d0e0"
+      },
+      {
+        "file": "dist/webview/chunks/PB7RA5LF.js",
+        "failure": "OVER dist/webview Agents section",
+        "restoredSha256": "2942c19a4f3b94d538e56005ae78168bbb489ebc3ff7ba92fc168a44fa3508dc"
+      },
+      {
+        "file": "dist/webview/chunks/JRGEIFJ2.js",
+        "failure": "OVER dist/webview team validators",
+        "restoredSha256": "eaacc43547f4b0cd242d53db4fbf5630920b644273243b415aa9c52d2fb73611"
+      },
+      {
+        "file": "dist/webview/chunks/5IOJPLUV.js",
+        "failure": "OVER dist/webview team configuration English",
+        "restoredSha256": "39f453b4e1f2a0418e8b45dddbbcdcb2b6061e8589c56782dd6c43df476dafbd"
+      }
+    ],
+    "restore": "byte-exact SHA-256 equality"
+  },
+  "browserBoundary": {
+    "source": "test/harness/teamRoles.tsx",
+    "restoredSha256": "ea37da9fce644251573a4624b78a5d541e7fee071d8d33edc5afbc275cd95faf",
+    "mutation": "Null bodyClass fed to the HTTP theme parser",
+    "command": "npm run harness:team",
+    "exitCode": 1,
+    "failure": "en/light/320/empty: $ZodError",
+    "restore": "Original bytes restored in finally and SHA-256 compared; mini Zod exposes the error name to Playwright, not its field detail."
+  }
+}

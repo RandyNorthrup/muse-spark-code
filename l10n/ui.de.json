@@ -4423,6 +4423,29 @@
   },
   "teamInPlaceConfirm": "Ein Worker in dieser Rolle schreibt in Ihrem eigenen Baum, neben Ihren eigenen Änderungen. Nur von Ihnen erlaubte Schreiber laufen so: niemals ein Repository, eine Projektrolle oder eine Vorlage.",
   "teamToolChecklist": "Werkzeugsatz",
+  "teamToolGroups": {
+    "read": "Lesen",
+    "codeIntel": "Code-Intelligenz",
+    "rename": "Umbenennen",
+    "write": "Schreiben",
+    "shell": "Shell",
+    "readOnlyShell": "Nur-Lese-Shell",
+    "testShell": "Test-Shell",
+    "checks": "Prüfungen",
+    "diagnostics": "Diagnose",
+    "webFetch": "Seite abrufen",
+    "webSearch": "Websuche",
+    "images": "Bilder",
+    "memoryRead": "Gedächtnis lesen",
+    "skills": "Skills",
+    "report": "Bericht"
+  },
+  "teamReportShapes": {
+    "summary": "Zusammenfassung",
+    "review": "Prüfung",
+    "qa": "Q&A"
+  },
+  "teamPoolFree": "Kostenlos",
   "teamAddEntry": "Eintrag hinzufügen",
   "teamDefaultEntry": "Standard",
   "teamDefaultResolves": "Standard ({model})",
@@ -5238,5 +5261,45 @@
       "one": "{count} Freigabe",
       "other": "{count} Freigaben"
     }
-  }
+  },
+  "teamEditor": {
+    "purpose": "Zweck",
+    "done": "Abschlusskriterien",
+    "guidance": "Anleitung",
+    "roleId": "Rollen-ID",
+    "pools": "Agentenpools",
+    "concurrent": "Parallelitätslimit",
+    "caps": "Obergrenzen",
+    "task": "Aufgabe",
+    "day": "Tag",
+    "lifetime": "Gesamtlaufzeit",
+    "addCap": "Obergrenze hinzufügen",
+    "reapply": "Stufe erneut anwenden",
+    "empty": "Kein Team läuft",
+    "save": "Team speichern",
+    "saved": "Team gespeichert.",
+    "invalid": "Prüfen Sie vor dem Speichern ungültige oder fehlende Werte des Teams.",
+    "moveLabel": "{entry} auf Position {position} verschoben.",
+    "noCalls": "Diese Vorschau ruft kein Modell auf und kostet nichts.",
+    "settings": "Modelleinstellungen",
+    "agents": "Agenten",
+    "workspace": "Arbeitsbereich",
+    "poolKeys": "Alt+Auf / Alt+Ab verschiebt diesen Eintrag im Pool.",
+    "toolSearch": "Werkzeuge suchen",
+    "transcript": "Transkript öffnen",
+    "diff": "Diff prüfen",
+    "editRole": "Im Rollenbereich bearbeiten",
+    "stopAll": "Alle Teamaufgaben anhalten"
+  },
+  "teamEditorRoles": {
+    "research": "Recherche",
+    "design": "Gestaltung",
+    "marketing": "Vermarktung",
+    "engineering": "Entwicklung",
+    "qa": "Qualitätssicherung",
+    "code-review": "Codeprüfung",
+    "docs": "Dokumentation"
+  },
+  "referenceTeamConfiguration": "Rollen und Agenten bleiben ausgeblendet, bis die Anbindungen für Teamagenten und Konfiguration installiert sind.",
+  "referenceTeamPoolKeys": "Alt+Auf / Alt+Ab verschiebt diesen Eintrag im Pool."
 }
