@@ -7,6 +7,13 @@ import process from 'node:process'
 import { build } from 'esbuild'
 
 const root = path.resolve(import.meta.dirname, '..')
+// The plan is archived long before it reaches the reader's bound: past this
+// share of REPORT_PLAN_MAX_BYTES the gate fails and names the procedure.
+// Hitting the bound itself stops check:plan, check:roadmap and /report at
+// once, in the middle of whatever branch added the last paragraph.
+const PLAN_ARCHIVE_AT_PERCENT = 85
+const PLAN_ARCHIVE_PROCEDURE =
+  'Move closed history to docs/plan-archive/ before adding more: CONTRIBUTING.md, "Archiving closed history from PLAN.md".'
 const args = process.argv.slice(2)
 if (args.length > 2 || args.some((arg) => arg.startsWith('--'))) {
   console.error('check:plan [file] [milestone-id]')
@@ -42,6 +49,7 @@ if (args.length > 2 || args.some((arg) => arg.startsWith('--'))) {
   try {
     const input = await open(file, 'r')
     let text
+    let bytesUsed = 0
     try {
       const { size } = await input.stat()
       if (size > REPORT_PLAN_MAX_BYTES) throw new RangeError('input-size')
@@ -54,6 +62,7 @@ if (args.length > 2 || args.some((arg) => arg.startsWith('--'))) {
         if (bytesRead === 0) break
       }
       text = bytes.toString('utf8', 0, used)
+      bytesUsed = used
     } finally {
       await input.close()
     }
@@ -64,8 +73,14 @@ if (args.length > 2 || args.some((arg) => arg.startsWith('--'))) {
           `${path.basename(file)}:${drift.line}: ${fill(UI_TEXT.reportUi.planDrift, { line: String(drift.line), detail: `${drift.code}: ${drift.detail}` })}`,
         ),
       )
+    const archiveAt = Math.floor((REPORT_PLAN_MAX_BYTES * PLAN_ARCHIVE_AT_PERCENT) / 100)
     if (facts.drift.length > 0) process.exitCode = REPORT_EXIT_CODES.failed
-    else if (args[1]) {
+    else if (bytesUsed > archiveAt) {
+      console.error(
+        `${path.basename(file)} is ${String(bytesUsed)} bytes, over ${String(PLAN_ARCHIVE_AT_PERCENT)}% (${String(archiveAt)}) of the plan reader's ${String(REPORT_PLAN_MAX_BYTES)}-byte bound. ${PLAN_ARCHIVE_PROCEDURE}`,
+      )
+      process.exitCode = REPORT_EXIT_CODES.failed
+    } else if (args[1]) {
       const selected = findMilestone(facts, args[1])
       process.exitCode = selected.exitCode
       if (selected.exitCode === REPORT_EXIT_CODES.notFound)

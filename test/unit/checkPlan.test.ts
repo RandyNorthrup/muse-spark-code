@@ -121,6 +121,56 @@ describe('check:plan', () => {
     expect(result.stdout).toBe('')
   })
 
+  describe('archive guard', () => {
+    // The gate fails well before the reader's bound, so the plan is archived
+    // on a quiet day and not in the middle of the branch that crossed it.
+    const archiveAt = Math.floor((REPORT_PLAN_MAX_BYTES * 85) / 100)
+    /** The fixture padded, in its unparsed preamble, to exactly `total` bytes. */
+    function sized(total: number): string {
+      const cut = PLAN_FORMAT_FIXTURE.indexOf('\n## 2. ')
+      const head = PLAN_FORMAT_FIXTURE.slice(0, cut)
+      const tail = PLAN_FORMAT_FIXTURE.slice(cut)
+      const line = `${'closed history, archived elsewhere. '.repeat(2)}\n`
+      const room = total - Buffer.byteLength(head) - Buffer.byteLength(tail)
+      const rest = room % line.length
+      const text = `${head}${line.repeat(Math.floor(room / line.length))}${rest === 0 ? '' : `${'x'.repeat(rest - 1)}\n`}${tail}`
+      expect(Buffer.byteLength(text)).toBe(total)
+      return text
+    }
+
+    it('passes a plan at exactly 85% of the reader bound', () => {
+      const result = check(sized(archiveAt))
+      expect(result.stderr).toBe('')
+      expect(result.status).toBe(0)
+      expect(result.stdout).toContain('0 drift')
+    })
+
+    it('fails one byte over, with the size, the line it crossed and the archive procedure', () => {
+      const result = check(sized(archiveAt + 1))
+      expect(result.status).toBe(1)
+      expect(result.stdout).toBe('')
+      expect(result.stderr).toContain(
+        `PLAN.md is ${String(archiveAt + 1)} bytes, over 85% (${String(archiveAt)}) of the plan reader's ${String(REPORT_PLAN_MAX_BYTES)}-byte bound.`,
+      )
+      expect(result.stderr).toContain('Move closed history to docs/plan-archive/')
+      expect(result.stderr).toContain('CONTRIBUTING.md, "Archiving closed history from PLAN.md"')
+    })
+
+    it('reports format drift first, as before, when an over-size plan also has it', () => {
+      const result = check(sized(archiveAt + 1).replace('planned.**', 'not a status.**'))
+      expect(result.status).toBe(1)
+      expect(result.stderr).toContain('Plan format at line')
+      expect(result.stderr).not.toContain('docs/plan-archive/')
+    })
+
+    it('names a procedure that CONTRIBUTING.md has, and applies to the repository plan', () => {
+      const contributing = readFileSync(path.join(root, 'CONTRIBUTING.md'), 'utf8')
+      expect(contributing).toContain('\n## Archiving closed history from PLAN.md\n')
+      const size = Buffer.byteLength(readFileSync(path.join(root, 'PLAN.md')))
+      expect(size).toBeLessThanOrEqual(archiveAt)
+    })
+  })
+
   it.each(['oversized', 'growing'])(
     'bounds the actual gate file read for an %s file and always closes it',
     async (kind) => {

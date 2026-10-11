@@ -1,10 +1,19 @@
 # PLAN.md archived milestone sections
 
-Closed milestone sections (merged, released, complete or superseded) moved here
-from PLAN.md §6 to keep the plan under the `check:plan` 4 MiB reader bound
-(lead decision, combined 0.17.0 integration, 2026-10-08). PLAN.md keeps each
-milestone's heading, its status rows and a pointer here; every decision (D-entry)
-stays in PLAN.md §2. Text below is unchanged from PLAN.md.
+Closed milestone sections (merged, released, complete or superseded) moved
+here from PLAN.md §6 to keep the plan under the `check:plan` 4 MiB reader
+bound (lead decision, combined 0.17.0 integration, 2026-10-08). PLAN.md keeps
+each milestone's heading, its status rows, fields, checklist, lane tables and
+a pointer here. Text below is unchanged from PLAN.md.
+
+The sections added on 2026-10-11 stand at the end of this file, each between a
+`plan-archive:begin` marker that carries its size and SHA-256 and a
+`plan-archive:end` marker; `test/unit/planArchive.test.ts` hashes every one,
+and `lines` are the section's line numbers in PLAN.md at commit 5161b6476.
+Since that day the design record of §2 decisions is in
+[decisions.md](decisions.md) and older §7 gate records are in
+[gates.md](gates.md); every decision keeps its heading and its rule in force
+in PLAN.md §2.
 
 ## FIX0160X — Repair release CI composition (2026-10-07, macmini)
 
@@ -12152,3 +12161,390 @@ coverage and unbounded-array refusal remain; schema generation still uses
 `toJSONSchema` in its lazy/script reader. The existing 733.8 KiB startup
 regression and every production cap remain unchanged. CI's static job also
 runs P's new `check:plan` gate, matching `quality:gates`.
+
+## MONEY017 — Exact money and scheduled media after the 0.17.0 union (2026-10-08)
+
+<!-- plan-archive:begin id="6-MONEY017" lines="21244-21292" bytes="3425" sha256="a1d387f84c07ad6a280700e1f79123d75ae721af48e2d14aa403fed85f86c655" -->
+
+**Status 2026-10-08: built.** Scoped fake-only certification is recorded below;
+the lead owns the integrated quality and bundle-cap repairs.
+
+Port M108 daily-budget and account-consent fixtures to M106's exact decimal
+contracts and quote-aware consent without weakening refusal, threshold or total
+assertions. Diagnose the three durable schedule failures before touching the
+ledger. Scheduled media must reserve its complete admitted amount against both
+schedule and shared caps, settle into the fire cost, and capture the checked
+read-time source in the provenance ledger. Preserve interactive media's existing
+claims and all paid gates. Port the account-home pay-as-you-go fixture at the
+same account-consent boundary, preserving all escalation and refusal assertions.
+Log the malformed branded NaN fixture if no valid
+constructor can produce it. Fake-only default-timeout money/ledger/schedule
+suites and fresh-clone CI static gates certify this lane; unrelated integrated
+bundle caps and full quality remain with the lead. Record receipts under
+`docs/certification/int0170-combined.md`, Money and schedule ledger (MONEY017).
+
+**MONEY017B review repair plan (2026-10-08).** RVMONEY017 P2/P3:
+build calibrated media parts for the actual production request, attach its
+accounting to the host guard and reserve the complete tariff on scheduled
+follow-ups. D85.6 reserves the worst case; D95.3 refuses spend beyond the hard
+schedule/shared caps. An above-reserve bill therefore refuses settlement and
+retains the admitted amount as uncertain rather than posting an unadmitted
+amount. Secure the replacement daily claim before releasing the original;
+concurrent admissions cannot take its held headroom. Regressions run once on
+`054a9fd12`, deliberate red drills restore exact source bytes, and fresh-clone
+CI scoped gates use default deadlines. Full quality remains with the lead per
+§7 and the rig brief. No merge, push, live/paid call or gate changes.
+
+**MONEY017C production audit (2026-10-08, macmini).** Read D85.6/13,
+M105's current binding inventory, M108 and D95.3/M115 before changing code.
+Scheduled reads are intended, but D85.6 prohibits uploads until the U6c storage
+billing finding exists; M105 explicitly records the provider/account storage,
+captured Responses media codec and calibration readers as open. Do not invent
+free storage, wire frames or production calibration from fake tests. Ask for
+existing evidence paths while repairing the independently authorized exact-money
+port and auditing ordinary/admitted journal concurrency. If those evidence
+inputs remain absent, correct advertised availability and make the scheduled
+refusal explicit; certify the real production factory's refusal with fake HTTP,
+leaving upload/follow-up certification explicitly outstanding. All editors use
+the same factory. Preserve the existing caps and lazy boundaries, default test
+deadlines and assertions; fresh-clone scoped gates and normal hooks apply.
+
+Implemented: the three schedule failures were expectation ports; its durable
+ledger is unchanged. Media transfers its daily claim to the schedule, retains
+frozen-tariff settlement and hosted allowance, and records checked native source
+and replay provenance. Account consent now carries exact decimal budgets.
+Eight deliberate guard/precision/provenance drills fired and restored byte-exact;
+fresh-clone receipts and lead-owned integrated gates are in that record.
+
+<!-- plan-archive:end id="6-MONEY017" -->
+
+## INT0180 — Pre-integrate 0.18.0 on the 0.15.0 candidate (2026-10-07, linuxlt)
+
+<!-- plan-archive:begin id="6-INT0180" lines="21572-21670" bytes="7321" sha256="f80804c9d4c94f6d1ebb6144eb4246230418df8b3a53e71c26bc9b24338db1d9" -->
+
+**Status 2026-10-07: built.** Linux receipts in `docs/certification/int0180.md`; the package job stays red without genuine macOS artifacts.
+
+Base `2b9059676`, branch `int/0180`. Merge only `int-m105-w`,
+`int-m108-w`, `int-m109-w`, then `int-m117-w`, each with `git merge --no-ff`.
+Preserve both sides' behavior, translated keys and harness readiness entries;
+regenerate the Help reference and host API inventory. Keep the release version
+and README What's new unchanged. Startup remains at most 751,411 bytes;
+recover any excess through the newest features' existing lazy boundaries.
+
+- [x] Merge M105 media; resolve by meaning, regenerate and check.
+- [x] Merge M108 accounts; resolve by meaning, regenerate and check.
+- [x] Merge M109 vault and its fix round; regenerated; English fixture resolved.
+- [x] Merge M117 estimator; candidate build passes; startup regression remains failed.
+      M108's colliding local nano-USD, credential binding and account-usage text
+      contracts retain separate modules beside the release contracts. Both implementations
+      and their regression suites remain; provider envelopes, media and lazy runtime stay.
+      Account argument parsing separates from credential-bearing command runners; runners
+      load through runtimeAccounts. Its three new provider-account sources have exact
+      first-use ownership, and shared account schemas avoid eager provider-envelope code.
+
+Packaging includes the new Node dependencies and first-use surfaces; native vault
+assets follow the existing universal artifact transfer and executable-mode rules.
+Knip names the actual vault boundary build entry; unused panel re-exports are
+removed rather than ignored. Duplication fixes reuse the existing read-file
+queue method, derive legacy account fields while retaining its URL constraint,
+and share the two vault-redaction postconditions without dropping assertions.
+Legacy field reuse reads the existing schema shape directly; it introduces no
+new export into the curated shared mini-parser.
+The shared screenshot/accessibility harness must supply M117's required
+`estimator.optimize` setting in its init fixture. A contract regression parses
+the actual harness settings through the production host-message validator;
+retain strict validation and every existing readiness entry.
+Estimator namespace imports preserve the shared mini-parser export contract;
+real package import checks exercise these first-use dependencies. Fresh-clone
+repairs preserve fixed auth-error text, build cold package inputs, retain new
+vault schemas in launcher fixtures, and feed large determinism programs on
+standard input rather than process arguments. Hook fixtures retain the new
+vault Git fence while asserting credentials remain absent. Browser startup
+root exclusion is relative to the project, so a committed clone under temp
+retains its real UI readers while synthetic probe entries remain deferred.
+The vault shell secrets descriptor is offered only with a bound private runner;
+unbound ordinary shell schemas retain the release strict-tool contract. Merged
+request goldens still disagree on request attempts and need semantic review.
+Diagnostic compiled child runs also exceed the simulation and scrub performance
+limits without coverage. Keep the original benchmark assertions, all 2,000
+simulation trials, forty lanes, 1,000 scrub values and original hard limits.
+Node 22 vault slot fixtures explicitly model its absent optional Argon2 export;
+software KDF parameters and production cryptography stay unchanged. Account
+help joins the shared usage formatter so installed CLI output and the complete
+fifteen-language package verifier use one contract. Legal accessibility uses
+the same Chrome channel/absolute-path launch rule as the main harness. Native
+GCM decryption pins the already-validated tag length in the crypto call too.
+Bound vault descriptors still refuse unsupported strict conversion without
+dropping constraints; installed broker/grammar bindings remain milestone work.
+The estimator session adapter lives with its deferred panel, which validates and
+displays the first received section before subscribing to refreshes.
+M117 startup validation loads its complete captured application contracts before
+using an estimator message, through the first-use estimator boundary. Ordinary
+chat messages remain synchronous. The Node contracts have their own measured
+25 KiB D6 bundle; wire retains its original 50 KiB cap. Browser reader collection distinguishes technical group-name words from real
+UI_TEXT accesses; only the latter pull an object-valued English group into
+startup. Estimator pricing lives
+with the deferred panel, preserving custom editor formatters and exact nanos.
+
+M109 vault scrubbing belongs in the shared transport, including token counting
+and every retry. Recheck its generation after durable/media admission; summaries
+and restored replay retain producer, media and provenance together. Startup and
+existing ACP/reference caps stay unchanged; vault English uses first-use loading.
+Vault validators and taint helpers share `dist/vaultBoundaries.js` across Node
+consumers, loaded with their first vault-capable surface/backend. Its own 50 KiB
+D6 budget covers the measured 36.2 KiB closure plus 15% headroom, rounded up; all existing caps remain.
+Media projection and summaries conservatively preserve logical replay provenance.
+
+M105's first combined build exposed wire (51.1/50 KiB), headless
+(576.9/100 KiB) and optional English (25.1/25 KiB) overflows. Recover through
+existing shared Model API boundary schemas, the already-lazy runtime engine's
+RequestError export, and Help English behind its existing measured reference closure before lazy UI
+factories resolve. The deferred-bundle fixture uses the same production model-text
+compression. Header-only history refuses uploaded sessions without their ownership
+ledger, preserving durable cleanup. Both repairs have regression tests. Media text has first-paint readers, so moving it alone does
+not recover optional English. No schema, behavior or existing cap changes.
+
+- [ ] Repair integration failures with failing-before/passing-after tests and
+      byte-exact restored guard drills; no increased caps or timeouts.
+      Listed repairs are committed; remaining hard failures and assigned
+      stop-rule deferrals remain active in §7 and the certification record.
+- [x] Fresh-clone committed source, `npm ci`, `CI=true`: exact Linux static
+      job, four coverage shards and merged coverage, integration, packages,
+      secrets, SAST and accessibility jobs from `.github/workflows/build.yml`.
+      Run heavy jobs serially on this rig; scoped development runs use at most
+      three files and three workers. Record missing hosted artifacts honestly.
+      Final tested source `ba4c2ad6`: all commands attempted; required aggregate
+      failed. Legal accessibility and real team scenes pass; full axe times out.
+- [x] Finish `docs/certification/int0180.md`, hooks-on explicit-path commits,
+      merge/job results and lead handoff. No push, extra merges or model calls.
+
+The assigned integration brief supersedes common.md's legacy merge and scoped
+verification instructions. Certification records every command, repair, drill,
+size and external blocker; it does not claim hosted/platform/live certification.
+
+<!-- plan-archive:end id="6-INT0180" -->
+
+## FIXCYCLES2 — Share the build's integration-test roots (2026-10-08, Kubuntu)
+
+<!-- plan-archive:begin id="6-FIXCYCLES2" lines="21726-21741" bytes="1144" sha256="ea39f99dcc1e1ee039d2db9dab29db97b64a6df70681482d841aac43c25f2281" -->
+
+**Status 2026-10-08: built.** Complete locally. Shared discovery replaces the guard's copied
+integration glob. The replacement-list test passes in three complete runs at
+default deadlines; restoring the old glob fails it and restores byte-exact.
+Scoped gates and all five typechecks, duplication, localization, host API and
+production build pass; receipts are in `docs/certification/fixcycles.md`.
+
+Resolve RVFIXCYC's P3 by moving integration-test discovery into a small module
+used by both `scripts/build.mjs` and the cycle-root guard. The guard must use
+that list directly, so directory or filter changes cannot leave a copied glob
+behind. Prove with an injected replacement list and a deliberate restored
+hard-coded-glob drill; normalize Windows separators before comparing roots.
+Run cycles, unit typecheck, changed-file lint/format, plain knip and the complete
+guard suite three times at repository timeouts. Record receipts in
+`docs/certification/fixcycles.md`, then commit with normal hooks and explicit
+paths. The lane brief/common rules reserve aggregate quality and integration
+for the lead; no merge, rebase, push or paid/live call.
+
+<!-- plan-archive:end id="6-FIXCYCLES2" -->
+
+## FIXCYCLES — Complete dependency-cycle gate coverage (2026-10-08, Kubuntu)
+
+<!-- plan-archive:begin id="6-FIXCYCLES" lines="21745-21764" bytes="1391" sha256="73417da7c2007927a5d6c167d831ea7ddc9ded9cc1d0dda6b968906df4cdc02d" -->
+
+**Status 2026-10-08: built.** Complete locally. All prescribed fresh-clone gates pass; the
+expanded cycle gate analyzes 2,182 modules without a cycle. Eleven complete
+owning/guard suites pass three times (395 tests per round) at repository
+deadlines. Both red drills fail and restore byte-exact. G77 records the
+coverage lesson; receipts are in `docs/certification/fixcycles.md`.
+
+Audit every build entry, runtime lazy import target, entry-named module,
+webview page and knip entry against the dpdm roots. Add the missing roots
+and a source-reading regression guard that fails on the inherited root list.
+Break each exposed cycle by moving shared policy into a dependency leaf;
+keep the worker credential and Git admission behaviour unchanged. Prove the
+expanded gate rejects a restored worker cycle, with byte-exact restoration.
+Run fresh-clone `npm ci` checks with `CI=true`: cycles, all five typechecks,
+changed-file lint/format, plain knip, duplication, production build with
+unchanged caps, and each owning suite three times at repository deadlines.
+Record root inventory, cycle edges, failure drills and exits in
+`docs/certification/fixcycles.md`; update the changelog and gotchas register.
+The rig/shared brief reserves aggregate quality and hosted cross-platform
+qualification for the lead; this lane commits locally with hooks, without
+merge, rebase, push or live/paid model calls.
+
+<!-- plan-archive:end id="6-FIXCYCLES" -->
+
+## VIS017 — Border contrast floor (R1) and merge-path wrap (F4, 2026-10-08, macbook)
+
+<!-- plan-archive:begin id="6-VIS017" lines="22336-22375" bytes="2693" sha256="410dde49d17e53e55fc2db10e4f6254509a2b9590bd17d5c1b80beceb0954da9" -->
+
+**Status 2026-10-08: built.** Worktree `~/lanes/VIS017`, branch `rel017/vis`
+from `rel017/left4` (`49d979299`). No receipt regeneration; the lead
+regenerates once on the merged 0.17 tree.
+
+**M114 record — R1 chooses option (a).** CSS cannot measure contrast at
+runtime, so the conditional "host border when it meets 3:1, mixed fallback
+otherwise" is not expressible in a token rule. The lane adds an additive
+`colour.boundary` role (`--ms-boundary`) instead of redefining `--ms-border`:
+`color-mix(in srgb, var(--vscode-foreground, var(--ms-text)) 70%,
+var(--vscode-editor-background, var(--ms-surface)))`. Redefining `--ms-border`
+itself would drop `colour.border` from `consumers.json` hostRoles (the theme
+bridge rejects snapshots naming unknown roles, M104's contract) and would
+emit a `color-mix` formula into `report-themes.json`, which the reporting
+literal-only gate refuses. 45% fails the light secondary surface (1.9:1);
+65% is the first passing share (worst 3.15:1) and 70% ships for margin
+(worst 3.62:1, light secondary). No palette colour invented: the mix reads
+only theme and token variables, and the token's palette value reuses the
+dark border. The token payload cap moves 4 KiB to 4.25 KiB for the one new
+rule (~90 minified bytes); chat startup budget is reported from the
+production build, not waived. `test/unit/borderContrast.test.mjs` resolves
+the shipped declaration against all six `test/harness/themes/` receipts and
+asserts 3:1 on sidebar, raised, input and secondary surfaces (30% drill:
+all six themes fail, e.g. dark sidebar 2.305:1). R1 surfaces moved to the
+new role: `.models-button`, `.account-picker`, `.traffic-view button`.
+Placeholders and host-rendered inputs keep host colours. Of the nine
+below-AA host comparisons (`docs/certification/m114-0.md:178`), one is now
+covered: One Dark Pro panel border on sidebar (boundary resolves 5.60:1
+there). The other eight are focus, placeholder or host-rendered input
+borders — different tokens, out of lane scope.
+
+**F4.** The merge card's path lists were extra flex items in the single-row
+`.activity`, shrinking to a few characters at 320 px. `.activity-team-merge`
+now wraps; the status line flexes with `min-width: 0` and the path lists,
+notes and actions each take their own full-width row, keeping
+`overflow-wrap: anywhere` (the wrap convention used elsewhere). No middle
+truncation: full paths stay visible, so no tooltip text is added.
+`test/unit/TeamCards.test.tsx` pins the row rules. The 320 px scene check is
+blocked in this sandbox: Chrome itself runs, but the harness server gets
+`listen EPERM 127.0.0.1`, so no scenario page can be served or shot here;
+the lead re-renders on the merged tree.
+
+<!-- plan-archive:end id="6-VIS017" -->
+
+## INT0170B — Complete 0.17.0 integration certification (2026-10-07)
+
+<!-- plan-archive:begin id="6-INT0170B" lines="22379-22444" bytes="15523" sha256="e0bed7d6c958e242b945e38fb53abd9e345eb1b6adc0efd2e8bfd66c45af2a00" -->
+
+Latest committed-clone replay at `33c369046` passes the entire static job and every accessibility page. Two additional timing failures remain: integrated usage exceeds its ordinary 5 s test deadline, and the 10,000-milestone reader reaches 325 ms against 200 ms under coverage. A restored whole-file usage diagnostic reproduces the timeout and measures recorded-turn/journal/state preparation at 1,524 ms before the authenticated page flow. Move only that real fixture preparation into its default-deadline beforeAll, retaining every assertion inside the existing test and all three cases. For the reader's second performance repair, remove object-entry tuple allocation and redundant unchanged-value writes while still scrubbing every key and nested value; retain the 200 ms benchmark and stop that path if the second repair fails. Prove preserved privacy/recording assertions fail under intentional changes and restore exact bytes before the final committed-clone replay.
+
+The universal VSIX now measures 2,874,087/2,841,600 bytes even without its missing genuine macOS helper. Existing maximum-DEFLATE and solid-runtime compression are already active. Lossless PNG re-encoding only of the seven actually changed, reviewed captures saves 91,046 bytes: decoded RGBA pixels and every non-IDAT chunk remain exact, as do the ten unchanged captures and excluded eighteenth image. OptiPNG 7.9.1 runs with `-o4 -nx`, preserving colour representation and all metadata. Install only those proved outputs and measure the actual package again. README media is 1,299,244/2,097,152 bytes. No image is fabricated or cropped, and no byte cap changes. The genuine native artifact remains a separate requirement.
+
+Final replay artifact follow-up, attempt two: main accessibility now passes all 1,028 pages, but a fresh report VM cannot load the panel's shared validation bundle. Inspect the entire actual compiled dependency closure before editing: reportingPanel needs validation, wire and uiText; wire also needs validation/uiText, and uiText loads its three runtime/hooks/surfaces regions. Carry these seven exact Node outputs beside the browser subtree, preserving dist layout and every metric assertion. Strengthen the manifest guard for the whole closure, prove a missing shared input fails, and exercise it with no residual Node bundles before the final replay. Stop this artifact path if the second repair still fails.
+
+Final replay lint follow-up: full type-aware lint rejects the new legacy-key nested ternary after Prettier removes ESLint's inserted parentheses. Replace the lookup with two plain typed branches, preserving alias validation and new-key precedence. No suppression or rule level changes. Re-run the complete settings owner and its deliberate alias-removal control after exact restore, then include this source correction in the final committed-clone replay.
+
+Final replay fixture follow-up: the complete `d636a4fc2` third shard reveals the sole missed source consumer, `chatColumn.test.mjs`, still demanding viewport units after the real 12-page geometry repair. Require the new exact app-container units, the app's inline-size containment and no competing body/dock container. Preserve all width, gutter, target and scenario assertions. Prove removal of the app container fails the whole owner and restores byte-exact. Production inputs and reviewed images stay identical; complete the current replay, then commit this test-only correction and repeat exact Linux verification on the final head.
+
+Wide-column repair attempt one (`min-height: 0` on the flex body) leaves all four original geometry assertions red, while the 32 schedule scans and 32 report frames now pass. Revert that ineffective property. Attempt two gives the app an inline-size container and derives its existing column-inset token from `100cqw`, measuring the panel instead of the viewport gutter; regenerate tokens and run the unchanged four-theme geometry and full matrix. Stop this path if the second repair fails.
+
+Final Linux accessibility repair scope: the standalone schedule harness mounts independently and never sends the chat handshake; signal its completed mount locally and retain the known-scenario, DOM-load, pending-work, font and paint checks. The wide-column check observes a 1,390 px app inside a 1,400 px viewport with a root scrollbar; measure the actual box ownership before fixing centring, with the existing geometry assertions unchanged. The report harness needs the actual Node reporting panel as well as browser files, so carry both exact production inputs in the checks artifact and restore their dist layout. Add focused guards, prove their mutations fail and recapture reviewed README images only after actual rendering.
+
+Final Linux integration exposes a real VS Code configuration collision: the boolean `museSpark.schedules` prevents its two dotted child settings from registering. Flatten only the two host-only defaults to `scheduleDefaultDelivery` and `scheduleAgentCreation`, retain validated reads of the old keys, and keep the existing boolean, prices, consent and wire snapshot unchanged. Update manifest, catalog, reference and README together; test compatibility, precedence and scalar-prefix collisions. The three missing editor commands remain part of the previously recorded v2 adapter gap rather than being removed from integration assertions.
+
+Final-replay generated/fixture repair: the added runtime question registry raises the measured `node:path` import count from 144 to 145; regenerate and review the host API inventory. The added ACP guard and cold-handshake regression expose three clones/25 lines under the unchanged zero-duplication gate. Share only the repeated retained-answer assertions and parameterize the two readiness blocker cases, preserving both phases, counts and every assertion. Re-prove the cold-start guard after this test-only consolidation, then commit and verify the exact Linux workflow again. Production TypeScript/CSS and reviewed pixel inputs remain byte-identical.
+
+Added-merge readiness repair: the accepted main handshake guard postpones scenario start, but accessibility readiness can finish while `hasPlayedScenario` is still false and both pending counters are zero. The actual 17-scene recapture succeeds as a command yet 14 images drift, mostly to empty welcome screens; reject those candidate PNGs and retain the reviewed media. For known scenes, join actual scenario start before the existing pending-event, deferred, font, animation and two-paint checks. Prove the cold-start guard fails before repair and under an intentional mutation, with exact byte restoration. Keep every scene and deadline.
+
+Lead addendum (17:35): after the first five merges, integrate `m116/w-fix5` (`667c10380`) and then `main-latest` (`18dc73651`) with no-ff commits. Preserve the accepted queued-answer lease redesign and model-start delivery tests, the harness ready-handshake fix, and the Windows-only default deadlines. Re-run every conflicted owner and then exact Linux jobs in fresh clones of the combined committed source. The `6fa423c56` replay stops after three completed shards when this added scope is read; its receipts remain historical, not final certification.
+
+Team harness preparation: the provisional named 120 s limit also failed (193.07 s combined file run), while the actual production build passes promptly. VSCE's collector walks the complete checkout, including 2 GiB of ignored lane scratch, before filtering its allowlist. Copy every top-level root admitted by the unchanged real `.vscodeignore` into an owner-created temporary packaging view; keep all generated bytes and native/resources/localization/vendor roots, and run the actual pinned VSCE list there. Remove the provisional deadline change and retain the existing 60 s setup limit and all 22 assertions. This is the second repair attempt; stop if it fails.
+
+Capture readiness investigation: isolated actual Chrome scenes measure approximately 1.6–2.5 s, but approval-several stalls in `waitForFunction` while the page clock is paused. A provisional named 20 s hook still fails; replacing the main-world wait with native selector polling at the original deadlines also fails. The common two-fix stop applies. Both provisional changes are reverted byte-exact to committed helper/tests; preserve all states, row-fitting assertions and original deadlines. The owning capture/stability setups remain red and require a separately reviewed clock/React readiness repair.
+
+Plan-reader performance repair: avoid scrubbing generated numeric array indices as user text while still recursively scrubbing every array value and every object key. The unchanged 200 ms benchmark failed at 298.622 ms under coverage and 231 ms in the complete focused file. Add a secret-bearing nested-array regression and prove it fails if array traversal is removed; do not warm, filter or enlarge the benchmark.
+
+Final coverage also restores revision-error precedence before base-payload validation, exercises the complete store file, and separates the team harness's actual production build/VSIX preparation from its ordinary assertions. That setup measured 91.983 s against its existing named 60 s limit; the subsequent 120 s experiment also fails and is replaced by the bounded packaging view described above. The plan reader's 200 ms performance cap stays unchanged; profile and remove redundant parsing work if the complete owning file reproduces its 298.622 ms coverage failure.
+
+Report HTML fixtures distinguish the caller-supplied palette from the CLI's generated-token fallback. Keep the existing explicit-theme golden and exact byte assertions; capture a separate CLI HTML golden from the real saved-report command after inspecting its palette-only difference.
+
+Final coverage repair scope: the validated base cache alone still takes 243.543 s for 10,000 real store fires under V8 coverage. Cache bounded parsed delta envelopes by generation, filename and exact reread bytes; clone each envelope before applying it, retain all revision/fencing/limit checks, and prove changed cached deltas are rejected. Keep the 240 s workload deadline. Await the workflow's actual deferred control. Three engine load fixtures execute 64 real child lifecycles or 50 complete tool rounds (13.443/6.532/8.588 s measured). Only those heavy engine workloads get named 20 s limits under the brief's explicit exception, registered in §8; normal deadlines and every assertion remain.
+
+Linux certification repair scope also includes the fake host's complete validated init settings, native-clock readiness, original translation insertion order after the key union, shared CLI help, complete archived package membership and cold row/crash fixtures. The theme bridge retains zod boundary validation of every original key and string value with one custom predicate, removing duplicated record plumbing to keep its unchanged 25 KiB budget.
+
+Real reader-brand compiler setup: two Node 22 coverage runs measured 11.177 s and 10.652 s against a 10 s setup hook. This genuinely compiles production TypeScript declarations. Give only that compiler hook a named 20 s deadline, recorded in §8; keep every test at its existing deadline and every brand diagnostic. Its lint fixtures exercise syntax boundaries through the real config without building a second type program; production lint still runs all type-aware rules.
+
+Journal performance: the exact 10,000-fire coverage case reached its unchanged 240 s deadline. Cache one validated snapshot by its exact serialized bytes, while still reading the snapshot and every delta from storage, validating changed bytes, checking ownership and cloning before applying deltas. Never trust a mutable pointer or cached file metadata.
+
+Fresh Linux fixture repairs: row assertions wait for the actual lazy body; a provider invalidation hook is installed before the session captures its guarded IO ports, matching production adapter lifetime. No reader/process guard is weakened. Cold usage-package membership will be reconciled with the retained solid runtime archive after its exact failure is inspected.
+
+SAST/duplication repair: use the existing single-pass text encoder for schedule XML; match package-task globs with Node’s maintained POSIX matcher after swapping colon/slash as the captured runner does. Keep escaped report-root matching with a precise rule suppression and literal-metacharacter tests. Reuse question-command fixtures and combine equivalent reporting import drills. Bound Linux coverage workers to the rig’s authorized maximum of three, retaining all assertions, deadlines and thresholds.
+
+CSS repair: usage and report pages import the generated palettes. Usage chart colours gain explicit source roles with UI contrast pairs; no raw fallback survives in hand-edited CSS. Native host variables retain precedence; standalone pages use the Muse fallback.
+
+First-paint repair: load complete tool rows on their first rendered tool, using DeferredSurface for accessible loading, failure and retry. Give that new closure its own measured D6 budget; retain the 733.8 KiB startup and 32.1 KiB original-deferred ratchets. Schedule fallback bodies themselves retain dynamic imports.
+
+Integration decisions: preserve M95/M96/M102 provider resolution, usage recording, compaction cache metadata and the M101 stable ordinary prefix while adding M115 fire authority. Scheduled requests use the local fire date; their compaction summaries record the exact instructions and input delivered. Schedule settlements load through the existing deferred tool-body closure and its unchanged 25 KiB cap. The shared wire entry also carries scheduleProtocol so validation is shared rather than duplicated in conversation.js.
+
+**Status 2026-10-08: built.** All seven authorized merges and the full fresh-clone Linux replay are complete; certification remains red. Final source `2617dc159` passes static gates, accessibility and security scans. All-four-shard coverage reports 19,447 passed/15 failed/80 skipped or unrun, with original percentage thresholds passed. Actual VS Code command registration, full M114 reviewed coverage, stopped test paths, the package byte cap and genuine macOS helper remain blocked as detailed in §7 and `docs/certification/int0170.md`. No product version change or push. The original rig brief authorizes five ordered no-ff merges:
+released main-0150, M113 review fixes, M114 review fixes, M115, and M116's
+second fixes. Preserve all features and translated keys; regenerate inventories;
+keep version 0.15.0. Repair every remaining INT0170 failure structurally,
+including package fixtures, CSS palettes, duplicate test setup, lifecycle and
+performance cases, real visual recapture and justified SAST dispositions.
+Record deliberate failures and exact restored hashes in the completion record.
+Commit each finished piece with hooks. Final certification uses fresh committed
+clones, npm ci, CI=true and every exact Linux build.yml command, coverage shards
+and merge, packages and accessibility, sequential heavy gates. This overrides
+the common scoped-test restriction for the required complete workflow jobs;
+aggregate quality remains delegated to the lead. No push, rebase, paid/live call,
+coverage-threshold, normal-deadline or byte-cap relaxation. The brief permits
+only measured named heavy-work limits registered in §8. Historical stopped paths are reopened
+for this explicitly requested repair slice. Hosted platform results remain
+separate from Linux rig receipts.
+
+<!-- plan-archive:end id="6-INT0170B" -->
+
+## INT0170 — Pre-integrate reports, design polish and playbook (2026-10-07)
+
+<!-- plan-archive:begin id="6-INT0170" lines="22448-22495" bytes="3574" sha256="bd81550694d1e862a8c2051fac5b4217ba4fdc99d5458cf4b028c4949e31d3c4" -->
+
+**Status 2026-10-07: built.** Implementation/integration receipts remain below; this is not full certification.
+
+Merge `int-m113-w`, `int-m114-w` and `int-m116-w` in that order with
+`--no-ff` onto candidate `2b9059676`. Preserve both sides of every feature,
+translation and harness readiness entry. Regenerate reference and host API
+inventories. Keep version and README release summary unchanged. Verify the
+committed tree in a fresh clone with Node 22, `CI=true`, exact macOS build
+workflow commands, all coverage shards, native helper, packages and accessibility.
+Fix structural integration failures without widening deadlines or caps.
+M113 adds Help-only report/CLI prose to the shared optional English region,
+exceeding its 25 KiB cap. Ship that prose with the existing lazy Help closure,
+under its unchanged 50 KiB cap; retain direct surface readers in their current
+region and validate every installed table against the complete canonical shape. No push,
+rebase or paid/live model calls. Report status and next slice in
+`docs/certification/int0170.md`.
+**INT0170 clean-CI corrections (2026-10-07, before code).** The first four
+clean coverage shards expose duplicate Help entries, missing manifest metadata,
+outdated command/schema expectations and fixture build inputs. Canonicalize
+test-owned Mac grants before native path assertions; share cold ESLint setup and
+reserve each real process/format scenario its own existing deadline. Keep every
+assertion and coverage threshold. Convert wide explanatory plan tables to compact
+pin/cap indexes with their complete rationale beside them, retaining all active
+lane/status data under the existing 4 MiB parser bound. Derive report palettes
+from generated tokens, keep the raw-paint guard, and normalize technical PR
+citations separately from reviewed status prose. Recover the measured VSIX
+overflow losslessly with the existing localization codec; no cap increases.
+Historical M114 audit/source evidence needs a current recapture, never merely
+new hashes. Exact failure receipts remain in `docs/certification/int0170.md`.
+
+- [x] M113 reports merged (`9a449170`), current workflows retained.
+- [x] M114 design merged (`bdf277a3`), captures inspected, caps unchanged.
+- [x] M116 merged (`3dbc8be4`): focused 119 tests, typechecks/build and 480 harness scans pass.
+- [x] Final committed-tree fresh-clone macOS commands and full standalone accessibility executed on `a30efbad`; aggregate remains red (see certification record).
+- [ ] Release lane: 0.17.0 version/README summary, hosted cross-platform CI and publication.
+
+**Next certification repair slice (2026-10-07).** The four complete shards
+produce 18,179 passes, 35 failed tests and 193 platform/opt-in/setup skips.
+Coverage thresholds pass but the merge correctly exits 1. Repair cold package
+fixtures, the History/forced-colour and idle-stream assertions, artifact setup
+and plan/lint performance without raising deadlines; remove four test-code
+clones; reconstruct and actually recapture M114's reviewed baseline; resolve
+six SAST findings. Full standalone accessibility now passes 988 chat and 32
+report pages, and legal checks pass, but the macOS duration exceeds the hosted
+15-minute accessibility budget. Full JS lint also reaches its original static
+job deadline. Product packages, installed English, build budgets, reference,
+l10n, host API, plan, knip, cycles, audit, native helper and secret history checks
+pass. This is built integration with recorded certification blockers, not a
+release claim. See `docs/certification/int0170.md` and `int0170-ci.json`.
+
+<!-- plan-archive:end id="6-INT0170" -->
