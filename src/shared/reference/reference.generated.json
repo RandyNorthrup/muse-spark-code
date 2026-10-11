@@ -6658,7 +6658,7 @@
     {
       "route": "exec",
       "name": "exec: --account-pool",
-      "description": "--account-pool                  Request account pooling. Requires a bound resource owner; excludes key-stdin in CI.",
+      "description": "--account-pool                  Model API: pool at request boundaries; existing budgets still bind. Excludes key-stdin in CI.",
       "text": { "cli": "account-pool" },
       "contract": {
         "type": "boolean",

@@ -85,6 +85,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Retain the C-M108-2 request owner, durable account claims, payer fences and
+  consent revision code behind a disabled certification gate. Runtime account
+  switching and pooling keep their prior refusals until the remaining owning
+  suites, red drills and reviews pass. No incomplete binding is enabled.
+
 - The installed CLI, ACP agent and headless runs share the account service
   instead of answering "Accounts are unavailable": Meta's Model API entry is
   built in, so `providers accounts` (list, add, remove, order, thresholds),

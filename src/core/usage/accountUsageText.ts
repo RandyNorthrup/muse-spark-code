@@ -151,3 +151,16 @@ export function accountUsageText(report: AccountUsageReport): string {
     ),
   ].join('\n')
 }
+
+export function accountStopText(
+  event: Extract<AccountEvent, { type: 'stop' }>,
+  account = event.account,
+): string {
+  return event.trigger.resetAt === null
+    ? fill(UI_TEXT.accounts.resetUnknown, { provider: event.provider, account })
+    : fill(UI_TEXT.accounts.stopped, {
+        provider: event.provider,
+        account,
+        reset: formatDateTime(Date.parse(event.trigger.resetAt)),
+      })
+}

@@ -319,7 +319,7 @@
     "model": "Elegir el modelo de esta ejecución.",
     "provider": "--provider: Proveedor",
     "account": "--account <id>                    La cuenta que se utilizará (auth set, exec).",
-    "account-pool": "--account-pool                  Solicita un conjunto de cuentas; no está disponible hasta conectar su gestor de recursos. Nunca con key-stdin en CI.",
+    "account-pool": "--account-pool: Model API elige cuentas al iniciar cada solicitud; los presupuestos existentes siguen vigentes. Excluye --key-stdin en CI.",
     "effort": "Elige cuánto esfuerzo dedica Muse a cada respuesta.",
     "output": "Elegir el formato del resultado: text, json o jsonl.",
     "max-budget-usd": "Fijar el límite estricto de gasto en USD para esta ejecución.",
@@ -5381,5 +5381,6 @@
       "other": "{count} autorizaciones",
       "many": "{count} autorizaciones"
     }
-  }
+  },
+  "referenceAccountRequests": "Las solicitudes nativas de Meta en ACP eligen cuentas al iniciar cada solicitud. En modo sin interfaz, --account-pool activa el grupo; siguen vigentes los límites por cuenta y los presupuestos compartidos."
 }

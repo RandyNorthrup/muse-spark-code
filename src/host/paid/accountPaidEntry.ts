@@ -152,6 +152,9 @@ export function createAccountPaidService(
     return {
       provider: billing.provider,
       account: billing.account,
+      ...(billing.credentialRevision !== undefined && {
+        credentialRevision: billing.credentialRevision,
+      }),
       price,
       tariff,
       dailyBudgetUsd: deps.dailyBudgetUsd(request.feature),
@@ -194,6 +197,7 @@ export function createAccountPaidService(
         isCurrent: (current) => {
           const now = deps.billing()
           return (
+            now?.isCurrent?.() !== false &&
             now?.provider === billing.provider &&
             now.account === billing.account &&
             accountBindingKey(current) === accountBindingKey(bindingFor(now, request))

@@ -76,6 +76,7 @@ function periodRange(period: 'day' | 'week' | 'month', now: number) {
   end.setHours(0, 0, 0, 0)
   return { start: start.toISOString(), end: end.toISOString() }
 }
+export { periodRange as accountPeriodRange }
 
 /** Every reached threshold, vendor limits first so a user cap cannot hide one. */
 export function evaluateAccountThresholds(deps: {

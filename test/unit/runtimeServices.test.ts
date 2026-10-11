@@ -3,9 +3,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { MODEL_API_BASE_URL, SECRET_KEYS, UI_TEXT } from '../../src/shared/constants'
-import { AccountSwitchRefusedError } from '../../src/acp/accountText'
 import { AccountStoreError } from '../../src/core/providers/accountCredentialRecord'
-import { fill } from '../../src/shared/l10n/text'
 import { runtimeProvidersFile } from '../../src/runtime/providers/providersFileStore'
 import { createRuntimeAccountServices } from '../../src/runtime/providers/runtimeServices'
 import { createRuntimeBackend } from '../../src/runtime/backends'
@@ -92,7 +90,7 @@ describe('createRuntimeAccountServices', () => {
     }
   })
 
-  it('reads state and re-adopts the current account only', async () => {
+  it('selects accounts per session and fences stale adoption', async () => {
     const services = rig()
     try {
       await services.store.add('vendor', { ...ROW, order: 1 })
@@ -103,20 +101,12 @@ describe('createRuntimeAccountServices', () => {
         currentAccount: 'default',
       })
       await expect(port.use('session-a', 'missing', () => true)).rejects.toThrow()
-      // No adoption transaction exists here: the switch is refused with the
-      // session's stay-put text, and the current account is unchanged.
-      const stayPut = fill(UI_TEXT.accounts.switchUnavailable, {
-        provider: 'vendor',
-        account: UI_TEXT.accounts.defaultLabel,
+      await expect(port.use('session-a', 'work', () => true)).resolves.toMatchObject({
+        currentAccount: 'work',
       })
-      await expect(port.use('session-a', 'work', () => true)).rejects.toThrow(
-        AccountSwitchRefusedError,
-      )
-      await expect(port.use('session-a', 'work', () => true)).rejects.toThrow(stayPut)
-      await expect(port.read('session-a')).resolves.toMatchObject({ currentAccount: 'default' })
-      await expect(port.use('session-a', 'default', () => false)).resolves.toMatchObject({
-        currentAccount: 'default',
-      })
+      await expect(port.read('session-b')).resolves.toMatchObject({ currentAccount: 'default' })
+      await expect(port.use('session-a', 'default', () => false)).rejects.toThrow()
+      await expect(port.read('session-a')).resolves.toMatchObject({ currentAccount: 'work' })
     } finally {
       services.dispose()
     }
@@ -129,17 +119,11 @@ describe('createRuntimeAccountServices', () => {
       const port = services.sessions('vendor')
       await services.store.order('vendor', ['work', 'default'])
       await expect(port.read('session-a')).resolves.toMatchObject({ currentAccount: 'default' })
-      await expect(port.use('session-a', 'work', () => true)).rejects.toThrow(
-        fill(UI_TEXT.accounts.switchUnavailable, {
-          provider: 'vendor',
-          account: UI_TEXT.accounts.defaultLabel,
-        }),
-      )
       await services.store.remove('vendor', 'default')
       await expect(port.read('session-a')).resolves.toMatchObject({ currentAccount: null })
-      await expect(port.use('session-a', 'work', () => true)).rejects.toThrow(
-        UI_TEXT.accounts.unavailable,
-      )
+      await expect(port.use('session-a', 'work', () => true)).resolves.toMatchObject({
+        currentAccount: 'work',
+      })
     } finally {
       services.dispose()
     }
@@ -215,9 +199,9 @@ describe('createRuntimeAccountServices', () => {
       await expect(services.sessions('meta').read('session-a')).resolves.toMatchObject({
         currentAccount: 'default',
       })
-      await expect(configured.accounts.use('run-a', 'default', () => true)).rejects.toThrow(
-        fill(UI_TEXT.accounts.switchUnavailable, { provider: 'meta', account: 'Work' }),
-      )
+      await expect(configured.accounts.use('run-a', 'default', () => true)).resolves.toMatchObject({
+        currentAccount: 'default',
+      })
       expect(fetch).not.toHaveBeenCalled()
     } finally {
       stop()
@@ -226,10 +210,10 @@ describe('createRuntimeAccountServices', () => {
     }
   })
 
-  it('refuses --account-pool with the pool limitation instead of the connection text', () => {
+  it('refuses --account-pool on the subscription backend', () => {
     const services = rig()
     try {
-      const parsed = parseCommandLine(['--backend', 'modelApi'])
+      const parsed = parseCommandLine(['--backend', 'museCode'])
       if (parsed.command !== 'serve') throw new Error('missing test serve options')
       const createBackend = vi.fn(createRuntimeBackend)
       // The throw happens before any backend or credential is touched.

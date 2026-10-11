@@ -1,3 +1,5 @@
+import type { AccountRequestPort } from '../core/accounts/requestWriter'
+import type { PaidBilling } from '../core/paid/accountPaidRoute'
 import type * as RuntimeAccountingEntry from './runtimeAccountingEntry'
 import { Usd } from '../shared/usd'
 import { loadLegalScanner } from './legal/legalScanner'
@@ -122,6 +124,8 @@ export interface RuntimeBackendDeps {
    * M108: the Meta account the Model API key reads through (the fixed
    * account of a keyed headless run); the default account otherwise.
    */
+  readonly accountRequests?: (client: ProviderClient) => Promise<AccountRequestPort>
+  readonly accountBilling?: () => PaidBilling | undefined
   readonly billingAccount?: string
 }
 
@@ -369,6 +373,7 @@ function modelApiManager(
       signal.throwIfAborted()
       return handle.result
     },
+    ...(deps.accountRequests !== undefined && { createAccountRequests: deps.accountRequests }),
     createProviderClient: async (meta: ProviderClient) => {
       let client = meta
       const run = deps.exec?.providerRun
@@ -563,7 +568,11 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     // M108 lane P (D88.7): the account the key bills. A use billed to another
     // account than Meta's default asks for that account, kept in the agent's
     // data folder per workspace, naming the runtime's shared daily budget.
-    billing: () => ({ provider: 'meta', account: deps.billingAccount ?? ACCOUNT_DEFAULT_ID }),
+    billing: () =>
+      deps.accountBilling?.() ?? {
+        provider: 'meta',
+        account: deps.billingAccount ?? ACCOUNT_DEFAULT_ID,
+      },
     accountFolder: (workspaceRoot) =>
       path.join(agentDataFolder(deps), ACCOUNT_PAID_STORE.folder, workspaceKey(workspaceRoot)),
     dailyBudgetUsd: () => Usd.from(runtimeDailyBudgetUsd(agentDataFolder(deps))).toAmount(),

@@ -319,7 +319,7 @@
     "model": "Vybrat model pro tento běh.",
     "provider": "--provider: Poskytovatel",
     "account": "--account <id>                    Účet k použití (auth set, exec).",
-    "account-pool": "--account-pool                  Požádá o sdílení účtů; nedostupné, dokud není připojen vlastník prostředků. Nikdy s key-stdin v CI.",
+    "account-pool": "--account-pool: Model API vybírá účty na hranici požadavku; stávající rozpočty stále platí. Nelze použít s --key-stdin v CI.",
     "effort": "Zvolte, kolik úsilí Muse věnuje každé odpovědi.",
     "output": "Vybrat formát výsledku: text, json nebo jsonl.",
     "max-budget-usd": "Nastavit pevný limit výdajů v USD pro tento běh.",
@@ -5534,5 +5534,6 @@
       "few": "{count} oprávnění",
       "many": "{count} oprávnění"
     }
-  }
+  },
+  "referenceAccountRequests": "Nativní požadavky Meta v ACP vybírají účty na hranici požadavku. V bezobslužném režimu zapne sdružování --account-pool; limity účtů a sdílené rozpočty stále platí."
 }

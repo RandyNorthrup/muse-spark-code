@@ -319,7 +319,7 @@
     "model": "选择本次运行的模型。",
     "provider": "--provider: 供应商",
     "account": "--account <id>                    要使用的账号（auth set、exec）。",
-    "account-pool": "--account-pool                  请求账户池；连接其资源管理组件之前不可用。CI 中不可与 key-stdin 一起使用。",
+    "account-pool": "--account-pool：Model API 在每次请求开始时选择账户，保留现有预算。不能与 CI 的 --key-stdin 一起使用。",
     "effort": "选择 Muse 在每条回答上投入的工作量。",
     "output": "选择结果格式：text、json或jsonl。",
     "max-budget-usd": "以USD设置本次运行的硬性支出上限。",
@@ -5075,5 +5075,6 @@
     "grantsCount": {
       "other": "{count} 个授权"
     }
-  }
+  },
+  "referenceAccountRequests": "ACP 的原生 Meta 请求在每次请求开始时选择账户。无界面运行通过 --account-pool 启用账户池；账户限额和共享预算仍然有效。"
 }

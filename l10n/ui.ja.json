@@ -319,7 +319,7 @@
     "model": "この実行に使用するモデルを選択します。",
     "provider": "--provider: プロバイダー",
     "account": "--account <id>                    使用するアカウント (auth set, exec)。",
-    "account-pool": "--account-pool                  アカウントプールを要求します。リソース管理機構の接続まで利用できません。CI の key-stdin では使用できません。",
+    "account-pool": "--account-pool: Model API は各リクエストの開始時にアカウントを選択します。既存の予算は維持され、CI の --key-stdin とは併用できません。",
     "effort": "各回答に Muse がかける手間を選びます。",
     "output": "結果形式をtext、json、jsonlから選びます。",
     "max-budget-usd": "この実行の厳格な支出上限をUSDで設定します。",
@@ -5075,5 +5075,6 @@
     "grantsCount": {
       "other": "{count} 件の許可"
     }
-  }
+  },
+  "referenceAccountRequests": "ACP のネイティブ Meta リクエストは、各リクエストの開始時にアカウントを選択します。ヘッドレス実行では --account-pool でプールを有効にし、アカウント上限と共有予算は引き続き適用されます。"
 }

@@ -1,17 +1,19 @@
+import { ACCOUNT_REQUEST_CERTIFICATION } from '../../shared/constants'
+import { AccountSwitchRefusedError } from '../../acp/accountText'
+import { createAccountRequestOwner } from './accountRequestOwner'
+import { activeAccountBilling } from '../../core/accounts/requestWriter'
+import type { AccountRequestPort } from '../../core/accounts/requestWriter'
+import type { ProviderClient } from '../../core/backends/modelapi/client'
 import { randomBytes } from 'node:crypto'
-// M108/W: the runtime's parent-owned account service (K/P/H follow-ups).
-// One AccountStore per process over the runtime's providers file and the OS
-// credential store (PLAN.md D61). It serves the CLI commands, ACP sessions
-// and headless runs in this process. Independent processes coordinate only
-// through atomic file writes; cross-process serialization needs M109's vault
-// lifecycle, and per-request backend pooling needs the profile-owned pool
-// (P-W), so serve sessions observe and select state while credential movement
-// stays with the fixed account or an explicit error, never a silent default.
+// One AccountStore serves terminal metadata, ACP sessions and headless runs.
+// The existing pool owns per-attempt selection. Credentials remain in the OS
+// store; durable claims retain original-account liability and fixed shared
+// budget scopes. Profiles and the vault remain their named owning lanes.
 import { hostname } from 'node:os'
 import { AccountStore, type AccountsMetadataPort } from '../../core/providers/accounts'
 import { AccountStoreError } from '../../core/providers/accountCredentialRecord'
 import type { Account, AccountThresholds } from '../../shared/accounts'
-import { AccountSwitchRefusedError, isInvalidProvidersFileError } from '../../acp/accountText'
+import { isInvalidProvidersFileError } from '../../acp/accountText'
 import {
   AccountSecrets,
   secretStorageAccountVault,
@@ -56,6 +58,11 @@ export interface RuntimeAccountServices {
   readonly metadata: AccountsMetadataPort
   readonly commands: Omit<AccountsCommandDeps, 'print' | 'printError'>
   readonly exec: ExecAccountsPort
+  requests(
+    client: ProviderClient,
+    options?: { account: string; isInteractive: boolean; hasPoolFlag: boolean },
+  ): Promise<AccountRequestPort>
+  billing: typeof activeAccountBilling
   sessions(provider: string, account?: string): AccountsSessionPort
   /** The backend's key reads through the fixed account; nothing else changes. */
   secretsFor(provider: string, account: string, fallback: SecretStore): SecretStore
@@ -84,11 +91,14 @@ class RuntimeAccountSessions implements AccountsSessionPort {
     private readonly store: AccountStore,
     private readonly provider: string,
     private readonly account: string,
+    private readonly owner: () => ReturnType<typeof createAccountRequestOwner>,
   ) {}
 
-  private async snapshot(): ReturnType<AccountsSessionPort['read']> {
+  private async snapshot(sessionId: string): ReturnType<AccountsSessionPort['read']> {
     const accounts = await this.store.list(this.provider)
-    const current = accounts.some((row) => row.id === this.account) ? this.account : null
+    const owner = await this.owner()
+    const selected = owner.pool.current('conversation', sessionId) ?? this.account
+    const current = accounts.some((row) => row.id === selected) ? selected : null
     return {
       type: 'accounts/state',
       provider: this.provider,
@@ -102,7 +112,7 @@ class RuntimeAccountSessions implements AccountsSessionPort {
   private async publishAll(): Promise<void> {
     for (const [key, group] of this.listeners) {
       if (!key.startsWith(`${this.provider} `)) continue
-      const state = await this.snapshot()
+      const state = await this.snapshot(key.slice(`${this.provider} `.length))
       for (const listener of group) listener(state)
     }
   }
@@ -114,9 +124,9 @@ class RuntimeAccountSessions implements AccountsSessionPort {
     throw new Error(UI_TEXT.accounts.unavailable)
   }
 
-  public async read(_sessionId: string): ReturnType<AccountsSessionPort['read']> {
+  public async read(sessionId: string): ReturnType<AccountsSessionPort['read']> {
     try {
-      return await this.snapshot()
+      return await this.snapshot(sessionId)
     } catch (error: unknown) {
       // A refused providers file travels with its brand: the runtime is
       // already on the account service, so the connection sentence would lie.
@@ -128,21 +138,36 @@ class RuntimeAccountSessions implements AccountsSessionPort {
   public async use(
     sessionId: string,
     account: string,
-    _canCommit: () => boolean,
+    canCommit: () => boolean,
   ): ReturnType<AccountsSessionPort['use']> {
-    const state = await this.read(sessionId)
-    if (state.accounts.every((row) => row.id !== account))
-      throw new Error(UI_TEXT.accounts.invalidAccount)
-    if (state.currentAccount === account) return state
-    // Moving another session's credential needs the profile-owned pool and
-    // its synchronous adoption transaction. A no-op re-adoption is the only
-    // safe in-process change; anything else refuses with the session's
-    // stay-put text instead of dispatching under the wrong identity (D88.7).
-    // The commit signal has no transaction to guard here: AcpAccounts fences
-    // generations and staleness before this port is reached.
-    if (state.currentAccount === null) throw new Error(UI_TEXT.accounts.unavailable)
-    const current = state.accounts.find((row) => row.id === state.currentAccount)
-    throw new AccountSwitchRefusedError(this.provider, current?.label ?? state.currentAccount)
+    const owner = await this.owner()
+    await owner.refresh()
+    const entry = await this.store.list(this.provider)
+    if (entry.every((row) => row.id !== account)) throw new Error(UI_TEXT.accounts.invalidAccount)
+    if (!ACCOUNT_REQUEST_CERTIFICATION.isComplete) {
+      const state = await this.snapshot(sessionId)
+      if (state.currentAccount === account) return state
+      throw new AccountSwitchRefusedError(
+        this.provider,
+        state.accounts.find((row) => row.id === state.currentAccount)?.label ?? this.account,
+      )
+    }
+    owner.pool.use('conversation', sessionId, account, canCommit)
+    const state = await this.snapshot(sessionId)
+    const listeners = this.listeners.get(`${this.provider} ${sessionId}`) ?? []
+    for (const listener of listeners) listener(state)
+    return state
+  }
+
+  public notice(sessionId: string, event: Parameters<SessionListener>[0]): void {
+    const listeners = this.listeners.get(`${this.provider} ${sessionId}`) ?? []
+    for (const listener of listeners) {
+      try {
+        listener(event)
+      } catch {
+        /* Publication already committed; observers cannot undo it. */
+      }
+    }
   }
 
   public subscribe(sessionId: string, listener: SessionListener): () => void {
@@ -171,25 +196,25 @@ class PublishingAccountStore extends AccountStore {
   public constructor(
     metadata: AccountsMetadataPort,
     credentials: AccountSecrets,
-    private readonly published: (provider: string) => void,
+    private readonly published: (provider: string) => Promise<void>,
   ) {
     super(metadata, credentials)
   }
 
   public override async add(provider: string, value: Account): Promise<symbol> {
     const token = await super.add(provider, value)
-    this.published(provider)
+    await this.published(provider)
     return token
   }
 
   public override async update(provider: string, value: Account): Promise<void> {
     await super.update(provider, value)
-    this.published(provider)
+    await this.published(provider)
   }
 
   public override async order(provider: string, ids: readonly string[]): Promise<void> {
     await super.order(provider, ids)
-    this.published(provider)
+    await this.published(provider)
   }
 
   public override async thresholds(
@@ -198,7 +223,7 @@ class PublishingAccountStore extends AccountStore {
     value: AccountThresholds,
   ): Promise<void> {
     await super.thresholds(provider, account, value)
-    this.published(provider)
+    await this.published(provider)
   }
 
   public override async setCredential(
@@ -207,7 +232,7 @@ class PublishingAccountStore extends AccountStore {
     value: Parameters<AccountStore['setCredential']>[2],
   ): Promise<void> {
     await super.setCredential(provider, account, value)
-    this.published(provider)
+    await this.published(provider)
   }
 
   public override async remove(
@@ -216,7 +241,7 @@ class PublishingAccountStore extends AccountStore {
     addition?: symbol,
   ): Promise<void> {
     await super.remove(provider, account, addition)
-    this.published(provider)
+    await this.published(provider)
   }
 }
 
@@ -244,6 +269,18 @@ function withProvidersFileRefusal(metadata: AccountsMetadataPort): AccountsMetad
         throw refusal
       }
     },
+    ...(metadata.readNow !== undefined && {
+      readNow: (provider: string) => {
+        try {
+          return metadata.readNow?.(provider)
+        } catch (error: unknown) {
+          if (!isInvalidProvidersFileError(error)) throw error
+          const refusal = new AccountStoreError('invalidProvidersFile')
+          refusal.message = UI_TEXT.accounts.providersInvalid
+          throw refusal
+        }
+      },
+    }),
     writeAccounts: (provider, accounts) => metadata.writeAccounts(provider, accounts),
   }
 }
@@ -258,17 +295,51 @@ export function createRuntimeAccountServices(
     registerSecret: input.registerSecret,
   })
   const sessionsByProvider = new Map<string, RuntimeAccountSessions>()
-  const publish = (provider: string): void => {
+  const publish = async (provider: string): Promise<void> => {
+    const held = owners.get(provider)
+    if (held !== undefined) {
+      const live = await held
+      await live.refresh()
+    }
     for (const [key, port] of sessionsByProvider) {
       if (key.startsWith(`${provider} `)) port.publish()
     }
   }
   const store = new PublishingAccountStore(metadata, credentials, publish)
+  const owners = new Map<string, ReturnType<typeof createAccountRequestOwner>>()
+  const owner = (provider: string) => {
+    let created = owners.get(provider)
+    if (created === undefined) {
+      created = createAccountRequestOwner({
+        provider,
+        store,
+        metadata,
+        directory: input.dataDir,
+        now: input.now ?? Date.now,
+        publish: (sessionId, event) => {
+          for (const [key, port] of sessionsByProvider)
+            if (key.startsWith(`${provider} `)) port.notice(sessionId, event)
+        },
+      })
+      owners.set(provider, created)
+      void created.catch(() => {
+        if (owners.get(provider) === created) owners.delete(provider)
+      })
+    }
+    return created
+  }
+  const requests: RuntimeAccountServices['requests'] = async (client, options) => {
+    const live = await owner('meta')
+    return live.requests(
+      client,
+      options ?? { account: ACCOUNT_DEFAULT_ID, isInteractive: true, hasPoolFlag: false },
+    )
+  }
   const sessions = (provider: string, account = ACCOUNT_DEFAULT_ID): AccountsSessionPort => {
     const key = `${provider} ${account}`
     let port = sessionsByProvider.get(key)
     if (port === undefined) {
-      port = new RuntimeAccountSessions(store, provider, account)
+      port = new RuntimeAccountSessions(store, provider, account, () => owner(provider))
       sessionsByProvider.set(key, port)
     }
     return port
@@ -353,18 +424,27 @@ export function createRuntimeAccountServices(
     store,
     metadata,
     commands: { accounts: store, metadata },
+    requests,
+    billing: activeAccountBilling,
     exec: {
       create: (deps, selection, createBackend) => {
-        // One run, one account: the backend's key reads through it. Pool
-        // swaps at user caps need the profile-owned pool, so --account-pool
-        // refuses loudly instead of running unpooled (D88.5).
-        if (selection.hasPoolFlag) throw new Error(UI_TEXT.accounts.poolUnavailable)
+        if (!ACCOUNT_REQUEST_CERTIFICATION.isComplete && selection.hasPoolFlag)
+          throw new Error(UI_TEXT.accounts.poolUnavailable)
+        // The initial account supplies the original run budget identity;
+        // every native Meta request then takes the installed pooled lease.
+        if (
+          (deps.options.backend !== 'modelApi' || deps.exec?.providerRun !== undefined) &&
+          selection.hasPoolFlag
+        )
+          throw new Error(UI_TEXT.accounts.poolUnavailable)
         return {
           runtime: createBackend({
             ...deps,
             secrets: secretsFor('meta', selection.account, deps.secrets),
             // The account the run bills; its headless paid policy still decides.
             billingAccount: selection.account,
+            accountRequests: (client) => requests(client, selection),
+            accountBilling: activeAccountBilling,
           }),
           accounts: sessions('meta', selection.account),
         }

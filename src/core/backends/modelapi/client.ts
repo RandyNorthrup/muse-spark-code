@@ -93,6 +93,7 @@ export type ProviderClient = Pick<
     | 'inheritSearchQuote'
     | 'releaseSearchQuotes'
     | 'readServiceStatus'
+    | 'withAccountKey'
     | 'withScheduleAuthority'
     | 'requestFile'
   >
@@ -102,6 +103,10 @@ export type ProviderClient = Pick<
   readonly inheritSearchQuote?: ModelApiClient['inheritSearchQuote']
   readonly releaseSearchQuotes?: ModelApiClient['releaseSearchQuotes']
   readonly readServiceStatus?: ModelApiClient['readServiceStatus']
+  readonly withAccountKey?: (
+    apiKey: () => Promise<string>,
+    isCurrent?: () => boolean,
+  ) => ProviderClient
   readonly withScheduleAuthority?: (run: () => UnattendedRun | undefined) => ProviderClient
   readonly provider?: TransportProviderClient['provider']
   readonly models?: ModelResolver
@@ -114,6 +119,7 @@ import type { SecretScrubPort } from '../../../shared/redact'
 import type { UnattendedRun } from '../../schedules/unattended'
 
 export interface ModelApiClientDeps {
+  readonly isCredentialCurrent?: () => boolean
   /** M109 T: broker-backed exact-value scrub, immediately before every send. */
   readonly vaultScrub?: SecretScrubPort
   readonly paidAuthority?: PaidAuthority
@@ -297,7 +303,14 @@ export class ModelApiClient implements TransportProviderClient {
     this.deps.paidAuthority?.releaseConversation(conversationId, retainedQuoteIds)
   }
 
-  /** Each session owns its authority callback, even when hosts share transport. */
+  /** Request-owned credential source; every attempt still uses the shared transport gates. */
+  public withAccountKey(apiKey: () => Promise<string>, isCurrent?: () => boolean): ModelApiClient {
+    return new ModelApiClient(
+      { ...this.deps, apiKey, ...(isCurrent !== undefined && { isCredentialCurrent: isCurrent }) },
+      this.scheduledRun,
+    )
+  }
+
   public withScheduleAuthority(run: () => UnattendedRun | undefined): ModelApiClient {
     return new ModelApiClient(this.deps, run)
   }

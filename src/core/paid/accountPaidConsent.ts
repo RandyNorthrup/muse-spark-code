@@ -35,6 +35,7 @@ import { PaidUseConsent, type PaidUseAnswer, type PaidUseConsentDeps } from './p
 
 /** D88.7: verified local tariff and opaque billing identity; never a credential. */
 export interface PaidAccountBinding {
+  readonly credentialRevision?: string
   readonly provider: string
   readonly account: string
   /** The tariff as the popup states it, in the display language. */
@@ -179,6 +180,7 @@ export function accountBindingKey(binding: PaidAccountBinding): string {
     binding.provider,
     binding.account,
     binding.tariff ?? binding.price,
+    ...(binding.credentialRevision === undefined ? [] : [binding.credentialRevision]),
     ...(binding.repositoryBudget === true ? [binding.dailyBudgetUsd] : []),
   ])
 }

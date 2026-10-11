@@ -1,9 +1,8 @@
 // The account event words a headless run and the ACP agent both show. A leaf
 // apart from accounts.ts, so dist/headless.js does not carry the panel's
 // request and reply schemas for three sentences (CAPS017, PLAN.md D6).
-import type { AccountEvent } from '../shared/accounts'
 import { UI_TEXT } from '../shared/constants'
-import { fill, formatDateTime } from '../shared/l10n/text'
+import { fill } from '../shared/l10n/text'
 
 /** A port refused adoption: the switch did not happen and the session keeps its
  * current account. Carries the user-facing text, already filled, so later
@@ -78,15 +77,4 @@ export function accountUsageUrl(port: AccountUsagePort, provider: string): strin
   throw new Error(UI_TEXT.accounts.unavailable)
 }
 
-export function accountStopText(
-  event: Extract<AccountEvent, { type: 'stop' }>,
-  account = event.account,
-): string {
-  return event.trigger.resetAt === null
-    ? fill(UI_TEXT.accounts.resetUnknown, { provider: event.provider, account })
-    : fill(UI_TEXT.accounts.stopped, {
-        provider: event.provider,
-        account,
-        reset: formatDateTime(Date.parse(event.trigger.resetAt)),
-      })
-}
+export { accountStopText } from '../core/usage/accountUsageText'

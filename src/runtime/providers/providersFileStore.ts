@@ -44,6 +44,14 @@ function providerOf(value: unknown): AccountProvider | undefined {
 function storedProviderOf(key: string, value: unknown): AccountProvider | undefined {
   const entry = providerOf(value)
   if (entry?.id !== key) return undefined
+  if (
+    key === 'meta' &&
+    (entry.policyProvider !== 'meta' ||
+      entry.product !== 'model-api' ||
+      entry.auth !== 'apiKey' ||
+      entry.origin !== new URL(MODEL_API_BASE_URL).origin)
+  )
+    return undefined
   return entry.accounts !== undefined && !accountPoolSchema.safeParse(entry.accounts).success
     ? undefined
     : entry
@@ -100,16 +108,19 @@ export class FileAccountsMetadata implements AccountsMetadataPort {
   }
 
   public read(provider: string): Promise<AccountProvider | undefined> {
-    if (!accountIdSchema.safeParse(provider).success) return Promise.resolve(undefined)
+    return Promise.resolve(this.readNow(provider))
+  }
+
+  public readNow(provider: string): AccountProvider | undefined {
+    if (!accountIdSchema.safeParse(provider).success) return undefined
     const loaded = this.load()
     const value = loaded.providers[provider]
     // The built-in Meta entry serves a missing file only: once the user has
     // a file, an absent row is unconfigured and a malformed row refuses.
-    if (value === undefined)
-      return Promise.resolve(loaded.exists ? undefined : builtInProvider(provider))
+    if (value === undefined) return loaded.exists ? undefined : builtInProvider(provider)
     const entry = storedProviderOf(provider, value)
     if (entry === undefined) throw new AccountStoreError('invalidProvidersFile')
-    return Promise.resolve(entry)
+    return entry
   }
 
   public writeAccounts(provider: string, accounts: readonly Account[]): Promise<void> {

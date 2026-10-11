@@ -487,22 +487,22 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 
 | Module                   | Files |
 | ------------------------ | ----- |
-| `node:async_hooks`       | 2     |
+| `node:async_hooks`       | 3     |
 | `node:buffer`            | 62    |
 | `node:child_process`     | 27    |
-| `node:crypto`            | 170   |
+| `node:crypto`            | 173   |
 | `node:dgram`             | 1     |
 | `node:dns`               | 1     |
 | `node:dns/promises`      | 6     |
 | `node:events`            | 3     |
-| `node:fs`                | 71    |
-| `node:fs/promises`       | 110   |
+| `node:fs`                | 72    |
+| `node:fs/promises`       | 111   |
 | `node:http`              | 15    |
 | `node:https`             | 2     |
 | `node:module`            | 2     |
 | `node:net`               | 20    |
 | `node:os`                | 34    |
-| `node:path`              | 196   |
+| `node:path`              | 198   |
 | `node:perf_hooks`        | 2     |
 | `node:process`           | 10    |
 | `node:readline`          | 1     |

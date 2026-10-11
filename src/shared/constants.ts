@@ -137,6 +137,18 @@ export const PRODUCT_NAME = 'Muse Spark'
 
 // M108: local account configuration and policy. Credentials are never fields.
 export const ACCOUNT_DEFAULT_ID = 'default'
+// Owner gate: C-M108-2 stays hidden until its remaining certification passes.
+export const ACCOUNT_REQUEST_CERTIFICATION = { isComplete: false }
+export const ACCOUNT_HEADROOM_ZERO = 0n
+export const ACCOUNT_HEADROOM_ONE = 1n
+export const ACCOUNT_HEADROOM_SCALE = 1_000_000
+export const ACCOUNT_REQUEST_STORE = {
+  directory: 'account-requests',
+  maxRows: 100_000,
+  maxRowBytes: 16_384,
+  directoryMode: 0o700,
+  fileMode: 0o600,
+} as const
 export const ACCOUNT_ID_PATTERN = /^[a-z][a-z0-9-]{0,31}$/
 export const ACCOUNT_LABEL_MAX_LENGTH = 128
 export const ACCOUNT_MAX_PER_PROVIDER = 64

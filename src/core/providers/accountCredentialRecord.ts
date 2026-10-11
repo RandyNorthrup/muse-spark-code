@@ -35,6 +35,8 @@ export type AccountCredential = z.infer<typeof credentialRecordSchema>
 
 /** Account-credential port; M109's concrete vault binding is integration-owned. */
 export interface AccountCredentialVault {
+  /** Vendor-specific validation before any metadata or credential mutation. */
+  validate?(binding: AccountBinding, record: AccountCredential): AccountCredential
   read(binding: AccountBinding): Promise<AccountCredential | undefined>
   /** Local cleanup/rebinding only. Retains the stored origin; never authorizes dispatch. */
   readForRemoval(binding: AccountBinding): Promise<AccountCredential | undefined>

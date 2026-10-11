@@ -10,6 +10,8 @@ import type { PaidUseAnswer } from './paidConsent'
 
 /** The provider and account a use is billed to; ids only, never a credential. */
 export interface PaidBilling {
+  readonly credentialRevision?: string | undefined
+  readonly isCurrent?: () => boolean
   readonly provider: string
   readonly account: string
 }
