@@ -1,8 +1,9 @@
-import { spawn, type ChildProcess } from 'node:child_process'
+import { execFile, spawn, type ChildProcess } from 'node:child_process'
 import { once } from 'node:events'
 import { mkdtemp, readFile, readdir, unlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import { setTimeout as delay } from 'node:timers/promises'
 import { build } from 'esbuild'
 import * as z from 'zod/mini'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -14,7 +15,7 @@ import {
 import { KeyringVaultAnchor } from '../../../src/runtime/vault/keyringAnchor'
 import { nodeLeasePort } from '../../../src/core/locks/nodeLeasePort'
 import { createRecoverySlot } from '../../../src/core/vault/keyslots'
-import { VAULT_WRITER_RENEW_MS } from '../../../src/shared/constants'
+import { VAULT_WRITER_LEASE_MS, VAULT_WRITER_RENEW_MS } from '../../../src/shared/constants'
 import { removeFolder } from '../helpers/temporaryFolders'
 
 // Only generated vault material and a file-backed fake anchor. The writer,
@@ -23,6 +24,7 @@ import { removeFolder } from '../helpers/temporaryFolders'
 const childSource = `
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import * as z from 'zod/mini';
 import { NodeVaultFiles, VaultStore } from './src/core/vault/store';
 import { createRecoverySlot } from './src/core/vault/keyslots';
 async function main() {
@@ -50,6 +52,22 @@ const files = new NodeVaultFiles(root, 1024 * 1024, security, 'win32');
 const quarantine = files.quarantine.bind(files);
 files.quarantine = async (...args) => { await hit('before-copy'); return await quarantine(...args); };
 const vaultId = 'a'.repeat(32), key = Buffer.alloc(32, 1), options = {files, anchor, key};
+if (operation === 'probe') {
+  const attempt = async (operation) => {
+    try {
+      if (operation === 'open') { const store = await VaultStore.open(options, vaultId); store.lock(); }
+      else if (operation === 'restore') { const store = await VaultStore.restore(options,
+        JSON.parse(await readFile(path.join(root, 'backup.json'), 'utf8')), undefined, true); store.lock(); }
+      else await VaultStore.resetLost(files, vaultId, 'generated reset', () => {}, async (held) => {
+        held(); await writeFile(anchorPath, 'null'); }, anchor, await anchor.minimum());
+      process.send({done: true});
+    } catch (error) { process.send({error: error.code ?? error.message}); }
+  };
+  process.on('message', async (input) => {
+    const request = z.enum(['open', 'reset', 'restore']).parse(input); await attempt(request);
+  });
+  await attempt('open'); return;
+}
 try {
   if (operation === 'prepare') {
     const {slot} = createRecoverySlot(key, vaultId, {now: () => 0});
@@ -188,6 +206,55 @@ describe('production vault writer across process death', () => {
       await stop(holder.child)
     }
   })
+  // Real suspension must exceed three production leases; a named per-test bound covers that wait.
+  const SUSPENSION_TEST_TIMEOUT_MS = VAULT_WRITER_LEASE_MS * 5
+  it.runIf(process.platform === 'win32')(
+    'a suspended real writer excludes every successor beyond three leases',
+    async () => {
+      const folder = await prepare()
+      const holder = await run(folder, 'restore', 'before-anchor')
+      expect(holder.result).toEqual({ stage: 'before-anchor' })
+      const pid = holder.child.pid
+      const systemRoot = process.env['SystemRoot']
+      if (pid === undefined || systemRoot === undefined)
+        throw new Error('fixture process unavailable')
+      const command = `Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public static class M109Suspend { [DllImport("ntdll.dll")] public static extern int NtSuspendProcess(IntPtr handle); }'; $held = Get-Process -Id ${String(pid)}; try { if ([M109Suspend]::NtSuspendProcess($held.Handle) -ne 0) { throw 'suspension failed' } } finally { $held.Dispose() }`
+      try {
+        await new Promise<void>((resolve, reject) => {
+          execFile(
+            path.join(systemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe'),
+            ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', command],
+            { windowsHide: true },
+            (error) => {
+              if (error instanceof Error) reject(error)
+              else resolve()
+            },
+          )
+        })
+        const contender = await run(folder, 'probe', 'first-probe')
+        try {
+          expect(contender.result).toEqual({ error: 'busy' })
+          for (const operation of ['open', 'reset', 'restore']) {
+            await delay(VAULT_WRITER_LEASE_MS + 1)
+            const message = once(contender.child, 'message')
+            contender.child.send(operation)
+            const reply: unknown[] = await message
+            expect(resultSchema.parse(reply[0])).toEqual({ error: 'busy' })
+            expect(holder.child.exitCode).toBeNull()
+            expect(await readdir(folder)).toContain('pending.v1')
+          }
+        } finally {
+          await stop(contender.child)
+        }
+      } finally {
+        await stop(holder.child)
+      }
+      expect(await finish(folder, 'open')).toEqual({ done: true })
+      expect(await readdir(folder)).not.toContain('pending.v1')
+      expect(await readdir(folder)).not.toContain('writer.lock')
+    },
+    SUSPENSION_TEST_TIMEOUT_MS,
+  )
   it('retains an interrupted quarantine stage when its original is missing', async () => {
     const folder = await prepare()
     const interrupted = await run(folder, 'restore', 'after-copy')
@@ -277,12 +344,18 @@ describe('production vault writer across process death', () => {
       }
     },
   )
-  it('preserves the successor fence while the prior writer release settles', async () => {
+  async function nativeWriterFixture() {
     const folder = await prepare()
-    const files = new NodeVaultFiles(folder, 1024, {
-      protect: () => Promise.resolve(),
-      verify: () => Promise.resolve(),
-    })
+    return {
+      folder,
+      files: new NodeVaultFiles(folder, 1024, {
+        protect: () => Promise.resolve(),
+        verify: () => Promise.resolve(),
+      }),
+    }
+  }
+  it('preserves the successor fence while the prior writer release settles', async () => {
+    const { folder, files } = await nativeWriterFixture()
     const paused = Promise.withResolvers<undefined>()
     const resume = Promise.withResolvers<undefined>()
     const unlink = nodeLeasePort.unlink
@@ -300,14 +373,18 @@ describe('production vault writer across process death', () => {
       let isEntered = false
       const next = files.withWriter(async () => {
         isEntered = true
-        resume.resolve(undefined)
-        await first
         await writeFile(path.join(folder, 'writer.lock.fences', '0000000000000100'), '')
         await expect(files.writeAtomic('vault.v1', Buffer.from('forbidden'))).rejects.toMatchObject(
           { code: 'busy' },
         )
       })
+      const settled = Promise.allSettled([next])
+      await new Promise(setImmediate)
+      expect(isEntered).toBe(false)
+      resume.resolve(undefined)
+      await first
       await expect(next).rejects.toMatchObject({ code: 'busy' })
+      await settled
       expect(isEntered).toBe(true)
       expect(await readFile(path.join(folder, 'vault.v1'), 'utf8')).toBe(
         'generated damaged document',
@@ -318,12 +395,8 @@ describe('production vault writer across process death', () => {
       spy.mockRestore()
     }
   })
-  it('refuses overlapping scopes on one file port after its lease file is displaced', async () => {
-    const folder = await prepare()
-    const files = new NodeVaultFiles(folder, 1024, {
-      protect: () => Promise.resolve(),
-      verify: () => Promise.resolve(),
-    })
+  it('serializes overlapping scopes after a displaced lease until the old operation settles', async () => {
+    const { folder, files } = await nativeWriterFixture()
     const paused = Promise.withResolvers<undefined>()
     const resume = Promise.withResolvers<undefined>()
     const first = files.withWriter(async () => {
@@ -337,11 +410,17 @@ describe('production vault writer across process death', () => {
     try {
       await paused.promise
       await unlink(path.join(folder, 'writer.lock'))
-      await expect(files.withWriter(() => Promise.resolve())).rejects.toMatchObject({
-        code: 'busy',
+      let isEntered = false
+      const next = files.withWriter(() => {
+        isEntered = true
+        return Promise.resolve()
       })
+      await new Promise(setImmediate)
+      expect(isEntered).toBe(false)
       resume.resolve(undefined)
       await expect(first).rejects.toMatchObject({ code: 'busy' })
+      await next
+      expect(isEntered).toBe(true)
       expect(await readFile(path.join(folder, 'vault.v1'), 'utf8')).toBe(
         'generated damaged document',
       )
@@ -351,11 +430,7 @@ describe('production vault writer across process death', () => {
     }
   })
   it('renews its owner-bound note while the production transaction is running', async () => {
-    const folder = await prepare()
-    const files = new NodeVaultFiles(folder, 1024, {
-      protect: () => Promise.resolve(),
-      verify: () => Promise.resolve(),
-    })
+    const { folder, files } = await nativeWriterFixture()
     vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
     try {
       await files.withWriter(async () => {

@@ -38417,6 +38417,17 @@ launch guarantee. No production resource accounting guard is changed.
 Availability stays off. The 17 writer
 crash cases remain skipped for CM109LEASE/join; the store/shared lock helpers
 are unchanged. No hook, assertion, budget or timeout is weakened.
+**CM109LEASE scoped Win11 qualification (2026-10-11).** The lead's 120-minute
+rig brief leaves aggregate quality with the lead. All five compiler projects,
+changed-file lint/format, dead-code, localization, host API, reference and
+roadmap checks pass. This lane removes its two introduced duplicate blocks;
+the two inherited modelApiHost/modelApiLoopGuarantees test clones remain the
+joined train's deferral. Full build retains exactly the joined usagePanel and
+surface-English overages; vault rows and the independent host cap pass without
+cap changes. The existing plan-size refusal remains. The owning safety tests,
+byte-exact guard drills, complete dependent runs and exact remaining files are
+recorded in docs/certification/m109.md; no desktop-token or foreign-user launch
+workaround, live call, history deletion or gate relaxation is authorized.
 **CM109JOINA scoped Win11 qualification (2026-10-11).** The rig/common brief
 requires complete vault/lease files in batches of three and the named static
 and production-build gates, leaving aggregate quality with the lead. Native
@@ -43140,6 +43151,15 @@ threshold, ignore or rule is changed.
 | ---------------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
 | `src/runtime/vault/vaultBrokerEntry.ts` (CM109JOINB) | Installed governor cast to its `createResources` contract | The same-build `resourceGovernor.js` factory is checked before use; it supplies the real machine policy and admission, without copying Windows runtime drivers into the POSIX broker. | A typed generated sibling loader. |
 | `src/runtime/vault/vaultRuntimeEntry.ts`             | Installed sibling cast to `typeof BrokerBindingsModule`   | Only the same-build `vaultBrokerBindings.js` is loaded; its factory is checked before calling. The sibling keeps child-only dependencies out of the existing runtime budget.          | A typed generated sibling loader. |
+
+| CM109LEASE location                     | Escape hatch                            | Reason                                                                                                                                                                                                                      |
+| --------------------------------------- | --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/core/vault/store.ts`, `withWriter` | `unicorn/prefer-promise-with-resolvers` | The installed Node 20 host lacks `Promise.withResolvers`. The Promise executor assigns the release callback synchronously; finally releases the native-identity queue. Compiler targets and the lint rule remain unchanged. |
+
+| C-M109-1c location                                          | Escape hatch                                                               | Reason                                                                                                                                                                                                                          |
+| ----------------------------------------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `native/windows/MuseSparkVaultPipe.cs`                      | Native `TOKEN_USER` unboxing, generic mask conversion and byte-array clone | P/Invoke layouts and native access-mask bit patterns cannot be proved by the managed compiler. Each cast has an inline layout or ownership reason; SID, process identity and the protected DACL are checked before publication. |
+| `native/windows/MuseSparkVault.cs`, `AssertOwnerDescriptor` | `unchecked((uint)ace.AccessMask)`                                          | `CommonAce` stores an unsigned native access-mask bit pattern in a signed integer; generic rights are mapped before comparing the complete owner-only permission mask.                                                          |
 
 | C-M109-1b location                      | Escape hatch                                                 | Reason                                                                                                                                                                            | Removal                                                    |
 | --------------------------------------- | ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |

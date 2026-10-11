@@ -5160,7 +5160,7 @@ widened DACLs and linked paths. The new native
 paths remain unbound pending the broker/editor bindings and the Windows
 installed-build checks in [the M109 record](docs/certification/m109.md).
 Windows also adopts protocol v2's import receipts and two-step reset, with
-typed Credential Manager repair reasons and a compare-and-delete anchor.
+typed Credential Manager repair reasons and anchor removal under the exclusive writer.
 A vault writer keeps exclusive ownership for its entire operation, even if
 suspended or hung. Its thirty-second lease and ten-second renewals are
 informational: another writer may take over only after proving that the
@@ -5172,6 +5172,11 @@ held by one machine at a time. Stop the holding process before retrying;
 never delete its lock to release a live writer. Fences detect local ownership
 mistakes; exclusivity does not depend on a fence check being atomic with a
 filesystem or credential-store mutation.
+Local operations share one queue by native vault-directory identity, including
+case variants, and await every dispatched file or OS-store mutation before
+releasing ownership. A protected anchor behind an authenticated vault file is
+never accepted: a valid pending journal repairs it forward, otherwise opening
+refuses the regression. Linked directory components remain refused.
 
 Windows damaged-document retention is repaired and qualified; production
 Reset/Restore process-death recovery also passes on Win11. The installed

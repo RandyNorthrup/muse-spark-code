@@ -590,7 +590,7 @@ describe('native files and platform ports', () => {
     const root = await directory()
     const files = nativeFiles(root, 1024)
     await files.quarantine('vault.v1')
-    expect(await readdir(root)).toEqual([])
+    expect(await readdir(root)).toEqual(['writer.lock.fences'])
     await files.writeAtomic('vault.v1', Buffer.from('complete-old'))
     await files.quarantine('vault.v1')
     const quarantine = await quarantinePath(root)
@@ -816,9 +816,17 @@ describe('native files and platform ports', () => {
     })
     await Promise.race([entered.promise, first])
     try {
-      await expect(files.withWriter(() => Promise.resolve())).rejects.toMatchObject({
-        code: 'busy',
+      let isSecondEntered = false
+      const second = files.withWriter(() => {
+        isSecondEntered = true
+        return Promise.resolve()
       })
+      await new Promise(setImmediate)
+      expect(isSecondEntered).toBe(false)
+      released.resolve(undefined)
+      await first
+      await second
+      expect(isSecondEntered).toBe(true)
     } finally {
       released.resolve(undefined)
       await first

@@ -236,6 +236,9 @@ happened, not what was planned; superseded entries are kept.
   lease expiry never displaces a suspended or hung writer. Exact OS birth
   evidence is mandatory at acquisition. Busy refusals name the process and
   acquisition time, including foreign-machine ownership, in every language.
+  Local mutations drain before ownership release; native directory identity
+  admits Windows case variants while retaining link checks, and authenticated
+  journal recovery preserves protected-anchor regression refusal.
 - The vault README distinguishes qualified Windows damaged-document
   retention and writer recovery from pending installed/platform qualification.
 - Vault writers use the shared owner-bound, renewing file lease. A broker

@@ -92,12 +92,22 @@ type ManageRequest = Extract<
   }
 >
 /** Store and management failures become a fixed reason, never exception text. */
-function refusal(error: unknown): VaultManagementRefusal | null {
-  if (error instanceof VaultManagementError) return error.reason
-  if (error instanceof VaultStoreUnavailableError) return 'storeUnavailable'
-  if (!(error instanceof VaultError)) return null
-  return error.code === 'authentication' ? 'invalid' : error.code
+function refusal(
+  error: unknown,
+): Extract<VaultBrokerResponse['response'], { kind: 'refused' }> | null {
+  let reason: VaultManagementRefusal
+  if (error instanceof VaultManagementError) reason = error.reason
+  else if (error instanceof VaultStoreUnavailableError) reason = 'storeUnavailable'
+  else if (error instanceof VaultError)
+    reason = error.code === 'authentication' ? 'invalid' : error.code
+  else return null
+  return {
+    kind: 'refused',
+    reason,
+    ...(error instanceof VaultWriterError && { writer: error.writer }),
+  }
 }
+
 type ManagePrivateRequest = Extract<VaultPrivateRequest, { kind: 'add' | 'edit' | 'recover' }>
 const MANAGE_PRIVATE_KINDS = new Set<string>(['add', 'edit', 'recover'])
 function isManagePrivate(
@@ -173,13 +183,9 @@ export class VaultChannelServer {
         } catch (error: unknown) {
           // A fixed reason (an unusable OS store) reaches the person; anything
           // else still closes the connection without diagnostics.
-          const reason = refusal(error)
-          if (reason === null) throw error
-          return {
-            kind: 'refused',
-            reason,
-            ...(error instanceof VaultWriterError && { writer: error.writer }),
-          }
+          const refused = refusal(error)
+          if (refused === null) throw error
+          return refused
         }
         return { kind: 'ok' }
       }
@@ -361,13 +367,9 @@ export class VaultChannelServer {
       }
       return { kind: 'ok' }
     } catch (error: unknown) {
-      const reason = refusal(error)
-      if (reason === null) throw error
-      return {
-        kind: 'refused',
-        reason,
-        ...(error instanceof VaultWriterError && { writer: error.writer }),
-      }
+      const refused = refusal(error)
+      if (refused === null) throw error
+      return refused
     }
   }
   /** Private v2 writes and recovery: manage-only, values never on a public frame. */
@@ -393,13 +395,9 @@ export class VaultChannelServer {
       }
       return { kind: 'ok' }
     } catch (error: unknown) {
-      const reason = refusal(error)
-      if (reason === null) throw error
-      return {
-        kind: 'refused',
-        reason,
-        ...(error instanceof VaultWriterError && { writer: error.writer }),
-      }
+      const refused = refusal(error)
+      if (refused === null) throw error
+      return refused
     }
   }
   async listen(path: string): Promise<void> {
@@ -527,13 +525,9 @@ export class VaultChannelServer {
         try {
           created = await this.deps.manage.setup()
         } catch (error: unknown) {
-          const reason = refusal(error)
-          if (reason === null) throw error
-          response = {
-            kind: 'refused',
-            reason,
-            ...(error instanceof VaultWriterError && { writer: error.writer }),
-          }
+          const refused = refusal(error)
+          if (refused === null) throw error
+          response = refused
           await write({ v: VAULT_PROTOCOL_VERSION, sequence: message.sequence, response })
           return
         }

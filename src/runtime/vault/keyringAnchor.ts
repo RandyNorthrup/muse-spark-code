@@ -3,13 +3,18 @@
 // vault files. It names the vault this user owns and its committed state, so
 // an older or foreign vault file is refused. The same-user rewrite residual is
 // D89.15's. Every advance runs under the vault's cross-process writer lock
-// (VaultStore publishes only inside withWriter), so compare-then-write is
-// atomic between brokers.
+// (VaultStore publishes only inside withWriter). A live writer cannot be
+// taken over; every dispatched OS-store mutation settles before release.
+// The OS store itself has no atomic compare-and-set or recipient fence.
 
 import * as z from 'zod/mini'
 import { KEYRING_SERVICE, VAULT_LIMITS } from '../../shared/constants'
 import { VaultError } from '../../core/vault/crypto'
-import { type VaultGenerationPort, type VaultGenerationState } from '../../core/vault/store'
+import {
+  type VaultGenerationPort,
+  type VaultGenerationState,
+  type VaultWriterCheck,
+} from '../../core/vault/store'
 import { VaultStoreUnavailableError } from '../../core/vault/broker/ports'
 import { storeOperation, type KeyringEntryFactory } from '../keyStore'
 
@@ -68,17 +73,10 @@ export class KeyringVaultAnchor implements VaultGenerationPort {
     }
   }
 
-  /** The vault this user owns, or null before setup. */
-  async vaultId(): Promise<string | null> {
-    const record = await this.read()
-    return record?.vaultId ?? null
-  }
-
-  /** Reset Vault: removes exactly this vault's record; another vault's is refused. */
-  async reset(
+  private async resetState(
     vaultId: string,
     expected: VaultGenerationState | null,
-    authorize: () => void,
+    authorize: VaultWriterCheck,
   ): Promise<void> {
     const record = await this.read()
     authorize()
@@ -95,19 +93,11 @@ export class KeyringVaultAnchor implements VaultGenerationPort {
       throw new VaultStoreUnavailableError()
     }
   }
-  async minimum(vaultId: string): Promise<VaultGenerationState | null> {
-    const record = await this.read()
-    if (record === null) return null
-    // Another vault's file in this place is a swap, never a fresh device.
-    if (record.vaultId !== vaultId) throw new VaultError('rollback')
-    return stateOf(record)
-  }
-
-  async advance(
+  private async advanceState(
     vaultId: string,
     state: VaultGenerationState,
     prior: VaultGenerationState | null,
-    assertHeld?: () => void,
+    assertHeld?: VaultWriterCheck,
   ): Promise<void> {
     const record = await this.read()
     if (record !== null && record.vaultId !== vaultId) throw new VaultError('rollback')
@@ -128,5 +118,37 @@ export class KeyringVaultAnchor implements VaultGenerationPort {
       // No native text: the fixed, localized repair reaches the person (RVCM1091B 4).
       throw new VaultStoreUnavailableError()
     }
+  }
+  /** The vault this user owns, or null before setup. */
+  async vaultId(): Promise<string | null> {
+    const record = await this.read()
+    return record?.vaultId ?? null
+  }
+
+  /** Reset Vault: removes exactly this vault's record; another vault's is refused. */
+  reset(
+    vaultId: string,
+    expected: VaultGenerationState | null,
+    authorize: VaultWriterCheck,
+  ): Promise<void> {
+    const work = () => this.resetState(vaultId, expected, authorize)
+    return authorize.mutate?.(work) ?? work()
+  }
+  async minimum(vaultId: string): Promise<VaultGenerationState | null> {
+    const record = await this.read()
+    if (record === null) return null
+    // Another vault's file in this place is a swap, never a fresh device.
+    if (record.vaultId !== vaultId) throw new VaultError('rollback')
+    return stateOf(record)
+  }
+
+  advance(
+    vaultId: string,
+    state: VaultGenerationState,
+    prior: VaultGenerationState | null,
+    assertHeld?: VaultWriterCheck,
+  ): Promise<void> {
+    const work = () => this.advanceState(vaultId, state, prior, assertHeld)
+    return assertHeld?.mutate?.(work) ?? work()
   }
 }
