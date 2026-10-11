@@ -64,6 +64,20 @@ describe('quotes retain the selected row identity', () => {
       y: 4,
     })
   })
+  // The join of M104's row checks with 0.17.1's menu fan (docs/certification/m104-join.md).
+  it("fans from the row's own actions button when it has one, pointer or keyboard", () => {
+    const f = rows()
+    const button = document.createElement('button')
+    button.className = 'row-actions-button'
+    f.first.append(button)
+    const other = document.createElement('button')
+    other.className = 'row-actions-button'
+    f.last.append(other)
+    expect(selectedTranscriptQuote(f.selection, f.first, { x: 3, y: 4 })?.origin).toBe(button)
+    expect(selectedTranscriptQuote(f.selection, f.first, { x: 0, y: 0 })?.origin).toBe(button)
+    // The row checks still decide first: another row's click is no quote of this text.
+    expect(selectedTranscriptQuote(f.selection, f.last, { x: 3, y: 4 })).toBeUndefined()
+  })
   it('refuses cross-row selections, another row, detached rows and an empty selection', () => {
     const f = rows()
     expect(selectedTranscriptQuote(f.selection, f.last, { x: 1, y: 1 })).toBeUndefined()

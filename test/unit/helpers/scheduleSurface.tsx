@@ -117,15 +117,15 @@ export function showScheduleSurface(
 }
 
 export async function editSchedule() {
-  fireEvent.click(await screen.findByRole('button', { name: 'Edit schedule' }))
-  return screen.getByRole('region', { name: 'Edit schedule' })
+  fireEvent.click(await screen.findByRole('button', { name: 'Edit Schedule' }))
+  return screen.getByRole('region', { name: 'Edit Schedule' })
 }
 
 export async function saveSchedule(
   form: HTMLElement,
   request: ReturnType<typeof showScheduleSurface>['request'],
 ) {
-  fireEvent.click(within(form).getByRole('button', { name: 'Save schedule' }))
+  fireEvent.click(within(form).getByRole('button', { name: 'Save Schedule' }))
   await waitFor(() => {
     expect(request.mock.calls.some(([input]) => input.method === 'schedules/update')).toBe(true)
   })
@@ -136,7 +136,7 @@ export async function refuseScheduleSave(
   form: HTMLElement,
   request: ReturnType<typeof showScheduleSurface>['request'],
 ) {
-  fireEvent.click(within(form).getByRole('button', { name: 'Save schedule' }))
+  fireEvent.click(within(form).getByRole('button', { name: 'Save Schedule' }))
   const alert = await screen.findByRole('alert')
   expect(request.mock.calls.some(([input]) => input.method === 'schedules/update')).toBe(false)
   return alert

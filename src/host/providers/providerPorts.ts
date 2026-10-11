@@ -12,6 +12,7 @@
 // P's merge reconciles names instead of behaviour.
 
 import type { CustomCompat } from '../../core/providers/providersFile'
+import type { PresetCard } from '../../shared/modelsPanel'
 
 /** How a provider proves its calls (D74: `apiKey`, `none`, `subscription`). */
 export type ProviderAuthMode = 'apiKey' | 'none' | 'subscription'
@@ -80,6 +81,8 @@ export interface ProviderEntry {
  * `providersFile.ts` implements this with its zod schema and atomic write.
  */
 export interface ProvidersStore {
+  /** Validate a draft with the provider bundle's canonical schemas before writing. */
+  validate(entry: ProviderEntry, defaultModel: string | undefined): void
   /** Every configured provider, in the file's order. */
   list(): Promise<readonly ProviderEntry[]>
   /** Adds a provider saved by the wizard; rejects a duplicate id. */
@@ -88,19 +91,23 @@ export interface ProvidersStore {
   remove(id: string): Promise<ProviderEntry | undefined>
   /** Puts back an entry `remove` took (Undo). */
   restore(entry: ProviderEntry): Promise<void>
-  /** Replaces the whole file (a confirmed import); the file's previous entries. */
+  /** Replaces entries, evaluating an edit callback inside the protected mutation. Returns the previous entries. */
   replaceAll(
-    entries: readonly ProviderEntry[],
+    entries:
+      readonly ProviderEntry[] | ((entries: readonly ProviderEntry[]) => readonly ProviderEntry[]),
     options?: { readonly defaultModel: string | undefined },
   ): Promise<readonly ProviderEntry[]>
   /** Names the composer's default model (`providers.json`'s `defaultModel`). */
-  setDefaultModel(ref: string | undefined): Promise<void>
+  setDefaultModel(
+    ref: string | undefined,
+    expected?: { readonly value: string | undefined },
+  ): Promise<void>
   /** The default model reference, or undefined when none is set. */
   defaultModel(): Promise<string | undefined>
 }
 
-/** The dropdown's filter chips (D74). */
-export type PresetKind = 'cloud' | 'local' | 'subscription' | 'aggregator'
+/** The dropdown's filter chips (D74): the panel's card categories but `custom`. */
+export type PresetKind = Exclude<PresetCard['category'], 'custom'>
 
 /** One loopback address Scan this computer probes (D74: preset data). */
 export interface LocalProbeTarget {

@@ -1,4 +1,4 @@
-// The VS Code side of "New worktree…" and "Remove worktree…" (M32, PLAN.md
+// The VS Code side of "New Worktree…" and "Remove worktree…" (M32, PLAN.md
 // D30): the input box, the picks, the confirmations and the new window.
 // The flows live in commands/worktreeCommands.ts.
 

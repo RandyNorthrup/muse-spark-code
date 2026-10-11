@@ -344,6 +344,7 @@ import {
   type ReplayProducer,
   effortForPolicy,
   metaResolvedModel,
+  minOutputTokensForPolicy,
   modelPolicyFor,
   modelPricedUsage,
   requestImageCount,
@@ -2548,7 +2549,6 @@ export class ModelApiSession implements ScheduledAgentSession {
   private readonly parallelReads: boolean
   private readonly outputContinuation: boolean
   private outputFormat: CreateResponseBody['text']
-  private readonly outputCaps = new Map<string, number>()
   private readonly repeatGuard = new RepeatGuard()
   /**
    * The ledger total a resumed session brought (M73), kept so a save keeps
@@ -3678,6 +3678,7 @@ export class ModelApiSession implements ScheduledAgentSession {
               searchPriceUsd: this.approvedSearchQuote?.tariffUsd,
             }),
             maxOutputTokens,
+            minOutputTokens: minOutputTokensForPolicy(selected.policy),
             images: requestImageCount(body),
             ...(body.model.includes('/') && { price: selected.price }),
           })
@@ -4234,14 +4235,12 @@ export class ModelApiSession implements ScheduledAgentSession {
   }
 
   private outputCap(): number {
-    const cached = this.outputCaps.get(this.modelId)
-    if (cached !== undefined) return cached
+    // Recomputed per request from the currently resolved record: a cached cap
+    // outlives a provider-file edit between turns (RVMINOUT P2).
     const requested = this.deps.modelOutputMaxTokens?.(this.modelId) ?? MODEL_API_MAX_OUTPUT_TOKENS
-    if (!Number.isSafeInteger(requested) || requested < 1)
-      throw new RangeError('invalid output.maxTokens')
+    if (!Number.isSafeInteger(requested)) throw new RangeError('invalid output.maxTokens')
     const cap = outputLimitFor(this.modelPolicy(), requested)
     if (!Number.isSafeInteger(cap) || cap < 1) throw new RangeError('invalid output.maxTokens')
-    this.outputCaps.set(this.modelId, cap)
     return cap
   }
 
@@ -14675,8 +14674,10 @@ export class ModelApiSession implements ScheduledAgentSession {
         shouldKeepTools &&
         (prefix === undefined ||
           prefix.body.tools.every((tool) => tool.type !== MODEL_API_WEB_SEARCH_TOOL))
+      // A summary cap below the provider minimum is a rejected request:
+      // floor at what the selected provider accepts before budgeting it.
       const summaryBudget = Math.max(
-        1,
+        minOutputTokensForPolicy(this.modelPolicy()),
         Math.min(
           COMPACTION_SUMMARY_MAX_TOKENS,
           Math.floor(windowTokens * COMPACTION_SUMMARY_WINDOW_FRACTION),

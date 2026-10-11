@@ -11,26 +11,21 @@
 // credential file as the panel reads it (D26, PR #49).
 
 import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { Writable } from 'node:stream'
 import * as acp from '@agentclientprotocol/sdk'
 import { EXPECTED_SCHEMA_FINGERPRINT } from '@muse-code/sdk'
 import { build, type Plugin } from 'esbuild'
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, onTestFailed, vi } from 'vitest'
 import { z } from 'zod'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import { createRuntimeBackend } from '../../src/runtime/backends'
 import { agentDataFolder } from '../../src/runtime/dataFolder'
 import { formatAcpUsage } from '../../src/runtime/cliOptions'
 import { webReadable } from '../../src/runtime/webStreams'
-import {
-  ACP_AGENT_NAME,
-  RESOURCE_PRIVATE_DIR_MODE,
-  SECRET_KEYS,
-  UI_TEXT,
-} from '../../src/shared/constants'
+import { ACP_AGENT_NAME, SECRET_KEYS, UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
 import { readUiTableFile } from '../../src/host/l10n'
 import { unpackUiTable } from '../../src/shared/l10n/packed'
@@ -105,16 +100,17 @@ const FAKE_ONLY_KEYRING: Plugin = {
 }
 
 beforeAll(async () => {
-  // Own the machine namespace before schedules/settings can create it with
-  // default permissions. Never repair an existing or real user's directory.
-  mkdirSync(
-    agentDataFolder({
+  // Ubuntu's default umask (002) leaves the agent's data folder group-writable;
+  // the governor's private creation registry must not depend on its mode.
+  if (process.platform !== 'win32') {
+    const machine = agentDataFolder({
       platform: process.platform,
-      env: agentEnvironment(signedIn),
+      env: { XDG_DATA_HOME: dataHome },
       homeDir: dataHome,
-    }),
-    { recursive: true, mode: RESOURCE_PRIVATE_DIR_MODE },
-  )
+    })
+    mkdirSync(machine, { recursive: true })
+    chmodSync(machine, 0o775)
+  }
   if (INSTALLED !== undefined) {
     return
   }
@@ -415,27 +411,42 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
   it('binds saved prompts and sharing help over real ACP stdio without a model send (M118)', async () => {
     mkdirSync(path.join(workspace, 'empty'), { recursive: true })
     const agent = startAgent(signedIn, [], { XDG_DATA_HOME: dataHome, LOCALAPPDATA: dataHome })
+    let stage = 'initialize'
+    // Hosted timeout stacks identify only this case. Fixed stage words show
+    // whether macOS waits for a request or stdio close, without dumping frames.
+    onTestFailed(() => {
+      process.stderr.write(`M118 ACP last awaited stage: ${stage}\n`)
+    })
     await agent.run(async (client) => {
-      const sessionId = await newSession(client)
+      await initialize(client)
+      stage = 'session/new (first workspace)'
+      const { sessionId } = await client.request('session/new', { cwd: workspace, mcpServers: [] })
       const ask = (id: string, prompt: string) =>
         client.request('session/prompt', {
           sessionId: id,
           prompt: [{ type: 'text', text: prompt }],
         })
+      stage = 'save user prompt'
       await ask(sessionId, '/prompt save --title Shared --scope user --   Exact\r\nbody  ')
       const id = /\(([^()]*)\)$/.exec(text(agent.updates))?.[1]
       expect(id).toBeDefined()
+      stage = 'session/new (second workspace)'
       const { sessionId: fresh } = await client.request('session/new', {
         cwd: path.join(workspace, 'empty'),
         mcpServers: [],
       })
+      stage = 'list user prompts'
       await ask(fresh, '/prompt list')
+      stage = 'use user prompt'
       await ask(fresh, `/prompt use ${id ?? ''}`)
+      stage = 'sharing help'
       await ask(fresh, '/help')
       expect(text(agent.updates)).toContain('  Exact\r\nbody  ')
       expect(text(agent.updates)).toContain('/share chat')
       expect(text(agent.updates)).not.toContain('echo:')
+      stage = 'stdio disconnect'
     })
+    stage = 'completed'
   })
 
   it('streams a reply, runs an allowed tool call and skips a denied one, on Muse Code', async () => {
@@ -529,7 +540,7 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
     expect(museCode.stderr.join('')).not.toContain('HTTPS_PROXY is set')
   })
 
-  it('refuses environment credentials as Muse Code sign-in (FIXM95X)', async () => {
+  it('refuses environment credentials as Muse Code Sign-In (FIXM95X)', async () => {
     const agent = startAgent(signedOut, [], { META_API_KEY: 'LLM|1|placeholder' })
     await expect(agent.run((client) => newSession(client))).rejects.toMatchObject({ code: -32_000 })
     const said = agent.stderr.join('')

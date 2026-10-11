@@ -8,6 +8,7 @@ import { mkdir, readFile, readdir, symlink, utimes, writeFile } from 'node:fs/pr
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { admitResource } from '../../src/core/resources/admission'
+import * as machineSampler from '../../src/core/resources/sampler/system'
 import type { UsageFs } from '../../src/core/usage/journalStore'
 import { RESOURCE_JOURNAL_ROOT, ResourceJournal } from '../../src/core/usage/resourceJournal'
 import { ResourceRecords } from '../../src/core/usage/resourceRecords'
@@ -191,6 +192,13 @@ describe('RVM107W2 P2: consent, delete boundary, retries, disposal and read boun
 
   it('writes the window open minute to the journal when the window is disposed', async () => {
     const folder = await temporary()
+    // Disposal owns the journal flush, not this machine's pressure or OS probes.
+    // A real probe may use the entire 5 s test deadline before admission starts.
+    const sample = historyStatus(Date.now()).sample
+    if (sample === null) throw new Error('Missing fixture sample')
+    vi.spyOn(machineSampler, 'createMachineResourceSampler').mockReturnValue({
+      sample: () => Promise.resolve(sample),
+    })
     const dispose = configureWindowHistory(folder)
     const lease = await admitResource('other', undefined, 'foreground')
     lease?.complete(true)

@@ -473,6 +473,8 @@ interface LiteralNode {
 
 /** One shared Aho-Corasick matcher, so overlapping encodings cannot leave a tail. */
 function literalMatcher(forms: readonly string[]): (text: string, matched?: () => void) => string {
+  // No literal registered (the usual case): nothing can match, so skip the per-character walk.
+  if (forms.length === 0) return (text) => text
   const root: LiteralNode = { next: new Map(), fail: undefined, length: 0 }
   for (const literal of forms) {
     let node = root

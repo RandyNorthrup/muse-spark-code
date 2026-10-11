@@ -51,7 +51,7 @@ describe('createMemoryFeatures (M49)', () => {
     await t.features.showMemory()
     const [items, options] = vi.mocked(pickOne).mock.calls[0]!
     expect(items[0]).toMatchObject({ label: 'prefs.md', detail: 'Prefers tabs.' })
-    expect(options).toMatchObject({ title: 'Muse memory', placeHolder: '1 memory note' })
+    expect(options).toMatchObject({ title: 'Muse Memory', placeHolder: '1 memory note' })
     expect(window.showTextDocument).toHaveBeenCalledWith(Uri.file(`${PERSONAL}/prefs.md`), {
       preview: false,
     })

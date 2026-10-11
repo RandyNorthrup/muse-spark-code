@@ -1,0 +1,74 @@
+{
+  "anthropic": {
+    "lines": 40,
+    "sha256": "17d8828c1c0d7cc409ff84d7a91ee3730b9ab2e91930b21c991b5392411b4e5f"
+  },
+  "azure": {
+    "lines": 32,
+    "sha256": "3c30e0db505ca15993f26b6e086bc34136a8d6de37de28c3914dc24e301f26c1"
+  },
+  "custom": {
+    "lines": 8,
+    "sha256": "4efbe735c83812641d97bf3f9b88290020b6c86617da0de913e5de98889c0ce6"
+  },
+  "fireworks": {
+    "lines": 88,
+    "sha256": "1676719bca39a839d2d4cb40b0030967688aaba9c36c1846de68bbd1e441afa4"
+  },
+  "gemini": {
+    "lines": 56,
+    "sha256": "aeaa0a8439eb764069a7f2a99cfb3b407ffbae142ea74cf2f8bd626cbefb7e69"
+  },
+  "groq": {
+    "lines": 40,
+    "sha256": "6b205fa45528d79f2dea0c44b3ddd93673d4c2b485b8a434be8ebe7e0398f77e"
+  },
+  "huggingface": {
+    "lines": 360,
+    "sha256": "dd20e077f4ad78cd0e59be83e05c93adfa70df4247bd5f6f31c3514b54c8696c"
+  },
+  "llamacpp": {
+    "lines": 8,
+    "sha256": "8602e152a064ef4bb33f4ccbe93e8433ec69aa0c0d35c66f7ed415c4fa34474a"
+  },
+  "lmstudio": {
+    "lines": 8,
+    "sha256": "18a6b3c8dd13732f52ef889d9205c736fbc7831f571009ec136c9be2a60c2088"
+  },
+  "mistral": {
+    "lines": 136,
+    "sha256": "7afbb60664bb137abe3eeb867bd90ac547c7d41d0ebda7f2836f0111aa34507b"
+  },
+  "mistral-plan": {
+    "lines": 136,
+    "sha256": "352c3b8020f2329f1398d915405121e25eaaf244de84774bb229d8a6cd40bee3"
+  },
+  "ollama": {
+    "lines": 8,
+    "sha256": "31c4aafca442a5318cccda3fa24f70991e4e673662dc5aa321a616f87e910b6b"
+  },
+  "openai": {
+    "lines": 128,
+    "sha256": "2b583c06bb4959e83ca2f73e852fdfa7e093bdbff4875dae62e1e9dc0463c35b"
+  },
+  "openrouter": {
+    "lines": 1120,
+    "sha256": "01aa6656a7476970219a9cec37e43c0d350fbc97d755a162844f9ba04a3ec6cf"
+  },
+  "together": {
+    "lines": 160,
+    "sha256": "1cda2fd93084472326bf0dc3368899813dceecf22021ffd986470792d39a320d"
+  },
+  "vllm": {
+    "lines": 8,
+    "sha256": "989fdbedf4f4f2e4cbd947ac34d63c30801c13059a935bda2805703e2f91dd1a"
+  },
+  "xai": {
+    "lines": 48,
+    "sha256": "a14f8b6e7997b45a713da18c6bb52290f6eecde7670aeb606435a3c34d3380ad"
+  },
+  "zai": {
+    "lines": 64,
+    "sha256": "4f4f419c1010a18406385af2cd12469312f815c78e972e393f9917cb23356fcd"
+  }
+}

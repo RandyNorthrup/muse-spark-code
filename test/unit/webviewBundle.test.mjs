@@ -24,13 +24,14 @@ import { resourceBrowserValidation } from '../../scripts/lib/webviewBundles.mjs'
 import { BUNDLES, checkResourceBundles } from '../../scripts/lib/deferredBundles.mjs'
 import { createRequire } from 'node:module'
 import { listFiles } from '@vscode/vsce/out/package.js'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest'
 import {
   webviewDeferredBudgetGroups,
   portableWebviewBudgetGroups,
+  webviewStartupOutputs,
 } from '../../scripts/lib/webviewBundles.mjs'
 import { measurePortableStartup } from '../../scripts/lib/portableStartup.mjs'
-import { buildProductionPackage } from './helpers/productionPackage'
+import { PRODUCTION_BUILD_KEY, buildProductionPackage } from './helpers/productionPackage'
 
 const ENTRY = 'dist/webview/main.js'
 const SIZE_GATE = path.resolve('scripts/check-bundle-size.mjs')
@@ -68,7 +69,7 @@ beforeAll(async () => {
   )
   // Own the complete production graph: Node and policy checks must work in a
   // cold checkout, and deliberate metafile mutations must not race other suites.
-  buildProductionPackage(process.cwd(), built.production)
+  buildProductionPackage(process.cwd(), built.production, inject(PRODUCTION_BUILD_KEY))
   // The owned build shares the read-only dependency install through a junction.
   // esbuild records those inputs relative to its real location. Canonicalize
   // that fixture prefix while retaining every source and byte contribution.
@@ -1321,6 +1322,37 @@ describe('the production webview chunks (FIX78W)', () => {
     for (const file of ['test/unit/webviewBundles.test.mjs', 'test/unit/bundleSize.test.mjs']) {
       expect(readFileSync(file, 'utf8')).not.toContain('check-bundle-split')
     }
+  })
+
+  // Moved from slashCommandsBundle.test.mjs, whose own full production build
+  // outlasted its 10 s hook on macOS: this suite's build serves both.
+  it('certifies lazy slash-command registration without increasing activation bytes', () => {
+    const source = 'src/shared/slashCommands.ts'
+    const startup = new Set(webviewStartupOutputs({ outputs: built.outputs }))
+    const owners = Object.entries(built.outputs).filter(([, output]) =>
+      Object.keys(output.inputs).includes(source),
+    )
+    expect(owners).toHaveLength(1)
+    expect(startup.has(owners[0][0])).toBe(false)
+    // a704f711c: the "/" list is no surface of its own; it loads with the
+    // palette registry, whose deferred import App already makes.
+    const registry = 'src/shared/paletteRegistry.ts'
+    const entry = Object.entries(built.outputs).find(([, output]) => output.entryPoint === registry)
+    expect(entry).toBeDefined()
+    expect(startup.has(entry[0])).toBe(false)
+    // It loads with the registry: in its entry chunk or a chunk that entry
+    // imports statically (a chunk esbuild shares with another lazy surface).
+    const withRegistry = new Set()
+    const queue = [entry[0]]
+    while (queue.length > 0) {
+      const file = queue.pop()
+      if (withRegistry.has(file)) continue
+      withRegistry.add(file)
+      const imports = built.outputs[file]?.imports ?? []
+      for (const edge of imports) if (edge.kind === 'import-statement') queue.push(edge.path)
+    }
+    expect(withRegistry.has(owners[0][0])).toBe(true)
+    expect(statSync(outputFile('dist/extension.js')).size).toBeLessThanOrEqual(587_451)
   })
 })
 

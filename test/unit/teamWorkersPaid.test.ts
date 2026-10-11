@@ -131,7 +131,7 @@ describe('teamWorkers paid use (M96)', () => {
   })
 
   it('names the feature and lists it once used', () => {
-    expect(paidFeatureName('teamWorkers')).toBe('Team workers')
+    expect(paidFeatureName('teamWorkers')).toBe('Team Workers')
     const empty: PaidTally = { webSearches: 0, images: 0, voiceSeconds: 0, scheduledRuns: 0 }
     expect(listedPaidFeatures(['teamWorkers'], empty)).toEqual(['teamWorkers'])
     expect(listedPaidFeatures([], empty)).toEqual([])

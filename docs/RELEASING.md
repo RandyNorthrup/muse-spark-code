@@ -154,6 +154,12 @@ An already-published version is successful only when it matches this run:
 - npm: compare `npm view muse-spark-code-acp@X.Y.Z dist.integrity` to the
   tarball's locally computed SHA-512 SRI.
 
+After a fresh publish the job polls the same endpoints until the exact
+version is visible with matching integrity (up to 30 minutes, backing off;
+npm took 19 minutes for 0.16.0), then reports `published and visible`. A
+poll timeout reports `published, not yet visible` as a warning in the job
+summary without failing the release; re-check the registry before announcing.
+
 Unavailable metadata or mismatched bytes fail closed. Do not remove a version
 or overwrite an asset to make that check pass.
 
@@ -256,20 +262,28 @@ same verify-before-upload behavior, listed in `SHA256SUMS` and attested like the
 packages. If `action/action.yml` exists, the final summary job
 moves the unsigned `v0` major tag only after all four channels published. It
 does not move after a missing-secret skip or a failure, and an older rerun
-cannot move it backwards to an ancestor. Divergent history requires review.
-The `release tags` ruleset (`refs/tags/v*`: deletion, non-fast-forward and
-update blocked, only the Admin role may bypass) also covers `v0`, so the
-job's update of `v0` with `GITHUB_TOKEN` is refused until `v0` is left out of
-the ruleset or the job may bypass it; 0.12.0 only created the tag.
+cannot move it backwards: a tag already at the release commit or a newer
+descendant is left alone. Divergent history stops for owner review; the move
+is fast-forward only, never forced.
 
-The owner's 0.12.1 observation (Release run `37225339230`) found HTTP 422 on
-updating `v0`: the `release tags` ruleset (`23893754`) covers `refs/tags/v*`,
-with deletion, non-fast-forward and update rules and administrator bypass only.
-The workflow token can create the tag but cannot update it. Keep the ruleset;
-an administrator must make the move. After confirming all four channels
-published, inspect the current target and confirm it is an ancestor of the
-release commit (or already at that commit/a newer descendant). If a move is
-needed, run this with the administrator's GitHub CLI account:
+Tag rules (current 2026-10-08): the `release tags` ruleset (`23893754`)
+excludes `refs/tags/v0`. A separate ruleset (`24701357`, "action major tag
+v0") blocks only deletion and non-fast-forward updates of `v0` (only the
+Admin role may bypass), so the release job's fast-forward update of `v0`
+with `GITHUB_TOKEN` is allowed. History: `v0` sat stuck at 0.12.1 from
+0.14.4 through 0.16.0 because the old ruleset refused the workflow's update
+(the owner's 0.12.1 observation, Release run `37225339230`, found HTTP 422);
+it has since been fast-forwarded to the 0.16.0 commit `4da4ef666`, and the
+normal path is the workflow moving it on each fully published release.
+
+A failed `v0` move is loud, never silent: the summary job keeps its channel
+results, adds a `**admin move required**` row naming the failed update, and
+emits a warning pointing here. The release itself stays published; no
+rebuild or republish is needed solely to repair this major tag. To make the
+admin move after a failed update, confirm all four channels published,
+inspect the current target and confirm it is an ancestor of the release
+commit (or already at that commit/a newer descendant). If a move is needed,
+run this with the administrator's GitHub CLI account:
 
 ```console
 gh api --method PATCH repos/RandyNorthrup/muse-spark-code/git/refs/tags/v0 -f sha=<release commit> -F force=false
@@ -277,8 +291,7 @@ gh api --method PATCH repos/RandyNorthrup/muse-spark-code/git/refs/tags/v0 -f sh
 
 Replace `<release commit>` with the full commit SHA. Verify the resulting
 `v0` target independently afterward. If history is divergent, stop for owner
-review; do not force the move or change the ruleset. No rebuild or republish is
-needed solely to repair this major tag.
+review; do not force the move or change the ruleset.
 
 The Action will be consumed as
 `RandyNorthrup/muse-spark-code/action@v0`. There is no Actions Marketplace

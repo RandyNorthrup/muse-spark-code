@@ -208,12 +208,20 @@ const LAZY_ONLY = [
   'mcp/protocol.ts',
 ]
 
+// Each metafile is read and parsed once: the checks ask for the same few
+// metafiles hundreds of times, which made one run take seconds.
+const metafiles = new Map()
+
 /** The bundle's source files and the bytes each contributed, from its metafile. */
 function inputsOf({ output, metafile }) {
   if (!existsSync(metafile)) {
     throw new Error(`${metafile} is missing: run "node scripts/build.mjs --production" first`)
   }
-  const parsed = JSON.parse(readFileSync(metafile, 'utf8'))
+  let parsed = metafiles.get(metafile)
+  if (parsed === undefined) {
+    parsed = JSON.parse(readFileSync(metafile, 'utf8'))
+    metafiles.set(metafile, parsed)
+  }
   const bundle = Object.entries(parsed.outputs).find(
     ([file]) => file.replaceAll('\\', '/') === output,
   )?.[1]
@@ -1656,7 +1664,7 @@ nodeMetafiles.push(
 // INT0170: classic zod stays out of the Node bundles that read zod/mini from
 // dist/validation.js. CONSENT017's paidConsent.ts imported 'zod', and
 // dist/extension.js carried 444 KiB of it with its `navigator` sniff
-// (extension.ts -> host/paid/paidHost.ts -> core/paid/paidConsent.ts).
+// (extension.ts -> host/vscode/paid/paidHost.ts -> core/paid/paidConsent.ts).
 // dist/structuredSchema.js shares zod/v4/core by design; the ACP engine
 // carries the ACP SDK's classic zod (englishZodLocales trims its locales).
 const CLASSIC_ZOD_CARRIERS = new Set([

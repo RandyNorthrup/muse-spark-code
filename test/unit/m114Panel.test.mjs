@@ -17,7 +17,7 @@ const fixture = [
   "import {SecretPromptDialog} from './src/webview/components/SecretPromptDialog';",
   "import {ApprovalCard} from './src/webview/components/ApprovalCard';",
   "import {GooeyMenuContent as GooeyMenu} from './src/webview/components/GooeyMenuContent';",
-  "const labels = ['Allow once', 'Always allow this very long command in this workspace', 'Reject with feedback'];",
+  "const labels = ['Allow Once', 'Always Allow this very long command in this workspace', 'Reject with feedback'];",
   "const approval = {approvalId:'test',requirementId:{approvalId:'test',sourceIndex:0},",
   " subject:{kind:'shell',command:'npm run build'},rawArgs:'{}',isProtectedWrite:false,isJudgeEscalated:false,",
   " availableChoices:labels.map((label,i)=>({choiceId:String(i),label,decision:i===2?'abort':'approved',scope:'once',acceptsFeedback:i===2}))};",
@@ -52,6 +52,8 @@ beforeAll(async () => {
     write: false,
     platform: 'browser',
     jsx: 'automatic',
+    // Every page parses this script: unminified it took ~340 ms a page here.
+    minify: true,
     define: { 'process.env.NODE_ENV': '"production"' },
   })
   runtime.js = js.outputFiles[0].text
@@ -79,6 +81,13 @@ beforeAll(async () => {
   runtime.browser = await chromium.launch(
     path.isAbsolute(chrome) ? { executablePath: chrome } : { channel: 'chrome' },
   )
+})
+// Only this file's first case ever timed out on hosted macOS (six 0.17 runs):
+// the browser's first pages, not the contract. Pay that once here, in a hook
+// with its own limit, so every case keeps its five seconds.
+beforeAll(async () => {
+  const page = await open('dark')
+  await page.close()
 })
 afterAll(async () => {
   await runtime.browser?.close()
@@ -124,7 +133,7 @@ async function open(theme, width = 320, isWhatsNew = false, motion = 'reduce', s
   })
   await page.route('**/*', (route) => route.abort())
   await page.setContent(
-    `<style>${runtime.css[isWhatsNew ? 1 : 0]}</style>${isWhatsNew ? '<main><h1>What’s New</h1><h2>Release</h2><pre tabindex="0"><code>const x = 1;</code></pre><button>Try it</button><a href="#">Reference</a><label><input type="checkbox">Show on update</label></main>' : markup}`,
+    `<style>${runtime.css[isWhatsNew ? 1 : 0]}</style>${isWhatsNew ? '<main><h1>What’s New</h1><h2>Release</h2><pre tabindex="0"><code>const x = 1;</code></pre><button>Try It</button><a href="#">Reference</a><label><input type="checkbox">Show on update</label></main>' : markup}`,
   )
   const host = JSON.parse(readFileSync(`test/harness/themes/${theme}.json`, 'utf8'))
   await page.evaluate((host) => {
@@ -205,8 +214,10 @@ async function force(page, selector, states) {
 
 describe('M114 P2 panel contract', () => {
   it('loads the real lazy menu independently of the secret modal focus owner', async () => {
-    const panel = await open('dark')
-    const secret = await open('dark', 320, false, 'reduce', 'secret')
+    const [panel, secret] = await Promise.all([
+      open('dark'),
+      open('dark', 320, false, 'reduce', 'secret'),
+    ])
     try {
       expect(await panel.locator('.gooey-menu-pill').count()).toBe(1)
       expect(await panel.locator('#actual .modal').count()).toBe(0)
@@ -215,6 +226,35 @@ describe('M114 P2 panel contract', () => {
     } finally {
       await panel.close()
       await secret.close()
+    }
+  })
+  // Owner report 2026-10-10: the focused "Type your own answer…" field covered
+  // the Other option above it and the Submit/Explain buttons below it.
+  it('keeps the focused answer field and its focus ring clear of the Other option and the buttons', async () => {
+    for (const theme of ['light', 'dark']) {
+      const page = await openHarness(theme, 'questions-waiting')
+      try {
+        const input = page.locator('.question-input').first()
+        await input.waitFor()
+        await input.focus()
+        const gaps = await input.evaluate((field) => {
+          const card = field.closest('.question')
+          const other = [...card.querySelectorAll('.question-choice')]
+            .at(-1)
+            .getBoundingClientRect()
+          const actions = card.querySelector('.question-actions').getBoundingClientRect()
+          const box = field.getBoundingClientRect()
+          const style = globalThis.getComputedStyle(field)
+          const ring =
+            Number(style.outlineWidth.replace('px', '')) +
+            Number(style.outlineOffset.replace('px', ''))
+          return { above: box.top - ring - other.bottom, below: actions.top - (box.bottom + ring) }
+        })
+        expect(gaps.above, theme).toBeGreaterThanOrEqual(2)
+        expect(gaps.below, theme).toBeGreaterThanOrEqual(2)
+      } finally {
+        await page.close()
+      }
     }
   })
   it('certifies History archive marks outside Tab order with Arrow/Delete keyboard access', async () => {
@@ -382,9 +422,9 @@ describe('M114 P2 panel contract', () => {
           expect(box.background).toBe(boxes[0].background)
           expect(contrast(box.color, box.background)).toBeGreaterThanOrEqual(4.5)
         }
-        expect(await buttons.nth(1).textContent()).toContain('Always allow this very long command')
+        expect(await buttons.nth(1).textContent()).toContain('Always Allow this very long command')
         expect(await buttons.nth(1).getAttribute('title')).toContain(
-          'Always allow this very long command',
+          'Always Allow this very long command',
         )
       } finally {
         await page.close()

@@ -53,7 +53,7 @@ describe('usage charts', () => {
         ?.split(' ')
         .every((id) => document.querySelector(`[id="${CSS.escape(id)}"]`) !== null),
     ).toBe(true)
-    fireEvent.click(screen.getByText('Show chart data'))
+    fireEvent.click(screen.getByText('Show Chart Data'))
     expect(screen.getByRole('table', { name: 'Example' })).toHaveTextContent('Unknown')
   })
   it.each(['cost', 'tokens', 'requests', 'time'] as const)(

@@ -765,18 +765,18 @@ describe('team protocol region', () => {
 describe('team strings', () => {
   it('names the panel sections, the slot and the reset', () => {
     expect(EN.teamRolesTitle).toBe('Roles')
-    expect(EN.teamAgentsTitle).toBe('Agent map')
-    expect(EN.teamHistoryTitle).toBe('Team history')
+    expect(EN.teamAgentsTitle).toBe('Agent Map')
+    expect(EN.teamHistoryTitle).toBe('Team History')
     expect(EN.teamOrchestratorSlot).toBe('Orchestrator')
     expect(EN.teamResetToDefault).toBe('Reset to Default')
-    expect(EN.teamAddCustomRole).toBe('Add custom role')
+    expect(EN.teamAddCustomRole).toBe('Add Custom Role')
   })
 
   it('labels modes, levels, templates and steps for the Roles section', () => {
     expect(EN.teamAccessModes).toEqual({
-      readOnly: 'Read-only',
-      ownBranch: 'Own branch',
-      inPlace: 'In place',
+      readOnly: 'Read-Only',
+      ownBranch: 'Own Branch',
+      inPlace: 'In Place',
     })
     expect(Object.keys(EN.teamIntensityLevels)).toEqual([
       'minimal',
@@ -838,12 +838,12 @@ describe('team strings', () => {
       'waitingApproval',
       'waitingForYou',
     ])
-    expect(EN.teamWaitingForYou).toBe('Waiting for you')
-    expect(EN.teamChoiceQueue).toBe('Queue it')
-    expect(EN.teamChoiceSelf).toBe('Main agent does it')
-    expect(EN.teamChoiceRaise).toBe('Raise a limit…')
+    expect(EN.teamWaitingForYou).toBe('Waiting for You')
+    expect(EN.teamChoiceQueue).toBe('Queue It')
+    expect(EN.teamChoiceSelf).toBe('Main Agent Does It')
+    expect(EN.teamChoiceRaise).toBe('Raise a Limit…')
     expect(EN.teamChoiceCancel).toBe('Cancel')
-    expect(EN.teamHostBusy).toBe('Host busy')
+    expect(EN.teamHostBusy).toBe('Host Busy')
   })
 })
 
@@ -869,17 +869,17 @@ describe('team recovery and landing strings (lane M96-0b)', () => {
   ] as const
 
   it('uses the plan’s exact words for every recovery and landing button', () => {
-    expect(EN.teamRestartTeamHost).toBe('Restart the team host')
-    expect(EN.teamContinueAnyway).toBe('Continue anyway')
-    expect(EN.teamReleaseAnyway).toBe('Release anyway')
-    expect(EN.teamRestartServer).toBe('Restart server')
-    expect(EN.teamTakeOver).toBe('Take over')
-    expect(EN.teamContinueHereAsNewTask).toBe('Continue here as a new task')
-    expect(EN.teamHintOpenWindow).toBe('Open that window')
-    expect(EN.teamIncludeUncommittedEdits).toBe('Include its uncommitted edits')
+    expect(EN.teamRestartTeamHost).toBe('Restart the Team Host')
+    expect(EN.teamContinueAnyway).toBe('Continue Anyway')
+    expect(EN.teamReleaseAnyway).toBe('Release Anyway')
+    expect(EN.teamRestartServer).toBe('Restart Server')
+    expect(EN.teamTakeOver).toBe('Take Over')
+    expect(EN.teamContinueHereAsNewTask).toBe('Continue Here as a New Task')
+    expect(EN.teamHintOpenWindow).toBe('Open That Window')
+    expect(EN.teamIncludeUncommittedEdits).toBe('Include Its Uncommitted Edits')
     expect(EN.teamLandingApply).toBe('Apply')
-    expect(EN.teamUndoMerge).toBe('Undo merge')
-    expect(EN.teamCheckModelsOnOpen).toBe('Check the team’s models when this window opens')
+    expect(EN.teamUndoMerge).toBe('Undo Merge')
+    expect(EN.teamCheckModelsOnOpen).toBe('Check the Team’s Models When This Window Opens')
   })
 
   it('keeps each recovery and landing string’s slots in English', () => {
@@ -979,4 +979,73 @@ describe('team roles and tool sets', () => {
       expect(TEAM_READ_ONLY_REFUSED_OPTIONS).toContain(option)
     }
   })
+})
+
+it('refuses Meta output caps below sixteen in team pool and orchestrator settings', () => {
+  const agent = {
+    kind: 'engine',
+    agentId: 'meta-model-api',
+    model: 'muse-spark-1.3',
+    provider: 'meta',
+    pays: 'key',
+  }
+  for (const cap of [0, 1, 15]) {
+    const entry = { id: 'meta', agent, concurrent: 1, caps: [], settings: { outputCap: cap } }
+    for (const parsed of [
+      teamPoolEntrySchema.safeParse(entry),
+      teamSnapshotSchema.safeParse({
+        roles: [],
+        intensity: 'balanced',
+        orchestrator: { agent, settings: { outputCap: cap } },
+      }),
+    ]) {
+      expect(parsed.success).toBe(false)
+      if (!parsed.success)
+        expect(parsed.error.message).toContain('Output cap must be at least 16 tokens.')
+    }
+  }
+  expect(
+    teamPoolEntrySchema.safeParse({
+      id: 'meta',
+      agent,
+      concurrent: 1,
+      caps: [],
+      settings: { outputCap: 16 },
+    }).success,
+  ).toBe(true)
+  expect(
+    teamPoolEntrySchema.safeParse({
+      id: 'other',
+      agent: { ...agent, provider: 'custom', model: 'native' },
+      concurrent: 1,
+      caps: [],
+      settings: { outputCap: 1 },
+    }).success,
+  ).toBe(true)
+})
+
+it('validates inherited Meta output caps for default team entries and orchestrator settings', () => {
+  for (const snapshot of [
+    {
+      roles: [],
+      intensity: 'balanced',
+      orchestratorModel: 'muse-spark-1.3',
+      orchestrator: { settings: { outputCap: 15 } },
+    },
+    {
+      roles: [
+        {
+          role: 'engineering',
+          pool: [{ id: 'default', concurrent: 1, caps: [], settings: { outputCap: 15 } }],
+        },
+      ],
+      intensity: 'balanced',
+      orchestratorModel: 'meta/muse-spark-1.3',
+    },
+  ]) {
+    const parsed = teamSnapshotSchema.safeParse(snapshot)
+    expect(parsed.success).toBe(false)
+    if (!parsed.success)
+      expect(parsed.error.message).toContain('Output cap must be at least 16 tokens.')
+  }
 })

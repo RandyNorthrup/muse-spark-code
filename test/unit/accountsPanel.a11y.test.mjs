@@ -9,6 +9,7 @@ import { findChrome } from '../../scripts/lib/chrome.mjs'
 import { compactBrowserUiText } from '../../scripts/lib/uiTextRegions.mjs'
 import { lazyBrowserKeybindings } from '../../scripts/lib/browserKeybindings.mjs'
 import { accountsHarnessEntry } from '../harness/accounts.mjs'
+import { warmBrowser } from './helpers/warmBrowser'
 
 const root = path.resolve(import.meta.dirname, '../..')
 const output = path.join(root, 'temp/m108-u-harness')
@@ -49,6 +50,10 @@ beforeAll(async () => {
   )
 })
 
+// Browser-wide first-page work once, under this hook's own limit (CIFIX017).
+beforeAll(async () => {
+  await warmBrowser(state.browser)
+})
 afterAll(async () => {
   await state.browser?.close()
   state.server?.close()

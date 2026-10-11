@@ -24,14 +24,18 @@ export function selectedTranscriptQuote(
     (clicked != null && clicked !== row)
   )
     return
+  // Highlighted-text actions fan from this row's “…” button too (0.17.1). A row
+  // without one keeps the pointer, or its own middle for a keyboard request.
+  const button = row.querySelector<HTMLElement>('.row-actions-button')
   const bounds = row.getBoundingClientRect()
+  const pointer: MenuPoint =
+    point.x === 0 && point.y === 0
+      ? { x: bounds.left + bounds.width / 2, y: bounds.top + bounds.height / 2 }
+      : point
   return {
     text,
     entryId,
     role: row.dataset['role'] ?? 'assistant',
-    origin:
-      point.x === 0 && point.y === 0
-        ? { x: bounds.left + bounds.width / 2, y: bounds.top + bounds.height / 2 }
-        : point,
+    origin: button ?? pointer,
   }
 }

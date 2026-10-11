@@ -1,4 +1,4 @@
-import { appendFile, mkdir, mkdtemp, readdir } from 'node:fs/promises'
+import { appendFile, mkdir, mkdtemp, readFile, readdir } from 'node:fs/promises'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { acpResourceCommand } from '../../src/acp/resources'
@@ -95,8 +95,12 @@ describe('M107 J/M102 production history binding', () => {
     const state = await usage(folder).read(QUERY)
     expect(state.resources).toEqual(history)
     // The journal holds no process identity, command, path or environment.
-    const day = await readdir(path.join(folder, ...RESOURCE_JOURNAL_ROOT.split('/')))
-    expect(day.filter((name) => DAY_NAME.test(name))).toHaveLength(1)
+    // The live snapshot can precede the best-effort disposal flush's durable
+    // append, especially with Windows' journal lock/handle checks.
+    await vi.waitFor(async () => {
+      const day = await readdir(path.join(folder, ...RESOURCE_JOURNAL_ROOT.split('/')))
+      expect(day.filter((name) => DAY_NAME.test(name))).toHaveLength(1)
+    })
   })
 
   it('refuses an unreadable journal on every surface instead of showing empty history', async () => {
@@ -112,18 +116,24 @@ describe('M107 J/M102 production history binding', () => {
     const root = path.join(folder, ...RESOURCE_JOURNAL_ROOT.split('/'))
     // The live minute can be read before the disposal flush writes the day file,
     // and the root also holds the write lock's files: wait for the UTC day folder.
-    let dayPath = ''
+    let filePath = ''
     await vi.waitFor(
       async () => {
         const names = await readdir(root)
         const day = names.find((name) => DAY_NAME.test(name))
         expect(day).toBeDefined()
-        dayPath = path.join(root, day ?? '')
+        const dayPath = path.join(root, day ?? '')
+        const files = await readdir(dayPath)
+        const file = files.find((name) => name.endsWith('.jsonl'))
+        expect(file).toBeDefined()
+        filePath = path.join(dayPath, file ?? '')
+        // Creating the day folder precedes opening and completing its append.
+        // Corrupt only a complete durable line, never an absent/in-flight file.
+        expect(await readFile(filePath, 'utf8')).toMatch(/\n$/u)
       },
       { timeout: 3000 },
     )
-    const [file] = await readdir(dayPath)
-    await appendFile(path.join(dayPath, file ?? ''), 'garbage\n')
+    await appendFile(filePath, 'garbage\n')
     await expect(cli.history()).rejects.toThrow()
     await expect(cli.command('history', false)).rejects.toThrow()
     await expect(

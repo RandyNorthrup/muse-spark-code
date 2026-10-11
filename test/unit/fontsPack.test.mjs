@@ -13,6 +13,7 @@ import {
 } from '../../scripts/notices-fonts.mjs'
 import { sharedUiText, sharedValidation } from '../../scripts/lib/deferredBundles.mjs'
 import { findChrome } from '../../scripts/lib/chrome.mjs'
+import { warmBrowser } from './helpers/warmBrowser'
 
 const state = {}
 beforeAll(async () => {
@@ -58,6 +59,10 @@ beforeAll(async () => {
     headless: true,
     args: ['--no-sandbox'],
   })
+})
+// Browser-wide first-page work once, under this hook's own limit (CIFIX017).
+beforeAll(async () => {
+  await warmBrowser(state.browser)
 })
 afterAll(async () => {
   await state.browser?.close()

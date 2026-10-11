@@ -4,6 +4,7 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { brotliDecompressSync } from 'node:zlib'
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { layOutAcpNativeSources } from './helpers/acpPackageSources'
 
 const folders = []
 // Cold archive preparation and npm pack run once outside five-second assertions.
@@ -99,25 +100,12 @@ function fixture() {
     'reportingDestinations',
   ])
     put(`dist/${bundle}.js`, 'exports.EN = {}')
-  for (const file of [
-    'MuseSparkJob',
-    'MuseSparkMcpJob',
-    'MuseSparkScreenRecord',
-    'MuseSparkVault',
-    'MuseSparkVaultCng',
-    'MuseSparkVaultHello',
-    'MuseSparkVaultLock',
-  ])
-    put(`native/windows/${file}.cs`, '// test source')
+  layOutAcpNativeSources(root, process.cwd())
   put('LICENSE', 'MIT')
   put('design/fonts/manifest.json', readFileSync('design/fonts/manifest.json', 'utf8'))
   put('dist/providerCatalog.json', '{"providers":{}}')
   put('dist/providerCatalog.js', 'module.exports={providers:{}};')
   put('dist/legal-data/licenses.json', '{}')
-  put('native/runner/runner-helper.sh', '# fixture')
-  put('native/darwin/muse-dictate', 'test-owned inert helper')
-  for (const arch of ['x64', 'arm64'])
-    put(`native/linux/${arch}/muse-created`, 'test-owned inert helper')
   put('docs/npm-readme.md', '# Test package')
   for (const schema of [
     'exec-result-v1',

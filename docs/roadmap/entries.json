@@ -606,7 +606,7 @@
     {
       "id": "M87",
       "title": "Panel polish",
-      "summary": "The chat panel gains a context ring, steps folded under one summary row, message times on hover, editable queued messages, a diff tally with Review and a collapsible tasks pane.",
+      "summary": "The chat panel gains a context ring, folded steps, message times on hover, editable queued messages, a diff tally with Review, a collapsible tasks pane and action menus that fan close to their opener (0.17.1).",
       "area": "chat",
       "release": "0.13.0"
     },
@@ -679,7 +679,7 @@
     {
       "id": "M95",
       "title": "Bring your own models",
-      "summary": "Add keys for OpenAI, Anthropic, Gemini, OpenRouter and other providers, or local model servers, with each key bound to the address it was entered for and features matched to each model's capabilities.",
+      "summary": "Add keys for cloud providers or local model servers, bound to their addresses, with features matched to model capabilities, and refuse output caps below a provider's known minimum before sending.",
       "area": "models-providers",
       "release": "0.15.0"
     },
@@ -794,7 +794,7 @@
     {
       "id": "M107",
       "title": "Resource limits for your machine",
-      "summary": "Set CPU, memory and disk limits so the extension holds back new background work while the machine is busy, first narrowing and then pausing it without stopping work already running; moving work to another device is not available yet.",
+      "summary": "CPU, memory and disk limits narrow then pause new background work without stopping running work; macOS headroom is unknown before libuv 1.52, and moving work to another device is unavailable.",
       "area": "platform",
       "release": "0.16.0",
       "labels": ["not available yet"]
@@ -810,7 +810,8 @@
       "id": "M109",
       "title": "Credential vault for agents",
       "summary": "One encrypted vault for API keys, tokens, SSH keys, passwords and website logins, protected by hardware where available, from which agents get approved, logged uses of a secret but never its value.",
-      "area": "security"
+      "area": "security",
+      "release": "0.17.0"
     },
     {
       "id": "M110",
@@ -841,7 +842,7 @@
     {
       "id": "M114",
       "title": "Refreshed design",
-      "summary": "Panel surfaces share one set of theme-aware design tokens, with consistent hover, focus and pressed states and motion that stops when reduced motion is on.",
+      "summary": "Panel surfaces share theme-aware design tokens, compact activity indicators and menus sized to their labels, with consistent hover, focus and pressed states and motion that stops when reduced motion is on.",
       "area": "platform",
       "release": "0.17.0"
     },
@@ -1125,6 +1126,11 @@
       "note": "exact-money and scheduled-media integration port after the 0.17.0 merge; goal tracked by M121"
     },
     {
+      "id": "MUSE143",
+      "public": false,
+      "note": "Muse Code 1.4.3 verification; the update hint for older hosts ships in 0.17.1"
+    },
+    {
       "id": "PORTS017",
       "public": false,
       "note": "exact-money type ports; goal tracked by M121"
@@ -1143,6 +1149,46 @@
       "id": "PROMPTMENU2",
       "public": false,
       "note": "groundwork for future native panel hosts; shipped hosts already use their own context menu"
+    },
+    {
+      "id": "PROVWIRE",
+      "public": false,
+      "note": "provider setup review fixes inside M95, shipped in 0.17.1's provider picker fix"
+    },
+    {
+      "id": "PROVWIZ10",
+      "public": false,
+      "note": "provider save review fixes inside M95, shipped in 0.17.1's provider picker fix"
+    },
+    {
+      "id": "PROVWIZ2R4",
+      "public": false,
+      "note": "provider wizard spending-limit review fixes inside M95, shipped in 0.17.1's provider picker fix"
+    },
+    {
+      "id": "PROVWIZ2R5",
+      "public": false,
+      "note": "provider wizard limit review fixes inside M95, shipped in 0.17.1's provider picker fix"
+    },
+    {
+      "id": "PROVWIZ6",
+      "public": false,
+      "note": "provider wizard integration inside M95, shipped in 0.17.1's provider picker fix"
+    },
+    {
+      "id": "PROVWIZ7",
+      "public": false,
+      "note": "provider save review fixes inside M95, shipped in 0.17.1's provider picker fix"
+    },
+    {
+      "id": "PROVWIZ8",
+      "public": false,
+      "note": "provider save review fixes inside M95, shipped in 0.17.1's provider picker fix"
+    },
+    {
+      "id": "PROVWIZ9",
+      "public": false,
+      "note": "provider ordered save inside M95, shipped in 0.17.1's provider picker fix"
     },
     {
       "id": "QPIN",

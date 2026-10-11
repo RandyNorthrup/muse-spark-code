@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { copyFileSync, existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { execFile, execFileSync } from 'node:child_process'
+import { JOB_SOURCE_FILES } from '../../src/host/backend/jobSource'
 
 vi.mock('node:fs', () => ({
   copyFileSync: vi.fn(),
@@ -107,6 +108,20 @@ it('M107 refuses a non-file or malformed v2 schema before any staging or child p
   await expect(import('../../scripts/package-acp.mjs')).rejects.toThrow()
   expect(copyFileSync).not.toHaveBeenCalled()
   expect(execFileSync).not.toHaveBeenCalled()
+})
+
+// The governor launches `muse serve` through the job launcher on Windows
+// (src/runtime/resources/jobs.ts): without its C# no session starts (CIFIX017W2).
+it('ships every Windows job helper source the runtime compiles, the governed launcher included', async () => {
+  await import('../../scripts/package-acp.mjs')
+  const copied = copyFileSync.mock.calls.map(([source, target]) => [
+    source.replaceAll('\\', '/'),
+    target.replaceAll('\\', '/'),
+  ])
+  const sources = Object.values(JOB_SOURCE_FILES).map((file) => file.replaceAll('\\', '/'))
+  expect(sources).toContain('native/windows/MuseSparkMcpLauncher.cs')
+  for (const source of sources)
+    expect(copied).toContainEqual([source, `dist/acp-package/${source}`])
 })
 
 it('G10 Linux delivery copies both architectures into the ACP package', async () => {
