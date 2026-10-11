@@ -1,21 +1,9 @@
 import { randomUUID } from 'node:crypto'
 
-const AUTO_COMPACTION_NOT_AUTHORIZED = 'AutoCompactionNotAuthorizedError'
-
-/** Withdrawal refuses this compaction, independently of the spend ledger. */
-export class AutoCompactionNotAuthorizedError extends Error {
-  public constructor() {
-    super()
-    this.name = AUTO_COMPACTION_NOT_AUTHORIZED
-  }
-}
-
-/** Admission and the lazy Model API host carry separate copies of the class. */
-export function isAutoCompactionNotAuthorizedError(
-  error: unknown,
-): error is AutoCompactionNotAuthorizedError {
-  return error instanceof Error && error.name === AUTO_COMPACTION_NOT_AUTHORIZED
-}
+export {
+  AutoCompactionNotAuthorizedError,
+  isAutoCompactionNotAuthorizedError,
+} from './autoCompactionError'
 
 // Asking before each paid use (M58, PLAN.md D48). The owner (2026-09-27):
 // "anything requiring extra payment should promt you with a popup that asks
@@ -42,7 +30,7 @@ import {
   UI_TEXT,
   DEFAULT_MODEL_ID,
 } from '../../shared/constants'
-import { fill, formatNumber, uiLocale } from '../../shared/l10n/text'
+import { fill, uiLocale } from '../../shared/l10n/text'
 import { formatUsd } from '../../shared/l10n/exactUsd'
 import {
   paidFeaturePrice,
@@ -50,13 +38,7 @@ import {
   type PaidQuote,
   type PaidUseDecision,
   paidFeatureName,
-  autoReviewPrice,
-  bestOfNPrice,
-  modelApiPaidTier,
-  hookModelPrice,
   type PaidUseRequest,
-  scheduledRunPrice,
-  subagentTaskPrice,
 } from '../../shared/paid'
 import { Usd, minUsd, nonnegativeUsdSchema, type UsdAmount } from '../../shared/usd'
 import type { CreateResponseBody, CreateImageBody } from '../backends/modelapi/schemas'
@@ -274,154 +256,14 @@ export function createSchedulePaidScope(deps: {
   }
 }
 
-/** The popup's question and what it says about the use, in the display language. */
+/** The popup's question, formatted only when its existing runtime first loads. */
 export async function paidUseQuestion(request: PaidUseRequest): Promise<{
   readonly title: string
   readonly detail: string
 }> {
-  switch (request.feature) {
-    case 'autoCompaction': {
-      return {
-        title: fill(UI_TEXT.paidConfirmTitle, { feature: UI_TEXT.autoCompactionName }),
-        detail: `${request.modelId}: ${scheduledRunPrice(request.modelId)}\n${fill(UI_TEXT.paidDailyBudgetLine, { budget: formatUsd(request.dailyBudgetUsd, 2) })}`,
-      }
-    }
-    case 'judge': {
-      const price = autoReviewPrice(request.modelId)
-      if (price === undefined || Usd.from(request.dailyBudgetUsd).compare(Usd.from(0)) < 0)
-        throw new Error('Judge use needs a verified tariff and daily budget')
-      return {
-        title: fill(UI_TEXT.paidConfirmTitle, { feature: UI_TEXT.paidJudgeName }),
-        detail: fill(UI_TEXT.paidConfirmJudge, {
-          price,
-          budget: formatUsd(request.dailyBudgetUsd, 2),
-        }),
-      }
-    }
-    case 'webSearch': {
-      return {
-        title: UI_TEXT.paidUseWebSearchTitle,
-        detail: [
-          fill(UI_TEXT.paidUseWebSearchDetail, {
-            price: paidFeaturePrice('webSearch', request.quote?.tariffUsd ?? request.priceUsd),
-          }),
-          ...(request.quote === undefined
-            ? []
-            : [
-                fill(UI_TEXT.paidSearchQuote, {
-                  provider: request.quote.provider,
-                  model: request.quote.model,
-                }),
-              ]),
-        ].join('\n'),
-      }
-    }
-    case 'voice': {
-      return {
-        title: UI_TEXT.paidUseVoiceTitle,
-        detail: fill(UI_TEXT.paidUseVoiceDetail, { price: paidFeaturePrice('voice') }),
-      }
-    }
-    case 'imageGeneration': {
-      // Every image, whatever the backend or permission mode: what is made,
-      // from what, and that the key pays for it (M34, M44).
-      const sources = request.sources.join(', ')
-      return {
-        title: fill(request.kind === 'edit' ? UI_TEXT.imageBuyEditTitle : UI_TEXT.imageBuyTitle, {
-          path: request.path,
-        }),
-        detail: [
-          fill(UI_TEXT.imageBuyPrompt, { prompt: request.prompt }),
-          ...(sources === '' ? [] : [fill(UI_TEXT.imageBuySources, { paths: sources })]),
-          fill(UI_TEXT.imageBuyBilling, { price: paidFeaturePrice('imageGeneration') }),
-        ].join('\n\n'),
-      }
-    }
-    case 'scheduledPrompts': {
-      return {
-        title: fill(UI_TEXT.scheduleRunConfirmTitle, { model: request.modelId }),
-        detail: [
-          fill(UI_TEXT.scheduleRunConfirmPrompt, { prompt: request.prompt }),
-          fill(UI_TEXT.scheduleRunConfirmPrice, { price: scheduledRunPrice(request.modelId) }),
-          UI_TEXT.scheduleRunConfirmExtras,
-        ].join('\n\n'),
-      }
-    }
-    case 'subagents': {
-      const { task } = request
-      return {
-        title: fill(UI_TEXT.paidSubagentTaskTitle, { role: task.role }),
-        detail: fill(UI_TEXT.paidSubagentTaskDetail, {
-          objective: task.objective,
-          price: subagentTaskPrice(task.modelId, task.attemptLimit),
-        }),
-      }
-    }
-    case 'autoReviewer': {
-      const price = autoReviewPrice(request.modelId, request.pricing)
-      if (price === undefined) throw new Error(UI_TEXT.autoReviewerFailed)
-      return {
-        title: fill(UI_TEXT.paidUseAutoReviewerTitle, { tool: request.tool }),
-        detail: fill(UI_TEXT.paidUseAutoReviewerDetail, {
-          action: request.action,
-          model: request.modelId,
-          price,
-        }),
-      }
-    }
-    case 'legalExplanation': {
-      const price = autoReviewPrice(request.modelId)
-      if (price === undefined) throw new Error(UI_TEXT.subagentTariffUnknown)
-      return {
-        title: UI_TEXT.legalExplainPaid,
-        detail: fill(UI_TEXT.legalExplainConsent, { price, model: request.modelId }),
-      }
-    }
-    case 'bestOfN': {
-      return {
-        title: fill(UI_TEXT.paidBestOfNTitle, { attempts: formatNumber(request.attempts) }),
-        detail: fill(UI_TEXT.paidBestOfNDetail, {
-          prompt: request.prompt,
-          price: bestOfNPrice(request.modelId, request.attempts, request.requestCeilingPerAttempt),
-        }),
-      }
-    }
-    case 'teamWorkers': {
-      const runtime = await paidTeamRuntime()
-      return runtime.teamWorkerQuestion(request)
-    }
-    case 'hookModels': {
-      return {
-        title: fill(UI_TEXT.paidHookModelTitle, { event: request.event }),
-        detail: fill(UI_TEXT.paidHookModelDetail, {
-          kind: request.kind,
-          model: request.modelId,
-          price:
-            request.dailyBudgetUsd === undefined
-              ? hookModelPrice(request.modelId)
-              : `${hookModelPrice(request.modelId)} ${fill(UI_TEXT.paidHookModelDailyBudget, { budget: formatUsd(request.dailyBudgetUsd, 2) })}`,
-        }),
-      }
-    }
-    case 'tab': {
-      // Tab bills the request's model per token (M94, PLAN.md D73): the
-      // popup names its rates, today's budget and the training note. An
-      // unpriced model has no rate to quote, so it never reaches a popup.
-      const tier = modelApiPaidTier(request.modelId)
-      if (tier === undefined) {
-        throw new Error(UI_TEXT.subagentTariffUnknown)
-      }
-      return {
-        title: UI_TEXT.paidUseTabTitle,
-        detail: fill(UI_TEXT.paidUseTabDetail, {
-          model: request.modelId,
-          price: scheduledRunPrice(request.modelId),
-          budget: formatUsd(request.budgetUsd, 2),
-          training: tier === 'contributor' ? UI_TEXT.tabTrainingContributor : '',
-        }),
-      }
-    }
-  }
+  const runtime = await import('../backends/modelapi/foreignHooksEntry')
+  runtime.setUiText(UI_TEXT, uiLocale())
+  return await runtime.paidUseQuestion(request)
 }
 
 export interface PaidUseConsentDeps {
