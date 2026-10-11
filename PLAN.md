@@ -33285,7 +33285,10 @@ broker or panel checklist.
 P2 findings and RVCM1091B4's part-A P3 by class. Before opening secret
 material, validate pending-intent authentication framing and history,
 document/block generations and encodings, and slot identities, high-water
-marks and wrapping/KDF framing; impossible states must offer Reset under
+marks and wrapping/KDF framing, including the public protected anchor state;
+published candidates must match it and intents must match their prior or next
+state. Keep the existing setup-pending projection through first unlock so a
+watched refresh cannot compete with that reader's writer lock. Impossible states must offer Reset under
 the same writer recheck. Reconcile every non-retired import completion,
 including report, Keep and Delete failures, while retaining its refusal.
 Give headless Reset its own accurate terminal sentence in all fourteen

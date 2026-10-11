@@ -1,8 +1,8 @@
 // Generated-only public framing regressions for RVCM1091A4 finding 1.
 import { createHash } from 'node:crypto'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { VAULT_RESET_WORD } from '../../../src/shared/constants'
-import { encodeVaultJson } from '../../../src/core/vault/crypto'
+import { encodeVaultJson, VaultError } from '../../../src/core/vault/crypto'
 import { item } from '../helpers/vault/fixtures'
 import { lockedVault, managementFixture } from './managementFixture'
 import { jsonRecord } from './storeFixtures'
@@ -41,6 +41,7 @@ const noncanonical = 'AB==' // Schema-valid base64 whose unused padding bits are
 const damage: readonly (readonly [string, unknown])[] = [
   ['slots.mac', ''],
   ['slots.mac', short],
+  ['slots.mac', Buffer.alloc(32).toString('base64')],
   ['slots.mac', 'not-base64'],
   ['slots.mac', `${Buffer.alloc(32).toString('base64').slice(0, -2)}B=`],
   ['document.v', 1],
@@ -91,11 +92,12 @@ const damage: readonly (readonly [string, unknown])[] = [
   ]),
 ]
 
-async function generatedState(isPending: boolean) {
+async function generatedState(isPending: boolean, isBeforeAnchor = false) {
   const f = managementFixture()
   const code = await lockedVault(f)
   await f.broker.unlock(null)
   if (isPending) f.files.fail = 'vault.v1'
+  if (isBeforeAnchor) vi.spyOn(f.anchor, 'advance').mockRejectedValueOnce(new VaultError('io'))
   const write = f.repository.current().write({
     ...item(),
     material: { kind: 'secret', value: Buffer.alloc(1) },
@@ -148,6 +150,16 @@ async function assertUnopenable(g: Awaited<ReturnType<typeof generatedState>>): 
   }
 }
 
+async function assertProtectedAndRecover(g: Awaited<ReturnType<typeof generatedState>>) {
+  const state = await g.f.management.snapshot()
+  expect(state.status.reason).not.toBe('vaultLost')
+  await expect(g.f.management.resetBegin()).rejects.toMatchObject({ reason: 'invalid' })
+  await g.f.management.recover(g.code)
+  const items = await g.f.repository.current().list()
+  expect(items).toHaveLength(1)
+  return items
+}
+
 describe.each([false, true])('RVCM1091A4 framing (pending=%s)', (isPending) => {
   it.each(damage)('F1: impossible %s (%j) reaches Reset', async (field, value) => {
     const g = await generatedState(isPending)
@@ -181,12 +193,7 @@ describe.each([false, true])('RVCM1091A4 framing (pending=%s)', (isPending) => {
   it('F1: a valid locked pair or complete intent still refuses Reset and opens with the code', async () => {
     const g = await generatedState(isPending)
     try {
-      const state = await g.f.management.snapshot()
-      expect(state.status.reason).not.toBe('vaultLost')
-      await expect(g.f.management.resetBegin()).rejects.toMatchObject({ reason: 'invalid' })
-      await g.f.management.recover(g.code)
-      const items = await g.f.repository.current().list()
-      expect(items).toHaveLength(1)
+      const items = await assertProtectedAndRecover(g)
       const [first] = items
       if (first === undefined) throw new Error('missing generated item')
       const restored = await g.f.repository.current().read(first.id)
@@ -198,7 +205,8 @@ describe.each([false, true])('RVCM1091A4 framing (pending=%s)', (isPending) => {
 
   it('F1: key-dependent authentication failure alone cannot authorize Reset', async () => {
     const g = await generatedState(isPending)
-    setField(g.snapshot, 'slots.mac', Buffer.alloc(32).toString('base64'))
+    setField(g.snapshot, 'document.index.tag', Buffer.alloc(16).toString('base64'))
+    refreshDigest(g.snapshot)
     g.install()
     try {
       await expect(g.f.broker.unlock(null)).rejects.toThrow()
@@ -210,9 +218,32 @@ describe.each([false, true])('RVCM1091A4 framing (pending=%s)', (isPending) => {
       g.code.fill(0)
     }
   })
+
+  it.each(['generation', 'auditGeneration', 'auditHead', 'stateDigest'] as const)(
+    'F1: unmatched protected anchor %s reaches Reset',
+    async (field) => {
+      const g = await generatedState(isPending)
+      const id = await g.f.anchor.vaultId()
+      if (id === null) throw new Error('missing generated anchor')
+      const state = await g.f.anchor.minimum(id)
+      if (state === null) throw new Error('missing generated state')
+      const value =
+        field === 'generation' || field === 'auditGeneration' ? state[field] + 1 : '1'.repeat(64)
+      g.f.anchor.states.set(id, { ...state, [field]: value })
+      await assertUnopenable(g)
+    },
+  )
 })
 
 describe('RVCM1091A4 intent history', () => {
+  it('F1: a complete intent at its exact prior anchor stays protected and recovers', async () => {
+    const g = await generatedState(true, true)
+    try {
+      await assertProtectedAndRecover(g)
+    } finally {
+      g.code.fill(0)
+    }
+  })
   it.each([
     ['mac', ''],
     ['mac', short],

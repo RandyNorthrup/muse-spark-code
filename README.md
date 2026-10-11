@@ -5210,7 +5210,8 @@ the same two steps. Reset refuses while the vault is unlocked and detects
 missing or damaged documents and pending transactions as well as slot files.
 Its public framing checks also detect impossible MAC, nonce, tag, salt,
 wrapped-key and ciphertext lengths or encodings, inconsistent identities and
-generations, and invalid pending history. Reset requires an interactive
+generations, invalid pending history, and a candidate that matches neither
+the protected anchor nor an intent's prior state. Reset requires an interactive
 terminal; a headless refusal names Reset explicitly.
 
 `add` reads private material as one bounded JSON line from standard input,
