@@ -1,5 +1,6 @@
 import { useId, useState } from 'react'
 import { UI_TEXT } from '../../../shared/constants'
+import { webviewKey } from '../../../shared/keybindings'
 
 function isWindowCount(tokens: number): boolean {
   return Number.isSafeInteger(tokens) && tokens > 0
@@ -38,7 +39,7 @@ export function ContextWindow({
           if (isWindowCount(tokens)) onChange(tokens)
         }}
         onKeyDown={(event) => {
-          if (event.key === 'Enter') event.currentTarget.blur()
+          if (webviewKey('models.select', event) === 'accept') event.currentTarget.blur()
         }}
       />
       <span id={`${id}-hint`} className="models-hint" role={invalid ? 'alert' : undefined}>
