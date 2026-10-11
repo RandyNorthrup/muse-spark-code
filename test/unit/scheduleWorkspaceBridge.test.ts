@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createSchedulesBridge } from '../../src/host/schedules/schedulesBridge'
+import {
+  createSchedulesBridge,
+  scheduleWindowWorkspace,
+} from '../../src/host/schedules/schedulesBridge'
 import { UI_TEXT } from '../../src/shared/constants'
 import type { RuntimeSchedulesBinding } from '../../src/runtime/schedules/binding'
 import { scheduleDraftSchema } from '../../src/shared/scheduleV2'
@@ -24,6 +27,42 @@ function idleBridge(isEnabled = true) {
 }
 
 describe('schedule workspace registration guard', () => {
+  it('holds the window without chat surfaces and retires late acquisitions on auth/settings loss', async () => {
+    const acquired = Promise.withResolvers<() => Promise<void>>()
+    const release = vi.fn(() => Promise.resolve())
+    const holdWorkspace = vi.fn(() => acquired.promise)
+    let isActive = true
+    let isEnabled = true
+    const window = scheduleWindowWorkspace(
+      { holdWorkspace, isDeliveryEnabled: () => isEnabled },
+      '/workspace',
+      () => isActive,
+      { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+    )
+    window.refresh()
+    window.refresh()
+    expect(holdWorkspace).toHaveBeenCalledOnce()
+    isActive = false
+    window.refresh()
+    acquired.resolve(release)
+    await acquired.promise
+    await Promise.resolve()
+    expect(release).toHaveBeenCalledOnce()
+    isActive = true
+    window.refresh()
+    expect(holdWorkspace).toHaveBeenCalledTimes(2)
+    isEnabled = false
+    window.refresh()
+    await Promise.resolve()
+    expect(release).toHaveBeenCalledTimes(2)
+    isEnabled = true
+    window.refresh()
+    window.dispose()
+    window.refresh()
+    await Promise.resolve()
+    expect(holdWorkspace).toHaveBeenCalledTimes(3)
+    expect(release).toHaveBeenCalledTimes(3)
+  })
   it('uses a valid new-conversation draft when there is no active conversation', () => {
     const bridge = idleBridge()
     expect(

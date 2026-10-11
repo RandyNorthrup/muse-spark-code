@@ -36,10 +36,21 @@ const opening = host.startSession({
 })
 const boundSession: { value?: Awaited<typeof opening> } = {}
 const unpublish = () => undefined
+const clock = { isCompletionReleased: false, nowMs: 0 }
+const complete = () => {
+  protocol.server.notify('turn/completed', {
+    sessionId: 'session-1',
+    turnId: 'scheduled-1',
+    terminal: 'completed',
+    viewCursor: 'v',
+  })
+}
 protocol.server.handle('turn/start', (params) => {
   const run = boundSession.value?.getScheduledRun()
   if (run === undefined) throw new Error('missing process-bound unattended authority')
   appendFileSync(receipt, `${JSON.stringify({ holder, runId: run.context.runId })}\n`)
+  process.send?.({ phase: 'admitted', holder })
+  if (clock.isCompletionReleased) queueMicrotask(complete)
   return {
     commandId: params['commandId'],
     turnId: 'scheduled-1',
@@ -48,23 +59,21 @@ protocol.server.handle('turn/start', (params) => {
     startedNewTurn: true,
   }
 })
-protocol.server.followWith('turn/start', () => [
-  {
-    jsonrpc: '2.0',
-    method: 'turn/completed',
-    params: {
-      sessionId: 'session-1',
-      turnId: 'scheduled-1',
-      terminal: 'completed',
-      viewCursor: 'v',
-    },
-  },
-])
 const lifetime = new AbortController()
+const dispatchBarrier = Promise.withResolvers<undefined>()
+const queue = createNodeScheduleQueue(dataDir)
+
 const engine = createScheduleEngine({
   fs: createNodeScheduleFs(dataDir),
-  queue: createNodeScheduleQueue(dataDir),
-  now: () => fakeSchedule().nextFireAtMs ?? 0,
+  queue: {
+    ...queue,
+    serialize: async (target, work) => {
+      process.send?.({ phase: 'contending', holder })
+      await dispatchBarrier.promise
+      await queue.serialize(target, work)
+    },
+  },
+  now: () => clock.nowMs,
   delivery: (authority) =>
     createScheduleDeliveryBinding(
       {
@@ -90,10 +99,20 @@ const engine = createScheduleEngine({
 async function start() {
   boundSession.value = await opening
   const release = await engine.runtime.holdWorkspace(cwd)
+  await engine.pollWorkspace(workspaceKey(cwd))
   process.send?.({ phase: 'ready', holder })
   process.on('message', (input: unknown) => {
-    const message = z.enum(['poll', 'close']).parse(input)
+    const message = z.enum(['poll', 'dispatch', 'complete', 'close']).parse(input)
     void (async () => {
+      if (message === 'dispatch') {
+        dispatchBarrier.resolve(undefined)
+        return
+      }
+      if (message === 'complete') {
+        clock.isCompletionReleased = true
+        if (boundSession.value?.getScheduledRun() !== undefined) complete()
+        return
+      }
       if (message === 'close') {
         await release()
         await engine.runtime.close()
@@ -102,6 +121,7 @@ async function start() {
         process.disconnect()
         return
       }
+      clock.nowMs = fakeSchedule().nextFireAtMs ?? 0
       await engine.scheduler.poll(workspaceKey(cwd))
       process.send?.({ phase: 'settled', holder })
     })().catch(fail)

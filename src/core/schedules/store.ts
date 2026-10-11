@@ -135,9 +135,17 @@ function fenceFolder(runId: string): string {
   return `claims/${scheduleStorageHash(id)}/${hash.slice(0, SCHEDULE_FENCE_SEGMENT_CHARS)}/${hash}`
 }
 
+const authorityKey = (workspace: string, id: string) => JSON.stringify([workspace, id])
+
 export function createScheduleStore(
   fs: ScheduleFsPort,
 ): ScheduleStoreV2 & ScheduleRunJournalPort & ScheduleMigrationJournalPort {
+  const authorityGenerations = new Map<string, number>()
+
+  const retireAuthority = (workspace: string, id: string) => {
+    const key = authorityKey(workspace, id)
+    authorityGenerations.set(key, (authorityGenerations.get(key) ?? 0) + 1)
+  }
   const createIndex = (workspaceKey: string) =>
     createScheduleJournal(
       fs,
@@ -287,8 +295,11 @@ export function createScheduleStore(
         (a, b) => a.createdAtMs - b.createdAtMs || compareId(a.id, b.id),
       )
     },
+    authorityGeneration: (workspace, id) =>
+      authorityGenerations.get(authorityKey(workspace, id)) ?? 0,
     async update(input) {
       const job = scheduleV2Schema.parse(input)
+      retireAuthority(job.workspaceKey, job.id)
       return await index(job.workspaceKey).transact((value) => {
         const current = value.schedules[job.id]
         if (current?.revision !== job.revision) return { value, result: false }
@@ -307,6 +318,7 @@ export function createScheduleStore(
     },
     async remove(workspaceKey, id) {
       identifier.parse(id)
+      retireAuthority(workspaceKey, id)
       return await index(workspaceKey).transact((value) => {
         if (value.schedules[id] === undefined) return { value, result: false }
         // Removal and its timestamp commit in the same journal CAS. The
@@ -546,6 +558,8 @@ export function createScheduleStore(
               )
             : firstNonFailure
         const isMustPause = consecutiveFailures >= SCHEDULE_PAUSE_AFTER_FAILURES
+        if (job !== undefined && isMustPause && !job.paused)
+          retireAuthority(job.workspaceKey, job.id)
         if (
           job !== undefined &&
           (job.consecutiveFailures !== consecutiveFailures || (isMustPause && !job.paused))

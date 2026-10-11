@@ -291,6 +291,21 @@ export function createScheduleEngine(options: ScheduleEngineOptions) {
     },
   })
   const watched = new Map<string, number>()
+  const polling = new Map<string, Promise<void>>()
+  const pollWorkspace = (workspace: string): Promise<void> => {
+    const existing = polling.get(workspace)
+    if (existing !== undefined) return existing
+    const work = (async () => {
+      try {
+        await scheduler.recover(workspace)
+        await scheduler.poll(workspace)
+      } finally {
+        polling.delete(workspace)
+      }
+    })()
+    polling.set(workspace, work)
+    return work
+  }
   let engineTimer: ReturnType<typeof setInterval> | undefined
   const watchWorkspace = (cwd: string): Promise<() => Promise<void>> => {
     const key = workspaceKey(path.resolve(cwd))
@@ -299,17 +314,9 @@ export function createScheduleEngine(options: ScheduleEngineOptions) {
       const tick = () => {
         for (const workspace of watched.keys()) {
           if (!host.holds(workspace)) continue
-          void scheduler
-            .recover(workspace)
-            .catch((error: unknown) => {
-              onError(error)
-            })
-            .then(async () => {
-              await scheduler.poll(workspace)
-            })
-            .catch((error: unknown) => {
-              onError(error)
-            })
+          void pollWorkspace(workspace).catch((error: unknown) => {
+            onError(error)
+          })
         }
         void scanDeferred().catch((error: unknown) => {
           onError(error)
@@ -348,5 +355,5 @@ export function createScheduleEngine(options: ScheduleEngineOptions) {
     verifyWake: options.verifyWake ?? (() => Promise.resolve({ scheduledPrompts: false })),
     ...(options.platform !== undefined && { platform: options.platform }),
   })
-  return { runtime, scheduler, store, errors, registry, scanDeferred, delivery }
+  return { runtime, scheduler, store, errors, registry, scanDeferred, delivery, pollWorkspace }
 }

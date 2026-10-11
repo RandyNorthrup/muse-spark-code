@@ -32,6 +32,7 @@ export interface ScheduleEditorDeliveryPorts {
   readonly signal: AbortSignal
   /** Trust, credentials, settings and the owning workspace remain live. */
   isActive(): boolean
+  generation?(): number
   readonly host: ScheduleBackgroundTargetDeps['host']
   readonly options: ScheduleBackgroundTargetDeps['options']
   readonly bindSession?: ScheduleBackgroundTargetDeps['bindSession']
@@ -122,6 +123,13 @@ export function createScheduleDeliveryBinding(
         )
           throw new Error(UI_TEXT.schedulePaidOff)
         entry.cost = () => (paid === undefined ? Promise.resolve(noScheduleCost()) : paid.cost())
+        const modelId = agent.modelId
+        const windowGeneration = ports.generation?.()
+        const authorityGeneration = authority.generation?.(
+          entry.schedule.workspaceKey,
+          entry.schedule.id,
+        )
+        let isAuthorityIsCurrent = true
         entry.run = new UnattendedRun({
           context,
           modelText: SCHEDULE_MODEL_TEXT,
@@ -130,7 +138,31 @@ export function createScheduleDeliveryBinding(
           io: ports.io,
           matcher: new ScheduleGrants(ports.dialect),
           now: Date.now,
-          isActive: () => ports.isActive() && !entry.signal.aborted && pending.has(context.runId),
+          isActive: () =>
+            isAuthorityIsCurrent &&
+            ports.isActive() &&
+            !entry.signal.aborted &&
+            !ports.signal.aborted &&
+            pending.has(context.runId) &&
+            agent.modelId === modelId &&
+            ports.generation?.() === windowGeneration &&
+            authority.generation?.(entry.schedule.workspaceKey, entry.schedule.id) ===
+              authorityGeneration,
+          checkDispatch: async () => {
+            const live = await authority.read(entry.schedule.workspaceKey, entry.schedule.id)
+            const check = () => {
+              isAuthorityIsCurrent =
+                live !== undefined &&
+                !live.paused &&
+                live.mode === entry.schedule.mode &&
+                JSON.stringify(live.grant) === JSON.stringify(context.grant) &&
+                JSON.stringify(live.paidConsent) === JSON.stringify(entry.consent)
+              if (!isAuthorityIsCurrent || !entry.run?.isActive())
+                throw new Error(UI_TEXT.scheduleV2.messages.changedConsent)
+            }
+            check()
+            return check
+          },
           readGrant: async () => {
             const current = await authority.read(entry.schedule.workspaceKey, entry.schedule.id)
             return current === undefined ||
@@ -160,7 +192,10 @@ export function createScheduleDeliveryBinding(
       const stop = agent.onEvent((event) => {
         if (event.type === 'userMessageTurnChanged') {
           promoted.set(event.userMessageId, event.turnId)
-          if (submitted?.userMessageId === event.userMessageId) {
+          if (
+            submitted?.userMessageId === event.userMessageId ||
+            submitted?.turnId === event.userMessageId
+          ) {
             submitted = { ...submitted, turnId: event.turnId }
             publish()
           }
@@ -175,9 +210,13 @@ export function createScheduleDeliveryBinding(
       entry.stopListening = stop
       try {
         submitted = await dispatch(entry.run)
-        const promotedTurn =
-          submitted.userMessageId === undefined ? undefined : promoted.get(submitted.userMessageId)
-        if (promotedTurn !== undefined) submitted = { ...submitted, turnId: promotedTurn }
+        const seen = new Set<string>()
+        let promotedTurn = promoted.get(submitted.userMessageId ?? submitted.turnId)
+        while (promotedTurn !== undefined && !seen.has(promotedTurn)) {
+          seen.add(promotedTurn)
+          submitted = { ...submitted, turnId: promotedTurn }
+          promotedTurn = promoted.get(promotedTurn)
+        }
         const terminal = terminals.get(submitted.turnId)
         if (terminal !== undefined) entry.resolve?.(terminal)
         publish()
@@ -266,6 +305,12 @@ export function createScheduleDeliveryBinding(
                 terminal.reason !== undefined && { reason: terminal.reason }),
               refusedActions: entry.run.refusedActions,
             }
+            if (entry.run.dispatchRefusal !== undefined || !entry.run.isActive())
+              result = {
+                ...result,
+                outcome: 'refused',
+                reason: entry.run.dispatchRefusal ?? UI_TEXT.scheduleV2.messages.changedConsent,
+              }
           }
         } catch (error: unknown) {
           // Losing the host is not a settled turn. Retain the durable admission
@@ -276,8 +321,16 @@ export function createScheduleDeliveryBinding(
             throw error
           }
           result = {
-            outcome: 'failed',
-            reason: UI_TEXT.scheduleCommandFailed,
+            outcome:
+              entry.run !== undefined &&
+              (entry.run.dispatchRefusal !== undefined || !entry.run.isActive())
+                ? 'refused'
+                : 'failed',
+            reason:
+              entry.run?.dispatchRefusal ??
+              (entry.run !== undefined && !entry.run.isActive()
+                ? UI_TEXT.scheduleV2.messages.changedConsent
+                : UI_TEXT.scheduleCommandFailed),
             refusedActions: entry.run?.refusedActions ?? [],
           }
         } finally {

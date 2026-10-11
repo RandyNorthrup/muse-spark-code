@@ -100,6 +100,28 @@ function fixture(
 }
 
 describe('schedule runtime entry over the real store', () => {
+  it('shares in-flight recovery and polling across timer and explicit callers', async () => {
+    const { engine } = fixture()
+    const recovered = Promise.withResolvers<undefined>()
+    const recover = vi
+      .spyOn(engine.scheduler, 'recover')
+      .mockImplementation(() => recovered.promise)
+    const poll = vi.spyOn(engine.scheduler, 'poll').mockResolvedValue()
+    try {
+      const release = await engine.runtime.holdWorkspace(path.resolve(cwd))
+      const first = engine.pollWorkspace(workspaceKey(path.resolve(cwd)))
+      const second = engine.pollWorkspace(workspaceKey(path.resolve(cwd)))
+      expect(first).toBe(second)
+      expect(recover).toHaveBeenCalledOnce()
+      recovered.resolve(undefined)
+      await first
+      expect(poll).toHaveBeenCalledOnce()
+      await release()
+    } finally {
+      recovered.resolve(undefined)
+      await engine.runtime.close()
+    }
+  })
   it.each([true, false])(
     'asks before paid panel creation and commits only approval (%s)',
     async (allow) => {

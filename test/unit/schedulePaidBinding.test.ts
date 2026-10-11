@@ -10,7 +10,7 @@ import { createPaidDailyBudget } from '../../src/host/paid/paidDailyBudget'
 import { createScheduleStore } from '../../src/core/schedules/store'
 import { createAuthorityStore } from '../../src/runtime/schedules/authorityStore'
 import { metaResolvedModel, modelPolicyFor } from '../../src/core/backends/modelapi/modelPolicy'
-import { ModelApiHost } from '../../src/core/backends/modelapi/ModelApiHost'
+import { ModelApiHost, ModelApiSession } from '../../src/core/backends/modelapi/ModelApiHost'
 import { Usd } from '../../src/shared/usd'
 import { fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
 import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
@@ -24,6 +24,11 @@ import { UI_TEXT } from '../../src/shared/constants'
 import { formatUnit } from '../../src/shared/l10n/text'
 import type { ScheduleV2 } from '../../src/shared/scheduleV2'
 import type { ModelPricing } from '../../src/core/providers/priceCard'
+import { createScheduleDeliveryBinding } from '../../src/host/schedules/deliveryBinding'
+import { workspaceKey } from '../../src/runtime/dataFolder'
+import { unattendedRun } from './helpers/schedules/unattended'
+import type { AgentEvent } from '../../src/shared/agentEvents'
+import type { ScheduleRunDeps } from '../../src/core/schedules/unattended'
 
 function body(model: string, max_output_tokens = 100): CreateResponseBody {
   return {
@@ -46,6 +51,8 @@ const folders: string[] = []
 afterEach(async () => {
   for (const folder of folders.splice(0)) await removeFolder(folder)
 })
+
+const unpublish = () => undefined
 
 async function fixture(
   answer: 'once' | 'always' | 'deny' = 'always',
@@ -77,12 +84,14 @@ async function fixture(
     modelId: 'muse-spark-1.3',
     approvalMode: 'promptUnmatched',
   })
+  if (!(session instanceof ModelApiSession)) throw new Error('unexpected billing session')
   const state = {
     generation: 0,
+    active: true,
     pricing: pricingOverride ?? modelPolicyFor(session.modelId).pricing,
   }
   const ask = vi.fn<ScheduleBillingPorts['ask']>(() => Promise.resolve(answer))
-  const billing = createScheduleBilling({
+  const ports: ScheduleBillingPorts = {
     modelId: () => session.modelId,
     host: () =>
       Promise.resolve({
@@ -93,15 +102,17 @@ async function fixture(
       }),
     generation: () => state.generation,
     capUsd: daily.capUsd,
-    isActive: () => true,
+    isActive: () => state.active,
     isOn: () => true,
     ask,
     reserve: daily.reserveSchedule,
-  })
+  }
+  const billing = createScheduleBilling(ports)
   const fs = new MemoryScheduleFs()
   const store = createScheduleStore(fs)
   const authority = createAuthorityStore(store, fs, 'audits.json')
   const draft = fakeSchedule({
+    workspaceKey: workspaceKey(path.resolve(folder)),
     ...overrides,
     paidCapUsd: Usd.from(1).toAmount(),
     grant: { rules: [], destinationIds: [], paidCapUsd: Usd.from(1).toAmount() },
@@ -112,10 +123,192 @@ async function fixture(
     ...(consent !== undefined && { paidConsent: consent }),
   })
   await store.create(schedule)
-  return { billing, ask, session, schedule, authority, daily, state, api, host }
+  return {
+    billing,
+    ports,
+    folder,
+    ask,
+    session,
+    schedule,
+    store,
+    authority,
+    daily,
+    state,
+    api,
+    host,
+  }
 }
 
 describe('editor schedule billing over the actual authority and hard ledger', () => {
+  it('does not retry a final authority refusal as a network failure', async () => {
+    const f = await fixture()
+    try {
+      const context = fakeRunContext(f.schedule)
+      const paid = await f.billing.paid(f.schedule, f.session, context, f.authority)
+      const checkDispatch = vi.fn(() =>
+        Promise.reject(new Error(UI_TEXT.scheduleV2.messages.changedConsent)),
+      )
+      const { run } = unattendedRun({ context, paid: { ...paid.policy, checkDispatch } })
+      const events: AgentEvent[] = []
+      f.session.onEvent((event) => {
+        events.push(event)
+      })
+      const submission = await f.session.sendScheduledTurn(
+        [{ type: 'text', text: 'scheduled' }],
+        run,
+      )
+      await vi.waitFor(() => {
+        expect(
+          events.some(
+            (event) => event.type === 'turnCompleted' && event.turnId === submission.turnId,
+          ),
+        ).toBe(true)
+      })
+      expect(checkDispatch).toHaveBeenCalledOnce()
+      expect(f.api.responseBodies()).toHaveLength(0)
+      await expect(paid.cost()).resolves.toMatchObject({ usd: '0', retainedLiabilityUsd: '0' })
+      const day = await f.daily.latestDay()
+      expect(day.spentUsd).toBe('0')
+    } finally {
+      await f.host.close()
+    }
+  })
+  it('rechecks the billing route after reservation and refunds a drifted tariff', async () => {
+    const f = await fixture()
+    try {
+      const paid = await f.billing.paid(
+        f.schedule,
+        f.session,
+        fakeRunContext(f.schedule),
+        f.authority,
+      )
+      const reserve = f.ports.reserve
+      f.ports.reserve = async (...args) => {
+        const claim = await reserve(...args)
+        if (f.state.pricing.kind !== 'priced') throw new Error('missing tariff')
+        f.state.pricing = { ...f.state.pricing, card: { ...f.state.pricing.card, output: 1 } }
+        return claim
+      }
+      await assertTariffRefusal(f, paid.policy)
+      expect(f.api.responseBodies()).toHaveLength(0)
+    } finally {
+      await f.host.close()
+    }
+  })
+  it('retires an existing paid claim synchronously when a direct store edit starts', async () => {
+    const f = await fixture()
+    try {
+      const paid = await f.billing.paid(
+        f.schedule,
+        f.session,
+        fakeRunContext(f.schedule),
+        f.authority,
+      )
+      const claim = await paid.policy.reserve(
+        body(f.session.modelId),
+        undefined,
+        new AbortController().signal,
+      )
+      const updating = f.store.update({ ...f.schedule, paused: true })
+      expect(() => claim.check(Usd.from(0).toAmount())).toThrow()
+      await updating
+      await claim.settle(Usd.from(0).toAmount())
+      await expect(paid.cost()).resolves.toMatchObject({ usd: '0', retainedLiabilityUsd: '0' })
+      expect(f.api.responseBodies()).toHaveLength(0)
+    } finally {
+      await f.host.close()
+    }
+  })
+  it.each(['pause', 'grant', 'consent', 'trust', 'signIn', 'model', 'route'])(
+    'refuses %s changed inside reservation, refunds it and settles refused before HTTP',
+    async (change) => {
+      const f = await fixture()
+      const lifetime = new AbortController()
+      const reserve = f.ports.reserve
+      f.ports.reserve = async (...args) => {
+        const claim = await reserve(...args)
+        switch (change) {
+          case 'trust': {
+            f.state.active = false
+            break
+          }
+          case 'signIn':
+          case 'route': {
+            f.state.generation += 1
+            break
+          }
+          case 'model': {
+            await f.session.setModel('changed-model')
+            break
+          }
+          default: {
+            const current = await f.authority.read(f.schedule.workspaceKey, f.schedule.id)
+            if (current === undefined) throw new Error('missing schedule')
+            const next = {
+              ...current,
+              ...(change === 'pause' && { paused: true }),
+              ...(change === 'grant' && {
+                grant: {
+                  ...current.grant,
+                  rules: [{ id: 'new', kind: 'tool' as const, name: 'read' }],
+                },
+              }),
+              ...(change === 'consent' && { paidConsent: undefined }),
+            }
+            await f.authority.commit(next, {
+              scheduleId: next.id,
+              atMs: Date.now(),
+              kind: 'changed',
+            })
+          }
+        }
+        return claim
+      }
+      const binding = createScheduleDeliveryBinding(
+        {
+          workspaceRoot: f.folder,
+          platform: process.platform,
+          dialect: process.platform === 'win32' ? 'powershell' : 'bash',
+          io: memoryToolIo({}, f.folder),
+          signal: lifetime.signal,
+          isActive: () => f.state.active,
+          host: () => Promise.resolve(f.host),
+          options: () =>
+            Promise.resolve({
+              workspaceRoot: f.folder,
+              modelId: f.session.modelId,
+              approvalMode: 'promptUnmatched',
+            }),
+          publish: () => unpublish,
+          findLive: () => ({ agent: f.session, status: 'idle' }),
+          row: () => undefined,
+          deferQuestions: () => Promise.resolve(),
+          safety: () => undefined,
+        },
+        f.authority,
+        f.billing,
+      )
+      const lease = await binding.targets.find(f.schedule)
+      if (lease === undefined) throw new Error('missing target')
+      try {
+        const context = fakeRunContext(f.schedule)
+        const result = await binding.runs.run(lease.session, f.schedule, context, async () => {
+          await lease.session.send('scheduled prompt', context)
+        })
+        expect(result).toMatchObject({
+          outcome: 'refused',
+          reason: expect.any(String),
+          cost: { usd: '0', retainedLiabilityUsd: '0' },
+        })
+        expect(f.api.responseBodies()).toHaveLength(0)
+        const day = await f.daily.latestDay()
+        expect(day.spentUsd).toBe('0')
+      } finally {
+        await lease.release()
+        await f.host.close()
+      }
+    },
+  )
   it('reserves the selected tariff cold-cache and image charges before dispatch', async () => {
     const pricing = modelPolicyFor('muse-spark-1.3').pricing
     if (pricing.kind !== 'priced') throw new Error('missing verified tariff')
@@ -232,11 +425,7 @@ describe('editor schedule billing over the actual authority and hard ledger', ()
       f.state.generation -= 1
       if (f.state.pricing.kind !== 'priced') throw new Error('missing verified tariff')
       f.state.pricing = { ...f.state.pricing, card: { ...f.state.pricing.card, output: 1 } }
-      await expect(
-        paid.policy.reserve(body(f.session.modelId), undefined, new AbortController().signal),
-      ).rejects.toThrow(UI_TEXT.scheduleV2.messages.changedConsent)
-      const day = await f.daily.latestDay()
-      expect(day.spentUsd).toBe('0')
+      await assertTariffRefusal(f, paid.policy)
     } finally {
       await f.host.close()
     }
@@ -259,9 +448,7 @@ describe('editor schedule billing over the actual authority and hard ledger', ()
         ),
       ).rejects.toThrow()
       expect(f.ask).toHaveBeenCalledOnce()
-      const day = await f.daily.latestDay()
-      expect(day.spentUsd).toBe('0')
-      expect(f.api.responseBodies()).toHaveLength(0)
+      await assertNoCharge(f)
     } finally {
       await f.host.close()
     }
@@ -282,3 +469,19 @@ describe('editor schedule billing over the actual authority and hard ledger', ()
     }
   })
 })
+
+async function assertTariffRefusal(
+  f: Awaited<ReturnType<typeof fixture>>,
+  policy: NonNullable<ScheduleRunDeps['paid']>,
+) {
+  await expect(
+    policy.reserve(body(f.session.modelId), undefined, new AbortController().signal),
+  ).rejects.toThrow(UI_TEXT.scheduleV2.messages.changedConsent)
+  const day = await f.daily.latestDay()
+  expect(day.spentUsd).toBe('0')
+}
+async function assertNoCharge(f: Awaited<ReturnType<typeof fixture>>) {
+  const day = await f.daily.latestDay()
+  expect(day.spentUsd).toBe('0')
+  expect(f.api.responseBodies()).toHaveLength(0)
+}

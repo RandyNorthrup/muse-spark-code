@@ -406,6 +406,8 @@ export function noScheduleCost(): ScheduleFireRecord['cost'] {
 }
 
 export interface ScheduleStoreV2 {
+  /** In-process edits retire authority before their durable write awaits. */
+  authorityGeneration?(workspaceKey: string, scheduleId: string): number
   /** New ids start at revision zero and are never reused after removal. */
   create(schedule: ScheduleV2): Promise<void>
   list(workspaceKey: string): Promise<readonly ScheduleV2[]>

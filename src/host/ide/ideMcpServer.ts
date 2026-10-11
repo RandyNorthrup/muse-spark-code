@@ -44,6 +44,7 @@ const POST = 'POST'
 interface IdeCaller {
   readonly identity: string
   readonly resolve: () => { readonly isReady: boolean; readonly run?: UnattendedRun }
+  readonly lifetime: AbortController
 }
 
 export class IdeMcpServer {
@@ -51,6 +52,7 @@ export class IdeMcpServer {
   private server: Server | undefined
   private endpoint: IdeMcpEndpoint | undefined
   private generation = 0
+  private lifetime = new AbortController()
   /** A start in flight: concurrent callers share it instead of opening two ports. */
   private starting: Promise<IdeMcpEndpoint> | undefined
   /** The calls being answered, by request id, so a cancellation can stop them (M69). */
@@ -90,6 +92,11 @@ export class IdeMcpServer {
     caller?: IdeCaller,
   ): Promise<McpOutcome> {
     const controller = new AbortController()
+    const signal = AbortSignal.any([
+      controller.signal,
+      this.lifetime.signal,
+      ...(caller === undefined ? [] : [caller.lifetime.signal]),
+    ])
     const onClose = () => {
       if (!response.writableFinished) {
         controller.abort()
@@ -104,17 +111,17 @@ export class IdeMcpServer {
     try {
       let vault: readonly McpTool[]
       try {
-        vault = (await this.vaultTools?.(request, controller.signal)) ?? []
+        vault = (await this.vaultTools?.(request, signal)) ?? []
       } catch {
         // Requester bindings can fail privately; their exception text is never logged.
         throw new Error(UI_TEXT.vault.noAccess)
       }
-      controller.signal.throwIfAborted()
+      signal.throwIfAborted()
       return await handleMcpMessage(
         body,
         this.callerTools([...this.tools(), ...vault], caller),
         IDE_MCP_SERVER_INFO,
-        controller.signal,
+        signal,
       )
     } finally {
       response.off('close', onClose)
@@ -133,7 +140,8 @@ export class IdeMcpServer {
       ...tool,
       call: async (args, signal) => {
         const owner = caller.resolve()
-        if (!owner.isReady) throw new Error(UI_TEXT.scheduleV2.messages.targetUnavailable)
+        if (caller.lifetime.signal.aborted || !owner.isReady)
+          throw new Error(UI_TEXT.scheduleV2.messages.targetUnavailable)
         const run = owner.run
         if (run !== undefined) {
           const decision = await run.decide(
@@ -141,18 +149,32 @@ export class IdeMcpServer {
               id: tool.name,
               class: 'mcp',
               tool: tool.name,
-              paths: typeof args['path'] === 'string' ? [args['path']] : [],
+              paths: [],
               // These tools require their own interactive confirmations. Until
               // they have a run-scoped executor, no unattended popup or purchase.
-              requiresAsking: tool.annotations?.['readOnlyHint'] !== true,
+              requiresAsking: tool.callUnattended === undefined,
               protectedPath: false,
             },
             true,
           )
-          if (!decision.allowed || caller.resolve().run !== run || !run.isActive())
+          if (
+            !decision.allowed ||
+            !caller.resolve().isReady ||
+            caller.resolve().run !== run ||
+            !run.isActive()
+          )
             throw new Error(decision.reason ?? run.modelText.approvalRefused)
         }
         signal.throwIfAborted()
+        if (run !== undefined) {
+          if (tool.callUnattended === undefined)
+            throw new Error(run.modelText.requiresAskingRefused)
+          const result = await tool.callUnattended(args, signal, run)
+          signal.throwIfAborted()
+          if (!caller.resolve().isReady || caller.resolve().run !== run || !run.isActive())
+            throw new Error(run.modelText.approvalRefused)
+          return result
+        }
         return await tool.call(args, signal)
       },
     }))
@@ -183,7 +205,20 @@ export class IdeMcpServer {
       response.writeHead(HTTP_STATUS.unauthorized).end()
       return
     }
-    const body = await readLoopbackBody(request, CLI_OUTPUT_MAX_BYTES)
+    const lifetime = this.lifetime
+    const body = await readLoopbackBody(
+      request,
+      CLI_OUTPUT_MAX_BYTES,
+      AbortSignal.any([lifetime.signal, ...(caller === true ? [] : [caller.lifetime.signal])]),
+    )
+    if (
+      lifetime.signal.aborted ||
+      this.authenticatedCaller(request) !== caller ||
+      (caller !== true && caller.lifetime.signal.aborted)
+    ) {
+      response.writeHead(HTTP_STATUS.unauthorized).end()
+      return
+    }
     if (body === undefined) {
       response.writeHead(HTTP_STATUS.badRequest).end()
       return
@@ -270,11 +305,13 @@ export class IdeMcpServer {
     const endpoint = await this.start()
     const secret = randomBytes(IDE_MCP_TOKEN_BYTES).toString('hex')
     const identity = randomBytes(IDE_MCP_TOKEN_BYTES).toString('hex')
-    this.callers.set(secret, { identity, resolve })
+    const lifetime = new AbortController()
+    this.callers.set(secret, { identity, resolve, lifetime })
     return {
       endpoint: { url: endpoint.url, headers: { Authorization: `${BEARER_PREFIX}${secret}` } },
       dispose: () => {
         this.callers.delete(secret)
+        lifetime.abort()
         for (const [key, calls] of this.inFlight)
           if (typeof key === 'string' && key.startsWith(JSON.stringify([identity]).slice(0, -1)))
             for (const call of calls) call.abort()
@@ -296,10 +333,13 @@ export class IdeMcpServer {
   }
 
   public close(): void {
+    this.lifetime.abort()
+    this.lifetime = new AbortController()
     this.generation += 1
     this.server?.close()
     this.server = undefined
     this.endpoint = undefined
+    for (const caller of this.callers.values()) caller.lifetime.abort()
     this.callers.clear()
     for (const calls of this.inFlight.values()) for (const call of calls) call.abort()
   }

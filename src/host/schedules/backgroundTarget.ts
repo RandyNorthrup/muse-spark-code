@@ -123,7 +123,7 @@ export class ScheduleAgentSession implements ScheduleDeliverySession {
       for (const listener of this.idleListeners) listener()
     } else if (event.type === 'userMessageTurnChanged') {
       for (const [id, ref] of this.queued) {
-        if (ref.userMessageId === event.userMessageId)
+        if (ref.userMessageId === event.userMessageId || ref.turnId === event.userMessageId)
           this.queued.set(id, { ...ref, turnId: event.turnId })
       }
     }

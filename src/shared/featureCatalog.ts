@@ -27,6 +27,8 @@ const UI_CONDITIONS: Readonly<
   Partial<Record<Extract<PlainReferenceText, { ui: unknown }>['ui'], string>>
 > = {
   referenceScreenRecording: 'nativeRecorder=absent',
+  // Review repairs cover dispatch authority, resolved-file policy and window
+  // lifetime; the delivery certification switch still owns availability.
   referenceSchedules: 'scheduleDeliveryCertified=false',
   referenceVaultPanel: 'vaultBroker=absent',
   referenceNativeAgentsConditions: 'run.subagent_delegation_mode',

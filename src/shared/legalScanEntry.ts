@@ -16,6 +16,7 @@ export interface LegalScanRequest {
   readonly workspaceRoot: string
   readonly input: LegalScanInput
   readonly signal?: AbortSignal
+  readonly canReadFile?: (relative: string) => boolean
 }
 
 export interface LegalScanHandle {

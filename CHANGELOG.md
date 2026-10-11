@@ -32,6 +32,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- **Schedule delivery review repairs** (C-M115-1). The disabled candidate
+  revalidates schedule, workspace, account, model and billing authority at
+  dispatch, refunds refused reservations, and retains queued-message identity
+  through native promotion. Unattended IDE calls enforce policy on resolved
+  files and use prompt-free executors; legal scans stay offline. Retired callers
+  abort partial requests. A window-owned hold covers scheduling without an
+  open chat. Delivery remains unregistered pending the lead's qualification.
+
 - Native IDE calls can carry a session-bound identity. Unattended callers
   use their own grants, retired callers lose access, and colliding request
   ids cannot cancel another caller's tool. Interactive-only tools refuse

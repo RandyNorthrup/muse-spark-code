@@ -38,6 +38,46 @@ export interface SchedulesBridgeDeps {
 
 export type SchedulesBridge = ReturnType<typeof createSchedulesBridge>
 
+/** The window holds its workspace even when no conversation surface exists. */
+export function scheduleWindowWorkspace(
+  bridge: Pick<SchedulesBridge, 'holdWorkspace' | 'isDeliveryEnabled'>,
+  cwd: string | undefined,
+  isActive: () => boolean,
+  log: Logger,
+) {
+  let isClosed = false
+  let holding: Promise<() => Promise<void>> | undefined
+  const retire = () => {
+    const prior = holding
+    holding = undefined
+    if (prior !== undefined)
+      void prior
+        .then((release) => release())
+        .catch(() => {
+          log.warn('Scheduled window workspace could not be released')
+        })
+  }
+  return {
+    refresh() {
+      if (isClosed || cwd === undefined || !isActive() || !bridge.isDeliveryEnabled()) {
+        retire()
+        return
+      }
+      if (holding !== undefined) return
+      const pending = bridge.holdWorkspace(cwd)
+      holding = pending
+      void pending.catch(() => {
+        if (holding === pending) holding = undefined
+        log.warn('Scheduled window workspace could not be held')
+      })
+    },
+    dispose() {
+      isClosed = true
+      retire()
+    },
+  }
+}
+
 const targets = (session: SchedulesPanelSession | undefined): readonly ScheduleTargetChoice[] => {
   if (session === undefined) return []
   const target: ScheduleTarget = {

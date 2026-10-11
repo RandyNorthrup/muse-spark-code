@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createLegalSnapshot } from '../../src/core/legal/workspace'
 import { scanLegal } from '../../src/core/legal/scan'
+import { unattendedRun } from './helpers/schedules/unattended'
 import {
   LEGAL_FILES_SCANNED_MAX,
   LEGAL_FINDINGS_MAX,
@@ -58,6 +59,26 @@ afterEach(() => {
 })
 
 describe('legal workspace admission', () => {
+  it('applies scheduled policy before enumeration, cached reads and returned evidence', () => {
+    const root = fixture()
+    fs.mkdirSync(path.join(root, '.muse'))
+    fs.writeFileSync(path.join(root, '.muse/hooks.json'), 'PROTECTED_CONFIG_CONTENT')
+    const { run } = unattendedRun()
+    let isActive = true
+    const snapshot = createLegalSnapshot(
+      root,
+      undefined,
+      Date.now() + 100_000,
+      (file) => isActive && run.canReadFile(file),
+    )
+    expect(snapshot.files.some((file) => file.startsWith('.muse'))).toBe(false)
+    expect(snapshot.readFile('LICENSE')).toBe('MIT License\n')
+    isActive = false
+    vi.mocked(fs.readSync).mockClear()
+    expect(() => snapshot.readFile('LICENSE')).toThrow()
+    expect(fs.readSync).not.toHaveBeenCalled()
+    expect(run.refusedActions.length).toBeGreaterThan(0)
+  })
   it('F2 hashes exact admitted bytes including the UTF-8 BOM', () => {
     const root = fixture()
     const bytes = Buffer.from([0xef, 0xbb, 0xbf, ...Buffer.from('MIT License\n')])

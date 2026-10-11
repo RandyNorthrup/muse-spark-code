@@ -95,6 +95,29 @@ async function expectRefused(rig: Awaited<ReturnType<typeof fixture>>) {
 }
 
 describe('unregistered schedule delivery factory', () => {
+  it('settles a promotion chain received before admission and frees the next delivery', async () => {
+    const rig = await fixture()
+    rig.agent.sendScheduledTurn.mockImplementation(() => {
+      rig.agent.emit({
+        type: 'userMessageTurnChanged',
+        userMessageId: 'message',
+        turnId: 'temporary',
+      })
+      rig.agent.emit({
+        type: 'userMessageTurnChanged',
+        userMessageId: 'temporary',
+        turnId: 'final',
+      })
+      rig.agent.emit({ type: 'turnCompleted', turnId: 'final', terminal: 'completed' })
+      return queuedSubmission()
+    })
+    try {
+      expect(await rig.run()).toMatchObject({ outcome: 'ran' })
+      expect(await rig.run()).toMatchObject({ outcome: 'ran' })
+    } finally {
+      await rig.lease.release()
+    }
+  })
   it('publishes admission once and only republishes when the message moves to another turn', async () => {
     const rig = await fixture()
     const submitted = vi.fn<NonNullable<ScheduleEditorDeliveryPorts['submitted']>>()

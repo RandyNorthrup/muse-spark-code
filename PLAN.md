@@ -35873,6 +35873,15 @@ Total: about 165 lane-hours: the panel's part (0, A, P1, P2, C, F, S) about
 
 ### M115 — Scheduled prompts v2: unattended, stacked, with a delivery mode (D95)
 
+**C-M115-1 review repair (2026-10-11):** repair RVCM1151B/G as classes:
+one final scheduled dispatch gate after asynchronous work, live schedule and
+billing authority, per-file unattended IDE policy, stable native queued-message
+identity and promotion settlement, abortable retired-caller reception, explicit
+prompt-free tool executors, a window-owned workspace hold, and deterministic
+three-process claim qualification. Delivery stays unregistered; consent/args
+remain with CM1153. Regressions and byte-exact red drills are recorded in
+`docs/certification/m115-cm1151.md` before local commits.
+
 **C-M115-1 completion lane (2026-10-10, win11).** Bind the VS Code workspace
 lifetime and conversation delivery to the existing shared scheduler, unattended
 backend entry points and background targets. Certify D95.6–7 and acceptance

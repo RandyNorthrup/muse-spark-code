@@ -186,6 +186,31 @@ export function createScheduleBilling(ports: ScheduleBillingPorts) {
       }
       const admitted = current
       const { identity, estimate, generation } = await quote(session.modelId)
+      const authorityGeneration = authority.generation?.(schedule.workspaceKey, schedule.id)
+      const isCurrent = () =>
+        ports.isActive() &&
+        ports.generation() === generation &&
+        session.modelId === identity.modelId &&
+        ports.modelId(schedule) === identity.modelId &&
+        authority.generation?.(schedule.workspaceKey, schedule.id) === authorityGeneration
+      const checkDispatch = async () => {
+        const fresh = await quote(session.modelId)
+        const live = await authority.read(schedule.workspaceKey, schedule.id)
+        const check = () => {
+          if (
+            live === undefined ||
+            live.paused ||
+            live.mode !== admitted.mode ||
+            JSON.stringify(live.grant) !== JSON.stringify(admitted.grant) ||
+            JSON.stringify(live.paidConsent) !== JSON.stringify(admitted.paidConsent) ||
+            JSON.stringify(fresh.identity) !== JSON.stringify(identity) ||
+            !isCurrent()
+          )
+            throw new Error(UI_TEXT.scheduleV2.messages.changedConsent)
+        }
+        check()
+        return check
+      }
       const policy = createSchedulePaidScope({
         backend: 'modelApi',
         schedule: admitted,
@@ -196,10 +221,7 @@ export function createScheduleBilling(ports: ScheduleBillingPorts) {
           accountId: identity.accountId,
           sharedDailyBudgetUsd: ports.capUsd(),
         }),
-        isCurrent: () =>
-          ports.isActive() &&
-          ports.generation() === generation &&
-          session.modelId === identity.modelId,
+        isCurrent,
         isOn: (feature) => ports.isOn(feature),
         estimate,
         reserve: async (record, amount, signal) => {
@@ -214,12 +236,24 @@ export function createScheduleBilling(ports: ScheduleBillingPorts) {
             JSON.stringify(fresh.identity) !== JSON.stringify(identity)
           )
             throw new Error(UI_TEXT.scheduleV2.messages.changedConsent)
-          return await ports.reserve(record, amount, signal)
+          const claim = await ports.reserve(record, amount, signal)
+          try {
+            const check = await checkDispatch()
+            check()
+            return claim
+          } catch (error: unknown) {
+            await claim.settle(Usd.from(0).toAmount())
+            throw error
+          }
         },
       })
       if (!policy.allows('scheduledPrompts'))
         throw new Error(UI_TEXT.scheduleV2.messages.changedConsent)
-      return { policy, consent: admitted.paidConsent, cost: () => Promise.resolve(policy.cost()) }
+      return {
+        policy: { ...policy, checkDispatch },
+        consent: admitted.paidConsent,
+        cost: () => Promise.resolve(policy.cost()),
+      }
     },
   }
 }

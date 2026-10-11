@@ -6,6 +6,7 @@ import { FakeLogOutputChannel } from './helpers/fakes'
 import { postLoopback, postLoopbackJson } from './helpers/loopbackHttp'
 import { unattendedRun } from './helpers/schedules/unattended'
 import { fakeRunContext, fakeSchedule } from './helpers/schedules/fixtures'
+import { request as httpRequest } from 'node:http'
 
 const tool: McpTool = {
   name: 'getDiagnostics',
@@ -33,6 +34,51 @@ afterEach(() => {
 })
 
 describe('scheduled IDE caller identity', () => {
+  it.each(['caller', 'server'])(
+    'aborts a partial body when its authenticated %s retires before dispatch',
+    async (retire) => {
+      const call = vi.fn<McpTool['call']>().mockResolvedValue('read')
+      const { server } = await start(() => [{ ...tool, call }])
+      const caller = await server.bindCaller(() => ({ isReady: true }))
+      const receiving = Promise.withResolvers<undefined>()
+      const read = loopback.readLoopbackBody
+      const spy = vi.spyOn(loopback, 'readLoopbackBody').mockImplementation((...args) => {
+        receiving.resolve(undefined)
+        return read(...args)
+      })
+      const request = httpRequest(caller.endpoint.url, {
+        method: 'POST',
+        headers: { ...caller.endpoint.headers, 'content-type': 'application/json' },
+      })
+      const response = new Promise<number | undefined>((resolve, reject) => {
+        request.once('response', (reply) => {
+          reply.resume()
+          resolve(reply.statusCode)
+        })
+        request.once('error', reject)
+      })
+      try {
+        request.flushHeaders()
+        await receiving.promise
+        if (retire === 'caller') caller.dispose()
+        else server.close()
+        // Retirement must finish reception even if the caller never supplies the rest.
+        expect(await response).toBe(401)
+        request.end(
+          JSON.stringify({
+            jsonrpc: '2.0',
+            id: 1,
+            method: 'tools/call',
+            params: { name: tool.name, arguments: {} },
+          }),
+        )
+        expect(call).not.toHaveBeenCalled()
+      } finally {
+        request.destroy()
+        spy.mockRestore()
+      }
+    },
+  )
   it('refuses an unattended purchase before the interactive tool or popup runs', async () => {
     const call = vi.fn<McpTool['call']>().mockResolvedValue('charged')
     const server = new IdeMcpServer(
@@ -54,8 +100,7 @@ describe('scheduled IDE caller identity', () => {
   })
 
   it('reads the correct caller grant while another caller remains interactive', async () => {
-    const call = vi.fn<McpTool['call']>().mockResolvedValue('read')
-    const { server } = await start(() => [{ ...tool, annotations: { readOnlyHint: true }, call }])
+    const { call, server } = await startReadTool()
     const denied = unattendedRun()
     const allowed = unattendedRun({
       context: fakeRunContext(
@@ -92,8 +137,7 @@ describe('scheduled IDE caller identity', () => {
   })
 
   it('refuses unresolved identity and a revoked run before executing the tool', async () => {
-    const call = vi.fn<McpTool['call']>().mockResolvedValue('read')
-    const { server } = await start(() => [{ ...tool, annotations: { readOnlyHint: true }, call }])
+    const { call, server } = await startReadTool()
     const { run } = unattendedRun({ isActive: () => false })
     let isReady = false
     const caller = await server.bindCaller(() => ({ isReady, run }))
@@ -396,3 +440,11 @@ describe('IdeMcpServer', () => {
     expect(again.url).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/mcp$/)
   })
 })
+
+async function startReadTool() {
+  const call = vi.fn<McpTool['call']>().mockResolvedValue('read')
+  const { server } = await start(() => [
+    { ...tool, annotations: { readOnlyHint: true }, call, callUnattended: call },
+  ])
+  return { call, server }
+}

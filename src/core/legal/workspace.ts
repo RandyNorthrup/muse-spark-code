@@ -50,6 +50,7 @@ export function createLegalSnapshot(
   rootPath: string,
   signal?: AbortSignal,
   deadline = Date.now() + LEGAL_SCAN_TIMEOUT_MS,
+  canReadFile?: (relative: string) => boolean,
 ): LegalWorkspaceSnapshot {
   if (signal?.aborted === true) throw new LegalScanError(UI_TEXT.legalScanner.m111)
   const root = realpathSync(rootPath)
@@ -108,6 +109,10 @@ export function createLegalSnapshot(
       checkCancellation()
       if (entriesSeen > LEGAL_DIRECTORY_ENTRIES_MAX || !isWithinTime()) return
       const local = localDirectory === '' ? name : `${localDirectory}/${name}`
+      if (canReadFile?.(local) === false) {
+        incompleteChecks.push(UI_TEXT.codeIntelPolicyRefused)
+        continue
+      }
       if (name === '.git') {
         incompleteChecks.push(fill(UI_TEXT.legalScanner.m141, { v0: local }))
         continue
@@ -135,6 +140,7 @@ export function createLegalSnapshot(
     readFile: (local: string): string | undefined => {
       checkCancellation()
       assertWorkspaceRelative(local)
+      if (canReadFile?.(local) === false) throw new LegalScanError(UI_TEXT.codeIntelPolicyRefused)
       if (!isWithinTime()) return undefined
       if (cache.has(local)) return cache.get(local)
       const expected = admitted.get(local)

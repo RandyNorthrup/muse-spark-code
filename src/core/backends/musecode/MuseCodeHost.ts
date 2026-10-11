@@ -699,6 +699,7 @@ async function sendCommand(
   method: string,
   params: Record<string, unknown>,
   commandId: string,
+  run?: UnattendedRun,
 ): Promise<Record<string, unknown>> {
   const { log } = channel
   const commandParams = { ...params, commandId }
@@ -709,7 +710,8 @@ async function sendCommand(
   }
   for (let attempt = 1; ; attempt += 1) {
     try {
-      const ack = await answered(channel, generation, method, commandParams)
+      const send = () => answered(channel, generation, method, commandParams)
+      const ack = await (run === undefined ? send() : run.dispatch(send))
       if (ack['commandId'] !== undefined && ack['commandId'] !== commandId) {
         throw new Error(`${method} ack did not echo its commandId ${commandId}`)
       }
@@ -806,13 +808,14 @@ async function commandWithin(
   method: string,
   params: Record<string, unknown>,
   commandId: string = channel.connection.mintCommandId(),
+  run?: UnattendedRun,
 ): Promise<unknown> {
   const { log, timeouts } = channel
   const timeoutMs = MSP_LONG_COMMANDS.has(method) ? timeouts.longMs : timeouts.normalMs
   const startedAt = Date.now()
   try {
     const answer = await requestWithin(channel, generation, method, timeoutMs, () =>
-      sendCommand(channel, generation, method, params, commandId),
+      sendCommand(channel, generation, method, params, commandId, run),
     )
     log.trace(`${method} answered in ${String(Date.now() - startedAt)} ms`)
     return answer
@@ -1124,8 +1127,14 @@ export class MuseSession implements ScheduledAgentSession {
           queued.parts,
           queued.run,
           queued.displayText,
+          id,
         )
-        this.emit({ type: 'userMessageTurnChanged', userMessageId: id, turnId: submission.turnId })
+        if (submission.turnId !== id)
+          this.emit({
+            type: 'userMessageTurnChanged',
+            userMessageId: id,
+            turnId: submission.turnId,
+          })
       } catch {
         if (isOpen())
           this.emit({
@@ -1145,12 +1154,23 @@ export class MuseSession implements ScheduledAgentSession {
     }
   }
 
-  private async command(method: string, params: Record<string, unknown>): Promise<unknown> {
+  private async command(
+    method: string,
+    params: Record<string, unknown>,
+    run?: UnattendedRun,
+  ): Promise<unknown> {
     try {
-      return await commandWithin(this.channel, this.leaseGeneration, method, {
-        sessionId: this.sessionId,
-        ...params,
-      })
+      return await commandWithin(
+        this.channel,
+        this.leaseGeneration,
+        method,
+        {
+          sessionId: this.sessionId,
+          ...params,
+        },
+        undefined,
+        run,
+      )
     } catch (error: unknown) {
       this.noteLogFault(error)
       throw error
@@ -1605,6 +1625,7 @@ export class MuseSession implements ScheduledAgentSession {
     parts: readonly TurnPart[],
     run: UnattendedRun,
     displayText?: string,
+    queuedMessageId?: string,
   ): Promise<TurnSubmission> {
     const waiter = this.owner.token()
     await run.checkParts(parts)
@@ -1612,7 +1633,7 @@ export class MuseSession implements ScheduledAgentSession {
     if (!this.owner.isIdle) {
       if (!this.owner.canQueue) throw new Error(UI_TEXT.scheduleBusy)
       if (this.isDisposed) throw new Error(UI_TEXT.surfaceClosed)
-      const id = randomUUID()
+      const id = queuedMessageId ?? randomUUID()
       this.scheduledQueue.set(id, { parts, run, displayText })
       void this.drainScheduledQueue()
       return { turnId: id, userMessageId: id, disposition: QUEUED_DISPOSITION }
@@ -1655,10 +1676,14 @@ export class MuseSession implements ScheduledAgentSession {
     if (!this.owner.start(token, scheduledOwner)) throw new Error(UI_TEXT.scheduleBusy)
     let ack: unknown
     try {
-      ack = await this.command('turn/start', {
-        input: mspInput(parts),
-        ...(displayText !== undefined && { displayText }),
-      })
+      ack = await this.command(
+        'turn/start',
+        {
+          input: mspInput(parts),
+          ...(displayText !== undefined && { displayText }),
+        },
+        scheduledOwner,
+      )
     } catch (error: unknown) {
       this.owner.startFailed(token)
       throw faultOr(error, 'approvalReplay')
@@ -1689,7 +1714,7 @@ export class MuseSession implements ScheduledAgentSession {
     const input = mspInput(parts)
     let result: unknown
     try {
-      result = await this.command('turn/steer', { expectedTurnId, input })
+      result = await this.command('turn/steer', { expectedTurnId, input }, run)
     } catch (error: unknown) {
       throw this.steerFailure(expectedTurnId, error)
     }

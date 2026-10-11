@@ -2303,7 +2303,10 @@ The Command Palette's **Schedule this prompt…**, **Show schedules** and
 **Show schedule timeline** open the v2 editor, list and timeline in the
 active chat, opening a chat when needed. The schedule surface loads on
 first use and manages durable records. Automatic v2 prompt delivery is
-disabled: the workspace delivery binding awaits qualification across operating
+disabled: its candidate holds the workspace independently of open chats and
+rechecks authority immediately before sending. Unattended IDE tools enforce
+resolved-file policy and use prompt-free executors, with offline legal scans.
+The workspace delivery binding awaits qualification across operating
 systems and independent review, and remains unregistered. The `/loop` flow
 below runs when you choose **Run now**.
 

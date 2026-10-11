@@ -166,6 +166,7 @@ async function fixture(backend: 'museCode' | 'modelApi', mode: ScheduleV2['mode'
     backgroundEntry: new FakeScheduleBackground(),
   })
   const release = await engine.runtime.holdWorkspace(root)
+  await engine.pollWorkspace(key)
   let consent: ScheduleV2['paidConsent']
   const job = (overrides: Partial<ScheduleV2> = {}) =>
     fakeSchedule({
@@ -450,8 +451,23 @@ it.each(modes)(
   async (mode) => {
     const rig = await fixture('modelApi', mode)
     const { promise: hold, resolve: release } = Promise.withResolvers<undefined>()
+    const secondStarted = Promise.withResolvers<undefined>()
+    const secondSettled = Promise.withResolvers<undefined>()
+    const record = rig.engine.store.record.bind(rig.engine.store)
+    vi.spyOn(rig.engine.store, 'record').mockImplementation(async (fire) => {
+      await record(fire)
+      secondSettled.resolve(undefined)
+    })
     try {
-      rig.api.script({ hold }, { text: 'second finished' })
+      rig.api.script(
+        { hold },
+        {
+          text: 'second finished',
+          onRequest: () => {
+            secondStarted.resolve(undefined)
+          },
+        },
+      )
       const target = { kind: 'newConversation', backend: 'modelApi' } as const
       await rig.engine.store.create(
         rig.job({ id: 'parallel-1', target, delivery: 'newConversation', parallel: true }),
@@ -460,12 +476,10 @@ it.each(modes)(
         rig.job({ id: 'parallel-2', target, delivery: 'newConversation', parallel: true }),
       )
       const polling = rig.engine.scheduler.poll(key)
-      await vi.waitFor(() => {
-        expect(rig.api.responseBodies()).toHaveLength(2)
-      })
-      await vi.waitFor(async () => {
-        expect(await rig.engine.store.fires(key)).toHaveLength(1)
-      })
+      await secondStarted.promise
+      expect(rig.api.responseBodies()).toHaveLength(2)
+      await secondSettled.promise
+      expect(await rig.engine.store.fires(key)).toHaveLength(1)
       expect(new Set(rig.publish.mock.calls.map(([agent]) => agent.sessionId)).size).toBe(2)
       release(undefined)
       await polling

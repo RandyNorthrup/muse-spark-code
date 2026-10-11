@@ -1,4 +1,8 @@
-import { createSchedulesBridge, registerScheduleCommands } from './host/schedules/schedulesBridge'
+import {
+  createSchedulesBridge,
+  registerScheduleCommands,
+  scheduleWindowWorkspace,
+} from './host/schedules/schedulesBridge'
 import type { ScheduleEditorDeliveryPorts } from './host/schedules/deliveryBinding'
 import type { BackendSession } from './host/schedules/backgroundTarget'
 import type { StartSessionOptions } from './core/agent/agentBackend'
@@ -1784,6 +1788,10 @@ async function activateWindow(
   /** The CLI's own credential without a question to the CLI on macOS: META_API_KEY or its sign-in. */
   const hasCliSession = async () =>
     backend.hasEnvironmentKey() || isCliSignedIn(await cliAccount.signIn(false))
+  const scheduleWorkspace: { value?: ReturnType<typeof scheduleWindowWorkspace> } = {}
+  const refreshScheduleWorkspace = () => {
+    scheduleWorkspace.value?.refresh()
+  }
   const auth = new AuthService({
     getPlanAccount: async () =>
       subscriptions === undefined &&
@@ -1868,6 +1876,7 @@ async function activateWindow(
       paidBackend = message.backend
       broadcastPaidState()
       // A key pasted or signed out of changes what the Muse Code backend offers (M44).
+      refreshScheduleWorkspace()
       void refreshKeyPresence()
       // The backend decides which engine the microphone uses (M35).
       for (const controller of controllers.values()) {
@@ -2182,6 +2191,21 @@ async function activateWindow(
         isOffered: () =>
           workspaceRoot !== undefined && isIdeLegalScanOffered(vscode.workspace.isTrusted),
         runScan: runLegalScan,
+        runUnattendedScan: async (input, signal, run) => {
+          if (!isIdeLegalScanOffered(vscode.workspace.isTrusted))
+            throw new Error(UI_TEXT.legalScanUntrusted)
+          if (workspaceRoot === undefined) throw new Error(UI_TEXT.noWorkspaceReason)
+          const handle = await legalScanBundle().runLegalScan({
+            workspaceRoot,
+            input,
+            signal,
+            canReadFile: (relative) => !signal.aborted && run.canReadFile(relative),
+          })
+          signal.throwIfAborted()
+          if (!vscode.workspace.isTrusted || !run.isActive())
+            throw new Error(UI_TEXT.legalScanUntrusted)
+          return legalScanResultSchema.parse(handle.result)
+        },
         log,
       }),
       // The server is attached in Restricted Mode too, and has no session
@@ -3385,6 +3409,7 @@ async function activateWindow(
           io: toolIo,
           signal: schedulesLifetime.signal,
           isActive: isScheduleActive,
+          generation: () => auth.admissionGeneration,
           host: scheduleHost,
           findLive: liveSchedule,
           options: async (schedule) => {
@@ -3555,6 +3580,14 @@ async function activateWindow(
     defaultDelivery: () => currentSettings().scheduleDefaultDelivery,
     ...(scheduleDelivery !== undefined && { delivery: scheduleDelivery }),
   })
+  scheduleWorkspace.value = scheduleWindowWorkspace(
+    schedulesBridge,
+    workspaceRoot,
+    isScheduleActive,
+    log,
+  )
+  scheduleWorkspace.value.refresh()
+  context.subscriptions.push(scheduleWorkspace.value)
   const controllerFor = (surface: ChatSurface): ConversationController => {
     let controller = controllers.get(surface.id)
     if (controller === undefined) {
@@ -4495,6 +4528,7 @@ async function activateWindow(
       }
       if (event.affectsConfiguration(SETTINGS_SECTION)) {
         registry.broadcast({ type: 'settingsChanged', settings: hostContext.getSettings() })
+        refreshScheduleWorkspace()
         for (const controller of controllers.values()) {
           controller.refreshDictation()
           controller.scheduleWorkspaceChanged()
@@ -4570,6 +4604,7 @@ async function activateWindow(
       // The index was built without git in Restricted Mode (D24).
       mentions.invalidate()
       void restartBackend('the workspace was trusted').catch(logRejection(log, 'backend restart'))
+      refreshScheduleWorkspace()
       registry.broadcast({ type: 'notice', level: 'info', text: UI_TEXT.trustGrantedNotice })
       // "Allow always in this workspace" counts only in a trusted one (M58).
       broadcastPaidState()

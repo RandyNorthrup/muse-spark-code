@@ -2666,7 +2666,10 @@ export class ConversationController {
         // A steer the turn ended without waits as a turn of its own (M53),
         // still to be taken back as a queued message under its new turn.
         for (const [localId, message] of this.queuedMessages) {
-          if (message.userMessageId === event.userMessageId) {
+          if (
+            message.userMessageId === event.userMessageId ||
+            message.turnId === event.userMessageId
+          ) {
             this.queuedMessages.set(localId, {
               ...message,
               turnId: event.turnId,

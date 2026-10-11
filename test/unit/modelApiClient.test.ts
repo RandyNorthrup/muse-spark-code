@@ -938,6 +938,27 @@ async function streamRetryThenSucceed(
   expect(sleeps).toEqual(expectedSleeps)
 }
 describe('Meta transport regression boundaries', () => {
+  it('propagates a final paid refusal before network retry handling', async () => {
+    const claim = paidClaimFixture()
+    const refusal = new Error('local admission refusal')
+    claim.check.mockImplementation(() => {
+      throw refusal
+    })
+    const reserve = vi.fn(() => Promise.resolve(claim))
+    const fetch = vi.fn(() => Promise.resolve(Response.json({})))
+    const { client } = setup('plain', fetch, undefined, { reservePaidRequest: reserve })
+    await expect(
+      collect(
+        client.streamResponse(
+          { ...body, max_tool_calls: 1, tools: [{ type: 'web_search' }] },
+          new AbortController().signal,
+        ),
+      ),
+    ).rejects.toBe(refusal)
+    expect(fetch).not.toHaveBeenCalled()
+    expect(reserve).toHaveBeenCalledOnce()
+    expect(claim.check).toHaveBeenCalledOnce()
+  })
   it.each([400, 429, 500])(
     'preserves merged paid admission and refusal settlement on HTTP %s',
     async (status) => {

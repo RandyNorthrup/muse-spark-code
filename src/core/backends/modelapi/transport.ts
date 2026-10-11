@@ -875,11 +875,8 @@ export class RequestTransport {
       // Local consent refusal is outside the transport retry catch: it never
       // becomes another billable attempt.
       await admitAttempt?.prepare?.()
-      if (init.paid !== undefined) {
-        if (init.paid.isSent) {
-          throw new Error(UI_TEXT.sessionBudgetRetryUnavailable)
-        }
-        init.paid.claim.check(Usd.from(0).toAmount())
+      if (init.paid?.isSent === true) {
+        throw new Error(UI_TEXT.sessionBudgetRetryUnavailable)
       }
       if (
         admitAttempt?.searchQuote !== undefined &&
@@ -932,17 +929,26 @@ export class RequestTransport {
         ...(init.body !== undefined && { body: wireBody ?? JSON.stringify(init.body) }),
         ...(signal !== undefined && { signal }),
       }
-      confirmed?.onRequestStarted()
-      admitAttempt?.onRequestStarted?.()
-      if (init.paid !== undefined) {
-        init.paid.isSent = true
+      const dispatchState = { isStarted: false }
+      const dispatch = () => {
+        assertScheduleAuthority()
+        init.paid?.claim.check(Usd.from(0).toAmount())
+        confirmed?.onRequestStarted()
+        admitAttempt?.onRequestStarted?.()
+        if (init.paid !== undefined) {
+          init.paid.isSent = true
+        }
+        admitAttempt?.mediaAccounting?.started()
+        dispatchState.isStarted = true
+        return this.fetchWithIdleDeadline(url, requestInit)
       }
       const sent = this.pacing.snapshot(account)
-      admitAttempt?.mediaAccounting?.started()
       let response: Response
       try {
-        response = await this.fetchWithIdleDeadline(url, requestInit)
+        const run = this.deps.scheduledRun?.()
+        response = await (run === undefined ? dispatch() : run.dispatch(dispatch))
       } catch (error: unknown) {
+        if (!dispatchState.isStarted) throw error
         if (error instanceof ModelApiError || signal?.aborted === true) {
           throw error instanceof ModelApiError
             ? redactModelApiError(error, credentials.redact, NETWORK_FAILURE_STATUS)
