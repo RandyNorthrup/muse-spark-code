@@ -206,13 +206,15 @@ export function createPaidDailyBudget(deps: {
   }
   const reserveClaim = async (scope: string, amount: UsdAmount, cap?: UsdAmount) => {
     const claimId = randomUUID()
+    // The durable journal owns admission. A refused/failed write creates no
+    // in-memory authority claim; ambiguous journal liability stays durable.
+    const claim =
+      cap === undefined
+        ? await journal.reserve(scope, PAID_DAILY_BUDGET.accountId, amount)
+        : await journal.reserveAdmitted(scope, PAID_DAILY_BUDGET.accountId, amount, cap)
     const effects = authority.dispatch({ type: 'moneyReserve', claimId, reservedUsd: amount })
     const effect = effects.find((candidate) => candidate.type === 'persistReserve')
     if (effect?.type !== 'persistReserve') throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
-    const claim =
-      cap === undefined
-        ? await journal.reserve(scope, PAID_DAILY_BUDGET.accountId, effect.amount)
-        : await journal.reserveAdmitted(scope, PAID_DAILY_BUDGET.accountId, effect.amount, cap)
     return ownClaim(scope, effect.claimId, claim)
   }
   const reserve: NonNullable<ModelApiClientDeps['reservePaidRequest']> = async (

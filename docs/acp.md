@@ -521,14 +521,16 @@ best-of-N, the Auto reviewer and Muse Voice are not offered: the agent has no fl
 (Muse Voice needs the VS Code panel's microphone).
 
 Scheduled prompt authority requires `--scheduled-prompts` (Model API
-backend only) together with `--max-budget-usd`. The v2 consent request uses
+backend only) together with `--max-budget-usd`. The candidate v2 consent request uses
 the editor's permission prompt and names the schedule, verified model rates,
 cadence, schedule cap and shared daily budget. Allow once covers one fire;
 Allow always covers this schedule, with workspace grants kept separate.
-A changed model, key or tariff requires renewal before another paid fire.
+A changed payer kind, model, key, tariff or shared daily budget (including
+the day's override) requires renewal before another paid fire.
 Missing flags, a nonpositive budget, stale consent and either exhausted cap
 refuse before HTTP. Runtime/ACP delivery remains disabled pending its complete
-delivery binding and certification.
+delivery binding and certification. The running runtime/ACP has no installed
+v2 billing callback, so it neither asks for this consent nor reserves these caps.
 
 ## Networks and proxies
 

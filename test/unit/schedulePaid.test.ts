@@ -1,5 +1,5 @@
 import { Usd as PortUsd } from '../../src/shared/usd'
-import { mkdtemp } from 'node:fs/promises'
+import { mkdtemp, readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -7,13 +7,18 @@ import {
   askSchedulePaidConsent,
   createSchedulePaidScope,
   isScheduleConsentCurrent,
+  scheduleConsentFailure,
   type PaidUseAnswer,
   type SchedulePaidIdentity,
   type ScheduleConsent,
 } from '../../src/core/paid/paidConsent'
 import type { ModelApiClient, ResponseAttemptGuard } from '../../src/core/backends/modelapi/client'
 import { createPaidDailyBudget } from '../../src/host/paid/paidDailyBudget'
-import { schedulePaidConsentSchema, scheduleV2Schema } from '../../src/shared/scheduleV2'
+import {
+  schedulePaidConsentSchema,
+  scheduleV2Schema,
+  type ScheduleV2,
+} from '../../src/shared/scheduleV2'
 import { unattendedRun } from './helpers/schedules/unattended'
 import { fakeSchedule, fakeRunContext } from './helpers/schedules/fixtures'
 import { removeFolder } from './helpers/temporaryFolders'
@@ -21,6 +26,7 @@ import { Usd, type UsdAmount } from '../../src/shared/usd'
 import { window } from './mocks/vscode'
 import { FAKE_MODEL_API_ACCOUNT_ID, fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
 import { FakeLogOutputChannel } from './helpers/fakes'
+import { UI_TEXT } from '../../src/shared/constants'
 import type { CreateResponseBody, CreateImageBody } from '../../src/core/backends/modelapi/schemas'
 
 const identity: SchedulePaidIdentity = {
@@ -101,6 +107,67 @@ async function ledgers(capUsd = 5) {
 }
 
 describe('schedule-scoped paid consent and reservations', () => {
+  it('enumerates every consent refusal branch and gives each its own sentence', async () => {
+    const record = schedule()
+    const consent = record.paidConsent
+    if (consent === undefined) throw new Error('missing consent')
+    const cases: [string, Partial<ScheduleV2>, Partial<SchedulePaidIdentity>][] = [
+      [
+        'paidUnavailable',
+        {
+          action: {
+            kind: 'report',
+            reportKind: 'schedules',
+            args: {},
+            format: 'html',
+            destinations: [],
+          },
+        },
+        {},
+      ],
+      ['changedConsent', { paidConsent: undefined }, {}],
+      ['changedPayer', {}, { payerKind: 'plan' }],
+      ['changedPayer', { paidConsent: { ...consent, payerKind: undefined } }, {}],
+      ['changedModel', {}, { modelId: 'other' }],
+      ['changedKey', {}, { accountId: 'other' }],
+      ['changedTariff', {}, { priceTier: 'other' }],
+      ['changedSharedCap', {}, { sharedDailyBudgetUsd: usd(4) }],
+      ['changedGrant', { grant: { ...record.grant, paidCapUsd: usd(0) } }, {}],
+      ['capReached', { paidCapUsd: usd(0) }, {}],
+      ...['dailyCapUsd', 'sharedDailyBudgetUsd'].flatMap((key) =>
+        [usd(0), MALFORMED_USD].map(
+          (value): [string, Partial<ScheduleV2>, Partial<SchedulePaidIdentity>] => [
+            'capReached',
+            { paidConsent: { ...consent, [key]: value } },
+            {},
+          ],
+        ),
+      ),
+    ]
+    const seen = new Set<string>()
+    for (const [expected, patch, change] of cases) {
+      // Exercise malformed internal records without parsing away the refusal branch.
+      const candidate = { ...record, ...patch }
+      expect(scheduleConsentFailure(candidate, { ...identity, ...change })).toBe(expected)
+      seen.add(expected)
+    }
+    const source = await readFile(
+      new URL('../../src/core/paid/paidConsent.ts', import.meta.url),
+      'utf8',
+    )
+    const branch = source.slice(
+      source.indexOf('export function scheduleConsentFailure'),
+      source.indexOf('/** Creation/renewal'),
+    )
+    const returns = Array.from(branch.matchAll(/(?:return|\?)\s*'([^']+)'/g), (match) => match[1])
+    expect(seen).toEqual(new Set(returns))
+    expect(returns).toHaveLength(seen.size)
+    const messages = UI_TEXT.scheduleV2.messages
+    const sentences = Object.entries(messages)
+      .filter(([key]) => seen.has(key))
+      .map(([, text]) => text)
+    expect(new Set(sentences).size).toBe(seen.size)
+  })
   it.each(['once', 'always', 'deny'] as const)(
     'asks once at creation with price, cadence and both caps: %s',
     async (answer: PaidUseAnswer) => {

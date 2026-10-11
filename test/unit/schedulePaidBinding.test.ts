@@ -1,4 +1,4 @@
-import { mkdtempSync } from 'node:fs'
+import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -63,7 +63,7 @@ async function fixture(
   const daily = createPaidDailyBudget({
     directory: folder,
     now: Date.now,
-    capUsd: () => Usd.from(cap).toAmount(),
+    capUsd: () => Usd.from(state.cap).toAmount(),
     sleep: () => Promise.resolve(),
     isModelApi: () => true,
   })
@@ -87,31 +87,42 @@ async function fixture(
     pricing: ModelPricing
     afterReserve?: () => Promise<void>
     accountId?: string
+    cap: number
+    afterHost?: () => Promise<void>
+    afterPricing?: () => Promise<void>
   } = {
     generation: 0,
+    cap,
     pricing: pricingOverride ?? modelPolicyFor(session.modelId).pricing,
   }
   const ask = vi.fn<ScheduleBillingPorts['ask']>(() => Promise.resolve(answer))
+  const reserve = vi.fn<ScheduleBillingPorts['reserve']>(async (...args) => {
+    const claim = await daily.reserveSchedule(...args)
+    await state.afterReserve?.()
+    return claim
+  })
   const billing = createScheduleBilling({
     modelId: () => session.modelId,
-    host: () =>
-      Promise.resolve({
-        schedulePricing: async (modelId) => ({
-          ...(await host.schedulePricing(modelId)),
-          pricing: state.pricing,
-          ...(state.accountId !== undefined && { accountId: state.accountId }),
-        }),
-      }),
+    host: async () => {
+      await state.afterHost?.()
+      return {
+        schedulePricing: async (modelId) => {
+          const quoted = await host.schedulePricing(modelId)
+          await state.afterPricing?.()
+          return {
+            ...quoted,
+            pricing: state.pricing,
+            ...(state.accountId !== undefined && { accountId: state.accountId }),
+          }
+        },
+      }
+    },
     generation: () => state.generation,
     capUsd: daily.capUsd,
     isActive: () => true,
     isOn: () => true,
     ask,
-    reserve: async (...args) => {
-      const claim = await daily.reserveSchedule(...args)
-      await state.afterReserve?.()
-      return claim
-    },
+    reserve,
     ...portOverrides,
   })
   const fs = new MemoryScheduleFs()
@@ -128,10 +139,157 @@ async function fixture(
     ...(consent !== undefined && { paidConsent: consent }),
   })
   await store.create(schedule)
-  return { billing, ask, session, schedule, authority, daily, state, api, host }
+  return { billing, ask, session, schedule, authority, daily, state, api, host, reserve }
 }
 
 describe('editor schedule billing over the actual authority and hard ledger', () => {
+  it('inventories every paid-fire refusal sentence so new causes cannot silently reuse one', () => {
+    const causes = [
+      'changedPayer',
+      'changedModel',
+      'changedKey',
+      'changedTariff',
+      'changedSharedCap',
+      'pausedPaid',
+      'changedGrant',
+      'changedRevision',
+      'lostOnceClaim',
+      'capReached',
+      'paidUnavailable',
+      'changedConsent',
+    ] as const
+    const source = ['host/schedules/paidBinding.ts', 'core/paid/paidConsent.ts']
+      .map((file) => readFileSync(new URL(`../../src/${file}`, import.meta.url), 'utf8'))
+      .join('\n')
+    const found = Array.from(
+      source.matchAll(
+        /UI_TEXT\.scheduleV2\.messages\.([A-Za-z]+)|return '(changed\w+|lostOnceClaim|capReached|paidUnavailable)'/g,
+      ),
+      (match) => match[1] ?? match[2],
+    ).filter((key) => key !== 'paidConsent' && key !== 'allowAlways')
+    expect(new Set(found)).toEqual(new Set(causes))
+    expect(new Set(causes.map((key) => UI_TEXT.scheduleV2.messages[key])).size).toBe(causes.length)
+  })
+  it.each([
+    'pausedPaid',
+    'changedGrant',
+    'changedRevision',
+    'lostOnceClaim',
+    'changedSharedCap',
+  ] as const)('names %s at paid-fire admission', async (cause) => {
+    const f = await fixture(cause === 'lostOnceClaim' ? 'once' : 'always')
+    try {
+      if (cause === 'lostOnceClaim') vi.spyOn(f.authority, 'commit').mockResolvedValue(false)
+      else if (cause === 'changedSharedCap') f.state.cap = 4
+      else
+        await f.authority.commit(
+          {
+            ...f.schedule,
+            ...(cause === 'pausedPaid' && { paused: true }),
+            ...(cause === 'changedGrant' && {
+              grant: { ...f.schedule.grant, destinationIds: ['changed'] },
+            }),
+          },
+          { scheduleId: f.schedule.id, atMs: Date.now(), kind: 'changed' },
+        )
+      await expect(
+        f.billing.paid(f.schedule, f.session, fakeRunContext(f.schedule), f.authority),
+      ).rejects.toThrow(UI_TEXT.scheduleV2.messages[cause])
+      expect(f.reserve).not.toHaveBeenCalled()
+      expect(f.api.requests).toHaveLength(0)
+    } finally {
+      await f.host.close()
+    }
+  })
+  it.each([
+    'initialHost',
+    'initialPricing',
+    'initialAuthority',
+    'onceCommit',
+    'onceRead',
+    'onceRevision',
+    'reserveHost',
+    'reservePricing',
+    'reserveAuthority',
+    'reservation',
+    'postHost',
+    'postPricing',
+    'postAuthority',
+  ])('refuses or refunds changes across the %s await', async (phase) => {
+    const f = await fixture(phase.startsWith('once') ? 'once' : 'always')
+    try {
+      const boundaryRefusal =
+        phase.endsWith('Authority') || phase.startsWith('once') ? 'changedSharedCap' : 'pausedPaid'
+      const expected = phase === 'onceRevision' ? 'changedRevision' : boundaryRefusal
+      const pause = async () => {
+        const current = await read(f.schedule.workspaceKey, f.schedule.id)
+        if (current === undefined) throw new Error('missing schedule')
+        await commit(
+          { ...current, paused: true },
+          { scheduleId: current.id, atMs: Date.now(), kind: 'changed' },
+        )
+      }
+      const read = f.authority.read.bind(f.authority)
+      const commit = f.authority.commit.bind(f.authority)
+      let reads = 0
+      let quotes = 0
+      const beforeIndex = phase.startsWith('initial') ? 1 : 2
+      const target = phase.startsWith('post') ? beforeIndex + 1 : beforeIndex
+      vi.spyOn(f.authority, 'read').mockImplementation(async (...args) => {
+        const current = await read(...args)
+        reads++
+        if (phase === 'onceRevision' && reads === 2 && current !== undefined) {
+          await commit(
+            { ...current, name: 'edited during Once publication' },
+            { scheduleId: current.id, atMs: Date.now(), kind: 'changed' },
+          )
+          return await read(...args)
+        }
+        if (
+          (reads === 2 && phase === 'onceRead') ||
+          (reads === target && phase.endsWith('Authority'))
+        )
+          f.state.cap = 4
+        return current
+      })
+      if (phase === 'onceCommit')
+        vi.spyOn(f.authority, 'commit').mockImplementation(async (...args) => {
+          const hasCommitted = await commit(...args)
+          f.state.cap = 4
+          return hasCommitted
+        })
+      const onQuote = async () => {
+        quotes++
+        if (quotes === target) await pause()
+      }
+      if (phase.endsWith('Host')) f.state.afterHost = onQuote
+      if (phase.endsWith('Pricing')) f.state.afterPricing = onQuote
+      if (phase === 'reservation') f.state.afterReserve = pause
+      await expect(
+        (async () => {
+          const paid = await f.billing.paid(
+            f.schedule,
+            f.session,
+            fakeRunContext(f.schedule),
+            f.authority,
+          )
+          return await paid.policy.reserve(
+            body(f.session.modelId),
+            100,
+            new AbortController().signal,
+          )
+        })(),
+      ).rejects.toThrow(UI_TEXT.scheduleV2.messages[expected])
+      expect(f.reserve).toHaveBeenCalledTimes(
+        phase === 'reservation' || phase.startsWith('post') ? 1 : 0,
+      )
+      const total = await f.daily.latestDay()
+      expect(total.spentUsd).toBe('0')
+      expect(f.api.requests).toHaveLength(0)
+    } finally {
+      await f.host.close()
+    }
+  })
   it('reserves the selected tariff cold-cache and image charges before dispatch', async () => {
     const pricing = modelPolicyFor('muse-spark-1.3').pricing
     if (pricing.kind !== 'priced') throw new Error('missing verified tariff')
@@ -250,7 +408,7 @@ describe('editor schedule billing over the actual authority and hard ledger', ()
       f.state.pricing = { ...f.state.pricing, card: { ...f.state.pricing.card, output: 1 } }
       await expect(
         paid.policy.reserve(body(f.session.modelId), undefined, new AbortController().signal),
-      ).rejects.toThrow(UI_TEXT.scheduleV2.messages.changedConsent)
+      ).rejects.toThrow(UI_TEXT.scheduleV2.messages.changedTariff)
       const day = await f.daily.latestDay()
       expect(day.spentUsd).toBe('0')
     } finally {
@@ -391,6 +549,11 @@ describe('editor schedule billing over the actual authority and hard ledger', ()
     'refunds both nonsent claims when %s changes during reservation',
     async (change) => {
       const f = await fixture()
+      const refusalKey = {
+        key: 'changedKey',
+        tariff: 'changedTariff',
+        revocation: 'changedConsent',
+      } as const
       try {
         const paid = await f.billing.paid(
           f.schedule,
@@ -416,7 +579,7 @@ describe('editor schedule billing over the actual authority and hard ledger', ()
         }
         await expect(
           paid.policy.reserve(body(f.session.modelId), 100, new AbortController().signal),
-        ).rejects.toThrow(UI_TEXT.scheduleV2.messages.changedConsent)
+        ).rejects.toThrow(UI_TEXT.scheduleV2.messages[refusalKey[change]])
         const day = await f.daily.latestDay()
         expect(day.spentUsd).toBe('0')
         expect(f.api.requests).toHaveLength(0)
@@ -438,7 +601,9 @@ describe('editor schedule billing over the actual authority and hard ledger', ()
           f.state.pricing = { ...f.state.pricing, card: { ...f.state.pricing.card, output: 1 } }
         await expect(
           f.billing.paid(f.schedule, f.session, fakeRunContext(f.schedule), f.authority),
-        ).rejects.toThrow(UI_TEXT.scheduleV2.messages.changedConsent)
+        ).rejects.toThrow(
+          UI_TEXT.scheduleV2.messages[change === 'key' ? 'changedKey' : 'changedTariff'],
+        )
         const consent = await f.billing.consent(f.schedule)
         expect(consent).toBeDefined()
         expect(f.ask).toHaveBeenCalledTimes(2)

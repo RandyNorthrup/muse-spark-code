@@ -4,7 +4,8 @@
 // accounts developer detail) from Help.
 
 import { describe, expect, it } from 'vitest'
-import { featureCatalog } from '../../src/shared/featureCatalog'
+import { featureCatalog, referenceDescription } from '../../src/shared/featureCatalog'
+import { readFileSync } from 'node:fs'
 import { EN } from '../../src/shared/l10n/en'
 import { referenceModel } from '../../src/shared/reference/reference.generated'
 
@@ -35,8 +36,33 @@ describe('feature catalogue details merge', () => {
     const schedules = referenceModel().features.find((feature) => feature.id === 'schedules')
     if (schedules === undefined) throw new Error('missing generated schedules feature')
     const keys = schedules.details.flatMap((detail) => ('ui' in detail ? [detail.ui] : []))
-    expect(keys).toContain('referenceSchedulePaidConsent')
+    const consent = schedules.details.find(
+      (detail) =>
+        'conditions' in detail &&
+        detail.conditions.some(
+          ({ text }) => 'ui' in text && text.ui === 'referenceSchedulePaidConsent',
+        ),
+    )
+    expect(consent).toEqual(referenceDescription({ ui: 'referenceSchedulePaidConsent' }))
+    expect(consent).toMatchObject({ conditions: [{ when: 'scheduleDeliveryCertified=false' }] })
+    expect(EN.referenceSchedulePaidConsent).toContain('neither asks')
+    expect(EN.referenceSchedulePaidConsent).toContain('shared daily budget')
+    const roadmap = readFileSync(new URL('../../ROADMAP.md', import.meta.url), 'utf8')
+    expect(roadmap).toContain('neither asks for v2 consent nor reserves paid caps')
+    const readme = readFileSync(new URL('../../README.md', import.meta.url), 'utf8')
+    expect(readme).not.toContain('unattended runs are opt-in')
+    expect(readme).toContain('does not request v2 consent or reserve its paid caps')
     expect(keys).toContain('scheduledMediaSupport')
     expect(EN.scheduledMediaSupport).toContain('unsupported in this version')
   })
+  it.each(['schedules', 'scheduleDefaultDelivery', 'scheduleAgentCreation'])(
+    'conditions %s unattended/default/grant claims on certified delivery',
+    (setting) => {
+      const entry = referenceModel().settings.find((row) => row.id === `museSpark.${setting}`)
+      expect(entry?.text).toEqual(referenceDescription({ setting }))
+      expect(entry?.text).toMatchObject({
+        conditions: [{ when: 'scheduleDeliveryCertified=true' }],
+      })
+    },
+  )
 })

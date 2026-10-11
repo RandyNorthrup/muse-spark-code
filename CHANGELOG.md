@@ -32,13 +32,18 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
-- **Schedule paid authority** (C-M115-3). The existing billing port uses
+- **Schedule paid authority** (C-M115-3). The candidate billing port uses
   schedule-scoped questions in VS Code and ACP, explicit CLI flags with a
   printed quote, and one exact-money reservation for the schedule and shared
-  daily caps. Consent binds the paid key, model and verified tariff;
+  daily caps. Consent binds the payer kind, paid key, model, verified tariff
+  and shared daily budget (including the day's override);
   legacy or changed payer bindings require renewal, and Allow once cannot
   authorize a later fire. Changes during reservation refund nonsent claims.
-  Automatic delivery remains behind the existing certification switch.
+  Refusals identify the changed binding, cap, paused state, grant, revision
+  or lost once-only claim. Failed journal admissions create no in-memory
+  claim, and pricing waits cannot reuse authority read before a pause.
+  Automatic delivery remains behind the existing certification switch;
+  the running editor has no v2 consent or paid-cap reservation callback.
 
 - Native IDE calls can carry a session-bound identity. Unattended callers
   use their own grants, retired callers lose access, and colliding request

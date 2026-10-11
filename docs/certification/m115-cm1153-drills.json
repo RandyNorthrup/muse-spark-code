@@ -443,5 +443,131 @@
         "sha256Restored": "b51b27632a9d3a889e422514ead3f1b74a33f0456a404906547db3c758df9178"
       }
     ]
+  },
+  {
+    "id": "review-refusal",
+    "command": [
+      "node",
+      "node_modules/vitest/vitest.mjs",
+      "run",
+      "test/unit/schedulePaid.test.ts",
+      "test/unit/schedulePaidBinding.test.ts",
+      "--maxWorkers=3"
+    ],
+    "exit": 1,
+    "failedTests": ["enumerates every consent refusal branch"],
+    "files": [
+      {
+        "file": "src/core/paid/paidConsent.ts",
+        "before": "f5b32ac280e2aca8ba34d55103085c322e0344a49c067fcbcc54e19e72b96796",
+        "restored": "f5b32ac280e2aca8ba34d55103085c322e0344a49c067fcbcc54e19e72b96796"
+      }
+    ]
+  },
+  {
+    "id": "review-docs",
+    "command": [
+      "node",
+      "node_modules/vitest/vitest.mjs",
+      "run",
+      "test/unit/featureCatalogDetails.test.ts",
+      "--maxWorkers=3"
+    ],
+    "exit": 1,
+    "failedTests": ["ships the schedules limitation"],
+    "files": [
+      {
+        "file": "src/shared/l10n/en.ts",
+        "before": "2e2511488e632fabadb12913ea443a379ed1184e26afe0b06deac5ad8606c02d",
+        "restored": "2e2511488e632fabadb12913ea443a379ed1184e26afe0b06deac5ad8606c02d"
+      },
+      {
+        "file": "src/shared/featureCatalog.ts",
+        "before": "8090dd1fc730adeb18cb4f6bfa4eec420bf8c577ab36a8f175a005c1b998f8b9",
+        "restored": "8090dd1fc730adeb18cb4f6bfa4eec420bf8c577ab36a8f175a005c1b998f8b9"
+      },
+      {
+        "file": "src/shared/reference/reference.generated.ts",
+        "before": "1211ae2ccd98abdeda5d2fd8f0c8fd9c238ff55914b925e4c52127ef5b27555b",
+        "restored": "1211ae2ccd98abdeda5d2fd8f0c8fd9c238ff55914b925e4c52127ef5b27555b"
+      },
+      {
+        "file": "src/shared/reference/reference.generated.json",
+        "before": "8565132ef297d73f2a50f82566c0a8fd678c876ca909baa6435720f627c89833",
+        "restored": "8565132ef297d73f2a50f82566c0a8fd678c876ca909baa6435720f627c89833"
+      },
+      {
+        "file": "src/runtime/reference.node.generated.ts",
+        "before": "08c24e6b69b4985f8e9df4fb954a8e8740bd62f01c20660649a8471f840f45f8",
+        "restored": "08c24e6b69b4985f8e9df4fb954a8e8740bd62f01c20660649a8471f840f45f8"
+      },
+      {
+        "file": "docs/reference.md",
+        "before": "4cc6eb610742a715bf58b2bc5d5ebbfe8e476209eecbdd4e9d2d12e0ba1ece13",
+        "restored": "4cc6eb610742a715bf58b2bc5d5ebbfe8e476209eecbdd4e9d2d12e0ba1ece13"
+      },
+      {
+        "file": "ROADMAP.md",
+        "before": "15aef898ba403d49026c4849a9017d4135dc2d6ad7ac8e97b2bf635b8c81b92e",
+        "restored": "15aef898ba403d49026c4849a9017d4135dc2d6ad7ac8e97b2bf635b8c81b92e"
+      }
+    ]
+  },
+  {
+    "id": "review-admission",
+    "command": [
+      "node",
+      "node_modules/vitest/vitest.mjs",
+      "run",
+      "test/unit/paidDailyBudget.test.ts",
+      "--maxWorkers=3"
+    ],
+    "exit": 1,
+    "failedTests": ["publishes no authority claim"],
+    "files": [
+      {
+        "file": "src/host/paid/paidDailyBudget.ts",
+        "before": "3733ac92bd29e1a3269ee42add83257ffe7be1a72c83f40d67e5a15f98fdaf55",
+        "restored": "3733ac92bd29e1a3269ee42add83257ffe7be1a72c83f40d67e5a15f98fdaf55"
+      }
+    ]
+  },
+  {
+    "id": "review-await",
+    "command": [
+      "node",
+      "node_modules/vitest/vitest.mjs",
+      "run",
+      "test/unit/schedulePaidBinding.test.ts",
+      "--maxWorkers=3"
+    ],
+    "exit": 1,
+    "failedTests": ["refuses or refunds changes across the reservePricing await"],
+    "files": [
+      {
+        "file": "src/host/schedules/paidBinding.ts",
+        "before": "183d057eb22392dfa54f7749b4c6e0e2200d41be66b0367a7c7686ef9c96b0ca",
+        "restored": "183d057eb22392dfa54f7749b4c6e0e2200d41be66b0367a7c7686ef9c96b0ca"
+      }
+    ]
+  },
+  {
+    "id": "review-once-revision",
+    "command": [
+      "node",
+      "node_modules/vitest/vitest.mjs",
+      "run",
+      "test/unit/schedulePaidBinding.test.ts",
+      "--maxWorkers=3"
+    ],
+    "exit": 1,
+    "failedTests": ["refuses or refunds changes across the onceRevision await"],
+    "files": [
+      {
+        "file": "src/host/schedules/paidBinding.ts",
+        "before": "183d057eb22392dfa54f7749b4c6e0e2200d41be66b0367a7c7686ef9c96b0ca",
+        "restored": "183d057eb22392dfa54f7749b4c6e0e2200d41be66b0367a7c7686ef9c96b0ca"
+      }
+    ]
   }
 ]

@@ -757,7 +757,7 @@
       "unattendedRefusal": "Rechazado en la programación: {action} necesita aprobación y no está incluido en los permisos de esta programación.",
       "deferredQuestions": "Las preguntas se aplazan inmediatamente y quedan abiertas para que respondas.",
       "paidConsent": "Programar {prompt} con {model}: {price}. Frecuencia: {cadence}. Límite: {cap} por día local; presupuesto diario compartido: {budget}. El consentimiento solo cubre los extras de pago seleccionados. Los cargos se facturan a tu clave de Model API; la suscripción no los cubre.",
-      "changedConsent": "El modelo, la clave o la tarifa cambió. Renueva el consentimiento antes de la próxima ejecución de pago.",
+      "changedConsent": "Falta el consentimiento de pago de esta programación o ha cambiado. Renuévalo antes de otra ejecución de pago.",
       "setBy": "Creado por {agent} en {session}",
       "migrationConsent": "Programación migrada en pausa. Revisa el modo, los permisos y el consentimiento de pago antes de reanudar.",
       "collision": "Las ejecuciones en este destino coinciden; se ejecutan en orden de creación.",
@@ -778,7 +778,18 @@
       "openWhenBack": "Abrir cuando vuelva",
       "plannedDestination": "Este destino está previsto y no está disponible.",
       "expiredOwner": "Esta programación terminó con la sesión o el equipo de su creador.",
-      "allowAlways": "Permitir siempre para esta programación"
+      "allowAlways": "Permitir siempre para esta programación",
+      "changedPayer": "Cambió el tipo de pagador. Renueva el consentimiento de pago de esta programación.",
+      "changedModel": "Cambió el modelo seleccionado. Renueva el consentimiento de pago de esta programación.",
+      "changedKey": "Cambió la cuenta pagadora o la clave. Renueva el consentimiento de pago de esta programación.",
+      "changedTariff": "Cambió la tarifa verificada. Renueva el consentimiento de pago de esta programación.",
+      "changedSharedCap": "Cambió el presupuesto diario compartido. Renueva el consentimiento de pago de esta programación.",
+      "pausedPaid": "Esta programación está pausada. Reanúdala antes de otra ejecución de pago.",
+      "changedGrant": "Cambiaron los permisos de esta programación. Revísalos y renueva el consentimiento.",
+      "changedRevision": "Cambió la programación o su sesión activa. Recárgala antes de otra ejecución de pago.",
+      "lostOnceClaim": "Esta ejecución ya no posee el consentimiento de un solo uso. Renuévalo para otra ejecución.",
+      "capReached": "El límite diario de la programación o el compartido no permite esta ejecución de pago.",
+      "paidUnavailable": "Esta operación de pago no está disponible o no fue aprobada para esta programación."
     },
     "endAfterRuns": {
       "one": "Finalizar tras {count} ejecución",
@@ -793,7 +804,7 @@
   },
   "scheduledMediaSupport": "Los turnos programados admiten entradas de texto e imágenes; las entradas de vídeo y audio no son compatibles con esta versión.",
   "referenceSchedules": "El editor, la lista y la cronología de programaciones v2 gestionan registros persistentes. El envío automático de instrucciones está desactivado. Las tareas /loop de Model API se ejecutan al elegir Ejecutar ahora.",
-  "referenceSchedulePaidConsent": "El consentimiento de una programación v2 se vincula a la clave de pago, el modelo seleccionado, las tarifas verificadas y los límites diarios. Permitir una vez cubre una ejecución; Permitir siempre cubre esta programación. Cambiar el modelo, la clave o la tarifa requiere renovar el consentimiento.",
+  "referenceSchedulePaidConsent": "La ejecución automática está desactivada; el editor en ejecución no solicita el consentimiento v2 ni reserva sus límites de pago. El módulo de facturación preparado vincula el consentimiento al tipo de pagador, modelo, clave, tarifa verificada y presupuesto diario compartido; cualquier cambio exige renovarlo. Permitir una vez cubre una ejecución; Permitir siempre cubre esta programación.",
   "media": {
     "recordingScreenPermissionRequired": "No se ha concedido permiso para grabar la pantalla.",
     "recordingMicrophonePermissionDenied": "Se ha denegado el permiso del micrófono.",

@@ -1524,7 +1524,14 @@
             { "when": "scheduleDeliveryCertified=false", "text": { "ui": "referenceSchedules" } }
           ]
         },
-        { "ui": "referenceSchedulePaidConsent" },
+        {
+          "conditions": [
+            {
+              "when": "scheduleDeliveryCertified=false",
+              "text": { "ui": "referenceSchedulePaidConsent" }
+            }
+          ]
+        },
         { "ui": "scheduledMediaSupport" }
       ],
       "facts": {
@@ -3070,6 +3077,11 @@
       "schema": { "type": "boolean", "default": true }
     },
     {
+      "text": {
+        "conditions": [
+          { "when": "scheduleDeliveryCertified=true", "text": { "setting": "schedules" } }
+        ]
+      },
       "id": "museSpark.schedules",
       "name": "museSpark.schedules",
       "description": "Enable schedules on available backends. On by default; each fire runs unattended within its standing grant.",
@@ -3081,6 +3093,14 @@
       "schema": { "type": "boolean", "default": true }
     },
     {
+      "text": {
+        "conditions": [
+          {
+            "when": "scheduleDeliveryCertified=true",
+            "text": { "setting": "scheduleDefaultDelivery" }
+          }
+        ]
+      },
       "id": "museSpark.scheduleDefaultDelivery",
       "name": "museSpark.scheduleDefaultDelivery",
       "description": "Default delivery for new schedules: a new turn starts on idle by default.",
@@ -3097,6 +3117,14 @@
       }
     },
     {
+      "text": {
+        "conditions": [
+          {
+            "when": "scheduleDeliveryCertified=true",
+            "text": { "setting": "scheduleAgentCreation" }
+          }
+        ]
+      },
       "id": "museSpark.scheduleAgentCreation",
       "name": "museSpark.scheduleAgentCreation",
       "description": "Default permission for agents to create schedules: ask, always within caps, or never. Ask by default.",

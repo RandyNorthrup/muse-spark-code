@@ -756,7 +756,7 @@
       "unattendedRefusal": "Im Zeitplan abgelehnt: {action} benötigt eine Genehmigung und gehört nicht zur Freigabe dieses Zeitplans.",
       "deferredQuestions": "Fragen werden sofort zurückgestellt und bleiben für Ihre Antwort offen.",
       "paidConsent": "{prompt} mit {model} planen: {price}. Rhythmus: {cadence}. Zeitplanbudget: {cap} pro lokalem Tag; gemeinsames Tagesbudget: {budget}. Die Zustimmung gilt nur für die ausgewählten kostenpflichtigen Extras. Die Kosten werden Ihrem Model-API-Schlüssel berechnet; das Abonnement bezahlt sie nicht.",
-      "changedConsent": "Modell, Schlüssel oder Preisstufe haben sich geändert. Erneuern Sie die Zustimmung vor der nächsten kostenpflichtigen Ausführung.",
+      "changedConsent": "Die Zustimmung dieses Zeitplans fehlt oder hat sich geändert. Erneuern Sie sie vor der nächsten kostenpflichtigen Ausführung.",
       "setBy": "Von {agent} in {session} eingerichtet",
       "migrationConsent": "Migrierter Zeitplan pausiert. Prüfen Sie Modus, Freigabe und Kostenzustimmung vor dem Fortsetzen.",
       "collision": "Ausführungen für dieses Ziel überschneiden sich; sie laufen in Erstellungsreihenfolge.",
@@ -777,7 +777,18 @@
       "openWhenBack": "Öffnen, wenn ich zurück bin",
       "plannedDestination": "Dieses Ziel ist geplant und nicht verfügbar.",
       "expiredOwner": "Dieser Zeitplan endete mit der Sitzung oder dem Team seines Erstellers.",
-      "allowAlways": "Für diesen Zeitplan immer erlauben"
+      "allowAlways": "Für diesen Zeitplan immer erlauben",
+      "changedPayer": "Die Art des Zahlers hat sich geändert. Erneuern Sie die Zustimmung für diesen Zeitplan.",
+      "changedModel": "Das gewählte Modell hat sich geändert. Erneuern Sie die Zustimmung für diesen Zeitplan.",
+      "changedKey": "Das zahlende Konto oder der Schlüssel hat sich geändert. Erneuern Sie die Zustimmung für diesen Zeitplan.",
+      "changedTariff": "Der geprüfte Tarif hat sich geändert. Erneuern Sie die Zustimmung für diesen Zeitplan.",
+      "changedSharedCap": "Das gemeinsame Tagesbudget hat sich geändert. Erneuern Sie die Zustimmung für diesen Zeitplan.",
+      "pausedPaid": "Dieser Zeitplan ist pausiert. Setzen Sie ihn vor einer weiteren kostenpflichtigen Ausführung fort.",
+      "changedGrant": "Die Berechtigungen dieses Zeitplans haben sich geändert. Prüfen Sie sie und erneuern Sie die Zustimmung.",
+      "changedRevision": "Der Zeitplan oder seine laufende Sitzung hat sich geändert. Laden Sie ihn vor der nächsten kostenpflichtigen Ausführung neu.",
+      "lostOnceClaim": "Diese Ausführung besitzt die einmalige Zustimmung nicht mehr. Erneuern Sie sie für eine weitere Ausführung.",
+      "capReached": "Das Tageslimit des Zeitplans oder das gemeinsame Tageslimit erlaubt diese kostenpflichtige Ausführung nicht.",
+      "paidUnavailable": "Dieser kostenpflichtige Vorgang ist nicht verfügbar oder wurde für diesen Zeitplan nicht genehmigt."
     },
     "endAfterRuns": {
       "one": "Nach {count} Ausführung beenden",
@@ -790,7 +801,7 @@
   },
   "scheduledMediaSupport": "Geplante Durchläufe unterstützen Text- und Bildeingaben; Video- und Audioeingaben werden in dieser Version nicht unterstützt.",
   "referenceSchedules": "Der v2-Planungseditor, die Liste und die Zeitleiste verwalten dauerhafte Einträge. Die automatische Übermittlung von Prompts ist deaktiviert. Model-API-/loop-Aufträge starten, wenn Sie Jetzt ausführen wählen.",
-  "referenceSchedulePaidConsent": "Die Zustimmung zu einem v2-Zeitplan bindet den kostenpflichtigen Schlüssel, das gewählte Modell, geprüfte Tarife und Tageslimits. Einmal erlauben gilt für eine Ausführung; Immer erlauben gilt für diesen Zeitplan. Bei geändertem Modell, Schlüssel oder Tarif ist eine neue Zustimmung erforderlich.",
+  "referenceSchedulePaidConsent": "Die automatische Ausführung ist deaktiviert; der laufende Editor fragt weder nach der Zustimmung für v2-Zeitpläne noch reserviert er deren Kostenlimits. Der vorbereitete Abrechnungsanschluss bindet die Zustimmung an Zahlertyp, Modell, Schlüssel, geprüften Tarif und gemeinsames Tagesbudget; jede Änderung erfordert eine Erneuerung. Einmal erlauben gilt für eine Ausführung; Immer erlauben gilt für diesen Zeitplan.",
   "media": {
     "recordingScreenPermissionRequired": "Die Berechtigung zur Bildschirmaufnahme wurde nicht erteilt.",
     "recordingMicrophonePermissionDenied": "Die Mikrofonberechtigung wurde verweigert.",

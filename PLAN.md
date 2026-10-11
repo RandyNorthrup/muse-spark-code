@@ -35874,8 +35874,13 @@ Total: about 165 lane-hours: the panel's part (0, A, P1, P2, C, F, S) about
 ### M115 — Scheduled prompts v2: unattended, stacked, with a delivery mode (D95)
 
 **C-M115-3 paid authority (2026-10-11, win11): implemented; held for certification.**
-The existing schedule billing port supplies schedule-scoped D48 questions in VS Code and ACP,
-explicit CLI authorization, payer/model/key/tariff binding, one-use renewal,
+RVCM1153 repair covers cause-specific translated refusals, truthful gated
+Help/roadmap and consent/cap documentation, and journal-first in-memory claim
+publication for every daily reservation caller. Regressions cover consent
+causes and each awaited authority/pricing/reservation boundary; deliberate
+red controls restore byte-exact source. Automatic delivery remains off.
+The candidate schedule billing port supplies schedule-scoped D48 questions in VS Code and ACP,
+explicit CLI authorization, payer/model/key/tariff/shared-cap binding, one-use renewal,
 and the same exact-money schedule/D78 reservation in editor and standalone
 runtime. No unattended fire opens a permission prompt: invalid consent refuses
 before HTTP and must be renewed through an interactive schedule edit. Legacy

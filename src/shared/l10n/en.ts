@@ -925,8 +925,21 @@ export const EN = {
       allowAlways: 'Allow always for this schedule',
       paidConsent:
         'Schedule {prompt} on {model}: {price}. Cadence: {cadence}. Schedule cap: {cap} per local day; shared daily budget: {budget}. Consent covers only the selected paid extras. Charges are billed to your Model API key; your subscription does not pay for them.',
+      changedPayer: 'The payer kind changed. Renew this schedule’s paid consent.',
+      changedModel: 'The selected model changed. Renew this schedule’s paid consent.',
+      changedKey: 'The paying account or key changed. Renew this schedule’s paid consent.',
+      changedTariff: 'The verified tariff changed. Renew this schedule’s paid consent.',
+      changedSharedCap: 'The shared daily budget changed. Renew this schedule’s paid consent.',
+      pausedPaid: 'This schedule is paused. Resume it before another paid fire.',
+      changedGrant: 'This schedule’s permission grant changed. Review its grant and renew consent.',
+      changedRevision:
+        'The schedule or its running session changed. Reload it before another paid fire.',
+      lostOnceClaim:
+        'This fire no longer owns the once-only consent. Renew consent for another fire.',
+      capReached: 'The schedule or shared daily cap does not admit this paid fire.',
+      paidUnavailable: 'This paid operation is unavailable or was not approved for this schedule.',
       changedConsent:
-        'The model, key or price tier changed. Renew this schedule’s consent before its next paid fire.',
+        'This schedule’s paid consent is missing or changed. Renew it before another paid fire.',
       setBy: 'Set by {agent} in {session}',
       migrationConsent:
         'Migrated schedule paused. Review its mode, grant and paid consent before resuming.',
@@ -967,7 +980,7 @@ export const EN = {
   referenceSchedules:
     'The v2 schedule editor, list and timeline manage durable records. Automatic prompt delivery is disabled. Model API /loop jobs run when you choose Run now.',
   referenceSchedulePaidConsent:
-    'V2 schedule consent binds the paid key, selected model, verified rates and daily caps. Allow once covers one fire; Allow always covers this schedule. A changed model, key or rate requires renewed consent.',
+    'Automatic delivery is disabled; the running editor neither asks for v2 schedule consent nor reserves its paid caps. The candidate billing port binds consent to payer kind, model, key, verified tariff and shared daily budget; changing any requires renewal. Allow once covers one fire; Allow always covers this schedule.',
   media: {
     recordingScreenPermissionRequired: 'Screen Recording permission has not been granted.',
     recordingMicrophonePermissionDenied: 'Microphone permission was denied.',

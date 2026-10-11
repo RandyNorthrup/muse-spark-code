@@ -53,7 +53,7 @@ built, what is planned and what each release shipped.
 [Troubleshooting](#troubleshooting) ·
 [Reporting a problem](#reporting-a-problem) · [Development](#development)
 
-Schedule budgets, consent and rental cost evidence use exact decimal USD. Saved
+Candidate schedule budgets and consent, and rental cost evidence, use exact decimal USD. Saved
 reports write money version 2; historical numeric reports retain their original
 hash verification and migrate when read.
 
@@ -352,8 +352,9 @@ panel enforcement waits for M96's planner (see
   paid wherever it is used, and tallied in Account & usage.
 - **Scheduled prompts under your control.** On the Model API backend,
   `/loop` saves a recurring prompt in this conversation. By default a due
-  prompt waits for you to run and confirm it; unattended runs are opt-in
-  per schedule with a hard spending cap, and your key is never spent
+  prompt waits for you to run and confirm it; unattended v2 delivery is disabled,
+  and the running editor does not request v2 consent or reserve its paid caps.
+  Your key is never spent
   without your consent. Scheduled turns currently cannot read video or audio:
   verified upload storage, the captured media codec and production calibration bindings are
   unavailable (PLAN D85.6, M105). The shared paid accounting refuses bills
@@ -2357,11 +2358,14 @@ offers the same list, except `run-due` and background maintenance, and only
 while the agent runs with `--scheduled-prompts` (again with
 `--max-budget-usd`).
 
-The v2 billing port asks at creation or renewal for one schedule's prompt,
+Automatic delivery is disabled: the running editor stores schedule records,
+but does not ask for v2 schedule consent or reserve either paid cap. The
+candidate v2 billing port asks at creation or renewal for one schedule's prompt,
 selected model, verified rates, cadence and both daily caps. **Allow once**
 covers one fire; **Allow always for this schedule** covers that schedule.
 Workspace-wide paid grants do not authorize it. Changed models, keys, tariffs
-or payer kinds require renewed consent; unattended fires refuse stale consent
+or payer kinds, and changes to the shared daily budget (including a day's
+override), require renewed consent; unattended fires refuse stale consent
 before HTTP. VS Code and ACP use the same question; CLI authorization requires
 both explicit flags and printing that quote. Exact-money reservations share
 the schedule cap and the host's D78 daily ledger, including retained uncertain

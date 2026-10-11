@@ -82,23 +82,34 @@ export function isScheduleConsentCurrent(
   schedule: ScheduleV2,
   identity: SchedulePaidIdentity,
 ): boolean {
+  return scheduleConsentFailure(schedule, identity) === undefined
+}
+
+/** Every false consent branch has a translated refusal, shared by all hosts. */
+export function scheduleConsentFailure(
+  schedule: ScheduleV2,
+  identity: SchedulePaidIdentity,
+): keyof typeof UI_TEXT.scheduleV2.messages | undefined {
+  if (schedule.action.kind !== 'prompt') return 'paidUnavailable'
   const consent = schedule.paidConsent
-  return (
-    schedule.action.kind === 'prompt' &&
-    consent !== undefined &&
-    nonnegativeUsdSchema.safeParse(consent.dailyCapUsd).success &&
-    consent.dailyCapUsd !== '0' &&
-    nonnegativeUsdSchema.safeParse(consent.sharedDailyBudgetUsd).success &&
-    consent.sharedDailyBudgetUsd !== '0' &&
-    consent.modelId === identity.modelId &&
-    consent.accountId === identity.accountId &&
-    consent.priceTier === identity.priceTier &&
-    identity.payerKind === 'paidKey' &&
-    consent.payerKind === identity.payerKind &&
-    consent.sharedDailyBudgetUsd === identity.sharedDailyBudgetUsd &&
-    Usd.from(consent.dailyCapUsd).compare(Usd.from(schedule.paidCapUsd)) <= 0 &&
-    Usd.from(consent.dailyCapUsd).compare(Usd.from(schedule.grant.paidCapUsd)) <= 0
+  if (consent === undefined) return 'changedConsent'
+  if (identity.payerKind !== 'paidKey' || consent.payerKind !== identity.payerKind)
+    return 'changedPayer'
+  if (consent.modelId !== identity.modelId) return 'changedModel'
+  if (consent.accountId !== identity.accountId) return 'changedKey'
+  if (consent.priceTier !== identity.priceTier) return 'changedTariff'
+  if (
+    !nonnegativeUsdSchema.safeParse(consent.dailyCapUsd).success ||
+    consent.dailyCapUsd === '0' ||
+    !nonnegativeUsdSchema.safeParse(consent.sharedDailyBudgetUsd).success ||
+    consent.sharedDailyBudgetUsd === '0' ||
+    Usd.from(consent.dailyCapUsd).compare(Usd.from(schedule.paidCapUsd)) > 0
   )
+    return 'capReached'
+  if (consent.sharedDailyBudgetUsd !== identity.sharedDailyBudgetUsd) return 'changedSharedCap'
+  return Usd.from(consent.dailyCapUsd).compare(Usd.from(schedule.grant.paidCapUsd)) > 0
+    ? 'changedGrant'
+    : undefined
 }
 
 /** Creation/renewal only. No workspace-wide grant can silently authorize a schedule. */
@@ -190,18 +201,26 @@ export function createSchedulePaidScope(deps: {
     signal: AbortSignal,
   ) => Promise<SessionBudgetClaim>
 }) {
-  const isValid = () =>
-    deps.isCurrent() &&
-    isScheduleConsentCurrent(deps.schedule, deps.currentIdentity()) &&
-    (deps.schedule.paidConsent?.scope !== 'once' ||
-      (deps.runId !== undefined && deps.schedule.paidConsent.runId === deps.runId))
-  const canUse = (feature: PaidFeature) =>
-    isValid() &&
-    (deps.backend === 'museCode' || deps.isOn('scheduledPrompts')) &&
-    deps.isOn(feature) &&
-    (feature === 'scheduledPrompts'
-      ? deps.backend === 'modelApi'
-      : deps.schedule.paidConsent?.extras.includes(feature) === true)
+  const refusal = (feature: PaidFeature): keyof typeof UI_TEXT.scheduleV2.messages | undefined => {
+    if (!deps.isCurrent()) return 'changedRevision'
+    const failure = scheduleConsentFailure(deps.schedule, deps.currentIdentity())
+    if (failure !== undefined) return failure
+    if (
+      deps.schedule.paidConsent?.scope === 'once' &&
+      (deps.runId === undefined || deps.schedule.paidConsent.runId !== deps.runId)
+    )
+      return 'lostOnceClaim'
+    if (
+      (deps.backend !== 'museCode' && !deps.isOn('scheduledPrompts')) ||
+      !deps.isOn(feature) ||
+      (feature === 'scheduledPrompts'
+        ? deps.backend !== 'modelApi'
+        : deps.schedule.paidConsent?.extras.includes(feature) !== true)
+    )
+      return 'paidUnavailable'
+    return undefined
+  }
+  const canUse = (feature: PaidFeature) => refusal(feature) === undefined
   const claims = new Map<string, { usd: UsdAmount; settled: boolean }>()
   let settledUsd = Usd.from(0)
   let hasUnknown = false
@@ -231,12 +250,11 @@ export function createSchedulePaidScope(deps: {
       reservationUsd?: UsdAmount,
     ): Promise<SessionBudgetClaim> => {
       signal.throwIfAborted()
-      if (
-        !canUse('input' in body ? 'scheduledPrompts' : 'imageGeneration') ||
-        ('input' in body && body.model !== deps.identity.modelId)
-      )
-        throw new Error(UI_TEXT.scheduleV2.messages.changedConsent)
       const feature = 'input' in body ? 'scheduledPrompts' : 'imageGeneration'
+      const failure = refusal(feature)
+      if (failure !== undefined) throw new Error(UI_TEXT.scheduleV2.messages[failure])
+      if ('input' in body && body.model !== deps.identity.modelId)
+        throw new Error(UI_TEXT.scheduleV2.messages.changedModel)
       const costUsd = reservationUsd ?? deps.estimate(body, inputTokens)
       if (Usd.from(costUsd).compare(Usd.from(0)) <= 0)
         throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
@@ -244,7 +262,8 @@ export function createSchedulePaidScope(deps: {
       claims.set(claim.claimId, { usd: claim.reservedUsd, settled: false })
       const check = () => {
         signal.throwIfAborted()
-        if (!canUse(feature)) throw new Error(UI_TEXT.scheduleV2.messages.changedConsent)
+        const failure = refusal(feature)
+        if (failure !== undefined) throw new Error(UI_TEXT.scheduleV2.messages[failure])
         return claim.check(Usd.from(0).toAmount())
       }
       const settle = async (actualCostUsd: UsdAmount, hasUnknownCost = false) => {

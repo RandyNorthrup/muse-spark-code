@@ -756,7 +756,7 @@
       "unattendedRefusal": "Ütemezéskor elutasítva: {action} jóváhagyást igényel, és nincs az ütemezés engedélyében.",
       "deferredQuestions": "A kérdések azonnal halasztódnak, és nyitva maradnak a válaszára.",
       "paidConsent": "{prompt} ütemezése ezzel: {model}; ár: {price}. Gyakoriság: {cadence}. Keret: {cap} helyi naponként; közös napi keret: {budget}. A beleegyezés csak a kiválasztott fizetős extrákra vonatkozik. A díjakat a Model API-kulcsodra terheljük; az előfizetés nem fedezi őket.",
-      "changedConsent": "A modell, a kulcs vagy az árszint megváltozott. Újítsa meg a beleegyezést a következő fizetős futás előtt.",
+      "changedConsent": "Az ütemezés fizetési hozzájárulása hiányzik vagy megváltozott. Újítsa meg egy újabb fizetős futtatás előtt.",
       "setBy": "Beállította: {agent}, itt: {session}",
       "migrationConsent": "Az átvitt ütemezés szünetel. Folytatás előtt ellenőrizze a módot, az engedélyt és a fizetési beleegyezést.",
       "collision": "A cél futásai ütköznek; létrehozási sorrendben futnak.",
@@ -777,7 +777,18 @@
       "openWhenBack": "Megnyitás, amikor visszatérek",
       "plannedDestination": "Ez a cél tervezett, és nem érhető el.",
       "expiredOwner": "Az ütemezés a létrehozó munkamenetével vagy csapatával együtt véget ért.",
-      "allowAlways": "Mindig engedélyezze ehhez az ütemezéshez"
+      "allowAlways": "Mindig engedélyezze ehhez az ütemezéshez",
+      "changedPayer": "Megváltozott a fizető típusa. Újítsa meg az ütemezés fizetési hozzájárulását.",
+      "changedModel": "Megváltozott a kiválasztott modell. Újítsa meg az ütemezés fizetési hozzájárulását.",
+      "changedKey": "Megváltozott a fizető fiók vagy a kulcs. Újítsa meg az ütemezés fizetési hozzájárulását.",
+      "changedTariff": "Megváltozott az ellenőrzött díjszabás. Újítsa meg az ütemezés fizetési hozzájárulását.",
+      "changedSharedCap": "Megváltozott a közös napi keret. Újítsa meg az ütemezés fizetési hozzájárulását.",
+      "pausedPaid": "Ez az ütemezés szünetel. Folytassa egy újabb fizetős futtatás előtt.",
+      "changedGrant": "Megváltoztak az ütemezés engedélyei. Ellenőrizze őket, és újítsa meg a hozzájárulást.",
+      "changedRevision": "Megváltozott az ütemezés vagy annak futó munkamenete. Töltse be újra egy újabb fizetős futtatás előtt.",
+      "lostOnceClaim": "Ez a futtatás már nem birtokolja az egyszeri hozzájárulást. Újítsa meg egy újabb futtatáshoz.",
+      "capReached": "Az ütemezés napi korlátja vagy a közös napi korlát nem engedi ezt a fizetős futtatást.",
+      "paidUnavailable": "Ez a fizetős művelet nem érhető el, vagy nem hagyták jóvá ehhez az ütemezéshez."
     },
     "endAfterRuns": {
       "one": "Befejezés {count} futás után",
@@ -790,7 +801,7 @@
   },
   "scheduledMediaSupport": "Az ütemezett körök szöveges és képes bemeneteket támogatnak; a videó- és hangbemenetek ebben a verzióban nem támogatottak.",
   "referenceSchedules": "A v2 ütemezésszerkesztő, lista és idővonal tartós rekordokat kezel. A kérések automatikus küldése ki van kapcsolva. A Model API /loop feladatai a Futtatás most választásakor indulnak.",
-  "referenceSchedulePaidConsent": "A v2 ütemezéshez adott beleegyezés a fizetős kulcshoz, a kiválasztott modellhez, az ellenőrzött díjakhoz és a napi keretekhez kötött. Az egyszeri engedély egy futást, az állandó engedély ezt az ütemezést fedezi. A modell, a kulcs vagy a díj változásakor új beleegyezés szükséges.",
+  "referenceSchedulePaidConsent": "Az automatikus futtatás ki van kapcsolva; a futó szerkesztő nem kér v2 ütemezési hozzájárulást, és nem foglalja le a fizetési kereteket. Az előkészített számlázási modul a hozzájárulást a fizető típusához, a modellhez, a kulcshoz, az ellenőrzött díjszabáshoz és a közös napi kerethez köti; bármely változás megújítást igényel. Az egyszeri engedély egy futtatásra, az állandó engedély erre az ütemezésre vonatkozik.",
   "media": {
     "recordingScreenPermissionRequired": "A képernyőfelvétel engedélye nincs megadva.",
     "recordingMicrophonePermissionDenied": "A mikrofon engedélyét megtagadták.",

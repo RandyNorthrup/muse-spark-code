@@ -758,7 +758,7 @@
       "unattendedRefusal": "Odmítnuto v plánu: {action} vyžaduje schválení a není v povolení tohoto plánu.",
       "deferredQuestions": "Otázky se ihned odloží a zůstávají otevřené pro vaši odpověď.",
       "paidConsent": "Naplánovat {prompt} s {model}: {price}. Četnost: {cadence}. Limit: {cap} za místní den; sdílený denní rozpočet: {budget}. Souhlas pokrývá pouze vybrané placené doplňky. Poplatky se účtují vašemu klíči Model API; předplatné je nehradí.",
-      "changedConsent": "Model, klíč nebo cenová úroveň se změnily. Obnovte souhlas před dalším placeným spuštěním.",
+      "changedConsent": "Souhlas s placeným spuštěním tohoto plánu chybí nebo se změnil. Před dalším placeným spuštěním jej obnovte.",
       "setBy": "Nastavil {agent} v {session}",
       "migrationConsent": "Přenesený plán je pozastaven. Před obnovením zkontrolujte režim, povolení a souhlas s platbami.",
       "collision": "Spuštění pro tento cíl se překrývají; probíhají v pořadí vytvoření.",
@@ -779,7 +779,18 @@
       "openWhenBack": "Otevřít, až se vrátím",
       "plannedDestination": "Tento cíl je plánovaný a nedostupný.",
       "expiredOwner": "Plán skončil se sezením nebo týmem svého tvůrce.",
-      "allowAlways": "Vždy povolit pro tento plán"
+      "allowAlways": "Vždy povolit pro tento plán",
+      "changedPayer": "Změnil se typ plátce. Obnovte souhlas s placeným spuštěním tohoto plánu.",
+      "changedModel": "Změnil se vybraný model. Obnovte souhlas s placeným spuštěním tohoto plánu.",
+      "changedKey": "Změnil se platící účet nebo klíč. Obnovte souhlas s placeným spuštěním tohoto plánu.",
+      "changedTariff": "Změnil se ověřený tarif. Obnovte souhlas s placeným spuštěním tohoto plánu.",
+      "changedSharedCap": "Změnil se sdílený denní rozpočet. Obnovte souhlas s placeným spuštěním tohoto plánu.",
+      "pausedPaid": "Tento plán je pozastaven. Před dalším placeným spuštěním jej obnovte.",
+      "changedGrant": "Změnila se oprávnění tohoto plánu. Zkontrolujte je a obnovte souhlas.",
+      "changedRevision": "Změnil se plán nebo jeho běžící relace. Před dalším placeným spuštěním jej znovu načtěte.",
+      "lostOnceClaim": "Toto spuštění již nevlastní jednorázový souhlas. Pro další spuštění jej obnovte.",
+      "capReached": "Denní limit plánu nebo sdílený denní limit toto placené spuštění neumožňuje.",
+      "paidUnavailable": "Tato placená operace není dostupná nebo nebyla pro tento plán schválena."
     },
     "endAfterRuns": {
       "one": "Ukončit po {count} spuštění",
@@ -796,7 +807,7 @@
   },
   "scheduledMediaSupport": "Plánované tahy podporují textové a obrazové vstupy; video a zvukové vstupy nejsou v této verzi podporovány.",
   "referenceSchedules": "Editor, seznam a časová osa plánů v2 spravují trvalé záznamy. Automatické odesílání výzev je vypnuté. Úlohy Model API /loop se spustí, když zvolíte Spustit nyní.",
-  "referenceSchedulePaidConsent": "Souhlas s plánem v2 je vázán na placený klíč, vybraný model, ověřené sazby a denní limity. Povolit jednou platí pro jedno spuštění; Povolit vždy platí pro tento plán. Změna modelu, klíče nebo sazby vyžaduje nový souhlas.",
+  "referenceSchedulePaidConsent": "Automatické spouštění je vypnuté; běžící editor nežádá o souhlas pro plány v2 ani nerezervuje jejich finanční limity. Připravený fakturační modul váže souhlas na typ plátce, model, klíč, ověřený tarif a sdílený denní rozpočet; každá změna vyžaduje obnovení. Povolit jednou platí pro jedno spuštění; Povolit vždy platí pro tento plán.",
   "media": {
     "recordingScreenPermissionRequired": "Oprávnění k nahrávání obrazovky nebylo uděleno.",
     "recordingMicrophonePermissionDenied": "Oprávnění k mikrofonu bylo zamítnuto.",
