@@ -23,7 +23,11 @@ import type { CoreLogger } from '../../core/logging'
 import type { SecretStore } from '../auth/credentialStore'
 import type { UiTable } from '../l10n'
 import { PROVIDER_SECRET_PREFIX, SECRET_KEYS, UI_TEXT } from '../../shared/constants'
-import { planUsageReportSchema, type ProviderUsageRow } from '../../shared/usage'
+import {
+  planUsageReportSchema,
+  providerUsageRowSchema,
+  type ProviderUsageRow,
+} from '../../shared/usage'
 import { fill, setUiText as setHostUiText } from '../../shared/l10n/text'
 
 export function createSubscriptionFeatures(options: {
@@ -128,13 +132,17 @@ export function createSubscriptionFeatures(options: {
       },
     },
     exchanger: {
-      exchange: async (request: { readonly code: string; readonly verifier: string }) => {
+      exchange: async (request: {
+        readonly code: string
+        readonly verifier: string
+        readonly signal?: AbortSignal
+      }) => {
         const services = await configured()
-        return await services.openRouterExchange(request.code, request.verifier)
+        return await services.openRouterExchange(request.code, request.verifier, request.signal)
       },
     },
     usage: {
-      read: async (key: string) => {
+      read: async (key: string, signal?: AbortSignal) => {
         const services = await configured()
         return await services.openRouterUsage(
           {
@@ -145,6 +153,7 @@ export function createSubscriptionFeatures(options: {
             models: [],
           },
           key,
+          signal,
         )
       },
     },
@@ -186,28 +195,30 @@ export function createSubscriptionFeatures(options: {
         if (entry.preset !== 'openrouter') continue
         try {
           const stored = await options.secrets.get(`${PROVIDER_SECRET_PREFIX}${entry.id}`)
-          if (stored === undefined) continue
+          if (stored === undefined) throw new Error(UI_TEXT.providerUsageFailed)
           const snapshot = await services.openRouterUsage(
             providersFile.providerEntrySchema.parse(entry),
           )
           if ((await options.secrets.get(`${PROVIDER_SECRET_PREFIX}${entry.id}`)) !== stored)
             throw new Error(UI_TEXT.providerUsageFailed)
-          rows.push({
-            providerId: entry.id,
-            providerLabel: seam.catalog.get(entry.preset)?.name ?? entry.id,
-            pricing: 'priced',
-            inputTokens: 0,
-            outputTokens: 0,
-            keyUsage: {
-              totalUsd: snapshot.usedTotal,
-              unlimited: snapshot.unlimited,
-              todayUsd: snapshot.usedToday,
-              weekUsd: snapshot.usedThisWeek,
-              monthUsd: snapshot.usedThisMonth,
-              limitUsd: snapshot.limit,
-              remainingUsd: snapshot.remaining,
-            },
-          })
+          rows.push(
+            providerUsageRowSchema.parse({
+              providerId: entry.id,
+              providerLabel: seam.catalog.get(entry.preset)?.name ?? entry.id,
+              pricing: 'priced',
+              inputTokens: 0,
+              outputTokens: 0,
+              keyUsage: {
+                totalUsd: snapshot.usedTotal,
+                unlimited: snapshot.unlimited,
+                todayUsd: snapshot.usedToday,
+                weekUsd: snapshot.usedThisWeek,
+                monthUsd: snapshot.usedThisMonth,
+                limitUsd: snapshot.limit,
+                remainingUsd: snapshot.remaining,
+              },
+            }),
+          )
         } catch {
           rows.push({
             providerId: entry.id,

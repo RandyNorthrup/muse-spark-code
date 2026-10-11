@@ -15,6 +15,7 @@ import {
   presetCardSchema,
   customFormatSchema,
   providerStateSchema,
+  providerKeyUsageSchema,
   wizardStepSchema,
   type ModelsPanelState,
   type PanelDraft,
@@ -40,7 +41,7 @@ import type { ProvidersHost } from '../providers/providersHost'
 import { isOriginBound, type CredentialRecord } from '../providers/credentialRecords'
 import type { WizardSaveOutcome } from '../providers/wizardSave'
 import type { ScanOutcome } from '../providers/modelScans'
-import { OPENROUTER_ORIGIN } from '../providers/openRouter'
+import { OPENROUTER_ORIGIN, readOpenRouterPanelUsage } from '../backend/providersEntry'
 import { Usd } from '../../shared/usd'
 import { redactSecrets } from '../../shared/redact'
 import { type SessionBudgetConfig } from './sessionBudget'
@@ -184,6 +185,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
   let isDisposed = false
   const lifetime = new AbortController()
   let connectionRequest: AbortController | undefined
+  let usageRequest: AbortController | undefined
   let navigation: ModelsPanelNavigate | undefined
   let operations = Promise.resolve()
   const post = (message: HostToPanelMessage): void => {
@@ -395,8 +397,19 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     }
     return record?.secret
   }
-  const refresh = async (shouldReadUsage = false): Promise<void> => {
-    const previousUsage = new Map(state.providers.map((row) => [row.id, row]))
+  const refresh = async (): Promise<void> => {
+    usageRequest?.abort()
+    usageRequest = new AbortController()
+    const signal = AbortSignal.any([lifetime.signal, usageRequest.signal])
+    // A failed credential/configuration read must not retain old key amounts.
+    for (const row of state.providers) {
+      if (row.presetId !== 'openrouter') {
+        continue
+      }
+
+      row.keyUsage = undefined
+      row.keyUsageError = UI_TEXT.providerUsageFailed
+    }
     state.presets = providers.presetIds().flatMap((id) => {
       const preset = providers.preset(id)
       if (preset === undefined) {
@@ -509,39 +522,25 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
           test: { status: 'untested' },
           models: [...entry.models],
           pinned: [...(entry.pinned ?? [])],
-          ...(isBound &&
-            previousUsage.get(entry.id)?.address === entry.address && {
-              keyUsage: previousUsage.get(entry.id)?.keyUsage,
-              keyUsageError: previousUsage.get(entry.id)?.keyUsageError,
-            }),
         },
       ]
     })
-    if (shouldReadUsage) {
-      for (const row of state.providers) {
-        if (row.presetId !== 'openrouter' || row.key.state !== 'stored') continue
-        row.keyUsage = undefined
-        row.keyUsageError = undefined
-        try {
-          const entry = providerStates.find((item) => item.entry.id === row.id)?.entry
-          const key = entry === undefined ? undefined : await providers.storedCredential(entry)
-          if (key === undefined) continue
-          const snapshot = await providers.openRouterUsage(key)
-          if (snapshot === undefined) throw new Error(UI_TEXT.providerUsageFailed)
-          if (entry === undefined || (await providers.storedCredential(entry)) !== key)
-            throw new Error(UI_TEXT.providerUsageFailed)
-          row.keyUsage = {
-            totalUsd: snapshot.usedTotal,
-            unlimited: snapshot.unlimited,
-            dayUsd: snapshot.usedToday,
-            weekUsd: snapshot.usedThisWeek,
-            monthUsd: snapshot.usedThisMonth,
-            limitUsd: snapshot.limit,
-            remainingUsd: snapshot.remaining,
-          }
-        } catch {
-          row.keyUsageError = UI_TEXT.providerUsageFailed
-        }
+    for (const row of state.providers) {
+      if (row.presetId !== 'openrouter') continue
+      if (row.key.state !== 'stored') {
+        row.keyUsageError = UI_TEXT.providerUsageFailed
+        continue
+      }
+      row.keyUsage = undefined
+      row.keyUsageError = undefined
+      try {
+        const entry = providerStates.find((item) => item.entry.id === row.id)?.entry
+        if (entry === undefined) throw new Error(UI_TEXT.providerUsageFailed)
+        row.keyUsage = providerKeyUsageSchema.parse(
+          await readOpenRouterPanelUsage(entry, providers, signal),
+        )
+      } catch {
+        row.keyUsageError = UI_TEXT.providerUsageFailed
       }
     }
     const all: ModelRow[] = []
@@ -715,7 +714,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         for (const cached of cachedScans) {
           rows.set(cached.providerId, cached.rows)
         }
-        await refresh(true)
+        await refresh()
         publish()
         if (navigation !== undefined) {
           post({
@@ -945,7 +944,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         // Every outcome refreshes through this catch. Earlier outcome text survives.
         const finish = async (isSaved: boolean): Promise<void> => {
           try {
-            await refresh(isSaved)
+            await refresh()
           } catch {
             hasRefreshFailed = true
             log.warn('Models panel could not refresh after provider save')
@@ -1080,6 +1079,10 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         return
       }
       case 'providers/remove': {
+        credentials.delete(message.providerId)
+        state.drafts.edits = Object.fromEntries(
+          Object.entries(state.drafts.edits).filter(([id]) => id !== message.providerId),
+        )
         const entry = await entryOf(message.providerId)
         if (entry.auth === 'subscription') {
           if (deps.removeSubscription === undefined) throw new Error(UI_TEXT.actionFailed)
@@ -1232,7 +1235,11 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       }
     }
     syncDraftBlockers()
-    await refresh(message.type === 'providers/readUsage')
+    if (
+      (message.type !== 'providers/wizard' || message.event === 'next') &&
+      !connectionRequest?.signal.aborted
+    )
+      await refresh()
     publish()
   }
   const enqueue = (message: PanelToHostMessage): void => {
@@ -1286,8 +1293,15 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       providers.cancelScan(parsed.message.providerId)
       return
     }
-    if (parsed.message.type === 'providers/wizard' && parsed.message.event !== 'next')
+    if (
+      (parsed.message.type === 'providers/wizard' && parsed.message.event !== 'next') ||
+      ['providers/remove', 'providers/select', 'providers/enterKey', 'providers/edit'].includes(
+        parsed.message.type,
+      )
+    ) {
       connectionRequest?.abort()
+      usageRequest?.abort()
+    }
     enqueue(parsed.message)
   })
   const cleanup = (): void => {
@@ -1302,10 +1316,12 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       panel.reveal(vscode.ViewColumn.One)
       navigation = navigate
       if (navigate?.wizard === true) {
+        connectionRequest?.abort()
         state.drafts.wizard = newDraft()
         credentials.clear()
       }
       if (navigate?.presetId !== undefined) {
+        connectionRequest?.abort()
         state.drafts.wizard = newDraft(providers.preset(navigate.presetId))
         credentials.clear()
       }

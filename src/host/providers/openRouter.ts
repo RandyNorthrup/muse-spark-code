@@ -9,6 +9,11 @@
 // the usage validation.
 
 import { createHash } from 'node:crypto'
+import type * as z from 'zod/mini'
+import type { providerKeyUsageSchema } from '../../shared/modelsPanel'
+import type { ProviderEntry } from './providerPorts'
+import { fill } from '../../shared/l10n/text'
+import { unlessAborted } from '../../core/timeouts'
 import { UI_TEXT } from '../../shared/constants'
 import type { CredentialRecord } from './credentialRecords'
 import type { OAuthLoopback } from './oauthLoopback'
@@ -80,7 +85,8 @@ export interface OpenRouterConnection {
 export async function connectOpenRouterAccount(
   deps: OpenRouterConnectDeps,
 ): Promise<OpenRouterConnection | undefined> {
-  deps.signal?.throwIfAborted()
+  const signal = deps.signal ?? new AbortController().signal
+  signal.throwIfAborted()
   const pair = deps.pkce.create()
   const state = deps.pkce.newState()
   let code: string | undefined
@@ -88,8 +94,15 @@ export async function connectOpenRouterAccount(
   // authorized with none.
   let redirectUri = ''
   if (deps.isRemote) {
-    await deps.openBrowser(openRouterAuthorizeUrl({ challenge: pair.challenge, state }))
-    const pasted = await deps.promptForPastedCode()
+    await unlessAborted(
+      deps.openBrowser(openRouterAuthorizeUrl({ challenge: pair.challenge, state })),
+      signal,
+    )
+    deps.signal?.throwIfAborted()
+    const pending = deps.promptForPastedCode()
+    const pasted =
+      deps.signal === undefined ? await pending : await unlessAborted(pending, deps.signal)
+    deps.signal?.throwIfAborted()
     if (pasted === undefined || pasted.trim() === '') {
       return undefined
     }
@@ -108,12 +121,15 @@ export async function connectOpenRouterAccount(
         /* The awaited promise below reports this failure. */
       })
       redirectUri = server.redirectUri
-      await deps.openBrowser(
-        openRouterAuthorizeUrl({
-          challenge: pair.challenge,
-          state,
-          redirectUri,
-        }),
+      await unlessAborted(
+        deps.openBrowser(
+          openRouterAuthorizeUrl({
+            challenge: pair.challenge,
+            state,
+            redirectUri,
+          }),
+        ),
+        signal,
       )
       const callback = await waited
       code = callback.code
@@ -123,7 +139,12 @@ export async function connectOpenRouterAccount(
     }
   }
   deps.signal?.throwIfAborted()
-  const key = await deps.exchange.exchange({ code, verifier: pair.verifier, redirectUri })
+  const key = await deps.exchange.exchange({
+    code,
+    verifier: pair.verifier,
+    redirectUri,
+    ...(deps.signal !== undefined && { signal: deps.signal }),
+  })
   deps.signal?.throwIfAborted()
   if (key.trim() === '') {
     throw new Error(UI_TEXT.providerConnectFailed)
@@ -144,8 +165,9 @@ function isValidUsage(value: number): boolean {
 export async function readOpenRouterKeyUsage(
   reader: KeyUsageReader,
   credential: string,
+  signal?: AbortSignal,
 ): Promise<KeyUsageSnapshot> {
-  const snapshot = await reader.read(credential)
+  const snapshot = await reader.read(credential, signal)
   const numbers = [
     ...(snapshot.usedTotal === undefined ? [] : [snapshot.usedTotal]),
     snapshot.usedToday,
@@ -158,4 +180,81 @@ export async function readOpenRouterKeyUsage(
     throw new Error(UI_TEXT.providerUsageFailed)
   }
   return snapshot
+}
+
+/** Current-key observation mapping lives in providers.js, outside the tight panel budget. */
+export async function readOpenRouterPanelUsage(
+  entry: ProviderEntry,
+  deps: {
+    readonly storedCredential: (entry: ProviderEntry) => Promise<string | undefined>
+    readonly openRouterUsage: (
+      key: string,
+      signal?: AbortSignal,
+    ) => Promise<KeyUsageSnapshot | undefined>
+  },
+  signal?: AbortSignal,
+): Promise<z.input<typeof providerKeyUsageSchema>> {
+  signal?.throwIfAborted()
+  const key = await deps.storedCredential(entry)
+  if (key === undefined) throw new Error(UI_TEXT.providerUsageFailed)
+  const snapshot = await deps.openRouterUsage(key, signal)
+  if (snapshot === undefined || (await deps.storedCredential(entry)) !== key)
+    throw new Error(UI_TEXT.providerUsageFailed)
+  signal?.throwIfAborted()
+  return {
+    totalUsd: snapshot.usedTotal,
+    unlimited: snapshot.unlimited,
+    dayUsd: snapshot.usedToday,
+    weekUsd: snapshot.usedThisWeek,
+    monthUsd: snapshot.usedThisMonth,
+    limitUsd: snapshot.limit,
+    remainingUsd: snapshot.remaining,
+  }
+}
+
+/** Native password input withdraws with the connection instead of retaining a late code. */
+export async function promptOpenRouterCode(
+  showInputBox: (
+    options: {
+      readonly title: string
+      readonly prompt: string
+      readonly password: boolean
+      readonly ignoreFocusOut: boolean
+    },
+    token?: {
+      readonly isCancellationRequested: boolean
+      readonly onCancellationRequested: (
+        listener: (event: unknown) => unknown,
+        thisArg?: unknown,
+        disposables?: { dispose(): void }[],
+      ) => { dispose(): void }
+    },
+  ) => PromiseLike<string | undefined>,
+  signal?: AbortSignal,
+): Promise<string | undefined> {
+  const options = {
+    title: fill(UI_TEXT.providerConnect, { provider: 'OpenRouter' }),
+    prompt: UI_TEXT.providerPasteCode,
+    password: true,
+    ignoreFocusOut: true,
+  }
+  if (signal === undefined) return await showInputBox(options)
+  return await showInputBox(options, {
+    get isCancellationRequested() {
+      return signal.aborted
+    },
+    onCancellationRequested: (listener, thisArg, disposables) => {
+      const notify = () => {
+        listener.call(thisArg, undefined)
+      }
+      signal.addEventListener('abort', notify, { once: true })
+      const disposable = {
+        dispose: () => {
+          signal.removeEventListener('abort', notify)
+        },
+      }
+      disposables?.push(disposable)
+      return disposable
+    },
+  })
 }

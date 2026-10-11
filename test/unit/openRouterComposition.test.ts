@@ -26,6 +26,8 @@ import { providersAdd, userFileIo } from '../../src/runtime/providersCommands'
 import type { ProvidersDeps } from '../../src/runtime/providersCommands'
 import { formatStoredProviderSecret } from '../../src/runtime/keyStore'
 import { EN } from '../../src/shared/l10n/en'
+import { providerKeyUsageSchema } from '../../src/shared/modelsPanel'
+import { providerUsageRowSchema } from '../../src/shared/usage'
 import { UI_TEXT, PROVIDER_SECRET_PREFIX } from '../../src/shared/constants'
 import { memorySecrets } from './helpers/fakes'
 import { testProvidersHost } from './helpers/m95kFixtures'
@@ -130,6 +132,37 @@ async function fixture() {
   }
 }
 
+function waitForAbort<T>(
+  signal: AbortSignal | undefined,
+  started: { readonly resolve: (value: undefined) => void },
+  onAbort: () => void = () => undefined,
+): Promise<T> {
+  return new Promise((_resolve, reject) => {
+    signal?.addEventListener(
+      'abort',
+      () => {
+        onAbort()
+        reject(new Error('cancelled'))
+      },
+      { once: true },
+    )
+    started.resolve(undefined)
+  })
+}
+
+async function panelWithCredential(host: ReturnType<typeof testProvidersHost>) {
+  const account = `${PROVIDER_SECRET_PREFIX}openrouter`
+  await host.secrets.store(
+    account,
+    formatStoredProviderSecret({ v: 1, auth: 'apiKey', origin: ORIGIN }, KEY),
+  )
+  const opened = openModelsPanel({ providers: host.providers })
+  await send(opened.panel, { type: 'modelsPanel/ready' }, () => {
+    expect(latestState(opened.panel).providers[0]?.keyUsage).toBeDefined()
+  })
+  return { ...opened, account }
+}
+
 const EXPECTED_USAGE = {
   usedTotal: 0,
   unlimited: false,
@@ -140,6 +173,283 @@ const EXPECTED_USAGE = {
   remaining: 2,
 }
 describe('CM952 production OpenRouter composition', () => {
+  it('normalizes every new key-usage money field through the exact boundary', () => {
+    const amounts = { totalUsd: 0.0000001, weekUsd: 0.125 }
+    const exact = { totalUsd: '0.0000001', weekUsd: '0.125' }
+    expect(providerKeyUsageSchema.parse(amounts)).toMatchObject(exact)
+    const base = {
+      providerId: 'router',
+      providerLabel: 'OpenRouter',
+      pricing: 'priced',
+      inputTokens: 0,
+      outputTokens: 0,
+    }
+    expect(
+      providerUsageRowSchema.parse({ ...base, keyUsage: { ...amounts, todayUsd: 0, monthUsd: 0 } })
+        .keyUsage,
+    ).toMatchObject(exact)
+    for (const invalid of [-1, NaN, Infinity]) {
+      expect(
+        providerKeyUsageSchema.safeParse({ totalUsd: invalid, weekUsd: invalid }).success,
+      ).toBe(false)
+      expect(
+        providerUsageRowSchema.safeParse({
+          ...base,
+          keyUsage: { totalUsd: invalid, weekUsd: invalid, todayUsd: 0, monthUsd: 0 },
+        }).success,
+      ).toBe(false)
+    }
+  })
+
+  it.each([
+    ['aborts exchange before dispatch when endpoint verification is still pending', 'exchange'],
+    ['aborts key-usage endpoint verification without dispatch', 'usage'],
+  ] as const)('%s', async (_name, operation) => {
+    const f = await fixture()
+    const controller = new AbortController()
+    const dns = Promise.withResolvers<readonly string[]>()
+    const entered = Promise.withResolvers<undefined>()
+    const api = createConfiguredProviderServices(undefined, {
+      ...f,
+      resolve: () => {
+        entered.resolve(undefined)
+        return dns.promise
+      },
+    })
+    const pending =
+      operation === 'exchange'
+        ? api.openRouterExchange('synthetic-code', createPkcePair().verifier, controller.signal)
+        : api.openRouterUsage(ENTRY, KEY, controller.signal)
+    const refused = expect(pending).rejects.toThrow(
+      operation === 'exchange' ? UI_TEXT.providerConnectFailed : UI_TEXT.providerUsageFailed,
+    )
+    await entered.promise
+    controller.abort()
+    await refused
+    dns.resolve(['8.8.8.8'])
+    expect(f.calls).toEqual([])
+  })
+
+  it.each(['cancel', 'back', 'close'] as const)(
+    'cancels an in-flight key-usage read without starting another: %s',
+    async (event) => {
+      const started = Promise.withResolvers<undefined>()
+      let shouldHold = false
+      let wasAborted = false
+      const read = vi.fn((_credential: string, signal?: AbortSignal) => {
+        if (!shouldHold) return Promise.resolve(EXPECTED_USAGE)
+        return waitForAbort<typeof EXPECTED_USAGE>(signal, started, () => {
+          wasAborted = true
+        })
+      })
+      const f = testProvidersHost({ deps: { usage: { read } } })
+      const { panel, account } = await panelWithCredential(f)
+      try {
+        await send(panel, { type: 'providers/select', presetId: 'openrouter' }, () => {
+          expect(latestState(panel).drafts.wizard).toBeDefined()
+        })
+        const previousReads = read.mock.calls.length
+        shouldHold = true
+        panel.webview.messages.fire({ type: 'providers/readUsage' })
+        await started.promise
+        if (event === 'close') panel.dispose()
+        else
+          await send(panel, { type: 'providers/wizard', event }, () => {
+            expect(wasAborted).toBe(true)
+            if (event === 'cancel') expect(latestState(panel).drafts.wizard).toBeUndefined()
+            else expect(latestState(panel).drafts.wizard?.step).toBe('pick-provider')
+          })
+        expect(wasAborted).toBe(true)
+        expect(read.mock.calls.length).toBe(previousReads + 1)
+        expect(await f.secrets.get(account)).toBeDefined()
+      } finally {
+        panel.dispose()
+      }
+    },
+  )
+
+  it.each(['cancel', 'back', 'remove', 'close', 'select', 'change-key'] as const)(
+    'cancels a stalled token transport and releases the panel queue: %s',
+    async (event) => {
+      const f = await fixture()
+      const started = Promise.withResolvers<undefined>()
+      let wasAborted = false
+      const api = createConfiguredProviderServices(undefined, {
+        ...f,
+        send: (_target, _body, _headers, signal) =>
+          new Promise((_resolve, reject) => {
+            signal.addEventListener(
+              'abort',
+              () => {
+                wasAborted = true
+                reject(new Error('cancelled'))
+              },
+              { once: true },
+            )
+            started.resolve(undefined)
+          }),
+      })
+      const host = testProvidersHost({
+        deps: {
+          pkce: { create: createPkcePair, newState: () => createPkcePair().state },
+          exchanger: {
+            exchange: (request) =>
+              api.openRouterExchange(request.code, request.verifier, request.signal),
+          },
+        },
+      })
+      const { panel } = openModelsPanel({ providers: host.providers })
+      try {
+        await send(panel, { type: 'modelsPanel/ready' }, () => {
+          expect(latestState(panel).presets.length).toBeGreaterThan(0)
+        })
+        await send(panel, { type: 'providers/select', presetId: 'openrouter' }, () => {
+          expect(latestState(panel).drafts.wizard).toBeDefined()
+        })
+        panel.webview.messages.fire({ type: 'providers/connect' })
+        await started.promise
+        expect(latestState(panel).drafts.wizard?.connecting).toBe(true)
+        switch (event) {
+          case 'close': {
+            panel.dispose()
+            break
+          }
+          case 'remove': {
+            panel.webview.messages.fire({ type: 'providers/remove', providerId: 'openrouter' })
+            break
+          }
+          case 'select': {
+            panel.webview.messages.fire({ type: 'providers/select', presetId: 'ollama' })
+            break
+          }
+          case 'change-key': {
+            panel.webview.messages.fire({ type: 'providers/enterKey', mode: 'new' })
+            break
+          }
+          default: {
+            panel.webview.messages.fire({ type: 'providers/wizard', event })
+          }
+        }
+        await vi.waitFor(() => {
+          expect(wasAborted).toBe(true)
+        })
+        if (event !== 'close') {
+          await send(panel, { type: 'providers/select', presetId: 'ollama' }, () => {
+            expect(latestState(panel).drafts.wizard?.presetId).toBe('ollama')
+            expect(latestState(panel).drafts.wizard?.connecting).not.toBe(true)
+            expect(latestState(panel).notice).toBeUndefined()
+          })
+        }
+        expect(host.secrets.values.size).toBe(0)
+      } finally {
+        panel.dispose()
+      }
+    },
+  )
+
+  it.each(['removed', 'rotated', 'failed', 'unreadable'] as const)(
+    'discards previous Models usage on the next observation: %s',
+    async (event) => {
+      const read = vi.fn(() =>
+        Promise.resolve({
+          usedTotal: 8,
+          usedToday: 1,
+          usedThisWeek: 2,
+          usedThisMonth: 3,
+          limit: undefined,
+          remaining: undefined,
+        }),
+      )
+      const f = testProvidersHost({ deps: { usage: { read } } })
+      const { panel, account } = await panelWithCredential(f)
+      try {
+        expect(latestState(panel).providers[0]?.keyUsage?.totalUsd).toBe('8')
+        switch (event) {
+          case 'removed': {
+            await f.secrets.delete(account)
+            break
+          }
+          case 'unreadable': {
+            await f.secrets.store(account, 'invalid-record')
+            break
+          }
+          case 'rotated': {
+            await f.secrets.store(
+              account,
+              formatStoredProviderSecret(
+                { v: 1, auth: 'apiKey', origin: ORIGIN },
+                'sk-or-rotated-synthetic',
+              ),
+            )
+            break
+          }
+          case 'failed': {
+            break
+          }
+        }
+        read.mockRejectedValue(new Error('unavailable'))
+        await send(
+          panel,
+          { type: 'models/filter', filter: {}, sort: { key: 'name', direction: 'asc' } },
+          () => {
+            const row = latestState(panel).providers[0]
+            expect(row?.keyUsage).toBeUndefined()
+            expect(row?.keyUsageError).toBe(UI_TEXT.providerUsageFailed)
+          },
+        )
+        expect(read).toHaveBeenCalledTimes(event === 'removed' || event === 'unreadable' ? 1 : 2)
+      } finally {
+        panel.dispose()
+      }
+    },
+  )
+
+  it.each(['rotated', 'removed'] as const)(
+    'discards Models usage when the credential changes during its read: %s',
+    async (event) => {
+      let shouldChangeCredential = false
+      const account = `${PROVIDER_SECRET_PREFIX}openrouter`
+      const f = testProvidersHost({
+        deps: {
+          usage: {
+            read: async () => {
+              if (shouldChangeCredential) {
+                if (event === 'removed') await f.secrets.delete(account)
+                else
+                  await f.secrets.store(
+                    account,
+                    formatStoredProviderSecret(
+                      { v: 1, auth: 'apiKey', origin: ORIGIN },
+                      'sk-or-rotated-synthetic',
+                    ),
+                  )
+              }
+              return {
+                usedTotal: 8,
+                usedToday: 1,
+                usedThisWeek: 2,
+                usedThisMonth: 3,
+                limit: undefined,
+                remaining: undefined,
+              }
+            },
+          },
+        },
+      })
+      const { panel } = await panelWithCredential(f)
+      try {
+        expect(latestState(panel).providers[0]?.keyUsage?.totalUsd).toBe('8')
+        shouldChangeCredential = true
+        await send(panel, { type: 'providers/readUsage' }, () => {
+          expect(latestState(panel).providers[0]?.keyUsage).toBeUndefined()
+          expect(latestState(panel).providers[0]?.keyUsageError).toBe(UI_TEXT.providerUsageFailed)
+        })
+      } finally {
+        panel.dispose()
+      }
+    },
+  )
+
   it('reads the captured key endpoint with bound auth, pinned DNS and all attribution headers', async () => {
     const f = await fixture()
     expect(await f.services.openRouterUsage(ENTRY)).toEqual(EXPECTED_USAGE)
@@ -284,9 +594,9 @@ describe('CM952 production OpenRouter composition', () => {
       {
         providerId: 'router',
         keyUsage: {
-          totalUsd: 0,
+          totalUsd: '0',
           todayUsd: 0,
-          weekUsd: 0,
+          weekUsd: '0',
           monthUsd: 0,
           limitUsd: 2,
           remainingUsd: 2,
@@ -313,6 +623,45 @@ describe('CM952 production OpenRouter composition', () => {
     expect(await features.readKeyUsage()).toMatchObject([
       { providerId: 'router', keyUsageError: UI_TEXT.providerUsageFailed },
     ])
+    await f.secrets.delete(`${PROVIDER_SECRET_PREFIX}router`)
+    expect(await features.readKeyUsage()).toMatchObject([
+      { providerId: 'router', keyUsageError: UI_TEXT.providerUsageFailed },
+    ])
+    const started = Promise.withResolvers<undefined>()
+    let wasAborted = false
+    const installHeldSend = (entered: { readonly resolve: (value: undefined) => void }) => {
+      vi.mocked(configuredEntry.createConfiguredProviderServices).mockImplementation(
+        (meta, options) =>
+          real(meta, {
+            ...options,
+            resolve: f.resolve,
+            send: (_target, _body, _headers, signal) =>
+              waitForAbort(signal, entered, () => {
+                wasAborted = true
+              }),
+          }),
+      )
+    }
+    installHeldSend(started)
+    const controller = new AbortController()
+    const pending = features.seam.exchanger.exchange({
+      code: 'synthetic-code',
+      verifier: createPkcePair().verifier,
+      signal: controller.signal,
+    })
+    const refused = expect(pending).rejects.toThrow(UI_TEXT.providerConnectFailed)
+    await started.promise
+    controller.abort()
+    await refused
+    expect(wasAborted).toBe(true)
+    const usageStarted = Promise.withResolvers<undefined>()
+    installHeldSend(usageStarted)
+    const usageController = new AbortController()
+    const reading = features.seam.usage.read(KEY, usageController.signal)
+    const usageRefused = expect(reading).rejects.toThrow(UI_TEXT.providerUsageFailed)
+    await usageStarted.promise
+    usageController.abort()
+    await usageRefused
   })
   it('publishes key usage on Models panel open and refresh, with no credential in state', async () => {
     const f = testProvidersHost()
@@ -482,6 +831,111 @@ describe('CM952 terminal and ACP routes', () => {
     expect(f.printed).toEqual([])
     expect(f.errors).toEqual([UI_TEXT.providerUsageFailed])
   })
+  it.each(['rotated', 'removed', 'locked-rotation', 'write-failure'] as const)(
+    'never restores a borrowed credential changed during provider add: %s',
+    async (event) => {
+      const f = await fixture()
+      const account = `${PROVIDER_SECRET_PREFIX}openrouter`
+      const original = formatStoredProviderSecret({ v: 1, auth: 'apiKey', origin: ORIGIN }, KEY)
+      const rotated = formatStoredProviderSecret(
+        { v: 1, auth: 'apiKey', origin: ORIGIN },
+        'sk-or-rotated-synthetic',
+      )
+      await f.secrets.store(account, original)
+      const store = vi.spyOn(f.secrets, 'store')
+      const mutate = async () => {
+        if (event === 'removed') await f.secrets.delete(account)
+        else await f.secrets.store(account, rotated)
+      }
+      let calls = 0
+      const fetcher: typeof fetch = async (url) => {
+        calls++
+        if (calls === 1 && (event === 'rotated' || event === 'removed')) await mutate()
+        const target = typeof url === 'object' && 'url' in url ? url.url : String(url)
+        return Response.json(target.endsWith('/key') ? f.usage : { data: [{ id: 'm1' }] })
+      }
+      const deps = {
+        ...f.deps,
+        fetch: fetcher,
+        withUserFileLock: async (operation: () => Promise<number>) => {
+          if (event === 'locked-rotation') await mutate()
+          return await operation()
+        },
+        writeUserFile: async (...args: Parameters<ProvidersDeps['writeUserFile']>) => {
+          if (event !== 'write-failure') return await f.deps.writeUserFile(...args)
+          await mutate()
+          return false
+        },
+      }
+      expect(
+        await providersAdd(deps, {
+          preset: 'openrouter',
+          models: ['m1'],
+          privateOk: false,
+          keyFromStdin: false,
+        }),
+      ).toBe(1)
+      expect(await f.secrets.get(account)).toBe(event === 'removed' ? undefined : rotated)
+      expect(f.getFile().providers).toEqual([])
+      expect(store.mock.calls.some(([, value]) => value === original)).toBe(false)
+    },
+  )
+
+  it.each(['exchange', 'store', 'interrupted-replacement', 'interrupted-removal'] as const)(
+    'cancels terminal Connect without retaining a late credential: %s',
+    async (phase) => {
+      const f = await fixture()
+      const controller = new AbortController()
+      const started = Promise.withResolvers<undefined>()
+      const released = Promise.withResolvers<undefined>()
+      const account = `${PROVIDER_SECRET_PREFIX}openrouter`
+      if (phase === 'interrupted-replacement' || phase === 'interrupted-removal')
+        await f.secrets.store(
+          account,
+          formatStoredProviderSecret(
+            { v: 1, auth: 'apiKey', origin: ORIGIN },
+            'sk-or-previous-synthetic',
+          ),
+        )
+      const originalStore = f.secrets.store
+      if (phase !== 'exchange')
+        vi.spyOn(f.secrets, 'store').mockImplementation(async (id, value) => {
+          started.resolve(undefined)
+          await released.promise
+          await originalStore(id, value)
+        })
+      const api = {
+        ...f.services,
+        openRouterExchange: async (_code: string, _verifier: string, signal?: AbortSignal) => {
+          if (phase === 'exchange') {
+            const wait = new Promise<void>((_resolve, reject) => {
+              signal?.addEventListener(
+                'abort',
+                () => {
+                  reject(new Error('cancelled'))
+                },
+                {
+                  once: true,
+                },
+              )
+              started.resolve(undefined)
+            })
+            await wait
+          }
+          return KEY
+        },
+      }
+      const pending = runOpenRouterConnect(f.deps, api, controller.signal)
+      await started.promise
+      expect(await runOpenRouterConnect(f.deps, api)).toBe(1)
+      if (phase === 'interrupted-removal') await f.secrets.delete(account)
+      controller.abort()
+      released.resolve(undefined)
+      expect(await pending).toBe(1)
+      expect(await f.secrets.get(account)).toBeUndefined()
+    },
+  )
+
   it('adds an OpenRouter model using a connected key without asking for the key again and keeps ZDR', async () => {
     const f = await fixture()
     await f.secrets.store(

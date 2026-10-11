@@ -45,7 +45,7 @@ import {
   readBoundedText,
   ModelApiError,
 } from '../backends/modelapi/transport'
-import { withDeadline } from '../timeouts'
+import { withDeadline, unlessAborted } from '../timeouts'
 import { Usd } from '../../shared/usd'
 import {
   ADDRESS_FAMILIES,
@@ -392,7 +392,10 @@ export function createConfiguredProviderServices(
     const transport = new RequestTransport({
       ...bound.transport,
       auth: bound.auth,
-      verifyEndpoint: bound.verifyEndpoint,
+      verifyEndpoint: async (url) => {
+        await unlessAborted(bound.verifyEndpoint(url), signal)
+        signal.throwIfAborted()
+      },
       baseUrl: address.baseUrl,
     })
     const headers: Record<string, string> = {}
@@ -842,8 +845,13 @@ export function createConfiguredProviderServices(
     client,
     registry,
     scan,
-    openRouterExchange: async (code: string, verifier: string) => {
+    openRouterExchange: async (code: string, verifier: string, callerSignal?: AbortSignal) => {
       try {
+        const signal = AbortSignal.any([
+          ...(callerSignal === undefined ? [] : [callerSignal]),
+          AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
+        ])
+        signal.throwIfAborted()
         if (code.trim() === '' || !pkce.isPkceVerifier(verifier)) return fail()
         const origin = presets.presetById('openrouter')?.origin
         if (origin?.kind !== 'fixed') return fail()
@@ -857,11 +865,12 @@ export function createConfiguredProviderServices(
         // No credential, retries or redirects: a code can be exchanged only once.
         const bound = transportFor(entry, '')
         const url = presets.OPENROUTER_TOKEN_URL
-        await bound.verifyEndpoint(url)
+        await unlessAborted(bound.verifyEndpoint(url), signal)
+        signal.throwIfAborted()
         const response = await bound.transport.fetch(url, {
           method: 'POST',
           redirect: 'error',
-          signal: AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
+          signal,
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ code, code_verifier: verifier, code_challenge_method: 'S256' }),
         })
@@ -870,6 +879,7 @@ export function createConfiguredProviderServices(
           return fail()
         }
         const value: unknown = JSON.parse(await readBoundedText(response))
+        signal.throwIfAborted()
         const key = openRouterExchangeSchema.parse(value).key
         return presets.isKeyShape(presets.presetById('openrouter')?.keyShape ?? fail(), key)
           ? key
@@ -879,7 +889,11 @@ export function createConfiguredProviderServices(
         throw new Error(UI_TEXT.providerConnectFailed)
       }
     },
-    openRouterUsage: async (entry: ProviderEntry, supplied?: string) => {
+    openRouterUsage: async (
+      entry: ProviderEntry,
+      supplied?: string,
+      callerSignal?: AbortSignal,
+    ) => {
       try {
         const origin = presets.presetById('openrouter')?.origin
         if (
@@ -893,8 +907,12 @@ export function createConfiguredProviderServices(
           entry,
           '/api/v1/key',
           supplied,
-          AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
+          AbortSignal.any([
+            ...(callerSignal === undefined ? [] : [callerSignal]),
+            AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
+          ]),
         )
+        callerSignal?.throwIfAborted()
         const { data } = openRouterUsageSchema.parse(value)
         return {
           usedTotal: data.usage,

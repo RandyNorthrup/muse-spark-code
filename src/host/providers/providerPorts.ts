@@ -246,6 +246,7 @@ export interface CodeExchanger {
     readonly code: string
     readonly verifier: string
     readonly redirectUri: string
+    readonly signal?: AbortSignal
   }): Promise<string>
 }
 
@@ -267,7 +268,7 @@ export interface KeyUsageSnapshot {
 
 /** Reads an OpenRouter key's usage and limit (lane T's transport, from the capture). */
 export interface KeyUsageReader {
-  read(credential: string): Promise<KeyUsageSnapshot>
+  read(credential: string, signal?: AbortSignal): Promise<KeyUsageSnapshot>
 }
 
 /** One suggestion with its reason (lane P's `suggest.ts`). */

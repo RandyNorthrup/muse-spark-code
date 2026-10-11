@@ -164,7 +164,13 @@ describe('UsageDialog', () => {
             pricing: 'priced',
             inputTokens: 0,
             outputTokens: 0,
-            keyUsage: { totalUsd: 4, todayUsd: 1, weekUsd: 2, monthUsd: 3, unlimited: true },
+            keyUsage: {
+              totalUsd: Usd.from(4).toAmount(),
+              todayUsd: 1,
+              weekUsd: Usd.from(2).toAmount(),
+              monthUsd: 3,
+              unlimited: true,
+            },
           },
           {
             providerId: 'router-failed',

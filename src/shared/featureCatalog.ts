@@ -332,7 +332,8 @@ export function featureCatalog(): readonly Feature[] {
       ],
       // OpenRouter Connect is composed with the pinned exchange transport;
       // local callbacks need no paste and remote/ACP terminal flows paste an
-      // authorization code. Both usage surfaces show captured key observations.
+      // authorization code. Cancellation reaches both exchange and usage transport;
+      // both usage surfaces discard missing/changed/failed key observations.
       // Saved custom limits persist directly from Edit without a new test
       // while the connection is unchanged; pre-write failures retain the draft.
       // Edit and Change key share a full saved snapshot; unchanged routing,

@@ -224,9 +224,13 @@ describe('production Models panel seam', () => {
     expect(seam.exchanger).toBeUndefined()
     expect(seam.usage).toBeUndefined()
     expect(seam.catalog.get('openrouter')?.connectLabel).toBeUndefined()
-    const { providers } = testProvidersHost({ deps: seam })
-    await expect(providers.connectOpenRouter(false)).resolves.toBeUndefined()
-    await expect(providers.openRouterUsage('synthetic-key')).resolves.toBeUndefined()
+    const startLoopback = vi.fn()
+    const { providers } = testProvidersHost({ deps: { ...seam, startLoopback } })
+    await expect(providers.connectOpenRouter(false)).rejects.toThrow(UI_TEXT.providerConnectFailed)
+    await expect(providers.openRouterUsage('synthetic-key')).rejects.toThrow(
+      UI_TEXT.providerUsageFailed,
+    )
+    expect(startLoopback).not.toHaveBeenCalled()
   })
 
   it('contacts every local preset at its model-list path and loopback port (PR136 VJ)', async () => {

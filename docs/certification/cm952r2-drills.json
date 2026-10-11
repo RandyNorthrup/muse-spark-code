@@ -1,17 +1,392 @@
-[
-  {
-    "name": "p1-order",
-    "file": "scripts/lib/localizationGate.mjs",
-    "sha256": "5a022ccc0aa19e12ac32ae74a6bf4390657c2f9a99f87dca7e8867a11550cbcc",
-    "tests": ["test/unit/usageL10nGate.test.mjs"],
-    "exit": 1,
-    "failures": [
-      "\u276f test/unit/usageL10nGate.test.mjs (9 tests | 1 failed) 3916ms",
-      "\u276f both localization families (9)",
-      "\u00d7 rejects translated UI key order drift before packaging 213ms",
-      "FAIL  test/unit/usageL10nGate.test.mjs > both localization families > rejects translated UI key order drift before packaging",
-      "\u276f test/unit/usageL10nGate.test.mjs:125:25"
-    ],
-    "restored": true
-  }
-]
+{
+  "fired": [
+    {
+      "name": "p1-order",
+      "file": "scripts/lib/localizationGate.mjs",
+      "sha256": "5a022ccc0aa19e12ac32ae74a6bf4390657c2f9a99f87dca7e8867a11550cbcc",
+      "tests": ["test/unit/usageL10nGate.test.mjs"],
+      "exit": 1,
+      "failures": [
+        "\u276f test/unit/usageL10nGate.test.mjs (9 tests | 1 failed) 3916ms",
+        "\u276f both localization families (9)",
+        "\u00d7 rejects translated UI key order drift before packaging 213ms",
+        "FAIL  test/unit/usageL10nGate.test.mjs > both localization families > rejects translated UI key order drift before packaging",
+        "\u276f test/unit/usageL10nGate.test.mjs:125:25"
+      ],
+      "restored": true
+    },
+    {
+      "name": "borrow-freshness",
+      "file": "src/runtime/providersCommands.ts",
+      "sha256": "a53e3a631b818eed351484da4a193beeeaccf53fd0dc6bb8eb8a9503160a7566",
+      "tests": ["test/unit/openRouterComposition.test.ts"],
+      "exit": 1,
+      "failures": [
+        "\u276f test/unit/openRouterComposition.test.ts (36 tests | 3 failed) 2039ms",
+        "\u276f CM952 terminal and ACP routes (13)",
+        "\u00d7 never restores a borrowed credential changed during provider add: rotated 21ms",
+        "\u00d7 never restores a borrowed credential changed during provider add: removed 13ms",
+        "\u00d7 never restores a borrowed credential changed during provider add: locked-rotation 12ms",
+        "FAIL  test/unit/openRouterComposition.test.ts > CM952 terminal and ACP routes > never restores a borrowed credential changed during provider add: rotated",
+        "FAIL  test/unit/openRouterComposition.test.ts > CM952 terminal and ACP routes > never restores a borrowed credential changed during provider add: removed",
+        "FAIL  test/unit/openRouterComposition.test.ts > CM952 terminal and ACP routes > never restores a borrowed credential changed during provider add: locked-rotation",
+        "\u276f test/unit/openRouterComposition.test.ts:734:9"
+      ],
+      "restored": true
+    },
+    {
+      "name": "borrow-no-write",
+      "file": "src/runtime/providersCommands.ts",
+      "sha256": "a53e3a631b818eed351484da4a193beeeaccf53fd0dc6bb8eb8a9503160a7566",
+      "tests": ["test/unit/openRouterComposition.test.ts"],
+      "exit": 1,
+      "failures": [
+        "\u276f test/unit/openRouterComposition.test.ts (36 tests | 1 failed) 2054ms",
+        "\u276f CM952 terminal and ACP routes (13)",
+        "\u00d7 never restores a borrowed credential changed during provider add: write-failure 21ms",
+        "FAIL  test/unit/openRouterComposition.test.ts > CM952 terminal and ACP routes > never restores a borrowed credential changed during provider add: write-failure",
+        "\u276f test/unit/openRouterComposition.test.ts:735:44"
+      ],
+      "restored": true
+    },
+    {
+      "name": "exchange-signal",
+      "file": "src/host/providers/openRouter.ts",
+      "sha256": "487b0cc21b88fa4e3aa84322f9c40a5afc16141b59b3286f4642fd6a55329d1d",
+      "tests": ["test/unit/openRouterComposition.test.ts", "test/unit/providerOpenRouter.test.ts"],
+      "exit": 1,
+      "failures": [
+        "\u276f test/unit/providerOpenRouter.test.ts (12 tests | 1 failed) 5018ms",
+        "\u276f connectOpenRouterAccount (7)",
+        "\u00d7 discards a late exchange result after cancellation 5005ms",
+        "\u276f test/unit/openRouterComposition.test.ts (36 tests | 7 failed) 12797ms",
+        "\u276f CM952 production OpenRouter composition (23)",
+        "\u00d7 cancels a stalled token transport and releases the panel queue: cancel 1129ms",
+        "\u00d7 cancels a stalled token transport and releases the panel queue: back 1110ms",
+        "\u00d7 cancels a stalled token transport and releases the panel queue: remove 1110ms",
+        "\u00d7 cancels a stalled token transport and releases the panel queue: close 1112ms",
+        "\u00d7 cancels a stalled token transport and releases the panel queue: select 1112ms",
+        "\u00d7 cancels a stalled token transport and releases the panel queue: change-key 1110ms",
+        "\u276f CM952 terminal and ACP routes (13)",
+        "\u00d7 cancels terminal Connect without retaining a late credential: exchange 5004ms",
+        "FAIL  test/unit/openRouterComposition.test.ts > CM952 production OpenRouter composition > cancels a stalled token transport and releases the panel queue: cancel",
+        "FAIL  test/unit/openRouterComposition.test.ts > CM952 production OpenRouter composition > cancels a stalled token transport and releases the panel queue: back",
+        "FAIL  test/unit/openRouterComposition.test.ts > CM952 production OpenRouter composition > cancels a stalled token transport and releases the panel queue: remove",
+        "FAIL  test/unit/openRouterComposition.test.ts > CM952 production OpenRouter composition > cancels a stalled token transport and releases the panel queue: close",
+        "FAIL  test/unit/openRouterComposition.test.ts > CM952 production OpenRouter composition > cancels a stalled token transport and releases the panel queue: select",
+        "FAIL  test/unit/openRouterComposition.test.ts > CM952 production OpenRouter composition > cancels a stalled token transport and releases the panel queue: change-key",
+        "\u276f test/unit/openRouterComposition.test.ts:247:48",
+        "FAIL  test/unit/openRouterComposition.test.ts > CM952 terminal and ACP routes > cancels terminal Connect without retaining a late credential: exchange",
+        "\u276f test/unit/openRouterComposition.test.ts:741:42",
+        "FAIL  test/unit/providerOpenRouter.test.ts > connectOpenRouterAccount > discards a late exchange result after cancellation",
+        "\u276f test/unit/providerOpenRouter.test.ts:200:3",
+        "FAIL  test/unit/providerOpenRouter.test.ts > connectOpenRouterAccount > discards a late exchange result after cancellation",
+        "\u276f test/unit/providerOpenRouter.test.ts:216:36"
+      ],
+      "restored": true
+    },
+    {
+      "name": "terminal-cancel-store",
+      "file": "src/runtime/openRouterCommands.ts",
+      "sha256": "121acd009b43462020183cc8c82448c924e3e8f998722f57227ef37accfe0201",
+      "tests": ["test/unit/openRouterComposition.test.ts"],
+      "exit": 1,
+      "failures": [
+        "\u276f test/unit/openRouterComposition.test.ts (36 tests | 1 failed) 2075ms",
+        "\u276f CM952 terminal and ACP routes (13)",
+        "\u00d7 cancels terminal Connect without retaining a late credential: store 13ms",
+        "FAIL  test/unit/openRouterComposition.test.ts > CM952 terminal and ACP routes > cancels terminal Connect without retaining a late credential: store",
+        "\u276f test/unit/openRouterComposition.test.ts:777:44"
+      ],
+      "restored": true
+    },
+    {
+      "name": "usage-failure-invalidation",
+      "file": "src/host/models/modelsPanel.ts",
+      "sha256": "a7868bf4f5d0bb1554385715d3fb67d1f83478b54613b1078f3042f70be0a225",
+      "tests": ["test/unit/openRouterComposition.test.ts"],
+      "exit": 1,
+      "failures": [
+        "\u276f test/unit/openRouterComposition.test.ts (36 tests | 1 failed) 3017ms",
+        "\u276f CM952 production OpenRouter composition (23)",
+        "\u00d7 discards previous Models usage on the next observation: unreadable 1059ms",
+        "FAIL  test/unit/openRouterComposition.test.ts > CM952 production OpenRouter composition > discards previous Models usage on the next observation: unreadable",
+        "\u276f test/unit/openRouterComposition.test.ts:302:35"
+      ],
+      "restored": true
+    },
+    {
+      "name": "missing-usage-refusal",
+      "file": "src/host/providers/subscriptionFeatures.ts",
+      "sha256": "8ec695b6821c46251d095002e24268d1ca9f51c8b2719d4671dfe735b8ec6923",
+      "tests": ["test/unit/openRouterComposition.test.ts"],
+      "exit": 1,
+      "failures": [
+        "\u276f test/unit/openRouterComposition.test.ts (36 tests | 1 failed) 2050ms",
+        "\u276f CM952 production OpenRouter composition (23)",
+        "\u00d7 supplies Connect and key-usage ports through the production lazy factory 51ms",
+        "FAIL  test/unit/openRouterComposition.test.ts > CM952 production OpenRouter composition > supplies Connect and key-usage ports through the production lazy factory",
+        "\u276f test/unit/openRouterComposition.test.ts:487:43"
+      ],
+      "restored": true
+    },
+    {
+      "name": "models-money",
+      "file": "src/shared/modelsPanel.ts",
+      "sha256": "5f6d8ea2f066d639f995ac12732ff13b0290adc48899cc799c3a77377c88e94a",
+      "tests": ["test/unit/openRouterComposition.test.ts", "test/unit/paidMoneyStructure.test.ts"],
+      "exit": 1,
+      "failures": [
+        "\u276f test/unit/paidMoneyStructure.test.ts (8 tests | 1 failed) 892ms",
+        "\u276f structural exact-money guard (8)",
+        "\u00d7 flags every money-named numeric leaf under src/shared and src/core 883ms",
+        "\u276f test/unit/openRouterComposition.test.ts (36 tests | 5 failed) 5622ms",
+        "\u276f CM952 production OpenRouter composition (23)",
+        "\u00d7 normalizes every new key-usage money field through the exact boundary 14ms",
+        "\u00d7 discards previous Models usage on the next observation: removed 1006ms",
+        "\u00d7 discards previous Models usage on the next observation: rotated 1005ms",
+        "\u00d7 discards previous Models usage on the next observation: failed 1005ms",
+        "\u00d7 discards previous Models usage on the next observation: unreadable 1005ms",
+        "FAIL  test/unit/openRouterComposition.test.ts > CM952 production OpenRouter composition > normalizes every new key-usage money field through the exact boundary",
+        "\u276f test/unit/openRouterComposition.test.ts:148:51",
+        "FAIL  test/unit/openRouterComposition.test.ts > CM952 production OpenRouter composition > discards previous Models usage on the next observation: removed",
+        "FAIL  test/unit/openRouterComposition.test.ts > CM952 production OpenRouter composition > discards previous Models usage on the next observation: rotated",
+        "FAIL  test/unit/openRouterComposition.test.ts > CM952 production OpenRouter composition > discards previous Models usage on the next observation: failed",
+        "FAIL  test/unit/openRouterComposition.test.ts > CM952 production OpenRouter composition > discards previous Models usage on the next observation: unreadable",
+        "\u276f test/unit/openRouterComposition.test.ts:284:71",
+        "FAIL  test/unit/paidMoneyStructure.test.ts > structural exact-money guard > flags every money-named numeric leaf under src/shared and src/core",
+        "\u276f test/unit/paidMoneyStructure.test.ts:1143:38"
+      ],
+      "restored": true
+    },
+    {
+      "name": "account-money",
+      "file": "src/shared/usage.ts",
+      "sha256": "0853513a884fd81a2e549641137b1f6dd6e3520681d43460e637fad806cfde06",
+      "tests": ["test/unit/openRouterComposition.test.ts", "test/unit/paidMoneyStructure.test.ts"],
+      "exit": 1,
+      "failures": [
+        "\u276f test/unit/openRouterComposition.test.ts (36 tests | 2 failed) 2107ms",
+        "\u276f CM952 production OpenRouter composition (23)",
+        "\u00d7 normalizes every new key-usage money field through the exact boundary 15ms",
+        "\u00d7 supplies Connect and key-usage ports through the production lazy factory 34ms",
+        "\u276f test/unit/paidMoneyStructure.test.ts (8 tests | 1 failed) 975ms",
+        "\u276f structural exact-money guard (8)",
+        "\u00d7 flags every money-named numeric leaf under src/shared and src/core 964ms",
+        "FAIL  test/unit/openRouterComposition.test.ts > CM952 production OpenRouter composition > normalizes every new key-usage money field through the exact boundary",
+        "\u276f test/unit/openRouterComposition.test.ts:159:7",
+        "FAIL  test/unit/openRouterComposition.test.ts > CM952 production OpenRouter composition > supplies Connect and key-usage ports through the production lazy factory",
+        "\u276f test/unit/openRouterComposition.test.ts:453:43",
+        "FAIL  test/unit/paidMoneyStructure.test.ts > structural exact-money guard > flags every money-named numeric leaf under src/shared and src/core",
+        "\u276f test/unit/paidMoneyStructure.test.ts:1143:38"
+      ],
+      "restored": true
+    },
+    {
+      "name": "missing-exchange-port",
+      "file": "src/host/providers/providersHost.ts",
+      "sha256": "8952b0ad6f71225f94fb2cb752abb241964dd564059877862625b354ae653aed",
+      "tests": ["test/unit/providerPanelSeam.test.ts"],
+      "exit": 1,
+      "failures": [
+        "\u276f test/unit/providerPanelSeam.test.ts (10 tests | 1 failed) 78ms",
+        "\u276f production Models panel seam (10)",
+        "\u00d7 does not offer or dispatch missing OpenRouter services (PR136 VE) 9ms",
+        "FAIL  test/unit/providerPanelSeam.test.ts > production Models panel seam > does not offer or dispatch missing OpenRouter services (PR136 VE)",
+        "\u276f test/unit/providerPanelSeam.test.ts:229:53"
+      ],
+      "restored": true
+    },
+    {
+      "name": "missing-usage-port",
+      "file": "src/host/providers/providersHost.ts",
+      "sha256": "8952b0ad6f71225f94fb2cb752abb241964dd564059877862625b354ae653aed",
+      "tests": ["test/unit/providerPanelSeam.test.ts"],
+      "exit": 1,
+      "failures": [
+        "\u276f test/unit/providerPanelSeam.test.ts (10 tests | 1 failed) 70ms",
+        "\u276f production Models panel seam (10)",
+        "\u00d7 does not offer or dispatch missing OpenRouter services (PR136 VE) 8ms",
+        "FAIL  test/unit/providerPanelSeam.test.ts > production Models panel seam > does not offer or dispatch missing OpenRouter services (PR136 VE)",
+        "\u276f test/unit/providerPanelSeam.test.ts:230:61"
+      ],
+      "restored": true
+    },
+    {
+      "name": "usage-signal",
+      "file": "src/host/providers/openRouter.ts",
+      "sha256": "2f9a99d9c5d5b89253d1900f241a0cd92d303feb32d4f8f5be838587cea45434",
+      "tests": ["test/unit/openRouterComposition.test.ts"],
+      "exit": 1,
+      "failures": [
+        "\u276f test/unit/openRouterComposition.test.ts (42 tests | 3 failed) 4729ms",
+        "\u276f CM952 production OpenRouter composition (29)",
+        "\u00d7 cancels an in-flight key-usage read without starting another: cancel 1121ms",
+        "\u00d7 cancels an in-flight key-usage read without starting another: back 1108ms",
+        "\u00d7 cancels an in-flight key-usage read without starting another: close 105ms",
+        "FAIL  test/unit/openRouterComposition.test.ts > CM952 production OpenRouter composition > cancels an in-flight key-usage read without starting another: cancel",
+        "FAIL  test/unit/openRouterComposition.test.ts > CM952 production OpenRouter composition > cancels an in-flight key-usage read without starting another: back",
+        "\u276f test/unit/openRouterComposition.test.ts:260:29",
+        "FAIL  test/unit/openRouterComposition.test.ts > CM952 production OpenRouter composition > cancels an in-flight key-usage read without starting another: close",
+        "\u276f test/unit/openRouterComposition.test.ts:264:25"
+      ],
+      "restored": true
+    },
+    {
+      "name": "usage-read-freshness",
+      "file": "src/host/providers/openRouter.ts",
+      "sha256": "2f9a99d9c5d5b89253d1900f241a0cd92d303feb32d4f8f5be838587cea45434",
+      "tests": ["test/unit/openRouterComposition.test.ts"],
+      "exit": 1,
+      "failures": [
+        "\u276f test/unit/openRouterComposition.test.ts (42 tests | 2 failed) 4970ms",
+        "\u276f CM952 production OpenRouter composition (29)",
+        "\u00d7 discards Models usage when the credential changes during its read: rotated 1064ms",
+        "\u00d7 discards Models usage when the credential changes during its read: removed 1056ms",
+        "FAIL  test/unit/openRouterComposition.test.ts > CM952 production OpenRouter composition > discards Models usage when the credential changes during its read: rotated",
+        "FAIL  test/unit/openRouterComposition.test.ts > CM952 production OpenRouter composition > discards Models usage when the credential changes during its read: removed",
+        "\u276f test/unit/openRouterComposition.test.ts:431:61"
+      ],
+      "restored": true
+    },
+    {
+      "name": "exchange-dns-cancel",
+      "file": "src/core/providers/configured.ts",
+      "sha256": "e031544e07c44524bb5b985f50ded3817e230ec76e10a95d9cd24c3f640a3fe6",
+      "tests": ["test/unit/openRouterComposition.test.ts"],
+      "exit": 1,
+      "failures": [
+        "\u276f test/unit/openRouterComposition.test.ts (42 tests | 1 failed) 7985ms",
+        "\u276f CM952 production OpenRouter composition (29)",
+        "\u00d7 aborts key-usage endpoint verification without dispatch 5031ms",
+        "FAIL  test/unit/openRouterComposition.test.ts > CM952 production OpenRouter composition > aborts key-usage endpoint verification without dispatch",
+        "\u276f test/unit/openRouterComposition.test.ts:198:3"
+      ],
+      "restored": true
+    },
+    {
+      "name": "hidden-input-cancel",
+      "file": "src/host/providers/openRouter.ts",
+      "sha256": "2f9a99d9c5d5b89253d1900f241a0cd92d303feb32d4f8f5be838587cea45434",
+      "tests": ["test/unit/providerOpenRouter.test.ts"],
+      "exit": 1,
+      "failures": [
+        "\u276f test/unit/providerOpenRouter.test.ts (12 tests | 1 failed) 5017ms",
+        "\u276f connectOpenRouterAccount (7)",
+        "\u00d7 cancels remote authorization while awaiting prompt and rejects late input 5004ms",
+        "FAIL  test/unit/providerOpenRouter.test.ts > connectOpenRouterAccount > cancels remote authorization while awaiting prompt and rejects late input",
+        "\u276f test/unit/providerOpenRouter.test.ts:166:42"
+      ],
+      "restored": true
+    },
+    {
+      "name": "browser-wait-cancel",
+      "file": "src/host/providers/openRouter.ts",
+      "sha256": "2f9a99d9c5d5b89253d1900f241a0cd92d303feb32d4f8f5be838587cea45434",
+      "tests": ["test/unit/providerOpenRouter.test.ts"],
+      "exit": 1,
+      "failures": [
+        "\u276f test/unit/providerOpenRouter.test.ts (12 tests | 1 failed) 5017ms",
+        "\u276f connectOpenRouterAccount (7)",
+        "\u00d7 cancels remote authorization while awaiting browser and rejects late input 5004ms",
+        "FAIL  test/unit/providerOpenRouter.test.ts > connectOpenRouterAccount > cancels remote authorization while awaiting browser and rejects late input",
+        "\u276f test/unit/providerOpenRouter.test.ts:166:42"
+      ],
+      "restored": true
+    },
+    {
+      "name": "old-models-cache",
+      "file": "src/host/models/modelsPanel.ts",
+      "sha256": "f3998bfad632a3f7ab2f9a1270b4b197499555e9750c11fb0804304a297994fb",
+      "tests": ["test/unit/openRouterComposition.test.ts"],
+      "exit": 1,
+      "failures": [
+        "\u276f test/unit/openRouterComposition.test.ts (42 tests | 10 failed) 11268ms",
+        "\u276f CM952 production OpenRouter composition (29)",
+        "\u00d7 cancels an in-flight key-usage read without starting another: cancel 1132ms",
+        "\u00d7 cancels an in-flight key-usage read without starting another: back 1109ms",
+        "\u00d7 cancels an in-flight key-usage read without starting another: close 110ms",
+        "\u00d7 cancels a stalled token transport and releases the panel queue: remove 1111ms",
+        "\u00d7 cancels a stalled token transport and releases the panel queue: select 1112ms",
+        "\u00d7 cancels a stalled token transport and releases the panel queue: change-key 1109ms",
+        "\u00d7 discards previous Models usage on the next observation: removed 1057ms",
+        "\u00d7 discards previous Models usage on the next observation: rotated 1058ms",
+        "\u00d7 discards previous Models usage on the next observation: failed 1057ms",
+        "\u00d7 discards previous Models usage on the next observation: unreadable 1057ms",
+        "FAIL  test/unit/openRouterComposition.test.ts > CM952 production OpenRouter composition > cancels an in-flight key-usage read without starting another: cancel",
+        "FAIL  test/unit/openRouterComposition.test.ts > CM952 production OpenRouter composition > cancels an in-flight key-usage read without starting another: back",
+        "\u276f test/unit/openRouterComposition.test.ts:260:29",
+        "FAIL  test/unit/openRouterComposition.test.ts > CM952 production OpenRouter composition > cancels an in-flight key-usage read without starting another: close",
+        "\u276f test/unit/openRouterComposition.test.ts:264:25",
+        "FAIL  test/unit/openRouterComposition.test.ts > CM952 production OpenRouter composition > cancels a stalled token transport and releases the panel queue: remove",
+        "FAIL  test/unit/openRouterComposition.test.ts > CM952 production OpenRouter composition > cancels a stalled token transport and releases the panel queue: select",
+        "FAIL  test/unit/openRouterComposition.test.ts > CM952 production OpenRouter composition > cancels a stalled token transport and releases the panel queue: change-key",
+        "\u276f test/unit/openRouterComposition.test.ts:322:48",
+        "FAIL  test/unit/openRouterComposition.test.ts > CM952 production OpenRouter composition > discards previous Models usage on the next observation: removed",
+        "FAIL  test/unit/openRouterComposition.test.ts > CM952 production OpenRouter composition > discards previous Models usage on the next observation: rotated",
+        "FAIL  test/unit/openRouterComposition.test.ts > CM952 production OpenRouter composition > discards previous Models usage on the next observation: failed",
+        "FAIL  test/unit/openRouterComposition.test.ts > CM952 production OpenRouter composition > discards previous Models usage on the next observation: unreadable",
+        "\u276f test/unit/openRouterComposition.test.ts:377:35"
+      ],
+      "restored": true
+    },
+    {
+      "name": "cancel-never-restore",
+      "file": "src/runtime/openRouterCommands.ts",
+      "sha256": "c4f31542ba9a518e04c1a321d979d663845474fb54eaf47fc658d3370438d689",
+      "tests": ["test/unit/openRouterComposition.test.ts"],
+      "exit": 1,
+      "failures": [
+        "\u276f test/unit/openRouterComposition.test.ts (44 tests | 2 failed) 3343ms",
+        "\u276f CM952 terminal and ACP routes (15)",
+        "\u00d7 cancels terminal Connect without retaining a late credential: interrupted-replacement 7ms",
+        "\u00d7 cancels terminal Connect without retaining a late credential: interrupted-removal 3ms",
+        "FAIL  test/unit/openRouterComposition.test.ts > CM952 terminal and ACP routes > cancels terminal Connect without retaining a late credential: interrupted-replacement",
+        "FAIL  test/unit/openRouterComposition.test.ts > CM952 terminal and ACP routes > cancels terminal Connect without retaining a late credential: interrupted-removal",
+        "\u276f test/unit/openRouterComposition.test.ts:935:44"
+      ],
+      "restored": true
+    },
+    {
+      "name": "native-prompt-cancel-final",
+      "file": "src/host/providers/openRouter.ts",
+      "sha256": "8c2a38c79952f43e488c7f3f45cf5cb44829c488deada84e5d8da754ba4f71be",
+      "tests": ["test/unit/providerOpenRouter.test.ts"],
+      "exit": 1,
+      "failures": [
+        "\u276f test/unit/providerOpenRouter.test.ts (13 tests | 1 failed) 20ms",
+        "\u276f native code prompt cancellation (1)",
+        "\u00d7 withdraws a pending password box and disposes its cancellation subscription 6ms",
+        "FAIL  test/unit/providerOpenRouter.test.ts > native code prompt cancellation > withdraws a pending password box and disposes its cancellation subscription",
+        "\u276f test/unit/providerOpenRouter.test.ts:257:26"
+      ],
+      "restored": true
+    }
+  ],
+  "probes": [
+    {
+      "name": "native-prompt-cancel",
+      "file": "src/host/providers/openRouter.ts",
+      "sha256": "8c2a38c79952f43e488c7f3f45cf5cb44829c488deada84e5d8da754ba4f71be",
+      "tests": ["test/unit/providerOpenRouter.test.ts"],
+      "exit": 0,
+      "failures": [],
+      "restored": true
+    },
+    {
+      "name": "native-prompt-cancel",
+      "file": "src/host/providers/openRouter.ts",
+      "sha256": "8c2a38c79952f43e488c7f3f45cf5cb44829c488deada84e5d8da754ba4f71be",
+      "tests": ["test/unit/providerOpenRouter.test.ts"],
+      "exit": 1,
+      "failures": [
+        "\u276f test/unit/providerOpenRouter.test.ts (13 tests | 1 failed) 22ms",
+        "\u276f native code prompt cancellation (1)",
+        "\u00d7 withdraws a pending password box and disposes its cancellation subscription 7ms",
+        "FAIL  test/unit/providerOpenRouter.test.ts > native code prompt cancellation > withdraws a pending password box and disposes its cancellation subscription",
+        "\u276f test/unit/providerOpenRouter.test.ts:256:26"
+      ],
+      "restored": true
+    }
+  ]
+}
