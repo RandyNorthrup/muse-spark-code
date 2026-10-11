@@ -6,10 +6,12 @@
 // M97's live `GET https://registry.npmjs.org/is-even/1.0.0` response,
 // verbatim (docs/certification/m97-r.md). It is served here as the fake
 // registry's `/latest` document: `/latest` answers the same version-document
-// shape, and only `version` is read. Marketplace, Open VSX, GitHub Actions
-// workflow runs and GitHub releases have no approved capture on this lane, so
-// they are covered only through their honest-unavailable ports, never through
-// a guessed wire shape (AGENTS.md rule 14).
+// shape, and only `version` is read. The C-M113-6 captures added real
+// adapters for the sibling channels (marketplaceStoreAdapter,
+// openVsxStoreAdapter) and the workflow/release port
+// (githubWorkflowReleasesPort), each tested against its own fixture in its
+// own file; uncaptured shapes stay refused, never guessed (AGENTS.md rule
+// 14).
 import { readFileSync } from 'node:fs'
 import { describe, expect, it, vi } from 'vitest'
 import * as z from 'zod/mini'

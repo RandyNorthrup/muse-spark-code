@@ -43,11 +43,11 @@ export interface ReportStoreOptions {
 function channels(options: ReportStoreOptions): { channel: Channel; url: string }[] {
   const result: { channel: Channel; url: string }[] = []
   const { project } = options
-  if (
+  const isExtension =
     project.publisher !== undefined &&
     project.publisher !== '' &&
     project.engines?.vscode !== undefined
-  ) {
+  if (isExtension) {
     result.push(
       {
         channel: 'Marketplace',
@@ -59,7 +59,14 @@ function channels(options: ReportStoreOptions): { channel: Channel; url: string 
       },
     )
   }
-  if (project.private !== true)
+  // The npm row means the workspace's own published package, read from the
+  // manifest that is actually published, never a hard-coded name (PLAN M113
+  // §6: a channel only for a project that publishes there). A private
+  // manifest publishes no npm package under its own name, so its npm row is
+  // refused below with the true reason instead of querying the manifest
+  // name (C-M113-6: this repository's npm artifact is the ACP agent's
+  // generated manifest, which is not in the workspace to read).
+  if (isExtension || project.private !== true)
     result.push({
       channel: 'npm',
       url: `https://www.npmjs.com/package/${encodeURIComponent(project.name)}`,
@@ -94,6 +101,15 @@ export function storesReportSource(options: ReportStoreOptions): ReportSourcePor
       return await options.reader.read(context, 'stores', storeRowsSchema, async (query) => {
         const rows: StoreRow[] = []
         for (const target of targets) {
+          if (target.channel === 'npm' && options.project.private === true) {
+            rows.push({
+              ...target,
+              version: null,
+              status: 'unavailable',
+              reason: 'npm-private-manifest',
+            })
+            continue
+          }
           const adapters = options.adapters.filter((adapter) => adapter.channel === target.channel)
           const adapter = adapters[0]
           if (adapter === undefined || adapters.length !== 1) {

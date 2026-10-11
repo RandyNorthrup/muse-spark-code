@@ -11,12 +11,10 @@
 // slash (`@types%2Fnode`), as captured; encoding the `@` itself answers 404.
 // A missing package answers 404 `"Not Found"` (same capture record).
 //
-// No other channel ships a default adapter on this lane: Marketplace, Open
-// VSX, GitHub Actions workflow runs and GitHub releases have no approved wire
-// capture (this lane makes no network calls), so those rows stay honestly
-// unavailable (`store-capture-required` / `workflow-release-capture-required`)
-// until the lead's N-captures handoff lands. Nothing here guesses a wire
-// field.
+// Sibling channels ship their own default adapters from the C-M113-6
+// captures: `marketplaceStore.ts`, `openVsxStore.ts`, and the
+// workflow/release port in `githubWorkflowReleases.ts`. Nothing here guesses
+// a wire field.
 
 import * as z from 'zod/mini'
 import { LEGAL_REGISTRY_HOSTS, LEGAL_REGISTRY_NAME_MAX_CHARS } from '../../../shared/constants'
