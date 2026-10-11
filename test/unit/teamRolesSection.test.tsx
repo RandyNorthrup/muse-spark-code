@@ -497,6 +497,55 @@ describe('M96 U1 Roles UI', () => {
       fields: { settings: { effort: 'low', outputCap: 1017 } },
     })
   })
+  it('retires schema-reordered acknowledgements so a later Re-apply Level sticks', async () => {
+    // RVCM962C P2: the strict controller schema rebuilds settings in schema
+    // key order (effort, outputCap, temperature) while the local draft keeps
+    // edit order (effort, temperature, outputCap). A reordered acknowledgement
+    // must still retire exactly its own sends, or a later Re-apply Level is
+    // mistaken for an old echo and the next edit undoes it.
+    const offers = numericSettingOffers()
+    const { rig, posted, post, role, view } = await roleEditorRig({
+      offers: () => Promise.resolve(offers),
+    })
+    const primary = role.pool[0]
+    if (primary === undefined) throw new Error('No primary entry')
+    const answer = async () => {
+      const last = posted.at(-1)
+      if (last === undefined) throw new Error('No settings edit')
+      await rig.controller.handle(last)
+      const next = structuredClone(await rig.read())
+      view.rerender(<RoleEditor role={engineeringRole(next)} slice={next} post={post} />)
+    }
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Temperature' }), {
+      target: { value: '0.5' },
+    })
+    await answer()
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Output Cap' }), {
+      target: { value: '1024' },
+    })
+    await answer()
+    fireEvent.change(screen.getByRole('combobox', { name: 'Effort' }), { target: { value: 'low' } })
+    await answer()
+    await rig.controller.handle({ type: 'roles/reapply', role: role.role })
+    const reapplied = structuredClone(await rig.read())
+    view.rerender(<RoleEditor role={engineeringRole(reapplied)} slice={reapplied} post={post} />)
+    // The level restores High: the editor shows it, not the retired Low.
+    expect(screen.getByRole('combobox', { name: 'Effort' })).toHaveValue('high')
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Temperature' }), {
+      target: { value: '0.6' },
+    })
+    const last = posted.at(-1)
+    expect(last).toMatchObject({
+      fields: { settings: { effort: 'high', outputCap: 1024, temperature: 0.6 } },
+    })
+    if (last === undefined) throw new Error('No settings edit')
+    await rig.controller.handle(last)
+    expect(engineeringRole(await rig.read()).pool[0]?.settings).toEqual({
+      effort: 'high',
+      outputCap: 1024,
+      temperature: 0.6,
+    })
+  })
   it('keeps generated charter read-only and edits the user purpose', async () => {
     const rig = await sectionRig('pair')
     const purpose = screen.getByRole('textbox', { name: UI_TEXT.teamEditor.purpose })

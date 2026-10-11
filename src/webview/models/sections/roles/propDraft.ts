@@ -22,6 +22,34 @@ function field(value: unknown, key: string): unknown {
   return isObject(value) ? Reflect.get(value, key) : undefined
 }
 
+// The controller's strict schema rebuilds every settings object in schema
+// key order, while the local draft keeps edit order, so a byte comparison
+// never sees an acknowledgement. The fingerprint sorts object keys at every
+// level (arrays stay positional): it identifies the exact send an arrival
+// answers regardless of the order the wire carried. A matched arrival
+// retires that send and every older one — the serialized host answers sends
+// in order — while a later external value (reapply, reset, import) matches
+// no send and always applies, never to be mistaken for a retired echo.
+function normalize(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map((item) => normalize(item))
+  if (isObject(value)) {
+    const sorted: Record<string, unknown> = {}
+    const keys = Object.keys(value).toSorted((left, right) =>
+      left < right ? -1 : Number(left > right),
+    )
+    for (const key of keys) {
+      const item = normalize(field(value, key))
+      if (item !== undefined) sorted[key] = item
+    }
+    return sorted
+  }
+  return value
+}
+
+function fingerprint(value: unknown): unknown {
+  return JSON.stringify(normalize(value))
+}
+
 function applyReply(previous: unknown, arrived: unknown, draft: object, sent: readonly unknown[]) {
   const keys = new Set([
     ...Object.keys(isObject(previous) ? previous : {}),
@@ -30,9 +58,9 @@ function applyReply(previous: unknown, arrived: unknown, draft: object, sent: re
   for (const key of keys) {
     const before = field(previous, key)
     const value = field(arrived, key)
-    if (JSON.stringify(value) === JSON.stringify(before)) continue
+    if (fingerprint(value) === fingerprint(before)) continue
     const pending = sent.map((item) => field(item, key))
-    if (pending.some((item) => JSON.stringify(item) === JSON.stringify(value))) continue
+    if (pending.some((item) => fingerprint(item) === fingerprint(value))) continue
     const local = field(draft, key)
     // Caps within the same entry answer independently too. Structural array
     // changes are whole values; equal-length arrays reconcile their fields.
@@ -68,11 +96,11 @@ export function usePropDraft<T extends object | undefined>(
     latest.current = state
   })
   if (state.prop !== prop) {
-    const arrived = JSON.stringify(prop)
-    const echoed = state.sent.findIndex((value) => JSON.stringify(value) === arrived)
-    if (arrived === JSON.stringify(state.prop)) {
+    const arrived = fingerprint(prop)
+    const echoed = state.sent.findIndex((value) => fingerprint(value) === arrived)
+    if (arrived === fingerprint(state.prop)) {
       setState({ ...state, prop })
-    } else if (echoed !== -1 || arrived === JSON.stringify(state.draft)) {
+    } else if (echoed !== -1 || arrived === fingerprint(state.draft)) {
       setState({
         prop,
         draft: state.draft,
