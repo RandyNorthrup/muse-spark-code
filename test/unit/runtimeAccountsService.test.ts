@@ -1,3 +1,4 @@
+import { duplicateMetaAccounts } from './helpers/runtimeAccounts'
 // CM108ACC: the installed runtime serves the shared account service, not the
 // "unavailable" stub. Production FileAccountsMetadata + AccountStore +
 // AccountSecrets over a temp data dir and an in-memory keyring: the dogfood
@@ -178,20 +179,7 @@ describe('installed runtime account service', () => {
   })
 
   it.each([
-    [
-      'duplicate account ids',
-      {
-        id: 'meta',
-        policyProvider: 'meta',
-        product: 'model-api',
-        auth: 'apiKey',
-        origin: 'https://api.meta.ai',
-        accounts: [
-          { id: 'default', label: 'Default', order: 0, thresholds: {} },
-          { id: 'default', label: 'Copy', order: 1, thresholds: {} },
-        ],
-      },
-    ],
+    ['duplicate account ids', duplicateMetaAccounts('https://api.meta.ai')],
     [
       'a provider id that does not match its key',
       {
@@ -224,17 +212,7 @@ describe('installed runtime account service', () => {
       file,
       JSON.stringify({
         providers: {
-          meta: {
-            id: 'meta',
-            policyProvider: 'meta',
-            product: 'model-api',
-            auth: 'apiKey',
-            origin: 'https://api.meta.ai',
-            accounts: [
-              { id: 'default', label: 'Default', order: 0, thresholds: {} },
-              { id: 'default', label: 'Copy', order: 1, thresholds: {} },
-            ],
-          },
+          meta: duplicateMetaAccounts('https://api.meta.ai'),
         },
       }),
       'utf8',

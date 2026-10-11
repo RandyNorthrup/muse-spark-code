@@ -1,3 +1,4 @@
+import { poolMetadata } from '../unit/helpers/accounts/metadata'
 // Fake-only composition of P's request boundary with K's guarded credentials.
 // M95's concrete registry/ModelApiHost and editor transports are not on this base.
 import { describe, expect, it } from 'vitest'
@@ -5,7 +6,6 @@ import {
   AccountStore,
   accountClientLookup,
   type AccountClientPort,
-  type AccountsMetadataPort,
 } from '../../src/core/providers/accounts'
 import type { AccountCredentialVault } from '../../src/core/providers/accountCredentialRecord'
 import { parseUsd } from '../../src/shared/accountUsd'
@@ -14,21 +14,7 @@ import { poolRig, poolRequest, POOL_NOW } from '../unit/helpers/accounts/pool'
 
 const ORIGIN = 'https://provider.invalid'
 function transport(t: ReturnType<typeof poolRig>) {
-  const metadata: AccountsMetadataPort = {
-    read: (provider) =>
-      Promise.resolve({
-        id: provider,
-        policyProvider: 'anthropic',
-        product: 'api',
-        auth: 'apiKey',
-        origin: ORIGIN,
-        accounts: t.rows,
-      }),
-    writeAccounts: (_provider, accounts) => {
-      t.rows.splice(0, t.rows.length, ...accounts)
-      return Promise.resolve()
-    },
-  }
+  const metadata = poolMetadata(t.rows, ORIGIN)
   const vault: AccountCredentialVault = {
     read: (binding) =>
       Promise.resolve({ ...binding, v: 1, auth: 'apiKey', secret: `fake-only-${binding.account}` }),

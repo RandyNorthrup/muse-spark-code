@@ -1,3 +1,5 @@
+import { fakeRuntimeBackendDeps } from './helpers/runtimeBackend'
+import { duplicateMetaAccounts } from './helpers/runtimeAccounts'
 import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -226,15 +228,7 @@ describe('createRuntimeAccountServices', () => {
             platform: process.platform,
             env: {},
             homeDir: '',
-            secrets: {
-              get: () => Promise.resolve(undefined),
-              store: () => Promise.resolve(),
-              delete: () => Promise.resolve(),
-            },
-            runGit: () => Promise.reject(new Error('unexpected git')),
-            fetch: () => Promise.reject(new Error('unexpected fetch')),
-            sleep: () => Promise.resolve(),
-            log: { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+            ...fakeRuntimeBackendDeps(),
           },
           { account: 'default', hasPoolFlag: true, isInteractive: false },
           createBackend,
@@ -371,17 +365,7 @@ describe('createRuntimeAccountServices', () => {
       'duplicate account ids',
       JSON.stringify({
         providers: {
-          meta: {
-            id: 'meta',
-            policyProvider: 'meta',
-            product: 'model-api',
-            auth: 'apiKey',
-            origin: new URL(MODEL_API_BASE_URL).origin,
-            accounts: [
-              { id: 'default', label: 'Default', order: 0, thresholds: {} },
-              { id: 'default', label: 'Copy', order: 1, thresholds: {} },
-            ],
-          },
+          meta: duplicateMetaAccounts(new URL(MODEL_API_BASE_URL).origin),
         },
       }),
     ],
@@ -416,15 +400,7 @@ describe('createRuntimeAccountServices', () => {
           platform: process.platform,
           env: {},
           homeDir: folder,
-          secrets: {
-            get: () => Promise.resolve(undefined),
-            store: () => Promise.resolve(),
-            delete: () => Promise.resolve(),
-          },
-          runGit: () => Promise.reject(new Error('unexpected git')),
-          fetch: () => Promise.reject(new Error('unexpected fetch')),
-          sleep: () => Promise.resolve(),
-          log: { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+          ...fakeRuntimeBackendDeps(),
         },
         { account: 'work', hasPoolFlag: false, isInteractive: false },
         createRuntimeBackend,
@@ -463,17 +439,7 @@ describe('createRuntimeAccountServices', () => {
   it('opens developer multiple-accounts with the providers-file sentence instead of a raw failure', async () => {
     const services = rig()
     try {
-      await services.store.add('vendor', { ...ROW, order: 1 })
-      const owner = await services.developer({
-        readLine: () => Promise.resolve(UI_TEXT.accounts.confirm),
-        print: vi.fn(),
-      })
-      await owner.unlock('terminal')
-      await owner.setMultiple(true)
-      // The profile is recorded before its unbound launch fails.
-      await expect(owner.addProfile('vendor', 'work')).rejects.toThrow(
-        UI_TEXT.developer.unavailable,
-      )
+      await unboundProfile(services)
       const folder = dirs[0]
       if (folder === undefined) throw new Error('missing test folder')
       const file = runtimeProvidersFile(folder)
@@ -502,16 +468,7 @@ describe('createRuntimeAccountServices', () => {
   it('keeps the start refusal when enabling multiple accounts over a refused file', async () => {
     const services = rig()
     try {
-      await services.store.add('vendor', { ...ROW, order: 1 })
-      const owner = await services.developer({
-        readLine: () => Promise.resolve(UI_TEXT.accounts.confirm),
-        print: vi.fn(),
-      })
-      await owner.unlock('terminal')
-      await owner.setMultiple(true)
-      await expect(owner.addProfile('vendor', 'work')).rejects.toThrow(
-        UI_TEXT.developer.unavailable,
-      )
+      const owner = await unboundProfile(services)
       // The disable lands even though stopping the unbound profile fails.
       await expect(owner.setMultiple(false)).rejects.toThrow(UI_TEXT.developer.unavailable)
       const folder = dirs[0]
@@ -526,16 +483,7 @@ describe('createRuntimeAccountServices', () => {
   it('refuses unbound profile cleanup and retains ownership after a failed launch', async () => {
     const services = rig()
     try {
-      await services.store.add('vendor', { ...ROW, order: 1 })
-      const owner = await services.developer({
-        readLine: () => Promise.resolve(UI_TEXT.accounts.confirm),
-        print: vi.fn(),
-      })
-      await owner.unlock('terminal')
-      await owner.setMultiple(true)
-      await expect(owner.addProfile('vendor', 'work')).rejects.toThrow(
-        UI_TEXT.developer.unavailable,
-      )
+      const owner = await unboundProfile(services)
       await expect(owner.addProfile('vendor', 'default')).rejects.toThrow(
         UI_TEXT.developer.unavailable,
       )
@@ -574,3 +522,15 @@ describe('createRuntimeAccountServices', () => {
     }
   })
 })
+
+async function unboundProfile(services: ReturnType<typeof rig>) {
+  await services.store.add('vendor', { ...ROW, order: 1 })
+  const owner = await services.developer({
+    readLine: () => Promise.resolve(UI_TEXT.accounts.confirm),
+    print: vi.fn(),
+  })
+  await owner.unlock('terminal')
+  await owner.setMultiple(true)
+  await expect(owner.addProfile('vendor', 'work')).rejects.toThrow(UI_TEXT.developer.unavailable)
+  return owner
+}

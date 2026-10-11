@@ -1,4 +1,5 @@
-import { mkdtempSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { removeTestFolders } from './helpers/tempFolders'
+import { mkdtempSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -29,7 +30,7 @@ const KEY = accountBindingKey(BINDING)
 
 const folders: string[] = []
 afterEach(() => {
-  for (const folder of folders.splice(0)) rmSync(folder, { recursive: true, force: true })
+  removeTestFolders(folders)
 })
 
 function rig() {

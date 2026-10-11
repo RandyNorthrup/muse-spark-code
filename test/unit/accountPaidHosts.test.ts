@@ -1,3 +1,4 @@
+import { fakeRuntimeBackendDeps } from './helpers/runtimeBackend'
 import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -403,15 +404,7 @@ describe('M108 lane P in the ACP agent (AcpPaidUse)', () => {
       platform: process.platform,
       env,
       homeDir: home,
-      secrets: {
-        get: () => Promise.resolve(undefined),
-        store: () => Promise.resolve(),
-        delete: () => Promise.resolve(),
-      },
-      runGit: () => Promise.reject(new Error('unexpected git')),
-      fetch: () => Promise.reject(new Error('unexpected fetch')),
-      sleep: () => Promise.resolve(),
-      log: { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+      ...fakeRuntimeBackendDeps(),
       billingAccount: 'work',
     })
     try {

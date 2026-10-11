@@ -32691,8 +32691,8 @@ implemented. The owner requires completed certification before surfacing:
 `ACCOUNT_REQUEST_CERTIFICATION.isComplete` stays false, so installed switching and
 pooling retain their prior refusals. Typecheck, changed-file lint,
 localization/reference, roadmap, host API, exec schemas, deadcode and production
-budgets passed before the final hide gate; 22 owning tests passed. Duplication
-found four new test clones plus inherited clones. Broader affected suites,
+budgets passed before the final hide gate; 22 owning tests passed. Completion round 2 removes all eleven duplication clones through shared
+test fixtures; the zero-clone gate passes. Broader affected suites,
 red drills, post-hide verification and fresh Codex/Grok review remain.
 The time box ended; no gate was weakened, no push or extra merge occurred.
 Next slice: finish C-M108-2 certification, then enable its binding; C-M108-3
