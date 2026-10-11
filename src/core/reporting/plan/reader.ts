@@ -185,12 +185,20 @@ function deliveryOrder(
 function questions(
   body: readonly PlanLine[],
   knownIds: ReadonlyMap<string, string>,
+  drift: Drift[],
 ): ReportQuestion[] {
   const result: ReportQuestion[] = []
+  const seenIds = new Set<string>()
   for (let index = 0; index < body.length; index += 1) {
     const row = body[index]
     const match = /^(?:- \*\*|### )(Q-[\w-]+)(?=[\s:—])/.exec(row?.text ?? '')
     if (!match?.[1]) continue
+    // A repeated open-question id collapses two needs-you rows onto one key
+    // and fails document validation; both entries stay, and the duplication
+    // is drift so check:plan fails it (RVCM1132C finding 2).
+    if (seenIds.has(match[1]))
+      drift.push({ code: 'question-duplicate', line: row?.line ?? 1, detail: match[1] })
+    else seenIds.add(match[1])
     const start = index
     while (index + 1 < body.length && !/^(?:- \*\*Q-|### Q-)/.test(body[index + 1]?.text ?? ''))
       index += 1
@@ -413,7 +421,7 @@ function parsePlan(text: string, evidence: PlanEvidence): PlanReadResult {
     facts: {
       format: 'plan-format-v1',
       milestones,
-      questions: questions(sectionBodies.get(PLAN_SECTIONS.questions) ?? [], knownIds),
+      questions: questions(sectionBodies.get(PLAN_SECTIONS.questions) ?? [], knownIds, drift),
       risks,
       residuals,
       releases: releases(sectionBodies.get(PLAN_SECTIONS.releases) ?? []),

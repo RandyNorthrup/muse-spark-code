@@ -12,7 +12,7 @@ import {
 } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { build } from 'esbuild'
 import { createRequire } from 'node:module'
 import { reportInputsLoader } from '../../src/runtime/reporting/reportInputsLoader'
@@ -768,4 +768,90 @@ it('R2 every engine generation gets a new snapshot even with reused options and 
   expect(await tokens()).toBe(100)
   await journalWith(data, [usageEntry('second', 's1')])
   expect(await tokens()).toBe(200)
+})
+
+describe('RVCM1132C real PLAN.md reports', () => {
+  let storage = ''
+  let services: ReturnType<typeof createReportingServices> | undefined
+  beforeAll(async () => {
+    storage = await dir('real-plan-reports-')
+    services = createReportingServices({
+      workspaceRoot: process.cwd(),
+      storageRoot: storage,
+      l10n: { table: EN, locale: 'en' },
+      generatorVersion: 'test',
+      keepHistory: false,
+      enabledAgents: [],
+    })
+  })
+
+  it('generates a usage report against the repository real PLAN.md', async () => {
+    const asOf = new Date().toISOString()
+    const usage = await services?.generate?.({
+      kind: 'usage',
+      scope: 'today',
+      asOf,
+      full: false,
+      network: false,
+      failOn: [],
+    })
+    expect(usage?.status).toBe('generated')
+  })
+
+  it('generates a session report against the repository real PLAN.md', async () => {
+    const asOf = new Date().toISOString()
+    const session = await services?.generate?.({
+      kind: 'session',
+      scope: '',
+      asOf,
+      full: false,
+      network: false,
+      failOn: [],
+    })
+    expect(session?.status).toBe('generated')
+  })
+
+  it('generates both kinds with a duplicated open-question id instead of failing', async () => {
+    const workspace = await dir('duplicate-plan-reports-')
+    await writeFile(
+      path.join(workspace, 'PLAN.md'),
+      [
+        '# Fixture plan',
+        '',
+        '## 3. Open questions',
+        '- **Q-DUP — First form (2026-10-06).**',
+        '  The first body.',
+        '- **Q-DUP — Second form (2026-10-06).**',
+        '  The second body.',
+        '- **Q-SAME — Same form (2026-10-06).**',
+        '  The same body.',
+        '- **Q-SAME — Same form (2026-10-06).**',
+        '  The same body.',
+        '',
+      ].join('\n'),
+    )
+    const duplicated = createReportingServices({
+      workspaceRoot: workspace,
+      storageRoot: path.join(workspace, 'reports'),
+      l10n: { table: EN, locale: 'en' },
+      generatorVersion: 'test',
+      keepHistory: false,
+      enabledAgents: [],
+    })
+    const asOf = new Date().toISOString()
+    for (const options of [
+      { kind: 'usage', scope: 'today' },
+      { kind: 'session', scope: '' },
+    ] as const) {
+      const result = await duplicated.generate?.({
+        ...options,
+        asOf,
+        full: false,
+        network: false,
+        failOn: [],
+      })
+      // Before the fix this threw Invalid report document (exit 1).
+      expect(result?.status).toBe('generated')
+    }
+  })
 })

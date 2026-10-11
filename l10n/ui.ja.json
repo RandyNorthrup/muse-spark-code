@@ -1911,8 +1911,7 @@
     "journalIncomplete": "使用状況の記録には破損、不完全、または新しいバージョンの項目が含まれています。合計からは除外されています。",
     "sessionUsageUnavailable": "保存された記録ではこのセッションの使用状況を特定できないため、トークン数と費用の合計は利用できません。",
     "budgetsUnavailable": "選択した期間の予算スナップショットは利用できません。",
-    "sessionModelUnavailable": "セッションカタログにアクティブなモデルがないため、モデルは不明として報告されます。",
-    "duplicateOpenQuestion": "この未解決の質問IDはPLAN.md内で重複しています（計画上の問題）。"
+    "sessionModelUnavailable": "セッションカタログにアクティブなモデルがないため、モデルは不明として報告されます。"
   },
   "reportRowsMore": {
     "other": "ほか {count} 行"
