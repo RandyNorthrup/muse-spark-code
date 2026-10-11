@@ -534,6 +534,12 @@ happened, not what was planned; superseded entries are kept.
   files and apply exclusions at every depth. Add settled diagnostics regressions
   and size accounting for the actual shipped inline startup scripts.
 
+- Production split-gate qualification no longer relaunches the complete gate
+  inside five-second test bodies. The full gate runs once in the bounded
+  setup hook; each mutation test replays only its own gate section (portable
+  budgets, backend-lazy inventory, resource policy) against the shared tree,
+  keeping every mutation-specific refusal assertion and existing deadline.
+
 ### Security
 
 - Refuse ambiguous Windows path spellings at file admission, including device

@@ -3,6 +3,7 @@ import { Buffer } from 'node:buffer'
 import { createHash } from 'node:crypto'
 import {
   cpSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -20,6 +21,7 @@ import { compactBrowserUiText } from '../../scripts/lib/uiTextRegions.mjs'
 import { lazyBrowserKeybindings } from '../../scripts/lib/browserKeybindings.mjs'
 import { sharedHighlightGrammar } from '../../scripts/lib/highlightGrammar.mjs'
 import { resourceBrowserValidation } from '../../scripts/lib/webviewBundles.mjs'
+import { BUNDLES, checkResourceBundles } from '../../scripts/lib/deferredBundles.mjs'
 import { createRequire } from 'node:module'
 import { listFiles } from '@vscode/vsce/out/package.js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -44,6 +46,8 @@ const built = {
   contexts: { active: 0, peak: 0 },
   sizeGate: '',
   splitGate: '',
+  splitSections: undefined,
+  shippedBundles: [],
 }
 const outputFile = (file) => path.join(built.production, file)
 const NON_BUILT_REQUESTS = ['native', 'companion', 'worker'].flatMap((variant) =>
@@ -334,6 +338,68 @@ beforeAll(async () => {
     await regressionBuild.dispose()
   }
   for (const task of gateTasks) await task()
+  // RVM104F4I P3: the complete split gate runs exactly once here, inside the
+  // bounded setup hook — never inside a five-second test body. Each mutation
+  // test below replays only its own gate section against this shared tree,
+  // redoing solely what its mutation changes.
+  {
+    const baseline = spawnSync(process.execPath, [built.splitGate], {
+      cwd: built.production,
+      encoding: 'utf8',
+    })
+    expect(baseline.status, baseline.stdout + baseline.stderr).toBe(0)
+  }
+  {
+    const gate = readFileSync('scripts/check-bundle-split.mjs', 'utf8')
+    const section = (start, end, anchor) => {
+      const text = gate.slice(gate.indexOf(start), gate.indexOf(end))
+      expect(text).toContain(anchor)
+      return text
+    }
+    built.splitSections = {
+      inputsOf: section(
+        'function inputsOf({ output, metafile }) {',
+        '/** Every TypeScript file under the backend',
+        'bytesInOutput',
+      ),
+      shipped: section(
+        'function shippedBundles() {',
+        'const SHIPPED = shippedBundles()',
+        'dist/webview/portable/main.js',
+      ),
+      normalMeta: section(
+        'function normalWebviewMeta(meta) {',
+        'const webviewMeta = normalWebviewMeta(',
+        'entryPoint',
+      ),
+      lazyHead: [
+        section('const LAZY_ONLY = [', '/** The bundle', "'pacing.ts'"),
+        section(
+          "const MODEL_API_DIR = 'src/core/backends/modelapi'",
+          "const ENTRY = 'src/host/backend/modelApiEntry.ts'",
+          'modelapi',
+        ),
+        section('const loaders = [', 'for (const name of lazy) {', 'BUNDLES.acp.output'),
+      ].join('\n'),
+      lazyLoop: section(
+        'for (const name of lazy) {',
+        'for (const [output, inputs] of loaders) {\n  if (inputs.has(ENTRY))',
+        'which loads only with the backend',
+      ),
+      budget: section(
+        'for (const { name, budgetKiB, outputs } of portableWebviewBudgetGroups(',
+        "const portableChunks = 'dist/webview/portable/chunks'",
+        'exceeds ${budgetKiB} KiB',
+      ),
+    }
+    const { readdirSync: listDir, readFileSync: readFile } = productionFs()
+    built.shippedBundles = runInThisContext(`(ports) => {
+      const { readdirSync, readFileSync } = ports;
+      ${built.splitSections.shipped}
+      return shippedBundles();
+    }`)({ readdirSync: listDir, readFileSync: readFile })
+    expect(built.shippedBundles.length).toBeGreaterThan(0)
+  }
   // The baseline boot stays sequential: the resource scenarios below derive
   // their eager set from its observed variants.
   {
@@ -552,6 +618,78 @@ function questionSizeFixture(bytes) {
   return spawnSync(process.execPath, [built.sizeGate], { cwd: built.fixture, encoding: 'utf8' })
 }
 
+// RVM104F4I P3: file ports scoped to the shared production tree, so each
+// mutation body below replays one real split-gate section without relaunching
+// the complete gate.
+function productionFs() {
+  return {
+    existsSync: (file) => existsSync(outputFile(file)),
+    readdirSync: (dir, options) => readdirSync(outputFile(dir), options),
+    readFileSync: (file, ...rest) => readFileSync(outputFile(file), ...rest),
+    statSync: (file) => statSync(outputFile(file)),
+  }
+}
+
+// The gate's own metafile reader over the production tree, memoised per body.
+function productionInputsOf() {
+  const { existsSync, readFileSync } = productionFs()
+  const cache = new Map()
+  const inputsOf = runInThisContext(`(ports) => {
+    const { existsSync, readFileSync } = ports;
+    ${built.splitSections.inputsOf}
+    return inputsOf;
+  }`)({ existsSync, readFileSync })
+  return (bundle) => {
+    if (!cache.has(bundle.metafile)) cache.set(bundle.metafile, inputsOf(bundle))
+    return cache.get(bundle.metafile)
+  }
+}
+
+// The gate's portable budget verdict over the production tree as mutated.
+function runSplitBudget() {
+  const { existsSync, readFileSync, statSync } = productionFs()
+  const ports = {
+    portableWebviewBudgetGroups,
+    normalWebviewMeta: runInThisContext(`() => {
+      ${built.splitSections.normalMeta}
+      return normalWebviewMeta;
+    }`)(),
+    portableMeta: undefined,
+    portableStartup: built.startup,
+    existsSync,
+    statSync,
+    BYTES_PER_KIB: 1024,
+    problems: [],
+  }
+  ports.portableMeta = ports.normalWebviewMeta(
+    JSON.parse(readFileSync('dist/meta/portable.json', 'utf8')),
+  )
+  runInThisContext(`(ports) => {
+    const { ${Object.keys(ports).join(',')} } = ports;
+    ${built.splitSections.budget}
+  }`)(ports)
+  return ports.problems
+}
+
+// The gate's backend-lazy verdict over the production tree as mutated.
+function runSplitLazy() {
+  const inputsOf = productionInputsOf()
+  const ports = {
+    BUNDLES,
+    activation: inputsOf(BUNDLES.activation),
+    acp: inputsOf(BUNDLES.acp),
+    modelApi: inputsOf(BUNDLES.modelApi),
+    problems: [],
+  }
+  runInThisContext(`(ports) => {
+    const { ${Object.keys(ports).join(',')} } = ports;
+    ${built.splitSections.lazyHead}
+    const lazy = new Set(LAZY_ONLY);
+    ${built.splitSections.lazyLoop}
+  }`)(ports)
+  return ports.problems
+}
+
 describe('the production webview chunks (FIX78W)', () => {
   it('keeps qualification contexts from competing for the five-second boot deadline', () => {
     expect(built.contexts.peak).toBe(1)
@@ -656,14 +794,16 @@ describe('the production webview chunks (FIX78W)', () => {
     const original = readFileSync(file)
     try {
       writeFileSync(file, Buffer.concat([original, Buffer.alloc(cap * 1024 - bytes + 1, ' ')]))
-      const result = spawnSync(process.execPath, [built.splitGate], {
-        cwd: built.production,
-        encoding: 'utf8',
-      })
-      expect(result.status).toBe(1)
-      expect(result.stderr).toContain(`portable ${name} exceeds ${cap} KiB`)
+      // The body's own gate section, not a fresh full-gate launch: the shared
+      // setup already qualified the unmutated tree.
+      const problems = runSplitBudget()
+      expect(problems).toContainEqual(
+        expect.stringContaining(`portable ${name} exceeds ${cap} KiB`),
+      )
       if (name === 'total JS')
-        expect(result.stderr).not.toMatch(/portable (native|companion) startup resources exceeds/)
+        expect(problems.join('\n')).not.toMatch(
+          /portable (native|companion) startup resources exceeds/,
+        )
     } finally {
       writeFileSync(file, original)
     }
@@ -998,12 +1138,10 @@ describe('the production webview chunks (FIX78W)', () => {
       if (output === undefined) throw new Error('Missing activation output')
       output.inputs['src/core/resources/governor.ts'] = { bytesInOutput: 1 }
       writeFileSync(file, JSON.stringify(meta))
-      const result = spawnSync(process.execPath, [built.splitGate], {
-        cwd: built.production,
-        encoding: 'utf8',
-      })
-      expect(result.status).toBe(1)
-      expect(result.stderr).toContain(
+      // The gate's own resource verdict over the mutated tree, not a fresh
+      // full-gate launch.
+      const problems = checkResourceBundles(productionInputsOf(), built.shippedBundles)
+      expect(problems).toContain(
         'dist/extension.js carries resource policy src/core/resources/governor.ts outside the lazy governor',
       )
     } finally {
@@ -1013,11 +1151,9 @@ describe('the production webview chunks (FIX78W)', () => {
   })
 
   it('keeps provider pacing in its lazy Model API inventory', () => {
-    const result = spawnSync(process.execPath, [built.splitGate], {
-      cwd: built.production,
-      encoding: 'utf8',
-    })
-    expect(result.status, result.stdout + result.stderr).toBe(0)
+    // The shared setup already qualified the unmutated tree through the full
+    // gate; this body replays only the gate's backend-lazy section.
+    expect(runSplitLazy()).toEqual([])
     const source = 'src/core/backends/modelapi/pacing.ts'
     for (const [meta, present] of [
       ['dist/meta/modelApi.json', true],
@@ -1172,6 +1308,19 @@ describe('the production webview chunks (FIX78W)', () => {
     expect(result.stderr).toContain('ENOENT')
     expect(result.stderr).toContain('stat ')
     expect(result.stderr.replaceAll('\\', '/')).toContain('dist/webview/shared.js')
+  })
+
+  it('qualifies the full split gate once in setup, never inside a test body', () => {
+    // RVM104F4I P3: a full-gate launch costs seconds on a slow machine and
+    // breaks the five-second body deadline. Bodies replay only their own
+    // section through runSplitBudget, runSplitLazy and checkResourceBundles.
+    const source = readFileSync('test/unit/webviewBundle.test.mjs', 'utf8')
+    expect(
+      source.matchAll(/spawnSync\(process\.execPath, \[built\.splitGate\]/g).toArray(),
+    ).toHaveLength(1)
+    for (const file of ['test/unit/webviewBundles.test.mjs', 'test/unit/bundleSize.test.mjs']) {
+      expect(readFileSync(file, 'utf8')).not.toContain('check-bundle-split')
+    }
   })
 })
 
