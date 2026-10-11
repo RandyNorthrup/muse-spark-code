@@ -13,11 +13,15 @@ export function InlineError({ messages }: { readonly messages: readonly string[]
       </p>
     )
   }
+  // The alert is a wrapper: set on the list itself, the role replaced the
+  // list's own and left its items outside any list (axe: listitem).
   return (
-    <ul className="models-error models-error-list" role="alert">
-      {messages.map((message) => (
-        <li key={message}>{message}</li>
-      ))}
-    </ul>
+    <div role="alert">
+      <ul className="models-error models-error-list">
+        {messages.map((message) => (
+          <li key={message}>{message}</li>
+        ))}
+      </ul>
+    </div>
   )
 }
