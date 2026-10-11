@@ -32,6 +32,7 @@ const EXPORTS = new Map(
     ['src/core/maker/guard/shellParse.ts', ['parseShell']],
     ['src/core/maker/ports.ts', ['HardwareApproval']],
     ['src/core/maker/sessionGuard.ts', ['SessionHardwareGuard']],
+    ['src/core/maker/hardwareContext.ts', ['createHardwareContexts', 'hasHardwareEvidence']],
     ['src/core/maker/guard/actionClass.ts', ['isDeviceAction', 'isPhysicalTool']],
   ].map(([source, names]) => [path.resolve(source), names]),
 )
@@ -47,7 +48,7 @@ function guardSplit(name, exportsBySource, bundle, hasSecrets) {
       build.onResolve(
         {
           filter:
-            /\/(?:approvalHardware|approvalRules|approvalSecrets|hardwareCommands|shellParse|shellPolicy|ports|sessionGuard|actionClass)(?:\.[jt]s)?$/,
+            /\/(?:approvalHardware|approvalRules|approvalSecrets|hardwareCommands|shellParse|shellPolicy|ports|sessionGuard|hardwareContext|actionClass)(?:\.[jt]s)?$/,
         },
         (args) => {
           const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
@@ -62,11 +63,13 @@ function guardSplit(name, exportsBySource, bundle, hasSecrets) {
         const names = exportsBySource.values().toArray().flat()
         // Signatures belong to this exact packaged tree, as the existing lazy factories do.
         const exports = names
-          .map((name) =>
-            /^(?:HardwareApproval|SessionHardwareGuard)$/.test(name)
+          .map((name) => {
+            if (name === 'createHardwareContexts')
+              return 'export const createHardwareContexts = (...args) => { let contexts; return (...roots) => (contexts ??= load().createHardwareContexts(...args))(...roots); };'
+            return /^(?:HardwareApproval|SessionHardwareGuard)$/.test(name)
               ? `export class ${name} { constructor(...args) { return new (load().${name})(...args) } }`
-              : `export const ${name} = (...args) => load().${name}(...args);`,
-          )
+              : `export const ${name} = (...args) => load().${name}(...args);`
+          })
           .join('\n')
         return {
           loader: 'js',
@@ -145,6 +148,26 @@ export const hardwareConstantTables = {
               .split(' * ')
               .reduce((value, factor) => value * Number(factor.replaceAll('_', '')), 1),
         ),
+      loader: 'ts',
+      resolveDir: path.dirname(args.path),
+    }))
+  },
+}
+
+// Browser readers keep the same constant values. Fold integer-literal products
+// so unused declarations need not occupy first paint; this changes no imports.
+export const browserConstantTables = {
+  name: 'browser-constant-tables',
+  setup(build) {
+    build.onLoad({ filter: /[\\/]shared[\\/]constants\.ts$/ }, (args) => ({
+      contents: readFileSync(args.path, 'utf8').replaceAll(
+        /^(export const \w+ = )(\d[\d_]*(?: \* \d[\d_]*)+)(?=\r?$)/gm,
+        (_, declaration, product) =>
+          declaration +
+          product
+            .split(' * ')
+            .reduce((value, factor) => value * Number(factor.replaceAll('_', '')), 1),
+      ),
       loader: 'ts',
       resolveDir: path.dirname(args.path),
     }))

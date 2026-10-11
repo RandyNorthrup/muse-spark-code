@@ -1733,7 +1733,7 @@ class AcpSession {
         preparing.abort.signal,
       )
       if (!parsed.ok) throw RequestError.invalidParams(undefined, parsed.reason)
-      if (this.maker !== undefined) {
+      if (this.maker !== undefined && parseMakerSlashCommand(parsed.displayText) !== undefined) {
         this.maker.setInteractive(this.mode !== 'plan')
         const result = await this.maker.command(parsed.displayText)
         if (result !== undefined) {
@@ -2040,6 +2040,7 @@ class AcpSession {
       this.starting = undefined
     }
     const outcome = await finished
+    this.maker?.setInteractive(false)
     await pending.answerCommit
     if ('error' in outcome) {
       throw outcome.error

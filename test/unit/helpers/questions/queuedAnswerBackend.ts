@@ -20,6 +20,9 @@ export function queuedAnswerBackend(
   const host = new ModelApiHost({
     client: fakeModelApiClient(api, log),
     workspaceRoot: cwd,
+    // The workspace and tools are in memory; a missing native path must not
+    // stand in for an unknown hardware inventory in these question tests.
+    hardwareContext: () => ({ hardwareSessionLatched: false }),
     platform: process.platform,
     io,
     contextIo: memoryContextIo(io.files),

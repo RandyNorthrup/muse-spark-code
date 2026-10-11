@@ -37,6 +37,8 @@ const BUDGETS = [
   { path: 'dist/questionNotes.js', budgetKiB: 25 },
   // M103R: 107.0 KiB + 15%, rounded to 25 KiB. Existing caps are unchanged.
   { path: 'dist/runtimeMaker.js', budgetKiB: 125 },
+  // PORTM103: shared first-use maker schemas; 12.6 KiB plus 15%, rounded to 25 KiB.
+  { path: 'dist/makerContracts.js', budgetKiB: 25 },
   { path: 'dist/extension.js', budgetKiB: 600 },
   // M107: 89.5 / 1.8 KiB measured; +15%, rounded up to 25 KiB.
   { path: 'dist/resourceGovernor.js', budgetKiB: 125 },
@@ -65,6 +67,7 @@ const BUDGETS = [
   // M103 V: native maker host UI and wrappers, loaded only on first use.
   { path: 'dist/makerHost.js', budgetKiB: 25 },
   { path: 'dist/makerPreviewHost.js', budgetKiB: 25 },
+  { path: 'dist/webview/makerPreview.js', budgetKiB: 25 },
   // M118: portable stores, native/panel adapters and chat renderer: 163.4 KiB + 15%, rounded to 25 KiB.
   { path: 'dist/prompts.js', budgetKiB: 200 },
   // M118: local CLI/ACP stores, renderer and destinations: 152.1 KiB + 15%, rounded to 25 KiB.

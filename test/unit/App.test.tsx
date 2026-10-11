@@ -798,7 +798,9 @@ describe('App conversation', () => {
       permissionMode: 'manual',
       isHardwareWorkspace: true,
     })
-    fireEvent.click(screen.getByLabelText('Permission mode: Manual'))
+    fireEvent.click(
+      screen.getByLabelText(`${UI_TEXT.permissionModeTitle}: ${UI_TEXT.permissionModes.manual}`),
+    )
     expect(
       screen.queryByRole('menuitemradio', { name: /Bypass permissions/ }),
     ).not.toBeInTheDocument()

@@ -271,8 +271,15 @@ describe('maker skill pack (M103-S)', () => {
     }
   })
 
-  it('loads through the same portable catalogue with topic content kept out of the initial body', async () => {
+  it('keeps maker entries hidden without qualified skill ids', async () => {
     const loaded = await loadSkills({ io, platform: process.platform }, [
+      { directory: ROOT, source: 'bundled', confineTo: ROOT, packageRoot: ROOT },
+    ])
+    expect(loaded.skills.some((skill) => skill.id.startsWith('maker_'))).toBe(false)
+  })
+
+  it('loads through the same portable catalogue with topic content kept out of the initial body', async () => {
+    const loaded = await loadSkills({ io, platform: process.platform, makerSkillIds: IDS }, [
       {
         directory: ROOT,
         source: 'bundled',
@@ -280,7 +287,10 @@ describe('maker skill pack (M103-S)', () => {
         packageRoot: ROOT,
       },
     ])
-    expect(loaded.warnings).toEqual([])
+    // The release's playbook retains its documented selector/name warning.
+    expect(loaded.warnings).toEqual([
+      'bundled skill orchestrator_playbook: front matter name orchestrator-playbook differs from the directory; the directory name is the selector',
+    ])
     expect(
       loaded.skills
         .filter((skill) => skill.id.startsWith('maker_'))

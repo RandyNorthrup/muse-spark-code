@@ -40,5 +40,7 @@ export async function makePrivateFolder(directory: string): Promise<void> {
   const user = await runWindowsTool('whoami.exe', ['/user', '/fo', 'csv', '/nh'])
   const [, sid] = /"(S-[\d-]+)"/.exec(user) ?? []
   if (sid === undefined) throw new Error('test-user-sid-unavailable')
+  // Elevated Windows fixtures can otherwise inherit Administrators as owner.
+  await runWindowsTool('icacls.exe', [directory, '/setowner', `*${sid}`])
   await runWindowsTool('icacls.exe', [directory, '/inheritance:r', '/grant:r', `*${sid}:(OI)(CI)F`])
 }

@@ -37,7 +37,8 @@ import {
   sharedModelApiBoundaries,
   englishZodLocales,
 } from '../../scripts/lib/deferredBundles.mjs'
-import { hardwareGuardSplit } from '../../scripts/lib/hardwareGuardSplit.mjs'
+import { hardwareGuardSplit, hardwareShellSplit } from '../../scripts/lib/hardwareGuardSplit.mjs'
+import { sharedMakerContracts } from '../../scripts/lib/deferredBundles.mjs'
 import type * as validation from '../../src/shared/validationEntry'
 import type * as resourceGovernor from '../../src/core/resources/resourceGovernorEntry'
 import type * as runtimeResources from '../../src/runtime/resources/entry'
@@ -106,6 +107,7 @@ beforeAll(async () => {
   } as const
   const builds = await Promise.all([
     ...Object.entries({
+      makerContracts: 'src/shared/makerProtocol.ts',
       runtimeMaker: 'src/runtime/maker/entry.ts',
       verifyEditor: 'src/host/editor/verifyEditor.ts',
       makerHost: 'src/host/maker/makerEntry.ts',
@@ -178,7 +180,8 @@ beforeAll(async () => {
           sharedValidation,
           deferredCohort,
           sharedWire,
-          hardwareGuardSplit,
+          sharedMakerContracts,
+          name === 'runtimeMaker' ? hardwareShellSplit : hardwareGuardSplit,
           sharedResourceAdmission,
           sharedStructuredSchema,
           deferredTeamView,

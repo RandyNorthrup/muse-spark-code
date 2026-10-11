@@ -311,6 +311,8 @@ describe('MuseCodeBackendManager: immutable account launch (M108)', () => {
       const result = managerWith([], '', new FakeLogOutputChannel(), {
         accountHome,
         getConfiguredBinaryPath: () => process.execPath,
+        // This account test uses the fake CLI's in-memory software workspace.
+        hardwareContext: () => ({ hardwareSessionLatched: false }),
       })
       vi.spyOn(result, 'credentialFileVerdict').mockReturnValue('absent')
       return result

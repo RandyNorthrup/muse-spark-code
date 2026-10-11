@@ -5,6 +5,7 @@ import { configureHardwareSecrets, type HardwareSecretReaders } from './guardSec
 
 export { HardwareApproval } from './ports'
 export { SessionHardwareGuard } from './sessionGuard'
+export { createHardwareContexts, hasHardwareEvidence } from './hardwareContext'
 export { isDeviceAction, isPhysicalTool } from './guard/actionClass'
 export {
   hardwareAction,

@@ -52,6 +52,7 @@
 !dist/usagePanel.js
 !dist/uiText.js
 !dist/validation.js
+!dist/makerContracts.js
 !dist/whatsNew.js
 !dist/whatsNew.json
 !dist/judge.js

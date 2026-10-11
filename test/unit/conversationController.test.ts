@@ -7336,6 +7336,8 @@ function modelApiController(
   const api = fakeModelApi()
   const host = new ModelApiHost({
     client: fakeModelApiClient(api, t.log),
+    // The controller's workspace and tools are in memory, with known empty hardware inventory.
+    hardwareContext: () => ({ hardwareSessionLatched: false }),
     ...(options.sideCallFormats !== undefined && { sideCallFormats: options.sideCallFormats }),
     workspaceRoot: options.workspaceRoot ?? '/ws',
     platform: options.platform ?? 'linux',

@@ -437,10 +437,11 @@ describe('first-party bundled skills (M103-S)', () => {
     const ids = readdirSync(source).toSorted((a, b) => a.localeCompare(b, 'en'))
     const installed = await installBundledSkills(deps(f))
     expect(installed.failure).toBeUndefined()
-    expect(installed.installed).toEqual([...ids, ...IDS])
+    expect(installed.installed).toEqual([...IDS, ...ids])
     for (const id of ids) {
-      const names = readdirSync(path.join(source, id))
+      const names = readdirSync(path.join(source, id), { recursive: true, encoding: 'utf8' })
       for (const name of names) {
+        if (!lstatSync(path.join(source, id, name)).isFile()) continue
         expect(readFileSync(path.join(f.skillsRoot, id, name))).toEqual(
           readFileSync(path.join(source, id, name)),
         )
@@ -457,10 +458,10 @@ describe('first-party bundled skills (M103-S)', () => {
     firstParty(f, 'muse_gadgets')
     const result = await installBundledSkills(deps(f))
     expect(result.failure).toBeUndefined()
-    expect(result.installed).toEqual(['maker_firmware', 'muse_gadgets', ...IDS])
-    expect(result.tag).toMatch(/^v0\.7\.0\+[a-f0-9]{64}$/)
+    expect(result.installed).toEqual([...IDS, 'maker_firmware', 'muse_gadgets'])
+    expect(result.tag).toMatch(/^v0\.7\.0\+first-party\.[a-f0-9]{64}$/)
     const link = path.join(f.skillsRoot, 'maker_firmware')
-    expect(leadsTo(link)).toBe(path.join(f.copy, 'first-party-skills', 'maker_firmware'))
+    expect(leadsTo(link)).toBe(path.join(f.copy, 'skills', 'maker_firmware'))
     expect(readFileSync(path.join(link, 'topics', 'build.md'), 'utf8')).toBe(
       readFileSync(path.join(root, 'maker_firmware', 'topics', 'build.md'), 'utf8'),
     )
@@ -528,7 +529,7 @@ describe('first-party bundled skills (M103-S)', () => {
     const installed = await installBundledSkills(deps(f))
     expect(installed.installed.filter((id) => id === 'project_setup')).toHaveLength(1)
     expect(leadsTo(path.join(f.skillsRoot, 'project_setup'))).toBe(
-      path.join(f.copy, 'first-party-skills', 'project_setup'),
+      path.join(f.copy, 'skills', 'project_setup'),
     )
     await fs.rm(path.join(root, 'maker_cnc'), { recursive: true })
     const updated = await installBundledSkills(deps(f))
@@ -547,6 +548,7 @@ describe('first-party bundled skills (M103-S)', () => {
       expect(initial.failure).toBeUndefined()
       if (destination === 'vendor') {
         await fs.rm(path.join(f.root, 'first-party-skills'), { recursive: true })
+        await fs.mkdir(path.join(f.root, 'first-party-skills'))
       } else {
         firstParty(f, 'project_setup')
       }
@@ -556,7 +558,7 @@ describe('first-party bundled skills (M103-S)', () => {
       expect(updated.installed.filter((id) => id === 'project_setup')).toHaveLength(1)
       const root = destination === 'vendor' ? 'skills' : 'first-party-skills'
       const link = path.join(f.skillsRoot, 'project_setup')
-      expect(leadsTo(link)).toBe(path.join(f.copy, root, 'project_setup'))
+      expect(leadsTo(link)).toBe(path.join(f.copy, 'skills', 'project_setup'))
       const source = destination === 'vendor' ? f.vendorRoot : path.join(f.root, root)
       expect(readFileSync(path.join(link, 'SKILL.md'))).toEqual(
         readFileSync(
@@ -620,13 +622,18 @@ describe('first-party bundled skills (M103-S)', () => {
     const marker = readFileSync(path.join(f.copy, MARKER))
     const link = path.join(f.skillsRoot, 'project_setup')
     const body = readFileSync(path.join(link, 'SKILL.md'))
+    const legacy = path.join(f.copy, 'first-party-skills', 'project_setup')
+    writeFile(path.join(legacy, 'SKILL.md'), body.toString())
+    await fs.unlink(link)
+    linkFolder(legacy, link)
     await fs.rm(path.join(f.root, 'first-party-skills'), { recursive: true })
+    await fs.mkdir(path.join(f.root, 'first-party-skills'))
     const failed = await installBundledSkills(
       deps(f, { makeLink: () => Promise.reject(new Error('replacement failed')) }),
     )
     expect(failed.failure?.reason).toEqual({ kind: 'error', message: 'replacement failed' })
     expect(failed.undoFailure).toBeUndefined()
-    expect(leadsTo(link)).toBe(path.join(f.copy, 'first-party-skills', 'project_setup'))
+    expect(leadsTo(link)).toBe(legacy)
     expect(readFileSync(path.join(link, 'SKILL.md'))).toEqual(body)
     expect(readFileSync(path.join(f.copy, MARKER))).toEqual(marker)
     expect(readdirSync(f.sourcesRoot)).toEqual([PACKAGE])
@@ -689,7 +696,7 @@ describe('first-party bundled skills (M103-S)', () => {
     expect(readFileSync(path.join(f.copy, MARKER))).toEqual(marker)
     expect(sorted(readdirSync(f.skillsRoot))).toEqual(sorted(['maker_cnc', ...IDS]))
     expect(leadsTo(path.join(f.skillsRoot, 'project_setup'))).toBe(
-      path.join(f.copy, 'first-party-skills', 'project_setup'),
+      path.join(f.copy, 'skills', 'project_setup'),
     )
     expect(readFileSync(path.join(f.skillsRoot, 'project_setup', 'SKILL.md'))).toEqual(oldBody)
     expect(existsSync(path.join(f.skillsRoot, 'maker_cnc', 'SKILL.md'))).toBe(true)
@@ -718,9 +725,9 @@ describe('first-party bundled skills (M103-S)', () => {
       linkFolder(outside, target)
       const result = await installBundledSkills(deps(f))
       const reasons = {
-        root: `${root} is not a skill folder`,
-        skill: `${target} is not a skill folder`,
-        entry: 'maker_firmware/SKILL.md is not a file',
+        root: `${root} is not a real folder`,
+        skill: `${target} is neither a file nor a folder`,
+        entry: `${target} is neither a file nor a folder`,
         topic: `${target} is neither a file nor a folder`,
       }
       expect(result.failure?.reason).toEqual({ kind: 'error', message: reasons[kind] })

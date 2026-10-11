@@ -50,6 +50,7 @@ const BUNDLES = [
   'questionNotes.js',
   'runtimeMaker.js',
   'hardwareGuard.js',
+  'makerContracts.js',
   'hardwareShell.js',
   'mcpPool.js',
   'exec.js',

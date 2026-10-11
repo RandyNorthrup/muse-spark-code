@@ -1046,7 +1046,6 @@ for (const directory of ['dist/meta', 'dist/meta-acp']) {
 // declared; every other shipped bundle, lazily loaded ones included, must
 // not carry it (the review of the diet, P2-2: a lazy bundle that read one key
 // of another lazy bundle's block would carry the whole block).
-const CONSTANTS = 'src/shared/constants.ts'
 /** Every JavaScript bundle the production build ships, from its metafiles. */
 function shippedBundles() {
   return ['dist/meta', 'dist/meta-acp'].flatMap((dir) =>
@@ -1072,7 +1071,16 @@ function shippedBundles() {
   )
 }
 const SHIPPED = shippedBundles()
-problems.push(...checkResourceBundles(inputsOf, SHIPPED))
+const resourceProblems = checkResourceBundles(inputsOf, SHIPPED)
+problems.push(...resourceProblems)
+// Refuse an invalid boundary before the expensive source-reader scans. All
+// successful runs still execute every check below, with the same thresholds.
+if (resourceProblems.length > 0) {
+  console.error(`bundle split: ${String(problems.length)} problem(s); see PLAN.md D6 and M57`)
+  for (const problem of problems) console.error(`  ${problem}`)
+  process.exit(1)
+}
+const CONSTANTS = 'src/shared/constants.ts'
 // The chat ESM graph carries the review template in a shared chunk. Models
 // is a separate graph and may also use constants, but never this template.
 // textOf(main) checks every chunk in its graph; require its actual reader.

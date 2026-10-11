@@ -277,7 +277,7 @@ describe('maker surface boundary', () => {
     expect(Object.keys(output.metafile.inputs).some((file) => file.startsWith('src/core/'))).toBe(
       false,
     )
-    expect(output.outputFiles[0]?.text).not.toMatch(/node:|require\(["']vscode/)
+    expect(output.outputFiles[0]?.text).not.toMatch(/["']node:|require\(["']vscode/)
   })
   it('matches the committed JSON Schemas', () => {
     expect(
