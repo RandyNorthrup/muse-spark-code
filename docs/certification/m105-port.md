@@ -301,3 +301,188 @@ production build with unchanged budgets/split checks, localization (zero
 problems), host API (zero problems), plan (zero drift), roadmap freshness and
 `git diff --check` passed. The lane brief reserves aggregate quality for the
 lead; this lane did not run it. No case was removed or skipped.
+
+### Part 2: production composition and bindings
+
+`test/unit/mediaAttachmentComposition.test.ts` attaches actual existing
+sniffable MP4 and 16 kHz mono PCM WAV files from its private fixture workspace.
+No recorder, browser, microphone or live request runs. Production attach,
+registry/digest streams, session store, Files ledger, compiled host factory,
+provider client, audio preparation, paid permission, exact daily/session
+journals, ACP SDK session/prompt and headless run/transport are real. Only
+HTTP/model replies, the test credential in memory, native UI answers and
+unused editor environment ports are simulated. Provider frames use U6's
+Files receipt, U5's `input_video` by `file_id`, U18/T9's batch response shape
+and the existing captured Responses stream fixture; no new wire is inferred.
+
+| Surface/case                                                | M105 acceptance lines exercised                                                                             | Observable result                                                                                                                                                                                              |
+| ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| VS Code existing MP4 + WAV                                  | 2 upload/expiry; 3 wire/no base64; 5 exact reserve/settle and byte counts; 6 paid sound; 7 host-owned bytes | One expiring streamed MP4 upload, `input_video` by id, WAV transcription text, native paid popup with $0.18/hour and $1 daily budget before ASR; both journals durable before dispatch and settled afterwards. |
+| VS Code `sendAudio`, before attach and changed after attach | 4 captured capability refusal; 6 action choice; 7 attach refusal                                            | Meta's translated unsupported-audio refusal; no ASR, upload or model request.                                                                                                                                  |
+| ACP linked MP4 + embedded WAV; embedded MP4 + linked WAV    | 2, 3, 5, 6; 8 MIME dispatch and confined link                                                               | Real `session/new`, selected model and `session/prompt`; paid `session/request_permission` before ASR; same upload/wire and exact durable claims as above. Embedded contract WAV needs no conversion path.     |
+| exec existing MP4                                           | 2, 3, 5; 9 repeated-argument parser/events and successful exit                                              | Real CLI parsing, runtime, ACP client, Files egress and run ledger; video by id, reserve before response, usage settlement, exit 0, metadata-only events.                                                      |
+| exec MP4 + WAV                                              | 4, 6; 9 explicit refusal and exit                                                                           | Exit 2 with translated audio refusal before any HTTP. PLAN M105 acceptance 9 and D85.5/current exec contract: no Muse Voice flag/spend admission.                                                              |
+| Shared sound router on synthetic heard-audio capability     | 4, 6 explicit choice                                                                                        | `sendAudio` leaves audio for the provider; `transcribe` produces text and charges only the batch path. This is a capability-unit proof, not a new vendor capture or enabled provider.                          |
+
+Both extension setting fields are required by their typed production ports:
+omitting either is a compiler failure, rather than a silent default.
+The host's machine setting was unbound in both `windowMediaAttachDeps` and
+production preparation. It now travels from `currentSettings()` through
+`ModelApiBackendManager`, host deps and `productionAudioFor` to the shared
+router. Unsupported explicit `sendAudio` never falls back to transcription,
+including MP3 without a converter. Runtime keeps its existing flag/default
+policy; no new CLI setting or paid default is introduced.
+
+Composition exposed a capped first-turn defect: batch transcription asked
+its journal to reserve before the initial owned session record existed.
+`ModelApiSession` now runs its existing budget initialization before attached
+media preparation under a cap. The production Files route was also missing
+from headless egress. `execFetch` now admits only U6's root upload/list and
+file-id metadata/delete routes, the captured single `after` cursor, streamed
+multipart upload under 200 MiB + 4 KiB overhead, and the existing exact HTTPS
+origin, redirect-error and cancellation fences. Inference still owns its
+exact per-attempt ledger. Files validation loads from the existing
+`dist/runtimeMedia.js`; the headless cap remains unchanged. U6c's not-billed storage decision is conditional on
+no new storage tariff; it is not a measured zero. Docs state that condition.
+
+### Lead switch inventory (holds unchanged)
+
+This baseline has **no media unavailable-settings list**. All five settings
+are declared and read; `MACHINE_ONLY_SETTINGS` is a scope/security list, not
+an availability switch. Do not remove these names from it.
+
+| Location / exact state                                                                                                                     | Gates or describes                                                            | Evidence/action still needed; owner                                                                                                                                                                                                                                                                                                                                               |
+| ------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `docs/roadmap/entries.json`, M105 `labels: ["not available yet"]`, summary says video/audio sending unavailable                            | Broad attaching/recording release claim                                       | Existing-file composition is now proved on captured Meta contributor models. Lead/W may refine attach availability at integration after aggregate gates; keep recorder/native qualifiers.                                                                                                                                                                                         |
+| Five machine settings: `mediaMaxUploadMiB`, `mediaUploadExpiryDays`, `screenRecordingMaxSeconds`, `mediaAudioAction`, `mediaConverterPath` | Attach size, cleanup retention, recorder cap, audio route, trusted conversion | Size/action/converter are bound. Upload expiry remains the Files API's fixed seven-day default; `mediaUploadExpiryDays` is read but no production consumer applies it, and cleanup UI is unbound. F/W must bind retention semantics without deleting referenced files. Recorder receipts remain R1/R2/R3/W.                                                                       |
+| Help `referenceAttachments`, feature `attachments`, generated facts in `scripts/lib/reference.mjs`                                         | Attaching                                                                     | Description/facts still enumerate images/PDF/text and omit existing video/audio detail. Lead/W updates all translated reference text and facts with captured model/format qualifications after integration. This lane adds the existing translated audio-setting detail only.                                                                                                     |
+| Help `referenceScreenRecording`, condition `nativeRecorder=absent`; `attachScreenRecording.canRun=false`                                   | Direct recording                                                              | R1 signed/helper/private-root/lifetime bindings + Mac capture/permissions/sleep/display-sleep and macOS 12.0–12.2; R2 successful H.264 smoke and physical Windows GPU/WGC/audio/denial/Stop/orphan receipts; R3 real portal/PipeWire/GStreamer/FD/lifetime/private-preview bindings and Kubuntu permission/audio/sleep receipts. W binds a driver only after those lanes certify. |
+| Help `referenceLatestRecording`; `attachLatestScreenRecording.canRun=false`                                                                | Existing recording discovery/attach                                           | Linux latest-file adapter exists. Windows latest import still needs its trusted/private source and preview/disposal ownership receipts (R2/W); lead validates actual conversation command, existing-file gate and supported format. A successful ordinary file attach does not certify latest discovery.                                                                          |
+| Help `referenceUploadedFiles`; `deleteUploadedFiles.canRun=false`; absent `ConversationDeps.uploadedFiles` in extension                    | Uploaded-file cleanup UI                                                      | Durable Files/session ownership is bound; F/W still binds Account listing/delete UI, active references, per-account key removal/read-only expiry and retention behavior.                                                                                                                                                                                                          |
+| `package.json` command palette for the three commands: active chat panel/view context                                                      | Command visibility/context                                                    | They are already context-visible; there is no false/hidden manifest enablement to flip. Their host guards remain. `canRun=false` is Help's safe-action button policy, also used for many stateful commands, not a global availability switch.                                                                                                                                     |
+| `src/extension.ts` recording deps has no `driver`; runtime `/record` has no recorder; exec refuses recording                               | Recording                                                                     | Same R1/R2/R3/W native receipts/bindings; untouched here.                                                                                                                                                                                                                                                                                                                         |
+| Unknown video/audio/Files capability and uncaptured codecs for non-Meta providers; Muse Code explicit refusal                              | Existing-file provider selection                                              | Vendor/model/format captures listed below, then V/M95 codec + provider-owned ledger + calibrated cost binding. U16's 1.4.2 negative capture already exists; only a newer positive MSP wire can remove that hold.                                                                                                                                                                  |
+| M104 `attachments/*`, companion upload and native bridge/package receipts                                                                  | Native hosts/companion                                                        | E3/M104 B/C/D must bind real installed host ports and run JetBrains JCEF, Visual Studio WebView2, Eclipse SWT and remaining editor upload/permission/cleanup receipts. Fake bridge contracts do not certify an installed native host. Browser recorder remains R3/E3 and is outside this lane.                                                                                    |
+
+### Missing captures: run requests, not guesses about support
+
+All bodies below are **capture probes**, never new parsers/capability rows.
+Use an owner-authorized synthetic fixture workspace, one selected model per
+attempt, a small explicit output cap, no retry, protected in-memory credential
+transport and scrubbed response/usage/error/deletion receipts. Count attempts
+and spend. The lead decides the model/paid authorization. Provider success
+must show actual perception of an on-screen/spoken nonce, not just HTTP 200.
+
+| Provider/model                                                                                                                              | Endpoint and probe shape                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | Missing response/behavior; unlocks                                                                                                                                                                                                                                                                             |
+| ------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Meta Standard `muse-spark-1.3`, `muse-spark-1.2`, legacy 1.1 if exposed                                                                     | `GET /v1/models`; `POST /v1/files` multipart `purpose=user_data`, `expires_after[anchor]=created_at`, `expires_after[seconds]=604800`, `file=<synthetic MP4/MOV>`; `POST /v1/responses` with `model`, `stream:true`, `store:false`, `max_output_tokens:64`, `reasoning:{effort:"minimal"}`, `input:[{role:"user",content:[{type:"input_text",text:"Read the on-screen nonce and spoken nonce."},{type:"input_video",file_id:"<own upload>"}]}]`                                                                                                                                                                            | Exact video/MOV acceptance, sound perception, error and terminal usage on each model. Capture 10/30/120/600 s with default/explicit fps variants before that model's capped-video calibration is on. Contributor captures cannot authorize Standard.                                                           |
+| Meta contributor calibration gaps                                                                                                           | Same Files/Responses shape on 1.2 with `fps:2`; both contributor models with requested fps above 2; image `input_image` by own id, each detail, dimensions above 3000×2000; PDF `input_file` by own id, several known page counts and one text-only baseline                                                                                                                                                                                                                                                                                                                                                               | `usage.input_tokens`, cache/output split, resolution/fps/page behavior; PDF page bills are absent. Unseeded capped variants remain refused. Existing 23 seeds and 50/51-media captures are already present and need no repeat for this lane.                                                                   |
+| Meta standalone audio                                                                                                                       | `POST /v1/responses` on an explicitly selected newer/candidate model, `input:[{role:"user",content:[{type:"input_text",text:"Repeat the spoken nonce."},{type:"input_audio",input_audio:{data:"<synthetic mono PCM WAV base64>",format:"wav"}}]}]`, otherwise same explicit cap/stream/store fields                                                                                                                                                                                                                                                                                                                        | U7's ignored standalone audio is already a negative receipt. Need a positive perceived nonce plus accepted field, error and terminal billing before native `sendAudio` support; a 200 response alone is insufficient. No current Meta model is enabled by this probe.                                          |
+| Gemini chosen video/audio-capable model                                                                                                     | Existing captured `/v1beta/models/<native model>:streamGenerateContent?alt=sse`; JSON `contents:[{role:"user",parts:[{text:"Read the visual/spoken nonce."},{inlineData:{mimeType:"video/mp4",data:"<fixture base64>"}}]}]`, `generationConfig:{maxOutputTokens:64}`; separate WAV probe uses `mimeType:"audio/wav"`. Large-file probe follows the provider's documented resumable Files upload, then `fileData:{mimeType:"video/mp4",fileUri:"<own returned URI>"}`                                                                                                                                                       | Exact native acceptance/perception, `usageMetadata`, terminal/error stream, file URI/state/deletion and limits. Existing Gemini text/image capture and codec are not a media capture; V/M95 must implement the captured adapter and provider-owned upload lifecycle. No guessed `file_id` reuse.               |
+| OpenAI or xAI selected Responses model                                                                                                      | Existing captured `/v1/responses`; separate synthetic video probe using candidate `input_video` and provider-owned file upload, and standalone audio probe using candidate `input_audio`; explicit `max_output_tokens:64` and streamed input message as above                                                                                                                                                                                                                                                                                                                                                              | Whether either candidate type/field is accepted at all, perception and terminal usage/errors. Meta's canonical types cannot establish another Responses vendor's support. Capture an explicit rejection where unsupported; do not enable from marketing modality labels.                                       |
+| OpenRouter selected routed model; Groq/Mistral/Together/Fireworks/DeepSeek/Hugging Face/Z.ai; LM Studio/vLLM/llama.cpp/custom Chat endpoint | Existing preset path (respectively `/api/v1/chat/completions`, `/openai/v1/chat/completions`, `/v1/chat/completions`, `/inference/v1/chat/completions`, `/chat/completions`, `/v1/chat/completions`, `/api/paas/v4/chat/completions`, or configured research-backed local path). Probe `model`, `stream:true`, small output cap using its captured cap field, `messages:[{role:"user",content:[{type:"text",text:"Read the visual/spoken nonce."},{type:"video_url",video_url:{url:"data:video/mp4;base64,<fixture>"}}]}]`; separate audio candidate `{type:"input_audio",input_audio:{data:"<WAV base64>",format:"wav"}}` | Each exact provider + routed/local model's support/refusal, native field, perceptual result, usage and streaming/terminal/error behavior, upload lifecycle if offered. OpenAI-compatible naming is no evidence of compatible media. Existing Chat codec currently omits video; V/M95 binds only after capture. |
+| Anthropic selected model                                                                                                                    | Existing captured `/v1/messages`, small `max_tokens`, stream; first read selected model's documented accepted content types, then send its documented synthetic media candidate or capture the rejection for an unknown `video`/`audio` block                                                                                                                                                                                                                                                                                                                                                                              | An accepted native video/audio content shape with perception, usage/errors and any Files lifecycle, or an explicit unsupported receipt. No implemented codec or capability can be derived from Meta shapes.                                                                                                    |
+| Ollama selected installed model/custom native endpoint                                                                                      | Existing `/api/chat`, selected `model`, `stream:true`, `messages:[{role:"user",content:"Read the nonce",images:["<fixture>"]}]` is the existing image path only. Probe only a documented video/audio field for that exact installed model, or its explicit rejection                                                                                                                                                                                                                                                                                                                                                       | A real native media field/perception/billing-context limit or unsupported receipt; image support does not imply video/audio. V/M95/local server owner supplies the actual version/model receipt.                                                                                                               |
+| Muse Code newer CLI/MSP                                                                                                                     | Current 1.4.2 U16 `@clip.mp4` is already negative (one subscription turn, six model attempts). On an updated CLI/schema, capture `session/*` turn input + `userMessage.attachments` and any tool-row media payload with synthetic `@clip.mp4`/audio                                                                                                                                                                                                                                                                                                                                                                        | An actual video/audio MSP part and perceived media. Text mention/search result is not attachment. E3/M106 upstream/lead owns the new version capture and parser; preserve explicit Model API refusal until then.                                                                                               |
+| Meta storage policy                                                                                                                         | Re-read project Usage/Billing/Files meter after a synthetic upload, fixed-expiry metadata, delete and subsequent GET 404                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | U6c already selected not-billed on absence of a storage meter, not measured zero. A new meter/tariff requires F/C/lead policy and price admission before upload; this recheck is not a missing codec capture.                                                                                                  |
+
+For Gemini's large-file capture, use the documented resumable sequence:
+`POST /upload/v1beta/files` with `X-Goog-Upload-Protocol: resumable`,
+`X-Goog-Upload-Command: start`, `X-Goog-Upload-Header-Content-Length: <bytes>`,
+`X-Goog-Upload-Header-Content-Type: video/mp4`, JSON
+`{"file":{"display_name":"m105-synthetic-clip"}}`. Capture the returned
+`X-Goog-Upload-URL`, then POST the bytes to that URL with
+`X-Goog-Upload-Offset: 0` and `X-Goog-Upload-Command: upload, finalize`.
+Capture `file.name`, `file.uri`, MIME and state from the response and
+`GET /v1beta/<file.name>` until the provider's documented ready state; send
+that URI in `fileData`, then DELETE `/v1beta/<file.name>` and confirm gone.
+This is a probe recipe, not an implemented file-state parser. A provider's
+returned upload origin still requires verification before credentials go to it.
+
+The Chat paths are per preset, not interchangeable: OpenRouter
+`/api/v1/chat/completions`; Groq `/openai/v1/chat/completions`;
+Mistral/Together/Hugging Face `/v1/chat/completions`; Fireworks
+`/inference/v1/chat/completions`; DeepSeek `/chat/completions`;
+Z.ai `/api/paas/v4/chat/completions`. Local/custom uses only its configured,
+research-backed path. Use the exact routed/installed model id and its existing
+captured output-cap field. For Anthropic, an explicit unsupported probe is
+`messages:[{role:"user",content:[{type:"text",text:"Read the nonce."},
+{type:"video",source:{type:"base64",media_type:"video/mp4",data:"<fixture>"}}]}]`
+with `model`, `max_tokens:64`, `stream:true`; the separate audio candidate
+uses `type:"audio"`, `media_type:"audio/wav"`. These candidate blocks may be
+rejected; capture that response and consult the selected model's documented
+native shape before any support claim. Ollama's established `images` request
+is only an image test; no video/audio field is known here. The local server
+owner must provide that documented field/version before a positive probe;
+there is no useful universal native-video request to invent.
+
+Recorder device receipts are separate from these vendor captures. None was
+attempted here, and no visibility switch or native recorder implementation
+was edited.
+
+The remaining Responses candidate bodies are explicit too: on OpenAI and xAI,
+first capture `POST /v1/files` multipart `purpose=user_data`, `file=<synthetic
+MP4>` (record any unsupported response), then `POST /v1/responses` with
+`model:<exact selected id>`, `stream:true`, `max_output_tokens:64`,
+`input:[{role:"user",content:[{type:"input_text",text:"Read the nonce."},
+{type:"input_video",file_id:"<own returned id>"}]}]`. The separate audio
+candidate replaces that video part with
+`{type:"input_audio",input_audio:{data:"<synthetic WAV base64>",format:"wav"}}`.
+Capture accepted fields, refusal, perception and terminal usage; delete any own
+upload using the provider's documented Files delete endpoint. These are
+unsupported-field probes where necessary, not adopted Meta wire contracts.
+
+Acceptance 10's confined, approved `read_file` media path is covered by the
+complete existing `toolIoMedia` and `modelApiMediaTools` suites in the scoped
+sweep. The new composition cases exercise the precise subsets of lines 2–9
+named above; they do not close all of acceptance 2's unbound management UI or
+recorder/native-host acceptance.
+
+### Round 2 continuation (macmini, same engine as the drills above)
+
+The uncommitted Part 2 slice failed `typecheck:e2e`: `test/e2e/modelApi.live.e2e.test.ts`
+builds a `ModelApiBackendManagerDeps` without the new `mediaAudioAction` key.
+The manager field is now optional, matching the host's optional
+`ModelApiHostDeps.mediaAudioAction` and the adjacent optional converter-path
+pattern; the required-by-construction guarantee stays on `MediaHostSettings`
+(the settings object every production call site builds). All five typecheck
+projects pass. The new composition file's six ESLint errors (two numeric
+separators, three `await` on the synchronous `editorFixture`, one `async`
+without `await`) are fixed without behaviour change; the async mock now
+returns `Promise.resolve` explicitly.
+
+Deliberate failure controls for the three new bindings (each restored
+byte-exact, SHA-256 verified after restoration):
+
+| Binding broken on purpose                                                        | Failing composition case                                                                                  | Observed failure                                                                                       |
+| -------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| Manager drops the `mediaAudioAction` passthrough                                 | `a sendAudio setting change after attach refuses at the production session instead of transcribing (4,6)` | Turn completes via transcription instead of the expected `failed` + audio refusal; 1 failed / 7 passed |
+| Host skips the first-turn `refreshBudgetSpend` seed before `prepareAudioMessage` | `VS Code attaches video plus audio… (2,3,5,6,7)` and `capped first-turn audio preparation… (5,6)`         | 2 failed / 6 passed (journal seeded after spend, delayed-save guard trips)                             |
+| `execFetch` stops routing `EXEC_ENDPOINTS.files` to `forwardExecFile`            | `exec delivers an existing video through the runtime and settles its exact run claim (2,3,5,9)`           | Upload refused (`request_shape`); 1 failed / 7 passed                                                  |
+
+Restored hashes: `modelApiBackendManager.ts`
+`a5dd81f42313a5ff9da3d506fa5d49846411c4be5b245a1106499ca8d450a30e`,
+`ModelApiHost.ts`
+`22541f44e3c315970c99494cdb8b38289a234ca336024d9dd502d898a7c62fb9`,
+`execFetch.ts`
+`676b568526cac2e8b14a500125e690325b7f87c1b260fa76bccfd80558b06019`.
+No test timeout flag was supplied in any run.
+
+Post-fix bundle rows (exact bytes, no cap changed):
+
+| Bundle                  |   Bytes | Cap bytes |
+| ----------------------- | ------: | --------: |
+| `extension.js`          | 563,861 |   614,400 |
+| `modelApi.js`           | 523,606 |   537,600 |
+| `productionMedia.js`    |  68,064 |   102,400 |
+| `productionAudio.js`    |  68,687 |    76,800 |
+| `runtimeMedia.js`       |  48,012 |    76,800 |
+| `resourceGovernor.js`   | 111,237 |   128,000 |
+| `resourceProcess.js`    |  27,699 |    51,200 |
+| `modelApiSessions.js`   |  39,091 |    51,200 |
+| `modelApiBoundaries.js` |  37,505 |    51,200 |
+| `usagePanel.js`         |  74,696 |    76,800 |
+
+Cap bytes are the unchanged budgets from the Round 1 table; `npm run build`
+exits 0 with the new `filesTransport.ts` inside `dist/runtimeMedia.js`
+ownership.

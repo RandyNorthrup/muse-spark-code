@@ -418,6 +418,8 @@ function modelApiManager(
     mediaPrivateRoot: path.join(agentDataFolder(deps), MEDIA_PRIVATE_ROOT_DIR),
     // Lane V seam 1/5: attached video and audio from ACP and exec resolve here.
     attachedMedia: media.attached,
+    // ACP/exec keep their existing flag-controlled transcription default.
+    mediaAudioAction: undefined,
     usageRecording: deps.usageRecording,
     hasExternalPaidRecording: deps.exec !== undefined,
     getApiKey: () => credentials.getApiKey(),

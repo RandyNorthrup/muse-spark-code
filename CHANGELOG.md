@@ -7,6 +7,12 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Attached existing video and audio now have production-composition receipts
+  for VS Code, ACP and headless exec. The machine's `mediaAudioAction` choice
+  is honored: transcription asks paid consent first, and unsupported direct
+  audio returns its translated refusal.
+
+
 ### Pending
 
 - PORTM105 round 2: remove all 29 inherited duplication clones through shared

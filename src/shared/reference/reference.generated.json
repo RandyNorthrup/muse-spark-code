@@ -424,7 +424,7 @@
       "backends": ["museCode", "modelApi"],
       "paid": false,
       "surfaces": ["vscode:museCode", "vscode:modelApi"],
-      "details": [],
+      "details": [{ "setting": "mediaAudioAction" }],
       "facts": {
         "maxAttachments": 20,
         "textExtensions": [

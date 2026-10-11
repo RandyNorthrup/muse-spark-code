@@ -84,6 +84,7 @@ function partFor(source: AudioSource): TurnPart {
 function audio(options: {
   readonly sources: readonly AudioSource[]
   readonly converterPath?: string
+  readonly audioAction?: 'transcribe' | 'sendAudio'
   readonly located?: { readonly ok: false; readonly reason: string }
 }) {
   const postTranscription = vi.fn(() => Promise.reject(new Error('must not post')))
@@ -104,6 +105,9 @@ function audio(options: {
     },
     postTranscription,
     converterPath: () => options.converterPath,
+    ...(options.audioAction !== undefined && {
+      audioAction: () => options.audioAction ?? 'transcribe',
+    }),
     locateConverter,
     ...voiceSeamDeps(),
   })
@@ -131,6 +135,14 @@ describe('production audio binding (M105 lane V seam 3B)', () => {
   it('says why standalone audio cannot be transcribed when no converter is found', async () => {
     const t = audio({ sources: [mp3] })
     await expect(t.run([partFor(mp3)])).rejects.toThrow(UI_TEXT.media.converterUnavailable)
+    expect(t.postTranscription).not.toHaveBeenCalled()
+  })
+
+  it('sendAudio refuses unsupported MP3 audio instead of a transcription converter error', async () => {
+    const t = audio({ sources: [mp3], audioAction: 'sendAudio' })
+    await expect(t.run([partFor(mp3)])).rejects.toThrow(
+      fill(UI_TEXT.media.audioUnsupported, { model: 'muse-spark-1.3-contributor' }),
+    )
     expect(t.postTranscription).not.toHaveBeenCalled()
   })
 

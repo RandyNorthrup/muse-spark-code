@@ -310,6 +310,8 @@ Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/m
 
 Attach files by selecting or dropping them, and paste images into the composer. PNG, JPEG, GIF and WebP images require a selected model with vision. PDF attachments require Model API. Trusted indexed workspace text files can be attached; protected or confidential files are refused. The limits below apply before sending.
 
+`transcribe` turns attached audio into text before sending; `sendAudio` sends the audio where the model takes it. Transcribe by default. Transcription bills the paid voice rate, always with consent first. Only this machine’s setting is used.
+
 ```json
 {
   "maxAttachments": 20,

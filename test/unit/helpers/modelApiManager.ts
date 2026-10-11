@@ -35,6 +35,7 @@ export function fakeManagerDeps(
     isConfidentialWorkspace: () => false,
     confirmContributorModel: () => Promise.resolve(false),
     store: undefined,
+    mediaAudioAction: undefined,
     describeEnvironment: () => Promise.resolve({ git: undefined }),
     describeAttemptEnvironment: () => Promise.resolve({ git: undefined }),
     ...disabledPaidFeatures,

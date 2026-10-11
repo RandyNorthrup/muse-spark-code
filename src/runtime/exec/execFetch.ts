@@ -84,6 +84,19 @@ export function execFetch(input: {
     if (reason !== 'closed') input.onLatch({ kind: reason })
     throw new Error(message)
   }
+  const forward = async (url: string, init?: RequestInit) => {
+    if (isClosed || input.lifecycle.signal.aborted) return refuse('closed')
+    return await input.lifecycle.race(
+      input.fetch(url, {
+        ...init,
+        redirect: 'error',
+        signal: AbortSignal.any([
+          input.lifecycle.signal,
+          ...(init?.signal == null ? [] : [init.signal]),
+        ]),
+      }),
+    )
+  }
   const transport: typeof fetch = async (url, init) => {
     if (typeof url !== 'string') return refuse('request_shape')
     let parsed: URL
@@ -99,22 +112,23 @@ export function execFetch(input: {
       parsed.username !== '' ||
       parsed.password !== '' ||
       parsed.hash !== '' ||
-      parsed.search !== ''
+      (parsed.search !== '' && parsed.pathname !== EXEC_ENDPOINTS.files)
     )
       return refuse('request_shape')
     const method = init?.method ?? 'GET'
-    if (method === 'GET' && parsed.pathname === EXEC_ENDPOINTS.models) {
+    if (method === 'GET' && parsed.pathname === EXEC_ENDPOINTS.models)
+      return await forward(url, init)
+    if (
+      parsed.pathname === EXEC_ENDPOINTS.files ||
+      /^\/v1\/files\/file-[A-Za-z0-9_-]+$/u.test(parsed.pathname)
+    ) {
       if (isClosed || input.lifecycle.signal.aborted) return refuse('closed')
-      return await input.lifecycle.race(
-        input.fetch(url, {
-          ...init,
-          redirect: 'error',
-          signal: AbortSignal.any([
-            input.lifecycle.signal,
-            ...(init?.signal == null ? [] : [init.signal]),
-          ]),
-        }),
-      )
+      const media = await import('../runtimeMediaEntry.js')
+      return await media.forwardExecFile(parsed, init, {
+        forward,
+        refuse: () => refuse('request_shape'),
+        signal: input.lifecycle.signal,
+      })
     }
     const isResponse = parsed.pathname === EXEC_ENDPOINTS.responses
     const endpoint =

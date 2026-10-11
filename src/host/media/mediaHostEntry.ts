@@ -63,6 +63,9 @@ export function windowMediaAttachDeps(options: {
   return createMediaAttachDeps(options.settings, createMediaSourceOpen(options.open), {
     attached: options.attached,
     askContributor,
-    transcribesSound: (info) => options.isVoiceOn() && TRANSCRIBABLE_AUDIO.has(info.mediaType),
+    transcribesSound: (info) =>
+      options.settings().mediaAudioAction !== 'sendAudio' &&
+      options.isVoiceOn() &&
+      TRANSCRIBABLE_AUDIO.has(info.mediaType),
   })
 }

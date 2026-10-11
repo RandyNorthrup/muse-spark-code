@@ -461,20 +461,23 @@ export function featureCatalog(): readonly Feature[] {
       'paid-features',
       ['museCode'],
     ),
-    feature(
-      'attachments',
-      { ui: 'attachmentsLabel' },
-      { ui: 'referenceAttachments' },
-      ['attachScreenRecording', 'attachLatestScreenRecording', 'deleteUploadedFiles'],
-      [
-        'mediaMaxUploadMiB',
-        'mediaUploadExpiryDays',
-        'screenRecordingMaxSeconds',
-        'mediaAudioAction',
-        'mediaConverterPath',
-      ],
-      'the-panel',
-    ),
+    {
+      ...feature(
+        'attachments',
+        { ui: 'attachmentsLabel' },
+        { ui: 'referenceAttachments' },
+        ['attachScreenRecording', 'attachLatestScreenRecording', 'deleteUploadedFiles'],
+        [
+          'mediaMaxUploadMiB',
+          'mediaUploadExpiryDays',
+          'screenRecordingMaxSeconds',
+          'mediaAudioAction',
+          'mediaConverterPath',
+        ],
+        'the-panel',
+      ),
+      details: [{ setting: 'mediaAudioAction' }],
+    },
     feature(
       'strict-tools',
       { setting: 'modelApiStrictTools' },

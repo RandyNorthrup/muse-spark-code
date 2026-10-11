@@ -2534,6 +2534,7 @@ async function activateWindow(
     attachedMedia,
     // Machine scope only (lane V seam 3B): a repository never picks the converter.
     mediaConverterPath: () => currentSettings().mediaConverterPath,
+    mediaAudioAction: () => currentSettings().mediaAudioAction,
     // Windows: the converter runs in M50's job under a kernel memory cap (VB).
     ...(windowsMcpJob !== undefined && { mediaJobExecutable: windowsMcpJob }),
     // Each conversion's owner-only folder sits in this private root (VB).
@@ -3422,6 +3423,7 @@ async function activateWindow(
                   settings: () => ({
                     mediaMaxUploadMiB: currentSettings().mediaMaxUploadMiB,
                     screenRecordingMaxSeconds: currentSettings().screenRecordingMaxSeconds,
+                    mediaAudioAction: currentSettings().mediaAudioAction,
                   }),
                   // The open hook confines to the workspace, except the
                   // recorder's own files under recordingTempRoot.

@@ -4070,7 +4070,9 @@ export const EXEC_IMAGE_N = 1
 export const EXEC_STREAM_IDLE_MS = 300_000
 export const EXEC_USD_UNITS = 1_000_000
 export const EXEC_USD_DECIMALS = 6
+export const EXEC_FILES_BODY_HEADROOM_BYTES = 4 * 1024
 export const EXEC_ENDPOINTS = {
+  files: '/v1/files',
   models: '/v1/models',
   responses: '/v1/responses',
   imageGenerations: '/v1/images/generations',
