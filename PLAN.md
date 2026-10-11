@@ -32684,20 +32684,21 @@ Each joins when its dependency merges, and none blocks the others.
 
 ### M108 — Several accounts per provider, with use thresholds (D88)
 
-**C-M108-2 retained implementation; binding hidden (2026-10-11).** Accepted
-lane P merged first (`327e1b1e9`). Request leases, account clients, durable
-claims/blocks, credential revisions and paid-worker question propagation are
-implemented. The owner requires completed certification before surfacing:
-`ACCOUNT_REQUEST_CERTIFICATION.isComplete` stays false, so installed switching and
-pooling retain their prior refusals. Typecheck, changed-file lint,
-localization/reference, roadmap, host API, exec schemas, deadcode and production
-budgets passed before the final hide gate; 22 owning tests passed. Completion round 2 removes all eleven duplication clones through shared
-test fixtures; the zero-clone gate passes. Broader affected suites,
-red drills, post-hide verification and fresh Codex/Grok review remain.
-The time box ended; no gate was weakened, no push or extra merge occurred.
-Next slice: finish C-M108-2 certification, then enable its binding; C-M108-3
-still owns graphical surfaces, C-M108-6/7 placement/profiles and C-M108-8 the
-vault. Evidence and precise pending work: `docs/certification/cm1082.md`.
+**C-M108-2 production composition; availability held (2026-10-11).**
+Accepted lane P merged first (`327e1b1e9`). Native Meta request ownership now
+binds VS Code's manager and lazy Models account surface as well as CLI/ACP.
+Queued selections preserve the in-flight payer; held pools refuse admission
+and final send. Durable receipts survive the close/crash window exactly once.
+Composition tests cover headers, settlement, French notices, paid consent and
+actual second-process reservation recovery; five typechecks pass. Retained
+and new guards have byte-exact red drills, and the eleven fixture clones are
+removed. `ACCOUNT_REQUEST_CERTIFICATION.isComplete` remains false; external
+visual/editor, platform and independent reviews are not inferred from fakes.
+The continuation's full dependent/static/build receipts and restore register
+are in `docs/certification/cm1082.md`. No existing gate/cap was weakened.
+Next slice: finish those receipts and the lead's availability decision, then
+C-M108-3's companion/usage mounts. C-M108-6/7 still own placement/profiles,
+C-M108-8 the vault, and M95 the foreign-provider billing joins.
 
 **C-M108-2 completion scope (2026-10-11, owner order).** Certify retained
 request guards with red drills, repair exact-receipt crash projections, and
@@ -32708,7 +32709,9 @@ both admission and final dispatch. Keep one default-false availability switch
 for all request bindings and the account UI, with an exact restore register.
 Production-composition tests fake only model responses and platform secret
 storage; one recovery case must launch a second real process. No wire parser,
-paid call, browser, new dependency or cap increase. GUI, external reviews and
+paid call, browser, new dependency or existing cap increase. The account UI
+has an independent 175 KiB closure cap (134,934 B measured plus 15%, rounded
+to 25 KiB); the original Models body remains 75 KiB. GUI, external reviews and
 hosted platform receipts remain explicitly unproved on this headless rig.
 
 **M108P2 review repair (2026-10-09).** RVM108P's two P2 findings are in
@@ -38132,6 +38135,15 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**C-M108-2 build deferral (2026-10-11).** Account production composition is
+held behind the default-false certification switch. The Models body remains
+75.9 KiB against its unchanged 75 KiB cap after two distinct deferral repairs.
+Per the rig's stop-after-two-fixes rule, stop this path here; do not widen the
+cap or call the feature shippable. The lead/size owner must remove the remaining
+body overage, then replay all dependent, visual/editor and independent-review
+receipts before enabling it. This records an unclosed gate, not a passing build
+or an accepted budget waiver. Node caps remain within their original limits.
 
 **CIR4MAC scoped hosted-CI repair (2026-10-09, macmini).** Reproduce
 round 4's macOS target-size deadline and palette failure-render ordering

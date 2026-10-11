@@ -136,6 +136,7 @@ export const RESOURCE_EXEC_EVENT_VERSION = 2
 export const PRODUCT_NAME = 'Muse Spark'
 
 // M108: local account configuration and policy. Credentials are never fields.
+export const ACCOUNT_PANEL_REQUEST_TIMEOUT_MS = 10_000
 export const ACCOUNT_DEFAULT_ID = 'default'
 // Owner gate: C-M108-2 stays hidden until its remaining certification passes.
 export const ACCOUNT_REQUEST_CERTIFICATION = { isComplete: false }

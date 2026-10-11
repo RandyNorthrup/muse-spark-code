@@ -801,7 +801,7 @@
     {
       "id": "M108",
       "title": "Several accounts per provider",
-      "summary": "Keep labelled provider accounts with use thresholds and headless pinning, plus paid consent revoked across windows, preserved for user-owned budget changes and re-asked for repository budgets.",
+      "summary": "Keep labelled provider accounts with use thresholds and headless pinning; native Meta account switching awaits its remaining verification.",
       "area": "models-providers",
       "release": "0.17.0"
     },

@@ -9,6 +9,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- Native Meta account request ownership is composed with the VS Code Models
+  panel, CLI and ACP. In-flight selections queue for the next request, while
+  the original account keeps its reservation and cost. Account UI and request
+  bindings remain behind the default-off certification switch pending the
+  named graphical, dependent-suite and independent-review receipts.
+
 - **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
   first governed launch, a **Resources** chip sits beside the heartbeat, or
   above the composer between turns. Its popover shows CPU, memory in use and

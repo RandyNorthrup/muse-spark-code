@@ -46,12 +46,17 @@ export function runtimeRevokeSignIn(): Promise<void> {
   return Promise.reject(new Error(UI_TEXT.accounts.unavailable))
 }
 
-export interface RuntimeAccountServicesInput {
+export type RuntimeAccountServicesInput = {
+  readonly settings?: (() => { isSwapOn: boolean; isParallelOn: boolean }) | undefined
+  readonly askPolicy?: Parameters<typeof createAccountRequestOwner>[0]['askPolicy']
+  readonly onNotice?: Parameters<typeof createAccountRequestOwner>[0]['publish']
   readonly dataDir: string
-  readonly openEntry: KeyringEntryFactory
   readonly registerSecret?: AccountSecretsDeps['registerSecret']
   readonly now?: () => number
-}
+} & (
+  | { readonly openEntry: KeyringEntryFactory; readonly secrets?: undefined }
+  | { readonly secrets: SecretStore; readonly openEntry?: undefined }
+)
 
 export interface RuntimeAccountServices {
   readonly store: AccountStore
@@ -63,6 +68,10 @@ export interface RuntimeAccountServices {
     options?: { account: string; isInteractive: boolean; hasPoolFlag: boolean },
   ): Promise<AccountRequestPort>
   billing: typeof activeAccountBilling
+  confirmations(
+    provider: string,
+  ): Promise<Awaited<ReturnType<typeof createAccountRequestOwner>>['confirmations']>
+  hold(isHeld: boolean): void
   sessions(provider: string, account?: string): AccountsSessionPort
   /** The backend's key reads through the fixed account; nothing else changes. */
   secretsFor(provider: string, account: string, fallback: SecretStore): SecretStore
@@ -92,6 +101,7 @@ class RuntimeAccountSessions implements AccountsSessionPort {
     private readonly provider: string,
     private readonly account: string,
     private readonly owner: () => ReturnType<typeof createAccountRequestOwner>,
+    private readonly settings: () => { isSwapOn: boolean; isParallelOn: boolean },
   ) {}
 
   private async snapshot(sessionId: string): ReturnType<AccountsSessionPort['read']> {
@@ -104,8 +114,7 @@ class RuntimeAccountSessions implements AccountsSessionPort {
       provider: this.provider,
       accounts,
       currentAccount: current,
-      isSwapOn: SETTING_DEFAULTS.accountSwap,
-      isParallelOn: SETTING_DEFAULTS.accountParallel,
+      ...this.settings(),
     }
   }
 
@@ -115,6 +124,10 @@ class RuntimeAccountSessions implements AccountsSessionPort {
       const state = await this.snapshot(key.slice(`${this.provider} `.length))
       for (const listener of group) listener(state)
     }
+  }
+
+  public get supportsNextRequestSelection(): boolean {
+    return ACCOUNT_REQUEST_CERTIFICATION.isComplete
   }
 
   public usageUrl(): string {
@@ -152,7 +165,7 @@ class RuntimeAccountSessions implements AccountsSessionPort {
         state.accounts.find((row) => row.id === state.currentAccount)?.label ?? this.account,
       )
     }
-    owner.pool.use('conversation', sessionId, account, canCommit)
+    owner.pool.useNext('conversation', sessionId, account, canCommit)
     const state = await this.snapshot(sessionId)
     const listeners = this.listeners.get(`${this.provider} ${sessionId}`) ?? []
     for (const listener of listeners) listener(state)
@@ -288,9 +301,18 @@ function withProvidersFileRefusal(metadata: AccountsMetadataPort): AccountsMetad
 export function createRuntimeAccountServices(
   input: RuntimeAccountServicesInput,
 ): RuntimeAccountServices {
+  const settings =
+    input.settings ??
+    (() => ({
+      isSwapOn: SETTING_DEFAULTS.accountSwap,
+      isParallelOn: SETTING_DEFAULTS.accountParallel,
+    }))
+  let isHeld = false
   const metadata = withProvidersFileRefusal(fileAccountsMetadata(input.dataDir))
   const credentials = new AccountSecrets({
-    vault: secretStorageAccountVault(keyringSecretStore(input.openEntry)),
+    vault: secretStorageAccountVault(
+      input.openEntry === undefined ? input.secrets : keyringSecretStore(input.openEntry),
+    ),
     revokeSignIn: runtimeRevokeSignIn,
     registerSecret: input.registerSecret,
   })
@@ -316,9 +338,17 @@ export function createRuntimeAccountServices(
         metadata,
         directory: input.dataDir,
         now: input.now ?? Date.now,
-        publish: (sessionId, event) => {
+        settings,
+        isHeld: () => isHeld,
+        askPolicy: input.askPolicy,
+        publish: (sessionId, event, accounts) => {
           for (const [key, port] of sessionsByProvider)
             if (key.startsWith(`${provider} `)) port.notice(sessionId, event)
+          try {
+            input.onNotice?.(sessionId, event, accounts)
+          } catch {
+            /* Committed notices cannot roll back admission. */
+          }
         },
       })
       owners.set(provider, created)
@@ -339,7 +369,7 @@ export function createRuntimeAccountServices(
     const key = `${provider} ${account}`
     let port = sessionsByProvider.get(key)
     if (port === undefined) {
-      port = new RuntimeAccountSessions(store, provider, account, () => owner(provider))
+      port = new RuntimeAccountSessions(store, provider, account, () => owner(provider), settings)
       sessionsByProvider.set(key, port)
     }
     return port
@@ -426,6 +456,13 @@ export function createRuntimeAccountServices(
     commands: { accounts: store, metadata },
     requests,
     billing: activeAccountBilling,
+    confirmations: async (provider) => {
+      const live = await owner(provider)
+      return live.confirmations
+    },
+    hold: (value) => {
+      isHeld = value
+    },
     exec: {
       create: (deps, selection, createBackend) => {
         if (!ACCOUNT_REQUEST_CERTIFICATION.isComplete && selection.hasPoolFlag)
@@ -479,6 +516,7 @@ export function createRuntimeAccountServices(
       )
     },
     dispose(): void {
+      isHeld = true
       credentials.dispose()
     },
   }

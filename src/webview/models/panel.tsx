@@ -1,10 +1,11 @@
+import { modelAccountsRouteSchema } from '../../shared/modelAccountsRoute'
 // The Models & Agents panel's app (M95, PLAN.md D74): the section
 // navigation from the registry and the active section. Narrow layout
 // comes from the registry too: the panel root is a container, and the
 // table reflows to cards under 340 px (models.css).
 
 import { UI_TEXT } from '../../shared/constants'
-import { useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react'
 import {
   parseHostToPanelMessage,
   type ModelsPanelState,
@@ -16,6 +17,11 @@ import type { PanelUiAction, PanelUiState, WizardLife } from './reducer'
 import { INITIAL_PANEL_UI, panelUiReducer } from './reducer'
 import { MODEL_SECTIONS } from './sections'
 import { MoneyUnavailable } from '../money'
+
+const ModelAccounts = lazy(async () => {
+  const chunk = await import('./ModelAccounts')
+  return { default: chunk.ModelAccounts }
+})
 
 /** The panel's document retry, as its crash screen's Reload. */
 function reloadPanel(): void {
@@ -30,10 +36,16 @@ export function ModelsApp({
   readonly host: HostBridge
   readonly report: ErrorReporter
 }) {
+  const [hasAccounts, setHasAccounts] = useState(false)
   const [ui, dispatch] = useReducer(panelUiReducer, INITIAL_PANEL_UI)
   const [panelState, setPanelState] = useState<ModelsPanelState | undefined>(undefined)
   useEffect(() => {
     const onMessage = (event: MessageEvent): void => {
+      const account = modelAccountsRouteSchema.safeParse(event.data)
+      if (account.success) {
+        if (account.data.type === 'modelAccounts/available') setHasAccounts(true)
+        return
+      }
       const parsed = parseHostToPanelMessage(event.data)
       if (!parsed.ok) {
         report('hostMessage', new Error(parsed.error))
@@ -50,6 +62,7 @@ export function ModelsApp({
     host.messages.addEventListener('message', onMessage)
     // Subscribe before ready: the host may reply in the same task.
     host.post({ type: 'modelsPanel/ready' })
+    host.post({ type: 'modelAccounts/ready' })
     return () => {
       host.messages.removeEventListener('message', onMessage)
     }
@@ -57,7 +70,22 @@ export function ModelsApp({
   const post = (message: PanelToHostMessage): void => {
     host.post(message)
   }
-  return <ModelsPanel panelState={panelState} ui={ui} post={post} dispatch={dispatch} />
+  return (
+    <>
+      <ModelsPanel panelState={panelState} ui={ui} post={post} dispatch={dispatch} />
+      {hasAccounts ? (
+        <Suspense
+          fallback={
+            <p role="status">
+              {UI_TEXT.accounts.title}: {UI_TEXT.loadingOutput}
+            </p>
+          }
+        >
+          <ModelAccounts host={host} />
+        </Suspense>
+      ) : null}
+    </>
+  )
 }
 
 export interface ModelsPanelProps {

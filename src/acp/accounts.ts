@@ -9,10 +9,9 @@ import {
   type AccountsRequest,
 } from '../shared/hostApi/accounts'
 import { ACP_CONFIG_IDS, UI_TEXT, type AcpBackendKind } from '../shared/constants'
-import { fill, formatNumber } from '../shared/l10n/text'
-import { formatUsd, parseUsd } from '../shared/accountUsd'
 import {
   accountStopText,
+  accountEventText,
   accountUsageUrl,
   isAccountSwitchRefusedError,
   isInvalidProvidersFileError,
@@ -43,6 +42,7 @@ export function serveAccountsPort(
 
 type AccountsState = Extract<AccountsReply, { type: 'accounts/state' }>
 export interface AccountsSessionPort extends AccountUsagePort {
+  readonly supportsNextRequestSelection?: boolean
   read(sessionId: string): Promise<AccountsState>
   /** Check canCommit immediately before the owner's synchronous selection
    * transaction. Never adopt after a session release or a newer operation. */
@@ -136,19 +136,7 @@ export class AcpAccounts {
   }
 
   private notice(event: AccountEvent): string {
-    if (event.type === 'swap') {
-      const trigger = event.trigger
-      // Display rule: a shortened cap renders with ceiling, never below the
-      // exact trigger, so an exact reach always shows value >= cap. Reach
-      // state itself comes from the exact trigger event, never the text.
-      const threshold =
-        trigger.kind === 'vendorLimit'
-          ? UI_TEXT.accounts.vendorLimit
-          : `${trigger.metric}: ${trigger.metric === 'spendUsd' ? formatUsd(parseUsd(trigger.threshold)) : formatNumber(trigger.threshold)} (${trigger.period})`
-      return `${fill(UI_TEXT.accounts.swapNotice, { provider: event.provider, account: this.label(event.account), previous: this.label(event.previousAccount), threshold })} ${fill(UI_TEXT.accounts.coldCache, { cost: formatUsd(parseUsd(event.coldCacheUsd)) })}`
-    }
-    if (event.type === 'spread')
-      return `${UI_TEXT.accounts.spreadEvent}: ${event.provider} · ${this.label(event.account)}`
+    if (event.type !== 'stop') return accountEventText(event, this.state?.accounts ?? [])
     // The runtime owner has no bundled usage page (D88.5): the stop still
     // names the blocked account and its reset instead of becoming a failure.
     try {
@@ -184,6 +172,10 @@ export class AcpAccounts {
       this.state !== undefined && JSON.stringify(this.state) !== JSON.stringify(state)
     this.state = state
     if (isChanged) this.onChange()
+  }
+
+  public get supportsNextRequestSelection(): boolean {
+    return this.port.supportsNextRequestSelection === true
   }
 
   public async start(): Promise<void> {
