@@ -8,6 +8,7 @@ import type { UiText } from '../../shared/l10n/en'
 
 export {
   createReportJournalReader,
+  keybindingsManifestReader,
   readHostReportSession,
   readStoredReportSession,
   readUsageReportJournal,

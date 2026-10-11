@@ -1782,6 +1782,8 @@
     "fires": "Indítások",
     "keybindings": "Billentyűparancsok",
     "conflicts": "Ütközések",
+    "shortcut": "Gyorsbillentyű",
+    "command": "Parancs",
     "diff": "Különbség",
     "sources": "Források",
     "planFormat": "Tervformátum",
