@@ -35,12 +35,17 @@ happened, not what was planned; superseded entries are kept.
   current|minimum|optimum` as the fleet, and reports P50 and P90, the
   critical path, the limiting resource, the setups with their marginal
   values, the inputs and the calibration sample sizes. Any D97.2 goal text
-  parses; goals M117's snapshot cannot resolve yet (issues and labels until
-  M113 N links them) refuse with their names instead of invented rows, and
-  run `/estimate` on the same goal carries the refusal's full detail. The
-  report forecasts cost on every editor so the numbers match; stamps with an
-  explicit offset are normalized to the same UTC instant the estimator
-  requires. Works in VS Code (through the lazy estimator bundle), ACP and
+  parses; goals the estimator refuses (unfinished lanes with no hours,
+  unknown goals, prerequisites, rigs, releases and plan problems, missing
+  capacity, infeasible schedules) fail the source with the estimator's own
+  typed reason instead of invented rows or the generic sentence, matching
+  what `/estimate` prints for the same goal. `--by <date>` means midnight
+  UTC on the terminal, in VS Code and through ACP, exactly as `/estimate`
+  reads it, so every path asks for the same instant; offset stamps are
+  normalized to the same UTC instant the estimator requires, and the run is
+  stamped at the request instant, so the same generation seals identical
+  bytes. The report forecasts cost on every editor so the numbers match.
+  Works in VS Code (through the lazy estimator bundle), ACP and
   the terminal (through the headless estimator for the report's workspace
   root) without a model call.
 - **Session and usage report kinds are real end to end** (M113 C-M113-2).
