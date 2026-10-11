@@ -8,13 +8,19 @@ import * as admission from '../../src/core/resources/admission'
 import { spawnResourceProcess } from '../../src/core/resources/process'
 import { execResourceFile, handoffResourceFile } from '../../src/core/resources/commands'
 import * as jobLaunch from '../../src/host/backend/mcpJobLaunch'
-import { isResourceCapRefused, isResourceMemoryLimit } from '../../src/core/resources/launch'
+import {
+  isGovernedRefusal,
+  ResourceUnavailableError,
+  isResourceCapRefused,
+  isResourceMemoryLimit,
+} from '../../src/core/resources/launch'
 import {
   ResourceHelperChangedError,
   isResourceHelperChanged,
 } from '../../src/host/backend/helperIntegrity'
 import { PassThrough } from 'node:stream'
 import { RESOURCE_HANDOFF_TIMEOUT_MS } from '../../src/shared/constants'
+import { nodeGitProcesses } from '../../src/runtime/panel/pullRequests/checkout'
 import { fakeResourceLease } from './helpers/resources/fakes'
 import { removeFolder } from './helpers/temporaryFolders'
 
@@ -370,7 +376,14 @@ function setup(answer: jobLaunch.JobRecord | undefined, isAutoExit = false, reco
       },
     }
   })
-  return { lease, exit, verify }
+  return {
+    lease,
+    exit,
+    verify,
+    writeOutput: (text: string) => {
+      child.stdout.write(text)
+    },
+  }
 }
 const asWindows = async (action: () => Promise<void>) => {
   const platform = Object.getOwnPropertyDescriptor(process, 'platform')
@@ -495,5 +508,149 @@ describe('attested Windows settlement (helper faked, any platform)', () => {
       expect(jobLaunch.spawnAttestedJob).not.toHaveBeenCalled()
       expect(lease.complete).toHaveBeenCalledWith(true)
     })
+  })
+})
+
+describe('the synchronous final spawn fence (M123)', () => {
+  it.each(['trust', 'root', 'lock', 'seal'] as const)(
+    'refuses a changed %s after admission, before either Git launch',
+    async (field) => {
+      for (const mode of ['read', 'write', 'batch'] as const) {
+        const pending = Promise.withResolvers<ReturnType<typeof fakeResourceLease>>()
+        const entered = Promise.withResolvers<undefined>()
+        vi.mocked(admission.admitResource).mockImplementation(() => {
+          entered.resolve(undefined)
+          return pending.promise
+        })
+        vi.mocked(admission.resourceWindowsJob).mockResolvedValue({
+          assemblyPath: 'fixture',
+          executablePath: 'fixture',
+          verify: () => Promise.resolve(),
+        })
+        const spawn = vi.spyOn(childProcess, 'spawn')
+        spawn.mockClear()
+        const state = { trust: true, root: true, lock: true, seal: true }
+        const guard = () => {
+          if (!state[field]) throw new Error(`changed ${field}`)
+        }
+        guard()
+        const options = {
+          cwd: tmpdir(),
+          env: {},
+          signal: new AbortController().signal,
+          timeout: 1000,
+          maxBuffer: 1000,
+          detached: false,
+          beforeSpawn: guard,
+        }
+        const launching =
+          mode === 'batch'
+            ? nodeGitProcesses.start(process.execPath, ['cat-file', '--batch'], options)
+            : nodeGitProcesses.run(
+                process.execPath,
+                mode === 'read' ? ['--version'] : ['fetch', 'origin', 'main'],
+                options,
+              )
+        const rejected = expect(launching).rejects.toThrow(`changed ${field}`)
+        await entered.promise
+        state[field] = false
+        const lease = fakeResourceLease()
+        pending.resolve(lease)
+        await rejected
+        expect(spawn).not.toHaveBeenCalled()
+        expect(lease.complete).toHaveBeenCalledWith(true)
+      }
+    },
+  )
+
+  it.runIf(process.platform !== 'win32')(
+    'runs the guard and spawn without a microtask between them',
+    async () => {
+      vi.mocked(admission.admitResource).mockResolvedValue(fakeResourceLease())
+      let isValid = true
+      const nativeSpawn = await vi.importActual<typeof childProcess>('node:child_process')
+      const spy = vi.spyOn(childProcess, 'spawn').mockImplementationOnce((file, args, options) => {
+        expect(isValid).toBe(true)
+        expect(options).not.toHaveProperty('beforeSpawn')
+        return nativeSpawn.spawn(file, args, options)
+      })
+      const launched = await spawnResourceProcess('probe', process.execPath, ['-v'], {
+        env: {},
+        beforeSpawn: () => {
+          queueMicrotask(() => {
+            isValid = false
+          })
+        },
+      })
+      launched.child.stdin.end()
+      launched.child.stdout.resume()
+      await once(launched.child, 'close')
+      expect(spy).toHaveBeenCalledOnce()
+      expect(isValid).toBe(false)
+    },
+  )
+
+  it('checks after Windows preparation and again at payload GO, preserving the refusal', async () => {
+    await asWindows(async () => {
+      const { verify, exit } = setup(record())
+      const order: string[] = []
+      verify.mockImplementation(() => {
+        order.push('prepared')
+        return Promise.resolve()
+      })
+      let isValid = true
+      const refusal = new Error('seal changed at GO')
+      const beforeSpawn = () => {
+        order.push('gate')
+        if (!isValid) throw refusal
+      }
+      const launching = await spawnResourceProcess('probe', 'fixture', [], { env: {}, beforeSpawn })
+      expect(order).toEqual(['prepared', 'gate'])
+      const launch = vi.mocked(jobLaunch.spawnAttestedJob).mock.calls.at(-1)?.[0]
+      expect(launch?.authorize).toBeTypeOf('function')
+      isValid = false
+      expect(() => launch?.authorize?.()).toThrow(refusal)
+      exit(1)
+      await expect(launching.outcome()).rejects.toBe(refusal)
+      expect(order).toEqual(['prepared', 'gate', 'gate'])
+    })
+  })
+
+  it('keeps the max-buffer refusal code for checkout size checks', async () => {
+    await asWindows(async () => {
+      const { exit, writeOutput } = setup(record())
+      const start = vi.mocked(jobLaunch.spawnAttestedJob).getMockImplementation()
+      if (start === undefined) throw new Error('Missing attested fixture')
+      vi.mocked(jobLaunch.spawnAttestedJob).mockImplementationOnce((launch) => {
+        const launched = start(launch)
+        setImmediate(() => {
+          writeOutput('overflow')
+          exit(0)
+        })
+        return launched
+      })
+      await expect(
+        execResourceFile('probe', process.execPath, ['-v'], {
+          encoding: 'utf8',
+          env: {},
+          maxBuffer: 2,
+        }),
+      ).rejects.toMatchObject({ code: 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER' })
+    })
+  })
+
+  it('recognizes unavailable launches by their typed code, never the failure message', () => {
+    for (const code of ['admissionUnavailable', 'launchUnavailable'] as const) {
+      const error = new ResourceUnavailableError(code)
+      error.message = 'translated or changed words'
+      expect(isGovernedRefusal(error)).toBe(true)
+    }
+    expect(isGovernedRefusal(new Error('Resource admission unavailable'))).toBe(false)
+    expect(isGovernedRefusal(new Error('Native governed process launch unavailable'))).toBe(false)
+    expect(
+      isGovernedRefusal(
+        Object.assign(new ResourceUnavailableError('launchUnavailable'), { code: 'other' }),
+      ),
+    ).toBe(false)
   })
 })

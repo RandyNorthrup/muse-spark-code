@@ -340,13 +340,13 @@ async function spawnPiped(
     await untilAborted(job.verify(), signal)
     const { spawnAttestedJob } = await import('../../host/backend/mcpJobLaunch.js')
     signal?.throwIfAborted()
-    let refusal: unknown
+    let refusal: Error | undefined
     const authorize = () => {
       try {
         signal?.throwIfAborted()
         beforeSpawn?.()
       } catch (error: unknown) {
-        refusal = error
+        refusal = error instanceof Error ? error : new Error(String(error))
         throw error
       }
     }

@@ -20,18 +20,16 @@
 // converges them (see `untrustedCheckoutArgs`).
 //
 // Every git this module starts goes through `runGit` or `startGitBatch`,
-// which call the caller's gate and then start the process in the same
-// synchronous turn: nothing can change between the check and the spawn
+// which pass the caller's gate to the launcher after admission and job
+// preparation, and again at Windows GO, in the process-start synchronous
+// turn: nothing can change between the check and the spawn
 // (PLAN.md M123's lock protocol). A checkout's gate asks that the project
 // is still trusted, that Cancel was not pressed, and that the record is
 // still exactly this checkout's reservation (its fence).
 
-import {
-  execFile,
-  spawn,
-  type ChildProcess,
-  type ChildProcessWithoutNullStreams,
-} from 'node:child_process'
+import { type ChildProcess, type ChildProcessWithoutNullStreams } from 'node:child_process'
+import { execResourceFile, spawnResourceProcess } from '../../../core/resources/launcher'
+import { isGovernedRefusal, type ResourcePipedProcess } from '../../../core/resources/launch'
 import { Buffer } from 'node:buffer'
 import { randomUUID } from 'node:crypto'
 import type { BigIntStats } from 'node:fs'
@@ -241,6 +239,8 @@ export interface GitRunOptions {
   readonly signal: AbortSignal
   readonly timeout: number
   readonly maxBuffer: number
+  /** Rechecked by the launcher after admission and at Windows GO. */
+  readonly beforeSpawn: GitGate
 }
 
 /** How the batch child starts. */
@@ -249,13 +249,15 @@ export interface GitStartOptions {
   readonly env: NodeJS.ProcessEnv
   readonly signal: AbortSignal
   readonly timeout: number
-  /** Its own process group on POSIX. */
+  /** The governed profile owns its tree; retained for recording port compatibility. */
   readonly detached: boolean
+  /** Rechecked by the launcher after admission and at Windows GO. */
+  readonly beforeSpawn: GitGate
 }
 
 /**
  * How git processes start: node's, or a test's that records each start.
- * Both start the process before they return.
+ * Both run beforeSpawn synchronously immediately before the process start.
  */
 export interface GitProcessPort {
   /** Runs to completion; resolves with the standard output. */
@@ -265,22 +267,70 @@ export interface GitProcessPort {
     file: string,
     args: readonly string[],
     options: GitStartOptions,
-  ): ChildProcessWithoutNullStreams
+  ): ChildProcessWithoutNullStreams | Promise<ResourcePipedProcess['child']>
 }
 
-/** Node's processes: explicit argument arrays, no shell, hidden windows. */
+/** Only these complete argument forms are probes; all other invocations are contained. */
+function isReadOnlyGitArgs(args: readonly string[]): boolean {
+  let rest = args
+  for (const platform of ['linux', 'win32'] as const) {
+    const fixed = untrustedCheckoutArgs(platform)
+    if (fixed.every((arg, index) => rest[index] === arg)) {
+      rest = rest.slice(fixed.length)
+      break
+    }
+  }
+  while (rest[0] === '-c' && /^hook\.[^=\p{Cc}]+\.(?:enabled=false|event=)$/u.test(rest[1] ?? ''))
+    rest = rest.slice(2)
+  const isSame = (expected: readonly string[]) =>
+    rest.length === expected.length && expected.every((arg, index) => rest[index] === arg)
+  return (
+    isSame(['--version']) ||
+    isSame(['config', '--null', '--name-only', '--list']) ||
+    isSame(['remote', '-v']) ||
+    (/^[\w.-]+$/u.test(rest[2] ?? '') && isSame(['config', '--get', rest[2] ?? ''])) ||
+    isSame(['rev-parse', '--verify', 'FETCH_HEAD^{commit}']) ||
+    isSame(['cat-file', '--batch']) ||
+    (isCommitSha(rest.at(-1) ?? '') &&
+      isSame(['ls-tree', '-r', '-z', '--full-tree', '--long', rest.at(-1) ?? '']))
+  )
+}
+
+/** Node's processes are admitted before the synchronous gate and process start. */
 export const nodeGitProcesses: GitProcessPort = {
-  run: (file, args, options) =>
-    new Promise<string>((resolve, reject) => {
-      execFile(file, [...args], { ...options, windowsHide: true }, (error, stdout) => {
-        if (error === null) {
-          resolve(stdout)
-          return
-        }
-        reject(error instanceof Error ? error : new PullRequestServiceError(failureText(error)))
-      })
-    }),
-  start: (file, args, options) => spawn(file, [...args], { ...options, windowsHide: true }),
+  run: async (file, args, options) => {
+    try {
+      const call = { ...options, encoding: 'utf8' as const, windowsHide: true }
+      const launched = isReadOnlyGitArgs(args)
+        ? await execResourceFile('probe', file, args, call)
+        : await execResourceFile('contained', file, args, call)
+      return launched.stdout
+    } catch (error: unknown) {
+      options.signal.throwIfAborted()
+      if (isGovernedRefusal(error)) throw new PullRequestServiceError(UI_TEXT.gitMachineBusy)
+      throw error instanceof Error ? error : new PullRequestServiceError(failureText(error))
+    }
+  },
+  start: async (file, args, options) => {
+    try {
+      const signal = AbortSignal.any([options.signal, AbortSignal.timeout(options.timeout)])
+      const call = {
+        cwd: options.cwd,
+        env: options.env,
+        signal,
+        windowsHide: true,
+        beforeSpawn: options.beforeSpawn,
+      }
+      const launched = isReadOnlyGitArgs(args)
+        ? await spawnResourceProcess('probe', file, args, call)
+        : await spawnResourceProcess('contained', file, args, call)
+      return launched.child
+    } catch (error: unknown) {
+      options.signal.throwIfAborted()
+      if (isGovernedRefusal(error)) throw new PullRequestServiceError(UI_TEXT.gitMachineBusy)
+      throw error instanceof Error ? error : new PullRequestServiceError(failureText(error))
+    }
+  },
 }
 
 export interface NodePullRequestCheckoutGitOptions {
@@ -359,6 +409,7 @@ function runGit(
     signal: how.signal ?? git.signal,
     timeout: GIT_WORKTREE_TIMEOUT_MS,
     maxBuffer: GIT_OUTPUT_MAX_BYTES,
+    beforeSpawn: gate,
   })
 }
 
@@ -368,7 +419,7 @@ function startGitBatch(
   gate: GitGate,
   args: readonly string[],
   cwd: string,
-): ChildProcessWithoutNullStreams {
+): ChildProcessWithoutNullStreams | Promise<ResourcePipedProcess['child']> {
   gate()
   return git.processes.start(git.gitPath, args, {
     cwd,
@@ -378,6 +429,7 @@ function startGitBatch(
     // Its own group on POSIX, so the deadline stops the helpers it
     // spawned with it, not just the root.
     detached: git.platform !== 'win32',
+    beforeSpawn: gate,
   })
 }
 
@@ -577,7 +629,7 @@ async function writeHeldBlobs(
       }),
     unreadable,
   )
-  const child = startGitBatch(
+  const child = await startGitBatch(
     git,
     gates.run,
     [...untrustedCheckoutArgs(git.platform), 'cat-file', '--batch'],

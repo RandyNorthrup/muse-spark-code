@@ -33638,6 +33638,17 @@ lane A's first step.
 
 ## 7. Gates
 
+**SPAWNM123 round-2 scoped hold (2026-10-11, Kubuntu).** The production
+build bundles successfully and passes every byte cap, but the split gate
+retains Round 1's five inherited findings: `modelPolicy.ts` in
+`extension.js`, and `priceCard.ts` in `extension.js`/`runtimeEngine.js`
+(two cohorts report each priceCard edge). Neither source is changed here.
+These remain lead-owned integration work; no gate or cap is weakened and
+no aggregate quality or green production-build claim is made. The rig/common
+brief reserves aggregate quality for the lead. Exact bytes, scoped gate
+results and remaining dependency receipts are recorded in
+`docs/certification/train-spawn-inventory.md`.
+
 **MODELSPLIT4 scoped rig qualification (2026-10-11, kubuntu).** The
 explicit lane/common brief forbids aggregate `npm run quality` and reserves
 it for the lead's integrated tree. This lane runs complete owning test files

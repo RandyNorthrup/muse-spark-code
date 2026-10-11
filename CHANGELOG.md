@@ -121,9 +121,12 @@ happened, not what was planned; superseded entries are kept.
 ### Fixed
 
 - Restore the native Git service's final dispatch check after resource
-  admission and Windows job preparation, including the Windows GO recheck.
-  Restore the pull-request checkout's pinned synchronous dispatch contract;
-  its resource admission repair is tracked in the spawn certification.
+  admission and Windows job preparation, including its Windows GO recheck.
+  Pull-request checkout now takes governed admission before its final
+  synchronous gate and process start, and checks again at Windows GO.
+  Complete read-only argument forms select probes; other arguments remain
+  contained. Launcher refusals use typed codes. The checked inventory covers
+  all 111 sites, including the direct file-lease liveness-probe exemption.
 - Local report sources sort every tied list to a total order, so the same
   inputs produce byte-identical source facts whatever order records arrive
   in: Git commits, tags, branches and worktrees break key ties on their
