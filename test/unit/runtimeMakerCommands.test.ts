@@ -1,7 +1,7 @@
 import { mkdtemp, mkdir, rm, writeFile, readFile } from 'node:fs/promises'
 import { spawn } from 'node:child_process'
 import path from 'node:path'
-import { makePrivateFolder, makerTempRoot } from './helpers/makerTemp'
+import { makePrivateFolder, makerTempRoot, runtimeMakerNative } from './helpers/makerTemp'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createRuntimeMakerService } from '../../src/runtime/maker/service'
 import { parseMakerCommand } from '../../src/runtime/maker/commandArgs'
@@ -40,11 +40,7 @@ async function commands(isTrusted = true, isInteractive = true, lan?: MakerLanPo
       store: () => Promise.resolve(),
       delete: () => Promise.resolve(),
     },
-    native: {
-      platform: process.platform,
-      env: { PATH: process.env['PATH'], SystemRoot: process.env['SystemRoot'] },
-      packageRoot: path.resolve('.'),
-    },
+    native: runtimeMakerNative(),
   })
   // A host's inherited folder ACL is not under test: the lease folder is private everywhere.
   await makePrivateFolder(path.join(root, 'data', 'maker', 'leases'))

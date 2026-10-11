@@ -2,6 +2,7 @@ import { execFile } from 'node:child_process'
 import { chmod, mkdir } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import type { RuntimeMakerServiceDeps } from '../../../src/runtime/maker/service'
 
 /**
  * A canonical, short temp root for maker fixtures (FIXM103W10). macOS's
@@ -43,4 +44,13 @@ export async function makePrivateFolder(directory: string): Promise<void> {
   // Elevated Windows fixtures can otherwise inherit Administrators as owner.
   await runWindowsTool('icacls.exe', [directory, '/setowner', `*${sid}`])
   await runWindowsTool('icacls.exe', [directory, '/inheritance:r', '/grant:r', `*${sid}:(OI)(CI)F`])
+}
+
+/** Runtime fixtures retain the package and Windows identity environment used by the native lease. */
+export function runtimeMakerNative(): RuntimeMakerServiceDeps['native'] {
+  return {
+    platform: process.platform,
+    env: { PATH: process.env['PATH'], SystemRoot: process.env['SystemRoot'] },
+    packageRoot: path.resolve('.'),
+  }
 }

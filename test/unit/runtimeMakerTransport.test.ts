@@ -2,9 +2,9 @@ import * as z from 'zod/mini'
 import * as crypto from 'node:crypto'
 import { createHmac, randomUUID } from 'node:crypto'
 import { createConnection, type Socket } from 'node:net'
-import { request } from 'node:http'
+import { request, type IncomingMessage } from 'node:http'
 import { mkdtemp, mkdir, rm } from 'node:fs/promises'
-import { makePrivateFolder, makerTempRoot } from './helpers/makerTemp'
+import { makePrivateFolder, makerTempRoot, runtimeMakerNative } from './helpers/makerTemp'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { RuntimeMakerHost } from '../../src/runtime/maker/runtimeMakerHost'
@@ -66,29 +66,68 @@ async function companion(bind?: string) {
   const launch = companionLaunchSchema.parse(JSON.parse(delivery.text)).launch
   return { ...server, dispatch, host, launch }
 }
+interface HttpReply {
+  readonly status: number
+  readonly headers: IncomingMessage['headers']
+  readonly text: string
+}
+function readHttpResponse(response: IncomingMessage): Promise<HttpReply> {
+  return new Promise((resolve, reject) => {
+    let text = ''
+    response.setEncoding('utf8')
+    response.on('data', (chunk: string) => {
+      text += chunk
+    })
+    response.on('end', () => {
+      resolve({ status: response.statusCode ?? 0, headers: response.headers, text })
+    })
+    response.on('error', reject)
+  })
+}
+function workspaceReview(host: RuntimeMakerHost) {
+  const snapshot: ApprovalRequest = {
+    id: randomUUID(),
+    digest: crypto.createHash('sha256').update('payload').digest('hex'),
+    expiresAt: Date.now() + 30_000,
+    kind: 'command',
+    target: { kind: 'workspace', workspace: path.resolve('.') },
+    action: 'program',
+    payload: 'payload',
+  }
+  const engine = new MakerApproval(snapshot, () => host.hardwareEnabled())
+  const pending = host.confirm(snapshot, (raw) => engine.review(raw))
+  const review = JSON.stringify({
+    v: 1,
+    type: 'makerPayloadReviewed',
+    id: snapshot.id,
+    digest: snapshot.digest,
+    isComplete: true,
+  })
+  const answer = JSON.stringify({
+    v: 1,
+    type: 'makerAnswer',
+    answer: {
+      id: snapshot.id,
+      digest: snapshot.digest,
+      target: snapshot.target,
+      decision: 'allow_once',
+    },
+  })
+  return { engine, pending, review, answer }
+}
+
 async function http(
   url: string,
   route: string,
   headers: Record<string, string> = {},
   data?: string,
 ) {
-  return await new Promise<{
-    status: number
-    headers: Record<string, string | string[] | undefined>
-    text: string
-  }>((resolve, reject) => {
+  return await new Promise<HttpReply>((resolve, reject) => {
     const outgoing = request(
       `${url}${route}`,
       { method: data === undefined ? 'GET' : 'POST', headers },
       (response) => {
-        let text = ''
-        response.setEncoding('utf8')
-        response.on('data', (chunk: string) => {
-          text += chunk
-        })
-        response.on('end', () => {
-          resolve({ status: response.statusCode ?? 0, headers: response.headers, text })
-        })
+        void readHttpResponse(response).then(resolve).catch(reject)
       },
     )
     outgoing.on('error', reject)
@@ -98,6 +137,15 @@ async function http(
 async function status(...args: Parameters<typeof http>) {
   const reply = await http(...args)
   return reply.status
+}
+async function answerCompanion(
+  url: string,
+  headers: Record<string, string>,
+  answer: string,
+): Promise<void> {
+  const presence = await http(url, '/presence', headers, answer)
+  const grant = z.object({ grant: z.string() }).parse(JSON.parse(presence.text)).grant
+  expect(await status(url, '/answer', { ...headers, 'X-Maker-Approval': grant }, answer)).toBe(204)
 }
 async function session(server: { readonly url: string; readonly launch: string }) {
   const reply = await http(
@@ -126,11 +174,7 @@ async function servedCompanion() {
     interactive: () => true,
     secrets,
     // Windows lease identity runs SystemRoot's PowerShell; without it the claim fails closed.
-    native: {
-      platform: process.platform,
-      env: { PATH: process.env['PATH'], SystemRoot: process.env['SystemRoot'] },
-      packageRoot: path.resolve('.'),
-    },
+    native: runtimeMakerNative(),
   })
   // A host's inherited folder ACL is not under test: the lease folder is private everywhere.
   await makePrivateFolder(path.join(directory, 'data', 'maker', 'leases'))
@@ -376,24 +420,7 @@ describe('companion boundary', () => {
     async (route, isReviewedAgain) => {
       const { service, server, launched } = await servedCompanion()
       let headers = await launched()
-      const snapshot: ApprovalRequest = {
-        id: randomUUID(),
-        digest: crypto.createHash('sha256').update('payload').digest('hex'),
-        expiresAt: Date.now() + 30_000,
-        kind: 'command',
-        target: { kind: 'workspace', workspace: path.resolve('.') },
-        action: 'program',
-        payload: 'payload',
-      }
-      const engine = new MakerApproval(snapshot, () => service.host.hardwareEnabled())
-      const pending = service.host.confirm(snapshot, (raw) => engine.review(raw))
-      const review = JSON.stringify({
-        v: 1,
-        type: 'makerPayloadReviewed',
-        id: snapshot.id,
-        digest: snapshot.digest,
-        isComplete: true,
-      })
+      const { engine, pending, review, answer } = workspaceReview(service.host)
       const reviewed = () => http(server.url, '/message', headers, review)
       expect(await reviewed()).toMatchObject({ text: 'true' })
       // The replacement document resumes; its makerReady is delayed and never arrives here.
@@ -405,60 +432,22 @@ describe('companion boundary', () => {
         expect(frames.indexOf('"makerState"')).toBeLessThan(frames.indexOf('"makerApproval"'))
       }
       if (isReviewedAgain) expect(await reviewed()).toMatchObject({ text: 'true' })
-      const answer = JSON.stringify({
-        v: 1,
-        type: 'makerAnswer',
-        answer: {
-          id: snapshot.id,
-          digest: snapshot.digest,
-          target: snapshot.target,
-          decision: 'allow_once',
-        },
-      })
-      const presence = await http(server.url, '/presence', headers, answer)
-      const grant = z.object({ grant: z.string() }).parse(JSON.parse(presence.text)).grant
-      expect(
-        await status(server.url, '/answer', { ...headers, 'X-Maker-Approval': grant }, answer),
-      ).toBe(204)
+      await answerCompanion(server.url, headers, answer)
       expect(engine.answer(await pending) !== undefined).toBe(isReviewedAgain)
     },
   )
   it('RVM103W3 P2 a review upload started before a session resume cannot review the new document', async () => {
     const { service, server, launched } = await servedCompanion()
     const headers = await launched()
-    const snapshot: ApprovalRequest = {
-      id: randomUUID(),
-      digest: crypto.createHash('sha256').update('payload').digest('hex'),
-      expiresAt: Date.now() + 30_000,
-      kind: 'command',
-      target: { kind: 'workspace', workspace: path.resolve('.') },
-      action: 'program',
-      payload: 'payload',
-    }
-    const engine = new MakerApproval(snapshot, () => service.host.hardwareEnabled())
-    const pending = service.host.confirm(snapshot, (raw) => engine.review(raw))
-    const review = JSON.stringify({
-      v: 1,
-      type: 'makerPayloadReviewed',
-      id: snapshot.id,
-      digest: snapshot.digest,
-      isComplete: true,
-    })
+    const { engine, pending, review, answer } = workspaceReview(service.host)
     // The old document starts its review upload but its final bytes are delayed.
     const held = request(`${server.url}/message`, {
       method: 'POST',
       headers: { ...headers, 'Content-Length': Buffer.byteLength(review) },
     })
-    const done = new Promise<{ status: number; text: string }>((resolve, reject) => {
+    const done = new Promise<HttpReply>((resolve, reject) => {
       held.on('response', (response) => {
-        let text = ''
-        response.setEncoding('utf8')
-        response.on('data', (chunk: string) => {
-          text += chunk
-        })
-        response.on('end', () => {
-          resolve({ status: response.statusCode ?? 0, text })
-        })
+        void readHttpResponse(response).then(resolve).catch(reject)
       })
       held.on('error', reject)
     })
@@ -470,21 +459,7 @@ describe('companion boundary', () => {
     await expect(done).resolves.toMatchObject({ status: 403 })
     // The new document reviews again and its exact allow binds.
     expect(await http(server.url, '/message', headers, review)).toMatchObject({ text: 'true' })
-    const answer = JSON.stringify({
-      v: 1,
-      type: 'makerAnswer',
-      answer: {
-        id: snapshot.id,
-        digest: snapshot.digest,
-        target: snapshot.target,
-        decision: 'allow_once',
-      },
-    })
-    const presence = await http(server.url, '/presence', headers, answer)
-    const grant = z.object({ grant: z.string() }).parse(JSON.parse(presence.text)).grant
-    expect(
-      await status(server.url, '/answer', { ...headers, 'X-Maker-Approval': grant }, answer),
-    ).toBe(204)
+    await answerCompanion(server.url, headers, answer)
     expect(engine.answer(await pending)).toBeDefined()
   })
   it.each(['reviewed', 'incomplete', 'other digest', 'other target', 'unreviewed'] as const)(

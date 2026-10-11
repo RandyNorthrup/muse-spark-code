@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { mkdir, mkdtemp, readdir, readFile, rename, rm, symlink, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readdir, readFile, rename, symlink, writeFile } from 'node:fs/promises'
 import { makePrivateFolder, makerTempRoot } from './helpers/makerTemp'
+import { removeFolder } from './helpers/temporaryFolders'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { runRuntimeMaker } from '../../src/runtime/maker/entry'
@@ -22,7 +23,7 @@ import { fill } from '../../src/shared/l10n/text'
 const roots: string[] = []
 afterEach(async () => {
   vi.restoreAllMocks()
-  await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })))
+  await Promise.all(roots.splice(0).map((root) => removeFolder(root)))
 })
 async function fixture() {
   const root = await mkdtemp(path.join(makerTempRoot(), 'maker-stop-'))
