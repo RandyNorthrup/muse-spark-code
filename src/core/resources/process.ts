@@ -5,6 +5,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 import * as z from 'zod/mini'
 import { admitBootstrap, admitResource, resourceWindowsJob, stopResourceTree } from './admission'
 import {
+  ResourceUnavailableError,
   resourceEnvironment,
   type ResourceLaunchProfile,
   type ResourceProcessOptions,
@@ -210,10 +211,11 @@ function observe(
 function spawnInteractive(
   file: string,
   args: readonly string[],
-  options: ResourceProcessOptions,
+  { beforeSpawn, ...options }: ResourceProcessOptions,
   resource: ResourceLease,
   signal: AbortSignal | undefined,
 ): ResourceInteractiveProcess {
+  beforeSpawn?.()
   // Inherited stdio, no new session or group: the terminal's Ctrl+C and TTY reach it.
   // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- Admitted foreground terminal program (`muse login`): argument array, no shell, inherited session, owned root shutdown (PLAN SPAWN017C, section 8).
   const child = spawn(file, [...args], {
@@ -241,13 +243,14 @@ function spawnInteractive(
 function spawnHandoff(
   file: string,
   args: readonly string[],
-  options: ResourceProcessOptions,
+  { beforeSpawn, ...options }: ResourceProcessOptions,
   resource: ResourceLease,
   cancel: AbortSignal | undefined,
   deadline: AbortSignal,
   until: ResourceHandoffUntil,
 ): ResourceHandoffProcess {
   const isLaunchedAtSpawn = until === 'spawn'
+  beforeSpawn?.()
   // The caller's own environment, never the lease's temporary root: a browser the
   // OS starts outlives this lease and must not keep TMPDIR under governed cleanup.
   // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- Admitted fixed OS hand-off adapter: argument array, no shell, output to the null device, named deadline, root-only stop on cancel (PLAN SPAWN017C, section 8).
@@ -317,7 +320,7 @@ async function spawnPiped(
   profile: 'contained' | 'probe' | 'bootstrap',
   file: string,
   args: readonly string[],
-  { jobMemoryBytes, ...options }: ResourceProcessOptions,
+  { jobMemoryBytes, beforeSpawn, ...options }: ResourceProcessOptions,
   extraDescriptors: readonly number[],
   resource: ResourceLease,
   signal: AbortSignal | undefined,
@@ -331,12 +334,23 @@ async function spawnPiped(
     const job = await untilAborted(resourceWindowsJob(), signal)
     if (job === undefined || extraDescriptors.length > 0) {
       signal?.throwIfAborted()
-      throw new Error('Native governed process launch unavailable')
+      throw new ResourceUnavailableError('launchUnavailable')
     }
     // Before every launch: a changed helper is refused (typed) and never runs.
     await untilAborted(job.verify(), signal)
     const { spawnAttestedJob } = await import('../../host/backend/mcpJobLaunch.js')
     signal?.throwIfAborted()
+    let refusal: unknown
+    const authorize = () => {
+      try {
+        signal?.throwIfAborted()
+        beforeSpawn?.()
+      } catch (error: unknown) {
+        refusal = error
+        throw error
+      }
+    }
+    authorize()
     const { child: launcher, control } = spawnAttestedJob({
       executablePath: job.executablePath,
       file,
@@ -345,6 +359,7 @@ async function spawnPiped(
       env: options.env ?? {},
       isVerbatim: false,
       resource,
+      authorize,
       jobMemoryLimit: jobMemoryBytes,
       attestation: ATTESTED_JOB,
       log: () => {
@@ -397,7 +412,9 @@ async function spawnPiped(
     })
     outcome = async () => {
       if (launcher.pid === undefined) return
-      return await settlement
+      const settled = await settlement
+      if (refusal !== undefined) throw refusal
+      return settled
     }
     payloadPid = async () => {
       const root = await control.root
@@ -405,6 +422,8 @@ async function spawnPiped(
     }
   } else {
     const isGroup = process.platform !== 'win32'
+    signal?.throwIfAborted()
+    beforeSpawn?.()
     // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- Admitted payload or bootstrap compiler: argument array, no shell, pipes, its own POSIX group, owned whole-tree stop (PLAN SPAWN017C, section 8).
     const root = spawn(file, [...args], {
       ...options,
@@ -500,17 +519,17 @@ export async function spawnResourceProcess(
     const cancel = options.signal
     const signal = cancel === undefined ? deadline : AbortSignal.any([cancel, deadline])
     return await withLease(profile, signal, (resource, spawned) => {
+      const launched = spawnHandoff(file, args, options, resource, cancel, deadline, handoffUntil)
       spawned.value = true
-      return Promise.resolve(
-        spawnHandoff(file, args, options, resource, cancel, deadline, handoffUntil),
-      )
+      return Promise.resolve(launched)
     })
   }
   const { signal } = options
   if (profile === 'interactive')
     return await withLease(profile, signal, (resource, spawned) => {
+      const launched = spawnInteractive(file, args, options, resource, signal)
       spawned.value = true
-      return Promise.resolve(spawnInteractive(file, args, options, resource, signal))
+      return Promise.resolve(launched)
     })
   return await withLease(profile, signal, (resource, spawned) =>
     spawnPiped(
@@ -533,7 +552,7 @@ async function withLease<T>(
   launch: (resource: ResourceLease, spawned: { value: boolean }) => Promise<T>,
 ): Promise<T> {
   const resource = await admitProfile(profile, signal)
-  if (resource === undefined) throw new Error('Resource admission unavailable')
+  if (resource === undefined) throw new ResourceUnavailableError('admissionUnavailable')
   const spawned = { value: false }
   try {
     signal?.throwIfAborted()

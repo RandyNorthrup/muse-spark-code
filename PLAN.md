@@ -1,5 +1,7 @@
 # PLAN — Muse Spark for VS Code (unofficial)
 
+**SPAWNM123 round 2 (2026-10-11, Kubuntu).** Restore D104/M123's synchronous last-check/process-start protocol and Windows GO recheck before repairing the inventory. The native service already uses the admitted shared Git runner; list its process import truthfully and rename its non-launch wrapper. Govern the checkout's two raw launch paths with a synchronous `beforeSpawn` hook after admission/preparation and at Windows GO. Keep the pinned dispatch regression, recognize launcher refusals by typed code, and choose probes only from checked read-only argument forms. Certify all thirteen original sites, admission-wait interleavings, dependent suites and scoped gates in `docs/certification/train-spawn-inventory.md`; aggregate quality remains lead-owned under the rig/common brief. No merge, push, subagents or live/paid calls.
+
 **REL0171C release assembly (2026-10-11, host with Kubuntu, the Mac mini,
 Win11 and linuxlt; 0.17.1).** Merge the accepted share-preview fix (SHAREFIX
 `a7052b708`) and the truth pass (C-X-1 `99e9b4106`) into `rel0171/final`.

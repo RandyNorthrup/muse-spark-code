@@ -130,9 +130,6 @@ function refusalNotice(refusal: ReturnType<typeof refusalOf>): string | undefine
     case 'refused': {
       return UI_TEXT.gitPushUnsafeName
     }
-    case 'busy': {
-      return UI_TEXT.gitMachineBusy
-    }
     case 'closed':
     case undefined: {
       return undefined
