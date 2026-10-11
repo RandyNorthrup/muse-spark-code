@@ -47,5 +47,38 @@
     "beforeSha256": "8254464f02bccaa455da62b790f77fb684d309c0a03192046a44797f02ebe3ad",
     "restoredSha256": "8254464f02bccaa455da62b790f77fb684d309c0a03192046a44797f02ebe3ad",
     "regression": "reads configuration headroom across windows"
+  },
+  {
+    "port": 2,
+    "subpart": "actual composer",
+    "mutation": "fixed-model",
+    "file": "src/host/conversation/conversationController.ts",
+    "command": "npx vitest run test/unit/conversationController.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "beforeSha256": "750ac39f9181568085302c4f87d19625d6c5a574fa563a628de86c1dd258c3fd",
+    "restoredSha256": "750ac39f9181568085302c4f87d19625d6c5a574fa563a628de86c1dd258c3fd",
+    "regression": "reads the live team composer"
+  },
+  {
+    "port": 2,
+    "subpart": "actual composer",
+    "mutation": "configured-backend",
+    "file": "src/host/conversation/conversationController.ts",
+    "command": "npx vitest run test/unit/conversationController.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "beforeSha256": "750ac39f9181568085302c4f87d19625d6c5a574fa563a628de86c1dd258c3fd",
+    "restoredSha256": "750ac39f9181568085302c4f87d19625d6c5a574fa563a628de86c1dd258c3fd",
+    "regression": "keeps the composer model and effort when an extension hook refuses a switch"
+  },
+  {
+    "port": 2,
+    "subpart": "actual composer",
+    "mutation": "disposed-composer",
+    "file": "src/host/conversation/conversationController.ts",
+    "command": "npx vitest run test/unit/conversationController.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "beforeSha256": "750ac39f9181568085302c4f87d19625d6c5a574fa563a628de86c1dd258c3fd",
+    "restoredSha256": "750ac39f9181568085302c4f87d19625d6c5a574fa563a628de86c1dd258c3fd",
+    "regression": "reads the live team composer"
   }
 ]

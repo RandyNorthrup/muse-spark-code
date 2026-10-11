@@ -3483,7 +3483,9 @@ switch independently of saved entries. Its required configuration sources
 still keep the sections hidden while those sources are missing. The bound
 budget getter reads the shared daily paid journal, including outstanding
 claims; learned role samples come from the latest twelve settled tasks in
-validated workspace history. A failed source read clears stale team sections.
+validated workspace history. A failed source read clears stale team sections. The engine reads the active
+composer model and its attached backend; complete captured discovery and
+saved workspace overrides still await their bindings.
 
 - Muse Code hides its subagent tools unless `run.subagent_delegation_mode` is
   `"auto"` in its settings file (`~/.config/muse/settings.json`, or under

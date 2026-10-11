@@ -2531,6 +2531,10 @@ async function activateWindow(
   // M96 lane X: the window's team host service. A workspace that stores no
   // team never loads dist/team.js. Engine entries run as Model API
   // conversations in the task's own copy; other agent kinds are unavailable.
+  const teamComposerModel = () => {
+    const surface = registry.active
+    return surface === undefined ? undefined : controllers.get(surface.id)?.teamComposerModel()
+  }
   const teamHost: TeamHostBinding = new TeamHostBinding({
     ports: {
       state: {
@@ -2550,11 +2554,11 @@ async function activateWindow(
         isTrusted: () => vscode.workspace.isTrusted,
       },
       orchestrator: {
-        modelId: () => DEFAULT_MODEL_ID,
-        backend: () => currentSettings().backend,
+        modelId: () => teamComposerModel()?.modelId ?? DEFAULT_MODEL_ID,
+        backend: () => teamComposerModel()?.backend ?? auth.backend ?? currentSettings().backend,
         // Default runs on the conversation's own model; on the Model API it bills the key.
         defaultAgent: (modelId) =>
-          currentSettings().backend === 'modelApi'
+          (teamComposerModel()?.backend ?? auth.backend) === 'modelApi'
             ? { kind: 'engine', agentId: 'default', model: modelId, pays: 'key' }
             : undefined,
         approvalMode: (sessionId) =>

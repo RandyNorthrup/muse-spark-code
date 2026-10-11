@@ -700,7 +700,7 @@
     {
       "id": "M96",
       "title": "Agent roles and teams",
-      "summary": "The joined team engine and hidden Roles/Agents editor have independent setup readiness and durable budget/history reads, while captured discovery, saved-charter enforcement, overrides and paid Try still need integration.",
+      "summary": "The joined team engine and hidden Roles/Agents editor have independent setup readiness, live composer reads and durable budget/history, while captured discovery, saved-charter enforcement, overrides and paid Try still need integration.",
       "area": "agents"
     },
     {

@@ -1554,6 +1554,22 @@ describe('ConversationController.sendMessage', () => {
 })
 
 describe('ConversationController: composer controls', () => {
+  it('reads the live team composer without traffic, follows picker changes and refuses after disposal', async () => {
+    const t = setup()
+    expect(t.controller.teamComposerModel()).toEqual({
+      modelId: 'muse-spark-1.3',
+      backend: 'museCode',
+    })
+    await t.controller.handle({ type: 'setModel', modelId: 'muse-spark-1.2' })
+    expect(t.controller.teamComposerModel()).toEqual({
+      modelId: 'muse-spark-1.2',
+      backend: 'museCode',
+    })
+    expect(t.server.requestsFor('session/start')).toHaveLength(0)
+    t.controller.dispose()
+    expect(t.controller.teamComposerModel()).toBeUndefined()
+  })
+
   it('keeps the composer model and effort when an extension hook refuses a switch', async () => {
     const t = setup()
     const io = memoryToolIo({}, '/ws')
@@ -1577,6 +1593,10 @@ describe('ConversationController: composer controls', () => {
       expect(t.surface.posted.at(-1)).toMatchObject({
         type: 'sessionInfo',
         modelId: 'muse-spark-1.3',
+      })
+      expect(controller.teamComposerModel()).toEqual({
+        modelId: 'muse-spark-1.3',
+        backend: 'modelApi',
       })
       expect(
         t.surface.posted.findLast((message) => message.type === 'composerState'),
