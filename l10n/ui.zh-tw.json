@@ -5013,6 +5013,7 @@
     "cancelSetup": "取消設定",
     "setupNeeded": "請先設定憑證庫，再在其中儲存機密。",
     "setupExists": "此使用者已有憑證庫。",
+    "itemConflict": "同名項目已在保管庫中，或來源在匯入期間發生了變化。未新增任何內容。",
     "setupPending": "請儲存復原碼，然後確認以完成憑證庫設定。",
     "setupCancelled": "憑證庫設定已取消，未儲存任何內容。",
     "setupHeadless": "設定和復原憑證庫需要互動式終端機；無介面執行無法進行。",

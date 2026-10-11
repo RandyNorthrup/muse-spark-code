@@ -33,6 +33,9 @@ export function vaultRefusalMessage(reason: VaultManagementRefusal): string {
     case 'exists': {
       return UI_TEXT.vault.setupExists
     }
+    case 'conflict': {
+      return UI_TEXT.vault.itemConflict
+    }
     case 'busy': {
       return UI_TEXT.vault.busy
     }

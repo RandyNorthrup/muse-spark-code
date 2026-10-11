@@ -5313,6 +5313,7 @@
     "cancelSetup": "Cancelar la configuración",
     "setupNeeded": "Configure la bóveda antes de guardar un secreto en ella.",
     "setupExists": "Ya existe una bóveda para este usuario.",
+    "itemConflict": "Un elemento con el mismo nombre ya está en la bóveda, o el origen cambió durante la importación. No se añadió nada.",
     "setupPending": "Guarde el código de recuperación y confirme para terminar de configurar la bóveda.",
     "setupCancelled": "Se canceló la configuración de la bóveda. No se guardó nada.",
     "setupHeadless": "La configuración y la recuperación de la bóveda necesitan una terminal interactiva; las ejecuciones sin interfaz no pueden hacerlas.",

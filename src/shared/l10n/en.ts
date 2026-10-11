@@ -6230,6 +6230,9 @@ export const EN = {
     cancelSetup: 'Cancel Setup',
     setupNeeded: 'Set up the vault before you store a secret in it.',
     setupExists: 'A vault already exists for this user.',
+    // RVCM1091D P2: an item or path collision is not a setup failure.
+    itemConflict:
+      'An item with the same name is already in the vault, or the source changed during the import. Nothing was added.',
     setupPending: 'Save the recovery code, then confirm to finish setting up the vault.',
     setupCancelled: 'Vault setup was cancelled. Nothing was saved.',
     setupHeadless:

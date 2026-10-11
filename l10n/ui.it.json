@@ -5313,6 +5313,7 @@
     "cancelSetup": "Annulla la configurazione",
     "setupNeeded": "Configura la cassaforte prima di salvarvi un segreto.",
     "setupExists": "Esiste già una cassaforte per questo utente.",
+    "itemConflict": "Un elemento con lo stesso nome è già nel vault, oppure l’origine è cambiata durante l’importazione. Non è stato aggiunto nulla.",
     "setupPending": "Salva il codice di recupero, poi conferma per completare la configurazione della cassaforte.",
     "setupCancelled": "La configurazione della cassaforte è stata annullata. Non è stato salvato nulla.",
     "setupHeadless": "La configurazione e il recupero della cassaforte richiedono un terminale interattivo; le esecuzioni headless non possono farli.",

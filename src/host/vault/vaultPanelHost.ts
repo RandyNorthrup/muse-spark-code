@@ -82,6 +82,7 @@ function refusalMessage(error: unknown): string {
     UI_TEXT.vault.locked, // protocol refusal `locked`
     UI_TEXT.vault.setupNeeded, // `uncreated`
     UI_TEXT.vault.setupExists, // `exists`
+    UI_TEXT.vault.itemConflict, // `conflict`: an item or path collision, never setup
     UI_TEXT.vault.busy, // `busy`
     UI_TEXT.vault.rollback, // `rollback`
     UI_TEXT.vault.storeUnavailable, // `storeUnavailable`
