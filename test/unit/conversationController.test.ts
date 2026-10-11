@@ -4669,6 +4669,21 @@ describe('ConversationController: account & usage (M8)', () => {
     expect(port.deleteAllOurs).toHaveBeenCalledOnce()
   })
 
+  it('deletes uploaded files from the usage dialog messages', async () => {
+    const port = {
+      read: vi.fn(() => Promise.resolve({})),
+      post: vi.fn(),
+      deleteFile: vi.fn(() => Promise.resolve()),
+      deleteAllOurs: vi.fn(() => Promise.resolve()),
+      confirmForeign: vi.fn(() => Promise.resolve(false)),
+    }
+    const t = setup({ uploadedFiles: port })
+    await t.controller.handle({ type: 'deleteUploadedFile', fileId: 'file-one' })
+    expect(port.deleteFile).toHaveBeenCalledWith('file-one', expect.any(Function))
+    await t.controller.handle({ type: 'deleteAllUploadedFiles' })
+    expect(port.deleteAllOurs).toHaveBeenCalledOnce()
+  })
+
   it('refuses byte-bearing uploaded-file reports and does not post after disposal', async () => {
     const port = {
       read: vi.fn(() =>
