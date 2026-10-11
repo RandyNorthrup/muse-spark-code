@@ -38953,6 +38953,17 @@ related selector, three-file bound, ordinary project setup and deadlines. Aggreg
 review and the multi-OS release matrix remain lead-owned. No gate or cap is
 weakened; record every outcome and compare any red with the clean base.
 Evidence: `docs/certification/m106-capability-binding.md`.
+
+**R10 time-box deferral (2026-10-11).** The whole-branch related graph has
+1,135 files. The owner's 75-minute rig limit permits 875 complete files here;
+260 remain explicitly unrun, listed individually in
+`docs/certification/m106-r10-dependents.json`. Final observed results are
+19,628 passed, zero failed and 102 existing platform/opt-in skips. The two
+migration timeouts pass on both the branch replay and clean base; the cap
+callback assertion now verifies the resolved record and passes. The complete
+dependent gate remains outstanding; this record does not certify those
+260 files or claim release readiness.
+
 **C-M106-2 R5 bounded repair certification (2026-10-10).** The rig/shared
 brief forbids aggregate quality, full-suite runs and branch integration.
 Run the owning whole test files at repository timeouts with at most three

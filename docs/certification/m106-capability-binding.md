@@ -813,7 +813,7 @@ restore. Repository timeouts throughout, `--maxWorkers=3`.
 
 No RVCM1062H finding remains open; no external blocker was encountered.
 
-## R10 — headless output cap and complete dependents (kubuntu, 2026-10-11)
+## R10 — headless output cap and dependent replay (kubuntu, 2026-10-11)
 
 The owner's decision keeps headless exec at **at most 32,768 output tokens**,
 or the selected record's smaller maximum. Its ledger reserves the worst case
@@ -938,7 +938,26 @@ related specifications and runs each complete batch through the public
 `runTestSpecifications` API. Repository setup, worker isolation, assertions,
 timeouts and three-worker limits are unchanged. Its first batch initializes
 the ordinary production, visual and browser fixtures required by the full
-selection. Final dependent receipts are recorded after that replay.
+selection.
+
+The owner's 75-minute limit stops this replay at **875 of 1,135 complete
+files**. Final observed results: **19,628 passed, zero failed, 102 existing
+platform/opt-in skips**; **260 files remain unrun**. Every selected file,
+its observed counts or unrun status, the changed-source selector and clean-base
+comparison are recorded in [the per-file receipt](m106-r10-dependents.json).
+This is an incomplete dependent gate, not release certification. The driver
+exited 1 on an intentional scratch-receipt write refusal after its last complete
+batch; its `finally` awaited Vitest close and the shared fixture teardown.
+There were no unhandled test errors.
+
+One callback-contract assertion initially failed because it expected only the
+model identifier. It now also verifies the resolved model's reference and
+documented output policy. Its whole file passed **42/42**. Two migration cases
+initially exceeded their unchanged five-second deadlines; the complete
+`scheduleMigrate.test.ts` replay passed **15/15** here and **15/15** on clean
+base `82d50d5e4`, without source changes. **No base-red file remains.** Both
+replays use the repository timeout and three workers.
+
 Aggregate quality remains lead-owned under
 the explicit rig/common brief; no gate, cap, baseline or repository timeout
 was weakened. No paid/live call, credential read, merge, push or rebase.
