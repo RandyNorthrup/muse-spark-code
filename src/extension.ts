@@ -348,7 +348,7 @@ import { latestLinuxRecording } from './core/media/record/linux'
 import type { ScreenRecordingPreview } from './core/media/record/driver'
 import { loadVaultControls, registerVaultCommands } from './host/vault/vaultPanelBundle'
 import { museCodeReviewerPort } from './host/review/museCodeReviewerBundle'
-import { createPaidFeatures } from './host/paid/paidHost'
+import { askPaidUse, createPaidFeatures } from './host/paid/paidHost'
 import { isActivationPaidSettingOn } from './host/paid/paidActivation'
 import {
   modelsPanelLoader,
@@ -3548,26 +3548,7 @@ async function activateWindow(
             capUsd: () => dailyPaid.capUsd(),
             isActive: isScheduleActive,
             isOn: (feature) => paid.gate.isOn(feature),
-            ask: async ({ title, detail }) => {
-              const answer = await vscode.window.showWarningMessage(
-                title,
-                { modal: true, detail },
-                UI_TEXT.allowOnce,
-                UI_TEXT.scheduleV2.messages.allowAlways,
-                UI_TEXT.paidDeny,
-              )
-              switch (answer) {
-                case UI_TEXT.allowOnce: {
-                  return 'once'
-                }
-                case UI_TEXT.scheduleV2.messages.allowAlways: {
-                  return 'always'
-                }
-                default: {
-                  return 'deny'
-                }
-              }
-            },
+            ask: ({ request }) => askPaidUse(request, vscode.workspace.isTrusted),
             reserve: (schedule, amount, signal) =>
               dailyPaid.reserveSchedule(schedule, amount, signal),
           },

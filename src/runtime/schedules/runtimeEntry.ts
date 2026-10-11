@@ -34,6 +34,7 @@ export function createRuntimeSchedules(
     delivery?.billing === undefined ? undefined : createScheduleBilling(delivery.billing)
   const { runtime } = createScheduleEngine({
     fs: createNodeScheduleFs(root),
+    ...(delivery !== undefined && { signal: delivery.signal }),
     queue: createNodeScheduleQueue(root),
     platform,
     homeDir,

@@ -10,6 +10,7 @@ import {
 import {
   askSchedulePaidConsent,
   createSchedulePaidScope,
+  scheduleConsentFailure,
   type PaidUseAnswer,
   type SchedulePaidIdentity,
 } from '../../core/paid/paidConsent'
@@ -20,6 +21,9 @@ import { autoReviewPrice } from '../../shared/reviewPriceText'
 import { Usd, type UsdAmount } from '../../shared/usd'
 import { scheduleV2Schema, type ScheduleRunContext, type ScheduleV2 } from '../../shared/scheduleV2'
 import type { BackendSession } from './backgroundTarget'
+import type { PaidUseRequest } from '../../shared/paid'
+import type { ScheduleCallerContext } from '../../runtime/schedules/args'
+import { cliSchedulePaidAnswer } from '../../runtime/schedules/consent'
 
 export interface ScheduleBillingPorts {
   modelId(schedule: ScheduleV2): string
@@ -35,7 +39,15 @@ export interface ScheduleBillingPorts {
   capUsd(): UsdAmount
   isActive(): boolean
   isOn(feature: PaidFeature): boolean
-  ask(question: { readonly title: string; readonly detail: string }): Promise<PaidUseAnswer>
+  /** Trusted invocation context supplied by the runtime, never by the draft. */
+  caller?(): ScheduleCallerContext
+  /** CLI flags replace the popup only after the same full quote is printed. */
+  reportConsent?(question: { readonly title: string; readonly detail: string }): Promise<void>
+  ask(question: {
+    readonly title: string
+    readonly detail: string
+    readonly request: Extract<PaidUseRequest, { feature: 'scheduledPrompts' }>
+  }): Promise<PaidUseAnswer>
   reserve(schedule: ScheduleV2, amount: UsdAmount, signal: AbortSignal): Promise<SessionBudgetClaim>
 }
 
@@ -99,11 +111,8 @@ export function createScheduleBilling(ports: ScheduleBillingPorts) {
     const generation = ports.generation()
     const host = await ports.host()
     const { pricing, accountId, providerId, origin } = await host.schedulePricing(modelId)
-    if (
-      generation !== ports.generation() ||
-      pricing.kind !== 'priced' ||
-      !isValidPriceCard(pricing.card)
-    )
+    if (generation !== ports.generation()) throw new Error(UI_TEXT.scheduleV2.messages.changedKey)
+    if (pricing.kind !== 'priced' || !isValidPriceCard(pricing.card))
       throw new Error(UI_TEXT.bestOfNTariffUnknown)
     const card = pricing.card
     const price = autoReviewPrice(modelId, pricing)
@@ -115,11 +124,12 @@ export function createScheduleBilling(ports: ScheduleBillingPorts) {
       providerId,
       origin,
       priceTier: JSON.stringify({ providerId, origin, tariff }),
+      payerKind: 'paidKey',
       price,
       sharedDailyBudgetUsd: ports.capUsd(),
     }
     const estimate = (body: CreateResponseBody | CreateImageBody, tokens: number | undefined) => {
-      if (!('input' in body)) throw new Error(UI_TEXT.scheduleV2.messages.changedConsent)
+      if (!('input' in body)) throw new Error(UI_TEXT.scheduleV2.messages.paidUnavailable)
       const inputTokens = tokens ?? estimateInput([JSON.stringify(body)], undefined).inputTokens
       return Usd.from(
         reserveRequestAmount(card, {
@@ -138,6 +148,7 @@ export function createScheduleBilling(ports: ScheduleBillingPorts) {
     async consent(schedule: ScheduleV2): Promise<ScheduleV2['paidConsent']> {
       const modelId = ports.modelId(schedule)
       const { identity, generation } = await quote(modelId)
+      const caller = ports.caller?.()
       return await askSchedulePaidConsent({
         schedule,
         identity,
@@ -148,11 +159,17 @@ export function createScheduleBilling(ports: ScheduleBillingPorts) {
         isCurrent: () =>
           ports.isActive() &&
           ports.modelId(schedule) === modelId &&
+          JSON.stringify(ports.caller?.()) === JSON.stringify(caller) &&
           ports.generation() === generation &&
           ports.capUsd() === identity.sharedDailyBudgetUsd,
-        ask: (question) => ports.ask(question),
-        // Control publishes the approved record using the same creation/update CAS.
-        remember: () => Promise.resolve(true),
+        ask: async (question) => {
+          if (caller?.source !== 'cli') return await ports.ask(question)
+          if (ports.reportConsent === undefined) return 'deny'
+          const answer = cliSchedulePaidAnswer(schedule, caller)
+          if (answer === 'deny') return answer
+          await ports.reportConsent(question)
+          return answer
+        },
       })
     },
     async paid(
@@ -161,13 +178,33 @@ export function createScheduleBilling(ports: ScheduleBillingPorts) {
       context: ScheduleRunContext,
       authority: ScheduleAuthorityStore,
     ) {
+      const { identity, estimate, generation } = await quote(session.modelId)
+      const assertCurrent = (
+        live: ScheduleV2 | undefined,
+        record: ScheduleV2,
+        freshIdentity: SchedulePaidIdentity,
+      ): ScheduleV2 => {
+        if (live === undefined || !ports.isActive())
+          throw new Error(UI_TEXT.scheduleV2.messages.changedRevision)
+        if (live.paused) throw new Error(UI_TEXT.scheduleV2.messages.pausedPaid)
+        if (ports.generation() !== generation)
+          throw new Error(UI_TEXT.scheduleV2.messages.changedKey)
+        if (session.modelId !== identity.modelId)
+          throw new Error(UI_TEXT.scheduleV2.messages.changedModel)
+        if (ports.capUsd() !== identity.sharedDailyBudgetUsd)
+          throw new Error(UI_TEXT.scheduleV2.messages.changedSharedCap)
+        const failure = scheduleConsentFailure(live, freshIdentity)
+        if (failure !== undefined) throw new Error(UI_TEXT.scheduleV2.messages[failure])
+        if (JSON.stringify(live.grant) !== JSON.stringify(record.grant))
+          throw new Error(UI_TEXT.scheduleV2.messages.changedGrant)
+        if (JSON.stringify(live.paidConsent) !== JSON.stringify(record.paidConsent))
+          throw new Error(UI_TEXT.scheduleV2.messages.changedConsent)
+        if (live.mode !== record.mode || live.revision !== record.revision)
+          throw new Error(UI_TEXT.scheduleV2.messages.changedRevision)
+        return live
+      }
       let current = await authority.read(schedule.workspaceKey, schedule.id)
-      if (
-        current === undefined ||
-        current.paused ||
-        JSON.stringify(current.paidConsent) !== JSON.stringify(schedule.paidConsent)
-      )
-        throw new Error(UI_TEXT.scheduleV2.messages.changedConsent)
+      current = assertCurrent(current, schedule, identity)
       if (current.paidConsent?.scope === 'once' && current.paidConsent.runId === undefined) {
         const next = scheduleV2Schema.parse({
           ...current,
@@ -181,11 +218,15 @@ export function createScheduleBilling(ports: ScheduleBillingPorts) {
             kind: 'changed',
           }))
         )
-          throw new Error(UI_TEXT.scheduleV2.messages.changedConsent)
-        current = next
+          throw new Error(UI_TEXT.scheduleV2.messages.lostOnceClaim)
+        current = await authority.read(schedule.workspaceKey, schedule.id)
+        if (current?.paidConsent?.runId !== context.runId)
+          throw new Error(UI_TEXT.scheduleV2.messages.lostOnceClaim)
+        current = assertCurrent(current, { ...next, revision: next.revision + 1 }, identity)
       }
+      if (current.paidConsent?.scope === 'once' && current.paidConsent.runId !== context.runId)
+        throw new Error(UI_TEXT.scheduleV2.messages.lostOnceClaim)
       const admitted = current
-      const { identity, estimate, generation } = await quote(session.modelId)
       const authorityGeneration = authority.generation?.(schedule.workspaceKey, schedule.id)
       const isCurrent = () =>
         ports.isActive() &&
@@ -197,16 +238,8 @@ export function createScheduleBilling(ports: ScheduleBillingPorts) {
         const fresh = await quote(session.modelId)
         const live = await authority.read(schedule.workspaceKey, schedule.id)
         const check = () => {
-          if (
-            live === undefined ||
-            live.paused ||
-            live.mode !== admitted.mode ||
-            JSON.stringify(live.grant) !== JSON.stringify(admitted.grant) ||
-            JSON.stringify(live.paidConsent) !== JSON.stringify(admitted.paidConsent) ||
-            JSON.stringify(fresh.identity) !== JSON.stringify(identity) ||
-            !isCurrent()
-          )
-            throw new Error(UI_TEXT.scheduleV2.messages.changedConsent)
+          assertCurrent(live, admitted, fresh.identity)
+          if (!isCurrent()) throw new Error(UI_TEXT.scheduleV2.messages.changedRevision)
         }
         check()
         return check
@@ -225,21 +258,24 @@ export function createScheduleBilling(ports: ScheduleBillingPorts) {
         isOn: (feature) => ports.isOn(feature),
         estimate,
         reserve: async (record, amount, signal) => {
-          const live = await authority.read(record.workspaceKey, record.id)
           const fresh = await quote(session.modelId)
-          if (
-            live === undefined ||
-            live.paused ||
-            live.mode !== record.mode ||
-            JSON.stringify(live.grant) !== JSON.stringify(record.grant) ||
-            JSON.stringify(live.paidConsent) !== JSON.stringify(record.paidConsent) ||
-            JSON.stringify(fresh.identity) !== JSON.stringify(identity)
+          // Read authority after awaited pricing, then validate synchronously
+          // beside admission. A pause during a quote cannot use an older read.
+          const live = assertCurrent(
+            await authority.read(record.workspaceKey, record.id),
+            record,
+            fresh.identity,
           )
-            throw new Error(UI_TEXT.scheduleV2.messages.changedConsent)
+          signal.throwIfAborted()
           const claim = await ports.reserve(record, amount, signal)
           try {
-            const check = await checkDispatch()
-            check()
+            const quoted = await quote(session.modelId)
+            assertCurrent(
+              await authority.read(record.workspaceKey, record.id),
+              live,
+              quoted.identity,
+            )
+            signal.throwIfAborted()
             return claim
           } catch (error: unknown) {
             await claim.settle(Usd.from(0).toAmount())
@@ -248,7 +284,7 @@ export function createScheduleBilling(ports: ScheduleBillingPorts) {
         },
       })
       if (!policy.allows('scheduledPrompts'))
-        throw new Error(UI_TEXT.scheduleV2.messages.changedConsent)
+        throw new Error(UI_TEXT.scheduleV2.messages.paidUnavailable)
       return {
         policy: { ...policy, checkDispatch },
         consent: admitted.paidConsent,

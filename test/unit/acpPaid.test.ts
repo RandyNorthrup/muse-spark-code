@@ -1,6 +1,7 @@
 import type { PaidUseAnswer } from '../../src/core/paid/paidConsent'
 import { quotedSearch } from './helpers/paidQuote'
 import { Usd } from '../../src/shared/usd'
+import { fakeSchedulePaidRequest } from './helpers/schedules/fixtures'
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import type * as Fs from 'node:fs'
 import { link, rename } from 'node:fs/promises'
@@ -76,6 +77,58 @@ const OTHER = path.resolve('work', 'other')
 const WEB_SEARCH_QUOTE = { feature: 'webSearch', tariffUsd: Usd.from('0.0025').toAmount() }
 const WEB_SEARCH = { feature: 'webSearch', priceUsd: Usd.from(0.0025).toAmount() } as const
 const folders: string[] = []
+
+describe('D95 schedule consent in ACP', () => {
+  const request = fakeSchedulePaidRequest()
+  it.each([undefined, '0', '0.5', '1'])(
+    'requires the launch budget before asking the editor (%s)',
+    async (budget) => {
+      const grants = memoryPaidGrants()
+      grants.byFolder.set(FOLDER, new Set(['scheduledPrompts']))
+      const paid = new AcpPaidUse({
+        flagged: [],
+        scheduleAuthorization: {
+          scheduledPrompts: true,
+          ...(budget !== undefined && { maxBudgetUsd: Usd.from(budget).toAmount() }),
+        },
+        canRemember: () => true,
+        grants,
+        log: logger(),
+      })
+      const ask = vi.fn(() => Promise.resolve('always' as const))
+      paid.attach(ask)
+      expect(await paid.askScheduleUse('session', request)).toBe(budget === '1' ? 'always' : 'deny')
+      expect(ask).toHaveBeenCalledTimes(budget === '1' ? 1 : 0)
+      expect(paid.isRemembered(FOLDER, 'scheduledPrompts')).toBe(false)
+    },
+  )
+  it('denies cancelled/missing editor requests, an unflagged schedule and a late trust change', async () => {
+    let isTrusted = true
+    const deps = {
+      flagged: [],
+      scheduleAuthorization: { scheduledPrompts: true, maxBudgetUsd: Usd.from(1).toAmount() },
+      canRemember: () => isTrusted,
+      grants: memoryPaidGrants(),
+      log: logger(),
+    }
+    const paid = new AcpPaidUse(deps)
+    expect(await paid.askScheduleUse('session', request)).toBe('deny')
+    const ask = vi.fn(() => {
+      isTrusted = false
+      return Promise.resolve('always' as const)
+    })
+    paid.attach(ask)
+    expect(await paid.askScheduleUse('session', request)).toBe('deny')
+    deps.scheduleAuthorization.scheduledPrompts = false
+    expect(await paid.askScheduleUse('session', request)).toBe('deny')
+    expect(ask).toHaveBeenCalledOnce()
+    deps.scheduleAuthorization.scheduledPrompts = true
+    const headless = new AcpPaidUse({ ...deps, headless: () => Promise.resolve(true) })
+    headless.attach(ask)
+    expect(await headless.askScheduleUse('session', request)).toBe('deny')
+    expect(ask).toHaveBeenCalledOnce()
+  })
+})
 
 vi.mock('node:fs', async (importActual) => {
   const actual = await importActual<typeof Fs>()

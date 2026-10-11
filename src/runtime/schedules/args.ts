@@ -1,4 +1,6 @@
 import { usdInputSchema, type UsdAmount } from '../../shared/usdSchema'
+import { compareUsdAmounts } from '../../shared/usdSchema'
+import type { ScheduleV2 } from '../../shared/scheduleV2'
 // M115 X: parsing does not load the schedule engine into ACP's startup bundle.
 import { parseArgs } from 'node:util'
 import { SCHEDULE_REPORT_FORMATS, SCHEDULE_TIMELINE_HOURS, UI_TEXT } from '../../shared/constants'
@@ -39,6 +41,22 @@ export interface ScheduleCallerContext {
   readonly maxBudgetUsd?: UsdAmount
   readonly sessionId?: string
   readonly backend?: 'museCode' | 'modelApi'
+}
+
+/** Flags authorize only the new schedule's own cap; ACP still needs its editor answer. */
+export function isCliSchedulePaidConsent(
+  caller: ScheduleCallerContext,
+  schedule: ScheduleV2,
+): boolean {
+  const budget = usdInputSchema.safeParse(caller.maxBudgetUsd)
+  return (
+    caller.source === 'cli' &&
+    caller.scheduledPrompts &&
+    budget.success &&
+    budget.data !== '0' &&
+    compareUsdAmounts(budget.data, schedule.paidCapUsd) >= 0 &&
+    compareUsdAmounts(budget.data, schedule.grant.paidCapUsd) >= 0
+  )
 }
 
 export function scheduleBudgetUsd(value: string): UsdAmount | undefined {

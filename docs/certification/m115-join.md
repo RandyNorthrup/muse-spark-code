@@ -17,6 +17,14 @@ Automatic delivery remains disabled until lead qualification.
   lanes' records. Roadmap describes joined candidates. Generated Help/reference
   and roadmap use their generators after merging source records.
 
+- Consent head `5a03e44b3`: paidBinding retains cause-specific/refund/Once-CAS
+  checks and restores the final dispatch callback plus synchronous authority
+  generation checks from the window head. Both regression matrices remain.
+- Translation conflicts retain the runtime labels and VS Code-scoped limitation
+  plus the gated paid-consent explanation. Generated files are regenerated.
+- Runtime merge verification: host typecheck passed; 74 tests passed in
+  scheduleRuntimeDelivery, scheduleDeliveryBinding and scheduleWorkspaceBridge.
+
 ## Outstanding proof
 
 Core settlement, crash recovery, host composition, red drills, byte receipts and

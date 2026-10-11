@@ -7,6 +7,25 @@ import {
 } from '../../../../src/shared/scheduleV2'
 import type { ScheduledPrompt } from '../../../../src/shared/schedule'
 import type { ScheduleEditorDeliveryPorts } from '../../../../src/host/schedules/deliveryBinding'
+import type { PaidUseRequest } from '../../../../src/shared/paid'
+import { Usd } from '../../../../src/shared/usd'
+
+export function fakeSchedulePaidRequest() {
+  return {
+    feature: 'scheduledPrompts',
+    modelId: 'muse-spark-1.3',
+    prompt: 'Review the project',
+    schedule: {
+      id: 'schedule-1',
+      price: 'Verified token rates',
+      cadence: 'Once tomorrow',
+      dailyCapUsd: Usd.from(1).toAmount(),
+      sharedDailyBudgetUsd: Usd.from(5).toAmount(),
+      extras: [],
+      payerKind: 'paidKey',
+    },
+  } as const satisfies PaidUseRequest
+}
 
 export function quietScheduleDelivery(
   workspaceRoot: string,

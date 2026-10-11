@@ -3,6 +3,7 @@ import { fill } from '../../src/shared/l10n/text'
 import type { PlaybookSurfacePort } from '../../src/runtime/playbook/command'
 import { surfacePort } from './playbookSurfaceFixtures'
 import type { AcpSchedulePort } from '../../src/acp/schedules'
+import { fakeSchedulePaidRequest } from './helpers/schedules/fixtures'
 import * as acp from '@agentclientprotocol/sdk'
 import { MspError } from '@muse-code/sdk'
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
@@ -113,6 +114,7 @@ interface HarnessOptions {
   readonly allowsContributorModels?: boolean
   readonly kind?: 'museCode' | 'modelApi'
   readonly paid?: readonly AcpPaidFeature[]
+  readonly scheduleAuthorization?: AcpAgentDeps['options']['scheduleAuthorization']
   /** `--trust-workspace`: "Allow always" is offered and kept (M58). */
   readonly isTrusted?: boolean
   readonly questionPolicy?: AcpAgentDeps['questions']
@@ -131,6 +133,9 @@ function harness(options: HarnessOptions = {}): Harness {
   const rechecks: boolean[] = []
   const paid = new AcpPaidUse({
     flagged: options.paid ?? [],
+    ...(options.scheduleAuthorization !== undefined && {
+      scheduleAuthorization: options.scheduleAuthorization,
+    }),
     canRemember: () => options.isTrusted === true,
     grants,
     log,
@@ -2459,6 +2464,33 @@ describe('paid features in the agent (M63c, M58)', () => {
     })
     expect(h.grants.byFolder.size).toBe(0)
   })
+
+  it.each(['paid-allow-once', 'paid-allow-always', 'paid-deny'])(
+    'asks the editor for schedule-scoped consent and keeps no workspace extra grant (%s)',
+    async (optionId) => {
+      const h = harness({
+        kind: 'modelApi',
+        scheduleAuthorization: { scheduledPrompts: true, maxBudgetUsd: Usd.from(1).toAmount() },
+        isTrusted: true,
+        answer: choose(optionId),
+      })
+      const request = fakeSchedulePaidRequest()
+      h.grants.byFolder.set(CWD, new Set(['scheduledPrompts']))
+      expect(await answersInOneSession(h, [request])).toEqual([optionId !== 'paid-deny'])
+      expect(h.permissions).toHaveLength(1)
+      expect(h.permissions[0]?.options).toContainEqual({
+        optionId: 'paid-allow-always',
+        name: UI_TEXT.scheduleV2.messages.allowAlways,
+        kind: 'allow_always',
+      })
+      const detail = JSON.stringify(h.permissions[0]?.toolCall.content)
+      expect(detail).toContain('Verified token rates')
+      expect(detail).toContain('Once tomorrow')
+      expect(detail).toContain('$1.00')
+      expect(detail).toContain('$5.00')
+      expect(h.grants.byFolder.get(CWD)).toEqual(new Set(['scheduledPrompts']))
+    },
+  )
 
   it('stops asking in a trusted folder allowed always, and keeps that for the folder', async () => {
     const h = harness({

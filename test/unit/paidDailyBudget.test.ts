@@ -30,6 +30,8 @@ import { watchSessionTurns } from './helpers/sessionTurns'
 import { removeFolder } from './helpers/temporaryFolders'
 import { window } from './mocks/vscode'
 import { confirmModal } from './helpers/vscodeViews'
+import { PaidAuthority } from '../../src/core/paid/paidAuthority'
+import { fakeSchedule } from './helpers/schedules/fixtures'
 
 const IMAGE: CreateImageBody = {
   model: 'muse-image-1.0',
@@ -188,6 +190,65 @@ function boundBudget(accountAdmission: AccountBudgetAdmission, capUsd = 0.5) {
 }
 
 describe('D78 interactive paid daily budget', () => {
+  it.each(['schedule', 'interactive', 'exact', 'judge'] as const)(
+    'publishes no authority claim after a refused %s journal reservation',
+    async (kind) => {
+      const authority = new PaidAuthority()
+      const dispatch = vi.spyOn(authority, 'dispatch')
+      const daily = createPaidDailyBudget({
+        authority,
+        directory: state.directory,
+        now: () => state.now,
+        capUsd: () => Usd.from(1).toAmount(),
+        isModelApi: () => true,
+        sleep: () => Promise.resolve(),
+      })
+      const schedule = fakeSchedule({
+        paidCapUsd: Usd.from(1).toAmount(),
+        grant: { rules: [], destinationIds: [], paidCapUsd: Usd.from(1).toAmount() },
+        paidConsent: {
+          modelId: BODY.model,
+          accountId: 'test-digest',
+          priceTier: 'test',
+          payerKind: 'paidKey',
+          grantedAtMs: 0,
+          extras: [],
+          dailyCapUsd: Usd.from(1).toAmount(),
+          sharedDailyBudgetUsd: Usd.from(1).toAmount(),
+        },
+      })
+      if (kind === 'schedule') await daily.reserveExact(Usd.from(1).toAmount())
+      else await writeFile(path.join(state.directory, 'budget-journal'), 'refuse directory')
+      dispatch.mockClear()
+      const reserve = () => {
+        switch (kind) {
+          case 'schedule': {
+            return daily.reserveSchedule(
+              schedule,
+              Usd.from(0.1).toAmount(),
+              new AbortController().signal,
+            )
+          }
+          case 'interactive': {
+            return daily.reserve(IMAGE, 'imageGeneration')
+          }
+          case 'exact': {
+            return daily.reserveExact(Usd.from(0.1).toAmount())
+          }
+          case 'judge': {
+            return daily.judgeLedger.reserve(Usd.from(0.1).toAmount())
+          }
+        }
+      }
+      for (let attempt = 0; attempt < 2; attempt++) {
+        await expect(reserve()).rejects.toThrow()
+      }
+      expect(dispatch.mock.calls.filter(([event]) => event.type === 'moneyReserve')).toEqual([])
+      if (kind !== 'schedule') return
+      const total = await daily.latestDay()
+      expect(total.spentUsd).toBe('1')
+    },
+  )
   it('returns exact decimal headroom to Judge without binary subtraction', async () => {
     const daily = budget(0.8)
     await requireClaim(await daily.reserve(IMAGE, 'imageGeneration')).settle(

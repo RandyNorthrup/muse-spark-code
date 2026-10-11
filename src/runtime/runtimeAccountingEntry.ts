@@ -1,6 +1,6 @@
 import { Usd, type UsdAmount } from '../shared/usd'
 // Durable daily admission for the standalone runtime; no VS Code imports.
-import { readFileSync } from 'node:fs'
+import { readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
 import * as z from 'zod/mini'
 import { createSessionBudgetJournal } from '../host/backend/sessionBudgetJournal'
@@ -23,8 +23,10 @@ import {
   UI_TEXT,
 } from '../shared/constants'
 import { storeErrorCode } from '../host/backend/storeErrors'
+import { scheduleBudget } from '../core/paid/scheduleBudget'
 import type { RunLedger, ResponseTicket } from './exec/runLedger'
 import type { LastResponse, Refusal } from './exec/execProtocol'
+import { paidDailyLimitSchema as dayLimitSchema } from '../shared/paid'
 
 const settingsSchema = z.strictObject({
   paidDailyBudgetUsd: z.optional(
@@ -50,7 +52,7 @@ export function createRuntimeDailyBudget(deps: {
     const date = new Date(deps.now())
     return [date.getFullYear(), date.getMonth() + 1, date.getDate()].join('-')
   }
-  const capUsd = () => {
+  const configuredCapUsd = () => {
     try {
       return (
         settingsSchema.parse(
@@ -62,7 +64,36 @@ export function createRuntimeDailyBudget(deps: {
       throw new Error(UI_TEXT.paidDailyLedgerUnavailable, { cause: error })
     }
   }
+  const capUsd = () => {
+    const directory = path.join(deps.dataFolder, PAID_DAILY_BUDGET.directory, day())
+    try {
+      statSync(path.join(directory, PAID_DAILY_BUDGET.stopDirectory))
+      throw new Error(UI_TEXT.paidDailyStopped)
+    } catch (error: unknown) {
+      if (storeErrorCode(error) !== 'ENOENT') throw error
+    }
+    let limit: z.infer<typeof dayLimitSchema>
+    try {
+      limit = dayLimitSchema.parse(
+        JSON.parse(readFileSync(path.join(directory, PAID_DAILY_BUDGET.overrideFile), 'utf8')),
+      )
+    } catch (error: unknown) {
+      if (storeErrorCode(error) === 'ENOENT') return Usd.from(configuredCapUsd()).toAmount()
+      throw new Error(UI_TEXT.paidDailyLedgerUnavailable, { cause: error })
+    }
+    if (limit.stopped) throw new Error(UI_TEXT.paidDailyStopped)
+    return limit.limitUsd
+  }
   return {
+    capUsd: () => Usd.from(capUsd()).toAmount(),
+    reserveSchedule: scheduleBudget({
+      day,
+      capUsd: () => Usd.from(capUsd()).toAmount(),
+      reserveShared: (scope, amount, cap) =>
+        journal.reserveAdmitted(scope, PAID_DAILY_BUDGET.accountId, amount, cap),
+      reserveOwn: (scope, amount, cap) =>
+        journal.reserveAdmitted(scope, PAID_DAILY_BUDGET.accountId, amount, cap),
+    }),
     async reserve(costUsd: UsdAmount, signal: AbortSignal): Promise<SessionBudgetClaim> {
       signal.throwIfAborted()
       const scope = day()

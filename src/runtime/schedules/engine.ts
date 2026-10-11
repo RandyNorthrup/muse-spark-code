@@ -47,6 +47,7 @@ import type { ScheduleCallerContext } from './args'
 import { createRuntimeScheduleDelivery, type RuntimeScheduleDeliveryPorts } from './delivery'
 
 export interface ScheduleEngineOptions {
+  readonly signal?: AbortSignal
   readonly caller?: () => ScheduleCallerContext
   readonly consent?: (schedule: ScheduleV2) => Promise<ScheduleV2['paidConsent']>
   readonly runtimeDelivery?: RuntimeScheduleDeliveryPorts
@@ -83,6 +84,7 @@ function unavailableTarget(): Promise<never> {
 
 /** Production composition of S admission/claims/polling with D/U delivery ledgers. */
 export function createScheduleEngine(options: ScheduleEngineOptions) {
+  const closeSignal = new AbortController()
   const now = options.now ?? Date.now
   const store = createScheduleStore(options.fs)
   const authority = createAuthorityStore(store, options.fs, 'runtime/grant-audits.json')
@@ -94,6 +96,8 @@ export function createScheduleEngine(options: ScheduleEngineOptions) {
   const late: { delivery?: ScheduleDelivery } = {}
   const host: RuntimeScheduleHost = new RuntimeScheduleHost({
     now,
+    signal: AbortSignal.any([closeSignal.signal, options.signal ?? closeSignal.signal]),
+    lookupRun: (workspace, runId) => store.lookupRun(workspace, runId),
     monotonicNow: () => performance.now(),
     deliver: (
       schedule: ScheduleV2,
@@ -166,9 +170,13 @@ export function createScheduleEngine(options: ScheduleEngineOptions) {
               : UI_TEXT.scheduleV2.messages.targetClosed,
         }
       : fire
-  const admitted = new Set<string>()
-  const retirement = (intent: ScheduleRunIntent, isUncertain: boolean): ScheduleDeliveryResult =>
-    scheduleFireRecordSchema.parse({
+  const coreScheduler = createScheduler({
+    store: { ...store, record: (fire) => store.record(terminalReason(fire)) },
+    runs: { ...store, acknowledge: (fire) => store.acknowledge(terminalReason(fire)) },
+    queue: options.queue,
+    host,
+    time: { plan: (schedule, clock) => scheduleTimePlan(schedule, clock) },
+    failureSettlement: (intent: ScheduleRunIntent) => Promise.resolve({
       runId: intent.runId,
       scheduleId: intent.schedule.id,
       workspaceKey: intent.schedule.workspaceKey,
@@ -176,48 +184,12 @@ export function createScheduleEngine(options: ScheduleEngineOptions) {
       observedAtMs: now(),
       target: intent.schedule.target,
       delivery: intent.schedule.delivery,
-      outcome: 'skipped',
-      reason: UI_TEXT.scheduleV2.messages.targetClosed,
+      outcome: 'failed',
+      reason: UI_TEXT.scheduleCommandFailed,
       refusedActions: [],
-      cost:
-        isUncertain && intent.schedule.action.kind !== 'report'
-          ? {
-              ...noScheduleCost(),
-              certainty: 'unknown',
-              retainedLiabilityUsd: intent.schedule.grant.paidCapUsd,
-            }
-          : noScheduleCost(),
+      cost: { ...noScheduleCost(), certainty: 'unknown', retainedLiabilityUsd: intent.schedule.grant.paidCapUsd },
       ...(intent.event !== undefined && { event: intent.event }),
-    })
-  const coreScheduler = createScheduler({
-    store: {
-      ...store,
-      list: (workspace) => store.list(workspace),
-      record: async (fire) => {
-        await store.record(terminalReason(fire))
-        admitted.delete(fire.runId)
-      },
-    },
-    runs: {
-      ...store,
-      advance: (intent) => {
-        admitted.add(intent.runId)
-        return store.advance(intent)
-      },
-      acknowledge: (fire) => store.acknowledge(terminalReason(fire)),
-    },
-    queue: options.queue,
-    host,
-    time: { plan: (schedule, clock) => scheduleTimePlan(schedule, clock) },
-    failureSettlement: (intent: ScheduleRunIntent) =>
-      Promise.resolve(
-        scheduleFireRecordSchema.parse({
-          ...retirement(intent, false),
-          outcome: 'failed',
-          reason: UI_TEXT.scheduleCommandFailed,
-          cost: { ...noScheduleCost(), certainty: 'unknown' },
-        }),
-      ),
+    }),
     deferEvent: async (schedule: ScheduleV2, event: ScheduleEvent) => {
       const dueMs = nextScheduleTime(
         {
@@ -279,30 +251,7 @@ export function createScheduleEngine(options: ScheduleEngineOptions) {
       trackDispatch(coreScheduler.poll(...args)),
     fireEvent: (...args: Parameters<typeof coreScheduler.fireEvent>) =>
       trackDispatch(coreScheduler.fireEvent(...args)),
-    recover: (workspace: string) =>
-      trackDispatch(
-        (async () => {
-          if (!host.holds(workspace)) return
-          // A dead owner cannot prove whether its input reached the backend. Keep
-          // any acknowledged accounting, otherwise retire the claim without replay.
-          const abandoned = await store.abandoned(workspace)
-          for (const intent of abandoned) {
-            const key = intent.schedule.parallel
-              ? `run:${intent.runId}`
-              : `${workspace}:${JSON.stringify(intent.schedule.target)}`
-            await options.queue.serialize(key, async () => {
-              const outstanding = await store.pending(workspace)
-              if (
-                (await store.acknowledged(workspace, intent.runId)) !== undefined ||
-                outstanding.every((entry) => entry.runId !== intent.runId)
-              )
-                return
-              await store.acknowledge(retirement(intent, true))
-            })
-          }
-          await coreScheduler.recover(workspace)
-        })(),
-      ),
+    recover: (workspace: string) => trackDispatch(coreScheduler.recover(workspace)),
   }
   const consent = createBackgroundConsentStore(options.fs, 'runtime/background-consent.json')
   const platform = options.platform ?? process.platform
@@ -494,27 +443,14 @@ export function createScheduleEngine(options: ScheduleEngineOptions) {
     }),
     dueWorkspaces: () => registry.list(),
     close: async () => {
+      closeSignal.abort()
       await runtimeDelivery?.close()
+      await coreScheduler.close()
       await Promise.allSettled(activeDispatches)
       await Promise.allSettled(activeTicks)
-      // A transient acknowledgement/record error must not turn a closed
-      // runtime's completed dispatch into a replayable live-process claim.
-      const workspaces = new Set([...controls.keys(), ...(await registry.list())])
-      for (const workspace of workspaces) {
-        const pending = await store.pending(workspace)
-        for (const intent of pending) {
-          if (!admitted.has(intent.runId)) continue
-          const known = await store.acknowledged(workspace, intent.runId)
-          const state = await host.lookupRun(intent.runId)
-          if (state.status === 'admitted') throw new Error(UI_TEXT.scheduleV2.runtime.unavailable)
-          const fire = terminalReason(
-            known ?? (state.status === 'absent' ? retirement(intent, false) : state.fire),
-          )
-          await store.acknowledge(fire)
-          await store.record(fire)
-          admitted.delete(intent.runId)
-        }
-      }
+      // Core retries durable acknowledgement/record after every host has drained.
+      for (const workspace of new Set([...controls.keys(), ...(await registry.list())]))
+        await coreScheduler.recover(workspace)
       controls.clear()
     },
     verifyWake: options.verifyWake ?? (() => Promise.resolve({ scheduledPrompts: false })),

@@ -35882,7 +35882,7 @@ Reduce schedules bytes using existing lazy owners; no cap increases. Automatic
 delivery remains behind certification. Browser/GUI qualification runs on Linux,
 never this owner's MacBook. Receipts: `docs/certification/m115-join.md`.
 
-- [ ] Join all three reviewed heads with both authority and lifecycle behavior.
+- [x] Join all three reviewed heads with both authority and lifecycle behavior.
 - [ ] Core settlement, durable dispatch state and at-most-once recovery.
 - [ ] Existing lazy owners meet every production byte cap.
 - [ ] Dependent suites, red drills and scoped gates; lead cross-platform replay.
@@ -35925,6 +35925,33 @@ grant-audit appends so parallel uses cannot overwrite one another.
       receipts are in `docs/certification/m115-cm1152.md`.
 - [ ] Joined-tree build, independent Codex/Grok review and Windows/Linux
       execution: lead gates; C-M115-3 supplies production paid consent next.
+
+**C-M115-3 paid authority (2026-10-11, win11): implemented; held for certification.**
+RVCM1153 repair covers cause-specific translated refusals, truthful gated
+Help/roadmap and consent/cap documentation, and journal-first in-memory claim
+publication for every daily reservation caller. Regressions cover consent
+causes and each awaited authority/pricing/reservation boundary; deliberate
+red controls restore byte-exact source. Automatic delivery remains off.
+The candidate schedule billing port supplies schedule-scoped D48 questions in VS Code and ACP,
+explicit CLI authorization, payer/model/key/tariff/shared-cap binding, one-use renewal,
+and the same exact-money schedule/D78 reservation in editor and standalone
+runtime. No unattended fire opens a permission prompt: invalid consent refuses
+before HTTP and must be renewed through an interactive schedule edit. Legacy
+records without a payer binding remain readable but require fresh consent.
+Automatic delivery stays behind the existing certification switch. C-M115-2
+owns runtime/ACP delivery composition and C-M115-9 owns the native editor
+bindings; this lane changes only their paid contracts, not their delivery
+files. Installed native modal, Linux/macOS and independent Codex/Grok review
+receipts are required before the lead enables delivery. Evidence belongs in
+`docs/certification/m115-cm1153.md`; no live/paid call is authorized.
+
+- [x] Creation/renewal and payer/model/key/tariff binding, scoped Once/Always,
+      CLI flags/quote, ACP permission and shared exact-money D78 admission.
+- [x] Win11 scoped regression files, separate-process cap races and 21 red
+      controls with byte-exact SHA-256 restoration.
+- [ ] C-M115-2 runtime composition, C-M115-9 installed editor receipts,
+      native modal decline, Linux/macOS replay and fresh Codex/Grok review.
+      Delivery remains off until the complete certification passes.
 
 **C-M115-1 completion lane (2026-10-10, win11).** Bind the VS Code workspace
 lifetime and conversation delivery to the existing shared scheduler, unattended
@@ -38120,6 +38147,20 @@ The zero-clone gate retains unchanged clones in `test/unit/ideMcpServer.test.ts`
 and `test/unit/windowsTrustedPath.test.ts`, outside this lane's ownership.
 Owned duplicate fixture setup is consolidated; no rule or ignore is relaxed.
 See `docs/certification/m115-cm1152.md`.
+
+**C-M115-3 gate ownership (2026-10-11, win11).** The rig brief and shared
+lane rules assign aggregate `npm run quality` to the lead; this worktree runs
+complete owned test files at repository timeouts, five-project typecheck,
+changed-file lint/format and scoped static checks. The production build still
+refuses the inherited What's New decode budget before producing a complete
+artifact set; size/split certification awaits the accepted content repair at
+integration. The zero-clone gate retains only the inherited six-line clone in
+`test/unit/windowsTrustedPath.test.ts`; that independent repair remains with
+the lead. No cap, threshold, ignore or rule is weakened. This process runs in
+Windows Session 0 and cannot exercise Session 1's native VS Code modal.
+Native decline, Linux/macOS and independent Codex/Grok receipts remain required,
+and the existing automatic-delivery certification switch stays false. See
+`docs/certification/m115-cm1153.md` for scoped evidence and editor ownership.
 
 **C-M115-1 gate ownership (2026-10-10, win11).** The rig brief and shared
 lane rules forbid aggregate quality in this worktree; the lead owns

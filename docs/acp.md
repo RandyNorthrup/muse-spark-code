@@ -534,6 +534,17 @@ delivery requires the installed schedule paid policy, and an absent policy
 records a refused fire without a response request. `exec` still refuses to
 create or host schedules.
 
+Scheduled prompt authority requires `--scheduled-prompts` (Model API
+backend only) together with `--max-budget-usd`. The candidate v2 consent request uses
+the editor's permission prompt and names the schedule, verified model rates,
+cadence, schedule cap and shared daily budget. Allow once covers one fire;
+Allow always covers this schedule, with workspace grants kept separate.
+A changed payer kind, model, key, tariff or shared daily budget (including
+the day's override) requires renewal before another paid fire.
+Missing flags, a nonpositive budget, stale consent and either exhausted cap
+refuse before HTTP. Automatic delivery remains behind certification. The running runtime/ACP has no installed
+v2 billing callback, so it neither asks for this consent nor reserves these caps.
+
 ## Networks and proxies
 
 The agent runs outside VS Code, so VS Code's `http.proxy`,

@@ -1306,7 +1306,10 @@ class AcpSession {
       const params: RequestPermissionRequest = {
         sessionId: this.sessionId,
         toolCall: { toolCallId, title, status: 'pending', content },
-        options: paidUseOptions(canRemember),
+        options: paidUseOptions(
+          canRemember,
+          request.feature === 'scheduledPrompts' && request.schedule !== undefined,
+        ),
       }
       const response = await this.client.request('session/request_permission', params)
       // A session let go while the editor was asked is billed for nothing.

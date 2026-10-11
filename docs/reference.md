@@ -1132,6 +1132,8 @@ Schedule a prompt in this Model API conversation.
 
 scheduleDeliveryCertified=false: The v2 schedule editor, list and timeline manage durable records. Automatic VS Code v2 prompt delivery is disabled. Model API /loop jobs run when you choose Run now.
 
+scheduleDeliveryCertified=false: Automatic delivery is disabled; the running editor neither asks for v2 schedule consent nor reserves its paid caps. The candidate billing port binds consent to payer kind, model, key, verified tariff and shared daily budget; changing any requires renewal. Allow once covers one fire; Allow always covers this schedule.
+
 Scheduled turns support text and image inputs; video and audio inputs are unsupported in this version.
 
 Attach files by selecting or dropping them, and paste images into the composer. PNG, JPEG, GIF and WebP images require a selected model with vision. PDF attachments require Model API. Trusted indexed workspace text files can be attached; protected or confidential files are refused. The limits below apply before sending.
@@ -2291,7 +2293,7 @@ Type: `"boolean"`. Default: `true`. Scope: `machine`.
 
 ### museSpark.schedules
 
-Enable schedules on available backends. On by default; each fire runs unattended within its standing grant.
+scheduleDeliveryCertified=true: Enable schedules on available backends. On by default; each fire runs unattended within its standing grant.
 
 Type: `"boolean"`. Default: `true`. Scope: `machine`.
 
@@ -2304,7 +2306,7 @@ Type: `"boolean"`. Default: `true`. Scope: `machine`.
 
 ### museSpark.scheduleDefaultDelivery
 
-Default delivery for new schedules: a new turn starts on idle by default.
+scheduleDeliveryCertified=true: Default delivery for new schedules: a new turn starts on idle by default.
 
 Type: `"string"`. Default: `"whenIdle"`. Scope: `machine`.
 
@@ -2324,7 +2326,7 @@ Type: `"string"`. Default: `"whenIdle"`. Scope: `machine`.
 
 ### museSpark.scheduleAgentCreation
 
-Default permission for agents to create schedules: ask, always within caps, or never. Ask by default.
+scheduleDeliveryCertified=true: Default permission for agents to create schedules: ask, always within caps, or never. Ask by default.
 
 Type: `"string"`. Default: `"ask"`. Scope: `machine`.
 

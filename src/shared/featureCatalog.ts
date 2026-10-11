@@ -30,6 +30,7 @@ const UI_CONDITIONS: Readonly<
   // Review repairs cover dispatch authority, resolved-file policy and window
   // lifetime; the delivery certification switch still owns availability.
   referenceSchedules: 'scheduleDeliveryCertified=false',
+  referenceSchedulePaidConsent: 'scheduleDeliveryCertified=false',
   referenceVaultPanel: 'vaultBroker=absent',
   referenceNativeAgentsConditions: 'run.subagent_delegation_mode',
   resourceCpuMaxPercentDescription: 'resourceCpuThreshold',
@@ -88,6 +89,9 @@ const SETTING_CONDITIONS: Readonly<
   modelApiParallelReads: 'conversationStart',
   webSearchMaxPerRequest: 'conversationStart&hosted.webSearch',
   showWhatsNewOnUpdate: 'releaseHighlights',
+  schedules: 'scheduleDeliveryCertified=true',
+  scheduleDefaultDelivery: 'scheduleDeliveryCertified=true',
+  scheduleAgentCreation: 'scheduleDeliveryCertified=true',
   modelApiPermissionProfile: 'permissionProfile',
   tabLanguages: 'language',
   tabMultiline: 'multilineMode',
@@ -907,7 +911,11 @@ export function featureCatalog(): readonly Feature[] {
         true,
         ['vscode'],
       ),
-      details: [{ ui: 'referenceSchedules' }, { ui: 'scheduledMediaSupport' }] as const,
+      details: [
+        { ui: 'referenceSchedules' },
+        { ui: 'referenceSchedulePaidConsent' },
+        { ui: 'scheduledMediaSupport' },
+      ] as const,
     },
     {
       ...feature(

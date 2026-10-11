@@ -754,8 +754,8 @@
       "interruptWarning": "中斷可能會停止您自己執行中的回合。",
       "unattendedRefusal": "排程執行遭拒：{action}需要核准，且不在此排程的授權範圍內。",
       "deferredQuestions": "問題會立即延後，並保持開放以便您稍後回答。",
-      "paidConsent": "使用{model}排程{prompt}：{price}。頻率：{cadence}。每個本地日期的排程上限：{cap}；共用每日預算：{budget}。同意僅涵蓋選取的付費附加功能。",
-      "changedConsent": "模型、金鑰或價格級別已變更。請在下次付費執行前重新同意。",
+      "paidConsent": "使用{model}排程{prompt}：{price}。頻率：{cadence}。每個本地日期的排程上限：{cap}；共用每日預算：{budget}。同意僅涵蓋選取的付費附加功能。費用計入你的 Model API 金鑰帳單，訂閱不支付這些費用。",
+      "changedConsent": "此排程的付費使用同意缺失或已變更。請在下次付費執行前更新。",
       "setBy": "由{agent}在{session}中設定",
       "migrationConsent": "移轉的排程已暫停。繼續前請檢查模式、授權和付費同意。",
       "collision": "此目標的執行時間衝突，將依建立順序執行。",
@@ -776,7 +776,18 @@
       "openWhenBack": "我回來時開啟",
       "plannedDestination": "此目標處於規劃階段，目前無法使用。",
       "expiredOwner": "此排程隨建立者的工作階段或團隊結束而終止。",
-      "allowAlways": "一律允許此排程"
+      "allowAlways": "一律允許此排程",
+      "changedPayer": "付款方類型已變更。請更新此排程的付費使用同意。",
+      "changedModel": "所選模型已變更。請更新此排程的付費使用同意。",
+      "changedKey": "付款帳戶或金鑰已變更。請更新此排程的付費使用同意。",
+      "changedTariff": "已驗證的費率已變更。請更新此排程的付費使用同意。",
+      "changedSharedCap": "共用每日預算已變更。請更新此排程的付費使用同意。",
+      "pausedPaid": "此排程已暫停。請在下次付費執行前恢復。",
+      "changedGrant": "此排程的權限已變更。請檢查權限並更新同意。",
+      "changedRevision": "排程或其執行中的工作階段已變更。請在下次付費執行前重新載入。",
+      "lostOnceClaim": "本次執行已失去一次性同意。請為另一次執行更新同意。",
+      "capReached": "排程或共用每日上限不允許此次付費執行。",
+      "paidUnavailable": "此付費操作無法使用，或未獲此排程核准。"
     },
     "endAfterRuns": {
       "other": "執行{count}次後結束"
@@ -789,6 +800,7 @@
   "referenceSchedules": "v2 排程編輯器、清單和時間軸管理持久記錄。VS Code 中的 v2 提示自動投遞已停用。選擇「立即執行」時，Model API /loop 工作才會執行。",
   "runtimeSchedulesItem": "執行階段排程",
   "runtimeSchedulesItemDetail": "在 ACP 或終端機中安排無人值守的 Muse Code 提示",
+  "referenceSchedulePaidConsent": "自動執行已停用；執行中的編輯器既不要求 v2 排程同意，也不預留其付費額度。候選計費介面將同意綁定至付款方類型、模型、金鑰、已驗證費率及共用每日預算；任何變更均需更新同意。允許一次涵蓋一次執行；一律允許涵蓋此排程。",
   "media": {
     "recordingScreenPermissionRequired": "尚未授予螢幕錄製權限。",
     "recordingMicrophonePermissionDenied": "麥克風權限遭到拒絕。",

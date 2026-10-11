@@ -1,40 +1,25 @@
 import { randomUUID } from 'node:crypto'
 import { PaidAuthority } from '../../core/paid/paidAuthority'
-import { Usd, legacyUsdSchema, usdInputSchema, type UsdAmount } from '../../shared/usd'
+import { Usd, usdInputSchema, type UsdAmount } from '../../shared/usd'
 // D78: daily interactive extras share M82's durable claims across windows.
 import { mkdirSync, readFileSync, renameSync, statSync } from 'node:fs'
 import path from 'node:path'
 import * as vscode from 'vscode'
-import * as z from 'zod/mini'
+import type * as z from 'zod/mini'
 import type { JudgeDailyLedger } from '../../core/judge/admission'
 import type { ModelApiClientDeps } from '../../core/backends/modelapi/client'
-import type {
-  AccountBudgetAdmission,
-  SessionBudgetClaim,
-} from '../../core/backends/modelapi/sessionBudget'
-import { fingerprint } from '../../core/verify/fingerprint'
+import type { AccountBudgetAdmission } from '../../core/backends/modelapi/sessionBudget'
+import { scheduleBudget } from '../../core/paid/scheduleBudget'
 import { estimateCostUsd } from '../../core/usage/insights'
 import { unlessAborted } from '../../core/timeouts'
 import { PAID_DAILY_BUDGET, PAID_PRICES_USD, UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import { formatUsd } from '../../shared/l10n/exactUsd'
-import { modelApiPaidTier } from '../../shared/paid'
+import { modelApiPaidTier, paidDailyLimitSchema as limitSchema } from '../../shared/paid'
 import { createSessionBudgetJournal } from '../backend/sessionBudgetJournal'
 import { storeErrorCode } from '../backend/storeErrors'
 import { writeFileAtomically } from '../fsAtomic'
 import type { UsageBudgetRead } from '../../core/usage/usageService'
-import { scheduleV2Schema, type ScheduleV2 } from '../../shared/scheduleV2'
-
-const limitSchema = z.object({
-  limitUsd: legacyUsdSchema.check(
-    z.refine(
-      (amount) =>
-        Usd.from(amount).compare(Usd.from(PAID_DAILY_BUDGET.minimumUsd)) >= 0 &&
-        Usd.from(amount).compare(Usd.from(PAID_DAILY_BUDGET.maximumUsd)) <= 0,
-    ),
-  ),
-  stopped: z.boolean(),
-})
 
 export function createPaidDailyBudget(deps: {
   readonly authority?: PaidAuthority
@@ -219,12 +204,17 @@ export function createPaidDailyBudget(deps: {
       },
     }
   }
-  const reserveClaim = async (scope: string, amount: UsdAmount) => {
+  const reserveClaim = async (scope: string, amount: UsdAmount, cap?: UsdAmount) => {
     const claimId = randomUUID()
+    // The durable journal owns admission. A refused/failed write creates no
+    // in-memory authority claim; ambiguous journal liability stays durable.
+    const claim =
+      cap === undefined
+        ? await journal.reserve(scope, PAID_DAILY_BUDGET.accountId, amount)
+        : await journal.reserveAdmitted(scope, PAID_DAILY_BUDGET.accountId, amount, cap)
     const effects = authority.dispatch({ type: 'moneyReserve', claimId, reservedUsd: amount })
     const effect = effects.find((candidate) => candidate.type === 'persistReserve')
     if (effect?.type !== 'persistReserve') throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
-    const claim = await journal.reserve(scope, PAID_DAILY_BUDGET.accountId, effect.amount)
     return ownClaim(scope, effect.claimId, claim)
   }
   const reserve: NonNullable<ModelApiClientDeps['reservePaidRequest']> = async (
@@ -363,72 +353,14 @@ export function createPaidDailyBudget(deps: {
     return { ...claim, check }
   }
   /** D95: reserve both caps, never open D78's Raise dialog during unattended work. */
-  const reserveSchedule = async (
-    schedule: ScheduleV2,
-    costUsd: UsdAmount,
-    signal: AbortSignal,
-  ): Promise<SessionBudgetClaim> => {
-    scheduleV2Schema.parse(schedule)
-    signal.throwIfAborted()
-    const consent = schedule.paidConsent
-    const zero = Usd.from(0)
-    if (
-      consent === undefined ||
-      Usd.from(costUsd).compare(zero) <= 0 ||
-      schedule.action.kind !== 'prompt'
-    )
-      throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
-    // The schedule record keeps its validated numeric caps; they enter exact money here once.
-    let ownCap = Usd.from(consent.dailyCapUsd)
-    for (const amount of [schedule.paidCapUsd, schedule.grant.paidCapUsd]) {
-      const cap = Usd.from(amount)
-      if (cap.compare(ownCap) < 0) ownCap = cap
-    }
-    const sharedBudget = Usd.from(consent.sharedDailyBudgetUsd)
-    if (ownCap.compare(zero) <= 0 || sharedBudget.compare(zero) <= 0)
-      throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
-    const scope = day()
-    const ownScope = `${scope}-schedule-${fingerprint(schedule.id)}`
-    const shared = await reserveClaim(scope, costUsd)
-    let own: Awaited<ReturnType<typeof journal.reserve>> | undefined
-    try {
-      signal.throwIfAborted()
-      const checkAccount = deps.accountAdmission?.(shared)
-      own = await journal.reserve(ownScope, PAID_DAILY_BUDGET.accountId, costUsd)
-      const scheduleClaim = own
-      const check = () => {
-        signal.throwIfAborted()
-        if (scope !== day()) throw new Error(UI_TEXT.paidDailyStopped)
-        checkAccount?.()
-        const limit = Usd.from(readLimit(scope))
-        const total = shared.check(
-          (limit.compare(sharedBudget) < 0 ? limit : sharedBudget).toAmount(),
-        )
-        scheduleClaim.check(ownCap.toAmount())
-        return total
-      }
-      check()
-      return {
-        claimId: scheduleClaim.claimId,
-        reservedUsd: scheduleClaim.reservedUsd,
-        check,
-        settle: async (actualCostUsd: UsdAmount, hasUnknownCost = false) => {
-          await scheduleClaim.settle(actualCostUsd, hasUnknownCost)
-          return await shared.settle(actualCostUsd, hasUnknownCost)
-        },
-      }
-    } catch (error: unknown) {
-      // Both nonsent liabilities are released even if one refund fails.
-      const refunds = await Promise.allSettled([
-        shared.settle(zero.toAmount()),
-        own?.settle(zero.toAmount()),
-      ])
-      const failed = refunds.find((refund) => refund.status === 'rejected')
-      if (failed?.status === 'rejected')
-        throw new Error(UI_TEXT.paidDailyLedgerUnavailable, { cause: error })
-      throw error
-    }
-  }
+  const reserveSchedule = scheduleBudget({
+    day,
+    capUsd,
+    reserveShared: reserveClaim,
+    reserveOwn: (scope, amount, cap) =>
+      journal.reserveAdmitted(scope, PAID_DAILY_BUDGET.accountId, amount, cap),
+    ...(deps.accountAdmission !== undefined && { accountAdmission: deps.accountAdmission }),
+  })
   const judgeLedger: JudgeDailyLedger = {
     remainingUsd: async () => {
       const current = await latestDay()

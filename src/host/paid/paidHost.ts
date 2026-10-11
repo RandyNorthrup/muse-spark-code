@@ -184,7 +184,12 @@ export async function askPaidUse(
   }
   const { title, detail } = await paidUseQuestion(request)
   const once: vscode.MessageItem = { title: UI_TEXT.allowOnce }
-  const always: vscode.MessageItem = { title: UI_TEXT.paidAllowAlways }
+  const always: vscode.MessageItem = {
+    title:
+      request.feature === 'scheduledPrompts' && request.schedule !== undefined
+        ? UI_TEXT.scheduleV2.messages.allowAlways
+        : UI_TEXT.paidAllowAlways,
+  }
   const deny: vscode.MessageItem = { title: UI_TEXT.paidDeny, isCloseAffordance: true }
   const answer = await vscode.window.showWarningMessage(
     title,

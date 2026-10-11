@@ -757,8 +757,8 @@
       "interruptWarning": "Przerwanie może zatrzymać Twoją bieżącą turę.",
       "unattendedRefusal": "Odmowa w harmonogramie: {action} wymaga zatwierdzenia i nie należy do zezwoleń tego harmonogramu.",
       "deferredQuestions": "Pytania są odraczane od razu i pozostają otwarte na Twoją odpowiedź.",
-      "paidConsent": "Zaplanuj {prompt} z {model}: {price}. Częstotliwość: {cadence}. Limit: {cap} na dzień lokalny; wspólny dzienny budżet: {budget}. Zgoda obejmuje tylko wybrane płatne dodatki.",
-      "changedConsent": "Model, klucz lub taryfa się zmieniły. Odnów zgodę przed kolejnym płatnym uruchomieniem.",
+      "paidConsent": "Zaplanuj {prompt} z {model}: {price}. Częstotliwość: {cadence}. Limit: {cap} na dzień lokalny; wspólny dzienny budżet: {budget}. Zgoda obejmuje tylko wybrane płatne dodatki. Opłaty są naliczane na klucz Model API; subskrypcja ich nie pokrywa.",
+      "changedConsent": "Brakuje zgody na płatne uruchomienia tego harmonogramu lub zgoda się zmieniła. Odnów ją przed kolejnym płatnym uruchomieniem.",
       "setBy": "Ustawione przez {agent} w {session}",
       "migrationConsent": "Przeniesiony harmonogram wstrzymano. Przed wznowieniem sprawdź tryb, zezwolenia i zgodę na opłaty.",
       "collision": "Uruchomienia dla tego celu kolidują; wykonywane są w kolejności utworzenia.",
@@ -779,7 +779,18 @@
       "openWhenBack": "Otwórz, gdy wrócę",
       "plannedDestination": "Ten cel jest planowany i niedostępny.",
       "expiredOwner": "Harmonogram zakończył się wraz z sesją lub zespołem twórcy.",
-      "allowAlways": "Zawsze zezwalaj dla tego harmonogramu"
+      "allowAlways": "Zawsze zezwalaj dla tego harmonogramu",
+      "changedPayer": "Zmienił się rodzaj płatnika. Odnów zgodę na płatne uruchomienia tego harmonogramu.",
+      "changedModel": "Zmienił się wybrany model. Odnów zgodę na płatne uruchomienia tego harmonogramu.",
+      "changedKey": "Zmieniło się konto płatnika lub klucz. Odnów zgodę na płatne uruchomienia tego harmonogramu.",
+      "changedTariff": "Zmieniła się zweryfikowana taryfa. Odnów zgodę na płatne uruchomienia tego harmonogramu.",
+      "changedSharedCap": "Zmienił się wspólny budżet dzienny. Odnów zgodę na płatne uruchomienia tego harmonogramu.",
+      "pausedPaid": "Ten harmonogram jest wstrzymany. Wznów go przed kolejnym płatnym uruchomieniem.",
+      "changedGrant": "Zmieniły się uprawnienia tego harmonogramu. Sprawdź je i odnów zgodę.",
+      "changedRevision": "Zmienił się harmonogram lub jego działająca sesja. Wczytaj go ponownie przed kolejnym płatnym uruchomieniem.",
+      "lostOnceClaim": "To uruchomienie nie posiada już jednorazowej zgody. Odnów ją dla kolejnego uruchomienia.",
+      "capReached": "Dzienny limit harmonogramu lub wspólny limit nie pozwala na to płatne uruchomienie.",
+      "paidUnavailable": "Ta płatna operacja jest niedostępna lub nie została zatwierdzona dla tego harmonogramu."
     },
     "endAfterRuns": {
       "one": "Zakończ po {count} uruchomieniu",
@@ -798,6 +809,7 @@
   "referenceSchedules": "Edytor, lista i oś czasu harmonogramów v2 zarządzają trwałymi zapisami. Automatyczne dostarczanie promptów v2 w VS Code jest wyłączone. Zadania Model API /loop uruchamiają się po wybraniu Uruchom teraz.",
   "runtimeSchedulesItem": "Harmonogramy środowiska uruchomieniowego",
   "runtimeSchedulesItemDetail": "Planuj nienadzorowane prompty Muse Code w ACP lub terminalu",
+  "referenceSchedulePaidConsent": "Automatyczne uruchamianie jest wyłączone; działający edytor nie pyta o zgodę v2 ani nie rezerwuje limitów płatnych uruchomień. Przygotowany moduł rozliczeń wiąże zgodę z rodzajem płatnika, modelem, kluczem, zweryfikowaną taryfą i wspólnym budżetem dziennym; każda zmiana wymaga odnowienia. Jednorazowa zgoda obejmuje jedno uruchomienie; stała zgoda obejmuje ten harmonogram.",
   "media": {
     "recordingScreenPermissionRequired": "Nie udzielono uprawnienia do nagrywania ekranu.",
     "recordingMicrophonePermissionDenied": "Odmówiono uprawnienia do mikrofonu.",

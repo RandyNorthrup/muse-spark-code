@@ -326,8 +326,7 @@ export function createScheduleDeliveryBinding(
               }
           }
         } catch (error: unknown) {
-          // Losing the host is not a settled turn. Retain the durable admission
-          // fence for recovery rather than recording a bill before settlement.
+          // Report withdrawal/cancellation facts; the core owns durable settlement.
           if (entry.signal.aborted || !session.isOpen()) {
             if (entry.submitted?.disposition === 'queued') {
               const withdrawal = await entry.agent?.withdrawQueued?.({
@@ -361,7 +360,17 @@ export function createScheduleDeliveryBinding(
         try {
           // A ledger failure keeps S's admitted recovery fence; never retry a
           // settlement callback or invent a zero bill after it throws.
-          return { ...result, cost: await (entry.cost?.() ?? Promise.resolve(noScheduleCost())) }
+          try {
+            return { ...result, cost: await (entry.cost?.() ?? Promise.resolve(noScheduleCost())) }
+          } catch {
+            // A completed turn remains delivered. Retain the reservation when
+            // the authoritative cost cannot be read; do not call it twice.
+            return {
+              ...result,
+              reason: UI_TEXT.scheduleV2.messages.costUnknown,
+              cost: { ...noScheduleCost(), certainty: 'unknown', retainedLiabilityUsd: schedule.grant.paidCapUsd },
+            }
+          }
         } finally {
           entry.stopListening?.()
           entry.stopLifecycle?.()

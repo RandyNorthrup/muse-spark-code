@@ -756,8 +756,8 @@
       "interruptWarning": "L’interruzione può fermare il tuo turno in corso.",
       "unattendedRefusal": "Rifiutato dalla pianificazione: {action} richiede approvazione e non rientra nell’autorizzazione di questa pianificazione.",
       "deferredQuestions": "Le domande vengono rinviate subito e restano aperte per la tua risposta.",
-      "paidConsent": "Pianifica {prompt} con {model}: {price}. Frequenza: {cadence}. Limite: {cap} per giorno locale; budget giornaliero condiviso: {budget}. Il consenso copre solo gli extra a pagamento selezionati.",
-      "changedConsent": "Modello, chiave o tariffa sono cambiati. Rinnova il consenso prima della prossima esecuzione a pagamento.",
+      "paidConsent": "Pianifica {prompt} con {model}: {price}. Frequenza: {cadence}. Limite: {cap} per giorno locale; budget giornaliero condiviso: {budget}. Il consenso copre solo gli extra a pagamento selezionati. I costi sono addebitati alla tua chiave Model API; l’abbonamento non li copre.",
+      "changedConsent": "Il consenso a pagamento di questa pianificazione manca o è cambiato. Rinnovalo prima di un’altra esecuzione a pagamento.",
       "setBy": "Impostato da {agent} in {session}",
       "migrationConsent": "Pianificazione migrata in pausa. Controlla modalità, autorizzazione e consenso ai costi prima di riprendere.",
       "collision": "Le esecuzioni su questa destinazione coincidono; seguono l’ordine di creazione.",
@@ -778,7 +778,18 @@
       "openWhenBack": "Apri al mio ritorno",
       "plannedDestination": "Questa destinazione è prevista e non disponibile.",
       "expiredOwner": "Questa pianificazione è terminata con la sessione o il gruppo del suo creatore.",
-      "allowAlways": "Consenti sempre per questa pianificazione"
+      "allowAlways": "Consenti sempre per questa pianificazione",
+      "changedPayer": "Il tipo di pagante è cambiato. Rinnova il consenso a pagamento per questa pianificazione.",
+      "changedModel": "Il modello selezionato è cambiato. Rinnova il consenso a pagamento per questa pianificazione.",
+      "changedKey": "L’account pagante o la chiave è cambiato. Rinnova il consenso a pagamento per questa pianificazione.",
+      "changedTariff": "La tariffa verificata è cambiata. Rinnova il consenso a pagamento per questa pianificazione.",
+      "changedSharedCap": "Il budget giornaliero condiviso è cambiato. Rinnova il consenso a pagamento per questa pianificazione.",
+      "pausedPaid": "Questa pianificazione è in pausa. Riprendila prima di un’altra esecuzione a pagamento.",
+      "changedGrant": "Le autorizzazioni di questa pianificazione sono cambiate. Verificale e rinnova il consenso.",
+      "changedRevision": "La pianificazione o la sua sessione attiva è cambiata. Ricaricala prima di un’altra esecuzione a pagamento.",
+      "lostOnceClaim": "Questa esecuzione non possiede più il consenso monouso. Rinnovalo per un’altra esecuzione.",
+      "capReached": "Il limite giornaliero della pianificazione o quello condiviso non consente questa esecuzione a pagamento.",
+      "paidUnavailable": "Questa operazione a pagamento non è disponibile o non è stata approvata per questa pianificazione."
     },
     "endAfterRuns": {
       "one": "Termina dopo {count} esecuzione",
@@ -795,6 +806,7 @@
   "referenceSchedules": "L’editor, l’elenco e la cronologia delle pianificazioni v2 gestiscono record persistenti. La consegna automatica dei prompt v2 in VS Code è disattivata. I processi /loop di Model API vengono eseguiti quando scegli Esegui ora.",
   "runtimeSchedulesItem": "Pianificazioni del runtime",
   "runtimeSchedulesItemDetail": "Pianifica prompt Muse Code non presidiati in ACP o nel terminale",
+  "referenceSchedulePaidConsent": "L’esecuzione automatica è disattivata; l’editor attivo non chiede il consenso v2 né riserva i relativi limiti di spesa. Il modulo di fatturazione predisposto lega il consenso a tipo di pagante, modello, chiave, tariffa verificata e budget giornaliero condiviso; ogni modifica richiede il rinnovo. Consenti una volta copre un’esecuzione; Consenti sempre copre questa pianificazione.",
   "media": {
     "recordingScreenPermissionRequired": "L’autorizzazione alla registrazione dello schermo non è stata concessa.",
     "recordingMicrophonePermissionDenied": "L’autorizzazione del microfono è stata negata.",

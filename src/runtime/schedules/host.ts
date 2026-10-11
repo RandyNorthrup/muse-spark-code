@@ -16,6 +16,8 @@ import {
 } from '../../shared/scheduleV2'
 
 export interface RuntimeScheduleHostDeps {
+  readonly signal?: AbortSignal
+  lookupRun?(workspaceKey: string, runId: string): Promise<ScheduleDeliveryState>
   readonly reports?: ScheduleReportDeliveryPort
   readonly deliver: (
     schedule: ScheduleV2,
@@ -30,11 +32,14 @@ export interface RuntimeScheduleHostDeps {
 /** Native, companion and ACP sessions hold a reference to the same workspace. */
 export class RuntimeScheduleHost implements ScheduleHostPort {
   private readonly workspaces = new Map<string, number>()
-  /** Every admitted invocation leaves terminal facts for durable reconciliation. */
-  private readonly ledger = new Map<string, ScheduleDeliveryState>()
   constructor(private readonly deps: RuntimeScheduleHostDeps) {}
-  lookupRun(runId: string): Promise<ScheduleDeliveryState> {
-    return Promise.resolve(this.ledger.get(runId) ?? { status: 'absent' })
+  get signal(): AbortSignal | undefined { return this.deps.signal }
+  async lookupRun(runId: string): Promise<ScheduleDeliveryState> {
+    for (const workspace of this.workspaces.keys()) {
+      const state = await this.deps.lookupRun?.(workspace, runId)
+      if (state !== undefined && state.status !== 'absent') return state
+    }
+    return { status: 'absent' }
   }
   now(): number {
     return (this.deps.now ?? Date.now)()
@@ -71,13 +76,9 @@ export class RuntimeScheduleHost implements ScheduleHostPort {
       occurrenceMs < 0
     )
       throw new Error(UI_TEXT.scheduleV2.runtime.invalidRequest)
-    const previous = this.ledger.get(c.runId)
-    if (previous?.status === 'settled' || previous?.status === 'uncertain') return previous.fire
-    if (previous?.status === 'admitted') throw new Error(UI_TEXT.scheduleV2.runtime.invalidRequest)
     const e = event === undefined ? undefined : scheduleEventSchema.parse(event)
-    this.ledger.set(c.runId, { status: 'admitted' })
     let result: ScheduleDeliveryResult
-    try {
+    {
       if (s.action.kind === 'report' && this.deps.reports === undefined)
         result = scheduleFireRecordSchema.parse({
           runId: c.runId,
@@ -122,30 +123,7 @@ export class RuntimeScheduleHost implements ScheduleHostPort {
               s.action.destinations.some((item) => !Object.hasOwn(result.report ?? {}, item.id)))))
       )
         throw new Error(UI_TEXT.scheduleV2.runtime.invalidResponse)
-    } catch {
-      result = scheduleFireRecordSchema.parse({
-        runId: c.runId,
-        scheduleId: s.id,
-        workspaceKey: s.workspaceKey,
-        occurrenceMs,
-        observedAtMs: this.now(),
-        target: s.target,
-        delivery: s.delivery,
-        outcome: 'failed',
-        reason: UI_TEXT.scheduleCommandFailed,
-        refusedActions: [],
-        cost:
-          s.action.kind === 'report'
-            ? noScheduleCost()
-            : {
-                ...noScheduleCost(),
-                certainty: 'unknown',
-                retainedLiabilityUsd: s.grant.paidCapUsd,
-              },
-        ...(e !== undefined && { event: e }),
-      })
     }
-    this.ledger.set(c.runId, { status: 'settled', fire: result })
     return result
   }
 }
