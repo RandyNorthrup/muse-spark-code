@@ -1,0 +1,77 @@
+{
+  "rig": "kubuntu",
+  "results": [
+    {
+      "id": "A1 grant use limit",
+      "file": "src/core/vault/store.ts",
+      "test": "test/unit/vault/vaultManagement.test.ts",
+      "exit": 1,
+      "summary": "Tests  1 failed | 10 passed (11) | FAIL  test/unit/vault/vaultManagement.test.ts > C-M109-1 store v2 grants > saves, spends to its limit, refuses an unknown item and drops grants with their item",
+      "sha256": {
+        "before": "5b8b2c79fb350ec6ab912a4ae4b3ec5da469147a446a3f2ae58ebe90beed164d",
+        "after": "5b8b2c79fb350ec6ab912a4ae4b3ec5da469147a446a3f2ae58ebe90beed164d",
+        "restored": true
+      }
+    },
+    {
+      "id": "A2 anchor names one vault",
+      "file": "src/runtime/vault/keyringAnchor.ts",
+      "test": "test/unit/vault/vaultManagement.test.ts",
+      "exit": 1,
+      "summary": "Tests  1 failed | 10 passed (11) | FAIL  test/unit/vault/vaultManagement.test.ts > C-M109-1 keyring rollback anchor > names one vault, advances only from its exact prior state and refuses another vault",
+      "sha256": {
+        "before": "53fdf836061798980dbe5219f610c4af8df3cba13731418e704d35755e74a05a",
+        "after": "53fdf836061798980dbe5219f610c4af8df3cba13731418e704d35755e74a05a",
+        "restored": true
+      }
+    },
+    {
+      "id": "A3 private writes are manage-only",
+      "file": "src/core/vault/broker/channel.ts",
+      "test": "test/unit/vault/channel.test.ts",
+      "exit": 1,
+      "summary": "Tests  1 failed | 57 passed (58) | FAIL  test/unit/vault/channel.test.ts > protocol v2 management (C-M109-1) > refuses every management kind, private write and setup on a requester connection",
+      "sha256": {
+        "before": "9848a27cecff141f747d65c7d09ed40180a5979ea3c2db88e4058d800c767cce",
+        "after": "9848a27cecff141f747d65c7d09ed40180a5979ea3c2db88e4058d800c767cce",
+        "restored": true
+      }
+    },
+    {
+      "id": "A4 unconfirmed setup expires",
+      "file": "src/core/vault/broker/management.ts",
+      "test": "test/unit/vault/vaultManagement.test.ts",
+      "exit": 1,
+      "summary": "Tests  1 failed | 10 passed (11) | FAIL  test/unit/vault/vaultManagement.test.ts > C-M109-1 setup flow and management > expires an unconfirmed setup and erases its key; cancel needs the matching id",
+      "sha256": {
+        "before": "9347933d6b0a9da1f575a2e7efd6b46ebd0edceffcdb3e9e8dbdd016d5f9b4a2",
+        "after": "9347933d6b0a9da1f575a2e7efd6b46ebd0edceffcdb3e9e8dbdd016d5f9b4a2",
+        "restored": true
+      }
+    },
+    {
+      "id": "A5 CLI setup needs a terminal",
+      "file": "src/runtime/vault/vaultCommand.ts",
+      "test": "test/unit/vaultCommand.test.ts",
+      "exit": 1,
+      "summary": "Tests  1 failed | 36 passed (37) | FAIL  test/unit/vaultCommand.test.ts > C-M109-1 vault setup and recover > cancels when the person does not confirm, and refuses without a terminal",
+      "sha256": {
+        "before": "0ae974df85e9e25c3b1a4480507421607843bf20c05e96a260cb7080d8b2be59",
+        "after": "0ae974df85e9e25c3b1a4480507421607843bf20c05e96a260cb7080d8b2be59",
+        "restored": true
+      }
+    },
+    {
+      "id": "A6 panel confirms only on I Saved It",
+      "file": "src/host/vault/vaultPanelHost.ts",
+      "test": "test/unit/vault/vaultPanelHost.test.ts",
+      "exit": 1,
+      "summary": "Tests  1 failed | 24 passed (25) | FAIL  test/unit/vault/vaultPanelHost.test.ts > C-M109-1 Set Up Vault > shows the code once, confirms only on I Saved It, cancels otherwise, and erases the code",
+      "sha256": {
+        "before": "edfd997557af82176169d2d3d29edee11fb7fcb75870933879124f18a5743927",
+        "after": "edfd997557af82176169d2d3d29edee11fb7fcb75870933879124f18a5743927",
+        "restored": true
+      }
+    }
+  ]
+}

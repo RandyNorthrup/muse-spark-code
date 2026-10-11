@@ -177,8 +177,39 @@ export async function chooseVaultDecision(
   if (input.isTTY !== true) throw new Error(UI_TEXT.vault.noAccess)
   const labels = choices.map((choice) => {
     let label = UI_TEXT.paidDeny
-    if (choice === 'allowOnce') label = UI_TEXT.allowOnce
-    else if (choice === 'allowSession') label = UI_TEXT.vault.allowSession
+    switch (choice) {
+      case 'allowOnce': {
+        label = UI_TEXT.allowOnce
+        break
+      }
+      case 'allowSession': {
+        label = UI_TEXT.vault.allowSession
+        break
+      }
+      case 'savedIt': {
+        label = UI_TEXT.vault.savedIt
+        break
+      }
+      case 'cancel': {
+        label = UI_TEXT.vault.cancelSetup
+        break
+      }
+      case 'continue': {
+        label = UI_TEXT.vault.resetContinue
+        break
+      }
+      case 'keep': {
+        label = UI_TEXT.vault.keepFile
+        break
+      }
+      case 'delete': {
+        label = UI_TEXT.vault.deleteFile
+        break
+      }
+      default: {
+        break
+      }
+    }
     return `${choice}: ${label}`
   })
   const bytes = await readVaultLine(input, output, `${title}\n${labels.join('\n')}\n`, signal)

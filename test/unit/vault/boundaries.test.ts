@@ -32,7 +32,7 @@ const oauth = {
   resource: 'https://mcp.example.test/server',
 }
 const lock = {
-  v: 1,
+  v: 2,
   processId: 1,
   startedAt: 0,
   brokerId: 'a'.repeat(32),
@@ -40,14 +40,14 @@ const lock = {
   socket: '/test',
 }
 const material = {
-  v: 1,
+  v: 2,
   kind: 'material',
   requestId: 'a'.repeat(32),
   encoding: 'base64',
   bytes: 'YQ==',
 }
 const remote = {
-  v: 1,
+  v: 2,
   id: 'a'.repeat(32),
   owningDeviceId: 'b'.repeat(32),
   use: {
@@ -240,12 +240,12 @@ describe('M109 boundary limits', () => {
     {
       name: 'protocol fractional counter',
       schema: protocol.vaultBrokerRequestSchema,
-      input: { v: 1, sequence: 1.5, request: { kind: 'status' } },
+      input: { v: 2, sequence: 1.5, request: { kind: 'status' } },
     },
     {
       name: 'protocol negative counter',
       schema: protocol.vaultBrokerRequestSchema,
-      input: { v: 1, sequence: -1, request: { kind: 'status' } },
+      input: { v: 2, sequence: -1, request: { kind: 'status' } },
     },
     {
       name: 'protocol handle',
@@ -256,7 +256,7 @@ describe('M109 boundary limits', () => {
       name: 'large scrub request',
       schema: protocol.vaultBrokerRequestSchema,
       input: {
-        v: 1,
+        v: 2,
         sequence: 0,
         request: { kind: 'scrub', text: 'x'.repeat(VAULT_LIMITS.frameBytes + 1) },
       },
@@ -265,7 +265,7 @@ describe('M109 boundary limits', () => {
       name: 'large scrub response',
       schema: protocol.vaultBrokerResponseSchema,
       input: {
-        v: 1,
+        v: 2,
         sequence: 0,
         response: { kind: 'scrubbed', text: 'x'.repeat(VAULT_LIMITS.frameBytes + 1) },
       },
@@ -273,12 +273,12 @@ describe('M109 boundary limits', () => {
     {
       name: 'large items',
       schema: protocol.vaultBrokerResponseSchema,
-      input: { v: 1, sequence: 0, response: { kind: 'items', items: many } },
+      input: { v: 2, sequence: 0, response: { kind: 'items', items: many } },
     },
     {
       name: 'large audit',
       schema: protocol.vaultBrokerResponseSchema,
-      input: { v: 1, sequence: 0, response: { kind: 'audit', records: many.map(() => audit()) } },
+      input: { v: 2, sequence: 0, response: { kind: 'audit', records: many.map(() => audit()) } },
     },
     {
       name: 'empty private encoding',

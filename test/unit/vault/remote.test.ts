@@ -50,7 +50,7 @@ async function setup(kind: 'ssh' | 'totp' = 'ssh') {
     policy: { mode: 'alwaysAllow', unattendedAllowed: false, allowDisclosure: false },
   })
   const remote = vaultRemoteRequestSchema.parse({
-    v: 1,
+    v: 2,
     id: '1'.repeat(32),
     owningDeviceId: '2'.repeat(32),
     use:
@@ -175,7 +175,7 @@ describe('M109 R remote owner-side uses', () => {
       ),
       subscribeClose: f.channel.subscribeClose,
       exchange: vi.fn(() =>
-        Promise.resolve({ v: 1, id: f.remote.id, result: { kind: 'code', code: '123456' } }),
+        Promise.resolve({ v: 2, id: f.remote.id, result: { kind: 'code', code: '123456' } }),
       ),
       deliver: vi.fn<VaultRemoteConsumerPorts['deliver']>((_kind, bytes, _request, canDeliver) => {
         expect(canDeliver()).toBe(true)
@@ -187,11 +187,11 @@ describe('M109 R remote owner-side uses', () => {
     expect(await hasConsumedVaultRemoteUse(f.remote, ports, signal)).toBe(true)
     expect(sink[0]?.every((value) => value === 0)).toBe(true)
     ports.exchange = vi.fn(() =>
-      Promise.resolve({ v: 1, id: 'f'.repeat(32), result: { kind: 'code', code: '123456' } }),
+      Promise.resolve({ v: 2, id: 'f'.repeat(32), result: { kind: 'code', code: '123456' } }),
     )
     expect(await hasConsumedVaultRemoteUse(f.remote, ports, signal)).toBe(false)
     ports.exchange = vi.fn(() =>
-      Promise.resolve({ v: 1, id: f.remote.id, result: { kind: 'signature', signature: 'AA==' } }),
+      Promise.resolve({ v: 2, id: f.remote.id, result: { kind: 'signature', signature: 'AA==' } }),
     )
     expect(await hasConsumedVaultRemoteUse(f.remote, ports, signal)).toBe(false)
     ports.requester.unattended = true
@@ -210,7 +210,7 @@ describe('M109 R remote owner-side uses', () => {
       subscribeClose: f.channel.subscribeClose,
       exchange: () =>
         Promise.resolve({
-          v: 1,
+          v: 2,
           id: f.remote.id,
           result: { kind: 'signature', signature: randomBytes(64).toString('base64') },
         }),
@@ -268,7 +268,7 @@ describe('M109 R remote owner-side uses', () => {
     for (const field of ['item', 'grant', 'ticket', 'value'])
       expect(
         vaultRemoteResponseSchema.safeParse({
-          v: 1,
+          v: 2,
           id: f.remote.id,
           result: { kind: 'code', code: '123456', [field]: 'forbidden' },
         }).success,
@@ -300,7 +300,7 @@ describe('M109 R remote owner-side uses', () => {
         }
       }
       await f.owner.serve(f.channel, f.remote)
-      expect(f.frames).toEqual([{ v: 1, id: f.remote.id, result: { kind: 'denied' } }])
+      expect(f.frames).toEqual([{ v: 2, id: f.remote.id, result: { kind: 'denied' } }])
       expect(f.ports.select).not.toHaveBeenCalled()
       expect(f.ports.execute).not.toHaveBeenCalled()
     },
