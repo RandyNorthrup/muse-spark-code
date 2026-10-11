@@ -45,6 +45,8 @@ export interface SessionHistoryInput {
   readonly name?: string | undefined
   readonly items: readonly ItemSnapshot[]
   readonly turnIds: readonly string[]
+  /** Why the session source is partial although its transcript was read. */
+  readonly partial?: string | undefined
 }
 
 function errorCode(error: unknown): string | undefined {
@@ -183,11 +185,24 @@ export async function readHostReportSession(
   const history = await host.readSession(sessionId, { recoverGoal: false })
   if (history.mode === 'none') return null
   const models = await host.listModels(sessionId)
-  // The transcript above is already read: a catalogue that omits the optional
-  // isActive flag must not discard it. Prefer the active row, then the first
-  // row; only an empty catalogue is a failure (RVCM1132B finding 4).
-  const model = models.find((entry) => entry.isActive) ?? models[0]
-  if (model === undefined) throw new LocalSourceError('failed')
+  // The transcript above is already read: with no active catalogue row the
+  // model is unknown, never a guess at the first entry, and the session
+  // source carries the reason as partial (RVCM1132C finding 1). The
+  // catalogue flag is optional on the wire, so a row without it is inactive.
+  // Only an empty catalogue is a failure (RVCM1132B finding 4).
+  const model = models.find((entry) => entry.isActive)
+  if (model === undefined) {
+    if (models.length === 0) throw new LocalSourceError('failed')
+    return {
+      sessionId,
+      backend: host.info.kind,
+      modelId: 'unknown',
+      partial: UI_TEXT.reportDetailReasons.sessionModelUnavailable,
+      ...(history.name !== undefined && { name: history.name }),
+      items: history.items,
+      turnIds: [],
+    }
+  }
   return {
     sessionId,
     backend: host.info.kind,
@@ -282,7 +297,13 @@ export function createSessionReportReader(input: {
       const history = await input.resolveSession(context.options.sessionId)
       if (history === null) throw new LocalSourceError('history')
       const journal = await input.readJournal(context)
-      const partials: string[] = journal.partial === undefined ? [] : [journal.partial]
+      // The transcript reader's own reason (an unknown catalogue model)
+      // travels with the session source, beside the journal's (RVCM1132C
+      // finding 1).
+      const partials: string[] = [
+        ...(journal.partial === undefined ? [] : [journal.partial]),
+        ...(history.partial === undefined ? [] : [history.partial]),
+      ]
       // The session totals below sum only the records still attributable to
       // this session; rolled-up days can never be attributed back to it, so
       // the disclosure says excluded, never included (RVCM1132B finding 1).
