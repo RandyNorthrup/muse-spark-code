@@ -84,11 +84,13 @@ asserts the exact key set and no paths). Shown errors go through
 - `test/unit/uploadedFilesBinding.test.ts`: 5 passed (new).
 - `test/unit/acpUploads.test.ts`: 8 passed (new).
 - `test/unit/uploadedFilesComposition.test.ts`: 6 passed (new).
-- `test/unit/conversationController.test.ts`: 684 passed, 4 skipped,
-  4 pre-existing suite failures above.
-- `test/unit/fileSessionStore.test.ts`, `test/unit/files.test.ts`,
-  `test/unit/mediaUploadStores.test.ts`,
-  `test/unit/mediaProductionService.test.ts`: run in final verification.
+- `test/unit/conversationController.test.ts`: 685 passed (incl. the new
+  dialog-dispatch test), 4 skipped, 4 pre-existing suite failures above.
+- Lane suites final: `uploadLedger` 14, `uploadedFiles` 4,
+  `uploadedFilesBinding` 5, `acpUploads` 8, `uploadedFilesComposition` 6,
+  `acpAccounts` and `fileSessionStore` green alongside: 87 passed total.
+- `test/unit/files.test.ts`: 11 passed, 5 pre-existing sandbox-proxy
+  failures above (identical on the clean base).
 - Gates: `node scripts/check-l10n.mjs` 0 problems (5 new keys × 15
   tables); `tsc` host + webview clean; eslint/prettier clean on touched
   files; `npm run build` exits 0 (rows below).
