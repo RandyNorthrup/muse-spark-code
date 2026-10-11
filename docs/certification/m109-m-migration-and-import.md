@@ -195,3 +195,87 @@ Planning status: M's credential core is implemented against the contracted
 ports, with ambient discovery/import and CSV complete. Next slice is W binding
 C/P/B, U/H user actions and later owner codecs. M109 remains planned until
 the joined store/platform/broker/UI/runtime wiring and acceptance gates pass.
+
+## RVCM1094 R2 repairs (lane CM1094R2, 2026-10-11, linuxlt)
+
+Branch `c/m109-4`, base `803e3dfa7`. Closes all four RVCM1094 findings
+(3 P2, 1 P3) as a class: every record shape that can be installed is now
+either migrated exactly or refused without touching the source, with its own
+reason; nothing is silently dropped or defaulted. No residual, no new
+dependency, no guard widened, diff inside the lane's files
+(`src/core/vault/migrate/*`, its test, the changelog entry, this record).
+Zero model attempts, paid calls, network calls or real credentials. Tests use
+generated material only.
+
+**Ownership rule (one slot, one owner).** A non-meta default account shares
+the bare provider slot `museSpark.provider.<id>` with the M95 record, so
+`accountSecretMigrationCredential` returns the provider codec's credential
+for that slot (`accountSecrets.ts:73`): both factories name the same key,
+item id and item, and the wiring registers each key once (the same pattern
+the review accepts for Meta's shared Model API entry). The provider codec
+migrates every shape its slot can hold (`providerCredentials.ts:37-88`):
+bare 4-key records to `apiKey` items pinning `auth: 'apiKey'` (lead answer)
+or to opaque `secret` items, and overlaid full 6-key account records to
+`secret` items holding the canonical record verbatim in the installed
+writer's key order (shared `accountRecordCanonicalJson`, `material.ts:85`,
+so the mirror keeps the installed bytes and both previous readers still
+parse it). Documents with unknown fields are refused rather than migrated
+with fields dropped. The `chatgpt` slot is refused eagerly with `invalid`
+(`providerCredentials.ts:94`): the ChatGPT subscription record's codec
+belongs to its owner lane (lead answer), and this lane keeps refusing that
+shape wherever its bytes land. Vault item names always fit the handle:
+`migrationItemName` (`material.ts:102`) keeps short names readable and
+hashes over-long installed names deterministically (finding 1's 49-char
+account now migrates). The account codec keeps segmented slots only; short
+documents there are refused exactly as the installed reader rejects them.
+
+| Finding                                             | Fix                                                                                                                            | Regression test                                                                                                                                                                                               | Red drill (break → named failure → restore)                                                                                      |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| P2-1 long account names refused                     | `migrationItemName` hashes names past 48 chars, deterministic (`material.ts:102`); both factories use it                       | `migrates a longest account name inside the vault handle` (32-char ids, handle regex, determinism, equal SHA-256)                                                                                             | unconditional readable name → longest-name test fails; restored SHA-256 `43fdab37…` OK                                           |
+| P2-2 legacy default encode/undo rewrites the source | default accounts migrate through the provider slot codec, so the short record round-trips byte-exact (`accountSecrets.ts:73`)  | `migrates the legacy default shape with equal SHA-256 and byte-exact undo` (name, SHA-256, undo bytes, both previous readers)                                                                                 | no delegation → legacy-default, factory-equality and ChatGPT-delegation tests fail; restored SHA-256 `61ce4d65…` OK              |
+| P2-3 shared key/item id, divergent items            | single interpretation per key (delegation), 6-key overlay migrated verbatim, unknown fields refused, `chatgpt` refused eagerly | `names one item for a shared provider slot`, `overlaid full account record … verbatim`, `refuses records with unknown fields`, `refuses the ChatGPT subscription shape` (real `chatGptRecordSchema` literals) | no delegation / no overlay branch / no extras check / no chatgpt guard → the named test(s) fail; restored SHA-256 `e5fe73f2…` OK |
+| P3 changelog nesting                                | migration bullet moved below the RVCM1091A2 repairs (`CHANGELOG.md`)                                                           | `keeps the migration note after the RVCM1091A2 repairs` (order assertion)                                                                                                                                     | bullet back in the middle → changelog test fails; restored SHA-256 `b1f0af20…` OK                                                |
+
+All drills ran at the repository timeout (no `--testTimeout`) and every file
+was restored byte-exact (SHA-256 verified against the pre-drill hash).
+
+**Owed by the vault join (copied from RVCM1094 §Wiring call sites).** These
+codecs are still unwired: no production file imports either factory. On the
+vault join, call `resume` then `migrate` for each owned key once the vault is
+unlocked, then `retire`, on every unlock (not only first setup), through both
+adapters (`migrateSecretStorage` in `src/host/vault/migrateSecretStorage.ts`
+and `migrateKeyStore` in `src/runtime/vault/migrateKeyStore.ts`); register
+each key once and never register `providerCredentialMigrationCredential`
+for `chatgpt` (M95b owner lane). `now` must be a nonnegative integer.
+Startup: the unlock finishing setup is `VaultManagement.confirmSetup` after
+`broker.unlock` (`src/core/vault/broker/management.ts:616`), forwarded by
+`src/host/vault/vaultPanelHost.ts:273`, `src/host/vault/vaultPanelService.ts:88`,
+`src/runtime/vault/vaultCommand.ts:341`, `src/runtime/vault/vaultRuntimeEntry.ts:114`.
+Meta key reads, one `modelApi` codec only: `CredentialStore.getApiKey`
+(`src/host/auth/credentialStore.ts:43`), `src/extension.ts:1244`, `:1259`,
+`:2012`, `:2550`, `:2857`, `:3497`, `:4556`,
+`src/host/backend/modelApiBackendManager.ts:362` and `:617`,
+`src/host/auth/authService.ts:842`, `src/host/prompts/promptEntry.ts:440`,
+`src/runtime/backends.ts:341`. Provider record reads and writes:
+`readProviderCredential` / `saveProviderCredential` /
+`deleteProviderCredential` (`src/host/providers/credentialRecords.ts:72`,
+`:59`, `:94`), scan and test `credentialFor`
+(`src/host/providers/providersHost.ts:147`), raw presence
+(`providersHost.ts:248`), wizard save and restore
+(`src/host/providers/wizardSave.ts:101`, `:116`, `:118`), removal
+(`src/host/providers/providerRemoval.ts:78`), import clear
+(`src/host/providers/importExport.ts:176`), the send path
+(`src/core/providers/configured.ts:171`), presence
+(`src/host/auth/credentialStore.ts:94`); writes go through `store`, deletes
+through `delete`, or the mirror drifts. Account reads and writes:
+`secretStorageAccountVault` (`src/host/providers/accountSecrets.ts:28`
+read, `:66` write, `:81` remove), composed at
+`src/runtime/providers/runtimeServices.ts:223` and
+`src/runtime/providers/accountStore.ts:19`; dispatch is
+`AccountStore.useCredential` (`src/core/providers/accounts.ts:247`) and
+write (`accounts.ts:224`); runtime startup reaches this through
+`src/runtime/main.ts:963`. The join must also teach vault-side readers that
+a migrated default slot can be a `secret` item (overlaid full records keep
+their bytes verbatim there) as well as an `apiKey` item. `writeBatch` stays
+out: rotation and resume need `VaultMigration`'s single-item `write` plus
+the journal.
