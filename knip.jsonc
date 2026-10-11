@@ -179,6 +179,8 @@
     // The never-ending monitor the M92b bounded-run proof starts by path.
     "test/fixtures/never-ending-monitor.mjs",
     "test/fixtures/inspect-helper.mjs",
+    // Tab's configured hook flow starts this real fake-hook process by path.
+    "test/fixtures/tabHooks/completion.mjs",
     // M116 playbook scenes: the axe runner (an npm script knip already sees)
     // bundles this scene file with esbuild, which knip does not trace.
     "test/harness/playbook.mjs",

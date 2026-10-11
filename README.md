@@ -586,6 +586,17 @@ and sends nothing. Before the first charge in a window, it asks with the
 model's rates and your budget: **Allow Once** covers that window until it
 closes, **Allow Always in This Workspace** remembers revocable consent, and
 **Deny** snoozes Tab in that window. Closing the question denies it too.
+The question names the model the request will use, and your answer covers
+that model at its price only: a request for another model asks again, even
+under **Allow always**, and **Allow once** never reaches another window. An
+**Allow always** kept by an earlier version asks a migration question. Only
+answering **Allow always in this workspace** saves the model and price;
+answering **Allow once** saves nothing and the next window asks again.
+Accepting another paid feature's price or turning voice off preserves Tab's
+**Allow once**. **Ask again** and Tab's own price acceptance changes end its
+consent; a changed model or price asks again for its own key. A request whose
+model, consent or hook configuration changes before it goes out sends
+nothing; the last check runs immediately before the request is sent.
 
 The hard daily budget defaults to **$1.00 across every window on this
 machine**, reserved before each request. The status shows today's spend;
@@ -631,10 +642,40 @@ request. Snooze offers 15 minutes, an hour or until this window restarts.
 Copilot's sign-in state cannot be detected, so an installed active Copilot
 can cause yielding even when signed out.
 
-Cursor's `beforeTabFileRead` and `afterTabFileEdit` hooks remain planned for
-lane K after M91; this build has their host bridge but does not run those
-hook configurations yet. The probe receipts and current limits are in
-[the M94 record](docs/certification/m94.md).
+Cursor's `beforeTabFileRead` and `afterTabFileEdit` hooks run from the project
+`.muse/spark-hooks.json` or your `spark-hooks.json` beside Muse Code's settings,
+when hooks are enabled and the workspace is trusted, on either chat backend.
+Imported Cursor groups keep their format and source event; their matchers are
+`TabRead` and `TabWrite`. Before a file enters a request, each matching guard
+must exit 0 with `permission: allow`; denial, invalid output, a crash, a
+1,500 ms timeout or an oversized payload refuses that read. Verdicts are
+cached by path and content and cleared when the configuration changes.
+Accepted full and inferred partial edits carry real line text and a 1-based
+range; typing alone fires nothing. Edit hooks observe asynchronously and
+cannot veto an accepted edit. With no configured hook, completion text and
+command arguments remain unchanged.
+
+These hooks are local processes you configure, and they see your code as it
+is: a `beforeTabFileRead` hook receives the file's absolute path and its
+**full, unredacted text**, the workspace folders, the Tab model and the
+request id, for the current file and for every context file. An
+`afterTabFileEdit` hook receives the path, the accepted text and the line
+before and after it (512 characters each at most) and the range. The
+extension sends neither payload anywhere else; the command decides what it
+does with it. Hook processes get a scrubbed environment and never the Model
+API key.
+
+A `spark-hooks.json` that exists but does not load in full (invalid JSON,
+an unreadable or oversized file, or any reported problem, such as an unknown
+event name or a `beforeTabFileRead` matcher that never names `TabRead`)
+stops Tab reading any file, and the status bar says **Tab paused: hook file
+has errors** until you fix it; the Muse Spark log names the problem. Only a
+scope with no hook file reads without a guard. Each request is bound to the
+trust, Tab settings, `files.exclude`, ignore files and hook configuration in
+force when it starts: if any of them change before it is sent or before its
+answer shows, it is dropped. The fake-hook receipts and current release
+blockers are in [the M94 record](docs/certification/m94.md) and
+[the hook wiring record](docs/certification/m94-k.md).
 
 ## Backends
 

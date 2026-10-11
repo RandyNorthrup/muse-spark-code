@@ -529,7 +529,7 @@ export const EN = {
   referenceMcp:
     'MCP servers: Muse Code runs its own servers; on Model API this window runs configured servers. ACP Model API has no editor MCP servers.',
   referenceTab:
-    'Tab uses the stored Model API key on either chat backend. The default trigger is Invoke; automatic typing suggestions require Automatic.',
+    'Tab uses the stored Model API key on either chat backend. The default trigger is Invoke; automatic typing suggestions require Automatic. Consent covers the model and price shown; changing either asks again. A legacy Allow always grant asks a migration question. Only Allow always in this workspace saves the model and price; Allow once saves nothing, stays in this window, and each new window asks again.',
   referenceNativeSearch:
     'Muse Code web search and native cron use the subscription. Native cron has no MSP schedule controls; extension search and schedules are separate paid Model API features.',
   referenceCustomAgents:
@@ -4503,6 +4503,11 @@ export const EN = {
   tabStatusCopilot: 'Tab: on Invoke while Copilot is on',
   // {kind} is the last failure's class, never code or a path.
   tabStatusError: 'Tab failed ({kind})',
+  // A spark-hooks.json file is present but could not be loaded in full, so
+  // Tab reads no file until it is fixed (M94 lane K).
+  tabStatusHooksInvalid: 'Tab paused: hook file has errors',
+  tabStatusHooksInvalidDetail:
+    'A spark-hooks.json file could not be loaded in full, so Tab reads no file until it is fixed. The Muse Spark log names the problem.',
   // The status bar menu: turn off, the snoozes, languages, the multi-line
   // mode, Copilot's row and Account & usage.
   tabMenuTurnOff: 'Turn Tab Off',

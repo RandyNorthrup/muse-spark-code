@@ -13,6 +13,7 @@ import {
   buildForeignStdin,
   parseForeignResult,
 } from '../../src/core/backends/modelapi/hookFormats'
+import { cursorTabExample } from './helpers/cursorTabFixture'
 
 type Row = VendorContract['rows'][number]
 type Field = Row['fields'][number]
@@ -70,6 +71,8 @@ function fullPayload(row: Row, root = ROOT): Record<string, unknown> {
     tool_input: toolInput,
     tool_response: 'preview',
     content: 'file text',
+    file_path: `${root}/src/a.ts`,
+    edits: cursorTabExample('afterTabFileEdit')['edits'],
     prompt: 'hello',
     text: 'thinking',
     last_assistant_message: 'done',

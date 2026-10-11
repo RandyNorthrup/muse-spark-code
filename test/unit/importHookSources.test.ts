@@ -855,8 +855,9 @@ describe('RVM91I2 exact admission and records', () => {
     const extensionEvents: ReadonlySet<string> = new Set(EXTENSION_HOOK_EVENTS)
     for (const [event, mapped] of Object.entries(AGENT_IMPORT_CURSOR_EVENTS)) {
       const converted = convertCursorHook(foreign(event, { command: 'guard' }))
-      // The extension events wait for M91b (lane W); every other row emits.
-      if (extensionEvents.has(mapped)) {
+      const isTab = event === 'beforeTabFileRead' || event === 'afterTabFileEdit'
+      // M94 admits Tab's two operation points; other extension imports wait for M91b.
+      if (!isTab && extensionEvents.has(mapped)) {
         expect(converted).toEqual({ ok: false, reason: 'unsupported' })
         continue
       }
@@ -868,6 +869,11 @@ describe('RVM91I2 exact admission and records', () => {
       expect(converted.value.event).toBe(mapped)
       expect(converted.value.group['sourceEvent']).toBe(event)
       expect(converted.value.group).not.toHaveProperty('flavor')
+      if (isTab) {
+        expect(converted.value.group['matcher']).toBe(
+          event === 'beforeTabFileRead' ? 'TabRead' : 'TabWrite',
+        )
+      }
     }
   })
 

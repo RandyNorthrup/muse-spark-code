@@ -986,6 +986,9 @@ export function featureCatalog(): readonly Feature[] {
     feature(
       'tab',
       { command: COMMAND_IDS.tabMenu },
+      // D73: only Always persists the model/price; Allow once saves nothing,
+      // so each new window asks again (RVM94KR4G). Consent is key-bound, and
+      // other features' price changes preserve Tab's window grant (RVM94KR3G).
       { ui: 'referenceTab' },
       ['tabTurnOn', 'tabTurnOff', 'tabSnooze', 'tabMenu', 'tabLanguages'],
       [

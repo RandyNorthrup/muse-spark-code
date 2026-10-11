@@ -593,6 +593,7 @@ export const ON_FIRST_USE = [
       'src/core/tab/tabCache.ts',
       'src/core/tab/tabContext.ts',
       'src/core/tab/tabEngine.ts',
+      'src/core/tab/tabHooks.ts',
       'src/core/tab/tabReply.ts',
       'src/core/tab/tabRequest.ts',
       'src/core/tab/tabScheduler.ts',

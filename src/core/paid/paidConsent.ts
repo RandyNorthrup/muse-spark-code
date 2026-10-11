@@ -64,6 +64,13 @@ async function paidTeamRuntime() {
 /** The popup's three answers. */
 export type PaidUseAnswer = 'once' | 'always' | 'deny'
 
+/**
+ * What an allowing answer granted: `always` kept in this workspace, `window`
+ * a window-once feature's once, `once` this use only (an "always" that could
+ * not be kept, or a feature without a window once).
+ */
+export type PaidUseScope = 'once' | 'window' | 'always'
+
 /** A verified selected-model tariff, not a provider-name assumption. No credential value. */
 export interface SchedulePaidIdentity {
   readonly modelId: string
@@ -445,6 +452,8 @@ export class PaidUseConsent {
    * generation it was given under: memory only, never stored.
    */
   private readonly windowOnce = new Map<PaidFeature, number | undefined>()
+  /** Each feature's local revocations; Ask again also moves the shared `revocation`. */
+  private readonly windowOnceRevocations = new Map<PaidFeature, number>()
   /**
    * A window-once feature's first question while it is open: ordinary uses
    * that arrive meanwhile share it and its answer instead of asking again.
@@ -538,23 +547,31 @@ export class PaidUseConsent {
 
   /** Asks in the popup now and keeps what the answer grants. */
   private async decide(request: PaidUseRequest, ask: PaidUseConsentDeps['ask']): Promise<boolean> {
+    return (await this.decideScope(request, ask)) !== undefined
+  }
+
+  /** Asks in the popup now, keeps what the answer grants and names it; undefined refuses. */
+  private async decideScope(
+    request: PaidUseRequest,
+    ask: PaidUseConsentDeps['ask'],
+  ): Promise<PaidUseScope | undefined> {
     const { feature } = request
     const canRemember = this.deps.canRemember()
     const answer = await ask(request, canRemember)
     if (answer === 'deny') {
       this.deps.log.info(`Paid use of ${feature}: denied`)
-      return false
+      return undefined
     }
     if (!this.isEnabled(feature)) {
       this.deps.log.info(`Paid use of ${feature}: turned off while the popup was open`)
-      return false
+      return undefined
     }
     if (
       feature === 'judge' &&
       this.deps.acceptJudgePrice !== undefined &&
       (!(await this.deps.acceptJudgePrice()) || !this.isEnabled(feature))
     )
-      return false
+      return undefined
     if (
       answer === 'always' &&
       canRemember &&
@@ -563,13 +580,15 @@ export class PaidUseConsent {
     ) {
       this.deps.log.info(`Paid use of ${feature}: allowed always in this workspace`)
       this.notify()
-    } else if (answer === 'once' && this.isWindowOnceFeature(feature)) {
+      return 'always'
+    }
+    if (answer === 'once' && this.isWindowOnceFeature(feature)) {
       this.windowOnce.set(feature, this.deps.windowOnceGeneration?.(feature))
       this.deps.log.info(`Paid use of ${feature}: allowed once in this window`)
-    } else {
-      this.deps.log.info(`Paid use of ${feature}: allowed once`)
+      return 'window'
     }
-    return true
+    this.deps.log.info(`Paid use of ${feature}: allowed once`)
+    return 'once'
   }
 
   private async allowSearch(
@@ -797,6 +816,35 @@ export class PaidUseConsent {
   }
 
   /**
+   * Asks now, whatever is kept, and names what the answer granted (Tab's
+   * keyed consent, RVM94KR2): the caller binds the scope to its own key, so
+   * no grant kept for the feature alone answers for it.
+   */
+  public async askScope(
+    request: Exclude<PaidUseRequest, { feature: 'webSearch' | 'teamWorkers' }>,
+  ): Promise<PaidUseScope | undefined> {
+    return this.isEnabled(request.feature)
+      ? await this.decideScope(request, this.deps.ask)
+      : undefined
+  }
+
+  /** Moves on this feature's price changes and the shared "Ask again". */
+  public revocations(feature: PaidFeature): number {
+    return this.revocation + (this.windowOnceRevocations.get(feature) ?? 0)
+  }
+
+  /**
+   * The feature's window once as a token, undefined while none holds. It
+   * changes whenever that once is revoked, so a grant taken under an older
+   * once never counts under a newer one.
+   */
+  public windowOnceToken(feature: PaidFeature): string | undefined {
+    return this.isWindowOnce(feature)
+      ? JSON.stringify([this.revocations(feature), this.windowOnce.get(feature)])
+      : undefined
+  }
+
+  /**
    * A price acceptance changed in this window (the host calls this from
    * `writeAccepted`): this window's once was given under the old price, so
    * it asks again. A change in another window shows through
@@ -804,6 +852,7 @@ export class PaidUseConsent {
    */
   public revokeWindowOnce(feature: PaidFeature): void {
     if (feature === 'webSearch') this.searchWindowOnce.clear()
+    this.windowOnceRevocations.set(feature, (this.windowOnceRevocations.get(feature) ?? 0) + 1)
     if (this.windowOnce.delete(feature)) {
       this.deps.log.info(`Paid use of ${feature} asks again in this window`)
     }

@@ -40,6 +40,22 @@ happened, not what was planned; superseded entries are kept.
   platform receipt; Windows is excluded by D107. Fresh reviews and F1b's
   approval integration are required before exposure.
 
+- Cursor's Tab hooks now run at Tab's two points (M94 lane K, revived as
+  M94KR on the 0.17.0 base). `beforeTabFileRead` guards fail closed before
+  completion dispatch, with verdicts cached per path and content digest and
+  invalidated on configuration changes; `afterTabFileEdit` observes accepts
+  with actual line text and never blocks. The guard and dispatch bridge stay
+  in the lazy Tab bundle, all hook callers share the production runner's
+  process cap, and a bundle-load failure logs fixed words only. The final
+  live check remains open; see `docs/certification/m94-k.md`.
+  - **What these hooks receive.** They are local processes you configure.
+    `beforeTabFileRead` gets the absolute path and the **full, unredacted
+    text** of the current file and of each context file, with the workspace
+    folders, the Tab model and the request id. `afterTabFileEdit` gets the
+    accepted text and the surrounding line text (512 characters each at
+    most) with a 1-based range. Neither payload is sent anywhere by the
+    extension; hook processes never get the Model API key.
+
 ### Changed
 
 - What's New fits its content budget by itself: the newest release always
@@ -83,6 +99,56 @@ happened, not what was planned; superseded entries are kept.
   also refuses directory entries shaped like session files, so a folder
   named `*.jsonl` can no longer mark a usage read partial (C-M113-1,
   RVM113S tie-breaks, RVCM1131 findings 1–3).
+
+- Tab's Help description and all 14 translations now explain that only
+  **Allow always in this workspace** saves the model and price; **Allow once**
+  saves nothing, covers this window, and each new window asks again. The
+  generated reference no longer promises one extra question for legacy consent
+  (RVM94KR4G).
+
+- Tab consent review RVM94KR3G: accepting image generation's price or turning
+  voice off preserves Tab's **Allow once**, including requests waiting to
+  send. Revocation is per feature; **Ask again** and Tab's own price acceptance
+  changes end its consent, and a changed model or price asks for its own key.
+  The legacy **Allow always** migration saves the model and price only when answered
+  **Allow always in this workspace**; **Allow once** saves nothing and the
+  next window asks again.
+
+- Tab consent and hook-policy review RVM94KR2 (M94 lane K, redesign). Each
+  point fails closed.
+  - Tab's consent is keyed by model and price. A question open for one model
+    no longer answers a request for another; **Allow once** stays in its
+    window and is never written down; **Allow always** is kept with the model
+    and price it named. An **Allow always** kept by an earlier version asks
+    a migration question: only **Allow always in this workspace** saves the
+    model and price; **Allow once** saves nothing and the next window asks
+    again. An answer given after **Ask again** sends nothing.
+  - A hook file or setting change stops Tab reading from the moment it is
+    noticed, before the `ConfigChange` hook runs, until it has reloaded.
+  - A request's last check now runs immediately before it is sent, after the
+    key read and rate pacing: a changed model, consent or hook configuration
+    sends nothing, and the request costs nothing.
+  - A hook's cached read verdict counts only for the model it was asked about
+    and the configuration it ran under.
+
+- Tab hook review RVM94KR (M94 lane K). Each point fails closed.
+  - A `spark-hooks.json` that is present but does not load in full no longer
+    reads as "no hooks": invalid JSON, an unreadable or oversized file, an
+    unknown event name, an invalid Tab group or a guard whose matcher never
+    names `TabRead`. Tab then reads no file, and the status bar says **Tab
+    paused: hook file has errors** in all 14 languages until it is fixed.
+  - A Tab request is bound to the trust, Tab settings, `files.exclude`,
+    ignore files and hook configuration in force when it starts. It is
+    checked again after the paid question, at dispatch (after the debounce or
+    a wait for a free slot) and before its answer shows, and dropped if
+    anything moved.
+  - The paid question names the request's own model, the request sends only
+    that model, and a request for another model than the one last allowed
+    asks again, **Allow always** included.
+  - A hook whose wait for a process slot was cancelled now gives its
+    admitted resource lease back.
+  - The privacy guide said configured Cursor Tab hooks did not run; they do,
+    and the guide, README and this entry now say what they receive.
 
 ### Pending
 
