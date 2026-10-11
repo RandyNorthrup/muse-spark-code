@@ -1,0 +1,416 @@
+{
+  "date": "2026-10-11",
+  "machine": "kubuntu (Linux)",
+  "sourceRevision": "72e0cd62e980d18e4a0a7a96d6405e99e7b414d2",
+  "adoptedCoreRevision": "52a37ad49defeb89bda54b0a420525cbc899298c",
+  "command": ["npx", "vitest", "run", "<files>", "--maxWorkers=3"],
+  "repositoryTimeouts": true,
+  "testNameFilter": null,
+  "fileCount": 86,
+  "batchCount": 29,
+  "tests": {
+    "passed": 1290,
+    "failed": 0,
+    "skipped": 18
+  },
+  "skipReasons": [
+    {
+      "count": 17,
+      "file": "test/unit/vault/writerCrashPosix.test.ts",
+      "reason": "CM109JOINA must join its shared cross-process writer lease before these recovery requirements can pass."
+    },
+    {
+      "count": 1,
+      "file": "test/unit/vault/audit.test.ts",
+      "reason": "Existing Windows-only POSIX-files refusal case does not run on Linux."
+    }
+  ],
+  "nativeReceipts": [
+    {
+      "command": ["sh", "test/hosts/run-vault-posix.sh"],
+      "exit": 0,
+      "checks": [
+        "native Secret Service slot create/read/delete",
+        "installed governed POSIX broker setup, write, private read, Lock and reopen"
+      ],
+      "log": "temp/installed-native-final.log"
+    }
+  ],
+  "batches": [
+    {
+      "files": [
+        "test/unit/vault/approvals.test.ts",
+        "test/unit/vault/audit.test.ts",
+        "test/unit/vault/backup.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 23.33,
+      "log": "temp/vault-batch-01.log",
+      "tests": {
+        "passed": 51,
+        "skipped": 1
+      }
+    },
+    {
+      "files": [
+        "test/unit/vault/boundaries.test.ts",
+        "test/unit/vault/boundaryScrub.test.ts",
+        "test/unit/vault/broker.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 23.73,
+      "log": "temp/vault-batch-02.log",
+      "tests": {
+        "passed": 86
+      }
+    },
+    {
+      "files": [
+        "test/unit/vault/brokerAdoption.test.ts",
+        "test/unit/vault/brokerComposition.test.ts",
+        "test/unit/vault/brokerProcess.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 23.14,
+      "log": "temp/vault-batch-03.log",
+      "tests": {
+        "passed": 20
+      }
+    },
+    {
+      "files": [
+        "test/unit/vault/channel.test.ts",
+        "test/unit/vault/contracts.test.ts",
+        "test/unit/vault/credentialAdapter.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 23.34,
+      "log": "temp/vault-batch-04.log",
+      "tests": {
+        "passed": 85
+      }
+    },
+    {
+      "files": [
+        "test/unit/vault/crypto.test.ts",
+        "test/unit/vault/delegation.test.ts",
+        "test/unit/vault/execAdapters.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 18.85,
+      "log": "temp/vault-batch-05.log",
+      "tests": {
+        "passed": 40
+      }
+    },
+    {
+      "files": [
+        "test/unit/vault/execBrokerLease.test.ts",
+        "test/unit/vault/execFence.test.ts",
+        "test/unit/vault/execHelpers.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 18.1,
+      "log": "temp/vault-batch-06.log",
+      "tests": {
+        "passed": 35
+      }
+    },
+    {
+      "files": [
+        "test/unit/vault/execSpawn.test.ts",
+        "test/unit/vault/fakes.test.ts",
+        "test/unit/vault/feeder.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 16.27,
+      "log": "temp/vault-batch-07.log",
+      "tests": {
+        "passed": 40
+      }
+    },
+    {
+      "files": [
+        "test/unit/vault/fleet.test.ts",
+        "test/unit/vault/gitHelper.test.ts",
+        "test/unit/vault/importFile.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 14.54,
+      "log": "temp/vault-batch-08.log",
+      "tests": {
+        "passed": 36
+      }
+    },
+    {
+      "files": [
+        "test/unit/vault/importReset.test.ts",
+        "test/unit/vault/interleavings.test.ts",
+        "test/unit/vault/kdf.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 20.46,
+      "log": "temp/vault-batch-09.log",
+      "tests": {
+        "passed": 49
+      }
+    },
+    {
+      "files": [
+        "test/unit/vault/keyslots.test.ts",
+        "test/unit/vault/limits.test.ts",
+        "test/unit/vault/loginCsv.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 30.59,
+      "log": "temp/vault-batch-10.log",
+      "tests": {
+        "passed": 25
+      }
+    },
+    {
+      "files": [
+        "test/unit/vault/mcpOAuth.test.ts",
+        "test/unit/vault/mcpOAuthLifecycle.test.ts",
+        "test/unit/vault/mcpSecrets.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 19.38,
+      "log": "temp/vault-batch-11.log",
+      "tests": {
+        "passed": 86
+      }
+    },
+    {
+      "files": [
+        "test/unit/vault/mcpVaultPool.test.ts",
+        "test/unit/vault/migrate.test.ts",
+        "test/unit/vault/migrationAdapters.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 22.42,
+      "log": "temp/vault-batch-12.log",
+      "tests": {
+        "passed": 32
+      }
+    },
+    {
+      "files": [
+        "test/unit/vault/migrationLifecycle.test.ts",
+        "test/unit/vault/peer.test.ts",
+        "test/unit/vault/policy.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 23.52,
+      "log": "temp/vault-batch-13.log",
+      "tests": {
+        "passed": 30
+      }
+    },
+    {
+      "files": [
+        "test/unit/vault/posixBindings.test.ts",
+        "test/unit/vault/readmeVaultProtection.test.ts",
+        "test/unit/vault/redemption.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 23.73,
+      "log": "temp/vault-batch-14.log",
+      "tests": {
+        "passed": 15
+      }
+    },
+    {
+      "files": [
+        "test/unit/vault/remote.test.ts",
+        "test/unit/vault/reportScrub.test.ts",
+        "test/unit/vault/requestTaint.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 17.42,
+      "log": "temp/vault-batch-15.log",
+      "tests": {
+        "passed": 39
+      }
+    },
+    {
+      "files": [
+        "test/unit/vault/reviewFixes.test.ts",
+        "test/unit/vault/reviewRound2.test.ts",
+        "test/unit/vault/reviewRound3.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 12.53,
+      "log": "temp/vault-batch-16.log",
+      "tests": {
+        "passed": 40
+      }
+    },
+    {
+      "files": [
+        "test/unit/vault/reviewRound4.test.ts",
+        "test/unit/vault/reviewRound5.test.ts",
+        "test/unit/vault/rvcm1091a.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 13.78,
+      "log": "temp/vault-batch-17.log",
+      "tests": {
+        "passed": 25
+      }
+    },
+    {
+      "files": [
+        "test/unit/vault/rvcm1091a2.test.ts",
+        "test/unit/vault/rvcm1091a3.test.ts",
+        "test/unit/vault/rvcm1091a3Import.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 14.48,
+      "log": "temp/vault-batch-18.log",
+      "tests": {
+        "passed": 28
+      }
+    },
+    {
+      "files": [
+        "test/unit/vault/rvcm1091a3Panel.test.ts",
+        "test/unit/vault/rvcm1091a4.test.ts",
+        "test/unit/vault/rvcm1091b.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 15.86,
+      "log": "temp/vault-batch-19.log",
+      "tests": {
+        "passed": 186
+      }
+    },
+    {
+      "files": [
+        "test/unit/vault/scrub.test.ts",
+        "test/unit/vault/slotShared.test.ts",
+        "test/unit/vault/sshAgent.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 14.12,
+      "log": "temp/vault-batch-20.log",
+      "tests": {
+        "passed": 39
+      }
+    },
+    {
+      "files": [
+        "test/unit/vault/sshBroker.test.ts",
+        "test/unit/vault/sshConnection.test.ts",
+        "test/unit/vault/sshImport.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 12.56,
+      "log": "temp/vault-batch-21.log",
+      "tests": {
+        "passed": 21
+      }
+    },
+    {
+      "files": [
+        "test/unit/vault/sshKeys.test.ts",
+        "test/unit/vault/sshTransport.test.ts",
+        "test/unit/vault/sudoFeed.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 11.18,
+      "log": "temp/vault-batch-22.log",
+      "tests": {
+        "passed": 22
+      }
+    },
+    {
+      "files": [
+        "test/unit/vault/taint.test.ts",
+        "test/unit/vault/totp.test.ts",
+        "test/unit/vault/useDigest.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 11.88,
+      "log": "temp/vault-batch-23.log",
+      "tests": {
+        "passed": 27
+      }
+    },
+    {
+      "files": [
+        "test/unit/vault/vaultBrokerEntry.test.ts",
+        "test/unit/vault/vaultExec.test.ts",
+        "test/unit/vault/vaultManagement.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 11.19,
+      "log": "temp/vault-batch-24.log",
+      "tests": {
+        "passed": 26
+      }
+    },
+    {
+      "files": [
+        "test/unit/vault/vaultNativeEditor.test.ts",
+        "test/unit/vault/vaultPanel.test.tsx",
+        "test/unit/vault/vaultPanelBuild.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 18.63,
+      "log": "temp/vault-batch-25.log",
+      "tests": {
+        "passed": 47
+      }
+    },
+    {
+      "files": [
+        "test/unit/vault/vaultPanelBundle.test.ts",
+        "test/unit/vault/vaultPanelHost.test.ts",
+        "test/unit/vault/vaultRuntimeEntry.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 10.7,
+      "log": "temp/vault-batch-26.log",
+      "tests": {
+        "passed": 41
+      }
+    },
+    {
+      "files": [
+        "test/unit/vault/vaultStore.test.ts",
+        "test/unit/vault/webCsvImport.test.ts",
+        "test/unit/vault/webFill.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 13.33,
+      "log": "temp/vault-batch-27.log",
+      "tests": {
+        "passed": 73
+      }
+    },
+    {
+      "files": [
+        "test/unit/vault/webPageRead.test.ts",
+        "test/unit/vault/webSessions.test.ts",
+        "test/unit/vault/writerCrashPosix.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 14.37,
+      "log": "temp/vault-batch-28.log",
+      "tests": {
+        "passed": 28,
+        "skipped": 17
+      }
+    },
+    {
+      "files": ["test/unit/osStoreVaultSlot.test.ts", "test/unit/spawnInventory.test.mjs"],
+      "exit": 0,
+      "seconds": 18.06,
+      "log": "temp/vault-batch-29.log",
+      "tests": {
+        "passed": 18
+      }
+    }
+  ]
+}
