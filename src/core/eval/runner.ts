@@ -42,7 +42,7 @@ import type {
   EvalTaskResult,
 } from './report'
 import { EVAL_TASKS, evalWindowTokens, type EvalTask } from './tasks'
-import { freezeEvalHarness, frozenBundleChange } from './mechanisms'
+import { freezeEvalHarness, type FrozenEvalHarness, frozenBundleChange } from './mechanisms'
 import type { ArmBundle } from './armSources'
 import {
   createEvalWire,
@@ -69,6 +69,8 @@ export interface EvalArm {
 }
 
 export interface EvalRunDeps {
+  /** The live entry's certified immutable snapshots, prepared before credentials. */
+  readonly frozenHarness?: FrozenEvalHarness
   /** The network: the live `fetch`, or the fake Model API's. */
   readonly fetch: typeof fetch
   /** The client's settings but its `fetch`, which is each run's trace. */
@@ -368,7 +370,9 @@ export async function runPairedEval(
     paidUseFence: () => evalPaidUseFence(budget),
     dailyBudgetUsd: () => Usd.from(EVAL_BUDGET_USD).toAmount(),
   }
-  const frozen = freezeEvalHarness(arms, tasks)
+  const frozen = deps.frozenHarness ?? freezeEvalHarness(arms, tasks)
+  if (frozen.selection !== JSON.stringify({ arms: arms.map((arm) => arm.name), tasks }))
+    throw new Error('the frozen evaluation selection does not match the run')
   const runs = arms.map((arm) => ({
     arm,
     bundle: frozen.bundles.get(arm.name),

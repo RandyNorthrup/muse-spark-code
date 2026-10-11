@@ -5646,6 +5646,12 @@ validate that contract. Re-freeze reviewed harness changes with the offline
 `--check-freeze` verifies that pin using the same before-call guard. Receipts
 include ledger reservations/settlements and sanitized request hashes with
 package module-fact visibility; they contain no prompt or file contents.
+The freeze includes runner configuration and setup/alias dependencies,
+compiler/package inputs, launch flags and the named environment allow-list.
+The live entry freshly bundles and freezes its search worker before credentials;
+it uses that snapshot rather than an existing `dist/searchWorker.js`.
+Returned tool names are recorded only when offered on that request; unknown
+names become counted `other` entries without their text.
 Every verifier must finish its declared assertions and return a fresh private
 completion token; a clean process exit alone cannot pass a task.
 

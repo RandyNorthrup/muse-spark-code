@@ -36,8 +36,10 @@ const compactionLedgerSchema = z.object({
 const requestEvidenceSchema = z.object({
   sha256: z.string(),
   packageTypeModuleVisible: z.boolean(),
-  /** Tool names returned on this attempt, never their arguments or contents. */
+  /** Only tools offered on this request; unknown names become the fixed marker other. */
   responseTools: z.array(z.string()),
+  /** Number of unknown returned names, without retaining any of their text. */
+  otherTools: z.optional(z.number().check(z.int(), z.minimum(0))),
 })
 
 const evalTaskFields = {
