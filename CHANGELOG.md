@@ -539,6 +539,10 @@ happened, not what was planned; superseded entries are kept.
   setup hook; each mutation test replays only its own gate section (portable
   budgets, backend-lazy inventory, resource policy) against the shared tree,
   keeping every mutation-specific refusal assertion and existing deadline.
+- The resource-policy mutation test now forces its synthetic leak through the
+  split gate's own resource section instead of calling the gate's library on
+  its own, so removing the gate's resource-policy call fails the suite. A new
+  setup anchor covers that call; no production code, cap or deadline changes.
 
 ### Security
 

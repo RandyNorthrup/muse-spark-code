@@ -391,6 +391,14 @@ beforeAll(async () => {
         "const portableChunks = 'dist/webview/portable/chunks'",
         'exceeds ${budgetKiB} KiB',
       ),
+      // RVM104F4J P3: the gate's only resource-policy call lives outside
+      // shippedBundles, so it gets a slice anchor of its own. Deleting that
+      // call fails setup before any body can pass on a stale copy.
+      resource: section(
+        'const SHIPPED = shippedBundles()',
+        '// The authenticated classic bootstrap',
+        'checkResourceBundles(inputsOf, SHIPPED)',
+      ),
     }
     const { readdirSync: listDir, readFileSync: readFile } = productionFs()
     built.shippedBundles = runInThisContext(`(ports) => {
@@ -686,6 +694,21 @@ function runSplitLazy() {
     ${built.splitSections.lazyHead}
     const lazy = new Set(LAZY_ONLY);
     ${built.splitSections.lazyLoop}
+  }`)(ports)
+  return ports.problems
+}
+
+// The gate's own resource-policy verdict over the production tree as
+// mutated: the shipped list and the single checkResourceBundles call,
+// sliced verbatim from the gate, never the library on its own.
+function runSplitResource() {
+  const { readdirSync, readFileSync } = productionFs()
+  const inputsOf = productionInputsOf()
+  const ports = { readdirSync, readFileSync, inputsOf, checkResourceBundles, problems: [] }
+  runInThisContext(`(ports) => {
+    const { ${Object.keys(ports).join(',')} } = ports;
+    ${built.splitSections.shipped}
+    ${built.splitSections.resource}
   }`)(ports)
   return ports.problems
 }
@@ -1138,9 +1161,10 @@ describe('the production webview chunks (FIX78W)', () => {
       if (output === undefined) throw new Error('Missing activation output')
       output.inputs['src/core/resources/governor.ts'] = { bytesInOutput: 1 }
       writeFileSync(file, JSON.stringify(meta))
-      // The gate's own resource verdict over the mutated tree, not a fresh
-      // full-gate launch.
-      const problems = checkResourceBundles(productionInputsOf(), built.shippedBundles)
+      // The gate's own resource section over the mutated tree, not a fresh
+      // full-gate launch and never the library on its own: removing the
+      // gate's checkResourceBundles call fails the setup anchor first.
+      const problems = runSplitResource()
       expect(problems).toContain(
         'dist/extension.js carries resource policy src/core/resources/governor.ts outside the lazy governor',
       )
@@ -1313,7 +1337,7 @@ describe('the production webview chunks (FIX78W)', () => {
   it('qualifies the full split gate once in setup, never inside a test body', () => {
     // RVM104F4I P3: a full-gate launch costs seconds on a slow machine and
     // breaks the five-second body deadline. Bodies replay only their own
-    // section through runSplitBudget, runSplitLazy and checkResourceBundles.
+    // section through runSplitBudget, runSplitLazy and runSplitResource.
     const source = readFileSync('test/unit/webviewBundle.test.mjs', 'utf8')
     expect(
       source.matchAll(/spawnSync\(process\.execPath, \[built\.splitGate\]/g).toArray(),
