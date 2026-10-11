@@ -18,6 +18,16 @@ happened, not what was planned; superseded entries are kept.
   disclosed zero-sample assumptions until calibration replaces them per kind.
   Starting lanes, price catalogs, history and multi-machine fleets still refuse
   with their handoff names until their lanes land.
+- **Estimator history journal** (M117 C-M117-2). `/estimate` reads calibration
+  history from a durable journal in the agent data folder
+  (`estimator/history`), shared by every workspace, instead of always
+  starting empty — so observations persist across windows and processes.
+  Concrete builders project git lane-branch elapsed time, M116 review rounds
+  and CI job-hours; skipped journal records are disclosed by opaque id and
+  fixed code in the estimate. With no observations yet the estimate still
+  reports the uncalibrated prior with its sample size. The M96c board's
+  active-agent time and the M115 lane-finished collection trigger arrive with
+  their lanes.
 - **`estimate --check-plan`** (M117 CM1171R4). The headless `estimate` command
   and the ACP agent's `/estimate` accept `--check-plan`, which lists every
   estimator plan problem in `PLAN.md` — duplicate lanes, malformed `Starts`
