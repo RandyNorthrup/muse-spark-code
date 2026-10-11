@@ -58,10 +58,13 @@ happened, not what was planned; superseded entries are kept.
   values, the inputs and the calibration sample sizes. Any D97.2 goal text
   parses; goals the estimator refuses (unfinished lanes with no hours,
   unknown goals, prerequisites, rigs, releases and plan problems, missing
-  capacity, infeasible schedules) fail the source naming the same refusal
-  `/estimate` names for the goal, rendered in the report's language,
-  instead of invented rows or the generic sentence. Unshaped engine
-  failures stay generic on both surfaces: `/estimate` prints `Estimate
+  capacity, infeasible schedules) fail the source with the estimator's own
+  typed diagnostic — the same refusal code and parameters `/estimate`
+  names — rendered in the report's language (capacity and goal refusals
+  keep their named sentences; a `missing-estimate` refusal re-renders its
+  lane list and omitted count from that data in the report's language),
+  instead of invented rows or a guess. A refusal without a valid typed
+  diagnostic stays generic on both surfaces: `/estimate` prints `Estimate
   failed: estimate-unavailable` while the report records the failed code
   with its table sentence. `--by <date>` means midnight UTC
   (`2026-11-01` asks for `2026-11-01T00:00:00.000Z`) on the terminal, in VS
