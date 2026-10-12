@@ -3601,6 +3601,18 @@
   "execPaidNeedsEdits": "Generowanie obrazów wymaga acceptEdits.",
   "execModelApiOnly": "Te opcje wymagają backendu Model API.",
   "execTeamNeedsEdits": "--team wymaga --permission-mode acceptEdits.",
+  "execTeamWorkerUnsupported": "Zespoły bez interfejsu uruchamiają tylko wykonawców silnika; {kind} nie może działać w CI.",
+  "execTeamConfigInvalid": "Nieprawidłowa konfiguracja zespołu bez interfejsu: {reason}.",
+  "execTeamConfigNotJson": "team.json nie jest JSON.",
+  "execTeamConfigNotObject": "team.json musi zawierać pojedynczy obiekt.",
+  "execTeamConfigLowersOnly": "Wpis {entry} w team.json jest niedozwolony: plik obszaru roboczego może jedynie obniżać istniejące limity.",
+  "execTeamConfigBadEntry": "Wpis {entry} w team.json jest nieprawidłowy.",
+  "execTeamStateUnreadable": "Nie można odczytać zapisanego zespołu headless; sprawdź plik zespołu obszaru roboczego.",
+  "execTeamReviewerUnsupported": "team.json wymaga recenzenta {entry}; ten runner oferuje tylko przegląd kodu.",
+  "execTeamMergeMarkers": "Gałąź nadal zawiera znaczniki konfliktu w {detail}; rozwiąż je i scal ponownie.",
+  "execTeamMergeHeldProtected": "Chronione ścieżki wymagają zatwierdzenia, więc gałąź jest przetrzymana w {ref}. Zatwierdź je i scal ponownie albo usuń {ref}, aby odrzucić pracę.",
+  "execTeamMergeHeldReview": "Wymagana recenzja nie jest ukończona, więc gałąź jest przetrzymana w {ref}. Zbierz recenzję i scal ponownie albo usuń {ref}, aby odrzucić pracę.",
+  "execTeamMergeBlocked": "Scalanie dla zadania {entry} nie może być kontynuowane: {detail}.",
   "execMuseCodeOnly": "Te opcje wymagają backendu Muse Code.",
   "execModelUnpriced": "Ten model nie ma znanej taryfy.",
   "execPromptMissing": "Podaj jedno niepuste polecenie.",
@@ -5547,17 +5559,5 @@
       "few": "{count} uprawnienia",
       "many": "{count} uprawnień"
     }
-  },
-  "execTeamWorkerUnsupported": "Zespoły bez interfejsu uruchamiają tylko wykonawców silnika; {kind} nie może działać w CI.",
-  "execTeamConfigInvalid": "Nieprawidłowa konfiguracja zespołu bez interfejsu: {reason}.",
-  "execTeamConfigNotJson": "team.json nie jest JSON.",
-  "execTeamConfigNotObject": "team.json musi zawierać pojedynczy obiekt.",
-  "execTeamConfigLowersOnly": "Wpis {entry} w team.json jest niedozwolony: plik obszaru roboczego może jedynie obniżać istniejące limity.",
-  "execTeamConfigBadEntry": "Wpis {entry} w team.json jest nieprawidłowy.",
-  "execTeamStateUnreadable": "Nie można odczytać zapisanego zespołu headless; sprawdź plik zespołu obszaru roboczego.",
-  "execTeamReviewerUnsupported": "team.json wymaga recenzenta {entry}; ten runner oferuje tylko przegląd kodu.",
-  "execTeamMergeMarkers": "Gałąź nadal zawiera znaczniki konfliktu w {detail}; rozwiąż je i scal ponownie.",
-  "execTeamMergeHeldProtected": "Chronione ścieżki wymagają zatwierdzenia, więc gałąź jest przetrzymana w {ref}. Zatwierdź je i scal ponownie albo usuń {ref}, aby odrzucić pracę.",
-  "execTeamMergeHeldReview": "Wymagana recenzja nie jest ukończona, więc gałąź jest przetrzymana w {ref}. Zbierz recenzję i scal ponownie albo usuń {ref}, aby odrzucić pracę.",
-  "execTeamMergeBlocked": "Scalanie dla zadania {entry} nie może być kontynuowane: {detail}."
+  }
 }

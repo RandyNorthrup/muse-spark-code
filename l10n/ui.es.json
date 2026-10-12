@@ -3528,6 +3528,18 @@
   "execPaidNeedsEdits": "La generación de imágenes requiere acceptEdits.",
   "execModelApiOnly": "Estas opciones requieren el motor Model API.",
   "execTeamNeedsEdits": "--team necesita --permission-mode acceptEdits.",
+  "execTeamWorkerUnsupported": "Los equipos sin interfaz solo ejecutan trabajadores del motor; {kind} no puede ejecutarse en CI.",
+  "execTeamConfigInvalid": "La configuración del equipo sin interfaz no es válida: {reason}.",
+  "execTeamConfigNotJson": "team.json no es JSON.",
+  "execTeamConfigNotObject": "team.json debe contener un solo objeto.",
+  "execTeamConfigLowersOnly": "La entrada {entry} de team.json no está permitida: el archivo del espacio de trabajo solo puede reducir los límites existentes.",
+  "execTeamConfigBadEntry": "La entrada {entry} de team.json no es válida.",
+  "execTeamStateUnreadable": "No se puede leer el equipo sin interfaz almacenado; revise el archivo de equipo del espacio de trabajo.",
+  "execTeamReviewerUnsupported": "team.json requiere el revisor {entry}; este ejecutor solo ofrece revisión de código.",
+  "execTeamMergeMarkers": "La rama aún muestra marcadores de conflicto en {detail}; resuélvalos y fusione de nuevo.",
+  "execTeamMergeHeldProtected": "Las rutas protegidas necesitan aprobación, por lo que la rama se conserva en {ref}. Apruébelas y fusione de nuevo, o elimine {ref} para descartar el trabajo.",
+  "execTeamMergeHeldReview": "La revisión requerida no está completa, por lo que la rama se conserva en {ref}. Recoja la revisión y fusione de nuevo, o elimine {ref} para descartar el trabajo.",
+  "execTeamMergeBlocked": "La fusión no puede continuar para la tarea {entry}: {detail}.",
   "execMuseCodeOnly": "Estas opciones requieren el motor Muse Code.",
   "execModelUnpriced": "Este modelo no tiene una tarifa conocida.",
   "execPromptMissing": "Proporciona una única instrucción no vacía.",
@@ -5394,17 +5406,5 @@
       "other": "{count} autorizaciones",
       "many": "{count} autorizaciones"
     }
-  },
-  "execTeamWorkerUnsupported": "Los equipos sin interfaz solo ejecutan trabajadores del motor; {kind} no puede ejecutarse en CI.",
-  "execTeamConfigInvalid": "La configuración del equipo sin interfaz no es válida: {reason}.",
-  "execTeamConfigNotJson": "team.json no es JSON.",
-  "execTeamConfigNotObject": "team.json debe contener un solo objeto.",
-  "execTeamConfigLowersOnly": "La entrada {entry} de team.json no está permitida: el archivo del espacio de trabajo solo puede reducir los límites existentes.",
-  "execTeamConfigBadEntry": "La entrada {entry} de team.json no es válida.",
-  "execTeamStateUnreadable": "No se puede leer el equipo sin interfaz almacenado; revise el archivo de equipo del espacio de trabajo.",
-  "execTeamReviewerUnsupported": "team.json requiere el revisor {entry}; este ejecutor solo ofrece revisión de código.",
-  "execTeamMergeMarkers": "La rama aún muestra marcadores de conflicto en {detail}; resuélvalos y fusione de nuevo.",
-  "execTeamMergeHeldProtected": "Las rutas protegidas necesitan aprobación, por lo que la rama se conserva en {ref}. Apruébelas y fusione de nuevo, o elimine {ref} para descartar el trabajo.",
-  "execTeamMergeHeldReview": "La revisión requerida no está completa, por lo que la rama se conserva en {ref}. Recoja la revisión y fusione de nuevo, o elimine {ref} para descartar el trabajo.",
-  "execTeamMergeBlocked": "La fusión no puede continuar para la tarea {entry}: {detail}."
+  }
 }

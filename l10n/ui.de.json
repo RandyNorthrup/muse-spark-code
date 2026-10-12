@@ -3455,6 +3455,18 @@
   "execPaidNeedsEdits": "Bilderzeugung benötigt acceptEdits.",
   "execModelApiOnly": "Diese Optionen benötigen das Model-API-Backend.",
   "execTeamNeedsEdits": "--team benötigt --permission-mode acceptEdits.",
+  "execTeamWorkerUnsupported": "Headless-Teams führen nur Engine-Worker aus; {kind} kann in CI nicht laufen.",
+  "execTeamConfigInvalid": "Ungültige Headless-Team-Konfiguration: {reason}.",
+  "execTeamConfigNotJson": "team.json ist kein JSON.",
+  "execTeamConfigNotObject": "team.json muss ein einzelnes Objekt enthalten.",
+  "execTeamConfigLowersOnly": "team.json-Eintrag {entry} ist nicht zulässig: Die Arbeitsbereichsdatei kann bestehende Grenzwerte nur senken.",
+  "execTeamConfigBadEntry": "team.json-Eintrag {entry} ist ungültig.",
+  "execTeamStateUnreadable": "Das gespeicherte Headless-Team kann nicht gelesen werden; prüfen Sie die Teamdatei des Arbeitsbereichs.",
+  "execTeamReviewerUnsupported": "team.json erfordert den Prüfer {entry}; dieser Runner bietet nur Code-Prüfung.",
+  "execTeamMergeMarkers": "Der Branch zeigt noch Konfliktmarkierungen bei {detail}; lösen Sie sie auf und führen Sie den Merge erneut aus.",
+  "execTeamMergeHeldProtected": "Geschützte Pfade brauchen eine Freigabe, daher wird der Branch unter {ref} gehalten. Geben Sie sie frei und führen Sie den Merge erneut aus, oder entfernen Sie {ref}, um die Arbeit zu verwerfen.",
+  "execTeamMergeHeldReview": "Die erforderliche Prüfung ist nicht abgeschlossen, daher wird der Branch unter {ref} gehalten. Holen Sie die Prüfung ein und führen Sie den Merge erneut aus, oder entfernen Sie {ref}, um die Arbeit zu verwerfen.",
+  "execTeamMergeBlocked": "Der Merge kann für Task {entry} nicht fortgesetzt werden: {detail}.",
   "execMuseCodeOnly": "Diese Optionen benötigen das Muse-Code-Backend.",
   "execModelUnpriced": "Für dieses Modell ist kein Tarif bekannt.",
   "execPromptMissing": "Gib einen nicht leeren Prompt an.",
@@ -5241,17 +5253,5 @@
       "one": "{count} Freigabe",
       "other": "{count} Freigaben"
     }
-  },
-  "execTeamWorkerUnsupported": "Headless-Teams führen nur Engine-Worker aus; {kind} kann in CI nicht laufen.",
-  "execTeamConfigInvalid": "Ungültige Headless-Team-Konfiguration: {reason}.",
-  "execTeamConfigNotJson": "team.json ist kein JSON.",
-  "execTeamConfigNotObject": "team.json muss ein einzelnes Objekt enthalten.",
-  "execTeamConfigLowersOnly": "team.json-Eintrag {entry} ist nicht zulässig: Die Arbeitsbereichsdatei kann bestehende Grenzwerte nur senken.",
-  "execTeamConfigBadEntry": "team.json-Eintrag {entry} ist ungültig.",
-  "execTeamStateUnreadable": "Das gespeicherte Headless-Team kann nicht gelesen werden; prüfen Sie die Teamdatei des Arbeitsbereichs.",
-  "execTeamReviewerUnsupported": "team.json erfordert den Prüfer {entry}; dieser Runner bietet nur Code-Prüfung.",
-  "execTeamMergeMarkers": "Der Branch zeigt noch Konfliktmarkierungen bei {detail}; lösen Sie sie auf und führen Sie den Merge erneut aus.",
-  "execTeamMergeHeldProtected": "Geschützte Pfade brauchen eine Freigabe, daher wird der Branch unter {ref} gehalten. Geben Sie sie frei und führen Sie den Merge erneut aus, oder entfernen Sie {ref}, um die Arbeit zu verwerfen.",
-  "execTeamMergeHeldReview": "Die erforderliche Prüfung ist nicht abgeschlossen, daher wird der Branch unter {ref} gehalten. Holen Sie die Prüfung ein und führen Sie den Merge erneut aus, oder entfernen Sie {ref}, um die Arbeit zu verwerfen.",
-  "execTeamMergeBlocked": "Der Merge kann für Task {entry} nicht fortgesetzt werden: {detail}."
+  }
 }
