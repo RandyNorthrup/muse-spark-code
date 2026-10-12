@@ -7317,9 +7317,10 @@ export const TEAM_ENGINE_HARD_CEILING = 20
 // `museSpark.teamMaxWorkers`' default: the lower of the ceiling and twice the
 // logical CPUs (D75).
 export const TEAM_MAX_WORKERS_PER_CPU = 2
-// `museSpark.team` (D75's switch, on unless set false). Not contributed to the
-// manifest until a user can save a team in the Roles section (C-M96-2, lead
-// 2026-10-10): until then it would do nothing a user can see.
+// `museSpark.team` (D75's switch, off unless explicitly set true). Not
+// contributed to the manifest until a user can save a team in the Roles
+// section (C-M96-2, lead 2026-10-10): until then it would do nothing a user
+// can see. Hidden means hidden: an absent setting counts as off.
 export const TEAM_SWITCH_SETTING = 'team'
 export const TEAM_MUSE_CODE_HOST_CEILING = 4
 export const TEAM_EXTERNAL_AGENT_CEILING = 4

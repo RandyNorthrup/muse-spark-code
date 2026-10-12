@@ -2560,10 +2560,12 @@ async function activateWindow(
         },
       },
       settings: {
-        // Hidden until C-M96-2: only an explicit `false` turns the team off.
+        // Hidden means hidden: the team stays off until an explicit `true`
+        // flips it on (withheld public activation, PLAN.md D33/qualification).
+        // An absent setting counts as off, never as on.
         isTeamOn: () =>
-          vscode.workspace.getConfiguration(SETTINGS_SECTION).get<unknown>(TEAM_SWITCH_SETTING) !==
-          false,
+          vscode.workspace.getConfiguration(SETTINGS_SECTION).get<unknown>(TEAM_SWITCH_SETTING) ===
+          true,
         isTeamWorkersOn: () => currentSettings().modelApiTeamWorkers,
         maxWorkers: () =>
           Math.min(TEAM_ENGINE_HARD_CEILING, TEAM_MAX_WORKERS_PER_CPU * availableParallelism()),
