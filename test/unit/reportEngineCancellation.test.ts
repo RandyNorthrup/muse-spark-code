@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { REPORT_KINDS } from '../../src/shared/constants'
+import { REPORT_KIND_REGISTRY } from '../../src/core/reporting/registry'
 import { EN } from '../../src/shared/l10n/en'
 import {
   reportAdmissionStep,
@@ -26,11 +27,15 @@ function sleep(ms: number): Promise<void> {
 }
 
 describe.each(REPORT_KINDS)('%s cancellation', (kind) => {
+  // Ports are per source, kinds per report: exercise each kind through its
+  // own first registry source, which is the port the engine hands the
+  // signal and deadline for that kind.
+  const source = REPORT_KIND_REGISTRY[kind].sources[0]
   it('never starts a read past an abort', async () => {
     const controller = new AbortController()
     controller.abort()
     let calls = 0
-    const port = localSource(kind, () => {
+    const port = localSource(source, () => {
       calls += 1
       return Promise.reject(new LocalSourceError('failed'))
     })
@@ -52,7 +57,7 @@ describe.each(REPORT_KINDS)('%s cancellation', (kind) => {
       },
       { once: true },
     )
-    const port = localSource(kind, async ({ signal }) => {
+    const port = localSource(source, async ({ signal }) => {
       while (!signal.aborted) {
         calls += 1
         await sleep(5)
@@ -78,7 +83,7 @@ describe.each(REPORT_KINDS)('%s cancellation', (kind) => {
   it('awaits the read past the abort instead of abandoning it', async () => {
     const controller = new AbortController()
     let hasSettled = false
-    const port = localSource(kind, async ({ signal }) => {
+    const port = localSource(source, async ({ signal }) => {
       await new Promise<void>((resolve) => {
         signal.addEventListener(
           'abort',
@@ -105,7 +110,7 @@ describe.each(REPORT_KINDS)('%s cancellation', (kind) => {
   })
 
   it('reports a held resource as busy, not cancelled', async () => {
-    const port = localSource(kind, () => Promise.reject(new LocalSourceError('busy')))
+    const port = localSource(source, () => Promise.reject(new LocalSourceError('busy')))
     const result = await port.read(contextFor(kind, new AbortController().signal))
     expect(result.data).toBeNull()
     expect(result.record.status).toBe('unavailable')
