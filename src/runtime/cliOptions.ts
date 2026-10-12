@@ -52,6 +52,13 @@ const PROVIDER_OPTIONS = {
   privacy: { type: 'string' },
   'private-ok': { type: 'boolean' },
   'key-stdin': { type: 'boolean' },
+  // PROVSPEND: `providers usage <id> [--days n] [--output json]` and
+  // `auth set|clear --provider <id> --admin`. Serve and login still refuse
+  // these through NON_SERVE_OPTIONS in cliArgs; the auth route refuses
+  // everything but `admin` beside its own targeting.
+  days: { type: 'string' },
+  admin: { type: 'boolean' },
+  output: { type: 'string' },
 } as const satisfies CliParserOptions
 
 const COMMON_OPTIONS = {
@@ -186,6 +193,8 @@ export const CLI_OPTION_TEXT = {
   preset: 'preset',
   as: 'as',
   address: 'address',
+  days: 'days',
+  admin: 'admin',
   format: 'format',
   privacy: 'privacy',
   'private-ok': 'private-ok',

@@ -16,8 +16,10 @@ import { fill } from '../shared/l10n/text'
 import {
   formatStoredProviderSecret,
   parseStoredProviderSecret,
+  providerAdminSecretAccount,
   providerSecretAccount,
 } from './keyStore'
+import type { ProviderPreset } from '../core/providers/presets'
 
 export interface AuthCommandDeps {
   readonly secrets: SecretStore
@@ -97,6 +99,7 @@ export async function authSetProvider(
   providerId: string,
   /** The runner's own user file (never a repository file). */
   readUserFile: () => Promise<ProvidersFileRead>,
+  options?: { readonly admin?: boolean | undefined },
 ): Promise<number> {
   const { keyTargetFor } = await import('./providersCommands')
   const target = await keyTargetFor(readUserFile, providerId)
@@ -108,6 +111,9 @@ export async function authSetProvider(
   if (preset.auth !== 'apiKey') {
     deps.printError(fill(UI_TEXT.providerNotConfigured, { provider: providerId }))
     return EXIT_FAILED
+  }
+  if (options?.admin === true) {
+    return await authSetProviderAdmin(deps, providerId, preset, origin)
   }
   const typed = await deps.readSecret(fill(UI_TEXT.providerKeyPrompt, { provider: providerId }))
   const candidate = typed.trim()
@@ -139,6 +145,54 @@ export async function authSetProvider(
   return EXIT_OK
 }
 
+/**
+ * `auth set --provider <id> --admin`: the admin report key comes from
+ * standard input only, like every other key. The surface says in one
+ * sentence what the key can read before it is stored; the key lands under
+ * its own store name and is used for nothing but read-only report
+ * requests. Only `admin-report` presets take one.
+ */
+async function authSetProviderAdmin(
+  deps: AuthCommandDeps,
+  providerId: string,
+  preset: ProviderPreset,
+  origin: string,
+): Promise<number> {
+  if (preset.spend !== 'admin-report') {
+    deps.printError(UI_TEXT.accounts.spendUnsupported)
+    return EXIT_FAILED
+  }
+  deps.print(UI_TEXT.accounts.spendAdminExplains)
+  const typed = await deps.readSecret(
+    fill(UI_TEXT.accounts.spendAdminPrompt, { provider: providerId }),
+  )
+  const candidate = typed.trim()
+  if (candidate === '') {
+    deps.printError(UI_TEXT.providerKeyNotStored)
+    return EXIT_FAILED
+  }
+  const account = providerAdminSecretAccount(providerId)
+  if (account === undefined) {
+    deps.printError(fill(UI_TEXT.providerUnknown, { provider: providerId }))
+    return EXIT_FAILED
+  }
+  try {
+    await deps.secrets.store(
+      account,
+      formatStoredProviderSecret(
+        { v: CREDENTIAL_RECORD_VERSION, auth: 'apiKey', origin },
+        candidate,
+      ),
+    )
+  } catch (error: unknown) {
+    return unavailable(deps, error)
+  }
+  deps.print(
+    fill(UI_TEXT.accounts.spendAdminStored, { provider: providerId, store: deps.storeName }),
+  )
+  return EXIT_OK
+}
+
 /** The validated account, with one consistent refusal for every auth command. */
 function providerAccount(deps: AuthCommandDeps, providerId: string): string | undefined {
   const account = providerSecretAccount(providerId)
@@ -151,9 +205,17 @@ function providerAccount(deps: AuthCommandDeps, providerId: string): string | un
 export async function authStatusProvider(
   deps: AuthCommandDeps,
   providerId: string,
+  options?: { readonly admin?: boolean | undefined },
 ): Promise<number> {
-  const account = providerAccount(deps, providerId)
-  if (account === undefined) return EXIT_FAILED
+  const account =
+    options?.admin === true
+      ? providerAdminSecretAccount(providerId)
+      : providerAccount(deps, providerId)
+  if (account === undefined) {
+    if (options?.admin === true)
+      deps.printError(fill(UI_TEXT.providerUnknown, { provider: providerId }))
+    return EXIT_FAILED
+  }
   let stored: string | undefined
   try {
     stored = await deps.secrets.get(account)
@@ -161,7 +223,9 @@ export async function authStatusProvider(
     return unavailable(deps, error)
   }
   if (stored === undefined || stored === '') {
-    deps.print(fill(UI_TEXT.providerKeyAbsent, { provider: providerId }))
+    if (options?.admin === true)
+      deps.print(fill(UI_TEXT.accounts.spendAdminMissing, { provider: providerId }))
+    else deps.print(fill(UI_TEXT.providerKeyAbsent, { provider: providerId }))
     return EXIT_FAILED
   }
   let value: unknown
@@ -189,13 +253,25 @@ export async function authStatusProvider(
 export async function authClearProvider(
   deps: AuthCommandDeps,
   providerId: string,
+  options?: { readonly admin?: boolean | undefined },
 ): Promise<number> {
-  const account = providerAccount(deps, providerId)
-  if (account === undefined) return EXIT_FAILED
+  const account =
+    options?.admin === true
+      ? providerAdminSecretAccount(providerId)
+      : providerAccount(deps, providerId)
+  if (account === undefined) {
+    if (options?.admin === true)
+      deps.printError(fill(UI_TEXT.providerUnknown, { provider: providerId }))
+    return EXIT_FAILED
+  }
   try {
     await deps.secrets.delete(account)
   } catch (error: unknown) {
     return unavailable(deps, error)
+  }
+  if (options?.admin === true) {
+    deps.print(fill(UI_TEXT.accounts.spendAdminCleared, { provider: providerId }))
+    return EXIT_OK
   }
   deps.print(fill(UI_TEXT.providerKeyCleared, { provider: providerId }))
   return EXIT_OK

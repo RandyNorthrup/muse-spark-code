@@ -298,6 +298,10 @@ export const PROVIDER_SECRET_PREFIX = 'museSpark.provider.'
  * stored where an inference read looks, and removing the provider removes it.
  */
 export const PROVIDER_ADMIN_SECRET_PREFIX = 'museSpark.providerAdmin.'
+/** `providers usage` reports this many days back unless `--days n` says otherwise. */
+export const PROVIDER_SPEND_DAYS_DEFAULT = 30
+/** A spend report never spans more than a year plus a day. */
+export const PROVIDER_SPEND_DAYS_MAX = 366
 /** The OAuth loopback's one-shot callback lasts ten minutes (D74). */
 export const OAUTH_LOOPBACK_TIMEOUT_MS = 10 * 60 * 1000
 /** ACP grant mutations serialize by exclusively listening on this loopback port. */
@@ -2203,6 +2207,13 @@ export const BEST_OF_N_MIN_GIT_MINOR = 36
 /** Bump when the accepted rates or child-task limit changes. */
 export const SUBAGENT_PRICE_ACCEPTANCE_VERSION = '2026-09-26:requests-4:v1'
 export const TOKENS_PER_MILLION = 1_000_000
+/**
+ * The vendored models.dev price snapshot's date (PROVSPEND): the spend
+ * reconciliation names it as the catalogue our estimate's prices come
+ * from. Pinned by test against `vendor/models-dev/VENDOR.json`
+ * (`fetchedAt`); bump both together when the snapshot refreshes.
+ */
+export const MODELS_DEV_CATALOGUE_DATE = '2026-10-05'
 // dev.meta.ai/docs/models: every Muse Spark model has this window; the
 // output cap is well under the documented 131,072 maximum.
 export const MODEL_API_CONTEXT_WINDOW = 1_048_576

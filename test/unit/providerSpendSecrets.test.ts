@@ -161,9 +161,10 @@ describe('admin report key separation', () => {
   })
 
   it('never lets an inference auth path name the admin account', () => {
+    // The model-request transports read only the inference account. The
+    // terminal intake (authCommands) names both, gated by `--admin`.
     for (const file of [
       '../../src/host/backend/configuredProvidersEntry.ts',
-      '../../src/runtime/authCommands.ts',
       '../../src/runtime/exec/providerExec.ts',
     ]) {
       const body = readFileSync(new URL(file, import.meta.url), 'utf8')

@@ -6200,7 +6200,8 @@ export const EN = {
     spendBalance: 'Balance: {balance}.',
     spendKeyUsage: 'Spent {today} today, {week} this week, {month} this month.',
     spendKeyLimit: 'Limit {limit}; {remaining} left.',
-    spendEstimate: 'Our estimate for the same period: {cost} ({input} input, {output} output).',
+    spendEstimate: 'Our estimate for the same period: {cost}.',
+    spendEstimateTokens: 'Estimated tokens: {input} input, {output} output.',
     spendMatches: 'The provider figure matches our estimate within rounding.',
     spendDiffers:
       'The provider reports {reported} and we estimate {estimated} for the same period, a difference of {difference}. {reasons}',

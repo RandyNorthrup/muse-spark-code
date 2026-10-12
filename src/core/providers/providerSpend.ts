@@ -34,11 +34,18 @@ export const SPEND_PAGE_BOUND = 20
 /** Read-only report requests never outrun the provider's polling limit. */
 export const SPEND_POLL_FLOOR_MS = 60_000
 
-/** One read-only GET the caller sends over its pinned transport. */
+/**
+ * One read-only GET the caller sends over its pinned transport. The key
+ * rides the transport's auth source (`auth`), never a caller header: the
+ * transport strips credential headers from caller input and only the pin
+ * decides the origin, so the key goes nowhere else.
+ */
 export interface SpendHttpRequest {
   readonly url: string
   readonly method: 'GET'
+  /** Non-credential headers only (the provider's version header). */
   readonly headers: Readonly<Record<string, string>>
+  readonly auth: { readonly scheme: 'bearer' | 'x-api-key'; readonly key: string }
   /** The origin the caller's pin must allow; the key goes nowhere else. */
   readonly origin: string
 }
@@ -76,7 +83,8 @@ export function spendFailureText(failure: SpendFailure, provider: string): strin
  * The documented request lines (UNVERIFIED shapes, see the header).
  * Anthropic: `GET {origin}/v1/organizations/usage_report/messages` and
  * `GET {origin}/v1/organizations/cost_report` with
- * `anthropic-version: 2023-06-01` and `x-api-key: <ADMIN key>`.
+ * `anthropic-version: 2023-06-01`; the key rides the `x-api-key` auth
+ * source (the transport strips credential headers from caller input).
  */
 export function anthropicSpendRequests(input: {
   readonly origin: string
@@ -85,10 +93,8 @@ export function anthropicSpendRequests(input: {
   readonly endingAt: string
   readonly page?: string | undefined
 }): readonly SpendHttpRequest[] {
-  const headers = {
-    'anthropic-version': '2023-06-01',
-    'x-api-key': input.key,
-  }
+  const headers = { 'anthropic-version': '2023-06-01' }
+  const auth = { scheme: 'x-api-key' as const, key: input.key }
   const query = new URLSearchParams({
     starting_at: input.startingAt,
     ending_at: input.endingAt,
@@ -97,11 +103,12 @@ export function anthropicSpendRequests(input: {
   if (input.page !== undefined) query.set('page', input.page)
   const usage = `${input.origin}/v1/organizations/usage_report/messages?${query.toString()}`
   return [
-    { url: usage, method: 'GET', headers, origin: input.origin },
+    { url: usage, method: 'GET', headers, auth, origin: input.origin },
     {
       url: `${input.origin}/v1/organizations/cost_report?${query.toString()}`,
       method: 'GET',
       headers,
+      auth,
       origin: input.origin,
     },
   ]
@@ -109,7 +116,7 @@ export function anthropicSpendRequests(input: {
 
 /**
  * OpenAI: `GET {origin}/v1/organization/usage/completions` and
- * `GET {origin}/v1/organization/costs` with `Authorization: Bearer <key>`.
+ * `GET {origin}/v1/organization/costs` with a bearer auth source.
  * Costs bucket by day only; both pages carry a page cursor (UNVERIFIED).
  */
 export function openAiSpendRequests(input: {
@@ -119,7 +126,8 @@ export function openAiSpendRequests(input: {
   readonly endTime: string
   readonly page?: string | undefined
 }): readonly SpendHttpRequest[] {
-  const headers = { Authorization: `Bearer ${input.key}` }
+  const headers = {}
+  const auth = { scheme: 'bearer' as const, key: input.key }
   const usageQuery = new URLSearchParams({ start_time: input.startTime, end_time: input.endTime })
   const costQuery = new URLSearchParams({
     start_time: input.startTime,
@@ -135,12 +143,14 @@ export function openAiSpendRequests(input: {
       url: `${input.origin}/v1/organization/usage/completions?${usageQuery.toString()}`,
       method: 'GET',
       headers,
+      auth,
       origin: input.origin,
     },
     {
       url: `${input.origin}/v1/organization/costs?${costQuery.toString()}`,
       method: 'GET',
       headers,
+      auth,
       origin: input.origin,
     },
   ]
@@ -154,7 +164,8 @@ export function openRouterSpendRequest(input: {
   return {
     url: `${input.origin}/api/v1/key`,
     method: 'GET',
-    headers: { Authorization: `Bearer ${input.key}` },
+    headers: {},
+    auth: { scheme: 'bearer', key: input.key },
     origin: input.origin,
   }
 }
@@ -167,7 +178,8 @@ export function deepSeekSpendRequest(input: {
   return {
     url: `${input.origin}/user/balance`,
     method: 'GET',
-    headers: { Authorization: `Bearer ${input.key}` },
+    headers: {},
+    auth: { scheme: 'bearer', key: input.key },
     origin: input.origin,
   }
 }
@@ -297,6 +309,62 @@ const openAiCostPage = z.object({
   next_page: z.optional(z.string()),
 })
 
+// OpenRouter key body (field names from the D74 capture,
+// `docs/certification/m95-captures.md`: `limit`, `limit_remaining` and
+// `usage` with its daily, weekly and monthly parts). Amounts are dollars as
+// counted by the existing key-usage read; a `null` limit is no limit.
+// UNVERIFIED: the capture does not say whether the month reads `usage` or
+// `usage_monthly`, so the read takes `usage_monthly`; the lead's live
+// capture must confirm it.
+const openRouterKeyBody = z.object({
+  data: z.object({
+    limit: z.union([z.number(), z.null()]),
+    limit_remaining: z.union([z.number(), z.null()]),
+    usage: z.number(),
+    usage_daily: z.number(),
+    usage_weekly: z.number(),
+    usage_monthly: z.number(),
+  }),
+})
+
+/**
+ * Parse an OpenRouter key body into the validated key-usage snapshot the
+ * existing read produces. Unknown fields are ignored; a missing or
+ * non-numeric amount is unreadable.
+ */
+export function parseOpenRouterKeyBody(body: unknown):
+  | SpendFailure
+  | {
+      readonly usedToday: number
+      readonly usedThisWeek: number
+      readonly usedThisMonth: number
+      readonly limit?: number | undefined
+      readonly remaining?: number | undefined
+    } {
+  const parsed = z.safeParse(openRouterKeyBody, body)
+  if (!parsed.success) return unreadable()
+  const numbers = [
+    parsed.data.data.usage_daily,
+    parsed.data.data.usage_weekly,
+    parsed.data.data.usage_monthly,
+  ]
+  if (numbers.some((value) => !Number.isFinite(value) || value < 0)) return unreadable()
+  const limit = parsed.data.data.limit
+  const remaining = parsed.data.data.limit_remaining
+  if (
+    (limit !== null && (!Number.isFinite(limit) || limit < 0)) ||
+    (remaining !== null && (!Number.isFinite(remaining) || remaining < 0))
+  )
+    return unreadable()
+  return {
+    usedToday: parsed.data.data.usage_daily,
+    usedThisWeek: parsed.data.data.usage_weekly,
+    usedThisMonth: parsed.data.data.usage_monthly,
+    ...(limit !== null && { limit }),
+    ...(remaining !== null && { remaining }),
+  }
+}
+
 // DeepSeek balance (UNVERIFIED field names): availability plus per-currency
 // balances as decimal strings.
 const deepSeekBalanceBody = z.object({
@@ -316,7 +384,7 @@ function unreadable(): SpendFailure {
 }
 
 /** True for a failure value; no report or page result carries `kind`. */
-function isSpendFailure(value: unknown): value is SpendFailure {
+export function isSpendFailure(value: unknown): value is SpendFailure {
   return typeof value === 'object' && value !== null && 'kind' in value
 }
 
@@ -725,11 +793,15 @@ export class SpendThrottle {
 
 // --- Reconciliation text (display only; the two figures are never blended)
 
-/** Our own estimate for the same period the provider reported on. */
+/**
+ * Our own estimate for the same period the provider reported on. Token
+ * counts stay absent when the journal did not record them: the comparison
+ * then covers dollars only, never a zero.
+ */
 export interface SpendEstimate {
   readonly usd: string
-  readonly inputTokens: number
-  readonly outputTokens: number
+  readonly inputTokens?: number | undefined
+  readonly outputTokens?: number | undefined
 }
 
 /** A difference at or below rounding needs no sentence. */
@@ -803,22 +875,23 @@ export function spendReportLines(
   ]
   if (estimate === undefined) return lines
   const totals = sumRows(report.tokensByModel)
-  lines.push(
-    fill(UI_TEXT.accounts.spendEstimate, {
-      cost: money(estimate.usd),
-      input: formatNumber(estimate.inputTokens),
-      output: formatNumber(estimate.outputTokens),
-    }),
-  )
+  lines.push(fill(UI_TEXT.accounts.spendEstimate, { cost: money(estimate.usd) }))
+  if (estimate.inputTokens !== undefined && estimate.outputTokens !== undefined) {
+    lines.push(
+      fill(UI_TEXT.accounts.spendEstimateTokens, {
+        input: formatNumber(estimate.inputTokens),
+        output: formatNumber(estimate.outputTokens),
+      }),
+    )
+  }
   const signed = Usd.from(report.totalUsd).subtract(Usd.from(estimate.usd))
   const magnitude = signed.compare(Usd.from(0)) < 0 ? Usd.from(0).subtract(signed) : signed
   const hasUsdDifference =
     signed.compare(Usd.from(0)) !== 0 && magnitude.compare(Usd.from(SPEND_ROUNDING_USD)) >= 0
-  if (
-    !hasUsdDifference &&
-    totals.input === estimate.inputTokens &&
-    totals.output === estimate.outputTokens
-  ) {
+  const hasTokenDifference =
+    (estimate.inputTokens !== undefined && totals.input !== estimate.inputTokens) ||
+    (estimate.outputTokens !== undefined && totals.output !== estimate.outputTokens)
+  if (!hasUsdDifference && !hasTokenDifference) {
     lines.push(UI_TEXT.accounts.spendMatches)
     return lines
   }
