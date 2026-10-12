@@ -254,7 +254,15 @@ async function harness(
       const code = await runExec(life, deps)
       const events: ResourceExecEvent[] =
         deps.options.output === 'json'
-          ? [{ type: 'result', result: validateSchemaResult(JSON.parse(out.chunks.join(''))) }]
+          ? [
+              {
+                type: 'result',
+                result: validateSchemaResult(JSON.parse(out.chunks.join(''))),
+                v: 2,
+                seq: 1,
+                time: new Date(now()).toISOString(),
+              },
+            ]
           : out.chunks.flatMap((chunk) =>
               chunk
                 .trim()
@@ -1248,7 +1256,8 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
       uncertain: responseReservationTotal(r),
       isUpperBound: true,
     })
-    expect(result(r).finalMessage).toBe(UI_TEXT.execMessageWithheld)
+    expect(result(r).finalMessage).toBe('partial')
+    expect(result(r).finalMessageComplete).toBe(false)
   })
   it.each([false, true])(
     'D11/D12 missing key vs unavailable store=%s starts no network',
@@ -1307,7 +1316,7 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
     expect(result(r).usage.requests).toBe(5)
     expect(result(r).usage.costUsd?.uncertain).toBe(responseReservationTotal(r))
   })
-  it('D15 reply/key-shaped stderr are redacted; missing terminal prefix withheld whole', async () => {
+  it('D15 completed and interrupted credential prefixes are redacted', async () => {
     const h = await harness([], [{ text: `reply ${FAKE_MODEL_API_KEY}` }])
     const r = await h.run()
     expect(r.code).toBe(0)
@@ -1321,7 +1330,8 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
     const cut = await harness([], [{ text: 'LLM|1|se', omitTerminal: true }])
     const ended = await cut.run()
     expect(ended.code).toBe(8)
-    expect(result(ended).finalMessage).toBe(UI_TEXT.execMessageWithheld)
+    expect(result(ended).finalMessage).toBe('[redacted]')
+    expect(result(ended).finalMessageComplete).toBe(false)
     expect(cut.out.chunks.join('')).not.toContain('LLM|1|se')
   })
   it.each(['json', 'text'] as const)(
@@ -1409,7 +1419,7 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
       expect(h.api.responseBodies()).toHaveLength(0)
     },
   )
-  it('D25 incomplete response after edit withholds latest prose and retains changed file', async () => {
+  it('D25 incomplete response after edit retains redacted partial prose and changed file', async () => {
     const h = await harness(
       ['--permission-mode', 'acceptEdits'],
       [
@@ -1423,7 +1433,8 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
       terminal: 'incomplete',
       incompleteReason: 'max_output_tokens',
       filesChanged: ['x.txt'],
-      finalMessage: UI_TEXT.execMessageWithheld,
+      finalMessage: '[redacted]',
+      finalMessageComplete: false,
     })
   })
   it('D27 valid earlier tool response cannot authorize latest HTTP failure', async () => {
@@ -1440,7 +1451,8 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
     const r = await h.run()
     expect(r.code).toBe(4)
     expect(result(r).terminal).toBeNull()
-    expect(result(r).finalMessage).toBe(UI_TEXT.execMessageWithheld)
+    expect(result(r).finalMessage).toBe('earlier commentary')
+    expect(result(r).finalMessageComplete).toBe(false)
     expect(result(r).usage.costUsd).toMatchObject({
       settled: Usd.from(0.000002).toAmount(),
       uncertain: responseReservationTotal(r, [2, 3, 4, 5, 6]),
@@ -1542,7 +1554,8 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
     const bad = await invalid.run()
     expect(bad.code).toBe(9)
     expect(result(bad).usage.costUsd?.uncertain).toBe(responseReservationTotal(bad))
-    expect(result(bad).finalMessage).toBe(UI_TEXT.execMessageWithheld)
+    expect(result(bad).finalMessage).toBe('unsafe')
+    expect(result(bad).finalMessageComplete).toBe(false)
     const imageRun = await imageHarness('image.png', 'must not run')
     imageRun.api.images.push({ count: 2 })
     const over = await imageRun.run()

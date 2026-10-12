@@ -5130,5 +5130,10 @@
   },
   "execProviderNotCatalogue": "このモデルはこのビルドのカタログにありません: {model}。",
   "providerCliModelsRequired": "--model <id> を指定してください（複数の場合は繰り返します）。利用可能: {models}。",
-  "providerCliConfigure": "次のオプションを確認してください: --preset {preset}, --model <id>, --key-stdin, --address <url>, --private-ok。"
+  "providerCliConfigure": "次のオプションを確認してください: --preset {preset}, --model <id>, --key-stdin, --address <url>, --private-ok。",
+  "execProgressStarted": "リクエスト {request} を開始しました。予約額：{reserved}。",
+  "execProgressSettled": "リクエスト {request} が終了しました。実行の入力：{input}、出力：{output}、支出：{settled}、未確定：{uncertain}。",
+  "execProgressTokens": {
+    "other": "合計 {count} トークン"
+  }
 }

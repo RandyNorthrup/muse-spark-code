@@ -5595,5 +5595,13 @@
   },
   "execProviderNotCatalogue": "Tento model není v katalogu tohoto sestavení: {model}.",
   "providerCliModelsRequired": "Použijte --model <id> (opakujte pro další modely). Dostupné: {models}.",
-  "providerCliConfigure": "Zkontrolujte přepínače: --preset {preset}, --model <id>, --key-stdin, --address <url>, --private-ok."
+  "providerCliConfigure": "Zkontrolujte přepínače: --preset {preset}, --model <id>, --key-stdin, --address <url>, --private-ok.",
+  "execProgressStarted": "Požadavek {request} zahájen; rezervováno {reserved}.",
+  "execProgressSettled": "Požadavek {request} skončil; vstup běhu {input}, výstup {output}; utraceno {settled}, nejisté {uncertain}.",
+  "execProgressTokens": {
+    "one": "celkem {count} token",
+    "few": "celkem {count} tokeny",
+    "many": "celkem {count} tokenu",
+    "other": "celkem {count} tokenů"
+  }
 }

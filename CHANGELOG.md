@@ -9,6 +9,8 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- JSON headless runs report request starts, token totals and cost on stderr while stdout remains one JSON result.
+
 - Claude Haiku 5.5 is listed with an unknown price pending a documented receipt.
 - `help reference` explicitly opens the full terminal reference.
 
@@ -16,6 +18,9 @@ happened, not what was planned; superseded entries are kept.
   shared by the request body, validation and budget ledger.
 
 ### Fixed
+
+- Stopped headless runs retain the redacted partial answer and its cost with an explicit incomplete marker.
+- Bounded uncertain daily liability keeps its full amount without blocking all later requests as an unknown historical fee.
 
 - Deep command `--help` stays in the terminal’s command, including prompts, provider accounts, named reports, schedules and ChatGPT maintenance; authentication help shows its own flags.
 

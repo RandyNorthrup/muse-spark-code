@@ -560,6 +560,7 @@ export function featureCatalog(): readonly Feature[] {
       [],
       [],
       'headless-runs',
+      // JSON progress uses stderr; stopped runs retain redacted incomplete answers.
       // M80/M95: configured defaults and native slash IDs, one output cap, request-sized admission and explicit ephemeral history.
       ['modelApi'],
       false,

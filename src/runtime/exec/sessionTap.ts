@@ -15,7 +15,7 @@ export interface SessionTap {
   subscribe(sessionId: string, listener: (event: AgentEvent) => void): () => void
   beginResponse(n: number): void
   settleResponse(outcome: LastResponse): void
-  releasedMessages(): readonly ReleasedMessage[]
+  releasedMessages(shouldIncludePartial?: boolean): readonly ReleasedMessage[]
 }
 
 export function observeBackend(backend: AcpBackend): SessionTap {
@@ -105,13 +105,13 @@ export function observeBackend(backend: AcpBackend): SessionTap {
     settleResponse(outcome) {
       outcomes.set(outcome.n, { ...outcome })
     },
-    releasedMessages() {
+    releasedMessages(shouldIncludePartial = false) {
       const released: ReleasedMessage[] = []
       for (const [itemId, entry] of items) {
         const outcome = outcomes.get(entry.n)
-        if (outcome === undefined) continue
+        if (outcome === undefined && !shouldIncludePartial) continue
         const isComplete =
-          outcome.terminal === 'completed' &&
+          outcome?.terminal === 'completed' &&
           outcome.usage !== 'invalid' &&
           outcome.transportError === null &&
           !outcome.endedWithoutTerminal &&
@@ -122,9 +122,10 @@ export function observeBackend(backend: AcpBackend): SessionTap {
         released.push({
           itemId,
           kind,
-          text: isComplete
-            ? (entry.item.text ?? entry.item.summary?.join('\n') ?? '')
-            : UI_TEXT.execMessageWithheld,
+          text:
+            isComplete || (shouldIncludePartial && kind === 'agentMessage')
+              ? (entry.item.text ?? entry.item.summary?.join('\n') ?? '')
+              : UI_TEXT.execMessageWithheld,
           complete: isComplete,
         })
       }

@@ -231,3 +231,24 @@ reference test's missing --max-output-tokens sample is updated to the existing
 single-cap contract; estimate --help now follows the shared command-local help
 route in its reference oracle. Final commandHelp/cliUsage/referenceGenerator:
 173/173, default timeout, three workers. No gate or assertion is weakened.
+
+## Round 2 progress, partial answers and bounded uncertainty
+
+JSON attempt events now print localized start/end progress to stderr, including
+reservation, plural token totals and exact settled/uncertain cost. Stdout remains
+one validated JSON object. Progress has real translations in all 14 tables.
+Final results retain the latest redacted answer prefix, finalMessageComplete=false,
+non-success status/exit and all settled/uncertain liability on interruption or
+unverified accounting. Incomplete reasoning and structured output remain withheld;
+no action/publication success is granted. No ModelApiHost tool-loop end changed:
+TOOLROUNDS still owns that boundary.
+
+Progress and timeout regressions failed before repair (progress-partial-red.log).
+Broader exec proof caught bounded daily uncertainty being mistaken for unknown
+historical fees; new owner-PID daily rows retain their full liability and uncertainty
+without that legacy-fee stop, while legacy/unbounded claims retain it. Six existing
+retry/accounting cases failed before correction. Existing cut-short text oracles
+now assert redacted partial text and the explicit incomplete marker, retaining
+all non-success, spend, invalid-usage and no-credit checks. Final
+execOutput/execRun/runtimeAccountingInterruptions 186/186, default timeout;
+check:l10n: 14 UI and usage tables, 0 problems.

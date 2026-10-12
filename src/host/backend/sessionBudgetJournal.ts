@@ -273,7 +273,10 @@ function totalFor(scope: Scope, isUsageView = false) {
           .add(Usd.from(claim.settledUsd ?? claim.retainedUsd ?? claim.reservedUsd))
           .toAmount()
       hasUnknownHistoricalFees ||=
-        claim.hasUnknownCost === true ||
+        // New daily claims retain a known bounded liability even without a receipt.
+        // Legacy unknown fees and unbounded requests still prevent capped admission.
+        (claim.hasUnknownCost === true &&
+          (claim.ownerPid === undefined || claim.isUnbounded === true)) ||
         (claim.isUnbounded === true && claim.settledUsd === undefined)
     }
     assertCost(spent.toAmount())

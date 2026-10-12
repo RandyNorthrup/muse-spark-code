@@ -805,6 +805,10 @@ Command `--help` prints only its own usage; `help reference` prints the catalogu
 muse-spark-code-acp exec --backend modelApi --provider anthropic --model anthropic/claude-opus-5-5 --max-budget-usd 0.10 --max-requests 1 --ephemeral --output json "Reply with the single word: ready"
 ```
 
+JSON runs show request progress on stderr and return a redacted partial answer
+when stopped, with `finalMessageComplete: false` and the incurred or uncertain
+cost. Structured output still requires validation.
+
 Deep commands have local help, such as `providers accounts thresholds --help`,
 `schedule background status --help` and `report usage --help`. The full command,
 setting and feature catalogue is available through `help reference`.
