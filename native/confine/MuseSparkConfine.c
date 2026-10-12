@@ -382,6 +382,13 @@ static void check_stat(const struct statx *data) {
   if (makedev(data->stx_dev_major, data->stx_dev_minor) != device) refuse("operand");
   if (!S_ISDIR(data->stx_mode) && (!S_ISREG(data->stx_mode) || data->stx_nlink != 1)) refuse("operand");
 }
+// A filesystem that does not supply a field (FUSE, NFS) gets a dash, never a
+// zero or a 1970 timestamp. stx_blksize and the device numbers have no mask
+// bits; the kernel always fills them, so they print directly.
+static void put_number(unsigned long long value, int have) {
+  if (have) printf("%llu", value);
+  else fputs("-", stdout);
+}
 static void report_time(const char *label, struct statx_timestamp when) {
   time_t sec = (time_t)when.tv_sec;
   struct tm fields;
@@ -390,29 +397,47 @@ static void report_time(const char *label, struct statx_timestamp when) {
     fields.tm_year + 1900, fields.tm_mon + 1, fields.tm_mday,
     fields.tm_hour, fields.tm_min, fields.tm_sec, (unsigned int)when.tv_nsec);
 }
+static void report_time_masked(const char *label, struct statx_timestamp when, int have) {
+  if (!have) printf("%s: -\n", label);
+  else report_time(label, when);
+}
 static void print_stat(const char *path, const struct statx *data) {
+  int have_mode = (data->stx_mask & STATX_MODE) != 0;
   unsigned int mode = (unsigned int)(data->stx_mode & 07777u);
   char text[11];
   text[0] = S_ISDIR(data->stx_mode) ? 'd' : '-';
   static const char bits[] = "rwxrwxrwx";
-  for (int i = 0; i < 9; i++) text[1 + i] = (mode & (1u << (unsigned int)(8 - i))) ? bits[i] : '-';
-  if (mode & 04000u) text[3] = (mode & 0100u) ? 's' : 'S';
-  if (mode & 02000u) text[6] = (mode & 0010u) ? 's' : 'S';
-  if (mode & 01000u) text[9] = (mode & 0001u) ? 't' : 'T';
+  for (int i = 0; i < 9; i++) text[1 + i] = (have_mode && (mode & (1u << (unsigned int)(8 - i)))) ? bits[i] : '-';
+  if (have_mode && (mode & 04000u)) text[3] = (mode & 0100u) ? 's' : 'S';
+  if (have_mode && (mode & 02000u)) text[6] = (mode & 0010u) ? 's' : 'S';
+  if (have_mode && (mode & 01000u)) text[9] = (mode & 0001u) ? 't' : 'T';
   text[10] = 0;
   printf("File: %s\n", path);
-  printf("Size: %llu  Blocks: %llu  IO Block: %u  %s\n",
-    (unsigned long long)data->stx_size, (unsigned long long)data->stx_blocks,
+  fputs("Size: ", stdout);
+  put_number((unsigned long long)data->stx_size, (data->stx_mask & STATX_SIZE) != 0);
+  fputs("  Blocks: ", stdout);
+  put_number((unsigned long long)data->stx_blocks, (data->stx_mask & STATX_BLOCKS) != 0);
+  printf("  IO Block: %u  %s\n",
     (unsigned int)data->stx_blksize, S_ISDIR(data->stx_mode) ? "directory" : "regular file");
   unsigned long long number = (unsigned long long)makedev(data->stx_dev_major, data->stx_dev_minor);
-  printf("Device: %llxh/%llud  Inode: %llu  Links: %u\n",
-    number, number,
-    (unsigned long long)data->stx_ino, (unsigned int)data->stx_nlink);
-  printf("Access: (%04o/%s)  Uid: (%5u/ UNKNOWN)  Gid: (%5u/ UNKNOWN)\n",
-    mode, text, (unsigned int)data->stx_uid, (unsigned int)data->stx_gid);
-  report_time("Access", data->stx_atime);
-  report_time("Modify", data->stx_mtime);
-  report_time("Change", data->stx_ctime);
+  printf("Device: %llxh/%llud  Inode: ", number, number);
+  put_number((unsigned long long)data->stx_ino, (data->stx_mask & STATX_INO) != 0);
+  fputs("  Links: ", stdout);
+  put_number((unsigned long long)data->stx_nlink, (data->stx_mask & STATX_NLINK) != 0);
+  fputs("\n", stdout);
+  fputs("Access: (", stdout);
+  if (have_mode) printf("%04o", mode);
+  else fputs("-", stdout);
+  printf("/%s)  Uid: (", text);
+  if ((data->stx_mask & STATX_UID) != 0) printf("%5u", (unsigned int)data->stx_uid);
+  else fputs("-", stdout);
+  fputs("/ UNKNOWN)  Gid: (", stdout);
+  if ((data->stx_mask & STATX_GID) != 0) printf("%5u", (unsigned int)data->stx_gid);
+  else fputs("-", stdout);
+  fputs("/ UNKNOWN)\n", stdout);
+  report_time_masked("Access", data->stx_atime, (data->stx_mask & STATX_ATIME) != 0);
+  report_time_masked("Modify", data->stx_mtime, (data->stx_mask & STATX_MTIME) != 0);
+  report_time_masked("Change", data->stx_ctime, (data->stx_mask & STATX_CTIME) != 0);
   if ((data->stx_mask & STATX_BTIME) && (data->stx_btime.tv_sec || data->stx_btime.tv_nsec))
     report_time("Birth", data->stx_btime);
   else
