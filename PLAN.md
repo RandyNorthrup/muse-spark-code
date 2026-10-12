@@ -850,8 +850,10 @@ unchanged. The pin of the bundle test is re-measured at that size for 0.18.1
 (owner's decision, 2026-10-12): each name is in the export map and in the
 export annotation, with its getter, and they are exports rather than copies in
 the provider bundles because the state they share lives in `transport.ts`
-once per process. The pin still ratchets down when `fix/modelapi-diet`
-merges. Evidence:
+once per process. With the Model API bundle diet, which 0.18.1 carries, the
+bundle is 519,354 B and the pin is that number: an exact-size pin moves with
+its measured number and its reason, a cap only on the owner's word (his
+decision, 2026-10-12). Evidence:
 `docs/certification/hotfix-0181-bundle-exports.md`.
 
 **INT0170 resume (2026-10-08, kubuntu).** Merging `m107/w-history` and
@@ -40351,16 +40353,26 @@ so without Highlights. On `hotfix/0.18.1` (`87d9ab91c`) no browser bundle
 changes: `dist/webview` is 0.18.0's byte for byte (176 files compared), and
 five other files of `dist` differ (the two bundles above, the report builder
 in `dist/report.js` and `dist/acp.js`, and the release notes). The release is
-`hotfix/0.18.1-nopin`: that branch plus the Model API bundle diet, because no
-pinned size is raised for a hotfix (the owner's decision, 2026-10-12).
-`dist/modelApi.js` is 518,954 B there, under the 532,537 B the bundle test
-pinned in 0.18.0, with the per-call helpers in the deferred
-`dist/modelApiTools.js` (23,433 B). The diet adds two
-messages to `en.ts`, which every webview bundle is built from, so in the
-release 136 of the 176 files of `dist/webview` differ from 0.18.0's (16 B in
-all) and the visual gate renders and compares every screenshot; no scene
-shows the new messages. Pull request 150, the branch without the diet, is
-not merged. This is
+`hotfix/0.18.1-nopin` (pull request 151): that branch plus the Model API
+bundle diet, because the hotfix alone took `dist/modelApi.js` 290 B over its
+0.18.0 pin and no pin was to be raised for a hotfix (the owner's word that
+morning). `dist/modelApi.js` is 519,354 B there, under the 532,537 B the
+bundle test pinned in 0.18.0, with the per-call helpers in the deferred
+`dist/modelApiTools.js` (23,433 B). The diet adds two messages to `en.ts`,
+which every webview bundle is built from, so in the release 136 of the 176
+files of `dist/webview` differ from 0.18.0's (16 B in all) and the visual
+gate renders and compares every screenshot; no scene shows the new messages.
+The pull request's first hosted run and two reviews found what the diet still
+owed, and the release carries each fix: a registry check that did nothing
+(`scripts/gen-lazy-registry.mjs` had no command-line part; it is a command
+now, tested as one, and the registry names functions, not lines), two
+inventories without the new bundle, a language-table install on every model
+call (4 ms each, 3,469 of them in one test file), and the extension's
+reinstall sentence shown on the agent. A turn is now refused before anything
+is sent when the helpers bundle cannot load. From this release on hosted CI
+is the release gate, with real conversations through the packed product
+before it (AGENTS.md, working rule 2; the owner's decision, 2026-10-12).
+Pull request 150, the branch without the diet, is not merged. This is
 preparation, not publication; the public roadmap
 (M122) lists 0.18.1 as the next release until a `0.18.1 released (…)`
 record follows here.
