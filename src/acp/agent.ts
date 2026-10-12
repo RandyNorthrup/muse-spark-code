@@ -667,14 +667,19 @@ class AcpSession {
   }
 
   /** The local /uploads command over the account ledger; other text falls through. */
-  private async uploadsCommand(blocks: readonly ContentBlock[]): Promise<boolean> {
+  private async uploadsCommand(
+    blocks: readonly ContentBlock[],
+    signal: AbortSignal,
+  ): Promise<boolean> {
     const [first] = blocks
     if (blocks.length !== 1 || first?.type !== 'text') return false
+    signal.throwIfAborted()
     const outcome = await runUploadsCommand(first.text, {
       files: this.deps.uploads,
       send: (text) => {
         this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
       },
+      signal,
     })
     return outcome === 'handled'
   }
@@ -1686,7 +1691,7 @@ class AcpSession {
         await this.outbox
         return preparing.isCancelled ? 'cancelled' : 'end_turn'
       }
-      if (await this.uploadsCommand(blocks)) {
+      if (await this.uploadsCommand(blocks, preparing.abort.signal)) {
         await this.announceCommands()
         await this.outbox
         return preparing.isCancelled ? 'cancelled' : 'end_turn'

@@ -42,9 +42,10 @@ export interface FakeUploadedFilesLedger extends AcpUploadsPort, UploadedFilesLe
     (
       fileId: string,
       isForeignDeletionConfirmed: (name: string) => Promise<boolean>,
+      signal?: AbortSignal,
     ) => Promise<void>
   >
-  readonly deleteAllOurs: Mock<() => Promise<void>>
+  readonly deleteAllOurs: Mock<(signal?: AbortSignal) => Promise<void>>
   readonly post: Mock<(report: UploadedFilesReport) => void>
   readonly confirmForeign: Mock<(question: string) => Promise<boolean>>
 }

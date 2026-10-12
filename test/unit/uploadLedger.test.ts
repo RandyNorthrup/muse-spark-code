@@ -279,13 +279,22 @@ describe('upload ownership ledger', () => {
     ).toBe(false)
   })
 
-  it('spares a young unreferenced upload from automatic cleanup until the provider expiry passes', async () => {
+  it('deletes a young upload on its last release, while the read sweep spares unseen young orphans until expiry', async () => {
     const t = setup(() => 4000)
     const signal = new AbortController().signal
     await t.ledger.ensure('s1', sha256, t.source, signal)
     await t.ledger.releaseSession('s1')
-    expect(t.requestFile.mock.calls.filter((call) => call[1] === 'DELETE')).toEqual([])
-    expect(t.raw()).toMatchObject({ entries: [{ sessions: [] }] })
+    expect(t.requestFile.mock.calls.filter((call) => call[1] === 'DELETE')).toHaveLength(1)
+    expect(t.raw()).toMatchObject({ entries: [] })
+    // An orphan no release ever saw (a crash, another install) stays listed
+    // on reads until the provider expiry passes.
+    t.setRaw({
+      version: 1,
+      accountId,
+      entries: [{ file: { ...ref }, sessions: [] }],
+      cachedFiles: [],
+    })
+    t.requestFile.mockClear()
     await t.ledger.accountReport()
     expect(t.requestFile.mock.calls.filter((call) => call[1] === 'DELETE')).toEqual([])
     expect(t.raw()).toMatchObject({ entries: [{ sessions: [] }] })
@@ -301,14 +310,54 @@ describe('upload ownership ledger', () => {
     expect(t.raw()).toMatchObject({ entries: [{ sessions: ['b'] }] })
   })
 
-  it('removes an explicitly deleted young upload early while automatic cleanup spares it', async () => {
+  it('removes an unseen young orphan early through explicit deletion', async () => {
     const t = setup(() => 4000)
-    await t.ledger.ensure('s1', sha256, t.source, new AbortController().signal)
-    await t.ledger.releaseSession('s1')
-    expect(t.requestFile.mock.calls.filter((call) => call[1] === 'DELETE')).toEqual([])
+    t.setRaw({
+      version: 1,
+      accountId,
+      entries: [{ file: { ...ref }, sessions: [] }],
+      cachedFiles: [],
+    })
     await t.ledger.deleteAllOurs()
     expect(t.requestFile.mock.calls.filter((call) => call[1] === 'DELETE')).toHaveLength(1)
     expect(t.raw()).toMatchObject({ entries: [] })
+  })
+
+  it('deletes nothing when the delete signal is already aborted', async () => {
+    const t = setup(() => 4000)
+    t.setRaw({
+      version: 1,
+      accountId,
+      entries: [{ file: { ...ref }, sessions: [] }],
+      cachedFiles: [],
+    })
+    const controller = new AbortController()
+    controller.abort()
+    await expect(
+      t.ledger.deleteFile(ref.fileId, () => Promise.resolve(true), controller.signal),
+    ).rejects.toThrow()
+    await expect(t.ledger.deleteAllOurs(controller.signal)).rejects.toThrow()
+    expect(t.requestFile.mock.calls.filter((call) => call[1] === 'DELETE')).toEqual([])
+    expect(t.raw()).toMatchObject({ entries: [{ sessions: [] }] })
+  })
+
+  it('records a provider-removed single file as gone instead of failing the delete', async () => {
+    const t = setup(() => 4000)
+    t.setRaw({
+      version: 1,
+      accountId,
+      entries: [{ file: { ...ref }, sessions: [] }],
+      cachedFiles: [
+        { fileId: ref.fileId, name: ref.name, bytes: ref.bytes, expiresAt: ref.expiresAt },
+      ],
+    })
+    const real = t.requestFile.getMockImplementation()!
+    t.requestFile.mockImplementation(async (...args) => {
+      if (args[1] === 'DELETE') throw new ModelApiError('Not found', 404, undefined, undefined)
+      return await real(...args)
+    })
+    await t.ledger.deleteFile(ref.fileId, () => Promise.resolve(false))
+    expect(t.raw()).toMatchObject({ entries: [], cachedFiles: [] })
   })
 
   it('records a provider-removed upload as gone instead of failing the cleanup', async () => {

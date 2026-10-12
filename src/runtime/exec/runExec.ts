@@ -807,6 +807,10 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
               },
             }),
         }),
+        // M105 lane F: /uploads over the runtime's account ledger, as serve
+        // forwards it. Without this the headless agent says so and deletes
+        // nothing.
+        ...(runtime.uploads !== undefined && { uploads: runtime.uploads }),
       })
       const client = createExecClient({
         onAccountNotice: (event) => {

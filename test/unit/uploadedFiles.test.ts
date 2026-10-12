@@ -39,7 +39,7 @@ describe('uploaded-files port', () => {
     const t = setup(ledger)
     const confirmed = vi.fn(() => Promise.resolve(true))
     await t.port.deleteFile('file-one', confirmed)
-    expect(ledger.deleteFile).toHaveBeenCalledWith('file-one', confirmed)
+    expect(ledger.deleteFile).toHaveBeenCalledWith('file-one', confirmed, undefined)
     await t.port.deleteAllOurs()
     expect(ledger.deleteAllOurs).toHaveBeenCalledOnce()
     expect(
@@ -56,6 +56,23 @@ describe('uploaded-files port', () => {
     await t.port.deleteFile('file-one', () => Promise.resolve(true))
     await t.port.deleteAllOurs()
     expect(t.post).not.toHaveBeenCalled()
+  })
+
+  it('checks the signal before dispatch and passes it to the ledger', async () => {
+    const ledger = fakeUploadedFilesLedger(report)
+    const t = setup(ledger)
+    const controller = new AbortController()
+    const signal = controller.signal
+    const confirmed = vi.fn(() => Promise.resolve(true))
+    await t.port.deleteFile('file-one', confirmed, signal)
+    expect(ledger.deleteFile).toHaveBeenCalledWith('file-one', confirmed, signal)
+    await t.port.deleteAllOurs(signal)
+    expect(ledger.deleteAllOurs).toHaveBeenCalledWith(signal)
+    controller.abort()
+    await expect(t.port.deleteFile('file-one', confirmed, signal)).rejects.toThrow()
+    await expect(t.port.deleteAllOurs(signal)).rejects.toThrow()
+    expect(ledger.deleteFile).toHaveBeenCalledTimes(1)
+    expect(ledger.deleteAllOurs).toHaveBeenCalledTimes(1)
   })
 
   it('lets a failed provider delete reach the caller with its reason', async () => {

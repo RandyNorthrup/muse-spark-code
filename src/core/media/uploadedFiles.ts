@@ -31,8 +31,9 @@ export interface UploadedFilesPort {
   deleteFile(
     fileId: string,
     isForeignDeletionConfirmed: (name: string) => Promise<boolean>,
+    signal?: AbortSignal,
   ): Promise<void>
-  deleteAllOurs(): Promise<void>
+  deleteAllOurs(signal?: AbortSignal): Promise<void>
   confirmForeign(question: string): Promise<boolean>
 }
 
@@ -69,15 +70,18 @@ export function createUploadedFilesPort(deps: UploadedFilesPortDeps): UploadedFi
     async deleteFile(
       fileId: string,
       isForeignDeletionConfirmed: (name: string) => Promise<boolean>,
+      signal?: AbortSignal,
     ): Promise<void> {
+      signal?.throwIfAborted()
       const ledger = await deps.ledger()
       if (ledger === undefined) return
-      await ledger.deleteFile(fileId, isForeignDeletionConfirmed)
+      await ledger.deleteFile(fileId, isForeignDeletionConfirmed, signal)
     },
-    async deleteAllOurs(): Promise<void> {
+    async deleteAllOurs(signal?: AbortSignal): Promise<void> {
+      signal?.throwIfAborted()
       const ledger = await deps.ledger()
       if (ledger === undefined) return
-      await ledger.deleteAllOurs()
+      await ledger.deleteAllOurs(signal)
     },
     async confirmForeign(question: string): Promise<boolean> {
       return (await deps.confirmForeign?.(question)) === true

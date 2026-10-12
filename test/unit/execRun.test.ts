@@ -1823,6 +1823,50 @@ describe('M105 headless attachment entry', () => {
       Buffer.from(bytes).toString('base64'),
     )
   })
+
+  it('serves /uploads from the runtime ledger without a model request (lane F)', async () => {
+    // Without the runExec forwarding the headless agent refuses with
+    // Invalid params: No uploaded files.; with it the agent reads the
+    // runtime's own port. No budget flags: the gated transport admits no
+    // Files route, and the listing itself spends nothing.
+    const h = await harness()
+    h.deps.options = {
+      ...h.deps.options,
+      budgetUsd: undefined,
+      maxRequests: undefined,
+      prompt: { kind: 'text', text: '/uploads' },
+    }
+    const fetch = h.deps.fetch
+    h.deps.fetch = async (url, init) =>
+      typeof url === 'string' && new URL(url).pathname.endsWith('/files')
+        ? Response.json({ object: 'list', data: [], has_more: false })
+        : await fetch(url, init)
+    const reads: unknown[] = []
+    const create = vi
+      .spyOn(runtimeBackends, 'createRuntimeBackend')
+      .mockImplementation((...args) => {
+        const runtime = actualRuntime(...args)
+        const uploads = runtime.uploads
+        if (uploads !== undefined) {
+          const read = uploads.read.bind(uploads)
+          uploads.read = async () => {
+            const report = await read()
+            reads.push(report)
+            return report
+          }
+        }
+        return runtime
+      })
+    try {
+      const done = await h.run()
+      expect(h.api.responseBodies()).toHaveLength(0)
+      // The headless agent read the runtime's production port exactly once.
+      expect(reads).toHaveLength(1)
+      expect(result(done).stopReason).toBe('end_turn')
+    } finally {
+      create.mockRestore()
+    }
+  })
 })
 
 describe('M108 account runtime composition', () => {

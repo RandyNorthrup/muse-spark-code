@@ -4674,9 +4674,20 @@ describe('ConversationController: account & usage (M8)', () => {
     const port = fakeUploadedFilesLedger(uploadedFilesReportFixture())
     const t = setup({ uploadedFiles: port })
     await t.controller.handle({ type: 'deleteUploadedFile', fileId: 'file-one' })
-    expect(port.deleteFile).toHaveBeenCalledWith('file-one', expect.any(Function))
+    expect(port.deleteFile).toHaveBeenCalledWith('file-one', expect.any(Function), undefined)
     await t.controller.handle({ type: 'deleteAllUploadedFiles' })
-    expect(port.deleteAllOurs).toHaveBeenCalledOnce()
+    expect(port.deleteAllOurs).toHaveBeenCalledWith(undefined)
+  })
+
+  it('deletes nothing when the delete signal is already aborted', async () => {
+    const port = fakeUploadedFilesLedger(uploadedFilesReportFixture())
+    const t = setup({ uploadedFiles: port })
+    const controller = new AbortController()
+    controller.abort()
+    await expect(t.controller.deleteUploadedFiles('file-one', controller.signal)).rejects.toThrow()
+    await expect(t.controller.deleteUploadedFiles(undefined, controller.signal)).rejects.toThrow()
+    expect(port.deleteFile).not.toHaveBeenCalled()
+    expect(port.deleteAllOurs).not.toHaveBeenCalled()
   })
 
   it('refuses byte-bearing uploaded-file reports and does not post after disposal', async () => {

@@ -171,12 +171,24 @@ function deletes(t: Rig) {
   return t.requestFile.mock.calls.filter((call) => call[1] === 'DELETE')
 }
 
-/** An upload no session refers to: spared by automatic cleanup, deletable early. */
-async function ensureUnreferenced(t: Rig) {
+/**
+ * An upload whose session reference never reached the ledger (a crash):
+ * listed while young, deletable early. A released reference deletes
+ * through the provider at once, so only an unseen orphan stays listed
+ * unreferenced.
+ */
+async function ensureUnseenOrphan(t: Rig) {
   const ledger = await productionUploads(t)(t.accountId)
   const ref = await ledger.ensure('s1', sha256, source, new AbortController().signal)
-  await ledger.syncSession('s1', [ref])
-  await ledger.releaseSession('s1')
+  await writeFile(
+    path.join(t.uploadsDir, t.accountId, 'uploads.json'),
+    JSON.stringify({
+      version: 1,
+      accountId: t.accountId,
+      entries: [{ file: ref, sessions: [] }],
+      cachedFiles: [],
+    }),
+  )
   return ref
 }
 
@@ -212,13 +224,44 @@ describe('uploaded-files production composition', () => {
   it('serves the VS Code consumers from the production port and deletes the chosen file', async () => {
     const t = rig('vscode', [YOUNG])
     const { binding, posted } = vsCodeBinding(t)
-    const ref = await ensureUnreferenced(t)
+    const ledger = await productionUploads(t)(t.accountId)
+    const ref = await ledger.ensure('s1', sha256, source, new AbortController().signal)
+    await ledger.syncSession('s1', [ref])
     // The controller's readUploadedFiles sequence: read, validate, post.
     const read = uploadedFilesReportSchema.parse(await binding.port.read())
     binding.port.post(read)
     expect(posted).toHaveLength(1)
     expect(read.files.map((file) => file.fileId)).toEqual([ref.fileId])
-    // The Delete Uploaded Files command: list, pick, delete through the provider.
+    // A file a session still references cannot go: the failure names it.
+    const failures: string[] = []
+    await runDeleteUploadedFilesCommand({
+      list: binding.list,
+      remove: binding.remove,
+      confirmForeign: () => Promise.resolve(true),
+      dialogs: {
+        pick: (files) => Promise.resolve(files.map((file) => file.fileId)),
+        inform: () => undefined,
+        fail: (message) => {
+          failures.push(message)
+        },
+      },
+    })
+    expect(failures).toHaveLength(1)
+    expect(failures[0]).toContain('clip.mp4')
+    expect(deletes(t)).toHaveLength(0)
+    // Releasing the last session deletes the provider copy at once.
+    await ledger.releaseSession('s1')
+    expect(deletes(t)).toHaveLength(1)
+    expect(deletes(t)[0]?.[0]).toBe(`/files/${ref.fileId}`)
+    expect(await binding.list()).toEqual(expect.objectContaining({ files: [] }))
+  })
+
+  it('deletes an unseen orphan through the Delete command', async () => {
+    const t = rig('vscode-orphan', [YOUNG])
+    const { binding } = vsCodeBinding(t)
+    const ref = await ensureUnseenOrphan(t)
+    const listed = await binding.list()
+    expect(listed.files.map((file) => file.fileId)).toEqual([ref.fileId])
     const picked: string[][] = []
     await runDeleteUploadedFilesCommand({
       list: binding.list,
@@ -243,7 +286,9 @@ describe('uploaded-files production composition', () => {
 
   it('serves ACP /uploads from the same production ledger', async () => {
     const t = rig('acp', [YOUNG])
-    const ref = await ensureUnreferenced(t)
+    const ledger = await productionUploads(t)(t.accountId)
+    const ref = await ledger.ensure('s1', sha256, source, new AbortController().signal)
+    await ledger.syncSession('s1', [ref])
     const port = createUploadedFilesPort({
       ledger: () => productionUploads(t)(t.accountId),
     })
@@ -253,10 +298,14 @@ describe('uploaded-files production composition', () => {
     }
     expect(await runUploadsCommand('/uploads', { files: port, send })).toBe('handled')
     expect(sent.join('\n')).toContain('clip.mp4')
-    expect(await runUploadsCommand(`/uploads delete ${ref.fileId}`, { files: port, send })).toBe(
-      'handled',
-    )
+    await expect(
+      runUploadsCommand(`/uploads delete ${ref.fileId}`, { files: port, send }),
+    ).rejects.toThrow('clip.mp4')
+    expect(deletes(t)).toHaveLength(0)
+    await ledger.releaseSession('s1')
     expect(deletes(t)).toHaveLength(1)
+    expect(await runUploadsCommand('/uploads', { files: port, send })).toBe('handled')
+    expect(sent.at(-1)).toBe('No uploaded files.')
   })
 
   it('purges expired sessions through the ledger: old orphans go, referenced and young ones stay', async () => {
@@ -309,11 +358,11 @@ describe('uploaded-files production composition', () => {
     await store.save(session('b', [oldRef], fresh))
     await store.save(session('c', [youngRef], stale))
     t.requestFile.mockClear()
-    // The purge takes a: its old file stays while b references it, and
-    // c's young file is spared even unreferenced.
+    // The purge takes a and c: a's old file stays while b references it,
+    // and c's young file goes with its last session reference, however young.
     const remaining = await store.list()
     expect(remaining.map((header) => header.sessionId)).toEqual(['b'])
-    expect(deletes(t)).toEqual([])
+    expect(deletes(t).map((call) => call[0])).toEqual([`/files/${youngRef.fileId}`])
     // Ageing b past retention releases the old file through the provider.
     const names = await readdir(t.sessionsDir)
     const bFile = names.find((name) => name.startsWith('b.'))
@@ -324,7 +373,10 @@ describe('uploaded-files production composition', () => {
     await writeFile(bPath, JSON.stringify(raw))
     const afterAgeing = await store.list()
     expect(afterAgeing.map((header) => header.sessionId)).toEqual([])
-    expect(deletes(t).map((call) => call[0])).toEqual([`/files/${oldRef.fileId}`])
+    expect(deletes(t).map((call) => call[0])).toEqual([
+      `/files/${youngRef.fileId}`,
+      `/files/${oldRef.fileId}`,
+    ])
     // No paid traffic: the purge and the deletes never re-upload or fetch.
     expect(
       t.requestFile.mock.calls.filter((call) => call[1] === 'POST' || call[1] === 'GET'),
