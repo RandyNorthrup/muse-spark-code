@@ -116,6 +116,7 @@ beforeAll(async () => {
       providerPolicy: 'src/host/backend/providerPolicyEntry.ts',
       modelApiHooks: 'src/core/backends/modelapi/modelApiHooksEntry.ts',
       modelApiMcp: 'src/core/backends/modelapi/modelApiMcpEntry.ts',
+      modelApiTools: 'src/core/backends/modelapi/modelApiToolsEntry.ts',
       runtimeAccounting: 'src/runtime/runtimeAccountingEntry.ts',
       sharingRuntime: 'src/runtime/sharing/sharingEntry.ts',
       legalScan: 'src/core/legal/entry.ts',
@@ -171,7 +172,7 @@ beforeAll(async () => {
           nodeReferenceData,
           englishZodLocales,
           // Match the shipped prompt archive before checking real production caps.
-          ...(['modelApi', 'reference', 'codeIntel', 'hookRuntime'].includes(name)
+          ...(['modelApi', 'reference', 'codeIntel', 'hookRuntime', 'modelApiTools'].includes(name)
             ? [compressedModelText(true)]
             : []),
         ],
@@ -847,7 +848,12 @@ describe('deferred cohort bundles', () => {
     // workspacePath) and its MODEL_TEXT keys that activation reads +221.
     // Re-measured and ratcheted down when m105/media-w2 moves media to the
     // deferred dist/productionMedia.js.
-    expect(Buffer.byteLength(bundleText('modelApi'))).toBeLessThanOrEqual(530_883)
+    // MODELAPIDIET (this rig, production build): the hook call fields,
+    // argument previews and fetch URL checks move to dist/modelApiTools.js
+    // (11,114 B of inputs plus the WEB_FETCH_MODEL_TEXT block they owned):
+    // 530,683 -> 516,264, a 14,419 B saving. The pin moves to the measured
+    // value exactly and only ever moves down in this lane.
+    expect(Buffer.byteLength(bundleText('modelApi'))).toBeLessThanOrEqual(516_264)
     const schedules = new Set(inputs('schedules'))
     for (const file of [
       'src/core/backends/modelapi/schedulesEntry.ts',
@@ -858,6 +864,25 @@ describe('deferred cohort bundles', () => {
       expect(inputs('modelApi')).not.toContain(file)
     }
     expect(bundleText('modelApi')).toContain('./schedules.js')
+  })
+
+  it('MODELAPIDIET: the deferred per-call helpers load with dist/modelApiTools.js', () => {
+    const tools = new Set(inputs('modelApiTools'))
+    for (const file of [
+      'src/core/backends/modelapi/modelApiToolsEntry.ts',
+      'src/core/backends/modelapi/modelCallHooks.ts',
+      'src/core/backends/modelapi/argumentPreview.ts',
+      'src/core/web/pageUrl.ts',
+      'src/core/web/fetchFailure.ts',
+    ]) {
+      expect(tools.has(file)).toBe(true)
+      for (const parent of ['extension', 'modelApi', 'acp'])
+        expect(inputs(parent)).not.toContain(file)
+    }
+    // publicAddress.ts stays in dist/modelApi.js: the pinned HTTPS transport
+    // reads addressFamily for every request's SNI.
+    expect(inputs('modelApi')).toContain('src/core/web/publicAddress.ts')
+    expect(bundleText('modelApi')).toContain('./modelApiTools.js')
   })
 
   it('M115W: the lazy schedules chunk carries the v2 runtime binding beside v1', () => {

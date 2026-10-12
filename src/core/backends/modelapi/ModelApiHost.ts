@@ -1,6 +1,7 @@
 import { StorageRefusalError } from '../../checkpoints/storageRefusal'
 import type { GitDraftOutputPort } from '../../git/gitText'
 import type * as CodeIntelEntry from './codeIntelEntry'
+import type * as ModelApiTools from './modelApiToolsEntry'
 import {
   Usd,
   type UsdAmount,
@@ -57,7 +58,7 @@ import type { VaultTaint } from '../../../shared/vault'
 // Sessions live for the host's lifetime (this VS Code window).
 
 import { Buffer } from 'node:buffer'
-import { ArgumentPreview, type ArgumentPreviewCapabilities } from './argumentPreview'
+import type { ArgumentPreview, ArgumentPreviewCapabilities } from './argumentPreview'
 import { createHash, randomUUID } from 'node:crypto'
 import { prepareShellSidecar, removeShellSidecar } from '../../shellSidecar'
 import { homedir, tmpdir } from 'node:os'
@@ -281,7 +282,7 @@ import type { WebFetchFailure } from '../../web/fetchFailure'
 import type { JudgeAdvisory, JudgeFence } from '../../judge/use'
 import type { ModelApiJudgeConnection } from '../../judge/same/modelApiSource'
 import { approvalHost } from '../../web/hostName'
-import { checkPageUrl } from '../../web/pageUrl'
+import type { PageUrlCheck } from '../../web/pageUrl'
 import {
   IndexLineStoppedError,
   type MemoryStore,
@@ -352,7 +353,6 @@ import {
   type ModelResolver,
   type ResolvedModel,
 } from './modelPolicy'
-import { postModelCallFields, preModelCallFields } from './modelCallHooks'
 import type { HookMcpOutcome, HookModelTurn, HookModelDailyBudget } from './hookHandlers'
 import { ObservationPack, estimatePackTokens } from './observationPack'
 import { admitResource, inResourceClass } from '../../resources/admission'
@@ -3061,6 +3061,64 @@ export class ModelApiSession implements ScheduledAgentSession {
     return entry
   }
 
+  /**
+   * The deferred per-call helpers (dist/modelApiTools.js, D6): the hook
+   * call fields, the display-only argument previews and the fetch URL
+   * checks, loaded on the first use. Each caller fails its own safe way:
+   * a hook field or preview load failure ends the turn with the chunk
+   * named, a URL-check failure refuses the fetch, never an unchecked
+   * fetch and never a default value.
+   */
+  private async toolAssist(): Promise<typeof ModelApiTools> {
+    const assist = await import('./modelApiToolsEntry.js')
+    assist.setUiText(UI_TEXT, uiLocale())
+    return assist
+  }
+
+  /**
+   * The hook call fields. A bundle that cannot load ends the turn with the
+   * chunk named: a hook never runs on a default payload.
+   */
+  private async hookCallFields(): Promise<typeof ModelApiTools> {
+    try {
+      return await this.toolAssist()
+    } catch {
+      throw new Error(
+        'the modelApiTools.js bundle could not be loaded; hook call fields are unavailable',
+      )
+    }
+  }
+
+  /**
+   * A streaming call's display-only preview. A bundle that cannot load ends
+   * the turn with the chunk named: a call is never shown without its preview.
+   */
+  private async argumentPreviewAssist(
+    previewFields: readonly string[] | undefined,
+  ): Promise<ArgumentPreview> {
+    try {
+      const assist = await this.toolAssist()
+      return new assist.ArgumentPreview(previewFields)
+    } catch {
+      throw new Error(
+        'the modelApiTools.js bundle could not be loaded; argument previews are unavailable',
+      )
+    }
+  }
+
+  /**
+   * A URL's first checks through the deferred helpers. A bundle that cannot
+   * load refuses the fetch (fail-closed: an unchecked URL is never fetched).
+   */
+  private async checkedPageUrl(raw: string): Promise<PageUrlCheck | undefined> {
+    try {
+      const assist = await this.toolAssist()
+      return assist.checkPageUrl(raw)
+    } catch {
+      return undefined
+    }
+  }
+
   private async preToolInput(
     call: FunctionCallItem,
     signal: AbortSignal,
@@ -3394,10 +3452,11 @@ export class ModelApiSession implements ScheduledAgentSession {
     signal: AbortSignal,
   ): Promise<void> {
     await this.selectToolsForTurn(turnId, body, signal)
+    const fields = await this.hookCallFields()
     const pre = await this.runHooks(
       'PreLLMCall',
       turnId,
-      preModelCallFields(body, requestId, attempt, step),
+      fields.preModelCallFields(body, requestId, attempt, step),
       replayProducer(body.model).provider,
       signal,
       false,
@@ -5561,12 +5620,12 @@ export class ModelApiSession implements ScheduledAgentSession {
   }
 
   /** One streamed event applied to the transcript; the response when terminal. */
-  private applyStreamEvent(
+  private async applyStreamEvent(
     event: StreamEvent,
     open: Map<string, OpenItem>,
     turnId: string,
     chargedGoalId: string | undefined,
-  ): ResponseObject | undefined {
+  ): Promise<ResponseObject | undefined> {
     switch (event.type) {
       case 'response.output_item.added': {
         const { item } = event
@@ -5585,7 +5644,7 @@ export class ModelApiSession implements ScheduledAgentSession {
             ourId: this.deps.newId(),
             kind: 'argumentPreview',
             call: item,
-            preview: new ArgumentPreview(
+            preview: await this.argumentPreviewAssist(
               toolDefinitions(this.deps.platform, {
                 hasShell: true,
                 hasSkills: false,
@@ -6014,7 +6073,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         if (reservation !== undefined) {
           reservation.hasStarted = true
         }
-        final = this.applyStreamEvent(event, open, turnId, chargedGoalId) ?? final
+        final = (await this.applyStreamEvent(event, open, turnId, chargedGoalId)) ?? final
       }
       if (final === undefined) {
         throw new ModelApiError(
@@ -6077,10 +6136,11 @@ export class ModelApiSession implements ScheduledAgentSession {
     // response did (M91 lane E). Their context joins the tail ahead of the
     // post-call context, oldest operation first.
     const thoughtContexts = await this.noteThoughts(turnId, open, signal)
+    const callFields = await this.hookCallFields()
     const post = await this.runHooks(
       'PostLLMCall',
       turnId,
-      postModelCallFields(body, final, requestId, attempt, step, this.sessionId),
+      callFields.postModelCallFields(body, final, requestId, attempt, step, this.sessionId),
       replayProducer(body.model).provider,
       signal,
       false,
@@ -11237,7 +11297,17 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (!parsed.success) {
       return { outcome: toolFailure('invalid arguments: url is required'), isRejected: false }
     }
-    const checked = checkPageUrl(parsed.data.url)
+    const checked = await this.checkedPageUrl(parsed.data.url)
+    if (checked === undefined) {
+      return {
+        outcome: webFetchRefusal({
+          kind: 'unavailable',
+          reason: MODEL_TEXT.webFetchUnavailable,
+          visibleReason: UI_TEXT.webFetchUnavailable,
+        }),
+        isRejected: false,
+      }
+    }
     if (!checked.ok) {
       return { outcome: webFetchRefusal(checked.failure), isRejected: false }
     }
@@ -14311,11 +14381,19 @@ export class ModelApiSession implements ScheduledAgentSession {
             undefined,
           )
         }
+        const compactionFields = await this.hookCallFields()
         const post = await unlessStopped(
           this.runHooks(
             'PostLLMCall',
             turnId,
-            postModelCallFields(body, response, requestId, attempt, 0, this.sessionId),
+            compactionFields.postModelCallFields(
+              body,
+              response,
+              requestId,
+              attempt,
+              0,
+              this.sessionId,
+            ),
             MODEL_API_HOOK_PROVIDER,
             signal,
             false,

@@ -91,6 +91,7 @@ import {
   FOREIGN_HOOKS_ONLY,
   HOOK_RUNTIME_ONLY,
   PLUGIN_HOOKS_ONLY,
+  MODEL_API_TOOLS_ONLY,
   MODEL_API_BOUNDARY_SOURCES,
   checkDeferredBundles,
   checkResourceBundles,
@@ -159,7 +160,7 @@ const LAZY_ONLY = [
   // M106: side answers load with the backend, reviewer, judge or Git action.
   'structuredOutput.ts',
   'modelCapabilities.ts',
-  'argumentPreview.ts',
+  // MODELAPIDIET: argument previews load with dist/modelApiTools.js (MODEL_API_TOOLS_ONLY).
   // M78: command policy and the paid, read-only Auto reviewer load with the backend.
   'autoReviewer.ts',
   'commandRules.ts',
@@ -178,7 +179,7 @@ const LAZY_ONLY = [
   // code intelligence reads above): offered only with lane S's scanner.
   'mediaBudget.ts',
   'memoryTools.ts',
-  'modelCallHooks.ts',
+  // MODELAPIDIET: the hook call fields load with dist/modelApiTools.js (MODEL_API_TOOLS_ONLY).
   // M95-I: policy stays out of activation/ACP; the provider/reviewer bundles also read it.
   'modelPolicy.ts',
   // M73: observation packing's store, its placeholder and recall_output.
@@ -264,6 +265,7 @@ for (const name of onDisk) {
     Number(FOREIGN_HOOKS_ONLY.includes(name)) +
     Number(HOOK_RUNTIME_ONLY.includes(name)) +
     Number(PLUGIN_HOOKS_ONLY.includes(name)) +
+    Number(MODEL_API_TOOLS_ONLY.includes(name)) +
     Number(TYPES_ONLY.has(name)) +
     Number(UNBUNDLED.has(name))
   if (lists !== 1) {
@@ -284,6 +286,7 @@ for (const name of [
   ...FOREIGN_HOOKS_ONLY,
   ...HOOK_RUNTIME_ONLY,
   ...PLUGIN_HOOKS_ONLY,
+  ...MODEL_API_TOOLS_ONLY,
   ...TYPES_ONLY,
   ...UNBUNDLED,
 ]) {
@@ -1152,7 +1155,7 @@ const TEXT_BLOCKS = [
   {
     block: 'WEB_FETCH_MODEL_TEXT',
     sentinels: ['webFetchUntrusted', 'webFetchMovedOpen'],
-    readers: ['dist/webFetch.js', BUNDLES.modelApi.output, 'dist/runtimeEngine.js'],
+    readers: ['dist/webFetch.js', 'dist/modelApiTools.js', 'dist/runtimeEngine.js'],
   },
   // A headless run's attached files (M80): the ACP agent's runtime only.
   {

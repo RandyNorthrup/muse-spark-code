@@ -774,6 +774,18 @@ re-measured and ratcheted **down** when the media redesign
 Evidence: `docs/certification/int0170-combined.md`, Bundle regressions after
 the lane merges (INT0170).
 
+**MODELAPIDIET (2026-10-11, macmini rig).** The Model API pin moves
+**530,883 → 516,264 B** (14,419 B saved, cap unchanged at 537,600 B): the
+hook call fields (`modelCallHooks.ts`), argument previews
+(`argumentPreview.ts`) and fetch URL checks (`pageUrl.ts`,
+`fetchFailure.ts`) move into the deferred **`dist/modelApiTools.js`**
+(23,433 B; new 50 KiB budget, 22.9 KiB +15% rounded up to 25 KiB), loaded
+on first use with the same loader and fail-closed refusal handling as the
+other deferred chunks. `publicAddress.ts` stays: the pinned HTTPS
+transport reads it for every request's SNI. `extension.js`, `headless.js`
+and `runtimeEngine.js` are byte-identical. Evidence:
+`docs/certification/modelapi-diet.md`.
+
 **INT0170 resume (2026-10-08, kubuntu).** Merging `m107/w-history` and
 `rel017/startup2` put five budgets over unchanged caps; each is fixed at its
 root. PORTS017's cap checks in `scheduleV2.ts` imported `Usd`, carrying
