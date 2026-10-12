@@ -98,7 +98,12 @@ import {
   checkDeferredBundles,
   checkResourceBundles,
 } from './lib/deferredBundles.mjs'
-import { siblingExportProblems } from './lib/bundleExports.mjs'
+import {
+  COMPUTED_LOADS,
+  CROSS_BUNDLE_TARGETS,
+  crossBundleFailures,
+  siblingExportProblems,
+} from './lib/bundleExports.mjs'
 import {
   ADDITIONAL_WEBVIEW_BUDGETS,
   RESOURCE_WEBVIEW_ENTRIES,
@@ -1614,7 +1619,6 @@ if (
 // imports against the source module and only the built sibling knows what it
 // exports. 0.18.0 shipped dist/configuredProviders.js, dist/subscriptions.js
 // and the Copilot client calling three names dist/modelApi.js did not export.
-const CROSS_BUNDLE_TARGETS = ['modelApi.js', 'modelApiBoundaries.js']
 const crossBundle = siblingExportProblems(
   new Map(
     readdirSync('dist')
@@ -1622,15 +1626,15 @@ const crossBundle = siblingExportProblems(
       .map((name) => [name, readFileSync(path.join('dist', name), 'utf8')]),
   ),
 )
-for (const problem of crossBundle.problems) problems.push(`dist: ${problem}`)
-// The bundles a plugin points other bundles at must keep a readable export
-// list, or the check above would pass by checking nothing against them.
-for (const target of CROSS_BUNDLE_TARGETS) {
-  if (!crossBundle.verified.has(target))
-    problems.push(
-      `dist/${target}: no member read from it was checked (its export list is not in its text, or nothing reads it)`,
-    )
-}
+// A missing export fails, and so does everything that would let one pass
+// unseen: a loaded sibling whose use the check cannot follow, a sibling whose
+// export list is not in its text, a load by a computed name the gate was not
+// told about, and either of the bundles a plugin points others at when no
+// member was compared with it. Being loaded is not being checked: a target
+// counts by the members compared, never by its presence
+// (scripts/lib/bundleExports.mjs holds the two lists and the reasons).
+for (const failure of crossBundleFailures(crossBundle, CROSS_BUNDLE_TARGETS, COMPUTED_LOADS))
+  problems.push(`dist: ${failure}`)
 if (problems.length > 0) {
   console.error(`bundle split: ${String(problems.length)} problem(s); see PLAN.md D6 and M57`)
   for (const problem of problems) {
@@ -1689,7 +1693,7 @@ console.log(
 )
 console.log(`ok   ${UI_TEXT.output}: Node bundles share the English fallback`)
 console.log(
-  `ok   cross-bundle members: ${String(crossBundle.verified.values().reduce((sum, count) => sum + count, 0))} reads of ${String(crossBundle.verified.size)} sibling bundles, each exported by the bundle read (${crossBundle.unverified.length === 0 ? 'no sibling without a readable export list' : `export list not readable: ${crossBundle.unverified.join(', ')}`})`,
+  `ok   cross-bundle members: ${String(crossBundle.verified.values().reduce((sum, count) => sum + count, 0))} reads of ${String(crossBundle.verified.size)} sibling bundles, each exported by the bundle read; every loaded sibling followed to its members, every export list read, ${String(crossBundle.computed.length)} of ${String(COMPUTED_LOADS.length)} listed load(s) by a computed name`,
 )
 console.log('ok   webview: optional surfaces and highlighting load only in guarded deferred chunks')
 console.log(

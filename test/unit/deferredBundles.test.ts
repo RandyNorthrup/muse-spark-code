@@ -37,7 +37,12 @@ import {
   sharedModelApiBoundaries,
   englishZodLocales,
 } from '../../scripts/lib/deferredBundles.mjs'
-import { siblingExportProblems } from '../../scripts/lib/bundleExports.mjs'
+import {
+  COMPUTED_LOADS,
+  CROSS_BUNDLE_TARGETS,
+  crossBundleFailures,
+  siblingExportProblems,
+} from '../../scripts/lib/bundleExports.mjs'
 import { FIXTURE_HOOK_TIMEOUT_MS } from './helpers/fixtureBudget'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import type { parseScheduleStoredJson } from '../../src/core/schedules/journal'
@@ -466,6 +471,43 @@ describe('cross-bundle members of the built bundles', () => {
 
   it('exports every member a built bundle reads from a sibling bundle', () => {
     expect(report.problems).toEqual([])
+  })
+
+  it('follows every loaded sibling to its members and reads every export list', () => {
+    // A use the check cannot follow, or a list it cannot read, would let a
+    // missing export pass unseen; the gate fails on either.
+    expect(report.unfollowed).toEqual([])
+    expect(report.unverified).toEqual([])
+    // The gate's own lists: both targets compared, and the one load by a
+    // computed name (the provider catalog, data) the only one there is.
+    expect(crossBundleFailures(report, CROSS_BUNDLE_TARGETS, COMPUTED_LOADS)).toEqual([])
+    expect(report.computed.map(({ reader }) => reader)).toEqual(['configuredProviders.js'])
+    expect(crossBundleFailures(report, CROSS_BUNDLE_TARGETS)).toHaveLength(1)
+    // Checked means members compared: no sibling is recorded with none.
+    for (const [sibling, count] of report.verified) expect(count, sibling).toBeGreaterThan(0)
+    expect(report.verified.get('modelApiBoundaries.js')).toBeGreaterThan(0)
+  })
+
+  it('names a member read through a cached dynamic import (the accounting bundle)', () => {
+    // src/runtime/backends.ts keeps `import('./runtimeAccountingEntry.js')` in
+    // a variable by ??= and reads createRuntimeDailyBudget from the awaited
+    // value later. A check that followed only a direct await passed without it.
+    const text = bundleText('runtimeAccounting')
+    const at = text.lastIndexOf('0&&(module.exports={')
+    const annotation = text.slice(at)
+    expect(annotation).toMatch(/\bcreateRuntimeDailyBudget\b/)
+    const without = annotation.replace(
+      /,createRuntimeDailyBudget\b|\bcreateRuntimeDailyBudget,/,
+      '',
+    )
+    expect(without).not.toMatch(/\bcreateRuntimeDailyBudget\b/)
+    const broken = siblingExportProblems(
+      new Map([...built('runtimeEngine'), ['runtimeAccounting.js', text.slice(0, at) + without]]),
+    )
+    expect(broken.problems).toEqual([
+      'runtimeEngine.js reads createRuntimeDailyBudget from runtimeAccounting.js, which does not export it',
+    ])
+    expect(broken.unfollowed).toEqual([])
   })
 
   it('checks the provider bundles against the Model API bundle', () => {

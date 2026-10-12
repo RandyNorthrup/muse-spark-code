@@ -802,7 +802,15 @@ bundle reads from a sibling bundle it loads must be in the export list in the
 sibling's own text (`scripts/lib/bundleExports.mjs`), and a run that compared
 nothing with `dist/modelApi.js` or `dist/modelApiBoundaries.js` fails. Its
 first run found `canonicalUsd` missing from the boundaries bundle in the same
-way. The three export names take `dist/modelApi.js` from
+way. Since the review of pull request 150 the gate also fails on what it
+cannot check: a loaded bundle whose use it cannot follow to the members read
+(names are resolved by binding through the lexical scopes, and a module is
+followed through the variable, property or function that keeps it), a bundle
+whose export list is not in its text, and a load by a computed name that is
+not listed (one is: the provider catalog, which is data). A bundle counts as
+checked by the members compared with it, never by being loaded; the stricter
+check compares 2,244 reads of 44 bundles where the first form compared 2,135
+of 39, and found no third defect. The three export names take `dist/modelApi.js` from
 532,537 B to **532,827 B** (+290 B), 4,773 B under the 525 KiB cap, which is
 unchanged. The pin of the bundle test is re-measured at that size for 0.18.1
 (owner's decision, 2026-10-12): each name is in the export map and in the
