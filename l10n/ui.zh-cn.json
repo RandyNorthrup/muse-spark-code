@@ -3597,6 +3597,8 @@
   "paidDeny": "不允许",
   "paidUseWebSearchTitle": "允许 Muse 为此提示词搜索网页？",
   "paidSearchQuote": "提供商：{provider} · 模型：{model}。",
+  "paidQuoteChoicesUnreadable": "无法读取已保存的“始终允许”选项（{kind}），因此本次使用将再次询问。",
+  "paidAlwaysNotKept": "{feature}的“始终允许”本次生效，但无法保存（{kind}）：下次仍会询问。",
   "paidUseWebSearchDetail": "Muse 在回答时可能会搜索网页。每次搜索都会按 {price} 计费到你的 Model API 密钥，另加搜索结果所增加的 token 费用。选择“不允许”将不使用网页搜索发送提示词。",
   "paidUseVoiceTitle": "使用 Muse Voice 录音？",
   "paidUseVoiceDetail": "Muse Voice 会转录此录音，按 {price} 计费到你的 Model API 密钥。选择“不允许”将保持麦克风关闭。",

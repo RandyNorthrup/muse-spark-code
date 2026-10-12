@@ -89,6 +89,15 @@ export function searchSettlement(
 }
 export type PaidUseDecision = boolean | PaidQuote | undefined
 
+/**
+ * Saved "always" choices the quote store could not list when the question
+ * was asked: the store failure's kind word, never its message. The surface
+ * shows it with the question, so asking again never looks unexplained.
+ */
+export interface PaidQuoteNotice {
+  readonly kind: string
+}
+
 export interface SubagentTaskConfirmation {
   readonly role: string
   readonly objective: string
@@ -221,6 +230,7 @@ export type PaidUseRequest =
       readonly feature: 'webSearch'
       readonly priceUsd: UsdAmount
       readonly quote?: PaidQuote
+      readonly quoteNotice?: PaidQuoteNotice
       readonly isCurrent?: () => boolean
     }
   | { readonly feature: 'voice' }

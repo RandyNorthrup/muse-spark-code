@@ -36,6 +36,7 @@ import {
   paidFeaturePrice,
   freezePaidQuote,
   type PaidQuote,
+  type PaidQuoteNotice,
   type PaidUseDecision,
   paidFeatureName,
   type PaidUseRequest,
@@ -304,6 +305,8 @@ export interface PaidUseConsentDeps {
   readonly nextQuoteOrder?: () => number | Promise<number>
   readonly prepareQuoteGeneration?: () => Promise<string>
   readonly quoteGeneration?: () => string
+  /** Saved Always quotes the store could not list: shown with the question it then asks. */
+  readonly readQuoteNotice?: () => PaidQuoteNotice | undefined
   readonly readQuoteGrant?: (quote: PaidQuote) => PaidGrant | undefined
   readonly writeQuoteGrant?: (grant: PaidGrant) => Promise<void>
   readonly revokeQuoteGrants?: () => Promise<void>
@@ -548,7 +551,18 @@ export class PaidUseConsent {
     if (isWindowUse && this.searchWindowOnce.has(windowKey)) answer = 'once'
     else {
       const pending = isWindowUse ? this.pendingSearchWindowOnce.get(windowKey) : undefined
-      const question = pending ?? ask({ ...request, quote }, this.deps.canRemember())
+      // No stored grant and an unreadable quote store: the question says why it asks again.
+      const quoteNotice = stored === undefined ? this.deps.readQuoteNotice?.() : undefined
+      const question =
+        pending ??
+        ask(
+          {
+            ...request,
+            quote,
+            ...(quoteNotice !== undefined && { quoteNotice }),
+          },
+          this.deps.canRemember(),
+        )
       if (isWindowUse) this.pendingSearchWindowOnce.set(windowKey, question)
       try {
         answer = await question

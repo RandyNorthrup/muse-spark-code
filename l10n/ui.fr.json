@@ -3761,6 +3761,8 @@
   "paidDeny": "Refuser",
   "paidUseWebSearchTitle": "Laisser Muse effectuer des recherches sur le web pour ce prompt ?",
   "paidSearchQuote": "Fournisseur : {provider} · Modèle : {model}.",
+  "paidQuoteChoicesUnreadable": "Les choix « toujours » enregistrés n’ont pas pu être lus ({kind}) ; cette utilisation demande donc à nouveau.",
+  "paidAlwaysNotKept": "« Toujours » pour {feature} s’applique cette fois, mais n’a pas pu être enregistré ({kind}) : la question sera posée à nouveau.",
   "paidUseWebSearchDetail": "Muse peut effectuer des recherches sur le web pendant qu’il répond. Chaque recherche est facturée sur votre clé Model API au tarif de {price}, en plus des jetons qu’ajoutent ses résultats. « Refuser » envoie le prompt sans recherche web.",
   "paidUseVoiceTitle": "Enregistrer avec Muse Voice ?",
   "paidUseVoiceDetail": "Muse Voice transcrit cet enregistrement, avec facturation sur votre clé Model API au tarif de {price}. « Refuser » laisse le microphone éteint.",
