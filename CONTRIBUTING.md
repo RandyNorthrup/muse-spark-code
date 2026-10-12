@@ -504,7 +504,8 @@ never a literal in the code:
   modules at the bundle that carries them (`transport.ts`, `sse.ts` and
   `ndjson.ts` at `dist/modelApi.js`, whose entry is
   `src/host/backend/modelApiEntry.ts`; `usdSchema.ts` at
-  `dist/modelApiBoundaries.js`, which exports what `usd.ts` exports).
+  `dist/modelApiBoundaries.js`, whose entry is
+  `src/shared/modelApiBoundariesEntry.ts`).
   TypeScript checks the import against the source module and cannot see a
   name the entry lacks. `npm run build` reads the built bundles and fails on
   such a member, and `test/unit/modelApiEntryExports.test.ts` names the file

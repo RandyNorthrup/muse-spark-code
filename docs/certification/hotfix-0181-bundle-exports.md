@@ -104,7 +104,15 @@ false, so nothing crashed and every money-keyed number was judged inexact:
   (schedules are latched off, so nobody met that one).
 
 Version 2 files (decimal text) were unaffected and no file was changed. Fix:
-`usd.ts` exports `canonicalUsd` and `exactJson.ts` imports it from `./usd`.
+the boundaries bundle's entry, `src/shared/modelApiBoundariesEntry.ts`,
+exports `canonicalUsd` from `usdSchema.ts`; `usd.ts` and `exactJson.ts` are as
+in 0.18.0. The first form of this fix (`790285dd`, the tree of the live proof
+below) added the name to `usd.ts`'s list instead. `usd.ts` is also an input
+of four webview bundles, and the added name changed one of their chunks:
+3,404 bytes before and after, identifiers renamed, the other 175 files
+identical. No pixel could depend on it, but a hotfix should not touch a
+browser bundle, so the export moved to the entry, which no browser bundle
+reads. The readers and the tests below are the same for both forms.
 Tests on the built code (`deferredBundles.test.ts`, "version 1 money through
 the built bundles"): the 0.17.0 fixture journal read through the built
 `usageService` bundle gives the same history as the source and no inexact
@@ -130,7 +138,7 @@ one is the Model API pin below.
 | `dist/modelApi.js`            | 532,537 B | 532,827 B | 537,600 B |
 | `dist/extension.js`           | 563,974 B | 563,974 B | 614,400 B |
 | `dist/headless.js`            | 100,078 B | 100,078 B | 102,400 B |
-| `dist/modelApiBoundaries.js`  |           | 33,032 B  | 51,200 B  |
+| `dist/modelApiBoundaries.js`  | 32,999 B  | 33,032 B  | 51,200 B  |
 | `dist/configuredProviders.js` | 28,406 B  | 28,406 B  | 51,200 B  |
 | `dist/subscriptions.js`       |           | 30,341 B  | 51,200 B  |
 
@@ -139,8 +147,39 @@ its export annotation. They must be exports of that bundle and not copies in
 the provider bundles: the confirmed-dispatch state they read and write lives
 in `transport.ts`, once per process, and a copy would have its own. The bundle
 test pinned the size at 532,537 B exactly; the pin is the owner's and is
-re-measured at 532,827 B in its own commit, the last of the branch, so it can
-be kept or dropped on his word. With it the suites above all pass.
+re-measured at 532,827 B in its own commit (`d90646575`), so it can be kept or
+dropped on his word; the entry commit follows it, so a no is a revert commit
+of that one, not a reset. With it the suites above all pass.
+
+## What 0.18.1 changes in the built product
+
+The production builds of 0.18.0 (`f8435aaac`) and of the branch with the
+entry commit, on the same machine, compared file by file: 276 files of `dist`
+each, metafiles aside.
+
+- `dist/webview`: 176 files, every one with the same name and SHA-256 in both
+  builds. The hotfix changes no browser bundle, so no frame and no README
+  screenshot can move.
+- Five files differ:
+
+| File                         | 0.18.0    | 0.18.1    | Why                                                        |
+| ---------------------------- | --------- | --------- | ---------------------------------------------------------- |
+| `dist/modelApi.js`           | 532,537 B | 532,827 B | The three exports                                          |
+| `dist/modelApiBoundaries.js` | 32,999 B  | 33,032 B  | Exports `canonicalUsd`                                     |
+| `dist/report.js`             | 19,615 B  | 19,777 B  | Report a Problem: dotted setting names, facts switched off |
+| `dist/acp.js`                | 241,039 B | 241,202 B | The same report builder, which the agent's bundle carries  |
+| `dist/whatsNew.json`         | 35,870 B  | 35,457 B  | The release notes                                          |
+
+Every other file is byte-identical, `dist/extension.js`, `dist/headless.js`
+and the provider bundles among them: those bundles already called the three
+names, and only the bundle they read them from changed.
+
+On that tree (`24523131`): `npm run build` exit 0 with the guard line above
+unchanged, 155 size rows and none over, typecheck 0; 155 files of the
+packaging, bundle, report, release-text, usage and schedule suites and the
+packed-package suite: 2,543 passed and 1 failed, `usageIntegration` at its
+5,000 ms limit (a known deadline case). E8 and the three built money tests
+pass.
 
 ## Drills
 
@@ -180,6 +219,22 @@ with each import.
 with four failures. The built usage service reported 27 inexact records for
 the 0.17.0 fixture where the source reports 0, and the built schedule reader
 threw `scheduleStoredJsonInvalid`.
+
+Drills A and C were run on the first form of the money fix, when the name was
+in `usd.ts`'s list.
+
+**F. The entry without the export** (the final form): `npm run build` exit 1,
+
+```text
+bundle split: 3 problem(s); see PLAN.md D6 and M57
+  dist: scheduleBackground.js reads canonicalUsd from modelApiBoundaries.js, which does not export it
+  dist: schedules.js reads canonicalUsd from modelApiBoundaries.js, which does not export it
+  dist: usageService.js reads canonicalUsd from modelApiBoundaries.js, which does not export it
+```
+
+and the built tests exit 1 with four failures (the cross-bundle check and the
+three money tests). Restored byte for byte (`f5091fe22bc53ab6`), `git status`
+empty, build exit 0.
 
 ## E8: one turn on a configured provider through the packed package
 
@@ -242,7 +297,8 @@ passed. Restored byte for byte (`b4fa9fa5c0f8da88`): both files pass.
 
 ## Live proof by the lead, 2026-10-12 12:07 AM PT, Kubuntu, Anthropic claude-opus-5-5
 
-On the agent package built from tree `790285dd`, installed the way a user
+On the agent package built from tree `790285dd` (the first form of the money
+fix; the three exports and the readers are the same in the final form), installed the way a user
 gets it (`npm pack` of the package, `npm install` of the tarball into a fresh
 folder):
 
