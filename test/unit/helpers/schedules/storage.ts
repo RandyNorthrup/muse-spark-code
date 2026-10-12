@@ -1,7 +1,15 @@
 import { randomUUID } from 'node:crypto'
 import { setTimeout as delay } from 'node:timers/promises'
 import * as z from 'zod/mini'
-import type { ScheduleFsPort, ScheduleLockOptions } from '../../../../src/core/schedules/journal'
+import {
+  createScheduleLeaseLock,
+  scheduleFsOperation,
+} from '../../../../src/runtime/schedules/nodeScheduleFs'
+import type {
+  ScheduleFsPort,
+  ScheduleLeaseGuard,
+  ScheduleLockOptions,
+} from '../../../../src/core/schedules/journal'
 import type { ScheduleQueuePort } from '../../../../src/core/schedules/store'
 import type { ScheduleV2 } from '../../../../src/shared/scheduleV2'
 import { scheduleStorageHash } from '../../../../src/core/schedules/store'
@@ -9,10 +17,19 @@ import { SCHEDULE_JOURNAL_MAX_OPS } from '../../../../src/shared/constants'
 
 /** Fault-injectable disk with real serialized bytes, shared by production clients. */
 export class MemoryScheduleFs implements ScheduleFsPort {
+  private readonly leaseLock = createScheduleLeaseLock(this)
   readonly files = new Map<string, string>()
   readonly tails = new Map<string, Promise<undefined>>()
   readonly faults = new Map<string, number>()
   readonly directories = new Map<string, Set<string>>()
+  constructor(shared?: MemoryScheduleFs) {
+    // Independent port instances over one disk, just like createNodeScheduleFs.
+    if (shared === undefined) return
+    this.files = shared.files
+    this.tails = shared.tails
+    this.faults = shared.faults
+    this.directories = shared.directories
+  }
   private put(file: string, content: string): void {
     this.files.set(file, content)
     const parts = file.split('/')
@@ -31,35 +48,50 @@ export class MemoryScheduleFs implements ScheduleFsPort {
     throw new Error('injected storage failure')
   }
   read(file: string): Promise<string | undefined> {
-    this.fail('read', file)
-    return Promise.resolve(this.files.get(file))
+    return scheduleFsOperation('memory.read', () => {
+      this.fail('read', file)
+      return Promise.resolve(this.files.get(file))
+    })
   }
   names(directory: string): Promise<readonly string[]> {
-    return Promise.resolve([...(this.directories.get(directory) ?? [])])
+    return scheduleFsOperation('memory.names', () =>
+      Promise.resolve([...(this.directories.get(directory) ?? [])]),
+    )
   }
   async publish(file: string, content: string, guard?: () => Promise<void>): Promise<boolean> {
-    await guard?.()
-    this.fail('publish', file)
-    if (this.files.has(file)) return false
-    this.put(file, content)
-    return true
+    await scheduleFsOperation('memory.publishGuard', async () => {
+      await guard?.()
+    })
+    return await scheduleFsOperation('memory.publish', () => {
+      this.fail('publish', file)
+      if (this.files.has(file)) return Promise.resolve(false)
+      this.put(file, content)
+      return Promise.resolve(true)
+    })
   }
   async replace(file: string, content: string, guard?: () => Promise<void>): Promise<void> {
-    await guard?.()
-    this.fail('replace', file)
-    this.put(file, content)
+    await scheduleFsOperation('memory.replaceGuard', async () => {
+      await guard?.()
+    })
+    await scheduleFsOperation('memory.replace', () => {
+      this.fail('replace', file)
+      this.put(file, content)
+      return Promise.resolve()
+    })
   }
   remove(file: string): Promise<void> {
-    this.fail('remove', file)
-    this.files.delete(file)
-    this.directories.delete(file)
-    const slash = file.lastIndexOf('/')
-    this.directories.get(file.slice(0, slash))?.delete(file.slice(slash + 1))
-    return Promise.resolve()
+    return scheduleFsOperation('memory.remove', () => {
+      this.fail('remove', file)
+      this.files.delete(file)
+      this.directories.delete(file)
+      const slash = file.lastIndexOf('/')
+      this.directories.get(file.slice(0, slash))?.delete(file.slice(slash + 1))
+      return Promise.resolve()
+    })
   }
   async lock<T>(
     key: string,
-    work: (guard: () => Promise<void>) => Promise<T>,
+    work: (guard: ScheduleLeaseGuard) => Promise<T>,
     options?: ScheduleLockOptions,
   ): Promise<T> {
     const previous = this.tails.get(key) ?? Promise.resolve(undefined)
@@ -72,20 +104,12 @@ export class MemoryScheduleFs implements ScheduleFsPort {
     const release = (isAborted: boolean) => {
       if (isReleased) return
       isReleased = true
-      if (isAborted) {
-        void previous
-          .then(() => {
-            next.resolve(undefined)
-          })
-          .catch(() => {
-            next.resolve(undefined)
-          })
-        return
+      const finish = () => {
+        next.resolve(undefined)
+        if (this.tails.get(key) === next.promise) this.tails.delete(key)
       }
-      // Resolve first so queued waiters wake; delete only when still last
-      // so the map keeps no entry per finished waiter.
-      next.resolve(undefined)
-      if (this.tails.get(key) === next.promise) this.tails.delete(key)
+      if (isAborted) void previous.then(finish).catch(finish)
+      else finish()
     }
     const signal = options?.signal
     const rawDeadline = options?.deadlineMs
@@ -150,12 +174,7 @@ export class MemoryScheduleFs implements ScheduleFsPort {
       }
       checkWaiting()
       try {
-        // The guard carries the abort into every guarded publish, so no
-        // write follows a stop even when it lands mid-work.
-        return await work(() => {
-          signal?.throwIfAborted()
-          return Promise.resolve()
-        })
+        return await this.leaseLock(key, work, options)
       } finally {
         release(false)
       }

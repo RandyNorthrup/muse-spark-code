@@ -22,7 +22,7 @@ import { LocalSourceError } from '../../core/reporting/sources/local'
 import type { PlaybookReportReader } from '../../core/reporting/sources/playbook'
 import type { SchedulesReportReader } from '../../core/reporting/sources/schedules'
 import type { SourceReadContext } from '../../core/reporting/sources/types'
-import { createNodeScheduleFs } from '../schedules/nodeScheduleFs'
+import { createNodeScheduleFs, type ScheduleQueueFailure } from '../schedules/nodeScheduleFs'
 
 /**
  * The reporting `playbook` source from M116's journal: the same file the
@@ -73,38 +73,26 @@ const SCHEDULE_CONTENT_FAILURES = new Set([
   'scheduleIndexDeltaInvalid',
   'scheduleJournalLimitExceeded',
   'scheduleJournalFencingRegression',
-  'scheduleQueueLeaseInvalid',
 ])
 
-/**
- * Every word the schedules report read (list, fires, confirm) can surface,
- * with its one classification. Ownership another writer can resolve is busy
- * and retried; an immutable identity that contradicts itself is invalid at
- * once, never retried; a wait that outlasts its deadline with a valid holder
- * is busy at once, never retried; missing-underfoot and path refusals are
- * failed. Anything else (genuine I/O) is failed.
- *
- * | word | classification |
- * | scheduleJournalOwnershipLost | busy, retried: the fencing-CAS slot went to a newer writer; the next attempt observes the winner. |
- * | scheduleQueueOwnershipLost | busy, retried: transient; a listed fence vanished before its read, or the holder identity changed mid-read while a takeover lands. |
- * | scheduleLeaseBusy | busy at once: this read's own wait expired with a valid holder; the deadline already passed, so retrying cannot help. |
- * | scheduleQueueLeaseInvalid | invalid at once: a fence header's token contradicts its file name or segment. |
- * | scheduleStoredJsonInvalid, scheduleWorkspaceMismatch, scheduleOutcomeIdentityMissing, scheduleFireIdentityMismatch, scheduleIndexRevisionMismatch, scheduleIndexDeltaInvalid, scheduleJournalLimitExceeded, scheduleJournalFencingRegression, $ZodError | invalid at once. |
- * | scheduleIndexMissing, scheduleStorageLinkRefused, scheduleStoragePathRefused | failed (a fresh store reads empty before any of these). |
- */
-const SCHEDULE_BUSY_FAILURES = new Set([
-  'scheduleJournalOwnershipLost',
-  'scheduleQueueOwnershipLost',
-])
+/** Immutable identity is invalid once; ownership races alone may heal. */
+export const SCHEDULE_QUEUE_FAILURES = {
+  scheduleLeaseBusy: 'busy',
+  scheduleQueueOwnershipLost: 'retry',
+  scheduleQueueLeaseInvalid: 'invalid',
+  scheduleLeaseHeartbeatFailed: 'failed',
+  scheduleStoragePathRefused: 'failed',
+  scheduleStorageLinkRefused: 'failed',
+} satisfies Record<ScheduleQueueFailure, 'busy' | 'retry' | 'invalid' | 'failed'>
 
-function isScheduleContentFailure(error: unknown): boolean {
+function scheduleFailure(error: unknown): 'busy' | 'retry' | 'invalid' | 'failed' {
   if (error instanceof Error) {
-    if (SCHEDULE_CONTENT_FAILURES.has(error.message)) return true
-    // zod/mini v4 rejects across the lazy bundle boundary, where
-    // `instanceof` cannot recognize its copy; the name travels intact.
-    if (error.name === '$ZodError') return true
+    for (const [word, verdict] of Object.entries(SCHEDULE_QUEUE_FAILURES))
+      if (error.message === word) return verdict
+    if (error.message === 'scheduleJournalOwnershipLost') return 'retry'
+    if (SCHEDULE_CONTENT_FAILURES.has(error.message) || error.name === '$ZodError') return 'invalid'
   }
-  return false
+  return 'failed'
 }
 
 export function createSchedulesReportReader(input: {
@@ -147,12 +135,9 @@ export function createSchedulesReportReader(input: {
           if (revisions(schedules) !== revisions(confirmed)) continue
           return { schedules: [...confirmed], fires: [...fires], observedAt: context.asOf }
         } catch (error) {
-          // The wait expired with a valid holder: busy at once. The deadline
-          // already passed, so another attempt cannot help.
-          if (error instanceof Error && error.message === 'scheduleLeaseBusy')
-            throw new LocalSourceError('busy')
-          if (error instanceof Error && SCHEDULE_BUSY_FAILURES.has(error.message)) continue
-          throw new LocalSourceError(isScheduleContentFailure(error) ? 'invalid' : 'failed')
+          const failure = scheduleFailure(error)
+          if (failure === 'retry') continue
+          throw new LocalSourceError(failure)
         }
       }
       throw new LocalSourceError('busy')
