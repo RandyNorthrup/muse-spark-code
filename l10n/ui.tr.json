@@ -3532,7 +3532,10 @@
   "providerKeyAbsent": "Saklanan {provider} anahtarı yok.",
   "providerKeyCleared": "{provider} anahtarı bu bilgisayarın kimlik bilgisi deposundan kaldırıldı.",
   "providerUnknown": "Bilinmeyen sağlayıcı: {provider}.",
-  "providerKeyShape": "Bu anahtar {provider} anahtarlarına benzemiyor ({hint}).",
+  "providerKeyNoticeWhitespace": "Bu anahtarda boşluk veya satır sonu var. Yine de kullanılsın mı?",
+  "providerKeyNoticeUrl": "Bu bir anahtardan çok bir web adresine benziyor. Yine de kullanılsın mı?",
+  "providerKeyNoticePath": "Bu bir anahtardan çok bir dosya yoluna benziyor. Yine de kullanılsın mı?",
+  "providerKeyNoticePlaceholder": "Bu bir anahtardan çok yer tutucu bir metne benziyor. Yine de kullanılsın mı?",
   "providerKeyNeeded": "{provider} anahtarını stdin'den istiyor (--key-stdin).",
   "providerNotConfigured": "{provider} yapılandırılmadı; önce providers add ile ekleyin.",
   "providerSecretUnreadable": "Saklanan {provider} kimlik bilgisi okunamıyor; anahtarı yeniden girin.",
@@ -4168,7 +4171,6 @@
   "providerConnectWaiting": "Tarayıcıda {provider} bekleniyor…",
   "oauthCallbackDone": "Bu pencereyi kapatıp VS Code’a dönebilirsiniz.",
   "providerKeyPrompt": "{provider} API anahtarı",
-  "providerKeyInvalid": "Bu bir {provider} anahtarı gibi görünmüyor.",
   "keyStoredNote": "Sistem anahtarlığınızda kayıtlı; yalnızca {origin} adresine gönderilir.",
   "changeKey": "Anahtarı değiştir",
   "reconnectAccount": "Yeniden bağlan",
@@ -4291,7 +4293,6 @@
       "pick": "Önce bir sağlayıcı seçin.",
       "address": "Sunucu adresini girin.",
       "credential": "Önce anahtarı girin veya hesabı bağlayın.",
-      "keyShape": "Anahtar bu sağlayıcının biçimine uymuyor.",
       "test": "Önce bağlantıyı test edin.",
       "models": "En az bir model seçin.",
       "validate": "Önce sunucu adresini doğrulayın.",
@@ -4299,7 +4300,6 @@
       "private": "Önce bu özel ağa erişimi onaylayın.",
       "pickStep": "Sağlayıcıyı ilgili adımda seçin.",
       "keyStep": "Anahtarı ilgili adımda girin.",
-      "badKey": "Bu anahtar sağlayıcının biçimine uymuyor.",
       "oauthStep": "Hesabı ilgili adımda bağlayın.",
       "costStep": "Test maliyetini ilgili adımda kabul edin.",
       "testStep": "Testi ilgili adımda çalıştırın.",
@@ -4346,10 +4346,9 @@
       "custom": "Herhangi bir Chat Completions, Responses veya Messages sunucusu"
     },
     "hints": {
-      "prefix": "{prefix}… ile başlayan anahtar ({site})",
       "site": "{site} üzerinden alınan anahtar",
       "azure": "Azure portalından alınan kaynak anahtarı",
-      "router": "{prefix}… ile başlayan anahtar ({site}) veya OpenRouter hesabını bağlayın",
+      "router": "{site} üzerinden alınan anahtar veya OpenRouter hesabını bağlayın",
       "custom": "Sunucunun beklediği anahtar"
     },
     "privacy": {

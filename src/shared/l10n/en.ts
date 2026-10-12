@@ -4249,9 +4249,14 @@ export const EN = {
   providerKeyPresent: 'A {provider} key is stored in {store}, bound to {origin}.',
   providerKeyAbsent: 'No {provider} key is stored.',
   providerKeyCleared: 'The {provider} key was removed from this computer’s credential store.',
-  // {provider}: the id as typed; {hint}: the key's shape as a hint.
+  // {provider}: the id as typed.
   providerUnknown: 'Unknown provider: {provider}.',
-  providerKeyShape: 'That key is not shaped like {provider} keys ({hint}).',
+  // A pasted provider key is never refused for its looks; each notice is
+  // a question the person answers ("use it anyway?"), never a dead end.
+  providerKeyNoticeWhitespace: 'This key contains a space or line break. Use it anyway?',
+  providerKeyNoticeUrl: 'This looks like a web address, not a key. Use it anyway?',
+  providerKeyNoticePath: 'This looks like a file path, not a key. Use it anyway?',
+  providerKeyNoticePlaceholder: 'This looks like placeholder text, not a key. Use it anyway?',
   providerKeyNeeded: '{provider} needs its key from stdin (--key-stdin).',
   providerNotConfigured: '{provider} is not configured; add it with providers add first.',
   providerSecretUnreadable: 'The stored {provider} credential cannot be read; enter the key again.',
@@ -5072,8 +5077,6 @@ export const EN = {
   // The OAuth loopback's callback page, shown in the browser.
   oauthCallbackDone: 'You can close this window and return to VS Code.',
   providerKeyPrompt: '{provider} API Key',
-  // {provider}: the preset's name. Said under the password box while typing.
-  providerKeyInvalid: 'This does not look like a {provider} key.',
   // {origin}: the address the credential is sent to, and no other.
   keyStoredNote: 'Stored in your system keychain; sent only to {origin}.',
   changeKey: 'Change Key',
@@ -5237,7 +5240,6 @@ export const EN = {
       pick: 'Pick a provider first.',
       address: 'Enter the server address.',
       credential: 'Enter the key or connect the account first.',
-      keyShape: 'The key is not shaped like this provider’s keys.',
       test: 'Test the connection first.',
       models: 'Tick at least one model.',
       validate: 'Validate the server address first.',
@@ -5245,7 +5247,6 @@ export const EN = {
       private: 'Confirm access to this private network first.',
       pickStep: 'Pick a provider from its own step.',
       keyStep: 'Enter the key at its own step.',
-      badKey: 'That key is not shaped like this provider’s keys.',
       oauthStep: 'Connect the account at its own step.',
       costStep: 'Accept the test cost at its own step.',
       testStep: 'Run the test at its own step.',
@@ -5292,10 +5293,9 @@ export const EN = {
       custom: 'Any Chat Completions, Responses or Messages server',
     },
     hints: {
-      prefix: 'Key beginning with {prefix}… ({site})',
       site: 'The key from {site}',
       azure: 'The resource key from the Azure portal',
-      router: 'Key beginning with {prefix}… ({site}) or Connect OpenRouter account',
+      router: 'The key from {site} or Connect OpenRouter account',
       custom: 'The key the server expects',
     },
     privacy: {

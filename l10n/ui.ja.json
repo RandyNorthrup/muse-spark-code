@@ -3456,7 +3456,10 @@
   "providerKeyAbsent": "{provider} キーは保存されていません。",
   "providerKeyCleared": "{provider} キーをこのコンピューターの資格情報ストアから削除しました。",
   "providerUnknown": "不明なプロバイダー: {provider}。",
-  "providerKeyShape": "このキーは {provider} キーの形ではありません ({hint})。",
+  "providerKeyNoticeWhitespace": "キーに空白または改行が含まれています。そのまま使いますか？",
+  "providerKeyNoticeUrl": "Webアドレスのようで、キーではないようです。そのまま使いますか？",
+  "providerKeyNoticePath": "ファイルパスのようで、キーではないようです。そのまま使いますか？",
+  "providerKeyNoticePlaceholder": "プレースホルダーのようで、キーではないようです。そのまま使いますか？",
   "providerKeyNeeded": "{provider} には stdin のキーが必要です (--key-stdin)。",
   "providerNotConfigured": "{provider} は設定されていません。先に providers add で追加してください。",
   "providerSecretUnreadable": "保存されている {provider} の資格情報を読み取れません。キーをもう一度入力してください。",
@@ -4058,7 +4061,6 @@
   "providerConnectWaiting": "ブラウザーで {provider} を待機中…",
   "oauthCallbackDone": "このウィンドウを閉じて VS Code に戻ることができます。",
   "providerKeyPrompt": "{provider} API キー",
-  "providerKeyInvalid": "これは {provider} のキーではないようです。",
   "keyStoredNote": "システムのキーチェーンに保存され、{origin} にのみ送信されます。",
   "changeKey": "キーを変更",
   "reconnectAccount": "再接続",
@@ -4178,7 +4180,6 @@
       "pick": "先にプロバイダーを選択してください。",
       "address": "サーバーのアドレスを入力してください。",
       "credential": "先にキーを入力するか、アカウントを接続してください。",
-      "keyShape": "キーの形式がこのプロバイダーの形式と一致しません。",
       "test": "先に接続をテストしてください。",
       "models": "少なくとも1つのモデルを選択してください。",
       "validate": "先にサーバーのアドレスを検証してください。",
@@ -4186,7 +4187,6 @@
       "private": "先にこのプライベートネットワークへのアクセスを確認してください。",
       "pickStep": "プロバイダーは専用の手順で選択してください。",
       "keyStep": "キーは専用の手順で入力してください。",
-      "badKey": "このキーはプロバイダーの形式と一致しません。",
       "oauthStep": "アカウントは専用の手順で接続してください。",
       "costStep": "テスト料金は専用の手順で承認してください。",
       "testStep": "テストは専用の手順で実行してください。",
@@ -4233,10 +4233,9 @@
       "custom": "任意のChat Completions、Responses、Messagesサーバー"
     },
     "hints": {
-      "prefix": "{prefix}…で始まるキー（{site}）",
       "site": "{site}のキー",
       "azure": "Azureポータルのリソースキー",
-      "router": "{prefix}…で始まるキー（{site}）、またはOpenRouterアカウントを接続",
+      "router": "{site}のキー、またはOpenRouterアカウントを接続",
       "custom": "サーバーが要求するキー"
     },
     "privacy": {

@@ -482,7 +482,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         },
         secrets: deps.storeSecrets,
         resolveHost: resolveEndpointHost,
-        readKey: (shape) => readProviderKeyLine(deps.stdin, lifecycle.signal, shape),
+        readKey: () => readProviderKeyLine(deps.stdin, lifecycle.signal),
         providerId,
         model: options.model,
         keyFromStdin: options.keyFromStdin,
