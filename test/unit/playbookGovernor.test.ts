@@ -2,7 +2,15 @@
 // file, a real git repository and its real hooks. What counts, what is left
 // alone, and what the third strike does to a conversation's next dispatch.
 import { randomUUID } from 'node:crypto'
-import { chmodSync, existsSync, mkdirSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs'
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  realpathSync,
+  renameSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -459,7 +467,7 @@ describe('which file a path names', { timeout: GOVERNED_ROUND_TIMEOUT_MS }, () =
     },
   )
 
-  it('cannot place a missing name shaped like a Windows short name there, and reads it as spelled elsewhere', () => {
+  it('cannot place a missing name shaped like a Windows short name there, and loses it as spelled elsewhere', () => {
     const setup = governed()
     const { workspace } = setup.repository
     // Nothing is at `GONE~1.ts`. On Windows it may have been any long name's second name.
@@ -468,8 +476,9 @@ describe('which file a path names', { timeout: GOVERNED_ROUND_TIMEOUT_MS }, () =
     const placed = (platform: NodeJS.Platform) =>
       onPlatform(platform, () => reviewedChanges(workspace, SESSION, [short], [child]))
     expect(() => placed('win32')).toThrow(UI_TEXT.playbookEvidenceUnreadable)
-    for (const platform of ['linux', 'darwin'] as const)
-      expect(placed(platform)).toEqual([{ file: short, child }])
+    // A moved file is lost and means lost (D96.17): no round is counted for a spelling
+    // whose file is gone where the file system tells spellings apart.
+    for (const platform of ['linux', 'darwin'] as const) expect(placed(platform)).toEqual([])
   })
 
   it('refuses a file of the workspace whose name the journal cannot hold, and never passes it over', () => {
@@ -574,6 +583,38 @@ describe('which file a path names', { timeout: GOVERNED_ROUND_TIMEOUT_MS }, () =
       setup.governor.cancelReview(later)
     },
   )
+
+  it('loses a moved reviewed file, and the review carries nothing forward', async () => {
+    const setup = governed()
+    const stale = PANEL_FILES.panel
+    mkdirSync(path.join(setup.repository.workspace, 'src/webview/moved'), { recursive: true })
+    renameSync(
+      path.join(setup.repository.workspace, stale),
+      path.join(setup.repository.workspace, 'src/webview/moved/view.tsx'),
+    )
+    // The moved file is lost and means lost: no round, no refusal.
+    const lost = setup.governor.openReview(
+      randomUUID(),
+      SESSION,
+      [stale],
+      [{ ...CHILD, files: [stale] }],
+    )
+    expect(lost.kind).toBe('ordinary')
+    const records = await journal(setup)
+    expect(
+      records.filter((record) => record.kind === 'round' || record.kind === 'module'),
+    ).toHaveLength(0)
+    // The model-independent remainder recovers on the next review.
+    const reviewId = randomUUID()
+    const opening = setup.governor.openReview(
+      reviewId,
+      SESSION,
+      [PANEL_FILES.clock],
+      [{ ...CHILD, files: [PANEL_FILES.clock] }],
+    )
+    expect(opening.kind).toBe('playbook')
+    setup.governor.cancelReview(reviewId)
+  })
 
   it('knows a file that is gone by its spelling, without regard to case on Windows alone', () => {
     const setup = governed()
