@@ -159,6 +159,15 @@ export function EffortMenuFooter({
 }: EffortSliderProps & {
   readonly catalogue: CatalogueTiers | undefined
 }) {
+  // A future-only catalogue has no selectable tier, but its names still
+  // render verbatim and disabled; nothing renders when the catalogue names
+  // no tier at all (RVCM1063C #2). Decided here, in the lazy chunk, so the
+  // startup closure carries no visibility check.
+  const variants = catalogue?.variants
+  const hasTiers =
+    props.levels.length > 0 ||
+    (variants !== undefined && variants !== 'unknown' && variants.length > 0)
+  if (!hasTiers) return null
   return (
     <div className="effort-row">
       <span className="effort-row-label">
