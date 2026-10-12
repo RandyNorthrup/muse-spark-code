@@ -16,8 +16,9 @@ npm run build:dev
 
 Press F5 in VS Code to start an Extension Development Host with the
 extension loaded; `npm run watch` rebuilds on save. The Muse Code CLI and a
-Meta Model API key are optional: the unit tests run against fakes, and the
-sign-in gate explains what is missing.
+Meta Model API key are optional for building and for the checks hosted CI
+runs, and the sign-in gate explains what is missing. The real-life run, the
+product's test, needs real keys (`docs/testing/real-life.md`).
 
 New UI surfaces ship in their own lazy chunks, loaded on first use, with
 accessible loading, an honest failure and retry, and a measured budget of their
@@ -110,13 +111,19 @@ Use this order for a candidate branch:
    independent review, and any unproved platform or live gate to the PR
    proof. A printed success line without the process exit status is not a
    gate result.
-7. Before a release, hold real conversations through the packed product:
-   install the tarball the candidate's build packs (`npm run package:acp`)
-   in an empty folder and, on the cheapest models under a stated spending
-   cap, run one plain turn, one turn with a tool call and an approval, and
-   one long streamed answer, then read `usage` back; the terminal agent and
-   ACP both. State the expected number of calls first and count them
-   afterwards. 0.18.0 shipped a defect that every suite passed.
+7. Before a release, run the real-life run on the tarball the candidate's
+   build packs (`npm run package:acp`, then
+   `node scripts/real-life/run.mjs --artefact <tarball> --routes … --max-requests … --max-usd … --record docs/testing/real-life/<version>/<name>`):
+   the packed product in a new empty folder with a new empty home, used by
+   the terminal agent and the editor protocol against real providers on
+   their cheapest models. It prints the requests it may make and its dollar
+   cap before the first one and what it made afterwards; its record goes
+   with the release. `docs/testing/real-life.md` says how to run it, what
+   it costs and how to add a scenario. 0.18.0 shipped a defect that every
+   suite passed, and the first real-life runs of 0.18.1 (2026-10-12) found
+   more that no suite had shown: a provider's refusal replaced by a false
+   sentence, a working key refused for its shape, `exec` usage never
+   recorded.
 
 - `npm run quality` runs every local gate in one go, when you want that
   before a push; it is feedback, not the release record. It leaves out only
@@ -569,11 +576,10 @@ the Muse Code backend goes through the extension itself (the `ide` server's
 tools, `src/host/ide/imageTools.ts`), never through `muse serve`, and
 asks before each purchase in the same popup, whatever Muse Code's
 permission mode.
-The tests never spend:
-the Model API, the Images endpoint and the Muse Voice WebSocket are all
-fakes (`test/unit/helpers/fakeModelApi.ts` and `fakeVoiceServer.ts`, a
-small RFC 6455 server over Node's own `http`). A live check bills the
-owner's key: say what it will cost first and ask.
+The checks hosted CI runs never spend. The real-life run does
+(`docs/testing/real-life.md`), on the owner's standing word (2026-10-12):
+say what it may make and its dollar cap first, run it in an empty
+workspace, count afterwards and report. Buying credits is the owner's.
 
 ## MCP servers on the Model API backend
 
