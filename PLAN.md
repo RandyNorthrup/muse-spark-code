@@ -1,3 +1,17 @@
+**CM352R2 review repair (2026-10-11, macbook; continuation).** Finish all
+five RVCM352 findings and their sibling paths. Bind each paid recording's
+helper, socket callbacks and cap to its identity; serialize capture restart
+until stop acknowledgement or forced termination. Read the Meta key and
+complete both reservations before recording. Await voice admission/settlement
+on backend stop and extension shutdown. Give Meta voice its own key-bound
+journal scope regardless of the conversation provider. Announce Linux
+listening only after admitted spawn succeeds. Preserve reported-duration
+flooring and uncertain liability. Add regression tests and byte-exact red
+drills in `docs/certification/cm352.md`; certify dependent suites at repository
+timeouts. Attribute the two reviewer-red suites against `dbdb55a0e`.
+No browser, real microphone, loopback listener, paid/live call, merge, push,
+subagents, dependency, guard relaxation or Model API bundle growth.
+
 # PLAN — Muse Spark for VS Code (unofficial)
 
 **CM352 bounded realtime dictation (2026-10-11, macmini).** Restore the
@@ -22591,6 +22605,9 @@ sessions:
 
 **Status 2026-10-11: built.**
 
+- RVCM352 repair: recording-owned helpers/callbacks and serialized restarts;
+  no microphone before both admissions; awaited shutdown and closed-tab drains;
+  independent Meta-key scope; Linux readiness follows successful OS spawn.
 - Cap: three minutes plus 80 ms reservation headroom; reported-duration tariff
   settlement and window consent. See [CM352 certification](docs/certification/cm352.md).
 - Physical microphone/editor receipts and external Grok review remain with

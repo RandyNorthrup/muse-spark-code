@@ -252,7 +252,7 @@
     {
       "id": "M35",
       "title": "Muse Voice dictation",
-      "summary": "Optional paid dictation with Meta's Muse Voice Transcribe on both backends, with three-minute recordings reserved before connection and estimates settled from final reported duration, while free system dictation stays the default.",
+      "summary": "Optional dictation billed to your Meta key on either backend and conversation model, with isolated three-minute recordings admitted before capture, drained on restart or shutdown, and settled from reported duration; free system dictation remains the default.",
       "area": "voice-media",
       "release": "0.9.0"
     },
