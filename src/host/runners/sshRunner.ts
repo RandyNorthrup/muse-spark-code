@@ -92,7 +92,12 @@ export class SshRunner {
     signal?.throwIfAborted()
     if (!this.deps.isTrusted()) throw new Error(UI_TEXT.teamRunners.trustNotice)
   }
-  private async ssh(runner: Runner, script: string, signal?: AbortSignal): Promise<string> {
+  private async ssh(
+    runner: Runner,
+    script: string,
+    signal?: AbortSignal,
+    onSend?: () => void,
+  ): Promise<string> {
     this.admit(signal)
     const args = [...runnerSshArgs(runner), remoteCommand(runner, script)]
     if (process.platform === 'win32') {
@@ -105,6 +110,9 @@ export class SshRunner {
         .join(' ')
       if (line.length >= RUNNER_WINDOWS_COMMAND_MAX_CHARS) throw new WindowsCommandTooLongError()
     }
+    // The single sent fact: only the start command reports it, immediately
+    // before its bytes leave, after every length refusal has thrown.
+    onSend?.()
     const result = await this.deps.run({
       file: this.deps.ssh,
       args,
@@ -250,9 +258,11 @@ export class SshRunner {
     this.admit(job.signal)
     await this.deps.assertWorkingCopy(job.cwd)
     this.admit(job.signal)
-    if (this.active.has(job.runId)) throw new Error(UI_TEXT.teamRunners.busy)
+    // A live copy with this id is already leaving or running: never start a
+    // second one locally or remotely. Uncertain retains ownership, never local.
+    if (this.active.has(job.runId)) return { kind: 'uncertain' }
     this.active.add(job.runId)
-    let isDispatched = false
+    const sendState = { sent: false }
     let pushCopy: string | undefined
     let hasPushProof = false
     try {
@@ -369,12 +379,17 @@ export class SshRunner {
       ])
       // Check before dispatch uncertainty: every Windows transport command is bounded.
       remoteCommand(runner, start)
-      isDispatched = true
-      const started: unknown = JSON.parse(await this.ssh(runner, start, job.signal))
+      const started: unknown = JSON.parse(
+        await this.ssh(runner, start, job.signal, () => {
+          sendState.sent = true
+          job.onSent?.()
+        }),
+      )
       const initial = runStateSchema.parse(started)
       if (initial.runId !== job.runId) throw new Error(UI_TEXT.teamRunners.testFailed)
       if (initial.state === 'busy') return { kind: 'busy' }
-      if (initial.state === 'refused') throw new WindowsCommandTooLongError()
+      // The receiver got the start and proved it admitted nothing: run locally once.
+      if (initial.state === 'refused') return { kind: 'busy' }
       if (initial.state === 'running' || initial.state === 'ended') job.onAdmitted?.()
       const deadline = this.deps.now() + job.timeoutMs + RUNNER_CONNECT_TIMEOUT_MS
       let output = ''
@@ -414,9 +429,15 @@ export class SshRunner {
       } while (this.deps.now() < deadline)
       return { kind: 'uncertain' }
     } catch (error: unknown) {
-      this.admit(job.signal)
-      if (error instanceof WindowsCommandTooLongError) throw error
-      return { kind: isDispatched ? 'uncertain' : 'offline' }
+      if (!sendState.sent) {
+        // Nothing left this machine: cancel and the length refusal propagate
+        // with their own sentences; every other pre-send failure reads offline.
+        if (error instanceof WindowsCommandTooLongError) throw error
+        this.admit(job.signal)
+        return { kind: 'offline' }
+      }
+      // The start command went onto the wire, or its proof was lost: never local.
+      return { kind: 'uncertain' }
     } finally {
       this.active.delete(job.runId)
       if (pushCopy !== undefined && hasPushProof)

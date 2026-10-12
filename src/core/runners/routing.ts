@@ -55,6 +55,12 @@ export interface CheckJob {
   readonly onOutput: (text: string) => void
   /** Receiver's existing durable start receipt; never inferred from SSH exit. */
   readonly onAdmitted?: (() => void) | undefined
+  /**
+  Fired exactly once, immediately before the start command is written to the
+  transport, after every pre-send refusal has thrown. The router's only
+  sent fact; pre-send stops must never read uncertain.
+  */
+  readonly onSent?: (() => void) | undefined
   readonly relocation?:
     { readonly reason: 'machineBusy'; readonly level: ResourceLevel } | undefined
 }
@@ -105,6 +111,9 @@ export interface ResourceRunnerRouteOptions {
   ) => void
   readonly onError: ResourceRelocationOptions['onError']
 }
+
+/** Relocation does not apply: the caller runs ordinary runner routing. */
+const DECLINED: unique symbol = Symbol('resourceRoutingDeclined')
 
 /** R's policy over M96c's existing ownership, approval, health and dispatch ports. */
 export class ResourceRunnerRouter {
@@ -170,7 +179,7 @@ export class ResourceRunnerRouter {
     job: CheckJob,
     runners: readonly Runner[],
     deps: CheckRoutingDeps,
-  ): Promise<CheckResult | undefined> {
+  ): Promise<CheckResult | typeof DECLINED | undefined> {
     // Publish the shared promise before an injected ownership or surface port can re-enter.
     await Promise.resolve()
     const signal = AbortSignal.any([job.signal, this.cancel.signal])
@@ -181,6 +190,12 @@ export class ResourceRunnerRouter {
       this.options.headless ||
       !status.settings.enabled ||
       !this.options.isHeavy(job) ||
+      status.settings.relocate === 'off'
+    )
+      // Relocation adds a route; it never removes one. The caller runs the
+      // ordinary runner routing exactly as before this binding.
+      return DECLINED
+    if (
       resourceRunnerPreference({
         level: status.level,
         relocation: status.settings.relocate,
@@ -189,7 +204,8 @@ export class ResourceRunnerRouter {
         approvedRunner: () => runners.find((runner) => this.options.isApproved(runner, job)),
       }) === undefined
     )
-      return
+      // No approved runner (or pressure recovered): kept locally, no probes.
+      return undefined
     const state: { completion?: Promise<RunnerDispatch>; isClaimRefused: boolean } = {
       isClaimRefused: false,
     }
@@ -290,7 +306,7 @@ export class ResourceRunnerRouter {
       relocationSignal.removeEventListener('abort', withdraw)
     }
     const dispatchSignal = AbortSignal.any([signal, withdrawal.signal])
-    let wasSent = false
+    const sendState = { sent: false }
     try {
       dispatchSignal.throwIfAborted()
       const relocation = this.options.port.status().settings.relocate
@@ -307,11 +323,16 @@ export class ResourceRunnerRouter {
         receipt('refused')
         return { kind: 'offline' }
       }
-      wasSent = true
+      // The only sent fact: fired immediately before the start command is
+      // written, by the transport itself. Every stop before it reads refused.
       const answer = await deps.remote(runner, {
         ...job,
         signal: dispatchSignal,
         relocation: metadata,
+        onSent: () => {
+          sendState.sent = true
+          job.onSent?.()
+        },
         onAdmitted: () => {
           detach()
           receipt('admitted')
@@ -322,9 +343,9 @@ export class ResourceRunnerRouter {
       else receipt(answer.kind === 'offline' || answer.kind === 'busy' ? 'refused' : 'uncertain')
       return answer
     } catch (error: unknown) {
-      receipt(wasSent ? 'uncertain' : 'refused')
+      receipt(sendState.sent ? 'uncertain' : 'refused')
       this.options.onError(error)
-      return { kind: wasSent ? 'uncertain' : 'offline' }
+      return { kind: sendState.sent ? 'uncertain' : 'offline' }
     } finally {
       detach()
     }
@@ -342,10 +363,17 @@ export class ResourceRunnerRouter {
     runners: readonly Runner[],
     deps: CheckRoutingDeps,
     local: () => Promise<CheckResult>,
+    ordinary?: () => Promise<CheckResult>,
   ) {
     const previous = this.active.get(job.runId)
     if (previous !== undefined) return await previous
-    const pending = (async () => (await this.move(job, runners, deps)) ?? (await local()))()
+    const pending = (async () => {
+      const moved = await this.move(job, runners, deps)
+      // Declined relocation keeps the ordinary route: a label-bound check
+      // still reaches its runner; nothing fails Offline because of the binding.
+      if (moved === DECLINED) return ordinary === undefined ? await local() : await ordinary()
+      return moved ?? (await local())
+    })()
     this.active.set(job.runId, pending)
     try {
       return await pending
@@ -407,30 +435,35 @@ export async function routeChecks(
     if (result.runId !== admittedJob.runId) throw new Error(UI_TEXT.teamRunners.testFailed)
     return result
   }
+  // Ordinary M96c runner routing, unchanged by the relocation binding: a
+  // declined relocation runs exactly this, never straight to local.
+  const ordinary = async () => {
+    for (const runner of candidates) {
+      admit()
+      const health = await deps.sample(runner)
+      admit()
+      if (
+        health === undefined ||
+        !health.inputReady ||
+        health.freeSlots === 0 ||
+        health.load >= health.cores
+      )
+        continue
+      const answer = await deps.remote(runner, admittedJob)
+      admit()
+      if (
+        answer.kind === 'uncertain' ||
+        (answer.kind === 'finished' && answer.result.runId !== admittedJob.runId)
+      )
+        throw new Error(UI_TEXT.teamTrafficNotices.uncertainAttempt)
+      if (answer.kind === 'finished') return answer.result
+    }
+    return await local()
+  }
   if (isResourceRouting) {
-    const result = await deps.resources.route(admittedJob, candidates, deps, local)
+    const result = await deps.resources.route(admittedJob, candidates, deps, local, ordinary)
     admit()
     return result
   }
-  for (const runner of candidates) {
-    admit()
-    const health = await deps.sample(runner)
-    admit()
-    if (
-      health === undefined ||
-      !health.inputReady ||
-      health.freeSlots === 0 ||
-      health.load >= health.cores
-    )
-      continue
-    const answer = await deps.remote(runner, admittedJob)
-    admit()
-    if (
-      answer.kind === 'uncertain' ||
-      (answer.kind === 'finished' && answer.result.runId !== admittedJob.runId)
-    )
-      throw new Error(UI_TEXT.teamTrafficNotices.uncertainAttempt)
-    if (answer.kind === 'finished') return answer.result
-  }
-  return await local()
+  return await ordinary()
 }
