@@ -887,6 +887,12 @@
     "recordingStart": "Iniciar gravação",
     "recordingStop": "Parar gravação",
     "uploadDeleteFailed": "Não foi possível excluir {name}: {reason}",
+    "uploadDeleteProviderRefused": "o provedor recusou a exclusão",
+    "uploadDeleteBacklog": {
+      "one": "{count} arquivo enviado não pôde ser excluído de {provider}. A exclusão será repetida.",
+      "other": "{count} arquivos enviados não puderam ser excluídos de {provider}. A exclusão será repetida.",
+      "many": "{count} arquivos enviados não puderam ser excluídos de {provider}. A exclusão será repetida."
+    },
     "conversionFailed": "Falha na conversão: {reason}",
     "replayMetadata": "Mídia: {name} ({duration}, {size})",
     "replayMetadataNoDuration": "Mídia: {name} ({size})"

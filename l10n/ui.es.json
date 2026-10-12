@@ -887,6 +887,12 @@
     "recordingStart": "Iniciar grabación",
     "recordingStop": "Detener grabación",
     "uploadDeleteFailed": "No se pudo eliminar {name}: {reason}",
+    "uploadDeleteProviderRefused": "el proveedor rechazó la eliminación",
+    "uploadDeleteBacklog": {
+      "one": "{count} archivo subido no se pudo eliminar de {provider}. La eliminación se reintentará.",
+      "other": "{count} archivos subidos no se pudieron eliminar de {provider}. La eliminación se reintentará.",
+      "many": "{count} archivos subidos no se pudieron eliminar de {provider}. La eliminación se reintentará."
+    },
     "conversionFailed": "Error de conversión: {reason}",
     "replayMetadata": "Contenido multimedia: {name} ({duration}, {size})",
     "replayMetadataNoDuration": "Contenido multimedia: {name} ({size})"

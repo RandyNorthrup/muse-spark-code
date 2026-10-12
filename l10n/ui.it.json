@@ -887,6 +887,12 @@
     "recordingStart": "Avvia registrazione",
     "recordingStop": "Ferma registrazione",
     "uploadDeleteFailed": "Impossibile eliminare {name}: {reason}",
+    "uploadDeleteProviderRefused": "il provider ha rifiutato l’eliminazione",
+    "uploadDeleteBacklog": {
+      "one": "{count} file caricato non è stato eliminato da {provider}. L’eliminazione verrà riprovata.",
+      "other": "{count} file caricati non sono stati eliminati da {provider}. L’eliminazione verrà riprovata.",
+      "many": "{count} file caricati non sono stati eliminati da {provider}. L’eliminazione verrà riprovata."
+    },
     "conversionFailed": "Conversione non riuscita: {reason}",
     "replayMetadata": "Contenuto multimediale: {name} ({duration}, {size})",
     "replayMetadataNoDuration": "Contenuto multimediale: {name} ({size})"

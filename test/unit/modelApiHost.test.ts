@@ -4796,8 +4796,9 @@ describe('ModelApiSession: turns', () => {
 
   // RVM105B P2-1: the incomplete-response warnings use fixed log words. A
   // provider reason carrying an attachment name and a secret-looking token
-  // maps to `other`; the response id passes wireWordForLog. The turn still
-  // reports its partial text to the user.
+  // maps to `other`; a word-shaped response id passes wireWordForLog,
+  // anything else becomes a fixed phrase. The turn shows its partial text;
+  // the raw reason is model-visible only, never user-visible.
   it('logs a hostile incomplete reason in fixed words on an ordinary turn', async () => {
     const t = setup()
     const { session, events, turnDone } = await startSession(t)
@@ -4806,8 +4807,10 @@ describe('ModelApiSession: turns', () => {
     await session.sendTurn([{ type: 'text', text: 'go' }])
     await turnDone()
     expect(events.at(-2)).toMatchObject({ type: 'turnCompleted', terminal: 'completed' })
-    // The user still sees the partial text the provider sent.
-    expect(JSON.stringify(session.history().items)).toContain('partial')
+    // The user still sees the partial text the provider sent, not the reason.
+    const history = JSON.stringify(session.history().items)
+    expect(history).toContain('partial')
+    expect(history).not.toContain(hostile)
     const warnings = t.log.warn.mock.calls.map((call) => String(call[0]))
     expect(warnings.some((line) => line.includes('incomplete: other'))).toBe(true)
     expect(warnings.join('\n')).not.toContain(hostile)

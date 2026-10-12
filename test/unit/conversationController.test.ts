@@ -12,6 +12,7 @@ import {
   SCREEN_RECORDING_DEFAULT_MAX_SECONDS,
 } from '../../src/shared/constants'
 import { AttachedMedia } from '../../src/core/media/attachedMedia'
+import { UploadDeleteFailedError } from '../../src/core/media/uploadLedger'
 import { conversationGitFactory } from '../../src/host/git/conversationGitBundle'
 import * as gitEntry from '../../src/host/git/conversationGitEntry'
 import { Usd } from '../../src/shared/usd'
@@ -4667,6 +4668,62 @@ describe('ConversationController: account & usage (M8)', () => {
     )
     await t.controller.deleteUploadedFiles()
     expect(port.deleteAllOurs).toHaveBeenCalledOnce()
+  })
+
+  it('names the file, not its id, with a fixed reason when the provider refuses a delete', async () => {
+    const port = {
+      read: vi.fn(() => Promise.resolve({})),
+      post: vi.fn(),
+      deleteFile: vi.fn(() => Promise.reject(new UploadDeleteFailedError('clip.mp4'))),
+      deleteAllOurs: vi.fn(() => Promise.resolve()),
+      confirmForeign: vi.fn(() => Promise.resolve(false)),
+    }
+    const t = setup({ status: 'signedOut', uploadedFiles: port })
+    await t.controller.deleteUploadedFiles('file-abc123')
+    const notices = t.surface.posted.filter((message) => message.type === 'notice')
+    expect(notices).toContainEqual(
+      expect.objectContaining({
+        level: 'error',
+        text: 'Could not delete clip.mp4: the provider refused the deletion',
+      }),
+    )
+    // Neither the id under deletion nor the provider's id-echoing message
+    // reaches the person.
+    expect(JSON.stringify(notices)).not.toContain('file-abc123')
+  })
+
+  it('tells a repeated provider-delete backlog once, as a count only', async () => {
+    const report = {
+      provider: 'meta',
+      isReadOnly: false,
+      poolBytes: 100,
+      usedBytes: 0,
+      files: [],
+    }
+    const port = {
+      read: vi.fn(() => Promise.resolve(report)),
+      post: vi.fn(),
+      deleteFile: vi.fn(() => Promise.resolve()),
+      deleteAllOurs: vi.fn(() => Promise.resolve()),
+      confirmForeign: vi.fn(() => Promise.resolve(false)),
+      deleteNotice: vi
+        .fn()
+        .mockResolvedValueOnce({ provider: 'meta', count: 2 })
+        .mockResolvedValue(undefined),
+    }
+    const t = setup({ status: 'signedOut', uploadedFiles: port })
+    const notices = () => t.surface.posted.filter((message) => message.type === 'notice')
+    await t.controller.readUploadedFiles()
+    expect(notices()).toContainEqual(
+      expect.objectContaining({
+        level: 'warning',
+        text: '2 uploaded files could not be deleted from meta. Deletion will be retried.',
+      }),
+    )
+    // Told once: the next read says nothing more.
+    const said = notices().length
+    await t.controller.readUploadedFiles()
+    expect(notices()).toHaveLength(said)
   })
 
   it('refuses byte-bearing uploaded-file reports and does not post after disposal', async () => {
