@@ -9,6 +9,26 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- Money, consent and credential failures say what happened, once, where the
+  person sees it. An "always" a store cannot keep still allows the current
+  use once, and the person is told at once (an editor warning, a session
+  message, the terminal console) instead of only the log. An unreadable
+  quote folder still asks again, but the question says the saved choices
+  could not be read and names the kind. One unreadable provider entry no
+  longer hides a working provider later in the list; each is recorded with
+  its kind. A stopped OAuth flow stays a stop only for the caller's own
+  stop; any other failure racing it denies. A corrupt history choice is
+  announced once per damaged file across windows and restarts. A schedule
+  consent file that cannot be read reports its errno instead of reading as
+  corrupt, and a failure with no errno keeps its kind. A failed panel
+  message reaches its draft with the fixed sentence and the queue keeps
+  going; a foreign sampler failure is recorded and dropped. Vault decoding
+  wipes copied fields on every exit, including an unexpected mid-decode
+  failure. A credential snapshot the store cannot produce says the store
+  failed instead of asking for a key that would not help, and a broken
+  account host or secret store reads as "could not say" instead of "no
+  account" or assumed presence.
+
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
   reads and writes, and 1-hour cache writes settle at their own price.
   The shared retry classifier refuses known quota codes and excessive
@@ -351,18 +371,6 @@ happened, not what was planned; superseded entries are kept.
   whatever the others were.
 
 ### Fixed
-
-- Paid-use and credential failures now report their true reason instead of a
-  misleading one. An "always" a store cannot keep still allows the current
-  use once, but the log names only the failure's kind, never the store's
-  message. An unreadable quote folder or history choice is reported with its
-  kind instead of silently passing as no quotes or a refusal. A credential
-  snapshot the store cannot produce says the credential store failed
-  instead of asking for a key that would not help (an origin mismatch still
-  asks for the key). A broken account host or secret store reads as "could
-  not say" instead of "no account" or assumed presence. A stopped OAuth
-  sign-in stays a stop instead of reading as denied. Unexpected failures
-  keep their kind instead of wearing the expected code.
 
 - Local report sources sort every tied list to a total order, so the same
   inputs produce byte-identical source facts whatever order records arrive

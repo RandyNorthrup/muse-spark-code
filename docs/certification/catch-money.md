@@ -102,3 +102,119 @@ Error(...)` inside a bound catch. Three sites needed structural answers,
 - Commits: `fcfe634d5` (core paid), `65e6037a0` (core shapes),
   `0e253450a` (runtime), `3e30829af` (host auth), `5bf5f018a` (panel).
   Baseline regeneration is committed separately below with this record.
+
+## Round 2 — review RVCATCHMONEY findings (2026-10-12)
+
+Lane: fix/catch-money. All ten findings (1 P1, 7 P2, 2 P3) fixed and
+shipped; no residuals. Each fix sweeps the lane for siblings of the same
+kind. Each fix has a regression test that fails without it and a red drill
+(break the guard, see the named test fail, restore byte-exact, sha256
+verified, `git status` clean before committing).
+
+Counts: `scripts/catch-baseline.json` is byte-identical (SWALLOW/GENERIC
+unchanged; `npm run check:catches` exits 0). New handlers since round 1:
+three NARROW `readFileSync`/`writeFileSync`/`JSON.parse` catches in
+`history.ts` (F6), one NARROW JSON catch in `schedules/consent.ts` (F8),
+four CLEANUP pump-tail handlers with reason comments (F4: two `.catch(`
+in `history.ts`, one `.catch(` plus one `catch {}` in `modelsPanel.ts`;
+CLEANUP is outside the baseline). `check:l10n` passes: two new keys
+(`paidQuoteChoicesUnreadable`, `paidAlwaysNotKept`) in EN and all 14
+translated tables; translations are contributor best-effort, flagged for
+native review.
+
+| Finding                                        | Fix                                                                                                                                                                                                                                                                                       | Regression test                                                                                                                                                                                                                                           | Red drill (old handler back → named test fails, restored byte-exact)                                                                                                                                                                                                                                                                                            |
+| ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1 (P1) unreadable provider hides a working one | `credentialStore.ts` presence scan records each unreadable entry (provider id, kind, once each) and continues; `return true` only for local-model providers (stopping is right: no credential needed, answer cannot change). `ProviderCredentialStore` inherits the fix (no second scan). | `credentialStore.test.ts` "finds a working provider past an unreadable entry" in both orders `[broken, openrouter]`, `[openrouter, broken]` (+ warning names provider, kind only)                                                                         | `return false` in the catch → both order cases fail; restored byte-exact                                                                                                                                                                                                                                                                                        |
+| 2 (P2) cancel check tests the weather          | `client.ts` `run()` rethrows only when the caught error IS the caller's abort reason (`signal.aborted && error === signal.reason`); timeouts and raced failures still deny                                                                                                                | `mcpOAuth.test.ts` "denies a store failure racing a caller stop instead of leaking it" (private text fails during abort → `noAccess`, no leak); existing stop test still passes (reason identity through `AbortSignal.any` verified)                      | `if (signal.aborted) throw error` → probe fails; restored byte-exact. Sweep: the only `signal.aborted`-in-catch in the lane's files                                                                                                                                                                                                                             |
+| 3 (P2) erase before you leave                  | `decodeVaultMaterial` wipes in a `finally` keyed to a completion flag (success owns its fields; every failure abandons zeroes)                                                                                                                                                            | `crypto.test.ts` "wipes already-copied fields when a later allocation fails" (2nd `Buffer.alloc` throws, 1st copy zeroed)                                                                                                                                 | Old order (wipe after rethrow) → test fails; restored byte-exact. Sweep: every other lane wipe sits in a `finally` or before its throw (client signIn/fetch, discovery, seal/open blocks, `randomVaultBytes`, paidGrants temp)                                                                                                                                  |
+| 4 (P2) fire-and-forget rethrows                | History sampler/event tails and the panel queue tail record a foreign failure with the fixed sentence (`report()` / `fail(failedDraft, new Error(actionFailed))`) and continue; the queue's `await previous` is guarded so one failure cannot poison later messages                       | `resourceHistoryReview.test.ts` "records a foreign pump failure with no unhandled rejection" (record + silent hook); `modelsPanelEdit.test.tsx` "records a foreign save failure … and keeps the queue" (fixed sentence + second save works + silent hook) | Bare `void`/bare chain → both tests fail (report never fires / draft never fails); restored byte-exact. Call-site audit: every other lane-changed thrower is awaited by its caller (client run, consent keep paths, grants, discovery, prices, accountHost, crypto, credentialStore) or sync-propagates to an owning try (panel save/snapshot inside the queue) |
+| 5 (P2) unreadable Always                       | Fail-closed stays; `paidGrantFile` keeps the quote-folder failure kind, `PaidUseConsent` carries it in the ask request, the shared `paidUseQuestion` formatter shows it with the question on both surfaces; 14 translations                                                               | `paidGrants.test.ts` notice assertion; `paidConsent.test.ts` "tells the search question when saved Always quotes could not be read" (ask request carries notice + rendered sentence)                                                                      | Each link reverted separately (store assignment, ask spread, formatter line) → the surface test fails each time; restored byte-exact                                                                                                                                                                                                                            |
+| 6 (P2) once across windows/restarts            | Announcement keyed to the damaged file's `size:sha256`, recorded durably in `<settings>.reported` beside the journal state; per-instance set plus marker (missing/damaged marker announces; unwritten marker only repeats)                                                                | `resourceHistoryReview.test.ts` "reports one corrupt history choice once across windows and a restart, until it changes" (two instances + restart silent, changed file announces)                                                                         | Shared `report()` in the choice catch → second-window case fails; restored byte-exact                                                                                                                                                                                                                                                                           |
+| 7 (P2) unsaved Always is said                  | `PaidUseConsentDeps.onNotKept` port; editor → `showWarningMessage`, ACP → session `agent_message_chunk` via `attachNotify`, terminal runtime → operator console (`log.warn` backstop; served sessions upgrade via the agent); one sentence, 14 translations                               | Unit: remember/order/save sites assert the typed notice; per host: editor warning text, ACP `attachNotify` capture, terminal `notify` capture, full-agent session chunk                                                                                   | Each port/wire removed → its host test fails (editor, ACP ×2, agent); restored byte-exact                                                                                                                                                                                                                                                                       |
+| 8 (P2) schedule consent classifies             | Read failure: `ENOENT` → missing, errno → `scheduleStoredUnreadable:<code>`, codeless → rethrown; malformed JSON (`SyntaxError`) or wrong shape (`safeParse`) → `scheduleStoredJsonInvalid`; throws deferred past the catches (no `cause`: a store message can name the file path)        | `scheduleRuntime.test.ts` errno cases (`EACCES`, `EIO`) + "passes on a codeless read failure" (same `TypeError` object back)                                                                                                                              | Old `isInvalid` catch-all → all three fail; restored byte-exact                                                                                                                                                                                                                                                                                                 |
+| 9 (P3) drills that pass are not drills         | Below: every handler names its failing test, or plainly why none exists                                                                                                                                                                                                                   | New discriminating tests (grant-JSON cause, discovery passthrough, refresh quarantine bypass, refresh-log kind, connect fallback)                                                                                                                         | All rerun; failing test per handler below                                                                                                                                                                                                                                                                                                                       |
+| 10 (P3) changelog                              | Entry moved from dated `0.18.0` `Fixed` to `[Unreleased]` `Pending`, rewritten to what round 2 implements (no blanket "true reasons"/"kept kinds" claim)                                                                                                                                  | —                                                                                                                                                                                                                                                         | —                                                                                                                                                                                                                                                                                                                                                               |
+
+### F9 drill disposition per handler (32)
+
+Each revert was restored byte-exact (sha256 + clean `git status`) before
+the next. "Fails" = the named test fails with the old handler back.
+
+Fires, money/consent/credential order: `remember()` → "tells the person
+at once when Always could not be kept"; order/save paths → "lets the
+approved use go ahead once when the order is refused / the order store
+throws / the save fails, and asks again" (3 cases); grant JSON →
+"carries the syntax failure as the cause when a generation must be
+captured"; quote folder → "reports an unreadable quote folder …" (warn
+and notice assertions); prices cache → "reads an unreadable cache …"
+(non-error case); history choice → "reports one corrupt history choice
+once across windows and a restart, until it changes"; history pumps →
+"records a foreign pump failure with no unhandled rejection"; schedule
+consent → errno cases + "passes on a codeless read failure";
+`requestAccount` → "lets a non-error failure keep its kind instead of
+reading as no answer"; connect fallback → "… instead of answering with
+the fallback"; credential presence → "finds a working provider past an
+unreadable entry" (both orders); vault write/remove → "lets a non-error
+vault failure …"; discovery fetch → "lets a foreign fetch failure keep
+its kind past discovery …"; client run → "denies a store failure racing
+a caller stop …"; refresh save → "denies a foreign refresh-save failure
+without quarantining …"; vault decode → "wipes already-copied fields
+when a later allocation fails"; panel snapshot → "says the store failed
+instead of asking for a key …"; panel queue → "records a foreign save
+failure … and keeps the queue"; panel refresh → provider-refresh cases
+(kind assertion); search-question notice → "tells the search question
+when saved Always quotes could not be read" (store/ask/formatter links
+drilled separately); not-kept notices → editor/ACP/terminal/agent host
+tests above.
+
+No revert-failing test exists, and why (old≡new on every reachable
+input; the guard names the expected condition for robustness):
+`quoteGrantEpoch` and grant/credential/account-secret/credential-file
+JSON (`JSON.parse` on strings throws only `SyntaxError`); `isPublicUrl`,
+`isOriginBound`, account-credential binding (`new URL` on strings throws
+only `TypeError`; `isPublicUrl` is not exported, so no seam);
+discovery metadata parses (the `try` holds only a zod `parse`, which
+throws `Error`s); `aesGcmOpen` (the cipher throws `Error`s only; AEAD
+indistinguishability is documented, not diagnosed).
+
+### F8 sweep: every lane catch testing only `instanceof Error`
+
+Fixed: `schedules/consent.ts` (errno split), `credentialStore.ts`
+(continue + record, F1), paid-consent keep paths (kind now reaches the
+person, F7). Stopping is right: prices cache (absent arrives as
+`undefined`, every `Error` is `unavailable`), client refresh (quarantine
+then deny is the action for every `Error`; foreign bypasses it, F9
+drill), discovery fetch/parse (deny is the action; foreign passes past
+the boundary, F9 drill), history choice (missing handled in the reader;
+corrupt and unreadable announce identically), history pumps (record
+identically; foreign handled at the tail, F4), accountHost
+request/connect (both already answer honestly: `undefined`/fallback +
+kind log; foreign propagates, F9 drills), modelsPanel snapshot/refresh
+(kind log + fixed sentence; foreign handled at the queue tail, F4/F9
+drills), panel save (draft diagnostics are message-based by existing
+contract, out of this finding; foreign takes the F4 fixed path),
+vault `aesGcmOpen` (AEAD-indistinct by design) and decode (F3),
+account-vault write/remove (every store failure is `unavailable`; the
+`cause` stays out because a store message can echo the value being
+written — `register()` runs first for the same reason), paidGrants
+`read()` (already splits `ENOENT`), grant JSON (now carries its
+`cause`, F9 drill).
+
+### Round-1 shapes that were wrong (for the data-loss lane)
+
+- `if (signal.aborted) throw error` lets any raced failure out raw; test
+  the error's identity (`error === signal.reason`), not the weather.
+- `return false` / `throw` inside a scan iteration hides later entries;
+  record (who, kind) and continue unless the answer is already decided.
+- A rethrow placed before an inline cleanup skips the wipe for foreign
+  values; every exit goes through a `finally`.
+- A function changed to rethrow needs an owner at every `void` call
+  site: record with the fixed code there and state stop/continue.
+- Fail-closed without telling is half a fix: unreadable-saved and
+  unsaved choices travel to the person in the question/notice.
+- A local once-flag reports again per window/restart; key the report to
+  the damaged content, durably.
+- `instanceof Error` alone merges unreadable with invalid and faults
+  with malformed; split by errno/syntax/schema, pass the rest on.
+- A drill that passes on revert proves nothing; each handler needs a
+  named test that fails with the old handler back, or a stated why-not.
