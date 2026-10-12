@@ -17,10 +17,22 @@ export const scheduleMigrationReceiptSchema = z.strictObject({
   pendingCopyHash: z.optional(z.string()),
 })
 type MigrationReceipt = z.infer<typeof scheduleMigrationReceiptSchema>
+export interface CompletedScheduleMigration {
+  schedule: z.infer<typeof scheduleV2Schema>
+  receipt: MigrationReceipt
+}
 export interface ScheduleMigrationJournalPort {
   migrationReceipt(workspaceKey: string, sourceId: string): Promise<MigrationReceipt | undefined>
   saveMigrationReceipt(workspaceKey: string, receipt: MigrationReceipt): Promise<void>
-  completeMigration(workspaceKey: string, sourceId: string): Promise<void>
+  /**
+   * Completes the migration and returns the completion-time snapshot, so the
+   * caller verifies without a second journal read. A missing receipt or
+   * schedule completes idempotently to undefined.
+   */
+  completeMigration(
+    workspaceKey: string,
+    sourceId: string,
+  ): Promise<CompletedScheduleMigration | undefined>
   reconcileMigration(
     workspaceKey: string,
     next: z.infer<typeof scheduleV2Schema>,
@@ -163,9 +175,13 @@ export async function migrateSchedules(
       // occurrences older than the outstanding one. Neither claim is rolled back.
       for (const occurrence of entry.occurrences)
         await store.claim(scheduleTimeRunId(mapped.id, occurrence))
-      const after = await store.list(workspaceKey)
-      const reopened = after.find((job) => job.id === mapped.id)
-      const verified = await store.migrationReceipt(workspaceKey, sourceId)
+      // Completion returns its own snapshot, so verification needs no second
+      // journal read and no pending-copy rewrite: one transaction retires the
+      // receipt it verified. The snapshot is completion-time state, strictly
+      // fresher than a re-read after it.
+      const completed = await store.completeMigration(workspaceKey, sourceId)
+      const reopened = completed?.schedule
+      const verified = completed?.receipt
       if (
         verified === undefined ||
         reopened?.id !== verified.targetId ||
@@ -173,10 +189,7 @@ export async function migrateSchedules(
         (reopened.revision === verified.targetRevision && hash(reopened) !== verified.targetHash)
       )
         throw new Error('scheduleMigrationVerificationFailed')
-      if (verified.pendingCopy)
-        await store.saveMigrationReceipt(workspaceKey, { ...verified, pendingCopy: false })
       await source.removeVerified(entry)
-      await store.completeMigration(workspaceKey, sourceId)
       migrated += 1
     } catch (error: unknown) {
       failures.push(error)

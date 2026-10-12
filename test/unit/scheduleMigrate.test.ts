@@ -280,8 +280,20 @@ describe('M115 verified M52 migration', () => {
   it('preserves the source and refuses old admission when destination verification fails', async () => {
     const { job, directory, store, source, old } = await fixture('verify')
     const before = await readFile(path.join(directory, `${job.id}.json`), 'utf8')
-    const invalidReader = { ...store, list: () => Promise.resolve([]) }
-    await expect(migrateSchedules(source, invalidReader, 'workspace-1', 'UTC')).rejects.toThrow(
+    // Verification reads the completion snapshot, not a second journal pass:
+    // a completion whose receipt does not match its schedule must fail the
+    // same check without touching the source.
+    const complete = store.completeMigration.bind(store)
+    const mismatchedReader = {
+      ...store,
+      completeMigration: async (workspaceKey: string, sourceId: string) => {
+        const completed = await complete(workspaceKey, sourceId)
+        return completed === undefined
+          ? undefined
+          : { ...completed, receipt: { ...completed.receipt, targetHash: 'mismatch' } }
+      },
+    }
+    await expect(migrateSchedules(source, mismatchedReader, 'workspace-1', 'UTC')).rejects.toThrow(
       'VerificationFailed',
     )
     expect(await readFile(path.join(directory, `${job.id}.json`), 'utf8')).toBe(before)
