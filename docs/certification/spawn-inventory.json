@@ -57,13 +57,13 @@
   },
   {
     "site": "src/core/locks/processOwner.ts#call:execFile:1",
-    "profile": "contained",
-    "reason": "Considered exemption: the shared file lease's liveness probe stays a direct launch, so a lock decision never waits on the governor pressure it may be resolving; fixed program, no shell, caller pid digits-only, bounded timeout and output."
+    "profile": "bootstrap",
+    "reason": "Considered exemption: the shared file lease's liveness probe stays a direct launch, so a lock decision never waits on governor pressure; at this head a fixed OS program, no shell, caller pid digits-only, bounded timeout and output. Join: the vault lease branch adds launches through this call site; re-read its full argument forms and call indices when integrating."
   },
   {
     "site": "src/core/locks/processOwner.ts#import:1",
-    "profile": "contained",
-    "reason": "Considered exemption: the shared file lease's liveness probe stays a direct launch, so a lock decision never waits on the governor pressure it may be resolving; fixed program, no shell, caller pid digits-only, bounded timeout and output."
+    "profile": "bootstrap",
+    "reason": "Considered exemption: the shared file lease's liveness probe stays a direct launch, so a lock decision never waits on governor pressure; at this head a fixed OS program, no shell, caller pid digits-only, bounded timeout and output. Join: the vault lease branch adds launches through this call site; re-read its full argument forms and call indices when integrating."
   },
   {
     "site": "src/core/media/convert.ts#call:spawnResourceProcess:1",
@@ -138,17 +138,17 @@
   {
     "site": "src/core/resources/launcher.ts#call:execResourceFile:1",
     "profile": "contained",
-    "reason": "Lazy facade forwards this branch\u2019s profile to the single governed launcher."
+    "reason": "Lazy facade forwards this branch’s profile to the single governed launcher."
   },
   {
     "site": "src/core/resources/launcher.ts#call:handoffResourceFile:1",
     "profile": "handoff",
-    "reason": "Lazy facade forwards this branch\u2019s profile to the single governed launcher."
+    "reason": "Lazy facade forwards this branch’s profile to the single governed launcher."
   },
   {
     "site": "src/core/resources/launcher.ts#call:spawnResourceProcess:1",
     "profile": "interactive",
-    "reason": "Lazy facade forwards this branch\u2019s profile to the single governed launcher."
+    "reason": "Lazy facade forwards this branch’s profile to the single governed launcher."
   },
   {
     "site": "src/core/resources/launcher.ts#call:spawnResourceProcess:2",
@@ -486,7 +486,7 @@
   {
     "site": "src/runtime/main.ts#call:spawnResourceProcess:1",
     "profile": "interactive",
-    "reason": "`muse login` runs in the user\u2019s terminal session, group and TTY; Ctrl+C reaches it; stopped if the CLI shuts down."
+    "reason": "`muse login` runs in the user’s terminal session, group and TTY; Ctrl+C reaches it; stopped if the CLI shuts down."
   },
   {
     "site": "src/runtime/panel/git/service.ts#import:1",
@@ -519,6 +519,21 @@
     "reason": "Process types only; the two start functions pass the caller gate through the governed beforeSpawn hook."
   },
   {
+    "site": "src/runtime/panel/pullRequests/unconfiguredGit.ts#call:execFile:1",
+    "profile": "bootstrap",
+    "reason": "Direct Git only when resource admission is absent, matching the shared Git runner; caller gate immediately before launch, pinned Git path and validated argument array, no shell, bounded output/deadline, owned POSIX batch group. A helper failure or policy refusal never selects this route."
+  },
+  {
+    "site": "src/runtime/panel/pullRequests/unconfiguredGit.ts#call:spawn:1",
+    "profile": "bootstrap",
+    "reason": "Direct Git only when resource admission is absent, matching the shared Git runner; caller gate immediately before launch, pinned Git path and validated argument array, no shell, bounded output/deadline, owned POSIX batch group. A helper failure or policy refusal never selects this route."
+  },
+  {
+    "site": "src/runtime/panel/pullRequests/unconfiguredGit.ts#import:1",
+    "profile": "bootstrap",
+    "reason": "Direct Git only when resource admission is absent, matching the shared Git runner; caller gate immediately before launch, pinned Git path and validated argument array, no shell, bounded output/deadline, owned POSIX batch group. A helper failure or policy refusal never selects this route."
+  },
+  {
     "site": "src/runtime/reporting/sources.ts#call:execResourceFile:1",
     "profile": "probe",
     "reason": "Report Git reads (--no-pager log/show/diff), credential-free; read-only, contained tree, no temp root."
@@ -546,7 +561,7 @@
   {
     "site": "src/runtime/sharing/sharingEntry.ts#call:handoffResourceFile:1",
     "profile": "handoff",
-    "reason": "Share copy (xclip, pbcopy, Set-Clipboard) and browser (xdg-open, open, explorer) adapters; scrubbed stdin, credential-free environment; pause is refused with the governor\u2019s words."
+    "reason": "Share copy (xclip, pbcopy, Set-Clipboard) and browser (xdg-open, open, explorer) adapters; scrubbed stdin, credential-free environment; pause is refused with the governor’s words."
   },
   {
     "site": "src/runtime/vault/slots/macVaultTransport.ts#call:spawnResourceProcess:1",

@@ -1643,6 +1643,8 @@
   "gitCommitConfirm": "¿Confirmar estos cambios?",
   "gitOperationChanged": "El repositorio, la conversación o la confianza han cambiado. Abre el formulario de nuevo.",
   "gitMachineBusy": "Git no pudo ejecutarse porque el equipo está ocupado. Inténtalo de nuevo.",
+  "gitResourceUnavailable": "Git no pudo ejecutarse porque la admisión de recursos o el asistente de procesos no está disponible.",
+  "gitMemoryLimit": "Git se detuvo porque su árbol de procesos alcanzó el límite de memoria.",
   "gitCommandConsequences": "Git puede ejecutar hooks del repositorio, programas de firma o asistentes de credenciales. Cancelar detiene los pasos posteriores; una llamada a Git o GitHub ya iniciada puede terminar.",
   "gitCommitting": "Confirmando…",
   "gitCancel": "Cancelar",

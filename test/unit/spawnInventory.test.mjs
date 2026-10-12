@@ -18,6 +18,25 @@ beforeAll(async () => {
 })
 
 describe('complete production process inventory', () => {
+  it('labels direct liveness probes as bootstrap and records the vault join launches', () => {
+    const inventory = JSON.parse(
+      fs.readFileSync(path.join(root, 'docs/certification/spawn-inventory.json'), 'utf8'),
+    )
+    const probes = inventory.filter((entry) =>
+      entry.site.startsWith('src/core/locks/processOwner.ts#'),
+    )
+    expect(probes.map((entry) => entry.site)).toEqual([
+      'src/core/locks/processOwner.ts#call:execFile:1',
+      'src/core/locks/processOwner.ts#import:1',
+    ])
+    for (const probe of probes) {
+      expect(probe.profile).toBe('bootstrap')
+      expect(probe.reason).toContain('direct launch')
+      expect(probe.reason).toContain('vault lease branch adds launches through this call site')
+      expect(probe.reason).toContain('call indices')
+    }
+  })
+
   it('requires every source process import and launch, including aliases and embedded programs', () => {
     const inventory = JSON.parse(
       fs.readFileSync(path.join(root, 'docs/certification/spawn-inventory.json'), 'utf8'),

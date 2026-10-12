@@ -27,9 +27,19 @@
 // is still trusted, that Cancel was not pressed, and that the record is
 // still exactly this checkout's reservation (its fence).
 
-import { type ChildProcess, type ChildProcessWithoutNullStreams } from 'node:child_process'
+import { type ChildProcess } from 'node:child_process'
 import { execResourceFile, spawnResourceProcess } from '../../../core/resources/launcher'
-import { isGovernedRefusal, type ResourcePipedProcess } from '../../../core/resources/launch'
+import { loadResourceWindow } from '../../../core/resources/admission'
+import {
+  isGovernedRefusal,
+  isResourceMemoryLimit,
+  isResourcePaused,
+  resourcePausedText,
+  ResourceMemoryLimitError,
+  ResourceCapRefusedError,
+  type ResourcePipedProcess,
+} from '../../../core/resources/launch'
+import { unconfiguredGitProcesses } from './unconfiguredGit'
 import { Buffer } from 'node:buffer'
 import { randomUUID } from 'node:crypto'
 import type { BigIntStats } from 'node:fs'
@@ -256,6 +266,11 @@ export interface GitStartOptions {
   readonly beforeSpawn: GitGate
 }
 
+/** A batch keeps its launcher settlement, including a refused Windows GO. */
+export type GitBatchChild = ResourcePipedProcess['child'] & {
+  readonly outcome?: ResourcePipedProcess['outcome']
+}
+
 /**
  * How git processes start: node's, or a test's that records each start.
  * Both run beforeSpawn synchronously immediately before the process start.
@@ -268,7 +283,7 @@ export interface GitProcessPort {
     file: string,
     args: readonly string[],
     options: GitStartOptions,
-  ): ChildProcessWithoutNullStreams | Promise<ResourcePipedProcess['child']>
+  ): GitBatchChild | Promise<GitBatchChild>
 }
 
 /** Only these complete argument forms are probes; all other invocations are contained. */
@@ -297,6 +312,36 @@ function isReadOnlyGitArgs(args: readonly string[]): boolean {
   )
 }
 
+/** Only absent admission, as in the shared Git runner, permits the legacy route. */
+async function isUnconfiguredAdmission(error: unknown, signal: AbortSignal): Promise<boolean> {
+  if (!(
+    error instanceof Error &&
+    error.name === 'ResourceUnavailableError' &&
+    'code' in error &&
+    error.code === 'admissionUnavailable'
+  ))
+    return false
+  // A configured governor's refusal is not an unconfigured embedding. In
+  // particular, a caller gate throwing this code must never select a retry.
+  const window = await loadResourceWindow()
+  signal.throwIfAborted()
+  return window === undefined
+}
+
+function gitProcessFailure(error: unknown): Error {
+  if (isResourceMemoryLimit(error)) return new PullRequestServiceError(UI_TEXT.gitMemoryLimit)
+  if (
+    error instanceof Error &&
+    error.name === 'ResourceUnavailableError' &&
+    'code' in error &&
+    (error.code === 'launchUnavailable' || error.code === 'admissionUnavailable')
+  )
+    return new PullRequestServiceError(UI_TEXT.gitResourceUnavailable)
+  if (isResourcePaused(error)) return new PullRequestServiceError(resourcePausedText())
+  if (isGovernedRefusal(error)) return new PullRequestServiceError(UI_TEXT.gitMachineBusy)
+  return error instanceof Error ? error : new PullRequestServiceError(failureText(error))
+}
+
 /** Node's processes are admitted before the synchronous gate and process start. */
 export const nodeGitProcesses: GitProcessPort = {
   run: async (file, args, options) => {
@@ -308,12 +353,11 @@ export const nodeGitProcesses: GitProcessPort = {
       return launched.stdout
     } catch (error: unknown) {
       options.signal.throwIfAborted()
-      if (isGovernedRefusal(error)) throw new PullRequestServiceError(UI_TEXT.gitMachineBusy)
-      if (error instanceof Error) {
-        error.message = failureText(error, [file, ...args].join(' '))
-        throw error
-      }
-      throw new PullRequestServiceError(failureText(error))
+      if (await isUnconfiguredAdmission(error, options.signal))
+        return await unconfiguredGitProcesses.run(file, args, options)
+      const failure = gitProcessFailure(error)
+      failure.message = failureText(failure, [file, ...args].join(' '))
+      throw failure
     }
   },
   start: async (file, args, options) => {
@@ -329,11 +373,28 @@ export const nodeGitProcesses: GitProcessPort = {
       const launched = isReadOnlyGitArgs(args)
         ? await spawnResourceProcess('probe', file, args, call)
         : await spawnResourceProcess('contained', file, args, call)
-      return launched.child
+      return Object.assign(launched.child, {
+        outcome: async () => {
+          try {
+            const outcome = await launched.outcome()
+            const limits = outcome?.limits ?? []
+            for (const limit of limits) {
+              if (limit !== 'activeProcess') throw new ResourceMemoryLimitError(limit)
+            }
+            if (outcome !== undefined && outcome.capRefusals > 0)
+              throw new ResourceCapRefusedError(outcome.capRefusals)
+            return outcome
+          } catch (error: unknown) {
+            options.signal.throwIfAborted()
+            throw gitProcessFailure(error)
+          }
+        },
+      })
     } catch (error: unknown) {
       options.signal.throwIfAborted()
-      if (isGovernedRefusal(error)) throw new PullRequestServiceError(UI_TEXT.gitMachineBusy)
-      throw error instanceof Error ? error : new PullRequestServiceError(failureText(error))
+      if (await isUnconfiguredAdmission(error, options.signal))
+        return await unconfiguredGitProcesses.start(file, args, options)
+      throw gitProcessFailure(error)
     }
   },
 }
@@ -424,7 +485,7 @@ function startGitBatch(
   gate: GitGate,
   args: readonly string[],
   cwd: string,
-): ChildProcessWithoutNullStreams | Promise<ResourcePipedProcess['child']> {
+): GitBatchChild | Promise<GitBatchChild> {
   gate()
   return git.processes.start(git.gitPath, args, {
     cwd,
@@ -657,10 +718,13 @@ async function writeHeldBlobs(
     platform: git.platform,
     signal: git.signal,
     writers,
+    outcome: child.outcome,
   })
 }
 
 export interface BatchChildOptions {
+  /** The launcher’s refusal or enforced cap wins over an unreadable batch. */
+  readonly outcome?: ResourcePipedProcess['outcome'] | undefined
   /** The batch's own deadline: a root that ignores its signal still ends the checkout. */
   readonly deadlineMs: number
   /** How long a killed batch is observed before the checkout settles anyway. */
@@ -753,6 +817,12 @@ export function runBatchChild(
         return
       }
       const code = await closed
+      try {
+        await options.outcome?.()
+      } catch (error: unknown) {
+        fail(error instanceof Error ? error : unreadable())
+        return
+      }
       if (code !== 0) {
         fail(unreadable())
         return

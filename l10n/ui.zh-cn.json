@@ -1601,6 +1601,8 @@
   "gitCommitConfirm": "提交这些更改？",
   "gitOperationChanged": "仓库、对话或信任状态已更改。请重新打开表单。",
   "gitMachineBusy": "计算机繁忙，Git 无法运行。请重试。",
+  "gitResourceUnavailable": "资源准入功能或进程辅助程序不可用，因此无法运行 Git。",
+  "gitMemoryLimit": "Git 的进程树已达到内存上限，因此 Git 已停止。",
   "gitCommandConsequences": "Git 可能运行仓库钩子、签名程序或凭据助手。取消会停止后续步骤；已开始的 Git 或 GitHub 调用仍可能完成。",
   "gitCommitting": "正在提交…",
   "gitCancel": "取消",
