@@ -902,9 +902,14 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         const finish = async (isSaved: boolean): Promise<void> => {
           try {
             await refresh()
-          } catch {
+          } catch (error: unknown) {
+            // A failed refresh still acknowledges the save; anything that is
+            // not an error keeps its kind past the queue.
+            if (!(error instanceof Error)) throw error
             hasRefreshFailed = true
-            log.warn('Models panel could not refresh after provider save')
+            log.warn(
+              `Models panel could not refresh after provider save (${wireWordForLog(error.name)})`,
+            )
             if (isSaved) {
               state.notice =
                 state.notice === undefined
@@ -1005,13 +1010,18 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         if (outcome.composerSet) {
           try {
             deps.onWizardSaved(outcome)
-          } catch {
+          } catch (error: unknown) {
+            // A host that cannot be told still keeps the save; anything that
+            // is not an error keeps its kind past the queue.
+            if (!(error instanceof Error)) throw error
             hasRefreshFailed = true
             state.notice =
               state.notice === undefined
                 ? UI_TEXT.providerSavedRefreshFailed
                 : [state.notice, UI_TEXT.providerRefreshFailed].join(' ')
-            log.warn('Models panel saved provider but could not notify its host')
+            log.warn(
+              `Models panel saved provider but could not notify its host (${wireWordForLog(error.name)})`,
+            )
           }
         }
         await finish(true)
