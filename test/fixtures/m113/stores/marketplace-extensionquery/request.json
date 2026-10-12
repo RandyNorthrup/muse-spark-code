@@ -1,0 +1,15 @@
+{
+  "method": "POST",
+  "url": "https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery?api-version=3.0-preview.1",
+  "headers": {
+    "User-Agent": "muse-spark-code-capture/1 (+repository owner's capture run)",
+    "Accept": "*/*",
+    "Content-Type": "application/json",
+    "Content-Length": "141",
+    "Connection": "close"
+  },
+  "body": "{\"filters\":[{\"pageNumber\":1,\"pageSize\":1,\"criteria\":[{\"filterType\":7,\"value\":\"RandyNorthrup.muse-spark-code\"}]}],\"assetTypes\":[],\"flags\":513}",
+  "wireRequestHead": "POST /_apis/public/gallery/extensionquery?api-version=3.0-preview.1 HTTP/1.1\r\nUser-Agent: muse-spark-code-capture/1 (+repository owner's capture run)\r\nAccept: */*\r\nContent-Type: application/json\r\nContent-Length: 141\r\nConnection: close\r\nHost: marketplace.visualstudio.com\r\n\r\n",
+  "credentials": "none (no Authorization, Cookie, key or token header)",
+  "redirects": "not followed"
+}

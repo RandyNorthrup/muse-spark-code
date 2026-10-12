@@ -5,7 +5,7 @@ import { AcpPaidUse } from '../../src/acp/paid'
 import { createAcpSharing, type AcpSharingPort } from '../../src/acp/sharing'
 import { UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
-import { FakeAgentHost } from './helpers/fakeAgent'
+import { FakeAgentHost, museCodeTestBackend } from './helpers/fakeAgent'
 import { memoryPaidGrants } from './helpers/paidGrants'
 import { until } from './helpers/acpWaits'
 import { savedPromptFixture } from './helpers/sharingFixtures'
@@ -17,11 +17,7 @@ function acpHarness(sharing?: AcpSharingPort) {
   const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
   const deps: AcpAgentDeps = {
     questions: 'decline',
-    backend: {
-      kind: 'museCode',
-      readiness: () => Promise.resolve({ state: 'ready' }),
-      hostFor: () => Promise.resolve(host),
-    },
+    backend: museCodeTestBackend(host),
     version: 'test',
     options: { canBypass: true, allowsContributorModels: false, initialMode: 'bypassPermissions' },
     signIn: { id: 'fake', name: 'Fake', description: 'Fake', args: [], command: 'fake' },

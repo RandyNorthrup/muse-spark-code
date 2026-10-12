@@ -41,6 +41,7 @@ import { UsageJournalStore } from '../../src/core/usage/journalStore'
 import { Usd } from '../../src/shared/usd'
 import { NodeUsageFs } from '../../src/runtime/usage/nodeUsageFs'
 import { reportingServicesFor } from './helpers/reporting/runtime'
+import { usageReportFixtureRecord } from './helpers/usageFixture'
 
 setUiText(EN, 'en')
 
@@ -146,24 +147,13 @@ async function rejectedBudgetSetup(data: string, isDamaged: boolean) {
 }
 
 function usageEntry(id: string, session: string, day: string = TODAY) {
-  return {
-    v: 2,
-    id,
+  return usageReportFixtureRecord({
     at: NOW,
     day,
+    id,
     timezoneOffsetMins: 0,
-    client: 'vscode',
-    backend: 'modelApi',
-    provider: 'meta',
-    type: 'usage',
-    model: 'muse-spark',
-    kind: 'turn',
-    tokens: { input: 100, output: 20 },
-    cost: { usd: Usd.from('0.25').toAmount(), certainty: 'reported' },
-    outcome: 'completed',
-    startedAt: NOW,
     session,
-  }
+  })
 }
 
 function fakeReportHost<const Items extends readonly unknown[]>(

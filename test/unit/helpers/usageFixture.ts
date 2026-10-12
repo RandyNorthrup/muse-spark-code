@@ -6,6 +6,40 @@ import { usageRecordSchema, type UsageRecord } from '../../../src/shared/usageJo
 import { Usd } from '../../../src/shared/usd'
 
 export const usageNow = new Date(2026, 9, 5, 12).getTime()
+
+/**
+ * A VS Code / Meta turn record for report suites: exact-decimal dollars,
+ * journal version 2. Callers pass their own clock and identity; anything
+ * else rides in `overrides`, validated with the record.
+ */
+export function usageReportFixtureRecord(input: {
+  readonly at: number
+  readonly day: string
+  readonly id: string
+  readonly timezoneOffsetMins: number
+  readonly session?: string | undefined
+  readonly overrides?: Partial<UsageRecord> | undefined
+}): UsageRecord {
+  return usageRecordSchema.parse({
+    v: 2,
+    type: 'usage',
+    id: input.id,
+    at: input.at,
+    startedAt: input.at,
+    day: input.day,
+    timezoneOffsetMins: input.timezoneOffsetMins,
+    client: 'vscode',
+    backend: 'modelApi',
+    provider: 'meta',
+    model: 'muse-spark',
+    kind: 'turn',
+    tokens: { input: 100, output: 20 },
+    cost: { usd: Usd.from('0.25').toAmount(), certainty: 'reported' },
+    outcome: 'completed',
+    ...(input.session !== undefined && { session: input.session }),
+    ...input.overrides,
+  })
+}
 export function usageFixtureRecord(extra: Partial<UsageRecord> = {}): UsageRecord {
   return usageRecordSchema.parse({
     v: 2,

@@ -10,12 +10,9 @@ import {
   usageReportQuery,
   type UsageReportJournal,
 } from '../../src/core/usage/reportUsage'
-import {
-  usageRecordSchema,
-  type UsageLimitSnapshot,
-  type UsageRecord,
-} from '../../src/shared/usageJournal'
+import { type UsageLimitSnapshot, type UsageRecord } from '../../src/shared/usageJournal'
 import { Usd } from '../../src/shared/usd'
+import { usageReportFixtureRecord } from './helpers/usageFixture'
 import { shiftUsageDay, usageLocalDay } from '../../src/core/usage/aggregate'
 
 const NOW = Date.parse('2026-10-07T12:00:00Z')
@@ -23,9 +20,9 @@ const TODAY = usageLocalDay(NOW)
 const AS_OF = new Date(NOW).toISOString()
 
 function record(overrides: Partial<UsageRecord> & { day: string }): UsageRecord {
-  return usageRecordSchema.parse({
-    v: 2,
-    type: 'usage',
+  return usageReportFixtureRecord({
+    at: NOW,
+    day: overrides.day,
     id: [
       'rec',
       overrides.day,
@@ -34,18 +31,9 @@ function record(overrides: Partial<UsageRecord> & { day: string }): UsageRecord 
       overrides.session ?? 'nosession',
       overrides.client ?? 'vscode',
     ].join('.'),
-    at: NOW,
     timezoneOffsetMins: new Date(NOW).getTimezoneOffset(),
-    client: 'vscode',
-    backend: 'modelApi',
-    provider: 'meta',
-    model: 'muse-spark',
-    kind: 'turn',
-    tokens: { input: 100, output: 20 },
-    cost: { usd: Usd.from('0.25').toAmount(), certainty: 'reported' },
-    outcome: 'completed',
-    startedAt: NOW,
-    ...overrides,
+    session: overrides.session,
+    overrides,
   })
 }
 

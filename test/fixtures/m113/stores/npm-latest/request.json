@@ -1,0 +1,13 @@
+{
+  "method": "GET",
+  "url": "https://registry.npmjs.org/muse-spark-code-acp/latest",
+  "headers": {
+    "User-Agent": "muse-spark-code-capture/1 (+repository owner's capture run)",
+    "Accept": "*/*",
+    "Connection": "close"
+  },
+  "body": null,
+  "wireRequestHead": "GET /muse-spark-code-acp/latest HTTP/1.1\r\nUser-Agent: muse-spark-code-capture/1 (+repository owner's capture run)\r\nAccept: */*\r\nConnection: close\r\nHost: registry.npmjs.org\r\n\r\n",
+  "credentials": "none (no Authorization, Cookie, key or token header)",
+  "redirects": "not followed"
+}

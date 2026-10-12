@@ -30779,6 +30779,22 @@ lane T and M111b. One short live check per backend (step 3).
 
 ### M113 — Deterministic reports: `/report` (D93)
 
+**REPORTJOIN engine integration (2026-10-11, kubuntu).** Continue the two
+accepted merges on the 0.17.1 train; merge captured store/workflow/release
+adapters at 131614364 and accounts/security at 14e765516. Keep later playbook,
+schedules and estimate branches held until the lead supplies reviewed SHAs.
+The engine owns request language, protected record/field/await boundaries,
+stable bounded row admission, exact decimal money and cooperative cancellation
+with a deadline. Each guarantee is tested over the kind registry; caught error
+metadata is protected, array slots are read independently, final sections reserve
+disclosures inside their unchanged schema cap, and absent facets use translated
+labels. Delete superseded kind guards only after shared proofs pass. One dormant
+completion latch governs restored walk-back claims; leave it off. Preserve all
+caps, installed hooks, repository test deadlines and zero duplication. Scoped
+qualification follows the explicit rig/common brief, with aggregate quality
+reserved for the lead. Record evidence and author rules in
+`docs/certification/m113-join.md`; update the roadmap with milestone changes.
+
 **CM1132R7 review repair (2026-10-11, macmini).** Fix all five RVCM1132F
 findings in the existing reporting lane. Reserve every original row key before
 allocating duplicate suffixes; retain allocation progress per suffix namespace
@@ -33925,6 +33941,14 @@ roadmap and production build without weakening any limit. Record per-path
 SHA-256 restoration drills and the full configured-provider loopback receipt
 in `docs/certification/min-output-cap.md`. Hooks stay installed and enabled;
 local commits only, no merge, push or paid/live request.
+**CM1136R6 inherited duplication gate (2026-10-11, Kubuntu).** Full
+`npx jscpd` also fails on the earlier M113 store-test setup: substituting
+the pre-round isolation file reproduces 23 clones, then restoring it is
+SHA-256 checked. This round removes its new repeated damaged-page setup;
+the remaining inherited test clones are a bounded integration deferral,
+recorded with the final count in `docs/certification/m113-stores-cm1136r3.md`.
+The zero-clone threshold and all analyzed files stay unchanged. Aggregate
+quality is not claimed green; the rig brief delegates it to the lead.
 
 CM1132R2's rig/common brief delegates aggregate `npm run quality` to the lead
 and prohibits it in the lane. This qualification runs five typechecks,

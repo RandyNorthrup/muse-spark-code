@@ -27,7 +27,7 @@ import { createAcpAgent, type AcpAgentDeps } from '../../src/acp/agent'
 import { AcpPaidUse } from '../../src/acp/paid'
 import { AcpVault } from '../../src/acp/vault'
 import type { RuntimeResources } from '../../src/runtime/resources/port'
-import { FakeAgentHost } from './helpers/fakeAgent'
+import { FakeAgentHost, museCodeTestBackend } from './helpers/fakeAgent'
 import { memoryPaidGrants } from './helpers/paidGrants'
 import { sessionAccountsRig } from './helpers/runtimeAccounts'
 import { FakeAcpQuestionRegistry } from './helpers/questions/acpRegistry'
@@ -251,11 +251,7 @@ function announcedNames(
     }
     const deps: AcpAgentDeps = {
       questions: 'decline',
-      backend: {
-        kind: 'museCode',
-        readiness: () => Promise.resolve({ state: 'ready' }),
-        hostFor: () => Promise.resolve(host),
-      },
+      backend: museCodeTestBackend(host),
       version: 'keybindings-parity-test',
       options: {
         canBypass: false,
