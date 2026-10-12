@@ -15,6 +15,15 @@ import type { TeamHostSeams, TeamHostService } from '../core/team/teamHostServic
 import type { TeamHostBundleDeps } from './team/teamEnginePorts'
 import type { TeamToolResult } from '../core/team/teamSeams'
 
+/**
+ * D75's availability switch from its raw setting value: on only while
+ * explicitly set true. Hidden means hidden: an absent setting counts as
+ * off, never as on (RVCM963J 1).
+ */
+export function isTeamSwitchOn(setting: unknown): boolean {
+  return setting === true
+}
+
 /** The tree's and cards' messages the service answers. */
 export type TeamSurfaceMessage = Extract<
   WebviewToHostMessage,
