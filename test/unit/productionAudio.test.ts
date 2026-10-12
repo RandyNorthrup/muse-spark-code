@@ -196,6 +196,7 @@ function probe(options: {
   readonly allowsPaidUse?: () => Promise<boolean>
   readonly assertCurrent?: () => void
   readonly isDailyOpen?: () => boolean
+  readonly audioAction?: () => 'transcribe' | 'sendAudio'
 }) {
   const file = path.join(mkdtempSync(path.join(root, 'attached-')), 'clip.wav')
   const attachedBytes = contractWav(2)
@@ -263,6 +264,7 @@ function probe(options: {
     attached: registry,
     postTranscription: (post) =>
       client.requestTranscription(post.route, post.signal, post, undefined, post.dispatch),
+    ...(options.audioAction !== undefined && { audioAction: options.audioAction }),
     converterPath: () => undefined,
     locateConverter: () =>
       Promise.resolve({ ok: false as const, reason: UI_TEXT.media.converterUnavailable }),
@@ -343,6 +345,38 @@ describe('RVMEDIAV probes over the real registry, production audio and Meta clie
     await expect(t.run()).rejects.toThrow(UI_TEXT.museVoiceRefused)
     expect(t.reserved).toEqual([])
     expect(t.fetches).not.toHaveBeenCalled()
+  })
+
+  it('refuses a sendAudio change during consent with its reason, before reserving (RVM105 2)', async () => {
+    const action = { value: 'transcribe' as 'transcribe' | 'sendAudio' }
+    const t = probe({
+      audioAction: () => action.value,
+      allowsPaidUse: () => {
+        action.value = 'sendAudio'
+        return Promise.resolve(true)
+      },
+    })
+    await expect(t.run()).rejects.toThrow(
+      fill(UI_TEXT.media.audioUnsupported, { model: 'muse-spark-1.3-contributor' }),
+    )
+    expect(t.reserved).toEqual([])
+    expect(t.fetches).not.toHaveBeenCalled()
+    expect(t.notePaidUse).not.toHaveBeenCalled()
+  })
+
+  it('refuses a sendAudio change during the key read with its reason, sending nothing (RVM105 2)', async () => {
+    const action = { value: 'transcribe' as 'transcribe' | 'sendAudio' }
+    const t = probe({
+      audioAction: () => action.value,
+      apiKey: () => {
+        action.value = 'sendAudio'
+        return Promise.resolve('fixture-transcription-key')
+      },
+    })
+    await expect(t.run()).rejects.toThrow(
+      fill(UI_TEXT.media.audioUnsupported, { model: 'muse-spark-1.3-contributor' }),
+    )
+    expectNothingSpent(t)
   })
 
   it('refunds a known local non-send and counts no usage: no key stored (finding 3)', async () => {

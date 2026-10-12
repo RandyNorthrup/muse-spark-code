@@ -7,6 +7,7 @@
 // and supplies no port until then. A turn with nothing
 // transcribable resolves undefined, byte-identical to an absent port.
 import { UI_TEXT, type MEDIA_AUDIO_ACTION_OPTIONS } from '../../shared/constants'
+import { fill } from '../../shared/l10n/text'
 import type { TurnPart } from '../agent/agentBackend'
 import type { PaidFeatureGate, PaidUsage } from '../paid/paidFeatures'
 import type { PaidUseConsent } from '../paid/paidConsent'
@@ -88,6 +89,32 @@ export function createPrepareAudioMessage(deps: AudioMessagePreparationDeps) {
         prepared.push(part)
         continue
       }
+      // The preparation captured the action before its awaits (RVM105 2): a
+      // change of mediaAudioAction during consent, conversion, reservation
+      // or the dispatch admission is detected by the same currency check
+      // that covers Stop, the model revision and voice. The turn refuses
+      // with the translated reason for the action now in force, before any
+      // transcription request is sent. Video has no audio action; its route
+      // never goes stale this way.
+      const assertAudioAction = (): void => {
+        if (source.info.kind !== 'audio') return
+        const current = deps.audioAction?.() ?? defaultAction
+        if (current === action) return
+        const options = audioRouteOptions(source.info, context)
+        if (!options.actions.includes(current))
+          throw new Error(
+            options.warning ??
+              fill(UI_TEXT.media.audioUnsupported, { model: context.model.modelId }),
+          )
+        // Reached only where a model natively takes audio: the stale
+        // admission (consent and reservation for the old action) must not
+        // spend, so the turn still refuses, with the generic refusal.
+        throw new Error(UI_TEXT.museVoiceRefused)
+      }
+      const assertCurrent = (): void => {
+        deps.assertCurrent()
+        assertAudioAction()
+      }
       let attachment: Awaited<ReturnType<typeof prepareAudioAttachment>>
       try {
         attachment = await prepareAudioAttachment(
@@ -95,7 +122,7 @@ export function createPrepareAudioMessage(deps: AudioMessagePreparationDeps) {
           action,
           {
             context,
-            assertCurrent: deps.assertCurrent,
+            assertCurrent,
             converter: deps.conversion,
             batch: deps.batch,
             gate: deps.gate,
@@ -119,7 +146,7 @@ export function createPrepareAudioMessage(deps: AudioMessagePreparationDeps) {
         prepared.push(part)
         continue
       }
-      deps.assertCurrent()
+      assertCurrent()
       if (attachment.transcript === undefined) {
         if (attachment.dispose !== undefined) await attachment.dispose()
         prepared.push(part)
