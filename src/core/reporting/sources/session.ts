@@ -11,7 +11,7 @@ import {
   type ReportSourcePayloads,
   type SourceReadContext,
 } from './types'
-import { readReportRows, type ReportProblem } from './boundary'
+import { joinPartialReasons, readReportRows, type ReportProblem } from './boundary'
 import {
   codeUnitCompare,
   localSource,
@@ -103,11 +103,11 @@ export function sessionSource(
       checkSchema,
     )
     const usage = scrubUsage(context.reportText, read.usage, scrub)
-    const partial = [
-      ...(read.partial === undefined ? [] : [scrub(read.partial)]),
+    const partial = joinPartialReasons(context.reportText, [
+      read.partial === undefined ? undefined : scrub(read.partial),
       ...usage.problems.map((problem) => problem.reason),
       ...checkRuns.problems.map((problem) => problem.reason),
-    ].join(' ')
+    ])
     return {
       data: {
         export: sessionExportSchema.parse(scrubSourceValue(exported.doc, scrub)),
@@ -126,7 +126,7 @@ export function sessionSource(
         ),
       },
       observedAt: read.observedAt,
-      ...(partial !== '' && { partial }),
+      ...(partial !== undefined && { partial }),
     }
   })
 }

@@ -2017,6 +2017,12 @@
     "few": "Ещё {count} строки",
     "many": "Ещё {count} строк"
   },
+  "reportProblemsMore": {
+    "one": "Ещё {count} проблема",
+    "other": "Ещё {count} проблемы",
+    "few": "Ещё {count} проблемы",
+    "many": "Ещё {count} проблем"
+  },
   "reportCliUsage": "Создать детерминированный отчёт из указанных источников без вызова модели.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n",
   "reportIssue": "Сообщить о проблеме…",
   "reportCrashOffer": "Muse Spark Code в прошлый раз неожиданно завершил работу — сообщить?",

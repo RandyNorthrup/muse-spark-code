@@ -1,6 +1,6 @@
 import { REPORT_MAX_ROWS, REPORT_MAX_TEXT_CHARS } from '../../../shared/constants'
 import * as z from 'zod/mini'
-import { duplicateProblem, readReportRows } from './boundary'
+import { duplicateProblem, joinPartialReasons, readReportRows } from './boundary'
 import { codeUnitCompare, localSource, LocalSourceError, type SourceScrub } from './local'
 import type { ReportQuestion, SourceReadContext } from './types'
 
@@ -41,7 +41,10 @@ export function questionsSource(reader: ReportQuestionsReader | undefined, scrub
       seen.add(row.id)
       rows.push(row)
     }
-    const partial = problems.map((problem) => problem.reason).join(' ')
+    const partial = joinPartialReasons(
+      context.reportText,
+      problems.map((problem) => problem.reason),
+    )
     return {
       data: rows
         .map((row) => ({
@@ -55,7 +58,7 @@ export function questionsSource(reader: ReportQuestionsReader | undefined, scrub
             codeUnitCompare(a.id, b.id) || codeUnitCompare(JSON.stringify(a), JSON.stringify(b)),
         ),
       observedAt: result.observedAt,
-      ...(partial !== '' && { partial }),
+      ...(partial !== undefined && { partial }),
     }
   })
 }

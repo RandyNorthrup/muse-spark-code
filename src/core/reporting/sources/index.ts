@@ -1,5 +1,6 @@
 import { accountsSource, type ReportAccountsReader } from './accounts'
 import { agentUsageSource, type AgentUsageAgent, type AgentUsageFiles } from './agentUsage'
+import { joinPartialReasons } from './boundary'
 import { certificationSource } from './certification'
 import { changelogSource } from './changelog'
 import { gitSource, type ReportGitIo } from './git'
@@ -70,14 +71,14 @@ export function createLocalReportSources(deps: LocalReportSourceDeps): LocalRepo
       if (deps.usage === undefined) throw new LocalSourceError('unbound')
       const result = await deps.usage(context)
       const scrubbed = scrubUsage(context.reportText, result.usage, deps.scrub)
-      const partial = [
-        ...(result.partial === undefined ? [] : [deps.scrub(result.partial)]),
+      const partial = joinPartialReasons(context.reportText, [
+        result.partial === undefined ? undefined : deps.scrub(result.partial),
         ...scrubbed.problems.map((problem) => problem.reason),
-      ].join(' ')
+      ])
       return {
         data: scrubbed.usage,
         observedAt: result.observedAt,
-        ...(partial !== '' && { partial }),
+        ...(partial !== undefined && { partial }),
       }
     }),
     agentUsage: agentUsageSource(deps.enabledAgents, deps.agentFiles, deps.scrub),

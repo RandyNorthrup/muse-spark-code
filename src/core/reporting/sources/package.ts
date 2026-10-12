@@ -1,7 +1,7 @@
 import path from 'node:path'
 import * as z from 'zod/mini'
 import { REPORT_MAX_ROWS, REPORT_MAX_TEXT_CHARS } from '../../../shared/constants'
-import { readReportRows } from './boundary'
+import { joinPartialReasons, readReportRows } from './boundary'
 import {
   codeUnitCompare,
   localSource,
@@ -45,7 +45,10 @@ export function packageSource(io: LocalFileIo, scrub: SourceScrub) {
     const scripts: Record<string, string> = {}
     for (const row of recovered.rows) scripts[row.name] = row.command
     if (Object.keys(scripts).length > REPORT_MAX_ROWS) throw new LocalSourceError('limit')
-    const partial = recovered.problems.map((problem) => problem.reason).join(' ')
+    const partial = joinPartialReasons(
+      reportText,
+      recovered.problems.map((problem) => problem.reason),
+    )
     const included = new Set<string>()
     const visit = (name: string) => {
       if (included.has(name)) return
@@ -73,7 +76,7 @@ export function packageSource(io: LocalFileIo, scrub: SourceScrub) {
           .toSorted(codeUnitCompare)
           .map((name) => ({ name: scrub(name), command: scrub(scripts[name] ?? '') })),
       },
-      ...(partial !== '' && { partial }),
+      ...(partial !== undefined && { partial }),
     }
   })
 }

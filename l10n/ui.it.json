@@ -1988,6 +1988,11 @@
     "other": "{count} righe in più",
     "many": "{count} righe in più"
   },
+  "reportProblemsMore": {
+    "one": "{count} problema in più",
+    "other": "{count} problemi in più",
+    "many": "{count} problemi in più"
+  },
   "reportCliUsage": "Genera un rapporto deterministico da fonti identificate, senza chiamare un modello.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n",
   "reportIssue": "Segnala un problema…",
   "reportCrashOffer": "Muse Spark Code si è chiuso in modo imprevisto l’ultima volta — segnalarlo?",

@@ -2317,6 +2317,7 @@ export const EN = {
     securityDeveloperAuditUnavailable: 'The developer audit is unavailable.',
   },
   reportRowsMore: forms({ one: '{count} more', other: '{count} more' }),
+  reportProblemsMore: forms({ one: '{count} more problem', other: '{count} more problems' }),
   reportCliUsage:
     'Generate a deterministic report from named sources, without a model call.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n',
   reportIssue: 'Report an Issue…',

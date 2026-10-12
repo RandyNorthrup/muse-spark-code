@@ -12,7 +12,7 @@ import {
 } from '../../../shared/constants'
 import type { UiText } from '../../../shared/l10n/en'
 import { referenceKeyboardActions } from '../../../shared/keybindings'
-import { readReportRows, type ReportProblem } from './boundary'
+import { joinPartialReasons, readReportRows, type ReportProblem } from './boundary'
 import { localSource, LocalSourceError, sourceReason } from './local'
 import {
   collectKeybindingSections,
@@ -155,15 +155,15 @@ export function keybindingsSource(readManifest: KeybindingsManifestReader) {
     const recovered = keybindingsFacts(context.reportText, await readManifest())
     const sections = collectKeybindingSections(recovered.facts)
     const omitted = sections.reduce((total, section) => total + section.omittedRows, 0)
-    const partial = [
+    const partial = joinPartialReasons(context.reportText, [
       ...recovered.problems.map((problem) => problem.reason),
       ...(omitted > 0 ? [sourceReason('invalid', context.reportText)] : []),
-    ].join(' ')
+    ])
     // A skipped blank chord is invalid data, not a full read: the section
     // counts it and the source reports partial with that reason.
     return {
       data: sections,
-      ...(partial !== '' && { partial }),
+      ...(partial !== undefined && { partial }),
     }
   })
 }
