@@ -1,0 +1,98 @@
+[
+  {
+    "name": "lease-release",
+    "finding": "P1-1 (requestWriter.ts): the lease is held only inside withLease",
+    "source": "src/core/accounts/requestWriter.ts",
+    "mutation": "generator-path finally settles nothing (`await lease.settle(...)` replaced by `void settlement.cost`)",
+    "test": "test/unit/accountRequestLease.test.ts — releases an abandoned paid-helper stream with no settlement left open",
+    "command": "npx vitest run test/unit/accountRequestLease.test.ts --maxWorkers=3 -t \"abandoned\"",
+    "failingAssertion": "expected 1 to be +0 (live lease after abandonment)",
+    "exit": 1,
+    "sha256": "d93b2ee310bbf936cf24eb1dd6ce5c4f38e0e7af231f621ce779b7eec242983e",
+    "restored": true
+  },
+  {
+    "name": "retry-own-block",
+    "finding": "P1-2 (pool.ts): the same-lease retry survives its own durable block",
+    "source": "src/core/accounts/pool.ts",
+    "mutation": "retry vendorLimit skip removed (`const blocking = triggers`)",
+    "test": "test/unit/accountRequestLease.test.ts — forwards a paid-helper 429 to the lease rate limit with its reset time; retries an image 429 as a new send on the same lease",
+    "command": "npx vitest run test/unit/accountRequestLease.test.ts --maxWorkers=3 -t \"429\"",
+    "failingAssertion": "AccountThresholdExceededError: Vendor limit (both 429 tests fail)",
+    "exit": 1,
+    "sha256": "8b28d4c378d7655578ed53e0fa957f87f4839aee279060f1f69298547a3c58aa",
+    "restored": true
+  },
+  {
+    "name": "stop-ends-wait",
+    "finding": "P2-1 (ModelApiHost.ts): the in-lease image spending question keeps Stop",
+    "source": "src/core/backends/modelapi/ModelApiHost.ts",
+    "mutation": "unlessStopped wrapper removed (`return await asking`)",
+    "test": "test/unit/accountLeaseProduction.test.ts — ends a waiting image spending question on Stop and releases its lease",
+    "command": "npx vitest run test/unit/accountLeaseProduction.test.ts --maxWorkers=3 -t \"Stop and releases\"",
+    "failingAssertion": "expected false to be true (turn unfinished 2s after Stop); expected 1 to be +0 (lease leaked)",
+    "exit": 1,
+    "sha256": "bbd1138037c5e8578e3e9214c40c2f465c3bdc8e8a204b107832ed63b3887e3e",
+    "restored": true
+  },
+  {
+    "name": "per-request-asking",
+    "finding": "P2-2 (ModelApiHost.ts): image consent is decided per request",
+    "source": "src/core/backends/modelapi/ModelApiHost.ts",
+    "mutation": "per-request flag dropped at dispatch (`requiresImageAsking` replaced by `false`)",
+    "test": "test/unit/accountLeaseProduction.test.ts — carries each image request its own forced-ask flag",
+    "command": "npx vitest run test/unit/accountLeaseProduction.test.ts --maxWorkers=3 -t \"forced-ask flag\"",
+    "failingAssertion": "expected [ false, false ] to deeply equal [ true, false ]",
+    "exit": 1,
+    "sha256": "bbd1138037c5e8578e3e9214c40c2f465c3bdc8e8a204b107832ed63b3887e3e",
+    "restored": true
+  },
+  {
+    "name": "judge-transient",
+    "finding": "P2-3 (ModelApiHost.ts): a Judge send leaves nothing behind",
+    "source": "src/core/backends/modelapi/ModelApiHost.ts",
+    "mutation": "judge lease no longer transient (`transient: true` removed)",
+    "test": "test/unit/accountLeaseProduction.test.ts — pays the Judge on the turn payer, leaves nothing, and checks the used key",
+    "command": "npx vitest run test/unit/accountLeaseProduction.test.ts --maxWorkers=3 -t \"turn payer\"",
+    "failingAssertion": "expected [ { …(2) } ] to have a length of +0 but got 1 (a :judge: selection is persisted)",
+    "exit": 1,
+    "sha256": "bbd1138037c5e8578e3e9214c40c2f465c3bdc8e8a204b107832ed63b3887e3e",
+    "restored": true
+  },
+  {
+    "name": "judge-used-key",
+    "finding": "P2-4 (ModelApiHost.ts): the Judge admission check sees the used key",
+    "source": "src/core/backends/modelapi/ModelApiHost.ts",
+    "mutation": "fence passes a constant (`guard(actual)` replaced by `guard(undefined)`)",
+    "test": "test/unit/accountLeaseProduction.test.ts — pays the Judge on the turn payer, leaves nothing, and checks the used key",
+    "command": "npx vitest run test/unit/accountLeaseProduction.test.ts --maxWorkers=3 -t \"turn payer\"",
+    "failingAssertion": "expected [ undefined ] to deeply equal [ Array(1) ] (the used key never arrives)",
+    "exit": 1,
+    "sha256": "bbd1138037c5e8578e3e9214c40c2f465c3bdc8e8a204b107832ed63b3887e3e",
+    "restored": true
+  },
+  {
+    "name": "negative-retry-after",
+    "finding": "P3-1 (retryPolicy.ts): a negative Retry-After maps to the shared default",
+    "source": "src/shared/retryPolicy.ts",
+    "mutation": "negative falls through to Date.parse again (pre-fix branch restored)",
+    "test": "test/unit/providerRetry.test.ts — maps a negative wait to the shared default, never a date parse",
+    "command": "npx vitest run test/unit/providerRetry.test.ts --maxWorkers=3 -t \"negative\"",
+    "failingAssertion": "expected '2001-05-01T07:00:00.000Z' to be '2026-10-06T12:01:00.000Z' (V8 parses '-5' as a 2001 date)",
+    "exit": 1,
+    "sha256": "0e5824a7fc583adbdd077e3f73330e2ca39a42cc6b0a0067460cdb8d489787b5",
+    "restored": true
+  },
+  {
+    "name": "earliest-reset",
+    "finding": "P3-2 (requestWriter.ts): the stop sentence names the earliest recovery",
+    "source": "src/core/accounts/requestWriter.ts",
+    "mutation": "earliest-reset argument dropped (trigger's own reset names the payer's later recovery)",
+    "test": "test/unit/accountRequestLease.test.ts — names the earliest recovery across every limited account, not the payer's own",
+    "command": "npx vitest run test/unit/accountRequestLease.test.ts --maxWorkers=3 -t \"earliest recovery\"",
+    "failingAssertion": "expected 'anthropic · a has no room. Resets Oct…' to contain 'Oct 6, 2026, 5:01 AM'",
+    "exit": 1,
+    "sha256": "d93b2ee310bbf936cf24eb1dd6ce5c4f38e0e7af231f621ce779b7eec242983e",
+    "restored": true
+  }
+]
