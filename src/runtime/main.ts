@@ -127,6 +127,8 @@ import { runtimeSchedulesBinding } from './schedules/binding'
 import { settleScheduleCommand } from './schedules/settle'
 
 import { lazyRuntimeResources } from './resources/load'
+import { resourceFailureReporter } from './resources/text'
+import { createAcpAccounting } from './acpAccounting'
 import type { ResourceSettings } from '../shared/resources'
 import { execAccountSelection } from './exec/execAccounts'
 import { ACCOUNT_DEFAULT_ID } from '../shared/constants'
@@ -454,9 +456,7 @@ function resourcesFor(
     }),
     sleep,
     log,
-    onError: () => {
-      log.warn(UI_TEXT.resourceUnavailable)
-    },
+    onError: resourceFailureReporter(log),
     ...(overrides !== undefined && { overrides }),
     ...(isRecordingHistory !== undefined && { isRecordingHistory }),
   })
@@ -737,6 +737,18 @@ async function serve(
       }
     }
     const agent = engine.createAcpAgent({
+      accounting: createAcpAccounting({
+        recording,
+        runtime,
+        isEnabled: () => isUsageHistoryOn,
+        dataFolder: agentDataFolder({
+          platform: process.platform,
+          env: process.env,
+          homeDir: homedir(),
+        }),
+        now: Date.now,
+        sleep,
+      }),
       schedules: {
         isAvailable: false,
         async holdWorkspace(cwd) {

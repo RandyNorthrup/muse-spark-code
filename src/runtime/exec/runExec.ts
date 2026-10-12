@@ -427,6 +427,8 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       terminal = event.terminal
       incompleteReason = event.reason ?? null
       backendErrorKind = event.errorKind
+      if (event.terminal === 'failed')
+        log.error(`${event.errorKind ?? 'turn_failed'}: ${event.reason ?? UI_TEXT.execIncomplete}`)
     } else if (event.type === 'tokenUsage' && options.backend === 'museCode') {
       latestTokens = {
         inputTokens: event.inputTokens,

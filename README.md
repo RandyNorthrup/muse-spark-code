@@ -5569,3 +5569,5 @@ local-only scans; missing dependency licences remain unknown. Private registry
 configuration is never contacted. CLI lookup still requires `--registry`.
 
 Containment-helper compilation uses heavy bootstrap admission, a bounded deadline and output, and whole-tree cancellation before its result is used. CLI and ACP process launches share runtime resource admission, including login and browser openers.
+
+ACP clients receive turn accounting in protocol metadata; see [the ACP guide](docs/acp.md#turn-accounting) for exact USD, token classes and budget availability.

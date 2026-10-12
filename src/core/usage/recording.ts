@@ -42,6 +42,7 @@ export interface UsageRecording {
     >,
     isForced?: boolean,
   ): void
+  records?(): Promise<readonly UsageRecord[]>
   today(): Promise<readonly UsageRecord[]>
   flush(): Promise<void>
 }
@@ -84,6 +85,18 @@ export function createUsageRecording(options: UsageRecordingOptions): UsageRecor
       }
     })()
   }
+  const readRecords = async () => {
+    await pending
+    try {
+      const journal = await getWriter()
+      await journal.flush()
+      const { records } = await journal.read()
+      return records
+    } catch {
+      report()
+      throw new Error('Usage history unavailable')
+    }
+  }
   return {
     limits: () => {
       const entries: UsageLimitSnapshot[] = []
@@ -121,18 +134,11 @@ export function createUsageRecording(options: UsageRecordingOptions): UsageRecor
         journal.append(entry)
       })
     },
+    records: readRecords,
     async today() {
-      await pending
-      try {
-        const journal = await getWriter()
-        await journal.flush()
-        const { records } = await journal.read()
-        const day = localUsageDay(options.now())
-        return records.filter((record) => record.day === day)
-      } catch {
-        report()
-        throw new Error('Usage history unavailable')
-      }
+      const records = await readRecords()
+      const day = localUsageDay(options.now())
+      return records.filter((record) => record.day === day)
     },
     async flush() {
       let timer: ReturnType<typeof setTimeout> | undefined

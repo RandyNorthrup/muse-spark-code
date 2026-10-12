@@ -3753,6 +3753,11 @@ export class ModelApiSession implements ScheduledAgentSession {
       provider: this.sendingModel.policy.identity.provider,
       model: body.model,
       session: this.sessionId,
+      turn: this.active?.turnId,
+      ...(this.parentSession !== undefined && {
+        parentSession: this.budgetOwner().sessionId,
+        parentTurn: this.budgetOwner().active?.turnId,
+      }),
       startedAt: this.deps.now(),
       kind,
       pricing:

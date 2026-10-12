@@ -236,6 +236,9 @@ export function createUsageRecord(
     rateLimited: context.rateLimited,
     retryDelayMs: context.retryDelayMs,
     session: context.session,
+    turn: context.turn,
+    parentSession: context.parentSession,
+    parentTurn: context.parentTurn,
     packedAvoided: context.packedAvoided,
     headers: context.headers,
   })

@@ -1,3 +1,4 @@
+import type { CoreLogger } from '../../core/logging'
 import {
   RESOURCE_SERVICE_PRESSURE_PERCENT,
   RESOURCE_TRANSPORT_FAILURE_PERCENT,
@@ -155,4 +156,45 @@ export function resourceNoticeText(event: ResourceEvent, status: ResourceStatus)
           )
   }
   return [fill(UI_TEXT.resourcePauseNotice, { metric, reading, threshold }), ...details].join('\n')
+}
+
+// Technical reading identifiers name the failed port, without a native message or path.
+const RESOURCE_READINGS = [
+  'resources.settings',
+  'resources.resume',
+  'resources.sample',
+  'resources.history',
+  'resources.status',
+  'resources.admission',
+] as const
+type ResourceReading = (typeof RESOURCE_READINGS)[number]
+
+export class ResourceReadingError extends Error {
+  public constructor(public readonly reading: ResourceReading) {
+    super(UI_TEXT.resourceUnavailable)
+    this.name = 'ResourceReadingError'
+  }
+}
+
+export async function readResource<T>(
+  reading: ResourceReading,
+  work: () => T | Promise<T>,
+): Promise<T> {
+  try {
+    return await work()
+  } catch {
+    throw new ResourceReadingError(reading)
+  }
+}
+
+/** The connected process reports each unavailable reading once, in its installed language. */
+export function resourceFailureReporter(log: Pick<CoreLogger, 'warn'>): (error: unknown) => void {
+  const reported = new Set<ResourceReading>()
+  return (error) => {
+    const raw = error instanceof Error && 'reading' in error ? error.reading : undefined
+    const reading = RESOURCE_READINGS.find((candidate) => candidate === raw) ?? 'resources.status'
+    if (reported.has(reading)) return
+    reported.add(reading)
+    log.warn(`${reading}: ${UI_TEXT.resourceUnavailable}`)
+  }
 }
