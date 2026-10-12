@@ -12,6 +12,7 @@ import {
   traceLogCutoffMs,
   traceLogDirectory,
   type TraceLogFs,
+  type TraceLogReader,
 } from '../../src/runtime/usage/traceLogs'
 import { removeFolder } from './helpers/temporaryFolders'
 
@@ -167,6 +168,19 @@ function seed(fs: ReturnType<typeof fakeFs>, home: string, names: readonly strin
   return directory
 }
 
+function seededReader(): {
+  home: string
+  fs: ReturnType<typeof fakeFs>
+  directory: string
+  reader: TraceLogReader
+} {
+  const home = tempHome()
+  const fs = fakeFs()
+  const directory = seed(fs, home, ['cli-a.log'])
+  const reader = createTraceLogReader({ homeDir: home, fs: fs.port })
+  return { home, fs, directory, reader }
+}
+
 describe('cached trace reader', () => {
   it('opens every file once, then zero when nothing changed, then one when one file grew', async () => {
     const home = tempHome()
@@ -190,10 +204,7 @@ describe('cached trace reader', () => {
   })
 
   it('a rewrite inside one millisecond re-parses by nanosecond mtime', async () => {
-    const home = tempHome()
-    const fs = fakeFs()
-    const directory = seed(fs, home, ['cli-a.log'])
-    const reader = createTraceLogReader({ homeDir: home, fs: fs.port })
+    const { fs, directory, reader } = seededReader()
     expect(await reader.readLogs(NOW)).toHaveLength(1)
     expect(fs.opens).toBe(1)
     const rewritten = fs.files.get(path.join(directory, 'cli-a.log'))
@@ -320,10 +331,7 @@ describe('cached trace reader', () => {
   })
 
   it('a file that keeps changing keeps its last good parse and reports stale', async () => {
-    const home = tempHome()
-    const fs = fakeFs()
-    const directory = seed(fs, home, ['cli-a.log'])
-    const reader = createTraceLogReader({ homeDir: home, fs: fs.port })
+    const { fs, directory, reader } = seededReader()
     expect(await reader.readLogs(NOW)).toHaveLength(1)
     expect(reader.isTraceStale()).toBe(false)
     const churning = fs.files.get(path.join(directory, 'cli-a.log'))
