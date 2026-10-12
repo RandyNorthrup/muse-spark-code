@@ -4894,6 +4894,11 @@ export class ModelApiSession implements ScheduledAgentSession {
               observedAt: this.deps.now(),
               windows: [],
               raw: observation.headers,
+              // The account that paid for this response: a replaced key
+              // stops using its quota (RVCM963J 7).
+              ...(reservation?.accountId !== undefined && {
+                observedAccount: reservation.accountId,
+              }),
             },
             observation.rateLimited === true,
           )
