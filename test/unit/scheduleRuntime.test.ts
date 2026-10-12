@@ -454,4 +454,30 @@ describe('background consent store reads', () => {
     const store = createBackgroundConsentStore(memoryConsentFs(undefined, foreign), 'consent.json')
     await expect(store.exclusive(() => Promise.resolve())).rejects.toBe('a string failure')
   })
+
+  it.each(['EACCES', 'EIO'])(
+    'reports an unreadable consent file by its errno: %s',
+    async (code) => {
+      const failure = Object.assign(new Error('store locked'), { code })
+      const store = createBackgroundConsentStore(
+        memoryConsentFs(undefined, failure),
+        'consent.json',
+      )
+      await expect(store.exclusive(() => Promise.resolve())).rejects.toThrow(
+        `scheduleStoredUnreadable:${code}`,
+      )
+    },
+  )
+
+  it('passes on a codeless read failure instead of calling it corrupt', async () => {
+    const failure = new TypeError('faulty port')
+    const store = createBackgroundConsentStore(memoryConsentFs(undefined, failure), 'consent.json')
+    let seen: unknown
+    try {
+      await store.exclusive(() => Promise.resolve())
+    } catch (error: unknown) {
+      seen = error
+    }
+    expect(seen).toBe(failure)
+  })
 })
