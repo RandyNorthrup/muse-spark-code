@@ -17,6 +17,8 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Headless provider runs accept configured native model IDs containing slashes; provider setup accepts repeated `--model` flags.
+
 - Exec and ACP honor the configured provider default and refuse a missing default
   instead of silently choosing another model.
 - Provider setup errors name terminal flags and available model IDs. Models absent

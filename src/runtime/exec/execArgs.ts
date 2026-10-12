@@ -144,11 +144,9 @@ function invalid(reason: string): { readonly ok: false; readonly reason: string 
 }
 
 /**
- * The model for a provider run: a bare id (no slash) qualifies to
- * `<provider>/<model>`; a ref must name this provider in full
- * (`openrouter/deepseek/…`, since a model id may itself hold a slash).
- * Without a provider the model passes through untouched. Undefined for a
- * ref aimed elsewhere.
+ * Bare single-segment IDs qualify immediately. Slash-containing IDs remain
+ * intact until assembly can distinguish a configured native ID from a qualified
+ * reference. Without a provider the model passes through untouched.
  */
 export function qualifyProviderModel(
   provider: string | undefined,
@@ -164,10 +162,7 @@ export function qualifyProviderModel(
   if (parsed === undefined) {
     return undefined
   }
-  if (parsed.providerId === 'meta') {
-    return `${provider}/${model}`
-  }
-  return parsed.providerId === provider ? model : undefined
+  return parsed.providerId === 'meta' ? `${provider}/${model}` : model
 }
 
 export function parseExec(

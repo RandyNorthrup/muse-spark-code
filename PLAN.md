@@ -28524,6 +28524,14 @@ selected model price card. B keeps configured defaults in exec/ACP; C updates
 only documented catalogue evidence; D uses terminal instructions in every
 language; E repairs usage persistence; F confines help to its command; G updates
 ACP/README/reference. Fake providers only, existing caps/hooks/timeouts intact.
+Round 2 completes the interruption/recovery matrix with real journals, resolves
+slash-containing native IDs against configured models, covers every deep command's
+help, diagnoses persistent usage history, and binds model-specific effort to ACP
+and exec. Sign-in methods exclude maintenance actions; JSON progress uses stderr;
+stopped runs retain validated, redacted partial text and accounting. STREAMCLASS
+owns helper/transport idle marks, Copilot silence and upload progress limits;
+TOOLROUNDS owns the tool-loop ceiling. Run every dependent suite in three-file
+batches and record base failures separately. No live calls or new caps.
 Certification: `docs/certification/exec-provider.md`. Full aggregate quality
 belongs to the lead under this lane's explicit scoped-gate instruction.
 

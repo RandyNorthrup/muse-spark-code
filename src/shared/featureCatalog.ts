@@ -560,7 +560,7 @@ export function featureCatalog(): readonly Feature[] {
       [],
       [],
       'headless-runs',
-      // M80/M95: one output cap, configured default, request-sized admission and explicit ephemeral history.
+      // M80/M95: configured defaults and native slash IDs, one output cap, request-sized admission and explicit ephemeral history.
       ['modelApi'],
       false,
       ['acp'],
