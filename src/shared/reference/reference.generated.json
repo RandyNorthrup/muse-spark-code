@@ -455,6 +455,73 @@
       "editors": ["vscode", "acp"]
     },
     {
+      "id": "auto-compaction",
+      "name": { "ui": "autoCompactionName" },
+      "summary": {
+        "conditions": [
+          {
+            "when": "conversationStart&modelPricing",
+            "text": { "setting": "modelApiAutoCompaction" }
+          }
+        ]
+      },
+      "description": {
+        "conditions": [
+          {
+            "when": "conversationStart&modelPricing",
+            "text": { "setting": "modelApiAutoCompaction" }
+          }
+        ]
+      },
+      "commands": [],
+      "settings": ["museSpark.modelApiAutoCompaction"],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees",
+      "backends": ["modelApi"],
+      "paid": true,
+      "surfaces": ["vscode:modelApi", "acp:modelApi"],
+      "details": [
+        {
+          "conditions": [
+            {
+              "when": "conversationStart&modelPricing",
+              "text": { "setting": "modelApiAutoCompaction" }
+            }
+          ]
+        }
+      ],
+      "facts": {
+        "paidFeature": "autoCompaction",
+        "paidSettings": ["museSpark.modelApiAutoCompaction"],
+        "configuredDefaults": { "museSpark.modelApiAutoCompaction": true },
+        "defaultState": { "type": "boolean", "value": true },
+        "pricesUsd": {
+          "webSearchPerThousand": "2.5",
+          "imageGeneration": "0.01",
+          "voicePerHour": "0.18"
+        },
+        "tokenRatesPerMillion": {
+          "standard": { "input": "1.25", "cachedInput": "0.15", "output": "4.25" },
+          "contributor": { "input": "0.1", "cachedInput": "0.002", "output": "0.2" }
+        },
+        "billing": "storedModelApiKey",
+        "effectiveAvailability": {
+          "vscode:modelApi": {
+            "defaultState": { "type": "boolean", "value": true },
+            "key": "SecretStorage",
+            "consent": "window",
+            "ledger": "paidDailyBudgetUsd"
+          },
+          "acp:modelApi": {
+            "configuredDefault": false,
+            "flag": "auto-compaction",
+            "consent": "editorPermission",
+            "ledger": "runtime:paidDailyBudgetUsd"
+          }
+        }
+      },
+      "editors": ["vscode", "acp"]
+    },
+    {
       "id": "argument-preview",
       "name": { "ui": "toolArgumentPreviewLabel" },
       "summary": { "ui": "toolArgumentPreviewDescription" },
@@ -3813,7 +3880,7 @@
       },
       "id": "museSpark.modelApiAutoCompaction",
       "name": "museSpark.modelApiAutoCompaction",
-      "description": "Shows the first-turn notice that automatic compaction is awaiting evaluation. Automatic compaction remains inactive; turning this off hides the notice.",
+      "description": "On by default. Compacts long Model API conversations at a settled tool boundary; each summary is a paid model call. The paid-use consent notice names the price and daily budget before the first charge. The M75 binding run passed.",
       "descriptionKey": "config.modelApiAutoCompaction.description",
       "type": "boolean",
       "default": true,
@@ -4921,7 +4988,7 @@
     {
       "route": "serve",
       "name": "serve: --auto-compaction",
-      "description": "autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. Inactive until evaluation passes.",
+      "description": "autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget.",
       "text": {
         "conditions": [{ "when": "autoCompactionEvaluation", "text": { "cli": "auto-compaction" } }]
       },
@@ -5149,7 +5216,7 @@
     {
       "route": "login",
       "name": "login: --auto-compaction",
-      "description": "autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. Inactive until evaluation passes.",
+      "description": "autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget.",
       "text": {
         "conditions": [{ "when": "autoCompactionEvaluation", "text": { "cli": "auto-compaction" } }]
       },
@@ -5376,7 +5443,7 @@
     {
       "route": "setup",
       "name": "setup: --auto-compaction",
-      "description": "autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. Inactive until evaluation passes.",
+      "description": "autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget.",
       "text": {
         "conditions": [{ "when": "autoCompactionEvaluation", "text": { "cli": "auto-compaction" } }]
       },
@@ -5618,7 +5685,7 @@
     {
       "route": "authSet",
       "name": "authSet: --auto-compaction",
-      "description": "autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. Inactive until evaluation passes.",
+      "description": "autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget.",
       "text": {
         "conditions": [{ "when": "autoCompactionEvaluation", "text": { "cli": "auto-compaction" } }]
       },
@@ -5858,7 +5925,7 @@
     {
       "route": "authStatus",
       "name": "authStatus: --auto-compaction",
-      "description": "autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. Inactive until evaluation passes.",
+      "description": "autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget.",
       "text": {
         "conditions": [{ "when": "autoCompactionEvaluation", "text": { "cli": "auto-compaction" } }]
       },
@@ -6098,7 +6165,7 @@
     {
       "route": "authClear",
       "name": "authClear: --auto-compaction",
-      "description": "autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. Inactive until evaluation passes.",
+      "description": "autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget.",
       "text": {
         "conditions": [{ "when": "autoCompactionEvaluation", "text": { "cli": "auto-compaction" } }]
       },

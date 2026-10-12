@@ -47,26 +47,24 @@ const SURFACE_ACTIVE = `activeWebviewPanelId == '${CHAT_PANEL_VIEW_TYPE}' || foc
 const nlsKeyOf = (reference: string | undefined) => reference?.replace(/^%(.+)%$/, '$1') ?? ''
 
 describe('package.json manifest', () => {
-  // 0.17.1's truth pass (CX1R5) words the setting by the one thing it does
-  // while the feature is inactive, in every manifest table, and takes the
-  // inactive feature's description out of the README.
-  it('describes the visible automatic compaction setting by what it does while inactive', () => {
-    expect(isAutoCompactionEvaluated()).toBe(false)
+  // 0.17.1's truth pass (CX1R5) worded the setting by the one thing it did
+  // while the feature was inactive. The binding run passed, so the manifest
+  // words it by what it does now that it is evaluated.
+  it('describes the visible automatic compaction setting by what it does while evaluated', () => {
+    expect(isAutoCompactionEvaluated()).toBe(true)
     const setting =
       manifest.contributes.configuration.properties['museSpark.modelApiAutoCompaction']
     expect(setting.default).toBe(true)
     expect(setting.scope).toBe('machine')
     expect(setting.description).toBe('%config.modelApiAutoCompaction.description%')
     const description = nls['config.modelApiAutoCompaction.description']
-    expect(description).toContain('first-turn notice')
-    expect(description).toContain('Automatic compaction remains inactive')
+    expect(description).toContain('paid model call')
+    expect(description).toContain('M75 binding run passed')
     const readme = readFileSync(new URL('../../README.md', import.meta.url), 'utf8').replaceAll(
       /\s+/g,
       ' ',
     )
-    expect(readme).toContain(
-      '`modelApiAutoCompaction` controls the first-turn awaiting-evaluation notice',
-    )
+    expect(readme).toContain('`modelApiAutoCompaction` turns automatic compaction on and off')
     expect(readme).not.toContain('inactive preference')
     expect(readme).not.toContain('automatic feature is absent from Settings')
     expect(readme).not.toContain('The hidden `museSpark.modelApiAutoCompaction`')

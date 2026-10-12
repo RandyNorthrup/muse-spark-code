@@ -44,6 +44,7 @@ function paidWithSettings(
     workspace?: Map<string, unknown>
     canRemember?: () => boolean
     defaultOn?: boolean
+    autoCompactionEvaluated?: () => boolean
   } = {},
 ) {
   const settings = new Set(enabled)
@@ -54,6 +55,9 @@ function paidWithSettings(
     isDefaultOn: () => options.defaultOn === true,
     isKeyStored: () => true,
     canRememberPaidUse: options.canRemember ?? (() => true),
+    ...(options.autoCompactionEvaluated !== undefined && {
+      autoCompactionEvaluated: options.autoCompactionEvaluated,
+    }),
     log: new FakeLogOutputChannel(),
   })
   return { paid, settings }
@@ -85,14 +89,13 @@ async function details(request: Parameters<typeof askPaidUse>[0]) {
   return { title: call?.[0], detail: call?.[1]?.detail ?? '' }
 }
 
-it('unevaluated compaction is absent from paid state, usage choices and consent cards', async () => {
-  const { paid } = paidWithSettings(new Map(), ['autoCompaction'], { defaultOn: true })
+it('unevaluated compaction is absent from paid state and consent cards', async () => {
+  const { paid } = paidWithSettings(new Map(), ['autoCompaction'], {
+    defaultOn: true,
+    autoCompactionEvaluated: () => false,
+  })
   await paid.gate.review()
   expect(paid.state().features).not.toContain('autoCompaction')
-  expect(usablePaidFeatures('modelApi', true)).not.toContain('autoCompaction')
-  expect(
-    listedPaidFeatures(['autoCompaction'], { ...paid.state().tally, autoCompactionRequests: 1 }),
-  ).not.toContain('autoCompaction')
   expect(
     await paid.consent.allows({
       feature: 'autoCompaction',
@@ -102,6 +105,16 @@ it('unevaluated compaction is absent from paid state, usage choices and consent 
   ).toBe(false)
   expect(await paid.gate.turnOn('autoCompaction')).toBe(false)
   expect(confirmModal).not.toHaveBeenCalled()
+})
+
+it('evaluated compaction is present in paid state, usage choices and consent cards', async () => {
+  const { paid } = paidWithSettings(new Map(), ['autoCompaction'], { defaultOn: true })
+  await paid.gate.review()
+  expect(paid.state().features).toContain('autoCompaction')
+  expect(usablePaidFeatures('modelApi', true)).toContain('autoCompaction')
+  expect(
+    listedPaidFeatures(['autoCompaction'], { ...paid.state().tally, autoCompactionRequests: 1 }),
+  ).toContain('autoCompaction')
 })
 
 it('evaluated compaction turn-on confirmation names the price being accepted', async () => {

@@ -420,7 +420,7 @@ export const EN = {
     'no-facts': '--no-facts           Leave the support facts out',
     'no-events': '--no-events          Leave the recent events out',
     'auto-compaction':
-      'Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. Inactive until evaluation passes.',
+      'Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget.',
     'no-auto-compaction': 'Disable automatic compaction',
     'output-schema':
       'Validate the final answer against a bounded JSON schema file (Model API only).',

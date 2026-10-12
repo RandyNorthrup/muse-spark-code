@@ -25262,7 +25262,18 @@ Certification and current generated freeze: `docs/certification/m101-eval-arms.m
 The production latch remains false; this fake certification does not certify
 live compaction effectiveness or the aggregate quality gates.
 
-**Status 2026-10-10 (first parts shipped in 0.15.0; automatic compaction stays off until its evaluation passes and the remaining port items remain): building.**
+**Status 2026-10-12 (first parts shipped in 0.15.0; automatic compaction evaluated and on after the binding run passed — receipts in `docs/certification/m101-binding-report.json`/`.md`, `IS_AUTO_COMPACTION_EVALUATED` true; the remaining port items remain): building.**
+
+**CM1013R9 binding run and latch flip (2026-10-12, macbook rig).** The
+lead's counted run at `3c68efb2e` (`node scripts/m101-e.mjs --live-m75`,
+full frozen set, contributor model) returned verdict `pass`: certified
+digest equals the frozen pin, 274 of 588 ceiling calls at $0.06285, all
+four arms above both 0.75 floors, packing engaged on both long-output
+tasks, one settled D78 admission applied on each long-context task, strict
+tools engaged everywhere with both its floors held. The documented Part B
+step ran to the letter: receipts committed byte-exact, the latch flipped,
+`modelApiStrictTools` kept `true`. Certification:
+`docs/certification/m101-cm1013r9.md`.
 
 Status detail retained: planned; lanes start from `m101/base` (the M95
 integration branch plus this plan). C-M101-1 (2026-10-10, lane CM1011,

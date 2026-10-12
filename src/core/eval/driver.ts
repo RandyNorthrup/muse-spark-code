@@ -353,6 +353,14 @@ export async function runEvalTurn(options: EvalTurnOptions): Promise<EvalTurnOut
     shellKeepsDirectory: () => false,
     getAccountId: () => Promise.resolve(deps.accountId),
     isPaidFeatureOn: () => false,
+    // M101 CM1013R9: M75 records automatic compaction as off, matching the
+    // recorded baseline the binding run certified: an arm that compacts says
+    // so through its frozen change, and the shipped default stays on (the
+    // same split as shellKeepsDirectory above). Without this the evaluated
+    // production latch would compact the baseline, packing and strict-tools
+    // arms, and every settled attempt would fail its task as a paid use.
+    autoCompaction: () => false,
+    autoCompactionEvaluated: () => false,
     notePaidUse: (_feature, units) => {
       counts.paidUses += units
     },

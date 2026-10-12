@@ -340,6 +340,7 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
 | `--web-search`                         | Offer paid web search (Model API backend only); each prompt asks in the editor first, naming the price                  |
 | `--image-generation`                   | Offer paid image generation (Model API backend only); each image asks in the editor first, naming the price             |
 | `--verbose`                            | Log every detail to stderr (the editor's agent log)                                                                     |
+| `--no-auto-compaction`                 | Disable automatic compaction in the shared Model API core (also accepted by exec)                                       |
 
 ## What the editor sees
 

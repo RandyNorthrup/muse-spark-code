@@ -298,7 +298,7 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
     expect(wrong.status).toBe(1)
     expect(wrong.stderr).toContain('--colour')
     expect(wrong.stderr).toContain(`${helpUsage}\n`)
-    expect(wrong.stderr).not.toMatch(/--(?:no-)?auto-compaction/)
+    expect(wrong.stderr).toContain('--auto-compaction')
   })
 
   it('prints the complete translated usage and reference hint from the installed table', async () => {
@@ -309,6 +309,8 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
           'resource-governor': z.string(),
           'cpu-max': z.string(),
           'memory-max': z.string(),
+          'auto-compaction': z.string(),
+          'no-auto-compaction': z.string(),
         }),
         acpChatGpt: z.object({ usage: z.string() }),
         scheduleV2: z.object({ runtime: z.object({ usage: z.string() }) }),

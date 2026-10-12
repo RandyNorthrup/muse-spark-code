@@ -1210,6 +1210,32 @@ character) starts in a mode that asks, Manual (Plan when that is your
 starting mode), and the panel names the mode. A handoff from a
 conversation in Plan mode stays in Plan.
 
+Automatic compaction, its exact todo continuation and the memory flush are
+implemented in the shared Model API engine and on by default: the M75
+binding run passed on 2026-10-12 (receipts in
+`docs/certification/m101-binding-report.json` and
+`docs/certification/m101-binding-report.md`).
+`museSpark.modelApiAutoCompaction` defaults to `true`; set it to `false` to
+turn the mechanism off. ACP and headless use the same core and accept
+`--no-auto-compaction`. Muse Code continues to compact itself.
+
+With the M75 pair passed and the shared paid gate/ledger connected,
+compaction is considered inside your turn after a settled tool batch. A
+registered todo completion can trigger it when the expected token saving
+repays the summary call, cache-write premium and carried debt. Cost decisions
+require at least 50% context occupancy and two ordinary requests since the
+last compaction. At 90% occupancy, protection bypasses those economic guards;
+a classified overflow gets at most one automatic compact-and-retry per turn.
+The first paid charge requires the shared price/daily-budget consent, and
+every attempt is tallied. Stop and final account/key/budget checks still apply.
+
+The memory flush writes a labelled, untrusted host snapshot through the
+ordinary memory permission path: Manual asks; Plan and Restricted Mode refuse
+the write while compaction can continue. The next request restores the exact
+host todo list and goal as data, including completed items. It adds no separate
+model call to guess the list. An unsuccessful summary keeps the existing
+conversation; failed or refused automatic work clears economic debt.
+
 When a Model API turn fills its context window, it reports **Context window
 full: /compact or /handoff**. Ordinary requests are refused locally only when
 their lower input estimate exceeds the full window; a high upper estimate
@@ -1220,8 +1246,9 @@ each dispatched attempt retaining its admitted window and format. The documented
 Muse window applies only to verified legacy Muse ids without a registry resolver;
 an authoritative missing row stays unknown. Provider
 registry wiring must supply each BYO model's window; Ollama needs its loaded
-`num_ctx`, rather than its trained maximum. Automatic recovery remains inactive
-until the evaluation and paid-admission requirements above are satisfied.
+`num_ctx`, rather than its trained maximum. Automatic recovery is active after
+the passing evaluation: a classified overflow compacts once and retries inside
+the turn, as a paid model call under the paid-use consent.
 
 Handoff runs on the Model API backend only: on Muse Code the command says
 so, where Muse Code compacts its own conversations. It starts from the
@@ -5020,8 +5047,8 @@ Compatibility-only Settings values are retained without runtime reads. The
 schedule switch controls the legacy `/loop` shortcut in Muse Code chat;
 draft delivery selects the delivery carried in new drafts. `resourceRelocate`
 controls the missing-route note on resource pauses,
-and `modelApiAutoCompaction` controls the first-turn awaiting-evaluation notice,
-with automatic compaction inactive. `vault.agentFence` still controls the
+and `modelApiAutoCompaction` turns automatic compaction on and off.
+`vault.agentFence` still controls the
 credential fence for interactive Model API shell commands; verification,
 schedules, workers and hooks always remain fenced.
 
@@ -5508,9 +5535,12 @@ estimate: 147 calls per arm, 588 total from independent measured task
 allowances, about $0.078 at the first run's token mix, with a $0.50 spend
 stop. Local overruns fail their task and continue; narrowed selections and
 global stops remain incomplete. `node scripts/m101-e.mjs --fake` runs request goldens, the fake
-M75 pair and automatic-compaction/overflow checks in bounded batches. Lane E
-owns the live receipt; production automatic compaction stays inactive until
-its evaluated latch and paid admission are certified. The launcher's live
+M75 pair and automatic-compaction/overflow checks in bounded batches. The
+binding run passed on 2026-10-12 (274 of 588 ceiling calls, $0.06285, all
+four arms above both 0.75 floors with packing and compaction engaged;
+receipts in `docs/certification/m101-binding-report.json` and
+`docs/certification/m101-binding-report.md`); production automatic
+compaction is evaluated and on by default under the paid-use consent. The launcher's live
 M75 mode uses the existing OS-stored key and bills that key. It checks the
 certified freeze before opening credentials. The `--smoke-m75` mode is also
 paid and live; it defaults to one task and succeeds only with an incomplete

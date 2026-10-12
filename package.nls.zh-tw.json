@@ -191,7 +191,7 @@
   "config.suggestedProvider.description": "工作區最多可按 id 推薦一個模型提供者預設；面板會提供使用該預設開啟「模型與代理」。為空則不推薦。工作區不能設定位址或憑證。",
   "walkthrough.gettingStarted.step.ownModel.title": "使用自己的模型開始",
   "walkthrough.gettingStarted.step.ownModel.description": "沒有 Muse 訂閱或 Meta API 金鑰？新增您自己的模型提供者（OpenRouter、Anthropic、OpenAI 或本機伺服器）並選擇模型。\n[使用自己的模型開始](command:museSpark.startWithOwnModel)",
-  "config.modelApiAutoCompaction.description": "在首輪顯示自動壓縮等待評估的通知。自動壓縮仍未啟用，關閉此設定會隱藏通知。",
+  "config.modelApiAutoCompaction.description": "預設為開啟。在穩定的工具邊界壓縮長 Model API 對話；每次摘要都是付費模型呼叫。付費使用同意通知會在首次收費前列出價格和每日預算。具約束力的 M75 評估已通過。",
   "config.modelApiStrictTools.description": "當所選模型支援時，使用嚴格的工具結構描述。關閉後保留原有工具宣告。",
   "config.modelApiParallelReads.description": "並行執行安全的唯讀工具呼叫，每次最多四個。其他工具呼叫依序執行。",
   "config.webSearchMaxPerRequest.description": "每次回答允許的服務端網頁搜尋次數上限（1–20，預設 5）。首次收費前會顯示價格和共用每日預算。",

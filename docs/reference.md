@@ -316,6 +316,65 @@ Surfaces: vscode:modelApi, acp:modelApi. Paid: no extra feature charge; model us
 
 Commands: —. Settings: `museSpark.modelApiParallelReads`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees)
 
+### Automatic compaction
+
+conversationStart&modelPricing: On by default. Compacts long Model API conversations at a settled tool boundary; each summary is a paid model call. The paid-use consent notice names the price and daily budget before the first charge. The M75 binding run passed.
+
+conversationStart&modelPricing: On by default. Compacts long Model API conversations at a settled tool boundary; each summary is a paid model call. The paid-use consent notice names the price and daily budget before the first charge. The M75 binding run passed.
+
+```json
+{
+  "paidFeature": "autoCompaction",
+  "paidSettings": ["museSpark.modelApiAutoCompaction"],
+  "configuredDefaults": {
+    "museSpark.modelApiAutoCompaction": true
+  },
+  "defaultState": {
+    "type": "boolean",
+    "value": true
+  },
+  "pricesUsd": {
+    "webSearchPerThousand": "2.5",
+    "imageGeneration": "0.01",
+    "voicePerHour": "0.18"
+  },
+  "tokenRatesPerMillion": {
+    "standard": {
+      "input": "1.25",
+      "cachedInput": "0.15",
+      "output": "4.25"
+    },
+    "contributor": {
+      "input": "0.1",
+      "cachedInput": "0.002",
+      "output": "0.2"
+    }
+  },
+  "billing": "storedModelApiKey",
+  "effectiveAvailability": {
+    "vscode:modelApi": {
+      "defaultState": {
+        "type": "boolean",
+        "value": true
+      },
+      "key": "SecretStorage",
+      "consent": "window",
+      "ledger": "paidDailyBudgetUsd"
+    },
+    "acp:modelApi": {
+      "configuredDefault": false,
+      "flag": "auto-compaction",
+      "consent": "editorPermission",
+      "ledger": "runtime:paidDailyBudgetUsd"
+    }
+  }
+}
+```
+
+Surfaces: vscode:modelApi, acp:modelApi. Paid: yes; consent required; admission depends on the surface.
+
+Commands: —. Settings: `museSpark.modelApiAutoCompaction`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees)
+
 ### Argument Preview
 
 Show validated, scrubbed tool arguments as they arrive, before the tool runs.
@@ -3076,7 +3135,7 @@ Type: `"string"`. Default: `""`. Scope: `window`.
 
 ### museSpark.modelApiAutoCompaction
 
-conversationStart&modelPricing: Shows the first-turn notice that automatic compaction is awaiting evaluation. Automatic compaction remains inactive; turning this off hides the notice.
+conversationStart&modelPricing: On by default. Compacts long Model API conversations at a settled tool boundary; each summary is a paid model call. The paid-use consent notice names the price and daily budget before the first charge. The M75 binding run passed.
 
 Type: `"boolean"`. Default: `true`. Scope: `machine`.
 
@@ -3472,7 +3531,7 @@ These are defaults; editor customizations take precedence.
 - `serve: --shell-sandbox <value>`: --shell-sandbox auto|muse|off Muse Code’s shell sandbox `{"type":"string","repeatable":false,"enum":["auto","muse","off"],"default":"auto"}`
 - `serve: --allow-dangerously-skip-permissions`: --allow-dangerously-skip-permissions Offer the Bypass permissions mode `{"type":"boolean","repeatable":false,"default":false}`
 - `serve: --allow-contributor-models`: --allow-contributor-models List contributor-tier models (Meta may train on their content) `{"type":"boolean","repeatable":false,"default":false}`
-- `serve: --auto-compaction`: autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. Inactive until evaluation passes. `{"type":"boolean","repeatable":false,"default":false}`
+- `serve: --auto-compaction`: autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. `{"type":"boolean","repeatable":false,"default":false}`
 - `serve: --web-search`: --web-search Offer paid web search (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false}`
 - `serve: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false}`
 - `serve: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false}`
@@ -3496,7 +3555,7 @@ These are defaults; editor customizations take precedence.
 - `login: --shell-sandbox <value>`: --shell-sandbox auto|muse|off Muse Code’s shell sandbox `{"type":"string","repeatable":false,"enum":["auto","muse","off"],"default":"auto","purpose":"acceptedUnused"}`
 - `login: --allow-dangerously-skip-permissions`: --allow-dangerously-skip-permissions Offer the Bypass permissions mode `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `login: --allow-contributor-models`: --allow-contributor-models List contributor-tier models (Meta may train on their content) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
-- `login: --auto-compaction`: autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. Inactive until evaluation passes. `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `login: --auto-compaction`: autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `login: --web-search`: --web-search Offer paid web search (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `login: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `login: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false}`
@@ -3519,7 +3578,7 @@ These are defaults; editor customizations take precedence.
 - `setup: --shell-sandbox <value>`: --shell-sandbox auto|muse|off Muse Code’s shell sandbox `{"type":"string","repeatable":false,"enum":["auto","muse","off"],"default":"auto","purpose":"acceptedUnused"}`
 - `setup: --allow-dangerously-skip-permissions`: --allow-dangerously-skip-permissions Offer the Bypass permissions mode `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `setup: --allow-contributor-models`: --allow-contributor-models List contributor-tier models (Meta may train on their content) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
-- `setup: --auto-compaction`: autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. Inactive until evaluation passes. `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `setup: --auto-compaction`: autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `setup: --web-search`: --web-search Offer paid web search (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `setup: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `setup: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false}`
@@ -3544,7 +3603,7 @@ These are defaults; editor customizations take precedence.
 - `authSet: --shell-sandbox <value>`: --shell-sandbox auto|muse|off Muse Code’s shell sandbox `{"type":"string","repeatable":false,"enum":["auto","muse","off"],"default":"auto","purpose":"acceptedUnused"}`
 - `authSet: --allow-dangerously-skip-permissions`: --allow-dangerously-skip-permissions Offer the Bypass permissions mode `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authSet: --allow-contributor-models`: --allow-contributor-models List contributor-tier models (Meta may train on their content) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
-- `authSet: --auto-compaction`: autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. Inactive until evaluation passes. `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `authSet: --auto-compaction`: autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authSet: --web-search`: --web-search Offer paid web search (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authSet: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authSet: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
@@ -3568,7 +3627,7 @@ These are defaults; editor customizations take precedence.
 - `authStatus: --shell-sandbox <value>`: --shell-sandbox auto|muse|off Muse Code’s shell sandbox `{"type":"string","repeatable":false,"enum":["auto","muse","off"],"default":"auto","purpose":"acceptedUnused"}`
 - `authStatus: --allow-dangerously-skip-permissions`: --allow-dangerously-skip-permissions Offer the Bypass permissions mode `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authStatus: --allow-contributor-models`: --allow-contributor-models List contributor-tier models (Meta may train on their content) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
-- `authStatus: --auto-compaction`: autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. Inactive until evaluation passes. `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `authStatus: --auto-compaction`: autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authStatus: --web-search`: --web-search Offer paid web search (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authStatus: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authStatus: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
@@ -3592,7 +3651,7 @@ These are defaults; editor customizations take precedence.
 - `authClear: --shell-sandbox <value>`: --shell-sandbox auto|muse|off Muse Code’s shell sandbox `{"type":"string","repeatable":false,"enum":["auto","muse","off"],"default":"auto","purpose":"acceptedUnused"}`
 - `authClear: --allow-dangerously-skip-permissions`: --allow-dangerously-skip-permissions Offer the Bypass permissions mode `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authClear: --allow-contributor-models`: --allow-contributor-models List contributor-tier models (Meta may train on their content) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
-- `authClear: --auto-compaction`: autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. Inactive until evaluation passes. `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `authClear: --auto-compaction`: autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authClear: --web-search`: --web-search Offer paid web search (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authClear: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authClear: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
