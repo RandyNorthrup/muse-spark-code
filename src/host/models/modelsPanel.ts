@@ -43,6 +43,7 @@ import type { ScanOutcome } from '../providers/modelScans'
 import { OPENROUTER_ORIGIN } from '../providers/openRouter'
 import { Usd } from '../../shared/usd'
 import { redactSecrets } from '../../shared/redact'
+import { wireWordForLog } from '../../core/logging'
 import { type SessionBudgetConfig } from './sessionBudget'
 
 export interface ModelsPanelDeps {
@@ -237,14 +238,20 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     let credential: CredentialRecord | undefined
     try {
       credential = await providers.credentialSnapshot(entry.id)
-      if (entry.auth !== 'none' && entry.auth !== 'subscription') {
-        if (credential !== undefined && !isOriginBound(credential, entry.address)) {
-          throw new Error(UI_TEXT.importNeedsKey)
-        }
+    } catch (error: unknown) {
+      // A credential the store cannot produce is not a missing key: the row
+      // says the store failed, and only the failure's kind reaches the log.
+      // Anything that is not an error keeps its kind.
+      if (!(error instanceof Error)) throw error
+      log.warn(`Models panel could not read a credential snapshot (${wireWordForLog(error.name)})`)
+      draft.errors = [UI_TEXT.providerSaveSecretFailed]
+    }
+    if (entry.auth !== 'none' && entry.auth !== 'subscription') {
+      if (credential !== undefined && !isOriginBound(credential, entry.address)) {
+        draft.errors = [UI_TEXT.importNeedsKey]
+      } else {
         secret = credential?.secret
       }
-    } catch {
-      draft.errors = [UI_TEXT.importNeedsKey]
     }
     editSnapshots.set(draft, { entry, fields: structuredClone(draft), credential })
     if (secret !== undefined) {
@@ -959,7 +966,10 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
             },
             { config: deps.sessionBudget, expectedUsd: draft.sessionBudgetExpectedUsd },
           )
-        } catch (error) {
+        } catch (error: unknown) {
+          // A failed save reaches its draft through fail(); anything that is
+          // not an error keeps its kind past the queue.
+          if (!(error instanceof Error)) throw error
           fail(draft, error)
           await finish(false)
           return
@@ -975,9 +985,15 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
             snapshot.credential = await providers.credentialSnapshot(snapshot.entry.id)
             snapshot.fields = structuredClone(draft)
             enteredCredentials.delete(draft)
-          } catch {
+          } catch (error: unknown) {
+            // A saved provider whose snapshot cannot be refreshed keeps its
+            // save; the notice stays fixed and only the kind reaches the log.
+            // Anything that is not an error keeps its kind.
+            if (!(error instanceof Error)) throw error
             hasRefreshFailed = true
-            log.warn('Models panel saved provider but could not refresh its snapshot')
+            log.warn(
+              `Models panel saved provider but could not refresh its snapshot (${wireWordForLog(error.name)})`,
+            )
           }
         }
         state.notice = outcome.notice
@@ -1205,7 +1221,10 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       }
       try {
         await handle(message)
-      } catch (error) {
+      } catch (error: unknown) {
+        // A failed panel message reaches its draft through fail(); anything
+        // that is not an error keeps its kind past the queue.
+        if (!(error instanceof Error)) throw error
         fail(
           message.type === 'providers/save' && message.providerId !== undefined
             ? savingDraft
