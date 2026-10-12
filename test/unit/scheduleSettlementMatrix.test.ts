@@ -147,11 +147,13 @@ describe('scheduler settlement ownership across every exit and entry', () => {
                   closing.abort()
                   if (exit !== 'aborted') session.open = false
                   await new Promise<void>((resolve) => setImmediate(resolve))
-                  return {
-                    ...fire,
-                    outcome: 'skipped',
-                    reason: UI_TEXT.scheduleV2.messages.targetClosed,
-                  }
+                  // R4: the run cannot confirm a queue withdrawal (it never
+                  // withdrew), so like a started or never-submitted turn it
+                  // reports nothing and the core keeps the outcome unknown.
+                  // A confirmed withdrawal is covered in
+                  // scheduleKnownCloseResult (engine) and
+                  // scheduleDeliveryBinding (withdrawal sentence).
+                  throw new Error(`unconfirmed ${exit}`)
                 }
                 throw new Error(exit)
               },
@@ -232,7 +234,7 @@ describe('scheduler settlement ownership across every exit and entry', () => {
         case 'aborted':
         case 'window closed':
         case 'session closed': {
-          expectedOutcome = 'skipped'
+          expectedOutcome = 'uncertain'
           break
         }
       }

@@ -215,28 +215,30 @@ describe('schedule outbox reconciliation', () => {
     expect(await store.pending(job.workspaceKey)).toEqual([])
   })
   // D100 G8: coordination is one serialized owner plus the lease record, never
-  // process-name matching. The record carries only the owner's PID (no name);
-  // a live owner keeps its run, and only a dead owner releases it.
+  // process-name matching. The record carries the owner's process birth (pid
+  // plus process start time, R3); a live owner keeps its run, and only a dead
+  // owner releases it. A kill mock alone cannot fake death: the owner's own
+  // birth is alive by definition while this process runs.
   it('keeps one serialized owner per run and reclaims only a dead owner (G8)', async () => {
     const { store, job, intent } = await fixture()
-    expect(await store.admit(intent)).toBe(true)
-    expect(await store.admit(intent)).toBe(false)
-    expect(await store.abandoned(job.workspaceKey)).toEqual([])
-    const kill = process.kill.bind(process)
-    const death = vi.spyOn(process, 'kill').mockImplementation(((pid: number, signal?: 0) => {
-      if (pid === process.pid) {
-        const error = new Error(`mocked dead owner ${String(pid)}`) as NodeJS.ErrnoException
-        error.code = 'ESRCH'
-        throw error
-      }
-      return kill(pid, signal)
-    }) as typeof process.kill)
+    const realPid = process.pid
+    Object.defineProperty(process, 'pid', { configurable: true, get: () => 424_242 })
     try {
-      expect(await store.abandoned(job.workspaceKey)).toEqual([intent])
+      expect(await store.admit(intent)).toBe(true)
+      expect(await store.admit(intent)).toBe(false)
     } finally {
-      death.mockRestore()
+      Object.defineProperty(process, 'pid', {
+        configurable: true,
+        value: realPid,
+        writable: false,
+      })
     }
-    expect(await store.abandoned(job.workspaceKey)).toEqual([])
+    // The stamped owner (a dead pid) releases the run; this live process owns nothing.
+    expect(await store.abandoned(job.workspaceKey)).toEqual([intent])
+    // A run this live process admits under its own birth is kept.
+    const live = { ...intent, runId: `${intent.runId}-live` }
+    expect(await store.admit(live)).toBe(true)
+    expect(await store.abandoned(job.workspaceKey)).toEqual([intent])
   })
   it('reconciles an intent added after startup on the next timer tick without restarting the host', async () => {
     const { store, scheduler, host, job, intent, deps } = await fixture()

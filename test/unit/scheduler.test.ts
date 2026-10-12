@@ -601,24 +601,37 @@ describe('M115 host-neutral scheduler', () => {
     expect(host.deliveries).toHaveLength(1)
     expect(host.deliveries[0]?.occurrenceMs).toBeGreaterThan(clock.now())
   })
-  it.each([
-    'ownership',
-    'pause',
-    'remove',
-    'expiry',
-    'trigger',
-    'zone',
-    'target',
-    'delivery',
-  ] as const)(
+  it('leaves the fire pending when ownership changes just after the durable claim', async () => {
+    const { deps, host, scheduler, store } = await fixture('claimed-ownership')
+    const original = store.advance.bind(store)
+    const advance = vi.spyOn(deps.runs, 'advance').mockImplementation(async (intent) => {
+      const isResult = await original(intent)
+      host.workspaces.clear()
+      return isResult
+    })
+    await scheduler.poll('workspace-1')
+    // A process that released its hold without closing settles nothing: the
+    // admitted fire stays pending for whoever holds the workspace next.
+    expect(host.deliveries).toEqual([])
+    expect(await store.fires('workspace-1')).toEqual([])
+    expect(await store.pending('workspace-1')).toHaveLength(1)
+    // The next holder replays the idempotent admission and delivers exactly once.
+    advance.mockRestore()
+    host.workspaces.add('workspace-1')
+    await scheduler.poll('workspace-1')
+    expect(host.deliveries).toHaveLength(1)
+    const [fire] = await store.fires('workspace-1')
+    expect(fire).toMatchObject({ outcome: 'ran' })
+    expect(await store.pending('workspace-1')).toEqual([])
+  })
+  it.each(['pause', 'remove', 'expiry', 'trigger', 'zone', 'target', 'delivery'] as const)(
     'records a skipped, unspent run when %s changes just after the durable claim',
     async (change) => {
       const { deps, host, scheduler, store } = await fixture(`claimed-${change}`)
       const original = store.advance.bind(store)
       vi.spyOn(deps.runs, 'advance').mockImplementation(async (intent) => {
         const isResult = await original(intent)
-        if (change === 'ownership') host.workspaces.clear()
-        else if (change === 'remove') await store.remove('workspace-1', intent.schedule.id)
+        if (change === 'remove') await store.remove('workspace-1', intent.schedule.id)
         else {
           const [job] = await store.list('workspace-1')
           await store.update({
