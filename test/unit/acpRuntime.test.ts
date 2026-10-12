@@ -692,6 +692,17 @@ describe('createRuntimeBackend', () => {
     },
   )
 
+  it('reads the shared daily paid budget first for report Limits sections', async () => {
+    // The same pair VS Code passes: the daily ledger first, then the live
+    // session budgets (RVCM1132B finding 3). No session is open, so only the
+    // daily row is present, read without starting a backend.
+    const runtime = backend({ backend: 'modelApi' })
+    const budgets = await runtime.readUsageBudgets()
+    expect(budgets).toHaveLength(1)
+    expect(budgets[0]?.budget.kind).toBe('paidDaily')
+    expect(budgets[0]?.budget.spentUsd).toBe(0)
+  })
+
   it('asks for a key the Model API backend does not have, and reports a store it cannot read', async () => {
     const secrets = memorySecrets()
     const runtime = backend({ backend: 'modelApi' }, secrets)

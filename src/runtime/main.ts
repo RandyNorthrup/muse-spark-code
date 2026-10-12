@@ -1,3 +1,4 @@
+import type { SourceReadContext } from '../core/reporting/sources/types'
 import { legalScanLoader } from '../host/ide/legalScanBundle'
 import { failureForLog } from '../core/backends/musecode/logText'
 // `muse-spark-code-acp` (PLAN.md D62): the Muse Spark agent for editors that
@@ -80,7 +81,7 @@ import { createRuntimeEstimate, runRuntimeEstimateCommand } from './estimator/po
 import { isProcessAlive } from '../host/checkpoints/windowPresence'
 import type { ReportJournal } from '../host/support/reportJournal'
 import { reportEventsOf } from '../core/support/journalEvents'
-import { agentDataFolder } from './dataFolder'
+import { agentDataFolder, workspaceSessionsFolder } from './dataFolder'
 import { fontsBundle } from './fonts/bundle'
 import { playbookLoader } from './playbook/playbookBundle'
 import { runReportCommand } from './reportCommand'
@@ -114,6 +115,7 @@ import {
   isUsageWriterBundle,
   type UsageRecording,
 } from '../core/usage/recording'
+import type { UsageBudgetRead } from '../core/usage/usageService'
 import { requireFile } from '../host/lazyBundle'
 import { extensionHooksBundle } from '../host/extensionHooksBundle'
 import { fileContextIo } from '../host/backend/contextIo'
@@ -123,6 +125,7 @@ import { walkFiles } from './fileWalk'
 import { shellJobAssembly } from '../host/backend/shellJob'
 import { jobSourceReader } from '../host/backend/jobSource'
 import { reportsLoader } from './reporting/reportsLoader'
+import { reportInputsLoader } from './reporting/reportInputsLoader'
 import type { createRuntimeReports } from './reporting/reportsEntry'
 import { runtimeSchedulesBinding } from './schedules/binding'
 import { settleScheduleCommand } from './schedules/settle'
@@ -466,9 +469,29 @@ function resourcesFor(
   })
 }
 
+/**
+ * Owned LocalSourceError brand (localFailureOf), like the conversation
+ * bundle's: a failed report read is a failure with its reason, never a
+ * silent miss (RVCM1132B finding 4).
+ */
+function reportReadFailed(): Error {
+  return Object.assign(new Error('failed'), { isLocalSourceError: true, code: 'failed' })
+}
+
 /** No account or backend is touched; W ships this entry in its own lazy chunk. */
-function runtimeReports(log: Logger): () => ReturnType<typeof createRuntimeReports> {
+function runtimeReports(
+  log: Logger,
+  current?: Awaited<ReturnType<typeof runtimeFor>>,
+  recording?: UsageRecording,
+  /** One-shot CLI reports have no live runtime but still show the shared daily budget. */
+  reportBudgets?: () => Promise<readonly UsageBudgetRead[]>,
+): () => ReturnType<typeof createRuntimeReports> {
   const load = reportsLoader({ bundlePath: path.join(distDir, 'reporting.js'), log })
+  // M113 C-M113-2: the session and usage inputs ride their own lazy chunk.
+  const inputs = reportInputsLoader({
+    bundlePath: path.join(distDir, 'reportInputs.js'),
+    log,
+  })
   let reports: ReturnType<typeof createRuntimeReports> | undefined
   return () => {
     reports ??= load().createRuntimeReports({
@@ -477,21 +500,101 @@ function runtimeReports(log: Logger): () => ReturnType<typeof createRuntimeRepor
       table: UI_TEXT,
       now: () => new Date().toISOString(),
       roots: [homedir()],
-      servicesFor: (cwd, _sessionId, language) =>
-        Promise.resolve({
+      servicesFor: (cwd, _sessionId, language) => {
+        const l10n = language ?? { table: UI_TEXT, locale: uiLocale() }
+        const dataFolder = agentDataFolder({
+          platform: process.platform,
+          env: process.env,
+          homeDir: homedir(),
+        })
+        let journalReader:
+          ReturnType<ReturnType<typeof inputs>['createReportJournalReader']> | undefined
+        const readJournal = (context: SourceReadContext) => {
+          const readBudgets = reportBudgets ?? current?.readUsageBudgets
+          journalReader ??= inputs().createReportJournalReader({
+            dataFolder,
+            ...(recording !== undefined && { beforeRead: () => recording.flush() }),
+            ...(readBudgets !== undefined && { readBudgets }),
+            // One offset per report: the budget stamp shares the usage
+            // period's sample through the run, like M102's page (RVCM1132B
+            // finding 2, RVCM1132C finding 3).
+            timezoneOffsetMins: inputs().reportTimezoneOffset,
+          })
+          return journalReader(context)
+        }
+        return Promise.resolve({
           keepHistory: true,
           services: load().createReportingServices({
             workspaceRoot: cwd,
             log,
-            storageRoot: agentDataFolder({
-              platform: process.platform,
-              env: process.env,
-              homeDir: homedir(),
-            }),
-            l10n: language ?? { table: UI_TEXT, locale: uiLocale() },
+            storageRoot: dataFolder,
+            l10n,
             generatorVersion: packageVersion(),
             keepHistory: true,
             enabledAgents: [],
+            session: {
+              read: (context) =>
+                inputs()
+                  .createSessionReportReader(
+                    {
+                      resolveSession: async (sessionId) => {
+                        if (sessionId === undefined) return null
+                        // A failed read is a failure with its reason, never a
+                        // silent miss: precise stored/host brands propagate,
+                        // and anything else becomes a failure (RVCM1132B
+                        // finding 4). Only null means no session was found.
+                        try {
+                          const stored = await inputs().readStoredReportSession(
+                            workspaceSessionsFolder(
+                              { platform: process.platform, env: process.env, homeDir: homedir() },
+                              cwd,
+                            ),
+                            sessionId,
+                          )
+                          if (stored !== null) return stored
+                          // Default serve options for the on-demand CLI runtime;
+                          // ACP serve reuses its live runtime through `current`.
+                          const parsed = parseCommandLine([])
+                          if (parsed.command !== 'serve') return null
+                          let runtime = current
+                          try {
+                            runtime ??= await runtimeFor(parsed.options, log)
+                            const host = await runtime.backend.hostFor(cwd)
+                            return await inputs().readHostReportSession(host, sessionId)
+                          } finally {
+                            if (current === undefined) await runtime?.close()
+                          }
+                        } catch (error) {
+                          if (
+                            typeof error === 'object' &&
+                            error !== null &&
+                            (error as { isLocalSourceError?: unknown }).isLocalSourceError === true
+                          )
+                            throw error
+                          throw reportReadFailed()
+                        }
+                      },
+                      readJournal,
+                    },
+                    l10n.table,
+                    l10n.locale,
+                  )
+                  .read(context),
+            },
+            usage: (context) =>
+              inputs().createUsageReportReader(
+                {
+                  dataFolder,
+                  readJournal,
+                  // The machine-local day, like M102's page and the journal's
+                  // own day stamps; the contract carries it explicitly (D93).
+                  // The shared per-run sample keeps the period on the budget
+                  // stamp's day (RVCM1132C finding 3).
+                  timezoneOffsetMins: inputs().reportTimezoneOffset,
+                },
+                l10n.table,
+                l10n.locale,
+              )(context),
             network: {
               policy: {
                 surface: 'terminal',
@@ -501,7 +604,8 @@ function runtimeReports(log: Logger): () => ReturnType<typeof createRuntimeRepor
               },
             },
           }),
-        }),
+        })
+      },
       resolveSaved: async (cwd, file) => {
         const target = path.resolve(cwd, file)
         const info = await lstat(target)
@@ -731,7 +835,7 @@ async function serve(
       bundlePath: path.join(distDir, LEGAL_SCAN_BUNDLE_FILE),
       log,
     })
-    const reports = runtimeReports(log)
+    const reports = runtimeReports(log, runtime, recording)
     // Model API sessions only: the Muse Code backend runs on its
     // subscription. Meta's entry is built in, so the metadata reads without
     // a providers file; a refused file or a loader failure leaves the
@@ -1506,7 +1610,18 @@ async function main(): Promise<number> {
     }
     case 'reports': {
       try {
-        return await runtimeReports(log)().run(command.args)
+        // The one-shot CLI has no live runtime, but its usage reports still
+        // show the shared daily paid budget, exactly like VS Code and ACP
+        // serve (RVCM1132B finding 3). The ledger read never starts a backend.
+        const dataFolder = agentDataFolder({
+          platform: process.platform,
+          env: process.env,
+          homeDir: homedir(),
+        })
+        const { readRuntimeDailyBudget } = await import('./runtimeAccountingEntry.js')
+        return await runtimeReports(log, undefined, undefined, () =>
+          readRuntimeDailyBudget({ dataFolder, now: () => Date.now() }),
+        )().run(command.args)
       } catch {
         writeLine(process.stderr, UI_TEXT.reportUi.generationFailed)
         return EXIT_FAILED

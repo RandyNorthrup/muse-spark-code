@@ -11,10 +11,15 @@ import {
   UI_TEXT,
 } from '../../shared/constants'
 import { reportWorkspaceKey } from '../../core/reporting/sources/local'
+import type { SourceReadContext } from '../../core/reporting/sources/types'
+import type { UsageReportJournal } from '../../core/usage/reportUsage'
+import type { UsageBudgetRead } from '../../core/usage/usageService'
+import type { SessionHistoryInput } from '../../runtime/reporting/reportInputs'
 import { readSettings } from '../settings'
 import * as vscode from 'vscode'
 import { ReportPanel, type ReportPanelDeps } from './reportPanel'
 import { reportEngineLoader } from './reportEngineBundle'
+import { reportInputsLoader } from '../../runtime/reporting/reportInputsLoader'
 
 export function createReportPanel(
   deps: ReportPanelDeps,
@@ -33,6 +38,17 @@ export interface ReportingWindowDeps extends Pick<
   readonly storageRoot: string
   readonly generatorVersion: string
   readonly questions?: ReportingContext['questions']
+  /**
+   * M113 C-M113-2: this surface's live conversation (null when it has none)
+   * and the stored-session fallback directory for --session ids from other
+   * surfaces (undefined when nothing is persisted). The usage journal folder
+   * is always available: it is the shared agent data folder, not storage.
+   */
+  readonly reportSessionHistory?: () => Promise<SessionHistoryInput | null>
+  readonly reportStoredSessionDir?: string | undefined
+  readonly reportBeforeRead: () => Promise<void>
+  readonly reportReadBudgets: () => Promise<readonly UsageBudgetRead[]>
+  readonly reportUsageDataFolder: string
 }
 
 /** Window adapters and engine acquisition live entirely inside the lazy panel bundle. */
@@ -54,6 +70,42 @@ export function createReportingWindow(
     authenticationRevision += 1
   })
   let engine: ReturnType<ReturnType<typeof loadEngine>['createReportingEngine']> | undefined
+  // M113 C-M113-2: the session and usage inputs load with their own bundle on
+  // first use, so neither activation nor the reporting engine carries them.
+  const loadInputs = reportInputsLoader({
+    bundlePath: vscode.Uri.joinPath(deps.context.extensionUri, 'dist', 'reportInputs.js').fsPath,
+    log: deps.context.log,
+  })
+  let journalReader:
+    ReturnType<ReturnType<typeof loadInputs>['createReportJournalReader']> | undefined
+  const readJournal: (context: SourceReadContext) => Promise<UsageReportJournal> = (context) => {
+    journalReader ??= loadInputs().createReportJournalReader({
+      dataFolder: deps.reportUsageDataFolder,
+      beforeRead: deps.reportBeforeRead,
+      readBudgets: deps.reportReadBudgets,
+      // One offset per report: the budget stamp shares the usage period's
+      // sample through the run, like M102's page (RVCM1132B finding 2,
+      // RVCM1132C finding 3). The cached reader no longer freezes one offset
+      // for the window's life.
+      timezoneOffsetMins: loadInputs().reportTimezoneOffset,
+    })
+    return journalReader(context)
+  }
+  const sessionInput = () => ({
+    resolveSession: async (sessionId: string | undefined) => {
+      if (sessionId === undefined) return (await deps.reportSessionHistory?.()) ?? null
+      if (deps.reportStoredSessionDir !== undefined) {
+        const stored = await loadInputs().readStoredReportSession(
+          deps.reportStoredSessionDir,
+          sessionId,
+        )
+        if (stored !== null) return stored
+      }
+      const current = await deps.reportSessionHistory?.()
+      return current?.sessionId === sessionId ? current : null
+    },
+    readJournal,
+  })
   return createReportPanel(
     {
       ...deps,
@@ -64,6 +116,24 @@ export function createReportingWindow(
       engine: () =>
         (engine ??= loadEngine().createReportingEngine({
           ...deps,
+          session: {
+            read: (context) =>
+              loadInputs().createSessionReportReader(sessionInput(), table, locale).read(context),
+          },
+          usage: (context) =>
+            loadInputs().createUsageReportReader(
+              {
+                dataFolder: deps.reportUsageDataFolder,
+                readJournal,
+                // The machine-local day, like M102's page and the journal's
+                // own day stamps; the contract carries it explicitly (D93).
+                // The shared per-run sample keeps the period on the budget
+                // stamp's day (RVCM1132C finding 3).
+                timezoneOffsetMins: loadInputs().reportTimezoneOffset,
+              },
+              table,
+              locale,
+            )(context),
           workspaceKey,
           l10n: deps.context.l10n,
           log: deps.context.log,

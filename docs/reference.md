@@ -51,7 +51,7 @@ Generate a deterministic report from named sources, without a model call.
 
 Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
 
-Commands: `museSpark.showReport`. Settings: `museSpark.reports.network`, `museSpark.reports.keepHistory`, `museSpark.reports.agentSources`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#report)
+Commands: `museSpark.showReport`. Settings: `museSpark.reports.network`, `museSpark.reports.keepHistory`, `museSpark.reports.agentSources`, `museSpark.usageHistory`, `museSpark.usageHistoryDays`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#report)
 
 ### Prompt Library
 

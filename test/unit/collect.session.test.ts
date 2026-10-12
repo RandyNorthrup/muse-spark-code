@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { collectFixture, fullSnapshot, getSection } from './helpers/reporting/collect'
 import { availableSource, unavailableSource } from './helpers/reporting/snapshot'
+import { reportSectionSchema } from '../../src/shared/reportSchema'
 
 describe('session collector', () => {
   it('reports observed zero files for a complete session with no edits', () => {
@@ -121,13 +122,45 @@ describe('session collector', () => {
       type: 'count',
       value: 1,
     })
-    expect(getSection(report, 'checks').rows).toHaveLength(1)
     expect(getSection(report, 'questions').rows).toHaveLength(2)
     expect(
       report.needsYou.rows.some(
         (row) => row.cells['name']?.type === 'text' && row.cells['name'].value === 'q-current',
       ),
     ).toBe(true)
+  })
+
+  it('reads checks run from the workspace journal, citing its source', () => {
+    const report = collectFixture('session')
+    const checks = getSection(report, 'checks')
+    // The fixture's embedded session run stays out: the journal's rows win.
+    expect(checks.rows.map((row) => row.cells['outcome'])).toEqual([
+      { type: 'label', value: 'failed' },
+      { type: 'label', value: 'passed' },
+    ])
+    expect(checks.rows[0]!.sourceIds).toEqual(['checkRuns'])
+  })
+
+  it('falls back to embedded session runs only when the journal cannot read', () => {
+    const snapshot = fullSnapshot()
+    const report = collectFixture(
+      'session',
+      {},
+      {
+        ...snapshot,
+        sources: { ...snapshot.sources, checkRuns: unavailableSource('checkRuns') },
+      },
+    )
+    const checks = getSection(report, 'checks')
+    // Status rows sort by key first; the embedded run follows, session-cited.
+    expect(checks.rows).toHaveLength(2)
+    expect(checks.rows[0]!.cells['status']).toEqual({
+      type: 'label',
+      value: 'unavailable',
+    })
+    expect(checks.rows[0]!.sourceIds).toEqual(['checkRuns'])
+    expect(checks.rows[1]!.cells['outcome']).toEqual({ type: 'label', value: 'passed' })
+    expect(checks.rows[1]!.sourceIds).toEqual(['session'])
   })
 
   it('never converts a legacy missing turn or approval count to zero', () => {
@@ -162,5 +195,56 @@ describe('session collector', () => {
       type: 'text',
       value: 'Legacy approvals missing',
     })
+  })
+
+  it('disambiguates duplicated open-question ids and names each as a plan problem', () => {
+    const snapshot = fullSnapshot()
+    const plan = snapshot.sources.plan.data!
+    const report = collectFixture(
+      'session',
+      {},
+      {
+        ...snapshot,
+        sources: {
+          ...snapshot.sources,
+          plan: availableSource('plan', {
+            ...plan,
+            questions: [
+              { id: 'Q-DUP', text: 'First body', milestoneIds: [], state: 'open' },
+              { id: 'Q-DUP', text: 'Second body', milestoneIds: [], state: 'open' },
+              { id: 'Q-SAME', text: 'Same body', milestoneIds: [], state: 'open' },
+              { id: 'Q-SAME', text: 'Same body', milestoneIds: [], state: 'open' },
+              { id: 'Q-answered', text: 'Decided body', milestoneIds: [], state: 'answered' },
+              { id: 'Q-answered', text: 'Decided body', milestoneIds: [], state: 'answered' },
+            ],
+            drift: [
+              { code: 'question-duplicate', line: 2, detail: 'Q-DUP' },
+              { code: 'question-duplicate', line: 4, detail: 'Q-SAME' },
+              { code: 'question-duplicate', line: 6, detail: 'Q-answered' },
+            ],
+          }),
+        },
+      },
+    )
+    // The same uniqueness refine that rejected the real PLAN.md accepts this.
+    expect(() => reportSectionSchema.parse(report.needsYou)).not.toThrow()
+    const names = report.needsYou.rows.map((row) => row.cells['name'])
+    const named = (id: string) =>
+      names.filter((cell) => cell?.type === 'text' && cell.value === id).length
+    // Distinct bodies stay as two rows; a byte-identical copy collapses to
+    // one; answered duplicates stay out of needs-you.
+    expect(named('Q-DUP')).toBe(2)
+    expect(named('Q-SAME')).toBe(1)
+    expect(named('Q-answered')).toBe(0)
+    // Each duplicated open id is named once as a plan problem, reading only
+    // the reader's drift entries; the answered duplicate is not.
+    const problems = report.needsYou.rows.filter(
+      (row) =>
+        row.cells['name']?.type === 'text' && row.cells['name'].value === 'question-duplicate',
+    )
+    expect(
+      problems.map((row) => row.cells['reason']).map((cell) => cell?.type === 'text' && cell.value),
+    ).toEqual(['Q-DUP', 'Q-SAME'])
+    expect(problems.every((row) => row.cells['status']?.type === 'label')).toBe(true)
   })
 })

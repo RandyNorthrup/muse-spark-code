@@ -5383,6 +5383,8 @@ export const REPORT_WORKING_KINDS = [
   'release',
   'changes',
   'quality',
+  'usage',
+  'session',
 ] as const
 export const REPORT_FORMATS = ['md', 'html', 'json', 'text'] as const
 export const REPORT_FAIL_ON = [

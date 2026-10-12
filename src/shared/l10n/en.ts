@@ -2294,6 +2294,23 @@ export const EN = {
     unbound: 'This source integration is unavailable.',
     history: 'History for the selected session is unavailable.',
   },
+  reportDetailReasons: {
+    journalIncomplete:
+      'The usage journal contains damaged, incomplete or newer-version entries; totals exclude them.',
+    sessionUsageUnavailable:
+      'Usage for this session is not attributable in the retained journal; token and cost totals are unavailable.',
+    budgetsUnavailable: 'Budget snapshots for the selected period are unavailable.',
+    sessionModelUnavailable:
+      'The session catalogue names no active model, so the model is reported as unknown.',
+
+    sessionTurnsUnavailable:
+      'The session history records no turn identifiers, so turns cannot be counted.',
+    sessionApprovalsUnavailable: 'The session history records no approval decisions.',
+    toolBreakdownUnavailable: 'Per-tool usage is not recorded in the usage journal.',
+    rolledUpBreakdownExcluded: 'Rolled-up history is included in totals but not in this breakdown.',
+    rolledUpSessionExcluded:
+      'Rolled-up history is excluded from this session’s totals and breakdown.',
+  },
   reportRowsMore: forms({ one: '{count} more', other: '{count} more' }),
   reportCliUsage:
     'Generate a deterministic report from named sources, without a model call.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n',

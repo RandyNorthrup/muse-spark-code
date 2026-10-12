@@ -103,6 +103,7 @@ import {
   type GoalCommandVerb,
   UI_TEXT,
 } from '../../src/shared/constants'
+import { questionsSource } from '../../src/core/reporting/sources/questions'
 import { fill, formatBytes, plural, setUiText } from '../../src/shared/l10n/text'
 import { EN } from '../../src/shared/l10n/en'
 import { approvalModeFor } from '../../src/shared/permissionModes'
@@ -11203,6 +11204,14 @@ describe('ConversationController: review (M70)', () => {
     beforeAll(async () => {
       folder = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'm70-send-root-')))
       roots = await aliasedReviewRepositories(folder, 'admission')
+      // Native admission owns the material, not the runner's empty-filter exit shape.
+      // A declared inactive driver makes this real-Git fixture's inventory explicit.
+      for (const repository of [roots.first, roots.foreign]) {
+        await processGitRunner()(
+          ['config', 'filter.native-admission.required', 'false'],
+          repository,
+        )
+      }
     })
     afterAll(async () => {
       await removeFolder(folder)
@@ -17891,5 +17900,98 @@ describe('M117 estimates belong to their conversation', () => {
     await controller.handle({ type: 'estimateSpinUp', requestId: 'start', setup: 'current' })
     expect(run.startWave).not.toHaveBeenCalled()
     controller.dispose()
+  })
+})
+
+describe('RVCM1132 report session ownership', () => {
+  it('R14 never attributes current questions to another stored session', async () => {
+    const t = await questionConversation()
+    const options = {
+      kind: 'session' as const,
+      scope: '',
+      full: false,
+      network: false,
+      failOn: [],
+      asOf: '2026-10-07T12:00:00Z',
+      sessionId: 's1',
+    }
+    const context = {
+      options,
+      asOf: options.asOf,
+      workspaceKey: 'fixture',
+      signal: new AbortController().signal,
+    }
+    const reader = t.controller.reportingQuestions()
+    const current = await reader.read(context)
+    expect(current.questions).toHaveLength(1)
+    const foreign = await questionsSource(reader, (text) => text).read({
+      ...context,
+      options: { ...options, sessionId: 'stored-other' },
+    })
+    expect(foreign.data).toBeNull()
+    expect(foreign.record.status).toBe('unavailable')
+    // Another session's questions are not missing history: this source is
+    // simply not bound for that read (RVCM1132B finding 7).
+    expect(foreign.record.reason).toBe(UI_TEXT.reportSourceReasons.unbound)
+    t.controller.dispose()
+    // A disposed controller's questions are likewise unbound, not missing
+    // history: the same reader rejects once its owner is gone.
+    const disposed = await questionsSource(reader, (text) => text).read({
+      ...context,
+      options: { ...options, sessionId: 's1' },
+    })
+    expect(disposed.data).toBeNull()
+    expect(disposed.record.reason).toBe(UI_TEXT.reportSourceReasons.unbound)
+  })
+
+  it('R22 reports questions without a registry as unbound, not a failed read', async () => {
+    const t = setup()
+    const controller = new ConversationController(t.deps)
+    const options = {
+      kind: 'session' as const,
+      scope: '',
+      full: false,
+      network: false,
+      failOn: [],
+      asOf: '2026-10-07T12:00:00Z',
+    }
+    // No open session, so attachQuestions never stored a registry: the
+    // questions source is unavailable with the unbound reason, and the
+    // unbound sentence is kept instead of the failed-read one (RVCM1132C
+    // finding 4).
+    const result = await questionsSource(controller.reportingQuestions(), (text) => text).read({
+      options,
+      asOf: options.asOf,
+      workspaceKey: 'fixture',
+      signal: new AbortController().signal,
+    })
+    expect(result.data).toBeNull()
+    expect(result.record.status).toBe('unavailable')
+    expect(result.record.reason).toBe(UI_TEXT.reportSourceReasons.unbound)
+    controller.dispose()
+  })
+
+  it('R16 refuses history after disposal while a host lookup is pending', async () => {
+    const gate: { current: Promise<undefined> | undefined; onWait?: () => void } = {
+      current: undefined,
+    }
+    const t = await runningTurn({ hostGate: gate })
+    let release: (() => void) | undefined
+    gate.current = new Promise<undefined>((resolve) => {
+      release = () => {
+        resolve(undefined)
+      }
+    })
+    const { promise: lookup, resolve: reached } = Promise.withResolvers<undefined>()
+    gate.onWait = () => {
+      reached(undefined)
+    }
+    const reading = t.controller.reportingSessionHistory()
+    await lookup
+    t.controller.dispose()
+    release?.()
+    expect(await reading).toBeNull()
+    expect(t.server.requestsFor('session/read')).toHaveLength(0)
+    expect(await t.controller.reportingSessionHistory()).toBeNull()
   })
 })

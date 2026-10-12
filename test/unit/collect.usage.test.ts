@@ -1,6 +1,22 @@
 import { describe, expect, it } from 'vitest'
 import { collectFixture, fullSnapshot, getSection } from './helpers/reporting/collect'
 import { availableSource } from './helpers/reporting/snapshot'
+import type { UsageFacts } from '../../src/core/reporting/sources/types'
+
+function collectWithUsage(overrides: Partial<UsageFacts>) {
+  const snapshot = fullSnapshot()
+  return collectFixture(
+    'usage',
+    {},
+    {
+      ...snapshot,
+      sources: {
+        ...snapshot.sources,
+        usage: availableSource('usage', { ...snapshot.sources.usage.data!, ...overrides }),
+      },
+    },
+  )
+}
 
 describe('usage collector', () => {
   it('preserves M102 totals, the selected grouping, limits and certainty', () => {
@@ -30,23 +46,7 @@ describe('usage collector', () => {
   })
 
   it('omits unsupported cache columns while naming the capability as not applicable', () => {
-    const snapshot = fullSnapshot()
-    const report = collectFixture(
-      'usage',
-      {},
-      {
-        ...snapshot,
-        sources: {
-          ...snapshot.sources,
-          usage: availableSource('usage', {
-            ...snapshot.sources.usage.data!,
-            cachedTokens: null,
-            costUsd: null,
-            certainty: 'unknown',
-          }),
-        },
-      },
-    )
+    const report = collectWithUsage({ cachedTokens: null, costUsd: null, certainty: 'unknown' })
     expect(
       getSection(report, 'totals').columns.some((column) => column.key === 'cachedTokens'),
     ).toBe(false)
@@ -84,5 +84,37 @@ describe('usage collector', () => {
     for (const id of ['agentUsage', 'agentLimits']) {
       expect(getSection(windows, id)).toEqual(getSection(portable, id))
     }
+  })
+
+  it('renders dollar budgets and percent windows in their own fields', () => {
+    const report = collectWithUsage({
+      limits: [
+        { key: 'meta/weekly', used: 25, limit: 100, resetsAt: null, unit: 'percent' },
+        { key: 'paidDaily/daily', used: 0.5, limit: 1, resetsAt: null, unit: 'usd' },
+        { key: 'foreign/agent', used: 0.25, limit: 5, resetsAt: null },
+      ],
+    })
+    const rows = getSection(report, 'limits').rows
+    const cells = (name: string) =>
+      rows.find((row) => {
+        const cell = row.cells['name']
+        return cell?.type === 'text' && cell.value === name
+      })?.cells
+    // Dollars in dollar fields, percentages in percent fields (RVCM1132B
+    // finding 5): the two rows must never share one plain-number shape.
+    expect(cells('meta/weekly')?.['count']).toEqual({ type: 'percent', value: 25 })
+    expect(cells('meta/weekly')?.['totals']).toEqual({ type: 'percent', value: 100 })
+    expect(cells('paidDaily/daily')?.['count']).toEqual({
+      type: 'usd',
+      value: '0.5',
+      certainty: 'reported',
+    })
+    expect(cells('paidDaily/daily')?.['totals']).toEqual({
+      type: 'usd',
+      value: '1',
+      certainty: 'reported',
+    })
+    expect(cells('foreign/agent')?.['count']).toEqual({ type: 'number', value: 0.25 })
+    expect(cells('foreign/agent')?.['totals']).toEqual({ type: 'number', value: 5 })
   })
 })

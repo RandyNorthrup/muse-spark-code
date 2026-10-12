@@ -1,11 +1,25 @@
+import path from 'node:path'
 import { vi } from 'vitest'
 import { EN } from '../../../../src/shared/l10n/en'
+import { createReportingServices } from '../../../../src/runtime/reporting/engine'
 import { finalizeReport } from '../../../../src/core/reporting/render/canonical'
 import type { ReportOptions, ReportDocument } from '../../../../src/shared/reportSchema'
 import type { ReportsCommandDeps } from '../../../../src/runtime/reporting/reportsCommand'
 import { REPORT_THEME, renderFixture } from '../../reportRenderFixtures'
 
 export const REPORT_AS_OF = '2026-10-06T12:00:00+00:00'
+
+/** Real engine services over a fixture workspace (English table, no history). */
+export function reportingServicesFor(workspace: string) {
+  return createReportingServices({
+    workspaceRoot: workspace,
+    storageRoot: path.join(workspace, 'reports'),
+    l10n: { table: EN, locale: 'en' },
+    generatorVersion: 'test',
+    keepHistory: false,
+    enabledAgents: [],
+  })
+}
 
 export function reportsHarness(overrides: Partial<ReportsCommandDeps> = {}) {
   const document = renderFixture()

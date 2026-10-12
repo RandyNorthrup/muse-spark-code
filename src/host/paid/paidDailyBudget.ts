@@ -1,3 +1,4 @@
+import { paidDailyToday } from '../../core/usage/reportingAmount'
 import { randomUUID } from 'node:crypto'
 import { PaidAuthority } from '../../core/paid/paidAuthority'
 import { Usd, legacyUsdSchema, usdInputSchema, type UsdAmount } from '../../shared/usd'
@@ -301,7 +302,6 @@ export function createPaidDailyBudget(deps: {
   }
   const readToday = async (): Promise<readonly UsageBudgetRead[]> => {
     const scope = day()
-    const total = await journal.readExisting(scope, PAID_DAILY_BUDGET.accountId)
     let isStopped = false
     let cap: UsdAmount
     try {
@@ -311,23 +311,15 @@ export function createPaidDailyBudget(deps: {
       isStopped = true
       cap = readLimit(scope, true)
     }
-    const reset = new Date(deps.now())
-    reset.setHours(0, 0, 0, 0)
-    reset.setDate(reset.getDate() + 1)
-    return [
-      {
-        budget: {
-          id: scope,
-          kind: 'paidDaily',
-          spentUsd: Usd.from(total?.spentUsd ?? 0).toAmount(),
-          ...(total?.uncertainUsd !== undefined && { uncertainUsd: total.uncertainUsd }),
-          capUsd: cap,
-          stopped: isStopped,
-          raisedToday: Usd.from(cap).compare(Usd.from(deps.capUsd())) > 0,
-          resetsAt: reset.getTime(),
-        },
-      },
-    ]
+    return await paidDailyToday({
+      readExisting: (id, account) => journal.readExisting(id, account),
+      accountId: PAID_DAILY_BUDGET.accountId,
+      scope,
+      now: deps.now(),
+      capUsd: cap,
+      stopped: isStopped,
+      raisedToday: Usd.from(cap).compare(Usd.from(deps.capUsd())) > 0,
+    })
   }
   const latestDay = async () => {
     const scope = day()

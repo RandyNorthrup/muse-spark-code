@@ -1,3 +1,8 @@
+import { readFile } from 'node:fs/promises'
+import vm from 'node:vm'
+import path from 'node:path'
+import { transpileModule } from 'typescript'
+import type { ReportingWindowDeps } from '../../src/host/reporting/reportPanelEntry'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   ReportPanel,
@@ -593,10 +598,10 @@ describe('M113 VS Code report tab', () => {
     expect(t.state().status).toBe(EN.reportUi.saveFailed)
   })
 
-  it('lists only the five working report kinds with its last report and keeps the problem-report action distinct', async () => {
+  it('lists only the seven working report kinds with its last report and keeps the problem-report action distinct', async () => {
     const t = setup()
     await t.ui.open()
-    expect(t.reports.history).toHaveBeenCalledTimes(5)
+    expect(t.reports.history).toHaveBeenCalledTimes(7)
     const choices = fakeWindow.showQuickPick.mock.calls[0]?.[0] as
       readonly { readonly argumentsText: string }[] | undefined
     expect(choices?.map((choice) => choice.argumentsText)).toEqual([
@@ -605,6 +610,8 @@ describe('M113 VS Code report tab', () => {
       'release',
       'changes',
       'quality',
+      'usage',
+      'session',
       'problem',
     ])
     expect(fakeWindow.showQuickPick.mock.calls[0]?.[0]).toEqual(
@@ -664,4 +671,61 @@ describe('M113 VS Code report tab', () => {
     })
     expect(panelLoad).toThrow(EN.reportUi.generationFailed)
   })
+})
+
+function isWindowReportCommand(
+  value: unknown,
+): value is (surface: { id: string }) => Promise<void> {
+  return typeof value === 'function'
+}
+
+it('R16 a surviving report reads no controller after its chat surface closes', async () => {
+  // Execute activation's actual command closure, with only its window ports faked.
+  const source = await readFile(path.resolve('src/extension.ts'), 'utf8')
+  const start = source.indexOf('  const showDeterministicReport = async (')
+  const end = source.indexOf('  // M105 W: the lazy media bindings.', start)
+  expect(start).toBeGreaterThan(0)
+  expect(end).toBeGreaterThan(start)
+  const emitted = transpileModule(
+    source.slice(start, end) + '\nshowDeterministicReport',
+    {},
+  ).outputText
+  let captured: ReportingWindowDeps | undefined
+  let isOpen = true
+  const history = vi.fn(() => Promise.resolve(null))
+  const controllerFor = vi.fn(() => ({
+    reportingQuestions: () => ({ read: () => Promise.reject(new Error('unused')) }),
+    reportingSessionHistory: history,
+  }))
+  const show: unknown = vm.runInNewContext(emitted, {
+    reportingPanels: new Map(),
+    controllerFor,
+    registry: { has: () => isOpen },
+    loadReportingPanel: () => ({
+      createReportingWindow: (deps: ReportingWindowDeps) => {
+        captured = deps
+        return { open: () => Promise.resolve() }
+      },
+    }),
+    context: { extensionUri: {}, subscriptions: [] },
+    l10n: { table: EN, locale: 'en' },
+    UI_TEXT: EN,
+    log: {},
+    version: 'test',
+    workspaceRoot: '/fixture',
+    storageRoot: '/fixture/data',
+    agentDataFolder: () => '/fixture/data',
+    process: { platform: 'linux', env: {} },
+    homedir: () => '/fixture',
+  })
+  if (!isWindowReportCommand(show)) throw new Error('Expected activation command')
+  await show({ id: 'chat' })
+  await captured?.reportSessionHistory?.()
+  expect(history).toHaveBeenCalledOnce()
+  isOpen = false
+  expect(await captured?.reportSessionHistory?.()).toBeNull()
+  expect(controllerFor).toHaveBeenCalledOnce()
+  expect(history).toHaveBeenCalledOnce()
+  await expect(show({ id: 'chat' })).rejects.toThrow(EN.reportUi.generationFailed)
+  expect(controllerFor).toHaveBeenCalledOnce()
 })

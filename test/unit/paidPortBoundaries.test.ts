@@ -108,6 +108,24 @@ describe('PORTS017 boundary precision and historical reads', () => {
   it.each([NaN, Infinity, -1, '0.10', '1e999'])('refuses corrupt reporting cost %s', (costUsd) => {
     expect(() => scrubUsage({ ...rawUsage, costUsd }, (text) => text)).toThrow()
   })
+  it('carries limit units through the reporting scrub, dollars and percents apart', () => {
+    // The scrub parses facts back through its schema: a stripped unit would
+    // render every limit row as plain numbers again (RVCM1132B finding 5).
+    const scrubbed = scrubUsage(
+      {
+        ...rawUsage,
+        limits: [
+          { key: 'paidDaily/daily', used: 0.5, limit: 1, resetsAt: null, unit: 'usd' },
+          { key: 'meta/weekly', used: 25, limit: 100, resetsAt: null, unit: 'percent' },
+        ],
+      },
+      (text) => text,
+    )
+    expect(scrubbed.limits).toEqual([
+      { key: 'meta/weekly', used: 25, limit: 100, resetsAt: null, unit: 'percent' },
+      { key: 'paidDaily/daily', used: 0.5, limit: 1, resetsAt: null, unit: 'usd' },
+    ])
+  })
   it('reads legacy schedule v2 numeric consent into exact current amounts', () => {
     const schedule = scheduleV2Schema.parse({
       ...fakeSchedule(),

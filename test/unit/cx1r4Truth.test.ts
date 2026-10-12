@@ -42,7 +42,15 @@ const releases = parseChangelog(
   repositoryUrl(manifest),
 )
 
-const WORKING_REPORT_KINDS = ['project', 'milestone', 'release', 'changes', 'quality']
+const WORKING_REPORT_KINDS = [
+  'project',
+  'milestone',
+  'release',
+  'changes',
+  'quality',
+  'usage',
+  'session',
+]
 const DORMANT_REPORT_KINDS = REPORT_KINDS.filter(
   (kind) => !(WORKING_REPORT_KINDS as readonly string[]).includes(kind),
 )
@@ -169,13 +177,13 @@ describe('CX1R4 F2: previews claim is historical, strict-tool facts stay current
   })
 })
 
-describe('CX1R4 F3: live Help and pickers list only the five working kinds', () => {
-  it('the working set is exactly the five sourced kinds', () => {
+describe('CX1R4 F3: live Help and pickers list only the seven working kinds', () => {
+  it('the working set is exactly the seven sourced kinds', () => {
     expect([...REPORT_WORKING_KINDS]).toEqual(WORKING_REPORT_KINDS)
-    expect(DORMANT_REPORT_KINDS).toHaveLength(10)
+    expect(DORMANT_REPORT_KINDS).toHaveLength(8)
   })
 
-  it('the real ACP report entry lists the five kinds and none of the dormant ten', async () => {
+  it('the real ACP report entry lists the seven kinds and none of the dormant eight', async () => {
     const { text } = await acpReports().acp.execute('', acpContext)
     for (const kind of WORKING_REPORT_KINDS) expect(text).toContain(`/report ${kind}`)
     for (const kind of DORMANT_REPORT_KINDS) expect(text).not.toContain(`/report ${kind}`)

@@ -1967,6 +1967,17 @@
     "unbound": "L’integrazione di questa origine non è disponibile.",
     "history": "La cronologia della sessione selezionata non è disponibile."
   },
+  "reportDetailReasons": {
+    "sessionTurnsUnavailable": "La cronologia della sessione non contiene identificativi di turno, quindi i turni non possono essere contati.",
+    "sessionApprovalsUnavailable": "La cronologia della sessione non contiene decisioni di approvazione.",
+    "toolBreakdownUnavailable": "L'utilizzo per strumento non è registrato nel diario di utilizzo.",
+    "rolledUpBreakdownExcluded": "La cronologia riepilogata è inclusa nei totali ma non in questa ripartizione.",
+    "rolledUpSessionExcluded": "La cronologia cumulata è esclusa dai totali e dal dettaglio di questa sessione.",
+    "journalIncomplete": "Il registro contiene voci danneggiate, incomplete o di una versione più recente; i totali le escludono.",
+    "sessionUsageUnavailable": "L’utilizzo di questa sessione non è attribuibile nel registro conservato; i totali di token e costi non sono disponibili.",
+    "budgetsUnavailable": "Le istantanee del budget per il periodo selezionato non sono disponibili.",
+    "sessionModelUnavailable": "Il catalogo della sessione non nomina alcun modello attivo, quindi il modello è riportato come sconosciuto."
+  },
   "reportRowsMore": {
     "one": "{count} riga in più",
     "other": "{count} righe in più",

@@ -16,9 +16,12 @@ export interface LocalReportSourceDeps {
   readonly session?: ReportSessionReader
   readonly questions?: ReportQuestionsReader
   /** M102's aggregate adapter, supplied by its owner; no journal parser is guessed. */
-  readonly usage?: (
-    context: SourceReadContext,
-  ) => Promise<{ usage: UsageFacts; observedAt: string }>
+  readonly usage?: (context: SourceReadContext) => Promise<{
+    usage: UsageFacts
+    observedAt: string
+    /** Breakdowns the journal cannot attribute stay partial, never invented. */
+    partial?: string
+  }>
   readonly enabledAgents: readonly AgentUsageAgent[]
   readonly agentFiles: AgentUsageFiles
 }
@@ -40,12 +43,29 @@ export function createLocalReportSources(deps: LocalReportSourceDeps): LocalRepo
     changelog: changelogSource(deps.files, deps.scrub),
     certification: certificationSource(deps.files, deps.scrub),
     package: packageSource(deps.files, deps.scrub),
-    session: sessionSource(deps.session, deps.roots, deps.scrub),
+    session: sessionSource(
+      deps.session === undefined
+        ? undefined
+        : {
+            read: (context) => {
+              if (context.options.kind !== 'session') throw new LocalSourceError('disabled')
+              return deps.session?.read(context) ?? Promise.resolve(null)
+            },
+          },
+      deps.roots,
+      deps.scrub,
+    ),
     questions: questionsSource(deps.questions, deps.scrub),
     usage: localSource('usage', async (context) => {
+      if (!['usage', 'project'].includes(context.options.kind))
+        throw new LocalSourceError('disabled')
       if (deps.usage === undefined) throw new LocalSourceError('unbound')
       const result = await deps.usage(context)
-      return { data: scrubUsage(result.usage, deps.scrub), observedAt: result.observedAt }
+      return {
+        data: scrubUsage(result.usage, deps.scrub),
+        observedAt: result.observedAt,
+        ...(result.partial !== undefined && { partial: deps.scrub(result.partial) }),
+      }
     }),
     agentUsage: agentUsageSource(deps.enabledAgents, deps.agentFiles, deps.scrub),
   }

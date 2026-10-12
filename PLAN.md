@@ -14378,7 +14378,7 @@ INT0170B integration question (2026-10-07), narrowed by LEFT017 (2026-10-08): th
   contains only `a95f24cf`. May the exact local release commit be merged
   separately, despite the rig note's main-merge prohibition? Until answered,
   keep the five authorized merges and independent cap repairs only.
-- **Q-M95INT2 universal helper (2026-10-05):** what approved local path supplies
+- **Q-M95INT2B universal helper (2026-10-05):** what approved local path supplies
   the real universal macOS helper, or is downloading a released VSIX solely
   to verify/extract that binary authorized? The binary is absent and the
   common rule prohibits downloads. A helper-free package cannot certify the
@@ -14389,12 +14389,6 @@ INT0170B integration question (2026-10-07), narrowed by LEFT017 (2026-10-08): th
   host/ACP composition. Its scope paragraph in M95b records this authorization;
   the shared configured-provider implementation is installed and tested offline.
 
-- **Q-M95-I transport prerequisite (2026-10-05):** which completed lane T
-  commit supplies ProviderClient/transport/authSource for this checkout?
-  Those modules are absent at `60bf96aa`; the local `rt-fixm95t` rig snapshot
-  is on a different base. The rig brief forbids main merges and network
-  fetches. The injected host/registry contract is tested offline; production
-  assembly awaits the lead's exact dependency and W's configured sources.
 - **Q-M95BINT live receipts (2026-10-05):** the supplied findings identify
   `acdc0f60…` and `577bc807…` (0 + 1 model attempts), but do not name the
   exact raw-capture workspace or provide a successful plan tool/reasoning/
@@ -14938,68 +14932,8 @@ observe the named tests fail, restore byte-exact and record the evidence in
     agent in a workspace asks once.
   - **No third-party prompt is needed for certification.**
 
-  The reasons are in D75's "Decisions on the open questions".
-
-- **Q-M94a: Tab's paid-use question (D73, D48).** D48 asks before every paid
-  use; Tab would ask on every keystroke pause. **Decided 2026-10-04 (owner):
-  yes, once per window, as Tab's form of D48** — Allow once this window (until
-  it closes), Allow always in this workspace, or Deny (snoozes Tab in this
-  window).
-- **Q-M94b: Tab's default model (D73, D4).** On Standard (`muse-spark-1.3`) Meta
-  does not train on the code, and typing costs about $0.80 an hour (from $0.40
-  to $2.00; research §7). On the contributor model it costs about $0.05 an
-  hour, and Meta trains on every file window Tab sends. **Decided 2026-10-04
-  (owner): Standard; the contributor model is a setting the user chooses,
-  with the training said in the setting and the confirmation.**
-- **Q-M94c: Tab's default daily budget (D73).** $1.00 a day is about 75
-  minutes of typical typing on Standard, or a full working day and more on the
-  contributor model. **Decided 2026-10-04 (owner): $1.00, from $0.05 to $50.**
-- **Q-M94d (watch, not a question): next edit suggestions.** These wait for
-  `isInlineEdit`/`showRange` to reach a stable `vscode.d.ts` (D73, research
-  V16 and V17). Each VS Code release's notes are read for it. When it lands,
-  M94b is planned against that release and the engine floor it needs.
-- **M91 Cursor's Tab hooks (D70).** **Resolved 2026-10-04 (owner): (a), a Tab-completions milestone.** M94 builds inline completions on `feature/m94-tab`, and its lane K (built 2026-10-09 as M94KR, awaiting review) wires `beforeTabFileRead` and `afterTabFileEdit` to them. Other extension-event imports still wait for M91b.
-
-- **M93:** No new owner choice blocks the shipped workflow. Last 50 entries,
-  a 2,000-character encoded URL and 20 recorded failures a window a minute are
-  conservative implementation defaults, tunable after browser receipts. Still
-  open as receipts, not design questions: the installed-editor runs (engine
-  floor 1.99 and current VS Code, a remote window, two live windows, a real
-  crash), the browser's new-issue page at the cap, and an aggregate on-disk
-  budget across windows (§9, FIXM93R-R7).
-
-### Q-M78b — Remaining Model API bundle overage (2026-10-02)
-
-After the action-only splits, activation is 589.1/600 KiB, the board is
-61.0/75 KiB and the reviewer is 55.2/75 KiB. Model API is 412,447 bytes:
-2,847 bytes (2.780273438 KiB) over its 400 KiB cap. Metafile tables,
-first-use tests, red drills and scoped receipts are in
-`docs/certification/m78.md` and the lane's `m78/BUNDLE.md`.
-
-**Resolved 2026-10-02 (lead): the budget is revisited, as M57 planned.**
-M57 set 400 KiB as 295.6 KiB plus about a third, a margin to "hold two or
-three milestones of that size before the budget is revisited on purpose".
-M77, M78 and M82 are those milestones. They added 49.2 KiB to the bundle,
-each part attributed in the metafile tables. The largest parts are the host's
-turn logic (+28.4 KiB) and M78's permission policy, shell syntax and command
-rules (+11.6 KiB). These run whenever the model works, so a third lazy
-bundle would load on nearly every turn and only move the bytes. The new
-budget follows the repository's rule: 402.8 KiB measured, plus 15%,
-rounded up to 25 KiB, which is 475 KiB. The board and paid-review splits stay,
-because those run only on their own actions.
-
-### Q-M74 — Remaining automatic work (2026-09-29)
-
-**Resolved 2026-10-05 by D81.3.** The owner's D78 ruling (paid extras on by
-default, ask once before the first charge with the price and the daily
-budget, a loud tally) is the consent contract this question waited for.
-M101 lane C2 builds the items below under it, with SoL-Pi's corrected cost
-model (D81.4); the design notes below still bind it.
-
-The following design originated before the owner selected consent. D81.3
-now supplies that contract; M101 C2 implements the mechanism with production
-inactive pending evaluation and shared D78 integration. No setting draft alone
-authorizes a hidden paid call.
+  The reasons are in D75's "Decisions on the open questions" (Q-M94a–d decided
+  2026-10-04 above).
 
 Minimal completion design under D81.3:
 
@@ -30845,6 +30779,35 @@ lane T and M111b. One short live check per backend (step 3).
 
 ### M113 — Deterministic reports: `/report` (D93)
 
+**CM1132R7 review repair (2026-10-11, macmini).** Fix all five RVCM1132F
+findings in the existing reporting lane. Reserve every original row key before
+allocating duplicate suffixes; retain allocation progress per suffix namespace
+so probe work is linear, including capped-key collisions. Preserve unique rows
+and saved identities. Treat every non-preparation release form as definitive
+for duplicate drift. Bind duplicate coverage to collector row calls and the
+kind/section registry, and remove the four pre-parse assertions by narrowing.
+Count probes at the 20,000-row limit, drill each repair with byte-exact
+restoration, run all related suites and five typechecks, and correct the
+round-six certification claims. Scoped gates replace aggregate quality under
+the explicit rig brief; no merge, push, dependency, cap or guard widening.
+
+**CM1132R2 review repair (2026-10-10, linuxlt).** Fix all 22 RVCM1132
+findings by class within the session/usage lane. One request-scoped, read-only
+journal snapshot follows pending recording; damaged and unattributed evidence
+is disclosed. Stored reads reject links and mismatched identities. Account
+keys include providers; periods use an explicit UTC offset; limits and live
+budgets are period-scoped and deterministic; money certainty takes precedence.
+Install the caller's language in the lazy input bundle, bind primary-backend
+history through the active runtime host, scope questions to the requested
+session, preserve closed-surface lifetime, and load inputs only for their
+consuming kinds. Fix the production-admission e2e build and all P3s. No new
+dependency, cap, hook, guard widening, merge, push or live/model call.
+
+- [x] Repair accounting, journal and stored-session input classes.
+- [x] Repair runtime/editor/language/lazy bindings and the e2e build.
+- [x] Prove every finding with regressions and byte-exact red drills.
+- [ ] Run scoped gates and default-timeout owning suites; commit with hooks.
+
 **Lane W integration (2026-10-06, Kubuntu).** Merge the ten ordered lanes,
 retain current release/question records while applying P's grammar repairs,
 and bind the lazy reporting engine, panel, destinations and page. Close the
@@ -33935,6 +33898,27 @@ roadmap and production build without weakening any limit. Record per-path
 SHA-256 restoration drills and the full configured-provider loopback receipt
 in `docs/certification/min-output-cap.md`. Hooks stay installed and enabled;
 local commits only, no merge, push or paid/live request.
+
+CM1132R2's rig/common brief delegates aggregate `npm run quality` to the lead
+and prohibits it in the lane. This qualification runs five typechecks,
+changed-file ESLint/Prettier, plain knip, duplication, localization, reference,
+roadmap, host API and production build gates, plus complete owned test files
+at repository deadlines. No threshold, timeout, ignore or hook is relaxed.
+Receipts and deliberate failure/restoration drills are recorded in
+`docs/certification/m113-session-usage-c-m113-2.md`.
+
+CM1132R7's dependent replay also reproduces the inherited exact-money
+inventory failure: `journalStore.ts`'s `apiEquivalentUsd`/`usd` and
+`reportingAmount.ts`'s `capUsd`/`spentUsd`/`uncertainUsd` lack registered
+inventory entries. Both modules and the guard are byte-identical to
+`6188566f1`, outside this reporting repair. This remains a lead-owned release
+gate blocker; no ignore, inventory widening or green aggregate claim is made.
+The production build also reproduces `usagePanel.js` at 76,938 bytes against
+its unchanged 76,800-byte cap (138 bytes over). Its metafile contains neither
+changed production module. This inherited usage-panel size recovery remains
+lead-owned; reporting's 152,769/179,200 and inputs' 70,918/102,400 byte budgets
+pass. The lane records these unchanged blockers before a local review commit;
+they prevent release qualification, and no gate is weakened.
 
 **CIR4MAC scoped hosted-CI repair (2026-10-09, macmini).** Reproduce
 round 4's macOS target-size deadline and palette failure-render ordering

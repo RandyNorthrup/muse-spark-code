@@ -52,6 +52,79 @@ export function derivedSourceId(sourceId: string, facet: string): string {
   return id.length > REPORT_MAX_ID_CHARS ? key('source', sourceId, facet) : id
 }
 
+/**
+ * The one row-identity guarantee every collected row passes through. The
+ * first row with a key keeps the bare key, so saved reports, links and ids
+ * for unique rows never change; each later row sharing a key in source order
+ * takes a `key/2`, `key/3`, … suffix reserved against all original keys.
+ * No collector — present or later — can fail validation through a duplicate key, whatever
+ * plan, journal, git, GitHub or store data repeats (RVCM1132E findings 1–2).
+ */
+function uniqueRowKeys(original: Set<string>): (wanted: string) => string {
+  const used = new Set<string>()
+  const ordinals = new Map<string, number>()
+  // The schema reserves no usable character for generated keys. A fixed stem
+  // leaves room for any safe ordinal; counters belong to stems so long keys
+  // that truncate alike cannot rescan each other's candidates either.
+  const room = REPORT_MAX_ID_CHARS - 1 - String(Number.MAX_SAFE_INTEGER).length
+  return (wanted) => {
+    if (!used.has(wanted)) {
+      used.add(wanted)
+      return wanted
+    }
+    const stem = wanted.slice(0, room)
+    let ordinal = ordinals.get(stem) ?? 2
+    for (;;) {
+      const candidate = `${stem}/${String(ordinal)}`
+      ordinal += 1
+      if (original.has(candidate) || used.has(candidate)) continue
+      ordinals.set(stem, ordinal)
+      used.add(candidate)
+      return candidate
+    }
+  }
+}
+
+export function dedupeRowKeys(rows: readonly ReportRow[]): ReportRow[] {
+  const unique = uniqueRowKeys(new Set(rows.map((entry) => entry.key)))
+  return rows.map((entry) => {
+    const kept = unique(entry.key)
+    return kept === entry.key ? entry : { ...entry, key: kept }
+  })
+}
+
+/** Blind pre-parse pass for forwarded source sections, whose rows have not
+ * been validated yet; only string `key` fields of array `rows` are touched. */
+export function dedupeUnknownRowKeys(value: unknown): unknown {
+  return Array.isArray(value)
+    ? value.map((section) => dedupeUnknownSection(section))
+    : dedupeUnknownSection(value)
+}
+
+function dedupeUnknownSection(section: unknown): unknown {
+  if (
+    typeof section !== 'object' ||
+    section === null ||
+    !('rows' in section) ||
+    !Array.isArray(section.rows)
+  )
+    return section
+  const entries: readonly unknown[] = section.rows
+  const unique = uniqueRowKeys(new Set(entries.filter(hasRowKey).map((row) => row.key)))
+  const rows = entries.map((row) => {
+    if (!hasRowKey(row)) return row
+    const kept = unique(row.key)
+    return kept === row.key ? row : { ...row, key: kept }
+  })
+  return { ...section, rows }
+}
+
+function hasRowKey(value: unknown): value is object & { key: string } {
+  return (
+    typeof value === 'object' && value !== null && 'key' in value && typeof value.key === 'string'
+  )
+}
+
 export function row(
   prefix: string,
   identity: readonly string[],
@@ -72,7 +145,7 @@ export function section(
   rows: readonly ReportRow[],
   options: ReportOptions,
 ): ReportSection {
-  const ordered = rows.toSorted((left, right) => compare(left.key, right.key))
+  const ordered = dedupeRowKeys(rows).toSorted((left, right) => compare(left.key, right.key))
   return {
     id,
     label: heading,

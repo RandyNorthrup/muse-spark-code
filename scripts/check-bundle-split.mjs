@@ -964,6 +964,10 @@ for (const directory of ['dist/meta', 'dist/meta-acp']) {
               input === 'src/core/providers/configured.ts' && output === BUNDLES.configured.output
             ) &&
             !(input === 'src/core/providers/priceCard.ts' && output === 'dist/usageService.js') &&
+            // C-M113-2: the session and usage inputs read M102's journal
+            // through its store, whose static record import carries the card.
+            // Reporting never prices; the bytes ride the journal machinery.
+            !(input === 'src/core/providers/priceCard.ts' && output === 'dist/reportInputs.js') &&
             !(
               output === 'dist/runtimeAccounts.js' &&
               ['accounts.ts', 'accountPolicy.ts', 'accountCredentialRecord.ts'].some(

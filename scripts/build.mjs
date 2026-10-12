@@ -360,6 +360,13 @@ const reportingDestinationsOptions = {
   entryPoints: ['src/runtime/reporting/destinationsEntry.ts'],
   outfile: 'dist/reportingDestinations.js',
 }
+// C-M113-2: the session and usage inputs (usage journal machinery) load on
+// the first session or usage report, off the reporting engine's budget.
+const reportInputsOptions = {
+  ...reportingOptions,
+  entryPoints: ['src/runtime/reporting/reportInputsEntry.ts'],
+  outfile: 'dist/reportInputs.js',
+}
 const reportingPanelOptions = {
   ...hostOptions,
   plugins: [sharedUiText, sharedValidation, sharedWire, sharedRedaction],
@@ -1175,6 +1182,7 @@ if (isWatch) {
     esbuild.context(reportingOptions),
     esbuild.context(reportingNetworkOptions),
     esbuild.context(reportingDestinationsOptions),
+    esbuild.context(reportInputsOptions),
     esbuild.context(reportingPanelOptions),
     esbuild.context(hostOptions),
     esbuild.context(conversationOptions),
@@ -1304,6 +1312,7 @@ if (isWatch) {
     reporting: esbuild.build(reportingOptions),
     reportingNetwork: esbuild.build(reportingNetworkOptions),
     reportingDestinations: esbuild.build(reportingDestinationsOptions),
+    reportInputs: esbuild.build(reportInputsOptions),
     reportingPanel: esbuild.build(reportingPanelOptions),
     reference: esbuild.build(referenceOptions),
     schedules: esbuild.build(schedulesOptions),

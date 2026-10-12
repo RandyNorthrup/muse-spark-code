@@ -1939,6 +1939,17 @@
     "unbound": "Diese Quellenintegration ist nicht verfügbar.",
     "history": "Der Verlauf der ausgewählten Sitzung ist nicht verfügbar."
   },
+  "reportDetailReasons": {
+    "sessionTurnsUnavailable": "Der Sitzungsverlauf enthält keine Turn-Kennungen, daher können Turns nicht gezählt werden.",
+    "sessionApprovalsUnavailable": "Der Sitzungsverlauf enthält keine Genehmigungsentscheidungen.",
+    "toolBreakdownUnavailable": "Die Werkzeugnutzung wird im Nutzungsverlauf nicht erfasst.",
+    "rolledUpBreakdownExcluded": "Zusammengefasste Verläufe sind in den Summen enthalten, aber nicht in dieser Aufschlüsselung.",
+    "rolledUpSessionExcluded": "Zusammengefasste Verläufe sind in den Summen und der Aufschlüsselung dieser Sitzung nicht enthalten.",
+    "journalIncomplete": "Das Nutzungsjournal enthält beschädigte, unvollständige oder neuere Einträge; Summen schließen sie aus.",
+    "sessionUsageUnavailable": "Die Nutzung dieser Sitzung ist im gespeicherten Journal nicht zuordenbar; Token- und Kostensummen sind nicht verfügbar.",
+    "budgetsUnavailable": "Budgetaufnahmen für den gewählten Zeitraum sind nicht verfügbar.",
+    "sessionModelUnavailable": "Der Sitzungskatalog nennt kein aktives Modell, daher wird das Modell als unbekannt gemeldet."
+  },
   "reportRowsMore": {
     "one": "{count} weitere Zeile",
     "other": "{count} weitere Zeilen"

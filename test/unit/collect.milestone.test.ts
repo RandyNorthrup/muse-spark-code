@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { ReportScopeNotFound } from '../../src/core/reporting/collect/plan'
+import { key } from '../../src/core/reporting/collect/common'
 import { collectFixture, fullSnapshot, getSection } from './helpers/reporting/collect'
 import { availableSource } from './helpers/reporting/snapshot'
 
@@ -121,5 +122,79 @@ describe('milestone collector', () => {
     expect(getSection(report, 'milestoneResiduals').rows).toHaveLength(1)
     expect(getSection(report, 'milestoneQuestions').rows).toHaveLength(1)
     expect(report.needsYou.rows[0]!.cells['name']).toEqual({ type: 'text', value: 'Q-M12' })
+  })
+
+  it('keeps every duplicated plan id with unique keys instead of failing validation', () => {
+    const snapshot = fullSnapshot()
+    const plan = snapshot.sources.plan.data!
+    const lane = {
+      id: 'K',
+      scope: 'Collectors',
+      branch: 'm12/k',
+      state: 'inProgress' as const,
+      pullRequest: 2,
+      certification: 'docs/certification/m12-k.md',
+      hours: 22,
+    }
+    const report = collectFixture(
+      'milestone',
+      { full: true },
+      {
+        ...snapshot,
+        sources: {
+          ...snapshot.sources,
+          plan: availableSource('plan', {
+            ...plan,
+            milestones: plan.milestones.map((milestone) =>
+              milestone.id === 'M12'
+                ? { ...milestone, lanes: [lane, { ...lane }, { ...lane, branch: 'm12/k-retry' }] }
+                : milestone,
+            ),
+            questions: [
+              { id: 'Q-DUP', text: 'First body', milestoneIds: ['M12'], state: 'open' as const },
+              { id: 'Q-DUP', text: 'Second body', milestoneIds: ['M12'], state: 'open' as const },
+              { id: 'Q-SAME', text: 'Same body', milestoneIds: ['M12'], state: 'open' as const },
+              { id: 'Q-SAME', text: 'Same body', milestoneIds: ['M12'], state: 'open' as const },
+            ],
+            risks: [
+              {
+                id: 'R-DUP',
+                text: 'First risk',
+                milestoneIds: ['M12'],
+              },
+              {
+                id: 'R-DUP',
+                text: 'Second risk',
+                milestoneIds: ['M12'],
+              },
+            ],
+            residuals: [
+              { id: 'R1', text: 'First residual' },
+              { id: 'R1', text: 'Second residual' },
+            ],
+          }),
+        },
+      },
+    )
+    // Nothing is dropped: both bodies of each duplicated id stay visible.
+    const questions = getSection(report, 'milestoneQuestions').rows
+    expect(questions).toHaveLength(4)
+    expect(new Set(questions.map((row) => row.key)).size).toBe(4)
+    const risks = getSection(report, 'milestoneRisks').rows
+    expect(risks).toHaveLength(2)
+    expect(new Set(risks.map((row) => row.key)).size).toBe(2)
+    const residuals = getSection(report, 'milestoneResiduals').rows
+    expect(residuals).toHaveLength(2)
+    expect(new Set(residuals.map((row) => row.key)).size).toBe(2)
+    const lanes = getSection(report, 'milestoneLanes').rows
+    expect(lanes).toHaveLength(3)
+    expect(new Set(lanes.map((row) => row.key)).size).toBe(3)
+  })
+
+  it('keeps the bare id key for a question id used only once', () => {
+    const report = collectFixture('milestone', { full: true })
+    const rows = getSection(report, 'milestoneQuestions').rows
+    expect(rows).toHaveLength(1)
+    expect(rows[0]!.key).toBe(key('question', 'Q-M12'))
   })
 })

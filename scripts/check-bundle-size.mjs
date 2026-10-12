@@ -25,6 +25,8 @@ const BUDGETS = [
   // M113 W: new entries, each measured +15%, rounded to 25 KiB.
   { path: 'dist/reporting.js', budgetKiB: 175 },
   { path: 'dist/reportingNetwork.js', budgetKiB: 75 },
+  // C-M113-2: session and usage inputs, 84.1 KiB measured +15%, rounded up.
+  { path: 'dist/reportInputs.js', budgetKiB: 100 },
   { path: 'dist/reportingDestinations.js', budgetKiB: 75 },
   { path: 'dist/reportingPanel.js', budgetKiB: 50 },
   // M112 A: question forms, commands and late-answer admission, loaded on first use.

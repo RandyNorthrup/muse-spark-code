@@ -6,12 +6,30 @@ import type {
 } from '../../../shared/reportSchema'
 import type { SourceSnapshot, UsageFacts } from '../sources/types'
 import { compare, count, derivedSourceId, label, row, sourcedSection, text } from './common'
+import { Usd } from '../../../shared/usd'
 
 function limitCells(limit: UsageFacts['limits'][number]): Record<string, ReportValue> {
+  // Dollars in dollar fields, percentages in percent fields (RVCM1132B
+  // finding 5). Ledger spend and configured caps are reported figures, never
+  // estimates. Foreign agent limits carry no unit and keep plain numbers.
+  const date: ReportValue =
+    limit.resetsAt === null ? label('unknown') : { type: 'timestamp', value: limit.resetsAt }
+  if (limit.unit === 'usd')
+    return {
+      count: { type: 'usd', value: Usd.from(limit.used).toAmount(), certainty: 'reported' },
+      totals: { type: 'usd', value: Usd.from(limit.limit).toAmount(), certainty: 'reported' },
+      date,
+    }
+  if (limit.unit === 'percent')
+    return {
+      count: { type: 'percent', value: limit.used },
+      totals: { type: 'percent', value: limit.limit },
+      date,
+    }
   return {
     count: { type: 'number', value: limit.used },
     totals: { type: 'number', value: limit.limit },
-    date: limit.resetsAt === null ? label('unknown') : { type: 'timestamp', value: limit.resetsAt },
+    date,
   }
 }
 

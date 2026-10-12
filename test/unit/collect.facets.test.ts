@@ -135,23 +135,21 @@ describe('injected milestone facets', () => {
         },
       ),
     ).toThrow()
-    expect(() =>
-      collectFixture(
-        'fleet',
-        {},
-        {
-          ...snapshot,
-          sources: {
-            ...snapshot.sources,
-            fleet: availableSource('fleet', [
-              {
-                ...facet('fleet', 'agents'),
-                rows: [facet('fleet', 'agents').rows[0]!, facet('fleet', 'agents').rows[0]!],
-              },
-            ]),
-          },
-        },
-      ),
-    ).toThrow()
+    // A repeated row key is no longer a rejection: the central section
+    // guarantee keeps both rows (collect.rowIdentity.test.ts covers every
+    // kind, so this collector stays strict only about shape and references).
+    const doubled = {
+      ...facet('fleet', 'agents'),
+      rows: [facet('fleet', 'agents').rows[0]!, facet('fleet', 'agents').rows[0]!],
+    }
+    const report = collectFixture(
+      'fleet',
+      { full: true },
+      {
+        ...snapshot,
+        sources: { ...snapshot.sources, fleet: availableSource('fleet', [doubled]) },
+      },
+    )
+    expect(getSection(report, 'fleet/agents').rows).toHaveLength(2)
   })
 })
