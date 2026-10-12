@@ -12,6 +12,8 @@ import {
   createNodeScheduleFs,
   createScheduleLeaseLock,
   canRunScheduleFsOperation,
+  OwnedScheduleFence,
+  releaseScheduleFence,
 } from '../../src/runtime/schedules/nodeScheduleFs'
 import * as nodeSchedules from '../../src/runtime/schedules/nodeScheduleFs'
 import { SCHEDULE_LEASE_EXPIRES_MS } from '../../src/shared/constants'
@@ -417,90 +419,256 @@ describe.each(ports)('$name structural lease lifecycle', ({ name, make }) => {
   })
 })
 
-it('a cancelled loser never releases the live winner fence', async () => {
-  const shared = new MemoryScheduleFs()
-  const fsA = new MemoryScheduleFs(shared)
-  const fsB = new MemoryScheduleFs(shared)
-  const fsC = new MemoryScheduleFs(shared)
-  const lockA = createScheduleLeaseLock(fsA)
-  const lockB = createScheduleLeaseLock(fsB)
-  const lockC = createScheduleLeaseLock(fsC)
-  const collisionKey = 'schedule-collision/loser-cancelled'
-  const candidate = `leaseFences/${scheduleStorageHash(collisionKey)}/0/0.json`
-  const controlA = new AbortController()
-  const releaseB = Promise.withResolvers<undefined>()
-  const enteredB = Promise.withResolvers<undefined>()
-  let guardB: ScheduleLeaseGuard | undefined
-  let heldB: Promise<string> | undefined
-  const throughPublish = fsA.publish.bind(fsA)
-  const publish = vi.spyOn(fsA, 'publish').mockImplementationOnce(async (file, content, guard) => {
-    // A prepared candidate 0 first: B publishes the same slot and holds it.
-    heldB = lockB(collisionKey, async (held) => {
-      guardB = held
-      enteredB.resolve(undefined)
-      await releaseB.promise
-      return 'b'
-    })
-    await enteredB.promise
-    // A's exclusive publication loses, then cancellation lands before the
-    // wrapper settlement can clear the attempt.
-    const isPublished = await throughPublish(file, content, guard)
-    expect(file).toBe(candidate)
-    expect(isPublished).toBe(false)
-    controlA.abort()
-    return isPublished
-  })
-  try {
+describe.each([
+  {
+    name: 'disk',
+    make: () => {
+      const directory = path.join(root, `collision-${crypto.randomUUID()}`)
+      const fsA = createNodeScheduleFs(directory)
+      const fsB = createNodeScheduleFs(directory)
+      const fsC = createNodeScheduleFs(directory)
+      return { fsA, fsB, fsC }
+    },
+  },
+  {
+    name: 'memory',
+    make: () => {
+      const shared = new MemoryScheduleFs()
+      const fsA = new MemoryScheduleFs(shared)
+      const fsB = new MemoryScheduleFs(shared)
+      const fsC = new MemoryScheduleFs(shared)
+      return { fsA, fsB, fsC }
+    },
+  },
+])('cancelled loser releases nothing ($name)', ({ make }) => {
+  it('never releases the live winner fence', async () => {
+    const { fsA, fsB, fsC } = make()
+    const lockA = createScheduleLeaseLock(fsA)
+    const lockB = createScheduleLeaseLock(fsB)
+    const lockC = createScheduleLeaseLock(fsC)
+    const collisionKey = 'schedule-collision/loser-cancelled'
+    const candidate = `leaseFences/${scheduleStorageHash(collisionKey)}/0/0.json`
+    const controlA = new AbortController()
+    const releaseB = Promise.withResolvers<undefined>()
+    const enteredB = Promise.withResolvers<undefined>()
+    let guardB: ScheduleLeaseGuard | undefined
+    let heldB: Promise<string> | undefined
+    const throughPublish = fsA.publish.bind(fsA)
+    const publish = vi
+      .spyOn(fsA, 'publish')
+      .mockImplementationOnce(async (file, content, guard) => {
+        // A prepared candidate 0 first: B publishes the same slot and holds it.
+        heldB = lockB(collisionKey, async (held) => {
+          guardB = held
+          enteredB.resolve(undefined)
+          await releaseB.promise
+          return 'b'
+        })
+        await enteredB.promise
+        // A's exclusive publication loses (EEXIST with a foreign identity on
+        // the disk port, a plain loss in memory), then cancellation lands
+        // before the wrapper settlement can clear the attempt.
+        const isPublished = await throughPublish(file, content, guard)
+        expect(file).toBe(candidate)
+        expect(isPublished).toBe(false)
+        controlA.abort()
+        return isPublished
+      })
+    try {
+      await expect(
+        lockA(collisionKey, () => Promise.resolve('a'), { signal: controlA.signal }),
+      ).rejects.toThrow('aborted')
+    } finally {
+      publish.mockRestore()
+    }
+    // The lost publication owns nothing: no release marker, the winner still
+    // holds, and a third writer cannot enter behind it.
+    expect(await fsA.read(`${candidate}.released`)).toBeUndefined()
+    if (guardB === undefined) throw new Error('winner never entered its critical section')
+    await guardB()
     await expect(
-      lockA(collisionKey, () => Promise.resolve('a'), { signal: controlA.signal }),
-    ).rejects.toThrow('aborted')
-  } finally {
-    publish.mockRestore()
-  }
-  // The lost publication owns nothing: no release marker, the winner still
-  // holds, and a third writer cannot enter behind it.
-  expect(await fsA.read(`${candidate}.released`)).toBeUndefined()
-  await guardB?.()
-  await expect(
-    lockC(collisionKey, () => Promise.resolve('c'), { deadlineMs: Date.now() + 50 }),
-  ).rejects.toThrow('scheduleLeaseBusy')
-  releaseB.resolve(undefined)
-  expect(heldB).toBeDefined()
-  await heldB
-  await expect(
-    lockC(collisionKey, () => Promise.resolve('c'), { deadlineMs: Date.now() + 1000 }),
-  ).resolves.toBe('c')
+      lockC(collisionKey, () => Promise.resolve('c'), { deadlineMs: Date.now() + 50 }),
+    ).rejects.toThrow('scheduleLeaseBusy')
+    releaseB.resolve(undefined)
+    if (heldB === undefined) throw new Error('winner never held the fence')
+    await heldB
+    await expect(
+      lockC(collisionKey, () => Promise.resolve('c'), { deadlineMs: Date.now() + 1000 }),
+    ).resolves.toBe('c')
+  })
 })
 
-it.each(['fence', 'hint'] as const)(
-  'acquires past an expired previous-version heartbeat under a %s header',
-  async (headerKind) => {
-    const fs = new MemoryScheduleFs()
-    const legacyKey = `schedule-legacy/${headerKind}`
-    const token = '33333333-3333-4333-8333-333333333333'
-    const aged = Date.now() - SCHEDULE_LEASE_EXPIRES_MS - 1000
-    // The previous-version heartbeat carries no fencing token.
-    const header = {
-      pid: process.pid,
-      start: 7,
-      token,
-      heartbeat: aged,
-      heartbeatSequence: 2,
-    }
-    if (headerKind === 'hint')
-      await fs.publish(`leases/${scheduleStorageHash(legacyKey)}.json`, JSON.stringify(header))
-    else
-      await fs.publish(
-        `leaseFences/${scheduleStorageHash(legacyKey)}/0/0.json`,
-        JSON.stringify({ ...header, fencingToken: 0 }),
-      )
-    await fs.publish(
-      `leases/${scheduleStorageHash(legacyKey)}.json.${token}.heartbeat`,
-      JSON.stringify(header),
-    )
-    await expect(fs.lock(legacyKey, () => Promise.resolve('recovered'))).resolves.toBe('recovered')
+describe.each([
+  {
+    name: 'disk',
+    make: () => createNodeScheduleFs(path.join(root, `legacy-${crypto.randomUUID()}`)),
   },
-)
+  { name: 'memory', make: () => new MemoryScheduleFs() },
+])('previous-version heartbeat ($name)', ({ make }) => {
+  it.each(['fence', 'hint'] as const)(
+    'acquires past an expired previous-version heartbeat under a %s header',
+    async (headerKind) => {
+      const fs = make()
+      const legacyKey = `schedule-legacy/${headerKind}`
+      const token = '33333333-3333-4333-8333-333333333333'
+      const aged = Date.now() - SCHEDULE_LEASE_EXPIRES_MS - 1000
+      // Byte capture of the base-commit port's pulse: 03d5d6607 wrote the
+      // pulse as JSON.stringify(owner) with owner { pid, start, token,
+      // heartbeat, heartbeatSequence } (no fencingToken). A missing pulse
+      // token is legacy and compatible; a present contradicting token stays
+      // invalid. The fence row (header fenced, pulse not) is the regression
+      // row: without absence-fills-header it fails. The hint row (neither
+      // fenced) passes either way and documents compatibility on each port.
+      const header = {
+        pid: process.pid,
+        start: 7,
+        token,
+        heartbeat: aged,
+        heartbeatSequence: 2,
+      }
+      if (headerKind === 'hint')
+        await fs.publish(`leases/${scheduleStorageHash(legacyKey)}.json`, JSON.stringify(header))
+      else
+        await fs.publish(
+          `leaseFences/${scheduleStorageHash(legacyKey)}/0/0.json`,
+          JSON.stringify({ ...header, fencingToken: 0 }),
+        )
+      await fs.publish(
+        `leases/${scheduleStorageHash(legacyKey)}.json.${token}.heartbeat`,
+        JSON.stringify(header),
+      )
+      await expect(fs.lock(legacyKey, () => Promise.resolve('recovered'))).resolves.toBe(
+        'recovered',
+      )
+    },
+  )
+})
+
+it('refuses a forged, re-released or foreign fence handle with the ownership word', async () => {
+  const fs = new MemoryScheduleFs()
+  const candidateA = 'leaseFences/forge/0/0.json'
+  const candidateB = 'leaseFences/forge/0/1.json'
+  const ownedA = OwnedScheduleFence.issue(candidateA)
+  // A structural copy of an issued handle was never issued: cloning drops
+  // the module-private registration, so release refuses it.
+  await expect(releaseScheduleFence(fs, structuredClone(ownedA), candidateA)).rejects.toThrow(
+    'scheduleQueueOwnershipLost',
+  )
+  expect(await fs.read(`${candidateA}.released`)).toBeUndefined()
+  // A handle issued for another candidate cannot release this one, and the
+  // refusal does not consume it: it still releases its own candidate.
+  const ownedB = OwnedScheduleFence.issue(candidateB)
+  await expect(releaseScheduleFence(fs, ownedB, candidateA)).rejects.toThrow(
+    'scheduleQueueOwnershipLost',
+  )
+  await releaseScheduleFence(fs, ownedB, candidateB)
+  expect(await fs.read(`${candidateB}.released`)).toBe('')
+  // A released handle is single-use: the second release is refused.
+  await releaseScheduleFence(fs, ownedA, candidateA)
+  expect(await fs.read(`${candidateA}.released`)).toBe('')
+  await expect(releaseScheduleFence(fs, ownedA, candidateA)).rejects.toThrow(
+    'scheduleQueueOwnershipLost',
+  )
+})
+
+describe.each([
+  {
+    name: 'disk',
+    make: () => createNodeScheduleFs(path.join(root, `successor-${crypto.randomUUID()}`)),
+  },
+  { name: 'memory', make: () => new MemoryScheduleFs() },
+])('loser cleanup beside a live successor ($name)', ({ make }) => {
+  it('retires the hint before publishing its own release', async () => {
+    const fs = make()
+    const key = 'schedule-successor/hint-order'
+    const file = `leases/${scheduleStorageHash(key)}.json`
+    const candidate = `leaseFences/${scheduleStorageHash(key)}/0/0.json`
+    const operations: string[] = []
+    const throughPublish = fs.publish.bind(fs)
+    const publish = vi.spyOn(fs, 'publish').mockImplementation(async (relative, content, guard) => {
+      operations.push(`publish:${relative}`)
+      return await throughPublish(relative, content, guard)
+    })
+    const throughRemove = fs.remove.bind(fs)
+    const remove = vi.spyOn(fs, 'remove').mockImplementation(async (relative) => {
+      operations.push(`remove:${relative}`)
+      await throughRemove(relative)
+    })
+    try {
+      await expect(fs.lock(key, () => Promise.resolve('done'))).resolves.toBe('done')
+    } finally {
+      publish.mockRestore()
+      remove.mockRestore()
+    }
+    // The hint is retired while no successor can exist, before the release
+    // marker lets one in. The old order published the release first and
+    // removed the hint after a re-read, leaving the gap this row closes.
+    const hintRetired = operations.indexOf(`remove:${file}`)
+    const released = operations.indexOf(`publish:${candidate}.released`)
+    expect(hintRetired).toBeGreaterThanOrEqual(0)
+    expect(released).toBeGreaterThanOrEqual(0)
+    expect(hintRetired).toBeLessThan(released)
+  })
+  it('keeps its own hint when the work never completed', async () => {
+    const fs = make()
+    const key = 'schedule-successor/abort-keeps-hint'
+    const file = `leases/${scheduleStorageHash(key)}.json`
+    const candidate = `leaseFences/${scheduleStorageHash(key)}/0/0.json`
+    const control = new AbortController()
+    const entered = Promise.withResolvers<undefined>()
+    const held = fs.lock(
+      key,
+      async () => {
+        entered.resolve(undefined)
+        await new Promise<undefined>((_resolve, reject) => {
+          control.signal.addEventListener('abort', () => {
+            reject(new Error('aborted'))
+          })
+        })
+      },
+      { signal: control.signal },
+    )
+    await entered.promise
+    control.abort()
+    await expect(held).rejects.toThrow()
+    // An aborted acquisition leaves its hint to expiry (a successor
+    // overwrites it) rather than risk removing a hint that is no longer its
+    // own; its own release marker is still published.
+    expect(await fs.read(file)).toBeDefined()
+    expect(await fs.read(`${candidate}.released`)).toBe('')
+  })
+  it('never removes the successor hint but still publishes its own release', async () => {
+    const fs = make()
+    const key = 'schedule-successor/hint-kept'
+    const file = `leases/${scheduleStorageHash(key)}.json`
+    const entered = Promise.withResolvers<undefined>()
+    const releaseOld = Promise.withResolvers<undefined>()
+    const held = fs.lock(key, async () => {
+      entered.resolve(undefined)
+      await releaseOld.promise
+    })
+    await entered.promise
+    // A successor takes over while the old holder is parked: its fence and
+    // its hint carry a foreign token.
+    const successorToken = '44444444-4444-4444-8444-444444444444'
+    const successor = {
+      pid: process.pid,
+      start: 1,
+      token: successorToken,
+      heartbeat: Date.now(),
+      heartbeatSequence: 0,
+      fencingToken: 1,
+    }
+    await fs.publish(`leaseFences/${scheduleStorageHash(key)}/0/1.json`, JSON.stringify(successor))
+    await fs.replace(file, JSON.stringify(successor))
+    releaseOld.resolve(undefined)
+    await expect(held).rejects.toThrow('scheduleQueueOwnershipLost')
+    // The loser's release marker is published for its own fence, and the
+    // successor's hint bytes are untouched.
+    expect(await fs.read(`leaseFences/${scheduleStorageHash(key)}/0/0.json.released`)).toBe('')
+    expect(JSON.parse((await fs.read(file)) ?? 'null')).toMatchObject({ token: successorToken })
+  })
+})
 
 it('allows no raw awaited filesystem call outside the structural wrapper', () => {
   expect(rawAwaits).toEqual([])
