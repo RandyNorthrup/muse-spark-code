@@ -60,6 +60,38 @@ const git = teamGitRunner()
 async function expectNoOwnedRefs(cwd: string): Promise<void> {
   expect(new TextDecoder().decode(await git(['for-each-ref', 'refs/heads/agents/'], cwd))).toBe('')
 }
+
+/** A kill -9 leaves exactly this: a ledger whose owner is gone. */
+async function deadRunWithOwnedRef(taskId: string): Promise<{
+  root: string
+  owned: string
+  dead: string
+}> {
+  const { root, head } = await teamFixtureRepo(git)
+  const owned = predictedAgentsRef('engineering', taskId) ?? ''
+  expect(owned).not.toBe('')
+  await git(['update-ref', owned, head], root)
+  const dead = await mkdtemp(path.join(tmpdir(), `${EXEC_TEAM_RUN_PREFIX}dead-`))
+  trackTeamRoot(dead)
+  const probe = execFile(process.execPath, ['--version'])
+  const pid = await new Promise<number>((resolve, reject) => {
+    probe.on('error', (error) => {
+      reject(error)
+    })
+    probe.on('exit', () => {
+      if (probe.pid === undefined) reject(new Error('probe child has no pid'))
+      else resolve(probe.pid)
+    })
+  })
+  await recordCleanupOwner(dead, { pid, startedAt: Date.now() })
+  await recordCleanupRef(dead, { repo: root, role: 'engineering', taskId, ref: owned })
+  return { root, owned, dead }
+}
+
+async function expectDeadRunSwept(root: string, owned: string, dead: string): Promise<void> {
+  await expect(git(['rev-parse', '--verify', owned], root)).rejects.toThrow()
+  await expect(readFile(path.join(dead, EXEC_TEAM_CLEANUP_FILE))).rejects.toThrow()
+}
 const built = { dist: '' }
 beforeAll(async () => {
   // Headless teams sit behind the agent-teams availability switch: every
@@ -522,36 +554,25 @@ describe('M96b headless engine team runner', () => {
   it(
     'sweeps a dead previous run when a new run starts',
     async () => {
-      // A kill -9 leaves exactly this: a ledger whose owner is gone.
-      const { root, head } = await teamFixtureRepo(git)
-      const owned = predictedAgentsRef('engineering', 'sweepme') ?? ''
-      expect(owned).not.toBe('')
-      await git(['update-ref', owned, head], root)
-      const dead = await mkdtemp(path.join(tmpdir(), `${EXEC_TEAM_RUN_PREFIX}dead-`))
-      trackTeamRoot(dead)
-      const probe = execFile(process.execPath, ['--version'])
-      const pid = await new Promise<number>((resolve, reject) => {
-        probe.on('error', (error) => {
-          reject(error)
-        })
-        probe.on('exit', () => {
-          if (probe.pid === undefined) reject(new Error('probe child has no pid'))
-          else resolve(probe.pid)
-        })
-      })
-      await recordCleanupOwner(dead, { pid, startedAt: Date.now() })
-      await recordCleanupRef(dead, {
-        repo: root,
-        role: 'engineering',
-        taskId: 'sweepme',
-        ref: owned,
-      })
+      const { root, owned, dead } = await deadRunWithOwnedRef('sweepme')
       const f = await fixture()
       scriptTeam(f)
       const { code } = await f.run()
       expect(code, f.err.chunks.join('')).toBe(0)
-      await expect(git(['rev-parse', '--verify', owned], root)).rejects.toThrow()
-      await expect(readFile(path.join(dead, EXEC_TEAM_CLEANUP_FILE))).rejects.toThrow()
+      await expectDeadRunSwept(root, owned, dead)
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+  it(
+    'sweeps a dead previous run when an ordinary run starts (P2-9)',
+    async () => {
+      // Recovery runs at every headless start, not only for --team.
+      const { root, owned, dead } = await deadRunWithOwnedRef('sweepmesolo')
+      const f = await fixture(null)
+      f.api.script({ text: 'done' })
+      const { code } = await f.run()
+      expect(code, f.err.chunks.join('')).toBe(0)
+      await expectDeadRunSwept(root, owned, dead)
     },
     REAL_GIT_TIMEOUT_MS,
   )

@@ -539,6 +539,13 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
     }
   }
   try {
+    // RVCM96B2D P2-9: stale team runs are recovered at every headless
+    // start, not only after a new team is admitted. Best effort: failures
+    // stay on disk for the next sweep and never fail the run they precede.
+    const { sweepStaleTeamRuns } = await import('./execTeamRecovery')
+    await sweepStaleTeamRuns({
+      git: async (args, folder) => new TextEncoder().encode(await deps.runGit(args, folder)),
+    })
     // Behind the agent-teams availability switch `exec --team` does not
     // exist: refuse before any ledger, request or money path is reached.
     if (options.team && !areHeadlessTeamsAvailable())
