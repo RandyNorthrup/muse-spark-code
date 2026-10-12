@@ -250,14 +250,19 @@ export function createSubscriptionClient(
         const signIn = await deps.chatgpt()
         const token = await signIn.accessToken(RESPONSES_URL, MODEL_API_REQUEST_TIMEOUT_MS)
         const stop = new AbortController()
-        // No limit on the stream's total time. Silence ends it: the wait for
-        // headers and every wait for a frame has the idle limit.
+        // No limit on the stream's total time. Silence ends it. The idle clock
+        // starts with the request and restarts when the headers arrive and at
+        // every event the codec decodes, as on the configured-provider path
+        // (only a validated canonical event renews the deadline there). Bytes
+        // that decode to no event, such as SSE comments and empty lines, do
+        // not restart it, so keep-alive traffic cannot hold a reply open.
         const idleMs = deps.streamIdleMs ?? MODEL_API_STREAM_IDLE_MS
+        let lastEventAt = Date.now()
         const withinIdle = async <T>(waiting: Promise<T>): Promise<T> => {
           try {
             return await withDeadline(
               waiting,
-              idleMs,
+              Math.max(0, lastEventAt + idleMs - Date.now()),
               fill(UI_TEXT.modelApiStalled, {
                 seconds: Math.round(idleMs / MILLISECONDS_PER_SECOND),
               }),
@@ -273,6 +278,7 @@ export function createSubscriptionClient(
         if (signal.aborted) throw signal.reason
         admitAttempt?.onRequestStarted?.()
         isDispatched = true
+        lastEventAt = Date.now()
         const response = await withinIdle(
           deps.fetch(RESPONSES_URL, {
             method: 'POST',
@@ -282,6 +288,7 @@ export function createSubscriptionClient(
             body: JSON.stringify(request),
           }),
         )
+        lastEventAt = Date.now()
         if (!response.ok || response.body === null) throw new Error(UI_TEXT.acpChatGpt.failure)
         // The captured endpoint streams SSE without Content-Type. Never branch on that header.
         const reader = response.body.getReader()
@@ -317,6 +324,7 @@ export function createSubscriptionClient(
             },
           })
           for await (const event of stream) {
+            lastEventAt = Date.now()
             note(event)
             yield event
           }

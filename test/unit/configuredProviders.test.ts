@@ -1095,6 +1095,22 @@ describe('configured provider stream limits', () => {
     }
   }
   const HEADERS = { 'content-type': 'text/event-stream' }
+  /** An answer that sends `parts` one at a time, `gapMs` apart, then ends. */
+  const paced = (parts: readonly Uint8Array[], gapMs: number) => (res: ServerResponse) => {
+    res.writeHead(200, HEADERS)
+    let sent = 0
+    const timer = setInterval(() => {
+      const part = parts[sent]
+      sent += 1
+      if (part !== undefined) res.write(part)
+      if (sent < parts.length) return
+      clearInterval(timer)
+      res.end()
+    }, gapMs)
+    res.on('close', () => {
+      clearInterval(timer)
+    })
+  }
   /** An answer that sends the first frame of a real stream, then nothing. */
   async function firstFrameThenSilence() {
     const payload = await stream('03-tool-result-stream.json')
@@ -1112,20 +1128,10 @@ describe('configured provider stream limits', () => {
     )
     const payload = await stream('03-tool-result-stream.json')
     const size = Math.ceil(payload.byteLength / 6)
-    const local = await localProvider((res) => {
-      res.writeHead(200, HEADERS)
-      let sent = 0
-      const timer = setInterval(() => {
-        res.write(payload.subarray(sent, sent + size))
-        sent += size
-        if (sent < payload.byteLength) return
-        clearInterval(timer)
-        res.end()
-      }, 100)
-      res.on('close', () => {
-        clearInterval(timer)
-      })
-    })
+    const slices = Array.from({ length: 6 }, (_, index) =>
+      payload.subarray(index * size, (index + 1) * size),
+    )
+    const local = await localProvider(paced(slices, 100))
     try {
       const started = Date.now()
       const events = await local.run(new AbortController().signal)
@@ -1133,6 +1139,33 @@ describe('configured provider stream limits', () => {
       expect(Date.now() - started).toBeGreaterThan(400)
     } finally {
       await local.close()
+    }
+  })
+
+  it('keeps a steady stream alive for several times the idle limit: the limit is on silence, not on the total', async () => {
+    // One frame every 30 ms, 44 frames: about 1.3 s in total under a 300 ms
+    // idle limit. Every event arrives, as when the stream is sent at once.
+    const idleMs = 300
+    const payload = await stream('03-tool-result-stream.json')
+    const frames = payload
+      .toString('utf8')
+      .split('\n\n')
+      .filter((frame) => frame !== '')
+      .map((frame) => Buffer.from(`${frame}\n\n`))
+    const whole = await localProvider(paced([payload], 1))
+    const steady = await localProvider(paced(frames, 30), idleMs)
+    try {
+      const expected = await whole.run(new AbortController().signal)
+      const started = Date.now()
+      const events = await steady.run(new AbortController().signal)
+      expect(Date.now() - started).toBeGreaterThan(3 * idleMs)
+      const types = (list: readonly unknown[]) =>
+        list.map((event) => z.object({ type: z.string() }).parse(event).type)
+      expect(types(events)).toEqual(types(expected))
+      expect(types(events).at(-1)).toBe('response.completed')
+    } finally {
+      await whole.close()
+      await steady.close()
     }
   })
 
