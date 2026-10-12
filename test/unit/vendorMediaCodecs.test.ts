@@ -6,15 +6,15 @@
 // gate (modalityGate over the captured Meta rows) refuses first in
 // production; these tests pin the codec stage, the refusal's passage
 // through the production client, and the agreement between the two.
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   encodeChatRequest,
-  isChatCodecError,
   type ChatPresetQuirks,
 } from '../../src/core/backends/modelapi/codecs/chat'
+import { ChatCodecError, isChatCodecError } from '../../src/core/backends/modelapi/codecs/shared'
 import { encodeGeminiRequest } from '../../src/core/backends/modelapi/codecs/gemini'
 import { createResponsesCodec } from '../../src/core/backends/modelapi/codecs/responses'
 import { encodeAnthropicRequest } from '../../src/core/backends/modelapi/codecs/anthropic'
@@ -24,15 +24,26 @@ import {
   providerEntrySchema,
   writeProvidersFileAtomic,
 } from '../../src/core/providers/providersFile'
-import { PRESETS } from '../../src/core/providers/presets'
+import { PLAN_KEY_PRESETS, PRESETS } from '../../src/core/providers/presets'
+import { createSubscriptionClient } from '../../src/core/providers/subscriptions/registry'
+import { ChatGptSignIn, type ChatGptHostPort } from '../../src/core/providers/subscriptions/chatgpt'
+import {
+  createRuntimeDailyBudget,
+  withRuntimeAccounting,
+} from '../../src/runtime/runtimeAccountingEntry'
+import { fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
+import { FakeLogOutputChannel, memorySecrets } from './helpers/fakes'
 import { metaMediaCapabilities } from '../../src/core/media/metaMediaCapabilities'
 import { modalityGate } from '../../src/core/media/modalityGate'
 import { sniffMediaBytes } from '../../src/core/media/limits'
 import { videoFixture } from './helpers/media/fixtures'
-import { memorySecrets } from './helpers/fakes'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText, UI_TEXT } from '../../src/shared/l10n/text'
-import type { CreateResponseBody, InputContentPart } from '../../src/core/backends/modelapi/schemas'
+import type {
+  CreateResponseBody,
+  InputContentPart,
+  StreamEvent,
+} from '../../src/core/backends/modelapi/schemas'
 
 const OPENROUTER_LIKE: ChatPresetQuirks = {
   presetId: 'openrouter',
@@ -118,16 +129,23 @@ describe('M105 lane V vendor video refusals', () => {
     )
   })
 
-  it('refuses a held video in an assistant message on a chat preset with the model reason', () => {
+  it('refuses a held video in an assistant message on a chat preset with the typed reason', () => {
     const body: CreateResponseBody = {
       ...chatBody([{ type: 'input_text', text: 'describe' }]),
       input: [{ type: 'message', role: 'assistant', content: [HELD_VIDEO] }],
     }
-    expect(() =>
+    let error: unknown
+    try {
       encodeChatRequest(body, 'some-model', OPENROUTER_LIKE, {
         capabilities: { vision: true },
-      }),
-    ).toThrow('some-model is not known to take video.')
+      })
+    } catch (error_) {
+      error = error_
+    }
+    // A plain Error here would become the generic unavailable message in
+    // the production client, so the type is pinned, not just the sentence.
+    if (!isChatCodecError(error)) throw new Error('expected a codec refusal')
+    expect(error.message).toBe('some-model is not known to take video.')
   })
 
   it.each([true, false, undefined])(
@@ -296,8 +314,12 @@ function videoBody(model: string, content: readonly InputContentPart[]): CreateR
 }
 
 describe('M105 lane V R2 every encoder refuses on every provider route', () => {
+  // R3 (RVCM1054B P3): rows come from BOTH production route registries —
+  // the provider registry and the separate plan-key registry — plus the
+  // ChatGPT subscription route, so adding a route exercises it here.
   const rows: readonly (readonly [string, string])[] = [
     ...PRESETS.map((preset) => [preset.id, preset.format] as const),
+    ...PLAN_KEY_PRESETS.map((preset) => [preset.id, preset.format] as const),
     ['chatgpt-subscription', 'chatgpt'] as const,
   ]
 
@@ -305,6 +327,13 @@ describe('M105 lane V R2 every encoder refuses on every provider route', () => {
     expect(new Set(rows.map((row) => row[1]))).toEqual(
       new Set(['anthropic', 'chat', 'chatgpt', 'gemini', 'ollama', 'responses']),
     )
+  })
+
+  it('covers every supported route, so a route without a row fails', () => {
+    const covered = new Set(rows.map((row) => row[0]))
+    for (const preset of PRESETS) expect(covered.has(preset.id), preset.id).toBe(true)
+    for (const preset of PLAN_KEY_PRESETS) expect(covered.has(preset.id), preset.id).toBe(true)
+    expect(covered.has('chatgpt-subscription')).toBe(true)
   })
 
   it('covers the named non-Meta routes', () => {
@@ -326,8 +355,8 @@ describe('M105 lane V R2 every encoder refuses on every provider route', () => {
       } catch (error_) {
         error = error_
       }
-      expect(isChatCodecError(error), route).toBe(true)
-      expect((error as Error).message).toBe(`${model} is not known to take video.`)
+      if (!isChatCodecError(error)) throw new Error(`expected a codec refusal for ${route}`)
+      expect(error.message).toBe(`${model} is not known to take video.`)
     }
   })
 })
@@ -531,7 +560,207 @@ describe('M105 lane V R2 the refusal arrives as itself through the production cl
     } catch (error_) {
       error = error_
     }
-    expect(error).toBeInstanceOf(Error)
-    expect((error as Error).message).not.toBe(UI_TEXT.modelsPanelUnavailable)
+    if (!(error instanceof Error)) throw new Error('expected an Error for the held video')
+    expect(error.message).not.toBe(UI_TEXT.modelsPanelUnavailable)
+  })
+})
+
+// M105 lane V R3 (RVCM1054B P2): the codec refusal through every production
+// client and wrapper that can sit between a codec and the user. Each test
+// drives the REAL client with a counting transport and asserts the refusal
+// arrives as its own sentence with zero requests sent. One shared helper
+// (`isChatCodecError`) decides; no client keeps its own list.
+const SUBSCRIPTION_VIDEO_BODY = (model: string): CreateResponseBody => ({
+  model,
+  instructions: 'be brief',
+  input: [
+    {
+      type: 'message',
+      role: 'user',
+      content: [
+        { type: 'input_text', text: 'what is in this clip?' },
+        { type: 'input_video', file_id: 'file-abc123' },
+      ],
+    },
+  ],
+  tools: [],
+  tool_choice: 'auto',
+  reasoning: { effort: 'none', summary: 'auto' },
+  stream: true,
+  store: false,
+  include: [],
+  max_output_tokens: 1024,
+  prompt_cache_key: 'test',
+  prompt_cache_retention: '24h',
+})
+
+/** A real ChatGPT sign-in whose stored grant never expires in this test. */
+function chatGptSignInForTest(): ChatGptSignIn {
+  const now = Date.now()
+  const host: ChatGptHostPort = {
+    hostId: 'test-host',
+    fetch: () => Promise.reject(new Error('no sign-in network in this test')),
+    now: () => now,
+    openBrowser: () => Promise.reject(new Error('no browser in this test')),
+    startCallback: () => Promise.reject(new Error('no callback in this test')),
+    readRecord: () =>
+      Promise.resolve({
+        v: 1,
+        auth: 'subscription',
+        origin: 'https://api.openai.com',
+        issuer: 'https://auth.openai.com',
+        clientId: 'test-client',
+        hostId: 'test-host',
+        accessToken: 'test-access-token',
+        refreshToken: 'test-refresh-token',
+        expiresAt: now + 3_600_000,
+        scope: 'openid profile email offline_access resource.invoke chatgpt.tokens.use.direct',
+        nonce: 'test-nonce',
+      }),
+    writeRecord: () => Promise.resolve(),
+    deleteRecord: () => Promise.resolve(),
+    withRefreshLock: (work) => work(),
+  }
+  return new ChatGptSignIn(host)
+}
+
+describe('M105 lane V R3 the refusal arrives as itself on every plan leg', () => {
+  it.each([
+    ['en' as const, 'gpt-6-astra is not known to take video.'],
+    ['de' as const, 'gpt-6-astra nimmt kein Video.'],
+  ])(
+    'ChatGPT subscription route (%s) yields the refusal sentence with zero sends',
+    async (language, sentence) => {
+      const videoUnknown =
+        language === 'de' ? '{model} nimmt kein Video.' : '{model} is not known to take video.'
+      setUiText({ ...EN, media: { ...EN.media, videoUnknown } }, language)
+      try {
+        let sent = 0
+        const api = fakeModelApi()
+        const meta = fakeModelApiClient(api, new FakeLogOutputChannel())
+        const subscribed = createSubscriptionClient(meta, {
+          fetch: () => {
+            sent += 1
+            throw new Error('the codec refusal must throw before any send')
+          },
+          providers: () =>
+            Promise.resolve({
+              v: 1 as const,
+              providers: [
+                {
+                  id: 'chatgpt',
+                  preset: 'custom',
+                  auth: 'subscription',
+                  models: ['gpt-6-astra'],
+                },
+              ],
+            }),
+          chatgpt: () => Promise.resolve(chatGptSignInForTest()),
+          accountId: () => Promise.resolve(undefined),
+        })
+        const events = await Array.fromAsync(
+          subscribed.streamResponse(
+            SUBSCRIPTION_VIDEO_BODY('chatgpt/gpt-6-astra'),
+            new AbortController().signal,
+          ),
+        )
+        expect(events).toEqual([{ type: 'error', message: sentence }])
+        expect(sent).toBe(0)
+        expect(api.requests).toHaveLength(0)
+      } finally {
+        setUiText(EN, 'en')
+      }
+    },
+  )
+
+  it('Copilot subscription leg yields an adapter codec refusal with its own sentence', async () => {
+    let wasInvoked = false
+    const refusal = new ChatCodecError('copilot-model is not known to take video.')
+    const api = fakeModelApi()
+    const meta = fakeModelApiClient(api, new FakeLogOutputChannel())
+    const subscribed = createSubscriptionClient(meta, {
+      fetch: api.fetch,
+      providers: () =>
+        Promise.resolve({
+          v: 1 as const,
+          providers: [
+            { id: 'copilot', preset: 'custom', auth: 'subscription', models: ['copilot-model'] },
+          ],
+        }),
+      chatgpt: () => Promise.reject(new Error('no subscription sign-in')),
+      accountId: () => Promise.resolve(undefined),
+      copilot: () =>
+        new Map([
+          [
+            'copilot-model',
+            {
+              countInputTokens: () => Promise.resolve(0),
+              streamResponse: (): AsyncGenerator<StreamEvent> => {
+                // The adapter refuses at encode: no request leaves it.
+                wasInvoked = true
+                throw refusal
+              },
+            },
+          ],
+        ]),
+    })
+    const events = await Array.fromAsync(
+      subscribed.streamResponse(
+        SUBSCRIPTION_VIDEO_BODY('copilot/copilot-model'),
+        new AbortController().signal,
+      ),
+    )
+    expect(wasInvoked).toBe(true)
+    expect(events).toEqual([{ type: 'error', message: refusal.message }])
+  })
+})
+
+describe('M105 lane V R3 the capture recipes run as written', () => {
+  it('parses every fenced JSON request body in the certification record', async () => {
+    // RVCM1054B P3: the recipes once shipped unquoted property names, so no
+    // body could be sent as written. Each fenced body must parse here.
+    const doc = await readFile('docs/certification/m105-v-vendor-codecs.md', 'utf8')
+    let count = 0
+    for (const block of doc.matchAll(/```json\r?\n([\s\S]*?)```/gu)) {
+      count += 1
+      const body = block[1] ?? ''
+      expect(() => {
+        JSON.parse(body)
+      }, body).not.toThrow()
+    }
+    expect(count).toBeGreaterThan(0)
+  })
+})
+
+describe('M105 lane V R3 the refusal passes the runtime accounting wrapper untouched', () => {
+  it('rejects with the refusal itself and settles nothing', async () => {
+    const refusal = new ChatCodecError('muse-spark-1.3 is not known to take video.')
+    const api = fakeModelApi()
+    const inner = fakeModelApiClient(api, new FakeLogOutputChannel())
+    inner.streamResponse = (): AsyncGenerator<StreamEvent> => {
+      // The codec refuses at encode: the transport below is never reached.
+      throw refusal
+    }
+    const root = await mkdtemp(path.join(tmpdir(), 'm105r3-accounting-'))
+    roots.push(root)
+    const daily = createRuntimeDailyBudget({
+      dataFolder: root,
+      now: () => Date.now(),
+      sleep: (ms: number) => new Promise((resolve) => setTimeout(resolve, ms)),
+    })
+    const wrapped = withRuntimeAccounting(inner, daily)
+    let error: unknown
+    try {
+      await Array.fromAsync(
+        wrapped.streamResponse(
+          SUBSCRIPTION_VIDEO_BODY('muse-spark-1.3'),
+          new AbortController().signal,
+        ),
+      )
+    } catch (error_) {
+      error = error_
+    }
+    // Identity, not just the message: the wrapper maps nothing.
+    expect(error).toBe(refusal)
   })
 })

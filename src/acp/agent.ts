@@ -54,6 +54,7 @@ import {
 } from '../core/agent/agentBackend'
 import { editAutomaticallyChoice } from '../core/agent/approvalRules'
 import { failureForLog } from '../core/backends/musecode/logText'
+import { isChatCodecError } from '../core/backends/modelapi/codecs/shared'
 import { unlessAborted } from '../core/timeouts'
 import type { CoreLogger } from '../core/logging'
 import { type PaidUseAnswer, paidUseQuestion } from '../core/paid/paidConsent'
@@ -1967,6 +1968,11 @@ class AcpSession {
         }
         return outcome.reason
       }
+      // M105 lane V R3 (RVCM1054B P2): a codec refusal thrown while
+      // starting (at encode, before anything is sent) reaches the editor
+      // as its own sentence. The SDK turns any other raw error into a
+      // generic "Internal error"; that behaviour is unchanged.
+      if (isChatCodecError(error)) throw RequestError.internalError(undefined, error.message)
       throw error
     } finally {
       this.starting = undefined

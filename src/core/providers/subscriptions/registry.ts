@@ -16,6 +16,7 @@ import {
   type Usage,
 } from '../../backends/modelapi/schemas'
 import { responses, modelRef, recordPlanUsage } from '../../../host/backend/providersEntry'
+import { isChatCodecError } from '../../backends/modelapi/codecs/shared'
 const { ChatgptPlanLimitError, createResponsesCodec, ResponsesOutputCapError } = responses
 const { parseModelRef } = modelRef
 import {
@@ -320,6 +321,14 @@ export function createSubscriptionClient(
         }
       } catch (error) {
         if (signal.aborted) throw error
+        // M105 lane V R3 (RVCM1054B P2): a typed codec refusal (a held
+        // video with no vendor capture) reaches the user as its own
+        // sentence on both plan legs, never the generic retry text. One
+        // shared helper decides; this client keeps no list of its own.
+        if (isChatCodecError(error)) {
+          yield { type: 'error', message: error.message }
+          return
+        }
         if (ref.providerId === 'copilot' && error instanceof Error) {
           yield { type: 'error', message: error.message }
           return
