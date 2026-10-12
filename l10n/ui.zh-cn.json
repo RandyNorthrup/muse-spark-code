@@ -5091,5 +5091,14 @@
   },
   "execTeamWorkerUnsupported": "无界面团队只运行引擎工作进程；{kind} 无法在 CI 中运行。",
   "execTeamConfigInvalid": "无界面团队配置无效：{reason}。",
-  "execTeamProtectedDenied": "无界面团队合并被拒绝：受保护的路径需要批准。"
+  "execTeamConfigNotJson": "team.json 不是 JSON。",
+  "execTeamConfigNotObject": "team.json 必须只包含一个对象。",
+  "execTeamConfigLowersOnly": "不允许使用 team.json 条目 {entry}：工作区文件只能降低现有上限。",
+  "execTeamConfigBadEntry": "team.json 条目 {entry} 无效。",
+  "execTeamStateUnreadable": "无法读取已存储的无界面团队；请检查工作区团队文件。",
+  "execTeamReviewerUnsupported": "team.json 要求评审者 {entry}；此运行器仅提供代码评审。",
+  "execTeamMergeMarkers": "分支在 {detail} 处仍有冲突标记；请解决后重新合并。",
+  "execTeamMergeHeldProtected": "受保护路径需要批准，因此分支暂存于 {ref}。批准后重新合并，或删除 {ref} 以丢弃该工作。",
+  "execTeamMergeHeldReview": "所需的评审尚未完成，因此分支暂存于 {ref}。收集评审后重新合并，或删除 {ref} 以丢弃该工作。",
+  "execTeamMergeBlocked": "任务 {entry} 的合并无法继续:{detail}。"
 }

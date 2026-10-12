@@ -5397,5 +5397,14 @@
   },
   "execTeamWorkerUnsupported": "Les équipes sans interface exécutent uniquement les agents du moteur ; {kind} ne peut pas fonctionner en CI.",
   "execTeamConfigInvalid": "Configuration d’équipe sans interface invalide : {reason}.",
-  "execTeamProtectedDenied": "Fusion de l’équipe sans interface refusée : les chemins protégés nécessitent une autorisation."
+  "execTeamConfigNotJson": "team.json n’est pas du JSON.",
+  "execTeamConfigNotObject": "team.json doit contenir un seul objet.",
+  "execTeamConfigLowersOnly": "Entrée team.json {entry} non autorisée : le fichier de l’espace de travail peut seulement abaisser les limites existantes.",
+  "execTeamConfigBadEntry": "Entrée team.json {entry} non valide.",
+  "execTeamStateUnreadable": "L’équipe sans interface stockée est illisible ; vérifiez le fichier d’équipe de l’espace de travail.",
+  "execTeamReviewerUnsupported": "team.json exige le relecteur {entry} ; ce runner n’offre que la relecture de code.",
+  "execTeamMergeMarkers": "La branche montre encore des marqueurs de conflit à {detail} ; résolvez-les puis fusionnez à nouveau.",
+  "execTeamMergeHeldProtected": "Les chemins protégés exigent une approbation, donc la branche est conservée sous {ref}. Approuvez-les puis fusionnez à nouveau, ou supprimez {ref} pour abandonner le travail.",
+  "execTeamMergeHeldReview": "La relecture exigée n’est pas terminée, donc la branche est conservée sous {ref}. Recueillez la relecture puis fusionnez à nouveau, ou supprimez {ref} pour abandonner le travail.",
+  "execTeamMergeBlocked": "La fusion ne peut pas continuer pour la tâche {entry} : {detail}."
 }
