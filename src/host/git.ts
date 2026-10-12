@@ -320,8 +320,11 @@ export function processGitRunner(
 /**
  * A failed git call's exit code, however the runner reported it: a
  * `GitExitError` carries it in `exitCode`; a Node child-process error carries
- * a numeric `code`. Undefined when the call never ran to an exit (git
- * missing, a timeout, a signal, a capped buffer): never a guess.
+ * a numeric `code`. Undefined when the call never ran to an exit report (git
+ * missing, never started, a spawn error, a timeout or abort recorded as its
+ * own refusal): never a guess. A close without an exit code is not
+ * undefined: the runner records the `-1` sentinel (`GitExitError(code ?? -1,
+ * ...)`), so a signal kill reads back as -1.
  */
 export function gitExitCode(error: unknown): number | undefined {
   if (isGitExitError(error)) {

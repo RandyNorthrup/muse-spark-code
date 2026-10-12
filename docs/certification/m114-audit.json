@@ -2239,134 +2239,6 @@
       "gradeSourceRevision": "LEFT017B current rendered descendants; image review recorded in int0170-combined.md"
     },
     {
-      "file": "src/webview/components/FeedbackDialog.tsx",
-      "owner": "P2",
-      "selectors": [
-        ".feedback-fields",
-        ".feedback-note",
-        ".feedback-counter",
-        ".feedback-actions",
-        ".modal"
-      ],
-      "scene": "feedback-narrow",
-      "grades": {
-        "colour": "partial",
-        "radius": "partial",
-        "elevation": "fail",
-        "motion": "not-applicable",
-        "focus": "partial",
-        "states": "partial",
-        "highContrast": "partial",
-        "accessibility": "partial",
-        "typographySpacing": "partial"
-      },
-      "roles": [
-        "colour.border",
-        "colour.disabled",
-        "colour.editor-surface",
-        "colour.focus",
-        "colour.overlay",
-        "colour.pressed",
-        "colour.shadow",
-        "colour.surface",
-        "colour.text",
-        "colour.toolbar-hover",
-        "colour.widget-border",
-        "typography.font-size",
-        "typography.font-ui"
-      ],
-      "findings": ["roles", "scale", "states", "focus", "overlay"],
-      "fix": "Give the classified note a visible keyboard focus ring and pressed/disabled submit states in all six themes; keep the block labels, the 320 px column, the counter under the note and the status line the harness waits on.",
-      "evidence": [
-        {
-          "file": "src/webview/styles.css",
-          "line": 2837,
-          "selector": ".feedback-fields",
-          "declarations": "display: flex;\n  flex-direction: column;\n  gap: var(--ms-space-8);\n  margin: 0;\n  padding: 0;\n  border: 0;"
-        },
-        {
-          "file": "src/webview/styles.css",
-          "line": 2860,
-          "selector": ".feedback-counter",
-          "declarations": "display: block;\n  margin-top: calc(var(--ms-space-12) / 2);\n  color: var(--ms-muted);\n  font-size: var(--ms-font-small);\n  text-align: right;"
-        },
-        {
-          "file": "src/webview/styles.css",
-          "line": 3323,
-          "selector": ".modal",
-          "declarations": "display: flex;\n  flex-direction: column;\n  width: min(100%, 440px);\n  max-height: 90vh;\n  border: 1px solid var(--ms-widget-border);\n  border-radius: var(--ms-radius-lg);\n  color: var(--ms-text);\n  background: var(--ms-overlay);\n  box-shadow: var(--ms-elevation-overlay);"
-        }
-      ],
-      "captureSelector": ".feedback-fields, .feedback-note, .feedback-counter, .feedback-actions, .modal",
-      "vscodeVariables": [
-        "--vscode-button-hoverBackground",
-        "--vscode-button-secondaryHoverBackground",
-        "--vscode-focusBorder",
-        "--vscode-font-family",
-        "--vscode-font-size",
-        "--vscode-foreground"
-      ],
-      "gradeSourceRevision": "aa6e2f09d6231b1004bad9aec02335958ed1bc46"
-    },
-    {
-      "file": "src/webview/components/FeedbackSurface.tsx",
-      "owner": "P2",
-      "selectors": [".modal-backdrop", ".modal"],
-      "scene": "feedback-preview-narrow",
-      "grades": {
-        "colour": "inherited",
-        "radius": "inherited",
-        "elevation": "inherited",
-        "motion": "not-applicable",
-        "focus": "partial",
-        "states": "inherited",
-        "highContrast": "inherited",
-        "accessibility": "partial",
-        "typographySpacing": "inherited"
-      },
-      "roles": [
-        "colour.border",
-        "colour.disabled",
-        "colour.editor-surface",
-        "colour.focus",
-        "colour.overlay",
-        "colour.pressed",
-        "colour.shadow",
-        "colour.surface",
-        "colour.text",
-        "colour.toolbar-hover",
-        "colour.widget-border",
-        "typography.font-size",
-        "typography.font-ui"
-      ],
-      "findings": ["inherited", "focus", "overlay"],
-      "fix": "Keep the bridge-owned submit port and the opener refocus on close; keep the lazy chunk boundary so the dialog strings stay out of the activation bundle. Verify scrim, elevation and focus return in all six themes.",
-      "evidence": [
-        {
-          "file": "src/webview/styles.css",
-          "line": 3312,
-          "selector": ".modal-backdrop",
-          "declarations": "position: fixed;\n  inset: 0;\n  z-index: 20;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  padding: var(--ms-gap);\n  background: var(--ms-modal-scrim);"
-        },
-        {
-          "file": "src/webview/styles.css",
-          "line": 3323,
-          "selector": ".modal",
-          "declarations": "display: flex;\n  flex-direction: column;\n  width: min(100%, 440px);\n  max-height: 90vh;\n  border: 1px solid var(--ms-widget-border);\n  border-radius: var(--ms-radius-lg);\n  color: var(--ms-text);\n  background: var(--ms-overlay);\n  box-shadow: var(--ms-elevation-overlay);"
-        }
-      ],
-      "captureSelector": ".modal-backdrop, .modal",
-      "vscodeVariables": [
-        "--vscode-button-hoverBackground",
-        "--vscode-button-secondaryHoverBackground",
-        "--vscode-focusBorder",
-        "--vscode-font-family",
-        "--vscode-font-size",
-        "--vscode-foreground"
-      ],
-      "gradeSourceRevision": "aa6e2f09d6231b1004bad9aec02335958ed1bc46"
-    },
-    {
       "file": "src/webview/components/GitPanel.tsx",
       "owner": "P2",
       "selectors": [".git-panel", ".git-hold", ".git-form", ".git-pr-title", ".git-check"],
@@ -10101,6 +9973,16 @@
       "audit": "Supporting source: inspect theme/token/lazy lifecycle behavior through its actual rendered consumers in the current component inventory."
     },
     {
+      "file": "src/webview/components/FeedbackDialog.tsx",
+      "classification": "pending-capture",
+      "audit": "Renderer without reviewed captures: the harness scenes (feedback-narrow, feedback-preview-narrow, feedback-sent-narrow) and the browser suites cover it, but no render machine has graded it, so it carries no grades, findings or fix here. The capture tool promotes it to the component inventory with generated grades; the manifest gains its captures at the same time."
+    },
+    {
+      "file": "src/webview/components/FeedbackSurface.tsx",
+      "classification": "pending-capture",
+      "audit": "Renderer without reviewed captures: the harness scenes (feedback-narrow, feedback-preview-narrow, feedback-sent-narrow) and the browser suites cover it, but no render machine has graded it, so it carries no grades, findings or fix here. The capture tool promotes it to the component inventory with generated grades; the manifest gains its captures at the same time."
+    },
+    {
       "file": "src/webview/feedbackBridge.ts",
       "classification": "logic-only",
       "audit": "Supporting source: inspect theme/token/lazy lifecycle behavior through its actual rendered consumers in the current component inventory."
@@ -10499,9 +10381,6 @@
     "elicitation-narrow",
     "empty",
     "estimator-result",
-    "feedback-narrow",
-    "feedback-preview-narrow",
-    "feedback-sent-narrow",
     "git-pr-narrow",
     "goal",
     "goal-edit",
@@ -10659,7 +10538,7 @@
   "sources": [
     {
       "file": "src/webview/App.tsx",
-      "sha256": "1cff0ff998d855dfd30e45bf570633b4134bbe1079378685b42934abbc5cb3dc"
+      "sha256": "6eb2cf5c0af3a2d8d59ef05ce2f5cf67c2cef54fa0a751d37fedd145a4f9968e"
     },
     {
       "file": "src/webview/TasksApp.tsx",
@@ -10763,7 +10642,7 @@
     },
     {
       "file": "src/webview/components/DiffTally.tsx",
-      "sha256": "bc220f2d47c76bccd0fb51e001d58aab68d73f234ab1414cdecd806b33619d93"
+      "sha256": "590503830ac2ab1cf826164c81721a23a5357e3573bd114f020a7faf25a480d9"
     },
     {
       "file": "src/webview/components/EffortSlider.tsx",
@@ -10791,11 +10670,11 @@
     },
     {
       "file": "src/webview/components/FeedbackDialog.tsx",
-      "sha256": "da6414fca7701744c7f3f294e89d8c4cdeb84d066b4493034a762a20c23baabd"
+      "sha256": "cab08e3edb1e14f8ff6a08f40fd4c437bcfc781a1f5c2540bff3ef1799e10fa7"
     },
     {
       "file": "src/webview/components/FeedbackSurface.tsx",
-      "sha256": "fc927dc6f2ceb53640d4f772e51ef8d14f2d6fd9f5dee34606dfe000964041af"
+      "sha256": "11565f426dadfacd6d5a8d18707e37581b9e91cffdc552049b589ded898bb74b"
     },
     {
       "file": "src/webview/components/GitPanel.tsx",
@@ -10867,7 +10746,7 @@
     },
     {
       "file": "src/webview/components/Modal.tsx",
-      "sha256": "a7084868a269c46d0871bfa99c61c87c2e751ab716c658ff626cc892464b0934"
+      "sha256": "61e0a3bf89e835d12602dfad820cf4639c3f51bfb595d945e3d29a29d00e9b7e"
     },
     {
       "file": "src/webview/components/Onboarding.tsx",
@@ -11507,11 +11386,11 @@
     },
     {
       "file": "src/webview/schedules/ScheduleSurface.tsx",
-      "sha256": "53fdab6568407c1d654437a6b526e83ed0d0449c0890a87ef07d05a830d448d2"
+      "sha256": "f531fef9fe287b23e416b9da93a6572673a54a06fbd2a0d93cee46b8bee97b2f"
     },
     {
       "file": "src/webview/schedules/ScheduleSurfaceView.tsx",
-      "sha256": "0aaeaf98ae0e2001ea2c483b4e8bb7e02dfd3807f0c8d2a629b4b85d9bfef2d3"
+      "sha256": "4abd270f1cac52d112b2943adae9089d75180865beb06408c5c8acf271a2e658"
     },
     {
       "file": "src/webview/schedules/ScheduleTimeline.tsx",
@@ -11535,7 +11414,7 @@
     },
     {
       "file": "src/webview/schedules/ports.ts",
-      "sha256": "f8e1da2bf5e0f4e44cf6392dc0cde05e828ef5e4c3555edc809604668691cce2"
+      "sha256": "998d6130c3ceae9928c6dde1b9ba611a7e665acce356d1f76d6415b274a67531"
     },
     {
       "file": "src/webview/schedules/presentation.ts",

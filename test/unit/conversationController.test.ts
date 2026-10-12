@@ -1561,6 +1561,20 @@ describe('ConversationController.sendMessage', () => {
   })
 })
 
+// One served 1.3 row for the catalogue-admission cases (RVCM1063C #1, RVCM1063D #2).
+function sparkModels(variants: string[]) {
+  return [
+    {
+      modelId: 'muse-spark-1.3',
+      displayLabel: 'Muse Spark 1.3',
+      contextLimit: 1_000_000,
+      isDefault: true,
+      isActive: true,
+      variants,
+    },
+  ]
+}
+
 describe('ConversationController: composer controls', () => {
   it('keeps the composer model and effort when an extension hook refuses a switch', async () => {
     const t = setup()
@@ -1669,16 +1683,7 @@ describe('ConversationController: composer controls', () => {
     'the first send admits the $catalogue catalogue (RVCM1063C #1)',
     async ({ variants, admitted, composerEffort }) => {
       const t = setup()
-      vi.spyOn(t.host, 'listModels').mockResolvedValue([
-        {
-          modelId: 'muse-spark-1.3',
-          displayLabel: 'Muse Spark 1.3',
-          contextLimit: 1_000_000,
-          isDefault: true,
-          isActive: true,
-          variants,
-        },
-      ])
+      vi.spyOn(t.host, 'listModels').mockResolvedValue(sparkModels(variants))
       await t.send('l1', 'hi')
       const efforts = t.server.requestsFor('session/setReasoningEffort')
       if (admitted === undefined) {
@@ -1701,12 +1706,13 @@ describe('ConversationController: composer controls', () => {
         displayLabel: 'x',
         contextLimit: 1_000_000,
         isDefault: false,
+        isActive: false,
         variants: ['max'],
       },
       {
         modelId: 'muse-spark-1.2',
         displayLabel: 'y',
-        contextLimit: null,
+        contextLimit: undefined,
         isDefault: true,
         isActive: true,
         variants: ['low'],
@@ -1733,16 +1739,7 @@ describe('ConversationController: composer controls', () => {
     'a Thinking toggle sends no fabricated tier on the $catalogue catalogue (RVCM1063D #2)',
     async ({ variants }) => {
       const t = setup()
-      vi.spyOn(t.host, 'listModels').mockResolvedValue([
-        {
-          modelId: 'muse-spark-1.3',
-          displayLabel: 'Muse Spark 1.3',
-          contextLimit: 1_000_000,
-          isDefault: true,
-          isActive: true,
-          variants,
-        },
-      ])
+      vi.spyOn(t.host, 'listModels').mockResolvedValue(sparkModels(variants))
       await t.send('l1', 'hi')
       expect(t.server.requestsFor('session/setReasoningEffort')).toHaveLength(0)
       await t.controller.handle({ type: 'setThinking', enabled: false })
