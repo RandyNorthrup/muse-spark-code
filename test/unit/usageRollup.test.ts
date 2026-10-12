@@ -16,11 +16,8 @@ import { createUsageRecord } from '../../src/core/usage/journalRecord'
 import { USAGE_CERTAINTIES, type UsageRecord } from '../../src/shared/usageJournal'
 import type { UsagePageState, UsageTotals } from '../../src/shared/usagePage'
 import { NodeUsageFs } from '../../src/runtime/usage/nodeUsageFs'
-import {
-  EXEC_USD_UNITS,
-  USAGE_HISTOGRAM_EDGES_MS,
-  USAGE_ROLLUP_LOCK_STALE_MS,
-} from '../../src/shared/constants'
+import { Usd } from '../../src/shared/usd'
+import { USAGE_HISTOGRAM_EDGES_MS, USAGE_ROLLUP_LOCK_STALE_MS } from '../../src/shared/constants'
 
 function record(day: string, id = day) {
   const at = new Date(`${day}T12:00:00`).getTime()
@@ -172,13 +169,14 @@ describe('usage rollup and retention', () => {
     expect(historical.totals.tokensPerSecond).toBeUndefined()
     expect(historical.totals.p50Ms).toBe(raw.totals.p50Ms)
   })
-  it('settles each cost to micro-dollars before rolling up fractional USD amounts', async () => {
+  it('rolls up fractional USD amounts exactly, never rounding to micro-dollars (M121)', async () => {
     const { store, root } = await rig()
+    const tiny = Usd.from('0.0000004').toAmount()
     const records = ['one', 'two'].map(
       (id) =>
         ({
           ...record('2026-09-01', id),
-          cost: { certainty: 'reported', usd: 0.0000004, apiEquivalentUsd: 0.0000004 },
+          cost: { certainty: 'reported', usd: tiny, apiEquivalentUsd: tiny },
         }) satisfies UsageRecord,
     )
     for (const entry of records) store.append(entry)
@@ -187,27 +185,23 @@ describe('usage rollup and retention', () => {
     const journal = await store.read()
     expect(journal.rollups[0]?.cost).toEqual({
       certainty: 'reported',
-      usd: 0,
-      apiEquivalentUsd: 0,
+      usd: '0.0000008',
+      apiEquivalentUsd: '0.0000008',
     })
     const state = await access(root).read(query)
     expect(state.totals).toEqual(aggregateUsage(records, [], query, Date.now()).totals)
   })
-  it('refuses unsafe rollup amounts and accumulated micro-dollar sums', () => {
+  it('rolls up amounts past double integer precision exactly (M121)', () => {
     for (const field of ['usd', 'apiEquivalentUsd'] as const) {
-      const cost = { certainty: 'reported', [field]: Number.MAX_SAFE_INTEGER } as const
-      expect(() => rollupUsageRecords([{ ...record('2026-09-01'), cost }])).toThrow(
-        'unsafe usage amount',
-      )
-      const safe = Math.floor(Number.MAX_SAFE_INTEGER / EXEC_USD_UNITS)
+      const large = Usd.from('9007199254740993').toAmount()
       const records = ['one', 'two'].map(
         (id) =>
           ({
             ...record('2026-09-01', id),
-            cost: { certainty: 'reported', [field]: safe },
+            cost: { certainty: 'reported', [field]: large },
           }) satisfies UsageRecord,
       )
-      expect(() => rollupUsageRecords(records)).toThrow('unsafe usage sum')
+      expect(rollupUsageRecords(records)[0]?.cost[field]).toBe('18014398509481986')
     }
   })
   it.each(Array.from({ length: 50 }, (_, index) => index))(
@@ -220,7 +214,8 @@ describe('usage rollup and retention', () => {
         return seed % limit
       }
       const optionalCount = () => (random(2) === 0 ? undefined : random(1001))
-      const optionalUsd = () => (random(2) === 0 ? undefined : random(10_001) / 10_000_000)
+      const optionalUsd = () =>
+        random(2) === 0 ? undefined : Usd.from(random(10_001)).divide(10_000_000).toAmount()
       const records = Array.from(
         { length: 1 + random(20) },
         (_, index) =>
@@ -340,7 +335,7 @@ describe('usage rollup and retention', () => {
         await fs.writeFileAtomically(
           file,
           JSON.stringify({
-            v: 1,
+            v: 2,
             month: '2026-09',
             days: ['2026-09-01', '2026-09-02'],
             rows: rollupUsageRecords([record('2026-09-01'), record('2026-09-02')]),
@@ -452,12 +447,12 @@ describe('usage rollup and retention', () => {
     const bad = `${USAGE_JOURNAL_ROOT}/days/2026-09-01/rollup.jsonl`
     const future = `${USAGE_JOURNAL_ROOT}/days/2026-09-02/rollup.jsonl`
     await fs.append(bad, '{torn')
-    await fs.append(future, '{"v":2}\n')
+    await fs.append(future, '{"v":3}\n')
     const before = await readFile(path.join(root, bad))
     await store.retain()
     expect(await readFile(path.join(root, bad))).toEqual(before)
     expect(await store.read()).toMatchObject({ newerVersionRecords: 1 })
-    await fs.writeFileAtomically(`${USAGE_JOURNAL_ROOT}/rollups/2026-08.json`, '{"v":2}\n')
+    await fs.writeFileAtomically(`${USAGE_JOURNAL_ROOT}/rollups/2026-08.json`, '{"v":3}\n')
     expect(await store.read()).toMatchObject({
       newerVersionRecords: 1,
       newerVersionFiles: 1,
@@ -483,16 +478,16 @@ describe('usage rollup and retention', () => {
     expect(await fs.list(`${USAGE_JOURNAL_ROOT}/days/2026-09-01`)).toHaveLength(1)
     await writeFile(
       path.join(root, USAGE_JOURNAL_ROOT, 'rollups', '2026-08.json'),
-      '{"v":1,"month":"2026-07","days":[],"rows":[],"limits":[]}',
+      '{"v":2,"month":"2026-07","days":[],"rows":[],"limits":[]}',
     )
     await expect(store.read()).rejects.toThrow('invalidRollupMonth')
     const row = rollupUsageRecords([record('2026-09-01')])[0]!
     for (const malformed of [
-      { v: 1, month: '2026-08', days: ['2026-08-01'], rows: [row], limits: [] },
-      { v: 1, month: '2026-08', days: ['2026-08-01', '2026-08-01'], rows: [], limits: [] },
-      { v: 1, month: '2026-08', days: ['2026-09-01'], rows: [], limits: [] },
+      { v: 2, month: '2026-08', days: ['2026-08-01'], rows: [row], limits: [] },
+      { v: 2, month: '2026-08', days: ['2026-08-01', '2026-08-01'], rows: [], limits: [] },
+      { v: 2, month: '2026-08', days: ['2026-09-01'], rows: [], limits: [] },
       {
-        v: 1,
+        v: 2,
         month: '2026-08',
         days: ['2026-08-01'],
         rows: [{ ...row, day: '2026-08-01', latencyHistogram: [1] }],
@@ -544,7 +539,7 @@ describe('usage rollup and retention', () => {
     expect(row.records).toBe(8)
     expect(row.tokens).toEqual({ input: 800, output: 160 })
     expect(row.units.images).toBe(8)
-    expect(row.cost).toEqual({ certainty: 'local', usd: 0 })
+    expect(row.cost).toEqual({ certainty: 'local', usd: '0' })
     expect(row.retries).toBe(16)
     expect(row.rateLimited).toBe(8)
     expect(row.packedAvoided).toBe(40)
@@ -579,7 +574,7 @@ describe('usage rollup and retention', () => {
     })
     for (const entry of [...records, unknown]) store.append(entry)
     store.append({
-      v: 1,
+      v: 2,
       type: 'limit',
       id: 'snapshot',
       at: records[0]!.at,

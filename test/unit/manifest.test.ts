@@ -7,6 +7,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import manifest from '../../package.json'
+import nls from '../../package.nls.json'
 import {
   ARCHIVE_DAY_CHOICES,
   CHAT_PANEL_VIEW_TYPE,
@@ -20,6 +21,7 @@ import {
   QUESTION_DEFER_DEFAULT_SECONDS,
   SETTING_DEFAULTS,
   SETTINGS_SECTION,
+  isAutoCompactionEvaluated,
   WALKTHROUGH_ID,
   WHATS_NEW_CHANGELOG_URL,
   WHATS_NEW_README_URL,
@@ -45,6 +47,31 @@ const SURFACE_ACTIVE = `activeWebviewPanelId == '${CHAT_PANEL_VIEW_TYPE}' || foc
 const nlsKeyOf = (reference: string | undefined) => reference?.replace(/^%(.+)%$/, '$1') ?? ''
 
 describe('package.json manifest', () => {
+  // 0.17.1's truth pass (CX1R5) words the setting by the one thing it does
+  // while the feature is inactive, in every manifest table, and takes the
+  // inactive feature's description out of the README.
+  it('describes the visible automatic compaction setting by what it does while inactive', () => {
+    expect(isAutoCompactionEvaluated()).toBe(false)
+    const setting =
+      manifest.contributes.configuration.properties['museSpark.modelApiAutoCompaction']
+    expect(setting.default).toBe(true)
+    expect(setting.scope).toBe('machine')
+    expect(setting.description).toBe('%config.modelApiAutoCompaction.description%')
+    const description = nls['config.modelApiAutoCompaction.description']
+    expect(description).toContain('first-turn notice')
+    expect(description).toContain('Automatic compaction remains inactive')
+    const readme = readFileSync(new URL('../../README.md', import.meta.url), 'utf8').replaceAll(
+      /\s+/g,
+      ' ',
+    )
+    expect(readme).toContain(
+      '`modelApiAutoCompaction` controls the first-turn awaiting-evaluation notice',
+    )
+    expect(readme).not.toContain('inactive preference')
+    expect(readme).not.toContain('automatic feature is absent from Settings')
+    expect(readme).not.toContain('The hidden `museSpark.modelApiAutoCompaction`')
+  })
+
   it('never puts settings below a scalar setting that VS Code would ignore', () => {
     const properties = manifest.contributes.configuration.properties
     const keys = Object.keys(properties)

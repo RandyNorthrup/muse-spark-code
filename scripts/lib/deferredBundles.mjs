@@ -593,6 +593,7 @@ export const ON_FIRST_USE = [
       'src/core/tab/tabCache.ts',
       'src/core/tab/tabContext.ts',
       'src/core/tab/tabEngine.ts',
+      'src/core/tab/tabHooks.ts',
       'src/core/tab/tabReply.ts',
       'src/core/tab/tabRequest.ts',
       'src/core/tab/tabScheduler.ts',
@@ -1022,6 +1023,19 @@ export const deferredCohort = {
       )
         return
       return { path: './runtimeAccounting.js', external: true }
+    })
+    // The refusal classifier rides the lazy provider bundle: the Model API
+    // bundle reads it across the boundary only on an error, keeping its pin.
+    // Static imports keep bundling it locally everywhere else.
+    build.onResolve({ filter: /\/refusal(?:\.ts)?$/ }, (args) => {
+      const source = path.resolve(args.resolveDir, `${args.path.replace(/\.ts$/, '')}.ts`)
+      if (
+        args.kind !== 'dynamic-import' ||
+        source !== path.resolve('src/core/refusal.ts') ||
+        path.resolve(build.initialOptions.outfile ?? '') !== path.resolve('dist/modelApi.js')
+      )
+        return
+      return { path: './configuredProviders.js', external: true }
     })
     build.onResolve({ filter: /\/(?:transport|sse|ndjson|modelApiEntry)(?:\.ts)?$/ }, (args) => {
       if (args.kind === 'entry-point') return

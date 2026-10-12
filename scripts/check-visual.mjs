@@ -21,6 +21,7 @@ import {
   verifyCaptureBytes,
 } from './lib/visualImages.mjs'
 import {
+  CAPTURE_INPUTS,
   captureGroup,
   captureKey,
   ENVIRONMENT,
@@ -28,9 +29,10 @@ import {
   selectionDigest,
   selectVisualShard,
   validateManifest,
+  VISUAL_MANIFEST,
 } from './lib/visualManifest.mjs'
 
-export const MANIFEST = 'test/harness/goldens/manifest.json'
+export const MANIFEST = VISUAL_MANIFEST
 const AUDIT = 'docs/certification/m114-audit.json'
 const MATRIX = 'test/harness/visual-matrix.json'
 
@@ -118,20 +120,7 @@ async function main() {
   await mkdir(path.join(root, 'temp'), { recursive: true })
   const candidateSha256 = digest(
     (await run('git', ['rev-parse', 'HEAD'], root)) +
-      (await run(
-        'git',
-        [
-          'diff',
-          'HEAD',
-          '--',
-          'src',
-          'design',
-          'test/harness',
-          'scripts/build.mjs',
-          'CHANGELOG.md',
-        ],
-        root,
-      )),
+      (await run('git', ['diff', 'HEAD', '--', ...CAPTURE_INPUTS], root)),
   )
   if (options.merge !== undefined) {
     const manifestBytes = await readFile(path.join(root, MANIFEST))
@@ -161,20 +150,7 @@ async function main() {
     if (!(relative === '..' || relative.startsWith('../') || path.isAbsolute(relative)))
       throw new Error('Visual baseline PNGs must stay outside the repository')
     const revision = await run('git', ['rev-parse', 'HEAD'], root)
-    const dirty = await run(
-      'git',
-      [
-        'status',
-        '--porcelain',
-        '--',
-        'src',
-        'design',
-        'test/harness',
-        'scripts/build.mjs',
-        'CHANGELOG.md',
-      ],
-      root,
-    )
+    const dirty = await run('git', ['status', '--porcelain', '--', ...CAPTURE_INPUTS], root)
     if (dirty.replace(/^\?\? test\/harness\/goldens\/manifest\.json\s*$/m, '').trim())
       throw new Error('Commit capture inputs before a reviewed visual update')
     if (existsSync(archive)) throw new Error('Use a new archive directory for each reviewed update')

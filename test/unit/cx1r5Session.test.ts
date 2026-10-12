@@ -1,6 +1,6 @@
 import * as acp from '@agentclientprotocol/sdk'
 import { randomUUID } from 'node:crypto'
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -75,13 +75,17 @@ function servicesAt(dataDir: string) {
 }
 
 describe('CX1R5 F1: optional integrations cannot break ordinary ACP sessions', () => {
-  it('omits the account binding on an absent data path and runs a turn', async () => {
+  // CM108ACC: Meta's entry is built in, so an absent data path has account
+  // metadata; reading it writes nothing and opens no credential.
+  it('binds the built-in Meta entry on an absent data path and runs a turn', async () => {
     const dataDir = path.join(tmpdir(), `cx1r5-absent-${randomUUID()}`)
     const { services, openEntry } = servicesAt(dataDir)
     try {
       const accounts = await services.sessionsIfPresent('meta')
-      expect(accounts).toBeUndefined()
-      await turnWith(accounts)
+      expect(accounts).toBeDefined()
+      expect(await services.sessionsIfPresent('unlisted')).toBeUndefined()
+      const { updates } = await turnWith(accounts)
+      expect(JSON.stringify(updates)).toContain('"name":"accounts"')
       expect(existsSync(dataDir)).toBe(false)
       expect(openEntry).not.toHaveBeenCalled()
     } finally {
@@ -118,14 +122,19 @@ describe('CX1R5 F1: optional integrations cannot break ordinary ACP sessions', (
     }
   })
 
-  it('contains an unavailable production account refresh and removes its controls', async () => {
-    const dataDir = path.join(tmpdir(), `cx1r5-absent-${randomUUID()}`)
+  it('contains a refused providers file and removes the account controls', async () => {
+    const dataDir = mkdtempSync(path.join(tmpdir(), 'cx1r5-refused-'))
+    folders.push(dataDir)
+    const refused = '{ "providers": '
+    writeFileSync(runtimeProvidersFile(dataDir), refused)
     const { services, openEntry } = servicesAt(dataDir)
     try {
+      // `serve` logs this and starts the session without accounts.
+      await expect(services.sessionsIfPresent('meta')).rejects.toThrow()
       const { log, updates } = await turnWith(services.sessions('meta'))
       expect(log.warn).toHaveBeenCalledWith(expect.stringContaining('accounts startup failed'))
       expect(JSON.stringify(updates)).not.toContain('"name":"accounts"')
-      expect(existsSync(dataDir)).toBe(false)
+      expect(readFileSync(runtimeProvidersFile(dataDir), 'utf8')).toBe(refused)
       expect(openEntry).not.toHaveBeenCalled()
     } finally {
       services.dispose()

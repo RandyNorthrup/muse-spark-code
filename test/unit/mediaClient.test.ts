@@ -230,9 +230,10 @@ describe('media accounting at the transport', () => {
     const latest = await fire.daily.latestDay()
     expect(latest.spentUsd).toBe(t.accounting.reservedUsd)
     const today = await fire.daily.readToday()
+    // M121: the usage read carries exact decimal amounts, never numbers.
     expect(today[0]?.budget).toMatchObject({
-      spentUsd: Number(t.accounting.reservedUsd),
-      uncertainUsd: Number(t.accounting.reservedUsd),
+      spentUsd: t.accounting.reservedUsd,
+      uncertainUsd: t.accounting.reservedUsd,
     })
     expect(fire.scope.cost()).toEqual({
       usd: PortUsd.from(0).toAmount(),

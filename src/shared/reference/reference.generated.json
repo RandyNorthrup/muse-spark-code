@@ -204,10 +204,10 @@
     {
       "id": "compaction",
       "name": { "ui": "compactItem" },
-      "summary": { "tip": "compact" },
-      "description": { "tip": "compact" },
+      "summary": { "ui": "referenceManualCompaction" },
+      "description": { "ui": "referenceManualCompaction" },
       "commands": [],
-      "settings": ["museSpark.modelApiAutoCompaction"],
+      "settings": [],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#observation-packing-model-api",
       "backends": ["modelApi"],
       "paid": false,
@@ -446,6 +446,21 @@
       },
       "commands": [],
       "settings": ["museSpark.modelApiParallelReads"],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees",
+      "backends": ["modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:modelApi", "acp:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode", "acp"]
+    },
+    {
+      "id": "argument-preview",
+      "name": { "ui": "toolArgumentPreviewLabel" },
+      "summary": { "ui": "toolArgumentPreviewDescription" },
+      "description": { "ui": "toolArgumentPreviewDescription" },
+      "commands": [],
+      "settings": [],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees",
       "backends": ["modelApi"],
       "paid": false,
@@ -882,6 +897,21 @@
       ],
       "facts": {},
       "editors": ["vscode"]
+    },
+    {
+      "id": "accounts",
+      "name": { "ui": "referenceAccountsTitle" },
+      "summary": { "ui": "referenceAccounts" },
+      "description": { "ui": "referenceAccounts" },
+      "commands": [],
+      "settings": [],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#several-accounts-per-provider",
+      "backends": ["modelApi"],
+      "paid": false,
+      "surfaces": ["acp:modelApi"],
+      "details": [{ "ui": "referenceDeveloper" }],
+      "facts": {},
+      "editors": ["acp"]
     },
     {
       "id": "permissions",
@@ -4451,7 +4481,7 @@
     {
       "route": "authStatus",
       "name": "auth status",
-      "description": "Check whether a Model API key is stored.",
+      "description": "List the stored keys (the Model API key and every configured provider key); the exit code reports whether any key is stored.",
       "text": { "ui": "referenceAuthStatus" },
       "invocations": [["auth", "status"]]
     },
@@ -4471,7 +4501,7 @@
     },
     {
       "route": "exec",
-      "name": "exec [--max-output-tokens <tokens>]",
+      "name": "exec",
       "description": "Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.",
       "text": { "ui": "referenceExecContract" },
       "invocations": [["exec"]]
@@ -4482,6 +4512,19 @@
       "description": "Scan a UTF-8 patch file for secrets and fail on detection. --key-stdin also checks for the exact in-memory Model API key; no key is stored.",
       "text": { "ui": "referenceScanSecrets" },
       "invocations": [["scan-secrets"]]
+    },
+    {
+      "route": "accounts",
+      "name": "providers accounts",
+      "description": "Manage the accounts of one provider: list, add, remove, order and thresholds. Credentials come only from standard input. Paid consent stays per workspace for now.",
+      "text": { "ui": "referenceAccounts" },
+      "invocations": [
+        ["providers", "accounts", "list"],
+        ["providers", "accounts", "add"],
+        ["providers", "accounts", "remove"],
+        ["providers", "accounts", "order"],
+        ["providers", "accounts", "thresholds"]
+      ]
     },
     {
       "route": "developer",
@@ -5003,6 +5046,15 @@
     },
     {
       "route": "serve",
+      "name": "serve: --auto-compaction",
+      "description": "autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. Inactive until evaluation passes.",
+      "text": {
+        "conditions": [{ "when": "autoCompactionEvaluation", "text": { "cli": "auto-compaction" } }]
+      },
+      "contract": { "type": "boolean", "repeatable": false, "default": false }
+    },
+    {
+      "route": "serve",
       "name": "serve: --web-search",
       "description": "--web-search                     Offer paid web search (Model API backend; its price is asked first)",
       "text": { "cli": "web-search" },
@@ -5213,6 +5265,20 @@
       "name": "login: --allow-contributor-models",
       "description": "--allow-contributor-models       List contributor-tier models (Meta may train on their content)",
       "text": { "cli": "allow-contributor-models" },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "default": false,
+        "purpose": "acceptedUnused"
+      }
+    },
+    {
+      "route": "login",
+      "name": "login: --auto-compaction",
+      "description": "autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. Inactive until evaluation passes.",
+      "text": {
+        "conditions": [{ "when": "autoCompactionEvaluation", "text": { "cli": "auto-compaction" } }]
+      },
       "contract": {
         "type": "boolean",
         "repeatable": false,
@@ -5435,6 +5501,20 @@
     },
     {
       "route": "setup",
+      "name": "setup: --auto-compaction",
+      "description": "autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. Inactive until evaluation passes.",
+      "text": {
+        "conditions": [{ "when": "autoCompactionEvaluation", "text": { "cli": "auto-compaction" } }]
+      },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "default": false,
+        "purpose": "acceptedUnused"
+      }
+    },
+    {
+      "route": "setup",
       "name": "setup: --web-search",
       "description": "--web-search                     Offer paid web search (Model API backend; its price is asked first)",
       "text": { "cli": "web-search" },
@@ -5491,6 +5571,13 @@
       "description": "--provider <id>                   The provider the account belongs to (auth set/status/clear).",
       "text": { "cli": "provider" },
       "contract": { "type": "string", "repeatable": false }
+    },
+    {
+      "route": "authSet",
+      "name": "authSet: --account <value>",
+      "description": "--account <id>                    The account to use (auth set, exec).",
+      "text": { "cli": "account" },
+      "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
     },
     {
       "route": "authSet",
@@ -5641,6 +5728,13 @@
     },
     {
       "route": "exec",
+      "name": "exec: --account <value>",
+      "description": "--account <id>                    The account to use (auth set, exec).",
+      "text": { "cli": "account" },
+      "contract": { "type": "string", "repeatable": false, "purpose": "account" }
+    },
+    {
+      "route": "exec",
       "name": "exec: --effort <value>",
       "description": "Choose how much effort Muse puts into each reply.",
       "text": { "cli": "effort" },
@@ -5693,13 +5787,6 @@
         "maximum": 500,
         "purpose": "maxRequests"
       }
-    },
-    {
-      "route": "exec",
-      "name": "exec: --max-output-tokens <value>",
-      "description": "--max-output-tokens <tokens>: output cap per Model API request (16–32768; default 1024).",
-      "text": { "cli": "max-output-tokens" },
-      "contract": { "type": "string", "repeatable": false, "purpose": "max-output-tokens" }
     },
     {
       "route": "exec",

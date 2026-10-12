@@ -121,9 +121,9 @@ describe('resolved model policy', () => {
   it('reserves cold cache writes at public price-card rates and settles the reported cost', async () => {
     const model = await registry({ kind: 'priced', card }).resolve(ref)
     expect(Number(model.price.reserve({ inputTokens: 100, outputTokens: 1 }))).toBeCloseTo(0.203)
-    expect(model.price.settle({ inputTokens: 100, outputTokens: 1 }, { cost: 0.7 })).toBe(
-      Usd.from(0.7).toAmount(),
-    )
+    expect(
+      model.price.settle({ inputTokens: 100, outputTokens: 1 }, { cost: Usd.from(0.7).toAmount() }),
+    ).toBe(Usd.from(0.7).toAmount())
     const reserved = reserveRequest({
       capUsd: Usd.from(0.213).toAmount(),
       spentUsd: Usd.from(0).toAmount(),
@@ -232,7 +232,9 @@ describe('resolved model policy', () => {
     const usage = { inputTokens: 100, outputTokens: 3, images: 2 }
     expect(Number(priced.price.reserve(usage))).toBeCloseTo(1.909)
     expect(Number(priced.price.settle(usage))).toBeCloseTo(1.809)
-    expect(priced.price.settle(usage, { cost: 0.25 })).toBe(Usd.from(0.25).toAmount())
+    expect(priced.price.settle(usage, { cost: Usd.from(0.25).toAmount() })).toBe(
+      Usd.from(0.25).toAmount(),
+    )
     expect(() =>
       reserveRequest({
         capUsd: Usd.from(1).toAmount(),
@@ -269,7 +271,7 @@ describe('resolved model policy', () => {
     expect(
       priced.price.settle(
         { inputTokens: 20, outputTokens: 0, cacheWriteTokens: 20, cacheWriteTokens1h: 10 },
-        { cost: 0.06 },
+        { cost: Usd.from(0.06).toAmount() },
       ),
     ).toBe(Usd.from(0.06).toAmount())
   })

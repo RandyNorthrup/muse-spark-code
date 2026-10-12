@@ -816,18 +816,33 @@ describe('native background lifecycle', () => {
     const manager = await runNative('systemctl', ['--user', 'show-environment'])
     // Without a user manager there is no systemd path to plant into or assert on.
     if (manager.exitCode !== 0) return
-    // The planting case needs the manager's absolute runtime directory: an
+    // The fixture lives in the manager's absolute runtime directory: an
     // unset variable falls back to `/run/user/<uid>` inside systemd, while
     // the empty and relative shapes are refused by the loop above.
     const configured = process.env['XDG_RUNTIME_DIR']
     const runtimeDir =
       configured === undefined || configured === '' ? `/run/user/${String(uid)}` : configured
     if (!path.posix.isAbsolute(runtimeDir)) return
+    // Every directory the stand-in verifier walks is the fixture's own: its
+    // anchor, and below it a unit search root that the real `systemd-analyze`
+    // reports because SYSTEMD_UNIT_PATH names it. The account's own search
+    // directories keep whatever modes other tools gave them (a group-writable
+    // `$XDG_RUNTIME_DIR/systemd/user` under umask 0002, for one) and take no
+    // part in the verdict.
     const directory = await mkdtemp(path.join(runtimeDir, 'm115-native-'))
     const id = backgroundRegistrationId(directory)
-    const dropDirectory = path.join(runtimeDir, 'systemd', 'user', `${id}.service.d`)
+    const searchRoot = path.join(directory, 'units')
+    const dropDirectory = path.join(searchRoot, `${id}.service.d`)
     try {
-      const verifier = nativeFixtureVerifier(uid)
+      await chmod(directory, 0o700)
+      await mkdir(searchRoot, { mode: 0o700 })
+      await chmod(searchRoot, 0o700)
+      for (const owned of [directory, searchRoot]) {
+        const info = await lstat(owned)
+        expect(info.uid).toBe(uid)
+        expect(info.mode & 0o777).toBe(0o700)
+      }
+      const verifier = nativeFixtureVerifier(uid, directory)
       const files = nodeBackgroundFiles(verifier)
       const agentFile = path.join(directory, 'agent.js')
       await writeFile(agentFile, 'process.exitCode = 0', { mode: 0o600 })
@@ -837,25 +852,14 @@ describe('native background lifecycle', () => {
       const launcher = path.join(directory, 'node')
       await copyFile(process.execPath, launcher)
       await chmod(launcher, 0o700)
-      // Create only what is missing and chmod only what this fixture created:
-      // pre-existing system directories keep their own modes.
-      for (const dir of [path.dirname(path.dirname(dropDirectory)), path.dirname(dropDirectory)]) {
-        try {
-          await mkdir(dir, { mode: 0o700 })
-        } catch (error: unknown) {
-          if (
-            typeof error !== 'object' ||
-            error === null ||
-            !('code' in error) ||
-            error.code !== 'EEXIST'
-          )
-            throw error
-          continue
-        }
-        await chmod(dir, 0o700)
-      }
       await mkdir(dropDirectory, { mode: 0o700 })
       await chmod(dropDirectory, 0o777)
+      // Production asks the real systemd for its search path and gets the
+      // fixture's root, and nothing else, back.
+      const run = backgroundProcessRunner({ ...process.env, SYSTEMD_UNIT_PATH: searchRoot })
+      const reported = await run('systemd-analyze', ['--user', 'unit-paths'])
+      expect(reported.exitCode).toBe(0)
+      expect(reported.stdout.trim().split(/\r?\n/)).toEqual([searchRoot])
       const deps: NativeBackgroundDeps = {
         platform: 'linux',
         homeDir: directory,
@@ -868,7 +872,7 @@ describe('native background lifecycle', () => {
         now: Date.now,
         files,
         authorization: () => Promise.resolve({ scheduledPrompts: false }),
-        run: runNative,
+        run,
       }
       const entry = new NativeScheduleBackground(deps)
       const register = () =>
@@ -877,15 +881,13 @@ describe('native background lifecycle', () => {
       // refusal: the expectation names it directly and never derives it by
       // executing production's own verifier.
       await expect(register()).rejects.toThrow(dropDirectory)
+      // The running manager, asked without the override, has nothing armed.
       const active = await runNative('systemctl', ['--user', 'is-active', `${id}.timer`])
       const enabled = await runNative('systemctl', ['--user', 'is-enabled', `${id}.timer`])
       expect(active.exitCode).not.toBe(0)
       expect(enabled.stdout.trim()).toBe('not-found')
     } finally {
       await runNative('systemctl', ['--user', 'disable', '--now', `${id}.timer`, `${id}.service`])
-      for (const extension of ['timer', 'service'])
-        await rm(path.join(path.dirname(dropDirectory), `${id}.${extension}`), { force: true })
-      await rm(dropDirectory, { recursive: true, force: true })
       await rm(directory, { recursive: true, force: true })
       await runNative('systemctl', ['--user', 'daemon-reload'])
     }

@@ -133,6 +133,7 @@ export function referenceDescription(text: ReferenceText): ReferenceText {
         when = 'permission=denied'
         break
       }
+      case 'auto-compaction':
       case 'no-auto-compaction': {
         when = 'autoCompactionEvaluation'
         break
@@ -276,14 +277,14 @@ function feature(
 }
 
 // CX1R3: retained for coverage validation, omitted from published Help.
-// CX1R4 F1: accounts joins the list; CM108ACC re-adds it when the runtime lands.
+// Accounts left the list with CM108ACC: the terminal and ACP serve them.
+// Argument previews left it with C-M106-2: the panel and ACP render them on
+// a model whose record verifies streamed arguments.
 export const REFERENCE_IN_PROGRESS_FEATURES: readonly string[] = [
   'team-workers',
   'vault',
   'estimator',
   'auto-compaction',
-  'argument-preview',
-  'accounts',
 ]
 
 export function featureCatalog(): readonly Feature[] {
@@ -319,6 +320,8 @@ export function featureCatalog(): readonly Feature[] {
       false,
       ['vscode', 'acp'],
     ),
+    // MODELSPLIT4: section transitions preserve the visible document; reload
+    // restores its measured box. Lazy price/usage rows announce loading.
     feature(
       'providers',
       // M95: configured clients preserve local refusals; ACP auth lists sign-ins only.
@@ -375,6 +378,8 @@ export function featureCatalog(): readonly Feature[] {
       false,
       ['vscode', 'acp'],
     ),
+    // M121: exact costs and period changes; unproved historical months are
+    // withheld with a translated notice in editor and portable usage views.
     feature(
       'usage',
       { ui: 'usagePageTitle' },
@@ -420,9 +425,9 @@ export function featureCatalog(): readonly Feature[] {
     feature(
       'compaction',
       { ui: 'compactItem' },
-      { tip: 'compact' },
+      { ui: 'referenceManualCompaction' },
       [],
-      ['modelApiAutoCompaction'],
+      [],
       'observation-packing-model-api',
       ['modelApi'],
       false,
@@ -511,25 +516,30 @@ export function featureCatalog(): readonly Feature[] {
       false,
       ['vscode', 'acp'],
     ),
+    {
+      ...feature(
+        'auto-compaction',
+        { ui: 'autoCompactionName' },
+        { ui: 'autoCompactionAwaitingEvaluation' },
+        [],
+        ['modelApiAutoCompaction'],
+        'agent-loop-guarantees',
+        ['modelApi'],
+        true,
+        ['vscode', 'acp'],
+      ),
+      details: [{ setting: 'modelApiAutoCompaction' }],
+    },
     feature(
-      'auto-compaction',
-      { setting: 'modelApiAutoCompaction' },
-      { setting: 'modelApiAutoCompaction' },
+      'argument-preview',
+      { ui: 'toolArgumentPreviewLabel' },
+      { ui: 'toolArgumentPreviewDescription' },
       [],
-      ['modelApiAutoCompaction'],
+      [],
       'agent-loop-guarantees',
       ['modelApi'],
       false,
       ['vscode', 'acp'],
-    ),
-    feature(
-      'argument-preview',
-      { ui: 'toolArgumentPreviewLabel' },
-      { ui: 'toolArgumentPreviewPending' },
-      [],
-      [],
-      'agent-loop-guarantees',
-      ['modelApi'],
     ),
     feature(
       'cut-short-tools',
@@ -811,6 +821,8 @@ export function featureCatalog(): readonly Feature[] {
       ['modelApiHooks', 'hookHttpAllowedHosts', 'modelApiShellKeepsDirectory'],
       'hooks',
     ),
+    // M123P9: runtime checkout uses the same installed display language;
+    // uncertain record writes have a translated failure, with CAS cleanup.
     feature(
       'git',
       { ui: 'groupGit' },
@@ -1006,6 +1018,9 @@ export function featureCatalog(): readonly Feature[] {
     feature(
       'tab',
       { command: COMMAND_IDS.tabMenu },
+      // D73: only Always persists the model/price; Allow once saves nothing,
+      // so each new window asks again (RVM94KR4G). Consent is key-bound, and
+      // other features' price changes preserve Tab's window grant (RVM94KR3G).
       { ui: 'referenceTab' },
       ['tabTurnOn', 'tabTurnOff', 'tabSnooze', 'tabMenu', 'tabLanguages'],
       [
@@ -1128,6 +1143,9 @@ export function featureCatalog(): readonly Feature[] {
 
 export const REFERENCE_SURFACES: Readonly<Record<string, readonly string[]>> = {
   'orchestrator-playbook': ['acp:museCode', 'acp:modelApi'],
+  // CM108ACC: the terminal and ACP sessions on the Model API backend; the
+  // editor's Accounts page is not mounted.
+  accounts: ['acp:modelApi'],
   'web-fetch': ['vscode:museCode', 'vscode:modelApi', 'acp:modelApi'],
   search: ['vscode:modelApi', 'acp:modelApi'],
   images: ['vscode:museCode', 'vscode:modelApi', 'acp:modelApi'],

@@ -11,10 +11,7 @@ import {
   parseChangelog,
   repositoryUrl,
 } from '../../scripts/lib/whatsNewContent.mjs'
-import {
-  encodeWhatsNewContent,
-  parseWhatsNewContent,
-} from '../../src/core/whatsNew/whatsNewContent'
+import { parseWhatsNewContent } from '../../src/core/whatsNew/whatsNewContent'
 import { referenceModel as browserReference } from '../../src/shared/reference/reference.generated'
 import { referenceModel as nodeReference } from '../../src/runtime/reference.node.generated'
 import { featureCatalog, REFERENCE_IN_PROGRESS_FEATURES } from '../../src/shared/featureCatalog'
@@ -27,6 +24,7 @@ import { createAcpAgent } from '../../src/acp/agent'
 import { AcpPaidUse } from '../../src/acp/paid'
 import { FakeAgentHost } from './helpers/fakeAgent'
 import { openHandshakeSession } from './helpers/acpWaits'
+import { currentWhatsNewEncoding } from './helpers/currentWhatsNew'
 import { memoryPaidGrants } from './helpers/paidGrants'
 
 const root = path.resolve(import.meta.dirname, '../..')
@@ -90,9 +88,14 @@ const activeWording: Readonly<Record<string, RegExp>> = {
   'zh-tw': /管理|草稿|提示|通知|命令/,
 }
 const claims: Readonly<Record<string, RegExp>> = {
-  accounts:
-    /List provider accounts|Manage the accounts of one provider|a vendor limit blocks only the affected account|several accounts on this device.*terms confirmation/i,
-  previews: /streamed\s+argument previews|while arguments arrive|previews load on first use/i,
+  // CM108ACC serves account lists, thresholds and per-account keys in the
+  // terminal and ACP; a second account on one device is still unbound.
+  accounts: /several accounts on this device.*terms confirmation/i,
+  // C-M106-2 renders previews in the panel and ACP on the captured model, so
+  // the README section is back. The two retired wordings stay out: rows were
+  // never promised "while arguments arrive", and 0.16.0's archived bullet
+  // stays archived.
+  previews: /while arguments arrive|previews load on first use/i,
   estimator:
     /Capacity estimates \(preview\)|Real forecasts need the plan reader|the plan reader that\s+comes later/i,
   teams:
@@ -106,7 +109,7 @@ const claims: Readonly<Record<string, RegExp>> = {
     /the VS Code panel follows|shared editor unlocks use seven clicks|Muse Spark: Developer options/i,
 }
 const usage =
-  /providers accounts|exec --account|--account-pool|--scheduled-prompts|--no-auto-compaction|exec --vault|\/schedule(?:\s|`)|\/estimate(?:\s|`)|\/vault(?:\s|`)/
+  /--account-pool|--scheduled-prompts|--no-auto-compaction|exec --vault|\/schedule(?:\s|`)|\/estimate(?:\s|`)|\/vault(?:\s|`)/
 
 function refuseUnavailable(): never {
   throw new Error('optional runtime owner unavailable')
@@ -226,7 +229,7 @@ const releases = parseChangelog(
   contributedIds(manifest),
   repositoryUrl(manifest),
 )
-const encoded = encodeWhatsNewContent(JSON.stringify({ schema: 1, releases: releases.slice(0, 2) }))
+const encoded = currentWhatsNewEncoding(releases)
 const surfaces = [
   { name: 'README.md', text: read('README.md'), instructions: true },
   ...guides.map((file) => ({ name: file, text: read(file), instructions: true })),
@@ -436,13 +439,13 @@ describe('CX1R5: exhaustive current-publication truth matrix', () => {
     }
     const readme = read('README.md')
     expect(readme).toContain('muse-spark-code-acp developer')
-    for (const heading of [
-      'Several accounts per provider',
-      'Streamed argument previews',
-      'Estimates',
-      'The vault',
-    ])
-      expect(readme).not.toContain(`## ${heading}`)
+    for (const heading of ['Estimates', 'The vault']) expect(readme).not.toContain(`## ${heading}`)
+    // CM108ACC: the accounts section is back for the terminal and ACP.
+    expect(readme).toContain('## Several accounts per provider')
+    // C-M106-2: so is the previews section, for the panel and ACP, with its
+    // progress-list anchor gone.
+    expect(readme).toContain('## Streamed argument previews')
+    expect(readme).not.toContain('<a id="streamed-argument-previews"></a>')
     expect(readme).toContain('## In progress')
     expect(
       JSON.stringify(releases.find((release) => release.version === '0.17.0')?.sections),

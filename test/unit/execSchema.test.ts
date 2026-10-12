@@ -13,7 +13,6 @@ import {
 } from '../../src/runtime/exec/execProtocol'
 import {
   EXEC_COMMAND,
-  EXEC_DEFAULT_MAX_OUTPUT_TOKENS,
   EXEC_OUTPUT_SCHEMA_LIMITS,
   EXEC_MIN_OUTPUT_TOKENS,
   EXEC_MODEL_TEXT,
@@ -466,7 +465,6 @@ describe('M80 schemas (A15/A16/F1)', () => {
       EXEC_USD_UNITS,
       EXEC_USD_DECIMALS,
       EXEC_MIN_OUTPUT_TOKENS,
-      EXEC_DEFAULT_MAX_OUTPUT_TOKENS,
       EXEC_SCAN_EXIT_FOUND,
       EXEC_PROHIBITED_UPDATE_PATTERN,
       EXEC_RAW_TOOL_FIELDS,
@@ -479,18 +477,15 @@ describe('M80 schemas (A15/A16/F1)', () => {
       EXEC_USD_UNITS: 1_000_000,
       EXEC_USD_DECIMALS: 6,
       EXEC_MIN_OUTPUT_TOKENS: 16,
-      EXEC_DEFAULT_MAX_OUTPUT_TOKENS: 1024,
       EXEC_SCAN_EXIT_FOUND: 10,
       EXEC_PROHIBITED_UPDATE_PATTERN: '^(?:agent_(?:message|thought)_chunk|tool)',
       EXEC_RAW_TOOL_FIELDS: ['rawInput', 'rawOutput', 'toolCallId'],
       EXEC_WRITE_RETRY_MS: 10,
     })
-    // 45 `EXEC_` constants and EXEC_MODEL_TEXT, the run's model text, which
-    // only the ACP agent reads (PLAN.md D6, 2026-10-04). The 46th match is
-    // EXEC_MODEL_TEXT itself; the 45th constant is
-    // EXEC_DEFAULT_MAX_OUTPUT_TOKENS, the run's one output cap.
+    // 44 constants and EXEC_MODEL_TEXT, the run's model text, which only
+    // the ACP agent reads (PLAN.md D6, 2026-10-04).
     const source = await readFile(new URL('../../src/shared/constants.ts', import.meta.url), 'utf8')
-    expect(source.match(/^export const EXEC_\w+/gmu)).toHaveLength(46)
+    expect(source.match(/^export const EXEC_\w+/gmu)).toHaveLength(45)
     expect(EXEC_OUTPUT_SCHEMA_LIMITS).toEqual({ expandedNodes: 50_000, validationSteps: 10_000 })
     expect(EXEC_MODEL_TEXT.execOutputSchema).toContain('{schema}')
     expect(EXEC_MODEL_TEXT).toMatchObject({

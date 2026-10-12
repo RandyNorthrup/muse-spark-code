@@ -33,7 +33,6 @@ import {
   EXEC_PROMPT_MAX_BYTES,
   EXEC_MODEL_TEXT,
   EXEC_PROTOCOL_VERSION,
-  EXEC_DEFAULT_MAX_OUTPUT_TOKENS,
   EXEC_STOP_GRACE_MS,
   EXEC_STREAM_IDLE_MS,
   EXEC_USD_DECIMALS,
@@ -42,11 +41,13 @@ import {
   JSON_RPC_ERRORS,
   MILLISECONDS_PER_SECOND,
   NO_COMPACTABLE_HISTORY,
+  MODEL_API_PRICES_PER_MILLION,
   PAID_PRICES_USD,
   MODEL_API_IMAGE_MODEL,
   SECRET_KEYS,
   UI_TEXT,
 } from '../../shared/constants'
+import { formatUsd } from '../../shared/l10n/exactUsd'
 import { formatUsd as exactUsd, parseUsd } from '../../shared/accountUsd'
 import { modelApiPaidTier } from '../../shared/paid'
 import type { RuntimeBackend, RuntimeBackendDeps } from '../backends'
@@ -79,7 +80,8 @@ import {
 } from './keyInput'
 import type { AssembledProviderRun } from './providerExec'
 
-import { createRunLedger } from './runLedger'
+import { createRunLedger, resolveExecOutputCap, previewResponseReservation } from './runLedger'
+import { modelPolicyFor, type ModelPolicy } from '../../core/backends/modelapi/modelPolicy'
 import { observeBackend, type SessionTap } from './sessionTap'
 import { readUntrustedInputs } from './untrustedInput'
 import type { ExecVaultPort, ExecVaultSession } from '../vault/execVault'
@@ -252,6 +254,8 @@ function stopMessage(cause: StopCause, maxRequests: number): string {
   }
 }
 
+const ZERO_MICRO_USD = 0n
+
 function microUsd(value: UsdAmount): bigint {
   return Usd.from(value).units(EXEC_USD_DECIMALS)
 }
@@ -330,7 +334,9 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
     maxRequests: options.maxRequests ?? null,
     timeoutSeconds: options.timeoutMs / MILLISECONDS_PER_SECOND,
   }
-  const maxOutputTokens = options.maxOutputTokens ?? EXEC_DEFAULT_MAX_OUTPUT_TOKENS
+  let resolvedOutputCap: number | undefined
+  const outputCap = (policy?: ModelPolicy): number =>
+    (resolvedOutputCap ??= resolveExecOutputCap(policy ?? modelPolicyFor(model ?? '')))
   const ledger =
     options.backend === 'modelApi' &&
     options.budgetUsd !== undefined &&
@@ -338,7 +344,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       ? createRunLedger({
           capUsd: options.budgetUsd,
           maxRequests: options.maxRequests,
-          maxOutputTokens,
+          outputCap,
         })
       : undefined
   let providerRun: AssembledProviderRun | undefined
@@ -462,8 +468,10 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
    * pinned fetch — then the ordinary ACP engine runs the turn.
    */
   async function runWithProvider(): Promise<number | undefined> {
+    // Provider assembly rides the lazy provider bundle beside the packed
+    // agent (never inlined here): dist/headless.js keeps its budget.
     const { assembleProviderRun, providersFilePath, resolveEndpointHost } =
-      await import('../runtimeAccountingEntry.js')
+      await import('../../host/backend/configuredProvidersEntry')
     const providerId = options.provider ?? ''
     // Past argument parsing: failures from here are the run's, not usage,
     // unless assembly says otherwise.
@@ -525,7 +533,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
     // the headless entry reaches both through its externalized entries,
     // never a static edge (the split gate forbids carrying them).
     const { modelRef, providersFile } = await import('../../host/backend/providersEntry')
-    const { providersFilePath } = await import('../runtimeAccountingEntry.js')
+    const { providersFilePath } = await import('../../host/backend/configuredProvidersEntry')
     const parsed = modelRef.parseModelRef(options.model)
     if (parsed === undefined || parsed.providerId === modelRef.RESERVED_PROVIDER_ID)
       return undefined
@@ -694,7 +702,6 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
             return response
           },
           ledger,
-          maxOutputTokens,
           externalResponseAccounting: true,
           get selectedModel() {
             return model ?? ''
@@ -758,7 +765,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         usageRecording,
         exec: {
           isEphemeral: options.ephemeral,
-          maxOutputTokens,
+          outputCap,
           ...(providerRun !== undefined && { providerRun }),
           ...(ledger !== undefined && {
             responseAccounting: {
@@ -1058,10 +1065,31 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
                 )
               setup.isUsageError = false
             }
-            if (ledger !== undefined && providerRun === undefined && tier === undefined) {
-              setup.isUsageError = true
-              error = UI_TEXT.execModelUnpriced
-              return
+            if (ledger !== undefined && providerRun === undefined) {
+              if (tier === undefined) {
+                setup.isUsageError = true
+                error = UI_TEXT.execModelUnpriced
+                return
+              }
+              // Ask the ledger's exact arithmetic for the start reservation, in a
+              // separate un-dispatched ledger. No request belongs to this run yet.
+              const preview = previewResponseReservation(
+                ledger,
+                model ?? '',
+                MODEL_API_PRICES_PER_MILLION[tier],
+              )
+              const minimum =
+                microUsd(preview.reserveUsd) +
+                (options.paidFeatures.includes('imageGeneration')
+                  ? microUsd(Usd.from(PAID_PRICES_USD.imageGeneration).toAmount())
+                  : ZERO_MICRO_USD)
+              if (microUsd(options.budgetUsd ?? Usd.from(0).toAmount()) < minimum) {
+                error = fill(UI_TEXT.execBudgetMinimum, {
+                  minimum: formatUsd(Usd.fromUnits(minimum, EXEC_USD_DECIMALS), EXEC_USD_DECIMALS),
+                })
+                latch({ kind: 'budget' })
+                return
+              }
             }
             tap?.beginResponse(1)
             unsubscribe = tap?.subscribe(created.sessionId, observe)

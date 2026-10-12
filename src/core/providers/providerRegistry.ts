@@ -87,7 +87,7 @@ export function createProviderRegistry(deps: ProviderRegistryDeps): ModelResolve
         )
       const client = await deps.createClient(model)
       if (!deps.isCurrent(model)) {
-        throw new Error(UI_TEXT.scheduleConfirmationExpired)
+        throw new Error(UI_TEXT.requestStaleRetry)
       }
       const pricing = model.pricing
       return {

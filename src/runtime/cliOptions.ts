@@ -1,5 +1,7 @@
+import { isAutoCompactionEvaluated } from '../shared/constants'
 import { ESTIMATE_OPTIONS } from './estimator/options'
 import type { UiText } from '../shared/l10n/en'
+import { sharingHelp } from '../shared/featureCatalog'
 import { fill } from '../shared/l10n/text'
 
 function sharingCliHelp(table: UiText, command: string): string {
@@ -15,10 +17,26 @@ function sharingCliHelp(table: UiText, command: string): string {
 
 /** Compact CLI help, also checked against the installed package's tables. */
 export function formatAcpUsage(table: UiText, command: string): string {
+  const options = {
+    [ACP_PAID_FLAGS.autoCompaction]: table.referenceCliOptions[ACP_PAID_FLAGS.autoCompaction],
+    'no-auto-compaction': table.referenceCliOptions['no-auto-compaction'],
+  }
   return [
     fill(table.acpUsage, { command }),
     fill(table.acpChatGpt.usage, { command }),
     sharingCliHelp(table, command),
+    sharingHelp(table),
+    // CM108ACC: account metadata and per-account keys are served. The exec
+    // line (`accounts.execHelp`) offers pooling, which is still refused, and
+    // stays out until its owner is bound.
+    fill(table.accounts.cliUsage, { command }),
+    ...Object.entries(options)
+      .filter(
+        ([option]) =>
+          isAutoCompactionEvaluated() ||
+          (option !== ACP_PAID_FLAGS.autoCompaction && option !== 'no-auto-compaction'),
+      )
+      .map(([option, description]) => `  --${option} ${description}`),
     `${command} resources [status|history|resume] [--json]`,
     `${command} usage resources [--json]`,
     ...(['resource-governor', 'cpu-max', 'memory-max'] as const).map(
@@ -62,6 +80,7 @@ const COMMON_OPTIONS = {
   'shell-sandbox': { type: 'string' },
   'allow-dangerously-skip-permissions': { type: 'boolean' },
   'allow-contributor-models': { type: 'boolean' },
+  [ACP_PAID_FLAGS.autoCompaction]: { type: 'boolean' },
   [ACP_PAID_FLAGS.webSearch]: { type: 'boolean' },
   [ACP_PAID_FLAGS.imageGeneration]: { type: 'boolean' },
   verbose: { type: 'boolean' },
@@ -97,7 +116,6 @@ const EXEC_OPTIONS = {
   output: { type: 'string' },
   'max-budget-usd': { type: 'string' },
   'max-requests': { type: 'string' },
-  'max-output-tokens': { type: 'string' },
   timeout: { type: 'string' },
   'muse-binary': { type: 'string' },
   'shell-sandbox': { type: 'string' },
@@ -210,6 +228,7 @@ export const CLI_OPTION_TEXT = {
   stdio: 'stdio',
   registry: 'registry',
   backend: 'backend',
+  'auto-compaction': 'auto-compaction',
   'no-auto-compaction': 'no-auto-compaction',
   'trust-workspace': 'trust-workspace',
   maintenance: 'maintenance',
@@ -240,7 +259,6 @@ export const CLI_OPTION_TEXT = {
   output: 'output',
   'max-budget-usd': 'max-budget-usd',
   'max-requests': 'max-requests',
-  'max-output-tokens': 'max-output-tokens',
   timeout: 'timeout',
   'fail-on-denial': 'fail-on-denial',
   ephemeral: 'ephemeral',

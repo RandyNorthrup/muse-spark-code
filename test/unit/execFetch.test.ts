@@ -1,14 +1,28 @@
 import { Usd } from '../../src/shared/usd'
-import { mkdtempSync } from 'node:fs'
+import { mkdtempSync, readFileSync } from 'node:fs'
+import * as z from 'zod/mini'
+import { modelPolicyFor, type ModelPolicy } from '../../src/core/backends/modelapi/modelPolicy'
+import {
+  nativeModelMetadataSchema,
+  nativeCapabilityEvidence,
+} from '../../src/core/providers/modelMetadata'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { execFetch } from '../../src/runtime/exec/execFetch'
-import { createRunLedger } from '../../src/runtime/exec/runLedger'
+import {
+  createRunLedger,
+  resolveExecOutputCap,
+  previewResponseReservation,
+} from '../../src/runtime/exec/runLedger'
 import { createLifecycle } from '../../src/runtime/exec/execLimits'
 import { createRuntimeBackend } from '../../src/runtime/backends'
 import type { AgentEvent } from '../../src/shared/agentEvents'
-import { MODEL_API_BASE_URL, SECRET_KEYS } from '../../src/shared/constants'
+import {
+  MODEL_API_BASE_URL,
+  MODEL_API_PRICES_PER_MILLION,
+  SECRET_KEYS,
+} from '../../src/shared/constants'
 import type { ExecEventBody, LastResponse } from '../../src/runtime/exec/execProtocol'
 import {
   fakeModelApi,
@@ -44,9 +58,13 @@ afterAll(async () => {
   await Promise.all(folders.map((created) => removeFolder(created)))
 })
 
-function harness(capUsd = 1, fetcher?: typeof fetch) {
+function harness(capUsd = 1, fetcher?: typeof fetch, outputCap?: () => number) {
   const api = fakeModelApi()
-  const ledger = createRunLedger({ capUsd: Usd.from(capUsd).toAmount(), maxRequests: 30 })
+  const ledger = createRunLedger({
+    capUsd: Usd.from(capUsd).toAmount(),
+    maxRequests: 30,
+    ...(outputCap !== undefined && { outputCap }),
+  })
   const events: ExecEventBody[] = []
   const outcomes: LastResponse[] = []
   const starts: number[] = []
@@ -441,8 +459,15 @@ describe('M80 streaming transport boundary', () => {
   })
 })
 
-async function engine(reply: ScriptedReply, idle: number, isCancelled = false) {
-  const h = harness()
+async function engine(
+  reply: ScriptedReply,
+  idle: number,
+  isCancelled = false,
+  policy?: ModelPolicy,
+) {
+  let resolvedCap: number | undefined
+  const outputCap = () => (resolvedCap ??= resolveExecOutputCap(policy ?? modelPolicyFor(model)))
+  const h = harness(1, undefined, outputCap)
   h.api.script(reply)
   const secrets = memorySecrets()
   await secrets.store(SECRET_KEYS.modelApiKey, FAKE_MODEL_API_KEY)
@@ -468,7 +493,12 @@ async function engine(reply: ScriptedReply, idle: number, isCancelled = false) {
     fetch: h.transport.fetch,
     sleep: () => Promise.resolve(),
     log: { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
-    exec: { isEphemeral: true, headlessPaid: () => Promise.resolve(false), streamIdleMs: idle },
+    exec: {
+      isEphemeral: true,
+      headlessPaid: () => Promise.resolve(false),
+      streamIdleMs: idle,
+      outputCap,
+    },
   })
   try {
     const host = await runtime.backend.hostFor(cwd)
@@ -496,7 +526,41 @@ async function engine(reply: ScriptedReply, idle: number, isCancelled = false) {
     }
     await end.promise
     await h.transport.whenSettled()
-    return { events, totals: h.ledger.totals(), outcomes: [...h.outcomes] }
+    if (policy !== undefined) {
+      const cap = outputCap()
+      const reservation = previewResponseReservation(
+        h.ledger,
+        model,
+        MODEL_API_PRICES_PER_MILLION.contributor,
+      )
+      expect(reservation.maxOutputTokens).toBe(cap)
+      expect(
+        h.events.find((event) => event.type === 'attempt' && event.phase === 'admitted'),
+      ).toMatchObject({ maxOutputTokens: cap, reservedUsd: reservation.reserveUsd })
+      expect(
+        h.ledger.admitResponse({
+          model,
+          maxOutputTokens: cap + 1,
+          price: MODEL_API_PRICES_PER_MILLION.contributor,
+        }),
+      ).toEqual({ refused: 'request_shape' })
+      const admission = vi.spyOn(h.ledger, 'admitResponse')
+      await expect(
+        h.transport.fetch(`${MODEL_API_BASE_URL}/responses`, {
+          ...post,
+          body: JSON.stringify({ model, stream: true, max_output_tokens: cap + 1, input: [] }),
+        }),
+      ).rejects.toThrow()
+      expect(admission).not.toHaveBeenCalled()
+      admission.mockRestore()
+    }
+    return {
+      events,
+      totals: h.ledger.totals(),
+      outcomes: [...h.outcomes],
+      bodies: h.api.responseBodies(),
+      cap: h.ledger.outputCap,
+    }
   } finally {
     h.close()
     await runtime.close()
@@ -532,4 +596,48 @@ describe('M80 real manager/client idle seam', () => {
     })
     expect(r.totals.uncertainUsd).toBe(Usd.from(0.108135).toAmount())
   })
+})
+
+// Every checked-in catalogue model is exercised, including records on each side
+// of exec's ceiling; no live model metadata or paid call is involved.
+const catalogue = z
+  .object({
+    providers: z.record(
+      z.string(),
+      z.object({ models: z.record(z.string(), nativeModelMetadataSchema) }),
+    ),
+  })
+  .parse(JSON.parse(readFileSync('vendor/models-dev/snapshot.json', 'utf8')))
+const records = Object.entries(catalogue.providers).flatMap(([provider, section]) =>
+  Object.entries(section.models).map(([id, native]) => {
+    const evidence = nativeCapabilityEvidence(provider, native, { kind: 'catalogue' })
+    const max = evidence.fields.output?.maxTokens
+    return {
+      ref: `${provider}/${id}`,
+      max,
+      policy: modelPolicyFor(`${provider}/${id}`, { maxOutputTokens: max }),
+    }
+  }),
+)
+describe('headless output-cap agreement over every fixture record', () => {
+  it.each(records)(
+    '$ref binds body, schema, ledger and reservation to one cap',
+    async ({ policy, max }) => {
+      const expected = Math.min(max ?? 32_768, 32_768)
+      const r = await engine({ text: 'done' }, 1000, false, policy)
+      expect(r.cap).toBe(expected)
+      expect(r.bodies).toHaveLength(1)
+      expect(r.bodies[0]?.['max_output_tokens']).toBe(expected)
+      expect(r.outcomes).toHaveLength(1)
+      expect(r.outcomes[0]?.terminal).toBe('completed')
+    },
+  )
+  it.each([0, 1, 15, -1, NaN, Infinity])(
+    'refuses maximum %s below the minimum or outside integer bounds',
+    (max) => {
+      expect(() =>
+        resolveExecOutputCap(modelPolicyFor('fixture/small', { maxOutputTokens: max })),
+      ).toThrow()
+    },
+  )
 })
