@@ -4340,6 +4340,7 @@ async function activateWindow(
                     isAllowed: () => teamHost.canConfigure() && paid.gate.isOn('teamWorkers'),
                     modelId,
                     workspaceRoot,
+                    keyDigest: () => modelApi.accountId(),
                     consent: () =>
                       paid.consent.allows(
                         {

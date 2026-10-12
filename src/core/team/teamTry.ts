@@ -28,6 +28,8 @@ export interface TeamTryDeps {
   readonly isAllowed: () => boolean
   readonly modelId: string
   readonly workspaceRoot: string
+  /** Hash-only identity of the account the quote bills; pinned across consent. */
+  readonly keyDigest: () => Promise<string | undefined>
   readonly consent: () => Promise<boolean>
   readonly noteDispatched: () => void
   readonly noteUsage: (usage: SubagentUsage) => void
@@ -51,7 +53,12 @@ export async function tryTeam(
     openClaim?.check()
   }
   check()
+  // The quote names this account when it is shown: a stored-key replacement
+  // while the consent is open voids the approval, and nothing is sent.
+  const quotedAccount = await deps.keyDigest()
+  if (quotedAccount === undefined) throw new Error(UI_TEXT.teamTryDenied)
   if (!(await deps.consent())) throw new Error(UI_TEXT.teamTryDenied)
+  if ((await deps.keyDigest()) !== quotedAccount) throw new Error(UI_TEXT.teamTryDenied)
   check()
   let attempts = 0
   let charged = Usd.from(0).toAmount()
@@ -93,6 +100,9 @@ export async function tryTeam(
       }
     },
   })
+  // Revalidated before the preview host is created: the consent answered
+  // for the quoted account never starts a billed host for another one.
+  if ((await deps.keyDigest()) !== quotedAccount) throw new Error(UI_TEXT.teamTryDenied)
   const host = await deps.start(guard)
   let text = ''
   let failure: string | undefined
