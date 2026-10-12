@@ -525,6 +525,29 @@ describe('window-scoped Allow once (M94 Q-M94a)', () => {
     expect(tab.asked).toHaveLength(2)
   })
 
+  it('never reuses a revoked Tab token after reapproval and Ask again', async () => {
+    const tab = tabConsentWith({ windowOnce: ['tab'], answers: ['once', 'once', 'once'] })
+    await tab.consent.allows(TAB_REQUEST)
+    const first = tab.consent.windowOnceToken('tab')
+    const initial = tab.consent.revocations('tab')
+    tab.consent.revokeWindowOnce('tab')
+    expect(tab.consent.revocations('tab')).toBe(initial + 1)
+    expect(tab.consent.windowOnceToken('tab')).toBeUndefined()
+    await tab.consent.allows(TAB_REQUEST)
+    const second = tab.consent.windowOnceToken('tab')
+    expect(second).toBeDefined()
+    expect(second).not.toBe(first)
+    await tab.consent.forget()
+    expect(tab.consent.revocations('tab')).toBe(initial + 2)
+    expect(tab.consent.windowOnceToken('tab')).toBeUndefined()
+    await tab.consent.allows(TAB_REQUEST)
+    const third = tab.consent.windowOnceToken('tab')
+    expect(third).toBeDefined()
+    expect(third).not.toBe(first)
+    expect(third).not.toBe(second)
+    expect(tab.asked).toHaveLength(3)
+  })
+
   it('shares one first question between concurrent uses (RVM94LC finding 6)', async () => {
     for (const [answer, expected] of [
       ['once', true],

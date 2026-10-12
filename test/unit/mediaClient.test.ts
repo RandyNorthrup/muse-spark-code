@@ -229,6 +229,7 @@ describe('media accounting at the transport', () => {
     await fire.consume()
     await expect(fire.daily.latestDay()).rejects.toThrow(UI_TEXT.paidDailyLedgerUnavailable)
     const today = await fire.daily.readToday()
+    // M121: the usage read carries exact decimal amounts, never numbers.
     expect(today[0]?.budget).toMatchObject({
       spentUsd: t.accounting.reservedUsd,
       uncertainUsd: t.accounting.reservedUsd,

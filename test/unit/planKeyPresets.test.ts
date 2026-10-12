@@ -31,8 +31,14 @@ describe('captured plan-key presets', () => {
   })
   it('reads the plan description and key hint in the language installed after import', () => {
     const plan = planKeyPresetById('mistral-plan')
+    const api = presetById('mistral')
     setUiText(fr, 'fr')
-    expect(plan?.description).toBe(fr.providerText.descriptions.mistral)
+    // The plan key has its own sentence (subscription credits, not
+    // pay-as-you-go); only the key shape and hint stay Mistral's.
+    expect(plan?.description).toBe(fr.providerText.descriptions.mistralPlan)
+    expect(plan?.description).not.toBe(api?.description)
+    expect(plan?.label).toBe(fr.providerText.labels.mistralPlan)
+    expect(plan?.label).not.toBe(api?.label)
     expect(plan?.keyHint).toBe(fill(fr.providerText.hints.site, { site: 'console.mistral.ai' }))
   })
   it('ships no uncaptured MiniMax or Alibaba plan wire, or prohibited plan sign-in', () => {

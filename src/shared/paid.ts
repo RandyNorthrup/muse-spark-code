@@ -19,6 +19,7 @@ import {
 import type { ModelPricing } from '../core/providers/priceCard'
 import { isJudgeEngineOn } from '../core/judge/engine'
 import {
+  isAutoCompactionEvaluated,
   BEST_OF_N_DEFAULT_ATTEMPTS,
   BEST_OF_N_DEFAULT_REQUESTS_PER_ATTEMPT,
   DEFAULT_MODEL_ID,
@@ -134,6 +135,7 @@ export interface TeamWorkerConfirmation {
 
 /** Runtime paid-use identity: popup grants, tally fields and reference claims. */
 export const PAID_USE_REGISTRY = {
+  autoCompaction: { featureId: 'auto-compaction', tally: 'autoCompactionRequests', once: 'window' },
   webSearch: { featureId: 'search', tally: 'webSearches', once: 'window' },
   imageGeneration: { featureId: 'images', tally: 'images', once: 'use' },
   voice: { featureId: 'voice', tally: 'voiceSeconds', once: 'use' },
@@ -224,6 +226,11 @@ export function subagentTaskPrice(modelId: string, attemptLimit: number): string
  * validated quote and bounded search reservation.
  */
 export type PaidUseRequest =
+  | {
+      readonly feature: 'autoCompaction'
+      readonly modelId: string
+      readonly dailyBudgetUsd: UsdAmount
+    }
   | { readonly feature: 'judge'; readonly modelId: string; readonly dailyBudgetUsd: UsdAmount }
   | {
       readonly feature: 'webSearch'
@@ -313,17 +320,19 @@ export function listedPaidFeatures(
 ): readonly PaidFeature[] {
   return PAID_FEATURES.filter(
     (feature) =>
-      usable.includes(feature) ||
-      isPositiveUsd(paidCostUsd(feature, tally)) ||
-      (feature === 'scheduledPrompts' && tally.scheduledRuns > 0) ||
-      (feature === 'subagents' && (tally.subagentRequests ?? 0) > 0) ||
-      (feature === 'autoReviewer' && (tally.autoReviews ?? 0) > 0) ||
-      (feature === 'legalExplanation' && (tally.legalExplanations ?? 0) > 0) ||
-      (feature === 'bestOfN' && (tally.bestOfNAttempts ?? 0) > 0) ||
-      (feature === 'teamWorkers' && (tally.teamWorkerRequests ?? 0) > 0) ||
-      (feature === 'tab' && (tally.tabRequests ?? 0) > 0) ||
-      (feature === 'hookModels' && (tally.hookModelRuns ?? 0) > 0) ||
-      (feature === 'judge' && (tally.judgeCalls ?? 0) > 0),
+      (feature !== 'autoCompaction' || isAutoCompactionEvaluated()) &&
+      (usable.includes(feature) ||
+        isPositiveUsd(paidCostUsd(feature, tally)) ||
+        (feature === 'scheduledPrompts' && tally.scheduledRuns > 0) ||
+        (feature === 'subagents' && (tally.subagentRequests ?? 0) > 0) ||
+        (feature === 'autoReviewer' && (tally.autoReviews ?? 0) > 0) ||
+        (feature === 'legalExplanation' && (tally.legalExplanations ?? 0) > 0) ||
+        (feature === 'bestOfN' && (tally.bestOfNAttempts ?? 0) > 0) ||
+        (feature === 'teamWorkers' && (tally.teamWorkerRequests ?? 0) > 0) ||
+        (feature === 'tab' && (tally.tabRequests ?? 0) > 0) ||
+        (feature === 'hookModels' && (tally.hookModelRuns ?? 0) > 0) ||
+        (feature === 'autoCompaction' && (tally.autoCompactionRequests ?? 0) > 0) ||
+        (feature === 'judge' && (tally.judgeCalls ?? 0) > 0)),
   )
 }
 
@@ -401,6 +410,7 @@ export function paidFeaturePrice(feature: PaidFeature, searchPriceUsd?: UsdAmoun
     case 'voice': {
       return fill(UI_TEXT.paidVoicePrice, { price: formatUsd(PAID_PRICES_USD.voicePerHour, 2) })
     }
+    case 'autoCompaction':
     case 'scheduledPrompts':
     case 'autoReviewer':
     case 'legalExplanation':
@@ -479,9 +489,10 @@ export function paidCostUsd(feature: PaidFeature, tally: PaidTally): UsdAmount {
         .divideIntegerCeiling(SECONDS_PER_HOUR)
         .toAmount()
     }
+    case 'autoCompaction':
     case 'scheduledPrompts': {
-      // Scheduled runs use ordinary Model API tokens. UsageDialog prices those
-      // tokens already; adding them to the extra-features total doubles them.
+      // Compaction and scheduled runs use ordinary Model API tokens, already
+      // priced in UsageDialog; adding them to extras would double their cost.
       return Usd.from(0).toAmount()
     }
     case 'subagents': {

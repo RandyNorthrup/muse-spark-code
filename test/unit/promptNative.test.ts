@@ -161,7 +161,7 @@ describe('native prompt review and release', () => {
     vi.mocked(inform).mockImplementation((_message, ...actions) =>
       Promise.resolve(
         actions.find(
-          (action) => typeof action === 'string' && action.startsWith('Save imported prompt'),
+          (action) => typeof action === 'string' && action.startsWith('Save Imported Prompt'),
         ),
       ),
     )

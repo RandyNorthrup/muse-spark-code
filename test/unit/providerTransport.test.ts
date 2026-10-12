@@ -24,7 +24,11 @@ import {
   type StreamEvent,
 } from '../../src/core/backends/modelapi/schemas'
 import { redactSecrets } from '../../src/core/redact'
-import { CREDENTIAL_RECORD_VERSION, PROVIDER_HTTP_BODY_MAX_BYTES } from '../../src/shared/constants'
+import {
+  CREDENTIAL_RECORD_VERSION,
+  PROVIDER_HTTP_BODY_MAX_BYTES,
+  UI_TEXT,
+} from '../../src/shared/constants'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { metaGoldenBodies } from './helpers/m95MetaBodies'
 import { unattendedRun } from './helpers/schedules/unattended'
@@ -265,6 +269,24 @@ describe('shared provider transport', () => {
     expect(
       await Array.fromAsync(client.streamResponse(body, new AbortController().signal)),
     ).toEqual(expected)
+  })
+  it('names the hook call when a hook-model confirmation lapses on a codec record', async () => {
+    // RVCM1062E P3: a hook-model run has no schedule, so its stale
+    // confirmation names the hook call instead of borrowing schedule guidance.
+    const fetch = vi.fn(() => Promise.resolve(new Response('{}')))
+    const client = new CodecClient(codecDeps({ transport: deps({ fetch }) }))
+    await expect(
+      Array.fromAsync(
+        client.streamResponse(body, new AbortController().signal, undefined, undefined, undefined, {
+          modelId: body.model,
+          keyDigest: createHash('sha256').update(KEY).digest('hex'),
+          runKind: 'hookModel',
+          isStillAllowed: () => false,
+          onRequestStarted: () => undefined,
+        }),
+      ),
+    ).rejects.toThrow(UI_TEXT.requestStaleHookModel)
+    expect(fetch).not.toHaveBeenCalled()
   })
   it('requires an endpoint verifier for every injected auth source', () => {
     const auth = codecDeps().auth

@@ -1,6 +1,7 @@
 # M115 join certification
 
-MacBook lane, 2026-10-11. No browser, GUI, live model or paid calls.
+Original join: MacBook, 2026-10-11. Continuation: Kubuntu SCHEDJOIN2.
+No live model or paid calls in either lane.
 Automatic delivery remains disabled until lead qualification.
 
 ## Join resolution
@@ -206,3 +207,64 @@ native helper/stdio and OS-wake lifecycle checks. Replay full production sizes
 and split checks on those complete artifacts. Keep the one delivery switch
 false until these checks, independent review and required live receipts pass;
 this lane made zero paid/live model calls. M115 remains building, not certified.
+
+## SCHEDJOIN2 release-tree merge
+
+Merged local `snap/train` (`06554b56c`) into join head `95627c21e`, with
+`git merge --no-ff`; no other branch merge, push or rebase. Conflict resolutions:
+
+| File                                              | Resolution                                                                                                                                  |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| CHANGELOG.md                                      | Keep both joined schedule candidate records and train release/provider repairs.                                                             |
+| PLAN.md                                           | Keep joined M115 scope/status and both gate records; retain train archives and release records. Add this qualification scope before fixes.  |
+| README.md                                         | Keep exact-money and disabled schedule candidate documentation alongside train documentation.                                               |
+| docs/acp.md                                       | Keep schedule delivery/consent limits and train account command restrictions and estimator description.                                     |
+| docs/orchestration-gotchas.md                     | Keep train G92; assign the join's hook-format finding G95.                                                                                  |
+| docs/roadmap/entries.json                         | Keep the detailed joined M115 candidate summary and building status.                                                                        |
+| src/acp/paid.ts                                   | Keep train consent/fence lifecycle and auto-compaction qualification; retain separate schedule flags/question and no workspace grant.       |
+| src/core/backends/modelapi/ModelApiHost.ts        | Keep provider/origin identity and the train's scheduled run kind.                                                                           |
+| src/core/backends/modelapi/transport.ts           | Keep journaled schedule dispatch closure and final authority check; add train pure checks and shared dispatch observer inside the closure.  |
+| src/core/paid/paidConsent.ts                      | Keep train lazy formatter; move the schedule-specific quote into paidUseQuestion.ts so no quote fields disappear.                           |
+| src/extension.ts                                  | Keep both schedule constants and train optional-runtime availability.                                                                       |
+| src/runtime/backends.ts                           | Keep schedule billing/caller imports and flags, plus train output cap/model policy and auto-compaction qualification.                       |
+| src/runtime/main.ts                               | Keep the disabled availability field and session-aware workspace hold.                                                                      |
+| src/runtime/runtimeAccountingEntry.ts             | Keep train stop/override validation, daily claim checks and exact accounting; retain schedule reservation without a duplicate daily charge. |
+| test/e2e/schedulesStdio.e2e.test.ts               | Keep complete schedule fixtures/assertions; use the train's named fixture-build hook budget. Case deadlines unchanged.                      |
+| test/unit/modelApiProviders.test.ts               | Keep unattended schedule cases and train provider cases/cleanup.                                                                            |
+| test/unit/runtimeAccounting.test.ts               | Keep both schedule cap/authority and train compaction/stop/refund regression groups and fake settings.                                      |
+| test/unit/windowsTrustedPath.test.ts              | Keep train CLR/no-module regression and one guarded cleanup helper used by every case.                                                      |
+| ROADMAP.md                                        | Regenerate from merged plan, release records, changelog and entries.                                                                        |
+| docs/ide-compatibility/host-api.md                | Regenerate from merged source.                                                                                                              |
+| docs/reference.md                                 | Regenerate from merged catalogue and command source.                                                                                        |
+| src/runtime/reference.node.generated.ts           | Regenerate with reference generator.                                                                                                        |
+| src/shared/reference/reference.generated.json     | Regenerate with reference generator.                                                                                                        |
+| src/shared/reference/reference.generated.ts       | Regenerate with reference generator.                                                                                                        |
+| src/shared/reference/referenceSchema.generated.ts | Regenerate with reference generator.                                                                                                        |
+
+Automatic merge also duplicated the schedules setting condition; keep the
+joined certification condition once. The first full build passed size caps but
+fired four split errors for pricing in reviewer/runtimeEngine. Billing now
+loads the already shipped providers owner on first quotation, retaining the
+final generation check after that load. No cap or split allow-list changed.
+
+| Merged production row      | Exact bytes |
+| -------------------------- | ----------: |
+| dist/schedules.js          |      196695 |
+| dist/reviewer.js           |       61747 |
+| dist/runtimeEngine.js      |      693990 |
+| dist/runtimeAccounting.js  |       38364 |
+| dist/scheduleBackground.js |       41256 |
+| dist/foreignHooks.js       |       85815 |
+| dist/providers.js          |      142356 |
+| SchedulePanel (own)        |        1792 |
+| schedule English           |        5457 |
+| SchedulePanel              |        1792 |
+| schedule surface           |       41945 |
+
+Full production build: exit 0, every size/split/host-global/notices gate passed.
+
+Merge regression validation: nine complete owning files passed, 327 assertions.
+The grouped Windows-path fixture hook hit 10 seconds at Linux load 25.48;
+the file alone passed 25/25 unchanged at load 29.42. Both receipts are retained.
+The merge's initial unit typecheck caught duplicate imports; those imports were
+removed. Final five-project typechecks belong to the qualification replay.

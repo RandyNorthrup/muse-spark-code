@@ -29,6 +29,12 @@ import path from 'node:path'
 import process from 'node:process'
 import { promisify } from 'node:util'
 import { renderPackageReadme } from './check-badges.mjs'
+import {
+  DARWIN_HELPER,
+  JOB_SOURCES,
+  LINUX_HELPERS,
+  RUNNER_HELPERS,
+} from './lib/acpNativeSources.mjs'
 import { packRuntimeArchive } from './lib/packageArchive.mjs'
 
 const STAGE = path.join('dist', 'acp-package')
@@ -95,24 +101,6 @@ const BUNDLES = [
   'usageService.js',
   'usageCompanion.js',
 ]
-// The C# of the shell tool's Windows job (M27), compiled on first use, as
-// the extension ships it (PLAN.md D6): its own file and the half it shares.
-// No MuseSparkMcpLauncher.cs: ACP forwards MCP servers to Muse Code's own
-// process (src/acp/agent.ts forwardedMcp); its Model API backend runs none.
-// src/runtime/backends.ts composes only shellJobAssembly, never mcpJobExecutable.
-const JOB_SOURCES = [
-  'native/windows/MuseSparkVault.cs',
-  'native/windows/MuseSparkVaultCng.cs',
-  'native/windows/MuseSparkVaultHello.cs',
-  'native/windows/MuseSparkVaultLock.cs',
-  path.join('native', 'windows', 'MuseSparkJob.cs'),
-  path.join('native', 'windows', 'MuseSparkMcpJob.cs'),
-  path.join('native', 'windows', 'MuseSparkScreenRecord.cs'),
-]
-const DARWIN_HELPER = path.join('native', 'darwin', 'muse-dictate')
-const LINUX_HELPERS = ['x64', 'arm64'].map((arch) =>
-  path.join('native', 'linux', arch, 'muse-created'),
-)
 const NATIVE_DEPENDENCY = '@napi-rs/keyring'
 const SCHEMAS = [
   'exec-result-v1.schema.json',
@@ -237,7 +225,7 @@ if (existsSync(vaultHelper)) {
   mkdirSync(path.dirname(target), { recursive: true })
   copyFileSync(vaultHelper, target)
 }
-cpSync('native/runner', path.join(STAGE, 'native/runner'), { recursive: true })
+cpSync(RUNNER_HELPERS, path.join(STAGE, RUNNER_HELPERS), { recursive: true })
 const tables = readdirSync('l10n')
   .filter((file) => /^ui\.[^/]+\.json$/.test(file))
   .map((file) => [

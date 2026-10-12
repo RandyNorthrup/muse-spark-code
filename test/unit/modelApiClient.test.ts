@@ -1,5 +1,5 @@
 import { Usd, type UsdAmount } from '../../src/shared/usd'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi, type Mock } from 'vitest'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import * as z from 'zod/mini'
@@ -12,6 +12,7 @@ import {
   retryAfterMs,
   type ResponseAttemptGuard,
 } from '../../src/core/backends/modelapi/client'
+import type { ConfirmedModelRequest } from '../../src/core/backends/modelapi/transport'
 import {
   ModelApiPacing,
   metaPacingLimits,
@@ -31,7 +32,47 @@ import {
   UI_TEXT,
 } from '../../src/shared/constants'
 import { FakeLogOutputChannel } from './helpers/fakes'
-import { fakeModelApi, streamFor } from './helpers/fakeModelApi'
+import { fakeModelApi, streamFor, type FakeModelApi } from './helpers/fakeModelApi'
+
+/** A gate-recheck client whose key and retry wait the caller controls. */
+function lapsingGateClient(
+  api: FakeModelApi,
+  keys: { current: string },
+  onRetryWait: () => void,
+): { client: ModelApiClient; onRequestStarted: Mock<() => void> } {
+  const onRequestStarted = vi.fn<() => void>()
+  const client = new ModelApiClient({
+    fetch: api.fetch,
+    baseUrl: 'https://api.example.test/v1',
+    apiKey: () => Promise.resolve(keys.current),
+    sleep: () => {
+      onRetryWait()
+      return Promise.resolve()
+    },
+    now: () => NOW,
+    random: () => 0,
+    log: new FakeLogOutputChannel(),
+  })
+  return { client, onRequestStarted }
+}
+
+/** One confirmed dispatch collected to completion (or refusal). */
+function collectConfirmed(
+  client: ModelApiClient,
+  admitAttempt: ResponseAttemptGuard | undefined,
+  confirmed: ConfirmedModelRequest,
+): Promise<StreamEvent[]> {
+  return collect(
+    client.streamResponse(
+      body,
+      new AbortController().signal,
+      undefined,
+      undefined,
+      admitAttempt,
+      confirmed,
+    ),
+  )
+}
 import { readRateCaptures } from './helpers/modelApiRateCapture'
 
 it('parses the captured U9 strict-schema 400 without retrying or inferring a missing code (M106)', async () => {
@@ -1206,62 +1247,61 @@ describe('ModelApiClient', () => {
     api.script({ httpError: { status: 429 } }, { text: 'should not run' })
     const key = 'LLM|1|secret'
     let isOn = true
-    const onRequestStarted = vi.fn()
-    const client = new ModelApiClient({
-      fetch: api.fetch,
-      baseUrl: 'https://api.example.test/v1',
-      apiKey: () => Promise.resolve(key),
-      sleep: () => {
-        isOn = false
-        return Promise.resolve()
-      },
-      now: () => NOW,
-      random: () => 0,
-      log: new FakeLogOutputChannel(),
+    const { client, onRequestStarted } = lapsingGateClient(api, { current: key }, () => {
+      isOn = false
     })
     await expect(
-      collect(
-        client.streamResponse(body, new AbortController().signal, undefined, undefined, undefined, {
-          modelId: body.model,
-          keyDigest: createHash('sha256').update(key).digest('hex'),
-          isStillAllowed: () => isOn,
-          onRequestStarted,
-        }),
-      ),
+      collectConfirmed(client, undefined, {
+        modelId: body.model,
+        keyDigest: createHash('sha256').update(key).digest('hex'),
+        isStillAllowed: () => isOn,
+        onRequestStarted,
+      }),
     ).rejects.toThrow(UI_TEXT.scheduleConfirmationExpired)
     expect(api.responseBodies()).toHaveLength(1)
     expect(onRequestStarted).toHaveBeenCalledOnce()
   })
 
+  it('names the hook call when a hook-model confirmation lapses before dispatch', async () => {
+    // RVCM1062E P3: a hook-model run has no schedule, so its stale
+    // confirmation names the hook call instead of borrowing schedule guidance.
+    const api = fakeModelApi()
+    api.script({ httpError: { status: 429 } }, { text: 'must not run' })
+    const originalKey = 'LLM|1|secret'
+    const keys = { current: originalKey }
+    const { client, onRequestStarted } = lapsingGateClient(api, keys, () => {
+      keys.current = 'LLM|1|changed'
+    })
+    const originalDigest = createHash('sha256').update(originalKey).digest('hex')
+    await expect(
+      collectConfirmed(client, undefined, {
+        modelId: body.model,
+        keyDigest: originalDigest,
+        runKind: 'hookModel',
+        isStillAllowed: () => true,
+        onRequestStarted,
+      }),
+    ).rejects.toThrow(UI_TEXT.requestStaleHookModel)
+    expect(api.responseBodies()).toHaveLength(1)
+    expect(onRequestStarted).toHaveBeenCalledOnce()
+  })
   it('rechecks the scheduled key before a paid attempt guard on HTTP retry', async () => {
     const api = fakeModelApi()
     api.script({ httpError: { status: 429 } }, { text: 'must not run' })
     const originalKey = 'LLM|1|secret'
-    let currentKey = originalKey
+    const keys = { current: originalKey }
     const admitted = vi.fn()
-    const onRequestStarted = vi.fn()
-    const client = new ModelApiClient({
-      fetch: api.fetch,
-      baseUrl: 'https://api.example.test/v1',
-      apiKey: () => Promise.resolve(currentKey),
-      sleep: () => {
-        currentKey = 'LLM|1|changed'
-        return Promise.resolve()
-      },
-      now: () => NOW,
-      random: () => 0,
-      log: new FakeLogOutputChannel(),
+    const { client, onRequestStarted } = lapsingGateClient(api, keys, () => {
+      keys.current = 'LLM|1|changed'
     })
     const originalDigest = createHash('sha256').update(originalKey).digest('hex')
     await expect(
-      collect(
-        client.streamResponse(body, new AbortController().signal, undefined, undefined, admitted, {
-          modelId: body.model,
-          keyDigest: originalDigest,
-          isStillAllowed: () => true,
-          onRequestStarted,
-        }),
-      ),
+      collectConfirmed(client, admitted, {
+        modelId: body.model,
+        keyDigest: originalDigest,
+        isStillAllowed: () => true,
+        onRequestStarted,
+      }),
     ).rejects.toThrow(UI_TEXT.scheduleConfirmationExpired)
     expect(api.responseBodies()).toHaveLength(1)
     expect(admitted).toHaveBeenCalledExactlyOnceWith(originalDigest)
@@ -1901,3 +1941,16 @@ function paidClaimFixture() {
     settle: vi.fn((_actualUsd: UsdAmount) => Promise.resolve(total)),
   }
 }
+
+it('refuses a sub-minimum Meta cap at the final send boundary', async () => {
+  const rawFetch = vi.fn(() => Promise.resolve(new Response()))
+  const { client } = setup(undefined, rawFetch)
+  for (const cap of [0, 1, 15]) {
+    await expect(
+      Array.fromAsync(
+        client.streamResponse({ ...body, max_output_tokens: cap }, new AbortController().signal),
+      ),
+    ).rejects.toThrow('Output cap must be at least 16 tokens.')
+  }
+  expect(rawFetch).not.toHaveBeenCalled()
+})

@@ -379,7 +379,12 @@ export class UpdateTranslator {
       toolCallId: item.itemId,
       status,
       ...(content !== undefined && { content }),
-      ...(wasPreview && preview === undefined && { rawInput: args ?? item.args, title }),
+      ...(wasPreview &&
+        preview === undefined && {
+          rawInput: args ?? item.args,
+          title,
+          locations: toolLocations(args, this.cwd),
+        }),
       ...(item.kind === 'subagent' && item.result !== undefined && { rawOutput: item.result }),
     })
     if (isCompleted) {

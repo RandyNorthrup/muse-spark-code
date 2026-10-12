@@ -65,9 +65,9 @@ describe('usage charts', () => {
         .getAllByRole('row')
         .slice(1)
         .map((row) => within(row).getByRole('rowheader').textContent)
-    fireEvent.click(screen.getByRole('button', { name: 'Cost: Sort ascending' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cost: Sort Ascending' }))
     expect(labels()).toEqual(['Small', 'Large', 'Unknown'])
-    fireEvent.click(screen.getByRole('button', { name: 'Cost: Sort descending' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cost: Sort Descending' }))
     expect(labels()).toEqual(['Large', 'Small', 'Unknown'])
   })
 
@@ -113,7 +113,7 @@ describe('usage charts', () => {
         ?.split(' ')
         .every((id) => document.querySelector(`[id="${CSS.escape(id)}"]`) !== null),
     ).toBe(true)
-    fireEvent.click(screen.getByText('Show chart data'))
+    fireEvent.click(screen.getByText('Show Chart Data'))
     expect(screen.getByRole('table', { name: 'Example' })).toHaveTextContent('Unknown')
   })
   it.each(['cost', 'tokens', 'requests', 'time'] as const)(
@@ -181,7 +181,7 @@ describe('usage charts', () => {
       for (const Chart of [StackedColumns, ShareBar]) {
         const rendered = render(<Chart state={state} />)
         expect(screen.getByRole('status')).toHaveTextContent(exact)
-        fireEvent.click(screen.getByText('Show chart data'))
+        fireEvent.click(screen.getByText('Show Chart Data'))
         const table = screen.getByRole('table', { hidden: true })
         expect(table).toHaveTextContent(exact)
         expect(table).not.toHaveTextContent('$0.0000000010')
@@ -194,7 +194,7 @@ describe('usage charts', () => {
       }
       const burn = render(<BurnLine budget={budget} now={Date.now()} />)
       expect(screen.getByRole('status')).toHaveTextContent(exact)
-      fireEvent.click(screen.getByText('Show chart data'))
+      fireEvent.click(screen.getByText('Show Chart Data'))
       expect(screen.getByRole('table', { hidden: true })).toHaveTextContent(exact)
       expect(screen.getByRole('table', { hidden: true })).not.toHaveTextContent('$0.0000000010')
       burn.unmount()

@@ -10,6 +10,7 @@ import { PaidAuthority } from '../../paid/paidAuthority'
 
 import {
   RequestTransport,
+  assertConfirmedAllowed,
   ignoreClosingError,
   ModelApiError,
   parseJsonResponse,
@@ -46,6 +47,7 @@ import {
 import {
   type PaidFeature,
   MODEL_API_BASE_URL,
+  MODEL_API_MIN_OUTPUT_TOKENS,
   IMAGE_REQUEST_TIMEOUT_MS,
   MODEL_API_REQUEST_TIMEOUT_MS,
   UI_TEXT,
@@ -82,6 +84,7 @@ interface PaidRequestClaim {
 
 import { redactSecrets } from '../../redact'
 import { fill } from '../../../shared/l10n/text'
+import { outputTokenMinimumMessage } from '../../../shared/providerRouting'
 
 import type { PacingProvider, RequestPacer } from './pacing'
 import { fanOutPacingClass } from './subagentTools'
@@ -457,12 +460,15 @@ export class ModelApiClient implements TransportProviderClient {
     admitAttempt?: ResponseAttemptGuard,
     confirmed?: ConfirmedModelRequest,
   ): AsyncGenerator<StreamEvent> {
-    if (
-      confirmed !== undefined &&
-      (body.model !== confirmed.modelId || !confirmed.isStillAllowed())
-    ) {
+    if (body.max_output_tokens < MODEL_API_MIN_OUTPUT_TOKENS) {
       await admitAttempt?.mediaAccounting?.finish()
-      throw new Error(UI_TEXT.scheduleConfirmationExpired)
+      throw new RangeError(outputTokenMinimumMessage(MODEL_API_MIN_OUTPUT_TOKENS))
+    }
+    try {
+      assertConfirmedAllowed(body.model, confirmed)
+    } catch (error: unknown) {
+      await admitAttempt?.mediaAccounting?.finish()
+      throw error
     }
     let feature = admitAttempt?.paidFeature
     if (feature === undefined && confirmed !== undefined) {
@@ -589,6 +595,7 @@ export class ModelApiClient implements TransportProviderClient {
           reservedUsd: claim?.reservedUsd ?? searchAllowanceUsd(body.max_tool_calls, searchPrice),
         })
       }
+      admitAttempt?.check?.()
       const { response, redact, redactContent, eventParsed } = await this.transport.streamRequest(
         '/responses',
         {

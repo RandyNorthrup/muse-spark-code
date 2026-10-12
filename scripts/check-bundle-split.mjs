@@ -133,6 +133,10 @@ const UNBUNDLED = new Set(['hookFormats/clineDiscover.ts', 'files.ts'])
 
 // The backend's files the activation bundle may carry, each with its reason.
 const ACTIVATION_ALLOWED = new Map([
+  [
+    'autoCompactionAdmission.ts',
+    'shared paid admission bound by panel and runtime managers (M101)',
+  ],
   ['schemas.ts', 'shared boundary schemas used by activation and ACP'],
   ['imageGeneration.ts', "the IDE server's image tools on Muse Code (M44)"],
   ['imageToolDefinitions.ts', "the IDE server's image tools on Muse Code (M44)"],
@@ -203,12 +207,20 @@ const LAZY_ONLY = [
   'mcp/protocol.ts',
 ]
 
+// Each metafile is read and parsed once: the checks ask for the same few
+// metafiles hundreds of times, which made one run take seconds.
+const metafiles = new Map()
+
 /** The bundle's source files and the bytes each contributed, from its metafile. */
 function inputsOf({ output, metafile }) {
   if (!existsSync(metafile)) {
     throw new Error(`${metafile} is missing: run "node scripts/build.mjs --production" first`)
   }
-  const parsed = JSON.parse(readFileSync(metafile, 'utf8'))
+  let parsed = metafiles.get(metafile)
+  if (parsed === undefined) {
+    parsed = JSON.parse(readFileSync(metafile, 'utf8'))
+    metafiles.set(metafile, parsed)
+  }
   const bundle = Object.entries(parsed.outputs).find(
     ([file]) => file.replaceAll('\\', '/') === output,
   )?.[1]

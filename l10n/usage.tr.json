@@ -97,7 +97,7 @@
   "apiEquivalentNote": "Ek abonelik ücreti değil, eşdeğer API fiyatı.",
   "totalTime": "Toplam istek süresi",
   "latencyP50": "Medyan gecikme (p50)",
-  "latencyP95": "p95 gecikmesi",
+  "latencyP95": "P95 gecikmesi",
   "firstToken": "İlk belirtece kadar geçen süre",
   "tokensPerSecond": "Saniye başına belirteç",
   "cacheHit": "Önbellek isabet oranı",

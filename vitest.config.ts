@@ -27,6 +27,12 @@ const TEST_WORKERS = Math.max(1, Math.min(MAX_TEST_WORKERS, availableParallelism
 // default for every case and hook; assertions are unchanged. PLAN.md §8.
 const WINDOWS_TEST_TIMEOUT_MS = 15_000
 const WINDOWS_HOOK_TIMEOUT_MS = 30_000
+// Hosted macOS (3 vCPU arm64) ran two files at once beside their Chrome
+// processes and coverage. 0.17's rounds 3-5 failed there only on deadlines in
+// browser/process suites, a different case each run (CIFIX017). It runs one
+// file at a time like Windows, over six shards: the per-file total of run
+// 38022741513 was 2,239 s, about eight minutes a shard. Rigs keep parallel files.
+const IS_HOSTED_MAC = process.platform === 'darwin' && process.env['GITHUB_ACTIONS'] === 'true'
 
 export default defineConfig({
   resolve: {
@@ -44,7 +50,7 @@ export default defineConfig({
     globalSetup: ['test/unit/globalSetup.mjs'],
     // Windows MCP process suites start PowerShell job helpers. On the small
     // hosted runner, concurrent files delayed launches past real MCP deadlines.
-    fileParallelism: process.platform !== 'win32',
+    fileParallelism: process.platform !== 'win32' && !IS_HOSTED_MAC,
     // Spread, not `maxWorkers: undefined`: exactOptionalPropertyTypes rejects it.
     maxWorkers: TEST_WORKERS,
     ...(process.platform === 'win32' && {

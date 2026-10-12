@@ -237,7 +237,7 @@ describe('M102 integrated surfaces', () => {
     expect(text).toContain('25')
     expect(text).toContain('40')
     expect(text).toContain('62')
-    expect(text).toContain('API-equivalent')
+    expect(text).toContain('API-Equivalent')
     const terminal: string[] = []
     expect(
       await runUsageCommand(

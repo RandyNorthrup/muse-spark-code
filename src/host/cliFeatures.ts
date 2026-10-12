@@ -1,6 +1,6 @@
 // The VS Code side of the CLI-backed features (M30, M31, PLAN.md D30): the
-// pickers, dialogs, terminals and file writes behind "Manage skills…",
-// "Import skills…", "Export conversation…", "MCP servers…" and "Hooks…".
+// pickers, dialogs, terminals and file writes behind "Manage Skills…",
+// "Import Skills…", "Export conversation…", "MCP Servers…" and "Hooks…".
 // The flows themselves live in commands/skillsCommands.ts,
 // commands/museConfigCommands.ts and conversation/exportConversation.ts.
 

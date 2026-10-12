@@ -1,4 +1,13 @@
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { AccountStore } from '../../src/core/providers/accounts'
+import type { AccountCredentialVault } from '../../src/core/providers/accountCredentialRecord'
+import {
+  fileAccountsMetadata,
+  runtimeProvidersFile,
+} from '../../src/runtime/providers/providersFileStore'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
 import {
   parseAccountsCommand,
@@ -24,6 +33,14 @@ function command(args: string[]): AccountsCommand {
   if (parsed === undefined) throw new Error('fixture command invalid')
   return parsed
 }
+
+const META_ENTRY = {
+  id: 'meta',
+  policyProvider: 'meta',
+  product: 'model-api',
+  auth: 'apiKey',
+  origin: 'https://api.meta.ai',
+} as const
 
 describe('M108 terminal account commands', () => {
   it('parses and executes list, add, remove, order and thresholds with no credential output', async () => {
@@ -197,4 +214,43 @@ describe('M108 terminal account commands', () => {
     expect(h.print).not.toHaveBeenCalled()
     expect(JSON.stringify(h.printError.mock.calls)).not.toContain('account-secret-canary')
   })
+
+  it.each([
+    ['a malformed provider row', { providers: { meta: { ...META_ENTRY, auth: 'not-a-method' } } }],
+    ['a file that is not JSON', '{oops'],
+  ])(
+    'names a refused providers file instead of the connection sentence: %s',
+    async (_label, envelope) => {
+      const folder = mkdtempSync(path.join(tmpdir(), 'm108-accounts-cmd-'))
+      disposals.push(() => {
+        rmSync(folder, { recursive: true, force: true })
+      })
+      const file = runtimeProvidersFile(folder)
+      const before = typeof envelope === 'string' ? envelope : JSON.stringify(envelope)
+      writeFileSync(file, before)
+      // Listing never touches the vault; it stays a stub.
+      const vault: AccountCredentialVault = {
+        read: () => Promise.resolve(undefined),
+        readForRemoval: () => Promise.resolve(undefined),
+        write: () => Promise.resolve(),
+        remove: () => Promise.resolve(),
+      }
+      const metadata = fileAccountsMetadata(folder)
+      const print = vi.fn<(text: string) => void>()
+      const printError = vi.fn<(text: string) => void>()
+      const store = new AccountStore(metadata, vault)
+      expect(
+        await runAccountsCommand(command(['list', '--provider', 'meta']), {
+          accounts: store,
+          metadata,
+          print,
+          printError,
+        }),
+      ).toBe(1)
+      expect(printError).toHaveBeenCalledWith(UI_TEXT.accounts.providersInvalid)
+      expect(printError).not.toHaveBeenCalledWith(UI_TEXT.accounts.unavailable)
+      expect(print).not.toHaveBeenCalled()
+      expect(readFileSync(file, 'utf8')).toBe(before)
+    },
+  )
 })

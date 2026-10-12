@@ -113,6 +113,8 @@
     "src/webview/whatsNew/main.ts",
     // M98's Judge, required only at the first eligible approval.
     "src/host/judge/judgeEntry.ts",
+    // F1a's internal API is built by build:confine, never by the product build.
+    "src/core/judge/fast/inspectExec.ts",
     "src/host/backend/searchWorker.ts",
     // Web fetch's page converter (M69), a worker bundle started by path.
     "src/host/web/pageWorker.ts",
@@ -168,6 +170,8 @@
     "test/e2e/scheduleSettlementWorker.ts",
     // The fake stdio MCP server the M50 tests start as a child process.
     "test/unit/helpers/fakeMcpServer.mjs",
+    // M123's fake GitHub CLI, started by path as the runtime starts `gh`.
+    "test/fixtures/github/fake-gh.mjs",
     // The fake stdio ACP agent the M96 lane W tests start as a child process.
     "test/unit/helpers/fakeTeamAcpAgent.mjs",
     // A bounded orphan-child process drill, launched by path at runtime.
@@ -182,6 +186,9 @@
     "test/unit/helpers/questions/queuedTurnCrash.ts",
     // The never-ending monitor the M92b bounded-run proof starts by path.
     "test/fixtures/never-ending-monitor.mjs",
+    "test/fixtures/inspect-helper.mjs",
+    // Tab's configured hook flow starts this real fake-hook process by path.
+    "test/fixtures/tabHooks/completion.mjs",
     // M116 playbook scenes: the axe runner (an npm script knip already sees)
     // bundles this scene file with esbuild, which knip does not trace.
     "test/harness/playbook.mjs",

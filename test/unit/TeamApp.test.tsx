@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // The team through the real App (M96 lane U2): the host's `teamTree`
-// message shows the header pill and the Agent map's tree, transcript items
+// message shows the header pill and the Agent Map's tree, transcript items
 // become the cards, and the tree's and cards' buttons post the protocol
 // messages lanes T/A/W answer. This mirrors the harness scenarios
 // `team-tree` and `team-cards`, which need a browser to run.
@@ -71,14 +71,14 @@ describe('Team through the App (M96 lane U2)', () => {
 
   it('shows no team UI before the host sends a team', () => {
     renderSignedIn()
-    expect(screen.queryByRole('button', { name: /team tasks/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Team Tasks/ })).toBeNull()
   })
 
   it('shows the pill and the map’s tree once the host sends one', async () => {
     renderSignedIn()
     deliver({ type: 'teamTree', tree })
-    expect(screen.getByRole('button', { name: '1 team task' })).toBeDefined()
-    fireEvent.click(screen.getByRole('button', { name: '1 team task' }))
+    expect(screen.getByRole('button', { name: '1 Team Task' })).toBeDefined()
+    fireEvent.click(screen.getByRole('button', { name: '1 Team Task' }))
     expect(await screen.findByRole('tree', { name: 'Team' })).toBeDefined()
     expect(
       screen.getByRole('treeitem', {
@@ -90,7 +90,7 @@ describe('Team through the App (M96 lane U2)', () => {
   it('posts the tree’s Stop through the protocol', async () => {
     const postMessage = renderSignedIn()
     deliver({ type: 'teamTree', tree })
-    fireEvent.click(screen.getByRole('button', { name: '1 team task' }))
+    fireEvent.click(screen.getByRole('button', { name: '1 Team Task' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Stop' }))
     expect(postMessage).toHaveBeenCalledWith({ type: 'stopTeamTask', taskId: 't1' })
   })
@@ -109,7 +109,7 @@ describe('Team through the App (M96 lane U2)', () => {
         },
       },
     })
-    fireEvent.click(await screen.findByRole('button', { name: 'Queue it' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Queue It' }))
     expect(postMessage).toHaveBeenCalledWith({
       type: 'answerTeamWaiting',
       waitingId: 'wait-1',
@@ -163,7 +163,7 @@ describe('RVM96B App regressions', () => {
       })),
     }
     deliver({ type: 'teamTree', tree: finished })
-    expect(live.textContent).toBe('Team task Add the retry: completed.')
+    expect(live.textContent).toBe('Team task Add the retry: Completed.')
     const completed = uiReducer(
       { ...initialUiState, teamTree: tree },
       { type: 'hostMessage', message: { type: 'teamTree', tree: finished }, at: 0 },
@@ -182,10 +182,10 @@ describe('RVM96B App regressions', () => {
   it('18 removes a supplied team with the validated clearTeamTree protocol message', () => {
     renderSignedIn()
     deliver({ type: 'teamTree', tree })
-    expect(screen.getByRole('button', { name: '1 team task' })).toBeDefined()
+    expect(screen.getByRole('button', { name: '1 Team Task' })).toBeDefined()
     deliver({ type: 'clearTeamTree' })
-    expect(screen.queryByRole('button', { name: /team task/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Team Task/ })).toBeNull()
     deliver({ type: 'teamTree', tree })
-    expect(screen.getByRole('button', { name: '1 team task' })).toBeDefined()
+    expect(screen.getByRole('button', { name: '1 Team Task' })).toBeDefined()
   })
 })

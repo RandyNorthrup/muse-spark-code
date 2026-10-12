@@ -77,9 +77,10 @@ export function parseMacProcessTable(
   const rows: Omit<ProcessSample, 'startTime'>[] = []
   for (const line of text.trim().split(/\r?\n/)) {
     if (line === '') continue
-    const match = /^\s*(\d+)\s+(\d+)\s+(\d+)\s+([A-Z][A-Za-z+<>-]*)\s+([\d:.-]+)\s+(\d+)\s*$/.exec(
-      line,
-    )
+    // macOS 26 prints `?` for a process whose state it cannot read mid-transition
+    // (`?<`); that row is still a process, and helper identity proves membership.
+    const match =
+      /^\s*(\d+)\s+(\d+)\s+(\d+)\s+([A-Z?][A-Za-z?+<>-]*)\s+([\d:.-]+)\s+(\d+)\s*$/.exec(line)
     if (match === null) return null
     const [, pid, parent, pgid, state = '', time = '', rss] = match
     const cpuSeconds = parseCpuTime(time)

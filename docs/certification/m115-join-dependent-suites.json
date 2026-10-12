@@ -6321,5 +6321,198 @@
     "passingAssertionsAcrossRuns": 8296,
     "prohibitedFiles": 20,
     "remainingFiles": 748
+  },
+  "rigReplay": {
+    "machine": "kubuntu",
+    "base": "95627c21e",
+    "train": "06554b56c6dcce7b3ca643319f2a2a0a7dbc4b93",
+    "defaultTimeouts": true,
+    "runs": [
+      {
+        "tag": "merge-001",
+        "args": [
+          "vitest",
+          "run",
+          "test/unit/runtimeAccounting.test.ts",
+          "test/unit/modelApiProviders.test.ts",
+          "test/unit/providerTransport.test.ts",
+          "--maxWorkers=3",
+          "--reporter=json",
+          "--outputFile=/home/randy/lanes/SCHEDJOIN2/temp/schedjoin2/merge-001.json"
+        ],
+        "exit": 0,
+        "seconds": 21.062,
+        "load": [29.341796875, 26.82080078125, 22.22216796875],
+        "log": "temp/schedjoin2/merge-001.log",
+        "suites": [
+          {
+            "file": "test/unit/modelApiProviders.test.ts",
+            "status": "passed",
+            "failures": [],
+            "message": ""
+          },
+          {
+            "file": "test/unit/providerTransport.test.ts",
+            "status": "passed",
+            "failures": [],
+            "message": ""
+          },
+          {
+            "file": "test/unit/runtimeAccounting.test.ts",
+            "status": "passed",
+            "failures": [],
+            "message": ""
+          }
+        ],
+        "tests": 158,
+        "passed": 158,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "tag": "merge-002",
+        "args": [
+          "vitest",
+          "run",
+          "test/unit/paidConsent.test.ts",
+          "test/unit/acpPaid.test.ts",
+          "test/unit/schedulePaidBinding.test.ts",
+          "--maxWorkers=3",
+          "--reporter=json",
+          "--outputFile=/home/randy/lanes/SCHEDJOIN2/temp/schedjoin2/merge-002.json"
+        ],
+        "exit": 0,
+        "seconds": 22.877,
+        "load": [26.8291015625, 26.41064453125, 22.185546875],
+        "log": "temp/schedjoin2/merge-002.log",
+        "suites": [
+          {
+            "file": "test/unit/acpPaid.test.ts",
+            "status": "passed",
+            "failures": [],
+            "message": ""
+          },
+          {
+            "file": "test/unit/paidConsent.test.ts",
+            "status": "passed",
+            "failures": [],
+            "message": ""
+          },
+          {
+            "file": "test/unit/schedulePaidBinding.test.ts",
+            "status": "passed",
+            "failures": [],
+            "message": ""
+          }
+        ],
+        "tests": 127,
+        "passed": 127,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "tag": "merge-003",
+        "args": [
+          "vitest",
+          "run",
+          "test/unit/windowsTrustedPath.test.ts",
+          "test/unit/scheduleDeliveryBinding.test.ts",
+          "test/unit/scheduleWorkspaceBridge.test.ts",
+          "--maxWorkers=3",
+          "--reporter=json",
+          "--outputFile=/home/randy/lanes/SCHEDJOIN2/temp/schedjoin2/merge-003.json"
+        ],
+        "exit": 1,
+        "seconds": 30.387,
+        "load": [25.48193359375, 26.10888671875, 22.19677734375],
+        "log": "temp/schedjoin2/merge-003.log",
+        "suites": [
+          {
+            "file": "test/unit/scheduleDeliveryBinding.test.ts",
+            "status": "passed",
+            "failures": [],
+            "message": ""
+          },
+          {
+            "file": "test/unit/scheduleWorkspaceBridge.test.ts",
+            "status": "passed",
+            "failures": [],
+            "message": ""
+          },
+          {
+            "file": "test/unit/windowsTrustedPath.test.ts",
+            "status": "failed",
+            "failures": [],
+            "message": "Hook timed out in 10000ms.\nIf this is a long-running hook, pass a timeout value as the last argument or configure it globally with \"hookTimeout\"."
+          }
+        ],
+        "tests": 42,
+        "passed": 17,
+        "failed": 0,
+        "pending": 25
+      },
+      {
+        "tag": "merge-alone-004",
+        "args": [
+          "vitest",
+          "run",
+          "test/unit/scheduleDeliveryBinding.test.ts",
+          "test/unit/scheduleWorkspaceBridge.test.ts",
+          "--maxWorkers=3",
+          "--reporter=json",
+          "--outputFile=/home/randy/lanes/SCHEDJOIN2/temp/schedjoin2/merge-alone-004.json"
+        ],
+        "exit": 0,
+        "seconds": 20.08,
+        "load": [26.53564453125, 26.328125, 22.4169921875],
+        "log": "temp/schedjoin2/merge-alone-004.log",
+        "suites": [
+          {
+            "file": "test/unit/scheduleDeliveryBinding.test.ts",
+            "status": "passed",
+            "failures": [],
+            "message": ""
+          },
+          {
+            "file": "test/unit/scheduleWorkspaceBridge.test.ts",
+            "status": "passed",
+            "failures": [],
+            "message": ""
+          }
+        ],
+        "tests": 17,
+        "passed": 17,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "tag": "windows-alone-005",
+        "args": [
+          "vitest",
+          "run",
+          "test/unit/windowsTrustedPath.test.ts",
+          "--maxWorkers=3",
+          "--reporter=json",
+          "--outputFile=/home/randy/lanes/SCHEDJOIN2/temp/schedjoin2/windows-alone-005.json"
+        ],
+        "exit": 0,
+        "seconds": 28.614,
+        "load": [29.42236328125, 27.14794921875, 22.81982421875],
+        "log": "temp/schedjoin2/windows-alone-005.log",
+        "suites": [
+          {
+            "file": "test/unit/windowsTrustedPath.test.ts",
+            "status": "passed",
+            "failures": [],
+            "message": ""
+          }
+        ],
+        "tests": 25,
+        "passed": 25,
+        "failed": 0,
+        "pending": 0
+      }
+    ],
+    "retiredFiles": []
   }
 }

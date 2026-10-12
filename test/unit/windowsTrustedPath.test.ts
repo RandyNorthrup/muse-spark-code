@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process'
-import { readFile, mkdtemp, mkdir, rm, writeFile, symlink } from 'node:fs/promises'
+import { readFile, mkdtemp, mkdir, realpath, rm, writeFile, symlink } from 'node:fs/promises'
 import { promisify } from 'node:util'
 import path from 'node:path'
 import os from 'node:os'
@@ -20,11 +20,6 @@ vi.mock('../../src/core/resources/launcher', async (original) => {
   const { fixtureResourceCommand } = await import('./helpers/resourceProcess')
   return { ...actual, execResourceFile: fixtureResourceCommand }
 })
-
-async function removeOwnedDirectory(directory: string) {
-  expect(path.dirname(path.resolve(directory))).toBe(path.resolve(os.tmpdir()))
-  await rm(directory, { recursive: true, force: true })
-}
 
 const vectors = z
   .strictObject({
@@ -63,6 +58,10 @@ async function ownerOnly(directory: string): Promise<void> {
     '*S-1-5-32-544:(OI)(CI)F',
   ])
 }
+async function removeTemporaryDirectory(directory: string): Promise<void> {
+  expect(path.dirname(path.resolve(directory))).toBe(path.resolve(os.tmpdir()))
+  await rm(directory, { recursive: true, force: true })
+}
 const verdicts: boolean[] = []
 const taskVectors = [
   {
@@ -90,13 +89,22 @@ const taskVerdicts: boolean[] = []
 beforeAll(async () => {
   if (process.platform !== 'win32') return
   // One native invocation for the complete shared table, within the default deadline.
-  const table = Buffer.from(JSON.stringify(vectors.windows)).toString('base64')
   const policy = WINDOWS_TRUSTED_ACL_SCRIPT.replace(
     '[Security.Principal.WindowsIdentity]::GetCurrent()',
     "[pscustomobject]@{ User = [pscustomobject]@{ Value = 'S-1-5-21-1-2-3-1000' } }",
   )
-  const taskTable = Buffer.from(JSON.stringify(taskVectors)).toString('base64')
-  const script = `$ErrorActionPreference = 'Stop'; ${policy}; $vectors = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${table}')) | ConvertFrom-Json; $results = @(); foreach ($vector in $vectors) { $acl = [Security.AccessControl.DirectorySecurity]::new(); $acl.SetSecurityDescriptorSddlForm($vector.sddl); $results += (-not $vector.reparsePoint -and (Test-TrustedAcl $acl $vector.isRoot $vector.isDirectory)) }; $tasks = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${taskTable}')) | ConvertFrom-Json; foreach ($task in $tasks) { $acl = [Security.AccessControl.FileSecurity]::new(); $acl.SetSecurityDescriptorSddlForm(('O:' + $task.owner + 'D:P(A;;FA;;;' + $task.writer + ')')); $results += (Test-TrustedAcl $acl $false $false $true) }; ConvertTo-Json -Compress -InputObject $results`
+  // The descriptors still use native ACL APIs and the exact shared predicate.
+  // Emit the fixture table directly: JSON cmdlets cold-load Utility even
+  // though this probe needs only the CLR and PowerShell's built-in language.
+  const aclRows = vectors.windows.map(
+    (vector) =>
+      `$acl = [Security.AccessControl.DirectorySecurity]::new(); $acl.SetSecurityDescriptorSddlForm('${vector.sddl.replaceAll("'", "''")}'); $results += (-not $${String(vector.reparsePoint)} -and (Test-TrustedAcl $acl $${String(vector.isRoot)} $${String(vector.isDirectory)}))`,
+  )
+  const taskRows = taskVectors.map(
+    (task) =>
+      `$acl = [Security.AccessControl.FileSecurity]::new(); $acl.SetSecurityDescriptorSddlForm('O:${task.owner}D:P(A;;FA;;;${task.writer})'); $results += (Test-TrustedAcl $acl $false $false $true)`,
+  )
+  const script = `$ErrorActionPreference = 'Stop'; ${policy}; $results = @(); ${[...aclRows, ...taskRows].join('; ')}; $json = @(); foreach ($answer in $results) { $json += $answer.ToString().ToLowerInvariant() }; [Console]::WriteLine('[' + [string]::Join(',', [string[]]$json) + ']')`
   const result = await run('powershell.exe', [
     '-NoProfile',
     '-NonInteractive',
@@ -170,33 +178,36 @@ describe('shared Windows trusted-path vectors', () => {
       await mkdir(nested)
       const leaf = path.join(nested, 'agent.js')
       await writeFile(leaf, 'fixture')
+      // Hosted runners spell %TEMP% in 8.3 form (RUNNER~1): the verifier probes
+      // and answers with resolved paths, while refusals name the path as given.
+      const resolvedNested = await realpath(nested)
       const refusing = (refused: string) => {
         const calls: string[] = []
         const verifier = windowsTrustedPathVerifier(async (file, args) => {
           const script = Buffer.from(args.at(-1) ?? '', 'base64').toString('utf16le')
           calls.push(script)
-          return script.includes(`Get-Acl -LiteralPath '${refused.replaceAll("'", "''")}'`)
+          return script.includes(`$target = '${refused.replaceAll("'", "''")}'`)
             ? { exitCode: 0, stdout: 'false' }
             : await run(file, args)
         })
         return { calls, verifier }
       }
       // The default root is the file's own folder: refused there, nothing else asked.
-      const atRoot = refusing(nested)
+      const atRoot = refusing(resolvedNested)
       expect(await atRoot.verifier.verify(leaf, { leafKind: 'file' })).toMatchObject({
         refused: true,
         component: nested,
       })
       expect(atRoot.calls).toHaveLength(1)
       // An explicit root: the root passes, the component below it is refused.
-      const belowRoot = refusing(nested)
+      const belowRoot = refusing(resolvedNested)
       expect(
         await belowRoot.verifier.verify(leaf, { leafKind: 'file', root: directory }),
       ).toMatchObject({ refused: true, component: nested })
       expect(belowRoot.calls).toHaveLength(2)
       expect(
         await windowsTrustedPathVerifier(run).verify(leaf, { leafKind: 'file', root: directory }),
-      ).toEqual({ ok: true, path: leaf })
+      ).toEqual({ ok: true, path: await realpath(leaf) })
       // Fake the reparse metadata: no security settings or persistent junctions change.
       const io = {
         realpath: vi.fn().mockResolvedValue(leaf),
@@ -210,7 +221,33 @@ describe('shared Windows trusted-path vectors', () => {
         await windowsTrustedPathVerifier(run, io).verify(leaf, { leafKind: 'file' }),
       ).toMatchObject({ refused: true, component: leaf })
     } finally {
-      await removeOwnedDirectory(directory)
+      await removeTemporaryDirectory(directory)
+    }
+  })
+
+  // CIFIX017W2: on hosted Windows runners a probe that used Get-Item, Get-Acl
+  // and ConvertTo-Json took over 15 s to load their modules, for each
+  // component. With module auto-loading off, any such cmdlet fails the probe.
+  it('verifies a folder and a file with the CLR alone, loading no PowerShell module', async () => {
+    if (process.platform !== 'win32') return
+    const directory = await mkdtemp(path.join(os.tmpdir(), 'm115-trust-clr-'))
+    try {
+      await ownerOnly(directory)
+      const leaf = path.join(directory, 'agent.js')
+      await writeFile(leaf, 'fixture')
+      const scripts: string[] = []
+      const withoutModules = windowsTrustedPathVerifier((file, args) => {
+        const script = `$PSModuleAutoLoadingPreference = 'None'; ${Buffer.from(args.at(-1) ?? '', 'base64').toString('utf16le')}`
+        scripts.push(script)
+        return run(file, [...args.slice(0, -1), Buffer.from(script, 'utf16le').toString('base64')])
+      })
+      expect(await withoutModules.verify(leaf, { leafKind: 'file', root: directory })).toEqual({
+        ok: true,
+        path: await realpath(leaf),
+      })
+      expect(scripts).toHaveLength(2)
+    } finally {
+      await removeTemporaryDirectory(directory)
     }
   })
 
@@ -227,6 +264,8 @@ describe('shared Windows trusted-path vectors', () => {
       await mkdir(data, { recursive: true })
       const leaf = path.join(data, 'agent.js')
       await writeFile(leaf, 'fixture')
+      // The verifier answers with the resolved path (hosted %TEMP% is 8.3).
+      const resolvedLeaf = await realpath(leaf)
       const verifier = windowsTrustedPathVerifier(run)
 
       // A relocated profile: a junction above the root.
@@ -235,7 +274,7 @@ describe('shared Windows trusted-path vectors', () => {
       const viaProfile = path.join(profile, 'data', 'agent.js')
       expect(
         await verifier.verify(viaProfile, { leafKind: 'file', root: path.join(profile, 'data') }),
-      ).toEqual({ ok: true, path: leaf })
+      ).toEqual({ ok: true, path: resolvedLeaf })
 
       // The root itself a junction to an owner-only folder elsewhere.
       const rootLink = path.join(directory, 'root-link')
@@ -245,11 +284,11 @@ describe('shared Windows trusted-path vectors', () => {
           leafKind: 'file',
           root: rootLink,
         }),
-      ).toEqual({ ok: true, path: leaf })
+      ).toEqual({ ok: true, path: resolvedLeaf })
       // Without an explicit root a file's own folder is its root: also a link, also accepted.
       expect(await verifier.verify(path.join(rootLink, 'agent.js'), { leafKind: 'file' })).toEqual({
         ok: true,
-        path: leaf,
+        path: resolvedLeaf,
       })
 
       // Below the root: a junction escaping the tree, and one staying inside it.
@@ -282,7 +321,7 @@ describe('shared Windows trusted-path vectors', () => {
         ok: true,
       })
     } finally {
-      await removeOwnedDirectory(directory)
+      await removeTemporaryDirectory(directory)
     }
   })
 })

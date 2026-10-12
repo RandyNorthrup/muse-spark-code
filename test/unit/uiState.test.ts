@@ -121,7 +121,7 @@ const SHELL_APPROVAL = {
   requirementId: { approvalId: 'a1', sourceIndex: 0 },
   subject: { kind: 'shell', command: 'ls' },
   availableChoices: [
-    { choiceId: 'allow_once', label: 'Allow once', decision: 'approved', scope: 'once' },
+    { choiceId: 'allow_once', label: 'Allow Once', decision: 'approved', scope: 'once' },
   ],
   isJudgeEscalated: false,
   isProtectedWrite: false,
@@ -151,7 +151,7 @@ describe('uiReducer: shell', () => {
     expect(uiReducer(state, { type: 'insertApplied' }).pendingInsert).toBeUndefined()
   })
 
-  it('counts the host’s Account & usage requests (the Tab menu, RVM94HU 21)', () => {
+  it('counts the host’s Account & Usage requests (the Tab menu, RVM94HU 21)', () => {
     const state = reduceAll([host(init), host({ type: 'openUsage' }), host({ type: 'openUsage' })])
     expect(state.usageRequests).toBe(2)
     expect(state.focusRequests).toBe(1)
@@ -403,9 +403,9 @@ describe('uiReducer: sending', () => {
   it('marks the echo failed with the reason on sendFailed', () => {
     const state = reduceAll([
       { type: 'submitted', localId: 'l1', text: 'hello', attachments: [], contextLabel: undefined },
-      host({ type: 'sendFailed', localId: 'l1', reason: 'Sign in first' }),
+      host({ type: 'sendFailed', localId: 'l1', reason: 'Sign In first' }),
     ])
-    expect(state.transcript[0]).toMatchObject({ status: 'failed', reason: 'Sign in first' })
+    expect(state.transcript[0]).toMatchObject({ status: 'failed', reason: 'Sign In first' })
     expect(state.activeTurnId).toBeUndefined()
   })
 
@@ -749,7 +749,7 @@ describe('uiReducer: agent events', () => {
     expect(raw.transcript[0]).toMatchObject({ kind: 'reasoning', parts: ['raw text'] })
   })
 
-  it.each(['Reviewer asks: confirm deletion', 'Command rule asks: pushes are reviewed'])(
+  it.each(['Reviewer asks: confirm deletion', 'Command Rule asks: pushes are reviewed'])(
     'keeps the approval reason through delivery, stage updates and restoration: %s',
     (note) => {
       const delivered = reduceAll([agent({ ...SHELL_APPROVAL, note })], {
@@ -782,7 +782,7 @@ describe('uiReducer: agent events', () => {
       approvalId: 'a1',
       itemId: 'c1',
       decision: 'approved',
-      resolvedBy: 'Auto reviewer',
+      resolvedBy: 'Auto Reviewer',
       reason: 'Allowed: reads workspace file',
     }
     const held = reduceAll([agent(resolution)])
@@ -830,7 +830,7 @@ describe('uiReducer: agent events', () => {
         approvalId: `a${String(index)}`,
         itemId: `c${String(index)}`,
         decision: 'approved',
-        resolvedBy: 'Auto reviewer',
+        resolvedBy: 'Auto Reviewer',
       }),
     )
     const state = reduceAll(resolutions)
@@ -847,7 +847,7 @@ describe('uiReducer: agent events', () => {
       approvalId: 'a1',
       itemId: 'c1',
       decision: 'approved',
-      resolvedBy: 'Auto reviewer',
+      resolvedBy: 'Auto Reviewer',
       reason: 'Allowed: lists files',
     } as const
     const items = [{ itemId: 'c1', kind: 'toolCall', status: 'completed', tool: 'powershell' }]
@@ -873,7 +873,7 @@ describe('uiReducer: agent events', () => {
     expect(other.pendingApprovalResolutions).toEqual([])
   })
 
-  it('keeps the Auto reviewer’s reason on an approval it allowed, through restoration (M90)', () => {
+  it('keeps the Auto Reviewer’s reason on an approval it allowed, through restoration (M90)', () => {
     const reason = 'Allowed: reads workspace file to fulfill line-count request'
     const resolved = reduceAll(
       [
@@ -883,13 +883,13 @@ describe('uiReducer: agent events', () => {
           approvalId: SHELL_APPROVAL.approvalId,
           itemId: SHELL_APPROVAL.itemId,
           decision: 'approved',
-          resolvedBy: 'Auto reviewer',
+          resolvedBy: 'Auto Reviewer',
           reason,
         }),
       ],
       { ...initialUiState, sessionId: 'reviewed-session' },
     )
-    const outcome = { decision: 'approved', resolvedBy: 'Auto reviewer', reason }
+    const outcome = { decision: 'approved', resolvedBy: 'Auto Reviewer', reason }
     expect(resolved.transcript[0]).toMatchObject({ approvalOutcome: outcome })
     expect(restoredUiState(webviewStateOf(resolved, true)).transcript[0]).toMatchObject({
       approvalOutcome: outcome,
@@ -2022,7 +2022,7 @@ describe('chat references (M17)', () => {
     let state = uiReducer(initialUiState, { type: 'referenceSet', reference })
     expect(state.reference).toEqual(reference)
     expect(referenceLabel(reference)).toBe(
-      'Replying to: Use pnpm because it is fast and saves disk space on every in…',
+      'Replying To: Use pnpm because it is fast and saves disk space on every in…',
     )
     state = uiReducer(state, {
       type: 'submitted',
@@ -2034,14 +2034,14 @@ describe('chat references (M17)', () => {
     })
     expect(state.transcript.at(-1)).toMatchObject({
       kind: 'user',
-      referenceLabel: 'Replying to: Use pnpm because it is fast and saves disk space on every in…',
+      referenceLabel: 'Replying To: Use pnpm because it is fast and saves disk space on every in…',
     })
     state = uiReducer(state, {
       type: 'referenceSet',
       reference: { ...reference, intent: 'comment' },
     })
     expect(referenceLabel({ ...reference, intent: 'comment', text: 'short' })).toBe(
-      'Commenting on: short',
+      'Commenting On: short',
     )
     state = uiReducer(state, { type: 'referenceCleared' })
     expect(state.reference).toBeUndefined()
@@ -2577,7 +2577,7 @@ describe('clears, restores and refusals (M25)', () => {
     ]
     const refused = reduceAll([
       ...sent,
-      host({ type: 'sendFailed', localId: 'l1', reason: 'Sign in first', attachmentsKept: true }),
+      host({ type: 'sendFailed', localId: 'l1', reason: 'Sign In first', attachmentsKept: true }),
     ])
     expect(refused.attachments.map((chip) => chip.id)).toEqual(['att-1', 'att-2'])
     expect(refused.unsentAttachments).toEqual({})
@@ -4361,7 +4361,7 @@ describe('uiReducer: the secret-prompt hold (M92e, PLAN.md D71)', () => {
     expect(edited.draft).toBe('newer draft')
   })
 
-  it('removes the optimistic card, restores the draft and arms Send anyway', () => {
+  it('removes the optimistic card, restores the draft and arms Send Anyway', () => {
     const state = reduceAll([{ type: 'draftChanged', draft: text }, submit, held])
     expect(state.transcript).toEqual([])
     expect(state.draft).toBe(text)

@@ -2,11 +2,7 @@ import type { ScheduleAuthorityStore } from '../../core/schedules/grantAudit'
 import type { CreateResponseBody, CreateImageBody } from '../../core/backends/modelapi/schemas'
 import { requestImageCount } from '../../core/backends/modelapi/modelPolicy'
 import { estimateInput, type SessionBudgetClaim } from '../../core/backends/modelapi/sessionBudget'
-import {
-  isValidPriceCard,
-  reserveRequestAmount,
-  type ModelPricing,
-} from '../../core/providers/priceCard'
+import type { ModelPricing } from '../../core/providers/priceCard'
 import {
   askSchedulePaidConsent,
   createSchedulePaidScope,
@@ -109,10 +105,11 @@ function cadenceText(trigger: ScheduleV2['trigger'], zone: string): string {
 export function createScheduleBilling(ports: ScheduleBillingPorts) {
   const quote = async (modelId: string) => {
     const generation = ports.generation()
+    const { priceCard } = await import('../backend/providersEntry')
     const host = await ports.host()
     const { pricing, accountId, providerId, origin } = await host.schedulePricing(modelId)
     if (generation !== ports.generation()) throw new Error(UI_TEXT.scheduleV2.messages.changedKey)
-    if (pricing.kind !== 'priced' || !isValidPriceCard(pricing.card))
+    if (pricing.kind !== 'priced' || !priceCard.isValidPriceCard(pricing.card))
       throw new Error(UI_TEXT.bestOfNTariffUnknown)
     const card = pricing.card
     const price = autoReviewPrice(modelId, pricing)
@@ -132,7 +129,7 @@ export function createScheduleBilling(ports: ScheduleBillingPorts) {
       if (!('input' in body)) throw new Error(UI_TEXT.scheduleV2.messages.paidUnavailable)
       const inputTokens = tokens ?? estimateInput([JSON.stringify(body)], undefined).inputTokens
       return Usd.from(
-        reserveRequestAmount(card, {
+        priceCard.reserveRequestAmount(card, {
           inputTokens,
           outputTokens: body.max_output_tokens,
           cachedTokens: 0,
