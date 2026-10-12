@@ -490,10 +490,6 @@
   "playbookAnswerFollowUp": "Suivi",
   "playbookNotCertified": "Guide : ce tour n’a pas pu être certifié ; il ne compte donc pas comme réussi.",
   "playbookEvidenceUnreadable": "Guide : un fichier en revue, ou ce qu’un sous-agent a modifié, n’a pas pu être lu ; le guide ne peut donc pas savoir si cette revue est la sienne. La revue n’a pas été envoyée.",
-  "playbookBlockedName": "Constat du playbook pour {child} : un fichier dont le nom est masqué ressemble à un secret. Le tour de ce sous-agent a été compté.",
-  "playbookBlockedLarge": "Constat du playbook pour {child} : le correctif fait {size}, au-delà de la limite de {bound}. Le tour de ce sous-agent a été compté.",
-  "playbookBlockedUnreadable": "Constat du playbook pour {child} : la contribution n’a pas pu être lue. Le tour de ce sous-agent a été compté.",
-  "playbookBlockedMany": "Constat du playbook pour {child} : nombre de fichiers modifiés : {count} ; limite : {bound}. Le tour de ce sous-agent a été compté.",
   "playbookRecordStale": "Le registre du guide n’a pas pu être lu. Ce qui est affiché est peut-être obsolète.",
   "playbookMuseCodeStarts": "Muse Code lance les sous-agents sans demander. Le playbook compte leurs tours et examine leur travail, mais ne peut pas empêcher un démarrage.",
   "playbookStrikeBadge": {
@@ -572,6 +568,10 @@
     "residualOpen": "Votre intervention est requise : {lane} comporte des points résiduels ouverts : {missing}.",
     "contributionBlocked": "{reason}"
   },
+  "playbookBlockedName": "Constat du playbook pour {child} : un fichier dont le nom est masqué ressemble à un secret. Le tour de ce sous-agent a été compté.",
+  "playbookBlockedLarge": "Constat du playbook pour {child} : le correctif fait {size}, au-delà de la limite de {bound}. Le tour de ce sous-agent a été compté.",
+  "playbookBlockedUnreadable": "Constat du playbook pour {child} : la contribution n’a pas pu être lue. Le tour de ce sous-agent a été compté.",
+  "playbookBlockedMany": "Constat du playbook pour {child} : nombre de fichiers modifiés : {count} ; limite : {bound}. Le tour de ce sous-agent a été compté.",
   "scheduleSettlement": {
     "sent": "Envoyé selon la programmation",
     "outcomes": {

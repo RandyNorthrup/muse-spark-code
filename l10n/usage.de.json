@@ -37,11 +37,19 @@
     "other": "Der CSV-Export pro Aufruf ist nur für die letzten {count} Tage verfügbar."
   },
   "exportComplete": "Nutzung exportiert.",
+  "exportTooLarge": "Dieser Export ist für den Browser zu groß. Wählen Sie einen kürzeren Zeitraum oder exportieren Sie über die CLI.",
+  "exportBound": "Browserexporte sind einschließlich JSON-Kodierung auf {limit} begrenzt.",
+  "editorActionsUnavailable": "Diese Seite kann keine Editoreinstellungen oder den Verlaufsordner öffnen und keine Modellpreise bearbeiten. Verwenden Sie die Editoreinstellungen und die Bedienelemente für Modelle und Agenten. Lesen, Filter, Diagramme und Exporte bleiben hier verfügbar.",
+  "readOnlyActions": "Diese Textansicht ist schreibgeschützt. Öffnen Sie die Begleitseite für Diagramme, Verlaufsverwaltung und Downloads.",
   "deleteHistory": "Nutzungsverlauf löschen …",
   "deleteTitle": "Nutzungsverlauf löschen?",
   "deleteConfirm": {
     "one": "{count} Nutzungsdatensatz auf diesem Rechner löschen? Ausgabenbücher und erteilte Berechtigungen bleiben erhalten.",
     "other": "{count} Nutzungsdatensätze auf diesem Rechner löschen? Ausgabenbücher und erteilte Berechtigungen bleiben erhalten."
+  },
+  "deleteConfirmResources": {
+    "one": "Außerdem wird {count} Eintrag des Ressourcenverlaufs gelöscht.",
+    "other": "Außerdem werden {count} Einträge des Ressourcenverlaufs gelöscht."
   },
   "deleteAction": "Verlauf löschen",
   "deleteComplete": "Nutzungsverlauf gelöscht.",
@@ -212,13 +220,5 @@
   "sortAscending": "Aufsteigend sortieren",
   "sortDescending": "Absteigend sortieren",
   "retentionNote": "Aufrufdetails werden {detailDays} Tage aufbewahrt, Tageszusammenfassungen {historyDays} Tage.",
-  "privacyNote": "Der Verlauf bleibt auf diesem Rechner. Er enthält keine Prompts, Antworten, Tool-Argumente, Pfade oder Schlüssel.",
-  "exportTooLarge": "Dieser Export ist für den Browser zu groß. Wählen Sie einen kürzeren Zeitraum oder exportieren Sie über die CLI.",
-  "exportBound": "Browserexporte sind einschließlich JSON-Kodierung auf {limit} begrenzt.",
-  "editorActionsUnavailable": "Diese Seite kann keine Editoreinstellungen oder den Verlaufsordner öffnen und keine Modellpreise bearbeiten. Verwenden Sie die Editoreinstellungen und die Bedienelemente für Modelle und Agenten. Lesen, Filter, Diagramme und Exporte bleiben hier verfügbar.",
-  "readOnlyActions": "Diese Textansicht ist schreibgeschützt. Öffnen Sie die Begleitseite für Diagramme, Verlaufsverwaltung und Downloads.",
-  "deleteConfirmResources": {
-    "one": "Außerdem wird {count} Eintrag des Ressourcenverlaufs gelöscht.",
-    "other": "Außerdem werden {count} Einträge des Ressourcenverlaufs gelöscht."
-  }
+  "privacyNote": "Der Verlauf bleibt auf diesem Rechner. Er enthält keine Prompts, Antworten, Tool-Argumente, Pfade oder Schlüssel."
 }

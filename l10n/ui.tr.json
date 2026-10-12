@@ -490,10 +490,6 @@
   "playbookAnswerFollowUp": "Takip adımı",
   "playbookNotCertified": "Kılavuz: bu tur doğrulanamadı, bu yüzden geçmiş sayılmaz.",
   "playbookEvidenceUnreadable": "Kılavuz: incelenen bir dosya veya bir alt aracının yaptığı değişiklikler okunamadı; bu yüzden kılavuz bu incelemenin kendisine ait olup olmadığını belirleyemiyor. İnceleme gönderilmedi.",
-  "playbookBlockedName": "{child} için playbook bulgusu: adı gizlenen bir dosya gizli bilgi gibi görünüyor. Bu alt ajanın turu sayıldı.",
-  "playbookBlockedLarge": "{child} için playbook bulgusu: yama boyutu {size}, {bound} sınırının üzerinde. Bu alt ajanın turu sayıldı.",
-  "playbookBlockedUnreadable": "{child} için playbook bulgusu: katkı okunamadı. Bu alt ajanın turu sayıldı.",
-  "playbookBlockedMany": "{child} için playbook bulgusu: değiştirilen dosya sayısı: {count}; sınır: {bound}. Bu alt ajanın turu sayıldı.",
   "playbookRecordStale": "Kılavuz kaydı okunamadı. Gösterilenler güncel olmayabilir.",
   "playbookMuseCodeStarts": "Muse Code sormadan alt ajanları başlatır. Playbook turlarını sayar ve çalışmalarını inceler, ancak başlatmayı engelleyemez.",
   "playbookStrikeBadge": {
@@ -571,6 +567,10 @@
     "residualOpen": "Kararınız gerekli: {lane} içinde açık kalan artık maddeler var: {missing}.",
     "contributionBlocked": "{reason}"
   },
+  "playbookBlockedName": "{child} için playbook bulgusu: adı gizlenen bir dosya gizli bilgi gibi görünüyor. Bu alt ajanın turu sayıldı.",
+  "playbookBlockedLarge": "{child} için playbook bulgusu: yama boyutu {size}, {bound} sınırının üzerinde. Bu alt ajanın turu sayıldı.",
+  "playbookBlockedUnreadable": "{child} için playbook bulgusu: katkı okunamadı. Bu alt ajanın turu sayıldı.",
+  "playbookBlockedMany": "{child} için playbook bulgusu: değiştirilen dosya sayısı: {count}; sınır: {bound}. Bu alt ajanın turu sayıldı.",
   "scheduleSettlement": {
     "sent": "Zamanlamaya göre gönderildi",
     "outcomes": {
