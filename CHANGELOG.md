@@ -133,6 +133,16 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **Catch inventory and ratchet (tooling).** `scripts/catch-inventory.mjs`
+  walks every `try/catch` and promise `.catch(` under `src` and classifies
+  each as NARROW, REPORTED, SWALLOW, GENERIC or CLEANUP; `npm run
+  check:catches` (wired into `npm run quality`) fails when any SWALLOW or
+  GENERIC count rises against `scripts/catch-baseline.json`. Every
+  SWALLOW and GENERIC in `src/acp` and `src/webview` is now NARROW or
+  REPORTED with per-handler tests, and `docs/certification/
+  catch-inventory.md` ranks the 40 worst remaining handlers in core, host
+  and runtime for the per-area fix lanes.
+
 - **Several accounts per provider, in the terminal and in ACP** (M108,
   CM108ACC). `providers accounts` lists, adds, removes and orders a
   provider's accounts and sets their thresholds;
