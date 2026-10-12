@@ -509,7 +509,13 @@ never a literal in the code:
   TypeScript checks the import against the source module and cannot see a
   name the entry lacks. `npm run build` reads the built bundles and fails on
   such a member, and `test/unit/modelApiEntryExports.test.ts` names the file
-  and the import for the Model API bundle.
+  and the import for the Model API bundle. The check follows a loaded bundle
+  to the members read from it, and what it cannot follow fails the build
+  with the form it met, never passes unchecked: keep a sibling's module in a
+  variable, a property or a function that returns it and read its members
+  by name, not passed whole to other code or kept in an object. A load whose
+  file name is worked out at run time has to be listed, with the reason, in
+  `COMPUTED_LOADS` (`scripts/lib/bundleExports.mjs`).
 
 `npm run check:l10n` checks all of this. It fails a key missing from a
 translation, a changed `{slot}`, a wrong set of plural forms, and a

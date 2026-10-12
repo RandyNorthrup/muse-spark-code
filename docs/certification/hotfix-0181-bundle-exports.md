@@ -76,9 +76,13 @@ binding's name is skipped for that binding.
 - `test/unit/modelApiEntryExports.test.ts` is the fast signal on source: it
   names the file and the import for the Model API bundle.
 
-Limits, stated: a sibling whose text carries no export annotation is not
-checked and is listed in the gate's line (today the five generated
-`uiText*.js` tables); a module passed whole to other code is not followed.
+As first written the check stated two limits: a sibling whose text carries no
+export annotation was not checked and only listed in the gate's line (the
+five generated `uiText*.js` tables), and a module passed whole to other code
+was not followed. The review of pull request 150 found that a stated limit
+the gate does not enforce is a way for a missing export to pass, and found
+two more of the kind. All are closed in "The review of pull request 150"
+below: what the check cannot follow or read now fails the build.
 
 ## It found a second defect on its first run
 
@@ -311,3 +315,154 @@ folder):
   `/usage` shows 88 requests, 462,735 input tokens and a total of $0.52 where
   0.18.0 said "80 older records not counted ... Total Cost: Unknown": the
   `canonicalUsd` fix, live.
+
+## The review of pull request 150 (2026-10-12)
+
+Four findings on head `39153196d`, all four real. They are one class: a
+gate that can pass having checked less than it says. Fixed in scripts, tests
+and records only; no file under `src` changes and no built file changes
+(below). Windows host for edits, Prettier, changed-file ESLint and git;
+builds, Vitest and the drills on the Linux laptop.
+
+### 1. A target passed by being loaded (`check-bundle-split.mjs`)
+
+`siblingExportProblems` recorded a sibling in `verified` with a count of
+zero when it was loaded and no member read could be tied to it, and the gate
+asked only whether the two targets were in that map.
+
+- `verified` holds a sibling only when members were compared with its export
+  list. Loaded and nothing read is not verified.
+- `crossBundleFailures(report, targets, expectedComputed)` in
+  `scripts/lib/bundleExports.mjs` is the gate's decision, so tests reach it:
+  a missing export; a use that could not be followed, with reader, sibling
+  and form; a sibling whose export list is not in its text; a load by a
+  computed name that is not listed; a listed one that is gone; and each
+  target with no member compared.
+- The sweep of "present means checked": the map (above), the gate's
+  `.has(target)` (now the count), the gate's line, which counted the map's
+  size, and the `unverified` list, which was printed and passed. The five
+  `uiText*.js` tables have no esbuild annotation; their export list is now
+  read from their own `exports.EN = ...` (any other use of `exports` or
+  `module.exports` leaves a list unknown), so `unverified` is empty on the
+  real build and anything in it fails.
+
+Tests (`bundleExports.test.mjs`, "a bundle counts as checked by the members
+compared with it", five cases; every unfollowable form also asserts that the
+sibling is absent from `verified` and that the gate's sentence names it).
+**Drill F1**, presence counts again (the map takes zero counts, the gate asks
+`.has`): exit 1, 15 failed, 39 passed.
+
+### 2. A local hid the module for a whole function (`bundleExports.mjs`)
+
+`declaredIn` collected every name declared anywhere in a function, so a
+block-, loop- or catch-scoped local with the module's minified name hid the
+module for the whole function, and a member read outside that scope was
+skipped.
+
+A name is now resolved by its binding through the lexical scopes around each
+use: the file, a function (parameters, its own name, `var` at any depth, the
+body's own `let`, `const`, class and function declarations), a block, a
+switch block, a loop head, a catch clause, a class static block and a named
+class expression. A read counts for a module exactly when its name resolves
+to the binding that holds the module.
+
+Tests, on built text in the shapes the minifier leaves, each with a read of
+the sibling before the inner scope and one after it: a catch parameter, a
+`for (let …)` binding, a `for (const … of …)` binding, a block `const`, a
+block class, a switch case `const`, a class static block `var`; a function
+still hides the name for its body and only for that; a module kept in a
+block is read there and nowhere else. **Drill F2**, only functions, static
+blocks and the file are scopes: exit 1, 7 failed, 47 passed.
+
+### 3. An import kept in a holder was not followed (`bundleExports.mjs`)
+
+A dynamic import stored by an assignment recorded no binding and no member.
+Shipped code does it: `src/runtime/backends.ts` keeps
+`import('./runtimeAccountingEntry.js')` by `??=` and reads
+`createRuntimeDailyBudget` from the awaited value; deleting that export
+passed the gate.
+
+The check now follows a sibling's module, or the promise of it, through
+every place the build keeps it: a variable (by binding), a property (by
+name), a function or method that returns it (every call by that name), the
+assignments `=`, `??=`, `||=` and `&&=`, a conditional, `??` and `||`, a
+comma, `await`, a `.then` callback, `.catch` and `.finally`, a destructuring
+declaration or assignment, a lowered dynamic import, and esbuild's interop
+helper, recognised by its own definition and not by the shape of a call.
+What cannot be followed is listed in `unfollowed` and fails the build: the
+module passed whole, kept in an object or an array, a computed member, a
+`...rest`, a function that returns it handed on without a call, a `.then`
+callback given by name, a static import or re-export.
+
+A load whose file is worked out at run time cannot be tied to a bundle at
+all. There is one: `configured.ts` falls back from
+`dist/providerCatalog.json` to the same table written as a module, which is
+data handed whole to its schema. It is listed in `COMPUTED_LOADS` with that
+reason; any other computed load fails the build, and so does that entry once
+its load is gone.
+
+On the real build (the production build of this branch, 87 bundles): no
+member the first form read is lost, and 31 are read that it did not see,
+through exactly the forms above:
+
+| Reader             | Sibling                                                 | Members now compared                                                                                                                                                             |
+| ------------------ | ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `runtimeEngine.js` | `runtimeAccounting.js`                                  | `createRuntimeDailyBudget`, `withRuntimeAccounting`, `setUiText`                                                                                                                 |
+| `foreignHooks.js`  | `pluginHooks.js`                                        | `containedTree`, `PluginSession`, `pluginAnswer`, `pluginRequest`                                                                                                                |
+| `headless.js`      | `runtimeEngine.js`                                      | `createAcpAgent`, `createExecClient`, `createRuntimeBackend`                                                                                                                     |
+| `modelApi.js`      | `hookRuntime.js`                                        | `loadSparkHookDefinitions`, `validateElicitationValues`, `validateElicitationSchema`, `parseElicitationParams`, `dispatchExtensionHooks`, `runTypedHandler`                      |
+| `modelApi.js`      | `modelApiCodeIntel.js`                                  | `bareName`, `repoMapSection`, `planRenameCall`, `renameRefused`, `isProtectedRename`, `renameCardPath`, `applyRename`, `CodeIntelRefusal`, `runCodeIntelRead`, `renameHookFiles` |
+| `modelApi.js`      | `foreignHooks.js`, `modelApiHooks.js`, `modelApiMcp.js` | `loadForeignHookDefinitions`; `dispatchHooks`; `McpServerPool`, `setUiText`                                                                                                      |
+| `extension.js`     | `schedules.js`                                          | `nextScheduleFire`                                                                                                                                                               |
+
+All 31 are exported: the stricter check found no third defect. The gate's
+line is now
+
+```text
+ok   cross-bundle members: 2244 reads of 44 sibling bundles, each exported by the bundle read; every loaded sibling followed to its members, every export list read, 1 of 1 listed load(s) by a computed name
+```
+
+(2,135 reads of 39 before: 31 members newly followed, and 78 reads of `EN`
+from the five tables whose export list is now read.)
+
+Tests: thirteen holder shapes taken from the real build
+(`bundleExports.test.mjs`, "a module is followed through every place the
+build keeps it"), a cached dynamic import in real esbuild output, twelve
+forms that cannot be followed and a `...rest`, the computed load and its list, and on the
+real production builds (`deferredBundles.test.ts`) "follows every loaded
+sibling to its members and reads every export list" and "names a member read
+through a cached dynamic import (the accounting bundle)".
+
+| Drill                                                              | Command         | Result                                                                                                                                                                                                                                                    |
+| ------------------------------------------------------------------ | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **F3a** `??=` not followed                                         | the two suites  | exit 1, 6 failed, 173 passed                                                                                                                                                                                                                              |
+| **F3b** the same, on the real build                                | `npm run build` | exit 1, three problems, each "loads … and uses it in an expression the check cannot follow … (not followed, so not checked)": `foreignHooks.js` and `pluginHooks.js`, `modelApi.js` and `modelApiHooks.js`, `runtimeEngine.js` and `runtimeAccounting.js` |
+| **F3c** the provider catalog's load not listed                     | `npm run build` | exit 1, two problems: the load, and the entry that matches nothing                                                                                                                                                                                        |
+| **F3d** `createRuntimeDailyBudget` not exported, in the real build | `npm run build` | exit 1: "dist: runtimeEngine.js reads createRuntimeDailyBudget from runtimeAccounting.js, which does not export it"                                                                                                                                       |
+
+Every drill changed files in the rig's copy only and restored them: the
+SHA-256 prefixes before and after are equal (`0e572e61d511c45b` for
+`scripts/lib/bundleExports.mjs`, `8bac881f424efad9` for
+`src/runtime/runtimeAccountingEntry.ts`) and `git status` was empty.
+
+### What changed for other code
+
+`scripts/lib/bundleExports.mjs`, for a lane that builds on it:
+
+- `siblingExportProblems(files)`: same name and argument. Its result keeps
+  `problems`, `verified` and `unverified` and gains `unfollowed` (sentences)
+  and `computed` (`{ reader, text }`). `verified` no longer holds a sibling
+  with a count of zero.
+- New exports: `crossBundleFailures(report, targets, expectedComputed?)`,
+  `CROSS_BUNDLE_TARGETS`, `COMPUTED_LOADS`.
+- `scripts/check-bundle-split.mjs` takes its two lists from there.
+
+### No built file changes
+
+The production build of `39153196d` and of this change on the same machine:
+267 files of `dist` each (the metafile folders aside), built one after the
+other in the same slot on the laptop, every one with the same name and
+SHA-256 in both builds. `dist/modelApi.js` is 532,827 B (`cae6cd7e029a…`)
+and `dist/extension.js` 563,974 B (`7cd17477a3ec…`) in both;
+`dist/headless.js` 100,078 B and `dist/whatsNew.json` 35,457 B. No cap and
+no pin moved, and no file under `src` is touched.
