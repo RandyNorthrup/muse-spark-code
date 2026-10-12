@@ -82,6 +82,7 @@ export async function createVaultBrokerProcess(
   const owned: { broker?: VaultBroker; management?: VaultManagement } = {}
   return await startVaultBrokerProcess({
     runDirectory: context.runDirectory,
+    dataDir: context.dataDir,
     userSession: context.userSession,
     helper,
     ...(bindings.idleMs !== undefined && { idleMs: bindings.idleMs }),

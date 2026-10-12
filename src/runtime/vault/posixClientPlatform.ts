@@ -1,10 +1,15 @@
 import process from 'node:process'
 import path from 'node:path'
-import { homedir } from 'node:os'
+import os, { homedir } from 'node:os'
 import { createConnection } from 'node:net'
 import { setTimeout as delay } from 'node:timers/promises'
 import { UnixVaultPrivateFiles, isVaultFileMissing } from '../../core/vault/broker/files'
 import { vaultBrokerLockSchema } from '../../shared/vaultProtocol'
+import {
+  expectedVaultSocketLocations,
+  isExpectedVaultSocket,
+  verifyVaultSocketFile,
+} from '../../core/vault/broker/socketDirectory'
 import { VaultBrokerDiscovery } from '../../core/vault/broker/discovery'
 import { UnixVaultPeerVerifier } from '../../core/vault/broker/peer'
 import { handoffResourceFile } from '../../core/resources/launcher'
@@ -40,6 +45,18 @@ export async function posixVaultClientPlatform(
         try {
           const location = await super.discover(identify)
           if (!location) return null
+          // The broker record carries the socket path: speak only to a
+          // socket inside this data folder's own bounded location, owned by
+          // this user. A foreign record never directs this client elsewhere.
+          const expected = expectedVaultSocketLocations(path.join(context.dataDir, 'vault'), {
+            platform: process.platform,
+            env: process.env,
+            tmpdir: os.tmpdir(),
+            homeDir: homedir(),
+          })
+          if (!(await isExpectedVaultSocket(location.lock.socket, expected)))
+            throw new Error(UI_TEXT.vault.noAccess)
+          await verifyVaultSocketFile(location.lock.socket)
           // Discovery is published before listen; a real socket connection proves readiness.
           await new Promise<void>((resolve, reject) => {
             const socket = createConnection(location.lock.socket)

@@ -27,6 +27,7 @@ import {
   VAULT_BROKER_EMPTY_IDLE_MS,
 } from '../../../src/shared/constants'
 import { VaultBrokerDiscovery } from '../../../src/core/vault/broker/discovery'
+import { resolveVaultSocket } from '../../../src/core/vault/broker/socketDirectory'
 import { brokerFixture } from './brokerFixture'
 import * as launcher from '../../../src/core/resources/launcher'
 import { fakeManagement } from '../helpers/vault/fakeManagement'
@@ -241,7 +242,10 @@ afterAll(async () => {
 })
 
 async function fixture(id: string, idleMs = 100) {
-  const runDirectory = path.join(native.directory, id)
+  // The socket leaf names a short hash of the data folder: same id shares
+  // one broker (the singleton test), different ids never share a socket.
+  const dataDir = path.join(native.directory, `data-${id}`)
+  const runDirectory = path.join(dataDir, 'vault', 'run')
   const f = await brokerFixture()
   f.deps.identity.verifyHost = () => Promise.resolve(true)
   const peers = new UnixVaultPeerVerifier(
@@ -262,6 +266,7 @@ async function fixture(id: string, idleMs = 100) {
   })
   const options = {
     runDirectory,
+    dataDir,
     userSession: 'test-session',
     helper: native.helper,
     idleMs,
@@ -416,7 +421,14 @@ describe.skipIf(process.platform === 'win32')('POSIX vault broker lifecycle', ()
     const f = await fixture('stale', 1000)
     const discovery = new VaultBrokerDiscovery(f.options.runDirectory, f.options.userSession)
     await vaultPrivateDirectory(discovery.directory)
-    const socket = path.join(discovery.directory, 'broker.sock')
+    // The stale socket lives at the bounded location, outside the data folder.
+    const stale = await resolveVaultSocket(f.options.dataDir, {
+      platform: process.platform,
+      env: process.env,
+      tmpdir: os.tmpdir(),
+      homeDir: os.homedir(),
+    })
+    const socket = stale.socket
     const server = createServer()
     server.listen(socket)
     await once(server, 'listening')
@@ -438,7 +450,13 @@ describe.skipIf(process.platform === 'win32')('POSIX vault broker lifecycle', ()
     const discovery = new VaultBrokerDiscovery(f.options.runDirectory, f.options.userSession)
     const identity = await vaultProcessIdentity(native.helper, process.pid)
     if (!identity) throw new Error('generated owner disappeared')
-    const claim = await discovery.claim(identity, path.join(discovery.directory, 'broker.sock'))
+    const liveSocket = await resolveVaultSocket(f.options.dataDir, {
+      platform: process.platform,
+      env: process.env,
+      tmpdir: os.tmpdir(),
+      homeDir: os.homedir(),
+    })
+    const claim = await discovery.claim(identity, liveSocket.socket)
     const before = await readFile(path.join(discovery.directory, 'broker.lock'))
     const channel = vi.fn(f.options.channel)
     try {
@@ -482,11 +500,12 @@ describe.skipIf(process.platform === 'win32')('POSIX vault broker lifecycle', ()
     })
     await expect(handle.closed).rejects.toThrow('generated lock failure')
     expect(f.disposed).toHaveBeenCalledOnce()
-    await expect(
-      stat(path.join(path.dirname(handle.location.lock.socket), 'broker.lock')),
-    ).rejects.toMatchObject({ code: 'ENOENT' })
+    const discovery = new VaultBrokerDiscovery(f.options.runDirectory, f.options.userSession)
+    await expect(stat(path.join(discovery.directory, 'broker.lock'))).rejects.toMatchObject({
+      code: 'ENOENT',
+    })
     await expect(stat(handle.location.lock.socket)).rejects.toMatchObject({ code: 'ENOENT' })
-    const next = await hold(path.join(path.dirname(handle.location.lock.socket), 'startup.lock'))
+    const next = await hold(path.join(discovery.directory, 'startup.lock'))
     await next.release()
   })
   it('releases its native kernel lock on private-input EOF', async () => {
@@ -508,7 +527,7 @@ describe.skipIf(process.platform === 'win32')('POSIX vault broker lifecycle', ()
       const f = await fixture('identity-exit', 1000)
       const child = spawn(
         process.execPath,
-        [native.childEntry, f.options.runDirectory, native.helper],
+        [native.childEntry, f.options.runDirectory, native.helper, f.options.dataDir],
         { env: {}, stdio: ['ignore', 'pipe', 'ignore'] },
       )
       const exited = once(child, 'exit')
@@ -566,9 +585,11 @@ describe.skipIf(process.platform === 'win32')('POSIX vault broker lifecycle', ()
     const f = await fixture('crash', 1000)
     const child = spawn(
       process.execPath,
-      [native.childEntry, f.options.runDirectory, native.helper],
+      [native.childEntry, f.options.runDirectory, native.helper, f.options.dataDir],
       {
-        env: { PATH: process.env['PATH'] },
+        // The production launcher passes TMPDIR through; the child resolves
+        // its socket base the same way, never falling back to /tmp here.
+        env: { PATH: process.env['PATH'], TMPDIR: process.env['TMPDIR'] },
         stdio: ['pipe', 'pipe', 'pipe'],
       },
     )
@@ -588,10 +609,18 @@ describe.skipIf(process.platform === 'win32')('POSIX vault broker lifecycle', ()
     const exited = once(child, 'exit')
     child.kill('SIGKILL')
     await exited
-    for (const file of ['broker.lock', 'boot-token', 'broker.sock', 'startup.lock']) {
+    for (const file of ['broker.lock', 'boot-token', 'startup.lock']) {
       const discovery = new VaultBrokerDiscovery(f.options.runDirectory, f.options.userSession)
       expect(await stat(path.join(discovery.directory, file))).toBeDefined()
     }
+    // The bound socket lives outside the data folder, at the bounded location.
+    const bound = await resolveVaultSocket(f.options.dataDir, {
+      platform: process.platform,
+      env: process.env,
+      tmpdir: os.tmpdir(),
+      homeDir: os.homedir(),
+    })
+    expect(await stat(bound.socket)).toBeDefined()
     const handle = await start(f.options)
     try {
       const client = await VaultBrokerClient.open(
@@ -695,8 +724,13 @@ describe.skipIf(process.platform === 'win32')('POSIX vault broker lifecycle', ()
 })
 
 async function expectMissingSocket(options: VaultBrokerProcessOptions) {
-  const discovery = new VaultBrokerDiscovery(options.runDirectory, options.userSession)
-  await expect(stat(path.join(discovery.directory, 'broker.sock'))).rejects.toMatchObject({
+  const missing = await resolveVaultSocket(options.dataDir, {
+    platform: process.platform,
+    env: process.env,
+    tmpdir: os.tmpdir(),
+    homeDir: os.homedir(),
+  })
+  await expect(stat(missing.socket)).rejects.toMatchObject({
     code: 'ENOENT',
   })
 }

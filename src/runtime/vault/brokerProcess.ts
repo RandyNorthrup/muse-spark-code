@@ -1,3 +1,4 @@
+import os from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
 import { constants } from 'node:fs'
@@ -6,6 +7,12 @@ import { createServer } from 'node:net'
 import { type Duplex } from 'node:stream'
 import { VaultBrokerDiscovery, type VaultBrokerLocation } from '../../core/vault/broker/discovery'
 import { UnixVaultPrivateFiles, isVaultFileMissing } from '../../core/vault/broker/files'
+import {
+  isPathWithin,
+  resolveVaultSocket,
+  verifyVaultSocketBase,
+  verifyVaultSocketFile,
+} from '../../core/vault/broker/socketDirectory'
 import {
   type VaultChannelServer,
   type VaultSecuredListenerPort,
@@ -20,6 +27,8 @@ import { holdVaultStartupLock, vaultProcessIdentity } from './posixNative'
 
 export interface VaultBrokerProcessOptions {
   readonly runDirectory: string
+  /** The data folder: the socket leaf names a short hash of it, never its path. */
+  readonly dataDir: string
   readonly userSession: string
   readonly helper: string
   readonly idleMs?: number
@@ -34,8 +43,19 @@ export interface VaultBrokerProcessOptions {
   readonly dispose: () => Promise<void>
 }
 
-/** Only under the kernel startup lock. Never delete a live broker's files. */
-async function clearStale(discovery: VaultBrokerDiscovery, helper: string): Promise<void> {
+/**
+ * Only under the kernel startup lock. Never delete a live broker's files.
+ * The socket is recovered through the record that names it (the broker
+ * record in the data folder carries the socket path), and only while it
+ * stays inside this broker's own socket directory: a foreign record never
+ * directs a deletion elsewhere.
+ */
+async function clearStale(
+  discovery: VaultBrokerDiscovery,
+  helper: string,
+  socketDirectory: string,
+  expectedSocket: string,
+): Promise<void> {
   const files = new UnixVaultPrivateFiles()
   let lock: ReturnType<typeof vaultBrokerLockSchema.parse> | null = null
   try {
@@ -47,8 +67,7 @@ async function clearStale(discovery: VaultBrokerDiscovery, helper: string): Prom
   } catch (error: unknown) {
     if (!isVaultFileMissing(error)) throw error
   }
-  // A crash can happen before publishing discovery, so the socket's fixed name is recovered too.
-  for (const name of ['broker.lock', 'boot-token', 'broker.sock']) {
+  for (const name of ['broker.lock', 'boot-token']) {
     const file = path.join(discovery.directory, name)
     try {
       const sample = await lstat(file)
@@ -56,11 +75,24 @@ async function clearStale(discovery: VaultBrokerDiscovery, helper: string): Prom
         sample.isSymbolicLink() ||
         sample.uid !== process.getuid?.() ||
         (sample.mode & (constants.S_IRWXG | constants.S_IRWXO)) !== 0 ||
-        (name === 'broker.sock' ? !sample.isSocket() : !sample.isFile() || sample.nlink !== 1)
+        !sample.isFile() ||
+        sample.nlink !== 1
       )
         throw new Error(UI_TEXT.vault.noAccess)
-      if (name === 'broker.sock' && lock && lock.socket !== file)
-        throw new Error(UI_TEXT.vault.noAccess)
+      await unlink(file)
+    } catch (error: unknown) {
+      if (!isVaultFileMissing(error)) throw error
+    }
+  }
+  // A crash can happen after bind, so the socket named by the dead record is
+  // recovered too; without a record the expected path itself is recovered.
+  // The file check refuses a hostile record; an absent socket simply stays so.
+  const sockets = [lock ? lock.socket : expectedSocket]
+  for (const file of sockets) {
+    try {
+      if (!(await isPathWithin(file, socketDirectory))) throw new Error(UI_TEXT.vault.noAccess)
+      // Refuses a hostile record; an absent socket reports missing below.
+      await verifyVaultSocketFile(file)
       await unlink(file)
     } catch (error: unknown) {
       if (!isVaultFileMissing(error)) throw error
@@ -79,16 +111,27 @@ export async function startVaultBrokerProcess(options: VaultBrokerProcessOptions
   const idleMs = options.idleMs ?? VAULT_BROKER_EMPTY_IDLE_MS
   if (
     !path.isAbsolute(options.runDirectory) ||
+    !path.isAbsolute(options.dataDir) ||
     !path.isAbsolute(options.helper) ||
     !options.userSession ||
     !Number.isSafeInteger(idleMs) ||
     idleMs < 1
   )
     throw new Error(UI_TEXT.vault.noAccess)
+  // The socket lives in a bounded owner-only location outside the data
+  // folder; the byte length is measured before bind and refused in a
+  // sentence when even the bounded location is too long (RVCM109JE P2-3).
+  const socketLocation = await resolveVaultSocket(options.dataDir, {
+    platform: process.platform,
+    env: process.env,
+    tmpdir: os.tmpdir(),
+    homeDir: os.homedir(),
+  })
   const files = new UnixVaultPrivateFiles()
   const discovery = new VaultBrokerDiscovery(options.runDirectory, options.userSession, files)
   await files.directory(discovery.directory)
-  if ((await realpath(discovery.directory)) !== path.resolve(discovery.directory))
+  // Identity, never spelling: /var and /private/var name the same macOS root.
+  if ((await realpath(discovery.directory)) !== (await realpath(path.resolve(discovery.directory))))
     throw new Error(UI_TEXT.vault.noAccess)
   const held = await holdVaultStartupLock(
     options.helper,
@@ -176,16 +219,21 @@ export async function startVaultBrokerProcess(options: VaultBrokerProcessOptions
     if (!lifecycle.isStarting) void close().catch(done.reject)
   })
   try {
-    await clearStale(discovery, options.helper)
+    await clearStale(discovery, options.helper, socketLocation.directory, socketLocation.socket)
     assertHeld()
     const identity = await vaultProcessIdentity(options.helper, process.pid)
     if (identity?.userId !== String(process.getuid?.())) throw new Error(UI_TEXT.vault.noAccess)
-    const socket = path.join(discovery.directory, 'broker.sock')
+    // The broker record in the data folder carries this socket path; clients
+    // verify the socket owner before they speak.
+    const socket = socketLocation.socket
     const claim = await discovery.claim(identity, socket)
     release = claim.release
     const listener: VaultSecuredListenerPort = {
       listen: async (file, accepted) => {
         if (file !== socket) throw new Error(UI_TEXT.vault.noAccess)
+        // The directory is verified again immediately before bind: ownership,
+        // mode and type, every start.
+        await verifyVaultSocketBase(socketLocation.directory)
         const server = createServer((stream) => {
           if (closing || lifecycle.hasLostLock || sockets.size >= VAULT_BROKER_MAX_CONNECTIONS) {
             stream.destroy()
