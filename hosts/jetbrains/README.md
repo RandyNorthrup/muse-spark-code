@@ -122,3 +122,17 @@ in [the follow-up certification](../../docs/certification/m104-e3.md) and
 [the lifecycle redesign record](../../docs/certification/m104-e-redesign.md). Distribution,
 signing, the all-IDE verifier matrix and end-to-end runtime qualification are
 owned by lanes I and J.
+
+## Marketplace listing
+
+The listing logo `src/main/resources/META-INF/pluginIcon.svg` is generated
+from the product's own mark in `media/marketplace-icon.svg` (never redrawn,
+never another company's logo). Regenerate it from the repository root with
+`node hosts/jetbrains/make-plugin-icon.mjs media/marketplace-icon.svg hosts/jetbrains/src/main/resources/META-INF/pluginIcon.svg`.
+The description and change notes live in
+`src/main/resources/META-INF/plugin.xml`; the plugin version is read from the
+repository's root `package.json` by `build.gradle.kts`.
+`test/listing.test.mjs` holds them to the Marketplace approval guidelines:
+the logo (1.1), the name (1.2 e/g/h), the description (1.4) and the change
+notes (1.5). Nothing is uploaded to the Marketplace before the installed-IDE
+runs pass.
