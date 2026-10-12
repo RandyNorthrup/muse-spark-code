@@ -316,22 +316,57 @@ finding 2 demands; diff inside the lane's files.
 All drills ran at the repository timeout (no `--testTimeout`) and every file
 was restored byte-exact (SHA-256 verified against the pre-drill hash).
 
+## RVCM1094E repairs (lane CM1094R6, 2026-10-12, linuxlt)
+
+Branch `c/m109-4`, base `f673a51a0`. Closes all three RVCM1094E findings
+(P3) as a class, including the remainder of the round 5 design the review
+left open. Zero model attempts, paid calls, network calls or real
+credentials. Tests use generated material only. No new dependency; no guard
+widened; diff inside the lane's files.
+
+| Finding                                                                                                                                         | Fix                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | Regression test                                                                                                                                                                                                                                                                                                                           | Red drill (break → named failure → restore)                                                                                                           |
+| ----------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P3-1 a crash between the retire intent and the delete reads a later real deletion as the engine's own retire; `resume` threw for a changed copy | the window is closed instead of told apart: the engine exposes one call, `src/core/vault/migrate/migrate.ts` › `VaultMigration` › `finishPendingRetires`, for the vault at every open before any other migration call — a present copy is deleted and recorded `retired`, an absent one is recorded `retired` with a journal note saying the engine did not see the delete, a changed one reports `diverged` with its stale intent cleared and the call goes on; `resume` shares the same helper (`finishOneIntent`) so it clears a stale intent and reports `diverged` instead of throwing `conflict`/`invalid`; `delete` gains the separately named `legacyDeletionConfirmed` for the `legacyDeleted` answer after asking the person, while `destroyLastCopyConfirmed` stays the ordinary delete (a plain sign-out may pass it) | `finishes a pending retire intent at open instead of leaving it lying`, `notes a pending retire intent resumed with the legacy copy already absent`, `reports a changed legacy copy at open and still finishes the other rows`, `resume reports a changed legacy copy instead of throwing`, `keeps the two last-copy confirmations apart` | `resume` back to `finishInterruptedRetire` → `resume reports a changed legacy copy` fails; `migrate.ts` restored SHA-256 `537c1665…`                  |
+| P3-2 inventory misses five of the nine removal forms (destructured, bound, element access, deep subclass, structural port)                      | a removal is found by the declaration it resolves to: direct and element accesses, destructured or bound references followed to their binding, overrides in subclasses at any depth (heritage walked with the checker), and structural ports the store is assignable to (`isTypeAssignableTo` — the first version called the non-existent `isAssignableTo`, swallowed by its own `try/catch`, so the port form never counted)                                                                                                                                                                                                                                                                                                                                                                                                     | `finds an AccountStore removal by its declaration in every call form` (the reviewer's nine forms, each generated against the real `AccountStore`); the 158-site count holds unchanged                                                                                                                                                     | port check back to `isAssignableTo` → 8 vs 9, the port form unnamed; `migrationKeySites.ts` restored SHA-256 `2f3e139c…`                              |
+| P3-3 hand-off cites carry line numbers (ChatGPT row, wiring list, join comment)                                                                 | every cite is a `file › symbol` anchor: the ChatGPT row, the adapters, the startup chain, the Meta/provider/account reads and writes, and the join comment (which now also separates `authSetProvider` from `auth set` — the old comment put `:128` under the wrong command); the same inventory test that checks the key-family rows checks the marked hand-off region carries no line number and every anchor resolves at the head                                                                                                                                                                                                                                                                                                                                                                                              | `hand-off symbol anchors resolve at the head and carry no line numbers`                                                                                                                                                                                                                                                                   | anchor renamed → names the stale pair; planted `file:9999` → names the cite; doc restored byte-exact (SHA-256 verified before this section was added) |
+
+All drills ran at the repository timeout (no `--testTimeout`) and every file
+was restored byte-exact (SHA-256 verified against the pre-drill hash).
+
+<!-- hand-off anchors start: every `file › symbol` pair below is checked
+against the head by `test/unit/vault/migrationKeyInventory.test.ts`, and no
+line number may appear here. Name the symbol, never the line. -->
+
 **Join hand-off: answering a migration report.** `migrate` reports the slot
-state; the join answers with exactly one call. Only a flagged `delete`
-destroys the last copy; the flag is typed as the literal `true`, so the
-join passes it only in the branch where the user confirmed.
+state; the join answers with exactly one call. At every open, before any
+other migration call, the vault finishes every pending retire intent at once
+(`src/core/vault/migrate/migrate.ts` › `VaultMigration` › `finishPendingRetires`),
+so no intent survives an open. Only a confirmed `delete` destroys the last
+copy, and the two confirmations cannot be confused in code: an `active` slot
+that still retains its legacy copy but finds it absent answers `legacyDeleted`
+only after asking the person, with `legacyDeletionConfirmed`; every other
+last copy — a `retired` slot, a credential born in the vault — is an ordinary
+delete, confirmed with `destroyLastCopyConfirmed` (a plain sign-out may pass
+it). Both flags are typed as the literal `true`, so the join passes each only
+in the branch where its own confirmation happened. `resume` on an `active` row
+whose legacy copy changed after the intent clears the stale intent and reports
+`diverged` instead of throwing, so the join's per-key `resume`, `migrate`,
+`retire` sequence goes on to the other rows.
 
-| `migrate` reports                                       | Allowed answers                                                                                                                                                                         | Last copy                                                                         |
-| ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| `active`, legacy present                                | `retire` (false inside the window, completes after it), `undo` (inside the window), `store` (re-seed), `delete` (removes both copies; no flag — the legacy copy is still there)         | `delete` removes both copies: the ordinary user delete                            |
-| `legacyDeleted` (active, legacy absent, no intent)      | `store` (re-mirrors and clears the report), flagged `delete` (user confirmed the removal), or leave it; `retire` returns false with no notice and keeps the report; `undo` refuses      | only the flagged `delete`; unflagged refuses with `conflict` and destroys nothing |
-| interrupted retire (active with intent, legacy absent)  | `migrate`, `resume` or `retire`: all finish it to `retired` with the ordinary retire notice; flagged `delete`                                                                           | only the flagged `delete`; unflagged refuses with `conflict`                      |
-| interrupted retire (active with intent, legacy present) | `migrate` reports `active` (or `diverged` after a behind-vault change); `resume` or `retire` finish it; `store` re-seeds and clears the intent; `delete` (both copies present, no flag) | `delete` removes both copies                                                      |
-| `retired`                                               | `store` (rewrite), flagged `delete`; `retire` refires a pending notice once                                                                                                             | only the flagged `delete`; unflagged refuses with `conflict`                      |
-| `diverged`                                              | `store`, and only after the user resolves the conflict (it overwrites both copies); `undo` and `retire` refuse                                                                          | overwrites, never silent: the user's resolution picks the value                   |
+| `migrate` reports                                       | Allowed answers                                                                                                                                                                                                           | Last copy                                                                                                 |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `active`, legacy present                                | `retire` (false inside the window, completes after it), `undo` (inside the window), `store` (re-seed), `delete` (removes both copies; no flag — the legacy copy is still there)                                           | `delete` removes both copies: the ordinary user delete                                                    |
+| `legacyDeleted` (active, legacy absent, no intent)      | `store` (re-mirrors and clears the report), `delete` with `legacyDeletionConfirmed` (the join asked the person first), or leave it; `retire` returns false with no notice and keeps the report; `undo` refuses            | only that `delete`; `delete` with `destroyLastCopyConfirmed` refuses with `conflict` and destroys nothing |
+| interrupted retire (active with intent, legacy absent)  | `migrate`, `resume` or `retire`: all finish it to `retired` with the ordinary retire notice; `finishPendingRetires` at open already finished it when the join follows the order; `delete` with `destroyLastCopyConfirmed` | only that `delete`; unflagged refuses with `conflict`                                                     |
+| interrupted retire (active with intent, legacy present) | `migrate` reports `active` (or `diverged` after a behind-vault change); `resume` or `retire` finish it; `store` re-seeds and clears the intent; `delete` (both copies present, no flag)                                   | `delete` removes both copies                                                                              |
+| `retired`                                               | `store` (rewrite), `delete` with `destroyLastCopyConfirmed`; `retire` refires a pending notice once                                                                                                                       | only that `delete`; unflagged refuses with `conflict`                                                     |
+| `diverged`                                              | `store`, and only after the user resolves the conflict (it overwrites both copies); `undo` and `retire` refuse                                                                                                            | overwrites, never silent: the user's resolution picks the value                                           |
 
-**Owed by the vault join (replaces the R2 list as a class).** The sweep
-covers `src/` host and runtime (CLI, ACP and exec): 158 sites — 35 for
+**Owed by the vault join (replaces the R2 list as a class).** On every open,
+before any other migration call, the vault calls `src/core/vault/migrate/migrate.ts`
+› `VaultMigration` › `finishPendingRetires`, so no retire intent survives an
+open and a later deletion behind the vault can never read as the engine's own
+retire. The sweep covers `src/` host and runtime (CLI, ACP and exec): 158 sites — 35 for
 `museSpark.modelApiKey`, 65 for `museSpark.provider.<id>` (55 key-fragment
 sites plus 10 `secrets.*(account)` calls), 13 for
 `museSpark.provider.<id>.account.<id>`, plus 45 account-store write/delete
@@ -344,8 +379,10 @@ callers, which serve every family through the store's default/meta routing
 — checked into `test/unit/vault/migrationKeyInventory.test.ts` and scanned
 by `test/unit/vault/migrationKeySites.ts` (import statements and `//`/`/*`
 comments excluded; multi-line imports tracked; an `AccountStore` removal is
-found by resolved type, so `store.remove(` or `services.store.remove(`
-breaks the test while another store's `remove` does not; hook-index
+found by the declaration it resolves to — a direct call, an element access, a
+destructured or bound reference, an override in a subclass at any depth, or a
+structural port the store satisfies — so any of those spellings breaks the
+test while another store's `remove` does not; hook-index
 annotations `AccountSecretsDeps[` are not key accesses). R5 changes against
 R4's 156: the three `accounts.remove(` spellings became four typed
 `AccountStore.remove` entries (the `super.remove(` override included), the
@@ -446,50 +483,70 @@ same routing through the composed vault: every store writer through `store`,
 every store deleter through `delete`, every reader through `resolve`.
 
 ChatGPT slot (M95b-owned, refused by this codec as `invalid`):
-`src/extension.ts:1783`, `:2538`,
-`src/host/providers/subscriptionFeatures.ts:130`, `:153`, `:183`,
-`src/host/providers/chatgptSignIn.ts:287`, `src/runtime/chatGptHost.ts:16`,
-`src/runtime/chatGptProviderCommands.ts:41`,
-`src/runtime/backends.ts:415`, `:625`. The join must not register this
-lane's factory there; the owner lane's codec applies.
+`src/extension.ts` › `activateWindow` › `getPlanAccount`,
+`src/extension.ts` › `activateWindow` › `createProviderClient`;
+`src/host/providers/subscriptionFeatures.ts` › `createSubscriptionFeatures` › `accountId`,
+`src/host/providers/subscriptionFeatures.ts` › `createSubscriptionFeatures` › `planAccount`,
+`src/host/providers/subscriptionFeatures.ts` › `createSubscriptionFeatures` › `connectChatGpt`;
+`src/host/providers/chatgptSignIn.ts` › `createChatGptSignIn`;
+`src/runtime/chatGptHost.ts` › `RECORD_ACCOUNT`;
+`src/runtime/chatGptProviderCommands.ts` › `runtimeSubscriptionClient` › `accountId`;
+`src/runtime/backends.ts` › `modelApiManager` › `createProviderClient`,
+`src/runtime/backends.ts` › `createRuntimeBackend` › `modelApiReadiness`.
+The join must not register this lane's factory there; the owner lane's codec applies.
 
 **Owed by the vault join (copied from RVCM1094 §Wiring call sites).** These
 codecs are still unwired: no production file imports either factory. On the
 vault join, call `resume` then `migrate` for each owned key once the vault is
 unlocked, then `retire`, on every unlock (not only first setup), through both
-adapters (`migrateSecretStorage` in `src/host/vault/migrateSecretStorage.ts`
-and `migrateKeyStore` in `src/runtime/vault/migrateKeyStore.ts`); register
-each key once and never register `providerCredentialMigrationCredential`
-for `chatgpt` (M95b owner lane). `now` must be a nonnegative integer.
-Startup: the unlock finishing setup is `VaultManagement.confirmSetup` after
-`broker.unlock` (`src/core/vault/broker/management.ts:616`), forwarded by
-`src/host/vault/vaultPanelHost.ts:273`, `src/host/vault/vaultPanelService.ts:88`,
-`src/runtime/vault/vaultCommand.ts:341`, `src/runtime/vault/vaultRuntimeEntry.ts:114`.
-Meta key reads, one `modelApi` codec only: `CredentialStore.getApiKey`
-(`src/host/auth/credentialStore.ts:43`), `src/extension.ts:1244`, `:1259`,
-`:2012`, `:2550`, `:2857`, `:3497`, `:4556`,
-`src/host/backend/modelApiBackendManager.ts:362` and `:617`,
-`src/host/auth/authService.ts:842`, `src/host/prompts/promptEntry.ts:440`,
-`src/runtime/backends.ts:341`. Provider record reads and writes:
-`readProviderCredential` / `saveProviderCredential` /
-`deleteProviderCredential` (`src/host/providers/credentialRecords.ts:72`,
-`:59`, `:94`), scan and test `credentialFor`
-(`src/host/providers/providersHost.ts:147`), raw presence
-(`providersHost.ts:248`), wizard save and restore
-(`src/host/providers/wizardSave.ts:101`, `:116`, `:118`), removal
-(`src/host/providers/providerRemoval.ts:78`), import clear
-(`src/host/providers/importExport.ts:176`), the send path
-(`src/core/providers/configured.ts:171`), presence
-(`src/host/auth/credentialStore.ts:94`); writes go through `store`, deletes
-through `delete`, or the mirror drifts. Account reads and writes:
-`secretStorageAccountVault` (`src/host/providers/accountSecrets.ts:28`
-read, `:66` write, `:81` remove), composed at
-`src/runtime/providers/runtimeServices.ts:223` and
-`src/runtime/providers/accountStore.ts:19`; dispatch is
-`AccountStore.useCredential` (`src/core/providers/accounts.ts:247`) and
-write (`accounts.ts:224`); runtime startup reaches this through
-`src/runtime/main.ts:963`. The join must also teach vault-side readers that
+adapters (`src/host/vault/migrateSecretStorage.ts` › `migrateSecretStorage`
+and `src/runtime/vault/migrateKeyStore.ts` › `migrateKeyStore`); register
+each key once and never register `src/core/vault/migrate/providerCredentials.ts`
+› `providerCredentialMigrationCredential` for `chatgpt` (M95b owner lane).
+`now` must be a nonnegative integer.
+Startup: the unlock finishing setup is `src/core/vault/broker/management.ts` ›
+`VaultManagement` › `confirmSetup` after `broker.unlock`, forwarded by
+`src/host/vault/vaultPanelHost.ts` › `VaultPanelHost` › `handle`,
+`src/host/vault/vaultPanelService.ts` › `vaultPanelService` › `confirmSetup`,
+`src/runtime/vault/vaultCommand.ts` › `setUpVault`,
+`src/runtime/vault/vaultRuntimeEntry.ts` › `vaultCommandPort` › `confirmSetup`.
+Meta key reads, one `modelApi` codec only:
+`src/host/auth/credentialStore.ts` › `CredentialStore` › `getApiKey`,
+`src/extension.ts` › `activateWindow` › `museVoiceSetup`,
+`src/extension.ts` › `activateWindow` › `refreshKeyPresence`,
+`src/extension.ts` › `activateWindow` › `keyClient`,
+`src/extension.ts` › `activateWindow` › `modelApi`,
+`src/extension.ts` › `activateWindow` › `reportSource` › `readFacts`,
+`src/extension.ts` › `activateWindow` › `controllerFor` › `accountFacts`,
+`src/extension.ts` › `activateWindow`,
+`src/host/backend/modelApiBackendManager.ts` › `ModelApiBackendManager` › `createHost` › `getAccountId`,
+`src/host/backend/modelApiBackendManager.ts` › `ModelApiBackendManager` › `accountId`,
+`src/host/auth/authService.ts` › `AuthService` › `activateApiKey`,
+`src/host/prompts/promptEntry.ts` › `nativeDeps` › `registeredSecrets`,
+`src/runtime/backends.ts` › `modelApiManager`. Provider record reads and writes:
+`src/host/providers/credentialRecords.ts` › `readProviderCredential` (def, read),
+`src/host/providers/credentialRecords.ts` › `saveProviderCredential` (def, write),
+`src/host/providers/credentialRecords.ts` › `deleteProviderCredential` (def, delete);
+scan and test `src/host/providers/providersHost.ts` › `credentialFor`;
+raw presence `src/host/providers/providersHost.ts` › `createProvidersHost` › `providerStates`;
+wizard save and restore `src/host/providers/wizardSave.ts` › `saveWizardDraft`
+(save write, rollback delete, rollback write);
+removal `src/host/providers/providerRemoval.ts` › `createProviderRemoval` › `deleteRemovedSecret`;
+import clear `src/host/providers/importExport.ts` › `importProviders`;
+the send path `src/core/providers/configured.ts` › `createConfiguredProviderServices` › `credential`;
+presence `src/host/auth/credentialStore.ts` › `CredentialStore` › `hasProviderCredential`;
+writes go through `store`, deletes through `delete`, or the mirror drifts. Account reads and writes:
+`src/host/providers/accountSecrets.ts` › `secretStorageAccountVault` › `readStored` (read),
+`src/host/providers/accountSecrets.ts` › `secretStorageAccountVault` › `write` (write),
+`src/host/providers/accountSecrets.ts` › `secretStorageAccountVault` › `remove` (remove),
+composed at `src/runtime/providers/runtimeServices.ts` › `createRuntimeAccountServices` and
+`src/runtime/providers/accountStore.ts` › `runtimeAccountStore`; dispatch is
+`src/core/providers/accounts.ts` › `AccountStore` › `useCredential` (generic read entry, port read) and
+`src/core/providers/accounts.ts` › `AccountStore` › `rebindOrigin` (write entry with its
+`readForRemoval` removal read, port write); runtime startup reaches this through
+`src/runtime/main.ts` › `main` › `loadAccounts`. The join must also teach vault-side readers that
 a migrated default slot can be a `secret` item (overlaid full records keep
 their bytes verbatim there) as well as an `apiKey` item. `writeBatch` stays
 out: rotation and resume need `VaultMigration`'s single-item `write` plus
 the journal.
+<!-- hand-off anchors end -->
