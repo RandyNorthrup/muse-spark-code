@@ -138,6 +138,8 @@ export interface UsageReport {
   readonly subscription: SubscriptionUsage | undefined
   readonly account: AccountFacts | undefined
   readonly insights: { readonly day: UsageInsights; readonly week: UsageInsights } | undefined
+  /** The trace read's state: `empty` alone allows the "no logs" sentence. */
+  readonly insightsState?: 'empty' | 'behind' | 'unavailable' | undefined
   /** This window's tallies per BYO provider (M95); undefined until one is used. */
   readonly providers: readonly ProviderUsageRow[] | undefined
   /** The Team section (M96 lane U2); absent where the team cannot run. */
@@ -3044,6 +3046,7 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
           ...(message.serviceStatus !== undefined && { serviceStatus: message.serviceStatus }),
           account: message.account,
           insights: message.insights,
+          insightsState: message.insightsState,
           team: message.team,
           providers: message.providers === undefined ? undefined : [...message.providers],
           plans: message.plans,

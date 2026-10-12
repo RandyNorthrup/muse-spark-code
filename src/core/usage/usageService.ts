@@ -140,6 +140,26 @@ async function readResources(deps: UsageServiceDeps): Promise<ResourceHistory | 
     return null
   }
 }
+
+/** A settled read: the two sources fail independently in both directions. */
+type Settled<T> = { readonly ok: true; readonly value: T } | { readonly ok: false }
+async function settle<T>(promise: Promise<T>): Promise<Settled<T>> {
+  try {
+    return { ok: true, value: await promise }
+  } catch {
+    return { ok: false }
+  }
+}
+
+/** The journal read's shape with no records: shown only with its notice. */
+const EMPTY_JOURNAL: UsageJournalRead = {
+  records: [],
+  rollups: [],
+  limits: [],
+  recordCount: 0,
+  newerVersionRecords: 0,
+  tornLines: 0,
+}
 export function createUsageService(deps: UsageServiceDeps): UsageService {
   let query = DEFAULT_QUERY
   let selection: { provider: string; model: string } | undefined
@@ -148,22 +168,25 @@ export function createUsageService(deps: UsageServiceDeps): UsageService {
     selected: UsageQuery,
   ): Promise<{ journal: UsageJournalRead; state: UsagePageState }> {
     const now = deps.now()
-    const [journal, budgets, live, resources] = await Promise.all([
-      deps.journal.read(),
+    // The journal and the trace read run concurrently and fail
+    // independently in BOTH directions: a journal failure shows the
+    // attempts with the journal's own notice, and a trace failure shows
+    // the journal with the trace notice.
+    const [journalSettled, budgets, live, resources, attemptSettled] = await Promise.all([
+      settle(deps.journal.read()),
       deps.readBudgets(),
       deps.readLiveLimits(),
       readResources(deps),
+      settle(deps.readAttempts(selected.from)),
     ])
-    // The trace logs fail independently of the cost journal (P2-2): an
-    // unreadable trace folder shows the journal with its own sentence,
-    // never the journal's "could not be read".
+    const journal = journalSettled.ok ? journalSettled.value : EMPTY_JOURNAL
+    const journalNotice: UsagePageState['journalNotice'] = journalSettled.ok
+      ? undefined
+      : 'unavailable'
     let attemptRead: UsageAttemptRead = { attempts: [], stale: false }
     let traceNotice: UsagePageState['traceNotice']
-    try {
-      attemptRead = await deps.readAttempts(selected.from)
-    } catch {
-      traceNotice = 'unavailable'
-    }
+    if (attemptSettled.ok) attemptRead = attemptSettled.value
+    else traceNotice = 'unavailable'
     if (traceNotice === undefined && attemptRead.stale) traceNotice = 'stale'
     const aggregated = aggregateUsage(journal.records, journal.rollups, selected, now)
     const limits = limitHistory([
@@ -222,6 +245,7 @@ export function createUsageService(deps: UsageServiceDeps): UsageService {
         (attempt) => attempt.day >= aggregated.from && attempt.day <= aggregated.to,
       ),
       ...(traceNotice !== undefined && { traceNotice }),
+      ...(journalNotice !== undefined && { journalNotice }),
       savings: {
         ...(aggregated.totals.tokens.cached !== undefined && {
           cachedTokens: aggregated.totals.tokens.cached,

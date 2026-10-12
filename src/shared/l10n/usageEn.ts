@@ -198,6 +198,8 @@ export const USAGE_EN = {
     'A trace log changed while it was read, so these counts may be behind. Refresh for the latest.',
   attemptsUnavailableNote:
     'The Muse Code trace folder could not be read, so model attempts are missing. Check that the folder can be opened, then refresh.',
+  journalUnavailableNote:
+    'The cost history could not be read, so totals are missing. Only the trace attempts below stand; refresh for the latest.',
   originTurn: 'Conversation',
   originReminder: 'Reminder',
   originSubagent: 'Subagent',

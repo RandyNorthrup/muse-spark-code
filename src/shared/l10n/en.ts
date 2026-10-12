@@ -3666,6 +3666,9 @@ export const EN = {
   usageInsightNone: 'No CLI activity recorded in this window.',
   usageInsightUnavailable: 'Not available on this backend: the Model API has no local trace logs.',
   usageInsightNoLogs: 'No Muse Code trace logs were found on this machine yet.',
+  usageInsightsBehindNote:
+    'These numbers may be behind: a trace log could not be read, so an earlier count stands in.',
+  usageInsightsUnavailableNote: 'The trace logs could not be read, so no CLI activity is shown.',
   usageInsightTotals: '{attempts} across {sessions}',
   modelAttemptsCount: forms({
     one: '{count} model attempt',

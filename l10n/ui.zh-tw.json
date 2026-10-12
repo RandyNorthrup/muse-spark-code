@@ -3025,6 +3025,8 @@
   "usageInsightNone": "此時段內沒有記錄到 CLI 活動。",
   "usageInsightUnavailable": "此後端無法使用：Model API 沒有本機追蹤記錄。",
   "usageInsightNoLogs": "此電腦上尚未找到 Muse Code 追蹤記錄。",
+  "usageInsightsBehindNote": "這些數字可能不是最新的：有一個追蹤記錄無法讀取，因此顯示的是先前的計數。",
+  "usageInsightsUnavailableNote": "追蹤記錄無法讀取，因此不顯示 CLI 活動。",
   "usageInsightTotals": "{attempts}，來自 {sessions}",
   "modelAttemptsCount": {
     "other": "{count} 次模型嘗試"

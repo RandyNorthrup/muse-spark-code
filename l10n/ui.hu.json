@@ -3088,6 +3088,8 @@
   "usageInsightNone": "Ebben az időablakban nem volt rögzített CLI-tevékenység.",
   "usageInsightUnavailable": "Ezen a háttérrendszeren nem érhető el: a Model API-nak nincsenek helyi nyomkövetési naplói.",
   "usageInsightNoLogs": "Ezen a gépen még nem találhatók Muse Code nyomkövetési naplók.",
+  "usageInsightsBehindNote": "Ezek a számok elavultak lehetnek: egy nyomkövetési naplót nem sikerült beolvasni, ezért egy korábbi szám szerepel.",
+  "usageInsightsUnavailableNote": "A nyomkövetési naplókat nem sikerült beolvasni, ezért nem látható CLI-tevékenység.",
   "usageInsightTotals": "{attempts}, {sessions} során",
   "modelAttemptsCount": {
     "one": "{count} modellkísérlet",

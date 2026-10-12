@@ -3151,6 +3151,8 @@
   "usageInsightNone": "No hay actividad de la CLI registrada en esta ventana.",
   "usageInsightUnavailable": "No disponible en este back-end: Model API no tiene registros de seguimiento locales.",
   "usageInsightNoLogs": "Aún no se encontraron registros de seguimiento de Muse Code en esta máquina.",
+  "usageInsightsBehindNote": "Es posible que estos números no estén actualizados: no se pudo leer un registro de traza, por lo que se muestra un recuento anterior.",
+  "usageInsightsUnavailableNote": "No se pudieron leer los registros de traza, por lo que no se muestra actividad de la CLI.",
   "usageInsightTotals": "{attempts} en {sessions}",
   "modelAttemptsCount": {
     "one": "{count} intento del modelo",

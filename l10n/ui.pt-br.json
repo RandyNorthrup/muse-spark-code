@@ -3151,6 +3151,8 @@
   "usageInsightNone": "Nenhuma atividade da CLI registrada nesta janela.",
   "usageInsightUnavailable": "Não disponível neste back-end: a Model API não tem logs de rastreamento locais.",
   "usageInsightNoLogs": "Nenhum log de rastreamento do Muse Code foi encontrado neste computador ainda.",
+  "usageInsightsBehindNote": "Esses números podem estar desatualizados: um log de rastreamento não pôde ser lido, por isso uma contagem anterior é exibida.",
+  "usageInsightsUnavailableNote": "Os logs de rastreamento não puderam ser lidos, por isso nenhuma atividade da CLI é mostrada.",
   "usageInsightTotals": "{attempts} em {sessions}",
   "modelAttemptsCount": {
     "one": "{count} tentativa do modelo",

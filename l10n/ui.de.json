@@ -3088,6 +3088,8 @@
   "usageInsightNone": "In diesem Zeitfenster wurde keine CLI-Aktivität aufgezeichnet.",
   "usageInsightUnavailable": "Auf diesem Backend nicht verfügbar: Die Model API hat keine lokalen Trace-Protokolle.",
   "usageInsightNoLogs": "Auf diesem Computer wurden noch keine Trace-Protokolle von Muse Code gefunden.",
+  "usageInsightsBehindNote": "Diese Zahlen sind möglicherweise veraltet: Ein Trace-Protokoll konnte nicht gelesen werden, daher wird ein früherer Stand angezeigt.",
+  "usageInsightsUnavailableNote": "Die Trace-Protokolle konnten nicht gelesen werden, daher wird keine CLI-Aktivität angezeigt.",
   "usageInsightTotals": "{attempts} in {sessions}",
   "modelAttemptsCount": {
     "one": "{count} Modellversuch",

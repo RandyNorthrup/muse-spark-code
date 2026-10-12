@@ -193,6 +193,7 @@
   "attemptsNote": "Yerel izleme günlüklerinden; kapsam tutulan günlüklere bağlıdır.",
   "attemptsStaleNote": "Bir izleme günlüğü okunurken değişti, bu nedenle bu sayılar güncel olmayabilir. En güncel durum için yenileyin.",
   "attemptsUnavailableNote": "Muse Code izleme klasörü okunamadı, bu nedenle model denemeleri eksik. Klasörün açılabildiğini denetleyip yenileyin.",
+  "journalUnavailableNote": "Maliyet geçmişi okunamadı, bu nedenle toplamlar eksik. Yalnızca aşağıdaki izleme denemeleri geçerlidir; en güncel durum için yenileyin.",
   "originTurn": "Konuşma",
   "originReminder": "Hatırlatıcı",
   "originSubagent": "Alt aracı",

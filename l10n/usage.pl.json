@@ -215,6 +215,7 @@
   "attemptsNote": "Z lokalnych dzienników śledzenia; pokrycie zależy od przechowywanych dzienników.",
   "attemptsStaleNote": "Dziennik śledzenia zmienił się podczas odczytu, więc te liczby mogą być nieaktualne. Odśwież, aby zobaczyć najnowsze.",
   "attemptsUnavailableNote": "Nie można odczytać folderu śledzenia Muse Code, więc brakuje prób modelu. Sprawdź, czy folder da się otworzyć, a następnie odśwież.",
+  "journalUnavailableNote": "Nie można odczytać historii kosztów, więc brakuje sum. Obowiązują tylko poniższe próby ze śledzenia; odśwież, aby zobaczyć najnowsze.",
   "originTurn": "Rozmowa",
   "originReminder": "Przypomnienie",
   "originSubagent": "Podagent",
