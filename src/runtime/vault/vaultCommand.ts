@@ -364,6 +364,33 @@ async function setUpVault(port: VaultCommandPort, deps: VaultCommandDeps): Promi
   }
 }
 
+/**
+ * A refused Delete (or any other refused management call) tells the true
+ * reason on the terminal too: every named refusal keeps its own sentence,
+ * and only an unnamed failure stays "No access" (RVAPP-CM1091D5 P2-3).
+ * Exact match only: no foreign text can quote a full sentence.
+ */
+export function vaultCommandFailure(error: unknown): string {
+  const named: readonly string[] = [
+    UI_TEXT.vault.locked,
+    UI_TEXT.vault.setupNeeded,
+    UI_TEXT.vault.setupExists,
+    UI_TEXT.vault.itemConflict,
+    UI_TEXT.vault.deleteConflict,
+    UI_TEXT.vault.busy,
+    UI_TEXT.vault.rollback,
+    UI_TEXT.vault.storeUnavailable,
+    UI_TEXT.vault.sourceGone,
+    UI_TEXT.vault.sourceUnreadable,
+    UI_TEXT.vault.operationFailed,
+    UI_TEXT.vault.useChanged,
+    UI_TEXT.vault.approvalExpired,
+  ]
+  return error instanceof Error && named.includes(error.message)
+    ? error.message
+    : UI_TEXT.vault.noAccess
+}
+
 export async function runVaultCommand(
   options: VaultCommandOptions,
   deps: VaultCommandDeps,
@@ -459,11 +486,11 @@ export async function runVaultCommand(
         break
       }
     }
-  } catch {
+  } catch (error: unknown) {
     deps.printError(
       port === undefined && !deps.signal.aborted
         ? UI_TEXT.vault.brokerBlocked
-        : UI_TEXT.vault.noAccess,
+        : vaultCommandFailure(error),
     )
     code = 1
   } finally {

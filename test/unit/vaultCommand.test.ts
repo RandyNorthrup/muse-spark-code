@@ -232,6 +232,42 @@ describe('M109 H terminal commands', () => {
     ])
     expect(JSON.parse(await vaultRead(h.port, 'list', true))).toEqual([metadata()])
   })
+  it('RVAPP-CM1091D5 P2-3 the terminal tells the true reason for a refused Delete', async () => {
+    // Each refusal reason keeps its own sentence on the terminal, never "No
+    // access" for all. Fails without vaultCommandFailure: every sentence
+    // below printed as No access.
+    const sentences = [
+      UI_TEXT.vault.locked,
+      UI_TEXT.vault.setupNeeded,
+      UI_TEXT.vault.setupExists,
+      UI_TEXT.vault.itemConflict,
+      UI_TEXT.vault.deleteConflict,
+      UI_TEXT.vault.busy,
+      UI_TEXT.vault.rollback,
+      UI_TEXT.vault.storeUnavailable,
+      UI_TEXT.vault.sourceGone,
+      UI_TEXT.vault.sourceUnreadable,
+      UI_TEXT.vault.operationFailed,
+    ]
+    for (const sentence of sentences) {
+      const h = commandHarness()
+      h.deps.choose.mockResolvedValue('delete')
+      h.port.deleteImport.mockRejectedValueOnce(new Error(sentence))
+      expect(
+        await runVaultCommand({ command: 'import', path: String.raw`C:\\picked\\id_key` }, h.deps),
+      ).toBe(1)
+      expect(h.deps.printError).toHaveBeenCalledWith(sentence)
+      expect(h.deps.printError).not.toHaveBeenCalledWith(UI_TEXT.vault.noAccess)
+    }
+    // An unnamed failure still stays "No access".
+    const h = commandHarness()
+    h.deps.choose.mockResolvedValue('delete')
+    h.port.deleteImport.mockRejectedValueOnce(new Error('private-canary'))
+    expect(
+      await runVaultCommand({ command: 'import', path: String.raw`C:\\picked\\id_key` }, h.deps),
+    ).toBe(1)
+    expect(h.deps.printError).toHaveBeenCalledWith(UI_TEXT.vault.noAccess)
+  })
   it('RVCM1091G a Delete rejected as sourceGone finishes by clearing the leftover record', async () => {
     const h = commandHarness()
     h.deps.choose.mockResolvedValue('delete')

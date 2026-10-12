@@ -96,7 +96,9 @@ export class VaultBrokerClient {
         previous.fill(0)
       }
       if (this.buffer.length > VAULT_LIMITS.frameBytes) {
-        this.close()
+        // A reply too large for one frame is an invalid response, never a
+        // plain close (RVAPP-CM1091D5 P3-2).
+        this.close('invalidResponse')
         return
       }
       if (this.onEvent !== null) {
@@ -114,7 +116,9 @@ export class VaultBrokerClient {
           response.sequence !== this.pending?.sequence ||
           (end !== this.buffer.length - 1 && !this.isAwaitingWatch)
         ) {
-          this.close()
+          // A wrong reply sequence or trailing bytes is an invalid response,
+          // never a plain close (RVAPP-CM1091D5 P3-2).
+          this.close('invalidResponse')
           return
         }
         const pending = this.pending
@@ -184,7 +188,9 @@ export class VaultBrokerClient {
         try {
           if (bytes.length > VAULT_LIMITS.frameBytes) {
             bytes.fill(0)
-            this.close()
+            // A request too large to send is a write failure, never a plain
+            // close (RVAPP-CM1091D5 P3-2).
+            this.close('writeFailed')
             return
           }
           this.socket.write(bytes, (error) => {
