@@ -3258,10 +3258,13 @@ export function App({
               onClose={closeOverlay}
             />
           ) : null}
-          {overlay === 'prompts' ? (
+          {/* A host-opened surface waits while feedback owns the panel
+          (one modal at a time, above): the overlay still names it, so it
+          opens when feedback closes (RVCM1063C #3). */}
+          {overlay === 'prompts' && feedbackDialog === null ? (
             <PromptLibraryBridge post={postMessage} onClose={closeOverlay} />
           ) : null}
-          {overlay === 'chatShare' ? (
+          {overlay === 'chatShare' && feedbackDialog === null ? (
             <ChatShareBridge key={state.sessionId} post={postMessage} onClose={closeOverlay} />
           ) : null}
           {usageDialog}
@@ -3294,7 +3297,7 @@ export function App({
             />
           ) : null}
         </Suspense>
-        {state.share === undefined ? null : (
+        {feedbackDialog !== null || state.share === undefined ? null : (
           <>
             <ShareView
               title={state.share.title}
