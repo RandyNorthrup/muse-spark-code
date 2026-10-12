@@ -13,10 +13,22 @@ gallery get the policy. The token source registers both roles for 3:1 UI
 contrast and generates every consumer without a generator change.
 
 The view box is the path bounds (3, 7.43, 18, 9.14), padded by half the
-2-unit round stroke: `2 6.43 20 11.14`. `preserveAspectRatio="none"` fills
-the retained 1.8 by 1.2 em box, whose computed dimensions are 28.8 by 19.2 px
-(the review's rounded 28 by 19 px). The stroke scales to approximately
-2.88 by 3.45 px alongside the existing 600-weight product name.
+2-unit round stroke: `2 6.43 20 11.14`. `preserveAspectRatio="xMidYMid meet"`
+(R3: proportions win over filling) keeps the mark's own proportions: the
+width is the limiting dimension, so the ink fills the retained 1.8 by 1.2 em
+box across (28.80 px of the computed 28.8 by 19.2 px box) and sits centred
+in the height (16.04 px ink, 1.57 px letterbox top and bottom). The final ink
+is 24 by 13.37 in the svg's own 24 by 16 units. The rendered path's
+width/height ratio is 1.9694 against 1.9710 in `media/marketplace-icon.svg`
+(0.08 percent apart); the stroke-padded ratios are 1.7953 against
+approximately 1.8045 (0.51 percent apart): both match within 1 percent. The
+uniform scale renders the 2-unit stroke at 2.88 px alongside the existing
+600-weight product name, so the six measured colours stand (the stroke weight
+did not change). The icon-gallery use keeps the same proportions in its own
+box through the same attribute; the other two `preserveAspectRatio="none"`
+uses in the webview are data charts on a 0–100 coordinate system
+(`ResourcesSection.tsx`, `ChartFrame.tsx`), not mark geometry, and are
+untouched.
 
 ## Affected release frames
 
@@ -111,3 +123,24 @@ confirms its unchanged milestone/status sources remain current.
 The rig/common brief owns the scope: aggregate quality and the full visual
 comparison/reviewed release baseline are lead gates; this lane deliberately
 leaves every baseline byte unchanged. Dependent-suite receipts follow below.
+
+## PANELMARKR3 — RVPANELMARKB repairs (2026-10-12, macmini)
+
+The P3 keeps its own proportions: `preserveAspectRatio="xMidYMid meet"`
+replaces `"none"` in `ProductMark`, so the mark fills the retained box in
+the limiting width and centres vertically. The box, the surrounding layout,
+the token paint and the six colours are untouched. The frame list is
+unchanged: the fourteen scenes above, 72 frames each, **1,008 frames**.
+
+| Finding           | Fix                                                                                                                                                                                                                                 | Regression                                                                                                                                                          | Deliberate failure                                                                                                                                                          |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P3 stretched mark | `xMidYMid meet`; browser test asserts ink fills the width, ink ratio 20:11.14, vertical centring, gallery ratio; jsdom test asserts `meet`, the 24×16 box, width-limiting view box and path ratio within 1% of the Marketplace path | `keeps the Marketplace mark proportions instead of stretching to the box` (`panelMark.test.tsx`) plus the updated twelve matrix cases (`panelMarkBrowser.test.mjs`) | Set the attribute back to `"none"`: the jsdom test fails with `expected 'none' to be 'xMidYMid meet'`; `icons.tsx` restored byte-exact (`10da7e3a…27e971` before and after) |
+
+The three red dependent checks from RVPANELMARKB, each run alone on this rig
+at repository timeouts:
+
+| Check                                                                          | Alone here                                | Placement                                                                                                                                                                                              |
+| ------------------------------------------------------------------------------ | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `readmeShots` fingerprint (`test/unit/readmeShots.test.mjs:262`)               | fails alone (16/17; only the digest)      | red on the lane base too: the eight inputs hash to `250e18e6…` at `f95b9b9dc` against the expected `250d2ba1…` — inherited, named, untouched (a refresh needs a browser recapture outside the sandbox) |
+| `m114Audit` EmptyState receipt (`test/unit/m114Audit.test.mjs:214`)            | failed alone, then 7/7 pass after the fix | caused here: green at the lane base, stale since round 1; refreshed the four lane-staled `sources` rows (`EmptyState.tsx`, `icons.tsx`, `styles.css`, `tokens.css` — all 277 rows otherwise current)   |
+| `webviewBundle` resource-policy drill (`test/unit/webviewBundle.test.mjs:452`) | 57/57 pass alone                          | load flake, neither base nor lane: the drill's code is untouched by this lane and it passes in isolation at its named 20-second timeout                                                                |
