@@ -260,26 +260,24 @@ function scanSelf(source) {
 // content is a stand-in.
 function isFakeHelper(rel, evidence) {
   const base = path.basename(rel)
-  const own =
-    evidence.viMock ||
-    evidence.viDoMock ||
-    evidence.viHoisted ||
-    evidence.viStubGlobal ||
-    evidence.stubGlobal ||
-    evidence.viStubEnv ||
-    evidence.fakeTimers ||
-    evidence.setSystemTime ||
-    evidence.implementsClause ||
-    evidence.fakeDefinition ||
-    evidence.vscodeImport ||
-    evidence.createServer ||
-    evidence.listen ||
-    null
-  return FAKE_NAME.test(base)
-    ? `helper name "${base}"`
-    : rel.includes('unit/mocks/') || rel.includes('e2e/fake-muse/')
-      ? `path "${rel}"`
-      : own
+  if (FAKE_NAME.test(base)) return `helper name "${base}"`
+  const isMockPath = rel.includes('unit/mocks/') || rel.includes('e2e/fake-muse/')
+  return isMockPath
+    ? `path "${rel}"`
+    : evidence.viMock ||
+        evidence.viDoMock ||
+        evidence.viHoisted ||
+        evidence.viStubGlobal ||
+        evidence.stubGlobal ||
+        evidence.viStubEnv ||
+        evidence.fakeTimers ||
+        evidence.setSystemTime ||
+        evidence.implementsClause ||
+        evidence.fakeDefinition ||
+        evidence.vscodeImport ||
+        evidence.createServer ||
+        evidence.listen ||
+        null
 }
 
 function resolveRelative(fromFull, spec) {
@@ -375,7 +373,7 @@ function decide(full) {
   const rel = path.relative(root, full).replaceAll(path.sep, '/')
   const isTest = /\.test\.[cm]?[tj]sx?$/.test(full)
   // Rule 4 + lead lists: live-provider e2e and the real editor stay listed.
-  if (full.endsWith('.live.e2e.test.ts')) {
+  if (rel === 'test/e2e/live.e2e.test.ts' || full.endsWith('.live.e2e.test.ts')) {
     return { verdict: 'LIST', decidedBy: 'live-provider e2e: moves under the real-life run' }
   }
   if (rel.startsWith('test/integration/')) {
