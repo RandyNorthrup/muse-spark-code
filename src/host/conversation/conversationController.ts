@@ -9169,7 +9169,9 @@ export class ConversationController {
               record.cost.usd !== undefined &&
               record.cost.certainty !== 'uncertain' &&
               (prior === undefined || prior.costUsd !== undefined)
-                ? (prior?.costUsd ?? 0) + record.cost.usd
+                ? Usd.from(prior?.costUsd ?? 0)
+                    .add(Usd.from(record.cost.usd))
+                    .toAmount()
                 : undefined,
           })
         }

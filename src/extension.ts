@@ -60,6 +60,7 @@ import {
   TURN_CHECKPOINTS_SETTING,
   MODEL_API_SESSIONS_DIR,
   PAID_FEATURE_SETTINGS,
+  IS_AUTO_COMPACTION_EVALUATED,
   PAID_DAILY_BUDGET,
   type PaidFeature,
   PERSONAL_SKILLS_GLOB,
@@ -240,10 +241,13 @@ import { usablePaidFeatures } from './shared/paid'
 import { agentImportLoader } from './host/agentImportBundle'
 import {
   TAB_BUNDLE_FILE,
+  TAB_CONSENT_STATE_KEY,
   TAB_LEDGER_DIR,
   TAB_SNOOZE_STATE_KEY,
   type TabFilesExclude,
   createTabActivation,
+  createTabConsent,
+  tabPriceFingerprint,
   tabTextChangeEvent,
   deferredRefresh,
 } from './host/tab/tabBundle'
@@ -1151,6 +1155,7 @@ async function activateWindow(
     workspaceState: context.workspaceState,
     isSettingOn: (feature) => isActivationPaidSettingOn(feature, currentSettings()),
     isJudgeOn: () => isJudgeEngineOn(currentSettings()['judge.engine']),
+    autoCompactionEvaluated: () => IS_AUTO_COMPACTION_EVALUATED,
     isAvailable: (feature) =>
       feature === 'tab' || paidBackend === 'modelApi' || !isDefaultPaidOn(feature),
     isDefaultOn: isDefaultPaidOn,
@@ -1321,7 +1326,13 @@ async function activateWindow(
     }
     return absolutePath === root || absolutePath.startsWith(`${root}${path.sep}`)
   }
+  // Lane K: Tab's hook guard and dispatch bridge load with the lazy Tab
+  // bundle on first use; activation only hands the runner factory over.
   const tab = createTabActivation({
+    hookDispatch: {
+      isHooksEnabled: () => currentSettings().modelApiHooks,
+      load: () => hookRunnerFor(false),
+    },
     bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', TAB_BUNDLE_FILE).fsPath,
     log,
     isTabSettingOn: () => currentSettings().modelApiTab,
@@ -1446,7 +1457,10 @@ async function activateWindow(
     // window's ledger file (lane L) from these. The key client is the one
     // M44 loads on its first paid use; it is read only on a Tab request.
     services: {
-      stream: (body, signal, budget) => keyClient().streamResponse(body, signal, undefined, budget),
+      // The engine's guard runs last, synchronously, inside the client's send
+      // path (RVM94KR2 4).
+      stream: (body, signal, budget, admit) =>
+        keyClient().streamResponse(body, signal, undefined, budget, admit),
       ledgerDirectory: path.join(context.globalStorageUri.fsPath, TAB_LEDGER_DIR),
       windowId: crypto.randomUUID(),
       onSent: () => {
@@ -1460,18 +1474,27 @@ async function activateWindow(
     onTodayTotalChanged: () => {
       broadcastPaidState()
     },
-    // D48's question, once per window (Q-M94a): the first request asks with
-    // the model's rates and today's budget; Deny snoozes the window.
-    consent: {
-      requestUse: async () => {
-        const settings = currentSettings()
-        return await paid.consent.allows({
+    // D48's question (Q-M94a), keyed by model and price (RVM94KR2): the
+    // first request for a key asks with its rates and today's budget; Deny
+    // snoozes the window. A kept or window grant counts only for its key.
+    consent: createTabConsent({
+      priceOf: tabPriceFingerprint,
+      ask: async (model) =>
+        await paid.consent.askScope({
           feature: 'tab',
-          modelId: settings.tabModel,
-          budgetUsd: settings.tabDailyBudgetUsd,
-        })
+          modelId: model,
+          budgetUsd: currentSettings().tabDailyBudgetUsd,
+        }),
+      isOn: () => paid.gate.isOn('tab'),
+      isRemembered: () => paid.consent.isRemembered('tab'),
+      windowOnceToken: () => paid.consent.windowOnceToken('tab'),
+      revocations: () => paid.consent.revocations('tab'),
+      readAlways: () => context.workspaceState.get<unknown>(TAB_CONSENT_STATE_KEY),
+      writeAlways: async (record) => {
+        await context.workspaceState.update(TAB_CONSENT_STATE_KEY, record)
       },
-    },
+      log,
+    }),
   })
   tabDisposables.push({
     dispose: () => {
@@ -2548,6 +2571,11 @@ async function activateWindow(
         ? meta
         : await subscriptionFeatures().createClient(meta),
     getProviderAccountId: () => subscriptionFeatures().accountId(),
+    // RVCM1062B P1/P2: no standalone registry here. The entry binds the
+    // selected record through the session client's own resolver, which is
+    // the subscription-aware service (shared plan identity and usage
+    // ownership) or bare Meta; a separate service lost plan usage and
+    // rejected subscription models.
     log,
     // Each Model API turn's unit (M86): its record before it runs, its own
     // recorded writes while it does, then its writes drained, its unit folded
@@ -2709,6 +2737,28 @@ async function activateWindow(
         throw error
       }
     },
+    // C-M101-1: the D78 daily claim behind automatic compaction. Exact-USD,
+    // like the reservationUsd branch above; without it the host has no
+    // production admission and automatic compaction stays dormant.
+    paidDailyBudgetUsd: () => dailyPaid.capUsd(),
+    reserveAutoCompaction: async (amount, signal) => {
+      signal.throwIfAborted()
+      const claim = await dailyPaid.reserveExact(amount)
+      try {
+        signal.throwIfAborted()
+      } catch (error: unknown) {
+        await claim.settle(Usd.from(0).toAmount())
+        throw error
+      }
+      return {
+        reservedUsd: claim.reservedUsd,
+        check: () => {
+          signal.throwIfAborted()
+          claim.check()
+        },
+        settle: (actual, hasUnknownCost) => claim.settle(actual, hasUnknownCost, true),
+      }
+    },
     showReplyUsage: () => currentSettings().modelApiReplyUsage,
     // Muse Code's MCP servers, run by this window for the Model API backend
     // (M50, PLAN.md D42): started in a trusted workspace only, stopped with
@@ -2738,6 +2788,7 @@ async function activateWindow(
     isObservationPackingOn: () => currentSettings().modelApiObservationPacking,
     pacingOwner: requestPacingOwner,
     isAutoCompactionOn: () => currentSettings().modelApiAutoCompaction,
+    autoCompactionEvaluated: () => IS_AUTO_COMPACTION_EVALUATED,
     strictTools: () => currentSettings().modelApiStrictTools,
     parallelReads: () => currentSettings().modelApiParallelReads,
     webSearchMaxPerRequest: () => currentSettings().webSearchMaxPerRequest,
@@ -2745,6 +2796,7 @@ async function activateWindow(
     allowsPaidUse: async (request, requiresAsking) =>
       await paid.consent.allows(request, requiresAsking),
     isPaidUseRemembered: (feature) => paid.consent.isRemembered(feature),
+    paidUseFence: (feature) => paid.consent.fence(feature),
     noteSubagentUsage: (modelId, usage) => {
       paid.usage.addSubagentUsage(modelId, usage)
     },
@@ -2809,6 +2861,8 @@ async function activateWindow(
     gitProcess: processGitProcess(),
     env: process.env,
     isCurrent: () => !nativeStarts.signal.aborted,
+    // M123's native route (a host without `vscode.git`) stops its git with the window.
+    signal: nativeStarts.signal,
     // Commit and push run hooks, which can write the workspace: admitted as any such command is (M72).
     admit: (start) => backend.startWorkspaceCommand(start, nativeStarts.signal),
     restartBackends: (reason) => restartBackend(reason),
@@ -3163,10 +3217,10 @@ async function activateWindow(
     let loaded: ExtensionHooksModule
     try {
       loaded = await hookBundle.loadBundle()
-    } catch (error: unknown) {
-      log.warn(
-        `Extension hooks are unavailable: ${error instanceof Error ? error.message : String(error)}`,
-      )
+    } catch {
+      // Fixed words only: a bundle-load failure can name a path under the
+      // user's profile (M94 lane K).
+      log.warn('Extension hooks are unavailable')
       if (shouldAnnounceFailure) {
         void vscode.window.showWarningMessage(UI_TEXT.extensionHooksUnavailable)
       }
@@ -3229,7 +3283,9 @@ async function activateWindow(
     if (!areHooksArmed()) {
       return
     }
-    const runner = await hookRunnerFor(shouldAnnounceFailure)
+    // A loaded runner runs at once, inside the event: a ConfigChange moves
+    // Tab's policy epoch before anything is awaited (RVM94KR2 3).
+    const runner = hookRunner ?? (await hookRunnerFor(shouldAnnounceFailure))
     if (runner === undefined) {
       return
     }
@@ -4066,11 +4122,16 @@ async function activateWindow(
               source: 'openRouter',
               observedAt: Date.now(),
               windows: [],
+              // OpenRouter's `/key` numbers become exact decimals here (M121).
               account: {
-                usedUsd: snapshot.usedThisMonth,
+                usedUsd: Usd.from(snapshot.usedThisMonth).toAmount(),
                 period: 'month',
-                ...(snapshot.limit !== undefined && { limitUsd: snapshot.limit }),
-                ...(snapshot.remaining !== undefined && { remainingUsd: snapshot.remaining }),
+                ...(snapshot.limit !== undefined && {
+                  limitUsd: Usd.from(snapshot.limit).toAmount(),
+                }),
+                ...(snapshot.remaining !== undefined && {
+                  remainingUsd: Usd.from(snapshot.remaining).toAmount(),
+                }),
               },
             })
           },

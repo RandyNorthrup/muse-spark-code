@@ -1,4 +1,3 @@
-import { uiLocale } from '../../shared/l10n/text'
 import { outputTokenMinimumMessage } from '../../shared/providerRouting'
 import { Usd } from '../../shared/usd'
 import * as z from 'zod/mini'
@@ -9,15 +8,12 @@ import {
   EXEC_ENDPOINTS,
   EXEC_IMAGE_N,
   EXEC_MIN_OUTPUT_TOKENS,
-  EXEC_USD_DECIMALS,
   EXEC_OBSERVER_HIGH_WATER_BYTES,
   EXEC_RESPONSE_MAX_BYTES,
   EXEC_SSE_FRAME_MAX_BYTES,
   MODEL_API_BASE_URL,
   MODEL_API_IMAGE_MODEL,
-  MODEL_API_MAX_OUTPUT_TOKENS,
   MODEL_API_PRICES_PER_MILLION,
-  TOKENS_PER_MILLION,
   UI_TEXT,
 } from '../../shared/constants'
 import type { ExecEventBody, LastResponse, Refusal } from './execProtocol'
@@ -30,18 +26,22 @@ export interface ExecTransport {
   close(): void
 }
 
-const requestSchema = z.looseObject({
-  model: z.string(),
-  stream: z.literal(true),
-  max_output_tokens: z.number().check(
-    z.int(),
-    z.gte(EXEC_MIN_OUTPUT_TOKENS, {
-      error: () => outputTokenMinimumMessage(EXEC_MIN_OUTPUT_TOKENS),
-    }),
-    z.lte(MODEL_API_MAX_OUTPUT_TOKENS),
-  ),
-  tools: z.optional(z.array(z.looseObject({ type: z.literal('function') }))),
-})
+// The run's one resolved output cap bounds the body from above (RVCM1062 round
+// 10); the minimum keeps its own sentence (MINOUT).
+const requestSchema = (outputCap: number) =>
+  z.looseObject({
+    model: z.string(),
+    stream: z.literal(true),
+    max_output_tokens: z.number().check(
+      z.int(),
+      z.gte(EXEC_MIN_OUTPUT_TOKENS, {
+        error: () => outputTokenMinimumMessage(EXEC_MIN_OUTPUT_TOKENS),
+      }),
+      z.lte(outputCap),
+    ),
+    tools: z.optional(z.array(z.looseObject({ type: z.literal('function') }))),
+  })
+
 // This projects only fields already captured by the existing stream boundary;
 // unknown usage stays unknown so malformed accounting cannot become "missing".
 const terminalSchema = z.looseObject({
@@ -63,7 +63,6 @@ export function execFetch(input: {
   fetch: typeof fetch
   ledger: RunLedger
   selectedModel: string
-  readonly maxOutputTokens?: number
   readonly externalResponseAccounting?: boolean
   imageGeneration: boolean
   lifecycle: Lifecycle
@@ -72,10 +71,6 @@ export function execFetch(input: {
   onResponseStart: (n: number) => void
   onResponseSettled: (outcome: LastResponse) => void
 }): ExecTransport {
-  const outputCap = input.maxOutputTokens ?? MODEL_API_MAX_OUTPUT_TOKENS
-  const responseSchema = z.extend(requestSchema, {
-    max_output_tokens: requestSchema.shape.max_output_tokens.check(z.lte(outputCap)),
-  })
   let barrier = Promise.resolve()
   let stopActive: (() => void) | undefined
   let isClosed = false
@@ -140,7 +135,7 @@ export function execFetch(input: {
     } catch {
       return refuse('request_shape')
     }
-    const responseShape = responseSchema.safeParse(data)
+    const responseShape = requestSchema(input.ledger.outputCap).safeParse(data)
     if (
       isResponse &&
       (!responseShape.success ||
@@ -184,42 +179,17 @@ export function execFetch(input: {
       release.run?.()
       return refuse('closed')
     }
-    const inputTokens = Buffer.byteLength(body)
-    const price = tier === undefined ? undefined : MODEL_API_PRICES_PER_MILLION[tier]
-    const inputCost = Usd.from(price?.input ?? 0)
-      .times(inputTokens)
-      .divide(TOKENS_PER_MILLION)
-    const outputCost = Usd.from(price?.output ?? 0)
-      .times(responseShape.success ? responseShape.data.max_output_tokens : 0)
-      .divide(TOKENS_PER_MILLION)
-    const reserveUsd = inputCost.add(outputCost).ceiling(EXEC_USD_DECIMALS).toAmount()
     const ticket =
       isResponse && tier !== undefined && responseShape.success
         ? input.ledger.admitResponse({
             model: input.selectedModel,
             maxOutputTokens: responseShape.data.max_output_tokens,
             price: MODEL_API_PRICES_PER_MILLION[tier],
-            ...(input.maxOutputTokens !== undefined && { reserveUsd }),
           })
         : input.ledger.admitImage(endpoint)
     if ('refused' in ticket) {
       release.run?.()
-      const totals = input.ledger.totals()
-      const accounting = await import('../runtimeAccountingEntry.js')
-      accounting.setUiText(UI_TEXT, uiLocale())
-      return refuse(
-        ticket.refused,
-        isImage,
-        ticket.refused === 'budget' && input.maxOutputTokens !== undefined
-          ? accounting.responseReservationMessage({
-              inputTokens,
-              inputCost: inputCost.toAmount(),
-              outputTokens: responseShape.success ? responseShape.data.max_output_tokens : 0,
-              reserveUsd,
-              totals,
-            })
-          : UI_TEXT.execRequestShape,
-      )
+      return refuse(ticket.refused, isImage)
     }
     const controller = new AbortController()
     const signal = AbortSignal.any([

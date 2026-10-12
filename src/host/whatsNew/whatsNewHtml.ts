@@ -75,6 +75,8 @@ export function isAllowedTry(entry: TryIt): boolean {
 export interface WhatsNewPageOptions {
   /** Newest first, as `releasesToShow` picked them. */
   readonly releases: readonly ReleaseNotes[]
+  /** The content's `shortened`: an older release was shortened or left out, so the page points at the full changelog. */
+  readonly isShortened?: boolean | undefined
   /** The version updated from, when the page follows an upgrade from a known one. */
   readonly from: string | undefined
   readonly current: string
@@ -240,6 +242,8 @@ export function renderWhatsNewPage(options: WhatsNewPageOptions): WhatsNewPage {
     options.releases.length === 0
       ? `<p>${escapeHtml(fill(UI_TEXT.whatsNewNoNotes, { version: options.current }))}</p>`
       : options.releases.map((release, index) => writer.release(release, index)).join('')
+  const earlier =
+    options.isShortened === true ? `<p>${escapeHtml(UI_TEXT.whatsNewEarlierNotes)}</p>` : ''
   const footer = [
     '<footer>',
     `<p>${writer.link(WHATS_NEW_CHANGELOG_URL, escapeHtml(UI_TEXT.whatsNewFullChangelog))}</p>`,
@@ -261,7 +265,7 @@ export function renderWhatsNewPage(options: WhatsNewPageOptions): WhatsNewPage {
 <main aria-labelledby="whats-new-title">
 <h1 id="whats-new-title">${escapeHtml(UI_TEXT.whatsNewTitle)}</h1>
 <p class="lead">${escapeHtml(lead)}</p>
-${languageNote}${releases}${footer}
+${languageNote}${releases}${earlier}${footer}
 </main>
 <script type="module" nonce="${options.nonce}" src="${escapeHtml(options.scriptUri)}"></script>
 </body>

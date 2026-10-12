@@ -125,7 +125,7 @@ describe('usage journal store and Node filesystem', () => {
     const { root, store, record, file } = await rig()
     store.append(record)
     store.append({
-      v: 1,
+      v: 2,
       type: 'limit',
       id: 'limit',
       at: record.at,
@@ -233,7 +233,7 @@ describe('usage journal store and Node filesystem', () => {
     const { store, fs, record, file } = await rig()
     await fs.append(
       file,
-      `${JSON.stringify(record)}\n{"v":2,"prompt":"future-canary"}\ninvalid-json\n{"v":1`,
+      `${JSON.stringify(record)}\n{"v":3,"prompt":"future-canary"}\ninvalid-json\n{"v":1`,
     )
     const result = await store.read()
     expect(result.records).toEqual([record])

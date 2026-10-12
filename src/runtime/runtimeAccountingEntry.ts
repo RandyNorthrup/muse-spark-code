@@ -1,13 +1,14 @@
-import { Usd, type UsdAmount } from '../shared/usd'
+import { Usd, legacyUsdSchema, type UsdAmount } from '../shared/usd'
 // Durable daily admission for the standalone runtime; no VS Code imports.
-import { readFileSync } from 'node:fs'
+import { readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
 import * as z from 'zod/mini'
 import { createSessionBudgetJournal } from '../host/backend/sessionBudgetJournal'
-import type {
-  ProviderClient,
-  ResponseAttemptGuard,
-  ResponseObservation,
+import {
+  isModelApiError,
+  type ProviderClient,
+  type ResponseAttemptGuard,
+  type ResponseObservation,
 } from '../core/backends/modelapi/client'
 import {
   metaResolvedModel,
@@ -38,7 +39,6 @@ import { type RunLedger, type ResponseTicket, type SettlementResult } from './ex
 import type { LastResponse, Refusal, LedgerTotals } from './exec/execProtocol'
 import { fill, plural } from '../shared/l10n/text'
 import { formatUsd } from '../shared/l10n/exactUsd'
-import { isModelApiError } from '../core/backends/modelapi/transport'
 
 const settingsSchema = z.strictObject({
   paidDailyBudgetUsd: z.optional(
@@ -47,6 +47,7 @@ const settingsSchema = z.strictObject({
       .check(z.minimum(PAID_DAILY_BUDGET.minimumUsd), z.maximum(PAID_DAILY_BUDGET.maximumUsd)),
   ),
 })
+const dailyLimitSchema = z.object({ limitUsd: legacyUsdSchema, stopped: z.boolean() })
 const ceilUsd = (cost: UsdAmount) => Usd.from(cost).ceiling(EXEC_USD_DECIMALS).toAmount()
 
 export function createRuntimeDailyBudget(deps: {
@@ -79,7 +80,37 @@ export function createRuntimeDailyBudget(deps: {
       throw new Error(UI_TEXT.paidDailyLedgerUnavailable, { cause: error })
     }
   }
+  const dailyCapUsd = (scope: string) => {
+    const directory = path.join(deps.dataFolder, PAID_DAILY_BUDGET.directory, scope)
+    let isStopped = true
+    try {
+      statSync(path.join(directory, PAID_DAILY_BUDGET.stopDirectory))
+    } catch (error: unknown) {
+      if (storeErrorCode(error) !== 'ENOENT')
+        throw new Error(UI_TEXT.paidDailyLedgerUnavailable, { cause: error })
+      isStopped = false
+    }
+    if (isStopped) throw new Error(UI_TEXT.paidDailyStopped)
+    let limit: z.infer<typeof dailyLimitSchema>
+    try {
+      limit = dailyLimitSchema.parse(
+        JSON.parse(readFileSync(path.join(directory, PAID_DAILY_BUDGET.overrideFile), 'utf8')),
+      )
+    } catch (error: unknown) {
+      if (storeErrorCode(error) === 'ENOENT') return Usd.from(capUsd()).toAmount()
+      throw new Error(UI_TEXT.paidDailyLedgerUnavailable, { cause: error })
+    }
+    if (limit.stopped) throw new Error(UI_TEXT.paidDailyStopped)
+    const amount = Usd.from(limit.limitUsd)
+    if (
+      amount.compare(Usd.from(PAID_DAILY_BUDGET.minimumUsd)) < 0 ||
+      amount.compare(Usd.from(PAID_DAILY_BUDGET.maximumUsd)) > 0
+    )
+      throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
+    return amount.toAmount()
+  }
   return {
+    capUsd: () => dailyCapUsd(day()),
     async reserve(costUsd: UsdAmount, signal: AbortSignal): Promise<SessionBudgetClaim> {
       signal.throwIfAborted()
       const scope = day()
@@ -87,7 +118,7 @@ export function createRuntimeDailyBudget(deps: {
         scope,
         PAID_DAILY_BUDGET.accountId,
         ceilUsd(costUsd),
-        Usd.from(capUsd()).toAmount(),
+        dailyCapUsd(scope),
       )
       try {
         signal.throwIfAborted()
@@ -114,7 +145,7 @@ export function createRuntimeDailyBudget(deps: {
         check: () => {
           signal.throwIfAborted()
           if (scope !== day()) throw new Error(UI_TEXT.paidDailyStopped)
-          return claim.check(Usd.from(capUsd()).toAmount())
+          return claim.check(dailyCapUsd(scope))
         },
       }
     },
@@ -138,8 +169,10 @@ export function withRuntimeAccounting(
   daily: ReturnType<typeof createRuntimeDailyBudget>,
   accounting?: RuntimeResponseAccounting,
   dispatch?: { onRequestStarted?: () => void },
+  outputCap?: (policy: ResolvedModel['policy']) => number,
 ): ProviderClient {
   const wrap = (model: ResolvedModel): ResolvedModel => {
+    outputCap?.(model.policy)
     const original = model.client
     const bounded: ModelClient = {
       currentKeyDigest: original.currentKeyDigest.bind(original),
@@ -180,6 +213,7 @@ export function withRuntimeAccounting(
         let response: ResponseObject | undefined
         let httpStatus: number | undefined
         let hasEof = false
+        let isRateLimited = false
         const settle = async () => {
           if (claim === undefined) return
           const owned = claim
@@ -189,13 +223,15 @@ export function withRuntimeAccounting(
                   cost: response.usage.provider_cost_usd,
                 })
               : undefined
-          const cost =
-            httpStatus === HTTP_TOO_MANY_REQUESTS || httpStatus === HTTP_STATUS.badRequest
-              ? Usd.from(0).toAmount()
-              : actual === undefined
-                ? undefined
-                : ceilUsd(actual)
-          // A sent request without a verified price keeps its original durable reservation.
+          let cost = actual === undefined ? undefined : ceilUsd(actual)
+          if (
+            isRateLimited ||
+            httpStatus === HTTP_TOO_MANY_REQUESTS ||
+            httpStatus === HTTP_STATUS.badRequest
+          )
+            cost = Usd.from(0).toAmount()
+          // A ticket that never reached the wire is withdrawn with its request
+          // count instead of settling a full reservation.
           if (!wasSent && ticket !== undefined) {
             accounting?.ledger.releaseResponse(ticket)
             ticket = undefined
@@ -232,6 +268,7 @@ export function withRuntimeAccounting(
           response = undefined
           hasEof = false
           httpStatus = undefined
+          isRateLimited = false
         }
         const started = () => {
           claim?.check(Usd.from(0).toAmount())
@@ -241,7 +278,7 @@ export function withRuntimeAccounting(
         }
         const attempt: ResponseAttemptGuard = Object.assign(
           (digest: string | undefined) => {
-            if (!model.isCurrent()) throw new Error(UI_TEXT.scheduleConfirmationExpired)
+            if (!model.isCurrent()) throw new Error(UI_TEXT.requestStaleRun)
             claim?.check(Usd.from(0).toAmount())
             guard?.(digest)
           },
@@ -340,21 +377,27 @@ export function withRuntimeAccounting(
             },
           },
         )
+        const responseStream = original.streamResponse(
+          body,
+          signal,
+          (notice) => {
+            if (notice.phase !== 'pacing')
+              isRateLimited = notice.reason.startsWith(`HTTP ${String(HTTP_TOO_MANY_REQUESTS)}:`)
+            onRetry?.(notice)
+          },
+          retryBudget,
+          attempt,
+          confirmed,
+        )
         try {
-          for await (const event of original.streamResponse(
-            body,
-            signal,
-            onRetry,
-            retryBudget,
-            attempt,
-            confirmed,
-          )) {
+          for await (const event of responseStream) {
             if ('response' in event) response = event.response
             yield event
           }
           hasEof = true
         } catch (error: unknown) {
           if (isModelApiError(error) && error.status > 0) httpStatus = error.status
+          isRateLimited ||= isModelApiError(error) && error.status === HTTP_TOO_MANY_REQUESTS
           if (
             error instanceof Error &&
             error.name === 'UserRefusalError' &&
@@ -449,8 +492,5 @@ export function responseReservationMessage(input: {
     ),
   })
 }
-
-export { assembleProviderRun } from './exec/providerExec'
-export { providersFilePath, resolveEndpointHost } from './providersCommands'
 
 export { createSessionBudgetJournal } from '../host/backend/sessionBudgetJournal'

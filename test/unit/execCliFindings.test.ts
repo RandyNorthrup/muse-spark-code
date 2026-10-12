@@ -318,7 +318,14 @@ describe('a listed model no run can price warns at list and test time (D4)', () 
     }
     expect(isModelUnpriced(catalog, 'custom', entry, 'm1')).toBe(false)
     expect(isModelUnpriced(catalog, 'groq', { ...entry, auth: 'none' }, 'm1')).toBe(false)
-    expect(isModelUnpriced(catalog, 'groq', { ...entry, prices: { m1: '0.1' } }, 'm1')).toBe(false)
+    expect(
+      isModelUnpriced(
+        catalog,
+        'groq',
+        { ...entry, prices: { m1: { input: 0.1, output: 0.2 } } },
+        'm1',
+      ),
+    ).toBe(false)
     expect(isModelUnpriced(catalog, 'groq', entry, 'm1')).toBe(true)
   })
 })

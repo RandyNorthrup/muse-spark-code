@@ -71,7 +71,11 @@ interface StreamCall {
   readonly budget: RetryBudget
 }
 
-/** A stream whose events after `holdAfter` wait until `release` is called. */
+/**
+ * A stream whose events after `holdAfter` wait until `release` is called. It
+ * runs the engine's guard where the key client does: synchronously, right
+ * before the send.
+ */
 function scriptedStream(
   events: readonly StreamEvent[],
   holdAfter = events.length,
@@ -81,9 +85,11 @@ function scriptedStream(
   const release = (): void => {
     held.resolve(undefined)
   }
-  const stream: TabStream = (body, _signal, budget) => {
-    calls.push({ body, budget: { ...budget } })
+  const stream: TabStream = (body, _signal, budget, admit) => {
     return (async function* replay(): AsyncGenerator<StreamEvent> {
+      admit(undefined)
+      admit.onRequestStarted?.()
+      calls.push({ body, budget: { ...budget } })
       for (const [index, event] of events.entries()) {
         if (index === holdAfter) {
           await held.promise
@@ -203,6 +209,28 @@ describe('createTabEngine', () => {
     await expect(answer.usage).resolves.toEqual(ZERO)
     expect(onSent).not.toHaveBeenCalled()
     expect(script.calls).toHaveLength(0)
+  })
+
+  it('POSTs nothing when the final gate refuses at the send, and settles zero (RVM94KR2 4)', async () => {
+    const script = scriptedStream([completed(USAGE)])
+    const onSent = vi.fn()
+    const onUsage = vi.fn()
+    const engine = createTabEngine({ stream: script.stream, onSent, onUsage })
+    // Current through the debounce, refused only at the send's own check.
+    let checks = 0
+    const answer = await engine.complete(
+      request({
+        isCancelled: () => {
+          checks += 1
+          return checks > 1
+        },
+      }),
+    )
+    expect(answer.completion).toBeUndefined()
+    await expect(answer.usage).resolves.toEqual(ZERO)
+    expect(script.calls).toHaveLength(0)
+    expect(onSent).not.toHaveBeenCalled()
+    expect(onUsage).not.toHaveBeenCalled()
   })
 
   it('settles the usage of an untagged reply, which suggests nothing', async () => {

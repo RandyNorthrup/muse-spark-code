@@ -50,6 +50,7 @@ import {
   type HookDefinition,
   type HookLoadDeps,
   type HookSource,
+  type ForeignHookSpec,
 } from './hooks'
 import { sparkHooksFiles } from './hookNames'
 import { compileGlob } from './globLimits'
@@ -113,6 +114,8 @@ const PATH_MATCHED_EVENTS: ReadonlySet<ExtensionHookEvent> = new Set([
 ])
 /** Events whose matcher selects names (a skill, a tool, a task subject…). */
 const NAME_MATCHED_EVENTS: ReadonlySet<ExtensionHookEvent> = new Set([
+  'beforeTabFileRead',
+  'afterTabFileEdit',
   'UserPromptExpansion',
   'PermissionDenied',
   'TaskCreated',
@@ -132,12 +135,18 @@ export interface ExtensionHookDefinition {
   /** The group's own words, for the Run Hook pick (M91 lane E). */
   readonly description?: string | undefined
   readonly onFailure?: ExtensionHookDefinition | undefined
+  readonly foreign?: ForeignHookSpec | undefined
 }
 
 const MATCH_EXACT = /^[A-Za-z0-9_|]+$/
 const MATCH_EVERYTHING = new Set(['', '*'])
 const SETUP_TRIGGERS = new Set(['init', 'maintenance'])
 export type SetupTrigger = 'init' | 'maintenance'
+/** The one matcher value each Tab event is dispatched with (M94 lane K). */
+const TAB_MATCHER_VALUES: ReadonlyMap<ExtensionHookEvent, string> = new Map([
+  ['beforeTabFileRead', 'TabRead'],
+  ['afterTabFileEdit', 'TabWrite'],
+])
 
 function matcherFor(
   event: ExtensionHookEvent,
@@ -163,6 +172,15 @@ function matcherFor(
       ? { kind: 'exact', names: new Set(names) }
       : 'Setup matcher must be init or maintenance'
   }
+  const tabValue = TAB_MATCHER_VALUES.get(event)
+  if (tabValue !== undefined) {
+    // A Tab guard whose matcher cannot select its own event would leave the
+    // read unguarded, so it is a configuration error (RVM94KR 1).
+    const names = value.split('|')
+    return MATCH_EXACT.test(value) && names.includes(tabValue)
+      ? { kind: 'exact', names: new Set(names) }
+      : `matcher must name ${tabValue}`
+  }
   if (PATH_MATCHED_EVENTS.has(event)) {
     return MATCH_EXACT.test(value)
       ? { kind: 'exact', names: new Set(value.split('|')) }
@@ -176,7 +194,7 @@ function matcherFor(
   return `matcher is not valid for ${event}`
 }
 
-function isExtensionMatch(
+export function isExtensionMatch(
   matcher: ExtensionHookMatcher | undefined,
   value: string | undefined,
   warn: (message: string) => void,
@@ -231,6 +249,16 @@ const SPARK_HANDLER_FIELDS = new Set([
   'onFailure',
 ])
 const SPARK_GROUP_FIELDS = new Set(['matcher', 'hooks', 'description'])
+const tabGroupSchema = z.strictObject({
+  format: z.literal('cursor'),
+  sourceEvent: z.enum(['beforeTabFileRead', 'afterTabFileEdit']),
+  matcher: z.optional(z.string()),
+  hooks: z.array(z.unknown()),
+  sourceEntry: z.optional(z.unknown()),
+  failClosed: z.optional(z.boolean()),
+  description: z.optional(z.string()),
+  async: z.optional(z.literal(false)),
+})
 
 function sparkHandler(
   value: unknown,
@@ -339,7 +367,20 @@ export function parseSparkHooksConfig(
       if (!isRecord(group) || !Array.isArray(group.hooks)) {
         return { hooks: [], warnings: [`${source} spark-hooks.json: ${name} has an invalid group`] }
       }
-      const extraGroupField = Object.keys(group).find((key) => !SPARK_GROUP_FIELDS.has(key))
+      const isTab: boolean = name === 'beforeTabFileRead' || name === 'afterTabFileEdit'
+      const importedTab: ReturnType<typeof tabGroupSchema.safeParse> | undefined =
+        isTab && group['format'] !== undefined ? tabGroupSchema.safeParse(group) : undefined
+      if (
+        importedTab !== undefined &&
+        (!importedTab.success || importedTab.data.sourceEvent !== name)
+      ) {
+        warnings.push(`${source} spark-hooks.json: ${name} has an invalid group`)
+        continue
+      }
+      const extraGroupField =
+        importedTab === undefined
+          ? Object.keys(group).find((key) => !SPARK_GROUP_FIELDS.has(key))
+          : undefined
       if (extraGroupField !== undefined) {
         warnings.push(
           `${source} spark-hooks.json: ${name} has unsupported group field ${extraGroupField}`,
@@ -353,6 +394,10 @@ export function parseSparkHooksConfig(
       }
       for (const entry of group.hooks) {
         const parsed = sparkHandler(entry, name, source, platform, matcher)
+        if (isTab && typeof parsed !== 'string' && parsed.isAsync) {
+          warnings.push(`${source} spark-hooks.json: ${name} has an invalid group`)
+          continue
+        }
         if (typeof parsed === 'string') {
           if (
             parsed.includes('must be a non-negative integer') ||
@@ -365,11 +410,21 @@ export function parseSparkHooksConfig(
           if (hooks.length >= HOOK_SOURCE_MAX_HANDLERS) {
             return { hooks: [], warnings: [`${source} spark-hooks.json exceeds the handler limit`] }
           }
+          const definition =
+            importedTab?.success === true
+              ? {
+                  ...parsed,
+                  foreign: {
+                    format: importedTab.data.format,
+                    sourceEvent: importedTab.data.sourceEvent,
+                  },
+                }
+              : parsed
           const description = group['description']
           hooks.push(
             typeof description === 'string' && description.trim() !== ''
-              ? { ...parsed, description: description.trim() }
-              : parsed,
+              ? { ...definition, description: description.trim() }
+              : definition,
           )
         }
       }
@@ -378,39 +433,61 @@ export function parseSparkHooksConfig(
   return { hooks, warnings }
 }
 
+/** One spark-hooks.json as read: no file, its text, or a file present that could not be read. */
+type SparkFileRead =
+  | { readonly kind: 'absent' }
+  | { readonly kind: 'text'; readonly text: string }
+  | { readonly kind: 'unreadable' }
+
+const SPARK_ABSENT: SparkFileRead = { kind: 'absent' }
+const SPARK_UNREADABLE: SparkFileRead = { kind: 'unreadable' }
+
 async function readSparkText(
   io: ContextIo,
   file: string,
   confinedTo: string | undefined,
   platform: NodeJS.Platform,
   warn: (message: string) => void,
-): Promise<string | undefined> {
+): Promise<SparkFileRead> {
   try {
     if (confinedTo !== undefined) {
       const resolution = await confineWorkspacePath(confinedTo, file, platform, io)
       if (!resolution.ok) {
         warn(`${path.basename(file)}: ${resolution.reason}`)
-        return undefined
+        return SPARK_UNREADABLE
       }
     }
     const bytes = await io.readFile(file)
     if (bytes === undefined) {
-      return undefined
+      return SPARK_ABSENT
     }
     if (bytes.length > HOOK_CONFIG_MAX_BYTES) {
       warn(`${path.basename(file)}: hook configuration is too large`)
-      return undefined
+      return SPARK_UNREADABLE
     }
     const decoded = decodeContextText(bytes)
     if (!decoded.ok) {
       warn(`${path.basename(file)}: ${decoded.reason}`)
-      return undefined
+      return SPARK_UNREADABLE
     }
-    return decoded.text
+    return { kind: 'text', text: decoded.text }
   } catch (error: unknown) {
     warn(`${path.basename(file)}: ${error instanceof Error ? error.message : String(error)}`)
-    return undefined
+    return SPARK_UNREADABLE
   }
+}
+
+type SparkHookSource = Extract<HookSource, 'user' | 'project'>
+
+export interface SparkHookSnapshot {
+  readonly hooks: readonly ExtensionHookDefinition[]
+  /**
+   * The scopes whose spark-hooks.json is present but did not load whole:
+   * unreadable, too large, not text, linked out of the workspace, or with
+   * any diagnostic (RVM94KR 1). Other events keep what loaded; Tab's read
+   * guard refuses while one is listed, so a broken file never reads as none.
+   */
+  readonly invalidSources: readonly SparkHookSource[]
 }
 
 /**
@@ -420,21 +497,19 @@ async function readSparkText(
  * caller keeps the per-session snapshot (this function reads the files, it
  * does not watch them).
  */
-export async function loadSparkHookDefinitions(
-  deps: HookLoadDeps,
-): Promise<readonly ExtensionHookDefinition[]> {
+export async function loadSparkHookSnapshot(deps: HookLoadDeps): Promise<SparkHookSnapshot> {
   if (!deps.isWorkspaceTrusted()) {
-    return []
+    return { hooks: [], invalidSources: [] }
   }
   const files = sparkHooksFiles(deps)
   const sources = [
     {
       source: 'user',
-      text: await readSparkText(deps.io, files.user, undefined, deps.platform, deps.warn),
+      read: await readSparkText(deps.io, files.user, undefined, deps.platform, deps.warn),
     },
     {
       source: 'project',
-      text: await readSparkText(
+      read: await readSparkText(
         deps.io,
         files.project,
         deps.workspaceRoot,
@@ -444,18 +519,39 @@ export async function loadSparkHookDefinitions(
     },
   ] as const
   const hooks: ExtensionHookDefinition[] = []
-  for (const { source, text } of sources) {
-    const parsed = parseSparkHooksConfig(text, source, deps.platform)
+  const configured: SparkHookSource[] = []
+  const invalidSources: SparkHookSource[] = []
+  for (const { source, read } of sources) {
+    if (read.kind === 'absent') {
+      continue
+    }
+    configured.push(source)
+    if (read.kind === 'unreadable') {
+      invalidSources.push(source)
+      continue
+    }
+    const parsed = parseSparkHooksConfig(read.text, source, deps.platform)
     for (const warning of parsed.warnings) {
       deps.warn(warning)
+    }
+    if (parsed.warnings.length > 0) {
+      invalidSources.push(source)
     }
     hooks.push(...parsed.hooks)
     if (hooks.length > HOOK_TOTAL_MAX_HANDLERS) {
       deps.warn('spark-hooks.json exceeds the session handler limit; no extension hooks loaded')
-      return []
+      return { hooks: [], invalidSources: configured }
     }
   }
-  return hooks
+  return { hooks, invalidSources }
+}
+
+/** The definitions alone, for callers that keep no Tab guard (the Model API session). */
+export async function loadSparkHookDefinitions(
+  deps: HookLoadDeps,
+): Promise<readonly ExtensionHookDefinition[]> {
+  const snapshot = await loadSparkHookSnapshot(deps)
+  return snapshot.hooks
 }
 
 // --- Payloads ---

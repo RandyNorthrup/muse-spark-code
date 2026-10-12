@@ -229,6 +229,27 @@ describe('M108 panel host', () => {
       }),
     ).toEqual({ type: 'accounts/error', code: 'unavailable' })
   })
+  it('reports a refused providers file with its own code instead of unavailable', async () => {
+    const h = harness()
+    // The store bundle carries its own copy of the store error constructor,
+    // so only the brand travels to the panel handler.
+    class ForeignStoreError extends Error {
+      public override readonly name = 'AccountStoreError'
+      public readonly code = 'invalidProvidersFile'
+      public constructor() {
+        super('invalidProvidersFile')
+      }
+    }
+    h.metadata.read.mockRejectedValue(new ForeignStoreError())
+    expect(await h.handler.handle({ type: 'accounts/list', provider: 'openai' })).toEqual({
+      type: 'accounts/error',
+      code: 'providersInvalid',
+    })
+    await expect(h.handler.snapshot('openai')).rejects.toMatchObject({
+      name: 'AccountStoreError',
+      code: 'invalidProvidersFile',
+    })
+  })
   it.each(['cancelled', 'credential storage failed'])(
     'rolls back a %s credential addition so the same draft can be retried',
     async (failure) => {

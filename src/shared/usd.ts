@@ -8,7 +8,13 @@ import {
 } from './usdConstants'
 
 import { usdAmountSchema, type UsdAmount } from './usdSchema'
+// In the Node bundles usdSchema.ts and this file are read from
+// dist/modelApiBoundaries.js, which exports what this file exports. A name a
+// bundled file needs from usdSchema.ts must therefore be in this list:
+// exactJson.ts called `canonicalUsd` through it in 0.18.0, it was not here,
+// and every version 1 amount was judged inexact (HOTFIX0181).
 export {
+  canonicalUsd,
   compareUsdAmounts,
   usdAmountSchema,
   nonnegativeUsdSchema,
@@ -174,6 +180,25 @@ export function negateUsd(amount: UsdAmount): UsdAmount {
 
 export function isPositiveUsd(amount: UsdAmount): boolean {
   return Usd.from(amount).compare(Usd.from(0)) > 0
+}
+
+/** Monetary period change, rounded exactly for whole-percent display. */
+export function usdPeriodDelta(
+  current: UsdAmount | undefined,
+  previous: UsdAmount | undefined,
+): number | undefined {
+  if (current === undefined || previous === undefined) return undefined
+  const prior = Usd.from(previous)
+  const zero = Usd.from(0)
+  if (prior.compare(zero) <= 0) return undefined
+  const difference = Usd.from(current).subtract(prior)
+  const direction = difference.compare(zero)
+  const magnitude = direction < 0 ? zero.subtract(difference) : difference
+  // Round the exact ratio half away from zero before projecting to a number;
+  // neither operand passes through a double.
+  const doubled = magnitude.times(100).times(2).floorDivide(prior)
+  const rounded = (doubled + USD_DECIMAL_ONE) / (USD_DECIMAL_ONE + USD_DECIMAL_ONE)
+  return rounded === USD_DECIMAL_ZERO ? 0 : Number(rounded) * direction
 }
 
 const DECIMAL_RADIX = 10n

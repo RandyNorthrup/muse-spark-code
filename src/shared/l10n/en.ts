@@ -108,6 +108,8 @@ export const EN = {
   resourceRelocateOffDescription: 'Keep work on this machine.',
   // M106: loop previews, structured answers, health and explicit feedback.
   toolArgumentPreviewLabel: 'Argument Preview',
+  toolArgumentPreviewDescription:
+    'Show validated, scrubbed tool arguments as they arrive, before the tool runs.',
   toolArgumentPreviewTruncated: 'Preview truncated.',
   toolArgumentPreviewPending: 'Waiting for complete arguments…',
   toolArgumentPreviewPreparing: 'Preparing arguments…',
@@ -405,8 +407,6 @@ export const EN = {
     effort: 'Choose how much effort Muse puts into each reply.',
     output: 'Choose the result format: text, json or jsonl.',
     'max-budget-usd': 'Set the hard spending limit in USD for this run.',
-    'max-output-tokens':
-      '--max-output-tokens <tokens>: output cap per Model API request (16–32768; default 1024).',
     'max-requests': 'Set the maximum number of model requests.',
     timeout: 'Set the run deadline in seconds.',
     'fail-on-denial': 'Stop the run when a permission request is denied.',
@@ -419,6 +419,8 @@ export const EN = {
     description: '--description <text>  What was happening, in your own words',
     'no-facts': '--no-facts           Leave the support facts out',
     'no-events': '--no-events          Leave the recent events out',
+    'auto-compaction':
+      'Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. Inactive until evaluation passes.',
     'no-auto-compaction': 'Disable automatic compaction',
     'output-schema':
       'Validate the final answer against a bounded JSON schema file (Model API only).',
@@ -436,9 +438,10 @@ export const EN = {
   referenceVaultLock: 'In progress.',
   referenceAuthClear: 'Remove the stored Model API key.',
   referenceAuthStatus:
-    'Show stored keys (the Model API key and every configured provider key). Exits 0 when any key is stored, 1 when none is.',
+    'List the stored keys (the Model API key and every configured provider key); the exit code reports whether any key is stored.',
   referenceAccountsTitle: 'Several Accounts per Provider',
-  referenceAccounts: 'In progress.',
+  referenceAccounts:
+    'Manage the accounts of one provider: list, add, remove, order and thresholds. Credentials come only from standard input. Paid consent stays per workspace for now.',
   referenceDeveloper:
     'Show or unlock machine-local developer options. Profile operations require a connected resource owner.',
   referenceTabLanguages: 'Choose a language to switch Tab suggestions on or off for it.',
@@ -528,7 +531,7 @@ export const EN = {
   referenceMcp:
     'MCP servers: Muse Code runs its own servers; on Model API this window runs configured servers. ACP Model API has no editor MCP servers.',
   referenceTab:
-    'Tab uses the stored Model API key on either chat backend. The default trigger is Invoke; automatic typing suggestions require Automatic.',
+    'Tab uses the stored Model API key on either chat backend. The default trigger is Invoke; automatic typing suggestions require Automatic. Consent covers the model and price shown; changing either asks again. A legacy Allow always grant asks a migration question. Only Allow always in this workspace saves the model and price; Allow once saves nothing, stays in this window, and each new window asks again.',
   referenceNativeSearch:
     'Muse Code web search and native cron use the subscription. Native cron has no MSP schedule controls; extension search and schedules are separate paid Model API features.',
   referenceCustomAgents:
@@ -1873,6 +1876,7 @@ export const EN = {
   worktreeDetachedHead: 'the commit checked out now',
   worktreeFolderExists: 'That folder already exists:',
   worktreeAddFailed: 'git could not create the worktree',
+  worktreeRecordsWriteUnknown: 'The worktree records may have been written',
   worktreeCreated: 'Worktree ready at {path}',
   worktreeOpen: 'Open in New Window',
   worktreeListFailed: 'git could not list the worktrees',
@@ -2044,6 +2048,7 @@ export const EN = {
   openPullRequestConfirm: 'Open pull request #{number} in a new window?',
   openPullRequestBy: 'By {author}',
   openPullRequestBranches: 'From {head} into {base}',
+  openPullRequestRepository: 'Repository: {repository}',
   openPullRequestOwnDetail:
     'Your own pull request: checked out at its head commit in a worktree beside the repository.',
   openPullRequestHeldDetail:
@@ -3066,6 +3071,11 @@ export const EN = {
   installOrKeyDetail:
     'The Muse Code CLI hosts conversations for this extension; without it you can still use a Meta Model API key.',
   compactionDone: 'Context compacted',
+  referenceManualCompaction:
+    'Summarize the conversation with /compact and keep recent turns verbatim.',
+  autoCompactionName: 'Automatic compaction',
+  paidConfirmAutoCompaction:
+    'Automatic compaction uses the selected model at {price}. The subscription does not pay for it.',
   autoCompactionAwaitingEvaluation: 'Automatic compaction is awaiting evaluation and is inactive.',
   autoCompactionFailed: 'Automatic compaction failed; continuing with the original context.',
   contextWindowFull: 'Context window full: /compact or /handoff',
@@ -3925,6 +3935,12 @@ export const EN = {
     'The model, conversation or prompt changed during confirmation. Review the schedule and choose Run again.',
   // P3-2: a rotated key is not a changed mind: the refusal says the key moved.
   execKeyRotated: 'The key was rotated during the run; the request was not sent.',
+  requestStaleTurn: 'The model or conversation changed while sending. Send your message again.',
+  requestStaleCompaction: 'The model or conversation changed while compacting. Compact again.',
+  requestStaleRetry: 'The model or conversation changed before the request was sent. Try again.',
+  requestStaleHookModel:
+    'The model changed while the hook was asking the model. Try the action again.',
+  requestStaleRun: 'The model changed during the run. Run the command again.',
   webNoResults: 'No results',
   backgroundRunning: 'Running in the background',
   // M46 (PLAN.md D39): moving a running command to the background, stopping
@@ -4025,6 +4041,7 @@ export const EN = {
   whatsNewOpenSetting: 'Open the Setting',
   whatsNewNotesInEnglish: 'The release notes are in English.',
   whatsNewNoNotes: 'No release notes ship with version {version}.',
+  whatsNewEarlierNotes: 'Earlier notes: see the full changelog',
   whatsNewFullChangelog: 'Full Changelog on GitHub',
   whatsNewReadme: 'README on GitHub',
   whatsNewStarGithub: 'Enjoying Muse Spark Code? A star on GitHub helps other people find it.',
@@ -4533,6 +4550,11 @@ export const EN = {
   tabStatusCopilot: 'Tab: on Invoke while Copilot is on',
   // {kind} is the last failure's class, never code or a path.
   tabStatusError: 'Tab failed ({kind})',
+  // A spark-hooks.json file is present but could not be loaded in full, so
+  // Tab reads no file until it is fixed (M94 lane K).
+  tabStatusHooksInvalid: 'Tab paused: hook file has errors',
+  tabStatusHooksInvalidDetail:
+    'A spark-hooks.json file could not be loaded in full, so Tab reads no file until it is fixed. The Muse Spark log names the problem.',
   // The status bar menu: turn off, the snoozes, languages, the multi-line
   // mode, Copilot's row and Account & usage.
   tabMenuTurnOff: 'Turn Tab Off',
@@ -6108,6 +6130,10 @@ export const EN = {
       'Headless accounts: {command} exec --account <id> [--account-pool]. CI with --key-stdin uses only the default account and never swaps.',
     unavailable:
       'Accounts are unavailable until this runtime is connected to the shared account service.',
+    providersInvalid:
+      'The providers file is invalid, so its entries were refused and the file was left unchanged.',
+    poolUnavailable:
+      'Account pooling is unavailable in this runtime: it needs a bound resource owner. Run again without --account-pool.',
     cliUsage:
       'Accounts: {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [ordered ids]. Credentials: {command} auth set --provider <id> --account <id> (standard input only).',
     slashDescription: 'List accounts, view thresholds, or choose an account.',
@@ -6133,10 +6159,12 @@ export const EN = {
     parallelDescription:
       'Spread background work by headroom and keep each worker on its assigned account.',
     current: 'Current Account',
+    switchUnavailable:
+      'This session stays on {provider} · {account}. Account switching is unavailable in this runtime.',
     swapNotice: 'Now on {provider} · {account}: {previous} reached {threshold}.',
     coldCache: 'Estimated context re-read cost: {cost}.',
-    stopped: '{provider} has no account with room. Resets {reset}.',
-    resetUnknown: '{provider} has no account with room. Reset time is unknown.',
+    stopped: '{provider} · {account} has no room. Resets {reset}.',
+    resetUnknown: '{provider} · {account} has no room. Reset time is unknown.',
     sharedGroup: '{account} shares the same vendor limit group; another key adds no capacity.',
     policy: 'Vendor Account Policy',
     policyOn: 'Pooling Available',

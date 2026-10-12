@@ -111,6 +111,7 @@ interface HarnessOptions {
   readonly canBypass?: boolean
   readonly initialMode?: PermissionMode
   readonly allowsContributorModels?: boolean
+  readonly accounts?: AcpAgentDeps['accounts']
   readonly kind?: 'museCode' | 'modelApi'
   readonly paid?: readonly AcpPaidFeature[]
   /** `--trust-workspace`: "Allow always" is offered and kept (M58). */
@@ -137,6 +138,7 @@ function harness(options: HarnessOptions = {}): Harness {
   })
   const deps: AcpAgentDeps = {
     legalScan: options.legalScan,
+    ...(options.accounts !== undefined && { accounts: options.accounts }),
     ...(options.playbookFor !== undefined && {
       playbookFor: options.playbookFor,
       playbookBundle: () => ({ parsePlaybookCommand, runPlaybookCommand }),
@@ -321,6 +323,10 @@ async function start(
 async function startFormSession(h: Harness, client: acp.ClientContext) {
   const { sessionId } = await start(client, { elicitation: { form: {} } })
   return { sessionId, session: h.host.sessions[0]! }
+}
+
+function voidUnsubscribe(): void {
+  // An account port that never delivers still returns a teardown.
 }
 
 function prompt(client: acp.ClientContext, sessionId: string, text = 'hello') {
@@ -913,6 +919,31 @@ describe('the ACP agent (M63)', () => {
     expect(created.modes?.availableModes.map((mode) => mode.id)).toContain('bypassPermissions')
     const [model] = created.configOptions ?? []
     expect(model && 'options' in model ? model.options.length : 0).toBe(2)
+  })
+
+  it('adopts the session without accounts when the account port fails', async () => {
+    const h = harness({
+      accounts: {
+        usageUrl: () => {
+          throw new Error(UI_TEXT.accounts.unavailable)
+        },
+        read: () => Promise.reject(new Error('account store down')),
+        use: () => Promise.reject(new Error(UI_TEXT.accounts.unavailable)),
+        subscribe: () => voidUnsubscribe,
+      },
+    })
+    await h.run(async (client) => {
+      // Adoption succeeds instead of failing with the accounts error, and
+      // no account picker is served.
+      const created = await start(client)
+      expect(created.configOptions?.some((option) => option.id === 'account')).toBe(false)
+      // An ordinary prompt turn still runs on the adopted session.
+      const session = h.host.sessions.at(-1)!
+      const response = prompt(client, created.sessionId)
+      await until(() => session.sendTurn.mock.calls.length > 0)
+      session.emit({ type: 'turnCompleted', turnId: 'turn-1', terminal: 'completed' })
+      await expect(response).resolves.toMatchObject({ stopReason: 'end_turn' })
+    })
   })
 
   it('refuses a relative folder', async () => {

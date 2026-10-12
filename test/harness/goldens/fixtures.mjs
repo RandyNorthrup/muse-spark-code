@@ -4,6 +4,9 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { build } from 'esbuild'
 import { additionalScenes, makeAdditionalFixtures } from './additionalFixtures.mjs'
+
+/** What the What's New screenshots show: two fixed releases, not the real notes. */
+const WHATS_NEW_FIXTURE = 'test/harness/whats-new/CHANGELOG.fixture.md'
 const fixtureSource = [
   "import React, {lazy} from 'react';",
   "import {createRoot} from 'react-dom/client';",
@@ -76,7 +79,7 @@ async function buildFixturesIn(auditRoot, directory) {
   await build({
     stdin: {
       contents:
-        "export { renderWhatsNewPage } from './src/host/whatsNew/whatsNewHtml'; export { parseWhatsNewContent } from './src/core/whatsNew/whatsNewContent';",
+        "export { renderWhatsNewPage } from './src/host/whatsNew/whatsNewHtml'; export { encodeWhatsNewContent, parseWhatsNewContent, WHATS_NEW_CONTENT_SCHEMA_VERSION } from './src/core/whatsNew/whatsNewContent';",
       resolveDir: auditRoot,
       loader: 'ts',
     },
@@ -86,16 +89,36 @@ async function buildFixturesIn(auditRoot, directory) {
     platform: 'node',
     format: 'esm',
   })
-  const { renderWhatsNewPage, parseWhatsNewContent } = await import(
-    pathToFileURL(path.join(directory, 'whatsNew.mjs')).href
-  )
-  const { writeWhatsNewContent } = await import(
+  const {
+    renderWhatsNewPage,
+    encodeWhatsNewContent,
+    parseWhatsNewContent,
+    WHATS_NEW_CONTENT_SCHEMA_VERSION,
+  } = await import(pathToFileURL(path.join(directory, 'whatsNew.mjs')).href)
+  const { contributedIds, parseChangelog, repositoryUrl } = await import(
     pathToFileURL(path.join(auditRoot, 'scripts/lib/whatsNewContent.mjs')).href
   )
-  writeWhatsNewContent(auditRoot)
-  const content = parseWhatsNewContent(
-    await readFile(path.join(auditRoot, 'dist/whatsNew.json'), 'utf8'),
+  // The page is rendered from a fixed fixture, never from the real
+  // CHANGELOG.md: a release's notes and its version move no frame. The real
+  // builder and the real schema still make the content, and the manifest
+  // still says which Try its may be shown.
+  const manifest = JSON.parse(await readFile(path.join(auditRoot, 'package.json'), 'utf8'))
+  const releases = parseChangelog(
+    await readFile(path.join(auditRoot, WHATS_NEW_FIXTURE), 'utf8'),
+    contributedIds(manifest),
+    repositoryUrl(manifest),
   )
+  // The builder answers with a result, not text (the What's New budget): a
+  // fixture too large for what ships is a broken fixture, never a quietly
+  // different page.
+  const encoded = encodeWhatsNewContent(
+    JSON.stringify({ schema: WHATS_NEW_CONTENT_SCHEMA_VERSION, releases }),
+  )
+  if (encoded.kind !== 'encoded')
+    throw new Error(
+      `The What's New fixture is ${String(encoded.bytes)} bytes of content; the budget is ${String(encoded.maxBytes)}`,
+    )
+  const content = parseWhatsNewContent(encoded.text)
   const files = new Map()
   const entries = await readdir(directory, { recursive: true, withFileTypes: true })
   for (const entry of entries)
@@ -115,8 +138,9 @@ export async function makeFixtures(auditRoot, port) {
     await mkdir(path.dirname(file), { recursive: true })
     await writeFile(file, bytes)
   }
+  // Both fixture releases: the page shows two in full at most.
   const rendered = renderWhatsNewPage({
-    releases: releases.filter((entry) => entry.version !== 'Unreleased').slice(0, 1),
+    releases,
     from: undefined,
     current: releases[0].version,
     isShownOnUpdate: true,

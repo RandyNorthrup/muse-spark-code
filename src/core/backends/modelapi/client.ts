@@ -10,12 +10,12 @@ import { PaidAuthority } from '../../paid/paidAuthority'
 
 import {
   RequestTransport,
+  assertConfirmedAllowed,
   ignoreClosingError,
   ModelApiError,
   parseJsonResponse,
   readBoundedText,
   redactModelApiError,
-  isUserRefusal,
   isModelApiError,
   redactStreamDiagnostics,
   type ConfirmedModelRequest,
@@ -457,12 +457,11 @@ export class ModelApiClient implements TransportProviderClient {
       await admitAttempt?.mediaAccounting?.finish()
       throw new RangeError(outputTokenMinimumMessage(MODEL_API_MIN_OUTPUT_TOKENS))
     }
-    if (
-      confirmed !== undefined &&
-      (body.model !== confirmed.modelId || !confirmed.isStillAllowed())
-    ) {
+    try {
+      assertConfirmedAllowed(body.model, confirmed)
+    } catch (error: unknown) {
       await admitAttempt?.mediaAccounting?.finish()
-      throw new Error(UI_TEXT.scheduleConfirmationExpired)
+      throw error
     }
     let feature = admitAttempt?.paidFeature
     if (feature === undefined && confirmed !== undefined) {
@@ -589,6 +588,7 @@ export class ModelApiClient implements TransportProviderClient {
           reservedUsd: claim?.reservedUsd ?? searchAllowanceUsd(body.max_tool_calls, searchPrice),
         })
       }
+      admitAttempt?.check?.()
       const { response, redact, redactContent, eventParsed } = await this.transport.streamRequest(
         '/responses',
         {
@@ -735,6 +735,9 @@ export class ModelApiClient implements TransportProviderClient {
           )
         }
       } catch (error: unknown) {
+        // Local refusals keep their own sentence; the classifier rides the
+        // lazy provider bundle, keeping this bundle on its pin.
+        const { isUserRefusal } = await import('../../refusal')
         if (
           isUserRefusal(error) &&
           !isModelApiError(error) &&
