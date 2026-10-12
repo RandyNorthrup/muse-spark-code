@@ -253,11 +253,14 @@ describe('resolved model policy', () => {
     expect(text).toContain('Per request $0.00005; per image $1.000E-30')
   })
 
-  it('retains uncertain one-hour-write liability while the public price module lacks P2 settlement', async () => {
+  it('settles one-hour writes at the one-hour rate now that the price module has P2 settlement', async () => {
     const priced = await registry({
       kind: 'priced',
       card: { ...card, cacheWrite1h: 0.004 },
     }).resolve(ref)
+    // 10 five-minute writes at cacheWrite plus 10 one-hour writes at
+    // cacheWrite1h (20 input tokens, all written): computed from the card's
+    // own rates, not from the settlement under test.
     expect(
       priced.price.settle({
         inputTokens: 20,
@@ -265,7 +268,7 @@ describe('resolved model policy', () => {
         cacheWriteTokens: 20,
         cacheWriteTokens1h: 10,
       }),
-    ).toBeUndefined()
+    ).toBe(Usd.from(0.002).times(10).add(Usd.from(0.004).times(10)).toAmount())
     expect(
       priced.price.settle(
         { inputTokens: 20, outputTokens: 0, cacheWriteTokens: 20, cacheWriteTokens1h: 10 },

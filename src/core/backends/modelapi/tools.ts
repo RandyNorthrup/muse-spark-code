@@ -74,6 +74,7 @@ import {
   BROWSER_CHECK_REQUIRED,
 } from '../../browser/browserTool'
 import { confineWorkspacePath, normalizeModelPath } from '../../workspacePath'
+import { normalWindowsPath } from '../../windowsPathSpelling'
 import { compileGlob, GLOB_LIMITS } from './globLimits'
 import type { GlobLimits } from './glob'
 import type { HookHttpResult } from './hookHandlers'
@@ -1021,6 +1022,9 @@ export function pathRefusal(refusal: {
   readonly code?: 'outside_workspace'
 }): ToolOutcome {
   if (refusal.code !== 'outside_workspace') return failure(refusal.reason)
+  // The client reads the specific reason (a link escape names its path
+  // through the link); the shown sentence stays the fixed refusal. The
+  // translator copies failureReason into the client's refusal reason.
   return {
     output: JSON.stringify({
       error: {
@@ -1030,7 +1034,7 @@ export function pathRefusal(refusal: {
       },
     }),
     visibleOutput: UI_TEXT.acpOutsideWorkspaceRefused,
-    failureReason: UI_TEXT.acpOutsideWorkspaceRefused,
+    failureReason: refusal.reason,
     refusalCode: refusal.code,
   }
 }
@@ -1044,11 +1048,14 @@ function confinedGlob(
   if (glob === undefined) return { ok: true, glob }
   const normalized = normalizeModelPath(glob, context.platform)
   if (!normalized.ok) return normalized
+  // The same normalisation `resolveWorkspacePath` applies to a plain path:
+  // the verbatim `\\?\X:\` prefix names the same file as `X:\`, so root and
+  // glob are compared in that form (a valid verbatim glob is in-workspace).
   const p = context.platform === 'win32' ? path.win32 : path.posix
-  const relative = p.relative(
-    context.workspaceRoot,
-    p.resolve(context.workspaceRoot, normalized.path),
-  )
+  const root =
+    context.platform === 'win32' ? normalWindowsPath(context.workspaceRoot) : context.workspaceRoot
+  const given = context.platform === 'win32' ? normalWindowsPath(normalized.path) : normalized.path
+  const relative = p.relative(root, p.resolve(root, given))
   return relative === '..' || relative.startsWith(`..${p.sep}`) || p.isAbsolute(relative)
     ? { ok: false, code: 'outside_workspace', reason: 'outside the workspace' }
     : { ok: true, glob: relative.split(p.sep).join('/') }

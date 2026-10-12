@@ -179,6 +179,10 @@ describe('confineWorkspacePath: links (D24)', () => {
     expect(write.output).toContain('through a link')
     const read = await executeTool('read_file', JSON.stringify({ path: 'linked/shadow' }), ctx)
     expect(read.output).toContain('through a link')
+    // Finding 7: the client reason names the link escape too, while the
+    // shown sentence stays the fixed refusal.
+    expect(read.failureReason).toContain('through a link')
+    expect(read.visibleOutput).toBe(UI_TEXT.acpOutsideWorkspaceRefused)
     expect(files.files.size).toBe(1)
     expect(files.files.get('/ws/a.txt')).toBe('x')
   })
@@ -779,7 +783,7 @@ describe('executeTool: read_file', () => {
   it('refuses paths outside the workspace and reports a missing file', async () => {
     const { run } = context({})
     expect(await run('read_file', { path: '../secret' })).toMatchObject({
-      failureReason: UI_TEXT.acpOutsideWorkspaceRefused,
+      failureReason: 'path ../secret is outside the workspace',
       refusalCode: 'outside_workspace',
     })
     expect(await run('read_file', { path: 'missing.txt' })).toMatchObject({
@@ -904,6 +908,36 @@ describe('executeTool: search and list_files', () => {
     expect(limited.output).toBe('src/a.ts\n[3 more files]')
     const none = await run('list_files', { glob: '*.rs' })
     expect(none.output).toBe('No files.')
+  })
+
+  it('accepts a valid Windows verbatim glob as in-workspace (finding 6)', async () => {
+    // Forward slashes: the in-memory file system keys them; the verbatim
+    // `\\?\` prefix on the glob is what the guard must normalise away.
+    const root = 'C:/workspace'
+    const io = memoryToolIo({ 'notes.md': 'hello\n', 'src/a.ts': 'x\n' }, root)
+    const ctx: ToolContext = {
+      workspaceRoot: root,
+      platform: 'win32',
+      io,
+      seen: new Map(),
+      provisionalSeen: new Map(),
+    }
+    const run = (name: string, args: unknown) => executeTool(name, JSON.stringify(args), ctx)
+    // `\\?\C:\…` names the same file as `C:\…`: the guard compares both in
+    // the normalised form, as `resolveWorkspacePath` does for plain paths.
+    const listed = await run('list_files', { glob: String.raw`\\?\C:\workspace\*.md` })
+    expect(listed.failureReason).toBeUndefined()
+    expect(listed.output).toBe('notes.md')
+    const searched = await run('search', {
+      pattern: 'hello',
+      glob: String.raw`\\?\C:\workspace\*.md`,
+    })
+    expect(searched.failureReason).toBeUndefined()
+    expect(searched.output).toContain('notes.md:1: hello')
+    // A verbatim glob on another drive is still outside.
+    expect(await run('list_files', { glob: String.raw`\\?\D:\other\*.md` })).toMatchObject({
+      refusalCode: 'outside_workspace',
+    })
   })
 })
 
@@ -1177,16 +1211,19 @@ describe('a conversation in a worktree (M71)', () => {
     }
     const run = (name: string, args: unknown) => executeTool(name, JSON.stringify(args), ctx)
     for (const target of ['../../app/src/a.ts', `${MAIN}/src/a.ts`]) {
+      // The client reads the specific reason; the shown sentence stays fixed.
+      const reason = `path ${target} is outside the workspace`
       expect(await run('read_file', { path: target })).toMatchObject({
-        failureReason: UI_TEXT.acpOutsideWorkspaceRefused,
+        failureReason: reason,
+        visibleOutput: UI_TEXT.acpOutsideWorkspaceRefused,
         refusalCode: 'outside_workspace',
       })
       expect(await run('write_file', { path: target, content: 'x\n' })).toMatchObject({
-        failureReason: UI_TEXT.acpOutsideWorkspaceRefused,
+        failureReason: reason,
         refusalCode: 'outside_workspace',
       })
       expect(await run('edit_file', { path: target, find: 'main', replace: 'x' })).toMatchObject({
-        failureReason: UI_TEXT.acpOutsideWorkspaceRefused,
+        failureReason: reason,
         refusalCode: 'outside_workspace',
       })
     }

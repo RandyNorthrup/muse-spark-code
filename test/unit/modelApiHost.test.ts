@@ -4613,7 +4613,7 @@ describe('ModelApiSession: turns', () => {
     )
     expect(row?.item).toMatchObject({
       status: 'rejected',
-      failureReason: UI_TEXT.acpOutsideWorkspaceRefused,
+      failureReason: 'path ../x is outside the workspace',
       refusalCode: 'outside_workspace',
     })
   })
