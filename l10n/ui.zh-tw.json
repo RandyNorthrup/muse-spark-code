@@ -3432,6 +3432,7 @@
   "execBudgetRemedyInput": "僅輸入就花費 {inputCost}，超過剩餘的 {remaining}。",
   "execBudgetStartExact": "限額執行：上限 {cap}，剩餘 {remaining}。下一個請求最多預留 {reservation}。",
   "execBudgetStartRule": "限額執行：上限 {cap}，剩餘 {remaining}。每個請求預留其計數的輸入，外加最多 {output} 個輸出 token。",
+  "execBudgetStartBytes": "限額執行：上限 {cap}，剩餘 {remaining}。每個請求預留其位元組上限的輸入，外加最多 {output} 個輸出 token。",
   "execBudgetStillReading": "預算在執行仍在讀取時將其停止，因此尚無答案。",
   "execCountBytesFallback": "提供者輸入計數失敗，因此此請求改按位元組上限預留。",
   "execOutputCapExceeded": "--max-output-tokens 超出 {cap} 個 token 的輸出上限。",

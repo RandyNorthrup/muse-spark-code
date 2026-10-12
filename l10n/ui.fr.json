@@ -3582,6 +3582,7 @@
   "execBudgetRemedyInput": "L’entrée seule coûte {inputCost}, plus que les {remaining} restants.",
   "execBudgetStartExact": "Exécution plafonnée : plafond {cap}, {remaining} restants. La prochaine requête réserve au plus {reservation}.",
   "execBudgetStartRule": "Exécution plafonnée : plafond {cap}, {remaining} restants. Chaque requête réserve son entrée comptée plus jusqu’à {output} tokens de sortie.",
+  "execBudgetStartBytes": "Exécution plafonnée : plafond {cap}, {remaining} restants. Chaque requête réserve son entrée limitée par les octets plus jusqu’à {output} tokens de sortie.",
   "execBudgetStillReading": "Le budget a arrêté l’exécution pendant qu’elle lisait encore, donc il n’y a pas encore de réponse.",
   "execCountBytesFallback": "Le comptage d’entrée du fournisseur a échoué, cette requête réserve donc la borne en octets.",
   "execOutputCapExceeded": "--max-output-tokens dépasse le plafond de sortie de {cap} jetons.",

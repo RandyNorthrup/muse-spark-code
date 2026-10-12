@@ -3582,6 +3582,7 @@
   "execBudgetRemedyInput": "Il solo input costa {inputCost}, più dei {remaining} restanti.",
   "execBudgetStartExact": "Esecuzione con tetto: tetto {cap}, restano {remaining}. La prossima richiesta prenota al massimo {reservation}.",
   "execBudgetStartRule": "Esecuzione con tetto: tetto {cap}, restano {remaining}. Ogni richiesta prenota il proprio input contato più fino a {output} token di output.",
+  "execBudgetStartBytes": "Esecuzione con tetto: tetto {cap}, restano {remaining}. Ogni richiesta prenota il proprio input limitato dai byte più fino a {output} token di output.",
   "execBudgetStillReading": "Il budget ha interrotto l’esecuzione mentre stava ancora leggendo, quindi non esiste ancora una risposta.",
   "execCountBytesFallback": "Il conteggio dell’input del provider non è riuscito, quindi questa richiesta prenota il limite in byte.",
   "execOutputCapExceeded": "--max-output-tokens supera il limite di uscita di {cap} token.",

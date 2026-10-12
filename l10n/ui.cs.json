@@ -3657,6 +3657,7 @@
   "execBudgetRemedyInput": "Samotný vstup stojí {inputCost}, více než zbývajících {remaining}.",
   "execBudgetStartExact": "Limitovaný běh: strop {cap}, zbývá {remaining}. Další požadavek rezervuje nejvýše {reservation}.",
   "execBudgetStartRule": "Limitovaný běh: strop {cap}, zbývá {remaining}. Každý požadavek rezervuje svůj započtený vstup plus až {output} výstupních tokenů.",
+  "execBudgetStartBytes": "Limitovaný běh: strop {cap}, zbývá {remaining}. Každý požadavek rezervuje svůj vstup omezený byty plus až {output} výstupních tokenů.",
   "execBudgetStillReading": "Rozpočet běh zastavil, když ještě četl, takže zatím neexistuje žádná odpověď.",
   "execCountBytesFallback": "Počet vstupních tokenů u poskytovatele selhal, takže tento požadavek rezervuje bajtový odhad.",
   "execOutputCapExceeded": "--max-output-tokens překračuje limit výstupu {cap} tokenů.",

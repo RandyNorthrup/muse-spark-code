@@ -244,13 +244,15 @@ export function withRuntimeAccounting(
           contextTokens < body.max_output_tokens
         )
           throw new Error(UI_TEXT.execModelUnpriced)
-        // EXECPROV round 6: where the client documents an exact same-body
+        // EXECPROV round 7: where the client documents an exact same-body
         // count, the input side reserves that count at the uncached price —
         // once per request, bounded, sending the request's own body. Only
         // run-ledger runs count: interactive runs keep exactly today's byte
         // bound and send no extra request. Media carries its own calibrated
         // bound, and any failure (or a count the client does not offer)
-        // keeps exactly today's byte bound.
+        // keeps exactly today's byte bound. A count larger than the byte
+        // bound is a lying count and falls back the same way: a count can
+        // only shrink the reservation, never grow it past the bytes.
         const mediaTokens = guard?.mediaAccounting?.inputTokens
         const detailed =
           accounting === undefined || mediaTokens !== undefined
@@ -262,6 +264,10 @@ export function withRuntimeAccounting(
             detailed === undefined ? undefined : await countExactInput(detailed, body, signal)
         } catch {
           counted = undefined
+        }
+        if (counted !== undefined) {
+          const byteTokens = estimateInput(requestParts(body), undefined).inputTokens
+          if (counted.tokens > byteTokens) counted = undefined
         }
         const isExactFailed = counted === undefined && detailed !== undefined
         const inputTokens =

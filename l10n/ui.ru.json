@@ -3657,6 +3657,7 @@
   "execBudgetRemedyInput": "Один ввод стоит {inputCost} — больше, чем оставшиеся {remaining}.",
   "execBudgetStartExact": "Запуск с лимитом: лимит {cap}, осталось {remaining}. Следующий запрос резервирует не более {reservation}.",
   "execBudgetStartRule": "Запуск с лимитом: лимит {cap}, осталось {remaining}. Каждый запрос резервирует свой подсчитанный ввод плюс до {output} выходных токенов.",
+  "execBudgetStartBytes": "Запуск с лимитом: лимит {cap}, осталось {remaining}. Каждый запрос резервирует свой ввод, ограниченный байтами, плюс до {output} выходных токенов.",
   "execBudgetStillReading": "Бюджет остановил запуск, когда он ещё читал, поэтому ответа пока нет.",
   "execCountBytesFallback": "Подсчёт ввода провайдера не удался, поэтому этот запрос резервирует байтовую оценку.",
   "execOutputCapExceeded": "--max-output-tokens превышает лимит вывода {cap} токенов.",

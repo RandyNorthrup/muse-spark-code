@@ -118,6 +118,7 @@ interface DriveResult {
   readonly refusals: { reason: string; details: unknown }[]
   readonly dailySettled: UsdAmount[]
   readonly plainCalls: number
+  readonly requests: number
 }
 
 /** One priced request through the real admission/settlement path, no sockets. */
@@ -208,6 +209,7 @@ async function driveOnce(options: {
     refusals,
     dailySettled,
     plainCalls: countInputTokens.mock.calls.length,
+    requests: totals.requests,
   }
 }
 
@@ -419,6 +421,42 @@ describe('budget refusal details', () => {
   })
 })
 
+async function presetServices(
+  roots: string[],
+  options: { preset: string; address: string; model: string; id?: string },
+  entryOverrides: Record<string, unknown>,
+  send: NonNullable<ConfiguredProviderOptions['send']>,
+) {
+  const root = await mkdtemp(path.join(tmpdir(), 'exec-exact-'))
+  roots.push(root)
+  const id = options.id ?? 'p'
+  const entry = providerEntrySchema.parse({
+    id,
+    preset: options.preset,
+    address: options.address,
+    auth: 'apiKey',
+    models: [options.model],
+    prices: { [options.model]: { input: 0.000005, output: 0.00002 } },
+    ...entryOverrides,
+  })
+  const configFile = path.join(root, 'providers.json')
+  const written = await writeProvidersFileAtomic(configFile, { v: 1, providers: [entry] })
+  expect(written.ok).toBe(true)
+  const secrets = memorySecrets()
+  await secrets.store(
+    `${PROVIDER_SECRET_PREFIX}${id}`,
+    formatStoredProviderSecret({ v: 1, auth: 'apiKey', origin: options.address }, 'test-owned-key'),
+  )
+  const services = createConfiguredProviderServices(undefined, {
+    configFile,
+    catalogFile: path.resolve('vendor/models-dev/snapshot.json'),
+    secrets,
+    resolve: () => Promise.resolve(['8.8.8.8']),
+    send,
+  })
+  return { services, ref: `${id}/${options.model}` }
+}
+
 describe('configured exact-count offers', () => {
   const roots: string[] = []
   const cleanup = async () => {
@@ -429,35 +467,12 @@ describe('configured exact-count offers', () => {
     entryOverrides: Record<string, unknown>,
     send: NonNullable<ConfiguredProviderOptions['send']>,
   ) {
-    const root = await mkdtemp(path.join(tmpdir(), 'exec-exact-'))
-    roots.push(root)
-    const entry = providerEntrySchema.parse({
-      id: 'o',
-      preset: 'openai',
-      address: 'https://api.openai.com',
-      auth: 'apiKey',
-      models: ['gpt-x'],
-      prices: { 'gpt-x': { input: 0.000005, output: 0.00002 } },
-      ...entryOverrides,
-    })
-    const configFile = path.join(root, 'providers.json')
-    const written = await writeProvidersFileAtomic(configFile, { v: 1, providers: [entry] })
-    expect(written.ok).toBe(true)
-    const secrets = memorySecrets()
-    await secrets.store(
-      `${PROVIDER_SECRET_PREFIX}o`,
-      formatStoredProviderSecret(
-        { v: 1, auth: 'apiKey', origin: 'https://api.openai.com' },
-        'test-owned-key',
-      ),
-    )
-    const services = createConfiguredProviderServices(undefined, {
-      configFile,
-      catalogFile: path.resolve('vendor/models-dev/snapshot.json'),
-      secrets,
-      resolve: () => Promise.resolve(['8.8.8.8']),
+    const { services } = await presetServices(
+      roots,
+      { preset: 'openai', address: 'https://api.openai.com', model: 'gpt-x', id: 'o' },
+      entryOverrides,
       send,
-    })
+    )
     return services
   }
 
@@ -494,7 +509,7 @@ describe('configured exact-count offers', () => {
     }
   })
 
-  it('exactInputCount false and other formats keep the byte bound with no offer', async () => {
+  it('exactInputCount false and counter-less formats keep the byte bound with no offer', async () => {
     const off = await openaiServices({ exactInputCount: false }, () =>
       Promise.reject(new Error('no request may go out')),
     )
@@ -504,13 +519,16 @@ describe('configured exact-count offers', () => {
     } finally {
       await cleanup()
     }
-    const anthropic = await openaiServices(
-      { id: 'a', preset: 'anthropic', address: 'https://api.anthropic.com' },
+    // OpenAI-compatible chat completions document no counting call for the
+    // exact request: the byte bound stays, with the fixed reason line.
+    const { services: chat } = await presetServices(
+      roots,
+      { preset: 'custom', address: 'https://chat.example.test', model: 'chat-x', id: 'c' },
+      { modelLimits: { 'chat-x': { contextTokens: 32_768, outputTokens: 4096 } } },
       () => Promise.reject(new Error('no request may go out')),
     )
     try {
-      // Anthropic documents its count as an estimate, never an exact bound.
-      const model = await anthropic.registry.resolve('a/gpt-x')
+      const model = await chat.registry.resolve('c/chat-x')
       expect(model.client.countInputTokensDetailed).toBeUndefined()
     } finally {
       await cleanup()
@@ -540,6 +558,281 @@ describe('configured exact-count offers', () => {
         exactInputCount: 'no',
       }),
     ).toThrow()
+  })
+})
+
+describe('per-wire exact counts (round 7)', () => {
+  const roots: string[] = []
+  const cleanup = async () => {
+    await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })))
+  }
+
+  interface CountPost {
+    readonly url: string
+    readonly host: string
+    readonly address: string
+    readonly headers: Record<string, string>
+    readonly body: unknown
+    readonly signal: AbortSignal
+  }
+
+  // Thinking-capable wires gate the encode on the model's reasoning
+  // record: declare modes so the `minimal`-effort fixture request encodes.
+  const ANTHROPIC_CAPS = {
+    'claude-x': {
+      reasoning: {
+        modes: { state: 'yes', value: ['adaptive'] },
+        effortLevels: { state: 'yes', value: ['low', 'medium', 'high'] },
+      },
+    },
+  }
+  const GEMINI_CAPS = {
+    'gemini-x': {
+      reasoning: {
+        modes: { state: 'yes', value: ['level'] },
+        effortLevels: { state: 'yes', value: ['minimal', 'low', 'medium', 'high'] },
+      },
+    },
+  }
+
+  /** A fake wire speaking one count answer, recording every post it sees. */
+  function countingWire(answer: string, status = 200) {
+    const posts: CountPost[] = []
+    const send: NonNullable<ConfiguredProviderOptions['send']> = (
+      target,
+      bytes = '',
+      headers,
+      signal,
+    ) => {
+      posts.push({
+        url: target.url.href,
+        host: target.host,
+        address: target.address,
+        headers: { ...headers },
+        body: JSON.parse(bytes),
+        signal,
+      })
+      return Promise.resolve({
+        status,
+        headers: {},
+        body: (async function* () {
+          yield* await Promise.resolve([Buffer.from(answer)])
+        })(),
+        close: () => undefined,
+      })
+    }
+    return { posts, send }
+  }
+
+  it('anthropic posts the message body without max_tokens and stream to count_tokens', async () => {
+    const wire = countingWire(JSON.stringify({ input_tokens: 81 }))
+    const { services, ref } = await presetServices(
+      roots,
+      { preset: 'anthropic', address: 'https://api.anthropic.com', model: 'claude-x', id: 'a' },
+      { modelCapabilities: ANTHROPIC_CAPS },
+      wire.send,
+    )
+    try {
+      const model = await services.registry.resolve(ref)
+      const detailed = model.client.countInputTokensDetailed
+      expect(typeof detailed).toBe('function')
+      if (detailed === undefined) throw new Error('missing detailed count')
+      const counted = await detailed(
+        { ...bodyWithText('hello exact'), model: ref },
+        new AbortController().signal,
+      )
+      expect(counted).toEqual({ tokens: 81, costUsd: undefined })
+      expect(wire.posts).toHaveLength(1)
+      const post = wire.posts[0]
+      if (post === undefined) throw new Error('missing count post')
+      // An abort signal rides every count end to end (the count's own
+      // 30 s deadline at the latest; the transport combines its own
+      // stall bound too), so a hanging counter cannot stall the
+      // reservation.
+      expect(post.signal).not.toBeNull()
+      // The request path's documented counting sibling, same origin.
+      expect(post.url).toBe('https://api.anthropic.com/v1/messages/count_tokens')
+      expect(post.host).toBe('api.anthropic.com')
+      // The same pinned-address path as the real request: no second network.
+      expect(post.address).toBe('8.8.8.8')
+      // The message request's own version headers ride the count.
+      expect(post.headers['anthropic-version']).toBe('2023-06-01')
+      const body = post.body as Record<string, unknown>
+      expect(body['model']).toBe('claude-x')
+      expect(JSON.stringify(body)).toContain('hello exact')
+      expect(JSON.stringify(body)).toContain('System instructions')
+      expect(body).not.toHaveProperty('max_tokens')
+      expect(body).not.toHaveProperty('stream')
+      expect(body).not.toHaveProperty('metadata')
+      // The byte bound stays for every other caller.
+      expect(await model.client.countInputTokens(bodyWithText('hello exact'))).toBeGreaterThan(81)
+    } finally {
+      await cleanup()
+    }
+  })
+
+  it('gemini posts the native body without the output cap to countTokens', async () => {
+    const wire = countingWire(JSON.stringify({ totalTokens: 82 }))
+    const { services, ref } = await presetServices(
+      roots,
+      {
+        preset: 'gemini',
+        address: 'https://generativelanguage.googleapis.com',
+        model: 'gemini-x',
+        id: 'g',
+      },
+      { modelCapabilities: GEMINI_CAPS },
+      wire.send,
+    )
+    try {
+      const model = await services.registry.resolve(ref)
+      const detailed = model.client.countInputTokensDetailed
+      expect(typeof detailed).toBe('function')
+      if (detailed === undefined) throw new Error('missing detailed count')
+      const counted = await detailed(
+        { ...bodyWithText('hello exact'), model: ref },
+        new AbortController().signal,
+      )
+      expect(counted).toEqual({ tokens: 82, costUsd: undefined })
+      expect(wire.posts).toHaveLength(1)
+      const post = wire.posts[0]
+      if (post === undefined) throw new Error('missing count post')
+      // The stream suffix becomes :countTokens; the SSE query never rides.
+      expect(post.url).toBe(
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-x:countTokens',
+      )
+      expect(post.host).toBe('generativelanguage.googleapis.com')
+      expect(post.address).toBe('8.8.8.8')
+      const body = post.body as Record<string, unknown>
+      expect(JSON.stringify(body)).toContain('hello exact')
+      const generation = body['generationConfig'] as Record<string, unknown> | undefined
+      expect(generation).toBeDefined()
+      expect(generation).not.toHaveProperty('maxOutputTokens')
+    } finally {
+      await cleanup()
+    }
+  })
+
+  it.each<[string, number, string]>([
+    ['a non-2xx answer', 500, JSON.stringify({ input_tokens: 1 })],
+    ['a body without a count', 200, JSON.stringify({})],
+    ['a negative count', 200, JSON.stringify({ input_tokens: -1 })],
+    ['a fractional count', 200, JSON.stringify({ input_tokens: 1.5 })],
+    ['a wrong-shape count', 200, JSON.stringify({ totalTokens: 1 })],
+  ])(
+    'an anthropic count failure (%s) throws so the byte bound returns',
+    async (_name, status, answer) => {
+      const wire = countingWire(answer, status)
+      const { services, ref } = await presetServices(
+        roots,
+        { preset: 'anthropic', address: 'https://api.anthropic.com', model: 'claude-x', id: 'a' },
+        { modelCapabilities: ANTHROPIC_CAPS },
+        wire.send,
+      )
+      try {
+        const model = await services.registry.resolve(ref)
+        const detailed = model.client.countInputTokensDetailed
+        if (detailed === undefined) throw new Error('missing detailed count')
+        await expect(
+          detailed({ ...bodyWithText('hello exact'), model: ref }, new AbortController().signal),
+        ).rejects.toThrow()
+      } finally {
+        await cleanup()
+      }
+    },
+  )
+
+  it('a signal-less count still carries the short deadline', async () => {
+    const wire = countingWire(JSON.stringify({ input_tokens: 1 }))
+    const { services, ref } = await presetServices(
+      roots,
+      { preset: 'anthropic', address: 'https://api.anthropic.com', model: 'claude-x', id: 'a' },
+      { modelCapabilities: ANTHROPIC_CAPS },
+      wire.send,
+    )
+    try {
+      const model = await services.registry.resolve(ref)
+      const detailed = model.client.countInputTokensDetailed
+      if (detailed === undefined) throw new Error('missing detailed count')
+      // No caller signal: the product still attaches its own 30 s deadline,
+      // so a hanging counter cannot stall the reservation.
+      await detailed({ ...bodyWithText('hello exact'), model: ref })
+      expect(wire.posts).toHaveLength(1)
+      expect(wire.posts[0]?.signal).not.toBeNull()
+    } finally {
+      await cleanup()
+    }
+  })
+
+  it('a count is sent once and never retried', async () => {
+    let calls = 0
+    const { services, ref } = await presetServices(
+      roots,
+      { preset: 'anthropic', address: 'https://api.anthropic.com', model: 'claude-x', id: 'a' },
+      { modelCapabilities: ANTHROPIC_CAPS },
+      () => {
+        calls += 1
+        return Promise.reject(new Error('count unavailable'))
+      },
+    )
+    try {
+      const model = await services.registry.resolve(ref)
+      const detailed = model.client.countInputTokensDetailed
+      if (detailed === undefined) throw new Error('missing detailed count')
+      await expect(
+        detailed({ ...bodyWithText('hello exact'), model: ref }, new AbortController().signal),
+      ).rejects.toThrow()
+      expect(calls).toBe(1)
+    } finally {
+      await cleanup()
+    }
+  })
+
+  it('a count larger than the byte bound falls back to the byte bound', async () => {
+    const lying = vi.fn(() => Promise.resolve({ tokens: 1_000_000, costUsd: undefined }))
+    const run = await driveOnce({ capUsd: '10', text: TEXT, detailed: lying })
+    const baseline = await driveOnce({ capUsd: '10', text: TEXT })
+    expect(run.ticket.reserveUsd).toBe(baseline.ticket.reserveUsd)
+    expect(run.ticket.inputBound).toBe('bytes-after-failure')
+    expect(run.refusals).toEqual([])
+  })
+
+  it('the measured run reserves the counted input, not the 1,828,002 bytes', async () => {
+    // The round-5 review that died at its cap: 1,828,002 input bytes
+    // reserved as 1,828,002 tokens at $5/M. The counter answers 80,100.
+    // The byte bound counts exactly the estimated parts (instructions,
+    // tools, input items as JSON), so size the text to land on it exactly.
+    const emptyParts = [
+      JSON.stringify(bodyWithText('').instructions),
+      JSON.stringify(bodyWithText('').tools),
+      ...bodyWithText('').input.map((item) => JSON.stringify(item)),
+    ]
+    const overhead = emptyParts.reduce((sum, part) => sum + Buffer.byteLength(part), 0)
+    const text = 'x'.repeat(1_828_002 - overhead)
+    const counted = vi.fn(() => Promise.resolve({ tokens: 80_100, costUsd: undefined }))
+    const run = await driveOnce({ capUsd: '10', text, detailed: counted })
+    const baseline = await driveOnce({ capUsd: '10', text })
+    expect(counted).toHaveBeenCalledTimes(1)
+    // 80,100 input tokens at $5/M plus 64 output tokens at $20/M.
+    expect(run.ticket.reserveUsd).toBe('0.40178')
+    expect(run.ticket.inputBound).toBe('exact')
+    // The byte bound it replaces, stated: 1,828,002 at $5/M plus output.
+    expect(baseline.ticket.reserveUsd).toBe('9.14129')
+    expect(baseline.ticket.inputBound).toBeUndefined()
+    expect(run.refusals).toEqual([])
+    // The count is never recorded as a model call: one ledgered request.
+    expect(run.requests).toBe(1)
+    expect(baseline.requests).toBe(1)
+  })
+
+  it('a gemini failure also keeps exactly the byte-bound reservation', async () => {
+    const failing = vi.fn((): Promise<{ tokens: number; costUsd?: UsdAmount }> =>
+      Promise.reject(new Error('count unavailable')),
+    )
+    const fallen = await driveOnce({ capUsd: '10', text: TEXT, detailed: failing })
+    const baseline = await driveOnce({ capUsd: '10', text: TEXT })
+    expect(fallen.ticket.reserveUsd).toBe(baseline.ticket.reserveUsd)
+    expect(fallen.ticket.inputBound).toBe('bytes-after-failure')
   })
 })
 

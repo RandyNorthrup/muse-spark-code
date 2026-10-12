@@ -780,3 +780,150 @@ one token more on the same ledger.
 Nothing breaks the rule, so R4 changes no product code: it pins the five
 sentences in `test/unit/execUnpricedSurfaces.test.ts` (the terminal sentence
 names the file; the other four name nothing local).
+
+### R7 R0: the stale-hold lockout (measured 7:19 AM, fixed)
+
+A read-review through our own agent (Opus, run cap $10.53, 166 KB
+attached) was refused before any request: `status=budget_exceeded
+exit=5 requests=0`, log `Closed 4 stale holds ($18.097152).` then
+`Budget Exceeded; requests 0`, error key
+`sessionBudgetLegacyFeesUnknown`. The day journal held 556 claims,
+$124.12 settled, five with `hasUnknownCost`: four ownerless holds just
+closed by the age rule (each settled = reserved = 4.524288) and one owned
+4.3-hour-old send-intent claim ($0.69). Daily budget $200: room to spare,
+yet every later capped run refused with a sentence false twice (nothing
+pending; a new conversation does not clear a shared daily ledger).
+
+The design error: one flag carried two facts. (a) True cost unknown but
+BOUNDED, the bound counted as spent (a hold closed at its full
+reservation; a sent request whose answer was lost, kept at its
+reservation): the cap still holds, reports say "upper bound". (b) Money
+may have been spent that no record bounds (history written without fees;
+an open claim whose final cost is still unbounded): only this refuses a
+capped run. The split: claims carry optional `hasUnboundedCost`; totals
+carry `hasUnknownHistoricalFees` ((b) only) plus `hasBoundedUnknownCost`
+((a)). Version rule for old records: unknown + settled = bounded; unknown
+
+- unsettled = unbounded. Writers with an unverified tariff (unpriced/plan
+  pricing) mark `hasUnboundedCost` at reserve, preserving the deliberate
+  never-verified-tariff refusal; priced flows leave it absent.
+
+Sweep of every `hasUnknownHistoricalFees` / `hasUnknownCost` reader:
+
+| Reader                                                                                                                                                          | Needs                           | Now                                                                        |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- | -------------------------------------------------------------------------- |
+| `sessionBudgetJournal.check` / `read`                                                                                                                           | (b) refuses, (a) admits + marks | Refuses on (b) only; returns `hasBoundedUnknownCost`                       |
+| `paidDailyBudget.latestDay`                                                                                                                                     | (b) refuses                     | Unchanged key, now (b)-only by construction                                |
+| `ModelApiHost.refreshBudgetSpend`                                                                                                                               | (b) refuses                     | Same branch, conversation sentence; exact-cost line withheld on (a) or (b) |
+| `ModelApiHost.recordBudgetCost`, `extension.ts`, `client.ts`, `mediaCost.ts`, `paidConsent.ts`, `autoCompactionAdmission.ts`, `transcribeBatch.ts` settle paths | pass through                    | Unchanged: they settle counted amounts, bounded by the rule                |
+| `runtimeAccountingEntry` initial/daily budgets                                                                                                                  | clean ledgers                   | Seed `hasUnknownHistoricalFees: false`, unchanged                          |
+| Usage reports, exec summary                                                                                                                                     | (a) says upper bound            | Already flow through `uncertainUsd` / `execSummaryUpperBound`, unchanged   |
+| Voice estimate helper (test)                                                                                                                                    | (a) after settle                | Settled voice estimates read bounded, never a refusal                      |
+
+The (b) sentence names the ledger and its counted spend, with remedies
+that work — daily (`sessionBudgetLegacyFeesUnknown`): "A new conversation
+does not clear it: wait for the owning run to finish (ownerless holds
+close on their own), or rerun without a spend cap." Conversation
+(`sessionBudgetConversationFeesUnknown`): "Start a new conversation to
+use a spend cap, or rerun this one without a spend cap." No settle-a-named
+-record command exists, so none is named. Both keys in all 14 locale
+files in table order (`check:l10n` 0 problems; pack diag `equal=true`
+2990/2990 all 14).
+
+Measured fixture (`test/unit/execPaidRefusal.test.ts`, daily ledger, cap
+$200, spent $100): four ownerless 4.524288 holds older than the age rule
+plus one live owned $0.69 send-intent claim → the holds close at full
+reservation, the run is ADMITTED, total `spentUsd '120.787152'`,
+`hasUnknownHistoricalFees false`, `hasBoundedUnknownCost true`,
+uncertain `'18.787152'` (holds + open owned, each once). The same shape
+with a truly unbounded legacy record refuses with the literal daily
+sentence; two journals racing one hold close it once (`'4.524288'`
+counted once); an aged closed hold is never closed twice even after its
+mtime passes the bound again; a restarted process admits on the closed
+ledger. Red drills: old-formula break fails the three admission tests
+(sentence + no-double pass as controls); settled-skip removal re-closes
+the aged hold (callback twice) until the backdate arm pins it; both files
+restored byte-exact (SHA-256 compared).
+
+### R7 R1: every wire that has a counter
+
+| Wire                                                      | Counter                                   | Endpoint / reason                                                                                                                                                                                                                                                                                                 |
+| --------------------------------------------------------- | ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Anthropic Messages                                        | yes                                       | `POST /v1/messages/count_tokens` with the message request's model, system, messages, tools, tool_choice, thinking (no max_tokens, no stream, no metadata); answers `{input_tokens}`. As specified in the brief; no live request made (UNVERIFIED against the live docs — failure falls back to bytes either way). |
+| Google Gemini                                             | yes                                       | `POST models/<model>:countTokens` with the native request minus `generationConfig.maxOutputTokens` (thinking kept; `?alt=sse` dropped); answers `{totalTokens}`. Same UNVERIFIED note as Anthropic.                                                                                                               |
+| OpenAI Responses (+ preset override only)                 | yes, round 6, moved onto the shared shape | `POST <responses path>/input_tokens`, same body. xAI and Azure share the format and document no counter: byte bound stays (pinned by test).                                                                                                                                                                       |
+| OpenAI-compatible chat completions, ollama, other presets | no                                        | No documented same-body count: byte bound stays with the fixed reason.                                                                                                                                                                                                                                            |
+| Meta Model API                                            | no                                        | No count endpoint in the research: byte bound stays.                                                                                                                                                                                                                                                              |
+
+One capability in data (`FormatQuirks.exactCount`, preset overrides where
+only some providers of a format document one), read through one function
+(`exactCountKindFor` in `src/core/providers/tokenCount.ts`) by both the
+client offer (`configured.ts`) and the start line (`runExec.ts`), so the
+line can never promise a count the wire does not send. The count request
+is built from the already-built native request (`buildExactCountRequest`:
+drop these fields, send to this path) and rides the same pinned-address,
+proxy and credential path (same `RequestTransport` construction, same
+origin; goldens assert host + pinned `8.8.8.8` address). Same rules as
+round 6 on all wires: short deadline, once per ledgered run, entry
+off-switch, any failure (non-2xx, timeout, non-integer or negative body,
+wrong field, count larger than the byte bound) falls back to the byte
+bound with `bytes-after-failure`; never retried for send failures
+(`rateLimitOnly`: only a pre-work 429 may retry inside the deadline —
+one `send` call on failure, pinned by test); an abort signal is pinned on
+every count post (the count's own 30 s deadline at the latest — the
+transport combines its own stall bound too, so the pin holds end to end);
+never recorded as a model call
+(`usage.requests` counts ledger admissions only — pinned at 1 on the
+measured run); failure text never carries the body (redacted transport
+error, swallowed by the caller). A
+low count cannot break the cap: settlement after the response is still
+checked (round-6 test kept; Anthropic case added by the same ceiling —
+`a count larger than the byte bound` test).
+
+Private data: the count goes only to the request's own origin, only on
+the send path (run-ledger runs; never interactive, never media), before
+ledger admission because the reservation — and hence the admission
+decision — is computed from it. A refused run's count is sent once,
+never retried, never recorded, discarded. There is no approval gate on
+the headless path that precedes it.
+
+Measured case (`test/unit/execExactCount.test.ts`): 1,828,002 input bytes
+at $5/M with a fake counter answering 80,100 → reservation `$0.40178`
+(`exact`), byte baseline `$9.14129` (22.7×). Goldens pin the Anthropic
+method/path/headers/body (no `max_tokens`/`stream`/`metadata`, version
+header rides) and the Gemini path/body (no `maxOutputTokens`, no
+`?alt=sse`). Red drills: builder arms forced to `undefined` fail both
+goldens + the never-retried test; ceiling removal fails the too-large
+test; selection removal fails the measured + round-6 shrink tests; all
+files restored byte-exact.
+
+### R7 R2: say it
+
+The refusal remedy for a wire with no counter is round 6's, wire-agnostic
+and already actionable (the higher cap + the lower `--max-output-tokens`,
+both with numbers — verified unchanged). New: the start line no longer
+says "counted input" on a wire with no counter; `execBudgetStartBytes`
+states the byte-bound rule, selected by the same `exactCountKindFor`
+answer the client offer uses. New key in all 14 locale files in table
+order (proof above).
+
+### R7 prove
+
+Focused suites, repo default timeouts, max 3 files per run:
+`sessionBudgetJournal` 53/53, `execPaidRefusal` 17/17, `museVoice` 22/23
+(the real-WebSocket test fails identically on the untouched base —
+environmental), `modelApiHost` 670/670, `execExactCount` 25/25,
+`tokenCount` 8/8, `execUnpricedSurfaces` + `execProvider` 32/32,
+`configuredProviders` 40/45 with the same 5 timing/socket failures on
+base, `execRun` 114/138 with the same 24 loopback/build-feature failures
+on base (full parity). Five typechecks clean; ESLint and Prettier clean
+on changed files; knip clean; `npm run check:l10n` 0 problems;
+production `npm run build` green. Bytes vs `d35bd36c2`:
+`dist/modelApi.js` 533,368 → 533,538 (+170: the R0 branch — the lane
+could not hold it at zero while fixing the refusal); `dist/headless.js`
+84,339 → 84,485 (+146: the dynamic start-line import); `dist/exec.js`
+unchanged; `dist/providers.js` 142,754 → 144,308 (+1,554: the feature's
+home); `dist/configuredProviders.js` −1. No schema change, so no
+`schema:exec` run. New UI keys (2) + changed key (1) in all tables;
+`featureCatalog`/reference untouched (no new command, setting or
+surface).

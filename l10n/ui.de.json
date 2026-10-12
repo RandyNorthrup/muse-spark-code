@@ -3507,6 +3507,7 @@
   "execBudgetRemedyInput": "Allein die Eingabe kostet {inputCost}, mehr als die verbleibenden {remaining}.",
   "execBudgetStartExact": "Gedeckelter Lauf: Limit {cap}, {remaining} übrig. Die nächste Anfrage reserviert höchstens {reservation}.",
   "execBudgetStartRule": "Gedeckelter Lauf: Limit {cap}, {remaining} übrig. Jede Anfrage reserviert ihre gezählte Eingabe plus bis zu {output} Ausgabe-Token.",
+  "execBudgetStartBytes": "Gedeckelter Lauf: Limit {cap}, {remaining} übrig. Jede Anfrage reserviert ihre Byte-begrenzte Eingabe plus bis zu {output} Ausgabe-Token.",
   "execBudgetStillReading": "Das Budget hat den Lauf beim Lesen gestoppt, daher gibt es noch keine Antwort.",
   "execCountBytesFallback": "Die Eingabezählung des Anbieters ist fehlgeschlagen, daher reserviert diese Anfrage die Byte-Schranke.",
   "execOutputCapExceeded": "--max-output-tokens überschreitet die Ausgabeobergrenze von {cap} Token.",

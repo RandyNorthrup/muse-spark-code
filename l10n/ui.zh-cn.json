@@ -3432,6 +3432,7 @@
   "execBudgetRemedyInput": "仅输入就花费 {inputCost}，超过剩余的 {remaining}。",
   "execBudgetStartExact": "限额运行：上限 {cap}，剩余 {remaining}。下一个请求最多预留 {reservation}。",
   "execBudgetStartRule": "限额运行：上限 {cap}，剩余 {remaining}。每个请求预留其计数的输入，外加最多 {output} 个输出 token。",
+  "execBudgetStartBytes": "限额运行：上限 {cap}，剩余 {remaining}。每个请求预留其字节上限的输入，外加最多 {output} 个输出 token。",
   "execBudgetStillReading": "预算在运行仍在读取时将其停止，因此尚无答案。",
   "execCountBytesFallback": "提供方输入计数失败，因此此请求改为按字节上限预留。",
   "execOutputCapExceeded": "--max-output-tokens 超出 {cap} 个 token 的输出上限。",
