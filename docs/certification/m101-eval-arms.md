@@ -980,3 +980,53 @@ function declarations used by production schemas/request goldens (M67 capture
 provenance). `otherTools` is internal evidence, not an invented provider field.
 No live/paid call or credential read was performed. Production compaction stays
 unevaluated and the lead's prior signal run is not a certification of this pin.
+
+### Lane E R6 (2026-10-12, macbook rig; fifth review P3s plus the Windows digest refusal)
+
+R6 re-freeze: the previous digest `0efbcc53…c0087` is replaced by
+`aa51e4bcd4ae5245c71b3ce452d2a995ba92bff5bd9dbb4e9ef9825ea85fd0bc`
+(recorded here, in `src/core/eval/frozen.json` by
+`node scripts/m101-e.mjs --freeze`, and pinned by
+`test/unit/eval/evalFrozen.test.ts`). The pin moves because five hashed
+inputs changed, not because coverage narrowed: the wire records a
+per-request `strictTools` flag read from the request body, the report
+carries the `strictToolsEngagement` acceptance, the digest helpers
+canonicalize paths/bytes/order explicitly, and both live wrappers run in
+the live entry. Every previously hashed byte is still hashed.
+
+Windows refusal (follow-up 1): at `38151e597` the Windows host computed
+`963f0269…` against the pinned `0efbcc53…` with LF files, so
+`--live-m75` correctly refused before any credential or call. The freeze
+read working-tree bytes and enumerated working-tree files (a `readdir`
+walk plus esbuild metafile keys), so anything a checkout adds or
+rewrites per platform — converted line endings, stray or untracked
+files, separator style, walk order — moves the digest even when the
+committed content is identical. The digest is now a pure function of
+canonical inputs: forward-slash paths, CRLF pairs and lone CR folded to
+LF, UTF-8 byte order, and the `src` family walk intersected with the
+files Git tracks (a file the run actually loads stays hashed through
+the resolver graph, tracked or not). The exact stray input on the
+Windows box cannot be reproduced from macOS; the construction excludes
+the whole class instead. New regressions: a CRLF tree hashes like its
+LF tree, backslash paths hash like forward-slash ones, the byte-order
+sort agrees with the old order on this ASCII tree, and an untracked
+file under `src/` leaves the hashed sources unchanged. The lead
+verifies on Windows with `node scripts/m101-e.mjs --check-freeze`.
+
+Strict-tools engagement (fifth-review P3): packing and compaction prove
+engagement at VERDICT time; the strict arm did not. The wrapper pair
+`unengagedStrictToolsTasks` / `withStrictToolsEngagement`
+(`test/e2e/evalLiveSupport.ts`) judges the wire's per-request flag, not
+the arm's declared mechanism: a task engages only when it sent at least
+one model call and every recorded request carried strict function
+tools. A run that holds the floors without strict requests is
+`incomplete`, never `pass` (and never `fail`: without strict requests
+the run holds no evidence about strict tools in either direction, so a
+failing floor keeps its own verdict). The live entry applies all three
+wrappers before printing or writing, and asserts an empty unengaged
+list. Regressions: the strict-tools fake pair records strict evidence
+on the strict arm and non-strict on the baseline, and a simulated host
+regression (every flag dropped) demotes a passing floor to incomplete.
+No golden request byte changed; the M75 fixtures, `then_run`, the
+ObservationPack and the reducer are untouched; `modelApi.js` keeps its
+pin (no shipped importer of the touched files).
