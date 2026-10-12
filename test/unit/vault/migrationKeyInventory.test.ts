@@ -14,9 +14,12 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import {
+  collectAccountStoreCredentialMembers,
   collectAccountStoreRemovals,
   collectKeyFamilySites,
   compareStrings,
+  isInventoryRoot,
+  normalizeInventoryPath,
 } from './migrationKeySites'
 
 // The checked-in call sites, `file :: fragment`, one entry per occurrence
@@ -204,7 +207,9 @@ describe('C-M109-4 R3 migrated key inventory', () => {
     'finds an AccountStore removal by its declaration in every call form',
     { timeout: 120_000 },
     () => {
-      // RVCM1094E finding 2: the reviewer's nine call forms, each in its own
+      // RVCM1094E finding 2 plus RVCM1094F finding 7: the reviewer's nine
+      // call forms with four more — spaced and template element syntax and
+      // bound and destructured copies of a structural port — each in its own
       // generated file against the real `AccountStore`. The inventory finds
       // a removal by the declaration it resolves to, so every form below —
       // including the five the spelling-based scan missed — is counted.
@@ -217,6 +222,10 @@ describe('C-M109-4 R3 migrated key inventory', () => {
         `export function destructured(store: AccountStore): Promise<void> {\n  const { remove } = store\n  return remove.call(store, 'provider', 'account')\n}\n`,
         `export function bound(store: AccountStore): Promise<void> {\n  const drop = store.remove.bind(store)\n  return drop('provider', 'account')\n}\n`,
         `export function indexed(store: AccountStore): Promise<void> {\n  return store['remove']('provider', 'account')\n}\n`,
+        `export function spaced(store: AccountStore): Promise<void> {\n  return store[ 'remove' ]('provider', 'account')\n}\n`,
+        "export function templated(store: AccountStore): Promise<void> {\n  return store[`remove`]('provider', 'account')\n}\n",
+        `interface Remover {\n  remove(provider: string, account: string): Promise<void>\n}\nexport function portBound(remover: Remover): Promise<void> {\n  const run = remover.remove.bind(remover)\n  return run('provider', 'account')\n}\n`,
+        `interface Destructured {\n  remove(provider: string, account: string): Promise<void>\n}\nexport function portDestructured(remover: Destructured): Promise<void> {\n  const { remove } = remover\n  return remove('provider', 'account')\n}\n`,
         `class Middle extends AccountStore {}\nclass Leaf extends Middle {\n  public override async remove(_provider: string, _account: string): Promise<void> {\n    return Promise.resolve()\n  }\n}\nexport function deep(store: Leaf): Promise<void> {\n  return store.remove('provider', 'account')\n}\n`,
         `interface Remover {\n  remove(provider: string, account: string): Promise<void>\n}\nexport function throughPort(remover: Remover): Promise<void> {\n  return remover.remove('provider', 'account')\n}\n`,
       ]
@@ -224,7 +233,7 @@ describe('C-M109-4 R3 migrated key inventory', () => {
       const directory = mkdtempSync(path.join(root, 'temp', 'removeForms-'))
       try {
         const files = bodies.map((body, index) => {
-          const file = path.join(directory, `form${String(index + 1)}.ts`)
+          const file = path.join(directory, `form${String(index + 1).padStart(2, '0')}.ts`)
           writeFileSync(file, `${head}${body}`)
           return file
         })
@@ -240,6 +249,39 @@ describe('C-M109-4 R3 migrated key inventory', () => {
       } finally {
         rmSync(directory, { recursive: true, force: true })
       }
+    },
+  )
+  it('matches inventory roots across Windows and POSIX separators', () => {
+    // RVCM1094F finding 5: on Windows the roots use backslashes while
+    // TypeScript reports slash filenames, so `roots.includes(fileName)`
+    // dropped every selected site. Both sides normalize before matching.
+    expect(normalizeInventoryPath(String.raw`src\host\models\accountsHandler.ts`)).toBe(
+      'src/host/models/accountsHandler.ts',
+    )
+    expect(normalizeInventoryPath('src/host/models/accountsHandler.ts')).toBe(
+      'src/host/models/accountsHandler.ts',
+    )
+    const backslashRoots = [
+      String.raw`src\host\models\accountsHandler.ts`,
+      String.raw`src\runtime\providers\accountsCommand.ts`,
+    ]
+    expect(isInventoryRoot(backslashRoots, 'src/host/models/accountsHandler.ts')).toBe(true)
+    expect(
+      isInventoryRoot(backslashRoots, String.raw`src\runtime\providers\accountsCommand.ts`),
+    ).toBe(true)
+    expect(isInventoryRoot(backslashRoots, 'src/host/models/other.ts')).toBe(false)
+    expect(isInventoryRoot(backslashRoots, String.raw`src\host\models\other.ts`)).toBe(false)
+  })
+  it(
+    'derives the AccountStore credential-removal members from the type',
+    { timeout: 120_000 },
+    () => {
+      // RVCM1094F finding 6: credential-port coverage comes from the
+      // store's type, not from fixed text fragments. A method counts when
+      // its body calls the credential port's own `remove` member, so adding
+      // a member like `clearCredential` that deletes through the port
+      // changes this list and fails here until it is inventoried with it.
+      expect(collectAccountStoreCredentialMembers()).toEqual(['AccountStore.remove'])
     },
   )
   it('hand-off symbol anchors resolve at the head and carry no line numbers', () => {
