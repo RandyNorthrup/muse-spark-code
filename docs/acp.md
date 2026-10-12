@@ -358,17 +358,13 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
   `/questions` and `/answer <n> <text>` (reserved ahead of skills), and
   M116's `/playbook <status|record|settings ...>`, answered locally with no
   model turn.
-  M115's `/schedule` (list, add, remove, run-now, pause, resume, fire and
-  timeline; `run-due` and background maintenance are refused here).
-  Scheduled output belongs only to its target session; unattached/background
-  output goes to standard error. Connection shutdown withdraws scheduled queued
-  input and records settlement without cancelling a borrowed user turn.
-  M108's `/accounts <list|current|thresholds [id]>` on the Model API
-  backend, answered locally with no model turn; `/accounts use <id>` is
-  refused and names the account the session keeps.
+  Scheduled prompt delivery remains unavailable pending shared certification.
   M117's `/estimate <goal> [--by <date>] [--fleet current|minimum|optimum]`
   when the estimator binding is present; it runs the same engine as the
   panel with no model call.
+  M108's `/accounts <list|current|thresholds [id]>` on the Model API
+  backend, answered locally with no model turn; `/accounts use <id>` is
+  refused and names the account the session keeps.
 - **Permission prompts**: the backend's own choices (allow once, allow for
   the session, reject). A prompt the editor cancels, or answers with a
   choice it was not offered, is rejected; nothing runs by default.
@@ -526,29 +522,19 @@ price, and the agent log counts each billed use. Subagents,
 best-of-N, the Auto reviewer and Muse Voice are not offered: the agent has no flag for them
 (Muse Voice needs the VS Code panel's microphone).
 
-Automatic v2 delivery stays disabled behind the shared certification switch.
-The candidate `/schedule` delivers unattended Muse Code prompts to live ACP sessions or
-background targets through the shared schedule engine. Approval requests
-outside the standing grant refuse immediately; their rows appear as session
-updates, and questions defer into the persistent question registry. Closing
-ACP releases borrowed sessions and cancels owned background work.
+Automatic scheduled prompt delivery remains disabled in VS Code, ACP and the
+terminal pending shared certification. The candidate engine uses standing grants,
+session-owned output and durable records. Closing a runtime settles only its own
+in-flight fires; unhanded admissions remain pending for the next owner. Confirmed
+queue withdrawals release their held amount; genuinely unknown outcomes retain
+liability and never replay.
 
-Model API schedule creation requires `--scheduled-prompts` together with
-`--max-budget-usd`. These flags do not establish per-schedule paid consent:
-delivery requires the installed schedule paid policy, and an absent policy
-records a refused fire without a response request. `exec` still refuses to
-create or host schedules.
-
-Scheduled prompt authority requires `--scheduled-prompts` (Model API
-backend only) together with `--max-budget-usd`. The candidate v2 consent request uses
-the editor's permission prompt and names the schedule, verified model rates,
-cadence, schedule cap and shared daily budget. Allow once covers one fire;
-Allow always covers this schedule, with workspace grants kept separate.
-A changed payer kind, model, key, tariff or shared daily budget (including
-the day's override) requires renewal before another paid fire.
-Missing flags, a nonpositive budget, stale consent and either exhausted cap
-refuse before HTTP. Automatic delivery remains behind certification. The running runtime/ACP has no installed
-v2 billing callback, so it neither asks for this consent nor reserves these caps.
+The candidate Model API policy requires schedule-specific consent naming model
+rates, cadence and both daily caps. Allow once covers one fire; Allow always covers
+that schedule. Workspace grants do not authorize scheduled spending. Changes to
+payer, model, key, tariff or shared budget require renewal. The running runtime
+neither asks this candidate question nor reserves its caps while delivery is
+uncertified. Headless exec cannot create or host schedules.
 
 ## Networks and proxies
 

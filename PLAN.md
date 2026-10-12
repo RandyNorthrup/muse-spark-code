@@ -34009,6 +34009,15 @@ lane A's first step.
 
 ## 7. Gates
 
+**SCHEDJOIN2-ASSEMBLY-GRANT (2026-10-11, kubuntu).** The native helper builds
+and fixture preparation fits the budget, but all three assembly families stay
+red: the background coordinator's reconcile throws "Schedules are unavailable
+in this host" during close on this rig, before any delivery assertion runs
+(0/3 at the committed head and in the worktree). Per the shared lane stop rule
+no third repair or broader grant is tried here. Keep every assertion and the
+certification switch false. The lead owns further context/grant assembly
+qualification and aggregate quality.
+
 **C-M115-2 R2 verification (2026-10-11, macbook).** All RVCM1152 findings
 are fixed, with sixteen byte-exact red guards and interrupted-write shutdown
 reconciliation. The scoped rig brief delegates aggregate quality to the lead.

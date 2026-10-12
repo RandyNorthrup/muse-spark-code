@@ -364,6 +364,7 @@ export const CONTEXT_KEYS = {
   canMoveToBackground: 'museSpark.canMoveToBackground',
   /** Tab completions are on: lane W binds Invoke under it, lane H maintains it (M94, PLAN.md D73). */
   tabOn: 'museSpark.tabOn',
+  scheduleDeliveryCertified: 'museSpark.scheduleDeliveryCertified',
 } as const
 
 // Built-in VS Code commands the extension invokes.
@@ -560,7 +561,9 @@ export const IS_MUSE_CODE_AUTO_REVIEWER_ON_BY_DEFAULT = true
 export const ARE_SCHEDULES_ON_BY_DEFAULT = true
 // Management surfaces exist, but installed execution/snapshot owners are unbound (C-X-1).
 export const OPTIONAL_RUNTIME_AVAILABILITY: Readonly<{ schedules: boolean; estimator: boolean }> = {
-  schedules: false,
+  get schedules() {
+    return SCHEDULE_EDITOR_DELIVERY_CERTIFICATION.isReady
+  },
   estimator: false,
 }
 

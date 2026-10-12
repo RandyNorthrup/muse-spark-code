@@ -160,7 +160,7 @@
   "command.schedulePrompt.title": "Schedule this prompt…",
   "command.showSchedules.title": "Show schedules",
   "command.showScheduleTimeline.title": "Show schedule timeline",
-  "config.schedules.description": "Ovládá zástupce původního příkazu /loop v chatu Muse Code. Správa plánů a provádění naplánovaných zadání nejsou dostupné.",
+  "config.schedules.description": "Ovládá /loop v chatu Muse Code. Doručování plánovaných výzev vyžaduje certifikaci.",
   "config.schedules.defaultDelivery.description": "Volí způsob doručení zapsaný do nových návrhů plánů; nepovoluje naplánované spouštění.",
   "config.schedules.agentCreation.description": "Uloženo kvůli kompatibilitě; tato předvolba nemá v tomto sestavení žádný účinek.",
   "command.tabLanguages.title": "Jazyky Tab",

@@ -160,7 +160,7 @@
   "command.schedulePrompt.title": "Schedule this prompt…",
   "command.showSchedules.title": "Show schedules",
   "command.showScheduleTimeline.title": "Show schedule timeline",
-  "config.schedules.description": "Steuert die Verknüpfung zum bisherigen /loop-Befehl im Muse-Code-Chat. Zeitplanverwaltung und die Ausführung geplanter Prompts sind nicht verfügbar.",
+  "config.schedules.description": "Steuert /loop im Muse Code-Chat. Die Zustellung geplanter Prompts erfordert Zertifizierung.",
   "config.schedules.defaultDelivery.description": "Wählt die Zustellungsart für neue Zeitplanentwürfe; aktiviert keine geplante Ausführung.",
   "config.schedules.agentCreation.description": "Zur Kompatibilität gespeichert; diese Einstellung hat in diesem Build keine Wirkung.",
   "command.tabLanguages.title": "Tab-Sprachen",

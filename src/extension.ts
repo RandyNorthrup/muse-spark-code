@@ -1119,6 +1119,11 @@ async function activateWindow(
       .getConfiguration(SETTINGS_SECTION)
       .inspect<boolean>(PAID_FEATURE_SETTINGS[feature])?.globalValue === undefined
   const paidAuthority = new PaidAuthority()
+  void vscode.commands.executeCommand(
+    VSCODE_COMMANDS.setContext,
+    CONTEXT_KEYS.scheduleDeliveryCertified,
+    SCHEDULE_EDITOR_DELIVERY_CERTIFICATION.isReady,
+  )
   const dailyBudgetDataFolder = agentDataFolder({
     platform: process.platform,
     env: process.env,

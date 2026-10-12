@@ -1,4 +1,7 @@
-import { isAutoCompactionEvaluated } from '../shared/constants'
+import {
+  isAutoCompactionEvaluated,
+  SCHEDULE_EDITOR_DELIVERY_CERTIFICATION,
+} from '../shared/constants'
 import { ESTIMATE_OPTIONS } from './estimator/options'
 import type { UiText } from '../shared/l10n/en'
 import { sharingHelp } from '../shared/featureCatalog'
@@ -12,6 +15,9 @@ export function formatAcpUsage(table: UiText, command: string): string {
   }
   return [
     fill(table.acpUsage, { command }),
+    ...(SCHEDULE_EDITOR_DELIVERY_CERTIFICATION.isReady
+      ? [table.scheduleV2.runtime.usage, table.referenceCliOptions['scheduled-prompts']]
+      : []),
     fill(table.acpChatGpt.usage, { command }),
     sharingHelp(table),
     // CM108ACC: account metadata and per-account keys are served. The exec

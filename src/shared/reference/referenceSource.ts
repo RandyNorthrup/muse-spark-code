@@ -5,7 +5,7 @@ export {
   referenceDescription,
   REFERENCE_IN_PROGRESS_FEATURES,
 } from '../featureCatalog'
-export { COMMAND_IDS } from '../constants'
+export { COMMAND_IDS, SCHEDULE_EDITOR_DELIVERY_CERTIFICATION } from '../constants'
 export { buildPalette } from '../paletteRegistry'
 export { slashCommandsOf } from './slashReference'
 export { cliCommands } from '../cliCommands'

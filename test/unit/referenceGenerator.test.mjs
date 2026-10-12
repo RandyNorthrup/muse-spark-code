@@ -11,6 +11,7 @@ import { FakeLogOutputChannel } from './helpers/fakes'
 import { memorySessionStore } from './helpers/fakeSessionStore'
 import {
   buildReference,
+  publishedReference,
   generateReference,
   referenceSources,
   referenceMarkdown,
@@ -1278,3 +1279,35 @@ describe('RVHELPREF2 runtime truth regressions', () => {
     }
   })
 })
+
+it.each([false, true])(
+  'the same schedule certification switch restores Help commands, route and paid flag: %s',
+  (isReady) => {
+    const prior = source.SCHEDULE_EDITOR_DELIVERY_CERTIFICATION.isReady
+    try {
+      Object.defineProperty(source.SCHEDULE_EDITOR_DELIVERY_CERTIFICATION, 'isReady', {
+        value: isReady,
+      })
+      const model = publishedReference(
+        buildReference(manifest, nls, source, runtime, readme),
+        source,
+      )
+      for (const id of [
+        'museSpark.schedulePrompt',
+        'museSpark.showSchedules',
+        'museSpark.showScheduleTimeline',
+      ]) {
+        const command = model.commands.find((command) => command.id === id)
+        expect(command !== undefined).toBe(isReady)
+        if (command !== undefined) expect(command.canRun).toBe(true)
+      }
+      expect(model.cli.some((entry) => entry.route === 'schedule')).toBe(isReady)
+      expect(model.cli.some((entry) => /--scheduled-prompts(?: |$)/.test(entry.name))).toBe(isReady)
+      expect(model.commands.some((command) => command.id === 'museSpark.vault')).toBe(false)
+    } finally {
+      Object.defineProperty(source.SCHEDULE_EDITOR_DELIVERY_CERTIFICATION, 'isReady', {
+        value: prior,
+      })
+    }
+  },
+)

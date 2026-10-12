@@ -22,6 +22,7 @@ import { processGitRunner } from '../host/git'
 import { loadUiTable, readUiTableFile } from '../host/l10n'
 import {
   ACP_AGENT_NAME,
+  OPTIONAL_RUNTIME_AVAILABILITY,
   ESTIMATOR_BUNDLE_FILE,
   RUNTIME_QUESTIONS_BUNDLE_FILE,
   PLAYBOOK_BUNDLE_FILE,
@@ -766,7 +767,7 @@ async function serve(
     }
     const agent = engine.createAcpAgent({
       schedules: {
-        isAvailable: false,
+        isAvailable: OPTIONAL_RUNTIME_AVAILABILITY.schedules,
         async holdWorkspace(cwd, session) {
           loadedSchedules ??= await loadSchedules()
           return await loadedSchedules.holdWorkspace(cwd, session)
