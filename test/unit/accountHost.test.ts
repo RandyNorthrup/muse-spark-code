@@ -177,6 +177,20 @@ describe('probeAccount', () => {
     expect(t.close).toHaveBeenCalledOnce()
   })
 
+  it('lets a non-error start failure keep its kind instead of answering with the fallback', async () => {
+    const log = new FakeLogOutputChannel()
+    const foreign: unknown = 'a string failure'
+    await expect(
+      probeAccount(
+        () => {
+          throw foreign
+        },
+        log,
+        OPEN,
+      ),
+    ).rejects.toBe(foreign)
+  })
+
   it('says nothing when the host cannot start, naming only the error', async () => {
     const log = new FakeLogOutputChannel()
     const failure = new Error(String.raw`failed at C:\Users\someone\.config\muse\auth.json`)
