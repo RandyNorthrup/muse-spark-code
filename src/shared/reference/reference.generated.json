@@ -602,6 +602,7 @@
       "paid": false,
       "surfaces": ["vscode:museCode", "vscode:modelApi"],
       "details": [
+        { "ui": "referenceTurnLimit" },
         { "ui": "referenceWindowsSessions" },
         { "ui": "restoreFilesToHere" },
         { "ui": "rewindAndRestore" },
@@ -1622,7 +1623,7 @@
       "backends": ["modelApi"],
       "paid": false,
       "surfaces": ["vscode:modelApi", "acp:modelApi"],
-      "details": [{ "ui": "referenceBudget" }, { "ui": "referenceTurnLimit" }],
+      "details": [{ "ui": "referenceBudget" }],
       "facts": {},
       "editors": ["vscode", "acp"]
     },

@@ -16822,6 +16822,23 @@ describe('ModelApiSession: the Auto reviewer (M78, PLAN.md D49)', () => {
     expect(t.paidUses.filter((use) => use.feature === 'autoReviewer')).toEqual([])
   })
 
+  it('spends no reviewer call on the reserved wrap-up slot: the user decides instead', async () => {
+    const { t, session, turnDone, request } = await untilFirstCard(
+      { ...REVIEWER_ON, remainingModelCalls: () => 1 },
+      'onRequest',
+      ['npm test'],
+      [{ text: 'ASK: requires confirmation' }, { text: 'done' }],
+    )
+    // P3-5: with one call left the reviewer stays out, so its ASK never
+    // reaches a card; the user is asked directly (no reviewer note).
+    expect(request.note ?? '').not.toContain('requires confirmation')
+    await answer(session, request, 'abort')
+    await turnDone()
+    expect(reviewerBodies(t)).toEqual([])
+    expect(t.paidUses.filter((use) => use.feature === 'autoReviewer')).toEqual([])
+    expect(commandsRun(t)).toEqual([])
+  })
+
   it.each(['forbid', 'ask'] as const)(
     'rejudges a new %s rule after a held reviewer response',
     async (decision) => {
