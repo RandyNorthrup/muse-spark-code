@@ -608,3 +608,103 @@ both sides) and `dist/uiText.js` (97368): the locale reorder is data only.
   dies writing `/Users/user/.npm/_logs`, denied by this sandbox before
   any lane code runs; the other 11 pass); browser suites were never
   selected (MacBook rule).
+
+## Round 6 — the wrap-up the packed product never lost, and the sentence it never translated (TOOLROUNDSR6)
+
+Round 5 left two red rows in `test/e2e/execStdio.e2e.test.ts`
+(`retains the 60-call wrap-up`, en+de, line 931): `finalMessage: ""`
+where the wrap-up was expected, and the `-de` stop sentence in English.
+Both reproduced on macbook with
+`NPM_CONFIG_CACHE="$TMPDIR/npm-cache" npx vitest run
+test/e2e/execStdio.e2e.test.ts -t 'retains the 60-call wrap-up'`.
+
+Cause 1 (empty wrap-up): the e2e fake answered only a wrap-up shaped
+`tool_choice: 'none'`, which the product never sends — the golden
+capture `10-turn-limit-wrap-up.json` pins empty tools with the choice as
+ever (`auto`), instructions byte-identical and the limit note as the
+trailing input item — so all 60 scripted replies were tool calls, the
+wrap-up phase skipped them, and no answer text existed to keep. A probe
+driving worktree `dist/` directly confirmed the product sends the
+golden shape (5-request cap: last body `auto`/0 tools with the
+developer note `This turn has reached its limit of 5 model calls…`)
+and retains `finalMessage` once the fake answers that shape.
+
+Cause 2 (English stop sentence): `src/runtime/exec/execEntry.ts`
+installed the run table into its own `dist/exec.js` copy of
+`src/shared/l10n/text.ts`, while `runExec` reads the
+`dist/headless.js` copy, which stayed English — and the engine
+(`engine.setUiText(UI_TEXT, uiLocale())` in `runExec`) inherited
+English from it. Only `en.ts` is externalized (`sharedUiText`
+plugin); the mutable table state was never shared.
+
+### Fixes
+
+- `execEntry.runHeadless` installs the table into both copies: its
+  own (which the split gate requires on the shared English table) and
+  the headless bundle's own `setUiText` (re-exported from `runExec`;
+  the static import is externalized to `./headless.js` by
+  `deferredCohort`), so the engine inherits the run language too. No
+  new bundle, no new key.
+- The e2e fake matches the golden shape (empty tools plus the trailing
+  input note) and its report pins `toolChoice: auto`, per-request note
+  presence, and byte-identical instructions (one hash over all 60).
+- New packed rows pin the budget-minimum and unknown-model sentences in
+  en+de; new `execRun` unit rows pin the request-cap, budget-minimum,
+  unknown-model and withheld sentences in en+de (the single-call cap
+  keeps `finalMessage: ''` — no answer exists before the first call).
+
+### Per-consumer proof (round-4 table, this round's class)
+
+BUILT = through the packed product; UNIT = in-source unit test over
+the same function the product calls (named), with no bundle-local
+mutable state and no fake-modelled wire shape on that path (measured:
+the ceiling files below carry no `UI_TEXT`, except the noted notice
+off the ceiling path).
+
+| Consumer                               | Kind                | Proof                                                                                                                                                                                                                                                                                                                                  |
+| -------------------------------------- | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Unattended / headless runs (exec)      | BUILT               | Fixed e2e toolrounds rows: 60 real requests through packaged `dist/acp.js` + `headless.js` + `runtimeEngine.js`, en+de                                                                                                                                                                                                                 |
+| Terminal agent                         | BUILT               | Same rows (round-4: terminal runs are the same packed exec binary)                                                                                                                                                                                                                                                                     |
+| Scheduled runs                         | UNIT same-path      | `scheduleBackgroundTarget` releases the target on the typed limit outcome; settlement reads the injected `runs.run`, plain data only                                                                                                                                                                                                   |
+| Sub-agents                             | UNIT same-path      | `modelApiHost` child-limit stop (`outcomeStopReason: 'limit'`); same `ModelApiHost.finishWrapUp` the packed engine runs                                                                                                                                                                                                                |
+| Team tasks (ACP / Muse Code workers)   | UNIT same-path      | `teamAcpProcess` RVM96W2C-N6 and the `teamMuseCodeWorker` stop mapping through `reportForStop` (pure `max_turn_requests` → `capped`; `report.ts` has no `UI_TEXT`)                                                                                                                                                                     |
+| Team tasks (engine worker)             | UNIT same-path      | `teamEngineWorker` capped report with the wrap-up text, same `reportForStop`                                                                                                                                                                                                                                                           |
+| Reviewer (Auto reviewer + hook models) | UNIT same-path      | `museCodeReviewer` wire-true limit test and `museCodeHookModels` discard test read the typed `errorKind` on `turn/completed`; `museCodeReviewer.ts` has no `UI_TEXT`, and the hook file's only use (`hookModelMuseCodeNotice`) is a notice off the ceiling path                                                                        |
+| Best-of-N manager + attempt record     | UNIT same-path      | `bestOfNAttempts` / `bestOfNManager` / `bestOfNRunner` / `bestOfNExtensionHooks` settle the `ceilingReached` event flag; `bestOfNRunner.ts` has no `UI_TEXT`                                                                                                                                                                           |
+| Worktree conversation host             | UNIT same-path      | Allowance-port test (`setModelCallAllowance`, `errorKind === 'max_turn_requests'`); `worktreeConversationHost.ts` has no `UI_TEXT`                                                                                                                                                                                                     |
+| ACP                                    | UNIT + BUILT-engine | `acpModelApi` delivers the wrap-up through the real `createAcpAgent` + `ModelApiHost` (allowance 3, last body tools `[]` / choice `auto`); the settle mapping (`src/acp/agent.ts`, `errorKind` → `stopReason`) is a pure function of the event, and wrap-up retention inside the packed engine bundle is proven by the exec rows above |
+
+Language sweep: every `error.message` / `finalMessage` sentence the
+exec result carries on the fast paths (`request_cap` limit sentence,
+`budget_exceeded` minimum, unknown-model refusal, withheld answer) is
+pinned in en+de in the unit table and, for the packed product, in the
+toolrounds, budget-minimum and unknown-model rows. The remaining
+`stopMessage` branches read the same now-installed headless copy; no
+second install exists.
+
+### Round-6 drill ledger
+
+| Drill | Break                                                              | Named test fails                                                           | Restore                                           |
+| ----- | ------------------------------------------------------------------ | -------------------------------------------------------------------------- | ------------------------------------------------- |
+| D16   | `execEntry` installs the entry's own table copy again (revert fix) | Packed `store-de` budget + unknown-model rows fail (English sentences)     | Byte-exact (SHA-256 `e7270626…` before and after) |
+| D17   | E2e fake wrap condition back to `tool_choice === 'none'`           | Both toolrounds rows fail with the original signature (`finalMessage: ""`) | Byte-exact (`65a40c63…`)                          |
+| D18   | `ModelCallLimitError` default message prefixed                     | Unit stop-sentence rows fail in en+de                                      | Byte-exact (`571c5302…`)                          |
+
+### Round-6 verification
+
+Ran on macbook at repo default timeouts, `--maxWorkers=3`, one command at
+a time: `test/e2e/execStdio.e2e.test.ts` full file (50 tests);
+`test/unit/execRun.test.ts` full file; typechecks `unit` (test project)
+and main; ESLint and prettier clean on every changed file;
+`npm run check:l10n` 0 problems; `npm run build` exits 0 with all
+size/split gates green.
+
+Bundle rows in exact bytes (worktree `dist/` built from `b61272dbd`
+vs this lane, `npm run build` exit 0, size and split gates green):
+`dist/exec.js` 1407 → 1428 (+21: the headless copy's installer beside
+the entry's own). Everything else byte-identical, including
+`dist/modelApi.js` (536119, SHA-256 `6f4308db…` both sides),
+`dist/headless.js` (100345), `dist/runtimeEngine.js` (643688),
+`dist/acp.js` (241460) and `dist/uiText.js` (97368).
+
+- NOT RUN HERE: browser suites were never selected (MacBook rule).
