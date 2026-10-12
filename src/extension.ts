@@ -2547,6 +2547,18 @@ async function activateWindow(
       expiryDays: () => currentSettings().mediaUploadExpiryDays,
     })(accountId)
   }
+  // Removing the key keeps the retained list across a restart and a
+  // reload: the last account's persisted ledger reads read-only.
+  const loadLastSessionUploads = async () => {
+    const media = await import('./host/backend/productionMediaEntry.js')
+    media.setUiText(UI_TEXT, uiLocale())
+    return await media.openLastAccountUploads({
+      uploadLedgerDir: path.join(storageRoot, MODEL_API_UPLOADS_DIR),
+      currentAccountId: () => modelApi.accountId(),
+      filesClient: () => keyClient(),
+      expiryDays: () => currentSettings().mediaUploadExpiryDays,
+    })()
+  }
   // A file another app may still use is deleted only after a modal yes.
   const isForeignDeletionConfirmed = async (question: string): Promise<boolean> =>
     (await vscode.window.showWarningMessage(
@@ -3590,6 +3602,7 @@ async function activateWindow(
           // The report posts to this surface; foreign deletions ask with a modal.
           uploadedFiles: createUploadedFilesBinding({
             uploads: (accountId) => loadSessionUploads(accountId),
+            openLastUploads: () => loadLastSessionUploads(),
             getAccountId: () => modelApi.accountId(),
             post: (stamped) => {
               surface.post({
@@ -4465,6 +4478,7 @@ async function activateWindow(
       forActiveConversation(async (controller) => {
         const binding = createUploadedFilesBinding({
           uploads: (accountId) => loadSessionUploads(accountId),
+          openLastUploads: () => loadLastSessionUploads(),
           getAccountId: () => modelApi.accountId(),
           post: (stamped) => {
             registry.active?.post({

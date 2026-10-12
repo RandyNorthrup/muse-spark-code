@@ -5836,7 +5836,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     const modelRevision = this.modelRevision
     const budget: RetryBudget = { retriesUsed: 0 }
     let hasRecoveredMedia = false
-    this.media?.beginRequest()
+    await this.media?.beginRequest(this.replay.map((entry) => entry.item))
     for (;;) {
       if (this.modelRevision !== modelRevision) throw new AbortedError()
       const open = new Map<string, OpenItem>()
@@ -14035,7 +14035,13 @@ export class ModelApiSession implements ScheduledAgentSession {
           text: UI_TEXT.autoCompactionAwaitingEvaluation,
         })
       }
-      await this.loop(turn)
+      // RULE 1: the turn's media bracket drains however the turn
+      // settles — each round's requests pin, this end unpins.
+      try {
+        await this.loop(turn)
+      } finally {
+        await this.media?.endRequest()
+      }
     } catch (error: unknown) {
       const pendingRun = turn.scheduleRun === undefined ? this.owner.run(turn.turnId) : undefined
       const released = pendingRun === undefined ? undefined : this.owner.withdraw(pendingRun)

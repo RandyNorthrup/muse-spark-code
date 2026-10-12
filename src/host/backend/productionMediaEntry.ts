@@ -23,7 +23,7 @@ export {
   createProductionMediaReplay,
   workspaceMediaSource,
 } from '../../core/media/productionMedia'
-export { createSessionUploads } from './sessionUploads'
+export { createSessionUploads, openLastAccountUploads } from './sessionUploads'
 export { setUiText } from '../../shared/l10n/text'
 export { leasePrivateRoot } from '../../runtime/privateRootLease'
 

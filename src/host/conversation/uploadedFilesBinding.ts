@@ -13,7 +13,6 @@ import { UI_TEXT } from '../../shared/constants'
 import { fill, formatBytes } from '../../shared/l10n/text'
 import { describeError } from '../../shared/redact'
 import { uploadedFilesReportSchema, type UploadedFilesReport } from '../../shared/media'
-import type { ConversationUploadedFilesPort } from './conversationController'
 
 /** What the binding shows: the validated report under the read's identity. */
 export interface UploadedFilesStamp {
@@ -24,9 +23,17 @@ export interface UploadedFilesStamp {
   readonly generation: number
 }
 
+/** The stamp a read carries: posting it later never borrows a newer read's. */
+export interface UploadedFilesReadStamp {
+  readonly accountId: string | undefined
+  readonly generation: number
+}
+
 export interface UploadedFilesBindingDeps {
   /** The account's ledger over the production storage and Files wire. */
   readonly uploads: (accountId: string) => Promise<UploadedFilesLedger>
+  /** The last account's ledger once the key is gone (and across restarts). */
+  readonly openLastUploads?: () => Promise<UploadedFilesLedger | undefined>
   /** The key digest in use; undefined while no account backs the ledger. */
   readonly getAccountId: () => Promise<string | undefined>
   /** Shows the stamped report on this surface. */
@@ -35,8 +42,15 @@ export interface UploadedFilesBindingDeps {
   readonly confirmForeign: (question: string) => Promise<boolean>
 }
 
+/** The conversation port with its immutable read stamp (finding 5). */
+export interface StampedUploadedFilesPort extends UploadedFilesPort {
+  /** Reads the validated report with the stamp its post must carry. */
+  readonly readStamped: (signal?: AbortSignal) => Promise<UploadedFilesStamp>
+  readonly post: (report: unknown, stamp?: UploadedFilesReadStamp) => void
+}
+
 export interface UploadedFilesBinding {
-  readonly port: ConversationUploadedFilesPort
+  readonly port: StampedUploadedFilesPort
   /** The validated report the command lists. */
   readonly list: () => Promise<UploadedFilesReport>
   readonly remove: UploadedFilesPort['deleteFile']
@@ -46,32 +60,44 @@ export interface UploadedFilesBinding {
 export function createUploadedFilesBinding(deps: UploadedFilesBindingDeps): UploadedFilesBinding {
   let lastResolvedAccountId: string | undefined
   let readSequence = 0
-  let lastRead: { accountId: string | undefined; generation: number } | undefined
+  let lastRead: UploadedFilesReadStamp | undefined
   const ledger = async (): Promise<UploadedFilesLedger | undefined> => {
     // Removing the key keeps the retained list: the core port serves the
     // last account's ledger read-only (PLAN D85.2) until another signs in.
+    // Across a restart the opener recovers the last account's persisted
+    // ledger, so the list survives more than the port's lifetime.
     const accountId = await deps.getAccountId()
     lastResolvedAccountId = accountId
-    return accountId === undefined ? undefined : await deps.uploads(accountId)
+    return accountId === undefined ? await deps.openLastUploads?.() : await deps.uploads(accountId)
   }
   const inner = createUploadedFilesPort({
     ledger,
-    post: (report) => {
-      deps.post({
-        report,
-        accountId: lastRead?.accountId ?? lastResolvedAccountId,
-        generation: lastRead?.generation ?? 0,
-      })
-    },
     confirmForeign: deps.confirmForeign,
   })
-  const port: UploadedFilesPort = {
+  const readStamped = async (signal?: AbortSignal): Promise<UploadedFilesStamp> => {
+    // Stamped at the start and never mutated: an older read that lands
+    // later posts its own smaller generation, and the reducer drops it.
+    const generation = readSequence + 1
+    readSequence = generation
+    const report = uploadedFilesReportSchema.parse(await inner.read(signal))
+    const stamp: UploadedFilesReadStamp = { accountId: lastResolvedAccountId, generation }
+    lastRead = stamp
+    return { report, ...stamp }
+  }
+  const port: StampedUploadedFilesPort = {
     ...inner,
-    read: async () => {
-      const result = await inner.read()
-      readSequence += 1
-      lastRead = { accountId: lastResolvedAccountId, generation: readSequence }
-      return result
+    readStamped,
+    read: async (signal?: AbortSignal) => {
+      const stamped = await readStamped(signal)
+      return stamped.report
+    },
+    post: (report: unknown, stamp?: UploadedFilesReadStamp) => {
+      const validated = uploadedFilesReportSchema.parse(report)
+      deps.post({
+        report: validated,
+        accountId: stamp?.accountId ?? lastRead?.accountId ?? lastResolvedAccountId,
+        generation: stamp?.generation ?? lastRead?.generation ?? 0,
+      })
     },
   }
   return {

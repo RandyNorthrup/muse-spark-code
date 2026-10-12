@@ -856,22 +856,29 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
       sleep: deps.sleep,
       log: deps.log,
     }))
+  const openUploadsLedger = async (
+    accountId: string | undefined,
+  ): Promise<UploadLedger | undefined> => {
+    if (agentUploadLedgerDir === undefined) return undefined
+    const media = await import('../host/backend/productionMediaEntry')
+    media.setUiText(UI_TEXT, uiLocale())
+    const uploadsDeps = {
+      uploadLedgerDir: agentUploadLedgerDir,
+      currentAccountId: uploadsAccountId,
+      filesClient: uploadsFilesClient,
+      expiryDays: () => SETTING_DEFAULTS.mediaUploadExpiryDays,
+    }
+    // Removing the key keeps the retained list across a restart: the
+    // last account's persisted ledger reads read-only (PLAN D85.2).
+    return accountId === undefined
+      ? await media.openLastAccountUploads(uploadsDeps)()
+      : await media.createSessionUploads(uploadsDeps)(accountId)
+  }
   const uploads: AcpUploadsPort = createUploadedFilesPort({
-    ledger: async (): Promise<UploadLedger | undefined> => {
-      if (agentUploadLedgerDir === undefined) return undefined
-      // Removing the key keeps the retained list: the core port serves the
-      // last account's ledger read-only (PLAN D85.2) until another signs in.
-      const accountId = await uploadsAccountId()
-      if (accountId === undefined) return undefined
-      const media = await import('../host/backend/productionMediaEntry')
-      media.setUiText(UI_TEXT, uiLocale())
-      return await media.createSessionUploads({
-        uploadLedgerDir: agentUploadLedgerDir,
-        currentAccountId: uploadsAccountId,
-        filesClient: uploadsFilesClient,
-        expiryDays: () => SETTING_DEFAULTS.mediaUploadExpiryDays,
-      })(accountId)
-    },
+    ledger: async (): Promise<UploadLedger | undefined> =>
+      agentUploadLedgerDir === undefined
+        ? undefined
+        : await openUploadsLedger(await uploadsAccountId()),
   })
   return {
     readUsageBudgets: async () => {

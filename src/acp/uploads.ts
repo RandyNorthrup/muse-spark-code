@@ -11,7 +11,8 @@ import { fill, formatBytes, formatList } from '../shared/l10n/text'
 import { uploadedFilesReportSchema, type UploadedFilesReport } from '../shared/media'
 
 export interface AcpUploadsPort {
-  read(): Promise<unknown>
+  /** The signal reaches the listing's cleanup: a cancel deletes nothing. */
+  read(signal?: AbortSignal): Promise<unknown>
   deleteFile(
     fileId: string,
     isForeignDeletionConfirmed: (name: string) => Promise<boolean>,
@@ -41,10 +42,16 @@ export function uploadsText(report: UploadedFilesReport): string {
     : `${UI_TEXT.media.uploadedFiles}\n${report.files.map((file, index) => rowLine(file, index)).join('\n')}`
 }
 
-async function readReport(files: AcpUploadsPort): Promise<UploadedFilesReport> {
+async function readReport(
+  files: AcpUploadsPort,
+  signal?: AbortSignal,
+): Promise<UploadedFilesReport> {
   try {
-    return uploadedFilesReportSchema.parse(await files.read())
+    return uploadedFilesReportSchema.parse(await files.read(signal))
   } catch (error: unknown) {
+    // A cancel that landed during the read stays a cancel, never an
+    // internal error; the listing's cleanup already deleted nothing.
+    signal?.throwIfAborted()
     throw RequestError.internalError(undefined, describeError(error))
   }
 }
@@ -75,7 +82,7 @@ export async function runUploadsCommand(
   input.signal?.throwIfAborted()
   const rest = args[1]?.trim() ?? ''
   if (rest === '') {
-    input.send(uploadsText(await readReport(files)))
+    input.send(uploadsText(await readReport(files, input.signal)))
     return 'handled'
   }
   if (rest === 'delete-all') {
@@ -85,20 +92,26 @@ export async function runUploadsCommand(
     } catch (error: unknown) {
       throw RequestError.internalError(undefined, describeError(error))
     }
-    input.send(uploadsText(await readReport(files)))
+    input.send(uploadsText(await readReport(files, input.signal)))
     return 'handled'
   }
   const single = /^delete\s+(\S+)$/su.exec(rest)
   if (single?.[1] === undefined)
     throw RequestError.invalidParams(undefined, UI_TEXT.media.uploadsUsage)
   const selector = single[1]
-  const report = await readReport(files)
+  const report = await readReport(files, input.signal)
   // The read awaited above; a cancel that landed during it deletes nothing.
   input.signal?.throwIfAborted()
   // The listing numbers files from one: an id or its listed number deletes.
-  const file =
-    report.files.find((entry) => entry.fileId === selector) ??
-    (/^\d+$/u.test(selector) ? report.files.at(Number(selector) - 1) : undefined)
+  // Anything else is refused with a sentence — never Array.at with a
+  // computed index, where 0 would wrap to the last listed file.
+  let file = report.files.find((entry) => entry.fileId === selector)
+  if (file === undefined && /^\d+$/u.test(selector)) {
+    const number = Number(selector)
+    if (!Number.isSafeInteger(number) || number < 1)
+      throw RequestError.invalidParams(undefined, UI_TEXT.media.uploadsUsage)
+    file = report.files[number - 1]
+  }
   if (file === undefined)
     throw RequestError.invalidParams(
       undefined,
