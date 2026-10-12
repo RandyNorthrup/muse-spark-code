@@ -14,7 +14,11 @@ import {
 } from '../../src/core/reporting/sources'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
-import { STORED_SESSION_VERSION } from '../../src/shared/constants'
+import {
+  STORED_SESSION_VERSION,
+  USAGE_ROLLUP_LOCK,
+  USAGE_ROLLUP_LOCK_STALE_MS,
+} from '../../src/shared/constants'
 import { LocalSourceError } from '../../src/core/reporting/sources/local'
 import { sessionSource } from '../../src/core/reporting/sources/session'
 import {
@@ -28,7 +32,7 @@ import {
 } from '../../src/runtime/reporting/reportInputs'
 import { usageLocalDay } from '../../src/core/usage/aggregate'
 import type { UsageReportJournal } from '../../src/core/usage/reportUsage'
-import { UsageJournalStore } from '../../src/core/usage/journalStore'
+import { UsageJournalStore, USAGE_JOURNAL_ROOT } from '../../src/core/usage/journalStore'
 import { Usd } from '../../src/shared/usd'
 import { NodeUsageFs } from '../../src/runtime/usage/nodeUsageFs'
 import { reportingServicesFor } from './helpers/reporting/runtime'
@@ -249,6 +253,44 @@ describe('bound report inputs', () => {
     const facts = await reader(context({ scope: 'today' }))
     expect(facts.usage.inputTokens).toBe(200)
     expect(facts.usage.breakdown).toHaveLength(1)
+  })
+
+  it('reports a held journal as busy with the busy sentence', async () => {
+    // RVREPORTJOIN P3-7: another process really holds the journal lock, so
+    // the journal read is busy, never failed, and the usage source shows
+    // the busy sentence.
+    const data = await dir('report-journal-busy-')
+    const holder = new NodeUsageFs(data)
+    const lock = await holder.acquireLock(
+      `${USAGE_JOURNAL_ROOT}/${USAGE_ROLLUP_LOCK}`,
+      USAGE_ROLLUP_LOCK_STALE_MS,
+    )
+    expect(lock).not.toBeUndefined()
+    try {
+      await expect(readUsageReportJournal(data, EN)).rejects.toMatchObject({ code: 'busy' })
+      const sources = createLocalReportSources({
+        files: {
+          read: () => Promise.reject(new Error('unused')),
+          list: () => Promise.reject(new Error('unused')),
+        },
+        git: { run: () => Promise.resolve({ stdout: '', code: 1 }) },
+        scrub: (text) => text,
+        roots: [],
+        usage: createUsageReportReader({ dataFolder: data, now: () => NOW, timezoneOffsetMins: 0 }),
+        enabledAgents: [],
+        agentFiles: [],
+      })
+      const base = context()
+      const result = await sources.usage.read({
+        ...base,
+        options: { ...base.options, kind: 'usage' },
+      })
+      expect(result.record.status).toBe('unavailable')
+      if (result.record.status !== 'unavailable') throw new Error('Expected no usage')
+      expect(result.record.reason).toBe(EN.teamHostBusy)
+    } finally {
+      await lock?.release()
+    }
   })
 
   it('builds the session source from live history and journal usage', async () => {

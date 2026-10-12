@@ -102,6 +102,27 @@ describe('accounts report reader', () => {
     expect(result!.facts.providers).toEqual([])
   })
 
+  it('names a damaged snapshot facet with its own facet, never vault', async () => {
+    // RVREPORTJOIN P3-8: the events facet is swaps, so its damage reads
+    // Swaps, not Vault.
+    const dataDir = await dir('m113-accounts-facet-')
+    await writeFile(path.join(dataDir, 'providers.json'), JSON.stringify({ v: 1, providers: {} }))
+    const reader = createAccountsReportReader({
+      dataDir,
+      readUsage: () => Promise.resolve([]),
+      readEvents: () =>
+        Promise.resolve({
+          confirmations: [],
+          get events(): never[] {
+            throw new Error('boom')
+          },
+        }),
+    })
+    const result = await reader.read(context())
+    expect(result!.partial).toContain(`${EN.reportLabels.swaps} (snapshot/events)`)
+    expect(result!.partial).not.toContain(`${EN.reportLabels.vault} (snapshot/events)`)
+  })
+
   it('reads a missing registry as null and a corrupt one as partial with the invalid reason', async () => {
     const missing = createAccountsReportReader({ dataDir: await dir('m113-accounts-empty-') })
     await expect(missing.read(context())).resolves.toBeNull()

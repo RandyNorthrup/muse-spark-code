@@ -30962,18 +30962,6 @@ caps, installed hooks, repository test deadlines and zero duplication. Scoped
 qualification follows the explicit rig/common brief, with aggregate quality
 reserved for the lead. Record evidence and author rules in
 `docs/certification/m113-join.md`; update the roadmap with milestone changes.
-Knip deferral (2026-10-12, kubuntu): plain `knip` reports 12 unused
-exports, all in `src/core/vault/broker/windowsPipe.ts` (9 relay
-constants/schemas, 3 helper interfaces), inherited via the c/m113-3
-merge. That file is M109's Windows pipe wire contract for pending lane
-C-M109-1c (C# helper plus TS relay,
-`docs/design/vault-windows-pipe-helper.md`), under active development on
-`c/m109-join`; deleting or de-exporting its surface would break that
-lane, and a knip ignore would weaken the gate. No other knip findings;
-every file this lane authored for reporting is knip-clean. Clearance:
-C-M109-1c consumes the surface (or the vault lane removes it); the
-vault lane owns removing this row. Evidence:
-`docs/certification/m113-join.md` (Proof).
 
 **CM1132R7 review repair (2026-10-11, macmini).** Fix all five RVCM1132F
 findings in the existing reporting lane. Reserve every original row key before
@@ -36746,6 +36734,18 @@ knip, duplication, localization, host API and production build here; record
 actual receipts in `docs/certification/m101-p2.md`. The lead must run the
 aggregate quality/coverage/platform matrix before integration/release. No
 threshold, ignore or rule is changed.
+
+**REPORTJOIN knip deferral (2026-10-12, kubuntu).** Plain `knip` reports 12
+unused exports, all in `src/core/vault/broker/windowsPipe.ts` (9 relay
+constants/schemas, 3 helper interfaces), inherited via the c/m113-3 merge.
+That file is M109's Windows pipe wire contract for pending lane C-M109-1c
+(C# helper plus TS relay, `docs/design/vault-windows-pipe-helper.md`),
+under active development on `c/m109-join`; deleting or de-exporting its
+surface would break that lane, and a knip ignore would weaken the gate. No
+other knip findings; every file this lane authored for reporting is
+knip-clean. Clearance: C-M109-1c consumes the surface (or the vault lane
+removes it); the vault lane owns removing this row. Evidence:
+`docs/certification/m113-join.md` (Proof).
 
 ## 8. Escape hatches register
 
