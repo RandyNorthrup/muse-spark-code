@@ -434,6 +434,13 @@ export function createScheduler(deps: SchedulerDeps) {
     async close(): Promise<void> {
       lifetime.abort()
       await Promise.allSettled(active)
+      // Retry only terminal facts produced by this scheduler. Closing never
+      // acquires another process's target lease or consumes its admissions.
+      for (const [runId, fire] of knownSettlements) {
+        await deps.runs.acknowledge(fire)
+        await deps.store.record(fire)
+        knownSettlements.delete(runId)
+      }
     },
     blockedRuns() {
       return Array.from(blocked, ([runId, reason]) => ({
@@ -531,7 +538,7 @@ export function createScheduler(deps: SchedulerDeps) {
       )
     },
     async recover(workspaceKey: string): Promise<void> {
-      if (!signal.aborted && !deps.host.holds(workspaceKey)) return
+      if (!deps.host.holds(workspaceKey)) return
       await drain([workspaceKey])
     },
     start(workspaces: () => readonly string[], onError: (error: unknown) => void) {
