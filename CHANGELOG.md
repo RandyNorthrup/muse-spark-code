@@ -17,6 +17,8 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Headless daily claims recover killed owners, refund interrupted DNS checks, and durably retain sent requests whose usage is unknown.
+
 - ACP and headless runs offer each provider model’s recorded effort levels, including Opus `xhigh`, and list allowed values when a choice is refused.
 
 - ACP sign-in choices include ChatGPT Add; Remove and Status remain terminal commands.

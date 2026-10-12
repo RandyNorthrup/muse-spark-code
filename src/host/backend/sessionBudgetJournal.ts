@@ -34,6 +34,9 @@ const CLAIMS_DIRECTORY = 'claims'
 const SEED_FILE = 'seed.json'
 const CLAIM_FILE = 'claim.json'
 const SENT_DIRECTORY = 'send-intent'
+const LOCK_OWNER_PREFIX = 'owner-'
+const LOCK_OWNER_PATTERN =
+  /^owner-(\d+)-[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/
 const MISSING = 'ENOENT'
 const EXISTS = 'EEXIST'
 const SESSION_ID = /^[A-Za-z0-9_-]+$/
@@ -576,15 +579,42 @@ export function createSessionBudgetJournal(
 
   const withReservationLock = async <T>(scope: Scope, operation: () => Promise<T>): Promise<T> => {
     const lock = `${scope.intent}.lock`
+    const marker = `${LOCK_OWNER_PREFIX}${String(process.pid)}-${ownerId}`
     await mkdir(path.dirname(lock), { recursive: true })
     let hasLock = false
     for (let attempt = 0; attempt < DAILY_BUDGET_LOCK_ATTEMPTS; attempt += 1) {
       try {
-        await mkdir(lock)
+        if (deps.recoverUnsent === true) {
+          // No await separates ownership from the first durable reservation.
+          mkdirSync(lock)
+          mkdirSync(path.join(lock, marker))
+        } else await mkdir(lock)
         hasLock = true
         break
       } catch (error: unknown) {
         if (storeErrorCode(error) !== EXISTS) throw unavailable(error)
+        if (deps.recoverUnsent === true) {
+          const names = readdirSync(lock)
+          const old = names.length === 1 ? names[0] : undefined
+          const pid = old === undefined ? undefined : LOCK_OWNER_PATTERN.exec(old)?.[1]
+          if (pid !== undefined && Number.isSafeInteger(Number(pid)) && Number(pid) > 0) {
+            try {
+              process.kill(Number(pid), 0)
+            } catch (error_: unknown) {
+              if (old !== undefined && storeErrorCode(error_) === 'ESRCH') {
+                try {
+                  // Only removal of this exact dead owner's marker grants release;
+                  // a racing takeover or legacy/ownerless lock stays closed.
+                  rmdirSync(path.join(lock, old))
+                  rmdirSync(lock)
+                } catch (error_: unknown) {
+                  if (![MISSING, EXISTS, 'ENOTEMPTY'].includes(storeErrorCode(error_) ?? ''))
+                    throw unavailable(error_)
+                }
+              }
+            }
+          }
+        }
         await deps.sleep(DAILY_BUDGET_LOCK_WAIT_MS)
       }
     }
@@ -592,7 +622,10 @@ export function createSessionBudgetJournal(
     try {
       return await operation()
     } finally {
-      await rmdir(lock)
+      if (deps.recoverUnsent === true) {
+        rmdirSync(path.join(lock, marker))
+        rmdirSync(lock)
+      } else await rmdir(lock)
     }
   }
 
@@ -610,10 +643,14 @@ export function createSessionBudgetJournal(
         if (storeErrorCode(error) !== 'ESRCH') continue
       }
       const directory = path.join(scope.directory, CLAIMS_DIRECTORY, claimId)
-      if (await isPresent(path.join(directory, SENT_DIRECTORY))) continue
+      const wasSent = await isPresent(path.join(directory, SENT_DIRECTORY))
       await writeFileAtomically(
         path.join(directory, CLAIM_FILE),
-        JSON.stringify({ ...claim, settledUsd: '0', hasUnknownCost: false }),
+        JSON.stringify({
+          ...claim,
+          settledUsd: wasSent ? claim.reservedUsd : '0',
+          hasUnknownCost: wasSent,
+        }),
         options,
       )
     }

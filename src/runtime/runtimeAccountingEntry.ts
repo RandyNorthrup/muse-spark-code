@@ -122,6 +122,7 @@ export function withRuntimeAccounting(
   client: ProviderClient,
   daily: ReturnType<typeof createRuntimeDailyBudget>,
   accounting?: RuntimeResponseAccounting,
+  dispatch?: { onRequestStarted?: () => void },
 ): ProviderClient {
   const wrap = (model: ResolvedModel): ResolvedModel => {
     const original = model.client
@@ -167,7 +168,6 @@ export function withRuntimeAccounting(
         const settle = async () => {
           if (claim === undefined) return
           const owned = claim
-          claim = undefined
           const actual =
             hasEof && response?.status === 'completed' && response.usage != null
               ? model.price.settle(modelPricedUsage(response.usage), {
@@ -203,16 +203,26 @@ export function withRuntimeAccounting(
               { costUsd: cost },
             )
             const last = accounting.ledger.lastResponse
-            if (last !== null) accounting.settled(last, ticket, result)
+            const settledTicket = ticket
             ticket = undefined
+            if (last !== null) accounting.settled(last, settledTicket, result)
             if (result.latch !== undefined) accounting.refuse(result.latch)
           }
-          if (!wasSent || cost !== undefined)
-            await owned.settle(wasSent ? (cost ?? owned.reservedUsd) : Usd.from(0).toAmount())
+          await owned.settle(
+            wasSent ? (cost ?? owned.reservedUsd) : Usd.from(0).toAmount(),
+            wasSent && cost === undefined,
+          )
+          claim = undefined
           wasSent = false
           response = undefined
           hasEof = false
           httpStatus = undefined
+        }
+        const started = () => {
+          claim?.check(Usd.from(0).toAmount())
+          if (ticket !== undefined) accounting?.started(ticket.n, ticket)
+          claim?.markSent?.()
+          wasSent = true
         }
         const attempt: ResponseAttemptGuard = Object.assign(
           (digest: string | undefined) => {
@@ -285,12 +295,9 @@ export function withRuntimeAccounting(
               ticket = admission
             },
             onRequestStarted: () => {
-              claim?.markSent?.()
-              if (ticket !== undefined) {
-                accounting?.started(ticket.n, ticket)
-              }
               guard?.onRequestStarted?.()
-              wasSent = true
+              if (dispatch === undefined) started()
+              else dispatch.onRequestStarted = started
             },
           },
         )
@@ -320,7 +327,12 @@ export function withRuntimeAccounting(
           }
           throw error
         } finally {
-          await settle()
+          if (dispatch?.onRequestStarted === started) delete dispatch.onRequestStarted
+          try {
+            await settle()
+          } catch {
+            await settle()
+          }
         }
       },
     }

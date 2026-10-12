@@ -184,3 +184,36 @@ The original real-store warning is not reproduced by these healthy synthetic
 stores; no warning was suppressed on persistent runs and no owner's store read.
 STREAMCLASS owns streaming helper deadlines, typed idle errors, Copilot idle
 limits and upload progress limits. TOOLROUNDS owns the tool-loop ceiling.
+
+## Round 2 A: interruption proof and final dispatch ownership
+
+The real-child matrix pauses after daily claim publication (while admission owns
+its lock), during final pinned DNS, awaiting response headers, awaiting stream EOF,
+and during durable settlement. Each gets SIGKILL, cancellation and injected
+transport/IO failure. All 15 cases use the real disk journal and run ledger.
+Twelve cases failed before repair (a-interruptions-red.log). Final owning suites:
+runtimeAccountingInterruptions/runtimeAccounting/sessionBudgetJournal 85/85,
+default timeout, three workers. Children are joined and all roots removed.
+
+Daily locks now publish a PID/UUID marker synchronously before reservation work;
+only ESRCH plus removal of that exact marker permits recovery. Legacy empty,
+live/reused PID and uncertain locks remain closed. The daily claim is marked sent
+at the bound fetch's final synchronous fence after DNS; a DNS interruption has
+zero requests, no uncertain amount and a zero settlement. Sent unknown usage is
+closed durably at its full reserved amount with hasUnknownCost, never refunded.
+Dead sent owners receive the same conservative settlement on next start. A
+transient settlement write failure retries the same idempotent settlement, with
+ownership retained until success. Accounting callback failures cannot strand the
+run ticket. No provider transport stream limits or tool-loop ceiling changed.
+
+Await inventory after the first durable daily row: claim publication returns;
+reserveAdmitted/withReservationLock returns (daily unlock is now synchronous);
+runtime daily reserve's abort/day check and any compensating settle; the attempt
+prepare return to transport; final DNS unlessAborted; bound fetch/headers; each
+decoded body read/yield through EOF; and owned.settle's atomic journal write.
+Retry settlement is the same owned path, before another reservation. Internal
+atomic-write awaits after publication and before settlement belong to the two
+publication/settlement fault points. Before first publication, seed/history and
+credential/pacing awaits have no handed-out reservation; damaged legacy intents
+still fail closed. A kill after send intent cannot prove the provider saw nothing,
+so recovery preserves the full liability, even without a response receipt.
