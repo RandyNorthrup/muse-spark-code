@@ -11,6 +11,7 @@ import {
 import { UI_TEXT } from '../../../src/shared/constants'
 import { EN } from '../../../src/shared/l10n/en'
 import { metadata, panel } from '../helpers/vault/fixtures'
+import { FakeLogOutputChannel } from '../helpers/fakes'
 import { FakeStatusBarItem } from '../mocks/vscode'
 import { type VaultPanelService } from '../../../src/host/vault/vaultPanelHost'
 
@@ -200,6 +201,7 @@ it('U commands and status: opening is explicit; Lock is always available and sta
     publish: vi.fn(),
     openPanel: vi.fn(() => Promise.resolve()),
     sshKey: native().sshKey,
+    log: new FakeLogOutputChannel(),
   }
   const entry = createVaultPanelHost(deps, EN, 'en')
   const loaded = vi.fn(() => entry)

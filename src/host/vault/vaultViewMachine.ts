@@ -514,7 +514,8 @@ export function applyVaultViewEvent(
       // for an older request is stale from here on, whichever lands first.
       // The view itself is untouched — a confirmed Locked in particular
       // survives its own confirmation snapshot failing — and republishes
-      // (or reloads when nothing is shown yet), so the request is never
+      // (or asks for a reload when nothing is shown yet, which beginReload's
+      // own load covers since it always starts one), so the request is never
       // silent.
       const request = state.request === undefined ? event.seq : Math.max(state.request, event.seq)
       const next: VaultViewState = { ...state, request }
