@@ -11,6 +11,7 @@ import {
 } from '../../../shared/reportSchema'
 import type { ReportCollector, SourceSnapshot } from '../sources/types'
 import {
+  admitForwardedSection,
   compare,
   dedupeUnknownRowKeys,
   derivedSourceId,
@@ -71,11 +72,15 @@ function forward(
   const values = source.data ?? []
   for (const [index, value] of values.entries()) {
     let parsed: ReportSection
+    // Admission before validation: the shared keep-first/count-omitted
+    // step runs on the unvalidated section, so the complete section below
+    // always meets the row limit (RVREPORTJOIN P2-4).
+    const admitted = admitForwardedSection(dedupeUnknownRowKeys(value))
     try {
       // A repeated row key in a forwarded section is drift in the source's
       // own data, never a reason to throw a raw parse error: make keys
       // unique before the schema validates everything else strictly.
-      parsed = reportSectionSchema.parse(dedupeUnknownRowKeys(value))
+      parsed = reportSectionSchema.parse(admitted.section)
     } catch {
       sources.push(
         unavailableRecord(
@@ -95,10 +100,11 @@ function forward(
       parsed.rows,
       [kind],
     )
-    // Keep arbitrary column keys and any upstream omissions intact.
+    // Keep arbitrary column keys, the admission gap above and any upstream
+    // omissions intact.
     sections.push({
       ...collected,
-      omittedRows: parsed.omittedRows + collected.omittedRows,
+      omittedRows: admitted.omittedRows + parsed.omittedRows + collected.omittedRows,
     })
   }
   const headings = forwardedKinds[kind]

@@ -94,6 +94,30 @@ export function dedupeRowKeys(rows: readonly ReportRow[]): ReportRow[] {
   })
 }
 
+/**
+ * Admission before validation for forwarded source sections: keep the
+ * first rows and count the omitted, so a section past the row limit still
+ * reaches the schema intact and the collector discloses the gap instead of
+ * throwing it away (RVREPORTJOIN P2-4). Only array `rows` are touched; the
+ * schema still validates everything it receives strictly.
+ */
+function forwardedRows(value: unknown): readonly unknown[] | undefined {
+  if (typeof value !== 'object' || value === null || !('rows' in value)) return undefined
+  const rows: unknown = value.rows
+  return Array.isArray(rows) ? rows : undefined
+}
+
+export function admitForwardedSection(value: unknown): { section: unknown; omittedRows: number } {
+  if (typeof value !== 'object' || value === null) return { section: value, omittedRows: 0 }
+  const rows = forwardedRows(value)
+  if (rows === undefined || rows.length <= REPORT_MAX_ROWS)
+    return { section: value, omittedRows: 0 }
+  return {
+    section: { ...value, rows: rows.slice(0, REPORT_MAX_ROWS) },
+    omittedRows: rows.length - REPORT_MAX_ROWS,
+  }
+}
+
 /** Blind pre-parse pass for forwarded source sections, whose rows have not
  * been validated yet; only string `key` fields of array `rows` are touched. */
 export function dedupeUnknownRowKeys(value: unknown): unknown {
