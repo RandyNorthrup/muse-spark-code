@@ -82,7 +82,11 @@ describe('accounts report reader', () => {
       },
     ])
     expect(result!.facts.usage).toEqual([])
-    expect(result!.partial).toBe('Unavailable account details: usage, swaps, confirmations.')
+    // Absent facets are named with the request table's labels (RVCM1133D),
+    // never English identifiers spliced into the sentence.
+    expect(result!.partial).toBe(
+      `Unavailable account details: ${EN.reportLabels.usage}, ${EN.reportLabels.swaps}, ${EN.reportLabels.confirmations}.`,
+    )
   })
 
   it('binds injected use and event adapters without a partial', async () => {
