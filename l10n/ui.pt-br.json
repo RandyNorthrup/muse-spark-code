@@ -1461,6 +1461,8 @@
   "manualHookFailed": "O gancho {name} falhou: {reason}",
   "manualHookSlashDetail": "Executar um gancho Manual de spark-hooks.json",
   "extensionHooksUnavailable": "Não foi possível carregar os ganchos da extensão, então nenhum gancho foi executado; reinstale a extensão e recarregue a janela. O log tem os detalhes.",
+  "modelApiToolsUnavailable": "Não foi possível carregar os auxiliares de chamada do modelo, então os campos de chamada de ganchos estão indisponíveis; reinstale a extensão e recarregue a janela. O log tem os detalhes.",
+  "modelApiToolsPreviewUnavailable": "Não foi possível carregar os auxiliares de chamada do modelo, então as prévias de argumentos estão indisponíveis; reinstale a extensão e recarregue a janela. O log tem os detalhes.",
   "shellDirectory": "Na pasta {path}",
   "shellDirectoryReset": "O shell voltou para a raiz do espaço de trabalho: {path} está fora do espaço de trabalho.",
   "elicitationTitle": "{server} pede informações",
