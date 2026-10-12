@@ -12,13 +12,17 @@ import {
   type UploadedMediaRef,
 } from '../../shared/media'
 import { isModelApiError } from '../backends/modelapi/client'
-import type { UploadSource } from '../backends/modelapi/files'
+import { UploadCleanupPendingError, type UploadSource } from '../backends/modelapi/files'
 
+const orphanSchema = z.string().check(z.regex(/^file-[A-Za-z0-9_-]+$/u))
 const ledgerSchema = z.strictObject({
   version: z.literal(1),
   accountId: z.string().check(z.regex(MEDIA_SHA256_PATTERN)),
   entries: z.array(z.strictObject({ file: uploadedMediaRefSchema, sessions: z.array(z.string()) })),
   cachedFiles: z.array(accountFileSchema),
+  // RVM105 1: provider receipts the failed upload could not delete. Stored
+  // states written before this lane predate the field and read as no intent.
+  orphans: z.optional(z.array(orphanSchema)),
 })
 export type UploadLedgerState = z.infer<typeof ledgerSchema>
 
@@ -73,14 +77,23 @@ export class UploadLedger implements SessionUploadLifecycle {
 
   private async read(): Promise<UploadLedgerState> {
     const raw = await this.deps.storage.read()
-    const state =
+    const parsed =
       raw === undefined
-        ? { version: 1, accountId: this.deps.accountId, entries: [], cachedFiles: [] }
+        ? {
+            version: 1 as const,
+            accountId: this.deps.accountId,
+            entries: [],
+            cachedFiles: [],
+            orphans: [],
+          }
         : ledgerSchema.parse(raw)
-    if (state.accountId !== this.deps.accountId) throw new Error('Upload ledger account mismatch')
-    if (state.entries.some(({ file }) => file.provider !== this.deps.provider))
+    if (parsed.accountId !== this.deps.accountId) throw new Error('Upload ledger account mismatch')
+    if (parsed.entries.some(({ file }) => file.provider !== this.deps.provider))
       throw new Error('Upload ledger provider mismatch')
-    return ledgerSchema.parse(state)
+    const state = ledgerSchema.parse(parsed)
+    // States stored before the intent field read as no intent, and every
+    // write below persists the normalized shape.
+    return { ...state, orphans: state.orphans ?? [] }
   }
 
   private async isCurrentAccount(): Promise<boolean> {
@@ -91,12 +104,27 @@ export class UploadLedger implements SessionUploadLifecycle {
     if (!(await this.isCurrentAccount())) throw new Error(UI_TEXT.media.filesReadOnly)
   }
 
-  /** Delete only durable zero-reference entries. Failed deletions remain retryable. */
+  /**
+   * Delete only durable zero-reference entries, then recorded clean-up
+   * intents (RVM105 1). Failed deletions remain retryable.
+   */
   private async cleanup(
     state: UploadLedgerState,
     isCurrent: () => boolean = () => true,
   ): Promise<void> {
     if (!(await this.isCurrentAccount())) return
+    const orphans = state.orphans ?? []
+    for (const fileId of orphans) {
+      await this.requireAccount()
+      if (!isCurrent()) return
+      try {
+        await this.files.delete(fileId)
+      } catch (error: unknown) {
+        if (!isModelApiError(error) || error.status !== HTTP_STATUS.notFound) throw error
+      }
+      state.orphans = (state.orphans ?? []).filter((id) => id !== fileId)
+      await this.deps.storage.write(state)
+    }
     for (const entry of state.entries) {
       if (entry.sessions.length > 0) continue
       await this.requireAccount()
@@ -159,7 +187,23 @@ export class UploadLedger implements SessionUploadLifecycle {
           throw new Error(fill(UI_TEXT.media.sourceChanged, { name: source.name }))
       }
       await this.requireAccount()
-      const file = await this.files.upload(source, signal, onProgress, sha256)
+      let file: UploadedMediaRef
+      try {
+        file = await this.files.upload(source, signal, onProgress, sha256)
+      } catch (error: unknown) {
+        if (!(error instanceof UploadCleanupPendingError)) throw error
+        // The upload failed after the provider answered with an id, and the
+        // bounded clean-up DELETE could not remove it: the id is recorded
+        // durably under this same lock before anything reaches the caller,
+        // so the next sweep deletes it instead of orphaning it (RVM105 1).
+        // The caller still sees the original upload failure.
+        state.orphans = [...(state.orphans ?? []), error.fileId]
+        await this.deps.storage.write(state)
+        // The original failure keeps its identity (an abort stays an abort);
+        // only its provider receipt stays behind as the intent.
+        if (error.cause instanceof Error) throw error.cause
+        throw error
+      }
       const sessions = [...(existing?.sessions ?? [])]
       if (!sessions.includes(sessionId)) sessions.push(sessionId)
       state.entries = state.entries.filter((entry) => entry !== existing)

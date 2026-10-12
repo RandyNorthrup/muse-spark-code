@@ -19,10 +19,15 @@ import {
   createProductionMediaReplay,
   productionMediaDirectory,
 } from '../../src/core/media/productionMedia'
-import { accountLedgerDirectory } from '../../src/core/media/uploadLedgerStorage'
+import {
+  accountLedgerDirectory,
+  fileUploadLedgerStorage,
+} from '../../src/core/media/uploadLedgerStorage'
+import { UploadLedger } from '../../src/core/media/uploadLedger'
 import { fileCalibrationStore } from '../../src/core/media/productionMedia'
-import { MEDIA_ESTIMATE_SAFETY_FACTOR } from '../../src/shared/constants'
+import { MEDIA_ESTIMATE_SAFETY_FACTOR, MEDIA_PROVIDER_POOL_BYTES } from '../../src/shared/constants'
 import { ModelApiClient } from '../../src/core/backends/modelapi/client'
+import { FilesApi } from '../../src/core/backends/modelapi/files'
 import { createFileSessionStore } from '../../src/host/backend/fileSessionStore'
 import { createSessionUploads } from '../../src/host/backend/sessionUploads'
 import type { StoredSession } from '../../src/core/backends/modelapi/sessionStore'
@@ -492,5 +497,142 @@ describe('calibration settlement merge', () => {
     expect(leftovers).toEqual([])
     await mkdir(folder, { recursive: true })
     expect(readFileSync(path.join(folder, 'calibration.json'), 'utf8')).toContain('cap-x')
+  })
+})
+
+/**
+ * RVM105 1: an upload that reached the provider is never orphaned. The real
+ * FilesApi and the real per-account ledger run over the fake provider; the
+ * fetch wrapper cancels the caller just after the provider answers with its
+ * receipt (the review's confirmed scenario), or refuses the clean-up DELETE.
+ * VS Code, ACP and exec share this FilesApi and ledger: only their transports
+ * differ, and the exec transport's bounded clean-up route is covered in
+ * execFetch.test.ts.
+ */
+function orphanRig(options?: {
+  readonly failDeletes?: boolean
+  readonly failWrites?: number
+  readonly abortAfterReceipt?: boolean
+}) {
+  const api = fakeModelApi()
+  const files = fakeFilesApi(api.fetch)
+  let shouldFailDeletes = options?.failDeletes ?? false
+  let failWrites = options?.failWrites ?? 0
+  const shouldAbortAfterReceipt = options?.abortAfterReceipt ?? true
+  const caller = new AbortController()
+  const fetch: typeof globalThis.fetch = async (input, init) => {
+    const pathname = new URL(requestHref(input)).pathname
+    const method = init?.method ?? 'GET'
+    if (method === 'DELETE' && shouldFailDeletes && pathname.includes('/files/'))
+      return Response.json(
+        { error: { message: 'delete failed', type: 'server_error' } },
+        { status: 500 },
+      )
+    const response = await files.fetch(input, init)
+    // Cancellation lands after the provider answered with its receipt.
+    if (shouldAbortAfterReceipt && method === 'POST' && pathname.endsWith('/files'))
+      caller.abort(new Error('cancelled after receipt'))
+    return response
+  }
+  const log = new FakeLogOutputChannel()
+  const client = () =>
+    new ModelApiClient({
+      ...fakeModelApiClientSettings(log),
+      apiKey: () => Promise.resolve(FAKE_MODEL_API_KEY),
+      fetch,
+    })
+  const accountId = FAKE_MODEL_API_ACCOUNT_ID
+  const inner = fileUploadLedgerStorage(accountLedgerDirectory(scratchDir(), accountId), {
+    sleep: () => Promise.resolve(),
+  })
+  const storage = {
+    ...inner,
+    write: async (state: Parameters<typeof inner.write>[0]) => {
+      if (failWrites > 0) {
+        failWrites -= 1
+        throw new Error('Disk full')
+      }
+      await inner.write(state)
+    },
+  }
+  const ledger = () =>
+    new UploadLedger({
+      storage,
+      files: new FilesApi({
+        client: client(),
+        provider: 'meta',
+        authorizeUpload: () => Promise.resolve(),
+      }),
+      accountId,
+      provider: 'meta',
+      poolBytes: MEDIA_PROVIDER_POOL_BYTES,
+      currentAccountId: () => Promise.resolve(accountId),
+      now: () => Date.now(),
+    })
+  const bytes = new Uint8Array(2048)
+  for (let index = 0; index < bytes.length; index++) bytes[index] = (index * 7) % 251
+  const sha256 = createHash('sha256').update(bytes).digest('hex')
+  const source = mediaByteSource('clip.mp4', 'video/mp4', bytes)
+  return {
+    files,
+    caller,
+    storage,
+    ledger,
+    setFailDeletes: (shouldFail: boolean) => {
+      shouldFailDeletes = shouldFail
+    },
+    ensure: (signal: AbortSignal) => ledger().ensure('session-1', sha256, source, signal),
+    state: async () => await storage.read(),
+  }
+}
+
+describe('an upload that reached the provider is never orphaned', () => {
+  it('cancels before any receipt without a clean-up: no DELETE, no intent', async () => {
+    const t = orphanRig()
+    t.caller.abort(new Error('cancelled before upload'))
+    await expect(t.ensure(t.caller.signal)).rejects.toThrow('cancelled before upload')
+    expect(t.files.uploads).toEqual([])
+    expect(t.files.deletes).toEqual([])
+    expect(await t.state()).toBeUndefined()
+  })
+
+  it('deletes at the provider when cancellation lands after the receipt', async () => {
+    const t = orphanRig()
+    await expect(t.ensure(t.caller.signal)).rejects.toThrow('cancelled after receipt')
+    const uploaded = t.files.uploads[0]
+    expect(uploaded).toBeDefined()
+    // The clean-up DELETE reached the provider on its own deadline: the file
+    // is gone and nothing durable was recorded for it.
+    expect(t.files.deletes).toEqual([uploaded?.fileId])
+    expect(t.files.files.size).toBe(0)
+    expect(await t.state()).toBeUndefined()
+  })
+
+  it('records a clean-up intent when the DELETE fails, and the next sweep deletes it', async () => {
+    const t = orphanRig({ failDeletes: true })
+    // The caller still sees the original upload failure, not the clean-up.
+    await expect(t.ensure(t.caller.signal)).rejects.toThrow('cancelled after receipt')
+    const uploaded = t.files.uploads[0]
+    expect(uploaded).toBeDefined()
+    expect(t.files.deletes).toEqual([])
+    expect(await t.state()).toMatchObject({ entries: [], orphans: [uploaded?.fileId] })
+    // A fresh ledger over the same directory proves the intent is durable:
+    // the next sweep deletes the provider file and clears the intent.
+    t.setFailDeletes(false)
+    await t.ledger().accountReport()
+    expect(t.files.deletes).toEqual([uploaded?.fileId])
+    expect(t.files.files.size).toBe(0)
+    expect(await t.state()).toMatchObject({ entries: [], orphans: [] })
+  })
+
+  it('deletes at the provider when the ledger write after a good upload fails', async () => {
+    const t = orphanRig({ failWrites: 1, abortAfterReceipt: false })
+    await expect(t.ensure(t.caller.signal)).rejects.toThrow('Disk full')
+    const uploaded = t.files.uploads[0]
+    expect(uploaded).toBeDefined()
+    // The write-failure path removed the receipt it could not record.
+    expect(t.files.deletes).toEqual([uploaded?.fileId])
+    expect(t.files.files.size).toBe(0)
+    expect(await t.state()).toBeUndefined()
   })
 })

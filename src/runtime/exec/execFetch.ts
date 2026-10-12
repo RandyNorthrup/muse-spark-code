@@ -12,6 +12,7 @@ import {
   EXEC_RESPONSE_MAX_BYTES,
   EXEC_SSE_FRAME_MAX_BYTES,
   MODEL_API_BASE_URL,
+  MODEL_API_REQUEST_TIMEOUT_MS,
   MODEL_API_IMAGE_MODEL,
   MODEL_API_MAX_OUTPUT_TOKENS,
   MODEL_API_PRICES_PER_MILLION,
@@ -122,7 +123,24 @@ export function execFetch(input: {
       parsed.pathname === EXEC_ENDPOINTS.files ||
       /^\/v1\/files\/file-[A-Za-z0-9_-]+$/u.test(parsed.pathname)
     ) {
-      if (isClosed || input.lifecycle.signal.aborted) return refuse('closed')
+      // An upload that reached the provider is never orphaned (RVM105 1):
+      // when cancellation arrives after the provider answered with a file
+      // id, the owner's clean-up DELETE still goes, once, on its own short
+      // deadline to the bound provider origin only. Cancellation and close
+      // shut every other Files route, and the clean-up never enters the
+      // lazily loaded media owner.
+      const isCleanupDelete =
+        method === 'DELETE' &&
+        init?.body == null &&
+        /^\/v1\/files\/file-[A-Za-z0-9_-]+$/u.test(parsed.pathname)
+      if (isClosed || input.lifecycle.signal.aborted) {
+        if (!isCleanupDelete) return refuse('closed')
+        return await input.fetch(url, {
+          ...init,
+          redirect: 'error',
+          signal: AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
+        })
+      }
       const media = await import('../runtimeMediaEntry.js')
       return await media.forwardExecFile(parsed, init, {
         forward,
