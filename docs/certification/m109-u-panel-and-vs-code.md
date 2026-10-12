@@ -360,4 +360,40 @@ migration lifecycle, native editor, credential adapter, modelsPanelVault,
 execVault, and the l10n triple — all green. One timing flake under load
 (11.4 on 12 cores) in the host/panel/table trio passed on rerun (73/73).
 `typecheck:host`, `typecheck:unit`, eslint on all changed files,
-`prettier --check`, and `node scripts/check-l10n.mjs` (0 problems) pass.
+`prettier --check`, and `node scripts/check-l10n.mjs` (0 problems) pass
+(independently re-run and corroborated by the lane continuation the same
+evening: unit tsc exit 0, host tsc exit 0, eslint src + tests exit 0,
+prettier clean, l10n "0 problems").
+
+Related-run failures that are NOT regressions (same evening, `vitest
+related` over the ten non-hub sources, 213 files, repo default timeout):
+every failing file fails on a sandbox block with no vault assertion
+involved — `listen EPERM: operation not permitted` (loopback and Unix
+sockets: `channel`, `peer`, `sshTransport`, `execAdapters`,
+`execHelpers`, `execResources`, `configuredProviders`, `usageIntegration`,
+and the `EPERM` uncaught exception that also fells neighbours),
+`chatgpt.request-failed` / "ChatGPT is temporarily unavailable" (no
+browser, no OS store, no ChatGPT auth: `chatGptVsCode`, `runtimeChatGpt`,
+`acpAgent`), `uv_os_homedir returned ENOENT` (spawned production entry
+with no homedir: `estimateCommand`), and a live-model turn that never
+completes (`acpStdio.e2e`). `vaultPanelBinding` passes alone (7/7); its
+one related-run failure was the `isRetiredSilent` regression above, now
+fixed. These files are NOT RUN HERE; the reviewer runs them.
+
+Three further red drills (same evening, same break-observe-restore
+protocol, SHAs verified before and after, suite green again after):
+
+- Transient `retryInMs` forced to `null` → `vaultViewMachine` "keeps the
+  last good view, says it is retrying, then offers Retry" fails
+  (`expected null to be 250`). `vaultViewMachine.ts` SHA before/after:
+  `52a0e6348e3da1dc995ab00e4ca27136394f94a0b18851c1aa204fcc88091f40`.
+- `tierWarning` `busy` row forced to the repair sentence →
+  `vaultStateTable` "transient reasons name themselves, never the repair
+  message" fails (`expected 'The broker cannot start…' to be 'The vault
+is busy…'`). `VaultSection.tsx` SHA before/after:
+  `0507667269d173bdd1c37c0089c5b1dae8ef44fe568c50968ae3803e2ce60b23`.
+- The retired-`locked` silence clause removed from `settleFailure` → host
+  "Revoke barrier aborts an in-flight Import without a false Locked
+  toast" fails (`expected 'Locked' not to be 'Locked'` — the review's P3
+  symptom exactly). `vaultPanelHost.ts` SHA before/after:
+  `ff373ada6c014295053701c7b04290ecbf343d244b3456436346089ddf5208b9`.
