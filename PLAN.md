@@ -40344,31 +40344,51 @@ Unresolved items remain delivery/security gaps, not accepted legal conclusions:
 
 ## 10. Definition of done and release records
 
-**0.18.2 preparation (2026-10-12, release branch).** The landing mark, first
-prepared as 0.18.1 on `release/0.18.1` (`111afdfa1d`, cut from the release
-train `int/train-1011` at `07f7aa69f`) before the provider hotfix took that
-number. `int/train-0182` starts from the mark's reviewed baseline
-`0b6259982` (the README images and the manifest on `111afdfa1d`, which the
-manifest names and which stays an ancestor), merges the hotfix and carries
-the extension version 0.18.2 and the dated `CHANGELOG.md` `[0.18.2]` section:
-the chat panel's landing screen shows the product's own mark instead of the
-Meta logo (`docs/certification/panelmark.md`; review RVPANELMARKC without a
-finding). One Highlight. The mark is blue in dark and light themes and takes
-the theme's text colour in high contrast and under forced colours, and the
-notes say so. The reviewed baseline was rendered on `111afdfa1d`: sixteen
-scenes and 984 frames moved, every one of them the mark
-(`docs/certification/panelmark-baseline.md`); the lane's own list had said
-fourteen scenes and 1,008 frames, and its record now carries the measured
-table. Nothing else is in it: the hotfix changes no browser bundle, and the
-gate compares the train's `dist/webview` with the build of the baseline file
-by file, so the baseline stands for this release. Left out: the governed
-pull-request checkout (`ef5bb8c52`), which adds three strings to
-`src/shared/l10n/en.ts`, a file every webview bundle is built from, and so
-needs a visual run of its own; the commit-credit guard (`280b3f964`), which
-left four tests of the CI structure red (`manifest.test.ts`,
-`visualGate.test.mjs`) and went back to its lane; the packaged dogfood
-harness (`490de5e01`), whose size gate and certification digest test fail on
-its own head. This is preparation, not publication; the public roadmap
+**0.18.2 preparation (2026-10-12, release branch).** `release/0.18.2` is
+cut from `int/train-0182` at `5bc38fbe0` and merges main at `e763f4938`
+(0.18.1 as released, with its record). It carries the extension version
+0.18.2 and the dated `CHANGELOG.md` `[0.18.2]` section. It holds 0.18.1 and
+one change for a person: the chat panel's empty screen shows the product's
+own mark instead of Meta's logo (`docs/certification/panelmark.md`; review
+RVPANELMARKC without a finding). One Highlight. The mark is blue in dark and
+light themes and takes the theme's text colour in high contrast and under
+forced colours, and the notes say so. The mark was first prepared as 0.18.1
+on `release/0.18.1` (`111afdfa1d`, cut from the release train
+`int/train-1011` at `07f7aa69f`) before the provider hotfix took that
+number; the train's four README pictures and its frame manifest
+(`0b6259982`, `docs/certification/panelmark-baseline.md`: sixteen scenes and
+984 frames moved, every one of them the mark) are part of this branch.
+
+The owner asked at 1:17 PM PT why Meta's logo was still in the screenshots.
+Every picture the two packages ship and the README shows was then opened and
+looked at, 43 files: two more showed Meta's logo, both shipped in the
+extension, the Get Started walkthrough's `open.png` and `chat.png`. Both were
+taken again. The built files were searched once for the old drawing's path
+data and names: none. No test was added. The record, with the list of
+pictures, is `docs/certification/release-0182.md`.
+
+The owner's order of 1:30 PM PT ("no more ci screenshot runs. if we change
+the ui is gets a small local verification and thats it") is carried out on
+this branch: the two screenshot jobs and their edge in the required
+aggregate are gone from `.github/workflows/build.yml`, `check:visual` is
+gone from `quality:gates`, and the two tests that existed only for that gate
+are removed. No frame was rendered, compared or adopted on this branch. The
+mark was looked at on the built panel in one light and one dark theme; the
+two pictures are in the record. The comparison's scripts and its manifest
+stay until a later change removes them; nothing runs them.
+
+Not in 0.18.2, and where each goes: the spend ledger and the false error
+sentences (a provider's low-credit answer shown as "Models & Agents is not
+available in this build" with the reservation booked as uncertain, in the
+0.18.1 record below) are for 0.18.3; the contributor-price fix is for
+0.18.4. The 0.18.1 record's "next release" (the guard that a file meant for
+one bundle is an input of one built output only) and its "follow-up" (the
+five findings of the last review) are not in 0.18.2 either. Left off the
+train before this branch was cut, as the train recorded: the governed
+pull-request checkout (`ef5bb8c52`), the commit-credit guard (`280b3f964`,
+which had left four tests of the CI structure red) and the packaged dogfood
+harness (`490de5e01`, whose size gate and certification digest test fail on
+its own head). This is preparation, not publication; the public roadmap
 (M122) lists 0.18.2 as the next release until a `0.18.2 released (…)` record
 follows here.
 

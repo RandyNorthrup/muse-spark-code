@@ -115,14 +115,25 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
-- The empty panel now shows the extension's own mark instead of Meta's logo,
-  filling the original logo box and staying blue with at least 3:1 contrast
-  in ordinary themes; high contrast and forced colours use the foreground.
+- The chat panel's empty screen shows the extension's own mark instead of
+  Meta's logo, in the same place and at the same size. The mark is blue in
+  ordinary themes and takes the text colour in high-contrast themes.
+- The Get Started walkthrough's two pictures that still showed Meta's logo
+  (the empty panel and the actions palette) were taken again.
 
 ### Documentation
 
-- The README's four screenshots of the landing screen (modes, palette, slash
-  commands, voice) show the extension's own mark.
+- The README's four screenshots that showed Meta's logo (modes, palette,
+  slash commands, voice) were taken again and show the extension's own mark.
+
+### Release infrastructure
+
+- Screenshot comparison no longer runs in CI or in the local gate (the
+  owner's decision, 2026-10-12). A change to the interface is looked at by a
+  person, locally, in one light and one dark theme. The comparison could
+  only say that a frame had changed against the frame accepted before it,
+  never that what a frame showed was wrong: Meta's logo was in the accepted
+  frames.
 
 ## [0.18.1] - 2026-10-12
 
