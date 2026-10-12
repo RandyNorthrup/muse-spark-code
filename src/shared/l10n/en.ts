@@ -59,6 +59,14 @@ export const EN = {
   resourcePeakMemory: 'Peak Memory',
   resourceHistoryEmpty: 'No resource history recorded yet.',
   resourceHistoryInvalid: 'Resource history could not be read.',
+  // A damaged usage-history choice (CATCHMONEY R3): one sentence per damaged
+  // thing, saying what is damaged, what the product does because of it, and
+  // what to do. Shown as a notice in the editor, on stderr once in the
+  // terminal, and as a session notification on the editor protocol.
+  resourceHistoryChoiceUnreadable:
+    'Usage-history recording is off: usage-settings.json could not be read. Check its permissions, or delete it and set your choice again.',
+  resourceHistoryChoiceInvalid:
+    'Usage-history recording is off: usage-settings.json is not valid. Delete it and set your choice again.',
   resourceHistoryObserved:
     'Minute averages and observed harness work. Missing readings stay unknown; unobserved work is not estimated.',
   resourceHistoryThreshold: 'Limit',
@@ -1183,6 +1191,18 @@ export const EN = {
     'Could not clear the stored Model API key. The extension host stopped; check VS Code secret storage and sign out again.',
   signOutStopFailed:
     'Backend shutdown failed. This window is gated; close VS Code and check credentials before reopening.',
+  // A credential store that cannot be read (CATCHMONEY R3): the sentence says
+  // what happened, what the product does because of it, and the next step.
+  // `{reason}` is one of the credentialStoreReason* kind words below, never
+  // an errno or an internal name.
+  credentialStoreUnreadable:
+    'Saved credentials could not be read: {reason}. The safe state is kept: nothing was signed out or released. Check keychain access and try again.',
+  credentialStoreReasonCrypto: 'a stored entry cannot be decoded',
+  credentialStoreReasonLocked: 'the keychain is locked',
+  credentialStoreReasonNoService: 'no keychain answered',
+  credentialStoreReasonDenied: 'access to the keychain was refused',
+  credentialStoreReasonTimeout: 'reading the keychain timed out',
+  credentialStoreReasonOther: 'the cause is unknown',
   retryAction: 'Check Again',
   apiKeyPrompt: 'Meta Model API Key',
   apiKeyPlaceholder: 'LLM_…',
