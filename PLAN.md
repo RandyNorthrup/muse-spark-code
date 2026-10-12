@@ -25264,7 +25264,7 @@ live compaction effectiveness or the aggregate quality gates.
 
 **Status 2026-10-12 (first parts shipped in 0.15.0; automatic compaction evaluated and on after the binding run passed — receipts in `docs/certification/m101-binding-report.json`/`.md`, `IS_AUTO_COMPACTION_EVALUATED` true; the remaining port items remain): building.**
 
-**CM1013R9 binding run and latch flip (2026-10-12, macbook rig).** The
+**CM1013R9 binding run and latch flip (2026-10-12; the lead's run on the Windows host, the flip lane on the macbook rig).** The
 lead's counted run at `3c68efb2e` (`node scripts/m101-e.mjs --live-m75`,
 full frozen set, contributor model) returned verdict `pass`: certified
 digest equals the frozen pin, 274 of 588 ceiling calls at $0.06285, all
