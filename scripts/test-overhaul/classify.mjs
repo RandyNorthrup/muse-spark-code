@@ -156,13 +156,30 @@ function newEvidence() {
     createServer: null,
     vscodeImport: null,
     fakeImport: null,
+    browserLaunch: null,
+    sceneRender: null,
   }
 }
+
+// Imported by a test, the module means the test renders in a browser or
+// against the scripted harness scenes: a process test, not pure logic.
+// (Reading scenario names alone, as chatColumn does, is not rendering;
+// visualManifest is data both the pixel system and whatsNewFixture read,
+// so only the pixel/audit readers below decide.)
+const SCENE_RENDER_IMPORT =
+  /(playwright-core|harnessCapture|visualImages|goldens\/capture|m114ConversationCapture|m114PanelCapture|reviewBrowser|warmBrowser|liveBrowser|browserProcesses)/
+const AUDIT_READ_IMPORT = /(m114AuditCapture)/
+const SCENE_RENDER_CALL =
+  /^(serveRepo|withSizedPage|captureMatrix|comparePixels|verifyCapture|waitForHarness|screenshotUrl)$/
 
 function noteImport(found, spec) {
   found.imports.push(spec)
   if (spec === 'vscode') found.vscodeImport = `import from "vscode"`
   else if (FAKE_NAME.test(spec)) found.fakeImport = `import "${spec}"`
+  else if (SCENE_RENDER_IMPORT.test(spec) && !found.sceneRender)
+    found.sceneRender = `renders via "${spec}"`
+  else if (AUDIT_READ_IMPORT.test(spec) && !found.sceneRender)
+    found.sceneRender = `reads the visual audit via "${spec}"`
 }
 
 function visitCall(found, observerVars, node) {
@@ -191,6 +208,10 @@ function visitCall(found, observerVars, node) {
     if (!isObserver) found.mockReplacement = `${chain.at(-1)}(...)`
   } else if (LISTEN_CALL.test(head)) {
     if (!found.listen) found.listen = `${head}(...)`
+  } else if (head === 'chromium.launch' && !found.browserLaunch) {
+    found.browserLaunch = 'chromium.launch(...)'
+  } else if (SCENE_RENDER_CALL.test(chain.at(-1) ?? '') && !found.sceneRender) {
+    found.sceneRender = `${chain.at(-1)}(...)`
   } else if (CREATE_SERVER_CALL.test(head)) {
     if (!found.createServer) found.createServer = `${head}(...)`
   } else if ((head === 'require' || head === 'import') && node.arguments.length === 1) {
@@ -362,6 +383,8 @@ function ownBannedConstruct(evidence, full) {
     evidence.fakeImport ||
     evidence.createServer ||
     evidence.listen ||
+    evidence.browserLaunch ||
+    evidence.sceneRender ||
     (evidence.spyOn && /mock/i.test(path.basename(full)) ? evidence.spyOn : null)
   )
 }
