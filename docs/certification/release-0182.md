@@ -30,6 +30,25 @@ screenshots, and at 1:21 PM how that could happen "if we are looking at over
   version.
 - Added on this branch: two more pictures taken again, and the removal of
   the screenshot comparison from CI, each below. No test was added.
+- The mark's way here: first prepared as 0.18.1 on `release/0.18.1`
+  (`111afdfa1d`, cut from the release train `int/train-1011` at
+  `07f7aa69f`) before the provider hotfix took that number.
+  `int/train-0182` started from the mark's frame manifest `0b6259982`
+  (sixteen scenes and 984 frames moved, every one of them the mark) and
+  merged the hotfix.
+- Left off the train before this branch was cut, as the train recorded: the
+  governed pull-request checkout (`ef5bb8c52`), which adds three strings to
+  `src/shared/l10n/en.ts`; the commit-credit guard (`280b3f964`), which had
+  left four tests of the CI structure red and went back to its lane; the
+  packaged dogfood harness (`490de5e01`), whose size gate and certification
+  digest test fail on its own head.
+- Not in 0.18.2, and where each goes: the spend ledger and the false error
+  sentences (a provider's low-credit answer shown as "Models & Agents is not
+  available in this build", with the reservation booked as uncertain) are
+  for 0.18.3; the contributor-price fix is for 0.18.4. The 0.18.1 record's
+  "next release" (the guard that a file meant for one bundle is an input of
+  one built output only) and its "follow-up" (the five findings of the last
+  review) are not in 0.18.2 either.
 
 ## Every picture, opened and looked at
 
@@ -190,6 +209,14 @@ measures the real file.
 Everything else is the hosted run's to say: the whole unit suite on three
 systems, the static gates, accessibility, integration and the packages.
 
-`check:plan` passes with a warning that is not this release's to settle:
-`PLAN.md` is just over 85% of the plan reader's bound, and closed history is
-due to move to `docs/plan-archive/`.
+## The plan's size
+
+The first hosted run of pull request 153 (38308581634) was red in one job,
+the Ubuntu static gates: `check:plan` exits 1 once `PLAN.md` passes 85% of
+the plan reader's 4 MiB bound, and this branch's first 0.18.2 record took
+the file to 3,565,740 bytes, 582 over. It had been read as a warning here
+because its exit code was taken through a pipe; it is a failure. The record
+in `PLAN.md` now says what a reader of the plan needs and the branch's
+history is in this file. `PLAN.md` is at its archive threshold: closed
+history has to move to `docs/plan-archive/` by the procedure in
+`CONTRIBUTING.md` before much more is added.
