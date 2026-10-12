@@ -1,0 +1,79 @@
+{
+  "vendor": "anthropic",
+  "model": "claude-haiku-5-5",
+  "variant": "1-wrap-up-tools-omitted",
+  "url": "https://api.anthropic.com/v1/messages",
+  "requestBody": {
+    "model": "claude-haiku-5-5",
+    "max_tokens": 120,
+    "messages": [
+      {
+        "role": "user",
+        "content": "Read the file a.txt with the tool, then tell me what it says."
+      },
+      {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "tool_use",
+            "id": "toolu_01WQeyM3RLx65T5mhJuqTibZ",
+            "name": "read_file",
+            "input": {
+              "path": "a.txt"
+            },
+            "caller": {
+              "type": "direct"
+            }
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "tool_result",
+            "tool_use_id": "toolu_01WQeyM3RLx65T5mhJuqTibZ",
+            "content": "hello from a.txt"
+          },
+          {
+            "type": "text",
+            "text": "You have reached the limit of model calls for this turn. Without calling any tool, say in one sentence what you did and what remains."
+          }
+        ]
+      }
+    ]
+  },
+  "status": 200,
+  "response": {
+    "model": "claude-haiku-5-5",
+    "id": "msg_011CfxvwidHz8kE1aJXTpCU8",
+    "type": "message",
+    "role": "assistant",
+    "content": [
+      {
+        "type": "text",
+        "text": "I called the read_file tool on a.txt and got back its contents, \"hello from a.txt,\" but I haven't yet written up a full answer for you beyond that, and no further tool calls can be made this turn."
+      }
+    ],
+    "container": null,
+    "stop_reason": "end_turn",
+    "stop_sequence": null,
+    "stop_details": null,
+    "usage": {
+      "input_tokens": 133,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+        "ephemeral_5m_input_tokens": 0,
+        "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 65,
+      "output_tokens_details": {
+        "thinking_tokens": 0
+      },
+      "service_tier": "standard",
+      "inference_geo": "global"
+    },
+    "diagnostics": null
+  }
+}

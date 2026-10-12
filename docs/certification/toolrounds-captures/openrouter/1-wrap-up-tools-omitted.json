@@ -1,0 +1,95 @@
+{
+  "vendor": "openrouter",
+  "model": "openai/gpt-oss-20b",
+  "variant": "1-wrap-up-tools-omitted",
+  "url": "https://openrouter.ai/api/v1/chat/completions",
+  "requestBody": {
+    "model": "openai/gpt-oss-20b",
+    "max_tokens": 300,
+    "messages": [
+      {
+        "role": "user",
+        "content": "Read the file a.txt with the tool, then tell me what it says."
+      },
+      {
+        "role": "assistant",
+        "content": null,
+        "tool_calls": [
+          {
+            "type": "function",
+            "index": 0,
+            "id": "fc_096e5108-f48c-4215-9441-d8a0856838c5",
+            "function": {
+              "name": "read_file",
+              "arguments": "{\"path\":\"a.txt\"}"
+            }
+          }
+        ]
+      },
+      {
+        "role": "tool",
+        "tool_call_id": "fc_096e5108-f48c-4215-9441-d8a0856838c5",
+        "content": "hello from a.txt"
+      },
+      {
+        "role": "user",
+        "content": "You have reached the limit of model calls for this turn. Without calling any tool, say in one sentence what you did and what remains."
+      }
+    ]
+  },
+  "status": 200,
+  "response": {
+    "id": "gen-1791834953-uc18F8yTf8Gozh59xQbG",
+    "object": "chat.completion",
+    "created": 1791834953,
+    "model": "openai/gpt-oss-20b",
+    "provider": "DeepInfra",
+    "system_fingerprint": null,
+    "service_tier": "default",
+    "choices": [
+      {
+        "index": 0,
+        "logprobs": null,
+        "finish_reason": "stop",
+        "native_finish_reason": "stop",
+        "message": {
+          "role": "assistant",
+          "content": "I read a.txt and it contains “hello from a.txt”; no further tool calls will be made.",
+          "refusal": null,
+          "reasoning": "We need to respond in one sentence, no tool calls, summarizing what we did and what's left. We already read file content. We used tool once. The limit is reached. So we should say that we read the file and will not perform any further actions. So, one sentence: \"I read a.txt and it contains 'hello from a.txt'; no further tool calls will be made.\"",
+          "reasoning_details": [
+            {
+              "type": "reasoning.text",
+              "text": "We need to respond in one sentence, no tool calls, summarizing what we did and what's left. We already read file content. We used tool once. The limit is reached. So we should say that we read the file and will not perform any further actions. So, one sentence: \"I read a.txt and it contains 'hello from a.txt'; no further tool calls will be made.\"",
+              "format": "unknown",
+              "index": 0
+            }
+          ]
+        }
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 137,
+      "completion_tokens": 112,
+      "total_tokens": 249,
+      "cost": 0.00001979,
+      "is_byok": false,
+      "prompt_tokens_details": {
+        "cached_tokens": 0,
+        "cache_write_tokens": 0,
+        "audio_tokens": 0,
+        "video_tokens": 0
+      },
+      "cost_details": {
+        "upstream_inference_cost": 0.00001979,
+        "upstream_inference_prompt_cost": 0.00000411,
+        "upstream_inference_completions_cost": 0.00001568
+      },
+      "completion_tokens_details": {
+        "reasoning_tokens": 87,
+        "image_tokens": 0,
+        "audio_tokens": 0
+      }
+    }
+  }
+}

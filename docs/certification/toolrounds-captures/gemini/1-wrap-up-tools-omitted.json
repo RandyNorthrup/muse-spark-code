@@ -1,0 +1,90 @@
+{
+  "vendor": "gemini",
+  "model": "gemini-3.8-flash",
+  "variant": "1-wrap-up-tools-omitted",
+  "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent",
+  "requestBody": {
+    "contents": [
+      {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Read the file a.txt with the tool, then tell me what it says."
+          }
+        ]
+      },
+      {
+        "role": "model",
+        "parts": [
+          {
+            "functionCall": {
+              "name": "read_file",
+              "args": {
+                "path": "a.txt"
+              },
+              "id": "call_109647"
+            },
+            "thoughtSignature": "EvcBCvQBAWkUfROBmLYBL/hj7WZimdU3kcBUfSs9o/v2ZnUzFxd0bL7ieo7La6c5KQjgAOaUnqTC1F2OWlEA4k7XLAZlqwRKrJpE8hg2CvyQPEIaCFaEdLOPFOD0Of9mzuV8wBptrcUUOylRwQ8pTtqae8wYWNO6YLe3jRq+ed3bAvPVIX/uYQdWxpt+rbIuXjljEGmkKykKIntBTnmKHJ7AI/QVrLz6ykGDT8Pw/dXx4mI39Fb0Lp82fi6BNNKBi5kgWIsiHas4k7nxI4+BLtJyQ02oEMBV9LdcAOjiUMjGDBSlZr3vWdWyy6n2Jy9eQCA1iCyoBaw4gA=="
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "parts": [
+          {
+            "functionResponse": {
+              "name": "read_file",
+              "response": {
+                "content": "hello from a.txt"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "parts": [
+          {
+            "text": "You have reached the limit of model calls for this turn. Without calling any tool, say in one sentence what you did and what remains."
+          }
+        ]
+      }
+    ],
+    "generationConfig": {
+      "maxOutputTokens": 400
+    }
+  },
+  "status": 200,
+  "response": {
+    "candidates": [
+      {
+        "content": {
+          "parts": [
+            {
+              "text": "I have successfully read the file `a.txt`, and it only remains to inform you that it says \"hello from a.txt\".",
+              "thoughtSignature": "Et0HCtoHAWkUfRMJDHCpwQTlwY66ekEY1ZeOy3SiV+MQbkbNdO4qcAwHcogA2NpQqJKV+9AEDolnqnUb0lBkDYUqE28dY05t2vIUoJvg9xKF9JNLVPVRYoddZOx8o9M2cAcGyX911MwhZGbLLyAnUBoadEf9av34g1V5BgwlEo7K27xVc15Wx5Ox9Ok7yDJtDvZR1ZjbnSIE46WC/1bcOZq12jPv7vwTE7ICQNax7nV333bfC99HeExADa5UVTqfH7w7KqS80Qf/y1epQwTsQo6hwai9NNKnJLSK+BoBDK2i9fndLNgeMwNqeex+G6n/rtZFycSzBxPXwi8khWm89OtnEMHk6ciwNt9lJBte+qRelt3HKAAsxt3XRe6XvVqlJIiw6FKjE3ZndPoX7Mj7EbcTNV9MQfpWk1mEcoV+MlKSTx1hG0hfEvDDwFkPYX1rI2+2FAKFWhfu/wDIjKXUMylJTtlH03iA4zaARVjp3zEPW72mgaHVpo/pqJysQlUt9vuUD+61xVzwliD9WUGJsvy5ZGQwA4uYFbZK3Hcl2ZxyARLNTpw/SnvMIYbIydkFuiChACsAIoPYZsiZfYcc+/kpBtwtZ8mUNPbo0YPqLLk8pOSRZOjjAiWwFnFVT1hfjt/EUJsyh1M9ETx7rCpW/yJeiDxcIzumQw6mXEsJiPxgkD7XZEch22uzzYVWT98DjwbVFzgNT7VSRuzq3L0ygwKo1ArDBM2gVch2uH7zAt1Gdbz/ThjcgOgtbiLRlBhCdAjYhssMrSglub0saLiBxcDuSNqt3TB3xoEwBMQFNqHui+KsCfCkwBJT5sGtoygpaG4jexCPYlFi/vIiWMXYrvPhYQVZOYaOL7Rz2fksTNpmK+eRO+KVn3Ue75T7AhAyyEoUlDGsySj7po66wXde0pm8ZvBfkgi0KIQGT5sWZR2c4DEp9GGt4UWclm0l/ULzL5kPG+woH5c/li8H6H8v+/6YrIgbaJQeYpE1Z/p3n2QEe6q6usSAHvDQn3Wf0yxb8pSQEflSAMMVozVS5dad28DP1BvvdoLBsj6eZIoY4fVrHpupD3+olPhlYRC9u6RCAvIj3wtqzU3CC7HXkxyI9WYFvOCSRkMDj1/P92vlT9KV9/xMZF7jdTt5Zkpn1i3hzy5dtsPkFbC3AZcvCidfQ1/5wprrLteDgVvey+q5n9ifVThC4niFkneuRSnpFHJKBDZzzs4KhicZ5YVmj9ICRY5yWhQ5OIKXCQuVNyh1LXIQnW4OfdzpzhAuYuhTQ3BhNXJnjWOBf1GeDTTqxm/CtVkO/aZ/eVDzGIfgZcDswws="
+            }
+          ],
+          "role": "model"
+        },
+        "finishReason": "STOP",
+        "index": 0
+      }
+    ],
+    "usageMetadata": {
+      "promptTokenCount": 125,
+      "candidatesTokenCount": 28,
+      "totalTokenCount": 372,
+      "promptTokensDetails": [
+        {
+          "modality": "TEXT",
+          "tokenCount": 125
+        }
+      ],
+      "thoughtsTokenCount": 219,
+      "serviceTier": "standard"
+    },
+    "modelVersion": "gemini-3.8-flash",
+    "responseId": "ijvNasKvIaWKqtsPrfLG0Q0"
+  }
+}
