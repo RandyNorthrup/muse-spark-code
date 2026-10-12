@@ -37,12 +37,15 @@ function rig(replies: ScriptedReply[] = []) {
   const settlements: { actual: string; uncertain?: boolean | undefined }[] = []
   const maxima: string[] = []
   const consent = vi.fn(() => Promise.resolve(true))
+  let accountId: string | undefined = 'key-a'
+  const keyDigest = vi.fn(() => Promise.resolve(accountId))
   const deps = {
     isAllowed: () => isAllowed,
     noteDispatched: vi.fn(),
     noteUsage: vi.fn(),
     modelId: 'muse-spark-1.3',
     workspaceRoot,
+    keyDigest,
     consent,
     reserve: vi.fn((maximum: string) => {
       maxima.push(maximum)
@@ -65,10 +68,14 @@ function rig(replies: ScriptedReply[] = []) {
     manager,
     deps,
     consent,
+    keyDigest,
     settlements,
     maxima,
     revoke: () => {
       isAllowed = false
+    },
+    replaceKey: (next: string | undefined) => {
+      accountId = next
     },
   }
 }
@@ -158,6 +165,25 @@ describe('paid team planning preview', () => {
       ).rejects.toThrow(UI_TEXT.teamTryDenied)
       expect(t.maxima).toEqual([])
       expect(t.api.requests).toEqual([])
+    } finally {
+      await t.manager.dispose()
+    }
+  })
+  it('voids the approval when the stored key changes during consent', async () => {
+    const t = rig([{ text: 'Plan engineering.', usage: { input: 12, output: 3 } }])
+    t.consent.mockImplementation(() => {
+      // The stored key is replaced while the popup is open: the quoted
+      // account no longer pays, so the approval must not spend on the new one.
+      t.replaceKey('key-b')
+      return Promise.resolve(true)
+    })
+    try {
+      await expect(
+        tryTeam(t.deps, document, 'feature-tests', new AbortController().signal),
+      ).rejects.toThrow(UI_TEXT.teamTryDenied)
+      expect(t.maxima).toEqual([])
+      expect(t.api.requests).toEqual([])
+      expect(t.deps.noteDispatched).not.toHaveBeenCalled()
     } finally {
       await t.manager.dispose()
     }
