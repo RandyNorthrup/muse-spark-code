@@ -103,6 +103,15 @@ happened, not what was planned; superseded entries are kept.
   launches are not yet under the resource governor; nothing in this release
   can start them, and the process inventory fails the day something could.
 
+- Usage trace logs (lane USAGETRACE): one cached reader per home folder,
+  shared by the attempts read and the insights read. Unchanged files are
+  never opened again (path, size, mtime, native identity); refreshes share
+  one flight, parse at most 4 files at once as line streams, and skip
+  files older than any caller window. Every usage read after the first in
+  a process re-stats instead of re-parsing. Unit workers run with the home
+  folder redirected at an empty temp folder, so no test reads real user
+  data.
+
 ## [0.18.1] - 2026-10-12
 
 ### Fixed
