@@ -113,6 +113,7 @@ if (process.platform === 'linux') {
         'StatRace',
         'StatMask',
         'StatNoExec',
+        'StatChecks',
         'ExecFail',
         'Guards',
         'Device',
@@ -356,6 +357,60 @@ if (process.platform === 'linux') {
       } finally {
         await runner.dispose()
       }
+    })
+    it('stat refuses a recursive run and tool arguments that do not mirror the operands', async () => {
+      const h = await fixture()
+      const recursive = await native(
+        binary,
+        h.args('stat', ['allowed.txt'], ['allowed.txt'], true),
+        h.root,
+      )
+      expect(recursive.code).toBe(125)
+      expect(recursive.stdout.length).toBe(0)
+      expect(recursive.stderr).toContain('request')
+      const count = await native(
+        binary,
+        h.args('stat', ['allowed.txt'], ['allowed.txt', 'allowed.txt']),
+        h.root,
+      )
+      expect(count.code).toBe(125)
+      expect(count.stdout.length).toBe(0)
+      expect(count.stderr).toContain('request')
+      const spelling = await native(
+        binary,
+        h.args('stat', ['allowed.txt', '.'], ['allowed.txt', 'allowed.txt']),
+        h.root,
+      )
+      expect(spelling.code).toBe(125)
+      expect(spelling.stdout.length).toBe(0)
+      expect(spelling.stderr).toContain('request')
+    })
+    it('stat refuses symlinked and hard-linked operands after the walk', async () => {
+      const h = await fixture()
+      symlinkSync(h.outside, path.join(h.workspace, 'link'))
+      linkSync(h.outside, path.join(h.workspace, 'hardlink'))
+      for (const operand of ['link', 'hardlink']) {
+        const result = await native(binary, h.args('stat', [operand], [operand]), h.root)
+        expect(result.code, operand).toBe(125)
+        expect(result.stdout.length).toBe(0)
+        expect(result.stderr).toContain('operand')
+      }
+    })
+    it('the post-walk stat checks refuse hostile shapes and accept files and folders', async () => {
+      const h = await fixture()
+      const result = await native(variant('StatChecks'), [], h.root)
+      expect(result.code, result.stderr).toBe(0)
+      const stdout = result.stdout.toString()
+      for (const line of [
+        'ok regular',
+        'ok directory',
+        'ok symlink-refused',
+        'ok foreign-device-refused',
+        'ok hardlink-refused',
+        'ok fifo-refused',
+      ])
+        expect(stdout, line).toContain(`${line}\n`)
+      expect(stdout).not.toContain('FAIL')
     })
     it('stat -- name answers: the grammar drops the separator the helper would refuse', async () => {
       // Builds the helper argv exactly as InspectRunner.execute does, so the
