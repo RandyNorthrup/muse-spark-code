@@ -7,6 +7,9 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Treat orderly POSIX vault broker shutdown during discovery or connection as absence and retry a successor once across editor, CLI, ACP and headless hosts. Vault availability remains off pending the platform join.
+
+
 ### Added
 
 - Installed POSIX vault client and broker bindings now connect the shared editor,

@@ -33268,6 +33268,18 @@ The split:
   Linux slot.
 - **(c)**, Codex on the Win11 VM: the Windows natives.
 
+**CM109JOINB round 3 repair (2026-10-11, Kubuntu; RVCM109JC).** Treat
+orderly broker disappearance at discovery, readiness, authentication and the
+post-launch recheck as absence or one bounded successor retry across editor,
+CLI, ACP and headless connections. Enumerate each filesystem/native/socket
+transition and close real brokers between steps in regressions. Make the
+real-process fixture follow explicit test ownership, retaining the production
+30-second idle policy with an injected-clock test. Reproduce and resolve the
+epoch collision and classify installed sampler warnings by exact cause with
+leak checks; rerun generated-only installed acceptance. Each guard gets a
+byte-exact red drill in `docs/certification/cm109-join-posix.md`. Availability
+stays off; store/shared lock helpers, dependencies, gates and caps stay unchanged.
+
 **CM109JOINB review repair (2026-10-11, Kubuntu; RVCM109JB).** The
 session owns the POSIX broker: governed spawn handoff, detached session/group,
 null standard streams, socket readiness, last-client idle Lock and orderly

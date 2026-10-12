@@ -1,0 +1,38 @@
+[
+  {
+    "guard": "disappeared-record",
+    "source": "src/runtime/vault/posixClientPlatform.ts",
+    "sha256": "d536772d9e10b5fec1e3fd226c6b53a7d7bd4091f5396e02c82f4c0ad238ffe1",
+    "exit": 1,
+    "failedTests": [
+      "installed POSIX binding composition recovers the protected audit intent after an interruption afterStore",
+      "installed POSIX binding composition treats orderly broker shutdown at record-read as absence",
+      "installed POSIX binding composition treats orderly broker shutdown at identity as absence",
+      "installed POSIX binding composition treats orderly broker shutdown at token-open as absence",
+      "installed POSIX binding composition treats orderly broker shutdown at token-read as absence",
+      "installed POSIX binding composition treats orderly broker shutdown at readiness as absence",
+      "installed POSIX binding composition treats orderly broker shutdown at recheck-record as absence",
+      "installed POSIX binding composition treats orderly broker shutdown at recheck-identity as absence"
+    ]
+  },
+  {
+    "guard": "successor-connect",
+    "source": "src/host/vault/brokerProcess.ts",
+    "sha256": "55ec21bf233b8e47f2a01a0a7e2cb076fe38cbde95d18111f076ab8bd5ef2ee7",
+    "exit": 1,
+    "failedTests": [
+      "installed POSIX binding composition starts a successor after orderly shutdown during connect",
+      "installed POSIX binding composition starts a successor after orderly shutdown during peer",
+      "installed POSIX binding composition starts a successor after orderly shutdown during hello"
+    ]
+  },
+  {
+    "guard": "successor-ready",
+    "source": "src/host/vault/brokerProcess.ts",
+    "sha256": "55ec21bf233b8e47f2a01a0a7e2cb076fe38cbde95d18111f076ab8bd5ef2ee7",
+    "exit": 1,
+    "failedTests": [
+      "installed POSIX binding composition retries a broker that closes between launch readiness and final discovery once"
+    ]
+  }
+]

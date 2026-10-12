@@ -52,9 +52,14 @@ export async function posixVaultClientPlatform(
           return location
         } catch (error: unknown) {
           // Only proven death permits launch. Missing token/socket during live startup waits.
-          const bytes = await new UnixVaultPrivateFiles().read(
-            path.join(this.directory, 'broker.lock'),
-          )
+          let bytes: Buffer
+          try {
+            bytes = await new UnixVaultPrivateFiles().read(path.join(this.directory, 'broker.lock'))
+          } catch (recheckError: unknown) {
+            // Orderly shutdown removes token before record, even while its process is still live.
+            if (isVaultFileMissing(recheckError)) return null
+            throw recheckError
+          }
           const lock = vaultBrokerLockSchema.parse(JSON.parse(bytes.toString()))
           const live = await vaultProcessIdentity(helper, lock.processId)
           if (lock.userSession === userSession && live?.startedAt !== lock.startedAt) return null
