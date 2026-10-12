@@ -245,6 +245,13 @@ suite('saved team composition in VS Code', () => {
         assert.ok(defaultEntry)
         await panel.handle({ type: 'roles/removeEntry', role, entryId: defaultEntry.id })
       }
+      // The tracked-file worker must edit: only bypassPermissions allows
+      // everything, and the untouched selector reads as Plan.
+      await panel.handle({
+        type: 'roles/updateRole',
+        role: 'engineering',
+        fields: { permissionMode: 'bypassPermissions' },
+      })
       await panel.handle({ type: 'roles/save' })
       assert.ok(
         values.has(TEAM_WORKSPACE_KEYS.team),

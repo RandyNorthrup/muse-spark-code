@@ -11,6 +11,7 @@ import { mkdir, realpath } from 'node:fs/promises'
 import {
   BYTES_PER_MIB,
   UI_TEXT,
+  PERMISSION_MODES,
   TEAM_BOUND_SETTING_KEYS,
   TEAM_MODEL_TEXT,
   TEAM_ROLE_TOOLSETS,
@@ -21,6 +22,7 @@ import {
   TEAM_USAGE_LIMIT_COOLDOWN_MS,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
+import { approvalModeFor } from '../../shared/permissionModes'
 import type { TeamAgentRef, TeamReport, TeamUsage } from '../../shared/team'
 import type { SubagentUsage } from '../../shared/paid'
 import type { AgentSession } from '../../core/agent/agentBackend'
@@ -150,6 +152,18 @@ function addUsage(total: TeamUsage, usage: SubagentUsage): TeamUsage {
     }),
     estimated: total.estimated,
   }
+}
+
+/**
+ * The MSP approval mode a role's saved permission mode selects for its
+ * worker. An untouched selector reads as Plan (what the editor shows), so
+ * only an explicit bypassPermissions allows everything; anything the panel
+ * could not have saved is refused instead of run wide.
+ */
+function workerApprovalMode(permissionMode: string | undefined): string {
+  const saved = PERMISSION_MODES.find((mode) => mode === (permissionMode ?? 'plan'))
+  if (saved === undefined) throw new Error(UI_TEXT.teamEditor.invalid)
+  return approvalModeFor(saved, false)
 }
 
 /** A worker runs no goal or background work to stop at its turn's end. */
@@ -332,8 +346,13 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
         settings: spec.entry.settings,
         folder: workspace.folder,
         modelId: spec.entry.agent.model,
-        // Edits inside its own copy never ask; a read-only copy takes none.
-        approvalMode: mode === 'read-only' ? 'denyUnmatched' : 'allowAll',
+        // The role's saved permission mode runs the worker: Plan (the
+        // editor's default for an untouched selector) denies edits, and only
+        // bypassPermissions allows everything. A worker has no approval UI to
+        // answer prompts, so prompting modes deny as well. A read-only copy
+        // takes none regardless of the role.
+        approvalMode:
+          mode === 'read-only' ? 'denyUnmatched' : workerApprovalMode(spec.role.permissionMode),
         admit,
         noteUsage: (_modelId, reported) => {
           usage = addUsage(usage, reported)
