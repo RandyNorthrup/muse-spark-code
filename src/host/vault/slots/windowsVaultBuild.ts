@@ -65,6 +65,8 @@ export async function windowsVaultExecutable(deps: {
     const compile = async () => {
       const prepare = async (parent: string) => {
         const directory = path.join(parent, `vault-helper-${randomUUID()}`)
+        // Inline `-EncodedCommand`, no script file: the execution policy does
+        // not gate it, so this launch does not use the shared Bypass list.
         await runCompiler(
           powershell.file,
           [

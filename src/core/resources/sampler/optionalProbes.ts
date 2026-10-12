@@ -44,6 +44,7 @@ export function createOptionalResourceProbes(port: ResourceProbePort): ResourceO
   }
 
   async function windows(script: string, isIdle: boolean): Promise<number | null> {
+    // A pure `-Command` with no script file needs no policy flag.
     const text = await run('powershell', [
       '-NoLogo',
       '-NoProfile',

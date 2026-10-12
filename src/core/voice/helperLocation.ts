@@ -17,6 +17,7 @@ import {
   DICTATION_WINDOWS_SCRIPT_SEGMENTS,
   LINUX_RECORDERS,
   UI_TEXT,
+  WINDOWS_POWERSHELL_COMMAND_ARGS,
   WINDOWS_POWERSHELL_RELATIVE_PATH,
   darwinDictationApp,
   darwinDictationHelperSegments,
@@ -61,14 +62,13 @@ export type HelperLocation =
   | { readonly isAvailable: true; readonly invocation: HelperInvocation }
   | { readonly isAvailable: false; readonly reason: string }
 
+// One way to start Windows PowerShell for our own script files: the shared
+// argument list, with `-File` for the bundled script instead of `-Command`.
 // `-NonInteractive` turns any prompt into an error; `-ExecutionPolicy Bypass`
 // scopes to this process only, so a Restricted machine policy still runs the
 // bundled script (the VS Code PowerShell extension launches the same way).
 const WINDOWS_SCRIPT_ARGS = [
-  '-NoProfile',
-  '-NonInteractive',
-  '-ExecutionPolicy',
-  'Bypass',
+  ...WINDOWS_POWERSHELL_COMMAND_ARGS.filter((arg) => arg !== '-Command'),
   '-File',
 ] as const
 

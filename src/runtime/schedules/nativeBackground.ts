@@ -101,6 +101,8 @@ export class NativeScheduleBackground implements ScheduleBackgroundPort {
       throw unsafeScheduleLauncher(this.stateFile)
   }
   private async powershellJson(script: string): Promise<unknown> {
+    // Inline `-EncodedCommand`, no script file: the execution policy does not
+    // gate it, so this probe does not use the shared Bypass list.
     const result = await this.deps.run('powershell.exe', [
       '-NoProfile',
       '-NonInteractive',

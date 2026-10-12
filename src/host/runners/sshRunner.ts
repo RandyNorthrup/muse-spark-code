@@ -15,11 +15,16 @@ import {
   TEAM_SCHED_ID_MAX_CHARS,
   GIT_OUTPUT_MAX_BYTES,
   TEAM_SCHED_TICK_MS,
+  WINDOWS_POWERSHELL_COMMAND_ARGS,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import { runnerHealthSchema, type RunnerHealth, RunnerHealthStore } from '../../core/runners/health'
 import { runnerEnvironment } from '../../core/runners/runnerConfig'
-import type { CheckJob, RunnerDispatch } from '../../core/runners/routing'
+import {
+  RunnerPolicyRefusedError,
+  type CheckJob,
+  type RunnerDispatch,
+} from '../../core/runners/routing'
 import { posixQuoted, powerShellQuoted } from '../../core/shellQuote'
 import { captureCheckSnapshot, type CheckGit } from '../team/checkSlots'
 
@@ -72,11 +77,66 @@ export function runnerSshArgs(runner: Runner): string[] {
     runner.destination,
   ]
 }
+// ONE WAY to start Windows PowerShell for our own script files: the
+// runner's remote command is built from the shared
+// WINDOWS_POWERSHELL_COMMAND_ARGS, never a second copy of the flags.
+// `-ExecutionPolicy Bypass` is process scope: it changes nothing on the
+// machine, so a Windows receiver left at Windows' default (every scope
+// Undefined, effectively Restricted, which refuses .ps1 FILES) still runs
+// the helper. `-Command` becomes `-EncodedCommand` because the script
+// crosses SSH as base64; `-InputFormat None` with `< NUL` keeps a remote
+// shell from waiting on stdin. Where Group Policy overrides the flag, the
+// helper is still refused, and the invocation wrapper below says so.
+export function runnerWindowsLaunchArgs(script: string): readonly string[] {
+  return [
+    ...WINDOWS_POWERSHELL_COMMAND_ARGS.filter((arg) => arg !== '-Command'),
+    '-InputFormat',
+    'None',
+    '-EncodedCommand',
+    Buffer.from(script, 'utf16le').toString('base64'),
+  ]
+}
+
+/** The remote shell line for a Windows receiver: PowerShell with the launch args, stdin closed. */
+export function runnerWindowsRemoteCommand(script: string): string {
+  return `powershell.exe ${runnerWindowsLaunchArgs(script).join(' ')} < NUL`
+}
+
+// The fixed marker the Windows invocation wrapper prints to the helper
+// launch's stderr beside the error record's own category and fully qualified
+// id, so a Group Policy script refusal is read from those identifiers, never
+// from English message text and never from an exit code alone.
+export const RUNNER_EXECUTION_POLICY_MARKER = 'MUSE_SPARK_RUNNER_POLICY'
+
+/** Whether the helper launch's stderr carries the wrapper's policy-refusal marker. */
+export function isRunnerPolicyRefusal(stderr: string | undefined): boolean {
+  return (
+    stderr?.includes(
+      `${RUNNER_EXECUTION_POLICY_MARKER} category=SecurityError fqid=UnauthorizedAccess`,
+    ) ?? false
+  )
+}
+
+/** The helper call for a receiver: `& 'helper' ...` on Windows, `bash 'helper' ...` elsewhere. */
+export function runnerInvocation(
+  runner: Runner,
+  helper: string,
+  action: string,
+  args: readonly string[],
+): string {
+  const quote = runner.os === 'win32' ? powerShellQuoted : posixQuoted
+  const call = `${runner.os === 'win32' ? '&' : 'bash'} ${quote(helper)} ${[action, runner.workFolder, ...args].map((value) => quote(value)).join(' ')}`
+  if (runner.os !== 'win32') return call
+  // The helper is a script FILE: a policy that forbids scripts refuses it
+  // before its first line. The wrapper relays the error record's category
+  // and fully qualified id to stderr behind the fixed marker and rethrows,
+  // so the launch reports the refusal instead of a bare failure; the success
+  // path is byte-for-byte the call above, and the helper itself is untouched.
+  return `try { ${call} } catch { [Console]::Error.WriteLine("${RUNNER_EXECUTION_POLICY_MARKER} category=$($_.CategoryInfo.Category) fqid=$($_.FullyQualifiedErrorId)"); throw }`
+}
+
 function remoteCommand(runner: Runner, script: string): string {
-  const command =
-    runner.os === 'win32'
-      ? `powershell.exe -NoProfile -NonInteractive -InputFormat None -EncodedCommand ${Buffer.from(script, 'utf16le').toString('base64')} < NUL`
-      : script
+  const command = runner.os === 'win32' ? runnerWindowsRemoteCommand(script) : script
   if (runner.os === 'win32' && command.length >= RUNNER_WINDOWS_COMMAND_MAX_CHARS)
     throw new WindowsCommandTooLongError()
   return command
@@ -122,8 +182,13 @@ export class SshRunner {
       ...(signal !== undefined && { signal }),
     })
     this.admit(signal)
-    if (!result.descendantsEnded || result.exitCode !== 0)
+    if (!result.descendantsEnded || result.exitCode !== 0) {
+      // A Group Policy script refusal is a different fact from offline: the
+      // receiver answered and forbade the helper, so it says so.
+      if (runner.os === 'win32' && isRunnerPolicyRefusal(result.stderr))
+        throw new RunnerPolicyRefusedError()
       throw new Error(UI_TEXT.teamRunners.offline)
+    }
     return result.output
   }
   private async install(runner: Runner, signal?: AbortSignal): Promise<string> {
@@ -148,8 +213,7 @@ export class SshRunner {
     action: string,
     args: readonly string[],
   ): string {
-    const quote = runner.os === 'win32' ? powerShellQuoted : posixQuoted
-    return `${runner.os === 'win32' ? '&' : 'bash'} ${quote(helper)} ${[action, runner.workFolder, ...args].map((value) => quote(value)).join(' ')}`
+    return runnerInvocation(runner, helper, action, args)
   }
   public async test(
     runnerValue: Runner,
@@ -204,12 +268,26 @@ export class SshRunner {
           ),
         )
         z.strictObject({ inputReady: z.literal(true) }).parse(answer)
-      } catch {
+      } catch (error: unknown) {
         this.admit()
-        return { ok: false, notice: UI_TEXT.teamRunners.inputHangNotice }
+        return {
+          ok: false,
+          notice:
+            error instanceof RunnerPolicyRefusedError
+              ? UI_TEXT.teamRunners.executionPolicy
+              : UI_TEXT.teamRunners.inputHangNotice,
+        }
       }
     }
-    const health = await this.sample(runner)
+    let health: RunnerHealth | undefined
+    try {
+      health = await this.sample(runner)
+    } catch (error: unknown) {
+      // Unreachable once the selftest above ran the same helper: a policy
+      // change in between still says policy, never a hang.
+      if (!(error instanceof RunnerPolicyRefusedError)) throw error
+      return { ok: false, notice: UI_TEXT.teamRunners.executionPolicy }
+    }
     return health === undefined
       ? {
           ok: false,
@@ -232,8 +310,11 @@ export class SshRunner {
       )
       const value: unknown = JSON.parse(text)
       return this.health.record(runner.id, runnerHealthSchema.parse(value))
-    } catch {
+    } catch (error: unknown) {
       this.admit()
+      // A proved policy refusal is not an unreachable runner: it propagates
+      // so the router reports the policy sentence instead of going silent.
+      if (error instanceof RunnerPolicyRefusedError) throw error
       return this.health.record(runner.id, undefined)
     }
   }
@@ -434,6 +515,10 @@ export class SshRunner {
         // Nothing left this machine: cancel and the length refusal propagate
         // with their own sentences; every other pre-send failure reads offline.
         if (error instanceof WindowsCommandTooLongError) throw error
+        // The receiver refused the helper by policy before anything was
+        // sent: a proved refusal with its own reason, never offline.
+        if (error instanceof RunnerPolicyRefusedError)
+          return { kind: 'busy', reason: 'executionPolicy' }
         this.admit(job.signal)
         return { kind: 'offline' }
       }

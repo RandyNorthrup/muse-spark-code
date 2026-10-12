@@ -121,6 +121,7 @@ function commandsFor(ports: RuntimeSharingPorts): SharingCommands {
         if (process.platform === 'win32') {
           // `%SystemRoot%`'s Windows PowerShell, never PATH's, with its own
           // module path (the guarded layer's rule for every 5.1 child).
+          // A pure `-Command` with no script file needs no policy flag.
           const systemRoot = environmentValue(process.env, process.platform, 'SystemRoot')
           if (systemRoot === undefined || !path.win32.isAbsolute(systemRoot))
             throw new Error(UI_TEXT.shareCancelled)
