@@ -8,7 +8,7 @@ import { failureForLog } from '../core/backends/musecode/logText'
 
 import { spawnResourceProcess, handoffResourceFile } from '../core/resources/launcher'
 import { isResourcePaused } from '../core/resources/launch'
-import { randomBytes, randomUUID } from 'node:crypto'
+import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { open, writeFile, realpath, lstat } from 'node:fs/promises'
 import { createInterface } from 'node:readline'
@@ -88,6 +88,8 @@ import { readSecretLine } from './hiddenInput'
 import {
   credentialStoreName,
   keyringSecretStore,
+  parseStoredProviderSecret,
+  providerSecretAccount,
   StoreUnavailableError,
   type KeyringEntry,
 } from './keyStore'
@@ -619,6 +621,31 @@ async function setupHooks(
   return 0
 }
 
+/**
+ * The stored credential's identity for a provider id, or undefined when none
+ * is stored, unreadable or damaged. The usage service shows only the budgets
+ * of the key in use, so a rotated or removed key's numbers disappear.
+ */
+async function currentProviderCredentialId(providerId: string): Promise<string | undefined> {
+  const account = providerSecretAccount(providerId)
+  if (account === undefined) return undefined
+  let stored: string | undefined
+  try {
+    stored = await secrets.get(account)
+  } catch {
+    return undefined
+  }
+  if (stored === undefined) return undefined
+  let value: unknown
+  try {
+    value = JSON.parse(stored)
+  } catch {
+    return undefined
+  }
+  const parsed = parseStoredProviderSecret(value)
+  return parsed === undefined ? undefined : createHash('sha256').update(parsed.key).digest('hex')
+}
+
 function usageFor(
   log: Logger,
   recording?: UsageRecording,
@@ -639,12 +666,16 @@ function usageFor(
     historySettings: () => ({ enabled: isHistoryEnabled, days: USAGE_HISTORY_DAYS_DEFAULT }),
     ...(recording !== undefined && {
       beforeRead: () => recording.flush(),
-      live: {
-        readBudgets: runtime?.readUsageBudgets ?? (() => Promise.resolve([])),
-        readLiveLimits: () => Promise.resolve(recording.limits?.() ?? []),
-        providerConsoles: () => [],
-      },
     }),
+    live: {
+      readBudgets:
+        recording === undefined
+          ? () => Promise.resolve([])
+          : (runtime?.readUsageBudgets ?? (() => Promise.resolve([]))),
+      readLiveLimits: () => Promise.resolve(recording?.limits?.() ?? []),
+      providerConsoles: () => [],
+      currentCredentialId: currentProviderCredentialId,
+    },
   })
 }
 

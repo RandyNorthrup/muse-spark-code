@@ -66,6 +66,14 @@ export interface UsageServiceDeps {
   readonly readBudgets: UsageBudgetReadPort['readToday']
   /** Host provides subscription/account snapshots; never requests a model. */
   readonly readLiveLimits: () => Promise<readonly UsageLimitSnapshot[]>
+  /**
+   * The stored credential's identity per provider id (M95 D74). A limit
+   * snapshot carrying any other credentialId belongs to a previous key and
+   * is dropped, so no shown or counted number belongs to it. Undefined
+   * where the host cannot read credentials; then nothing is dropped. A
+   * supplier failure keeps the snapshots (unknown is not previous).
+   */
+  readonly currentCredentialId?: (providerId: string) => Promise<string | undefined>
   readonly readAttempts: () => Promise<UsagePageState['attempts']>
   /** M107 J: the machine resource journal's aggregate; a failure shows as unavailable. */
   readonly readResources?: () => Promise<ResourceHistory>
@@ -117,6 +125,37 @@ function limitHistory(limits: readonly UsageLimitSnapshot[]): UsageLimitSnapshot
   }
   return Array.from(history, (entry) => entry[1]).toSorted((a, b) => a.observedAt - b.observedAt)
 }
+/**
+ * Keeps only the limits of the credential in use. Snapshots without a
+ * credentialId (subscription, headers, chatgpt) always pass; a credentialed
+ * snapshot passes only while its key is still stored. After a rotation or
+ * removal the previous key's budgets disappear instead of lingering.
+ */
+async function selectCredentialLimits(
+  limits: readonly UsageLimitSnapshot[],
+  current: UsageServiceDeps['currentCredentialId'],
+): Promise<readonly UsageLimitSnapshot[]> {
+  if (current === undefined) return limits
+  const providers = new Set(
+    limits.filter((limit) => limit.credentialId !== undefined).map((limit) => limit.provider),
+  )
+  const identities = new Map<string, string | undefined>()
+  await Promise.all(
+    [...providers].map(async (provider) => {
+      try {
+        identities.set(provider, await current(provider))
+      } catch {
+        // An unreadable store is unknown, not a previous key: keep.
+      }
+    }),
+  )
+  return limits.filter(
+    (limit) =>
+      limit.credentialId === undefined ||
+      !identities.has(limit.provider) ||
+      identities.get(limit.provider) === limit.credentialId,
+  )
+}
 /** An unreadable resource journal never fails the usage page or invents data: null. */
 async function readResources(deps: UsageServiceDeps): Promise<ResourceHistory | null | undefined> {
   if (deps.readResources === undefined) return undefined
@@ -142,12 +181,17 @@ export function createUsageService(deps: UsageServiceDeps): UsageService {
       readResources(deps),
     ])
     const aggregated = aggregateUsage(journal.records, journal.rollups, selected, now)
-    const limits = limitHistory([
-      ...journal.limits.filter(
-        (limit) => limit.day >= aggregated.from && limit.day <= aggregated.to,
+    const limits = limitHistory(
+      await selectCredentialLimits(
+        [
+          ...journal.limits.filter(
+            (limit) => limit.day >= aggregated.from && limit.day <= aggregated.to,
+          ),
+          ...live,
+        ],
+        deps.currentCredentialId,
       ),
-      ...live,
-    ])
+    )
     const settings = deps.history()
     const state: UsagePageState = {
       v: USAGE_JOURNAL_VERSION,

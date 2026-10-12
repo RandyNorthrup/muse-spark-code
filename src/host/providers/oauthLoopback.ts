@@ -6,6 +6,7 @@
 // unit-tested against real loopback requests.
 
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
+import type { Socket } from 'node:net'
 import * as z from 'zod/mini'
 import { HTTP_STATUS, OAUTH_LOOPBACK_TIMEOUT_MS, UI_TEXT } from '../../shared/constants'
 
@@ -104,7 +105,35 @@ export async function startOAuthLoopback(
     rejectWait = undefined
   }
 
+  // Request lines Node's own parser rejects never reach the handler: refuse
+  // them on the socket with the same 400 instead of dropping the connection.
+  server.on('clientError', (_error: unknown, socket: Socket) => {
+    try {
+      if (!socket.destroyed && socket.writable)
+        socket.end('HTTP/1.1 400 Bad Request\r\nConnection: close\r\nContent-Length: 0\r\n\r\n')
+      else socket.destroy()
+    } catch {
+      try {
+        socket.destroy()
+      } catch {
+        // Nothing is left to refuse on.
+      }
+    }
+  })
+  // No malformed request line or URL may escape this handler: anything it
+  // cannot parse is answered with 400 and ignored.
   server.on('request', (request: IncomingMessage, response: ServerResponse) => {
+    try {
+      serveCallback(request, response)
+    } catch {
+      try {
+        answer(response, HTTP_STATUS.badRequest, UI_TEXT.oauthCallbackDone)
+      } catch {
+        // The socket is already dead; the flow still waits for its callback.
+      }
+    }
+  })
+  const serveCallback = (request: IncomingMessage, response: ServerResponse): void => {
     if (isSettled) {
       answer(response, HTTP_STATUS.badRequest, UI_TEXT.oauthCallbackDone)
       return
@@ -165,7 +194,7 @@ export async function startOAuthLoopback(
     }
     answer(response, HTTP_STATUS.ok, UI_TEXT.oauthCallbackDone)
     settleOnceAnswered({ callback: { code: parsed.data.code, params } })
-  })
+  }
 
   await new Promise<void>((resolve, reject) => {
     server.once('error', reject)

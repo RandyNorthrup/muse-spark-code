@@ -124,6 +124,7 @@ import type { ReportPanel } from './host/reporting/reportPanel'
 
 import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import { homedir, hostname, userInfo } from 'node:os'
+import { storedCredentialId } from './host/providers/credentialRecords'
 import { usagePanelLoader, isUsageBudgetBundle } from './host/usage/usagePanelBundle'
 import type { UsagePanel } from './host/usage/usagePanel'
 
@@ -4116,6 +4117,10 @@ async function activateWindow(
           ],
           readLiveLimits: () => Promise.resolve(usageRecording.limits?.() ?? []),
           providerConsoles: () => [],
+          // The stored credential's identity selects the budgets the usage
+          // page shows: a rotated or removed key's numbers disappear.
+          currentCredentialId: (providerId: string) =>
+            storedCredentialId(context.secrets, providerId),
         },
         openModels: (provider, model) => {
           ensureModelsFeatures().openPanel({
