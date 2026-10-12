@@ -489,6 +489,8 @@
   "playbookAnswerWhySafe": "Miért biztonságos egyelőre",
   "playbookAnswerFollowUp": "Követő lépés",
   "playbookNotCertified": "Kézikönyv: ezt a kört nem sikerült igazolni, ezért nem számít sikeresnek.",
+  "playbookEvidenceUnreadable": "Kézikönyv: egy felülvizsgált fájlt vagy egy alügynök módosításait nem sikerült beolvasni, ezért a kézikönyv nem tudja megállapítani, hogy ez a felülvizsgálat hozzá tartozik-e. A felülvizsgálat nem lett elküldve.",
+  "playbookRecordStale": "A kézikönyv naplóját nem sikerült beolvasni. A megjelenített adatok elavultak lehetnek.",
   "playbookSpawnEachAsked": "Kézikönyv: amíg egy modul felülvizsgálat alatt áll, minden alügynököt egyenként kell jóváhagyni.",
   "playbookSpawnsNotAdmitted": "Kézikönyv: a Muse Code itt kérdezés nélkül indít alügynököket ({auto} mód, {bypass} mód vagy egy saját engedélyezési szabály), ezért a kézikönyv nem engedélyezi őket. A módosításaik a következő felülvizsgálatkor számítanak.",
   "playbookStrikeBadge": {

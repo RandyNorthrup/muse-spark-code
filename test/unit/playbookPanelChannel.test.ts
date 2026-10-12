@@ -1,12 +1,8 @@
 // The VS Code panel's channel to its window's playbook (M116, C-M116-6): what
 // the Agent map's page and rows are answered, and what is never answered.
 import { describe, expect, it, vi } from 'vitest'
-import {
-  createPlaybookPanel,
-  type PlaybookPanelContext,
-} from '../../src/host/playbook/playbookPanel'
+import { createPlaybookPanel, type PlaybookPanelGap } from '../../src/host/playbook/playbookPanel'
 import type { PlaybookWindow } from '../../src/host/playbook/playbookWindow'
-import type { PanelModuleSummary } from '../../src/runtime/playbook/governor'
 import {
   playbookAgentsSchema,
   playbookHelloSchema,
@@ -18,16 +14,8 @@ import { surfacePort, surfaceRound, surfaceSnapshot } from './playbookSurfaceFix
 
 const BRIDGE = PANEL_BRIDGE
 const ROW = { itemId: 'row-1', agentId: 'subagent-1', sessionId: 'child-1' }
-/** A module the window says is under review. */
-const OPEN_MODULE: PanelModuleSummary = {
-  moduleId: 'module-1',
-  moduleKey: 'src/core/schedules',
-  round: 1,
-  phase: 'fix',
-  findings: [],
-  isEscalated: false,
-  isRedesignDue: false,
-}
+/** How long the hello waits for its conversation's answer in these tests. */
+const HELLO_TIMEOUT_MS = 40
 
 function unused(): Promise<never> {
   return Promise.reject(new Error('the panel never asks for this'))
@@ -56,14 +44,14 @@ function panelOver(overrides: Partial<PlaybookWindow> = {}, hasWorkspace = true)
     ...overrides,
   }
   const replies: PlaybookPanelResponse[] = []
-  const panel = createPlaybookPanel(window, hasWorkspace)
-  const ask = async (message: unknown, context?: PlaybookPanelContext) => {
+  const panel = createPlaybookPanel(window, hasWorkspace, HELLO_TIMEOUT_MS)
+  const ask = async (message: unknown, hasSpawnGap?: PlaybookPanelGap) => {
     await panel(
       message,
       (reply) => {
         replies.push(reply)
       },
-      context,
+      hasSpawnGap,
     )
     return replies.at(-1)
   }
@@ -98,36 +86,38 @@ describe('the panel’s playbook channel', () => {
     })
   })
 
-  it('tells the map of subagents the playbook is not asked about, only where that is so', async () => {
-    const underReview = vi.fn((_sessionId: string) => Promise.resolve([OPEN_MODULE]))
-    const unasked = { sessionId: 'session-1', asksBeforeSpawn: false }
-    const governed = panelOver({ standing: underReview })
-    // A module under review, in a mode that starts subagents without asking.
-    expect(await governed.ask({ type: 'playbookHello' }, unasked)).toMatchObject({
+  it('tells the map of subagents the playbook is not asked about, only where the conversation says so', async () => {
+    const setup = panelOver()
+    expect(await setup.ask({ type: 'playbookHello' }, () => Promise.resolve(true))).toMatchObject({
       type: 'playbookHello',
       spawnGap: true,
     })
-    expect(underReview).toHaveBeenCalledExactlyOnceWith('session-1')
-    // A backend that asks has no gap, and the journal is not even read for it.
-    const asking = await governed.ask(
-      { type: 'playbookHello' },
-      { sessionId: 'session-1', asksBeforeSpawn: true },
-    )
-    expect(asking).not.toHaveProperty('spawnGap')
-    // Nor has a panel with no conversation yet, or one whose caller names none.
-    expect(
-      await governed.ask({ type: 'playbookHello' }, { ...unasked, sessionId: undefined }),
-    ).not.toHaveProperty('spawnGap')
-    expect(await governed.ask({ type: 'playbookHello' })).not.toHaveProperty('spawnGap')
-    expect(underReview).toHaveBeenCalledOnce()
-    // Nothing under review, or a journal that cannot be read: nothing to say.
-    for (const standing of [
-      () => Promise.resolve([]),
+    // A conversation that is owed no such line, one that has no playbook, and no conversation at all.
+    for (const hasSpawnGap of [() => Promise.resolve(false), () => undefined, undefined])
+      expect(await setup.ask({ type: 'playbookHello' }, hasSpawnGap)).toEqual({
+        type: 'playbookHello',
+        workspaceId: await workspaceOf(setup),
+      })
+  })
+
+  it('answers a hello it cannot answer as a failure, never as a window with nothing to say', async () => {
+    const setup = panelOver()
+    // The journal could not say, the conversation's playbook could not load, or nothing came in time.
+    for (const hasSpawnGap of [
       () => Promise.reject(new Error('private detail')),
-    ])
-      expect(
-        await panelOver({ standing }).ask({ type: 'playbookHello' }, unasked),
-      ).not.toHaveProperty('spawnGap')
+      (): never => {
+        throw new Error('private detail')
+      },
+      () => new Promise<boolean>(() => undefined),
+    ]) {
+      const answer = await setup.ask({ type: 'playbookHello' }, hasSpawnGap)
+      expect(answer).toEqual({ type: 'playbookFailed' })
+      expect(JSON.stringify(answer)).not.toContain('private detail')
+    }
+    // The next hello is asked afresh: a failure is not remembered as the window's state.
+    expect(await setup.ask({ type: 'playbookHello' }, () => Promise.resolve(false))).toMatchObject({
+      type: 'playbookHello',
+    })
   })
 
   it('reads and changes the journal through the window, answering the bridge that asked', async () => {
@@ -180,7 +170,7 @@ describe('the panel’s playbook channel', () => {
     })
   })
 
-  it('gives the map’s rows their records, and none when they cannot be read', async () => {
+  it('gives the map’s rows their records, and says so when they cannot be read', async () => {
     const setup = panelOver()
     const answer = playbookAgentsSchema.parse(
       await setup.ask({ type: 'playbookAgents', requestId: 7, children: [ROW] }),
@@ -188,11 +178,18 @@ describe('the panel’s playbook channel', () => {
     expect(answer.requestId).toBe(7)
     expect(Object.keys(answer.records)).toEqual([ROW.itemId])
     expect(setup.window.agents).toHaveBeenCalledWith([ROW])
-    const broken = panelOver({ agents: () => Promise.reject(new Error('private detail')) })
-    expect(await broken.ask({ type: 'playbookAgents', requestId: 8, children: [ROW] })).toEqual({
+    // A journal that holds nothing for the rows is a read that succeeded.
+    const empty = panelOver({ agents: () => Promise.resolve({}) })
+    expect(await empty.ask({ type: 'playbookAgents', requestId: 8, children: [ROW] })).toEqual({
       type: 'playbookAgents',
       requestId: 8,
       records: {},
+    })
+    // One that could not be read is not: nothing is said about what the rows hold.
+    const broken = panelOver({ agents: () => Promise.reject(new Error('private detail')) })
+    expect(await broken.ask({ type: 'playbookAgents', requestId: 9, children: [ROW] })).toEqual({
+      type: 'playbookAgentsFailed',
+      requestId: 9,
     })
   })
 

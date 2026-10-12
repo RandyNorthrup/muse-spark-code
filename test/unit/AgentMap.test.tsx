@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
 import { BASE_LOCALE, setUiText } from '../../src/shared/l10n/text'
@@ -570,6 +570,79 @@ describe('AgentMap and its window’s playbook (M116)', () => {
     renderMap({ onPlaybook: host.post })
     await screen.findByRole('button', { name: 'Playbook Settings' })
     expect(screen.queryByText(/starts subagents without asking/u)).toBeNull()
+  })
+
+  it('says the playbook is unavailable when its window could not be asked, and asks again on Retry', async () => {
+    const host = hostPlaybook('journal-1')
+    let failures = 1
+    // The first hello is answered with the host's failure, the next as usual.
+    const post = vi.fn((raw: unknown) => {
+      if (failures === 0 || playbookPanelRequestSchema.parse(raw).type !== 'playbookHello') {
+        host.post(raw)
+        return
+      }
+      failures -= 1
+      setTimeout(() => {
+        deliver({ type: 'playbookFailed' })
+      }, 0)
+    })
+    renderMap({ onPlaybook: post })
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('The playbook is unavailable in this session.')
+    // The failure is not a journal: no page is offered on it.
+    expect(screen.queryByRole('button', { name: 'Playbook Settings' })).toBeNull()
+    fireEvent.click(within(alert).getByRole('button', { name: 'Retry' }))
+    expect(await screen.findByRole('button', { name: 'Playbook Settings' })).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  it('keeps the records it showed when a later read fails, says they may be old, and reads again on Retry', async () => {
+    const host = hostPlaybook('journal-1', { sa1: surfaceSnapshot().records })
+    const journal = { isBroken: false }
+    const post = vi.fn((raw: unknown) => {
+      const request = playbookPanelRequestSchema.parse(raw)
+      if (!journal.isBroken || request.type !== 'playbookAgents') {
+        host.post(raw)
+        return
+      }
+      setTimeout(() => {
+        deliver({ type: 'playbookAgentsFailed', requestId: request.requestId })
+      }, 0)
+    })
+    const props = { ...agentMapProps(), onPlaybook: post }
+    const view = render(<AgentMap {...props} agents={[explorer, reviewer]} />)
+    await screen.findByText(/Concurrency: 3 review rounds/u)
+    // Another child's row appears, and the read it starts fails.
+    journal.isBroken = true
+    view.rerender(
+      <AgentMap
+        {...props}
+        agents={[explorer, { ...reviewer, subagentId: 'sub-2', childSessionId: 'child-2' }]}
+      />,
+    )
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent(
+      'The playbook record could not be read. What is shown may be out of date.',
+    )
+    // A failed read is not an empty record: the badge that was there is still there.
+    expect(screen.getByText(/Concurrency: 3 review rounds/u)).toBeInTheDocument()
+    journal.isBroken = false
+    fireEvent.click(within(alert).getByRole('button', { name: 'Retry' }))
+    await waitFor(() => {
+      expect(screen.queryByRole('alert')).toBeNull()
+    })
+    expect(screen.getByText(/Concurrency: 3 review rounds/u)).toBeInTheDocument()
+    // A read fails again; then no child's row is left, and with them nothing that could be old.
+    journal.isBroken = true
+    view.rerender(
+      <AgentMap
+        {...props}
+        agents={[explorer, { ...reviewer, subagentId: 'sub-3', childSessionId: 'child-3' }]}
+      />,
+    )
+    await screen.findByRole('alert')
+    view.rerender(<AgentMap {...props} agents={[reviewer]} />)
+    expect(screen.queryByRole('alert')).toBeNull()
   })
 
   it('leaves a host that hands the map its own port alone', async () => {

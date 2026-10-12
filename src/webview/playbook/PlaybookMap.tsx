@@ -7,7 +7,9 @@ import type { PlaybookRecord } from '../../shared/playbook'
 import type { PlaybookSurfacePort } from '../../runtime/playbook/command'
 import {
   playbookAgentRefSchema,
+  playbookAgentsFailedSchema,
   playbookAgentsSchema,
+  playbookFailedSchema,
   playbookHelloSchema,
   type PlaybookAgentRef,
   type PlaybookPanelRequest,
@@ -41,18 +43,33 @@ function inner(data: unknown): unknown {
 /**
  * The VS Code panel's link to its window's playbook: asks which journal the
  * window reads, hands the map that journal's port, and reads the rows'
- * records. It shows one thing itself: the line a governed conversation is
- * owed while its mode starts subagents without asking. A host that never
- * answers leaves the map exactly as it was.
+ * records. What it shows itself is what the map would otherwise hide: that
+ * the window's playbook could not be asked, that the rows' records could not
+ * be read (what is shown is kept, and said to be possibly old), each with a
+ * way to ask again; and the line a governed conversation is owed while its
+ * backend starts subagents without asking. A host that never answers has no
+ * playbook, and leaves the map exactly as it was.
  */
 export function PlaybookLink({ post, agents, onPort, onRecords }: PlaybookLinkProps) {
   const [workspaceId, setWorkspaceId] = useState<string>()
   const [hasSpawnGap, setSpawnGap] = useState(false)
+  const [isFailed, setFailed] = useState(false)
+  const [isStale, setStale] = useState(false)
+  /** Counts the times the person asked again: each asks the window anew. */
+  const [attempt, setAttempt] = useState(0)
   const sequence = useRef(0)
   useEffect(() => {
     const receive = (event: MessageEvent<unknown>) => {
-      const hello = playbookHelloSchema.safeParse(inner(event.data))
+      const message = inner(event.data)
+      if (playbookFailedSchema.safeParse(message).success) {
+        // No journal is known now: the page goes, and the map says why.
+        setFailed(true)
+        setWorkspaceId(undefined)
+        return
+      }
+      const hello = playbookHelloSchema.safeParse(message)
       if (!hello.success) return
+      setFailed(false)
       setWorkspaceId(hello.data.workspaceId)
       setSpawnGap(hello.data.spawnGap === true)
     }
@@ -61,7 +78,7 @@ export function PlaybookLink({ post, agents, onPort, onRecords }: PlaybookLinkPr
     return () => {
       window.removeEventListener('message', receive)
     }
-  }, [post])
+  }, [post, attempt])
   useEffect(() => {
     if (workspaceId === undefined) return
     const bridge = createPlaybookBridge(window, post, PLAYBOOK_PANEL_TIMEOUT_MS, workspaceId, inner)
@@ -79,23 +96,49 @@ export function PlaybookLink({ post, agents, onPort, onRecords }: PlaybookLinkPr
     sequence.current += 1
     const requestId = sequence.current
     const receive = (event: MessageEvent<unknown>) => {
-      const answer = playbookAgentsSchema.safeParse(inner(event.data))
-      if (answer.success && answer.data.requestId === requestId) onRecords(answer.data.records)
+      const message = inner(event.data)
+      const failed = playbookAgentsFailedSchema.safeParse(message)
+      // A read that failed says nothing about the records: what is shown stays, marked.
+      if (failed.success && failed.data.requestId === requestId) setStale(true)
+      const answer = playbookAgentsSchema.safeParse(message)
+      if (!answer.success || answer.data.requestId !== requestId) return
+      setStale(false)
+      onRecords(answer.data.records)
     }
     window.addEventListener('message', receive)
     post({ type: 'playbookAgents', requestId, children })
     return () => {
       window.removeEventListener('message', receive)
     }
-  }, [workspaceId, rows, post, onRecords])
-  return hasSpawnGap ? (
-    <p className="usage-row-meta" role="note">
-      {fill(UI_TEXT.playbookSpawnsNotAdmitted, {
-        auto: UI_TEXT.permissionModes.auto,
-        bypass: UI_TEXT.permissionModes.bypassPermissions,
-      })}
-    </p>
-  ) : null
+  }, [workspaceId, rows, post, onRecords, attempt])
+  // With no child's row there is no record shown that could be old.
+  const isMarked = isStale && agents.length > 0
+  return (
+    <>
+      {isFailed || isMarked ? (
+        <p className="usage-row-meta" role="alert">
+          {isFailed ? UI_TEXT.playbookUnavailable : UI_TEXT.playbookRecordStale}{' '}
+          <button
+            type="button"
+            className="tool-more"
+            onClick={() => {
+              setAttempt((count) => count + 1)
+            }}
+          >
+            {UI_TEXT.agentRetry}
+          </button>
+        </p>
+      ) : null}
+      {hasSpawnGap ? (
+        <p className="usage-row-meta" role="note">
+          {fill(UI_TEXT.playbookSpawnsNotAdmitted, {
+            auto: UI_TEXT.permissionModes.auto,
+            bypass: UI_TEXT.permissionModes.bypassPermissions,
+          })}
+        </p>
+      ) : null}
+    </>
+  )
 }
 
 export function PlaybookMap({

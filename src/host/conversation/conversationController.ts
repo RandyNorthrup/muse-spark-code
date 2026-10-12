@@ -447,7 +447,8 @@ export interface ConversationDeps {
     | ((
         message: unknown,
         reply: (answer: unknown) => void,
-        context: { readonly sessionId: string | undefined; readonly asksBeforeSpawn: boolean },
+        /** Whether this conversation is owed the line about unasked subagents (D96.17). */
+        hasSpawnGap: () => Promise<boolean> | undefined,
       ) => void)
     | undefined
   readonly surface: ChatSurface
@@ -1406,14 +1407,6 @@ export class ConversationController {
   private playbookPort: PlaybookConversation | undefined
   /** Child sessions, each with the subagent the host recorded it under (M116). */
   private readonly childAgents = new Map<string, string>()
-  /** Spawn requests the playbook was asked about and that went on to be shown, until resolved. */
-  private readonly spawnsAsked = new Set<string>()
-  /**
-   * Spawn requests approved and not yet followed by a child's row. Below
-   * zero, for good: Muse Code started a subagent nobody was asked about
-   * (D96.17).
-   */
-  private spawnsOwed = 0
   /** Mode choices and revocation wait for the outstanding owned request; the newest wins. */
   private reviewModeSettling: Promise<void> | undefined
   private permissionModeSelection = 0
@@ -1943,8 +1936,6 @@ export class ConversationController {
     this.playbookPort?.dispose()
     this.playbookPort = undefined
     this.childAgents.clear()
-    this.spawnsAsked.clear()
-    this.spawnsOwed = 0
     // A review's Plan mode goes with its session (M70): the next session
     // starts, resumes or is adopted in the mode the user had.
     this.releasePlanHold(true)
@@ -2428,8 +2419,9 @@ export class ConversationController {
     return true
   }
 
-  private onEvent(event: AgentEvent): void {
-    if (event.type === 'approvalRequested' && this.holdsSpawn(event)) {
+  /** `isAsked`: a spawn request the playbook was already asked about, on its way to the card. */
+  private onEvent(event: AgentEvent, isAsked = false): void {
+    if (!isAsked && event.type === 'approvalRequested' && this.holdsSpawn(event)) {
       return
     }
     // Draft parsing reads the original reply before asynchronous display hooks;
@@ -2485,15 +2477,12 @@ export class ConversationController {
         break
       }
       case 'approvalResolved': {
-        // A spawn request that was shown (M116, D96.17): approved, it speaks for
-        // one child's row; anything else ends the round the playbook opened.
-        if (this.spawnsAsked.delete(event.approvalId)) {
-          if (!event.decision.startsWith(APPROVED_DECISION)) {
-            this.playbookPort?.spawnDeclined(this.session?.sessionId)
-          } else if (this.spawnsOwed >= 0) {
-            this.spawnsOwed += 1
-          }
-        }
+        // The playbook knows which requests were a subagent's (M116, D96.17).
+        this.playbookPort?.approvalResolved(
+          this.session?.sessionId,
+          event.approvalId,
+          event.decision,
+        )
         this.questionApprovals.delete(event.approvalId)
         this.judgeCards.get(event.approvalId)?.discard()
         this.judgeCards.delete(event.approvalId)
@@ -2622,20 +2611,15 @@ export class ConversationController {
 
   /**
    * Remember a subagent row's child session, live or from a loaded history.
-   * `isStart`: the row began just now. A child Muse Code starts with no shown
-   * request before it means it does not ask here (D96.17).
+   * `isStart`: the row began just now; a child not seen before is the
+   * playbook's to know of (D96.17).
    */
   private noteSubagentRow(item: ItemSnapshot, isStart = false): void {
     if (item.kind !== SUBAGENT_ITEM_KIND || item.childSessionId === undefined) {
       return
     }
-    if (
-      isStart &&
-      this.spawnsOwed >= 0 &&
-      this.sessionKind === 'museCode' &&
-      !this.childSessionIds.has(item.childSessionId)
-    ) {
-      this.spawnsOwed -= 1
+    if (isStart && !this.childSessionIds.has(item.childSessionId)) {
+      this.playbookPort?.childBegan(this.session?.sessionId)
     }
     this.childSessionIds.add(item.childSessionId)
     if (item.subagentId === undefined) {
@@ -7284,7 +7268,7 @@ export class ConversationController {
   /**
    * This conversation's playbook (M116), from the window's lazy bundle on
    * first use. What it does lives there; the conversation lends it a notice,
-   * its backend and whether that backend asks before a spawn.
+   * its backend and who admits a subagent in that backend's mode now.
    */
   private playbook(): PlaybookConversation | undefined {
     this.playbookPort ??= this.deps.playbook?.({
@@ -7293,22 +7277,16 @@ export class ConversationController {
         this.post({ type: 'notice', level, text, ...(hasAction && { actions: ['openPlaybook'] }) })
       },
       backend: this.deps.ensureHost,
-      asksBeforeSpawn: () => this.asksBeforeSpawn(),
+      // The Model API's host admits each child itself; Muse Code asks only in the modes that prompt.
+      spawnAdmission: () => {
+        if ((this.sessionKind ?? this.deps.auth.backend) !== 'museCode') {
+          return 'host'
+        }
+        const mode = approvalModeFor(this.permissionMode, this.deps.hasApprovalUi)
+        return mode === 'promptUnmatched' || mode === 'denyUnmatched' ? 'asked' : 'unasked'
+      },
     })
     return this.playbookPort
-  }
-
-  /**
-   * Muse Code asks the host before a subagent only in the modes that prompt,
-   * and only while no subagent has started here unasked (an allow rule of the
-   * person's own, which the host cannot read; D96.17).
-   */
-  private asksBeforeSpawn(): boolean {
-    const mode = approvalModeFor(this.permissionMode, this.deps.hasApprovalUi)
-    return (
-      (this.sessionKind ?? this.deps.auth.backend) !== 'museCode' ||
-      ((mode === 'promptUnmatched' || mode === 'denyUnmatched') && this.spawnsOwed >= 0)
-    )
   }
 
   /**
@@ -7322,8 +7300,7 @@ export class ConversationController {
       session === undefined ||
       this.deps.playbook === undefined ||
       this.sessionKind !== 'museCode' ||
-      event.toolName !== SUBAGENT_SPAWN_TOOL ||
-      this.spawnsAsked.has(event.approvalId)
+      event.toolName !== SUBAGENT_SPAWN_TOOL
     ) {
       return false
     }
@@ -7350,8 +7327,7 @@ export class ConversationController {
     if (next === undefined || this.session !== session || this.isDisposed) {
       return
     }
-    this.spawnsAsked.add(next.approvalId)
-    this.onEvent(next)
+    this.onEvent(next, true)
   }
 
   /**
@@ -10387,7 +10363,7 @@ export class ConversationController {
           (answer) => {
             this.post({ type: 'playbook', message: answer })
           },
-          { sessionId: this.session?.sessionId, asksBeforeSpawn: this.asksBeforeSpawn() },
+          () => this.playbook()?.hasGap(this.session?.sessionId),
         )
         break
       }

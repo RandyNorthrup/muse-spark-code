@@ -2,13 +2,18 @@
 // file, a real git repository and its real hooks. What counts, what is left
 // alone, and what the third strike does to a conversation's next dispatch.
 import { randomUUID } from 'node:crypto'
-import { existsSync, mkdirSync, symlinkSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { UI_TEXT } from '../../src/shared/constants'
 import type { PlaybookRecord } from '../../src/shared/playbook'
 import type { ReviewBlock } from '../../src/shared/reviewFindings'
-import { reviewedChanges, type PanelChild } from '../../src/core/orchestration/panelLanes'
+import {
+  reviewedChanges,
+  type PanelChild,
+  type RealPath,
+} from '../../src/core/orchestration/panelLanes'
 import {
   PanelGovernor,
   type PanelModuleSummary,
@@ -41,6 +46,19 @@ const RACE = {
   class: 'concurrency',
 }
 const SCHEDULES = 'src/core/schedules'
+/** A file of the workspace named like an API key, which the journal never holds. Built here; nobody's key. */
+const UNNAMEABLE = `${SCHEDULES}/sk-${'x'.repeat(24)}.ts`
+
+/** Runs `work` as if on `platform`; the path rules stay the machine's own. */
+function onPlatform<T>(platform: NodeJS.Platform, work: () => T): T {
+  const real = process.platform
+  Object.defineProperty(process, 'platform', { value: platform })
+  try {
+    return work()
+  } finally {
+    Object.defineProperty(process, 'platform', { value: real })
+  }
+}
 
 const template: { made?: ReturnType<typeof panelRepositoryTemplate> } = {}
 const open: PanelRepository[] = []
@@ -383,6 +401,101 @@ describe('which file a path names', { timeout: GOVERNED_ROUND_TIMEOUT_MS }, () =
     expect(changes([PANEL_FILES.store], [])).toEqual([])
     expect(changes([PANEL_FILES.store], [{ ...CHILD, sessionId: SESSION }])).toEqual([])
     expect(changes([], [CHILD])).toEqual([])
+  })
+
+  it('refuses to place a path that cannot be read, and never takes it for somebody else’s file', () => {
+    const setup = governed()
+    const { workspace } = setup.repository
+    // A disk that refuses to read the store, and reads everything else.
+    const locked: RealPath = (absolute) => {
+      if (absolute.endsWith(path.basename(PANEL_FILES.store)))
+        throw Object.assign(new Error('EACCES: permission denied'), { code: 'EACCES' })
+      return realpathSync.native(absolute)
+    }
+    // The reviewed list and the child's both name the file that cannot be read.
+    expect(() => reviewedChanges(workspace, SESSION, [PANEL_FILES.store], [CHILD], locked)).toThrow(
+      UI_TEXT.playbookEvidenceUnreadable,
+    )
+    // Only the child's path cannot be read: it may be the reviewed file under another name.
+    const others = [{ ...CHILD, files: [PANEL_FILES.store] }]
+    expect(() => reviewedChanges(workspace, SESSION, [PANEL_FILES.clock], others, locked)).toThrow(
+      UI_TEXT.playbookEvidenceUnreadable,
+    )
+    // With no child's file to compare, nothing is read, so nothing can fail.
+    expect(reviewedChanges(workspace, SESSION, [PANEL_FILES.store], [], locked)).toEqual([])
+    expect(
+      reviewedChanges(workspace, SESSION, [PANEL_FILES.store], [{ ...CHILD, sessionId: SESSION }]),
+    ).toEqual([])
+    // A path that is missing, or outside the workspace, is known for what it is: not the child's.
+    const elsewhere = [
+      { ...CHILD, files: ['src/core/schedules/never-was.ts', path.join(tmpdir(), 'elsewhere.ts')] },
+    ]
+    expect(reviewedChanges(workspace, SESSION, [PANEL_FILES.clock], elsewhere, locked)).toEqual([])
+  })
+
+  it.skipIf(process.platform === 'win32')(
+    'finds a directory it may not enter unreadable, on macOS and Linux',
+    () => {
+      const setup = governed()
+      const { workspace } = setup.repository
+      const closed = path.join(workspace, 'src/core/closed')
+      mkdirSync(closed)
+      writeFileSync(path.join(closed, 'inner.ts'), '')
+      const inner = 'src/core/closed/inner.ts'
+      chmodSync(closed, 0o000)
+      try {
+        expect(() =>
+          reviewedChanges(workspace, SESSION, [inner], [{ ...CHILD, files: [inner] }]),
+        ).toThrow(UI_TEXT.playbookEvidenceUnreadable)
+        // The governor refuses the same review, by the same rule.
+        expect(() =>
+          setup.governor.openReview(randomUUID(), SESSION, [inner], [{ ...CHILD, files: [inner] }]),
+        ).toThrow(UI_TEXT.playbookEvidenceUnreadable)
+      } finally {
+        // The fixture is removed after the test: it has to be enterable again.
+        chmodSync(closed, 0o700)
+      }
+    },
+  )
+
+  it('cannot place a missing name shaped like a Windows short name there, and reads it as spelled elsewhere', () => {
+    const setup = governed()
+    const { workspace } = setup.repository
+    // Nothing is at `GONE~1.ts`. On Windows it may have been any long name's second name.
+    const short = `${SCHEDULES}/GONE~1.ts`
+    const child = { ...CHILD, files: [short] }
+    const placed = (platform: NodeJS.Platform) =>
+      onPlatform(platform, () => reviewedChanges(workspace, SESSION, [short], [child]))
+    expect(() => placed('win32')).toThrow(UI_TEXT.playbookEvidenceUnreadable)
+    for (const platform of ['linux', 'darwin'] as const)
+      expect(placed(platform)).toEqual([{ file: short, child }])
+  })
+
+  it('refuses a file of the workspace whose name the journal cannot hold, and never passes it over', () => {
+    const { workspace } = governed().repository
+    const child = { ...CHILD, files: [UNNAMEABLE] }
+    expect(() => reviewedChanges(workspace, SESSION, [UNNAMEABLE], [child])).toThrow(
+      UI_TEXT.playbookUnavailable,
+    )
+    // Beside a file the child did change it refuses too: the rest is not reviewed as if it were all.
+    expect(() =>
+      reviewedChanges(workspace, SESSION, [PANEL_FILES.store, UNNAMEABLE], [CHILD]),
+    ).toThrow(UI_TEXT.playbookUnavailable)
+  })
+
+  it('counts the round of a reply that names a file nobody can place, without that finding', () => {
+    const setup = governed()
+    // The reviewer's own words for a file: a name the journal cannot hold, and a path outside.
+    const stray = [UNNAMEABLE, path.join(tmpdir(), 'elsewhere.ts')]
+    const block = coveredReview([RACE, ...stray.map((file) => ({ ...RACE, file }))])
+    // Words in a reply may not undo the round: it counts, with the finding that can be placed.
+    expect(review(setup, block, [PANEL_FILES.store], [CHILD]).rounds).toEqual([
+      expect.objectContaining({
+        moduleKey: SCHEDULES,
+        round: 1,
+        findings: [expect.objectContaining({ file: PANEL_FILES.store })],
+      }),
+    ])
   })
 
   it('knows a file that is gone by its spelling, without regard to case on Windows alone', () => {

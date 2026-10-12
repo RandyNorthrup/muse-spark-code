@@ -63,9 +63,11 @@ export function fakePlaybookConversation(options: FakeConversationOptions = {}) 
     spawnRequest: vi.fn<PlaybookConversation['spawnRequest']>(
       options.spawnRequest ?? ((_sessionId, request) => Promise.resolve(request)),
     ),
-    spawnDeclined: vi.fn(),
+    approvalResolved: vi.fn(),
+    childBegan: vi.fn(),
     ended: vi.fn(),
     act: vi.fn(() => Promise.resolve()),
+    hasGap: vi.fn(() => Promise.resolve(options.gap !== undefined)),
     gap: vi.fn(() => Promise.resolve(options.gap)),
     dispose: vi.fn(),
   }

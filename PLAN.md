@@ -18501,6 +18501,51 @@ repository's own working rule (AGENTS.md rule 14).
       job is kill-on-close on its helper's own handle and is never forgotten
       before its end was seen; on macOS and Linux a lost supervisor's process
       group is ended by its caller (§9).
+    - **Review RVCM1166B (2026-10-11), five P2, all fixed as classes.**
+      One rule runs through them: what could not be read, loaded or ended is
+      a failure with its own name, never "nothing".
+      (1) A job a stopped worker left is the window's own until its end was
+      seen. A termination by name that fails keeps the name; it is tried
+      again before the next work and as the window closes, and a window
+      that closes with one still listed says so in its log (§9).
+      (2) The editor host's variables are matched by the platform's own
+      rule for a variable's name: without regard to case on Windows, where
+      a child reads `electron_run_as_node` as Electron's switch all the
+      same; as spelled elsewhere. One function, so the shell tools and the
+      playbook's commands have the same fix.
+      (3) A path that cannot be read is not a path outside the workspace:
+      `workspaceFile` answers "not the child's file" only for a resolved,
+      different identity. It throws, so the review is refused with the
+      reason, for a path (or workspace root) whose identity nothing can
+      tell: one that cannot be read, and on Windows a missing name shaped
+      like a short name (`NAME~1`), which may have stood for any long one
+      (elsewhere such a name is what it spells). It throws as well for a
+      file of the workspace whose name the journal cannot hold because it
+      reads as a secret, which used to be passed over. A review with no
+      child's file to compare resolves no path at all and stays ordinary.
+      One caller keeps "undefined" for all of these, on purpose: a
+      finding's file is the reviewer's own words, so a finding whose file
+      cannot be placed goes under no module, as one placed elsewhere does,
+      and the round is counted all the same; if it undid the round, a
+      reply's wording could keep a round from being counted.
+      (4) The panel's channel always answers a panel that asked. A bundle
+      that cannot load, or a hello that fails or is not answered within
+      `PLAYBOOK_PANEL_TIMEOUT_MS`, is `playbookFailed`; the Agent map says
+      the playbook is unavailable and offers Retry. Only a host that has no
+      playbook at all stays silent, and the map is then what it always was.
+      (5) Rows whose records could not be read are `playbookAgentsFailed`,
+      never an empty record: the map keeps what it showed, says it may be
+      out of date, and reads again on Retry.
+      **The sweep for that class** found four more in the conversation's
+      binding. A child's changed files were read with a budget of one
+      output page and a failed read counted as "changed nothing"; they are
+      now read whole (a stored patch page by page up to
+      `PATCH_DOCUMENT_MAX_PAGES`), and a child whose session or patch cannot
+      be read refuses the review. Evidence longer than the journal's bound
+      was cut to fit; it refuses now, and only when a child has a part in
+      the review. A journal that cannot say whether the "subagents start
+      unasked" line is owed answers `/playbook` with the unavailable words
+      and the map's hello with `playbookFailed`, never with "no gap".
 
 17. **Subagents a backend starts itself (C-M116-6, lead's ruling
     2026-10-11).** Item 16 binds the dispatches the person makes in the
@@ -36886,7 +36931,26 @@ D96.16 and D96.17. A series of commits, each reviewed.
      the playbook's bundle and the host only answers "is it over";
      `dist/playbook.js` 119,412 to 128,101 of 153,600; `dist/extension.js`
      560,104 to 560,259 of 614,400.
-6. **Restores.** The walked-back claims return with the code that makes
+6. **Review RVCM1166B of commits 2 to 4 (its own commit).** Five P2, each
+   fixed as a class with a regression test and a red drill, and a sweep of
+   the playbook's host and webview code for the class behind three of them
+   (D96.16, "Review RVCM1166B"; `docs/certification/m116.md`, "Commit 6").
+   The spawn-request bookkeeping of D96.17 moved out of the controller into
+   the binding in the same commit (lead's ruling): the controller forwards
+   an approval's resolution and a new child's row, and the binding alone
+   knows which requests were a subagent's, which round each opened and
+   whether a child began unasked. New suite `hostVariables`; new tests in
+   `playbookWindow`, `playbookGovernor`, `playbookConversation`,
+   `playbookPanelChannel`, `playbookWindowBundle`, `AgentMap` and
+   `conversationController`.
+   - **Bundle bytes at this commit** (kubuntu, production build; before is
+     item 5's commit): `dist/conversation.js` 254,362 to 254,077 of 256,000
+     (285 fewer: the bookkeeping left); `dist/modelApi.js` 530,861,
+     unchanged, pin 530,883; `dist/playbook.js` 128,101 to 130,206 of
+     153,600; `dist/extension.js` 560,259 to 560,367 of 614,400 (the
+     channel's typed failure); the webview's surface English 25,348 to
+     25,380 of 25,600 (one new string, the stale-record line).
+7. **Restores.** The walked-back claims return with the code that makes
    each true, in the wording D96.17 fixes; the certification and the red
    drills of item 5's suites land with them.
 
@@ -44461,6 +44525,20 @@ FIXM107DK4 qualification below supersedes that earlier claim.
     lost helper is a refused call and a kill, never a forgotten job.
     Follow-up: a public kill-on-close join on the type itself, at the next
     reviewed change to `native/windows/MuseSparkJob.cs`.
+  - **The window's side of the same rule (review RVCM1166B, P2,
+    2026-10-11).** The window forgot a stopped worker's jobs as it asked
+    for their end: one try, and a failed one was only logged. The names a
+    stopped worker leaves are now the window's own record, apart from the
+    live worker's list, each with the job type that can end it. A name
+    leaves that record only when a termination by name succeeded, which it
+    does only once the job has no member left or no longer exists. A try
+    that fails keeps the name; the
+    window tries again before it starts any further work and once more as
+    it closes, one pass at a time, and a window that closes with a name
+    still listed writes how many to its log. Residual, named: a window
+    cannot outlive its own close, so a job it could not end by then is
+    left to kill-on-close (the helper's death ends it) and to the log
+    line; nothing after the extension host exits can retry.
   - **The same bound on macOS and Linux.** There the call's containment is
     `runTreeSync`'s supervisor process. The supervisor now leads a process
     group of its own and the call is born into it (the supervisor refuses to

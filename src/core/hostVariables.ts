@@ -15,12 +15,26 @@ const HOST_ONLY_VARIABLES: readonly RegExp[] = [
   /^GDK_PIXBUF_.+$/,
 ]
 
-/** Whether a variable is the editor host's own, and so no child's to inherit. */
-export function isHostOnlyVariable(name: string): boolean {
-  return HOST_ONLY_VARIABLES.some((pattern) => pattern.test(name))
+/**
+ * Whether a variable is the editor host's own, and so no child's to inherit.
+ * A name is matched by its platform's own rule: Windows names variables
+ * without regard to case, so `electron_run_as_node` is the switch there (a
+ * child reads it as `ELECTRON_RUN_AS_NODE`), and another variable elsewhere.
+ */
+export function isHostOnlyVariable(
+  name: string,
+  platform: NodeJS.Platform = process.platform,
+): boolean {
+  const spelled = platform === 'win32' ? name.toUpperCase() : name
+  return HOST_ONLY_VARIABLES.some((pattern) => pattern.test(spelled))
 }
 
 /** `env` without the editor host's own variables. */
-export function withoutHostVariables(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
-  return Object.fromEntries(Object.entries(env).filter(([name]) => !isHostOnlyVariable(name)))
+export function withoutHostVariables(
+  env: NodeJS.ProcessEnv,
+  platform: NodeJS.Platform = process.platform,
+): NodeJS.ProcessEnv {
+  return Object.fromEntries(
+    Object.entries(env).filter(([name]) => !isHostOnlyVariable(name, platform)),
+  )
 }

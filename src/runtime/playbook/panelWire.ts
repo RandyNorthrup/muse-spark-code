@@ -75,13 +75,29 @@ export const playbookHelloSchema = z.strictObject({
    */
   spawnGap: z.optional(z.boolean()),
 })
-/** The rows' records; an empty answer when the journal could not be read. */
+/**
+ * The window's playbook could not be asked at all: its bundle did not load,
+ * or the hello's own read failed or did not answer in time. The map says so
+ * and offers to ask again; it is never left to look like a host without one.
+ */
+export const playbookFailedSchema = z.strictObject({ type: z.literal('playbookFailed') })
+/** The rows' records, as the journal has them: empty when it holds none for them. */
 export const playbookAgentsSchema = z.strictObject({
   type: z.literal('playbookAgents'),
   requestId,
   records: playbookAgentRecordsSchema,
 })
+/**
+ * The rows' records could not be read. Nothing is said about what they hold:
+ * the map keeps what it showed, and says it may be out of date.
+ */
+export const playbookAgentsFailedSchema = z.strictObject({
+  type: z.literal('playbookAgentsFailed'),
+  requestId,
+})
 export type PlaybookPanelResponse =
   | z.infer<typeof playbookResponseSchema>
   | z.infer<typeof playbookHelloSchema>
+  | z.infer<typeof playbookFailedSchema>
   | z.infer<typeof playbookAgentsSchema>
+  | z.infer<typeof playbookAgentsFailedSchema>

@@ -30,7 +30,11 @@ import {
 import { UI_TEXT, uiLocale } from '../../shared/l10n/text'
 import type { PlaybookRecord, PlaybookWhyNote } from '../../shared/playbook'
 import type { TurnPart } from '../../core/agent/agentBackend'
-import { reviewedChanges, type PanelChild } from '../../core/orchestration/panelLanes'
+import {
+  reviewedChanges,
+  type PanelChild,
+  type RealPath,
+} from '../../core/orchestration/panelLanes'
 import type {
   PanelAnswer,
   PanelDesignFields,
@@ -88,6 +92,8 @@ export interface PlaybookWindowDeps {
   readonly endJob?: (name: string, assembly: string, systemRoot: string) => Promise<void>
   /** Looks at the journal folder (`fs.access`); a test stands in a failing disk. */
   readonly access?: (folder: string) => Promise<void>
+  /** Resolves a reviewed or changed path (`realpath.native`); a test stands in a failing disk. */
+  readonly realPath?: RealPath
 }
 
 /** The policy refused, and said why. */
@@ -221,8 +227,16 @@ export function createPlaybookWindow(deps: PlaybookWindowDeps): PlaybookWindow {
   let starting: Promise<PlaybookWorkerHandle> | undefined
   let live: PlaybookWorkerHandle | undefined
   let assembly: string | undefined
-  /** Jobs whose end the worker has not seen. */
+  /** Jobs whose end the live worker has not seen. */
   let jobs: readonly string[] = []
+  /**
+   * Jobs a stopped worker left, each with the job type that can end it. They
+   * are this window's own: a name leaves only when its end was seen, and an
+   * end that failed is tried again before the next work and as the window
+   * closes.
+   */
+  const unended = new Map<string, string | undefined>()
+  let ending: Promise<void> | undefined
   let watchdog: ReturnType<typeof setTimeout> | undefined
   let isDisposed = false
 
@@ -231,12 +245,41 @@ export function createPlaybookWindow(deps: PlaybookWindowDeps): PlaybookWindow {
     for (const events of listeners) tell(events)
   }
 
-  const endJob = async (name: string, compiled: string, systemRoot: string): Promise<void> => {
-    try {
-      await (deps.endJob ?? endJobByName)(name, compiled, systemRoot)
-    } catch {
-      deps.log.warn('A playbook job was not seen to end when it was ended by name')
+  /** One try at every job a stopped worker left: a name leaves only when its end was seen. */
+  const endPass = async (): Promise<void> => {
+    for (const [name, compiled] of unended) {
+      try {
+        // A job with nothing that can end it stays listed, and is said so as the window closes.
+        if (compiled === undefined || deps.systemRoot === undefined) throw unavailable()
+        await (deps.endJob ?? endJobByName)(name, compiled, deps.systemRoot)
+        unended.delete(name)
+      } catch {
+        deps.log.warn(
+          'A playbook job was not seen to end when it was ended by name; it is tried again',
+        )
+      }
     }
+  }
+
+  /** Ends, by name, the jobs a stopped worker left; one pass at a time, shared by all who wait on it. */
+  const endUnended = async (): Promise<void> => {
+    ending ??= endPass()
+    const pass = ending
+    try {
+      await pass
+    } finally {
+      // The next one who asks starts a pass of its own.
+      if (ending === pass) ending = undefined
+    }
+  }
+
+  /** The window's last try at the jobs it still owns; what it could not end is said. */
+  const endAtClose = async (): Promise<void> => {
+    await endUnended()
+    if (unended.size > 0)
+      deps.log.error(
+        `The window closed with ${String(unended.size)} playbook job(s) whose end was not seen`,
+      )
   }
 
   const terminate = async (handle: PlaybookWorkerHandle): Promise<void> => {
@@ -265,11 +308,11 @@ export function createPlaybookWindow(deps: PlaybookWindowDeps): PlaybookWindow {
     dispatches.clear()
     for (const handlers of running) handlers.abort()
     for (const request of waiting) request.reject(unavailable())
-    // Every job the worker had not seen end is this window's to end, by name.
-    const open = jobs
+    // Every job the worker had not seen end is this window's to end, by name,
+    // and stays its own until that end was seen.
+    for (const name of jobs) unended.set(name, assembly)
     jobs = []
-    if (assembly !== undefined && deps.systemRoot !== undefined)
-      for (const name of open) void endJob(name, assembly, deps.systemRoot)
+    void endUnended()
     void terminate(handle)
   }
 
@@ -425,6 +468,8 @@ export function createPlaybookWindow(deps: PlaybookWindowDeps): PlaybookWindow {
     build: (id: number) => ToPlaybookWorker,
     itemId?: string,
   ): Promise<z.infer<S>> => {
+    // A stopped worker's jobs come before any new work: ended, or tried again.
+    if (unended.size > 0) await endUnended()
     sequence += 1
     const id = sequence
     const answered = new Promise<unknown>((resolve, reject) => {
@@ -617,10 +662,12 @@ export function createPlaybookWindow(deps: PlaybookWindowDeps): PlaybookWindow {
         : [],
     openReview: async (sessionId, files, children) => {
       // The governor's own classification, before any worker or journal read:
-      // no reviewed file is a child's, and the review is an ordinary one.
+      // no reviewed file is a child's, and the review is an ordinary one. A
+      // path that cannot be read is neither: that throws here, with its
+      // reason, and the review is not sent.
       const isOrchestrated =
         deps.workspaceRoot !== undefined &&
-        reviewedChanges(deps.workspaceRoot, sessionId, files, children).length > 0
+        reviewedChanges(deps.workspaceRoot, sessionId, files, children, deps.realPath).length > 0
       if (isOrchestrated && !deps.isWorkspaceTrusted()) throw unavailable()
       const reviewId = randomUUID()
       const opening = isOrchestrated
@@ -673,6 +720,8 @@ export function createPlaybookWindow(deps: PlaybookWindowDeps): PlaybookWindow {
     dispose: () => {
       isDisposed = true
       if (live !== undefined) stop(live, undefined)
+      // The last try for every job still listed, and what could not be ended is said.
+      void endAtClose()
     },
   }
 }

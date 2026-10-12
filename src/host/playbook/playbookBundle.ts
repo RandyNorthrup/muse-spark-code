@@ -8,6 +8,7 @@ import { UI_TEXT } from '../../shared/constants'
 import { lazyBundleLoader } from '../lazyBundle'
 import type { Logger } from '../logger'
 import type * as PlaybookEntry from './playbookEntry'
+import type { PlaybookPanel, PlaybookPanelGap } from './playbookPanel'
 
 /** Whether a required module is the window's playbook bundle (PLAN.md §8). */
 export function isPlaybookWindowBundle(value: unknown): value is typeof PlaybookEntry {
@@ -17,6 +18,25 @@ export function isPlaybookWindowBundle(value: unknown): value is typeof Playbook
     'createPlaybookWindow' in value &&
     typeof value.createPlaybookWindow === 'function'
   )
+}
+
+/**
+ * The panel's channel to the window's playbook, over a bundle that may not
+ * load. The loader logs why; the panel is answered `playbookFailed` (the
+ * word `panelWire.ts` gives a hello that could not be answered), so the
+ * Agent map says the playbook is unavailable and offers to ask again. It is
+ * never left without an answer, which is what a host with no playbook gives.
+ */
+export function playbookPanelChannel(
+  load: () => { readonly panel: PlaybookPanel },
+): (message: unknown, reply: (answer: unknown) => void, hasSpawnGap: PlaybookPanelGap) => void {
+  return (message, reply, hasSpawnGap) => {
+    try {
+      void load().panel(message, reply, hasSpawnGap)
+    } catch {
+      reply({ type: 'playbookFailed' })
+    }
+  }
 }
 
 /** The bundle, required on first use; a missing or wrong file is unavailable, and tried again. */

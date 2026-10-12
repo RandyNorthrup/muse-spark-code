@@ -19,6 +19,7 @@ import {
 import { answerPlaybookCommand } from '../../src/host/playbook/playbookAnswer'
 import {
   isPlaybookWindowBundle,
+  playbookPanelChannel,
   playbookWindowLoader,
 } from '../../src/host/playbook/playbookBundle'
 import { playbookSnapshotSchema } from '../../src/runtime/playbook/command'
@@ -124,6 +125,62 @@ describe('playbookWindowLoader', () => {
   it('loads the built bundle once and keeps it', () => {
     const load = playbookWindowLoader(built.file, new FakeLogOutputChannel())
     expect(load()).toBe(load())
+  })
+})
+
+describe('playbookPanelChannel', () => {
+  it('answers the panel that the playbook failed when its bundle cannot load, whatever was asked', () => {
+    const log = new FakeLogOutputChannel()
+    const load = playbookWindowLoader(path.join(built.folder, 'no-such-bundle.js'), log)
+    const loaded = vi.fn(() => load().createPlaybookWindow)
+    // What production does: the loader is called for each message, and throws for each.
+    const channel = playbookPanelChannel(() => {
+      loaded()
+      throw new Error('The loader returned without a bundle')
+    })
+    const replies: unknown[] = []
+    for (const message of [
+      { type: 'playbookHello' },
+      { type: 'playbookAgents', requestId: 1, children: [] },
+      { type: 'playbookRead', bridgeId: BRIDGE, workspaceId: 'journal-1', requestId: 2 },
+    ])
+      channel(
+        message,
+        (reply) => {
+          replies.push(reply)
+        },
+        () => undefined,
+      )
+    expect(replies).toEqual([
+      { type: 'playbookFailed' },
+      { type: 'playbookFailed' },
+      { type: 'playbookFailed' },
+    ])
+    expect(loaded).toHaveBeenCalledTimes(3)
+    // The loader said why, in the log, and nothing of it reached the panel.
+    expect(log.error).toHaveBeenCalled()
+  })
+
+  it('hands a message to the bundle that loaded, with the conversation’s own question', async () => {
+    const setup = shipped()
+    try {
+      const replies: unknown[] = []
+      const asked = vi.fn(() => Promise.resolve(true))
+      playbookPanelChannel(() => setup.window)(
+        { type: 'playbookHello' },
+        (reply) => {
+          replies.push(reply)
+        },
+        asked,
+      )
+      await vi.waitFor(() => {
+        expect(replies).toHaveLength(1)
+      })
+      expect(playbookHelloSchema.parse(replies[0])).toMatchObject({ spawnGap: true })
+      expect(asked).toHaveBeenCalledOnce()
+    } finally {
+      await setup.remove()
+    }
   })
 })
 

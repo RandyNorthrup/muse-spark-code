@@ -108,7 +108,7 @@ import { MuseCodeHost } from './core/backends/musecode/MuseCodeHost'
 import { agentDataFolder } from './runtime/dataFolder'
 import { requireFile } from './host/lazyBundle'
 import type { PlaybookSource } from './host/playbook/playbookAnswer'
-import { playbookWindowLoader } from './host/playbook/playbookBundle'
+import { playbookPanelChannel, playbookWindowLoader } from './host/playbook/playbookBundle'
 import type { PlaybookWindowBundle } from './host/playbook/playbookEntry'
 import { isJudgeEngineOn } from './core/judge/engine'
 import { promptBundleLoader } from './host/prompts/promptBundle'
@@ -3395,13 +3395,7 @@ async function activateWindow(
             log,
           } satisfies PlaybookSource,
           playbook: (host) => playbook().conversation(host),
-          playbookPanel: (message, reply, panel) => {
-            try {
-              void playbook().panel(message, reply, panel)
-            } catch {
-              // The loader logged why; the map then shows no playbook.
-            }
-          },
+          playbookPanel: playbookPanelChannel(playbook),
           tasksTab,
           auth,
           ensureHost: ensureSelectedHost,
