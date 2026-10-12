@@ -307,6 +307,20 @@ happened, not what was planned; superseded entries are kept.
   the route matrix is driven by both the provider registry and the plan-key
   registry. The lead capture recipes run as written.
 
+- The review round's findings on that refusal are fixed as a class (M105
+  lane V R4, RVCM1054C): the Copilot client itself raises the shared typed
+  refusal with the model's own sentence for a held video (and for an image
+  the model cannot take) before any request, instead of the generic
+  "Copilot models are unavailable" text; the Meta passthrough is pinned to
+  rethrow the refusal unchanged; the plan-key route runs through the real
+  production client; the ACP agent's unreachable start-rejection branch is
+  deleted and the real session path (failed turn carrying the sentence as
+  its reason) is pinned through the real agent; headless exec reports the
+  sentence in both its error and its incomplete reason with exit code 4 and
+  no model request sent; and the lead capture recipes no longer waste or
+  mis-record a paid call. The editor shows an ACP failure as "Internal
+  error: <sentence>", today's shape for every failed turn there.
+
 ## [0.17.1] - 2026-10-10
 
 ### Highlights
