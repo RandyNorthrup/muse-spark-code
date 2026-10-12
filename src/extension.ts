@@ -2566,6 +2566,11 @@ async function activateWindow(
         ? meta
         : await subscriptionFeatures().createClient(meta),
     getProviderAccountId: () => subscriptionFeatures().accountId(),
+    // RVCM1062B P1/P2: no standalone registry here. The entry binds the
+    // selected record through the session client's own resolver, which is
+    // the subscription-aware service (shared plan identity and usage
+    // ownership) or bare Meta; a separate service lost plan usage and
+    // rejected subscription models.
     log,
     // Each Model API turn's unit (M86): its record before it runs, its own
     // recorded writes while it does, then its writes drained, its unit folded

@@ -47,6 +47,16 @@ On CI or another rasterization environment the recorded Git revision is
 rendered beside the candidate. Fetch that revision if a shallow checkout does
 not have it; a missing source or screenshot fails, never skips.
 
+The capture inputs are one list, `scripts/lib/captureInputs.mjs`: `src`,
+`design`, `test/harness`, `scripts/build.mjs`, `scripts/lib`,
+`package.json` and `package-lock.json`. `CHANGELOG.md` is not one: the
+What's New scenes render a fixed fixture
+(`test/harness/whats-new/CHANGELOG.fixture.md`, two made-up releases and a
+fixed version), so a release's notes and its version move no frame. The
+fixture must hold every kind of part the real notes use;
+`test/unit/whatsNewFixture.test.mjs` names a missing kind, and adding it to
+the fixture means re-rendering those scenes.
+
 Commit capture inputs, run an update with a named review and a fresh external
 archive directory, inspect the candidate images, then commit the manifest.
 Normal checks never rewrite it. Keep full-resolution capture sets out of git;
@@ -489,6 +499,17 @@ never a literal in the code:
   duplicates `en.ts` or stops loading it. Each lazily loaded bundle keeps its
   own language state, so one that reads `UI_TEXT` must install the caller's
   table in its factory.
+- **A name one bundle imports from another** exists at run time only if the
+  other bundle's entry exports it. The build points imports of some shared
+  modules at the bundle that carries them (`transport.ts`, `sse.ts` and
+  `ndjson.ts` at `dist/modelApi.js`, whose entry is
+  `src/host/backend/modelApiEntry.ts`; `usdSchema.ts` at
+  `dist/modelApiBoundaries.js`, whose entry is
+  `src/shared/modelApiBoundariesEntry.ts`).
+  TypeScript checks the import against the source module and cannot see a
+  name the entry lacks. `npm run build` reads the built bundles and fails on
+  such a member, and `test/unit/modelApiEntryExports.test.ts` names the file
+  and the import for the Model API bundle.
 
 `npm run check:l10n` checks all of this. It fails a key missing from a
 translation, a changed `{slot}`, a wrong set of plural forms, and a

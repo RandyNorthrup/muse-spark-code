@@ -1,5 +1,22 @@
 # PLAN — Muse Spark for VS Code (unofficial)
 
+**VISFIX: release notes move no screenshot (2026-10-11, host with the Mac
+mini and linuxlt; before 0.17.2).** Lead's ruling after REL0171C's finding
+that a `CHANGELOG.md` entry or a version bump moved 108 What's New frames and
+cost a 73 to 113 minute reviewed render per release. The three What's New
+scenes (`whats-new`, `whats-new-footer`, `whats-new-highlights`) render a
+checked-in fixture of two fixed releases and a fixed version
+(`test/harness/whats-new/CHANGELOG.fixture.md`) through the real builder and
+schema; the frames verify the layout, the text gates verify the real text. A
+guard parses the real notes of the two newest releases with the same builder
+and fails on a kind of part the fixture lacks. The one list of capture inputs
+(`scripts/lib/captureInputs.mjs`, read by the reviewed update's guard and
+the candidate's identity) loses `CHANGELOG.md` and gains `scripts/lib`,
+`package.json` and `package-lock.json`, which can move pixels. One reviewed
+update render follows with the fixture in place; after it a release with
+notes and a version bump needs none. A scene-filtered update is left to the
+train. Certification: `docs/certification/visfix.md`.
+
 **REL0171C release assembly (2026-10-11, host with Kubuntu, the Mac mini,
 Win11 and linuxlt; 0.17.1).** Merge the accepted share-preview fix (SHAREFIX
 `a7052b708`) and the truth pass (C-X-1 `99e9b4106`) into `rel0171/final`.
@@ -774,6 +791,14 @@ re-measured and ratcheted **down** when the media redesign
 Evidence: `docs/certification/int0170-combined.md`, Bundle regressions after
 the lane merges (INT0170).
 
+**Train 0.18.0, Model API pin (2026-10-11, macbook).** The pin is re-measured
+at **532,537 B** on `b7f9de08a6` (train `af67368a22` + argument previews
+`83f8da887`, +1,854 B of intended code), lead decision 2026-10-11 15:45 PT;
+cap unchanged; ratchets down when `fix/modelapi-diet` merges. The train alone
+measured 530,683 B after TRAINACT, the branch on its own base 529,946 B.
+Evidence: `docs/certification/m106-capability-binding.md`, the publication
+record of the train merge.
+
 **MODELAPIDIET (2026-10-11, macmini rig).** The Model API pin moves
 **530,883 → 516,264 B** (14,419 B saved, cap unchanged at 537,600 B): the
 hook call fields (`modelCallHooks.ts`), argument previews
@@ -799,6 +824,27 @@ Both turn-ending helper failures read installed-language UI text from all
 rounded up to the next 25 KiB multiple (51,200 B). Certify the removed-VSIX-line
 red drill with byte-exact restoration and run all dependent suites at the
 repository deadlines; full quality remains the integration lead's gate.
+
+**HOTFIX0181, cross-bundle members (2026-10-12, kubuntu).** The build points
+every import of `transport.ts`, `sse.ts` and `ndjson.ts` outside
+`dist/modelApi.js` at that bundle (`deferredCohort`), which exports what
+`src/host/backend/modelApiEntry.ts` exports and nothing else. 0.18.0 added
+three names to `transport.ts` that the provider bundles import and the entry
+did not export; every source check passed and the built bundles called
+`undefined`. The split gate now reads every built `dist/*.js`: each member a
+bundle reads from a sibling bundle it loads must be in the export list in the
+sibling's own text (`scripts/lib/bundleExports.mjs`), and a run that compared
+nothing with `dist/modelApi.js` or `dist/modelApiBoundaries.js` fails. Its
+first run found `canonicalUsd` missing from the boundaries bundle in the same
+way. The three export names take `dist/modelApi.js` from
+532,537 B to **532,827 B** (+290 B), 4,773 B under the 525 KiB cap, which is
+unchanged. The pin of the bundle test is re-measured at that size for 0.18.1
+(owner's decision, 2026-10-12): each name is in the export map and in the
+export annotation, with its getter, and they are exports rather than copies in
+the provider bundles because the state they share lives in `transport.ts`
+once per process. The pin still ratchets down when `fix/modelapi-diet`
+merges. Evidence:
+`docs/certification/hotfix-0181-bundle-exports.md`.
 
 **INT0170 resume (2026-10-08, kubuntu).** Merging `m107/w-history` and
 `rel017/startup2` put five budgets over unchanged caps; each is fixed at its
@@ -7737,7 +7783,10 @@ changes nothing (U14).
      - Replay bytes equal serial execution's.
      - `museSpark.modelApiParallelReads` (default on) turns it off.
    - **Output cap per model.** It comes from the record's `output.maxTokens`;
-     Meta's models get the recommended 131,072 (from 32,768). The reservation
+     Meta's models in VS Code and interactive ACP get the recommended 131,072
+     (from 32,768). Headless exec requests at most 32,768 output tokens, or
+     the record's smaller maximum: its worst-case run-ledger reservation
+     makes a larger ceiling a separate money decision. The reservation
      clamps it to what the budget allows. One continuation follows an
      `incomplete` reply for `max_output_tokens`
      (`MODEL_API_CONTINUATIONS_MAX` = 1), then a notice. Tool calls in a
@@ -27046,6 +27095,104 @@ every Model API user in every editor.
 
 ### M106 — Agent-loop wire guarantees (D86)
 
+**C-M106-1 capture completion (2026-10-10, macmini).** Capture the installed
+Muse Code 1.4.4-R5419.1 catalogue, effort and lifecycle frames in an empty
+temporary workspace, using only the rig's own CLI sign-in and contributor
+model. Record feedback's actual refusal or receipt with both file and
+session-record disclosure off, and re-check the removed delete method.
+Count commands and model attempts, scrub profile paths and account data, and
+retain frame provenance under `test/fixtures/m106/`. For Meta's missing raw
+U9 delta/done, status and output-cap evidence, supply a bounded stdin-key
+capture script and fake-only output checks; the lead runs it with the key.
+Every other provider row names its missing credential or local server.
+No production capability is enabled by this lane; C-M106-2 owns the selected
+record bindings, C-M106-3 owns native readers and C-M106-4 owns health/team
+surfaces. The lane brief forbids aggregate quality and branch integration;
+scoped direct rig checks precede the lead's full gate and review.
+
+**C-M106-1 rig results.** Four foreground CLI probes made 18 MSP requests
+and zero model attempts. Fixtures now preserve the 1.4.4 effort catalogue,
+effort changes, session start/close, the note-only feedback upload receipt,
+and the ephemeral-feedback/delete refusals. The Meta collector is verified
+with fake services: 35 owning tests and 26 failing guard drills with exact
+SHA-256 restores; five-project typecheck and the scoped static/build gates
+pass. Raw Meta delta/done, fresh status/output-cap and every other provider
+row remain waiting for the named key or local runtime. Durable History's
+`session/listChanged` remains uncaptured. Lead review, Windows/Linux runs,
+live receipts and M106's release checklist remain open; details are in
+`docs/certification/m106-completion-captures.md`.
+
+**C-M106-2 production binding (2026-10-10, kubuntu).** The Model API bundle
+entry supplies `argumentPreviewCapabilities` and `modelOutputMaxTokens` from
+the captured Meta record when no caller provides them
+(`modelCapabilities.ts`, `modelApiEntry.ts`), so the single binding serves
+VS Code, ACP and exec through their shared entry: previews stream on the
+U9-captured `muse-spark-1.3-contributor` model in VS Code and ACP, Meta turns
+in VS Code and interactive ACP request the documented 131,072-token cap.
+Headless exec requests at most 32,768 output tokens (or the record’s smaller
+maximum) to preserve its worst-case reservation; unobserved
+models keep today's stream and the legacy 32,768-token cap. Headless `exec`
+drops every `tool_call`/`tool_call_update` before its sink, so it records
+completed tools only and never shows live previews. The entry's default cap
+supplier provides the bare Meta default, while the host reads a qualified
+request's output maximum directly from its resolved record; the ACP
+translator already renders record-emitted previews. R3 (RVCM1062B, same day)
+withdrew both standalone registry suppliers: the entry binds the selected
+record through the session client's own resolver (accounting-wrapped
+headless, subscription-aware extension/ACP, with the registry as fallback),
+keeping budget admission, subscription models, plan usage and the interactive
+ACP cap; offered IDE/MCP tools render preview text from their declared
+string fields; the preview reference names VS Code and ACP. R4 (RVCM1062C)
+limited preview fields to offered tools and resolved before compaction
+builders. R5 (RVCM1062D) preserves host preview metadata through strict
+conversion and carries one resolved record through each response or count
+request, including caps, tools, admission and accounting; stale same-ref
+records refuse, and a switched selection rebuilds from its new record. The lead's
+2026-10-10 live run closed the receipts blocker (raw 16-frame U9 stream
+proves declared-tool TEXT; the 1-token refusal documents the 16-token
+minimum the collector probes next run). Acceptance 1, 6 and 8 hold at the
+host level with feature-off bytes unchanged; the execute-on-a-delta drill,
+the guard-removal red drill and the six R3 drills (SHA-256 byte-exact
+restores) are recorded in
+`docs/certification/m106-capability-binding.md`. Open for the lead:
+per-model U9 rows beyond the contributor model, qualified-model preview
+records once a streaming-argument capture attests one, and Codex/Grok
+review.
+
+**C-M106-2 R10 headless cap repair (2026-10-11, kubuntu).** First reproduce
+c113d3aae's 51 exec failures at repository timeouts. Headless exec keeps its
+32,768-token cap: its ledger reserves each request's worst case before dispatch,
+and quadrupling that reservation is a separate money decision. Resolve one run
+cap from the selected record (the smaller of its maximum and exec's cap, refusing
+below the existing minimum); bind the body, schema, ledger shape check and start
+reservation to that value. VS Code and interactive ACP retain their documented
+record maxima. Add real-stack and fixture-wide agreement regressions, certify
+red drills, run every dependent suite for the branch's complete source diff,
+correct the output-cap claims and translate a real argument-preview help summary.
+The dependent exec replay also revealed that preview-started edits had no
+locations until promotion: carry the completed arguments’ locations through ACP
+promotion and refresh headless edit metadata, while continuing to suppress
+preview payloads. Aggregate quality remains lead-owned under the explicit
+rig/shared brief.
+
+**C-M106-2 R5 review repairs (RVCM1062D, 2026-10-10, kubuntu).** Close both
+P2 findings and their siblings today. Strict-tool conversion preserves the
+host's curated preview-field descriptor, including an explicitly absent
+field list, without serializing host metadata. Every host definition carries
+that marker, including recall and injected vault/schedule tools with no
+curated fields, so none is mistaken for a declared external tool. Each response and token-count
+request resolves its selected record before building its body; that exact
+object supplies policy, output limits, admission and accounting. Hook-time
+configuration invalidation refuses the stale request; a changed selection
+rebuilds the whole request from its new record. No second resolution may
+replace a record underneath an existing body. Add strict-on/off hidden-field,
+same-ref replacement and count-order regressions, break each guard and restore
+byte-exact, and record results in `docs/certification/m106-capability-binding.md`.
+The shared core serves VS Code, ACP and exec without changing preview surfaces,
+consent, defaults, wire shapes or dependencies. The rig brief forbids aggregate
+quality and integration here; the lead retains those gates and independent
+review.
+
 **M106W continuation 3 (2026-10-06, macmini).** Resolve the 15 full-suite
 blockers recorded by W: reconcile only D86-authorized behavior changes, repair
 stale fake package/capability/lazy UI fixtures, and fix shipped frame coverage.
@@ -27574,7 +27721,9 @@ in `docs/certification/m106-r.md`; no RVM106R residual remains.
      - `then_run` is unchanged.
      - Replay bytes equal serial execution's, for generated batches (a
        property test).
-  8. **Output.** Meta's cap is 131,072, clamped by the budget. One
+  8. **Output.** Meta's cap in VS Code and interactive ACP is 131,072,
+     clamped by the budget. Headless exec requests at most 32,768 tokens,
+     or the record’s smaller maximum, preserving its worst-case reservation. One
      continuation follows `max_output_tokens`, then a notice. Calls in a
      cut-short reply are answered with an error, never run.
   9. **The repeat guard.** The third identical call with the same result is
@@ -34349,6 +34498,47 @@ typechecks, deadcode, duplication, localization, host API, cycles and production
 build. The lead retains integrated quality and the multi-OS matrix. No gate is
 weakened. The v2 headless money contract remains private/unsupported pending
 M80’s hosted/live receipts; this lane uses fake transports only.
+**C-M106-1 bounded capture certification (2026-10-10).** The explicit rig
+brief forbids aggregate quality, full-suite runs and branch integration.
+Run whole owning files at repository timeouts, all five typechecks and the
+existing scoped lint, format, deadcode, duplication, localization, reference,
+host API, roadmap and production build gates. The lead retains integrated
+quality, Windows/Linux execution and live Meta/provider receipts because no
+key is supplied here. The CLI probes use ephemeral empty workspaces and no
+model turn; only the explicitly scoped synthetic note is uploaded, with
+both disclosures off. No guard, hook, timeout, cap or dependency is changed.
+Evidence: `docs/certification/m106-completion-captures.md`.
+**C-M106-2 R10 bounded dependent certification (2026-10-11).** The rig
+brief explicitly adds every dependent suite for the whole branch's source
+diff against 82d50d5e4, including all shared host/runtime and English-table
+consumers. Discover the full graph with Vitest's related selector, then run
+`npx vitest related --run` in complete three-file batches preserving the
+repository's configuration and deadlines. Keep Vitest's public runner open
+between batches if repeated cold setup threatens the time box; use the same
+related selector, three-file bound, ordinary project setup and deadlines. Aggregate quality, independent
+review and the multi-OS release matrix remain lead-owned. No gate or cap is
+weakened; record every outcome and compare any red with the clean base.
+Evidence: `docs/certification/m106-capability-binding.md`.
+
+**R10 time-box deferral (2026-10-11).** The whole-branch related graph has
+1,135 files. The owner's 75-minute rig limit permits 875 complete files here;
+260 remain explicitly unrun, listed individually in
+`docs/certification/m106-r10-dependents.json`. Final observed results are
+19,628 passed, zero failed and 102 existing platform/opt-in skips. The two
+migration timeouts pass on both the branch replay and clean base; the cap
+callback assertion now verifies the resolved record and passes. The complete
+dependent gate remains outstanding; this record does not certify those
+260 files or claim release readiness.
+
+**C-M106-2 R5 bounded repair certification (2026-10-10).** The rig/shared
+brief forbids aggregate quality, full-suite runs and branch integration.
+Run the owning whole test files at repository timeouts with at most three
+workers/files per invocation, all five typechecks, changed-file lint and
+format, deadcode, duplication, localization, reference, host API, plan,
+roadmap and production build. Every new guard must fail its regression in a
+deliberate drill and be restored byte-exact. The lead retains aggregate
+quality, independent review and the multi-OS release matrix; no gate is
+weakened. Evidence: `docs/certification/m106-capability-binding.md`.
 **REDM106L1 scoped certification (2026-10-06).** The rig lane brief and
 shared rules prohibit aggregate `npm run quality`; the lead owns the full
 integration gate. Run all required scoped typechecks, changed-file lint and
@@ -40128,6 +40318,75 @@ Unresolved items remain delivery/security gaps, not accepted legal conclusions:
   Platform/live release receipts remain separate requirements.
 
 ## 10. Definition of done and release records
+
+**0.18.1 preparation (2026-10-12, release branch).** `hotfix/0.18.1` is cut from
+main at `f8435aaac` and carries the extension version 0.18.1 and the dated
+`CHANGELOG.md` `[0.18.1]` section: fixes only. Released 0.18.0 could not complete
+a turn on a configured provider, a ChatGPT plan or Copilot, in any host.
+Cause: the build points every other bundle's import of `transport.ts` at
+`dist/modelApi.js`, and that bundle's entry did not export the three
+confirmed-dispatch names 0.18.0 added (`assertConfirmedAllowed`,
+`isStaleConfirmedError`, `noteConfirmedRequestStarted`). TypeScript and the
+source tests check such an import against the source module, so nothing
+failed until the built bundles ran. The entry exports them, and the split
+gate now reads the built bundles and fails on a member a sibling bundle does
+not export. On its first run that gate found a second name of the same kind:
+`canonicalUsd`, which `exactJson.ts` reads through
+`dist/modelApiBoundaries.js`; 0.18.0 judged every dollar an earlier version
+had written as a number inexact and left that usage out. That bundle's entry
+exports it now. Report a Problem refused every setting name with a second dot
+(`museSpark.vault.enabled`), so it never opened for anyone who had changed
+one; the name pattern takes dotted segments, and a report with its facts
+switched off no longer depends on them. Evidence, the drills and the live proof:
+`docs/certification/hotfix-0181-bundle-exports.md` (D6). A fixes only patch,
+so without Highlights. No browser bundle changes: `dist/webview` is 0.18.0's
+byte for byte (176 files compared), so no frame and no README screenshot
+moves; five other files of `dist` differ (the two bundles above, the report
+builder in `dist/report.js` and `dist/acp.js`, and the release notes). This is
+preparation, not publication; the public roadmap
+(M122) lists 0.18.1 as the next release until a `0.18.1 released (…)`
+record follows here.
+
+**0.18.0 released (2026-10-11, tag `v0.18.0` on main's release merge `f8435aaac` (`be6eaefbe` before the identity rewrite), PR #149, release run 38206002231).**
+The Release run succeeded on its first attempt and ended on 2026-10-11 at
+10:12 PM PT, when every channel was verified. Recorded by the 0.18.1
+preparation.
+
+**0.18.0 preparation (2026-10-11, release branch).** `release/0.18.0` is cut from
+the release train `int/train-1011` at `549c6f499` and carries the extension
+version 0.18.0 and the dated `CHANGELOG.md` `[0.18.0]` section. Announced as
+usable: several accounts per provider in the terminal and in ACP
+(`docs/certification/cm108acc.md`), live tool-argument previews on the one
+model whose record verifies streamed arguments
+(`docs/certification/m106-capability-binding.md`), native review without a
+Git filter (`docs/certification/review-git-exit.md`) and the activity-bar
+icon. Named as not usable yet: account pooling and switching inside a
+session, previews on other models, and the pull-request checkout, whose git
+launches are not under the resource governor and which nothing in this
+release can start (`docs/certification/int0170-combined.md`). The reviewed
+baseline is rendered on top of this commit, because the version is a capture
+input. This is preparation, not publication; the public roadmap (M122) lists
+0.18.0 as the next release until a `0.18.0 released (…)` record follows here.
+
+**0.17.2 released (2026-10-11, tag `v0.17.2` on main's release merge `59309b490`, PR #148, release run 38191365289).**
+The npm step was cancelled and rerun twice; the third attempt of the same
+run published, and the Release run ended in success on 2026-10-11 at
+6:53 PM PT. Recorded by the 0.18.1 preparation.
+
+**0.17.2 preparation (2026-10-11, release branch).** `release/0.17.2` carries
+the extension version 0.17.2 and the dated `CHANGELOG.md` `[0.17.2]` section:
+the reply-stream fix for providers the user added and for the ChatGPT plan
+sign-in (since 0.15.0 the 30 s deadline of a bounded call also cut off every
+whole reply; `docs/certification/provider-stream-timeout.md`) and the What's
+New screenshot fixture (VISFIX; `docs/certification/visfix.md`) with the one
+reviewed baseline render it needs (`docs/certification/rel0172.md`). A fixes
+only patch, so without Highlights. This is preparation, not publication; the
+public roadmap (M122) lists 0.17.2 as the next release until a
+`0.17.2 released (…)` record follows here.
+
+**0.17.1 released (2026-10-11, tag `v0.17.1` on main's release merge `4d28a4f84`, PR #147, release run 38179212900).**
+The Release run succeeded and the GitHub release was published on
+2026-10-11 at 3:10 PM PT. Recorded by the 0.17.2 preparation.
 
 **0.17.1 preparation (2026-10-10, release branch).** `release/0.17.1` carries
 the extension version 0.17.1 and the dated `CHANGELOG.md` `[0.17.1]` section:

@@ -71,6 +71,9 @@
 //   zod (INT0170); or a key of MODEL_TEXT, which every bundle reading any
 //   key of it carries whole, is read by no source file of
 //   dist/extension.js (it belongs in the block of the bundle that reads it).
+// - a built bundle reads a member from a sibling bundle that the sibling does
+//   not export (HOTFIX0181: 0.18.0's provider bundles called three names
+//   dist/modelApi.js lacked), or dist/modelApi.js has no readable export list.
 //
 // Exits 1 on any problem.
 //
@@ -96,6 +99,7 @@ import {
   checkDeferredBundles,
   checkResourceBundles,
 } from './lib/deferredBundles.mjs'
+import { siblingExportProblems } from './lib/bundleExports.mjs'
 import {
   ADDITIONAL_WEBVIEW_BUDGETS,
   RESOURCE_WEBVIEW_ENTRIES,
@@ -161,6 +165,10 @@ const LAZY_ONLY = [
   'structuredOutput.ts',
   'modelCapabilities.ts',
   // MODELAPIDIET: argument previews load with dist/modelApiTools.js (MODEL_API_TOOLS_ONLY).
+  // MODELAPIDIETR4: the declared-fields reader stays with the backend (the
+  // request path snapshots offered fields on every send); the tools chunk
+  // carries its own copy through argumentPreview.ts.
+  'previewFields.ts',
   // M78: command policy and the paid, read-only Auto reviewer load with the backend.
   'autoReviewer.ts',
   'commandRules.ts',
@@ -1607,6 +1615,29 @@ if (
 ) {
   problems.push('dist/modelsPanel.js carries unrelated chat schemas')
 }
+// HOTFIX0181: every member a bundle reads from a sibling bundle is exported
+// there, checked on the built text. A build plugin points imports of shared
+// source modules at the bundle that carries them; TypeScript checks those
+// imports against the source module and only the built sibling knows what it
+// exports. 0.18.0 shipped dist/configuredProviders.js, dist/subscriptions.js
+// and the Copilot client calling three names dist/modelApi.js did not export.
+const CROSS_BUNDLE_TARGETS = ['modelApi.js', 'modelApiBoundaries.js']
+const crossBundle = siblingExportProblems(
+  new Map(
+    readdirSync('dist')
+      .filter((name) => name.endsWith('.js'))
+      .map((name) => [name, readFileSync(path.join('dist', name), 'utf8')]),
+  ),
+)
+for (const problem of crossBundle.problems) problems.push(`dist: ${problem}`)
+// The bundles a plugin points other bundles at must keep a readable export
+// list, or the check above would pass by checking nothing against them.
+for (const target of CROSS_BUNDLE_TARGETS) {
+  if (!crossBundle.verified.has(target))
+    problems.push(
+      `dist/${target}: no member read from it was checked (its export list is not in its text, or nothing reads it)`,
+    )
+}
 if (problems.length > 0) {
   console.error(`bundle split: ${String(problems.length)} problem(s); see PLAN.md D6 and M57`)
   for (const problem of problems) {
@@ -1664,6 +1695,9 @@ console.log(
   `ok   model text: ${TEXT_BLOCKS.map(({ block }) => block).join(', ')} each in its readers and in no other of the ${String(SHIPPED.length)} shipped bundles; ${FILE_REFUSAL.block} pinned to ${String(FILE_REFUSAL.keys.length)} keys; ${String(modelTextKeys.length)} MODEL_TEXT keys, each read at activation, none in dist/headless.js`,
 )
 console.log(`ok   ${UI_TEXT.output}: Node bundles share the English fallback`)
+console.log(
+  `ok   cross-bundle members: ${String(crossBundle.verified.values().reduce((sum, count) => sum + count, 0))} reads of ${String(crossBundle.verified.size)} sibling bundles, each exported by the bundle read (${crossBundle.unverified.length === 0 ? 'no sibling without a readable export list' : `export list not readable: ${crossBundle.unverified.join(', ')}`})`,
+)
 console.log('ok   webview: optional surfaces and highlighting load only in guarded deferred chunks')
 console.log(
   `ok   ${CONVERSATION_GIT.output}: carries the Git adapter and the window's ${String(GIT_ONLY.length - 2)} git and pull request files; activation keeps its checked loader`,

@@ -108,6 +108,8 @@ export const EN = {
   resourceRelocateOffDescription: 'Keep work on this machine.',
   // M106: loop previews, structured answers, health and explicit feedback.
   toolArgumentPreviewLabel: 'Argument Preview',
+  toolArgumentPreviewDescription:
+    'Show validated, scrubbed tool arguments as they arrive, before the tool runs.',
   toolArgumentPreviewTruncated: 'Preview truncated.',
   toolArgumentPreviewPending: 'Waiting for complete arguments…',
   toolArgumentPreviewPreparing: 'Preparing arguments…',
@@ -3935,6 +3937,12 @@ export const EN = {
     'Other enabled paid tools may add their own charges. Bypass does not skip this confirmation.',
   scheduleConfirmationExpired:
     'The model, conversation or prompt changed during confirmation. Review the schedule and choose Run again.',
+  requestStaleTurn: 'The model or conversation changed while sending. Send your message again.',
+  requestStaleCompaction: 'The model or conversation changed while compacting. Compact again.',
+  requestStaleRetry: 'The model or conversation changed before the request was sent. Try again.',
+  requestStaleHookModel:
+    'The model changed while the hook was asking the model. Try the action again.',
+  requestStaleRun: 'The model changed during the run. Run the command again.',
   webNoResults: 'No results',
   backgroundRunning: 'Running in the background',
   // M46 (PLAN.md D39): moving a running command to the background, stopping

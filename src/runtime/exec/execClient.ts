@@ -83,6 +83,8 @@ export function createExecClient(input: {
           const tool = metadata.data
           if (update.sessionUpdate === 'tool_call' && tool.kind === 'edit')
             edits.set(tool.toolCallId, tool.locations?.map((location) => location.path) ?? [])
+          if (edits.has(tool.toolCallId) && tool.locations !== undefined)
+            edits.set(tool.toolCallId, tool.locations?.map((location) => location.path) ?? [])
           if (update.sessionUpdate === 'tool_call_update' && tool.status === 'completed') {
             const paths = edits.get(tool.toolCallId)
             if (paths !== undefined) {
