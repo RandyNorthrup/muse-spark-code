@@ -164,6 +164,7 @@ export function createScheduler(deps: SchedulerDeps) {
     const known =
       knownSettlements.get(intent.runId) ??
       (await deps.runs.acknowledged(intent.schedule.workspaceKey, intent.runId))
+    if (isClosing()) return
     if (known !== undefined) {
       await settle(intent, known)
       return
@@ -171,12 +172,17 @@ export function createScheduler(deps: SchedulerDeps) {
     const ledger = scheduleDeliveryStateSchema.parse(
       await deps.runs.lookupRun(intent.schedule.workspaceKey, intent.runId),
     )
+    if (isClosing()) return
     if (ledger.status === 'settled' || ledger.status === 'uncertain') {
       await deps.runs.advance(intent)
       await settle(intent, ledger.fire)
       return
     }
     if (ledger.status === 'dispatchStarted') {
+      if (
+        await deps.runs.isLiveDispatchOwnedElsewhere?.(intent.schedule.workspaceKey, intent.runId)
+      )
+        return
       // The journal forbids another send. A still-live host may supply known
       // terminal facts; a restarted host supplies none, so recovery is uncertain.
       let fire = uncertain(intent, ledger.retainedLiabilityUsd)
@@ -197,7 +203,9 @@ export function createScheduler(deps: SchedulerDeps) {
       return
     }
     const job = await load(intent.schedule.workspaceKey, intent.schedule.id)
+    if (isClosing()) return
     const isAdmitted = await deps.runs.advance(intent)
+    if (isClosing()) return
     if (!isAdmitted) {
       await settle(intent, unspent(intent, deps.host.now(), 'skipped'))
       return
@@ -222,6 +230,7 @@ export function createScheduler(deps: SchedulerDeps) {
       return
     }
     const fresh = await load(job.workspaceKey, job.id)
+    if (isClosing()) return
     if (
       fresh === undefined ||
       fresh.paused ||

@@ -18,9 +18,14 @@ const receipt = z.discriminatedUnion('phase', [
 const children: ChildProcess[] = []
 const exits: Promise<number | null>[] = []
 const paths = { root: '', worker: '' }
-const workers: { owner?: ReturnType<typeof start>; other?: ReturnType<typeof start> } = {}
-function start(role: string) {
-  const child = fork(paths.worker, [paths.root, role], {
+const workers: {
+  owner?: ReturnType<typeof start>
+  other?: ReturnType<typeof start>
+  liveOwner?: ReturnType<typeof start>
+  liveOther?: ReturnType<typeof start>
+} = {}
+function start(role: string, root = paths.root) {
+  const child = fork(paths.worker, [root, role], {
     silent: true,
     env: { SystemRoot: process.env['SystemRoot'], TMPDIR: tmpdir() },
   })
@@ -70,6 +75,11 @@ beforeAll(async () => {
   expect(await workers.owner.next()).toEqual({ phase: 'admitted' })
   workers.other = start('other')
   expect(await workers.other.next()).toEqual({ phase: 'ready' })
+  const liveRoot = path.join(paths.root, 'live')
+  workers.liveOwner = start('live', liveRoot)
+  expect(await workers.liveOwner.next()).toEqual({ phase: 'sent' })
+  workers.liveOther = start('other', liveRoot)
+  expect(await workers.liveOther.next()).toEqual({ phase: 'ready' })
 }, FIXTURE_HOOK_TIMEOUT_MS)
 afterAll(async () => {
   for (const child of children)
@@ -91,5 +101,21 @@ it("another process closing leaves the owning process's due Once admission untou
     fires: [expect.objectContaining({ outcome: 'ran' })],
   })
   expect(sent.phase).toBe('sent')
+  expect(await owner.exit).toBe(0)
+})
+
+it('closing another process finishes while the owner holds the live target lease', async () => {
+  const owner = workers.liveOwner
+  const other = workers.liveOther
+  if (owner === undefined || other === undefined) throw new Error('missing live close workers')
+  other.child.send('close')
+  expect(await other.next()).toEqual({ phase: 'closed' })
+  expect(await other.exit).toBe(0)
+  // This is reached while the owner still waits in deliver and heartbeats its lease.
+  owner.child.send('resume')
+  expect(await owner.next()).toMatchObject({
+    phase: 'done',
+    fires: [expect.objectContaining({ outcome: 'ran' })],
+  })
   expect(await owner.exit).toBe(0)
 })
