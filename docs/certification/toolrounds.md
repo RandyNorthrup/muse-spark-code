@@ -280,6 +280,144 @@ The second review
 was absent on this machine at final check, so only the by-reading review is
 answered here. Suites not run on this rig are listed in the final message.
 
+## Round 3 — review RVAPP-TOOLROUNDSR2B (0 P1, 4 P2, 6 P3)
+
+Redesign, per the lead's round-3 rulings: the wrap-up was special cases at
+many points of the loop, and each review found the next missed point. Every
+finding below is fixed across its whole class; each fix has a regression
+test that fails without it and a red drill recorded here. Drill restoration
+is verified byte-exact (`git diff`/`git status` empty) in every row. No new
+dependency; no cap or pin moves; the golden request suite stays
+byte-identical for every request including the wrap-up (Meta wire unchanged:
+`10-turn-limit-wrap-up.json` untouched).
+
+### R1 — the wrap-up is one phase with one exit (P2-A, P3-1, P3-2)
+
+`turn.wrapUpLimit` is the single explicit phase value: `undefined` is
+ordinary, set is the wrap-up. It is written only by `enterWrapUpPhase`
+(loop top, and the last-slot `beforeRetry`); every other site reads it.
+The phase has exactly one exit, `finishWrapUp`, which always produces the
+same typed outcome — completed, `errorKind: max_turn_requests`, stop reason
+`limit` (terminal agent: `request_cap`, exit 5) — and always re-queues held
+input first. Decided interpretation, stated plainly: a user stop racing the
+request itself still cancels (no wrap-up answer exists then); a hook
+cancelling the turn after the answer streamed converges on the typed exit,
+as does every other in-phase ending.
+
+| Site                                             | Ordinary phase                                                                                                    | Wrap-up phase                                                                                                                                | Test                                                                                                                                                                                 |
+| ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Request builder (`body()`)                       | Builds with tools; no note                                                                                        | Reads the phase only (the old setter is deleted): appends the note, declares `tools: []`                                                     | Codec byte-identical test; golden `10-turn-limit-wrap-up`                                                                                                                            |
+| Phase entry (loop top)                           | Drains steers + goal wake, sends with tools                                                                       | Sets the phase once per round; skips both drains                                                                                             | Drill D3 (no entry → wrap-up tests fail); steer/scheduled/wake tests                                                                                                                 |
+| Steer drain, loop top                            | `drainSteered` admits input into the request                                                                      | Skipped: held input is never consumed                                                                                                        | `holds steering arriving before the wrap-up for its own turn with tools`                                                                                                             |
+| Steer drain, `streamAttempt` (the sibling, P3-1) | Admits a pending scheduled run into the request                                                                   | Skipped when the phase is set                                                                                                                | `holds a scheduled steer arriving before the wrap-up for its own turn with tools`                                                                                                    |
+| Goal wake (`drainGoalWake`)                      | Pushes the cue into the request                                                                                   | Early return: the one exit re-queues it                                                                                                      | `re-queues a goal wake held across the wrap-up for its own turn`                                                                                                                     |
+| Compaction prefix + `noteRequest`                | Stored + counted per ordinary request                                                                             | Skipped by the shared phase branch                                                                                                           | Shared-branch analysis (see P3-2 note below); prefix half of `compaction after a limit stop reuses the last ordinary body`                                                           |
+| Compaction token count (`noteUsage`)             | Stored onto the ordinary prefix                                                                                   | Skipped via `isSendingWrapUp` (set at the send, cleared after)                                                                               | Same analysis (see P3-2 note below)                                                                                                                                                  |
+| Reviewer (`autoReview`)                          | Never runs inside the wrap-up (no tools to review); the slot gate below keeps it off a nearly-spent caller ledger | Same: no tools, no run; gate unchanged in shape                                                                                              | `spends no reviewer call on the reserved wrap-up slot` (fires); reviewer needs no wrap-up-specific test (see gate row)                                                               |
+| Hook models                                      | Run on direct budget where the gate allows                                                                        | Same path; the reserved-slot gate (R2) decides before any popup/tally                                                                        | `fails the hook-model call while the wrap-up slot is reserved…`; `still runs the Stop hook model on a wrap-up turn with no caller allowance`                                         |
+| The one exit (`finishWrapUp`)                    | N/A (ordinary exhaustion keeps its own post-loop path)                                                            | Plain answer, truncated answer (own sentence via `limitError`), Stop-blocked (notice), Stop `continue:false`, hook-cancel: all converge here | `keeps the typed limit when a Stop hook answers continue:false on the wrap-up`; `stops a wrap-up cut at the output limit with its own sentence, never "again"`; block test (round 2) |
+
+### R2 — a hook model that was not asked did not answer (P2-B, P3-3)
+
+Exact gate condition (`isWrapUpSlotReserved`): a caller allowance
+(`modelCallAllowance`, else exec's `remainingModelCalls`) EXISTS, and the
+turn's remaining — its own limit folded with that allowance — is one call
+(no active turn: the allowance itself is one). Reviewer and hook-model
+calls use the direct budget and never touch the turn's own count, so in an
+interactive turn with no caller allowance they cannot take the slot and the
+gate stays off. A skipped hook-model call is a FAILED hook answer with its
+own reason, checked in `runModelHandler` before the paid popup and the
+tally (forwarded through the dispatch site, which the first drill caught
+missing): nothing is asked, nothing is counted for a call that is not
+made, and the hook's own on-failure rule decides. The host-side check
+behind it now throws instead of returning empty text, so a bypass fails
+closed into the same `failed` path.
+
+| Side                                                              | Test                                                                                                                                                                                                                                                           | Drill                                                                                                           |
+| ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| Gate fires (allowance 1, UserPromptSubmit before any call)        | `fails the hook-model call while the wrap-up slot is reserved, asking and counting nothing` (warn text, no hook-marked request, popup + `hookModels` tally untouched) + `fails a reserved-slot run before the popup and the tally` (`hookModelHandlers`, unit) | D6: drop the dispatch-site forward → reservation test fails (popup asked, host-throw path); restored byte-exact |
+| Gate stays off (interactive, no allowance, turn at its own limit) | `still runs the Stop hook model on a wrap-up turn with no caller allowance` (199 rounds + wrap-up; exactly one hook-marked request; stop stays typed)                                                                                                          | D7: drop the no-allowance early return → side-B test fails (no hook request); restored byte-exact               |
+
+### R3 — the wire is what the golden says (P2-C, P3-5)
+
+Per-codec decision (no guessing; kept what was captured as accepted):
+Meta's first-party wire carries `tools: []` with `tool_choice: auto` —
+the golden IS the raw fetch body, and M105's live captures show the
+service echoing exactly that shape on tools-less responses. The Responses
+codec reverts the round-2 omission to that same captured shape: no live
+capture of an omitted choice succeeding exists on that family. Chat,
+Anthropic, Gemini and Ollama keep omitting per their long-standing
+production shapes (unchanged since before this lane). P3-5 side effect,
+stated and kept deliberately: the git-draft side call and compaction
+without reused tools on configured OpenAI/xAI providers and the ChatGPT
+route send what they always sent (`tools: []` + `auto`; namespace-wrapped
+on the ChatGPT profile). Locked by `Responses %s keeps empty tools with
+the choice, the captured wire shape` (api + chatgpt). Drill D8: restore
+the omission → both profiles fail (`expected undefined to be 'auto'`);
+restored byte-exact. Code, goldens, Piece-2 table and prose (README
+Limits, CHANGELOG, reference) agree.
+
+### R4 — team-task ceilings must be true of something that runs (P2-D, P3-6, P3-4)
+
+`runEngineWorker` still has no caller in `src`; teams stay switched off
+for another lane. So the ceiling sentence leaves README and CHANGELOG
+(the true remainder stands), and returns with the teams wiring lane: that
+lane binds team tasks through `AgentSession.setModelCallAllowance`, now a
+REQUIRED member so the compiler lists every implementer (`MuseSession`
+gains the intentionally-empty member with a reasoned disable + §8 row;
+`AttemptSession` forwards directly, no `?.`). Drill D9: delete the member
+→ host typecheck fails naming `MuseSession` on three seats; restored
+byte-exact. The `?.`-to-`.` forwarding itself has no behavioral red test
+(every implementer now carries the member); D9 covers the class.
+Contract written where ruled: reference (`referenceTurnLimit` +
+regenerated `docs/reference.md`; `check:reference` passes), CHANGELOG
+(wrap-up answer exit 5; first-call answer exit 0), README Limits
+(unchanged, already said it).
+
+### P3-2 measurement note (why two rows have analysis, not tests)
+
+All three measurement guards are in place and every site reads the phase.
+Red-proof exists for the phase mechanism (D1–D5). Two independent
+black-box discriminators were attempted and both provably cannot fail,
+so no decoration test was added:
+
+- Token count: the stored value is always replaced before any read. The
+  prefix object is rewritten on every ordinary send, and a new turn's
+  first request is always ordinary (`modelCalls` 0), so the wrap-up's
+  tokens never survive to an evaluation. Verified by two no-red drills
+  (plain huge usage; huge usage + usage-less follow-up): admissions 0
+  with and without the guard. The guard stays as hygiene.
+- `noteRequest`: the only counter gate is the cooldown
+  (`AUTO_COMPACTION_COOLDOWN_REQUESTS = 2`, inclusive, consumed inside
+  `decide`), and a wrap-up needs a prior ordinary call, so a
+  discriminating 1-vs-2 count at a transition evaluation is unreachable:
+  any evaluation follows a request (inclusive admit in both cases), and
+  overflow recovery bypasses the gate. The guard shares its exact branch
+  with the prefix row.
+
+### Round-3 drills ledger
+
+| Drill                 | Break                                                           | Named test fails                                                                                                                                 | Restore           |
+| --------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------- |
+| D1                    | Wrap-up branch `finishWrapUp` → bare `return` (the P2-A bug)    | `keeps the typed limit when a Stop hook answers continue:false` (completed, errorKind missing)                                                   | Byte-exact        |
+| D2                    | Sibling `streamAttempt` drain drops the phase check             | `holds a scheduled steer arriving before the wrap-up`                                                                                            | Byte-exact        |
+| D3                    | Loop-top `enterWrapUpPhase` removed                             | `holds steering arriving before the wrap-up`                                                                                                     | Byte-exact        |
+| D4                    | `finishWrapUp` drops the goal-wake requeue (the P2-A loss)      | `re-queues a goal wake held across the wrap-up` (wake never arrives)                                                                             | Byte-exact        |
+| D5                    | Shared prefix/`noteRequest` branch removed                      | No test fails: manual-compaction bodies are identical by design (instructions byte-identical, tools from the fresh body) — recorded, not a proof | Byte-exact        |
+| D6                    | Dispatch-site `isTurnCallReserved` forward dropped              | `fails the hook-model call … asking and counting nothing` (popup asked, host-throw path)                                                         | Byte-exact        |
+| D7                    | Gate's no-allowance early return dropped                        | `still runs the Stop hook model … with no caller allowance` (zero hook requests)                                                                 | Byte-exact        |
+| D8                    | Responses omission restored                                     | `Responses %s keeps empty tools with the choice` (api + chatgpt)                                                                                 | Byte-exact        |
+| D9                    | `MuseSession.setModelCallAllowance` deleted                     | Host typecheck fails naming the implementer                                                                                                      | Byte-exact        |
+| D10                   | `AttemptSession` forward back to `?.`                           | No test fails (every implementer carries the member); D9 covers the class                                                                        | N/A (not applied) |
+| Token-count probes ×2 | Guard removed under huge wrap-up usage (± usage-less follow-up) | No test fails: stored value always replaced before any read (see analysis) — recorded, not a proof                                               | Byte-exact        |
+
+Bundle rows in exact bytes (`npm run build` green, budgets untouched, no
+cap or pin moves), base 26a1c5537 → lane: `dist/extension.js` 564049 →
+564075 (+26: the Muse Code no-op member and direct forwarding),
+`dist/modelApi.js` 535629 → 536119 (+490: the phase, the one exit, the
+narrowed gate), `dist/modelApiHooks.js` 28520 → 28520,
+`dist/modelApiSessions.js` 37318 → 37318.
+
 ## Next slice
 
 Release-train integration and cross-platform/browser certification follow the
