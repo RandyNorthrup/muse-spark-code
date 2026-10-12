@@ -9,6 +9,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Muse Voice gives each recording one owner from Start until its end: a queued
+  Start keeps the budget scope, consent and context fence it was pressed under
+  (rechecked at its turn, refused with the true reason when no longer valid),
+  every end awaits the native recorder process exit (bounded, then killed and
+  said) before reporting, and admission on a fresh session waits for the
+  parent session save to land instead of reporting missing storage.
 - Muse Voice keeps every recording's helper events and hard cap isolated across
   rapid Stop/Start. Refused budget admission never starts the microphone.
   Backend stop, closed tabs and window shutdown await admission and settlement
