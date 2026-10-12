@@ -515,18 +515,29 @@ function orphanRig(options?: {
   readonly abortAfterReceipt?: boolean
   readonly interruptAt?: 'json' | 'intent' | 'publication'
   readonly failPublication?: boolean
+  /** Fail post-publication cancel-intent writes (RVM105B P2-2). */
+  readonly failCancelIntentWrites?: number
+  /** Fail the forget write after a successful cancel DELETE (RVM105B P2-2). */
+  readonly failForgetWrites?: number
 }) {
   const api = fakeModelApi()
   const files = fakeFilesApi(api.fetch)
   let shouldFailDeletes = options?.failDeletes ?? false
   let failWrites = options?.failWrites ?? 0
+  let failCancelIntentWrites = options?.failCancelIntentWrites ?? 0
+  let failForgetWrites = options?.failForgetWrites ?? 0
+  let hasCommittedPublication = false
+  let deletesAttempted = 0
   const shouldAbortAfterReceipt = options?.abortAfterReceipt ?? true
   const caller = new AbortController()
   const cleanupIntents: unknown[] = []
   const fetch: typeof globalThis.fetch = async (input, init) => {
     const pathname = new URL(requestHref(input)).pathname
     const method = init?.method ?? 'GET'
-    if (method === 'DELETE') cleanupIntents.push(await storage.read())
+    if (method === 'DELETE') {
+      deletesAttempted += 1
+      cleanupIntents.push(await storage.read())
+    }
     if (method === 'DELETE' && shouldFailDeletes && pathname.includes('/files/'))
       return Response.json(
         { error: { message: 'delete failed', type: 'server_error' } },
@@ -565,7 +576,25 @@ function orphanRig(options?: {
         throw new Error('Disk full')
       }
       if (options?.failPublication && state.entries.length > 0) throw new Error('Disk full')
+      // After the publication commit, an intent-shaped write before any DELETE
+      // is the cancel intent; the first entry-free write after a DELETE is the
+      // forget write (it already dropped the orphan from the state it writes).
+      if (hasCommittedPublication && state.entries.length === 0) {
+        if (
+          deletesAttempted === 0 &&
+          (state.orphans?.length ?? 0) > 0 &&
+          failCancelIntentWrites > 0
+        ) {
+          failCancelIntentWrites -= 1
+          throw new Error('Disk full')
+        }
+        if (deletesAttempted > 0 && failForgetWrites > 0) {
+          failForgetWrites -= 1
+          throw new Error('Disk full')
+        }
+      }
       await inner.write(state)
+      if (state.entries.length > 0) hasCommittedPublication = true
       if (
         (options?.interruptAt === 'intent' && (state.orphans?.length ?? 0) > 0) ||
         (options?.interruptAt === 'publication' && state.entries.length > 0)
@@ -599,6 +628,9 @@ function orphanRig(options?: {
     ledger,
     setFailDeletes: (shouldFail: boolean) => {
       shouldFailDeletes = shouldFail
+    },
+    setFailWrites: (count: number) => {
+      failWrites = count
     },
     ensure: (signal: AbortSignal) => ledger().ensure('session-1', sha256, source, signal),
     state: async () => await storage.read(),
@@ -748,5 +780,104 @@ describe('an upload that reached the provider is never orphaned', () => {
     expect(t.files.deletes).toEqual(t.files.uploads.map((file) => file.fileId))
     expect(t.files.files.size).toBe(0)
     expect(await t.state()).toBeUndefined()
+  })
+})
+
+/**
+ * RVM105B P2-2: a cancelled upload is never left referenced. The ledger
+ * records the deletion intent BEFORE the remote DELETE, so the write-failure
+ * table below always resolves: nothing remote is left forever (the next sweep
+ * deletes it) and nothing in use is deleted (referenced entries are skipped).
+ * Shared preparation and intent assertions keep the zero-clone gate green.
+ */
+async function cancelAfterPublication(options?: Parameters<typeof orphanRig>[0]) {
+  const rig = orphanRig({ abortAfterReceipt: false, interruptAt: 'publication', ...options })
+  // The caller keeps the original cancellation, never a cleanup write error.
+  await expect(rig.ensure(rig.caller.signal)).rejects.toThrow('cancelled after receipt')
+  const uploaded = rig.files.uploads[0]
+  expect(uploaded).toBeDefined()
+  if (uploaded === undefined) throw new Error('expected an upload')
+  return { rig, uploaded }
+}
+
+async function expectDurableIntent(
+  rig: ReturnType<typeof orphanRig>,
+  uploaded: { readonly fileId: string },
+) {
+  expect(await rig.state()).toMatchObject({ entries: [], orphans: [uploaded.fileId] })
+}
+
+async function expectSweepCleans(
+  rig: ReturnType<typeof orphanRig>,
+  uploaded: { readonly fileId: string },
+  expectedDeletes: readonly string[],
+) {
+  // A fresh ledger proves the intent is durable: the next sweep deletes the
+  // provider file and forgets it.
+  rig.setFailDeletes(false)
+  await rig.ledger().accountReport()
+  expect(rig.files.deletes).toEqual(expectedDeletes)
+  expect(rig.files.files.size).toBe(0)
+  expect(await rig.state()).toMatchObject({ entries: [], orphans: [] })
+}
+
+describe('a cancelled upload is never left referenced', () => {
+  it('resolves cancel after a committed publication when DELETE and the first intent write fail', async () => {
+    const { rig, uploaded } = await cancelAfterPublication({
+      failDeletes: true,
+      failCancelIntentWrites: 1,
+    })
+    // Owned, cancel requested, intent unwritten never reaches durable state:
+    // the retried intent replaced the ownership.
+    await expectDurableIntent(rig, uploaded)
+    await expectSweepCleans(rig, uploaded, [uploaded.fileId])
+  })
+
+  it('forgets a cancelled upload whose remote copy is already gone when the forget write fails', async () => {
+    const { rig, uploaded } = await cancelAfterPublication({ failForgetWrites: 1 })
+    expect(rig.files.deletes).toEqual([uploaded.fileId])
+    expect(rig.files.files.size).toBe(0)
+    // The forget write failed, so the intent stays; the next sweep meets a
+    // missing file, deletes as found, and forgets it.
+    await expectDurableIntent(rig, uploaded)
+    await rig.ledger().accountReport()
+    expect(rig.files.files.size).toBe(0)
+    expect(await rig.state()).toMatchObject({ entries: [], orphans: [] })
+  })
+
+  it('keeps the sweep intent across a failed sweep write and resolves on the next sweep', async () => {
+    const { rig, uploaded } = await cancelAfterPublication({ failDeletes: true })
+    await expectDurableIntent(rig, uploaded)
+    // The provider is back but the sweep cannot write: it reports the failure
+    // and keeps the intent (the remote copy is already deleted) for the next
+    // sweep, which forgets it.
+    rig.setFailDeletes(false)
+    rig.setFailWrites(1)
+    await expect(rig.ledger().accountReport()).rejects.toThrow('Disk full')
+    expect(rig.files.files.size).toBe(0)
+    await expectDurableIntent(rig, uploaded)
+    await rig.ledger().accountReport()
+    expect(rig.files.deletes).toEqual([uploaded.fileId, uploaded.fileId])
+    expect(rig.files.files.size).toBe(0)
+    expect(await rig.state()).toMatchObject({ entries: [], orphans: [] })
+  })
+
+  it('never deletes a referenced upload during a failing sweep', async () => {
+    const t = orphanRig({ abortAfterReceipt: false })
+    await t.ensure(t.caller.signal)
+    const uploaded = t.files.uploads[0]
+    expect(uploaded).toBeDefined()
+    expect(await t.state()).toMatchObject({
+      entries: [{ sessions: ['session-1'] }],
+      orphans: [],
+    })
+    t.setFailDeletes(true)
+    await t.ledger().accountReport()
+    expect(t.files.deletes).toEqual([])
+    expect(t.files.files.size).toBe(1)
+    expect(await t.state()).toMatchObject({
+      entries: [{ sessions: ['session-1'] }],
+      orphans: [],
+    })
   })
 })

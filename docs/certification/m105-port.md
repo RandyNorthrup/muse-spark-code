@@ -631,3 +631,115 @@ e2e pack): `companionUpload.test.ts`, `companionMediaBrowser.test.mjs`,
 `subscriptionIntegration.test.ts`, `teamMcpBridge.test.ts`,
 `usageIntegration.test.ts`, `execTestLauncher.e2e.test.ts`, and any
 browser/GUI/device suite the graph selects.
+
+## Round 4 — RVPORTM105B findings (2026-10-11/12, MacBook)
+
+Fixes every P1/P2/P3 finding of review RVPORTM105B (no P1s were raised) and
+its sibling paths. No new dependency, no widened guard, no gate weakened.
+
+### P2-1 — fixed-word log contract, no exceptions
+
+`ModelApiHost.ts`: both incomplete-response warnings (the ordinary turn and
+the compaction collector) interpolated the provider's unrestricted
+`incomplete_details.reason` and the raw `response.id`. Both now log
+`incompleteReasonForLog(reason)` — one of the nine known kinds
+(`max_output_tokens`, `content_filter`, `length`, `max_tokens`, `refusal`,
+`pause_turn`, `missing_stop_reason`, `stream_ended`,
+`stream_ended_without_finish_reason`; anything else is `other`, a missing
+reason stays `no reason`) — and `wireWordForLog(id)`. The detailed reason
+still reaches the user with the turn; only the log uses these words.
+
+Sweep of every other log call in the Model API host and the media modules:
+provider-controlled values elsewhere are already closed — stream error codes
+pass the `MODEL_API_RETRYABLE_STREAM_CODES` membership test before logging,
+`stopEvent` is `Stop`/`SubagentStop`, permission problem kinds are enum
+values, usage/token/cost interpolations are numbers or `HTTP <status>`, and
+the turn/stop/save/checkpoint catches log fixed codes (RVM105 4). The
+`describe(error)` sinks log local error messages (repo map, environment,
+shell sidecar, verify, checkpoints, hook loading, MCP startup), never wire
+text. Media modules log three fixed-word lines. `skipCalls` carries the raw
+reason only into model-facing `function_call_output` text, which the review
+keeps detailed. MCP server names and workspace-relative hook paths stay as
+they were: user-local configuration, audited fine, out of this class.
+
+Regression tests (`modelApiHost.test.ts`): a hostile reason carrying an
+attachment name and a secret-looking token (`clip-[REDACTED].wav`)
+driven through a real host turn and through compaction — both log
+`incomplete: other` and neither the token nor the name appears in any
+captured warn line, while the turn still completes with its partial text for
+the user; plus a closed-vocabulary unit test over `incompleteReasonForLog`
+and hostile/benign ids through `wireWordForLog`.
+
+### P2-2 — a cancelled upload is never left referenced
+
+`uploadLedger.ts` `ensure()`: the post-publication catch recorded the
+deletion intent AFTER the remote DELETE, so a failed DELETE plus a failed
+intent write stranded `owned, cancel requested, intent unwritten` (kept as
+referenced, skipped by every later sweep). The catch now converts the
+uncommitted or just-committed ownership into a retryable deletion intent
+FIRST (`writeCancelIntent`, retried while the lock is held for a transient
+store failure), then attempts the remote DELETE, then forgets on success. A
+failed DELETE keeps the durable intent for the next sweep; a failed forget
+write keeps the intent while the remote copy is already gone (the next sweep
+deletes as found, 404 tolerated); only a persistently failing store falls
+back to best-effort DELETE. The caller keeps the original cancellation or
+upload failure in every path, never a cleanup write error.
+
+Write-failure table (`mediaUploadStores.test.ts`, "a cancelled upload is
+never left referenced"): cancel after a committed publication with DELETE
+and the first intent write failing (the review's exact scenario: durable
+`{entries: [], orphans: [id]}`, caller still sees the cancellation, next
+sweep deletes and forgets); forget write failing after a successful DELETE
+(remote gone, intent retained, next sweep forgets); sweep write failing
+(intent kept, next sweep resolves); referenced upload under a failing sweep
+(entry, remote and sessions untouched, no DELETE). Pre-existing rows still
+cover failing receipt/publication writes. In-use semantics are unchanged:
+only orphans and zero-session entries are ever deleted.
+
+### P2-3 — usageIntegration, lead-owned
+
+`test/unit/usageIntegration.test.ts:212` is on the lead de-flake list (lane
+DEFLAKER3 owns it): untouched, per the lead ruling.
+
+### P3 — D85.3 corrected to the fixed-word rule
+
+PLAN.md D85 item 3 no longer permits file ids and attachment names in logs:
+session files, rewind, fork, export/share, the problem report and the usage
+journal keep the metadata rule; the logs hold none of it (fixed words only).
+`node scripts/check-plan.mjs` stays green
+(`plan-format-v1; 216 milestones; 0 drift`).
+
+### Red drills (Round 4, 2026-10-12, MacBook)
+
+| #                | Guard broken                                                       | Named test's failure                                                                                                                                                              | Restoration hash                                                   |
+| ---------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| 1, log privacy   | `ModelApiHost.ts`: `incompleteReasonForLog` returns the raw reason | `modelApiHost.test.ts` "logs a hostile incomplete reason in fixed words on an ordinary turn", "... on compaction", "maps incomplete reasons to a closed log vocabulary": 3 failed | `e0319f1a2b08a7c1af6e44770e83e9038e049d92306c7a4b0d0953ea27890a67` |
+| 2, ledger intent | `uploadLedger.ts`: `writeCancelIntent` reduced to a single write   | `mediaUploadStores.test.ts` "resolves cancel after a committed publication when DELETE and the first intent write fail": 1 failed / 3 passed                                      | `9ffac4ebe0c83d7a65635b87c09b7bd9ace29979a3ce3479232ee8ddc83e60fe` |
+
+Both files verified byte-exact by SHA-256 after restore (hashes above match
+the pre-drill captures).
+
+### Round 4 receipts (MacBook, `--maxWorkers=3`, repository timeouts)
+
+Owning suites full: `modelApiHost.test.ts` 673/673 (was 670: +3 new);
+`mediaUploadStores.test.ts` 29/29 (was 25: +4 new). Dependents:
+`mediaClient` + `fileSessionStore` 49/49; `mediaAttachmentComposition` +
+`execFetch` + `modelApiCutShort` 76/76; `execRun` + `acpAgent` +
+`modelApiAutoCompact` 280 passed / 2 failed in batch — both failures
+re-run alone (`modelApiAutoCompact` fully green in batch);
+`execRun` 98/98 alone (the batch case flaked under load 6–15, green alone at
+once);
+`acpAgent` 143/144 alone — the single failure is the pre-existing
+ChatGPT-actions case (`RequestError: Authentication required`), recorded in
+round 3 as failing identically on untouched base `48023c302`, outside this
+round's paths. `usageIntegration.test.ts:212` not run here: lead-owned
+de-flake (P2-3). Static gates: all five typechecks pass; eslint
+`--max-warnings=0` clean on all four changed code/test files; prettier clean;
+`check:l10n` 0 problems (14 UI + 14 usage tables); `check:plan`
+`plan-format-v1; 216 milestones; 0 drift`; duplication `Found 0 clones`
+(four review-test clones found and removed through shared helpers); knip
+clean (two pre-existing config hints); production `npm run build` green —
+`modelApi.js` 511.6 KiB (cap 525), `extension.js` 550.6 KiB (cap 600), split
+and host-global checks pass. No reference/roadmap/host-API surface changed.
+Browser and loopback suites not runnable in this sandbox, for the lead (same
+NOT RUN HERE list as round 3, plus any other related-graph browser suite).
