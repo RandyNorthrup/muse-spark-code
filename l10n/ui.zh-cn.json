@@ -1918,14 +1918,14 @@
     "history": "所选会话的历史记录不可用。"
   },
   "reportDetailReasons": {
+    "journalIncomplete": "使用日志包含损坏、不完整或较新版本的记录；总计不包含这些记录。",
+    "sessionUsageUnavailable": "保留的日志无法将使用量归属于此会话；令牌和费用总计不可用。",
+    "budgetsUnavailable": "所选期间的预算快照不可用。",
     "sessionTurnsUnavailable": "会话历史记录中没有轮次标识符，因此无法统计轮次。",
     "sessionApprovalsUnavailable": "会话历史记录中没有审批决定。",
     "toolBreakdownUnavailable": "使用日志中不记录按工具划分的使用量。",
     "rolledUpBreakdownExcluded": "汇总历史计入总数，但不计入此明细。",
-    "rolledUpSessionExcluded": "汇总历史不计入此会话的总数和明细。",
-    "journalIncomplete": "使用日志包含损坏、不完整或较新版本的记录；总计不包含这些记录。",
-    "sessionUsageUnavailable": "保留的日志无法将使用量归属于此会话；令牌和费用总计不可用。",
-    "budgetsUnavailable": "所选期间的预算快照不可用。"
+    "rolledUpSessionExcluded": "汇总历史不计入此会话的总数和明细。"
   },
   "reportRowsMore": {
     "other": "另外 {count} 行"

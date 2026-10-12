@@ -1974,14 +1974,14 @@
     "history": "O histórico da sessão selecionada está indisponível."
   },
   "reportDetailReasons": {
+    "journalIncomplete": "O registro contém entradas danificadas, incompletas ou de uma versão mais recente; os totais as excluem.",
+    "sessionUsageUnavailable": "O uso desta sessão não pode ser atribuído no registro preservado; os totais de tokens e custos estão indisponíveis.",
+    "budgetsUnavailable": "Os registros de orçamento do período selecionado estão indisponíveis.",
     "sessionTurnsUnavailable": "O histórico da sessão não contém identificadores de turno, por isso os turnos não podem ser contados.",
     "sessionApprovalsUnavailable": "O histórico da sessão não contém decisões de aprovação.",
     "toolBreakdownUnavailable": "O uso por ferramenta não é registrado no diário de uso.",
     "rolledUpBreakdownExcluded": "O histórico acumulado está incluído nos totais, mas não neste detalhamento.",
-    "rolledUpSessionExcluded": "O histórico acumulado está excluído dos totais e do detalhamento desta sessão.",
-    "journalIncomplete": "O registro contém entradas danificadas, incompletas ou de uma versão mais recente; os totais as excluem.",
-    "sessionUsageUnavailable": "O uso desta sessão não pode ser atribuído no registro preservado; os totais de tokens e custos estão indisponíveis.",
-    "budgetsUnavailable": "Os registros de orçamento do período selecionado estão indisponíveis."
+    "rolledUpSessionExcluded": "O histórico acumulado está excluído dos totais e do detalhamento desta sessão."
   },
   "reportRowsMore": {
     "one": "Mais {count} linha",

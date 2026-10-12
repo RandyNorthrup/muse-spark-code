@@ -1918,14 +1918,14 @@
     "history": "選択したセッションの履歴は利用できません。"
   },
   "reportDetailReasons": {
+    "journalIncomplete": "使用状況の記録には破損、不完全、または新しいバージョンの項目が含まれています。合計からは除外されています。",
+    "sessionUsageUnavailable": "保存された記録ではこのセッションの使用状況を特定できないため、トークン数と費用の合計は利用できません。",
+    "budgetsUnavailable": "選択した期間の予算スナップショットは利用できません。",
     "sessionTurnsUnavailable": "セッション履歴にターン識別子がないため、ターンを数えられません。",
     "sessionApprovalsUnavailable": "セッション履歴に承認の決定がありません。",
     "toolBreakdownUnavailable": "ツール別の使用量は使用量ジャーナルに記録されません。",
     "rolledUpBreakdownExcluded": "集計済みの履歴は合計に含まれますが、この内訳には含まれません。",
-    "rolledUpSessionExcluded": "ロールアップされた履歴は、このセッションの合計と内訳から除外されます。",
-    "journalIncomplete": "使用状況の記録には破損、不完全、または新しいバージョンの項目が含まれています。合計からは除外されています。",
-    "sessionUsageUnavailable": "保存された記録ではこのセッションの使用状況を特定できないため、トークン数と費用の合計は利用できません。",
-    "budgetsUnavailable": "選択した期間の予算スナップショットは利用できません。"
+    "rolledUpSessionExcluded": "ロールアップされた履歴は、このセッションの合計と内訳から除外されます。"
   },
   "reportRowsMore": {
     "other": "ほか {count} 行"

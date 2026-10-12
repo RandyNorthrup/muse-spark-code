@@ -1946,14 +1946,14 @@
     "history": "Der Verlauf der ausgewählten Sitzung ist nicht verfügbar."
   },
   "reportDetailReasons": {
+    "journalIncomplete": "Das Nutzungsjournal enthält beschädigte, unvollständige oder neuere Einträge; Summen schließen sie aus.",
+    "sessionUsageUnavailable": "Die Nutzung dieser Sitzung ist im gespeicherten Journal nicht zuordenbar; Token- und Kostensummen sind nicht verfügbar.",
+    "budgetsUnavailable": "Budgetaufnahmen für den gewählten Zeitraum sind nicht verfügbar.",
     "sessionTurnsUnavailable": "Der Sitzungsverlauf enthält keine Turn-Kennungen, daher können Turns nicht gezählt werden.",
     "sessionApprovalsUnavailable": "Der Sitzungsverlauf enthält keine Genehmigungsentscheidungen.",
     "toolBreakdownUnavailable": "Die Werkzeugnutzung wird im Nutzungsverlauf nicht erfasst.",
     "rolledUpBreakdownExcluded": "Zusammengefasste Verläufe sind in den Summen enthalten, aber nicht in dieser Aufschlüsselung.",
-    "rolledUpSessionExcluded": "Zusammengefasste Verläufe sind in den Summen und der Aufschlüsselung dieser Sitzung nicht enthalten.",
-    "journalIncomplete": "Das Nutzungsjournal enthält beschädigte, unvollständige oder neuere Einträge; Summen schließen sie aus.",
-    "sessionUsageUnavailable": "Die Nutzung dieser Sitzung ist im gespeicherten Journal nicht zuordenbar; Token- und Kostensummen sind nicht verfügbar.",
-    "budgetsUnavailable": "Budgetaufnahmen für den gewählten Zeitraum sind nicht verfügbar."
+    "rolledUpSessionExcluded": "Zusammengefasste Verläufe sind in den Summen und der Aufschlüsselung dieser Sitzung nicht enthalten."
   },
   "reportRowsMore": {
     "one": "{count} weitere Zeile",

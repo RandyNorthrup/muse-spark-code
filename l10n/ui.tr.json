@@ -1946,14 +1946,14 @@
     "history": "Seçili oturumun geçmişi kullanılamıyor."
   },
   "reportDetailReasons": {
+    "journalIncomplete": "Kullanım günlüğü hasarlı, eksik veya daha yeni sürümlü kayıtlar içeriyor; toplamlar bunları hariç tutar.",
+    "sessionUsageUnavailable": "Saklanan günlükte kullanım bu oturuma atanamıyor; belirteç ve maliyet toplamları kullanılamıyor.",
+    "budgetsUnavailable": "Seçilen dönem için bütçe anlık görüntüleri kullanılamıyor.",
     "sessionTurnsUnavailable": "Oturum geçmişi tur tanımlayıcısı içermiyor, bu yüzden turlar sayılamıyor.",
     "sessionApprovalsUnavailable": "Oturum geçmişi onay kararı içermiyor.",
     "toolBreakdownUnavailable": "Araç bazında kullanım, kullanım günlüğüne kaydedilmiyor.",
     "rolledUpBreakdownExcluded": "Toplanan geçmiş toplamlara dahildir, ancak bu dökümde yer almaz.",
-    "rolledUpSessionExcluded": "Toplanmış geçmiş bu oturumun toplamlarına ve dökümüne dahil değildir.",
-    "journalIncomplete": "Kullanım günlüğü hasarlı, eksik veya daha yeni sürümlü kayıtlar içeriyor; toplamlar bunları hariç tutar.",
-    "sessionUsageUnavailable": "Saklanan günlükte kullanım bu oturuma atanamıyor; belirteç ve maliyet toplamları kullanılamıyor.",
-    "budgetsUnavailable": "Seçilen dönem için bütçe anlık görüntüleri kullanılamıyor."
+    "rolledUpSessionExcluded": "Toplanmış geçmiş bu oturumun toplamlarına ve dökümüne dahil değildir."
   },
   "reportRowsMore": {
     "one": "{count} satır daha",

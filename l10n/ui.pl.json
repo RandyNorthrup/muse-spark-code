@@ -2002,14 +2002,14 @@
     "history": "Historia wybranej sesji jest niedostępna."
   },
   "reportDetailReasons": {
+    "journalIncomplete": "Dziennik zawiera uszkodzone, niepełne wpisy lub wpisy nowszej wersji; sumy je pomijają.",
+    "sessionUsageUnavailable": "Nie można przypisać użycia do tej sesji w zachowanym dzienniku; sumy tokenów i kosztów są niedostępne.",
+    "budgetsUnavailable": "Migawki budżetu dla wybranego okresu są niedostępne.",
     "sessionTurnsUnavailable": "Historia sesji nie zawiera żadnych identyfikatorów tur, więc tur nie można policzyć.",
     "sessionApprovalsUnavailable": "Historia sesji nie zawiera żadnych decyzji zatwierdzających.",
     "toolBreakdownUnavailable": "Wykorzystanie według narzędzia nie jest rejestrowane w dzienniku użycia.",
     "rolledUpBreakdownExcluded": "Zagregowana historia jest uwzględniona w sumach, ale nie w tym podziale.",
-    "rolledUpSessionExcluded": "Zbiorcza historia jest wykluczona z sum i podziału tej sesji.",
-    "journalIncomplete": "Dziennik zawiera uszkodzone, niepełne wpisy lub wpisy nowszej wersji; sumy je pomijają.",
-    "sessionUsageUnavailable": "Nie można przypisać użycia do tej sesji w zachowanym dzienniku; sumy tokenów i kosztów są niedostępne.",
-    "budgetsUnavailable": "Migawki budżetu dla wybranego okresu są niedostępne."
+    "rolledUpSessionExcluded": "Zbiorcza historia jest wykluczona z sum i podziału tej sesji."
   },
   "reportRowsMore": {
     "one": "{count} dodatkowy wiersz",
