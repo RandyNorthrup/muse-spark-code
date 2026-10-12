@@ -1119,7 +1119,13 @@ interface PreparedAudioMessage {
 export interface ActiveTurn {
   modelCalls: number
   modelCallLimit: number
-  /** Request-only wrap-up note, never persisted into conversation replay. */
+  /**
+   * The turn's phase: `undefined` is ordinary, set is the wrap-up. The next
+   * request answers without tools; held input (steered text, scheduled
+   * steers, goal wakes) is never consumed by it. Written only by
+   * `enterWrapUpPhase`; every other site reads it. The note is request-only,
+   * never persisted into conversation replay.
+   */
   wrapUpLimit?: number | undefined
   readonly draft?: PreparedGitDraft
   scheduleRun?: UnattendedRun
@@ -2680,6 +2686,8 @@ export class ModelApiSession implements ScheduledAgentSession {
   private sendingModelId: string | undefined
   private sendingContextModel: ContextModel | undefined
   private isSendingCompaction = false
+  /** The request in flight is the wrap-up: its tokens never measure the turn body. */
+  private isSendingWrapUp = false
   private previousCacheUsage: { readonly modelId: string; readonly inputTokens: number } | undefined
   private approvedSearchQuote: PaidQuote | undefined
   private sendingSearchQuote: PaidQuote | undefined
@@ -3250,6 +3258,7 @@ export class ModelApiSession implements ScheduledAgentSession {
             false,
             this.askingSessionId,
           )) === true,
+        isTurnCallReserved: () => this.isWrapUpSlotReserved(),
         noteHookModelRun: () => {
           this.notifyUsage(() => {
             this.deps.notePaidUse('hookModels', 1)
@@ -4008,6 +4017,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     this.sendingModelId = undefined
     this.sendingContextModel = undefined
     this.isSendingCompaction = false
+    this.isSendingWrapUp = false
     this.sendingSearchBound = undefined
     this.sendingSearchQuote = undefined
     this.sendingModel = undefined
@@ -4387,15 +4397,8 @@ export class ModelApiSession implements ScheduledAgentSession {
       resolved,
     )
     const turn = this.active
-    if (turn !== undefined && this.compacting === undefined) {
-      const remaining = this.modelCallsLeft(turn)
-      // The first call is always ordinary, even when it is also the last
-      // one allowed: the wrap-up exists only after a call went out.
-      turn.wrapUpLimit =
-        remaining <= 1 && turn.modelCalls >= 1
-          ? turn.modelCalls + Math.max(0, remaining)
-          : undefined
-    }
+    // The request builder only reads the phase: `enterWrapUpPhase` (loop top
+    // and the last-slot retry) is the one writer.
     const wrapUpLimit = this.compacting === undefined ? turn?.wrapUpLimit : undefined
     // The wrap-up keeps the production side-call shape (compaction, git
     // draft): no tools declared, the choice field as ever, instructions
@@ -4833,6 +4836,10 @@ export class ModelApiSession implements ScheduledAgentSession {
       )
         throw new ModelCallLimitError(turn.modelCalls)
       this.isSendingCompaction = isCompaction
+      // The phase is read here, at the send: a wrap-up retry still sends the
+      // wrap-up, whatever the loop has done meanwhile.
+      this.isSendingWrapUp =
+        !isCompaction && directBudget === undefined && turn?.wrapUpLimit !== undefined
       // Compaction must remain reachable even when ordinary turns no longer fit (D49).
       this.sendingContextModel =
         !isCompaction && this.compacting === undefined
@@ -4993,9 +5000,14 @@ export class ModelApiSession implements ScheduledAgentSession {
         const left = this.modelCallsLeft(turn)
         if (left <= 0) throw new ModelCallLimitError(turn.modelCalls)
         // A retry spending the last slot rebuilds as the wrap-up, once a
-        // call went out; the first call always retries ordinary.
-        if (left === 1 && turn.wrapUpLimit === undefined && turn.modelCalls >= 1)
-          throw new WrapUpRequiredError()
+        // call went out; the first call always retries ordinary. The phase
+        // is read everywhere else, written only here and at the loop top.
+        if (left !== 1) {
+          return
+        }
+
+        this.enterWrapUpPhase(turn)
+        if (turn.wrapUpLimit !== undefined) throw new WrapUpRequiredError()
       },
       onRequestStarted: () => {
         const currentTurn = this.active
@@ -5012,16 +5024,18 @@ export class ModelApiSession implements ScheduledAgentSession {
           // Request-only goal progress belongs to the retained owning turn.
           if (body.input.length === turnIds.length + 1 && this.active !== undefined)
             turnIds.push(this.active.turnId)
-          // A wrap-up body is never the compaction prefix: compaction after
-          // a limit stop reuses the last ordinary body, with its sentence
-          // nowhere and the full tools.
+          // The wrap-up is never measured as the turn body. A wrap-up body
+          // is never the compaction prefix: compaction after a limit stop
+          // reuses the last ordinary body, with its sentence nowhere and
+          // the full tools. Its token count stays off the prefix (below),
+          // and it is not a compaction request either.
           if (currentTurn?.wrapUpLimit === undefined) {
             this.compactionPrefix = {
               body: structuredClone(body),
               turnIds,
             }
+            this.autoCompact.noteRequest()
           }
-          this.autoCompact.noteRequest()
         }
         if (directBudget === undefined) this.wasCallSent = true
         if (this.isSubagent && this.childTaskGrant !== undefined) {
@@ -5271,7 +5285,14 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     const billable = { ...modelPricedUsage(usage), images: this.sendingImageCount }
     const sentModelId = this.sendingModelId ?? this.modelId
-    if (!this.isSendingCompaction && this.compactionPrefix?.body.model === sentModelId) {
+    // The wrap-up carries no tool schemas, so its token count is never the
+    // turn body's: compaction after a limit stop measures the last ordinary
+    // body instead.
+    if (
+      !this.isSendingCompaction &&
+      !this.isSendingWrapUp &&
+      this.compactionPrefix?.body.model === sentModelId
+    ) {
       this.compactionPrefix.contextTokens = usage.input_tokens + usage.output_tokens
     }
     const fields =
@@ -6042,7 +6063,14 @@ export class ModelApiSession implements ScheduledAgentSession {
     const revision = this.modelRevision
     const resolved = await this.resolveModel(this.active?.audioMessage?.modelId ?? this.modelId)
     const pending = this.owner.run(turnId)
-    if (pending !== undefined && this.active !== undefined && this.active.scheduleRun !== pending)
+    // The sibling drain: a scheduled-prompt steer arriving before the
+    // wrap-up is never consumed by it, but keeps its own turn with tools.
+    if (
+      pending !== undefined &&
+      this.active !== undefined &&
+      this.active.scheduleRun !== pending &&
+      this.active.wrapUpLimit === undefined
+    )
       await this.drainSteered(this.active)
     const requestId = this.deps.newId()
     const run = this.active?.scheduleRun
@@ -8769,11 +8797,13 @@ export class ModelApiSession implements ScheduledAgentSession {
       throw new Error('the hook model bundle could not be loaded')
     }
     if (!isCurrent()) throw new AbortedError()
-    // A hook-model call must not spend the reserved wrap-up slot: no call
-    // is suggested instead.
+    // Fail closed behind the policy gate above (`isTurnCallReserved`): a
+    // skipped call is a failed hook answer, never an empty success the hook
+    // parser would read as no objection. Reached only by a caller that
+    // bypassed the gate; `runModelHandler` turns the throw into `failed`,
+    // so the hook's own on-failure rule still decides.
     if (this.isWrapUpSlotReserved()) {
-      this.deps.log.warn('The hook model call was skipped to keep the reserved final request')
-      return { text: '', usage: { inputTokens: 0, outputTokens: 0, cachedTokens: 0 } }
+      throw new Error('the hook model call would take the reserved final request')
     }
     // The run is tallied when the gate allowed it; the request observer below
     // counts its attempts for the client's own budget, nothing more.
@@ -13381,7 +13411,9 @@ export class ModelApiSession implements ScheduledAgentSession {
 
   /** A busy goal command was not in the request already in flight. */
   private drainGoalWake(turn: ActiveTurn): void {
-    if (!turn.goalWakePending) {
+    // The wrap-up never consumes a goal wake: the one exit re-queues it for
+    // its own turn.
+    if (!turn.goalWakePending || turn.wrapUpLimit !== undefined) {
       return
     }
     turn.goalWakePending = false
@@ -13500,16 +13532,25 @@ export class ModelApiSession implements ScheduledAgentSession {
   }
 
   /**
-   * The last permitted call is the wrap-up's: side work (recovery
-   * compaction, reviewer and hook-model calls, images) must not spend it,
-   * in the turn or in the exec ledger.
+   * The exact reserved-slot condition: a caller allowance (exec's
+   * `remainingModelCalls`, a best-of-N attempt ceiling) exists, and the
+   * turn's remaining — its own limit folded with that allowance — is one
+   * call. Side work answered over the caller's ledger (recovery compaction,
+   * reviewer and hook-model calls, images) must not spend that last call:
+   * it is the turn's own next request, wrap-up or (before any call went
+   * out) first ordinary call. Reviewer and hook-model calls use the direct
+   * budget and never touch the turn's own count, so in a turn with no
+   * caller allowance they cannot take the slot and the gate stays off,
+   * whatever the turn's own limit says.
    */
   private isWrapUpSlotReserved(): boolean {
+    if (this.compacting !== undefined) return false
+    // Without a caller allowance (interactive turns) side work is
+    // ledger-free: nothing to keep.
+    const callerLeft = this.callerModelCallsLeft()
+    if (callerLeft === undefined) return false
     const turn = this.active
-    if (turn !== undefined && this.compacting === undefined && this.modelCallsLeft(turn) <= 1)
-      return true
-    const ledgerLeft = this.deps.remainingModelCalls?.()
-    return ledgerLeft !== undefined && ledgerLeft <= 1
+    return (turn === undefined ? callerLeft : this.modelCallsLeft(turn)) <= 1
   }
 
   /**
@@ -13555,6 +13596,61 @@ export class ModelApiSession implements ScheduledAgentSession {
     return stop
   }
 
+  /**
+   * The one transition into the wrap-up phase. Once a call went out and one
+   * remains, the next request answers without tools. The first call is
+   * always ordinary, even when it is also the last one allowed.
+   */
+  private enterWrapUpPhase(turn: ActiveTurn): void {
+    if (turn.wrapUpLimit === undefined && turn.modelCalls >= 1 && this.modelCallsLeft(turn) <= 1) {
+      turn.wrapUpLimit = turn.modelCalls + Math.max(0, this.modelCallsLeft(turn))
+    }
+  }
+
+  /**
+   * The wrap-up phase's one exit. Whatever ended the wrap-up — a plain or
+   * truncated answer, a Stop hook blocking or answering `continue: false`,
+   * a hook cancelling the turn — the turn reports the same typed outcome
+   * (completed, `max_turn_requests`, stop reason `limit`), and input the
+   * wrap-up never consumed (steered text, scheduled-prompt steers, goal
+   * wakes) is re-queued for its own turn with tools. A user stop racing the
+   * request itself still cancels: no wrap-up answer exists then.
+   */
+  private async finishWrapUp(
+    turn: ActiveTurn,
+    signal: AbortSignal,
+    isStopHookActive: boolean,
+    limitError?: ModelCallLimitError,
+  ): Promise<never> {
+    let stop: HookDispatch | undefined
+    try {
+      // The turn ended with an answer, so Stop hooks still run.
+      stop = await this.runAnswerStopHooks(turn, signal, isStopHookActive)
+    } catch (error: unknown) {
+      // A hook cancelling the wrap-up ends the turn at its limit: the final
+      // answer already streamed, and nothing past the limit can be honoured.
+      if (!(error instanceof HookCancelledError)) throw error
+    }
+    // More work cannot be honoured past the limit, and the notice says so.
+    if (stop?.blockedReason !== undefined) {
+      this.emit({
+        type: 'backendNotice',
+        level: 'warning',
+        text: UI_TEXT.modelApiWrapUpHookBlocked,
+      })
+    }
+    // Input held out of the wrap-up keeps its own turn with tools: steered
+    // messages belonged to this turn, so they run before separately queued
+    // messages; a goal cue follows them.
+    if (turn.goalWakePending && isGoalActive(this.goal)) {
+      this.queuedTurns.unshift(this.queuedGoalWake())
+    }
+    this.promoteSteered(turn)
+    // A call limit is not a money stop: it carries its own stop reason.
+    this.outcomeStopReason = 'limit'
+    throw limitError ?? new ModelCallLimitError(turn.modelCalls)
+  }
+
   private async loop(turn: ActiveTurn): Promise<void> {
     this.repeatGuard.reset()
     const { signal } = turn.abort
@@ -13572,10 +13668,12 @@ export class ModelApiSession implements ScheduledAgentSession {
       if (requiredBeforeRound !== undefined) {
         throw requiredBeforeRound
       }
-      // The next request is the wrap-up once a call went out and one
-      // remains: steering and goal wakes arriving before it are not
-      // consumed by it, but keep their own turn with tools.
-      if (turn.modelCalls < 1 || this.modelCallsLeft(turn) > 1) {
+      // The phase is decided here, once per round: the next request is the
+      // wrap-up once a call went out and one remains. Steering and goal
+      // wakes arriving before it are not consumed by it, but keep their own
+      // turn with tools; the one exit re-queues them.
+      this.enterWrapUpPhase(turn)
+      if (turn.wrapUpLimit === undefined) {
         await this.drainSteered(turn)
         this.drainGoalWake(turn)
       }
@@ -13658,10 +13756,16 @@ export class ModelApiSession implements ScheduledAgentSession {
         }
         if (streamed.incompleteReason === 'max_output_tokens' && turn.wrapUpLimit !== undefined) {
           // A wrap-up cut at the output limit is a limit stop, never
-          // "again": the partial answer is kept, with its own sentence.
-          throw new ModelCallLimitError(
-            turn.modelCalls,
-            plural(UI_TEXT.modelApiWrapUpTruncated, turn.modelCalls),
+          // "again": the partial answer is kept, through the one exit, with
+          // its own sentence.
+          await this.finishWrapUp(
+            turn,
+            signal,
+            isStopHookActive,
+            new ModelCallLimitError(
+              turn.modelCalls,
+              plural(UI_TEXT.modelApiWrapUpTruncated, turn.modelCalls),
+            ),
           )
         }
         if (streamed.incompleteReason === 'max_output_tokens' && this.outputContinuation) {
@@ -13675,20 +13779,12 @@ export class ModelApiSession implements ScheduledAgentSession {
       }
       if (turn.wrapUpLimit !== undefined) {
         // A provider ignoring the tools-disabled request cannot execute work.
+        // Every ending converges on the one exit: a Stop hook answering
+        // `continue: false` stops the turn with the typed limit, never with
+        // a bare return that would lose it.
         this.skipCalls(turn.turnId, calls, this.wrapUpNote(turn.wrapUpLimit))
         this.appendHookContexts(turn.turnId, postContexts)
-        // The turn ended with an answer, so Stop hooks still run. More work
-        // cannot be honoured past the limit, and the notice says so.
-        const stop = await this.runAnswerStopHooks(turn, signal, isStopHookActive)
-        if (stop.stopReason !== undefined) return
-        if (stop.blockedReason !== undefined) {
-          this.emit({
-            type: 'backendNotice',
-            level: 'warning',
-            text: UI_TEXT.modelApiWrapUpHookBlocked,
-          })
-        }
-        break
+        await this.finishWrapUp(turn, signal, isStopHookActive)
       }
       // One more model call without progress toward the goal (the step probe, D38).
       if (isGoalActive(this.goal)) {
@@ -13858,6 +13954,11 @@ export class ModelApiSession implements ScheduledAgentSession {
       if (this.modelCallsLeft(turn) <= 1) continue
       const compacted = await this.maybeAutoCompact(turn)
       if (this.stopAfterAutoCompaction(turn, compacted, wasBudgetLimited)) return
+    }
+    // A loop that ends in the wrap-up phase leaves through the one exit,
+    // so the phase keeps its single typed outcome whatever spent the slot.
+    if (turn.wrapUpLimit !== undefined) {
+      await this.finishWrapUp(turn, signal, isStopHookActive)
     }
     // Input accepted during the last permitted round still needs a request
     // that sees it. Steered messages belonged to this turn, so run them

@@ -194,6 +194,29 @@ describe('prompt/agent gate and consent (M91 D70, D48)', () => {
     expect(allowsHookModelUse).not.toHaveBeenCalled()
   })
 
+  it('fails a reserved-slot run before the popup and the tally', async () => {
+    const allowsHookModelUse = vi.fn()
+    const noteHookModelRun = vi.fn()
+    const runTurn = vi.fn(runner())
+    const warn = vi.fn()
+    const answer = await runModelHandler(
+      config(),
+      PAYLOAD,
+      runTurn,
+      policy({ allowsHookModelUse, noteHookModelRun, isTurnCallReserved: () => true }),
+      new AbortController().signal,
+      warn,
+      parse,
+    )
+    // A skipped call is a failed hook answer with its own reason, so the
+    // hook's own on-failure rule decides; nothing is asked or counted.
+    expect(answer.status).toBe('failed')
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('reserved for its own requests'))
+    expect(allowsHookModelUse).not.toHaveBeenCalled()
+    expect(noteHookModelRun).not.toHaveBeenCalled()
+    expect(runTurn).not.toHaveBeenCalled()
+  })
+
   it('asks the paid-use popup before any model request, and stops on deny', async () => {
     const order: string[] = []
     const runTurn: HookModelTurnRunner = vi.fn(() => {
