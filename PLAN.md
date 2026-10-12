@@ -35890,7 +35890,12 @@ never this owner's MacBook. Receipts: `docs/certification/m115-join.md`.
       Keep schedules.js at 200 KiB and every existing cap unchanged; measure
       closure/source ownership; schedules fit the unchanged 200 KiB cap.
       Full artifact rows await the accepted What's New integration at the lead.
-- [ ] Dependent suites, red drills and scoped gates; lead cross-platform replay.
+- [x] Six complete-file red drills, byte-exact restoration, scoped static
+      gates, final core journal-contract replay and owned money/delivery tests.
+- [ ] Full dependent sweep and cross-platform qualification: exact remaining
+      and failed suites are in m115-join-dependent-suites.json; migration/default
+      deadline and claims/setup failures remain visible. Full production build
+      retains the accepted What's New writer hold. Keep certification false.
       The full production assembly test cannot run on MacBook: native resource
       retirement requires the forbidden muse-dictate helper, absent in this
       checkout; retain the test for Linux with the packaged native helpers.

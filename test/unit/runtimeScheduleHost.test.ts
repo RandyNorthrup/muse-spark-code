@@ -1,6 +1,8 @@
 import { malformedUsd } from './helpers/malformedUsd'
 import { Usd as PortUsd } from '../../src/shared/usd'
 import { describe, expect, it, vi } from 'vitest'
+import { createScheduleStore } from '../../src/core/schedules/store'
+import { MemoryScheduleFs } from './helpers/schedules/storage'
 import { RuntimeScheduleHost } from '../../src/runtime/schedules/host'
 import { fakeRunContext, fakeSchedule } from './helpers/schedules/fixtures'
 import { scheduleFireRecordSchema, type ScheduleRunContext } from '../../src/shared/scheduleV2'
@@ -113,23 +115,40 @@ describe('runtime scheduler host', () => {
       await expect(host.deliver(schedule, context, record.occurrenceMs)).rejects.toThrow()
     }
   })
-  it('exposes absent, admitted and settled runs through the run ledger', async () => {
-    const { host, deliver, record, schedule, context } = setup()
-    expect(await host.lookupRun(context.runId)).toEqual({ status: 'absent' })
-    expect(await host.lookupRun('unknown')).toEqual({ status: 'absent' })
+  it('reads dispatch and terminal facts from the durable core journal after reload', async () => {
+    const { deliver, record, schedule, context } = setup()
+    const fs = new MemoryScheduleFs()
+    const store = createScheduleStore(fs)
+    await store.create(schedule)
+    const host = new RuntimeScheduleHost({
+      deliver,
+      lookupRun: (workspace, id) => store.lookupRun(workspace, id),
+    })
     host.hold(schedule.workspaceKey)
-    const pending = Promise.withResolvers<unknown>()
-    deliver.mockReturnValue(pending.promise)
-    const delivery = host.deliver(schedule, context, record.occurrenceMs)
-    await Promise.resolve()
+    expect(await host.lookupRun(context.runId)).toEqual({ status: 'absent' })
+    const intent = {
+      schedule,
+      runId: context.runId,
+      occurrenceMs: record.occurrenceMs,
+      advancesTime: false,
+    }
+    await store.admit(intent)
+    await store.advance(intent)
     expect(await host.lookupRun(context.runId)).toEqual({ status: 'admitted' })
-    await expect(host.deliver(schedule, context, record.occurrenceMs)).rejects.toThrow()
-    pending.resolve(record)
-    expect(await delivery).toEqual(record)
-    expect(await host.lookupRun(context.runId)).toEqual({ status: 'settled', fire: record })
-    // A settled replay returns the recorded fire without dispatching again.
-    expect(await host.deliver(schedule, context, record.occurrenceMs)).toEqual(record)
-    expect(deliver).toHaveBeenCalledOnce()
+    await store.startDispatch(intent)
+    expect(await host.lookupRun(context.runId)).toMatchObject({ status: 'dispatchStarted' })
+    // Only the core writes these terminal facts; host lookup never dispatches.
+    await store.acknowledge(record)
+    await store.record(record)
+    const reopened = createScheduleStore(fs)
+    const restarted = new RuntimeScheduleHost({
+      deliver,
+      lookupRun: (workspace, id) => reopened.lookupRun(workspace, id),
+    })
+    restarted.hold(schedule.workspaceKey)
+    expect(await restarted.lookupRun(context.runId)).toEqual({ status: 'settled', fire: record })
+    expect(await restarted.lookupRun('unknown')).toEqual({ status: 'absent' })
+    expect(deliver).not.toHaveBeenCalled()
   })
   it('validates schedule, unattended context and event boundaries before delivery', async () => {
     const { host, deliver, record, schedule, context } = setup()

@@ -167,7 +167,7 @@ describe('schedule restart recovery through the real delivery ledger', () => {
     await expectSingleRanFire(setup)
   })
 
-  it('re-runs at most once when both the acknowledgement and the ledger are lost, still recording one fire', async () => {
+  it('never re-runs after the durable dispatch fence when acknowledgement and host ledger are lost', async () => {
     const setup = await fixture()
     const { store, job } = setup
     await failFirstAck(setup)
@@ -186,7 +186,14 @@ describe('schedule restart recovery through the real delivery ledger', () => {
       ...settleDeps,
     })
     await crossProcess.recover(job.workspaceKey)
-    expect(fresh.runs.run).toHaveBeenCalledTimes(1)
-    await expectSingleRanFire(setup)
+    expect(fresh.runs.run).not.toHaveBeenCalled()
+    const fires = await store.fires(job.workspaceKey)
+    expect(fires).toHaveLength(1)
+    expect(fires[0]).toMatchObject({
+      runId: setup.intent.runId,
+      outcome: 'uncertain',
+      cost: { certainty: 'unknown', retainedLiabilityUsd: job.grant.paidCapUsd },
+    })
+    expect(await store.pending(job.workspaceKey)).toEqual([])
   })
 })

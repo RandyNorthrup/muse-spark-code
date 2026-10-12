@@ -113,3 +113,96 @@ explicit branches. The complete affected matrix/window/Windows-path batch
 passed 109 tests, at repository deadlines. Graph ownership plus window/runtime
 checks passed 72; warmed real-process recovery passed all five at default
 five-second test deadlines.
+
+## Single certification switch and merged restore list
+
+The lead changes `SCHEDULE_EDITOR_DELIVERY_CERTIFICATION.isReady` in
+`src/shared/constants.ts` from false to true only after qualification. The
+runtime binding applies the same switch to window, ACP and CLI ports. Tests
+change it only in their fixture. `/loop` remains its existing manual flow.
+
+Restore the following current-surface statements together, including real
+translations in all 14 tables and regenerated reference/roadmap files:
+
+- Help `referenceSchedules`: "Scheduled prompts run unattended in VS Code,
+  with durable fire records, standing grants and explicit delivery modes.
+  Model API /loop jobs run when you choose Run now."
+- Help `referenceRuntimeSchedules`: "Run unattended Muse Code and Model API
+  prompts from ACP or the terminal, with session-owned output, durable fire
+  records and background conversation targets."
+- Help `referenceSchedulePaidConsent`: "Each Model API schedule has its own
+  payer/model/key/tariff/shared-budget consent and hard schedule/shared daily
+  caps. Allow once covers one fire; Allow always covers this schedule.
+  Changed bindings, grants or limits require renewal before another paid fire."
+  Change these three selectors from `scheduleDeliveryCertified=false` to
+  `scheduleDeliveryCertified=true` after restoring the affirmative words.
+- README schedule paragraph: "The v2 schedule editor, list and timeline manage
+  durable records. Certified window, ACP and CLI hosts deliver each fire through
+  the shared scheduler. Ambiguous dispatched fires are never sent again and
+  keep reserved spend; completed fires with unreadable cost remain delivered
+  with unknown cost." Retain the manual `/loop` paragraph and all paid opt-ins.
+- CHANGELOG Unreleased: "Scheduled prompts v2 joins certified VS Code, ACP and
+  CLI delivery with core-owned durable dispatch/settlement, session-owned output
+  and per-schedule Model API consent plus both daily caps. Uncertain dispatched
+  fires never replay; failed cost reads preserve delivered output and spend."
+  Remove the joined candidate's disabled-delivery sentence only after the switch.
+- ACP guide: replace its shared-switch disabled notice with the certified
+  `/schedule` delivery sentence and active schedule-specific consent/cap rules.
+- Roadmap M115 summary: reflect certified joined hosts and their known limits,
+  without claiming the still-separate native panels, event sources, team targets
+  or installed-editor/OS-wake receipts. Regenerate ROADMAP.md.
+
+Keep OS-wake, native panel/TUI/node and extra paid-executor claims held until
+C-M115-6/9 and the corresponding executor lanes qualify. The production wake
+registration still uses its explicit authorization policy; do not describe
+Model API paid wakes as enabled merely because these delivery ports exist.
+
+## Dependent sweep and remaining certification
+
+The exact selected suite list, actual run results, forbidden files and remaining
+files are in `m115-join-dependent-suites.json`. The required CLI related command
+ran with a shard respecting the three-file limit. Subsequent public Vitest API
+invocations run at most three complete files, using the unchanged repository
+configuration, isolation and deadlines while sharing global setup. Expensive
+process fixtures run alone. Module caching is under this lane's ignored temp
+folder, never the shared dependency installation.
+
+The stdio fixture also compiles/uses muse-dictate for process identity. Once
+that transitive dependency was identified, further Mac stdio runs were stopped
+and assigned to Linux. No microphone or screen capture occurred. The complete
+production assembly/native tests and browser/visual/accessibility harnesses
+remain forbidden on this owner MacBook. Initial grouped process fixture hooks
+failed at 10 seconds; the brief's prescribed isolated default-timeout replays
+are recorded separately, never silently promoted to passing receipts.
+
+Old host-ledger and lost-ledger replay assertions are replaced with durable
+journal lookup and no replay after dispatch. The shared core owns the guarantee;
+old per-host settlement is not restored to satisfy those obsolete expectations.
+
+## Final handoff limits
+
+The dependency inventory expands to 1,145 suites because shared constants and
+English tables are changed. The sweep did not finish inside the 180-minute lane
+budget. It was stopped when an unrelated checkpoint/worktree group ceased
+producing results. Exact unexecuted files and failed receipts are retained in
+the dependent-suite ledger; do not report ALL DEPENDENT SUITES RUN.
+
+The final core journal-contract replay passed **9/9** in runtimeScheduleHost and
+scheduleRestartRecovery. The host reads the durable journal after reload;
+losing both acknowledgement and host memory never resends past dispatch.
+Migration's isolated final replay still failed **7/15** at 5-second deadlines;
+8 passed. The failed cases involve repeated real journal/fsync work. No timeout,
+assertion, gate, ignore or coverage threshold was relaxed to hide those failures.
+The known 10-second schedule-claims fixture hook also failed in isolated sweeps
+on the busy MacBook. The warmed crash proof has a prior complete five-pass
+receipt and later sweep timing failures; both remain visible in the ledger.
+
+**Next slice:** the lead integrates the already accepted What's New writer,
+then a Linux rig runs the complete production host assembly, forbidden browser/
+visual/accessibility/installed-editor checks and every unexecuted or failed
+suite from the ledger. Windows replays native queue/promotion, process lifetime,
+path/lease/journal and both paid-cap races; another permitted macOS rig replays
+native helper/stdio and OS-wake lifecycle checks. Replay full production sizes
+and split checks on those complete artifacts. Keep the one delivery switch
+false until these checks, independent review and required live receipts pass;
+this lane made zero paid/live model calls. M115 remains building, not certified.
