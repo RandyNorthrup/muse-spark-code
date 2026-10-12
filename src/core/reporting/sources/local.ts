@@ -23,6 +23,7 @@ export type LocalFailure =
   | 'disabled'
   | 'unbound'
   | 'history'
+  | 'busy'
 const LOCAL_FAILURES: Record<string, LocalFailure | undefined> = {
   missing: 'missing',
   invalid: 'invalid',
@@ -33,6 +34,7 @@ const LOCAL_FAILURES: Record<string, LocalFailure | undefined> = {
   disabled: 'disabled',
   unbound: 'unbound',
   history: 'history',
+  busy: 'busy',
 }
 export class LocalSourceError extends Error {
   /**
@@ -74,7 +76,8 @@ export interface LocalFileIo {
   ): Promise<readonly { name: string; directory: boolean }[]>
 }
 export function sourceReason(code: LocalFailure, reportText: UiText): string {
-  return reportText.reportSourceReasons[code]
+  // A held resource names its holder state, never a generic read failure.
+  return code === 'busy' ? reportText.teamHostBusy : reportText.reportSourceReasons[code]
 }
 
 /**
@@ -129,23 +132,20 @@ export function localSource<K extends ReportSourceKind>(
     kind,
     id: kind,
     async read(context): Promise<SourceResult<ReportSourcePayloads[K]>> {
-      const signal = AbortSignal.any([
-        context.signal,
-        AbortSignal.timeout(REPORT_SOURCE_TIMEOUT_MS),
-      ])
-      let detach: (() => void) | undefined
+      // The engine hands every source its abort signal and its deadline; the
+      // timeout enforces the handed deadline, defaulting to the source
+      // timeout for older callers. The read's own settlement is awaited, so
+      // an abort settles the read instead of abandoning it mid-flight: after
+      // an abort the signal stays aborted and no further read, write or
+      // publish the source starts can succeed.
+      const budget = Math.max(
+        0,
+        (context.deadline ?? Date.now() + REPORT_SOURCE_TIMEOUT_MS) - Date.now(),
+      )
+      const signal = AbortSignal.any([context.signal, AbortSignal.timeout(budget)])
       try {
         signal.throwIfAborted()
-        const cancelled = new Promise<never>((_resolve, reject) => {
-          const abort = () => {
-            reject(new LocalSourceError('cancelled'))
-          }
-          signal.addEventListener('abort', abort, { once: true })
-          detach = () => {
-            signal.removeEventListener('abort', abort)
-          }
-        })
-        const result = await Promise.race([read({ ...context, signal }), cancelled])
+        const result = await read({ ...context, signal })
         signal.throwIfAborted()
         const observedAt = result.observedAt ?? context.asOf
         const freshness = sourceFreshness(context.asOf, observedAt)
@@ -180,8 +180,6 @@ export function localSource<K extends ReportSourceKind>(
           },
           data: null,
         }
-      } finally {
-        detach?.()
       }
     },
   }

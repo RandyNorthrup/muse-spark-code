@@ -317,6 +317,14 @@ export interface SourceReadContext {
   readonly workspaceKey: string
   readonly options: ReportOptions
   readonly signal: AbortSignal
+
+  /**
+   * Last instant (epoch milliseconds) a source may start new work. The
+   * engine sets it from the source timeout; a wait that outlasts it with a
+   * live holder retires as busy, and no new read, write or publish starts
+   * past it. Absent in older fakes, which keep the source timeout.
+   */
+  readonly deadline?: number
 }
 export interface ReportSourcePort<K extends ReportSourceKind> {
   readonly kind: K
