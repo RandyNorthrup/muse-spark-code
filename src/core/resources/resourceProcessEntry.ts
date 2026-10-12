@@ -6,4 +6,4 @@
 // launcher (its compiles are bootstrap launches), so it ships with the runtime
 // instead (src/runtime/resources/jobs.ts), outside this module's graph.
 export { spawnResourceProcess } from './process'
-export { execResourceFile, handoffResourceFile } from './commands'
+export { execResourceFile, execResourceFileBytes, handoffResourceFile } from './commands'

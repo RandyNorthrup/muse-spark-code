@@ -93,11 +93,11 @@ export interface TeamHostBundleDeps extends Omit<TeamHostServiceDeps, 'workers' 
 
 /**
  * Binary-safe git with a credential-free environment unless the caller isolates further.
- * The governed runner lives in the first-use file chunk beside the worker file
- * adapter, so this entry keeps its budget; the inventory records that site.
+ * The governed runner lives in the first-use worker-operations chunk beside the
+ * file adapter, so this entry keeps its budget; the inventory records that site.
  */
 async function defaultTeamGit(platform: NodeJS.Platform): Promise<TeamGit> {
-  const { processTeamGit } = await import('../../core/team/workers/workerToolIoEntry')
+  const { processTeamGit } = await import('../../core/team/workers/workerOpsEntry')
   return processTeamGit(platform)
 }
 
@@ -173,7 +173,13 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
     return root
   }
 
-  const runTask = async (spec: TeamTaskSpec, signal: AbortSignal): Promise<TeamWorkerOutcome> => {
+  // Named apart from the eval harness's own runTask: the spawn-inventory
+  // test-only proof matches identifiers by name, and these are different
+  // runners (an engine worker task here, a paired eval case there).
+  const runWorkerTask = async (
+    spec: TeamTaskSpec,
+    signal: AbortSignal,
+  ): Promise<TeamWorkerOutcome> => {
     signal.throwIfAborted()
     if (!deps.isTrusted()) throw new Error(TEAM_MODEL_TEXT.hostUntrusted)
     const repositoryRoot = repository()
@@ -481,7 +487,7 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
       const listed = await deps.listModels()
       return listed.some((model) => isSameTeamModel(model, agent.model))
     },
-    run: runTask,
+    run: runWorkerTask,
     isLimited: (agent: TeamAgentRef) => (limitedUntil.get(agent.agentId) ?? 0) > deps.now(),
   }
 

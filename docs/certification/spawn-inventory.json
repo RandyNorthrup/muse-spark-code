@@ -226,14 +226,14 @@
     "reason": "Injected worker port is the admitted team engine-worker launcher."
   },
   {
-    "site": "src/core/team/workers/workerCreateEntry.ts#call:execResourceFile:1",
+    "site": "src/core/team/workers/workerOps.ts#call:execResourceFile:1",
     "profile": "contained",
-    "reason": "Verified worker file helper (Linux muse-created, macOS muse-dictate --created-directory, Windows PowerShell job assembly): one admitted contained launch per file operation, fixed helper path, argument array, caller timeout and output cap; admission refusal is a typed create refusal."
+    "reason": "Verified worker file helper (Linux muse-created, macOS muse-dictate --created-directory, Windows PowerShell job assembly): one admitted contained launch per file operation, fixed helper path, argument array, caller timeout and output cap; admission refusal is a typed create refusal. The launcher lives in the first-use worker-operations chunk so the create entry keeps its size row."
   },
   {
-    "site": "src/core/team/workers/workerToolIo.ts#call:spawnResourceProcess:1",
+    "site": "src/core/resources/commands.ts#call:spawnResourceProcess:3",
     "profile": "contained",
-    "reason": "Team worktree git through the governed contained launcher: admitted binary-safe runner with the worker-copy credential-free environment, named deadline, bounded combined buffer and whole-tree stop."
+    "reason": "execResourceFileBytes forwards the caller-named contained or probe profile with binary-safe output (team worktree git); one deadline covers admission and run; combined output cap."
   },
   {
     "site": "src/core/team/workers/workerFence.ts#call:execResourceFile:1",

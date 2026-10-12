@@ -9,17 +9,10 @@
 // `write-paths`). Each call first asks the task's live admission (trust, the
 // paid switch, the caps, a stop), so a worker stops at its next file call too.
 
-import { BYTES_PER_MIB, TOOL_FILE_MAX_BYTES, WORKER_MODEL_TEXT } from '../../../shared/constants'
+import { TOOL_FILE_MAX_BYTES, WORKER_MODEL_TEXT } from '../../../shared/constants'
 import { fingerprint } from '../../verify/fingerprint'
 import type { ToolIo } from '../../backends/modelapi/tools'
 import { pathModule } from '../../workspaceRoot'
-import { spawnResourceProcess } from '../../resources/launcher'
-import { ResourceCapRefusedError, ResourceMemoryLimitError } from '../../resources/launch'
-import { TeamGitError, type TeamGit } from '../teamWorkspaces'
-import { workerEnvironment } from './workerEnv'
-
-const GIT_TIMEOUT_MS = 120_000
-const GIT_MAX_BUFFER_MIB = 256
 import {
   confineWorkerPath,
   MuseWorkerFolderError,
@@ -67,63 +60,6 @@ async function confineTarget(input: WorkerPathInput, given: string): Promise<Con
       relative: join(confined.relative),
       canonical: join(confined.canonical),
     }
-  }
-}
-
-/** Binary-safe git through the governed contained launcher (first use loads it here). */
-export function processTeamGit(platform: NodeJS.Platform): TeamGit {
-  const fallbackEnv = workerEnvironment(process.env, platform)
-  return async (args, cwd, input, env) => {
-    const launched = await spawnResourceProcess('contained', 'git', [...args], {
-      env: env ?? fallbackEnv,
-      cwd,
-      signal: AbortSignal.timeout(GIT_TIMEOUT_MS),
-    })
-    const { child, stop } = launched
-    child.stdin.end(input)
-    return await new Promise<Uint8Array>((resolve, reject) => {
-      const out: Buffer[] = []
-      const err: Buffer[] = []
-      const cap = GIT_MAX_BUFFER_MIB * BYTES_PER_MIB
-      let bytes = 0
-      let isFailed = false
-      const abort = (): void => {
-        if (isFailed) return
-        isFailed = true
-        void stop().catch(() => {
-          reject(new Error('Governed team git stop failed'))
-        })
-      }
-      const push = (chunk: Buffer, to: Buffer[]): void => {
-        bytes += chunk.length
-        if (bytes > cap) abort()
-        else to.push(chunk)
-      }
-      child.stdout.on('data', (chunk: Buffer) => {
-        push(chunk, out)
-      })
-      child.stderr.on('data', (chunk: Buffer) => {
-        push(chunk, err)
-      })
-      child.once('error', abort)
-      child.once('close', (code) => {
-        void (async () => {
-          const outcome = await launched.outcome()
-          // A refused child or an enforced memory cap is a typed failure, even after exit 0.
-          const memory = outcome?.limits.find((limit) => limit !== 'activeProcess')
-          if (memory !== undefined) throw new ResourceMemoryLimitError(memory)
-          if (outcome !== undefined && outcome.capRefusals > 0)
-            throw new ResourceCapRefusedError(outcome.capRefusals)
-          if (code === 0 && !isFailed) resolve(new Uint8Array(Buffer.concat(out)))
-          else
-            throw new TeamGitError(
-              typeof code === 'number' ? code : 1,
-              Buffer.concat(err).toString('utf8'),
-              args[0] ?? 'git',
-            )
-        })().catch(reject)
-      })
-    })
   }
 }
 

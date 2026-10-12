@@ -19,6 +19,7 @@ const TEAM_ENTRIES = {
   'dist/teamRunners.js': 'src/host/runners/teamRunnersEntry.ts',
   'dist/teamHost.js': 'src/host/team/teamHostEntry.ts',
   'dist/teamScheduler.js': 'src/core/team/teamSchedulerEntry.ts',
+  'dist/teamWorkerOps.js': 'src/core/team/workers/workerOpsEntry.ts',
 }
 // The VSIX and the ACP package ship these team entries; their lazy chunks
 // must follow from reachability, never from a list kept here.
@@ -128,10 +129,15 @@ describe('team chunk packaging by construction', () => {
         expect(reachable.has(file), `${file} is shipped but unreachable`).toBe(true)
     }
   })
-  it('loads the create, file-IO and merge chunks from the team host', () => {
+  it('loads the create, file-IO, sweep and merge chunks from the team host', () => {
     const reachable = closure(['dist/teamHost.js'], state.reachable)
     expect([...reachable].toSorted((left, right) => left.localeCompare(right, 'en'))).toEqual(
-      expect.arrayContaining(['dist/teamCreate.js', 'dist/teamFileIo.js', 'dist/teamMerge.js']),
+      expect.arrayContaining([
+        'dist/teamCreate.js',
+        'dist/teamFileIo.js',
+        'dist/teamWorkerOps.js',
+        'dist/teamMerge.js',
+      ]),
     )
   })
 })
