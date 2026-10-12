@@ -127,6 +127,7 @@ import {
   MODEL_API_CONTEXT_BYTES_PER_TOKEN,
   MODEL_API_CONTINUATIONS_MAX,
   MODEL_API_CONTEXT_WINDOW,
+  HOOK_AGENT_MAX_STEPS,
   MODEL_API_HOOK_PROVIDER,
   MODEL_API_LEGACY_CONTEXT_MODELS,
   MODEL_API_MAX_OUTPUT_TOKENS,
@@ -1638,14 +1639,37 @@ export interface SideSlotReservation {
 }
 
 /**
- * Take-or-refuse one caller-ledger side slot: pure, so the race decision is
- * pinned without staging two side calls. Takes only when more than one call
- * would remain afterwards; the caller keeps the ledger-free case.
+ * A taken side slot: `give` releases exactly what its own `take` reserved,
+ * so a call that took nothing (the ledger-free case) releases nothing.
  */
+export interface SideSlotToken {
+  readonly count: number
+}
+
+/**
+ * Take-or-refuse `count` caller-ledger side slots: pure, so the race
+ * decision is pinned without staging two side calls. Takes only when more
+ * than `count` calls would remain afterwards, keeping the turn's last
+ * request for the wrap-up builder; a multi-step hook agent reserves its
+ * maximum steps up front. The caller keeps the ledger-free case.
+ */
+export function takeSideSlotToken(
+  reservation: SideSlotReservation,
+  left: number,
+  count = 1,
+): SideSlotToken | undefined {
+  if (left - reservation.reserved <= count) return undefined
+  reservation.reserved += count
+  return { count }
+}
+
+/** Release exactly what the token's own take reserved. Pure. */
+export function releaseSideSlotToken(reservation: SideSlotReservation, token: SideSlotToken): void {
+  reservation.reserved = Math.max(0, reservation.reserved - token.count)
+}
+
 export function canReserveSideSlot(reservation: SideSlotReservation, left: number): boolean {
-  if (left - reservation.reserved <= 1) return false
-  reservation.reserved += 1
-  return true
+  return takeSideSlotToken(reservation, left) !== undefined
 }
 
 export function wrapUpFailedKindFor(error: unknown): WrapUpFailedKind | undefined {
@@ -7047,7 +7071,8 @@ export class ModelApiSession implements ScheduledAgentSession {
     // A reviewer call must not spend the reserved wrap-up slot: the user
     // decides instead. The take-or-refuse also holds across a racing second
     // reviewer call from parallel tool calls.
-    if (!this.takeSideSlot()) {
+    const slot = this.takeSideSlot()
+    if (slot === undefined) {
       return undefined
     }
     try {
@@ -7194,7 +7219,7 @@ export class ModelApiSession implements ScheduledAgentSession {
           }
         : outcome
     } finally {
-      this.giveSideSlot()
+      this.giveSideSlot(slot)
     }
   }
 
@@ -8159,7 +8184,8 @@ export class ModelApiSession implements ScheduledAgentSession {
     // Images answer over the caller's ledger, like every other side call:
     // the take-or-refuse keeps the turn's last request for the wrap-up even
     // when two image calls race from parallel tool calls.
-    if (!this.takeSideSlot())
+    const slot = this.takeSideSlot()
+    if (slot === undefined)
       return toolFailure(MODEL_API_MODEL_TEXT.wrapUpReserved, UI_TEXT.modelApiWrapUpReserved)
     try {
       const revision = this.modelRevision
@@ -8332,7 +8358,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         }
       }
     } finally {
-      this.giveSideSlot()
+      this.giveSideSlot(slot)
     }
   }
 
@@ -9041,8 +9067,11 @@ export class ModelApiSession implements ScheduledAgentSession {
     // parser would read as no objection. Reached only by a caller that
     // bypassed the gate; `runModelHandler` turns the throw into `failed`,
     // so the hook's own on-failure rule still decides. The take-or-refuse
-    // also holds across a racing second hook-model call.
-    if (!this.takeSideSlot()) {
+    // also holds across a racing second hook-model call. An agent hook
+    // reserves its maximum steps up front, so the caller's last call can
+    // only be spent by the wrap-up builder.
+    const slot = this.takeSideSlot(kind === 'agent' ? HOOK_AGENT_MAX_STEPS : 1)
+    if (slot === undefined) {
       throw new Error('the hook model call would take the reserved final request')
     }
     try {
@@ -9076,7 +9105,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         isCurrent,
       )
     } finally {
-      this.giveSideSlot()
+      this.giveSideSlot(slot)
     }
   }
 
@@ -13823,17 +13852,20 @@ export class ModelApiSession implements ScheduledAgentSession {
    * synchronous block, so two concurrent side calls from parallel tool
    * calls cannot both pass with two calls left — the first takes the
    * reservation and the second sees one left and refuses, keeping the
-   * turn's last request for the wrap-up. Release with `giveSideSlot` in a
-   * `finally` around the side call.
+   * turn's last request for the wrap-up. A multi-step hook agent reserves
+   * its maximum steps up front, so the caller's last call can only be
+   * spent by the wrap-up builder. Release the returned token with
+   * `giveSideSlot` in a `finally` around the side call; a ledger-free take
+   * returns a zero token that releases nothing.
    */
-  private takeSideSlot(): boolean {
+  private takeSideSlot(count = 1): SideSlotToken | undefined {
     const left = this.callerTurnLeft()
-    return left === undefined || canReserveSideSlot(this.sideReservation, left)
+    return left === undefined ? { count: 0 } : takeSideSlotToken(this.sideReservation, left, count)
   }
 
-  /** Release a slot taken by `takeSideSlot`; never drops below zero. */
-  private giveSideSlot(): void {
-    this.sideReservation.reserved = Math.max(0, this.sideReservation.reserved - 1)
+  /** Release exactly what the token's own take reserved. */
+  private giveSideSlot(token: SideSlotToken): void {
+    releaseSideSlotToken(this.sideReservation, token)
   }
 
   /**
