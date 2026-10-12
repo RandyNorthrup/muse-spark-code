@@ -1190,32 +1190,40 @@ describe('M106 loop guarantees', () => {
     await rig.host.close()
   })
 
-  it('skips the hook-model call while the wrap-up slot is reserved', async () => {
+  it('fails the hook-model call while the wrap-up slot is reserved, asking and counting nothing', async () => {
     const hooks = parseHookConfig(
       '{"hooks":{"UserPromptSubmit":[{"hooks":[{"type":"agent","prompt":"Check the prompt."}]}]}}',
       'project',
       'linux',
     ).hooks
     expect(hooks).toHaveLength(1)
+    const allowsPaidUse = vi.fn().mockResolvedValue(true)
+    const notePaidUse = vi.fn()
     const rig = await setup({
       loadHooks: () => Promise.resolve(hooks),
       isHooksEnabled: () => true,
       isPaidFeatureOn: (feature) => feature === 'hookModels',
-      allowsPaidUse: () => Promise.resolve(true),
+      allowsPaidUse,
+      notePaidUse,
       remainingModelCalls: () => 1,
     })
     rig.api.script({ calls: [read(0)] }, { text: 'Main reply.' })
     await send(rig)
-    // P3-5: the hook model never sends on the reserved slot; the skip is
-    // logged, no hook-marked request goes out, and the turn still answers.
+    // A skipped call is a failed hook answer with its own reason: the skip
+    // is logged, no hook-marked request goes out, the paid popup never asks
+    // and the run is never tallied, and the turn still answers.
     expect(rig.log.warn).toHaveBeenCalledWith(
-      'The hook model call was skipped to keep the reserved final request',
+      expect.stringContaining(
+        "hook model call skipped: the turn's remaining call allowance is reserved",
+      ),
     )
     expect(
       rig.api
         .responseBodies()
         .filter((body) => JSON.stringify(body).includes('hook of the Muse Spark')),
     ).toEqual([])
+    expect(allowsPaidUse).not.toHaveBeenCalled()
+    expect(notePaidUse).not.toHaveBeenCalledWith('hookModels', expect.anything())
     await rig.host.close()
   })
 

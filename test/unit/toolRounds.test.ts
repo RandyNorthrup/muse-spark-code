@@ -5,7 +5,8 @@ import { MODEL_API_MAX_TOOL_ROUNDS, UI_TEXT } from '../../src/shared/constants'
 import { mspApprovalMode } from '../../src/shared/permissionModes'
 import { plural } from '../../src/shared/l10n/text'
 import { parseHookConfig } from '../../src/core/backends/modelapi/hooks'
-import { fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
+import { Usd as PortUsd } from '../../src/shared/usd'
+import { FAKE_MODEL_API_ACCOUNT_ID, fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
 import { memoryToolIo } from './helpers/fakeToolIo'
 import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
 import { FakeLogOutputChannel } from './helpers/fakes'
@@ -427,6 +428,225 @@ describe('model-call turn limit', () => {
       })
     } finally {
       await t.host.close()
+    }
+  })
+
+  it('keeps the typed limit when a Stop hook answers continue:false on the wrap-up', async () => {
+    const api = fakeModelApi()
+    const log = new FakeLogOutputChannel()
+    const client = fakeModelApiClient(api, log)
+    const io = memoryToolIo({}, '/ws')
+    io.runHook = () =>
+      Promise.resolve({
+        stdout: JSON.stringify({ continue: false, stopReason: 'halt now' }),
+        stderr: '',
+        exitCode: 0,
+        isTimedOut: false,
+        isCancelled: false,
+      })
+    const host = new ModelApiHost({
+      ...fakeModelApiHostDeps({ client, io, log, workspaceRoot: '/ws' }),
+      remainingModelCalls: () => 2,
+      loadHooks: () =>
+        Promise.resolve(
+          parseHookConfig(
+            JSON.stringify({
+              hooks: { Stop: [{ hooks: [{ type: 'command', command: 'halt' }] }] },
+            }),
+            'project',
+            'linux',
+          ).hooks,
+        ),
+    })
+    const t = {
+      api,
+      host,
+      ...(await startWatchedSession(host, '/ws', mspApprovalMode('acceptEdits'))),
+    }
+    try {
+      api.script({ calls: [{ name: 'get_goal', arguments: '{}' }] }, { text: 'Wrap-up answer' })
+      await t.session.sendTurn([{ type: 'text', text: 'Review' }])
+      await t.turnDone()
+      expect(api.responseBodies()).toHaveLength(2)
+      // The one exit: a Stop hook stopping the wrap-up still reports the
+      // typed limit, and the answer stands.
+      expect(t.events.findLast((e) => e.type === 'turnCompleted')).toMatchObject({
+        terminal: 'completed',
+        errorKind: 'max_turn_requests',
+      })
+      expect(t.session.history().items).toContainEqual(
+        expect.objectContaining({ kind: 'agentMessage', text: 'Wrap-up answer' }),
+      )
+    } finally {
+      await host.close()
+    }
+  })
+
+  it('re-queues a goal wake held across the wrap-up for its own turn', async () => {
+    const { MODEL_API_MODEL_TEXT } = await import('../../src/shared/constants')
+    const t = await setup(2)
+    try {
+      const held = Promise.withResolvers<undefined>()
+      const requested = Promise.withResolvers<undefined>()
+      t.api.script(
+        {
+          calls: [{ name: 'get_goal', arguments: '{}' }],
+          hold: held.promise,
+          onRequest() {
+            requested.resolve(undefined)
+          },
+        },
+        { text: 'Wrap-up answer' },
+        { text: 'Goal follow-up' },
+      )
+      const send = t.session.sendTurn([{ type: 'text', text: 'Review' }])
+      await requested.promise
+      // A goal accepted while the first request streams waits out the wrap-up.
+      await t.session.controlGoal({ verb: 'set', objective: 'Ship it' })
+      held.resolve(undefined)
+      await send
+      await t.turnDone()
+      await t.turnDone()
+      const bodies = t.api.responseBodies()
+      expect(bodies).toHaveLength(3)
+      const [first, wrapUp, woken] = bodies as [
+        Record<string, unknown>,
+        Record<string, unknown>,
+        Record<string, unknown>,
+      ]
+      expect(first['tools']).not.toEqual([])
+      // The wrap-up never consumes the wake: no wake text, no tools.
+      expect(wrapUp['tools']).toEqual([])
+      expect(JSON.stringify(wrapUp['input'])).not.toContain(MODEL_API_MODEL_TEXT.goalWake)
+      // The wake arrives afterwards, on its own turn with tools.
+      expect(JSON.stringify(woken['input'])).toContain(MODEL_API_MODEL_TEXT.goalWake)
+      expect((woken['tools'] as unknown[]).length).toBeGreaterThan(0)
+      const completed = t.events.filter((e) => e.type === 'turnCompleted')
+      expect(completed).toHaveLength(2)
+      expect(completed[0]).toMatchObject({ terminal: 'completed', errorKind: 'max_turn_requests' })
+    } finally {
+      await t.host.close()
+    }
+  })
+
+  it('holds a scheduled steer arriving before the wrap-up for its own turn with tools', async () => {
+    const { unattendedRun } = await import('./helpers/schedules/unattended')
+    const { fakeRunContext } = await import('./helpers/schedules/fixtures')
+    const t = await setup(2)
+    try {
+      const held = Promise.withResolvers<undefined>()
+      const requested = Promise.withResolvers<undefined>()
+      t.api.script(
+        {
+          calls: [{ name: 'get_goal', arguments: '{}' }],
+          hold: held.promise,
+          onRequest() {
+            requested.resolve(undefined)
+          },
+        },
+        { text: 'Wrap-up answer' },
+        { text: 'Scheduled answer' },
+      )
+      const turn = await t.session.sendTurn([{ type: 'text', text: 'Review' }])
+      await requested.promise
+      const context = fakeRunContext()
+      const { run } = unattendedRun({
+        context: {
+          ...context,
+          grant: { ...context.grant, paidCapUsd: PortUsd.from(1).toAmount() },
+        },
+        paid: {
+          modelId: 'muse-spark-1.3',
+          accountId: FAKE_MODEL_API_ACCOUNT_ID,
+          allows: (feature) => feature === 'scheduledPrompts',
+          reserve: () =>
+            Promise.resolve({
+              claimId: 'paid-claim',
+              reservedUsd: PortUsd.from(1).toAmount(),
+              check: () => ({ spentUsd: 0, hasUnknownHistoricalFees: false }),
+              settle: () => Promise.resolve({ spentUsd: 0, hasUnknownHistoricalFees: false }),
+            }),
+        },
+      })
+      // The scheduled steer arrives while the first request streams: the
+      // sibling drain must not feed it to the wrap-up.
+      await t.session.steerScheduledTurn(
+        turn.turnId,
+        [{ type: 'text', text: 'Scheduled follow-up' }],
+        run,
+      )
+      held.resolve(undefined)
+      await t.turnDone()
+      await t.turnDone()
+      const bodies = t.api.responseBodies()
+      expect(bodies).toHaveLength(3)
+      const [first, wrapUp, scheduled] = bodies as [
+        Record<string, unknown>,
+        Record<string, unknown>,
+        Record<string, unknown>,
+      ]
+      expect(first['tools']).not.toEqual([])
+      expect(wrapUp['tools']).toEqual([])
+      expect(JSON.stringify(wrapUp['input'])).not.toContain('Scheduled follow-up')
+      // The scheduled steer gets its own turn with tools.
+      expect((scheduled['tools'] as unknown[]).length).toBeGreaterThan(0)
+      expect(JSON.stringify(scheduled['input'])).toContain('Scheduled follow-up')
+      expect(wrapUpNotesOf(scheduled)).toEqual([])
+      const completed = t.events.filter((e) => e.type === 'turnCompleted')
+      expect(completed).toHaveLength(2)
+      expect(completed[0]).toMatchObject({ terminal: 'completed', errorKind: 'max_turn_requests' })
+    } finally {
+      await t.host.close()
+    }
+  })
+
+  it('still runs the Stop hook model on a wrap-up turn with no caller allowance', async () => {
+    // Interactive turn, no caller allowance: hook-model calls use the
+    // direct budget and never touch the turn's count, so they cannot take
+    // the reserved slot and the gate stays off, whatever the turn limit says.
+    const api = fakeModelApi()
+    const log = new FakeLogOutputChannel()
+    const client = fakeModelApiClient(api, log)
+    const io = memoryToolIo({}, '/ws')
+    const host = new ModelApiHost({
+      ...fakeModelApiHostDeps({ client, io, log, workspaceRoot: '/ws' }),
+      isPaidFeatureOn: (feature) => feature === 'hookModels',
+      allowsPaidUse: () => Promise.resolve(true),
+      loadHooks: () =>
+        Promise.resolve(
+          parseHookConfig(
+            JSON.stringify({
+              hooks: { Stop: [{ hooks: [{ type: 'prompt', prompt: 'Check the stop.' }] }] },
+            }),
+            'project',
+            'linux',
+          ).hooks,
+        ),
+    })
+    const t = {
+      api,
+      host,
+      ...(await startWatchedSession(host, '/ws', mspApprovalMode('acceptEdits'))),
+    }
+    try {
+      api.script(...toolCallReplies(199), { text: 'Wrap-up answer' }, { text: '{}' })
+      await t.session.sendTurn([{ type: 'text', text: 'Long review' }])
+      await t.turnDone()
+      // The hook model answered on the wrap-up turn: one hook-marked
+      // request went out, and the stop stays typed.
+      const hookMarked = api
+        .responseBodies()
+        .filter((body) => JSON.stringify(body).includes('hook of the Muse Spark'))
+      expect(hookMarked).toHaveLength(1)
+      expect(t.events.findLast((e) => e.type === 'turnCompleted')).toMatchObject({
+        terminal: 'completed',
+        errorKind: 'max_turn_requests',
+      })
+      expect(t.session.history().items).toContainEqual(
+        expect.objectContaining({ kind: 'agentMessage', text: 'Wrap-up answer' }),
+      )
+    } finally {
+      await host.close()
     }
   })
 
