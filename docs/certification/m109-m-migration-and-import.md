@@ -283,106 +283,167 @@ generated material only. No new dependency, no guard widened except the
 inventory's account-store coverage (finding 2, which the finding demands),
 diff inside the lane's files.
 
-| Finding                                                           | Fix                                                                                                                                                                                                                                                                                                                                                                                                                                 | Regression test                                                                                                                                                                                                           | Red drill (break → named failure → restore)                                                                                                       |
-| ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| P3-1 deleted legacy copy reads as `active`, undo resurrects it    | `migrate` reports a deleted copy behind an `active` slot with its own typed state `legacyDeleted` (`migrate.ts`: `legacyAbsent` + active-branch check); `undo` refuses an absent legacy copy with `conflict` and leaves it absent; `verifyLegacy` unchanged so `retire` still completes a crashed delete without writing anything back                                                                                              | `reports a legacy copy deleted behind an active slot and never writes it back`: unchanged/overwritten/deleted/another-shape/unreadable crossed with migrate, undo and retire through the real installed writer and reader | both guards dropped → `expected 'active' to be 'legacyDeleted'`; restored byte-exact (SHA-256 verified)                                           |
-| P3-2 inventory blind to account-store writers/deleters            | scanner matches the store's own write/delete entry points and their callers by method name, not by key string (`migrationKeySites.ts`: `setCredential(`, `rebindOrigin(`, `useCredential(`, `readForRemoval(`, `accounts.remove(`, `write(binding`, `remove(binding`, `AccountCredentialVault`, `AccountSecrets`); 156 sites checked in (35 + 65 + 13 unchanged, 43 new, all verified as route touchpoints with no false positives) | `lists every reader, writer and deleter of the three key families`                                                                                                                                                        | reviewer's drill file (`revqDrill.ts` calling `accounts.setCredential`/`accounts.remove`) → 158 vs 156; file removed, tree clean                  |
-| P3-3 certification rows mismatch the head                         | account-slot rows corrected (`:180` `remove` entry keyed at `:182`, `:203` `rebindOrigin` write entry keyed at `:222`, writer `setCredential` `:166`/`:175` named); `src/extension.ts:2550` added to the model-key row; `src/runtime/authCommands.ts:144` (`providerSecretAccount` behind `:159`/`:196`) added to the provider row                                                                                                  | every `file:line` printed against the head before editing                                                                                                                                                                 | read-only fix, no drill                                                                                                                           |
-| P3-4 declared name can differ from the name `decode` builds       | the constructor binds a `decode` wrapper (`migrate.ts`) that refuses any other decoded name with `conflict` before any journal row, comparison or write (wiping the refused item); the lifecycle test's own codec now declares the name its `decode` builds                                                                                                                                                                         | `refuses a credential whose decode builds a different name before any write` (journal empty, vault empty, legacy byte-identical)                                                                                          | wrapper dropped → lying credential migrates to `active`; restored byte-exact (SHA-256 verified; a later lint-only receiver fix re-verified green) |
-| P3-5 skipped join case passes unwired, two assertions cannot fail | join case goes through the real installed writer (`saveProviderCredential`) and asserts the vault carries the rotated value; kind test asserts exact names plus cross-kind distinctness; dash test asserts verbatim id embedding in the readable branch                                                                                                                                                                             | join case still `it.skip` (lane W un-skips)                                                                                                                                                                               | un-skip today → SHA mismatch (vault keeps the first key); bare-join break → both name tests fail; restored byte-exact (SHA-256 verified)          |
-| P3-6 account factory throws bare zod for an invalid id            | `accountSecretKey` throw translated to `VaultMigrationFault('invalid')` (`accountSecrets.ts`), the same typed fault the provider factory throws                                                                                                                                                                                                                                                                                     | `refuses an invalid id with the same typed fault from every factory` (both factories, `toBeInstanceOf` plus code)                                                                                                         | translation dropped → named test fails; restored byte-exact (SHA-256 verified)                                                                    |
+| Finding                                                           | Fix                                                                                                                                                                                                                                                                                                                                                                                                                                                           | Regression test                                                                                                                                                                                                           | Red drill (break → named failure → restore)                                                                                                       |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P3-1 deleted legacy copy reads as `active`, undo resurrects it    | `migrate` reports a deleted copy behind an `active` slot with its own typed state `legacyDeleted` (`migrate.ts`: `legacyAbsent` + active-branch check); `undo` refuses an absent legacy copy with `conflict` and leaves it absent; `verifyLegacy` unchanged so `retire` still completes a crashed delete without writing anything back                                                                                                                        | `reports a legacy copy deleted behind an active slot and never writes it back`: unchanged/overwritten/deleted/another-shape/unreadable crossed with migrate, undo and retire through the real installed writer and reader | both guards dropped → `expected 'active' to be 'legacyDeleted'`; restored byte-exact (SHA-256 verified)                                           |
+| P3-2 inventory blind to account-store writers/deleters            | scanner matches the store's own write/delete entry points and their callers by method name, not by key string (`migrationKeySites.ts`: `setCredential(`, `rebindOrigin(`, `useCredential(`, `readForRemoval(`, `accounts.remove(`, `write(binding`, `remove(binding`, `AccountCredentialVault`, `AccountSecrets`); 156 sites checked in (35 + 65 + 13 unchanged, 43 new; R5 correction: 3 of the 43 are hook-index annotations, so 40 true route touchpoints) | `lists every reader, writer and deleter of the three key families`                                                                                                                                                        | reviewer's drill file (`revqDrill.ts` calling `accounts.setCredential`/`accounts.remove`) → 158 vs 156; file removed, tree clean                  |
+| P3-3 certification rows mismatch the head                         | account-slot rows corrected (`:180` `remove` entry keyed at `:182`, `:203` `rebindOrigin` write entry keyed at `:222`, writer `setCredential` `:166`/`:175` named); `src/extension.ts:2550` added to the model-key row; `src/runtime/authCommands.ts:144` (`providerSecretAccount` behind `:159`/`:196`) added to the provider row                                                                                                                            | every `file:line` printed against the head before editing                                                                                                                                                                 | read-only fix, no drill                                                                                                                           |
+| P3-4 declared name can differ from the name `decode` builds       | the constructor binds a `decode` wrapper (`migrate.ts`) that refuses any other decoded name with `conflict` before any journal row, comparison or write (wiping the refused item); the lifecycle test's own codec now declares the name its `decode` builds                                                                                                                                                                                                   | `refuses a credential whose decode builds a different name before any write` (journal empty, vault empty, legacy byte-identical)                                                                                          | wrapper dropped → lying credential migrates to `active`; restored byte-exact (SHA-256 verified; a later lint-only receiver fix re-verified green) |
+| P3-5 skipped join case passes unwired, two assertions cannot fail | join case goes through the real installed writer (`saveProviderCredential`) and asserts the vault carries the rotated value; kind test asserts exact names plus cross-kind distinctness; dash test asserts verbatim id embedding in the readable branch                                                                                                                                                                                                       | join case still `it.skip` (lane W un-skips)                                                                                                                                                                               | un-skip today → SHA mismatch (vault keeps the first key); bare-join break → both name tests fail; restored byte-exact (SHA-256 verified)          |
+| P3-6 account factory throws bare zod for an invalid id            | `accountSecretKey` throw translated to `VaultMigrationFault('invalid')` (`accountSecrets.ts`), the same typed fault the provider factory throws                                                                                                                                                                                                                                                                                                               | `refuses an invalid id with the same typed fault from every factory` (both factories, `toBeInstanceOf` plus code)                                                                                                         | translation dropped → named test fails; restored byte-exact (SHA-256 verified)                                                                    |
 
 All drills ran at the repository timeout (no `--testTimeout`) and every file
 was restored byte-exact (SHA-256 verified against the pre-drill hash).
 
+## RVCM1094D R5 repairs (lane CM1094R5, 2026-10-11, linuxlt)
+
+Branch `c/m109-4`, base `e99b58bc8`. Closes all five RVCM1094D findings
+(P3) as a class. Finding 1 gets a design, not a patch: the engine writes
+its intent before it deletes, so its own interrupted retire and a deletion
+behind the vault are told apart by evidence. Zero model attempts, paid
+calls, network calls or real credentials. Tests use generated material
+only. No new dependency; the only guard change is the inventory coverage
+finding 2 demands; diff inside the lane's files.
+
+| Finding                                                                                         | Fix                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | Regression test                                                                                                                                                                                                                 | Red drill (break → named failure → restore)                                                                                                                                                              |
+| ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P3-1 interrupted retire reads as `legacyDeleted`; late `retire` completes a user deletion       | `retire` writes a durable `retireIntent` journal row before the legacy delete (`migrate.ts` › `retire`); a missing copy with the intent is finished to `retired` with the ordinary notice by `migrate`, `resume` and `retire` (`finishInterruptedRetire`), one without it stays `legacyDeleted`; `retire` without the intent returns false with no notice and keeps the report; `delete` of a last copy needs `{ destroyLastCopyConfirmed: true }` (literal `true`, so a variable cannot satisfy it by accident) and otherwise refuses with `conflict` | `a kill at every retire await is never reported as a user deletion` (3 codecs × 4 kills × migrate/resume/retire/undo/delete) plus the rewritten deleted-copy block (unflagged delete refuses, flagged delete records `deleted`) | intent write dropped → crash-table test fails; flag guard dropped → deleted-copy test fails; retire intent check dropped → deleted-copy test fails; `migrate.ts` restored SHA-256 `e6dacb9e…` after each |
+| P3-2 inventory blind to an `AccountStore` removal under another receiver name                   | removals found by resolved type (`migrationKeySites.ts` › `collectAccountStoreRemovals`: every `.remove(` call whose method belongs to `AccountStore` or a subclass), replacing the `accounts.remove(` spelling; store's own `remove` definition, the generic `useCredential<` entry and the two vault-port reads held; the three hook-index annotations dropped                                                                                                                                                                                       | `lists every reader, writer and deleter of the three key families` (158 sites; named 120 s timeout — full-tree type resolution takes ~15 s on a loaded rig)                                                                     | drill file calling `store.remove` and `services.store.remove` on the store → 160 vs 158, both new sites named; file removed, tree clean                                                                  |
+| P3-3 join-case text names writers that never land there; unreadable block skips its retire cell | comment says where each writer really lands (wizard only through `saveProviderCredential`; `activateApiKey` through `credentials.setApiKey`, `auth set`/`providers add` through `deps.secrets.store`); unreadable block runs `retire` inside the window (`false`) and after it (`invalid`, nothing written)                                                                                                                                                                                                                                            | the updated table block and the still-skipped join case                                                                                                                                                                         | text-only fix; the retire cell runs in the suite                                                                                                                                                         |
+| P3-4 hand-off rows stale or missing                                                             | every hand-off cite below names its symbol, never a line number; rows added for the wrapper write/delete/removal reads, the `rebindOrigin` removal read, the `accountClientLookup` reads and all eight R5-touched inventory entries; R4's "43 new" corrected (3 were hook-index annotations; true count 40, now 45)                                                                                                                                                                                                                                    | a script printed every cited symbol against the head before editing                                                                                                                                                             | read-only fix, no drill                                                                                                                                                                                  |
+| P3-5 changelog still describes the R3 tree                                                      | entry names `legacyDeleted`, the retire-intent design, the confirmed last-copy delete and 158 inventoried sites                                                                                                                                                                                                                                                                                                                                                                                                                                        | `keeps the migration note after the RVCM1091A2 repairs` still passes                                                                                                                                                            | read-only fix, no drill                                                                                                                                                                                  |
+
+All drills ran at the repository timeout (no `--testTimeout`) and every file
+was restored byte-exact (SHA-256 verified against the pre-drill hash).
+
+**Join hand-off: answering a migration report.** `migrate` reports the slot
+state; the join answers with exactly one call. Only a flagged `delete`
+destroys the last copy; the flag is typed as the literal `true`, so the
+join passes it only in the branch where the user confirmed.
+
+| `migrate` reports                                       | Allowed answers                                                                                                                                                                         | Last copy                                                                         |
+| ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `active`, legacy present                                | `retire` (false inside the window, completes after it), `undo` (inside the window), `store` (re-seed), `delete` (removes both copies; no flag — the legacy copy is still there)         | `delete` removes both copies: the ordinary user delete                            |
+| `legacyDeleted` (active, legacy absent, no intent)      | `store` (re-mirrors and clears the report), flagged `delete` (user confirmed the removal), or leave it; `retire` returns false with no notice and keeps the report; `undo` refuses      | only the flagged `delete`; unflagged refuses with `conflict` and destroys nothing |
+| interrupted retire (active with intent, legacy absent)  | `migrate`, `resume` or `retire`: all finish it to `retired` with the ordinary retire notice; flagged `delete`                                                                           | only the flagged `delete`; unflagged refuses with `conflict`                      |
+| interrupted retire (active with intent, legacy present) | `migrate` reports `active` (or `diverged` after a behind-vault change); `resume` or `retire` finish it; `store` re-seeds and clears the intent; `delete` (both copies present, no flag) | `delete` removes both copies                                                      |
+| `retired`                                               | `store` (rewrite), flagged `delete`; `retire` refires a pending notice once                                                                                                             | only the flagged `delete`; unflagged refuses with `conflict`                      |
+| `diverged`                                              | `store`, and only after the user resolves the conflict (it overwrites both copies); `undo` and `retire` refuse                                                                          | overwrites, never silent: the user's resolution picks the value                   |
+
 **Owed by the vault join (replaces the R2 list as a class).** The sweep
-covers `src/` host and runtime (CLI, ACP and exec): 156 sites — 35 for
-`museSpark.modelApiKey`, 65 for `museSpark.provider.<id>`, 13 for
-`museSpark.provider.<id>.account.<id>`, plus 43 account-store write/delete
+covers `src/` host and runtime (CLI, ACP and exec): 158 sites — 35 for
+`museSpark.modelApiKey`, 65 for `museSpark.provider.<id>` (55 key-fragment
+sites plus 10 `secrets.*(account)` calls), 13 for
+`museSpark.provider.<id>.account.<id>`, plus 45 account-store write/delete
 entry points, vault-port calls and route types (`setCredential`,
-`rebindOrigin`, `useCredential`, `readForRemoval`, `accounts.remove(`,
-`write(binding`, `remove(binding`, `AccountCredentialVault`,
-`AccountSecrets`) with their callers, which serve every family through the
-store's default/meta routing — checked into
-`test/unit/vault/migrationKeyInventory.test.ts` and scanned by
-`test/unit/vault/migrationKeySites.ts` (import statements and `//`/`/*`
-comments excluded; multi-line imports tracked; entry points matched by
-method name, not by key string, so a writer through the account store
-breaks the test). After a slot is `active`, a write or delete must go
-through the vault (`store`/`delete`), reads through `resolve`, and the
-legacy copy must never be written on its own.
+`rebindOrigin`, `useCredential`, `useCredential<`, `readForRemoval`, the
+store's own `remove` definition, the vault-port reads
+`credentials.read(binding)` and `vault.read(binding)`, `write(binding`,
+`remove(binding`, `AccountCredentialVault`, `AccountSecrets`) with their
+callers, which serve every family through the store's default/meta routing
+— checked into `test/unit/vault/migrationKeyInventory.test.ts` and scanned
+by `test/unit/vault/migrationKeySites.ts` (import statements and `//`/`/*`
+comments excluded; multi-line imports tracked; an `AccountStore` removal is
+found by resolved type, so `store.remove(` or `services.store.remove(`
+breaks the test while another store's `remove` does not; hook-index
+annotations `AccountSecretsDeps[` are not key accesses). R5 changes against
+R4's 156: the three `accounts.remove(` spellings became four typed
+`AccountStore.remove` entries (the `super.remove(` override included), the
+store's own `remove` definition, the generic `useCredential<` entry and the
+two vault-port reads gained rows, and the three hook-index annotations left.
+After a slot is `active`, a write or delete must go through the vault
+(`store`/`delete`), reads through `resolve`, and the legacy copy must never
+be written on its own.
 
 Model API key (35): builders and choke points
-`src/shared/constants.ts:5459` (definition),
-`src/host/auth/credentialStore.ts:46` (read), `:65` (write), `:69`
-(delete), `:94` (provider presence), `:111` (internal read; defs at `:43`,
-`:60`, `:68` carry no dot-call and are covered by their bodies);
-`src/host/auth/authService.ts:842` (read before rotate), `:858` (write via
-`activateApiKey`), `:941` (delete); `src/extension.ts:1244`, `:2012`, `:2550`
-(adapter closures), `:1259`, `:2857`, `:3497`, `:4556` (presence reads);
-`src/host/backend/modelApiBackendManager.ts:362`, `:617` (request reads);
-`src/host/prompts/promptEntry.ts:440` (read);
-`src/host/providers/subscriptionFeatures.ts:88`, `:161` (presence reads);
-`src/runtime/chatGptProviderCommands.ts:66`, `:79` (presence reads);
-`src/runtime/authCommands.ts:56` (write, `auth set`), `:67` (read), `:81`
-(delete); `src/runtime/backends.ts:331`, `:615` (reads), `:341` (adapter
-closure); `src/runtime/main.ts:900`, `:1480` (startup reads);
-`src/core/vault/migrate/modelApi.ts:17`, `:22` (the codec);
-`src/core/providers/accountCredentialRecord.ts:75` (meta/default routing);
-`src/runtime/providers/runtimeServices.ts:246` (non-key routing guard);
-`src/runtime/exec/keyInput.ts:13` (run-scoped seeded memory store);
-`src/runtime/exec/runExec.ts:638` (exec-env guard). The join owes: route
-`:858`, `:56`, `:65`, `src/host/auth/metaAccountKey.ts:17` (second Meta key
-through the account store) and any future writer through `store` (the
-reviewer's scenario), `:941`, `:81`, `:69` through `delete`, and the
-readers through `resolve`; the exec memory stores never write back.
+the `SECRET_KEYS.modelApiKey` definition in `src/shared/constants.ts`,
+`CredentialStore` › `getApiKey` (read), › `setApiKey` (write), ›
+`clearApiKey` (delete), › `hasProviderCredential` (provider presence), ›
+`hasModelApiCredential` (internal read) in `src/host/auth/credentialStore.ts`;
+`AuthService` › `activateApiKey` (read before rotate, write) and ›
+`performSignOut` (delete) in `src/host/auth/authService.ts`; the adapter
+closures and presence reads in `src/extension.ts` › `activateWindow`; the
+request reads in `src/host/backend/modelApiBackendManager.ts` › `createHost`
+and › `accountId`; the read in `src/host/prompts/promptEntry.ts` ›
+`nativeDeps`; the presence reads in `src/host/providers/subscriptionFeatures.ts`
+› `createSubscriptionFeatures`; the presence reads in
+`src/runtime/chatGptProviderCommands.ts` › `runtimeSubscriptionClient`; `authSet`
+(write), `authStatus` (read), `authClear` (delete) in `src/runtime/authCommands.ts`;
+the reads in `src/runtime/backends.ts` › `save` and › `createRuntimeBackend`
+and the adapter closure in › `modelApiManager`; the startup reads in
+`src/runtime/main.ts` › `sharingPorts` and › `main`;
+`modelApiMigrationCredential` in `src/core/vault/migrate/modelApi.ts` (the codec);
+`accountSecretKey` in `src/core/providers/accountCredentialRecord.ts`
+(meta/default routing); the non-key routing guard `secretsFor` in
+`src/runtime/providers/runtimeServices.ts` › `createRuntimeAccountServices`;
+`memorySecretStore` in `src/runtime/exec/keyInput.ts` (run-scoped seeded
+memory store); the exec-env guard `get` in `src/runtime/exec/runExec.ts` ›
+`runExec`. The join owes: route the `activateApiKey` write, the `authSet`
+write, the `setApiKey` write, `promptForMetaAccountKey` in
+`src/host/auth/metaAccountKey.ts` (second Meta key through the account
+store) and any future writer through `store` (the reviewer's scenario), the
+`performSignOut`, `authClear` and `clearApiKey` deletes through `delete`,
+and the readers through `resolve`; the exec memory stores never write back.
 
-Provider slot (65): `src/host/providers/credentialRecords.ts:54` (def),
-`:55` (build), `:59` (def), `:64` (write), `:72` (def), `:76` (read), `:94`
-(def), `:95` (delete), `:43`, `:46`, `:49` (`ProviderCredentialStore`
-wrappers); callers `src/host/providers/providersHost.ts:147` (scan read),
-`:248` (raw presence), `:252` (test read),
-`src/host/providers/wizardSave.ts:86` (read), `:101` (write), `:116`
-(rollback delete), `:118` (rollback write),
-`src/host/providers/providerRemoval.ts:78` (delete),
-`src/host/providers/importExport.ts:176` (clear on import),
-`src/host/auth/credentialStore.ts:94` (presence read),
-`src/core/providers/configured.ts:171`, `:768` (send-path reads);
-`src/core/vault/migrate/providerCredentials.ts:95` (the codec);
-`src/runtime/keyStore.ts:67` (def), `:68` (build), `:84`, `:98` (record
-serde defs); `src/runtime/authCommands.ts:128` (write), `:159` (read),
-`:196` (delete), `:130`, `:173` (serde), `:144` (`providerSecretAccount`,
-the slot behind the read at `:159` and the delete at `:196`);
-`src/runtime/providersCommands.ts:183` (resolve), `:187` (read), `:198`,
-`:199` (compensating delete/write), `:207` (delete), `:208` (write), `:734`,
-`:804` (serde), `:793`, `:794` (test read);
-`src/runtime/exec/providerExec.ts:291` (resolve), `:295`, `:296` (read),
-`:305` (parse), `:478` (resolve), `:500`, `:524` (run-scoped memory
-mirrors). The join owes: every writer through `store` (`providers add`
-lands at `:208` via `:734`), every deleter through `delete`, every reader
-through `resolve`; the `providers add` compensation at `:198`/`:199` must
-not restore the legacy copy on its own after the slot is active.
+Provider slot (65): `providerSecretKey` (def, build),
+`saveProviderCredential` (def, write), `readProviderCredential` (def, read),
+`deleteProviderCredential` (def, delete) and the `ProviderCredentialStore`
+wrappers › `getProviderCredential`, › `setProviderCredential`, ›
+`clearProviderCredential`, all in `src/host/providers/credentialRecords.ts`;
+callers `credentialFor` in `src/host/providers/providersHost.ts` (scan read)
+and › `createProvidersHost` (raw presence, test read); `saveWizardDraft` in
+`src/host/providers/wizardSave.ts` (previous-secret read, save write,
+rollback delete, rollback write); `deleteRemovedSecret` in
+`src/host/providers/providerRemoval.ts` › `createProviderRemoval` (delete);
+`importProviders` in `src/host/providers/importExport.ts` (clear on import);
+`hasProviderCredential` in `src/host/auth/credentialStore.ts` (presence read);
+the send-path reads in `src/core/providers/configured.ts` ›
+`createConfiguredProviderServices`;
+`providerCredentialMigrationCredential` in
+`src/core/vault/migrate/providerCredentials.ts` (the codec);
+`providerSecretAccount` (def, build), `parseStoredProviderSecret` and
+`formatStoredProviderSecret` (record serde defs) in `src/runtime/keyStore.ts`;
+`authSetProvider` (write), `authStatusProvider` (read), `authClearProvider`
+(delete), the record serde and `providerAccount` (the slot behind the read
+and the delete) in `src/runtime/authCommands.ts`;
+`commitProviderChange` in `src/runtime/providersCommands.ts` (resolve, read,
+compensating delete/write, delete, write), the `providersAdd` serde and the
+`providersTest` serde and test read; `readProviderKey` in
+`src/runtime/exec/providerExec.ts` (resolve, read, parse) and ›
+`assembleProviderRun` (resolve, run-scoped memory mirrors). The join owes:
+every writer through `store` (`providers add` lands at the
+`commitProviderChange` write via the `providersAdd` serde), every deleter
+through `delete`, every reader through `resolve`; the `providers add`
+compensation in `commitProviderChange` must not restore the legacy copy on
+its own after the slot is active.
 
-Account slot (13, plus the store route): `src/core/providers/accountCredentialRecord.ts:72`
-(def), `:76` (build), `:77` (segmented build), `:38`–`:42` (vault-port
-read/remove/write surface);
-`src/host/providers/accountSecrets.ts:27` (def), `:30` (read), `:76`–`:77`
-(write), `:83` (delete); `src/core/providers/accounts.ts:166`
-(`setCredential` write entry), `:175` (port write), `:180` (`remove` delete
-entry, keyed at `:182`), `:190` (port remove), `:203` (`rebindOrigin` write
-entry, keyed at `:222`), `:224` (port write), `:229` (`useCredential` read
-entry, keyed at `:241`), `:247` (port read), `:117` (in-memory staging map
-only, no bytes); callers `src/host/auth/metaAccountKey.ts:17` (write),
-`src/runtime/providers/accountsCommand.ts:99` (write), `:54` (delete),
-`src/host/models/accountsHandler.ts:103`, `:108` (delete);
-`src/runtime/providers/runtimeServices.ts:196`–`:203`
-(`setCredential` override), `:205`–`:212` (`remove` override), `:253`
-(read); `src/runtime/providers/accountStore.ts:20`,
-`src/runtime/providers/runtimeServices.ts:224` (vault composition);
-`src/core/vault/migrate/accountSecrets.ts:74` (the codec). The join owes
-the same routing through the composed vault: every store writer through
-`store`, every store deleter through `delete`, every reader through
-`resolve`.
+Account slot (13, plus the store route): `accountSecretKey` (def, build,
+segmented build) and the `AccountCredentialVault` interface (vault-port
+read/remove/write surface) in `src/core/providers/accountCredentialRecord.ts`;
+`secretStorageAccountVault` (def), its `readStored` (read), `write` and
+`remove`, and the `AccountSecrets` wrapper every store write and delete
+passes through — › `write` (port write), › `remove` (revocation, then port
+remove), › `readForRemoval` (removal read) and the vault read inside ›
+`read` — all in `src/host/providers/accountSecrets.ts`; `AccountStore` ›
+`setCredential` (write entry, port write), › `remove` (delete entry, port
+remove), › `rebindOrigin` (write entry with its `readForRemoval` removal
+read, port write), › `useCredential` (generic read entry, port read),
+`accountClientLookup` › `client` and › `scan` (reads), and › `add`'s
+in-memory staging map only (no bytes), all in `src/core/providers/accounts.ts`;
+callers `promptForMetaAccountKey` in `src/host/auth/metaAccountKey.ts`
+(write), `runAccountAuthSet` in `src/runtime/providers/accountsCommand.ts`
+(write) and › `runAccountsCommand` (typed `AccountStore.remove` delete), the
+two typed `AccountStore.remove` deletes in `src/host/models/accountsHandler.ts`
+› `handle`; the `PublishingAccountStore` › `setCredential` override and ›
+`remove` override (typed `AccountStore.remove`), the `useCredential` read in
+`secretsFor`, all in `src/runtime/providers/runtimeServices.ts` ›
+`createRuntimeAccountServices`; the vault compositions `runtimeAccountStore`
+in `src/runtime/providers/accountStore.ts` and in
+`createRuntimeAccountServices`;
+`accountSecretMigrationCredential` in
+`src/core/vault/migrate/accountSecrets.ts` (the codec). The join owes the
+same routing through the composed vault: every store writer through `store`,
+every store deleter through `delete`, every reader through `resolve`.
 
 ChatGPT slot (M95b-owned, refused by this codec as `invalid`):
 `src/extension.ts:1783`, `:2538`,

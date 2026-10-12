@@ -100,9 +100,14 @@ happened, not what was planned; superseded entries are kept.
     pass, and can be undone. The previous release's code still reads its key
     from the mirror. Vault item names are one-to-one across kinds, ids and
     both forms; `migrate` on an `active` slot reports a legacy copy changed
-    behind the vault as `diverged`; the 113 readers, writers and deleters of
-    the three key families are inventoried for the vault join. Nothing is
-    wired to these codecs yet, so no behaviour changes.
+    behind the vault as `diverged`, or as `legacyDeleted` when it is gone:
+    `retire` writes its intent before deleting, so its own interrupted
+    retire finishes to `retired` while a user deletion stays reported until
+    answered, and deleting the last copy needs explicit user confirmation;
+    the 158 readers, writers and deleters of the three key families are
+    inventoried for the vault join (an `AccountStore` removal is found by
+    resolved type). Nothing is wired to these codecs yet, so no behaviour
+    changes.
   - Review repairs (RVCM1091A3): queued work loses authority at Lock; imports
     verify every parent and held file within the home, retain private profile
     and field identity in encrypted material, and cancel sent requests when
