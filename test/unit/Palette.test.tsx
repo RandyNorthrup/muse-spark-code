@@ -4,7 +4,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { createRef } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { type PaletteAction, type PaletteContext } from '../../src/shared/palette'
-import { UI_TEXT } from '../../src/shared/l10n/text'
+import { UI_TEXT, fill } from '../../src/shared/l10n/text'
 import { Palette, type PaletteKeys, type PaletteProps } from '../../src/webview/components/Palette'
 
 const context: PaletteContext = {
@@ -82,7 +82,9 @@ describe('Palette (actions view)', () => {
     })
     if (!served) return
     vi.mocked(props.onAction).mockClear()
-    fireEvent.click(screen.getByTitle('turbo'))
+    // The unfamiliar tier stays visible for the mouse, disabled, and says
+    // why (RVCM1063C #6).
+    fireEvent.click(screen.getByTitle(fill(UI_TEXT.effortTierUnsupported, { tier: 'turbo' })))
     expect(props.onAction).not.toHaveBeenCalled()
   })
 

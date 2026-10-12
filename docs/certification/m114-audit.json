@@ -10659,7 +10659,7 @@
   "sources": [
     {
       "file": "src/webview/App.tsx",
-      "sha256": "e931d6ffd4077c6f1523f3fe5ee14ae0fec65748f3441c6308a28d5516a5a0f8"
+      "sha256": "1cff0ff998d855dfd30e45bf570633b4134bbe1079378685b42934abbc5cb3dc"
     },
     {
       "file": "src/webview/TasksApp.tsx",
@@ -10767,7 +10767,7 @@
     },
     {
       "file": "src/webview/components/EffortSlider.tsx",
-      "sha256": "9d7443a6524fe81b3a38dd0e055821c94fcace6fb81969a0e6fb107543e6ee24"
+      "sha256": "b4dd36ed5f86c22fdb44c730ea9cd71254610577283ad502ddf293987c278250"
     },
     {
       "file": "src/webview/components/ElicitationCard.tsx",

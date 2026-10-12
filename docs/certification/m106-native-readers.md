@@ -457,3 +457,91 @@ facade cleanup retains identical behaviour; final duplication gate reports
 zero clones. Worktree remains unreleased and the qualification holds above
 remain explicit. HUB: integration run — combined translation tables,
 featureCatalog, referenceSource and generated reference data.
+
+## Round 5 — RVCM1063C findings (2026-10-12, linuxlt rig)
+
+Merge note: the brief's `snap/train` ref does not exist locally and
+`release/train-0.15.0` is already fully merged (`c15b7eeae` is an
+ancestor of this lane), so the merge step is satisfied with no new
+merge. The named review-collector fix lives on `fix/review-git-exit`,
+whose base has diverged by ~779 files; instead of that merge, its two
+source hunks (`gitExitCode` in `src/host/git.ts`, `exitOf`/filter
+admission in `src/host/review/reviewCollector.ts`) are ported verbatim
+to this lane's files as `7b09ed4d2`. That port clears the four
+held-admission controller hooks and the reviewMaterial representative
+case on this rig; both were red on base and head alike before it.
+
+Cause → findings → fix → test → drill:
+
+- **Startup admission → finding 1.** `attach()` sent the composer's
+  default high on every new and attached session. It now clamps to the
+  highest tier the session's model serves and sends nothing when the
+  catalogue has no selectable tier; the composer echoes the clamp.
+  Test `the first send admits the $catalogue catalogue` in
+  `test/unit/conversationController.test.ts` (low-only/empty/future-only
+  through the real controller/MSP fixture). Drill: guard removed → 3/3
+  fail with the review's `[high]`-vs-expected signature; file restored
+  byte-exact (`bd22a3ea…`).
+- **Unfamiliar-tier presentation → findings 2 + 6.** The Modes footer
+  hid for future-only catalogues (`App.tsx` condition) and an unfamiliar
+  tier's tooltip/name repeated its name (`EffortSlider.tsx`). The footer
+  renders whenever the catalogue names tiers (visibility decided in the
+  lazy `EffortMenuFooter`, keeping the startup closure under its strict
+  baseline), and an unselectable tier's tooltip and accessible name
+  carry the new `effortTierUnsupported` sentence (en + 14 tables) in the
+  footer and the palette row alike. Tests: App `keeps the $catalogue
+catalogue visible…` (future-only/mixed) plus updated slider units.
+  Drills: App condition restored → 2/2 App cases fail; label restored →
+  2 slider cases fail; after relocating the check, breaking it fails
+  exactly the future-only case; all files restored byte-exact.
+- **Modal arbitration → finding 3.** The `openSharing` overlay and the
+  share view rendered unconditionally over feedback. Both wait while
+  feedback owns the panel under the one-modal policy; the overlay/state
+  persists so the queued surface opens on feedback close (sharePreview
+  can only answer a user share action, but an in-flight answer racing
+  feedback is the same class, so it waits too). Test `queues a
+host-opened sharing surface…` in `test/unit/App.test.tsx`. Drill:
+  gate removed → 1/1 fails with two dialogs; restored byte-exact.
+- **ACP assertion → finding 4.** The promoted-preview assertion omitted
+  the `locations` the repair sends; it now asserts
+  `[{ path: path.join('/ws', 'a.ts') }]` (resolver-agrees on win32).
+  Full file 22/22. Drill: `locations` dropped from `translate.ts` →
+  the named test fails; restored byte-exact (`f7bff799…`).
+- **Visual inventory → finding 5.** `componentAuditInputs` gains
+  `FeedbackDialog` + `FeedbackSurface`; `m114-audit.json` gains both
+  owner rows (P2, scenes `feedback-narrow` /
+  `feedback-preview-narrow`), all three narrow scenes, the bridge
+  classification + sources entries, and nine hash refreshes across seven
+  files (App/slider twice from this round, five inherited).
+  `visualMatrix` 9/9 and
+  `m114Audit` 7/7 pass. Drill: inputs removed → the exact gate test
+  fails; restored byte-exact. Manifest captures (3 scenes × states ×
+  themes × widths) need browser renders — no bytes invented — so
+  capture plus reviewed baseline qualification stays the lead's step.
+  Scenes that move and why: `modes` (footer newly renders for
+  future-only catalogues), `prompts`/`chatShare`/`share` (now queue
+  behind feedback), the three new feedback scenes (first baselines).
+  No baseline PNG was created or changed.
+
+Final gates (linuxlt, repository timeouts): five typechecks pass;
+`npm run build` exits 0 with no cap moved (extension 551.7/600 KiB,
+modelApi 517.7/525 KiB, chat startup closure **761,480** bytes vs the
+strict **761,548.8** review baseline, margin +68.8); `check-l10n` 0
+problems; `check-bundle-split` 0; scoped ESLint/Prettier clean;
+`reviewMaterial` representative and all four held-admission hooks pass;
+`nativeScheduleBackground` passes here (its review red did not
+reproduce on this rig); full `reviewMaterial` (547 s) and
+`check:visual` captures (browser) not run here. No new dependency, no
+guard widened, no `as`/`eslint-disable`/`any` added.
+
+Dependents (`vitest related` over the five touched src files, repo
+timeouts, linuxlt): **193 files, 185 pass, 6 fail; 6,245 pass, 43
+fail, 41 skip.** One failure was this round's (palette row's `turbo`
+title, fixed the same way as finding 6). The other five files fail on
+sandbox-blocked primitives only — loopback listen/connect timeouts
+(`configuredProviders`, 21 `runtimeChatGpt` timeouts), missing D-Bus
+secret service (`runtimeChatGpt` DBus line), blocked outbound fetch
+(`chatGptVsCode` fetch-failed/cancelled, `subscriptionIntegration`),
+and a proxy-injected 502 where 401 was expected
+(`usageIntegration`); all five passed in the review's rig replay, and
+none touches an edited path. Lead re-runs them outside the sandbox.
