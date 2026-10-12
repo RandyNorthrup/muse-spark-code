@@ -427,6 +427,15 @@ export function createResponsesCodec(
       // reused tools, git drafts, reviewer and hook-model calls with no
       // tools) all arrive here with no tools declared.
       const hasTools = hasDeclaredTools(body.tools)
+      // A choice the model's record does not list never reaches the wire;
+      // unknown means auto only. Measured 2026-10-12
+      // (`docs/certification/toolrounds-captures/`): Sonnet 5.5 refuses a
+      // forced choice, DeepSeek thinking refuses `required`, Meta takes
+      // `auto` only.
+      const toolChoice =
+        capabilities?.toolChoiceModes?.includes(body.tool_choice) === true
+          ? body.tool_choice
+          : 'auto'
       return {
         model: body.model,
         input: isChatgpt ? body.input : mapped,
@@ -447,7 +456,7 @@ export function createResponsesCodec(
                 body.tools,
                 options?.shouldUseStrictTools !== false && effective.supportsStrictTools === true,
               ),
-          tool_choice: body.tool_choice,
+          tool_choice: toolChoice,
         }),
         reasoning: body.reasoning,
         stream: body.stream,
