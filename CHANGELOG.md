@@ -17,6 +17,14 @@ happened, not what was planned; superseded entries are kept.
 - All six OpenRouter usage amounts retain exact wire decimals through terminal
   output. Unrelated loopback callbacks no longer end Connect. Localization key
   order is checked recursively, matching packaged plural handling.
+- Terminal provider-credential writes (Connect, its recovery and rollback,
+  `auth set/clear/status --provider`, `providers usage`) run inside one shared
+  cross-process lock, and a Connect stages a journal (phase, previous record,
+  new record) before the primary is touched. A crashed Connect is recovered —
+  compared with the primary and reported with its label and removal page — by
+  the next provider command, `auth status`, or start. A refused rollback keeps
+  the journal and says the new key is stored. Unreadable key identity hides
+  every budget, and negative usage amounts are refused on all six fields.
 
 - Keep translated UI keys in canonical English order and reject source key
   order drift before ACP or headless packaging.
