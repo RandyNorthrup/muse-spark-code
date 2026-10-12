@@ -11,8 +11,10 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import * as z from 'zod/mini'
 import {
   createRuntimeDailyBudget,
+  readRuntimeDailyBudget,
   withRuntimeAccounting,
 } from '../../src/runtime/runtimeAccountingEntry'
+import { SETTING_DEFAULTS } from '../../src/shared/constants'
 import { withoutCredentials } from '../../src/runtime/credentialVariables'
 import { fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
 import { FakeLogOutputChannel } from './helpers/fakes'
@@ -335,6 +337,24 @@ describe('standalone daily admission', () => {
     await expect(
       daily.reserve(Usd.from(1).toAmount(), new AbortController().signal),
     ).rejects.toThrow()
+  })
+  it('reads today’s shared daily budget for report Limits sections', async () => {
+    // The same pair VS Code passes: the daily ledger first, then the live
+    // session budgets (RVCM1132B finding 3). A missing ledger reads as zero
+    // spend under the configured cap, never an error.
+    const root = folder()
+    const fresh = await readRuntimeDailyBudget({ dataFolder: root, now: Date.now })
+    expect(fresh).toHaveLength(1)
+    expect(fresh[0]?.budget.kind).toBe('paidDaily')
+    expect(fresh[0]?.budget.spentUsd).toBe(Usd.from(0).toAmount())
+    expect(fresh[0]?.budget.capUsd).toBe(Usd.from(SETTING_DEFAULTS.paidDailyBudgetUsd).toAmount())
+    expect(fresh[0]?.budget.stopped).toBe(false)
+    expect(fresh[0]?.budget.resetsAt).toBeGreaterThan(Date.now())
+    writeFileSync(path.join(root, 'settings.json'), '{"paidDailyBudgetUsd":1}')
+    const capped = await readRuntimeDailyBudget({ dataFolder: root, now: Date.now })
+    expect(capped[0]?.budget.capUsd).toBe(Usd.from(1).toAmount())
+    const daily = dailyBudgetAt(root)
+    expect(await daily.readToday()).toEqual(capped)
   })
 })
 

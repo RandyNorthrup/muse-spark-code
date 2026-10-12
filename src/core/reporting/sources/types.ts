@@ -151,6 +151,12 @@ export interface UsageFacts {
     readonly used: number
     readonly limit: number
     readonly resetsAt: string | null
+    /**
+     * Dollars render in dollar fields, percentages in percent fields
+     * (RVCM1132B finding 5). Absent for foreign agent files, whose unit the
+     * journal never records; those keep the legacy plain-number cells.
+     */
+    readonly unit?: 'percent' | 'usd'
   }[]
 }
 export interface CheckRunRecord {
@@ -233,6 +239,9 @@ export type SourceResult<T> =
     }
 
 export interface SourceReadContext {
+  /** Identity shared by all reads in one generation, including refreshes at the same stamp. */
+  readonly run?: object
+
   readonly asOf: string
   readonly workspaceKey: string
   readonly options: ReportOptions

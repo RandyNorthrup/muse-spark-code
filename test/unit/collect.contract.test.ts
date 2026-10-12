@@ -162,7 +162,10 @@ describe('collector boundary and policy', () => {
   it('validates injected facets before handing them to the finalizer', () => {
     const snapshot = fullSnapshot()
     const invalid = facet('fleet', 'agents')
-    invalid.rows.push(invalid.rows[0]!)
+    // A repeated row key is tolerated now (central guarantee keeps both
+    // rows), so validation before the finalizer is proved with a malformed
+    // row that fails the forwarded section parse instead.
+    invalid.rows[0]!.cells = {}
     const finalize = vi.fn(fixtureFinalize)
     const collect = createReportCollector({ ...dependencies(), finalize })
     expect(() =>

@@ -1967,6 +1967,17 @@
     "unbound": "La integración de este origen no está disponible.",
     "history": "El historial de la sesión seleccionada no está disponible."
   },
+  "reportDetailReasons": {
+    "sessionTurnsUnavailable": "El historial de la sesión no contiene identificadores de turno, por lo que no se pueden contar los turnos.",
+    "sessionApprovalsUnavailable": "El historial de la sesión no contiene decisiones de aprobación.",
+    "toolBreakdownUnavailable": "El uso por herramienta no se registra en el diario de uso.",
+    "rolledUpBreakdownExcluded": "El historial acumulado está incluido en los totales pero no en este desglose.",
+    "rolledUpSessionExcluded": "El historial acumulado está excluido de los totales y del desglose de esta sesión.",
+    "journalIncomplete": "El registro de uso contiene entradas dañadas, incompletas o de una versión más reciente; los totales las excluyen.",
+    "sessionUsageUnavailable": "El uso de esta sesión no se puede atribuir en el registro conservado; los totales de tokens y costes no están disponibles.",
+    "budgetsUnavailable": "Las instantáneas de presupuesto del periodo seleccionado no están disponibles.",
+    "sessionModelUnavailable": "El catálogo de la sesión no nombra ningún modelo activo, por lo que el modelo se informa como desconocido."
+  },
   "reportRowsMore": {
     "one": "{count} fila más",
     "other": "{count} filas más",

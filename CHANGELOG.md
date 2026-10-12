@@ -7,6 +7,39 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Repeated report rows preserve saved identities without delaying the host** (CM1132R7).
+  Duplicate suffixes reserve every original key, including later rows and
+  maximum-length keys, and allocation advances without rescanning. Definitive
+  release records for one version produce plan drift across heading, bold and
+  status forms; preparation followed by release remains the normal lifecycle.
+
+- **Session and usage reports agree with their notes and show the shared daily budget everywhere** (CM1132R3).
+  Session totals exclude rolled-up history and say so; budget stamps use the
+  machine-local day like the report period; terminal and ACP usage reports show
+  the shared daily paid budget beside live session budgets; a failed history
+  read reports a failure with its reason instead of missing history; limit rows
+  render dollars as dollars and percentages as percents; session files reached
+  through linked folders read normally while linked files still refuse; and
+  another session's questions report as unbound rather than missing history.
+- **Report row identity is guaranteed centrally so duplicated ids never fail a report** (CM1132R6).
+  The document builder makes row keys unique itself — the first row keeps the
+  bare key and each later duplicate takes a stable positional suffix — so no
+  collector can fail validation through a repeated milestone id, release
+  version, question, risk, residual, lane, check run, tag, pull request or
+  forwarded row. A repeated definitive release record is plan drift
+  (`release-duplicate`); preparation beside its released record stays clean.
+- **Session and usage reports preserve source honesty and identity** (CM1132R2).
+  Concurrent sources share a flushed journal snapshot. Damage, newer versions,
+  missing session attribution and unavailable budget snapshots produce partial
+  rows. Stored reads reject links and mismatched IDs. Provider/account grouping,
+  explicit UTC periods, period-scoped limits and budgets, deterministic ties and
+  monetary uncertainty prevent misleading totals. Lazy inputs receive the
+  caller's language and load only for consuming kinds; primary history is bound
+  in ACP and CLI, questions stay session-scoped, and closed chats stay closed.
+  CLI end-to-end builds use production resource admission.
+
 ### Added
 
 - **Several accounts per provider, in the terminal and in ACP** (M108,
@@ -83,6 +116,42 @@ happened, not what was planned; superseded entries are kept.
   stays off behind the unevaluated latch (`IS_AUTO_COMPACTION_EVALUATED`)
   and reports "awaiting evaluation", and requests sent while it is off are
   byte-identical.
+
+- **Session and usage report kinds are real end to end** (M113 C-M113-2).
+  `/report session` reads the current conversation in the editor, or a stored
+  Model API session by id (`--session <id>` in the terminal and ACP); turns
+  come from the retained turn identifiers, per-session tokens and cost from
+  the usage journal, and checks run from the workspace check-run journal. The
+  transcript travels in the export, and approvals stay explicitly unavailable
+  because history items carry no approval decisions. `/report usage` reads the
+  on-disk journal through the same aggregation as Account & usage, so its
+  totals match that page for the same period, with `--by model`, `provider`,
+  `kind`, `session`, `client` or `account` breakdowns; per-tool usage is not
+  recorded, so `--by tool` reports totals with an explicit partial breakdown.
+  Both kinds work in VS Code, ACP and the terminal without a model call. The
+  inputs load lazily in `dist/reportInputs.js` (100 KiB budget), off the
+  reporting engine's budget, and failures thrown across the bundle boundary
+  keep their source code instead of degrading to a generic read failure.
+- **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
+  first governed launch, a **Resources** chip sits beside the heartbeat, or
+  above the composer between turns. Its popover shows CPU, memory in use and
+  available memory against your limits, what is waiting, any override, and
+  that relocation is not available on this build. Its buttons are **Resume
+  now**, **Open settings** and **Show resources** (the Usage & cost page). A
+  status bar item shows while the governor throttles or pauses. At pause, one
+  notice per conversation names the reading and its limit, with the same
+  actions. New commands: **Muse Spark: Show Resources** opens the popover in
+  the chat in view, and **Muse Spark: Resume Work Now** holds this window's
+  governor at normal for fifteen minutes. A governor you switched off stays
+  off. The governor, its status item and the chip still load on first use,
+  never at activation, and chat's first paint stays within its budget.
+  A status the chip cannot trust (unreadable, with unknown fields, or too
+  large) shows as **Resources: Unknown** with a short explanation, never as
+  an older reading. While the chip loads it says so in place, and if it
+  cannot load it offers **Try again** without disturbing the conversation.
+  JetBrains, Visual Studio, Eclipse and the companion page can reuse the same
+  chip and status adapter once their M104 bridges bind them; none does yet.
+  ACP and terminals keep `/resources` and `resources status|resume`.
 
 ### Changed
 

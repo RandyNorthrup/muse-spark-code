@@ -147,10 +147,8 @@ describe('CX1R3 sibling sweep: dormant features have no published usage', () => 
     )
   })
 
-  it('keeps only five working report kind instructions', () => {
+  it('keeps only seven working report kind instructions', () => {
     for (const kind of [
-      'usage',
-      'session',
       'playbook',
       'issues',
       'estimate',
@@ -163,6 +161,8 @@ describe('CX1R3 sibling sweep: dormant features have no published usage', () => 
       expect(readme).not.toContain(`/report ${kind}`)
     }
     expect(readme).toContain('/report project')
+    expect(readme).toContain('/report usage')
+    expect(readme).toContain('/report session')
   })
 
   it('roadmap places dormant work in progress with no shipped note or capability claims', () => {

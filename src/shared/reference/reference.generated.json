@@ -92,7 +92,9 @@
       "settings": [
         "museSpark.reports.network",
         "museSpark.reports.keepHistory",
-        "museSpark.reports.agentSources"
+        "museSpark.reports.agentSources",
+        "museSpark.usageHistory",
+        "museSpark.usageHistoryDays"
       ],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#report",
       "backends": ["museCode", "modelApi"],

@@ -26,10 +26,42 @@ export type LocalFailure =
   | 'disabled'
   | 'unbound'
   | 'history'
+const LOCAL_FAILURES: Record<string, LocalFailure | undefined> = {
+  missing: 'missing',
+  invalid: 'invalid',
+  limit: 'limit',
+  cancelled: 'cancelled',
+  failed: 'failed',
+  refused: 'refused',
+  disabled: 'disabled',
+  unbound: 'unbound',
+  history: 'history',
+}
 export class LocalSourceError extends Error {
+  /**
+   * Minification-safe brand: lazy bundles (report inputs, network) carry
+   * their own copy of this class, so `instanceof` alone cannot recognize a
+   * failure thrown across the bundle boundary (C-M113-2).
+   */
+  readonly isLocalSourceError = true
   constructor(readonly code: LocalFailure) {
     super(code)
   }
+}
+/** A failure code from any bundle copy, or undefined when it is not one. */
+export function localFailureOf(error: unknown): LocalFailure | undefined {
+  if (error instanceof LocalSourceError && Object.hasOwn(LOCAL_FAILURES, error.code))
+    return LOCAL_FAILURES[error.code]
+  if (typeof error === 'object' && error !== null) {
+    const branded = error as { isLocalSourceError?: unknown; code?: unknown }
+    if (
+      branded.isLocalSourceError === true &&
+      typeof branded.code === 'string' &&
+      Object.hasOwn(LOCAL_FAILURES, branded.code)
+    )
+      return LOCAL_FAILURES[branded.code]
+  }
+  return undefined
 }
 export interface LocalFileIo {
   read(file: string, signal: AbortSignal): Promise<string>
@@ -40,6 +72,22 @@ export interface LocalFileIo {
 }
 export function sourceReason(code: LocalFailure): string {
   return UI_TEXT.reportSourceReasons[code]
+}
+
+/**
+ * Partial reasons are a set of sentences: a reason already present is never
+ * appended again (RVCM1132C finding 5). Entries may themselves be joined
+ * sentences (a damaged journal plus a thrown budget read arrives as one
+ * string), so the check is per sentence, not per element: an existing entry
+ * containing the sentence skips it, and entries contained in the new reason
+ * fold into it (RVCM1132D finding 2).
+ */
+export function pushPartialReason(partials: string[], reason: string): void {
+  if (partials.some((existing) => existing.includes(reason))) return
+  for (let index = partials.length - 1; index >= 0; index -= 1) {
+    if (reason.includes(partials[index] ?? '')) partials.splice(index, 1)
+  }
+  partials.push(reason)
 }
 export function codeUnitCompare(a: string, b: string): number {
   if (a === b) return 0
@@ -115,7 +163,10 @@ export function localSource<K extends ReportSourceKind>(
       } catch (error) {
         let code: LocalFailure = 'failed'
         if (signal.aborted) code = 'cancelled'
-        else if (error instanceof LocalSourceError) code = error.code
+        else {
+          const failure = localFailureOf(error)
+          if (failure !== undefined) code = failure
+        }
         return {
           record: {
             id: kind,

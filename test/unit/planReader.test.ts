@@ -210,6 +210,27 @@ describe('plan-format v1', () => {
     },
   )
 
+  it('keeps a preparation record beside its released record without release-duplicate drift', () => {
+    const facts = readPlan(
+      `${PLAN_FORMAT_FIXTURE}**0.14.2 preparation (2026-10-04, draft).**\nA preparation record.\n`,
+    ).facts
+    expect(facts.releases.filter((record) => record.version === '0.14.2')).toHaveLength(2)
+    expect(facts.drift.filter((entry) => entry.code === 'release-duplicate')).toEqual([])
+  })
+
+  it.each([
+    '**0.14.2 released (2026-10-06).**',
+    '**v0.14.2 (published 2026-10-06).**',
+    '**Status 2026-10-06:** v0.14.2 shipped.',
+  ])('flags equivalent definitive releases across syntax forms: %s', (record) => {
+    const input = `${PLAN_FORMAT_FIXTURE}${record}\nA second definitive release.\n`
+    const facts = readPlan(input).facts
+    expect(facts.releases.filter((entry) => entry.version === '0.14.2')).toHaveLength(2)
+    expect(facts.drift.filter((entry) => entry.code === 'release-duplicate')).toEqual([
+      { code: 'release-duplicate', line: PLAN_FORMAT_FIXTURE.split('\n').length, detail: '0.14.2' },
+    ])
+  })
+
   it('masks fenced examples, keeps CRLF locations, and preserves folded checklist text', () => {
     const input = PLAN_FORMAT_FIXTURE.replace(
       '- [ ] A certified renderer.',
@@ -465,5 +486,19 @@ describe('plan-format v1', () => {
     )
     expect(parsed.facts.releases.some(({ version }) => version === '9.9.9')).toBe(true)
     expect(nextSteps(parsed.facts)).toEqual([])
+  })
+
+  it('keeps every duplicated open-question id and flags each repeat as drift', () => {
+    const input = PLAN_FORMAT_FIXTURE.replace(
+      '### Q-M91b — Older question form',
+      '### Q-M91b — Older question form\n- **Q-M12 — Repeated id (2026-10-06).**\n  A second body.',
+    )
+    const parsed = readPlan(input)
+    expect(parsed.facts.questions.filter(({ id }) => id === 'Q-M12')).toHaveLength(2)
+    expect(parsed.facts.drift).toContainEqual(
+      expect.objectContaining({ code: 'question-duplicate', detail: 'Q-M12' }),
+    )
+    // The fixed repository plan carries no duplicated question id.
+    expect(readPlan(repositoryPlan).facts.drift).toEqual([])
   })
 })

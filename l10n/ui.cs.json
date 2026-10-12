@@ -1995,6 +1995,17 @@
     "unbound": "Integrace tohoto zdroje není dostupná.",
     "history": "Historie vybrané relace není dostupná."
   },
+  "reportDetailReasons": {
+    "sessionTurnsUnavailable": "Historie relace neobsahuje žádné identifikátory tahů, takže tahy nelze spočítat.",
+    "sessionApprovalsUnavailable": "Historie relace neobsahuje žádná rozhodnutí o schválení.",
+    "toolBreakdownUnavailable": "Využití podle nástroje se v deníku využití nezaznamenává.",
+    "rolledUpBreakdownExcluded": "Agregovaná historie je zahrnuta v součtech, ale ne v tomto rozpadu.",
+    "rolledUpSessionExcluded": "Shrnutá historie je vyloučena ze součtů i rozpadu této relace.",
+    "journalIncomplete": "Deník využití obsahuje poškozené, neúplné záznamy nebo záznamy novější verze; součty je nezahrnují.",
+    "sessionUsageUnavailable": "V uchovaném deníku nelze využití přiřadit této relaci; součty tokenů a nákladů nejsou dostupné.",
+    "budgetsUnavailable": "Snímky rozpočtu pro vybrané období nejsou dostupné.",
+    "sessionModelUnavailable": "Katalog relace neuvádí žádný aktivní model, takže model je hlášen jako neznámý."
+  },
   "reportRowsMore": {
     "one": "Další {count} řádek",
     "other": "Dalších {count} řádků",

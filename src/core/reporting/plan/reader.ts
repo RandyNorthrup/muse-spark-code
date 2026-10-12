@@ -185,12 +185,20 @@ function deliveryOrder(
 function questions(
   body: readonly PlanLine[],
   knownIds: ReadonlyMap<string, string>,
+  drift: Drift[],
 ): ReportQuestion[] {
   const result: ReportQuestion[] = []
+  const seenIds = new Set<string>()
   for (let index = 0; index < body.length; index += 1) {
     const row = body[index]
     const match = /^(?:- \*\*|### )(Q-[\w-]+)(?=[\s:—])/.exec(row?.text ?? '')
     if (!match?.[1]) continue
+    // A repeated open-question id collapses two needs-you rows onto one key
+    // and fails document validation; both entries stay, and the duplication
+    // is drift so check:plan fails it (RVCM1132C finding 2).
+    if (seenIds.has(match[1]))
+      drift.push({ code: 'question-duplicate', line: row?.line ?? 1, detail: match[1] })
+    else seenIds.add(match[1])
     const start = index
     while (index + 1 < body.length && !/^(?:- \*\*Q-|### Q-)/.test(body[index + 1]?.text ?? ''))
       index += 1
@@ -211,17 +219,19 @@ function questions(
   return result
 }
 
-function releases(body: readonly PlanLine[]): PlanFacts['releases'] {
+function releases(body: readonly PlanLine[], drift: Drift[]): PlanFacts['releases'] {
   const records: { version: string; date: string; text: string }[] = []
+  const seenForms = new Set<string>()
   for (let index = 0; index < body.length; index += 1) {
-    const text = body[index]?.text ?? ''
+    const line = body[index]
+    const text = line?.text ?? ''
     const heading = /^### v?(\d+\.\d+\.\d+) — (\d{4}-\d{2}-\d{2})$/.exec(text)
     const bold =
-      /^\*\*v?(\d+\.\d+\.\d+)(?: (?:released|preparation))? \((?:published )?(\d{4}-\d{2}-\d{2})(?:, [^)]*)?\)/.exec(
+      /^\*\*v?(\d+\.\d+\.\d+)(?: (released|preparation))? \((?:published )?(\d{4}-\d{2}-\d{2})(?:, [^)]*)?\)/.exec(
         text,
       )
     const initial = /^\*\*Status (\d{4}-\d{2}-\d{2}):\*\*/.exec(text)
-    const date = heading?.[2] ?? bold?.[2] ?? initial?.[1]
+    const date = heading?.[2] ?? bold?.[3] ?? initial?.[1]
     if (!date) continue
     const start = index
     while (
@@ -236,9 +246,33 @@ function releases(body: readonly PlanLine[]): PlanFacts['releases'] {
       .trim()
     const version =
       heading?.[1] ?? bold?.[1] ?? (initial ? /\bv(\d+\.\d+\.\d+)\b/.exec(recordText)?.[1] : null)
-    if (version) records.push({ version, date, text: recordText })
+    if (!version) continue
+    // A preparation record followed by its released record is the lifecycle,
+    // not a repetition: all other forms are definitive release records,
+    // regardless of their spelling. Both records stay, like duplicated
+    // milestone headings; the repetition fails check:plan (RVCM1132F finding 3).
+    const form = bold?.[2] === 'preparation' ? 'preparation' : 'released'
+    const fingerprint = `${form} ${version}`
+    if (seenForms.has(fingerprint))
+      drift.push({ code: 'release-duplicate', line: line?.line ?? 1, detail: version })
+    else seenForms.add(fingerprint)
+    records.push({ version, date, text: recordText })
   }
   return records
+}
+
+/** Empty facts for a plan read that has not been parsed yet; the engine replaces them. */
+export function emptyPlanFacts(): PlanFacts {
+  return {
+    format: 'none',
+    milestones: [],
+    questions: [],
+    risks: [],
+    residuals: [],
+    releases: [],
+    deliveryOrder: [],
+    drift: [],
+  }
 }
 
 /** Pure parser. Decode and scrub every returned string; R scrubs each rendered output again. */
@@ -413,10 +447,10 @@ function parsePlan(text: string, evidence: PlanEvidence): PlanReadResult {
     facts: {
       format: 'plan-format-v1',
       milestones,
-      questions: questions(sectionBodies.get(PLAN_SECTIONS.questions) ?? [], knownIds),
+      questions: questions(sectionBodies.get(PLAN_SECTIONS.questions) ?? [], knownIds, drift),
       risks,
       residuals,
-      releases: releases(sectionBodies.get(PLAN_SECTIONS.releases) ?? []),
+      releases: releases(sectionBodies.get(PLAN_SECTIONS.releases) ?? [], drift),
       deliveryOrder: delivery,
       drift: drift.toSorted((a, b) => a.line - b.line || comparePlanText(a.code, b.code)),
     },

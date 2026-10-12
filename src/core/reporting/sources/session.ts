@@ -47,6 +47,9 @@ const usageSchema = z.object({
         used: z.number().check(z.nonnegative()),
         limit: z.number().check(z.nonnegative()),
         resetsAt: z.nullable(z.iso.datetime({ offset: true })),
+        // Dollars render in dollar fields, percentages in percent fields
+        // (RVCM1132B finding 5); the scrub must carry the unit, not strip it.
+        unit: z.optional(z.enum(['percent', 'usd'])),
       }),
     )
     .check(z.maxLength(REPORT_MAX_ROWS)),
@@ -67,6 +70,7 @@ export interface ReportSessionReader {
     usage: ReportSourcePayloads['session']['usage']
     checkRuns: ReportSourcePayloads['session']['checkRuns']
     observedAt: string
+    partial?: string
   } | null>
 }
 export function sessionSource(
@@ -109,6 +113,7 @@ export function sessionSource(
         ),
       },
       observedAt: read.observedAt,
+      ...(read.partial !== undefined && { partial: scrub(read.partial) }),
     }
   })
 }
@@ -120,9 +125,17 @@ export function scrubUsage(usage: unknown, scrub: SourceScrub): ReportSourcePayl
       (a, b) =>
         codeUnitCompare(a.key, b.key) || codeUnitCompare(JSON.stringify(a), JSON.stringify(b)),
     ),
-    limits: parsed.limits.toSorted(
-      (a, b) =>
-        codeUnitCompare(a.key, b.key) || codeUnitCompare(JSON.stringify(a), JSON.stringify(b)),
-    ),
+    limits: parsed.limits
+      .toSorted(
+        (a, b) =>
+          codeUnitCompare(a.key, b.key) || codeUnitCompare(JSON.stringify(a), JSON.stringify(b)),
+      )
+      .map((entry) => ({
+        key: entry.key,
+        used: entry.used,
+        limit: entry.limit,
+        resetsAt: entry.resetsAt,
+        ...(entry.unit !== undefined && { unit: entry.unit }),
+      })),
   }
 }
