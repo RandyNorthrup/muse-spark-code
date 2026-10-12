@@ -3,18 +3,27 @@
 // read by every history surface (usage page, `resources history`,
 // `usage resources`, ACP `/usage resources`).
 import { createHash, randomUUID } from 'node:crypto'
-import { readFileSync, writeFileSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { aggregateResources } from '../../core/usage/aggregate'
 import { ResourceJournal } from '../../core/usage/resourceJournal'
 import { ResourceRecords, type ResourceRecordWorkSource } from '../../core/usage/resourceRecords'
-import { RESOURCE_JOURNAL_LIVE_MS, USAGE_SETTINGS_FILE } from '../../shared/constants'
+import { RESOURCE_JOURNAL_LIVE_MS, USAGE_SETTINGS_FILE, UI_TEXT } from '../../shared/constants'
+import { DamageNoter, fileDamageMarkers } from '../damageNotice'
 import type { ResourceHistory } from '../../shared/resourceHistory'
 import type { ResourceEvent, ResourceStatus } from '../../shared/resources'
 import { NodeUsageFs } from '../usage/nodeUsageFs'
 import { readUsageHistorySettings } from '../usage/usageSettingsFile'
 import { readResourceReset, writeResourceReset } from '../usage/resourceResetFile'
 import type { ResourceHistoryPort } from './port'
+
+/** What the person is told about a damaged usage-history choice. */
+export interface DamagedChoiceNotice {
+  /** `unreadable` when the file cannot be read, `invalid` when it is not a choice. */
+  readonly damage: 'unreadable' | 'invalid'
+  /** What is damaged, what the product does because of it, and what to do. */
+  readonly text: string
+}
 
 export interface ResourceHistoryBinding {
   /** The machine's private agent data folder; the journal lives in its usage folder. */
@@ -23,6 +32,11 @@ export interface ResourceHistoryBinding {
   readonly isEnabled: () => boolean
   /** Daily rows are kept for these days; defaults to the shared usage-history file's days. */
   readonly historyDays?: () => number
+  /**
+   * A damaged choice, announced once per distinct damage with what the
+   * person is told. The recorder still calls `onError` for the log.
+   */
+  readonly onDamagedChoice?: (notice: DamagedChoiceNotice) => void
 }
 
 export interface ResourceHistoryReader extends ResourceHistoryPort {
@@ -108,65 +122,62 @@ export function resourceHistoryRecorder(
     hasReported = true
     onError()
   }
-  // One corrupt choice is announced once until it changes, in every window
-  // and after a restart: the announcement is keyed to the damaged file's own
-  // content and size, recorded durably beside the journal's state.
+  // One damaged choice is announced once per distinct damage, in every
+  // window and after a restart (Part 2.1): the rule lives in one place, the
+  // DamageNoter, shared with the quote and schedule consent notices.
   const settingsFile = path.join(binding.dataFolder, USAGE_SETTINGS_FILE)
-  const reportedChoiceFile = `${settingsFile}.reported`
-  const fingerprintChoice = (): string | undefined => {
+  const fingerprintChoiceContent = (): string => {
     try {
       const raw = readFileSync(settingsFile)
       return `${String(raw.length)}:${createHash('sha256').update(raw).digest('hex')}`
-    } catch (error: unknown) {
-      // A choice that cannot even be fingerprinted is announced, never deduped.
-      if (!(error instanceof Error)) throw error
-      return undefined
+    } catch {
+      return 'unknown'
     }
   }
-  const readReportedChoice = (): string | undefined => {
-    try {
-      const marker: unknown = JSON.parse(readFileSync(reportedChoiceFile, 'utf8'))
-      return typeof marker === 'object' &&
-        marker !== null &&
-        'identity' in marker &&
-        typeof marker.identity === 'string'
-        ? marker.identity
+  const choiceDamageIdentity = (error: Error): string => {
+    // The reader wraps every failure as invalidUsageSettings with the real
+    // failure as its cause: a filesystem code reads unreadable, malformed
+    // text or a wrong shape reads invalid.
+    const cause: unknown = 'cause' in error ? error.cause : undefined
+    const code =
+      typeof cause === 'object' &&
+      cause !== null &&
+      'code' in cause &&
+      typeof cause.code === 'string'
+        ? cause.code
         : undefined
-    } catch (error: unknown) {
-      // A missing or damaged marker announces, never hides.
-      if (!(error instanceof Error)) throw error
-      return undefined
-    }
+    return code !== undefined && !(cause instanceof SyntaxError)
+      ? `unreadable:${code}`
+      : `invalid:${fingerprintChoiceContent()}`
   }
-  const writeReportedChoice = (identity: string): void => {
-    try {
-      writeFileSync(reportedChoiceFile, JSON.stringify({ identity }))
-    } catch (error: unknown) {
-      // Best effort: an unwritten marker only repeats the announcement.
-      if (!(error instanceof Error)) throw error
-    }
-  }
-  const reportedChoices = new Set<string>()
-  const reportChoice = (): void => {
-    const identity = fingerprintChoice()
-    if (identity !== undefined) {
-      if (reportedChoices.has(identity)) return
-      reportedChoices.add(identity)
-      if (readReportedChoice() === identity) return
-      writeReportedChoice(identity)
-    }
+  const choiceNoter = new DamageNoter(fileDamageMarkers(settingsFile), (identity) => {
+    const damage = identity.startsWith('unreadable:') ? 'unreadable' : 'invalid'
+    binding.onDamagedChoice?.({
+      damage,
+      text:
+        damage === 'unreadable'
+          ? UI_TEXT.resourceHistoryChoiceUnreadable
+          : UI_TEXT.resourceHistoryChoiceInvalid,
+    })
     onError()
-  }
+  })
   const isConsented = () => {
     if (!binding.isEnabled()) return false
     try {
-      return readUsageHistorySettings(binding.dataFolder).enabled
+      const isEnabled = readUsageHistorySettings(binding.dataFolder).enabled
+      // A healthy read clears the marker, so a recurrence after a repair
+      // announces again (P2-6).
+      choiceNoter.noteHealthy()
+      return isEnabled
     } catch (error: unknown) {
-      // A missing choice is the default; an unreadable one is not consent,
-      // and is announced once per damaged file rather than mistaken for a
-      // refusal. Anything that is not an error keeps its kind.
+      // A missing choice is the default (answered inside the reader); an
+      // unreadable or invalid one is not consent, and is announced once per
+      // distinct damage rather than mistaken for a refusal or reported on
+      // every sample. Anything that is not an error keeps its kind.
+      // read-state: cert TBL-12. `false` here is "no consent without a
+      // readable choice", announced once per damage above, never "refused".
       if (!(error instanceof Error)) throw error
-      reportChoice()
+      choiceNoter.noteDamaged(choiceDamageIdentity(error))
       return false
     }
   }
