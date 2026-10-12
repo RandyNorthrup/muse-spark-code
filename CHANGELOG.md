@@ -20,6 +20,16 @@ happened, not what was planned; superseded entries are kept.
 
 - Report generations keep their requested language across overlapping reads and lazy input bundles; network bindings also belong to each generation (REPORTJOIN).
 
+- **Report review round 2: every source keeps good records beside damage, bounded and cancellable** (REPORTJOIN).
+  Each array element and JSONL line parses on its own, so one bad record is
+  a named problem beside the good rows, never a lost source; forwarded
+  sections admit rows before parsing against the row limit; partial text is
+  a count plus the first examples plus the localized remainder, so it can
+  never exceed the reason bound and drop evidence. Cancellation is checked
+  before each next read, a deadline waits for the reader to settle within
+  its grace, and an expired deadline starts nothing. Bundle paths stay out
+  of the log; a held usage journal reports busy with the busy sentence.
+
 - **Report sources stop on cancellation instead of racing it, and name held resources busy** (REPORTJOIN).
   Every source read awaits its own settlement past an abort and performs no
   further read, write or publish after one; each generation hands its sources
