@@ -49,7 +49,11 @@ export interface ModelPolicyEvidence {
   readonly effortLevels?: readonly string[] | undefined
   readonly canDisableReasoning?: boolean | undefined
   /** The preset's documented Thinking-off switch (lane DSTHINK3). */
-  readonly thinkingOff?: 'thinking-switch' | undefined
+  readonly thinkingOff?: 'thinking-switch' | 'reasoning-enabled' | undefined
+  /** The preset's documented requested-to-canonical effort map. */
+  readonly effortAliases?: Readonly<Record<string, string>> | undefined
+  /** The preset documents its effort vocabulary for every model. */
+  readonly sendUndeclaredEffort?: boolean | undefined
   readonly webSearch?: boolean | undefined
   readonly pricing?: ModelPricing | undefined
 }
@@ -60,7 +64,9 @@ export interface ModelPolicy {
   readonly reasoning: {
     readonly effortLevels: Known<readonly string[]>
     readonly canDisable: Known<true>
-    readonly thinkingOff?: 'thinking-switch' | undefined
+    readonly thinkingOff?: 'thinking-switch' | 'reasoning-enabled' | undefined
+    readonly effortAliases?: Readonly<Record<string, string>> | undefined
+    readonly sendUndeclaredEffort?: boolean | undefined
   }
   readonly output: {
     readonly maxTokens?: number | undefined
@@ -119,6 +125,11 @@ export function modelPolicyFor(model: string, evidence: ModelPolicyEvidence = {}
       effortLevels: levels === undefined ? { state: 'unknown' } : { state: 'yes', value: levels },
       canDisable: knownFlag(isMeta || evidence.canDisableReasoning),
       ...(!isMeta && evidence.thinkingOff !== undefined && { thinkingOff: evidence.thinkingOff }),
+      ...(!isMeta &&
+        evidence.effortAliases !== undefined && {
+          effortAliases: evidence.effortAliases,
+        }),
+      ...(!isMeta && evidence.sendUndeclaredEffort === true && { sendUndeclaredEffort: true }),
     },
     output: {
       maxTokens: isMeta ? MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS : evidence.maxOutputTokens,
@@ -158,12 +169,17 @@ export function effortForPolicy(policy: ModelPolicy, requested: string): string 
   if (policy.identity.provider === 'meta') {
     return requested === 'none' ? 'minimal' : requested
   }
-  const { effortLevels, canDisable, thinkingOff } = policy.reasoning
+  const { effortLevels, canDisable, thinkingOff, effortAliases, sendUndeclaredEffort } =
+    policy.reasoning
+  if (thinkingOff === undefined && sendUndeclaredEffort === true && requested !== 'default') {
+    return requested
+  }
   const decision = resolveReasoning(
     {
       effortLevels: effortLevels.state === 'yes' ? effortLevels.value : undefined,
       canDisable: canDisable.state === 'yes',
       thinkingOff,
+      ...(effortAliases !== undefined && { effortAliases }),
     },
     requested,
   )

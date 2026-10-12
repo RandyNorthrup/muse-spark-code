@@ -104,6 +104,22 @@ describe('resolved model policy', () => {
     ).not.toHaveProperty('thinkingOff')
   })
 
+  it('maps documented effort aliases and passes server-routed efforts through', () => {
+    // Lane REASONSHAPES: the preset's table rides the policy to both codecs.
+    const aliased = modelPolicyFor('deepseek/deepseek-flash', {
+      effortLevels: ['low', 'high', 'max'],
+      canDisableReasoning: true,
+      thinkingOff: 'thinking-switch',
+      effortAliases: { ultra: 'max', xhigh: 'high' },
+    })
+    expect(effortForPolicy(aliased, 'ultra')).toBe('max')
+    expect(effortForPolicy(aliased, 'xhigh')).toBe('high')
+    expect(effortForPolicy(aliased, 'none')).toBe('none')
+    const routed = modelPolicyFor('llamacpp/server-model', { sendUndeclaredEffort: true })
+    expect(effortForPolicy(routed, 'high')).toBe('high')
+    expect(effortForPolicy(routed, 'none')).toBe('none')
+  })
+
   it('floors Meta requests at the captured provider minimum and leaves others at one', () => {
     expect(minOutputTokensForPolicy(modelPolicyFor('muse-spark-1.3'))).toBe(16)
     expect(minOutputTokensForPolicy(modelPolicyFor(ref))).toBe(1)

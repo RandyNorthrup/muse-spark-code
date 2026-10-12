@@ -189,9 +189,14 @@ export interface CapabilityEvidence {
   readonly source: CapabilitySource
   readonly fields: CapabilityOverrides
 }
+// Preset facts are dated provider-documentation citations reviewed in code
+// (lane REASONSHAPES); they shadow the pinned catalogue snapshot where they
+// speak, and lose to the live models list, a wire capture and the user's
+// own overrides. Re-check every `reasoningFacts` entry on each catalogue
+// sync, and prefer the catalogue the moment it carries the fact.
 const PRIORITY: Readonly<Record<CapabilitySource['kind'], number>> = {
-  preset: 0,
-  catalogue: 1,
+  catalogue: 0,
+  preset: 1,
   'models-list': 2,
   capture: 3,
   user: 4,

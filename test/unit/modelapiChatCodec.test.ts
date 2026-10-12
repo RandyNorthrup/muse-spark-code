@@ -2260,3 +2260,268 @@ it('lets the selected chat model capability override a strict-capable preset', (
     )
   }
 })
+
+describe('chat codec reasoning controls (lane REASONSHAPES)', () => {
+  // Production mirrors: DeepSeek's documented effort table, Together's
+  // hybrid toggle, Groq's presentation, Z.ai's switch plus preserved
+  // thinking, llama.cpp's server-routed effort, Mistral's chunk list.
+  const DEEPSEEK_ALIASED: ChatPresetQuirks = {
+    ...DEEPSEEK_DECLARED,
+    effortAliases: { minimal: 'low', medium: 'high', xhigh: 'high', ultra: 'max' },
+  }
+  const TOGETHER_TOGGLED: ChatPresetQuirks = {
+    ...TOGETHER,
+    thinkingOff: 'reasoning-enabled',
+    effortLevels: ['low', 'high', 'max'],
+    canDisable: true,
+  }
+  const GROQ_PARSED: ChatPresetQuirks = { ...GROQ, reasoningFormat: 'parsed' }
+  const ZAI_DECLARED: ChatPresetQuirks = {
+    ...ZAI,
+    thinkingOff: 'thinking-switch',
+    effortLevels: ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'],
+    canDisable: true,
+    thinkingPreserved: true,
+    outputFormats: ['text', 'json_object'],
+  }
+  const LLAMACPP: ChatPresetQuirks = {
+    ...TOGETHER,
+    presetId: 'llamacpp',
+    reasoningParam: 'none',
+    sendUndeclaredEffort: true,
+    replayField: 'content',
+  }
+  const MISTRAL_CHUNKS: ChatPresetQuirks = { ...MISTRAL, replayField: 'chunks' }
+
+  it('maps DeepSeek ultra and xhigh through the documented table, not refusal or max', () => {
+    for (const [requested, sent] of [
+      ['ultra', 'max'],
+      ['xhigh', 'high'],
+      ['minimal', 'low'],
+      ['medium', 'high'],
+    ] as const) {
+      const encoded = encodeChatRequest(
+        tinyBody({ reasoning: { effort: requested, summary: 'auto' } }),
+        'deepseek-flash',
+        DEEPSEEK_ALIASED,
+      )
+      expect(encoded.body.reasoning_effort).toBe(sent)
+      expect(encoded.body).not.toHaveProperty('thinking')
+    }
+    const encoded = encodeChatRequest(
+      tinyBody({ reasoning: { effort: 'ultra', summary: 'auto' } }),
+      'deepseek-flash',
+      DEEPSEEK_ALIASED,
+    )
+    expect(Object.keys(encoded.body)).toEqual([
+      'model',
+      'messages',
+      'stream',
+      'stream_options',
+      'max_tokens',
+      'reasoning_effort',
+    ])
+  })
+
+  it('sends Together thinking off as the hybrid toggle, never an effort value', () => {
+    const off = encodeChatRequest(
+      tinyBody({ reasoning: { effort: 'none', summary: 'auto' } }),
+      'deepseek-ai/DeepSeek-V4-Pro-0813',
+      TOGETHER_TOGGLED,
+    )
+    expect(off.body.reasoning).toEqual({ enabled: false })
+    expect(off.body).not.toHaveProperty('reasoning_effort')
+    expect(off.body).not.toHaveProperty('thinking')
+    const on = encodeChatRequest(
+      tinyBody({ reasoning: { effort: 'high', summary: 'auto' } }),
+      'deepseek-ai/DeepSeek-V4-Pro-0813',
+      TOGETHER_TOGGLED,
+    )
+    expect(on.body.reasoning_effort).toBe('high')
+    expect(on.body).not.toHaveProperty('reasoning')
+  })
+
+  it('sends Groq reasoning_format parsed and never include_reasoning beside it', () => {
+    const encoded = encodeChatRequest(
+      tinyBody({ reasoning: { effort: 'medium', summary: 'auto' } }),
+      'openai/gpt-oss-120b',
+      GROQ_PARSED,
+    )
+    expect(encoded.body.reasoning_effort).toBe('medium')
+    expect(encoded.body.reasoning_format).toBe('parsed')
+    expect(JSON.stringify(encoded.body)).not.toContain('include_reasoning')
+  })
+
+  it('sends Z.ai glm-5.2 efforts as named and Thinking off as the switch', () => {
+    for (const effort of ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const) {
+      const encoded = encodeChatRequest(
+        tinyBody({ reasoning: { effort, summary: 'auto' } }),
+        'glm-5.2',
+        ZAI_DECLARED,
+      )
+      expect(encoded.body.reasoning_effort).toBe(effort)
+      expect(encoded.body).not.toHaveProperty('thinking')
+    }
+    const off = encodeChatRequest(
+      tinyBody({ reasoning: { effort: 'none', summary: 'auto' } }),
+      'glm-5.2',
+      ZAI_DECLARED,
+    )
+    expect(off.body.thinking).toEqual({ type: 'disabled' })
+    expect(off.body).not.toHaveProperty('reasoning_effort')
+  })
+
+  it('sends Z.ai preserved thinking only where the turn replays reasoning', () => {
+    const history = opaqueReasoningItem('zai', 'earlier thought', undefined, 'glm-5.2')
+    const withHistory = encodeChatRequest(
+      { ...loopBody(history), reasoning: { effort: 'high', summary: 'auto' } },
+      'glm-5.2',
+      { ...ZAI_DECLARED, providerId: 'zai' },
+    )
+    expect(withHistory.body.thinking).toEqual({ type: 'enabled', clear_thinking: false })
+    expect(withHistory.body.reasoning_effort).toBe('high')
+    const fresh = encodeChatRequest(
+      tinyBody({ reasoning: { effort: 'high', summary: 'auto' } }),
+      'glm-5.2',
+      ZAI_DECLARED,
+    )
+    expect(fresh.body).not.toHaveProperty('thinking')
+  })
+
+  it('sends the main-turn JSON mode only where the record affirms json_object', () => {
+    const affirmed = encodeChatRequest(
+      tinyBody({
+        reasoning: { effort: 'high', summary: 'auto' },
+        text: {
+          format: {
+            type: 'json_schema',
+            name: 'answer',
+            schema: { type: 'object' },
+            strict: false,
+          },
+        },
+      }),
+      'glm-5.2',
+      ZAI_DECLARED,
+    )
+    expect(affirmed.body.response_format).toEqual({ type: 'json_object' })
+    const unaffirmed = encodeChatRequest(
+      tinyBody({
+        reasoning: { effort: 'high', summary: 'auto' },
+        text: {
+          format: {
+            type: 'json_schema',
+            name: 'answer',
+            schema: { type: 'object' },
+            strict: false,
+          },
+        },
+      }),
+      'glm-5.2',
+      { ...ZAI_DECLARED, outputFormats: ['text'] },
+    )
+    expect(unaffirmed.body).not.toHaveProperty('response_format')
+  })
+
+  it('sends llama.cpp reasoning_effort as named, with none disabling', () => {
+    for (const [requested, sent] of [
+      ['high', 'high'],
+      ['none', 'none'],
+    ] as const) {
+      const encoded = encodeChatRequest(
+        tinyBody({ reasoning: { effort: requested, summary: 'auto' } }),
+        'qwen3',
+        LLAMACPP,
+      )
+      expect(encoded.body.reasoning_effort).toBe(sent)
+    }
+  })
+
+  it('drops tools, the choice and the parallelism flag where the record refuses tools', () => {
+    const body = { ...tinyBody(), tools: toolDefinitions('linux') }
+    const encoded = encodeChatRequest(body, 'm', { ...OPENROUTER, sendTools: false })
+    expect(encoded.body).not.toHaveProperty('tools')
+    expect(encoded.body).not.toHaveProperty('tool_choice')
+    expect(encoded.body).not.toHaveProperty('parallel_tool_calls')
+  })
+
+  it('decodes Mistral chunk lists into reasoning plus the answer', () => {
+    const decoder = new ChatStreamDecoder('mistral-small-latest', MISTRAL_CHUNKS, CHAT_LIMITS)
+    const events = decoder.feed({
+      id: 'chatcmpl-1',
+      object: 'chat.completion.chunk',
+      created: 1,
+      model: 'mistral-small-latest',
+      choices: [
+        {
+          index: 0,
+          delta: {
+            role: 'assistant',
+            content: [{ type: 'thinking', thinking: [{ type: 'text', text: 'trace ' }] }],
+          },
+          finish_reason: null,
+        },
+      ],
+    })
+    expect(events).toContainEqual(
+      expect.objectContaining({ type: 'response.reasoning_summary_text.delta' }),
+    )
+    decoder.feed({
+      id: 'chatcmpl-1',
+      object: 'chat.completion.chunk',
+      created: 1,
+      model: 'mistral-small-latest',
+      choices: [
+        {
+          index: 0,
+          delta: {
+            content: [
+              { type: 'thinking', thinking: [{ type: 'text', text: 'more' }] },
+              { type: 'text', text: 'answer' },
+            ],
+          },
+          finish_reason: 'stop',
+        },
+      ],
+    })
+    const done = decoder.finish()
+    const reasoning = done.response.output.find((item) => item.type === 'reasoning')
+    expect(reasoning).toMatchObject({
+      summary: [{ type: 'reasoning_text', text: 'trace more' }],
+    })
+    expect(done.response.output).toContainEqual(
+      expect.objectContaining({
+        type: 'message',
+        content: [{ type: 'output_text', text: 'answer' }],
+      }),
+    )
+  })
+
+  it('replays Mistral reasoning as the documented chunk list', () => {
+    const reasoning = opaqueReasoningItem('mistral', 'earlier thought', undefined, 'm')
+    const body = tinyBody({ reasoning: { effort: 'high', summary: 'auto' } })
+    const encoded = encodeChatRequest(
+      {
+        ...body,
+        input: [
+          body.input[0] ?? reasoning,
+          reasoning,
+          {
+            type: 'message',
+            role: 'assistant',
+            content: [{ type: 'output_text', text: 'answer' }],
+          },
+        ],
+      },
+      'm',
+      { ...MISTRAL_CHUNKS, providerId: 'mistral' },
+    )
+    expect(encoded.body.messages[2]).toEqual({
+      role: 'assistant',
+      content: [
+        { type: 'thinking', thinking: [{ type: 'text', text: 'earlier thought' }] },
+        { type: 'text', text: 'answer' },
+      ],
+    })
+  })
+})

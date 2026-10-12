@@ -7,6 +7,8 @@ import {
   effortLabel,
   effortLevelsFor,
   isEffortLevel,
+  resolveReasoning,
+  type ReasoningControl,
 } from '../../src/shared/effort'
 
 describe('effort helpers', () => {
@@ -49,5 +51,32 @@ describe('effort helpers', () => {
     expect(effortAt(levels, 3)).toBe('high')
     expect(effortAt(levels, 99)).toBe('max')
     expect(effortAt(['medium', 'high'], 1)).toBe('high')
+  })
+
+  it('maps documented aliases before matching, refusing only the truly unknown', () => {
+    // DeepSeek's thinking-mode table (DS-G01): ultra rides as max.
+    const deepseek: ReasoningControl = {
+      effortLevels: ['low', 'high', 'max'],
+      canDisable: true,
+      thinkingOff: 'thinking-switch',
+      effortAliases: { minimal: 'low', medium: 'high', xhigh: 'high', ultra: 'max' },
+    }
+    expect(resolveReasoning(deepseek, 'ultra')).toEqual({ kind: 'effort', effort: 'max' })
+    expect(resolveReasoning(deepseek, 'xhigh')).toEqual({ kind: 'effort', effort: 'high' })
+    expect(resolveReasoning(deepseek, 'none')).toEqual({ kind: 'off' })
+    const locked: ReasoningControl = { ...deepseek, canDisable: false }
+    expect(resolveReasoning(locked, 'none')).toEqual({
+      kind: 'refuse',
+      code: 'unsupported_reasoning_effort',
+    })
+    const unmapped: ReasoningControl = {
+      effortLevels: ['low', 'high', 'max'],
+      canDisable: true,
+      thinkingOff: 'thinking-switch',
+    }
+    expect(resolveReasoning(unmapped, 'ultra')).toEqual({
+      kind: 'refuse',
+      code: 'unsupported_reasoning_effort',
+    })
   })
 })
