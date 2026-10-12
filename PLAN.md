@@ -1,5 +1,22 @@
 # PLAN — Muse Spark for VS Code (unofficial)
 
+**VISFIX: release notes move no screenshot (2026-10-11, host with the Mac
+mini and linuxlt; before 0.17.2).** Lead's ruling after REL0171C's finding
+that a `CHANGELOG.md` entry or a version bump moved 108 What's New frames and
+cost a 73 to 113 minute reviewed render per release. The three What's New
+scenes (`whats-new`, `whats-new-footer`, `whats-new-highlights`) render a
+checked-in fixture of two fixed releases and a fixed version
+(`test/harness/whats-new/CHANGELOG.fixture.md`) through the real builder and
+schema; the frames verify the layout, the text gates verify the real text. A
+guard parses the real notes of the two newest releases with the same builder
+and fails on a kind of part the fixture lacks. The one list of capture inputs
+(`scripts/lib/captureInputs.mjs`, read by the reviewed update's guard and
+the candidate's identity) loses `CHANGELOG.md` and gains `scripts/lib`,
+`package.json` and `package-lock.json`, which can move pixels. One reviewed
+update render follows with the fixture in place; after it a release with
+notes and a version bump needs none. A scene-filtered update is left to the
+train. Certification: `docs/certification/visfix.md`.
+
 **REL0171C release assembly (2026-10-11, host with Kubuntu, the Mac mini,
 Win11 and linuxlt; 0.17.1).** Merge the accepted share-preview fix (SHAREFIX
 `a7052b708`) and the truth pass (C-X-1 `99e9b4106`) into `rel0171/final`.
