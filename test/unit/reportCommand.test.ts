@@ -189,9 +189,9 @@ describe('report argument parsing', () => {
     }
   })
 
-  it('answers --help and -h with the complete reference', () => {
+  it('answers --help and -h with the reports namespace options', () => {
     for (const flag of ['--help', '-h'])
-      expect(parseCommandLine(['report', flag])).toEqual({ command: 'help', all: true })
+      expect(parseCommandLine(['report', flag])).toEqual({ command: 'help', route: 'reports ' })
   })
 })
 
