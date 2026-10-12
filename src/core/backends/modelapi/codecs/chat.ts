@@ -664,15 +664,11 @@ function nativeRouting(routing: ChatRouting): NonNullable<ChatCompletionRequest[
 }
 
 /**
- * The configured client rethrows these instead of its generic unavailable
- * error, so the typed refusal and its localized reason reach the caller.
- * Matched by name so a second copy of this module cannot mask it. The
- * class lives in `./shared` so every request encoder throws the one path
- * the client already passes through (M105 lane V R2).
+ * Re-exported from `./shared` (M105 lane V R3, RVCM1054B P2): the one
+ * decision point lives there so no client keeps its own list. Kept here so
+ * existing `chat.isChatCodecError` callers keep working.
  */
-export function isChatCodecError(error: unknown): boolean {
-  return error instanceof Error && error.name === 'ChatCodecError'
-}
+export { isChatCodecError } from './shared'
 
 function nativeReasoning(
   body: CreateResponseBody,

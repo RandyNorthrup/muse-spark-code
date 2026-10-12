@@ -298,6 +298,15 @@ happened, not what was planned; superseded entries are kept.
   now refuses instead. No vendor outside Meta has a captured media wire
   yet.
 
+- The same typed video refusal now reaches the user as its own sentence on
+  every remaining route (M105 lane V R3, RVCM1054B): the ChatGPT
+  subscription route (which had replaced it with the generic retry text),
+  the Copilot subscription leg, the runtime accounting wrapper, and the ACP
+  agent (whose SDK had generalized a raw start failure to "Internal
+  error"). One shared helper decides what counts as a codec refusal, and
+  the route matrix is driven by both the provider registry and the plan-key
+  registry. The lead capture recipes run as written.
+
 ## [0.17.1] - 2026-10-10
 
 ### Highlights

@@ -1,4 +1,5 @@
 import { Usd } from '../../src/shared/usd'
+import { ChatCodecError } from '../../src/core/backends/modelapi/codecs/shared'
 import { fill } from '../../src/shared/l10n/text'
 import type { PlaybookSurfacePort } from '../../src/runtime/playbook/command'
 import { surfacePort } from './playbookSurfaceFixtures'
@@ -3356,6 +3357,26 @@ describe('M105 ACP attachment commands', () => {
     expect(factory).not.toHaveBeenCalled()
     expect(port.record).not.toHaveBeenCalled()
     expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+  })
+
+  it('reports a provider codec refusal by its own sentence without replacing it', async () => {
+    // M105 lane V R3 (RVCM1054B P2): the ACP leg of the class sweep. The
+    // backend session rejects the turn with the typed codec refusal (thrown
+    // at encode, before anything is sent); the prompt must reject with that
+    // sentence, never a generic failure.
+    const h = harness()
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      const session = h.host.sessions.at(-1)
+      if (session === undefined) throw new Error('no session')
+      session.sendTurn.mockRejectedValueOnce(
+        new ChatCodecError('gpt-6-astra is not known to take video.'),
+      )
+      await expect(prompt(client, sessionId)).rejects.toThrow(
+        'gpt-6-astra is not known to take video.',
+      )
+    })
+    expect(h.host.sessions[0]?.sendTurn).toHaveBeenCalledTimes(1)
   })
 
   it('refuses a headless /attach instead of queueing a file no turn sends', async () => {

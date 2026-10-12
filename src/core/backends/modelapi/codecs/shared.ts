@@ -174,3 +174,17 @@ export function nativeCallId(callId: string, format: CallIdFormat): string {
 export class ChatCodecError extends Error {
   override readonly name = 'ChatCodecError'
 }
+
+/**
+ * The one decision point for "is this a codec refusal" (M105 lane V R3,
+ * RVCM1054B P2): every production client and wrapper between a codec and
+ * the user (the configured-provider client, the subscription client's
+ * ChatGPT and Copilot legs, the runtime accounting wrapper, ACP and exec
+ * surfacing) calls this instead of keeping its own list, so a codec
+ * refusal always reaches the user as its own sentence. Matched by name so
+ * a second copy of this module cannot mask it; narrows to Error so callers
+ * read `.message` with no cast.
+ */
+export function isChatCodecError(error: unknown): error is Error {
+  return error instanceof Error && error.name === 'ChatCodecError'
+}
