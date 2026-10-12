@@ -5435,6 +5435,13 @@ bundle declarations and callable split guard in
 rejected, then restored byte-exact and accepted. See the
 [timing and gate-fire record](docs/certification/deflake4.md).
 
+**Lazy-bundle registry.** `src/shared/lazyBundles.generated.ts` names every
+dist chunk loaded by file name, which process loads it and which package
+carries it, generated from the production build by
+`node scripts/gen-lazy-registry.mjs` (checked in `npm run build`); a loader
+naming an unknown bundle, or a package missing a bundle its loaders can ask
+for, fails the build.
+
 **Project structure.**
 
 ```

@@ -1,157 +1,135 @@
-// RVMODELAPIDIETB P2: the lazy-bundle registry (src/shared/lazyBundleFiles.ts)
-// is the single authority for dist file names. Any string or template in
-// src that names a dist file outside the table fails here, so a new
-// filename-loaded chunk cannot land without a registry entry, and the
-// packaging gate (packagedBundles.test.mjs) then proves that entry ships.
-import { readdirSync, readFileSync, statSync } from 'node:fs'
+// RVMODELAPIDIETB P2, closed structurally in MODELAPIDIETR4
+// (RVAPP-MODELAPIDIET3 P2-1/P2-2/P2-3): the lazy-bundle registry is GENERATED
+// by scripts/gen-lazy-registry.mjs from the production build (its metafiles)
+// and the deferred redirect map, not copied by hand. This suite reads that
+// one artifact back: rows are well-formed, every dist name the sources load
+// by file name resolves to a row (a planted stray fails here AND fails
+// `gen-lazy-registry.mjs --check` with a non-zero exit, drill in
+// docs/certification/modelapi-diet.md), and every row's side covers the
+// sides its loaders need, so a package missing a loadable bundle fails.
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { expect, it } from 'vitest'
-import { LAZY_BUNDLE_FILES } from '../../src/shared/lazyBundleFiles'
+import { afterEach, expect, it } from 'vitest'
+import { LAZY_BUNDLES } from '../../src/shared/lazyBundles.generated'
+import { DEFERRED_OUTFILES } from '../../scripts/lib/deferredBundles.mjs'
+import { resolveRequest, scanRequests } from '../../scripts/lib/lazyRegistry.mjs'
+import { removeFolder } from './helpers/temporaryFolders'
 
 const root = process.cwd()
-const source = path.join(root, 'src')
-const registry = path.join(source, 'shared', 'lazyBundleFiles.ts')
+const GENERATED = 'src/shared/lazyBundles.generated.ts'
+const folders: string[] = []
+afterEach(async () => {
+  while (folders.length > 0) await removeFolder(folders.pop()!)
+})
 
-// A line that loads a bundle by file name: a dist path segment, a loader
-// adapter argument, a worker path or a webview script reference.
-const LOADER_HINTS = [
-  'dist',
-  'distDir',
-  'bundlePath',
-  'bundleFile',
-  'BUNDLE_FILE',
-  '__dirname',
-  'Worker',
-  'workerPath',
-  'loadBundle',
-  'requireFile',
-  'joinPath',
-  'asWebviewUri',
-  'loadModule',
-  'path.join',
-  'path.dirname',
-  'path.resolve',
-  "require('",
-  'bundleRoot',
-  'extensionUri',
-  'extensionPath',
-  'packageRoot',
-]
-
-const BASENAME = /^[A-Za-z0-9_.-]+\.js$/u
-
-function sourceFiles(directory: string): string[] {
-  const found: string[] = []
-  for (const name of readdirSync(directory)) {
-    const file = path.join(directory, name)
-    if (statSync(file).isDirectory()) found.push(...sourceFiles(file))
-    else if (file !== registry && name.endsWith('.ts')) found.push(file)
-  }
-  return found
-}
-
-// The file's lines with comments removed, strings kept whole: a quoted
-// dist name in a comment (a doc reference, never a load) must not fail.
-function codeLines(text: string): string[] {
-  const lines: string[] = []
-  let current = ''
-  let quote: string | null = null
-  let i = 0
-  const push = (char: string): void => {
-    if (char === '\n') {
-      lines.push(current)
-      current = ''
-    } else {
-      current += char
-    }
-  }
-  while (i < text.length) {
-    const char = text[i]!
-    const next = text[i + 1]
-    if (quote === null && char === '/' && next === '/') {
-      while (i < text.length && text[i] !== '\n') i += 1
-      continue
-    }
-    if (quote === null && char === '/' && next === '*') {
-      i += 2
-      while (i < text.length && !(text[i] === '*' && text[i + 1] === '/')) {
-        if (text[i] === '\n') {
-          lines.push(current)
-          current = ''
-        }
-        i += 1
-      }
-      i += 2
-      continue
-    }
-    if (quote === null && ["'", '"', '`'].includes(char)) {
-      quote = char
-      push(char)
-      i += 1
-      continue
-    }
-    if (quote !== null && char === '\\') {
-      push(char)
-      push(next ?? '')
-      i += 2
-      continue
-    }
-    if (quote !== null && char === quote) {
-      quote = null
-      push(char)
-      i += 1
-      continue
-    }
-    push(char)
-    i += 1
-  }
-  lines.push(current)
-  return lines
-}
-
-it('holds one well-formed entry per filename-loaded chunk', () => {
-  const files = Object.values(LAZY_BUNDLE_FILES).map((entry) => entry.file)
+it('holds one well-formed entry per bundle', () => {
+  const files = LAZY_BUNDLES.map((entry) => entry.file)
   expect(new Set(files).size).toBe(files.length)
-  for (const [key, entry] of Object.entries(LAZY_BUNDLE_FILES)) {
-    expect(key).toMatch(/^[a-z][a-zA-Z0-9]*$/u)
+  for (const entry of LAZY_BUNDLES) {
     expect(entry.file).toMatch(/^([a-z]+\/)?[A-Za-z0-9_.-]+\.js$/u)
-    expect(typeof entry.vsix).toBe('boolean')
-    expect(typeof entry.acp).toBe('boolean')
-    expect(entry.vsix || entry.acp).toBe(true)
+    expect(['vscode', 'acp', 'both', 'unreached'].includes(entry.side)).toBe(true)
+    for (const asked of entry.requestedBy) {
+      expect(asked.importer).toMatch(/^src\//u)
+      expect(asked.line).toBeGreaterThan(0)
+      expect(asked.side.length).toBeGreaterThan(0)
+      for (const side of asked.side) expect(['vscode', 'acp']).toContain(side)
+    }
   }
 })
 
-it('names every dist file the sources load by file name', () => {
-  const known = new Set(
-    Object.values(LAZY_BUNDLE_FILES).map((entry) => entry.file.split('/').pop()!),
-  )
-  const outside: string[] = []
-  const dynamic: string[] = []
-  for (const file of sourceFiles(source)) {
-    const lines = codeLines(readFileSync(file, 'utf8').replaceAll('\r\n', '\n'))
-    for (const [index, line] of lines.entries()) {
-      for (const match of line.matchAll(/(['"`])((?:(?!\1)[^\\]|\\.)*?)\1/g)) {
-        const value = match[2]!
-        if (!value.endsWith('.js') || value.includes('@')) continue
-        if (value.includes('${')) {
-          if (value.includes('dist/') || LOADER_HINTS.some((hint) => line.includes(hint))) {
-            dynamic.push(`${relative(file)}:${String(index + 1)} builds ${value}`)
-          }
-          continue
-        }
-        if (value.includes('/') && !value.startsWith('dist/')) continue
-        const base = value.split('/').pop()!
-        if (!BASENAME.test(base)) continue
-        if (!(value.startsWith('dist/') || LOADER_HINTS.some((hint) => line.includes(hint))))
-          continue
-        if (!known.has(base)) outside.push(`${relative(file)}:${String(index + 1)} names ${base}`)
+it('covers every requested side in the row side', () => {
+  for (const entry of LAZY_BUNDLES) {
+    for (const asked of entry.requestedBy) {
+      for (const side of asked.side) {
+        expect(['both', side, 'unreached'].includes(entry.side)).toBe(true)
       }
     }
   }
-  expect(dynamic).toEqual([])
+})
+
+it('names the five lazily loaded engine bundles the old copy missed', () => {
+  for (const file of [
+    'runtimeEngine.js',
+    'runtimeAccounting.js',
+    'headless.js',
+    'exec.js',
+    'scheduleBackground.js',
+  ]) {
+    const row = LAZY_BUNDLES.find((entry) => entry.file === file)
+    expect(row).toBeDefined()
+    expect(row?.side).toBe('acp')
+  }
+  // Four are filename-requested; headless.js loads only through exec.js's
+  // module require (an import edge, no filename literal), so its row carries
+  // the derived side with no filename requester.
+  for (const file of [
+    'runtimeEngine.js',
+    'runtimeAccounting.js',
+    'exec.js',
+    'scheduleBackground.js',
+  ]) {
+    const row = LAZY_BUNDLES.find((entry) => entry.file === file)
+    expect(row?.requestedBy.length).toBeGreaterThan(0)
+  }
+  expect(LAZY_BUNDLES.find((entry) => entry.file === 'headless.js')?.requestedBy).toEqual([])
+})
+
+it('resolves every dist name the sources load to a registry row', () => {
+  const known = new Set(LAZY_BUNDLES.map((entry) => `dist/${entry.file}`))
+  const { requests, dynamics } = scanRequests(root, GENERATED)
+  expect(dynamics).toEqual([])
+  const outside: string[] = []
+  for (const request of requests) {
+    const outcome = resolveRequest(root, DEFERRED_OUTFILES, request)
+    if (outcome.bundled === true) continue
+    const distFile = outcome.mapped ?? outcome.file ?? request.value
+    const isKnown = [...known].some(
+      (file) => file === `dist/${distFile}` || file.endsWith(`/${distFile}`),
+    )
+    if (!isKnown) outside.push(`${request.importer}:${String(request.line)} names ${request.value}`)
+  }
   expect(outside).toEqual([])
 })
 
-function relative(file: string): string {
-  return path.relative(root, file).replaceAll('\\', '/')
+function fixtureTree(files: Record<string, string>): string {
+  const folder = mkdtempSync(path.join(tmpdir(), 'muse-lazy-stray-'))
+  folders.push(folder)
+  mkdirSync(path.join(folder, 'src'), { recursive: true })
+  for (const [name, content] of Object.entries(files)) {
+    writeFileSync(path.join(folder, 'src', name), content)
+  }
+  return folder
 }
+
+it('fails a real stray: a lazy import of a file no row covers (R2 drill)', () => {
+  const folder = fixtureTree({
+    'loader.ts': `export async function load() {\n  return import('./rogueEntry.js')\n}\n`,
+  })
+  const { requests } = scanRequests(folder, 'src/skip.generated.ts')
+  expect(requests.map((request) => request.value)).toEqual(['./rogueEntry.js'])
+  const known = new Set(LAZY_BUNDLES.map((entry) => entry.file))
+  const outside = requests.filter((request) => {
+    const outcome = resolveRequest(folder, DEFERRED_OUTFILES, request)
+    if (outcome.bundled === true) return false
+    const distFile = outcome.mapped ?? outcome.file ?? request.value
+    return [...known].every((file) => file !== `dist/${distFile}` && !file.endsWith(`/${distFile}`))
+  })
+  expect(outside.map((request) => request.value)).toEqual(['./rogueEntry.js'])
+})
+
+it('catches the shapes the old scan skipped (P2-2 a, b, c)', () => {
+  const folder = fixtureTree({
+    // (a) relative names: createRequire with a relative chunk.
+    'relative.ts': `import { createRequire } from 'node:module'\nconst need = createRequire(__filename)\nexport const bundle: unknown = need('./rogue.js')\n`,
+    // (b) a constant on a line with no loader hint.
+    'consts.ts': `export const FOO_SCRIPT_FILE = 'foo.js'\n`,
+    // (c) concatenation: a path stem plus the .js fragment.
+    'concat.ts': `export async function load() {\n  return import('./rogue3' + '.js')\n}\n`,
+  })
+  const { requests } = scanRequests(folder, 'src/skip.generated.ts')
+  const values = requests
+    .map((request) => request.value)
+    .toSorted((a, b) => a.localeCompare(b, 'en'))
+  expect(values).toEqual(['./rogue.js', './rogue3.js', 'foo.js'])
+})
