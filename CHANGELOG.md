@@ -125,6 +125,11 @@ happened, not what was planned; superseded entries are kept.
   (`FileNotFoundException`, `FileLoadException`, `BadImageFormatException`)
   reports helper-unavailable instead of the generic proof failure. Teams
   remain unavailable pending integration.
+- Hidden M96 worker file refusals always name the path relative to the
+  working copy as asked: the create proof carries that path and every
+  helper-launcher and preflight mapping prints it, so a refusal below a
+  nested ancestor no longer prints the ancestor-relative suffix. Teams
+  remain unavailable pending integration.
 - Hidden M96 engine workers reserve and settle each transport attempt separately.
   Successful retries preserve earlier uncertain liability; refused and unsent
   attempts release their claims, including admission revoked during a durable
