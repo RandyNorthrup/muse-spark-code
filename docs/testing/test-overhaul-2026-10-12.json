@@ -4,8 +4,8 @@
   "rules": "lane TESTCUT brief rules 1+4; parser-based (typescript), transitive test-helper imports",
   "counts": {
     "STAY": 767,
-    "GO": 870,
-    "LIST": 21
+    "GO": 869,
+    "LIST": 22
   },
   "goByConstruct": {
     "helper name \"fake-agent.mjs\"": 1,
@@ -19,7 +19,6 @@
     "helper name \"fakeGitHub.ts\"": 2,
     "helper name \"fakeMuse.ts\"": 1,
     "import \"./fakeGitHub\"": 1,
-    "import \"../unit/helpers/fakes\"": 1,
     "helper name \"fake-gh.mjs\"": 1,
     "const fakeVscode": 1,
     "import \"./helpers/accounts/fakes\"": 2,
@@ -314,8 +313,8 @@
     },
     {
       "file": "test/e2e/live.e2e.test.ts",
-      "verdict": "GO",
-      "decidedBy": "import \"../unit/helpers/fakes\""
+      "verdict": "LIST",
+      "decidedBy": "live-provider e2e: moves under the real-life run"
     },
     {
       "file": "test/e2e/liveCli.ts",
