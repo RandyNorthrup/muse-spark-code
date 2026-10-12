@@ -7,6 +7,130 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Pending
+
+- M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
+  reads and writes, and 1-hour cache writes settle at their own price.
+  The shared retry classifier refuses known quota codes and excessive
+  `Retry-After` waits. Provider-specific retry-table binding remains pending for non-Meta transports;
+  this does not certify endpoint quota refusal.
+  One-shot OAuth callbacks retain every parameter and destroy keep-alive
+  connections on settlement. Custom servers accept validated compatibility
+  overrides. Session saves coalesce into one in-flight write plus the latest;
+  parallel save failures are observed immediately while other sessions drain.
+  History listing validates headers without replay/transcript validation.
+
+- M101 lane P1 (BYO codecs): one bad history item no longer breaks later
+  requests. Blank text is dropped, empty tool results ride as
+  `(no tool output)`, non-JSON tool arguments ride as `{}` (Ollama keeps its
+  documented raw-text fallback), PDFs ride as Anthropic `document` blocks,
+  and images for a model without image input ride as an
+  image-omitted placeholder. Tool-call ids are mapped per target format
+  (Anthropic charset, chat length, Mistral preset 9-alphanumeric even under
+  provider aliases) with unique
+  per-response Gemini fallback ids. Responses replays send the call `id`
+  only for the same model with an `fc_` prefix. Gemini replays thought
+  signatures on text parts (empty ones included), counts omitted usage as
+  zero, sends vision-gated tool-result images inside `functionResponse.parts`
+  and full tool schemas through `parametersJsonSchema` on Gemini 3.
+  Gemini rejects proxy-null usage and explicitly rejects negative usage
+  counters instead of retaining an earlier tally. Signed blank parts replay;
+  late response ids salt fallback call ids; `$ref` siblings stay constrained
+  through `allOf`. The Anthropic decoder tolerates
+  proxy-null usage and tool payloads cut off at `max_tokens`, and thinking
+  requests `display: summarized` so newer models stream thinking text.
+  Lone surrogates are removed from every BYO encoder; parsed JSON retains
+  own `__proto__` keys as data, including Anthropic tool arguments.
+  Fakes only; no live
+  or paid model call.
+
+- Provider-specific retry-table binding remains pending for non-Meta transports;
+  the shared retry classifier does not certify endpoint quota refusal.
+
+- DEVID017B (developer machine id, review round 2): the machine id is a
+  random value created once in the machine-scoped data folder instead of a
+  hostname digest, so renames and `host` vs `host.local` keep the unlock and
+  profiles. Legacy raw-hostname and digest grants migrate on open and the
+  raw hostname leaves stored state at once; a different machine identity is
+  refused with an honest message and `developer reset` recovers.
+
+- DEVID017C (developer machine id, review round 3): the id is published by
+  staging the full value to a private temp file, fsyncing it and claiming
+  the final name with `link`, so a racing reader sees no file or the
+  complete id, never a prefix; only the exact 64-lowercase-hex format
+  loads, anything else refuses honestly. Foreign reset asks first with
+  nothing mutated before the answer, never re-binds the grant, and clears
+  without stopping through this machine's resource port; profile folders
+  stay on disk. Cancel leaves everything unchanged.
+
+- DEVID017D (developer machine id, review round 4): a published id loads
+  before any staging, so storage that refuses new files still returns the
+  existing identity, and failed staging removes its temp file. A failed
+  foreign reset never clears without recording it: the reset audit row
+  comes first, and when it cannot be written the stored state is left
+  unchanged. Foreign reset asks its own confirmation, which says exactly
+  what happens: this machine's developer state is cleared, nothing is
+  stopped, and profile folders and credentials stay as they are.
+
+- DEVID017E (developer machine id, lead review fix): foreign Reset writes a
+  distinct `resetForeign` audit row (schema stays `v: 1`, as with `migrate`),
+  so only that clear is withheld when its audit append fails. Every other
+  revocation, own-machine Reset included, is still published after an audit
+  failure, and the caller still gets the persistence error.
+
+- M123 (Git and pull requests in every editor, PLAN.md D104): lanes 0, G
+  and P are merged and switched off until the milestone is complete, so
+  nothing changes for users yet. No GitHub setting is offered, and an
+  editor built on VS Code without its Git extension (Arduino IDE 2, some
+  forks) keeps its earlier behaviour. Merged: the GitHub token-source
+  contracts with fakes of GitHub, the device flow, `gh` and Git remotes
+  (lane 0); the runtime's native Git service (status, the commit form,
+  commit, a push confirmed with every URL Git will use and the same
+  refusals as VS Code, never a force-push, commit-message drafts),
+  revalidated after every wait and serialized per repository across
+  windows by one fenced lease (LOCKLIB) that renews every third of its
+  30-second lease, is checked synchronously at each Git dispatch and is
+  never re-created once lost (lane G, with M123G4 and M123G4C); pull
+  requests in the runtime (draft, open and link, status and checks, a
+  fork onto its parent) and checkouts of other people's pull requests
+  held under the runtime data folder, whose records take that lease with
+  fenced compare-and-swap generations, so at most one window gets a
+  checkout and no folder is left without its record (lane P, with
+  M123P9's logged sweep failures and translated uncertain writes). Still
+  to land: the GitHub sign-in (lane A, accepted on its branch), the
+  editors' leases (lane L), the panel and its strings (lane U) and each
+  editor's qualification (lane Q). The pull-request checkout's own git
+  launches are not yet under the resource governor; nothing in this release
+  can start them, and the process inventory fails the day something could.
+
+## [0.18.0] - 2026-10-11
+
+### Highlights
+
+- **Several accounts per provider, in the terminal and in ACP editors.**
+  Keep more than one account with a provider:
+  `muse-spark-code-acp providers accounts` lists, adds, orders and removes
+  them and sets each one's thresholds,
+  `auth set --provider <id> --account <id>` stores a key for one account, and
+  `exec --account <id>` runs on the account you name. In an ACP editor on a
+  Model API key, `/accounts` shows the list, the current account and its
+  thresholds. A vendor limit stops only the account that hit it. Changing
+  account inside a session, pooled runs and an Accounts page in the editor
+  are not available yet.
+- **See a tool call's arguments while the model writes them.** On a Model API
+  key with `muse-spark-1.3-contributor`, a tool row in the panel and in ACP
+  editors shows the file path, command, search pattern or URL as soon as it
+  is complete. File content and edits stay hidden, and nothing runs, asks or
+  calls a hook until the call itself is complete. Other models keep the
+  finished-call row until their own stream is captured; headless `exec`
+  shows finished tools only.
+- **Reviewing Git changes works without a Git filter.** On a machine or
+  repository with no Git filter configured (for example without Git LFS),
+  every native review was refused with "Git could not read the changes to
+  review" since 0.15.0. It works now.
+- **The activity-bar icon is the extension's own mark.** The squiggled "m"
+  of the Marketplace icon replaces the Meta logo silhouette.
+
 ### Added
 
 - **Several accounts per provider, in the terminal and in ACP** (M108,
@@ -207,6 +331,10 @@ happened, not what was planned; superseded entries are kept.
   from the Marketplace icon as a single-colour mask, replacing the Meta logo
   silhouette. The Marketplace icon, banner and social preview already used
   the "m"; the activity-bar icon was missed.
+
+- The visual check's What's New footer screenshots apply hover, focus and
+  pressed to the footer's own links, whatever the notes above them end with
+  (VISFOOT).
 
 ### Fixed
 
@@ -424,102 +552,6 @@ happened, not what was planned; superseded entries are kept.
   and checks every archived block's hash. A design record now goes to the
   archive in the change that adds it; PLAN.md keeps the rule in force and
   the link (AGENTS.md, CONTRIBUTING.md).
-
-### Pending
-
-- M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
-  reads and writes, and 1-hour cache writes settle at their own price.
-  The shared retry classifier refuses known quota codes and excessive
-  `Retry-After` waits. Provider-specific retry-table binding remains pending for non-Meta transports;
-  this does not certify endpoint quota refusal.
-  One-shot OAuth callbacks retain every parameter and destroy keep-alive
-  connections on settlement. Custom servers accept validated compatibility
-  overrides. Session saves coalesce into one in-flight write plus the latest;
-  parallel save failures are observed immediately while other sessions drain.
-  History listing validates headers without replay/transcript validation.
-
-- M101 lane P1 (BYO codecs): one bad history item no longer breaks later
-  requests. Blank text is dropped, empty tool results ride as
-  `(no tool output)`, non-JSON tool arguments ride as `{}` (Ollama keeps its
-  documented raw-text fallback), PDFs ride as Anthropic `document` blocks,
-  and images for a model without image input ride as an
-  image-omitted placeholder. Tool-call ids are mapped per target format
-  (Anthropic charset, chat length, Mistral preset 9-alphanumeric even under
-  provider aliases) with unique
-  per-response Gemini fallback ids. Responses replays send the call `id`
-  only for the same model with an `fc_` prefix. Gemini replays thought
-  signatures on text parts (empty ones included), counts omitted usage as
-  zero, sends vision-gated tool-result images inside `functionResponse.parts`
-  and full tool schemas through `parametersJsonSchema` on Gemini 3.
-  Gemini rejects proxy-null usage and explicitly rejects negative usage
-  counters instead of retaining an earlier tally. Signed blank parts replay;
-  late response ids salt fallback call ids; `$ref` siblings stay constrained
-  through `allOf`. The Anthropic decoder tolerates
-  proxy-null usage and tool payloads cut off at `max_tokens`, and thinking
-  requests `display: summarized` so newer models stream thinking text.
-  Lone surrogates are removed from every BYO encoder; parsed JSON retains
-  own `__proto__` keys as data, including Anthropic tool arguments.
-  Fakes only; no live
-  or paid model call.
-
-- Provider-specific retry-table binding remains pending for non-Meta transports;
-  the shared retry classifier does not certify endpoint quota refusal.
-
-- DEVID017B (developer machine id, review round 2): the machine id is a
-  random value created once in the machine-scoped data folder instead of a
-  hostname digest, so renames and `host` vs `host.local` keep the unlock and
-  profiles. Legacy raw-hostname and digest grants migrate on open and the
-  raw hostname leaves stored state at once; a different machine identity is
-  refused with an honest message and `developer reset` recovers.
-
-- DEVID017C (developer machine id, review round 3): the id is published by
-  staging the full value to a private temp file, fsyncing it and claiming
-  the final name with `link`, so a racing reader sees no file or the
-  complete id, never a prefix; only the exact 64-lowercase-hex format
-  loads, anything else refuses honestly. Foreign reset asks first with
-  nothing mutated before the answer, never re-binds the grant, and clears
-  without stopping through this machine's resource port; profile folders
-  stay on disk. Cancel leaves everything unchanged.
-
-- DEVID017D (developer machine id, review round 4): a published id loads
-  before any staging, so storage that refuses new files still returns the
-  existing identity, and failed staging removes its temp file. A failed
-  foreign reset never clears without recording it: the reset audit row
-  comes first, and when it cannot be written the stored state is left
-  unchanged. Foreign reset asks its own confirmation, which says exactly
-  what happens: this machine's developer state is cleared, nothing is
-  stopped, and profile folders and credentials stay as they are.
-
-- DEVID017E (developer machine id, lead review fix): foreign Reset writes a
-  distinct `resetForeign` audit row (schema stays `v: 1`, as with `migrate`),
-  so only that clear is withheld when its audit append fails. Every other
-  revocation, own-machine Reset included, is still published after an audit
-  failure, and the caller still gets the persistence error.
-
-- M123 (Git and pull requests in every editor, PLAN.md D104): lanes 0, G
-  and P are merged and switched off until the milestone is complete, so
-  nothing changes for users yet. No GitHub setting is offered, and an
-  editor built on VS Code without its Git extension (Arduino IDE 2, some
-  forks) keeps its earlier behaviour. Merged: the GitHub token-source
-  contracts with fakes of GitHub, the device flow, `gh` and Git remotes
-  (lane 0); the runtime's native Git service (status, the commit form,
-  commit, a push confirmed with every URL Git will use and the same
-  refusals as VS Code, never a force-push, commit-message drafts),
-  revalidated after every wait and serialized per repository across
-  windows by one fenced lease (LOCKLIB) that renews every third of its
-  30-second lease, is checked synchronously at each Git dispatch and is
-  never re-created once lost (lane G, with M123G4 and M123G4C); pull
-  requests in the runtime (draft, open and link, status and checks, a
-  fork onto its parent) and checkouts of other people's pull requests
-  held under the runtime data folder, whose records take that lease with
-  fenced compare-and-swap generations, so at most one window gets a
-  checkout and no folder is left without its record (lane P, with
-  M123P9's logged sweep failures and translated uncertain writes). Still
-  to land: the GitHub sign-in (lane A, accepted on its branch), the
-  editors' leases (lane L), the panel and its strings (lane U) and each
-  editor's qualification (lane Q). The pull-request checkout's own git
-  launches are not yet under the resource governor; nothing in this release
-  can start them, and the process inventory fails the day something could.
 
 ## [0.17.2] - 2026-10-11
 
