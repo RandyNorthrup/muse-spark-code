@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { copyFileSync, existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { execFile, execFileSync } from 'node:child_process'
+import path from 'node:path'
 import { JOB_SOURCE_FILES } from '../../src/host/backend/jobSource'
 
 vi.mock('node:fs', () => ({
@@ -37,7 +38,10 @@ beforeEach(() => {
         engines: { node: '>=22' },
         devDependencies: { '@napi-rs/keyring': '0.0.0' },
       })
-    if (file.replaceAll('\\', '/') === 'dist/meta/usageWebview.json')
+    // scripts/lib/acpBundles.mjs resolves the usage metafile against the
+    // package root, so the path arrives absolute; package-acp.mjs used to pass
+    // it relative, and a fake keyed on that spelling answered with the default.
+    if (path.resolve(file) === path.resolve('dist', 'meta', 'usageWebview.json'))
       return JSON.stringify({
         outputs: { 'dist/webview/usage.js': {}, 'dist/webview/usage.css': {} },
       })
