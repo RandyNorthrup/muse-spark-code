@@ -417,3 +417,224 @@ same probe as round 2: `fetch` to 127.0.0.1 throws at once):
   (the English-order fix above) but stops at `npm pack`: the sandbox
   leaves `/home/randy/.npm/_logs` read-only and the pack scandir fails.
   The Mistral-capture turn itself never runs here.
+
+## Round 5: a budgeted run can be sized; six loopback reds; two ledger defects
+
+Kubuntu, 2026-10-12, head `e659e5bed`. Fake-only; no live/paid calls.
+Loopback/socket files do not run in this sandbox (each `fetch` to
+127.0.0.1 throws at once; panel servers answer 502 through the sandbox
+proxy); the lead runs them outside it. Where this round states an exact
+sentence or number the sandbox cannot print, the arithmetic is pinned by
+a unit test on the same code path (micro-unit exact, no float).
+
+### (1) `--max-output-tokens` returns as an optional lowering limit
+
+- Default stays the policy cap (`resolveExecOutputCap`, at most 32,768).
+  `runExec`'s one `outputCap` closure returns `min(flag, policyCap)`:
+  the same value feeds the request body (via `modelOutputMaxTokens`)
+  and the run ledger's admission, so what is reserved is what the
+  provider may produce. A value above the absolute ceiling (32,768) is
+  refused at parsing with `execOutputCapExceeded`; below-minimum and
+  non-integers keep `execNumberInvalid`; Muse Code refuses the flag
+  (`execModelApiOnly`). Reference regenerated: the flag is back in the
+  CLI table, the contract and `docs/reference.md` (min 16, max 32768).
+- A budget refusal names both remedies with numbers from the refusal's
+  own exact-decimal arithmetic (`responseReservationMessage`, terminal
+  scope): the cap that admits it (committed + ceilinged reservation,
+  rounded up to the cent) and the largest `--max-output-tokens` that
+  fits the remaining cap (binary search with the request's own reserve
+  function and the admission's own ceiling). When even the input alone
+  does not fit, the flag half is omitted and the note says so. ACP and
+  the editor read the same typed refusal (`error: { kind: 'budget',
+message }`) through the shared scope, which carries the cap remedy
+  only — no terminal flag is printed in a non-terminal sentence. No
+  separate ACP/editor rendering site for exec errors exists (verified:
+  `ExecResult` is rendered only by the exec output sink), so the shared
+  shape is unit-pinned for the surface that lands.
+- The exact ten-cent refusal sentence (policy cap, no flag):
+
+  `Input at most 7,825 tokens ($0.039125) + output cap at most 32,768
+tokens ($0.655360) = $0.694485; run cap $0.100000, $0.000000 used.
+Request not sent. Raise --max-budget-usd to at least $0.70 to admit
+it. Or retry with --max-output-tokens 3043.`
+
+  3043 is exact: 39,125 + 20m micro-units <= 100,000 iff m <= 3043.
+
+- Tests: the five anthropic loopback modes carry `--max-output-tokens
+2000` (what a person would give a ten-cent run; captures emit at most
+  41 tokens, so costs are unchanged); a new loopback test asserts the
+  sentence above, then re-runs with exactly 3043 (admitted, one
+  request, wire `max_tokens` 3043) and 3044 (refused, zero requests).
+  `execArgs` pins absent-stays-absent, 32768 accepted, 32769 refused at
+  parsing, and the Muse Code refusal. A fake-path test pins a lowered
+  limit reaching every request body (first + continuation) with the
+  provider stopping at it (`incompleteReason: max_output_tokens`).
+  Note: on the Meta path the preflight minimum (context-window worst
+  case) fires before admission, so suggest-and-rerun is reachable only
+  on the provider path (no preflight) — stated in the test.
+
+### (2) The sixth red: settings folder created by the test
+
+The persistent-invalid-settings test wrote `usage-settings.json` into
+a data folder it never created. The product creates that folder on
+writer start (`usageServiceEntry`: `mkdir(dataFolder, recursive)` —
+no data-folder helper creates it), so the test creates it with
+`mkdirSync(..., { recursive: true })` before writing. Audited the
+lane's other new tests: the loopback provider config helper already
+mkdirs; the ephemeral-bundle and effort/persistent modes only read
+folders the product itself creates. The failure here is now the
+sandbox transport block, not ENOENT (verified in the run below).
+
+### (3) The pinned size: 533,368 B, none of it movable here
+
+`dist/modelApi.js` reads 533,368 B against the exact pin 532,827
+(+541; +500 carried, +41 this round for the `unpriced` status, its
+exit-code rule and its label). The pin is not moved. The 500 B sit in
+three files, verified against the merge diff `00abc0ca9^1..00abc0ca9`:
+
+- `transport.ts` +250: the confirmed-dispatch gate
+  (`assertConfirmedAllowed`, `staleConfirmedError`,
+  `isStaleConfirmedError`, `noteConfirmedRequestStarted`, the `check`
+  fence) called inline around every HTTP try. Request-path fence;
+  cannot defer. The refusal classifier it replaced already rides a
+  dynamic `import('../../refusal')` — the lazy part is done.
+- `ModelApiHost.ts` +147: the configured-default hunk (argument
+  previews, `modelOutputMaxTokens` plumbing, compaction guard types).
+  Request-body construction; cannot defer.
+- `client.ts` +103: the refusal catch (`assertConfirmedAllowed`
+  try/catch, `admitAttempt?.check?.()` before the stream, lazy
+  `isUserRefusal` classifier in the catch). Request path; the
+  classifiable half already lazy.
+
+The Model API diet lane (after the hotfix) owns the bytes; the hotfix
+pin move 532,537 -> 532,827 still awaits the owner.
+
+### (4) E8: the exact command and what it must print
+
+No config name exists (single `vitest.config.ts`, no projects; the
+shared production build arrives via `globalSetup` injection):
+
+`npx vitest run test/e2e/execStdio.e2e.test.ts --maxWorkers=3`
+
+It must print every case green, including `E8 completes one
+plan-mode turn on a configured provider through the built bundles`:
+exit 0, `status: completed`, `model:
+mistral/ministral-3b-latest`, `usage.requests: 1`, exactly one
+provider call ending in `/chat/completions`. Stops in this sandbox
+at packaging (`npm pack` cannot write its log folder); the turn
+itself never runs here.
+
+### (5a) A missing price is not a budget stop
+
+New `ExecStatus` `unpriced` (exit 4, `EXEC_EXIT.failed`; the limit
+stays 5): JSON status, exit-code rule (regenerated
+`exec-result-v2`/`exec-event-v2` schemas), info line (`Unpriced;
+requests 0; ...`), and ACP/editor (same typed `error` field) all
+carry the reason and the remedy. Provider runs name the model and the
+runner's own providers file (`execUnpricedProvider`); anything else
+names a priced model (`execUnpricedModel`). `finalMessage` for a
+pre-first-request refusal is its own sentence, never another kind's
+words. Refusal-kind sweep (every kind the ledger returns):
+
+| Ledger refusal       | Status                  | Exit | Sentence                                                            |
+| -------------------- | ----------------------- | ---- | ------------------------------------------------------------------- |
+| `budget`             | `budget_exceeded`       | 5    | quote + both remedies (error); `execBudgetProgress` kept-work final |
+| `requests`           | `request_cap`           | 5    | `execRequestCapReached`                                             |
+| `unpriced`           | `unpriced`              | 4    | missing-price remedy (error and final)                              |
+| `request_shape`      | `failed`                | 4    | `execRequestShape` (error and final)                                |
+| `closed`             | `internal`              | 1    | never latches as its own cause; mapped before latch                 |
+| `breach`             | `budget_exceeded`       | 5    | `execBudgetBreach`                                                  |
+| `accounting_invalid` | `accounting_unverified` | 9    | `execAccountingInvalid`                                             |
+
+14 translations for the two sentences, the `execStatus.unpriced`
+label, and the touched keys; `check:l10n` 0 problems. The loopback
+`unpriced` mode now asserts exit 4, `status: unpriced`, `error.kind`
+and `ledger.refusal` both `unpriced`, the sentence naming model and
+file, `finalMessage` equal to it, and the `Unpriced; requests 0`
+info line with no `Budget Exceeded` anywhere.
+
+### (5b) Ownerless holds close by age
+
+Bound: `DAILY_BUDGET_OWNERLESS_MAX_AGE_MS` = 21,605,000 ms =
+`EXEC_MAX_TIMEOUT_SECONDS` (21,600 s, the longest a run may live)
+plus `EXEC_STOP_GRACE_MS` (5 s, a stopped run's settle window).
+The journal records no claim timestamp, so age comes from the
+claim file's modification time (the claim directory's when the file
+is absent); unreadable age keeps the claim open. Older than the
+bound, an ownerless open claim closes exactly like a dead owner's
+sent claim: settled at its reservation, unknown cost. A claim with
+an owner keeps the owner test only, at any age. Each recovery
+names its closures through `onOwnerlessClosed`; the runtime logs
+one info line per run (`execStaleHoldsClosed`: `Closed {count}
+stale hold(s) ({total})`). Fail-closed consequence: the amount
+stays in today's total — `usage` already shows that share as the
+uncertain row (`readExisting` carries `uncertainUsd` into
+`readToday`, rendered by `usageText`), pinned by test at $4.524288.
+
+### Round-5 results (repo default timeout, maxWorkers=3)
+
+| Suite                               | Result                                                                                   |
+| ----------------------------------- | ---------------------------------------------------------------------------------------- |
+| execArgs (new parse test)           | 56/56                                                                                    |
+| execLimits (new sweep test)         | part of 76-file green                                                                    |
+| execPaidRefusal (3 new aging tests) | 12/12                                                                                    |
+| execSchema (new unpriced A16 row)   | 29/29                                                                                    |
+| referenceEntry + executables        | 19/19                                                                                    |
+| actionRunExec                       | green (with usageIntegration file run)                                                   |
+| execRun                             | 113 local green; 24 loopback-shaped red here only (sandbox transport block; ENOENT gone) |
+| configuredProviders                 | 5 red here only (loopback pin + 4 stream limits; lead green at round head)               |
+| usageIntegration                    | 1 red here only (panel 502 via sandbox proxy; unrelated path)                            |
+| deferredBundles                     | 122/123 (the pin above, unmoved)                                                         |
+
+Also green: all five typechecks; eslint (0 warnings); `format:check`;
+knip (hints only); `check:l10n` (0 problems); `check:reference`
+(current); exec schema `--check` (match); production build (every
+bundle budget ok; rows below); `check:host-api` (0 problems).
+
+Red drills, round 5 (break once, show red, restore byte-exact by
+SHA-256, green):
+
+- Remedy search forced to the top: `names the cent-rounded cap`
+  failed (suggested 32768, not 3043); restored
+  `a8b7cb871e1e1a4a4f4da47f74042d51cd26e378ff1ab6ef2bbab1d7ca8fee6c`,
+  green.
+- Ownerless branch forced to keep: `closes an older-than-the-bound
+ownerless claim` failed (settledUsd stayed undefined); restored
+  `abdf16fe556d06281372025c2f9c09627965b6617cbe97a36c466ac0827b0c7b`,
+  12/12 green.
+- `statusForStop` unpriced reverted to `budget_exceeded`: the sweep
+  test failed; restored
+  `c43993139f687998ddfd5512c0f945649add6dc1d200e21452f7369d25eb8c7e`,
+  green.
+- Parse ceiling disabled: `keeps the policy cap` failed (32769
+  admitted); restored
+  `c86cdd830cb378cb82ab2fa28e89fe390d5b77cc5bc0b20936c6d1d1f254772b`,
+  56/56 green.
+
+(The restore used `git checkout` on uncommitted files by mistake and
+wiped the four product files; they were rewritten from the recorded
+edits and verified SHA-256 identical to the pre-drill state above,
+then re-greened. Lesson recorded: back the file up before breaking
+it. No commit existed yet, so nothing committed was affected.)
+
+Byte rows (production build, exact bytes): modelApi.js 533,368;
+runtimeAccounting.js 46,428; headless.js 82,654;
+configuredProviders.js 40,874; providers.js 142,714; extension.js
+564,229. Budgets: every row `ok`, including modelApi.js 520.9 KiB
+(budget 525 KiB), runtimeAccounting.js 45.3 KiB (50), headless.js
+80.7 KiB (950 KiB exec row), configuredProviders.js 39.9 KiB (50),
+providers.js 139.4 KiB (150), extension.js 551.0 KiB (600).
+
+Lead run list (outside the sandbox, repo default timeout, no
+`--testTimeout`):
+
+- `npx vitest run test/unit/execRun.test.ts --maxWorkers=3` (the 24
+  loopback-shaped cases above, incl. the five flag-carrying modes,
+  the ten-cent refusal with the 3043/3044 pair, and the fixed
+  invalid-settings case)
+- `npx vitest run test/unit/configuredProviders.test.ts
+test/unit/usageIntegration.test.ts --maxWorkers=3` (5 + 1 above)
+- `npx vitest run test/e2e/execStdio.e2e.test.ts --maxWorkers=3`
+  (E8 as in (4))
+- `npm run quality:gates` (deferredBundles pin fails: 533,368 >
+  532,827, owned by the diet lane; everything else green)

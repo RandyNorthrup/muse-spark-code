@@ -10,12 +10,29 @@ happened, not what was planned; superseded entries are kept.
 ### Added
 
 - JSON headless runs report request starts, token totals and cost on stderr while stdout remains one JSON result.
+- Headless Model API runs accept `--max-output-tokens <n>` as an optional
+  lowering limit: absent is the model's policy cap, present never exceeds it
+  (a larger value is refused at parsing). The limit is carried into the
+  request and its reservation, so a small budget can size a run down.
 
 - Claude Haiku 5.5 is listed with an unknown price pending a documented receipt.
 - `help reference` explicitly opens the full terminal reference.
 
 ### Fixed
 
+- A headless budget refusal names both remedies with numbers: the run cap
+  that admits the request (rounded up to the cent) and the largest
+  `--max-output-tokens` value that fits the remaining cap (or that even the
+  input alone does not fit). ACP and the editor show the same reason with
+  the budget remedy only.
+- A headless run refused for a model with no known tariff no longer reports
+  a budget stop: it returns its own `unpriced` status (exit 4) with a
+  sentence naming the model and the providers file where a price is added,
+  or a priced model to choose instead.
+- Holds left by older builds with no recorded owner close by age once older
+  than the longest a request can be in flight, settling at their reservation
+  as unknown cost; each run logs one info line with the count and total, and
+  the usage output keeps showing the unknown-cost share of the day's total.
 - A paid limit refusal names the limit with its numbers instead of a generic failure.
 - A budget hold left by a run that died is released instead of leaking into the daily ledger.
 - A turn stopped by its budget keeps the work produced so far instead of withholding it.
