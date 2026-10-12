@@ -1,10 +1,4 @@
-import {
-  spawn,
-  execFileSync,
-  type ChildProcessByStdio,
-  type StdioOptions,
-} from 'node:child_process'
-import type { Readable, Writable } from 'node:stream'
+import { spawn, execFileSync, type StdioOptions } from 'node:child_process'
 import {
   closeSync,
   mkdirSync,
@@ -64,42 +58,44 @@ function native(
   })
 }
 
-// Replays exact helper bytes for runner-parsing tests (the session self-test
-// cannot run in this sandbox): probe and self-test answers, then a confined
-// line followed by the refusal, exit 125.
-const launched = (child: ChildProcessByStdio<Writable, Readable, Readable>) =>
-  Promise.resolve({
-    child,
-    pid: () => Promise.resolve(child.pid),
-    outcome: () => Promise.resolve(undefined),
-    stop: () => {
-      child.kill('SIGKILL')
-      return Promise.resolve()
-    },
-  })
-const replay = (stdout: string, stderr: string, code: number) =>
-  spawn(
+// Replays exact helper bytes for runner-parsing tests through the same
+// launcher the real runs use (the session self-test cannot run in this
+// sandbox): probe and self-test answers, then a confined line followed by
+// the refusal, exit 125.
+const replayScript = (stdout: string, stderr: string, code: number) =>
+  `process.stdout.write(${JSON.stringify(stdout)}, () => { process.stderr.write(${JSON.stringify(stderr)}, () => process.exit(${String(code)})); });`
+const replayStart: InspectExecOptions['start'] = (_file, args, options) => {
+  const program = args[0] === 'probe' ? 'probe' : (args[5] ?? '')
+  if (program === 'probe')
+    return inspectStart(
+      process.execPath,
+      ['-e', replayScript('{"abi":7,"confined":true}\n', '', 0)],
+      options,
+    )
+  if (program === 'cat')
+    return inspectStart(
+      process.execPath,
+      ['-e', replayScript('B1_ALLOWED_CANARY', '{"confined":true,"abi":7,"excluded":0}\n', 0)],
+      options,
+    )
+  if (program === 'grep')
+    return inspectStart(
+      process.execPath,
+      ['-e', replayScript('B1_ALLOWED_CANARY\n', '{"confined":true,"abi":7,"excluded":3}\n', 0)],
+      options,
+    )
+  const refused = program === 'stat' ? 'operand' : 'exec'
+  return inspectStart(
     process.execPath,
     [
       '-e',
-      `process.stdout.write(${JSON.stringify(stdout)}, () => { process.stderr.write(${JSON.stringify(stderr)}, () => process.exit(${String(code)})); });`,
+      replayScript(
+        '',
+        `{"confined":true,"abi":7,"excluded":0}\n{"refused":"${refused}"}\n`,
+        JUDGE_FAST_B1_REFUSED_EXIT,
+      ),
     ],
-    { stdio: ['pipe', 'pipe', 'pipe'], shell: false },
-  )
-const replayStart: InspectExecOptions['start'] = (_file, args) => {
-  const program = args[0] === 'probe' ? 'probe' : (args[5] ?? '')
-  if (program === 'probe') return launched(replay('{"abi":7,"confined":true}\n', '', 0))
-  if (program === 'cat')
-    return launched(replay('B1_ALLOWED_CANARY', '{"confined":true,"abi":7,"excluded":0}\n', 0))
-  if (program === 'grep')
-    return launched(replay('B1_ALLOWED_CANARY\n', '{"confined":true,"abi":7,"excluded":3}\n', 0))
-  const refused = program === 'stat' ? 'operand' : 'exec'
-  return launched(
-    replay(
-      '',
-      `{"confined":true,"abi":7,"excluded":0}\n{"refused":"${refused}"}\n`,
-      JUDGE_FAST_B1_REFUSED_EXIT,
-    ),
+    options,
   )
 }
 
