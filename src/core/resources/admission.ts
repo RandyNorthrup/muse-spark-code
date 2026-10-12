@@ -35,14 +35,70 @@ const state: {
 } = { isDisposed: false, attachers: new Set() }
 
 const runnerRoutes = new Set<() => boolean>()
+/** Host-load generation: a rebind discards an in-flight host built before it. */
+const hostEpoch = { value: 0 }
+
+/**
+The agent-teams availability switch. Null declares no relocation route at
+all, so pressure goes throttle to pause and the UI explains that
+relocation is unavailable. The live function reads the registered set, so
+the runner-route sentence appears only once the wiring binds a route.
+*/
+function boundRelocationTarget(configured: ResourceHostSettings): (() => boolean) | null {
+  return configured.hasRelocationTarget === undefined && !hasResourceRunnerRoutes()
+    ? null
+    : () =>
+        configured.hasRelocationTarget?.() === true ||
+        [...runnerRoutes].some((hasTarget) => hasTarget())
+}
+
+/** Rebind the loaded host when the first route arrives or the last one leaves. */
+function rebindRoutes(): void {
+  const options = state.options
+  if (options === undefined) return
+  if (state.pending === undefined && state.window === undefined) return
+  const previous = state.pending
+  delete state.pending
+  state.window = undefined
+  hostEpoch.value += 1
+  void (async () => {
+    try {
+      const host = await previous
+      host?.dispose()
+      await state.flush?.()
+    } catch {
+      options.onError()
+    }
+  })()
+}
+
+/**
+The join switch for runner-route relocation (RVCM1073 P3). The teams
+wiring flips `isComplete` when the scheduler/surface ports land; until
+then registration is refused, so no runner route is active in an
+installed editor and the setting keeps its not-available-yet text.
+*/
+export const resourceRunnerRoutesJoin: { isComplete: boolean } = { isComplete: false }
+
+/** Whether any runner route is currently registered. */
+export function hasResourceRunnerRoutes(): boolean {
+  return runnerRoutes.size > 0
+}
 
 /** M96c registers cached approved routes for its lifetime; no probes at activation. */
 export function registerResourceRunnerRoutes(hasTarget: () => boolean): () => void {
+  if (!resourceRunnerRoutesJoin.isComplete)
+    return () => {
+      // Refused: the join has not landed, so no route was registered.
+    }
+  const wasEmpty = runnerRoutes.size === 0
   runnerRoutes.add(hasTarget)
-  state.window?.port.routesChanged()
+  if (wasEmpty) rebindRoutes()
+  else state.window?.port.routesChanged()
   return () => {
     runnerRoutes.delete(hasTarget)
-    state.window?.port.routesChanged()
+    if (runnerRoutes.size === 0) rebindRoutes()
+    else state.window?.port.routesChanged()
   }
 }
 
@@ -86,15 +142,14 @@ async function createHost(configured: ResourceHostSettings): Promise<ResourceLau
   // H–C1: the runtime's one governor host builds its process's launches.
   const shared = await configured.runtime?.()
   if (shared !== undefined) return shared
+  const epoch = hostEpoch.value
   const bundle = await import('./resourceGovernorEntry.js')
   state.flush = bundle.flushResourceHistory
   const host = bundle.resourceGovernorHost({
     ...configured,
-    hasRelocationTarget: () =>
-      configured.hasRelocationTarget?.() === true ||
-      [...runnerRoutes].some((hasTarget) => hasTarget()),
+    hasRelocationTarget: boundRelocationTarget(configured),
   })
-  if (!state.isDisposed && state.options === configured) {
+  if (epoch === hostEpoch.value && !state.isDisposed && state.options === configured) {
     const window: ResourceWindowHost = {
       port: host,
       createStatus: bundle.createResourceStatus,

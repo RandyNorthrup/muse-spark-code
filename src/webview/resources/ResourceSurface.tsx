@@ -201,9 +201,8 @@ function ResourceDetails({ status }: { readonly status: ResourceStatus }) {
   return (
     <>
       <ResourceReadings status={status} />
-      {status.relocation === 'noRoute' || status.relocation === 'noTarget' ? (
-        <p>{UI_TEXT.resourceRelocationNoRoute}</p>
-      ) : null}
+      {status.relocation === 'noRoute' ? <p>{UI_TEXT.resourceRelocationNoRoute}</p> : null}
+      {status.relocation === 'noTarget' ? <p>{UI_TEXT.resourceRelocationNoTarget}</p> : null}
       {status.overrideUntilMs === null ? null : (
         <p>
           {fill(UI_TEXT.resourceOverrideNotice, {
