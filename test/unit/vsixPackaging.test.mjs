@@ -1026,11 +1026,22 @@ describe('VSIX packaging', () => {
     expect(packaged).toContain('Newest Highlights.')
     expect(packaged).toContain(`[Full notes for 1.0.2](${repository}/blob/main/CHANGELOG.md).`)
   })
-  it('packs the writer’s plan for the real CHANGELOG exactly as the legacy slice', () => {
+  // Parsing the real CHANGELOG is the next case's input, not what it asserts:
+  // about 0.4 s alone, 3 to 5 s beside a hosted runner's other files, which
+  // is the case's whole deadline. Prepared once, like the archives above.
+  const realChangelog = {}
+  beforeAll(() => {
     const manifest = JSON.parse(readFileSync('package.json', 'utf8'))
-    const source = readFileSync('CHANGELOG.md', 'utf8')
-    const repository = repositoryUrl(manifest)
-    const parsed = parseChangelog(source, contributedIds(manifest), repository)
+    realChangelog.source = readFileSync('CHANGELOG.md', 'utf8')
+    realChangelog.repository = repositoryUrl(manifest)
+    realChangelog.parsed = parseChangelog(
+      realChangelog.source,
+      contributedIds(manifest),
+      realChangelog.repository,
+    )
+  }, ARCHIVE_SETUP_TIMEOUT_MS)
+  it('packs the writer’s plan for the real CHANGELOG exactly as the legacy slice', () => {
+    const { source, repository, parsed } = realChangelog
     const selection = selectWhatsNewReleases(parsed, repository)
     expect(selection.plan).toEqual(
       selection.releases.map((release) => ({ version: release.version, full: true })),
