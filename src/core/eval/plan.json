@@ -5,12 +5,12 @@
     {
       "id": "accept-long-compaction",
       "measuredAttempts": [0, 0, 0, 0],
-      "callBudget": 9
+      "callBudget": 14
     },
     {
       "id": "heldout-long-compaction",
       "measuredAttempts": [0, 0, 0, 0],
-      "callBudget": 9
+      "callBudget": 14
     },
     {
       "id": "accept-long-middle-value",

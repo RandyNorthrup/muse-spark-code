@@ -185,7 +185,7 @@ describe('runPairedEval', { timeout: RUNS_TIMEOUT_MS }, () => {
         })
       }),
     )
-    const raw = await runPairedEval(EVAL_TASKS, arms, { ...deps, maxAttempts: 548 })
+    const raw = await runPairedEval(EVAL_TASKS, arms, { ...deps, maxAttempts: 588 })
     const report = withCompactionEngagement(
       withPackingEngagement(raw, 'packing', EVAL_TASKS),
       'auto-compaction',
@@ -1031,7 +1031,7 @@ describe('runPairedEval', { timeout: RUNS_TIMEOUT_MS }, () => {
         })
       }),
     )
-    const report = await runPairedEval(EVAL_TASKS, arms, { ...deps, maxAttempts: 548 })
+    const report = await runPairedEval(EVAL_TASKS, arms, { ...deps, maxAttempts: 588 })
     for (const arm of report.arms) {
       expect(arm.results.slice(0, 4).map((task) => task.taskId)).toEqual([
         'accept-long-compaction',
