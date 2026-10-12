@@ -180,6 +180,34 @@ with four failures. The built usage service reported 27 inexact records for
 the 0.17.0 fixture where the source reports 0, and the built schedule reader
 threw `scheduleStoredJsonInvalid`.
 
+## E8: one turn on a configured provider through the packed package
+
+The test whose absence let 0.18.0 out. `test/e2e/execStdio.e2e.test.ts` packs
+the production package and runs it; every row used Meta's own model, so no
+built code ever loaded the configured-provider bundle and called into
+`dist/modelApi.js`. E8 does: `exec` in plan mode with `--max-requests 1` on a
+Mistral provider from a providers file, its key in the test-owned keyring.
+The preload answers the models list and one answer from the captured
+exchange the unit suite's production run uses
+(`docs/certification/m95-captures/mistral`) and resolves the provider's name
+without a DNS query, so nothing leaves the machine. It asserts exit 0, status
+`completed` on `mistral/ministral-3b-latest`, one request in the result and
+exactly one chat request received.
+
+Run: the suite's 45 tests pass, E8 in 2.3 s.
+
+**Drill E.** The entry as released, and the build guard switched off in the
+rig's copy so the package could be built at all: E8 fails, exit 4, status
+`failed`, "is not a function" in the output and no chat request received,
+while the suite's Meta rows (E3, E4, H2) pass beside it: 1 failed, 2 passed.
+That is 0.18.0: every existing row green, the provider turn dead. Restored
+byte for byte (`edf449acbc3875f3`, `55f222c13f7d7168`), `git status` empty.
+
+In the 70-file gate run that carried this suite, four tests of two other
+files ran past their 5,000 ms limit at load 11 (`checkPlan`, two cases;
+`usageJournalMigration`, two cases). Same machine, alone, a minute later: 41
+of 41 pass in 20 s.
+
 ## Report a Problem and dotted setting names
 
 Found by an audit, verified by a failing test first. `SETTING_NAME_PATTERN` in
