@@ -12,6 +12,7 @@ import { EN } from '../../src/shared/l10n/en'
 import { currentWhatsNewText } from './helpers/currentWhatsNew'
 import { featureCatalog } from '../../src/shared/featureCatalog'
 import { referenceModel } from '../../src/shared/reference/reference.generated'
+import { metaArgumentPreviewCapabilities } from '../../src/core/backends/modelapi/modelCapabilities'
 
 function repoFile(name: string): string {
   return readFileSync(new URL(`../../${name}`, import.meta.url), 'utf8')
@@ -32,10 +33,24 @@ function highlights(version: string): string {
   return JSON.stringify(release?.highlights)
 }
 
-describe('RVCX1B F1: live argument claims are removed', () => {
-  it('README never promises rows while arguments arrive', () => {
+// C-M106-2 bound the selected model's record in production: the panel and ACP
+// render previews on a model whose record verifies streamed arguments (today
+// `muse-spark-1.3-contributor`). Headless `exec` never shows them, and the
+// 0.16.0 notes keep their correction.
+describe('RVCX1B F1 after C-M106-2: live argument previews are published where they render', () => {
+  it('README describes the preview, names the one verified model and promises no more', () => {
     expect(readme).not.toMatch(/tool rows stream|while arguments arrive|no production tool/)
-    expect(readme).not.toContain('The preview shows only declared')
+    expect(readme).toContain('The preview shows only declared')
+    const prose = readme.replaceAll(/\s+/g, ' ')
+    expect(prose).toContain(
+      'One model has that verified record today: `muse-spark-1.3-contributor`.',
+    )
+    expect(prose).toContain(
+      'Headless exec records completed tools and does not display live argument previews.',
+    )
+    // The headless run keeps its own output cap; the README says so beside it.
+    expect(prose).toContain('Headless `exec` requests at most 32,768 output tokens')
+    expect(prose).not.toContain('still requires the capability binding')
   })
 
   it('real What’s New parser excludes corrected streaming highlights', () => {
@@ -44,12 +59,22 @@ describe('RVCX1B F1: live argument claims are removed', () => {
     )
   })
 
-  it('preview metadata exists but does not establish a production capability binding', () => {
+  it('the production entry binds the preview capability to the captured model only', () => {
     expect(repoFile('src/core/backends/modelapi/tools.ts')).toContain('previewFields')
-    expect(featureCatalog().find((feature) => feature.id === 'argument-preview')?.surfaces).toEqual(
-      [],
+    expect(repoFile('src/host/backend/modelApiEntry.ts')).toContain(
+      'hostDeps.argumentPreviewCapabilities ?? metaArgumentPreviewCapabilities',
     )
-    expect(help.features.some((feature) => feature.id === 'argument-preview')).toBe(false)
+    expect(metaArgumentPreviewCapabilities('muse-spark-1.3-contributor')).toEqual({
+      tools: { streamingArguments: { state: 'yes', value: true } },
+    })
+    expect(metaArgumentPreviewCapabilities('muse-spark-1.3')).toBeUndefined()
+    expect(featureCatalog().find((feature) => feature.id === 'argument-preview')?.surfaces).toEqual(
+      ['vscode:modelApi', 'acp:modelApi'],
+    )
+    const row = help.features.find((feature) => feature.id === 'argument-preview')
+    expect(row?.name).toEqual({ ui: 'toolArgumentPreviewLabel' })
+    expect(row?.summary).toEqual({ ui: 'toolArgumentPreviewDescription' })
+    expect(row?.surfaces).toEqual(['vscode:modelApi', 'acp:modelApi'])
   })
 })
 
@@ -110,27 +135,18 @@ describe('RVCX1B F3: v2 schedule delivery claims are removed on every surface', 
 })
 
 describe('CX1R3 sibling sweep: dormant features have no published usage', () => {
-  it.each([
-    'team-workers',
-    'vault',
-    'estimator',
-    'auto-compaction',
-    'argument-preview',
-    'accounts',
-  ])('omits %s from Help and clears its capability inventory', (id) => {
-    expect(help.features.some((feature) => feature.id === id)).toBe(false)
-    expect(featureCatalog().find((feature) => feature.id === id)?.surfaces).toEqual([])
-  })
+  // Accounts left both lists with CM108ACC (cx1r4Truth pins what is published);
+  // argument previews left them with C-M106-2 (the F1 block above pins theirs).
+  it.each(['team-workers', 'vault', 'estimator', 'auto-compaction'])(
+    'omits %s from Help and clears its capability inventory',
+    (id) => {
+      expect(help.features.some((feature) => feature.id === id)).toBe(false)
+      expect(featureCatalog().find((feature) => feature.id === id)?.surfaces).toEqual([])
+    },
+  )
 
   it('retains only neutral progress text in the dormant source inventory', () => {
-    for (const id of [
-      'team-workers',
-      'vault',
-      'estimator',
-      'auto-compaction',
-      'argument-preview',
-      'accounts',
-    ]) {
+    for (const id of ['team-workers', 'vault', 'estimator', 'auto-compaction']) {
       const feature = featureCatalog().find((entry) => entry.id === id)
       expect(feature?.summary).toEqual({ ui: 'referenceInProgress' })
       expect(feature?.description).toEqual({ ui: 'referenceInProgress' })
@@ -202,10 +218,12 @@ describe('CX1R3 sibling sweep: dormant features have no published usage', () => 
         /First parts shipped in 0\.15\.0/,
         /automatic compaction is in progress/,
       ],
+      // C-M106-2: previews are bound; the native readers are what remains.
       M106: [
         /strict tool contracts/,
         /First parts shipped in 0\.16\.0/,
-        /live tool-argument previews are in progress/,
+        /live tool-argument previews wherever the selected model supports them/,
+        /native effort and feedback readers are in progress/,
       ],
       M113: [/\/report for project/, /First parts shipped in 0\.17\.0/, /additional report kinds/],
       M116: [/\/playbook shows status/, /First parts shipped in 0\.17\.0/, /panel integration/],

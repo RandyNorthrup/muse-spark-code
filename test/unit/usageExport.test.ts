@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { Usd } from '../../src/shared/usd'
 import { createUsageRecord } from '../../src/core/usage/journalRecord'
 import { rollupUsageRecords, type UsageJournalRead } from '../../src/core/usage/journalStore'
 import {
@@ -38,6 +39,7 @@ function journal(records: UsageRecord[] = []): UsageJournalRead {
     newerVersionFiles: 0,
     tornLines: 0,
     invalidLines: 0,
+    inexactRecords: 0,
   }
 }
 function cells(line: string): string[] {
@@ -51,7 +53,7 @@ function summaryState() {
     tokens: { input: 100, output: 20 },
     units: { images: 2 },
     costs: [
-      { certainty: 'reported', records: 1, usd: 0.25 },
+      { certainty: 'reported', records: 1, usd: Usd.from('0.25').toAmount() },
       { certainty: 'unpriced', records: 1 },
     ],
     retries: 0,
@@ -59,7 +61,7 @@ function summaryState() {
     durationMs: 1000,
   }
   return usagePageStateSchema.parse({
-    v: 1,
+    v: 2,
     query: { range: '30d', groupBy: 'model', metric: 'cost' },
     generatedAt: at,
     history: {
@@ -159,10 +161,11 @@ describe('usage exports', () => {
       newerVersionFiles: 1,
       tornLines: 1,
       invalidLines: 1,
+      inexactRecords: 0,
       rollups: rollupUsageRecords([{ ...record('old'), day: '2026-01-01' }]),
       limits: [
         {
-          v: 1,
+          v: 2,
           type: 'limit',
           id: 'limit',
           at,
@@ -181,7 +184,7 @@ describe('usage exports', () => {
       exportUsageJson(data, { from: '2026-01-01', to: '2026-10-05' }),
     )
     expect(result).toMatchObject({
-      v: 1,
+      v: 2,
       range: { from: '2026-01-01', to: '2026-10-05' },
       records: [{ id: 'today' }],
       limits: [{ id: 'limit' }],

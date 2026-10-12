@@ -138,10 +138,10 @@ describe('production best-of-N parent budget binding (M77/M82)', () => {
           budget: {
             id: t.parentSession.sessionId,
             kind: 'conversation',
-            capUsd: 0.1,
-            spentUsd: 0.02,
+            capUsd: '0.1',
+            spentUsd: '0.02',
             stopped: false,
-            uncertainUsd: 0.02,
+            uncertainUsd: '0.02',
           },
         },
       ])
@@ -152,7 +152,7 @@ describe('production best-of-N parent budget binding (M77/M82)', () => {
       )
       await claim.settle(Usd.from(0.005).toAmount())
       expect(await t.manager.readUsageBudgets()).toEqual([
-        expect.objectContaining({ budget: expect.objectContaining({ spentUsd: 0.005 }) }),
+        expect.objectContaining({ budget: expect.objectContaining({ spentUsd: '0.005' }) }),
       ])
     } finally {
       await t.close()

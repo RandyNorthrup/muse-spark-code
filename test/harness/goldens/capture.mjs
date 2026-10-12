@@ -76,12 +76,23 @@ async function waitForPaint(page, selector) {
 /** Question placeholders have their own busy marker, without data-deferred-loading. */
 export async function waitForDeferredPaint(page, scene) {
   const loading = page.locator('[data-deferred-loading],[data-question-slot][aria-busy="true"]')
-  for (let attempt = 0; attempt < 100 && (await loading.count()) > 0; attempt += 1) {
+  // A render can have no loading marker yet still own a lazy request.
+  // Always drain requests before deciding that its pixels are settled.
+  await requestsSettled(page)
+  const sceneWorkPending = async () =>
+    await page.evaluate(() => globalThis.harnessSceneWorkPending?.() ?? false)
+  for (
+    let attempt = 0;
+    attempt < 100 && ((await loading.count()) > 0 || (await sceneWorkPending()));
+    attempt += 1
+  ) {
     await requestsSettled(page)
     await page.clock.runFor(100)
     await delay(10)
   }
-  if ((await loading.count()) > 0) throw new Error(`Deferred renderer did not settle: ${scene}`)
+  await requestsSettled(page)
+  if ((await loading.count()) > 0 || (await sceneWorkPending()))
+    throw new Error(`Deferred renderer did not settle: ${scene}`)
 }
 
 /** Let real chunk I/O settle before spending the next frozen-clock paint step. */
@@ -278,16 +289,30 @@ export async function openScene(page, root, port, scene, theme, width, height, f
   }
 }
 
-async function targetFor(page, rows, state) {
+// A scene named for one part of a page takes its state target from that part,
+// whatever else its screen shows. The notes above What's New's footer end with
+// a link or a code block as often as not, and the first control on the screen
+// would then stand in for the footer's (REL0172).
+const STATE_SCOPE = Object.freeze({ 'whats-new-footer': 'footer' })
+
+async function targetFor(page, rows, state, scene) {
   return await page.evaluate(
-    ({ rows, control, state }) => {
+    ({ rows, control, state, scoped }) => {
       for (const element of globalThis.document.querySelectorAll('[data-visual-target]'))
         delete element.dataset.visualTarget
-      const scopes = rows
-        .map((row) => globalThis.document.querySelector(row.captureSelector))
-        .filter((element) => element !== null)
-      // Extra variants and host-rendered pages have no canonical audit row.
-      if (scopes.length === 0) scopes.push(globalThis.document.body)
+      let scopes
+      if (scoped === undefined) {
+        scopes = rows
+          .map((row) => globalThis.document.querySelector(row.captureSelector))
+          .filter((element) => element !== null)
+        // Extra variants and host-rendered pages have no canonical audit row.
+        if (scopes.length === 0) scopes.push(globalThis.document.body)
+      } else {
+        const part = globalThis.document.querySelector(scoped)
+        // A part that is gone is an error, never the whole page in its place.
+        if (part === null) throw new Error(`Visual state scope is missing: ${scoped}`)
+        scopes = [part]
+      }
       // Prefer the narrowest component scope over App/Transcript wrappers.
       scopes.sort((a, b) => a.querySelectorAll('*').length - b.querySelectorAll('*').length)
       for (const scope of scopes) {
@@ -315,7 +340,12 @@ async function targetFor(page, rows, state) {
       }
       return null
     },
-    { rows, control: state === 'selected' ? SELECTED : CONTROL, state },
+    {
+      rows,
+      control: state === 'selected' ? SELECTED : CONTROL,
+      state,
+      scoped: STATE_SCOPE[scene],
+    },
   )
 }
 
@@ -536,7 +566,7 @@ export async function captureMatrix(
             { scene, theme, width, height: matrix.height },
           )
           for (const state of matrix.states) {
-            const target = await targetFor(page, rows, state)
+            const target = await targetFor(page, rows, state, scene)
             const { bytes, applied } = await stateShot(page, cdp, state, target)
             totalBytes += bytes.length
             if (totalBytes > ARCHIVE_BUDGET)
