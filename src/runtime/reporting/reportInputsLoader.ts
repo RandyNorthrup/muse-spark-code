@@ -1,5 +1,9 @@
 import type * as InputsBundle from './reportInputsEntry'
-import { lazyBundleLoader, type LazyBundleLoaderOptions } from '../../host/lazyBundle'
+import {
+  fixedMessageLog,
+  lazyBundleLoader,
+  type LazyBundleLoaderOptions,
+} from '../../host/lazyBundle'
 import { UI_TEXT } from '../../shared/constants'
 
 type Bundle = typeof InputsBundle
@@ -27,6 +31,14 @@ export function reportInputsLoader(
 
   return lazyBundleLoader({
     ...deps,
+    // The bundle path and the loader's raw error never reach the log: only
+    // fixed words do, so a private install path cannot leak through a load
+    // failure (RVREPORTJOIN P2-6).
+    log: fixedMessageLog({
+      log: deps.log,
+      loadFailed: 'The report inputs bundle could not be loaded',
+      wrongShape: 'The report inputs bundle does not export the report inputs',
+    }),
     isBundle,
     label: 'report session, usage, accounts and security inputs',
     unavailable: () => reportUi.generationFailed,
