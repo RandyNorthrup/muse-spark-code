@@ -5319,6 +5319,10 @@ export const REPORT_NETWORK_MAX_BYTES = 2 * 1024 * 1024
 export const REPORT_NETWORK_MAX_PAGES = 10
 export const REPORT_NETWORK_CACHE_ENTRIES = 100
 export const REPORT_SOURCE_TIMEOUT_MS = 5000
+// A handed deadline aborts the read's signal and then waits for the
+// reader's own settlement instead of abandoning it mid-flight; a reader
+// that ignores the signal cannot outlive this grace (RVREPORTJOIN P2-3).
+export const REPORT_SOURCE_SETTLE_MS = 1000
 export const REPORT_GITHUB_RATE_FLOOR = 10
 export const REPORT_CHECK_RUNS_MAX = 500
 export const REPORT_HISTORY_MAX_PER_KIND = 50

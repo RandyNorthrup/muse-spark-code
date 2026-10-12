@@ -284,7 +284,11 @@ export function createReportJournalReader(input: {
     let pending = runs.get(context.run ?? context.options)
     if (pending === undefined) {
       pending = (async () => {
+        // Every step checks the signal before the next read begins, so an
+        // abort between steps starts nothing further (RVREPORTJOIN P2-3).
+        context.signal.throwIfAborted()
         await input.beforeRead?.()
+        context.signal.throwIfAborted()
         const journal = await readUsageReportJournal(input.dataFolder, reportText)
         // Only the usage kinds render a Limits section; a session report
         // never touches budget machinery or its failure partial.
@@ -294,6 +298,7 @@ export function createReportJournalReader(input: {
         )
           return journal
         try {
+          context.signal.throwIfAborted()
           const budgets = await input.readBudgets()
           // The same calendar as the report period (usageReportQuery): the
           // machine-local day, never the UTC stamp (RVCM1132B finding 2).
@@ -305,14 +310,18 @@ export function createReportJournalReader(input: {
               .toISOString()
               .split('T', 1)[0] ?? ''
           return { ...journal, budgets, budgetDay }
-        } catch {
+        } catch (error) {
+          // An abort is cancellation, never an unavailable budget
+          // (RVREPORTJOIN P2-3).
+          if (context.signal.aborted) throw error
           // Partial reasons are a set of sentences: a reason already present
           // is never appended again (RVCM1132C finding 5, RVCM1132D
           // finding 2).
           const reasons: string[] = []
           if (journal.partial !== undefined) pushPartialReason(reasons, journal.partial)
           pushPartialReason(reasons, reportText.reportDetailReasons.budgetsUnavailable)
-          return { ...journal, partial: reasons.join(' ') }
+          const budgetsPartial = joinPartialReasons(reportText, reasons)
+          return { ...journal, ...(budgetsPartial !== undefined && { partial: budgetsPartial }) }
         }
       })()
       runs.set(context.run ?? context.options, pending)
@@ -335,8 +344,10 @@ export function createUsageReportReader(input: {
 }): NonNullable<LocalReportSourceDeps['usage']> {
   return async (context: SourceReadContext) => {
     const reportText = context.reportText
+    context.signal.throwIfAborted()
     const journal = await (input.readJournal?.(context) ??
       readUsageReportJournal(input.dataFolder, reportText))
+    context.signal.throwIfAborted()
     const facts = usageReportFacts({
       reportText,
       journal,
@@ -491,8 +502,13 @@ export function createSessionReportReader(input: {
   return {
     read: async (context: SourceReadContext) => {
       const reportText = context.reportText
+      context.signal.throwIfAborted()
       const history = await input.resolveSession(context.options.sessionId, context)
       if (history === null) throw new LocalSourceError('history')
+      // A deadline that fired while the session settled starts no further
+      // work: the journal read below never begins after an abort
+      // (RVREPORTJOIN P2-3).
+      context.signal.throwIfAborted()
       const journal = await input.readJournal(context)
       // The transcript reader's own reason (an unknown catalogue model)
       // travels with the session source, beside the journal's (RVCM1132C
@@ -564,7 +580,15 @@ const registryEntrySchema = z.object({
   accounts: z.optional(z.unknown()),
 })
 
-async function readDataFile(directory: string, file: string, maxBytes: number) {
+async function readDataFile(
+  directory: string,
+  file: string,
+  maxBytes: number,
+  signal?: AbortSignal,
+) {
+  // The signal is checked before the open and before each next read, so an
+  // abort between file operations starts nothing further (RVREPORTJOIN P2-3).
+  signal?.throwIfAborted()
   const target = path.join(directory, file)
   let handle
   try {
@@ -593,6 +617,7 @@ async function readDataFile(directory: string, file: string, maxBytes: number) {
     const buffer = Buffer.alloc(maxBytes + 1)
     let bytesRead = 0
     while (bytesRead <= maxBytes) {
+      signal?.throwIfAborted()
       const { bytesRead: chunkBytes } = await handle.read(
         buffer,
         bytesRead,
@@ -723,11 +748,13 @@ export function createAccountsReportReader(input: {
       const reportText = context.reportText
       const partials: string[] = []
       const providers: AccountsFacts['providers'][number][] = []
+      context.signal.throwIfAborted()
       try {
         const text = await readDataFile(
           input.dataDir,
           'providers.json',
           EXEC_UNTRUSTED_FILE_MAX_BYTES,
+          context.signal,
         )
         if (text === null && input.readUsage === undefined && input.readEvents === undefined)
           return null
@@ -819,6 +846,10 @@ export function createAccountsReportReader(input: {
       const usage: AccountsFacts['usage'][number][] = []
       if (input.readUsage === undefined) missing.push('usage')
       else {
+        // A deadline that fired while the registry settled starts no
+        // further work: the usage read below never begins after an abort
+        // (RVREPORTJOIN P2-3).
+        context.signal.throwIfAborted()
         try {
           const read = await input.readUsage(context)
           if (read === null || read === undefined) missing.push('usage')
@@ -832,6 +863,10 @@ export function createAccountsReportReader(input: {
       const confirmations: AccountsFacts['confirmations'][number][] = []
       if (input.readEvents === undefined) missing.push('swaps', 'confirmations')
       else {
+        // A deadline that fired while usage settled starts no further work:
+        // the events read below never begins after an abort (RVREPORTJOIN
+        // P2-3).
+        context.signal.throwIfAborted()
         try {
           const read = await input.readEvents(context)
           if (read === null || read === undefined) missing.push('swaps', 'confirmations')
@@ -932,6 +967,7 @@ export function createSecurityReportReader(input: {
       let vault: SecurityFacts['vault'] = null
       const vaultAudit: SecurityFacts['audit'][number][] = []
       let snapshot: unknown = null
+      context.signal.throwIfAborted()
       if (input.readVault !== undefined) {
         try {
           snapshot = await input.readVault(context)
@@ -1021,9 +1057,11 @@ export function createSecurityReportReader(input: {
       let developerAudit: SecurityFacts['developerAudit'][number][] | null = null
       const auditFiles = [DEVELOPER_FILES.audit, `${DEVELOPER_FILES.audit}.previous`]
       for (const file of auditFiles) {
+        // The next rotation never starts after an abort (RVREPORTJOIN P2-3).
+        context.signal.throwIfAborted()
         let text: string | null
         try {
-          text = await readDataFile(directory, file, DEVELOPER_AUDIT_MAX_BYTES)
+          text = await readDataFile(directory, file, DEVELOPER_AUDIT_MAX_BYTES, context.signal)
         } catch (error) {
           // An unreadable rotation is one failed sub-source: the vault
           // rows above and the other rotation still report (RVCM1133B P2).

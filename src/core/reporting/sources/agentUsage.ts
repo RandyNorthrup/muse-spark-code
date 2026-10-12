@@ -259,6 +259,8 @@ export function agentUsageSource(
       ),
     )
     for (const file of orderedFiles) {
+      // The next file never starts after an abort (RVREPORTJOIN P2-3).
+      signal.throwIfAborted()
       if (!enabled.includes(file.agent)) continue
       try {
         if (!isAgentUsagePath(file.agent, file.file)) throw new LocalSourceError('refused')
