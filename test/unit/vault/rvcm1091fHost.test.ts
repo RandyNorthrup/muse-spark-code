@@ -12,9 +12,11 @@ import {
   type VaultPanelHostDeps,
   type VaultPanelService,
 } from '../../../src/host/vault/vaultPanelHost'
+import { VaultChannelError } from '../../../src/core/vault/broker/client'
 import type { VaultPanelState } from '../../../src/shared/vaultPanel'
+import { vaultHostMessageSchema } from '../../../src/shared/hostApi/vaultMessages'
 import { UI_TEXT } from '../../../src/shared/constants'
-import { panel, item, metadata } from '../helpers/vault/fixtures'
+import { panel, item, metadata, approval } from '../helpers/vault/fixtures'
 import { generatedImport } from '../helpers/vault/runtime'
 
 function fixture() {
@@ -85,6 +87,12 @@ function publishedSince(f: ReturnType<typeof fixture>, mark: number): string {
     .slice(mark)
     .map((call) => JSON.stringify(call[0]))
     .join('\n')
+}
+
+/** True when a published host message carries a frame flagged as retrying. */
+function isRetryingFrame(message: unknown): boolean {
+  const parsed = vaultHostMessageSchema.safeParse(message)
+  return parsed.success && parsed.data.state.retrying === true
 }
 
 describe('RVCM1091F P2 locked events reload and strip, later events recover', () => {
@@ -332,6 +340,110 @@ describe('RVCM1091F P2 generations: an older snapshot never overwrites a newer s
     await loading
     expect(lastState(f).items).toEqual([])
     expect(lastState(f).status.itemCount).toBe(0)
+    f.host.dispose()
+  })
+
+  it('two approval reloads settle newest-wins in both landing orders', async () => {
+    for (const isNewerFirst of [true, false]) {
+      const f = fixture()
+      await f.host.refresh()
+      const one = structuredClone(f.state)
+      const two = structuredClone(f.state)
+      two.items = []
+      two.status.itemCount = 0
+      let resolveOlder: ((value: VaultPanelState) => void) | undefined
+      let resolveNewer: ((value: VaultPanelState) => void) | undefined
+      let calls = 0
+      f.deps.service.snapshot.mockImplementation(() => {
+        calls += 1
+        if (calls <= 2)
+          return new Promise<VaultPanelState>((resolve) => {
+            if (calls === 1) resolveOlder = resolve
+            else resolveNewer = resolve
+          })
+        return Promise.resolve(structuredClone(f.state))
+      })
+      // Two approval cards under one generation: neither retires the other,
+      // so the older reply must not overwrite the newer one (RVCM1091G P2).
+      f.changed.callback({ kind: 'approval', v: 2, request: approval() })
+      await vi.waitFor(() => {
+        expect(resolveOlder).toBeDefined()
+      })
+      f.changed.callback({ kind: 'approval', v: 2, request: approval() })
+      await vi.waitFor(() => {
+        expect(resolveNewer).toBeDefined()
+      })
+      // Whichever reply lands first, the newest request wins once both
+      // have landed.
+      const firstResolve = isNewerFirst ? resolveNewer! : resolveOlder!
+      const firstSnapshot = isNewerFirst ? two : one
+      const secondResolve = isNewerFirst ? resolveOlder! : resolveNewer!
+      const secondSnapshot = isNewerFirst ? one : two
+      firstResolve(structuredClone(firstSnapshot))
+      await vi.waitFor(() => {
+        expect(lastState(f).items).toHaveLength(isNewerFirst ? 0 : 1)
+      })
+      secondResolve(structuredClone(secondSnapshot))
+      await vi.waitFor(() => {
+        expect(lastState(f).items).toEqual([])
+      })
+      expect(lastState(f).status.itemCount).toBe(0)
+      f.host.dispose()
+    }
+  })
+})
+
+describe('RVCM1091G P3 channel failures never claim Locked, and a rejected Delete finishes', () => {
+  it('a dead channel says the operation failed beside an unavailable section', async () => {
+    for (const code of ['closed', 'writeFailed', 'invalidResponse'] as const) {
+      const f = fixture()
+      await f.host.refresh()
+      expect(lastState(f).status.state).toBe('unlocked')
+      f.deps.service.snapshot.mockRejectedValue(new VaultChannelError(code))
+      await f.host.refresh()
+      await vi.waitFor(() => {
+        expect(lastState(f).status.state).toBe('unavailable')
+      })
+      // The section names no state it does not hold, and the toast never
+      // claims Locked beside it.
+      expect(lastState(f).status.reason).toBe('unreachable')
+      expect(f.deps.showError).toHaveBeenLastCalledWith(UI_TEXT.vault.operationFailed)
+      expect(f.deps.showError).not.toHaveBeenCalledWith(UI_TEXT.vault.locked)
+      f.host.dispose()
+    }
+  })
+
+  it('a Delete rejected as sourceGone finishes by clearing the leftover record', async () => {
+    const f = fixture()
+    await f.host.refresh()
+    f.state.ambientFiles = [{ path: '/home/user/.netrc', kind: 'netrc' }]
+    f.deps.importDone.mockResolvedValue('delete')
+    f.deps.service.deleteImport.mockRejectedValueOnce(new Error(UI_TEXT.vault.sourceGone))
+    await f.host.handle({ type: 'vaultImport', path: '/home/user/.netrc' })
+    // The receipt is finished, not dropped: Keep clears the record the
+    // Delete could not, and the refusal still says the file is gone.
+    expect(f.deps.service.keepImport).toHaveBeenCalledTimes(1)
+    expect(f.deps.showError).toHaveBeenCalledWith(UI_TEXT.vault.sourceGone)
+    f.host.dispose()
+  })
+
+  it('a kept view with a retry scheduled says it is retrying', async () => {
+    const f = fixture()
+    await f.host.refresh()
+    f.deps.service.snapshot
+      .mockRejectedValueOnce(new Error(UI_TEXT.vault.busy))
+      .mockRejectedValueOnce(new Error(UI_TEXT.vault.busy))
+    await f.host.refresh()
+    // The kept unlocked frame carries the retry flag for the section while
+    // the bounded auto-retry is scheduled; the recovered view clears it.
+    await vi.waitFor(() => {
+      expect(f.deps.publish.mock.calls.some((call) => isRetryingFrame(call[0]))).toBe(true)
+    })
+    await vi.waitFor(() => {
+      const state = lastState(f)
+      expect(state.status.state).toBe('unlocked')
+      expect(state.retrying).not.toBe(true)
+    })
     f.host.dispose()
   })
 })

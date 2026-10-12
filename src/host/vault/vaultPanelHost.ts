@@ -13,6 +13,7 @@ import {
 } from '../../shared/vault'
 import { UI_TEXT, VAULT_VIEW_RETRY_BUDGET, VAULT_VIEW_RETRY_MS } from '../../shared/constants'
 import type { VaultImportReport } from '../../core/vault/broker/ports'
+import { VaultChannelError } from '../../core/vault/broker/client'
 import {
   applyVaultViewEvent,
   vaultViewFrame,
@@ -95,6 +96,7 @@ function refusalMessage(error: unknown): string {
     UI_TEXT.vault.rollback, // `rollback`
     UI_TEXT.vault.storeUnavailable, // `storeUnavailable`
     UI_TEXT.vault.sourceGone, // `sourceGone`: the file is gone, nothing to retry
+    UI_TEXT.vault.sourceUnreadable, // `sourceUnreadable`: unreadable source, receipt kept
     UI_TEXT.vault.operationFailed, // `invalid`, `io`
     UI_TEXT.vault.noAccess, // an unexpected broker shape
     UI_TEXT.vault.useChanged, // a guard below
@@ -114,9 +116,12 @@ function isVeto(error: unknown): boolean {
  * Map a snapshot failure to the machine's typed reason. Anything without a
  * known cause is `unreachable`: the section says the operation failed and
  * offers Retry, never the repair message (RVCM1091F P2). Only the broker's
- * own `brokerBlocked` snapshot verdict reaches `brokerCannotStart`.
+ * own `brokerBlocked` snapshot verdict reaches `brokerCannotStart`. A dead
+ * or corrupted channel is `unreachable` too: it never claims the vault is
+ * locked beside a recovered unlocked section (RVCM1091G P3).
  */
 function classifySnapshotError(error: unknown): VaultUnavailableReason {
+  if (error instanceof VaultChannelError) return 'unreachable'
   if (error instanceof Error) {
     switch (error.message) {
       case UI_TEXT.vault.busy: {
@@ -142,6 +147,8 @@ function classifySnapshotError(error: unknown): VaultUnavailableReason {
 /** One serialized owner. Lock and disposal synchronously invalidate every older effect. */
 export class VaultPanelHost {
   private generation = 0
+  /** Every reload request's own sequence inside the machine (RVCM1091G P2). */
+  private reloadSeq = 0
   private disposed = false
   // RVCM1091F REDESIGN: the whole visible view is this machine — no flag.
   // Every event below ends in a publish (a frame now, or a reload whose
@@ -220,7 +227,7 @@ export class VaultPanelHost {
     )
     this.view = state
     if (state.kind === 'locked') this.answered.clear()
-    if (effects.frame !== null) this.publishFrame(effects.frame)
+    if (effects.frame !== null) this.publishFrame(effects.frame, effects.retryInMs !== null)
     if (effects.toast !== null && !this.disposed) this.deps.showError(effects.toast)
     if (effects.retryInMs !== null) this.scheduleRetry(effects.retryInMs)
     return { reload: effects.reload, toast: effects.toast }
@@ -231,11 +238,33 @@ export class VaultPanelHost {
     if (this.apply(event).reload) void this.refresh()
   }
 
-  private publishFrame(frame: VaultPanelState): void {
+  /**
+   * Record a reload request inside the machine and return its sequence. A
+   * reply is applied only if it answers the newest request, so overlapping
+   * reloads (two approval cards) settle newest-wins in both landing orders
+   * (RVCM1091G P2).
+   */
+  private beginReload(): number {
+    const seq = (this.reloadSeq += 1)
+    this.apply({ kind: 'reloadRequested', seq })
+    return seq
+  }
+
+  private publishFrame(frame: VaultPanelState, hasScheduledRetry: boolean): void {
     if (this.disposed) return
-    const message = vaultHostMessageSchema.parse({ type: 'vaultState', state: frame })
+    // A kept view with a retry scheduled or in flight says so (the section
+    // shows retry text with aria-busy): it never poses as a fresh view
+    // (RVCM1091G P3).
+    const isRetrying = hasScheduledRetry || this.retryTimer !== null || this.isRetryLoop()
+    const state = isRetrying && frame.retrying !== true ? { ...frame, retrying: true } : frame
+    const message = vaultHostMessageSchema.parse({ type: 'vaultState', state })
     this.deps.publish(structuredClone(message))
     this.deps.status(message.state.status.state === 'unlocked')
+  }
+
+  /** True while a bounded auto-retry loop owns the view. */
+  private isRetryLoop(): boolean {
+    return this.view.kind === 'loading' && this.view.retriesLeft !== undefined
   }
 
   private scheduleRetry(delayMs: number): void {
@@ -280,14 +309,15 @@ export class VaultPanelHost {
     // vault that is not lost, an edit/grant/answer/import guard — and it is
     // still shown below.
     const isRetiredSilent = isVeto(error) && generation !== this.generation
+    const seq = this.beginReload()
     try {
-      await this.load(this.generation)
+      await this.load(this.generation, seq)
     } catch (reloadError: unknown) {
       if (isVeto(reloadError)) {
         // The change landed; the current view republishes and the real
         // failure is still shown.
         const frame = vaultViewFrame(this.view)
-        if (frame !== null) this.publishFrame(frame)
+        if (frame !== null) this.publishFrame(frame, false)
         if (!isRetiredSilent) this.reportError(this.generation, error)
         return
       }
@@ -298,6 +328,7 @@ export class VaultPanelHost {
       const effects = this.apply({
         kind: 'snapshotFailed',
         generation: this.generation,
+        seq,
         reason: classifySnapshotError(reloadError),
       })
       if (effects.reload) void this.refresh()
@@ -311,7 +342,8 @@ export class VaultPanelHost {
   /** Prompt publish outside the queue; the queued editor keeps its own generation. */
   private refreshNow(): void {
     const generation = this.generation
-    void this.load(generation).catch((error: unknown) => {
+    const seq = this.beginReload()
+    void this.load(generation, seq).catch((error: unknown) => {
       void this.settleFailure(error, generation)
     })
   }
@@ -351,7 +383,7 @@ export class VaultPanelHost {
     return this.queue
   }
 
-  private async load(generation: number): Promise<VaultPanelState> {
+  private async load(generation: number, seq: number): Promise<VaultPanelState> {
     const message = vaultHostMessageSchema.parse({
       type: 'vaultState',
       state: await this.deps.service.snapshot(),
@@ -359,9 +391,10 @@ export class VaultPanelHost {
     const snapshot = message.state
     this.authorize(generation)
     // A fresh snapshot is always trusted (RVCM1091F P2): the machine keeps a
-    // stale one (older generation or older broker epoch) off the screen and
-    // republishes the current view instead — never silently.
-    const effects = this.apply({ kind: 'snapshotOk', generation, snapshot })
+    // stale one (older generation, older broker epoch or older reload
+    // request) off the screen and republishes the current view instead —
+    // never silently.
+    const effects = this.apply({ kind: 'snapshotOk', generation, seq, snapshot })
     if (effects.reload) void this.refresh()
     if (snapshot.status.state !== 'locked') {
       const pendingIds = new Set(snapshot.pending.map((request) => request.id))
@@ -372,7 +405,7 @@ export class VaultPanelHost {
 
   refresh(): Promise<void> {
     return this.enqueue(async (generation) => {
-      await this.load(generation)
+      await this.load(generation, this.beginReload())
     })
   }
 
@@ -411,24 +444,24 @@ export class VaultPanelHost {
       this.apply({ kind: 'userRevoke' })
       return this.enqueue(async (generation) => {
         await this.deps.service.revoke(message.grantId)
-        await this.load(generation)
+        await this.load(generation, this.beginReload())
       })
     }
     return this.enqueue(async (generation) => {
       if (message.type === 'vaultReady') {
         // Republished while the task's own load follows (no double reload).
         this.apply({ kind: 'vaultReady' })
-        await this.load(generation)
+        await this.load(generation, this.beginReload())
         return
       }
       if (message.type === 'vaultRetry') {
         // The person's own Retry: a restored budget and a fresh snapshot.
         this.apply({ kind: 'userRetry' })
-        await this.load(generation)
+        await this.load(generation, this.beginReload())
         return
       }
       if (message.type === 'vaultReset') {
-        const current = await this.load(generation)
+        const current = await this.load(generation, this.beginReload())
         if (current.status.reason !== 'vaultLost') throw new Error(UI_TEXT.vault.useChanged)
         const challenge = await this.deps.service.resetBegin()
         const typed = await this.deps.confirmReset(challenge.word, this.cancellation.signal)
@@ -436,11 +469,11 @@ export class VaultPanelHost {
           await this.deps.service.resetConfirm(challenge.resetId, typed, () => {
             this.authorize(generation)
           })
-        await this.load(this.generation)
+        await this.load(this.generation, this.beginReload())
         return
       }
       if (message.type === 'vaultSetup') {
-        const current = await this.load(generation)
+        const current = await this.load(generation, this.beginReload())
         if (current.status.state !== 'uncreated') throw new Error(UI_TEXT.vault.setupExists)
         const shown = await this.deps.service.setup()
         try {
@@ -473,7 +506,7 @@ export class VaultPanelHost {
         // Retired while the code dialog stood open: no doomed snapshot that
         // could steal the writer from the barrier's own work (RVCM1091E).
         this.authorize(generation)
-        await this.load(generation)
+        await this.load(generation, this.beginReload())
         return
       }
       if (message.type === 'vaultUnlock') {
@@ -482,10 +515,10 @@ export class VaultPanelHost {
           this.authorize(generation)
         })
         this.authorize(generation)
-        await this.load(generation)
+        await this.load(generation, this.beginReload())
         return
       }
-      const state = await this.load(generation)
+      const state = await this.load(generation, this.beginReload())
       if (state.status.state !== 'unlocked') throw new Error(UI_TEXT.vault.locked)
       const authorize = () => {
         this.authorize(generation)
@@ -595,11 +628,27 @@ export class VaultPanelHost {
               report.items.map((item) => `${item.name} (${item.kind})`),
             )
             authorizeImport()
-            if (choice === 'delete')
-              await this.deps.service.deleteImport(report.receipt, authorizeImport, signal)
-            else await this.deps.service.keepImport(report.receipt)
+            if (choice === 'delete') {
+              try {
+                await this.deps.service.deleteImport(report.receipt, authorizeImport, signal)
+              } catch (error: unknown) {
+                // The source is already gone: finish the person's Delete by
+                // clearing the leftover record instead of dropping it, so no
+                // orphan receipt waits for another Delete carrying it. A
+                // record already cleared (or still stuck) leaves the refusal
+                // below exactly as it stands (RVCM1091G P3).
+                if (error instanceof Error && error.message === UI_TEXT.vault.sourceGone) {
+                  try {
+                    await this.deps.service.keepImport(report.receipt)
+                  } catch {
+                    /* The refusal below still holds: the file is gone. */
+                  }
+                }
+                throw error
+              }
+            } else await this.deps.service.keepImport(report.receipt)
             authorizeImport()
-            await this.load(this.generation)
+            await this.load(this.generation, this.beginReload())
           } finally {
             // Failures settle through the one path below: a failed Delete
             // still reloads, so the imported items left behind are shown.
@@ -611,7 +660,7 @@ export class VaultPanelHost {
       // Retired mid-operation: the barrier owns the view, so no doomed
       // snapshot that could steal the writer from its work (RVCM1091E).
       this.authorize(generation)
-      await this.load(generation)
+      await this.load(generation, this.beginReload())
     })
   }
 
