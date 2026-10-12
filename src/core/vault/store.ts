@@ -113,7 +113,9 @@ export class NodeVaultFiles implements VaultFilePort {
   private async directory(): Promise<void> {
     const mode = constants.S_IRUSR | constants.S_IWUSR | constants.S_IXUSR
     const created = await mkdir(this.root, { recursive: true, mode })
-    if ((await realpath(this.root)) !== path.resolve(this.root)) throw new VaultError('io')
+    // Identity, never spelling: /var and /private/var name the same macOS root.
+    if ((await realpath(this.root)) !== (await realpath(path.resolve(this.root))))
+      throw new VaultError('io')
     if (created !== undefined) await this.security?.protect(this.root, 'directory')
     await this.verify(this.root, 'directory')
   }

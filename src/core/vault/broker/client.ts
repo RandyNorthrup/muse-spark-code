@@ -20,6 +20,7 @@ import {
 } from './frames'
 import type { VaultPeerVerifier } from './peer'
 import type { VaultBrokerLocation } from './discovery'
+import { verifyVaultSocketFile } from './socketDirectory'
 
 export class VaultBrokerClient {
   static async open(
@@ -28,6 +29,9 @@ export class VaultBrokerClient {
     hostSession: string,
     peers: VaultPeerVerifier,
   ): Promise<VaultBrokerClient> {
+    // The client verifies the socket owner before it speaks (RVCM109JE P2-3):
+    // no hello reaches a socket this user does not own.
+    if (process.platform !== 'win32') await verifyVaultSocketFile(location.lock.socket)
     const socket = connect(location.lock.socket)
     const client = new VaultBrokerClient(socket)
     try {

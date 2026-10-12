@@ -663,3 +663,83 @@ unchanged): vault 33937/51200, boundaries 39941/51200, broker
 28014/32768, POSIX 19743/25600, runtime 20335/25600, store 33759/51200,
 governor 108984. No model or paid call was made, and no credential,
 keychain or user profile was read.
+
+## Round 5 — RVCM109JE findings (all three P2 fixed, no residuals)
+
+2026-10-12, macbook rig, `c/m109-join-posix`, no model or paid calls, no
+credential read. Owner rule: every P1/P2/P3 fixed and shipped; the review
+confirmed no P1/P3, three P2.
+
+P2-1, owner record published whole or not at all
+(`src/core/vault/broker/files.ts`, `src/runtime/vault/epochContender.ts`):
+`vaultExclusiveFile` writes the complete record to the owner-only fixed
+temporary `<path>.pending`, syncs it, then publishes with `link()`, which
+fails when the name exists; a kill before the link leaves only the temporary
+(no reader opens it), a kill after it leaves the complete record. The same
+atomic claim now publishes `broker.lock`/`boot-token` (the sibling class).
+Recovery (`settleEpochWriter`, sole caller holds the kernel mutex) retires a
+leftover pending first, then an empty/partial record, only when the remnant
+predates the mutex hold and passes the owner-only checks; a newer file waits
+out the bounded rounds and the starter is refused with the fixed reason.
+Empty, partial and valid-but-dead records are covered by committed tests.
+The crash table gains the `writer-opened` row (parked at the production
+link boundary through the claim's `onReady` hook, not a copy of it); every
+row runs two successors and asserts no writer record and no pending
+temporary remain.
+
+P2-2, receipt classifier tested with real stacks
+(`test/unit/helpers/vault/receiptWarnings.mjs`,
+`test/unit/vault/nativeReceipt.test.mjs`): the frame regex tolerates Node's
+leading indentation and any minified holder identifier
+(`at e.sampleTree (...)`, observed from a real esbuild-minified bundle in
+the test); whole-line anchoring and the cause/count checks are unchanged.
+
+P2-3, bounded owner-only socket location
+(`src/core/vault/broker/socketDirectory.ts`, constants
+`VAULT_SOCKET_PATH_LIMIT_BYTES/darwin 103, other 107`,
+`VAULT_SOCKET_DIR_PREFIX/HASH_CHARS/FILE`, `brokerProcess.ts`,
+`posixClientPlatform.ts`, `client.ts`, `vaultBrokerEntry.ts`): the socket
+lives at `<base>/muse-spark-vault-<12hex(dataDir)>/broker.sock`, never under
+the data folder. Linux prefers `XDG_RUNTIME_DIR`, then the temp dir, then a
+created-per-user `~/.muse-spark-code/run`; macOS uses the temp dir with the
+same home fallback. Every base is verified (owner, 0700, directory, no
+symlink) and the leaf is ensured plus re-verified immediately before bind;
+the byte length is measured before bind and refused with the broker
+sentence. The broker record carries the socket path; the client checks
+containment against its own expected locations plus socket owner/type
+before it speaks (also inside `VaultBrokerClient.open`). The old default
+(`/Users/alex` home) measured 106 bytes — unbindable on Darwin; the new
+location for the real default data folder and a 60-character home measures
+under 103. `/var` vs `/private/var` is settled by resolved-identity
+comparison (`isPathWithin`; the same spelling bug in `store.ts` and
+`brokerProcess.ts`'s directory check is fixed the same way, which turned
+5 red `brokerAdoption` tests green here). Fixture sockets resolve through
+the same helper, so no committed socket path is long.
+
+Tests (repository timeouts, `--maxWorkers=3`): epochCrashPosix 12/12 (6
+crash rows incl. writer-opened, live/dead/empty/partial/pending/fresh-age
+cases), nativeReceipt 17/17 (2 new real-stack cases), brokerSocketDirectory
+12 passed + 2 bind cases skipped honestly (sandbox EPERM, see below),
+brokerAdoption 5/5, audit/vaultStore/reviewRound5 57 passed + 1 pre-existing
+skip. Typecheck clean, changed-file ESLint zero warnings, Prettier clean,
+`node scripts/check-l10n.mjs` 0 problems (no new keys: brokerBlocked and
+noAccess reused), `npm run build` exit 0 with unchanged caps.
+
+Red drills, each restored byte-exact (hashes before == after):
+non-exclusive publish (`link`→`copyFile`) fails the live-writer refusal
+test; the indent-tolerant regex reverted to `^at` fails exactly the 2 new
+real-stack receipt tests (15 fixture tests stay green); the length guard
+emptied fails the 3 length/fallback-skip socket tests. Digests:
+`files.ts 1c4b1b65…`, `receiptWarnings.mjs 22aa74a3…`,
+`socketDirectory.ts 85cde601…` (full hashes above).
+
+NOT RUN HERE (this sandbox forbids AF_UNIX `listen` with EPERM, proven by a
+bare bind probe and by `listen EPERM` at the new 75-byte bounded path; no
+browser was started): every kernel-bind suite — brokerProcess (8 bind
+cases; 7 pass, 1 linux-only skip), posixBindings, brokerComposition,
+brokerSession, channel, peer (also needs sudo), the 2 skipped bind cases in
+brokerSocketDirectory, the installed Secret Service/Keychain receipts, and
+the 271-file dependent tail from RVCM109JE. HUB: `src/shared/constants.ts`
+gained only the four socket constants; suites naming them (the new socket
+file and the updated broker file) ran here. The lead re-runs the bind
+suites outside the sandbox; no result for them is claimed here.

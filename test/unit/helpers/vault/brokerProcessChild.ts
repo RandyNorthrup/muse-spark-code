@@ -2,10 +2,12 @@
 import { startVaultBrokerProcess } from '../../../../src/runtime/vault/brokerProcess'
 const runDirectory = process.argv[2]
 const helper = process.argv[3]
-if (!runDirectory || !helper) throw new Error('missing fake child arguments')
+const dataDir = process.argv[4]
+if (!runDirectory || !helper || !dataDir) throw new Error('missing fake child arguments')
 const state: { shutdown?: () => Promise<void> } = {}
 void startVaultBrokerProcess({
   runDirectory,
+  dataDir,
   helper,
   userSession: 'test-session',
   idleMs: 30_000,

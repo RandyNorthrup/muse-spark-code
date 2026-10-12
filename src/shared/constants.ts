@@ -7813,6 +7813,13 @@ export const VAULT_BROKER_NATIVE_TIMEOUT_MS = 5000
 export const VAULT_BROKER_EMPTY_IDLE_MS = 30_000
 export const VAULT_BROKER_MAX_CONNECTIONS = 64
 export const VAULT_FILE_SINGLE_LINK = 1n
+// RVCM109JE P2-3: the broker socket lives in a bounded owner-only directory,
+// never under the data folder. Usable sun_path bytes before the terminator:
+// Darwin declares sun_path[104], Linux sun_path[108].
+export const VAULT_SOCKET_PATH_LIMIT_BYTES = { darwin: 103, other: 107 } as const
+export const VAULT_SOCKET_DIR_PREFIX = 'muse-spark-vault-'
+export const VAULT_SOCKET_DIR_HASH_CHARS = 12
+export const VAULT_SOCKET_FILE = 'broker.sock'
 // Lock wipes synchronously; audit and process cleanup get this bounded settlement window.
 export const VAULT_LOCK_DRAIN_MS = 1000
 // C-M109-1: pace of re-opening a `watch` stream the broker closed.
