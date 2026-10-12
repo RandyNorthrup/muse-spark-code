@@ -51,6 +51,7 @@ export interface ReferenceModel {
     readonly route: string
     readonly name: string
     readonly description: string
+    readonly invocations?: readonly (readonly string[])[] | undefined
   }[]
   readonly shortcuts: readonly {
     readonly text?: ReferenceText | undefined

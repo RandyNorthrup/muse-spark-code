@@ -315,7 +315,8 @@ describe('FIXM95X regressions', () => {
     const deps = { ...f.deps, fetch: () => Promise.resolve(Response.json(sample)) }
     expect(await providersAdd(deps, { ...options('together'), preset: 'together' })).toBe(0)
     expect(await providersTest(deps, 'together')).toBe(0)
-    expect(f.printed.at(-1)).toContain('5 models')
+    expect(f.printed.join('\n')).toContain('5 models')
+    expect(f.printed.at(-1)).toContain('DeepSeek')
     const other = withKey()
     expect(
       await providersTest(
@@ -426,10 +427,12 @@ describe('FIXM95X regressions', () => {
     expect(f.errors.join(' ')).not.toContain('unreachable')
     expect(f.errors.join(' ')).toContain('erreich')
     expect(await providersTest(f.deps, 'openrouter')).toBe(0)
-    expect(f.printed.at(-1)).toContain('1 Modell.')
+    expect(f.printed.join('\n')).toContain('1 Modell.')
+    expect(f.printed.at(-1)).toBe('m')
     setUiText(EN, BASE_LOCALE)
     expect(await providersTest(f.deps, 'openrouter')).toBe(0)
-    expect(f.printed.at(-1)).toBe('Key works · 1 model.')
+    expect(f.printed.join('\n')).toContain('Key works · 1 model.')
+    expect(f.printed.at(-1)).toBe('m')
   })
 })
 

@@ -730,6 +730,7 @@ const schema = z.object({
       usageKey: z.optional(z.enum(['acpUsage', 'reportUsage'])),
       usageLine: z.optional(z.number()),
       contract: z.optional(z.record(z.string(), z.unknown())),
+      invocations: z.optional(z.array(z.array(z.string()))),
     }),
   ),
   shortcuts: z.array(
