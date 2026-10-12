@@ -88,6 +88,23 @@ describe('Palette (actions view)', () => {
     expect(props.onAction).not.toHaveBeenCalled()
   })
 
+  it('exposes a refused tier reason on the effort row itself, where a screen reader reaches it (RVCM1063D #6)', () => {
+    const models = [
+      {
+        ...context.models[0]!,
+        variants: ['low', 'high', 'turbo'],
+        reasoningEffortVariants: [{ tier: 'turbo', description: 'Turbo boost' }],
+      },
+    ]
+    renderPalette({ groups: buildPalette({ ...context, models }), models })
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'Effort' } })
+    // The dots are mouse-only inside the option; the row carries the reason
+    // in its own accessible name.
+    const row = screen.getByRole('option', { name: /Turbo boost/ })
+    expect(row).toHaveTextContent('Effort')
+    expect(row.querySelector('.palette-slider')).toHaveAttribute('aria-hidden', 'true')
+  })
+
   it('focuses the filter, lists the groups, and activates the first row on Enter', () => {
     const { props, filter } = renderPalette()
     expect(document.activeElement).toBe(filter)

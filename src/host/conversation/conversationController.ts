@@ -182,7 +182,7 @@ import {
 } from '../../shared/constants'
 // M96 lane T (LANE-T-SEAM, lane 0): from shared constants at integration.
 
-import { effortForThinking, effortLevelsFor, isEffortLevel } from '../../shared/effort'
+import { effortForThinking, isEffortLevel, servedEffortLevels } from '../../shared/effort'
 import {
   isChildTurn,
   type AgentEvent,
@@ -3765,6 +3765,15 @@ export class ConversationController {
    * this burst. Resolves to undefined when the newest value applied, else to
    * the composer state the session still holds.
    */
+  /**
+   * What a model may be asked for (RVCM1063D cause 1): the served catalogue's
+   * tiers for one model id, through the one shared function. Every admission
+   * site in this controller calls this, never the static table.
+   */
+  private servedLevels(modelId: string | undefined): readonly EffortLevel[] {
+    return servedEffortLevels(this.models, modelId)
+  }
+
   private applyEffort(
     session: AgentSession,
     kept: ComposerEffort,
@@ -3963,9 +3972,11 @@ export class ConversationController {
     // The first write obeys the served catalogue like every later one: a
     // composer tier the session's model does not serve is clamped to the
     // highest tier it does, and a catalogue with no selectable tier sends
-    // nothing instead of a fabricated tier (RVCM1063C #1).
-    const servedRow = this.models?.find((model) => model.modelId === session.modelId)
-    const served = effortLevelsFor(session.modelId, servedRow?.effortLevels, servedRow)
+    // nothing instead of a fabricated tier (RVCM1063C #1). The model is the
+    // announced active one, never the resumed handle's requested id: a
+    // session resumed on another model admits against the learnt row
+    // (RVCM1063D #1).
+    const served = this.servedLevels(this.modelId)
     if (served.length > 0) {
       if (!served.includes(this.effort)) {
         this.effort = served.at(-1) ?? DEFAULT_EFFORT
@@ -8244,8 +8255,7 @@ export class ConversationController {
     this.postSessionInfo(modelId)
     // A tier the new model does not serve would fail its turns with a 400
     // (muse-spark-1.2 has no `max`); drop to the highest tier it does serve.
-    const row = this.models?.find((model) => model.modelId === modelId)
-    const levels = effortLevelsFor(modelId, row?.effortLevels, row)
+    const levels = this.servedLevels(modelId)
     if (levels.length > 0 && !levels.includes(this.effort)) {
       await this.updateEffort(levels.at(-1) ?? DEFAULT_EFFORT, this.isThinkingEnabled)
     }
@@ -8256,17 +8266,26 @@ export class ConversationController {
     this.effort = effort
     this.isThinkingEnabled = isThinkingEnabled
     const { session } = this
-    const kept = session === undefined ? undefined : await this.applyEffort(session, previous)
+    // A catalogue with no selectable tier sends nothing instead of a
+    // fabricated tier (RVCM1063D #2): Thinking toggling back on restores no
+    // wire value where none is served. Thinking off still sends its
+    // supported `none`. The refusal is said, and the turn still goes.
+    const served = this.servedLevels(this.modelId)
+    let kept: ComposerEffort | undefined
+    if (session === undefined) {
+      kept = undefined
+    } else if (isThinkingEnabled && served.length === 0) {
+      kept = undefined
+      this.notice('warning', UI_TEXT.execEffortUnavailable)
+    } else {
+      kept = await this.applyEffort(session, previous)
+    }
     // The session kept its effort, so the composer shows it again, unless
     // the model no longer serves it (a model switch dropped the tier).
     if (
       kept !== undefined &&
       this.session === session &&
-      effortLevelsFor(
-        this.modelId,
-        undefined,
-        this.models?.find((model) => model.modelId === this.modelId),
-      ).includes(kept.effort)
+      this.servedLevels(this.modelId).includes(kept.effort)
     ) {
       this.effort = kept.effort
       this.isThinkingEnabled = kept.isThinkingEnabled
@@ -10270,8 +10289,7 @@ export class ConversationController {
         break
       }
       case 'setEffort': {
-        const row = this.models?.find((model) => model.modelId === this.modelId)
-        if (!effortLevelsFor(this.modelId, row?.effortLevels, row).includes(message.effort)) {
+        if (!this.servedLevels(this.modelId).includes(message.effort)) {
           this.notice('warning', UI_TEXT.execEffortUnavailable)
           break
         }

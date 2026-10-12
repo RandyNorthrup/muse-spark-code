@@ -5,13 +5,14 @@ import {
   RESUME_SKILL_SELECTORS,
   SKILL_IMPORT_SOURCES,
   SLASH_COMMAND_NAMES,
+  type EffortLevel,
+  type PaidFeature,
   type SkillImportSource,
   UI_TEXT,
 } from './constants'
-import { effortLabel, effortLevelsFor } from './effort'
+import { effortLabel, isEffortLevel, servedEffortLevels, type ServedEffortRow } from './effort'
 import { fill } from './l10n/text'
 import { paidFeatureName, usablePaidFeatures } from './paidBoundary'
-import type { PaidFeature } from './constants'
 import type { BackendKind, SkillOption } from './protocol'
 import type { PaletteContext, PaletteGroup, PaletteItem, UsageTotals } from './palette'
 import { backendLabel, contextWindowLabel, formatTokenWindow } from './paletteFormatting'
@@ -313,6 +314,32 @@ function skillItems(skills: readonly SkillOption[] | undefined): readonly Palett
     }))
 }
 
+/**
+ * Why the effort row cannot offer what it names (RVCM1063D #6): a served
+ * tier outside the extension's vocabulary keeps its catalogue name on the
+ * mouse-only dots, so the row itself carries the refusal where a screen
+ * reader reaches it. Undefined when every named tier selects.
+ */
+function effortRefusalDetail(
+  effortModel: ServedEffortRow | undefined,
+  effortLevels: readonly EffortLevel[],
+): string | undefined {
+  const variants = effortModel?.variants
+  if (variants !== undefined && variants !== 'unknown') {
+    const refused = variants
+      .filter((tier) => !isEffortLevel(tier))
+      .map((tier) =>
+        fill(UI_TEXT.effortTierUnsupported, {
+          tier:
+            effortModel?.reasoningEffortVariants?.find((variant) => variant.tier === tier)
+              ?.description ?? tier,
+        }),
+      )
+    if (refused.length > 0) return refused.join(' ')
+  }
+  return effortLevels.length === 0 ? UI_TEXT.execEffortUnavailable : undefined
+}
+
 export function buildPalette(
   context: PaletteContext,
   priceOf?: (feature: PaidFeature) => string | undefined,
@@ -320,11 +347,10 @@ export function buildPalette(
   const effortModel = context.models.find(
     (model) => model.modelId === context.currentModel?.modelId,
   )
-  const effortLevels = effortLevelsFor(
-    context.currentModel?.modelId,
-    effortModel?.effortLevels,
-    effortModel,
-  )
+  // The "/" list's effort row offers what the served catalogue admits,
+  // through the one shared function (RVCM1063D cause 1).
+  const effortLevels = servedEffortLevels(context.models, context.currentModel?.modelId)
+  const effortDetail = effortRefusalDetail(effortModel, effortLevels)
   const groups: readonly PaletteGroup[] = [
     {
       id: 'context',
@@ -443,6 +469,9 @@ export function buildPalette(
         {
           id: 'effort',
           label: `${UI_TEXT.effortItem} (${effortLabel(context.effort)})`,
+          // A refused tier's reason rides the row itself, where a screen
+          // reader reaches it; the dots stay mouse-only (RVCM1063D #6).
+          ...(effortDetail !== undefined && { detail: effortDetail }),
           widget: {
             kind: 'slider',
             levels: effortLevels,

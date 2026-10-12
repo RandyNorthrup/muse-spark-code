@@ -1693,6 +1693,71 @@ describe('ConversationController: composer controls', () => {
     },
   )
 
+  it('admits a resume against the active row, not the requested handle (RVCM1063D #1)', async () => {
+    const t = withHistory()
+    vi.spyOn(t.host, 'listModels').mockResolvedValue([
+      {
+        modelId: 'muse-spark-1.3',
+        displayLabel: 'x',
+        contextLimit: 1_000_000,
+        isDefault: false,
+        variants: ['max'],
+      },
+      {
+        modelId: 'muse-spark-1.2',
+        displayLabel: 'y',
+        contextLimit: null,
+        isDefault: true,
+        isActive: true,
+        variants: ['low'],
+      },
+    ])
+    // The composer asks for 1.3's tier while on 1.3: admitted and sent.
+    await t.send('l1', 'hi')
+    expect(t.server.requestsFor('session/setReasoningEffort').at(-1)?.params).toMatchObject({
+      reasoningEffort: 'max',
+    })
+    // Resume the session the active 1.2 row owns: the requested 1.3 handle
+    // must not admit 1.3's tier for it.
+    await t.controller.handle({ type: 'resumeSession', sessionId: 'old' })
+    expect(t.server.requestsFor('session/setReasoningEffort').at(-1)?.params).toMatchObject({
+      reasoningEffort: 'low',
+    })
+    expect(t.surface.posted).toContainEqual({ ...composerState, effort: 'low' })
+  })
+
+  it.each([
+    { catalogue: 'empty', variants: [] },
+    { catalogue: 'future-only', variants: ['turbo'] },
+  ])(
+    'a Thinking toggle sends no fabricated tier on the $catalogue catalogue (RVCM1063D #2)',
+    async ({ variants }) => {
+      const t = setup()
+      vi.spyOn(t.host, 'listModels').mockResolvedValue([
+        {
+          modelId: 'muse-spark-1.3',
+          displayLabel: 'Muse Spark 1.3',
+          contextLimit: 1_000_000,
+          isDefault: true,
+          isActive: true,
+          variants,
+        },
+      ])
+      await t.send('l1', 'hi')
+      expect(t.server.requestsFor('session/setReasoningEffort')).toHaveLength(0)
+      await t.controller.handle({ type: 'setThinking', enabled: false })
+      expect(t.server.requestsFor('session/setReasoningEffort')).toHaveLength(1)
+      expect(t.server.requestsFor('session/setReasoningEffort')[0]?.params).toMatchObject({
+        reasoningEffort: 'none',
+      })
+      await t.controller.handle({ type: 'setThinking', enabled: true })
+      expect(t.server.requestsFor('session/setReasoningEffort')).toHaveLength(1)
+      expect(notices(t)).toContainEqual(
+        expect.objectContaining({ text: UI_TEXT.execEffortUnavailable }),
+      )
+    },
+  )
+
   it('drops the effort to the highest tier the new model serves', async () => {
     const t = setup()
     await t.send('l1', 'hi')

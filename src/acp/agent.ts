@@ -79,7 +79,7 @@ import {
   UI_TEXT,
   SLASH_COMMAND_NAMES,
 } from '../shared/constants'
-import { effortForThinking, effortLabel, effortLevelsFor, isEffortLevel } from '../shared/effort'
+import { effortForThinking, effortLabel, isEffortLevel, servedEffortLevels } from '../shared/effort'
 import { fill, formatBytes, formatUnit, uiLocale } from '../shared/l10n/text'
 import type { AcpAttachment, AcpMediaFactory, AcpMediaPort } from './media'
 import { parseSkillInvocation } from '../shared/mentions'
@@ -310,11 +310,8 @@ function servedEffort(
   modelId: string,
   wanted: EffortLevel,
 ): EffortLevel | undefined {
-  const levels = effortLevelsFor(
-    modelId,
-    undefined,
-    models.find((model) => model.modelId === modelId),
-  )
+  // ACP admits through the one shared function too (RVCM1063D cause 1).
+  const levels = servedEffortLevels(models, modelId)
   return levels.includes(wanted) ? wanted : levels.at(-1)
 }
 
@@ -344,7 +341,7 @@ function effortOptionsFor(
   modelId: string,
 ): { readonly value: string; readonly name: string }[] {
   const row = models.find((model) => model.modelId === modelId)
-  return effortLevelsFor(modelId, undefined, row).map((tier) => ({
+  return servedEffortLevels(models, modelId).map((tier) => ({
     value: tier,
     name:
       row?.reasoningEffortVariants?.find((variant) => variant.tier === tier)?.description ??
@@ -1572,14 +1569,7 @@ class AcpSession {
     if (configId !== ACP_CONFIG_IDS.effort) {
       throw RequestError.invalidParams(undefined, configId)
     }
-    if (
-      !isEffortLevel(value) ||
-      !effortLevelsFor(
-        this.modelId,
-        undefined,
-        this.models.find((model) => model.modelId === this.modelId),
-      ).includes(value)
-    ) {
+    if (!isEffortLevel(value) || !servedEffortLevels(this.models, this.modelId).includes(value)) {
       throw RequestError.invalidParams(undefined, value)
     }
     await this.applyEffort(value)
