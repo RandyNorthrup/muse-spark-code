@@ -16,7 +16,22 @@ export interface ScheduleFsPort {
   /** Complete, synced bytes and atomic replacement; old bytes survive failure. */
   replace(file: string, content: string, guard?: () => Promise<void>): Promise<void>
   remove(file: string, canRetryTransient?: boolean): Promise<void>
-  lock<T>(key: string, work: (guard: ScheduleLeaseGuard) => Promise<T>): Promise<T>
+  lock<T>(
+    key: string,
+    work: (guard: ScheduleLeaseGuard) => Promise<T>,
+    options?: ScheduleLockOptions,
+  ): Promise<T>
+}
+/**
+ * A waiting lock acquisition stops, never abandons. The deadline binds
+ * first: a lease still held by a valid writer past the waiter's deadline is
+ * busy (`scheduleLeaseBusy`), never a silent abandon; an explicit abort ends
+ * the wait at once. Past acquisition only the abort binds. A NaN deadline
+ * disables the bound and leaves a pure signal wait.
+ */
+export interface ScheduleLockOptions {
+  readonly signal?: AbortSignal
+  readonly deadlineMs?: number
 }
 export interface ScheduleLeaseGuard {
   (): Promise<void>
