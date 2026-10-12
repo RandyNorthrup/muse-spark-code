@@ -323,16 +323,24 @@ describe('session store ownership over the real ledger', () => {
     }
   }
 
+  /** Upload once through the replay and save the owning media turn. */
+  async function saveMediaTurn(
+    t: ReturnType<typeof boundStore>,
+    sessionId = 'media-turn',
+  ): Promise<UploadedRef> {
+    const ref = await uploadedRef(t.replay)
+    await t.store.save({
+      ...stored(sessionId),
+      accountId: FAKE_MODEL_API_ACCOUNT_ID,
+      fileRefs: [ref],
+    })
+    return ref
+  }
+
   it('saves and reopens a media turn through the real file session store', async () => {
     const t = boundStore()
     // The replay and the store share one uploads root, as in the hosts.
-    const ref = await uploadedRef(t.replay)
-    const session = {
-      ...stored('media-turn'),
-      accountId: FAKE_MODEL_API_ACCOUNT_ID,
-      fileRefs: [ref],
-    }
-    await t.store.save(session)
+    const ref = await saveMediaTurn(t)
     // A media turn survives reopening with its file references intact.
     await expect(t.store.load('media-turn')).resolves.toMatchObject({ fileRefs: [ref] })
     const headers = await t.store.list()
@@ -341,12 +349,7 @@ describe('session store ownership over the real ledger', () => {
 
   it('releases the session provider uploads on delete, confirmed by the provider', async () => {
     const t = boundStore()
-    const ref = await uploadedRef(t.replay)
-    await t.store.save({
-      ...stored('media-turn'),
-      accountId: FAKE_MODEL_API_ACCOUNT_ID,
-      fileRefs: [ref],
-    })
+    const ref = await saveMediaTurn(t)
     await t.store.remove('media-turn')
     await expect(t.store.load('media-turn')).resolves.toBeUndefined()
     // The provider deletion ran: the fake records it, and nothing is retained.
@@ -358,12 +361,7 @@ describe('session store ownership over the real ledger', () => {
       retentionDays: 30,
       now: Date.parse(LAST_ACTIVITY) + 31 * 24 * 3_600_000,
     })
-    const ref = await uploadedRef(t.replay)
-    await t.store.save({
-      ...stored('media-turn'),
-      accountId: FAKE_MODEL_API_ACCOUNT_ID,
-      fileRefs: [ref],
-    })
+    const ref = await saveMediaTurn(t)
     expect(await t.store.list()).toEqual([])
     expect(t.files.deletes).toEqual([ref.fileId])
   })
@@ -371,12 +369,7 @@ describe('session store ownership over the real ledger', () => {
   it('removes the session when its provider deletion fails, and saves keep working until the next sweep cleans it', async () => {
     const clock = { now: Date.parse('2026-09-22T10:00:00.000Z') }
     const t = boundStore({ failDeletes: true, clock })
-    const ref = await uploadedRef(t.replay)
-    await t.store.save({
-      ...stored('media-turn'),
-      accountId: FAKE_MODEL_API_ACCOUNT_ID,
-      fileRefs: [ref],
-    })
+    await saveMediaTurn(t)
     // The session file is gone, but the provider still holds the bytes: the
     // ledger keeps the unowned entry with its recorded failure instead of
     // orphaning it (RVAPP-PORTM105R4 P2-B).

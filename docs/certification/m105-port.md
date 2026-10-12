@@ -743,3 +743,144 @@ clean (two pre-existing config hints); production `npm run build` green —
 and host-global checks pass. No reference/roadmap/host-API surface changed.
 Browser and loopback suites not runnable in this sandbox, for the lead (same
 NOT RUN HERE list as round 3, plus any other related-graph browser suite).
+
+## Round 5 — RVAPP-PORTM105R4 answers (2026-10-12, MacBook)
+
+Two commits: the fixes, then the zero-clone refactor with this record.
+Every P1/P2/P3 finding is fixed with a regression test; no residuals.
+
+### P2-A — a cancelled re-upload restores the shared entry
+
+`src/core/media/uploadLedger.ts` (`ensure`, catch): the catch that replaces
+the pending ownership with a deletion intent now pushes the displaced
+`existing` entry back first. The old entry is replaced only by the committed
+publication write; cancel or a failed publication write removes only the
+pending upload. Regressions in `test/unit/uploadLedger.test.ts`: "restores
+the shared entry when a re-upload is cancelled, so the other session still
+saves" (two sessions share one file, the replacement is cancelled at its
+publication commit, the fork's `syncSession` with the old ref still saves
+with no further POST) and "restores the shared entry when the re-upload
+publication write fails".
+
+### P2-B — a failed orphan DELETE never blocks a save
+
+`uploadLedger.ts`: `cleanup` no longer throws on a non-404 DELETE failure.
+`sweepDelete` attempts each durable zero-reference entry and recorded
+orphan, records the failure (`deleteFailures`: file id, attempt count, next
+attempt time with doubling backoff from
+`MEDIA_UPLOAD_DELETE_RETRY_BASE_DELAY_MS` to
+`MEDIA_UPLOAD_DELETE_RETRY_MAX_DELAY_MS`, fixed reason
+`MEDIA_UPLOAD_DELETE_FAILURE`), and the entry stays until the provider
+confirms (404 deletes as found). Entries not yet due are skipped without
+waiting, so a save never waits on or fails because of another entry's
+delete. `consumeDeleteNotice` reports `{provider, count}` once entries reach
+`MEDIA_UPLOAD_DELETE_NOTICE_ATTEMPTS` failures and marks them told; the
+controller's `readUploadedFiles` says it as a warning naming the provider
+and the count only (`uploadDeleteBacklog`, pluralized). Regressions:
+ledger "records a failed provider deletion and never fails a save because
+of it" (release succeeds, record asserted, pre-backoff sweep attempts no
+DELETE, post-backoff sweep forgets), "tells the account surface once after
+the named number of delete failures" (notice once, then silent, then silent
+after the provider-side delete lands), store "removes the session when its
+provider deletion fails, and saves keep working until the next sweep cleans
+it", controller "tells a repeated provider-delete backlog once, as a count
+only".
+
+### P3-1 — the scenario test reproduces the old bug
+
+`orphanRig` fails the intent-shaped write (post-publication, entry-free,
+orphan still named) whatever the DELETE count, so the rig reproduces the
+pre-round-4 DELETE-first bug too; the forget-shaped write (no orphans after
+a DELETE) keeps its own failure count. The scenario additionally asserts
+`cleanupIntents[0]` equals `{entries: [], orphans: [id]}`, proving the
+intent predates the first DELETE. Proof: the new test file run against the
+previous commit's ledger (`858d8892b`, checked out to a scratch path, tree
+restored after) fails with `expected [Function] to throw error including
+'cancelled after receipt' but got 'Disk full'` — the old code surfaces the
+intent-write failure instead of the cancellation.
+
+### P3-2 — PLAN and the comments say only what the code does
+
+PLAN.md D85 item 3 no longer claims a file id or attachment name "can
+never reach a log": a response id reaches the log only in word shape,
+anything else as a fixed phrase. `ModelApiHost.ts` no longer says the raw
+incomplete reason "reaches the user with the turn": it is used only in
+model-visible skip text and exec records; the turn shows its partial text.
+The hostile-reason turn test now also asserts the reason is absent from
+user-visible history.
+
+### P3-3 — named counts, backoff pauses, cancelled waits
+
+`MEDIA_CANCEL_INTENT_WRITE_ATTEMPTS` (3) and
+`MEDIA_CANCEL_INTENT_WRITE_DELAY_MS` (25, doubling) live in
+`src/shared/constants.ts` beside the delete-retry/backoff/notice tunables.
+`writeCancelIntent` pauses with doubling backoff between attempts; every
+attempt runs even under an aborted caller, and only the pauses honour
+cancellation (a cancelled wait skips the pause, not the bounded remaining
+attempts, so a cancelled upload still lands its intent). Regressions:
+"retries the cancel intent with backoff after a failed publication"
+(pauses `[25, 50]`, caller keeps the publication failure) and "skips the
+backoff pause but not the attempts when the wait is cancelled".
+
+### P3-4 — the clock is read; names, not ids; fixed reasons
+
+`deps.now()` times the delete-failure backoff (the previously unread
+dependency). `deleteFile` treats a provider 404 as already gone, and any
+other provider failure is recorded for the sweep and thrown as
+`UploadDeleteFailedError` carrying the display name; the controller notice
+uses that name with the fixed `uploadDeleteProviderRefused` reason, never
+the id-echoing provider message. Regressions: ledger "treats a missing
+provider file as already gone on explicit delete" and "records an explicit
+delete refusal under the file name, never the provider message";
+controller "names the file, not its id, with a fixed reason when the
+provider refuses a delete". Noted, not changed (the review's either/or):
+the Files transport trace logs the `/files/file-…` route at trace level
+with key redaction only (`transport.ts:1041`); no other media path logs.
+
+### L10n
+
+Two keys (`uploadDeleteProviderRefused`, `uploadDeleteBacklog` with the
+locale's exact `Intl.PluralRules` categories) added to `en.ts` and all 14
+`l10n/ui.*.json` with translations. `node scripts/check-l10n.mjs`: 0
+problems.
+
+### Red drills (Round 5, MacBook)
+
+Pre-drill captures: `uploadLedger.ts`
+`0def8415379ce8af72bbb3b54c29b060a8f4db69a128843836c20e3cc2729366`,
+`conversationController.ts`
+`8739473e6fb1a2067f0caf592d1ea63a9b42dfb415f4f8eb2a692e2a378aa38f`,
+`ModelApiHost.ts`
+`f06045995c31a8f561d0b7d1bb1d2b15190fb531f9a40eb2964b3560e47eb392`.
+Every drill restored its file byte-exact (SHA-256 matches the capture).
+
+| #         | Guard broken                                                        | Named test's failure                                                                                                                                      |
+| --------- | ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D1, P2-A  | `uploadLedger.ts`: P2-A restore line removed                        | `uploadLedger.test.ts` both "restores the shared entry …": 2 failed                                                                                       |
+| D2, P2-B  | `uploadLedger.ts`: entries-loop records replaced with `throw error` | "records a failed provider deletion and never fails a save because of it": 1 failed                                                                       |
+| D3, P3-3  | `uploadLedger.ts`: `writeCancelIntent` reduced to a single write    | "retries the cancel intent with backoff after a failed publication": 1 failed                                                                             |
+| D4a, P3-4 | `uploadLedger.ts`: `deleteFile` 404/record branch removed           | "treats a missing provider file …" + "records an explicit delete refusal …": 2 failed                                                                     |
+| D4b, P3-4 | `conversationController.ts`: notice reverted to id + `describe`     | "names the file, not its id …": 1 failed                                                                                                                  |
+| D5, P3-1  | previous-commit ledger (`858d8892b`) under the new rig              | "resolves cancel after a committed publication when DELETE and the first intent write fail": 1 failed (`… 'cancelled after receipt' but got 'Disk full'`) |
+| D6, P3-2  | `ModelApiHost.ts`: `incompleteReasonForLog` returns the raw reason  | both "logs a hostile incomplete reason in fixed words …": 2 failed                                                                                        |
+
+### Round 5 receipts (MacBook, `--maxWorkers=3`, repository timeouts)
+
+Owning suites full: `uploadLedger.test.ts` 17/17 (was 10: +7 new);
+`mediaUploadStores.test.ts` 29/29; `conversationController.test.ts`
+690/690 (+2 new); `modelApiHost.test.ts` 673/673. Dependents
+(`vitest related` over the three non-hub sources): every failure in the
+related batch reproduces identically on untouched base `1aaa333d6`
+(temporary worktree, since removed) — `runtimeChatGpt` 29, `chatGptVsCode`
+14, `subscriptionIntegration` 2, `configuredProviders` 1, `acpAgent` 1,
+`acpRuntime` 3, `execRun` 1, `acpStdio.e2e` 1, `usageIntegration` 1 — all
+pre-existing environment/known cases outside this lane's paths; none names
+an identifier this round added or changed. `modelApiHost` 1 failed in batch
+only, 673/673 alone. Static gates: all typechecks pass; eslint
+`--max-warnings=0` clean on every changed file; prettier clean;
+`check:l10n` 0 problems; `check:host-api` 0 problems; `check:plan`
+`plan-format-v1; 216 milestones; 0 drift`; duplication `Found 0 clones`
+(sweep/test/port/save helpers extracted for the eight review-test clones);
+knip clean (two pre-existing config hints); production `npm run build`
+green — `extension.js` 550.6 KiB (cap 600), `modelApi.js` 511.6 KiB (cap
+525). Browser and loopback suites cannot run in this sandbox, for the lead.

@@ -128,6 +128,43 @@ function setup(now: () => number = () => 1_001_000, sleep?: UploadLedgerDeps['sl
   }
 }
 
+type LedgerRig = ReturnType<typeof setup>
+
+/** One upload owned by `s1`. */
+async function uploadedOnce(rig: LedgerRig): Promise<void> {
+  await rig.ledger.ensure('s1', sha256, rig.source, new AbortController().signal)
+}
+
+/** The provider refuses every DELETE with a fresh `failure`. */
+function refuseDeletes(rig: LedgerRig, failure: () => Error = () => new Error('Offline')) {
+  const real = rig.requestFile.getMockImplementation()!
+  rig.requestFile.mockImplementation(async (...args) => {
+    if (args[1] === 'DELETE') throw failure()
+    return await real(...args)
+  })
+  return real
+}
+
+/** One upload shared with `fork`, then expired at the provider. */
+async function sharedUpload(rig: LedgerRig, signal: AbortSignal): Promise<void> {
+  await rig.ledger.ensure('s1', sha256, rig.source, signal)
+  await rig.ledger.syncSession('fork', [ref])
+  rig.missing()
+}
+
+/** The cancelled or failed re-upload left the shared entry exactly as it was. */
+async function expectSharedEntryKept(rig: LedgerRig): Promise<void> {
+  expect(rig.requestFile.mock.calls.filter((call) => call[1] === 'POST')).toHaveLength(2)
+  expect(rig.requestFile.mock.calls.filter((call) => call[1] === 'DELETE')).toHaveLength(1)
+  expect(rig.raw()).toMatchObject({
+    entries: [{ file: ref, sessions: ['s1', 'fork'] }],
+    orphans: [],
+  })
+  // The fork that still names the old ref saves without re-uploading.
+  await rig.ledger.syncSession('fork', [ref])
+  expect(rig.requestFile.mock.calls.filter((call) => call[1] === 'POST')).toHaveLength(2)
+}
+
 describe('upload ownership ledger', () => {
   it('retrieves a locally expired upload under clock skew without reopening a discarded source', async () => {
     const t = setup(() => 8_200_000)
@@ -165,12 +202,8 @@ describe('upload ownership ledger', () => {
   it('records a failed provider deletion and never fails a save because of it', async () => {
     let nowMs = 1_001_000
     const t = setup(() => nowMs)
-    await t.ledger.ensure('s1', sha256, t.source, new AbortController().signal)
-    const real = t.requestFile.getMockImplementation()!
-    t.requestFile.mockImplementation(async (...args) => {
-      if (args[1] === 'DELETE') throw new Error('Offline')
-      return await real(...args)
-    })
+    await uploadedOnce(t)
+    const real = refuseDeletes(t)
     // The save-side release succeeds while the provider is down: the entry
     // stays with its recorded attempt, backoff and fixed reason code.
     await t.ledger.releaseSession('s1')
@@ -202,12 +235,8 @@ describe('upload ownership ledger', () => {
   it('tells the account surface once after the named number of delete failures', async () => {
     let nowMs = 1_001_000
     const t = setup(() => nowMs)
-    await t.ledger.ensure('s1', sha256, t.source, new AbortController().signal)
-    const real = t.requestFile.getMockImplementation()!
-    t.requestFile.mockImplementation(async (...args) => {
-      if (args[1] === 'DELETE') throw new Error('Offline')
-      return await real(...args)
-    })
+    await uploadedOnce(t)
+    const real = refuseDeletes(t)
     for (let attempt = 0; attempt < MEDIA_UPLOAD_DELETE_NOTICE_ATTEMPTS; attempt += 1) {
       nowMs += MEDIA_UPLOAD_DELETE_RETRY_MAX_DELAY_MS
       await t.ledger.releaseSession('s1')
@@ -241,9 +270,7 @@ describe('upload ownership ledger', () => {
   it('reuploads one missing ID only after the original source hash matches', async () => {
     const t = setup()
     const signal = new AbortController().signal
-    await t.ledger.ensure('s1', sha256, t.source, signal)
-    await t.ledger.syncSession('fork', [ref])
-    t.missing()
+    await sharedUpload(t, signal)
     const changed: UploadSource = {
       ...t.source,
       async *open() {
@@ -264,9 +291,7 @@ describe('upload ownership ledger', () => {
   it('restores the shared entry when a re-upload is cancelled, so the other session still saves', async () => {
     const t = setup()
     const caller = new AbortController()
-    await t.ledger.ensure('s1', sha256, t.source, caller.signal)
-    await t.ledger.syncSession('fork', [ref])
-    t.missing()
+    await sharedUpload(t, caller.signal)
     // Cancel the replacement as its publication write lands: the write still
     // commits, so the abort below exercises the post-commit path.
     const writes = vi.mocked(t.storage.write)
@@ -279,25 +304,13 @@ describe('upload ownership ledger', () => {
     await expect(t.ledger.ensure('s1', sha256, t.source, caller.signal)).rejects.toThrow(
       'cancelled re-upload',
     )
-    // The pending upload is deleted at the provider and forgotten; the shared
-    // entry is back exactly as it was.
-    expect(t.requestFile.mock.calls.filter((call) => call[1] === 'POST')).toHaveLength(2)
-    expect(t.requestFile.mock.calls.filter((call) => call[1] === 'DELETE')).toHaveLength(1)
-    expect(t.raw()).toMatchObject({
-      entries: [{ file: ref, sessions: ['s1', 'fork'] }],
-      orphans: [],
-    })
-    // The fork that still names the old ref saves without re-uploading.
-    await t.ledger.syncSession('fork', [ref])
-    expect(t.requestFile.mock.calls.filter((call) => call[1] === 'POST')).toHaveLength(2)
+    await expectSharedEntryKept(t)
   })
 
   it('restores the shared entry when the re-upload publication write fails', async () => {
     const t = setup()
     const signal = new AbortController().signal
-    await t.ledger.ensure('s1', sha256, t.source, signal)
-    await t.ledger.syncSession('fork', [ref])
-    t.missing()
+    await sharedUpload(t, signal)
     // Fail only the replacement's publication write: the intent write that
     // follows names the restored entry, so it must land.
     const writes = vi.mocked(t.storage.write)
@@ -314,12 +327,7 @@ describe('upload ownership ledger', () => {
       return persist(state)
     })
     await expect(t.ledger.ensure('s1', sha256, t.source, signal)).rejects.toThrow('Disk full')
-    expect(t.requestFile.mock.calls.filter((call) => call[1] === 'DELETE')).toHaveLength(1)
-    expect(t.raw()).toMatchObject({
-      entries: [{ file: ref, sessions: ['s1', 'fork'] }],
-      orphans: [],
-    })
-    await t.ledger.syncSession('fork', [ref])
+    await expectSharedEntryKept(t)
   })
 
   it('retries the cancel intent with backoff after a failed publication', async () => {
@@ -417,12 +425,8 @@ describe('upload ownership ledger', () => {
 
   it('records an explicit delete refusal under the file name, never the provider message', async () => {
     const t = setup()
-    await t.ledger.ensure('s1', sha256, t.source, new AbortController().signal)
-    const real = t.requestFile.getMockImplementation()!
-    t.requestFile.mockImplementation(async (...args) => {
-      if (args[1] === 'DELETE') throw new Error(`No file found with id '${ref.fileId}'.`)
-      return await real(...args)
-    })
+    await uploadedOnce(t)
+    refuseDeletes(t, () => new Error(`No file found with id '${ref.fileId}'.`))
     // The save-side release succeeds while the provider refuses; the entry
     // stays with its first recorded failure.
     await t.ledger.releaseSession('s1')

@@ -199,12 +199,48 @@ export class UploadLedger implements SessionUploadLifecycle {
   }
 
   /**
+   * The provider delete attempt: gone when deleted or already missing
+   * (a 404 deletes as found), refused otherwise. Never the provider's
+   * message: callers record the fixed reason code instead.
+   */
+  private async providerDelete(fileId: string): Promise<'gone' | 'refused'> {
+    try {
+      await this.files.delete(fileId)
+    } catch (error: unknown) {
+      if (!isModelApiError(error) || error.status !== HTTP_STATUS.notFound) return 'refused'
+    }
+    return 'gone'
+  }
+
+  /**
+   * One sweep deletion: skipped while its backoff is not due (without
+   * waiting), otherwise deleted or recorded with its attempt, backoff and
+   * fixed reason for a later sweep. A recorded failure never rejects, so
+   * saving a session never fails because of another entry's delete
+   * (RVAPP-PORTM105R4 P2-B).
+   */
+  private async sweepDelete(
+    state: UploadLedgerState,
+    fileId: string,
+    now: number,
+  ): Promise<'deleted' | 'recorded' | 'skipped'> {
+    const failure = (state.deleteFailures ?? []).find((record) => record.fileId === fileId)
+    if (failure !== undefined && now < failure.nextAttemptAt) return 'skipped'
+    if ((await this.providerDelete(fileId)) === 'refused') {
+      // The entry stays until the provider confirms; a later sweep retries.
+      this.recordDeleteFailure(state, fileId)
+      await this.deps.storage.write(state)
+      return 'recorded'
+    }
+    this.forgetDeleted(state, fileId)
+    await this.deps.storage.write(state)
+    return 'deleted'
+  }
+
+  /**
    * Delete only durable zero-reference entries, then recorded clean-up
-   * intents (RVM105 1). A failed deletion is recorded on the entry and never
-   * rejects: the entry stays until the provider confirms, the sweep retries
-   * it after its backoff, and saving a session never fails because of
-   * another entry's delete (RVAPP-PORTM105R4 P2-B). A missing file deletes as
-   * found. Entries not yet due are skipped without waiting.
+   * intents (RVM105 1). Entries not yet due are skipped; the entry itself
+   * is forgotten only once the provider confirms.
    */
   private async cleanup(
     state: UploadLedgerState,
@@ -216,48 +252,16 @@ export class UploadLedger implements SessionUploadLifecycle {
     for (const fileId of orphans) {
       await this.requireAccount()
       if (!isCurrent()) return
-      const failure = (state.deleteFailures ?? []).find((record) => record.fileId === fileId)
-      if (failure !== undefined && now < failure.nextAttemptAt) continue
-      try {
-        await this.files.delete(fileId)
-      } catch (error: unknown) {
-        if (isModelApiError(error) && error.status === HTTP_STATUS.notFound) {
-          this.forgetDeleted(state, fileId)
-          await this.deps.storage.write(state)
-          continue
-        }
-        this.recordDeleteFailure(state, fileId)
-        await this.deps.storage.write(state)
-        continue
-      }
-      this.forgetDeleted(state, fileId)
-      await this.deps.storage.write(state)
+      await this.sweepDelete(state, fileId, now)
     }
     for (const entry of state.entries) {
       if (entry.sessions.length > 0) continue
       await this.requireAccount()
       if (!isCurrent()) return
       const fileId = entry.file.fileId
-      const failure = (state.deleteFailures ?? []).find((record) => record.fileId === fileId)
-      if (failure !== undefined && now < failure.nextAttemptAt) continue
-      try {
-        await this.files.delete(fileId)
-      } catch (error: unknown) {
-        if (isModelApiError(error) && error.status === HTTP_STATUS.notFound) {
-          state.entries = state.entries.filter((value) => value !== entry)
-          state.cachedFiles = state.cachedFiles.filter((file) => file.fileId !== fileId)
-          this.forgetDeleted(state, fileId)
-          await this.deps.storage.write(state)
-          continue
-        }
-        // The entry stays until the provider confirms; a later sweep retries.
-        this.recordDeleteFailure(state, fileId)
-        await this.deps.storage.write(state)
-        continue
-      }
+      if ((await this.sweepDelete(state, fileId, now)) !== 'deleted') continue
       state.entries = state.entries.filter((value) => value !== entry)
       state.cachedFiles = state.cachedFiles.filter((file) => file.fileId !== fileId)
-      this.forgetDeleted(state, fileId)
       await this.deps.storage.write(state)
     }
   }
@@ -543,14 +547,10 @@ export class UploadLedger implements SessionUploadLifecycle {
         return
       const name = file?.name ?? UI_TEXT.media.uploadedFiles
       await this.requireAccount()
-      try {
-        await this.files.delete(fileId)
-      } catch (error: unknown) {
-        if (!isModelApiError(error) || error.status !== HTTP_STATUS.notFound) {
-          this.recordDeleteFailure(state, fileId)
-          await this.deps.storage.write(state)
-          throw new UploadDeleteFailedError(name)
-        }
+      if ((await this.providerDelete(fileId)) === 'refused') {
+        this.recordDeleteFailure(state, fileId)
+        await this.deps.storage.write(state)
+        throw new UploadDeleteFailedError(name)
       }
       state.entries = state.entries.filter((entry) => entry.file.fileId !== fileId)
       state.cachedFiles = state.cachedFiles.filter((entry) => entry.fileId !== fileId)
