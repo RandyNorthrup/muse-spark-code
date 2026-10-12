@@ -52,15 +52,20 @@ happened, not what was planned; superseded entries are kept.
   history off discards buffered rows and their overflow tally, so enabling
   it later cannot publish work collected while history was off.
 
-- Runner-route relocation repairs: registering or unregistering a route
-  rebinds the relocation target on the loaded host instead of disposing
-  it, so unrelated active work is never stopped; pressure recovered after
-  the busy decision runs the ordinary runner route instead of failing a
-  labelled check Offline; a proved over-long receiver command still runs
-  locally once but keeps its reason for the source observer; an explicitly
-  null relocation target reports no route while no runner is bound. The
-  three PowerShell receiver cases skip with "PowerShell unavailable" where
-  the tool is missing and run on Windows.
+- Runner-route relocation repairs (reviews RVCM1073B, RVAPP-CM1073R3):
+  registering or unregistering a route rebinds the relocation target on the
+  loaded host instead of disposing it, so unrelated active work is never
+  stopped; a pressure or setting change after the route decision runs the
+  ordinary runner route instead of failing a labelled check Offline, and
+  Offline is produced only when the runner is genuinely unreachable; a
+  target that became busy keeps the check on the source with its reason
+  reported, and the ordinary route keeps a proved receiver refusal reason
+  when every runner is exhausted; losing the last route steps the governor
+  down from relocate to pause at once; an explicitly null relocation target
+  reports no route while no runner is bound. The two PowerShell refusal
+  cases skip with "PowerShell unavailable" where the parser is missing, and
+  the admitted-run case requires Windows PowerShell itself; all three run
+  on Windows.
 
 ### Release infrastructure
 
