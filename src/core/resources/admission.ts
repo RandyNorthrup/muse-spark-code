@@ -19,7 +19,6 @@ export interface ResourceWindowHost {
     | 'refreshStatus'
     | 'settingsChanged'
     | 'createRelocator'
-    | 'routesChanged'
     | 'updateRelocationTarget'
   >
   readonly createStatus: typeof Governor.createResourceStatus
@@ -59,11 +58,13 @@ function boundRelocationTarget(configured: ResourceHostSettings): (() => boolean
 
 /**
 Rebind the relocation target on the loaded host when routes arrive or
-leave. This is one synchronous step — set membership plus a live target
-update, with no await between the decision and the action — so route
-registration never disturbs unrelated active work, queued admissions, or
-the governor's pressure/override state. A host still loading reads the
-current set when its build resumes.
+leave. Set membership is synchronous and every refresh recomputes the
+target from the current set, so overlapping register/unregister calls
+apply in order. The loaded-host update waits for a host that is still
+loading; that host also binds the current set when its build runs, so a
+pressure change in between moves the governor but never the binding.
+Registration never disturbs unrelated active work, queued admissions, or
+the governor's pressure/override state.
 */
 function refreshRoutes(): void {
   const options = state.options

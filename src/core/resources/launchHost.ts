@@ -522,11 +522,6 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
     if (!this.disposed) this.applySettings()
   }
 
-  /** Cached route eligibility changed without changing a setting value. */
-  routesChanged(): void {
-    if (!this.disposed) this.changed()
-  }
-
   /**
   Runner routes arrived or left: rebind the relocation target on the same
   governor. Active work, queued admissions and pressure/override state are

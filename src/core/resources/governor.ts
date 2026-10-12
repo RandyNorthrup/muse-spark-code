@@ -68,6 +68,8 @@ export class ResourceGovernor {
   private serviceObserved = false
   private diskHeld = false
   private current: ResourceLevel = 'normal'
+  /** The recorded escalation trigger while at relocate; entering relocate always sets it. */
+  private relocateCause: Reason | undefined
   private changedAt = -RESOURCE_MIN_DWELL_MS
   private readonly highSince = new Map<Metric, number>()
   private readonly highSamples = new Map<Metric, number>()
@@ -350,6 +352,9 @@ export class ResourceGovernor {
     if (to === this.current) return
     const from = this.current
     this.current = to
+    // The metric that escalated to relocate names the step back down when
+    // the last route leaves, so the pause notice reads the true trigger.
+    this.relocateCause = to === 'relocate' ? reason : undefined
     if (to === 'normal' && reason === 'recovery') this.diskHeld = false
     this.changedAt = this.options.clock.now()
     this.options.events.publish({ type: 'levelChanged', atMs: this.changedAt, from, to, reason })
@@ -366,9 +371,14 @@ export class ResourceGovernor {
   Runner-route availability changed without changing a setting value:
   rebind the relocation target live. The governor, its pressure history
   and its override state stay put; nothing is re-created or discarded.
+  Without a route the design is throttle-to-pause, so a governor left at
+  relocate steps down to pause at once instead of holding capacity 1
+  beside a noRoute status until the next window.
   */
   updateRelocationTarget(target: (() => boolean) | null): void {
     this.options.hasRelocationTarget = target
+    if (this.current === 'relocate' && !this.canRelocate())
+      this.change('pause', this.relocateCause ?? 'cpu')
   }
 
   /** Admission must wake on disk recovery even while an override keeps the level normal. */
