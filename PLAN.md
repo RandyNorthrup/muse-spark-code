@@ -40313,18 +40313,28 @@ prepared as 0.18.1 on `release/0.18.1` (`111afdfa1d`, cut from the release
 train `int/train-1011` at `07f7aa69f`) before the provider hotfix took that
 number. `int/train-0182` starts from the mark's reviewed baseline
 `0b6259982` (the README images and the manifest on `111afdfa1d`, which the
-manifest names and which stays an ancestor) and merges the hotfix. It carries
-the dated `CHANGELOG.md` `[0.18.2]` section: the chat panel's landing screen
-shows the product's own mark instead of the Meta logo
-(`docs/certification/panelmark.md`; review RVPANELMARKC without a finding).
-One Highlight. The mark is blue in dark and light themes and takes the
-theme's text colour in high contrast and under forced colours, and the notes
-say so. The reviewed baseline was rendered on `111afdfa1d`: sixteen scenes
-and 984 frames moved, every one of them the mark
+manifest names and which stays an ancestor), merges the hotfix and carries
+the extension version 0.18.2 and the dated `CHANGELOG.md` `[0.18.2]` section:
+the chat panel's landing screen shows the product's own mark instead of the
+Meta logo (`docs/certification/panelmark.md`; review RVPANELMARKC without a
+finding). One Highlight. The mark is blue in dark and light themes and takes
+the theme's text colour in high contrast and under forced colours, and the
+notes say so. The reviewed baseline was rendered on `111afdfa1d`: sixteen
+scenes and 984 frames moved, every one of them the mark
 (`docs/certification/panelmark-baseline.md`); the lane's own list had said
-fourteen scenes and 1,008 frames. This is preparation, not publication; the
-public roadmap (M122) lists 0.18.2 as the next release until a
-`0.18.2 released (…)` record follows here.
+fourteen scenes and 1,008 frames, and its record now carries the measured
+table. Nothing else is in it: the hotfix changes no browser bundle, and the
+gate compares the train's `dist/webview` with the build of the baseline file
+by file, so the baseline stands for this release. Left out: the governed
+pull-request checkout (`ef5bb8c52`), which adds three strings to
+`src/shared/l10n/en.ts`, a file every webview bundle is built from, and so
+needs a visual run of its own; the commit-credit guard (`280b3f964`), which
+left four tests of the CI structure red (`manifest.test.ts`,
+`visualGate.test.mjs`) and went back to its lane; the packaged dogfood
+harness (`490de5e01`), whose size gate and certification digest test fail on
+its own head. This is preparation, not publication; the public roadmap
+(M122) lists 0.18.2 as the next release until a `0.18.2 released (…)` record
+follows here.
 
 **0.18.1 preparation (2026-10-12, release branch).** `hotfix/0.18.1` is cut from
 main at `f8435aaac` and carries the extension version 0.18.1 and the dated

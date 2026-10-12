@@ -225,38 +225,36 @@ function colourFromHex(hex) {
     .map((n) => Number.parseInt(n, 16))
 }
 
-it('certifies every affected scene with its exact manifest frame count', () => {
-  const scenes = [
-    'empty',
-    'context-meter-full',
-    'context-meter-warning',
-    'goal-edit',
-    'handoff',
-    'mention',
-    'models',
-    'modes',
-    'palette',
-    'prompt-library',
-    'questions-chip',
-    'slash-commands',
-    'stop-running',
-    'icons',
-  ]
-  const captures = readJson('test/harness/goldens/manifest.json').captures
-  const expected = scenes.map((scene) => [
+/** Rows of [scene, frames] in scene order. */
+const byScene = (left, right) => left[0].localeCompare(right[0], 'en')
+
+it('certifies every moved scene with the frame count the reviewed render measured', () => {
+  // The lane listed fourteen scenes at 72 frames, 1,008. The reviewed render
+  // on 111afdfa1d measured sixteen scenes and 984 frames; the record of that
+  // render is the source, and the certification's table must say the same.
+  const review = readJson('docs/certification/panelmark-baseline-review.json').comparison
+  const measured = Object.entries(review.movedByScene).map(([scene, moved]) => [
     `panel/${scene}`,
-    captures.filter((capture) => capture.surface === 'panel' && capture.scene === scene).length,
+    moved.frames,
   ])
-  expect(
-    expected.every(
-      ([, count]) => count === matrix.themes.length * matrix.widths.length * matrix.states.length,
-    ),
-  ).toBe(true)
+  const captures = readJson('test/harness/goldens/manifest.json').captures
+  const whole = matrix.themes.length * matrix.widths.length * matrix.states.length
+  for (const [key, moved] of measured) {
+    const scene = key.slice('panel/'.length)
+    const frames = captures.filter(
+      (capture) => capture.surface === 'panel' && capture.scene === scene,
+    ).length
+    expect(frames, key).toBeGreaterThan(0)
+    expect(frames, key).toBeLessThanOrEqual(whole)
+    expect(moved, key).toBeLessThanOrEqual(frames)
+  }
   const certification = readFileSync('docs/certification/panelmark.md', 'utf8')
   const rows = Array.from(
     certification.matchAll(/^\| `(panel\/[\w-]+)`\s*\|\s*(\d+)\s*\|/gm),
     ([, scene, count]) => [scene, Number(count)],
   )
-  expect(rows).toEqual(expected)
-  expect(expected.reduce((sum, [, count]) => sum + count, 0)).toBe(1008)
+  expect(rows.toSorted(byScene)).toEqual(measured.toSorted(byScene))
+  expect(rows).toHaveLength(16)
+  expect(rows.reduce((sum, [, count]) => sum + count, 0)).toBe(review.counts.over)
+  expect(review.counts.over).toBe(984)
 })
