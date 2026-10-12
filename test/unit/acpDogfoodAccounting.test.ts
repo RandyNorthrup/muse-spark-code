@@ -3,13 +3,12 @@ import * as acp from '@agentclientprotocol/sdk'
 import * as z from 'zod/mini'
 import { describe, expect, it, vi } from 'vitest'
 import { createAcpAgent } from '../../src/acp/agent'
-import { AcpPaidUse } from '../../src/acp/paid'
 import { createUsageRecord } from '../../src/core/usage/journalRecord'
 import type { UsageRecord } from '../../src/shared/usageJournal'
 import { UI_TEXT, CREDENTIAL_STORE_ERROR_KIND } from '../../src/shared/constants'
 import { Usd } from '../../src/shared/usd'
 import { FakeAgentHost } from './helpers/fakeAgent'
-import { memoryPaidGrants } from './helpers/paidGrants'
+import { dogfoodAgentDeps, dogfoodSession, dogfoodPrompt } from './helpers/acpDogfood'
 
 const cwd = path.resolve('/work/app')
 function scene(isAvailable = true) {
@@ -18,23 +17,8 @@ function scene(isAvailable = true) {
   const updates: acp.SessionUpdate[] = []
   const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
   const deps = {
-    backend: {
-      kind: 'modelApi' as const,
-      readiness: () => Promise.resolve({ state: 'ready' as const }),
-      hostFor: () => Promise.resolve(host),
-    },
-    version: 'test',
-    options: { canBypass: false, allowsContributorModels: false, initialMode: 'manual' as const },
-    signIn: { id: 'auth', name: 'Auth', description: 'Auth', args: [], command: 'auth' },
-    paid: new AcpPaidUse({
-      flagged: [],
-      canRemember: () => false,
-      grants: memoryPaidGrants(),
-      log,
-    }),
+    ...dogfoodAgentDeps(host, log),
     defaultCwd: cwd,
-    questions: 'decline' as const,
-    log,
     accounting: {
       readRecords: () =>
         isAvailable ? Promise.resolve(records) : Promise.reject(new Error('private journal path')),
@@ -102,21 +86,14 @@ function record(sessionId: string, turn: string, id: string) {
     context,
   )
 }
-async function start(client: acp.ClientContext) {
-  await client.request('initialize', { protocolVersion: acp.PROTOCOL_VERSION })
-  return await client.request('session/new', { cwd, mcpServers: [] })
-}
 
 describe('ACPDOG ACP accounting extensions', () => {
   it('sends journal-exact per-turn and session figures during the turn and on the response', async () => {
     const h = scene()
     await h.run(async (client) => {
-      const { sessionId } = await start(client)
+      const { sessionId } = await dogfoodSession(client, cwd)
       h.records.push(record(sessionId, 'old-turn', 'old'))
-      const running = client.request('session/prompt', {
-        sessionId,
-        prompt: [{ type: 'text', text: 'task' }],
-      })
+      const running = dogfoodPrompt(client, sessionId, 'task')
       await vi.waitFor(() => {
         expect(h.host.sessions[0]?.sendTurn).toHaveBeenCalledOnce()
       })
@@ -178,11 +155,8 @@ describe('ACPDOG ACP accounting extensions', () => {
   it('reports journal unavailability explicitly instead of inventing free usage', async () => {
     const h = scene(false)
     await h.run(async (client) => {
-      const { sessionId } = await start(client)
-      const running = client.request('session/prompt', {
-        sessionId,
-        prompt: [{ type: 'text', text: 'task' }],
-      })
+      const { sessionId } = await dogfoodSession(client, cwd)
+      const running = dogfoodPrompt(client, sessionId, 'task')
       await vi.waitFor(() => {
         expect(h.host.sessions[0]?.sendTurn).toHaveBeenCalledOnce()
       })
@@ -196,11 +170,8 @@ describe('ACPDOG ACP accounting extensions', () => {
   it('publishes incurred costs even when a subsequent credential request is refused', async () => {
     const h = scene()
     await h.run(async (client) => {
-      const { sessionId } = await start(client)
-      const running = client.request('session/prompt', {
-        sessionId,
-        prompt: [{ type: 'text', text: 'task' }],
-      })
+      const { sessionId } = await dogfoodSession(client, cwd)
+      const running = dogfoodPrompt(client, sessionId, 'task')
       const failure = expect(running).rejects.toMatchObject({
         data: { _meta: { 'museSpark.usage': { turn: { requests: 1, settledUsd: '0.000548' } } } },
       })

@@ -260,7 +260,6 @@ describe('ACPDOG advisory isolation', () => {
         }
         session.emit({
           type: 'itemCompleted',
-          turnId: 'turn-1',
           item: {
             itemId: 'answer',
             kind: 'agentMessage',
@@ -390,11 +389,11 @@ function retainOnResume(h: Harness, shared: FakeAgentSession): void {
 
 async function start(
   client: acp.ClientContext,
-  capabilities: acp.ClientCapabilities = {},
+  capabilities?: acp.ClientCapabilities,
 ): Promise<acp.NewSessionResponse> {
   await client.request('initialize', {
     protocolVersion: acp.PROTOCOL_VERSION,
-    clientCapabilities: capabilities,
+    clientCapabilities: capabilities ?? { session: { notices: {} } },
   })
   return await client.request('session/new', { cwd: CWD, mcpServers: [] })
 }
@@ -1293,10 +1292,7 @@ describe('the ACP agent (M63)', () => {
       })
       expect(run).not.toHaveBeenCalled()
       expect(h.log.warn).toHaveBeenCalledWith('ACP schedule workspace startup failed')
-      for (const text of [
-        UI_TEXT.scheduleV2.runtime.hostUnavailable,
-        UI_TEXT.scheduleV2.runtime.unavailable,
-      ])
+      for (const text of [UI_TEXT.scheduleV2.runtime.unavailable])
         expect(h.updates).toContainEqual({
           sessionUpdate: 'agent_message_chunk',
           content: { type: 'text', text },
@@ -1616,7 +1612,7 @@ describe('the ACP agent (M63)', () => {
     }
     for (const [h, capabilities] of [
       [withForms, { elicitation: { form: {} } }],
-      [withoutForms, {}],
+      [withoutForms, { session: { notices: {} } }],
       [brokenForms, { elicitation: { form: {} } }],
     ] as const) {
       await h.run(async (client) => {
@@ -1627,9 +1623,7 @@ describe('the ACP agent (M63)', () => {
             h === withoutForms
               ? h.updates.some(
                   (update) =>
-                    update.sessionUpdate === 'agent_message_chunk' &&
-                    update.content.type === 'text' &&
-                    update.content.text.includes('/answer 1'),
+                    update.sessionUpdate === 'notice' && update.title.includes('/answer 1'),
                 )
               : session.cancelQuestions.mock.calls.length === 1,
           )
@@ -1637,8 +1631,9 @@ describe('the ACP agent (M63)', () => {
       })
     }
     expect(withoutForms.updates).toContainEqual({
-      sessionUpdate: 'agent_message_chunk',
-      content: { type: 'text', text: `${UI_TEXT.acpOpenQuestionAsked}\nProceed?\n- Yes` },
+      sessionUpdate: 'notice',
+      severity: 'info',
+      title: `${UI_TEXT.acpOpenQuestionAsked}\nProceed?\n- Yes`,
     })
   })
 
@@ -1683,7 +1678,7 @@ describe('the ACP agent (M63)', () => {
     const withoutForms = harness()
     for (const [h, capabilities] of [
       [withForms, { elicitation: { form: {} } }],
-      [withoutForms, {}],
+      [withoutForms, { session: { notices: {} } }],
     ] as const) {
       await runMcpForm(h, capabilities)
       expect(h.host.sessions.at(-1)?.settleElicitation).toHaveBeenCalledWith('elicit-1', {
@@ -1691,11 +1686,18 @@ describe('the ACP agent (M63)', () => {
       })
     }
     expect(withoutForms.updates).toContainEqual({
-      sessionUpdate: 'agent_message_chunk',
-      content: {
-        type: 'text',
-        text: `${UI_TEXT.acpQuestionAsked}\n${fill(UI_TEXT.elicitationTitle, { server: 'srv' })}\nWho goes there?\n- Name`,
-      },
+      sessionUpdate: 'tool_call_update',
+      toolCallId: 'tool-1',
+      status: 'pending',
+      content: [
+        {
+          type: 'content',
+          content: {
+            type: 'text',
+            text: `${UI_TEXT.acpQuestionAsked}\n${fill(UI_TEXT.elicitationTitle, { server: 'srv' })}\nWho goes there?\n- Name`,
+          },
+        },
+      ],
     })
   })
 

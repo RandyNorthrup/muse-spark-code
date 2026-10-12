@@ -502,6 +502,8 @@ export interface TouchedFiles {
 }
 
 export interface ToolOutcome {
+  readonly refusalCode?: 'outside_workspace'
+
   /** Owned process exit, retained separately from its human-readable output. */
   readonly exitCode?: number
   /** What the model receives as the function result. */
@@ -1014,6 +1016,44 @@ function failure(reason: string, visibleReason = reason): ToolOutcome {
   return { output: `Error: ${reason}`, visibleOutput: visibleReason, failureReason: visibleReason }
 }
 
+export function pathRefusal(refusal: {
+  readonly reason: string
+  readonly code?: 'outside_workspace'
+}): ToolOutcome {
+  if (refusal.code !== 'outside_workspace') return failure(refusal.reason)
+  return {
+    output: JSON.stringify({
+      error: {
+        code: refusal.code,
+        message: MODEL_API_MODEL_TEXT.outsideWorkspaceRefused,
+        detail: refusal.reason,
+      },
+    }),
+    visibleOutput: UI_TEXT.acpOutsideWorkspaceRefused,
+    failureReason: UI_TEXT.acpOutsideWorkspaceRefused,
+    refusalCode: refusal.code,
+  }
+}
+
+function confinedGlob(
+  glob: string | undefined,
+  context: ToolContext,
+):
+  | { readonly ok: true; readonly glob: string | undefined }
+  | { readonly ok: false; readonly reason: string; readonly code?: 'outside_workspace' } {
+  if (glob === undefined) return { ok: true, glob }
+  const normalized = normalizeModelPath(glob, context.platform)
+  if (!normalized.ok) return normalized
+  const p = context.platform === 'win32' ? path.win32 : path.posix
+  const relative = p.relative(
+    context.workspaceRoot,
+    p.resolve(context.workspaceRoot, normalized.path),
+  )
+  return relative === '..' || relative.startsWith(`..${p.sep}`) || p.isAbsolute(relative)
+    ? { ok: false, code: 'outside_workspace', reason: 'outside the workspace' }
+    : { ok: true, glob: relative.split(p.sep).join('/') }
+}
+
 function argumentFailure(error: z.core.$ZodError): ToolOutcome {
   return failure(`invalid arguments: ${z.prettifyError(error)}`)
 }
@@ -1415,7 +1455,7 @@ async function readFile(
   const resolved = await readablePath(args.path, context)
   context.signal?.throwIfAborted()
   if (!resolved.ok) {
-    return failure(resolved.reason)
+    return pathRefusal(resolved)
   }
   if (isDenied(resolved, context)) {
     return failure(`${resolved.relative} ${MODEL_API_MODEL_TEXT.pathDeniedByPolicy}`)
@@ -1511,7 +1551,7 @@ async function located(
     context.io,
   )
   if (!resolved.ok) {
-    return { ok: false, outcome: failure(resolved.reason) }
+    return { ok: false, outcome: pathRefusal(resolved) }
   }
   if (isDenied(resolved, context)) {
     return {
@@ -1875,7 +1915,9 @@ async function search(
   const p = context.platform === 'win32' ? path.win32 : path.posix
   let candidates: readonly string[]
   try {
-    candidates = await listMatching(context, args.glob)
+    const checked = confinedGlob(args.glob, context)
+    if (!checked.ok) return pathRefusal(checked)
+    candidates = await listMatching(context, checked.glob)
   } catch (error: unknown) {
     context.signal?.throwIfAborted()
     return failure(error instanceof Error ? error.message : String(error))
@@ -1930,7 +1972,9 @@ async function listFiles(
   const limit = Math.max(args.limit ?? LIST_FILES_DEFAULT_LIMIT, 1)
   let files: readonly string[]
   try {
-    files = await listMatching(context, args.glob)
+    const checked = confinedGlob(args.glob, context)
+    if (!checked.ok) return pathRefusal(checked)
+    files = await listMatching(context, checked.glob)
   } catch (error: unknown) {
     context.signal?.throwIfAborted()
     return failure(error instanceof Error ? error.message : String(error))

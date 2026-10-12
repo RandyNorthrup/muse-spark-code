@@ -3430,6 +3430,7 @@
   "acpKeyPresent": "Van tárolt Meta Model API-kulcs: {store}.",
   "acpKeyAbsent": "Nincs tárolt Meta Model API-kulcs.",
   "acpKeyCleared": "A Meta Model API-kulcs törölve lett a számítógép hitelesítőadat-tárolójából.",
+  "acpOutsideWorkspaceRefused": "A munkaterületen kívül; semmi nem lett olvasva vagy írva. A jóváhagyás nem bővítheti a munkaterülethez való hozzáférést.",
   "acpCredentialStoreNoAnswer": "A hitelesítőadat-tároló nem válaszolt. A kérés nem lett elküldve; próbálja újra.",
   "acpStoreUnavailable": "A számítógép hitelesítőadat-tárolója nem használható ({reason}). Linuxon az ügynöknek futó, feloldott Secret Service szolgáltatásra van szüksége, például GNOME Keyringre vagy KWalletre.",
   "acpStoreNames": {

@@ -382,6 +382,9 @@ export class UpdateTranslator {
       ...(content !== undefined && { content }),
       ...(wasPreview && preview === undefined && { rawInput: args ?? item.args, title }),
       ...(item.kind === 'subagent' && item.result !== undefined && { rawOutput: item.result }),
+      ...(item.refusalCode !== undefined && {
+        _meta: { 'museSpark.refusal': { code: item.refusalCode, reason: item.failureReason } },
+      }),
     })
     if (isCompleted) {
       this.toolOutput.delete(item.itemId)

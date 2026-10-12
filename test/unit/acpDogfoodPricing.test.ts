@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { settleUsageAmount, type PriceCard } from '../../src/core/providers/priceCard'
+import {
+  settleUsageAmount,
+  type PriceCard,
+  type PricedUsage,
+} from '../../src/core/providers/priceCard'
 import { createUsageRecord } from '../../src/core/usage/journalRecord'
 import { Usd } from '../../src/shared/usd'
 
@@ -25,7 +29,7 @@ const context = {
 } as const
 
 describe('ACPDOG exact token settlement', () => {
-  it.each([
+  const scenarios: readonly (readonly [string, PricedUsage, string])[] = [
     ['input', { inputTokens: 100, outputTokens: 0 }, '0.0004'],
     ['cached read', { inputTokens: 100, cachedTokens: 100, outputTokens: 0 }, '0.00004'],
     ['cache write 5m', { inputTokens: 100, cacheWriteTokens: 100, outputTokens: 0 }, '0.0005'],
@@ -46,9 +50,35 @@ describe('ACPDOG exact token settlement', () => {
       },
       '0.000548',
     ],
-  ])('prices %s at its own rate', (_name, usage, expected) => {
+  ]
+  it.each(scenarios)('prices %s at its own rate', (_name, usage, expected) => {
     expect(settleUsageAmount(card, usage)).toBe(Usd.from(expected).toAmount())
   })
+  it.each(['meta', 'openai', 'anthropic', 'gemini', 'xai', 'openrouter', 'ollama', 'custom'])(
+    'settles every normalized token class for %s without a provider-specific shortcut',
+    (provider) => {
+      // Synthetic canonical classes exercise the shared journal, not an invented provider wire frame.
+      for (const [_name, usage, expected] of scenarios) {
+        const record = createUsageRecord(
+          {
+            input_tokens: usage.inputTokens,
+            output_tokens: usage.outputTokens,
+            input_tokens_details: {
+              ...(usage.cachedTokens !== undefined && { cached_tokens: usage.cachedTokens }),
+              ...(usage.cacheWriteTokens !== undefined && {
+                cache_write_tokens: usage.cacheWriteTokens,
+              }),
+              ...(usage.cacheWriteTokens1h !== undefined && {
+                cache_write_tokens_1h: usage.cacheWriteTokens1h,
+              }),
+            },
+          },
+          { ...context, provider },
+        )
+        expect(record.cost.usdAmount).toBe(Usd.from(expected).toAmount())
+      }
+    },
+  )
   it.each(['cachedInput', 'cacheWrite', 'cacheWrite1h'] as const)(
     'bounds missing %s at the highest input-side rate',
     (missing) => {

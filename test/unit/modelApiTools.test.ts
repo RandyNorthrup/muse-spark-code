@@ -140,6 +140,7 @@ describe('confineWorkspacePath: links (D24)', () => {
     expect(await confineWorkspacePath(ROOT, 'linked/passwd', 'linux', io)).toEqual({
       ok: false,
       reason: 'path linked/passwd leads outside the workspace through a link',
+      code: 'outside_workspace',
     })
   })
 
@@ -175,9 +176,9 @@ describe('confineWorkspacePath: links (D24)', () => {
       JSON.stringify({ path: 'linked/cron.d/x', content: 'evil' }),
       ctx,
     )
-    expect(write.failureReason).toContain('through a link')
+    expect(write.output).toContain('through a link')
     const read = await executeTool('read_file', JSON.stringify({ path: 'linked/shadow' }), ctx)
-    expect(read.failureReason).toContain('through a link')
+    expect(read.output).toContain('through a link')
     expect(files.files.size).toBe(1)
     expect(files.files.get('/ws/a.txt')).toBe('x')
   })
@@ -778,8 +779,8 @@ describe('executeTool: read_file', () => {
   it('refuses paths outside the workspace and reports a missing file', async () => {
     const { run } = context({})
     expect(await run('read_file', { path: '../secret' })).toMatchObject({
-      failureReason: 'path ../secret is outside the workspace',
-      output: 'Error: path ../secret is outside the workspace',
+      failureReason: UI_TEXT.acpOutsideWorkspaceRefused,
+      refusalCode: 'outside_workspace',
     })
     expect(await run('read_file', { path: 'missing.txt' })).toMatchObject({
       failureReason: 'file not found: missing.txt',
@@ -1177,13 +1178,16 @@ describe('a conversation in a worktree (M71)', () => {
     const run = (name: string, args: unknown) => executeTool(name, JSON.stringify(args), ctx)
     for (const target of ['../../app/src/a.ts', `${MAIN}/src/a.ts`]) {
       expect(await run('read_file', { path: target })).toMatchObject({
-        failureReason: `path ${target} is outside the workspace`,
+        failureReason: UI_TEXT.acpOutsideWorkspaceRefused,
+        refusalCode: 'outside_workspace',
       })
       expect(await run('write_file', { path: target, content: 'x\n' })).toMatchObject({
-        failureReason: `path ${target} is outside the workspace`,
+        failureReason: UI_TEXT.acpOutsideWorkspaceRefused,
+        refusalCode: 'outside_workspace',
       })
       expect(await run('edit_file', { path: target, find: 'main', replace: 'x' })).toMatchObject({
-        failureReason: `path ${target} is outside the workspace`,
+        failureReason: UI_TEXT.acpOutsideWorkspaceRefused,
+        refusalCode: 'outside_workspace',
       })
     }
     expect(io.files.get(`${MAIN}/src/a.ts`)).toBe('main\n')

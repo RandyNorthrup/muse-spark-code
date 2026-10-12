@@ -960,3 +960,17 @@ A first completed turn with a $1 daily cap can return:
 Backend advisories use ACP's `notice` channel only when
 `clientCapabilities.session.notices` is advertised, once per advisory per
 session. They do not enter model answer text.
+
+## Workspace file boundaries
+
+Writes outside the workspace are refused before any permission request.
+Approval cannot widen the write boundary. Read, edit, list and search failures
+likewise return an `outside_workspace` tool error to the model and a failed
+client tool row with `_meta["museSpark.refusal"]` containing its code and
+localized reason. Explicit permission-profile extra read roots retain their
+existing read-only semantics; they do not authorize writes.
+
+Accounting metadata requires Model API journal records. Muse Code and disabled
+or unavailable history report `available: false`; retained history can be
+pruned, so session figures describe retained records. Clients requiring a
+complete lifetime total must treat that limit as unavailable evidence.

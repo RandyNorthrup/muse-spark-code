@@ -12,6 +12,7 @@ import {
   normalWindowsPath,
   unprovenUncPathReason,
   windowsPathProblem,
+  windowsPathRefusalCode,
 } from './windowsPathSpelling'
 import { pathIdentityRelation } from './pathIdentity'
 
@@ -27,7 +28,7 @@ export type PathResolution =
        */
       readonly canonical: string
     }
-  | { readonly ok: false; readonly reason: string }
+  | { readonly ok: false; readonly reason: string; readonly code?: 'outside_workspace' }
 
 /** A confined path and the canonical target checked before a tool read. */
 type ConfinedPathResolution =
@@ -67,7 +68,9 @@ export function isBelow(relative: string, p: ReturnType<typeof pathModule>): boo
 export function normalizeModelPath(
   given: string,
   platform: NodeJS.Platform,
-): { readonly ok: true; readonly path: string } | { readonly ok: false; readonly reason: string } {
+):
+  | { readonly ok: true; readonly path: string }
+  | { readonly ok: false; readonly reason: string; readonly code?: 'outside_workspace' } {
   let path = given.replaceAll(/[\u{00A0}\u{2000}-\u{200A}\u{202F}\u{205F}\u{3000}]/gu, ' ')
   if (path.startsWith('@')) {
     path = path.slice(1)
@@ -75,6 +78,7 @@ export function normalizeModelPath(
   if (path === '~' || path.startsWith('~/') || (platform === 'win32' && path.startsWith('~\\'))) {
     return {
       ok: false,
+      code: 'outside_workspace',
       reason: `path ${given} starts at the home directory, which is outside the workspace`,
     }
   }
@@ -119,7 +123,10 @@ export function resolveWorkspacePath(
     return normalized
   }
   const problem = windowsPathProblem(normalized.path, platform, workspaceRoot)
-  if (problem !== undefined) return { ok: false, reason: `path ${given} ${problem}` }
+  if (problem !== undefined) {
+    const code = windowsPathRefusalCode(problem)
+    return { ok: false, reason: `path ${given} ${problem}`, ...(code !== undefined && { code }) }
+  }
   const p = pathModule(platform)
   const root = platform === 'win32' ? normalWindowsPath(workspaceRoot) : workspaceRoot
   const absolute = p.resolve(
@@ -128,7 +135,11 @@ export function resolveWorkspacePath(
   )
   const relative = p.relative(root, absolute)
   if (!isBelow(relative, p)) {
-    return { ok: false, reason: `path ${given} is outside the workspace` }
+    return {
+      ok: false,
+      code: 'outside_workspace',
+      reason: `path ${given} is outside the workspace`,
+    }
   }
   if (
     platform === 'win32' &&
@@ -172,5 +183,9 @@ export async function confineWorkspacePath(
   const relative = p.relative(realRoot, realTarget)
   return isBelow(relative, p)
     ? { ...textual, canonical: relative.split(p.sep).join('/'), checkedAbsolute: realTarget }
-    : { ok: false, reason: `path ${given} leads outside the workspace through a link` }
+    : {
+        ok: false,
+        code: 'outside_workspace',
+        reason: `path ${given} leads outside the workspace through a link`,
+      }
 }

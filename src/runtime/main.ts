@@ -426,6 +426,7 @@ async function runtimeFor(
   const engine = await import('./runtimeEngineEntry')
   engine.setUiText(UI_TEXT, uiLocale())
   return engine.createRuntimeBackend({
+    hostKind: questions === undefined ? 'cli' : 'acp',
     options,
     version: packageVersion(),
     distDir,
@@ -740,7 +741,7 @@ async function serve(
       accounting: createAcpAccounting({
         recording,
         runtime,
-        isEnabled: () => isUsageHistoryOn,
+        isEnabled: () => isUsageHistoryOn && options.backend === 'modelApi',
         dataFolder: agentDataFolder({
           platform: process.platform,
           env: process.env,
