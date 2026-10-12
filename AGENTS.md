@@ -33,11 +33,16 @@ history from PLAN.md").
    (`test/e2e/execStdio.e2e.test.ts`). Before a release, real conversations go
    through the packed product (CONTRIBUTING.md, "Before you open a pull
    request"). Never weaken a gate (thresholds, rule levels, ignores) to get
-   green; fix the code or record a justified deferral in `PLAN.md` §7.
+   green; fix the code or record a justified deferral in `PLAN.md` §7. An
+   exact-size assertion may move with the measured number and a one-line
+   reason in the same change; a cap moves only on the owner's word.
 3. **Prove new gates and tests fire.** A test or lint rule that has never been
    seen to fail is a decoration. Break the thing on purpose, watch it fail,
    revert, and note it in the milestone's certification record under
-   `docs/certification/`.
+   `docs/certification/`. Tests stand on the built product wherever the
+   behaviour is the product's; a stand-in is allowed for the outside world
+   only (for example a server replaying a recorded exchange), never for our
+   own code.
 4. **Escape hatches are logged.** Any `eslint-disable`, `@ts-expect-error`,
    `as` cast that is not a narrowing the compiler can verify, or `any` needs an
    inline reason **and** a row in `PLAN.md` §8.
