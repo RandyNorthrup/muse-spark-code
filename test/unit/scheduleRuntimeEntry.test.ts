@@ -65,6 +65,7 @@ function fixture(
   input: {
     fs?: MemoryScheduleFs
     clock?: { nowMs: number }
+    hasDelivery?: boolean
     consent?: ScheduleEngineOptions['consent']
     caller?: ScheduleEngineOptions['caller']
   } = {},
@@ -74,6 +75,17 @@ function fixture(
   const engine = createScheduleEngine({
     fs,
     queue: memoryScheduleQueue(fs),
+    ...(input.hasDelivery !== false && {
+      delivery: () => ({
+        targets: {
+          find: () => Promise.resolve(undefined),
+          open: () => Promise.reject(new Error('no live session')),
+          fresh: () => Promise.reject(new Error('no live session')),
+        },
+        runs: { run: () => Promise.reject(new Error('no live session')) },
+        prompt: () => 'scheduled test prompt',
+      }),
+    }),
     now: () => clock.nowMs,
     ...(input.consent !== undefined && { consent: input.consent }),
     ...(input.caller !== undefined && { caller: input.caller }),
@@ -280,4 +292,27 @@ describe('schedule runtime entry over the real store', () => {
     expect(refused.exitCode).toBe(1)
     expect(refused.output).toContain('--max-budget-usd')
   })
+})
+
+it('a runtime with delivery ports removed preserves a due Once fire while ACP holds its workspace', async () => {
+  const { engine, clock } = fixture({ hasDelivery: false })
+  const job = fakeSchedule({
+    workspaceKey: workspaceKey(cwd),
+    trigger: { kind: 'once', atMs: clock.nowMs },
+    nextFireAtMs: clock.nowMs,
+  })
+  await engine.store.create(job)
+  try {
+    await engine.runtime.holdWorkspace(cwd)
+    await engine.pollWorkspace(job.workspaceKey)
+    expect(await engine.store.fires(job.workspaceKey)).toEqual([])
+    expect(await engine.store.pending(job.workspaceKey)).toEqual([])
+    const jobs = await engine.store.list(job.workspaceKey)
+    expect(jobs[0]).toMatchObject({
+      nextFireAtMs: clock.nowMs,
+      fireCount: 0,
+    })
+  } finally {
+    await engine.runtime.close()
+  }
 })
