@@ -350,9 +350,6 @@ function modelApiManager(
         }
   return new ModelApiBackendManager({
     team: deps.team,
-    ...(deps.team !== undefined && {
-      isTeamTrusted: () => deps.team?.teamDecisionSource()?.teamSwitchOn === true,
-    }),
     log,
     usageRecording: deps.usageRecording,
     hasExternalPaidRecording: deps.exec !== undefined,
@@ -692,6 +689,17 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
       : { state: 'ready' }
   }
 
+  // A headless team run vouches for its workers (M96b): the team switch,
+  // not workspace trust, admits their delegate/merge tools. Set on each host
+  // after construction (ModelApiHost.setTeamTrusted), never through the
+  // always-loaded backend manager, so activation carries none of it.
+  const isTeamTrusted = (): boolean => deps.team?.teamDecisionSource()?.teamSwitchOn === true
+  const withTeamTrust = async (manager: ModelApiBackendManager) => {
+    const host = await manager.ensureHost()
+    if (deps.team !== undefined) host.setTeamTrusted(isTeamTrusted)
+    return host
+  }
+
   const modelApiHostFor = async (cwd: string): Promise<AgentHost> => {
     const identity = await captureWorkspaceIdentity(cwd)
     if (identity === undefined) {
@@ -703,7 +711,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
       if (existing.identity !== key) {
         throw new Error(FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval)
       }
-      return await existing.manager.ensureHost()
+      return await withTeamTrust(existing.manager)
     }
     const assertWorkspaceCurrent = () => {
       if (!identity.isCurrent()) {
@@ -723,7 +731,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
       assertWorkspaceCurrent,
     )
     modelApiHosts.set(cwd, { manager, identity: key })
-    return await manager.ensureHost()
+    return await withTeamTrust(manager)
   }
 
   const hostFor = (cwd: string): Promise<AgentHost> => {
@@ -749,6 +757,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
         budgetScope,
         input.fenceIo,
       )
+      if (deps.team !== undefined) host.setTeamTrusted(isTeamTrusted)
       return await openTeamWorkerSession(host, input)
     },
     readUsageBudgets: async () => {

@@ -16890,7 +16890,7 @@ export class ModelApiHost implements AgentHost {
     canEditSessions: true,
   }
 
-  public constructor(private readonly deps: ModelApiHostDeps) {
+  public constructor(private deps: ModelApiHostDeps) {
     this.workspaceEdits = deps.workspaceEdits ?? new WorkspaceEdits()
     // Elicitations outside any tool call have no session to ask: they are
     // declined, and the pool declares the capability while this stands
@@ -17737,6 +17737,16 @@ export class ModelApiHost implements AgentHost {
 
   public onUsageChanged(_listener: (usage: SubscriptionUsage) => void): () => void {
     return NO_UNSUBSCRIBE
+  }
+
+  /**
+   * A headless team run vouches for its workers (M96b): the runtime sets the
+   * team-switch trust after construction, before the first session, so the
+   * always-loaded backend manager never carries it (activation budget). The
+   * editor never calls this: its workers keep workspace trust.
+   */
+  public setTeamTrusted(isTrusted: () => boolean): void {
+    this.deps = { ...this.deps, isTeamTrusted: isTrusted }
   }
 
   /** Only the owning live session can receive its pre-dispatch format. */
