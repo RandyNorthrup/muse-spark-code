@@ -3525,8 +3525,9 @@ held. The placeholder reads "Listening…", the mic pulses red, and each phrase
 lands at the caret followed by a space. Recognition runs in a small helper
 on the operating system's own engine, kept warm for five minutes after a
 recording. Nothing is billed and no third-party engine is involved, unless
-you turn on [Muse Voice](#paid-features), the paid engine on a Model API
-key.
+you turn on [Muse Voice](#paid-features), the paid Meta service using your
+Meta Model API key, even when the conversation uses another provider or a
+local model. A missing Meta key produces an explicit notice.
 
 Dictation is off in a remote window (SSH, WSL, containers, tunnels,
 Codespaces): the extension runs on the remote machine, which cannot hear
@@ -3700,6 +3701,11 @@ arrives, local seconds supply the tally and reserved liability stays uncertain.
 
 Muse Voice records the same way as free dictation (tap or hold), and the
 transcript lands at the caret when you stop or the three-minute cap stops it.
+The microphone starts only after reading the Meta key and reserving both
+budgets. Stop waits for the helper acknowledgement or bounded forced cleanup;
+a queued Start then gets its own recording, helper and cap. Closing a tab,
+stopping a backend or closing the window drains admission and both journal
+settlements. Linux announces listening only after its admitted recorder starts.
 A notice shows each recording’s duration and estimated cost. The recording is made by a
 helper that only records: `native/windows/capture.ps1` on Windows (the
 waveIn API that ships with Windows), the macOS helper's capture mode (which

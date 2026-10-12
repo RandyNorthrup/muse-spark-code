@@ -9,6 +9,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Muse Voice keeps every recording's helper events and hard cap isolated across
+  rapid Stop/Start. Refused budget admission never starts the microphone.
+  Backend stop, closed tabs and window shutdown await admission and settlement
+  writes. Voice bills the stored Meta key independently of the conversation
+  provider or local model, with an explicit missing-key notice. Linux reports
+  listening only after resource admission and a successful OS spawn.
 - Muse Voice now works on Model API with a finite budget, through the existing
   Windows, macOS and Linux microphone adapters. Three-minute recordings reserve
   the shared daily budget and any conversation cap before connecting, then
