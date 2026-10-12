@@ -118,8 +118,10 @@ happened, not what was planned; superseded entries are kept.
 - The chat panel's empty screen shows the extension's own mark instead of
   Meta's logo, in the same place and at the same size. The mark is blue in
   ordinary themes and takes the text colour in high-contrast themes.
-- The Get Started walkthrough's two pictures that still showed Meta's logo
-  (the empty panel and the actions palette) were taken again.
+- The Get Started walkthrough's four pictures were taken again. Two still
+  showed Meta's logo (the empty panel and the actions palette); the other
+  two were from an older panel, and the sign-in picture did not show the
+  third choice, Start with your own model, that the last page describes.
 
 ### Documentation
 

@@ -28,8 +28,9 @@ screenshots, and at 1:21 PM how that could happen "if we are looking at over
   hashes of the component audit, the panelmark records, the identity-rewrite
   record of 2026-10-11 (documents only, kept on the lead's word) and the
   version.
-- Added on this branch: two more pictures taken again, and the removal of
-  the screenshot comparison from CI, each below. No test was added.
+- Added on this branch: the walkthrough's four pictures taken again, and
+  the removal of the screenshot comparison from CI, each below. No test was
+  added.
 - The mark's way here: first prepared as 0.18.1 on `release/0.18.1`
   (`111afdfa1d`, cut from the release train `int/train-1011` at
   `07f7aa69f`) before the provider hotfix took that number.
@@ -59,7 +60,7 @@ files were also read as text and drawn in Chrome 150 on the rig.
 | Pictures                                                                                                                                                                                                                                                   | Who receives them                                              | Result                                                                                                                                                                      |
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `resources/walkthrough/open.png`, `chat.png`                                                                                                                                                                                                               | Everyone who installs the extension (the Get Started pages)    | **Both showed Meta's logo** beside "Muse Spark". Taken again (next section)                                                                                                 |
-| `resources/walkthrough/welcome.png`, `sign-in.png`                                                                                                                                                                                                         | The same                                                       | No logo: a finished turn; the sign-in screen                                                                                                                                |
+| `resources/walkthrough/welcome.png`, `sign-in.png`                                                                                                                                                                                                         | The same                                                       | No logo, but both from an older panel; taken again as well (next section)                                                                                                   |
 | `media/readme/modes.png`, `palette.png`, `slash-commands.png`, `voice.png`                                                                                                                                                                                 | Readers of the README on GitHub, the Marketplace and Open VSX  | Our mark, the blue squiggled "m" (taken again on the train)                                                                                                                 |
 | `media/readme/banner.png`                                                                                                                                                                                                                                  | The same, and npm                                              | Our mark                                                                                                                                                                    |
 | `media/readme/agents.png`, `approval.png`, `deterministic-report.png`, `help.png`, `history.png`, `languages.png`, `open-question.png`, `paid.png`, `paid-always.png`, `question.png`, `quote.png`, `resources.png`, `rewind.png`, `turn.png`, `usage.png` | The same                                                       | No logo. In `help`, `history`, `languages` and `usage` a dialog covers the place where the empty screen draws its mark; the others show a conversation, which draws no mark |
@@ -78,25 +79,33 @@ Not looked at: the 754 pictures under `docs/certification/`. They are the
 evidence of earlier milestones, neither package ships them and no README
 shows them; many of them show the panel as it was, Meta's logo included.
 
-Seen on the way and not part of this release: `resources/walkthrough/own-model.md`
-shows `sign-in.png` under a description of "the first-run screen's third
-choice", which that picture does not show; `welcome.png` and `sign-in.png`
-are from an older build of the panel.
+## The walkthrough's four pictures, taken again
 
-## The two walkthrough pictures, taken again
-
-Both from the production build of this branch on the Kubuntu rig (Chrome
+All from the production build of this branch on the Kubuntu rig (Chrome
 150.0.7871.186, 690 by 760, light theme), then re-encoded without loss
 (`optipng -o7 -strip all`; the decoded pixels were compared and are
-identical):
+identical), so that the extension package stays under its cap:
 
-| File                             | Before   | After    | What it is now                                                                                                  |
-| -------------------------------- | -------- | -------- | --------------------------------------------------------------------------------------------------------------- |
-| `resources/walkthrough/open.png` | 44,833 B | 44,039 B | The harness scene `empty` (`node scripts/harness-shots.mjs empty --theme=light`)                                |
-| `resources/walkthrough/chat.png` | 39,823 B | 42,356 B | The pixels of `media/readme/palette.png` as the train took it again (the same scene, the same size), re-encoded |
+| File                                | Before   | After    | What it is now                                                                                                  |
+| ----------------------------------- | -------- | -------- | --------------------------------------------------------------------------------------------------------------- |
+| `resources/walkthrough/open.png`    | 44,833 B | 44,039 B | The harness scene `empty` (`node scripts/harness-shots.mjs empty --theme=light`)                                |
+| `resources/walkthrough/chat.png`    | 39,823 B | 42,356 B | The pixels of `media/readme/palette.png` as the train took it again (the same scene, the same size), re-encoded |
+| `resources/walkthrough/welcome.png` | 20,306 B | 21,183 B | The harness scene `tools`: a finished turn with its folded steps, the reply and the composer                    |
+| `resources/walkthrough/sign-in.png` | 22,112 B | 27,395 B | The harness scene `signin`: the first-run screen with its three choices                                         |
+
+The first two showed Meta's logo. The other two had no logo and were from
+an older panel (the lead's word, 2:22 PM PT, to take them again in this
+release): `sign-in.png` showed two choices, while the walkthrough's last
+page, which uses the same picture, describes "the first-run screen's third
+choice: Start with your own model". The picture now shows all three, and
+the sign-in page's own line says so. Each new picture was looked at once.
+Left as it is and reported: the panel writes its three buttons in title
+case ("Start With Your Own Model"), the walkthrough's text in sentence case.
 
 SHA-256: `open.png` `f49467d6994ccd6b37891316cc96ec048783c0d01642c5af23d39824d3ebec91`,
-`chat.png` `dd4c0b6c5edff7f0953440f7d9491b0497e097d4fe21ad7a8c5e8759f6e4c980`.
+`chat.png` `dd4c0b6c5edff7f0953440f7d9491b0497e097d4fe21ad7a8c5e8759f6e4c980`,
+`welcome.png` `ca2dcc3135609ac2ca776ea4e82dd0f8d9e46f284cba9efbb22aaaeabf681276`,
+`sign-in.png` `b729f42e50cb2ccddf7ac77e41bb3f88cf7f7ac54fb0a21149a8cb7bd210098e`.
 
 ## The one look at the changed screen
 
@@ -192,8 +201,9 @@ The extension package had 9,268 B of room under its cap on 0.18.1
 (3,779,532 of 3,788,800 B, hosted). The rig cannot pack the universal
 package (it has no arm64 helper), so the files the package ships were
 compared between the two builds, compressed as a package compresses them:
-this branch is about 8.3 KB smaller. The two pictures add 2.3 KB, the notes
-0.6 KB; What's New's content is 10.7 KB smaller, because its window of two
+this branch came out about 8.3 KB smaller with the first two pictures, and
+the other two add 6.2 KB to that, so about 2 KB smaller in all. The first
+two pictures add 2.3 KB, the notes 0.6 KB; What's New's content is 10.7 KB smaller, because its window of two
 releases now holds 0.18.2 and 0.18.1 and no longer 0.18.0's long notes
 (they stay one link away, in the changelog). The hosted package job
 measures the real file.
