@@ -1621,6 +1621,28 @@ export class ContextOverflowError extends Error {
  * limit, the overflow's typed path, a child's refusal, or a non-error. Pure
  * so the mapping is pinned without staging a whole turn.
  */
+/**
+ * In-flight caller-ledger side calls holding a slot reservation, so two
+ * concurrent side calls (reviewer, hook-model, image) from parallel tool
+ * calls cannot both spend the turn's last request. Taken and released
+ * synchronously around the decision; JS runs each take to completion, so
+ * two racers cannot both pass.
+ */
+export interface SideSlotReservation {
+  reserved: number
+}
+
+/**
+ * Take-or-refuse one caller-ledger side slot: pure, so the race decision is
+ * pinned without staging two side calls. Takes only when more than one call
+ * would remain afterwards; the caller keeps the ledger-free case.
+ */
+export function canReserveSideSlot(reservation: SideSlotReservation, left: number): boolean {
+  if (left - reservation.reserved <= 1) return false
+  reservation.reserved += 1
+  return true
+}
+
 export function wrapUpFailedKindFor(error: unknown): WrapUpFailedKind | undefined {
   if (
     error instanceof ModelCallLimitError ||
@@ -2545,6 +2567,8 @@ export class ModelApiSession implements ScheduledAgentSession {
   /** The contributor-tier models the user said yes to for an agent's run, in this session (M76). */
   private readonly confirmedContributorModels = new Set<string>()
   private modelCallAllowance: (() => number) | undefined
+  /** In-flight caller-ledger side calls holding a slot reservation. */
+  private sideReservation: SideSlotReservation = { reserved: 0 }
   private childTaskGrant: ChildTaskGrant | undefined
   /**
    * A child's top turn (M86, spec 3.2): the parent's turn that spawned it,
@@ -6107,10 +6131,9 @@ export class ModelApiSession implements ScheduledAgentSession {
     // recovery all enter here, so the last permitted call is always the
     // wrap-up whatever failure preceded it. The retry-kind flag is reset
     // with it, so a stale notice never names a later failure.
-    const turn = this.active
-    if (turn !== undefined) {
-      this.enterWrapUpPhase(turn)
-      turn.lastRetryRateLimited = undefined
+    if (this.active !== undefined) {
+      this.enterWrapUpPhase(this.active)
+      this.active.lastRetryRateLimited = undefined
     }
     const revision = this.modelRevision
     const resolved = await this.resolveModel(this.active?.audioMessage?.modelId ?? this.modelId)
@@ -6878,152 +6901,157 @@ export class ModelApiSession implements ScheduledAgentSession {
       return undefined
     }
     // A reviewer call must not spend the reserved wrap-up slot: the user
-    // decides instead.
-    if (this.isWrapUpSlotReserved()) {
+    // decides instead. The take-or-refuse also holds across a racing second
+    // reviewer call from parallel tool calls.
+    if (!this.takeSideSlot()) {
       return undefined
     }
-    if (this.reviewBreaker.isTripped) {
-      return { decision: 'ask', note: UI_TEXT.autoReviewerPaused }
-    }
-    const action = query.command ?? call.arguments
-    const modelId = this.modelId
-    const revision = this.modelRevision
-    let resolved: ResolvedModel
     try {
-      resolved = await unlessStopped(this.resolveModel(modelId), signal)
-    } catch {
-      if (signal.aborted) throw new AbortedError()
-      return { decision: 'ask', note: UI_TEXT.autoReviewerFailed }
-    }
-    if (resolved.policy.pricing.kind === 'unpriced') {
-      return { decision: 'ask', note: UI_TEXT.autoReviewerFailed }
-    }
-    const mode = this.permissions.currentMode
-    const active = this.active
-    const policy = this.policy()
-    const isCurrent = () =>
-      !this.isDisposed &&
-      !signal.aborted &&
-      this.active === active &&
-      this.modelId === modelId &&
-      this.modelRevision === revision &&
-      this.permissions.currentMode === mode &&
-      mode === 'onRequest' &&
-      this.deps.isWorkspaceTrusted() &&
-      this.deps.isPaidFeatureOn('autoReviewer') &&
-      this.policy() === policy &&
-      resolved.isCurrent()
-    let keyDigest: string
-    let budgetScope: OwnedSessionBudgetScope | undefined
-    try {
-      keyDigest = await unlessStopped(resolved.client.currentKeyDigest(), signal)
-      budgetScope = await unlessStopped(this.ownedBudgetScope(), signal)
-    } catch {
-      if (signal.aborted) throw new AbortedError()
-      return { decision: 'ask', note: UI_TEXT.autoReviewerFailed }
-    }
-    if (
-      !isCurrent() ||
-      (budgetScope === undefined &&
-        Usd.from(this.deps.sessionBudgetUsd()).compare(Usd.from(0)) !== 0) ||
-      budgetScope?.isStillAllowed(keyDigest) === false
-    ) {
-      return { decision: 'ask', note: UI_TEXT.autoReviewerFailed }
-    }
-    const isAllowed =
-      resolved.policy.pricing.kind === 'local' ||
-      resolved.policy.pricing.kind === 'plan' ||
-      (await unlessStopped(
-        this.deps.allowsPaidUse(
+      if (this.reviewBreaker.isTripped) {
+        return { decision: 'ask', note: UI_TEXT.autoReviewerPaused }
+      }
+      const action = query.command ?? call.arguments
+      const modelId = this.modelId
+      const revision = this.modelRevision
+      let resolved: ResolvedModel
+      try {
+        resolved = await unlessStopped(this.resolveModel(modelId), signal)
+      } catch {
+        if (signal.aborted) throw new AbortedError()
+        return { decision: 'ask', note: UI_TEXT.autoReviewerFailed }
+      }
+      if (resolved.policy.pricing.kind === 'unpriced') {
+        return { decision: 'ask', note: UI_TEXT.autoReviewerFailed }
+      }
+      const mode = this.permissions.currentMode
+      const active = this.active
+      const policy = this.policy()
+      const isCurrent = () =>
+        !this.isDisposed &&
+        !signal.aborted &&
+        this.active === active &&
+        this.modelId === modelId &&
+        this.modelRevision === revision &&
+        this.permissions.currentMode === mode &&
+        mode === 'onRequest' &&
+        this.deps.isWorkspaceTrusted() &&
+        this.deps.isPaidFeatureOn('autoReviewer') &&
+        this.policy() === policy &&
+        resolved.isCurrent()
+      let keyDigest: string
+      let budgetScope: OwnedSessionBudgetScope | undefined
+      try {
+        keyDigest = await unlessStopped(resolved.client.currentKeyDigest(), signal)
+        budgetScope = await unlessStopped(this.ownedBudgetScope(), signal)
+      } catch {
+        if (signal.aborted) throw new AbortedError()
+        return { decision: 'ask', note: UI_TEXT.autoReviewerFailed }
+      }
+      if (
+        !isCurrent() ||
+        (budgetScope === undefined &&
+          Usd.from(this.deps.sessionBudgetUsd()).compare(Usd.from(0)) !== 0) ||
+        budgetScope?.isStillAllowed(keyDigest) === false
+      ) {
+        return { decision: 'ask', note: UI_TEXT.autoReviewerFailed }
+      }
+      const isAllowed =
+        resolved.policy.pricing.kind === 'local' ||
+        resolved.policy.pricing.kind === 'plan' ||
+        (await unlessStopped(
+          this.deps.allowsPaidUse(
+            {
+              feature: 'autoReviewer',
+              modelId,
+              tool: call.name,
+              action,
+              ...(modelId.includes('/') && { pricing: resolved.policy.pricing }),
+            },
+            false,
+            this.askingSessionId,
+          ),
+          signal,
+        )) === true
+      if (!isAllowed || !isCurrent()) {
+        return undefined
+      }
+      let reviewPaidCall: typeof ReviewPaidCall
+      try {
+        const entry = await import('./reviewerEntry.js')
+        // The packaged function's signature comes from this same source build.
+        const exported: unknown = entry.reviewPaidCall
+        if (typeof exported !== 'function') throw new Error('Invalid Auto reviewer export')
+        reviewPaidCall = entry.reviewPaidCall
+      } catch {
+        if (signal.aborted) throw new AbortedError()
+        this.deps.log.warn('The Auto reviewer bundle could not be loaded; the user decides')
+        return { decision: 'ask', note: UI_TEXT.autoReviewerFailed }
+      }
+      if (!isCurrent()) return undefined
+      const turnId = this.active?.turnId ?? this.turnIds.at(-1) ?? this.sessionId
+      const caution = this.startJudge(call)
+      let outcome: ReviewedAsk
+      try {
+        outcome = await reviewPaidCall(
           {
-            feature: 'autoReviewer',
+            deps: this.deps,
+            resolved,
+            table: UI_TEXT,
+            locale: uiLocale(),
+            breaker: this.reviewBreaker,
+            userRequest: this.lastUserText(),
+            recentCalls: this.recentCalls(turnId),
+            ...this.paidModelObservers(turnId, resolved),
+            keyed: (request) => this.keyed(request),
+            guard: (body, budget) => this.responseAttemptGuard(body, resolved, budget),
+            isCountedUsage,
+            abortError: () => new AbortedError(),
+            isRefused: (error) =>
+              isModelApiError(error) &&
+              (error.status === HTTP_STATUS.badRequest || error.status === HTTP_TOO_MANY_REQUESTS),
+            emit: (event) => {
+              this.emit(event)
+            },
+            record: (item, isStarted) => {
+              if (isStarted) this.recordTranscript(turnId, item)
+              else this.rerecordTranscript(item)
+            },
+          },
+          call.name,
+          action,
+          turnId,
+          signal,
+          {
             modelId,
-            tool: call.name,
-            action,
-            ...(modelId.includes('/') && { pricing: resolved.policy.pricing }),
+            providerId: resolved.policy.identity.provider,
+            origin: resolved.origin,
+            keyDigest,
+            runKind: 'review',
+            isStillAllowed: () => isCurrent() && this.isPaidBudgetAllowed(budgetScope, keyDigest),
+            onRequestStarted: () => {
+              this.notifyUsage(() => {
+                this.deps.notePaidUse('autoReviewer', 1)
+              })
+            },
           },
-          false,
-          this.askingSessionId,
-        ),
-        signal,
-      )) === true
-    if (!isAllowed || !isCurrent()) {
-      return undefined
+          budgetScope,
+          isCurrent,
+        )
+      } catch (error: unknown) {
+        caution?.discard()
+        throw error
+      }
+      const hasJudgeCaution = caution?.read() === 'caution'
+      return hasJudgeCaution
+        ? {
+            decision: 'ask',
+            note: outcome.decision === 'ask' ? outcome.note : undefined,
+            judgeCaution: true,
+          }
+        : outcome
+    } finally {
+      this.giveSideSlot()
     }
-    let reviewPaidCall: typeof ReviewPaidCall
-    try {
-      const entry = await import('./reviewerEntry.js')
-      // The packaged function's signature comes from this same source build.
-      const exported: unknown = entry.reviewPaidCall
-      if (typeof exported !== 'function') throw new Error('Invalid Auto reviewer export')
-      reviewPaidCall = entry.reviewPaidCall
-    } catch {
-      if (signal.aborted) throw new AbortedError()
-      this.deps.log.warn('The Auto reviewer bundle could not be loaded; the user decides')
-      return { decision: 'ask', note: UI_TEXT.autoReviewerFailed }
-    }
-    if (!isCurrent()) return undefined
-    const turnId = this.active?.turnId ?? this.turnIds.at(-1) ?? this.sessionId
-    const caution = this.startJudge(call)
-    let outcome: ReviewedAsk
-    try {
-      outcome = await reviewPaidCall(
-        {
-          deps: this.deps,
-          resolved,
-          table: UI_TEXT,
-          locale: uiLocale(),
-          breaker: this.reviewBreaker,
-          userRequest: this.lastUserText(),
-          recentCalls: this.recentCalls(turnId),
-          ...this.paidModelObservers(turnId, resolved),
-          keyed: (request) => this.keyed(request),
-          guard: (body, budget) => this.responseAttemptGuard(body, resolved, budget),
-          isCountedUsage,
-          abortError: () => new AbortedError(),
-          isRefused: (error) =>
-            isModelApiError(error) &&
-            (error.status === HTTP_STATUS.badRequest || error.status === HTTP_TOO_MANY_REQUESTS),
-          emit: (event) => {
-            this.emit(event)
-          },
-          record: (item, isStarted) => {
-            if (isStarted) this.recordTranscript(turnId, item)
-            else this.rerecordTranscript(item)
-          },
-        },
-        call.name,
-        action,
-        turnId,
-        signal,
-        {
-          modelId,
-          providerId: resolved.policy.identity.provider,
-          origin: resolved.origin,
-          keyDigest,
-          runKind: 'review',
-          isStillAllowed: () => isCurrent() && this.isPaidBudgetAllowed(budgetScope, keyDigest),
-          onRequestStarted: () => {
-            this.notifyUsage(() => {
-              this.deps.notePaidUse('autoReviewer', 1)
-            })
-          },
-        },
-        budgetScope,
-        isCurrent,
-      )
-    } catch (error: unknown) {
-      caution?.discard()
-      throw error
-    }
-    const hasJudgeCaution = caution?.read() === 'caution'
-    return hasJudgeCaution
-      ? {
-          decision: 'ask',
-          note: outcome.decision === 'ask' ? outcome.note : undefined,
-          judgeCaution: true,
-        }
-      : outcome
   }
 
   private startJudge(call: FunctionCallItem): JudgeFence | undefined {
@@ -7984,177 +8012,183 @@ export class ModelApiSession implements ScheduledAgentSession {
     signal: AbortSignal,
     admission: Admission,
   ): Promise<ToolOutcome> {
-    // Images answer over the caller's ledger, like every other side call: the
-    // same reserved-slot check keeps the turn's last request for the wrap-up.
-    if (this.isWrapUpSlotReserved())
+    // Images answer over the caller's ledger, like every other side call:
+    // the take-or-refuse keeps the turn's last request for the wrap-up even
+    // when two image calls race from parallel tool calls.
+    if (!this.takeSideSlot())
       return toolFailure(MODEL_API_MODEL_TEXT.wrapUpReserved, UI_TEXT.modelApiWrapUpReserved)
-    const revision = this.modelRevision
-    const selected = this.selectedModel()
-    const run = this.active?.scheduleRun
-    const touched: TouchedFiles = {
-      names: [plan.target, ...plan.sources].flatMap((file) => [file.relative, file.canonical]),
-      complete: true,
-    }
-    if (run !== undefined) {
-      const safe = await run.decide(
-        {
-          id: this.deps.newId(),
-          class: 'paidExtra',
-          tool: 'imageGeneration',
-          paths: [plan.target, ...plan.sources].map((file) => file.canonical),
-          requiresAsking: false,
-          protectedPath: false,
-        },
-        false,
-      )
-      if (!safe.allowed) return toolFailure(safe.reason ?? run.modelText.protectedRefused)
-    }
-    for (const path of [plan.target, ...plan.sources]) {
-      const current = await confineWorkspacePath(
-        this.deps.workspaceRoot,
-        path.absolute,
-        this.deps.platform,
-        this.deps.io,
-      )
-      if (!current.ok || current.checkedAbsolute !== path.checkedAbsolute) {
-        return toolFailure(FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval)
-      }
-    }
-    // A scheduled fire reserves through its own ledger, never the session cap.
-    if (run === undefined) await this.refreshBudgetSpend()
-    const price = Usd.from(PAID_PRICES_USD.imageGeneration).toAmount()
-    const capUsd = run === undefined ? this.currentBudgetCap() : Usd.from(0).toAmount()
-    if (
-      Usd.from(capUsd).compare(Usd.from(0)) > 0 &&
-      Usd.from(price).compare(Usd.from(capUsd).subtract(Usd.from(this.budgetSpentUsd))) > 0
-    ) {
-      throw new SessionBudgetExceededError(
-        fill(UI_TEXT.sessionBudgetStopped, {
-          estimate: formatUsd(price),
-          cap: formatUsd(capUsd),
-          spent: formatUsd(this.budgetSpentUsd),
-        }),
-      )
-    }
-    const owner = this.budgetOwner()
-    const scope = this.deps.budgetScope
-    const accountId = run?.paid?.accountId ?? scope?.accountId ?? owner.budgetAccountId
-    const journal = this.budgetJournal()
-    const metaKeyDigest = this.modelId.includes('/')
-      ? await this.deps.client.currentKeyDigest()
-      : accountId
-    const selectedKeyDigest = this.modelKeyDigests.get(selected.ref)
-    const claim =
-      run === undefined && accountId !== undefined && journal !== undefined
-        ? await journal.reserve(scope?.sessionId ?? owner.sessionId, accountId, price)
-        : undefined
-    const goalRevision = this.goalCommandRevision
-    const isTrusted = this.deps.isWorkspaceTrusted()
-    const imageState = { isSent: false, isBilled: false }
-    let startedAt: number | undefined
-    let isRefused = false
-    let hasReturned = false
-    let egressRefusal: ToolOutcome | undefined
     try {
-      if (scope === undefined && Usd.from(capUsd).compare(Usd.from(0)) > 0) {
-        await this.onPersisted('budget')
+      const revision = this.modelRevision
+      const selected = this.selectedModel()
+      const run = this.active?.scheduleRun
+      const touched: TouchedFiles = {
+        names: [plan.target, ...plan.sources].flatMap((file) => [file.relative, file.canonical]),
+        complete: true,
       }
-      const outcome = await runImageCall(plan, {
-        client: this.client,
-        io: this.scheduledIo(this.toolWrites()?.io ?? this.deps.io),
-        signal,
-        isStillOn: () => this.deps.isPaidFeatureOn('imageGeneration'),
-        admitAttempt: Object.assign(
-          (keyDigest: string | undefined) => {
-            // Image transport retries only an explicit 429. The preceding
-            // attempt then admitted no work, including if this retry is refused.
-            imageState.isSent = false
-            if (
-              keyDigest !== metaKeyDigest ||
-              !selected.isCurrent() ||
-              this.deps.hasMetaCredential?.() === false ||
-              signal.aborted ||
-              this.isDisposed ||
-              revision !== this.modelRevision ||
-              goalRevision !== this.goalCommandRevision ||
-              isTrusted !== this.deps.isWorkspaceTrusted() ||
-              this.active?.scheduleRun !== run ||
-              run?.isActive() === false ||
-              !this.deps.isPaidFeatureOn('imageGeneration') ||
-              scope?.isStillAllowed(selected.ref.includes('/') ? selectedKeyDigest : keyDigest) ===
-                false
-            ) {
-              throw new AbortedError()
-            }
-            if (
-              run === undefined &&
-              claim === undefined &&
-              Usd.from(this.currentBudgetCap()).compare(Usd.from(0)) > 0
-            ) {
-              throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
-            }
-            claim?.check(this.currentBudgetCap())
-            // The egress fence, last: the client builds and sends with no await.
-            egressRefusal ??= this.policyRefusal(admission, touched.names)
-            if (egressRefusal !== undefined) {
-              throw new AbortedError()
-            }
-          },
+      if (run !== undefined) {
+        const safe = await run.decide(
           {
-            onRequestStarted: () => {
-              imageState.isSent = true
-              startedAt ??= this.deps.now()
-            },
+            id: this.deps.newId(),
+            class: 'paidExtra',
+            tool: 'imageGeneration',
+            paths: [plan.target, ...plan.sources].map((file) => file.canonical),
+            requiresAsking: false,
+            protectedPath: false,
           },
-        ),
-        onBilled: () => {
-          imageState.isBilled = true
-          this.notifyUsage(() => {
-            this.deps.notePaidUse('imageGeneration', 1)
-          })
-        },
-      })
-      hasReturned = true
-      return { ...outcome, touched }
-    } catch (error: unknown) {
-      if (egressRefusal !== undefined) {
-        return egressRefusal
+          false,
+        )
+        if (!safe.allowed) return toolFailure(safe.reason ?? run.modelText.protectedRefused)
       }
-      isRefused =
-        isModelApiError(error) &&
-        (error.status === HTTP_STATUS.badRequest || error.status === HTTP_TOO_MANY_REQUESTS)
-      throw error
-    } finally {
-      const charged =
-        imageState.isBilled || (!hasReturned && !isRefused && imageState.isSent)
-          ? price
-          : Usd.from(0).toAmount()
+      for (const path of [plan.target, ...plan.sources]) {
+        const current = await confineWorkspacePath(
+          this.deps.workspaceRoot,
+          path.absolute,
+          this.deps.platform,
+          this.deps.io,
+        )
+        if (!current.ok || current.checkedAbsolute !== path.checkedAbsolute) {
+          return toolFailure(FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval)
+        }
+      }
+      // A scheduled fire reserves through its own ledger, never the session cap.
+      if (run === undefined) await this.refreshBudgetSpend()
+      const price = Usd.from(PAID_PRICES_USD.imageGeneration).toAmount()
+      const capUsd = run === undefined ? this.currentBudgetCap() : Usd.from(0).toAmount()
       if (
-        startedAt !== undefined &&
-        this.deps.hasExternalPaidRecording !== true &&
-        !imageState.isBilled &&
-        isPositiveUsd(charged)
+        Usd.from(capUsd).compare(Usd.from(0)) > 0 &&
+        Usd.from(price).compare(Usd.from(capUsd).subtract(Usd.from(this.budgetSpentUsd))) > 0
       ) {
-        recordPaidUse(this.deps.usageRecording, 'imageGeneration', 1, {
-          session: this.sessionId,
-          startedAt,
-          durationMs: Math.max(0, this.deps.now() - startedAt),
-          outcome: signal.aborted ? 'cancelled' : 'failed',
-          uncertain: true,
-          retainedLiabilityUsd: charged,
+        throw new SessionBudgetExceededError(
+          fill(UI_TEXT.sessionBudgetStopped, {
+            estimate: formatUsd(price),
+            cap: formatUsd(capUsd),
+            spent: formatUsd(this.budgetSpentUsd),
+          }),
+        )
+      }
+      const owner = this.budgetOwner()
+      const scope = this.deps.budgetScope
+      const accountId = run?.paid?.accountId ?? scope?.accountId ?? owner.budgetAccountId
+      const journal = this.budgetJournal()
+      const metaKeyDigest = this.modelId.includes('/')
+        ? await this.deps.client.currentKeyDigest()
+        : accountId
+      const selectedKeyDigest = this.modelKeyDigests.get(selected.ref)
+      const claim =
+        run === undefined && accountId !== undefined && journal !== undefined
+          ? await journal.reserve(scope?.sessionId ?? owner.sessionId, accountId, price)
+          : undefined
+      const goalRevision = this.goalCommandRevision
+      const isTrusted = this.deps.isWorkspaceTrusted()
+      const imageState = { isSent: false, isBilled: false }
+      let startedAt: number | undefined
+      let isRefused = false
+      let hasReturned = false
+      let egressRefusal: ToolOutcome | undefined
+      try {
+        if (scope === undefined && Usd.from(capUsd).compare(Usd.from(0)) > 0) {
+          await this.onPersisted('budget')
+        }
+        const outcome = await runImageCall(plan, {
+          client: this.client,
+          io: this.scheduledIo(this.toolWrites()?.io ?? this.deps.io),
+          signal,
+          isStillOn: () => this.deps.isPaidFeatureOn('imageGeneration'),
+          admitAttempt: Object.assign(
+            (keyDigest: string | undefined) => {
+              // Image transport retries only an explicit 429. The preceding
+              // attempt then admitted no work, including if this retry is refused.
+              imageState.isSent = false
+              if (
+                keyDigest !== metaKeyDigest ||
+                !selected.isCurrent() ||
+                this.deps.hasMetaCredential?.() === false ||
+                signal.aborted ||
+                this.isDisposed ||
+                revision !== this.modelRevision ||
+                goalRevision !== this.goalCommandRevision ||
+                isTrusted !== this.deps.isWorkspaceTrusted() ||
+                this.active?.scheduleRun !== run ||
+                run?.isActive() === false ||
+                !this.deps.isPaidFeatureOn('imageGeneration') ||
+                scope?.isStillAllowed(
+                  selected.ref.includes('/') ? selectedKeyDigest : keyDigest,
+                ) === false
+              ) {
+                throw new AbortedError()
+              }
+              if (
+                run === undefined &&
+                claim === undefined &&
+                Usd.from(this.currentBudgetCap()).compare(Usd.from(0)) > 0
+              ) {
+                throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+              }
+              claim?.check(this.currentBudgetCap())
+              // The egress fence, last: the client builds and sends with no await.
+              egressRefusal ??= this.policyRefusal(admission, touched.names)
+              if (egressRefusal !== undefined) {
+                throw new AbortedError()
+              }
+            },
+            {
+              onRequestStarted: () => {
+                imageState.isSent = true
+                startedAt ??= this.deps.now()
+              },
+            },
+          ),
+          onBilled: () => {
+            imageState.isBilled = true
+            this.notifyUsage(() => {
+              this.deps.notePaidUse('imageGeneration', 1)
+            })
+          },
         })
+        hasReturned = true
+        return { ...outcome, touched }
+      } catch (error: unknown) {
+        if (egressRefusal !== undefined) {
+          return egressRefusal
+        }
+        isRefused =
+          isModelApiError(error) &&
+          (error.status === HTTP_STATUS.badRequest || error.status === HTTP_TOO_MANY_REQUESTS)
+        throw error
+      } finally {
+        const charged =
+          imageState.isBilled || (!hasReturned && !isRefused && imageState.isSent)
+            ? price
+            : Usd.from(0).toAmount()
+        if (
+          startedAt !== undefined &&
+          this.deps.hasExternalPaidRecording !== true &&
+          !imageState.isBilled &&
+          isPositiveUsd(charged)
+        ) {
+          recordPaidUse(this.deps.usageRecording, 'imageGeneration', 1, {
+            session: this.sessionId,
+            startedAt,
+            durationMs: Math.max(0, this.deps.now() - startedAt),
+            outcome: signal.aborted ? 'cancelled' : 'failed',
+            uncertain: true,
+            retainedLiabilityUsd: charged,
+          })
+        }
+        this.budgetSpentUsd = sumUsd(this.budgetSpentUsd, charged)
+        if (imageState.isBilled) {
+          this.turnCostUsd = sumUsd(this.turnCostUsd, charged)
+        } else if (Usd.from(charged).compare(Usd.from(0)) > 0) {
+          this.warnUnknownCharge(charged)
+        }
+        if (run === undefined) this.recordBudgetCost(charged, claim)
+        await this.budgetWrites
+        if (claim !== undefined && scope === undefined) {
+          await this.onPersisted('refund')
+        }
       }
-      this.budgetSpentUsd = sumUsd(this.budgetSpentUsd, charged)
-      if (imageState.isBilled) {
-        this.turnCostUsd = sumUsd(this.turnCostUsd, charged)
-      } else if (Usd.from(charged).compare(Usd.from(0)) > 0) {
-        this.warnUnknownCharge(charged)
-      }
-      if (run === undefined) this.recordBudgetCost(charged, claim)
-      await this.budgetWrites
-      if (claim !== undefined && scope === undefined) {
-        await this.onPersisted('refund')
-      }
+    } finally {
+      this.giveSideSlot()
     }
   }
 
@@ -8862,39 +8896,44 @@ export class ModelApiSession implements ScheduledAgentSession {
     // skipped call is a failed hook answer, never an empty success the hook
     // parser would read as no objection. Reached only by a caller that
     // bypassed the gate; `runModelHandler` turns the throw into `failed`,
-    // so the hook's own on-failure rule still decides.
-    if (this.isWrapUpSlotReserved()) {
+    // so the hook's own on-failure rule still decides. The take-or-refuse
+    // also holds across a racing second hook-model call.
+    if (!this.takeSideSlot()) {
       throw new Error('the hook model call would take the reserved final request')
     }
-    // The run is tallied when the gate allowed it; the request observer below
-    // counts its attempts for the client's own budget, nothing more.
-    const turnId = this.active?.turnId ?? this.turnIds.at(-1) ?? this.sessionId
-    return await runHookModel(
-      {
-        deps: this.deps,
-        tools: kind === 'agent' ? this.hookModelTools() : [],
-        table: UI_TEXT,
-        locale: uiLocale(),
-        executeReadOnlyTool: async (name, argsJson, toolSignal) =>
-          await this.executeHookModelTool(name, argsJson, toolSignal),
-        ...this.paidModelObservers(turnId),
-      },
-      { kind, system, user },
-      event,
-      turnId,
-      signal,
-      {
-        modelId,
-        keyDigest,
-        runKind: 'hookModel',
-        isStillAllowed: () => isCurrent() && this.isPaidBudgetAllowed(budgetScope, keyDigest),
-        onRequestStarted: () => {
-          // Hook runs are counted by the consenting dispatcher.
+    try {
+      // The run is tallied when the gate allowed it; the request observer below
+      // counts its attempts for the client's own budget, nothing more.
+      const turnId = this.active?.turnId ?? this.turnIds.at(-1) ?? this.sessionId
+      return await runHookModel(
+        {
+          deps: this.deps,
+          tools: kind === 'agent' ? this.hookModelTools() : [],
+          table: UI_TEXT,
+          locale: uiLocale(),
+          executeReadOnlyTool: async (name, argsJson, toolSignal) =>
+            await this.executeHookModelTool(name, argsJson, toolSignal),
+          ...this.paidModelObservers(turnId),
         },
-      },
-      budgetScope,
-      isCurrent,
-    )
+        { kind, system, user },
+        event,
+        turnId,
+        signal,
+        {
+          modelId,
+          keyDigest,
+          runKind: 'hookModel',
+          isStillAllowed: () => isCurrent() && this.isPaidBudgetAllowed(budgetScope, keyDigest),
+          onRequestStarted: () => {
+            // Hook runs are counted by the consenting dispatcher.
+          },
+        },
+        budgetScope,
+        isCurrent,
+      )
+    } finally {
+      this.giveSideSlot()
+    }
   }
 
   /** The IDE tool in process, or the MCP server's tool over its connection (M50). */
@@ -13604,14 +13643,41 @@ export class ModelApiSession implements ScheduledAgentSession {
    * caller allowance they cannot take the slot and the gate stays off,
    * whatever the turn's own limit says.
    */
-  private isWrapUpSlotReserved(): boolean {
-    if (this.compacting !== undefined) return false
-    // Without a caller allowance (interactive turns) side work is
-    // ledger-free: nothing to keep.
+  /**
+   * Calls remaining on the caller ledger for the turn's own next request:
+   * undefined while compacting or with no caller allowance (interactive
+   * turns), where side work is ledger-free and nothing is kept.
+   */
+  private callerTurnLeft(): number | undefined {
+    if (this.compacting !== undefined) return undefined
     const callerLeft = this.callerModelCallsLeft()
-    if (callerLeft === undefined) return false
+    if (callerLeft === undefined) return undefined
     const turn = this.active
-    return (turn === undefined ? callerLeft : this.modelCallsLeft(turn)) <= 1
+    return turn === undefined ? callerLeft : this.modelCallsLeft(turn)
+  }
+
+  private isWrapUpSlotReserved(): boolean {
+    const left = this.callerTurnLeft()
+    return left !== undefined && left <= 1
+  }
+
+  /**
+   * Synchronous take-or-refuse for caller-ledger side work (reviewer,
+   * hook-model, image): the take and the refusal live in the same
+   * synchronous block, so two concurrent side calls from parallel tool
+   * calls cannot both pass with two calls left — the first takes the
+   * reservation and the second sees one left and refuses, keeping the
+   * turn's last request for the wrap-up. Release with `giveSideSlot` in a
+   * `finally` around the side call.
+   */
+  private takeSideSlot(): boolean {
+    const left = this.callerTurnLeft()
+    return left === undefined || canReserveSideSlot(this.sideReservation, left)
+  }
+
+  /** Release a slot taken by `takeSideSlot`; never drops below zero. */
+  private giveSideSlot(): void {
+    this.sideReservation.reserved = Math.max(0, this.sideReservation.reserved - 1)
   }
 
   /**

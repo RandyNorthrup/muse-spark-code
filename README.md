@@ -3948,13 +3948,21 @@ ACP and headless Model API/BYO requests share a hard local-day budget in the age
 ## Limits
 
 Model API turns reserve their last permitted call for an answer without tools:
-what is done, what was found, and what remains. The answer stays in the chat;
-a translated notice explains that sending a message continues it. ACP returns
+what is done, what was found, and what remains. The phase is decided where every
+request is built, so every request sent after a call went out observes it: the
+last permitted call always goes out tools-less on every failure path — first
+attempt, HTTP retry, whole-stream retry, media recovery and overflow recovery
+alike — and a capped turn's reply is never reused as a verdict, review,
+draft or landing. The answer stays in the chat;
+a translated notice explains that sending a message continues it. If the wrap-up
+request itself cannot be completed (rate limit, model error, money stop, hook
+stop), the turn still ends at the limit but says the summary could not be
+produced and why. ACP returns
 `max_turn_requests`; headless exec reports `request_cap` (exit 5) with the answer.
 The default is 200 model calls per turn. Existing caller request allowances
 replace that default with what remains: `exec --max-requests` (default 30,
-range 1–500) and best-of-N attempts. The turn's first model
-call always runs with tools, even when it is also the last one allowed: an
+range 1–500) and best-of-N attempts (production ACP binds none). The turn's first
+model call always runs with tools, even when it is also the last one allowed: an
 answer completes the turn (exec exit 0), while a tool request ends it at the
 request cap, said plainly. Stop hooks still run on a wrap-up turn; a hook
 asking for more work cannot be honoured past the limit, and the notice says so.
