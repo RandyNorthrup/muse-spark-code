@@ -5595,5 +5595,13 @@
   },
   "execProviderNotCatalogue": "Этой модели нет в каталоге данной сборки: {model}.",
   "providerCliModelsRequired": "Укажите --model <id> (повторите для других моделей). Доступны: {models}.",
-  "providerCliConfigure": "Проверьте параметры: --preset {preset}, --model <id>, --key-stdin, --address <url>, --private-ok."
+  "providerCliConfigure": "Проверьте параметры: --preset {preset}, --model <id>, --key-stdin, --address <url>, --private-ok.",
+  "execProgressStarted": "Запрос {request} начат; зарезервировано {reserved}.",
+  "execProgressSettled": "Запрос {request} завершён; вход выполнения {input}, выход {output}; потрачено {settled}, неопределённо {uncertain}.",
+  "execProgressTokens": {
+    "one": "всего {count} токен",
+    "few": "всего {count} токена",
+    "many": "всего {count} токенов",
+    "other": "всего {count} токена"
+  }
 }

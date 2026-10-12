@@ -621,8 +621,10 @@ internal 1, usage/input 2 (no result), auth/backend unavailable 3, failed 4,
 budget/request refusal or breach 5, timeout 6, fail-on-denial 7, incomplete 8,
 accounting unverified 9, SIGINT 130 and SIGTERM 143. Only latest clean verified
 completion plus ACP end_turn authorizes Model API success; uncertain receipts
-retain full reservation. No raw tool text leaves exec; cut-short prose is
-withheld whole. Windows POSIX signal e2e is explicitly skipped. On Windows a
+retain full reservation. No raw tool text leaves exec. Stopped runs return the
+redacted partial answer with `finalMessageComplete: false` and their non-success
+exit and accounting. JSON mode prints request progress on stderr; stdout remains
+one JSON result. Structured output is withheld until it validates. Windows POSIX signal e2e is explicitly skipped. On Windows a
 forced stop ends the process with exit 1 and may lose buffered output; a
 delivered result keeps its first-stop status and logical exit code.
 

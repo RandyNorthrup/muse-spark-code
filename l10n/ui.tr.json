@@ -5285,5 +5285,11 @@
   },
   "execProviderNotCatalogue": "Bu model bu derlemenin kataloğunda yok: {model}.",
   "providerCliModelsRequired": "--model <id> kullanın (ek modeller için tekrarlayın). Kullanılabilir: {models}.",
-  "providerCliConfigure": "Şu seçenekleri kontrol edin: --preset {preset}, --model <id>, --key-stdin, --address <url>, --private-ok."
+  "providerCliConfigure": "Şu seçenekleri kontrol edin: --preset {preset}, --model <id>, --key-stdin, --address <url>, --private-ok.",
+  "execProgressStarted": "İstek {request} başladı; {reserved} ayrıldı.",
+  "execProgressSettled": "İstek {request} bitti; çalıştırma girdisi {input}, çıktısı {output}; harcanan {settled}, belirsiz {uncertain}.",
+  "execProgressTokens": {
+    "one": "toplam {count} token",
+    "other": "toplam {count} token"
+  }
 }

@@ -5595,5 +5595,13 @@
   },
   "execProviderNotCatalogue": "Tego modelu nie ma w katalogu tej wersji: {model}.",
   "providerCliModelsRequired": "Użyj --model <id> (powtórz dla kolejnych modeli). Dostępne: {models}.",
-  "providerCliConfigure": "Sprawdź opcje: --preset {preset}, --model <id>, --key-stdin, --address <url>, --private-ok."
+  "providerCliConfigure": "Sprawdź opcje: --preset {preset}, --model <id>, --key-stdin, --address <url>, --private-ok.",
+  "execProgressStarted": "Żądanie {request} rozpoczęte; zarezerwowano {reserved}.",
+  "execProgressSettled": "Żądanie {request} zakończone; wejście wykonania {input}, wyjście {output}; wydano {settled}, niepewne {uncertain}.",
+  "execProgressTokens": {
+    "one": "łącznie {count} token",
+    "few": "łącznie {count} tokeny",
+    "many": "łącznie {count} tokenów",
+    "other": "łącznie {count} tokena"
+  }
 }

@@ -4160,6 +4160,10 @@ export const EN = {
     '  --no-events          Leave the recent events out',
   ].join('\n'),
   // M80 (PLAN.md D65): the headless exec and scan-secrets commands.
+  execProgressStarted: 'Request {request} started; {reserved} reserved.',
+  execProgressSettled:
+    'Request {request} ended; run input {input}, output {output}; {settled} spent, {uncertain} uncertain.',
+  execProgressTokens: forms({ one: '{count} token in total', other: '{count} tokens in total' }),
   execTokenCount: forms({ one: 'at most {count} token', other: 'at most {count} tokens' }),
   execBudgetQuote:
     'Input {inputTokens} ({inputCost}) + output cap {outputTokens} ({outputCost}) = {estimate}; run cap {cap}, {spent} used. Request not sent.',

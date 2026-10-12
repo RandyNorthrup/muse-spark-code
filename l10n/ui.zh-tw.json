@@ -5130,5 +5130,10 @@
   },
   "execProviderNotCatalogue": "此模型不在此版本的目錄中：{model}。",
   "providerCliModelsRequired": "使用 --model <id>（多個模型可重複指定）。可用模型：{models}。",
-  "providerCliConfigure": "檢查這些選項：--preset {preset}, --model <id>, --key-stdin, --address <url>, --private-ok。"
+  "providerCliConfigure": "檢查這些選項：--preset {preset}, --model <id>, --key-stdin, --address <url>, --private-ok。",
+  "execProgressStarted": "請求 {request} 已開始；已預留 {reserved}。",
+  "execProgressSettled": "請求 {request} 已結束；執行輸入 {input}，輸出 {output}；已花費 {settled}，未確定 {uncertain}。",
+  "execProgressTokens": {
+    "other": "共 {count} 個權杖"
+  }
 }

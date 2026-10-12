@@ -150,7 +150,8 @@ event variant against a structural mirror of the event schema, parity-tested.
 | terminal, incompleteReason                                  | Latest response/tap terminal and reason, or null.                                                                                                                                                                                         |
 | backend, mode, model                                        | museCode/modelApi; plan/acceptEdits; selected id or null before selection.                                                                                                                                                                |
 | sessionId, ephemeral                                        | string or null; boolean.                                                                                                                                                                                                                  |
-| finalMessage                                                | Whole redacted released final message or fixed withholding line.                                                                                                                                                                          |
+| finalMessage                                                | Redacted final or partial answer, or the withholding line for structured output.                                                                                                                                                          |
+| finalMessageComplete                                        | Whether the final answer is complete; false on a stopped or unverified run.                                                                                                                                                               |
 | filesChanged                                                | Deduplicated relative paths from edit locations/tap; not a secret-scan claim.                                                                                                                                                             |
 | denials                                                     | {toolCallId,title,kind,paths:string[]} rows; paths relative.                                                                                                                                                                              |
 | questionsDeclined                                           | Nonnegative integer.                                                                                                                                                                                                                      |
@@ -179,12 +180,11 @@ event variant against a structural mirror of the event schema, parity-tested.
 | result            | one ExecResult                                                                                                    |
 
 Agent message/thought chunks and all ACP tool text/content/rawInput/rawOutput/
-diffs/resources are suppressed. Tool events carry metadata only. Complete prose
-is released only against its own response's completed terminal and clean EOF.
-Every incomplete/failed/cut-short item is withheld whole as
-“message withheld: the response did not complete”; a final withheld item cannot
-be replaced with an earlier successful message. Completed prose with missing
-usage may be redacted and shown, but exit 9 never authorizes Action publication.
+diffs/resources are suppressed. Tool events carry metadata only. Incomplete message events remain withheld. The final result preserves the latest
+redacted partial answer with `finalMessageComplete: false`, its non-success exit
+and full unsettled liability. Structured output stays withheld until valid.
+Partial text and completed text with missing usage never authorize Action
+publication; the exit/status checks still govern it.
 Every egress sink replaces longest exact literals first, then known Meta/auth/
 JWT/field/URL/GitHub/AWS/Slack patterns. Each exact literal is also matched in
 its percent-encoded form, and in the form an earlier pattern-only pass left of
@@ -790,3 +790,7 @@ journal is unavailable rather than a fabricated pass. CI network collection is
 refused by the report binding, even with `--network`; CI credentials are never
 passed to report tools. Approved service captures and installed native editor
 receipts remain separate certification requirements.
+
+In `--output json`, request start/end progress appears on stderr with the
+reservation, token totals and settled/uncertain cost. Stdout remains one JSON
+result. No progress contains a prompt, provider key or raw tool output.

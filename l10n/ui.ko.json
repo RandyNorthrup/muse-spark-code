@@ -5130,5 +5130,10 @@
   },
   "execProviderNotCatalogue": "이 모델은 이 빌드의 카탈로그에 없습니다: {model}.",
   "providerCliModelsRequired": "--model <id>를 사용하세요(모델마다 반복). 사용 가능: {models}.",
-  "providerCliConfigure": "옵션을 확인하세요: --preset {preset}, --model <id>, --key-stdin, --address <url>, --private-ok."
+  "providerCliConfigure": "옵션을 확인하세요: --preset {preset}, --model <id>, --key-stdin, --address <url>, --private-ok.",
+  "execProgressStarted": "요청 {request} 시작; {reserved} 예약됨.",
+  "execProgressSettled": "요청 {request} 종료; 실행 입력 {input}, 출력 {output}; 지출 {settled}, 불확실 {uncertain}.",
+  "execProgressTokens": {
+    "other": "총 {count}개 토큰"
+  }
 }

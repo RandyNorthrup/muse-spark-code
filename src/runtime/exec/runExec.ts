@@ -1145,6 +1145,10 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
           !last.endedWithoutTerminal &&
           last.httpStatus === null &&
           last.usage !== 'invalid'
+    const partial =
+      status === 'completed'
+        ? undefined
+        : tap?.releasedMessages(true).findLast((item) => item.kind === 'agentMessage')
     const result: ExecResult = {
       v: EXEC_PROTOCOL_VERSION,
       status,
@@ -1159,7 +1163,8 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       sessionId: setup.sessionId,
       ephemeral: options.ephemeral,
       ...(options.ephemeral && { usageHistory: 'omitted_ephemeral' as const }),
-      finalMessage: hasCompleteResponse ? '' : UI_TEXT.execMessageWithheld,
+      finalMessage: partial?.text ?? (hasCompleteResponse ? '' : UI_TEXT.execMessageWithheld),
+      finalMessageComplete: status === 'completed',
       filesChanged: [...filesChanged],
       denials,
       questionsDeclined,

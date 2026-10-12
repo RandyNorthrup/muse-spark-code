@@ -5130,5 +5130,10 @@
   },
   "execProviderNotCatalogue": "此模型不在此版本的目录中：{model}。",
   "providerCliModelsRequired": "使用 --model <id>（多个模型可重复指定）。可用模型：{models}。",
-  "providerCliConfigure": "检查这些选项：--preset {preset}, --model <id>, --key-stdin, --address <url>, --private-ok。"
+  "providerCliConfigure": "检查这些选项：--preset {preset}, --model <id>, --key-stdin, --address <url>, --private-ok。",
+  "execProgressStarted": "请求 {request} 已开始；已预留 {reserved}。",
+  "execProgressSettled": "请求 {request} 已结束；运行输入 {input}，输出 {output}；已花费 {settled}，未确定 {uncertain}。",
+  "execProgressTokens": {
+    "other": "共 {count} 个令牌"
+  }
 }

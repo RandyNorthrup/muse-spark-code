@@ -115,6 +115,7 @@ export interface ExecResult {
   ephemeral: boolean
   usageHistory?: 'omitted_ephemeral' | undefined
   finalMessage: string
+  finalMessageComplete?: boolean | undefined
   output?: { value: z.core.util.JSONType; validation: 'provider' | 'local' } | undefined
   filesChanged: string[]
   denials: ExecDenial[]
@@ -475,6 +476,7 @@ export const execResultSchema: z.ZodMiniType<ExecResult> = z
     ephemeral: z.boolean(),
     usageHistory: z.optional(z.literal('omitted_ephemeral')),
     finalMessage: z.string(),
+    finalMessageComplete: z.optional(z.boolean()),
     output: z.optional(
       z.strictObject({ value: outputJsonSchema, validation: z.enum(['provider', 'local']) }),
     ),

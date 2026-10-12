@@ -5285,5 +5285,11 @@
   },
   "execProviderNotCatalogue": "Dieses Modell fehlt im Katalog dieses Builds: {model}.",
   "providerCliModelsRequired": "Verwenden Sie --model <id> (für weitere Modelle wiederholen). Verfügbar: {models}.",
-  "providerCliConfigure": "Prüfen Sie diese Optionen: --preset {preset}, --model <id>, --key-stdin, --address <url>, --private-ok."
+  "providerCliConfigure": "Prüfen Sie diese Optionen: --preset {preset}, --model <id>, --key-stdin, --address <url>, --private-ok.",
+  "execProgressStarted": "Anfrage {request} gestartet; {reserved} reserviert.",
+  "execProgressSettled": "Anfrage {request} beendet; Eingabe im Lauf {input}, Ausgabe {output}; {settled} ausgegeben, {uncertain} ungewiss.",
+  "execProgressTokens": {
+    "one": "insgesamt {count} Token",
+    "other": "insgesamt {count} Tokens"
+  }
 }

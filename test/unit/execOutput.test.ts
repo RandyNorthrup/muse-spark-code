@@ -7,6 +7,8 @@ import {
   validateSchemaEvent,
 } from '../../src/runtime/exec/execOutput'
 import { compileOutputSchema, type OutputSchema } from '../../src/runtime/exec/outputSchema'
+import { createRunLedger } from '../../src/runtime/exec/runLedger'
+import { Usd } from '../../src/shared/usd'
 import { execEventSchema } from '../../src/runtime/exec/execProtocol'
 import { UI_TEXT } from '../../src/shared/constants'
 import { outputWriter, resultRecord } from './helpers/execContract'
@@ -533,5 +535,78 @@ describe('M80 egress (A12–A14, A17, A19, A20)', () => {
     ])
     createExecLogger({ stderr, literals: () => literals, verbose: true }).trace(KEY)
     expect(stderr.chunks.at(-1)).toBe('[trace] [redacted]\n')
+  })
+})
+
+describe('exec operator progress and partial answers', () => {
+  it('reports admission and settlement before the single JSON stdout result', async () => {
+    const h = harness('json')
+    const ledger = createRunLedger({ capUsd: Usd.from(1).toAmount(), maxRequests: 1 })
+    const ticket = ledger.admitResponse({
+      model: 'muse-spark',
+      maxOutputTokens: 64,
+      contextTokens: 100,
+      reserveUsd: Usd.from(0.001).toAmount(),
+      price: {
+        input: Usd.from(1).toAmount(),
+        cachedInput: Usd.from(1).toAmount(),
+        output: Usd.from(2).toAmount(),
+      },
+    })
+    if ('refused' in ticket) throw new Error('fixture admission')
+    h.sink.emit({
+      type: 'attempt',
+      n: ticket.n,
+      endpoint: 'responses',
+      phase: 'admitted',
+      reservedUsd: ticket.reserveUsd,
+      totals: ledger.totals(),
+    })
+    expect(h.out.chunks).toEqual([])
+    expect(h.summary.mock.calls[0]?.[0]).toContain('Request 1 started')
+    const settlement = ledger.settleResponse(
+      ticket,
+      {
+        kind: 'eof',
+        parseInvalid: false,
+        terminal: 'completed',
+        incompleteReason: null,
+        usage: { input_tokens: 3, output_tokens: 2, input_tokens_details: { cached_tokens: 0 } },
+      },
+      { costUsd: Usd.from(0.000007).toAmount() },
+    )
+    h.sink.emit({
+      type: 'attempt',
+      n: ticket.n,
+      endpoint: 'responses',
+      phase: 'settled',
+      reservedUsd: ticket.reserveUsd,
+      outcome: settlement.outcome,
+      chargedUsd: settlement.chargedUsd,
+      totals: ledger.totals(),
+    })
+    expect(h.out.chunks).toEqual([])
+    expect(h.summary.mock.calls[1]?.[0]).toContain('3 tokens')
+    expect(h.summary.mock.calls[1]?.[0]).toContain('2 tokens')
+    expect(h.summary.mock.calls[1]?.[0]).toContain('0.000007')
+    await h.sink.finish(resultRecord())
+    expect(h.out.chunks).toHaveLength(1)
+    expect(JSON.parse(h.out.chunks[0] ?? '')).toMatchObject({ status: 'completed' })
+  })
+  it('keeps a stopped partial answer incomplete and redacts its full credential literal', async () => {
+    const h = harness('json')
+    await h.sink.finish({
+      ...resultRecord(),
+      status: 'timeout',
+      exitCode: 6,
+      error: { kind: 'timeout', message: 'synthetic timeout' },
+      finalMessage: `partial ${KEY}`,
+      finalMessageComplete: false,
+    })
+    expect(JSON.parse(h.out.chunks.join(''))).toMatchObject({
+      status: 'timeout',
+      finalMessage: 'partial [redacted]',
+      finalMessageComplete: false,
+    })
   })
 })

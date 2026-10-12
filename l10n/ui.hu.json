@@ -5285,5 +5285,11 @@
   },
   "execProviderNotCatalogue": "Ez a modell nem szerepel ennek a verziónak a katalógusában: {model}.",
   "providerCliModelsRequired": "Használja a --model <id> kapcsolót (további modellekhez ismételje meg). Elérhető: {models}.",
-  "providerCliConfigure": "Ellenőrizze a kapcsolókat: --preset {preset}, --model <id>, --key-stdin, --address <url>, --private-ok."
+  "providerCliConfigure": "Ellenőrizze a kapcsolókat: --preset {preset}, --model <id>, --key-stdin, --address <url>, --private-ok.",
+  "execProgressStarted": "A(z) {request}. kérés elindult; lefoglalva: {reserved}.",
+  "execProgressSettled": "A(z) {request}. kérés véget ért; a futás bemenete {input}, kimenete {output}; elköltve {settled}, bizonytalan {uncertain}.",
+  "execProgressTokens": {
+    "one": "összesen {count} token",
+    "other": "összesen {count} token"
+  }
 }
