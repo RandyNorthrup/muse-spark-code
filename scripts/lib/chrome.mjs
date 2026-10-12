@@ -16,7 +16,12 @@ const CHROME_CANDIDATES = {
       process.env['ProgramFiles(x86)'] ?? String.raw`C:\Program Files (x86)`,
       'Google/Chrome/Application/chrome.exe',
     ),
-    path.join(process.env.LOCALAPPDATA ?? '', 'Google/Chrome/Application/chrome.exe'),
+    // MUSE_UNIT_REAL_LOCALAPPDATA is the pre-redirect value the unit setup
+    // saved: a per-user Chrome stays visible while tests run redirected.
+    path.join(
+      process.env.MUSE_UNIT_REAL_LOCALAPPDATA ?? process.env.LOCALAPPDATA ?? '',
+      'Google/Chrome/Application/chrome.exe',
+    ),
   ],
   darwin: ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'],
   linux: ['google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser'],

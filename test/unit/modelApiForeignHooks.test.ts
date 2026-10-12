@@ -29,6 +29,7 @@ import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
 import { watchSessionTurns } from './helpers/sessionTurns'
 import { expectEnded, isRunning, markedPid } from './helpers/processes'
 import { importedHooks } from './helpers/sparkHooks'
+import { hasPluginNode, noteToolSkip } from './helpers/realMachine'
 
 const ROOT = '/ws'
 
@@ -249,12 +250,8 @@ describe('imported hooks in a Model API session', () => {
 // `error` stops the thread worker (amp_plugin-api.md:1978): the tool never
 // runs and the turn ends with the plugin's reason. The session's dispose ends
 // plugin children still running. Real children under this node.
-const VERSION_MATCH = /^v(\d+)\.(\d+)\./.exec(process.version)
-const HAS_PLUGIN_NODE =
-  process.platform !== 'win32' &&
-  VERSION_MATCH !== null &&
-  (Number(VERSION_MATCH[1]) > 22 ||
-    (Number(VERSION_MATCH[1]) === 22 && Number(VERSION_MATCH[2]) >= 18))
+const HAS_PLUGIN_NODE = hasPluginNode()
+noteToolSkip('a supported Node.js', 'plugin hooks in a Model API session', HAS_PLUGIN_NODE)
 const BASH_CALL = { calls: [{ name: 'bash', arguments: JSON.stringify({ command: 'echo hi' }) }] }
 
 /** An Amp plugin whose tool.call handler is `handler`, as the importer writes it. */

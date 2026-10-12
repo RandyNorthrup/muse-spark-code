@@ -5,7 +5,7 @@
 // and arguments included. Real children run under this node (OpenCode's bun
 // stood in for), each in its own process group; no model is called.
 
-import { existsSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -35,18 +35,16 @@ import {
   PLUGIN_CHILD_MAX_MEMORY_BYTES,
 } from '../../src/shared/constants'
 import { expectEnded, markedPid } from './helpers/processes'
+import { bunPath, hasPluginNode, noteToolSkip } from './helpers/realMachine'
 
 const ROOT = '/ws'
-const VERSION_MATCH = /^v(\d+)\.(\d+)\./.exec(process.version)
-const HAS_NODE =
-  VERSION_MATCH !== null &&
-  (Number(VERSION_MATCH[1]) > 22 ||
-    (Number(VERSION_MATCH[1]) === 22 && Number(VERSION_MATCH[2]) >= 18))
-const IS_REAL = HAS_NODE && process.platform !== 'win32'
-/** The installed bun, where a rig has one (Kubuntu's ~/.bun); CI has none. */
-const BUN = [path.join(process.env['HOME'] ?? '', '.bun', 'bin', 'bun')].find((file) =>
-  existsSync(file),
-)
+const IS_REAL = hasPluginNode()
+/**
+ * The installed bun on the real machine, where it has one (a rig's `~/.bun`);
+ * read through the home redirect, never from it. CI has none.
+ */
+const BUN = bunPath()
+noteToolSkip('bun', 'OpenCode under the installed bun', BUN !== undefined)
 
 function group(
   format: string,

@@ -18,6 +18,7 @@ import {
   parseWithPowerShell,
   windowsPowerShell,
 } from './helpers/shellParsers'
+import { noteToolSkip } from './helpers/realMachine'
 
 type Row =
   | { readonly line: string; readonly commands: readonly (readonly string[])[] }
@@ -238,6 +239,7 @@ describe('commandShape: the command table (M78)', () => {
 })
 
 const powershell = windowsPowerShell()
+noteToolSkip('Windows PowerShell 5.1', 'the PowerShell table', powershell !== undefined)
 
 describe.runIf(powershell !== undefined)(
   'the PowerShell table against 5.1’s own parser (M78)',
@@ -269,6 +271,7 @@ describe.runIf(powershell !== undefined)(
 )
 
 const bash = findBash()
+noteToolSkip('bash', 'the bash table', bash !== undefined)
 
 describe.runIf(bash !== undefined)('the bash table against bash itself (M78)', () => {
   const plainRows = BASH_ROWS.filter((row) => 'commands' in row)

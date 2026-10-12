@@ -7,6 +7,6 @@
     "lib": ["ES2023"],
     "types": ["node", "vscode"]
   },
-  "include": ["src/**/*.ts", "vitest.config.ts"],
+  "include": ["src/**/*.ts", "vitest.config.ts", "vitest.live.config.ts"],
   "exclude": ["src/webview/**"]
 }
