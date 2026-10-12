@@ -7,6 +7,12 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Changed
+
+- The empty panel now shows the extension's own mark instead of Meta's logo,
+  filling the original logo box and staying blue with at least 3:1 contrast
+  in ordinary themes; high contrast and forced colours use the foreground.
+
 ### Pending
 
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
