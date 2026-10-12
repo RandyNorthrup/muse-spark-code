@@ -7,9 +7,27 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- **Accounts and security reports join the working report kinds** (REPORTJOIN).
+  `/report accounts` and `/report security` are listed in command Help, the
+  ACP report entry, the editor picker and the README kind table, in all
+  fourteen languages. Fleet, estimate, playbook, issues and schedules stay
+  dormant: parsers and history keep accepting every kind, but no Help,
+  picker, README or command mentions them until their branches land.
+
 ### Fixed
 
 - Report generations keep their requested language across overlapping reads and lazy input bundles; network bindings also belong to each generation (REPORTJOIN).
+
+- **Report sources stop on cancellation instead of racing it, and name held resources busy** (REPORTJOIN).
+  Every source read awaits its own settlement past an abort and performs no
+  further read, write or publish after one; each generation hands its sources
+  one abort signal and one deadline. A wait that outlasts its deadline with a
+  live holder reports busy, never cancelled; repeated refreshes leave no
+  waiting admission readers behind. Dollar-unit usage limits stay exact
+  decimals from journal to cell, and per-record fault isolation covers every
+  registered kind.
 
 - **Repeated report rows preserve saved identities without delaying the host** (CM1132R7).
   Duplicate suffixes reserve every original key, including later rows and

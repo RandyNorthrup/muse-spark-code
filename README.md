@@ -235,6 +235,8 @@ visible as unavailable.
 | Usage       | `/report usage today`; also `7d`, `30d`, `90d`, `week`, `month` or a date range |
 | Session     | `/report session`; `--session <id>` reads a stored session (terminal)           |
 | Keybindings | `/report keybindings`; editor bindings, panel gestures, ACP commands            |
+| Accounts    | `/report accounts`; provider accounts, limits, usage, swaps and confirmations   |
+| Security    | `/report security`; vault counts, grants, audits and developer audit            |
 
 Each table shows at most ten rows with an omitted-row count; `--full` retains
 all available rows. Accounts and security reads retain independently valid
