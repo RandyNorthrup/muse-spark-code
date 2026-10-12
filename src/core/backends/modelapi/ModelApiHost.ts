@@ -1634,6 +1634,14 @@ function describe(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
+/**
+ * The underlying failure's class for the log, never its text: a loader or
+ * constructor message can carry an absolute path or the call's own fields.
+ */
+function errorName(error: unknown): string {
+  return error instanceof Error ? error.name || 'Error' : 'unknown'
+}
+
 function isAuthFailure(error: unknown): boolean {
   return (
     error instanceof MissingApiKeyError ||
@@ -3082,8 +3090,13 @@ export class ModelApiSession implements ScheduledAgentSession {
   private async hookCallFields(): Promise<typeof ModelApiTools> {
     try {
       return await this.toolAssist()
-    } catch {
-      throw new Error(UI_TEXT.modelApiToolsUnavailable)
+    } catch (error) {
+      // The sentence promises log details: keep the cause's class beside the
+      // chunk named, never its text (a path, or the call's own fields).
+      this.deps.log.warn(
+        `The model call helpers could not be loaded (modelApiTools.js): ${errorName(error)}`,
+      )
+      throw new Error(UI_TEXT.modelApiToolsUnavailable, { cause: error })
     }
   }
 
@@ -3097,8 +3110,13 @@ export class ModelApiSession implements ScheduledAgentSession {
     try {
       const assist = await this.toolAssist()
       return new assist.ArgumentPreview(previewFields)
-    } catch {
-      throw new Error(UI_TEXT.modelApiToolsPreviewUnavailable)
+    } catch (error) {
+      // The sentence promises log details: keep the cause's class beside the
+      // chunk named, never its text (a path, or the call's own fields).
+      this.deps.log.warn(
+        `The model call helpers could not be loaded (modelApiTools.js): ${errorName(error)}`,
+      )
+      throw new Error(UI_TEXT.modelApiToolsPreviewUnavailable, { cause: error })
     }
   }
 

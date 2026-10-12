@@ -166,6 +166,7 @@ async function sendBackendTurn(
   readonly events: AgentEvent[]
   readonly api: FakeModelApi
   readonly manager: ModelApiBackendManager
+  readonly log: FakeLogOutputChannel
 }> {
   const t = managerFor(file, options.deps)
   const session = await startSession(t.manager)
@@ -173,7 +174,7 @@ async function sendBackendTurn(
   t.api.script(...options.scripts)
   await session.sendTurn([{ type: 'text', text: options.text }])
   await watched.turnDone()
-  return { events: watched.events, api: t.api, manager: t.manager }
+  return { events: watched.events, api: t.api, manager: t.manager, log: t.log }
 }
 
 /** A refused fetch through the helpers chunk: nothing fetched, and the model's next request carries the reason. */
@@ -318,7 +319,8 @@ describe('the Model API bundle (M57)', () => {
 
   it('refuses the turn with the helpers-unavailable words when it is missing (MODELAPIDIET)', async () => {
     setUiText({ ...EN, modelApiToolsUnavailable: 'Localized helpers failure.' }, 'de')
-    const { events, api, manager } = await sendBackendTurn(scratchBackend('missing'), {
+    const backend = scratchBackend('missing')
+    const { events, api, manager, log } = await sendBackendTurn(backend, {
       scripts: [{ text: 'Never sent' }],
       text: 'Say hello',
     })
@@ -330,6 +332,12 @@ describe('the Model API bundle (M57)', () => {
       }),
     )
     expect(api.responseBodies()).toHaveLength(0)
+    // RVMODELAPIDIETB P3: the sentence promises log details. The cause's
+    // class is logged with the chunk named; the loader's absolute path,
+    // which the module error carries, never reaches the log.
+    const logged = log.warn.mock.calls.map((call) => String(call[0])).join('\n')
+    expect(logged).toContain('modelApiTools.js')
+    expect(logged).not.toContain(path.dirname(backend))
     await manager.dispose()
   })
 
@@ -395,9 +403,9 @@ describe('the Model API bundle (M57)', () => {
     // The helpers chunk loads but its preview constructor throws: the turn
     // fails with the installed words, never a raw constructor error.
     setUiText({ ...EN, modelApiToolsPreviewUnavailable: 'Localized preview failure.' }, 'de')
-    const { events, manager } = await sendBackendTurn(
+    const { events, manager, log } = await sendBackendTurn(
       scratchBackend({
-        body: `module.exports = { ...require(${JSON.stringify(path.join(built.folder, 'modelApiToolsEntry.js'))}), ArgumentPreview: class { constructor() { throw new Error('sabotaged preview') } } };`,
+        body: `module.exports = { ...require(${JSON.stringify(path.join(built.folder, 'modelApiToolsEntry.js'))}), ArgumentPreview: class { constructor() { throw new Error('sabotaged preview canary-PROMPT-TEXT /tmp/canary-path') } } };`,
       }),
       {
         deps: {
@@ -420,6 +428,12 @@ describe('the Model API bundle (M57)', () => {
         reason: UI_TEXT.modelApiToolsPreviewUnavailable,
       }),
     )
+    // RVMODELAPIDIETB P3: the cause's class is logged with the chunk named;
+    // the constructor's text, standing in for prompt text, never reaches it.
+    const logged = log.warn.mock.calls.map((call) => String(call[0])).join('\n')
+    expect(logged).toContain('modelApiTools.js')
+    expect(logged).not.toContain('sabotaged preview')
+    expect(logged).not.toContain('canary-PROMPT-TEXT')
     await manager.dispose()
   })
 
