@@ -35,6 +35,8 @@ async function editSurface(
     defaultModel?: string | null
     flow?: 'Edit' | 'Change key' | 'Change key → Edit'
     confirmPrivateNetwork?: () => Promise<boolean>
+    /** The first credential-snapshot read fails with this, before Edit opens. */
+    snapshotFailure?: unknown
   } = {},
 ) {
   const folder = await mkdtemp(path.join(tmpdir(), 'models-edit-'))
@@ -84,6 +86,9 @@ async function editSurface(
   )
   const saved = vi.fn()
   const warnings: string[] = []
+  if (options.snapshotFailure !== undefined) {
+    vi.spyOn(providers, 'credentialSnapshot').mockRejectedValueOnce(options.snapshotFailure)
+  }
   const log = {
     trace: vi.fn(),
     info: vi.fn(),
@@ -633,6 +638,19 @@ describe('Saved custom provider Edit through the shared form and production stor
     await saveEditSurface()
     expect(providerWrite).toHaveBeenCalledOnce()
     expect(sessionBudget.writes).toEqual([])
+    host.dispose()
+  })
+
+  it('says the store failed instead of asking for a key when the edit snapshot cannot be read', async () => {
+    const { state, warnings, host } = await editSurface({
+      snapshotFailure: new Error('store down: synthetic-edit-key'),
+    })
+    await waitFor(() => {
+      expect(state().drafts.edits['custom']?.errors).toEqual([UI_TEXT.providerSaveSecretFailed])
+    })
+    expect(warnings.join('\n')).toContain('could not read a credential snapshot (Error)')
+    expect(warnings.join('\n')).not.toContain('synthetic-edit-key')
+    expect(JSON.stringify(state())).not.toContain('synthetic-edit-key')
     host.dispose()
   })
 
