@@ -1,0 +1,132 @@
+{
+  "helper": "<scratch>/inspect-capture-helper-XgiUou/muse-confine",
+  "rows": [
+    {
+      "program": "ls",
+      "argv": "ls -l .",
+      "exit": "exit 0",
+      "helperLines": ["{\"confined\":true,\"abi\":7,\"excluded\":0}"],
+      "refusal": null,
+      "programOutput": true,
+      "outputBytes": 59,
+      "binary": {
+        "configured": "/bin/ls",
+        "resolved": "/usr/lib/cargo/bin/coreutils/ls",
+        "owner": "root"
+      }
+    },
+    {
+      "program": "cat",
+      "argv": "cat allowed.txt",
+      "exit": "exit 0",
+      "helperLines": ["{\"confined\":true,\"abi\":7,\"excluded\":0}"],
+      "refusal": null,
+      "programOutput": true,
+      "outputBytes": 15,
+      "binary": {
+        "configured": "/bin/cat",
+        "resolved": "/usr/lib/cargo/bin/coreutils/cat",
+        "owner": "root"
+      }
+    },
+    {
+      "program": "head",
+      "argv": "head -n 1 allowed.txt",
+      "exit": "exit 0",
+      "helperLines": ["{\"confined\":true,\"abi\":7,\"excluded\":0}"],
+      "refusal": null,
+      "programOutput": true,
+      "outputBytes": 15,
+      "binary": {
+        "configured": "/usr/bin/head",
+        "resolved": "/usr/lib/cargo/bin/coreutils/head",
+        "owner": "root"
+      }
+    },
+    {
+      "program": "tail",
+      "argv": "tail -c 2 allowed.txt",
+      "exit": "exit 0",
+      "helperLines": ["{\"confined\":true,\"abi\":7,\"excluded\":0}"],
+      "refusal": null,
+      "programOutput": true,
+      "outputBytes": 2,
+      "binary": {
+        "configured": "/usr/bin/tail",
+        "resolved": "/usr/lib/cargo/bin/coreutils/tail",
+        "owner": "root"
+      }
+    },
+    {
+      "program": "wc",
+      "argv": "wc -l allowed.txt",
+      "exit": "exit 0",
+      "helperLines": ["{\"confined\":true,\"abi\":7,\"excluded\":0}"],
+      "refusal": null,
+      "programOutput": true,
+      "outputBytes": 14,
+      "binary": {
+        "configured": "/usr/bin/wc",
+        "resolved": "/usr/lib/cargo/bin/coreutils/wc",
+        "owner": "root"
+      }
+    },
+    {
+      "program": "stat",
+      "argv": "stat allowed.txt",
+      "exit": "exit 0",
+      "helperLines": ["{\"confined\":true,\"abi\":7,\"excluded\":0}"],
+      "refusal": null,
+      "programOutput": true,
+      "outputBytes": 357,
+      "binary": {
+        "configured": "/usr/bin/stat",
+        "resolved": "/usr/lib/cargo/bin/coreutils/stat",
+        "owner": "root",
+        "helperReport": true
+      }
+    },
+    {
+      "program": "du",
+      "argv": "du -s .",
+      "exit": "signal SIGABRT",
+      "helperLines": ["{\"confined\":true,\"abi\":7,\"excluded\":0}"],
+      "refusal": null,
+      "programOutput": false,
+      "outputBytes": 0,
+      "binary": {
+        "configured": "/usr/bin/du",
+        "resolved": "/usr/lib/cargo/bin/coreutils/du",
+        "owner": "root"
+      }
+    },
+    {
+      "program": "grep",
+      "argv": "grep -e ALLOWED allowed.txt",
+      "exit": "exit 0",
+      "helperLines": ["{\"confined\":true,\"abi\":7,\"excluded\":0}"],
+      "refusal": null,
+      "programOutput": true,
+      "outputBytes": 15,
+      "binary": {
+        "configured": "/bin/grep",
+        "resolved": "/usr/bin/grep",
+        "owner": "root"
+      }
+    },
+    {
+      "program": "find",
+      "argv": "find . -print",
+      "exit": "exit 0",
+      "helperLines": ["{\"confined\":true,\"abi\":7,\"excluded\":0}"],
+      "refusal": null,
+      "programOutput": true,
+      "outputBytes": 16,
+      "binary": {
+        "configured": "/usr/bin/find",
+        "resolved": "/usr/bin/find",
+        "owner": "root"
+      }
+    }
+  ]
+}
