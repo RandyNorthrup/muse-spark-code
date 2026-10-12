@@ -158,11 +158,11 @@ export function qualifyProviderModel(
   if (model === undefined || model === '') {
     return model
   }
-  const parsed = parseModelRef(model)
+  const parsed = parseModelRef(`${provider}/${model}`)
   if (parsed === undefined) {
     return undefined
   }
-  return parsed.providerId === 'meta' ? `${provider}/${model}` : model
+  return model.includes('/') ? model : `${provider}/${model}`
 }
 
 export function parseExec(

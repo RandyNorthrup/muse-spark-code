@@ -92,33 +92,43 @@ function assemblyInput(over: Partial<ProviderRunInput> = {}): ProviderRunInput {
 }
 
 describe('assembleProviderRun', () => {
-  it.each(['deepseek/v4', 'openrouter/deepseek/v4'])(
-    'resolves configured slash ID %s',
-    async (model) => {
-      const file = openRouterFile()
-      file.providers[0]?.models.push('deepseek/v4')
-      const assembled = await assembleProviderRun(
-        assemblyInput({
-          model,
-          readFile: () => Promise.resolve(JSON.stringify(file)),
-        }),
-      )
-      expect(assembled).toMatchObject({ ok: true, run: { modelRef: 'openrouter/deepseek/v4' } })
-      const command = parseCommandLine([
-        'exec',
-        '--backend',
-        'modelApi',
-        '--provider',
-        'openrouter',
-        '--model',
+  it.each([
+    ['deepseek/v4', 'deepseek/v4'],
+    ['openrouter/deepseek/v4', 'deepseek/v4'],
+    ['Qwen/Qwen3', 'Qwen/Qwen3'],
+    ['openrouter/Qwen/Qwen3', 'Qwen/Qwen3'],
+  ])('resolves configured slash ID %s', async (model, native) => {
+    const file = openRouterFile()
+    file.providers[0]?.models.push(native)
+    const assembled = await assembleProviderRun(
+      assemblyInput({
         model,
-        '--max-budget-usd',
-        '0.10',
-        'ready',
-      ])
-      expect(command.command).toBe('exec')
-    },
-  )
+        readFile: () => Promise.resolve(JSON.stringify(file)),
+      }),
+    )
+    expect(assembled).toMatchObject({ ok: true, run: { modelRef: `openrouter/${native}` } })
+    const command = parseCommandLine([
+      'exec',
+      '--backend',
+      'modelApi',
+      '--provider',
+      'openrouter',
+      '--model',
+      model,
+      '--max-budget-usd',
+      '0.10',
+      'ready',
+    ])
+    expect(command.command).toBe('exec')
+  })
+  it('refuses a native ID that is ambiguous with a qualified model', async () => {
+    const file = openRouterFile()
+    file.providers[0]?.models.push('openrouter/m1')
+    const assembled = await assembleProviderRun(
+      assemblyInput({ readFile: () => Promise.resolve(JSON.stringify(file)) }),
+    )
+    expect(assembled).toMatchObject({ ok: false, failure: { kind: 'usage' } })
+  })
   it('refuses a slash ID not configured on the selected provider', async () => {
     const assembled = await assembleProviderRun(assemblyInput({ model: 'groq/llama' }))
     expect(assembled).toMatchObject({ ok: false, failure: { kind: 'usage' } })
