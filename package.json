@@ -1789,7 +1789,7 @@
   },
   "scripts": {
     "clean": "rimraf dist coverage",
-    "build": "node scripts/check-tokens.mjs && node scripts/build.mjs --production && node scripts/check-bundle-size.mjs && node scripts/check-bundle-split.mjs && node scripts/check-host-globals.mjs && node scripts/third-party-notices.mjs",
+    "build": "node scripts/check-tokens.mjs && node scripts/build.mjs --production && node scripts/check-bundle-size.mjs && node scripts/check-bundle-split.mjs && node scripts/gen-lazy-registry.mjs --check && node scripts/check-host-globals.mjs && node scripts/third-party-notices.mjs",
     "notices": "node scripts/build.mjs --production && node scripts/third-party-notices.mjs --write",
     "build:dev": "node scripts/build.mjs",
     "watch": "node scripts/build.mjs --watch",
@@ -1847,6 +1847,8 @@
     "test:legal-a11y": "node scripts/legal-a11y.mjs",
     "schema:report": "node scripts/schema-report.mjs",
     "reference:generate": "node scripts/gen-reference.mjs",
+    "lazy-registry:generate": "node scripts/gen-lazy-registry.mjs",
+    "check:lazy-registry": "node scripts/gen-lazy-registry.mjs --check",
     "build:tokens": "node scripts/build-tokens.mjs",
     "check:tokens": "node scripts/check-tokens.mjs",
     "check:visual": "node scripts/check-visual.mjs",

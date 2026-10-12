@@ -37,7 +37,12 @@ import {
   sharedModelApiBoundaries,
   englishZodLocales,
 } from '../../scripts/lib/deferredBundles.mjs'
-import { siblingExportProblems } from '../../scripts/lib/bundleExports.mjs'
+import {
+  COMPUTED_LOADS,
+  CROSS_BUNDLE_TARGETS,
+  crossBundleFailures,
+  siblingExportProblems,
+} from '../../scripts/lib/bundleExports.mjs'
 import { FIXTURE_HOOK_TIMEOUT_MS } from './helpers/fixtureBudget'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import type { parseScheduleStoredJson } from '../../src/core/schedules/journal'
@@ -123,6 +128,7 @@ beforeAll(async () => {
       providerPolicy: 'src/host/backend/providerPolicyEntry.ts',
       modelApiHooks: 'src/core/backends/modelapi/modelApiHooksEntry.ts',
       modelApiMcp: 'src/core/backends/modelapi/modelApiMcpEntry.ts',
+      modelApiTools: 'src/core/backends/modelapi/modelApiToolsEntry.ts',
       runtimeAccounting: 'src/runtime/runtimeAccountingEntry.ts',
       sharingRuntime: 'src/runtime/sharing/sharingEntry.ts',
       legalScan: 'src/core/legal/entry.ts',
@@ -178,7 +184,7 @@ beforeAll(async () => {
           nodeReferenceData,
           englishZodLocales,
           // Match the shipped prompt archive before checking real production caps.
-          ...(['modelApi', 'reference', 'codeIntel', 'hookRuntime'].includes(name)
+          ...(['modelApi', 'reference', 'codeIntel', 'hookRuntime', 'modelApiTools'].includes(name)
             ? [compressedModelText(true)]
             : []),
         ],
@@ -466,6 +472,43 @@ describe('cross-bundle members of the built bundles', () => {
 
   it('exports every member a built bundle reads from a sibling bundle', () => {
     expect(report.problems).toEqual([])
+  })
+
+  it('follows every loaded sibling to its members and reads every export list', () => {
+    // A use the check cannot follow, or a list it cannot read, would let a
+    // missing export pass unseen; the gate fails on either.
+    expect(report.unfollowed).toEqual([])
+    expect(report.unverified).toEqual([])
+    // The gate's own lists: both targets compared, and the one load by a
+    // computed name (the provider catalog, data) the only one there is.
+    expect(crossBundleFailures(report, CROSS_BUNDLE_TARGETS, COMPUTED_LOADS)).toEqual([])
+    expect(report.computed.map(({ reader }) => reader)).toEqual(['configuredProviders.js'])
+    expect(crossBundleFailures(report, CROSS_BUNDLE_TARGETS)).toHaveLength(1)
+    // Checked means members compared: no sibling is recorded with none.
+    for (const [sibling, count] of report.verified) expect(count, sibling).toBeGreaterThan(0)
+    expect(report.verified.get('modelApiBoundaries.js')).toBeGreaterThan(0)
+  })
+
+  it('names a member read through a cached dynamic import (the accounting bundle)', () => {
+    // src/runtime/backends.ts keeps `import('./runtimeAccountingEntry.js')` in
+    // a variable by ??= and reads createRuntimeDailyBudget from the awaited
+    // value later. A check that followed only a direct await passed without it.
+    const text = bundleText('runtimeAccounting')
+    const at = text.lastIndexOf('0&&(module.exports={')
+    const annotation = text.slice(at)
+    expect(annotation).toMatch(/\bcreateRuntimeDailyBudget\b/)
+    const without = annotation.replace(
+      /,createRuntimeDailyBudget\b|\bcreateRuntimeDailyBudget,/,
+      '',
+    )
+    expect(without).not.toMatch(/\bcreateRuntimeDailyBudget\b/)
+    const broken = siblingExportProblems(
+      new Map([...built('runtimeEngine'), ['runtimeAccounting.js', text.slice(0, at) + without]]),
+    )
+    expect(broken.problems).toEqual([
+      'runtimeEngine.js reads createRuntimeDailyBudget from runtimeAccounting.js, which does not export it',
+    ])
+    expect(broken.unfollowed).toEqual([])
   })
 
   it('checks the provider bundles against the Model API bundle', () => {
@@ -1041,6 +1084,17 @@ describe('deferred cohort bundles', () => {
     // workspacePath) and its MODEL_TEXT keys that activation reads +221.
     // Re-measured and ratcheted down when m105/media-w2 moves media to the
     // deferred dist/productionMedia.js.
+    // MODELAPIDIET (this rig, production build): the hook call fields,
+    // argument previews and fetch URL checks move to dist/modelApiTools.js
+    // (11,114 B of inputs plus the WEB_FETCH_MODEL_TEXT block they owned):
+    // 530,683 -> 516,264, a 14,419 B saving. The pin moves to the measured
+    // value exactly.
+    // MODELAPIDIETR3 (this rig, test build): the RVMODELAPIDIETB P3
+    // diagnostics log each helpers failure's class with the chunk named
+    // through the scrubbed channel (one shared line read by every helpers
+    // catch, including the closed URL-check refusal): 516,264 -> 516,373,
+    // +109 B. The pin moves to the measured value exactly; D6's 537,600 B
+    // production cap is untouched.
     // Train 0.18.0 (lead decision 2026-10-11 15:45 PT): re-measured at
     // 532,537 B on b7f9de08a6 (train af67368a22 + argument previews
     // 83f8da887, +1,854 B of intended code: the production capability
@@ -1055,7 +1109,24 @@ describe('deferred cohort bundles', () => {
     // in the provider bundles because the state they share lives in
     // transport.ts once per process. No other byte changed; D6's cap is
     // unchanged and the pin still ratchets down with fix/modelapi-diet.
-    expect(Buffer.byteLength(bundleText('modelApi'))).toBeLessThanOrEqual(532_827)
+    // MODELAPIDIETR4 (this rig, test build): the diet above rebases onto
+    // the 0.18.1 hotfix base and measures 518,954 B, 13,873 B under the
+    // 532,827 B hotfix pin and 9,777 B under the round-4 target of
+    // 528,731 B (+461 B over the merge for the P3-2 log-kind line and its
+    // import). The pin moves to the measured value exactly. Within that lane
+    // it rose three times as code was added (+109 B in MODELAPIDIETR3,
+    // +2,120 B on the rebase onto the hotfix base, +461 B here): it did not
+    // "only ever move down", as this comment said until the 0.18.1 candidate.
+    // 0.18.1 candidate (owner's rule of 2026-10-12: an exact-size pin moves
+    // with the measured number and its reason; Kubuntu, production build):
+    // 519,354 B, +400 B over 518,954. +68 B: a host other than the extension
+    // says its own reinstall sentence when the helpers cannot load (review
+    // RVDIET0181 P3). +332 B: the helpers are loaded once per session and
+    // handed the language once per table instead of on every call, which cost
+    // 4 ms a call (one helper, also used for the code-intelligence and
+    // schedules bundles). 13,183 B under 0.18.0's 532,537; D6's cap is
+    // unchanged.
+    expect(Buffer.byteLength(bundleText('modelApi'))).toBeLessThanOrEqual(519_354)
     const schedules = new Set(inputs('schedules'))
     for (const file of [
       'src/core/backends/modelapi/schedulesEntry.ts',
@@ -1066,6 +1137,25 @@ describe('deferred cohort bundles', () => {
       expect(inputs('modelApi')).not.toContain(file)
     }
     expect(bundleText('modelApi')).toContain('./schedules.js')
+  })
+
+  it('MODELAPIDIET: the deferred per-call helpers load with dist/modelApiTools.js', () => {
+    const tools = new Set(inputs('modelApiTools'))
+    for (const file of [
+      'src/core/backends/modelapi/modelApiToolsEntry.ts',
+      'src/core/backends/modelapi/modelCallHooks.ts',
+      'src/core/backends/modelapi/argumentPreview.ts',
+      'src/core/web/pageUrl.ts',
+      'src/core/web/fetchFailure.ts',
+    ]) {
+      expect(tools.has(file)).toBe(true)
+      for (const parent of ['extension', 'modelApi', 'acp'])
+        expect(inputs(parent)).not.toContain(file)
+    }
+    // publicAddress.ts stays in dist/modelApi.js: the pinned HTTPS transport
+    // reads addressFamily for every request's SNI.
+    expect(inputs('modelApi')).toContain('src/core/web/publicAddress.ts')
+    expect(bundleText('modelApi')).toContain('./modelApiTools.js')
   })
 
   it('M115W: the lazy schedules chunk carries the v2 runtime binding beside v1', () => {
