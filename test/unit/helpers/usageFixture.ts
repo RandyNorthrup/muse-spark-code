@@ -1,11 +1,30 @@
 import { vi } from 'vitest'
 import { usageLocalDay } from '../../../src/core/usage/aggregate'
 import type { UsageServiceDeps } from '../../../src/core/usage/usageService'
+import type { UsageFacts } from '../../../src/core/reporting/sources/types'
 import { USAGE_EN } from '../../../src/shared/l10n/usageEn'
 import { usageRecordSchema, type UsageRecord } from '../../../src/shared/usageJournal'
 import { Usd } from '../../../src/shared/usd'
 
 export const usageNow = new Date(2026, 9, 5, 12).getTime()
+
+/**
+ * One dollar-unit and one percent-unit limit row with exact-decimal
+ * amounts, shared by the collector and scrub port suites instead of a
+ * cloned literal in each (duplication gate).
+ */
+export function mixedUnitLimitRows(): UsageFacts['limits'] {
+  return [
+    {
+      key: 'paidDaily/daily',
+      used: Usd.from('0.5').toAmount(),
+      limit: Usd.from('1').toAmount(),
+      resetsAt: null,
+      unit: 'usd',
+    },
+    { key: 'meta/weekly', used: 25, limit: 100, resetsAt: null, unit: 'percent' },
+  ]
+}
 
 /**
  * A VS Code / Meta turn record for report suites: exact-decimal dollars,

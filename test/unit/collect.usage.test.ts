@@ -1,7 +1,7 @@
-import { Usd } from '../../src/shared/usd'
 import { describe, expect, it } from 'vitest'
 import { collectFixture, fullSnapshot, getSection } from './helpers/reporting/collect'
 import { availableSource } from './helpers/reporting/snapshot'
+import { mixedUnitLimitRows } from './helpers/usageFixture'
 import type { UsageFacts } from '../../src/core/reporting/sources/types'
 
 function collectWithUsage(overrides: Partial<UsageFacts>) {
@@ -90,14 +90,7 @@ describe('usage collector', () => {
   it('renders dollar budgets and percent windows in their own fields', () => {
     const report = collectWithUsage({
       limits: [
-        { key: 'meta/weekly', used: 25, limit: 100, resetsAt: null, unit: 'percent' },
-        {
-          key: 'paidDaily/daily',
-          used: Usd.from('0.5').toAmount(),
-          limit: Usd.from('1').toAmount(),
-          resetsAt: null,
-          unit: 'usd',
-        },
+        ...mixedUnitLimitRows(),
         { key: 'foreign/agent', used: 0.25, limit: 5, resetsAt: null },
       ],
     })

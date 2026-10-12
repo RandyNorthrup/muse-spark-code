@@ -148,6 +148,27 @@ export function readReportRows<T>(
   return { rows, problems, refused }
 }
 
+/**
+ * Recover whole facts through the engine boundary and join the reader's
+ * partial with one named problem per damaged facet. Throws invalid when
+ * nothing valid remains, so kinds share one recovery shape instead of
+ * cloning it per source.
+ */
+export function recoverSourceFacts<T>(
+  reportText: UiText,
+  facet: ReportLabelKey,
+  key: string,
+  schema: z.ZodMiniType<T>,
+  read: { readonly facts: unknown; readonly partial?: string | undefined },
+): { readonly data: T; readonly partial: string | undefined } {
+  const recovered = readReportFacts(reportText, facet, key, schema, read.facts)
+  if (recovered.data === null) throw new LocalSourceError('invalid')
+  const partial = [read.partial, ...recovered.problems.map((problem) => problem.reason)]
+    .filter((reason) => reason !== undefined)
+    .join(' ')
+  return { data: recovered.data, partial: partial === '' ? undefined : partial }
+}
+
 /** Every port read crosses this boundary before another source is awaited. */
 export async function readReportSource<K extends ReportSourceKind>(
   kind: K,

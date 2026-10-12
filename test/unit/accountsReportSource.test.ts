@@ -2,8 +2,8 @@ import { EN } from '../../src/shared/l10n/en'
 import { describe, expect, it } from 'vitest'
 import { Usd as PortUsd } from '../../src/shared/usd'
 import { accountsSource } from '../../src/core/reporting/sources/accounts'
-import { reportOptions, REPORT_FIXTURE_AS_OF } from './helpers/reporting/snapshot'
-import type { AccountsFacts, SourceReadContext } from '../../src/core/reporting/sources/types'
+import { sourceContextFor } from './helpers/reporting/reasonCases'
+import type { AccountsFacts } from '../../src/core/reporting/sources/types'
 
 const facts: AccountsFacts = {
   providers: [
@@ -31,15 +31,7 @@ const facts: AccountsFacts = {
   confirmations: [],
 }
 
-function contextFor(kind: SourceReadContext['options']['kind']): SourceReadContext {
-  return {
-    reportText: EN,
-    asOf: REPORT_FIXTURE_AS_OF,
-    workspaceKey: 'fixture',
-    options: reportOptions(kind),
-    signal: new AbortController().signal,
-  }
-}
+const contextFor = sourceContextFor
 
 describe('accounts report source', () => {
   it('is not applicable to other kinds and unavailable without a reader', async () => {

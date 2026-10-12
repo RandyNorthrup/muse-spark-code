@@ -11,6 +11,7 @@ import { Usd, usdInputSchema } from '../../src/shared/usd'
 import { schedulePaidConsentSchema, scheduleV2Schema } from '../../src/shared/scheduleV2'
 import { isScheduleConsentCurrent } from '../../src/core/paid/paidConsent'
 import { fakeSchedule } from './helpers/schedules/fixtures'
+import { mixedUnitLimitRows } from './helpers/usageFixture'
 
 const usd = (value: string) => usdInputSchema.parse(value)
 const rawUsage = {
@@ -114,16 +115,7 @@ describe('PORTS017 boundary precision and historical reads', () => {
     const scrubbed = scrubUsage(
       {
         ...rawUsage,
-        limits: [
-          {
-            key: 'paidDaily/daily',
-            used: Usd.from('0.5').toAmount(),
-            limit: Usd.from('1').toAmount(),
-            resetsAt: null,
-            unit: 'usd',
-          },
-          { key: 'meta/weekly', used: 25, limit: 100, resetsAt: null, unit: 'percent' },
-        ],
+        limits: [...mixedUnitLimitRows()],
       },
       (text) => text,
     )

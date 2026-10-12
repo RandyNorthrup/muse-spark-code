@@ -1,4 +1,4 @@
-import { readReportFacts } from './boundary'
+import { recoverSourceFacts } from './boundary'
 // C-M113-3: the reporting `accounts` source from M108's registry. Labels
 // name accounts and are resolved locally; no credential, key or vendor
 // secret ever enters these facts. Only the accounts kind reads this port:
@@ -137,21 +137,17 @@ export function accountsSource(reader: ReportAccountsReader | undefined, scrub: 
     if (context.options.kind !== 'accounts') throw new LocalSourceError('disabled')
     const read = await reader.read(context)
     if (read === null) throw new LocalSourceError('missing')
-    const recovered = readReportFacts(
+    const recovered = recoverSourceFacts(
       context.reportText,
       'accounts',
       'accounts',
       factsSchema,
-      read.facts,
+      read,
     )
-    if (recovered.data === null) throw new LocalSourceError('invalid')
-    const partial = [read.partial, ...recovered.problems.map((problem) => problem.reason)]
-      .filter((reason) => reason !== undefined)
-      .join(' ')
     return {
       data: sortFacts(factsSchema.parse(scrubSourceValue(recovered.data, scrub))),
       ...(read.observedAt !== undefined && { observedAt: read.observedAt }),
-      ...(partial !== '' && { partial: scrub(partial) }),
+      ...(recovered.partial !== undefined && { partial: scrub(recovered.partial) }),
     }
   })
 }
