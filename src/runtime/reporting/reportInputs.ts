@@ -1,5 +1,9 @@
 import type { ReportLabelKey } from '../../shared/reportSchema'
-import { readReportField, readReportRows } from '../../core/reporting/sources/boundary'
+import {
+  joinPartialReasons,
+  readReportField,
+  readReportRows,
+} from '../../core/reporting/sources/boundary'
 import type { UiText } from '../../shared/l10n/en'
 // Bound session and usage report inputs (M113 lane C-M113-2, PLAN.md D93.4).
 // Every engine construction (VS Code, ACP, CLI) builds these from the same
@@ -514,6 +518,9 @@ export function createSessionReportReader(input: {
         pushPartial(reportText.reportDetailReasons.sessionUsageUnavailable)
       const turns =
         history.turnIds.length > 0 ? history.turnIds.length : sessionTurnCount(history.items)
+      // Bounded by construction: problem text can never exceed the reason
+      // bound and drop the session beside it (RVREPORTJOIN P2-2).
+      const sessionPartial = joinPartialReasons(reportText, partials)
       return {
         source: {
           backend: history.backend,
@@ -538,7 +545,7 @@ export function createSessionReportReader(input: {
         usage: sessionUsageFacts(journal.records, history.sessionId),
         checkRuns: [],
         observedAt: context.asOf,
-        ...(partials.length > 0 && { partial: partials.join(' ') }),
+        ...(sessionPartial !== undefined && { partial: sessionPartial }),
       }
     },
   }
@@ -859,10 +866,11 @@ export function createAccountsReportReader(input: {
             facets: missing.map((facet) => facetLabels[facet]).join(', '),
           }),
         )
+      const accountsPartial = joinPartialReasons(reportText, partials)
       return {
         facts: { providers, usage, events, confirmations },
         observedAt: context.asOf,
-        ...(partials.length > 0 && { partial: partials.join(' ') }),
+        ...(accountsPartial !== undefined && { partial: accountsPartial }),
       }
     },
   }
@@ -1056,10 +1064,11 @@ export function createSecurityReportReader(input: {
         partials.push(reportText.reportDetailReasons.securityDeveloperAuditUnavailable)
       // Both sources absent is a partial naming both true reasons, never a
       // bare null that the source would report as a generic missing file.
+      const securityPartial = joinPartialReasons(reportText, partials)
       return {
         facts: { vault, audit: vaultAudit, developerAudit: developerAudit ?? [] },
         observedAt: context.asOf,
-        ...(partials.length > 0 && { partial: partials.join(' ') }),
+        ...(securityPartial !== undefined && { partial: securityPartial }),
       }
     },
   }

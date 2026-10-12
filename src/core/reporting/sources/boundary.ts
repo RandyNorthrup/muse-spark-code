@@ -1,6 +1,7 @@
 import * as z from 'zod/mini'
-import { REPORT_MAX_ROWS } from '../../../shared/constants'
+import { REPORT_MAX_ROWS, REPORT_MAX_TEXT_CHARS } from '../../../shared/constants'
 import type { UiText } from '../../../shared/l10n/en'
+import { plural } from '../../../shared/l10n/text'
 import { reportSourceSchema, type ReportLabelKey } from '../../../shared/reportSchema'
 import { localFailureOf, LocalSourceError, sourceReason, type LocalFailure } from './local'
 import type {
@@ -134,6 +135,49 @@ export function readReportRows<T>(
 }
 
 /**
+ * Partial reasons are a set of sentences that must fit the source-reason
+ * bound: exact duplicates join once, short lists join whole, and an
+ * over-long list keeps a count plus the first few examples plus the
+ * localized remainder, so problem text can never exceed the schema bound
+ * and drop the evidence beside it (RVREPORTJOIN P2-2).
+ */
+export function joinPartialReasons(
+  reportText: UiText,
+  reasons: readonly (string | undefined)[],
+): string | undefined {
+  const unique: string[] = []
+  const seen = new Set<string>()
+  for (const reason of reasons) {
+    if (reason === undefined || reason === '' || seen.has(reason)) continue
+    seen.add(reason)
+    unique.push(reason)
+  }
+  if (unique.length === 0) return undefined
+  const joined = unique.join(' ')
+  if (joined.length <= REPORT_MAX_TEXT_CHARS) return joined
+  const kept: string[] = []
+  let length = 0
+  for (const reason of unique) {
+    const next = kept.length === 0 ? reason.length : length + 1 + reason.length
+    if (next >= REPORT_MAX_TEXT_CHARS) break
+    kept.push(reason)
+    length = next
+  }
+  let rest = unique.length - kept.length
+  for (;;) {
+    if (kept.length === 0)
+      return plural(reportText.reportProblemsMore, unique.length).slice(0, REPORT_MAX_TEXT_CHARS)
+    const tail = rest === 0 ? '' : ` ${plural(reportText.reportProblemsMore, rest)}`
+    if (length + tail.length <= REPORT_MAX_TEXT_CHARS) return `${kept.join(' ')}${tail}`
+    const dropped = kept.pop()
+    if (dropped === undefined)
+      return plural(reportText.reportProblemsMore, unique.length).slice(0, REPORT_MAX_TEXT_CHARS)
+    length = kept.length === 0 ? 0 : length - dropped.length - 1
+    rest += 1
+  }
+}
+
+/**
  * Recover whole facts through the engine boundary and join the reader's
  * partial with one named problem per damaged facet. Throws invalid when
  * nothing valid remains, so kinds share one recovery shape instead of
@@ -148,10 +192,13 @@ export function recoverSourceFacts<T>(
 ): { readonly data: T; readonly partial: string | undefined } {
   const recovered = readReportFacts(reportText, facet, key, schema, read.facts)
   if (recovered.data === null) throw new LocalSourceError('invalid')
-  const partial = [read.partial, ...recovered.problems.map((problem) => problem.reason)]
-    .filter((reason) => reason !== undefined)
-    .join(' ')
-  return { data: recovered.data, partial: partial === '' ? undefined : partial }
+  return {
+    data: recovered.data,
+    partial: joinPartialReasons(reportText, [
+      read.partial,
+      ...recovered.problems.map((problem) => problem.reason),
+    ]),
+  }
 }
 
 /** Every port read crosses this boundary before another source is awaited. */
