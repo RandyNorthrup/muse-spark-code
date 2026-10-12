@@ -102,6 +102,12 @@ happened, not what was planned; superseded entries are kept.
   reports every refusal as the typed copy-relative sentence, and refuses
   Windows-reserved names in the native helper too. Teams remain unavailable
   pending integration.
+- Hidden M96 failed worker creates remove at most the folders the operation
+  itself made, so pre-existing and concurrently created folders survive. Every
+  refusal the Windows helper can produce now reaches the caller as its own
+  typed sentence exactly as on POSIX, through one refusal-code table shared
+  by both launchers, including the previously unmapped outside-root refusal.
+  Teams remain unavailable pending integration.
 - Hidden M96 engine workers reserve and settle each transport attempt separately.
   Successful retries preserve earlier uncertain liability; refused and unsent
   attempts release their claims, including admission revoked during a durable
