@@ -254,6 +254,41 @@ export class VaultMigration {
       lease,
     )
   }
+  /**
+   * Finish one pending retire intent: a present copy the engine verifies is
+   * deleted and the slot is recorded `retired`; an absent one is recorded
+   * `retired` with a note saying the engine did not see the delete. A copy
+   * changed after the intent is left alone — the engine deletes nobody
+   * else's bytes — its stale intent is cleared so the change reads honestly,
+   * and `diverged` is reported instead of throwing. A vault-side
+   * verification failure still throws.
+   */
+  private async finishOneIntent(
+    entry: MigrationCredential,
+    row: MigrationRecord,
+    lease: MigrationLease,
+  ): Promise<'retired' | 'diverged'> {
+    if (await this.legacyAbsent(entry, lease)) {
+      await this.finishInterruptedRetire(entry, row, lease)
+      return 'retired'
+    }
+    try {
+      await this.finishInterruptedRetire(entry, row, lease)
+      return 'retired'
+    } catch (error: unknown) {
+      if (
+        error instanceof VaultMigrationFault &&
+        (error.code === 'conflict' || error.code === 'invalid')
+      ) {
+        const base = { ...row }
+        delete base.retireIntent
+        delete base.retireNote
+        await this.save(base, lease)
+        return 'diverged'
+      }
+      throw error
+    }
+  }
   private async legacyAbsent(entry: MigrationCredential, lease: MigrationLease): Promise<boolean> {
     const source = await this.deps.legacy.read(entry.key)
     lease.assertCurrent()
@@ -554,12 +589,15 @@ export class VaultMigration {
     }
     // The engine's own interrupted retire finishes here, with the ordinary
     // retire notice; a missing legacy copy without the intent is a deletion
-    // behind the vault and stays `legacyDeleted` for the caller to answer.
+    // behind the vault and stays `legacyDeleted` for the caller to answer. A
+    // legacy copy changed after the intent clears the stale intent and reads
+    // honestly instead of throwing, so the join's per-key sequence goes on
+    // to the other rows.
     if (phase === 'active') {
       await this.run(async (lease) => {
         const row = await this.record(entry, lease)
         if (row?.phase !== 'active' || row.retireIntent !== true) return
-        await this.finishInterruptedRetire(entry, row, lease)
+        await this.finishOneIntent(entry, row, lease)
       })
       return
     }
@@ -608,27 +646,9 @@ export class VaultMigration {
       const entry = this.credential(key)
       const state = await this.run(async (lease) => {
         const row = await this.record(entry, lease)
-        if (row?.phase !== 'active' || row.retireIntent !== true) return null
-        if (await this.legacyAbsent(entry, lease)) {
-          await this.finishInterruptedRetire(entry, row, lease)
-          return 'retired' as const
-        }
-        try {
-          await this.finishInterruptedRetire(entry, row, lease)
-          return 'retired' as const
-        } catch (error: unknown) {
-          if (
-            error instanceof VaultMigrationFault &&
-            (error.code === 'conflict' || error.code === 'invalid')
-          ) {
-            const base = { ...row }
-            delete base.retireIntent
-            delete base.retireNote
-            await this.save(base, lease)
-            return 'diverged' as const
-          }
-          throw error
-        }
+        return row?.phase === 'active' && row.retireIntent === true
+          ? await this.finishOneIntent(entry, row, lease)
+          : null
       })
       if (state !== null) outcome[key] = state
     }
