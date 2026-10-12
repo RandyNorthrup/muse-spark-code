@@ -3657,6 +3657,7 @@
   "execBudgetRemedyInput": "Samo wejście kosztuje {inputCost}, więcej niż pozostałe {remaining}.",
   "execBudgetStartExact": "Uruchomienie z limitem: limit {cap}, pozostało {remaining}. Następne żądanie rezerwuje co najwyżej {reservation}.",
   "execBudgetStartRule": "Uruchomienie z limitem: limit {cap}, pozostało {remaining}. Każde żądanie rezerwuje policzone wejście plus maksymalnie {output} tokenów wyjściowych.",
+  "execBudgetStartBytes": "Uruchomienie z limitem: limit {cap}, pozostało {remaining}. Każde żądanie rezerwuje wejście ograniczone bajtami plus maksymalnie {output} tokenów wyjściowych.",
   "execBudgetStillReading": "Budżet zatrzymał uruchomienie, gdy wciąż czytało, więc odpowiedź jeszcze nie istnieje.",
   "execCountBytesFallback": "Liczenie wejścia dostawcy nie powiodło się, więc to żądanie rezerwuje ograniczenie bajtowe.",
   "execOutputCapExceeded": "--max-output-tokens przekracza limit wyjścia {cap} tokenów.",

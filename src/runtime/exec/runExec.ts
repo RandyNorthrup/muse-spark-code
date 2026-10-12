@@ -1208,12 +1208,25 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
                 // A provider run's first body is not built yet, so the start
                 // line states the reservation rule with the numbers known: the
                 // cap, what is left, and the output cap every request reserves.
+                // EXECPROV round 7 (R2): a wire with no counter reserves the
+                // byte bound, and the start line says so — never "counted".
+                // Through the externalized providers entry (never a static
+                // edge: the split gate forbids carrying provider modules).
+                const { tokenCount } = await import('../../host/backend/providersEntry')
+                const hasExactCountOffer =
+                  tokenCount.exactCountKindFor(
+                    providerRun.provider.entry,
+                    providerRun.provider.preset,
+                  ) !== undefined
                 log.info(
-                  fill(UI_TEXT.execBudgetStartRule, {
-                    cap: formatUsd(totals.capUsd, EXEC_USD_DECIMALS),
-                    remaining: formatUsd(totals.remainingUsd, EXEC_USD_DECIMALS),
-                    output: formatNumber(outputCap()),
-                  }),
+                  fill(
+                    hasExactCountOffer ? UI_TEXT.execBudgetStartRule : UI_TEXT.execBudgetStartBytes,
+                    {
+                      cap: formatUsd(totals.capUsd, EXEC_USD_DECIMALS),
+                      remaining: formatUsd(totals.remainingUsd, EXEC_USD_DECIMALS),
+                      output: formatNumber(outputCap()),
+                    },
+                  ),
                 )
               }
             }

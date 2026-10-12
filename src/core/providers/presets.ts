@@ -141,6 +141,18 @@ export interface FormatQuirks {
    */
   readonly retry: RetryTables
   /**
+   * EXECPROV round 7: the format's exact same-body input count, where the
+   * provider documents a request that returns the input token count for a
+   * given request body without running the model and without charge. The
+   * count request is built from the already-built native request by a
+   * per-kind function (`src/core/providers/tokenCount.ts`), so it cannot
+   * drift from what is sent. Undefined keeps the byte bound: no counter
+   * exists on the wire. A preset opts in through its own `quirks` where
+   * only some providers of a format document one (OpenAI's Responses
+   * siblings do; xAI's and Azure's do not).
+   */
+  readonly exactCount: ExactCountKind | undefined
+  /**
    * The server takes `strict: true` tool schemas (M101 item 24): OpenAI
    * and Azure's constrained decoding. The selected model record overrides
    * this preset default, including explicit false. Meta's host binds its
@@ -156,6 +168,21 @@ export interface FormatQuirks {
    */
   readonly thinkingOff?: 'thinking-switch' | undefined
 }
+
+/**
+ * EXECPROV round 7: which counting call a wire offers, if any. Only the
+ * first-party providers below document one for the exact request
+ * (`docs/certification/m95-research.md` §1.1 [O8, O13, O14] for Responses,
+ * §1.5 [A-ov] for Anthropic, §1.6 [G-tk] for Gemini); every other wire
+ * keeps the byte bound.
+ */
+export type ExactCountKind =
+  /** `POST {request-path}/input_tokens` with the native body, `{input_tokens}`. */
+  | 'responses-input-tokens'
+  /** `POST {request-path}/count_tokens` without `max_tokens`, `{input_tokens}`. */
+  | 'anthropic-count-tokens'
+  /** `POST models/{model}:countTokens` without the output cap, `{totalTokens}`. */
+  | 'gemini-count-tokens'
 
 /** The five formats' defaults; presets override per provider. */
 export const FORMAT_QUIRKS: Record<ProviderFormat, FormatQuirks> = {
@@ -175,6 +202,9 @@ export const FORMAT_QUIRKS: Record<ProviderFormat, FormatQuirks> = {
     keepToolsWithHistory: true,
     retry: RETRY_TABLES.responses,
     supportsStrictTools: false,
+    // Only the OpenAI preset opts in (below): xAI and Azure document no
+    // counting call for the exact request.
+    exactCount: undefined,
   },
   chat: {
     outputCapParam: 'max_completion_tokens',
@@ -189,6 +219,9 @@ export const FORMAT_QUIRKS: Record<ProviderFormat, FormatQuirks> = {
     keepToolsWithHistory: true,
     retry: RETRY_TABLES.chat,
     supportsStrictTools: false,
+    // No OpenAI-compatible chat-completions endpoint documents a counting
+    // call for the exact request: the byte bound stays on every chat wire.
+    exactCount: undefined,
   },
   anthropic: {
     outputCapParam: 'max_tokens',
@@ -203,6 +236,10 @@ export const FORMAT_QUIRKS: Record<ProviderFormat, FormatQuirks> = {
     keepToolsWithHistory: true,
     retry: RETRY_TABLES.anthropic,
     supportsStrictTools: false,
+    // The research notes record the endpoint as free and an estimate
+    // (§1.5 [A-tc]); the run treats it as a count inside the byte ceiling
+    // with the settlement check behind it (EXECPROV round 7).
+    exactCount: 'anthropic-count-tokens',
   },
   gemini: {
     outputCapParam: 'maxOutputTokens',
@@ -217,6 +254,9 @@ export const FORMAT_QUIRKS: Record<ProviderFormat, FormatQuirks> = {
     keepToolsWithHistory: true,
     retry: RETRY_TABLES.gemini,
     supportsStrictTools: false,
+    // `:countTokens` takes the whole native request (§1.6 [G-tk]); the
+    // count drops the output cap, which cannot change the input tokens.
+    exactCount: 'gemini-count-tokens',
   },
   ollama: {
     outputCapParam: 'num_predict',
@@ -231,6 +271,8 @@ export const FORMAT_QUIRKS: Record<ProviderFormat, FormatQuirks> = {
     keepToolsWithHistory: true,
     retry: RETRY_TABLES.ollama,
     supportsStrictTools: false,
+    // Local servers name no counting call; unpriced runs never reserve.
+    exactCount: undefined,
   },
 }
 
@@ -327,6 +369,8 @@ const OPENAI_PRESET: ProviderPreset = {
     retry: { ...RETRY_TABLES.responses, errorKinds: ['server_error'] },
     // OpenAI's constrained decoding takes strict tool schemas.
     supportsStrictTools: true,
+    // The exact request's documented counting sibling (§1.1 [O8, O13, O14]).
+    exactCount: 'responses-input-tokens',
   },
   wireCapture: true,
 }

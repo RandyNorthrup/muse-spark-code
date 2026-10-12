@@ -4240,6 +4240,10 @@ export const EN = {
     'Capped run: cap {cap}, {remaining} left. The next request reserves at most {reservation}.',
   execBudgetStartRule:
     'Capped run: cap {cap}, {remaining} left. Each request reserves its counted input plus up to {output} output tokens.',
+  // EXECPROV round 7 (R2): a wire with no counter reserves the byte
+  // bound, and the start line says so — never "counted input".
+  execBudgetStartBytes:
+    'Capped run: cap {cap}, {remaining} left. Each request reserves its byte-bound input plus up to {output} output tokens.',
   // A budget stop with nothing produced yet: the run was still reading, so
   // no answer exists. The remedies follow as their own sentences.
   execBudgetStillReading:

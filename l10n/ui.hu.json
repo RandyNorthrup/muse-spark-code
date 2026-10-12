@@ -3507,6 +3507,7 @@
   "execBudgetRemedyInput": "Önmagában a bemenet {inputCost} egységbe kerül, több mint a fennmaradó {remaining}.",
   "execBudgetStartExact": "Korlátos futtatás: keret {cap}, fennmaradó {remaining}. A következő kérés legfeljebb {reservation} összeget foglal le.",
   "execBudgetStartRule": "Korlátos futtatás: keret {cap}, fennmaradó {remaining}. Minden kérés a megszámolt bemenetét plusz legfeljebb {output} kimeneti tokent foglal le.",
+  "execBudgetStartBytes": "Korlátos futtatás: keret {cap}, fennmaradó {remaining}. Minden kérés a bájt-korlátos bemenetét plusz legfeljebb {output} kimeneti tokent foglal le.",
   "execBudgetStillReading": "A költségkeret olvasás közben állította le a futtatást, ezért még nincs válasz.",
   "execCountBytesFallback": "A szolgáltató bemenetszámlálása sikertelen, ezért ez a kérés a bájtbecslést foglalja le.",
   "execOutputCapExceeded": "A --max-output-tokens meghaladja a(z) {cap} tokent kimeneti korlátot.",

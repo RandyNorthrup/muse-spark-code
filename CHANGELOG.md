@@ -34,6 +34,22 @@ happened, not what was planned; superseded entries are kept.
   it spends; a budget stop that produced nothing says the run was still
   reading and no answer exists, and the JSON result carries the refused
   request's numbers in typed `budget` fields.
+- The same-body count now covers every wire that documents one: Anthropic
+  Messages (`POST /v1/messages/count_tokens`) and Google Gemini
+  (`models/<model>:countTokens`) join the OpenAI Responses call, each built
+  from the already-built native request on the request's own origin, never
+  retried, never recorded as a model call, and a count larger than the byte
+  bound falls back to the byte bound. Wires with no counter (OpenAI
+  compatible chat completions and the other presets without one) keep the
+  byte bound and say so on the start line; the refusal already names the
+  higher cap and the lower `--max-output-tokens` that admit the request.
+- Closing a stale spend hold no longer locks capped runs out for the rest of
+  the day. A settled unknown cost (a hold closed at its full reservation, a
+  sent request whose answer was lost) stays counted as an upper bound and
+  admits later capped runs; only money no record bounds (history written
+  without fees, an open unbounded claim, an unverified tariff) refuses one,
+  with a sentence naming the ledger and its counted spend and remedies that
+  work.
 - A headless run refused for a model with no known tariff no longer reports
   a budget stop: it returns its own `unpriced` status (exit 4) with a
   sentence naming the model and the providers file where a price is added,

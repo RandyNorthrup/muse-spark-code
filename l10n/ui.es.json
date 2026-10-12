@@ -3582,6 +3582,7 @@
   "execBudgetRemedyInput": "Solo la entrada cuesta {inputCost}, más que los {remaining} restantes.",
   "execBudgetStartExact": "Ejecución con límite: tope {cap}, quedan {remaining}. La próxima solicitud reserva como máximo {reservation}.",
   "execBudgetStartRule": "Ejecución con límite: tope {cap}, quedan {remaining}. Cada solicitud reserva su entrada contada más hasta {output} tokens de salida.",
+  "execBudgetStartBytes": "Ejecución con límite: tope {cap}, quedan {remaining}. Cada solicitud reserva su entrada limitada por bytes más hasta {output} tokens de salida.",
   "execBudgetStillReading": "El presupuesto detuvo la ejecución mientras aún leía, así que todavía no hay respuesta.",
   "execCountBytesFallback": "El recuento de entrada del proveedor falló, así que esta solicitud reserva la cota de bytes.",
   "execOutputCapExceeded": "--max-output-tokens supera el límite de salida de {cap} tokens.",

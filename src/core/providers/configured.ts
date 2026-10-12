@@ -21,6 +21,7 @@ import {
   priceCard,
   providersFile,
   responses,
+  tokenCount,
   createProviderRegistry,
   recordPlanUsage,
   metaResolvedModel,
@@ -780,41 +781,54 @@ export function createConfiguredProviderServices(
       modelFor: providerModel,
     })
     /**
-     * EXECPROV round 6: OpenAI documents `POST /responses/input_tokens`
-     * taking the same body as a response and returning `input_tokens`
-     * (m95-research §1.1 [O8, O13, O14]); Meta's own client documents the
-     * same shape as not billed. No other preset's research notes name a
-     * counting call for the exact request — Anthropic's is documented as an
-     * estimate — so only the OpenAI preset counts exactly, and only while
-     * the entry leaves `exactInputCount` on. The count posts the request's
-     * own native body to the request path's documented sibling; any failure
-     * throws and the accounting layer falls back to the byte bound.
+     * EXECPROV round 7: the exact same-body input count for every wire
+     * that documents one, declared per preset/format in data
+     * (`FormatQuirks.exactCount`, preset overrides where only some
+     * providers of a format document one) and off-switchable per entry.
+     * The count request is built from the already-built native request by
+     * buildExactCountRequest (drop these fields, send to this path), so it
+     * cannot drift from what is sent. It rides the same pinned-address,
+     * proxy and credential path as the real request (no second network
+     * path), carries the request's own headers (auth, version, beta), is
+     * never recorded as a model call, and any failure throws so the
+     * accounting layer falls back to the byte bound with the fixed reason.
+     * A count is never retried for send failures (`rateLimitOnly`: only a
+     * pre-work 429 may retry inside the short deadline); its failure text
+     * never carries the body. Counts are free on every wire that has one,
+     * so no billed cost rides along.
      */
+    // Through the externalized providers entry (never a static edge into
+    // tokenCount.ts: the split gate forbids carrying provider modules).
+    const exactCountKind = tokenCount.exactCountKindFor(entry, preset)
     const exactInputCount =
-      format === 'responses' &&
-      entry.exactInputCount !== false &&
-      preset.id.replace(/-plan$/, '') === 'openai'
-        ? async (
+      exactCountKind === undefined
+        ? undefined
+        : async (
             body: CreateResponseBody,
             signal?: AbortSignal,
           ): Promise<{ readonly tokens: number; readonly costUsd?: UsdAmount | undefined }> => {
             const encoded = codec.encode(body, providerModel())
-            // The count is the request path's documented sibling, derived
-            // from the path the request itself takes — never a fixed string.
-            if (!encoded.path.endsWith('/responses')) return fail()
-            const requestPath = encoded.path
-            const count = new RequestTransport({
+            // Built from the request path the request itself takes — never
+            // a fixed string — so a custom prefix or model still addresses
+            // its own counting sibling, or keeps the byte bound.
+            const count = tokenCount.buildExactCountRequest(exactCountKind, {
+              path: encoded.path,
+              body: encoded.body,
+              ...(encoded.headers !== undefined && { headers: encoded.headers }),
+            })
+            if (count === undefined) return fail()
+            const transport = new RequestTransport({
               ...connection.transport,
               auth: connection.auth,
               verifyEndpoint: connection.verifyEndpoint,
               baseUrl: new URL(entry.address ?? fail()).origin,
             })
             const deadline = AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS)
-            const result = await count.request(
-              `${requestPath}/input_tokens`,
+            const result = await transport.request(
+              count.path,
               {
                 method: 'POST',
-                body: encoded.body,
+                body: count.body,
                 ...(encoded.headers !== undefined && { headers: encoded.headers }),
                 accept: 'application/json',
                 retries: 'rateLimitOnly',
@@ -823,16 +837,11 @@ export function createConfiguredProviderServices(
                 ? deadline
                 : AbortSignal.any([signal, deadline]),
             )
-            const parsed = await parseJsonResponse(result, (json) =>
-              z
-                .object({
-                  input_tokens: z.number().check(z.int(), z.gte(0), z.lte(Number.MAX_SAFE_INTEGER)),
-                })
-                .parse(json),
+            const tokens = await parseJsonResponse(result, (json) =>
+              tokenCount.parseExactCountResponse(exactCountKind, json),
             )
-            return { tokens: parsed.input_tokens, costUsd: undefined }
+            return tokens === undefined ? fail() : { tokens, costUsd: undefined }
           }
-        : undefined
     return {
       ...base,
       currentKeyDigest: client.currentKeyDigest,

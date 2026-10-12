@@ -3507,6 +3507,7 @@
   "execBudgetRemedyInput": "Yalnızca girdi {inputCost} tutuyor, kalan {remaining} tutarını aşıyor.",
   "execBudgetStartExact": "Tavanlı çalıştırma: tavan {cap}, kalan {remaining}. Sonraki istek en fazla {reservation} ayırır.",
   "execBudgetStartRule": "Tavanlı çalıştırma: tavan {cap}, kalan {remaining}. Her istek sayılmış girdisine ek olarak en fazla {output} çıktı jetonu ayırır.",
+  "execBudgetStartBytes": "Tavanlı çalıştırma: tavan {cap}, kalan {remaining}. Her istek bayt sınırlı girdisine ek olarak en fazla {output} çıktı jetonu ayırır.",
   "execBudgetStillReading": "Bütçe çalıştırmayı henüz okurken durdurdu, bu yüzden henüz bir yanıt yok.",
   "execCountBytesFallback": "Sağlayıcı girdi sayımı başarısız oldu, bu yüzden bu istek bayt sınırını ayırır.",
   "execOutputCapExceeded": "--max-output-tokens, {cap} jetonluk çıktı sınırını aşıyor.",

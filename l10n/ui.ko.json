@@ -3432,6 +3432,7 @@
   "execBudgetRemedyInput": "입력만으로 {inputCost}가 들어 남은 {remaining}를 초과합니다.",
   "execBudgetStartExact": "상한 실행: 상한 {cap}, 남은 {remaining}. 다음 요청은 최대 {reservation}을 예약합니다.",
   "execBudgetStartRule": "상한 실행: 상한 {cap}, 남은 {remaining}. 각 요청은 카운트된 입력에 최대 {output} 출력 토큰을 더해 예약합니다.",
+  "execBudgetStartBytes": "상한 실행: 상한 {cap}, 남은 {remaining}. 각 요청은 바이트 상한 입력에 최대 {output} 출력 토큰을 더해 예약합니다.",
   "execBudgetStillReading": "예산이 실행을 읽는 도중에 중단했으므로 아직 답변이 없습니다.",
   "execCountBytesFallback": "제공자 입력 카운트에 실패했으므로 이 요청은 바이트 상한으로 예약합니다.",
   "execOutputCapExceeded": "--max-output-tokens가 출력 상한 {cap}개 토큰을 초과합니다.",
