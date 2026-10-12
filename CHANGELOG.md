@@ -136,6 +136,17 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Model API lazy-bundle packaging and helper-failure diagnostics
+  (MODELAPIDIETR3, review RVMODELAPIDIETB). `src/shared/lazyBundleFiles.ts`
+  is the single registry of every dist chunk loaded by file name; a new scan
+  test fails any source string naming a dist file outside it, and the
+  packaging gate roots every registry entry unconditionally and checks each
+  against the VSIX allowlist, the agent package list and the production
+  build. Both helper-unavailable catches (and the closed URL-check refusal)
+  log the failure's class with the chunk named through the scrubbed channel
+  before showing the installed sentence, and chain the cause in process.
+  The modelApi.js diet pin moves 516,264 to the measured 516,313 (+109 B
+  for the shared diagnostics line); the 537,600 B cap is untouched.
 - Local report sources sort every tied list to a total order, so the same
   inputs produce byte-identical source facts whatever order records arrive
   in: Git commits, tags, branches and worktrees break key ties on their
