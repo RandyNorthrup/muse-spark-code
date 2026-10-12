@@ -210,6 +210,15 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- A reply from a provider you added yourself (an Anthropic, OpenAI or
+  Mistral key, a local server and the others) or from a ChatGPT plan is no
+  longer cut off 30 seconds after the request starts. Since 0.15.0 any answer
+  that took longer, such as a long written answer or one the model thinks
+  about first, was lost, and for a provider you added the error read
+  "Models & Agents is not available in this build." A reply now has no limit
+  on its total time; one that goes silent ends after 5 minutes with nothing
+  received, and the message says so.
+
 - Local report sources sort every tied list to a total order, so the same
   inputs produce byte-identical source facts whatever order records arrive
   in: Git commits, tags, branches and worktrees break key ties on their
