@@ -9,8 +9,15 @@
 // docs/certification/m109-m-migration-and-import.md says what the join owes
 // there. Occurrence counts are exact: a second call of an already-listed
 // helper in an already-listed file still breaks this test.
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { collectKeyFamilySites, compareStrings } from './migrationKeySites'
+import {
+  collectAccountStoreRemovals,
+  collectKeyFamilySites,
+  compareStrings,
+} from './migrationKeySites'
 
 // The checked-in call sites, `file :: fragment`, one entry per occurrence
 // (158 on 2026-10-11; R5 finds an `AccountStore` removal by resolved type
@@ -189,6 +196,50 @@ describe('C-M109-4 R3 migrated key inventory', () => {
     () => {
       const actual = collectKeyFamilySites()
       expect(actual).toEqual([...EXPECTED_SITES].toSorted(compareStrings))
+    },
+  )
+  // Named timeout: a fresh type-resolved program over the form fixtures
+  // takes seconds on a loaded rig.
+  it(
+    'finds an AccountStore removal by its declaration in every call form',
+    { timeout: 120_000 },
+    () => {
+      // RVCM1094E finding 2: the reviewer's nine call forms, each in its own
+      // generated file against the real `AccountStore`. The inventory finds
+      // a removal by the declaration it resolves to, so every form below —
+      // including the five the spelling-based scan missed — is counted.
+      const head = `import { AccountStore } from '../../src/core/providers/accounts'\n`
+      const bodies = [
+        `export function direct(store: AccountStore): Promise<void> {\n  return store.remove('provider', 'account')\n}\n`,
+        `export function nested(services: { store: AccountStore }): Promise<void> {\n  return services.store.remove('provider', 'account')\n}\n`,
+        `class Direct extends AccountStore {\n  public override async remove(_provider: string, _account: string): Promise<void> {\n    return Promise.resolve()\n  }\n}\nexport function owned(store: Direct): Promise<void> {\n  return store.remove('provider', 'account')\n}\n`,
+        `export function aliased(store: AccountStore): Promise<void> {\n  const same = store\n  return same.remove('provider', 'account')\n}\n`,
+        `export function destructured(store: AccountStore): Promise<void> {\n  const { remove } = store\n  return remove.call(store, 'provider', 'account')\n}\n`,
+        `export function bound(store: AccountStore): Promise<void> {\n  const drop = store.remove.bind(store)\n  return drop('provider', 'account')\n}\n`,
+        `export function indexed(store: AccountStore): Promise<void> {\n  return store['remove']('provider', 'account')\n}\n`,
+        `class Middle extends AccountStore {}\nclass Leaf extends Middle {\n  public override async remove(_provider: string, _account: string): Promise<void> {\n    return Promise.resolve()\n  }\n}\nexport function deep(store: Leaf): Promise<void> {\n  return store.remove('provider', 'account')\n}\n`,
+        `interface Remover {\n  remove(provider: string, account: string): Promise<void>\n}\nexport function throughPort(remover: Remover): Promise<void> {\n  return remover.remove('provider', 'account')\n}\n`,
+      ]
+      const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..')
+      const directory = mkdtempSync(path.join(root, 'temp', 'removeForms-'))
+      try {
+        const files = bodies.map((body, index) => {
+          const file = path.join(directory, `form${String(index + 1)}.ts`)
+          writeFileSync(file, `${head}${body}`)
+          return file
+        })
+        const actual = collectAccountStoreRemovals(files).toSorted(compareStrings)
+        expect(actual).toHaveLength(bodies.length)
+        for (const index of bodies.keys()) {
+          expect(actual[index]).toBe(
+            `${path
+              .relative(root, files[index]!)
+              .replaceAll(path.sep, '/')} :: AccountStore.remove`,
+          )
+        }
+      } finally {
+        rmSync(directory, { recursive: true, force: true })
+      }
     },
   )
 })
