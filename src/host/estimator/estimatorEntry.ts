@@ -1,3 +1,9 @@
+import {
+  estimateLimitContextSchema,
+  type EstimateLimitContext,
+} from '../../core/estimator/limitContext'
+import { limitNote } from '../../core/estimator/limitText'
+import { EstimateDiagnosticError } from '../../core/estimator/diagnostic'
 // The capacity estimator's lazy bundle (M117, PLAN.md D6, D97): esbuild
 // builds this file into dist/estimator.js, which the extension, the CLI and
 // the ACP agent require the first time an estimate runs, so the engine stays
@@ -20,10 +26,10 @@
 // the review time observed in history, and hours per round would count it
 // twice (docs/estimator/prior.md).
 import * as z from 'zod/mini'
-import { setUiText, fill, formatPercent } from '../../shared/l10n/text'
+import { setUiText } from '../../shared/l10n/text'
 import { formatUsd } from '../../shared/l10n/exactUsd'
 import type { UiText } from '../../shared/l10n/en'
-import { ESTIMATE_ENGINES, UI_TEXT } from '../../shared/constants'
+import { ESTIMATE_ENGINES } from '../../shared/constants'
 import {
   disclosureTargets,
   estimateInputsSchema,
@@ -60,10 +66,11 @@ export interface EstimatorSourcePorts extends EstimateGoalSourcesPort {
   /** This estimate's lanes ride along so the fleet can offer them capacity.
    * The fleet is stamped with the request's asOf, never a second clock. */
   fleet(lanes: readonly EstimateLane[], asOf: string): Promise<unknown>
+  limitContext?(lanes: readonly EstimateLane[], asOf: string): Promise<EstimateLimitContext>
   history(): Promise<unknown>
   candidatePool(lanes: readonly EstimateLane[], asOf: string): Promise<unknown>
   /** Invocation-owned supply snapshot; independent estimates never share a memo. */
-  beginEstimate?(): Pick<EstimatorSourcePorts, 'fleet' | 'candidatePool'>
+  beginEstimate?(): Pick<EstimatorSourcePorts, 'fleet' | 'candidatePool' | 'limitContext'>
   board(): EstimateStartPort
   prices(): EstimatePricePort
   priceLookup(): Omit<EstimatePriceLookup, 'asOf'>
@@ -112,7 +119,7 @@ function isEvidence(value: unknown): value is Omit<Disclosure, 'path'> {
 }
 
 function refuse(detail: string): never {
-  throw new Error(fill(UI_TEXT.estimateFailed, { detail }))
+  throw new EstimateDiagnosticError({ code: 'engine-refused', parameters: { reason: detail } })
 }
 
 /** The estimate's run, assembled from the lanes with their evidence. */
@@ -137,6 +144,9 @@ export function createEstimatorRun(
       })
       signal.throwIfAborted()
       const fleet = fleetSnapshotSchema.parse(await supply.fleet(lanes, parsed.asOf))
+      const limitContext = estimateLimitContextSchema.parse(
+        (await supply.limitContext?.(lanes, parsed.asOf)) ?? { facts: [], labels: [] },
+      )
       const history = z.array(historyRecordSchema).parse(await ports.history())
       signal.throwIfAborted()
       const inputs = estimateInputsSchema.parse({
@@ -159,8 +169,7 @@ export function createEstimatorRun(
             pairs.push({ kind: lane.kind, machineClassId: machine.classId })
         }
       for (const lane of inputs.lanes)
-        if (pairs.every((pair) => pair.kind !== lane.kind))
-          throw new Error(UI_TEXT.estimateNoCapacity)
+        if (pairs.every((pair) => pair.kind !== lane.kind)) refuse(`unschedulable:${lane.id}`)
       const fits = new Map<string, CalibrationFit>()
       const calibration: EstimateSection['calibration'] = []
       for (const pair of pairs)
@@ -200,7 +209,7 @@ export function createEstimatorRun(
         try {
           return {
             status: 'feasible' as const,
-            simulation: simulateEstimate(variant, durationPort),
+            simulation: simulateEstimate(variant, durationPort, limitContext),
           }
         } catch (error: unknown) {
           if (error instanceof EstimateSchedulingError)
@@ -246,7 +255,12 @@ export function createEstimatorRun(
       const simulation = selected.forecast.simulation
       const forecastInputs = { ...inputs, fleet: selected.fleet }
       const durations = estimateDurationMap(simulation.durationSamples)
-      const limitingResource = findEstimateBottleneck(inputs.lanes, selected.fleet, durations)
+      const limitingResource = findEstimateBottleneck(
+        inputs.lanes,
+        selected.fleet,
+        durations,
+        limitContext,
+      )
       const qualifications = recommendation.selections.flatMap((selection) => {
         const evaluation = recommendation.evaluations[selection.evaluation]
         return evaluation?.forecast.status === 'feasible'
@@ -260,13 +274,11 @@ export function createEstimatorRun(
                     return origin === undefined
                       ? []
                       : (['cpuPercent', 'memoryPercent'] as const).map((key) =>
-                          fill(
-                            origin[key] === 'default'
-                              ? UI_TEXT.estimateSettingsDefault
-                              : UI_TEXT.estimateSettingsConfigured,
-                            {
-                              source: `${origin.source}/${key}: ${formatPercent(machine.caps[key])}`,
-                            },
+                          limitNote(
+                            origin[key],
+                            `${origin.source}/${key}`,
+                            undefined,
+                            machine.caps[key],
                           ),
                         )
                   }),

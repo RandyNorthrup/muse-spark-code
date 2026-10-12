@@ -1,3 +1,5 @@
+import { resolveLimitContext, type EstimateLimitContext } from './limitContext'
+import { EstimateDiagnosticError } from './diagnostic'
 import { fingerprint } from '../verify/fingerprint'
 import {
   estimateInputsSchema,
@@ -15,7 +17,6 @@ import {
   MINUTES_PER_HOUR,
   SECONDS_PER_MINUTE,
 } from '../../shared/constants'
-import { UI_TEXT, fill } from '../../shared/l10n/text'
 import { compareEstimateIds } from './goal'
 import { planDurationEvidence, type EstimateDurationEvidence } from './dag'
 import { canEstimateMachineRun, prepareEstimateSchedule } from './schedule'
@@ -74,7 +75,7 @@ const P50 = 0.5
 const P90 = 0.9
 
 function refuse(detail: string): never {
-  throw new Error(fill(UI_TEXT.estimateFailed, { detail }))
+  throw new EstimateDiagnosticError({ code: 'engine-refused', parameters: { reason: detail } })
 }
 
 /** All input arrays are sets of application records/identities; object and
@@ -207,9 +208,11 @@ export function estimateDurationMap(
 export function simulateEstimate(
   input: EstimateInputs,
   port: EstimateDurationPort,
+  limitContext?: EstimateLimitContext,
 ): EstimateSimulation {
   const inputs = estimateInputsSchema.parse(input)
-  const scheduler = prepareEstimateSchedule(inputs.lanes, inputs.fleet)
+  const context = resolveLimitContext(inputs.fleet, limitContext)
+  const scheduler = prepareEstimateSchedule(inputs.lanes, inputs.fleet, undefined, context)
   const lanes = inputs.lanes.toSorted((a, b) => compareEstimateIds(a.id, b.id))
   const layout = lanes
     .filter((lane) => lane.state !== 'merged')
@@ -230,7 +233,23 @@ export function simulateEstimate(
     validate(model, lane, machineClassId)
     return { laneId: lane.id, machineClassId, model }
   })
-  const seed = inputs.request.seed ?? fingerprint(canonical({ inputs, models }))
+  const seed =
+    inputs.request.seed ??
+    fingerprint(
+      canonical({
+        inputs: {
+          ...inputs,
+          fleet: {
+            ...inputs.fleet,
+            accounts: inputs.fleet.accounts.map(
+              ({ statedLimits: _statedLimits, ...account }) => account,
+            ),
+          },
+        },
+        models,
+        ...(context.facts.length > 0 && { facts: context.facts }),
+      }),
+    )
   const random = estimateRandom(seed)
   const byId = new Map(lanes.map((lane) => [lane.id, lane]))
   const trials: { index: number; hours: number }[] = []

@@ -23,7 +23,7 @@ function observation(source: UsageLimitSnapshot['source']): UsageLimitSnapshot {
     timezoneOffsetMins: 0,
     client: 'test',
     backend: 'modelApi',
-    provider: owner.providerId!,
+    provider: owner.providerId,
     source,
     windows: [],
     account: { usedUsd: 100, limitUsd: 100, remainingUsd: 0, period: 'month' },
@@ -42,9 +42,9 @@ describe('owned estimator limit facts', () => {
         used: 100,
         limit: 100,
         remaining: 0,
-        window: { startsAt: null, resetsAt: null, periodSeconds: null },
+        window: { startsAt: null, resetsAt: null, periodSeconds: null, calendarPeriod: 'month' },
         observedAt: '2026-10-06T12:00:00.000Z',
-        observedBy: 'usage-changed',
+        observedBy: source,
       })
       snapshot.account = { period: 'unknown', remainingUsd: 0 }
       expect(
@@ -137,5 +137,28 @@ describe('owned estimator limit facts', () => {
         },
       }),
     ).toThrow('account-limits')
+  })
+  it.each([
+    { planWindows: { weekly: { usedPercent: 90, resetAt: 'not-a-date' } } },
+    { blocked: { reason: 'quota' as const, resetAt: 'not-a-date' } },
+    { rateLimits: { requests: { limit: 1, remaining: 1, resetAt: '99999-01-01T00:00:00.000Z' } } },
+  ])('refuses invalid account-limits timestamps %p', (snapshot) => {
+    expect(() => ESTIMATE_FACT_TRANSLATORS.limits({ owner, observedAt, snapshot })).toThrow(
+      'account-limits',
+    )
+  })
+  it('refuses invalid ownership even when the source reports no measurements', () => {
+    for (const field of ['id', 'providerId', 'generation'] as const) {
+      const corrupt = { ...owner, [field]: '' }
+      expect(() =>
+        ESTIMATE_FACT_TRANSLATORS.limits({ owner: corrupt, observedAt, snapshot: {} }),
+      ).toThrow('account-limits')
+      const snapshot = observation('headers')
+      snapshot.windows = []
+      delete snapshot.account
+      expect(() =>
+        ESTIMATE_FACT_TRANSLATORS.observation({ owner: corrupt, observedAt, snapshot }),
+      ).toThrow('usage-changed')
+    }
   })
 })

@@ -6,6 +6,7 @@ import { accountLimitsSnapshotSchema, type AccountLimitsSnapshot } from '../acco
 import { SECONDS_PER_MINUTE } from '../../shared/constants'
 import {
   estimateLimitFactSchema,
+  estimateAccountOwnerSchema,
   type EstimateLimitFact,
   type EstimateAccountOwner,
 } from '../../shared/estimateFacts'
@@ -20,7 +21,8 @@ function refuse(source: string): never {
   throw new EstimateFactSourceError(source)
 }
 function instant(value: number, source: string): string {
-  if (value < 0 || !Number.isFinite(new Date(value).getTime())) refuse(source)
+  if (!Number.isSafeInteger(value) || value < 0 || !Number.isFinite(new Date(value).getTime()))
+    refuse(source)
   return new Date(value).toISOString()
 }
 function checked(fact: EstimateLimitFact, source: string): EstimateLimitFact {
@@ -40,17 +42,19 @@ function fact(
   return {
     owner: input.owner,
     metric,
-    unit: 'percent',
+    unit: null,
     used: null,
     limit: null,
     remaining: null,
-    window: { startsAt: null, resetsAt: null, periodSeconds: null },
+    window: { startsAt: null, resetsAt: null, periodSeconds: null, calendarPeriod: null },
     observedAt: instant(input.observedAt, source),
     observedBy: source,
   }
 }
 function limits(input: AccountInput & { snapshot: AccountLimitsSnapshot }): EstimateLimitFact[] {
   const source = 'account-limits'
+  if (!estimateAccountOwnerSchema.safeParse(input.owner).success) refuse(source)
+  instant(input.observedAt, source)
   const result = accountLimitsSnapshotSchema.safeParse(input.snapshot)
   if (!result.success) refuse(source)
   const rows: EstimateLimitFact[] = []
@@ -65,7 +69,12 @@ function limits(input: AccountInput & { snapshot: AccountLimitsSnapshot }): Esti
             used: bucket.limit - bucket.remaining,
             limit: bucket.limit,
             remaining: bucket.remaining,
-            window: { startsAt: null, resetsAt: bucket.resetAt, periodSeconds: null },
+            window: {
+              startsAt: null,
+              resetsAt: bucket.resetAt,
+              periodSeconds: null,
+              calendarPeriod: null,
+            },
           },
           source,
         ),
@@ -77,10 +86,12 @@ function limits(input: AccountInput & { snapshot: AccountLimitsSnapshot }): Esti
       checked(
         {
           ...fact(input, metric, source),
+          unit: 'percent',
           used: window.usedPercent,
           limit: 100,
           remaining: 100 - window.usedPercent,
           window: {
+            calendarPeriod: null,
             startsAt: null,
             resetsAt: window.resetAt,
             periodSeconds:
@@ -97,8 +108,12 @@ function limits(input: AccountInput & { snapshot: AccountLimitsSnapshot }): Esti
       checked(
         {
           ...fact(input, 'blocked', source),
-          remaining: 0,
-          window: { startsAt: null, resetsAt: result.data.blocked.resetAt, periodSeconds: null },
+          window: {
+            startsAt: null,
+            resetsAt: result.data.blocked.resetAt,
+            periodSeconds: null,
+            calendarPeriod: null,
+          },
         },
         source,
       ),
@@ -107,6 +122,8 @@ function limits(input: AccountInput & { snapshot: AccountLimitsSnapshot }): Esti
 }
 function observation(input: AccountInput & { snapshot: UsageLimitSnapshot }): EstimateLimitFact[] {
   const source = 'usage-changed'
+  if (!estimateAccountOwnerSchema.safeParse(input.owner).success) refuse(source)
+  instant(input.observedAt, source)
   const result = usageLimitSnapshotSchema.safeParse(input.snapshot)
   if (!result.success) refuse(source)
   // Validate every timestamp, including metadata and fields not used for admission.
@@ -116,10 +133,13 @@ function observation(input: AccountInput & { snapshot: UsageLimitSnapshot }): Es
     checked(
       {
         ...fact({ ...input, observedAt: result.data.observedAt }, window.id, source),
+        observedBy: result.data.source,
+        unit: 'percent',
         used: window.usedPercent,
         limit: 100,
         remaining: Math.max(0, 100 - window.usedPercent),
         window: {
+          calendarPeriod: null,
           startsAt: null,
           resetsAt: window.resetsAt === undefined ? null : instant(window.resetsAt, source),
           periodSeconds:
@@ -130,11 +150,21 @@ function observation(input: AccountInput & { snapshot: UsageLimitSnapshot }): Es
     ),
   )
   const account = result.data.account
+  const period = estimateLimitFactSchema.shape.window.shape.calendarPeriod.safeParse(
+    account?.period,
+  )
   if (account !== undefined)
     rows.push(
       checked(
         {
           ...fact({ ...input, observedAt: result.data.observedAt }, 'balance', source),
+          window: {
+            startsAt: null,
+            resetsAt: null,
+            periodSeconds: null,
+            calendarPeriod: period.success ? period.data : null,
+          },
+          observedBy: result.data.source,
           unit: 'usd',
           used: account.usedUsd ?? null,
           limit: account.limitUsd ?? null,
@@ -147,6 +177,8 @@ function observation(input: AccountInput & { snapshot: UsageLimitSnapshot }): Es
 }
 function usage(input: AccountInput & { snapshot: SubscriptionUsage }): EstimateLimitFact[] {
   const source = 'usage-read'
+  if (!estimateAccountOwnerSchema.safeParse(input.owner).success) refuse(source)
+  instant(input.observedAt, source)
   const result = subscriptionUsageSchema.safeParse(input.snapshot)
   if (!result.success) refuse(source)
   const value = result.data
@@ -164,10 +196,12 @@ function usageWindows(input: AccountInput, value: SubscriptionUsage): EstimateLi
     checked(
       {
         ...fact({ ...input, observedAt: value.observedAtMs }, metric, 'usage-read'),
+        unit: 'percent',
         used: window.usedPercent,
         limit: 100,
         remaining: Math.max(0, 100 - window.usedPercent),
         window: {
+          calendarPeriod: null,
           startsAt: null,
           resetsAt: instant(window.resetsAtMs, 'usage-read'),
           periodSeconds:
@@ -195,7 +229,7 @@ function machine(input: {
         used: null,
         remaining: null,
         limit: metric === 'cpu' ? input.cpuMaxPercent : input.memoryMaxPercent,
-        window: { startsAt: null, resetsAt: null, periodSeconds: null },
+        window: { startsAt: null, resetsAt: null, periodSeconds: null, calendarPeriod: null },
         observedAt: instant(input.observedAt, 'configuration'),
         observedBy: 'configuration',
       },

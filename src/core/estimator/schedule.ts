@@ -1,4 +1,10 @@
 import {
+  isLimitContextEvidence,
+  resolveLimitContext,
+  type EstimateLimitContext,
+} from './limitContext'
+import { EstimateDiagnosticError } from './diagnostic'
+import {
   fleetSnapshotSchema,
   estimateLaneSchema,
   type EstimateLane,
@@ -13,7 +19,7 @@ import {
   MINUTES_PER_HOUR,
   SECONDS_PER_MINUTE,
 } from '../../shared/constants'
-import { UI_TEXT, fill, formatDateTime } from '../../shared/l10n/text'
+import { limitNote } from './limitText'
 import { buildEstimateDag, isEstimateDurationEvidence, type EstimateDurationEvidence } from './dag'
 import { compareEstimateIds } from './goal'
 
@@ -57,15 +63,15 @@ export interface EstimateScheduler {
 }
 
 /** Resource infeasibility is distinct from corrupt inputs and engine faults. */
-export class EstimateSchedulingError extends Error {
+export class EstimateSchedulingError extends EstimateDiagnosticError {
   constructor(readonly reason: string) {
-    super(fill(UI_TEXT.estimateFailed, { detail: reason }))
+    super({ code: 'schedule-refused', parameters: { reason } })
     this.name = 'EstimateSchedulingError'
   }
 }
 
 function refuse(detail: string): never {
-  throw new Error(fill(UI_TEXT.estimateFailed, { detail }))
+  throw new EstimateDiagnosticError({ code: 'engine-refused', parameters: { reason: detail } })
 }
 
 /** One candidate cannot be placed: R records it as infeasible and ranks the
@@ -206,7 +212,13 @@ export function prepareEstimateSchedule(
   input: readonly EstimateLane[],
   fleetInput: FleetSnapshot,
   relaxation?: EstimateRelaxation,
+  limitContext?: EstimateLimitContext,
 ): EstimateScheduler {
+  const context = resolveLimitContext(fleetInput, limitContext)
+  const accountLabel = (account: Account): string =>
+    context.labels.find(
+      (row) => row.accountId === account.id && row.providerId === account.providerId,
+    )?.label ?? account.providerId
   const dag = buildEstimateDag(input)
   const fleet = fleetSnapshotSchema.parse(fleetInput)
   const asOf = Date.parse(fleet.asOf)
@@ -353,14 +365,23 @@ export function prepareEstimateSchedule(
         ) > ci.concurrentJobs,
   )
   for (const account of accounts) {
-    if (account.usageLimits === undefined) unknownLimits.add(`${account.id}:usageLimits`)
+    if (account.usageLimits === undefined) unknownLimits.add(`${accountLabel(account)}:usageLimits`)
     if (account.requestsPerMinute === undefined)
-      unknownLimits.add(`${account.id}:requestsPerMinute`)
-    if (account.tokensPerMinute === undefined) unknownLimits.add(`${account.id}:tokensPerMinute`)
+      unknownLimits.add(`${accountLabel(account)}:requestsPerMinute`)
+    if (account.tokensPerMinute === undefined)
+      unknownLimits.add(`${accountLabel(account)}:tokensPerMinute`)
     // Stated limits travel verbatim: the owner said them, the schedule
     // cannot convert them, and dropping them would hide them.
+    const currentWindows = account.usageLimits ?? []
+    for (const window of currentWindows)
+      if (window.kind === 'current')
+        unknownLimits.add(limitNote('refill', `${accountLabel(account)}/${window.unit}`))
     const stated = account.statedLimits ?? []
-    for (const note of stated) unknownLimits.add(note)
+    for (const note of stated)
+      if (!isLimitContextEvidence(note))
+        unknownLimits.add(
+          note === 'estimate-limits-unread' ? limitNote('unread', accountLabel(account)) : note,
+        )
   }
   for (const ci of fleet.ci)
     if (
@@ -384,8 +405,18 @@ export function prepareEstimateSchedule(
           known(lane.resources.ciMinutes, `${lane.id}:ciMinutes`) > 0),
     )
   )
-    unknownLimits.add(UI_TEXT.estimateCiUnread)
+    unknownLimits.add(limitNote('ci', ''))
 
+  for (const fact of context.facts) {
+    if (fact.owner.kind !== 'account') continue
+    const account = accounts.find(
+      (row) => row.id === fact.owner.id && row.providerId === fact.owner.providerId,
+    )
+    if (account === undefined) continue
+    if (fact.window.periodSeconds === null)
+      unknownLimits.add(limitNote('refill', `${accountLabel(account)}/${fact.unit ?? fact.metric}`))
+    if (fact.remaining === null) unknownLimits.add(limitNote('unread', accountLabel(account)))
+  }
   let quotaHints: number[] = []
   function isFeasible(
     all: Reservation[],
@@ -522,6 +553,33 @@ export function prepareEstimateSchedule(
     if (relaxation !== 'accountRate') {
       const horizon = Math.max(...all.map((entry) => entry.end))
       for (const account of accounts) {
+        for (const fact of context.facts) {
+          if (
+            fact.owner.kind !== 'account' ||
+            fact.owner.id !== account.id ||
+            fact.owner.providerId !== account.providerId ||
+            fact.remaining === null ||
+            fact.unit === null ||
+            fact.window.resetsAt !== null
+          )
+            continue
+          const users = all.filter((entry) => accountShare(entry, account.id) > 0)
+          if (
+            fact.unit === 'percent' &&
+            users.some((entry) => entry.lane.resources.accountPercentPerHour.status === 'unknown')
+          )
+            continue
+          const unit = fact.unit
+          const total = users.reduce(
+            (sum, entry) =>
+              sum +
+              laneRate(entry.lane, unit) *
+                accountShare(entry, account.id) *
+                (entry.end - entry.start),
+            0,
+          )
+          if (total > fact.remaining) return false
+        }
         const windows = windowsByAccount.get(account) ?? []
         if (windows.length === 0) continue
         const users = all.filter((entry) => accountShare(entry, account.id) > 0)
@@ -653,10 +711,7 @@ export function prepareEstimateSchedule(
             users.some((lane) => !isDemandKnown(lane, window.unit))
           ) {
             unknownLimits.add(
-              fill(UI_TEXT.estimatePercentDemandUnknown, {
-                source: `${account.id}/${window.id}`,
-                reset: formatDateTime(Date.parse(window.resetsAt)),
-              }),
+              limitNote('demand', `${accountLabel(account)}/${window.unit}`, window.resetsAt),
             )
             return false
           }

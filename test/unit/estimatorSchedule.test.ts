@@ -406,9 +406,9 @@ describe('M117 resource list scheduling', () => {
     const before = JSON.stringify(fleet)
     const result = prepareEstimateSchedule(ciLanes(['A']), fleet).run()
     expect(result.unknownLimits).toEqual([
-      'account-1:tokensPerMinute',
-      'account-1:usageLimits',
       'ci-1:minutesRemaining',
+      'test-provider:tokensPerMinute',
+      'test-provider:usageLimits',
     ])
     expect(JSON.stringify(fleet)).toBe(before)
   })

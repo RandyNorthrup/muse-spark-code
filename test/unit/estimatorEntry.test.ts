@@ -253,7 +253,7 @@ describe('M117 estimator bundle assembly', () => {
         expect.objectContaining({
           setup: 'current',
           unknownLimits: expect.arrayContaining([
-            'account-1:usageLimits',
+            'test-provider:usageLimits',
             'M117:A:account-selection-approximate',
           ]),
         }),
