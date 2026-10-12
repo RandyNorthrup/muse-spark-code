@@ -159,6 +159,7 @@ export function AccountsSection({
           </button>
         </>
       )}
+      <p>{UI_TEXT.accounts.useScope}</p>
       <ol className="account-list">
         {ordered.map((account, index) => (
           <li key={account.id}>

@@ -5108,6 +5108,7 @@
     "none": "Aucun compte sélectionné",
     "id": "Identifiant du compte",
     "use": "Utiliser le compte",
+    "useScope": "Le compte choisi sert les requêtes de ce chat ; les tâches en arrière-plan sont réparties selon la marge disponible.",
     "earlier": "Déplacer avant",
     "later": "Déplacer après",
     "keyPrompt": "Clé API pour {provider} · {account} (masquée pendant la saisie) : ",

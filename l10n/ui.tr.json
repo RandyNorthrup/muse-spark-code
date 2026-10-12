@@ -4959,6 +4959,7 @@
     "none": "Hesap seçilmedi",
     "id": "Hesap kimliği",
     "use": "Hesabı kullan",
+    "useScope": "Seçilen hesap bu sohbetin isteklerini karşılar; arka plan işleri boş alana göre dağıtılır.",
     "earlier": "Öne taşı",
     "later": "Arkaya taşı",
     "keyPrompt": "{provider} · {account} API anahtarı (yazarken gizlenir): ",

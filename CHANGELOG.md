@@ -53,6 +53,8 @@ happened, not what was planned; superseded entries are kept.
 
 - Held account request path chooses its payer before hosted-search consent; user-selected accounts cannot borrow the default account approval.
 
+- The held Accounts section states that the chosen account serves the chat's own requests while background work spreads by headroom, in all fourteen languages.
+
 - Account availability now restores its registered release text, setting
   descriptions and Help pooling row together during reference generation.
   Certification stays off; local profiles and Muse Code accounts remain held.

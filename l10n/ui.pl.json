@@ -5257,6 +5257,7 @@
     "none": "Nie wybrano konta",
     "id": "Identyfikator konta",
     "use": "Użyj konta",
+    "useScope": "Wybrane konto obsługuje żądania tego czatu; praca w tle jest rozdzielana według zapasu.",
     "earlier": "Przesuń wcześniej",
     "later": "Przesuń później",
     "keyPrompt": "Klucz API dla {provider} · {account} (ukryty podczas wpisywania): ",

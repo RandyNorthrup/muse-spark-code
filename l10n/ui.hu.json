@@ -4959,6 +4959,7 @@
     "none": "Nincs kiválasztott fiók",
     "id": "Fiókazonosító",
     "use": "Fiók használata",
+    "useScope": "A kiválasztott fiók szolgálja ki ennek a csevegésnek a kéréseit; a háttérmunka a szabad kapacitás szerint oszlik meg.",
     "earlier": "Előrébb helyezés",
     "later": "Hátrébb helyezés",
     "keyPrompt": "{provider} · {account} API-kulcs (gépelés közben rejtve): ",

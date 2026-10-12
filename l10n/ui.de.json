@@ -4959,6 +4959,7 @@
     "none": "Kein Konto ausgewählt",
     "id": "Konto-ID",
     "use": "Konto verwenden",
+    "useScope": "Das gewählte Konto bedient die Anfragen dieses Chats; Hintergrundarbeit wird nach verfügbarer Kapazität verteilt.",
     "earlier": "Nach vorne verschieben",
     "later": "Nach hinten verschieben",
     "keyPrompt": "API-Schlüssel für {provider} · {account} (bei der Eingabe verborgen): ",

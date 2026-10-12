@@ -57,6 +57,11 @@ describe('M108 Accounts section', () => {
     expect(screen.queryByRole('button')).toBeNull()
     expect(screen.getByRole('alert')).toHaveTextContent(UI_TEXT.accounts.invalidAccount)
   })
+  it('states that the chosen account covers the chat while background work spreads by headroom', () => {
+    const h = section()
+    expect(screen.getByText(UI_TEXT.accounts.useScope)).toBeVisible()
+    expect(h.container).toHaveTextContent(UI_TEXT.accounts.parallelDescription)
+  })
   it('allows one pending mutation despite stale enabled form controls', async () => {
     const h = section()
     const held = Promise.withResolvers<unknown>()

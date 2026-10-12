@@ -4810,6 +4810,7 @@
     "none": "未选择账户",
     "id": "账户 ID",
     "use": "使用账户",
+    "useScope": "所选账户处理此聊天的请求；后台工作按余量分配。",
     "earlier": "向前移动",
     "later": "向后移动",
     "keyPrompt": "{provider} · {account} API密钥（输入时隐藏）：",

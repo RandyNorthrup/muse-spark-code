@@ -94,5 +94,13 @@
     "exit": 1,
     "sha256": "a9dc0b1ad81680e600b07856eb668dc8309352cbd14bf71dca22dc5cdc0c2839",
     "restored": true
+  },
+  {
+    "name": "picker-scope",
+    "source": "src/webview/models/sections/accounts/AccountsSection.tsx",
+    "test": "test/unit/accountsPanel.test.tsx",
+    "exit": 1,
+    "sha256": "853f4cd88b26c92c3cbf3bd63f386b093b43069837a9ce9bfefff99fb9f0194c",
+    "restored": true
   }
 ]

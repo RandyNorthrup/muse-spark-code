@@ -5108,6 +5108,7 @@
     "none": "Nessun account selezionato",
     "id": "ID account",
     "use": "Usa account",
+    "useScope": "L’account scelto serve le richieste di questa chat; il lavoro in background è distribuito in base al margine.",
     "earlier": "Sposta prima",
     "later": "Sposta dopo",
     "keyPrompt": "Chiave API per {provider} · {account} (nascosta durante la digitazione): ",
