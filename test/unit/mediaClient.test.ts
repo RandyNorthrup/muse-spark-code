@@ -225,7 +225,10 @@ describe('media accounting at the transport', () => {
     const t = await setup({ omitUsage: true })
     const fire = await scheduledMedia(t)
     await fire.consume()
-    await expect(fire.daily.latestDay()).rejects.toThrow(UI_TEXT.paidDailyLedgerUnavailable)
+    // A fresh bounded schedule claim retains its liability without tripping
+    // the legacy unknown-fee stop (bounded-liability rule).
+    const latest = await fire.daily.latestDay()
+    expect(latest.spentUsd).toBe(t.accounting.reservedUsd)
     const today = await fire.daily.readToday()
     expect(today[0]?.budget).toMatchObject({
       spentUsd: Number(t.accounting.reservedUsd),

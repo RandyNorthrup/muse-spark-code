@@ -31,8 +31,8 @@ describe('M97 legal args (lane R)', () => {
       options: { format: 'json', out: 'report.json', registry: true },
     })
   })
-  it('answers --help with the global help, like the other headless commands', () => {
-    expect(parseCommandLine(['legal', '--help'])).toEqual({ command: 'help' })
+  it("answers --help with legal's own options (owner F rule: every subcommand)", () => {
+    expect(parseCommandLine(['legal', '--help'])).toEqual({ command: 'help', route: 'legal' })
   })
   it.each([['yaml'], ['TEXT'], ['']])('refuses --format %s with the format reason', (format) => {
     expect(parseLegalArgs({ format }, [])).toEqual({

@@ -178,7 +178,10 @@ describe('legal explanations through the shared D78 gate', () => {
     const claim = t.claims[0]
     const total = await dailyTotal(t.directory)
     expect(total.spentUsd).toBe(claim?.reservedUsd)
-    expect(total.hasUnknownHistoricalFees).toBe(true)
+    // A fresh bounded owner claim retains its liability without tripping the
+    // legacy unknown-fee stop (bounded-liability rule); only legacy or
+    // unbounded claims trip it.
+    expect(total.hasUnknownHistoricalFees).toBe(false)
     expect(t.usage.current.legalExplanationUnknownRequests).toBe(1)
   })
   it('shares the daily scope with another D78 caller and refuses over-budget dispatch', async () => {
