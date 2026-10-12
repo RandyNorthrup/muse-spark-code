@@ -170,6 +170,10 @@ export const usagePageStateSchema = /* @__PURE__ */ z.strictObject({
   // kept changing while read, so the counts may be behind. `unavailable`:
   // the trace folder could not be read at all; the journal above stands.
   traceNotice: z.optional(z.enum(['stale', 'unavailable'])),
+  // The cost-journal read behind the totals above: absent when it read.
+  // `unavailable`: the journal could not be read, so the totals are empty
+  // and only the trace attempts (with their own notice) stand.
+  journalNotice: z.optional(z.enum(['unavailable'])),
   savings: z.strictObject({
     cachedTokens: z.optional(usageCountSchema),
     cacheUsd: z.optional(usageUsdSchema),

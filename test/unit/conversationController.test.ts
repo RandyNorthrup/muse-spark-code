@@ -421,6 +421,10 @@ function setup(
     isRestorable?: boolean
     /** The usage modal's insights (M14). */
     usageInsights?: { day: UsageInsights; week: UsageInsights }
+    /** The trace notice riding with the insights read. */
+    usageInsightsNotice?: 'behind' | 'unavailable'
+    /** The listing found no file: the "no trace logs" sentence may post. */
+    usageInsightsEmpty?: boolean
     /** A failing insights read: the report still posts without them. */
     usageInsightsError?: unknown
     usageRecording?: ConversationDeps['usageRecording']
@@ -744,7 +748,14 @@ function setup(
       ),
     usageInsights:
       options.usageInsightsError === undefined
-        ? () => Promise.resolve(options.usageInsights)
+        ? () =>
+            Promise.resolve({
+              report: options.usageInsights,
+              notice: options.usageInsightsNotice,
+              // Tests that do not exercise the trace listing carry no
+              // listing state, so no notice is posted for them.
+              empty: options.usageInsightsEmpty ?? false,
+            })
         : () =>
             Promise.reject(new Error('usageInsightsFailed', { cause: options.usageInsightsError })),
     ...(options.usageRecording !== undefined && { usageRecording: options.usageRecording }),
@@ -4557,12 +4568,51 @@ describe('ConversationController: account & usage (M8)', () => {
       backend: 'museCode',
       account,
       subscription: usage,
+      // A read error never reads "no logs": it carries `unavailable`, the
+      // same notice the usage page shows for the same failure.
+      insightsState: 'unavailable',
     }
-    // The trace failure is logged, not shown: the subscription stands alone.
     expect(t.surface.posted.at(-1)).toEqual(expectedReport)
     t.server.notify('usage/changed', usage)
     await settle()
     expect(t.surface.posted.at(-1)).toEqual(expectedReport)
+  })
+
+  it('posts the behind notice with the insights when a log stands in', async () => {
+    const insights = {
+      day: {
+        attempts: 2,
+        sessions: 1,
+        reminderAttempts: 0,
+        subagentAttempts: 0,
+        longSessionAttempts: 0,
+      },
+      week: {
+        attempts: 2,
+        sessions: 1,
+        reminderAttempts: 0,
+        subagentAttempts: 0,
+        longSessionAttempts: 0,
+      },
+    }
+    const t = setup({ usageInsights: insights, usageInsightsNotice: 'behind' })
+    expect(await firstUsageReport(t)).toEqual({
+      type: 'usageReport',
+      backend: 'museCode',
+      account,
+      insights,
+      insightsState: 'behind',
+    })
+  })
+
+  it('posts the empty notice only when the listing found no file', async () => {
+    const t = setup({ usageInsightsEmpty: true })
+    expect(await firstUsageReport(t)).toEqual({
+      type: 'usageReport',
+      backend: 'museCode',
+      account,
+      insightsState: 'empty',
+    })
   })
   it('answers readUsage with the backend and the window, then follows usage/changed', async () => {
     const t = setup()

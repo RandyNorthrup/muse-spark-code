@@ -221,7 +221,7 @@ import type {
   WebviewToHostMessage,
 } from '../../shared/protocol'
 
-import type { UsageInsightsReport } from '../../runtime/usage/traceLogs'
+import type { TraceInsights } from '../../runtime/usage/traceLogs'
 import type { EstimateInputs } from '../../shared/estimate'
 import type { EstimatorRun } from '../estimator/estimatorBundle'
 import { uploadedFilesReportSchema, type UploadedFilesReport } from '../../shared/media'
@@ -551,7 +551,7 @@ export interface ConversationDeps {
   /** Lazy media account bridge, also bound by the runtime/companion integration. */
   readonly uploadedFiles?: ConversationUploadedFilesPort
   /** The usage modal's insights from the CLI's trace logs (M14); undefined without logs. */
-  readonly usageInsights: () => Promise<UsageInsightsReport | undefined>
+  readonly usageInsights: () => Promise<TraceInsights>
   /** Whether this surface resumes its last session when it reopens (the sidebar). */
   readonly isRestorable: boolean
   /** Voice dictation (M9): the platform's helper, or why there is none. */
@@ -9183,12 +9183,12 @@ export class ConversationController {
       }
     }
     // A trace-log failure (an unreadable folder, a kept-changing log) never
-    // takes the subscription report with it: insights stay undefined and the
-    // report still posts.
-    let insights: UsageInsightsReport | undefined
+    // takes the subscription report with it: the report still posts, with
+    // the same notice the usage page shows for the same read.
+    let chatInsights: TraceInsights | undefined
     if (host.info.kind === 'museCode') {
       try {
-        insights = await this.deps.usageInsights()
+        chatInsights = await this.deps.usageInsights()
       } catch (error) {
         logRejection(this.deps.log, 'Usage insights')(error)
       }
@@ -9197,6 +9197,16 @@ export class ConversationController {
     if (!this.canPostUsage(host) || this.latestUsage !== shown) {
       return
     }
+    // The "no trace logs" sentence is reachable only through `empty` (the
+    // listing succeeded and found no file): never from an error, which
+    // reads `unavailable`, and never from a stale stand-in.
+    const insightsState =
+      chatInsights === undefined
+        ? ('unavailable' as const)
+        : (chatInsights.notice ??
+          (chatInsights.report === undefined && chatInsights.empty
+            ? ('empty' as const)
+            : undefined))
     this.post({
       type: 'usageReport',
       ...(serviceStatus !== undefined && { serviceStatus }),
@@ -9204,7 +9214,8 @@ export class ConversationController {
       account,
       ...(providers.length > 0 && { providers }),
       ...(shown !== undefined && { subscription: shown }),
-      ...(insights !== undefined && { insights }),
+      ...(chatInsights?.report !== undefined && { insights: chatInsights.report }),
+      ...(host.info.kind === 'museCode' && insightsState !== undefined && { insightsState }),
       ...(host.readPlanUsage !== undefined && { plans: [...host.readPlanUsage()] }),
     })
   }

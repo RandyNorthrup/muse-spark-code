@@ -3214,6 +3214,8 @@
   "usageInsightNone": "V tomto okně není zaznamenána žádná aktivita CLI.",
   "usageInsightUnavailable": "Na tomto back-endu není k dispozici: Model API nemá žádné místní protokoly trasování.",
   "usageInsightNoLogs": "Na tomto počítači zatím nebyly nalezeny žádné protokoly trasování Muse Code.",
+  "usageInsightsBehindNote": "Tato čísla mohou být zastaralá: jeden trasovací protokol se nepodařilo přečíst, proto je uveden dřívější počet.",
+  "usageInsightsUnavailableNote": "Trasovací protokoly se nepodařilo přečíst, proto není zobrazena žádná aktivita CLI.",
   "usageInsightTotals": "{attempts} ({sessions})",
   "modelAttemptsCount": {
     "one": "{count} pokus modelu",

@@ -3214,6 +3214,8 @@
   "usageInsightNone": "В этом окне не зарегистрировано активности CLI.",
   "usageInsightUnavailable": "Недоступно для этого бэкенда: у Model API нет локальных журналов трассировки.",
   "usageInsightNoLogs": "На этом компьютере пока не найдено журналов трассировки Muse Code.",
+  "usageInsightsBehindNote": "Эти числа могут быть устаревшими: один журнал трассировки не удалось прочитать, поэтому показано более раннее значение.",
+  "usageInsightsUnavailableNote": "Журналы трассировки не удалось прочитать, поэтому активность CLI не показана.",
   "usageInsightTotals": "{attempts} за {sessions}",
   "modelAttemptsCount": {
     "one": "{count} попытка модели",

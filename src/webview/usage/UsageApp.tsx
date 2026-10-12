@@ -169,6 +169,9 @@ export function UsageApp({
       {state === undefined ? null : (
         <>
           <p>{fill(USAGE_TEXT.journalHost, { host: state.history.host })}</p>
+          {state.journalNotice === undefined ? null : (
+            <p role="status">{USAGE_TEXT.journalUnavailableNote}</p>
+          )}
           {state.capabilities !== undefined &&
           (!state.capabilities.settings ||
             !state.capabilities.folder ||

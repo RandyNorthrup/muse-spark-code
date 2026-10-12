@@ -204,6 +204,7 @@
   "attemptsNote": "Dos registros de rastreamento locais; a cobertura depende dos registros mantidos.",
   "attemptsStaleNote": "Um registro de rastreamento mudou durante a leitura, então essas contagens podem estar desatualizadas. Atualize para ver o mais recente.",
   "attemptsUnavailableNote": "Não foi possível ler a pasta de rastreamento do Muse Code, então faltam as tentativas do modelo. Verifique se a pasta pode ser aberta e atualize.",
+  "journalUnavailableNote": "Não foi possível ler o histórico de custos, então faltam os totais. Valem apenas as tentativas de rastreamento abaixo; atualize para o mais recente.",
   "originTurn": "Conversa",
   "originReminder": "Lembrete",
   "originSubagent": "Subagente",

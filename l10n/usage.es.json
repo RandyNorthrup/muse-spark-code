@@ -204,6 +204,7 @@
   "attemptsNote": "De los registros de traza locales; la cobertura depende de los registros conservados.",
   "attemptsStaleNote": "Un registro de traza cambió mientras se leía, por lo que estos recuentos pueden estar desactualizados. Actualiza para ver lo último.",
   "attemptsUnavailableNote": "No se pudo leer la carpeta de trazas de Muse Code, por lo que faltan los intentos del modelo. Comprueba que la carpeta se pueda abrir y actualiza.",
+  "journalUnavailableNote": "No se pudo leer el historial de costos, por lo que faltan los totales. Solo valen los intentos de traza siguientes; actualiza para lo último.",
   "originTurn": "Conversación",
   "originReminder": "Recordatorio",
   "originSubagent": "Subagente",

@@ -3025,6 +3025,8 @@
   "usageInsightNone": "이 기간에 기록된 CLI 활동이 없습니다.",
   "usageInsightUnavailable": "이 백엔드에서는 사용할 수 없습니다. Model API에는 로컬 추적 로그가 없습니다.",
   "usageInsightNoLogs": "이 컴퓨터에서 아직 Muse Code 추적 로그를 찾을 수 없습니다.",
+  "usageInsightsBehindNote": "이 숫자는 최신이 아닐 수 있습니다: 추적 로그를 읽지 못해 이전 개수를 표시합니다.",
+  "usageInsightsUnavailableNote": "추적 로그를 읽지 못해 CLI 활동을 표시하지 않습니다.",
   "usageInsightTotals": "{sessions}에서 {attempts}",
   "modelAttemptsCount": {
     "other": "모델 시도 {count}회"

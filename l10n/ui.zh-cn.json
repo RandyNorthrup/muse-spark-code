@@ -3025,6 +3025,8 @@
   "usageInsightNone": "此时段内没有记录到 CLI 活动。",
   "usageInsightUnavailable": "此后端不可用：Model API 没有本地跟踪日志。",
   "usageInsightNoLogs": "此计算机上尚未找到 Muse Code 跟踪日志。",
+  "usageInsightsBehindNote": "这些数字可能不是最新的：有一个跟踪日志无法读取，因此显示的是之前的计数。",
+  "usageInsightsUnavailableNote": "跟踪日志无法读取，因此不显示 CLI 活动。",
   "usageInsightTotals": "{attempts}，来自 {sessions}",
   "modelAttemptsCount": {
     "other": "{count} 次模型尝试"

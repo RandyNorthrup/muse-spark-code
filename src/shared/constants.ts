@@ -4492,6 +4492,9 @@ export const MUSE_TRACE_LOG_SEGMENTS = [
 export const TRACE_LOG_FILE_SUFFIX = '.log'
 export const TRACE_LOG_MAX_BYTES = 8 * 1024 * 1024
 export const TRACE_LOG_MAX_FILES = 200
+// A log file's head fingerprint covers this many first bytes: enough to see
+// a truncate-and-rewrite that keeps the size, cheap to read on every stat.
+export const TRACE_LOG_HEAD_BYTES = 1024
 // Trace-log refreshes parse at most this many files at once: enough to hide
 // file-open latency behind parsing, few enough that only streaming chunk
 // buffers (not whole files) are ever held together.
