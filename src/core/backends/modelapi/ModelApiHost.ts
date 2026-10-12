@@ -4901,9 +4901,7 @@ export class ModelApiSession implements ScheduledAgentSession {
               raw: observation.headers,
               // The account that paid for this response: a replaced key
               // stops using its quota (RVCM963J 7).
-              ...(reservation?.accountId !== undefined && {
-                observedAccount: reservation.accountId,
-              }),
+              observedAccount: reservation?.accountId,
             },
             observation.rateLimited === true,
           )
@@ -15807,12 +15805,13 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (!Number.isSafeInteger(cap) || cap < 1)
       return Promise.reject(new RangeError('invalid output.maxTokens'))
     // A cap the model cannot serve is refused, never silently clamped.
-    const maximum = this.modelPolicy().output.maxTokens
+    const policy = this.modelPolicy()
+    const maximum = policy.output.maxTokens
     if (maximum !== undefined && cap > maximum)
       return Promise.reject(
         new RangeError(settingUnsupported(this.modelId, 'outputCap', String(cap))),
       )
-    this.outputCaps.set(this.modelId, outputLimitFor(this.modelPolicy(), cap))
+    this.outputCaps.set(this.modelId, outputLimitFor(policy, cap))
     return Promise.resolve()
   }
 
@@ -16570,10 +16569,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       this.outputs.set(ref, content)
     }
     this.effort = stored.effort
-    const storedCaps = Object.entries(stored.outputCaps ?? {})
-    for (const [model, cap] of storedCaps) {
-      this.outputCaps.set(model, cap)
-    }
+    for (const [model, cap] of Object.entries(stored.outputCaps ?? {})) this.outputCaps.set(model, cap)
     this.name = stored.name
     this.todos = [...stored.todos]
     this.autoCompact.noteTodos(this.todos)
