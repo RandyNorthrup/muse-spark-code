@@ -162,7 +162,10 @@ without quarantining …"; vault decode → "wipes already-copied fields
 when a later allocation fails"; panel snapshot → "says the store failed
 instead of asking for a key …"; panel queue → "records a foreign save
 failure … and keeps the queue"; panel refresh → provider-refresh cases
-(kind assertion); search-question notice → "tells the search question
+(kind assertion on all three sources; the save acknowledgement's outer
+refresh catch and the host-notify catch carried no kind either and now
+log kind-only with foreign passthrough to the queue tail); search-question
+notice → "tells the search question
 when saved Always quotes could not be read" (store/ask/formatter links
 drilled separately); not-kept notices → editor/ACP/terminal/agent host
 tests above.
