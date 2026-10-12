@@ -61,6 +61,7 @@ import {
 } from '../../../../shared/constants'
 import { UI_TEXT } from '../../../../shared/l10n/text'
 import { ModelApiError } from '../transport'
+import { anthropicEnvelope, parseRefusalError } from '../providerRefusal'
 import { cleanJsonStrings, cleanWireText, isBlankWireText, isRecord, nativeCallId } from './shared'
 import {
   type CreateResponseBody,
@@ -1278,26 +1279,24 @@ function emptyResponse(
 
 // --- errors: the envelope to `ModelApiError` (lane T retries from this) ---
 
-const anthropicErrorSchema = z.object({
-  type: z.literal('error'),
-  error: z.object({ type: z.string(), message: z.string() }),
-})
-
 /**
  * Map a non-2xx Messages answer to `ModelApiError`: the envelope's message,
  * its `error.type` as the kind, and — for a 429 whose prose names the spend
  * cap (research §1.5, [A-rl]) — that reason as the code, so the transport
- * never retries what no wait would fix. Anything unenveloped falls back to
- * the status, as the Meta client does.
+ * never retries what no wait would fix. Anything unenveloped is
+ * `unrecognised` with the status and the first bounded line of the body
+ * (lane PROVERR): still the provider's refusal, never a product sentence.
  */
 export function parseAnthropicError(status: number, body: unknown): ModelApiError {
-  const parsed = anthropicErrorSchema.safeParse(body)
-  if (!parsed.success) {
-    return new ModelApiError(`HTTP ${String(status)}`, status, undefined, undefined)
-  }
-  const { type, message } = parsed.data.error
-  const isSpendCapped = status === HTTP_TOO_MANY_REQUESTS && message.includes(SPEND_CAP_REASON)
-  return new ModelApiError(message, status, type, isSpendCapped ? SPEND_CAP_REASON : undefined)
+  const refusal = parseRefusalError(status, body, anthropicEnvelope)
+  const rawMessage = anthropicEnvelope(body)?.message ?? ''
+  const isSpendCapped = status === HTTP_TOO_MANY_REQUESTS && rawMessage.includes(SPEND_CAP_REASON)
+  return new ModelApiError(
+    refusal.message,
+    status,
+    refusal.kind,
+    isSpendCapped ? SPEND_CAP_REASON : refusal.code,
+  )
 }
 
 // --- models list: `GET /v1/models` (capture 01; the scan lives in lane P) ---

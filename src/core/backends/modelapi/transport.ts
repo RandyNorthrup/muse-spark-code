@@ -23,6 +23,7 @@ import {
   UI_TEXT,
   PROVIDER_HTTP_BODY_MAX_BYTES,
   MODEL_API_STREAM_IDLE_MS,
+  PROVIDER_REQUEST_ID_MAX_CHARS,
   type PaidFeature,
 } from '../../../shared/constants'
 // M95-T: the existing retry/admission loop, shared by Meta and injected codecs.
@@ -163,6 +164,10 @@ export async function readBoundedText(response: Response): Promise<string> {
 }
 
 export class ModelApiError extends Error {
+  /** The provider's request id, when its answer carried one (lane PROVERR). */
+  public requestId: string | undefined
+  /** The answer's parsed `Retry-After`, when it carried one (lane PROVERR). */
+  public retryAfterMs: number | undefined
   public constructor(
     message: string,
     /** HTTP status, or 0 when the request never got a response. */
@@ -233,7 +238,7 @@ export function redactModelApiError(
   redact: (text: string) => string,
   fallbackStatus: number,
 ): ModelApiError {
-  return new ModelApiError(
+  const out = new ModelApiError(
     error instanceof SyntaxError
       ? fill(UI_TEXT.webFetchNetwork, { detail: 'malformed_json' })
       : redact(error instanceof Error ? error.message : String(error)),
@@ -241,6 +246,13 @@ export function redactModelApiError(
     isModelApiError(error) && error.kind !== undefined ? redact(error.kind) : undefined,
     isModelApiError(error) && error.code !== undefined ? redact(error.code) : undefined,
   )
+  // Lane PROVERR: a refusal keeps its request id and wait across the privacy
+  // boundary (both are provider-chosen, never credentials).
+  if (isModelApiError(error)) {
+    out.requestId = error.requestId
+    out.retryAfterMs = error.retryAfterMs
+  }
+  return out
 }
 
 /** Thrown when the key is absent: the caller decides how to prompt. */
@@ -272,25 +284,39 @@ async function describeFailure(
   response: Response,
   parseError: TransportDeps['parseError'],
   redact: (text: string) => string,
+  now: number,
 ): Promise<ModelApiError> {
   let body: unknown
+  let text = ''
   try {
-    body = JSON.parse(await readBoundedText(response), (_key, value: unknown) =>
+    text = await readBoundedText(response)
+    body = JSON.parse(text, (_key, value: unknown) =>
       typeof value === 'string' ? redact(value) : value,
     )
   } catch (error: unknown) {
     if (error instanceof ModelApiError && error.status === NETWORK_FAILURE_STATUS) throw error
     body = undefined
   }
+  // Lane PROVERR: a refusal carries the provider's request id and wait, both
+  // provider-chosen and never credentials.
+  const attach = (failure: ModelApiError): ModelApiError => {
+    const requestId = response.headers.get('request-id') ?? response.headers.get('x-request-id')
+    if (requestId !== null && requestId.trim() !== '')
+      failure.requestId = requestId.trim().slice(0, PROVIDER_REQUEST_ID_MAX_CHARS)
+    failure.retryAfterMs = retryAfterMs(response.headers.get(RETRY_AFTER_HEADER), now)
+    return failure
+  }
   if (parseError !== undefined) {
     try {
-      return redactModelApiError(
-        parseError(response.status, body, response.headers),
-        redact,
-        response.status,
+      return attach(
+        redactModelApiError(
+          parseError(response.status, body ?? text, response.headers),
+          redact,
+          response.status,
+        ),
       )
     } catch (error: unknown) {
-      return redactModelApiError(error, redact, response.status)
+      return attach(redactModelApiError(error, redact, response.status))
     }
   }
   const parsed = errorBodySchema.safeParse(body)
@@ -631,7 +657,12 @@ export class RequestTransport {
     signal.throwIfAborted()
     const response = await this.deps.fetch(`${this.deps.baseUrl}${route}`, init)
     if (!response.ok)
-      throw await describeFailure(response, this.deps.parseError, credentials.redact)
+      throw await describeFailure(
+        response,
+        this.deps.parseError,
+        credentials.redact,
+        this.deps.now(),
+      )
     return response
   }
 
@@ -1074,7 +1105,12 @@ export class RequestTransport {
           redactContent: secretRedactor(secrets, false),
         }
       }
-      const failure = await describeFailure(response, this.deps.parseError, credentials.redact)
+      const failure = await describeFailure(
+        response,
+        this.deps.parseError,
+        credentials.redact,
+        this.deps.now(),
+      )
       if (response.status === HTTP_TOO_MANY_REQUESTS || response.status === HTTP_STATUS.badRequest)
         admitAttempt?.mediaAccounting?.refused()
       if (

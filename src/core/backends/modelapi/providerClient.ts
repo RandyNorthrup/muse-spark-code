@@ -19,6 +19,7 @@ import {
   type RetryNotice,
 } from './transport'
 import type { AuthSource } from './authSource'
+import { isRefusalRetryable } from './providerRefusal'
 import { MODEL_API_REQUEST_TIMEOUT_MS, UI_TEXT } from '../../../shared/constants'
 import { fill } from '../../../shared/l10n/text'
 import { streamEventSchema, usageSchema } from '../../../host/backend/modelApiEntry'
@@ -144,6 +145,10 @@ export class CodecClient implements ProviderClient {
       verifyEndpoint: deps.verifyEndpoint,
       parseError: (status, body, headers) => deps.codec.parseError(status, body, headers),
       isTerminalError: (failure) => isZai && (failure.code === '1113' || failure.code === '1308'),
+      // Lane PROVERR: a credit, authentication, permission, not-found,
+      // invalid-request or too-large refusal is never retried; anything
+      // else follows the retry table that exists.
+      isRetryableFailure: (failure, retryAfterMs) => isRefusalRetryable(failure, retryAfterMs),
     })
     this.currentKeyDigest = this.transport.currentKeyDigest.bind(this.transport)
     this.retryDelayMs = this.transport.backoffMs.bind(this.transport)

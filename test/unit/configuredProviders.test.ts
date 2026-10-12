@@ -288,14 +288,21 @@ describe('configured provider production transport', () => {
         send: () => Promise.resolve(response(Buffer.from(''))),
       })
       const model = await services.registry.resolve('openai/gpt-5.6-luna')
-      await expect(
-        consume(
+      // Lane PROVERR: a refusal inside the stream keeps the provider's
+      // (scrubbed) words with an `unrecognised` kind at the answer's status.
+      let failure = 'the stream answered instead of refusing'
+      try {
+        await consume(
           model.client.streamResponse(
             { ...body(), model: model.ref },
             new AbortController().signal,
           ),
-        ),
-      ).rejects.toThrow(UI_TEXT.modelsPanelUnavailable)
+        )
+      } catch (error: unknown) {
+        failure = error instanceof Error ? error.message : String(error)
+      }
+      expect(failure).toContain('does not recognise')
+      expect(failure).not.toContain('test-owned-key')
     },
   )
   it.each([
@@ -662,10 +669,16 @@ describe('configured provider production transport', () => {
       ),
     ).rejects.toThrow(
       // RVCM1062H P3: a rotated key lapses the confirmation, so the run keeps
-      // the helper's own guidance instead of the unavailable text.
+      // the helper's own guidance. Lane PROVERR: every other dispatch refusal
+      // keeps its own true sentence instead of the unavailable text.
       condition === 'credential rotation'
         ? UI_TEXT.scheduleConfirmationExpired
-        : UI_TEXT.modelsPanelUnavailable,
+        : ({
+            origin: 'was stored for',
+            'config during DNS': 'changed while the request was prepared',
+            'echoed error': 'Could not reach',
+            redirect: 'does not recognise',
+          }[condition] ?? 'is not allowed here'),
     )
     expect(send).toHaveBeenCalledTimes(['redirect', 'echoed error'].includes(condition) ? 1 : 0)
     expect(services.client.readPlanUsage?.()).toHaveLength(
@@ -683,7 +696,8 @@ describe('configured provider production transport', () => {
     })
     await expect(
       services.scan({ ...ENTRY, address: 'https://example.com' }, 'test-owned-key'),
-    ).rejects.toThrow(UI_TEXT.modelsPanelUnavailable)
+      // Lane PROVERR: the changed origin keeps its own sentence.
+    ).rejects.toThrow('does not match preset')
     expect(send).not.toHaveBeenCalled()
   })
 
@@ -701,9 +715,11 @@ describe('configured provider production transport', () => {
       resolve: () => Promise.resolve(['8.8.8.8']),
       send,
     })
-    await expect(services.scan(ENTRY)).rejects.toThrow(UI_TEXT.modelsPanelUnavailable)
+    // Lane PROVERR: the oversized answer and the failed send keep their own
+    // sentences; neither echoes the key.
+    await expect(services.scan(ENTRY)).rejects.toThrow('larger than this build reads')
     send.mockImplementation(() => Promise.reject(new Error('test-owned-key echoed')))
-    await expect(services.scan(ENTRY)).rejects.toThrow(UI_TEXT.modelsPanelUnavailable)
+    await expect(services.scan(ENTRY)).rejects.toThrow('Could not reach')
   })
 
   it('invalidates an existing resolution after the same model is reconfigured', async () => {

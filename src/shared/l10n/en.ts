@@ -4273,6 +4273,46 @@ export const EN = {
   providerProbeUnparseable: 'The model list could not be read.',
   providerProbeNoKey: 'No key was supplied.',
   providerProbeRebinding: 'The address changed networks; the request was refused.',
+  // Lane PROVERR: what a person reads when a configured provider answers a
+  // request with a refusal. {provider}: the provider's display name;
+  // {detail}: the provider's own words, quoted as theirs; {wait}: '' or the
+  // localized wait the provider named; {status}: the HTTP status.
+  providerRefusalCredit:
+    '{provider} refused the request: its account is out of credit. Add credit at {provider}; nothing reached a model and nothing was charged for this request. {provider} said: {detail}',
+  providerRefusalAuthentication:
+    '{provider} refused the request: the stored key was rejected. Store a new {provider} key from Models & Agents; nothing was sent and nothing was charged. {provider} said: {detail}',
+  providerRefusalPermission:
+    '{provider} refused the request: the key has no permission for this. Check the key’s permissions at {provider}; nothing was sent and nothing was charged. {provider} said: {detail}',
+  providerRefusalNotFound:
+    '{provider} refused the request: it has no such model. Pick a model {provider} lists; nothing was sent and nothing was charged. {provider} said: {detail}',
+  providerRefusalRateLimited:
+    '{provider} refused the request for now: too many requests{wait}. Try again shortly; nothing was charged for this refusal. {provider} said: {detail}',
+  providerRefusalOverloaded:
+    '{provider} refused the request: it is overloaded{wait}. Try again shortly; nothing was charged for this refusal. {provider} said: {detail}',
+  providerRefusalInvalidRequest:
+    '{provider} refused the request: the request was invalid; nothing was charged. {provider} said: {detail}',
+  providerRefusalTooLarge:
+    '{provider} refused the request: it was too large. Shorten the conversation or attachments and try again; nothing was charged. {provider} said: {detail}',
+  providerRefusalServerError:
+    '{provider} failed to answer: a server error on its side. Try again shortly. {provider} said: {detail}',
+  providerRefusalUnrecognised:
+    '{provider} answered with an error this build does not recognise (HTTP {status}). Try again; the request may have been charged — check usage at {provider}. The answer began: {detail}',
+  // {seconds}: the wait the provider named, in seconds.
+  providerRefusalWait: ' (retry after {seconds})',
+  // {provider}: the provider's display name.
+  providerUnreachable:
+    'Could not reach {provider}. Check the network and the provider address; nothing was sent.',
+  // {entry}: the provider entry id; {detail}: the technical reason.
+  configuredProviderInvalid:
+    'The {entry} provider entry cannot be used ({detail}). Fix it in Models & Agents.',
+  mainServiceUnavailable:
+    'The main Muse Spark service is not set up in this run, so that model cannot be answered here.',
+  // {provider}: the provider's display name.
+  providerStreamTooLarge:
+    'The {provider} answer was larger than this build reads, so the request was stopped.',
+  modelApiProvidersMissing: 'Models & Agents providers were not included in this build.',
+  modelsPanelPartMissing:
+    'That Models & Agents action is not wired into this panel; use the full panel.',
   providerSaveSecretFailed: 'The credential store operation failed.',
   providerSaveWriteConflict: 'The file could not be written or changed during saving; retry.',
   providerEditConflict: 'A field you edited changed elsewhere. Reload the form before saving.',

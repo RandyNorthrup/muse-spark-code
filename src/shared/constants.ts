@@ -5057,6 +5057,8 @@ export const HTTP_STATUS = {
   forbidden: 403,
   notFound: 404,
   methodNotAllowed: 405,
+  requestTooLarge: 413,
+  unprocessable: 422,
   internalServerError: 500,
 } as const
 
@@ -7162,6 +7164,12 @@ export const PROVIDER_STREAM_FRAME_MAX_BYTES = 16_777_216
 export const PROVIDER_STREAM_MAX_BYTES = 134_217_728
 export const PROVIDER_STREAM_MAX_FRAMES = 100_000
 export const PROVIDER_HTTP_BODY_MAX_BYTES = 16_777_216
+// Lane PROVERR: a provider's own refusal words are quoted in the sentence
+// the person reads, bounded so a hostile answer cannot flood the transcript.
+export const PROVIDER_REFUSAL_MESSAGE_MAX_CHARS = 500
+// Lane PROVERR: a provider's request id is carried on the refusal for the
+// log, bounded like any other wire text.
+export const PROVIDER_REQUEST_ID_MAX_CHARS = 200
 // The suggestion engine's fallback session (D74: "a stated assumption when
 // there is no history"): the default model's price for a reference session
 // of this size.

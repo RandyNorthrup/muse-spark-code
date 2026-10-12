@@ -1519,8 +1519,11 @@ describe('error envelope and models list', () => {
       error: { type: 'rate_limit_error', message: 'Slow down' },
     })
     expect(plain).toMatchObject({ status: 429, kind: 'rate_limit_error', code: undefined })
+    // Lane PROVERR: an unparsable body is `unrecognised` with the status and
+    // the first bounded line of the body, never a bare status.
     const unenveloped = parseAnthropicError(503, '<html>bad gateway</html>')
-    expect(unenveloped).toMatchObject({ status: 503, kind: undefined, code: undefined })
+    expect(unenveloped).toMatchObject({ status: 503, kind: 'unrecognised', code: undefined })
+    expect(unenveloped.message).toBe('HTTP 503: <html>bad gateway</html>')
   })
 
   it('parses the models list shape from the capture sample', () => {
