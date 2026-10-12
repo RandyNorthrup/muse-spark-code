@@ -185,12 +185,17 @@ export function liveEvalSelection(env: NodeJS.ProcessEnv, isEnabled: boolean): L
  * nothing about packing, so its acceptance needs every one of them to have
  * packed. The arm missing from the report counts as never engaged.
  */
+/** One arm's saved results; an arm missing from the report counts as never engaged. */
+function armResults(report: EvalReport, armName: string) {
+  return report.arms.find((arm) => arm.name === armName)?.results ?? []
+}
+
 export function unengagedLongOutputTasks(
   report: EvalReport,
   armName: string,
   tasks: readonly EvalTask[],
 ): string[] {
-  const results = report.arms.find((arm) => arm.name === armName)?.results ?? []
+  const results = armResults(report, armName)
   return tasks
     .filter((task) => task.isLongOutput === true)
     .filter((task) => {
@@ -296,7 +301,7 @@ export function unengagedStrictToolsTasks(
   armName: string,
   tasks: readonly EvalTask[],
 ): string[] {
-  const results = report.arms.find((arm) => arm.name === armName)?.results ?? []
+  const results = armResults(report, armName)
   return tasks
     .filter((task) => {
       const evidence = results.find((result) => result.taskId === task.id)?.requestEvidence ?? []

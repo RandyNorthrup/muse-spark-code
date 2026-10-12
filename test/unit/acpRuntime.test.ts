@@ -227,6 +227,42 @@ function fakeChild(): EventEmitter {
   return new EventEmitter()
 }
 
+/** An allowAll session on a runtime backend, with its turns watched. */
+async function allowAllSession(runtime: Pick<ReturnType<typeof createRuntimeBackend>, 'backend'>) {
+  const root = folder()
+  const host = await runtime.backend.hostFor(root)
+  const session = await host.startSession({
+    workspaceRoot: root,
+    modelId: 'muse-spark-1.3',
+    approvalMode: 'allowAll',
+  })
+  return { session, turns: watchSessionTurns(session) }
+}
+
+/** A compacted-and-retried overflow: four bodies, summary sent, history replaced. */
+function expectCompactedRetry(api: ReturnType<typeof fakeModelApi>): void {
+  expect(api.responseBodies()).toHaveLength(4)
+  // The summary request went out, and the retry carries the applied
+  // summary instead of the original earlier history.
+  expect(JSON.stringify(api.responseBodies()[2])).toContain('Summarise this conversation')
+  const retried = JSON.stringify(api.responseBodies()[3])
+  expect(retried).toContain('Build 781924')
+  expect(retried).not.toContain('establish history')
+}
+
+/** A context-full stop: failed with the route sentence after two bodies. */
+function expectApprovalStop(
+  turns: ReturnType<typeof watchSessionTurns>,
+  api: ReturnType<typeof fakeModelApi>,
+  reason: string,
+): void {
+  expect(turns.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+    terminal: 'failed',
+    reason,
+  })
+  expect(api.responseBodies()).toHaveLength(2)
+}
+
 describe('parseCommandLine', () => {
   it('requires explicit trust for Setup and confines maintenance to Setup', () => {
     expect(parseCommandLine(['setup'])).toMatchObject({ command: 'invalid' })
@@ -1051,14 +1087,7 @@ describe('createRuntimeBackend', () => {
       )
       const ask = vi.fn().mockResolvedValue('once')
       runtime.paid.attach(ask)
-      const root = folder()
-      const host = await runtime.backend.hostFor(root)
-      const session = await host.startSession({
-        workspaceRoot: root,
-        modelId: 'muse-spark-1.3',
-        approvalMode: 'allowAll',
-      })
-      const turns = watchSessionTurns(session)
+      const { session, turns } = await allowAllSession(runtime)
       api.script(
         {
           calls: [
@@ -1118,14 +1147,7 @@ describe('createRuntimeBackend', () => {
       home,
     )
     if (options.asker !== undefined) runtime.paid.attach(options.asker)
-    const root = folder()
-    const host = await runtime.backend.hostFor(root)
-    const session = await host.startSession({
-      workspaceRoot: root,
-      modelId: 'muse-spark-1.3',
-      approvalMode: 'allowAll',
-    })
-    const turns = watchSessionTurns(session)
+    const { session, turns } = await allowAllSession(runtime)
     // A seed turn first: compaction needs a history to replace, so an
     // overflow on the very first request stands down before any admission.
     api.script({ text: 'seed done' }, ...options.scripts)
@@ -1150,13 +1172,7 @@ describe('createRuntimeBackend', () => {
         terminal: 'completed',
       })
       expect(ask).toHaveBeenCalledOnce()
-      expect(api.responseBodies()).toHaveLength(4)
-      // The summary request went out, and the retry carries the applied
-      // summary instead of the original earlier history.
-      expect(JSON.stringify(api.responseBodies()[2])).toContain('Summarise this conversation')
-      const retried = JSON.stringify(api.responseBodies()[3])
-      expect(retried).toContain('Build 781924')
-      expect(retried).not.toContain('establish history')
+      expectCompactedRetry(api)
     } finally {
       await runtime.close()
     }
@@ -1169,12 +1185,8 @@ describe('createRuntimeBackend', () => {
       scripts: [OVERFLOW_CONTEXT],
     })
     try {
-      expect(turns.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
-        terminal: 'failed',
-        reason: EN.contextWindowFullAcp,
-      })
+      expectApprovalStop(turns, api, EN.contextWindowFullAcp)
       expect(ask).toHaveBeenCalledOnce()
-      expect(api.responseBodies()).toHaveLength(2)
     } finally {
       await runtime.close()
     }
@@ -1185,11 +1197,7 @@ describe('createRuntimeBackend', () => {
       scripts: [OVERFLOW_CONTEXT],
     })
     try {
-      expect(turns.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
-        terminal: 'failed',
-        reason: EN.contextWindowFullAcp,
-      })
-      expect(api.responseBodies()).toHaveLength(2)
+      expectApprovalStop(turns, api, EN.contextWindowFullAcp)
     } finally {
       await runtime.close()
     }
@@ -1202,12 +1210,8 @@ describe('createRuntimeBackend', () => {
       scripts: [OVERFLOW_CONTEXT],
     })
     try {
-      expect(turns.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
-        terminal: 'failed',
-        reason: EN.contextWindowFullAcp,
-      })
+      expectApprovalStop(turns, api, EN.contextWindowFullAcp)
       expect(ask).not.toHaveBeenCalled()
-      expect(api.responseBodies()).toHaveLength(2)
     } finally {
       await runtime.close()
     }
@@ -1235,11 +1239,7 @@ describe('createRuntimeBackend', () => {
       expect(turns.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
         terminal: 'completed',
       })
-      expect(api.responseBodies()).toHaveLength(4)
-      expect(JSON.stringify(api.responseBodies()[2])).toContain('Summarise this conversation')
-      const retriedExec = JSON.stringify(api.responseBodies()[3])
-      expect(retriedExec).toContain('Build 781924')
-      expect(retriedExec).not.toContain('establish history')
+      expectCompactedRetry(api)
     } finally {
       await runtime.close()
     }
@@ -1264,11 +1264,7 @@ describe('createRuntimeBackend', () => {
       scripts: [OVERFLOW_CONTEXT],
     })
     try {
-      expect(turns.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
-        terminal: 'failed',
-        reason: EN.contextWindowFullExec,
-      })
-      expect(api.responseBodies()).toHaveLength(2)
+      expectApprovalStop(turns, api, EN.contextWindowFullExec)
     } finally {
       await runtime.close()
     }

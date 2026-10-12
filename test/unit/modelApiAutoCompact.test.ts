@@ -277,6 +277,44 @@ function expectNewHistoryWithContinuation(t: Awaited<ReturnType<typeof setup>>):
   expect(after).toBeGreaterThan(before)
 }
 
+/** A turn whose tool batch overflows and whose summary response is held. */
+async function scriptHeldSummary(t: Awaited<ReturnType<typeof setup>>): Promise<{
+  held: PromiseWithResolvers<undefined>
+  done: Promise<void>
+}> {
+  const entered = Promise.withResolvers<undefined>()
+  const held = Promise.withResolvers<undefined>()
+  t.api.script(
+    { calls: [TOOL] },
+    {
+      text: 'usable summary',
+      hold: held.promise,
+      onRequest: () => {
+        entered.resolve(undefined)
+      },
+    },
+    { text: 'done' },
+  )
+  const done = t.send()
+  await entered.promise
+  return { held, done }
+}
+
+/** A loaded session carries on from its stored history to a completed turn. */
+async function expectSessionContinues(
+  api: Awaited<ReturnType<typeof setup>>['api'],
+  session: ModelApiSession,
+  result: string,
+): Promise<void> {
+  api.script({ text: result })
+  const turns = watchSessionTurns(session)
+  await session.sendTurn([{ type: 'text', text: 'continue' }])
+  await turns.turnDone()
+  expect(turns.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+    terminal: 'completed',
+  })
+}
+
 describe('automatic compaction in the shared Model API loop', () => {
   describe.each(['consent', 'switch', 'trust', 'evaluation'] as const)(
     'production revoked %s refuses only the automatic compaction',
@@ -1351,21 +1389,7 @@ describe('automatic compaction in the shared Model API loop', () => {
       try {
         await t.seed()
         t.nearWindow()
-        const entered = Promise.withResolvers<undefined>()
-        const held = Promise.withResolvers<undefined>()
-        t.api.script(
-          { calls: [TOOL] },
-          {
-            text: 'usable summary',
-            hold: held.promise,
-            onRequest: () => {
-              entered.resolve(undefined)
-            },
-          },
-          { text: 'done' },
-        )
-        const done = t.send()
-        await entered.promise
+        const { held, done } = await scriptHeldSummary(t)
         if (trigger === 'stop') await t.session.cancel()
         else if (trigger === 'setting') flags.on = false
         else await t.session.setModel('muse-spark-1.3-other')
@@ -1448,21 +1472,7 @@ describe('automatic compaction in the shared Model API loop', () => {
     try {
       await t.seed()
       t.nearWindow()
-      const entered = Promise.withResolvers<undefined>()
-      const held = Promise.withResolvers<undefined>()
-      t.api.script(
-        { calls: [TOOL] },
-        {
-          text: 'usable summary',
-          hold: held.promise,
-          onRequest: () => {
-            entered.resolve(undefined)
-          },
-        },
-        { text: 'done' },
-      )
-      const done = t.send()
-      await entered.promise
+      const { held, done } = await scriptHeldSummary(t)
       // The active turn holds the replay: manual entry is refused, not queued.
       await expect(t.session.compact()).rejects.toThrow('a turn is running')
       held.resolve(undefined)
@@ -1548,13 +1558,7 @@ describe('automatic compaction in the shared Model API loop', () => {
       expect(replay).toContain('manual summary')
       // A manual summary brings no automatic continuation.
       expect(replay).not.toContain(MODEL_API_MODEL_TEXT.autoCompactionFollowup)
-      t.api.script({ text: 'forked result' })
-      const turns = watchSessionTurns(forked.session)
-      await forked.session.sendTurn([{ type: 'text', text: 'continue' }])
-      await turns.turnDone()
-      expect(turns.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
-        terminal: 'completed',
-      })
+      await expectSessionContinues(t.api, forked.session, 'forked result')
     } finally {
       await t.host.close()
     }
@@ -1581,13 +1585,7 @@ describe('automatic compaction in the shared Model API loop', () => {
         const replay = JSON.stringify(revived.session.snapshot().replay)
         expect(replay).toContain(MODEL_API_MODEL_TEXT.compactionPrefix)
         expect(replay).toContain('manual summary')
-        second.api.script({ text: 'resumed result' })
-        const turns = watchSessionTurns(revived.session)
-        await revived.session.sendTurn([{ type: 'text', text: 'continue' }])
-        await turns.turnDone()
-        expect(turns.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
-          terminal: 'completed',
-        })
+        await expectSessionContinues(second.api, revived.session, 'resumed result')
       } finally {
         await second.host.close()
       }
