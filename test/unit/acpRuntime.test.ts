@@ -700,7 +700,7 @@ describe('createRuntimeBackend', () => {
     const budgets = await runtime.readUsageBudgets()
     expect(budgets).toHaveLength(1)
     expect(budgets[0]?.budget.kind).toBe('paidDaily')
-    expect(budgets[0]?.budget.spentUsd).toBe(0)
+    expect(budgets[0]?.budget.spentUsd).toBe('0')
   })
 
   it('asks for a key the Model API backend does not have, and reports a store it cannot read', async () => {
