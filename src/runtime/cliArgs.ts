@@ -299,14 +299,14 @@ export function parseCommandLine<T>(
         .slice(1)
         .filter((word) => !word.startsWith('-'))
         .join(' ')}`
-    return {
-      command: 'help',
-      route:
-        route ??
-        (argv[0]?.startsWith('-') === true
-          ? 'serve'
-          : flags.filter((word) => !word.startsWith('-')).join(' ') || 'serve'),
-    }
+    // Bare flags ask about the agent, not the default launch: the compact
+    // general help names the machine flags and points at help reference.
+    const resolved =
+      route ??
+      (argv[0]?.startsWith('-') === true
+        ? undefined
+        : flags.filter((word) => !word.startsWith('-')).join(' ') || 'serve')
+    return resolved === undefined ? { command: 'help' } : { command: 'help', route: resolved }
   }
 
   // M118-X-CLI: main's owner injects the local parser/runner once P/C bind.

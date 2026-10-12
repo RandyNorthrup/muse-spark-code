@@ -281,3 +281,30 @@ invalid settings; ephemeral with a bundle-less distDir) mirror these assertions
 for the lead's unsandboxed run. The pre-existing usageIntegration companion-page
 case (HTTP 502 vs 401 from its loopback server) fails identically with and
 without this change: sandbox-blocked loopback, named for the lead.
+
+## Round 2 dependency sweep: three caused-here reds found and fixed
+
+The 189-file sweep caught three failures this branch introduced (all green at
+base, all red here before the fix, all green after; red drills observed):
+
+- cx1r5Truth dormant-claim gate: the new deep-help doc examples named
+  `providers accounts ...` and `schedule background ...`, which the publication
+  truth matrix gates as dormant. The examples now use routed
+  developer/playbook/report commands (README.md, docs/acp.md).
+- estimateCommand production-entry help: the new command-local `--help`
+  routing rendered estimate's `--format` from the shared flag text, losing the
+  `md|html|json|text` enum the estimator suite expects. `formatCommandHelp`
+  now prefers the registry's per-route option words (the design the generated
+  reference already uses: `estimate-format`), affecting only the estimate route.
+- execResources bare `--help`: the same routing sent bare flags to the serve
+  options, dropping the machine flags the resources suite expects. Bare flags
+  now resolve to no route (the compact general help, which names them), and an
+  empty route renders the same general help so the command-table walk keeps
+  every invocation above its line floor (src/runtime/cliArgs.ts,
+  src/runtime/cliOptions.ts).
+
+Not caused here (named for the lead's unsandboxed run): files.test.ts fails
+only on sandbox-proxied fetch (`fetch failed`, proxy 502 on HTTP tunneling);
+its transport and cost paths are untouched by this lane. runtimeChatGpt and
+the loopback exec/provider families cannot run where loopback sockets are
+blocked (direct probe: `fetch` to 127.0.0.1 throws at once).
