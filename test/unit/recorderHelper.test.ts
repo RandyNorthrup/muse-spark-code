@@ -10,6 +10,10 @@ class FakeRecorder implements RecorderProcess {
   public exitListener: ((description: string) => void) | undefined
   public kills = 0
 
+  public onStarted(listener: () => void): void {
+    listener()
+  }
+
   public onData(listener: (chunk: Uint8Array) => void): void {
     this.dataListener = listener
   }
