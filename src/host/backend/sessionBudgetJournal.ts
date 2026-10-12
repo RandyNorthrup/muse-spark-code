@@ -4,7 +4,7 @@
 // One-time seed creation has a durable intent outside the journal scope,
 // so an incomplete or missing scope can never be silently seeded again.
 
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { mkdir, rmdir, stat } from 'node:fs/promises'
 import path from 'node:path'
@@ -128,6 +128,13 @@ export type SessionBudgetJournalDeps = {
 )
 
 interface ProjectedSessionBudgetJournal extends SessionBudgetJournal {
+  /** Carry a former host-family ledger once; later reads only increase liability. */
+  importHistorical(
+    sessionId: string,
+    accountId: string,
+    source: string,
+    total: SessionBudgetTotal & { readonly uncertainUsd?: UsdAmount },
+  ): Promise<void>
   /** Atomic admission. A crashed lock is never stolen; its scope fails closed. */
   reserveAdmitted(
     sessionId: string,
@@ -572,6 +579,52 @@ export function createSessionBudgetJournal(
   }
 
   return {
+    async importHistorical(sessionId, accountId, source, total) {
+      const scope = scopeFor(sessionId, accountId)
+      assertCost(total.spentUsd)
+      const hash = createHash('sha256')
+        .update(path.resolve(source).replaceAll('\\', '/'))
+        .digest('hex')
+      const claimId = hash.replace(/^(.{8})(.{4}).(.{3}).(.{3})(.{12}).*$/, '$1-$2-4$3-a$4-$5')
+      await withReservationLock(scope, async () => {
+        const seed = await ensure(scope)
+        const directory = path.join(scope.directory, CLAIMS_DIRECTORY, claimId)
+        let previous: Claim | undefined
+        try {
+          await mkdir(directory)
+        } catch (error: unknown) {
+          if (storeErrorCode(error) !== EXISTS) throw unavailable(error)
+          previous = readClaim(scope, seed, claimId)
+        }
+        const amount = Usd.from(total.spentUsd)
+        const prior = Usd.from(
+          previous?.settledUsd ?? previous?.retainedUsd ?? previous?.reservedUsd ?? 0,
+        )
+        const retained = amount.compare(prior) > 0 ? amount : prior
+        const hasUnknownCost = total.hasUnknownHistoricalFees || previous?.hasUnknownCost === true
+        const claim: Claim = {
+          version: 2,
+          scopeId: seed.scopeId,
+          claimId,
+          ownerId,
+          sessionId,
+          accountId,
+          reservedUsd: retained.toString(),
+          ...(hasUnknownCost ||
+          total.uncertainUsd !== undefined ||
+          previous?.retainedUsd !== undefined
+            ? { retainedUsd: retained.toString(), hasUnknownCost }
+            : { settledUsd: retained.toString() }),
+        }
+        if (
+          previous !== undefined &&
+          prior.compare(retained) === 0 &&
+          previous.hasUnknownCost === claim.hasUnknownCost
+        )
+          return
+        await writeFileAtomically(path.join(directory, CLAIM_FILE), JSON.stringify(claim), options)
+      })
+    },
     async reserveAdmitted(sessionId, accountId, costUsd, capUsd) {
       const scope = scopeFor(sessionId, accountId)
       return await withReservationLock(scope, async () => {

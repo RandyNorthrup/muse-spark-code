@@ -24,6 +24,7 @@ import type { UsageBudgetRead } from '../../core/usage/usageService'
 export function createPaidDailyBudget(deps: {
   readonly authority?: PaidAuthority
   readonly directory: string
+  readonly legacyDirectory?: string
   readonly now: () => number
   readonly capUsd: () => UsdAmount
   readonly sleep: (ms: number) => Promise<void>
@@ -42,12 +43,40 @@ export function createPaidDailyBudget(deps: {
     initialBudget: () =>
       Promise.resolve({ spentUsd: Usd.from(0).toAmount(), hasUnknownHistoricalFees: false }),
   })
+  const legacy =
+    deps.legacyDirectory === undefined
+      ? undefined
+      : createSessionBudgetJournal({
+          directory: deps.legacyDirectory,
+          sleep: deps.sleep,
+          initialBudget: () =>
+            Promise.resolve({ spentUsd: Usd.from(0).toAmount(), hasUnknownHistoricalFees: false }),
+        })
+  const carryLegacy = async (scope: string) => {
+    const total = await legacy?.readExisting(scope, PAID_DAILY_BUDGET.accountId)
+    if (total !== undefined && deps.legacyDirectory !== undefined)
+      await journal.importHistorical(
+        scope,
+        PAID_DAILY_BUDGET.accountId,
+        deps.legacyDirectory,
+        total,
+      )
+  }
   const limitPath = (scope: string) =>
     path.join(deps.directory, scope, PAID_DAILY_BUDGET.overrideFile)
   const stopPath = (scope: string) =>
     path.join(deps.directory, scope, PAID_DAILY_BUDGET.stopDirectory)
   const readLimit = (scope: string, isDisplay = false) => {
     let isStopped = false
+    if (deps.legacyDirectory !== undefined) {
+      try {
+        statSync(path.join(deps.legacyDirectory, scope, PAID_DAILY_BUDGET.stopDirectory))
+        mkdirSync(stopPath(scope), { recursive: true })
+      } catch (error: unknown) {
+        if (storeErrorCode(error) !== 'ENOENT')
+          throw new Error(UI_TEXT.paidDailyLedgerUnavailable, { cause: error })
+      }
+    }
     try {
       statSync(stopPath(scope))
       isStopped = true
@@ -205,6 +234,7 @@ export function createPaidDailyBudget(deps: {
     }
   }
   const reserveClaim = async (scope: string, amount: UsdAmount, cap?: UsdAmount) => {
+    await carryLegacy(scope)
     const claimId = randomUUID()
     // The durable journal owns admission. A refused/failed write creates no
     // in-memory authority claim; ambiguous journal liability stays durable.
@@ -291,6 +321,7 @@ export function createPaidDailyBudget(deps: {
   }
   const readToday = async (): Promise<readonly UsageBudgetRead[]> => {
     const scope = day()
+    await carryLegacy(scope)
     const total = await journal.readExisting(scope, PAID_DAILY_BUDGET.accountId)
     let isStopped = false
     let cap: UsdAmount
@@ -321,6 +352,7 @@ export function createPaidDailyBudget(deps: {
   }
   const latestDay = async () => {
     const scope = day()
+    await carryLegacy(scope)
     readLimit(scope)
     const total = await journal.read(scope, PAID_DAILY_BUDGET.accountId)
     if (scope !== day()) throw new Error(UI_TEXT.paidDailyStopped)
@@ -357,8 +389,10 @@ export function createPaidDailyBudget(deps: {
     day,
     capUsd,
     reserveShared: reserveClaim,
-    reserveOwn: (scope, amount, cap) =>
-      journal.reserveAdmitted(scope, PAID_DAILY_BUDGET.accountId, amount, cap),
+    reserveOwn: async (scope, amount, cap) => {
+      await carryLegacy(scope)
+      return await journal.reserveAdmitted(scope, PAID_DAILY_BUDGET.accountId, amount, cap)
+    },
     ...(deps.accountAdmission !== undefined && { accountAdmission: deps.accountAdmission }),
   })
   const judgeLedger: JudgeDailyLedger = {

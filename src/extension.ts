@@ -1119,6 +1119,11 @@ async function activateWindow(
       .getConfiguration(SETTINGS_SECTION)
       .inspect<boolean>(PAID_FEATURE_SETTINGS[feature])?.globalValue === undefined
   const paidAuthority = new PaidAuthority()
+  const dailyBudgetDataFolder = agentDataFolder({
+    platform: process.platform,
+    env: process.env,
+    homeDir: homedir(),
+  })
   let paidDaily: ReturnType<typeof createPaidDailyBudget> | undefined
   const loadDailyPaid = () => {
     if (paidDaily !== undefined) return paidDaily
@@ -1129,7 +1134,8 @@ async function activateWindow(
     paidDaily = bundle.createUsageBudget({
       l10n,
       authority: paidAuthority,
-      directory: path.join(context.globalStorageUri.fsPath, PAID_DAILY_BUDGET.directory),
+      directory: path.join(dailyBudgetDataFolder, PAID_DAILY_BUDGET.directory),
+      legacyDirectory: path.join(context.globalStorageUri.fsPath, PAID_DAILY_BUDGET.directory),
       now: Date.now,
       capUsd: () => currentSettings().paidDailyBudgetUsd,
       isModelApi: () => paidBackend === 'modelApi',
@@ -4422,7 +4428,7 @@ async function activateWindow(
         l10n,
         log,
         beforeRead: () => usageRecording.flush(),
-        budgetStorageFolder: context.globalStorageUri.fsPath,
+        budgetStorageFolder: dailyBudgetDataFolder,
         live: {
           readBudgets: async () => [
             ...(await dailyPaid.readToday()),
