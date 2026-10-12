@@ -404,7 +404,16 @@ describe('PROVWIRE production provider wiring', () => {
       'synthetic-test-key',
       () => Promise.resolve(['8.8.8.8']),
     )
-    expect(outcome).toEqual({ ok: true, modelCount: 4 })
+    expect(outcome).toEqual({
+      ok: true,
+      modelCount: 4,
+      modelIds: [
+        'inclusionai/ling-3.1-flash',
+        'apodex/apodex-1.1-mini:free',
+        'anthropic/claude-sonnet-5.5',
+        'openai/gpt-oss-20b',
+      ],
+    })
     expect(paths).toEqual(['/api/v1/key', '/api/v1/models'])
     f.controller.dispose()
   })
