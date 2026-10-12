@@ -108,10 +108,11 @@ describe('U authenticated panel host', () => {
         state: expect.objectContaining({ status: expect.objectContaining({ state: 'unlocked' }) }),
       }),
     )
-    // A later refresh of the still-unlocked vault publishes it normally.
+    // A later refresh of the still-unlocked vault publishes it normally:
+    // the request record republishes the view, then the fresh snapshot does.
     const count = f.deps.publish.mock.calls.length
     await f.host.refresh()
-    expect(f.deps.publish.mock.calls.length).toBe(count + 1)
+    expect(f.deps.publish.mock.calls.length).toBe(count + 2)
     expect(f.deps.status).toHaveBeenLastCalledWith(true)
     const held = Promise.withResolvers<VaultItem | null>()
     let signal: AbortSignal | undefined
@@ -320,8 +321,10 @@ describe('U authenticated panel host', () => {
     f.state.status.lockEpoch = 1
     await f.host.refresh()
     // The rolled-back snapshot never reaches the screen: the current view
-    // republishes unchanged instead — still a publish, never silence.
-    expect(f.deps.publish).toHaveBeenCalledTimes(2)
+    // republishes unchanged instead — still a publish, never silence. (The
+    // second refresh publishes twice: the request record, then the republish
+    // that drops the stale reply.)
+    expect(f.deps.publish).toHaveBeenCalledTimes(3)
     const frame = f.deps.publish.mock.calls.at(-1)?.[0] as {
       state: ReturnType<typeof panel>
     }

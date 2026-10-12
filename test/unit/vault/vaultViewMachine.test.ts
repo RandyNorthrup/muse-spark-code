@@ -55,7 +55,7 @@ function exhaustTransient(
   for (let attempt = 0; attempt <= BUDGET + 1; attempt++) {
     const failed = applyVaultViewEvent(
       current,
-      { kind: 'snapshotFailed', generation: GEN, reason },
+      { kind: 'snapshotFailed', generation: GEN, seq: GEN, reason },
       GEN,
       BUDGET,
       DELAY,
@@ -69,7 +69,7 @@ function exhaustTransient(
 }
 
 /** One sample per state kind; adding a kind without a sample fails the table. */
-function sampleStates(): Record<(typeof VAULT_VIEW_STATES)[number], VaultViewState> {
+function sampleStates(): Record<StateKind, VaultViewState> {
   const good = unlockedSnapshot()
   return {
     loading: { kind: 'loading', generation: GEN, lastGood: good },
@@ -92,17 +92,37 @@ function sampleStates(): Record<(typeof VAULT_VIEW_STATES)[number], VaultViewSta
   }
 }
 
+/**
+ * The sample table derives its rows from the reducer unions themselves: the
+ * types below only compile while every union member has its row, so a new
+ * state or event without one fails the build instead of falling silent
+ * (RVCM1091G P3).
+ */
+type EventKind = VaultViewEvent['kind']
+type StateKind = VaultViewState['kind']
+type UnionCovers<Table extends readonly unknown[], Union extends string> =
+  Exclude<Union, Table[number]> extends never
+    ? Exclude<Table[number], Union> extends never
+      ? true
+      : ['unexpected row', Exclude<Table[number], Union>]
+    : ['missing row', Exclude<Union, Table[number]>]
+const isEventUnionCovered: UnionCovers<typeof VAULT_VIEW_EVENTS, EventKind> = true
+const isStateUnionCovered: UnionCovers<typeof VAULT_VIEW_STATES, StateKind> = true
+
 /** One representative event per kind; the named tests below vary payloads. */
 function sampleEvent(kind: (typeof VAULT_VIEW_EVENTS)[number]): VaultViewEvent {
   switch (kind) {
     case 'brokerLocked': {
       return { kind: 'brokerLocked', lockEpoch: 9 }
     }
+    case 'reloadRequested': {
+      return { kind: 'reloadRequested', seq: GEN }
+    }
     case 'snapshotOk': {
-      return { kind: 'snapshotOk', generation: GEN, snapshot: unlockedSnapshot() }
+      return { kind: 'snapshotOk', generation: GEN, seq: GEN, snapshot: unlockedSnapshot() }
     }
     case 'snapshotFailed': {
-      return { kind: 'snapshotFailed', generation: GEN, reason: 'busy' }
+      return { kind: 'snapshotFailed', generation: GEN, seq: GEN, reason: 'busy' }
     }
     case 'brokerUnlocked':
     case 'brokerChanged':
@@ -127,8 +147,12 @@ function sampleEvent(kind: (typeof VAULT_VIEW_EVENTS)[number]): VaultViewEvent {
 
 describe('RVCM1091F view state machine table', () => {
   it('covers every state crossed with every event from the unions', () => {
+    // The union-coverage types above only compile while the tables match
+    // the unions; asserting them here keeps the check referenced.
+    expect(isEventUnionCovered).toBe(true)
+    expect(isStateUnionCovered).toBe(true)
     expect(VAULT_VIEW_STATES).toHaveLength(4)
-    expect(VAULT_VIEW_EVENTS).toHaveLength(19)
+    expect(VAULT_VIEW_EVENTS).toHaveLength(20)
     const states = sampleStates()
     for (const stateKind of VAULT_VIEW_STATES) {
       const state = states[stateKind]
@@ -232,7 +256,7 @@ describe('RVCM1091F view state machine table', () => {
     )
     const { state: next, effects } = applyVaultViewEvent(
       optimistic.state,
-      { kind: 'snapshotFailed', generation: GEN, reason: 'unreachable' },
+      { kind: 'snapshotFailed', generation: GEN, seq: GEN, reason: 'unreachable' },
       GEN,
       BUDGET,
       DELAY,
@@ -249,7 +273,7 @@ describe('RVCM1091F view state machine table', () => {
   it('a confirmed Locked view survives a failed confirmation snapshot', () => {
     const { state: next, effects } = applyVaultViewEvent(
       sampleStates().locked,
-      { kind: 'snapshotFailed', generation: GEN, reason: 'unreachable' },
+      { kind: 'snapshotFailed', generation: GEN, seq: GEN, reason: 'unreachable' },
       GEN,
       BUDGET,
       DELAY,
@@ -277,7 +301,7 @@ describe('RVCM1091F view state machine table', () => {
   it('a transient failure keeps the last good view, says it is retrying, then offers Retry', () => {
     const first = applyVaultViewEvent(
       sampleStates().unlocked,
-      { kind: 'snapshotFailed', generation: GEN, reason: 'busy' },
+      { kind: 'snapshotFailed', generation: GEN, seq: GEN, reason: 'busy' },
       GEN,
       BUDGET,
       DELAY,
@@ -293,7 +317,7 @@ describe('RVCM1091F view state machine table', () => {
     expect(second.effects.reload).toBe(true)
     const third = applyVaultViewEvent(
       second.state,
-      { kind: 'snapshotFailed', generation: GEN, reason: 'busy' },
+      { kind: 'snapshotFailed', generation: GEN, seq: GEN, reason: 'busy' },
       GEN,
       BUDGET,
       DELAY,
@@ -310,7 +334,7 @@ describe('RVCM1091F view state machine table', () => {
     }
     const last = applyVaultViewEvent(
       state,
-      { kind: 'snapshotFailed', generation: GEN, reason: 'busy' },
+      { kind: 'snapshotFailed', generation: GEN, seq: GEN, reason: 'busy' },
       GEN,
       BUDGET,
       DELAY,
@@ -323,7 +347,7 @@ describe('RVCM1091F view state machine table', () => {
     expect(retry.effects.reload).toBe(true)
     const recovered = applyVaultViewEvent(
       retry.state,
-      { kind: 'snapshotFailed', generation: GEN, reason: 'busy' },
+      { kind: 'snapshotFailed', generation: GEN, seq: GEN, reason: 'busy' },
       GEN,
       BUDGET,
       DELAY,
@@ -375,7 +399,7 @@ describe('RVCM1091F view state machine table', () => {
     }
     const { state: next, effects } = applyVaultViewEvent(
       loading,
-      { kind: 'snapshotFailed', generation: GEN, reason: 'rollback' },
+      { kind: 'snapshotFailed', generation: GEN, seq: GEN, reason: 'rollback' },
       GEN + 1,
       BUDGET,
       DELAY,
@@ -394,7 +418,7 @@ describe('RVCM1091F view state machine table', () => {
     const older = lockedSnapshot()
     const { state: next, effects } = applyVaultViewEvent(
       fresh,
-      { kind: 'snapshotOk', generation: GEN, snapshot: older },
+      { kind: 'snapshotOk', generation: GEN, seq: GEN, snapshot: older },
       GEN + 1,
       BUDGET,
       DELAY,
@@ -409,7 +433,7 @@ describe('RVCM1091F view state machine table', () => {
     fresh.status.lockEpoch = 4
     const { state: next, effects } = applyVaultViewEvent(
       sampleStates().locked,
-      { kind: 'snapshotOk', generation: GEN, snapshot: fresh },
+      { kind: 'snapshotOk', generation: GEN, seq: GEN, snapshot: fresh },
       GEN,
       BUDGET,
       DELAY,
@@ -421,13 +445,105 @@ describe('RVCM1091F view state machine table', () => {
   it('a snapshot from an older broker epoch never resurrects a locked panel', () => {
     const { state: next, effects } = applyVaultViewEvent(
       sampleStates().locked,
-      { kind: 'snapshotOk', generation: GEN, snapshot: unlockedSnapshot() },
+      { kind: 'snapshotOk', generation: GEN, seq: GEN, snapshot: unlockedSnapshot() },
       GEN,
       BUDGET,
       DELAY,
     )
     expect(next.kind).toBe('locked')
     expect(effects.frame?.status.state).toBe('locked')
+  })
+
+  it('overlapping reloads settle newest-wins in both landing orders', () => {
+    const one = unlockedSnapshot()
+    const two = unlockedSnapshot()
+    two.items = []
+    two.status.itemCount = 0
+    // Two approval cards start two snapshots under one generation.
+    const first = applyVaultViewEvent(
+      sampleStates().unlocked,
+      { kind: 'reloadRequested', seq: 1 },
+      GEN,
+      BUDGET,
+      DELAY,
+    )
+    const second = applyVaultViewEvent(
+      first.state,
+      { kind: 'reloadRequested', seq: 2 },
+      GEN,
+      BUDGET,
+      DELAY,
+    )
+    // The request is recorded without disturbing the shown view.
+    expect(second.state.kind).toBe('unlocked')
+    if (second.state.kind === 'unlocked') expect(second.state.request).toBe(2)
+    // The newer reply lands first, the older lands after: the older must
+    // not overwrite it.
+    const newerFirst = applyVaultViewEvent(
+      second.state,
+      { kind: 'snapshotOk', generation: GEN, seq: 2, snapshot: two },
+      GEN,
+      BUDGET,
+      DELAY,
+    )
+    expect(newerFirst.state.kind).toBe('unlocked')
+    const olderAfter = applyVaultViewEvent(
+      newerFirst.state,
+      { kind: 'snapshotOk', generation: GEN, seq: 1, snapshot: one },
+      GEN,
+      BUDGET,
+      DELAY,
+    )
+    expect(olderAfter.state.kind).toBe('unlocked')
+    expect(olderAfter.effects.frame?.items).toEqual([])
+    expect(olderAfter.effects.frame?.status.itemCount).toBe(0)
+    // The other order: the older reply lands first and applies (it is the
+    // newest known then), and the newer reply still wins after it.
+    const olderFirst = applyVaultViewEvent(
+      second.state,
+      { kind: 'snapshotOk', generation: GEN, seq: 1, snapshot: one },
+      GEN,
+      BUDGET,
+      DELAY,
+    )
+    expect(olderFirst.effects.frame?.status.itemCount).toBe(1)
+    const newerAfter = applyVaultViewEvent(
+      olderFirst.state,
+      { kind: 'snapshotOk', generation: GEN, seq: 2, snapshot: two },
+      GEN,
+      BUDGET,
+      DELAY,
+    )
+    expect(newerAfter.effects.frame?.items).toEqual([])
+    expect(newerAfter.effects.frame?.status.itemCount).toBe(0)
+  })
+
+  it('a stale reply still publishes instead of falling silent', () => {
+    const second = applyVaultViewEvent(
+      applyVaultViewEvent(
+        sampleStates().unlocked,
+        { kind: 'reloadRequested', seq: 1 },
+        GEN,
+        BUDGET,
+        DELAY,
+      ).state,
+      { kind: 'reloadRequested', seq: 2 },
+      GEN,
+      BUDGET,
+      DELAY,
+    )
+    const { state: next, effects } = applyVaultViewEvent(
+      second.state,
+      { kind: 'snapshotFailed', generation: GEN, seq: 1, reason: 'busy' },
+      GEN,
+      BUDGET,
+      DELAY,
+    )
+    // The older failure is kept and shown, never dropped — while the newer
+    // reload's own settle still publishes.
+    expect(next.kind).toBe('unlocked')
+    expect(effects.toast).toBe(UI_TEXT.vault.busy)
+    expect(effects.frame?.status.state).toBe('unlocked')
   })
 
   it('a toast never contradicts the section beside it', () => {
@@ -498,7 +614,7 @@ describe('RVCM1091F view state machine table', () => {
       }
       const { state: next, effects } = applyVaultViewEvent(
         sampleStates().loading,
-        { kind: 'snapshotOk', generation: GEN, snapshot },
+        { kind: 'snapshotOk', generation: GEN, seq: GEN, snapshot },
         GEN,
         BUDGET,
         DELAY,

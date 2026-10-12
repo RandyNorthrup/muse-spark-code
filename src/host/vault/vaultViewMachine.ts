@@ -35,7 +35,12 @@ export type VaultUnavailableReason =
   | 'setupPending'
   | 'firstPartyOnly'
 
-/** The closed state union: a new kind without a table row fails the test. */
+/**
+ * The closed state union: a new kind without a table row fails the test
+ * (the exhaustive table derives its rows from these members, and the
+ * transition's default branch asserts `never`, so a member without a row
+ * does not compile).
+ */
 export type VaultViewState =
   | {
       readonly kind: 'loading'
@@ -43,6 +48,13 @@ export type VaultViewState =
       readonly lastGood?: VaultPanelState
       /** Remaining auto-retries if the in-flight reload fails transiently. */
       readonly retriesLeft?: number
+      /**
+       * The newest reload this view asked for. A snapshot reply is applied
+       * only when it answers the newest request: overlapping reloads share
+       * one generation (two approval cards), so the generation alone cannot
+       * tell an older reply from a newer one (RVCM1091G P2).
+       */
+      readonly request?: number
     }
   | {
       readonly kind: 'locked'
@@ -59,8 +71,16 @@ export type VaultViewState =
        * down stays Locked).
        */
       readonly confirmed: boolean
+      /** The newest reload requested while this view lives (see above). */
+      readonly request?: number
     }
-  | { readonly kind: 'unlocked'; readonly snapshot: VaultPanelState; readonly generation: number }
+  | {
+      readonly kind: 'unlocked'
+      readonly snapshot: VaultPanelState
+      readonly generation: number
+      /** The newest reload requested while this view lives (see above). */
+      readonly request?: number
+    }
   | {
       readonly kind: 'unavailable'
       readonly reason: VaultUnavailableReason
@@ -68,6 +88,8 @@ export type VaultViewState =
       readonly frame: VaultPanelState
       readonly lastGood?: VaultPanelState
       readonly retriesLeft: number
+      /** The newest reload requested while this view lives (see above). */
+      readonly request?: number
     }
 
 /** Every state kind, for the exhaustive table test. */
@@ -89,6 +111,12 @@ export type VaultViewEvent =
   | { readonly kind: 'vaultReady' }
   | { readonly kind: 'watchLost' }
   | { readonly kind: 'watchRestored' }
+  /**
+   * The host records each reload request inside the machine, before the
+   * snapshot call starts. A reply carries the request it answers; only the
+   * newest requested reply is applied (RVCM1091G P2).
+   */
+  | { readonly kind: 'reloadRequested'; readonly seq: number }
   | { readonly kind: 'userLock' }
   /** This window's Lock call returned: the optimistic view is broker truth. */
   | { readonly kind: 'userLockConfirmed' }
@@ -102,11 +130,15 @@ export type VaultViewEvent =
   | {
       readonly kind: 'snapshotOk'
       readonly generation: number
+      /** The reload request this reply answers (see `reloadRequested`). */
+      readonly seq: number
       readonly snapshot: VaultPanelState
     }
   | {
       readonly kind: 'snapshotFailed'
       readonly generation: number
+      /** The reload request this reply answers (see `reloadRequested`). */
+      readonly seq: number
       readonly reason: VaultUnavailableReason
     }
 
@@ -120,6 +152,7 @@ export const VAULT_VIEW_EVENTS = [
   'vaultReady',
   'watchLost',
   'watchRestored',
+  'reloadRequested',
   'userLock',
   'userLockConfirmed',
   'userUnlock',
@@ -149,106 +182,106 @@ export interface VaultViewResult {
   readonly effects: VaultViewEffects
 }
 
-/** The sentence each unavailable reason toasts; null means no toast. */
-export function vaultUnavailableMessage(reason: VaultUnavailableReason): string | null {
-  switch (reason) {
-    case 'busy': {
-      return UI_TEXT.vault.busy
-    }
-    case 'rollback': {
-      return UI_TEXT.vault.rollback
-    }
-    case 'timeout':
-    case 'watchLost':
-    case 'unreachable': {
-      return UI_TEXT.vault.operationFailed
-    }
-    case 'brokerCannotStart': {
-      return UI_TEXT.vault.brokerBlocked
-    }
-    case 'storeUnavailable': {
-      return UI_TEXT.vault.storeUnavailable
-    }
-    case 'vaultLost': {
-      return UI_TEXT.vault.vaultLost
-    }
-    case 'auditInvalid': {
-      return UI_TEXT.vault.auditInvalid
-    }
-    case 'slotUnavailable': {
-      return UI_TEXT.vault.slotUnavailable
-    }
-    case 'basicText': {
-      return UI_TEXT.vault.basicText
-    }
-    case 'uncreated':
-    case 'setupPending':
-    case 'firstPartyOnly': {
-      return null
-    }
+/**
+ * The sentence each unavailable reason toasts; null means no toast. A
+ * table, not code: a new reason without a row does not compile, so no
+ * failure can fall through to the repair message by accident (RVCM1091G P2).
+ */
+function unavailableToastTable(): Record<VaultUnavailableReason, string | null> {
+  // Built on use, never at module load: the installed language is the one
+  // shown (PLAN.md D33).
+  return {
+    busy: UI_TEXT.vault.busy,
+    rollback: UI_TEXT.vault.rollback,
+    timeout: UI_TEXT.vault.operationFailed,
+    watchLost: UI_TEXT.vault.operationFailed,
+    unreachable: UI_TEXT.vault.operationFailed,
+    brokerCannotStart: UI_TEXT.vault.brokerBlocked,
+    storeUnavailable: UI_TEXT.vault.storeUnavailable,
+    vaultLost: UI_TEXT.vault.vaultLost,
+    auditInvalid: UI_TEXT.vault.auditInvalid,
+    slotUnavailable: UI_TEXT.vault.slotUnavailable,
+    basicText: UI_TEXT.vault.basicText,
+    uncreated: null,
+    setupPending: null,
+    firstPartyOnly: null,
   }
+}
+
+export function vaultUnavailableMessage(reason: VaultUnavailableReason): string | null {
+  return unavailableToastTable()[reason]
 }
 
 /**
  * The status reason an exhausted unavailable frame carries. Transient
  * host-side reasons need their own names so they never borrow the repair
  * sentence; `brokerCannotStart` keeps the broker's own `brokerBlocked`.
+ * A table for the same reason as above.
  */
+function frameReasonTable(): Record<VaultUnavailableReason, VaultStatus['reason']> {
+  return {
+    brokerCannotStart: 'brokerBlocked',
+    unreachable: 'unreachable',
+    timeout: 'timeout',
+    watchLost: 'watchLost',
+    busy: 'busy',
+    storeUnavailable: 'storeUnavailable',
+    rollback: 'rollback',
+    vaultLost: 'vaultLost',
+    auditInvalid: 'auditInvalid',
+    slotUnavailable: 'slotUnavailable',
+    basicText: 'basicText',
+    uncreated: null,
+    setupPending: null,
+    firstPartyOnly: null,
+  }
+}
+
 export function vaultFrameReason(reason: VaultUnavailableReason): VaultStatus['reason'] {
-  switch (reason) {
-    case 'brokerCannotStart': {
-      return 'brokerBlocked'
+  return frameReasonTable()[reason]
+}
+
+/**
+ * One read of what a view shows, keeps and knows: the frame on screen, the
+ * last good snapshot and the newest broker epoch. A single row per state
+ * kind replaces the three per-kind switches this file used to carry.
+ */
+function describeView(state: VaultViewState): {
+  readonly frame: VaultPanelState | null
+  readonly lastGood: VaultPanelState | undefined
+  readonly epoch: number
+} {
+  switch (state.kind) {
+    case 'loading': {
+      return {
+        frame: state.lastGood ?? null,
+        lastGood: state.lastGood,
+        epoch: state.lastGood?.status.lockEpoch ?? 0,
+      }
     }
-    case 'unreachable': {
-      return 'unreachable'
+    case 'locked': {
+      return { frame: state.frame, lastGood: undefined, epoch: state.lockEpoch }
     }
-    case 'timeout': {
-      return 'timeout'
+    case 'unlocked': {
+      return {
+        frame: state.snapshot,
+        lastGood: state.snapshot,
+        epoch: state.snapshot.status.lockEpoch,
+      }
     }
-    case 'watchLost': {
-      return 'watchLost'
-    }
-    case 'busy': {
-      return 'busy'
-    }
-    case 'storeUnavailable': {
-      return 'storeUnavailable'
-    }
-    case 'rollback':
-    case 'vaultLost':
-    case 'auditInvalid':
-    case 'slotUnavailable':
-    case 'basicText': {
-      return reason
-    }
-    case 'uncreated':
-    case 'setupPending':
-    case 'firstPartyOnly': {
-      return null
+    case 'unavailable': {
+      return {
+        frame: state.frame,
+        lastGood: state.lastGood,
+        epoch: state.lastGood?.status.lockEpoch ?? state.frame.status.lockEpoch,
+      }
     }
   }
 }
 
 /** The frame this view currently shows, if it has shown one yet. */
 export function vaultViewFrame(state: VaultViewState): VaultPanelState | null {
-  return currentFrame(state)
-}
-
-function currentFrame(state: VaultViewState): VaultPanelState | null {
-  switch (state.kind) {
-    case 'loading': {
-      return state.lastGood ?? null
-    }
-    case 'locked': {
-      return state.frame
-    }
-    case 'unlocked': {
-      return state.snapshot
-    }
-    case 'unavailable': {
-      return state.frame
-    }
-  }
+  return describeView(state).frame
 }
 
 /**
@@ -268,40 +301,6 @@ function retryBudgetFor(
     (failedReason === undefined || state.reason === failedReason)
     ? state.retriesLeft
     : retryBudget
-}
-
-function lastGoodOf(state: VaultViewState): VaultPanelState | undefined {
-  switch (state.kind) {
-    case 'loading': {
-      return state.lastGood
-    }
-    case 'locked': {
-      return undefined
-    }
-    case 'unlocked': {
-      return state.snapshot
-    }
-    case 'unavailable': {
-      return state.lastGood
-    }
-  }
-}
-
-function knownEpoch(state: VaultViewState): number {
-  switch (state.kind) {
-    case 'loading': {
-      return state.lastGood?.status.lockEpoch ?? 0
-    }
-    case 'locked': {
-      return state.lockEpoch
-    }
-    case 'unlocked': {
-      return state.snapshot.status.lockEpoch
-    }
-    case 'unavailable': {
-      return state.lastGood?.status.lockEpoch ?? state.frame.status.lockEpoch
-    }
-  }
 }
 
 /**
@@ -337,37 +336,32 @@ function unavailableFrame(
   lastGood: VaultPanelState | undefined,
   reason: VaultUnavailableReason,
 ): VaultPanelState {
+  // The same stripped shape as a locked frame, but nothing about it claims
+  // an observed slot: the tier, provider and silent unlock stay empty until
+  // a snapshot observes them again.
+  const stripped = lockedFrame(lastGood, lastGood?.status.lockEpoch ?? 0)
   return {
+    ...stripped,
     status: {
+      ...stripped.status,
       state: 'unavailable',
       reason: vaultFrameReason(reason),
-      lockEpoch: lastGood?.status.lockEpoch ?? 0,
       tier: null,
       provider: null,
       silentUnlock: false,
-      itemCount: 0,
     },
-    notices: lastGood?.notices,
-    items: [],
-    grants: [],
-    audit: [],
-    pending: [],
-    ambientFiles: [],
   }
 }
 
+const TRANSIENT_REASONS: ReadonlySet<VaultUnavailableReason> = new Set<VaultUnavailableReason>([
+  'busy',
+  'rollback',
+  'timeout',
+  'watchLost',
+])
+
 function isTransient(reason: VaultUnavailableReason): reason is VaultTransientReason {
-  switch (reason) {
-    case 'busy':
-    case 'rollback':
-    case 'timeout':
-    case 'watchLost': {
-      return true
-    }
-    default: {
-      return false
-    }
-  }
+  return TRANSIENT_REASONS.has(reason)
 }
 
 function reasonForSnapshot(status: VaultPanelState['status']): VaultUnavailableReason {
@@ -408,6 +402,7 @@ function stateForSnapshot(
   generation: number,
   lastGood: VaultPanelState | undefined,
   retriesLeft: number,
+  request: number | undefined,
 ): VaultViewState {
   switch (snapshot.status.state) {
     case 'locked': {
@@ -417,10 +412,11 @@ function stateForSnapshot(
         generation,
         frame: snapshot,
         confirmed: true,
+        ...(request !== undefined && { request }),
       }
     }
     case 'unlocked': {
-      return { kind: 'unlocked', snapshot, generation }
+      return { kind: 'unlocked', snapshot, generation, ...(request !== undefined && { request }) }
     }
     case 'unavailable':
     case 'uncreated':
@@ -438,6 +434,7 @@ function stateForSnapshot(
         frame: snapshot,
         ...(lastGood !== undefined && { lastGood }),
         retriesLeft,
+        ...(request !== undefined && { request }),
       }
     }
   }
@@ -458,33 +455,44 @@ export function applyVaultViewEvent(
   retryBudget: number,
   retryDelayMs: number,
 ): VaultViewResult {
+  const seen = describeView(state)
   const republish = (next: VaultViewState, toast: string | null = null): VaultViewResult => ({
     state: next,
-    effects: { frame: currentFrame(next), toast, reload: false, retryInMs: null },
+    effects: { frame: describeView(next).frame, toast, reload: false, retryInMs: null },
   })
   const reloadFrom = (
     lastGood: VaultPanelState | undefined,
     toast: string | null = null,
     retriesLeft?: number,
+    request?: number,
   ): VaultViewResult => ({
     state: {
       kind: 'loading',
       generation,
       ...(lastGood !== undefined && { lastGood }),
       ...(retriesLeft !== undefined && { retriesLeft }),
+      ...(request !== undefined && { request }),
     },
     effects: { frame: lastGood ?? null, toast, reload: true, retryInMs: null },
   })
+  /** An older reply never overwrites a newer request (RVCM1091G P2). */
+  const isStaleReply = (seq: number): boolean => state.request !== undefined && seq < state.request
 
   switch (event.kind) {
     case 'brokerLocked': {
       // An older broker epoch cannot resurrect — or re-lock — a newer view,
       // but the event is still answered with a publish, never ignored.
-      if (event.lockEpoch < knownEpoch(state)) return republish(state)
-      const lastGood = lastGoodOf(state)
-      const frame = lockedFrame(lastGood, event.lockEpoch)
+      if (event.lockEpoch < seen.epoch) return republish(state)
+      const frame = lockedFrame(seen.lastGood, event.lockEpoch)
       return {
-        state: { kind: 'locked', lockEpoch: event.lockEpoch, generation, frame, confirmed: true },
+        state: {
+          kind: 'locked',
+          lockEpoch: event.lockEpoch,
+          generation,
+          frame,
+          confirmed: true,
+          ...(state.request !== undefined && { request: state.request }),
+        },
         effects: { frame, toast: null, reload: true, retryInMs: null },
       }
     }
@@ -494,12 +502,27 @@ export function applyVaultViewEvent(
     case 'brokerRevoked':
     case 'watchRestored':
     case 'vaultReady': {
-      return reloadFrom(lastGoodOf(state))
+      return reloadFrom(seen.lastGood, null, undefined, state.request)
     }
     case 'watchLost': {
       // The stream is down; the broker may be fine. Keep the view, say the
       // operation failed, and reload to confirm what is true.
-      return reloadFrom(lastGoodOf(state), UI_TEXT.vault.operationFailed)
+      return reloadFrom(seen.lastGood, UI_TEXT.vault.operationFailed, undefined, state.request)
+    }
+    case 'reloadRequested': {
+      // The host's own record of a new reload request: the in-flight reply
+      // for an older request is stale from here on, whichever lands first.
+      // The view itself is untouched — a confirmed Locked in particular
+      // survives its own confirmation snapshot failing — and republishes
+      // (or reloads when nothing is shown yet), so the request is never
+      // silent.
+      const request = state.request === undefined ? event.seq : Math.max(state.request, event.seq)
+      const next: VaultViewState = { ...state, request }
+      const frame = describeView(next).frame
+      return {
+        state: next,
+        effects: { frame, toast: null, reload: frame === null, retryInMs: null },
+      }
     }
     case 'userLock': {
       // This window's Lock paints Locked at once (labels stripped) but
@@ -508,15 +531,15 @@ export function applyVaultViewEvent(
       // Lock over broker-confirmed Locked keeps the confirmation. No reload
       // effect: the caller drives the operation, whose snapshot result
       // follows.
-      const lastGood = lastGoodOf(state)
-      const frame = lockedFrame(lastGood, knownEpoch(state))
+      const frame = lockedFrame(seen.lastGood, seen.epoch)
       return {
         state: {
           kind: 'locked',
-          lockEpoch: knownEpoch(state),
+          lockEpoch: seen.epoch,
           generation,
           frame,
           confirmed: state.kind === 'locked' && state.confirmed,
+          ...(state.request !== undefined && { request: state.request }),
         },
         effects: { frame, toast: null, reload: false, retryInMs: null },
       }
@@ -529,7 +552,7 @@ export function applyVaultViewEvent(
       // of staying silent (the caller refreshes anyway).
       if (state.kind === 'locked' && !state.confirmed)
         return republish({ ...state, confirmed: true })
-      if (currentFrame(state) === null)
+      if (seen.frame === null)
         return {
           state,
           effects: { frame: null, toast: null, reload: true, retryInMs: null },
@@ -544,17 +567,17 @@ export function applyVaultViewEvent(
       // The caller drives the operation and feeds its snapshot result; the
       // view republishes meanwhile so the action is never silent. With no
       // view yet, the action itself loads one.
-      const lastGood = lastGoodOf(state)
       return {
         state: {
           kind: 'loading',
           generation,
-          ...(lastGood !== undefined && { lastGood }),
+          ...(seen.lastGood !== undefined && { lastGood: seen.lastGood }),
+          ...(state.request !== undefined && { request: state.request }),
         },
         effects: {
-          frame: lastGood ?? null,
+          frame: seen.lastGood ?? null,
           toast: null,
-          reload: lastGood === undefined,
+          reload: seen.lastGood === undefined,
           retryInMs: null,
         },
       }
@@ -563,32 +586,47 @@ export function applyVaultViewEvent(
     case 'autoRetry': {
       // A manual Retry restores the full budget; the scheduled one keeps
       // the remaining budget, so auto-retries stay bounded.
-      return reloadFrom(lastGoodOf(state), null, retryBudgetFor(state, event.kind, retryBudget))
+      return reloadFrom(
+        seen.lastGood,
+        null,
+        retryBudgetFor(state, event.kind, retryBudget),
+        state.request,
+      )
     }
     case 'snapshotOk': {
       // An older broker epoch cannot resurrect a locked panel either: the
-      // snapshot is as superseded as an older generation.
+      // snapshot is as superseded as an older generation — and a reply to
+      // an older reload request never overwrites the newest one, whichever
+      // lands first (RVCM1091G P2).
       if (
         event.generation < state.generation ||
-        event.snapshot.status.lockEpoch < knownEpoch(state)
+        event.snapshot.status.lockEpoch < seen.epoch ||
+        isStaleReply(event.seq)
       ) {
         // Superseded by a newer reload, whose settle publishes. With no
         // view at all, reload instead of staying silent.
-        if (currentFrame(state) === null)
+        if (seen.frame === null)
           return {
             state,
             effects: { frame: null, toast: null, reload: true, retryInMs: null },
           }
         return republish(state)
       }
-      const next = stateForSnapshot(event.snapshot, generation, lastGoodOf(state), retryBudget)
+      const next = stateForSnapshot(
+        event.snapshot,
+        generation,
+        seen.lastGood,
+        retryBudget,
+        event.seq,
+      )
       return {
         state: next,
-        effects: { frame: currentFrame(next), toast: null, reload: false, retryInMs: null },
+        effects: { frame: describeView(next).frame, toast: null, reload: false, retryInMs: null },
       }
     }
     case 'snapshotFailed': {
-      if (state.kind === 'locked' && state.confirmed && event.generation >= state.generation) {
+      const isStale = event.generation < state.generation || isStaleReply(event.seq)
+      if (!isStale && state.kind === 'locked' && state.confirmed) {
         // A confirmed locked view shows no item names, so a failed
         // confirmation keeps it instead of replacing known Locked with
         // Unavailable: republish the stripped frame and report — never
@@ -605,10 +643,10 @@ export function applyVaultViewEvent(
           },
         }
       }
-      if (event.generation < state.generation) {
+      if (isStale) {
         // Stale, but never dropped: the current view republishes and the
         // failure is still shown. With no view at all, reload as well.
-        if (currentFrame(state) === null)
+        if (seen.frame === null)
           return {
             state,
             effects: {
@@ -620,7 +658,6 @@ export function applyVaultViewEvent(
           }
         return republish(state, vaultUnavailableMessage(event.reason))
       }
-      const lastGood = lastGoodOf(state)
       if (isTransient(event.reason)) {
         // A reload that a new event already superseded still spends from
         // the in-flight budget, so overlapping failures cannot retry forever.
@@ -628,19 +665,26 @@ export function applyVaultViewEvent(
         if (left > 0) {
           // Keep the last good view, say it is retrying, retry boundedly.
           const next: VaultViewState =
-            lastGood === undefined
+            seen.lastGood === undefined
               ? {
                   kind: 'unavailable',
                   reason: event.reason,
                   generation,
                   frame: unavailableFrame(undefined, event.reason),
                   retriesLeft: left - 1,
+                  request: event.seq,
                 }
-              : { kind: 'loading', generation, lastGood, retriesLeft: left - 1 }
+              : {
+                  kind: 'loading',
+                  generation,
+                  lastGood: seen.lastGood,
+                  retriesLeft: left - 1,
+                  request: event.seq,
+                }
           return {
             state: next,
             effects: {
-              frame: currentFrame(next),
+              frame: describeView(next).frame,
               toast: vaultUnavailableMessage(event.reason),
               reload: false,
               retryInMs: retryDelayMs,
@@ -648,14 +692,15 @@ export function applyVaultViewEvent(
           }
         }
       }
-      const frame = unavailableFrame(lastGood, event.reason)
+      const frame = unavailableFrame(seen.lastGood, event.reason)
       const next: VaultViewState = {
         kind: 'unavailable',
         reason: event.reason,
         generation,
         frame,
-        ...(lastGood !== undefined && { lastGood }),
+        ...(seen.lastGood !== undefined && { lastGood: seen.lastGood }),
         retriesLeft: 0,
+        request: event.seq,
       }
       return {
         state: next,
@@ -667,11 +712,12 @@ export function applyVaultViewEvent(
         },
       }
     }
-    // A new event without a row above fails here instead of falling silent.
-    // (The cast reads the kind off the `never` the exhaustive switch leaves;
-    // it is unreachable unless a union member lost its row.)
+    // A new event without a row above fails the build instead of falling
+    // silent: the assignment below only compiles while every union member
+    // has its row (RVCM1091G P3).
     default: {
-      throw new Error(`vault view: unhandled event ${(event as VaultViewEvent).kind}`)
+      const unhandled: never = event
+      throw new Error(`vault view: unhandled event ${String(unhandled)}`)
     }
   }
 }
