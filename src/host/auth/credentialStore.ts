@@ -18,6 +18,8 @@ export function isValidModelApiKey(candidate: string): boolean {
 
 export class CredentialStore {
   private hasReportedFailure = false
+  /** Provider ids whose unreadable entry was already recorded, once each. */
+  private readonly reportedProviders = new Set<string>()
 
   public constructor(
     private readonly secrets: SecretStore,
@@ -73,19 +75,25 @@ export class CredentialStore {
   /**
    * Whether any configured provider holds a credential. A damaged record
    * counts: something is stored for that provider, and the panel asks for
-   * the credential again rather than treating it as absent.
+   * the credential again rather than treating it as absent. An unreadable
+   * entry is recorded (which provider, the kind) and the scan continues, so
+   * one broken entry cannot hide a working provider later in the order; the
+   * answer says what was found, the record says what could not be read.
    */
   public async hasProviderCredential(): Promise<boolean> {
     const ids = await this.providerIds?.()
     if (ids === undefined) {
       return false
     }
+    let isFound = false
     for (const provider of ids) {
       if (
         typeof provider !== 'string' &&
         provider.auth === 'none' &&
         (provider.models?.length ?? 0) > 0
       ) {
+        // Stopping is right: a local-model provider needs no credential, so
+        // the answer is already true and no later entry can change it.
         return true
       }
       const id = typeof provider === 'string' ? provider : provider.id
@@ -94,23 +102,23 @@ export class CredentialStore {
         // credential dispatch remain in the lazy provider store.
         const stored = await this.secrets.get(`${PROVIDER_SECRET_PREFIX}${id}`)
         if (stored !== undefined && stored !== '') {
-          return true
+          isFound = true
         }
       } catch (error: unknown) {
-        // A store that cannot be read says nothing about presence, so it is
-        // not presence; the failure is warned once with its kind. Anything
-        // that is not an error keeps its kind.
+        // An entry that cannot be read says nothing about presence, so the
+        // scan continues past it; the failure is recorded once per provider
+        // with its kind, never as absence. Anything that is not an error
+        // keeps its kind.
         if (!(error instanceof Error)) throw error
-        if (!this.hasReportedFailure) {
-          this.hasReportedFailure = true
+        if (!this.reportedProviders.has(id)) {
+          this.reportedProviders.add(id)
           this.warn(
-            `${this.storeName} could not be read, so no provider credential is available (${wireWordForLog(error.name)})`,
+            `${this.storeName} could not be read for provider ${id}, so its credential is unknown (${wireWordForLog(error.name)})`,
           )
         }
-        return false
       }
     }
-    return false
+    return isFound
   }
 
   /**

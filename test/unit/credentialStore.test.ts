@@ -121,6 +121,33 @@ describe('CredentialStore', () => {
     expect(warnings[0]).not.toContain('keyring')
   })
 
+  it.each([
+    ['broken', 'openrouter'],
+    ['openrouter', 'broken'],
+  ])('finds a working provider past an unreadable entry: %j', async (...ids: string[]) => {
+    const warnings: string[] = []
+    const store = new CredentialStore(
+      {
+        get: (key: string) =>
+          key === 'museSpark.provider.broken'
+            ? Promise.reject(new Error('locked'))
+            : Promise.resolve(key === 'museSpark.provider.openrouter' ? '{"v":1}' : undefined),
+        store: () => Promise.resolve(),
+        delete: () => Promise.resolve(),
+      },
+      (line) => {
+        warnings.push(line)
+      },
+      "VS Code's secret storage",
+      () => Promise.resolve(ids),
+    )
+    await expect(store.hasProviderCredential()).resolves.toBe(true)
+    expect(warnings).toHaveLength(1)
+    expect(warnings[0]).toContain('broken')
+    expect(warnings[0]).toContain('(Error)')
+    expect(warnings[0]).not.toContain('locked')
+  })
+
   it('lets a non-error provider read failure keep its kind', async () => {
     const foreign: unknown = 'a string failure'
     const store = new CredentialStore(
