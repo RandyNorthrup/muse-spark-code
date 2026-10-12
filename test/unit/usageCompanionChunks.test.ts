@@ -9,6 +9,7 @@ import { EN } from '../../src/shared/l10n/en'
 import { USAGE_EN } from '../../src/shared/l10n/usageEn'
 import { WEBVIEW_L10N_ELEMENT_ID } from '../../src/shared/constants'
 import { FakeLogOutputChannel } from './helpers/fakes'
+import { traceAttemptsLive } from './helpers/usageTraceFixture'
 import { removeFolder } from './helpers/temporaryFolders'
 import { compactBrowserUiText } from '../../scripts/lib/uiTextRegions.mjs'
 import { warmBrowser } from './helpers/warmBrowser'
@@ -65,6 +66,7 @@ describe('shared usage companion chunks', () => {
         locale: 'en',
         uiText: EN,
         log,
+        live: traceAttemptsLive(dataFolder),
       })
       const panel = await openUsageCompanion({
         usage,

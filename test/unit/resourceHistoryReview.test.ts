@@ -25,6 +25,7 @@ import {
 import { EN } from '../../src/shared/l10n/en'
 import type { ResourceRecord } from '../../src/shared/resources'
 import { FakeLogOutputChannel } from './helpers/fakes'
+import { traceAttemptsLive } from './helpers/usageTraceFixture'
 import { restoreRemovalSpies } from './helpers/resources/fsSpies'
 import { historyStatus } from './helpers/resources/history'
 import {
@@ -153,6 +154,7 @@ describe('RVM107W2 P2: consent, delete boundary, retries, disposal and read boun
       locale: 'en',
       uiText: EN,
       log: new FakeLogOutputChannel(),
+      live: traceAttemptsLive(folder),
     }).connect({
       post: (message) => {
         posted.push(message)

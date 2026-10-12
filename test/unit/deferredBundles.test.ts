@@ -40,6 +40,7 @@ import {
 import { siblingExportProblems } from '../../scripts/lib/bundleExports.mjs'
 import { FIXTURE_HOOK_TIMEOUT_MS } from './helpers/fixtureBudget'
 import { FakeLogOutputChannel } from './helpers/fakes'
+import { traceAttemptsLive } from './helpers/usageTraceFixture'
 import type { parseScheduleStoredJson } from '../../src/core/schedules/journal'
 import { USAGE_JOURNAL_ROOT } from '../../src/core/usage/journalStore'
 import { createUsageAccess } from '../../src/runtime/usage/usageServiceEntry'
@@ -514,6 +515,7 @@ function accessDeps(dataFolder: string) {
     locale: 'en',
     uiText: EN,
     log: new FakeLogOutputChannel(),
+    live: traceAttemptsLive(dataFolder),
   }
 }
 

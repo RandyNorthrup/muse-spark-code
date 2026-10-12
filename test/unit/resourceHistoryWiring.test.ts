@@ -17,6 +17,7 @@ import { formatPercent, plural } from '../../src/shared/l10n/text'
 import { resourceHistorySchema } from '../../src/shared/resourceHistory'
 import { usagePageStateSchema } from '../../src/shared/usagePage'
 import { FakeLogOutputChannel } from './helpers/fakes'
+import { traceAttemptsLive } from './helpers/usageTraceFixture'
 import { FakeResourceMachine } from './helpers/resources/runtime'
 import { removeFolder } from './helpers/temporaryFolders'
 
@@ -58,6 +59,7 @@ function usage(dataFolderPath: string) {
     locale: 'en',
     uiText: EN,
     log: new FakeLogOutputChannel(),
+    live: traceAttemptsLive(dataFolderPath),
   })
 }
 const DAY_NAME = /^\d{4}-\d{2}-\d{2}$/u
