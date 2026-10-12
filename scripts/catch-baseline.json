@@ -2,31 +2,31 @@
   "version": 1,
   "counts": {
     "acp": {
-      "SWALLOW": 22,
-      "GENERIC": 18
+      "SWALLOW": 0,
+      "GENERIC": 0
     },
     "core": {
-      "SWALLOW": 300,
+      "SWALLOW": 212,
       "GENERIC": 352
     },
     "host": {
-      "SWALLOW": 121,
+      "SWALLOW": 74,
       "GENERIC": 245
     },
     "root": {
-      "SWALLOW": 3,
+      "SWALLOW": 2,
       "GENERIC": 6
     },
     "runtime": {
-      "SWALLOW": 101,
+      "SWALLOW": 58,
       "GENERIC": 173
     },
     "shared": {
-      "SWALLOW": 6,
+      "SWALLOW": 4,
       "GENERIC": 9
     },
     "webview": {
-      "SWALLOW": 51,
+      "SWALLOW": 42,
       "GENERIC": 17
     }
   }

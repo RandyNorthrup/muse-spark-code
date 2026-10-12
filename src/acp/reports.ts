@@ -58,7 +58,10 @@ export function acpReportArguments(blocks: readonly ContentBlock[]): string | un
     const command = reportTokens(text).next().value
     if (command === undefined || text.slice(0, command.end) !== prefix) return undefined
     return blocks.length === 1 ? text.slice(command.end).trim() : '--invalid-report-attachment'
-  } catch {
+  } catch (error: unknown) {
+    // Only the tokenizer's own failure reserves nothing: anything else keeps
+    // its kind.
+    if (!(error instanceof Error)) throw error
     return undefined
   }
 }
@@ -80,7 +83,10 @@ export async function runAcpReport(
     )
       throw new Error(UI_TEXT.reportUi.generationFailed)
     return result.text
-  } catch {
+  } catch (error: unknown) {
+    // A failed report stays the fixed sentence (the caller drops it when the
+    // turn was cancelled): only a non-error keeps its kind past the boundary.
+    if (!(error instanceof Error)) throw error
     return UI_TEXT.reportUi.generationFailed
   }
 }

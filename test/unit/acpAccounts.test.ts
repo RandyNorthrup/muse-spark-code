@@ -7,7 +7,7 @@ import {
   companionAccountsPanel,
   type AccountsPanelPort,
 } from '../../src/acp/accounts'
-import { accountErrorText } from '../../src/acp/accountText'
+import { accountErrorText, accountUsageUrl } from '../../src/acp/accountText'
 import { AccountStoreError } from '../../src/core/providers/accountCredentialRecord'
 import { fill } from '../../src/shared/l10n/text'
 import { createAcpAgent, type AcpAgentDeps } from '../../src/acp/agent'
@@ -1100,5 +1100,105 @@ describe('M108 companion through the shared panel', () => {
       throw new Error('account-secret-canary')
     })
     expect(() => panel.subscribe(vi.fn())).toThrow(UI_TEXT.accounts.unavailable)
+  })
+})
+
+describe('CATCHAUDIT named-condition catches', () => {
+  it('dispatch: a non-error rejection propagates instead of reading unavailable', async () => {
+    const dispatch = vi.fn<AccountsPanelPort['dispatch']>(() =>
+      Promise.reject(new ForeignStoreError()),
+    )
+    const panel = companionAccountsPanel({
+      dispatch,
+      subscribe: () => {
+        return vi.fn()
+      },
+    })
+    await expect(panel.dispatch({ type: 'accounts/list', provider: 'meta' })).resolves.toEqual({
+      type: 'accounts/error',
+      code: 'providersInvalid',
+    })
+    dispatch.mockRejectedValue('boom-string')
+    await expect(panel.dispatch({ type: 'accounts/list', provider: 'meta' })).rejects.toBe(
+      'boom-string',
+    )
+  })
+
+  it('subscribe: a throwing port carries the cause on the unavailable error', () => {
+    const failure = new Error('subscribe-canary')
+    const panel = companionAccountsPanel({
+      dispatch: () => Promise.resolve(sessionAccountsRig().state()),
+      subscribe: () => {
+        throw failure
+      },
+    })
+    try {
+      panel.subscribe(vi.fn())
+      expect.unreachable('a throwing port must not subscribe quietly')
+    } catch (error) {
+      expect(error).toMatchObject({ message: UI_TEXT.accounts.unavailable, cause: failure })
+    }
+  })
+
+  it('stop notice: an unusable URL reads without its link; a non-error propagates', async () => {
+    const stop = {
+      type: 'stop' as const,
+      provider: 'meta',
+      account: 'default',
+      time: '2026-10-06T12:00:00Z',
+      trigger: { kind: 'vendorLimit' as const, reason: 'rateLimited' as const, resetAt: null },
+    }
+    const garbage = sessionAccountsRig()
+    const garbageNotice = vi.fn()
+    const garbageController = new AcpAccounts(
+      'session',
+      { ...garbage.port, usageUrl: () => 'not a url' },
+      vi.fn(),
+      garbageNotice,
+    )
+    await garbageController.start()
+    garbage.emit(stop)
+    expect(garbageNotice).toHaveBeenCalledTimes(1)
+    expect(garbageNotice.mock.calls[0]?.[0]).not.toContain('http')
+    const hostile = sessionAccountsRig()
+    // A non-error rejection: unknown-typed so the test throws what the
+    // product must propagate rather than what the linter allows.
+    const usageBoom: unknown = 'usage-boom'
+    const hostileController = new AcpAccounts(
+      'session',
+      {
+        ...hostile.port,
+        usageUrl: () => {
+          throw usageBoom
+        },
+      },
+      vi.fn(),
+      vi.fn(),
+    )
+    await hostileController.start()
+    // The string travels through the link fallback and the render fallback.
+    expect(() => {
+      hostile.emit(stop)
+    }).toThrow('usage-boom')
+  })
+
+  it('accountUsageUrl: a malformed URL throws unavailable; a throwing port propagates', () => {
+    expect(() => accountUsageUrl({ usageUrl: () => 'not a url' }, 'meta')).toThrow(
+      UI_TEXT.accounts.unavailable,
+    )
+    const portBoom: unknown = 'port-boom'
+    expect(() =>
+      accountUsageUrl(
+        {
+          usageUrl: () => {
+            throw portBoom
+          },
+        },
+        'meta',
+      ),
+    ).toThrow('port-boom')
+    expect(accountUsageUrl({ usageUrl: () => 'https://example.test/usage' }, 'meta')).toBe(
+      'https://example.test/usage',
+    )
   })
 })

@@ -108,6 +108,15 @@ describe('catch-inventory classifier', () => {
         return 'uncertain'
       }`),
     ).toEqual(['REPORTED'])
+    expect(classesOf('try { a() } catch { this.questionStateNotSaved() }')).toEqual(['REPORTED'])
+    expect(classesOf('try { a() } catch { this.questionFailed() }')).toEqual(['REPORTED'])
+    expect(classesOf('try { a() } catch { worker.failed() }')).toEqual(['SWALLOW'])
+    expect(
+      classesOf(`try { a() } catch (error: unknown) {
+        if (!(error instanceof Error)) throw error
+        if (!isSteerRefusedError(error)) return 'uncertain'
+      }`),
+    ).toEqual(['NARROW'])
     expect(
       classesOf(`try { a() } catch {
         log.warn('ask failed')
@@ -139,16 +148,19 @@ describe('catch-inventory classifier', () => {
     ).toEqual(['GENERIC'])
   })
 
-  it('names CLEANUP only with its reason comment on the catch line', () => {
+  it('names CLEANUP only with its reason comment at the catch', () => {
     expect(classesOf('try { a() } catch { // the handle is already closing\n }')).toEqual([
       'CLEANUP',
     ])
     expect(classesOf('doomed.catch(() => null) // already failing; best effort')).toEqual([
       'CLEANUP',
     ])
-    expect(classesOf('try { a() } catch {\n /* no comment on the catch line */ }')).toEqual([
-      'SWALLOW',
+    // Prettier expands an empty block's trailing comment onto its own lines:
+    // the leading comment is the stable CLEANUP mark.
+    expect(classesOf('try { a() } catch {\n /* the handle is already closing */ }')).toEqual([
+      'CLEANUP',
     ])
+    expect(classesOf('try { a() } catch {\n }')).toEqual(['SWALLOW'])
     expect(classesOf('doomed.catch(() => null)')).toEqual(['SWALLOW'])
   })
 
