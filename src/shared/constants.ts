@@ -6931,8 +6931,9 @@ export const EVAL_REMOVE_RETRY_DELAY_MS = 200
 // the ten tasks is a few cents at most on the contributor tier.
 export const EVAL_BUDGET_USD = 0.5
 // Capability floors, fixed in advance: an arm whose pass rate falls below
-// either floor fails the run. At 0.75, 5 of 6 accept tasks and 3 of 4
-// held-out tasks must pass: losing more than one task per split fails.
+// either floor fails the run. At 0.75, 7 of 9 accept tasks and 6 of 7
+// held-out tasks must pass: losing three accept tasks, or more than one
+// held-out task, fails.
 export const EVAL_FLOOR_ACCEPT_PASS_RATE = 0.75
 export const EVAL_FLOOR_HELDOUT_PASS_RATE = 0.75
 // M73's long-output tasks: a numbered evidence file of this many records,
