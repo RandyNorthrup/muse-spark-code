@@ -1,0 +1,130 @@
+{
+  "generated": "2026-10-12",
+  "lane": "USAGEFIELDS",
+  "note": "No request below carries a key. Send each with the owner's key by hand (Authorization: Bearer $KEY) and save the full reply bodies. These requests settle every UNVERIFIED fact the lane's code rests on. Public list captures already taken by the lane are marked TAKEN.",
+  "requests": [
+    {
+      "body": {
+        "messages": [
+          { "content": "Say the word sky.", "role": "user" },
+          { "content": "Say the word sky again.", "role": "user" }
+        ],
+        "model": "openai/gpt-oss-20b",
+        "stream": true,
+        "stream_options": { "include_usage": true }
+      },
+      "id": "GQ-C1",
+      "method": "POST",
+      "model": "openai/gpt-oss-20b",
+      "path": "/openai/v1/chat/completions",
+      "provider": "groq",
+      "purpose": "GQ-G01: exact usage envelope path for cached tokens on the second (cache-hit) chunk. Record the full final chunk: is the count at usage.prompt_tokens_details.cached_tokens, top-level usage.cached_tokens, or elsewhere?",
+      "url": "https://api.groq.com/openai/v1/chat/completions"
+    },
+    {
+      "id": "GQ-C2",
+      "method": "GET",
+      "path": "/openai/v1/models",
+      "provider": "groq",
+      "purpose": "GQ-G01: does the live list carry per-model pricing (input/output/cache_read)? Save the row for openai/gpt-oss-20b.",
+      "url": "https://api.groq.com/openai/v1/models"
+    },
+    {
+      "body": {
+        "messages": [{ "content": "Say the word river.", "role": "user" }],
+        "model": "deepseek-flash",
+        "stream": true,
+        "stream_options": { "include_usage": true },
+        "thinking": { "effort": "high" }
+      },
+      "id": "DS-C1",
+      "method": "POST",
+      "model": "deepseek-flash",
+      "path": "/chat/completions",
+      "provider": "deepseek",
+      "purpose": "DS-G03: usage envelope for a thinking reply. Record completion_tokens_details (reasoning_tokens?) and whether completion_tokens already includes them. Confirms the reasoning-token count path the settlement reads.",
+      "url": "https://api.deepseek.com/chat/completions"
+    },
+    {
+      "id": "DS-C2",
+      "method": "GET",
+      "path": "/models",
+      "provider": "deepseek",
+      "purpose": "DS-G03: live list shape and any price fields.",
+      "url": "https://api.deepseek.com/models"
+    },
+    {
+      "body": {
+        "contents": [{ "parts": [{ "text": "Say the word lake." }] }],
+        "generationConfig": { "maxOutputTokens": 16 }
+      },
+      "id": "GEM-C1",
+      "method": "POST",
+      "model": "gemini-2.5-flash",
+      "path": "/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse",
+      "provider": "gemini",
+      "purpose": "GEM-G01: usageMetadata shape (promptTokenCount, cachedContentTokenCount, thoughtsTokenCount paths). Tier rates above 200k prompts come from the pricing page, not this reply; this reply only settles the count paths.",
+      "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse"
+    },
+    {
+      "body": {
+        "messages": [{ "content": "Say the word stone.", "role": "user" }],
+        "model": "Qwen/Qwen3.8-27B",
+        "stream": false
+      },
+      "id": "HF-C1",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "provider": "huggingface",
+      "purpose": "HF-G01/HF-G04: with provider auto (default), does the reply body or any response header name the upstream that served it (provider id, model revision)? Save ALL response headers and the full body.",
+      "url": "https://router.huggingface.co/v1/chat/completions"
+    },
+    {
+      "body": {
+        "messages": [{ "content": "Say the word stone.", "role": "user" }],
+        "model": "Qwen/Qwen3.8-27B",
+        "provider": "novita",
+        "stream": false
+      },
+      "id": "HF-C2",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "provider": "huggingface",
+      "purpose": "HF-G04/HF-G01: is a top-level provider request field honoured (no 400/422), and does the reply then bill/identify novita? Proves the routing-choice send shape.",
+      "url": "https://router.huggingface.co/v1/chat/completions"
+    },
+    {
+      "id": "HF-C3",
+      "method": "GET",
+      "path": "/v1/models",
+      "provider": "huggingface",
+      "purpose": "HF-G02/HF-G03: per-upstream context_length, supports_tools, supports_structured_output, pricing, status. TAKEN 2026-10-12 by the lane (126 rows, no key): upstream rows carry provider, status, context_length, pricing{input,output}, supports_tools, supports_structured_output.",
+      "takenByLane": "2026-10-12",
+      "url": "https://router.huggingface.co/v1/models"
+    },
+    {
+      "id": "OR-C1",
+      "method": "GET",
+      "path": "/api/v1/key",
+      "provider": "openrouter",
+      "purpose": "OR-G04: credit-balance shape. Record the full body: which field is remaining credit (data.limit? data.usage? data.limit_remaining? free-tier fields)?",
+      "url": "https://openrouter.ai/api/v1/key"
+    },
+    {
+      "body": {
+        "messages": [{ "content": "Say the word fern.", "role": "user" }],
+        "model": "accounts/fireworks/models/kimi-k3",
+        "prompt_cache_isolation_key": "capture-plan-probe-001",
+        "stream": true,
+        "stream_options": { "include_usage": true }
+      },
+      "id": "FW-C1",
+      "method": "POST",
+      "model": "accounts/fireworks/models/kimi-k3",
+      "path": "/inference/v1/chat/completions",
+      "provider": "fireworks",
+      "purpose": "FW-G01: is prompt_cache_isolation_key accepted (no 400/422 naming it unknown)? Repeat with the same key and record whether usage reports cached tokens.",
+      "url": "https://api.fireworks.ai/inference/v1/chat/completions"
+    }
+  ]
+}
