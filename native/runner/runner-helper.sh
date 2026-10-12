@@ -79,6 +79,10 @@ case "$action" in
     if [[ ! -f "$root/cache/$cache/ready" ]]; then
       if ! mkdir "$root/cache/$cache.creating" 2>/dev/null; then
         touch "$root/runs/$id/cache-busy"
+        # The supervisor's own stdout/stderr are the run's output file (the
+        # start redirection): release them before announcing, so the exit
+        # record is observable only once the files are free to touch.
+        exec 1>/dev/null 2>&1
         printf '{"runId":"%s","state":"ended","exitCode":75,"reason":"cacheBusy"}\n' "$id" > "$root/runs/$id/exit.new"
         mv "$root/runs/$id/exit.new" "$root/runs/$id/exit.json"
         exit 0
@@ -102,6 +106,11 @@ case "$action" in
     if [[ -f "$root/runs/$id/timed-out" ]]; then code=124; fi
     # The supervisor survives the deadline kill and releases only after group retirement.
     release_cache_lock
+    # The process group is retired (the kill -0 loop above) and the run's
+    # processes are gone; the supervisor's own stdout/stderr are the last
+    # descriptors on the output file. Release them before announcing, so
+    # the exit record is observable only once the files are free to touch.
+    exec 1>/dev/null 2>&1
     reason=
     if [[ -f "$root/runs/$id/cache-busy" ]]; then reason=',"reason":"cacheBusy"'; fi
     printf '{"runId":"%s","state":"ended","exitCode":%s%s}\n' "$id" "$code" "$reason" > "$root/runs/$id/exit.new"

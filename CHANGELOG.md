@@ -51,6 +51,16 @@ happened, not what was planned; superseded entries are kept.
   recording flag and the shared history choice at settlement; turning
   history off discards buffered rows and their overflow tally, so enabling
   it later cannot publish work collected while history was off.
+- Runner receivers now publish a run's exit record only after the run is
+  settled (CM1073 round 7): the job supervisor first drains the run's
+  processes to zero (the Windows job object; the POSIX process group)
+  and then closes its own redirected output handle before writing the
+  record, so the record is never observable while a dying process still
+  holds the output file. On Windows this removes the 1-in-5 `EBUSY`
+  deleting `runs\<id>\output` after settlement. A settled run whose
+  output file is still held reports the typed `uncertain` dispatch and
+  stays retryable under the same run id, never Offline, with no leaked
+  slot.
 
 - Windows runner receivers left at Windows' default execution policy
   (CM1073 round 5): the SSH remote command now starts Windows PowerShell
