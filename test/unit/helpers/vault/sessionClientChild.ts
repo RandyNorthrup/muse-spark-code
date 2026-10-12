@@ -1,6 +1,6 @@
 import { posixVaultClientPlatform } from '../../../../src/runtime/vault/posixClientPlatform'
 import { VaultBrokerProcess } from '../../../../src/host/vault/brokerProcess'
-import { VaultBrokerClient } from '../../../../src/core/vault/broker/client'
+import { setTimeout as delay } from 'node:timers/promises'
 import { disposeSession } from './sessionAdmission'
 import path from 'node:path'
 import process from 'node:process'
@@ -18,7 +18,9 @@ void (async () => {
   })
   const broker = new VaultBrokerProcess(platform.discovery, platform.process)
   const location = await broker.get()
-  const client = await VaultBrokerClient.open(location, hostId, hostSession, platform.peers)
+  // Reproduce the review's scheduler gap beyond the former 200 ms fixture expiry.
+  await delay(300)
+  const client = await broker.connect(hostId, hostSession, platform.peers)
   process.send?.({ pid: location.lock.processId, directory: platform.discovery.directory })
   process.on('message', (message: unknown) => {
     if (message === 'status')

@@ -22,7 +22,7 @@ import {
 import { VaultChannelServer } from '../../../src/core/vault/broker/channel'
 import { UnixVaultPeerVerifier } from '../../../src/core/vault/broker/peer'
 import { VaultBrokerClient } from '../../../src/core/vault/broker/client'
-import { VAULT_BROKER_MAX_CONNECTIONS } from '../../../src/shared/constants'
+import { VAULT_BROKER_MAX_CONNECTIONS, VAULT_BROKER_EMPTY_IDLE_MS } from '../../../src/shared/constants'
 import { VaultBrokerDiscovery } from '../../../src/core/vault/broker/discovery'
 import { brokerFixture } from './brokerFixture'
 import { fakeManagement } from '../helpers/vault/fakeManagement'
@@ -283,6 +283,26 @@ describe.skipIf(process.platform === 'win32')('POSIX vault broker lifecycle', ()
       f.disposed.mock.invocationCallOrder[0] ?? 0,
     )
     await expect(stat(handle.location.lock.socket)).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+  it('retains the production 30-second empty idle period with an injected clock', async () => {
+    const f = await fixture('production-idle')
+    const { idleMs, ...options } = f.options
+    expect(idleMs).toBe(100)
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    let handle: Awaited<ReturnType<typeof startVaultBrokerProcess>> | undefined
+    try {
+      handle = await start(options)
+      expect(VAULT_BROKER_EMPTY_IDLE_MS).toBe(30_000)
+      await vi.advanceTimersByTimeAsync(VAULT_BROKER_EMPTY_IDLE_MS - 1)
+      expect(f.locked).not.toHaveBeenCalled()
+      await vi.advanceTimersByTimeAsync(1)
+      await handle.closed
+      expect(f.locked).toHaveBeenCalledOnce()
+      expect(f.disposed).toHaveBeenCalledOnce()
+    } finally {
+      await handle?.close()
+      vi.useRealTimers()
+    }
   })
   it('keeps two authenticated clients alive and exits after the last closes', async () => {
     const f = await fixture('two')

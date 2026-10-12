@@ -4,7 +4,6 @@ import { homedir } from 'node:os'
 import { UI_TEXT, VAULT_LIMITS } from '../../shared/constants'
 import { type UiText } from '../../shared/l10n/en'
 import { fill, setUiText } from '../../shared/l10n/text'
-import { VaultBrokerClient } from '../../core/vault/broker/client'
 import { VaultManageSession } from '../../core/vault/broker/manageClient'
 import { discoverAmbientFiles } from '../../core/vault/migrate/ambient'
 import { agentDataFolder } from '../../runtime/dataFolder'
@@ -63,12 +62,7 @@ function brokerService(distDir: string): {
       connection = undefined
       throw error
     }
-    return await VaultBrokerClient.open(
-      await ready.broker.get(),
-      hostId,
-      hostSession,
-      ready.platform.peers,
-    )
+    return await ready.broker.connect(hostId, hostSession, ready.platform.peers)
   }
   return {
     dispose: () => {

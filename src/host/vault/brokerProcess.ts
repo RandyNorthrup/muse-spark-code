@@ -1,6 +1,7 @@
 import { UI_TEXT } from '../../shared/constants'
 import type { VaultBrokerDiscovery, VaultBrokerLocation } from '../../core/vault/broker/discovery'
-import type { VaultProcessIdentity } from '../../core/vault/broker/peer'
+import { VaultBrokerClient } from '../../core/vault/broker/client'
+import type { VaultPeerVerifier, VaultProcessIdentity } from '../../core/vault/broker/peer'
 
 export interface VaultBrokerProcessPort {
   identity(pid: number): Promise<VaultProcessIdentity>
@@ -19,19 +20,39 @@ export class VaultBrokerProcess {
     private readonly process: VaultBrokerProcessPort,
   ) {}
   private async start(): Promise<VaultBrokerLocation> {
-    const existing = await this.discovery.discover((pid) => this.process.identity(pid))
-    if (existing) return existing
-    const child = await this.process.launch()
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const existing = await this.discovery.discover((pid) => this.process.identity(pid))
+      if (existing) return existing
+      const child = await this.process.launch()
+      try {
+        await child.ready
+        const location = await this.discovery.discover((pid) => this.process.identity(pid))
+        if (location) return location
+        await child.stop?.()
+        // A broker can finish orderly shutdown after readiness; retry its successor once.
+      } catch (error: unknown) {
+        await child.stop?.()
+        throw error
+      }
+    }
+    throw new Error(UI_TEXT.vault.brokerBlocked)
+  }
+  /** Retry only a vanished/replaced broker, before sending any operation or secret. */
+  async connect(
+    hostId: string,
+    hostSession: string,
+    peers: VaultPeerVerifier,
+  ): Promise<VaultBrokerClient> {
+    const location = await this.get()
     try {
-      await child.ready
-      const location = await this.discovery.discover((pid) => this.process.identity(pid))
-      if (!location) throw new Error(UI_TEXT.vault.brokerBlocked)
-      return location
+      return await VaultBrokerClient.open(location, hostId, hostSession, peers)
     } catch (error: unknown) {
-      await child.stop?.()
-      throw error
+      const current = await this.discovery.discover((pid) => this.process.identity(pid))
+      if (current?.lock.brokerId === location.lock.brokerId) throw error
+      return await VaultBrokerClient.open(await this.get(), hostId, hostSession, peers)
     }
   }
+
   async get(): Promise<VaultBrokerLocation> {
     this.starting ??= this.start()
     try {

@@ -13,6 +13,9 @@ import * as nativeModule from '../../../src/runtime/vault/posixNative'
 import { isPosixVaultHost, registerPosixVaultHost } from '../../../src/runtime/vault/posixHost'
 import { vaultPeerExecutable } from '../../../src/runtime/vault/posixNative'
 import { VaultStoreUnavailableError } from '../../../src/core/vault/broker/ports'
+import { UnixVaultPrivateFiles } from '../../../src/core/vault/broker/files'
+import { VaultBrokerDiscovery } from '../../../src/core/vault/broker/discovery'
+import { VaultBrokerProcess } from '../../../src/host/vault/brokerProcess'
 import { VaultBrokerClient } from '../../../src/core/vault/broker/client'
 import { VaultManageSession } from '../../../src/core/vault/broker/manageClient'
 import type { VaultBroker } from '../../../src/core/vault/broker/broker'
@@ -501,6 +504,172 @@ describe.skipIf(process.platform === 'win32')('installed POSIX binding compositi
       )
     } finally {
       probe.mockRestore()
+      await f.handle.close()
+      f.platform.dispose?.()
+    }
+  })
+  it.each([
+    'directory',
+    'record-open',
+    'record-read',
+    'identity',
+    'token-open',
+    'token-read',
+    'readiness',
+    'recheck-record',
+    'recheck-identity',
+  ] as const)('treats orderly broker shutdown at %s as absence', async (stage) => {
+    const f = await composition()
+    const files = new UnixVaultPrivateFiles()
+    const read = files.read.bind(files)
+    const directory = files.directory.bind(files)
+    const discover = VaultBrokerDiscovery.prototype.discover.bind(f.platform.discovery)
+    const { vaultProcessIdentity: identify } = await vi.importActual<typeof nativeModule>(
+      '../../../src/runtime/vault/posixNative',
+    )
+    let records = 0
+    let identities = 0
+    let didClose = false
+    const close = async () => {
+      didClose = true
+      await f.handle.close()
+    }
+    const reads = vi
+      .spyOn(UnixVaultPrivateFiles.prototype, 'read')
+      .mockImplementation(async (file, max) => {
+        if (path.basename(file) === 'broker.lock') {
+          records += 1
+          if (
+            (stage === 'record-open' && records === 1) ||
+            (stage === 'recheck-record' && records === 2)
+          )
+            await close()
+        }
+        if (stage === 'token-open' && path.basename(file) === 'boot-token') await close()
+        const bytes = await read(file, max)
+        if (
+          (stage === 'record-read' && path.basename(file) === 'broker.lock') ||
+          (stage === 'token-read' && path.basename(file) === 'boot-token')
+        )
+          await close()
+        return bytes
+      })
+    const directories = vi
+      .spyOn(UnixVaultPrivateFiles.prototype, 'directory')
+      .mockImplementation(async (file) => {
+        if (stage === 'directory' && !didClose && file === f.platform.discovery.directory)
+          await close()
+        await directory(file)
+      })
+    const identitiesProbe = vi
+      .spyOn(nativeModule, 'vaultProcessIdentity')
+      .mockImplementation(async (helper, pid) => {
+        const found = await identify(helper, pid)
+        identities += 1
+        if (stage === 'identity' || (stage === 'recheck-identity' && identities === 2))
+          await close()
+        return found
+      })
+    const discoveries = vi
+      .spyOn(VaultBrokerDiscovery.prototype, 'discover')
+      .mockImplementation(async (identity) => {
+        const result = await discover(identity)
+        if (stage === 'recheck-record' || stage === 'recheck-identity') {
+          // A real missing-file error enters readiness recovery; shutdown occurs inside its recheck.
+          await stat(path.join(f.platform.discovery.directory, 'absent-fixture'))
+        } else if (stage === 'readiness') await close()
+        return result
+      })
+    try {
+      await expect(f.platform.discovery.discover(f.platform.process.identity)).resolves.toBeNull()
+      expect(didClose).toBe(true)
+      await expect(
+        stat(path.join(f.platform.discovery.directory, 'broker.lock')),
+      ).rejects.toMatchObject({ code: 'ENOENT' })
+    } finally {
+      discoveries.mockRestore()
+      identitiesProbe.mockRestore()
+      directories.mockRestore()
+      reads.mockRestore()
+      await f.handle.close()
+      f.platform.dispose?.()
+    }
+  })
+  it.each(['connect', 'peer', 'hello'] as const)(
+    'starts a successor after orderly shutdown during %s',
+    async (stage) => {
+      const f = await composition()
+      const handles = [f.handle]
+      const launch = vi.spyOn(f.platform.process, 'launch').mockImplementation(async () => {
+        const handle = await createVaultBrokerProcess(f.context, f.base)
+        handles.push(handle)
+        return { ready: Promise.resolve() }
+      })
+      const broker = new VaultBrokerProcess(f.platform.discovery, f.platform.process)
+      const get = broker.get.bind(broker)
+      const verify = f.platform.peers.verify.bind(f.platform.peers)
+      const getProbe = vi.spyOn(broker, 'get').mockImplementationOnce(async () => {
+        const location = await get()
+        if (stage === 'connect') await f.handle.close()
+        return location
+      })
+      const peerProbe = vi
+        .spyOn(f.platform.peers, 'verify')
+        .mockImplementationOnce(async (socket) => {
+          if (stage === 'peer') await f.handle.close()
+          const identity = await verify(socket)
+          if (stage === 'hello') await f.handle.close()
+          return identity
+        })
+      try {
+        const client = await broker.connect(f.hostId, f.hostSession, f.platform.peers)
+        try {
+          expect(await client.send({ kind: 'status' })).toMatchObject({ kind: 'status' })
+          expect(launch).toHaveBeenCalledOnce()
+        } finally {
+          client.close()
+        }
+      } finally {
+        peerProbe.mockRestore()
+        getProbe.mockRestore()
+        launch.mockRestore()
+        for (const handle of handles) await handle.close()
+        f.platform.dispose?.()
+      }
+    },
+  )
+  it('retries a broker that closes between launch readiness and final discovery once', async () => {
+    const f = await composition()
+    const handles = [f.handle]
+    await f.handle.close()
+    const launch = vi.spyOn(f.platform.process, 'launch').mockImplementation(async () => {
+      const handle = await createVaultBrokerProcess(f.context, f.base)
+      handles.push(handle)
+      if (handles.length === 2) await handle.close()
+      return { ready: Promise.resolve() }
+    })
+    try {
+      const broker = new VaultBrokerProcess(f.platform.discovery, f.platform.process)
+      const location = await broker.get()
+      expect(location.lock.brokerId).toBe(handles[2]?.location.lock.brokerId)
+      expect(launch).toHaveBeenCalledTimes(2)
+    } finally {
+      launch.mockRestore()
+      for (const handle of handles) await handle.close()
+      f.platform.dispose?.()
+    }
+  })
+  it('does not retry a refused authenticated connection to the same live broker', async () => {
+    const f = await composition()
+    const launch = vi.spyOn(f.platform.process, 'launch')
+    try {
+      const broker = new VaultBrokerProcess(f.platform.discovery, f.platform.process)
+      await expect(
+        broker.connect('e'.repeat(32), f.hostSession, f.platform.peers),
+      ).rejects.toThrow()
+      expect(launch).not.toHaveBeenCalled()
+    } finally {
+      launch.mockRestore()
       await f.handle.close()
       f.platform.dispose?.()
     }

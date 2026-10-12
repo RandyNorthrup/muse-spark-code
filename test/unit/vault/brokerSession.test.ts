@@ -7,6 +7,7 @@ import os from 'node:os'
 import * as z from 'zod/mini'
 import { setTimeout as delay } from 'node:timers/promises'
 import { build } from 'esbuild'
+import { vaultBrokerLockSchema } from '../../../src/shared/vaultProtocol'
 import { vaultPeerExecutable } from '../../../src/runtime/vault/posixNative'
 
 const fixture = { root: '' }
@@ -105,6 +106,8 @@ async function status(child: ChildProcess) {
   expect(messages[0]).toMatchObject({ kind: 'status' })
 }
 async function cleaned(directory: string) {
+  const lock = vaultBrokerLockSchema.parse(JSON.parse(await readFile(path.join(directory, 'broker.lock'), 'utf8')))
+  process.kill(lock.processId, 'SIGTERM')
   for (let count = 0; count < 100; count++) {
     const files = await readdir(directory)
     if (files.toSorted((a, b) => a.localeCompare(b)).join(',') === 'launch.lock,startup.lock') break
@@ -184,13 +187,17 @@ describe.skipIf(process.platform === 'win32')('session-owned POSIX broker', () =
           userSession: 'test',
         }),
       ],
-      { env: {}, stdio: ['ignore', 'pipe', 'pipe'] },
+      { env: {}, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] },
     )
     children.add(child)
     if (child.pid !== undefined) brokers.add(child.pid)
     child.stdout.destroy()
     child.stderr.destroy()
-    const [code] = await once(child, 'exit')
+    const ready = await once(child, 'message')
+    expect(ready[0]).toEqual({ ready: true })
+    const exited = once(child, 'exit')
+    child.kill('SIGTERM')
+    const [code] = await exited
     children.delete(child)
     expect(code).toBe(0)
     const directories = await readdir(path.join(dataDir, 'run'))

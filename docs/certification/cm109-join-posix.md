@@ -398,3 +398,42 @@ removed with those owned roots; no other lane is inspected or changed.
 - `test/unit/vault/posixBindings.test.ts`
 - `test/unit/vault/vaultPanelBundle.test.ts`
 - `test/unit/vault/vaultRuntimeEntry.test.ts`
+
+## RVCM109JC round 3 — P2 orderly shutdown (Kubuntu, 2026-10-11)
+
+The first repair commits P2 before fixture/epoch/receipt work. No aggregate
+`quality` run is allowed by the rig/common rules; scoped gates and final
+dependents run here. No merge is authorized by this fix brief.
+
+`PosixDiscovery` treats a missing record during error recovery as absence,
+including a broker still alive after it removed its discovery files. The
+shared `VaultBrokerProcess.connect` rechecks discovery after a failed connect,
+peer check or hello and retries one successor only if the old broker vanished
+or was replaced. The post-launch final discovery also retries once on absence.
+The editor, CLI, ACP and headless factories all use this connection. A refused
+connection to the same live broker is never retried. Operations run only after
+authentication, so the retry repeats no vault operation.
+
+| Transition inventory                                                            | Orderly disappearance / retained descriptor behavior                                                                                                    | Regression                                          |
+| ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| Discovery directory mkdir/lstat                                                 | Shutdown retains the owner-only directory; no record means absent                                                                                       | `directory`                                         |
+| Record open, descriptor stat/read/overflow/close                                | ENOENT before open means absent; an unlinked descriptor can fail its single-link check or finish its old read, then recovery/readiness observes absence | `record-open`, `record-read`                        |
+| Native discovery identity (including helper exit 2)                             | Proven death/birth change is absent; shutdown after a live identity proceeds to missing token/record recovery                                           | `identity`; existing dead-owner lifecycle tests     |
+| Token open, descriptor stat/read/overflow/close                                 | Missing token enters recheck; retained bytes never establish readiness alone                                                                            | `token-open`, `token-read`                          |
+| Readiness socket connect/error                                                  | Missing/refused socket rechecks ownership; absent record means successor; same live startup uses the existing bounded readiness retry                   | `readiness`                                         |
+| Recovery record open/stat/read/close and native identity                        | Missing record is absent; disappearance after a read/native call is observed on the next bounded retry                                                  | `recheck-record`, `recheck-identity`                |
+| Client socket connect, native descriptor/peer probe, process identity and hello | Failed pre-operation connection rechecks discovery and retries one successor; same live broker refusal remains an error                                 | `connect`, `peer`, `hello`; live-refusal regression |
+| Launch lock open/fstat/lstat, guardian readiness and second lstat               | Orderly shutdown never removes persistent kernel-lock files; contention waits on the kernel and rechecks discovery before spawning                      | Existing kernel-lock/start-race tests               |
+| Startup stale-record read/native identity, stale-file lstat/unlink              | Missing files are ignored under the kernel lock; proven-live identity still refuses cleanup                                                             | Existing stale/live-owner recovery tests            |
+| Launch readiness followed by final discovery                                    | Absence launches one successor; a second absence reports the named broker-blocked refusal                                                               | Final-discovery retry regression                    |
+
+Real broker handles are closed between each listed discovery/connection
+boundary. The complete `posixBindings.test.ts` passes 25/25 at the repository
+timeout. Host and unit typechecks and roadmap generation pass. Three removal drills are recorded in `cm109jc-drills.json`; each runs
+the complete file and restores identical SHA-256 bytes. The first drill also
+hit a separate existing audit-case timeout under shared rig load; isolated
+verification is required before classifying it. The reported epoch collision
+remains part of the next repair, not an accepted residual. Test injection initially captured an
+auto-spy's own wrapper (recursion) and then its absent mock implementation;
+that approach was stopped and replaced by the real `vi.importActual` native
+function. No production workaround or timeout change was introduced.

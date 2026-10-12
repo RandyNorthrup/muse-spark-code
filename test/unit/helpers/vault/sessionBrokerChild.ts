@@ -7,6 +7,8 @@ import { memoryKeyring } from '../keyring'
 import { readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import * as z from 'zod/mini'
+import { createConnection } from 'node:net'
+import { once } from 'node:events'
 import { setTimeout as delay } from 'node:timers/promises'
 // Only generated fixture paths and process facts, no credential or model access.
 void runVaultBrokerEntry(async () => {
@@ -27,7 +29,14 @@ void runVaultBrokerEntry(async () => {
     /* This fixture does not gate ordinary startup. */
   }
   const bindings = await createVaultBrokerBindings(context, { keyring: memoryKeyring().openEntry })
-  const handle = await createVaultBrokerProcess(context, { ...bindings, idleMs: 200 })
+  const handle = await createVaultBrokerProcess(context, bindings)
+  // Test ownership, including delayed authentication: only the test's signal ends this fixture.
+  const keepAlive = createConnection(handle.location.lock.socket)
+  await once(keepAlive, 'connect')
+  void handle.closed.finally(() => keepAlive.destroy()).catch(() => {
+    process.exitCode = 1
+  })
+  process.send?.({ ready: true })
   // This intentionally writes through inherited pipes too; closed readers must be harmless.
   process.stderr.write('vault-audit-refused\n')
   return handle
