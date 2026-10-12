@@ -99,11 +99,11 @@ describe('M117 Estimator panel', () => {
     expect(h.estimate.mock.calls[1]?.[0].deadline).toBe('2026-10-09T00:00:00.000Z')
   })
 
-  it('shows forecasts, calibration and all inputs, with an honestly disabled Spin it up', async () => {
+  it('shows forecasts, calibration and all inputs, with an honestly disabled Spin It Up', async () => {
     const h = harness()
     await start(h.port)
     expect(screen.getByText(UI_TEXT.estimateCriticalBound)).toBeTruthy()
-    expect(screen.getByText(/Uncalibrated prior/)).toBeTruthy()
+    expect(screen.getByText(/Uncalibrated Prior/)).toBeTruthy()
     const spin = screen.getByRole('button', { name: UI_TEXT.estimateSpinUp })
     expect(spin.hasAttribute('disabled')).toBe(true)
     const reasonId = spin.getAttribute('aria-describedby')
@@ -128,7 +128,7 @@ describe('M117 Estimator panel', () => {
       button.closest('li')?.querySelector('div[id]')?.id,
     )
     expect(button.closest('li')?.querySelector('div[id]')?.hasAttribute('hidden')).toBe(false)
-    const radio = screen.getByRole('radio', { name: /Current fleet/ })
+    const radio = screen.getByRole('radio', { name: /Current Fleet/ })
     radio.focus()
     expect(document.activeElement).toBe(radio)
   })

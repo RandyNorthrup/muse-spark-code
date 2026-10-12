@@ -317,7 +317,7 @@ describe('removeWorktree against a real repository', { timeout: REAL_GIT_TIMEOUT
     await writeFile(path.join(folder, 'new.txt'), 'unsaved work\n')
     const declined = harness({ picks: [pickDirty], confirms: [true, false] })
     await removeWorktree(declined.deps)
-    expect(declined.confirmations[1]?.[2]).toBe('Remove and discard changes')
+    expect(declined.confirmations[1]?.[2]).toBe('Remove and Discard Changes')
     expect(existsSync(folder)).toBe(true)
     const forced = harness({ picks: [pickDirty], confirms: [true, true] })
     await removeWorktree(forced.deps)

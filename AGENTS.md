@@ -11,7 +11,15 @@ model. Two backends sit behind the `AgentHost` and `AgentSession` interfaces
 Protocol (`@muse-code/sdk`, primary) and the Meta Model API over HTTPS
 (bring-your-own key, secondary). Read `PLAN.md`
 before changing anything: it holds the decisions, the research that justifies
-them, the milestone plan, and the certification checklist.
+them, the milestone plan, and the certification checklist. Closed history
+lives in `docs/plan-archive/`, byte for byte: §2 keeps each decision's rule in
+force and links its full design record (`decisions.md`); closed milestone
+sections are in `milestones.md` and older gate records in `gates.md`. Read the
+archive when a summary is not enough, and never edit inside its blocks.
+`PLAN.md` carries the rule in force; the record lives in the archive from the
+day it lands: a change that adds a design record moves it there in the same
+change, with `npm run plan:archive` (CONTRIBUTING.md, "Archiving closed
+history from PLAN.md").
 
 ## Working rules
 
@@ -149,10 +157,17 @@ them, the milestone plan, and the certification checklist.
   default. The first paid request asks D48's question with the model's rates
   and daily budget ($1.00 by default). Allow once covers this window until
   it closes; Always is workspace-scoped and revocable; Deny snoozes this
-  window. No charge precedes consent. Tab uses only the stored Model API
-  key on either backend, with a hard cross-window local-day ledger. Its
-  small status item shows at activation; `dist/tab.js` loads the provider,
-  completion engine, ledger and menu on first use.
+  window. No charge precedes consent. Consent is keyed by (`tab`, model,
+  price): the question names the request's own model, which is the model
+  sent; a grant for one key never answers another, Allow always is recorded
+  with its key, and a legacy grant without one asks once (RVM94KR2). A
+  request re-checks its key, hook policy epoch and cancellation after every
+  wait and last at the HTTP send. Configured Cursor Tab hooks receive the
+  full, unredacted file text (`beforeTabFileRead`) and the accepted text
+  (`afterTabFileEdit`, 512 characters a field). Tab uses only the stored
+  Model API key on either backend, with a hard cross-window local-day
+  ledger. Its small status item shows at activation; `dist/tab.js` loads the
+  provider, completion engine, ledger and menu on first use.
 
 - **Headless exception (M80, D65):** interactive popup policy above stays.
   Headless images require the explicit `--image-generation` flag,
@@ -398,6 +413,14 @@ scripts/**            esbuild build; bundle-size, bundle-split, host-globals,
                       versions for CI, the ACP
                       agent's package
 docs/certification/   per-milestone gate-fire records and screenshots
+docs/plan-archive/    closed history moved out of PLAN.md, byte for byte
+                      (decisions.md, milestones.md, gates.md); each passage
+                      stands between hashed markers that
+                      test/unit/planArchive.test.ts checks. `check:plan`
+                      fails when PLAN.md passes 85% of the plan reader's
+                      bound; CONTRIBUTING.md has the archive procedure and
+                      `npm run plan:archive` (scripts/plan-archive.mjs)
+                      moves a passage with its proofs
 docs/ide-compatibility.md, docs/ide-compatibility/
                       the plan for editors beyond VS Code (D60), the
                       generated record of what the extension asks of its host,

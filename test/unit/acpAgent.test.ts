@@ -65,7 +65,7 @@ const CWD = process.platform === 'win32' ? String.raw`C:\work\app` : '/work/app'
 const WAIT_MS = 2000
 
 const CHOICES: ApprovalChoice[] = [
-  { choiceId: 'allow_once', label: 'Allow once', decision: 'approved', scope: 'once' },
+  { choiceId: 'allow_once', label: 'Allow Once', decision: 'approved', scope: 'once' },
   {
     choiceId: 'allow_session',
     label: 'Allow for the session',
@@ -111,6 +111,7 @@ interface HarnessOptions {
   readonly canBypass?: boolean
   readonly initialMode?: PermissionMode
   readonly allowsContributorModels?: boolean
+  readonly accounts?: AcpAgentDeps['accounts']
   readonly kind?: 'museCode' | 'modelApi'
   readonly paid?: readonly AcpPaidFeature[]
   /** `--trust-workspace`: "Allow always" is offered and kept (M58). */
@@ -137,6 +138,7 @@ function harness(options: HarnessOptions = {}): Harness {
   })
   const deps: AcpAgentDeps = {
     legalScan: options.legalScan,
+    ...(options.accounts !== undefined && { accounts: options.accounts }),
     ...(options.playbookFor !== undefined && {
       playbookFor: options.playbookFor,
       playbookBundle: () => ({ parsePlaybookCommand, runPlaybookCommand }),
@@ -161,8 +163,8 @@ function harness(options: HarnessOptions = {}): Harness {
     },
     signIn: {
       id: 'muse-code-login',
-      name: 'Sign in',
-      description: 'Sign in to Muse Code',
+      name: 'Sign In',
+      description: 'Sign In to Muse Code',
       args: ['login'],
       command: 'muse-spark-code-acp login',
     },
@@ -321,6 +323,10 @@ async function start(
 async function startFormSession(h: Harness, client: acp.ClientContext) {
   const { sessionId } = await start(client, { elicitation: { form: {} } })
   return { sessionId, session: h.host.sessions[0]! }
+}
+
+function voidUnsubscribe(): void {
+  // An account port that never delivers still returns a teardown.
 }
 
 function prompt(client: acp.ClientContext, sessionId: string, text = 'hello') {
@@ -691,7 +697,7 @@ describe('the ACP agent (M63)', () => {
       subagentId: 'child',
       status: 'completed',
       objective: 'Keep objective',
-      agentEvidence: { stopReason: 'budget', unfinished: ['Run checks'] },
+      agentEvidence: { stopReason: 'budget', unfinished: ['Run Checks'] },
       result: { summary: 'Final message' },
     }
     vi.spyOn(h.host, 'readSession').mockResolvedValue({
@@ -740,7 +746,7 @@ describe('the ACP agent (M63)', () => {
     expect(plain.authMethods).toEqual([
       {
         id: 'muse-code-login',
-        name: 'Sign in',
+        name: 'Sign In',
         description: 'Run “muse-spark-code-acp login” in a terminal, then try again.',
       },
     ])
@@ -748,8 +754,8 @@ describe('the ACP agent (M63)', () => {
       {
         type: 'terminal',
         id: 'muse-code-login',
-        name: 'Sign in',
-        description: 'Sign in to Muse Code',
+        name: 'Sign In',
+        description: 'Sign In to Muse Code',
         args: ['login'],
       },
     ])
@@ -760,15 +766,15 @@ describe('the ACP agent (M63)', () => {
       {
         type: 'terminal',
         id: 'muse-code-login',
-        name: 'Sign in',
-        description: 'Sign in to Muse Code',
+        name: 'Sign In',
+        description: 'Sign In to Muse Code',
         args: ['login'],
       },
     ]
     const byHand = [
       {
         id: 'muse-code-login',
-        name: 'Sign in',
+        name: 'Sign In',
         description: 'Run “muse-spark-code-acp login” in a terminal, then try again.',
       },
     ]
@@ -907,12 +913,37 @@ describe('the ACP agent (M63)', () => {
     expect(effort).toMatchObject({ id: 'effort', category: 'thought_level', currentValue: 'high' })
   })
 
-  it('lists contributor models and Bypass permissions only when the flags allow them', async () => {
+  it('lists contributor models and Bypass Permissions only when the flags allow them', async () => {
     const h = harness({ canBypass: true, allowsContributorModels: true })
     const created = await h.run((client) => start(client))
     expect(created.modes?.availableModes.map((mode) => mode.id)).toContain('bypassPermissions')
     const [model] = created.configOptions ?? []
     expect(model && 'options' in model ? model.options.length : 0).toBe(2)
+  })
+
+  it('adopts the session without accounts when the account port fails', async () => {
+    const h = harness({
+      accounts: {
+        usageUrl: () => {
+          throw new Error(UI_TEXT.accounts.unavailable)
+        },
+        read: () => Promise.reject(new Error('account store down')),
+        use: () => Promise.reject(new Error(UI_TEXT.accounts.unavailable)),
+        subscribe: () => voidUnsubscribe,
+      },
+    })
+    await h.run(async (client) => {
+      // Adoption succeeds instead of failing with the accounts error, and
+      // no account picker is served.
+      const created = await start(client)
+      expect(created.configOptions?.some((option) => option.id === 'account')).toBe(false)
+      // An ordinary prompt turn still runs on the adopted session.
+      const session = h.host.sessions.at(-1)!
+      const response = prompt(client, created.sessionId)
+      await until(() => session.sendTurn.mock.calls.length > 0)
+      session.emit({ type: 'turnCompleted', turnId: 'turn-1', terminal: 'completed' })
+      await expect(response).resolves.toMatchObject({ stopReason: 'end_turn' })
+    })
   })
 
   it('refuses a relative folder', async () => {
@@ -968,7 +999,7 @@ describe('the ACP agent (M63)', () => {
       content: {
         type: 'text',
         text: expect.stringContaining(
-          `${UI_TEXT.groupSlashCommands}: /help, /compact, /agents, /questions, /answer`,
+          `${UI_TEXT.groupSlashCommands}: /help, /compact, /report, /agents, /answer, /questions`,
         ),
       },
     })
@@ -1470,7 +1501,7 @@ describe('the ACP agent (M63)', () => {
     expect(h.host.sessions[0]?.decideApproval).not.toHaveBeenCalled()
   })
 
-  it('answers a plain file write itself in Edit automatically, as the panel does', async () => {
+  it('answers a plain file write itself in Edit Automatically, as the panel does', async () => {
     const h = harness()
     await h.run(async (client) => {
       const { sessionId } = await start(client)
@@ -1574,7 +1605,7 @@ describe('the ACP agent (M63)', () => {
     expect(h.host.sessions[0]?.cancelQuestions).toHaveBeenCalledExactlyOnceWith('input-1')
   })
 
-  it('forwards an MCP elicitation through the client form and settles the answer', async () => {
+  it('forwards an MCP Elicitation through the client form and settles the answer', async () => {
     const h = harness({
       elicitation: { action: 'accept', content: { name: 'Ada' } },
     })
@@ -2424,7 +2455,7 @@ describe('paid features in the agent (M63c, M58)', () => {
     expect(h.permissions).toEqual([])
   })
 
-  it('asks before each use in its session, naming the price; Allow once allows that use only', async () => {
+  it('asks before each use in its session, naming the price; Allow Once allows that use only', async () => {
     const h = harness({ kind: 'modelApi', paid: ['webSearch'], answer: choose('paid-allow-once') })
     expect(await answersInOneSession(h, [WEB_SEARCH, WEB_SEARCH])).toEqual([true, true])
     expect(h.permissions).toHaveLength(2)
@@ -2435,7 +2466,7 @@ describe('paid features in the agent (M63c, M58)', () => {
     expect(JSON.stringify(asked?.toolCall.content)).toContain('$2.50 per 1,000 searches')
     // Not trusted: "Allow always" is neither offered nor kept.
     expect(asked?.options).toEqual([
-      { optionId: 'paid-allow-once', name: 'Allow once', kind: 'allow_once' },
+      { optionId: 'paid-allow-once', name: 'Allow Once', kind: 'allow_once' },
       { optionId: 'paid-deny', name: 'Deny', kind: 'reject_once' },
     ])
     // Each question its own row, however the session came to be held.
@@ -3384,7 +3415,7 @@ describe('M105 ACP attachment commands', () => {
       const { sessionId } = await start(client)
       expect(await prompt(client, sessionId, `/attach ${pdf}`)).toEqual({ stopReason: 'end_turn' })
     })
-    expect(JSON.stringify(h.updates)).not.toContain('Duration unknown')
+    expect(JSON.stringify(h.updates)).not.toContain('Duration Unknown')
     expect(h.updates).toContainEqual(
       expect.objectContaining({
         sessionUpdate: 'agent_message_chunk',

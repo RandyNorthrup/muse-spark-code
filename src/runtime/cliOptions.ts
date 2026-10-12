@@ -14,9 +14,10 @@ export function formatAcpUsage(table: UiText, command: string): string {
     fill(table.acpUsage, { command }),
     fill(table.acpChatGpt.usage, { command }),
     sharingHelp(table),
+    // CM108ACC: account metadata and per-account keys are served. The exec
+    // line (`accounts.execHelp`) offers pooling, which is still refused, and
+    // stays out until its owner is bound.
     fill(table.accounts.cliUsage, { command }),
-    fill(table.accounts.execHelp, { command }),
-    table.scheduleV2.runtime.usage,
     ...Object.entries(options)
       .filter(
         ([option]) =>

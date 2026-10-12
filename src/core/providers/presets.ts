@@ -63,6 +63,29 @@ export type KeyTest =
   | { readonly kind: 'provider-key'; readonly path: string; readonly origin?: string }
   | { readonly kind: 'paid-token' }
 
+export type KeyProbeOutcome =
+  | { readonly ok: true; readonly modelCount: number | undefined }
+  | { readonly ok: false; readonly paid: boolean; readonly reason: string }
+
+/** The same free-check contract for panel and CLI; callbacks own pinned I/O. */
+export async function runProviderKeyTest(
+  test: KeyTest,
+  origin: string,
+  check: (origin: string, path: string) => Promise<KeyProbeOutcome>,
+  list: () => Promise<KeyProbeOutcome>,
+): Promise<KeyProbeOutcome> {
+  if (test.kind === 'paid-token') return { ok: false, paid: true, reason: 'paid' }
+  if (test.kind === 'provider-key') {
+    const base = test.origin ?? origin
+    const checked = await check(base, test.path)
+    if (!checked.ok) return checked
+    // HF's identity check has a different captured origin; it proves the
+    // key without sending it on to the inference router's public list.
+    if (base !== origin) return { ok: true, modelCount: undefined }
+  }
+  return await list()
+}
+
 /** Where a scan reads models, windows and prices. */
 export type ListPriceSource = 'list' | 'catalogue' | 'user' | 'none-local'
 
@@ -120,6 +143,14 @@ export interface FormatQuirks {
    * owner-confirmed strict capability; unknown/custom/local records stay off.
    */
   readonly supportsStrictTools: boolean
+  /**
+   * How the preset expresses reasoning effort `none` (Thinking off) on
+   * the wire. DeepSeek's thinking-mode switch (`thinking: {type:
+   * "disabled"}`, research D2 `guides/thinking_mode` and the lead's
+   * L98P2 live capture) is the only declared form. Absent keeps the
+   * preset's existing bytes.
+   */
+  readonly thinkingOff?: 'thinking-switch' | undefined
 }
 
 /** The five formats' defaults; presets override per provider. */
@@ -473,6 +504,10 @@ const DEEPSEEK_PRESET: ProviderPreset = {
   quirks: {
     reasoningField: 'reasoning_content',
     cachedUsageFields: ['prompt_tokens_details.cached_tokens', 'prompt_cache_hit_tokens'],
+    // The catalogue's DeepSeek `toggle` plus effort `[low, high, max]`
+    // (`vendor/models-dev/snapshot.json`): Thinking off is the documented
+    // thinking-mode switch, never `reasoning_effort: "none"`.
+    thinkingOff: 'thinking-switch',
   },
   wireCapture: true,
 }
@@ -514,9 +549,11 @@ export interface PlanKeyPreset extends ProviderPreset {
 export const PLAN_KEY_PRESETS: readonly PlanKeyPreset[] = [
   {
     id: 'mistral-plan',
-    label: MISTRAL_PRESET.label,
+    get label() {
+      return UI_TEXT.providerText.labels.mistralPlan
+    },
     get description() {
-      return MISTRAL_PRESET.description
+      return UI_TEXT.providerText.descriptions.mistralPlan
     },
     category: MISTRAL_PRESET.category,
     format: MISTRAL_PRESET.format,

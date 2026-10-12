@@ -386,8 +386,8 @@ describe('agent scheduling admission', () => {
     expect(h.deps.consent).toHaveBeenCalledTimes(2)
     expect(h.deps.consent).toHaveBeenCalledWith(
       expect.objectContaining({
-        always: 'Always for this orchestrator',
-        never: 'Never for this orchestrator',
+        always: 'Always for This Orchestrator',
+        never: 'Never for This Orchestrator',
       }),
       signal,
     )

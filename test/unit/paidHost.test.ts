@@ -6,6 +6,11 @@ import type * as vscode from 'vscode'
 import type { PaidUseAnswer } from '../../src/core/paid/paidConsent'
 import { askPaidUse, createPaidFeatures } from '../../src/host/paid/paidHost'
 import {
+  TAB_CONSENT_STATE_KEY,
+  createTabConsent,
+  tabPriceFingerprint,
+} from '../../src/host/tab/tabBundle'
+import {
   GLOBAL_STATE_KEYS,
   SUBAGENT_PRICE_ACCEPTANCE_VERSION,
   type PaidFeature,
@@ -564,6 +569,52 @@ describe('M94 Tab wording and window question (lane L, PLAN.md D73)', () => {
     await expect(paid.consent.allows(TAB)).resolves.toBe(true)
     expect(confirmModal).toHaveBeenCalledTimes(2)
   })
+
+  it.each(['imageGeneration', 'voice'] as const)(
+    'RVM94KR3G: preserves keyed Tab Allow once when %s price acceptance changes',
+    async (feature) => {
+      const data = new Map<string, unknown>([
+        [GLOBAL_STATE_KEYS.paidConfirmations, ['tab', 'voice']],
+      ])
+      const workspace = new Map<string, unknown>()
+      const { paid, settings } = paidWithSettings(data, ['tab', 'voice'], { workspace })
+      const consent = createTabConsent({
+        priceOf: tabPriceFingerprint,
+        ask: (model) => paid.consent.askScope({ ...TAB, modelId: model }),
+        isOn: () => paid.gate.isOn(TAB.feature),
+        isRemembered: () => paid.consent.isRemembered(TAB.feature),
+        windowOnceToken: () => paid.consent.windowOnceToken(TAB.feature),
+        revocations: () => paid.consent.revocations(TAB.feature),
+        readAlways: () => workspace.get(TAB_CONSENT_STATE_KEY),
+        writeAlways: (record) => {
+          workspace.set(TAB_CONSENT_STATE_KEY, record)
+          return Promise.resolve()
+        },
+        log: new FakeLogOutputChannel(),
+      })
+      answerWith(UI_TEXT.allowOnce)
+      const grant = await consent.requestUse(TAB.modelId)
+      expect(grant?.scope).toBe('window')
+      const token = paid.consent.windowOnceToken(TAB.feature)
+      const popupCount = feature === 'imageGeneration' ? 2 : 1
+      if (feature === 'imageGeneration') {
+        settings.add(feature)
+        answerWith(UI_TEXT.paidConfirmAccept)
+      } else {
+        settings.delete(feature)
+      }
+      await paid.gate.review()
+      expect(data.get(GLOBAL_STATE_KEYS.paidGrantGenerations)).toEqual({ [feature]: 1 })
+      expect(paid.gate.isOn(feature)).toBe(feature === 'imageGeneration')
+      expect(paid.consent.windowOnceToken(TAB.feature)).toBe(token)
+      expect(grant?.isCurrent()).toBe(true)
+      const next = await consent.requestUse(TAB.modelId)
+      expect(next?.scope).toBe('window')
+      expect(next?.isCurrent()).toBe(true)
+      expect(confirmModal).toHaveBeenCalledTimes(popupCount)
+      expect(workspace.has(TAB_CONSENT_STATE_KEY)).toBe(false)
+    },
+  )
 
   it('asks again after another window withdrew and accepted the price anew (RVM94LC finding 7)', async () => {
     // Two windows: each its own memory, one shared global state.

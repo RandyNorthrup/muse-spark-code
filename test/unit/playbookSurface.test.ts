@@ -75,7 +75,7 @@ describe('M116 playbook surface adapter (W)', () => {
         },
       }),
     ).toBe(0)
-    expect(lines.join('\n')).toContain('Playbook settings')
+    expect(lines.join('\n')).toContain('Playbook Settings')
     expect(
       await runPlaybookCli(['frobnicate'], {
         port,

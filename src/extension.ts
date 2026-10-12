@@ -20,6 +20,7 @@ import {
   CHAT_PANEL_VIEW_TYPE,
   CHAT_VIEW_ID,
   COMMAND_IDS,
+  OPTIONAL_RUNTIME_AVAILABILITY,
   CONTEXT_KEYS,
   DEFAULT_MODEL_ID,
   EXTENSION_NAME,
@@ -240,10 +241,13 @@ import { usablePaidFeatures } from './shared/paid'
 import { agentImportLoader } from './host/agentImportBundle'
 import {
   TAB_BUNDLE_FILE,
+  TAB_CONSENT_STATE_KEY,
   TAB_LEDGER_DIR,
   TAB_SNOOZE_STATE_KEY,
   type TabFilesExclude,
   createTabActivation,
+  createTabConsent,
+  tabPriceFingerprint,
   tabTextChangeEvent,
   deferredRefresh,
 } from './host/tab/tabBundle'
@@ -440,7 +444,7 @@ async function readTextFile(fsPath: string): Promise<string | undefined> {
   }
 }
 
-/** The usage modal's "Auth method" for the backend in use (M14). */
+/** The usage modal's "Auth Method" for the backend in use (M14). */
 function signInMethodFor(
   kind: BackendKind,
   hasCliSession: boolean,
@@ -1153,7 +1157,7 @@ async function activateWindow(
     dailyBudgetUsd: (feature) =>
       paidBackend === 'modelApi' || feature === 'legalExplanation' ? dailyPaid.capUsd() : undefined,
     isKeyStored: () => isKeyStored,
-    // "Allow always in this workspace" (M58) needs a workspace to keep it,
+    // "Allow Always in This Workspace" (M58) needs a workspace to keep it,
     // and never in Restricted Mode.
     canRememberPaidUse: () =>
       vscode.workspace.isTrusted && (vscode.workspace.workspaceFolders?.length ?? 0) > 0,
@@ -1317,7 +1321,13 @@ async function activateWindow(
     }
     return absolutePath === root || absolutePath.startsWith(`${root}${path.sep}`)
   }
+  // Lane K: Tab's hook guard and dispatch bridge load with the lazy Tab
+  // bundle on first use; activation only hands the runner factory over.
   const tab = createTabActivation({
+    hookDispatch: {
+      isHooksEnabled: () => currentSettings().modelApiHooks,
+      load: () => hookRunnerFor(false),
+    },
     bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', TAB_BUNDLE_FILE).fsPath,
     log,
     isTabSettingOn: () => currentSettings().modelApiTab,
@@ -1442,7 +1452,10 @@ async function activateWindow(
     // window's ledger file (lane L) from these. The key client is the one
     // M44 loads on its first paid use; it is read only on a Tab request.
     services: {
-      stream: (body, signal, budget) => keyClient().streamResponse(body, signal, undefined, budget),
+      // The engine's guard runs last, synchronously, inside the client's send
+      // path (RVM94KR2 4).
+      stream: (body, signal, budget, admit) =>
+        keyClient().streamResponse(body, signal, undefined, budget, admit),
       ledgerDirectory: path.join(context.globalStorageUri.fsPath, TAB_LEDGER_DIR),
       windowId: crypto.randomUUID(),
       onSent: () => {
@@ -1456,18 +1469,27 @@ async function activateWindow(
     onTodayTotalChanged: () => {
       broadcastPaidState()
     },
-    // D48's question, once per window (Q-M94a): the first request asks with
-    // the model's rates and today's budget; Deny snoozes the window.
-    consent: {
-      requestUse: async () => {
-        const settings = currentSettings()
-        return await paid.consent.allows({
+    // D48's question (Q-M94a), keyed by model and price (RVM94KR2): the
+    // first request for a key asks with its rates and today's budget; Deny
+    // snoozes the window. A kept or window grant counts only for its key.
+    consent: createTabConsent({
+      priceOf: tabPriceFingerprint,
+      ask: async (model) =>
+        await paid.consent.askScope({
           feature: 'tab',
-          modelId: settings.tabModel,
-          budgetUsd: settings.tabDailyBudgetUsd,
-        })
+          modelId: model,
+          budgetUsd: currentSettings().tabDailyBudgetUsd,
+        }),
+      isOn: () => paid.gate.isOn('tab'),
+      isRemembered: () => paid.consent.isRemembered('tab'),
+      windowOnceToken: () => paid.consent.windowOnceToken('tab'),
+      revocations: () => paid.consent.revocations('tab'),
+      readAlways: () => context.workspaceState.get<unknown>(TAB_CONSENT_STATE_KEY),
+      writeAlways: async (record) => {
+        await context.workspaceState.update(TAB_CONSENT_STATE_KEY, record)
       },
-    },
+      log,
+    }),
   })
   tabDisposables.push({
     dispose: () => {
@@ -2544,6 +2566,11 @@ async function activateWindow(
         ? meta
         : await subscriptionFeatures().createClient(meta),
     getProviderAccountId: () => subscriptionFeatures().accountId(),
+    // RVCM1062B P1/P2: no standalone registry here. The entry binds the
+    // selected record through the session client's own resolver, which is
+    // the subscription-aware service (shared plan identity and usage
+    // ownership) or bare Meta; a separate service lost plan usage and
+    // rejected subscription models.
     log,
     // Each Model API turn's unit (M86): its record before it runs, its own
     // recorded writes while it does, then its writes drained, its unit folded
@@ -2829,6 +2856,8 @@ async function activateWindow(
     gitProcess: processGitProcess(),
     env: process.env,
     isCurrent: () => !nativeStarts.signal.aborted,
+    // M123's native route (a host without `vscode.git`) stops its git with the window.
+    signal: nativeStarts.signal,
     // Commit and push run hooks, which can write the workspace: admitted as any such command is (M72).
     admit: (start) => backend.startWorkspaceCommand(start, nativeStarts.signal),
     restartBackends: (reason) => restartBackend(reason),
@@ -3183,10 +3212,10 @@ async function activateWindow(
     let loaded: ExtensionHooksModule
     try {
       loaded = await hookBundle.loadBundle()
-    } catch (error: unknown) {
-      log.warn(
-        `Extension hooks are unavailable: ${error instanceof Error ? error.message : String(error)}`,
-      )
+    } catch {
+      // Fixed words only: a bundle-load failure can name a path under the
+      // user's profile (M94 lane K).
+      log.warn('Extension hooks are unavailable')
       if (shouldAnnounceFailure) {
         void vscode.window.showWarningMessage(UI_TEXT.extensionHooksUnavailable)
       }
@@ -3249,7 +3278,9 @@ async function activateWindow(
     if (!areHooksArmed()) {
       return
     }
-    const runner = await hookRunnerFor(shouldAnnounceFailure)
+    // A loaded runner runs at once, inside the event: a ConfigChange moves
+    // Tab's policy epoch before anything is awaited (RVM94KR2 3).
+    const runner = hookRunner ?? (await hookRunnerFor(shouldAnnounceFailure))
     if (runner === undefined) {
       return
     }
@@ -3933,7 +3964,7 @@ async function activateWindow(
     register: (id, action) => registerLoggedCommand(log, id, action),
     active: () => registry.active,
     isReady: (surface) => readyPromptSurfaces.has(surface),
-    isEnabled: () => currentSettings().schedules,
+    isEnabled: () => OPTIONAL_RUNTIME_AVAILABILITY.schedules && currentSettings().schedules,
     openConversation,
     open: async (surface, view) => {
       surface.reveal()
@@ -4343,7 +4374,7 @@ async function activateWindow(
       mentions.invalidate()
       void restartBackend('the workspace was trusted').catch(logRejection(log, 'backend restart'))
       registry.broadcast({ type: 'notice', level: 'info', text: UI_TEXT.trustGrantedNotice })
-      // "Allow always in this workspace" counts only in a trusted one (M58).
+      // "Allow Always in This Workspace" counts only in a trusted one (M58).
       broadcastPaidState()
       // Checkpoints run from now on, and what was queued while untrusted is cleaned up (M72).
       void checkpoints.maintain().catch(logRejection(log, 'checkpoint cleanup'))
@@ -4500,6 +4531,8 @@ async function activateWindow(
     // Open the capacity estimator (M117, PLAN.md D97): the composer takes
     // `/estimate ` in the conversation in view or one opened for it.
     registerLoggedCommand(log, COMMAND_IDS.estimate, async () => {
+      if (!OPTIONAL_RUNTIME_AVAILABILITY.estimator)
+        throw new Error(UI_TEXT.estimateRuntimeUnavailable)
       const surface = registry.active
       if (surface === undefined) {
         isEstimatePending = true
@@ -4713,7 +4746,7 @@ async function activateWindow(
       COMMAND_IDS.openShareFile,
       forActiveConversation((controller) => controller.handle({ type: 'openShareFile' })),
     ),
-    // M95 (PLAN.md D74) lane K: the wizard opened at "Pick a provider" (with
+    // M95 (PLAN.md D74) lane K: the wizard opened at "Pick a Provider" (with
     // the workspace's suggested preset chosen, when it names one), the panel,
     // and the quick-pick fast path. Loading a missing bundle refuses with an
     // explicit error, never an empty success.

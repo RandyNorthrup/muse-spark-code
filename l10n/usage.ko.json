@@ -88,7 +88,7 @@
   "apiEquivalentNote": "구독 추가 요금이 아닌 동등한 API 가격입니다.",
   "totalTime": "총 요청 시간",
   "latencyP50": "중앙값 지연 시간(p50)",
-  "latencyP95": "p95 지연 시간",
+  "latencyP95": "P95 지연 시간",
   "firstToken": "첫 토큰까지의 시간",
   "tokensPerSecond": "초당 토큰 수",
   "cacheHit": "캐시 적중률",

@@ -133,12 +133,24 @@ function sizeFixture(sharedBytes) {
     }),
   )
   writeFileSync(path.join(built.fixture, 'dist/webview/models-body.js'), '')
+  // MODELSPLIT: the gate reports a missing section chunk, so the mock page has both.
+  const sections = {
+    'dist/webview/models-providers.js': 'src/webview/models/ProvidersSection.tsx',
+    'dist/webview/models-models.js': 'src/webview/models/ModelsSection.tsx',
+  }
+  for (const file of Object.keys(sections)) writeFileSync(path.join(built.fixture, file), '')
   writeFileSync(
     path.join(built.fixture, 'dist/meta/modelsWebview.json'),
     JSON.stringify({
       outputs: {
         'dist/webview/models.js': { imports: [] },
         'dist/webview/models-body.js': { imports: [], entryPoint: 'src/webview/models/panel.tsx' },
+        ...Object.fromEntries(
+          Object.entries(sections).map(([file, source]) => [
+            file,
+            { imports: [], inputs: { [source]: { bytesInOutput: 1 } } },
+          ]),
+        ),
       },
     }),
   )

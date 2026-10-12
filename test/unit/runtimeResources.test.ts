@@ -605,7 +605,7 @@ describe('machine files and lazy runtime facade', () => {
         { type: 'levelChanged', atMs: 0, from: 'normal', to: 'pause', reason: 'cpu' },
         status,
       ),
-    ).toContain(`CPU use is ${UI_TEXT.resourceUnknown}`)
+    ).toContain(`CPU Use is ${UI_TEXT.resourceUnknown}`)
     expect(text).not.toMatch(/:\s*0%/)
     expect(resourceHistoryText(aggregateResources([]))).toBe(
       [UI_TEXT.resourceTitle, UI_TEXT.resourceHistoryObserved, UI_TEXT.resourceHistoryEmpty].join(

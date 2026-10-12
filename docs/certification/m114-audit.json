@@ -24,7 +24,7 @@
     "scale": {
       "dimensions": ["radius", "typographySpacing"],
       "grade": "partial",
-      "fix": "Replace literal radii/spacing/type/alpha with source scales; radius xs/sm/md/lg/xl/pill/circle and spacing-1\u20268; use typography and state alpha roles. Preserve geometry constants until owning layout lane approves changes.",
+      "fix": "Replace literal radii/spacing/type/alpha with source scales; radius xs/sm/md/lg/xl/pill/circle and spacing-1…8; use typography and state alpha roles. Preserve geometry constants until owning layout lane approves changes.",
       "evidence": "styles.css literal 999px/50%/3px/20px radii, em sizes, font-weight 600, and pixel gaps; generated layout aliases are already present."
     },
     "states": {
@@ -73,7 +73,7 @@
       "dimensions": ["typographySpacing", "focus"],
       "grade": "fail",
       "fix": "Keep the page root on editor-surface; replace h1/h2/h3/code em sizes and 1.5/1.25 line heights with token roles, use code/link/quote roles and 2 px focus around links/buttons/input/pre.",
-      "evidence": "whatsNew.css body, h1\u2013h4, pre/code, button and a:focus-visible; no pressed/disabled styles."
+      "evidence": "whatsNew.css body, h1–h4, pre/code, button and a:focus-visible; no pressed/disabled styles."
     },
     "inherited": {
       "dimensions": [],
@@ -5330,7 +5330,7 @@
       },
       "roles": ["colour.surface", "colour.text", "typography.font-size", "typography.font-ui"],
       "findings": ["roles", "scale", "motion"],
-      "fix": "Token-bind decorative gradient/size/radius/alpha; classify the 4.01 s breathing loop explicitly as an activity exception requiring owner resolution, since D94 specifies 120\u2013240 ms motion.",
+      "fix": "Token-bind decorative gradient/size/radius/alpha; classify the 4.01 s breathing loop explicitly as an activity exception requiring owner resolution, since D94 specifies 120–240 ms motion.",
       "evidence": [
         {
           "file": "src/webview/styles.css",
@@ -7367,6 +7367,37 @@
       "gradeSourceRevision": "LEFT017B current rendered descendants; image review recorded in int0170-combined.md"
     },
     {
+      "file": "src/webview/models/DeferredSections.tsx",
+      "owner": "P2",
+      "selectors": [".models-panel section"],
+      "scene": "models-providers",
+      "grades": {
+        "colour": "inherited",
+        "radius": "inherited",
+        "elevation": "inherited",
+        "motion": "inherited",
+        "focus": "inherited",
+        "states": "inherited",
+        "highContrast": "inherited",
+        "accessibility": "inherited",
+        "typographySpacing": "inherited"
+      },
+      "roles": ["colour.surface", "colour.text", "typography.font-ui"],
+      "findings": ["inherited"],
+      "fix": "Inspect the deferred section through its committed descendants; held-chunk unit/browser checks cover the loading interval and remembered-height skeleton.",
+      "evidence": [
+        {
+          "file": "src/webview/models/DeferredSections.tsx",
+          "line": 111,
+          "selector": ".models-panel section",
+          "declarations": "SectionFrame stable boundary"
+        }
+      ],
+      "captureSelector": ".models-panel section",
+      "vscodeVariables": [],
+      "gradeSourceRevision": "MODELSPLIT4: current shared boundary around the unchanged rendered section; loading receipts in models-split.md"
+    },
+    {
       "file": "src/webview/models/ModelsSection.tsx",
       "owner": "P2",
       "selectors": [".models-table"],
@@ -7427,6 +7458,37 @@
       "captureSelector": ".models-providers",
       "vscodeVariables": [],
       "gradeSourceRevision": "LEFT017B current rendered descendants; image review recorded in int0170-combined.md"
+    },
+    {
+      "file": "src/webview/models/SectionNavigation.tsx",
+      "owner": "P2",
+      "selectors": [".models-panel nav"],
+      "scene": "models-providers",
+      "grades": {
+        "colour": "inherited",
+        "radius": "inherited",
+        "elevation": "inherited",
+        "motion": "inherited",
+        "focus": "inherited",
+        "states": "inherited",
+        "highContrast": "inherited",
+        "accessibility": "inherited",
+        "typographySpacing": "inherited"
+      },
+      "roles": ["colour.surface", "colour.text", "typography.font-ui"],
+      "findings": ["inherited"],
+      "fix": "The shared registry navigation renders in the panel frame; held-chunk unit/browser checks verify its visible pending tab and stable shell.",
+      "evidence": [
+        {
+          "file": "src/webview/models/SectionNavigation.tsx",
+          "line": 6,
+          "selector": ".models-panel nav",
+          "declarations": "SectionNavigation shared shell and pending state"
+        }
+      ],
+      "captureSelector": ".models-panel",
+      "vscodeVariables": [],
+      "gradeSourceRevision": "MODELSPLIT4: shared navigation in the existing panel frames; held transition receipts in models-split.md"
     },
     {
       "file": "src/webview/models/Wizard.tsx",
@@ -10080,7 +10142,7 @@
     {
       "file": "src/webview/models/sections.ts",
       "classification": "logic-only",
-      "audit": "Supporting source: inspect theme/token/lazy lifecycle behavior through its actual rendered consumers in the current component inventory."
+      "audit": "Section registry and reducers; the shared rendered navigation is audited separately in SectionNavigation.tsx."
     },
     {
       "file": "src/webview/models/sections/accounts/accounts.css",
@@ -10389,6 +10451,7 @@
     "models-scanning",
     "models-suggestions",
     "models-table",
+    "models-table-filtered",
     "models-test-cost",
     "models-undo",
     "modes",
@@ -10523,7 +10586,7 @@
   "sources": [
     {
       "file": "src/webview/App.tsx",
-      "sha256": "ddad3af00bae9d84f4620fb83e61b69a9c8e8311381e47c26a51d550296c6926"
+      "sha256": "7d0eb2e32c933fcf48e3e0a9f19d880b78c506ce3f5983389726135675121c5b"
     },
     {
       "file": "src/webview/TasksApp.tsx",
@@ -10579,11 +10642,11 @@
     },
     {
       "file": "src/webview/components/AttachmentChips.tsx",
-      "sha256": "d52672790c44f8148443bde77c5723a0e47d60cface0166652ea900ed9d6732f"
+      "sha256": "bcd727c8a092c0971b19e47c559c1c1e56f54cc320768b165e2e667fe7e4b04d"
     },
     {
       "file": "src/webview/components/AttachmentMediaCost.tsx",
-      "sha256": "dd744a60e43a4625dfd368625e1d684896bf446c8fb24135b4df9d8d2b8c89b6"
+      "sha256": "0ea43f56e74fb1f2a0bfab2d4feaf95330063391fc6bdab1b58397291886efb9"
     },
     {
       "file": "src/webview/components/AttachmentSound.tsx",
@@ -10643,7 +10706,7 @@
     },
     {
       "file": "src/webview/components/ErrorBoundary.tsx",
-      "sha256": "0c7be779d8f3166c06c575db14332d8d9be8518947e06e470ffdc0a72d166fc4"
+      "sha256": "d836eed1452c9bf354665f46c4acec0578184c004444f1bec548a2fd1e8aa983"
     },
     {
       "file": "src/webview/components/ExternalLink.tsx",
@@ -10655,7 +10718,7 @@
     },
     {
       "file": "src/webview/components/GitPanel.tsx",
-      "sha256": "bba6479e14b936e1d3708ea26dfbce0f6d1652ac0829734d81bb9288771748be"
+      "sha256": "6a85a87ba247f2020d00c22226c1ac5990f058b8428c5016ff1f512b692c10f2"
     },
     {
       "file": "src/webview/components/GoalPanel.tsx",
@@ -10671,7 +10734,7 @@
     },
     {
       "file": "src/webview/components/GooeyMenuContent.tsx",
-      "sha256": "6740220818d71f6c14cfe63aa0c0a20f0da9c07f849793ef0449b55eff505281"
+      "sha256": "006b845370405baf38f5b81b2c0679df6d40b9a456c776b22b1eafdc00df050f"
     },
     {
       "file": "src/webview/components/HandoffDialog.tsx",
@@ -10691,7 +10754,7 @@
     },
     {
       "file": "src/webview/components/HistoryDialog.tsx",
-      "sha256": "b2b32c69da6d2fc96504f44aaa511a9161478fd587468e7ba92c4240f822365a"
+      "sha256": "a7f72222a110026b9f6cf6e3883f409f30a596d4fe5d9a2604bd866b5f8ed7d0"
     },
     {
       "file": "src/webview/components/HistoryPromptRow.tsx",
@@ -10727,7 +10790,7 @@
     },
     {
       "file": "src/webview/components/Onboarding.tsx",
-      "sha256": "fd09e8fa4a4e455b65d04267f825e967719df87f275c98563c36366b9e80ce4e"
+      "sha256": "2b338cf7ae4d413eccaa51c02649abec905b709bd2884cae2fdb31a9b9c82e00"
     },
     {
       "file": "src/webview/components/OpenQuestionsChip.tsx",
@@ -10739,7 +10802,7 @@
     },
     {
       "file": "src/webview/components/PaidUsageSection.tsx",
-      "sha256": "18fc34d364ca6767a39973547de1c0b4f1163e62aac1b82e962f39cd47335779"
+      "sha256": "30f94d80f83bb22c542f07a41599e1a07a07da434864e3bc345910ec4b4af29a"
     },
     {
       "file": "src/webview/components/Palette.tsx",
@@ -10759,7 +10822,7 @@
     },
     {
       "file": "src/webview/components/QuestionCard.tsx",
-      "sha256": "6d9cb62d151632a56abc584dfeb139a19d46af8540733f83bc1978ed2f0f3118"
+      "sha256": "46e1c75c8435a016d6f065c7572b1e10d0bce48a19a22d39f557b912257d055f"
     },
     {
       "file": "src/webview/components/QuestionSurface.tsx",
@@ -10771,7 +10834,7 @@
     },
     {
       "file": "src/webview/components/QuoteMenu.tsx",
-      "sha256": "c2d2e8cd6920e5a5488a0a1b8aee27653d7a8f0154ba3a6340af05a4750ad003"
+      "sha256": "96a8084360c10406ab1292e8411ea88770e70cf993316f9685d08163e921d806"
     },
     {
       "file": "src/webview/components/ReasoningRow.tsx",
@@ -10871,7 +10934,7 @@
     },
     {
       "file": "src/webview/components/Transcript.tsx",
-      "sha256": "56e228c5679f24b5005c12e30e6c9e874f839ea51cd3978cf3f5ab836614bb93"
+      "sha256": "00b0ea4d2f8ae39cb1a55938629b693ca23c0aba217ecf60803278ffa4e15c37"
     },
     {
       "file": "src/webview/components/UsageDialog.tsx",
@@ -10943,7 +11006,7 @@
     },
     {
       "file": "src/webview/components/traffic/TrafficMetrics.tsx",
-      "sha256": "d40fd49595c35565319f24bf9bdb12b9e2f18bdb853dc911b39df07a557bcdf4"
+      "sha256": "f36bf7fff411aa2be00c7219cc5760412aeace3dcb79a4a80d194f8ef14a45e1"
     },
     {
       "file": "src/webview/components/traffic/TrafficParts.tsx",
@@ -11007,7 +11070,7 @@
     },
     {
       "file": "src/webview/gooeyLayout.ts",
-      "sha256": "e6312868bec8448864dde78c41b4fb1f5c4b83466201cd7a8c60912a0e49b92c"
+      "sha256": "1bcedc47ba99e8cc278c26a7834390dea0457fbfc3251a803847d3ffad0ca602"
     },
     {
       "file": "src/webview/heartbeatBeam.ts",
@@ -11059,11 +11122,11 @@
     },
     {
       "file": "src/webview/main.tsx",
-      "sha256": "5e7bf44a76e3ae7706d0fc378e0af5056d8f62267cccf8ad246a9f0157f5d59b"
+      "sha256": "80d575b1ad8f6c97a482e6ddccea7a8bd5fd14e90152926b02fd24d5c779527e"
     },
     {
       "file": "src/webview/media/CompanionMedia.tsx",
-      "sha256": "0b16627a50f9e2e80704e2235e258f09975237facd92efa6abcee26765c84620"
+      "sha256": "b61c76e926673db101b526a3cba1061d484873b7753f8a82321e235e4feefeee"
     },
     {
       "file": "src/webview/media/ToolVideo.tsx",
@@ -11106,16 +11169,24 @@
       "sha256": "a3fb65727ef11cec5f2fd5a3838ef283bd9b7428c5796067d5a9cee9f178ecda"
     },
     {
+      "file": "src/webview/models/DeferredSections.tsx",
+      "sha256": "6de406c31b5b503dd0bddde6f676bc3bf0389090cd10c658de4226453fa4a64c"
+    },
+    {
       "file": "src/webview/models/ModelsSection.tsx",
-      "sha256": "f917f223935c2783f7838193abc3eb218c9d5a02b31f0d378706e05f0337dca1"
+      "sha256": "cff1b44bd2473ee5e22d83ff9d5dda015966c82567d5fa28cfc6c1b80634c3ad"
     },
     {
       "file": "src/webview/models/ProvidersSection.tsx",
-      "sha256": "b98b7e462edc857352e0d5e94be7665d137d52014a519662c8901fadfc6f9793"
+      "sha256": "34fdfb8e10e1f5e89b89ed7ea6db610494d52540f779e0f4a041daeee2bf7198"
+    },
+    {
+      "file": "src/webview/models/SectionNavigation.tsx",
+      "sha256": "f23c4f84626d4167346ea200126331135bb7127d6497580bd9d14e2b60972948"
     },
     {
       "file": "src/webview/models/Wizard.tsx",
-      "sha256": "3d76d415b23b0696099f4f20adc91d15a31dd5685d7e8e193215c57061b6b0af"
+      "sha256": "142e184f2d6844545123b35e74a671c925f11b82fe8a7e1be456d2ec8ed2db16"
     },
     {
       "file": "src/webview/models/components/Badge.tsx",
@@ -11123,7 +11194,7 @@
     },
     {
       "file": "src/webview/models/components/CostNotice.tsx",
-      "sha256": "862d4ed08b567d8e25159d6e36adbc58a5945f70bb575e2e53cfc636403423e2"
+      "sha256": "2975b236b7724439a5a47961ed111d6d2ff8c1a85390a46bef0737287a850842"
     },
     {
       "file": "src/webview/models/components/DataTable.tsx",
@@ -11135,7 +11206,7 @@
     },
     {
       "file": "src/webview/models/components/InlineError.tsx",
-      "sha256": "f1c3fa0be00ff0987a3d4f6bed5e51a8d4944b79d3349edeed7ff78eb02b35e4"
+      "sha256": "500f91c56fc1e956421fa12b47c1dacbb901e2121d8b0e35290c24bfd8b42060"
     },
     {
       "file": "src/webview/models/components/KeyState.tsx",
@@ -11147,7 +11218,7 @@
     },
     {
       "file": "src/webview/models/components/SearchableSelect.tsx",
-      "sha256": "2115a7e563b6d2900da12fc6db09b7cf159f986bce98743eabf19ad20b438273"
+      "sha256": "5aa8b7dda8b120affd55066438b87e53ee8c785b9eb2f04a932dffa2e99885a6"
     },
     {
       "file": "src/webview/models/components/SuggestionCard.tsx",
@@ -11159,23 +11230,23 @@
     },
     {
       "file": "src/webview/models/models.css",
-      "sha256": "388dde2783a7d4501a18585bda70d167f24bc86c0b2ce6e687f6e651bce1720a"
+      "sha256": "adc006080f837083f9cb1a8d75eeeceb4ad8fadb542c2394e9cdbefaf0c36000"
     },
     {
       "file": "src/webview/models/models.tsx",
-      "sha256": "9f399437cf1edf238651329a1b29130ac1cca108f22bec003d8ddd30d25a7328"
+      "sha256": "fedf18674857de2b7cbbd5d14fd1744729346ee780cd6d14623ded4ce6b02fd8"
     },
     {
       "file": "src/webview/models/panel.tsx",
-      "sha256": "1b6d841cacd87ab7fe21ebf7a32ab7267af41bfee1392dccc393a93400b30395"
+      "sha256": "a8253182668158ce0af9cedb1cda1718d4ca51d011d19c1853c6a46d17916a56"
     },
     {
       "file": "src/webview/models/reducer.ts",
-      "sha256": "a03d5378131fad9d85f2a3670bf3aa3ca520c128d02090bafe880961ce143a01"
+      "sha256": "3d269f84cb429ab806cc8963eee79dc0e1586262eb680c5a83de080820adec7d"
     },
     {
       "file": "src/webview/models/sections.ts",
-      "sha256": "9a91502ac02d3b9bf50bdb7f1bc202c807e50271a04d6f2e4901857dec05a292"
+      "sha256": "2e19cc38a34fe6e9d2deb3a4108ab242367d621be07c37517b278ab7621bc462"
     },
     {
       "file": "src/webview/models/sections/accounts/AccountEditor.tsx",
@@ -11183,7 +11254,7 @@
     },
     {
       "file": "src/webview/models/sections/accounts/AccountNotices.tsx",
-      "sha256": "47df7c4bb9034a637efc7310d760784259ec8d337ab253b2c0a7efddab07d09e"
+      "sha256": "adfb98af4372bc001c9aa0406ffc3bb0fd73ebe4bf4bbb595c551390135273b9"
     },
     {
       "file": "src/webview/models/sections/accounts/AccountsConfirmationDialog.tsx",
@@ -11191,7 +11262,7 @@
     },
     {
       "file": "src/webview/models/sections/accounts/AccountsSection.tsx",
-      "sha256": "93e6be8916b7e114c59dca455f1d86d0f15da4115a16ee7dd4d3bec0cf3caab8"
+      "sha256": "439ba735ef46d27feab6fedc03f7af09b20dfbbaeb062c3a9cdf9db769a7d081"
     },
     {
       "file": "src/webview/models/sections/accounts/PolicyDetails.tsx",
@@ -11395,7 +11466,7 @@
     },
     {
       "file": "src/webview/schedules/prompt.ts",
-      "sha256": "68f34595f7dcfa2f32d2aad846e45c66e5fe75fd57dd287c089120e24f2c8daa"
+      "sha256": "8136968528d9a2c74587eb04e9dd4d9a654225dcf5e21c30de2d31d5bff4dbad"
     },
     {
       "file": "src/webview/schedules/reportAction.css",
@@ -11439,11 +11510,11 @@
     },
     {
       "file": "src/webview/state/transcriptEntries.ts",
-      "sha256": "e21b474c0d28debfb2cc51e909c79b2cde28d5bfda70f2055a1f28d000868f2e"
+      "sha256": "ee03967a2ad5a0c7215106cebc3ea7993094adee9f60e7bfc90aaf247cf09a34"
     },
     {
       "file": "src/webview/state/uiState.ts",
-      "sha256": "0dc17c546c3d74b7f5ba107f04f01f444c09d1d3b2b473ba49bd2f3ebd5e3823"
+      "sha256": "ad3f87715f1059e7ae207fdc41530fdcaef7855d970a314083cd487acf2026ae"
     },
     {
       "file": "src/webview/stepSummary.ts",
@@ -11455,7 +11526,7 @@
     },
     {
       "file": "src/webview/styles.css",
-      "sha256": "e546b30b35aae47762bc1260746ac2883463f0f5d2e988f257096f248807275e"
+      "sha256": "7f0d86220b046ebf80c6177ee6b6478e6017f7aeaf28b56771b6c05899dbb53a"
     },
     {
       "file": "src/webview/surfaceRetry.ts",
@@ -11499,11 +11570,11 @@
     },
     {
       "file": "src/webview/usage/BreakdownTable.tsx",
-      "sha256": "313cb02d4a3794c387a467d5015f891ea9601eeeeaf57fd1f29c57740364721d"
+      "sha256": "92c970dd55890881450849b919b7e0f2fcf4d6aa3720331b80e492b4e420244c"
     },
     {
       "file": "src/webview/usage/EmptyStates.tsx",
-      "sha256": "61e9eb3e7de0519cf908c26e690b93eab2d5b2eb847e6a13397c8257ff04e1ed"
+      "sha256": "295e44acd53298b38537222cad85d57df23dc9f204c1bad2ad3e478fa4b1dc48"
     },
     {
       "file": "src/webview/usage/FeaturesTable.tsx",
@@ -11515,7 +11586,7 @@
     },
     {
       "file": "src/webview/usage/KpiTiles.tsx",
-      "sha256": "7802ab72069ad525dfb5d8de3719e63e6f114bbcd20f59d70547bb19713d375b"
+      "sha256": "07ba6719917dc799cb07e5f6d7edba39064cbb089c0b49198f8a5ea7cc4812b1"
     },
     {
       "file": "src/webview/usage/LazyResourcesSection.tsx",
@@ -11523,7 +11594,7 @@
     },
     {
       "file": "src/webview/usage/LimitsSection.tsx",
-      "sha256": "d105ee2fd6f79765bb58e5affcd53b0549818c5cab8ddc9069ad156d42fea4ac"
+      "sha256": "193e8cdbfe2b8a1f2120757f0ff57a075ae808e5d0ec5ed4061028f3429ed894"
     },
     {
       "file": "src/webview/usage/ModelDetail.tsx",
@@ -11551,11 +11622,11 @@
     },
     {
       "file": "src/webview/usage/charts/BurnLine.tsx",
-      "sha256": "34604181e7b5b7204a77639d6949dc311fc38ba383351b64162b4396c75687cb"
+      "sha256": "0d1fea17ff93a066669c2c871b0b152cecc8f2e260079fe72d99ab4203ec55b9"
     },
     {
       "file": "src/webview/usage/charts/ChartFrame.tsx",
-      "sha256": "6c2d2299a547b381ecc33eba432bf22eaec62273c719cf0cbfbe75afcd8fe495"
+      "sha256": "a01ca608054d459128a0e44693d68ae1ea7b6f23938b2bc00b20f03e0fee56a9"
     },
     {
       "file": "src/webview/usage/charts/MirroredColumns.tsx",
@@ -11563,11 +11634,11 @@
     },
     {
       "file": "src/webview/usage/charts/ShareBar.tsx",
-      "sha256": "8c0deae3c9b67e5786ea2e832f561f63f7f5681b268534398e239049826b7539"
+      "sha256": "4501c5868d8318c028f53de7b07e9dabeb4f5cb03050f8f08642d06015dc103a"
     },
     {
       "file": "src/webview/usage/charts/StackedColumns.tsx",
-      "sha256": "4c5dec37641e7add16b9b2d49d78bbe18badb97f045c25f70a35f506a6033f89"
+      "sha256": "7384e458a24f6deefe27bba17820c819c50d5eaeb5c783afb0169f4384410d2d"
     },
     {
       "file": "src/webview/usage/charts/StepLines.tsx",
@@ -11579,7 +11650,7 @@
     },
     {
       "file": "src/webview/usage/display.ts",
-      "sha256": "439dc48df0691e3426bdb633ab2bbbed1fb6551e5f87499704ee419ea6ef8d7d"
+      "sha256": "00d114a643d844b946d0de908f217119af851854c0c0de3e2a538a0316d16251"
     },
     {
       "file": "src/webview/usage/installUsageTable.ts",

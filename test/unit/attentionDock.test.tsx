@@ -35,7 +35,7 @@ const approval: WaitingApproval = {
     subject: { kind: 'shell', command: 'pwd' },
     rawArgs: '{}',
     availableChoices: [
-      { choiceId: 'allow_once', label: 'Allow once', decision: 'approved', scope: 'once' },
+      { choiceId: 'allow_once', label: 'Allow Once', decision: 'approved', scope: 'once' },
     ],
     isProtectedWrite: false,
     isJudgeEscalated: false,
@@ -172,9 +172,9 @@ describe('M112 attention dock and the two views', () => {
     const region = within(dock())
     expect(
       region
-        .getAllByRole('button', { name: /^Open question:/ })
+        .getAllByRole('button', { name: /^Open Question:/ })
         .map((button) => button.textContent),
-    ).toEqual(['Open question: Colour', 'Open question: Oldest'])
+    ).toEqual(['Open Question: Colour', 'Open Question: Oldest'])
     expect(region.getByRole('group', { name: 'Colour' })).toBeVisible()
     expect(region.queryByRole('group', { name: 'Oldest' })).toBeNull()
     expect(region.queryByRole('form')).toBeNull()
@@ -189,7 +189,7 @@ describe('M112 attention dock and the two views', () => {
     const questions = group([waitingQuestion(), questionFixture({ userInputId: 'open-2' })], [form])
     const { rerender } = await mountScene(questions, [approval])
     const region = within(dock())
-    expect(region.getByRole('button', { name: 'Allow once' })).toBeEnabled()
+    expect(region.getByRole('button', { name: 'Allow Once' })).toBeEnabled()
     expect(region.queryByRole('radio')).toBeNull()
     expect(region.queryByRole('form')).toBeNull()
     expect(region.getByRole('button', { name: '1 open question' })).toBeVisible()
@@ -201,20 +201,20 @@ describe('M112 attention dock and the two views', () => {
     const questions = group([waitingQuestion()])
     await mountScene(questions)
     const row = within(screen.getByRole('main'))
-    expect(row.getByText('Open question')).toBeVisible()
-    expect(row.getByRole('button', { name: 'Answer Open question Colour' })).toBeEnabled()
+    expect(row.getByText('Open Question')).toBeVisible()
+    expect(row.getByRole('button', { name: 'Answer Open Question Colour' })).toBeEnabled()
     expect(row.queryByRole('radio')).toBeNull()
     expect(screen.getAllByRole('button', { name: 'Submit' })).toHaveLength(1)
     expect(screen.getByRole('main').querySelector('input, textarea, [role="tab"]')).toBeNull()
-    fireEvent.click(row.getByRole('button', { name: 'Answer Open question Colour' }))
+    fireEvent.click(row.getByRole('button', { name: 'Answer Open Question Colour' }))
     expect(within(dock()).getByRole('radio', { name: 'Blue' })).toHaveFocus()
     fireEvent.click(within(dock()).getByRole('radio', { name: 'Blue' }))
-    fireEvent.click(within(dock()).getByRole('button', { name: 'Explain instead' }))
-    fireEvent.change(within(dock()).getByLabelText('Your explanation'), {
+    fireEvent.click(within(dock()).getByRole('button', { name: 'Explain Instead' }))
+    fireEvent.change(within(dock()).getByLabelText('Your Explanation'), {
       target: { value: 'Need more context' },
     })
-    expect(screen.getAllByLabelText('Your explanation')).toHaveLength(1)
-    expect(within(dock()).getByLabelText('Your explanation')).toHaveValue('Need more context')
+    expect(screen.getAllByLabelText('Your Explanation')).toHaveLength(1)
+    expect(within(dock()).getByLabelText('Your Explanation')).toHaveValue('Need more context')
   })
 
   it('defers on the host snapshot while keeping a focused or drafted card full, preserving its late answer', async () => {
@@ -229,7 +229,7 @@ describe('M112 attention dock and the two views', () => {
     expect(box).toHaveFocus()
     expect(box).toBeVisible()
     expect(box).toHaveValue('Teal')
-    fireEvent.click(within(dock()).getByRole('button', { name: 'Collapse question' }))
+    fireEvent.click(within(dock()).getByRole('button', { name: 'Collapse Question' }))
     expect(within(dock()).queryByRole('textbox')).toBeNull()
     fireEvent.click(within(dock()).getByRole('button', { name: 'Answer' }))
     expect(within(dock()).getByLabelText('Other: Colour')).toHaveValue('Teal')
@@ -253,8 +253,8 @@ describe('M112 attention dock and the two views', () => {
     expect(region.queryByRole('textbox')).toBeNull()
     fireEvent.click(region.getByRole('button', { name: '1 open question' }))
     expect(region.getByRole('textbox')).toBeVisible()
-    fireEvent.click(region.getByRole('button', { name: 'Next open question' }))
-    fireEvent.click(region.getByRole('button', { name: 'Previous open question' }))
+    fireEvent.click(region.getByRole('button', { name: 'Next Open Question' }))
+    fireEvent.click(region.getByRole('button', { name: 'Previous Open Question' }))
     expect(vi.mocked(actions.onJump).mock.calls).toEqual([['next'], ['previous']])
     composer.remove()
   })
@@ -264,7 +264,7 @@ describe('M112 attention dock and the two views', () => {
     const { rerender } = await mountScene(actions)
     fireEvent.click(within(dock()).getByRole('button', { name: 'Profile' }))
     fireEvent.change(within(dock()).getByLabelText('nickname'), { target: { value: 'River' } })
-    fireEvent.click(within(dock()).getByRole('button', { name: 'Open question: Colour' }))
+    fireEvent.click(within(dock()).getByRole('button', { name: 'Open Question: Colour' }))
     fireEvent.click(within(dock()).getByRole('button', { name: 'Profile' }))
     expect(within(dock()).getByLabelText('nickname')).toHaveValue('River')
     rerender(scene(actions, [], false, 'new-session'))
@@ -296,13 +296,13 @@ describe('M112 attention dock and the two views', () => {
     expect(within(dock()).getByText('Muse keeps working in 59 s if you don’t answer')).toBeVisible()
     expect(container.querySelector('[aria-live]')).toBeNull()
     const labels = [
-      'Open question',
-      'Open question',
+      'Open Question',
+      'Open Question',
       'Answered',
       'Declined',
       'Explained',
-      'Answered later',
-      'Answered when asked again',
+      'Answered Later',
+      'Answered When Asked Again',
       'Dismissed',
       'Expired',
     ]

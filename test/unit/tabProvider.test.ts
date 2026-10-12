@@ -8,6 +8,12 @@ import path from 'node:path'
 import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { removeFolder } from './helpers/temporaryFolders'
+import { ExtensionHookRunner } from '../../src/host/extensionHooksRunner'
+import { memoryContextIo } from './helpers/fakeContextIo'
+import { hookEnvironment, runCommand } from '../../src/host/backend/toolIo'
+import { createTabProvider as entryProvider } from '../../src/host/tab/tabEntry'
+import { BASE_LOCALE } from '../../src/shared/l10n/text'
+import { readFileSync } from 'node:fs'
 import type * as vscode from 'vscode'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -26,7 +32,9 @@ import {
   TAB_COMMAND_IDS,
   isTabLanguageOn,
   type TabCompletionSnapshot,
+  type TabConsentGrant,
   type TabDocumentChange,
+  type TabHookBridge,
   type TabOutcome,
   type TabProviderDeps,
   type TabReportedUsage,
@@ -36,7 +44,6 @@ import {
 import {
   TabIgnoreCache,
   chooseTabMode,
-  createTabProvider,
   inferTabPartialAccept,
   isFilesExcluded,
   isTabFileEligible,
@@ -51,13 +58,20 @@ import {
   TAB_FILE_MAX_BYTES,
   TAB_MODEL_TEXT,
   TAB_MULTILINE_MAX_OUTPUT_TOKENS,
+  UI_TEXT,
+  HOOK_OUTPUT_MAX_BYTES,
 } from '../../src/shared/constants'
 import { FakeCancellationToken, FakeLogOutputChannel, FakeTextDocument } from './helpers/fakes'
+import { hookResult } from './helpers/fakeToolIo'
+import type { ShellResult } from '../../src/core/shellResult'
 import { SYNTHETIC } from './helpers/syntheticTokens'
 import { FakeUri } from './mocks/vscode'
 
 const openContextDocument: (uri: vscode.Uri) => Thenable<vscode.TextDocument> =
   workspace.openTextDocument
+
+/** A consent grant that stays current: the provider cases test other bindings. */
+const GRANTED: TabConsentGrant = { scope: 'window', isCurrent: () => true }
 
 const USAGE: TabReportedUsage = { inputTokens: 10, cachedTokens: 2, outputTokens: 3 }
 const NOTHING_SENT: TabReportedUsage = { inputTokens: 0, cachedTokens: 0, outputTokens: 0 }
@@ -94,6 +108,18 @@ function languagesOffSettings(): ReturnType<TabProviderDeps['settings']> {
     tabMultiline: 'auto',
     tabTrigger: 'automatic',
     tabWithCopilot: 'yield',
+  }
+}
+
+/** A hook bridge with one fixed, loaded hook policy unless a case overrides it. */
+function bridge(overrides: Partial<TabHookBridge> = {}): TabHookBridge {
+  return {
+    beforeRead: () => Promise.resolve(true),
+    afterEdit: () => undefined,
+    bindPolicy: () =>
+      Promise.resolve({ key: 'hooks-1', isConfigurationInvalid: false, isReloading: false }),
+    policyKey: () => 'hooks-1',
+    ...overrides,
   }
 }
 
@@ -373,10 +399,7 @@ describe('isTabFileEligible', () => {
   })
 
   it('refuses each exclusion on its own', async () => {
-    const refusing = {
-      beforeRead: () => Promise.resolve(false),
-      afterEdit: () => undefined,
-    }
+    const refusing = bridge({ beforeRead: () => Promise.resolve(false) })
     const cases: [string, TabFileCandidate, { filesExclude?: Record<string, boolean> }][] = [
       ['private', eligibleCandidate({ relativePath: '.env' }), {}],
       ['new private entry', eligibleCandidate({ relativePath: 'secrets.yml' }), {}],
@@ -417,7 +440,7 @@ describe('isTabFileEligible', () => {
         filesExclude: {},
         ignore: ignoreAllowing(),
         rootAbs: '/ws',
-        hooks: { beforeRead: () => Promise.resolve(true), afterEdit: () => undefined },
+        hooks: bridge(),
       }),
       'hook without content',
     ).resolves.toBe(false)
@@ -438,7 +461,7 @@ interface ProviderHarness {
   readonly log: FakeLogOutputChannel
   readonly textListeners: ((event: TabTextChangeEvent) => void)[]
   readonly provider: vscode.InlineCompletionItemProvider
-  readonly handle: ReturnType<typeof createTabProvider>
+  readonly handle: ReturnType<typeof entryProvider>
   serve(
     text?: string,
     line?: number,
@@ -476,12 +499,14 @@ function providerHarness(
   })
   const reserve = vi.fn((): Promise<TabReservation | undefined> => Promise.resolve(RESERVATION))
   const settle = vi.fn((): void => undefined)
-  const requestUse = vi.fn((): Promise<boolean> => Promise.resolve(true))
+  const requestUse = vi.fn((): Promise<TabConsentGrant | undefined> => Promise.resolve(GRANTED))
   const beforeRead = vi.fn((): Promise<boolean> => Promise.resolve(true))
   const afterEdit = vi.fn((): void => undefined)
   const log = new FakeLogOutputChannel()
   const textListeners: ((event: TabTextChangeEvent) => void)[] = []
-  const handle = createTabProvider({
+  const handle = entryProvider({
+    uiTable: UI_TEXT,
+    locale: BASE_LOCALE,
     settings: () => ({
       tabModel: 'muse-spark-1.3',
       tabLanguages: { '*': true },
@@ -513,7 +538,7 @@ function providerHarness(
       todayRequests: () => 0,
     },
     consent: { requestUse },
-    hooks: withHooks ? { beforeRead, afterEdit } : undefined,
+    hooks: withHooks ? bridge({ beforeRead, afterEdit }) : undefined,
     onOutcome: (outcome) => {
       outcomes.push(outcome)
     },
@@ -667,7 +692,7 @@ describe('createTabProvider', () => {
   })
 
   it('sends nothing on Deny, and nothing past the budget', async () => {
-    const denied = providerHarness({ consent: { requestUse: () => Promise.resolve(false) } })
+    const denied = providerHarness({ consent: { requestUse: () => Promise.resolve(undefined) } })
     await expect(denied.serve()).resolves.toEqual([])
     expect(denied.outcomes).toEqual([{ kind: 'quiet', reason: 'consent-denied' }])
     expect(denied.complete).not.toHaveBeenCalled()
@@ -697,8 +722,9 @@ describe('createTabProvider', () => {
     expect(result).toEqual([])
     expect(early.complete).not.toHaveBeenCalled()
     expect(early.outcomes).toEqual([{ kind: 'quiet', reason: 'cancelled-before-send' }])
-    // Nothing was sent, so nothing was billed: the reservation is released.
-    expect(early.settle).toHaveBeenCalledWith(RESERVATION, NOTHING_SENT)
+    // Cancellation after consent stops before ledger admission: nothing is reserved or billed.
+    expect(early.reserve).not.toHaveBeenCalled()
+    expect(early.settle).not.toHaveBeenCalled()
 
     const token = new FakeCancellationToken()
     const late = providerHarness({
@@ -771,10 +797,11 @@ describe('createTabProvider', () => {
     harness.handle.acceptNotified(items[0]?.command?.arguments?.[0])
     expect(harness.afterEdit).toHaveBeenCalledWith({
       filePath: '/ws/file.ts',
-      generationId: args?.generationId,
+      generationId: 'request-1',
       model: 'muse-spark-1.3',
-      oldLine: 1,
-      newLine: 1,
+      workspaceRoots: ['/ws'],
+      oldLine: 'const y = ',
+      newLine: 'const y = foo()',
       range: { startLineNumber: 1, startColumn: 11, endLineNumber: 1, endColumn: 11 },
       oldString: '',
       newString: 'foo()',
@@ -812,6 +839,8 @@ describe('createTabProvider', () => {
     expect(harness.afterEdit).toHaveBeenLastCalledWith(
       expect.objectContaining({
         newString: 'bar)',
+        oldLine: 'const y = foo(',
+        newLine: 'const y = foo(bar)',
         inferred: true,
         range: { startLineNumber: 1, startColumn: 15, endLineNumber: 1, endColumn: 15 },
       }),
@@ -959,7 +988,7 @@ describe('createTabProvider', () => {
       consent: {
         requestUse: () => {
           box.harness?.handle.dispose()
-          return Promise.resolve(true)
+          return Promise.resolve(GRANTED)
         },
       },
     })
@@ -1136,10 +1165,9 @@ describe('Tab multi-line context wiring', () => {
           tabTrigger: 'automatic',
           tabWithCopilot: 'yield',
         }),
-        hooks: {
+        hooks: bridge({
           beforeRead: (file) => Promise.resolve(reason !== 'hook-denied' || file !== uri.fsPath),
-          afterEdit: () => undefined,
-        },
+        }),
       })
       try {
         await harness.serve(
@@ -1166,6 +1194,450 @@ describe('Tab multi-line context wiring', () => {
     expect(recentEdits).not.toHaveBeenCalled()
     expect(workspace.openTextDocument).not.toHaveBeenCalled()
     expect(commands.executeCommand).not.toHaveBeenCalled()
+    harness.handle.dispose()
+  })
+})
+
+describe('M94KW configured hooks through the lazy factory', () => {
+  it('vetoes before a model call, then observes and edits an accepted completion with a real fake hook', async () => {
+    const root = mkdtempSync(path.join(tmpdir(), 'muse-tab-hook-flow-'))
+    const file = path.join(root, 'file.ts')
+    const fixture = path.resolve('test/fixtures/tabHooks/completion.mjs')
+    const hookRuns: {
+      readonly command: string
+      readonly stdin: string
+      readonly timeoutMs: number
+    }[] = []
+    const files = new Map<string, string | Uint8Array>([
+      [
+        path.join(root, '.muse/spark-hooks.json').replaceAll('\\', '/'),
+        JSON.stringify({
+          hooks: {
+            beforeTabFileRead: [
+              {
+                format: 'cursor',
+                sourceEvent: 'beforeTabFileRead',
+                failClosed: false,
+                matcher: 'TabRead',
+                hooks: [{ type: 'command', command: 'fake-read', timeout: 10 }],
+              },
+            ],
+            afterTabFileEdit: [
+              {
+                format: 'cursor',
+                sourceEvent: 'afterTabFileEdit',
+                matcher: 'TabWrite',
+                hooks: [{ type: 'command', command: 'fake-edit' }],
+              },
+            ],
+          },
+        }),
+      ],
+    ])
+    const runner = new ExtensionHookRunner({
+      io: memoryContextIo(files),
+      platform: process.platform,
+      workspaceRoot: root,
+      settingsPath: path.join(root, 'config/settings.json'),
+      isWorkspaceTrusted: () => true,
+      isHooksEnabled: () => true,
+      now: Date.now,
+      runHook: async (command, stdin, cwd, timeoutMs, signal) => {
+        hookRuns.push({ command, stdin, timeoutMs })
+        return await runCommand({
+          file: process.execPath,
+          args: [fixture],
+          cwd,
+          env: hookEnvironment(process.env, process.platform),
+          timeoutMs,
+          signal,
+          stdin,
+          maxOutputBytes: HOOK_OUTPUT_MAX_BYTES,
+          tree: {
+            platform: process.platform,
+            systemRoot: process.env['SystemRoot'],
+            log: () => undefined,
+          },
+        })
+      },
+      notice: () => undefined,
+      showOutput: () => undefined,
+      warn: () => undefined,
+    })
+    await runner.reload()
+    const harness = providerHarness({
+      workspaceRoots: () => [root],
+      hookDispatch: {
+        isHooksEnabled: () => true,
+        load: () => Promise.resolve(runner),
+      },
+    })
+    try {
+      await expect(
+        harness.serve('BLOCK_TAB', 0, 0, new FakeCancellationToken(), file),
+      ).resolves.toEqual([])
+      expect(harness.complete).not.toHaveBeenCalled()
+      await harness.serve('BLOCK_TAB', 0, 0, new FakeCancellationToken(), file)
+      expect(hookRuns).toHaveLength(1)
+      writeFileSync(file, 'const y = ')
+      const items = await harness.serve('const y = ', 0, 10, new FakeCancellationToken(), file)
+      expect(items).toHaveLength(1)
+      expect(hookRuns.at(-1)?.timeoutMs).toBe(1500)
+      const args = items[0]?.command?.arguments?.[0]
+      writeFileSync(file, 'const y = foo()')
+      harness.handle.acceptNotified(args)
+      await vi.waitFor(() => {
+        expect(readFileSync(file, 'utf8')).toContain('fake hook edited accepted completion')
+      })
+      expect(JSON.parse(hookRuns.at(-1)?.stdin ?? '{}')).toMatchObject({
+        hook_event_name: 'afterTabFileEdit',
+        generation_id: 'request-3',
+        file_path: file,
+        edits: [
+          {
+            old_string: '',
+            new_string: 'foo()',
+            old_line: 'const y = ',
+            new_line: 'const y = foo()',
+            range: { start_line_number: 1, start_column: 11, end_line_number: 1, end_column: 11 },
+          },
+        ],
+      })
+      expect(harness.complete).toHaveBeenCalledOnce()
+    } finally {
+      harness.handle.dispose()
+      await removeFolder(root)
+    }
+  })
+
+  it('keeps completion bytes identical with no configured guard, including JSON-expanded text', async () => {
+    const plain = providerHarness()
+    const run = vi.fn().mockResolvedValue([])
+    const wired = providerHarness({
+      hookDispatch: {
+        isHooksEnabled: () => true,
+        configurationVersion: () => 'empty',
+        hookState: () => Promise.resolve('absent'),
+        run,
+      },
+    })
+    const text = 'const y = ' + '"'.repeat(TAB_FILE_MAX_BYTES / 2)
+    expect(JSON.stringify(await wired.serve(text))).toBe(JSON.stringify(await plain.serve(text)))
+    expect(wired.snapshots).toEqual(
+      plain.snapshots.map((snapshot) => ({ ...snapshot, isCancelled: expect.any(Function) })),
+    )
+    expect(run).not.toHaveBeenCalled()
+    plain.handle.dispose()
+    wired.handle.dispose()
+  })
+})
+
+describe('Tab accepted edit metadata', () => {
+  it('reports only the remaining full insertion after a partial word', async () => {
+    const harness = providerHarness({ engineCompletion: 'foo(bar)', withHooks: true })
+    const items = await harness.serve()
+    harness.textListeners[0]?.({ changes: [textChange({ insertedText: 'foo(' })] })
+    harness.handle.acceptNotified(items[0]?.command?.arguments?.[0])
+    expect(harness.afterEdit).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        newString: 'bar)',
+        oldLine: 'const y = foo(',
+        newLine: 'const y = foo(bar)',
+        range: { startLineNumber: 1, startColumn: 15, endLineNumber: 1, endColumn: 15 },
+        inferred: false,
+      }),
+    )
+  })
+})
+
+// RVM94KR: the configured hook file, the bound policy and the bound model,
+// through the shipped lazy factory and the real window hook runner.
+const PROJECT_SPARK = '/ws/.muse/spark-hooks.json'
+const STANDARD = 'muse-spark-1.3'
+const CONTRIBUTOR = 'muse-spark-1.3-contributor'
+
+function sparkDoc(doc: unknown): string {
+  return JSON.stringify({ hooks: doc })
+}
+
+const READ_GUARD = sparkDoc({
+  beforeTabFileRead: [{ hooks: [{ type: 'command', command: 'guard' }] }],
+})
+
+/** The window's runner over in-memory hook files; `runHook` answers each guard. */
+function hookRunner(
+  files: Map<string, string | Uint8Array>,
+  runHook: (command: string) => ShellResult | Promise<ShellResult>,
+): ExtensionHookRunner {
+  return new ExtensionHookRunner({
+    io: memoryContextIo(files),
+    platform: 'linux',
+    workspaceRoot: '/ws',
+    settingsPath: '/home/user/.config/muse/settings.json',
+    isWorkspaceTrusted: () => true,
+    isHooksEnabled: () => true,
+    now: Date.now,
+    runHook: (command) => Promise.resolve(runHook(command)),
+    notice: () => undefined,
+    showOutput: () => undefined,
+    warn: () => undefined,
+  })
+}
+
+/** The provider through the lazy factory over a loaded window runner. */
+async function runnerHarness(
+  files: Map<string, string | Uint8Array>,
+  runHook: (command: string) => ShellResult | Promise<ShellResult>,
+  overrides: Partial<TabProviderDeps> = {},
+): Promise<{ readonly runner: ExtensionHookRunner; readonly harness: ProviderHarness }> {
+  const runner = hookRunner(files, runHook)
+  await runner.reload()
+  const harness = providerHarness({
+    hookDispatch: { isHooksEnabled: () => true, load: () => Promise.resolve(runner) },
+    ...overrides,
+  })
+  return { runner, harness }
+}
+
+/** What a request's bound policy reads, changed under it by the cases. */
+interface PolicyState {
+  version: string
+  isTrusted: boolean
+  exclude: Record<string, boolean>
+  model: string
+}
+
+function modelSettings(model: () => string): TabProviderDeps['settings'] {
+  return () => ({
+    tabModel: model(),
+    tabLanguages: { '*': true },
+    tabMultiline: 'auto',
+    tabTrigger: 'automatic',
+    tabWithCopilot: 'yield',
+  })
+}
+
+describe('RVM94KR 1: a hook file that does not load whole refuses every read', () => {
+  it.each([
+    ['invalid JSON', '{"hooks": {'],
+    [
+      'an invalid Tab import group',
+      sparkDoc({
+        beforeTabFileRead: [
+          {
+            format: 'cursor',
+            sourceEvent: 'afterTabFileEdit',
+            hooks: [{ type: 'command', command: 'guard' }],
+          },
+        ],
+      }),
+    ],
+    [
+      'a guard whose matcher never names TabRead',
+      sparkDoc({
+        beforeTabFileRead: [{ matcher: 'TabWrite', hooks: [{ type: 'command', command: 'g' }] }],
+      }),
+    ],
+    ['a misspelt event name', sparkDoc({ beforeTabFileread: [] })],
+  ])('with %s, says why and sends nothing', async (_name, text) => {
+    const runs: string[] = []
+    const { harness } = await runnerHarness(new Map([[PROJECT_SPARK, text]]), (command) => {
+      runs.push(command)
+      return hookResult('{"permission":"allow"}')
+    })
+    await expect(harness.serve()).resolves.toEqual([])
+    expect(harness.complete).not.toHaveBeenCalled()
+    expect(harness.requestUse).not.toHaveBeenCalled()
+    expect(runs).toEqual([])
+    expect(harness.outcomes).toEqual([{ kind: 'quiet', reason: 'hooks-invalid' }])
+    harness.handle.dispose()
+  })
+
+  it('keeps refusing after a denying guard file breaks, and reads again once fixed', async () => {
+    const files = new Map<string, string | Uint8Array>([[PROJECT_SPARK, READ_GUARD]])
+    const { runner, harness } = await runnerHarness(files, () =>
+      hookResult('{"permission":"deny"}'),
+    )
+    await expect(harness.serve()).resolves.toEqual([])
+    expect(harness.outcomes).toEqual([{ kind: 'quiet', reason: 'ineligible-file' }])
+    files.set(PROJECT_SPARK, '{"hooks": {"beforeTabFileRead": [')
+    await runner.reload()
+    await expect(harness.serve()).resolves.toEqual([])
+    expect(harness.outcomes.at(-1)).toEqual({ kind: 'quiet', reason: 'hooks-invalid' })
+    expect(harness.complete).not.toHaveBeenCalled()
+    files.set(PROJECT_SPARK, sparkDoc({}))
+    await runner.reload()
+    await expect(harness.serve()).resolves.toHaveLength(1)
+    expect(harness.complete).toHaveBeenCalledOnce()
+    harness.handle.dispose()
+  })
+
+  it('reads without a guard when no hook file exists', async () => {
+    const { harness } = await runnerHarness(new Map(), () => hookResult('{"permission":"deny"}'))
+    await expect(harness.serve()).resolves.toHaveLength(1)
+    harness.handle.dispose()
+  })
+})
+
+describe('RVM94KR 2: a request is bound to the policy it started under', () => {
+  it('drops a request whose hook configuration changes while the question is open', async () => {
+    const hooks = { version: 'v1', verdict: 'allow' }
+    const run = vi.fn(() =>
+      Promise.resolve([hookResult(JSON.stringify({ permission: hooks.verdict }))]),
+    )
+    const harness = providerHarness({
+      hookDispatch: {
+        isHooksEnabled: () => true,
+        configurationVersion: () => hooks.version,
+        hookState: () => Promise.resolve('present'),
+        run,
+      },
+      consent: {
+        requestUse: () => {
+          hooks.version = 'v2'
+          hooks.verdict = 'deny'
+          return Promise.resolve(GRANTED)
+        },
+      },
+    })
+    await expect(harness.serve()).resolves.toEqual([])
+    expect(harness.complete).not.toHaveBeenCalled()
+    expect(harness.outcomes).toEqual([{ kind: 'quiet', reason: 'policy-changed' }])
+    // The next request is judged under the new configuration: refused.
+    await expect(harness.serve()).resolves.toEqual([])
+    expect(run).toHaveBeenCalledTimes(2)
+    expect(harness.complete).not.toHaveBeenCalled()
+    harness.handle.dispose()
+  })
+
+  it.each<readonly [string, (state: PolicyState) => void]>([
+    [
+      'the hook configuration',
+      (state) => {
+        state.version = 'v2'
+      },
+    ],
+    [
+      'trust',
+      (state) => {
+        state.isTrusted = false
+      },
+    ],
+    [
+      'files.exclude',
+      (state) => {
+        state.exclude = { '*.ts': true }
+      },
+    ],
+    [
+      'the model',
+      (state) => {
+        state.model = CONTRIBUTOR
+      },
+    ],
+  ])('sends nothing once %s changes during the debounce or slot wait', async (_name, change) => {
+    const state: PolicyState = { version: 'v1', isTrusted: true, exclude: {}, model: STANDARD }
+    const harness = providerHarness({
+      isTrusted: () => state.isTrusted,
+      filesExclude: () => state.exclude,
+      settings: modelSettings(() => state.model),
+      hookDispatch: {
+        isHooksEnabled: () => true,
+        configurationVersion: () => state.version,
+        hookState: () => Promise.resolve('absent'),
+        run: () => Promise.resolve([]),
+      },
+    })
+    await harness.serve()
+    const snapshot = harness.snapshots[0]
+    expect(snapshot?.isCancelled()).toBe(false)
+    change(state)
+    expect(snapshot?.isCancelled()).toBe(true)
+    harness.handle.dispose()
+  })
+
+  it('shows no answer reached after the policy moved, and still settles its usage', async () => {
+    const state = { version: 'v1' }
+    const harness = providerHarness({
+      hookDispatch: {
+        isHooksEnabled: () => true,
+        configurationVersion: () => state.version,
+        hookState: () => Promise.resolve('absent'),
+        run: () => Promise.resolve([]),
+      },
+      engine: {
+        complete: () => {
+          state.version = 'v2'
+          return Promise.resolve({ completion: 'foo()', usage: Promise.resolve(USAGE) })
+        },
+      },
+    })
+    await expect(harness.serve()).resolves.toEqual([])
+    expect(harness.outcomes).toEqual([{ kind: 'quiet', reason: 'policy-changed' }])
+    await vi.waitFor(() => {
+      expect(harness.settle).toHaveBeenCalledWith(RESERVATION, USAGE)
+    })
+    harness.handle.dispose()
+  })
+})
+
+describe('RVM94KR 3: the model asked about is the model sent', () => {
+  it('asks for the request’s own model and never sends one the settings moved from', async () => {
+    const state = { model: CONTRIBUTOR }
+    const asked: string[] = []
+    const harness = providerHarness({
+      settings: modelSettings(() => state.model),
+      consent: {
+        requestUse: (model) => {
+          asked.push(model)
+          // The user switches to Standard while the question is open.
+          state.model = STANDARD
+          return Promise.resolve(GRANTED)
+        },
+      },
+    })
+    await expect(harness.serve()).resolves.toEqual([])
+    expect(asked).toEqual([CONTRIBUTOR])
+    expect(harness.reserve).not.toHaveBeenCalled()
+    expect(harness.complete).not.toHaveBeenCalled()
+    await expect(harness.serve()).resolves.toHaveLength(1)
+    expect(asked).toEqual([CONTRIBUTOR, STANDARD])
+    expect(harness.snapshots.map((snapshot) => snapshot.model)).toEqual([STANDARD])
+    expect(harness.reserve).toHaveBeenCalledWith(expect.objectContaining({ model: STANDARD }))
+    harness.handle.dispose()
+  })
+
+  it('never dispatches Contributor after a switch to Standard while the read guard waits', async () => {
+    const state = { model: CONTRIBUTOR }
+    const guard = Promise.withResolvers<ShellResult>()
+    const runs: string[] = []
+    const asked: string[] = []
+    const { harness } = await runnerHarness(
+      new Map([[PROJECT_SPARK, READ_GUARD]]),
+      (command) => {
+        runs.push(command)
+        return guard.promise
+      },
+      {
+        settings: modelSettings(() => state.model),
+        consent: {
+          requestUse: (model) => {
+            asked.push(model)
+            return Promise.resolve(GRANTED)
+          },
+        },
+      },
+    )
+    const pending = harness.serve()
+    await vi.waitFor(() => {
+      expect(runs).toHaveLength(1)
+    })
+    state.model = STANDARD
+    guard.resolve(hookResult('{"permission":"allow"}'))
+    await expect(pending).resolves.toEqual([])
+    expect(asked).toEqual([])
+    expect(harness.complete).not.toHaveBeenCalled()
+    expect(harness.outcomes).toEqual([{ kind: 'quiet', reason: 'policy-changed' }])
     harness.handle.dispose()
   })
 })
