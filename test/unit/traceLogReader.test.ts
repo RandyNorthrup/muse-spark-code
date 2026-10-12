@@ -198,12 +198,15 @@ describe('cached trace reader', () => {
     expect(fs.opens).toBe(1)
     const rewritten = fs.files.get(path.join(directory, 'cli-a.log'))
     if (rewritten === undefined) throw new Error('seeded file missing')
-    // Same millisecond, same size class, same inode: only mtimeNs moves.
-    rewritten.content += admission('2026-10-12T05:30:00.000Z', 'second')
+    // Same byte size, same millisecond, same inode: only the content and
+    // the nanosecond mtime move, so only mtimeNs can notice.
+    rewritten.content = rewritten.content.replace('cli-a.log', 'cli-b.log')
     rewritten.mtimeNs = String(BigInt(rewritten.mtimeMs) * 1_000_000n + 7n)
     const second = await reader.readLogs(NOW)
     expect(fs.opens).toBe(2)
-    expect(second.flatMap((facts) => facts.attempts)).toHaveLength(2)
+    expect(second.flatMap((facts) => facts.attempts).map((attempt) => attempt.runId)).toEqual([
+      'cli-b.log',
+    ])
   })
 
   it('concurrent callers share one refresh in flight', async () => {
