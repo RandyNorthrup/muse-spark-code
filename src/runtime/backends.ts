@@ -420,7 +420,12 @@ function modelApiManager(
       }
       const entry = await accountingEntry()
       entry.setUiText(UI_TEXT, uiLocale())
-      return entry.withRuntimeAccounting(client, await dailyBudget(), deps.exec?.responseAccounting)
+      return entry.withRuntimeAccounting(
+        client,
+        await dailyBudget(),
+        deps.exec?.responseAccounting,
+        deps.exec?.providerRun?.dispatch,
+      )
     },
     reservePaidRequest: async (
       body,

@@ -324,6 +324,7 @@ export function pinProviderFetch(
   provider: ResolvedProvider,
   rules: readonly ProviderPathRule[],
   resolveHost: (hostname: string) => Promise<readonly string[]>,
+  onDispatch?: () => void,
 ): typeof globalThis.fetch {
   const pinned = originOf(provider.origin)
   const isLoopback = provider.network === 'local'
@@ -384,6 +385,8 @@ export function pinProviderFetch(
     }
     if (!isEndpointBindingCurrent(provider, answers))
       throw new UserRefusalError(UI_TEXT.providerProbeRebinding, 'not_sent')
+    init?.signal?.throwIfAborted()
+    onDispatch?.()
     return await fetch(url, { ...init, redirect: 'error' })
   }
 }
@@ -402,6 +405,8 @@ export interface AssembledProviderRun {
   readonly literals: readonly string[]
   /** The memory secrets, for the runner's cleanup. */
   readonly memory: MemorySecretStore | undefined
+  /** One headless run owns its synchronous final dispatch fence. */
+  readonly dispatch?: { onRequestStarted?: () => void }
 }
 
 export interface ProviderRunInput {
@@ -547,9 +552,11 @@ export async function assembleProviderRun(
   if (!isEndpointBindingCurrent(provider, answers)) {
     return usage(fill(UI_TEXT.providerEndpointRefused, { reason: UI_TEXT.providerProbeRebinding }))
   }
+  const dispatch: { onRequestStarted?: () => void } = {}
   return {
     ok: true,
     run: {
+      dispatch,
       resolveHost: input.resolveHost,
       provider,
       modelRef,
@@ -558,6 +565,7 @@ export async function assembleProviderRun(
         provider,
         allowedProviderPaths(provider),
         input.resolveHost,
+        () => dispatch.onRequestStarted?.(),
       ),
       secrets: memory ?? input.secrets,
       literals: key === undefined ? [] : [key],
