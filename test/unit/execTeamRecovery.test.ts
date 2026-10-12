@@ -158,6 +158,54 @@ describe('execTeamRecovery cleanup ledger', () => {
   )
 
   it(
+    'serializes concurrent ledger updates so a record racing a prune loses nothing (P2-6)',
+    async () => {
+      const tmpRoot = await mkdtemp(path.join(tmpdir(), 'm96b-sweep-'))
+      trackTeamRoot(tmpRoot)
+      const folder = path.join(tmpRoot, `${EXEC_TEAM_RUN_PREFIX}race-`)
+      await mkdir(folder, { recursive: true })
+      await recordCleanupOwner(folder, currentOwner())
+      const first = {
+        repo: '/repo',
+        role: 'engineering',
+        taskId: 'race-1',
+        ref: 'refs/heads/agents/engineering/race-1',
+      }
+      const second = {
+        repo: '/repo',
+        role: 'engineering',
+        taskId: 'race-2',
+        ref: 'refs/heads/agents/engineering/race-2',
+      }
+      await Promise.all([recordCleanupRef(folder, first), recordCleanupRef(folder, second)])
+      const readRefs = async (): Promise<Set<string>> => {
+        const stored = JSON.parse(
+          await readFile(path.join(folder, 'team-cleanup.json'), 'utf8'),
+        ) as { refs: readonly { ref: string }[] }
+        return new Set(stored.refs.map((entry) => entry.ref))
+      }
+      expect(await readRefs()).toEqual(
+        new Set(['refs/heads/agents/engineering/race-1', 'refs/heads/agents/engineering/race-2']),
+      )
+      // Either serialization order of a prune racing a record ends the same way.
+      const third = {
+        repo: '/repo',
+        role: 'engineering',
+        taskId: 'race-3',
+        ref: 'refs/heads/agents/engineering/race-3',
+      }
+      await Promise.all([
+        pruneCleanupRef(folder, '/repo', 'refs/heads/agents/engineering/race-1'),
+        recordCleanupRef(folder, third),
+      ])
+      expect(await readRefs()).toEqual(
+        new Set(['refs/heads/agents/engineering/race-2', 'refs/heads/agents/engineering/race-3']),
+      )
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+
+  it(
     'skips a malformed ledger and still sweeps later dead runs (P2-12)',
     async () => {
       const tmpRoot = await mkdtemp(path.join(tmpdir(), 'm96b-sweep-'))

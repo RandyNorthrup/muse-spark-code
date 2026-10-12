@@ -1,7 +1,7 @@
 // M96b headless-run recovery (RVCM96B2 P2 findings 4-6): the run's durable
 // clean-up ledger, the stale-run sweep, denied-merge hold refs and the merge
 // marker gate. Loads only for --team, beside execTeamEntry; never at activation.
-import { readdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
+import { open, readdir, readFile, rename, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import * as z from 'zod/mini'
@@ -68,10 +68,51 @@ async function readLedger(folder: string): Promise<CleanupLedger | undefined> {
   }
 }
 
+/**
+ * One writer queue per run folder (RVCM96B2D P2-6): concurrent ledger
+ * updates in this process serialize instead of losing records to a shared
+ * read-modify-write. Cross-process writers still need the file lease
+ * (PLAN.md section 8): unique temporary names below keep them from
+ * consuming each other's files.
+ */
+const ledgerGates = new Map<string, Promise<void>>()
+
+async function withLedgerGate<T>(folder: string, work: () => Promise<T>): Promise<T> {
+  const previous = ledgerGates.get(folder) ?? Promise.resolve()
+  const current = (async (): Promise<T> => {
+    await previous
+    return await work()
+  })()
+  const quiet = (async (): Promise<void> => {
+    try {
+      await current
+    } catch {
+      // One failed turn never wedges the queue: the next turn still runs.
+    }
+  })()
+  ledgerGates.set(folder, quiet)
+  try {
+    return await current
+  } finally {
+    if (ledgerGates.get(folder) === quiet) ledgerGates.delete(folder)
+  }
+}
+
+const ledgerWriteCounter = { next: 0 }
+
 async function writeLedger(folder: string, ledger: CleanupLedger): Promise<void> {
   const target = ledgerFile(folder)
-  const temporary = `${target}.new`
-  await writeFile(temporary, JSON.stringify(ledger))
+  // Unique per write (P2-6): two writers never share one temporary name, so
+  // a record racing a prune cannot consume the other's file on rename.
+  ledgerWriteCounter.next += 1
+  const temporary = `${target}.${String(process.pid)}.${String(Date.now())}.${String(ledgerWriteCounter.next)}.new`
+  const handle = await open(temporary, 'w')
+  try {
+    await handle.writeFile(JSON.stringify(ledger))
+    await handle.sync()
+  } finally {
+    await handle.close()
+  }
   await rename(temporary, target)
 }
 
@@ -84,27 +125,41 @@ export function currentOwner(): CleanupOwner {
 
 /** Record the run-folder owner before anything else is created. */
 export async function recordCleanupOwner(folder: string, owner: CleanupOwner): Promise<void> {
-  await writeLedger(folder, { owner, refs: [], holds: [] })
+  await withLedgerGate(folder, async () => {
+    await writeLedger(folder, { owner, refs: [], holds: [] })
+  })
+}
+
+/** A queued ledger read: the stored ledger, or a blank one for a new folder. */
+async function readLedgerOrBlank(folder: string): Promise<CleanupLedger> {
+  const ledger = await readLedger(folder)
+  return (
+    ledger ?? {
+      owner: currentOwner(),
+      refs: [],
+      holds: [],
+    }
+  )
 }
 
 /** Record an owned agents ref BEFORE its worker starts, so a later run sweeps it. */
 export async function recordCleanupRef(folder: string, entry: CleanupEntry): Promise<void> {
-  const ledger = (await readLedger(folder)) ?? {
-    owner: currentOwner(),
-    refs: [],
-    holds: [],
-  }
-  if (ledger.refs.some((known) => known.ref === entry.ref && known.repo === entry.repo)) return
-  await writeLedger(folder, { ...ledger, refs: [...ledger.refs, entry] })
+  await withLedgerGate(folder, async () => {
+    const ledger = await readLedgerOrBlank(folder)
+    if (ledger.refs.some((known) => known.ref === entry.ref && known.repo === entry.repo)) return
+    await writeLedger(folder, { ...ledger, refs: [...ledger.refs, entry] })
+  })
 }
 
 /** Forget a ref the run itself removed on a normal end. */
 export async function pruneCleanupRef(folder: string, repo: string, ref: string): Promise<void> {
-  const ledger = await readLedger(folder)
-  if (ledger === undefined) return
-  const refs = ledger.refs.filter((known) => !(known.ref === ref && known.repo === repo))
-  if (refs.length === ledger.refs.length) return
-  await writeLedger(folder, { ...ledger, refs })
+  await withLedgerGate(folder, async () => {
+    const ledger = await readLedger(folder)
+    if (ledger === undefined) return
+    const refs = ledger.refs.filter((known) => !(known.ref === ref && known.repo === repo))
+    if (refs.length === ledger.refs.length) return
+    await writeLedger(folder, { ...ledger, refs })
+  })
 }
 
 /**
@@ -318,13 +373,11 @@ export async function releaseHoldRef(
 
 /** Record a held branch in the run ledger beside the owned refs. */
 export async function recordHoldRef(folder: string, entry: CleanupEntry): Promise<void> {
-  const ledger = (await readLedger(folder)) ?? {
-    owner: currentOwner(),
-    refs: [],
-    holds: [],
-  }
-  if (ledger.holds.some((known) => known.ref === entry.ref && known.repo === entry.repo)) return
-  await writeLedger(folder, { ...ledger, holds: [...ledger.holds, entry] })
+  await withLedgerGate(folder, async () => {
+    const ledger = await readLedgerOrBlank(folder)
+    if (ledger.holds.some((known) => known.ref === entry.ref && known.repo === entry.repo)) return
+    await writeLedger(folder, { ...ledger, holds: [...ledger.holds, entry] })
+  })
 }
 
 /**
@@ -332,7 +385,6 @@ export async function recordHoldRef(folder: string, entry: CleanupEntry): Promis
  * read (RVCM96B2D P2-8): anything else (a lock, a timeout, a killed child)
  * keeps the record for a retry instead of pruning it as absent.
  */
-/** `rev-parse --verify` proving the ref is gone (unknown revision). */
 const GIT_UNKNOWN_REVISION_EXIT_CODE = 128
 
 function isUnknownRevision(error: unknown): boolean {
@@ -364,6 +416,23 @@ async function withCleanupRetry<T>(work: () => Promise<T>): Promise<T> {
   throw error
 }
 
+type OwnedRefPresence =
+  | { readonly kind: 'present' }
+  | { readonly kind: 'absent' }
+  | { readonly kind: 'failed'; readonly error: unknown }
+
+/** A verified presence check: present, proven absent, or failed (P2-8). */
+async function checkOwnedRefPresent(git: TeamGit, entry: CleanupEntry): Promise<OwnedRefPresence> {
+  try {
+    await withCleanupRetry(() =>
+      withGitBounds(git(['rev-parse', '--verify', entry.ref], entry.repo)),
+    )
+    return { kind: 'present' }
+  } catch (error: unknown) {
+    return isUnknownRevision(error) ? { kind: 'absent' } : { kind: 'failed', error }
+  }
+}
+
 /**
  * A normal end removes and clears the record (RVCM96B2 P2-4): after the
  * run's own discards, every owned ref the ledger still names is verified
@@ -390,16 +459,9 @@ export async function removeStaleCleanupRefs(options: {
   let failures = 0
   for (const entry of ledger.refs) {
     try {
-      let isPresent = true
-      try {
-        await withCleanupRetry(() =>
-          withGitBounds(options.git(['rev-parse', '--verify', entry.ref], entry.repo)),
-        )
-      } catch (error: unknown) {
-        if (!isUnknownRevision(error)) throw error
-        isPresent = false
-      }
-      if (isPresent) {
+      const checked = await checkOwnedRefPresent(options.git, entry)
+      if (checked.kind === 'failed') throw checked.error
+      if (checked.kind === 'present') {
         await withCleanupRetry(() =>
           withGitBounds(options.git(['update-ref', '-d', entry.ref], entry.repo)),
         )
@@ -488,19 +550,12 @@ export async function sweepStaleTeamRuns(options: {
     for (const entry of ledger.refs) {
       const expected = predictedAgentsRef(entry.role, entry.taskId)
       if (expected === undefined || expected !== entry.ref) continue
-      let isPresent = true
-      try {
-        await withCleanupRetry(() =>
-          withGitBounds(options.git(['rev-parse', '--verify', entry.ref], entry.repo)),
-        )
-      } catch (error: unknown) {
-        if (!isUnknownRevision(error)) {
-          hasFailed = true
-          continue
-        }
-        isPresent = false
+      const checked = await checkOwnedRefPresent(options.git, entry)
+      if (checked.kind === 'failed') {
+        hasFailed = true
+        continue
       }
-      if (!isPresent) continue
+      if (checked.kind === 'absent') continue
       try {
         await withCleanupRetry(() =>
           withGitBounds(options.git(['update-ref', '-d', entry.ref], entry.repo)),
