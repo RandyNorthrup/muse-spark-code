@@ -31,6 +31,23 @@ built from `CHANGELOG.md` at build time. Before the release PR bumps
 
 The notes stay English; the page's own words are translated.
 
+## Release notes and the screenshots
+
+A release does not need new screenshots for its notes. The What's New scenes
+of the visual gate render a fixed fixture,
+`test/harness/whats-new/CHANGELOG.fixture.md`, never `CHANGELOG.md`, and a
+fixed version, so a new section, a changed entry or a version bump moves no
+frame, and `CHANGELOG.md` is not a capture input
+(`scripts/lib/captureInputs.mjs`). What the real notes say is checked as text
+(the changelog, version and truth tests).
+
+One thing can still ask for a render: notes that use a kind of Markdown the
+fixture does not show (a first table, a first quote).
+`test/unit/whatsNewFixture.test.mjs` then fails and names the kind. Add an
+example of it to the fixture, re-render with a reviewed update
+(CONTRIBUTING.md), look at the What's New frames in the light, dark and both
+high-contrast themes at 320 px, and commit the manifest with the fixture.
+
 ## Keeping the roadmap's release sections right
 
 `ROADMAP.md` is generated (PLAN.md M122). Every version for which PLAN.md

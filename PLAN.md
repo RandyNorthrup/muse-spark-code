@@ -1,5 +1,22 @@
 # PLAN — Muse Spark for VS Code (unofficial)
 
+**VISFIX: release notes move no screenshot (2026-10-11, host with the Mac
+mini and linuxlt; before 0.17.2).** Lead's ruling after REL0171C's finding
+that a `CHANGELOG.md` entry or a version bump moved 108 What's New frames and
+cost a 73 to 113 minute reviewed render per release. The three What's New
+scenes (`whats-new`, `whats-new-footer`, `whats-new-highlights`) render a
+checked-in fixture of two fixed releases and a fixed version
+(`test/harness/whats-new/CHANGELOG.fixture.md`) through the real builder and
+schema; the frames verify the layout, the text gates verify the real text. A
+guard parses the real notes of the two newest releases with the same builder
+and fails on a kind of part the fixture lacks. The one list of capture inputs
+(`scripts/lib/captureInputs.mjs`, read by the reviewed update's guard and
+the candidate's identity) loses `CHANGELOG.md` and gains `scripts/lib`,
+`package.json` and `package-lock.json`, which can move pixels. One reviewed
+update render follows with the fixture in place; after it a release with
+notes and a version bump needs none. A scene-filtered update is left to the
+train. Certification: `docs/certification/visfix.md`.
+
 **REL0171C release assembly (2026-10-11, host with Kubuntu, the Mac mini,
 Win11 and linuxlt; 0.17.1).** Merge the accepted share-preview fix (SHAREFIX
 `a7052b708`) and the truth pass (C-X-1 `99e9b4106`) into `rel0171/final`.
@@ -46945,6 +46962,21 @@ Unresolved items remain delivery/security gaps, not accepted legal conclusions:
   Platform/live release receipts remain separate requirements.
 
 ## 10. Definition of done and release records
+
+**0.17.2 preparation (2026-10-11, release branch).** `release/0.17.2` carries
+the extension version 0.17.2 and the dated `CHANGELOG.md` `[0.17.2]` section:
+the reply-stream fix for providers the user added and for the ChatGPT plan
+sign-in (since 0.15.0 the 30 s deadline of a bounded call also cut off every
+whole reply; `docs/certification/provider-stream-timeout.md`) and the What's
+New screenshot fixture (VISFIX; `docs/certification/visfix.md`) with the one
+reviewed baseline render it needs (`docs/certification/rel0172.md`). A fixes
+only patch, so without Highlights. This is preparation, not publication; the
+public roadmap (M122) lists 0.17.2 as the next release until a
+`0.17.2 released (…)` record follows here.
+
+**0.17.1 released (2026-10-11, tag `v0.17.1` on main's release merge `4d28a4f84`, PR #147, release run 38179212900).**
+The Release run succeeded and the GitHub release was published on
+2026-10-11 at 3:10 PM PT. Recorded by the 0.17.2 preparation.
 
 **0.17.1 preparation (2026-10-10, release branch).** `release/0.17.1` carries
 the extension version 0.17.1 and the dated `CHANGELOG.md` `[0.17.1]` section:

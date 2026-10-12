@@ -320,6 +320,56 @@ export function parseChangelog(markdown, allowed, repository) {
 }
 
 /**
+ * The kinds of parts some release notes are made of: everything the page has
+ * a layout for. The screenshots render a fixed fixture, not the real notes
+ * (test/harness/whats-new/CHANGELOG.fixture.md); the fixture must hold every
+ * kind the real notes use, which whatsNewFixture.test.mjs checks with this.
+ *
+ * @param {ReturnType<typeof parseChangelog>} releases
+ * @returns {Set<string>}
+ */
+export function constructKinds(releases) {
+  const kinds = new Set()
+  const inline = (nodes) => {
+    for (const node of nodes) {
+      kinds.add(`inline:${node.t}`)
+      if (node.c !== undefined) inline(node.c)
+    }
+  }
+  const block = (nodes, listDepth) => {
+    for (const node of nodes) {
+      if (node.t === 'list') {
+        kinds.add(`block:list:${node.ordered ? 'ordered' : 'bullets'}`)
+        kinds.add(`block:list:depth:${String(listDepth + 1)}`)
+        for (const item of node.items) {
+          if (item.length > 1) kinds.add('block:list:item-with-blocks')
+          block(item, listDepth + 1)
+        }
+      } else if (node.t === 'quote') {
+        kinds.add('block:quote')
+        block(node.c, listDepth)
+      } else {
+        kinds.add(`block:${node.t}`)
+        if (node.c !== undefined) inline(node.c)
+      }
+    }
+  }
+  for (const [index, release] of releases.entries()) {
+    kinds.add(index === 0 ? 'release' : 'release:further')
+    for (const highlight of release.highlights) {
+      kinds.add('highlight')
+      block(highlight.c, 0)
+      for (const { kind } of highlight.tries) kinds.add(`try:${kind}`)
+    }
+    for (const section of release.sections) {
+      kinds.add(section.heading === '' ? 'section:untitled' : 'section')
+      block(section.blocks, 0)
+    }
+  }
+  return kinds
+}
+
+/**
  * Why a release cannot ship as written, or undefined (the changelog-version
  * test, M99): a minor or major release (patch 0) needs a Highlights list,
  * since it opens What's New, and no release being made has more than

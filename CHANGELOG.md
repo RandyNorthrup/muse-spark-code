@@ -78,6 +78,28 @@ happened, not what was planned; superseded entries are kept.
   revocation, own-machine Reset included, is still published after an audit
   failure, and the caller still gets the persistence error.
 
+## [0.17.2] - 2026-10-11
+
+### Fixed
+
+- A reply from a provider you added yourself (an Anthropic, OpenAI or
+  Mistral key, a local server and the others) or from a ChatGPT plan is no
+  longer cut off 30 seconds after the request starts. Since 0.15.0 any answer
+  that took longer, such as a long written answer or one the model thinks
+  about first, was lost, and for a provider you added the error read
+  "Models & Agents is not available in this build." A reply now has no limit
+  on its total time; one that goes silent ends after 5 minutes with nothing
+  received, and the message says so.
+
+### Changed
+
+- The visual check renders the What's New screenshots from a fixed sample
+  of release notes (`test/harness/whats-new/CHANGELOG.fixture.md`) instead
+  of this file, so a release's notes and its version no longer need new
+  reviewed screenshots. A test names any kind of Markdown the real notes
+  use and the sample lacks. The capture inputs gain the build helpers and
+  the dependency versions, and no longer include this file (VISFIX).
+
 ## [0.17.1] - 2026-10-10
 
 ### Highlights
