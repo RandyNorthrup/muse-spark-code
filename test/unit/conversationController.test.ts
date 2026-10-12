@@ -4652,6 +4652,7 @@ describe('ConversationController: account & usage (M8)', () => {
     }
     const port = {
       read: vi.fn(() => Promise.resolve(report)),
+      readStamped: vi.fn(() => Promise.resolve({ report, accountId: undefined, generation: 0 })),
       post: vi.fn(),
       deleteFile: vi.fn(async (_id: string, isConfirmed: (name: string) => Promise<boolean>) => {
         await isConfirmed('other.pdf')
@@ -4661,7 +4662,7 @@ describe('ConversationController: account & usage (M8)', () => {
     }
     const t = setup({ status: 'signedOut', uploadedFiles: port })
     await t.controller.readUploadedFiles()
-    expect(port.post).toHaveBeenCalledWith(report)
+    expect(port.post).toHaveBeenCalledWith(report, { accountId: undefined, generation: 0 })
     await t.controller.deleteUploadedFiles('file-other')
     expect(port.confirmForeign).toHaveBeenCalledWith(
       'Another app may still use other.pdf. Delete it anyway?',
@@ -4699,40 +4700,46 @@ describe('ConversationController: account & usage (M8)', () => {
     const errorsBefore = errorNotices().length
     // Success path: hold the read, change the generation, then let it land.
     const successGate = new AbortController()
-    port.read.mockImplementationOnce(
+    port.readStamped.mockImplementationOnce(
       () =>
-        new Promise<typeof report>((resolve) => {
-          successGate.signal.addEventListener(
-            'abort',
-            () => {
-              resolve(report)
-            },
-            { once: true },
-          )
-        }),
+        new Promise<{ report: typeof report; accountId: undefined; generation: number }>(
+          (resolve) => {
+            successGate.signal.addEventListener(
+              'abort',
+              () => {
+                resolve({ report, accountId: undefined, generation: 0 })
+              },
+              { once: true },
+            )
+          },
+        ),
     )
     const reading = t.controller.readUploadedFiles()
-    while (port.read.mock.calls.length === 0) await new Promise((settle) => setImmediate(settle))
+    while (port.readStamped.mock.calls.length === 0)
+      await new Promise((settle) => setImmediate(settle))
     t.auth.admissionGeneration += 1
     successGate.abort()
     await reading
     expect(port.post).not.toHaveBeenCalled()
     // Failure path: the same race with a rejecting read says nothing either.
     const failureGate = new AbortController()
-    port.read.mockImplementationOnce(
+    port.readStamped.mockImplementationOnce(
       () =>
-        new Promise<typeof report>((_resolve, reject) => {
-          failureGate.signal.addEventListener(
-            'abort',
-            () => {
-              reject(new Error('stale read'))
-            },
-            { once: true },
-          )
-        }),
+        new Promise<{ report: typeof report; accountId: undefined; generation: number }>(
+          (_resolve, reject) => {
+            failureGate.signal.addEventListener(
+              'abort',
+              () => {
+                reject(new Error('stale read'))
+              },
+              { once: true },
+            )
+          },
+        ),
     )
     const failing = t.controller.readUploadedFiles()
-    while (port.read.mock.calls.length === 1) await new Promise((settle) => setImmediate(settle))
+    while (port.readStamped.mock.calls.length === 1)
+      await new Promise((settle) => setImmediate(settle))
     t.auth.admissionGeneration += 1
     failureGate.abort()
     await failing
@@ -4746,25 +4753,51 @@ describe('ConversationController: account & usage (M8)', () => {
     let account: string | undefined = 'a'.repeat(64)
     const t = setup({ uploadedFiles: port, voiceAccountId: () => Promise.resolve(account) })
     const gate = new AbortController()
-    port.read.mockImplementationOnce(
+    port.readStamped.mockImplementationOnce(
       () =>
-        new Promise<typeof report>((resolve) => {
-          gate.signal.addEventListener(
-            'abort',
-            () => {
-              resolve(report)
-            },
-            { once: true },
-          )
-        }),
+        new Promise<{ report: typeof report; accountId: undefined; generation: number }>(
+          (resolve) => {
+            gate.signal.addEventListener(
+              'abort',
+              () => {
+                resolve({ report, accountId: undefined, generation: 0 })
+              },
+              { once: true },
+            )
+          },
+        ),
     )
     const reading = t.controller.readUploadedFiles()
-    while (port.read.mock.calls.length === 0) await new Promise((settle) => setImmediate(settle))
+    while (port.readStamped.mock.calls.length === 0)
+      await new Promise((settle) => setImmediate(settle))
     // The key switched with no generation bump: the held read's account no
     // longer backs the view, so its report is dropped, not posted.
     account = 'b'.repeat(64)
     gate.abort()
     await reading
+    expect(port.post).not.toHaveBeenCalled()
+  })
+
+  it('drops a report when the generation changes during the final account lookup', async () => {
+    // Finding 5: the currentness check runs after every await. Hold the
+    // read, let it land, then bump the generation while the final account
+    // lookup is in flight: the stale report is dropped, not posted.
+    const report = uploadedFilesReportFixture()
+    const port = fakeUploadedFilesLedger(report)
+    const account = 'a'.repeat(64)
+    let lookups = 0
+    const shared: { auth?: { admissionGeneration: number } } = {}
+    const t = setup({
+      uploadedFiles: port,
+      voiceAccountId: () => {
+        lookups += 1
+        if (lookups === 2 && shared.auth !== undefined) shared.auth.admissionGeneration += 1
+        return Promise.resolve(account)
+      },
+    })
+    shared.auth = t.auth
+    await t.controller.readUploadedFiles()
+    expect(lookups).toBe(2)
     expect(port.post).not.toHaveBeenCalled()
   })
 
@@ -4793,9 +4826,9 @@ describe('ConversationController: account & usage (M8)', () => {
       t.surface.posted.some((message) => message.type === 'notice' && message.level === 'error'),
     ).toBe(true)
     t.controller.dispose()
-    port.read.mockClear()
+    port.readStamped.mockClear()
     await t.controller.readUploadedFiles()
-    expect(port.read).not.toHaveBeenCalled()
+    expect(port.readStamped).not.toHaveBeenCalled()
   })
 
   it('reports a host failure as a notice', async () => {

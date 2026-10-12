@@ -36,8 +36,8 @@ export function uploadedFilesReportFixture(): UploadedFilesReport {
 
 /** The counting ledger double's type: the port surface plus the posted report. */
 export interface FakeUploadedFilesLedger extends AcpUploadsPort, UploadedFilesLedger {
-  readonly read: Mock<() => Promise<UploadedFilesReport>>
-  readonly accountReport: Mock<() => Promise<UploadedFilesReport>>
+  readonly read: Mock<(signal?: AbortSignal) => Promise<UploadedFilesReport>>
+  readonly accountReport: Mock<(signal?: AbortSignal) => Promise<UploadedFilesReport>>
   readonly deleteFile: Mock<
     (
       fileId: string,
@@ -46,8 +46,15 @@ export interface FakeUploadedFilesLedger extends AcpUploadsPort, UploadedFilesLe
     ) => Promise<void>
   >
   readonly deleteAllOurs: Mock<(signal?: AbortSignal) => Promise<void>>
-  readonly post: Mock<(report: UploadedFilesReport) => void>
+  readonly post: Mock<(report: unknown, stamp?: unknown) => void>
   readonly confirmForeign: Mock<(question: string) => Promise<boolean>>
+  readonly readStamped: Mock<
+    (signal?: AbortSignal) => Promise<{
+      report: UploadedFilesReport
+      accountId: string | undefined
+      generation: number
+    }>
+  >
 }
 
 /** A counting ledger double over the shared report, for port-level suites. */
@@ -59,5 +66,6 @@ export function fakeUploadedFilesLedger(report: UploadedFilesReport): FakeUpload
     deleteFile: vi.fn(() => Promise.resolve()),
     deleteAllOurs: vi.fn(() => Promise.resolve()),
     confirmForeign: vi.fn(() => Promise.resolve(false)),
+    readStamped: vi.fn(() => Promise.resolve({ report, accountId: undefined, generation: 0 })),
   }
 }

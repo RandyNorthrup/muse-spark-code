@@ -77,6 +77,27 @@ describe('runUploadsCommand', () => {
     expect(files.deleteFile).toHaveBeenCalledTimes(1)
   })
 
+  it('refuses zero and other invalid one-based selectors with a sentence', async () => {
+    // Finding 3: `/uploads delete 0` wrapped to the last listed file
+    // through Array.at(-1). Every non-listed number is refused instead.
+    const files = fakePort()
+    for (const selector of ['0', '00', '007', '99999999999999999999999']) {
+      await expect(
+        runUploadsCommand(`/uploads delete ${selector}`, { files, send: () => undefined }),
+      ).rejects.toThrow()
+    }
+    expect(files.deleteFile).not.toHaveBeenCalled()
+    // Zero is not a listed number: the usage sentence, not a delete.
+    await expect(
+      runUploadsCommand('/uploads delete 0', { files, send: () => undefined }),
+    ).rejects.toThrow(UI_TEXT.media.uploadsUsage)
+    // A well-formed number past the list names what is missing.
+    await expect(
+      runUploadsCommand('/uploads delete 9', { files, send: () => undefined }),
+    ).rejects.toThrow('9')
+    expect(files.deleteFile).not.toHaveBeenCalled()
+  })
+
   it('keeps a foreign file with its reason and deletes nothing', async () => {
     const sent: string[] = []
     const files = fakePort()

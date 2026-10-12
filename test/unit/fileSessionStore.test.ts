@@ -20,6 +20,7 @@ import {
   type SessionUploadOwnership,
 } from '../../src/core/media/uploadLedger'
 import { FilesApi } from '../../src/core/backends/modelapi/files'
+import { ModelApiError } from '../../src/core/backends/modelapi/client'
 import { FifoLimiter } from '../../src/core/fifoLimiter'
 
 const root = mkdtempSync(path.join(tmpdir(), 'muse-sessions-'))
@@ -188,6 +189,105 @@ describe('createFileSessionStore', () => {
     expect(await other.load('saved')).toBeUndefined()
     expect(t.state().entries).toEqual([])
     expect(t.requestFile).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps a pinned upload when a stale second window saves without it', async () => {
+    // Finding 1: window A uploads and sends a request carrying the file
+    // (the bracket pins it durably); window B saves its older snapshot.
+    // The final ownership sync must not delete the file in use.
+    const t = await ledgerFor('stale-window-pin')
+    const { directory, uploads, session } = t
+    await t.ledger.pinFiles([uploadedFile.fileId])
+    expect(t.state().pinned).toEqual([uploadedFile.fileId])
+    // A fresh module has a distinct process-local writer map, like another
+    // window; both instances share the same on-disk session and ledger.
+    vi.resetModules()
+    const { createFileSessionStore: independentFactory } =
+      await import('../../src/host/backend/fileSessionStore')
+    const staleWindow = storeIn(directory, { uploads }, independentFactory).store
+    await staleWindow.save({ ...session, fileRefs: [] })
+    expect(t.requestFile).not.toHaveBeenCalled()
+    expect(t.state().entries).toEqual([{ file: uploadedFile, sessions: [] }])
+    // The request settles: the pin drains and an explicit delete goes at
+    // once, while the young orphan still waits out its expiry on reads.
+    await t.ledger.unpinFiles([uploadedFile.fileId])
+    expect(t.state().pinned).toEqual([])
+    await t.ledger.deleteAllOurs()
+    expect(t.requestFile).toHaveBeenCalledTimes(1)
+    expect(t.state().entries).toEqual([])
+  })
+
+  it('logs provider delete failures in fixed words and keeps the reason for the caller', async () => {
+    // Finding 8: a delete error naming the file id and name never reaches
+    // the log; the user-facing failure still names its reason.
+    const accountId = 'b'.repeat(64)
+    const requestFile = vi.fn(() => {
+      throw new ModelApiError(
+        'Cannot delete file-old confidential-report.pdf',
+        500,
+        'server_error',
+        undefined,
+      )
+    })
+    const rig = (directoryName: string) => {
+      const ledgerState: { state: UploadLedgerState } = {
+        state: {
+          version: 1,
+          accountId,
+          entries: [{ file: uploadedFile, sessions: ['saved'] }],
+          cachedFiles: [],
+        },
+      }
+      const lock = new FifoLimiter(1)
+      const ledgerStorage: UploadLedgerStorage = {
+        read: () => Promise.resolve(structuredClone(ledgerState.state)),
+        write: (next) => {
+          ledgerState.state = structuredClone(next)
+          return Promise.resolve()
+        },
+        withLock: async (operation) =>
+          await lock.run(
+            operation,
+            () => true,
+            () => new Error('Dropped'),
+          ),
+      }
+      const canaryLedger = new UploadLedger({
+        storage: ledgerStorage,
+        accountId,
+        provider: 'meta',
+        poolBytes: 100,
+        currentAccountId: () => Promise.resolve(accountId),
+        now: () => NOW,
+        files: new FilesApi({
+          client: { requestFile },
+          provider: 'meta',
+          authorizeUpload: () => Promise.resolve(),
+        }),
+      })
+      return storeIn(path.join(root, directoryName), {
+        uploads: () => Promise.resolve(canaryLedger),
+      })
+    }
+    const saved = { ...stored('saved'), accountId, fileRefs: [uploadedFile] }
+    // The purge keeps the session and logs fixed words only.
+    const expiredIn = rig('provider-delete-canary')
+    await expiredIn.store.save({
+      ...saved,
+      lastActivityAt: new Date(NOW - 40 * MILLISECONDS_PER_DAY).toISOString(),
+    })
+    expect(await expiredIn.store.list()).toHaveLength(1)
+    const warned = expiredIn.log.warn.mock.calls.map((call) => String(call[0]))
+    expect(warned.length).toBeGreaterThan(0)
+    expect(warned.join('\n')).toContain('HTTP 500')
+    for (const canary of ['file-old', 'confidential-report.pdf', 'Cannot delete']) {
+      expect(warned.join('\n')).not.toContain(canary)
+    }
+    // The user-facing removal still names its truthful reason.
+    const removedIn = rig('provider-delete-canary-remove')
+    await removedIn.store.save(saved)
+    await expect(removedIn.store.remove('saved')).rejects.toThrow('confidential-report.pdf')
+    expect(await removedIn.store.load('saved')).toMatchObject({ fileRefs: [uploadedFile] })
   })
 
   it('keeps the latest session snapshot when an older rename is delayed', async () => {

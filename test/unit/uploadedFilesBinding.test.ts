@@ -200,6 +200,60 @@ describe('uploaded-files host binding', () => {
     )
   })
 
+  it('keeps each read on its own stamp when an older read lands later', async () => {
+    // Finding 5: read A starts first but lands last. Each post carries
+    // its own read's generation, so the surface can keep the newer read.
+    const t = setup()
+    const gate = new AbortController()
+    t.ledger.accountReport.mockImplementationOnce(
+      () =>
+        new Promise<typeof report>((resolve) => {
+          gate.signal.addEventListener(
+            'abort',
+            () => {
+              resolve(report)
+            },
+            { once: true },
+          )
+        }),
+    )
+    const readingA = t.binding.port.readStamped()
+    while (t.ledger.accountReport.mock.calls.length === 0)
+      await new Promise((settle) => setImmediate(settle))
+    const stampedB = await t.binding.port.readStamped()
+    t.binding.port.post(stampedB.report, stampedB)
+    gate.abort()
+    const stampedA = await readingA
+    t.binding.port.post(stampedA.report, stampedA)
+    expect(stampedA.generation).toBe(1)
+    expect(stampedB.generation).toBe(2)
+    expect(t.post).toHaveBeenNthCalledWith(1, expect.objectContaining({ generation: 2 }))
+    expect(t.post).toHaveBeenNthCalledWith(2, expect.objectContaining({ generation: 1 }))
+  })
+
+  it('recovers the last account ledger once the key is gone', async () => {
+    // Finding 6: the opener serves the persisted last account when no key
+    // backs the ledger, instead of reading empty.
+    const ledger: Pick<FakeUploadedFilesLedger, 'accountReport' | 'deleteFile' | 'deleteAllOurs'> =
+      {
+        accountReport: vi.fn(() => Promise.resolve({ ...report, isReadOnly: true })),
+        deleteFile: vi.fn(() => Promise.resolve()),
+        deleteAllOurs: vi.fn(() => Promise.resolve()),
+      }
+    const uploads = vi.fn(() => Promise.resolve(ledger))
+    const openLastUploads = vi.fn(() => Promise.resolve(ledger))
+    const binding = createUploadedFilesBinding({
+      uploads,
+      openLastUploads,
+      getAccountId: () => Promise.resolve(undefined),
+      post: vi.fn(),
+      confirmForeign: vi.fn(() => Promise.resolve(true)),
+    })
+    expect(await binding.list()).toEqual({ ...report, isReadOnly: true })
+    expect(uploads).not.toHaveBeenCalled()
+    expect(openLastUploads).toHaveBeenCalledOnce()
+  })
+
   it('stamps each posted report with its read account and generation', async () => {
     const t = setup()
     await t.binding.list()
@@ -274,7 +328,7 @@ describe('uploaded-files host binding', () => {
       provider: 'meta',
       poolBytes: 100,
       currentAccountId: () => Promise.resolve(current),
-      now: () => 4000,
+      now: () => 4_000_000,
     })
     const seen: string[] = []
     const binding = createUploadedFilesBinding({
