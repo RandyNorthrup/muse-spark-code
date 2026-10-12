@@ -1779,6 +1779,11 @@ export const EN = {
   // dist/extensionHooks.js failed to load.
   extensionHooksUnavailable:
     'The extension hooks could not be loaded, so no hook ran; reinstall the extension and reload the window. The log has the details.',
+  // dist/modelApiTools.js failed to load.
+  modelApiToolsUnavailable:
+    'The model call helpers could not be loaded, so hook call fields are unavailable; reinstall the extension and reload the window. The log has the details.',
+  modelApiToolsPreviewUnavailable:
+    'The model call helpers could not be loaded, so argument previews are unavailable; reinstall the extension and reload the window. The log has the details.',
   // The Model API shell's kept working directory. {path}: workspace-relative.
   shellDirectory: 'In {path}',
   shellDirectoryReset:

@@ -3083,9 +3083,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     try {
       return await this.toolAssist()
     } catch {
-      throw new Error(
-        'the modelApiTools.js bundle could not be loaded; hook call fields are unavailable',
-      )
+      throw new Error(UI_TEXT.modelApiToolsUnavailable)
     }
   }
 
@@ -3100,9 +3098,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       const assist = await this.toolAssist()
       return new assist.ArgumentPreview(previewFields)
     } catch {
-      throw new Error(
-        'the modelApiTools.js bundle could not be loaded; argument previews are unavailable',
-      )
+      throw new Error(UI_TEXT.modelApiToolsPreviewUnavailable)
     }
   }
 
