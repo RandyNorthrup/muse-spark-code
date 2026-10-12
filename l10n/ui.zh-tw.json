@@ -1918,14 +1918,14 @@
     "history": "所選工作階段的歷程記錄無法使用。"
   },
   "reportDetailReasons": {
+    "journalIncomplete": "使用日誌包含損壞、不完整或較新版本的記錄；總計不包含這些記錄。",
+    "sessionUsageUnavailable": "保留的日誌無法將使用量歸屬於此工作階段；權杖與費用總計無法使用。",
+    "budgetsUnavailable": "所選期間的預算快照無法使用。",
     "sessionTurnsUnavailable": "工作階段歷程記錄中沒有回合識別碼，因此無法統計回合。",
     "sessionApprovalsUnavailable": "工作階段歷程記錄中沒有核准決定。",
     "toolBreakdownUnavailable": "使用日誌中不記錄按工具劃分的使用量。",
     "rolledUpBreakdownExcluded": "彙總歷程記錄計入總數，但不計入此明細。",
-    "rolledUpSessionExcluded": "彙總歷史不計入此工作階段的總數和明細。",
-    "journalIncomplete": "使用日誌包含損壞、不完整或較新版本的記錄；總計不包含這些記錄。",
-    "sessionUsageUnavailable": "保留的日誌無法將使用量歸屬於此工作階段；權杖與費用總計無法使用。",
-    "budgetsUnavailable": "所選期間的預算快照無法使用。"
+    "rolledUpSessionExcluded": "彙總歷史不計入此工作階段的總數和明細。"
   },
   "reportRowsMore": {
     "other": "另外 {count} 列"
