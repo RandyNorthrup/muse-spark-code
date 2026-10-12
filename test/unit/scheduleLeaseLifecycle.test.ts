@@ -6,10 +6,15 @@ import * as disk from 'node:fs/promises'
 import path from 'node:path'
 import * as ts from 'typescript'
 import { afterAll, describe, expect, it, vi } from 'vitest'
-import type { ScheduleFsPort } from '../../src/core/schedules/journal'
+import type { ScheduleFsPort, ScheduleLeaseGuard } from '../../src/core/schedules/journal'
 import { scheduleStorageHash } from '../../src/core/schedules/store'
-import { createNodeScheduleFs } from '../../src/runtime/schedules/nodeScheduleFs'
+import {
+  createNodeScheduleFs,
+  createScheduleLeaseLock,
+  canRunScheduleFsOperation,
+} from '../../src/runtime/schedules/nodeScheduleFs'
 import * as nodeSchedules from '../../src/runtime/schedules/nodeScheduleFs'
+import { SCHEDULE_LEASE_EXPIRES_MS } from '../../src/shared/constants'
 import { createSchedulesReportReader } from '../../src/runtime/reporting/playbookSchedulesInputs'
 import { localFailureOf } from '../../src/core/reporting/sources/local'
 import { FIXTURE_WORKSPACE_KEY } from './helpers/reporting/reportKindFixtures'
@@ -236,9 +241,14 @@ function fastHeartbeat() {
 }
 
 describe.each(ports)('$name structural lease lifecycle', ({ name, make }) => {
+  // Folder fsync rows follow the same predicate production gates on, so the
+  // matrix runs exactly the rows that can occur on this platform: Windows runs
+  // the rows that exist there, and no row is silently lost elsewhere.
   const primitiveSteps = (name === 'disk' ? sites : twinSites).filter(
     ({ label, isReleaseOnly }) =>
-      label.startsWith(name === 'disk' ? 'disk.' : 'memory.') && !isReleaseOnly,
+      label.startsWith(name === 'disk' ? 'disk.' : 'memory.') &&
+      !isReleaseOnly &&
+      (name !== 'disk' || canRunScheduleFsOperation(label)),
   )
   // rmdir/remove are release-only operations; the raw-await guard still covers them.
   const allSteps = [...steps, ...primitiveSteps]
@@ -407,6 +417,91 @@ describe.each(ports)('$name structural lease lifecycle', ({ name, make }) => {
   })
 })
 
+it('a cancelled loser never releases the live winner fence', async () => {
+  const shared = new MemoryScheduleFs()
+  const fsA = new MemoryScheduleFs(shared)
+  const fsB = new MemoryScheduleFs(shared)
+  const fsC = new MemoryScheduleFs(shared)
+  const lockA = createScheduleLeaseLock(fsA)
+  const lockB = createScheduleLeaseLock(fsB)
+  const lockC = createScheduleLeaseLock(fsC)
+  const collisionKey = 'schedule-collision/loser-cancelled'
+  const candidate = `leaseFences/${scheduleStorageHash(collisionKey)}/0/0.json`
+  const controlA = new AbortController()
+  const releaseB = Promise.withResolvers<undefined>()
+  const enteredB = Promise.withResolvers<undefined>()
+  let guardB: ScheduleLeaseGuard | undefined
+  let heldB: Promise<string> | undefined
+  const throughPublish = fsA.publish.bind(fsA)
+  const publish = vi.spyOn(fsA, 'publish').mockImplementationOnce(async (file, content, guard) => {
+    // A prepared candidate 0 first: B publishes the same slot and holds it.
+    heldB = lockB(collisionKey, async (held) => {
+      guardB = held
+      enteredB.resolve(undefined)
+      await releaseB.promise
+      return 'b'
+    })
+    await enteredB.promise
+    // A's exclusive publication loses, then cancellation lands before the
+    // wrapper settlement can clear the attempt.
+    const isPublished = await throughPublish(file, content, guard)
+    expect(file).toBe(candidate)
+    expect(isPublished).toBe(false)
+    controlA.abort()
+    return isPublished
+  })
+  try {
+    await expect(
+      lockA(collisionKey, () => Promise.resolve('a'), { signal: controlA.signal }),
+    ).rejects.toThrow('aborted')
+  } finally {
+    publish.mockRestore()
+  }
+  // The lost publication owns nothing: no release marker, the winner still
+  // holds, and a third writer cannot enter behind it.
+  expect(await fsA.read(`${candidate}.released`)).toBeUndefined()
+  await guardB?.()
+  await expect(
+    lockC(collisionKey, () => Promise.resolve('c'), { deadlineMs: Date.now() + 50 }),
+  ).rejects.toThrow('scheduleLeaseBusy')
+  releaseB.resolve(undefined)
+  expect(heldB).toBeDefined()
+  await heldB
+  await expect(
+    lockC(collisionKey, () => Promise.resolve('c'), { deadlineMs: Date.now() + 1000 }),
+  ).resolves.toBe('c')
+})
+
+it.each(['fence', 'hint'] as const)(
+  'acquires past an expired previous-version heartbeat under a %s header',
+  async (headerKind) => {
+    const fs = new MemoryScheduleFs()
+    const legacyKey = `schedule-legacy/${headerKind}`
+    const token = '33333333-3333-4333-8333-333333333333'
+    const aged = Date.now() - SCHEDULE_LEASE_EXPIRES_MS - 1000
+    // The previous-version heartbeat carries no fencing token.
+    const header = {
+      pid: process.pid,
+      start: 7,
+      token,
+      heartbeat: aged,
+      heartbeatSequence: 2,
+    }
+    if (headerKind === 'hint')
+      await fs.publish(`leases/${scheduleStorageHash(legacyKey)}.json`, JSON.stringify(header))
+    else
+      await fs.publish(
+        `leaseFences/${scheduleStorageHash(legacyKey)}/0/0.json`,
+        JSON.stringify({ ...header, fencingToken: 0 }),
+      )
+    await fs.publish(
+      `leases/${scheduleStorageHash(legacyKey)}.json.${token}.heartbeat`,
+      JSON.stringify(header),
+    )
+    await expect(fs.lock(legacyKey, () => Promise.resolve('recovered'))).resolves.toBe('recovered')
+  },
+)
+
 it('allows no raw awaited filesystem call outside the structural wrapper', () => {
   expect(rawAwaits).toEqual([])
   expect(steps.map(({ label }) => label)).toContain('lease.fence')
@@ -435,7 +530,7 @@ it('removes the last expired memory tail after its predecessor settles without a
 
 it('certification identifies the actual filesystem-port bytes', async () => {
   const record = await readFile('docs/certification/m113-playbook-schedules-c-m113-4.md', 'utf8')
-  const recorded = /<!-- CM1134AR6 port SHA-256: ([a-f0-9]{64}) -->/.exec(record)?.[1]
+  const recorded = /<!-- CM1134AR7 port SHA-256: ([a-f0-9]{64}) -->/.exec(record)?.[1]
   const actual = createHash('sha256').update(source.replaceAll('\r\n', '\n')).digest('hex')
   expect(recorded).toBe(actual)
 })
