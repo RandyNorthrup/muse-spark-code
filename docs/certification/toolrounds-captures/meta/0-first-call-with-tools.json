@@ -1,0 +1,43 @@
+{
+  "vendor": "meta",
+  "model": "muse-spark-1.3-contributor",
+  "variant": "0-first-call-with-tools",
+  "url": "https://api.meta.ai/v1/responses",
+  "requestBody": {
+    "model": "muse-spark-1.3-contributor",
+    "max_output_tokens": 400,
+    "store": false,
+    "tools": [
+      {
+        "type": "function",
+        "name": "read_file",
+        "description": "Read a file.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string"
+            }
+          },
+          "required": ["path"]
+        }
+      }
+    ],
+    "tool_choice": "required",
+    "input": [
+      {
+        "role": "user",
+        "content": "Read the file a.txt with the tool, then tell me what it says."
+      }
+    ]
+  },
+  "status": 400,
+  "response": {
+    "error": {
+      "code": null,
+      "message": "only `\"auto\"` is supported for `tool_choice`. `\"none\"`, `\"required\"`, and named function choices are not currently supported",
+      "param": "tool_choice",
+      "type": "invalid_request_error"
+    }
+  }
+}

@@ -1,0 +1,90 @@
+{
+  "vendor": "zai",
+  "model": "glm-5.3-flash",
+  "variant": "2-wrap-up-tools-kept-choice-none",
+  "url": "https://api.z.ai/api/paas/v4/chat/completions",
+  "requestBody": {
+    "model": "glm-5.3-flash",
+    "max_tokens": 300,
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "read_file",
+          "description": "Read a file.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              }
+            },
+            "required": ["path"]
+          }
+        }
+      }
+    ],
+    "tool_choice": "none",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Read the file a.txt with the tool, then tell me what it says."
+      },
+      {
+        "role": "assistant",
+        "content": "",
+        "tool_calls": [
+          {
+            "function": {
+              "arguments": "{\"path\":\"a.txt\"}",
+              "name": "read_file"
+            },
+            "id": "call_-7184280993900000492",
+            "index": 0,
+            "type": "function"
+          }
+        ],
+        "reasoning_content": "The user wants me to read the file a.txt. I'll call the read_file tool with path \"a.txt\"."
+      },
+      {
+        "role": "tool",
+        "tool_call_id": "call_-7184280993900000492",
+        "content": "hello from a.txt"
+      },
+      {
+        "role": "user",
+        "content": "You have reached the limit of model calls for this turn. Without calling any tool, say in one sentence what you did and what remains."
+      }
+    ]
+  },
+  "status": 200,
+  "response": {
+    "choices": [
+      {
+        "finish_reason": "stop",
+        "index": 0,
+        "message": {
+          "content": "I read the file a.txt using the read_file tool, and it contains the text \"hello from a.txt\" — no further steps remain.",
+          "reasoning_content": "The user is asking me to summarize what I did without calling any tools. I read the file a.txt and it contained \"hello from a.txt\". I should state this in one sentence.",
+          "role": "assistant"
+        }
+      }
+    ],
+    "created": 1791834953,
+    "id": "20261013035548b27b49324cbe4653",
+    "model": "glm-5.3-flash",
+    "object": "chat.completion",
+    "request_id": "20261013035548b27b49324cbe4653",
+    "usage": {
+      "completion_tokens": 69,
+      "completion_tokens_details": {
+        "reasoning_tokens": 38
+      },
+      "prompt_tokens": 242,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      },
+      "total_tokens": 311
+    }
+  }
+}

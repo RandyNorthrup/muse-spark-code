@@ -1,0 +1,89 @@
+{
+  "vendor": "gemini",
+  "model": "gemini-3.8-flash",
+  "variant": "3-wrap-up-tools-omitted-signature-stripped",
+  "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent",
+  "requestBody": {
+    "contents": [
+      {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Read the file a.txt with the tool, then tell me what it says."
+          }
+        ]
+      },
+      {
+        "role": "model",
+        "parts": [
+          {
+            "functionCall": {
+              "name": "read_file",
+              "args": {
+                "path": "a.txt"
+              },
+              "id": "call_109647"
+            }
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "parts": [
+          {
+            "functionResponse": {
+              "name": "read_file",
+              "response": {
+                "content": "hello from a.txt"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "parts": [
+          {
+            "text": "You have reached the limit of model calls for this turn. Without calling any tool, say in one sentence what you did and what remains."
+          }
+        ]
+      }
+    ],
+    "generationConfig": {
+      "maxOutputTokens": 400
+    }
+  },
+  "status": 200,
+  "response": {
+    "candidates": [
+      {
+        "content": {
+          "parts": [
+            {
+              "text": "I have read the file `a.txt`, and what",
+              "thoughtSignature": "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"
+            }
+          ],
+          "role": "model"
+        },
+        "finishReason": "MAX_TOKENS",
+        "index": 0
+      }
+    ],
+    "usageMetadata": {
+      "promptTokenCount": 83,
+      "candidatesTokenCount": 12,
+      "totalTokenCount": 479,
+      "promptTokensDetails": [
+        {
+          "modality": "TEXT",
+          "tokenCount": 83
+        }
+      ],
+      "thoughtsTokenCount": 384,
+      "serviceTier": "standard"
+    },
+    "modelVersion": "gemini-3.8-flash",
+    "responseId": "kjvNatXOFcqd6dkP96mWyAg"
+  }
+}

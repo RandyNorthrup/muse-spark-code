@@ -1,0 +1,101 @@
+{
+  "vendor": "openrouter",
+  "model": "openai/gpt-oss-20b",
+  "variant": "0-first-call-with-tools",
+  "url": "https://openrouter.ai/api/v1/chat/completions",
+  "requestBody": {
+    "model": "openai/gpt-oss-20b",
+    "max_tokens": 300,
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "read_file",
+          "description": "Read a file.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              }
+            },
+            "required": ["path"]
+          }
+        }
+      }
+    ],
+    "tool_choice": "required",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Read the file a.txt with the tool, then tell me what it says."
+      }
+    ]
+  },
+  "status": 200,
+  "response": {
+    "id": "gen-1791834953-QK7hKK9fUa0DnmQpVYFY",
+    "object": "chat.completion",
+    "created": 1791834953,
+    "model": "openai/gpt-oss-20b",
+    "provider": "Groq",
+    "system_fingerprint": "fp_4a35f7bd1b",
+    "service_tier": "flex",
+    "choices": [
+      {
+        "index": 0,
+        "logprobs": null,
+        "finish_reason": "tool_calls",
+        "native_finish_reason": "tool_calls",
+        "message": {
+          "role": "assistant",
+          "content": null,
+          "refusal": null,
+          "reasoning": "The user wants me to read the file a.txt. I need to call the read_file function with path \"a.txt\".",
+          "tool_calls": [
+            {
+              "type": "function",
+              "index": 0,
+              "id": "fc_096e5108-f48c-4215-9441-d8a0856838c5",
+              "function": {
+                "name": "read_file",
+                "arguments": "{\"path\":\"a.txt\"}"
+              }
+            }
+          ],
+          "reasoning_details": [
+            {
+              "type": "reasoning.text",
+              "text": "The user wants me to read the file a.txt. I need to call the read_file function with path \"a.txt\".",
+              "format": "unknown",
+              "index": 0
+            }
+          ]
+        }
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 139,
+      "completion_tokens": 50,
+      "total_tokens": 189,
+      "cost": 0.000025425,
+      "is_byok": false,
+      "prompt_tokens_details": {
+        "cached_tokens": 0,
+        "cache_write_tokens": 0,
+        "audio_tokens": 0,
+        "video_tokens": 0
+      },
+      "cost_details": {
+        "upstream_inference_cost": 0.000025425,
+        "upstream_inference_prompt_cost": 0.000010425,
+        "upstream_inference_completions_cost": 0.000015
+      },
+      "completion_tokens_details": {
+        "reasoning_tokens": 26,
+        "image_tokens": 0,
+        "audio_tokens": 0
+      }
+    }
+  }
+}

@@ -1,0 +1,97 @@
+{
+  "vendor": "anthropic-sonnet",
+  "model": "claude-sonnet-5-5",
+  "variant": "3-wrap-up-tools-kept-choice-none",
+  "url": "https://api.anthropic.com/v1/messages",
+  "requestBody": {
+    "model": "claude-sonnet-5-5",
+    "max_tokens": 120,
+    "tools": [
+      {
+        "name": "read_file",
+        "description": "Read a file.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string"
+            }
+          },
+          "required": ["path"]
+        }
+      }
+    ],
+    "tool_choice": {
+      "type": "none"
+    },
+    "messages": [
+      {
+        "role": "user",
+        "content": "Read the file a.txt with the tool, then tell me what it says."
+      },
+      {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "tool_use",
+            "id": "toolu_01WikVSFL26DkKoLkHUuv4Xe",
+            "name": "read_file",
+            "input": {
+              "path": "a.txt"
+            },
+            "caller": {
+              "type": "direct"
+            }
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "tool_result",
+            "tool_use_id": "toolu_01WikVSFL26DkKoLkHUuv4Xe",
+            "content": "hello from a.txt"
+          },
+          {
+            "type": "text",
+            "text": "You have reached the limit of model calls for this turn. Without calling any tool, say in one sentence what you did and what remains."
+          }
+        ]
+      }
+    ]
+  },
+  "status": 200,
+  "response": {
+    "model": "claude-sonnet-5-5",
+    "id": "msg_011Cfxw42cgseV3HcWvhqwcR",
+    "type": "message",
+    "role": "assistant",
+    "content": [
+      {
+        "type": "text",
+        "text": "I read a.txt with the tool, and it says \"hello from a.txt\"; nothing else remains."
+      }
+    ],
+    "container": null,
+    "stop_reason": "end_turn",
+    "stop_sequence": null,
+    "stop_details": null,
+    "usage": {
+      "input_tokens": 485,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+        "ephemeral_5m_input_tokens": 0,
+        "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 33,
+      "output_tokens_details": {
+        "thinking_tokens": 0
+      },
+      "service_tier": "standard",
+      "inference_geo": "global"
+    },
+    "diagnostics": null
+  }
+}

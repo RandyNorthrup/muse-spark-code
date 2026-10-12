@@ -1,0 +1,84 @@
+{
+  "vendor": "anthropic-sonnet",
+  "model": "claude-sonnet-5-5",
+  "variant": "1-wrap-up-tools-omitted",
+  "url": "https://api.anthropic.com/v1/messages",
+  "requestBody": {
+    "model": "claude-sonnet-5-5",
+    "max_tokens": 120,
+    "messages": [
+      {
+        "role": "user",
+        "content": "Read the file a.txt with the tool, then tell me what it says."
+      },
+      {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "tool_use",
+            "id": "toolu_01WikVSFL26DkKoLkHUuv4Xe",
+            "name": "read_file",
+            "input": {
+              "path": "a.txt"
+            },
+            "caller": {
+              "type": "direct"
+            }
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "tool_result",
+            "tool_use_id": "toolu_01WikVSFL26DkKoLkHUuv4Xe",
+            "content": "hello from a.txt"
+          },
+          {
+            "type": "text",
+            "text": "You have reached the limit of model calls for this turn. Without calling any tool, say in one sentence what you did and what remains."
+          }
+        ]
+      }
+    ]
+  },
+  "status": 200,
+  "response": {
+    "model": "claude-sonnet-5-5",
+    "id": "msg_011Cfxw3oeaYyUE88jeoSnb4",
+    "type": "message",
+    "role": "assistant",
+    "content": [
+      {
+        "type": "thinking",
+        "thinking": "",
+        "signature": "CAQSnAUKEAgSGAI4AUIIdGhpbmtpbmcSDPldkCAKEWeHanmMgxoMxWLuJYzCF6YeCjp5IjBJQAZhUT4Ap0dt4Vo2GzogvAkmQFLXIUayRZFx/qFqLZDtzPrWTK3r4VVsfIOnLJ8quQRwf/ivmBmPvRSKDWXgsrxHP3/tw7/yNnenvncdo5b6IosWzwWYYNFtlqS4zBw4gOWpAUvR+7zgd0brGkgH3eAtK9nDUzIHQBD5ryutXLVX3MOzVWHzFmklBkgZyfrxBw+7JKUVP7MzzkaPduc+EOEpXIthzXwmGksWdQZcw3HWMIoTv9JwFgnrN0Ay9cAY3IokmqpjkN7DJGu2mhTuOlcuYmvLUDCmu/zzAVlTITXQ2MLIeoI8IPGntqASZ+5KeKpw7YspbaS+yPO3iRVezcQ4qIGzc7X5OoeE+yv/LUAG7Xtvo2fQ2pgPO0auFQAoEor2KvJGcQvGodNGQPA071PMXBQik5deyYGm/9m9STnMFPuC4Pl1+MOf2uuN+8cF29aghbikftynod+i8PMoCVkllKXjDCB0kHpdTRdzgUWdG9ZNC4K7Olf6f8T4Whd8Wo3QoRUIrNkF3DOwyDqQTqwcvdW29YVjTIS+B0v+9Uu35lUoowwojGK9E8zjmTlINHlqmQlbU/udu/P5KB6O+NJ9mfUa8B4ZriZnGVboY9xX8EAqg1Bx4pDFzf3jykQiFk+kmqQY5Pi17k6Yye+/Iu1M6JjUa2f70IU+V1ZXFLkTZdwDjsb9KN5P0y5WGHR58WqDP3Hwwqf9dGvYev8IGD+1pr4jRLLG+Bu6o3fiQp1VkvW027j1xBhiNGomLXHuL4fAtJn7NGr9IrC4FRWjyPXsxzTOxvqm1I1IXXGZ/JQmJolqTLOIhjygEhgB"
+      },
+      {
+        "type": "text",
+        "text": "I read a.txt with the file-reading tool, and it contains just one line: \"hello from a.txt\". Nothing else remains, since that was the whole task."
+      }
+    ],
+    "container": null,
+    "stop_reason": "end_turn",
+    "stop_sequence": null,
+    "stop_details": null,
+    "usage": {
+      "input_tokens": 133,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+        "ephemeral_5m_input_tokens": 0,
+        "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 81,
+      "output_tokens_details": {
+        "thinking_tokens": 31
+      },
+      "service_tier": "standard",
+      "inference_geo": "global"
+    },
+    "diagnostics": null
+  }
+}
