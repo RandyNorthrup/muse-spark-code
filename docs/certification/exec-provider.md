@@ -155,3 +155,11 @@ Final execProvider/execArgs/providersX: 111/111, default timeout. No
 wire shape changes. Dependency expectations now match terminal Azure refusal and
 printed native IDs; the repeated --model setup regression exposed the serve-only
 single-model guard incorrectly preceding provider-add parsing, now scoped correctly.
+
+## Round 2 auth methods
+
+Registry-style ACP initialize now offers only actual sign-ins: Muse Code login
+(or Model API auth set) and ChatGPT Add. Remove and Status remain CLI commands.
+The terminal/manual initialize and authenticate tests plus factory test failed
+before the repair (auth-red.log); final runtimeChatGpt/acpAgent 177/177 at
+default timeout. No external registry/network call was made.

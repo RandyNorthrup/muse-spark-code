@@ -168,8 +168,8 @@ asks for it. Elsewhere, run it yourself once:
   one is stored; `auth clear` removes it.
 
 **ChatGPT subscription sign-in (M95b preview):** the agent advertises
-`providers add chatgpt`, `providers remove chatgpt` and `providers status chatgpt`
-as terminal authentication actions. Editors without terminal authentication
+`providers add chatgpt` as a terminal sign-in method. Maintenance remains available
+through `providers remove chatgpt` and `providers status chatgpt` in the terminal. Editors without terminal authentication
 show the full commands to run manually. These use the same runtime adapter,
 OS credential store and process lock in JetBrains, Visual Studio, Eclipse,
 Zed, Xcode, Neovim, Emacs, Sublime and companion clients. Add prints the

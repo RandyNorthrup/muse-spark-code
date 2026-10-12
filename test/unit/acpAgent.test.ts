@@ -491,7 +491,7 @@ function wireCapabilities(json: string): acp.ClientCapabilities {
 }
 
 describe('the ACP agent (M63)', () => {
-  it('exposes all three ChatGPT actions to terminal and manual editors and verifies them independently of Meta', async () => {
+  it('offers only ChatGPT sign-in to terminal and manual editors, as required by registry auth-check', async () => {
     const secrets = memorySecrets()
     const fetcher = vi.fn<typeof fetch>(() => Promise.resolve(Response.json({})))
     const methods = chatGptAuthenticationMethods(() =>
@@ -518,12 +518,12 @@ describe('the ACP agent (M63)', () => {
       expect(manual.authMethods?.slice(1).map((method) => method.description)).toEqual(
         methods.map((method) => `Run “${method.command}” in a terminal, then try again.`),
       )
-      await expect(client.request('authenticate', { methodId: 'chatgpt-status' })).resolves.toEqual(
-        {},
-      )
-      await expect(client.request('authenticate', { methodId: 'chatgpt-remove' })).resolves.toEqual(
-        {},
-      )
+      expect(terminal.authMethods?.map((method) => method.id)).toEqual([
+        'muse-code-login',
+        'chatgpt-add',
+      ])
+      await expect(client.request('authenticate', { methodId: 'chatgpt-status' })).rejects.toThrow()
+      await expect(client.request('authenticate', { methodId: 'chatgpt-remove' })).rejects.toThrow()
       await expect(client.request('authenticate', { methodId: 'chatgpt-add' })).rejects.toThrow()
       await expect(client.request('authenticate', { methodId: 'copilot-add' })).rejects.toThrow()
     })

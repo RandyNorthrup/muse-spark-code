@@ -321,7 +321,7 @@ export function featureCatalog(): readonly Feature[] {
     ),
     feature(
       'providers',
-      // M95: configured clients preserve local refusal reasons and budget exits.
+      // M95: configured clients preserve local refusals; ACP auth lists sign-ins only.
       { ui: 'modelsPanelTitle' },
       { ui: 'startWithOwnModelDetail' },
       [

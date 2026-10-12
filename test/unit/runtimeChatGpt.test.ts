@@ -505,17 +505,10 @@ describe('ACP ChatGPT OS-store adapter and commands', () => {
     )
     const run = rig(record())
     const methods = chatGptAuthenticationMethods(run.createHost)
-    expect(methods.map((method) => method.args)).toEqual([
-      ['providers', 'add', 'chatgpt'],
-      ['providers', 'remove', 'chatgpt'],
-      ['providers', 'status', 'chatgpt'],
-    ])
+    expect(methods.map((method) => method.args)).toEqual([['providers', 'add', 'chatgpt']])
     await expect(methods[0]?.verify?.()).resolves.toBeUndefined()
-    await expect(methods[1]?.verify?.()).resolves.toBe(UI_TEXT.acpChatGpt.failure)
     run.values.delete(ACCOUNT)
     await expect(methods[0]?.verify?.()).resolves.toBe(UI_TEXT.acpChatGpt.failure)
-    await expect(methods[1]?.verify?.()).resolves.toBeUndefined()
-    await expect(methods[2]?.verify?.()).resolves.toBeUndefined()
     const broken = chatGptAuthenticationMethods(fail)
     await expect(broken[0]?.verify?.()).resolves.toBe(UI_TEXT.planUi.retry)
     expect(run.requests).toEqual([])
