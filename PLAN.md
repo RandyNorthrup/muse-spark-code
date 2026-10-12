@@ -18585,6 +18585,43 @@ repository's own working rule (AGENTS.md rule 14).
       they change is still counted at the next review: with `/playbook` in
       the composer, with each counted round, and in the Agent map. No
       silent gap.
+    - **The person's own actions on a child (review RVCM1166C, finding 1;
+      lead's ruling 2026-10-11).** Every action in the panel that starts or
+      resumes a child's work is a dispatch, on both backends. These are
+      dispatches: the Agent map's **Continue**, **Retry**, **Resume** and
+      **Reopen**, and a message to a child that would be new work. Each is
+      a `delegate` round, admitted before the backend's session is asked
+      for anything: nothing is sent to Muse Code (`subagent/<action>`,
+      `subagent/followupTask`, `subagent/sendMessage`) and the Model API's
+      host is not called until the round is admitted; a refusal sends
+      nothing and shows the playbook's sentence. These are not:
+      **Interrupt**, **Stop**, **Close** and **Read result**, which start
+      nothing, and a note to a child at work. Whether a message is new work
+      is the host's decision, from the child's own row as the host last saw
+      it. It is a note only to a child whose row is in progress with a
+      control status of `accepted`, `starting` or `running`, or with none.
+      To a child that is queued, interrupted, finished, closed or failed,
+      or whose row the host never saw, it is new work. The flag the webview
+      sends (a follow-up, by the row it last drew) can make a message a
+      dispatch and can never make it a note. The controller forgets a
+      child's row when it sends Interrupt, Stop or Close, so a message that
+      follows before the backend's next row is a dispatch. What is sent
+      once admitted is what was sent before; the gate adds nothing to it,
+      and a window with no playbook sends everything as it always did.
+      The gate stands in the controller, before `AgentSession`, which both
+      backends implement. The Model API's host is unchanged
+      (`dist/modelApi.js` has 22 bytes to its pin). Residual, named: that
+      host's own state can change a moment before its row says so, when a
+      MODEL interrupts a child by tool (the state is set, the turn
+      cancelled, then the row said); a person's note sent in that moment is
+      taken by the host as a task, and the playbook was not asked. Closing
+      it needs the host's own gate, when that bundle has room.
+    - **A finding's file is the reviewer's own words (lead's ruling
+      2026-10-11).** A finding whose file cannot be read, resolved or named
+      is kept under no module, and the round is still counted: a reviewer's
+      wording must never be able to stop a round from being counted. Test:
+      `playbookGovernor`, "counts the round of a reply that names a file
+      nobody can place, without that finding".
     - **The claim, as published:** enforcement of a model's own subagent
       spawns is whole for the Model API backend; for Muse Code it holds in
       Manual and Edit automatically, where the CLI asks before it starts a
@@ -36950,7 +36987,17 @@ D96.16 and D96.17. A series of commits, each reviewed.
      153,600; `dist/extension.js` 560,259 to 560,367 of 614,400 (the
      channel's typed failure); the webview's surface English 25,348 to
      25,380 of 25,600 (one new string, the stale-record line).
-7. **Restores.** The walked-back claims return with the code that makes
+7. **Review RVCM1166C of item 5, finding 1 (its own commit).** The Agent
+   map's Continue, Retry, Resume and Reopen, and a message to a child that
+   would be new work, are dispatches (D96.17, "The person's own actions on
+   a child"). One gate in the controller, before the backend's session;
+   whether a message is new work is decided from the child's row as the
+   host last saw it, never from the webview's flag alone. Nothing in
+   `dist/modelApi.js`. A table test in `conversationController` has a row
+   for every action and for every way a child's row can stand, each against
+   a playbook that refuses and one that admits.
+8. **Review RVCM1166C, findings 2 to 6 (its own commit).**
+9. **Restores.** The walked-back claims return with the code that makes
    each true, in the wording D96.17 fixes; the certification and the red
    drills of item 5's suites land with them.
 

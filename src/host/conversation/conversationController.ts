@@ -168,6 +168,7 @@ import {
   CHOICE_STEERING_NOTE,
   SESSION_RESTORE_WINDOW_MS,
   SHELL_TOOLS,
+  SUBAGENT_RUNNING_STATUSES,
   type SubagentAction,
   TEXT_ATTACHMENT_EXTENSIONS,
   TEXT_FILE_DISPLAY_MARKER,
@@ -830,6 +831,17 @@ const COMPLETED_STATUS = 'completed'
 const TOOL_CALL_KIND = 'toolCall'
 const SUBAGENT_ITEM_KIND = 'subagent'
 const IN_PROGRESS_STATUS = 'inProgress'
+/**
+ * The Agent map's actions that start or resume a child's work. Each is a
+ * dispatch, admitted by the window's playbook before the backend is asked
+ * (M116, PLAN.md D96.17); Interrupt, Stop, Close and Read result start nothing.
+ */
+const CHILD_WORK_ACTIONS: ReadonlySet<SubagentAction> = new Set([
+  'continue',
+  'retry',
+  'resume',
+  'reopen',
+])
 // The unsaved files a warning names before it counts the rest (D27).
 const UNSAVED_FILES_NAMED = 3
 // How a notice the user saw reads in the log (M39).
@@ -1407,6 +1419,12 @@ export class ConversationController {
   private playbookPort: PlaybookConversation | undefined
   /** Child sessions, each with the subagent the host recorded it under (M116). */
   private readonly childAgents = new Map<string, string>()
+  /**
+   * The subagents whose own row, as the host last saw it, says they are at
+   * work (M116, D96.17): in progress, and running or about to. A message to
+   * one of these is a note; to any other child it would be new work.
+   */
+  private readonly childrenAtWork = new Set<string>()
   /** Mode choices and revocation wait for the outstanding owned request; the newest wins. */
   private reviewModeSettling: Promise<void> | undefined
   private permissionModeSelection = 0
@@ -1936,6 +1954,7 @@ export class ConversationController {
     this.playbookPort?.dispose()
     this.playbookPort = undefined
     this.childAgents.clear()
+    this.childrenAtWork.clear()
     // A review's Plan mode goes with its session (M70): the next session
     // starts, resumes or is adopted in the mode the user had.
     this.releasePlanHold(true)
@@ -2615,7 +2634,16 @@ export class ConversationController {
    * playbook's to know of (D96.17).
    */
   private noteSubagentRow(item: ItemSnapshot, isStart = false): void {
-    if (item.kind !== SUBAGENT_ITEM_KIND || item.childSessionId === undefined) {
+    if (item.kind !== SUBAGENT_ITEM_KIND) {
+      return
+    }
+    if (item.subagentId !== undefined) {
+      const isAtWork =
+        item.status === IN_PROGRESS_STATUS &&
+        (item.controlStatus === undefined || SUBAGENT_RUNNING_STATUSES.has(item.controlStatus))
+      this.childrenAtWork[isAtWork ? 'add' : 'delete'](item.subagentId)
+    }
+    if (item.childSessionId === undefined) {
       return
     }
     if (isStart && !this.childSessionIds.has(item.childSessionId)) {
@@ -9336,12 +9364,41 @@ export class ConversationController {
             action === 'retry' ? UI_TEXT.agentRetryUnavailable : UI_TEXT.agentContinueUnavailable,
           )
       }
-      await session.controlSubagent(subagentId, action)
+      const isChildWork = CHILD_WORK_ACTIONS.has(action)
+      if (!isChildWork) {
+        // The child's state is about to change in the backend, and its row
+        // says so only afterwards: until then nothing says it is at work.
+        this.childrenAtWork.delete(subagentId)
+      }
+      await this.onChild(isChildWork, session, subagentId, () =>
+        session.controlSubagent(subagentId, action),
+      )
     } catch (error: unknown) {
       if (this.isCurrentSessionAction(session, generation)) {
         this.notice('error', `${UI_TEXT.agentControlFailed}: ${describe(error)}`, undefined, error)
       }
     }
+  }
+
+  /**
+   * The person's own action on a child. One that starts or resumes the
+   * child's work is a dispatch: the window's playbook admits it first, as a
+   * `delegate` round, and a refusal sends the backend nothing (M116, PLAN.md
+   * D96.17). Anything else, and every action in a window with no playbook,
+   * goes to the backend as it is.
+   */
+  private async onChild(
+    isChildWork: boolean,
+    session: AgentSession,
+    subagentId: string,
+    act: () => Promise<void>,
+  ): Promise<void> {
+    await ((isChildWork ? this.playbook() : undefined)?.dispatch(
+      'delegate',
+      session.sessionId,
+      subagentId,
+      act,
+    ) ?? act())
   }
 
   private async messageSubagent(
@@ -9355,15 +9412,16 @@ export class ConversationController {
       return
     }
     try {
-      const send = async () => {
-        await session.messageSubagent(subagentId, body.trim(), isFollowup)
-      }
-      await ((isFollowup ? this.playbook() : undefined)?.dispatch(
-        'delegate',
-        session.sessionId,
+      // Whether the message would be new work is the host's to say, from the
+      // child's own row: a note only to a child that row says is at work.
+      // What the webview believed when it drew the row can add to that, and
+      // never take from it.
+      await this.onChild(
+        isFollowup || !this.childrenAtWork.has(subagentId),
+        session,
         subagentId,
-        send,
-      ) ?? send())
+        () => session.messageSubagent(subagentId, body.trim(), isFollowup),
+      )
     } catch (error: unknown) {
       if (this.isCurrentSessionAction(session, generation)) {
         this.notice('error', `${UI_TEXT.agentControlFailed}: ${describe(error)}`, undefined, error)

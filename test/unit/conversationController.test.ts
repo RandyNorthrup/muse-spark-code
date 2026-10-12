@@ -9,6 +9,8 @@ import { metaSideCallFormats } from '../../src/core/backends/modelapi/modelCapab
 import {
   M106_CAPTURED_META_MODEL,
   SCREEN_RECORDING_DEFAULT_MAX_SECONDS,
+  SUBAGENT_ACTIONS,
+  type SubagentAction,
 } from '../../src/shared/constants'
 import { conversationGitFactory } from '../../src/host/git/conversationGitBundle'
 import * as gitEntry from '../../src/host/git/conversationGitEntry'
@@ -7168,54 +7170,246 @@ describe('ConversationController chat references (M17)', () => {
   })
 })
 
-describe('ConversationController subagent controls (M18, M48)', () => {
-  it('M116 sends a follow-up to a subagent through the playbook, and a plain note past it', async () => {
-    const f = fakePlaybookConversation()
-    const t = setup({ playbook: f.factory })
+/** Every request the Agent map's actions and messages can send Muse Code. */
+const CHILD_REQUESTS = [
+  'subagent/interrupt',
+  'subagent/stop',
+  'subagent/resume',
+  'subagent/close',
+  'subagent/followupTask',
+  'subagent/sendMessage',
+] as const
+
+/** The playbook's own sentence for a refusal, as the person reads it. */
+const PLAYBOOK_SENTENCE = 'Answer the open findings first.'
+
+/** How a child's own row can stand, as the host last saw it; none: the host never saw one. */
+const CHILD_ROWS = {
+  running: { status: 'inProgress', controlStatus: 'running' },
+  starting: { status: 'inProgress', controlStatus: 'starting' },
+  noControlStatus: { status: 'inProgress' },
+  queued: { status: 'inProgress', controlStatus: 'queued' },
+  interrupted: { status: 'cancelled', controlStatus: 'interrupted' },
+  resultReady: { status: 'completed', controlStatus: 'resultReady' },
+  closed: { status: 'completed', controlStatus: 'closed' },
+  failed: { status: 'failed' },
+  unseen: undefined,
+} as const
+
+type ChildRowName = keyof typeof CHILD_ROWS
+
+/**
+ * A Muse Code conversation with a playbook, and a child `sub-1` whose row the
+ * host last saw as `row`. The CLI accepts every request about a child.
+ */
+async function childUnderPlaybook(
+  options: Parameters<typeof fakePlaybookConversation>[0],
+  row: (typeof CHILD_ROWS)[ChildRowName],
+) {
+  const { f, t } = await spawnAsked(options)
+  if (row !== undefined) {
+    const began = subagentStarted('sub-1')
+    t.server.notify('item/started', began)
+    t.server.notify('item/updated', { ...began, item: { ...began.item, ...row } })
+    await settle()
+  }
+  for (const method of CHILD_REQUESTS) t.server.handle(method, () => ({ status: 'accepted' }))
+  // What Continue and Retry read before they ask the person: the child's stored row.
+  t.server.handle('session/read', () => agentRecoveryHistory('failed'))
+  const sent = () => CHILD_REQUESTS.filter((method) => t.server.requestsFor(method).length > 0)
+  return { f, t, sent }
+}
+
+/** The one error notice that says a child's action failed, with the playbook's sentence. */
+function expectPlaybookSentence(t: ReturnType<typeof setup>): void {
+  expect(t.surface.posted).toContainEqual(
+    expect.objectContaining({
+      type: 'notice',
+      level: 'error',
+      text: `${UI_TEXT.agentControlFailed}: ${PLAYBOOK_SENTENCE}`,
+    }),
+  )
+}
+
+/**
+ * One thing the person does to the child, twice: under a playbook that
+ * refuses every round, then under one that admits. New work is asked about
+ * first, and refused it sends the CLI nothing and shows the playbook's
+ * sentence. Anything else is never asked about. Admitted, or not asked about,
+ * the CLI is sent `sends`: what it is sent with no playbook.
+ */
+async function expectGated(
+  row: (typeof CHILD_ROWS)[ChildRowName],
+  message: Parameters<ReturnType<typeof setup>['controller']['handle']>[0],
+  isNewWork: boolean,
+  sends: readonly string[],
+): Promise<void> {
+  const refused = await childUnderPlaybook({ refusal: new Error(PLAYBOOK_SENTENCE) }, row)
+  await refused.t.controller.handle(message)
+  expect(refused.f.dispatches).toEqual(
+    isNewWork ? [{ kind: 'delegate', sessionId: 's1', targetId: 'sub-1' }] : [],
+  )
+  expect(refused.sent()).toEqual(isNewWork ? [] : sends)
+  if (isNewWork) expectPlaybookSentence(refused.t)
+  refused.t.controller.dispose()
+  const admitted = await childUnderPlaybook({}, row)
+  await admitted.t.controller.handle(message)
+  expect(admitted.f.dispatches).toHaveLength(isNewWork ? 1 : 0)
+  expect(admitted.sent()).toEqual(sends)
+  admitted.t.controller.dispose()
+}
+
+describe('the Agent map’s actions on a child and the window’s playbook (M116, D96.17)', () => {
+  // Every action there is: which of them start or resume a child's work, and what each sends.
+  const ACTIONS: Readonly<Record<SubagentAction, { isChildWork: boolean; sends?: string }>> = {
+    continue: { isChildWork: true },
+    retry: { isChildWork: true },
+    resume: { isChildWork: true, sends: 'subagent/resume' },
+    reopen: { isChildWork: true },
+    interrupt: { isChildWork: false, sends: 'subagent/interrupt' },
+    stop: { isChildWork: false, sends: 'subagent/stop' },
+    close: { isChildWork: false, sends: 'subagent/close' },
+    readResult: { isChildWork: false },
+  }
+
+  it('has a row here for every action the Agent map can ask for', () => {
+    expect(new Set(Object.keys(ACTIONS))).toEqual(new Set(SUBAGENT_ACTIONS))
+  })
+
+  it.each(SUBAGENT_ACTIONS)(
+    'asks the playbook before %s only where it starts or resumes the child’s work, and sends nothing it refused',
+    async (action) => {
+      const { isChildWork, sends } = ACTIONS[action]
+      await expectGated(
+        CHILD_ROWS.interrupted,
+        { type: 'subagentControl', subagentId: 'sub-1', action },
+        isChildWork,
+        sends === undefined ? [] : [sends],
+      )
+    },
+  )
+
+  // The rows that say a child is at work; every other row, and no row at all, does not.
+  const AT_WORK: ReadonlySet<ChildRowName> = new Set(['running', 'starting', 'noControlStatus'])
+  const NOT_AT_WORK: readonly ChildRowName[] = [
+    'queued',
+    'interrupted',
+    'resultReady',
+    'closed',
+    'failed',
+    'unseen',
+  ]
+
+  it('has a case here for every way a child’s row can stand', () => {
+    expect(new Set([...AT_WORK, ...NOT_AT_WORK])).toEqual(new Set(Object.keys(CHILD_ROWS)))
+  })
+
+  // A message: the row the host last saw, what the webview said, and whether it is new work.
+  const MESSAGES = [...AT_WORK, ...NOT_AT_WORK].flatMap((row) =>
+    [false, true].map((isFollowup) => ({
+      row,
+      isFollowup,
+      // A note only to a child its own row says is at work, and only when sent as a note.
+      isNewWork: isFollowup || !AT_WORK.has(row),
+    })),
+  )
+
+  it.each(MESSAGES)(
+    'takes a message to a child whose row is $row (sent as a follow-up: $isFollowup) for new work: $isNewWork',
+    async ({ row, isFollowup, isNewWork }) => {
+      // The CLI is sent the verb the panel asked for; what is decided is only whether to ask first.
+      await expectGated(
+        CHILD_ROWS[row],
+        { type: 'subagentMessage', subagentId: 'sub-1', body: 'next', isFollowup },
+        isNewWork,
+        [isFollowup ? 'subagent/followupTask' : 'subagent/sendMessage'],
+      )
+    },
+  )
+
+  it('takes a message for new work once the child was told to stop, before its row says so', async () => {
+    for (const action of ['interrupt', 'stop', 'close'] as const) {
+      const { f, t, sent } = await childUnderPlaybook(
+        { refusal: new Error(PLAYBOOK_SENTENCE) },
+        CHILD_ROWS.running,
+      )
+      await t.controller.handle({ type: 'subagentControl', subagentId: 'sub-1', action })
+      // The row still says "running": the CLI has not said otherwise yet.
+      await t.controller.handle({
+        type: 'subagentMessage',
+        subagentId: 'sub-1',
+        body: 'and then',
+        isFollowup: false,
+      })
+      expect(f.dispatches).toEqual([{ kind: 'delegate', sessionId: 's1', targetId: 'sub-1' }])
+      expect(sent()).toEqual([`subagent/${action}`])
+      // Its row saying it is at work again makes the next message a note again.
+      t.server.notify('item/updated', {
+        ...subagentStarted('sub-1'),
+        item: { ...subagentStarted('sub-1').item, ...CHILD_ROWS.running },
+      })
+      await settle()
+      await t.controller.handle({
+        type: 'subagentMessage',
+        subagentId: 'sub-1',
+        body: 'fyi',
+        isFollowup: false,
+      })
+      expect(f.dispatches).toHaveLength(1)
+      expect(sent()).toEqual([`subagent/${action}`, 'subagent/sendMessage'])
+      t.controller.dispose()
+    }
+  })
+
+  it('is one gate for both backends: it stands before the session, whichever backend that is', async () => {
+    const f = fakePlaybookConversation({ refusal: new Error(PLAYBOOK_SENTENCE) })
+    const t = setup({ hasApprovalUi: true, playbook: f.factory })
+    t.auth.snapshot = { status: 'signedIn', backend: 'modelApi', detail: undefined }
     await t.send('l1', 'hi')
-    t.server.handle('subagent/followupTask', () => ({ status: 'accepted' }))
-    t.server.handle('subagent/sendMessage', () => ({ status: 'accepted' }))
+    for (const method of CHILD_REQUESTS) t.server.handle(method, () => ({ status: 'accepted' }))
+    await t.controller.handle({ type: 'subagentControl', subagentId: 'sub-1', action: 'resume' })
     await t.controller.handle({
       type: 'subagentMessage',
       subagentId: 'sub-1',
-      body: 'continue',
-      isFollowup: true,
-    })
-    expect(f.dispatches).toEqual([{ kind: 'delegate', sessionId: 's1', targetId: 'sub-1' }])
-    expect(t.server.requestsFor('subagent/followupTask')).toHaveLength(1)
-    // A note is no new work for the child: it is not the playbook's.
-    await t.controller.handle({
-      type: 'subagentMessage',
-      subagentId: 'sub-1',
-      body: 'fyi',
+      body: 'next',
       isFollowup: false,
     })
-    expect(f.dispatches).toHaveLength(1)
+    // Two rounds asked for, both refused: the backend's session was asked for nothing.
+    expect(f.dispatches).toHaveLength(2)
+    expect(CHILD_REQUESTS.filter((method) => t.server.requestsFor(method).length > 0)).toEqual([])
+    expectPlaybookSentence(t)
+    t.controller.dispose()
+  })
+
+  it('sends every action and message as it always did in a window with no playbook', async () => {
+    const t = setup({ hasApprovalUi: true })
+    await t.send('l1', 'hi')
+    for (const method of CHILD_REQUESTS) t.server.handle(method, () => ({ status: 'accepted' }))
+    await t.controller.handle({ type: 'subagentControl', subagentId: 'sub-1', action: 'resume' })
+    for (const isFollowup of [false, true])
+      await t.controller.handle({
+        type: 'subagentMessage',
+        subagentId: 'sub-1',
+        body: 'next',
+        isFollowup,
+      })
+    expect(CHILD_REQUESTS.filter((method) => t.server.requestsFor(method).length > 0)).toEqual([
+      'subagent/resume',
+      'subagent/followupTask',
+      'subagent/sendMessage',
+    ])
+    t.controller.dispose()
+  })
+
+  it('lets go of its playbook with the conversation', async () => {
+    const { f, t } = await childUnderPlaybook({}, CHILD_ROWS.resultReady)
+    await t.controller.handle({ type: 'subagentControl', subagentId: 'sub-1', action: 'resume' })
     t.controller.dispose()
     expect(f.playbook.dispose).toHaveBeenCalledOnce()
   })
+})
 
-  it('M116 sends no follow-up the playbook refused, and says why', async () => {
-    const f = fakePlaybookConversation({ refusal: new Error('Answer the open findings first.') })
-    const t = setup({ playbook: f.factory })
-    await t.send('l1', 'hi')
-    t.server.handle('subagent/followupTask', () => ({ status: 'accepted' }))
-    await t.controller.handle({
-      type: 'subagentMessage',
-      subagentId: 'sub-1',
-      body: 'continue',
-      isFollowup: true,
-    })
-    expect(t.server.requestsFor('subagent/followupTask')).toEqual([])
-    expect(t.surface.posted).toContainEqual(
-      expect.objectContaining({
-        type: 'notice',
-        level: 'error',
-        text: `${UI_TEXT.agentControlFailed}: Answer the open findings first.`,
-      }),
-    )
-    t.controller.dispose()
-  })
+describe('ConversationController subagent controls (M18, M48)', () => {
   it('refuses a paid child follow-up in another panel as sign-out begins', async () => {
     const t = setup()
     await t.send('l1', 'hi')
