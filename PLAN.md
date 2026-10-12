@@ -773,6 +773,16 @@ quality`) and as a CI job.
 - **Every test must be able to fail**: each new assertion is checked once
   against a deliberately broken implementation (recorded in the milestone
   certification checklist).
+- **The real-life run (2026-10-12, the owner: "test the app in real life
+  thats the tests")**: the product's test is the packed product used for
+  real. `scripts/real-life/run.mjs` installs the candidate into a new empty
+  folder with a new empty home and drives it by the terminal agent and the
+  editor protocol, against real providers on their cheapest models, under a
+  request cap and a dollar cap. A scenario observes what a person observes
+  (an answer, a file on disk, an exit code, a sentence, a cost, a session
+  that loads again). Its record is the release's gate and the proof behind
+  a claim (`docs/testing/real-life.md`); nothing is tested against fake
+  code.
 
 ### D6 — Bundle budgets (Phase 6)
 
