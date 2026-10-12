@@ -213,4 +213,46 @@ off: the five dormant kinds.
 
 ## Proof
 
-Bundle bytes and the dependent/typecheck/gate record follow below.
+Production build exits 0; all 157 size rows ok, no cap moved. Exact
+bytes on the merged tree: `modelApi.js` 530683 (budget 537600, byte-
+identical with the train: nothing added to the Model API bundle),
+`reportInputs.js` 98267 (102400), `reporting.js` 175861 (179200),
+`reportingDestinations.js` 55630 (76800), `reportingNetwork.js` 67731
+(76800), `reportingPanel.js` 47412 (51200), `usagePanel.js` 74233
+(76800; the report line's 76938-byte, 138-over red stays inside on the
+train's diet), `validation.js` 47933 (51200).
+
+- Suites (repo default timeout, `--maxWorkers=3`, serial batches of at
+  most three files): every merged kind's report suites, `reportEngine`,
+  the five registry-enumerated guarantee suites (`reportEngineLanguage`
+  30, `reportEngineBoundaries` 180, `reportEngineBounds` 75 sections,
+  `reportExactMoney`, `reportEngineCancellation` 62,
+  `reportJoinAccounts`), all collectors, inputs, sources, goldens,
+  adapters, stores, destinations, truth and panel suites green. Two
+  load flakes re-ran green alone (`reportHistory` 37; rig load 14-30).
+  One inherited red stays, as briefed: `usageIntegration.test.ts`
+  `settles two vendor host turns and one MSP subscription turn …`
+  expects HTTP 401 from the panel harness, observes 502 on the busy
+  rig; the failure is in the HTTP-auth harness before any report logic
+  and no file this lane changed serves HTTP. Not fixed here.
+- Dependents: every suite importing a changed non-hub source, plus the
+  hub-naming suites (`cx1r4Truth`, `cx1r2Truth`, `reportingPanel`) for
+  `REPORT_WORKING_KINDS`. HUB: `src/shared/constants.ts`,
+  `src/shared/l10n/en.ts`, `src/shared/featureCatalog.ts`, generated
+  reference/roadmap/schema files.
+- Gates: all five typechecks exit 0; eslint `--max-warnings=0` clean
+  over all 191 lane-changed files; prettier clean; cycles zero;
+  duplication zero clones; `check:l10n` 0 problems (14 UI + 14 usage
+  tables); `check:reference`, `check:host-api`, `check:roadmap` green;
+  `schema:report` regenerated for the merged label keys.
+- Not green: `knip` reports 12 unused exports, all in
+  `src/core/vault/broker/windowsPipe.ts` (9 constants/schemas, 3
+  interfaces), inherited via the c/m113-3 merge. That file is M109's
+  Windows pipe wire contract for the pending C-M109-1c C# helper,
+  documented in `docs/design/vault-windows-pipe-helper.md`; deleting or
+  de-exporting another lane's cross-language contract to green the gate
+  would be destructive, and adding ignores would weaken the gate. Left
+  for the vault lane with the lead's decision. No other knip findings.
+- Live e2e (`reports.e2e.test.ts`) not run here: it bills the owner's
+  key; its one stale (iv) assertion was updated to the installed
+  labels for the lead's run.
