@@ -66,7 +66,7 @@ function codeLines(text: string): string[] {
     }
   }
   while (i < text.length) {
-    const char = text[i]
+    const char = text[i]!
     const next = text[i + 1]
     if (quote === null && char === '/' && next === '/') {
       while (i < text.length && text[i] !== '\n') i += 1
