@@ -1229,6 +1229,88 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
     expect(result(r).error?.message).toContain('output cap')
     expect(result(r).usage.requests).toBe(0)
   })
+  it('D3 a budget stop keeps the first request work and says what was reached', async () => {
+    // Request 1 settles $0.05 of scripted usage inside a $0.12 run budget;
+    // request 2's worst-case reservation no longer fits, so the turn stops
+    // with the first reply's text instead of withholding the turn.
+    const h = await harness(
+      ['--max-budget-usd', '0.12'],
+      [
+        {
+          text: 'first progress',
+          calls: [{ name: 'read_file', arguments: '{"path":"missing"}' }],
+          usage: { input: 10, output: 250_000 },
+        },
+        { text: 'second' },
+      ],
+    )
+    const r = await h.run()
+    expect(r.code).toBe(5)
+    expect(result(r).status).toBe('budget_exceeded')
+    expect(h.api.responseBodies()).toHaveLength(1)
+    expect(result(r).finalMessage).toContain('first progress')
+    expect(result(r).finalMessage).toContain('work so far is kept')
+    expect(result(r).finalMessage).not.toContain(UI_TEXT.execMessageWithheld)
+  })
+  it('P3-1 a request-cap refusal names the cap, never the budget sentence', async () => {
+    const h = await harness(
+      ['--max-requests', '2'],
+      [{ calls: [{ name: 'read_file', arguments: '{"path":"missing"}' }] }],
+    )
+    const r = await h.run()
+    expect(r.code).toBe(5)
+    expect(result(r).status).toBe('request_cap')
+    expect(result(r).error?.message).toContain('request cap of 2 attempts')
+    expect(result(r).error?.message).not.toContain(UI_TEXT.execBudgetRefused)
+  })
+  // A setup usage error never reaches the result: the sentence is reported
+  // on stderr, before any request is sent.
+  it('D4 an unknown model names what the session offers', async () => {
+    const h = await harness(['--model', 'no-such-model'])
+    const r = await h.run()
+    expect(r.code).toBe(2)
+    expect(r.result).toBeUndefined()
+    expect(h.api.responseBodies()).toHaveLength(0)
+    // The session backstop reports on stderr: no provider file names one.
+    const message = h.err.chunks.join('')
+    expect(message).toContain('no-such-model')
+    expect(message).toContain('muse-spark-1.3-contributor')
+    expect(message).not.toContain(UI_TEXT.execUnknownModel)
+  })
+  it('D4 a model of an unconfigured provider names the provider', async () => {
+    const h = await harness(['--model', 'groq/m9'])
+    const config = providerConfigFile(h.homeDir)
+    writeFileSync(config, JSON.stringify({ v: 1, providers: [] }))
+    const r = await h.run()
+    expect(r.code).toBe(2)
+    expect(r.result).toBeUndefined()
+    expect(h.api.responseBodies()).toHaveLength(0)
+    expect(h.err.chunks.join('')).toContain('groq is not configured')
+  })
+  it('D4 a model missing from its provider names that provider models', async () => {
+    const h = await harness(['--model', 'groq/m9'])
+    const config = providerConfigFile(h.homeDir)
+    writeFileSync(
+      config,
+      JSON.stringify({
+        v: 1,
+        providers: [
+          {
+            id: 'groq',
+            preset: 'groq',
+            address: 'https://api.groq.com',
+            auth: 'apiKey',
+            models: ['g1'],
+          },
+        ],
+      }),
+    )
+    const r = await h.run()
+    expect(r.code).toBe(2)
+    expect(r.result).toBeUndefined()
+    expect(h.api.responseBodies()).toHaveLength(0)
+    expect(h.err.chunks.join('')).toContain('groq/g1')
+  })
   it('D9 held response hits process deadline and retains full R', async () => {
     // The deadline lands on the held response, not on a wall clock that a slow
     // setup outlasts before the request is sent. Its timer's own latch is

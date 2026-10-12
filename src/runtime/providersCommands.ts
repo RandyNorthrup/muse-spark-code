@@ -50,9 +50,12 @@ import {
 import {
   isEndpointBindingCurrent,
   allowedProviderPaths,
+  isModelUnpriced,
+  parseCatalogPresence,
   pinProviderFetch,
   providerModelsPath,
   resolveProvider,
+  type CatalogPresence,
   type ResolvedProvider,
 } from './exec/providerExec'
 
@@ -100,6 +103,11 @@ export interface ProvidersDeps {
   readonly readSecret: (prompt: string) => Promise<string>
   readonly print: (line: string) => void
   readonly printError: (line: string) => void
+  /**
+   * D4: the priced catalogue for runnable-model warnings. Absent (or
+   * unreadable) in tests: add/test/list skip the warnings, never fail.
+   */
+  readonly readCatalog?: () => Promise<unknown>
 }
 
 /** The default production file IO over the user's own providers file. */
@@ -269,8 +277,34 @@ export async function providersList(deps: ProvidersDeps): Promise<number> {
     const where = entry.address ?? fixedOriginOf(preset) ?? entry.preset
     const models = entry.models.length === 0 ? '—' : entry.models.join(', ')
     deps.print(`${entry.id} — ${preset?.label ?? entry.preset} — ${where} — ${models}`)
+    // D4: a listed model no run can reserve for says why here, not only at
+    // run time.
+    const warnings = await missingPriceWarnings(deps, entry)
+    for (const line of warnings) deps.print(line)
   }
   return EXIT_OK
+}
+
+/**
+ * D4: one warning per configured model without a price card. An unreadable
+ * catalogue warns nothing; the run-time refusal stays the backstop.
+ */
+async function missingPriceWarnings(
+  deps: ProvidersDeps,
+  entry: ProviderEntry,
+): Promise<readonly string[]> {
+  if (deps.readCatalog === undefined) return []
+  let catalog: CatalogPresence | undefined
+  try {
+    catalog = parseCatalogPresence(await deps.readCatalog())
+  } catch {
+    catalog = undefined
+  }
+  return catalog === undefined
+    ? []
+    : entry.models
+        .filter((model) => isModelUnpriced(catalog, entry.preset, entry, model))
+        .map((model) => fill(UI_TEXT.providerModelNoPrice, { ref: `${entry.id}/${model}` }))
 }
 
 function fixedOriginOf(preset: ProviderPreset | undefined): string | undefined {
@@ -742,6 +776,8 @@ export async function providersAdd(
     deps.print(line)
   }
   deps.print(fill(UI_TEXT.providerAdded, { provider: id, origin: address.origin }))
+  const addedWarnings = await missingPriceWarnings(deps, entry)
+  for (const line of addedWarnings) deps.print(line)
   return EXIT_OK
 }
 
@@ -839,6 +875,8 @@ export async function providersTest(deps: ProvidersDeps, providerId: string): Pr
       : plural(UI_TEXT.providerTestOk, probe.modelCount),
   )
   if (probe.modelIds !== undefined) deps.print(probe.modelIds.join(', '))
+  const testedWarnings = await missingPriceWarnings(deps, provider.entry)
+  for (const line of testedWarnings) deps.print(line)
   return EXIT_OK
 }
 

@@ -310,9 +310,15 @@ function startingModel(
         model.modelId.slice(model.modelId.indexOf('/') + 1) === requested,
     )
     if (matches.length === 1 && matches[0] !== undefined) return matches[0].modelId
+    // D4: an unknown model names what runs instead of one generic sentence.
+    // The provider-aware sentences live in runExec's pre-session check; the
+    // session backstop names this backend's models for any unmatched ref.
     throw RequestError.invalidParams(
       undefined,
-      `${UI_TEXT.execProviderModelRequired}: ${models.map((model) => model.modelId).join(', ')}`,
+      fill(UI_TEXT.execModelAvailable, {
+        model: requested,
+        available: models.map((model) => model.modelId).join(', '),
+      }),
     )
   }
   const model =

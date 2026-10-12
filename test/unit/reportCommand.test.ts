@@ -21,6 +21,7 @@ import {
   type ReportJournalRead,
   type RunReportDeps,
 } from '../../src/runtime/reportCommand'
+import { formatCommandHelp } from '../../src/runtime/cliOptions'
 import {
   EXEC_EXIT,
   REDACTED_MARK,
@@ -28,6 +29,7 @@ import {
   REPORT_STORAGE_DIR,
   UI_TEXT,
 } from '../../src/shared/constants'
+import { EN } from '../../src/shared/l10n/en'
 import { FakeLogOutputChannel } from './helpers/fakes'
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
@@ -189,9 +191,19 @@ describe('report argument parsing', () => {
     }
   })
 
-  it('answers --help and -h with the reports namespace options', () => {
-    for (const flag of ['--help', '-h'])
-      expect(parseCommandLine(['report', flag])).toEqual({ command: 'help', route: 'reports ' })
+  it("answers --help and -h with the problem report's own options", () => {
+    for (const argv of [
+      ['report', '--help'],
+      ['report', '-h'],
+      ['report', 'problem', '--help'],
+      ['report', 'problem', '-h'],
+      ['report', '--description', 'x', '--help'],
+    ]) {
+      expect(parseCommandLine(argv)).toEqual({ command: 'help', route: 'report' })
+      const text = formatCommandHelp(EN, 'test-command', 'report')
+      for (const option of ['--description', '--no-facts', '--no-events'])
+        expect(text, argv.join(' ')).toContain(option)
+    }
   })
 })
 

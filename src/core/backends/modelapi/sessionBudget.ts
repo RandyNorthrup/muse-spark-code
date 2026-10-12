@@ -160,6 +160,35 @@ export class SessionBudgetExceededError extends Error {
   }
 }
 
+/**
+ * What a person needs when a paid stop refuses (D1): the limit, what is
+ * spent, what open requests still hold (and how many), when the day resets,
+ * and the setting that raises it.
+ */
+export interface PaidStopDetails {
+  readonly limitUsd: UsdAmount
+  readonly spentUsd: UsdAmount
+  readonly heldUsd: UsdAmount
+  readonly openClaims: number
+  readonly resetsAtMs: number
+  readonly setting: string
+}
+
+/**
+ * A paid stop that carries its numbers. The name stays
+ * `SessionBudgetExceededError` so every existing name-based catch
+ * (refusals, turn outcomes, provider wrappers) recognises it untouched.
+ */
+export class PaidBudgetStopError extends SessionBudgetExceededError {
+  public constructor(
+    message: string,
+    public readonly details: PaidStopDetails,
+  ) {
+    super(message)
+    this.name = 'SessionBudgetExceededError'
+  }
+}
+
 /** What in a request body Meta counts as input: the instructions, the tools, and each input item. */
 export function requestParts(
   body: Pick<CreateResponseBody, 'instructions' | 'tools' | 'input'>,

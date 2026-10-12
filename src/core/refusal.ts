@@ -1,5 +1,17 @@
 import { UI_TEXT } from '../shared/constants'
 
+/**
+ * A paid stop (daily, run, session or account cap) is never retried as a
+ * send failure and never replaced by a generic error. Name-based so the
+ * identity survives lazy bundles and every provider wrapper (D1, P2-3).
+ */
+export function isPaidStop(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (error.name === 'SessionBudgetExceededError' || error.message === UI_TEXT.paidDailyStopped)
+  )
+}
+
 /** A local, intentional refusal; its message is already safe for the user. */
 export class UserRefusalError extends Error {
   public constructor(
@@ -47,6 +59,7 @@ export function isUserRefusal(error: unknown): error is Error {
     UI_TEXT.sessionBudgetLegacyFeesUnknown,
     UI_TEXT.paidDailyLedgerUnavailable,
     UI_TEXT.paidDailyStopped,
+    UI_TEXT.execKeyRotated,
     UI_TEXT.notSignedInReason,
     UI_TEXT.contextWindowFull,
     UI_TEXT.media.filesReadOnly,

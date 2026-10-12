@@ -42,6 +42,7 @@ import {
   RequestTransport,
   parseJsonResponse,
   ModelApiError,
+  isPaidStop,
   isUserRefusal,
 } from '../backends/modelapi/transport'
 import { withDeadline } from '../timeouts'
@@ -808,7 +809,8 @@ export function createConfiguredProviderServices(
             yield event
           }
         } catch (error) {
-          if (isUserRefusal(error) || signal.aborted) throw error
+          // D1: a paid stop is its own sentence, never the generic failure.
+          if (isPaidStop(error) || isUserRefusal(error) || signal.aborted) throw error
           return fail()
         } finally {
           if (presets.planKeyPresetById(entry.preset) !== undefined)

@@ -245,15 +245,59 @@ function paidFeaturesOf(values: Readonly<Record<string, unknown>>): AcpPaidFeatu
   return ACP_PAID_FEATURES.filter((feature) => values[ACP_PAID_FLAGS[feature]] === true)
 }
 
+/** Report flags that take a value: the value is never a subcommand word. */
+const REPORT_VALUE_FLAGS: ReadonlySet<string> = new Set(
+  Object.entries(CLI_OPTION_REGISTRY.report.options)
+    .filter(([, option]) => option.type === 'string')
+    .map(([name]) => `--${name}`),
+)
+
+/** Flags that take a value on either side of a leading command word. */
+const HOIST_VALUE_FLAGS: ReadonlySet<string> = new Set(
+  [CLI_OPTION_REGISTRY.serve.options, CLI_OPTION_REGISTRY.exec.options].flatMap((options) =>
+    Object.entries(options)
+      .filter(([, option]) => option.type === 'string')
+      .map(([name]) => `--${name}`),
+  ),
+)
+
+/**
+ * D5: global options ride before or after the command word, so
+ * `--verbose exec …` parses like `exec --verbose …`. Only `exec` and
+ * `scan-secrets` hoist; anything past `--` stays positional.
+ */
+function hoistLeadingCommand(argv: readonly string[]): readonly string[] {
+  let index = 0
+  while (index < argv.length) {
+    const word = argv[index] ?? ''
+    if (word === '--' || word === '-' || !word.startsWith('-')) break
+    const name = word.split('=', 1)[0] ?? ''
+    index += !word.includes('=') && HOIST_VALUE_FLAGS.has(name) ? 2 : 1
+  }
+  const command = argv[index]
+  return (command === 'exec' || command === 'scan-secrets') && index > 0
+    ? [command, ...argv.slice(0, index), ...argv.slice(index + 1)]
+    : argv
+}
+
+/** D5: the parser library's unknown-option sentence never reaches the person. */
+function unknownOptionReason(error: unknown): string | undefined {
+  const message = error instanceof Error ? error.message : String(error)
+  const option = /^Unknown option '([^']+)'/.exec(message)?.[1]
+  return option === undefined ? undefined : fill(UI_TEXT.acpUnknownArgument, { argument: option })
+}
+
 export function parseCommandLine<T>(
   argv: readonly string[],
   localSharing: (argv: readonly string[]) => T,
 ): RuntimeCommand | T
 export function parseCommandLine(argv: readonly string[]): RuntimeCommand
 export function parseCommandLine<T>(
-  argv: readonly string[],
+  args: readonly string[],
   localSharing?: (argv: readonly string[]) => T,
 ): RuntimeCommand | T {
+  // D5: a leading command word never hides behind global options.
+  const argv = hoistLeadingCommand(args)
   const divider = argv.indexOf('--')
   const flags = divider === -1 ? argv : argv.slice(0, divider)
   if (flags.includes('--help') || flags.includes('-h')) {
@@ -277,9 +321,21 @@ export function parseCommandLine<T>(
       route = `chatGptProvider ${argv[1] ?? 'add'}`
     else if (argv[0] === 'exec' && argv[1] === 'legal-scan') route = 'legal'
     else if (argv[0] === 'report' && argv[1] !== undefined) {
-      // `problem` aliases bare report, so it never names a subcommand here.
-      const sub = argv[1] === 'problem' ? flags.slice(2) : flags.slice(1)
-      route = `reports ${sub.filter((word) => !word.startsWith('-')).join(' ')}`
+      // P2-1: `problem` aliases bare report, so both reach the problem
+      // report's own options. Anything else names the reports namespace.
+      // Flag values (e.g. `--description foo`) are not subcommand words.
+      const words: string[] = []
+      for (let index = 0; index < flags.length; index++) {
+        const word = flags[index] ?? ''
+        if (word.startsWith('-')) {
+          const name = word.split('=', 1)[0] ?? ''
+          if (!word.includes('=') && REPORT_VALUE_FLAGS.has(name)) index++
+          continue
+        }
+        words.push(word)
+      }
+      const rest = words[1] === 'problem' ? words.slice(2) : words.slice(1)
+      route = rest.length === 0 ? 'report' : `reports ${rest.join(' ')}`
     } else if (argv[0] === 'usage' && argv[1] === 'resources') route = 'resources'
     else if (argv[0] === 'providers')
       route =
@@ -377,7 +433,12 @@ export function parseCommandLine<T>(
   } catch (error: unknown) {
     if (argv.includes('auth'))
       return { command: 'invalid', reason: UI_TEXT.accounts.credentialHelp }
-    return { command: 'invalid', reason: error instanceof Error ? error.message : String(error) }
+    // D5: an unknown option gets our sentence, translated, not the library's.
+    return {
+      command: 'invalid',
+      reason:
+        unknownOptionReason(error) ?? (error instanceof Error ? error.message : String(error)),
+    }
   }
   const { values, positionals } = parsed
   if (values.help === true) {
@@ -751,7 +812,9 @@ function invalidHeadlessReason(reason: string): RuntimeCommand {
 
 /** A `parseArgs` throw as a headless usage refusal (never a prompt). */
 function invalidHeadlessCause(error: unknown): RuntimeCommand {
-  return invalidHeadlessReason(error instanceof Error ? error.message : String(error))
+  return invalidHeadlessReason(
+    unknownOptionReason(error) ?? (error instanceof Error ? error.message : String(error)),
+  )
 }
 
 function legalOutcome(parsed: ReturnType<typeof parseLegalArgs>): RuntimeCommand {

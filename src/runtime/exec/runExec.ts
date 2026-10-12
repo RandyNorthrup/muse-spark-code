@@ -78,6 +78,7 @@ import {
   readPromptStdin,
 } from './keyInput'
 import type { AssembledProviderRun } from './providerExec'
+
 import { createRunLedger } from './runLedger'
 import { observeBackend, type SessionTap } from './sessionTap'
 import { readUntrustedInputs } from './untrustedInput'
@@ -513,6 +514,45 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
     }
   })()
   const cleanupStart = { value: 0 }
+  // D4: a qualified model names its provider problem before the session
+  // starts: an unconfigured provider, or a model missing from it. Anything
+  // else (and an unreadable providers file) stays with the session's own
+  // sentence at set-up time. Runs through --provider never reach here:
+  // assembly validated them against the same file.
+  const providerModelRefusal = async (): Promise<string | undefined> => {
+    if (options.model === undefined) return undefined
+    // D4: the providers bundle owns the ref parser and the file reader;
+    // the headless entry reaches both through its externalized entries,
+    // never a static edge (the split gate forbids carrying them).
+    const { modelRef, providersFile } = await import('../../host/backend/providersEntry')
+    const { providersFilePath } = await import('../runtimeAccountingEntry.js')
+    const parsed = modelRef.parseModelRef(options.model)
+    if (parsed === undefined || parsed.providerId === modelRef.RESERVED_PROVIDER_ID)
+      return undefined
+    const read = await providersFile.readProvidersFile(
+      providersFilePath({
+        platform: deps.platform,
+        homeDir: deps.homeDir,
+        xdgConfigHome: deps.env['XDG_CONFIG_HOME'],
+      }),
+      async (filePath) =>
+        new TextDecoder('utf-8', { fatal: true }).decode(
+          await deps.readFile(filePath, EXEC_PROMPT_MAX_BYTES, lifecycle.signal),
+        ),
+    )
+    if (!read.ok) return undefined
+    const entry = read.file.providers.find((candidate) => candidate.id === parsed.providerId)
+    if (entry === undefined)
+      return fill(UI_TEXT.providerNotConfigured, { provider: parsed.providerId })
+    if (entry.models.every((id) => options.model !== id && options.model !== `${entry.id}/${id}`)) {
+      return fill(UI_TEXT.execModelNeedsProvider, {
+        model: options.model,
+        provider: parsed.providerId,
+        available: entry.models.map((id) => `${entry.id}/${id}`).join(', '),
+      })
+    }
+    return undefined
+  }
   const grace = async <T>(waiting: Promise<T>): Promise<T | undefined> => {
     let timer: ReturnType<typeof setTimeout> | undefined
     try {
@@ -794,6 +834,16 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         status = readiness.state === 'signedOut' ? 'auth_required' : 'backend_unavailable'
         error = readiness.message
         return await finish()
+      }
+      // D4: refuse a qualified model its provider cannot run before the
+      // session starts, while the sentence can still name the provider.
+      if (providerRun === undefined) {
+        const refusal = await lifecycle.race(providerModelRefusal())
+        if (refusal !== undefined) {
+          setup.isUsageError = true
+          error = refusal
+          return await finish()
+        }
       }
       tap = observeBackend(runtime.backend)
       const { createAcpAgent, createExecClient } = engine
@@ -1154,6 +1204,16 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       status === 'completed'
         ? undefined
         : tap?.releasedMessages(true).findLast((item) => item.kind === 'agentMessage')
+    // D3: a budget stop keeps everything produced so far, and the final
+    // message says what was reached instead of withholding the turn.
+    const partialText = partial?.text
+    const finalMessage =
+      status === 'budget_exceeded'
+        ? [
+            ...(partialText === undefined || partialText === '' ? [] : [partialText]),
+            plural(UI_TEXT.execBudgetProgress, totals?.requests ?? 0),
+          ].join(' ')
+        : (partialText ?? (hasCompleteResponse ? '' : UI_TEXT.execMessageWithheld))
     const result: ExecResult = {
       v: EXEC_PROTOCOL_VERSION,
       status,
@@ -1168,7 +1228,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       sessionId: setup.sessionId,
       ephemeral: options.ephemeral,
       ...(options.ephemeral && { usageHistory: 'omitted_ephemeral' as const }),
-      finalMessage: partial?.text ?? (hasCompleteResponse ? '' : UI_TEXT.execMessageWithheld),
+      finalMessage,
       finalMessageComplete: status === 'completed',
       filesChanged: [...filesChanged],
       denials,
