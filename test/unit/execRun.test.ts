@@ -1,4 +1,7 @@
 import { Usd } from '../../src/shared/usd'
+import { EN } from '../../src/shared/l10n/en'
+import { plural, setUiText } from '../../src/shared/l10n/text'
+import germanTable from '../../l10n/ui.de.json'
 import type { UsageRecording } from '../../src/core/usage/recording'
 import {
   constants as fileFlags,
@@ -1287,6 +1290,55 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
     expect(h.api.responseBodies()).toHaveLength(0)
     expect(result(r).error?.message).toContain('0.108135')
   })
+  it.each(['en', 'de'] as const)(
+    'reports the fast stop sentences in the run language (%s)',
+    async (locale) => {
+      // Only the stop-sentence region rides along: the English table stays
+      // complete underneath, exactly as the packed agent installs one table.
+      setUiText(
+        locale === 'de'
+          ? {
+              ...EN,
+              modelApiTurnLimit: germanTable.modelApiTurnLimit,
+              execBudgetMinimum: germanTable.execBudgetMinimum,
+              execMessageWithheld: germanTable.execMessageWithheld,
+              execUnknownModel: germanTable.execUnknownModel,
+            }
+          : EN,
+        locale,
+      )
+      try {
+        // The call cap with no wrap-up: the limit sentence and no kept answer.
+        const capped = await harness(
+          ['--max-requests', '1'],
+          [{ calls: [{ name: 'get_goal', arguments: '{}' }] }],
+        )
+        const single = await capped.run()
+        expect(single.code).toBe(5)
+        expect(result(single)).toMatchObject({ status: 'request_cap' })
+        expect(result(single).error?.message).toBe(plural(UI_TEXT.modelApiTurnLimit, 1))
+        // No answer exists before the first call: nothing is kept.
+        expect(result(single).finalMessage).toBe('')
+        // The start-budget minimum: the template's own words around the amount.
+        const poor = await harness(['--max-budget-usd', '0.108134'])
+        const denied = await poor.run()
+        expect(denied.code).toBe(5)
+        expect(result(denied).finalMessage).toBe(UI_TEXT.execMessageWithheld)
+        const [minimumPrefix, minimumSuffix] = UI_TEXT.execBudgetMinimum.split('{minimum}', 2)
+        const minimumMessage = result(denied).error?.message ?? ''
+        expect(minimumMessage.startsWith(minimumPrefix ?? '')).toBe(true)
+        expect(minimumMessage.endsWith(minimumSuffix ?? '')).toBe(true)
+        // An unavailable model never reaches dispatch: usage exit, plain sentence.
+        const foreign = await harness(['--model', 'bogus-model-x'])
+        const refused = await foreign.run()
+        expect(refused.code).toBe(2)
+        expect(refused.result).toBeUndefined()
+        expect(foreign.err.chunks.join('')).toContain(UI_TEXT.execUnknownModel)
+      } finally {
+        setUiText(EN, 'en')
+      }
+    },
+  )
   it('D9 held response hits process deadline and retains full R', async () => {
     // The deadline lands on the held response, not on a wall clock that a slow
     // setup outlasts before the request is sent. Its timer's own latch is

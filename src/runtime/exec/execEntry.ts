@@ -1,7 +1,11 @@
 import type { UiText } from '../../shared/l10n/en'
-import { setUiText } from '../../shared/l10n/text'
 import type { Lifecycle } from './execLimits'
-import { execOutputSchemaPort, runExec, type ExecDeps } from './runExec'
+import {
+  execOutputSchemaPort,
+  runExec,
+  setUiText as setHeadlessUiText,
+  type ExecDeps,
+} from './runExec'
 
 /** The trusted headless runner loads only for exec and owns no credential globals. */
 export async function runHeadless(
@@ -10,6 +14,9 @@ export async function runHeadless(
   table: UiText,
   locale: string,
 ): Promise<number> {
-  setUiText(table, locale)
+  // `runExec` reads the table copy bundled into dist/headless.js, while this
+  // entry's own copy lives in dist/exec.js: installing here would leave every
+  // exec result sentence (and, through it, the engine's) in English.
+  setHeadlessUiText(table, locale)
   return await runExec(lifecycle, { ...deps, outputSchema: execOutputSchemaPort })
 }
