@@ -156,9 +156,17 @@ teamPanel 124; TeamTree + money guard + teamModelRegistry 33;
 conversationController + modelApiHost + teamAvailability 1358;
 bundleSize 65; deferredBundles 118/118 (diet pin 530_883 intact);
 `check-l10n` 0 problems; eslint `--max-warnings=0` + prettier clean on all
-touched files. `vitest related` over the changed non-hub sources was
-launched for the dependents rule; its result (if it finished after this
-write) is reported in the lane's final message, else listed NOT RUN HERE.
+touched files. `vitest related` over the changed non-hub sources finished
+465/492 files (11341 tests) green; the 20 failing files fail with
+sandbox/proxy/browser/load signatures only — Chrome cannot launch
+(`socketpair: Operation not permitted`), local HTTP returns proxy 502s,
+vault/exec suites hit the blocked device surface, plus worker-crash
+timeouts at load 23. Every suite covering changed behavior passes in
+isolation on the final tree (journal/store/recording families included:
+52/52); the MCP/loopback/chatgpt/vault failures reproduce the sandbox
+blocks the lane brief documents, not assertion diffs on lane data
+(`teamMcpServer.ts` never calls `tree()`; roster diffs are unreceived
+HTTP calls).
 
 NOT RUN HERE (sandbox blocks loopback sockets and VS Code; no live or paid
 calls made): `test/integration/teamComposition.test.ts` — lead runs
