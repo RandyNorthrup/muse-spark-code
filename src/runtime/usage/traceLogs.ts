@@ -370,7 +370,16 @@ interface TraceFileSnapshot extends TraceLogFileStat {
 
 async function snapshotFile(fs: TraceLogFs, file: string): Promise<TraceFileSnapshot> {
   const stat = await fs.stat(file)
-  return { ...stat, head: await fs.readHead(file, TRACE_LOG_HEAD_BYTES) }
+  let head: string
+  try {
+    head = await fs.readHead(file, TRACE_LOG_HEAD_BYTES)
+  } catch {
+    // A head that cannot be fingerprinted (a locked file) fails its stream
+    // the same way: carry an empty fingerprint so the parse path, which
+    // sees the same error, names the failure instead of the snapshot.
+    head = ''
+  }
+  return { ...stat, head }
 }
 
 /**
@@ -563,21 +572,31 @@ export async function listTraceFiles(fs: TraceLogFs, directory: string): Promise
   for (const name of names) {
     if (name.endsWith(TRACE_LOG_FILE_SUFFIX)) candidates.push(path.join(directory, name))
   }
-  const maybeListed = await mapPool(candidates, TRACE_LOG_READ_CONCURRENCY, async (file) => {
-    try {
-      return { file, stat: await fs.stat(file) }
-    } catch {
-      // Gone between the listing and the stat; the next listing retries.
-      return
-    }
-  })
-  const stamped = maybeListed.filter((entry): entry is TraceListedFile => entry !== undefined)
+  // The pool never holds undefined (it cannot tell a gap from a miss),
+  // so each task returns a wrapper: a missing stat is an absent file.
+  const maybeListed = await mapPool(
+    candidates,
+    TRACE_LOG_READ_CONCURRENCY,
+    async (file): Promise<{ file: string; stat: TraceLogFileStat | undefined }> => {
+      try {
+        return { file, stat: await fs.stat(file) }
+      } catch {
+        // Gone between the listing and the stat; the next listing retries.
+        return { file, stat: undefined }
+      }
+    },
+  )
+  const stamped: TraceListedFile[] = []
+  for (const entry of maybeListed) {
+    if (entry.stat !== undefined) stamped.push({ file: entry.file, stat: entry.stat })
+  }
   stamped.sort((a, b) => {
     if (a.stat.mtimeNs !== b.stat.mtimeNs)
       return BigInt(a.stat.mtimeNs) > BigInt(b.stat.mtimeNs) ? -1 : 1
     const left = a.file.replaceAll('\\', '/')
     const right = b.file.replaceAll('\\', '/')
-    return left < right ? -1 : left > right ? 1 : 0
+    if (left === right) return 0
+    return left < right ? -1 : 1
   })
   const entries = stamped.slice(0, TRACE_LOG_MAX_FILES)
   return entries.length === 0
@@ -699,7 +718,9 @@ export function createTraceLogReader(deps: TraceLogDeps): TraceLogReader {
       const parsed = await parseFileRecord(fs, file, snapshot, parseLine, files.get(file))
       if (parsed.record.state === 'unreadable') files.delete(file)
       else files.set(file, { ...parsed.snapshot, record: parsed.record })
-      if (parsed.record.state === 'behind') wasRefreshStale = true
+      // Any record that is not a fresh parse (a stand-in, a partial
+      // oversize read, or nothing at all) may leave numbers behind.
+      if (parsed.record.state !== 'fresh') wasRefreshStale = true
       return parsed.record
     }
     const pending = (async (): Promise<TraceFileRecord> => {
@@ -723,15 +744,22 @@ export function createTraceLogReader(deps: TraceLogDeps): TraceLogReader {
     const cutoff = traceLogCutoffMs(nowMs, fromDay)
     const needed = listing.entries.filter((entry) => entry.stat.mtimeMs >= cutoff)
     wasRefreshStale = false
-    const snapshots = await mapPool(needed, TRACE_LOG_READ_CONCURRENCY, async (entry) => {
-      try {
-        return await snapshotFile(fs, entry.file)
-      } catch {
-        // Vanished between the listing and the snapshot: the record says so.
-        return
-      }
-    })
-    const withSnapshots = needed.map((entry, index) => ({ entry, snapshot: snapshots[index] }))
+    const snapshots = await mapPool(
+      needed,
+      TRACE_LOG_READ_CONCURRENCY,
+      async (entry): Promise<{ snapshot: TraceFileSnapshot | undefined }> => {
+        try {
+          return { snapshot: await snapshotFile(fs, entry.file) }
+        } catch {
+          // Vanished between the listing and the snapshot: the record says so.
+          return { snapshot: undefined }
+        }
+      },
+    )
+    const withSnapshots = needed.map((entry, index) => ({
+      entry,
+      snapshot: snapshots[index]?.snapshot,
+    }))
     const records = await mapPool(
       withSnapshots,
       TRACE_LOG_READ_CONCURRENCY,

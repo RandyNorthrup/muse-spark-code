@@ -1,16 +1,25 @@
+import { createHash } from 'node:crypto'
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { USAGE_HISTORY_DAYS_MAX, USAGE_WINDOW_DAY_MS } from '../../src/shared/constants'
+import {
+  TRACE_LOG_HEAD_BYTES,
+  USAGE_HISTORY_DAYS_MAX,
+  USAGE_WINDOW_DAY_MS,
+} from '../../src/shared/constants'
 import type { FileIdentity } from '../../src/core/fs/fileIdentity'
 import { parseTraceLog } from '../../src/core/usage/insights'
 import {
   createTraceLogReader,
+  createTraceLineSplitter,
   defaultTraceLogFs,
   getTraceLogReader,
+  summarizeTraceRead,
   traceLogCutoffMs,
   traceLogDirectory,
+  type TraceFileRecord,
+  type TraceListing,
   type TraceLogFs,
   type TraceLogReader,
 } from '../../src/runtime/usage/traceLogs'
@@ -30,6 +39,12 @@ function errno(code: string): NodeJS.ErrnoException {
   return Object.assign(new Error(code), { code })
 }
 
+function headOf(content: string): string {
+  return createHash('sha256')
+    .update(Buffer.from(content, 'utf8').subarray(0, TRACE_LOG_HEAD_BYTES))
+    .digest('hex')
+}
+
 interface FakeFile {
   content: string
   mtimeMs: number
@@ -40,11 +55,15 @@ interface FakeFile {
   appendDuringStream: string
   /** One-shot: replaced content (and identity) while a stream is open. */
   shrinkDuringStream: { content: string; identity: FileIdentity } | undefined
+  /** One-shot: replaced content on the SAME identity while a stream is open. */
+  rewriteDuringStream: string | undefined
+  /** The entry is removed when a stream opens: vanished between stat and read. */
+  unlinkOnStream: boolean
   /** Every stat hands out a new identity and content: the file never settles. */
   churn: boolean
 }
 
-function fakeFile(content: string, mtimeMs: number, ino: number): FakeFile {
+function fakeFile(content: string, mtimeMs: number, ino: number | bigint): FakeFile {
   return {
     content,
     mtimeMs,
@@ -53,6 +72,8 @@ function fakeFile(content: string, mtimeMs: number, ino: number): FakeFile {
     locked: false,
     appendDuringStream: '',
     shrinkDuringStream: undefined,
+    rewriteDuringStream: undefined,
+    unlinkOnStream: false,
     churn: false,
   }
 }
@@ -60,8 +81,10 @@ function fakeFile(content: string, mtimeMs: number, ino: number): FakeFile {
 /**
  * In-memory file system honouring the snapshot contract: `streamLines`
  * reports only complete lines in the first `maxBytes` bytes (LF and CRLF;
- * a lone CR stays inside its line; the unterminated tail is dropped), and
- * `stat` reports the content as it stands when called.
+ * a lone CR stays inside its line; the unterminated tail is dropped),
+ * `readHead` fingerprints the first TRACE_LOG_HEAD_BYTES bytes as the
+ * production reader does, and `stat` reports the content as it stands when
+ * called.
  */
 function fakeFs(): {
   files: Map<string, FakeFile>
@@ -117,24 +140,41 @@ function fakeFs(): {
       const snapshot = snapshotOf(entry)
       return Promise.resolve({ ...snapshot, identity: entry.identity })
     },
+    readHead: (file): Promise<string> => {
+      const entry = state.files.get(file)
+      if (entry === undefined) return Promise.reject(errno('ENOENT'))
+      return entry.locked ? Promise.reject(errno('EPERM')) : Promise.resolve(headOf(entry.content))
+    },
     streamLines: (file, maxBytes, onLine): Promise<void> => {
       state.opens += 1
       state.inFlight += 1
       return (async (): Promise<void> => {
         try {
           if (state.gate !== undefined) await state.gate()
+          if (state.files.get(file)?.unlinkOnStream === true) state.files.delete(file)
           const entry = state.files.get(file)
           if (entry === undefined) throw errno('ENOENT')
           if (entry.locked) throw errno('EPERM')
           // The snapshot is the prefix as the first stat saw it: a host
           // write lands past it and only moves the after-stat.
           const prefix = Buffer.from(entry.content, 'utf8').subarray(0, maxBytes).toString('utf8')
-          if (entry.appendDuringStream !== '') entry.content += entry.appendDuringStream
+          // One shot: the append lands during this read only, so a retry
+          // parses a settled file the way a real host's write settles.
+          if (entry.appendDuringStream !== '') {
+            entry.content += entry.appendDuringStream
+            entry.appendDuringStream = ''
+          }
           const replacement = entry.shrinkDuringStream
           if (replacement !== undefined) {
             entry.shrinkDuringStream = undefined
             entry.content = replacement.content
             entry.identity = replacement.identity
+            entry.mtimeMs = Date.now()
+            entry.mtimeNs = String(BigInt(entry.mtimeMs) * 1_000_000n)
+          }
+          if (entry.rewriteDuringStream !== undefined) {
+            entry.content = entry.rewriteDuringStream
+            entry.rewriteDuringStream = undefined
             entry.mtimeMs = Date.now()
             entry.mtimeNs = String(BigInt(entry.mtimeMs) * 1_000_000n)
           }
@@ -179,6 +219,41 @@ function seededReader(): {
   const directory = seed(fs, home, ['cli-a.log'])
   const reader = createTraceLogReader({ homeDir: home, fs: fs.port })
   return { home, fs, directory, reader }
+}
+
+function attemptTotal(rows: readonly { attempts: number }[]): number {
+  return rows.reduce((total, row) => total + row.attempts, 0)
+}
+
+function filesOf(records: readonly TraceFileRecord[]): string[] {
+  return records.map((record) => path.basename(record.file))
+}
+
+function testListing(outcome: TraceListing['outcome']): TraceListing {
+  return {
+    entries: [],
+    outcome,
+    reason: outcome === 'ok' ? 'current' : outcome,
+  }
+}
+
+function testRecord(
+  state: TraceFileRecord['state'],
+  reason: TraceFileRecord['reason'],
+): TraceFileRecord {
+  return {
+    file: 'cli-a.log',
+    size: 10,
+    mtimeNs: '1',
+    facts: {
+      firstMs: undefined,
+      lastMs: undefined,
+      attempts: [],
+      runs: new Map(),
+    },
+    state,
+    reason,
+  }
 }
 
 describe('cached trace reader', () => {
@@ -243,11 +318,71 @@ describe('cached trace reader', () => {
     expect(first).toHaveLength(2)
     expect(second).toHaveLength(2)
     // Both files' attempts share one day and origin, so one grouped row.
-    expect(attempts.reduce((total, row) => total + row.attempts, 0)).toBe(2)
+    expect(attemptTotal(attempts)).toBe(2)
     expect(fs.opens).toBe(2)
   })
 
-  it('a listing failure rejects every sharer, keeps the cache, and retries next call', async () => {
+  it('two concurrent reads with different cutoffs each get their full answer', async () => {
+    for (const isPageFirst of [true, false]) {
+      const home = tempHome()
+      const fs = fakeFs()
+      const directory = traceLogDirectory({ homeDir: home })
+      // One log from an earlier day, one from today: the page asks for
+      // today only while the insights read takes the long backstop.
+      fs.files.set(
+        path.join(directory, 'cli-old.log'),
+        fakeFile(
+          admission('2026-10-01T05:00:00.000Z', 'old'),
+          Date.parse('2026-10-01T06:00:00.000Z'),
+          1,
+        ),
+      )
+      fs.files.set(
+        path.join(directory, 'cli-new.log'),
+        fakeFile(admission('2026-10-12T05:00:00.000Z', 'new'), NOW - 1000, 2),
+      )
+      const { promise: gate, resolve: release } = Promise.withResolvers<undefined>()
+      fs.gate = async () => {
+        await gate
+      }
+      const reader = createTraceLogReader({ homeDir: home, fs: fs.port })
+      // The page's day in local days, whatever the rig's timezone: the new
+      // log's mtime is inside it and the old log's is outside it.
+      const day = new Date(NOW - 1000)
+      const today = `${String(day.getFullYear())}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`
+      // Start order must not matter: the narrower read starts first on one
+      // pass and second on the other; the gate holds both inside the read.
+      let page: Awaited<ReturnType<TraceLogReader['readAttempts']>>
+      let insights: Awaited<ReturnType<TraceLogReader['readLogs']>>
+      if (isPageFirst) {
+        const pagePending = reader.readAttempts(NOW, today)
+        const insightsPending = reader.readLogs(NOW)
+        await new Promise((resolve) => setTimeout(resolve, 20))
+        release(undefined)
+        page = await pagePending
+        insights = await insightsPending
+      } else {
+        const insightsPending = reader.readLogs(NOW)
+        const pagePending = reader.readAttempts(NOW, today)
+        await new Promise((resolve) => setTimeout(resolve, 20))
+        release(undefined)
+        insights = await insightsPending
+        page = await pagePending
+      }
+      // The page sees today's log only; the joined wider read loses nothing.
+      expect(attemptTotal(page)).toBe(1)
+      expect(insights).toHaveLength(2)
+      // Each file parsed exactly once across both callers: the wider read
+      // joined the narrower read's in-flight parse of the shared file.
+      expect(fs.opens).toBe(2)
+      // A third read that needs everything reuses both parses.
+      fs.gate = undefined
+      expect(await reader.readLogs(NOW)).toHaveLength(2)
+      expect(fs.opens).toBe(2)
+    }
+  })
+
+  it('a listing failure reads as unavailable, keeps the cache, and retries next call', async () => {
     const home = tempHome()
     const fs = fakeFs()
     seed(fs, home, ['cli-a.log'])
@@ -255,26 +390,33 @@ describe('cached trace reader', () => {
     expect(await reader.readLogs(NOW)).toHaveLength(1)
     expect(fs.opens).toBe(1)
     fs.listError = errno('EACCES')
-    await expect(
-      Promise.all([reader.readLogs(NOW), reader.readLogs(NOW), reader.readAttempts(NOW)]),
-    ).rejects.toMatchObject({ code: 'EACCES' })
+    // No caller throws for a listing failure: the summary says so, with the
+    // errno word as its reason, and the cache is untouched.
+    const failed = await reader.readSummary(NOW)
+    expect(failed.state).toBe('unavailable')
+    expect(failed.reasons).toEqual(['EACCES'])
+    expect(failed.empty).toBe(false)
+    expect(await reader.readLogs(NOW)).toEqual([])
     expect(fs.opens).toBe(1)
     fs.listError = undefined
-    // The cache survived the failed refresh: nothing reopens.
+    // The cache survived the failed listing: nothing reopens.
     expect(await reader.readLogs(NOW)).toHaveLength(1)
     expect(fs.opens).toBe(1)
   })
 
-  it('an absent directory reads as no logs', async () => {
+  it('an absent directory reads as no logs, and only then as empty', async () => {
     const home = tempHome()
     const fs = fakeFs()
     fs.listError = errno('ENOENT')
     const reader = createTraceLogReader({ homeDir: home, fs: fs.port })
     expect(await reader.readLogs(NOW)).toEqual([])
     expect(await reader.readAttempts(NOW)).toEqual([])
+    const summary = await reader.readSummary(NOW)
+    expect(summary.state).toBe('ok')
+    expect(summary.empty).toBe(true)
   })
 
-  it('a locked file is skipped and retried, never cached as empty', async () => {
+  it('a locked file with no earlier parse is unreadable, never silent nothing', async () => {
     const home = tempHome()
     const fs = fakeFs()
     const directory = seed(fs, home, ['cli-a.log', 'cli-locked.log'])
@@ -282,15 +424,88 @@ describe('cached trace reader', () => {
     if (locked === undefined) throw new Error('seeded file missing')
     locked.locked = true
     const reader = createTraceLogReader({ homeDir: home, fs: fs.port })
-    expect(await reader.readLogs(NOW)).toHaveLength(1)
-    expect(fs.opens).toBe(2)
-    expect(reader.isTraceStale()).toBe(false)
+    // The locked file contributes no facts, but it always contributes a
+    // record: the read is behind, with the lock as its reason.
+    const summary = await reader.readSummary(NOW)
+    expect(summary.facts).toHaveLength(1)
+    expect(summary.state).toBe('behind')
+    expect(summary.reasons).toEqual(['locked'])
+    const records = new Map(summary.records.map((record) => [path.basename(record.file), record]))
+    expect(records.get('cli-locked.log')).toMatchObject({ state: 'unreadable', reason: 'locked' })
+    expect(records.get('cli-a.log')).toMatchObject({ state: 'fresh' })
+    expect(reader.isTraceStale()).toBe(true)
+    // A locked file is never cached as empty: releasing the lock parses it.
     locked.locked = false
-    expect(await reader.readLogs(NOW)).toHaveLength(2)
+    const recovered = await reader.readSummary(NOW)
+    expect(recovered.state).toBe('ok')
+    expect(recovered.facts).toHaveLength(2)
+    expect(reader.isTraceStale()).toBe(false)
     expect(fs.opens).toBe(3)
   })
 
-  it('a file growing mid-read counts its snapshot lines and parses the tail next refresh', async () => {
+  it('a locked file with an earlier parse stands in as behind', async () => {
+    const { fs, directory, reader } = seededReader()
+    expect(await reader.readLogs(NOW)).toHaveLength(1)
+    const locked = fs.files.get(path.join(directory, 'cli-a.log'))
+    if (locked === undefined) throw new Error('seeded file missing')
+    locked.locked = true
+    const summary = await reader.readSummary(NOW)
+    expect(summary.state).toBe('behind')
+    expect(summary.reasons).toEqual(['locked'])
+    expect(summary.records).toHaveLength(1)
+    expect(summary.records[0]).toMatchObject({ state: 'behind', reason: 'locked' })
+    // The served numbers are the last good parse, and the reader says so.
+    expect(
+      summary.facts.flatMap((facts) => facts.attempts).map((attempt) => attempt.runId),
+    ).toEqual(['cli-a.log'])
+    expect(reader.isTraceStale()).toBe(true)
+    locked.locked = false
+    const unlocked = await reader.readSummary(NOW)
+    expect(unlocked.state).toBe('ok')
+    expect(reader.isTraceStale()).toBe(false)
+  })
+
+  it('a log locked for the whole read stays unreadable across reads', async () => {
+    const { fs, directory, reader } = seededReader()
+    const locked = fs.files.get(path.join(directory, 'cli-a.log'))
+    if (locked === undefined) throw new Error('seeded file missing')
+    locked.locked = true
+    for (let round = 0; round < 2; round += 1) {
+      const summary = await reader.readSummary(NOW)
+      expect(summary.state).toBe('unavailable')
+      expect(summary.facts).toEqual([])
+      expect(summary.records).toMatchObject([{ state: 'unreadable', reason: 'locked' }])
+    }
+    // On Windows a running host may hold its log locked for the whole
+    // session; unlocking parses it on the next read without a restart.
+    locked.locked = false
+    const recovered = await reader.readSummary(NOW)
+    expect(recovered.state).toBe('ok')
+    expect(recovered.facts).toHaveLength(1)
+  })
+
+  it('a file grown between reads parses the new tail on the next read', async () => {
+    const home = tempHome()
+    const fs = fakeFs()
+    const directory = seed(fs, home, ['cli-a.log'])
+    const growing = fs.files.get(path.join(directory, 'cli-a.log'))
+    if (growing === undefined) throw new Error('seeded file missing')
+    const reader = createTraceLogReader({ homeDir: home, fs: fs.port })
+    const before = await reader.readLogs(NOW)
+    expect(before.flatMap((facts) => facts.attempts)).toHaveLength(1)
+    expect(fs.opens).toBe(1)
+    // The host appends one complete line and one torn piece after the read.
+    growing.content += `${admission('2026-10-12T05:30:00.000Z', 'next')}2026-10-12T05:31:00.000Z INFO torn`
+    growing.mtimeMs = NOW
+    growing.mtimeNs = String(BigInt(NOW) * 1_000_000n)
+    const second = await reader.readLogs(NOW)
+    expect(fs.opens).toBe(2)
+    // The torn tail is not a line yet: exactly the new complete line joins.
+    expect(second.flatMap((facts) => facts.attempts)).toHaveLength(2)
+    expect(reader.isTraceStale()).toBe(false)
+  })
+
+  it('an append during the read is picked up by the one re-read', async () => {
     const home = tempHome()
     const fs = fakeFs()
     const directory = seed(fs, home, ['cli-a.log'])
@@ -299,16 +514,13 @@ describe('cached trace reader', () => {
     // The host appends one complete line and one torn piece while streaming.
     growing.appendDuringStream = `${admission('2026-10-12T05:30:00.000Z', 'next')}2026-10-12T05:31:00.000Z INFO torn`
     const reader = createTraceLogReader({ homeDir: home, fs: fs.port })
-    // The snapshot's complete line is counted: nothing is dropped.
+    // The first snapshot went stale mid-read, so the single re-read parses
+    // the fresh snapshot: nothing is dropped and nothing is counted twice.
     const first = await reader.readLogs(NOW)
     expect(first).toHaveLength(1)
-    expect(first.flatMap((facts) => facts.attempts)).toHaveLength(1)
+    expect(first.flatMap((facts) => facts.attempts)).toHaveLength(2)
     expect(reader.isTraceStale()).toBe(false)
-    growing.appendDuringStream = ''
-    // The next refresh sees the growth and parses the new tail in full.
-    const second = await reader.readLogs(NOW)
     expect(fs.opens).toBe(2)
-    expect(second.flatMap((facts) => facts.attempts)).toHaveLength(2)
   })
 
   it('a file shrinking mid-read is re-read once in the same refresh', async () => {
@@ -330,27 +542,90 @@ describe('cached trace reader', () => {
     expect(reader.isTraceStale()).toBe(false)
   })
 
-  it('a file that keeps changing keeps its last good parse and reports stale', async () => {
+  it('a same-size rewrite on the same inode is seen by its head', async () => {
+    const { fs, directory, reader } = seededReader()
+    expect(await reader.readLogs(NOW)).toHaveLength(1)
+    expect(fs.opens).toBe(1)
+    const rewritten = fs.files.get(path.join(directory, 'cli-a.log'))
+    if (rewritten === undefined) throw new Error('seeded file missing')
+    // Truncated and rewritten in place: same inode, same or larger size,
+    // new content. The head fingerprint moves, so the next read re-parses
+    // instead of serving the stale facts as fresh.
+    rewritten.content = admission('2026-10-12T05:30:00.000Z', 'rewritten')
+    rewritten.mtimeNs = String(BigInt(rewritten.mtimeMs) * 1_000_000n + 11n)
+    const second = await reader.readSummary(NOW)
+    expect(fs.opens).toBe(2)
+    expect(second.state).toBe('ok')
+    expect(second.facts.flatMap((facts) => facts.attempts).map((attempt) => attempt.runId)).toEqual(
+      ['rewritten'],
+    )
+  })
+
+  it('a same-size rewrite during the read is re-read once in the same refresh', async () => {
+    const { fs, directory, reader } = seededReader()
+    const target = fs.files.get(path.join(directory, 'cli-a.log'))
+    if (target === undefined) throw new Error('seeded file missing')
+    target.rewriteDuringStream = admission('2026-10-12T05:30:00.000Z', 'rewritten')
+    const summary = await reader.readSummary(NOW)
+    expect(summary.state).toBe('ok')
+    expect(
+      summary.facts.flatMap((facts) => facts.attempts).map((attempt) => attempt.runId),
+    ).toEqual(['rewritten'])
+    expect(reader.isTraceStale()).toBe(false)
+  })
+
+  it('files on an inode-0 file system are told apart by their heads', async () => {
+    const home = tempHome()
+    const fs = fakeFs()
+    const directory = traceLogDirectory({ homeDir: home })
+    // Network shares and FAT/exFAT report ino 0 for every file: device and
+    // inode alone alias them all into one file. The head hash separates them.
+    for (const name of ['cli-a.log', 'cli-b.log']) {
+      fs.files.set(path.join(directory, name), {
+        ...fakeFile(admission('2026-10-12T05:00:00.000Z', name), NOW - 1000, 0),
+        identity: { dev: 0n, ino: 0n },
+      })
+    }
+    const reader = createTraceLogReader({ homeDir: home, fs: fs.port })
+    const first = await reader.readLogs(NOW)
+    expect(first).toHaveLength(2)
+    expect(fs.opens).toBe(2)
+    // ... and an unchanged inode-0 file is never opened again.
+    expect(await reader.readLogs(NOW)).toHaveLength(2)
+    expect(fs.opens).toBe(2)
+  })
+
+  it('a file that keeps changing is unreadable after one re-read', async () => {
     const { fs, directory, reader } = seededReader()
     expect(await reader.readLogs(NOW)).toHaveLength(1)
     expect(reader.isTraceStale()).toBe(false)
     const churning = fs.files.get(path.join(directory, 'cli-a.log'))
     if (churning === undefined) throw new Error('seeded file missing')
     churning.churn = true
-    // Every stat hands out a new identity, so both parse attempts go stale:
-    // the served numbers are the last good parse, and the reader says so.
-    const second = await reader.readLogs(NOW)
-    expect(second).toHaveLength(1)
-    expect(second.flatMap((facts) => facts.attempts).map((attempt) => attempt.runId)).toEqual([
-      'cli-a.log',
-    ])
-    expect(reader.isTraceStale()).toBe(true)
+    // Every stat hands out a new identity and head, so both parse attempts
+    // go stale: the record is unreadable ("still changing"), never a
+    // silent gap and never served as fresh.
+    const second = await reader.readSummary(NOW)
+    expect(second.state).toBe('unavailable')
+    expect(second.records).toMatchObject([{ state: 'unreadable', reason: 'changing' }])
     churning.churn = false
-    expect(await reader.readLogs(NOW)).toHaveLength(1)
+    const recovered = await reader.readSummary(NOW)
+    expect(recovered.state).toBe('ok')
+    expect(recovered.facts).toHaveLength(1)
     expect(reader.isTraceStale()).toBe(false)
   })
 
-  it('an oversize file is skipped without opening it', async () => {
+  it('a file that vanished between the listing and the read is unreadable', async () => {
+    const { fs, directory, reader } = seededReader()
+    const target = fs.files.get(path.join(directory, 'cli-a.log'))
+    if (target === undefined) throw new Error('seeded file missing')
+    target.unlinkOnStream = true
+    const summary = await reader.readSummary(NOW)
+    expect(summary.state).toBe('unavailable')
+    expect(summary.records).toMatchObject([{ state: 'unreadable', reason: 'vanished' }])
+  })
+
+  it('an oversize file keeps its within-limit lines and never vanishes', async () => {
     const home = tempHome()
     const fs = fakeFs()
     const directory = traceLogDirectory({ homeDir: home })
@@ -370,11 +645,36 @@ describe('cached trace reader', () => {
         }),
     }
     const reader = createTraceLogReader({ homeDir: home, fs: oversize })
-    expect(await reader.readLogs(NOW)).toEqual([])
-    expect(fs.opens).toBe(0)
+    const summary = await reader.readSummary(NOW)
+    expect(summary.state).toBe('behind')
+    expect(summary.reasons).toEqual(['over-limit'])
+    expect(summary.records).toMatchObject([{ state: 'oversize', reason: 'over-limit' }])
+    // The complete lines within the limit are kept: the attempt still shows.
+    expect(
+      summary.facts.flatMap((facts) => facts.attempts).map((attempt) => attempt.runId),
+    ).toEqual(['huge'])
+    expect(fs.opens).toBe(1)
   })
 
-  it('reads at most the newest 200 files', async () => {
+  it('a throw from the line parser is that file’s unreadable record', async () => {
+    const home = tempHome()
+    const fs = fakeFs()
+    seed(fs, home, ['cli-a.log'])
+    const reader = createTraceLogReader({
+      homeDir: home,
+      fs: fs.port,
+      parseLine: () => {
+        throw new Error('parser canary')
+      },
+    })
+    // The throw never escapes the read: the file is unreadable, named.
+    const summary = await reader.readSummary(NOW)
+    expect(summary.state).toBe('unavailable')
+    expect(summary.records).toMatchObject([{ state: 'unreadable', reason: 'unparseable' }])
+    expect(summary.facts).toEqual([])
+  })
+
+  it('reads at most the newest 200 files in a fixed order', async () => {
     const home = tempHome()
     const fs = fakeFs()
     const names = Array.from({ length: 201 }, (_, i) => `cli-${String(i).padStart(3, '0')}.log`)
@@ -392,6 +692,41 @@ describe('cached trace reader', () => {
     const reader = createTraceLogReader({ homeDir: home, fs: fs.port })
     expect(await reader.readLogs(NOW)).toHaveLength(200)
     expect(fs.opens).toBe(200)
+  })
+
+  it('equal mtimes break ties by name, so the window never flips', async () => {
+    const home = tempHome()
+    const fs = fakeFs()
+    const directory = traceLogDirectory({ homeDir: home })
+    // 201 files with the SAME nanosecond mtime: sort order alone decides
+    // the window, never the pool's push order.
+    for (let i = 200; i >= 0; i -= 1) {
+      const name = `cli-${String(i).padStart(3, '0')}.log`
+      fs.files.set(
+        path.join(directory, name),
+        fakeFile(admission('2026-10-12T05:00:00.000Z', name), NOW - 1000, 1000 + i),
+      )
+    }
+    // Reverse the listing order underneath: the window must not follow it.
+    const listed: string[] = []
+    for (const file of fs.files.keys()) listed.unshift(file)
+    const reversed: TraceLogFs = {
+      ...fs.port,
+      list: async (dir) => {
+        await fs.port.list(dir)
+        return listed
+          .filter((file) => path.dirname(file) === dir)
+          .map((file) => path.basename(file))
+      },
+    }
+    const reader = createTraceLogReader({ homeDir: home, fs: reversed })
+    const first = await reader.readSummary(NOW)
+    const second = await reader.readSummary(NOW)
+    expect(first.records).toHaveLength(200)
+    // Newest-first by mtime (all equal), then by name: cli-000..cli-199.
+    expect(filesOf(first.records)).toEqual(filesOf(second.records))
+    expect(filesOf(first.records)[0]).toBe('cli-000.log')
+    expect(filesOf(first.records)[199]).toBe('cli-199.log')
   })
 })
 
@@ -412,8 +747,8 @@ describe('trace age cutoff', () => {
     )
     const reader = createTraceLogReader({ homeDir: home, fs: fs.port })
     const logs = await reader.readLogs(NOW)
-    expect(logs).toHaveLength(2)
-    // Only the boundary file was opened; the older one contributes nothing.
+    expect(logs).toHaveLength(1)
+    // Only the boundary file was opened; the older one was never parsed.
     expect(fs.opens).toBe(1)
     expect(logs.flatMap((facts) => facts.attempts).map((attempt) => attempt.runId)).toEqual([
       'edge',
@@ -433,12 +768,76 @@ describe('trace age cutoff', () => {
     // The query reaches back to 2020: the old-mtime file is opened, not cut.
     const attempts = await reader.readAttempts(NOW, '2020-01-01')
     expect(fs.opens).toBe(1)
-    expect(attempts.reduce((total, row) => total + row.attempts, 0)).toBe(1)
+    expect(attemptTotal(attempts)).toBe(1)
     // And a query starting after the file's mtime skips it without opening.
     const fsOpens = fs.opens
     const fresh = createTraceLogReader({ homeDir: home, fs: fs.port })
     await fresh.readAttempts(NOW, '2021-01-01')
     expect(fs.opens).toBe(fsOpens)
+  })
+})
+
+describe('single-scan line splitter', () => {
+  it('scans an 8 MiB line once, not once per chunk', () => {
+    const lines: string[] = []
+    const splitter = createTraceLineSplitter((line) => {
+      lines.push(line)
+    })
+    const total = 8 * 1024 * 1024
+    const line = `2026-10-12T05:00:00.000Z INFO ${'x'.repeat(total - 64)}\n`
+    const chunkSize = 64 * 1024
+    for (let offset = 0; offset < line.length; offset += chunkSize) {
+      splitter.push(line.slice(offset, offset + chunkSize))
+    }
+    splitter.finish()
+    expect(lines).toHaveLength(1)
+    expect(lines[0]).toBe(line.slice(0, -1))
+    // The old re-splitting tail scanned the growing line ~128 times
+    // (8 MiB / 64 KiB chunks); each byte is now searched once.
+    expect(splitter.scannedBytes).toBeLessThanOrEqual(2 * Buffer.byteLength(line, 'utf8'))
+  })
+
+  it('splits CRLF across chunks and keeps a lone CR inside its line', () => {
+    const lines: string[] = []
+    const splitter = createTraceLineSplitter((line) => {
+      lines.push(line)
+    })
+    // A CRLF split across two pushes still ends one line...
+    splitter.push('first line\r')
+    splitter.push('\nsecond')
+    // ... a lone CR stays inside its line, and the torn tail is dropped.
+    splitter.push(' with\rcarriage\ntorn tail')
+    splitter.finish()
+    expect(lines).toEqual(['first line', 'second with\rcarriage'])
+  })
+})
+
+describe('summarizeTraceRead', () => {
+  it('is ok only when every record is fresh, and empty only with no files', () => {
+    const ok = summarizeTraceRead([testRecord('fresh', 'current')], testListing('ok'))
+    expect(ok.state).toBe('ok')
+    expect(ok.empty).toBe(false)
+    expect(ok.reasons).toEqual([])
+    const empty = summarizeTraceRead([], testListing('empty'))
+    expect(empty.state).toBe('ok')
+    expect(empty.empty).toBe(true)
+    const behind = summarizeTraceRead(
+      [testRecord('fresh', 'current'), testRecord('behind', 'locked')],
+      testListing('ok'),
+    )
+    expect(behind.state).toBe('behind')
+    expect(behind.reasons).toEqual(['locked'])
+    expect(behind.empty).toBe(false)
+    const failed = summarizeTraceRead([], testListing('failed'))
+    expect(failed.state).toBe('unavailable')
+    expect(failed.empty).toBe(false)
+  })
+
+  it('unreadable files add facts only through a behind stand-in', () => {
+    const summary = summarizeTraceRead([testRecord('unreadable', 'denied')], testListing('ok'))
+    expect(summary.state).toBe('unavailable')
+    expect(summary.facts).toEqual([])
+    expect(summary.reasons).toEqual(['denied'])
   })
 })
 

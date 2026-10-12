@@ -63,18 +63,23 @@ describe('createInsightsReader', () => {
     let clock = now
     const reader = createInsightsReader({ homeDir: home, now: () => clock })
     const first = await reader.read()
-    expect(first?.day.attempts).toBe(1)
+    expect(first.report?.day.attempts).toBe(1)
+    expect(first.notice).toBeUndefined()
+    expect(first.empty).toBe(false)
     writeFileSync(path.join(directory, 'cli-b.log'), admission('2026-09-23T03:30:00.000Z', 'r2'))
     // Inside the TTL the cached report stands.
     const cached = await reader.read()
-    expect(cached?.day.attempts).toBe(1)
+    expect(cached.report?.day.attempts).toBe(1)
     clock += 60_000
     const fresh = await reader.read()
-    expect(fresh?.day.attempts).toBe(2)
+    expect(fresh.report?.day.attempts).toBe(2)
   })
 
-  it('reports nothing at all without logs', async () => {
+  it('reports empty only when the listing found no file', async () => {
     const reader = createInsightsReader({ homeDir: path.join(home, 'empty'), now: () => 0 })
-    expect(await reader.read()).toBeUndefined()
+    const result = await reader.read()
+    expect(result.report).toBeUndefined()
+    expect(result.notice).toBeUndefined()
+    expect(result.empty).toBe(true)
   })
 })
