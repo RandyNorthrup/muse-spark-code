@@ -3684,7 +3684,10 @@
   "providerKeyAbsent": "Není uložen žádný klíč {provider}.",
   "providerKeyCleared": "Klíč {provider} byl odebrán z úložiště přihlašovacích údajů tohoto počítače.",
   "providerUnknown": "Neznámý poskytovatel: {provider}.",
-  "providerKeyShape": "Tento klíč nevypadá jako klíče {provider} ({hint}).",
+  "providerKeyNoticeWhitespace": "Klíč obsahuje mezeru nebo konec řádku. Přesto jej použít?",
+  "providerKeyNoticeUrl": "Vypadá to jako webová adresa, ne jako klíč. Přesto použít?",
+  "providerKeyNoticePath": "Vypadá to jako cesta k souboru, ne jako klíč. Přesto použít?",
+  "providerKeyNoticePlaceholder": "Vypadá to jako ukázkový text, ne jako klíč. Přesto použít?",
   "providerKeyNeeded": "{provider} potřebuje svůj klíč ze stdin (--key-stdin).",
   "providerNotConfigured": "{provider} není nastaven; nejprve ho přidejte příkazem providers add.",
   "providerSecretUnreadable": "Uloženou credenci {provider} nelze přečíst; zadejte klíč znovu.",
@@ -4388,7 +4391,6 @@
   "providerConnectWaiting": "Čekání na {provider} v prohlížeči…",
   "oauthCallbackDone": "Toto okno můžete zavřít a vrátit se do VS Code.",
   "providerKeyPrompt": "Klíč API {provider}",
-  "providerKeyInvalid": "To nevypadá jako klíč {provider}.",
   "keyStoredNote": "Uloženo v systémové klíčence; odesílá se pouze na {origin}.",
   "changeKey": "Změnit klíč",
   "reconnectAccount": "Znovu připojit",
@@ -4517,7 +4519,6 @@
       "pick": "Nejprve vyberte poskytovatele.",
       "address": "Zadejte adresu serveru.",
       "credential": "Nejprve zadejte klíč nebo připojte účet.",
-      "keyShape": "Klíč neodpovídá formátu tohoto poskytovatele.",
       "test": "Nejprve otestujte připojení.",
       "models": "Zaškrtněte alespoň jeden model.",
       "validate": "Nejprve ověřte adresu serveru.",
@@ -4525,7 +4526,6 @@
       "private": "Nejprve potvrďte přístup k této soukromé síti.",
       "pickStep": "Vyberte poskytovatele v příslušném kroku.",
       "keyStep": "Zadejte klíč v příslušném kroku.",
-      "badKey": "Tento klíč neodpovídá formátu poskytovatele.",
       "oauthStep": "Připojte účet v příslušném kroku.",
       "costStep": "Přijměte cenu testu v příslušném kroku.",
       "testStep": "Spusťte test v příslušném kroku.",
@@ -4572,10 +4572,9 @@
       "custom": "Libovolný server Chat Completions, Responses nebo Messages"
     },
     "hints": {
-      "prefix": "Klíč začínající na {prefix}… ({site})",
       "site": "Klíč ze služby {site}",
       "azure": "Klíč prostředku z portálu Azure",
-      "router": "Klíč začínající na {prefix}… ({site}) nebo připojte účet OpenRouter",
+      "router": "Klíč ze služby {site} nebo připojte účet OpenRouter",
       "custom": "Klíč očekávaný serverem"
     },
     "privacy": {

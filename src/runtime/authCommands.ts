@@ -116,11 +116,12 @@ export async function authSetProvider(
     return EXIT_FAILED
   }
   const { presets } = await import('../host/backend/providersEntry')
-  if (!presets.isKeyShape(preset.keyShape, candidate)) {
-    deps.printError(
-      fill(UI_TEXT.providerKeyShape, { provider: preset.label, hint: preset.keyHint }),
-    )
-    return EXIT_FAILED
+  // Any non-blank key is stored for the provider to judge; a value that
+  // looks like the wrong thing is named, and stdin cannot answer, so the
+  // run continues.
+  const inspection = presets.inspectProviderKey(candidate)
+  if (inspection !== 'ok' && inspection !== 'empty') {
+    deps.printError(presets.providerKeyNoticeText(inspection))
   }
   const account = providerAccount(deps, providerId)
   if (account === undefined) return EXIT_FAILED

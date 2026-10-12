@@ -130,12 +130,10 @@ export interface PresetInfo {
   readonly origin: string
   readonly format: string
   readonly auth: ProviderAuthMode
-  /** The key's documented shape, shown in the password box (never validated here). */
+  /** Where the key comes from, shown in the password box (never a shape check). */
   readonly keyHint: string
   /** The provider's key page (Get a key). */
   readonly keyPage: string
-  /** The preset's live shape check (run as the key is typed). */
-  isKeyShape(value: string): boolean
   /** Whether a free check exists, or a one-token request must be asked first. */
   readonly freeTest: 'modelsList' | 'oneToken' | 'none'
   /**

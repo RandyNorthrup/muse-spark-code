@@ -19,7 +19,7 @@ import type { CredentialRecord } from '../../core/providers/credentialRecord'
 const { isCredentialBound } = credentialRecord
 const { checkEndpointUrl, originOf, verifyRequestAnswers } = endpointPolicy
 const { isProviderId, parseModelRef } = modelRef
-import type { KeyShape, ProviderPreset } from '../../core/providers/presets'
+import type { ProviderPreset } from '../../core/providers/presets'
 const { azureOrigin, presetById } = presets
 import type {
   ProviderEntry,
@@ -397,10 +397,8 @@ export interface ProviderRunInput {
   readonly readFile: (path: string) => Promise<string>
   readonly secrets: SecretStore
   readonly resolveHost: (hostname: string) => Promise<readonly string[]>
-  /** A provider key from standard input, checked against the preset's shape. */
-  readonly readKey: (
-    shape: KeyShape,
-  ) => Promise<
+  /** A provider key from standard input: any non-blank value, judged by the provider. */
+  readonly readKey: () => Promise<
     { readonly ok: true; readonly key: string } | { readonly ok: false; readonly reason: string }
   >
   readonly providerId: string
@@ -480,19 +478,15 @@ export async function assembleProviderRun(
       return usage(fill(UI_TEXT.providerUnknown, { provider: provider.entry.id }))
     }
     if (input.keyFromStdin) {
-      const typed = await input.readKey(provider.preset.keyShape)
+      // Any non-blank stdin key is used: the provider judges it, never
+      // its shape. Headless input cannot answer a wrong-thing question.
+      const typed = await input.readKey()
       if (!typed.ok) {
         if (typed.reason === 'tty') {
           return auth(UI_TEXT.execKeyStdinTerminal)
         }
-        if (typed.reason === 'tooLong') {
-          return auth(UI_TEXT.execKeyTooLong)
-        }
         return auth(
-          fill(UI_TEXT.providerKeyShape, {
-            provider: provider.preset.label,
-            hint: provider.preset.keyHint,
-          }),
+          typed.reason === 'tooLong' ? UI_TEXT.execKeyTooLong : UI_TEXT.providerKeyNotStored,
         )
       }
       key = typed.key

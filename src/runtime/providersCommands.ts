@@ -23,7 +23,13 @@ import type { SecretStore } from '../host/auth/credentialStore'
 const { isCredentialBound } = credentialRecord
 const { checkEndpointUrl } = endpointPolicy
 import type { ProviderPreset } from '../core/providers/presets'
-const { azureOrigin, isKeyShape, OPENROUTER_ATTRIBUTION, presetById } = presets
+const {
+  azureOrigin,
+  inspectProviderKey,
+  providerKeyNoticeText,
+  OPENROUTER_ATTRIBUTION,
+  presetById,
+} = presets
 const { applyWizardEvent, startWizard, wizardBlockers, wizardSummary } = wizardFlow
 import type {
   ProviderEntry,
@@ -609,13 +615,14 @@ export async function providersAdd(
       return failed(deps, UI_TEXT.providerKeyNotStored)
     }
     key = typed.trim()
-    if (!isKeyShape(preset.keyShape, key)) {
-      return failed(
-        deps,
-        fill(UI_TEXT.providerKeyShape, { provider: preset.label, hint: preset.keyHint }),
-      )
+    // Any non-blank key goes to the free key test: the provider judges
+    // it, never its shape. A value that looks like the wrong thing is
+    // named, and stdin cannot answer, so the run continues to the test.
+    const inspection = inspectProviderKey(key)
+    if (inspection !== 'ok' && inspection !== 'empty') {
+      deps.printError(providerKeyNoticeText(inspection))
     }
-    state = applyWizardEvent(state, { type: 'submit-key', shapeOk: true })
+    state = applyWizardEvent(state, { type: 'submit-key' })
     if (state.error !== undefined) {
       return failed(deps, state.error)
     }

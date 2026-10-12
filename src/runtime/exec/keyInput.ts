@@ -1,7 +1,6 @@
 // Bounded, cancellable stdin readers; never load a native credential module.
 import type { Readable } from 'node:stream'
 import { isValidModelApiKey, type SecretStore } from '../../host/auth/credentialStore'
-import type { KeyShape } from '../../core/providers/presets'
 import { EXEC_KEY_MAX_BYTES, SECRET_KEYS, UI_TEXT } from '../../shared/constants'
 
 export interface MemorySecretStore extends SecretStore {
@@ -145,16 +144,33 @@ export async function readKeyLine(
   return await readValidatedKeyLine(input, signal, isValidModelApiKey)
 }
 
-/** Provider keys use the same bounded input and cleanup as Meta, with their own shape. */
+/**
+ * Provider keys use the same bounded input and cleanup as Meta. Any
+ * non-blank value is accepted: the provider judges it, never its shape.
+ */
 export async function readProviderKeyLine(
   input: Readable,
   signal: AbortSignal,
-  shape: KeyShape,
 ): Promise<
   { ok: true; key: string } | { ok: false; reason: 'tty' | 'empty' | 'invalid' | 'tooLong' }
 > {
-  const { presets } = await import('../../host/backend/providersEntry')
-  return await readValidatedKeyLine(input, signal, (key) => presets.isKeyShape(shape, key))
+  if ('isTTY' in input && input.isTTY === true) {
+    input.destroy()
+    return { ok: false, reason: 'tty' }
+  }
+  const bytes = await readBytes(input, EXEC_KEY_MAX_BYTES, signal, true)
+  if (bytes === undefined) return { ok: false, reason: 'tooLong' }
+  let key: string
+  try {
+    const line = new TextDecoder('utf-8', { fatal: true }).decode(bytes)
+    key = line.endsWith('\r') ? line.slice(0, -1) : line
+  } catch {
+    return { ok: false, reason: 'invalid' }
+  } finally {
+    bytes.fill(0)
+  }
+  const trimmed = key.trim()
+  return trimmed === '' ? { ok: false, reason: 'empty' } : { ok: true, key: trimmed }
 }
 
 export async function readPromptStdin(
