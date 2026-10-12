@@ -2670,7 +2670,8 @@
     "budget": "Keret kimerült",
     "error": "Hiba",
     "cancelled": "Felhasználó leállította",
-    "unknown": "Nem elérhető"
+    "unknown": "Nem elérhető",
+    "limit": "Híváskorlát elérve"
   },
   "agentContinue": "Folytatás",
   "agentRetry": "Újrapróbálás",
@@ -3516,7 +3517,7 @@
     "one": "Legfeljebb {count} bemeneti fájl engedélyezett.",
     "other": "Legfeljebb {count} bemeneti fájl engedélyezett."
   },
-  "referenceTurnLimit": "A Model API körei alapértelmezés szerint 200 modellhívást engednek. A hívó meglévő kéréskorlátjai elsőbbséget élveznek. Az utolsó hívás eszközök nélküli összefoglalót készít; a folytatáshoz küldjön üzenetet.",
+  "referenceTurnLimit": "A Model API-körök alapértelmezésben 200 modellhívást kapnak. A hívók meglévő híváskorlátai az irányadók. Az első hívás mindig eszközökkel fut: a válasz normálisan lezárja a kört, az eszközhívás a kéréskorlátnál fejezi be. Az eszközöket futtató kör utolsó hívása eszközök nélküli összefoglalót ad; a folytatáshoz küldjön üzenetet.",
   "modelApiWrapUpReserved": "A fennmaradó kérés a végső válaszhoz van fenntartva. A kép nem készült el.",
   "modelApiTurnLimit": {
     "one": "A kör {count} modellhívás után leállt. A folytatáshoz küldjön üzenetet.",
@@ -5300,5 +5301,10 @@
       "one": "{count} engedély",
       "other": "{count} engedély"
     }
-  }
+  },
+  "modelApiWrapUpTruncated": {
+    "one": "A kör {count} modellhívás után leállt, a végső választ pedig a kimeneti korlát vágta le. A részleges válasz megmarad. A folytatáshoz küldjön üzenetet.",
+    "other": "A kör {count} modellhívás után leállt, a végső választ pedig a kimeneti korlát vágta le. A részleges válasz megmarad. A folytatáshoz küldjön üzenetet."
+  },
+  "modelApiWrapUpHookBlocked": "Egy leállítási hook további munkát kért, de a kör elérte a modellhívási korlátot, így a végső válasz érvényben marad."
 }

@@ -241,6 +241,7 @@ describe('W-F1 native identities', () => {
         log: new FakeLogOutputChannel(),
         session: {
           sessionId: 'fake',
+          setModelCallAllowance: () => undefined,
           onEvent: (listener) => {
             events.listener = listener
             return () => {

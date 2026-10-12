@@ -159,8 +159,11 @@ export class SessionBudgetExceededError extends Error {
 
 /** A normal, resumable model-call limit; carries the actual permitted count. */
 export class ModelCallLimitError extends SessionBudgetExceededError {
-  public constructor(public readonly limit: number) {
-    super(plural(UI_TEXT.modelApiTurnLimit, limit))
+  public constructor(
+    public readonly limit: number,
+    message = plural(UI_TEXT.modelApiTurnLimit, limit),
+  ) {
+    super(message)
     this.name = 'ModelCallLimitError'
   }
 }

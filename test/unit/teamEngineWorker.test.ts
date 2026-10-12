@@ -76,6 +76,12 @@ class FakeSession implements WorktreeSession {
   private listener: ((event: WorktreeSessionEvent) => void) | undefined
   public readonly sessionId = 'worker-session'
   public readonly sent: string[] = []
+  public allowance: (() => number) | undefined
+  public readonly setModelCallAllowance = vi.fn<WorktreeSession['setModelCallAllowance']>(
+    (remaining) => {
+      this.allowance = remaining
+    },
+  )
   public readonly decideApproval = vi.fn<WorktreeSession['decideApproval']>(resolvedVoid)
   public readonly cancelQuestions = vi.fn<WorktreeSession['cancelQuestions']>(resolvedVoid)
   public readonly cancel = vi.fn<WorktreeSession['cancel']>(resolvedVoid)

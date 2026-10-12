@@ -609,6 +609,79 @@ describe('automatic compaction in the shared Model API loop', () => {
     await t.host.close()
   })
 
+  it('refuses overflow recovery on the last permitted call and keeps the failure', async () => {
+    let allowance = 500
+    const t = await setup({ remainingModelCalls: () => allowance })
+    try {
+      await t.seed()
+      allowance = 2
+      t.api.script({ calls: [{ name: 'get_goal', arguments: '{}' }] }, OVERFLOW)
+      await t.send()
+      // Recovery would spend the reserved wrap-up slot: the overflow stands
+      // with what the turn kept, and no summary is sent.
+      expect(t.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+        terminal: 'failed',
+        errorKind: 'context_overflow',
+      })
+      expect(t.api.responseBodies()).toHaveLength(3)
+      expect(t.admissions()).toBe(0)
+    } finally {
+      await t.host.close()
+    }
+  })
+
+  it('compaction after a limit stop reuses the last ordinary body, manually and automatically', async () => {
+    let allowance = 500
+    const t = await setup({ remainingModelCalls: () => allowance })
+    try {
+      await t.seed()
+      t.nearWindow()
+      // The limit turn: one tool round, then the wrap-up answer.
+      allowance = 2
+      t.api.script(
+        { calls: [{ name: 'get_goal', arguments: '{}' }] },
+        { text: 'Done; found; remains.' },
+        { text: 'Manual summary.' },
+      )
+      await t.send()
+      expect(t.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+        terminal: 'completed',
+        errorKind: 'max_turn_requests',
+      })
+      const limitBodies = t.api.responseBodies()
+      expect(limitBodies).toHaveLength(3)
+      const ordinary = limitBodies[1]!
+      const wrapUp = limitBodies[2]!
+      expect(wrapUp['tools']).toEqual([])
+      // Manual compaction reuses the last ordinary body: no wrap-up
+      // sentence, the full tools.
+      expect(await t.session.compact()).toMatchObject({ status: 'accepted' })
+      const manual = t.api.responseBodies().at(-1)!
+      expect(manual['instructions']).toBe(ordinary['instructions'])
+      const manualTools: unknown = manual['tools']
+      expect(Array.isArray(manualTools) && manualTools.length > 0).toBe(true)
+      expect(JSON.stringify(manual)).not.toContain('limit of 2 model calls')
+      // Automatic compaction at the next turn does the same.
+      allowance = 500
+      await t.seed()
+      const before = t.api.responseBodies().length
+      t.api.script({ calls: [TOOL] }, { text: 'summary [untrusted]' }, { text: 'finished' })
+      await t.send()
+      expect(t.admissions()).toBe(1)
+      const summaries = t.api.responseBodies().slice(before)
+      expect(summaries.length).toBeGreaterThan(0)
+      for (const summary of summaries) {
+        if (!JSON.stringify(summary['input']).includes(MODEL_API_MODEL_TEXT.compactionPrompt))
+          continue
+        expect(JSON.stringify(summary)).not.toContain('limit of 2 model calls')
+        const summaryTools: unknown = summary['tools']
+        expect(Array.isArray(summaryTools) && summaryTools.length > 0).toBe(true)
+      }
+    } finally {
+      await t.host.close()
+    }
+  })
+
   it('allows only one overflow recovery even when real tool work separates the errors', async () => {
     const t = await setup()
     await t.seed()

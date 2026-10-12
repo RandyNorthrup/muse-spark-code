@@ -422,6 +422,7 @@ function setup(
     /** The usage modal's insights (M14). */
     usageInsights?: { day: UsageInsights; week: UsageInsights }
     usageRecording?: ConversationDeps['usageRecording']
+    reports?: ConversationDeps['reports']
     /** Voice dictation (M9). */
     dictation?: DictationSetup
     /** Muse Voice when it is the microphone's engine (M35). */
@@ -700,6 +701,7 @@ function setup(
   const deps: ConversationDeps = {
     playbook: options.playbook,
     surface,
+    ...(options.reports !== undefined && { reports: options.reports }),
     ...(options.questions !== undefined && { questions: options.questions }),
     judge: options.judge,
     checkpoints,
@@ -1484,6 +1486,29 @@ describe('ConversationController.sendMessage', () => {
     })
     await settle()
     expect(t.auth.calls).toContain('authRequired:not logged in')
+  })
+
+  it('shows a limit-stopped completed turn as completed, with no failure row', async () => {
+    const made = makeReports()
+    const t = setup({ reports: made.reports })
+    await t.send('l1', 'hi')
+    t.server.notify('turn/started', { sessionId: 's1', turnId: 't1', viewCursor: 'v' })
+    await settle()
+    t.server.notify('turn/completed', {
+      sessionId: 's1',
+      turnId: 't1',
+      terminal: 'completed',
+      errorKind: 'max_turn_requests',
+      reason: 'The turn stopped after 2 model calls. Send a message to continue.',
+    })
+    await settle()
+    // A completed turn that reached its limit is not a failure: no error
+    // row and no error notice; the turn's own warning carries the limit.
+    expect(made.recorded).toEqual([])
+    expect(
+      t.surface.posted.filter((message) => message.type === 'notice' && message.level === 'error'),
+    ).toEqual([])
+    t.controller.dispose()
   })
 
   it('warns when the host refuses the reasoning effort but still sends', async () => {
@@ -16303,8 +16328,7 @@ describe('ConversationController: BYO models (M95, PLAN.md D74)', () => {
 })
 
 /** The controller over `t`'s deps, with a recorder that keeps what it was told. */
-function withReports(
-  t: ReturnType<typeof setup>,
+function makeReports(
   readFacts: () => Promise<unknown> = () => Promise.reject(new TypeError('no facts here')),
 ) {
   const recorded: (readonly [string, string])[] = []
@@ -16332,8 +16356,16 @@ function withReports(
       return ref
     },
   }
-  const controller = new ConversationController({ ...t.deps, reports })
-  return { controller, recorded, recordWebviewError }
+  return { reports, recorded, recordWebviewError }
+}
+
+function withReports(
+  t: ReturnType<typeof setup>,
+  readFacts: () => Promise<unknown> = () => Promise.reject(new TypeError('no facts here')),
+) {
+  const made = makeReports(readFacts)
+  const controller = new ConversationController({ ...t.deps, reports: made.reports })
+  return { controller, recorded: made.recorded, recordWebviewError: made.recordWebviewError }
 }
 
 describe('report a problem wiring (M93, PLAN.md D72)', () => {

@@ -425,8 +425,10 @@ export function createResponsesCodec(
         model: body.model,
         input: isChatgpt ? body.input : mapped,
         instructions: isChatgpt ? body.instructions : cleanWireText(body.instructions),
+        // A request without tools carries no tool_choice: Meta takes auto
+        // only, and no live capture of a choice without tools exists.
         tools:
-          body.tool_choice === 'none'
+          body.tools.length === 0
             ? []
             : isChatgpt
               ? [
@@ -444,7 +446,7 @@ export function createResponsesCodec(
                   options?.shouldUseStrictTools !== false && effective.supportsStrictTools === true,
                 ),
 
-        tool_choice: body.tool_choice,
+        ...(body.tools.length > 0 && { tool_choice: body.tool_choice }),
         reasoning: body.reasoning,
         stream: body.stream,
         store: body.store,

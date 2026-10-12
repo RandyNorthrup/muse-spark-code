@@ -23,6 +23,8 @@ describe('D101 structured outcomes', () => {
   it.each([
     [complete, 'complete'],
     [{ ...complete, stopReason: 'budget' }, 'incomplete'],
+    // A call limit is not a money stop, but it is just as resumable.
+    [{ ...complete, stopReason: 'limit' }, 'incomplete'],
     [{ ...complete, worktree: 'dirty' }, 'incomplete'],
     [{ ...complete, unfinished: ['commit the change'] }, 'incomplete'],
     [{ ...complete, checksRequired: true, finalCheck: 'missing' }, 'incomplete'],

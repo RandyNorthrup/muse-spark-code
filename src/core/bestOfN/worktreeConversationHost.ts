@@ -25,6 +25,8 @@ export type WorktreeSessionEvent =
       readonly turnId: string
       readonly terminal: string
       readonly reason?: string
+      /** A completed turn that reached the model-call limit carries this. */
+      readonly errorKind?: string
     }
   | { readonly type: 'modelRequestCompleted' }
   | {
@@ -43,7 +45,12 @@ export interface WorktreeApprovalDecision {
 /** The narrow session surface an attempt needs: any backend adapts to it. */
 export interface WorktreeSession {
   readonly sessionId: string
-  setModelCallAllowance?(remaining: (() => number) | undefined): void
+  /**
+   * Bind the attempt's remaining request allowance; every implementer
+   * carries it, so a ceiling always reserves the wrap-up instead of
+   * cancelling the turn.
+   */
+  setModelCallAllowance(remaining: (() => number) | undefined): void
   onEvent(listener: (event: WorktreeSessionEvent) => void): () => void
   sendTurn(parts: readonly [{ readonly type: 'text'; readonly text: string }]): Promise<unknown>
   decideApproval(decision: WorktreeApprovalDecision): Promise<void>
@@ -160,7 +167,7 @@ export class WorktreeConversationHost {
     const ceiling = this.ceiling()
     const { session, log } = this.deps
     let requestsMade = 0
-    session.setModelCallAllowance?.(
+    session.setModelCallAllowance(
       () => ceiling - (this.deps.admissionCounts?.().requestsMade ?? requestsMade),
     )
     let approvalsDenied = 0
@@ -195,8 +202,6 @@ export class WorktreeConversationHost {
             this.deps.onProgress?.({ type: 'requestCompleted', requestsMade })
             if (!isCeilingReached && requestsMade >= ceiling) {
               isCeilingReached = true
-              if (session.setModelCallAllowance === undefined)
-                settle(session.cancel(), 'ceiling cancel')
             }
             break
           }
@@ -220,7 +225,7 @@ export class WorktreeConversationHost {
             break
           }
           case 'turnCompleted': {
-            isCeilingReached ||= 'errorKind' in event && event.errorKind === 'max_turn_requests'
+            isCeilingReached ||= event.errorKind === 'max_turn_requests'
             const counts = this.deps.admissionCounts?.()
             stopListening()
             resolve({
@@ -246,7 +251,7 @@ export class WorktreeConversationHost {
       return outcome
     } finally {
       stopListening()
-      session.setModelCallAllowance?.(undefined)
+      session.setModelCallAllowance(undefined)
     }
   }
 }

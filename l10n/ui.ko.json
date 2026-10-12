@@ -2614,7 +2614,8 @@
     "budget": "예산 소진",
     "error": "오류",
     "cancelled": "사용자가 중지함",
-    "unknown": "사용 불가"
+    "unknown": "사용 불가",
+    "limit": "호출 한도 도달"
   },
   "agentContinue": "계속",
   "agentRetry": "다시 시도",
@@ -3442,7 +3443,7 @@
   "execTooManyFiles": {
     "other": "입력 파일은 최대 {count}개까지 허용됩니다."
   },
-  "referenceTurnLimit": "Model API 턴은 기본적으로 모델 호출 200회까지 허용합니다. 호출자의 기존 요청 제한이 우선합니다. 마지막 호출은 도구 없이 요약을 작성합니다. 계속하려면 메시지를 보내세요.",
+  "referenceTurnLimit": "Model API 턴은 기본적으로 200회의 모델 호출을 사용합니다. 호출자의 기존 요청 한도가 우선합니다. 첫 호출은 항상 도구를 사용해 실행됩니다. 답변이 있으면 턴이 정상 완료되고, 도구 요청이 있으면 요청 한도에서 종료됩니다. 도구를 실행한 턴의 마지막 호출은 도구 없이 요약을 생성합니다. 계속하려면 메시지를 보내세요.",
   "modelApiWrapUpReserved": "남은 요청은 최종 답변을 위해 예약되었습니다. 이미지는 생성되지 않았습니다.",
   "modelApiTurnLimit": {
     "other": "모델 호출이 {count}회에 도달하여 턴이 중지되었습니다. 계속하려면 메시지를 보내세요."
@@ -5145,5 +5146,9 @@
     "grantsCount": {
       "other": "{count} 개 권한"
     }
-  }
+  },
+  "modelApiWrapUpTruncated": {
+    "other": "최종 답변이 출력 한도로 잘리면서 모델 호출이 {count}회에 도달하여 턴이 중지되었습니다. 부분 답변은 유지됩니다. 계속하려면 메시지를 보내세요."
+  },
+  "modelApiWrapUpHookBlocked": "중지 훅이 추가 작업을 요청했지만 턴이 모델 호출 한도에 도달했으므로 최종 답변이 유지됩니다."
 }

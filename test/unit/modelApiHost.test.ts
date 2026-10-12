@@ -468,6 +468,8 @@ function setup(
     browserCheck?: ModelApiHostDeps['browserCheck']
     beforeTurnRuns?: ModelApiHostDeps['beforeTurnRuns']
     afterTurnRuns?: ModelApiHostDeps['afterTurnRuns']
+    /** A caller request allowance the turn counts down; the last call wraps up. */
+    remainingModelCalls?: ModelApiHostDeps['remainingModelCalls']
     verify?: ModelApiHostDeps['verify']
     /** Every directory the context loaders list, in order (M76). */
     onListDirectory?: (directory: string) => void
@@ -584,6 +586,9 @@ function setup(
     ...(options.budgetScope !== undefined && { budgetScope: options.budgetScope }),
     ...(options.admitResponseAttempt !== undefined && {
       admitResponseAttempt: options.admitResponseAttempt,
+    }),
+    ...(options.remainingModelCalls !== undefined && {
+      remainingModelCalls: options.remainingModelCalls,
     }),
     describeEnvironment: options.describeEnvironment ?? (() => Promise.resolve({ git: undefined })),
     isPaidFeatureOn: (feature) => options.paid?.includes(feature) === true,
@@ -9623,6 +9628,45 @@ describe('ModelApiSession subagents (M48)', () => {
       expect(body['tool_choice']).not.toBe('none')
       const tools = body['tools']
       expect(Array.isArray(tools) && tools.length > 0).toBe(true)
+    }
+  })
+
+  it('records a child call-limit stop with its own stop reason, not a money stop', async () => {
+    const t = setupSubagents({ remainingModelCalls: () => 2 })
+    const { session } = await startApprovedSubagentSession(t)
+    try {
+      t.api.script(
+        {
+          calls: [
+            {
+              name: 'subagent_spawn',
+              arguments: '{"role":"explorer","objective":"First task"}',
+              callId: 'spawn_limited',
+            },
+          ],
+        },
+        {
+          calls: [{ name: 'read_file', arguments: '{"path":"a.txt"}', callId: 'child_read_1' }],
+        },
+        {
+          calls: [{ name: 'read_file', arguments: '{"path":"b.txt"}', callId: 'child_read_2' }],
+        },
+        { text: 'Parent done.' },
+      )
+      await session.sendTurn([{ type: 'text', text: 'delegate' }])
+      await session.settled()
+      // The child's own turn hits the shared allowance after two tool
+      // rounds; the parent's evidence names the call limit, never money.
+      expect(t.api.responseBodies()).toHaveLength(4)
+      const child = session.history().items.find((item) => item.kind === 'subagent')
+      expect(child).toMatchObject({
+        agentEvidence: expect.objectContaining({ stopReason: 'limit' }),
+      })
+      expect(child).not.toMatchObject({
+        agentEvidence: expect.objectContaining({ stopReason: 'budget' }),
+      })
+    } finally {
+      await t.host.close()
     }
   })
 
