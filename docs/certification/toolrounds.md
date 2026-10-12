@@ -40,23 +40,31 @@ verify strikes and stop-hook continuations are not model-call turn caps.
 
 The wrap-up sends the shape the production side calls already send
 (compaction and git-draft side calls, `ModelApiHost.ts`): no tools declared
-and the choice field exactly as those calls carry it. No `tool_choice`
-goes on the wire without tools, in any codec: a request without tools
-carries no `tool_choice` at all (Chat included). `instructions` stay
-byte-identical to the ordinary body and the limit note travels as a trailing
-developer input item, so the instruction prefix stays cacheable. An
-unsolicited tool call in that reply is answered for valid replay and never
-executed. Steering and active goal wake reach the post-loop promotion block
-before the limit throw, so each keeps its own turn with tools.
+and the choice field exactly as those calls carry it. Per-codec wire truth,
+decided round 3 (R3): Meta's own wire carries empty tools with
+`tool_choice: auto` (the golden below is the raw fetch body); the Responses
+codec for configured OpenAI/xAI providers and the ChatGPT route keeps that
+same shape deliberately, because no live capture of an omitted choice
+succeeding exists on that family — so the git-draft side call and
+compaction without reused tools on those routes send what they always sent
+(P3-5: listed, kept, locked by test). The chat, Anthropic, Gemini and
+Ollama codecs omit what their long-standing production shapes omit.
+`instructions` stay byte-identical to the ordinary body and the limit note
+travels as a trailing developer input item, so the instruction prefix stays
+cacheable. An unsolicited tool call in that reply is answered for valid
+replay and never executed. Held steers, scheduled steers and goal wakes are
+never consumed by the wrap-up: the one exit re-queues them, so each keeps
+its own turn with tools.
 
-| Codec family                                                    | Toolless wire shape                                    |
-| --------------------------------------------------------------- | ------------------------------------------------------ |
-| Meta/direct Responses                                           | Empty tools, `tool_choice: auto` (the side-call shape) |
-| OpenAI/xAI Responses and ChatGPT Responses                      | Empty tools, `tool_choice: auto`; no empty namespace   |
-| Chat completions (OpenRouter, OpenAI-compatible vendors/custom) | No tools declared and no `tool_choice` field at all    |
-| Anthropic Messages                                              | Omit tools and tool choice                             |
-| Gemini generateContent                                          | Omit tools and toolConfig                              |
-| Ollama chat                                                     | Omit tools and unsupported tool choice                 |
+| Codec family                                                    | Toolless wire shape                                             |
+| --------------------------------------------------------------- | --------------------------------------------------------------- |
+| Meta/direct Responses                                           | Empty tools, `tool_choice: auto` (the side-call shape)          |
+| OpenAI/xAI Responses                                            | Empty tools, `tool_choice: auto` (kept deliberately; see above) |
+| ChatGPT Responses                                               | Empty namespace, `tool_choice: auto` (kept deliberately)        |
+| Chat completions (OpenRouter, OpenAI-compatible vendors/custom) | No tools declared and no `tool_choice` field at all             |
+| Anthropic Messages                                              | Omit tools and tool choice                                      |
+| Gemini generateContent                                          | Omit tools and toolConfig                                       |
+| Ollama chat                                                     | Omit tools and unsupported tool choice                          |
 
 Codec-family assertions use real encoders with tool-result history retained
 (the host-built body is parsed back through each codec's own schema).

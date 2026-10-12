@@ -189,7 +189,7 @@ describe('wrap-up requests across codec families', () => {
     expect(last).toMatchObject({ type: 'message', role: 'developer' })
   })
   it.each(['api', 'chatgpt'] as const)(
-    'Responses %s declares no tools and no tool choice',
+    'Responses %s keeps empty tools with the choice, the captured wire shape',
     (profile) => {
       const codec = createResponsesCodec(
         profile === 'chatgpt'
@@ -197,8 +197,17 @@ describe('wrap-up requests across codec families', () => {
           : { sendPromptCacheKey: false, sendPromptCacheRetention: false },
       )
       const request = codec.encodeRequest(wrapBody())
-      expect(request).not.toHaveProperty('tool_choice')
-      expect(request['tools']).toEqual([])
+      // Deliberately kept: no live capture of an omitted choice exists on
+      // this family, while empty tools with the choice is what the wire
+      // (Meta golden, git-draft and tools-less compaction side calls) sends.
+      expect(request['tool_choice']).toBe('auto')
+      if (profile === 'chatgpt') {
+        expect(request['tools']).toEqual([
+          expect.objectContaining({ type: 'namespace', tools: [] }),
+        ])
+      } else {
+        expect(request['tools']).toEqual([])
+      }
       expect(JSON.stringify(request)).toContain('limit of 2 model calls')
     },
   )
