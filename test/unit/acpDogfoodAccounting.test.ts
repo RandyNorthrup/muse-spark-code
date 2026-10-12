@@ -3,6 +3,7 @@ import * as acp from '@agentclientprotocol/sdk'
 import * as z from 'zod/mini'
 import { describe, expect, it, vi } from 'vitest'
 import { createAcpAgent } from '../../src/acp/agent'
+import { estimateCostUsd } from '../../src/core/usage/insights'
 import { createUsageRecord } from '../../src/core/usage/journalRecord'
 import type { UsageRecord } from '../../src/shared/usageJournal'
 import { UI_TEXT, CREDENTIAL_STORE_ERROR_KIND } from '../../src/shared/constants'
@@ -16,12 +17,14 @@ function scene(isAvailable = true) {
   const records: UsageRecord[] = []
   const updates: acp.SessionUpdate[] = []
   const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
+  const readRecords = vi.fn(() =>
+    isAvailable ? Promise.resolve(records) : Promise.reject(new Error('private journal path')),
+  )
   const deps = {
     ...dogfoodAgentDeps(host, log),
     defaultCwd: cwd,
     accounting: {
-      readRecords: () =>
-        isAvailable ? Promise.resolve(records) : Promise.reject(new Error('private journal path')),
+      readRecords,
       readBudgets: () =>
         Promise.resolve([
           {
@@ -44,6 +47,7 @@ function scene(isAvailable = true) {
     records,
     updates,
     log,
+    reads: readRecords,
     run: <T>(work: (client: acp.ClientContext) => Promise<T>) => client.connectWith(agent, work),
   }
 }
@@ -88,7 +92,7 @@ function record(sessionId: string, turn: string, id: string) {
 }
 
 describe('ACPDOG ACP accounting extensions', () => {
-  it('sends journal-exact per-turn and session figures during the turn and on the response', async () => {
+  it('reads the settled figures once, on completion, never per token event', async () => {
     const h = scene()
     await h.run(async (client) => {
       const { sessionId } = await dogfoodSession(client, cwd)
@@ -98,21 +102,45 @@ describe('ACPDOG ACP accounting extensions', () => {
         expect(h.host.sessions[0]?.sendTurn).toHaveBeenCalledOnce()
       })
       const session = h.host.sessions[0]!
+      // Token events never touch the journal (finding 4): three samples and
+      // no read.
+      for (let sample = 0; sample < 3; sample++) {
+        session.emit({
+          type: 'tokenUsage',
+          modelId: session.modelId,
+          inputTokens: 200,
+          outputTokens: 20,
+          cachedTokens: 40,
+        })
+      }
       h.records.push(record(sessionId, 'turn-1', 'current'))
-      session.emit({
-        type: 'tokenUsage',
-        modelId: session.modelId,
-        inputTokens: 200,
-        outputTokens: 20,
-        cachedTokens: 40,
-      })
+      // A usage update during the turn carries the turn's own running tally,
+      // which includes the request it describes, not the previous journal
+      // snapshot (finding 3).
+      session.emit({ type: 'contextUsage', usedTokens: 100, windowTokens: 1000, pressure: 'low' })
       await vi.waitFor(() => {
-        expect(h.updates.some((update) => update._meta?.['museSpark.usage'] !== undefined)).toBe(
-          true,
-        )
+        expect(h.updates.some((update) => update.sessionUpdate === 'usage_update')).toBe(true)
+      })
+      expect(h.reads).not.toHaveBeenCalled()
+      const during = h.updates.filter((update) => update.sessionUpdate === 'usage_update')
+      expect(during).toHaveLength(1)
+      expect(during[0]).toMatchObject({
+        used: 100,
+        size: 1000,
+        cost: {
+          amount: Number(
+            estimateCostUsd(
+              { inputTokens: 200, outputTokens: 20, cachedTokens: 40 },
+              'muse-spark-1.3',
+            ),
+          ),
+          currency: 'USD',
+        },
       })
       session.emit({ type: 'turnCompleted', turnId: 'turn-1', terminal: 'completed' })
       const response = await running
+      // Exactly one journal read for the completed request (findings 3+4).
+      expect(h.reads).toHaveBeenCalledTimes(1)
       expect(response).toMatchObject({
         stopReason: 'end_turn',
         _meta: {
@@ -150,6 +178,72 @@ describe('ACPDOG ACP accounting extensions', () => {
       expect(h.updates.filter((update) => update.sessionUpdate === 'agent_message_chunk')).toEqual(
         [],
       )
+    })
+  })
+  it('delivers answers while a hung journal read is still outstanding (finding 4)', async () => {
+    const host = new FakeAgentHost()
+    const updates: acp.SessionUpdate[] = []
+    const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
+    // The journal never answers until the test releases it.
+    const journal = Promise.withResolvers<readonly UsageRecord[]>()
+    const reads = vi.fn(() => journal.promise)
+    const deps = {
+      ...dogfoodAgentDeps(host, log),
+      defaultCwd: cwd,
+      accounting: {
+        readRecords: reads,
+        readBudgets: () => Promise.resolve([]),
+      },
+    }
+    const agent = createAcpAgent(deps)
+    const client = acp
+      .client({ name: 'accounting' })
+      .onNotification('session/update', (context) => {
+        updates.push(context.params.update)
+      })
+    await client.connectWith(agent, async (context) => {
+      const { sessionId } = await dogfoodSession(context, cwd)
+      const running = dogfoodPrompt(context, sessionId, 'task')
+      await vi.waitFor(() => {
+        expect(host.sessions[0]?.sendTurn).toHaveBeenCalledOnce()
+      })
+      const session = host.sessions[0]!
+      for (let sample = 0; sample < 3; sample++) {
+        session.emit({
+          type: 'tokenUsage',
+          modelId: session.modelId,
+          inputTokens: 200,
+          outputTokens: 20,
+          cachedTokens: 40,
+        })
+      }
+      // An answer chunk behind three token samples: with a read queued per
+      // sample on the same outbox it could not arrive until the hung journal
+      // answered. It arrives now, with the journal still shut.
+      session.emit({
+        type: 'itemUpdated',
+        item: { itemId: 'm1', kind: 'agentMessage', status: 'streaming', text: 'visible answer' },
+      })
+      await vi.waitFor(() => {
+        expect(
+          updates.some(
+            (update) =>
+              update.sessionUpdate === 'agent_message_chunk' &&
+              'content' in update &&
+              update.content.type === 'text' &&
+              update.content.text === 'visible answer',
+          ),
+        ).toBe(true)
+      })
+      expect(reads).not.toHaveBeenCalled()
+      journal.resolve([])
+      session.emit({ type: 'turnCompleted', turnId: 'turn-1', terminal: 'completed' })
+      const response = await running
+      expect(reads).toHaveBeenCalledTimes(1)
+      expect(response).toMatchObject({
+        stopReason: 'end_turn',
+        _meta: { 'museSpark.usage': { v: 1, available: true } },
+      })
     })
   })
   it('reports journal unavailability explicitly instead of inventing free usage', async () => {

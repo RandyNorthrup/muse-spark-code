@@ -90,7 +90,12 @@ interface Harness {
   readonly updates: acp.SessionUpdate[]
   readonly permissions: acp.RequestPermissionRequest[]
   readonly elicitations: acp.CreateElicitationRequest[]
-  readonly log: { readonly info: ReturnType<typeof vi.fn>; readonly warn: ReturnType<typeof vi.fn> }
+  readonly log: {
+    readonly trace: ReturnType<typeof vi.fn>
+    readonly info: ReturnType<typeof vi.fn>
+    readonly warn: ReturnType<typeof vi.fn>
+    readonly error: ReturnType<typeof vi.fn>
+  }
   run<T>(op: (client: acp.ClientContext) => Promise<T>): Promise<T>
 }
 
@@ -1440,6 +1445,55 @@ describe('the ACP agent (M63)', () => {
         return await response
       }),
     ).rejects.toThrow(/model overloaded/)
+  })
+
+  it('redacts the submitted prompt from a failed turn reason (finding 1)', async () => {
+    const h = harness()
+    const sentinel = 'submitted prompt sentinel 7f3a9c'
+    await expect(
+      h.run(async (client) => {
+        const { sessionId } = await start(client)
+        const session = h.host.sessions.at(-1)!
+        const response = prompt(client, sessionId, sentinel)
+        await until(() => session.sendTurn.mock.calls.length > 0)
+        session.emit({
+          type: 'turnCompleted',
+          turnId: 'turn-1',
+          terminal: 'failed',
+          reason: `the backend gave up while reading ${sentinel}`,
+        })
+        return await response
+      }),
+    ).rejects.toMatchObject({
+      code: ACP_ERROR_CODES.turnFailed,
+      message: expect.not.stringContaining(sentinel),
+    })
+  })
+
+  it('keeps embedded resource bytes out of the unexpected-error log (finding 2)', async () => {
+    const h = harness()
+    // A real 1x1 PNG: `promptParts` accepts it, so the injected `sendTurn`
+    // rejection is what reaches the log, carrying the submitted bytes.
+    const blob =
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+    await expect(
+      h.run(async (client) => {
+        const { sessionId } = await start(client)
+        const live = h.host.sessions.at(-1)!
+        live.sendTurn.mockRejectedValueOnce(new Error(`diagnostic echoing ${blob}`))
+        return await client.request('session/prompt', {
+          sessionId,
+          prompt: [
+            {
+              type: 'resource',
+              resource: { uri: 'file:///work/app/chart.png', mimeType: 'image/png', blob },
+            },
+          ],
+        })
+      }),
+    ).rejects.toMatchObject({ code: ACP_ERROR_CODES.internal })
+    expect(h.log.error).toHaveBeenCalledOnce()
+    expect(JSON.stringify(h.log.error.mock.calls)).not.toContain(blob.slice(0, 40))
   })
 
   it('refuses a second prompt while one runs, and a prompt with content it cannot take', async () => {
