@@ -1,15 +1,21 @@
 // RVCM96B2 P2-4/5/6: the durable cleanup ledger, the stale-run sweep, the
 // denied-merge hold and the conflict-marker gate, against real Git.
-import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { TeamGitError, type TeamGit } from '../../src/core/team/teamWorkspaces'
-import { EXEC_TEAM_HOLD_REF_PREFIX, EXEC_TEAM_RUN_PREFIX } from '../../src/shared/constants'
+import {
+  EXEC_TEAM_CLEANUP_FILE,
+  EXEC_TEAM_HOLD_REF_PREFIX,
+  EXEC_TEAM_RUN_PREFIX,
+} from '../../src/shared/constants'
 import {
   createHoldRef,
   currentOwner,
+  isBirthMatch,
   isGitTimeout,
+  isProcessAlive,
   predictedAgentsRef,
   pruneCleanupRef,
   recordCleanupOwner,
@@ -376,4 +382,176 @@ describe('execTeamRecovery git bounds', () => {
     await expect(withGitBounds(unsettled, 20)).rejects.toSatisfy(isGitTimeout)
     await expect(withGitBounds(Promise.resolve('done'), 1000)).resolves.toBe('done')
   })
+})
+
+const KNOWN_HEAD = '0123456789abcdef0123456789abcdef01234567'
+
+/** Every git call fails as a ref moved under the deleter (exit 1, never absence). */
+const clashGit: TeamGit = (args) =>
+  args[0] === 'rev-parse'
+    ? Promise.resolve(new TextEncoder().encode(`${KNOWN_HEAD}\n`))
+    : Promise.reject(new TeamGitError(1, 'cannot lock ref: moved under us', 'update-ref'))
+
+describe('execTeamRecovery ownership proof (RVCM96B2D P2-7/P2-10)', () => {
+  it(
+    'skips a dead run whose ledger names another installation (P2-7)',
+    async () => {
+      const tmpRoot = await mkdtemp(path.join(tmpdir(), 'm96b-own-'))
+      trackTeamRoot(tmpRoot)
+      const elsewhere = await mkdtemp(path.join(tmpdir(), 'm96b-own-else-'))
+      trackTeamRoot(elsewhere)
+      const { root, head } = await teamFixtureRepo(git)
+      const owned = predictedAgentsRef('engineering', 't41') ?? ''
+      await git(['update-ref', owned, head], root)
+      const folder = await mkdtemp(path.join(tmpRoot, `${EXEC_TEAM_RUN_PREFIX}foreign-`))
+      await writeFile(
+        path.join(folder, EXEC_TEAM_CLEANUP_FILE),
+        JSON.stringify({
+          owner: { pid: 1, startedAt: 1 },
+          runsRoot: elsewhere,
+          refs: [{ repo: root, role: 'engineering', taskId: 't41', ref: owned }],
+          holds: [],
+        }),
+      )
+      const swept = await sweepStaleTeamRuns({ tmpRoot, git, isAlive: () => false })
+      expect(swept.sweptFolders).toEqual([])
+      expect(swept.sweptRefs).toEqual([])
+      expect(swept.skipped).toContain(folder)
+      expect(await sha(root, owned)).toBe(head)
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+
+  it(
+    'skips a run folder that links outside the runs root (P2-7)',
+    async () => {
+      const tmpRoot = await mkdtemp(path.join(tmpdir(), 'm96b-own-'))
+      trackTeamRoot(tmpRoot)
+      const outside = await mkdtemp(path.join(tmpdir(), 'm96b-own-out-'))
+      trackTeamRoot(outside)
+      const { root, head } = await teamFixtureRepo(git)
+      const owned = predictedAgentsRef('engineering', 't42') ?? ''
+      await git(['update-ref', owned, head], root)
+      // The ledger names this sweep's runs root, so only the canonical-path
+      // check stands between the sweep and the outside folder's refs.
+      await writeFile(
+        path.join(outside, EXEC_TEAM_CLEANUP_FILE),
+        JSON.stringify({
+          owner: { pid: 1, startedAt: 1 },
+          runsRoot: tmpRoot,
+          refs: [{ repo: root, role: 'engineering', taskId: 't42', ref: owned }],
+          holds: [],
+        }),
+      )
+      const link = path.join(tmpRoot, `${EXEC_TEAM_RUN_PREFIX}link-`)
+      await symlink(outside, link, 'dir')
+      const swept = await sweepStaleTeamRuns({ tmpRoot, git, isAlive: () => false })
+      expect(swept.sweptFolders).toEqual([])
+      expect(swept.sweptRefs).toEqual([])
+      expect(swept.skipped).toContain(link)
+      expect(await sha(root, owned)).toBe(head)
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+
+  it(
+    'treats a ledger without a runs root as proof of nothing (P2-7)',
+    async () => {
+      const tmpRoot = await mkdtemp(path.join(tmpdir(), 'm96b-own-'))
+      trackTeamRoot(tmpRoot)
+      const { root, head } = await teamFixtureRepo(git)
+      const owned = predictedAgentsRef('engineering', 't44') ?? ''
+      await git(['update-ref', owned, head], root)
+      const folder = await mkdtemp(path.join(tmpRoot, `${EXEC_TEAM_RUN_PREFIX}legacy-`))
+      await writeFile(
+        path.join(folder, EXEC_TEAM_CLEANUP_FILE),
+        JSON.stringify({
+          owner: { pid: 1, startedAt: 1 },
+          refs: [{ repo: root, role: 'engineering', taskId: 't44', ref: owned }],
+          holds: [],
+        }),
+      )
+      const swept = await sweepStaleTeamRuns({ tmpRoot, git, isAlive: () => false })
+      expect(swept.sweptFolders).toEqual([])
+      expect(swept.skipped).toContain(folder)
+      expect(await sha(root, owned)).toBe(head)
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+
+  it('reads a dead pid as gone before any birth check (P2-10)', async () => {
+    await expect(isProcessAlive(2_147_483_647, 1)).resolves.toBe(false)
+  })
+
+  it('reads this process with its recorded birth as alive (P2-10)', async () => {
+    await expect(isProcessAlive(process.pid, currentOwner().startedAt)).resolves.toBe(true)
+  })
+
+  it('matches births only inside the skew, unknown birth reads alive (P2-10)', () => {
+    expect(isBirthMatch(1_700_000_000_000, 1_700_000_000_000)).toBe(true)
+    expect(isBirthMatch(1_700_000_000_000, 1_700_000_000_000 + 59_999)).toBe(true)
+    expect(isBirthMatch(1_700_000_000_000, 1_700_000_000_000 + 60_001)).toBe(false)
+    expect(isBirthMatch(undefined, 1)).toBe(true)
+  })
+
+  it('deletes an owned ref carrying the verified revision (P2-7 CAS)', async () => {
+    const seen: string[][] = []
+    const casGit: TeamGit = (args) => {
+      if (args[0] === 'rev-parse') {
+        return Promise.resolve(new TextEncoder().encode(`${KNOWN_HEAD}\n`))
+      }
+      if (args[0] === 'update-ref' && args.length === 4 && args[3] === KNOWN_HEAD) {
+        seen.push([...args])
+        return Promise.resolve(new TextEncoder().encode(''))
+      }
+      return Promise.reject(new TeamGitError(1, 'unexpected git call', 'git'))
+    }
+    const folder = await mkdtemp(path.join(tmpdir(), `${EXEC_TEAM_RUN_PREFIX}cas-`))
+    trackTeamRoot(folder)
+    await recordCleanupOwner(folder, { pid: 1, startedAt: 1 })
+    const ref = predictedAgentsRef('engineering', 't43') ?? ''
+    await recordCleanupRef(folder, { repo: '/fake/repo', role: 'engineering', taskId: 't43', ref })
+    const errors: unknown[] = []
+    await removeStaleCleanupRefs({
+      git: casGit,
+      folder,
+      onError: (error: unknown) => {
+        errors.push(error)
+      },
+    })
+    expect(errors).toEqual([])
+    expect(seen).toEqual([['update-ref', '-d', ref, KNOWN_HEAD]])
+  })
+
+  it(
+    'keeps the entry when the compare-and-swap delete fails (P2-7)',
+    async () => {
+      const folder = await mkdtemp(path.join(tmpdir(), `${EXEC_TEAM_RUN_PREFIX}clash-`))
+      trackTeamRoot(folder)
+      await recordCleanupOwner(folder, { pid: 1, startedAt: 1 })
+      const ref = predictedAgentsRef('engineering', 't45') ?? ''
+      await recordCleanupRef(folder, {
+        repo: '/fake/repo',
+        role: 'engineering',
+        taskId: 't45',
+        ref,
+      })
+      const errors: unknown[] = []
+      await expect(
+        removeStaleCleanupRefs({
+          git: clashGit,
+          folder,
+          onError: (error: unknown) => {
+            errors.push(error)
+          },
+        }),
+      ).rejects.toThrow(/team cleanup failures/)
+      expect(errors).toHaveLength(1)
+      const kept = JSON.parse(
+        await readFile(path.join(folder, EXEC_TEAM_CLEANUP_FILE), 'utf8'),
+      ) as { refs: readonly { ref: string }[] }
+      expect(kept.refs.map((entry) => entry.ref)).toEqual([ref])
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
 })
