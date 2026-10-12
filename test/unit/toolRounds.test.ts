@@ -13,12 +13,22 @@ import {
   SessionBudgetExceededError,
   wrapUpFailedLimit,
 } from '../../src/core/backends/modelapi/sessionBudget'
-import { MODEL_API_MAX_TOOL_ROUNDS, UI_TEXT } from '../../src/shared/constants'
+import { ModelApiError } from '../../src/core/backends/modelapi/transport'
+import {
+  MODEL_API_MAX_TOOL_ROUNDS,
+  MODEL_API_MODEL_TEXT,
+  UI_TEXT,
+} from '../../src/shared/constants'
 import { mspApprovalMode } from '../../src/shared/permissionModes'
 import { plural } from '../../src/shared/l10n/text'
 import { parseHookConfig } from '../../src/core/backends/modelapi/hooks'
 import { Usd as PortUsd } from '../../src/shared/usd'
-import { FAKE_MODEL_API_ACCOUNT_ID, fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
+import {
+  FAKE_MODEL_API_ACCOUNT_ID,
+  fakeModelApi,
+  fakeModelApiClient,
+  type ScriptedReply,
+} from './helpers/fakeModelApi'
 import { memoryToolIo } from './helpers/fakeToolIo'
 import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
 import { FakeLogOutputChannel } from './helpers/fakes'
@@ -30,7 +40,7 @@ function remainingCalls(cap: number | (() => number) | undefined): (() => number
   return cap === undefined ? undefined : () => cap
 }
 
-async function setup(cap?: number | (() => number)) {
+async function setup(cap?: number | (() => number), changes?: Record<string, unknown>) {
   const api = fakeModelApi()
   const log = new FakeLogOutputChannel()
   const client = fakeModelApiClient(api, log)
@@ -38,6 +48,7 @@ async function setup(cap?: number | (() => number)) {
   const host = new ModelApiHost({
     ...fakeModelApiHostDeps({ client, io, log, workspaceRoot: '/ws' }),
     remainingModelCalls: remainingCalls(cap),
+    ...changes,
   })
   return {
     api,
@@ -678,6 +689,15 @@ describe('model-call turn limit', () => {
   it('names the fixed kind of every wrap-up-request failure', () => {
     expect(wrapUpFailedKindFor(new SessionBudgetExceededError('budget'))).toBe('budget')
     expect(wrapUpFailedKindFor(new HookCancelledError('halt'))).toBe('stopped')
+    // A 429 that reaches the loop unretried (quota, an over-cap
+    // Retry-After, a status the format's table does not retry) is still
+    // rate limited, not a model error.
+    expect(wrapUpFailedKindFor(new ModelApiError('rate limited', 429, undefined, undefined))).toBe(
+      'rateLimited',
+    )
+    expect(wrapUpFailedKindFor(new ModelApiError('boom', 500, undefined, undefined))).toBe(
+      'modelError',
+    )
     expect(wrapUpFailedKindFor(new Error('boom'))).toBe('modelError')
     // An already-named limit, the overflow's typed path, a child's refusal
     // and a non-error keep their own shape.
@@ -934,115 +954,157 @@ describe('model-call turn limit', () => {
     }
   })
 
+  // A money cell is not drivable in this harness: a capped session budget
+  // needs a durable budget journal, which the fake host deps have no knob
+  // for (without one the first request already fails with the
+  // store-unavailable stop). The budget kind mapping is unit-tested, and
+  // the budget failure flows through the same one exit the cells below
+  // prove; the loop-level driver belongs to the ledger lane.
+  interface WrapUpLoss {
+    readonly kind: string
+    readonly changes?: Record<string, unknown>
+    readonly hooks?: true
+    readonly script: () => readonly ScriptedReply[]
+    readonly terminal: 'completed' | 'failed'
+    readonly errorKind: string
+    readonly reason: string
+  }
   it.each([
     {
       kind: 'rate limit',
       script: () => [{ httpError: { status: 429 } }] as const,
-      reason: 'rateLimited' as const,
+      terminal: 'completed',
+      errorKind: 'max_turn_requests',
+      reason: plural(UI_TEXT.modelApiWrapUpFailed, 2, {
+        reason: UI_TEXT.modelApiWrapUpFailedReason.rateLimited,
+      }),
     },
     {
       kind: 'model error',
       script: () => [{ httpError: { status: 400 } }] as const,
-      reason: 'modelError' as const,
+      terminal: 'completed',
+      errorKind: 'max_turn_requests',
+      reason: plural(UI_TEXT.modelApiWrapUpFailed, 2, {
+        reason: UI_TEXT.modelApiWrapUpFailedReason.modelError,
+      }),
     },
     {
       kind: 'repeated model error',
       script: () => [{ httpError: { status: 500 } }] as const,
-      reason: 'modelError' as const,
+      terminal: 'completed',
+      errorKind: 'max_turn_requests',
+      reason: plural(UI_TEXT.modelApiWrapUpFailed, 2, {
+        reason: UI_TEXT.modelApiWrapUpFailedReason.modelError,
+      }),
     },
-  ])(
-    'ends a wrap-up lost to a $kind with the typed limit saying the summary failed',
-    async ({ script, reason }) => {
-      const t = await setup(2)
+    {
+      kind: 'context overflow',
+      script: () =>
+        [
+          {
+            httpError: {
+              status: 400,
+              body: { error: { message: 'maximum context length exceeded' } },
+            },
+          },
+        ] as const,
+      terminal: 'failed',
+      errorKind: 'context_overflow',
+      reason: UI_TEXT.contextWindowFull,
+    },
+    {
+      kind: 'hook stop',
+      // A Stop hook answering continue:false after the wrap-up answer ends
+      // the turn at its limit through the same one exit.
+      changes: {
+        loadHooks: () =>
+          Promise.resolve(
+            parseHookConfig(
+              JSON.stringify({
+                hooks: { Stop: [{ hooks: [{ type: 'command', command: 'halt' }] }] },
+              }),
+              'project',
+              'linux',
+            ).hooks,
+          ),
+      },
+      hooks: true,
+      script: () => [{ text: 'Wrap-up answer' }] as const,
+      terminal: 'completed',
+      errorKind: 'max_turn_requests',
+      reason: plural(UI_TEXT.modelApiTurnLimit, 2),
+    },
+  ] satisfies WrapUpLoss[])(
+    're-queues held input when a wrap-up is lost to a $kind, then ends the turn',
+    async ({ script, terminal, errorKind, reason, changes, hooks }) => {
+      const t = await setup(2, changes)
       try {
-        t.api.script({ calls: [{ name: 'get_goal', arguments: '{}' }] }, ...script())
-        await t.session.sendTurn([{ type: 'text', text: 'Review' }])
+        const held = Promise.withResolvers<undefined>()
+        const requested = Promise.withResolvers<undefined>()
+        if (hooks === true) {
+          let hasBlocked = false
+          t.io.runHook = () => {
+            const isFirst = !hasBlocked
+            hasBlocked = true
+            return Promise.resolve({
+              stdout: isFirst ? JSON.stringify({ continue: false, stopReason: 'halt now' }) : '{}',
+              stderr: '',
+              exitCode: 0,
+              isTimedOut: false,
+              isCancelled: false,
+            })
+          }
+        }
+        t.api.script(
+          {
+            calls: [{ name: 'get_goal', arguments: '{}' }],
+            hold: held.promise,
+            onRequest() {
+              requested.resolve(undefined)
+            },
+          },
+          ...script(),
+          { text: 'Goal follow-up' },
+        )
+        const send = t.session.sendTurn([{ type: 'text', text: 'Review' }])
+        await requested.promise
+        // A goal accepted while the first request streams waits out the
+        // wrap-up; whatever ends the wrap-up, the wake keeps its own turn.
+        await t.session.controlGoal({ verb: 'set', objective: 'Ship it' })
+        held.resolve(undefined)
+        await send
+        await t.turnDone()
         await t.turnDone()
         const bodies = t.api.responseBodies()
-        // The failed request is the wrap-up itself: no tools, the note, and
-        // no retry with tools afterwards.
-        expect(bodies).toHaveLength(2)
-        const last = bodies.at(-1)!
-        expect(last).not.toHaveProperty('tools')
-        expect(last).not.toHaveProperty('tool_choice')
-        expect(wrapUpNotesOf(last)).toEqual([expect.stringContaining('limit of 2 model calls')])
-        expect(t.events.findLast((e) => e.type === 'turnCompleted')).toMatchObject({
-          terminal: 'completed',
-          errorKind: 'max_turn_requests',
-          reason: plural(UI_TEXT.modelApiWrapUpFailed, 2, {
-            reason: UI_TEXT.modelApiWrapUpFailedReason[reason],
-          }),
-        })
-        expect(t.events).toContainEqual({
-          type: 'backendNotice',
-          level: 'warning',
-          text: plural(UI_TEXT.modelApiWrapUpFailed, 2, {
-            reason: UI_TEXT.modelApiWrapUpFailedReason[reason],
-          }),
-        })
+        // The failed request is the wrap-up itself: no tools, no choice,
+        // the note, and no retry with tools afterwards.
+        expect(bodies).toHaveLength(3)
+        const [, wrapUp, woken] = bodies as [
+          Record<string, unknown>,
+          Record<string, unknown>,
+          Record<string, unknown>,
+        ]
+        expect(wrapUp).not.toHaveProperty('tools')
+        expect(wrapUp).not.toHaveProperty('tool_choice')
+        expect(wrapUpNotesOf(wrapUp)).toContainEqual(
+          expect.stringContaining('limit of 2 model calls'),
+        )
+        const completed = t.events.filter((e) => e.type === 'turnCompleted')
+        expect(completed).toHaveLength(2)
+        expect(completed[0]).toMatchObject({ terminal, errorKind, reason })
+        // ...and the held wake still gets its own turn with tools.
+        expect(JSON.stringify(woken['input'])).toContain(MODEL_API_MODEL_TEXT.goalWake)
+        expect((woken['tools'] as unknown[]).length).toBeGreaterThan(0)
+        expect(completed[1]).toMatchObject({ terminal: 'completed' })
+        expect(completed[1]).not.toHaveProperty('errorKind')
+        expect(t.session.history().items).toContainEqual(
+          expect.objectContaining({ kind: 'agentMessage', text: 'Goal follow-up' }),
+        )
       } finally {
         await t.host.close()
       }
     },
   )
-
-  it('re-queues a goal wake held across a failed wrap-up for its own turn', async () => {
-    const { MODEL_API_MODEL_TEXT } = await import('../../src/shared/constants')
-    const t = await setup(2)
-    try {
-      const held = Promise.withResolvers<undefined>()
-      const requested = Promise.withResolvers<undefined>()
-      t.api.script(
-        {
-          calls: [{ name: 'get_goal', arguments: '{}' }],
-          hold: held.promise,
-          onRequest() {
-            requested.resolve(undefined)
-          },
-        },
-        { httpError: { status: 400 } },
-        { text: 'Goal follow-up' },
-      )
-      const send = t.session.sendTurn([{ type: 'text', text: 'Review' }])
-      await requested.promise
-      // A goal accepted while the first request streams waits out the
-      // wrap-up; the wrap-up request then fails outright.
-      await t.session.controlGoal({ verb: 'set', objective: 'Ship it' })
-      held.resolve(undefined)
-      await send
-      await t.turnDone()
-      await t.turnDone()
-      const bodies = t.api.responseBodies()
-      expect(bodies).toHaveLength(3)
-      const completed = t.events.filter((e) => e.type === 'turnCompleted')
-      expect(completed).toHaveLength(2)
-      // The first turn ends at its limit saying the summary failed...
-      expect(completed[0]).toMatchObject({
-        terminal: 'completed',
-        errorKind: 'max_turn_requests',
-        reason: plural(UI_TEXT.modelApiWrapUpFailed, 2, {
-          reason: UI_TEXT.modelApiWrapUpFailedReason.modelError,
-        }),
-      })
-      // ...and the held wake still gets its own turn with tools.
-      const [, wrapUp, woken] = bodies as [
-        Record<string, unknown>,
-        Record<string, unknown>,
-        Record<string, unknown>,
-      ]
-      expect(wrapUp).not.toHaveProperty('tools')
-      expect(wrapUp).not.toHaveProperty('tool_choice')
-      expect(JSON.stringify(woken['input'])).toContain(MODEL_API_MODEL_TEXT.goalWake)
-      expect((woken['tools'] as unknown[]).length).toBeGreaterThan(0)
-      expect(completed[1]).toMatchObject({ terminal: 'completed' })
-      expect(completed[1]).not.toHaveProperty('errorKind')
-      expect(t.session.history().items).toContainEqual(
-        expect.objectContaining({ kind: 'agentMessage', text: 'Goal follow-up' }),
-      )
-    } finally {
-      await t.host.close()
-    }
-  })
 
   it('refuses an image on a caller allowance the old gate could not see', async () => {
     const api = fakeModelApi()

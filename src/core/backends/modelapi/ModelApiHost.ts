@@ -1657,6 +1657,10 @@ export function wrapUpFailedKindFor(error: unknown): WrapUpFailedKind | undefine
   )
     return undefined
   if (error instanceof HookCancelledError) return 'stopped'
+  // A 429 that reaches the loop unretried (quota, an over-cap Retry-After,
+  // or a status the format's table does not retry — see retryPolicy.ts) is
+  // still a rate limit, not a model error.
+  if (isModelApiError(error) && error.status === HTTP_TOO_MANY_REQUESTS) return 'rateLimited'
   return error instanceof SessionBudgetExceededError ? 'budget' : 'modelError'
 }
 
@@ -13962,11 +13966,14 @@ export class ModelApiSession implements ScheduledAgentSession {
     error: unknown,
   ): ModelCallLimitError | undefined {
     if (turn.wrapUpLimit === undefined || isAbortRequested(signal)) return undefined
+    // The one exit: whatever ended the wrap-up re-queues every kind of held
+    // input first — including a 429/5xx that already carries the typed
+    // limit, which used to return before the re-queue and drop a held goal
+    // wake. A user stop racing the request still cancels outright above.
+    this.requeueHeldInput(turn)
     if (error instanceof ModelCallLimitError) return error
     const kind = wrapUpFailedKindFor(error)
-    if (kind === undefined) return undefined
-    this.requeueHeldInput(turn)
-    return wrapUpFailedLimit(turn.modelCalls, kind)
+    return kind === undefined ? undefined : wrapUpFailedLimit(turn.modelCalls, kind)
   }
 
   private async loop(turn: ActiveTurn): Promise<void> {
@@ -14017,8 +14024,11 @@ export class ModelApiSession implements ScheduledAgentSession {
         ) {
           turn.didRecoverOverflow = true
           // Recovery compaction must not spend the reserved wrap-up slot:
-          // without room for both, the overflow stands with what it kept.
-          if (this.isWrapUpSlotReserved()) throw error
+          // without room for both, the overflow stands with what it kept —
+          // through the one exit, so held input is re-queued either way.
+          if (this.isWrapUpSlotReserved()) {
+            throw this.wrapUpRequestFailed(turn, signal, error) ?? error
+          }
           const compacted = await this.maybeAutoCompact(turn, true)
           if (this.stopAfterAutoCompaction(turn, compacted, wasBudgetLimited)) return
           if (compacted) {
@@ -14036,7 +14046,7 @@ export class ModelApiSession implements ScheduledAgentSession {
             } catch (recoveryError: unknown) {
               throw this.wrapUpRequestFailed(turn, signal, recoveryError) ?? recoveryError
             }
-          } else throw error
+          } else throw this.wrapUpRequestFailed(turn, signal, error) ?? error
         } else {
           throw this.wrapUpRequestFailed(turn, signal, error) ?? error
         }
