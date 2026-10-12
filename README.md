@@ -64,6 +64,8 @@ hash verification and migrate when read.
   Sorry for the broken release; Meta's own models were not affected.
 - **Usage from earlier versions is counted again.** 0.18.0 left those records
   out as not exact; nothing was deleted.
+- **Report a Problem opens again** if you had changed a setting with a second
+  dot in its name; it used to answer "That did not work".
 
 ### Earlier in 0.18.0
 

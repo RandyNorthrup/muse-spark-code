@@ -40304,7 +40304,10 @@ not export. On its first run that gate found a second name of the same kind:
 `canonicalUsd`, which `exactJson.ts` reads through
 `dist/modelApiBoundaries.js`; 0.18.0 judged every dollar an earlier version
 had written as a number inexact and left that usage out. `usd.ts` exports
-it now. Evidence, the drills and the live proof:
+it now. Report a Problem refused every setting name with a second dot
+(`museSpark.vault.enabled`), so it never opened for anyone who had changed
+one; the name pattern takes dotted segments, and a report with its facts
+switched off no longer depends on them. Evidence, the drills and the live proof:
 `docs/certification/hotfix-0181-bundle-exports.md` (D6). A fixes only patch,
 so without Highlights. No webview input changes: no frame and no README
 screenshot moves. This is preparation, not publication; the public roadmap

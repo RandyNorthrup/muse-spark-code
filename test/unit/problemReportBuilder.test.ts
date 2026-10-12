@@ -3,6 +3,7 @@
 // the final draft, the preview/export seal, and the issue-URL fallback bound.
 
 import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   buildProblemReportDraft,
@@ -26,6 +27,7 @@ import {
   REPORT_ISSUE_URL_MAX_CHARS,
   REPORT_RECENT_EVENT_COUNT,
 } from '../../src/shared/constants'
+import { manifestSettingNames } from '../../src/host/support/reportFacts'
 import { REPORT_FACTS } from './helpers/reportFacts'
 
 const SCRUB: ReportScrubContext = {
@@ -126,6 +128,81 @@ describe('allowlist refusal', () => {
       }
       expect(error.field).toBe('extensionVersion')
     }
+  })
+})
+
+// 0.18.1: the pattern allowed one segment after the section, so a user who
+// had changed `museSpark.vault.enabled` (or any of the manifest's dotted
+// settings) got "That did not work" and no dialog. The names are read from
+// the real manifest, so a setting added later cannot break reports again.
+describe('setting names', () => {
+  const manifest: unknown = JSON.parse(readFileSync('package.json', 'utf8'))
+  const names = manifestSettingNames(manifest)
+  const dotted = names.filter((name) => name.split('.').length > 2)
+
+  it('reads the dotted settings the manifest really has', () => {
+    expect(names.length).toBeGreaterThan(50)
+    expect(dotted).toEqual(
+      expect.arrayContaining(['museSpark.vault.enabled', 'museSpark.judge.engine']),
+    )
+  })
+
+  it('accepts every setting of the manifest on its own', () => {
+    const refused = names.filter((name) => {
+      try {
+        buildProblemReportDraft(input({ facts: { ...FACTS, settingNames: [name] } }))
+        return false
+      } catch {
+        return true
+      }
+    })
+    expect(refused).toEqual([])
+  })
+
+  it('carries all of them at once, for a user who changed every setting', () => {
+    const draft = buildProblemReportDraft(input({ facts: { ...FACTS, settingNames: names } }))
+    for (const name of names) expect(draft.text, name).toContain(name)
+  })
+
+  it.each([
+    'museSpark',
+    'museSpark.',
+    'museSpark..enabled',
+    'museSpark.vault.',
+    'museSpark.vault.enabled=true',
+    'museSpark.vault enabled',
+    'museSpark.1vault',
+    'museSpark.a.b.c.d.e',
+    'other.vault.enabled',
+    'museSpark.vault.enabled\npassword: x',
+  ])('still refuses %j', (name) => {
+    expect(() =>
+      buildProblemReportDraft(input({ facts: { ...FACTS, settingNames: [name] } })),
+    ).toThrow(ReportBuildError)
+  })
+})
+
+describe('facts switched off', () => {
+  const broken = { ...FACTS, settingNames: ['/etc/passwd'] }
+
+  it('builds the report without them when they do not validate', () => {
+    const draft = buildProblemReportDraft(input({ facts: broken, includeFacts: false }))
+    expect(draft.title).toBe('Problem report: Muse Spark')
+    expect(draft.text).toContain('What was happening:')
+    expect(draft.text).not.toContain('Support facts')
+    expect(`${draft.title}\n${draft.text}`).not.toContain('passwd')
+    expect(isSealedDraftCurrent(draft)).toBe(true)
+  })
+
+  it('keeps the title with its version and platform when they do validate', () => {
+    const draft = buildProblemReportDraft(input({ includeFacts: false }))
+    expect(draft.title).toBe(problemReportTitle(FACTS))
+  })
+
+  it('still refuses them when the report would carry them', () => {
+    expect(() => buildProblemReportDraft(input({ facts: broken, includeFacts: true }))).toThrow(
+      ReportBuildError,
+    )
   })
 })
 

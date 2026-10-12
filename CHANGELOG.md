@@ -113,6 +113,9 @@ happened, not what was planned; superseded entries are kept.
   for the broken release. Meta's own models were not affected.
 - Usage recorded by earlier versions is counted again. 0.18.0 left those
   records out as not exact; nothing was deleted.
+- Report a Problem did nothing if you had changed certain settings (those
+  with a second dot in their name, such as `museSpark.vault.enabled`): it
+  said "That did not work" and never opened. It opens again.
 
 ## [0.18.0] - 2026-10-11
 
