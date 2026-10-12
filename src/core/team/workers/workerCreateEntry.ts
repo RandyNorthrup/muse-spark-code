@@ -24,6 +24,9 @@ export interface WorkerCreateProof {
   readonly ancestor: string
   readonly ancestorIdentity: string
   readonly remaining: string
+  // The path relative to the working copy as asked, for worker-file
+  // sentences; the helper never sees it, only ancestor and remaining.
+  readonly relative: string
 }
 
 /** A missing suffix is admitted against its existing ancestor before any creation. */
@@ -87,12 +90,18 @@ export async function createWorkerFile(
         ancestor: target.canonical,
         ancestorIdentity: await input.io.pathIdentity(target.checkedAbsolute),
         remaining,
+        relative,
       }
       const run = input.io.workerNativeOperation ?? sweep.nativeOperation
       // Missing folders are counted without creating anything, so the write
       // guard approves the operation before any mutation. The single create
       // below is the only helper launch of this file operation.
-      const predicted = await sweep.countMissingFolders(p, target.checkedAbsolute, remaining)
+      const predicted = await sweep.countMissingFolders(
+        p,
+        target.checkedAbsolute,
+        remaining,
+        relative,
+      )
       await input.beforeCreate?.(predicted)
       await recheckWorkerRoot(input, grant)
       let created: { readonly identity: string; readonly createdFolders: number }
@@ -104,7 +113,7 @@ export async function createWorkerFile(
         // The helper never reported what it made: at most the preflight
         // missing count can be ours.
         await sweep.cleanupCreated(run, proof, absolute, undefined, p, predicted)
-        throw sweep.mapNativeError(error, remaining)
+        throw sweep.mapNativeError(error, relative)
       }
       let opened: Awaited<ReturnType<NonNullable<typeof input.io.openFile>>>
       try {

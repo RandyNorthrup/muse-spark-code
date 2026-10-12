@@ -42,6 +42,7 @@ import {
   WORKER_HELPER_FAILED_PREFIX,
   WORKER_REFUSAL_PREFIX,
   WORKER_REFUSALS,
+  countMissingFolders,
   mapNativeError,
   recordCreated,
   sweepAbandonedReservations,
@@ -235,6 +236,7 @@ async function refusesLink(kind: 'parent' | 'file', skip: (note?: string) => voi
     ancestor: kind === 'parent' ? 'alias' : 'src',
     ancestorIdentity: await workerPathIdentity(src),
     remaining: 'new',
+    relative: kind === 'parent' ? 'alias/new' : 'src/new',
   }
   try {
     if (kind === 'parent')
@@ -310,6 +312,7 @@ describe('verified native worker creation', () => {
       ancestor: 'src',
       ancestorIdentity: await workerPathIdentity(path.join(copy, 'src')),
       remaining: 'new',
+      relative: 'src/new',
     }
     await expect(
       runNative(proof, 'worker-check', await workerPathIdentity(target)),
@@ -326,6 +329,7 @@ describe('verified native worker creation', () => {
         ancestor: 'src',
         ancestorIdentity: await workerPathIdentity(path.join(copy, 'src')),
         remaining: 'new',
+        relative: 'src/new',
       }
       const created = await runNative(proof, 'worker-create')
       if (kind === 'hard-link') await link(target, path.join(user, 'owner-link'))
@@ -379,6 +383,7 @@ describe('verified native worker creation', () => {
         ancestor: 'src',
         ancestorIdentity: await workerPathIdentity(path.join(copy, 'src')),
         remaining: name,
+        relative: `src/${name}`,
       }
       const attempt = runNative(proof, 'worker-create')
       await expect(attempt).rejects.toThrow()
@@ -401,6 +406,7 @@ describe('verified native worker creation', () => {
         ancestor: 'src',
         ancestorIdentity,
         remaining,
+        relative: `src/${remaining}`,
       })
       // An occupied target is its own typed sentence.
       await runNative(proofFor('occupied'), 'worker-create')
@@ -502,6 +508,50 @@ describe('verified native worker creation', () => {
           })
         }
       })
+      it('NF windows production launcher reports a nested file parent copy-relative', async () => {
+        const assembly = shell.assembly
+        const executable = job.path
+        if (assembly === undefined || executable === undefined)
+          throw new Error('Native launch unavailable')
+        const { copy, input, role } = await setup()
+        resources.dispose = configureResources(
+          immediateResourceSettings({
+            inspect: () => undefined,
+            onError: () => undefined,
+            windowsJob: () =>
+              Promise.resolve({
+                assemblyPath: assembly,
+                executablePath: executable,
+                verify: () => Promise.resolve(),
+              }),
+          }),
+        )
+        try {
+          // No fixture override: the refusal below travels through the
+          // packaged nativeOperation, which must print the copy-relative
+          // path, not the ancestor-relative suffix.
+          const productionIo: WorkerFenceIo = {
+            realPath: input.io.realPath,
+            pathIdentity: input.io.pathIdentity,
+            ...(input.io.openFile !== undefined && { openFile: input.io.openFile }),
+          }
+          const tool = fenceWorkerToolIo(base, {
+            input: { ...input, io: productionIo },
+            role,
+            admit: () => undefined,
+          })
+          await writeFile(path.join(copy, 'src', 'plain'), 'owner')
+          await expect(
+            tool.writeFile(path.join(copy, 'src', 'plain', 'deep', 'new'), 'blocked\n'),
+          ).rejects.toThrow(fill(UI_TEXT.teamFileCannotCreate, { path: 'src/plain/deep/new' }))
+        } finally {
+          resources.dispose()
+          resources.dispose = configureResources({
+            inspect: () => undefined,
+            onError: () => undefined,
+          })
+        }
+      })
     },
   )
   it.each(['../new', '..'])('NF native rejects dot components in %s', async (remaining) => {
@@ -512,6 +562,7 @@ describe('verified native worker creation', () => {
       ancestor: 'src',
       ancestorIdentity: await workerPathIdentity(path.join(copy, 'src')),
       remaining,
+      relative: `src/${remaining}`,
     }
     const reason = remaining === '..' ? 'invalid filename' : 'invalid component'
     await expect(runNative(proof, 'worker-create')).rejects.toThrow(
@@ -789,7 +840,7 @@ describe('verified native worker creation', () => {
     })
     const target = path.join(copy, 'src', 'deep', 'b', 'new.ts')
     await expect(tool.writeFile(target, 'lost\n')).rejects.toThrow(
-      'cannot be created inside the working copy',
+      fill(UI_TEXT.teamFileCannotCreate, { path: 'src/deep/b/new.ts' }),
     )
     await expect(readFile(target)).rejects.toMatchObject({ code: 'ENOENT' })
     expect(await readdir(path.join(copy, 'src'))).not.toContain('deep')
@@ -850,6 +901,7 @@ describe('verified native worker creation', () => {
         ancestor: 'src',
         ancestorIdentity: await workerPathIdentity(path.join(copy, 'src')),
         remaining: 'permdir/permfile',
+        relative: 'src/permdir/permfile',
       }
       const previous = process.umask(0o022)
       try {
@@ -1097,6 +1149,63 @@ describe('verified native worker creation', () => {
       code: 'ENOTDIR',
     })
   })
+  it('NF nested helper refusals report the copy-relative path', async () => {
+    // The target sits two components below its ancestor (remaining
+    // 'deep/nested-new'), so an ancestor-relative sentence would print the
+    // partial path: every family below must print the copy-relative one.
+    const { input, role } = await setup()
+    const given = 'src/deep/nested-new'
+    const rows: readonly (readonly [string, string])[] = [
+      ['target exists', UI_TEXT.teamFileExists],
+      ['parent unavailable or linked', UI_TEXT.teamFileLinked],
+      ['parent is not a directory', fill(UI_TEXT.teamFileCannotCreate, { path: given })],
+      ['invalid filename', fill(UI_TEXT.teamFileCannotCreate, { path: given })],
+      ['identity changed', UI_TEXT.teamFileChanged],
+      ['outside root', UI_TEXT.teamFileOutside],
+      ['unknown operation', UI_TEXT.teamFileNativeFailed],
+    ]
+    for (const [reason, expected] of rows) {
+      const refusal = Object.assign(new Error('Command failed'), {
+        stderr: `${WORKER_REFUSAL_PREFIX}${reason}`,
+      })
+      const run: SweepRun = () => Promise.reject(refusal)
+      const result = await acpFsWrite(
+        { ...input, io: { ...input.io, workerNativeOperation: run }, role },
+        given,
+        'blocked\n',
+      )
+      expect(result).toEqual({ error: expected })
+    }
+  })
+  it('NF a nested file parent reaches ACP as the typed copy-relative sentence', async () => {
+    const { copy, input, role } = await setup()
+    await writeFile(path.join(copy, 'src', 'plain'), 'owner')
+    const result = await acpFsWrite({ ...input, role }, 'src/plain/deep/new', 'blocked\n')
+    expect(result).toEqual({
+      error: fill(UI_TEXT.teamFileCannotCreate, { path: 'src/plain/deep/new' }),
+    })
+    if (!('error' in result)) throw new Error('Expected the typed create refusal')
+    expect(result.error).not.toContain(copy)
+  })
+  it.skipIf(process.platform === 'win32')(
+    'NF folder-preflight refusals report the copy-relative path',
+    async () => {
+      const { copy } = await setup()
+      // A self-loop link as an intermediate folder: probing below it fails
+      // with ELOOP, not ENOENT, so the missing-folder preflight itself
+      // refuses instead of counting.
+      await symlink('loop', path.join(copy, 'src', 'loop'))
+      const display = 'src/loop/sub/new'
+      await expect(
+        countMissingFolders(
+          pathModule(process.platform),
+          path.join(copy, 'src'),
+          'loop/sub/new',
+          display,
+        ),
+      ).rejects.toThrow(fill(UI_TEXT.teamFileCannotCreate, { path: display }))
+    },
+  )
   it('NF an abandoned reservation is released at the next start', async () => {
     const { folder, root } = await seedReservation('src/stale', '7:7')
     const run = vi.fn(() => Promise.resolve({ identity: '7:7', createdFolders: 0 }))
@@ -1128,6 +1237,7 @@ describe('verified native worker creation', () => {
         ancestor: 'src',
         ancestorIdentity: parentId,
         remaining: 'new',
+        relative: 'src/new',
       }
       if (kind === 'file') {
         await runNative(proof, 'worker-create')
