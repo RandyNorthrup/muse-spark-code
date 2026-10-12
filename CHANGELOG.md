@@ -94,6 +94,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Hidden M96 engine worker file creation ships its lazy chunks in the
+  installed extension, launches its native helper through resource admission
+  (one launch per file operation), creates missing folders only after the
+  write guard approves, removes empty files and folders a failed create made,
+  sweeps abandoned reservations at the next start, honors the process umask,
+  reports every refusal as the typed copy-relative sentence, and refuses
+  Windows-reserved names in the native helper too. Teams remain unavailable
+  pending integration.
 - Hidden M96 engine workers reserve and settle each transport attempt separately.
   Successful retries preserve earlier uncertain liability; refused and unsent
   attempts release their claims, including admission revoked during a durable
