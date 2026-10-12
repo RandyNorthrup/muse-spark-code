@@ -28,7 +28,10 @@ export function expectedReceiptWarning(kind, stack, work, groupIsGone = nativeGr
 
 /**
  * The sampler location, matched whole and anchored: one complete production
- * frame line, `at [async ]ResourceLaunchHost.sampleTree (file:line:col)`.
+ * frame line, `[indent]at [async ]<holder>.sampleTree (file:line:col)`.
+ * Node indents every frame (four spaces), so the line must tolerate leading
+ * whitespace; the installed bundle is minified, so the holder name is any
+ * identifier, not necessarily ResourceLaunchHost (`at e.sampleTree (...)`).
  * A substring match would admit failures merely observed near the sampler.
  */
 function hasSamplerFrame(stack) {
@@ -37,7 +40,7 @@ function hasSamplerFrame(stack) {
     stack
       .split('\n')
       .some((line) =>
-        /^at (?:async )?ResourceLaunchHost\.sampleTree \(.+:[0-9]+:[0-9]+\)$/u.test(line),
+        /^\s*at (?:async )?[A-Za-z_$][\w$]*\.sampleTree \(.+:[0-9]+:[0-9]+\)$/u.test(line),
       )
   )
 }

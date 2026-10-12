@@ -1,6 +1,11 @@
-import { describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it } from 'vitest'
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
+import { mkdtemp, rm } from 'node:fs/promises'
+import os from 'node:os'
+import path from 'node:path'
+import { build } from 'esbuild'
+import { createRequire } from 'node:module'
 import { createWarningBudget, expectedReceiptWarning } from '../helpers/vault/receiptWarnings.mjs'
 
 const stack = 'at ResourceLaunchHost.sampleTree (/installed/resourceGovernor.js:3:51102)'
@@ -16,7 +21,61 @@ function work(change = {}) {
     ...change,
   }
 }
+// RVCM109JE P2-2: the classifier is fed real stacks, never hand-indented
+// fixtures. This holder has the production sampler's shape, so a stack
+// captured inside it carries Node's genuine frame formatting.
+class ResourceLaunchHost {
+  sampleTree() {
+    return new Error('resource receipt diagnostic').stack
+  }
+}
+const minified = { directory: '' }
+afterAll(async () => {
+  if (minified.directory) await rm(minified.directory, { recursive: true, force: true })
+})
+async function minifiedSamplerStack() {
+  if (!minified.file) {
+    minified.directory = await mkdtemp(path.join(os.tmpdir(), 'vr-min-'))
+    minified.file = path.join(minified.directory, 'sampler.cjs')
+    await build({
+      stdin: {
+        contents:
+          'class ResourceLaunchHost { sampleTree() { return new Error("resource receipt diagnostic").stack } }' +
+          'module.exports = { make: () => new ResourceLaunchHost() }',
+        resolveDir: process.cwd(),
+        loader: 'js',
+      },
+      bundle: true,
+      minify: true,
+      platform: 'node',
+      format: 'cjs',
+      outfile: minified.file,
+    })
+  }
+  return createRequire(import.meta.url)(minified.file)
+    .make()
+    .sampleTree()
+}
 describe('installed vault receipt sampler warnings', () => {
+  it('names the race in a real Error stack with Node frame indentation', () => {
+    const stack = new ResourceLaunchHost().sampleTree()
+    // Genuine V8 formatting, not a fixture: every frame is indented.
+    expect(stack).toMatch(/\n {4}at ResourceLaunchHost\.sampleTree \(/u)
+    expect(expectedReceiptWarning('warn', stack, work(), () => true)).toBe(
+      'finished-native-helper-membership-race',
+    )
+  })
+  it('names the race in a real minified-bundle stack with shortened names', async () => {
+    const stack = await minifiedSamplerStack()
+    const frame = stack.split('\n').find((line) => line.includes('.sampleTree ('))
+    expect(frame).toBeDefined()
+    // The installed bundle minifies the holder away; the method name stands.
+    expect(frame).not.toContain('ResourceLaunchHost')
+    expect(frame).toMatch(/^\s*at (?:async )?[A-Za-z_$][\w$]*\.sampleTree \(.+:[0-9]+:[0-9]+\)$/u)
+    expect(expectedReceiptWarning('warn', stack, work(), () => true)).toBe(
+      'finished-native-helper-membership-race',
+    )
+  })
   it('names only the finished native helper registration race with a kernel-gone group', () => {
     expect(expectedReceiptWarning('warn', stack, work(), () => true)).toBe(
       'finished-native-helper-membership-race',
