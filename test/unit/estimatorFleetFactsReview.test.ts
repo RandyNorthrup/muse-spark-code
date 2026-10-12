@@ -11,7 +11,9 @@ import {
   ownedSubscriptionUsage,
 } from '../../src/host/estimator/fleetBinding'
 import { estimatorSourcePorts, fleetFromHost } from '../../src/host/estimator/localFleet'
-import { createUsageRecording } from '../../src/core/usage/recording'
+import { type OwnedLimitInput, type UsageRecording } from '../../src/core/usage/recording'
+import { ownedRecording } from './helpers/ownedRecording'
+import type { EstimateLane } from '../../src/shared/estimate'
 import { prepareEstimateSchedule, EstimateSchedulingError } from '../../src/core/estimator/schedule'
 import { createEstimatorRun } from '../../src/host/estimator/estimatorEntry'
 import { EN } from '../../src/shared/l10n/en'
@@ -31,34 +33,38 @@ import type { UsageLimitSnapshot } from '../../src/shared/usageJournal'
 const AS_OF = '2026-10-06T12:00:00.000Z'
 const NOW = Date.parse(AS_OF)
 const HOST = { platform: 'linux', arch: 'x64', cores: 4, ramGiB: 8 }
-const log = {
-  trace: () => undefined,
-  info: () => undefined,
-  warn: () => undefined,
-  error: () => undefined,
-}
 function recording() {
-  return createUsageRecording({
-    client: 'test',
-    now: () => NOW,
-    newId: () => 'limit',
-    isEnabled: () => false,
-    log,
-    writer: () => {
-      throw new Error('history disabled')
-    },
-  })
+  return ownedRecording(NOW).port
 }
 function observation(
   source: UsageLimitSnapshot['source'] = 'museCode',
-): Parameters<ReturnType<typeof recording>['limit']>[0] {
+  overrides?: Partial<Pick<OwnedLimitInput, 'windows' | 'account' | 'observedAt'>>,
+): OwnedLimitInput {
   return {
     backend: source === 'museCode' ? 'museCode' : 'modelApi',
     provider: source === 'museCode' ? 'museCode' : 'openrouter',
     source,
     observedAt: NOW,
     windows: [{ id: 'weekly', usedPercent: 90, resetsAt: NOW + 3_600_000 }],
+    ...overrides,
   }
+}
+async function bindWorkFleet(lane: EstimateLane, port: UsageRecording) {
+  return await bindEstimatorFleet(
+    fleetFromHost(HOST, [lane], AS_OF),
+    fleetIoFromSources(
+      extensionFleetSources({
+        inspect: () => undefined,
+        currentOwner: () => ({
+          accountId: 'work',
+          generation: '1',
+          providerId: 'openrouter',
+          label: 'Work',
+        }),
+        readOwnedLimits: () => port.ownedLimits?.() ?? [],
+      }),
+    ),
+  )
 }
 const zoneProbe =
   buildSync({
@@ -121,9 +127,10 @@ describe('RVCM1173D structured facts in the real fleet and scheduler', () => {
     'enforces a known exhausted balance reported by %s',
     async (source) => {
       const port = recording()
-      const observed = observation(source)
-      observed.windows = []
-      observed.account = { usedUsd: 100, limitUsd: 100, remainingUsd: 0, period: 'month' }
+      const observed = observation(source, {
+        windows: [],
+        account: { usedUsd: 100, limitUsd: 100, remainingUsd: 0, period: 'month' },
+      })
       port
         .scopeLimits?.({ backend: observed.backend, accountId: 'private-id', generation: '1' })
         .limit(observed)
@@ -146,9 +153,9 @@ describe('RVCM1173D structured facts in the real fleet and scheduler', () => {
       )
       const { fleet, context } = bound
       expect(context.facts.find((fact) => fact.unit === 'usd')).toMatchObject({
-        remaining: 0,
-        used: 100,
-        limit: 100,
+        remaining: '0',
+        used: '100',
+        limit: '100',
       })
       expect(() => prepareEstimateSchedule([lane], fleet, undefined, context).run()).toThrow(
         'unschedulable:A',
@@ -157,27 +164,14 @@ describe('RVCM1173D structured facts in the real fleet and scheduler', () => {
   )
   it('retains partial allowance with unknown limit and reset without inventing renewal', async () => {
     const port = recording()
-    const observed = observation('openRouter')
-    observed.windows = []
-    observed.account = { remainingUsd: 1, period: 'unknown' }
+    const observed = observation('openRouter', {
+      windows: [],
+      account: { remainingUsd: 1, period: 'unknown' },
+    })
     port.scopeLimits?.({ backend: 'modelApi', accountId: 'work', generation: '1' }).limit(observed)
     const lane = scheduleLane('A')
     lane.resources.accountUsdPerHour = amount(1)
-    const bound = await bindEstimatorFleet(
-      fleetFromHost(HOST, [lane], AS_OF),
-      fleetIoFromSources(
-        extensionFleetSources({
-          inspect: () => undefined,
-          currentOwner: () => ({
-            accountId: 'work',
-            generation: '1',
-            providerId: 'openrouter',
-            label: 'Work',
-          }),
-          readOwnedLimits: () => port.ownedLimits?.() ?? [],
-        }),
-      ),
-    )
+    const bound = await bindWorkFleet(lane, port)
     const { fleet, context } = bound
     expect(prepareEstimateSchedule([lane], fleet, undefined, context).run().finishHours).toBe(1)
     const longer = { ...lane, estimatedHours: 2 }
@@ -327,27 +321,14 @@ describe('RVCM1173D structured facts in the real fleet and scheduler', () => {
   })
   it('replays the complete owned facts from persisted forecast evidence', async () => {
     const port = recording()
-    const observed = observation('openRouter')
-    observed.windows = []
-    observed.account = { remainingUsd: 1, period: 'unknown' }
+    const observed = observation('openRouter', {
+      windows: [],
+      account: { remainingUsd: 1, period: 'unknown' },
+    })
     port.scopeLimits?.({ accountId: 'work', generation: '1', backend: 'modelApi' }).limit(observed)
     const lane = scheduleLane('A')
     lane.resources.accountUsdPerHour = amount(1)
-    const bound = await bindEstimatorFleet(
-      fleetFromHost(HOST, [lane], AS_OF),
-      fleetIoFromSources(
-        extensionFleetSources({
-          inspect: () => undefined,
-          currentOwner: () => ({
-            accountId: 'work',
-            generation: '1',
-            providerId: 'openrouter',
-            label: 'Work',
-          }),
-          readOwnedLimits: () => port.ownedLimits?.() ?? [],
-        }),
-      ),
-    )
+    const bound = await bindWorkFleet(lane, port)
     const serialized = JSON.stringify(bound.fleet)
     const persisted = fleetSnapshotSchema.parse(JSON.parse(serialized))
     expect(resolveLimitContext(persisted)).toEqual(bound.context)
@@ -358,9 +339,10 @@ describe('RVCM1173D structured facts in the real fleet and scheduler', () => {
   })
   it('carries exhausted balances through the real panel and headless engine ports', async () => {
     const port = recording()
-    const observed = observation('openRouter')
-    observed.windows = []
-    observed.account = { remainingUsd: 0, period: 'month' }
+    const observed = observation('openRouter', {
+      windows: [],
+      account: { remainingUsd: 0, period: 'month' },
+    })
     port.scopeLimits?.({ accountId: 'work', generation: '1', backend: 'modelApi' }).limit(observed)
     const owners = {
       currentOwner: () => ({
@@ -410,11 +392,12 @@ describe('RVCM1173D structured facts in the real fleet and scheduler', () => {
       window: { usedPercent: 100, resetsAtMs: NOW + 3_600_000, windowDurationMins: 300 },
       weekly: { usedPercent: 20, resetsAtMs: NOW + 86_400_000 },
     }
-    const observed = observation()
-    observed.windows = [
-      { id: 'window', usedPercent: 100, resetsAt: usage.window.resetsAtMs, windowMins: 300 },
-      { id: 'weekly', usedPercent: 20, resetsAt: usage.weekly.resetsAtMs },
-    ]
+    const observed = observation(undefined, {
+      windows: [
+        { id: 'window', usedPercent: 100, resetsAt: usage.window.resetsAtMs, windowMins: 300 },
+        { id: 'weekly', usedPercent: 20, resetsAt: usage.weekly.resetsAtMs },
+      ],
+    })
     const scope = { accountId: 'work', generation: '1', backend: 'museCode' as const }
     const scoped = port.scopeLimits?.(scope)
     scope.generation = '2'
@@ -445,9 +428,10 @@ describe('RVCM1173D structured facts in the real fleet and scheduler', () => {
   it('selects the observed account provider instead of the newest unrelated vendor', async () => {
     const port = recording()
     const scope = port.scopeLimits?.({ accountId: 'work', generation: '1', backend: 'modelApi' })
-    const router = observation('openRouter')
-    router.windows = []
-    router.account = { remainingUsd: 0, period: 'month' }
+    const router = observation('openRouter', {
+      windows: [],
+      account: { remainingUsd: 0, period: 'month' },
+    })
     scope?.limit(router)
     scope?.limit({
       ...router,
@@ -456,22 +440,9 @@ describe('RVCM1173D structured facts in the real fleet and scheduler', () => {
       observedAt: NOW + 1,
       account: { remainingUsd: 100, period: 'month' },
     })
-    const sources = extensionFleetSources({
-      inspect: () => undefined,
-      currentOwner: () => ({
-        accountId: 'work',
-        generation: '1',
-        providerId: 'openrouter',
-        label: 'Work',
-      }),
-      readOwnedLimits: () => port.ownedLimits?.() ?? [],
-    })
     const lane = scheduleLane('A')
     lane.resources.accountUsdPerHour = amount(1)
-    const bound = await bindEstimatorFleet(
-      fleetFromHost(HOST, [lane], AS_OF),
-      fleetIoFromSources(sources),
-    )
+    const bound = await bindWorkFleet(lane, port)
     expect(bound.fleet.accounts[0]?.providerId).toBe('openrouter')
     expect(() => prepareEstimateSchedule([lane], bound.fleet).run()).toThrow('unschedulable:A')
   })
@@ -491,8 +462,10 @@ describe('RVCM1173D structured facts in the real fleet and scheduler', () => {
       readOwnedLimits: () => [
         {
           owner: { kind: 'account' as const, id: 'default', providerId: 'meta', generation: '1' },
+          sequence: 0,
           snapshot: {
             ...observed,
+            account: undefined,
             v: 1,
             type: 'limit',
             id: 'test',

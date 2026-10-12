@@ -8,6 +8,8 @@ import { USAGE_EN } from '../../src/shared/l10n/usageEn'
 import { setUsageText } from '../../src/shared/l10n/usageTable'
 import { usageFixtureDeps, usageFixtureRecord, usageNow } from './helpers/usageFixture'
 import { USAGE_STALE_MS } from '../../src/shared/constants'
+import { legacyUsdSchema, type UsdAmount } from '../../src/shared/usdSchema'
+const usd = (value: number): UsdAmount => legacyUsdSchema.parse(value)
 
 afterEach(() => {
   setUiText(EN, 'en')
@@ -67,7 +69,7 @@ describe('usage text in every editor', () => {
     const current = {
       ...base!,
       windows: [{ id: 'window', usedPercent: 70, resetsAt: usageNow + 9_000_000, windowMins: 300 }],
-      account: { usedUsd: 7, limitUsd: 10, remainingUsd: 3, period: 'month' },
+      account: { usedUsd: usd(7), limitUsd: usd(10), remainingUsd: usd(3), period: 'month' },
     }
     const older = {
       ...current,
@@ -77,7 +79,7 @@ describe('usage text in every editor', () => {
         { ...current.windows[0]!, usedPercent: 10 },
         { id: 'expired-window', usedPercent: 90, resetsAt: usageNow },
       ],
-      account: { ...current.account, usedUsd: 1 },
+      account: { ...current.account, usedUsd: usd(1) },
     }
     const stale = {
       ...current,

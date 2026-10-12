@@ -8,6 +8,7 @@ import {
   isUsageWriterBundle,
   type UsageWriter,
   type UsageRecording,
+  type ScopedUsageRecording,
   type RecordedCall,
 } from '../../src/core/usage/recording'
 import { PaidUsage } from '../../src/core/paid/paidFeatures'
@@ -29,11 +30,17 @@ const call: RecordedCall = {
   outcome: 'completed',
 }
 function recording() {
-  return {
+  const tap = {
     note: vi.fn<UsageRecording['note']>(),
-    limit: vi.fn<UsageRecording['limit']>(),
+    limit: vi.fn<ScopedUsageRecording['limit']>(),
     today: vi.fn<UsageRecording['today']>().mockResolvedValue([]),
     flush: vi.fn<UsageRecording['flush']>().mockResolvedValue(undefined),
+  }
+  // The scope seam binds the owner (R6); the tap keeps seeing bare fields.
+  const scoped = { ...tap, ownedLimits: vi.fn(() => []) }
+  return {
+    ...scoped,
+    scopeLimits: vi.fn(() => scoped),
   }
 }
 function writer(): UsageWriter {
@@ -61,7 +68,10 @@ async function hostRun(
       io: memoryToolIo({}, '/workspace'),
       log,
     }),
-    ...(isRecording && { usageRecording: tap }),
+    ...(isRecording && {
+      usageRecording: tap,
+      usageScope: () => ({ accountId: 'default', generation: '1' }),
+    }),
     ...(hasSubagents && {
       isPaidFeatureOn: (feature) => feature === 'subagents',
       allowsPaidUse: () => Promise.resolve(true),
@@ -268,14 +278,26 @@ describe('recording taps', () => {
       log: new FakeLogOutputChannel(),
     })
     port.note(undefined, call)
-    port.limit({
+    // Every observation enters through a scope-bound owner (R6): raw limit
+    // calls without one do not compile.
+    const museScope = port.scopeLimits?.({
+      accountId: 'default',
+      generation: '1',
+      backend: 'museCode',
+    })
+    museScope?.limit({
       backend: 'museCode',
       provider: 'museCode',
       source: 'museCode',
       observedAt: 100,
       windows: [],
     })
-    port.limit({
+    const apiScope = port.scopeLimits?.({
+      accountId: 'default',
+      generation: '1',
+      backend: 'modelApi',
+    })
+    apiScope?.limit({
       backend: 'modelApi',
       provider: 'openrouter',
       source: 'openRouter',
@@ -285,12 +307,17 @@ describe('recording taps', () => {
     })
     await port.flush()
     expect(load).not.toHaveBeenCalled()
-    expect(port.limits?.()).toEqual(
+    expect(port.ownedLimits?.().map((row) => row.snapshot)).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ provider: 'museCode' }),
         expect.objectContaining({
           provider: 'openrouter',
-          account: { usedUsd: 0.3, limitUsd: 1, remainingUsd: 0.7, period: 'month' },
+          // Money normalizes once to exact decimal strings on the way in.
+          account: expect.objectContaining({
+            usedUsd: '0.3',
+            limitUsd: '1',
+            remainingUsd: '0.7',
+          }),
         }),
       ]),
     )
@@ -371,11 +398,14 @@ describe('recording taps', () => {
       observedAt: 100,
       windows: [],
       raw: { 'retry-after': '2' },
+      // The one owned constructor demands its owner and sequence (R6).
+      owner: { kind: 'account', id: 'default', providerId: 'openai', generation: '1' },
+      sequence: 0,
     }
     port.limit(context)
-    port.limit(context)
-    port.limit(context, true)
-    port.limit({ ...context, raw: { 'retry-after': '3' } })
+    port.limit({ ...context, sequence: 1 })
+    port.limit({ ...context, sequence: 2 }, true)
+    port.limit({ ...context, sequence: 3, raw: { 'retry-after': '3' } })
     await port.flush()
     expect(journal.append).toHaveBeenCalledTimes(3)
   })

@@ -17766,6 +17766,16 @@ function fakeEstimatorBinding() {
     provisionWaiting: 'M117-P-M109-provider',
   }
 }
+// Both finding-3 tests estimate under a provider switch: the harness
+// starts Meta, holds the run, then switches to OpenRouter before delivery.
+function switchedHarness() {
+  const harness = setup()
+  const binding = fakeEstimatorBinding()
+  const gate = Promise.withResolvers<ReturnType<typeof fakeEstimate>>()
+  binding.estimate = vi.fn(() => gate.promise)
+  const controller = new ConversationController({ ...harness.deps, estimator: binding })
+  return { harness, binding, gate, controller }
+}
 describe('M117 estimates belong to their conversation', () => {
   it('retains the fleet refusal source and reset at the host boundary', async () => {
     const t = setup()
@@ -17839,6 +17849,39 @@ describe('M117 estimates belong to their conversation', () => {
     await controller.handle({ type: 'clearConversation' })
     await controller.handle({ type: 'estimateSpinUp', requestId: 'start', setup: 'current' })
     expect(run.startWave).not.toHaveBeenCalled()
+    controller.dispose()
+  })
+  it('clears the displayed estimate when the provider switches (finding 3)', async () => {
+    const { harness, binding, controller } = switchedHarness()
+    binding.estimate = vi.fn(() => Promise.resolve(fakeEstimate()))
+    await controller.handle({
+      type: 'estimateRun',
+      requestId: 'first',
+      request: fakeEstimate().inputs.request,
+    })
+    expect(
+      harness.surface.posted.filter((message) => message.type === 'estimatorSection'),
+    ).toHaveLength(1)
+    // The default model reads Meta limits; switching to another provider
+    // retires the displayed forecast: it must not stay spin-up-able.
+    await controller.handle({ type: 'setModel', modelId: 'openrouter/switch' })
+    await controller.handle({ type: 'estimateSpinUp', requestId: 'start', setup: 'current' })
+    expect(binding.startWave).not.toHaveBeenCalled()
+    controller.dispose()
+  })
+  it('drops a held estimate when the provider switches before delivery (finding 3)', async () => {
+    const { harness, gate, controller } = switchedHarness()
+    const pending = controller.handle({
+      type: 'estimateRun',
+      requestId: 'old',
+      request: fakeEstimate().inputs.request,
+    })
+    await controller.handle({ type: 'setModel', modelId: 'openrouter/switch' })
+    gate.resolve(fakeEstimate())
+    await pending
+    expect(harness.surface.posted.some((message) => message.type === 'estimatorSection')).toBe(
+      false,
+    )
     controller.dispose()
   })
 })

@@ -72,6 +72,25 @@ beforeEach(() => {
   )
   vi.mocked(window.showInputBox).mockReset()
 })
+// Connects a fresh OpenRouter draft through key entry, test and model
+// tick, ready to save: the shared prefix of the save-path tests below.
+async function connectedDraft(panel: Awaited<ReturnType<typeof setup>>['panel']): Promise<void> {
+  vi.mocked(window.showInputBox).mockResolvedValue('bare-synthetic-secret')
+  await chooseOpenRouter(panel)
+  await send(panel, { type: 'providers/enterKey', mode: 'new' }, () => {
+    expect(latestState(panel).drafts.wizard?.keyPresent).toBe(true)
+  })
+  await send(panel, { type: 'providers/test', acceptCost: false }, () => {
+    expect(latestState(panel).drafts.wizard?.test?.status).toBe('ok')
+  })
+  await send(
+    panel,
+    { type: 'models/tick', scope: { scope: 'wizard' }, ref: 'openrouter/m1', ticked: true },
+    () => {
+      expect(latestState(panel).drafts.wizard?.models).toEqual(['m1'])
+    },
+  )
+}
 describe('Models host contract', () => {
   it('keeps an OAuth credential bound to its issuer after an edited draft address', async () => {
     const test = vi.fn(() => Promise.resolve({ kind: 'ok' as const, models: 1 }))
@@ -165,22 +184,8 @@ describe('Models host contract', () => {
   })
   it('retains a password-box draft for test, scan and save without crossing the bridge', async () => {
     const { panel, providers, saved } = setup()
-    vi.mocked(window.showInputBox).mockResolvedValue('bare-synthetic-secret')
-    await chooseOpenRouter(panel)
-    await send(panel, { type: 'providers/enterKey', mode: 'new' }, () => {
-      expect(latestState(panel).drafts.wizard?.keyPresent).toBe(true)
-    })
+    await connectedDraft(panel)
     expect(await providers.providers()).toEqual([])
-    await send(panel, { type: 'providers/test', acceptCost: false }, () => {
-      expect(latestState(panel).drafts.wizard?.test?.status).toBe('ok')
-    })
-    await send(
-      panel,
-      { type: 'models/tick', scope: { scope: 'wizard' }, ref: 'openrouter/m1', ticked: true },
-      () => {
-        expect(latestState(panel).drafts.wizard?.models).toEqual(['m1'])
-      },
-    )
     await send(panel, { type: 'providers/save', useNow: true }, () => {
       expect(saved).toHaveBeenCalledOnce()
     })
@@ -188,6 +193,42 @@ describe('Models host contract', () => {
     expect(JSON.stringify(panel.webview.postMessage.mock.calls)).not.toContain(
       'bare-synthetic-secret',
     )
+  })
+  it('notifies every saved credential and refreshes an OpenRouter balance (findings 4 and 7)', async () => {
+    const keyUsage = vi.fn()
+    const { providers } = testProvidersHost({
+      deps: {
+        store: memoryProvidersStore(),
+        fetcher: { fetchModels: () => Promise.resolve({ rows: [testRow('m1')] }) },
+        usage: {
+          read: () =>
+            Promise.resolve({
+              usedToday: 1,
+              usedThisWeek: 2,
+              usedThisMonth: 3,
+              limit: 10,
+              remaining: 7,
+            }),
+        },
+        onKeyUsage: keyUsage,
+      },
+    })
+    const { panel, saved } = setup({ providers })
+    await connectedDraft(panel)
+    // useNow: false persists the credential without adopting it, and still
+    // retires the ownership generation through the save notification.
+    await send(panel, { type: 'providers/save', useNow: false }, () => {
+      expect(saved).toHaveBeenCalledOnce()
+    })
+    expect(await providers.providers()).toHaveLength(1)
+    // The saved OpenRouter credential publishes a fresh owned balance at
+    // once: the estimator's production balance producer.
+    expect(keyUsage).toHaveBeenCalledOnce()
+    expect(keyUsage.mock.calls[0]?.[0]).toMatchObject({
+      usedThisMonth: 3,
+      limit: 10,
+      remaining: 7,
+    })
   })
   it('cancel drops a connected draft without persisting any provider', async () => {
     const { panel, providers } = setup()

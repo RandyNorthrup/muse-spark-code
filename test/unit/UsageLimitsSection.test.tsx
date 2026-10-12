@@ -4,6 +4,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { LimitCard, LimitsSection, BudgetCard } from '../../src/webview/usage/LimitsSection'
 import { usageStateFor } from './helpers/usageFixtures'
 import { USAGE_COUNTDOWN_REFRESH_MS, USAGE_STALE_MS } from '../../src/shared/constants'
+import { legacyUsdSchema, type UsdAmount } from '../../src/shared/usdSchema'
+const usd = (value: number): UsdAmount => legacyUsdSchema.parse(value)
 
 const NOW = new Date(2026, 9, 5, 12).getTime()
 const snapshot = usageStateFor('one-provider', NOW).limits[0]!
@@ -136,7 +138,7 @@ describe('usage limits', () => {
       source: 'openRouter',
       observedAt: NOW,
       windows: [],
-      account: { usedUsd: 2, limitUsd: 10, remainingUsd: 8, period: 'monthly' },
+      account: { usedUsd: usd(2), limitUsd: usd(10), remainingUsd: usd(8), period: 'monthly' },
     })
     const { rerender } = render(<LimitsSection state={state} post={vi.fn()} now={() => NOW} />)
     const account = screen
@@ -149,10 +151,15 @@ describe('usage limits', () => {
       '$2.00 of $10.00',
     )
     expect(within(account).getByText('$8.00 remaining')).toBeInTheDocument()
-    state.limits.at(-1)!.account = { usedUsd: 9, limitUsd: 10, remainingUsd: 1, period: 'monthly' }
+    state.limits.at(-1)!.account = {
+      usedUsd: usd(9),
+      limitUsd: usd(10),
+      remainingUsd: usd(1),
+      period: 'monthly',
+    }
     rerender(<LimitsSection state={state} post={vi.fn()} now={() => NOW} />)
     expect(within(account).getByText('At least 90% of the limit is used.')).toHaveTextContent('⚠')
-    state.limits.at(-1)!.account = { usedUsd: 2, period: 'monthly' }
+    state.limits.at(-1)!.account = { usedUsd: usd(2), period: 'monthly' }
     rerender(<LimitsSection state={state} post={vi.fn()} now={() => NOW} />)
     expect(within(account).queryByRole('progressbar')).toBeNull()
     expect(within(account).getByText('$2.00 of Unknown')).toBeInTheDocument()
