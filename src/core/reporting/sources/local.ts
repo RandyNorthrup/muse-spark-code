@@ -142,10 +142,28 @@ export function localSource<K extends ReportSourceKind>(
         0,
         (context.deadline ?? Date.now() + REPORT_SOURCE_TIMEOUT_MS) - Date.now(),
       )
-      const signal = AbortSignal.any([context.signal, AbortSignal.timeout(budget)])
+      const timeout = AbortSignal.timeout(budget)
+      const signal = AbortSignal.any([context.signal, timeout])
+      let stopTimeout: (() => void) | undefined
       try {
         signal.throwIfAborted()
-        const result = await read({ ...context, signal })
+        // The race is against the handed deadline only, never the abort: a
+        // cancelled cooperative read still settles through its own shutdown
+        // instead of being abandoned mid-flight, while a reader that ignores
+        // the signal cannot outlive the per-source timeout.
+        const expired = new Promise<never>((_resolve, reject) => {
+          const fire = () => {
+            reject(new LocalSourceError('cancelled'))
+          }
+          if (timeout.aborted) fire()
+          else {
+            timeout.addEventListener('abort', fire, { once: true })
+            stopTimeout = () => {
+              timeout.removeEventListener('abort', fire)
+            }
+          }
+        })
+        const result = await Promise.race([read({ ...context, signal }), expired])
         signal.throwIfAborted()
         const observedAt = result.observedAt ?? context.asOf
         const freshness = sourceFreshness(context.asOf, observedAt)
@@ -180,6 +198,8 @@ export function localSource<K extends ReportSourceKind>(
           },
           data: null,
         }
+      } finally {
+        stopTimeout?.()
       }
     },
   }
