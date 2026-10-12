@@ -20,6 +20,26 @@ ModelApiHost.ts). Lesson for shared trees: check `git status` immediately
 before every `git add`/`git commit` — a plain commit sweeps both sessions'
 work under one message.
 
+## Sweep incident and repair (20:17–20:32)
+
+This session's `326046195` (finding-9 fixtures) swept three sibling-staged
+source refinements that landed between the pre-add status check and the
+commit: `agentBackend.ts` (`currentEffort` optional simplification),
+`ModelApiHost.ts` (free-function `settingUnsupported`, policy hoist,
+one-line adopt loop, direct `observedAccount`), `usageJournal.ts`
+(`observedAccount` schema simplification). The swept `usageJournal.ts` was a
+mid-edit state with a stray `),` that broke host/webview typechecks
+(TS1128), and `TeamTree.test.tsx` (sibling's file, committed in `cba1ad785`)
+passed plain strings where the new tally schema needs `UsdAmount` (TS2322
+under typecheck:unit). Forward-fixed without history surgery as `44c285d12`
+(stray paren removed; `Usd.from('1.2').toAmount()` /
+`Usd.from('50').toAmount()`); all five typechecks green after.
+The sibling later reverted this session's diet re-pin hunk in
+`deferredBundles.test.ts` (pin back to 530_883) — apparently golfing the
+bundle to fit the original pin instead; that file and number are now theirs.
+This session does not contest it: last dirty-tree measurement was 530_910
+with their work in progress.
+
 ## Findings owned by this session
 
 | Finding                                | Fix                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | Regression test (fails without fix)                                                                                                                                                           | Red drill                                                                                                                                      |
@@ -47,10 +67,11 @@ Measured on this rig, same plugins, `--no-cache`, fixture `TMPDIR` on disk:
 - Dirty tree before the sibling's commit: **531_038** (+22 from their then-uncommitted work).
 
 Both committed increments are mandated review-fix feature code (rulings
-2/3/4/7), following this file's INT0170 convention (measure, record, pin).
-Re-pinned to 531_016 in `deferredBundles.test.ts`; the combined tree with
-the sibling's `cba1ad785` (whose `settingUnsupported` refactor shrinks the
-setter sites) measures ≤ 531_016 — diet green.
+2/3/4/7). This session re-pinned the diet to the measured 531_016; the
+sibling reverted that hunk and is golfing the bundle to fit the original
+530_883 instead — their number to land. Recorded measurements (this rig):
+base `49a242da2` ≤ 530_883; `02cf0b6d2` = 530_939; `b4024585a` = 531_016;
+dirty pre-commit tree = 531_038.
 
 ## Verification run by this session (kubuntu, `--maxWorkers=3`, repo timeout)
 
@@ -59,8 +80,12 @@ setter sites) measures ≤ 531_016 — diet green.
 - `conversationController.test.ts`: 686 passed. `modelApiHost` +
   `teamAvailability`: 671 passed. `teamOrchestratorSlot` + `teamEnginePorts`
   - `teamTry`: 67 passed. `bundleSize.test.mjs`: 65 passed.
-    `deferredBundles.test.ts`: 117 passed, 1 failed (diet, needs sibling's
-    final re-pin).
+    `deferredBundles.test.ts`: 117 passed, 1 failed (diet — sibling reverted
+    the re-pin and owns the number; see above).
+- Combined-tree reruns after the sweep repair: `TeamTree` + money guard 25
+  passed; `usageRecording` + `teamHostService` 103 passed; Try/ports/slot
+  67 passed; `modelApiHost` + availability 671 passed;
+  `conversationController` 686 passed.
 - `node scripts/check-l10n.mjs`: 0 problems. `eslint --max-warnings=0` and
   `prettier --check` on both fixture files: clean.
 - Production `npm run build`: exit 0 on the combined committed src (this
