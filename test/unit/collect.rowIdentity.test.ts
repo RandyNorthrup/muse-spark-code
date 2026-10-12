@@ -601,8 +601,6 @@ const cases: readonly RowIdentityCase[] = [
 
 const forwardedKinds = [
   ['fleet', 'duplicated fleet rows stay visible'],
-  ['security', 'duplicated security rows stay visible'],
-  ['accounts', 'duplicated account rows stay visible'],
   ['estimate', 'duplicated estimate rows stay visible'],
   ['playbook', 'duplicated playbook decision rows stay visible'],
   ['issues', 'duplicated issue rows stay visible'],
@@ -624,12 +622,6 @@ function withDoubledForwardedRows(
   switch (kind) {
     case 'fleet': {
       return { ...snapshot, sources: { ...snapshot.sources, fleet: doubled } }
-    }
-    case 'security': {
-      return { ...snapshot, sources: { ...snapshot.sources, security: doubled } }
-    }
-    case 'accounts': {
-      return { ...snapshot, sources: { ...snapshot.sources, accounts: doubled } }
     }
     case 'estimate': {
       return { ...snapshot, sources: { ...snapshot.sources, estimate: doubled } }
@@ -665,7 +657,61 @@ const forwarded: readonly RowIdentityCase[] = forwardedKinds.map(([kind, name]) 
   },
 }))
 
-const table: readonly RowIdentityCase[] = [...cases, ...forwarded]
+const nativeDuplicates: readonly RowIdentityCase[] = [
+  {
+    kind: 'accounts',
+    name: 'duplicated account rows stay visible',
+    mutate: (snapshot) => {
+      const facts = snapshot.sources.accounts.data
+      if (facts === null) throw new Error('Missing account fixture')
+      return {
+        ...snapshot,
+        sources: {
+          ...snapshot.sources,
+          accounts: availableSource('accounts', {
+            ...facts,
+            providers: facts.providers.map((provider) => ({
+              ...provider,
+              accounts: [...provider.accounts, ...provider.accounts],
+            })),
+          }),
+        },
+      }
+    },
+    records: (document) => {
+      expect(getSection(document, 'accounts/accounts').rows).toHaveLength(2)
+      expect(getSection(document, 'accounts/limits').rows).toHaveLength(6)
+    },
+  },
+  {
+    kind: 'security',
+    name: 'duplicated security rows stay visible',
+    mutate: (snapshot) => {
+      const facts = snapshot.sources.security.data
+      if (facts?.vault == null) throw new Error('Missing vault fixture')
+      return {
+        ...snapshot,
+        sources: {
+          ...snapshot.sources,
+          security: availableSource('security', {
+            ...facts,
+            vault: {
+              ...facts.vault,
+              itemsByKind: [...facts.vault.itemsByKind, ...facts.vault.itemsByKind],
+              grants: [...facts.vault.grants, ...facts.vault.grants],
+            },
+          }),
+        },
+      }
+    },
+    records: (document) => {
+      expect(getSection(document, 'security/breakdown').rows).toHaveLength(4)
+      expect(getSection(document, 'security/grants').rows).toHaveLength(2)
+    },
+  },
+]
+
+const table: readonly RowIdentityCase[] = [...cases, ...forwarded, ...nativeDuplicates]
 
 describe('report row identity', () => {
   it('narrows only row keys while retaining malformed shapes for schema rejection', () => {

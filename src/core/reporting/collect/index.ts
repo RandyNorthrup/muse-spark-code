@@ -1,3 +1,4 @@
+import { REPORT_KIND_REGISTRY } from '../registry'
 import { REPORT_FORMAT_VERSION } from '../../../shared/constants'
 import {
   reportDocumentSchema,
@@ -42,12 +43,12 @@ export interface ReportCollectorDependencies {
 }
 
 const forwardedKinds = {
-  fleet: ['agents', 'workers', 'devices', 'nodes'],
-  estimate: ['totals', 'criticalPath', 'limitingResource', 'setups', 'inputs', 'calibration'],
-  playbook: ['totals', 'decisions', 'drills', 'disabledRules', 'refusals'],
-  issues: ['issues', 'limits'],
-  schedules: ['timeline', 'schedules', 'fires', 'refusals', 'cost'],
-  keybindings: ['keybindings', 'conflicts'],
+  fleet: REPORT_KIND_REGISTRY.fleet.sections,
+  estimate: REPORT_KIND_REGISTRY.estimate.sections,
+  playbook: REPORT_KIND_REGISTRY.playbook.sections,
+  issues: REPORT_KIND_REGISTRY.issues.sections,
+  schedules: REPORT_KIND_REGISTRY.schedules.sections,
+  keybindings: REPORT_KIND_REGISTRY.keybindings.sections,
 } as const
 type ForwardedKind = keyof typeof forwardedKinds
 

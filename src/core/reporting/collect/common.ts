@@ -3,6 +3,7 @@ import {
   REPORT_ID_PATTERN,
   REPORT_MAX_ID_CHARS,
   REPORT_SECTION_ROWS,
+  REPORT_MAX_ROWS,
 } from '../../../shared/constants'
 import type {
   ReportLabelKey,
@@ -145,7 +146,23 @@ export function section(
   rows: readonly ReportRow[],
   options: ReportOptions,
 ): ReportSection {
-  const ordered = dedupeRowKeys(rows).toSorted((left, right) => compare(left.key, right.key))
+  // Canonicalize ties before assigning duplicate suffixes, so identity stays
+  // attached to the same fact when a reader returns its records in a new order.
+  const ordered = dedupeRowKeys(
+    rows.toSorted(
+      (left, right) =>
+        compare(left.key, right.key) || compare(JSON.stringify(left), JSON.stringify(right)),
+    ),
+  ).toSorted((left, right) => compare(left.key, right.key))
+  const admitted: ReportRow[] = []
+  const limit = options.full ? REPORT_MAX_ROWS : REPORT_SECTION_ROWS
+  let omittedRows = 0
+  // Admission includes the source disclosure rows. Neither a combined facet
+  // nor --full can add one beyond the final document's unchanged schema cap.
+  for (const entry of ordered) {
+    if (admitted.length >= limit) omittedRows += 1
+    else admitted.push(entry)
+  }
   return {
     id,
     label: heading,
@@ -153,8 +170,8 @@ export function section(
     columns: columns.map((column) =>
       typeof column === 'string' ? { key: column, label: column } : column,
     ),
-    rows: options.full ? ordered : ordered.slice(0, REPORT_SECTION_ROWS),
-    omittedRows: options.full ? 0 : Math.max(0, ordered.length - REPORT_SECTION_ROWS),
+    rows: admitted,
+    omittedRows,
   }
 }
 
