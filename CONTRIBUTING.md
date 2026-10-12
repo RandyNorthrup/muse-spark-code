@@ -115,8 +115,8 @@ Use this order for a candidate branch:
    in an empty folder and, on the cheapest models under a stated spending
    cap, run one plain turn, one turn with a tool call and an approval, and
    one long streamed answer, then read `usage` back; the terminal agent and
-   ACP both. The suites run against fakes, and 0.18.0 shipped a defect every
-   one of them passed.
+   ACP both. State the expected number of calls first and count them
+   afterwards. 0.18.0 shipped a defect that every suite passed.
 
 - `npm run quality` runs every local gate in one go, when you want that
   before a push; it is feedback, not the release record. It leaves out only
@@ -131,6 +131,11 @@ Use this order for a candidate branch:
   semgrep as jobs of their own; the PowerShell lint runs only where Windows
   PowerShell exists, so a green run on one platform is not quite the whole
   set.
+- Tests stand on the built product wherever the behaviour is the product's.
+  A stand-in is allowed for the outside world only (for example a server
+  replaying a recorded exchange), never for our own code.
+- An exact-size assertion may move with the measured number and a one-line
+  reason in the same change; a cap moves only on the owner's word.
 - Add or change tests with the code. A new check must be seen to fail once
   on purpose; the certification records under `docs/certification/`
   show how that is written down.
