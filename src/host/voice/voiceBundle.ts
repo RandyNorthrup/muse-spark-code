@@ -82,7 +82,7 @@ export function deferredDriver(
     },
     dispose() {
       isDisposed = true
-      driver?.dispose()
+      return driver?.dispose()
     },
   }
 }
