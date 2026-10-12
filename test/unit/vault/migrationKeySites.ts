@@ -74,6 +74,22 @@ const HOOK_INDEX = 'AccountSecretsDeps[' as const
 /** A `.remove(` call whose resolved method belongs to `AccountStore`. */
 const ACCOUNT_STORE_REMOVE = 'AccountStore.remove' as const
 
+/**
+ * Forward-slash form of a path. TypeScript reports source filenames with
+ * slashes while native roots use backslashes on Windows, so both sides are
+ * normalized before they are compared (RVCM1094F finding 5); on POSIX the
+ * string is unchanged.
+ */
+export function normalizeInventoryPath(value: string): string {
+  return value.replaceAll('\\', '/')
+}
+
+/** Whether a root list names the file, after normalizing both sides. */
+export function isInventoryRoot(roots: readonly string[], fileName: string): boolean {
+  const wanted = normalizeInventoryPath(fileName)
+  return roots.some((root) => normalizeInventoryPath(root) === wanted)
+}
+
 /** Secret-store calls on a bare `account` variable the runtime proved is a
  * provider slot via `providerSecretAccount` (matched on whitespace-collapsed
  * text, so a call split across lines still counts). */
@@ -178,27 +194,69 @@ function removeDeclarations(checker: ts.TypeChecker, symbol: ts.Symbol): readonl
   return target.declarations ?? []
 }
 
+/** The member name of a method or property declaration, when it is static text. */
+function memberName(declaration: ts.Declaration): string | null {
+  if (
+    !ts.isMethodSignature(declaration) &&
+    !ts.isPropertySignature(declaration) &&
+    !ts.isMethodDeclaration(declaration)
+  )
+    return null
+  const name = declaration.name
+  return ts.isIdentifier(name) || ts.isStringLiteralLike(name) ? name.text : null
+}
+
+/** Whether a declaration is a `remove` member of an interface, type or class. */
+function isRemoveMember(declaration: ts.Declaration): boolean {
+  return memberName(declaration) === 'remove'
+}
+
+/**
+ * Whether the value is a structural port the store satisfies: an
+ * `AccountStore` is assignable to the value's type (RVCM1094F finding 7).
+ * The check follows the resolved declaration and the receiver's type, never
+ * the receiver spelling.
+ */
+function isStoreSatisfiedReceiver(
+  checker: ts.TypeChecker,
+  value: ts.Expression,
+  storeType: ts.Type | undefined,
+): boolean {
+  if (storeType === undefined) return false
+  try {
+    return checker.isTypeAssignableTo(storeType, checker.getTypeAtLocation(value))
+  } catch {
+    return false
+  }
+}
+
 /**
  * Whether an expression denotes `AccountStore.remove` (or an override): a
  * direct or element access to the method, a destructured or otherwise bound
  * reference to it, or a bound copy of it. The check follows the resolved
- * declaration, never the receiver spelling.
+ * declaration, never the receiver spelling. A reference through a structural
+ * port the store satisfies counts too: the declaration is the port's own
+ * `remove` member and an `AccountStore` is assignable to the receiver's
+ * type, so a bound or destructured copy of a port call is still the store's
+ * removal.
  */
 function isStoreRemoveReference(
   checker: ts.TypeChecker,
   expression: ts.Expression,
   seen: readonly ts.Node[],
+  storeType: ts.Type | undefined,
 ): boolean {
   if (seen.length > 8) return false
   if (ts.isPropertyAccessExpression(expression) || ts.isElementAccessExpression(expression)) {
     const name = accessName(expression)
     if (name !== 'remove') return false
     const symbol = accessedSymbol(checker, expression)
+    if (symbol === undefined) return false
+    const declarations = removeDeclarations(checker, symbol)
     return (
-      symbol !== undefined &&
-      removeDeclarations(checker, symbol).some((declaration) =>
-        isHierarchyRemove(checker, declaration),
-      )
+      declarations.some((declaration) => isHierarchyRemove(checker, declaration)) ||
+      (declarations.some((declaration) => isRemoveMember(declaration)) &&
+        isStoreSatisfiedReceiver(checker, expression.expression, storeType))
     )
   }
   if (ts.isIdentifier(expression)) {
@@ -219,16 +277,17 @@ function isStoreRemoveReference(
       const owner = binding.parent.parent
       if (!ts.isVariableDeclaration(owner) || owner.initializer === undefined) return false
       const provided = checker.getTypeAtLocation(owner.initializer).getProperty('remove')
+      if (provided === undefined) return false
+      const providedDeclarations = removeDeclarations(checker, provided)
       return (
-        provided !== undefined &&
-        removeDeclarations(checker, provided).some((declaration) =>
-          isHierarchyRemove(checker, declaration),
-        )
+        providedDeclarations.some((declaration) => isHierarchyRemove(checker, declaration)) ||
+        (providedDeclarations.some((declaration) => isRemoveMember(declaration)) &&
+          isStoreSatisfiedReceiver(checker, owner.initializer, storeType))
       )
     }
     return (
       binding.initializer !== undefined &&
-      isStoreRemoveReference(checker, binding.initializer, [...seen, binding])
+      isStoreRemoveReference(checker, binding.initializer, [...seen, binding], storeType)
     )
   }
   // A bound copy invoked later: `store.remove.bind(store)`.
@@ -236,7 +295,12 @@ function isStoreRemoveReference(
     ts.isCallExpression(expression) &&
     ts.isPropertyAccessExpression(expression.expression) &&
     expression.expression.name.text === 'bind' &&
-    isStoreRemoveReference(checker, expression.expression.expression, [...seen, expression])
+    isStoreRemoveReference(
+      checker,
+      expression.expression.expression,
+      [...seen, expression],
+      storeType,
+    )
   )
 }
 
@@ -325,27 +389,31 @@ function isStoreRemoveCall(
     const name = accessName(callee)
     if (name === 'remove')
       return (
-        isStoreRemoveReference(checker, callee, []) ||
+        isStoreRemoveReference(checker, callee, [], storeType) ||
         isStoreSatisfiedPort(checker, node, callee.expression, storeType)
       )
     // Invoking a denoted reference: `drop.call(store, ...)`.
     return (
       (name === 'call' || name === 'apply') &&
-      isStoreRemoveReference(checker, callee.expression, [])
+      isStoreRemoveReference(checker, callee.expression, [], storeType)
     )
   }
   // A destructured or bound reference called on its own: `drop(...)`.
-  if (ts.isIdentifier(callee)) return isStoreRemoveReference(checker, callee, [])
+  if (ts.isIdentifier(callee)) return isStoreRemoveReference(checker, callee, [], storeType)
   // An immediately invoked bound copy: `store.remove.bind(store)(...)`.
-  return ts.isCallExpression(callee) && isStoreRemoveReference(checker, callee, [])
+  return ts.isCallExpression(callee) && isStoreRemoveReference(checker, callee, [], storeType)
 }
 
-/** Files that can invoke `AccountStore.remove` in any counted form. */
+/**
+ * Files that can invoke `AccountStore.remove` in any counted form. Element
+ * access covers every static spelling — quoted, spaced and template
+ * (RVCM1094F finding 7) — so `store[ 'remove' ](...)` and
+ * ``store[`remove`](...)`` still open the file for the typed walk.
+ */
 function canInvokeStoreRemove(content: string): boolean {
   return (
     content.includes('.remove') ||
-    content.includes('["remove"]') ||
-    content.includes("['remove']") ||
+    /\[\s*['"`]\s*remove\s*['"`]\s*\]/u.test(content) ||
     /\bremove\s*\.\s*(call|apply|bind)\b/u.test(content) ||
     /\{\s*remove\b/u.test(content) ||
     /\bremove\s*\(/u.test(content)
@@ -375,8 +443,10 @@ export function collectAccountStoreRemovals(files: readonly string[]): string[] 
   const storeType = accountStoreInstanceType(checker, program)
   const sites: string[] = []
   for (const source of program.getSourceFiles()) {
-    if (source.isDeclarationFile || !roots.includes(source.fileName)) continue
-    const relative = path.relative(ROOT, source.fileName).replaceAll(path.sep, '/')
+    if (source.isDeclarationFile || !isInventoryRoot(roots, source.fileName)) continue
+    const relative = path
+      .relative(ROOT, normalizeInventoryPath(source.fileName))
+      .replaceAll('\\', '/')
     const visit = (node: ts.Node): void => {
       if (ts.isCallExpression(node) && isStoreRemoveCall(checker, node, storeType))
         sites.push(`${relative} :: ${ACCOUNT_STORE_REMOVE}`)
@@ -385,6 +455,74 @@ export function collectAccountStoreRemovals(files: readonly string[]): string[] 
     visit(source)
   }
   return sites
+}
+
+/** Whether a call invokes the credential port's `remove` member. */
+function isCredentialPortRemoveCall(checker: ts.TypeChecker, node: ts.CallExpression): boolean {
+  if (!ts.isPropertyAccessExpression(node.expression) || node.expression.name.text !== 'remove')
+    return false
+  const symbol = checker.getSymbolAtLocation(node.expression.name)
+  if (symbol === undefined) return false
+  const target =
+    (symbol.flags & ts.SymbolFlags.Alias) === 0 ? symbol : checker.getAliasedSymbol(symbol)
+  return (target.declarations ?? []).some(
+    (declaration) =>
+      isRemoveMember(declaration) &&
+      ts.isInterfaceDeclaration(declaration.parent) &&
+      declaration.parent.name.text === 'AccountCredentialVault',
+  )
+}
+
+/** Whether a subtree holds a call to the credential port's `remove` member. */
+function hasCredentialPortRemoveCall(checker: ts.TypeChecker, root: ts.Node): boolean {
+  if (ts.isCallExpression(root) && isCredentialPortRemoveCall(checker, root)) return true
+  let hasRemoveInChild = false
+  ts.forEachChild(root, (child) => {
+    hasRemoveInChild ||= hasCredentialPortRemoveCall(checker, child)
+  })
+  return hasRemoveInChild
+}
+
+/**
+ * Every `AccountStore` method that deletes credential material through the
+ * credential port, found from the type — not from fixed text fragments
+ * (RVCM1094F finding 6). A method counts when its body holds a call that
+ * resolves to the port's own `remove` member, so adding a member like
+ * `clearCredential` that deletes through the port changes this list and the
+ * inventory test fails until the new port is inventoried with it.
+ */
+export function collectAccountStoreCredentialMembers(): string[] {
+  const entry = path.join(SRC, 'core', 'providers', 'accounts.ts')
+  const program = ts.createProgram([entry], {
+    target: ts.ScriptTarget.ES2023,
+    module: ts.ModuleKind.NodeNext,
+    moduleResolution: ts.ModuleResolutionKind.NodeNext,
+    strict: true,
+    skipLibCheck: true,
+    types: ['node'],
+  })
+  const checker = program.getTypeChecker()
+  const members: string[] = []
+  for (const source of program.getSourceFiles()) {
+    if (source.isDeclarationFile) continue
+    const visit = (node: ts.Node): void => {
+      if (ts.isClassDeclaration(node) && node.name?.text === 'AccountStore') {
+        for (const member of node.members) {
+          if (
+            !ts.isMethodDeclaration(member) ||
+            member.body === undefined ||
+            !ts.isIdentifier(member.name)
+          )
+            continue
+          if (hasCredentialPortRemoveCall(checker, member.body))
+            members.push(`AccountStore.${member.name.text}`)
+        }
+      }
+      ts.forEachChild(node, visit)
+    }
+    visit(source)
+  }
+  return members.toSorted(compareStrings)
 }
 
 /** Every `file :: fragment` occurrence of the three key families in `src/`. */
