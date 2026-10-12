@@ -32,6 +32,7 @@ import {
   parseScheduleStoredJson,
   type ScheduleFsPort,
   type ScheduleLeaseGuard,
+  type ScheduleLockOptions,
 } from '../../core/schedules/journal'
 import {
   scheduleStorageHash,
@@ -226,8 +227,24 @@ export function createNodeScheduleFs(directory: string): ScheduleFsPort {
         if (!hasCode(error, 'ENOENT')) throw error
       }
     },
-    async lock(key, work) {
+    async lock(key, work, options?: ScheduleLockOptions) {
       const file = `leases/${scheduleStorageHash(key)}.json`
+      const signal = options?.signal
+      const rawDeadline = options?.deadlineMs
+      const deadlineMs =
+        rawDeadline !== undefined && !Number.isNaN(rawDeadline) ? rawDeadline : undefined
+      // A waiting acquisition stops, never abandons. The deadline binds
+      // first: a lease still held by a valid writer past the wait is busy,
+      // never a silent abandon that later publishes; an explicit abort ends
+      // the wait at once. Past acquisition only the abort binds.
+      const checkWaiting = () => {
+        if (deadlineMs !== undefined && Date.now() >= deadlineMs)
+          throw new Error('scheduleLeaseBusy')
+        signal?.throwIfAborted()
+      }
+      const checkHeld = () => {
+        signal?.throwIfAborted()
+      }
       const owner = {
         pid: process.pid,
         start: processStart,
@@ -255,14 +272,19 @@ export function createNodeScheduleFs(directory: string): ScheduleFsPort {
           const name = names[0]
           if (name === undefined) continue
           const content = await fs.read(`${folder}/${segment}/${name}`)
+          // Listed but unreadable: a writer moved on between the listing and
+          // the read. Transient; the next attempt observes the new owner.
           if (content === undefined) throw new Error('scheduleQueueOwnershipLost')
           const lease = leaseSchema.parse(parseScheduleStoredJson(content))
+          // A fencing token that contradicts its immutable file name or
+          // segment is stored corruption, never a takeover: no competing
+          // writer can make this identity valid. Fences and their tokens
+          // arrived together, so a header without any token is foreign too.
           if (
-            lease.fencingToken === undefined ||
             name !== `${String(lease.fencingToken)}.json` ||
-            Number(segment) !== Math.floor(lease.fencingToken / SCHEDULE_JOURNAL_MAX_OPS)
+            Number(segment) !== Math.floor((lease.fencingToken ?? -1) / SCHEDULE_JOURNAL_MAX_OPS)
           )
-            throw new Error('scheduleQueueOwnershipLost')
+            throw new Error('scheduleQueueLeaseInvalid')
           return { content, lease, header: `${folder}/${segment}/${name}` }
         }
         const content = await fs.read(file)
@@ -273,11 +295,15 @@ export function createNodeScheduleFs(directory: string): ScheduleFsPort {
       let fencingToken = 0
       let header: string
       for (;;) {
+        checkWaiting()
         const previous = await head()
         if (previous !== undefined) {
           const heartbeatFile = `${file}.${previous.lease.token}.heartbeat`
           const pulse = (await fs.read(heartbeatFile)) ?? previous.content
           const refreshed = leaseSchema.parse(parseScheduleStoredJson(pulse))
+          // A changed holder identity mid-read is a takeover in progress, not
+          // corruption: the next attempt re-reads the head and observes the
+          // new owner or its release.
           if (
             refreshed.token !== previous.lease.token ||
             refreshed.pid !== previous.lease.pid ||
@@ -290,11 +316,23 @@ export function createNodeScheduleFs(directory: string): ScheduleFsPort {
             isScheduleProcessAlive(previous.lease.pid) &&
             !expired('owner', pulse, refreshed.heartbeat)
           ) {
-            await delay(SCHEDULE_LEASE_POLL_MS)
+            checkWaiting()
+            const remaining =
+              deadlineMs === undefined ? SCHEDULE_LEASE_POLL_MS : deadlineMs - Date.now()
+            // Wake at the deadline instead of sleeping a whole poll turn past
+            // it, so the busy verdict precedes the source's own timeout.
+            if (remaining > 0) await delay(Math.min(SCHEDULE_LEASE_POLL_MS, remaining))
+            // Past the deadline the verdict is decided without another disk
+            // round-trip: head() latency under load must not push it past
+            // the source's own timeout. A release in the last instants still
+            // reads busy; the window is exhausted either way.
+            if (deadlineMs !== undefined && Date.now() >= deadlineMs)
+              throw new Error('scheduleLeaseBusy')
             continue
           }
           fencingToken = (previous.lease.fencingToken ?? -1) + 1
         }
+        checkHeld()
         owner.heartbeat = Date.now()
         header = `${folder}/${String(Math.floor(fencingToken / SCHEDULE_JOURNAL_MAX_OPS))}/${String(fencingToken)}.json`
         // Acquiring/releasing uses immutable token slots. No unlink can remove
@@ -304,6 +342,9 @@ export function createNodeScheduleFs(directory: string): ScheduleFsPort {
       }
       const guard: ScheduleLeaseGuard = Object.assign(
         async () => {
+          // No read, write or publish follows an abort: the check precedes
+          // the ownership re-read, so a stopped waiter performs no port call.
+          checkHeld()
           const current = await head()
           if (current?.lease.token !== owner.token || current.lease.fencingToken !== fencingToken)
             throw new Error('scheduleQueueOwnershipLost')
@@ -341,6 +382,7 @@ export function createNodeScheduleFs(directory: string): ScheduleFsPort {
           Object.assign(
             async () => {
               if (heartbeatError !== undefined) throw heartbeatError
+              checkHeld()
               await guard()
             },
             { fencingToken },

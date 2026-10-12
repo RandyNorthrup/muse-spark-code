@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { setTimeout as delay } from 'node:timers/promises'
 import * as z from 'zod/mini'
-import type { ScheduleFsPort } from '../../../../src/core/schedules/journal'
+import type { ScheduleFsPort, ScheduleLockOptions } from '../../../../src/core/schedules/journal'
 import type { ScheduleQueuePort } from '../../../../src/core/schedules/store'
 import type { ScheduleV2 } from '../../../../src/shared/scheduleV2'
 import { scheduleStorageHash } from '../../../../src/core/schedules/store'
@@ -57,15 +57,111 @@ export class MemoryScheduleFs implements ScheduleFsPort {
     this.directories.get(file.slice(0, slash))?.delete(file.slice(slash + 1))
     return Promise.resolve()
   }
-  async lock<T>(key: string, work: (guard: () => Promise<void>) => Promise<T>): Promise<T> {
+  async lock<T>(
+    key: string,
+    work: (guard: () => Promise<void>) => Promise<T>,
+    options?: ScheduleLockOptions,
+  ): Promise<T> {
     const previous = this.tails.get(key) ?? Promise.resolve(undefined)
     const next = Promise.withResolvers<undefined>()
     this.tails.set(key, next.promise)
-    await previous
-    try {
-      return await work(() => Promise.resolve())
-    } finally {
+    // An abandoned slot never strands its chain: it resolves with its
+    // predecessor, so repeated refreshes against a persistent holder leave
+    // no live waiter behind. A finished last waiter removes its own tail.
+    let isReleased = false
+    const release = (isAborted: boolean) => {
+      if (isReleased) return
+      isReleased = true
+      if (isAborted) {
+        void previous
+          .then(() => {
+            next.resolve(undefined)
+          })
+          .catch(() => {
+            next.resolve(undefined)
+          })
+        return
+      }
+      // Resolve first so queued waiters wake; delete only when still last
+      // so the map keeps no entry per finished waiter.
       next.resolve(undefined)
+      if (this.tails.get(key) === next.promise) this.tails.delete(key)
+    }
+    const signal = options?.signal
+    const rawDeadline = options?.deadlineMs
+    const deadlineMs =
+      rawDeadline !== undefined && !Number.isNaN(rawDeadline) ? rawDeadline : undefined
+    // The deadline binds first: a valid holder past the wait is busy, never
+    // an abandon that later publishes; an explicit abort ends the wait. The
+    // wakeup below only interrupts; this check names the word.
+    const checkWaiting = () => {
+      if (deadlineMs !== undefined && Date.now() >= deadlineMs) throw new Error('scheduleLeaseBusy')
+      signal?.throwIfAborted()
+    }
+    try {
+      checkWaiting()
+      if (signal !== undefined || deadlineMs !== undefined) {
+        let timer: ReturnType<typeof setTimeout> | undefined
+        let onAbort: (() => void) | undefined
+        try {
+          const wakeups: Promise<unknown>[] = [previous]
+          if (signal !== undefined) {
+            wakeups.push(
+              new Promise<never>((_resolve, reject) => {
+                onAbort = () => {
+                  reject(new Error('scheduleLockWaitInterrupted'))
+                }
+                if (signal.aborted) {
+                  reject(new Error('scheduleLockWaitInterrupted'))
+                } else signal.addEventListener('abort', onAbort, { once: true })
+              }),
+            )
+          }
+          if (deadlineMs !== undefined) {
+            const remaining = deadlineMs - Date.now()
+            wakeups.push(
+              new Promise<never>((_resolve, reject) => {
+                if (remaining <= 0) {
+                  reject(new Error('scheduleLockWaitInterrupted'))
+                } else {
+                  timer = setTimeout(() => {
+                    reject(new Error('scheduleLockWaitInterrupted'))
+                  }, remaining)
+                }
+              }),
+            )
+          }
+          try {
+            await Promise.race(wakeups)
+          } catch (error) {
+            // A rejected race skips straight to the outer catch, so the
+            // terminal word is named here on the rejection path: the wakeup
+            // only interrupts, and the sentinel must never escape.
+            checkWaiting()
+            throw error
+          }
+        } finally {
+          if (timer !== undefined) clearTimeout(timer)
+          if (onAbort !== undefined && signal !== undefined)
+            signal.removeEventListener('abort', onAbort)
+        }
+      } else {
+        await previous
+      }
+      checkWaiting()
+      try {
+        // The guard carries the abort into every guarded publish, so no
+        // write follows a stop even when it lands mid-work.
+        return await work(() => {
+          signal?.throwIfAborted()
+          return Promise.resolve()
+        })
+      } finally {
+        release(false)
+      }
+    } catch (error) {
+      release(true)
+      throw error
     }
   }
   bytes(prefix = ''): number {

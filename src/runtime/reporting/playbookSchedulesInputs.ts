@@ -11,7 +11,12 @@ import {
   FilePlaybookJournal,
   PlaybookHistoryLostError,
 } from '../../core/orchestration/playbook/journal'
-import { SCHEDULE_FS_RETRY_ATTEMPTS } from '../../shared/constants'
+import {
+  REPORT_SOURCE_TIMEOUT_MS,
+  SCHEDULE_FS_RETRY_ATTEMPTS,
+  SCHEDULE_LEASE_POLL_MS,
+} from '../../shared/constants'
+import type { ScheduleFsPort } from '../../core/schedules/journal'
 import { createScheduleStore } from '../../core/schedules/store'
 import { LocalSourceError } from '../../core/reporting/sources/local'
 import type { PlaybookReportReader } from '../../core/reporting/sources/playbook'
@@ -68,6 +73,28 @@ const SCHEDULE_CONTENT_FAILURES = new Set([
   'scheduleIndexDeltaInvalid',
   'scheduleJournalLimitExceeded',
   'scheduleJournalFencingRegression',
+  'scheduleQueueLeaseInvalid',
+])
+
+/**
+ * Every word the schedules report read (list, fires, confirm) can surface,
+ * with its one classification. Ownership another writer can resolve is busy
+ * and retried; an immutable identity that contradicts itself is invalid at
+ * once, never retried; a wait that outlasts its deadline with a valid holder
+ * is busy at once, never retried; missing-underfoot and path refusals are
+ * failed. Anything else (genuine I/O) is failed.
+ *
+ * | word | classification |
+ * | scheduleJournalOwnershipLost | busy, retried: the fencing-CAS slot went to a newer writer; the next attempt observes the winner. |
+ * | scheduleQueueOwnershipLost | busy, retried: transient; a listed fence vanished before its read, or the holder identity changed mid-read while a takeover lands. |
+ * | scheduleLeaseBusy | busy at once: this read's own wait expired with a valid holder; the deadline already passed, so retrying cannot help. |
+ * | scheduleQueueLeaseInvalid | invalid at once: a fence header's token contradicts its file name or segment. |
+ * | scheduleStoredJsonInvalid, scheduleWorkspaceMismatch, scheduleOutcomeIdentityMissing, scheduleFireIdentityMismatch, scheduleIndexRevisionMismatch, scheduleIndexDeltaInvalid, scheduleJournalLimitExceeded, scheduleJournalFencingRegression, $ZodError | invalid at once. |
+ * | scheduleIndexMissing, scheduleStorageLinkRefused, scheduleStoragePathRefused | failed (a fresh store reads empty before any of these). |
+ */
+const SCHEDULE_BUSY_FAILURES = new Set([
+  'scheduleJournalOwnershipLost',
+  'scheduleQueueOwnershipLost',
 ])
 
 function isScheduleContentFailure(error: unknown): boolean {
@@ -86,9 +113,28 @@ export function createSchedulesReportReader(input: {
 }): SchedulesReportReader {
   return {
     read: async (context: SourceReadContext) => {
-      const store = createScheduleStore(createNodeScheduleFs(input.storeRoot))
+      // A cancelled or timed-out source read stops, never abandons: the
+      // signal and this read's deadline travel through the store to the lock
+      // acquisition, which checks them on every turn and before every write
+      // and performs no read, write or publish after either fires. The window
+      // always starts at read start: fixture and refresh stamps stay out of
+      // it, so a late refresh still gets its full wait. Less one poll turn
+      // of settle budget, so this verdict precedes the source's own timeout
+      // and the race reports busy, never cancelled.
+      const deadlineMs = Date.now() + REPORT_SOURCE_TIMEOUT_MS - SCHEDULE_LEASE_POLL_MS
+      const { signal } = context
+      const raw = createNodeScheduleFs(input.storeRoot)
+      const fs: ScheduleFsPort = {
+        read: (file) => raw.read(file),
+        names: (directory) => raw.names(directory),
+        publish: (file, content, guard) => raw.publish(file, content, guard),
+        replace: (file, content, guard) => raw.replace(file, content, guard),
+        remove: (file, canRetryTransient) => raw.remove(file, canRetryTransient),
+        lock: (key, work) => raw.lock(key, work, { signal, deadlineMs }),
+      }
+      const store = createScheduleStore(fs)
       for (let attempt = 0; attempt < SCHEDULE_FS_RETRY_ATTEMPTS; attempt += 1) {
-        context.signal.throwIfAborted()
+        signal.throwIfAborted()
         try {
           const schedules = await store.list(input.workspaceKey)
           const fires = await store.fires(input.workspaceKey)
@@ -101,11 +147,11 @@ export function createSchedulesReportReader(input: {
           if (revisions(schedules) !== revisions(confirmed)) continue
           return { schedules: [...confirmed], fires: [...fires], observedAt: context.asOf }
         } catch (error) {
-          if (
-            error instanceof Error &&
-            ['scheduleJournalOwnershipLost', 'scheduleQueueOwnershipLost'].includes(error.message)
-          )
-            continue
+          // The wait expired with a valid holder: busy at once. The deadline
+          // already passed, so another attempt cannot help.
+          if (error instanceof Error && error.message === 'scheduleLeaseBusy')
+            throw new LocalSourceError('busy')
+          if (error instanceof Error && SCHEDULE_BUSY_FAILURES.has(error.message)) continue
           throw new LocalSourceError(isScheduleContentFailure(error) ? 'invalid' : 'failed')
         }
       }
