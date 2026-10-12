@@ -101,14 +101,23 @@ export async function createWorkerFile(
         // production or injected: a malformed identity fails before opening.
         created = sweep.parseWorkerReceipt(await run(proof, 'worker-create'))
       } catch (error: unknown) {
-        await sweep.cleanupCreated(run, proof, absolute, undefined, p)
+        // The helper never reported what it made: at most the preflight
+        // missing count can be ours.
+        await sweep.cleanupCreated(run, proof, absolute, undefined, p, predicted)
         throw sweep.mapNativeError(error, remaining)
       }
       let opened: Awaited<ReturnType<NonNullable<typeof input.io.openFile>>>
       try {
         opened = await input.io.openFile(absolute, true)
       } catch (error: unknown) {
-        await sweep.cleanupCreated(run, proof, absolute, created.identity, p)
+        await sweep.cleanupCreated(
+          run,
+          proof,
+          absolute,
+          created.identity,
+          p,
+          created.createdFolders,
+        )
         throw sweep.typedCreateError(error, relative)
       }
       await sweep.recordCreated(input.folder, relative, created.identity)
@@ -132,7 +141,14 @@ export async function createWorkerFile(
         } catch {
           /* The descriptor is already gone; cleanup still runs. */
         }
-        await sweep.cleanupCreated(run, proof, absolute, created.identity, p)
+        await sweep.cleanupCreated(
+          run,
+          proof,
+          absolute,
+          created.identity,
+          p,
+          created.createdFolders,
+        )
         forget()
         throw error
       }
@@ -146,7 +162,14 @@ export async function createWorkerFile(
           } catch (error: unknown) {
             // A failed first write leaves no empty file or folders behind;
             // the exact-state release refuses anything with content.
-            await sweep.cleanupCreated(run, proof, absolute, created.identity, p)
+            await sweep.cleanupCreated(
+              run,
+              proof,
+              absolute,
+              created.identity,
+              p,
+              created.createdFolders,
+            )
             forget()
             throw error
           }
@@ -166,7 +189,15 @@ export async function createWorkerFile(
             // Every unsettled terminal path attempts the exact-state cleanup:
             // the release refuses a changed or nonempty file, and rmdir
             // removes only folders that are still empty.
-            if (!isSettled) await sweep.cleanupCreated(run, proof, absolute, created.identity, p)
+            if (!isSettled)
+              await sweep.cleanupCreated(
+                run,
+                proof,
+                absolute,
+                created.identity,
+                p,
+                created.createdFolders,
+              )
             forget()
             await opened.close()
           }

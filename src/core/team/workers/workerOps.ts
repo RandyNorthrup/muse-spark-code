@@ -233,9 +233,9 @@ export async function countMissingFolders(
 /**
  * Best-effort removal of what a failed create made: the exact empty file
  * through the helper (which refuses anything changed or with content), then
- * the below-ancestor folders bottom-up with rmdir, each only if still
- * empty. Every component below the admitted ancestor was absent at
- * preflight, so nothing else can go. Never throws.
+ * at most createdFolders below-ancestor folders bottom-up with rmdir, each
+ * only if still empty. Folders that predate the operation or arrived
+ * concurrently are never ours to take. Never throws.
  */
 export async function cleanupCreated(
   run: SweepRun,
@@ -243,6 +243,7 @@ export async function cleanupCreated(
   absolute: string,
   identity: string | undefined,
   p: PlatformPath,
+  createdFolders: number,
 ): Promise<void> {
   if (identity !== undefined) {
     try {
@@ -254,7 +255,8 @@ export async function cleanupCreated(
   try {
     const parts = proof.remaining.split('/')
     let dir = absolute
-    for (let index = parts.length - 1; index > 0; index -= 1) {
+    const levels = Math.min(Math.max(createdFolders, 0), parts.length - 1)
+    for (let count = 0; count < levels; count += 1) {
       dir = p.dirname(dir)
       try {
         await rmdir(dir)
