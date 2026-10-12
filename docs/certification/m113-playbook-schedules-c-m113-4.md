@@ -366,3 +366,92 @@ packaging remain lead-owned and were not run. No sandbox restriction occurred;
 no install, credential read, paid/live model call, push, merge or rebase occurred.
 PLAN §7 records the inherited gate deferrals. All installed commit hooks remain
 unchanged and enabled; post-hook committed diff is re-read before handoff.
+
+## CM1134AR5 — RVCM1134H contention findings (2026-10-12, kubuntu rig)
+
+Both findings fixed as classes, inside the schedules kind, the schedules
+filesystem port and its in-memory twin. No timeout constant changed, no guard
+widened, no new dependency. Final file hashes (SHA-256):
+`playbookSchedulesInputs.ts e02a8ee2…`, `nodeScheduleFs.ts 62d8cc60…`,
+`twin storage.ts` (post-lint; hash in commit), `journal.ts 53e85212…`.
+
+### P2 — a cancelled or timed-out source read stops, never abandons
+
+The reader passes its `AbortSignal` and its deadline (read start plus
+`REPORT_SOURCE_TIMEOUT_MS`, less one `SCHEDULE_LEASE_POLL_MS` turn of settle
+budget so the verdict precedes the source's own timeout) through a
+delegating port wrapper into every `lock` acquisition; the store, journal
+and port signatures are otherwise untouched. `ScheduleFsPort.lock` takes an
+optional `ScheduleLockOptions` (`src/core/schedules/journal.ts`). The
+production wait loop checks the deadline first, then the signal, on every
+turn and before the single unguarded write; both lease guards check the
+signal before their ownership re-read, so no read, write or publish follows
+a stop. The in-memory twin waits race the chain against abort and deadline
+timers, names the terminal word on the rejection path (a rejecting race
+skips straight to the outer catch, so a post-race check would never run),
+and links an abandoned slot to its predecessor instead of stranding the
+chain; its guard carries the abort into every guarded publish. A valid
+holder past the wait reports the Host busy sentence, never cancelled; an
+explicit abort still reports cancelled. One dependent-run catch is recorded
+honestly: the twin's first success path deleted its tail without resolving
+it, stranding queued waiters (`scheduleMigrate` failed 3); the fix resolves
+first and deletes only when still last.
+
+Tests (`test/unit/playbookSchedulesInputs.test.ts`, contention suite):
+production held lease past the 5 s deadline over the production store,
+reader and source (busy sentence, one lock attempt, call counts frozen
+across release); five sequential refreshes against a persistent holder
+(all busy, no new fence file, fresh read ok after release; the holder's
+own heartbeat pulses are filtered from the inventory); memory queued
+reader (busy, single attempt, frozen calls, chain unlinked, empty tails);
+explicit mid-wait abort (cancelled sentence, no later publish).
+
+### P3 — one classification per word, in one table
+
+The table lives on the reader (`SCHEDULE_BUSY_FAILURES` plus
+`SCHEDULE_CONTENT_FAILURES` with the prose table above them).
+`scheduleQueueOwnershipLost` stays busy-and-retried (listed fence vanished,
+heartbeat/identity takeover mid-read, guard takeover: another writer
+resolves). `scheduleJournalOwnershipLost` stays busy-and-retried (CAS slot
+lost). New `scheduleQueueLeaseInvalid`: a fence header whose token
+contradicts its file name or segment, or carries none (fences and tokens
+arrived together in `03d5d6607`, so a tokenless header is foreign), is
+invalid at once, never retried. New `scheduleLeaseBusy`: the reader's own
+wait expired with a valid holder; busy at once, never retried. All eight
+stored-content words plus `$ZodError` stay invalid; `scheduleIndexMissing`
+and the storage path/link refusals stay failed. Write-path words are out of
+the read's reach and out of the table's scope.
+
+Tests: one per word. New: three forged fence identities (token above file
+name, file name above token, no token — each invalid with exactly one lock
+call); transient listed-then-vanished fence (first attempt loses, retry
+heals to a successful read); `scheduleLeaseBusy` terminality (single lock
+call in the contention tests); per-word forges for `scheduleFireIdentityMismatch`,
+`scheduleWorkspaceMismatch`, `scheduleOutcomeIdentityMissing`,
+`scheduleIndexRevisionMismatch`, `scheduleIndexDeltaInvalid`,
+`scheduleJournalLimitExceeded`, `$ZodError` (invalid) and
+`scheduleIndexMissing`, `scheduleStorageLinkRefused` (failed). Existing:
+damaged JSON, fencing regression, journal-CAS retry, queue-ownership retry.
+
+### Red drills (all restored byte-exact, SHA-256 compared)
+
+- D1: reader delegation drops `{ signal, deadlineMs }` → held-lease test
+  fails with "cancelled or timed out" (the reviewer's symptom). Restored.
+- D2: twin race loses its rejection-path mapping → memory test fails with
+  `failed` (sentinel escapes) instead of `busy`. Restored.
+- D3: fence word reverts to `scheduleQueueOwnershipLost` → all three
+  identity tests fail (busy after retry, not invalid at once). Restored.
+- D4: production deadline throws neutralised → held-lease test fails with
+  "cancelled or timed out". Restored.
+
+### Verification (kubuntu, load average ~18)
+
+Owning file 26/26; review shards: 1 (65, one load flake green on rerun),
+2 (65 + inherited `sessionReportSource` 8-vs-10), 3–8 green
+(31/86/35/65/32/708), 9 green after the twin fix (47), 10 (49 + inherited
+`paidMoneyStructure`), 11–12 green (40/17). All five typechecks, ESLint and
+Prettier clean on the five changed files. Shard e2e (`reports.e2e`) ran.
+NOT RUN HERE: none — every named suite ran on this rig at repository
+timeouts (three per-case named timeouts with §8 reasons). The two failing
+tests are byte-identical to the base review's inherited receipts; no
+changed file overlaps them.
