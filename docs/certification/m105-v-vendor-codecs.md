@@ -2,7 +2,8 @@
 
 Lane: C-M105-4, worktree `/home/randy/lanes/CM1054`, branch `c/m105-4`.
 Base `68e6e7206` (the finished port of the accepted media work onto 0.17.1).
-Lane V commit `0bf5172cd`; R2 commit `f1cc2723e`.
+Lane V commit `0bf5172cd`; R2 commit `f1cc2723e`; R3 commit `e5ea171b7`
+(RVCM1054B: every finding fixed as a class, drills D-R3-1…D-R3-5 below).
 Scope kept to the lane's named files: `src/core/backends/modelapi/codecs/`
 (chat, gemini, responses, anthropic, ollama, shared), plus the lane's own
 test and docs. No shared hunks with sibling lane PORTM105R2 (attach path):
@@ -145,6 +146,40 @@ case, the installed-table case and the composition case); drill 2's count
 (five) was right. Both files were restored byte-exact at the time
 (`39629a62…`, `8aab8f61…`).
 
+R3 drills (RVCM1054B, each against the committed `e5ea171b7` tree, file
+restored and SHA-256 verified equal to the pre-drill value):
+
+- D-R3-1, `providers/subscriptions/registry.ts`: the codec-refusal branch
+  replaced with `if (false)`; the 2 ChatGPT subscription tests (EN, DE)
+  failed with the generic retry event instead of the refusal sentence, the
+  Copilot leg still passed (it already yielded `error.message`). Restored to
+  SHA-256 `ca90e2f80ee5376646c82fb18bb53664b519f4c427f2dcd7a455ec1c63edb329`.
+- D-R3-2, `acp/agent.ts`: the `RequestError` mapping line removed; the ACP
+  codec test failed with `got 'Internal error'`, proving the SDK
+  generalizes a raw start failure (the second instance of the P2 class,
+  found by this lane's own sweep). Restored to SHA-256
+  `cf3b26389b682b97b470776bd986e453fc4d81c968c68926a052dd2b7d3788e1`.
+- D-R3-3, `codecs/chat.ts`: the assistant-role refusal downgraded to a plain
+  `Error` (same sentence). The strengthened assistant-message test (which
+  now pins the type, since a plain `Error` there would become the generic
+  unavailable message in the production client) failed with `expected a
+codec refusal`; message-only tests still passed. Restored to SHA-256
+  `f2ecaeae4e169891bb1d71a194f72661720de1b4b69b691d195da42eb20a1045`.
+- D-R3-4, `vendorMediaCodecs.test.ts`: the `PLAN_KEY_PRESETS` rows dropped
+  (a route without a row). The coverage guard failed with `mistral-plan:
+expected false to be true`. Restored to SHA-256
+  `f89ed3412ccd20e08b4e437c5d004d0c8fb88926d122a55a4e75d5a5024f9fd0`.
+- D-R3-5, this record: one body key unquoted. The fenced-JSON test failed
+  with `Expected property name or '}' in JSON`, the same error the review
+  used to confirm the finding. Restored to SHA-256
+  `84f0194ec658c25aef7566591bdfa996711244566e33db7417ee699c5a3bff8a`.
+- The four removed `unknown`-to-`Error` casts (two cited, two pre-existing
+  siblings in `configuredProviders.test.ts` and `modelapiChatCodec.test.ts`)
+  are narrowed with `instanceof`, verified by `typecheck:unit`,
+  `typecheck:host` and zero-warning ESLint; `grep -n "as Error"` over the
+  four test files is empty, so no AGENTS.md rule 4 register entry is owed.
+- Post-drill run: `vendorMediaCodecs.test.ts` 46 passed.
+
 ## Corrections to the lane-V record (RVCM1054 P3-2)
 
 - Drill count (`:65`): drill 1 fails five tests, not four (see above).
@@ -174,86 +209,477 @@ Each needs an owner-authorized live turn on a contributor/test key, counted
 and recorded as in §6 of the research record, with uploads deleted and
 confirmed gone. Do not implement from documentation alone. Number of model
 calls is stated first per item, as the project rule requires. Header NAMES
-only, never values. Substitute a current catalog id where a named one has
-retired, and record the exact id used.
+only, never values: set the `$VAR` names from your own key store before
+pasting; no key material goes in the record. Substitute a current catalog id
+where a named one has retired, and record the exact id used. Every `json`
+block below parses as written (`vendorMediaCodecs.test.ts` parses each one);
+save a block to the named file, then paste its `sh` block. `<angle>`
+placeholders inside a JSON string are the only substitutions.
 
-1. Gemini video, inline path (2 model calls). Endpoint, verified in
-   `codecs/gemini.ts:42-45`: `POST
+1. Gemini video, inline path (2 model calls, no uploads). Endpoint,
+   verified in `codecs/gemini.ts:42-45`
+   (`geminiStreamPath`): `POST
 https://generativelanguage.googleapis.com/v1beta/models/{model}:streamGenerateContent?alt=sse`
    (the product sends `streamGenerateContent`, not `generateContent`).
    Model: `gemini-flash-latest` (catalog id at time of writing). Header
-   names: `x-goog-api-key`, `Content-Type`. Body (JSON): `{ systemInstruction:
-{ parts: [{ text: "describe this clip" }] }, contents: [{ role: "user",
-parts: [{ text: "describe this clip" }, { inlineData: { mimeType:
-"video/mp4", data: "<base64 of a small mp4, under 1 MiB" } }] }] }`.
-   Call 2 repeats with an `image_url`-style data URL video part if call 1
-   refuses. Record per call: HTTP status, the full response bytes,
-   `usageMetadata` (the pricing rows need it: input/output/cached counts),
-   and the exact accepted mime set and byte limit from any error body.
-2. Gemini video, Files path (4 model calls plus 2 management calls).
-   Upload the same small mp4 through Google's Files API (confirm the exact
-   upload request path from the live response; the product has no Files
-   caller yet, so this capture defines it), then call 1's endpoint with
-   `fileData: { mimeType: "video/mp4", fileUri: "<returned uri>" }` in place
-   of `inlineData`. Repeat for a second mime (e.g. video/quicktime) only if
-   the first succeeds. Record as in item 1, plus whether audio rides
-   `inlineData`. Delete each upload through the Files delete call and confirm
-   with a GET on the file resource (expect 404); record both statuses.
-3. OpenAI Responses audio (2 model calls plus 2 management calls).
-   Endpoint, verified in `src/core/providers/configured.ts:633`:
+   names: `x-goog-api-key`, `Content-Type`.
+
+   Call 1 body, save as `/tmp/m105-gemini-inline-1.json`:
+
+   ```json
+   {
+     "systemInstruction": { "parts": [{ "text": "describe this clip" }] },
+     "contents": [
+       {
+         "role": "user",
+         "parts": [
+           { "text": "describe this clip" },
+           {
+             "inlineData": {
+               "mimeType": "video/mp4",
+               "data": "<base64-of-a-small-mp4-under-1-MiB>"
+             }
+           }
+         ]
+       }
+     ],
+     "generationConfig": { "maxOutputTokens": 1024 }
+   }
+   ```
+
+   ```sh
+   curl -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:streamGenerateContent?alt=sse" \
+     -H "x-goog-api-key: $GEMINI_API_KEY" \
+     -H "Content-Type: application/json" \
+     -d @/tmp/m105-gemini-inline-1.json
+   ```
+
+   Call 2 runs only if call 1 refuses: the same body with `"mimeType":
+"video/quicktime"` and `"data": "<base64-of-a-small-mov>"`, saved as
+   `/tmp/m105-gemini-inline-2.json` and sent with the same `curl` line
+   pointed at that file. Record per call: HTTP status, the full response
+   bytes, `usageMetadata` (the pricing rows need it: input/output/cached
+   counts), and the exact accepted mime set and byte limit from any error
+   body.
+
+2. Gemini video, Files path (2 model calls; 3 management calls per
+   upload — upload, delete, GET-confirm — one upload required, a second only
+   if call 1 succeeds). The product has no Files caller yet, so this capture
+   defines it: confirm the exact upload path against the live response and
+   record the path used.
+
+   M1, upload the small mp4 from item 1 (`/tmp/m105-clip.mp4`):
+
+   ```sh
+   curl -X POST "https://generativelanguage.googleapis.com/upload/v1beta/files?uploadType=media" \
+     -H "x-goog-api-key: $GEMINI_API_KEY" \
+     -H "Content-Type: video/mp4" \
+     --data-binary @/tmp/m105-clip.mp4
+   ```
+
+   Record the `name` and `uri` from the JSON response; `<files-uri-from-M1>`
+   below is that `uri`, `<file-id-from-M1>` the trailing id of that `name`.
+
+   Call 1 body, save as `/tmp/m105-gemini-files-1.json`:
+
+   ```json
+   {
+     "systemInstruction": { "parts": [{ "text": "describe this clip" }] },
+     "contents": [
+       {
+         "role": "user",
+         "parts": [
+           { "text": "describe this clip" },
+           { "fileData": { "mimeType": "video/mp4", "fileUri": "<files-uri-from-M1>" } }
+         ]
+       }
+     ],
+     "generationConfig": { "maxOutputTokens": 1024 }
+   }
+   ```
+
+   ```sh
+   curl -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:streamGenerateContent?alt=sse" \
+     -H "x-goog-api-key: $GEMINI_API_KEY" \
+     -H "Content-Type: application/json" \
+     -d @/tmp/m105-gemini-files-1.json
+   ```
+
+   Call 2 and upload M2 run only if call 1 succeeds: upload the mov as in
+   M1, then the same body with `"mimeType": "video/quicktime"` and the
+   second upload's uri, saved as `/tmp/m105-gemini-files-2.json`. Record as
+   in item 1, plus whether audio rides `inlineData`. Delete each upload and
+   confirm it is gone (expect 404 on the GET); record both statuses:
+
+   ```sh
+   curl -X DELETE "https://generativelanguage.googleapis.com/v1beta/files/<file-id-from-M1>" \
+     -H "x-goog-api-key: $GEMINI_API_KEY"
+   curl "https://generativelanguage.googleapis.com/v1beta/files/<file-id-from-M1>" \
+     -H "x-goog-api-key: $GEMINI_API_KEY"
+   ```
+
+3. OpenAI Responses audio (2 model calls plus 3 management calls:
+   upload, delete, GET-confirm). Endpoint, verified in
+   `src/core/providers/configured.ts:633`:
    `POST https://api.openai.com/v1/responses`. Model: `gpt-5.4` (catalog id
    at time of writing; must be an audio-input model — if it refuses, record
    the refusal and stop: that refusal shape is item 6's OpenAI row). Header
-   names: `Authorization`, `Content-Type`. Body (JSON): `{ model:
-"gpt-5.4", input: [{ type: "message", role: "user", content: [{ type:
-"input_text", text: "transcribe this" }, { type: "input_audio", audio:
-"<base64 of a short wav", format: "wav" }] }], instructions: "…",
-stream: true }` (field names to confirm against the live error shape;
-   record the exact accepted shape). Call 2 uses a file id from `POST
-https://api.openai.com/v1/files` in place of inline bytes. Record per
-   call: HTTP status, full response bytes, billed usage. Delete each file
-   with `DELETE https://api.openai.com/v1/files/{file_id}` and confirm with
-   a GET (expect 404); record both statuses.
-4. OpenAI Chat Completions audio (2 model calls). Path pattern, verified in
-   `src/core/providers/configured.ts:643` (`modelsList.path` with `models`
-   replaced by `chat/completions`): `POST
-https://api.openai.com/v1/chat/completions`. Model: `gpt-5.4` as in item 3. Header names: `Authorization`, `Content-Type`. Body (JSON):
-   `{ model: "gpt-5.4", messages: [{ role: "user", content: [{ type: "text",
-text: "transcribe this" }, { type: "input_audio", input_audio: { data:
-"<base64 of a short wav", format: "wav" } }] }], stream: true }` (field
-   names to confirm against the live error shape). Call 2 targets a model
-   the catalog marks voice-incapable, if one is known; record whether it
-   refuses and with what HTTP status and error body (a zod schema is written
-   from that capture before any codec use).
-5. vLLM/SGLang video (2 model calls, owner-hosted). Who hosts it: the owner
-   on the lead machine. Server: a vLLM release the owner pins at run time
-   (record the version); launch line recorded verbatim, e.g. `vllm serve
-Qwen/Qwen2-VL-2B-Instruct --port 8000` (model id to confirm against what
-   the server actually serves; the lane test uses `qwen2-vl` as the native
-   id example). Endpoint (chat format, loopback preset, default port 8000
-   per `presets.ts` vLLM row): `POST http://127.0.0.1:8000/v1/chat/completions`.
-   Header names: `Content-Type` (plus `Authorization` only if served with
-   `--api-key`). Body (JSON): `{ model: "<served id>", messages: [{ role:
-"user", content: [{ type: "text", text: "describe this clip" }, {
-video_url: { url: "data:video/mp4;base64,<small mp4" } }] }], stream:
-true }` (URL forms — data vs http — to confirm against the live error
-   shape). Call 2 repeats with an http(s) URL if call 1 succeeds, else with
-   a second mime. Record per call: HTTP status, full response bytes, the
-   accepted mime set and limits from any error body, and the server version.
+   names: `Authorization`, `Content-Type`.
+
+   Call 1 body, save as `/tmp/m105-openai-responses-1.json` (field names are
+   the candidate shape; confirm against the live error body and record the
+   exact accepted shape):
+
+   ```json
+   {
+     "model": "gpt-5.4",
+     "input": [
+       {
+         "type": "message",
+         "role": "user",
+         "content": [
+           { "type": "input_text", "text": "transcribe this" },
+           { "type": "input_audio", "audio": "<base64-of-a-short-wav>", "format": "wav" }
+         ]
+       }
+     ],
+     "instructions": "Transcribe the attached audio exactly.",
+     "stream": true
+   }
+   ```
+
+   ```sh
+   curl -X POST "https://api.openai.com/v1/responses" \
+     -H "Authorization: Bearer $OPENAI_API_KEY" \
+     -H "Content-Type: application/json" \
+     -d @/tmp/m105-openai-responses-1.json
+   ```
+
+   M1, upload the wav (`/tmp/m105-clip.wav`) for call 2; record the
+   `id` from the JSON response (`<file-id-from-M1>` below) and the accepted
+   `purpose` (first attempt `user_data`):
+
+   ```sh
+   curl -X POST "https://api.openai.com/v1/files" \
+     -H "Authorization: Bearer $OPENAI_API_KEY" \
+     -F "file=@/tmp/m105-clip.wav" \
+     -F "purpose=user_data"
+   ```
+
+   Call 2 body, save as `/tmp/m105-openai-responses-2.json` (the file id in
+   place of inline bytes; same confirm-and-record as call 1):
+
+   ```json
+   {
+     "model": "gpt-5.4",
+     "input": [
+       {
+         "type": "message",
+         "role": "user",
+         "content": [
+           { "type": "input_text", "text": "transcribe this" },
+           { "type": "input_audio", "audio": "<file-id-from-M1>", "format": "wav" }
+         ]
+       }
+     ],
+     "instructions": "Transcribe the attached audio exactly.",
+     "stream": true
+   }
+   ```
+
+   Send it with the call-1 `curl` line pointed at
+   `/tmp/m105-openai-responses-2.json`. Record per call: HTTP status, full
+   response bytes, billed usage. Delete the file and confirm it is gone
+   (expect 404 on the GET); record both statuses:
+
+   ```sh
+   curl -X DELETE "https://api.openai.com/v1/files/<file-id-from-M1>" \
+     -H "Authorization: Bearer $OPENAI_API_KEY"
+   curl "https://api.openai.com/v1/files/<file-id-from-M1>" \
+     -H "Authorization: Bearer $OPENAI_API_KEY"
+   ```
+
+4. OpenAI Chat Completions audio (2 model calls, no uploads). Path
+   pattern, verified in `src/core/providers/configured.ts:643`
+   (`modelsList.path` with `models` replaced by `chat/completions`): `POST
+https://api.openai.com/v1/chat/completions`. Model: `gpt-5.4` as in item 3.
+   Header names: `Authorization`, `Content-Type`.
+
+   Call 1 body, save as `/tmp/m105-openai-chat-1.json` (field names are the
+   candidate shape; confirm against the live error body and record the exact
+   accepted shape):
+
+   ```json
+   {
+     "model": "gpt-5.4",
+     "messages": [
+       {
+         "role": "user",
+         "content": [
+           { "type": "text", "text": "transcribe this" },
+           {
+             "type": "input_audio",
+             "input_audio": { "data": "<base64-of-a-short-wav>", "format": "wav" }
+           }
+         ]
+       }
+     ],
+     "stream": true
+   }
+   ```
+
+   ```sh
+   curl -X POST "https://api.openai.com/v1/chat/completions" \
+     -H "Authorization: Bearer $OPENAI_API_KEY" \
+     -H "Content-Type: application/json" \
+     -d @/tmp/m105-openai-chat-1.json
+   ```
+
+   Call 2 targets a model the catalog marks voice-incapable, if one is
+   known: the exact replacement body, save as `/tmp/m105-openai-chat-2.json`
+   (only the model id changes; record the id used):
+
+   ```json
+   {
+     "model": "<voice-incapable-catalog-id>",
+     "messages": [
+       {
+         "role": "user",
+         "content": [
+           { "type": "text", "text": "transcribe this" },
+           {
+             "type": "input_audio",
+             "input_audio": { "data": "<base64-of-a-short-wav>", "format": "wav" }
+           }
+         ]
+       }
+     ],
+     "stream": true
+   }
+   ```
+
+   Send it with the call-1 `curl` line pointed at
+   `/tmp/m105-openai-chat-2.json`. Record whether call 2 refuses and with
+   what HTTP status and error body (a zod schema is written from that capture
+   before any codec use).
+
+5. vLLM/SGLang video (2 model calls, owner-hosted, no uploads). Who
+   hosts it: the owner on the lead machine. Server: a vLLM release the owner
+   pins at run time (record the version); launch line recorded verbatim, e.g.
+   `vllm serve Qwen/Qwen2-VL-2B-Instruct --port 8000` (model id to confirm
+   against what the server actually serves; the lane test uses `qwen2-vl` as
+   the native id example). Endpoint (chat format, loopback preset, default
+   port 8000 per `presets.ts` vLLM row): `POST
+http://127.0.0.1:8000/v1/chat/completions`. Header names: `Content-Type`
+   (plus `Authorization` only if served with `--api-key`).
+
+   Call 1 body, save as `/tmp/m105-vllm-1.json` (URL form data vs http to
+   confirm against the live error shape; record the accepted form):
+
+   ```json
+   {
+     "model": "<served-id>",
+     "messages": [
+       {
+         "role": "user",
+         "content": [
+           { "type": "text", "text": "describe this clip" },
+           { "video_url": { "url": "data:video/mp4;base64,<base64-of-a-small-mp4>" } }
+         ]
+       }
+     ],
+     "stream": true
+   }
+   ```
+
+   ```sh
+   curl -X POST "http://127.0.0.1:8000/v1/chat/completions" \
+     -H "Content-Type: application/json" \
+     -d @/tmp/m105-vllm-1.json
+   ```
+
+   Call 2a runs if call 1 succeeds: the http(s)-URL form, save as
+   `/tmp/m105-vllm-2a.json`:
+
+   ```json
+   {
+     "model": "<served-id>",
+     "messages": [
+       {
+         "role": "user",
+         "content": [
+           { "type": "text", "text": "describe this clip" },
+           { "video_url": { "url": "https://<owner-host>/m105-clip.mp4" } }
+         ]
+       }
+     ],
+     "stream": true
+   }
+   ```
+
+   Call 2b runs instead if call 1 refuses: the same body as call 1 with
+   `"url": "data:video/quicktime;base64,<base64-of-a-small-mov>"`, saved as
+   `/tmp/m105-vllm-2b.json`. Send the chosen branch with the call-1 `curl`
+   line pointed at that file. Record per call: HTTP status, full response
+   bytes, the accepted mime set and limits from any error body, and the
+   server version.
+
 6. Refusal shapes, one concrete request per vendor (5 model calls, one per
-   row; each must refuse before inference). Same endpoints, methods and
-   header names as items 1-5, with a held-video body (items 1/2/5) or a
-   held-audio body (items 3/4) addressed to a model with no video/audio
-   binding: OpenAI `gpt-5.4-nano`, Anthropic `claude-haiku-4-5` (`POST
-https://api.anthropic.com/v1/messages`, header names `x-api-key`,
-   `anthropic-version`, `Content-Type`), Gemini `gemini-flash-lite-latest`,
-   xAI `grok-4.5` (`POST https://api.x.ai/v1/responses`), Ollama a local
-   text-only model (e.g. `llama3.2` at `POST
-http://127.0.0.1:11434/api/chat`, header name `Content-Type`). If a named
-   model unexpectedly accepts the media, record the acceptance instead: it
-   defines a capture need rather than a refusal shape. Record per call: HTTP
-   status and the full error body (a zod schema is written from each before
-   any codec use), plus billed usage where the vendor reports any.
+   row; each must refuse before inference). Each row reuses its item's
+   endpoint, method and header names with a held-media body addressed to a
+   model with no video/audio binding. If a named model unexpectedly accepts
+   the media, record the acceptance instead: it defines a capture need rather
+   than a refusal shape. Record per call: HTTP status and the full error body
+   (a zod schema is written from each before any codec use), plus billed
+   usage where the vendor reports any.
+
+   OpenAI refusal (item 3's endpoint and shape), save as
+   `/tmp/m105-refuse-openai.json`:
+
+   ```json
+   {
+     "model": "gpt-5.4-nano",
+     "input": [
+       {
+         "type": "message",
+         "role": "user",
+         "content": [
+           { "type": "input_text", "text": "transcribe this" },
+           { "type": "input_audio", "audio": "<base64-of-a-short-wav>", "format": "wav" }
+         ]
+       }
+     ],
+     "instructions": "Transcribe the attached audio exactly.",
+     "stream": true
+   }
+   ```
+
+   ```sh
+   curl -X POST "https://api.openai.com/v1/responses" \
+     -H "Authorization: Bearer $OPENAI_API_KEY" \
+     -H "Content-Type: application/json" \
+     -d @/tmp/m105-refuse-openai.json
+   ```
+
+   Anthropic refusal (`POST https://api.anthropic.com/v1/messages`, header
+   names `x-api-key`, `anthropic-version`, `Content-Type`; version value
+   `2023-06-01` per `codecs/anthropic.ts`). Anthropic's message blocks carry
+   no audio part, so the probe sends the clip as a document with an audio
+   mime; record how the vendor refuses it. Save as
+   `/tmp/m105-refuse-anthropic.json`:
+
+   ```json
+   {
+     "model": "claude-haiku-4-5",
+     "max_tokens": 1024,
+     "messages": [
+       {
+         "role": "user",
+         "content": [
+           { "type": "text", "text": "transcribe this" },
+           {
+             "type": "document",
+             "source": {
+               "type": "base64",
+               "media_type": "audio/wav",
+               "data": "<base64-of-a-short-wav>"
+             }
+           }
+         ]
+       }
+     ],
+     "stream": true
+   }
+   ```
+
+   ```sh
+   curl -X POST "https://api.anthropic.com/v1/messages" \
+     -H "x-api-key: $ANTHROPIC_API_KEY" \
+     -H "anthropic-version: 2023-06-01" \
+     -H "Content-Type: application/json" \
+     -d @/tmp/m105-refuse-anthropic.json
+   ```
+
+   Gemini refusal (item 1's endpoint and inline shape), save as
+   `/tmp/m105-refuse-gemini.json`:
+
+   ```json
+   {
+     "systemInstruction": { "parts": [{ "text": "describe this clip" }] },
+     "contents": [
+       {
+         "role": "user",
+         "parts": [
+           { "text": "describe this clip" },
+           {
+             "inlineData": {
+               "mimeType": "video/mp4",
+               "data": "<base64-of-a-small-mp4-under-1-MiB>"
+             }
+           }
+         ]
+       }
+     ],
+     "generationConfig": { "maxOutputTokens": 1024 }
+   }
+   ```
+
+   ```sh
+   curl -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:streamGenerateContent?alt=sse" \
+     -H "x-goog-api-key: $GEMINI_API_KEY" \
+     -H "Content-Type: application/json" \
+     -d @/tmp/m105-refuse-gemini.json
+   ```
+
+   xAI refusal (`POST https://api.x.ai/v1/responses`: origin `api.x.ai` and
+   `responses` format per the `presets.ts` xAI row, path `/v1/responses` as in
+   `configured.ts`). Save as `/tmp/m105-refuse-xai.json`:
+
+   ```json
+   {
+     "model": "grok-4.5",
+     "input": [
+       {
+         "type": "message",
+         "role": "user",
+         "content": [
+           { "type": "input_text", "text": "describe this clip" },
+           { "type": "input_video", "video": "<base64-of-a-small-mp4-under-1-MiB>" }
+         ]
+       }
+     ],
+     "instructions": "Describe the attached clip.",
+     "stream": true
+   }
+   ```
+
+   ```sh
+   curl -X POST "https://api.x.ai/v1/responses" \
+     -H "Authorization: Bearer $XAI_API_KEY" \
+     -H "Content-Type: application/json" \
+     -d @/tmp/m105-refuse-xai.json
+   ```
+
+   Ollama refusal (`POST http://127.0.0.1:11434/api/chat`, path
+   `OLLAMA_CHAT_PATH` in `codecs/ollama.ts`; header name `Content-Type`).
+   The lane test uses `llama3.2` as the text-only native id. Save as
+   `/tmp/m105-refuse-ollama.json`:
+
+   ```json
+   {
+     "model": "llama3.2",
+     "messages": [
+       { "role": "user", "content": "describe this clip", "images": ["<base64-of-a-small-mp4>"] }
+     ],
+     "stream": false
+   }
+   ```
+
+   ```sh
+   curl -X POST "http://127.0.0.1:11434/api/chat" \
+     -H "Content-Type: application/json" \
+     -d @/tmp/m105-refuse-ollama.json
+   ```
 
 Until these land, PLAN.md M105 acceptance 4 ("provider × modality table")
 and the "Delivery b" checklist row stay open, correctly: the table's
