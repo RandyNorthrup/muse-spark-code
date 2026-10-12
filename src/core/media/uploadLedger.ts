@@ -30,6 +30,14 @@ const ledgerSchema = z.strictObject({
 })
 export type UploadLedgerState = z.infer<typeof ledgerSchema>
 
+/**
+ * Cancel-intent write attempts before a cancelled upload falls back to a
+ * best-effort remote DELETE (RVM105B P2-2). The store is local, so a failure
+ * is either transient (a retry lands it) or persistent (no later write lands
+ * either).
+ */
+const CANCEL_INTENT_WRITE_ATTEMPTS = 3
+
 /** Atomic writes under a cross-process lock; a read boundary is always validated. */
 export interface UploadLedgerStorage {
   read(): Promise<unknown>
@@ -140,6 +148,25 @@ export class UploadLedger implements SessionUploadLifecycle {
     }
   }
 
+  /**
+   * Land the cancellation intent while the lock is held (RVM105B P2-2): a
+   * transient write failure is retried so "owned, cancel requested, intent
+   * unwritten" never reaches durable state. Only a persistently failing store
+   * gives up, and the caller then deletes best-effort instead.
+   */
+  private async writeCancelIntent(state: UploadLedgerState): Promise<void> {
+    let failure: unknown
+    for (let attempt = 0; attempt < CANCEL_INTENT_WRITE_ATTEMPTS; attempt += 1) {
+      try {
+        await this.deps.storage.write(state)
+        return
+      } catch (error: unknown) {
+        failure = error
+      }
+    }
+    throw failure
+  }
+
   /** Same digest shares one upload. A missing/expired ID is replaced once, after hash verification. */
   public async ensure(
     sessionId: string,
@@ -218,16 +245,39 @@ export class UploadLedger implements SessionUploadLifecycle {
         await this.deps.storage.write(state)
         signal.throwIfAborted()
       } catch (error: unknown) {
-        // The pre-publication intent is already durable. Failed cleanup
-        // leaves it for the next sweep; preserve the original failure.
+        // The provider holds bytes this call will not own: cancellation (or a
+        // failed publication write) before or just after the publication
+        // commit. Replace the uncommitted or just-committed ownership with a
+        // retryable deletion intent BEFORE the remote DELETE, so a failed
+        // DELETE can never strand the file without an intent (RVM105B P2-2).
+        // The caller keeps the original failure, never a cleanup write error.
+        state.entries = state.entries.filter((entry) => entry.file.fileId !== file.fileId)
+        if (!(state.orphans ?? []).includes(file.fileId))
+          state.orphans = [...(state.orphans ?? []), file.fileId]
+        try {
+          await this.writeCancelIntent(state)
+        } catch {
+          // The intent would not land: delete best-effort so nothing remote is
+          // left without trying, then report the original failure.
+          try {
+            await this.files.delete(file.fileId)
+          } catch {
+            // A persistently failing store strands the ownership; a later
+            // ownership release or provider expiry still resolves it.
+          }
+          throw error
+        }
         try {
           await this.files.delete(file.fileId)
         } catch {
-          // Cancellation can also arrive after publication committed. Replace
-          // that cancelled owner's entry with a retryable deletion intent.
-          state.entries = state.entries.filter((entry) => entry.file.fileId !== file.fileId)
-          state.orphans = [...new Set([...(state.orphans ?? []), file.fileId])]
+          throw error
+        }
+        state.orphans = (state.orphans ?? []).filter((id) => id !== file.fileId)
+        try {
           await this.deps.storage.write(state)
+        } catch {
+          // The remote copy is gone; the retained intent makes the next sweep
+          // forget it (a missing file deletes as found). Keep the original.
         }
         throw error
       }
