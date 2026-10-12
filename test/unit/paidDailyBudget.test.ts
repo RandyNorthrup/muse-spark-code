@@ -17,6 +17,7 @@ import {
   evaluateAccountThresholds,
 } from '../../src/core/accounts/thresholds'
 import { FakeAccountJournal } from './helpers/accounts/fakes'
+import { isPaidStop } from '../../src/core/refusal'
 import { createPaidDailyBudget } from '../../src/host/paid/paidDailyBudget'
 import { createPaidFeatures } from '../../src/host/paid/paidHost'
 import * as atomicFiles from '../../src/host/fsAtomic'
@@ -721,10 +722,20 @@ describe('D78 interactive paid daily budget', () => {
     await vi.waitFor(() => {
       expect(confirmModal).toHaveBeenCalledOnce()
     })
-    expect(() => {
+    // D1: the check refuses with its numbers, never a wrapped generic error.
+    const stopPrefix = UI_TEXT.execPaidDailyStopped.slice(
+      0,
+      UI_TEXT.execPaidDailyStopped.indexOf('{'),
+    )
+    try {
       a.check(Usd.from(0).toAmount())
-    }).toThrow(UI_TEXT.paidDailyLedgerUnavailable)
+      throw new Error('a final send must be refused')
+    } catch (error: unknown) {
+      expect(isPaidStop(error)).toBe(true)
+      expect(error instanceof Error && error.message).toContain(stopPrefix)
+    }
     answer.resolve(undefined)
+    // Declining the raise keeps the bare stop: the numbers were in the offer.
     await expect(pending).rejects.toThrow(UI_TEXT.paidDailyStopped)
   })
 
@@ -765,8 +776,13 @@ describe('D78 interactive paid daily budget', () => {
       log: new FakeLogOutputChannel(),
       reservePaidRequest: daily.reserve,
     })
+    // D1: the lowered cap refuses with its numbers, never a generic error.
+    const numberedPrefix = UI_TEXT.execPaidDailyStopped.slice(
+      0,
+      UI_TEXT.execPaidDailyStopped.indexOf('{'),
+    )
     await expect(instance.createImage(IMAGE, new AbortController().signal)).rejects.toThrow(
-      UI_TEXT.paidDailyLedgerUnavailable,
+      numberedPrefix,
     )
     expect(api.imageBodies()).toEqual([])
   })

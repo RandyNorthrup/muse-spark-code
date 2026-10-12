@@ -1,6 +1,7 @@
 import { reportingAmount } from '../../core/usage/reportingAmount'
 import { randomUUID } from 'node:crypto'
 import { PaidAuthority } from '../../core/paid/paidAuthority'
+import { isPaidStop } from '../../core/refusal'
 import { Usd, legacyUsdSchema, usdInputSchema, type UsdAmount } from '../../shared/usd'
 // D78: daily interactive extras share M82's durable claims across windows.
 import { mkdirSync, readFileSync, renameSync, statSync } from 'node:fs'
@@ -57,6 +58,8 @@ export function createPaidDailyBudget(deps: {
     sleep: deps.sleep,
     recoverUnsent: true,
     l10n: { table: UI_TEXT, locale: uiLocale() },
+    // D1: the daily refusal carries its numbers, never a generic sentence.
+    dailyStop: { setting: 'paidDailyBudgetUsd', nowMs: deps.now },
     initialBudget: () =>
       Promise.resolve({ spentUsd: Usd.from(0).toAmount(), hasUnknownHistoricalFees: false }),
   })
@@ -271,7 +274,18 @@ export function createPaidDailyBudget(deps: {
       claim = await reserveClaim(scope, costUsd)
     } catch (error: unknown) {
       signal.throwIfAborted()
-      if (error instanceof Error && error.message === UI_TEXT.paidDailyStopped) throw error
+      // D1: a stop marker refuses with the numbers, never a bare sentence.
+      if (error instanceof Error && error.message === UI_TEXT.paidDailyStopped) {
+        try {
+          throw await journal.describeStop(
+            scope,
+            PAID_DAILY_BUDGET.accountId,
+            readLimit(scope, true),
+          )
+        } catch {
+          throw error
+        }
+      }
       throw new Error(UI_TEXT.paidDailyLedgerUnavailable, { cause: error })
     }
     try {
@@ -287,6 +301,8 @@ export function createPaidDailyBudget(deps: {
           try {
             return claim.check(readLimit(scope))
           } catch (error: unknown) {
+            // D1: a paid stop reaches the person as its own sentence.
+            if (isPaidStop(error)) throw error
             throw new Error(UI_TEXT.paidDailyLedgerUnavailable, { cause: error })
           }
         },
@@ -350,7 +366,23 @@ export function createPaidDailyBudget(deps: {
   }
   const reserveExact = async (costUsd: UsdAmount) => {
     const scope = day()
-    readLimit(scope)
+    try {
+      readLimit(scope)
+    } catch (error: unknown) {
+      // D1: a stop marker refuses with the numbers, never a bare sentence.
+      if (error instanceof Error && error.message === UI_TEXT.paidDailyStopped) {
+        try {
+          throw await journal.describeStop(
+            scope,
+            PAID_DAILY_BUDGET.accountId,
+            readLimit(scope, true),
+          )
+        } catch {
+          throw error
+        }
+      }
+      throw error
+    }
     const claim = await reserveClaim(scope, costUsd)
     let checkAccount: (() => void) | undefined
     const check = () => {

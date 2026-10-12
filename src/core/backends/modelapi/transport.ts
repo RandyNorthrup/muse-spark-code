@@ -196,7 +196,8 @@ export function isModelApiError(value: unknown): value is ModelApiError {
   )
 }
 
-export { isUserRefusal } from '../../refusal'
+export { isPaidStop, isUserRefusal } from '../../refusal'
+import { isPaidStop } from '../../refusal'
 
 /** Diagnostics cross the privacy boundary; executable/model content stays intact. */
 export function redactStreamDiagnostics(
@@ -825,6 +826,9 @@ export class RequestTransport {
           (confirmed.origin !== undefined && confirmed.origin !== new URL(url).origin) ||
           !confirmed.isStillAllowed())
       ) {
+        // P3-2: a changed key is a rotation, not a changed mind; only a
+        // moved origin or a withdrawn confirmation keeps the old sentence.
+        if (credentials.keyDigest !== confirmed.keyDigest) throw new Error(UI_TEXT.execKeyRotated)
         throw new Error(UI_TEXT.scheduleConfirmationExpired)
       }
       // A scheduled fire's authority is live: checked before pacing and again
@@ -951,6 +955,10 @@ export class RequestTransport {
           error.code === 'not_sent'
         )
           throw error
+        // P2-3/D1: a dispatch-time paid stop (the daily claim's check runs
+        // inside the pinned fetch) is never a send failure: no log line, no
+        // retry, and never a network-failure replacement.
+        if (isPaidStop(error)) throw error
         if (error instanceof ModelApiError || signal?.aborted === true) {
           throw error instanceof ModelApiError
             ? redactModelApiError(error, credentials.redact, NETWORK_FAILURE_STATUS)

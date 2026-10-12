@@ -58,7 +58,7 @@ import {
   type AuthCommandDeps,
   authSet,
   authSetProvider,
-  authStatus,
+  authStatusAll,
   authStatusProvider,
   login,
 } from './authCommands'
@@ -387,11 +387,15 @@ async function userProvidersFile() {
 /** The `providers …` commands' dependencies: the user's own file, the OS store, stdin. */
 async function providersDeps(): Promise<ProvidersDeps> {
   const { resolveEndpointHost } = await import('./providersCommands')
+  const { readFile } = await import('node:fs/promises')
   return {
     ...authDeps(),
     ...(await userProvidersFile()),
     resolveHost: resolveEndpointHost,
     fetch: globalThis.fetch.bind(globalThis),
+    // D4: runnable-model warnings read the priced catalogue beside the bundle.
+    readCatalog: async (): Promise<unknown> =>
+      JSON.parse(await readFile(path.join(__dirname, 'providerCatalog.json'), 'utf8')),
   }
 }
 
@@ -1394,9 +1398,12 @@ async function main(): Promise<number> {
       return result.exitCode
     }
     case 'authStatus': {
+      // D6: bare status answers every credential; the exit code names
+      // whether anything is stored, not only the Meta key.
+      const { readUserFile } = await userProvidersFile()
       return command.provider === undefined
-        ? await authStatus(authDeps())
-        : await authStatusProvider(authDeps(), command.provider)
+        ? await authStatusAll(authDeps(), readUserFile)
+        : await authStatusProvider(authDeps(), command.provider, readUserFile)
     }
     case 'authClear': {
       return command.provider === undefined

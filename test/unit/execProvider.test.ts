@@ -133,6 +133,16 @@ describe('assembleProviderRun', () => {
     const assembled = await assembleProviderRun(assemblyInput({ model: 'groq/llama' }))
     expect(assembled).toMatchObject({ ok: false, failure: { kind: 'usage' } })
   })
+  it('D4 names the provider models for a model that is not on it', async () => {
+    const assembled = await assembleProviderRun(assemblyInput({ model: 'openrouter/nope' }))
+    expect(assembled.ok).toBe(false)
+    if (assembled.ok) throw new Error('should fail')
+    expect(assembled.failure).toMatchObject({ kind: 'usage' })
+    if (assembled.failure.kind !== 'usage') throw new Error('should be usage')
+    expect(assembled.failure.reason).toContain('openrouter/nope')
+    expect(assembled.failure.reason).toContain('openrouter/m1')
+    expect(assembled.failure.reason).not.toBe(UI_TEXT.execUnknownModel)
+  })
 
   it('assembles a bound run with a pinned fetch and memory secrets', async () => {
     const assembled = await assembleProviderRun(assemblyInput())

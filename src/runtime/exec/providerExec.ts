@@ -15,6 +15,7 @@
 // (`docs/certification/m95-research.md` §1); a preset without either has no
 // request path and refuses to run until its capture is recorded (rule 13).
 
+import * as z from 'zod/mini'
 import type { CredentialRecord } from '../../core/providers/credentialRecord'
 const { isCredentialBound } = credentialRecord
 const { checkEndpointUrl, originOf, verifyRequestAnswers } = endpointPolicy
@@ -165,6 +166,44 @@ export function isPathAllowed(rule: ProviderPathRule, url: URL): boolean {
 
 export type ProviderResolveError =
   'unknown-provider' | 'unknown-preset' | 'bad-address' | 'endpoint-refused' | 'no-request-path'
+
+const catalogPresenceSchema = z.object({
+  providers: z.record(z.string(), z.object({ models: z.record(z.string(), z.unknown()) })),
+  unpriced: z.optional(z.record(z.string(), z.record(z.string(), z.unknown()))),
+})
+
+/** D4: the catalogue presence the CLI warnings read (a subset of the priced catalogue). */
+export type CatalogPresence = z.infer<typeof catalogPresenceSchema>
+
+/** D4: the CLI's presence read of the priced catalogue; undefined never blocks add/test/list. */
+export function parseCatalogPresence(value: unknown): CatalogPresence | undefined {
+  const parsed = catalogPresenceSchema.safeParse(value)
+  return parsed.success ? parsed.data : undefined
+}
+
+/**
+ * D4: whether a configured model has no price card anywhere. Mirrors the
+ * `catalogueMissing` predicate in `core/providers/configured.ts`, which
+ * stays the pricing source of truth; this copy only warns at
+ * add/test/list time, never refuses.
+ */
+export function isModelUnpriced(
+  catalog: CatalogPresence,
+  presetId: string,
+  entry: Pick<ProviderEntry, 'auth' | 'prices'>,
+  nativeModel: string,
+): boolean {
+  const base = presetId.replace('-plan', '')
+  const isKnown =
+    catalog.providers[base]?.models[nativeModel] !== undefined ||
+    catalog.unpriced?.[base]?.[nativeModel] !== undefined
+  return (
+    !isKnown &&
+    presetId !== 'custom' &&
+    entry.auth !== 'none' &&
+    entry.prices?.[nativeModel] === undefined
+  )
+}
 
 export interface ResolvedProvider {
   readonly entry: ProviderEntry
@@ -490,7 +529,17 @@ export async function assembleProviderRun(
     (id) => requested === id || requested === `${provider.entry.id}/${id}`,
   )
   if (matches.length > 1) return usage(UI_TEXT.execUnknownModel)
-  const modelRef = matches.length === 1 ? `${provider.entry.id}/${matches[0] ?? ''}` : requested
+  // D4: a model that is not on this provider names what is, instead of the
+  // generic sentence (which stays for a truly ambiguous id).
+  if (matches.length === 0)
+    return usage(
+      fill(UI_TEXT.execModelNotOnProvider, {
+        model: requested,
+        provider: provider.entry.id,
+        available: provider.entry.models.map((id) => `${provider.entry.id}/${id}`).join(', '),
+      }),
+    )
+  const modelRef = `${provider.entry.id}/${matches[0] ?? ''}`
   const parsedRef = parseModelRef(modelRef)
   if (parsedRef?.providerId !== provider.entry.id) {
     return usage(UI_TEXT.execUnknownModel)

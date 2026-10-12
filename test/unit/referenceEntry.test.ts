@@ -158,7 +158,7 @@ describe('RVHELPREF host and terminal regressions', () => {
       expect(text).toContain(marker)
     for (const [invocation, route] of [
       ['exec', 'exec'],
-      ['report', 'reports '],
+      ['report', 'report'],
       ['scan-secrets', 'scan-secrets'],
     ] as const)
       expect(parseCommandLine([invocation, '--help'])).toEqual({ command: 'help', route })

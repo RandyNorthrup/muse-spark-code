@@ -21,7 +21,7 @@ import {
   requestParts,
   type SessionBudgetClaim,
 } from '../core/backends/modelapi/sessionBudget'
-import { UserRefusalError } from '../core/refusal'
+import { UserRefusalError, isPaidStop } from '../core/refusal'
 import type { ResponseObject } from '../core/backends/modelapi/schemas'
 import {
   EXEC_USD_DECIMALS,
@@ -58,6 +58,8 @@ export function createRuntimeDailyBudget(deps: {
     directory: path.join(deps.dataFolder, PAID_DAILY_BUDGET.directory),
     sleep: deps.sleep,
     recoverUnsent: true,
+    // D1: the daily refusal carries its numbers, never a generic sentence.
+    dailyStop: { setting: 'paidDailyBudgetUsd', nowMs: deps.now },
     initialBudget: () =>
       Promise.resolve({ spentUsd: Usd.from(0).toAmount(), hasUnknownHistoricalFees: false }),
   })
@@ -92,6 +94,19 @@ export function createRuntimeDailyBudget(deps: {
         if (scope !== day()) throw new Error(UI_TEXT.paidDailyStopped)
       } catch (error: unknown) {
         await claim.settle(Usd.from(0).toAmount())
+        // D1: a day rollover between reserve and check still names its
+        // numbers; a dead process's hold never refuses (recovered above).
+        if (error instanceof Error && error.message === UI_TEXT.paidDailyStopped) {
+          try {
+            throw await journal.describeStop(
+              scope,
+              PAID_DAILY_BUDGET.accountId,
+              Usd.from(capUsd()).toAmount(),
+            )
+          } catch {
+            throw error
+          }
+        }
         throw error
       }
       return {
@@ -242,8 +257,9 @@ export function withRuntimeAccounting(
               try {
                 claim = await daily.reserve(reserveUsd, signal)
               } catch (error: unknown) {
-                if (error instanceof Error && error.name === 'SessionBudgetExceededError')
-                  accounting?.refuse('budget')
+                // D1: the refusal keeps its own numbers sentence into the result.
+                if (isPaidStop(error) && error instanceof Error)
+                  accounting?.refuse('budget', error.message)
                 throw error
               }
               if (accounting === undefined) return
@@ -279,16 +295,39 @@ export function withRuntimeAccounting(
               if ('refused' in admission) {
                 await settle()
                 const totals = accounting.ledger.totals()
-                const message =
-                  admission.refused === 'budget'
-                    ? responseReservationMessage({
-                        inputTokens,
-                        inputCost,
-                        outputTokens: body.max_output_tokens,
-                        reserveUsd,
-                        totals,
-                      })
-                    : UI_TEXT.execBudgetRefused
+                // P3-1: every ledger refusal carries its own sentence, never
+                // the budget one. A request-cap refusal names the cap, which
+                // the ledger has exactly reached at this point.
+                const refused = admission.refused
+                let message: string
+                switch (refused) {
+                  case 'budget': {
+                    message = responseReservationMessage({
+                      inputTokens,
+                      inputCost,
+                      outputTokens: body.max_output_tokens,
+                      reserveUsd,
+                      totals,
+                    })
+                    break
+                  }
+                  case 'requests': {
+                    message = plural(UI_TEXT.execRequestCapReached, totals.requests)
+                    break
+                  }
+                  case 'unpriced': {
+                    message = UI_TEXT.execModelUnpriced
+                    break
+                  }
+                  case 'request_shape': {
+                    message = UI_TEXT.execRequestShape
+                    break
+                  }
+                  default: {
+                    message = UI_TEXT.execAccountingInvalid
+                    break
+                  }
+                }
                 accounting.refuse(admission.refused, message)
                 throw new UserRefusalError(message)
               }
@@ -325,6 +364,10 @@ export function withRuntimeAccounting(
             wasSent = false
             claim?.markUnsent?.()
           }
+          // D1: a dispatch-time paid stop latches the budget with its own
+          // numbers sentence, so the turn ends as a budget stop (exit 5).
+          if (isPaidStop(error) && error instanceof Error)
+            accounting?.refuse('budget', error.message)
           throw error
         } finally {
           if (dispatch?.onRequestStarted === started) delete dispatch.onRequestStarted

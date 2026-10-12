@@ -9,7 +9,11 @@ import { rmdirSync, mkdirSync, readFileSync, readdirSync, statSync } from 'node:
 import { mkdir, rmdir, stat } from 'node:fs/promises'
 import path from 'node:path'
 import * as z from 'zod/mini'
-import { SessionBudgetExceededError } from '../../core/backends/modelapi/sessionBudget'
+import {
+  SessionBudgetExceededError,
+  PaidBudgetStopError,
+  type PaidStopDetails,
+} from '../../core/backends/modelapi/sessionBudget'
 import type {
   SessionBudgetClaim,
   SessionBudgetJournal,
@@ -20,9 +24,12 @@ import { formatUsd } from '../../core/usage/insights'
 import {
   DAILY_BUDGET_LOCK_ATTEMPTS,
   DAILY_BUDGET_LOCK_WAIT_MS,
+  DAILY_BUDGET_OWNER_START_SKEW_MS,
+  EXEC_USD_DECIMALS,
   UI_TEXT,
 } from '../../shared/constants'
-import { fill, setUiText } from '../../shared/l10n/text'
+import { fill, formatDateTime, plural, setUiText } from '../../shared/l10n/text'
+import { formatUsd as formatExactUsd } from '../../shared/l10n/exactUsd'
 import type { UiText } from '../../shared/l10n/en'
 import { Usd, usdAmountSchema, type UsdAmount } from '../../shared/usd'
 import { writeFileAtomically } from '../fsAtomic'
@@ -72,6 +79,9 @@ const legacyClaimSchema = z.object({
   claimId: z.string().check(z.regex(UUID)),
   ownerId: z.string().check(z.regex(UUID)),
   ownerPid: z.optional(z.number().check(z.int(), z.minimum(1))),
+  // D2: the owner's process start (wall ms) beside its pid, so a reused pid
+  // on a later boot is still provably gone.
+  ownerStartMs: z.optional(z.number().check(z.int(), z.minimum(1))),
   sessionId: z.string().check(z.regex(SESSION_ID)),
   accountId: z.string().check(z.regex(ACCOUNT_ID)),
   reservedUsd: z.number().check(z.nonnegative()),
@@ -119,6 +129,11 @@ export type SessionBudgetJournalDeps = {
   /** Daily scopes recover only new, durably nonsent claims whose PID no longer exists. */
   readonly recoverUnsent?: boolean
   readonly rename?: (from: string, to: string) => Promise<void>
+  /**
+   * D1: daily scopes refuse with the numbers (limit, spent, held, reset,
+   * setting). Session scopes omit this and keep their numbers-only sentence.
+   */
+  readonly dailyStop?: { readonly setting: string; readonly nowMs: () => number }
 } & (
   | {
       /** Reads the authoritative session file without its journal projection. */
@@ -145,6 +160,16 @@ interface ProjectedSessionBudgetJournal extends SessionBudgetJournal {
     sessionId: string,
     accountId: string,
   ): Promise<(SessionBudgetTotal & { readonly uncertainUsd?: UsdAmount }) | undefined>
+  /**
+   * D1: the refusal's numbers after the fact (a stop marker, a day
+   * rollover). Recovers first, so a dead process's hold never refuses.
+   * Rejects where no daily narrative exists; callers keep the plain error.
+   */
+  describeStop(
+    sessionId: string,
+    accountId: string,
+    capUsd: UsdAmount,
+  ): Promise<PaidBudgetStopError>
   /** Existing journal data owns this field; an unopened journal leaves a snapshot alone. */
   project(session: StoredSession): Promise<StoredSession>
   /** Read-only reconciliation; ownership of settlement stays with the creator. */
@@ -264,6 +289,9 @@ function totalFor(scope: Scope, isUsageView = false) {
     let spent = Usd.from(seed.spentUsd)
     let hasUnknownHistoricalFees = seed.hasUnknownHistoricalFees
     let uncertainUsd = Usd.from(0).toAmount()
+    // D1: the held sum and open count behind a refusal's numbers.
+    let held = Usd.from(0)
+    let openClaims = 0
     const claimIds = readdirSync(path.join(scope.directory, CLAIMS_DIRECTORY))
     for (const claimId of claimIds) {
       const claim = readClaim(scope, seed, claimId)
@@ -272,6 +300,10 @@ function totalFor(scope: Scope, isUsageView = false) {
         uncertainUsd = Usd.from(uncertainUsd)
           .add(Usd.from(claim.settledUsd ?? claim.retainedUsd ?? claim.reservedUsd))
           .toAmount()
+      if (claim.settledUsd === undefined) {
+        held = held.add(Usd.from(claim.retainedUsd ?? claim.reservedUsd))
+        openClaims += 1
+      }
       hasUnknownHistoricalFees ||=
         // New daily claims retain a known bounded liability even without a receipt.
         // Legacy unknown fees and unbounded requests still prevent capped admission.
@@ -283,10 +315,66 @@ function totalFor(scope: Scope, isUsageView = false) {
     return {
       spent,
       hasUnknownHistoricalFees,
+      held: held.toAmount(),
+      openClaims,
       ...(isUsageView && Usd.from(uncertainUsd).compare(Usd.from(0)) > 0 && { uncertainUsd }),
     }
   } catch (error: unknown) {
     throw unavailable(error)
+  }
+}
+
+/** One localized sentence for a paid stop: its own reason, never a generic one. */
+function formatPaidBudgetStop(details: PaidStopDetails): string {
+  return fill(UI_TEXT.execPaidDailyStopped, {
+    cap: formatExactUsd(details.limitUsd, EXEC_USD_DECIMALS),
+    spent: formatExactUsd(details.spentUsd, EXEC_USD_DECIMALS),
+    held: formatExactUsd(details.heldUsd, EXEC_USD_DECIMALS),
+    requests: plural(UI_TEXT.execPaidOpenRequests, details.openClaims),
+    reset: formatDateTime(details.resetsAtMs),
+    setting: details.setting,
+  })
+}
+
+/** A day boundary past midnight, and the tick math behind /proc start times. */
+const NEXT_DAY_HOUR = 24
+const PROC_TICKS_PER_SECOND = 100
+const MS_PER_SECOND = 1000
+
+/** Next local midnight from a clock: when a daily scope resets. */
+function nextMidnightMs(nowMs: number): number {
+  const date = new Date(nowMs)
+  date.setHours(NEXT_DAY_HOUR, 0, 0, 0)
+  return date.getTime()
+}
+
+/**
+ * D2: another process's start (wall ms) from its kernel record, so a pid
+ * the OS has since handed to a new process is still provably gone.
+ * Undefined where the platform keeps no such record: the caller stays
+ * conservative and treats a live pid as a live owner.
+ */
+function processStartMs(pid: number): number | undefined {
+  return process.platform === 'linux' && Number.isSafeInteger(pid) && pid > 0
+    ? startFromProc(pid)
+    : undefined
+}
+
+function startFromProc(pid: number): number | undefined {
+  try {
+    const stat = readFileSync(`/proc/${String(pid)}/stat`, 'utf8')
+    // The command name may hold spaces and parens; fields start past its end.
+    const fields = stat
+      .slice(stat.lastIndexOf(')') + 1)
+      .trim()
+      .split(/\s+/)
+    const starttime = Number(fields[19])
+    const btime = Number(/btime (\d+)/.exec(readFileSync('/proc/stat', 'utf8'))?.[1] ?? '')
+    return Number.isFinite(starttime) && Number.isFinite(btime)
+      ? Math.round((btime + starttime / PROC_TICKS_PER_SECOND) * MS_PER_SECOND)
+      : undefined
+  } catch {
+    return undefined
   }
 }
 
@@ -303,6 +391,8 @@ export function createSessionBudgetJournal(
 ): ProjectedSessionBudgetJournal {
   if (deps.l10n !== undefined) setUiText(deps.l10n.table, deps.l10n.locale)
   const ownerId = randomUUID()
+  // D2: this process's own start, recorded beside every owned claim's pid.
+  const ownerStartMs = Date.now() - Math.round(process.uptime() * MS_PER_SECOND)
   const options = {
     sleep: deps.sleep,
     ...(deps.rename !== undefined && { rename: deps.rename }),
@@ -394,7 +484,8 @@ export function createSessionBudgetJournal(
       scopeId: seed.scopeId,
       claimId: randomUUID(),
       ownerId,
-      ...(deps.recoverUnsent === true && isNonsentReservation && { ownerPid: process.pid }),
+      ...(deps.recoverUnsent === true &&
+        isNonsentReservation && { ownerPid: process.pid, ownerStartMs }),
       sessionId: scope.sessionId,
       accountId: scope.accountId,
       reservedUsd: Usd.from(costUsd).toString(),
@@ -535,6 +626,25 @@ export function createSessionBudgetJournal(
           Usd.from(capUsd).compare(Usd.from(0)) > 0 &&
           total.spent.compare(Usd.from(capUsd)) > 0
         ) {
+          // D1: a daily scope refuses with its numbers; the refused claim's
+          // own reservation is not counted as spent or held.
+          if (deps.dailyStop !== undefined) {
+            const own = Usd.from(created.reservedUsd)
+            const settled = total.spent.subtract(Usd.from(total.held))
+            const held =
+              Usd.from(total.held).compare(own) > 0
+                ? Usd.from(total.held).subtract(own)
+                : Usd.from(0)
+            const details: PaidStopDetails = {
+              limitUsd: Usd.from(capUsd).toAmount(),
+              spentUsd: settled.toAmount(),
+              heldUsd: held.toAmount(),
+              openClaims: Math.max(0, total.openClaims - 1),
+              resetsAtMs: nextMidnightMs(deps.dailyStop.nowMs()),
+              setting: deps.dailyStop.setting,
+            }
+            throw new PaidBudgetStopError(formatPaidBudgetStop(details), details)
+          }
           throw new SessionBudgetExceededError(
             fill(UI_TEXT.sessionBudgetStopped, {
               estimate: formatUsd(Usd.from(created.reservedUsd).toAmount()),
@@ -634,17 +744,41 @@ export function createSessionBudgetJournal(
 
   const recoverUnsent = async (scope: Scope, seed: Seed) => {
     if (deps.recoverUnsent !== true) return
+    // D2: calibrate the kernel record against this process first. A wrong
+    // tick rate (or an unreadable record) disables start-time recovery and
+    // keeps pid-existence recovery, never the reverse.
+    const selfStart = processStartMs(process.pid)
+    const isStartReliable =
+      selfStart !== undefined &&
+      Math.abs(selfStart - ownerStartMs) < DAILY_BUDGET_OWNER_START_SKEW_MS
     const claimIds = readdirSync(path.join(scope.directory, CLAIMS_DIRECTORY))
     for (const claimId of claimIds) {
       const claim = readClaim(scope, seed, claimId)
       if (claim.ownerPid === undefined || claim.settledUsd !== undefined) continue
+      let isGone = false
       try {
         process.kill(claim.ownerPid, 0)
-        continue
       } catch (error: unknown) {
-        // A reused PID or EPERM is still live/unknown; age is never proof of death.
+        // EPERM is still live/unknown; age is never proof of death.
         if (storeErrorCode(error) !== 'ESRCH') continue
+        isGone = true
       }
+      if (
+        !isGone &&
+        isStartReliable &&
+        claim.ownerStartMs !== undefined &&
+        claim.ownerPid !== process.pid
+      ) {
+        // The pid answers, but for a process that started somewhere else:
+        // the OS handed the owner's pid to someone new.
+        const start = processStartMs(claim.ownerPid)
+        if (
+          start !== undefined &&
+          Math.abs(start - claim.ownerStartMs) >= DAILY_BUDGET_OWNER_START_SKEW_MS
+        )
+          isGone = true
+      }
+      if (!isGone) continue
       const directory = path.join(scope.directory, CLAIMS_DIRECTORY, claimId)
       const wasSent = await isPresent(path.join(directory, SENT_DIRECTORY))
       await writeFileAtomically(
@@ -656,6 +790,17 @@ export function createSessionBudgetJournal(
         }),
         options,
       )
+    }
+  }
+
+  // D2: every process that reads the ledger recovers first. Best effort:
+  // a display read never breaks here; reserve paths still fail closed.
+  const recoverBestEffort = async (scope: Scope): Promise<void> => {
+    if (deps.recoverUnsent !== true) return
+    try {
+      await recoverUnsent(scope, readSeed(scope))
+    } catch {
+      // The totals below still validate the scope; reserve paths throw.
     }
   }
 
@@ -683,8 +828,29 @@ export function createSessionBudgetJournal(
     async readExisting(sessionId, accountId) {
       const scope = scopeFor(sessionId, accountId)
       if (!(await isPresent(scope.intent)) && !(await isPresent(scope.directory))) return
-      const { spent, ...total } = totalFor(scope, true)
+      await recoverBestEffort(scope)
+      const { spent, held: _held, openClaims: _open, ...total } = totalFor(scope, true)
       return { ...total, spentUsd: spent.toAmount() }
+    },
+    async describeStop(sessionId, accountId, capUsd) {
+      const stop = deps.dailyStop
+      if (stop === undefined) throw unavailable()
+      assertCost(capUsd)
+      const scope = scopeFor(sessionId, accountId)
+      const seed = await ensure(scope)
+      // Fail-closed: a caller that cannot describe keeps its plain refusal.
+      await recoverUnsent(scope, seed)
+      const total = totalFor(scope)
+      const settled = total.spent.subtract(Usd.from(total.held))
+      const details: PaidStopDetails = {
+        limitUsd: Usd.from(capUsd).toAmount(),
+        spentUsd: settled.toAmount(),
+        heldUsd: total.held,
+        openClaims: total.openClaims,
+        resetsAtMs: nextMidnightMs(stop.nowMs()),
+        setting: stop.setting,
+      }
+      return new PaidBudgetStopError(formatPaidBudgetStop(details), details)
     },
     lookupByClaimId(sessionId, accountId, claimId) {
       const scope = scopeFor(sessionId, accountId)
@@ -703,6 +869,7 @@ export function createSessionBudgetJournal(
     async read(sessionId, accountId) {
       const scope = scopeFor(sessionId, accountId)
       await ensure(scope)
+      await recoverBestEffort(scope)
       return projectedTotal(scope)
     },
     async reserve(sessionId, accountId, costUsd, flags = {}) {
