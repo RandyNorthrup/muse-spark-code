@@ -342,6 +342,7 @@ export function ScheduleSurface(context: ScheduleSurfaceProps) {
   return (
     <section
       className="schedule-v2-surface"
+      inert={context.isInert}
       aria-label={UI_TEXT.scheduleV2.labels.title}
       data-schedule-ready={loaded ? '' : undefined}
     >

@@ -1,4 +1,4 @@
-import { useRef, useState, type SubmitEvent } from 'react'
+import { useEffect, useRef, useState, type FocusEvent, type SubmitEvent } from 'react'
 import {
   feedbackClassificationSchema,
   scrubMuseFeedbackNote,
@@ -46,6 +46,25 @@ function FeedbackForm({ sessionId, port, onClose }: FeedbackDialogProps) {
   const [result, setResult] = useState<string>()
   const [failure, setFailure] = useState<string>()
   const sending = useRef(false)
+  const form = useRef<HTMLFormElement>(null)
+  const submitButton = useRef<HTMLButtonElement>(null)
+  const lastInside = useRef<HTMLElement | null>(null)
+  const previousSending = useRef(false)
+  // A busy preview/send disables the focused submit button, dropping focus
+  // to the page behind the dialog (RVCM1063D #4). When the transition ends,
+  // put focus back inside: the control that had it when still usable, else
+  // the submit button, so Tab stays trapped and Escape closes.
+  useEffect(() => {
+    if (!isSending && previousSending.current && !form.current?.contains(document.activeElement)) {
+      const remembered = lastInside.current
+      if (remembered?.isConnected === true && !remembered.hasAttribute('disabled')) {
+        remembered.focus()
+      } else {
+        submitButton.current?.focus()
+      }
+    }
+    previousSending.current = isSending
+  }, [isSending])
   const canSend =
     classifications.some((choice) => choice.classification === classification) &&
     (classification !== 'bug' || note.trim().length > 0)
@@ -91,9 +110,15 @@ function FeedbackForm({ sessionId, port, onClose }: FeedbackDialogProps) {
     }
   }
 
+  const trackInside = (event: FocusEvent<HTMLFormElement>) => {
+    if (event.target instanceof HTMLElement) {
+      lastInside.current = event.target
+    }
+  }
+
   return (
     <Modal title={UI_TEXT.feedbackTitle} titleId="feedback-title" onClose={onClose}>
-      <form onSubmit={(event) => void submit(event)}>
+      <form ref={form} onFocus={trackInside} onSubmit={(event) => void submit(event)}>
         <p>{UI_TEXT.feedbackPrivacy}</p>
         <fieldset disabled={isSending} className="feedback-fields">
           <div>
@@ -154,7 +179,12 @@ function FeedbackForm({ sessionId, port, onClose }: FeedbackDialogProps) {
           )}
         </fieldset>
         <div className="question-actions feedback-actions">
-          <button type="submit" className="button-primary" disabled={isSending || !canSend}>
+          <button
+            ref={submitButton}
+            type="submit"
+            className="button-primary"
+            disabled={isSending || !canSend}
+          >
             {submitText}
           </button>
         </div>

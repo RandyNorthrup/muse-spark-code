@@ -5,10 +5,12 @@ import type { DiffTallyCounts } from '../../shared/diffTally'
 export interface DiffTallyProps {
   readonly counts: DiffTallyCounts | undefined
   readonly onReview?: () => void
+  /** Behind a modal the tally and its Review button take no focus or clicks (M25). */
+  readonly isInert?: boolean
 }
 
 /** Conversation edit totals; Review is available only when the host can open it. */
-export function DiffTally({ counts, onReview }: DiffTallyProps) {
+export function DiffTally({ counts, onReview, isInert = false }: DiffTallyProps) {
   if (counts === undefined) {
     return null
   }
@@ -16,6 +18,7 @@ export function DiffTally({ counts, onReview }: DiffTallyProps) {
   return (
     <div
       className="diff-tally"
+      inert={isInert}
       role="group"
       aria-label={UI_TEXT.diffTallyLabel}
       aria-description={UI_TEXT.diffTallyTitle}
