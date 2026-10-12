@@ -217,6 +217,15 @@
   "estimateWaiting": "{dependency} bekleniyor.",
   "estimateRunning": "Tahmin ediliyor…",
   "estimateFailed": "Tahmin başarısız: {detail}",
+  "estimateNoAccountReader": "{source} üzerindeki hesap limitleri bilinmiyor.",
+  "estimateLimitsUnread": "Bilinmiyor: {source} sınırları okunmadı.",
+  "estimateRefillUnknown": "Gelecekteki yenileme dönemi ve hızı bilinmiyor: {source}.",
+  "estimatePlanWindowUnknown": "{source}: {percent} kullanıldı; {reset}; pencere dönemi ve görev talebi bilinmiyor.",
+  "estimatePercentDemandUnknown": "Bu görevlerin yüzde talebi bilinmiyor: {source}; sıfırlama {reset}.",
+  "estimateResetUnknown": "sıfırlama zamanı bilinmiyor",
+  "estimateCiUnread": "CI kapasitesi bilinmiyor: okuyucu yok.",
+  "estimateSettingsDefault": "Varsayılan ayarlar: {source}.",
+  "estimateSettingsConfigured": "Yapılandırılmış ayarlar: {source}.",
   "estimateSchedule": "İş hattı takvimi",
   "estimateGantt": "{goal} için kritik yol ve P50 ile P90 bitiş işaretlerini içeren takvim.",
   "estimateOptimizeDescription": "P90 düzeyinde son tarihe uyan en ucuz kurulumu veya ek zaman kazancı yeterli olan en hızlı kurulumu seçin.",
@@ -5227,14 +5236,5 @@
       "other": "{count} izin"
     }
   },
-  "estimateNoAccountReader": "{source} üzerindeki hesap limitleri bilinmiyor.",
-  "estimateLimitsUnread": "Bilinmiyor: {source} sınırları okunmadı.",
-  "estimateRefillUnknown": "Gelecekteki yenileme dönemi ve hızı bilinmiyor: {source}.",
-  "estimatePlanWindowUnknown": "{source}: {percent} kullanıldı; {reset}; pencere dönemi ve görev talebi bilinmiyor.",
-  "estimatePercentDemandUnknown": "Bu görevlerin yüzde talebi bilinmiyor: {source}; sıfırlama {reset}.",
-  "estimateResetUnknown": "sıfırlama zamanı bilinmiyor",
-  "estimateCiUnread": "CI kapasitesi bilinmiyor: okuyucu yok.",
-  "estimateSettingsDefault": "Varsayılan ayarlar: {source}.",
-  "estimateSettingsConfigured": "Yapılandırılmış ayarlar: {source}.",
-  "referenceEstimateFacts": "Tahminler gözlemlenen hesap engellerini korur, okunmayan kapasiteyi belirtir ve varsayılan eşikleri yapılandırılmış eşiklerden ayırır. Gelecekteki yenileme hızları bildirilmedikçe bilinmez."
+  "referenceEstimateFacts": "Tahminler gözlemlenen hesap engellerini korur, okunmayan kapasiteyi belirtir ve varsayılan eşikleri yapılandırılmış eşiklerden ayırır. Gelecekteki yenileme hızları bildirilmedikçe bilinmez. Gözlemler kendi hesaplarına ve oturum açma nesillerine aittir; bilinen bakiyeler ve yüzdelik kotalar, yenilenme bilinmese bile mevcut çalışmayı sınırlar."
 }

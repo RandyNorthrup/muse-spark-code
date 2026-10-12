@@ -217,6 +217,15 @@
   "estimateWaiting": "Ожидание {dependency}.",
   "estimateRunning": "Оценка выполняется…",
   "estimateFailed": "Не удалось выполнить оценку: {detail}",
+  "estimateNoAccountReader": "Лимиты аккаунта на {source} неизвестны.",
+  "estimateLimitsUnread": "Неизвестно: лимиты для {source} не прочитаны.",
+  "estimateRefillUnknown": "Будущий период и скорость пополнения неизвестны: {source}.",
+  "estimatePlanWindowUnknown": "{source}: использовано {percent}; {reset}; период окна и потребность задач неизвестны.",
+  "estimatePercentDemandUnknown": "Процентная потребность этих задач неизвестна: {source}; сброс {reset}.",
+  "estimateResetUnknown": "время сброса неизвестно",
+  "estimateCiUnread": "Ёмкость CI неизвестна: нет средства чтения.",
+  "estimateSettingsDefault": "Настройки по умолчанию: {source}.",
+  "estimateSettingsConfigured": "Заданные настройки: {source}.",
   "estimateSchedule": "Расписание направлений работы",
   "estimateGantt": "Расписание для {goal} с критическим путём и отметками завершения P50 и P90.",
   "estimateOptimizeDescription": "Выберите самую дешёвую конфигурацию, укладывающуюся в срок при P90, или самую быструю с достаточной дополнительной экономией времени.",
@@ -5533,14 +5542,5 @@
       "many": "{count} разрешений"
     }
   },
-  "estimateNoAccountReader": "Лимиты аккаунта на {source} неизвестны.",
-  "estimateLimitsUnread": "Неизвестно: лимиты для {source} не прочитаны.",
-  "estimateRefillUnknown": "Будущий период и скорость пополнения неизвестны: {source}.",
-  "estimatePlanWindowUnknown": "{source}: использовано {percent}; {reset}; период окна и потребность задач неизвестны.",
-  "estimatePercentDemandUnknown": "Процентная потребность этих задач неизвестна: {source}; сброс {reset}.",
-  "estimateResetUnknown": "время сброса неизвестно",
-  "estimateCiUnread": "Ёмкость CI неизвестна: нет средства чтения.",
-  "estimateSettingsDefault": "Настройки по умолчанию: {source}.",
-  "estimateSettingsConfigured": "Заданные настройки: {source}.",
-  "referenceEstimateFacts": "Прогнозы сохраняют наблюдаемые блокировки аккаунтов, обозначают непрочитанную ёмкость и различают пороги по умолчанию и заданные пороги. Будущая скорость пополнения неизвестна, пока она не сообщена."
+  "referenceEstimateFacts": "Прогнозы сохраняют наблюдаемые блокировки аккаунтов, обозначают непрочитанную ёмкость и различают пороги по умолчанию и заданные пороги. Будущая скорость пополнения неизвестна, пока она не сообщена. Наблюдения относятся к своему аккаунту и поколению входа; известные остатки и процентные квоты ограничивают текущую работу даже при неизвестном сроке обновления."
 }

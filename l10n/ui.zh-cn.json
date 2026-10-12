@@ -217,6 +217,15 @@
   "estimateWaiting": "正在等待 {dependency}。",
   "estimateRunning": "正在估算…",
   "estimateFailed": "估算失败：{detail}",
+  "estimateNoAccountReader": "{source} 上的账户限额未知。",
+  "estimateLimitsUnread": "未知：尚未读取 {source} 的限额。",
+  "estimateRefillUnknown": "未来的补充周期和速率未知：{source}。",
+  "estimatePlanWindowUnknown": "{source}：已使用 {percent}；{reset}；窗口周期和任务需求未知。",
+  "estimatePercentDemandUnknown": "这些任务的百分比需求未知：{source}；重置 {reset}。",
+  "estimateResetUnknown": "重置时间未知",
+  "estimateCiUnread": "CI 容量未知：没有读取源。",
+  "estimateSettingsDefault": "默认设置：{source}。",
+  "estimateSettingsConfigured": "已配置的设置：{source}。",
   "estimateSchedule": "工作分支日程",
   "estimateGantt": "{goal} 的日程，包含关键路径以及 P50 和 P90 完成标记。",
   "estimateOptimizeDescription": "选择在 P90 下满足截止日期的最便宜配置，或边际时间收益足够的最快配置。",
@@ -5074,14 +5083,5 @@
       "other": "{count} 个授权"
     }
   },
-  "estimateNoAccountReader": "{source} 上的账户限额未知。",
-  "estimateLimitsUnread": "未知：尚未读取 {source} 的限额。",
-  "estimateRefillUnknown": "未来的补充周期和速率未知：{source}。",
-  "estimatePlanWindowUnknown": "{source}：已使用 {percent}；{reset}；窗口周期和任务需求未知。",
-  "estimatePercentDemandUnknown": "这些任务的百分比需求未知：{source}；重置 {reset}。",
-  "estimateResetUnknown": "重置时间未知",
-  "estimateCiUnread": "CI 容量未知：没有读取源。",
-  "estimateSettingsDefault": "默认设置：{source}。",
-  "estimateSettingsConfigured": "已配置的设置：{source}。",
-  "referenceEstimateFacts": "预测保留已观察到的账户阻止状态，注明未读取的容量，并区分默认阈值与已配置阈值。未来的补充速率在报告前仍为未知。"
+  "referenceEstimateFacts": "预测保留已观察到的账户阻止状态，注明未读取的容量，并区分默认阈值与已配置阈值。未来的补充速率在报告前仍为未知。 观测值属于其账户和登录代次；即使续期未知，已知余额和百分比额度仍会约束当前工作。"
 }
