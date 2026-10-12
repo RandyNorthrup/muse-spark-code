@@ -69,6 +69,7 @@ if (process.platform === 'linux') {
       binary = path.resolve('temp/confine/muse-confine')
       for (const name of [
         'Race',
+        'StatRace',
         'Guards',
         'Device',
         'Budget',
@@ -334,6 +335,37 @@ if (process.platform === 'linux') {
           expect(result.stdout.length).toBe(0)
           expect(result.code).not.toBe(0)
         }
+      }
+    })
+    it('stat reports the walked file when an ancestor is swapped for a link mid-report', async () => {
+      const h = await fixture()
+      mkdirSync(path.join(h.workspace, 'src'))
+      writeFileSync(path.join(h.workspace, 'src/a.txt'), 'ALLOWED_CANARY\n')
+      mkdirSync(path.join(h.root, 'foreign'))
+      writeFileSync(path.join(h.root, 'foreign/a.txt'), 'FORBIDDEN_CANARY_IS_LONGER\n')
+      const original = statSync(path.join(h.workspace, 'src/a.txt'))
+      const outside = statSync(path.join(h.root, 'foreign/a.txt'))
+      expect(outside.size).not.toBe(original.size)
+      const pending = native(
+        variant('StatRace'),
+        h.args('stat', ['src/a.txt'], ['src/a.txt']),
+        h.root,
+      )
+      // The report's statx waits 200 ms; swap inside that window, after the walk.
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      renameSync(path.join(h.workspace, 'src'), path.join(h.workspace, 'src.old'))
+      symlinkSync(path.join(h.root, 'foreign'), path.join(h.workspace, 'src'))
+      const result = await pending
+      // A swap that lands before the walk is a refusal; one after it still
+      // reports the walked file. It never reports the outside file.
+      expect(result.stdout.toString()).not.toContain(`Size: ${String(outside.size)} `)
+      if (result.code === 0) {
+        expect(result.stderr).toMatch(/^\{"confined":true,/u)
+        expect(result.stdout.toString()).toContain(`Size: ${String(original.size)} `)
+        expect(result.stdout.toString()).toContain(`Inode: ${String(original.ino)} `)
+      } else {
+        expect(result.code).toBe(125)
+        expect(result.stdout.length).toBe(0)
       }
     })
     it('B1-12 refuses inserted, renamed and replacement inodes after a recursive walk', async () => {
