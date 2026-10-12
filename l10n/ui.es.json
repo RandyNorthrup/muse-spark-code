@@ -325,7 +325,7 @@
     "effort": "Elige cuánto esfuerzo dedica Muse a cada respuesta.",
     "output": "Elegir el formato del resultado: text, json o jsonl.",
     "max-budget-usd": "Fijar el límite estricto de gasto en USD para esta ejecución.",
-    "max-requests": "Fijar el máximo de solicitudes al modelo.",
+    "max-requests": "Establece el máximo de solicitudes. La última llamada al modelo produce un resumen final sin herramientas.",
     "timeout": "Fijar el límite de tiempo de ejecución en segundos.",
     "fail-on-denial": "Detener la ejecución si se deniega un permiso.",
     "ephemeral": "Mantener la sesión en memoria sin guardarla.",
@@ -3590,6 +3590,13 @@
     "other": "Se permiten como máximo {count} archivos de entrada.",
     "many": "Se permiten como máximo {count} archivos de entrada."
   },
+  "referenceTurnLimit": "Los turnos de Model API permiten 200 llamadas al modelo de forma predeterminada. Prevalecen los límites de solicitudes existentes del llamante. La última llamada produce un resumen sin herramientas; envía un mensaje para continuar.",
+  "modelApiWrapUpReserved": "La solicitud restante está reservada para la respuesta final. No se generó la imagen.",
+  "modelApiTurnLimit": {
+    "one": "El turno se detuvo tras {count} llamada al modelo. Envía un mensaje para continuar.",
+    "other": "El turno se detuvo tras {count} llamadas al modelo. Envía un mensaje para continuar.",
+    "many": "El turno se detuvo tras {count} llamadas al modelo. Envía un mensaje para continuar."
+  },
   "execRequestCapReached": {
     "one": "Se alcanzó el límite de {count} intento.",
     "other": "Se alcanzó el límite de {count} intentos.",
@@ -5448,11 +5455,5 @@
       "other": "{count} autorizaciones",
       "many": "{count} autorizaciones"
     }
-  },
-  "modelApiTurnLimit": {
-    "one": "El turno se detuvo tras {count} llamada al modelo. Envía un mensaje para continuar.",
-    "other": "El turno se detuvo tras {count} llamadas al modelo. Envía un mensaje para continuar.",
-    "many": "El turno se detuvo tras {count} llamadas al modelo. Envía un mensaje para continuar."
-  },
-  "referenceTurnLimit": "Al alcanzar el límite de llamadas al modelo, el turno informa de un límite que permite continuar. Envía otro mensaje para continuar."
+  }
 }

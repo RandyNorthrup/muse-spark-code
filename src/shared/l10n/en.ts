@@ -407,7 +407,8 @@ export const EN = {
     effort: 'Choose how much effort Muse puts into each reply.',
     output: 'Choose the result format: text, json or jsonl.',
     'max-budget-usd': 'Set the hard spending limit in USD for this run.',
-    'max-requests': 'Set the maximum number of model requests.',
+    'max-requests':
+      'Set the maximum request allowance. The last model call produces a final summary without tools.',
     timeout: 'Set the run deadline in seconds.',
     'fail-on-denial': 'Stop the run when a permission request is denied.',
     ephemeral: 'Keep the session in memory without saving it.',
@@ -4229,7 +4230,9 @@ export const EN = {
     other: 'At most {count} input files are allowed.',
   }),
   referenceTurnLimit:
-    'At the model-call turn limit, the turn reports a resumable limit. Send another message to continue.',
+    'Model API turns default to 200 model calls. Existing caller request limits win. The last call produces a summary without tools; send a message to continue.',
+  modelApiWrapUpReserved:
+    'The remaining request is reserved for the final answer. The image was not generated.',
   modelApiTurnLimit: forms({
     one: 'The turn stopped after {count} model call. Send a message to continue.',
     other: 'The turn stopped after {count} model calls. Send a message to continue.',

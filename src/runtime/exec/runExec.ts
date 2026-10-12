@@ -358,6 +358,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
   let isCompactionPrompt = false
   let terminal: string | null = null
   let incompleteReason: string | null = null
+  let modelCallLimitReason: string | undefined
   let backendErrorKind: string | undefined
   let catalogueHttpStatus: number | undefined
   let status: ExecStatus = 'failed'
@@ -430,6 +431,10 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       terminal = event.terminal
       incompleteReason = event.reason ?? null
       backendErrorKind = event.errorKind
+      if (event.errorKind === 'max_turn_requests') {
+        modelCallLimitReason = event.reason
+        sink.emit({ type: 'limit', limit: 'requests' })
+      }
     } else if (event.type === 'tokenUsage' && options.backend === 'museCode') {
       latestTokens = {
         inputTokens: event.inputTokens,
@@ -715,6 +720,10 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         usageRecording,
         exec: {
           isEphemeral: options.ephemeral,
+          ...(ledger !== undefined &&
+            options.maxRequests !== undefined && {
+              remainingModelCalls: () => (options.maxRequests ?? 0) - ledger.totals().requests,
+            }),
           outputCap,
           ...(providerRun !== undefined && { providerRun }),
           ...(providerRun !== undefined &&
@@ -1113,8 +1122,10 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         (last?.usage !== 'valid' || last.settlement !== 'priced')
       )
         status = 'accounting_unverified'
-      else if (stopReason === 'max_turn_requests') status = 'request_cap'
-      else status = stopReason === 'end_turn' ? 'completed' : 'failed'
+      else if (stopReason === 'max_turn_requests') {
+        status = 'request_cap'
+        error = modelCallLimitReason ?? plural(UI_TEXT.modelApiTurnLimit, totals?.requests ?? 0)
+      } else status = stopReason === 'end_turn' ? 'completed' : 'failed'
     }
     if (status === 'accounting_unverified') error = UI_TEXT.execAccountingUnverified
     const signal = lifecycle.cause?.kind === 'signal' ? lifecycle.cause.signal : null

@@ -6329,7 +6329,7 @@
     {
       "route": "exec",
       "name": "exec: --max-requests <value>",
-      "description": "Set the maximum number of model requests.",
+      "description": "Set the maximum request allowance. The last model call produces a final summary without tools.",
       "text": { "cli": "max-requests" },
       "contract": {
         "type": "string",

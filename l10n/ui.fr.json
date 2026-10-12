@@ -325,7 +325,7 @@
     "effort": "Choisissez l’effort que Muse consacre à chaque réponse.",
     "output": "Choisir le format du résultat : text, json ou jsonl.",
     "max-budget-usd": "Fixer la limite stricte de dépenses en USD pour cette exécution.",
-    "max-requests": "Fixer le nombre maximal de requêtes au modèle.",
+    "max-requests": "Définit le nombre maximal de requêtes. Le dernier appel au modèle produit un résumé final sans outils.",
     "timeout": "Fixer la durée maximale de l’exécution en secondes.",
     "fail-on-denial": "Arrêter l’exécution si une autorisation est refusée.",
     "ephemeral": "Conserver la session en mémoire sans la sauvegarder.",
@@ -3590,6 +3590,13 @@
     "other": "Au plus {count} fichiers d’entrée sont autorisés.",
     "many": "Au plus {count} fichiers d’entrée sont autorisés."
   },
+  "referenceTurnLimit": "Les tours Model API autorisent 200 appels au modèle par défaut. Les limites de requêtes existantes de l’appelant prévalent. Le dernier appel produit un résumé sans outils ; envoyez un message pour continuer.",
+  "modelApiWrapUpReserved": "La requête restante est réservée à la réponse finale. L’image n’a pas été générée.",
+  "modelApiTurnLimit": {
+    "one": "Le tour s’est arrêté après {count} appel au modèle. Envoyez un message pour continuer.",
+    "other": "Le tour s’est arrêté après {count} appels au modèle. Envoyez un message pour continuer.",
+    "many": "Le tour s’est arrêté après {count} appels au modèle. Envoyez un message pour continuer."
+  },
   "execRequestCapReached": {
     "one": "La limite de {count} tentative a été atteinte.",
     "other": "La limite de {count} tentatives a été atteinte.",
@@ -5448,11 +5455,5 @@
       "other": "{count} autorisations",
       "many": "{count} autorisations"
     }
-  },
-  "modelApiTurnLimit": {
-    "one": "Le tour s’est arrêté après {count} appel au modèle. Envoyez un message pour continuer.",
-    "other": "Le tour s’est arrêté après {count} appels au modèle. Envoyez un message pour continuer.",
-    "many": "Le tour s’est arrêté après {count} appels au modèle. Envoyez un message pour continuer."
-  },
-  "referenceTurnLimit": "À la limite d’appels au modèle, le tour signale une limite permettant de reprendre. Envoyez un autre message pour continuer."
+  }
 }

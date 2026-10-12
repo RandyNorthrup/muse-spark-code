@@ -92,6 +92,7 @@ import { paidGrantFile } from './paidGrants'
 import type { AssembledProviderRun } from './exec/providerExec'
 
 export interface ExecRuntimeOptions {
+  readonly remainingModelCalls?: () => number
   readonly outputCap?: (policy: ModelPolicy) => number
   readonly providerRun?: AssembledProviderRun
   readonly responseAccounting?: RuntimeAccountingEntry.RuntimeResponseAccounting
@@ -511,6 +512,7 @@ function modelApiManager(
     isObservationPackingOn: () => true,
     // M82's cap and reply line are VS Code settings; ACP exposes neither.
     sessionBudgetUsd: () => Usd.from(SETTING_DEFAULTS.modelApiSessionBudgetUsd).toAmount(),
+    remainingModelCalls: deps.exec?.remainingModelCalls,
     pacingOwner: deps,
     strictTools: () => SETTING_DEFAULTS.modelApiStrictTools,
     parallelReads: () => SETTING_DEFAULTS.modelApiParallelReads,

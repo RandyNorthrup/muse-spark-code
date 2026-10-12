@@ -325,7 +325,7 @@
     "effort": "Wybierz, ile wysiłku Muse wkłada w każdą odpowiedź.",
     "output": "Wybierz format wyniku: text, json lub jsonl.",
     "max-budget-usd": "Ustaw twardy limit wydatków w USD dla tego uruchomienia.",
-    "max-requests": "Ustaw maksymalną liczbę żądań do modelu.",
+    "max-requests": "Ustawia maksymalną liczbę żądań. Ostatnie wywołanie modelu tworzy końcowe podsumowanie bez narzędzi.",
     "timeout": "Ustaw limit czasu uruchomienia w sekundach.",
     "fail-on-denial": "Zatrzymaj uruchomienie po odmowie uprawnienia.",
     "ephemeral": "Trzymaj sesję w pamięci bez zapisywania.",
@@ -3664,6 +3664,14 @@
     "few": "Limit plików wejściowych: {count}.",
     "many": "Limit plików wejściowych: {count}."
   },
+  "referenceTurnLimit": "Tury Model API domyślnie pozwalają na 200 wywołań modelu. Istniejące limity żądań wywołującego mają pierwszeństwo. Ostatnie wywołanie tworzy podsumowanie bez narzędzi; wyślij wiadomość, aby kontynuować.",
+  "modelApiWrapUpReserved": "Pozostałe żądanie jest zarezerwowane na końcową odpowiedź. Obraz nie został wygenerowany.",
+  "modelApiTurnLimit": {
+    "one": "Tura zatrzymała się po {count} wywołaniu modelu. Wyślij wiadomość, aby kontynuować.",
+    "other": "Tura zatrzymała się po {count} wywołaniach modelu. Wyślij wiadomość, aby kontynuować.",
+    "few": "Tura zatrzymała się po {count} wywołaniach modelu. Wyślij wiadomość, aby kontynuować.",
+    "many": "Tura zatrzymała się po {count} wywołaniach modelu. Wyślij wiadomość, aby kontynuować."
+  },
   "execRequestCapReached": {
     "one": "Osiągnięto limit {count} próby.",
     "other": "Osiągnięto limit prób: {count}.",
@@ -5602,12 +5610,5 @@
       "few": "{count} uprawnienia",
       "many": "{count} uprawnień"
     }
-  },
-  "modelApiTurnLimit": {
-    "one": "Tura zatrzymała się po {count} wywołaniu modelu. Wyślij wiadomość, aby kontynuować.",
-    "other": "Tura zatrzymała się po {count} wywołaniach modelu. Wyślij wiadomość, aby kontynuować.",
-    "few": "Tura zatrzymała się po {count} wywołaniach modelu. Wyślij wiadomość, aby kontynuować.",
-    "many": "Tura zatrzymała się po {count} wywołaniach modelu. Wyślij wiadomość, aby kontynuować."
-  },
-  "referenceTurnLimit": "Po osiągnięciu limitu wywołań modelu tura zgłasza limit z możliwością wznowienia. Wyślij kolejną wiadomość, aby kontynuować."
+  }
 }

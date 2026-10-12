@@ -14241,7 +14241,8 @@ cost and caution, never speed.
 ### D108 — Model-call turn limits preserve the answer (TOOLROUNDS, 2026-10-11)
 
 The Model API turn cap is a limit, not a loop detector: default 200 model
-calls. An existing caller request cap replaces that default with its remaining
+calls: ordinary reviews and coding jobs need more than fifty calls, while
+existing money caps protect spending. An existing caller request cap replaces that default with its remaining
 allowance. Reserve the last permitted call for a tools-disabled wrap-up; retain
 its answer and report a translated, typed request-limit stop in every host.
 Existing money caps, compaction accounting and queued-input promotion remain
@@ -36675,6 +36676,14 @@ aggregate quality/coverage/platform matrix before integration/release. No
 threshold, ignore or rule is changed.
 
 ## 8. Escape hatches register
+
+TOOLROUNDS, 2026-10-11: `SIXTY_REQUEST_RUNTIME_TIMEOUT_MS` (30,000 ms) in
+`test/unit/execRun.test.ts` covers only sixty real runtime admissions and
+settlements writing private journals (11.413 s measured on macbook, load 10.52).
+The two matching packaged-process rows reuse their existing `TIMEOUT` (30,000 ms)
+for the same sixty-request OS operation. All ordinary tests retain the repository
+default; final runs use no `--testTimeout` flag. The default 200-call proof uses
+memory fixtures, and real ACP delivery uses a three-call caller allowance.
 
 | Location                                            | Residual / follow-up                                | Lead decision (2026-10-09)                                                                                                                                                                                                                            |
 | --------------------------------------------------- | --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

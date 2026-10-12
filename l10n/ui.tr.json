@@ -325,7 +325,7 @@
     "effort": "Muse'un her yanıta ayırdığı çabayı seçin.",
     "output": "Sonuç biçimini seçin: text, json veya jsonl.",
     "max-budget-usd": "Bu çalıştırma için USD cinsinden kesin harcama sınırı belirleyin.",
-    "max-requests": "Maksimum model isteği sayısını belirleyin.",
+    "max-requests": "En fazla istek sayısını belirler. Son model çağrısı araç kullanmadan son bir özet oluşturur.",
     "timeout": "Çalıştırma süresi sınırını saniye olarak belirleyin.",
     "fail-on-denial": "İzin reddedilirse çalıştırmayı durdurun.",
     "ephemeral": "Oturumu kaydetmeden bellekte tutun.",
@@ -3516,6 +3516,12 @@
     "one": "En fazla {count} girdi dosyasına izin verilir.",
     "other": "En fazla {count} girdi dosyasına izin verilir."
   },
+  "referenceTurnLimit": "Model API turları varsayılan olarak 200 model çağrısına izin verir. Çağıranın mevcut istek sınırları önceliklidir. Son çağrı araç kullanmadan özet oluşturur; devam etmek için bir mesaj gönderin.",
+  "modelApiWrapUpReserved": "Kalan istek son yanıt için ayrılmıştır. Görsel oluşturulmadı.",
+  "modelApiTurnLimit": {
+    "one": "Tur, {count} model çağrısından sonra durdu. Devam etmek için bir mesaj gönderin.",
+    "other": "Tur, {count} model çağrısından sonra durdu. Devam etmek için bir mesaj gönderin."
+  },
   "execRequestCapReached": {
     "one": "{count} denemelik istek sınırına ulaşıldı.",
     "other": "{count} denemelik istek sınırına ulaşıldı."
@@ -5294,10 +5300,5 @@
       "one": "{count} izin",
       "other": "{count} izin"
     }
-  },
-  "modelApiTurnLimit": {
-    "one": "Tur, {count} model çağrısından sonra durdu. Devam etmek için bir mesaj gönderin.",
-    "other": "Tur, {count} model çağrısından sonra durdu. Devam etmek için bir mesaj gönderin."
-  },
-  "referenceTurnLimit": "Model çağrısı sınırında tur, devam edilebilir bir sınır bildirir. Devam etmek için başka bir mesaj gönderin."
+  }
 }

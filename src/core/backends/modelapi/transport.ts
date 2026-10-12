@@ -445,6 +445,8 @@ export function rateLimitHeaders(headers: Headers): UsageHeaders {
 }
 
 export interface ResponseAttemptGuard {
+  /** After retry accounting/backoff, allow the owner to rebuild the next request. */
+  readonly beforeRetry?: () => void
   readonly mediaAccounting?: MediaRequestAccounting
   readonly pacingClass?: PacingClass
   readonly searchQuote?: PaidQuote
@@ -851,6 +853,7 @@ export class RequestTransport {
         reason,
       })
       await this.pause(delay, signal)
+      admitAttempt?.beforeRetry?.()
     }
     // How long the answer took, retries included, at trace level (M39).
     const startedAt = this.deps.now()

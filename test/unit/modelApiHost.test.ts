@@ -9617,6 +9617,13 @@ describe('ModelApiSession subagents (M48)', () => {
     })
     expect(t.api.responseBodies()).toHaveLength(before + 4)
     expect(t.paidUses.filter((use) => use.feature === 'subagents')).toHaveLength(5)
+    // The grant's four attempts all stay tool calls: none is reserved for a wrap-up.
+    const childBodies = t.api.responseBodies().slice(before)
+    for (const body of childBodies) {
+      expect(body['tool_choice']).not.toBe('none')
+      const tools = body['tools']
+      expect(Array.isArray(tools) && tools.length > 0).toBe(true)
+    }
   })
 
   it('asks anew before a model-requested child follow-up in Bypass', async () => {
@@ -12891,7 +12898,7 @@ async function expectReplacementGoalWake(
   expect(instructionsOf(t, 2)).toContain('- Objective: Goal B')
 }
 
-/** Fifty tool replies, with the final one held for a busy command. */
+/** A full turn allowance of replies, with the final one held for a busy command. */
 function scriptHeldFinalToolRound(
   t: ReturnType<typeof setup>,
   hold: Promise<void>,

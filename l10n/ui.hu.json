@@ -325,7 +325,7 @@
     "effort": "Válassza ki, mennyi erőfeszítést tegyen a Muse az egyes válaszokba.",
     "output": "Az eredmény formátumának kiválasztása: text, json vagy jsonl.",
     "max-budget-usd": "A futtatás szigorú kiadási korlátjának megadása USD-ben.",
-    "max-requests": "A modellkérések maximális számának beállítása.",
+    "max-requests": "Beállítja a kérések maximális számát. Az utolsó modellhívás eszközök nélküli végső összefoglalót készít.",
     "timeout": "A futtatás határidejének beállítása másodpercben.",
     "fail-on-denial": "A futtatás leállítása elutasított engedélynél.",
     "ephemeral": "A munkamenet megőrzése memóriában mentés nélkül.",
@@ -3516,6 +3516,12 @@
     "one": "Legfeljebb {count} bemeneti fájl engedélyezett.",
     "other": "Legfeljebb {count} bemeneti fájl engedélyezett."
   },
+  "referenceTurnLimit": "A Model API körei alapértelmezés szerint 200 modellhívást engednek. A hívó meglévő kéréskorlátjai elsőbbséget élveznek. Az utolsó hívás eszközök nélküli összefoglalót készít; a folytatáshoz küldjön üzenetet.",
+  "modelApiWrapUpReserved": "A fennmaradó kérés a végső válaszhoz van fenntartva. A kép nem készült el.",
+  "modelApiTurnLimit": {
+    "one": "A kör {count} modellhívás után leállt. A folytatáshoz küldjön üzenetet.",
+    "other": "A kör {count} modellhívás után leállt. A folytatáshoz küldjön üzenetet."
+  },
   "execRequestCapReached": {
     "one": "A kérések elérték a(z) {count} próbás korlátot.",
     "other": "A kérések elérték a(z) {count} próbás korlátot."
@@ -5294,10 +5300,5 @@
       "one": "{count} engedély",
       "other": "{count} engedély"
     }
-  },
-  "modelApiTurnLimit": {
-    "one": "A kör {count} modellhívás után leállt. A folytatáshoz küldjön üzenetet.",
-    "other": "A kör {count} modellhívás után leállt. A folytatáshoz küldjön üzenetet."
-  },
-  "referenceTurnLimit": "A modellhívások korlátjánál a kör folytatható korlátot jelez. A folytatáshoz küldjön újabb üzenetet."
+  }
 }
