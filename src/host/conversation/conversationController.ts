@@ -9680,6 +9680,25 @@ export class ConversationController {
    * nothing more is sent (Muse Voice turned off is off), and is kept until
    * the panel closes, so the transcript of what it already sent arrives.
    */
+  /**
+   * The backends are stopping (a restart, sign-out or shutdown): the owned
+   * driver and the retired one drain — capture stopped, sockets closed,
+   * admission and settlement writes waited for — and the button reads idle.
+   */
+  private async stopVoice(): Promise<void> {
+    const current = this.dictation
+    this.dictation = undefined
+    const retired = this.retiredDictation
+    this.retiredDictation = undefined
+    await current?.dispose()
+    await retired?.dispose()
+    if (this.dictationStatus === 'idle') {
+      return
+    }
+    this.dictationStatus = 'idle'
+    this.postDictationState()
+  }
+
   private retireDictation(): void {
     const old = this.dictation
     if (old === undefined) {
@@ -10940,6 +10959,10 @@ export class ConversationController {
       this.bestOfNManager?.dispose()
       this.bestOfNManager = undefined
       this.lastBestOfNRun = undefined
+      // The microphone stops with the backends: the drain ends the recording
+      // (or the preparation still reserving it) and waits for its admission
+      // and settlement writes, so no open reservation outlives the window.
+      await this.stopVoice()
       this.gapReload = undefined
       this.unsubscribe?.()
       this.unsubscribe = undefined
