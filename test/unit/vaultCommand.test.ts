@@ -232,6 +232,18 @@ describe('M109 H terminal commands', () => {
     ])
     expect(JSON.parse(await vaultRead(h.port, 'list', true))).toEqual([metadata()])
   })
+  it('RVCM1091G a Delete rejected as sourceGone finishes by clearing the leftover record', async () => {
+    const h = commandHarness()
+    h.deps.choose.mockResolvedValue('delete')
+    h.port.deleteImport.mockRejectedValueOnce(new Error(UI_TEXT.vault.sourceGone))
+    expect(
+      await runVaultCommand({ command: 'import', path: String.raw`C:\picked\id_key` }, h.deps),
+    ).toBe(1)
+    // The receipt is finished, not dropped: Keep clears the record the
+    // Delete could not.
+    expect(h.port.keepImport).toHaveBeenCalledTimes(1)
+    expect(h.port.close).toHaveBeenCalledOnce()
+  })
 })
 
 describe('M109 H vault watch', () => {

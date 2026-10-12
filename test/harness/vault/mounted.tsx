@@ -4,7 +4,10 @@
 // `mounted` (unlocked section), `mounted-locked` (a real locked snapshot:
 // no items, no observed slot), `mounted-connecting` (offered, host not
 // answered yet), `mounted-uncreated`, `mounted-setup-pending`,
-// `mounted-unavailable` (lost: the disabled toggle and Reset) and
+// `mounted-unavailable` (lost: the disabled toggle and Reset),
+// `mounted-unreachable` (no snapshot: the failure sentence and Retry) and
+// the transient `mounted-busy`, `mounted-transient-timeout` and
+// `mounted-watch-lost` scenes (their own reason with Retry), and
 // `mounted-first-party-only`. Values never appear here; the item carries a
 // fixture label only.
 import { createRoot } from 'react-dom/client'

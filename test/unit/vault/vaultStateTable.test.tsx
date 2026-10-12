@@ -255,3 +255,52 @@ describe('RVCM1091D vault state table', () => {
     }
   })
 })
+
+describe('RVCM1091G retrying views and keyboard focus', () => {
+  it('a kept view with a retry scheduled says it is retrying with aria-busy', () => {
+    const retrying = panel()
+    retrying.retrying = true
+    const { unmount } = render(<VaultSection state={retrying} post={vi.fn()} />)
+    const notice = screen.getByText(UI_TEXT.vault.retrying)
+    expect(notice.getAttribute('role')).toBe('status')
+    const section = screen.getByLabelText(UI_TEXT.vault.title, { selector: 'section' })
+    expect(section.getAttribute('aria-busy')).toBe('true')
+    unmount()
+    const fresh = panel()
+    const settled = render(<VaultSection state={fresh} post={vi.fn()} />)
+    expect(screen.queryByText(UI_TEXT.vault.retrying)).toBeNull()
+    settled.unmount()
+  })
+
+  it('a successful Retry hands focus to the Lock control, never the body', () => {
+    const failed = panel()
+    failed.status = status({ state: 'unavailable', tier: null, reason: 'busy' })
+    failed.items = []
+    failed.grants = []
+    const { rerender, unmount } = render(<VaultSection state={failed} post={vi.fn()} />)
+    const retry = screen.getByRole('button', { name: UI_TEXT.vault.retry })
+    retry.focus()
+    expect(document.activeElement).toBe(retry)
+    // The authoritative unlocked frame removes the focused button.
+    rerender(<VaultSection state={panel()} post={vi.fn()} />)
+    const focused = document.activeElement
+    expect(focused).not.toBe(document.body)
+    expect(focused?.textContent).toBe(UI_TEXT.vault.lock)
+    unmount()
+  })
+
+  it('focus falls back to the heading when no control can act', () => {
+    const failed = panel()
+    failed.status = status({ state: 'unavailable', tier: null, reason: 'busy' })
+    const { rerender, unmount } = render(<VaultSection state={failed} post={vi.fn()} />)
+    screen.getByRole('button', { name: UI_TEXT.vault.retry }).focus()
+    // First-party-only offers no enabled control at all.
+    const stuck = panel()
+    stuck.status = status({ state: 'firstPartyOnly', tier: 'osStore', reason: 'brokerBlocked' })
+    rerender(<VaultSection state={stuck} post={vi.fn()} />)
+    const focused = document.activeElement
+    expect(focused).not.toBe(document.body)
+    expect(focused?.tagName).toBe('H2')
+    unmount()
+  })
+})

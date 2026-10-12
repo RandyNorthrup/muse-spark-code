@@ -33,6 +33,9 @@ const scenarios = [
   'mounted-setup-pending',
   'mounted-unavailable',
   'mounted-unreachable',
+  'mounted-busy',
+  'mounted-transient-timeout',
+  'mounted-watch-lost',
   'mounted-first-party-only',
 ]
 const themes = isDrill

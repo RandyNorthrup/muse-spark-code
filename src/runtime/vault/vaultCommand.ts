@@ -290,8 +290,23 @@ async function importFile(
   } catch {
     /* EOF, timeout and cancellation keep the file. */
   }
-  if (answer === 'delete') await port.deleteImport(report.receipt)
-  else await port.keepImport(report.receipt)
+  if (answer === 'delete') {
+    try {
+      await port.deleteImport(report.receipt)
+    } catch (error: unknown) {
+      // The source is already gone: finish the person's Delete by clearing
+      // the leftover record instead of dropping it (RVCM1091G P3). A record
+      // already cleared (or still stuck) leaves the refusal below as is.
+      if (error instanceof Error && error.message === UI_TEXT.vault.sourceGone) {
+        try {
+          await port.keepImport(report.receipt)
+        } catch {
+          /* The refusal below still holds: the file is gone. */
+        }
+      }
+      throw error
+    }
+  } else await port.keepImport(report.receipt)
   return 0
 }
 /** Reset Vault: a lost vault only; the warning, Continue, then the typed word. */
