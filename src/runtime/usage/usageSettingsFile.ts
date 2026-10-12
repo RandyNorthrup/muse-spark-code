@@ -16,6 +16,11 @@ const settingsSchema = z.strictObject({
 })
 export type UsageHistorySettings = z.infer<typeof settingsSchema>
 
+/** Whether `error` is the invalid-settings refusal below (never a missing file). */
+export function isInvalidUsageSettings(error: unknown): boolean {
+  return error instanceof Error && error.message === 'invalidUsageSettings'
+}
+
 /** A missing file is the default (on); an unreadable one throws rather than guessing. */
 export function readUsageHistorySettings(dataFolder: string): UsageHistorySettings {
   try {

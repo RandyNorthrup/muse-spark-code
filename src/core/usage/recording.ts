@@ -171,6 +171,8 @@ export interface UsageWriterBundle {
     readonly isEnabled: () => boolean
     readonly now: () => number
     readonly onWriteError: () => void
+    /** Reported once when the settings file is invalid and history pauses (EXECPROV E). */
+    readonly onInvalidSettings?: () => void
   }): Promise<UsageWriter>
 }
 export function isUsageWriterBundle(value: unknown): value is UsageWriterBundle {
