@@ -310,3 +310,12 @@ The two-schedule, one-target regression failed before repair: both fires were
 uncertain even though only the first reached deliver. An aborted scheduler now
 stops selecting/handing off work and leaves the second admission in the outbox.
 Reload delivers that second fire once, with no replay of the first dispatch.
+
+## RVSCHEDJOIN P2 — known close results
+
+The regression returns a confirmed queue withdrawal one event-loop turn after
+abort. Before repair the result became uncertain with USD 1 held. The core now
+waits at most SCHEDULE_CLOSE_RESULT_WAIT_MS (1,000 ms) for cooperative host
+withdrawal/cost facts and journals the validated result as known. A hanging host
+still ends uncertain within that bound; admitted work behind it remains untouched.
+The focused close/binding run passed 14/14 at repository case deadlines.

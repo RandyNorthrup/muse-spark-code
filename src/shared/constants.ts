@@ -4270,6 +4270,8 @@ export const SCHEDULE_LEASE_POLL_MS = 40
 export const SCHEDULE_QUEUE_COALESCE_MS = 100
 export const SCHEDULE_PROTOCOL_VERSION = 1
 export const SCHEDULE_ACP_RELEASE_TIMEOUT_MS = 1000
+// Give cooperative host withdrawal a bounded chance to return known facts.
+export const SCHEDULE_CLOSE_RESULT_WAIT_MS = 1000
 export const SCHEDULE_CLEANUP_EXIT_CODE = 3
 export const SCHEDULE_WAKE_WAIT_MS = 5 * SCHEDULE_POLL_INTERVAL_MS
 export const SCHEDULE_WAKE_BARRIER_TIMEOUT_MS = 5000
