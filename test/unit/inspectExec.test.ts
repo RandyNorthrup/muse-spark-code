@@ -138,6 +138,24 @@ if (process.platform === 'linux') {
         await h.runner.dispose()
       }
     })
+    it('never reads a killed program’s stderr as the helper’s verdict', async () => {
+      // The fake prints the confined line, then a program-owned line that
+      // looks like a refusal, then dies by signal. The runner knows the
+      // program and the signal: du reports the existing process-creation
+      // refusal (it dies asking for a thread the boundary denies), and any
+      // other program reports the generic one — never the forged word.
+      for (const [command, reason] of [
+        ['wc -l ordinary.txt', 'confinement'],
+        ['du -s .', 'processCreation'],
+      ] as const) {
+        const h = await fixture('killedAfterJson')
+        try {
+          expect(await h.runner.run(command, h.binding)).toEqual({ kind: 'refused', reason })
+        } finally {
+          await h.runner.dispose()
+        }
+      }
+    })
     it('does not start a helper for grammar misses, root or pre-cancelled requests', async () => {
       const h = await fixture('normal')
       try {

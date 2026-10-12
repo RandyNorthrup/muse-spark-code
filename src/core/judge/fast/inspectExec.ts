@@ -244,18 +244,33 @@ export class InspectRunner {
       signal,
     )
     if (result.refusal !== undefined) return refused(result.refusal)
+    if (result.exitCode === null) {
+      // The started program was killed by a signal, so its stderr is its own:
+      // it can print anything, including a JSON-looking line, and nothing on
+      // stderr is read as the helper's verdict. The runner knows the program
+      // and the signal. `du` dies here asking for a thread, which the
+      // boundary denies, so it reports the existing process-creation refusal
+      // ("du on this machine needs to start a thread, which the boundary
+      // does not allow") instead of the generic one; anything else stays it.
+      return refused(parsed.program === 'du' ? 'processCreation' : 'confinement')
+    }
     const newline = result.stderr.indexOf('\n')
-    if (
-      newline === -1 ||
-      result.exitCode === null ||
-      result.exitCode === JUDGE_FAST_B1_REFUSED_EXIT
-    ) {
-      // A refusal can follow the confined line (a failed exec, or a report
-      // failure), so the refusal is the last complete JSON line on stderr,
-      // not the whole stderr as one value.
+    if (newline === -1 || result.exitCode === JUDGE_FAST_B1_REFUSED_EXIT) {
+      // The helper emits exactly one refusal line (a verification failure
+      // before confinement), or the confined line followed by one refusal
+      // line (a failed exec, or a report failure). Anything else — a lone
+      // confined line, extra lines, a started program's own stderr — is the
+      // runner's own generic refusal, never a verdict read from the program.
       const lines = result.stderr.split('\n').filter((line) => line.trim().length > 0)
-      const native = nativeRefusalSchema.safeParse(json(lines.at(-1) ?? ''))
-      return refused(native.success ? native.data.refused : 'confinement')
+      if (lines.length === 1) {
+        const native = nativeRefusalSchema.safeParse(json(lines.at(0) ?? ''))
+        return refused(native.success ? native.data.refused : 'confinement')
+      }
+      if (lines.length === 2 && runSchema.safeParse(json(lines.at(0) ?? '')).success) {
+        const native = nativeRefusalSchema.safeParse(json(lines.at(1) ?? ''))
+        return refused(native.success ? native.data.refused : 'confinement')
+      }
+      return refused('confinement')
     }
     const metadata = runSchema.safeParse(json(result.stderr.slice(0, newline)))
     if (!metadata.success) return refused('confinement')
