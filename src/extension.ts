@@ -3560,6 +3560,14 @@ async function activateWindow(
                 authGeneration === auth.admissionGeneration &&
                 isProjectTrusted() &&
                 !nativeStarts.signal.aborted,
+              // The parent session's save drains before the journal seeds
+              // from its file (RVCM352B P2): a first press waits out the
+              // save the controller's attach queued, as the host-owned
+              // scope's own refresh did.
+              awaitSessionSave: async () => {
+                const host = await modelApi.ensureHost()
+                await host.flush()
+              },
             })
           },
           exports: cliFeatures.exports,

@@ -5039,8 +5039,6 @@ export const DICTATION_HOLD_MS = 300
 export const DICTATION_KEY = 'd'
 /** After "stop", the helper has this long to deliver the phrase in flight. */
 export const DICTATION_STOP_GRACE_MS = 4000
-/** How long an unused helper stays warm before it is told to quit. */
-export const DICTATION_IDLE_EXIT_MS = 5 * 60 * 1000
 /** After "quit", the helper has this long to exit before it is killed. */
 export const DICTATION_QUIT_GRACE_MS = 2000
 export const DICTATION_STDERR_TAIL_CHARS = 400

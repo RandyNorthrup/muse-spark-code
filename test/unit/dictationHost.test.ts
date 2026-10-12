@@ -76,6 +76,10 @@ class BrokenPipeProcess extends EventEmitter implements HelperProcess {
     this.killCount += 1
     return true
   }
+
+  public onStopFailed(): void {
+    // This stand-in never refuses a stop.
+  }
 }
 
 function collect(source: {
@@ -220,7 +224,7 @@ describe('createDictationSetup', () => {
       'en',
     )
     expect(started).toHaveBeenCalledTimes(2)
-    driver.dispose()
+    void driver.dispose()
   })
 
   it('is unavailable when the extension runs on the remote side of a remote window (M26)', () => {
@@ -405,7 +409,7 @@ describe.runIf(process.platform === 'win32')('native/windows/capture.ps1 (M35)',
     })
     dictation.start()
     await stopped.promise
-    dictation.dispose()
+    await dictation.dispose()
     expect(errors).toEqual([])
     expect(statuses).toEqual(['starting', 'listening', 'idle'])
     expect(Buffer.concat(chunks).equals(pcm)).toBe(true)

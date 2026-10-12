@@ -4,7 +4,8 @@
 // handed out before then loads nothing; a recording that cannot load it
 // fails as recordings fail, through `onError`, and the next press tries again.
 
-import { copyFileSync, mkdirSync, readFileSync } from 'node:fs'
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { createHash } from 'node:crypto'
@@ -18,9 +19,11 @@ import {
   ownedMetaVoiceBudgetScope,
   voiceLoader,
 } from '../../src/host/voice/voiceBundle'
+import { createFileSessionStore } from '../../src/host/backend/fileSessionStore'
 import { UI_TEXT, VOICE_BUNDLE_FILE } from '../../src/shared/constants'
 import { uiLocale } from '../../src/shared/l10n/text'
 import { FakeLogOutputChannel } from './helpers/fakes'
+import { fakeParentSession } from './helpers/fakeParentSession'
 import { builtForTests, lazyLoaderCases } from './helpers/lazyBundles'
 
 const built = builtForTests('src/host/voice/voiceEntry.ts', VOICE_BUNDLE_FILE)
@@ -216,6 +219,7 @@ describe('Meta-owned voice budget (RVCM352 P2 identity)', () => {
       accountId: 'meta-key-digest',
       capUsd: () => Usd.from(1).toAmount(),
       isCurrent: () => context.isCurrent,
+      awaitSessionSave: () => Promise.resolve(),
     }
     const scope = await ownedMetaVoiceBudgetScope(deps)
     expect(read).toHaveBeenCalledExactlyOnceWith('voice-parent', 'meta-key-digest')
@@ -230,6 +234,64 @@ describe('Meta-owned voice budget (RVCM352 P2 identity)', () => {
       UI_TEXT.sessionBudgetVoiceContextChanged,
     )
     expect(await ownedMetaVoiceBudgetScope({ ...deps, journal: undefined })).toBeUndefined()
+  })
+})
+
+describe('ownedMetaVoiceBudgetScope waits for the parent save (RVCM352B P2)', () => {
+  it('a first press racing the session save waits for it instead of reporting missing storage', async () => {
+    const directory = realpathSync(mkdtempSync(path.join(tmpdir(), 'muse-voice-save-')))
+    try {
+      const store = createFileSessionStore({
+        directory,
+        log: new FakeLogOutputChannel(),
+        retentionDays: () => 0,
+        now: () => 0,
+        sleep: () => Promise.resolve(undefined),
+      })
+      const journal = store.budget
+      if (journal === undefined) throw new Error('No voice budget journal')
+      const accountId = createHash('sha256').update('voice-test-key').digest('hex')
+      // Reading before any save lands reports missing storage: the race.
+      await expect(journal.read('voice-first-press', accountId)).rejects.toThrow(
+        UI_TEXT.sessionBudgetStoreUnavailable,
+      )
+      // The parent session saves slowly; the admission must not read until
+      // its owner says the save is durable, even once the file is there.
+      const saved: Promise<void> = store.save(fakeParentSession('voice-first-press', accountId))
+      const releaseBarrier = Promise.withResolvers<undefined>()
+      let isAdmitted = false
+      const admitted = (async () => {
+        const scope = await ownedMetaVoiceBudgetScope({
+          journal,
+          sessionId: 'voice-first-press',
+          accountId,
+          capUsd: () => Usd.from(1).toAmount(),
+          isCurrent: () => true,
+          awaitSessionSave: () =>
+            (async () => {
+              await saved
+              await releaseBarrier.promise
+            })(),
+        })
+        isAdmitted = true
+        return scope
+      })()
+      await saved
+      await new Promise((resolve) => setTimeout(resolve, 25))
+      // Durable, yet still waiting: the read follows the refresh, not the file.
+      expect(isAdmitted).toBe(false)
+      releaseBarrier.resolve(undefined)
+      const scope = await admitted
+      expect(isAdmitted).toBe(true)
+      expect(scope?.sessionId).toBe('voice-first-press')
+      // The seeded journal reads from the saved spend.
+      await expect(journal.read('voice-first-press', accountId)).resolves.toEqual({
+        spentUsd: Usd.from(0).toAmount(),
+        hasUnknownHistoricalFees: false,
+      })
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
+    }
   })
 })
 
@@ -256,6 +318,7 @@ it('production voice callbacks bind Meta scopes and never fall back to the conve
       accountId: () => Promise.resolve(key.current === undefined ? 'provider-digest' : digest),
       ensureHost: () =>
         Promise.resolve({
+          flush: () => Promise.resolve(),
           getOwnedBudgetScope: () =>
             Promise.resolve({
               sessionId: 'parent',
@@ -290,6 +353,10 @@ it('production voice callbacks bind Meta scopes and never fall back to the conve
     metaAllowed: true,
     providerAllowed: false,
   })
+  // The admission waits for the parent session save before reading the
+  // journal (RVCM352B P2): the evaluated wiring above would throw without
+  // the host's flush behind it.
+  expect(source.slice(start, end)).toContain('awaitSessionSave')
   key.current = undefined
   const missing = Promise.withResolvers<unknown>()
   runInNewContext(`({${source.slice(start, end)}}).voiceAccountId().then(resolve, reject)`, {

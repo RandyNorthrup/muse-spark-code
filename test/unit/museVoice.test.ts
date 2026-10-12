@@ -1,15 +1,15 @@
 import { createPaidDailyBudget } from '../../src/host/paid/paidDailyBudget'
 import { fill } from '../../src/shared/l10n/text'
 import { formatUsd } from '../../src/core/usage/insights'
-import { Usd } from '../../src/shared/usd'
+import { Usd, type UsdAmount } from '../../src/shared/usd'
 import { Buffer } from 'node:buffer'
-import { EventEmitter } from 'node:events'
 import { createHash } from 'node:crypto'
 import { mkdtempSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import type { OwnedSessionBudgetScope } from '../../src/core/backends/modelapi/sessionBudget'
 import { createFileSessionStore } from '../../src/host/backend/fileSessionStore'
+import { FakeHelperProcess } from './helpers/fakeHelperChild'
 import { removeFolder } from './helpers/temporaryFolders'
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -17,6 +17,7 @@ import {
   type DictationHandle,
   type DictationListener,
   type HelperChild,
+  type VoiceConsentFence,
 } from '../../src/core/voice/dictation'
 import {
   MuseVoiceDictation,
@@ -25,6 +26,7 @@ import {
   type VoiceSocketHandlers,
 } from '../../src/core/voice/museVoice'
 import {
+  DICTATION_QUIT_GRACE_MS,
   DICTATION_STOP_GRACE_MS,
   MUSE_VOICE_BYTES_PER_SECOND,
   MUSE_VOICE_FRAME_BYTES,
@@ -33,12 +35,12 @@ import {
   MUSE_VOICE_RESERVED_MS,
   MUSE_VOICE_FINISH_TIMEOUT_MS,
   MUSE_VOICE_HANDSHAKE_TIMEOUT_MS,
-  STORED_SESSION_VERSION,
   UI_TEXT,
   PAID_PRICES_USD,
   SECONDS_PER_HOUR,
 } from '../../src/shared/constants'
 import { FakeLogOutputChannel } from './helpers/fakes'
+import { fakeParentSession } from './helpers/fakeParentSession'
 
 const KEY = 'LLM|1|secret'
 const URL = 'wss://voice.example.test/v1/asr/realtime'
@@ -295,7 +297,7 @@ class FakeCapture implements DictationHandle {
     this.listener.onStatus('idle')
   }
 
-  public dispose(): void {
+  public dispose(): void | Promise<void> {
     this.isDisposed = true
   }
 }
@@ -323,6 +325,8 @@ function dictationSetup(
   ownedBudgetScope?: DictationListener['ownedBudgetScope'],
   keyProvider?: () => Promise<string | undefined>,
   reserveDaily?: ConstructorParameters<typeof MuseVoiceDictation>[0]['reserveDaily'],
+  fenceForPress?: () => VoiceConsentFence | undefined,
+  makeCapture?: (listener: DictationListener) => FakeCapture,
 ) {
   const apiKey = hasKey ? KEY : undefined
   const captures: FakeCapture[] = []
@@ -333,7 +337,8 @@ function dictationSetup(
   const dictation = new MuseVoiceDictation(
     {
       createCapture: (listener) => {
-        const capture = new FakeCapture(listener)
+        const capture =
+          makeCapture === undefined ? new FakeCapture(listener) : makeCapture(listener)
         captures.push(capture)
         return capture
       },
@@ -355,6 +360,7 @@ function dictationSetup(
         usage.push(message)
       },
       ...(ownedBudgetScope !== undefined && { ownedBudgetScope }),
+      ...(fenceForPress !== undefined && { voiceConsentFence: fenceForPress }),
       onStatus: (status) => {
         statuses.push(status)
       },
@@ -395,23 +401,7 @@ async function voiceBudget(name: string, capUsd = 0) {
     sleep: () => Promise.resolve(),
   })
   const accountId = createHash('sha256').update(KEY).digest('hex')
-  await store.save({
-    version: STORED_SESSION_VERSION,
-    sessionId: 'voice-parent',
-    accountId,
-    workspaceRoot: '/ws',
-    modelId: 'muse-spark-1.3',
-    approvalMode: 'promptUnmatched',
-    effort: 'high',
-    createdAt: '2026-09-29T00:00:00Z',
-    lastActivityAt: '2026-09-29T00:00:00Z',
-    turnIds: [],
-    todos: [],
-    replay: [],
-    transcript: [],
-    outputs: {},
-    usage: { inputTokens: 0, outputTokens: 0, cachedTokens: 0, reasoningTokens: 0 },
-  })
+  await store.save(fakeParentSession('voice-parent', accountId))
   const journal = store.budget
   if (journal === undefined) {
     throw new Error('No voice budget journal')
@@ -478,6 +468,9 @@ async function stopRecordedVoice(t: ReturnType<typeof dictationSetup>, seconds: 
   await answered(t)
   t.capture().listener.onAudio?.(pcm(seconds))
   t.capture().listener.onStopped?.()
+  await flushVoicePrepare()
+  // The end lands once the capture's exit is observed, not on the acknowledgement.
+  await flushVoicePrepare()
 }
 
 async function expectUnknownVoiceEstimate(budget: VoiceBudgetFixture) {
@@ -672,6 +665,326 @@ describe('MuseVoiceDictation shared budget (M82)', () => {
   })
 })
 
+describe('MuseVoiceDictation queued admission (RVCM352B P1-a)', () => {
+  it('a queued Start keeps the budget scope and fence it was pressed under', async () => {
+    const first = await voiceBudget('queued-admission-first', 1)
+    const second = await voiceBudget('queued-admission-second', 1)
+    // Like the controller's press slots: each press reads them once, and the
+    // press clears them on return, so a later re-read finds nothing.
+    let press = 0
+    const scopes = [first.scope, second.scope]
+    const fenceBCalls: unknown[][] = []
+    const fenceB: VoiceConsentFence = (...args) => {
+      fenceBCalls.push(args)
+    }
+    const readPress = <T>(values: T[]): T | undefined => (press < 0 ? undefined : values[press])
+    const dailyHeld = Promise.withResolvers<ReturnType<typeof fakeVoiceDailyClaim>>()
+    const enteredDaily = Promise.withResolvers<undefined>()
+    let dailyCalls = 0
+    const t = dictationSetup(
+      true,
+      () => Promise.resolve(readPress(scopes)),
+      undefined,
+      () => {
+        dailyCalls += 1
+        if (dailyCalls === 1) {
+          enteredDaily.resolve(undefined)
+          return dailyHeld.promise
+        }
+        return Promise.resolve(t.daily)
+      },
+      () => (press === 1 ? fenceB : undefined),
+    )
+    try {
+      t.dictation.start()
+      press = -1
+      await enteredDaily.promise
+      expect(t.sockets).toEqual([])
+      // Stop while A's daily admission is pending, then press B: it waits
+      // behind the draining A with the admission it was pressed under.
+      t.dictation.stop()
+      press = 1
+      t.dictation.start()
+      press = -1
+      dailyHeld.resolve(t.daily)
+      await captureStarted(t)
+      // B reserved the parent journal it was admitted with, ran under its
+      // own consent fence, and opened the only socket; A left nothing behind.
+      await vi.waitFor(async () => {
+        const secondTotal = await voiceBudgetTotal(second)
+        expect(secondTotal.spentUsd).toBe(reservation())
+      })
+      expect(t.sockets).toHaveLength(1)
+      expect(fenceBCalls.length).toBeGreaterThan(0)
+      const firstTotal = await voiceBudgetTotal(first)
+      expect(firstTotal.spentUsd).toBe(Usd.from(0).toAmount())
+    } finally {
+      dailyHeld.resolve(t.daily)
+      await t.dictation.dispose()
+    }
+    await expectVoiceRefund(second)
+    await expectVoiceRefund(first)
+  })
+
+  it('a queued Start whose admission died is refused with the true reason', async () => {
+    const budget = await voiceBudget('queued-admission-stale', 1)
+    const context = { isValid: true }
+    const fence: VoiceConsentFence = () => {
+      if (!context.isValid) throw new Error(UI_TEXT.sessionBudgetVoiceContextChanged)
+    }
+    const t = dictationSetup(
+      true,
+      () => Promise.resolve(budget.scope),
+      undefined,
+      undefined,
+      () => fence,
+    )
+    try {
+      t.dictation.start()
+      await captureStarted(t)
+      expect(t.sockets).toHaveLength(1)
+      // B parks behind the stopping A; the world changes on its watch.
+      t.dictation.stop()
+      t.dictation.start()
+      context.isValid = false
+      t.capture().listener.onStopped?.()
+      // Refused before any reservation: the true reason, no socket, no
+      // capture start, and no second daily admission for B.
+      await vi.waitFor(() => {
+        expect(t.errors).toEqual([UI_TEXT.sessionBudgetVoiceContextChanged])
+      })
+      expect(t.sockets).toHaveLength(1)
+      expect(t.reserve).toHaveBeenCalledOnce()
+      expect(t.capture().starts).toBe(0)
+    } finally {
+      await t.dictation.dispose()
+    }
+    await expectVoiceRefund(budget)
+  })
+})
+
+/** A capture whose process exit the test observes by hand (RVCM352B P1-b). */
+class GatedCapture extends FakeCapture {
+  public readonly exitGate = Promise.withResolvers<undefined>()
+  public exited = false
+
+  public override async dispose(): Promise<void> {
+    this.isDisposed = true
+    await this.exitGate.promise
+    this.exited = true
+  }
+}
+
+type VoiceEnd = 'stop' | 'cancel' | 'capture-error' | 'dispose'
+type VoicePhase = 'prepare' | 'record' | 'settle'
+
+/** The server reported zero final audio; the settlement write followed. */
+async function settleZeroFinal(t: ReturnType<typeof dictationSetup>): Promise<void> {
+  t.socket().serverSays({
+    type: 'transcript',
+    transcript: '',
+    final: true,
+    audioProcessedMs: 0,
+  })
+  await vi.waitFor(() => {
+    expect(t.daily.settle).toHaveBeenCalledOnce()
+  })
+}
+
+describe('MuseVoiceDictation end reasons (RVCM352B P1-b table)', () => {
+  const cells: [VoiceEnd, VoicePhase][] = [
+    ['stop', 'record'],
+    ['cancel', 'prepare'],
+    ['capture-error', 'prepare'],
+    ['capture-error', 'record'],
+    ['dispose', 'prepare'],
+    ['dispose', 'record'],
+    ['dispose', 'settle'],
+  ]
+
+  it.each(cells)(
+    'end %s during %s leaves no recorder, settles each recording once, and admits the next press',
+    async (end, phase) => {
+      const budget = await voiceBudget(`table-${end}-${phase}`, 1)
+      const gated: GatedCapture[] = []
+      const dailyReserveGate = Promise.withResolvers<ReturnType<typeof fakeVoiceDailyClaim>>()
+      const dailySettleGate = Promise.withResolvers<{
+        spentUsd: UsdAmount
+        hasUnknownHistoricalFees: boolean
+      }>()
+      let dailyReserves = 0
+      let isDrained = false
+      const t = dictationSetup(
+        true,
+        () => Promise.resolve(budget.scope),
+        undefined,
+        () => {
+          dailyReserves += 1
+          return phase === 'prepare' && dailyReserves === 1
+            ? dailyReserveGate.promise
+            : Promise.resolve(t.daily)
+        },
+        undefined,
+        (listener) => {
+          const capture = new GatedCapture(listener)
+          gated.push(capture)
+          return capture
+        },
+      )
+      const releaseExit = (index: number): void => {
+        gated[index]?.exitGate.resolve(undefined)
+      }
+      const settleCalls = (): unknown[][] => t.daily.settle.mock.calls.map((call) => [...call])
+      try {
+        t.dictation.start()
+        if (phase === 'prepare') {
+          await vi.waitFor(() => {
+            expect(dailyReserves).toBe(1)
+          })
+          expect(t.capture().starts).toBe(0)
+        } else {
+          await captureStarted(t)
+          if (phase === 'settle') {
+            t.socket().handlers.onOpen()
+            t.socket().serverSays({ sessionId: `table-${end}-${phase}` })
+            t.dictation.stop()
+            // The fake capture acks by hand; the exit is observed after.
+            t.capture().listener.onStopped?.()
+            releaseExit(0)
+            await flushVoicePrepare()
+            t.daily.settle.mockImplementationOnce(() => dailySettleGate.promise)
+            await settleZeroFinal(t)
+            expect(gated[0]?.exited).toBe(true)
+          }
+        }
+        switch (end) {
+          case 'dispose': {
+            const disposed = (async () => {
+              await t.dictation.dispose()
+              isDrained = true
+            })()
+            await flushVoicePrepare()
+            // The drain waits for the recorder's exit (and a held settlement).
+            expect(isDrained).toBe(false)
+            releaseExit(0)
+            await flushVoicePrepare()
+            if (phase === 'prepare') dailyReserveGate.resolve(t.daily)
+            else if (phase === 'settle') {
+              dailySettleGate.resolve({
+                spentUsd: Usd.from(0).toAmount(),
+                hasUnknownHistoricalFees: false,
+              })
+            }
+            await disposed
+            expect(isDrained).toBe(true)
+            break
+          }
+          case 'stop': {
+            t.dictation.stop()
+            t.capture().listener.onStopped?.()
+            await flushVoicePrepare()
+            // Ended only when the exit is observed: nothing counted yet.
+            expect(gated[0]?.exited).toBe(false)
+            expect(t.seconds).toEqual([])
+            releaseExit(0)
+            await flushVoicePrepare()
+            expect(gated[0]?.exited).toBe(true)
+            expect(t.statuses).toContain('idle')
+            break
+          }
+          case 'cancel': {
+            t.dictation.stop()
+            await flushVoicePrepare()
+            expect(gated[0]?.exited).toBe(false)
+            expect(t.statuses).not.toContain('idle')
+            releaseExit(0)
+            dailyReserveGate.resolve(t.daily)
+            await flushVoicePrepare()
+            expect(gated[0]?.exited).toBe(true)
+            expect(t.statuses).toContain('idle')
+            break
+          }
+          default: {
+            t.capture().listener.onError('the microphone stopped')
+            await flushVoicePrepare()
+            // The failure is said once the process is gone, not on the report.
+            expect(t.errors).toEqual([])
+            expect(gated[0]?.exited).toBe(false)
+            releaseExit(0)
+            await flushVoicePrepare()
+            expect(gated[0]?.exited).toBe(true)
+            expect(t.errors).toEqual(['the microphone stopped'])
+            break
+          }
+        }
+        if (end !== 'dispose') {
+          // The next press admits afresh on a new recorder.
+          if (phase === 'prepare') dailyReserveGate.resolve(t.daily)
+          t.dictation.start()
+          await captureStarted(t)
+          expect(t.capture().starts).toBe(1)
+          expect(t.errors.filter((error) => error !== 'the microphone stopped')).toEqual([])
+          for (const capture of gated) capture.exitGate.resolve(undefined)
+          await t.dictation.dispose()
+        }
+        expect(gated.every((capture) => capture.exited)).toBe(true)
+      } finally {
+        dailyReserveGate.resolve(t.daily)
+        dailySettleGate.resolve({
+          spentUsd: Usd.from(0).toAmount(),
+          hasUnknownHistoricalFees: false,
+        })
+        for (const capture of gated) capture.exitGate.resolve(undefined)
+        await t.dictation.dispose()
+      }
+      // Each recording settled exactly once, for nothing, and refunded.
+      const expectedSettles = end === 'dispose' ? 1 : 2
+      expect(settleCalls()).toEqual(
+        Array.from({ length: expectedSettles }, () => [Usd.from(0).toAmount(), false]),
+      )
+      await expectVoiceRefund(budget)
+    },
+  )
+
+  it('a slow final settles once after the recorder is already gone', async () => {
+    const budget = await voiceBudget('table-slow-final', 1)
+    const gated: GatedCapture[] = []
+    const t = dictationSetup(
+      true,
+      () => Promise.resolve(budget.scope),
+      undefined,
+      undefined,
+      undefined,
+      (listener) => {
+        const capture = new GatedCapture(listener)
+        gated.push(capture)
+        return capture
+      },
+    )
+    try {
+      t.dictation.start()
+      await captureStarted(t)
+      t.socket().handlers.onOpen()
+      t.socket().serverSays({ sessionId: 'table-slow-final' })
+      t.dictation.stop()
+      t.capture().listener.onStopped?.()
+      gated[0]?.exitGate.resolve(undefined)
+      await flushVoicePrepare()
+      // The recorder is gone while the transcript is still awaited, and
+      // nothing is counted or settled meanwhile.
+      expect(gated[0]?.exited).toBe(true)
+      expect(t.seconds).toEqual([])
+      expect(t.daily.settle).not.toHaveBeenCalled()
+      await settleZeroFinal(t)
+      expect(t.daily.settle).toHaveBeenCalledExactlyOnceWith(Usd.from(0).toAmount(), false)
+    } finally {
+      for (const capture of gated) capture.exitGate.resolve(undefined)
+      await t.dictation.dispose()
+    }
+    await expectVoiceRefund(budget)
+  })
+})
+
 /** Waits for the recording's socket, opens it and answers its handshake. */
 async function answered(t: ReturnType<typeof dictationSetup>): Promise<void> {
   await vi.waitFor(() => {
@@ -693,6 +1006,7 @@ describe('MuseVoiceDictation (M35)', () => {
     t.dictation.stop()
     expect(t.capture().stops).toBe(1)
     t.capture().listener.onStopped?.()
+    await flushVoicePrepare()
     t.socket().serverSays({
       type: 'transcript',
       transcript: '  run the tests  ',
@@ -712,6 +1026,7 @@ describe('MuseVoiceDictation (M35)', () => {
     })
     t.capture().listener.onStatus('idle')
     t.capture().listener.onStopped?.()
+    await flushVoicePrepare()
     t.dictation.start()
     await vi.waitFor(() => {
       expect(t.sockets).toHaveLength(2)
@@ -749,6 +1064,7 @@ describe('MuseVoiceDictation (M35)', () => {
     await answered(t)
     t.capture().listener.onAudio?.(pcm(1.2))
     t.capture().listener.onError('The microphone stopped')
+    await flushVoicePrepare()
     expect(t.errors).toEqual(['The microphone stopped'])
     expect(t.socket().isClosed).toBe(true)
     expect(t.seconds).toEqual([1])
@@ -780,6 +1096,7 @@ describe('CM352 bounded voice admission and receipts', () => {
     expect(pendingTotal.spentUsd).toBe(reservation())
     t.capture().listener.onAudio?.(pcm(1.99))
     t.capture().listener.onStopped?.()
+    await flushVoicePrepare()
     t.socket().serverSays({
       type: 'transcript',
       transcript: 'silence also counts',
@@ -883,6 +1200,7 @@ describe('CM352 bounded voice admission and receipts', () => {
     broken.dictation.start()
     await answered(broken)
     broken.capture().listener.onStopped?.()
+    await flushVoicePrepare()
     broken
       .socket()
       .serverSays({ type: 'transcript', transcript: '', final: true, audioProcessedMs: 0 })
@@ -999,6 +1317,7 @@ describe('CM352 bounded voice admission and receipts', () => {
     await answered(t)
     t.capture().listener.onAudio?.(pcm(1.99))
     t.capture().listener.onStopped?.()
+    await flushVoicePrepare()
     t.socket().serverSays({
       type: 'transcript',
       transcript: 'held settlement',
@@ -1154,6 +1473,7 @@ it('CM352 shares real daily reservations across Muse Code windows and releases f
     expect(second.errors).toHaveLength(1)
     first.capture().listener.onAudio?.(pcm(3))
     first.capture().listener.onStopped?.()
+    await flushVoicePrepare()
     first
       .socket()
       .serverSays({ type: 'transcript', transcript: '', final: true, audioProcessedMs: 3040 })
@@ -1165,6 +1485,7 @@ it('CM352 shares real daily reservations across Muse Code windows and releases f
     await answered(second)
     second.capture().listener.onAudio?.(pcm(3))
     second.capture().listener.onStopped?.()
+    await flushVoicePrepare()
     second
       .socket()
       .serverSays({ type: 'transcript', transcript: '', final: true, audioProcessedMs: 3040 })
@@ -1181,25 +1502,13 @@ it('CM352 shares real daily reservations across Muse Code windows and releases f
 })
 
 /** A helper process under test control speaking the line protocol. */
-class FakeHelperChild implements HelperChild {
-  public readonly stdout = new EventEmitter()
-  public readonly stderr = new EventEmitter()
-  public readonly sent: string[] = []
-
-  public send(line: string): void {
-    this.sent.push(line)
-  }
-
-  public onExit(): void {
-    // The P1 order never kills the helper.
+class FakeHelperChild extends FakeHelperProcess implements HelperChild {
+  public onStopFailed(): void {
+    // This fake never refuses a stop.
   }
 
   public kill(): void {
-    // The P1 order never kills the helper.
-  }
-
-  public emitLine(payload: unknown): void {
-    this.stdout.emit('data', Buffer.from(`${JSON.stringify(payload)}\n`))
+    // Kills land as exits only when the test says the process is gone.
   }
 }
 
@@ -1268,6 +1577,16 @@ function voiceAudioLine(seconds: number): unknown {
   }
 }
 
+/**
+ * Ends every helper that never exited: dispose quits them, and the clock
+ * runs past the bounded kill so the drain resolves under fake timers.
+ */
+async function disposeIdentity(t: ReturnType<typeof identitySetup>): Promise<void> {
+  const disposed = t.driver.dispose()
+  await vi.advanceTimersByTimeAsync(2 * DICTATION_QUIT_GRACE_MS)
+  await disposed
+}
+
 async function listeningIdentity(
   t: ReturnType<typeof identitySetup>,
   seconds: number,
@@ -1289,6 +1608,23 @@ async function stoppingIdentityAtCap(isStartQueued: boolean) {
   if (isStartQueued) t.driver.start()
   vi.advanceTimersByTime(1000)
   return t
+}
+
+/**
+ * The helper's stop acknowledgement, then its observed process exit: only
+ * the pair ends a recording (RVCM352B P1-b), retiring the stream and
+ * releasing the queued press.
+ */
+async function ackStop(
+  t: ReturnType<typeof identitySetup>,
+  index = 0,
+  description = 'exit code 0',
+): Promise<void> {
+  t.child(index).emitLine({ type: 'stopped' })
+  expect(t.child(index).sent).toEqual(expect.arrayContaining(['start', 'stop', 'quit']))
+  await flushVoicePrepare()
+  t.child(index).exit(description)
+  await flushVoicePrepare()
 }
 
 describe('MuseVoiceDictation recording identity (P1 restart race)', () => {
@@ -1317,10 +1653,13 @@ describe('MuseVoiceDictation recording identity (P1 restart race)', () => {
     t.child().emitLine(voiceAudioLine(1))
     expect(t.sockets[1]).toBeUndefined()
     expect(t.sockets[0]?.binaries.length).toBeGreaterThan(aFrames)
-    // A's acknowledgement finishes A and releases B, without touching B.
+    // A's acknowledgement retires A, but B waits for A's observed exit.
     t.child().emitLine({ type: 'stopped' })
     await flushVoicePrepare()
-    expect(t.child().sent).toEqual(['start', 'stop'])
+    expect(t.child().sent).toEqual(['start', 'stop', 'quit'])
+    expect(t.sockets).toHaveLength(1)
+    t.child().exit('exit code 0')
+    await flushVoicePrepare()
     t.child(1).emitLine({ type: 'ready', language: 'pcm_s16le' })
     expect(t.child(1).sent).toEqual(['start'])
     expect(t.sockets[0]?.texts.at(-1)).toBe('{"type":"endStream"}')
@@ -1343,14 +1682,13 @@ describe('MuseVoiceDictation recording identity (P1 restart race)', () => {
     vi.advanceTimersByTime(MUSE_VOICE_MAX_SECONDS * 1000)
     expect(t.sockets[1]?.texts.at(-1)).toBe('{"type":"endStream"}')
     expect(t.child(1).sent.at(-1)).toBe('stop')
-    await t.driver.dispose()
+    await disposeIdentity(t)
   })
 
   it('keeps queued B when A reaches its cap while waiting for stopped acknowledgement', async () => {
     const t = await stoppingIdentityAtCap(true)
     try {
-      t.child().emitLine({ type: 'stopped' })
-      await flushVoicePrepare()
+      await ackStop(t)
       expect(t.sockets).toHaveLength(2)
       expect(t.child(1).sent).toEqual([])
       t.child(1).emitLine({ type: 'ready', language: 'pcm_s16le' })
@@ -1361,7 +1699,7 @@ describe('MuseVoiceDictation recording identity (P1 restart race)', () => {
       vi.advanceTimersByTime(MUSE_VOICE_MAX_SECONDS * 1000)
       expect(t.child(1).sent).toEqual(['start', 'stop'])
     } finally {
-      await t.driver.dispose()
+      await disposeIdentity(t)
     }
   })
 
@@ -1378,11 +1716,10 @@ describe('MuseVoiceDictation recording identity (P1 restart race)', () => {
       t.driver.start()
       await flushVoicePrepare()
       expect(t.sockets).toHaveLength(1)
-      t.child().emitLine({ type: 'stopped' })
-      await flushVoicePrepare()
+      await ackStop(t)
       expect(t.sockets).toHaveLength(2)
     } finally {
-      await t.driver.dispose()
+      await disposeIdentity(t)
     }
   })
 
@@ -1398,6 +1735,8 @@ describe('MuseVoiceDictation recording identity (P1 restart race)', () => {
       t.driver.stop()
       t.driver.start()
       vi.advanceTimersByTime(DICTATION_STOP_GRACE_MS)
+      // The grace failure ends A once its (unresponsive) process is gone.
+      t.child().exit('signal SIGKILL')
       await flushVoicePrepare()
       expect(t.sockets[0]?.isClosed).toBe(true)
       expect(t.sockets).toHaveLength(2)
@@ -1411,7 +1750,7 @@ describe('MuseVoiceDictation recording identity (P1 restart race)', () => {
       vi.advanceTimersByTime(MUSE_VOICE_MAX_SECONDS * 1000)
       expect(t.child(1).sent.at(-1)).toBe('stop')
     } finally {
-      await t.driver.dispose()
+      await disposeIdentity(t)
     }
   })
 
@@ -1434,10 +1773,15 @@ describe('MuseVoiceDictation recording identity (P1 restart race)', () => {
           await flushVoicePrepare()
           expect(t.sockets).toHaveLength(1)
           if (stage !== 'queued') {
+            // The acknowledgement retires A; B still waits for A's exit.
             a.emitLine({ type: 'stopped' })
             await flushVoicePrepare()
+            expect(t.sockets).toHaveLength(1)
           }
           if (stage === 'listening') {
+            // B begins only after A's process is observed gone.
+            a.exit('exit code 0')
+            await flushVoicePrepare()
             t.child(1).emitLine({ type: 'ready', language: 'pcm_s16le' })
             t.child(1).emitLine({ type: 'listening' })
           }
@@ -1448,6 +1792,12 @@ describe('MuseVoiceDictation recording identity (P1 restart race)', () => {
             a.emitLine({ type: 'stopped' })
           }
           await flushVoicePrepare()
+          if (stage !== 'listening') {
+            // Whatever retired A — acknowledgement or failure — B begins
+            // only after A's process is observed gone.
+            a.exit('exit code 0')
+            await flushVoicePrepare()
+          }
           expect(t.sockets).toHaveLength(2)
           const b = t.child(1)
           b.emitLine({ type: 'ready', language: 'pcm_s16le' })
@@ -1469,7 +1819,7 @@ describe('MuseVoiceDictation recording identity (P1 restart race)', () => {
           expect(b.sent.at(-1)).toBe('stop')
           expect(t.sockets[1]?.texts.at(-1)).toBe('{"type":"endStream"}')
         } finally {
-          await t.driver.dispose()
+          await disposeIdentity(t)
         }
       }
     },
@@ -1483,6 +1833,9 @@ describe('MuseVoiceDictation recording identity (P1 restart race)', () => {
     await flushVoicePrepare()
     expect(t.sockets).toHaveLength(1)
     t.child().emitLine({ type: 'error', reason: 'the helper died' })
+    // The failure is said once A's process is observed gone; B follows it.
+    expect(t.errors).toEqual([])
+    t.child().exit('exit code 2')
     await flushVoicePrepare()
     expect(t.errors).toEqual(['the helper died'])
     expect(t.texts).toEqual([])
@@ -1494,6 +1847,6 @@ describe('MuseVoiceDictation recording identity (P1 restart race)', () => {
     t.driver.start()
     await flushVoicePrepare()
     expect(t.errors).toHaveLength(1)
-    await t.driver.dispose()
+    await disposeIdentity(t)
   })
 })

@@ -99,8 +99,18 @@ export async function ownedMetaVoiceBudgetScope(deps: {
   readonly accountId: string
   readonly capUsd: () => UsdAmount
   readonly isCurrent: () => boolean
+  /**
+   * The parent session's durable save, awaited before the journal is read
+   * (RVCM352B P2): the same refresh the host-owned scope awaited. A first
+   * microphone press racing that save must wait for it, never report
+   * unavailable storage for a session that is still being written.
+   */
+  readonly awaitSessionSave: () => Promise<void>
 }): Promise<OwnedSessionBudgetScope | undefined> {
   if (deps.journal === undefined) return undefined
+  // The session file seeds the journal: read it only once its save is
+  // durable, or a fresh session looks like missing storage.
+  await deps.awaitSessionSave()
   // Seed/read the same parent journal before reserving; unknown history stays refused.
   await deps.journal.read(deps.sessionId, deps.accountId)
   if (!deps.isCurrent()) throw new Error(UI_TEXT.sessionBudgetVoiceContextChanged)

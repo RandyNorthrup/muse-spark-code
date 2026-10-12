@@ -2038,7 +2038,7 @@ describe.skipIf(!IS_ENABLED)('live Model API sweep (MUSE_LIVE_MODEL_API=1)', () 
           )
           dictation.start()
         })
-        dictation?.dispose()
+        await dictation?.dispose()
         // The socket's close, for the record: the stream closes it after the final text.
         await Promise.race([closed.promise, delay(SOCKET_CLOSE_WAIT_MS)])
         expect(transcript.toLowerCase()).toContain('quick')
