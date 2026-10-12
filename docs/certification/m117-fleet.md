@@ -527,3 +527,33 @@ rasterization fingerprint matches the stored manifest. Uses captureMatrix,
 manifest coverage/hash validation and comparePixels with the production
 tolerance; no baseline updates. This is the complete estimator subset, not
 the full 9,792-image visual gate. `node dist/acp.js estimate --help` exits 0.
+
+# Round 5 (2026-10-11, kubuntu): RVCM1173D owned facts
+
+The redesign begins with a single strict fact schema and one translator table
+for normalized account limits, subscription usage, all four usage observation
+sources and machine thresholds. Every amount may independently be unknown;
+owner identity/generation, UTC instants and observer remain structured. No
+credential, live model attempt, install, dependency or wire parser was added.
+
+Initial table suite: estimatorLimitFacts, 13 passed at repository deadlines.
+The following deliberate mutations each exited 1 and restored
+limitFacts.ts byte-exact, SHA-256
+`703b33333c8d11972bc9267caf6a7e7744ad743c261505869d2f81e3a5db0070`:
+
+- R5-D1: replacing remaining percent with 100 failed `keeps known percentage
+allowance with an unknown period`.
+- R5-D2: dropping every account balance failed all four `retains a partial
+account balance` source cases.
+- R5-D7: bypassing timestamp validation failed the source-refusal tests.
+
+Source contracts are the existing captured SubscriptionUsage,
+UsageLimitSnapshot and AccountLimitsSnapshot; model attempts: zero.
+The available c/m117-1 tip is 5b952fa3c and has no round-7 shared diagnostic
+contract. The join must unify its code/parameters schema with this lane's
+fleet, scheduling and engine diagnostics and retain presentation-only labels.
+
+Translator-stage final verification: all five typecheck projects pass; the
+restored table suite passes 13 tests; localization reports zero problems;
+production build exits 0 through every unchanged size/split/global gate.
+Panel remains 25,568 B. Aggregate quality remains lead-owned under the brief.

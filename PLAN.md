@@ -36628,6 +36628,25 @@ estimator-panel OVER (25.3 KiB vs 25 KiB, also OVER at pristine HEAD);
 `dist/extension.js` 554.1 KiB (budget 600), `dist/modelApi.js` 515.8 KiB
 (budget 525).
 
+**C-M117-3R5 owned-fact redesign (2026-10-11, Kubuntu; RVCM1173D).**
+All seven findings are in scope. One validated, structured fact represents
+machine thresholds and every normalized account source: owner identity and
+authentication generation, unit, independently unknown used/limit/remaining,
+UTC window instants and captured period, observer and observation instant.
+Source translators retain partial facts for every vendor. Current allowance
+constrains work without inventing future renewal. Live observations are fenced
+by account and sign-in generation, including reads that overlap a switch.
+Forecast inputs and simulation contain no localized explanations or ambient
+zone dates; presentation renders labels and dates only after forecasting.
+Typed fleet, scheduling and engine refusals survive every existing surface;
+invalid owner fields refuse with their source rather than escaping conversion.
+No dependency, guard widening, panel-byte increase, merge, push or paid/live
+call. Table regressions and byte-exact red drills are recorded in
+`docs/certification/m117-fleet.md`; five typechecks, localization, production
+build and all non-hub dependent suites run locally at repository deadlines.
+The available c/m117-1 tip predates its round-7 typed diagnostic contract;
+this lane supplies a plain typed code plus parameters for the semantic join.
+
 **C-M117-3R4 review repair (2026-10-11, Kubuntu; RVCM1173C).**
 Fix all eight P2 and four P3 findings as classes within the fleet lane.
 Bind the existing backend usage reader and usage/changed recording on the

@@ -9,6 +9,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **Estimator owned limit facts** (M117 C-M117-3R5). Account and machine
+  translators preserve independently unknown measurements, UTC windows and
+  observation ownership for every normalized vendor source.
+
 - **Estimator plan snapshots** (M117 C-M117-1). `/estimate` goals now resolve
   from your workspace `PLAN.md` with its git and `gh` evidence — lane hours,
   Starts dependencies, rigs, file affinities, the delivery order and §10

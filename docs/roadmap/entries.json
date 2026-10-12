@@ -862,7 +862,7 @@
     {
       "id": "M117",
       "title": "Capacity estimator",
-      "summary": "Run /estimate without a model call using strict plan snapshots and owner observations, retaining account blocks, default/configured threshold provenance and named uncertainty without inventing refill rates; the panel stays within its existing size budget.",
+      "summary": "Run /estimate using structured account and machine facts fenced by sign-in generation, with current allowance enforced even without a renewal period and typed refusals explained by account labels.",
       "area": "agents",
       "release": "0.17.0"
     },
