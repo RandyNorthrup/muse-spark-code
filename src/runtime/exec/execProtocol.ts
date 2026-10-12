@@ -84,6 +84,23 @@ export interface LedgerTotals {
   refusal: Refusal | null
   lastResponse: LastResponse | null
 }
+/**
+ * EXECPROV round 6: a run-cap budget refusal in typed numbers, so a harness
+ * can act without parsing a sentence. `neededUsd` is what the refused request
+ * had to reserve; `remainingUsd` is what the cap holds; `admitCapUsd` is the
+ * cap that admits it, rounded up to the cent; `maxOutputTokens` is the
+ * largest output limit that fits, or null when no output limit alone makes it
+ * fit; `inputAloneExceeds` says the input alone already costs more than is
+ * left; `inputCostUsd` is that input-alone cost.
+ */
+export interface ExecBudgetRefusal {
+  neededUsd: UsdAmount
+  remainingUsd: UsdAmount
+  admitCapUsd: UsdAmount
+  maxOutputTokens: number | null
+  inputAloneExceeds: boolean
+  inputCostUsd: UsdAmount
+}
 export interface ExecLimits {
   budgetUsd: UsdAmount | null
   maxRequests: number | null
@@ -138,6 +155,8 @@ export interface ExecResult {
     refusal: Refusal | null
     lastResponse: LastResponse | null
   } | null
+  /** Present when a run-cap budget refusal stopped the run. */
+  budget?: ExecBudgetRefusal | undefined
   limits: ExecLimits
   durationMs: number
   error: { kind: string; message: string } | null
@@ -316,6 +335,14 @@ const ledgerSchema = z.strictObject({
   breach: z.boolean(),
   refusal: z.nullable(z.enum(REFUSALS)),
   lastResponse: z.nullable(lastResponseSchema),
+})
+const budgetSchema = z.strictObject({
+  neededUsd: amount,
+  remainingUsd: amount,
+  admitCapUsd: amount,
+  maxOutputTokens: z.nullable(counter),
+  inputAloneExceeds: z.boolean(),
+  inputCostUsd: amount,
 })
 const totalsSchema = z
   .strictObject({
@@ -511,6 +538,7 @@ export const execResultSchema: z.ZodMiniType<ExecResult> = z
       paid: paidSchema,
     }),
     ledger: z.nullable(ledgerSchema),
+    budget: z.optional(budgetSchema),
     limits: limitsSchema,
     durationMs: z.number().check(z.gte(0)),
     error: z.nullable(z.strictObject({ kind: z.string(), message: z.string() })),

@@ -2323,6 +2323,25 @@ for (const family of providerFamilies) {
         expect(message).toContain('Raise --max-budget-usd to at least')
         expect(message).toContain('The input alone costs')
         expect(message).not.toContain('--max-output-tokens')
+        // EXECPROV round 6: nothing was produced, so the final sentence says
+        // the run was still reading and no answer exists, with the cap
+        // remedy but never the flag half. The typed refusal carries the same
+        // facts, and the refusal sentence reaches the info line too.
+        expect(result(run).finalMessage).toContain(
+          'The budget stopped the run while it was still reading, so no answer exists yet.',
+        )
+        expect(result(run).finalMessage).toContain('Raise --max-budget-usd to at least')
+        expect(result(run).finalMessage).toContain('The input alone costs')
+        expect(result(run).finalMessage).not.toContain('--max-output-tokens')
+        expect(result(run).budget).toMatchObject({
+          maxOutputTokens: null,
+          inputAloneExceeds: true,
+        })
+        expect(
+          Usd.from(result(run).budget?.neededUsd ?? '0').compare(Usd.from('0.000001')),
+        ).toBeGreaterThan(0)
+        expect(h.err.chunks.join('')).toContain('Capped run: cap')
+        expect(h.err.chunks.join('')).toContain('Request not sent.')
         const daily = createRuntimeDailyBudget({
           dataFolder: agentDataFolder({
             platform: process.platform,
@@ -2718,4 +2737,34 @@ it('EXECPROV ephemeral run never loads the usage writer bundle', async () => {
     })
     await removeFolder(bare)
   }
+})
+
+describe('EXECPROV round 6 budget stop sentences', () => {
+  it('a run that cannot fit says so before spending, with numbers and typed fields', async () => {
+    const h = await harness(['--max-budget-usd', '0.000001'], [{ text: 'never sent' }])
+    const r = await h.run()
+    expect(r.code).toBe(EXEC_EXIT.limit)
+    const run = result(r)
+    expect(run.status).toBe('budget_exceeded')
+    expect(run.usage.requests).toBe(0)
+    expect(h.api.responseBodies()).toHaveLength(0)
+    // Nothing was produced: the run was still reading, so no answer exists.
+    // The minimum admits no output-limit half: only the cap remedy follows.
+    expect(run.finalMessage).toContain(
+      'The budget stopped the run while it was still reading, so no answer exists yet.',
+    )
+    expect(run.finalMessage).toContain('Raise --max-budget-usd to at least')
+    expect(run.finalMessage).not.toContain('--max-output-tokens')
+    expect(run.finalMessage).not.toContain('work so far is kept')
+    expect(run.budget).toMatchObject({
+      remainingUsd: '0.000001',
+      maxOutputTokens: null,
+      inputAloneExceeds: false,
+    })
+    expect(Usd.from(run.budget?.neededUsd ?? '0').compare(Usd.from('0.000001'))).toBeGreaterThan(0)
+    const err = h.err.chunks.join('')
+    expect(err).toContain('Capped run: cap')
+    expect(err).toContain('reserves at most')
+    expect(err).toContain('This run requires at least')
+  })
 })

@@ -90,6 +90,11 @@ const BOUNDED_CALLS: readonly { file: string; text: string; call: string }[] = [
   },
   {
     file: 'src/core/providers/configured.ts',
+    text: 'const deadline = AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS)',
+    call: 'one exact provider input token count (the admitted request is bounded separately)',
+  },
+  {
+    file: 'src/core/providers/configured.ts',
     text: 'AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),',
     call: 'the free key test',
   },
@@ -117,6 +122,11 @@ const BOUNDED_CALLS: readonly { file: string; text: string; call: string }[] = [
     file: 'src/host/providers/copilotClient.ts',
     text: 'Date.now() + MODEL_API_REQUEST_TIMEOUT_MS,',
     call: 'one Copilot output token count',
+  },
+  {
+    file: 'src/runtime/runtimeAccountingEntry.ts',
+    text: 'const deadline = AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS)',
+    call: 'one exact input token count before a run-cap admission (never the admitted stream)',
   },
 ]
 

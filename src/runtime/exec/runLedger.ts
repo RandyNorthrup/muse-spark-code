@@ -19,6 +19,13 @@ export interface TierPrice {
   readonly cachedInput: UsdAmount
   readonly output: UsdAmount
 }
+/**
+ * EXECPROV round 6: which input bound a ticket's reservation used. `exact`
+ * is the provider's same-body count; `bytes-after-failure` is the byte bound
+ * after an exact count was tried and failed. Absent is the legacy path, which
+ * never tried an exact count.
+ */
+export type ResponseInputBound = 'exact' | 'bytes-after-failure'
 export interface ResponseTicket {
   readonly contextTokens?: number | undefined
   readonly n: number
@@ -27,6 +34,7 @@ export interface ResponseTicket {
   readonly maxOutputTokens: number
   readonly reserveUsd: UsdAmount
   readonly price: TierPrice
+  readonly inputBound?: ResponseInputBound | undefined
 }
 export interface ImageTicket {
   readonly n: number
@@ -78,6 +86,7 @@ export interface RunLedger {
     price: TierPrice
     readonly contextTokens?: number | undefined
     readonly reserveUsd?: UsdAmount | undefined
+    readonly inputBound?: ResponseInputBound | undefined
   }): ResponseTicket | { refused: Refusal }
   admitImage(endpoint: 'images.generations' | 'images.edits'): ImageTicket | { refused: Refusal }
   /** A preflight refusal has no attempt to settle but remains typed in the record. */

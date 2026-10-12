@@ -639,3 +639,144 @@ test/unit/usageIntegration.test.ts --maxWorkers=3` (5 + 1 above)
   (E8 as in (4))
 - `npm run quality:gates` (deferredBundles pin fails: 533,368 >
   532,827, owned by the diet lane; everything else green)
+
+## Round 6: the reservation's input bound (R1–R4)
+
+### R1: what "Input at most N tokens" counts, and the two measured stops
+
+On the configured-provider path the input side of a run-cap reservation is
+not a token count at all. `withRuntimeAccounting`
+(`src/runtime/runtimeAccountingEntry.ts`) computes
+`estimateInput(requestParts(body), undefined).inputTokens`, and
+`estimateInput` (`src/core/backends/modelapi/sessionBudget.ts`) counts the
+UTF-8 bytes (`Buffer.byteLength`) of the JSON of every request part —
+instructions, tool schemas and every input item, attachments' text included —
+at `SESSION_BUDGET_MIN_BYTES_PER_TOKEN = 1`, i.e. one "token" per byte, with
+no base (`undefined`: each request counts its whole replayed body). That
+count is then priced by `model.price.reserve` with no cached-token share, so
+every counted token pays the card's uncached input rate
+(`reserveRequestAmount` in `src/core/providers/priceCard.ts`; the registry
+additionally reserves cache writes on the full input, which is a third,
+smaller looseness where the card prices writes). Settlement, by contrast,
+prices the provider's reported usage, where cached reads pay the card's
+cached rate. The reservation is a true upper bound — a byte-level tokenizer
+never makes a token of less than one byte — but it is loose in two
+multiplicative ways: bytes where tokens are fewer, and the uncached price
+where most of a long conversation is a cache read.
+
+Run 1, exactly: the refused request's body was 1,828,002 bytes
+(~2 MB of attached text, JSON-escaped). At the card's $5.00/M uncached input
+rate that is 1,828,002 × 5/1,000,000 = $9.140010; the 32,768-token output cap
+at $20.00/M is $0.655360; the hold is $9.795370. The cap held $14.53 with
+$5.584157 settled, leaving $8.945843 < $9.795370, so the request was not
+sent. The requests before it really cost about $0.30–$0.45 each on roughly
+80,000 fresh input tokens: the reservation overshot reality by 21.8x–32.7x
+($9.795370 / $0.45 – $9.795370 / $0.30). Of that factor, about 4x is bytes
+versus English text (~4 bytes per token plus JSON framing of the replayed
+conversation), and the remaining 5x–8x is pricing the whole replayed body at
+the uncached rate while the bulk of it bills as cache reads at a fraction.
+Run 2 shows the same mechanism one step later: 20 requests, $8.48 settled of
+a $20.00 cap, and the 20th request holding $11.388990 — the byte-bound hold
+grows ~1:1 with the replayed conversation until it no longer fits, with over
+half the cap unspent. (The Meta path bounds differently — a full context
+window minus the output cap at uncached price, $5.734400 at the same tier —
+and is not the measured defect.)
+
+### R2: the exact count, where the repository evidences one
+
+`ModelClient.countInputTokensDetailed` (a same-body count plus the count
+call's own billed cost, `undefined` when free) is offered only where the
+repository documents a counting call for the exact request:
+
+- the OpenAI preset in Responses format: `POST {request-path}/input_tokens`
+  with the request's own native body, returning `input_tokens`
+  (`docs/certification/m95-research.md` §1.1 [O8, O13, O14]; Meta's own
+  client documents the same shape as not billed in
+  `src/core/backends/modelapi/client.ts`);
+- nothing else: Anthropic's `count_tokens` is documented in the same notes
+  as free and _an estimate_, which cannot bound a reservation; Gemini's
+  `:countTokens` has no exactness evidence; chat/ollama/custom name no
+  endpoint. Those providers keep the byte bound, and the headless Meta path
+  keeps its byte estimate as well: `test/unit/execRun.test.ts` D16 pins
+  that the Meta run sends no `input_tokens` request, a contract this round
+  does not renegotiate.
+
+The offer lives on the bound provider client
+(`src/core/providers/configured.ts`): the count posts the request's own
+native wire body to the request path's documented sibling (derived from the
+path, never a fixed string), bounded by `MODEL_API_REQUEST_TIMEOUT_MS` and
+the attempt signal, with rate-limit-only retries. The entry switch
+`exactInputCount` (`src/core/providers/providersFile.ts`, default on)
+turns the offer off; with it off, or where no offer exists, no count request
+is sent and behaviour is exactly today's. Only run-ledger runs count:
+interactive runs without a ledger keep the byte bound and send no extra
+request. On any failure, refusal or invalid
+answer the byte bound is used and the admitted ticket is marked
+`bytes-after-failure`, which the run logs on the info line with the fixed
+reason (`execCountBytesFallback`: the provider's own error never reaches the
+line). An exact success marks the ticket `exact` and reserves the count at
+the uncached price; a billed count is folded into the hold and the settled
+charge, so it is in both ledgers.
+
+Proof (`test/unit/execExactCount.test.ts`, 13 tests, no sockets): the exact
+count shrinks the hold (100 counted tokens reserve $0.00178 against a
+multi-cent byte hold); a failing count falls back to the byte-identical
+reservation; a client without the offer sends no count request; a billed
+$0.01 count reserves $0.01178 and settles $0.0107; the OpenAI entry posts the
+request's own body to `/v1/responses/input_tokens` and returns the count
+while `exactInputCount: false` and the Anthropic preset offer nothing. The
+lying-count case (count 1, usage 40,000) latches `breach`, keeps the full
+hold as uncertain, settles nothing, and closes the ledger: the run cannot
+exceed its cap, because after each response the next admission is checked
+against settled plus uncertain exactly as before. The worst overshoot that
+remains is one request's actual cost above its hold when the count lies
+maximally (a zero count against full-context usage); the breach latch stops
+the run at once, the ledger never admits past the cap, and the JSON marks
+the breach. Gate-fire drills, each restored byte-exact by SHA-256: forcing
+the remedy helper to null fails the remedy test; swapping the final-sentence
+branches fails the kept-text test; bypassing the exact count fails the
+shrinking test.
+
+### R3: the run says what fits before it spends, and tells the truth after
+
+At the start of a capped run the info line states the next reservation and
+what is left: on the Meta path with the preview's exact numbers
+(`execBudgetStartExact`: cap, remaining, at most the preview hold); on the
+provider path with the reservation rule and the numbers known
+(`execBudgetStartRule`: cap, remaining, the output cap every request
+reserves) — the first body is not built yet, so no honest input number
+exists, and the first admission carries it instead. Every run-cap refusal
+logs its full sentence (quote plus remedies) on the info line in every
+output mode, including the Meta pre-first-request minimum, which previously
+reached only the JSON result. The final sentence is true for what happened:
+kept text is shown with the kept-work sentence; with nothing produced yet
+the run was still reading and no answer exists (`execBudgetStillReading`),
+followed by both remedies with numbers — the output-limit half only when it
+alone can make the next request fit, the input note only when the input
+alone already costs more than is left (`budgetFinalMessage`, sharing the
+refusal arithmetic with the quote through `budgetRefusalDetails`, so the two
+can never disagree). The JSON result carries the same facts in typed
+`budget` fields (`neededUsd`, `remainingUsd`, `admitCapUsd`,
+`maxOutputTokens`, `inputAloneExceeds`, `inputCostUsd`; new
+`docs/schemas/exec-result-v2.schema.json` and `exec-event-v2.schema.json`
+rows), present on every run-cap budget stop and absent otherwise; a breach
+keeps its kept-work final line and no `budget` field, because no request was
+refused. Proof: the three loopback `budget` modes assert the reading
+sentence, the remedies, the typed fields and the info lines end to end on
+the provider path; the canned minimum-refusal test asserts the same on the
+Meta path; the suggested-output test admits the suggested limit and refuses
+one token more on the same ledger.
+
+### R4: where the providers-file path may and may not appear
+
+| Surface                                               | Shows                                  | Rule                                                                                                                                     |
+| ----------------------------------------------------- | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Terminal stdout/stderr (text final, usage-error line) | Model and absolute providers-file path | Correct: the person's own machine, where the price is added                                                                              |
+| JSON result `error.message`                           | Same sentence with the path            | Kept: local output; the remedy needs the file, and no report, log or client error-data field ingests it                                  |
+| ACP catalogue/model errors                            | Model only, never a path               | Correct: `execProviderNotCatalogue` fills `{model}`; the ACP agent never invokes `runExec` (`src/acp/agent.ts` only cites its sentences) |
+| Editor session error                                  | Model only, never a path               | Correct: `sessionBudgetUnpriced` fills `{model}`                                                                                         |
+| Problem report, flight journal, telemetry             | No exec error text at all              | Verified by inspection: the report builder takes no exec input, the CLI writes no journal, no telemetry exists on the exec path          |
+
+Nothing breaks the rule, so R4 changes no product code: it pins the five
+sentences in `test/unit/execUnpricedSurfaces.test.ts` (the terminal sentence
+names the file; the other four name nothing local).

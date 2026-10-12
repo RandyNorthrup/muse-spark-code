@@ -22,7 +22,7 @@ import type { AcpMediaFactory } from '../../acp/media'
 import { isValidModelApiKey, type SecretStore } from '../../host/auth/credentialStore'
 import type { Logger } from '../../host/logger'
 import type { AgentEvent } from '../../shared/agentEvents'
-import { uiLocale, fill, plural } from '../../shared/l10n/text'
+import { uiLocale, fill, formatNumber, plural } from '../../shared/l10n/text'
 import {
   ACP_AGENT_NAME,
   ACP_COMPACT_COMMAND,
@@ -81,6 +81,7 @@ import {
 import type { AssembledProviderRun } from './providerExec'
 
 import { createRunLedger, resolveExecOutputCap, previewResponseReservation } from './runLedger'
+import type { ExecBudgetRefusal } from './execProtocol'
 import { modelPolicyFor, type ModelPolicy } from '../../core/backends/modelapi/modelPolicy'
 import { observeBackend, type SessionTap } from './sessionTap'
 import { readUntrustedInputs } from './untrustedInput'
@@ -125,6 +126,49 @@ export const execOutputSchemaPort: ExecOutputSchemaPort = {
   },
 }
 export { setUiText } from '../../shared/l10n/text'
+
+/**
+ * EXECPROV round 6: the final sentence of a run-cap budget stop, true for
+ * what happened. Kept text is shown with the kept-work sentence; with
+ * nothing produced yet the run was still reading and no answer exists. Both
+ * remedies follow with numbers — the output limit only when it alone can
+ * make the next request fit, the input note only when the input alone
+ * already costs more than is left.
+ */
+export function budgetFinalMessage(input: {
+  readonly kept: readonly string[]
+  readonly requests: number
+  readonly details: ExecBudgetRefusal | undefined
+}): string {
+  const remedies: string[] = []
+  if (input.details !== undefined) {
+    remedies.push(
+      fill(UI_TEXT.execBudgetRemedyCap, {
+        admitCap: formatUsd(input.details.admitCapUsd, 2),
+      }),
+    )
+    if (input.details.maxOutputTokens !== null)
+      remedies.push(
+        fill(UI_TEXT.execBudgetRemedyOutput, {
+          maxTokens: String(input.details.maxOutputTokens),
+        }),
+      )
+    else if (input.details.inputAloneExceeds)
+      remedies.push(
+        fill(UI_TEXT.execBudgetRemedyInput, {
+          inputCost: formatUsd(input.details.inputCostUsd, EXEC_USD_DECIMALS),
+          remaining: formatUsd(input.details.remainingUsd, EXEC_USD_DECIMALS),
+        }),
+      )
+  }
+  return [
+    ...input.kept,
+    input.kept.length > 0
+      ? plural(UI_TEXT.execBudgetProgress, input.requests)
+      : UI_TEXT.execBudgetStillReading,
+    ...remedies,
+  ].join(' ')
+}
 
 export interface ExecDeps {
   readonly usageRecording?: UsageRecording | undefined
@@ -397,6 +441,8 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
   let catalogueHttpStatus: number | undefined
   let status: ExecStatus = 'failed'
   let error = UI_TEXT.execIncomplete
+  /** The latest run-cap budget refusal in typed numbers, for the final sentence and JSON. */
+  let budgetRefusal: ExecBudgetRefusal | undefined
   let questionsDeclined = 0
   let inputs: ExecInputRecord[] = []
   const filesChanged = new Set<string>()
@@ -800,13 +846,23 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
           ...(ledger !== undefined && {
             responseAccounting: {
               ledger,
-              refuse: (reason, message) => {
+              refuse: (reason, message, details) => {
                 if (message !== undefined) error = message
+                // EXECPROV round 6: every run-cap budget refusal reaches the
+                // info line with its numbers sentence, in every output mode.
+                if (reason === 'budget') {
+                  if (details !== undefined) budgetRefusal = details
+                  if (message !== undefined) log.info(message)
+                }
                 if (reason === 'closed') latch({ kind: 'internal' })
                 else latch({ kind: reason })
               },
               started: (n, ticket) => {
                 tap?.beginResponse(n)
+                // EXECPROV round 6: a byte bound after a failed exact count
+                // says so on the info line, with the fixed reason.
+                if (ticket.inputBound === 'bytes-after-failure')
+                  log.info(UI_TEXT.execCountBytesFallback)
                 sink.emit({
                   type: 'attempt',
                   n,
@@ -1095,30 +1151,70 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
                 )
               setup.isUsageError = false
             }
-            if (ledger !== undefined && providerRun === undefined) {
-              if (tier === undefined) {
-                setup.isUsageError = true
-                error = unpricedMessage(requestedModel, undefined)
-                return
-              }
-              // Ask the ledger's exact arithmetic for the start reservation, in a
-              // separate un-dispatched ledger. No request belongs to this run yet.
-              const preview = previewResponseReservation(
-                ledger,
-                model ?? '',
-                MODEL_API_PRICES_PER_MILLION[tier],
-              )
-              const minimum =
-                microUsd(preview.reserveUsd) +
-                (options.paidFeatures.includes('imageGeneration')
-                  ? microUsd(Usd.from(PAID_PRICES_USD.imageGeneration).toAmount())
-                  : ZERO_MICRO_USD)
-              if (microUsd(options.budgetUsd ?? Usd.from(0).toAmount()) < minimum) {
-                error = fill(UI_TEXT.execBudgetMinimum, {
-                  minimum: formatUsd(Usd.fromUnits(minimum, EXEC_USD_DECIMALS), EXEC_USD_DECIMALS),
-                })
-                latch({ kind: 'budget' })
-                return
+            if (ledger !== undefined) {
+              const totals = ledger.totals()
+              if (providerRun === undefined) {
+                if (tier === undefined) {
+                  setup.isUsageError = true
+                  error = unpricedMessage(requestedModel, undefined)
+                  return
+                }
+                // Ask the ledger's exact arithmetic for the start reservation, in a
+                // separate un-dispatched ledger. No request belongs to this run yet.
+                const preview = previewResponseReservation(
+                  ledger,
+                  model ?? '',
+                  MODEL_API_PRICES_PER_MILLION[tier],
+                )
+                const minimum =
+                  microUsd(preview.reserveUsd) +
+                  (options.paidFeatures.includes('imageGeneration')
+                    ? microUsd(Usd.from(PAID_PRICES_USD.imageGeneration).toAmount())
+                    : ZERO_MICRO_USD)
+                // EXECPROV round 6: a capped run states its next reservation
+                // and what is left before it spends anything.
+                log.info(
+                  fill(UI_TEXT.execBudgetStartExact, {
+                    cap: formatUsd(totals.capUsd, EXEC_USD_DECIMALS),
+                    remaining: formatUsd(totals.remainingUsd, EXEC_USD_DECIMALS),
+                    reservation: formatUsd(
+                      Usd.fromUnits(minimum, EXEC_USD_DECIMALS).toAmount(),
+                      EXEC_USD_DECIMALS,
+                    ),
+                  }),
+                )
+                if (microUsd(options.budgetUsd ?? Usd.from(0).toAmount()) < minimum) {
+                  error = fill(UI_TEXT.execBudgetMinimum, {
+                    minimum: formatUsd(
+                      Usd.fromUnits(minimum, EXEC_USD_DECIMALS),
+                      EXEC_USD_DECIMALS,
+                    ),
+                  })
+                  // A run that will not fit says so before it spends, on the
+                  // info line as well as in the result.
+                  log.info(error)
+                  budgetRefusal = {
+                    neededUsd: Usd.fromUnits(minimum, EXEC_USD_DECIMALS).toAmount(),
+                    remainingUsd: totals.remainingUsd,
+                    admitCapUsd: Usd.fromUnits(minimum, EXEC_USD_DECIMALS).ceiling(2).toAmount(),
+                    maxOutputTokens: null,
+                    inputAloneExceeds: false,
+                    inputCostUsd: Usd.fromUnits(minimum, EXEC_USD_DECIMALS).toAmount(),
+                  }
+                  latch({ kind: 'budget' })
+                  return
+                }
+              } else {
+                // A provider run's first body is not built yet, so the start
+                // line states the reservation rule with the numbers known: the
+                // cap, what is left, and the output cap every request reserves.
+                log.info(
+                  fill(UI_TEXT.execBudgetStartRule, {
+                    cap: formatUsd(totals.capUsd, EXEC_USD_DECIMALS),
+                    remaining: formatUsd(totals.remainingUsd, EXEC_USD_DECIMALS),
+                    output: formatNumber(outputCap()),
+                  }),
+                )
               }
             }
             tap?.beginResponse(1)
@@ -1268,9 +1364,17 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
     const partialText = partial?.text
     const kept = partialText === undefined || partialText === '' ? [] : [partialText]
     let finalMessage: string
-    if (status === 'budget_exceeded')
+    if (status === 'budget_exceeded' && cause?.kind !== 'budget') {
+      // A breach stops as budget_exceeded without a refused request: its
+      // final message stays the kept-work sentence it has always been.
       finalMessage = [...kept, plural(UI_TEXT.execBudgetProgress, totals?.requests ?? 0)].join(' ')
-    else if (status === 'unpriced' || cause?.kind === 'request_shape')
+    } else if (status === 'budget_exceeded') {
+      finalMessage = budgetFinalMessage({
+        kept,
+        requests: totals?.requests ?? 0,
+        details: budgetRefusal,
+      })
+    } else if (status === 'unpriced' || cause?.kind === 'request_shape')
       finalMessage = [...kept, error].join(' ')
     else finalMessage = partialText ?? (hasCompleteResponse ? '' : UI_TEXT.execMessageWithheld)
     const result: ExecResult = {
@@ -1331,6 +1435,20 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
               refusal: totals.refusal,
               lastResponse: totals.lastResponse,
             },
+      // EXECPROV round 6: the refused request's numbers in typed fields, so
+      // a harness can act without parsing a sentence.
+      ...(budgetRefusal !== undefined &&
+        status === 'budget_exceeded' &&
+        lifecycle.cause?.kind === 'budget' && {
+          budget: {
+            neededUsd: budgetRefusal.neededUsd,
+            remainingUsd: budgetRefusal.remainingUsd,
+            admitCapUsd: budgetRefusal.admitCapUsd,
+            maxOutputTokens: budgetRefusal.maxOutputTokens,
+            inputAloneExceeds: budgetRefusal.inputAloneExceeds,
+            inputCostUsd: budgetRefusal.inputCostUsd,
+          },
+        }),
       limits,
       durationMs: Math.max(0, deps.now() - (lifecycle.deadlineMs - options.timeoutMs)),
       error:

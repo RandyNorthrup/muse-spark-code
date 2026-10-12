@@ -29,6 +29,7 @@ import {
   EXEC_USD_DECIMALS,
   HTTP_STATUS,
   HTTP_TOO_MANY_REQUESTS,
+  MODEL_API_REQUEST_TIMEOUT_MS,
   PAID_DAILY_BUDGET,
   RUNTIME_SETTINGS_FILE,
   SETTING_DEFAULTS,
@@ -36,8 +37,13 @@ import {
   UI_TEXT,
 } from '../shared/constants'
 import { storeErrorCode } from '../host/backend/storeErrors'
-import { type RunLedger, type ResponseTicket, type SettlementResult } from './exec/runLedger'
-import type { LastResponse, Refusal, LedgerTotals } from './exec/execProtocol'
+import {
+  type RunLedger,
+  type ResponseInputBound,
+  type ResponseTicket,
+  type SettlementResult,
+} from './exec/runLedger'
+import type { ExecBudgetRefusal, LastResponse, Refusal, LedgerTotals } from './exec/execProtocol'
 import { fill, plural } from '../shared/l10n/text'
 import { formatUsd } from '../shared/l10n/exactUsd'
 
@@ -50,6 +56,43 @@ const settingsSchema = z.strictObject({
 })
 const dailyLimitSchema = z.object({ limitUsd: legacyUsdSchema, stopped: z.boolean() })
 const ceilUsd = (cost: UsdAmount) => Usd.from(cost).ceiling(EXEC_USD_DECIMALS).toAmount()
+
+/**
+ * EXECPROV round 6: one exact same-body input count for one request. The
+ * call carries the request's own body, ends at the short Model API deadline
+ * (or sooner when the attempt stops), and validates its answer: a lying or
+ * stale count that is not a token count, or a billed cost that is not money,
+ * throws and the caller falls back to the byte bound. Absent stays absent:
+ * callers only invoke this where the client offers it.
+ */
+async function countExactInput(
+  detailed: NonNullable<ModelClient['countInputTokensDetailed']>,
+  body: Parameters<NonNullable<ModelClient['countInputTokensDetailed']>>[0],
+  signal: AbortSignal,
+): Promise<{ tokens: number; costUsd: UsdAmount | undefined }> {
+  const deadline = AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS)
+  const counted = await detailed(
+    body,
+    signal.aborted ? deadline : AbortSignal.any([signal, deadline]),
+  )
+  let isValidCost = true
+  if (counted.costUsd !== undefined) {
+    try {
+      Usd.from(counted.costUsd)
+    } catch {
+      isValidCost = false
+    }
+  }
+  if (!isValidCost || !Number.isSafeInteger(counted.tokens) || counted.tokens < 0)
+    throw new Error(UI_TEXT.execRequestShape)
+  return {
+    tokens: counted.tokens,
+    costUsd:
+      counted.costUsd === undefined
+        ? undefined
+        : Usd.from(counted.costUsd).ceiling(EXEC_USD_DECIMALS).toAmount(),
+  }
+}
 
 export function createRuntimeDailyBudget(deps: {
   readonly dataFolder: string
@@ -160,7 +203,11 @@ export function createRuntimeDailyBudget(deps: {
 
 export interface RuntimeResponseAccounting {
   readonly ledger: RunLedger
-  readonly refuse: (reason: Refusal | 'breach' | 'accounting_invalid', message?: string) => void
+  readonly refuse: (
+    reason: Refusal | 'breach' | 'accounting_invalid',
+    message?: string,
+    details?: ExecBudgetRefusal,
+  ) => void
   readonly started: (n: number, ticket: ResponseTicket) => void
   readonly settled: (
     outcome: LastResponse,
@@ -183,6 +230,9 @@ export function withRuntimeAccounting(
     const bounded: ModelClient = {
       currentKeyDigest: original.currentKeyDigest.bind(original),
       countInputTokens: original.countInputTokens.bind(original),
+      ...(original.countInputTokensDetailed !== undefined && {
+        countInputTokensDetailed: original.countInputTokensDetailed.bind(original),
+      }),
       listModels: original.listModels.bind(original),
       retryDelayMs: original.retryDelayMs.bind(original),
       waitBeforeRetry: original.waitBeforeRetry.bind(original),
@@ -194,19 +244,43 @@ export function withRuntimeAccounting(
           contextTokens < body.max_output_tokens
         )
           throw new Error(UI_TEXT.execModelUnpriced)
+        // EXECPROV round 6: where the client documents an exact same-body
+        // count, the input side reserves that count at the uncached price —
+        // once per request, bounded, sending the request's own body. Only
+        // run-ledger runs count: interactive runs keep exactly today's byte
+        // bound and send no extra request. Media carries its own calibrated
+        // bound, and any failure (or a count the client does not offer)
+        // keeps exactly today's byte bound.
+        const mediaTokens = guard?.mediaAccounting?.inputTokens
+        const detailed =
+          accounting === undefined || mediaTokens !== undefined
+            ? undefined
+            : original.countInputTokensDetailed
+        let counted: { tokens: number; costUsd: UsdAmount | undefined } | undefined
+        try {
+          counted =
+            detailed === undefined ? undefined : await countExactInput(detailed, body, signal)
+        } catch {
+          counted = undefined
+        }
+        const isExactFailed = counted === undefined && detailed !== undefined
         const inputTokens =
-          guard?.mediaAccounting?.inputTokens ??
-          estimateInput(requestParts(body), undefined).inputTokens
+          mediaTokens ?? counted?.tokens ?? estimateInput(requestParts(body), undefined).inputTokens
+        const countCostUsd = counted?.costUsd
         const inputCost = model.price.reserve({
           inputTokens,
           outputTokens: 0,
           images: requestImageCount(body),
         })
-        const reserveUsd = model.price.reserve({
+        const requestedUsd = model.price.reserve({
           inputTokens,
           outputTokens: body.max_output_tokens,
           images: requestImageCount(body),
         })
+        const reserveUsd =
+          requestedUsd === undefined || countCostUsd === undefined
+            ? requestedUsd
+            : Usd.from(requestedUsd).add(Usd.from(countCostUsd)).toAmount()
         if (
           inputCost === undefined ||
           reserveUsd === undefined ||
@@ -236,6 +310,10 @@ export function withRuntimeAccounting(
             httpStatus === HTTP_STATUS.badRequest
           )
             cost = Usd.from(0).toAmount()
+          // A billed count is a separate completed call: it stays settled
+          // even when the response itself was not billed.
+          if (cost !== undefined && countCostUsd !== undefined)
+            cost = Usd.from(cost).add(Usd.from(countCostUsd)).toAmount()
           // A ticket that never reached the wire is withdrawn with its request
           // count instead of settling a full reservation.
           if (!wasSent && ticket !== undefined) {
@@ -326,6 +404,9 @@ export function withRuntimeAccounting(
                       output: Usd.from(0).toAmount(),
                     }
               let admission: ReturnType<RunLedger['admitResponse']>
+              let inputBound: ResponseInputBound | undefined
+              if (counted !== undefined) inputBound = 'exact'
+              else if (isExactFailed) inputBound = 'bytes-after-failure'
               try {
                 signal.throwIfAborted()
                 admission = accounting.ledger.admitResponse({
@@ -334,6 +415,7 @@ export function withRuntimeAccounting(
                   contextTokens,
                   reserveUsd: ceilUsd(reserveUsd),
                   price,
+                  inputBound,
                 })
               } catch (error: unknown) {
                 await settle()
@@ -347,25 +429,38 @@ export function withRuntimeAccounting(
                 // the ledger has exactly reached at this point.
                 const refused = admission.refused
                 let message: string
+                let refusalDetails: ExecBudgetRefusal | undefined
                 switch (refused) {
                   case 'budget': {
-                    message = responseReservationMessage(
-                      {
+                    const quote = {
+                      inputTokens,
+                      inputCost,
+                      outputTokens: body.max_output_tokens,
+                      reserveUsd,
+                      totals,
+                    }
+                    const reserveForOutput = (outputTokens: number) =>
+                      model.price.reserve({
                         inputTokens,
-                        inputCost,
-                        outputTokens: body.max_output_tokens,
-                        reserveUsd,
-                        totals,
-                      },
+                        outputTokens,
+                        images: requestImageCount(body),
+                      })
+                    message = responseReservationMessage(
+                      quote,
                       'terminal',
-                      (outputTokens) =>
-                        model.price.reserve({
-                          inputTokens,
-                          outputTokens,
-                          images: requestImageCount(body),
-                        }),
+                      reserveForOutput,
                       minOutputTokensForPolicy(model.policy),
                     )
+                    refusalDetails = {
+                      // The hold, as admitted: ceilinged to micro-dollars
+                      // like the ledger and the quote total.
+                      neededUsd: Usd.from(reserveUsd).ceiling(EXEC_USD_DECIMALS).toAmount(),
+                      ...budgetRefusalDetails(
+                        quote,
+                        reserveForOutput,
+                        minOutputTokensForPolicy(model.policy),
+                      ),
+                    }
                     break
                   }
                   case 'requests': {
@@ -385,7 +480,7 @@ export function withRuntimeAccounting(
                     break
                   }
                 }
-                accounting.refuse(admission.refused, message)
+                accounting.refuse(admission.refused, message, refusalDetails)
                 throw new UserRefusalError(message)
               }
               ticket = admission
@@ -499,6 +594,72 @@ export type ReservationMessageScope = 'terminal' | 'shared'
  * which never prints the terminal-only flag half. Every number comes from
  * the same exact-decimal arithmetic as the refusal itself.
  */
+/**
+ * EXECPROV round 6: the remedy numbers inside a budget refusal, computed
+ * once by the same arithmetic the sentence uses: the admitting cap, the
+ * largest output limit that fits (null when no output limit alone makes it
+ * fit), and whether the input alone already costs more than is left.
+ */
+export function budgetRefusalDetails(
+  input: {
+    readonly inputTokens: number
+    readonly inputCost: UsdAmount
+    readonly outputTokens: number
+    readonly reserveUsd: UsdAmount
+    readonly totals: LedgerTotals
+  },
+  reserveForOutput?: (outputTokens: number) => UsdAmount | undefined,
+  minimumOutputTokens?: number,
+): Pick<
+  ExecBudgetRefusal,
+  'remainingUsd' | 'admitCapUsd' | 'maxOutputTokens' | 'inputAloneExceeds' | 'inputCostUsd'
+> {
+  const cost = Usd.from(input.inputCost).ceiling(EXEC_USD_DECIMALS)
+  const total = Usd.from(input.reserveUsd).ceiling(EXEC_USD_DECIMALS)
+  const committed = Usd.from(input.totals.settledUsd).add(Usd.from(input.totals.uncertainUsd))
+  const remaining = Usd.from(input.totals.capUsd).subtract(committed)
+  const remainingUsd = remaining.toAmount()
+  const admitCap = committed.add(total).ceiling(2)
+  const canFit = (outputTokens: number): boolean => {
+    if (reserveForOutput === undefined) return false
+    const estimate = reserveForOutput(outputTokens)
+    return (
+      estimate !== undefined &&
+      Usd.from(estimate).ceiling(EXEC_USD_DECIMALS).compare(remaining) <= 0
+    )
+  }
+  if (cost.compare(remaining) > 0)
+    return {
+      remainingUsd,
+      admitCapUsd: admitCap.toAmount(),
+      maxOutputTokens: null,
+      inputAloneExceeds: true,
+      inputCostUsd: cost.toAmount(),
+    }
+  const floor = minimumOutputTokens ?? 1
+  if (reserveForOutput === undefined || floor > input.outputTokens || !canFit(floor))
+    return {
+      remainingUsd,
+      admitCapUsd: admitCap.toAmount(),
+      maxOutputTokens: null,
+      inputAloneExceeds: false,
+      inputCostUsd: cost.toAmount(),
+    }
+  let low = floor
+  let high = input.outputTokens
+  while (low < high) {
+    const mid = Math.floor((low + high + 1) / 2)
+    if (canFit(mid)) low = mid
+    else high = mid - 1
+  }
+  return {
+    remainingUsd,
+    admitCapUsd: admitCap.toAmount(),
+    maxOutputTokens: low,
+    inputAloneExceeds: false,
+    inputCostUsd: cost.toAmount(),
+  }
+}
 export function responseReservationMessage(
   input: {
     readonly inputTokens: number
@@ -525,44 +686,26 @@ export function responseReservationMessage(
       EXEC_USD_DECIMALS,
     ),
   })
-  const committed = Usd.from(input.totals.settledUsd).add(Usd.from(input.totals.uncertainUsd))
-  const remaining = Usd.from(input.totals.capUsd).subtract(committed)
-  // The cap that admits it, rounded up to the cent: what is committed plus
-  // this request's ceilinged reservation, raised to a whole settable cent.
-  const admitCap = committed.add(total).ceiling(2)
+  // The cap remedy is a complete clause on its own: ACP and the editor read
+  // the shared scope, which never prints the terminal-only flag half. The
+  // numbers come from the same helper the typed refusal carries.
+  const details = budgetRefusalDetails(input, reserveForOutput, minimumOutputTokens)
   const capClause = fill(UI_TEXT.execBudgetRemedyCap, {
-    admitCap: formatUsd(admitCap.toAmount(), 2),
+    admitCap: formatUsd(details.admitCapUsd, 2),
   })
   if (scope === 'shared') return `${base} ${capClause}`
   // The largest output limit that fits the remaining cap, found with the
   // request's own reserve function and the admission's own ceiling, so
   // running again with exactly this value is admitted. Omitted when even
   // the input alone does not fit, which the note says instead.
-  const canFit = (outputTokens: number): boolean => {
-    if (reserveForOutput === undefined) return false
-    const estimate = reserveForOutput(outputTokens)
-    return (
-      estimate !== undefined &&
-      Usd.from(estimate).ceiling(EXEC_USD_DECIMALS).compare(remaining) <= 0
-    )
-  }
-  if (cost.compare(remaining) > 0)
+  if (details.inputAloneExceeds)
     return `${base} ${capClause} ${fill(UI_TEXT.execBudgetRemedyInput, {
-      inputCost: formatUsd(cost.toAmount(), EXEC_USD_DECIMALS),
-      remaining: formatUsd(remaining.toAmount(), EXEC_USD_DECIMALS),
+      inputCost: formatUsd(details.inputCostUsd, EXEC_USD_DECIMALS),
+      remaining: formatUsd(details.remainingUsd, EXEC_USD_DECIMALS),
     })}`
-  const floor = minimumOutputTokens ?? 1
-  if (reserveForOutput === undefined || floor > input.outputTokens || !canFit(floor))
-    return `${base} ${capClause}`
-  let low = floor
-  let high = input.outputTokens
-  while (low < high) {
-    const mid = Math.floor((low + high + 1) / 2)
-    if (canFit(mid)) low = mid
-    else high = mid - 1
-  }
+  if (details.maxOutputTokens === null) return `${base} ${capClause}`
   return `${base} ${capClause} ${fill(UI_TEXT.execBudgetRemedyOutput, {
-    maxTokens: String(low),
+    maxTokens: String(details.maxOutputTokens),
   })}`
 }
 
