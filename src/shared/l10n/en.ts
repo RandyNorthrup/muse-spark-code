@@ -4221,6 +4221,22 @@ export const EN = {
   execBudgetRemedyCap: 'Raise --max-budget-usd to at least {admitCap} to admit it.',
   execBudgetRemedyOutput: 'Or retry with --max-output-tokens {maxTokens}.',
   execBudgetRemedyInput: 'The input alone costs {inputCost}, above the {remaining} left.',
+  // EXECPROV round 6: a capped run states its next reservation and what is
+  // left before it spends. {reservation} is the most the next request can
+  // hold; the provider variant states the rule instead, since its first body
+  // is not built yet ({output} is the output cap every request reserves).
+  execBudgetStartExact:
+    'Capped run: cap {cap}, {remaining} left. The next request reserves at most {reservation}.',
+  execBudgetStartRule:
+    'Capped run: cap {cap}, {remaining} left. Each request reserves its counted input plus up to {output} output tokens.',
+  // A budget stop with nothing produced yet: the run was still reading, so
+  // no answer exists. The remedies follow as their own sentences.
+  execBudgetStillReading:
+    'The budget stopped the run while it was still reading, so no answer exists yet.',
+  // An exact provider count was tried and failed: the fixed reason the byte
+  // bound is used instead. The provider's own error never reaches this line.
+  execCountBytesFallback:
+    'The provider input count failed, so the byte bound reserves this request instead.',
   // A --max-output-tokens value above the policy cap is refused at parsing.
   // {cap} is the absolute ceiling every policy cap sits at or below.
   execOutputCapExceeded: '--max-output-tokens exceeds the output cap of {cap} tokens.',

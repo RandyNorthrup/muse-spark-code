@@ -25,6 +25,15 @@ happened, not what was planned; superseded entries are kept.
   `--max-output-tokens` value that fits the remaining cap (or that even the
   input alone does not fit). ACP and the editor show the same reason with
   the budget remedy only.
+- A headless provider run counts the request's exact input tokens where the
+  provider documents a same-body count call (the OpenAI Responses
+  `input_tokens` call), instead of reserving every body byte as a token at
+  the uncached price; entries keep the byte bound with
+  `"exactInputCount": false`, and any failed count falls back to it with an
+  info line. A capped run states its next reservation and what is left before
+  it spends; a budget stop that produced nothing says the run was still
+  reading and no answer exists, and the JSON result carries the refused
+  request's numbers in typed `budget` fields.
 - A headless run refused for a model with no known tariff no longer reports
   a budget stop: it returns its own `unpriced` status (exit 4) with a
   sentence naming the model and the providers file where a price is added,

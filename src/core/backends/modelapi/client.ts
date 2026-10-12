@@ -113,6 +113,14 @@ export type ProviderClient = Pick<
   readonly modelContextLimit?: (model: string) => number | undefined
   readonly isPlanModel?: (model: string) => boolean
   readonly readPlanUsage?: () => readonly PlanUsageRow[]
+  /**
+   * EXECPROV round 6: an exact same-body input count where the provider
+   * documents one (type-only; implementations live in lazy bundles).
+   */
+  readonly countInputTokensDetailed?: (
+    body: CreateResponseBody,
+    signal?: AbortSignal,
+  ) => Promise<{ readonly tokens: number; readonly costUsd?: UsdAmount | undefined }>
 }
 import type { SecretScrubPort } from '../../../shared/redact'
 

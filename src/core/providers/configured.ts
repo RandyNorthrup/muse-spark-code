@@ -29,7 +29,7 @@ import { outputTokenMinimumMessage, providerOutputMinimum } from '../../shared/p
 import { pinnedHttpsRequest, pinnedPostRequest } from '../../host/backend/modelApiEntry'
 import type { PinnedResponse, PinnedTarget } from '../web/webFetch'
 import type { ProviderClient } from '../backends/modelapi/client'
-import type { StreamEvent, Usage } from '../backends/modelapi/schemas'
+import type { CreateResponseBody, StreamEvent, Usage } from '../backends/modelapi/schemas'
 import type { ProviderEntry } from './providersFile'
 import type { RegistryModel } from './providerRegistry'
 import type { ModelCapabilityRecord } from './capabilityRecord'
@@ -47,7 +47,7 @@ import {
 } from '../backends/modelapi/transport'
 import { isPaidStop, isUserRefusal } from '../refusal'
 import { withDeadline } from '../timeouts'
-import { Usd } from '../../shared/usd'
+import { Usd, type UsdAmount } from '../../shared/usd'
 import { fill } from '../../shared/l10n/text'
 import {
   ADDRESS_FAMILIES,
@@ -756,6 +756,12 @@ export function createConfiguredProviderServices(
         }
       },
     }
+    const providerModel = () => ({
+      id: ref,
+      capabilities: capabilities.capabilitiesOf({ capabilityRecord: record }),
+      contextWindow: record.limits.contextTokens ?? 0,
+      maxOutputTokens: record.output.maxTokens ?? 0,
+    })
     const client = new CodecClient({
       provider: {
         id: entry.id,
@@ -771,13 +777,62 @@ export function createConfiguredProviderServices(
       verifyEndpoint: connection.verifyEndpoint,
       transport: connection.transport,
       streamIdleMs: idleMs,
-      modelFor: () => ({
-        id: ref,
-        capabilities: capabilities.capabilitiesOf({ capabilityRecord: record }),
-        contextWindow: record.limits.contextTokens ?? 0,
-        maxOutputTokens: record.output.maxTokens ?? 0,
-      }),
+      modelFor: providerModel,
     })
+    /**
+     * EXECPROV round 6: OpenAI documents `POST /responses/input_tokens`
+     * taking the same body as a response and returning `input_tokens`
+     * (m95-research §1.1 [O8, O13, O14]); Meta's own client documents the
+     * same shape as not billed. No other preset's research notes name a
+     * counting call for the exact request — Anthropic's is documented as an
+     * estimate — so only the OpenAI preset counts exactly, and only while
+     * the entry leaves `exactInputCount` on. The count posts the request's
+     * own native body to the request path's documented sibling; any failure
+     * throws and the accounting layer falls back to the byte bound.
+     */
+    const exactInputCount =
+      format === 'responses' &&
+      entry.exactInputCount !== false &&
+      preset.id.replace(/-plan$/, '') === 'openai'
+        ? async (
+            body: CreateResponseBody,
+            signal?: AbortSignal,
+          ): Promise<{ readonly tokens: number; readonly costUsd?: UsdAmount | undefined }> => {
+            const encoded = codec.encode(body, providerModel())
+            // The count is the request path's documented sibling, derived
+            // from the path the request itself takes — never a fixed string.
+            if (!encoded.path.endsWith('/responses')) return fail()
+            const requestPath = encoded.path
+            const count = new RequestTransport({
+              ...connection.transport,
+              auth: connection.auth,
+              verifyEndpoint: connection.verifyEndpoint,
+              baseUrl: new URL(entry.address ?? fail()).origin,
+            })
+            const deadline = AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS)
+            const result = await count.request(
+              `${requestPath}/input_tokens`,
+              {
+                method: 'POST',
+                body: encoded.body,
+                ...(encoded.headers !== undefined && { headers: encoded.headers }),
+                accept: 'application/json',
+                retries: 'rateLimitOnly',
+              },
+              signal === undefined || signal.aborted
+                ? deadline
+                : AbortSignal.any([signal, deadline]),
+            )
+            const parsed = await parseJsonResponse(result, (json) =>
+              z
+                .object({
+                  input_tokens: z.number().check(z.int(), z.gte(0), z.lte(Number.MAX_SAFE_INTEGER)),
+                })
+                .parse(json),
+            )
+            return { tokens: parsed.input_tokens, costUsd: undefined }
+          }
+        : undefined
     return {
       ...base,
       currentKeyDigest: client.currentKeyDigest,
@@ -786,6 +841,7 @@ export function createConfiguredProviderServices(
       listModels: () => Promise.resolve([ref]),
       // UTF-8 bytes bound text tokens conservatively and include tool schemas.
       countInputTokens: (body) => Promise.resolve(Buffer.byteLength(JSON.stringify(body))),
+      ...(exactInputCount !== undefined && { countInputTokensDetailed: exactInputCount }),
       streamResponse: async function* (body, signal, onRetry, budget, admitAttempt, confirmed) {
         const minimum = providerOutputMinimum(
           entry.address,
