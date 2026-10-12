@@ -1057,7 +1057,7 @@ function confinedGlob(
   const given = context.platform === 'win32' ? normalWindowsPath(normalized.path) : normalized.path
   const relative = p.relative(root, p.resolve(root, given))
   return relative === '..' || relative.startsWith(`..${p.sep}`) || p.isAbsolute(relative)
-    ? { ok: false, code: 'outside_workspace', reason: 'outside the workspace' }
+    ? { ok: false, code: 'outside_workspace', reason: `glob ${glob} is outside the workspace` }
     : { ok: true, glob: relative.split(p.sep).join('/') }
 }
 

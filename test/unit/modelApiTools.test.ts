@@ -934,9 +934,11 @@ describe('executeTool: search and list_files', () => {
     })
     expect(searched.failureReason).toBeUndefined()
     expect(searched.output).toContain('notes.md:1: hello')
-    // A verbatim glob on another drive is still outside.
+    // A verbatim glob on another drive is still outside, naming the glob.
     expect(await run('list_files', { glob: String.raw`\\?\D:\other\*.md` })).toMatchObject({
       refusalCode: 'outside_workspace',
+      failureReason: String.raw`glob \\?\D:\other\*.md is outside the workspace`,
+      visibleOutput: UI_TEXT.acpOutsideWorkspaceRefused,
     })
   })
 })
