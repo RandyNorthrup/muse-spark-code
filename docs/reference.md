@@ -1320,6 +1320,8 @@ Shared daily budget for interactive paid extras: USD.
 
 Shared daily budget for interactive paid extras: museSpark.paidDailyBudgetUsd. Tab has its own separate budget.
 
+At the model-call turn limit, the turn reports a resumable limit. Send another message to continue.
+
 Surfaces: vscode:modelApi, acp:modelApi. Paid: no extra feature charge; model usage still applies.
 
 Commands: —. Settings: `museSpark.paidDailyBudgetUsd`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#paid-features)

@@ -6497,6 +6497,8 @@ export const MODEL_API_MODEL_TEXT = {
   // block rather than carrying new keys in activation's MODEL_TEXT (D6).
   toolRepeatStopped:
     'This tool call repeats the same arguments and unchanged result. It was not run again. Use a different approach or explain what is blocking the task.',
+  turnWrapUp:
+    'This turn has reached its limit of {limit} model calls. Call no tools. Give the final answer now: what is done, what was found, and what remains.',
   continuationPrompt:
     'Continue the answer from where the output limit cut it off. Do not repeat the text already returned.',
   // M91 lane E: BeforeToolSelection's tail note, and TeammateIdle's default.

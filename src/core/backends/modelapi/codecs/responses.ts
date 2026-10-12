@@ -425,21 +425,24 @@ export function createResponsesCodec(
         model: body.model,
         input: isChatgpt ? body.input : mapped,
         instructions: isChatgpt ? body.instructions : cleanWireText(body.instructions),
-        tools: isChatgpt
-          ? [
-              {
-                type: 'namespace',
-                name: quirks.toolNamespace,
-                ...(quirks.toolNamespaceDescription !== undefined && {
-                  description: quirks.toolNamespaceDescription,
-                }),
-                tools: body.tools,
-              },
-            ]
-          : withStrictTools(
-              body.tools,
-              options?.shouldUseStrictTools !== false && effective.supportsStrictTools === true,
-            ),
+        tools:
+          body.tool_choice === 'none'
+            ? []
+            : isChatgpt
+              ? [
+                  {
+                    type: 'namespace',
+                    name: quirks.toolNamespace,
+                    ...(quirks.toolNamespaceDescription !== undefined && {
+                      description: quirks.toolNamespaceDescription,
+                    }),
+                    tools: body.tools,
+                  },
+                ]
+              : withStrictTools(
+                  body.tools,
+                  options?.shouldUseStrictTools !== false && effective.supportsStrictTools === true,
+                ),
 
         tool_choice: body.tool_choice,
         reasoning: body.reasoning,

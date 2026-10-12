@@ -1150,7 +1150,6 @@ export const REFERENCE_SURFACES: Readonly<Record<string, readonly string[]>> = {
 const REFERENCE_DETAILS: Readonly<
   Record<string, readonly Extract<ReferenceText, { ui: unknown }>['ui'][]>
 > = {
-  budget: ['referenceTurnLimit'],
   providers: [
     'providerOpenRouterServices',
     'pricePerMillion',
@@ -1174,7 +1173,7 @@ const REFERENCE_DETAILS: Readonly<
   git: ['structuredOutputRepair', 'structuredOutputFallback'],
   judge: ['structuredOutputRepair', 'structuredOutputFallback'],
   'structured-side-calls': ['structuredOutputRepair', 'structuredOutputFallback'],
-  budget: ['referenceBudget'],
+  budget: ['referenceBudget', 'referenceTurnLimit'],
   voice: ['referencePaidContexts'],
   auto: ['referencePaidContexts'],
   subagents: ['referencePaidContexts'],

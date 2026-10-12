@@ -647,7 +647,7 @@ export interface CreateResponseBody {
   readonly input: readonly InputItem[]
   readonly instructions: string
   readonly tools: readonly ToolDefinition[]
-  readonly tool_choice: 'auto'
+  readonly tool_choice: 'auto' | 'none'
   // Optional: Tab asks for no reasoning summary (M94, PLAN.md D73), so it
   // omits the key. Every existing request still sends `summary: 'auto'`,
   // whose bytes are unchanged.
