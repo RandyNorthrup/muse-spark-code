@@ -2652,10 +2652,15 @@ it('EXECPROV persistent run with invalid settings pauses history with a specific
     const stderr = h.err.chunks.join('')
     expect(stderr).toContain('Usage history settings are invalid')
     expect(stderr).not.toContain('Usage history could not be recorded')
+    // History is paused, so the product may never create the usage folder:
+    // an absent folder and a folder without a record file both mean that
+    // nothing was recorded.
     const root = path.join(agentDataFolder(h.deps), 'usage')
-    const files = readdirSync(root, { recursive: true }).filter(
-      (name) => typeof name === 'string' && name.endsWith('.jsonl'),
-    )
+    const files = existsSync(root)
+      ? readdirSync(root, { recursive: true }).filter(
+          (name) => typeof name === 'string' && name.endsWith('.jsonl'),
+        )
+      : []
     expect(files).toHaveLength(0)
     expect(result(run)).toMatchObject({
       model: `local/${family.native}`,
