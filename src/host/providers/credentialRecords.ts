@@ -5,6 +5,7 @@
 // this record). A local server without auth stores nothing. Meta's key keeps
 // its own secret and flow (`CredentialStore`).
 
+import { createHash } from 'node:crypto'
 import * as z from 'zod/mini'
 import { PROVIDER_SECRET_PREFIX } from '../../shared/constants'
 import { CredentialStore } from '../auth/credentialStore'
@@ -93,6 +94,36 @@ export async function readProviderCredential(
 /** Deletes a provider's credential record (removal after its Undo). */
 export async function deleteProviderCredential(secrets: RecordStore, id: string): Promise<void> {
   await secrets.delete(providerSecretKey(id))
+}
+
+/**
+ * The stored credential's identity (SHA-256 of its secret), or undefined
+ * when none is stored or the stored value is damaged. Usage surfaces show
+ * only the budgets of this identity, so a rotated or removed key's numbers
+ * disappear. An unreadable store still throws: unknown is not a previous
+ * key, and the caller keeps the snapshots.
+ */
+export async function storedCredentialId(
+  secrets: RecordStore,
+  id: string,
+): Promise<string | undefined> {
+  let stored: string | undefined
+  try {
+    stored = await secrets.get(providerSecretKey(id))
+  } catch {
+    throw new Error(`The stored credential for provider ${id} could not be read`)
+  }
+  if (stored === undefined || stored === '') return undefined
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(stored)
+  } catch {
+    return undefined
+  }
+  const record = credentialRecordSchema.safeParse(parsed)
+  if (!record.success) return undefined
+  const identity = createHash('sha256').update(record.data.secret).digest('hex')
+  return identity
 }
 
 /**

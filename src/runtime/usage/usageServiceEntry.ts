@@ -185,6 +185,9 @@ export function createUsageAccess(deps: UsageAccessDeps): UsageAccess {
       countResources: () => resources.count(),
       readBudgets: deps.live?.readBudgets ?? (() => Promise.resolve([])),
       readLiveLimits: deps.live?.readLiveLimits ?? (() => Promise.resolve([])),
+      ...(deps.live?.currentCredentialId !== undefined && {
+        currentCredentialId: deps.live.currentCredentialId,
+      }),
       readAttempts: deps.live?.readAttempts ?? (() => readTraceAttempts({ homeDir: homedir() })),
       providerConsoles: () => {
         const consoles = deps.live?.providerConsoles() ?? []

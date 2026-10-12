@@ -10,6 +10,7 @@ import {
   type ConfiguredProviderOptions,
 } from '../../src/core/providers/configured'
 import * as configuredEntry from '../../src/host/backend/configuredProvidersEntry'
+import { openRouterDiscardedKeyNotice } from '../../src/host/backend/providersEntry'
 import { createSubscriptionFeatures } from '../../src/host/providers/subscriptionFeatures'
 import { createPkcePair } from '../../src/core/providers/pkce'
 import { startOAuthLoopback, type OAuthLoopback } from '../../src/host/providers/oauthLoopback'
@@ -283,8 +284,15 @@ describe('CM952 production OpenRouter composition', () => {
     }
     await originalStore(account, previous)
     expect(await runOpenRouterConnect(deps, api, controller.signal)).toBe(0)
+    const written = formatStoredProviderSecret({ v: 1, auth: 'apiKey', origin: ORIGIN }, KEY)
+    expect(await originalGet(account)).toBe(written)
+    expect(await originalGet(`${account}.connect`)).toBeUndefined()
     const awaits = count - 1 // final synchronous success print is the commit boundary
-    for (stopAt = 1; stopAt <= awaits; stopAt++) {
+    // Cancellation before the commit preserves the previous record and leaves
+    // no staging behind. The abort landing after the lock released reports
+    // the committed key: a rollback there would risk overwriting a rotation
+    // someone else made or resurrecting a removal.
+    for (stopAt = 1; stopAt < awaits; stopAt++) {
       controller = new AbortController()
       count = 0
       await originalStore(account, previous)
@@ -295,7 +303,122 @@ describe('CM952 production OpenRouter composition', () => {
       expect(await originalGet(account), `await ${String(stopAt)}`).toBe(previous)
       expect(await originalGet(`${account}.connect`)).toBeUndefined()
     }
+    controller = new AbortController()
+    count = 0
+    stopAt = awaits
+    await originalStore(account, previous)
+    expect(await runOpenRouterConnect(deps, api, controller.signal), 'commit stands').toBe(0)
+    expect(await originalGet(account)).toBe(written)
+    expect(await originalGet(`${account}.connect`)).toBeUndefined()
   })
+
+  it.each(['rotation', 'removal'] as const)(
+    'leaves an independent %s made during the commit alone instead of rolling back',
+    async (mode) => {
+      const f = await fixture()
+      const account = `${PROVIDER_SECRET_PREFIX}openrouter`
+      const previous = formatStoredProviderSecret(
+        { v: 1, auth: 'apiKey', origin: ORIGIN },
+        '[REDACTED]',
+      )
+      await f.secrets.store(account, previous)
+      const rotated = formatStoredProviderSecret(
+        { v: 1, auth: 'apiKey', origin: ORIGIN },
+        'rotated-synthetic-key',
+      )
+      const written = formatStoredProviderSecret({ v: 1, auth: 'apiKey', origin: ORIGIN }, KEY)
+      const underlying = f.secrets.store.bind(f.secrets)
+      vi.spyOn(f.secrets, 'store').mockImplementation(async (id, value) => {
+        await underlying(id, value)
+        // A second actor wins the race right after this flow's main write.
+        if (id === account && value === written) {
+          if (mode === 'rotation') await underlying(id, rotated)
+          else await f.secrets.delete(id)
+        }
+      })
+      expect(
+        await runOpenRouterConnect(f.deps, {
+          ...f.services,
+          openRouterExchange: () => Promise.resolve(KEY),
+        }),
+      ).toBe(1)
+      expect(await f.secrets.get(account)).toBe(mode === 'rotation' ? rotated : undefined)
+      expect(await f.secrets.get(`${account}.connect`)).toBeUndefined()
+      expect(f.errors).toContain(openRouterDiscardedKeyNotice())
+      expect(f.errors).toContain(UI_TEXT.providerConnectFailed)
+    },
+  )
+
+  it('reports a refusing credential store with both the removal notice and the failure', async () => {
+    const f = await fixture()
+    const account = `${PROVIDER_SECRET_PREFIX}openrouter`
+    const previous = formatStoredProviderSecret(
+      { v: 1, auth: 'apiKey', origin: ORIGIN },
+      '[REDACTED]',
+    )
+    await f.secrets.store(account, previous)
+    // The exchange succeeded, then the store refuses every call: the old
+    // failure path awaited another store read before notifying and reported
+    // nothing; the new one reports from memory.
+    let hasExchanged = false
+    const get = f.secrets.get
+    vi.spyOn(f.secrets, 'get').mockImplementation((id) =>
+      hasExchanged ? Promise.reject(new Error('store-unavailable')) : get(id),
+    )
+    vi.spyOn(f.secrets, 'store').mockRejectedValue(new Error('store-unavailable'))
+    vi.spyOn(f.secrets, 'delete').mockRejectedValue(new Error('store-unavailable'))
+    expect(
+      await runOpenRouterConnect(f.deps, {
+        ...f.services,
+        openRouterExchange: () => {
+          hasExchanged = true
+          return Promise.resolve(KEY)
+        },
+      }),
+    ).toBe(1)
+    expect(f.errors).toContain(openRouterDiscardedKeyNotice())
+    expect(f.errors).toContain(UI_TEXT.providerConnectFailed)
+    expect(await get(account)).toBe(previous)
+  })
+
+  it.each(['completed', 'declined'] as const)(
+    'recovers a crashed Connect staging slot with a notice instead of silently overwriting it: %s',
+    async (outcome) => {
+      const f = await fixture()
+      const account = `${PROVIDER_SECRET_PREFIX}openrouter`
+      const crashed = formatStoredProviderSecret(
+        { v: 1, auth: 'apiKey', origin: ORIGIN },
+        'crashed-synthetic-key',
+      )
+      await f.secrets.store(`${account}.connect`, crashed)
+      const deps =
+        outcome === 'completed'
+          ? f.deps
+          : {
+              ...f.deps,
+              readSecret: () => Promise.resolve('no'),
+            }
+      const previous = formatStoredProviderSecret(
+        { v: 1, auth: 'apiKey', origin: ORIGIN },
+        '[REDACTED]',
+      )
+      if (outcome === 'declined') await f.secrets.store(account, previous)
+      expect(
+        await runOpenRouterConnect(deps, {
+          ...f.services,
+          openRouterExchange: () => Promise.resolve(KEY),
+        }),
+      ).toBe(outcome === 'completed' ? 0 : 1)
+      // The crashed key is reported (never silently overwritten) and cleaned.
+      expect(f.errors).toContain(openRouterDiscardedKeyNotice())
+      expect(await f.secrets.get(`${account}.connect`)).toBeUndefined()
+      expect(await f.secrets.get(account)).toBe(
+        outcome === 'completed'
+          ? formatStoredProviderSecret({ v: 1, auth: 'apiKey', origin: ORIGIN }, KEY)
+          : previous,
+      )
+    },
+  )
 
   it('notifies when a successful quick-pick Connect is discarded', async () => {
     const f = testProvidersHost()
@@ -759,6 +882,33 @@ describe('CM952 production OpenRouter composition', () => {
     }
     f.setPayload({ error: { message: KEY } }, 401)
     await expect(f.services.openRouterUsage(ENTRY)).rejects.toThrow(UI_TEXT.providerUsageFailed)
+  })
+  it('refuses forged decimal objects, forged markers and unbounded exponents', async () => {
+    const f = await fixture()
+    const valid = {
+      usage: 1,
+      usage_daily: 1,
+      usage_weekly: 1,
+      usage_monthly: 1,
+      limit: 2,
+      limit_remaining: 1,
+    }
+    // A wire object shaped like the tokenizer's old tag is not an amount.
+    f.setPayload({ data: { ...valid, usage: { decimal: '1e101' } } })
+    await expect(f.services.openRouterUsage(ENTRY)).rejects.toThrow(UI_TEXT.providerUsageFailed)
+    // A marker-shaped wire string without this call's nonce is not an amount.
+    f.setPayload({
+      data: { ...valid, usage: 'exact-decimal:00000000-0000-0000-0000-000000000000:1' },
+    })
+    await expect(f.services.openRouterUsage(ENTRY)).rejects.toThrow(UI_TEXT.providerUsageFailed)
+    // The exponent bound applies to every numeric path.
+    for (const usage of [1e101, '1e101', -1e101, 1e-101]) {
+      f.setPayload({ data: { ...valid, usage } })
+      await expect(f.services.openRouterUsage(ENTRY)).rejects.toThrow(UI_TEXT.providerUsageFailed)
+    }
+    // The bound itself still reads: |exponent| 100 is an amount.
+    f.setPayload({ data: { ...valid, usage: 1e100 } })
+    expect(await f.services.openRouterUsage(ENTRY)).toMatchObject({ unlimited: false })
   })
   it('refuses edited origins, private DNS and credentials for another origin before sending', async () => {
     const f = await fixture()

@@ -94,10 +94,40 @@ const costSchema = z.object({
   cache_write: z.optional(z.number().check(z.nonnegative())),
 })
 // GET /api/v1/key: m95-captures/openrouter/02-key-usage.json (2026-10-04).
-const keyDollars = z.pipe(
-  z.object({ decimal: z.string().check(z.regex(/^(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$/)) }),
-  z.transform(({ decimal }) => Usd.from(decimal).toAmount()),
-)
+/**
+ * An exact decimal the response tokenizer minted. A class instance, never a
+ * plain object: response JSON parses to plain objects only, so no wire
+ * shape can forge one (a `{"decimal": "1e101"}` object is refused below).
+ */
+class ExactDecimal {
+  public constructor(public readonly decimal: string) {}
+}
+/** Exponents past this bound never become an amount, on any path. */
+const EXACT_DECIMAL_MAX_EXPONENT = 100
+function exactDecimalToAmount(value: ExactDecimal) {
+  const exponent = Number(value.decimal.split(/[eE]/, 2)[1] ?? 0)
+  if (!Number.isSafeInteger(exponent) || Math.abs(exponent) > EXACT_DECIMAL_MAX_EXPONENT) fail()
+  return Usd.from(value.decimal).toAmount()
+}
+const keyDollars = z.pipe(z.instanceof(ExactDecimal), z.transform(exactDecimalToAmount))
+/**
+ * Replaces per-call tokenizer markers with their minted amounts. A
+ * marker-shaped wire string cannot match the call's nonce, so it survives
+ * as a string and the usage schema refuses it.
+ */
+function materializeExactDecimals(value: unknown, nonce: string): unknown {
+  const prefix = `exact-decimal:${nonce}:`
+  if (typeof value === 'string')
+    return value.startsWith(prefix) ? new ExactDecimal(value.slice(prefix.length)) : value
+  if (Array.isArray(value)) return value.map((item) => materializeExactDecimals(item, nonce))
+  if (typeof value === 'object' && value !== null) {
+    const out: Record<string, unknown> = {}
+    for (const [name, entry] of Object.entries(value))
+      out[name] = materializeExactDecimals(entry, nonce)
+    return out
+  }
+  return value
+}
 const openRouterUsageSchema = z.object({
   data: z.object({
     usage: keyDollars,
@@ -417,19 +447,23 @@ export function createConfiguredProviderServices(
     )
     if (isExact) {
       // Tokenize strings and numbers together: digits in labels or escaped
-      // strings are untouched. JSON validates syntax; zod validates the capture.
+      // strings are untouched. JSON validates syntax; only markers minted
+      // here materialize into amounts, so a wire object or string can never
+      // forge one. The nonce is per call; the exponent bound is enforced
+      // here and again in the amount schema.
+      const nonce = randomUUID()
       const text = await readBoundedText(result.response)
       const exact = text.replaceAll(
         /"(?:[^"\\]|\\.)*"|-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?/g,
         (token) => {
           if (token.startsWith('"')) return token
-          return Math.abs(Number(token.split(/[eE]/, 2)[1] ?? 0)) > 100
+          const exponent = Number(token.split(/[eE]/, 2)[1] ?? 0)
+          return !Number.isSafeInteger(exponent) || Math.abs(exponent) > EXACT_DECIMAL_MAX_EXPONENT
             ? fail()
-            : JSON.stringify({ decimal: token })
+            : JSON.stringify(`exact-decimal:${nonce}:${token}`)
         },
       )
-      const value: unknown = JSON.parse(exact)
-      return value
+      return materializeExactDecimals(JSON.parse(exact), nonce)
     }
     return await parseJsonResponse(result, (json) => z.json().parse(json))
   }

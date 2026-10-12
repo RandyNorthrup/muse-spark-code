@@ -122,6 +122,9 @@ export function createUsageRecording(options: UsageRecordingOptions): UsageRecor
         timezoneOffsetMins: new Date(at).getTimezoneOffset(),
         client: client(),
       }
+      // Slots accumulate per credential; the usage service selects the
+      // stored credential's slots when it reads, so a previous key's
+      // numbers are never shown or counted. This recorder keeps history.
       liveLimits.set(slot, entry)
       queue((journal) => {
         journal.append(entry)

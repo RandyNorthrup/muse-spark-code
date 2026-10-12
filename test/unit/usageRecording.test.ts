@@ -103,6 +103,8 @@ describe('recording taps', () => {
     port.limit({ ...context, credentialId: 'b'.repeat(64), observationId: 'second' })
     await port.flush()
     expect(journal.append).toHaveBeenCalledTimes(2)
+    // Slots accumulate per credential; the usage service shows only the
+    // stored credential's slots, so no number belongs to a previous key.
     expect(port.limits?.().map((row) => row.credentialId)).toEqual(['a'.repeat(64), 'b'.repeat(64)])
   })
 

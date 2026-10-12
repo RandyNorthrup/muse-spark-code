@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { usageLimitSnapshotSchema } from '../../src/shared/usageJournal'
 import { createUsageService } from '../../src/core/usage/usageService'
 import { usageServiceToPageMessageSchema } from '../../src/shared/usagePage'
 import { serveUsageStdio } from '../../src/runtime/usage/usageServiceEntry'
@@ -319,6 +320,49 @@ describe('shared usage service', () => {
     })
     expect(deps.setHistory.mock.calls).toEqual([[false], [true]])
     expect(await service.snapshot()).toHaveProperty('history.enabled', true)
+  })
+  it('shows only the budgets of the credential in use', async () => {
+    const keyed = usageLimitSnapshotSchema.parse({
+      v: 1,
+      id: 'key-limit',
+      type: 'limit',
+      at: usageNow,
+      day: usageLocalDay(usageNow),
+      timezoneOffsetMins: 420,
+      client: 'Zed',
+      backend: 'modelApi',
+      provider: 'openrouter',
+      source: 'openRouter',
+      credentialId: 'a'.repeat(64),
+      observationId: 'first',
+      observedAt: usageNow,
+      windows: [],
+      account: { usedUsd: 77, limitUsd: 100, remainingUsd: 23, period: 'month' },
+    })
+    const live = () => ({ ...usageFixtureDeps(), readLiveLimits: () => Promise.resolve([keyed]) })
+    const selected = (current: (providerId: string) => Promise<string | undefined>) =>
+      createUsageService({ ...live(), currentCredentialId: current }).snapshot()
+    // Without a supplier nothing is dropped.
+    let state = await createUsageService(live()).snapshot()
+    expect(state.limits.map((entry) => entry.id)).toContain('key-limit')
+    // The stored key matches: its budget is shown.
+    const current = vi.fn((provider: string) =>
+      Promise.resolve(provider === 'openrouter' ? 'a'.repeat(64) : undefined),
+    )
+    state = await selected(current)
+    expect(state.limits.map((entry) => entry.id)).toContain('key-limit')
+    expect(current).toHaveBeenCalledWith('openrouter')
+    // A rotated key hides the previous key's budget.
+    state = await selected(() => Promise.resolve('b'.repeat(64)))
+    expect(state.limits.map((entry) => entry.id)).not.toContain('key-limit')
+    // A removed key hides it too: no number belongs to a previous key.
+    state = await selected(() => Promise.resolve(undefined))
+    expect(state.limits.map((entry) => entry.id)).not.toContain('key-limit')
+    // An unreadable store is unknown, not previous: the budget stays.
+    state = await selected(() =>
+      Promise.reject<string | undefined>(new Error('private store canary')),
+    )
+    expect(state.limits.map((entry) => entry.id)).toContain('key-limit')
   })
   it('retains range limit history for step charts and deduplicates identical live snapshots', async () => {
     const deps = usageFixtureDeps()

@@ -52,10 +52,11 @@ export async function runOpenRouterConnect(
   }
   process.once('SIGINT', abort)
   process.once('SIGTERM', abort)
-  let wasDiscarded = false
+  // Every discarded vendor-created key is reported: the exchange reports a
+  // late key once (and then throws, so the failure path below stays silent
+  // for it), while a recovered staging key and a newly minted one are
+  // distinct keys and each gets its own notice.
   const notifyDiscard = () => {
-    if (wasDiscarded) return
-    wasDiscarded = true
     deps.printError(openRouterDiscardedKeyNotice())
   }
   let wasMinted = false
@@ -72,6 +73,26 @@ export async function runOpenRouterConnect(
       target.origin !== OPENROUTER_ORIGIN
     )
       throw new Error(UI_TEXT.providerConnectFailed)
+    // A crashed Connect leaves its staged record behind. The next start
+    // finds it, reports the vendor-created key in one sentence, and cleans
+    // the slot before any new write, so it is never silently overwritten.
+    const staging = `${account}.connect`
+    let staged: string | undefined
+    try {
+      staged = await deps.secrets.get(staging)
+    } catch {
+      throw new Error(UI_TEXT.providerConnectFailed)
+    }
+    if (staged !== undefined) {
+      // A slot that cannot be cleaned stops the run before any new write;
+      // the next Connect retries the recovery.
+      try {
+        await deps.secrets.delete(staging)
+      } catch {
+        throw new Error(UI_TEXT.providerConnectFailed)
+      }
+      notifyDiscard()
+    }
     previous = await deps.secrets.get(account)
     signal.throwIfAborted()
     if (previous !== undefined) {
@@ -120,8 +141,9 @@ export async function runOpenRouterConnect(
       )
       // Verify the new record in a private OS-store slot before the atomic
       // replacement. The existing record remains intact throughout preparation.
-      const staging = `${account}.connect`
-      let isReplacing = false
+      // Every credential write, and any rollback of one, runs inside the
+      // provider lock: nothing here survives it, so no later rollback can
+      // overwrite a rotation someone else made or resurrect a removal.
       try {
         await deps.secrets.store(staging, written)
         signal.throwIfAborted()
@@ -131,7 +153,6 @@ export async function runOpenRouterConnect(
         if ((await deps.secrets.get(account)) !== previous)
           throw new Error(UI_TEXT.providerEditConflict)
         signal.throwIfAborted()
-        isReplacing = true
         await deps.secrets.store(account, written)
         signal.throwIfAborted()
         if ((await deps.secrets.get(account)) !== written)
@@ -140,29 +161,37 @@ export async function runOpenRouterConnect(
         await deps.secrets.delete(staging)
         signal.throwIfAborted()
       } catch (error) {
-        if (isReplacing && (await deps.secrets.get(account)) === written) {
-          if (previous === undefined) await deps.secrets.delete(account)
-          else await deps.secrets.store(account, previous)
+        // Rollback inside the lock, never cancellable: a concurrent locked
+        // writer is serialized by the lock, and a value that is no longer
+        // ours (rotated or removed meanwhile) is left alone, never restored.
+        // A refusing store cannot roll back either; the failure below stands
+        // and the next Connect recovers the staging slot with its notice.
+        try {
+          if ((await deps.secrets.get(account)) === written) {
+            if (previous === undefined) await deps.secrets.delete(account)
+            else await deps.secrets.store(account, previous)
+          }
+        } catch {
+          // The store refusal below already reports the failure.
         }
-        await deps.secrets.delete(staging)
+        try {
+          await deps.secrets.delete(staging)
+        } catch {
+          // The next Connect recovers the slot with its notice.
+        }
         throw error
       }
       signal.throwIfAborted()
       return 0
     }
     await (deps.withUserFileLock === undefined ? store() : deps.withUserFileLock(store))
-    signal.throwIfAborted()
     deps.print(fill(UI_TEXT.keyStoredNote, { origin: OPENROUTER_ORIGIN }))
     return 0
   } catch {
-    if (
-      account !== undefined &&
-      written !== undefined &&
-      (await deps.secrets.get(account)) === written
-    ) {
-      if (previous === undefined) await deps.secrets.delete(account)
-      else await deps.secrets.store(account, previous)
-    }
+    // The lock is released here, so this path never touches the credential
+    // store: a rollback now could overwrite an independent rotation or bring
+    // back a removed key. The exchange notice and the failure are both
+    // reported from memory, even when the store itself is refusing.
     if (wasMinted) notifyDiscard()
     deps.printError(UI_TEXT.providerConnectFailed)
     return 1
