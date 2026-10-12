@@ -196,4 +196,62 @@ describe('RVCM1091D vault state table', () => {
     expect(screen.getByRole('button', { name: UI_TEXT.vault.unlock })).toBeDisabled()
     expect(screen.getByRole('button', { name: UI_TEXT.vault.resetVault })).toBeEnabled()
   })
+
+  it('RVCM1091F transient reasons name themselves, never the repair message', () => {
+    const sentences: StateSentence[] = [
+      { state: 'unavailable', tier: null, reason: 'busy', sentence: UI_TEXT.vault.busy },
+      {
+        state: 'unavailable',
+        tier: null,
+        reason: 'timeout',
+        sentence: UI_TEXT.vault.operationFailed,
+      },
+      {
+        state: 'unavailable',
+        tier: null,
+        reason: 'watchLost',
+        sentence: UI_TEXT.vault.operationFailed,
+      },
+      {
+        state: 'unavailable',
+        tier: null,
+        reason: 'unreachable',
+        sentence: UI_TEXT.vault.operationFailed,
+      },
+      {
+        state: 'unavailable',
+        tier: null,
+        reason: 'storeUnavailable',
+        sentence: UI_TEXT.vault.storeUnavailable,
+      },
+    ]
+    for (const entry of sentences) {
+      const sentence = tierWarning(
+        status({ state: entry.state, tier: entry.tier, reason: entry.reason }),
+      )
+      expect(sentence).toBe(entry.sentence)
+      expect(sentence).not.toBe(UI_TEXT.vault.brokerBlocked)
+    }
+  })
+
+  it('RVCM1091F a transient outage offers Retry, a repair or restore does not', () => {
+    for (const reason of ['busy', 'timeout', 'watchLost', 'unreachable'] as const) {
+      const state = panel()
+      state.status = status({ state: 'unavailable', tier: null, reason })
+      const post = vi.fn()
+      const { unmount } = render(<VaultSection state={state} post={post} />)
+      const retry = screen.getByRole('button', { name: UI_TEXT.vault.retry })
+      expect(retry).toBeEnabled()
+      retry.click()
+      expect(post).toHaveBeenCalledWith({ type: 'vaultRetry' })
+      unmount()
+    }
+    for (const reason of ['brokerBlocked', 'rollback', 'vaultLost'] as const) {
+      const state = panel()
+      state.status = status({ state: 'unavailable', tier: null, reason })
+      const { unmount } = render(<VaultSection state={state} post={vi.fn()} />)
+      expect(screen.queryByRole('button', { name: UI_TEXT.vault.retry })).toBeNull()
+      unmount()
+    }
+  })
 })

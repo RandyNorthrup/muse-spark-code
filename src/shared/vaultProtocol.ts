@@ -220,6 +220,9 @@ export const vaultBrokerResponseSchema = z.strictObject({
         // RVCM1091E P2: a Delete refused because the source changed after a
         // successful import is not an add/import collision.
         'deleteConflict',
+        // RVCM1091F P3: a Delete that removed the source and then could not
+        // forget its receipt. The file is gone; nothing to retry.
+        'sourceGone',
         'busy',
         'invalid',
         'rollback',

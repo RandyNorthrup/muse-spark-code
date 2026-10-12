@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { writeFile, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { UI_TEXT } from '../../../src/shared/constants'
+import { VaultError } from '../../../src/core/vault/crypto'
 import { vaultRefusalMessage } from '../../../src/core/vault/broker/manageClient'
 import type { VaultManagementRefusal } from '../../../src/core/vault/broker/ports'
 import { VaultPanelHost, type VaultPanelHostDeps } from '../../../src/host/vault/vaultPanelHost'
@@ -185,16 +186,24 @@ describe('RVCM1091E refusal sentences per operation', () => {
   const CELLS: readonly Cell[] = [
     { operation: 'add', reason: 'locked', forbidden: [] },
     { operation: 'add', reason: 'conflict', forbidden: ['delet'] },
+    { operation: 'add', reason: 'busy', forbidden: ['delet'] },
+    { operation: 'add', reason: 'rollback', forbidden: ['delet'] },
     { operation: 'add', reason: 'invalid', forbidden: ['unlock', 'added', 'delet'] },
     { operation: 'add', reason: 'io', forbidden: ['unlock', 'added', 'delet'] },
     { operation: 'add', reason: 'storeUnavailable', forbidden: [] },
     { operation: 'import', reason: 'locked', forbidden: [] },
     { operation: 'import', reason: 'conflict', forbidden: ['delet'] },
+    { operation: 'import', reason: 'busy', forbidden: ['delet'] },
+    { operation: 'import', reason: 'rollback', forbidden: ['delet'] },
     { operation: 'import', reason: 'invalid', forbidden: ['unlock', 'added', 'delet'] },
     { operation: 'import', reason: 'io', forbidden: ['unlock', 'added', 'delet'] },
     { operation: 'import', reason: 'storeUnavailable', forbidden: [] },
     { operation: 'delete', reason: 'locked', forbidden: [] },
     { operation: 'delete', reason: 'deleteConflict', forbidden: ['added'] },
+    // A Delete meets `busy`/`rollback` only at the receipt forget, after the
+    // source is gone: the broker names that truth (`sourceGone`), never a
+    // retryable failure — covered live below, not by a borrowed sentence.
+    { operation: 'delete', reason: 'sourceGone', forbidden: ['unlock', 'added'] },
     { operation: 'delete', reason: 'invalid', forbidden: ['unlock', 'added', 'delet'] },
     { operation: 'delete', reason: 'io', forbidden: ['unlock', 'added', 'delet'] },
     { operation: 'delete', reason: 'storeUnavailable', forbidden: [] },
@@ -218,6 +227,11 @@ describe('RVCM1091E refusal sentences per operation', () => {
           expect(sentence).toBe(UI_TEXT.vault.deleteConflict)
           break
         }
+        case 'sourceGone': {
+          expect(operation).toBe('delete')
+          expect(sentence).toBe(UI_TEXT.vault.sourceGone)
+          break
+        }
         case 'invalid':
         case 'io': {
           expect(sentence).toBe(UI_TEXT.vault.operationFailed)
@@ -237,6 +251,7 @@ describe('RVCM1091E refusal sentences per operation', () => {
       'exists',
       'conflict',
       'deleteConflict',
+      'sourceGone',
       'busy',
       'invalid',
       'rollback',
@@ -244,5 +259,77 @@ describe('RVCM1091E refusal sentences per operation', () => {
       'storeUnavailable',
     ]
     for (const reason of reasons) expect(vaultRefusalMessage(reason).length).toBeGreaterThan(0)
+  })
+})
+
+describe('RVCM1091F refusal rows reach the broker for every operation', () => {
+  it('an add refused busy or rollback names the broker reason', async () => {
+    for (const code of ['busy', 'rollback'] as const) {
+      const f = managementFixture()
+      const setup = await lockedVault(f)
+      setup.fill(0)
+      await f.broker.unlock(null)
+      const store = f.repository.current()
+      vi.spyOn(store, 'write').mockRejectedValueOnce(new VaultError(code))
+      await expect(
+        f.management.add({
+          metadata: metadata(),
+          material: { kind: 'secret', value: Buffer.from('generated-live') },
+        }),
+      ).rejects.toMatchObject({ code })
+      expect(vaultRefusalMessage(code)).toBe(
+        code === 'busy' ? UI_TEXT.vault.busy : UI_TEXT.vault.rollback,
+      )
+    }
+  })
+
+  it('an import refused busy or rollback names the broker reason', async () => {
+    for (const code of ['busy', 'rollback'] as const) {
+      const home = await tempHome()
+      const file = path.join(home, '.netrc')
+      await writeFile(
+        file,
+        'machine example.test login generated-user password generated-password\n',
+      )
+      const f = managementFixture(undefined, home)
+      const setup = await lockedVault(f)
+      setup.fill(0)
+      await f.broker.unlock(null)
+      const store = f.repository.current()
+      vi.spyOn(store, 'writeBatch').mockRejectedValueOnce(new VaultError(code))
+      await expect(f.management.importFile(file, () => true)).rejects.toMatchObject({ code })
+      expect(vaultRefusalMessage(code)).toBe(
+        code === 'busy' ? UI_TEXT.vault.busy : UI_TEXT.vault.rollback,
+      )
+    }
+  })
+
+  it('a Delete that removes the source and then cannot forget its receipt says the file is gone', async () => {
+    for (const code of ['busy', 'rollback'] as const) {
+      const home = await tempHome()
+      const file = path.join(home, '.netrc')
+      await writeFile(
+        file,
+        'machine example.test login generated-user password generated-password\n',
+      )
+      const f = managementFixture(undefined, home)
+      const setup = await lockedVault(f)
+      setup.fill(0)
+      await f.broker.unlock(null)
+      const report = await f.management.importFile(file, () => true)
+      const store = f.repository.current()
+      vi.spyOn(store, 'forgetReceipt').mockRejectedValueOnce(new VaultError(code))
+      // The file is gone; the receipt remains; retrying can never succeed.
+      await expect(f.management.deleteImport(report.receipt, () => true)).rejects.toMatchObject({
+        reason: 'sourceGone',
+      })
+      await expect(stat(file)).rejects.toMatchObject({ code: 'ENOENT' })
+      expect(vaultRefusalMessage('sourceGone')).toBe(UI_TEXT.vault.sourceGone)
+      // The next Delete clears the leftover receipt and says the same truth.
+      await expect(f.management.deleteImport(report.receipt, () => true)).rejects.toMatchObject({
+        reason: 'sourceGone',
+      })
+      expect(await store.readReceipt(report.receipt)).toBeNull()
+    }
   })
 })

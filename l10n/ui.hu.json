@@ -5231,6 +5231,8 @@
     "seUnavailable": "A Secure Enclave védelem nem érhető el. A jelenlét megerősítéséhez használjon jelmondatot.",
     "passphraseWarning": "A feloldáshoz jelszókifejezés szükséges. Védi a lemásolt lemezt, és megakadályozza az Ön nevében futó programok csendes feloldását.",
     "operationFailed": "A tárolóművelet sikertelen. Próbálja újra.",
+    "retry": "Újra",
+    "sourceGone": "Az eredeti fájl már törölve lett, de az importálási bizonylatot nem sikerült törölni. Az importált hitelesítő adatok a tárolóban maradnak; nincs mit újrapróbálni.",
     "invalidFields": "Ellenőrizze az engedély mezőit és célját.",
     "grantHelp": "Az alábbi hatókörök korlátozzák az engedélyt. Az üres darabszám, lejárat vagy időablak korlátlan hozzáférést jelent.",
     "metadataOnly": "Csak a beállítások szerkesztése",

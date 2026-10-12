@@ -5531,6 +5531,8 @@
     "seUnavailable": "Ochrona Secure Enclave jest niedostępna. Użyj hasła do potwierdzania obecności.",
     "passphraseWarning": "Do odblokowania potrzebna jest fraza hasła. Chroni skopiowany dysk i zapobiega cichemu odblokowaniu przez programy działające na twoim koncie.",
     "operationFailed": "Operacja sejfu nie powiodła się. Spróbuj ponownie.",
+    "retry": "Ponów",
+    "sourceGone": "Pierwotny plik został już usunięty, ale nie udało się wyczyścić potwierdzenia importu. Zaimportowane poświadczenia pozostają w sejfie; nie ma czego ponawiać.",
     "invalidFields": "Sprawdź pola uprawnienia i jego cel.",
     "grantHelp": "Każdy zakres poniżej ogranicza uprawnienie. Pusta liczba, data wygaśnięcia lub okno czasowe oznacza brak limitu.",
     "metadataOnly": "Edytuj tylko ustawienia",

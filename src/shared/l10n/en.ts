@@ -6323,6 +6323,14 @@ export const EN = {
     // RVCM1091E P3: never names an unlock; the section showing Unlocked
     // after a failed operation would otherwise be told to unlock it.
     operationFailed: 'The vault operation failed. Try again.',
+    // RVCM1091F REDESIGN: the person's own Retry after a transient failure
+    // spent the bounded auto-retries.
+    retry: 'Retry',
+    // RVCM1091F P3: a Delete that removed the source file and then could not
+    // forget its receipt. The file is gone; nothing to retry; the imported
+    // credentials stay in the vault.
+    sourceGone:
+      'The original file was already deleted, but its import record could not be cleared. The imported credentials stay in the vault; there is nothing to retry.',
     invalidFields: 'Check the grant fields and its target.',
     grantHelp:
       'Every scope below limits this grant. Empty count, expiry or time window means no limit.',

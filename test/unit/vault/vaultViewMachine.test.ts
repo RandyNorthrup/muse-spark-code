@@ -73,7 +73,13 @@ function sampleStates(): Record<(typeof VAULT_VIEW_STATES)[number], VaultViewSta
   const good = unlockedSnapshot()
   return {
     loading: { kind: 'loading', generation: GEN, lastGood: good },
-    locked: { kind: 'locked', lockEpoch: 4, generation: GEN, frame: lockedFrame(good, 4) },
+    locked: {
+      kind: 'locked',
+      lockEpoch: 4,
+      generation: GEN,
+      frame: lockedFrame(good, 4),
+      confirmed: true,
+    },
     unlocked: { kind: 'unlocked', snapshot: good, generation: GEN },
     unavailable: {
       kind: 'unavailable',
@@ -106,6 +112,7 @@ function sampleEvent(kind: (typeof VAULT_VIEW_EVENTS)[number]): VaultViewEvent {
     case 'watchLost':
     case 'watchRestored':
     case 'userLock':
+    case 'userLockConfirmed':
     case 'userUnlock':
     case 'userAdd':
     case 'userImport':
@@ -121,7 +128,7 @@ function sampleEvent(kind: (typeof VAULT_VIEW_EVENTS)[number]): VaultViewEvent {
 describe('RVCM1091F view state machine table', () => {
   it('covers every state crossed with every event from the unions', () => {
     expect(VAULT_VIEW_STATES).toHaveLength(4)
-    expect(VAULT_VIEW_EVENTS).toHaveLength(18)
+    expect(VAULT_VIEW_EVENTS).toHaveLength(19)
     const states = sampleStates()
     for (const stateKind of VAULT_VIEW_STATES) {
       const state = states[stateKind]
@@ -173,6 +180,84 @@ describe('RVCM1091F view state machine table', () => {
     expect(next.kind).toBe('locked')
     if (next.kind === 'locked') expect(next.lockEpoch).toBe(4)
     expect(effects.frame?.status.state).toBe('locked')
+    expect(effects.reload).toBe(false)
+  })
+
+  it('a succeeded Lock confirms the optimistic view; a moved-on view is left alone', () => {
+    // This window's Lock paints Locked stripped but unconfirmed.
+    const optimistic = applyVaultViewEvent(
+      sampleStates().unlocked,
+      { kind: 'userLock' },
+      GEN,
+      BUDGET,
+      DELAY,
+    )
+    expect(optimistic.state.kind).toBe('locked')
+    if (optimistic.state.kind === 'locked') {
+      expect(optimistic.state.confirmed).toBe(false)
+      expect(optimistic.effects.frame?.items).toHaveLength(0)
+      expect(optimistic.effects.frame?.grants).toHaveLength(0)
+    }
+    // The Lock call returning confirms it, republishing the same frame.
+    const confirmed = applyVaultViewEvent(
+      optimistic.state,
+      { kind: 'userLockConfirmed' },
+      GEN,
+      BUDGET,
+      DELAY,
+    )
+    expect(confirmed.state.kind).toBe('locked')
+    if (confirmed.state.kind === 'locked') expect(confirmed.state.confirmed).toBe(true)
+    expect(confirmed.effects.frame).toEqual(optimistic.effects.frame)
+    expect(confirmed.effects.reload).toBe(false)
+    // A confirmation for a view that already moved on changes nothing.
+    const elsewhere = applyVaultViewEvent(
+      sampleStates().unlocked,
+      { kind: 'userLockConfirmed' },
+      GEN,
+      BUDGET,
+      DELAY,
+    )
+    expect(elsewhere.state.kind).toBe('unlocked')
+    expect(elsewhere.effects.reload).toBe(false)
+  })
+
+  it('a failed Lock with no snapshot says Unavailable, never Locked', () => {
+    const optimistic = applyVaultViewEvent(
+      sampleStates().unlocked,
+      { kind: 'userLock' },
+      GEN,
+      BUDGET,
+      DELAY,
+    )
+    const { state: next, effects } = applyVaultViewEvent(
+      optimistic.state,
+      { kind: 'snapshotFailed', generation: GEN, reason: 'unreachable' },
+      GEN,
+      BUDGET,
+      DELAY,
+    )
+    // The Lock may have failed, so no Locked claim: the true reason, no
+    // item names, no repair message.
+    expect(next.kind).toBe('unavailable')
+    expect(effects.frame?.status.state).toBe('unavailable')
+    expect(effects.frame?.items).toHaveLength(0)
+    expect(effects.toast).toBe(UI_TEXT.vault.operationFailed)
+    expect(effects.toast).not.toBe(UI_TEXT.vault.brokerBlocked)
+  })
+
+  it('a confirmed Locked view survives a failed confirmation snapshot', () => {
+    const { state: next, effects } = applyVaultViewEvent(
+      sampleStates().locked,
+      { kind: 'snapshotFailed', generation: GEN, reason: 'unreachable' },
+      GEN,
+      BUDGET,
+      DELAY,
+    )
+    expect(next.kind).toBe('locked')
+    expect(effects.frame?.status.state).toBe('locked')
+    expect(effects.frame?.items).toHaveLength(0)
+    expect(effects.toast).toBe(UI_TEXT.vault.operationFailed)
     expect(effects.reload).toBe(false)
   })
 
@@ -320,6 +405,20 @@ describe('RVCM1091F view state machine table', () => {
   })
 
   it('a fresh snapshot is always trusted, even after an optimistic lock', () => {
+    const fresh = unlockedSnapshot()
+    fresh.status.lockEpoch = 4
+    const { state: next, effects } = applyVaultViewEvent(
+      sampleStates().locked,
+      { kind: 'snapshotOk', generation: GEN, snapshot: fresh },
+      GEN,
+      BUDGET,
+      DELAY,
+    )
+    expect(next.kind).toBe('unlocked')
+    expect(effects.frame?.status.state).toBe('unlocked')
+  })
+
+  it('a snapshot from an older broker epoch never resurrects a locked panel', () => {
     const { state: next, effects } = applyVaultViewEvent(
       sampleStates().locked,
       { kind: 'snapshotOk', generation: GEN, snapshot: unlockedSnapshot() },
@@ -327,8 +426,8 @@ describe('RVCM1091F view state machine table', () => {
       BUDGET,
       DELAY,
     )
-    expect(next.kind).toBe('unlocked')
-    expect(effects.frame?.status.state).toBe('unlocked')
+    expect(next.kind).toBe('locked')
+    expect(effects.frame?.status.state).toBe('locked')
   })
 
   it('a toast never contradicts the section beside it', () => {

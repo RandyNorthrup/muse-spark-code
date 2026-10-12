@@ -1,4 +1,4 @@
-import { constants, unlinkSync, openSync, closeSync, realpathSync } from 'node:fs'
+import { constants, existsSync, unlinkSync, openSync, closeSync, realpathSync } from 'node:fs'
 import { open } from 'node:fs/promises'
 import nodePath from 'node:path'
 import { createHash, randomUUID } from 'node:crypto'
@@ -17,6 +17,7 @@ import { VAULT_LIMITS } from '../../../shared/constants'
 import { type AmbientFile } from './ambient'
 import { eraseItem, itemDigest } from './material'
 import { type MigrationOwnerPort, type MigrationLease, VaultMigrationFault } from './ports'
+import { VaultError } from '../crypto'
 
 const digestSchema = z.string().check(z.regex(/^[a-f0-9]{64}$/u))
 const receiptSchema = z.strictObject({
@@ -249,6 +250,10 @@ export class VaultFileImporter {
         return { items: structuredClone(metadata), receipt }
       } catch (error: unknown) {
         if (error instanceof VaultMigrationFault) throw error
+        // A busy or rolled-back store is named, not collapsed: retrying the
+        // import later (or restoring a backup) is the true next step.
+        if (error instanceof VaultError && (error.code === 'busy' || error.code === 'rollback'))
+          throw error
         throw new VaultMigrationFault('storage')
       } finally {
         for (const item of items) eraseItem(item)
@@ -284,6 +289,19 @@ export class VaultFileImporter {
       try {
         assertReceipt()
         assertUserAction()
+        if (!existsSync(saved.path)) {
+          // The file is already gone (a previous Delete removed it but could
+          // not forget its receipt, or the person deleted it): clear the
+          // leftover receipt at this next start and say what happened.
+          try {
+            await this.vault.forgetReceipt(receipt, () => {
+              this.assertActive(lease)
+            })
+          } catch {
+            /* Best effort: the receipt stays for the attempt after this one. */
+          }
+          throw new VaultMigrationFault('orphaned')
+        }
         parents = this.holdParents(saved.path)
         const read = await this.read(saved.path, parents.assertPath)
         source = read.bytes
@@ -318,9 +336,17 @@ export class VaultFileImporter {
         parents.assertPath(read.identity)
         unlinkSync(saved.path)
         assertReceipt()
-        await this.vault.forgetReceipt(receipt, () => {
-          this.assertActive(lease)
-        })
+        try {
+          await this.vault.forgetReceipt(receipt, () => {
+            this.assertActive(lease)
+          })
+        } catch (error: unknown) {
+          // The source is gone but its receipt is stuck: report the truth
+          // (the file is gone; nothing to retry) instead of a retryable
+          // failure. The next Delete clears the receipt (see above).
+          if (error instanceof VaultMigrationFault) throw error
+          throw new VaultMigrationFault('orphaned')
+        }
       } catch (error: unknown) {
         if (error instanceof VaultMigrationFault) throw error
         throw new VaultMigrationFault('storage')

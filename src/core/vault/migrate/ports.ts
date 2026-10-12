@@ -75,7 +75,9 @@ export interface MigrationDeps {
 
 /** Never forward a store/codec exception that could contain credential bytes. */
 export class VaultMigrationFault extends Error {
-  constructor(readonly code: 'invalid' | 'conflict' | 'verification' | 'window' | 'storage') {
+  constructor(
+    readonly code: 'invalid' | 'conflict' | 'verification' | 'window' | 'storage' | 'orphaned',
+  ) {
     super(UI_TEXT.vault.noAccess)
     this.name = 'VaultMigrationFault'
   }

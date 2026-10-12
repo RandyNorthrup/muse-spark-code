@@ -167,14 +167,22 @@ describe('U authenticated panel host', () => {
       f.host.dispose()
     }
   })
-  it('malformed and older-epoch notifications do not invalidate the current view', async () => {
+  it('a stale locked notification republishes the current view unchanged, never silently', async () => {
     const f = fixture()
     f.state.status.lockEpoch = 2
     await f.host.refresh()
-    const count = f.deps.publish.mock.calls.length
+    const snapshots = vi.mocked(f.service.snapshot).mock.calls.length
+    const before = f.deps.publish.mock.calls.at(-1)?.[0]
+    // An older broker epoch cannot re-lock the view — but the event is still
+    // answered with a publish of the unchanged view, never ignored, and
+    // never with a reload (RVCM1091F: no silent path).
     f.changed.callback({ kind: 'locked', v: 2, lockEpoch: 1 })
+    expect(f.deps.publish.mock.calls.length).toBe(2)
+    expect(f.deps.publish.mock.calls.at(-1)?.[0]).toEqual(before)
+    expect(vi.mocked(f.service.snapshot).mock.calls.length).toBe(snapshots)
+    // A malformed notification is not a broker event at all: ignored.
     f.changed.callback({ kind: 'locked', v: 2, lockEpoch: 3, value: randomBytes(32) })
-    expect(f.deps.publish.mock.calls.length).toBe(count)
+    expect(f.deps.publish.mock.calls.length).toBe(2)
     f.host.dispose()
   })
   it('V11 replay is refused even while the broker snapshot still contains an answered card', async () => {
@@ -311,7 +319,13 @@ describe('U authenticated panel host', () => {
     await f.host.refresh()
     f.state.status.lockEpoch = 1
     await f.host.refresh()
-    expect(f.deps.publish).toHaveBeenCalledOnce()
+    // The rolled-back snapshot never reaches the screen: the current view
+    // republishes unchanged instead — still a publish, never silence.
+    expect(f.deps.publish).toHaveBeenCalledTimes(2)
+    const frame = f.deps.publish.mock.calls.at(-1)?.[0] as {
+      state: ReturnType<typeof panel>
+    }
+    expect(frame.state.status.lockEpoch).toBe(2)
     f.state.status.lockEpoch = 2
     await f.host.handle({ type: 'vaultAdd' })
     expect(f.service.write).not.toHaveBeenCalled()

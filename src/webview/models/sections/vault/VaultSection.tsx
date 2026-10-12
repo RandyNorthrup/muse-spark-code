@@ -28,9 +28,44 @@ export function tierWarning(status: VaultStatus): string {
   if (status.state === 'uncreated') return UI_TEXT.vault.setupNeeded
   if (status.state === 'setupPending') return UI_TEXT.vault.setupPending
   // RVCM1091E P2: an unreachable broker is not a lost vault — Reset is
-  // never the advice when the files may be fine.
-  if (status.state === 'unavailable' || status.reason === 'vaultLost')
-    return status.reason === 'brokerBlocked' ? UI_TEXT.vault.brokerBlocked : UI_TEXT.vault.vaultLost
+  // never the advice when the files may be fine. RVCM1091F: every reason
+  // the host can synthesize has its own true sentence here, so a transient
+  // failure never borrows the repair message (only `brokerBlocked` shows it).
+  if (status.state === 'unavailable' || status.reason === 'vaultLost') {
+    switch (status.reason) {
+      case 'brokerBlocked': {
+        return UI_TEXT.vault.brokerBlocked
+      }
+      case 'busy': {
+        return UI_TEXT.vault.busy
+      }
+      case 'timeout':
+      case 'watchLost':
+      case 'unreachable': {
+        return UI_TEXT.vault.operationFailed
+      }
+      case 'storeUnavailable': {
+        return UI_TEXT.vault.storeUnavailable
+      }
+      case 'rollback': {
+        return UI_TEXT.vault.rollback
+      }
+      case 'slotUnavailable': {
+        return UI_TEXT.vault.slotUnavailable
+      }
+      case 'basicText': {
+        return UI_TEXT.vault.basicText
+      }
+      case 'auditInvalid': {
+        return UI_TEXT.vault.auditInvalid
+      }
+      case 'vaultLost':
+      case 'locked':
+      case null: {
+        return UI_TEXT.vault.vaultLost
+      }
+    }
+  }
   if (status.reason === 'brokerBlocked' || status.state === 'firstPartyOnly')
     return UI_TEXT.vault.brokerBlocked
   if (status.reason === 'rollback') return UI_TEXT.vault.rollback
@@ -75,6 +110,24 @@ export function vaultStateHeading(status: VaultStatus): string {
   }
 }
 
+/**
+ * A transient failure (not a rollback, not a broker that cannot start)
+ * offers the person's own Retry once the bounded auto-retries are spent.
+ */
+function isRetryableReason(reason: VaultStatus['reason']): boolean {
+  switch (reason) {
+    case 'busy':
+    case 'timeout':
+    case 'watchLost':
+    case 'unreachable': {
+      return true
+    }
+    default: {
+      return false
+    }
+  }
+}
+
 /** M95 mounts this lazy section; M104/companion render exactly the same value-free controls. */
 export function VaultSection({
   state,
@@ -96,6 +149,10 @@ export function VaultSection({
   // there would only be refused, so the toggle stays disabled and Reset
   // (when lost) is the only action offered.
   const canToggleLock = state.status.state === 'locked' || state.status.state === 'unlocked'
+  // RVCM1091F: after a transient failure spent its bounded auto-retries, the
+  // section offers the person's own Retry (a rollback names its backup
+  // instead, and a broker that cannot start names its repair).
+  const canRetry = state.status.state === 'unavailable' && isRetryableReason(state.status.reason)
   const audit = state.audit.filter(
     (row) =>
       (itemFilter === '' || row.handle === itemFilter) &&
@@ -157,6 +214,16 @@ export function VaultSection({
             }}
           >
             {isUnlocked ? UI_TEXT.vault.lock : UI_TEXT.vault.unlock}
+          </button>
+        )}
+        {canRetry && (
+          <button
+            type="button"
+            onClick={() => {
+              post({ type: 'vaultRetry' })
+            }}
+          >
+            {UI_TEXT.vault.retry}
           </button>
         )}
         <button

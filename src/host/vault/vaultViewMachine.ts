@@ -49,6 +49,16 @@ export type VaultViewState =
       readonly lockEpoch: number
       readonly generation: number
       readonly frame: VaultPanelState
+      /**
+       * True once the broker confirmed the lock (its event, a locked
+       * snapshot, or this window's own Lock call returning). An optimistic
+       * Locked painted from this window's in-flight Lock is unconfirmed: a
+       * snapshot failure there says Unavailable (the lock may have failed),
+       * while a confirmed one keeps Locked (RVCM1091F: a failed Lock with no
+       * snapshot is Unavailable; a Lock that succeeded while the snapshot is
+       * down stays Locked).
+       */
+      readonly confirmed: boolean
     }
   | { readonly kind: 'unlocked'; readonly snapshot: VaultPanelState; readonly generation: number }
   | {
@@ -80,6 +90,8 @@ export type VaultViewEvent =
   | { readonly kind: 'watchLost' }
   | { readonly kind: 'watchRestored' }
   | { readonly kind: 'userLock' }
+  /** This window's Lock call returned: the optimistic view is broker truth. */
+  | { readonly kind: 'userLockConfirmed' }
   | { readonly kind: 'userUnlock' }
   | { readonly kind: 'userAdd' }
   | { readonly kind: 'userImport' }
@@ -109,6 +121,7 @@ export const VAULT_VIEW_EVENTS = [
   'watchLost',
   'watchRestored',
   'userLock',
+  'userLockConfirmed',
   'userUnlock',
   'userAdd',
   'userImport',
@@ -214,6 +227,11 @@ export function vaultFrameReason(reason: VaultUnavailableReason): VaultStatus['r
       return null
     }
   }
+}
+
+/** The frame this view currently shows, if it has shown one yet. */
+export function vaultViewFrame(state: VaultViewState): VaultPanelState | null {
+  return currentFrame(state)
 }
 
 function currentFrame(state: VaultViewState): VaultPanelState | null {
@@ -364,7 +382,9 @@ function reasonForSnapshot(status: VaultPanelState['status']): VaultUnavailableR
     case 'vaultLost': {
       return status.reason
     }
-    case 'locked':
+    case 'locked': {
+      return 'unreachable'
+    }
     case null: {
       switch (status.state) {
         case 'uncreated':
@@ -372,12 +392,13 @@ function reasonForSnapshot(status: VaultPanelState['status']): VaultUnavailableR
         case 'firstPartyOnly': {
           return status.state
         }
-        case 'unavailable':
-        case 'locked':
-        case 'unlocked': {
+        default: {
           return 'unreachable'
         }
       }
+    }
+    default: {
+      return 'unreachable'
     }
   }
 }
@@ -390,7 +411,13 @@ function stateForSnapshot(
 ): VaultViewState {
   switch (snapshot.status.state) {
     case 'locked': {
-      return { kind: 'locked', lockEpoch: snapshot.status.lockEpoch, generation, frame: snapshot }
+      return {
+        kind: 'locked',
+        lockEpoch: snapshot.status.lockEpoch,
+        generation,
+        frame: snapshot,
+        confirmed: true,
+      }
     }
     case 'unlocked': {
       return { kind: 'unlocked', snapshot, generation }
@@ -409,7 +436,7 @@ function stateForSnapshot(
         reason,
         generation,
         frame: snapshot,
-        lastGood,
+        ...(lastGood !== undefined && { lastGood }),
         retriesLeft,
       }
     }
@@ -440,7 +467,12 @@ export function applyVaultViewEvent(
     toast: string | null = null,
     retriesLeft?: number,
   ): VaultViewResult => ({
-    state: { kind: 'loading', generation, lastGood, retriesLeft },
+    state: {
+      kind: 'loading',
+      generation,
+      ...(lastGood !== undefined && { lastGood }),
+      ...(retriesLeft !== undefined && { retriesLeft }),
+    },
     effects: { frame: lastGood ?? null, toast, reload: true, retryInMs: null },
   })
 
@@ -452,7 +484,7 @@ export function applyVaultViewEvent(
       const lastGood = lastGoodOf(state)
       const frame = lockedFrame(lastGood, event.lockEpoch)
       return {
-        state: { kind: 'locked', lockEpoch: event.lockEpoch, generation, frame },
+        state: { kind: 'locked', lockEpoch: event.lockEpoch, generation, frame, confirmed: true },
         effects: { frame, toast: null, reload: true, retryInMs: null },
       }
     }
@@ -470,15 +502,39 @@ export function applyVaultViewEvent(
       return reloadFrom(lastGoodOf(state), UI_TEXT.vault.operationFailed)
     }
     case 'userLock': {
-      // This window's Lock paints Locked at once (labels stripped); the
-      // host's own lock-then-load settles the truth. No reload effect: the
-      // caller drives the operation, whose snapshot result follows.
+      // This window's Lock paints Locked at once (labels stripped) but
+      // unconfirmed: the host's own lock-then-load settles the truth, and
+      // `userLockConfirmed` records the Lock call returning. A re-pressed
+      // Lock over broker-confirmed Locked keeps the confirmation. No reload
+      // effect: the caller drives the operation, whose snapshot result
+      // follows.
       const lastGood = lastGoodOf(state)
       const frame = lockedFrame(lastGood, knownEpoch(state))
       return {
-        state: { kind: 'locked', lockEpoch: knownEpoch(state), generation, frame },
+        state: {
+          kind: 'locked',
+          lockEpoch: knownEpoch(state),
+          generation,
+          frame,
+          confirmed: state.kind === 'locked' && state.confirmed,
+        },
         effects: { frame, toast: null, reload: false, retryInMs: null },
       }
+    }
+    case 'userLockConfirmed': {
+      // The Lock call returned, so the optimistic view is broker truth — but
+      // only while this window's Lock still owns the view. Any other state
+      // already moved on (a barrier retired the lock): republish it
+      // unchanged, never resurrected. With no view at all, reload instead
+      // of staying silent (the caller refreshes anyway).
+      if (state.kind === 'locked' && !state.confirmed)
+        return republish({ ...state, confirmed: true })
+      if (currentFrame(state) === null)
+        return {
+          state,
+          effects: { frame: null, toast: null, reload: true, retryInMs: null },
+        }
+      return republish(state)
     }
     case 'userUnlock':
     case 'userAdd':
@@ -490,7 +546,11 @@ export function applyVaultViewEvent(
       // view yet, the action itself loads one.
       const lastGood = lastGoodOf(state)
       return {
-        state: { kind: 'loading', generation, lastGood },
+        state: {
+          kind: 'loading',
+          generation,
+          ...(lastGood !== undefined && { lastGood }),
+        },
         effects: {
           frame: lastGood ?? null,
           toast: null,
@@ -506,7 +566,12 @@ export function applyVaultViewEvent(
       return reloadFrom(lastGoodOf(state), null, retryBudgetFor(state, event.kind, retryBudget))
     }
     case 'snapshotOk': {
-      if (event.generation < state.generation) {
+      // An older broker epoch cannot resurrect a locked panel either: the
+      // snapshot is as superseded as an older generation.
+      if (
+        event.generation < state.generation ||
+        event.snapshot.status.lockEpoch < knownEpoch(state)
+      ) {
         // Superseded by a newer reload, whose settle publishes. With no
         // view at all, reload instead of staying silent.
         if (currentFrame(state) === null)
@@ -523,6 +588,23 @@ export function applyVaultViewEvent(
       }
     }
     case 'snapshotFailed': {
+      if (state.kind === 'locked' && state.confirmed && event.generation >= state.generation) {
+        // A confirmed locked view shows no item names, so a failed
+        // confirmation keeps it instead of replacing known Locked with
+        // Unavailable: republish the stripped frame and report — never
+        // silently. An unconfirmed (optimistic) Locked falls through: the
+        // Lock may have failed, so the failure below says Unavailable with
+        // its true reason instead of claiming Locked.
+        return {
+          state,
+          effects: {
+            frame: state.frame,
+            toast: vaultUnavailableMessage(event.reason) ?? UI_TEXT.vault.operationFailed,
+            reload: false,
+            retryInMs: isTransient(event.reason) ? retryDelayMs : null,
+          },
+        }
+      }
       if (event.generation < state.generation) {
         // Stale, but never dropped: the current view republishes and the
         // failure is still shown. With no view at all, reload as well.
@@ -552,7 +634,6 @@ export function applyVaultViewEvent(
                   reason: event.reason,
                   generation,
                   frame: unavailableFrame(undefined, event.reason),
-                  lastGood,
                   retriesLeft: left - 1,
                 }
               : { kind: 'loading', generation, lastGood, retriesLeft: left - 1 }
@@ -573,7 +654,7 @@ export function applyVaultViewEvent(
         reason: event.reason,
         generation,
         frame,
-        lastGood,
+        ...(lastGood !== undefined && { lastGood }),
         retriesLeft: 0,
       }
       return {
@@ -586,7 +667,11 @@ export function applyVaultViewEvent(
         },
       }
     }
+    // A new event without a row above fails here instead of falling silent.
+    // (The cast reads the kind off the `never` the exhaustive switch leaves;
+    // it is unreachable unless a union member lost its row.)
+    default: {
+      throw new Error(`vault view: unhandled event ${(event as VaultViewEvent).kind}`)
+    }
   }
-  // A new event without a row above fails here instead of falling silent.
-  throw new Error(`vault view: unhandled event ${(event as VaultViewEvent).kind}`)
 }

@@ -5231,6 +5231,8 @@
     "seUnavailable": "Secure-Enclave-Schutz ist nicht verfügbar. Verwenden Sie eine Passphrase zur Anwesenheitsbestätigung.",
     "passphraseWarning": "Zum Entsperren ist eine Passphrase nötig. Sie schützt eine kopierte Festplatte und verhindert stilles Entsperren durch Programme unter Ihrem Konto.",
     "operationFailed": "Der Tresorvorgang ist fehlgeschlagen. Versuchen Sie es erneut.",
+    "retry": "Wiederholen",
+    "sourceGone": "Die ursprüngliche Datei wurde bereits gelöscht, aber ihr Importnachweis konnte nicht entfernt werden. Die importierten Einträge bleiben im Tresor; es gibt nichts zu wiederholen.",
     "invalidFields": "Prüfen Sie die Berechtigungsfelder und das Ziel.",
     "grantHelp": "Jeder Bereich unten begrenzt diese Berechtigung. Leere Anzahl, Ablaufzeit oder Zeitfenster bedeutet keine Begrenzung.",
     "metadataOnly": "Nur Einstellungen bearbeiten",
