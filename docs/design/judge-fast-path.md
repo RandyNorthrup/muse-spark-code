@@ -1104,8 +1104,9 @@ remains. The ship rule counts both the time saved and those tokens
   grammar: plain words and single-quoted words only, with no `$`,
   backquote, `~`, `;`, `&`, `|`, `<`, `>`, parentheses, newline or unquoted
   glob character. Otherwise not B1.
-- **The program** is one of `ls`, `cat`, `head`, `tail`, `wc`, `stat`,
-  `du`, `grep`, `find`. Not git (its own repository is a protected path B1
+- **The program** is one of `ls`, `cat`, `head`, `tail`, `wc`,
+  `du`, `grep`, `find`; `stat` is answered by the helper itself, never
+  started (see below). Not git (its own repository is a protected path B1
   must not read, and its configuration and attributes run filter drivers,
   `textconv`, `core.fsmonitor` and pagers), not ripgrep (no system path on
   any platform, and its `--pre`, `--search-zip` and `--hostname-bin` run
@@ -1121,6 +1122,15 @@ remains. The ship rule counts both the time saved and those tokens
   then executes **that resolved path itself**, by `execve` with the argv
   and no shell, so what was checked is what runs. The `PATH` the agent or
   its shell sees plays no part.
+- **A reported `stat`, not a started one.** The helper answers `stat` with
+  no options itself, from the walked operands: it runs `statx` on the
+  descriptor the walk verified (`AT_EMPTY_PATH`, never by resolving the
+  path again), re-applies the device, file-type and link-count predicates,
+  and prints the default report with numeric owners and UTC times. No
+  program is verified or executed for `stat`, and no grant beyond the
+  walked operands is needed, so the result cannot depend on which
+  implementation a distribution ships (the failure the helper's own report
+  replaces is captured in `docs/certification/m125-f1a.md`).
 - **A neutral environment, not the inherited one.** The child gets exactly
   `PATH=/usr/bin:/bin`, `LC_ALL=C`, `TZ=UTC0` (a rule, so no time-zone
   file is read) and `HOME` set to an empty private folder, and nothing
@@ -1190,7 +1200,9 @@ matter, per platform:
   modes of protected and private entries inside it, `.git` included,
   without reading their contents. That is outside B1's guarantee on Linux,
   and the design says so rather than claiming a pruned view it cannot
-  build. The agent's own read and list tools run without a card in every
+  build. The helper's own `stat` report stays narrower: it covers only
+  walked operands that passed the device, file-type and link-count checks.
+  The agent's own read and list tools run without a card in every
   mode today (`permissions.ts`).
 - **macOS** denies both data and metadata reads on the protected and
   private patterns, so a listed folder shows such an entry's name and
@@ -1201,24 +1213,26 @@ ruleset that handles every file-system right of the running ABI (at least
 3, which adds truncation; on ABI 4 or later it also refuses TCP bind and
 connect). It grants **read-file on each allowed regular file by itself**,
 from the descriptor the walk opened, and never on a folder; read-directory
-on the operand folders; and, for the program to start, **read and execute
+on the operand folders; and, for a started program, **read and execute
 on exact files only**: the verified program, its dynamic loader and each
 shared library it needs, which the helper resolves from the program's own
-dependency list and opens by descriptor, plus read on `/etc/ld.so.cache`;
+dependency list and opens by descriptor, plus read on `/etc/ld.so.cache`
+(`stat` starts no program and takes none of these grants);
 never a library folder and nothing else under `/etc`. A Landlock rule
 cannot tell the loader's open from the program's, so these few files are
 the only system files in B1's read set, and a swapped operand can reach
 nothing beyond them (the third finding of the fifth review; drill B1-14).
 They are public system files, the same on every machine with that
-release. No user or group database is granted, so `ls -l`, `stat` and
-`find` print numeric owners, and times print in UTC. A seccomp filter
+release. No user or group database is granted, so `ls -l`, the helper's
+own `stat` report and `find` print numeric owners, and times print in UTC.
+A seccomp filter
 refuses every socket call, `io_uring`, the key-management calls,
 `ptrace`, and every way of creating a process (B1's programs never start
 one, so none can outlive the run); B1 runs fixed, verified system programs
 with a positive option grammar, not repository code, so this filter only
 narrows what those programs could be steered into. The helper closes every
 descriptor but the three standard ones and calls `execve` on the verified
-program. Landlock checks each open against the file the path actually
+program, or answers `stat` itself without starting one. Landlock checks each open against the file the path actually
 reaches: an ancestor or leaf swapped for a link after the rules were made
 leads to a file with no rule, and the open fails with "Permission denied";
 so does a link met during recursion. Because read-file is granted per file
