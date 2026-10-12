@@ -97,6 +97,7 @@ function refusalMessage(error: unknown): string {
     UI_TEXT.vault.storeUnavailable, // `storeUnavailable`
     UI_TEXT.vault.sourceGone, // `sourceGone`: the file is gone, nothing to retry
     UI_TEXT.vault.sourceUnreadable, // `sourceUnreadable`: unreadable source, receipt kept
+    UI_TEXT.vault.sourceUnavailable, // `sourceUnavailable`: location away, receipt kept
     UI_TEXT.vault.operationFailed, // `invalid`, `io`
     UI_TEXT.vault.noAccess, // an unexpected broker shape
     UI_TEXT.vault.useChanged, // a guard below

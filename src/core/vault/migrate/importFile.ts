@@ -16,7 +16,8 @@ import { vaultItemSchema, type VaultItem, type VaultItemMetadata } from '../../.
 import { VAULT_LIMITS } from '../../../shared/constants'
 import { type AmbientFile } from './ambient'
 import { eraseItem, itemDigest } from './material'
-import { type MigrationOwnerPort, type MigrationLease, VaultMigrationFault } from './ports'
+import { type MigrationOwnerPort, type MigrationLease } from './ports'
+import { VaultMigrationFault } from './fault'
 import { VaultError } from '../crypto'
 
 const digestSchema = z.string().check(z.regex(/^[a-f0-9]{64}$/u))
@@ -141,6 +142,30 @@ export class VaultFileImporter {
   private assertActive(lease: MigrationLease): void {
     if (this.isDisposed) throw new VaultMigrationFault('invalid')
     lease.assertCurrent()
+  }
+
+  /**
+   * The probe's true reason (RVAPP-CM1091D5 P3-1): only "does not exist"
+   * with a reachable home means gone. A permission error names permissions;
+   * an unreachable location (a down or away drive, with or without ENOENT)
+   * names that; any other code is invalid. Nothing but a proven-gone source
+   * discards the receipt, and an unavailable drive is never "gone".
+   */
+  private probeRefusal(error: unknown): VaultMigrationFault {
+    const code = systemCode(error)
+    if (isAccessError(error)) return new VaultMigrationFault('unreadable')
+    if (code === 'ENOENT') {
+      let isHomeReachable = false
+      try {
+        lstatSync(this.home)
+        isHomeReachable = true
+      } catch {
+        /* The drive itself is away: not "gone". */
+      }
+      return new VaultMigrationFault(isHomeReachable ? 'orphaned' : 'unavailable')
+    }
+    const isDriveDown = ['EIO', 'ENXIO', 'ENODEV', 'ESTALE'].includes(code ?? '')
+    return new VaultMigrationFault(isDriveDown ? 'unavailable' : 'invalid')
   }
 
   private async read(
@@ -300,14 +325,15 @@ export class VaultFileImporter {
       try {
         assertReceipt()
         assertUserAction()
-        // Only "does not exist" means gone: an unreadable source keeps its
-        // receipt and names the true reason instead of discarding it as
-        // deleted (RVCM1091G P2).
+        // Only "does not exist" with a reachable home means gone: any other
+        // probe failure keeps its receipt and names its true reason instead
+        // of discarding it as deleted (RVCM1091G P2, RVAPP-CM1091D5 P3-1).
         let isGone = false
         try {
           lstatSync(saved.path)
         } catch (error: unknown) {
-          if (systemCode(error) !== 'ENOENT') throw new VaultMigrationFault('unreadable')
+          const refusal = this.probeRefusal(error)
+          if (refusal.code !== 'orphaned') throw refusal
           isGone = true
         }
         if (isGone) {
@@ -371,11 +397,12 @@ export class VaultFileImporter {
       } catch (error: unknown) {
         if (error instanceof VaultMigrationFault) throw error
         // A busy or rolled-back store before the unlink names itself: the
-        // source and the receipt both stay (RVCM1091G P3). An unreadable
-        // source after the probe keeps its receipt too (RVCM1091G P2).
+        // source and the receipt both stay (RVCM1091G P3). A source that
+        // fails after the probe keeps its receipt with its true reason too
+        // (RVCM1091G P2, RVAPP-CM1091D5 P3-1).
         if (error instanceof VaultError && (error.code === 'busy' || error.code === 'rollback'))
           throw error
-        if (isAccessError(error)) throw new VaultMigrationFault('unreadable')
+        if (error instanceof Error && 'code' in error) throw this.probeRefusal(error)
         throw new VaultMigrationFault('storage')
       } finally {
         source?.fill(0)

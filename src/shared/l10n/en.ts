@@ -6335,6 +6335,16 @@ export const EN = {
     // import record is kept and nothing is deleted.
     sourceUnreadable:
       'The original file could not be read. Check its permissions and try again; the import record was kept and nothing was deleted.',
+    // RVAPP-CM1091D5 P3-1: the source's location is not available (a drive
+    // down or away). Never "gone": the import record is kept and nothing
+    // is deleted.
+    sourceUnavailable:
+      'The original file’s location is not available. Try again later; the import record was kept and nothing was deleted.',
+    // RVAPP-CM1091D5 P2-2: imports whose receipt was kept or orphaned,
+    // finishable here with Keep or Delete.
+    pendingImports: 'Unfinished imports',
+    // RVAPP-CM1091D5 P2-2: the terminal lists the same finishable receipts.
+    noPendingImports: 'No unfinished imports.',
     // RVCM1091G P3: the kept view shown while a bounded auto-retry is
     // scheduled or in flight.
     retrying: 'Retrying the last request. The view shown may be stale.',

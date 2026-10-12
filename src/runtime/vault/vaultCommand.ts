@@ -382,6 +382,7 @@ export function vaultCommandFailure(error: unknown): string {
     UI_TEXT.vault.storeUnavailable,
     UI_TEXT.vault.sourceGone,
     UI_TEXT.vault.sourceUnreadable,
+    UI_TEXT.vault.sourceUnavailable,
     UI_TEXT.vault.operationFailed,
     UI_TEXT.vault.useChanged,
     UI_TEXT.vault.approvalExpired,
