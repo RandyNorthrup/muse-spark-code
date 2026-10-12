@@ -1444,6 +1444,8 @@ export class ConversationController {
    * one of these is a note; to any other child it would be new work.
    */
   private readonly childrenAtWork = new Set<string>()
+  /** Every subagent row's last seen status, by row: terminal states are final. */
+  private readonly childRowStates = new Map<string, string>()
   /** Mode choices and revocation wait for the outstanding owned request; the newest wins. */
   private reviewModeSettling: Promise<void> | undefined
   private permissionModeSelection = 0
@@ -1974,6 +1976,7 @@ export class ConversationController {
     this.playbookPort = undefined
     this.childAgents.clear()
     this.childrenAtWork.clear()
+    this.childRowStates.clear()
     // A review's Plan mode goes with its session (M70): the next session
     // starts, resumes or is adopted in the mode the user had.
     this.releasePlanHold(true)
@@ -2655,12 +2658,25 @@ export class ConversationController {
    * Remember a subagent row's child session, live or from a loaded history.
    * Live rows reach the binding even before childSessionId arrives;
    * a history repost updates identity only and ends no round (D96.17).
+   * Rows are ordered and a terminal state is final: an arrival older than
+   * what was seen (a running row for a row already ended) is ignored, so
+   * replayed rows never classify new work as an ungated note.
    */
   private noteSubagentRow(item: ItemSnapshot, isLive = false): void {
     if (item.kind !== SUBAGENT_ITEM_KIND) {
       return
     }
     if (item.subagentId !== undefined) {
+      const key = `${item.subagentId}:${item.itemId}`
+      const prior = this.childRowStates.get(key)
+      if (
+        prior !== undefined &&
+        prior !== IN_PROGRESS_STATUS &&
+        item.status === IN_PROGRESS_STATUS
+      ) {
+        return
+      }
+      this.childRowStates.set(key, item.status)
       const isAtWork =
         item.status === IN_PROGRESS_STATUS &&
         (item.controlStatus === undefined || SUBAGENT_RUNNING_STATUSES.has(item.controlStatus))

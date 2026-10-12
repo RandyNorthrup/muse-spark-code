@@ -1,7 +1,11 @@
 // The map's settings navigation belongs to the playbook's own lazy closure.
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import * as z from 'zod/mini'
-import { PLAYBOOK_PANEL_TIMEOUT_MS, UI_TEXT } from '../../shared/constants'
+import {
+  PLAYBOOK_BRIDGE_ID_BYTES,
+  PLAYBOOK_PANEL_TIMEOUT_MS,
+  UI_TEXT,
+} from '../../shared/constants'
 import type { PlaybookRecord } from '../../shared/playbook'
 import type { PlaybookSurfacePort } from '../../runtime/playbook/command'
 import {
@@ -87,6 +91,11 @@ export function PlaybookLink({ post, agents, onPort, onRecords }: PlaybookLinkPr
       bridge.dispose()
     }
   }, [workspaceId, post, onPort])
+  // The bridge lifetime id, minted with each map: a reply for a closed map
+  // is dropped, like the read and change calls.
+  const [bridgeId] = useState(() =>
+    btoa(String.fromCodePoint(...crypto.getRandomValues(new Uint8Array(PLAYBOOK_BRIDGE_ID_BYTES)))),
+  )
   // The rows by value: the map hands a new array on every render.
   const rows = JSON.stringify(agents)
   useEffect(() => {
@@ -98,18 +107,30 @@ export function PlaybookLink({ post, agents, onPort, onRecords }: PlaybookLinkPr
       const message = inner(event.data)
       const failed = playbookAgentsFailedSchema.safeParse(message)
       // A read that failed says nothing about the records: what is shown stays, marked.
-      if (failed.success && failed.data.requestId === requestId) setStale(true)
+      if (
+        failed.success &&
+        failed.data.bridgeId === bridgeId &&
+        failed.data.workspaceId === workspaceId &&
+        failed.data.requestId === requestId
+      )
+        setStale(true)
       const answer = playbookAgentsSchema.safeParse(message)
-      if (!answer.success || answer.data.requestId !== requestId) return
+      if (
+        !answer.success ||
+        answer.data.bridgeId !== bridgeId ||
+        answer.data.workspaceId !== workspaceId ||
+        answer.data.requestId !== requestId
+      )
+        return
       setStale(false)
       onRecords(answer.data.records)
     }
     window.addEventListener('message', receive)
-    post({ type: 'playbookAgents', requestId, children })
+    post({ type: 'playbookAgents', bridgeId, workspaceId, requestId, children })
     return () => {
       window.removeEventListener('message', receive)
     }
-  }, [workspaceId, rows, post, onRecords, attempt])
+  }, [workspaceId, rows, post, onRecords, attempt, bridgeId])
   // With no child's row there is no record shown that could be old.
   const isMarked = isStale && agents.length > 0
   return (

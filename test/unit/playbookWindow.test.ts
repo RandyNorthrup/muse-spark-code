@@ -409,6 +409,39 @@ describe('a window and its worker', { timeout: GOVERNED_ROUND_TIMEOUT_MS }, () =
     expect(existsSync(setup.repository.dataFolder)).toBe(false)
   })
 
+  it('counts a blocked contribution with no readable file, journaling its finding', async () => {
+    const setup = live()
+    const blocked: PanelChild = {
+      ...CHILD,
+      files: [],
+      blocked: {
+        id: 'blocked-1',
+        code: 'patchUnreadable',
+        text: 'the contribution could not be read',
+      },
+    }
+    // The review itself is ordinary: no reviewed file is a child's.
+    await expect(
+      setup.window.openReview(SESSION, [PANEL_FILES.notes], [blocked]),
+    ).resolves.toBeUndefined()
+    // But the round was counted: the governor was asked, and the finding is journaled.
+    expect(setup.startWorker).toHaveBeenCalledOnce()
+    expect(setup.threads[0]?.sent.map((message) => message.type)).toContain('reviewOpen')
+    // The blocked child's row names its finding on the Agent map.
+    await expect(
+      setup.window.agents([
+        { itemId: 'row-1', agentId: blocked.agentId, sessionId: blocked.sessionId },
+      ]),
+    ).resolves.toMatchObject({
+      'row-1': [
+        expect.objectContaining({
+          kind: 'note',
+          value: expect.objectContaining({ code: 'contributionBlocked' }),
+        }),
+      ],
+    })
+  })
+
   it('keeps such a review ordinary where a playbook review would be refused', async () => {
     // Restricted Mode, and a worker that cannot start: neither is asked about files no child changed.
     const startWorker = vi.fn<PlaybookWindowDeps['startWorker']>(() => {

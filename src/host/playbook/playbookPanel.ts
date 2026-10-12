@@ -77,11 +77,24 @@ export function createPlaybookPanel(
       return
     }
     if (request.type === 'playbookAgents') {
-      const { requestId } = request
+      const lifetime = {
+        bridgeId: request.bridgeId,
+        workspaceId: request.workspaceId,
+        requestId: request.requestId,
+      }
+      // A request scoped to another journal is not this window's to answer.
+      if (request.workspaceId !== workspaceId) {
+        reply({ type: 'playbookAgentsFailed', ...lifetime })
+        return
+      }
       try {
-        reply({ type: 'playbookAgents', requestId, records: await window.agents(request.children) })
+        reply({
+          type: 'playbookAgents',
+          ...lifetime,
+          records: await window.agents(request.children),
+        })
       } catch {
-        reply({ type: 'playbookAgentsFailed', requestId })
+        reply({ type: 'playbookAgentsFailed', ...lifetime })
       }
       return
     }

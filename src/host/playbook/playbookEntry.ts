@@ -19,6 +19,7 @@ import {
   type PlaybookWindow,
   type PlaybookWindowDeps,
 } from './playbookWindow'
+import { workspaceFile } from '../../core/orchestration/panelLanes'
 import type { SubagentAdmission } from '../../core/backends/modelapi/subagentTools'
 import {
   createPlaybookConversation,
@@ -86,7 +87,19 @@ export function createPlaybookWindow(
   return {
     ...window,
     panel: createPlaybookPanel(window, deps.workspaceRoot !== undefined),
-    conversation: (host) => createPlaybookConversation(window, deps.ui, host),
+    conversation: (host) => {
+      // The conversation reports an unreadable file identity as that
+      // child's finding; the window resolves the same identities itself.
+      const workspaceRoot = deps.workspaceRoot
+      return createPlaybookConversation(
+        window,
+        deps.ui,
+        host,
+        workspaceRoot === undefined
+          ? undefined
+          : (file) => workspaceFile(workspaceRoot, file, deps.realPath),
+      )
+    },
     admit: playbookAdmission(window),
     answerBundle: () => ({
       parsePlaybookCommand,

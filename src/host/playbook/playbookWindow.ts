@@ -662,12 +662,18 @@ export function createPlaybookWindow(deps: PlaybookWindowDeps): PlaybookWindow {
         : [],
     openReview: async (sessionId, files, children) => {
       // The governor's own classification, before any worker or journal read:
-      // no reviewed file is a child's, and the review is an ordinary one. A
-      // path that cannot be read is neither: that throws here, with its
-      // reason, and the review is not sent.
+      // a blocked contribution is always counted, from the child records
+      // (a blocked child exists), never from some readable child file
+      // matching; otherwise no reviewed file is a child's, and the review
+      // is an ordinary one. A path that cannot be read is neither: that
+      // throws here, with its reason, and the review is not sent.
+      const hasBlocked = children.some(
+        (child) => child.sessionId !== sessionId && child.blocked !== undefined,
+      )
       const isOrchestrated =
         deps.workspaceRoot !== undefined &&
-        reviewedChanges(deps.workspaceRoot, sessionId, files, children, deps.realPath).length > 0
+        (hasBlocked ||
+          reviewedChanges(deps.workspaceRoot, sessionId, files, children, deps.realPath).length > 0)
       if (isOrchestrated && !deps.isWorkspaceTrusted()) throw unavailable()
       const reviewId = randomUUID()
       const opening = isOrchestrated

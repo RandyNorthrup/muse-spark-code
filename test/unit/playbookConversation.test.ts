@@ -197,6 +197,8 @@ interface Scene {
   readonly child?: readonly ItemSnapshot[]
   readonly admission?: Promise<void>
   readonly steps?: Step[]
+  /** Tells which file a changed path names; throws when it cannot be told. */
+  readonly resolveIdentity?: (file: string) => unknown
 }
 
 function scene(given: Scene = {}) {
@@ -245,12 +247,17 @@ function scene(given: Scene = {}) {
       pageOf(JSON.stringify({ files: [{ path: `${page.outputRef}.ts`, hunks: [] }] }), 0, true),
     ),
   )
-  const conversation = createPlaybookConversation(window, pickers.ui, {
-    notice: (level, text, hasAction) => {
-      told.push({ level, text, hasAction })
+  const conversation = createPlaybookConversation(
+    window,
+    pickers.ui,
+    {
+      notice: (level, text, hasAction) => {
+        told.push({ level, text, hasAction })
+      },
+      backend: () => Promise.resolve({ readSession, readSessionOutput }),
     },
-    backend: () => Promise.resolve({ readSession, readSessionOutput }),
-  })
+    given.resolveIdentity,
+  )
   return {
     conversation,
     window,
@@ -489,10 +496,17 @@ describe('a review turn', () => {
     expect(submit).not.toHaveBeenCalled()
   })
 
-  it.each(['nameWithheld', 'patchTooLarge', 'patchUnreadable', 'tooManyFiles'] as const)(
+  it.each([
+    'nameWithheld',
+    'patchTooLarge',
+    'patchUnreadable',
+    'identityUnreadable',
+    'tooManyFiles',
+  ] as const)(
     'reports a %s contribution against its child and lets a clean second child proceed',
     async (code) => {
       const secretFile = `src/core/schedules/sk-${'x'.repeat(24)}.ts`
+      const unreadableFile = 'src/core/schedules/unreadable.ts'
       const many = Array.from(
         { length: PLAYBOOK_RECORD_MAX + 1 },
         (_, index) => `src/generated/${String(index)}.ts`,
@@ -500,10 +514,31 @@ describe('a review turn', () => {
       const patchByteLen =
         code === 'patchTooLarge' ? PATCH_DOCUMENT_MAX_PAGES * OUTPUT_PAGE_BYTES + 1 : 1
       let bad: ItemSnapshot
-      if (code === 'nameWithheld') bad = changed(STORE, secretFile)
-      else if (code === 'tooManyFiles') bad = changed(...many)
-      else bad = { ...PATCHED, patchRef: { id: 'patch', byteLen: patchByteLen } }
-      const setup = scene({ ticket: ticket() })
+      switch (code) {
+        case 'nameWithheld': {
+          bad = changed(STORE, secretFile)
+          break
+        }
+        case 'identityUnreadable': {
+          bad = changed(unreadableFile)
+          break
+        }
+        case 'tooManyFiles': {
+          bad = changed(...many)
+          break
+        }
+        default: {
+          bad = { ...PATCHED, patchRef: { id: 'patch', byteLen: patchByteLen } }
+        }
+      }
+      const setup = scene({
+        ticket: ticket(),
+        ...(code === 'identityUnreadable' && {
+          resolveIdentity: (file: string) => {
+            if (file === unreadableFile) throw new Error('EACCES')
+          },
+        }),
+      })
       setup.readSession.mockImplementation((sessionId: string) => {
         const items = [sessionId === CHILD_SESSION ? bad : changed(STORE)]
         return Promise.resolve({ mode: 'inline', name: undefined, todos: [], items })
@@ -580,6 +615,30 @@ describe('a review turn', () => {
     })
     await setup.conversation.review(request(() => Promise.resolve({ turnId: 'turn-1' })).review)
     expect(setup.readSession).toHaveBeenCalledTimes(2)
+  })
+
+  it('ignores a replayed row after a new round, leaving the new round waiter pending', async () => {
+    const setup = scene()
+    const running: ItemSnapshot = {
+      itemId: 'item-1',
+      kind: 'subagent',
+      status: 'inProgress',
+      subagentId: AGENT,
+    }
+    const completed: ItemSnapshot = { ...running, status: 'completed' }
+    await setup.conversation.observed(SESSION, running)
+    await setup.conversation.observed(SESSION, completed)
+    expect(await isSettled(firstRound(setup))).toBe(true)
+    // A new round for the same child starts its own wait.
+    await setup.conversation.dispatch('delegate', SESSION, AGENT, () => Promise.resolve())
+    expect(setup.dispatched).toHaveLength(2)
+    const later = setup.ends[1]
+    if (later === undefined) throw new Error('The new round was given no completion')
+    // The old row arrives again, running then completed: neither settles the new round.
+    await setup.conversation.observed(SESSION, running)
+    await setup.conversation.observed(SESSION, completed)
+    expect(await isSettled(later)).toBe(false)
+    expect(setup.dispatched).toHaveLength(2)
   })
 
   it('counts the best-of-N attempt the person took as a child', async () => {
@@ -781,6 +840,38 @@ describe('a Model API conversation’s new child work', () => {
     expect(await isSettled(end)).toBe(false)
     setup.stop.abort()
     expect(await isSettled(end)).toBe(true)
+  })
+
+  it('removes an aborted wait’s callback from the child’s waiter set', async () => {
+    const setup = scene()
+    // The host's waiter set, as ModelApiHost keeps one per child.
+    const waiters = new Set<() => void>()
+    let isOver = false
+    const isChildOver = (wake: () => void): boolean => {
+      waiters[isOver ? 'delete' : 'add'](wake)
+      return isOver
+    }
+    await playbookAdmission(setup.window)(
+      'delegate',
+      SESSION,
+      AGENT,
+      () => Promise.resolve('sent'),
+      isChildOver,
+      bothWordings,
+    )
+    await vi.waitFor(() => {
+      expect(waiters.size).toBe(1)
+    })
+    const end = firstRound(setup)
+    expect(await isSettled(end)).toBe(false)
+    setup.stop.abort()
+    expect(await isSettled(end)).toBe(true)
+    // The wait is over for the caller, but its callback stays until the
+    // child ends: then it is asked, answers over, and is removed.
+    expect(waiters.size).toBe(1)
+    isOver = true
+    for (const wake of waiters) wake()
+    expect(waiters.size).toBe(0)
   })
 
   it('makes a refusal the caller’s own result, in both wordings, and never runs the work', async () => {
@@ -1068,7 +1159,10 @@ it('a repeated live completion does not close a later follow-up', async () => {
   if (end === undefined) throw new Error('The follow-up has no completion')
   await setup.conversation.observed(SESSION, { ...row, status: 'completed' })
   expect(await isSettled(end)).toBe(false)
+  // The old row arrives again, running then completed: its round is over,
+  // so neither arrival settles the follow-up's own round (P2-3: rows are
+  // ordered and a terminal state is final).
   await setup.conversation.observed(SESSION, row)
   await setup.conversation.observed(SESSION, { ...row, status: 'completed' })
-  expect(await isSettled(end)).toBe(true)
+  expect(await isSettled(end)).toBe(false)
 })

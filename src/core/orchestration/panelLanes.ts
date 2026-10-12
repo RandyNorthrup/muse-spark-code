@@ -141,8 +141,10 @@ function identityOf(absolute: string): string | undefined {
  * names and (where the file system ignores it) case are resolved first, so
  * two spellings of one file are one path here. Undefined for two answers:
  * the path was resolved, and it is not a file of the workspace; or the
- * spelling names no file of a real workspace folder where the file system
- * tells spellings apart (a moved file is lost and means lost, D96.17).
+ * spelling names no file of a real workspace folder (a moved file is lost
+ * and means lost, D96.17, on every platform: existence is asked of the
+ * resolved identity, so a case-different spelling of an existing file
+ * still exists where the file system ignores case).
  * Where the folder itself is gone there is no file to lose, and the
  * spelling stands. Everything else is not known
  * to be anything, and throws, so that whoever asked refuses instead of
@@ -173,8 +175,10 @@ export function workspaceFile(
   // child's file is still that child's in a workspace that is not trusted.
   if (!isOutside && screenModulePath(relative) === 'withheld')
     throw new Error(UI_TEXT.playbookUnavailable)
-  if (!isOutside && process.platform !== 'win32' && existsSync(folder) && !existsSync(resolved))
-    return undefined
+  // A spelling whose file is gone from a real folder is lost and means
+  // lost, on Windows too: existence is asked of the resolved identity, so
+  // a case-different spelling of an existing file still exists there.
+  if (!isOutside && existsSync(folder) && !existsSync(resolved)) return undefined
   return isOutside ? undefined : modulePath(relative)
 }
 
@@ -189,8 +193,12 @@ function fileKey(file: string): string {
  * changed, by resolved file identity, with the child that changed it. The
  * conversation's own session is never its child. Empty: an ordinary review,
  * for which nothing else may be read. With no child's file to compare, no
- * path is resolved at all; otherwise a path that cannot be read throws
- * (`workspaceFile`), because the review cannot then be called ordinary.
+ * path is resolved at all; otherwise a reviewed path that cannot be read
+ * throws (`workspaceFile`), because the review cannot then be called
+ * ordinary. A child's own path is resolved per child: one whose identity
+ * cannot be told is skipped for that child only, so one child's unreadable
+ * file never refuses another child's review (the conversation reports it
+ * as a finding about that child instead).
  */
 export function reviewedChanges(
   workspaceFolder: string,
@@ -211,7 +219,14 @@ export function reviewedChanges(
   for (const child of others) {
     const seen = new Set<string>()
     for (const raw of child.files) {
-      const changed = workspaceFile(workspaceFolder, raw, realPath)
+      let changed: string | undefined
+      try {
+        changed = workspaceFile(workspaceFolder, raw, realPath)
+      } catch {
+        // This child's identity cannot be told: its file is skipped, and
+        // the review of every other child proceeds.
+        continue
+      }
       const file = changed === undefined ? undefined : reviewed.get(fileKey(changed))
       if (file === undefined || seen.has(file)) continue
       seen.add(file)

@@ -137,6 +137,7 @@ type BlockedReading =
   | { readonly code: 'nameWithheld' }
   | { readonly code: 'patchTooLarge'; readonly size: number; readonly bound: number }
   | { readonly code: 'patchUnreadable' }
+  | { readonly code: 'identityUnreadable' }
   | { readonly code: 'tooManyFiles'; readonly count: number; readonly bound: number }
 
 /** The bound every stored patch is read under, in bytes. */
@@ -160,6 +161,7 @@ function blockedText(agentId: string, reading: BlockedReading): string {
         bound: formatNumber(reading.bound),
       })
     }
+    case 'identityUnreadable':
     case 'patchUnreadable': {
       return fill(UI_TEXT.playbookBlockedUnreadable, { child: agentId })
     }
@@ -252,7 +254,10 @@ export function playbookAdmission(window: Pick<PlaybookWindow, 'dispatch'>): Sub
       new Promise((resolve) => {
         // Asked now, on each change of the child, and when the wait is called off.
         const wake = (): void => {
-          if (signal.aborted || isOver(wake)) resolve()
+          // Asked first even on the way out: the host removes this wait
+          // from the child's waiter set only through that answer, so an
+          // aborted wait leaves no callback behind.
+          if (isOver(wake) || signal.aborted) resolve()
         }
         signal.addEventListener('abort', wake, { once: true })
         wake()
@@ -287,12 +292,25 @@ export function createPlaybookConversation(
   window: PlaybookWindow,
   ui: PlaybookUi,
   host: PlaybookConversationHost,
+  /**
+   * Tells which file a changed path names; throws when it cannot be told
+   * (the window's own identity read). Absent where no workspace names
+   * files, and no identity is checked.
+   */
+  resolveIdentity?: (file: string) => unknown,
 ): PlaybookConversation {
   const followed = new Map<string, () => void>()
   const reviews = new Set<{ readonly ticket: PlaybookWindowReview; readonly stop: () => void }>()
   const rounds = new Map<string, Set<Waiter>>()
   let isClosed = false
-  const observed = new Map<string, Map<string, string>>()
+  /**
+   * Every live row by the round its first arrival opened: an arrival older
+   * than what was seen is ignored, and a terminal state is final.
+   */
+  const observed = new Map<
+    string,
+    Map<string, { readonly status: string; readonly round: number }>
+  >()
   const completed = new Map<string, Set<string>>()
   const notice: PlaybookConversationHost['notice'] = (level, text, hasAction) => {
     if (!isClosed) host.notice(level, text, hasAction)
@@ -403,13 +421,23 @@ export function createPlaybookConversation(
   >()
   const blockedRounds = new Map<string, number>()
 
-  /** A new round for this child re-opens its contribution: forget the last one. */
-  const unblock = (sessionId: string, agentId: string): void => {
+  /**
+   * A new round for this child re-opens its contribution: forget the last
+   * one. Answers the round it opened: rows are ordered by it, and a
+   * completion settles only the waiter of its own round.
+   */
+  const childRounds = new Map<string, Map<string, number>>()
+  const unblock = (sessionId: string, agentId: string): number => {
     for (const [key, cached] of blockedCache) {
       if (cached.sessionId !== sessionId || cached.agentId !== agentId) continue
       blockedCache.delete(key)
       blockedRounds.set(key, (blockedRounds.get(key) ?? 0) + 1)
     }
+    const perChild = childRounds.get(sessionId) ?? new Map<string, number>()
+    childRounds.set(sessionId, perChild)
+    const round = (perChild.get(agentId) ?? 0) + 1
+    perChild.set(agentId, round)
+    return round
   }
 
   const block = (
@@ -434,7 +462,9 @@ export function createPlaybookConversation(
    * names the journal cannot hold. A contribution that cannot be read is a
    * finding about that child, journaled once per child round: the next
    * review does not read it again as if new, and every other child and any
-   * review of files no child touched proceed normally.
+   * review of files no child touched proceed normally. A file whose
+   * identity cannot be told is the same kind of finding, so one child's
+   * unreadable file never refuses another child's review.
    */
   const childEvidence = async (
     sessionId: string,
@@ -466,6 +496,13 @@ export function createPlaybookConversation(
         [],
       )
     if (isWithheld) return block(sessionId, agent, { code: 'nameWithheld' }, kept)
+    try {
+      // One child's identity is resolved per child: a file that cannot be
+      // told refuses no other child's review.
+      for (const file of kept) resolveIdentity?.(file)
+    } catch {
+      return block(sessionId, agent, { code: 'identityUnreadable' }, [])
+    }
     return kept.length === 0 ? undefined : { ...agent, files: kept }
   }
 
@@ -668,8 +705,11 @@ export function createPlaybookConversation(
     dispatch: async (kind, sessionId, targetId, effect, ended) => {
       assertOpen()
       if (sessionId === undefined) return await effect()
-      // A new round for this child re-opens its contribution.
-      if (targetId !== undefined) unblock(sessionId, targetId)
+      // A new round for this child re-opens its contribution. Its end
+      // waits on this round only (`child:round`), never the child alone.
+      const round = targetId === undefined ? undefined : unblock(sessionId, targetId)
+      const waitKey =
+        targetId === undefined || round === undefined ? `:${kind}` : `${targetId}:${String(round)}`
       follow(sessionId)
       try {
         return await window.dispatch(
@@ -681,7 +721,7 @@ export function createPlaybookConversation(
           async (submission, signal) => {
             if (isClosed) return
             await (ended === undefined
-              ? roundEnd(sessionId, targetId ?? `:${kind}`, signal)
+              ? roundEnd(sessionId, waitKey, signal)
               : ended(submission, signal))
           },
         )
@@ -697,25 +737,37 @@ export function createPlaybookConversation(
         item.subagentId === undefined
       )
         return
-      const key = `${item.subagentId}:${item.itemId}`
-      const seen = observed.get(sessionId) ?? new Map<string, string>()
+      const agentId = item.subagentId
+      const key = `${agentId}:${item.itemId}`
+      const seen = observed.get(sessionId) ?? new Map<string, { status: string; round: number }>()
       observed.set(sessionId, seen)
       const finished = completed.get(sessionId) ?? new Set<string>()
       completed.set(sessionId, finished)
       const prior = seen.get(key)
-      seen.set(key, item.status)
+      if (prior !== undefined) {
+        // A terminal state is final: an arrival older than what was seen is
+        // ignored, so a replayed row settles no later round.
+        if (prior.status !== IN_PROGRESS_STATUS) return
+        if (item.status === IN_PROGRESS_STATUS) return
+        seen.set(key, { status: item.status, round: prior.round })
+        finished.add(key)
+        settle(sessionId, key)
+        // A completion settles only the waiter of its own round.
+        const current = childRounds.get(sessionId)?.get(agentId) ?? prior.round
+        if (prior.round === current) settle(sessionId, `${agentId}:${String(prior.round)}`)
+        return
+      }
+      // A first live row opens a new round for this child.
+      const round = unblock(sessionId, agentId)
+      seen.set(key, { status: item.status, round })
       if (item.status !== IN_PROGRESS_STATUS) {
         finished.add(key)
         settle(sessionId, key)
-        if (prior === IN_PROGRESS_STATUS) settle(sessionId, item.subagentId)
       }
-      if (prior !== undefined) return
-      // A first live row opens a new round for this child.
-      unblock(sessionId, item.subagentId)
       follow(sessionId)
       try {
         await window.dispatch(
-          { kind: 'subagent', sessionId, targetId: item.subagentId },
+          { kind: 'subagent', sessionId, targetId: agentId },
           () => {
             assertOpen()
             return Promise.resolve()
@@ -728,7 +780,17 @@ export function createPlaybookConversation(
     },
     ended: (sessionId, agentId) => {
       if (sessionId === undefined) return
-      settle(sessionId, agentId ?? BEST_OF_N)
+      // A live end for one child ends its round waits, whatever round each
+      // waits on; a replayed row never reaches here, so no later round is
+      // settled by an old completion.
+      const key = agentId ?? BEST_OF_N
+      const waiting = rounds.get(sessionId)
+      if (waiting === undefined) return
+      for (const waiter of waiting) {
+        if (waiter.key !== key && !waiter.key.startsWith(`${key}:`)) continue
+        waiting.delete(waiter)
+        waiter.resolve()
+      }
     },
     act: async (sessionId) => {
       if (sessionId === undefined) return
@@ -770,6 +832,7 @@ export function createPlaybookConversation(
       completed.clear()
       blockedCache.clear()
       blockedRounds.clear()
+      childRounds.clear()
     },
   }
 }
