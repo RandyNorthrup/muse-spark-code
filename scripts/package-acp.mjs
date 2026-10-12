@@ -82,6 +82,7 @@ const BUNDLES = [
   'schedules.js',
   'foreignHooks.js',
   'hookRuntime.js',
+  'modelApiTools.js',
   'recorder.js',
   'reporting.js',
   'reportingNetwork.js',

@@ -86,6 +86,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- **Model API bundle diet (lane MODELAPIDIET).** `dist/modelApi.js` drops
+  14,419 B (530,683 → 516,264 B, cap unchanged) by loading the hook call
+  fields, argument previews and fetch URL checks from the deferred
+  `dist/modelApiTools.js` on first use, with fail-closed typed refusals
+  when the chunk cannot load. No behaviour change; `dist/extension.js`,
+  `dist/headless.js` and `dist/runtimeEngine.js` are byte-identical.
+
 - What's New fits its content budget by itself: the newest release always
   ships in full. The writer checks every complete plan against both decoded
   and encoded bounds, preferring older full notes, then Highlights with a
