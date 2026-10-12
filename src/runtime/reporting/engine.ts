@@ -23,6 +23,10 @@ import {
   LocalSourceError,
   reportWorkspaceKey,
 } from '../../core/reporting/sources/local'
+import {
+  keybindingsSource,
+  type KeybindingsManifestReader,
+} from '../../core/reporting/sources/keybindings'
 import type { LocalReportSourceDeps } from '../../core/reporting/sources'
 import { emptyPlanFacts, readPlan } from '../../core/reporting/plan/reader'
 import { createReportCollector } from '../../core/reporting/collect'
@@ -58,6 +62,8 @@ export interface ReportingContext {
   readonly session?: LocalReportSourceDeps['session']
   readonly questions?: LocalReportSourceDeps['questions']
   readonly usage?: LocalReportSourceDeps['usage']
+  /** The installed manifest's reader; absent stays unbound (M113 C-M113-5). */
+  readonly keybindings?: KeybindingsManifestReader
   readonly networkSources?: Pick<ReportSourcePorts, 'github' | 'stores'>
   readonly network?:
     | Omit<ReportingNetworkContext, 'workspaceRoot' | 'storageRoot' | 'l10n'>
@@ -149,7 +155,10 @@ export function createReportingServices(context: ReportingContext): ReportsServi
         playbook: unavailable('playbook'),
         issues: unavailable('issues'),
         schedules: unavailable('schedules'),
-        keybindings: unavailable('keybindings'),
+        keybindings:
+          context.keybindings === undefined
+            ? unavailable('keybindings')
+            : keybindingsSource(context.keybindings),
         plan: localSource('plan', async ({ signal: planSignal }) => {
           if (root === undefined) throw new LocalSourceError('unbound')
           const text = await reportFileIo(root, process.platform, REPORT_PLAN_MAX_BYTES).read(

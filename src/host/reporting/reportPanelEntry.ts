@@ -134,6 +134,13 @@ export function createReportingWindow(
               table,
               locale,
             )(context),
+          // M113 C-M113-5: this install's manifest, read at generation time
+          // through the inputs bundle, so the panel reports the bindings it
+          // actually ships; the lazy call stays inside the read, like usage.
+          keybindings: () =>
+            loadInputs().keybindingsManifestReader(
+              vscode.Uri.joinPath(deps.context.extensionUri, 'package.json').fsPath,
+            )(),
           workspaceKey,
           l10n: deps.context.l10n,
           log: deps.context.log,

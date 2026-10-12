@@ -5385,6 +5385,7 @@ export const REPORT_WORKING_KINDS = [
   'quality',
   'usage',
   'session',
+  'keybindings',
 ] as const
 export const REPORT_FORMATS = ['md', 'html', 'json', 'text'] as const
 export const REPORT_FAIL_ON = [
@@ -5468,6 +5469,8 @@ export const REPORT_LABEL_KEYS = [
   'fires',
   'keybindings',
   'conflicts',
+  'shortcut',
+  'command',
   'diff',
   'sources',
   'planFormat',

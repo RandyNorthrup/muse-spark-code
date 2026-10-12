@@ -828,7 +828,7 @@
     {
       "id": "M113",
       "title": "Deterministic reports",
-      "summary": "Run /report for project, quality, milestone, release, change, session and usage reports built from local facts in Markdown, HTML, JSON or text, with saved history and comparisons and nothing sent to a model, while additional report kinds are in progress.",
+      "summary": "Run /report for project, quality, milestone, release, change, session, usage and keybindings reports from local facts in Markdown, HTML, JSON or text, with history and comparisons and nothing sent to a model, while additional report kinds are in progress.",
       "area": "platform",
       "release": "0.17.0"
     },

@@ -1847,6 +1847,8 @@
     "fires": "Uruchomienia",
     "keybindings": "Skróty klawiszowe",
     "conflicts": "Konflikty",
+    "shortcut": "Skrót",
+    "command": "Polecenie",
     "diff": "Różnica",
     "sources": "Źródła",
     "planFormat": "Format planu",

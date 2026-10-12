@@ -1763,6 +1763,8 @@
     "fires": "触发",
     "keybindings": "快捷键",
     "conflicts": "冲突",
+    "shortcut": "快捷键",
+    "command": "命令",
     "diff": "差异",
     "sources": "来源",
     "planFormat": "计划格式",

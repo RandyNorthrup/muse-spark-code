@@ -1819,6 +1819,8 @@
     "fires": "Disparos",
     "keybindings": "Atalhos de teclado",
     "conflicts": "Conflitos",
+    "shortcut": "Atalho",
+    "command": "Comando",
     "diff": "Diferença",
     "sources": "Fontes",
     "planFormat": "Formato do plano",

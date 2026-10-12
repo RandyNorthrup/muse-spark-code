@@ -1819,6 +1819,8 @@
     "fires": "Attivazioni",
     "keybindings": "Scorciatoie da tastiera",
     "conflicts": "Conflitti",
+    "shortcut": "Scorciatoia",
+    "command": "Comando",
     "diff": "Differenza",
     "sources": "Fonti",
     "planFormat": "Formato del piano",

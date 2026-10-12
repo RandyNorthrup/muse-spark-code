@@ -4,7 +4,7 @@
 // aggregate.ts. Ships in dist/reportInputs.js; the hosts pass only identifiers
 // and directories, so activation carries no new import.
 import { open, realpath } from 'node:fs/promises'
-import { constants as fsConstants } from 'node:fs'
+import { constants as fsConstants, readFileSync } from 'node:fs'
 import { handleIdentity, lstatIdentity, sameFile } from '../../core/fs/fileIdentity'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
@@ -34,6 +34,31 @@ import { UsageJournalStore, toAggregateRow } from '../../core/usage/journalStore
 import { NodeUsageFs } from '../usage/nodeUsageFs'
 import type { UsageAggregateRow } from '../../core/usage/aggregate'
 import type { UsageBudgetRead } from '../../core/usage/usageService'
+
+/**
+ * The installed manifest for the keybindings report (M113 C-M113-5, D93.4):
+ * each host passes its own install's package.json path, so VS Code, ACP and
+ * the CLI report the same installed bindings. Read at generation time, never
+ * at import, and parsed by the source's schema; a missing or broken file is
+ * an unavailable source with its reason, never an empty report.
+ */
+export function keybindingsManifestReader(packageJsonPath: string): () => unknown {
+  return () => {
+    let raw: string
+    try {
+      raw = readFileSync(packageJsonPath, 'utf8')
+    } catch (error) {
+      if (errorCode(error) === 'ENOENT') throw new LocalSourceError('missing')
+      throw new LocalSourceError('failed')
+    }
+    try {
+      const parsed: unknown = JSON.parse(raw)
+      return parsed
+    } catch {
+      throw new LocalSourceError('invalid')
+    }
+  }
+}
 
 /** A session id names a file; only the UUID alphabet is allowed into a path. */
 const SESSION_ID_PATTERN = /^[A-Za-z0-9_-]+$/u

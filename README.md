@@ -225,15 +225,16 @@ model call or a charge. **Needs You** comes first; every source names its
 availability, freshness and observation time. Missing integrations remain
 visible as unavailable.
 
-| Kind      | Input                                                                           |
-| --------- | ------------------------------------------------------------------------------- |
-| Project   | `/report project`                                                               |
-| Milestone | `/report milestone M113`                                                        |
-| Release   | `/report release latest`                                                        |
-| Changes   | `/report changes`; `since <tag, branch, or YYYY-MM-DD>` selects Git ancestry    |
-| Quality   | `/report quality`                                                               |
-| Usage     | `/report usage today`; also `7d`, `30d`, `90d`, `week`, `month` or a date range |
-| Session   | `/report session`; `--session <id>` reads a stored session (terminal)           |
+| Kind        | Input                                                                           |
+| ----------- | ------------------------------------------------------------------------------- |
+| Project     | `/report project`                                                               |
+| Milestone   | `/report milestone M113`                                                        |
+| Release     | `/report release latest`                                                        |
+| Changes     | `/report changes`; `since <tag, branch, or YYYY-MM-DD>` selects Git ancestry    |
+| Quality     | `/report quality`                                                               |
+| Usage       | `/report usage today`; also `7d`, `30d`, `90d`, `week`, `month` or a date range |
+| Session     | `/report session`; `--session <id>` reads a stored session (terminal)           |
+| Keybindings | `/report keybindings`; editor bindings, panel gestures, ACP commands            |
 
 Each table shows at most ten rows with an omitted-row count; `--full` retains
 all available rows. Next steps follow the plan's declared delivery order and

@@ -2146,6 +2146,8 @@ export const EN = {
     fires: 'Fires',
     keybindings: 'Key Bindings',
     conflicts: 'Conflicts',
+    shortcut: 'Shortcut',
+    command: 'Command',
     diff: 'Difference',
     sources: 'Sources',
     planFormat: 'Plan Format',

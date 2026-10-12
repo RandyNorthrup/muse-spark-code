@@ -1763,6 +1763,8 @@
     "fires": "觸發",
     "keybindings": "快捷鍵",
     "conflicts": "衝突",
+    "shortcut": "快捷鍵",
+    "command": "命令",
     "diff": "差異",
     "sources": "來源",
     "planFormat": "計畫格式",

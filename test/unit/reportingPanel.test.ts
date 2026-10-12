@@ -598,10 +598,10 @@ describe('M113 VS Code report tab', () => {
     expect(t.state().status).toBe(EN.reportUi.saveFailed)
   })
 
-  it('lists only the seven working report kinds with its last report and keeps the problem-report action distinct', async () => {
+  it('lists only the eight working report kinds with its last report and keeps the problem-report action distinct', async () => {
     const t = setup()
     await t.ui.open()
-    expect(t.reports.history).toHaveBeenCalledTimes(7)
+    expect(t.reports.history).toHaveBeenCalledTimes(8)
     const choices = fakeWindow.showQuickPick.mock.calls[0]?.[0] as
       readonly { readonly argumentsText: string }[] | undefined
     expect(choices?.map((choice) => choice.argumentsText)).toEqual([
@@ -612,6 +612,7 @@ describe('M113 VS Code report tab', () => {
       'quality',
       'usage',
       'session',
+      'keybindings',
       'problem',
     ])
     expect(fakeWindow.showQuickPick.mock.calls[0]?.[0]).toEqual(
