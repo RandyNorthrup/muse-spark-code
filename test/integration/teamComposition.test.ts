@@ -17,6 +17,8 @@ import { buildTeamModelOffers } from '../../src/core/team/teamModelRegistry'
 import { metaCapabilityRecord } from '../../src/core/providers/capabilityRecord'
 import { TEAM_WORKSPACE_KEYS } from '../../src/shared/teamConversation'
 import { Usd } from '../../src/shared/usd'
+import type { UsdAmount } from '../../src/shared/usd'
+import { MODEL_API_PRICES_PER_MILLION } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import type { TeamTreeData } from '../../src/shared/teamView'
 import { workerEnvironment } from '../../src/core/team/workers/workerEnv'
@@ -310,7 +312,21 @@ suite('saved team composition in VS Code', () => {
       assert.equal(await readFile(path.join(repo, 'tracked.txt'), 'utf8'), 'after\n')
       assert.equal(api.requests.filter((request) => request.path.endsWith('/responses')).length, 3)
       assert.equal(consentCount, 2, 'one worker consent and one review consent')
-      assert.ok((tree?.spentUsdToday ?? 0) > 0, 'the settled engine costs reach the team tally')
+      // The tally reports the settled engine costs exactly: two worker turns
+      // at the standard tariff and the review at the contributor tariff.
+      const rates = MODEL_API_PRICES_PER_MILLION
+      const microUsd = (tokens: number, rate: UsdAmount): Usd =>
+        Usd.from(rate).times(tokens).divide(1_000_000)
+      const expectedTally = microUsd(12, rates.standard.input)
+        .add(microUsd(3, rates.standard.output))
+        .add(microUsd(14, rates.standard.input))
+        .add(microUsd(4, rates.standard.output))
+        .add(microUsd(16, rates.contributor.input))
+        .add(microUsd(5, rates.contributor.output))
+        .toAmount()
+      assert.ok(tree, 'the settled engine costs reach the team tally')
+      assert.equal(tree.spentUsdToday, expectedTally)
+      assert.equal(tree.budgetUsdToday, expectedTally)
       const stored = values.get('museSpark.team.tasks')
       assert.ok(stored, 'task claims and their settlement are persisted')
       panel.dispose()

@@ -2344,6 +2344,11 @@ function modelOutputPage(content: string, request: OutputPageRequest): Promise<O
   })
 }
 
+/** A saved setting the model does not serve is refused, never adjusted. */
+function settingUnsupported(modelId: string, setting: string, value: string): string {
+  return fill(UI_TEXT.teamSettingUnsupported, { setting, value, model: modelId })
+}
+
 export class ModelApiSession implements ScheduledAgentSession {
   private lastJudgeBody: CreateResponseBody | undefined
   private readonly listeners = new Set<SessionEventListener>()
@@ -15805,13 +15810,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     const maximum = this.modelPolicy().output.maxTokens
     if (maximum !== undefined && cap > maximum)
       return Promise.reject(
-        new RangeError(
-          fill(UI_TEXT.teamSettingUnsupported, {
-            setting: 'outputCap',
-            value: String(cap),
-            model: this.modelId,
-          }),
-        ),
+        new RangeError(settingUnsupported(this.modelId, 'outputCap', String(cap))),
       )
     this.outputCaps.set(this.modelId, outputLimitFor(this.modelPolicy(), cap))
     return Promise.resolve()
@@ -15835,15 +15834,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       levels.state === 'yes' &&
       !levels.value.includes(reasoningEffort)
     ) {
-      return Promise.reject(
-        new Error(
-          fill(UI_TEXT.teamSettingUnsupported, {
-            setting: 'effort',
-            value: reasoningEffort,
-            model: this.modelId,
-          }),
-        ),
-      )
+      return Promise.reject(new Error(settingUnsupported(this.modelId, 'effort', reasoningEffort)))
     }
     this.effort = reasoningEffort
     this.touch()

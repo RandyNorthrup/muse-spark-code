@@ -478,6 +478,56 @@ describe('the team host service', () => {
     ])
   })
 
+  it('reports the settled engine costs as exact decimals on the team tally', async () => {
+    const h = harness(team([entry('e1', WORKER_MODEL)]))
+    const service = createTeamHostService(h.deps)
+    await service.probeEntries()
+    await service.teamRunner.delegate(delegateOne, context())
+    // 12 input + 3 output tokens at the standard tariff: exact, never float.
+    h.finish(0, {
+      usage: {
+        input: 12,
+        cachedInput: 0,
+        output: 3,
+        reasoning: 0,
+        modelCalls: 1,
+        estimated: false,
+        costUsd: 0.00002775,
+      },
+    })
+    await settle()
+    await service.teamRunner.collect({}, context())
+    expect(service.tree()?.spentUsdToday).toBe('0.00002775')
+    expect(service.tree()?.budgetUsdToday).toBe('0.00002775')
+  })
+
+  it('shows no tally for a costless team', async () => {
+    const { service } = await finishedTeam()
+    expect(service.tree()?.spentUsdToday).toBeUndefined()
+    expect(service.tree()?.budgetUsdToday).toBeUndefined()
+  })
+
+  it("labels an override conversation's real slot across the stored boundary", async () => {
+    const stored = team([entry('e1', WORKER_MODEL)], {
+      orchestrator: {
+        agent: { kind: 'engine', agentId: 'override', model: 'override-model', pays: 'key' },
+      },
+    })
+    const h = harness(stored)
+    const service = createTeamHostService(h.deps)
+    await service.probeEntries()
+    await service.teamRunner.delegate(delegateOne, context())
+    expect(service.tree()?.orchestrator.slot).toBe('override')
+    // A new conversation over the same stored snapshot keeps the label.
+    const reopened = createTeamHostService(h.deps)
+    expect(reopened.tree()?.orchestrator.slot).toBe('override')
+    const plain = harness(team([entry('e1', WORKER_MODEL)]))
+    const plainService = createTeamHostService(plain.deps)
+    await plainService.probeEntries()
+    await plainService.teamRunner.delegate(delegateOne, context())
+    expect(plainService.tree()?.orchestrator.slot).toBe('default')
+  })
+
   it('stops a running task through its signal, and stop all counts what ran', async () => {
     const h = harness(team([entry('e1', WORKER_MODEL)]))
     const service = createTeamHostService(h.deps)

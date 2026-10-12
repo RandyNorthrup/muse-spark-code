@@ -28,6 +28,8 @@ import {
   USD_LIABILITY_DECIMALS,
 } from '../../shared/usdConstants'
 import { fill } from '../../shared/l10n/text'
+import { usdAmountSchema, type UsdAmount } from '../../shared/usdSchema'
+import { usageLocalDay } from '../usage/localDay'
 import { redactSecrets } from '../redact'
 import {
   teamSnapshotSchema,
@@ -315,6 +317,18 @@ function userMergeRefusal(reason: string): string {
   }
 }
 
+/** Nano-USD units as a canonical decimal string (no Usd import: teamHost stays small). */
+function nanoUsd(units: bigint): UsdAmount {
+  const radix = BigInt(USD_DECIMAL_RADIX) ** BigInt(USD_LIABILITY_DECIMALS)
+  const whole = units / radix
+  const fraction = units % radix
+  return fraction === USD_DECIMAL_ZERO
+    ? usdAmountSchema.parse(whole.toString())
+    : usdAmountSchema.parse(
+        `${whole.toString()}.${fraction.toString().padStart(USD_LIABILITY_DECIMALS, '0').replace(/0+$/, '')}`,
+      )
+}
+
 /** Fixed USD liability units: claims round up, ceilings round down. */
 function moneyUnits(amount: number, isCeiling: boolean): bigint {
   const [coefficient = '0', exponent = '0'] = String(amount).split(/[eE]/, 2)
@@ -513,6 +527,32 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
     task.outcome?.folder !== undefined ||
     (SETTLED_PHASES.has(task.phase) && task.workspace !== undefined)
 
+  /**
+   * Today's settled engine costs and their ceiling, exact to the nano-USD:
+   * settled claims count as spent, open ones keep their maximum liability.
+   * Absent until a claim names a cost, so a costless team shows no tally.
+   */
+  const todayTally = (
+    all: readonly TeamTaskRecord[],
+  ): { readonly spentUsdToday: UsdAmount; readonly budgetUsdToday: UsdAmount } | undefined => {
+    const today = usageLocalDay(deps.now())
+    let spent = USD_DECIMAL_ZERO
+    let budget = USD_DECIMAL_ZERO
+    let hasCost = false
+    for (const task of all) {
+      for (const claim of task.claims) {
+        if (usageLocalDay(claim.atMs) !== today) continue
+        const cost = claim.usage.costUsd
+        if (cost === undefined || !Number.isFinite(cost)) continue
+        hasCost = true
+        const units = moneyUnits(cost, false)
+        budget += units
+        if (claim.isSettled) spent += units
+      }
+    }
+    return hasCost ? { spentUsdToday: nanoUsd(spent), budgetUsdToday: nanoUsd(budget) } : undefined
+  }
+
   const tree = (): TeamTreeData | undefined => {
     if (snapshot === undefined || (!isTeamRunning() && tasks.size === 0)) return undefined
     const all = allTasks()
@@ -523,12 +563,16 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
       all
         .filter((task) => task.role.role === role.role && isKept(task))
         .map((task) => workerNode(task))
+    // The conversation's real slot: a stored override is not Default, and the
+    // stored snapshot carries it across the new-conversation boundary.
+    const override = snapshot.orchestrator?.agent
     return {
       orchestrator: {
         model: orchestratorModel(),
         backend: deps.orchestrator.backend(),
-        slot: 'default',
+        slot: override !== undefined && override.kind !== 'external' ? 'override' : 'default',
       },
+      ...todayTally(all),
       roles: roles().map((role) => ({
         id: role.role,
         name: builtinRole(role.role)?.name ?? role.role,
