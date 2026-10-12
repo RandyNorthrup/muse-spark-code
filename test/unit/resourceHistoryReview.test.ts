@@ -175,6 +175,37 @@ describe('RVM107W2 P2: consent, delete boundary, retries, disposal and read boun
     await waitUntil(() => Promise.resolve(onError.mock.calls.length === 1), 3000)
   })
 
+  it('records a foreign pump failure with no unhandled rejection', async () => {
+    const folder = await temporary()
+    const foreign: unknown = 'a string failure'
+    const seen: unknown[] = []
+    const onUnhandled = (reason: unknown) => {
+      if (reason === foreign) seen.push(reason)
+    }
+    process.on('unhandledRejection', onUnhandled)
+    try {
+      const onError = vi.fn()
+      const recorder = resourceHistoryRecorder(
+        { dataFolder: folder, isEnabled: () => true },
+        {
+          read: () => {
+            throw foreign
+          },
+        },
+        onError,
+      )
+      recorder.sample(historyStatus(Date.now()))
+      recorder.event({ type: 'override', atMs: Date.now(), untilMs: Date.now() + 1 })
+      await waitUntil(() => Promise.resolve(onError.mock.calls.length === 1), 3000)
+      // Past the pump and Node's unhandled-rejection check: the record, not a crash.
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      expect(onError).toHaveBeenCalledTimes(1)
+      expect(seen).toEqual([])
+    } finally {
+      process.removeListener('unhandledRejection', onUnhandled)
+    }
+  })
+
   it('drops a collector open minute when Delete history completes through the usage page', async () => {
     const folder = await temporary()
     const recorder = windowRecorder(folder)
