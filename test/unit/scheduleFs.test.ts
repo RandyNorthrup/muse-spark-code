@@ -149,34 +149,38 @@ async function releaseHelpers(): Promise<void> {
   }
 }
 
-const nativeFixture = fixtureBudget(
-  ['native-pointer', 'native-retirement'],
-  async (name) => {
-    const directory = path.join(root, name)
-    const fs = createNodeScheduleFs(directory)
-    const store = createScheduleStore(fs)
-    const job = fakeSchedule()
-    await store.create(job)
-    const old = await scheduleStateFile(fs)
-    // Preserve the original handle/list/fill order, including the Windows lock.
-    const retirementRelease =
-      name === 'native-retirement'
-        ? await handle(path.join(directory, old), 'retirement')
-        : undefined
-    const [before] = await store.list(job.workspaceKey)
-    await fillJournal(directory, fs)
-    const release =
-      retirementRelease ??
-      (await handle(path.join(directory, job.workspaceKey, 'index/current.json'), 'pointer'))
-    return { directory, fs, store, job, old, before, release }
+// Cold publication and journal fill belong to the fixture budget, outside each
+// assertion's unchanged test deadline. Native handles stay in the test: on
+// Windows an earlier afterEach would release a suite-wide handle before the
+// owning assertion starts.
+const nativeFixture = fixtureBudget(['native-pointer', 'native-retirement'], async (name) => {
+  const directory = path.join(root, name)
+  const fs = createNodeScheduleFs(directory)
+  const store = createScheduleStore(fs)
+  const job = fakeSchedule()
+  await store.create(job)
+  const old = await scheduleStateFile(fs)
+  const [before] = await store.list(job.workspaceKey)
+  await fillJournal(directory, fs)
+  return { directory, fs, store, job, old, before }
+})
+
+async function nativeHandle(
+  name: 'native-pointer' | 'native-retirement',
+  cold: {
+    directory: string
+    job: ReturnType<typeof fakeSchedule>
+    old: string
   },
-  {
-    'native-pointer':
-      'keeps the old generation readable when a native Windows handle prevents pointer activation',
-    'native-retirement':
-      'activates a new generation while an old state handle blocks retirement and retires it on the next mutation',
-  },
-)
+) {
+  // Preserve the original handle order, including the Windows lock.
+  return name === 'native-retirement'
+    ? await handle(path.join(cold.directory, cold.old), 'retirement')
+    : await handle(
+        path.join(cold.directory, cold.job.workspaceKey, 'index/current.json'),
+        'pointer',
+      )
+}
 
 describe('native schedule publication and leases', () => {
   it.each(['pid', 'start'] as const)(
@@ -348,6 +352,15 @@ describe('native schedule publication and leases', () => {
     const resumeTakeover = Promise.withResolvers<undefined>()
     const releaseReplacement = Promise.withResolvers<undefined>()
     const replacementEntered = Promise.withResolvers<undefined>()
+    const takerLinkSettled = Promise.withResolvers<undefined>()
+    const linkedCandidates: string[] = []
+    // Every settlement below is registered before the first wait, so a
+    // timeout leaves no holder or paused publication running behind the test.
+    const settleAll = () => {
+      releaseOld.resolve(undefined)
+      resumeTakeover.resolve(undefined)
+      releaseReplacement.resolve(undefined)
+    }
     const old = fs.lock(key, async () => {
       entered.resolve(undefined)
       await releaseOld.promise
@@ -372,7 +385,15 @@ describe('native schedule publication and leases', () => {
         hasPaused = true
         pauseTakeover.resolve(undefined)
         await resumeTakeover.promise
+        try {
+          await actualDisk.link(...args)
+        } finally {
+          takerLinkSettled.resolve(undefined)
+        }
+        return
       }
+      const match = /\/leaseFences\/.*\/(\d+)\.json$/.exec(name)
+      if (match !== null) linkedCandidates.push(match[1]!)
       await actualDisk.link(...args)
     })
     let hasTakeoverEntered = false
@@ -380,22 +401,39 @@ describe('native schedule publication and leases', () => {
       hasTakeoverEntered = true
       return Promise.resolve()
     })
-    await pauseTakeover.promise
-    releaseOld.resolve(undefined)
-    await old
-    const replacement = createNodeScheduleFs(directory).lock(key, async (guard) => {
-      replacementEntered.resolve(undefined)
-      await releaseReplacement.promise
-      await guard()
-    })
-    await replacementEntered.promise
-    resumeTakeover.resolve(undefined)
+    let replacement: Promise<void> | undefined
     try {
-      await new Promise((resolve) => setTimeout(resolve, 100))
+      await pauseTakeover.promise
+      releaseOld.resolve(undefined)
+      await old
+      replacement = createNodeScheduleFs(directory).lock(key, async (guard) => {
+        replacementEntered.resolve(undefined)
+        await releaseReplacement.promise
+        await guard()
+      })
+      await replacementEntered.promise
+      resumeTakeover.resolve(undefined)
+      // The taker consumed its paused publication and is deciding against the
+      // replacement's intact fence, which no remaining writer can break: the
+      // old holder settled above and the taker only publishes after seeing a
+      // release. No sleep is needed to prove it waits.
+      await takerLinkSettled.promise
+      const replacementHint = z
+        .object({ token: z.string() })
+        .parse(JSON.parse((await fs.read(file)) ?? 'null'))
+      const replacementFence = JSON.parse(
+        (await fs.read(`leaseFences/${scheduleStorageHash(key)}/0/1.json`)) ?? 'null',
+      ) as unknown
+      expect(replacementHint.token).toBe(
+        z.object({ token: z.string() }).parse(replacementFence).token,
+      )
+      expect(
+        await fs.read(`leaseFences/${scheduleStorageHash(key)}/0/1.json.released`),
+      ).toBeUndefined()
+      expect(linkedCandidates).not.toContain('2')
       expect(hasTakeoverEntered).toBe(false)
     } finally {
-      releaseReplacement.resolve(undefined)
-      resumeTakeover.resolve(undefined)
+      settleAll()
     }
     await replacement
     await taker
@@ -479,7 +517,9 @@ describe('native schedule publication and leases', () => {
     })
   })
   it('keeps the old generation readable when a native Windows handle prevents pointer activation', async () => {
-    const { directory, store, job, before, release } = await nativeFixture('native-pointer')
+    const cold = await nativeFixture('native-pointer')
+    const { directory, store, job, before } = cold
+    const release = await nativeHandle('native-pointer', cold)
     try {
       if (process.platform === 'win32') {
         await expect(store.update({ ...before!, name: 'blocked' })).rejects.toMatchObject({
@@ -496,7 +536,9 @@ describe('native schedule publication and leases', () => {
     expect(await store.update({ ...current!, name: 'activated after release' })).toBe(true)
   })
   it('activates a new generation while an old state handle blocks retirement and retires it on the next mutation', async () => {
-    const { fs, store, job, old, before, release } = await nativeFixture('native-retirement')
+    const cold = await nativeFixture('native-retirement')
+    const { fs, store, job, old, before } = cold
+    const release = await nativeHandle('native-retirement', cold)
     try {
       expect(await store.update({ ...before!, name: 'changed' })).toBe(true)
       expect(await scheduleStateFile(fs)).not.toBe(old)

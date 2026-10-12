@@ -5,7 +5,6 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
-import { setTimeout as delay } from 'node:timers/promises'
 import { build } from 'esbuild'
 import * as z from 'zod/mini'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -13,6 +12,7 @@ import {
   createScheduleStore,
   scheduleStorageHash,
   isScheduleProcessAlive,
+  type ScheduleRunIntent,
 } from '../../src/core/schedules/store'
 import {
   createNodeScheduleFs,
@@ -24,7 +24,11 @@ import {
   SCHEDULE_OUTBOX_MAX_PENDING,
   SCHEDULE_MIN_INTERVAL_MS,
 } from '../../src/shared/constants'
-import { scheduleFireRecordSchema, noScheduleCost } from '../../src/shared/scheduleV2'
+import {
+  scheduleFireRecordSchema,
+  noScheduleCost,
+  type ScheduleV2,
+} from '../../src/shared/scheduleV2'
 import { fixtureBudget } from './helpers/fixtureBudget'
 import { fakeSchedule } from './helpers/schedules/fixtures'
 import { removeFolder } from './helpers/temporaryFolders'
@@ -55,7 +59,13 @@ beforeAll(async () => {
           if (mode === 'update') result = await store.update(JSON.parse(value));
           if (mode === 'queueWait' || mode === 'queueProbe') {
             const fs = require('node:fs/promises');
-            if (mode === 'queueProbe') await fs.writeFile(directory + '/probe-ready', '');
+            if (mode === 'queueProbe') {
+              await fs.writeFile(directory + '/probe-ready', '');
+              // The waiting marker proves the second batch reached its queue
+              // attempt while the first batch still holds, so the test awaits
+              // events instead of sleeping.
+              await fs.appendFile(directory + '/order.txt', 'waiting\n');
+            }
             await createNodeScheduleQueue(directory).serialize(value, async () => {
               await fs.appendFile(directory + '/order.txt', 'start\n');
               if (mode === 'queueWait') {
@@ -93,23 +103,69 @@ async function worker(directory: string, mode: string, value: string): Promise<s
   return result.stdout
 }
 
-const processFixture = fixtureBudget(['cas', 'admission-limit'], async (name) => {
-  const directory = path.join(root, name)
-  const store = createScheduleStore(createNodeScheduleFs(directory))
-  const job = fakeSchedule(
-    name === 'cas'
-      ? {
-          grant: {
-            rules: [{ id: 'read', kind: 'tool', name: 'read_file' }],
-            destinationIds: [],
-            paidCapUsd: PortUsd.from(0).toAmount(),
-          },
-        }
-      : { end: { afterRuns: 1 } },
-  )
-  await store.create(job)
-  return { directory, store, job }
-})
+// Cold admissions belong to the fixture budget, outside each assertion's
+// unchanged test deadline; the raced or failing step stays in the test.
+function intentFor(job: ScheduleV2, runId: string, occurrenceMs: number): ScheduleRunIntent {
+  return { schedule: job, runId, occurrenceMs, advancesTime: false }
+}
+
+function admissionIntents(job: ScheduleV2) {
+  return {
+    first: intentFor(job, 'schedule-1:first', 1),
+    second: intentFor(job, 'schedule-1:second', 1),
+  }
+}
+
+const processFixture = fixtureBudget(
+  [
+    'cas',
+    'admission-limit',
+    'journal-boundaries',
+    'claim-boundaries',
+    'settlement',
+    'intent',
+    'failure-clock',
+  ],
+  async (name) => {
+    const directory = path.join(root, name)
+    const store = createScheduleStore(createNodeScheduleFs(directory))
+    let overrides: Partial<ScheduleV2> = {}
+    if (name === 'cas') {
+      overrides = {
+        grant: {
+          rules: [{ id: 'read', kind: 'tool', name: 'read_file' }],
+          destinationIds: [],
+          paidCapUsd: PortUsd.from(0).toAmount(),
+        },
+      }
+    } else if (name === 'admission-limit') {
+      overrides = { end: { afterRuns: 1 } }
+    }
+    const job = fakeSchedule(overrides)
+    await store.create(job)
+    switch (name) {
+      case 'admission-limit': {
+        const { first, second } = admissionIntents(job)
+        await store.admit(first)
+        await store.admit(second)
+        break
+      }
+      case 'claim-boundaries': {
+        await store.admit(intentFor(job, 'schedule-1:1', 1))
+        break
+      }
+      case 'failure-clock': {
+        await store.admit(intentFor(job, 'schedule-1:earlier', 200))
+        await store.admit(intentFor(job, 'schedule-1:later', 100))
+        break
+      }
+      default: {
+        break
+      }
+    }
+    return { directory, store, job }
+  },
+)
 
 describe('M115 durable shared store', () => {
   it('uses the same schedules root on Windows, macOS and Linux', () => {
@@ -236,15 +292,29 @@ describe('M115 durable shared store', () => {
     const second = worker(directory, 'queueProbe', 'workspace:session')
     try {
       await vi.waitFor(() => readFile(path.join(directory, 'probe-ready')), { timeout: 120_000 })
-      await delay(1000)
-      expect(await readFile(path.join(directory, 'order.txt'), 'utf8')).toBe('start\n')
+      // The second batch reached its queue attempt while the first still
+      // holds: it must wait, not enter.
+      await vi.waitFor(
+        async () => {
+          expect(await readFile(path.join(directory, 'order.txt'), 'utf8')).toBe('start\nwaiting\n')
+        },
+        { timeout: 120_000 },
+      )
+      // The first batch holds the queue lock while the second waits: its
+      // fence candidate exists and the waiter published none. The fence write
+      // settles before the batch starts, so no wait is needed.
+      expect(
+        await readdir(
+          path.join(directory, 'leaseFences', scheduleStorageHash('target:workspace:session'), '0'),
+        ),
+      ).toEqual(['0.json'])
     } finally {
       await writeFile(path.join(directory, 'release'), '')
       await Promise.allSettled([first, second])
     }
     expect(await Promise.all([first, second])).toEqual(['true', 'true'])
     expect(await readFile(path.join(directory, 'order.txt'), 'utf8')).toBe(
-      'start\nend\nstart\nend\n',
+      'start\nwaiting\nend\nstart\nend\n',
     )
     const queue = createNodeScheduleQueue(directory)
     await expect(
@@ -337,11 +407,10 @@ describe('M115 durable shared store', () => {
     )
   })
   it('rejects unsafe revisions, vanished indices and inconsistent claim identities', async () => {
-    const directory = path.join(root, 'journal-boundaries')
+    // The store is built on the spied port; creation stayed in the fixture budget.
+    const { directory, job } = await processFixture('journal-boundaries')
     const fs = createNodeScheduleFs(directory)
     const store = createScheduleStore(fs)
-    const job = fakeSchedule()
-    await store.create(job)
     const originalRead = fs.read.bind(fs)
     const activeFile = await scheduleStateFile(fs)
     const read = vi
@@ -356,17 +425,17 @@ describe('M115 durable shared store', () => {
     const current = JSON.parse((await fs.read(pointerFence)) ?? 'null')
     await fs.replace(pointerFence, JSON.stringify({ ...current, revision: 9_007_199_254_740_992 }))
     await expect(store.list(job.workspaceKey)).rejects.toThrow()
-    const claimDirectory = path.join(root, 'claim-boundaries')
-    const claims = createNodeScheduleFs(claimDirectory)
-    const claimStore = createScheduleStore(claims)
-    await claimStore.create(job)
-    const intent = { schedule: job, runId: 'schedule-1:1', occurrenceMs: 1, advancesTime: false }
-    await claimStore.admit(intent)
+    const {
+      directory: claimDirectory,
+      store: claimStore,
+      job: claimJob,
+    } = await processFixture('claim-boundaries')
+    const intent = intentFor(claimJob, 'schedule-1:1', 1)
     const hash = scheduleStorageHash(intent.runId)
     const file = path.join(
       claimDirectory,
       'claims',
-      scheduleStorageHash(job.id),
+      scheduleStorageHash(claimJob.id),
       hash.slice(0, 2),
       `${hash}.json`,
     )
@@ -386,10 +455,7 @@ describe('M115 durable shared store', () => {
     }
   })
   it('keeps cost, refusal and liability facts intact, refusing conflicting settlement', async () => {
-    const directory = path.join(root, 'settlement')
-    const store = createScheduleStore(createNodeScheduleFs(directory))
-    const job = fakeSchedule()
-    await store.create(job)
+    const { store, job } = await processFixture('settlement')
     const fire = scheduleFireRecordSchema.parse({
       runId: 'schedule-1:1',
       scheduleId: job.id,
@@ -425,16 +491,8 @@ describe('M115 durable shared store', () => {
     expect(await store.fires(job.workspaceKey)).toHaveLength(4)
   })
   it('recovers dead process intents but never steals work from a live owner', async () => {
-    const directory = path.join(root, 'intent')
-    const store = createScheduleStore(createNodeScheduleFs(directory))
-    const job = fakeSchedule()
-    await store.create(job)
-    const intent = {
-      schedule: job,
-      runId: 'schedule-1:123',
-      occurrenceMs: 123,
-      advancesTime: false,
-    }
+    const { directory, store, job } = await processFixture('intent')
+    const intent = intentFor(job, 'schedule-1:123', 123)
     expect(await worker(directory, 'admit', JSON.stringify(intent))).toBe('true')
     expect(await store.abandoned(job.workspaceKey)).toEqual([intent])
     const live = { ...intent, runId: 'schedule-1:124' }
@@ -447,20 +505,10 @@ describe('M115 durable shared store', () => {
     expect(await store.admit(intent)).toBe(false)
   })
   it('orders failures by admission even when manual wall time moves backward', async () => {
-    const store = createScheduleStore(createNodeScheduleFs(path.join(root, 'failure-clock')))
-    const job = fakeSchedule()
-    await store.create(job)
-    const earlier = {
-      schedule: job,
-      runId: 'schedule-1:earlier',
-      occurrenceMs: 200,
-      advancesTime: false,
-    }
-    const later = { ...earlier, runId: 'schedule-1:later', occurrenceMs: 100 }
-    for (const intent of [earlier, later]) {
-      await store.admit(intent)
-      await store.advance(intent)
-    }
+    const { store, job } = await processFixture('failure-clock')
+    const earlier = intentFor(job, 'schedule-1:earlier', 200)
+    const later = intentFor(job, 'schedule-1:later', 100)
+    for (const intent of [earlier, later]) await store.advance(intent)
     const base = {
       scheduleId: job.id,
       workspaceKey: job.workspaceKey,
@@ -494,9 +542,7 @@ describe('M115 durable shared store', () => {
   })
   it('enforces after-N in two real processes and permanently refuses declined or removed runs', async () => {
     const { directory, store, job } = await processFixture('admission-limit')
-    const first = { schedule: job, runId: 'schedule-1:first', occurrenceMs: 1, advancesTime: false }
-    const second = { ...first, runId: 'schedule-1:second' }
-    for (const intent of [first, second]) await store.admit(intent)
+    const { first, second } = admissionIntents(job)
     const results = await Promise.all(
       [first, second].map((intent) => worker(directory, 'advance', JSON.stringify(intent))),
     )
