@@ -13,7 +13,7 @@ import path from 'node:path'
 import { afterEach, expect, it } from 'vitest'
 import { LAZY_BUNDLES } from '../../src/shared/lazyBundles.generated'
 import { DEFERRED_OUTFILES } from '../../scripts/lib/deferredBundles.mjs'
-import { resolveRequest, scanRequests } from '../../scripts/lib/lazyRegistry.mjs'
+import { resolveRequest, scanRequests, usesIdentifier } from '../../scripts/lib/lazyRegistry.mjs'
 import { removeFolder } from './helpers/temporaryFolders'
 
 const root = process.cwd()
@@ -132,4 +132,28 @@ it('catches the shapes the old scan skipped (P2-2 a, b, c)', () => {
     .map((request) => request.value)
     .toSorted((a, b) => a.localeCompare(b, 'en'))
   expect(values).toEqual(['./rogue.js', './rogue3.js', 'foo.js'])
+})
+
+// The 0.18.1 candidate's static-analysis red: the scan built an expression
+// from each scanned constant's name. It now searches for the name as text.
+it('reads a bundle-name constant only as a whole name, a dollar sign included', () => {
+  expect(usesIdentifier('FOO_FILE', 'FOO_FILE')).toBe(true)
+  expect(usesIdentifier('load(distDir, FOO_FILE)', 'FOO_FILE')).toBe(true)
+  expect(usesIdentifier('load(FOO_FILES, FOO_FILE)', 'FOO_FILE')).toBe(true)
+  expect(usesIdentifier('load(MY_FOO_FILE)', 'FOO_FILE')).toBe(false)
+  expect(usesIdentifier('load(FOO_FILES)', 'FOO_FILE')).toBe(false)
+  expect(usesIdentifier('load($FOO_FILE)', 'FOO_FILE')).toBe(false)
+  expect(usesIdentifier('load(FOO_FILE$)', 'FOO_FILE')).toBe(false)
+  expect(usesIdentifier('load(FOO_FILE)', '')).toBe(false)
+  const folder = fixtureTree({
+    'names.ts': "export const $ROGUE_FILE = 'rogue.js'\n",
+    'loader.ts':
+      "import { $ROGUE_FILE } from './names'\nexport const load = () => import(path.join(__dirname, $ROGUE_FILE))\n",
+    'label.ts':
+      "import { $ROGUE_FILE } from './names'\nexport const label = () => 'bundle ' + $ROGUE_FILE\n",
+    'other.ts': "export const $ROGUE_FILES = ['a']\nexport const count = $ROGUE_FILES.length\n",
+  })
+  const { uses, usesLoad } = scanRequests(folder, 'src/skip.generated.ts')
+  expect(new Set(uses.get('$ROGUE_FILE'))).toEqual(new Set(['src/label.ts', 'src/loader.ts']))
+  expect(usesLoad.get('$ROGUE_FILE')).toEqual(['src/loader.ts'])
 })

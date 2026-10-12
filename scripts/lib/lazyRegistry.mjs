@@ -38,7 +38,24 @@ const LOADER_HINTS = [
 const BASENAME = /^(?!\.)[A-Za-z0-9_.-]+\.js$/u
 const CONST_ASSIGNMENT = /\bconst\s+([A-Za-z_$][\w$]*)\s*=\s*(['"])((?:(?!\2)[^\\]|\\.)*?)\2/gu
 const STRING_LITERAL = /(['"])((?:(?!\1)[^\\]|\\.)*?)\1/g
-const IDENTIFIER_USE = (identifier) => new RegExp(String.raw`\b${identifier}\b`, 'u')
+const IDENTIFIER_CHARACTER = /[\w$]/u
+
+/**
+ * Whether the text reads the constant as a whole name: no identifier
+ * character on either side. A search, never an expression built from the
+ * name: the name comes out of scanned source.
+ */
+export function usesIdentifier(text, identifier) {
+  if (identifier === '') return false
+  let at = text.indexOf(identifier)
+  while (at !== -1) {
+    const before = text.charAt(at - 1)
+    const after = text.charAt(at + identifier.length)
+    if (!IDENTIFIER_CHARACTER.test(before) && !IDENTIFIER_CHARACTER.test(after)) return true
+    at = text.indexOf(identifier, at + 1)
+  }
+  return false
+}
 
 /** The file's lines with comments removed and strings kept whole. */
 export function codeLines(text) {
@@ -163,9 +180,8 @@ export function scanRequests(root, generatedFile) {
   const uses = new Map()
   const usesLoad = new Map()
   for (const [identifier, at] of definitions) {
-    const pattern = IDENTIFIER_USE(identifier)
     const mentioning = [...texts]
-      .filter(([file, text]) => relative(file) !== at && pattern.test(text))
+      .filter(([file, text]) => relative(file) !== at && usesIdentifier(text, identifier))
       .map(([file]) => relative(file))
     uses.set(identifier, mentioning)
     usesLoad.set(
@@ -175,7 +191,7 @@ export function scanRequests(root, generatedFile) {
         .filter(([, text]) =>
           codeLines(text).some(
             (line) =>
-              pattern.test(line) &&
+              usesIdentifier(line, identifier) &&
               !isStaticFrom(line) &&
               (/(\bimport\(|\brequire\()/.test(line) ||
                 LOADER_HINTS.some((hint) => line.includes(hint))),

@@ -15,7 +15,7 @@ import path from 'node:path'
 import { listFiles } from '@vscode/vsce/out/package.js'
 import { ACP_BUNDLES, acpUsageAssets } from './lib/acpBundles.mjs'
 import { DEFERRED_OUTFILES } from './lib/deferredBundles.mjs'
-import { resolveRequest, scanRequests } from './lib/lazyRegistry.mjs'
+import { resolveRequest, scanRequests, usesIdentifier } from './lib/lazyRegistry.mjs'
 
 const root = process.cwd()
 const GENERATED = 'src/shared/lazyBundles.generated.ts'
@@ -100,8 +100,7 @@ async function vsixInventory() {
 function useLines(file, identifier) {
   if (identifier === undefined) return []
   const text = readFileSync(path.join(root, file), 'utf8').replaceAll('\r\n', '\n')
-  const pattern = new RegExp(String.raw`\b${identifier}\b`, 'u')
-  return text.split('\n').filter((line) => pattern.test(line))
+  return text.split('\n').filter((line) => usesIdentifier(line, identifier))
 }
 
 function sideName(sides) {
