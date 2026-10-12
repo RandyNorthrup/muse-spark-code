@@ -36,8 +36,10 @@ function Svg({ title, children }: IconProps & { readonly children: ReactNode }) 
  * (--ms-brand-mark, set by styles.css; currentColor keeps forced-colors honest).
  * The box matches the old logo's (24x16) so the empty state's layout does
  * not shift. Crop to the path bounds plus half the stroke on every side;
- * fill the existing box without clipping the round caps. Decorative next to
- * the product name: no animation.
+ * meet the existing box: fill it in the limiting dimension (the width) and
+ * sit centred in the other, so the mark keeps the Marketplace proportions
+ * without clipping the round caps. Decorative next to the product name:
+ * no animation.
  */
 export function ProductMark({ title }: IconProps) {
   const isDecorative = title === undefined
@@ -45,7 +47,7 @@ export function ProductMark({ title }: IconProps) {
     <svg
       className="icon product-mark"
       viewBox="2 6.43 20 11.14"
-      preserveAspectRatio="none"
+      preserveAspectRatio="xMidYMid meet"
       width="24"
       height="16"
       fill="none"

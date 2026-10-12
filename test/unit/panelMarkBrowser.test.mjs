@@ -99,17 +99,28 @@ describe('PANELMARKR2 rendered product mark', () => {
             width: (bounds.width + stroke) * transform.a,
             height: (bounds.height + stroke) * transform.d,
           }
+          const galleryMark = globalThis.document.querySelector('#root > .product-mark')
+          const galleryPath = galleryMark.querySelector('path')
+          const galleryBounds = galleryPath.getBBox()
+          const galleryTransform = galleryPath.getScreenCTM()
+          const galleryStroke = Number(
+            globalThis.getComputedStyle(galleryPath).strokeWidth.replace('px', ''),
+          )
           return {
             mark: mark.getBoundingClientRect().toJSON(),
             name: globalThis.document.querySelector('.brand span').getBoundingClientRect().toJSON(),
             hint: globalThis.document.querySelector('.hint').getBoundingClientRect().toJSON(),
             foreground: globalThis.getComputedStyle(mark).color,
-            gallery: globalThis.getComputedStyle(
-              globalThis.document.querySelector('#root > .product-mark'),
-            ).color,
+            gallery: globalThis.getComputedStyle(galleryMark).color,
             background: globalThis.getComputedStyle(globalThis.document.body).backgroundColor,
             text: globalThis.getComputedStyle(globalThis.document.body).color,
             ink,
+            inkTop: transform.f + bounds.y * transform.d - (stroke / 2) * transform.d,
+            inkLeft: transform.e + bounds.x * transform.a - (stroke / 2) * transform.a,
+            galleryInk: {
+              width: (galleryBounds.width + galleryStroke) * galleryTransform.a,
+              height: (galleryBounds.height + galleryStroke) * galleryTransform.d,
+            },
           }
         })
         const foreground = colour(measured.foreground)
@@ -128,8 +139,19 @@ describe('PANELMARKR2 rendered product mark', () => {
         }
         expect(measured.mark.width).toBeCloseTo(28.8, 1)
         expect(measured.mark.height).toBeCloseTo(19.2, 1)
+        // The width is the limiting dimension: the ink fills it and sits
+        // centred in the height, keeping the 20:11.14 view-box proportions
+        // (the Marketplace mark's, within 1%) instead of stretching to both.
         expect(measured.ink.width).toBeCloseTo(measured.mark.width, 1)
-        expect(measured.ink.height).toBeCloseTo(measured.mark.height, 1)
+        expect(measured.ink.width / measured.ink.height).toBeCloseTo(20 / 11.14, 2)
+        expect(measured.ink.height).toBeCloseTo(measured.mark.width / (20 / 11.14), 1)
+        expect(measured.inkLeft).toBeCloseTo(measured.mark.left, 0)
+        expect(measured.inkTop - measured.mark.top).toBeCloseTo(
+          (measured.mark.height - measured.ink.height) / 2,
+          0,
+        )
+        // The icon-gallery use keeps the same proportions in its own box.
+        expect(measured.galleryInk.width / measured.galleryInk.height).toBeCloseTo(20 / 11.14, 2)
         const after = decodePng(await page.screenshot(), width, matrix.height)
         // Recreate the reviewed parent mark without touching layout or other paint.
         await page.locator('.brand .product-mark').evaluate((mark, isHighContrast) => {
