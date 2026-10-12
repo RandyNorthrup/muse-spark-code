@@ -358,11 +358,12 @@ describe('shared usage service', () => {
     // A removed key hides it too: no number belongs to a previous key.
     state = await selected(() => Promise.resolve(undefined))
     expect(state.limits.map((entry) => entry.id)).not.toContain('key-limit')
-    // An unreadable store is unknown, not previous: the budget stays.
+    // An unreadable identity hides it as well (RVCM952D): when the identity
+    // of the key in use cannot be read, no budget is shown at all.
     state = await selected(() =>
       Promise.reject<string | undefined>(new Error('private store canary')),
     )
-    expect(state.limits.map((entry) => entry.id)).toContain('key-limit')
+    expect(state.limits.map((entry) => entry.id)).not.toContain('key-limit')
   })
   it('retains range limit history for step charts and deduplicates identical live snapshots', async () => {
     const deps = usageFixtureDeps()

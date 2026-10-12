@@ -30,6 +30,7 @@ import { memorySessionBudgetConfig } from './helpers/fakes'
 import { providersAdd, userFileIo } from '../../src/runtime/providersCommands'
 import type { ProvidersDeps } from '../../src/runtime/providersCommands'
 import { formatStoredProviderSecret } from '../../src/runtime/keyStore'
+import { formatCredentialJournal, parseCredentialJournal } from '../../src/core/credentialLease'
 import { EN } from '../../src/shared/l10n/en'
 import { providerKeyUsageSchema } from '../../src/shared/modelsPanel'
 import { providerUsageRowSchema } from '../../src/shared/usage'
@@ -269,7 +270,7 @@ describe('CM952 production OpenRouter composition', () => {
       print: () => {
         hit()
       },
-      withUserFileLock: async (work: () => Promise<number>) => {
+      withUserFileLock: async <T>(work: () => Promise<T>) => {
         const value = await work()
         hit()
         return value
@@ -288,9 +289,11 @@ describe('CM952 production OpenRouter composition', () => {
     expect(await originalGet(account)).toBe(written)
     expect(await originalGet(`${account}.connect`)).toBeUndefined()
     const awaits = count - 1 // final synchronous success print is the commit boundary
-    // Cancellation before the commit preserves the previous record and leaves
-    // no staging behind. The abort landing after the lock released reports
-    // the committed key: a rollback there would risk overwriting a rotation
+    // Cancellation before the commit preserves the previous record. The
+    // staging slot may keep a journal (the durable intent, or a staged
+    // attempt): it is a journal, never a raw key, and the next start
+    // recovers it. The abort landing after the lock released reports the
+    // committed key: a rollback there would risk overwriting a rotation
     // someone else made or resurrecting a removal.
     for (stopAt = 1; stopAt < awaits; stopAt++) {
       controller = new AbortController()
@@ -301,7 +304,17 @@ describe('CM952 production OpenRouter composition', () => {
         `await ${String(stopAt)}`,
       ).toBe(1)
       expect(await originalGet(account), `await ${String(stopAt)}`).toBe(previous)
-      expect(await originalGet(`${account}.connect`)).toBeUndefined()
+      const slot = await originalGet(`${account}.connect`)
+      let journal: unknown
+      try {
+        journal = slot === undefined ? undefined : JSON.parse(slot)
+      } catch {
+        journal = undefined
+      }
+      expect(
+        slot === undefined || parseCredentialJournal(journal) !== undefined,
+        `await ${String(stopAt)}`,
+      ).toBe(true)
     }
     controller = new AbortController()
     count = 0
@@ -357,16 +370,22 @@ describe('CM952 production OpenRouter composition', () => {
       '[REDACTED]',
     )
     await f.secrets.store(account, previous)
-    // The exchange succeeded, then the store refuses every call: the old
-    // failure path awaited another store read before notifying and reported
-    // nothing; the new one reports from memory.
+    // The exchange succeeded, then the store refuses every call: the
+    // minted key is known from memory and reported before any cleanup, even
+    // though the primary was never attempted.
     let hasExchanged = false
     const get = f.secrets.get
+    const store = f.secrets.store.bind(f.secrets)
+    const remove = f.secrets.delete.bind(f.secrets)
     vi.spyOn(f.secrets, 'get').mockImplementation((id) =>
       hasExchanged ? Promise.reject(new Error('store-unavailable')) : get(id),
     )
-    vi.spyOn(f.secrets, 'store').mockRejectedValue(new Error('store-unavailable'))
-    vi.spyOn(f.secrets, 'delete').mockRejectedValue(new Error('store-unavailable'))
+    vi.spyOn(f.secrets, 'store').mockImplementation((id, value) =>
+      hasExchanged ? Promise.reject(new Error('store-unavailable')) : store(id, value),
+    )
+    vi.spyOn(f.secrets, 'delete').mockImplementation((id) =>
+      hasExchanged ? Promise.reject(new Error('store-unavailable')) : remove(id),
+    )
     expect(
       await runOpenRouterConnect(f.deps, {
         ...f.services,
@@ -379,10 +398,16 @@ describe('CM952 production OpenRouter composition', () => {
     expect(f.errors).toContain(openRouterDiscardedKeyNotice())
     expect(f.errors).toContain(UI_TEXT.providerConnectFailed)
     expect(await get(account)).toBe(previous)
+    // The primary was never attempted, so the intent journal stays for the
+    // next start's recovery.
+    const intent = await get(`${account}.connect`)
+    expect(
+      intent === undefined ? undefined : parseCredentialJournal(JSON.parse(intent))?.phase,
+    ).toBe('started')
   })
 
   it.each(['completed', 'declined'] as const)(
-    'recovers a crashed Connect staging slot with a notice instead of silently overwriting it: %s',
+    'recovers a crashed Connect journal with a notice instead of silently overwriting it: %s',
     async (outcome) => {
       const f = await fixture()
       const account = `${PROVIDER_SECRET_PREFIX}openrouter`
@@ -390,7 +415,22 @@ describe('CM952 production OpenRouter composition', () => {
         { v: 1, auth: 'apiKey', origin: ORIGIN },
         'crashed-synthetic-key',
       )
-      await f.secrets.store(`${account}.connect`, crashed)
+      const previous = formatStoredProviderSecret(
+        { v: 1, auth: 'apiKey', origin: ORIGIN },
+        '[REDACTED]',
+      )
+      // A crash after the journal write: the primary still holds the
+      // previous record (or nothing), while the journal names it and the
+      // staged key.
+      await f.secrets.store(
+        `${account}.connect`,
+        formatCredentialJournal({
+          v: 1,
+          phase: 'staged',
+          previous: outcome === 'declined' ? previous : null,
+          next: crashed,
+        }),
+      )
       const deps =
         outcome === 'completed'
           ? f.deps
@@ -398,10 +438,6 @@ describe('CM952 production OpenRouter composition', () => {
               ...f.deps,
               readSecret: () => Promise.resolve('no'),
             }
-      const previous = formatStoredProviderSecret(
-        { v: 1, auth: 'apiKey', origin: ORIGIN },
-        '[REDACTED]',
-      )
       if (outcome === 'declined') await f.secrets.store(account, previous)
       expect(
         await runOpenRouterConnect(deps, {
@@ -490,7 +526,7 @@ describe('CM952 production OpenRouter composition', () => {
     }
   })
 
-  it('refuses an unverified staged key without replacing the previous key', async () => {
+  it('recovers a legacy raw staging record with a notice instead of absorbing it', async () => {
     const f = await fixture()
     const account = `${PROVIDER_SECRET_PREFIX}openrouter`
     const previous = formatStoredProviderSecret(
@@ -498,18 +534,20 @@ describe('CM952 production OpenRouter composition', () => {
       'sk-or-previous-synthetic',
     )
     await f.secrets.store(account, previous)
-    const get = f.secrets.get
-    vi.spyOn(f.secrets, 'get').mockImplementation((id) =>
-      id === `${account}.connect` ? Promise.resolve('unverified') : get(id),
-    )
+    // A pre-journal attempt staged the raw record here. Recovery reports
+    // the possibly-created vendor key, cleans the slot, and continues.
+    await f.secrets.store(`${account}.connect`, 'unverified')
     expect(
       await runOpenRouterConnect(f.deps, {
         ...f.services,
         openRouterExchange: () => Promise.resolve(KEY),
       }),
-    ).toBe(1)
-    expect(await get(account)).toBe(previous)
-    expect(await get(`${account}.connect`)).toBeUndefined()
+    ).toBe(0)
+    expect(f.errors).toContain(openRouterDiscardedKeyNotice())
+    expect(await f.secrets.get(account)).toBe(
+      formatStoredProviderSecret({ v: 1, auth: 'apiKey', origin: ORIGIN }, KEY),
+    )
+    expect(await f.secrets.get(`${account}.connect`)).toBeUndefined()
   })
 
   it('asks in terminal words before replacing a pasted key', async () => {
@@ -868,20 +906,39 @@ describe('CM952 production OpenRouter composition', () => {
       remaining: undefined,
     })
   })
-  it('refuses malformed, negative, missing and undocumented usage without echoing service text', async () => {
+  it('refuses malformed, missing and undocumented usage without echoing service text', async () => {
     const f = await fixture()
-    for (const data of [
-      { usage: -1 },
-      { usage: KEY },
-      { usage: 0 },
-      { limit: '2' },
-      { unexpected: true },
-    ]) {
+    for (const data of [{ usage: KEY }, { usage: 0 }, { limit: '2' }, { unexpected: true }]) {
       f.setPayload({ data })
       await expect(f.services.openRouterUsage(ENTRY)).rejects.toThrow(UI_TEXT.providerUsageFailed)
     }
     f.setPayload({ error: { message: KEY } }, 401)
     await expect(f.services.openRouterUsage(ENTRY)).rejects.toThrow(UI_TEXT.providerUsageFailed)
+  })
+  it('refuses a negative amount in each of the six usage fields', async () => {
+    const f = await fixture()
+    const valid = {
+      usage: 1,
+      usage_daily: 1,
+      usage_weekly: 1,
+      usage_monthly: 1,
+      limit: 2,
+      limit_remaining: 1,
+    }
+    // All six fields are supplied every time: only the negativity refuses.
+    for (const field of [
+      'usage',
+      'usage_daily',
+      'usage_weekly',
+      'usage_monthly',
+      'limit',
+      'limit_remaining',
+    ] as const) {
+      f.setPayload({ data: { ...valid, [field]: -1 } })
+      await expect(f.services.openRouterUsage(ENTRY), field).rejects.toThrow(
+        UI_TEXT.providerUsageFailed,
+      )
+    }
   })
   it('refuses forged decimal objects, forged markers and unbounded exponents', async () => {
     const f = await fixture()
@@ -1268,7 +1325,7 @@ describe('CM952 terminal and ACP routes', () => {
       const deps = {
         ...f.deps,
         fetch: fetcher,
-        withUserFileLock: async (operation: () => Promise<number>) => {
+        withUserFileLock: async <T>(operation: () => Promise<T>) => {
           if (event === 'locked-rotation') await mutate()
           return await operation()
         },
