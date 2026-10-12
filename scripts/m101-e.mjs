@@ -46,9 +46,19 @@ if (mode === '--live-m75')
     'OPT-IN LIVE M75: bills the existing OS-stored Model API key; subscription pays none. Read the printed estimate first.\n',
   )
 for (const files of batches) {
+  // Live files run only under the live config: the default config excludes
+  // `*.live.e2e.test.ts`, so without `--config` vitest matches nothing.
+  const config = ['--config', mode === '--live-m75' ? 'vitest.live.config.ts' : 'vitest.config.ts']
   const result = spawnSync(
     process.execPath,
-    ['node_modules/vitest/vitest.mjs', 'run', ...files, '--maxWorkers=3', '--testTimeout=120000'],
+    [
+      'node_modules/vitest/vitest.mjs',
+      'run',
+      ...config,
+      ...files,
+      '--maxWorkers=3',
+      '--testTimeout=120000',
+    ],
     {
       stdio: 'inherit',
       env: { ...process.env, MUSE_LIVE_MODEL_API: mode === '--live-m75' ? '1' : '0' },
