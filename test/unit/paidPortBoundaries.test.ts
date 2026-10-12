@@ -6,6 +6,7 @@ import { scheduleBudgetUsd } from '../../src/runtime/schedules/args'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
 import { backgroundWakeRecordSchema } from '../../src/runtime/schedules/registration'
 import { scrubUsage } from '../../src/core/reporting/sources/session'
+import { EN } from '../../src/shared/l10n/en'
 import { batchTranscriptionQuestion } from '../../src/core/voice/transcribeBatch'
 import { Usd, usdInputSchema } from '../../src/shared/usd'
 import { schedulePaidConsentSchema, scheduleV2Schema } from '../../src/shared/scheduleV2'
@@ -96,29 +97,31 @@ describe('PORTS017 boundary precision and historical reads', () => {
     expect(record).toMatchObject({ moneyVersion: 2 })
   })
   it('parses historical reporting costs once and keeps canonical facts exact', () => {
-    const legacy = scrubUsage(rawUsage, (text) => text)
+    const legacy = scrubUsage(EN, rawUsage, (text) => text).usage
     expect(legacy.costUsd).toBe('0.1')
     const exact = scrubUsage(
+      EN,
       { ...rawUsage, costUsd: usd('0.20000000000000000000001') },
       (text) => text,
-    )
+    ).usage
     expect(Usd.from(legacy.costUsd!).add(Usd.from(exact.costUsd!)).toAmount()).toBe(
       '0.30000000000000000000001',
     )
   })
   it.each([NaN, Infinity, -1, '0.10', '1e999'])('refuses corrupt reporting cost %s', (costUsd) => {
-    expect(() => scrubUsage({ ...rawUsage, costUsd }, (text) => text)).toThrow()
+    expect(() => scrubUsage(EN, { ...rawUsage, costUsd }, (text) => text)).toThrow()
   })
   it('carries limit units through the reporting scrub, dollars and percents apart', () => {
     // The scrub parses facts back through its schema: a stripped unit would
     // render every limit row as plain numbers again (RVCM1132B finding 5).
     const scrubbed = scrubUsage(
+      EN,
       {
         ...rawUsage,
         limits: [...mixedUnitLimitRows()],
       },
       (text) => text,
-    )
+    ).usage
     expect(scrubbed.limits).toEqual([
       { key: 'meta/weekly', used: 25, limit: 100, resetsAt: null, unit: 'percent' },
       {

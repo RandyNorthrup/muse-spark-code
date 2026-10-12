@@ -492,7 +492,7 @@ describe('keybindings report facts', () => {
     expect(sections[1]!.rows).toEqual([])
   })
 
-  it('lists built-in targets and refuses empty or misshapen bindings', async () => {
+  it('lists built-in targets, refuses empty manifests, and keeps panel targets beside misshapen bindings', async () => {
     const base = {
       contributes: {
         commands: [{ command: 'museSpark.focusInput' }],
@@ -512,9 +512,15 @@ describe('keybindings report facts', () => {
     expect(cells(valid.data![0]!, 'editor.action.inlineSuggest.trigger', 'editor/linux')).toEqual([
       { type: 'text', value: 'alt+\\' },
     ])
+    for (const broken of [{}, { contributes: {} }]) {
+      const result = await keybindingsSource(() => broken).read(keybindingsContext())
+      expect(result.record.status).toBe('unavailable')
+      expect(result.data).toBeNull()
+    }
+    // RVREPORTJOIN P2-1: one damaged declaration is a named problem beside
+    // the good rows, never a lost source: the static panel gestures and ACP
+    // commands still report.
     for (const broken of [
-      {},
-      { contributes: {} },
       { contributes: { commands: [], keybindings: [{ command: 'x', key: 42 }] } },
       { contributes: { commands: [], keybindings: 'nope' } },
       {
@@ -531,8 +537,12 @@ describe('keybindings report facts', () => {
       },
     ]) {
       const result = await keybindingsSource(() => broken).read(keybindingsContext())
-      expect(result.record.status).toBe('unavailable')
-      expect(result.data).toBeNull()
+      expect(result.record.status).toBe('partial')
+      expect(result.record.reason).toContain(EN.reportSourceReasons.invalid)
+      const bindings = result.data?.find((section) => section.id === 'keybindings/keybindings')
+      expect(bindings?.rows).toHaveLength(
+        referenceKeyboardActions().length + ACP_COMMAND_FACTS.length,
+      )
     }
   })
 
@@ -588,7 +598,7 @@ describe('keybindings report facts', () => {
   })
 
   it('is order-independent and deduplicates repeated facts', () => {
-    const facts = keybindingsFacts(manifest)
+    const facts = keybindingsFacts(EN, manifest).facts
     const forward = collectKeybindingSections(facts)
     const reversed = collectKeybindingSections({
       editor: facts.editor.toReversed(),

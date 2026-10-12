@@ -46,6 +46,18 @@ function problem(
   }
 }
 
+/**
+ * A named problem for a repeated row the reader kept first: the later copy
+ * is the damage, with the same sentence a whole-read failure would show.
+ */
+export function duplicateProblem(
+  reportText: UiText,
+  facet: ReportLabelKey,
+  key: string,
+): ReportProblem {
+  return problem(reportText, facet, key, new LocalSourceError('invalid'), 'invalid')
+}
+
 /** Each property read and decoder runs inside the same engine-owned boundary. */
 export function readReportField<T>(
   reportText: UiText,
@@ -62,33 +74,6 @@ export function readReportField<T>(
       : { status: 'unavailable', problem: problem(reportText, facet, key, undefined, 'invalid') }
   } catch (error) {
     return { status: 'unavailable', problem: problem(reportText, facet, key, error, 'failed') }
-  }
-}
-
-/** Await the owner's settlement; never race a live read against abandonment. */
-export async function awaitReportRead<T>(
-  context: SourceReadContext,
-  facet: ReportLabelKey,
-  key: string,
-  read: (signal: AbortSignal) => Promise<unknown>,
-  schema: ReportDecoder<T>,
-): Promise<ReportRead<T>> {
-  try {
-    context.signal.throwIfAborted()
-    const value = await read(context.signal)
-    context.signal.throwIfAborted()
-    return readReportField(context.reportText, facet, key, () => value, schema)
-  } catch (error) {
-    return {
-      status: 'unavailable',
-      problem: problem(
-        context.reportText,
-        facet,
-        key,
-        error,
-        context.signal.aborted ? 'cancelled' : 'failed',
-      ),
-    }
   }
 }
 

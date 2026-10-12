@@ -10,7 +10,9 @@ import {
   REPORT_MAX_TEXT_CHARS,
   SLASH_COMMAND_NAMES,
 } from '../../../shared/constants'
+import type { UiText } from '../../../shared/l10n/en'
 import { referenceKeyboardActions } from '../../../shared/keybindings'
+import { readReportRows, type ReportProblem } from './boundary'
 import { localSource, LocalSourceError, sourceReason } from './local'
 import {
   collectKeybindingSections,
@@ -23,23 +25,21 @@ const optionalTextField = z.optional(
   z.string().check(z.minLength(1), z.maxLength(REPORT_MAX_TEXT_CHARS)),
 )
 
+const manifestCommandSchema = z.object({
+  command: textField,
+})
+const manifestBindingSchema = z.object({
+  command: textField,
+  key: textField,
+  linux: optionalTextField,
+  mac: optionalTextField,
+  win: optionalTextField,
+  when: optionalTextField,
+})
 const manifestSchema = z.object({
   contributes: z.object({
-    commands: z.array(
-      z.object({
-        command: textField,
-      }),
-    ),
-    keybindings: z.array(
-      z.object({
-        command: textField,
-        key: textField,
-        linux: optionalTextField,
-        mac: optionalTextField,
-        win: optionalTextField,
-        when: optionalTextField,
-      }),
-    ),
+    commands: z.unknown(),
+    keybindings: z.unknown(),
   }),
 })
 
@@ -90,18 +90,39 @@ function acpFacts(): readonly AcpCommandFact[] {
 }
 
 /** Static panel gestures beside the host's manifest; one input, every host. */
-export function keybindingsFacts(manifest: unknown): KeybindingsFacts {
-  let parsed: z.infer<typeof manifestSchema>
+export function keybindingsFacts(
+  reportText: UiText,
+  manifest: unknown,
+): { readonly facts: KeybindingsFacts; readonly problems: readonly ReportProblem[] } {
+  let contributes: z.infer<typeof manifestSchema>['contributes']
   try {
-    parsed = manifestSchema.parse(manifest)
+    contributes = manifestSchema.parse(manifest).contributes
   } catch {
     throw new LocalSourceError('invalid')
   }
   // Every declared binding is listed, including bindings for built-in
   // commands (the manifest rebinds `editor.action.inlineSuggest.trigger`):
-  // the editor resolves those itself, and shape validation above is the
-  // corruption guard, not command identity.
-  const editor = parsed.contributes.keybindings.map((entry) => ({
+  // the editor resolves those itself, and per-record validation below is
+  // the corruption guard, not command identity. One damaged declaration is
+  // a named problem beside the good rows, never a lost source (RVREPORTJOIN
+  // P2-1).
+  const bindings = readReportRows(
+    reportText,
+    'keybindings',
+    'keybindings/bindings',
+    contributes.keybindings,
+    manifestBindingSchema,
+  )
+  const commands = readReportRows(
+    reportText,
+    'keybindings',
+    'keybindings/commands',
+    contributes.commands,
+    manifestCommandSchema,
+  )
+  // Declared commands carry no facts, but their damage is still named.
+  const problems = [...bindings.problems, ...commands.problems]
+  const editor = bindings.rows.map((entry) => ({
     command: entry.command,
     key: entry.key,
     ...(entry.linux !== undefined && { linux: entry.linux }),
@@ -110,16 +131,19 @@ export function keybindingsFacts(manifest: unknown): KeybindingsFacts {
     ...(entry.when !== undefined && { when: entry.when }),
   }))
   return {
-    editor,
-    // `referenceKeyboardActions` falls back to the context name when no
-    // gesture in that context carries a setting gate, so only a different
-    // `when` is a real gate to report on the panel row.
-    panel: referenceKeyboardActions().map((entry) => ({
-      context: entry.command,
-      key: entry.key,
-      ...(entry.when !== entry.command && { when: entry.when }),
-    })),
-    acp: acpFacts(),
+    facts: {
+      editor,
+      // `referenceKeyboardActions` falls back to the context name when no
+      // gesture in that context carries a setting gate, so only a different
+      // `when` is a real gate to report on the panel row.
+      panel: referenceKeyboardActions().map((entry) => ({
+        context: entry.command,
+        key: entry.key,
+        ...(entry.when !== entry.command && { when: entry.when }),
+      })),
+      acp: acpFacts(),
+    },
+    problems,
   }
 }
 
@@ -128,13 +152,18 @@ export function keybindingsSource(readManifest: KeybindingsManifestReader) {
   // Section labels stay identifier keys; renderers resolve UI_TEXT at use
   // time, so no display text is read here at all.
   return localSource('keybindings', async (context) => {
-    const sections = collectKeybindingSections(keybindingsFacts(await readManifest()))
+    const recovered = keybindingsFacts(context.reportText, await readManifest())
+    const sections = collectKeybindingSections(recovered.facts)
     const omitted = sections.reduce((total, section) => total + section.omittedRows, 0)
+    const partial = [
+      ...recovered.problems.map((problem) => problem.reason),
+      ...(omitted > 0 ? [sourceReason('invalid', context.reportText)] : []),
+    ].join(' ')
     // A skipped blank chord is invalid data, not a full read: the section
     // counts it and the source reports partial with that reason.
     return {
       data: sections,
-      ...(omitted > 0 && { partial: sourceReason('invalid', context.reportText) }),
+      ...(partial !== '' && { partial }),
     }
   })
 }

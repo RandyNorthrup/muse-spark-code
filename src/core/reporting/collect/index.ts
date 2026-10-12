@@ -63,28 +63,44 @@ function forward(
 ): { sections: ReportSection[]; sources: ReportSourceRecord[] } {
   const source = snapshot.sources[kind]
   const sources: ReportSourceRecord[] = []
-  const sections =
-    source.data?.map((value) => {
+  // Each forwarded section parses on its own: one damaged section is an
+  // unavailable record beside the good sections, never a lost kind
+  // (RVREPORTJOIN P2-1). The collector carries no language table, so the
+  // record names the technical section slot, as missing headings do below.
+  const sections: ReportSection[] = []
+  const values = source.data ?? []
+  for (const [index, value] of values.entries()) {
+    let parsed: ReportSection
+    try {
       // A repeated row key in a forwarded section is drift in the source's
       // own data, never a reason to throw a raw parse error: make keys
       // unique before the schema validates everything else strictly.
-      const parsed = reportSectionSchema.parse(dedupeUnknownRowKeys(value))
-      // Omitted source rows remain disclosed even with --full; accepted facets survive.
-      const collected = sourcedSection(
-        snapshot,
-        options,
-        parsed.id,
-        parsed.label,
-        parsed.columns,
-        parsed.rows,
-        [kind],
+      parsed = reportSectionSchema.parse(dedupeUnknownRowKeys(value))
+    } catch {
+      sources.push(
+        unavailableRecord(
+          derivedSourceId(source.record.id, `records/${String(index)}`),
+          `${kind}/records/${String(index)}: invalid`,
+        ),
       )
-      // Keep arbitrary column keys and any upstream omissions intact.
-      return {
-        ...collected,
-        omittedRows: parsed.omittedRows + collected.omittedRows,
-      }
-    }) ?? []
+      continue
+    }
+    // Omitted source rows remain disclosed even with --full; accepted facets survive.
+    const collected = sourcedSection(
+      snapshot,
+      options,
+      parsed.id,
+      parsed.label,
+      parsed.columns,
+      parsed.rows,
+      [kind],
+    )
+    // Keep arbitrary column keys and any upstream omissions intact.
+    sections.push({
+      ...collected,
+      omittedRows: parsed.omittedRows + collected.omittedRows,
+    })
+  }
   const headings = forwardedKinds[kind]
   for (const heading of headings) {
     if (sections.some((entry) => entry.label === heading)) continue

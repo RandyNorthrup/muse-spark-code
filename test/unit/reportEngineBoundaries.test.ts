@@ -3,11 +3,8 @@ import { expect, it } from 'vitest'
 import { REPORT_KINDS, REPORT_MAX_TEXT_CHARS } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { REPORT_KIND_REGISTRY } from '../../src/core/reporting/registry'
-import {
-  awaitReportRead,
-  readReportField,
-  readReportRows,
-} from '../../src/core/reporting/sources/boundary'
+import { readReportField, readReportRows } from '../../src/core/reporting/sources/boundary'
+import { questionsSource } from '../../src/core/reporting/sources/questions'
 import { reportOptions } from './helpers/reporting/snapshot'
 
 const schema = z.strictObject({
@@ -91,7 +88,8 @@ it.each(cases)(
       }
       case 'reject': {
         // An Error, so the rejection itself is well-formed; its recovery
-        // accessors still throw, which the boundary must survive.
+        // accessors still throw, which the boundary must survive. The read
+        // goes through a real production source, not a bare helper.
         const rejection = new Error('rejected read')
         Object.defineProperties(rejection, {
           isLocalSourceError: { value: true },
@@ -101,16 +99,12 @@ it.each(cases)(
             },
           },
         })
-        const result = await awaitReportRead(
-          context,
-          facet,
-          kind,
-          () => Promise.reject(rejection),
-          schema,
-        )
-        expect(result.status).toBe('unavailable')
-        if (result.status !== 'unavailable') throw new Error('Expected a problem')
-        expect(result.problem.reason).toContain(EN.reportLabels[facet])
+        const port = questionsSource({ read: () => Promise.reject(rejection) }, (text) => text)
+        const result = await port.read(context)
+        expect(result.data).toBe(null)
+        expect(result.record.status).toBe('unavailable')
+        if (result.record.status !== 'unavailable') throw new Error('Expected a problem')
+        expect(result.record.reason).toContain(EN.reportSourceReasons.failed)
         expect(readReportField(EN, facet, kind, () => good, schema).status).toBe('available')
         return
       }

@@ -159,25 +159,29 @@ describe('collector boundary and policy', () => {
     ).toThrow('report/conflictingSourceRecords')
   })
 
-  it('validates injected facets before handing them to the finalizer', () => {
+  it('keeps an unavailable record for a malformed forwarded section instead of failing', () => {
     const snapshot = fullSnapshot()
     const invalid = facet('fleet', 'agents')
-    // A repeated row key is tolerated now (central guarantee keeps both
-    // rows), so validation before the finalizer is proved with a malformed
-    // row that fails the forwarded section parse instead.
+    // A repeated row key is tolerated (central guarantee keeps both rows),
+    // so per-section isolation is proved with a malformed row that fails the
+    // forwarded section parse instead: the section becomes an unavailable
+    // record beside the good sections, never a lost kind (RVREPORTJOIN P2-1).
     invalid.rows[0]!.cells = {}
     const finalize = vi.fn(fixtureFinalize)
     const collect = createReportCollector({ ...dependencies(), finalize })
-    expect(() =>
-      collect(
-        {
-          ...snapshot,
-          sources: { ...snapshot.sources, fleet: availableSource('fleet', [invalid]) },
-        },
-        reportOptions('fleet'),
+    const report = collect(
+      {
+        ...snapshot,
+        sources: { ...snapshot.sources, fleet: availableSource('fleet', [invalid]) },
+      },
+      reportOptions('fleet'),
+    )
+    expect(finalize).toHaveBeenCalledOnce()
+    expect(
+      report.sources.some(
+        (source) => source.id === 'fleet/records/0' && source.status === 'unavailable',
       ),
-    ).toThrow()
-    expect(finalize).not.toHaveBeenCalled()
+    ).toBe(true)
   })
 
   it('rejects unsupported runtime kinds with an explicit error', () => {
