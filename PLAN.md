@@ -40272,6 +40272,22 @@ Unresolved items remain delivery/security gaps, not accepted legal conclusions:
 
 ## 10. Definition of done and release records
 
+**0.18.0 preparation (2026-10-11, release branch).** `release/0.18.0` is cut from
+the release train `int/train-1011` at `549c6f499` and carries the extension
+version 0.18.0 and the dated `CHANGELOG.md` `[0.18.0]` section. Announced as
+usable: several accounts per provider in the terminal and in ACP
+(`docs/certification/cm108acc.md`), live tool-argument previews on the one
+model whose record verifies streamed arguments
+(`docs/certification/m106-capability-binding.md`), native review without a
+Git filter (`docs/certification/review-git-exit.md`) and the activity-bar
+icon. Named as not usable yet: account pooling and switching inside a
+session, previews on other models, and the pull-request checkout, whose git
+launches are not under the resource governor and which nothing in this
+release can start (`docs/certification/int0170-combined.md`). The reviewed
+baseline is rendered on top of this commit, because the version is a capture
+input. This is preparation, not publication; the public roadmap (M122) lists
+0.18.0 as the next release until a `0.18.0 released (…)` record follows here.
+
 **0.17.2 preparation (2026-10-11, release branch).** `release/0.17.2` carries
 the extension version 0.17.2 and the dated `CHANGELOG.md` `[0.17.2]` section:
 the reply-stream fix for providers the user added and for the ChatGPT plan
