@@ -1,5 +1,6 @@
 // Shared by editor hosts and the runtime; no vscode or credential dependency.
 import { randomUUID } from 'node:crypto'
+import { AsyncLocalStorage } from 'node:async_hooks'
 import {
   mkdir,
   open,
@@ -23,6 +24,7 @@ import {
   SCHEDULE_LEASE_HEARTBEAT_MS,
   SCHEDULE_LEASE_EXPIRES_MS,
   SCHEDULE_LEASE_POLL_MS,
+  SCHEDULE_LEASE_RELEASE_TIMEOUT_MS,
   SCHEDULE_QUEUE_COALESCE_MS,
   MILLISECONDS_PER_SECOND,
   SCHEDULE_JOURNAL_MAX_OPS,
@@ -53,7 +55,9 @@ async function retry<T>(work: () => Promise<T>): Promise<T> {
         ['EPERM', 'EBUSY', 'EACCES'].every((code) => !hasCode(error, code))
       )
         throw error
-      await delay(SCHEDULE_FS_RETRY_BACKOFF_MS * (attempt + 1))
+      await scheduleFsOperation('disk.retryWait', () =>
+        delay(SCHEDULE_FS_RETRY_BACKOFF_MS * (attempt + 1)),
+      )
     }
   }
 }
@@ -67,6 +71,266 @@ const leaseSchema = z.strictObject({
 })
 const processStart = Date.now() - process.uptime() * MILLISECONDS_PER_SECOND
 
+/** All filesystem awaits, including nested writes, inherit exactly one stop rule. */
+const leaseOperations = new AsyncLocalStorage<() => void>()
+export async function scheduleFsOperation<T>(
+  _operation: string,
+  work: () => Promise<T>,
+): Promise<T> {
+  const check = leaseOperations.getStore()
+  check?.()
+  try {
+    return await work()
+  } finally {
+    // This check and the caller's following decision share the settlement turn.
+    check?.()
+  }
+}
+
+async function scheduleLeaseCleanup<T>(work: () => Promise<T>): Promise<T> {
+  const deadlineMs = Date.now() + SCHEDULE_LEASE_RELEASE_TIMEOUT_MS
+  return await leaseOperations.run(() => {
+    if (Date.now() >= deadlineMs) throw scheduleQueueFailure('scheduleLeaseHeartbeatFailed')
+  }, work)
+}
+
+/** Queue errors are a closed vocabulary; the reporting table covers this union. */
+export type ScheduleQueueFailure =
+  | 'scheduleLeaseBusy'
+  | 'scheduleQueueOwnershipLost'
+  | 'scheduleQueueLeaseInvalid'
+  | 'scheduleLeaseHeartbeatFailed'
+  | 'scheduleStoragePathRefused'
+  | 'scheduleStorageLinkRefused'
+
+function scheduleQueueFailure(word: ScheduleQueueFailure): Error {
+  return new Error(word)
+}
+
+/** The newest authoritative fence header on a port, read under the stop rule. */
+async function readScheduleLeaseHead(
+  fs: ScheduleFsPort,
+  file: string,
+  folder: string,
+  parseLease: (content: string) => z.infer<typeof leaseSchema>,
+) {
+  const folders = await scheduleFsOperation('lease.segments', () => fs.names(folder))
+  for (const segment of newestScheduleSlots(folders, /^\d+$/)) {
+    const entries = await scheduleFsOperation('lease.entries', () =>
+      fs.names(`${folder}/${segment}`),
+    )
+    const name = newestScheduleSlots(entries, /^\d+\.json$/)[0]
+    if (name === undefined) continue
+    const header = `${folder}/${segment}/${name}`
+    const content = await scheduleFsOperation('lease.header', () => fs.read(header))
+    if (content === undefined) throw scheduleQueueFailure('scheduleQueueOwnershipLost')
+    const lease = parseLease(content)
+    if (
+      name !== `${String(lease.fencingToken)}.json` ||
+      Number(segment) !== Math.floor((lease.fencingToken ?? -1) / SCHEDULE_JOURNAL_MAX_OPS)
+    )
+      throw scheduleQueueFailure('scheduleQueueLeaseInvalid')
+    return { content, lease, header }
+  }
+  const content = await scheduleFsOperation('lease.legacy', () => fs.read(file))
+  return content === undefined
+    ? undefined
+    : {
+        content,
+        lease: parseLease(content),
+        header: file,
+      }
+}
+
+/** The production port and its byte-preserving twin run the same lifecycle. */
+export function createScheduleLeaseLock(fs: ScheduleFsPort): ScheduleFsPort['lock'] {
+  return async (key, work, options?: ScheduleLockOptions) => {
+    const file = `leases/${scheduleStorageHash(key)}.json`
+    const folder = `leaseFences/${scheduleStorageHash(key)}`
+    const rawDeadline = options?.deadlineMs
+    const deadlineMs =
+      rawDeadline !== undefined && !Number.isNaN(rawDeadline) ? rawDeadline : undefined
+    let isAcquired = false
+    const check = () => {
+      if (!isAcquired && deadlineMs !== undefined && Date.now() >= deadlineMs)
+        throw scheduleQueueFailure('scheduleLeaseBusy')
+      options?.signal?.throwIfAborted()
+    }
+    return await leaseOperations.run(check, async () => {
+      const owner = {
+        pid: process.pid,
+        start: processStart,
+        token: randomUUID(),
+        heartbeat: Date.now(),
+        heartbeatSequence: 0,
+      }
+      // Parsing is deterministic in the content, so one acquisition parses
+      // each distinct fence document once no matter how often the head,
+      // the pulse, the guards and the cleanup re-read it. The map dies with
+      // the acquisition; a changed document always parses again.
+      const parsedLeases = new Map<string, z.infer<typeof leaseSchema>>()
+      const parseLease = (content: string) => {
+        const cached = parsedLeases.get(content)
+        if (cached !== undefined) return cached
+        const lease = leaseSchema.parse(parseScheduleStoredJson(content))
+        parsedLeases.set(content, lease)
+        return lease
+      }
+      const observations = new Map<string, { content: string; atMs: number }>()
+      const expired = (content: string, heartbeatMs: number) => {
+        const now = performance.now()
+        const observed = observations.get('owner')
+        if (observed?.content !== content) observations.set('owner', { content, atMs: now })
+        return (
+          Date.now() - heartbeatMs > SCHEDULE_LEASE_EXPIRES_MS ||
+          (observed?.content === content && now - observed.atMs > SCHEDULE_LEASE_EXPIRES_MS)
+        )
+      }
+      let fencingToken = 0
+      // A candidate can become authoritative even if publication settles after a
+      // stop or rejects after linking. Its ownership is checked during cleanup.
+      let header: string | undefined
+      let heartbeat = Promise.resolve()
+      let timer: ReturnType<typeof setInterval> | undefined
+      let heartbeatError: Error | undefined
+      try {
+        for (;;) {
+          check()
+          const previous = await readScheduleLeaseHead(fs, file, folder, parseLease)
+          if (previous !== undefined) {
+            const pulse =
+              (await scheduleFsOperation('lease.pulse', () =>
+                fs.read(`${file}.${previous.lease.token}.heartbeat`),
+              )) ?? previous.content
+            const refreshed = parseLease(pulse)
+            // A token-specific pulse cannot change an immutable owner. Only the
+            // heartbeat and its sequence may evolve; fencing identity may not.
+            if (
+              refreshed.token !== previous.lease.token ||
+              refreshed.pid !== previous.lease.pid ||
+              refreshed.start !== previous.lease.start ||
+              refreshed.fencingToken !== previous.lease.fencingToken
+            )
+              throw scheduleQueueFailure('scheduleQueueLeaseInvalid')
+            const released = await scheduleFsOperation('lease.released', () =>
+              fs.read(`${previous.header}.released`),
+            )
+            if (
+              released === undefined &&
+              isScheduleProcessAlive(previous.lease.pid) &&
+              !expired(pulse, refreshed.heartbeat)
+            ) {
+              const remaining =
+                deadlineMs === undefined ? SCHEDULE_LEASE_POLL_MS : deadlineMs - Date.now()
+              await scheduleFsOperation('lease.poll', () =>
+                delay(Math.max(0, Math.min(SCHEDULE_LEASE_POLL_MS, remaining))),
+              )
+              continue
+            }
+            fencingToken = (previous.lease.fencingToken ?? -1) + 1
+          }
+          owner.heartbeat = Date.now()
+          const candidate = `${folder}/${String(Math.floor(fencingToken / SCHEDULE_JOURNAL_MAX_OPS))}/${String(fencingToken)}.json`
+          header = candidate
+          if (
+            await scheduleFsOperation('lease.fence', () =>
+              fs.publish(candidate, JSON.stringify({ ...owner, fencingToken }), () => {
+                check()
+                return Promise.resolve()
+              }),
+            )
+          )
+            break
+          header = undefined
+        }
+        const guard: ScheduleLeaseGuard = Object.assign(
+          async () => {
+            check()
+            if (heartbeatError !== undefined) throw heartbeatError
+            const current = await readScheduleLeaseHead(fs, file, folder, parseLease)
+            if (current?.lease.token !== owner.token || current.lease.fencingToken !== fencingToken)
+              throw scheduleQueueFailure('scheduleQueueOwnershipLost')
+          },
+          { fencingToken },
+        )
+        try {
+          await scheduleFsOperation('lease.hint', () =>
+            fs.replace(file, JSON.stringify({ ...owner, fencingToken }), guard),
+          )
+        } catch {
+          // The legacy hint is debt, but stop/ownership failures still bind.
+          await guard()
+        }
+        const refresh = async () => {
+          const previous = heartbeat
+          try {
+            await previous
+            await guard()
+            owner.heartbeat = Date.now()
+            owner.heartbeatSequence += 1
+            await scheduleFsOperation('lease.heartbeat', () =>
+              fs.replace(
+                `${file}.${owner.token}.heartbeat`,
+                JSON.stringify({ ...owner, fencingToken }),
+                guard,
+              ),
+            )
+          } catch (error: unknown) {
+            heartbeatError =
+              error instanceof Error ? error : scheduleQueueFailure('scheduleLeaseHeartbeatFailed')
+          }
+        }
+        timer = setInterval(() => {
+          heartbeat = refresh()
+        }, SCHEDULE_LEASE_HEARTBEAT_MS).unref()
+        const result = await scheduleFsOperation('lease.work', () => {
+          // The wrapper's pre-check and this handoff are one synchronous step.
+          isAcquired = true
+          return work(guard)
+        })
+        // Completion owns the heartbeat drain too: a pulse still in flight
+        // must settle before the final stop/ownership verdict is decided.
+        clearInterval(timer)
+        timer = undefined
+        await heartbeat
+        await guard()
+        return result
+      } finally {
+        if (timer !== undefined) clearInterval(timer)
+        await heartbeat
+        const candidate = header
+        if (candidate !== undefined) {
+          // This independent scope owns cleanup BEFORE publication begins.
+          // Caller cancellation cannot suppress the immutable release marker.
+          await scheduleLeaseCleanup(async () => {
+            const content = await scheduleFsOperation('cleanup.header', () => fs.read(candidate))
+            // A present candidate is ours: fence publication is exclusive and
+            // the content carries this acquisition's unique token, so no
+            // competing writer can own this slot. Only an absent candidate (a
+            // stop before any publication settled) releases nothing. The
+            // existence check is enough; the identity stays validated above.
+            if (content === undefined) return
+            await scheduleFsOperation('cleanup.release', () =>
+              fs.publish(`${candidate}.released`, ''),
+            )
+            // Never remove another holder's hint; token-specific pulses are ours.
+            try {
+              const current = await readScheduleLeaseHead(fs, file, folder, parseLease)
+              if (current?.lease.token === owner.token)
+                await scheduleFsOperation('cleanup.hint', () => fs.remove(file))
+              await scheduleFsOperation('cleanup.pulse', () =>
+                fs.remove(`${file}.${owner.token}.heartbeat`),
+              )
+            } catch {
+              // Hint/pulse retirement is debt; the release is already authoritative.
+            }
+          })
+        }
+      }
+    })
+  }
+}
+
 export function createNodeScheduleFs(directory: string): ScheduleFsPort {
   const root = path.resolve(directory)
   const cleanup = new Set<string>()
@@ -74,15 +338,15 @@ export function createNodeScheduleFs(directory: string): ScheduleFsPort {
     const file = path.resolve(root, relative)
     const suffix = path.relative(root, file)
     if (suffix === '' || suffix.startsWith('..') || path.isAbsolute(suffix))
-      throw new Error('scheduleStoragePathRefused')
+      throw scheduleQueueFailure('scheduleStoragePathRefused')
     return file
   }
   const checkParents = async (file: string) => {
     let parent = path.dirname(file)
     while (parent.length >= root.length) {
-      const info = await lstat(parent)
+      const info = await scheduleFsOperation('disk.parentStat', () => lstat(parent))
       if (!info.isDirectory() || info.isSymbolicLink())
-        throw new Error('scheduleStorageLinkRefused')
+        throw scheduleQueueFailure('scheduleStorageLinkRefused')
       if (parent === root) break
       parent = path.dirname(parent)
     }
@@ -94,19 +358,21 @@ export function createNodeScheduleFs(directory: string): ScheduleFsPort {
     for (const part of path.relative(volume, parent).split(path.sep)) {
       current = path.join(current, part)
       try {
-        await mkdir(current, { mode: CHECKPOINT_STORAGE_MODE })
+        await scheduleFsOperation('disk.mkdir', () =>
+          mkdir(current, { mode: CHECKPOINT_STORAGE_MODE }),
+        )
       } catch (error: unknown) {
         if (!hasCode(error, 'EEXIST')) throw error
       }
-      const info = await lstat(current)
+      const info = await scheduleFsOperation('disk.prepareStat', () => lstat(current))
       if (current.length >= root.length && (!info.isDirectory() || info.isSymbolicLink()))
-        throw new Error('scheduleStorageLinkRefused')
+        throw scheduleQueueFailure('scheduleStorageLinkRefused')
     }
   }
   const retireTemporary = async (file: string) => {
     try {
       await retry(async () => {
-        await unlink(file)
+        await scheduleFsOperation('disk.unlink', () => unlink(file))
       })
       cleanup.delete(file)
     } catch (error: unknown) {
@@ -124,33 +390,42 @@ export function createNodeScheduleFs(directory: string): ScheduleFsPort {
     await prepare(file)
     await checkParents(file)
     try {
-      const info = await lstat(file)
-      if (info.isSymbolicLink()) throw new Error('scheduleStorageLinkRefused')
+      const info = await scheduleFsOperation('disk.fileStat', () => lstat(file))
+      if (info.isSymbolicLink()) throw scheduleQueueFailure('scheduleStorageLinkRefused')
     } catch (error: unknown) {
       if (!hasCode(error, 'ENOENT')) throw error
     }
     for (const owed of cleanup) await retireTemporary(owed)
     const temporary = `${file}.${randomUUID()}.tmp`
-    const handle = await open(temporary, 'wx', REPORT_STORAGE_FILE_MODE)
+    let handle: Awaited<ReturnType<typeof open>> | undefined
     try {
-      await handle.writeFile(content, 'utf8')
-      await handle.sync()
-    } finally {
-      await handle.close()
-    }
-    try {
+      try {
+        await scheduleFsOperation('disk.openTemporary', async () => {
+          handle = await open(temporary, 'wx', REPORT_STORAGE_FILE_MODE)
+        })
+        const opened = handle
+        if (opened === undefined) throw scheduleQueueFailure('scheduleLeaseHeartbeatFailed')
+        await scheduleFsOperation('disk.write', () => opened.writeFile(content, 'utf8'))
+        await scheduleFsOperation('disk.sync', () => opened.sync())
+      } finally {
+        const opened = handle
+        if (opened !== undefined)
+          await scheduleLeaseCleanup(() =>
+            scheduleFsOperation('cleanup.close', () => opened.close()),
+          )
+      }
       const isPublished = await retry(async () => {
         await guard?.()
         try {
-          if (isExclusive) await link(temporary, file)
-          else await rename(temporary, file)
+          if (isExclusive) await scheduleFsOperation('disk.link', () => link(temporary, file))
+          else await scheduleFsOperation('disk.rename', () => rename(temporary, file))
         } catch (error: unknown) {
           // Our unique temporary bytes identify a publication already committed.
           if (isExclusive && hasCode(error, 'EEXIST')) {
             try {
               const [destination, staged] = await Promise.all([
-                lstatIdentity(file),
-                lstatIdentity(temporary),
+                scheduleFsOperation('disk.destinationIdentity', () => lstatIdentity(file)),
+                scheduleFsOperation('disk.temporaryIdentity', () => lstatIdentity(temporary)),
               ])
               return sameFile(destination, staged)
             } catch (identityError: unknown) {
@@ -160,15 +435,25 @@ export function createNodeScheduleFs(directory: string): ScheduleFsPort {
               throw identityError
             }
           }
-          if ((await fs.read(relative)) === content) return true
+          if ((await scheduleFsOperation('disk.confirm', () => fs.read(relative))) === content)
+            return true
           throw error
         }
         if (process.platform !== 'win32') {
-          const folder = await open(path.dirname(file), 'r')
+          let folder: Awaited<ReturnType<typeof open>> | undefined
           try {
-            await folder.sync()
+            await scheduleFsOperation('disk.openFolder', async () => {
+              folder = await open(path.dirname(file), 'r')
+            })
+            const opened = folder
+            if (opened === undefined) throw scheduleQueueFailure('scheduleLeaseHeartbeatFailed')
+            await scheduleFsOperation('disk.syncFolder', () => opened.sync())
           } finally {
-            await folder.close()
+            const opened = folder
+            if (opened !== undefined)
+              await scheduleLeaseCleanup(() =>
+                scheduleFsOperation('cleanup.closeFolder', () => opened.close()),
+              )
           }
         }
         return true
@@ -176,7 +461,7 @@ export function createNodeScheduleFs(directory: string): ScheduleFsPort {
       return { isPublished }
     } finally {
       // Cleanup cannot turn a successful hard-link publication into failure.
-      await retireTemporary(temporary)
+      await scheduleLeaseCleanup(() => retireTemporary(temporary))
     }
   }
   const fs: ScheduleFsPort = {
@@ -185,9 +470,9 @@ export function createNodeScheduleFs(directory: string): ScheduleFsPort {
       try {
         return await retry(async () => {
           await checkParents(file)
-          const info = await lstat(file)
-          if (info.isSymbolicLink()) throw new Error('scheduleStorageLinkRefused')
-          return await readFile(file, 'utf8')
+          const info = await scheduleFsOperation('disk.fileStat', () => lstat(file))
+          if (info.isSymbolicLink()) throw scheduleQueueFailure('scheduleStorageLinkRefused')
+          return await scheduleFsOperation('disk.read', () => readFile(file, 'utf8'))
         })
       } catch (error: unknown) {
         if (hasCode(error, 'ENOENT')) return
@@ -198,7 +483,7 @@ export function createNodeScheduleFs(directory: string): ScheduleFsPort {
       const folder = resolve(relative)
       try {
         await checkParents(path.join(folder, 'entry'))
-        return await readdir(folder)
+        return await scheduleFsOperation('disk.names', () => readdir(folder))
       } catch (error: unknown) {
         if (hasCode(error, 'ENOENT')) return []
         throw error
@@ -215,11 +500,11 @@ export function createNodeScheduleFs(directory: string): ScheduleFsPort {
       const file = resolve(relative)
       try {
         await checkParents(file)
-        const info = await lstat(file)
-        if (info.isSymbolicLink()) throw new Error('scheduleStorageLinkRefused')
+        const info = await scheduleFsOperation('disk.fileStat', () => lstat(file))
+        if (info.isSymbolicLink()) throw scheduleQueueFailure('scheduleStorageLinkRefused')
         const remove = async () => {
-          if (info.isDirectory()) await rmdir(file)
-          else await unlink(file)
+          if (info.isDirectory()) await scheduleFsOperation('disk.rmdir', () => rmdir(file))
+          else await scheduleFsOperation('disk.unlink', () => unlink(file))
         }
         if (canRetryTransient) await retry(remove)
         else await remove()
@@ -227,185 +512,7 @@ export function createNodeScheduleFs(directory: string): ScheduleFsPort {
         if (!hasCode(error, 'ENOENT')) throw error
       }
     },
-    async lock(key, work, options?: ScheduleLockOptions) {
-      const file = `leases/${scheduleStorageHash(key)}.json`
-      const signal = options?.signal
-      const rawDeadline = options?.deadlineMs
-      const deadlineMs =
-        rawDeadline !== undefined && !Number.isNaN(rawDeadline) ? rawDeadline : undefined
-      // A waiting acquisition stops, never abandons. The deadline binds
-      // first: a lease still held by a valid writer past the wait is busy,
-      // never a silent abandon that later publishes; an explicit abort ends
-      // the wait at once. Past acquisition only the abort binds.
-      const checkWaiting = () => {
-        if (deadlineMs !== undefined && Date.now() >= deadlineMs)
-          throw new Error('scheduleLeaseBusy')
-        signal?.throwIfAborted()
-      }
-      const checkHeld = () => {
-        signal?.throwIfAborted()
-      }
-      const owner = {
-        pid: process.pid,
-        start: processStart,
-        token: randomUUID(),
-        heartbeat: Date.now(),
-        heartbeatSequence: 0,
-      }
-      const observations = new Map<string, { content: string; atMs: number }>()
-      const expired = (name: string, content: string, heartbeatMs: number) => {
-        const now = performance.now()
-        const observed = observations.get(name)
-        if (observed?.content !== content) observations.set(name, { content, atMs: now })
-        return (
-          Date.now() - heartbeatMs > SCHEDULE_LEASE_EXPIRES_MS ||
-          (observed?.content === content && now - observed.atMs > SCHEDULE_LEASE_EXPIRES_MS)
-        )
-      }
-      const folder = `leaseFences/${scheduleStorageHash(key)}`
-      const head = async () => {
-        const folders = await fs.names(folder)
-        const segments = newestScheduleSlots(folders, /^\d+$/)
-        for (const segment of segments) {
-          const entries = await fs.names(`${folder}/${segment}`)
-          const names = newestScheduleSlots(entries, /^\d+\.json$/)
-          const name = names[0]
-          if (name === undefined) continue
-          const content = await fs.read(`${folder}/${segment}/${name}`)
-          // Listed but unreadable: a writer moved on between the listing and
-          // the read. Transient; the next attempt observes the new owner.
-          if (content === undefined) throw new Error('scheduleQueueOwnershipLost')
-          const lease = leaseSchema.parse(parseScheduleStoredJson(content))
-          // A fencing token that contradicts its immutable file name or
-          // segment is stored corruption, never a takeover: no competing
-          // writer can make this identity valid. Fences and their tokens
-          // arrived together, so a header without any token is foreign too.
-          if (
-            name !== `${String(lease.fencingToken)}.json` ||
-            Number(segment) !== Math.floor((lease.fencingToken ?? -1) / SCHEDULE_JOURNAL_MAX_OPS)
-          )
-            throw new Error('scheduleQueueLeaseInvalid')
-          return { content, lease, header: `${folder}/${segment}/${name}` }
-        }
-        const content = await fs.read(file)
-        return content === undefined
-          ? undefined
-          : { content, lease: leaseSchema.parse(parseScheduleStoredJson(content)), header: file }
-      }
-      let fencingToken = 0
-      let header: string
-      for (;;) {
-        checkWaiting()
-        const previous = await head()
-        if (previous !== undefined) {
-          const heartbeatFile = `${file}.${previous.lease.token}.heartbeat`
-          const pulse = (await fs.read(heartbeatFile)) ?? previous.content
-          const refreshed = leaseSchema.parse(parseScheduleStoredJson(pulse))
-          // A changed holder identity mid-read is a takeover in progress, not
-          // corruption: the next attempt re-reads the head and observes the
-          // new owner or its release.
-          if (
-            refreshed.token !== previous.lease.token ||
-            refreshed.pid !== previous.lease.pid ||
-            refreshed.start !== previous.lease.start
-          )
-            throw new Error('scheduleQueueOwnershipLost')
-          const released = await fs.read(`${previous.header}.released`)
-          if (
-            released === undefined &&
-            isScheduleProcessAlive(previous.lease.pid) &&
-            !expired('owner', pulse, refreshed.heartbeat)
-          ) {
-            checkWaiting()
-            const remaining =
-              deadlineMs === undefined ? SCHEDULE_LEASE_POLL_MS : deadlineMs - Date.now()
-            // Wake at the deadline instead of sleeping a whole poll turn past
-            // it, so the busy verdict precedes the source's own timeout.
-            if (remaining > 0) await delay(Math.min(SCHEDULE_LEASE_POLL_MS, remaining))
-            // Past the deadline the verdict is decided without another disk
-            // round-trip: head() latency under load must not push it past
-            // the source's own timeout. A release in the last instants still
-            // reads busy; the window is exhausted either way.
-            if (deadlineMs !== undefined && Date.now() >= deadlineMs)
-              throw new Error('scheduleLeaseBusy')
-            continue
-          }
-          fencingToken = (previous.lease.fencingToken ?? -1) + 1
-        }
-        checkHeld()
-        owner.heartbeat = Date.now()
-        header = `${folder}/${String(Math.floor(fencingToken / SCHEDULE_JOURNAL_MAX_OPS))}/${String(fencingToken)}.json`
-        // Acquiring/releasing uses immutable token slots. No unlink can remove
-        // a replacement holder; the mutable lease file is only a legacy hint.
-        if (await fs.publish(header, JSON.stringify(leaseSchema.parse({ ...owner, fencingToken }))))
-          break
-      }
-      const guard: ScheduleLeaseGuard = Object.assign(
-        async () => {
-          // No read, write or publish follows an abort: the check precedes
-          // the ownership re-read, so a stopped waiter performs no port call.
-          checkHeld()
-          const current = await head()
-          if (current?.lease.token !== owner.token || current.lease.fencingToken !== fencingToken)
-            throw new Error('scheduleQueueOwnershipLost')
-        },
-        { fencingToken },
-      )
-      try {
-        await fs.replace(file, JSON.stringify({ ...owner, fencingToken }), guard)
-      } catch {
-        // Hint publication is cleanup debt, not acquisition authority.
-        await guard()
-      }
-      let heartbeat = Promise.resolve()
-      let heartbeatError: Error | undefined
-      const refresh = async () => {
-        const previous = heartbeat
-        try {
-          await previous
-          await guard()
-          owner.heartbeat = Date.now()
-          owner.heartbeatSequence += 1
-          // A paused heartbeat rename can only touch its own token's pulse.
-          // It cannot replace the new owner's authoritative lease file.
-          await fs.replace(`${file}.${owner.token}.heartbeat`, JSON.stringify(owner), guard)
-        } catch (error: unknown) {
-          heartbeatError =
-            error instanceof Error ? error : new Error('scheduleLeaseHeartbeatFailed')
-        }
-      }
-      const timer = setInterval(() => {
-        heartbeat = refresh()
-      }, SCHEDULE_LEASE_HEARTBEAT_MS).unref()
-      try {
-        const result = await work(
-          Object.assign(
-            async () => {
-              if (heartbeatError !== undefined) throw heartbeatError
-              checkHeld()
-              await guard()
-            },
-            { fencingToken },
-          ),
-        )
-        await guard()
-        return result
-      } finally {
-        clearInterval(timer)
-        await heartbeat
-        // Stop heartbeating even on persistent release failure: another caller
-        // repairs the expired lease while this PID remains alive.
-        try {
-          await guard()
-          await fs.publish(`${header}.released`, '')
-          // Cleanup is debt only: token slots/release markers decide ownership.
-          await fs.remove(file)
-          await fs.remove(`${file}.${owner.token}.heartbeat`)
-        } catch {
-          /* Expiry owns release recovery. */
-        }
-      }
-    },
+    lock: (key, work, options) => createScheduleLeaseLock(fs)(key, work, options),
   }
   return fs
 }
@@ -416,9 +523,11 @@ export function createNodeScheduleQueue(directory: string): ScheduleQueuePort {
     async serialize(targetKey, work) {
       // Let concurrent singleton batches publish before the ordered queue pop.
       await delay(SCHEDULE_QUEUE_COALESCE_MS)
-      await fs.lock(`target:${targetKey}`, async () => {
-        await work()
-      })
+      await scheduleFsOperation('queue.lock', () =>
+        fs.lock(`target:${targetKey}`, async () => {
+          await work()
+        }),
+      )
     },
   }
 }

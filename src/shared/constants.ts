@@ -4110,6 +4110,8 @@ export const SCHEDULE_FS_RETRY_ATTEMPTS = 5
 export const SCHEDULE_FS_RETRY_BACKOFF_MS = 20
 export const SCHEDULE_LEASE_HEARTBEAT_MS = 2000
 export const SCHEDULE_LEASE_EXPIRES_MS = 10_000
+// Lease release owns a separate short window, independent of caller cancellation.
+export const SCHEDULE_LEASE_RELEASE_TIMEOUT_MS = 1000
 export const SCHEDULE_LEASE_POLL_MS = 40
 export const SCHEDULE_QUEUE_COALESCE_MS = 100
 export const SCHEDULE_PROTOCOL_VERSION = 1
