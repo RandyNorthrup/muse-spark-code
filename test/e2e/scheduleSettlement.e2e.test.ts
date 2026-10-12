@@ -1,11 +1,12 @@
-import { fork, type ChildProcess } from 'node:child_process'
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import type { ChildProcess } from 'node:child_process'
+import { mkdtemp, readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { build } from 'esbuild'
 import * as z from 'zod/mini'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { scheduleDeliveryStateSchema } from '../../src/shared/scheduleV2'
+import { forkScheduleWorker, stopForkWorkers } from './scheduleForkWorker'
 
 const message = z.discriminatedUnion('phase', [
   z.strictObject({ phase: z.literal('parked') }),
@@ -55,22 +56,13 @@ beforeAll(async () => {
     }),
   )
 })
-afterAll(async () => {
-  for (const child of children)
-    if (child.exitCode === null && child.signalCode === null) child.kill()
-  await Promise.all(exited.values())
-  await rm(paths.folder, { recursive: true, force: true })
-})
+afterAll(() => stopForkWorkers(children, exited.values(), paths.folder))
 function start(root: string, phase: string, catchUp: string) {
-  const child = fork(paths.worker, [root, phase, catchUp], {
-    silent: true,
-    env: { SystemRoot: process.env['SystemRoot'], TMPDIR: tmpdir() },
-  })
-  children.push(child)
-  const exit = new Promise<number | null>((resolve) => child.once('exit', resolve))
-  exited.set(child, exit)
-  const response = nextMessage(child)
-  return { child, exit, response }
+  const worker = forkScheduleWorker(paths.worker, [root, phase, catchUp])
+  children.push(worker.child)
+  exited.set(worker.child, worker.exit)
+  const response = nextMessage(worker.child)
+  return { child: worker.child, exit: worker.exit, response }
 }
 function nextMessage(child: ChildProcess) {
   return new Promise<z.infer<typeof message>>((resolve, reject) => {
