@@ -108,6 +108,14 @@ happened, not what was planned; superseded entries are kept.
   typed sentence exactly as on POSIX, through one refusal-code table shared
   by both launchers, including the previously unmapped outside-root refusal.
   Teams remain unavailable pending integration.
+- Hidden M96 Windows worker launcher now builds the helper arguments inside
+  its script as single-quoted literals and passes the whole script as one
+  encoded command, so worker-chosen file names can never become PowerShell
+  source text and no argument follows the script. An unexpected helper
+  failure surfaces as its own typed sentence naming the exception type
+  instead of the generic proof failure, and the last worker-reachable
+  generic refusals in the Windows helper carry their own reasons. Teams
+  remain unavailable pending integration.
 - Hidden M96 engine workers reserve and settle each transport attempt separately.
   Successful retries preserve earlier uncertain liability; refused and unsent
   attempts release their claims, including admission revoked during a durable
