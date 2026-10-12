@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   applyGoalCommand,
   type GoalContext,
@@ -283,5 +283,24 @@ describe('the goal loop on the Model API backend (M45)', () => {
     expect(goalProgress(active, GOAL_PROGRESS_REMINDER_STEPS)).toContain(
       `Progress has not been reported in the last ${String(GOAL_PROGRESS_REMINDER_STEPS)} model calls.`,
     )
+  })
+})
+
+describe('CATCHAUDIT named-condition catches', () => {
+  it('lets a foreign JSON failure through instead of no goal', () => {
+    expect(goalDetails('not json')).toBeUndefined()
+    const realParse = JSON.parse
+    const jsonBoom: unknown = 'json-boom'
+    vi.stubGlobal('JSON', {
+      ...JSON,
+      parse: () => {
+        throw jsonBoom
+      },
+    })
+    try {
+      expect(() => goalDetails('{}')).toThrow('json-boom')
+    } finally {
+      vi.stubGlobal('JSON', realParse)
+    }
   })
 })

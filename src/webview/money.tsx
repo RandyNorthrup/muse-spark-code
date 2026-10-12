@@ -187,7 +187,9 @@ export function usePriceOf(
       }
       try {
         return api.paidFeaturePrice(feature)
-      } catch {
+      } catch (error: unknown) {
+        // An unpriced feature reads undefined: anything else keeps its kind.
+        if (!(error instanceof Error)) throw error
         return
       }
     },

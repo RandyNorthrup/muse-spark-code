@@ -32,7 +32,10 @@ export function wasEstimateComposerHandled(
         ...(parsed.options.seed && { seed: parsed.options.seed }),
       }),
     )
-  } catch {
+  } catch (error: unknown) {
+    // An unopenable estimator reads failed: only a non-error keeps its kind
+    // past the composer.
+    if (!(error instanceof Error)) throw error
     port.notice(fill(UI_TEXT.estimateFailed, { detail: 'estimator-unavailable' }))
   }
   return true

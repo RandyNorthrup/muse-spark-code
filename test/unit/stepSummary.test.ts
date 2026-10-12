@@ -2,7 +2,7 @@
 // ran, in first-seen order, files and folders counted once, failures last,
 // in the display language's plural forms and list.
 import { readFileSync } from 'node:fs'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { loadUiTable } from '../../src/host/l10n'
 import { UI_TEXT } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
@@ -201,6 +201,27 @@ describe('stepSummaryText', () => {
           expect(head, `${language} ${kind}: ${form}`).toBe(head.toLocaleLowerCase(language))
         }
       }
+    }
+  })
+})
+
+const search = (id: string, args: string) => tool({ id, tool: 'search', args })
+
+describe('CATCHAUDIT named-condition catches', () => {
+  it('lets a foreign JSON failure through instead of searching the workspace', () => {
+    expect(stepSummary([search('a', 'not json')]).parts).toEqual([{ kind: 'searched', count: 1 }])
+    const realParse = JSON.parse
+    const jsonBoom: unknown = 'json-boom'
+    vi.stubGlobal('JSON', {
+      ...JSON,
+      parse: () => {
+        throw jsonBoom
+      },
+    })
+    try {
+      expect(() => stepSummary([search('a', '{}')])).toThrow('json-boom')
+    } finally {
+      vi.stubGlobal('JSON', realParse)
     }
   })
 })

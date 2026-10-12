@@ -29,7 +29,10 @@ export function httpHostBridge(port: HttpUsagePort): HostBridge {
           if (Array.isArray(reply))
             for (const message of reply) deliverUsageReply(messages, message)
           else deliverUsageReply(messages, reply)
-        } catch {
+        } catch (error: unknown) {
+          // An unreadable reply reads failed: only a non-error keeps its
+          // kind past the bridge.
+          if (!(error instanceof Error)) throw error
           deliverUsageReply(messages, { type: 'usage/error', code: 'readFailed' })
         }
       })()

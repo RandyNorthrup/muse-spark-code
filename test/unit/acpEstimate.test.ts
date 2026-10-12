@@ -163,4 +163,32 @@ describe('M117 ACP estimate', () => {
     expect(messages(h.updates)).toContain('estimate-unavailable')
     expect(messages(h.updates)).not.toContain('/private')
   })
+
+  it('CATCHAUDIT: keeps the fixed sentence for a foreign adapter failure', async () => {
+    const adapterBoom: unknown = 'estimate-boom-string'
+    const h = harness({ run: vi.fn().mockRejectedValue(adapterBoom) })
+    await h.run(async (client, sessionId) => {
+      expect(await prompt(client, sessionId, '/estimate M117')).toMatchObject({
+        stopReason: 'end_turn',
+      })
+    })
+    expect(messages(h.updates)).toContain('estimate-unavailable')
+    expect(messages(h.updates)).not.toContain('estimate-boom-string')
+  })
+
+  it('CATCHAUDIT: lets a foreign runner failure through the estimate port', async () => {
+    const runnerBoom: unknown = 'estimate-boom-string'
+    const port = createAcpEstimate({
+      context: (): never => {
+        throw runnerBoom
+      },
+      runner: () => ({
+        estimate: (): Promise<unknown> => Promise.reject(new Error('unreachable runner')),
+      }),
+      money: { price: () => '$0.00' },
+    })
+    await expect(port.run('/estimate M117', CWD, new AbortController().signal)).rejects.toBe(
+      'estimate-boom-string',
+    )
+  })
 })
