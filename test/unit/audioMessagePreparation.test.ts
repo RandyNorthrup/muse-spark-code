@@ -21,6 +21,7 @@ import {
 import type { AudioSource } from '../../src/core/voice/transcribeBatch'
 import type { TurnPart } from '../../src/core/agent/agentBackend'
 import { UI_TEXT } from '../../src/shared/constants'
+import { fill } from '../../src/shared/l10n/text'
 import { fakeConversionOptions } from './helpers/media/conversion'
 
 const MP3_FIXTURE = 'test/fixtures/voice/tone-2s.mp3'
@@ -62,13 +63,24 @@ function rig(options?: {
   readonly isAllowed?: boolean
   readonly action?: 'transcribe' | 'sendAudio'
   readonly nativeAudio?: boolean
+  /** Mutable explicit choice; the preparation must notice a change mid-await. */
+  readonly actionCell?: { value: 'transcribe' | 'sendAudio' }
+  /** Flip the choice inside each await of the preparation. */
+  readonly onConsent?: () => void
+  readonly onConvert?: () => void
+  readonly onReserve?: () => void
+  /** After the converted bytes are read, just before the dispatch admission. */
+  readonly onReadRendered?: () => void
 }): Rig {
   const posted: Rig['posted'] = []
   const paths = new Map<string, string>()
   const settled: (string | undefined)[] = []
   let voiceSeconds = 0
   const ports = createTranscriptionPorts({
-    readAudioBytes: async (absolutePath) => new Uint8Array(await readFile(absolutePath)),
+    readAudioBytes: async (absolutePath) => {
+      options?.onReadRendered?.()
+      return new Uint8Array(await readFile(absolutePath))
+    },
     readSource: (source) => attachedAudioBytes(paths, source.pathToken),
     postTranscription: async (request) => {
       const raw = await collectTranscriptionBody(request)
@@ -88,10 +100,12 @@ function rig(options?: {
         converter: { kind: 'ffmpeg' as const, command: path.join(tmpdir(), 'muse-fake-ffmpeg') },
       }),
     conversionOptions: fakeConversionOptions(async (_command, _args, runOptions) => {
+      options?.onConvert?.()
       await writeFile(runOptions.outputPath, synthWav(2))
     }),
   })
-  const action = options?.action
+  const cell = options?.actionCell
+  const action = cell?.value ?? options?.action
   const prepare = createPrepareAudioMessage({
     contextFor: (modelId) => {
       const context = createModelApiAudioContext({
@@ -103,7 +117,9 @@ function rig(options?: {
         ? { ...context, model: { ...context.model, audio: 'yes', audioFormats: ['audio/mpeg'] } }
         : context
     },
-    ...(action !== undefined && { audioAction: () => action }),
+    ...((action !== undefined || cell !== undefined) && {
+      audioAction: () => cell?.value ?? action ?? 'transcribe',
+    }),
     ...ports,
     gate: { isOn: () => options?.voiceOn ?? true },
     usage: {
@@ -117,8 +133,14 @@ function rig(options?: {
       return part.text === VIDEO_MARKER ? videoSource : undefined
     },
     assertCurrent: () => undefined,
-    consent: { allows: () => Promise.resolve(options?.isAllowed ?? true) },
+    consent: {
+      allows: () => {
+        options?.onConsent?.()
+        return Promise.resolve(options?.isAllowed ?? true)
+      },
+    },
     reserve: () => {
+      options?.onReserve?.()
       return Promise.resolve({
         admitSend: () => undefined,
         settle: (actual) => {
@@ -233,4 +255,43 @@ describe('Model API factory audio preparation (MEDIAW finding 7)', () => {
       }
     },
   )
+
+  // RVM105 2: the preparation captured transcribe before its awaits; a
+  // change to sendAudio during any of them refuses with sendAudio's reason
+  // (the model does not take audio) before any transcription request.
+  it.each(['consent', 'convert', 'reserve', 'read'] as const)(
+    'refuses a sendAudio change during %s without a transcription POST',
+    async (stage) => {
+      const cell = { value: 'transcribe' as 'transcribe' | 'sendAudio' }
+      const flip = () => {
+        cell.value = 'sendAudio'
+      }
+      const r = rig({
+        actionCell: cell,
+        ...(stage === 'consent' && { onConsent: flip }),
+        ...(stage === 'convert' && { onConvert: flip }),
+        ...(stage === 'reserve' && { onReserve: flip }),
+        ...(stage === 'read' && { onReadRendered: flip }),
+      })
+      r.paths.set(mp3Source.pathToken, path.resolve(MP3_FIXTURE))
+      await expect(prepareParts(r, [{ type: 'text', text: MARKER }])).rejects.toThrow(
+        fill(UI_TEXT.media.audioUnsupported, { model: 'muse-spark-1.3-contributor' }),
+      )
+      expect(r.posted).toHaveLength(0)
+    },
+  )
+
+  it('ignores an audio-action change for a video part, which has no audio action', async () => {
+    const cell = { value: 'transcribe' as 'transcribe' | 'sendAudio' }
+    const r = rig({
+      actionCell: cell,
+      onConsent: () => {
+        cell.value = 'sendAudio'
+      },
+    })
+    r.paths.set(videoSource.pathToken, path.resolve(MP3_FIXTURE))
+    const prepared = await prepareParts(r, [{ type: 'text', text: VIDEO_MARKER }])
+    expect(prepared?.parts).toHaveLength(2)
+    expect(r.posted).toHaveLength(1)
+  })
 })
