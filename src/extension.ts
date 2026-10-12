@@ -4130,6 +4130,29 @@ async function activateWindow(
               },
             })
           },
+          // PROVSPEND: the same read as the first shared-shape report; the
+          // journal entry is identical to the snapshot path above (the
+          // report's exact decimals stringify to the same amounts).
+          onSpend: (report) => {
+            if (report.capability !== 'key-usage') return
+            usageRecording.limit({
+              backend: 'modelApi',
+              provider: 'openrouter',
+              source: 'openRouter',
+              observedAt: Date.parse(report.asOf),
+              windows: [],
+              account: {
+                usedUsd: Usd.from(report.usedThisMonthUsd).toAmount(),
+                period: 'month',
+                ...(report.limitUsd !== undefined && {
+                  limitUsd: Usd.from(report.limitUsd).toAmount(),
+                }),
+                ...(report.remainingUsd !== undefined && {
+                  remainingUsd: Usd.from(report.remainingUsd).toAmount(),
+                }),
+              },
+            })
+          },
           onWizardSaved: async (outcome) => {
             await auth.refresh()
             const surface = registry.active

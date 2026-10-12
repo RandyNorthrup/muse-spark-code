@@ -31,6 +31,32 @@ describe('createProvidersHost', () => {
     await expect(providers.openRouterUsage('synthetic-provider-credential')).rejects.toThrow()
     expect(onKeyUsage).toHaveBeenCalledTimes(1)
   })
+  it('reports the OpenRouter read through the shared spend shape when onSpend is present', async () => {
+    const snapshot = {
+      usedToday: 0.1,
+      usedThisWeek: 0.2,
+      usedThisMonth: 0.3,
+      limit: 1,
+      remaining: 0.7,
+    }
+    const onSpend = vi.fn()
+    const onKeyUsage = vi.fn()
+    const { providers } = testProvidersHost({
+      deps: { usage: { read: () => Promise.resolve(snapshot) }, onKeyUsage, onSpend },
+    })
+    await providers.openRouterUsage('synthetic-provider-credential')
+    expect(onSpend).toHaveBeenCalledExactlyOnceWith({
+      capability: 'key-usage',
+      provider: 'openrouter',
+      asOf: expect.any(String),
+      usedTodayUsd: '0.1',
+      usedThisWeekUsd: '0.2',
+      usedThisMonthUsd: '0.3',
+      limitUsd: '1',
+      remainingUsd: '0.7',
+    })
+    expect(onKeyUsage).not.toHaveBeenCalled()
+  })
   it('refuses edited origins before stored-key tests and scans dispatch', async () => {
     const test = vi.fn(() => Promise.resolve({ kind: 'ok' as const, models: 1 }))
     const fetchModels = vi.fn(() => Promise.resolve({ rows: [] }))

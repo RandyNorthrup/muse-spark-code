@@ -708,6 +708,33 @@ export async function fetchKeyUsageSpendReport(input: {
   } catch {
     return { kind: 'unreachable' }
   }
+  return openRouterSpendReport(
+    {
+      usedToday: snapshot.usedToday,
+      usedThisWeek: snapshot.usedThisWeek,
+      usedThisMonth: snapshot.usedThisMonth,
+      ...(snapshot.limit !== undefined && { limit: snapshot.limit }),
+      ...(snapshot.remaining !== undefined && { remaining: snapshot.remaining }),
+    },
+    input.asOf,
+  )
+}
+
+/**
+ * The existing OpenRouter read as the first shared-shape report: the
+ * validated key-usage snapshot becomes exact dollars. A non-finite or
+ * negative amount is unreadable, never a zero.
+ */
+export function openRouterSpendReport(
+  snapshot: {
+    readonly usedToday: number
+    readonly usedThisWeek: number
+    readonly usedThisMonth: number
+    readonly limit?: number | undefined
+    readonly remaining?: number | undefined
+  },
+  asOf: string,
+): SpendFailure | ProviderSpendReport {
   const numbers = [
     snapshot.usedToday,
     snapshot.usedThisWeek,
@@ -730,7 +757,7 @@ export async function fetchKeyUsageSpendReport(input: {
   return {
     capability: 'key-usage',
     provider: 'openrouter',
-    asOf: input.asOf,
+    asOf,
     usedTodayUsd: today,
     usedThisWeekUsd: week,
     usedThisMonthUsd: month,

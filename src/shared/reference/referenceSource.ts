@@ -78,6 +78,9 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   ['output-schema', ['acp:modelApi']],
   ['providers', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ['usage', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
+  // PROVSPEND: the terminal report, the editor's recorded key-usage figures
+  // and the ACP usage summary read the same shared spend shape.
+  ['provider-spend', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ['legal', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ['legal-explanation', ['vscode:museCode', 'vscode:modelApi']],
   ['team-workers', []],
