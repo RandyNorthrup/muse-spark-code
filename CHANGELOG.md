@@ -7,6 +7,8 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Repair the POSIX vault epoch contender rule and the sampler warning classifier (RVCM109JD). A killed epoch guardian no longer costs the next starter its session: a contender holding the kernel mutex replaces a provably gone writer atomically and is refused with the fixed reason when the holder is live. The installed receipt whitelists only the exact sampler cause, matched whole with a counted allowance; any other sampler output fails.
+
 - Serialize the POSIX vault's shared lock epoch across session brokers with a kernel lock, keep lifecycle fixtures alive under explicit test ownership, and distinguish verified finished-helper sampler races from acceptance failures.
 
 

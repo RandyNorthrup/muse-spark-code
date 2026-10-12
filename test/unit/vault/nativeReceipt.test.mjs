@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
-import { expectedReceiptWarning } from '../helpers/vault/receiptWarnings.mjs'
+import { createWarningBudget, expectedReceiptWarning } from '../helpers/vault/receiptWarnings.mjs'
 
 const stack = 'at ResourceLaunchHost.sampleTree (/installed/resourceGovernor.js:3:51102)'
 function work(change = {}) {
   return {
+    // The sampler stamps this fixed cause; the classifier requires it.
+    samplerCause: 'unproven-membership',
     known: false,
     ticket: undefined,
     ended: true,
@@ -27,6 +29,45 @@ describe('installed vault receipt sampler warnings', () => {
         () => true,
       ),
     ).toBe('finished-native-helper-membership-race')
+    expect(
+      expectedReceiptWarning(
+        'warn',
+        'at async ResourceLaunchHost.sampleTree (/installed/resourceGovernor.js:3:51102)',
+        work(),
+        () => true,
+      ),
+    ).toBe('finished-native-helper-membership-race')
+  })
+  it('never whitelists without the exact sampler cause, even beside the known race', () => {
+    const fatal = { samplerCause: 'sampler-error' }
+    // RVCM109JD P2-2 drill: an unrelated fatal line beside the known one fails.
+    expect(expectedReceiptWarning('warn', stack, work(fatal), () => true)).toBeNull()
+    expect(
+      expectedReceiptWarning('warn', stack, work({ samplerCause: undefined }), () => true),
+    ).toBeNull()
+    expect(expectedReceiptWarning('warn', stack, work({}), () => true)).not.toBeNull()
+    expect(expectedReceiptWarning('warn', stack, undefined, () => true)).toBeNull()
+  })
+  it('matches the sampler location whole and anchored, never as a substring', () => {
+    expect(
+      expectedReceiptWarning('warn', 'at settings.read(); x.sampleTree (y)', work(), () => true),
+    ).toBeNull()
+    expect(
+      expectedReceiptWarning(
+        'warn',
+        'ResourceLaunchHost.sampleTree (no frame)',
+        work(),
+        () => true,
+      ),
+    ).toBeNull()
+    expect(
+      expectedReceiptWarning(
+        'warn',
+        'at ResourceLaunchHost.sampleTree (/installed/resourceGovernor.js)',
+        work(),
+        () => true,
+      ),
+    ).toBeNull()
   })
   it.each([
     { ended: false },
@@ -75,5 +116,13 @@ describe('installed vault receipt sampler warnings', () => {
     expect(expectedReceiptWarning('warn', stack, undefined, () => true)).toBeNull()
     expect(expectedReceiptWarning('runtime', stack, work(), () => true)).toBeNull()
     expect(expectedReceiptWarning('warn', 'at settings.read()', work(), () => true)).toBeNull()
+  })
+  it('counts each ignored warning against its allowance; storms and strangers fail', () => {
+    const budget = createWarningBudget({ 'finished-native-helper-membership-race': 2 })
+    expect(budget.admit('finished-native-helper-membership-race')).toBe(true)
+    expect(budget.admit('finished-native-helper-membership-race')).toBe(true)
+    expect(budget.admit('finished-native-helper-membership-race')).toBe(false)
+    expect(createWarningBudget({}).admit('finished-native-helper-membership-race')).toBe(false)
+    expect(budget.admit('another-warning')).toBe(false)
   })
 })
