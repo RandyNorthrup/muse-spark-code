@@ -76,6 +76,7 @@ export class FakeAgentSession implements AgentSession {
   public readonly stopAllTasks = vi.fn<AgentSession['stopAllTasks']>(resolved)
   public readonly runUserShell = vi.fn<AgentSession['runUserShell']>(resolved)
   public readonly readOutput = vi.fn<AgentSession['readOutput']>(noOutput)
+  public readonly setModelCallAllowance = vi.fn<AgentSession['setModelCallAllowance']>(unsubscribe)
   public readonly listSkills = vi.fn<AgentSession['listSkills']>(() => Promise.resolve(this.skills))
   public readonly rename = vi.fn<AgentSession['rename']>(sameName)
   public readonly dispose = vi.fn<AgentSession['dispose']>()

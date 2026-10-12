@@ -3953,7 +3953,7 @@ a translated notice explains that sending a message continues it. ACP returns
 `max_turn_requests`; headless exec reports `request_cap` (exit 5) with the answer.
 The default is 200 model calls per turn. Existing caller request allowances
 replace that default with what remains: `exec --max-requests` (default 30,
-range 1–500), best-of-N attempts and team-task ceilings. The turn's first model
+range 1–500) and best-of-N attempts. The turn's first model
 call always runs with tools, even when it is also the last one allowed: an
 answer completes the turn (exec exit 0), while a tool request ends it at the
 request cap, said plainly. Stop hooks still run on a wrap-up turn; a hook
