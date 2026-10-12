@@ -25,6 +25,12 @@ const dir = (prefix: string) => temps.dir(prefix)
 const context = () => reasonContext('accounts')
 const securityContext = () => reasonContext('security')
 
+async function emptyRegistry(prefix: string): Promise<string> {
+  const dataDir = await dir(prefix)
+  await writeFile(path.join(dataDir, 'providers.json'), JSON.stringify({ v: 1, providers: {} }))
+  return dataDir
+}
+
 describe('accounts report reader', () => {
   it('reads the registry with projected thresholds and names missing facets', async () => {
     const dataDir = await dir('m113-accounts-')
@@ -90,8 +96,7 @@ describe('accounts report reader', () => {
   })
 
   it('binds injected use and event adapters without a partial', async () => {
-    const dataDir = await dir('m113-accounts-bound-')
-    await writeFile(path.join(dataDir, 'providers.json'), JSON.stringify({ v: 1, providers: {} }))
+    const dataDir = await emptyRegistry('m113-accounts-bound-')
     const reader = createAccountsReportReader({
       dataDir,
       readUsage: () => Promise.resolve([]),
@@ -105,8 +110,7 @@ describe('accounts report reader', () => {
   it('names a damaged snapshot facet with its own facet, never vault', async () => {
     // RVREPORTJOIN P3-8: the events facet is swaps, so its damage reads
     // Swaps, not Vault.
-    const dataDir = await dir('m113-accounts-facet-')
-    await writeFile(path.join(dataDir, 'providers.json'), JSON.stringify({ v: 1, providers: {} }))
+    const dataDir = await emptyRegistry('m113-accounts-facet-')
     const reader = createAccountsReportReader({
       dataDir,
       readUsage: () => Promise.resolve([]),

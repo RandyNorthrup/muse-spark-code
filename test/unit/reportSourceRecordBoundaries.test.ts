@@ -13,7 +13,7 @@ import { agentUsageSource, type AgentUsageFile } from '../../src/core/reporting/
 import { certificationSource } from '../../src/core/reporting/sources/certification'
 import { CheckRunJournal } from '../../src/core/reporting/checkRuns'
 import { ReportStorage } from '../../src/core/reporting/history'
-import { createLocalReportSources } from '../../src/core/reporting/sources'
+import { stubLocalSources } from './helpers/reporting/localStubs'
 import { keybindingsSource } from '../../src/core/reporting/sources/keybindings'
 import { packageSource } from '../../src/core/reporting/sources/package'
 import { questionsSource } from '../../src/core/reporting/sources/questions'
@@ -42,16 +42,15 @@ import { canaryVaultSnapshot } from './helpers/reporting/canaryVault'
 import { malformed } from './helpers/reporting/reasonCases'
 import { removeFolder } from './helpers/temporaryFolders'
 
-// Report storage's own-process identity probe is a bounded OS command; the
-// check-run case below runs it directly, as checkRuns.test.ts does.
+const TEMP = path.resolve(import.meta.dirname, '../../temp')
+const scrub = (text: string) => text
+
+// The check-run journal below runs report storage directly (as in
+// checkRuns.test.ts), so its identity probe is the fixture command.
 vi.mock('../../src/core/resources/launcher', async (original) => {
   const { withFixtureCommand } = await import('./helpers/resources/fixtureLaunch')
   return withFixtureCommand(await original())
 })
-
-const TEMP = path.resolve(import.meta.dirname, '../../temp')
-const COMMIT = 'a'.repeat(40)
-const scrub = (text: string) => text
 
 function contextFor(kind: Parameters<typeof reportOptions>[0]): SourceReadContext {
   return {
@@ -103,6 +102,7 @@ const journalRecord = (id: string) => ({
   outcome: 'completed',
   startedAt: Date.parse('2026-10-06T11:00:00Z'),
 })
+const COMMIT = 'a'.repeat(40)
 const goodCheck = (check: string, durationMs: number): CheckRunRecord => ({
   check,
   outcome: 'passed',
@@ -172,17 +172,8 @@ describe('production sources keep good records beside one bad record', () => {
   })
 
   it('usage keeps two breakdown rows with a named problem', async () => {
-    const sources = createLocalReportSources({
-      files: {
-        read: () => Promise.reject(new Error('unused')),
-        list: () => Promise.reject(new Error('unused')),
-      },
-      git: { run: () => Promise.resolve({ stdout: '', code: 1 }) },
-      scrub,
-      roots: [],
+    const sources = stubLocalSources({
       usage: () => Promise.resolve({ usage: usageFacts(), observedAt: REPORT_FIXTURE_AS_OF }),
-      enabledAgents: [],
-      agentFiles: [],
     })
     const result = await sources.usage.read(contextFor('usage'))
     expect(result.data?.breakdown).toHaveLength(2)
@@ -267,14 +258,7 @@ describe('production sources keep good records beside one bad record', () => {
       costUsd: null,
       certainty: 'unknown',
     }
-    const sources = createLocalReportSources({
-      files: {
-        read: () => Promise.reject(new Error('unused')),
-        list: () => Promise.reject(new Error('unused')),
-      },
-      git: { run: () => Promise.resolve({ stdout: '', code: 1 }) },
-      scrub,
-      roots: [],
+    const sources = stubLocalSources({
       accounts: createAccountsReportReader({
         dataDir: path.join(TEMP, 'record-boundary-no-registry'),
         readUsage: () =>
@@ -284,8 +268,6 @@ describe('production sources keep good records beside one bad record', () => {
             { ...good, account: 'second' },
           ]),
       }),
-      enabledAgents: [],
-      agentFiles: [],
     })
     const result = await sources.accounts.read(contextFor('accounts'))
     expect(result.data?.usage).toHaveLength(2)
@@ -296,14 +278,7 @@ describe('production sources keep good records beside one bad record', () => {
   it('security keeps two audit rows with a named problem', async () => {
     const snapshot = canaryVaultSnapshot()
     const good = snapshot.audit[0]!
-    const sources = createLocalReportSources({
-      files: {
-        read: () => Promise.reject(new Error('unused')),
-        list: () => Promise.reject(new Error('unused')),
-      },
-      git: { run: () => Promise.resolve({ stdout: '', code: 1 }) },
-      scrub,
-      roots: [],
+    const sources = stubLocalSources({
       security: createSecurityReportReader({
         dataDir: path.join(TEMP, 'record-boundary-no-audit'),
         readVault: () =>
@@ -316,8 +291,6 @@ describe('production sources keep good records beside one bad record', () => {
             ],
           }),
       }),
-      enabledAgents: [],
-      agentFiles: [],
     })
     const result = await sources.security.read(contextFor('security'))
     expect(result.data?.audit).toHaveLength(2)
