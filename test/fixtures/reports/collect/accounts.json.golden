@@ -1,0 +1,822 @@
+{
+  "format": "report-v1",
+  "moneyVersion": 2,
+  "header": {
+    "kind": "accounts",
+    "scope": "fixture-workspace",
+    "asOf": "2026-10-06T12:00:00+00:00",
+    "generatorVersion": "0.14.2",
+    "contentHash": "88328c8e89c4fae8e396fdc15582c2c305b188e7db4b910b247bb345dd25408e"
+  },
+  "needsYou": {
+    "id": "needsYou",
+    "label": "needsYou",
+    "sortKey": "key",
+    "columns": [
+      {
+        "key": "name",
+        "label": "name"
+      },
+      {
+        "key": "reason",
+        "label": "reason"
+      },
+      {
+        "key": "status",
+        "label": "status"
+      }
+    ],
+    "rows": [
+      {
+        "key": "0-question/5bf82977a18fd6fb79a465197aa1c7b1_df2c6fe57d526bed2ba6d8b3d6ebe184",
+        "cells": {
+          "name": {
+            "type": "text",
+            "value": "Q-M12"
+          },
+          "reason": {
+            "type": "text",
+            "value": "Choose the target"
+          },
+          "status": {
+            "type": "label",
+            "value": "open"
+          }
+        },
+        "sourceIds": [
+          "plan"
+        ]
+      },
+      {
+        "key": "1-channel/7799827d12b5f75f97bfe0c942be1daa_8fb2938b22be7e42722dfdacfd1ba371",
+        "cells": {
+          "name": {
+            "type": "text",
+            "value": "npm"
+          },
+          "reason": {
+            "type": "text",
+            "value": "Waiting for publication"
+          },
+          "status": {
+            "type": "label",
+            "value": "lagging"
+          }
+        },
+        "sourceIds": [
+          "stores"
+        ]
+      },
+      {
+        "key": "2-ci/5d1f1dc2a9a760f5385b50bf57599530_52430720a8678a2de882f419e57a16fd",
+        "cells": {
+          "name": {
+            "type": "text",
+            "value": "Quality"
+          },
+          "reason": {
+            "type": "text",
+            "value": "https://example.invalid/actions/runs/2"
+          },
+          "status": {
+            "type": "label",
+            "value": "failed"
+          }
+        },
+        "sourceIds": [
+          "github"
+        ]
+      }
+    ],
+    "omittedRows": 0
+  },
+  "sections": [
+    {
+      "id": "accounts/accounts",
+      "label": "accounts",
+      "sortKey": "key",
+      "columns": [
+        {
+          "key": "provider",
+          "label": "provider"
+        },
+        {
+          "key": "account",
+          "label": "account"
+        },
+        {
+          "key": "name",
+          "label": "name"
+        },
+        {
+          "key": "scope",
+          "label": "scope"
+        },
+        {
+          "key": "count",
+          "label": "count"
+        },
+        {
+          "key": "status",
+          "label": "status"
+        },
+        {
+          "key": "reason",
+          "label": "reason"
+        }
+      ],
+      "rows": [
+        {
+          "key": "account/3e018282cbe2baac9f647d626040ea31_349ebed3bef3a612f93407338d132b6d",
+          "cells": {
+            "account": {
+              "type": "text",
+              "value": "primary"
+            },
+            "count": {
+              "type": "count",
+              "value": 1
+            },
+            "name": {
+              "type": "text",
+              "value": "Primary"
+            },
+            "provider": {
+              "type": "text",
+              "value": "meta"
+            },
+            "reason": {
+              "type": "text",
+              "value": ""
+            },
+            "scope": {
+              "type": "text",
+              "value": ""
+            },
+            "status": {
+              "type": "label",
+              "value": "ok"
+            }
+          },
+          "sourceIds": [
+            "accounts"
+          ]
+        }
+      ],
+      "omittedRows": 0
+    },
+    {
+      "id": "accounts/limits",
+      "label": "limits",
+      "sortKey": "key",
+      "columns": [
+        {
+          "key": "name",
+          "label": "name"
+        },
+        {
+          "key": "kind",
+          "label": "kind"
+        },
+        {
+          "key": "count",
+          "label": "count"
+        },
+        {
+          "key": "status",
+          "label": "status"
+        },
+        {
+          "key": "reason",
+          "label": "reason"
+        }
+      ],
+      "rows": [
+        {
+          "key": "limit/28f0607bb21340d422072c1c9d21870e_b3fe5ba9eed12cfedb768ff5dead08e0",
+          "cells": {
+            "count": {
+              "type": "percent",
+              "value": 80
+            },
+            "kind": {
+              "type": "text",
+              "value": "percent/plan"
+            },
+            "name": {
+              "type": "text",
+              "value": "Primary"
+            },
+            "reason": {
+              "type": "text",
+              "value": ""
+            },
+            "status": {
+              "type": "label",
+              "value": "ok"
+            }
+          },
+          "sourceIds": [
+            "accounts"
+          ]
+        },
+        {
+          "key": "limit/9b569f812b51536d3baf5ab302893161_721a9f8e28e798083fbb7a5440b4e46f",
+          "cells": {
+            "count": {
+              "type": "count",
+              "value": 100
+            },
+            "kind": {
+              "type": "text",
+              "value": "requests/day"
+            },
+            "name": {
+              "type": "text",
+              "value": "Primary"
+            },
+            "reason": {
+              "type": "text",
+              "value": ""
+            },
+            "status": {
+              "type": "label",
+              "value": "ok"
+            }
+          },
+          "sourceIds": [
+            "accounts"
+          ]
+        },
+        {
+          "key": "limit/fd71177222f1cc9326991186007afe89_53409a81bac313aa7feda876d5412742",
+          "cells": {
+            "count": {
+              "type": "usd",
+              "value": "5",
+              "certainty": "reported"
+            },
+            "kind": {
+              "type": "text",
+              "value": "spendUsd/day"
+            },
+            "name": {
+              "type": "text",
+              "value": "Primary"
+            },
+            "reason": {
+              "type": "text",
+              "value": ""
+            },
+            "status": {
+              "type": "label",
+              "value": "ok"
+            }
+          },
+          "sourceIds": [
+            "accounts"
+          ]
+        }
+      ],
+      "omittedRows": 0
+    },
+    {
+      "id": "accounts/usage",
+      "label": "usage",
+      "sortKey": "key",
+      "columns": [
+        {
+          "key": "name",
+          "label": "name"
+        },
+        {
+          "key": "scope",
+          "label": "scope"
+        },
+        {
+          "key": "inputTokens",
+          "label": "inputTokens"
+        },
+        {
+          "key": "outputTokens",
+          "label": "outputTokens"
+        },
+        {
+          "key": "cost",
+          "label": "cost"
+        },
+        {
+          "key": "certainty",
+          "label": "certainty"
+        },
+        {
+          "key": "status",
+          "label": "status"
+        },
+        {
+          "key": "reason",
+          "label": "reason"
+        }
+      ],
+      "rows": [
+        {
+          "key": "usage/a88b2099a9160c0e40476bb7df35fe95_472e930904b5852a0a52b8b80aa7bdda",
+          "cells": {
+            "certainty": {
+              "type": "label",
+              "value": "reported"
+            },
+            "cost": {
+              "type": "usd",
+              "value": "0.25",
+              "certainty": "reported"
+            },
+            "inputTokens": {
+              "type": "count",
+              "value": 100
+            },
+            "name": {
+              "type": "text",
+              "value": "Primary"
+            },
+            "outputTokens": {
+              "type": "count",
+              "value": 20
+            },
+            "reason": {
+              "type": "text",
+              "value": ""
+            },
+            "scope": {
+              "type": "text",
+              "value": "meta"
+            },
+            "status": {
+              "type": "label",
+              "value": "ok"
+            }
+          },
+          "sourceIds": [
+            "accounts"
+          ]
+        }
+      ],
+      "omittedRows": 0
+    },
+    {
+      "id": "accounts/swaps",
+      "label": "swaps",
+      "sortKey": "key",
+      "columns": [
+        {
+          "key": "name",
+          "label": "name"
+        },
+        {
+          "key": "kind",
+          "label": "kind"
+        },
+        {
+          "key": "outcome",
+          "label": "outcome"
+        },
+        {
+          "key": "date",
+          "label": "date"
+        },
+        {
+          "key": "status",
+          "label": "status"
+        },
+        {
+          "key": "reason",
+          "label": "reason"
+        }
+      ],
+      "rows": [
+        {
+          "key": "swap/abe6e1e8abdef6f9e2555ecc0e230a47_50011b38f4447d6cabe910c3f250d4e7",
+          "cells": {
+            "date": {
+              "type": "timestamp",
+              "value": "2026-10-06T10:00:00.000+00:00"
+            },
+            "kind": {
+              "type": "text",
+              "value": "swap"
+            },
+            "name": {
+              "type": "text",
+              "value": "backup"
+            },
+            "outcome": {
+              "type": "text",
+              "value": "userCap/spendUsd/day"
+            },
+            "reason": {
+              "type": "text",
+              "value": ""
+            },
+            "status": {
+              "type": "label",
+              "value": "ok"
+            }
+          },
+          "sourceIds": [
+            "accounts"
+          ]
+        }
+      ],
+      "omittedRows": 0
+    },
+    {
+      "id": "accounts/refusals",
+      "label": "refusals",
+      "sortKey": "key",
+      "columns": [
+        {
+          "key": "name",
+          "label": "name"
+        },
+        {
+          "key": "kind",
+          "label": "kind"
+        },
+        {
+          "key": "outcome",
+          "label": "outcome"
+        },
+        {
+          "key": "date",
+          "label": "date"
+        },
+        {
+          "key": "status",
+          "label": "status"
+        },
+        {
+          "key": "reason",
+          "label": "reason"
+        }
+      ],
+      "rows": [
+        {
+          "key": "refusal/f208842ea0a98a04b112ca44d15b1e52_f683469f19afcd776f3ad1cf454d394b",
+          "cells": {
+            "date": {
+              "type": "timestamp",
+              "value": "2026-10-06T11:00:00.000+00:00"
+            },
+            "kind": {
+              "type": "text",
+              "value": "stop"
+            },
+            "name": {
+              "type": "text",
+              "value": "Primary"
+            },
+            "outcome": {
+              "type": "text",
+              "value": "vendorLimit/quota"
+            },
+            "reason": {
+              "type": "text",
+              "value": ""
+            },
+            "status": {
+              "type": "label",
+              "value": "ok"
+            }
+          },
+          "sourceIds": [
+            "accounts"
+          ]
+        }
+      ],
+      "omittedRows": 0
+    },
+    {
+      "id": "accounts/confirmations",
+      "label": "confirmations",
+      "sortKey": "key",
+      "columns": [
+        {
+          "key": "provider",
+          "label": "provider"
+        },
+        {
+          "key": "name",
+          "label": "name"
+        },
+        {
+          "key": "kind",
+          "label": "kind"
+        },
+        {
+          "key": "date",
+          "label": "date"
+        },
+        {
+          "key": "status",
+          "label": "status"
+        },
+        {
+          "key": "reason",
+          "label": "reason"
+        }
+      ],
+      "rows": [
+        {
+          "key": "confirmation/2fa8e68267772f72e8ac3bedcb2b8f89_e9737aa6702e5ade318273e6f844bfe1",
+          "cells": {
+            "date": {
+              "type": "timestamp",
+              "value": "2026-10-06T09:00:00.000+00:00"
+            },
+            "kind": {
+              "type": "text",
+              "value": "confirm"
+            },
+            "name": {
+              "type": "text",
+              "value": "muse"
+            },
+            "provider": {
+              "type": "text",
+              "value": "meta"
+            },
+            "reason": {
+              "type": "text",
+              "value": ""
+            },
+            "status": {
+              "type": "label",
+              "value": "ok"
+            }
+          },
+          "sourceIds": [
+            "accounts"
+          ]
+        }
+      ],
+      "omittedRows": 0
+    },
+    {
+      "id": "planFormat",
+      "label": "planFormat",
+      "sortKey": "key",
+      "columns": [
+        {
+          "key": "name",
+          "label": "name"
+        },
+        {
+          "key": "count",
+          "label": "count"
+        },
+        {
+          "key": "reason",
+          "label": "reason"
+        },
+        {
+          "key": "status",
+          "label": "status"
+        }
+      ],
+      "rows": [
+        {
+          "key": "format/1625bfce34d55fad4a16006ed9f0c744_fc55ffb61266ead88443fcd8e294f7f3",
+          "cells": {
+            "count": {
+              "type": "label",
+              "value": "unknown"
+            },
+            "name": {
+              "type": "text",
+              "value": "plan-format-v1"
+            },
+            "reason": {
+              "type": "text",
+              "value": ""
+            },
+            "status": {
+              "type": "label",
+              "value": "ok"
+            }
+          },
+          "sourceIds": [
+            "plan"
+          ]
+        }
+      ],
+      "omittedRows": 0
+    }
+  ],
+  "sources": [
+    {
+      "id": "accounts",
+      "observedAt": "2026-10-06T12:00:00.000+00:00",
+      "freshness": {
+        "state": "fresh",
+        "ageMs": 0
+      },
+      "status": "ok",
+      "reason": null
+    },
+    {
+      "id": "agentUsage",
+      "observedAt": "2026-10-06T12:00:00.000+00:00",
+      "freshness": {
+        "state": "fresh",
+        "ageMs": 0
+      },
+      "status": "ok",
+      "reason": null
+    },
+    {
+      "id": "certification",
+      "observedAt": "2026-10-06T12:00:00.000+00:00",
+      "freshness": {
+        "state": "fresh",
+        "ageMs": 0
+      },
+      "status": "ok",
+      "reason": null
+    },
+    {
+      "id": "changelog",
+      "observedAt": "2026-10-06T12:00:00.000+00:00",
+      "freshness": {
+        "state": "fresh",
+        "ageMs": 0
+      },
+      "status": "ok",
+      "reason": null
+    },
+    {
+      "id": "checkRuns",
+      "observedAt": "2026-10-06T12:00:00.000+00:00",
+      "freshness": {
+        "state": "fresh",
+        "ageMs": 0
+      },
+      "status": "ok",
+      "reason": null
+    },
+    {
+      "id": "estimate",
+      "observedAt": "2026-10-06T12:00:00.000+00:00",
+      "freshness": {
+        "state": "fresh",
+        "ageMs": 0
+      },
+      "status": "ok",
+      "reason": null
+    },
+    {
+      "id": "fleet",
+      "observedAt": "2026-10-06T12:00:00.000+00:00",
+      "freshness": {
+        "state": "fresh",
+        "ageMs": 0
+      },
+      "status": "ok",
+      "reason": null
+    },
+    {
+      "id": "git",
+      "observedAt": "2026-10-06T12:00:00.000+00:00",
+      "freshness": {
+        "state": "fresh",
+        "ageMs": 0
+      },
+      "status": "ok",
+      "reason": null
+    },
+    {
+      "id": "github",
+      "observedAt": "2026-10-06T12:00:00.000+00:00",
+      "freshness": {
+        "state": "fresh",
+        "ageMs": 0
+      },
+      "status": "ok",
+      "reason": null
+    },
+    {
+      "id": "issues",
+      "observedAt": "2026-10-06T12:00:00.000+00:00",
+      "freshness": {
+        "state": "fresh",
+        "ageMs": 0
+      },
+      "status": "ok",
+      "reason": null
+    },
+    {
+      "id": "keybindings",
+      "observedAt": "2026-10-06T12:00:00.000+00:00",
+      "freshness": {
+        "state": "fresh",
+        "ageMs": 0
+      },
+      "status": "ok",
+      "reason": null
+    },
+    {
+      "id": "package",
+      "observedAt": "2026-10-06T12:00:00.000+00:00",
+      "freshness": {
+        "state": "fresh",
+        "ageMs": 0
+      },
+      "status": "ok",
+      "reason": null
+    },
+    {
+      "id": "plan",
+      "observedAt": "2026-10-06T12:00:00.000+00:00",
+      "freshness": {
+        "state": "fresh",
+        "ageMs": 0
+      },
+      "status": "ok",
+      "reason": null
+    },
+    {
+      "id": "playbook",
+      "observedAt": "2026-10-06T12:00:00.000+00:00",
+      "freshness": {
+        "state": "fresh",
+        "ageMs": 0
+      },
+      "status": "ok",
+      "reason": null
+    },
+    {
+      "id": "questions",
+      "observedAt": "2026-10-06T12:00:00.000+00:00",
+      "freshness": {
+        "state": "fresh",
+        "ageMs": 0
+      },
+      "status": "ok",
+      "reason": null
+    },
+    {
+      "id": "schedules",
+      "observedAt": "2026-10-06T12:00:00.000+00:00",
+      "freshness": {
+        "state": "fresh",
+        "ageMs": 0
+      },
+      "status": "ok",
+      "reason": null
+    },
+    {
+      "id": "security",
+      "observedAt": "2026-10-06T12:00:00.000+00:00",
+      "freshness": {
+        "state": "fresh",
+        "ageMs": 0
+      },
+      "status": "ok",
+      "reason": null
+    },
+    {
+      "id": "session",
+      "observedAt": "2026-10-06T12:00:00.000+00:00",
+      "freshness": {
+        "state": "fresh",
+        "ageMs": 0
+      },
+      "status": "ok",
+      "reason": null
+    },
+    {
+      "id": "stores",
+      "observedAt": "2026-10-06T12:00:00.000+00:00",
+      "freshness": {
+        "state": "fresh",
+        "ageMs": 0
+      },
+      "status": "ok",
+      "reason": null
+    },
+    {
+      "id": "usage",
+      "observedAt": "2026-10-06T12:00:00.000+00:00",
+      "freshness": {
+        "state": "fresh",
+        "ageMs": 0
+      },
+      "status": "ok",
+      "reason": null
+    }
+  ],
+  "footer": {
+    "rendererVersion": "1",
+    "icuVersion": "77.1",
+    "locale": "en"
+  }
+}

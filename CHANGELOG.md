@@ -32,6 +32,31 @@ happened, not what was planned; superseded entries are kept.
   with its reason instead of dropping the whole section.
 
 
+
+- **Accounts and security reports preserve independently valid evidence at every read boundary** (CM1133R4).
+  Account metadata and individual limits survive malformed siblings. Vault audits
+  survive invalid view fields; absent adapter results name unavailable facets.
+  Row limits apply before admission, and bounded file reads tolerate short reads
+  while retaining other sources after read, decode or validation failures. All
+  five TypeScript projects validate the fault-injection tests, whose sole malformed
+  port cast is documented in the escape-hatch register.
+- **Accounts and security reports keep each source's true reason** (RVCM1133).
+  A security read with neither vault nor developer audit is partial naming
+  both reasons instead of a generic missing file; a schema-invalid registry
+  entry is skipped with the invalid reason while good entries still report;
+  the accounts Count column counts the account instead of showing its
+  placement order; usage, denial and lock rows show the audit outcome
+  instead of the authority; linked registry and audit files refuse like
+  linked session files; and a vault view that fails validation no longer
+  hides a readable developer audit.
+- **Accounts and security reports never drop good rows for one bad record** (RVCM1133B).
+  Every registry entry, usage, event and confirmation row, every vault item,
+  grant and audit record, and every developer audit line validates on its
+  own: a bad one is skipped with the invalid reason while the good rows
+  still report, and a registry, adapter, vault view or audit rotation that
+  fails outright keeps its own reason beside the rows the other sub-sources
+  return. Hard-linked registry and audit files refuse like linked session
+  files, and the vault view's state and tier validate before use.
 - **Session and usage reports agree with their notes and show the shared daily budget everywhere** (CM1132R3).
   Session totals exclude rolled-up history and say so; budget stamps use the
   machine-local day like the report period; terminal and ACP usage reports show
@@ -173,6 +198,16 @@ happened, not what was planned; superseded entries are kept.
   none under its own name, so its row refuses as `npm-private-manifest`
   without a request (this repository's npm artifact comes from the ACP
   agent's generated manifest, which is not in the workspace to read).
+
+- **Accounts and security report kinds are real end to end** (M113 C-M113-3).
+  `/report accounts` reads the provider registry on disk with per-account
+  thresholds; use, swaps and confirmations arrive when their M108 adapters
+  bind, and stay empty and named until then. `/report security` reads the
+  developer audit on disk and an injected vault view: the vault tier, item
+  counts by kind, grant scopes and audit aggregates, never a value. A locked
+  or unbound vault leaves the vault facets empty and named; the developer
+  audit still reports. A canary test plants secrets in vault records and
+  proves none reaches any report output.
 - **Session and usage report kinds are real end to end** (M113 C-M113-2).
   `/report session` reads the current conversation in the editor, or a stored
   Model API session by id (`--session <id>` in the terminal and ACP); turns

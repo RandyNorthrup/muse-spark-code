@@ -316,8 +316,87 @@ export function fullSnapshot(): SourceSnapshot {
         },
       ]),
       fleet: availableSource('fleet', [facet('fleet', 'agents'), facet('fleet', 'devices')]),
-      security: availableSource('security', [facet('security', 'vault')]),
-      accounts: availableSource('accounts', [facet('accounts', 'accounts')]),
+      security: availableSource('security', {
+        vault: {
+          state: 'unlocked',
+          tier: 'osStore',
+          itemCount: 2,
+          itemsByKind: [
+            { kind: 'apiKey', count: 1 },
+            { kind: 'password', count: 1 },
+          ],
+          grants: [{ scope: 'named/named', count: 1 }],
+        },
+        audit: [
+          { kind: 'environment', decision: 'allow', authority: 'grant', outcome: 'succeeded' },
+          { kind: 'environment', decision: 'deny', authority: 'user', outcome: 'denied' },
+          { kind: 'ssh', decision: 'allow', authority: 'mode', outcome: 'locked' },
+        ],
+        developerAudit: [
+          { action: 'unlock', source: 'palette' },
+          { action: 'enable', source: 'page' },
+        ],
+      }),
+      accounts: availableSource('accounts', {
+        providers: [
+          {
+            provider: 'meta',
+            product: 'muse',
+            auth: 'oauth',
+            accounts: [
+              {
+                id: 'primary',
+                label: 'Primary',
+                order: 0,
+                limitGroup: null,
+                thresholds: {
+                  spendUsd: [{ period: 'day', value: PortUsd.from(5).toAmount() }],
+                  counts: [{ metric: 'requests', period: 'day', value: 100 }],
+                  percents: [{ name: 'plan', value: 80 }],
+                },
+              },
+            ],
+          },
+        ],
+        usage: [
+          {
+            provider: 'meta',
+            account: 'primary',
+            label: 'Primary',
+            period: 'month',
+            inputTokens: 100,
+            outputTokens: 20,
+            costUsd: PortUsd.from(0.25).toAmount(),
+            certainty: 'reported',
+          },
+        ],
+        events: [
+          {
+            type: 'swap',
+            provider: 'meta',
+            account: 'backup',
+            time: '2026-10-06T10:00:00+00:00',
+            trigger: 'userCap/spendUsd/day',
+            previousAccount: 'primary',
+          },
+          {
+            type: 'stop',
+            provider: 'meta',
+            account: 'primary',
+            time: '2026-10-06T11:00:00+00:00',
+            trigger: 'vendorLimit/quota',
+            previousAccount: null,
+          },
+        ],
+        confirmations: [
+          {
+            provider: 'meta',
+            product: 'muse',
+            choice: 'confirm',
+            answeredAt: '2026-10-06T09:00:00+00:00',
+          },
+        ],
+      }),
       estimate: availableSource('estimate', [facet('estimate', 'criticalPath')]),
       playbook: availableSource('playbook', [facet('playbook', 'decisions')]),
       issues: availableSource('issues', [facet('issues', 'issues')]),

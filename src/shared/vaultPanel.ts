@@ -7,7 +7,7 @@ import {
   vaultGrantSchema,
   vaultItemMetadataSchema,
 } from './vault'
-import { vaultStatusSchema, vaultBrokerEventSchema } from './vaultProtocol'
+import { vaultStatusSchema, vaultBrokerEventSchema } from './vaultStatus'
 
 /** B supplies its validated events; C/M metadata changes use the project-owned notification. */
 export const vaultPanelChangeSchema = z.union([

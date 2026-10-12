@@ -1,0 +1,88 @@
+# Accounts
+
+Scope: fixture-workspace
+
+Generated as of 2026-10-06T12:00:00+00:00
+
+Version: 0.14.2
+
+SHA-256: 88328c8e89c4fae8e396fdc15582c2c305b188e7db4b910b247bb345dd25408e
+
+## Needs You
+
+| Name | Reason | Status | Sources |
+| --- | --- | --- | --- |
+| Q-M12 | Choose the target | Open | plan |
+| npm | Waiting for publication | Lagging | stores |
+| Quality | https://example.invalid/actions/runs/2 | Failed | github |
+
+## Accounts
+
+| Provider | Account | Name | Scope | Count | Status | Reason | Sources |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| meta | primary | Primary |  | 1 | Available |  | accounts |
+
+## Limits
+
+| Name | Kind | Count | Status | Reason | Sources |
+| --- | --- | --- | --- | --- | --- |
+| Primary | percent/plan | 80% | Available |  | accounts |
+| Primary | requests/day | 100 | Available |  | accounts |
+| Primary | spendUsd/day | $5.00 &#40;Reported&#41; | Available |  | accounts |
+
+## Usage
+
+| Name | Scope | Input Tokens | Output Tokens | Cost | Certainty | Status | Reason | Sources |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Primary | meta | 100 | 20 | $0.25 &#40;Reported&#41; | Reported | Available |  | accounts |
+
+## Swaps
+
+| Name | Kind | Outcome | Date | Status | Reason | Sources |
+| --- | --- | --- | --- | --- | --- | --- |
+| backup | swap | userCap/spendUsd/day | 2026-10-06T10:00:00.000+00:00 | Available |  | accounts |
+
+## Refusals
+
+| Name | Kind | Outcome | Date | Status | Reason | Sources |
+| --- | --- | --- | --- | --- | --- | --- |
+| Primary | stop | vendorLimit/quota | 2026-10-06T11:00:00.000+00:00 | Available |  | accounts |
+
+## Confirmations
+
+| Provider | Name | Kind | Date | Status | Reason | Sources |
+| --- | --- | --- | --- | --- | --- | --- |
+| meta | muse | confirm | 2026-10-06T09:00:00.000+00:00 | Available |  | accounts |
+
+## Plan Format
+
+| Name | Count | Reason | Status | Sources |
+| --- | --- | --- | --- | --- |
+| plan-format-v1 | Unknown |  | Available | plan |
+
+## Sources
+
+| Name | Status | Reason | Observed At | Freshness |
+| --- | --- | --- | --- | --- |
+| accounts | Available |  | 2026-10-06T12:00:00.000+00:00 | Fresh &#40;0s&#41; |
+| agentUsage | Available |  | 2026-10-06T12:00:00.000+00:00 | Fresh &#40;0s&#41; |
+| certification | Available |  | 2026-10-06T12:00:00.000+00:00 | Fresh &#40;0s&#41; |
+| changelog | Available |  | 2026-10-06T12:00:00.000+00:00 | Fresh &#40;0s&#41; |
+| checkRuns | Available |  | 2026-10-06T12:00:00.000+00:00 | Fresh &#40;0s&#41; |
+| estimate | Available |  | 2026-10-06T12:00:00.000+00:00 | Fresh &#40;0s&#41; |
+| fleet | Available |  | 2026-10-06T12:00:00.000+00:00 | Fresh &#40;0s&#41; |
+| git | Available |  | 2026-10-06T12:00:00.000+00:00 | Fresh &#40;0s&#41; |
+| github | Available |  | 2026-10-06T12:00:00.000+00:00 | Fresh &#40;0s&#41; |
+| issues | Available |  | 2026-10-06T12:00:00.000+00:00 | Fresh &#40;0s&#41; |
+| keybindings | Available |  | 2026-10-06T12:00:00.000+00:00 | Fresh &#40;0s&#41; |
+| package | Available |  | 2026-10-06T12:00:00.000+00:00 | Fresh &#40;0s&#41; |
+| plan | Available |  | 2026-10-06T12:00:00.000+00:00 | Fresh &#40;0s&#41; |
+| playbook | Available |  | 2026-10-06T12:00:00.000+00:00 | Fresh &#40;0s&#41; |
+| questions | Available |  | 2026-10-06T12:00:00.000+00:00 | Fresh &#40;0s&#41; |
+| schedules | Available |  | 2026-10-06T12:00:00.000+00:00 | Fresh &#40;0s&#41; |
+| security | Available |  | 2026-10-06T12:00:00.000+00:00 | Fresh &#40;0s&#41; |
+| session | Available |  | 2026-10-06T12:00:00.000+00:00 | Fresh &#40;0s&#41; |
+| stores | Available |  | 2026-10-06T12:00:00.000+00:00 | Fresh &#40;0s&#41; |
+| usage | Available |  | 2026-10-06T12:00:00.000+00:00 | Fresh &#40;0s&#41; |
+
+Renderer 1; ICU 77.1; locale en

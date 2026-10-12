@@ -12,8 +12,6 @@ import { availableSource } from './helpers/reporting/snapshot'
 
 const kinds = [
   ['fleet', 'agents'],
-  ['security', 'vault'],
-  ['accounts', 'accounts'],
   ['estimate', 'criticalPath'],
   ['playbook', 'decisions'],
   ['issues', 'issues'],

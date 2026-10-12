@@ -282,6 +282,10 @@ const BUDGETS = [
   // serve through. Loads only on the first accounts, developer or keyed
   // headless command. Measured 246.5 KiB; plus 15%, rounded up to 25 KiB.
   { path: 'dist/runtimeAccounts.js', budgetKiB: 300 },
+  // C-M109-1 (lead decision 5): the vault for the CLI, the ACP agent and
+  // headless runs, loaded on the first vault need. Measured 18.9 KiB; plus
+  // 15%, rounded up to 25 KiB.
+  { path: 'dist/vaultRuntime.js', budgetKiB: 25 },
 ]
 
 // DIET1: independently emitted optional surfaces, measured on main, each plus

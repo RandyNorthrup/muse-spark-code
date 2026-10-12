@@ -24,7 +24,9 @@ import {
   collectRelease,
   type ReportSelectionPorts,
 } from './repository'
+import { collectAccounts } from './accounts'
 import { collectQuality } from './quality'
+import { collectSecurity } from './security'
 import { collectSession } from './session'
 import { cacheSource, otherAgentLimits, otherAgentUsage, usageSections } from './usage'
 
@@ -41,8 +43,6 @@ export interface ReportCollectorDependencies {
 
 const forwardedKinds = {
   fleet: ['agents', 'workers', 'devices', 'nodes'],
-  security: ['vault', 'breakdown', 'grants', 'usage', 'denials', 'locks', 'developerAudit'],
-  accounts: ['accounts', 'limits', 'usage', 'swaps', 'refusals', 'confirmations'],
   estimate: ['totals', 'criticalPath', 'limitingResource', 'setups', 'inputs', 'calibration'],
   playbook: ['totals', 'decisions', 'drills', 'disabledRules', 'refusals'],
   issues: ['issues', 'limits'],
@@ -160,6 +160,14 @@ export function createReportCollector(dependencies: ReportCollectorDependencies)
       }
       case 'quality': {
         sections = collectQuality(snapshot, options)
+        break
+      }
+      case 'security': {
+        sections = collectSecurity(snapshot, options)
+        break
+      }
+      case 'accounts': {
+        sections = collectAccounts(snapshot, options)
         break
       }
       default: {

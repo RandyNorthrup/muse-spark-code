@@ -18,6 +18,7 @@ import { sharedResourceAdmission } from '../../scripts/lib/deferredBundles.mjs'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { FIXTURE_HOOK_TIMEOUT_MS } from '../unit/helpers/fixtureBudget'
 import { UsageJournalStore } from '../../src/core/usage/journalStore'
+import { writeDeveloperAudit } from '../unit/helpers/reporting/tempDir'
 import { NodeUsageFs } from '../../src/runtime/usage/nodeUsageFs'
 import {
   agentDataFolder,
@@ -200,6 +201,35 @@ beforeAll(async () => {
       throw new Error('e2e journal write failed')
     },
   })
+  // C-M113-3: the accounts registry and developer audit the live accounts
+  // and security kinds read end to end below.
+  const dataDir = agentDataFolder(input)
+  await writeFile(
+    path.join(dataDir, 'providers.json'),
+    JSON.stringify({
+      v: 1,
+      providers: {
+        meta: {
+          id: 'meta',
+          policyProvider: 'meta',
+          product: 'muse',
+          auth: 'oauth',
+          origin: 'e2e',
+          accounts: [
+            {
+              id: 'primary',
+              label: 'E2E Primary',
+              order: 0,
+              thresholds: { spendUsd: { day: '5' } },
+            },
+          ],
+        },
+      },
+    }),
+  )
+  await writeDeveloperAudit(dataDir, 'developer-audit.jsonl', [
+    `${JSON.stringify({ v: 1, time: 1, action: 'unlock', source: 'palette' })}\n`,
+  ])
   journal.append({
     v: 1,
     type: 'usage',
@@ -382,6 +412,21 @@ describe('session and usage report kinds over real journals', () => {
     expect(result.stdout).toEqual(
       expect.stringContaining('Per-tool usage is not recorded in the usage journal.'),
     )
+  })
+
+  it('reports the accounts registry end to end with named missing facets', async () => {
+    const result = await liveCli(['accounts', '--as-of', LIVE_AS_OF])
+    expect(result.code).toBe(0)
+    expect(result.stdout).toContain('E2E Primary')
+    expect(result.stdout).toContain('spendUsd/day')
+    expect(result.stdout).toContain('Unavailable account details: usage, swaps, confirmations.')
+  })
+
+  it('reports the developer audit end to end with a locked vault', async () => {
+    const result = await liveCli(['security', '--as-of', LIVE_AS_OF])
+    expect(result.code).toBe(0)
+    expect(result.stdout).toContain('unlock')
+    expect(result.stdout).toContain('The vault is locked or unavailable.')
   })
 
   it('reports an unknown session as unavailable without failing', async () => {

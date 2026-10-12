@@ -249,6 +249,10 @@ const PLAYBOOK_ENTRY = 'src/runtime/playbook/playbookEntry.ts'
 const PLAYBOOK_OUTFILE = 'dist/acpPlaybook.js'
 const RUNTIME_ACCOUNTS_ENTRY = 'src/runtime/providers/accountsEntry.ts'
 const RUNTIME_ACCOUNTS_OUTFILE = 'dist/runtimeAccounts.js'
+// C-M109-1 (lead decision 5): the vault for the CLI, the ACP agent and
+// headless runs, loaded on the first vault need; no `vscode` import.
+const VAULT_RUNTIME_ENTRY = 'src/runtime/vault/vaultRuntimeEntry.ts'
+const VAULT_RUNTIME_OUTFILE = 'dist/vaultRuntime.js'
 const INTEGRATION_TEST_OUTDIR = 'dist/test/integration'
 // M95 (PLAN.md D74): exact catalogue values, with no provider runtime logic.
 // The data module uses the same verified solid archive loader as lazy bundles.
@@ -965,6 +969,11 @@ const runtimeAccountsOptions = {
   entryPoints: [RUNTIME_ACCOUNTS_ENTRY],
   outfile: RUNTIME_ACCOUNTS_OUTFILE,
 }
+const vaultRuntimeOptions = {
+  ...acpQuestionsOptions,
+  entryPoints: [VAULT_RUNTIME_ENTRY],
+  outfile: VAULT_RUNTIME_OUTFILE,
+}
 
 // Keep the production Node fallback under its existing cap; runtime values
 // are the same table. Browser and development outputs retain their inline text.
@@ -1401,6 +1410,7 @@ if (isWatch) {
   const playbook = esbuild.build(playbookOptions)
   const exec = esbuild.build(execOptions)
   const runtimeAccounts = esbuild.build(runtimeAccountsOptions)
+  const vaultRuntime = esbuild.build(vaultRuntimeOptions)
   const builds = [
     ...Object.values(shipped),
     acp,
@@ -1411,6 +1421,7 @@ if (isWatch) {
     fontInstall,
     playbook,
     runtimeAccounts,
+    vaultRuntime,
   ]
   if (!isProduction) {
     builds.push(esbuild.build(integrationTestOptions))
@@ -1438,6 +1449,11 @@ if (isWatch) {
     const { metafile: runtimeQuestionsMetafile } = await runtimeQuestions
     const { metafile: playbookMetafile } = await playbook
     const { metafile: runtimeAccountsMetafile } = await runtimeAccounts
+    const { metafile: vaultRuntimeMetafile } = await vaultRuntime
+    writeFileSync(
+      path.join(ACP_METAFILE_DIR, 'vaultRuntime.json'),
+      JSON.stringify(vaultRuntimeMetafile, null, 2),
+    )
     writeFileSync(
       path.join(ACP_METAFILE_DIR, 'runtimeQuestions.json'),
       JSON.stringify(runtimeQuestionsMetafile, null, 2),

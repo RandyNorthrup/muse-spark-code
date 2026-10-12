@@ -396,12 +396,14 @@ describe('session, registry and shared report adapters', () => {
       Object.values(sources).map((source) => source.read(context())),
     )
     expect(results.map((result) => result.record.id).toSorted(codeUnitCompare)).toEqual([
+      'accounts',
       'agentUsage',
       'certification',
       'changelog',
       'git',
       'package',
       'questions',
+      'security',
       'session',
       'usage',
     ])
@@ -416,6 +418,15 @@ describe('session, registry and shared report adapters', () => {
       expect(results.find((result) => result.record.id === id)?.record.reason).toBe(
         UI_TEXT.reportSourceReasons.unbound,
       )
+    }
+    // Without their readers the accounts and security integrations report
+    // unavailable; bound readers scope other kinds to not applicable (proved
+    // in the dedicated source suites).
+    for (const id of ['accounts', 'security']) {
+      expect(results.find((result) => result.record.id === id)?.record).toMatchObject({
+        status: 'unavailable',
+        reason: UI_TEXT.reportSourceReasons.unbound,
+      })
     }
     const runtime = createRuntimeReportSources({
       ...deps(),

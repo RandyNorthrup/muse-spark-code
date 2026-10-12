@@ -23,3 +23,10 @@ Accounts/security merge; request language, protected boundaries, row admission,
 reporting exact-money proof, cooperative cancellation, dormant availability
 and final registry/dependent qualification remain pending. Later playbook,
 schedules and estimate branches remain held until reviewed SHAs arrive.
+
+Accounts/security merge conflict review retains the train’s held vault and
+schedule catalogue entries and translated descriptions. Generated reference,
+roadmap and host API records are regenerated from the merged source. The new
+accounts/security goldens carried older sentence-case labels; regeneration
+intentionally uses the train’s installed Title Case English labels. No
+report fact, content hash or visual UI baseline changes for this repair.

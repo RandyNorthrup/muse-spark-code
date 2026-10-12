@@ -65,6 +65,9 @@ export interface ReportingContext {
   readonly usage?: LocalReportSourceDeps['usage']
   /** The installed manifest's reader; absent stays unbound (M113 C-M113-5). */
   readonly keybindings?: KeybindingsManifestReader
+
+  readonly accounts?: LocalReportSourceDeps['accounts']
+  readonly security?: LocalReportSourceDeps['security']
   readonly networkSources?: Pick<ReportSourcePorts, 'github' | 'stores'>
   readonly network?:
     | Omit<ReportingNetworkContext, 'workspaceRoot' | 'storageRoot' | 'l10n'>
@@ -134,6 +137,8 @@ export function createReportingServices(context: ReportingContext): ReportsServi
               ...(context.session !== undefined && { session: context.session }),
               ...(context.questions !== undefined && { questions: context.questions }),
               ...(context.usage !== undefined && { usage: context.usage }),
+              ...(context.accounts !== undefined && { accounts: context.accounts }),
+              ...(context.security !== undefined && { security: context.security }),
             }).sources
       const readContext = { run: {}, options, asOf: options.asOf, workspaceKey: key, signal }
       let planText: string | undefined
@@ -150,8 +155,8 @@ export function createReportingServices(context: ReportingContext): ReportsServi
         stores: context.networkSources?.stores ?? unavailable('stores'),
         checkRuns: new CheckRunJournal({ storage, scrub }).source(),
         fleet: unavailable('fleet'),
-        security: unavailable('security'),
-        accounts: unavailable('accounts'),
+        security: local?.security ?? unavailable('security'),
+        accounts: local?.accounts ?? unavailable('accounts'),
         estimate: unavailable('estimate'),
         playbook: unavailable('playbook'),
         issues: unavailable('issues'),

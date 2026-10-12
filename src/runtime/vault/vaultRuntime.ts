@@ -1,12 +1,12 @@
 import path from 'node:path'
-import { UI_TEXT } from '../../shared/constants'
+import { UI_TEXT, VAULT_RUNTIME_BUNDLE_FILE } from '../../shared/constants'
 import type { VaultCommandPort } from './vaultCommand'
 import type { ExecVaultPort } from './execVault'
 import { uiLocale } from '../../shared/l10n/text'
 import type { UiText } from '../../shared/l10n/en'
 import type { AcpVault } from '../../acp/vault'
 
-/** W binds this factory to B/C/P/U/X in the planned installed lazy vault bundle. */
+/** dist/vaultRuntime.js's factory (vaultRuntimeEntry.ts, lead decision 5). */
 export interface RuntimeVaultBinding {
   commands(): Promise<VaultCommandPort>
   exec: ExecVaultPort
@@ -33,7 +33,9 @@ export function runtimeVaultLoader(
     loading ??= (async () => {
       try {
         // The installed lazy module's function signature is the W/H build contract; runtime checks reject missing exports (PLAN §8).
-        const module = load(path.join(context.distDir, 'vault.js')) as Partial<RuntimeVaultModule>
+        const module = load(
+          path.join(context.distDir, VAULT_RUNTIME_BUNDLE_FILE),
+        ) as Partial<RuntimeVaultModule>
         if (typeof module.createRuntimeVault !== 'function')
           throw new Error(UI_TEXT.vault.brokerBlocked)
         const binding = await module.createRuntimeVault({

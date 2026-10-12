@@ -828,7 +828,7 @@
     {
       "id": "M113",
       "title": "Deterministic reports",
-      "summary": "Run /report for project, quality, milestone, release, change, session, usage and keybindings reports from local facts in Markdown, HTML, JSON or text, with history and comparisons and nothing sent to a model, while additional report kinds are in progress. Shared engine certification is in progress.",
+      "summary": "Run /report for local project, quality, milestone, release and change facts in Markdown, HTML, JSON or text, with history and comparisons, while shared engine certification for additional kinds is in progress.",
       "area": "platform",
       "release": "0.17.0"
     },
