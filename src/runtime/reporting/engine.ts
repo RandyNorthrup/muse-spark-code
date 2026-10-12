@@ -141,6 +141,9 @@ export function createReportingServices(context: ReportingContext): ReportsServi
               ...(context.accounts !== undefined && { accounts: context.accounts }),
               ...(context.security !== undefined && { security: context.security }),
             }).sources
+      // One signal and one deadline for the whole generation: every source
+      // observes the same abort and the same last instant for new work, and
+      // the engine awaits each read's own settlement, never racing it.
       const readContext = {
         reportText,
         run: {},
@@ -148,6 +151,7 @@ export function createReportingServices(context: ReportingContext): ReportsServi
         asOf: options.asOf,
         workspaceKey: key,
         signal,
+        deadline: Date.now() + REPORT_SOURCE_TIMEOUT_MS,
       }
       let planText: string | undefined
       const sources: ReportSourcePorts = {
