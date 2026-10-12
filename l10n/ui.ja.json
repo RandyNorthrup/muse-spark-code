@@ -3914,6 +3914,7 @@
   "approvalAskRuleWhy": "コマンド ルールにより、このコマンドは毎回確認します: {why}",
   "approvalSecretNote": "このコマンドには検出された秘密が含まれており、伏せ字で表示されます。必ず確認します。ルールによる自動承認はありません。",
   "autoReviewerResolver": "自動レビュー担当",
+  "cliReviewerDecision": "{child} に対する Muse Code レビュー担当",
   "commandRuleResolver": "コマンド ルール",
   "autoReviewAllowed": "許可: {reason}",
   "autoReviewAsked": "確認を求めています: {reason}",

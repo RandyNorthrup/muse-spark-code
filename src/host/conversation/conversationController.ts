@@ -191,6 +191,7 @@ import {
   type AgentEvent,
   type ApprovalChoice,
   type ItemSnapshot,
+  type SubagentOrigin,
   type TodoItem,
 } from '../../shared/agentEvents'
 import { fill, plural, uiLocale } from '../../shared/l10n/text'
@@ -984,6 +985,24 @@ function turnEndLine(
 
 function isContributorModel(modelId: string): boolean {
   return modelId.endsWith(CONTRIBUTOR_MODEL_SUFFIX)
+}
+
+/**
+ * The child the CLI's own reviewer decided for, when the frame says so. The
+ * mapper keeps the captured origin on the event; the shared schema leaves it
+ * off so no bundle carries it, so this reads the wider wire shape the mapper
+ * validated (PLAN.md §8: the origin lives on the mapped event only).
+ */
+function childDecision(
+  event: Extract<AgentEvent, { type: 'approvalResolved' }>,
+): SubagentOrigin | undefined {
+  const origin = (event as AgentEvent & { subagentOrigin?: SubagentOrigin }).subagentOrigin
+  if (origin === undefined) return undefined
+  return origin.subagentId === undefined &&
+    origin.childSessionId === undefined &&
+    origin.childRunId === undefined
+    ? undefined
+    : origin
 }
 
 /**
@@ -2492,6 +2511,20 @@ export class ConversationController {
         break
       }
       case 'approvalResolved': {
+        // The CLI's own reviewer decided for its child without asking the
+        // person (M116, PLAN.md D96.17): its decision for that child, never
+        // a waiting card. The wire's own word for who decided stays out of
+        // the transcript.
+        const origin = childDecision(event)
+        if (origin !== undefined && !this.questionApprovals.has(event.approvalId)) {
+          this.forward({
+            ...event,
+            resolvedBy: fill(UI_TEXT.cliReviewerDecision, {
+              child: origin.subagentId ?? origin.childSessionId ?? event.approvalId,
+            }),
+          })
+          return
+        }
         this.questionApprovals.delete(event.approvalId)
         this.judgeCards.get(event.approvalId)?.discard()
         this.judgeCards.delete(event.approvalId)

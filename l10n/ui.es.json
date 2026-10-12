@@ -4118,6 +4118,7 @@
   "approvalAskRuleWhy": "Tu regla de comandos pide confirmación para este comando cada vez: {why}",
   "approvalSecretNote": "Este comando contiene un secreto detectado, mostrado expurgado. Siempre pide confirmación: ninguna regla lo aprueba por sí sola.",
   "autoReviewerResolver": "Revisor automático",
+  "cliReviewerDecision": "Revisor de Muse Code para {child}",
   "commandRuleResolver": "Regla de comandos",
   "autoReviewAllowed": "Permitido: {reason}",
   "autoReviewAsked": "Te pregunta: {reason}",

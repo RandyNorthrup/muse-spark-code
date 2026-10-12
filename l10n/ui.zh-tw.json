@@ -3914,6 +3914,7 @@
   "approvalAskRuleWhy": "您的命令規則每次都會就此命令詢問：{why}",
   "approvalSecretNote": "此命令包含偵測到的機密，已隱去顯示。它一律會詢問：任何規則都不會自行核准。",
   "autoReviewerResolver": "自動審查器",
+  "cliReviewerDecision": "對 {child} 的 Muse Code 審查器",
   "commandRuleResolver": "命令規則",
   "autoReviewAllowed": "已允許：{reason}",
   "autoReviewAsked": "請您決定：{reason}",

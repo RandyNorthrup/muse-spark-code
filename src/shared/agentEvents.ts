@@ -83,6 +83,18 @@ export type CitationSummary = z.infer<typeof citationSchema>
 export const outputRefSchema = z.object({ id: stringSchema, byteLen: numberSchema })
 
 /**
+ * Which child the CLI's own reviewer decided for (M116, PLAN.md D96.17):
+ * the captured `subagentOrigin` of its approval frames, kept by the Muse
+ * Code mapper and read by the conversation. A validation type only — the
+ * shared event schemas leave it off, so no bundle carries it.
+ */
+export interface SubagentOrigin {
+  readonly childRunId?: string | undefined
+  readonly childSessionId?: string | undefined
+  readonly subagentId?: string | undefined
+}
+
+/**
  * A user message's image, as the durable log echoes it (MSP
  * `MessageAttachment`, whose vocabulary "grows additively"), or a PDF the
  * Model API backend sent (M54, `type: "file"`): its name, size and pages.

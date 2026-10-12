@@ -11,8 +11,9 @@ happened, not what was planned; superseded entries are kept.
   states that it cannot stop their starts, matches each round to its child,
   and closes safely when a conversation ends. A child's contribution the
   host cannot read is a finding about that child, counted and named, while
-  every other child's review proceeds. Windows native replay remains
-  lead-owned; the Model API keeps admission before dispatch.
+  every other child's review proceeds. The CLI reviewer's own decision for
+  a child is shown as its decision, never a waiting card. Windows native
+  replay remains lead-owned; the Model API keeps admission before dispatch.
 
 ### Pending
 

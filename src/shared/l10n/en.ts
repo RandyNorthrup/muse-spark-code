@@ -4863,6 +4863,9 @@ export const EN = {
     'This command contains a detected secret, shown redacted. It always asks: no allow rule approves it on its own.',
   // Who answered a call no card was shown for (the row's "Decided" line).
   autoReviewerResolver: 'Auto Reviewer',
+  // The CLI's own reviewer deciding for one child (M116, PLAN.md D96.17):
+  // the row's "Decided" line names it and the child, never a waiting card.
+  cliReviewerDecision: 'Muse Code reviewer for {child}',
   commandRuleResolver: 'Command Rule',
   // The Auto reviewer's row and the card it leaves; {reason}: the reviewer's own words.
   autoReviewAllowed: 'Allowed: {reason}',

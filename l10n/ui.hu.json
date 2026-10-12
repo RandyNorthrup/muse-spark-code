@@ -4016,6 +4016,7 @@
   "approvalAskRuleWhy": "A parancsszabálya minden alkalommal rákérdez erre a parancsra: {why}",
   "approvalSecretNote": "Ez a parancs felismert titkot tartalmaz, kitakarva jelenik meg. Mindig rákérdez: egyetlen szabály sem hagyja jóvá önmagában.",
   "autoReviewerResolver": "Automatikus ellenőrző",
+  "cliReviewerDecision": "Muse Code-ellenőr ehhez: {child}",
   "commandRuleResolver": "Parancsszabály",
   "autoReviewAllowed": "Engedélyezve: {reason}",
   "autoReviewAsked": "Önt kérdezi: {reason}",

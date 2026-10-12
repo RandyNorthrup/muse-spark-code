@@ -4016,6 +4016,7 @@
   "approvalAskRuleWhy": "Komut kuralınız bu komut için her seferinde onay ister: {why}",
   "approvalSecretNote": "Bu komut algılanan bir gizli bilgi içeriyor, gizlenmiş olarak gösterilir. Her zaman sorar: hiçbir kural onu kendi başına onaylamaz.",
   "autoReviewerResolver": "Otomatik inceleyici",
+  "cliReviewerDecision": "{child} için Muse Code inceleyicisi",
   "commandRuleResolver": "Komut kuralı",
   "autoReviewAllowed": "İzin verildi: {reason}",
   "autoReviewAsked": "Size soruyor: {reason}",
