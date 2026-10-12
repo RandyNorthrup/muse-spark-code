@@ -61,34 +61,26 @@ export function feedbackBridge(post: (message: WebviewToHostMessage) => void): {
   }
   return {
     port: {
-      scrubNote: (note) =>
-        new Promise<string>((resolve, reject) => {
-          if (!isOpen) {
-            resolve(note)
-            return
-          }
-          if (note.length > FEEDBACK_NOTE_MAX_CHARS) {
-            reject(noteTooLong())
-            return
-          }
+      scrubNote: async (note) => {
+        if (!isOpen) throw new Error(UI_TEXT.feedbackFailed)
+        if (note.length > FEEDBACK_NOTE_MAX_CHARS) throw noteTooLong()
+        return await new Promise<string>((resolve, reject) => {
           const requestId = feedbackRequestIds.next++
           previews.set(requestId, { resolve, reject })
           post({ type: 'previewFeedback', requestId, note })
-        }),
-      submit: (request) => {
+        })
+      },
+      submit: async (request) => {
         if (request.withFiles || request.attachSessionRecord) {
           // The dialog never offers these; a caller that sets them is
           // refused like the reader refuses the uncertified receipt.
-          return Promise.reject(new Error(UI_TEXT.feedbackRecordUnsupported))
+          throw new Error(UI_TEXT.feedbackRecordUnsupported)
         }
         if (request.note.length > FEEDBACK_NOTE_MAX_CHARS) {
-          return Promise.reject(noteTooLong())
+          throw noteTooLong()
         }
-        return new Promise<string>((resolve, reject) => {
-          if (!isOpen) {
-            reject(new Error(UI_TEXT.feedbackFailed))
-            return
-          }
+        if (!isOpen) throw new Error(UI_TEXT.feedbackFailed)
+        return await new Promise<string>((resolve, reject) => {
           const requestId = feedbackRequestIds.next++
           submits.set(requestId, { resolve, reject })
           post({
@@ -108,10 +100,11 @@ export function feedbackBridge(post: (message: WebviewToHostMessage) => void): {
     close: () => {
       isOpen = false
       window.removeEventListener('message', receive)
-      for (const waiter of previews.values()) waiter.reject(new Error(UI_TEXT.feedbackFailed))
-      previews.clear()
-      for (const waiter of submits.values()) waiter.reject(new Error(UI_TEXT.feedbackFailed))
-      submits.clear()
+      const failure = new Error(UI_TEXT.feedbackFailed)
+      for (const waiters of [previews, submits]) {
+        for (const waiter of waiters.values()) waiter.reject(failure)
+        waiters.clear()
+      }
     },
   }
 }

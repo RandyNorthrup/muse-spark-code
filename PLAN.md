@@ -31448,6 +31448,23 @@ restores; evidence in `docs/certification/m106-native-readers.md`. Open for
 the reviewer: render and review the scene baselines, `npm run
 check:visual`, `npm run test:a11y`, and the opt-in live receipt.
 
+**C-M106-3R4 review repair plan (RVCM1063B, 2026-10-11, linuxlt).**
+Merge the explicitly named `snap/04f47a026` first, preserving both features.
+Then move feedback outside inert regions, restore its opener's focus and
+clear closed session state; lazy-load its bridge and English with the dialog
+without changing startup caps. The lifecycle and form have separate lazy
+owners: the new lifecycle gets its own measured 25 KiB guard; the original
+startup, deferred aggregate and action-dialog caps remain fixed. Share served effort admission across pointer,
+keyboard, palette and ACP, disabling unfamiliar tiers and retaining empty
+catalogues. Localize the fake upload receipt. Repair all owned red dependents,
+compare native review failures with a same-machine control, and certify every
+non-hub dependent plus all five typechecks and scoped gates. Each finding
+gets a failing regression/drill with byte-exact restoration. Chrome proves
+focus, Tab, Escape, inertness and six-theme narrow accessibility. Full quality
+and cross-machine integration remain lead-owned under the explicit rig brief;
+no additional branch merge, dependency, cap change or live/paid call.
+Progress and receipts: `docs/certification/m106-native-readers.md`.
+
 **M106W continuation 3 (2026-10-06, macmini).** Resolve the 15 full-suite
 blockers recorded by W: reconcile only D86-authorized behavior changes, repair
 stale fake package/capability/lazy UI fixtures, and fix shipped frame coverage.
@@ -39017,6 +39034,17 @@ migration timeouts pass on both the branch replay and clean base; the cap
 callback assertion now verifies the resolved record and passes. The complete
 dependent gate remains outstanding; this record does not certify those
 260 files or claim release readiness.
+
+**C-M106-3R4 scoped certification (2026-10-11, linuxlt).** The explicit
+rig/common brief forbids aggregate quality here. Run complete owning and
+related files in batches of at most three at repository deadlines, all five
+typechecks and scoped static/build/accessibility gates. The lead retains
+aggregate quality and cross-OS integration. The native review no-filter
+collector is unchanged from the base; a same-machine native/Node-error control
+isolates its `exitCode`/`code` defect. The native schedule test encounters the
+rig's existing group-writable systemd search root; no machine mode is changed.
+These receipts and final dispositions remain explicit in
+`docs/certification/m106-native-readers.md`; no gate, timeout or cap is raised.
 
 **C-M106-2 R5 bounded repair certification (2026-10-10).** The rig/shared
 brief forbids aggregate quality, full-suite runs and branch integration.

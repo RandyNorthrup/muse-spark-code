@@ -59,7 +59,9 @@ describe('EffortSlider', () => {
     expect(dots[1]).toHaveAttribute('aria-pressed', 'true')
     expect(dots[2]).toHaveAccessibleName('Deepest reasoning')
     fireEvent.click(dots[2]!)
-    expect(onSelectVariant).toHaveBeenCalledExactlyOnceWith('ultra')
+    expect(dots[0]).toBeDisabled()
+    expect(dots[2]).toBeDisabled()
+    expect(onSelectVariant).not.toHaveBeenCalled()
     expect(onSelect).not.toHaveBeenCalled()
   })
 
@@ -90,7 +92,7 @@ describe('EffortSlider', () => {
         model={{ variants: 'unknown' }}
       />,
     )
-    expect(screen.getAllByRole('button')).toHaveLength(3)
+    expect(screen.queryAllByRole('button')).toHaveLength(0)
     rerender(
       <EffortSlider levels={levels} current="low" onSelect={undefined} model={{ variants: [] }} />,
     )
@@ -110,6 +112,8 @@ describe('EffortSlider', () => {
     )
     expect(screen.queryAllByRole('button')).toHaveLength(0)
     fireEvent.click(screen.getByTitle('ultra'))
-    expect(onSelect).toHaveBeenCalledExactlyOnceWith('ultra')
+    expect(onSelect).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByTitle('High'))
+    expect(onSelect).toHaveBeenCalledExactlyOnceWith('high')
   })
 })

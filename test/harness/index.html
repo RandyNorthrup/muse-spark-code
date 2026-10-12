@@ -617,7 +617,7 @@
                 send({
                   type: 'feedbackOutcome',
                   requestId: message.requestId,
-                  outcome: 'Feedback uploaded.',
+                  outcome: shown('Feedback uploaded.'),
                 }),
               )
               break
@@ -1551,6 +1551,7 @@
         'Permission mode: Manual': ['permissionModeTitle', 'permissionModes.manual'],
         // The reply menu's feedback pill reads the dialog's title.
         'Send feedback to Muse Code': ['feedbackTitle'],
+        'Feedback uploaded.': ['feedbackUploaded'],
         // The Models & Agents panel's buttons carry text, not aria-labels
         // (M95): the steps below click them by that text.
         'Pick a provider': ['wizardPickProvider'],

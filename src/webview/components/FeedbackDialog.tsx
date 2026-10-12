@@ -5,7 +5,7 @@ import {
   submitMuseFeedback,
   type FeedbackClassification,
   type FeedbackSubmitPort,
-} from '../../core/backends/musecode/feedback'
+} from '../../core/backends/musecode/feedbackRequest'
 import { FEEDBACK_NOTE_MAX_CHARS, UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import { Modal } from './Modal'

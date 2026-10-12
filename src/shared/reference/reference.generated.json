@@ -639,7 +639,7 @@
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#the-panel",
       "backends": ["museCode", "modelApi"],
       "paid": false,
-      "surfaces": ["vscode:museCode", "vscode:modelApi"],
+      "surfaces": ["vscode:museCode", "vscode:modelApi", "acp:museCode", "acp:modelApi"],
       "details": [],
       "facts": {
         "default": "high",
@@ -649,7 +649,7 @@
         },
         "thinkingOff": { "museCode": "none", "modelApi": "minimal" }
       },
-      "editors": ["vscode"]
+      "editors": ["vscode", "acp"]
     },
     {
       "id": "custom-agents",

@@ -8232,8 +8232,9 @@ export class ConversationController {
     this.postSessionInfo(modelId)
     // A tier the new model does not serve would fail its turns with a 400
     // (muse-spark-1.2 has no `max`); drop to the highest tier it does serve.
-    const levels = effortLevelsFor(modelId)
-    if (!levels.includes(this.effort)) {
+    const row = this.models?.find((model) => model.modelId === modelId)
+    const levels = effortLevelsFor(modelId, row?.effortLevels, row)
+    if (levels.length > 0 && !levels.includes(this.effort)) {
       await this.updateEffort(levels.at(-1) ?? DEFAULT_EFFORT, this.isThinkingEnabled)
     }
   }
@@ -8249,7 +8250,11 @@ export class ConversationController {
     if (
       kept !== undefined &&
       this.session === session &&
-      effortLevelsFor(this.modelId).includes(kept.effort)
+      effortLevelsFor(
+        this.modelId,
+        undefined,
+        this.models?.find((model) => model.modelId === this.modelId),
+      ).includes(kept.effort)
     ) {
       this.effort = kept.effort
       this.isThinkingEnabled = kept.isThinkingEnabled
@@ -10253,6 +10258,11 @@ export class ConversationController {
         break
       }
       case 'setEffort': {
+        const row = this.models?.find((model) => model.modelId === this.modelId)
+        if (!effortLevelsFor(this.modelId, row?.effortLevels, row).includes(message.effort)) {
+          this.notice('warning', UI_TEXT.execEffortUnavailable)
+          break
+        }
         await this.updateEffort(message.effort, this.isThinkingEnabled)
         break
       }

@@ -3042,7 +3042,9 @@ palette with a filter box of its own. Its groups:
   Continue a Claude Code or Codex session (CLI backend).
 - **Git and pull requests:** commit, push, open a pull request, and open a
   pull request in a conversation.
-- **Model:** switch model, effort (Left and Right step it), thinking.
+- **Model:** switch model, effort (Left and Right step it), thinking. Effort dots and
+  keyboard selection follow the served catalogue when present; unfamiliar
+  tiers are disabled. ACP and headless runs admit the same selectable tiers.
 - **Customize:** permission mode, Focus view, Send with Ctrl+Enter, MCP
   servers, hooks, memory, settings, keybindings.
 - **Account & usage** (with the paid features' toggles where the backend can

@@ -786,7 +786,7 @@
     {
       "id": "M106",
       "title": "Stronger agent-loop guarantees",
-      "summary": "Strict tools, validated answers and concurrent reads use one model record; previews preserve hidden fields, model guarantees require captures, and headless output stays at most 32,768 tokens to preserve worst-case reservations.",
+      "summary": "One model record governs validated tools, answers and read concurrency, bounded headless output, accessible native feedback and served effort admission.",
       "area": "agents",
       "release": "0.16.0"
     },

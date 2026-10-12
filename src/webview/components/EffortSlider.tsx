@@ -11,6 +11,39 @@
 import { type EffortLevel, UI_TEXT } from '../../shared/constants'
 import { effortLabel, isEffortLevel, type CatalogueTiers } from '../../shared/effort'
 
+/**
+ * The slider's catalogue path for one row (C-M106-3R3): the panel footer and
+ * the palette share this, so the captured variants and default reach the
+ * rendered tiers through the model list the controller sends. Undefined
+ * where the row carries no catalogue, and the slider falls back to the
+ * family table. A tier outside the extension's vocabulary renders with its
+ * catalogue name; selecting one stays the caller's typed path.
+ */
+export function catalogueSliderProps(
+  source: CatalogueTiers | undefined,
+  current: string,
+  onSelectTier: (tier: string) => void,
+):
+  | (CatalogueTiers & { readonly current: string; readonly onSelect: (tier: string) => void })
+  | undefined {
+  if (source?.variants === undefined) return undefined
+  return {
+    variants: source.variants,
+    ...(source.reasoningEffortVariants !== undefined && {
+      reasoningEffortVariants: source.reasoningEffortVariants.map((variant) =>
+        variant.description === undefined
+          ? { tier: variant.tier }
+          : { tier: variant.tier, description: variant.description },
+      ),
+    }),
+    ...(source.defaultReasoningEffort !== undefined && {
+      defaultReasoningEffort: source.defaultReasoningEffort,
+    }),
+    current,
+    onSelect: onSelectTier,
+  }
+}
+
 export interface EffortSliderProps {
   readonly levels: readonly EffortLevel[]
   readonly current: EffortLevel
@@ -39,16 +72,16 @@ export function EffortSlider({
   model,
 }: EffortSliderProps) {
   const variants = model?.variants
-  const hasCatalogue = variants !== undefined && variants !== 'unknown'
+  const hasCatalogue = variants !== undefined
   const selected = hasCatalogue ? (model?.current ?? model?.defaultReasoningEffort) : current
   const steps = hasCatalogue
-    ? variants.map((tier) => ({
+    ? (variants === 'unknown' ? [] : variants).map((tier) => ({
         tier,
         label:
           model?.reasoningEffortVariants?.find((variant) => variant.tier === tier)?.description ??
           (isEffortLevel(tier) ? effortLabel(tier) : tier),
         select:
-          model?.onSelect === undefined
+          model?.onSelect === undefined || !isEffortLevel(tier) || !levels.includes(tier)
             ? undefined
             : () => {
                 model.onSelect?.(tier)
@@ -105,5 +138,27 @@ export function EffortSlider({
         />
       ))}
     </span>
+  )
+}
+
+/** The Modes footer and its labels load only with the effort control. */
+export function EffortMenuFooter({
+  catalogue,
+  ...props
+}: EffortSliderProps & {
+  readonly catalogue: CatalogueTiers | undefined
+}) {
+  return (
+    <div className="effort-row">
+      <span className="effort-row-label">
+        {UI_TEXT.effortItem} ({effortLabel(props.current)})
+      </span>
+      <EffortSlider
+        {...props}
+        model={catalogueSliderProps(catalogue, props.current, (tier) => {
+          if (isEffortLevel(tier)) props.onSelect?.(tier)
+        })}
+      />
+    </div>
   )
 }

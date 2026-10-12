@@ -75,6 +75,7 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   ...['service-status'].map((id): [string, readonly string[]] => [id, ['vscode:modelApi']]),
   ['native-deletion', ['vscode:museCode']],
   ['native-feedback', ['vscode:museCode']],
+  ['effort', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ['output-schema', ['acp:modelApi']],
   ['providers', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ['usage', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
@@ -107,7 +108,6 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   ].map((id): [string, readonly string[]] => [id, ['vscode:museCode']]),
   ...[
     'attachments',
-    'effort',
     'conversation-actions',
     'code-output',
     'code-intelligence',

@@ -305,9 +305,17 @@ function startingModel(models: readonly ModelSummary[]): string {
 }
 
 /** The default effort where the model serves it, else the nearest tier it has. */
-function servedEffort(modelId: string, wanted: EffortLevel): EffortLevel {
-  const levels = effortLevelsFor(modelId)
-  return levels.includes(wanted) ? wanted : (levels.at(-1) ?? DEFAULT_EFFORT)
+function servedEffort(
+  models: readonly ModelSummary[],
+  modelId: string,
+  wanted: EffortLevel,
+): EffortLevel | undefined {
+  const levels = effortLevelsFor(
+    modelId,
+    undefined,
+    models.find((model) => model.modelId === modelId),
+  )
+  return levels.includes(wanted) ? wanted : levels.at(-1)
 }
 
 /**
@@ -322,7 +330,7 @@ function startingEffort(models: readonly ModelSummary[], modelId: string): Effor
     catalogueDefault !== undefined && isEffortLevel(catalogueDefault)
       ? catalogueDefault
       : DEFAULT_EFFORT
-  return servedEffort(modelId, wanted)
+  return servedEffort(models, modelId, wanted) ?? DEFAULT_EFFORT
 }
 
 /**
@@ -336,18 +344,12 @@ function effortOptionsFor(
   modelId: string,
 ): { readonly value: string; readonly name: string }[] {
   const row = models.find((model) => model.modelId === modelId)
-  const variants = row?.variants
-  if (variants !== undefined && variants !== 'unknown') {
-    const options = variants.flatMap((tier) => {
-      if (!isEffortLevel(tier)) return []
-      const description = row?.reasoningEffortVariants?.find(
-        (variant) => variant.tier === tier,
-      )?.description
-      return [{ value: tier, name: description ?? effortLabel(tier) }]
-    })
-    if (options.length > 0) return options
-  }
-  return effortLevelsFor(modelId).map((level) => ({ value: level, name: effortLabel(level) }))
+  return effortLevelsFor(modelId, undefined, row).map((tier) => ({
+    value: tier,
+    name:
+      row?.reasoningEffortVariants?.find((variant) => variant.tier === tier)?.description ??
+      effortLabel(tier),
+  }))
 }
 
 /** One ACP session over one AgentSession. */
@@ -1321,6 +1323,21 @@ class AcpSession {
     return true
   }
 
+  private effortOption(): SessionConfigOption[] {
+    const options = effortOptionsFor(this.models, this.modelId)
+    if (options.length === 0) return []
+    return [
+      {
+        id: ACP_CONFIG_IDS.effort,
+        name: UI_TEXT.effortItem,
+        category: 'thought_level',
+        type: 'select',
+        currentValue: this.effort,
+        options,
+      },
+    ]
+  }
+
   public async askPaidUse(request: PaidUseRequest, canRemember: boolean): Promise<PaidUseAnswer> {
     const pending = this.pending
     const preparing = this.preparing
@@ -1473,14 +1490,7 @@ class AcpSession {
         currentValue: this.modelId,
         options: this.models.map((model) => ({ value: model.modelId, name: model.displayLabel })),
       },
-      {
-        id: ACP_CONFIG_IDS.effort,
-        name: UI_TEXT.effortItem,
-        category: 'thought_level',
-        type: 'select',
-        currentValue: this.effort,
-        options: effortOptionsFor(this.models, this.modelId),
-      },
+      ...this.effortOption(),
     ]
   }
 
@@ -1511,7 +1521,8 @@ class AcpSession {
 
   /** The session's standing effort, as the panel sets it on a new session. */
   public async applyEffort(effort: EffortLevel): Promise<void> {
-    const served = servedEffort(this.modelId, effort)
+    const served = servedEffort(this.models, this.modelId, effort)
+    if (served === undefined) return
     this.ensureHeld()
     await this.session.setReasoningEffort(effortForThinking(served, true))
     this.effort = served
@@ -1561,7 +1572,14 @@ class AcpSession {
     if (configId !== ACP_CONFIG_IDS.effort) {
       throw RequestError.invalidParams(undefined, configId)
     }
-    if (!isEffortLevel(value) || !effortLevelsFor(this.modelId).includes(value)) {
+    if (
+      !isEffortLevel(value) ||
+      !effortLevelsFor(
+        this.modelId,
+        undefined,
+        this.models.find((model) => model.modelId === this.modelId),
+      ).includes(value)
+    ) {
       throw RequestError.invalidParams(undefined, value)
     }
     await this.applyEffort(value)

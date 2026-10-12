@@ -40,5 +40,7 @@ describe('feedback harness scenes', () => {
     expect(harness).toContain(`'Send feedback to Muse Code': ['feedbackTitle']`)
     expect(harness).toContain("case 'previewFeedback':")
     expect(harness).toContain("case 'submitFeedback':")
+    expect(harness).toContain("outcome: shown('Feedback uploaded.')")
+    expect(harness).toContain("'Feedback uploaded.': ['feedbackUploaded']")
   })
 })

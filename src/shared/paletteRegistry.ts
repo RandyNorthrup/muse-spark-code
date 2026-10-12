@@ -317,6 +317,14 @@ export function buildPalette(
   context: PaletteContext,
   priceOf?: (feature: PaidFeature) => string | undefined,
 ): readonly PaletteGroup[] {
+  const effortModel = context.models.find(
+    (model) => model.modelId === context.currentModel?.modelId,
+  )
+  const effortLevels = effortLevelsFor(
+    context.currentModel?.modelId,
+    effortModel?.effortLevels,
+    effortModel,
+  )
   const groups: readonly PaletteGroup[] = [
     {
       id: 'context',
@@ -437,9 +445,7 @@ export function buildPalette(
           label: `${UI_TEXT.effortItem} (${effortLabel(context.effort)})`,
           widget: {
             kind: 'slider',
-            levels:
-              context.models.find((model) => model.modelId === context.currentModel?.modelId)
-                ?.effortLevels ?? effortLevelsFor(context.currentModel?.modelId),
+            levels: effortLevels,
             current: context.effort,
             // The served catalogue rides the row (C-M106-3R3): its tiers
             // render the dots with the catalogue's names.
@@ -449,9 +455,7 @@ export function buildPalette(
           },
           action: { type: 'setEffort', effort: context.effort },
           isSlider: true,
-          isDisabled:
-            context.models.find((model) => model.modelId === context.currentModel?.modelId)
-              ?.effortLevels?.length === 0,
+          isDisabled: effortLevels.length === 0,
         },
         {
           id: 'thinking',

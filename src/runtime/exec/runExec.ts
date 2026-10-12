@@ -48,7 +48,6 @@ import {
   SECRET_KEYS,
   UI_TEXT,
 } from '../../shared/constants'
-import { effortLevelsFor } from '../../shared/effort'
 import { formatUsd as exactUsd, parseUsd } from '../../shared/accountUsd'
 import { modelApiPaidTier } from '../../shared/paid'
 import type { RuntimeBackend, RuntimeBackendDeps } from '../backends'
@@ -81,7 +80,7 @@ import {
 } from './keyInput'
 import type { AssembledProviderRun } from './providerExec'
 import { createRunLedger, resolveExecOutputCap, previewResponseReservation } from './runLedger'
-import { modelPolicyFor, type ModelPolicy } from '../../core/backends/modelapi/modelPolicy'
+import type { ModelPolicy } from '../../core/backends/modelapi/modelPolicy'
 import { observeBackend, type SessionTap } from './sessionTap'
 import { readUntrustedInputs } from './untrustedInput'
 import type { ExecVaultPort, ExecVaultSession } from '../vault/execVault'
@@ -330,7 +329,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
   }
   let resolvedOutputCap: number | undefined
   const outputCap = (policy?: ModelPolicy): number =>
-    (resolvedOutputCap ??= resolveExecOutputCap(policy ?? modelPolicyFor(model ?? '')))
+    (resolvedOutputCap ??= resolveExecOutputCap(policy))
   const ledger =
     options.backend === 'modelApi' &&
     options.budgetUsd !== undefined &&
@@ -903,6 +902,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
               (option) => option.id === ACP_CONFIG_IDS.model,
             )
             model = typeof modelConfig?.currentValue === 'string' ? modelConfig.currentValue : null
+            let configOptions = created.configOptions
             if (options.model !== undefined) {
               if (
                 modelConfig?.type !== 'select' ||
@@ -914,22 +914,26 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
                 error = UI_TEXT.execUnknownModel
                 return
               }
-              await lifecycle.race(
+              const switched = await lifecycle.race(
                 connection.request('session/set_config_option', {
                   sessionId: created.sessionId,
                   configId: ACP_CONFIG_IDS.model,
                   value: options.model,
                 }),
               )
+              configOptions = switched.configOptions
               model = options.model
             }
+            const config = configOptions?.find((option) => option.id === ACP_CONFIG_IDS.effort)
             if (options.effort === undefined) {
-              const config = created.configOptions?.find(
-                (option) => option.id === ACP_CONFIG_IDS.effort,
-              )
               effort = typeof config?.currentValue === 'string' ? config.currentValue : null
             } else {
-              if (!effortLevelsFor(model ?? undefined).includes(options.effort)) {
+              if (
+                config?.type !== 'select' ||
+                config.options.every(
+                  (entry) => !('value' in entry) || entry.value !== options.effort,
+                )
+              ) {
                 setup.isUsageError = true
                 error = UI_TEXT.execEffortUnavailable
                 return

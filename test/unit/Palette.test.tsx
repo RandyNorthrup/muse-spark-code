@@ -59,6 +59,33 @@ function activeOption(): HTMLElement | undefined {
 }
 
 describe('Palette (actions view)', () => {
+  it.each([true, false])('uses served=%s tiers for pointer, arrows and Enter', (served) => {
+    const models = [
+      { ...context.models[0]!, ...(served && { variants: ['low', 'high', 'turbo'] }) },
+    ]
+    const { props, filter } = renderPalette({
+      groups: buildPalette({ ...context, models }),
+      models,
+    })
+    fireEvent.change(filter, { target: { value: 'Effort' } })
+    fireEvent.keyDown(filter, { key: 'ArrowLeft' })
+    expect(props.onAction).toHaveBeenLastCalledWith({
+      type: 'setEffort',
+      effort: served ? 'low' : 'medium',
+    })
+    fireEvent.click(screen.getByTitle('Low'))
+    expect(props.onAction).toHaveBeenLastCalledWith({ type: 'setEffort', effort: 'low' })
+    fireEvent.keyDown(filter, { key: 'Enter' })
+    expect(props.onAction).toHaveBeenLastCalledWith({
+      type: 'setEffort',
+      effort: served ? 'low' : 'xhigh',
+    })
+    if (!served) return
+    vi.mocked(props.onAction).mockClear()
+    fireEvent.click(screen.getByTitle('turbo'))
+    expect(props.onAction).not.toHaveBeenCalled()
+  })
+
   it('focuses the filter, lists the groups, and activates the first row on Enter', () => {
     const { props, filter } = renderPalette()
     expect(document.activeElement).toBe(filter)

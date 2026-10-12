@@ -19,7 +19,7 @@ import {
   useState,
 } from 'react'
 import { UI_TEXT, PALETTE_LISTBOX_ID } from '../../shared/constants'
-import { catalogueSliderProps, effortAt, effortIndex, isEffortLevel } from '../../shared/effort'
+import { effortAt, effortIndex, isEffortLevel } from '../../shared/effort'
 import { fill } from '../../shared/l10n/text'
 import {
   type PaletteContext,
@@ -35,7 +35,7 @@ import { buildPalette } from '../../shared/paletteRegistry'
 import type { ModelOption } from '../../shared/protocol'
 import { MoneyUnavailable, useMoneyDisplay, usePriceOf } from '../money'
 import { scrollRowIntoView, wrapIndex } from '../listNavigation'
-import { EffortSlider } from './EffortSlider'
+import { catalogueSliderProps, EffortSlider } from './EffortSlider'
 import { BackIcon, CheckIcon } from './icons'
 import { ListBody } from './ListBody'
 import { PaletteList, usePaletteDismiss } from './paletteDialog'

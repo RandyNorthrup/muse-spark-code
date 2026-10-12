@@ -116,6 +116,17 @@ function useMuseOptions(deps: ExecDeps): void {
     maxRequests: undefined,
   }
 }
+function bindMspRuntime(host: ReturnType<typeof acpMspHost>['host']) {
+  return vi.spyOn(runtimeBackends, 'createRuntimeBackend').mockImplementationOnce((input) => ({
+    ...actualRuntime(input),
+    backend: {
+      kind: 'museCode',
+      readiness: () => Promise.resolve({ state: 'ready' }),
+      hostFor: () => Promise.resolve(host),
+    },
+  }))
+}
+
 async function imageHarness(file = 'image.png', reply = 'done', changes: Partial<ExecDeps> = {}) {
   return await harness(
     ['--permission-mode', 'acceptEdits', '--image-generation'],
@@ -927,6 +938,37 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
       syncBuiltinESMExports()
     }
   })
+  it('refuses an effort absent from served ACP options before a turn', async () => {
+    const msp = acpMspHost()
+    vi.spyOn(msp.host, 'listModels').mockResolvedValue([
+      {
+        modelId: 'muse-spark-1.3',
+        displayLabel: 'Muse Spark 1.3',
+        contextLimit: undefined,
+        isDefault: true,
+        isActive: true,
+        variants: ['low', 'high'],
+        defaultReasoningEffort: 'high',
+      },
+    ])
+    msp.server.handle('session/start', (params) => ({
+      session: { sessionId: 'effort-refusal', modelId: params['modelId'], status: 'idle' },
+      viewCursor: '',
+    }))
+    const spy = bindMspRuntime(msp.host)
+    try {
+      const h = await harness(['--effort', 'medium'])
+      useMuseOptions(h.deps)
+      const outcome = await h.run()
+      expect(outcome.code).toBe(2)
+      expect(h.err.chunks.join('')).toContain(UI_TEXT.execEffortUnavailable)
+      expect(msp.server.requestsFor('turn/start')).toHaveLength(0)
+    } finally {
+      spy.mockRestore()
+      await msp.host.close()
+    }
+  })
+
   it.each(['completed', 'interrupted'])(
     'D22/D24/D28 real MSP terminal %s and repeated cumulative usage',
     async (terminal) => {
@@ -969,16 +1011,7 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
         notification('session/tokenUsage', usage),
         notification('turn/completed', { sessionId, turnId, terminal }),
       ])
-      const spy = vi
-        .spyOn(runtimeBackends, 'createRuntimeBackend')
-        .mockImplementationOnce((input) => ({
-          ...actualRuntime(input),
-          backend: {
-            kind: 'museCode',
-            readiness: () => Promise.resolve({ state: 'ready' }),
-            hostFor: () => Promise.resolve(msp.host),
-          },
-        }))
+      const spy = bindMspRuntime(msp.host)
       try {
         const h = await harness()
         useMuseOptions(h.deps)

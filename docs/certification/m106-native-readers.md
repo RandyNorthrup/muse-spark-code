@@ -336,3 +336,117 @@ next three consecutive runs.
   `npm run check:visual` and `npm run test:a11y`.
 - Opt-in live receipt against a real 1.4.4 `muse serve` is still open
   (owner's key, per the R1 record).
+
+## C-M106-3R4 — RVCM1063B (2026-10-11, linuxlt)
+
+The authorized `snap/04f47a026` merge is `f22ba55f7`, with installed hooks.
+Changelog conflicts retain both behaviours; reference conflicts were regenerated.
+The combined translation tables were reordered to the English shape without
+changing values. The four required merge replays passed: execRun/execFetch/
+execTestLauncher **810**, execStdio **44**. No push, rebase, additional merge,
+dependency, live model request or paid request.
+
+| Finding              | Repair                                                                                                                                                                                                                                                                  | Regression                                                                                                                                                                                            | Deliberate failure and restoration                                                                                                            |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| P1, inert feedback   | Dialog is a sibling of the header, transcript and composer. The first-use lifecycle owns its bridge, cleanup and explicit row opener. It joins the existing modal arbitration.                                                                                          | `feedbackBrowser`: three 320 px scenes in six themes; real pointer input, focus inside, Tab/Shift+Tab wrap, Escape and opener return, inert page. `App`: actual note control, not the loading dialog. | Put dialog back inside header: all 18 interaction cases fail. Combined P1/P3 run: 25 failed, 2 passed. App and harness restored byte-exact.   |
+| P2, session revival  | Session mismatch discards feedback state during render; unmount closes and settles the lazy port. Closed ports refuse fresh previews too.                                                                                                                               | `App`: S1 → S2 → S1 stays closed, explicit reopen gets a fresh form. `feedbackBridge`: fresh closed-port preview refuses with zero posts.                                                             | Remove state discard: named session-change regression fails. Restore App byte-exact. Closed-preview guard drill recorded below.               |
+| P2, effort range     | `effortLevelsFor` projects served variants to the selectable vocabulary; absent catalogue alone falls back. Footer, pointer/keyboard palette, ACP options/default/clamping/admission and controller selection use it. Headless reads ACP options after model switching. | Served/absent table across pointer, keyboard, palette and ACP; empty/unknown/future-only ACP lists never fabricate options; controller and headless refusal regressions.                              | Remove catalogue projection and slider admission guard: 7 failed, 167 passed across ACP/Palette/EffortSlider. Both files restored byte-exact. |
+| P3, pseudo receipt   | Fake host reads `feedbackUploaded` through the same installed-language lookup used by scene labels.                                                                                                                                                                     | Six Chrome pseudo receipt cases and `feedbackScenes`.                                                                                                                                                 | Hardcode English receipt: six pseudo cases and scene-source assertion fail, independently of the inert check. Harness restored byte-exact.    |
+| P3, unavailable tier | Served descriptions and unfamiliar names remain visible; tiers absent from the selectable vocabulary/range are disabled and cannot dispatch.                                                                                                                            | Footer table, standalone slider and mouse-only palette dots.                                                                                                                                          | Included in the seven-failure effort drill; slider restored byte-exact.                                                                       |
+
+The production feedback request schema, local redactor, second scrub and exact
+preview check moved unchanged into `feedbackRequest.ts`; the native receipt
+reader re-exports them for existing hosts. Browser imports no longer bring the
+native receipt schema/taxonomy. The lifecycle and form have separate lazy
+owners. A new first-use lifecycle guard measures its complete static closure;
+existing startup, original deferred aggregate and action-dialog caps are
+unchanged. The effort footer and catalogue adapter also load with the existing
+slider owner. Every loading/failure/retry uses the existing accessible boundary.
+
+The handshake expectation now includes the intentionally requested fourth
+`feedback` capability, documented by R2 above and its captured request/grant.
+The deferred fixture includes `modelEfforts` and its required-membership and
+activation/ACP exclusion drills; its headless fixture matches the production
+Node target and navigator definition. Omit that fixture: 88 failures. Combined
+closed-preview/fixture drill: 89 failed, 57 passed; exact restores verified.
+
+Initial complete feedback verification: **215 passed** (App 188, real Chrome
+24, scene registration 3). Complete ACP table verification: **148 passed**.
+All commands use repository deadlines and at most three files/workers.
+Final owning/dependent, typecheck, static/build and accessibility results are
+recorded below; these initial counts do not claim the final split verified.
+
+### External integration controls
+
+Native review: the same dirty repository on this machine gives **refused**
+through `processGitRunner` and **material** through Node's native Git runner.
+One control fails, one passes. The wrapper throws `GitExitError.exitCode = 1`
+for an empty filter inventory; the collector reads only `code`, so it refuses
+before Host/Plan admission. Both files are byte-identical to `dedaf3eb0`:
+`reviewCollector.ts` SHA-256 `6e29097b44d12773399bc5f69c881647bb4407fe972813436b9357fcd36afc21`;
+`git.ts` `bc792b7e6f3e51b39fd25669f4725c45f281a7147681080d82ccc66b19789e2d`.
+This is the lead-owned collector defect named by the brief, not a new reader
+regression. The temporary control suite was removed after preserving its
+receipt in this record. No user Git configuration was changed.
+
+Native schedule fixture: `/run/user/1000/systemd/user` is owned by uid 1000
+with mode **0775**, so the real guard correctly refuses that ancestor before
+the deliberately writable drop-in. A private launcher trust anchor still
+encounters that ancestor; a private runtime-root experiment cannot use the
+real user manager and returns unavailable. Following the common two-fix
+rule, the original test was restored. No search-root permissions, user bus,
+launcher guard, assertion, timeout or skip was changed. The lead decides the
+safe native fixture/environment qualification; this result is not green.
+
+### Final receipts and incomplete qualification
+
+- All **five typechecks passed** in `temp/typecheck-verified.log`.
+- Production `npm run build` passed with existing caps unchanged. Final exact
+  bytes: startup **761,456** (reviewed before **763,671**, strict cap
+  **761,548.8**), original deferred **32,648** (cap **32,870.4**), action
+  dialogs **23,877** (cap **25,600**), first-use lifecycle **2,273** (new
+  guard **25,600**), headless **100,939** (existing cap **102,400**).
+  `resolveExecOutputCap` already supplies the same 32,768 fallback that the
+  unnecessary full fallback policy constructor produced; supplied records
+  retain their own capped maximum. The eager constructor was removed.
+- Final completed owning files: real Chrome **24**, webview budgets **58**,
+  App **191**, ACP **148**, execRun **95**, execResources **6**; all pass at
+  repository deadlines. Headless admission drill: replacing ACP admission
+  with the static family guard makes the named new refusal test return 8
+  instead of 2; source restored byte-exact. That exploratory concurrent run
+  also hit three Chrome and two standalone-process deadlines. Final isolated
+  files pass without increasing a timeout.
+- Related selection: **276 files**, **213 completed**, **6,980 passed**,
+  **2 failed**, **163 skipped**, plus four failed conversation suite hooks.
+  `docs/certification/m106-r4-dependents.json` names every result and all
+  **63 incomplete/not-started files**, including interrupted reviewMaterial.
+  Heavy process/browser files were isolated; other batches contain at most
+  three files. Live flags were verified off; no live tests are implied run.
+- Remaining completed reds: native schedule's real 0775 search ancestor;
+  conversation's four inherited no-filter admission hooks; deferredBundles'
+  10-second setup hook under the App/ACP batch (120 cases not executed);
+  evalRunner's held-out-floor 120-second timeout (that batch took 3,654 s).
+  These are unresolved qualification blockers, not passing tests. The expanded
+  150-minute brief allowance expired during native review; its related process
+  tree was stopped and the exact remaining list preserved.
+- Static checks observed green: deadcode, localization, host API, reference,
+  roadmap, plan and production build. Initial lint findings were fixed;
+  initial duplication found a pre-existing dialog-refusal repetition and the
+  new native runtime fixture repetition, both consolidated without changing
+  assertions. Final lint/format/hook receipts accompany the commits; aggregate
+  quality remains lead-owned and is not claimed.
+- Repository accessibility command: **12 pages**, all three narrow scenes in
+  its four built-in themes, zero violations/undecided results. The separate
+  six-theme audit receipt is appended below. Full visual baseline qualification
+  and the 63 remaining dependents have not been completed here.
+
+No review finding is accepted as a residual. The five product repairs are
+implemented and the main owning paths verified; the complete brief is **not
+certified complete** because the named qualification work remains. Lead next:
+land the no-filter collector repair, qualify the native fixture on a safe
+systemd root, resolve the setup/evaluation deadlines, complete the exact
+remaining sweep and visual gate, then review/integrate the local commits.
+
+Six-theme axe receipt: **18 pages, zero violations and zero incomplete rules**,
+all three narrow scenes in light, dark, hc-dark, hc-light, One Dark Pro and
+Dracula; `docs/certification/m106-r4-a11y.json`. Browser and server closed.
