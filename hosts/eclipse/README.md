@@ -122,3 +122,23 @@ chat and Tasks bundles and forwards their message events; both are exercised
 in real WebKit. Saved text containing bootstrap substitution names is retained
 literally. See the FIXM104G tests and red drills in
 `../../docs/certification/m104-g.md`.
+
+## Update site and Marketplace listing
+
+The installable feature id is `io.musespark.eclipse.feature`
+(source: `hosts/eclipse/feature/feature.xml`); the plugin id inside it is
+`io.musespark.eclipse`. The build targets Eclipse 2025-12 (4.38), set as
+`eclipse.release` in `hosts/eclipse/pom.xml`, with Eclipse 2026-03 (4.39)
+as the second qualification target. The build produces three platforms,
+read from the `<environments>` of `target-platform-configuration` in
+`hosts/eclipse/pom.xml`: Linux on 64-bit Intel/AMD, Windows on 64-bit
+Intel/AMD, and macOS on Apple silicon. That means macOS on Intel and
+Linux on ARM are NOT built. The plugin requires Java 21
+(`Bundle-RequiredExecutionEnvironment: JavaSE-21` in
+`hosts/eclipse/plugin/META-INF/MANIFEST.MF`). The licence is MIT: the
+full text of the repository's root `LICENSE` file is embedded in the
+`<license>` element of `hosts/eclipse/feature/feature.xml`, and Eclipse
+shows it in the install dialog with Accept/Reject before anything is
+installed. The update site's public address is not decided yet; the lead
+and the owner decide where the p2 repository is hosted. Nothing is
+listed on the Marketplace before installed runs in Eclipse pass.
