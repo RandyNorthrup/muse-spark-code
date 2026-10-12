@@ -290,7 +290,7 @@ export function runtimeChatGptCommandDeps(
 export function chatGptAuthenticationMethods(
   createHost: () => Promise<ChatGptHostPort>,
 ): SignInMethod[] {
-  const actions: readonly ChatGptProviderAction[] = ['add', 'remove', 'status']
+  const actions = ['add'] as const
   return actions.map((action) => {
     const args = ['providers', action, 'chatgpt']
     return {
@@ -305,12 +305,11 @@ export function chatGptAuthenticationMethods(
           await host.withRefreshLock(async () => {
             const stored = await host.readRecord()
             if (stored === undefined) {
-              if (action === 'add') throw new ChatGptSignInError('sign-in-required')
-              return
+              throw new ChatGptSignInError('sign-in-required')
             }
             const parsed = chatGptRecordSchema.safeParse(stored)
             if (!parsed.success) throw new ChatGptSignInError('invalid-token')
-            if (action === 'remove' || (action === 'add' && parsed.data.expiresAt <= host.now()))
+            if (parsed.data.expiresAt <= host.now())
               throw new ChatGptSignInError('sign-in-required')
           })
           return

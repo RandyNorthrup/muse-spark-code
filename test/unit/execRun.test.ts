@@ -58,7 +58,7 @@ import {
   streamFor,
   type ScriptedReply,
 } from './helpers/fakeModelApi'
-import { buildModelApiBundle } from './helpers/modelApiBundle'
+import { buildModelApiBundle, buildHostBundles } from './helpers/modelApiBundle'
 import { outputWriter } from './helpers/execContract'
 import { removeFolder } from './helpers/temporaryFolders'
 import { acpMspHost } from './helpers/acpMsp'
@@ -144,6 +144,7 @@ const dist = folder()
 const builtMain = path.join(folder(), 'dist', 'acp.js')
 beforeAll(async () => {
   await buildModelApiBundle(dist)
+  await buildHostBundles(dist, { usageService: path.resolve('src/runtime/usage/usageServiceEntry.ts') })
   writeFileSync(
     path.join(dist, 'providerCatalog.json'),
     readFileSync('vendor/models-dev/snapshot.json'),
@@ -2004,7 +2005,7 @@ function providerCaptureStream(file: string) {
     .join('')
 }
 for (const family of providerFamilies) {
-  it.each(['success', 'budget', 'unpriced', 'default', 'json'])(
+  it.each(['success', 'budget', 'unpriced', 'default', 'json', 'persistent'])(
     `EXECPROV real loopback ${family.format}: %s`,
     async (mode) => {
       const stream = providerCaptureStream(family.capture)
@@ -2051,6 +2052,10 @@ for (const family of providerFamilies) {
         [],
         {},
       )
+      if (mode === 'persistent') {
+        h.deps.options = { ...h.deps.options, ephemeral: false }
+        h.deps.distDir = path.resolve('dist')
+      }
       if (mode === 'json') h.deps.options = { ...h.deps.options, output: 'json' }
       else if (mode === 'default') h.deps.options = { ...h.deps.options, model: undefined }
       const yes = { state: 'yes', value: true }
@@ -2116,8 +2121,20 @@ for (const family of providerFamilies) {
         } else {
           expect(run.code, JSON.stringify(run.result)).toBe(0)
           expect(dispatched).toHaveLength(1)
-          expect(result(run).usageHistory).toBe('omitted_ephemeral')
+          expect(result(run).usageHistory).toBe(
+            mode === 'persistent' ? undefined : 'omitted_ephemeral',
+          )
           expect(h.err.chunks.join('')).not.toContain('Usage history could not be recorded')
+          if (mode === 'persistent') {
+            const root = path.join(agentDataFolder(h.deps), 'usage')
+            const files = readdirSync(root, { recursive: true }).filter((name) => typeof name === 'string' && name.endsWith('.jsonl'))
+            expect(files).toHaveLength(1)
+            const records = files.flatMap((name) => readFileSync(path.join(root, String(name)), 'utf8').trim().split('\n').map((line): unknown => JSON.parse(line)))
+            expect(records).toEqual([expect.objectContaining({
+              client: 'cli', backend: 'modelApi', provider: 'local', model: `local/${family.native}`, outcome: 'completed', tokens: expect.objectContaining({ input: family.input, output: family.output }),
+            })])
+          }
+
           expect(result(run)).toMatchObject({
             model: `local/${family.native}`,
             usage: {
