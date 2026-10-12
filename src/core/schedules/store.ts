@@ -2,6 +2,7 @@
 import { createHash } from 'node:crypto'
 import * as z from 'zod/mini'
 import {
+  MILLISECONDS_PER_SECOND,
   SCHEDULE_MAX_PER_WORKSPACE,
   SCHEDULE_ID_MAX_CHARS,
   SCHEDULE_PAUSE_AFTER_FAILURES,
@@ -50,6 +51,8 @@ export type ScheduleRunIntent = z.infer<typeof intentSchema>
 const pendingSchema = z.strictObject({
   intent: intentSchema,
   ownerPid: z.int().check(z.gte(1)),
+  // Process birth: a reused pid, or one from another user, never owns a dispatch.
+  ownerStart: z.optional(z.number().check(z.gte(0))),
   admitted: z.optional(z.boolean()),
   dispatchStarted: z.optional(z.boolean()),
   dispatchLiabilityUsd: z.optional(scheduleFireRecordSchema.shape.cost.shape.retainedLiabilityUsd),
@@ -81,6 +84,7 @@ const indexSchema = z.strictObject({
 const fenceSchema = z.strictObject({
   runId: scheduleFireRecordSchema.shape.runId,
   ownerPid: z.int().check(z.gte(1)),
+  ownerStart: z.optional(z.number().check(z.gte(0))),
 })
 const decisionSchema = z.strictObject({
   admitted: z.boolean(),
@@ -125,6 +129,23 @@ export function isScheduleProcessAlive(pid: number): boolean {
     return true
   } catch (error: unknown) {
     return !(error instanceof Error && 'code' in error && error.code === 'ESRCH')
+  }
+}
+// A dispatch owner is a process birth (pid plus process start time), as the
+// target-lease owner already is. A reused pid never keeps a dead owner's
+// dispatch pending: the same pid with another start time is dead. A pid this
+// process cannot signal (another user's) cannot own this journal's dispatch.
+const scheduleProcessStart = Date.now() - process.uptime() * MILLISECONDS_PER_SECOND
+export function scheduleProcessBirth(): { pid: number; start: number } {
+  return { pid: process.pid, start: scheduleProcessStart }
+}
+export function isScheduleDispatchOwnerAlive(pid: number, start?: number): boolean {
+  if (pid === process.pid) return start === undefined || start === scheduleProcessStart
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch {
+    return false
   }
 }
 function ordered(a: ScheduleRunIntent, b: ScheduleRunIntent): number {
@@ -357,7 +378,11 @@ export function createScheduleStore(
         reservation?.removedAtMs === undefined &&
         (await fs.publish(
           `${fenceFolder(runId)}.json`,
-          JSON.stringify({ runId, ownerPid: process.pid }),
+          JSON.stringify({
+            runId,
+            ownerPid: scheduleProcessBirth().pid,
+            ownerStart: scheduleProcessBirth().start,
+          }),
         ))
       )
     },
@@ -377,7 +402,11 @@ export function createScheduleStore(
           return { value, result: false }
         if (Object.keys(value.pending).length >= SCHEDULE_OUTBOX_MAX_PENDING)
           throw new Error('scheduleOutboxLimit')
-        value.pending[intent.runId] = { intent, ownerPid: process.pid }
+        value.pending[intent.runId] = {
+          intent,
+          ownerPid: scheduleProcessBirth().pid,
+          ownerStart: scheduleProcessBirth().start,
+        }
         return { value, result: true }
       })
       // Intent precedes the identity fence. A crash here leaves definitely-unsent
@@ -478,6 +507,7 @@ export function createScheduleStore(
             liabilityUsd ?? intent.schedule.grant.paidCapUsd,
           )
         pending.ownerPid = process.pid
+        pending.ownerStart = scheduleProcessBirth().start
         return { value, result: true }
       })
     },
@@ -512,19 +542,20 @@ export function createScheduleStore(
     async abandoned(workspaceKey) {
       const current = await index(workspaceKey).read()
       return Object.values(current.value.pending)
-        .filter((entry) => !isScheduleProcessAlive(entry.ownerPid))
+        .filter((entry) => !isScheduleDispatchOwnerAlive(entry.ownerPid, entry.ownerStart))
         .map((entry) => entry.intent)
         .toSorted(ordered)
     },
     async isLiveDispatchOwnedElsewhere(workspaceKey, runId) {
       const current = await index(workspaceKey).read()
       const pending = current.value.pending[runId]
-      return (
-        pending !== undefined &&
-        pending.dispatchStarted !== false &&
-        pending.ownerPid !== process.pid &&
-        isScheduleProcessAlive(pending.ownerPid)
-      )
+      if (pending === undefined || pending.dispatchStarted === false) return false
+      // A row this process owns under its own birth is not owned elsewhere;
+      // anything else is alive only under its recorded birth.
+      const isOwnBirth =
+        pending.ownerPid === process.pid &&
+        (pending.ownerStart === undefined || pending.ownerStart === scheduleProcessStart)
+      return !isOwnBirth && isScheduleDispatchOwnerAlive(pending.ownerPid, pending.ownerStart)
     },
     async acknowledge(input) {
       const fire = scheduleFireRecordSchema.parse(input)

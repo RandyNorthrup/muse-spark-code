@@ -109,6 +109,7 @@ import {
   TAB_CONTEXT_FILES,
 } from './shared/constants'
 import { PaidAuthority } from './core/paid/paidAuthority'
+import { readSharedDailyCapUsd, sharedDayScope } from './core/paid/sharedDailyCap'
 import { Usd } from './shared/usd'
 import {
   createUsageRecording,
@@ -1143,6 +1144,11 @@ async function activateWindow(
       legacyDirectory: path.join(context.globalStorageUri.fsPath, PAID_DAILY_BUDGET.directory),
       now: Date.now,
       capUsd: () => currentSettings().paidDailyBudgetUsd,
+      // The schedule shared leg reads the one source the runtime family
+      // reads too: the data-folder settings file. The VS Code setting above
+      // no longer feeds schedule caps, so the two families cannot differ.
+      scheduleSharedCapUsd: () =>
+        readSharedDailyCapUsd(dailyBudgetDataFolder, sharedDayScope(Date.now())),
       isModelApi: () => paidBackend === 'modelApi',
       sleep: (ms) =>
         new Promise((resolve) => {

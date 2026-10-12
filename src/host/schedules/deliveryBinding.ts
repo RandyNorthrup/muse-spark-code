@@ -333,6 +333,9 @@ export function createScheduleDeliveryBinding(
           }
         } catch (error: unknown) {
           // Report withdrawal/cancellation facts; the core owns durable settlement.
+          // Only a CONFIRMED withdrawal from the queue is a known nothing-sent
+          // fire. A turn that had STARTED is never recorded as skipped: cancel
+          // it and let the core keep the outcome unknown.
           if (entry.signal.aborted || !session.isOpen()) {
             if (entry.submitted?.disposition === 'queued') {
               const withdrawal = await entry.agent?.withdrawQueued?.({
@@ -340,11 +343,14 @@ export function createScheduleDeliveryBinding(
                 userMessageId: entry.submitted.userMessageId,
               })
               if (withdrawal?.status !== 'withdrawn') throw error
-            } else if (entry.submitted?.disposition === 'started') await entry.agent?.cancel()
-            result = {
-              outcome: 'skipped',
-              reason: UI_TEXT.scheduleV2.messages.targetClosed,
-              refusedActions: entry.run?.refusedActions ?? [],
+              result = {
+                outcome: 'skipped',
+                reason: UI_TEXT.turnUnqueued,
+                refusedActions: entry.run?.refusedActions ?? [],
+              }
+            } else {
+              if (entry.submitted?.disposition === 'started') await entry.agent?.cancel()
+              throw error
             }
           } else
             result = {

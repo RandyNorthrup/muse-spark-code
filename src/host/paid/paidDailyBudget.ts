@@ -27,6 +27,11 @@ export function createPaidDailyBudget(deps: {
   readonly legacyDirectory?: string
   readonly now: () => number
   readonly capUsd: () => UsdAmount
+  /** The ONE shared daily cap both families enforce for schedules: the
+   * data-folder settings file both read. The VS Code capUsd above stays for
+   * interactive extras only, so the two families can never name different
+   * shared caps against the one ledger. */
+  readonly scheduleSharedCapUsd?: () => UsdAmount
   readonly sleep: (ms: number) => Promise<void>
   readonly isModelApi: () => boolean
   /** P's account-bound guard; shared daily claims still use one fixed scope. */
@@ -387,7 +392,7 @@ export function createPaidDailyBudget(deps: {
   /** D95: reserve both caps, never open D78's Raise dialog during unattended work. */
   const reserveSchedule = scheduleBudget({
     day,
-    capUsd,
+    capUsd: deps.scheduleSharedCapUsd ?? capUsd,
     reserveShared: reserveClaim,
     reserveOwn: async (scope, amount, cap) => {
       await carryLegacy(scope)

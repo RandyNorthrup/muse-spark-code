@@ -14,6 +14,25 @@ happened, not what was planned; superseded entries are kept.
 - Schedule migration checks prepare their real source and empty journal before
   assertions begin; each crash-receipt shape has its own default-deadline case.
 
+- The daily extras journal lives under the machine data folder
+  (`agentDataFolder/paid-daily`) for windows, ACP and headless alike, with a
+  one-time idempotent carry from the retired global-storage ledger. The shared
+  schedule cap has one source both families read: the data-folder
+  `settings.json` (`paidDailyBudgetUsd`).
+
+- A process that releases its workspace hold without closing (an ACP session
+  ends, a window loses trust or sign-in) leaves its fires pending for the next
+  holder instead of settling them skipped; a dispatch lost to another live
+  owner records nothing; a dispatch owner is its process birth (pid plus
+  start time), so a recycled pid never blocks its target.
+
+- A host refusal before anything is sent records a known not-sent fire with
+  its liability released. After an abort only a confirmed queue withdrawal is
+  a known nothing-sent fire; a turn that had started is never recorded as
+  skipped. Manual schedule runs refuse with their true reason (deleted, not
+  held, ended, paused). A failed settlement retry in close no longer skips the
+  rest of close. Delivery remains behind certification.
+
 ### Added
 
 - **Several accounts per provider, in the terminal and in ACP** (M108,
