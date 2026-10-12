@@ -22,10 +22,18 @@ Code” are Meta trademarks. You bring your own credentials.
 
 [Enjoying Muse Spark Code? A star on GitHub helps other people find it.](https://github.com/RandyNorthrup/muse-spark-code)
 
-**Contents:** [What's new](#whats-new-in-0171) · [Get started](#get-started) ·
+**Contents:** [What's new](#whats-new-in-0172) · [Get started](#get-started) ·
 [Work in the panel](#work-in-the-panel)
 
-## What's new in 0.17.1
+## What's new in 0.17.2
+
+- **Long replies from your own providers and a ChatGPT plan finish.**
+  Since 0.15.0 a reply from a provider you added in Models & Agents, or
+  from a ChatGPT plan sign-in, was cut off 30 seconds after the request
+  started. A reply now has no limit on its total time; one that goes
+  silent ends after 5 minutes, and the message says so.
+
+### Earlier in 0.17.1
 
 - **The provider picker works again.** Models & Agents lists every provider
   again, Anthropic and custom servers included; 0.16.0 and 0.17.0 showed only
