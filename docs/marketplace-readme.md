@@ -22,10 +22,20 @@ Code” are Meta trademarks. You bring your own credentials.
 
 [Enjoying Muse Spark Code? A star on GitHub helps other people find it.](https://github.com/RandyNorthrup/muse-spark-code)
 
-**Contents:** [What's new](#whats-new-in-0180) · [Get started](#get-started) ·
+**Contents:** [What's new](#whats-new-in-0181) · [Get started](#get-started) ·
 [Work in the panel](#work-in-the-panel)
 
-## What's new in 0.18.0
+## What's new in 0.18.1
+
+- **Your own providers, a ChatGPT plan and Copilot work again.** In 0.18.0
+  a turn on any of them stopped before it was sent, with an internal error.
+  Sorry for the broken release; Meta's own models were not affected.
+- **Usage from earlier versions is counted again.** 0.18.0 left those records
+  out as not exact; nothing was deleted.
+- **Report a Problem opens again** if you had changed a setting with a second
+  dot in its name; it used to answer "That did not work".
+
+### Earlier in 0.18.0
 
 - **Several accounts per provider, in the terminal and in ACP editors.**
   `muse-spark-code-acp providers accounts` lists, adds, orders and removes a
