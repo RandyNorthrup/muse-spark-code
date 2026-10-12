@@ -6,12 +6,18 @@ import type * as vscode from 'vscode'
 import type { PaidUseAnswer } from '../../src/core/paid/paidConsent'
 import { askPaidUse, createPaidFeatures } from '../../src/host/paid/paidHost'
 import {
+  TAB_CONSENT_STATE_KEY,
+  createTabConsent,
+  tabPriceFingerprint,
+} from '../../src/host/tab/tabBundle'
+import {
   GLOBAL_STATE_KEYS,
   SUBAGENT_PRICE_ACCEPTANCE_VERSION,
   type PaidFeature,
   UI_TEXT,
   WORKSPACE_STATE_KEYS,
 } from '../../src/shared/constants'
+import { listedPaidFeatures, paidFeaturePrice, usablePaidFeatures } from '../../src/shared/paid'
 import { fill } from '../../src/shared/l10n/text'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { mockJudgePaidConfiguration } from './helpers/judgePaidConfiguration'
@@ -79,12 +85,49 @@ async function details(request: Parameters<typeof askPaidUse>[0]) {
   return { title: call?.[0], detail: call?.[1]?.detail ?? '' }
 }
 
+it('unevaluated compaction is absent from paid state, usage choices and consent cards', async () => {
+  const { paid } = paidWithSettings(new Map(), ['autoCompaction'], { defaultOn: true })
+  await paid.gate.review()
+  expect(paid.state().features).not.toContain('autoCompaction')
+  expect(usablePaidFeatures('modelApi', true)).not.toContain('autoCompaction')
+  expect(
+    listedPaidFeatures(['autoCompaction'], { ...paid.state().tally, autoCompactionRequests: 1 }),
+  ).not.toContain('autoCompaction')
+  expect(
+    await paid.consent.allows({
+      feature: 'autoCompaction',
+      modelId: 'muse-spark-1.3',
+      dailyBudgetUsd: Usd.from(1).toAmount(),
+    }),
+  ).toBe(false)
+  expect(await paid.gate.turnOn('autoCompaction')).toBe(false)
+  expect(confirmModal).not.toHaveBeenCalled()
+})
+
+it('evaluated compaction turn-on confirmation names the price being accepted', async () => {
+  const paid = createPaidFeatures({
+    globalState: memento(new Map()),
+    workspaceState: memento(new Map()),
+    isSettingOn: (feature) => feature === 'autoCompaction',
+    autoCompactionEvaluated: () => true,
+    isKeyStored: () => true,
+    canRememberPaidUse: () => true,
+    log: new FakeLogOutputChannel(),
+  })
+  answerWith(UI_TEXT.paidConfirmAccept)
+  await paid.gate.review()
+  expect(vi.mocked(confirmModal).mock.calls.at(-1)?.[1]?.detail).toContain(
+    paidFeaturePrice('autoCompaction'),
+  )
+  expect(paid.gate.isOn('autoCompaction')).toBe(true)
+})
+
 describe('the paid-use popup (M58)', () => {
   it('restores prior journal units once while keeping additions during the read', async () => {
     const opened = vi.spyOn(Date, 'now').mockReturnValue(100)
     try {
       const record = usageRecordSchema.parse({
-        v: 1,
+        v: 2,
         type: 'usage',
         id: 'old',
         at: 99,
@@ -98,7 +141,7 @@ describe('the paid-use popup (M58)', () => {
         kind: 'image',
         tokens: {},
         units: { images: 2 },
-        cost: { certainty: 'computed', usd: 0.01 },
+        cost: { certainty: 'computed', usd: '0.01' },
         outcome: 'completed',
       })
       const read = Promise.withResolvers<readonly (typeof record)[]>()
@@ -526,6 +569,52 @@ describe('M94 Tab wording and window question (lane L, PLAN.md D73)', () => {
     await expect(paid.consent.allows(TAB)).resolves.toBe(true)
     expect(confirmModal).toHaveBeenCalledTimes(2)
   })
+
+  it.each(['imageGeneration', 'voice'] as const)(
+    'RVM94KR3G: preserves keyed Tab Allow once when %s price acceptance changes',
+    async (feature) => {
+      const data = new Map<string, unknown>([
+        [GLOBAL_STATE_KEYS.paidConfirmations, ['tab', 'voice']],
+      ])
+      const workspace = new Map<string, unknown>()
+      const { paid, settings } = paidWithSettings(data, ['tab', 'voice'], { workspace })
+      const consent = createTabConsent({
+        priceOf: tabPriceFingerprint,
+        ask: (model) => paid.consent.askScope({ ...TAB, modelId: model }),
+        isOn: () => paid.gate.isOn(TAB.feature),
+        isRemembered: () => paid.consent.isRemembered(TAB.feature),
+        windowOnceToken: () => paid.consent.windowOnceToken(TAB.feature),
+        revocations: () => paid.consent.revocations(TAB.feature),
+        readAlways: () => workspace.get(TAB_CONSENT_STATE_KEY),
+        writeAlways: (record) => {
+          workspace.set(TAB_CONSENT_STATE_KEY, record)
+          return Promise.resolve()
+        },
+        log: new FakeLogOutputChannel(),
+      })
+      answerWith(UI_TEXT.allowOnce)
+      const grant = await consent.requestUse(TAB.modelId)
+      expect(grant?.scope).toBe('window')
+      const token = paid.consent.windowOnceToken(TAB.feature)
+      const popupCount = feature === 'imageGeneration' ? 2 : 1
+      if (feature === 'imageGeneration') {
+        settings.add(feature)
+        answerWith(UI_TEXT.paidConfirmAccept)
+      } else {
+        settings.delete(feature)
+      }
+      await paid.gate.review()
+      expect(data.get(GLOBAL_STATE_KEYS.paidGrantGenerations)).toEqual({ [feature]: 1 })
+      expect(paid.gate.isOn(feature)).toBe(feature === 'imageGeneration')
+      expect(paid.consent.windowOnceToken(TAB.feature)).toBe(token)
+      expect(grant?.isCurrent()).toBe(true)
+      const next = await consent.requestUse(TAB.modelId)
+      expect(next?.scope).toBe('window')
+      expect(next?.isCurrent()).toBe(true)
+      expect(confirmModal).toHaveBeenCalledTimes(popupCount)
+      expect(workspace.has(TAB_CONSENT_STATE_KEY)).toBe(false)
+    },
+  )
 
   it('asks again after another window withdrew and accepted the price anew (RVM94LC finding 7)', async () => {
     // Two windows: each its own memory, one shared global state.

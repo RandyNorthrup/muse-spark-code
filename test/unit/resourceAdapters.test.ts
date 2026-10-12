@@ -235,6 +235,10 @@ describe('C1 final process admission', () => {
     expect(lease.complete).toHaveBeenCalledWith(true)
   })
 
+  // Since M94 lane K a hook takes its process slot after admission. One
+  // cancelled by then rejects at the slot, gives the admitted lease back and
+  // starts nothing (RVM94KR 4; toolIo.test.ts pins the slot side). Hook
+  // dispatch reads that rejection as it read the cancelled result before.
   it('cancels command hooks while waiting without starting a child', async () => {
     const hold = Promise.withResolvers<ResourceLease>()
     vi.mocked(admitResource).mockReturnValue(hold.promise)
@@ -242,11 +246,13 @@ describe('C1 final process admission', () => {
     const runHook = io().runHook
     if (runHook === undefined) throw new Error('Missing hook launcher')
     const pending = runHook('exit 0', '{}', process.cwd(), 1000, stop.signal)
+    const rejection = expect(pending).rejects.toThrow('hook command cancelled')
     stop.abort()
     hold.resolve(lease)
-    expect(await pending).toMatchObject({ isCancelled: true })
+    await rejection
     expect(admitResource).toHaveBeenCalledWith('hook', stop.signal)
     expect(childProcess.spawn).not.toHaveBeenCalled()
+    expect(lease.complete).toHaveBeenCalledWith(true)
   })
 
   it('rechecks the Git owner immediately before spawning after a resource wait', async () => {

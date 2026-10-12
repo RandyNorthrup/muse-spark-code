@@ -113,10 +113,11 @@ describe('the production browser English and full-table contract', () => {
       installVaultEnglish,
     } = fixture.browser
     expect(Object.keys(EN).toSorted(byText)).toEqual([...fixture.keys].toSorted(byText))
-    // C-X-1: Help no longer names accounts or the vault, and the installed
-    // entries mount neither surface, so production carries neither group. The
-    // probe mounts both (loadAccounts, loadVault) to keep their loading pinned.
-    expect(installed.has('accounts')).toBe(false)
+    // C-X-1: Help does not name the vault, and the installed entries mount
+    // neither the vault nor the accounts surface. CM108ACC: Help lists accounts
+    // again, so production carries that group, out of startup and on demand.
+    // The probe mounts both (loadAccounts, loadVault) to keep their loading pinned.
+    expect(installed.has('accounts')).toBe(true)
     expect(installed.has('vault')).toBe(false)
     expect(Object.hasOwn(EN, 'execBudgetRequired')).toBe(false)
     // MINOUT: the provider file's English is Node-only. Team settings take

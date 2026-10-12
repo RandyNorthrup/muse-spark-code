@@ -89,7 +89,11 @@ The plan notice identifies AI-generated content and includes GitHub's report
 link. Token estimates and dispatched-request tallies stay locally in the
 extension's state; ACP ChatGPT tallies currently live for the process lifetime.
 
-## Developer audit
+## Account metadata and developer audit
+
+M108's local `providers.json` holds opaque account ids, user-chosen labels,
+order, limit groups and thresholds; it holds no credential. Credentials stay
+in each account's origin-bound SecretStorage/OS-store slot.
 
 Machine-local Developer options state holds unlock/expiry, recorded profile
 ids and their provider/account ids. Its append-only `developer/developer-audit.jsonl`
@@ -499,6 +503,9 @@ workspace-relative path, language id and redacted code around the cursor.
 Multi-line requests also send bounded redacted excerpts of recent edits and
 symbol definitions. Standard is the default and Meta does not train on this
 traffic; the contributor model is a separate choice that permits training.
+The consent question names the model it covers, and the first request on a
+different model asks again, so contributor training is always in a question
+you answered.
 Requests use `store: false` and their own prompt cache key, with no chat
 history, goal or memory.
 
@@ -517,10 +524,30 @@ its suggestion is dismissed, so its cost is accounted for. Missing usage
 keeps the reservation. The typing-through cache and the recent-edit path
 list are kept only in this window's memory.
 
-Tab's hook bridge is prepared for M91/lane K; configuring Cursor's Tab hooks
-does not yet execute them in this build. When that lane lands, a local
-`beforeTabFileRead` hook sees the full unredacted file and may deny it;
-`afterTabFileEdit` observes accepted edits locally.
+**Cursor's Tab hooks run in this build.** When hooks are enabled
+(`museSpark.modelApiHooks`) and the workspace is trusted, a
+`beforeTabFileRead` hook configured in the project's `.muse/spark-hooks.json`
+or your user `spark-hooks.json` runs as a local process before Tab reads any
+file: the current file and every context file. Its standard input holds the
+file's absolute path, its **full, unredacted text** (secrets included:
+redaction happens only before text leaves for Meta), the workspace folder
+paths, the Tab model and the request id. An `afterTabFileEdit` hook runs
+after you accept a suggestion, in full or a word or line at a time, and
+receives the file's absolute path, the accepted text and the line before
+and after it (512 characters each at most), a 1-based range, the workspace
+folder paths, the model and the request id; it only observes. The extension
+sends neither payload anywhere; the command you configured decides what it
+does with it, so configure only commands you trust. Hook processes get a
+scrubbed environment, never the Model API key.
+
+A hook file that is present but cannot be loaded in full stops Tab reading
+any file until it is fixed, and the status bar says so; the log names the
+problem. From the moment a hook file or setting change is noticed until it
+has been reloaded, Tab reads nothing. A request whose trust, Tab settings,
+`files.exclude`, ignore files, hook configuration or consent change before
+it is sent, or before its answer shows, is dropped; the last check runs
+immediately before the request goes out. The model a request sends is the
+one its consent question named, at the price it named.
 
 ## Credentials
 

@@ -16,10 +16,14 @@ import {
   USAGE_ROLLUP_LOCK_STALE_MS,
   USAGE_HISTOGRAM_EDGES_MS,
   USAGE_WINDOW_DAY_MS,
-  EXEC_USD_UNITS,
 } from '../../shared/constants'
+import { legacyUsdSchema } from '../../shared/usdSchema'
+import { parseJsonWithExactNumbers } from '../../shared/exactJson'
 import {
   usageJournalEntrySchema,
+  costSchemaWith,
+  limitSchemaWith,
+  recordSchemaWith,
   usageLimitSnapshotSchema,
   usageAmountSchema,
   usageCountSchema,
@@ -36,7 +40,8 @@ import {
 } from '../../shared/usageJournal'
 import { createUsageRecord, usageLocalDay, type UsageRecordContext } from './journalRecord'
 import type { Usage } from '../backends/modelapi/schemas'
-import { emptyUsageMeasurements, usdUnits } from './aggregate'
+import { emptyUsageMeasurements } from './aggregate'
+import { Usd } from '../../shared/usd'
 
 export interface UsageFileStat {
   readonly size: number
@@ -79,65 +84,144 @@ const decoder = new TextDecoder('utf-8', { fatal: true })
 // The host constructs one writer per process; even an accidental second
 // instance must not repeat a diagnostic that could otherwise flood the log.
 const writeDiagnosticState = { hasLogged: false }
+// M121: version 1 stored dollars as JSON numbers. They read through
+// `legacyUsdSchema` as the decimals they were written as; a line whose written
+// digits a number cannot carry is refused (`parseUsageJson`), never rounded.
+const USAGE_LEGACY_JOURNAL_VERSION = 1
+const usageLegacyCostSchema = costSchemaWith(legacyUsdSchema)
+const usageLegacyLimitSnapshotSchema = limitSchemaWith(
+  USAGE_LEGACY_JOURNAL_VERSION,
+  legacyUsdSchema,
+)
+/** A stored line: a version 2 entry, or a version 1 entry read as version 2. */
+const usageJournalReadSchema = z.union([
+  usageJournalEntrySchema,
+  z.pipe(
+    z.discriminatedUnion('type', [
+      recordSchemaWith(USAGE_LEGACY_JOURNAL_VERSION, usageLegacyCostSchema),
+      usageLegacyLimitSnapshotSchema,
+    ]),
+    z.transform((entry): UsageJournalEntry => ({ ...entry, v: USAGE_JOURNAL_VERSION })),
+  ),
+])
 const histogramSchema = z
   .array(usageCountSchema)
   .check(z.length(USAGE_HISTOGRAM_EDGES_MS.length + 1))
-export const usageRollupRowSchema = z.strictObject({
-  day: usageDaySchema,
-  client: usageLabelSchema,
-  backend: z.enum(['museCode', 'modelApi']),
-  provider: usageLabelSchema,
-  model: usageLabelSchema,
-  kind: usageKindSchema,
-  records: usageCountSchema,
-  tokens: usageTokensSchema,
-  units: usageUnitsSchema,
-  cost: usageCostSchema,
-  durationMs: z.optional(usageAmountSchema),
-  firstTokenMs: z.optional(usageAmountSchema),
-  packedAvoided: z.optional(usageCountSchema),
-  retries: usageCountSchema,
-  rateLimited: usageCountSchema,
-  latencyHistogram: histogramSchema,
-  durationSamples: usageCountSchema,
-  firstTokenSamples: usageCountSchema,
-  // Optional for existing v1 files, whose independent sums cannot recover paired rates.
-  measurements: z.optional(
-    z.strictObject({
-      cache: z.strictObject({
-        records: usageCountSchema,
-        input: usageCountSchema,
-        cached: usageCountSchema,
+function rollupRowSchemaWith<C extends typeof usageCostSchema | typeof usageLegacyCostSchema>(
+  cost: C,
+) {
+  return z.strictObject({
+    day: usageDaySchema,
+    client: usageLabelSchema,
+    backend: z.enum(['museCode', 'modelApi']),
+    provider: usageLabelSchema,
+    model: usageLabelSchema,
+    kind: usageKindSchema,
+    records: usageCountSchema,
+    tokens: usageTokensSchema,
+    units: usageUnitsSchema,
+    cost,
+    durationMs: z.optional(usageAmountSchema),
+    firstTokenMs: z.optional(usageAmountSchema),
+    packedAvoided: z.optional(usageCountSchema),
+    retries: usageCountSchema,
+    rateLimited: usageCountSchema,
+    latencyHistogram: histogramSchema,
+    durationSamples: usageCountSchema,
+    firstTokenSamples: usageCountSchema,
+    // Optional for existing v1 files, whose independent sums cannot recover paired rates.
+    measurements: z.optional(
+      z.strictObject({
+        cache: z.strictObject({
+          records: usageCountSchema,
+          input: usageCountSchema,
+          cached: usageCountSchema,
+        }),
+        speed: z.strictObject({
+          records: usageCountSchema,
+          output: usageCountSchema,
+          durationMs: usageAmountSchema,
+        }),
+        latency: z.strictObject({ records: usageCountSchema, durationMs: usageAmountSchema }),
+        firstToken: z.strictObject({ records: usageCountSchema, firstTokenMs: usageAmountSchema }),
       }),
-      speed: z.strictObject({
-        records: usageCountSchema,
-        output: usageCountSchema,
-        durationMs: usageAmountSchema,
-      }),
-      latency: z.strictObject({ records: usageCountSchema, durationMs: usageAmountSchema }),
-      firstToken: z.strictObject({ records: usageCountSchema, firstTokenMs: usageAmountSchema }),
-    }),
-  ),
-})
-export type UsageRollupRow = z.infer<typeof usageRollupRowSchema>
-const rollupSchema = z
-  .strictObject({
-    v: z.literal(USAGE_JOURNAL_VERSION),
-    month: z.string().check(z.regex(/^\d{4}-\d{2}$/)),
-    days: z.array(usageDaySchema),
-    rows: z.array(usageRollupRowSchema),
-    limits: z.array(usageLimitSnapshotSchema),
-  })
-  .check(
-    z.refine(
-      (value) =>
-        new Set(value.days).size === value.days.length &&
-        value.days.every((day) => day.startsWith(`${value.month}-`)) &&
-        value.rows.every((row) => value.days.includes(row.day)) &&
-        value.limits.every((limit) => value.days.includes(limit.day)),
     ),
-  )
+  })
+}
+export const usageRollupRowSchema = rollupRowSchemaWith(usageCostSchema)
+export type UsageRollupRow = z.infer<typeof usageRollupRowSchema>
+function rollupSchemaWith<
+  V extends number,
+  C extends typeof usageCostSchema | typeof usageLegacyCostSchema,
+  L extends typeof usageLimitSnapshotSchema | typeof usageLegacyLimitSnapshotSchema,
+>(version: V, cost: C, limit: L) {
+  return z
+    .strictObject({
+      v: z.literal(version),
+      month: z.string().check(z.regex(/^\d{4}-\d{2}$/)),
+      days: z.array(usageDaySchema),
+      rows: z.array(rollupRowSchemaWith(cost)),
+      limits: z.array(limit),
+    })
+    .check(
+      z.refine(
+        (value) =>
+          new Set(value.days).size === value.days.length &&
+          value.days.every((day) => day.startsWith(`${value.month}-`)) &&
+          value.rows.every((row) => value.days.includes(row.day)) &&
+          value.limits.every((limit) => value.days.includes(limit.day)),
+      ),
+    )
+}
+const rollupSchema = rollupSchemaWith(
+  USAGE_JOURNAL_VERSION,
+  usageCostSchema,
+  usageLimitSnapshotSchema,
+)
 type Rollup = z.infer<typeof rollupSchema>
+// A version 1 month reads as version 2 with the same exact decimals (M121);
+// the next retention that changes it writes it back as version 2.
+const rollupReadSchema = z.union([
+  rollupSchema,
+  z.pipe(
+    rollupSchemaWith(
+      USAGE_LEGACY_JOURNAL_VERSION,
+      usageLegacyCostSchema,
+      usageLegacyLimitSnapshotSchema,
+    ),
+    z.transform((rollup): Rollup => ({
+      ...rollup,
+      v: USAGE_JOURNAL_VERSION,
+      limits: rollup.limits.map((limit) => ({ ...limit, v: USAGE_JOURNAL_VERSION })),
+    })),
+  ),
+])
+// Refusal counts need only metadata, never validation of the unproved money.
+const rollupCountSchema = z.object({
+  rows: z.array(z.object({ records: usageCountSchema })),
+  limits: z.array(z.unknown()),
+})
+/** Dollar fields version 1 wrote as JSON numbers (records, limits and rollups). */
+const USAGE_LEGACY_MONEY_KEYS: ReadonlySet<string> = new Set([
+  'usd',
+  'apiEquivalentUsd',
+  'usedUsd',
+  'limitUsd',
+  'remainingUsd',
+])
+/**
+ * Parse stored JSON. A version 1 dollar is exact only when the number it
+ * parses to has the same decimal value as the digits written: 0.17 wrote
+ * JSON.stringify's shortest spelling, which always does; digits beyond a
+ * double (an edited or foreign file) do not, and `isExact` is false so the
+ * reader refuses the record instead of rounding it. The written digits come
+ * from `parseJsonWithExactNumbers`, never the reviver's source text, so the
+ * refusal holds on Node 20 as well as newer runtimes (M121 P2-1).
+ */
+function parseUsageJson(text: string): { readonly value: unknown; readonly isExact: boolean } {
+  return parseJsonWithExactNumbers(text, USAGE_LEGACY_MONEY_KEYS)
+}
+
 const versionSchema = z.object({ v: z.int().check(z.gte(1)) })
 interface FileCache extends UsageFileStat {
   readonly offset: number
@@ -145,6 +229,7 @@ interface FileCache extends UsageFileStat {
   readonly newerVersionRecords: number
   readonly tornLines: number
   readonly invalidLines: number
+  readonly inexactRecords: number
 }
 export interface UsageJournalRead {
   readonly records: UsageRecord[]
@@ -156,6 +241,11 @@ export interface UsageJournalRead {
   readonly newerVersionFiles: number
   readonly tornLines: number
   readonly invalidLines: number
+  /**
+   * Version 1 records (lines, or a month's rollup rows) whose written dollars
+   * a number cannot carry: refused and named on the page, never rounded (M121).
+   */
+  readonly inexactRecords: number
 }
 export interface UsageJournalOptions {
   readonly writerId: string
@@ -231,11 +321,12 @@ export function rollupUsageRecords(records: readonly UsageRecord[]): UsageRollup
       if (value !== undefined) row.units[field] = value
     }
     for (const field of ['usd', 'apiEquivalentUsd'] as const) {
-      if (record.cost[field] === undefined) continue
-      // As in raw aggregation, these fields hold integer micro-dollars until completion.
-      const value = (row.cost[field] ?? 0) + usdUnits(record.cost[field])
-      if (!Number.isSafeInteger(value)) throw new Error('unsafe usage sum')
-      row.cost[field] = value
+      const amount = record.cost[field]
+      if (amount === undefined) continue
+      // Exact decimal sums (M121); version 1 rollups rounded to micro-dollars.
+      row.cost[field] = Usd.from(row.cost[field] ?? 0)
+        .add(Usd.from(amount))
+        .toAmount()
     }
     const measurements = (row.measurements ??= emptyUsageMeasurements())
     if (record.tokens.input !== undefined && record.tokens.cached !== undefined) {
@@ -270,8 +361,6 @@ export function rollupUsageRecords(records: readonly UsageRecord[]): UsageRollup
   }
   const result: UsageRollupRow[] = []
   rows.forEach((row) => {
-    for (const field of ['usd', 'apiEquivalentUsd'] as const)
-      if (row.cost[field] !== undefined) row.cost[field] /= EXEC_USD_UNITS
     result.push(row)
   })
   return result
@@ -281,7 +370,7 @@ export class UsageJournalStore {
   private readonly cache = new Map<string, FileCache>()
   private readonly rollupCache = new Map<
     string,
-    UsageFileStat & { readonly rollup: Rollup | undefined }
+    UsageFileStat & { readonly rollup: Rollup | undefined; readonly inexact: number }
   >()
   private queue = Promise.resolve()
   public constructor(
@@ -319,6 +408,7 @@ export class UsageJournalStore {
         newerVersionRecords: 0,
         tornLines: 0,
         invalidLines: 0,
+        inexactRecords: 0,
       }
     }
     const cached = this.cache.get(file)
@@ -332,6 +422,7 @@ export class UsageJournalStore {
     const entries = [...(previous?.entries ?? [])]
     let newerVersionRecords = previous?.newerVersionRecords ?? 0
     let invalidLines = previous?.invalidLines ?? 0
+    let inexactRecords = previous?.inexactRecords ?? 0
     let offset = 0
     // Native byte search avoids instrumenting one JavaScript iteration per byte
     // in large cold scans; offsets still advance only over complete lines.
@@ -347,12 +438,16 @@ export class UsageJournalStore {
           invalidLines += 1
           continue
         }
-        const value: unknown = JSON.parse(decoder.decode(line))
+        const { value, isExact } = parseUsageJson(decoder.decode(line))
         if (isNewer(value)) {
           newerVersionRecords += 1
           continue
         }
-        const result = usageJournalEntrySchema.safeParse(value)
+        if (!isExact) {
+          inexactRecords += 1
+          continue
+        }
+        const result = usageJournalReadSchema.safeParse(value)
         if (result.success) entries.push(result.data)
         else invalidLines += 1
       } catch {
@@ -365,14 +460,16 @@ export class UsageJournalStore {
       offset: start + offset,
       newerVersionRecords,
       invalidLines,
+      inexactRecords,
       tornLines: offset < bytes.length ? 1 : 0,
     }
     this.cache.set(file, next)
     return next
   }
-  private async readRollups(): Promise<{ rollups: Rollup[]; newer: number }> {
+  private async readRollups(): Promise<{ rollups: Rollup[]; newer: number; inexact: number }> {
     const rollups: Rollup[] = []
     let newer = 0
+    let inexact = 0
     const names = await this.fs.list(ROLLUPS_ROOT)
     for (const name of names) {
       if (!/^\d{4}-\d{2}\.json$/.test(name)) continue
@@ -381,22 +478,37 @@ export class UsageJournalStore {
       if (stat === undefined) continue
       const cached = this.rollupCache.get(file)
       if (cached?.size === stat.size && cached.mtimeMs === stat.mtimeMs) {
-        if (cached.rollup === undefined) newer += 1
+        if (cached.inexact > 0) inexact += cached.inexact
+        else if (cached.rollup === undefined) newer += 1
         else rollups.push(cached.rollup)
         continue
       }
-      const value: unknown = JSON.parse(decoder.decode(await this.fs.read(file, 0)))
+      const { value, isExact } = parseUsageJson(decoder.decode(await this.fs.read(file, 0)))
       if (isNewer(value)) {
         newer += 1
-        this.rollupCache.set(file, { ...stat, rollup: undefined })
+        this.rollupCache.set(file, { ...stat, rollup: undefined, inexact: 0 })
         continue
       }
-      const rollup = rollupSchema.parse(value)
+      if (!isExact) {
+        // The whole month is refused, and kept untouched for a later reader.
+        const metadata = rollupCountSchema.safeParse(value)
+        const count = metadata.success
+          ? Math.max(
+              1,
+              metadata.data.rows.reduce((total, row) => total + row.records, 0) +
+                metadata.data.limits.length,
+            )
+          : 1
+        inexact += count
+        this.rollupCache.set(file, { ...stat, rollup: undefined, inexact: count })
+        continue
+      }
+      const rollup = rollupReadSchema.parse(value)
       if (`${rollup.month}.json` !== name) throw new Error('invalidRollupMonth')
-      this.rollupCache.set(file, { ...stat, rollup })
+      this.rollupCache.set(file, { ...stat, rollup, inexact: 0 })
       rollups.push(rollup)
     }
-    return { rollups, newer }
+    return { rollups, newer, inexact }
   }
   private async readDay(day: string): Promise<FileCache[]> {
     const files: FileCache[] = []
@@ -415,6 +527,7 @@ export class UsageJournalStore {
     let newerVersionRecords = 0
     let tornLines = 0
     let invalidLines = 0
+    let inexactRecords = stored.inexact
     const days = await this.fs.list(DAYS_ROOT)
     for (const day of days) {
       if (!usageDaySchema.safeParse(day).success || covered.has(day)) continue
@@ -423,6 +536,7 @@ export class UsageJournalStore {
         newerVersionRecords += file.newerVersionRecords
         tornLines += file.tornLines
         invalidLines += file.invalidLines
+        inexactRecords += file.inexactRecords
         for (const entry of file.entries) {
           if (entry.day !== day) {
             invalidLines += 1
@@ -442,11 +556,13 @@ export class UsageJournalStore {
       newerVersionFiles: stored.newer,
       tornLines,
       invalidLines,
+      inexactRecords,
       recordCount:
         records.length +
         limits.length +
         rollups.reduce((count, row) => count + row.records, 0) +
-        newerVersionRecords,
+        newerVersionRecords +
+        inexactRecords,
     }
   }
   /** Keeps normalisation, settlement and validation inside the non-failing tap. */
@@ -502,7 +618,8 @@ export class UsageJournalStore {
     try {
       const stored = await this.readRollups()
       // A newer maintenance format must be handled by its own reader.
-      if (stored.newer > 0) return false
+      // So is a refused month: rewriting it would lose what it holds.
+      if (stored.newer > 0 || stored.inexact > 0) return false
       const today = usageLocalDay(this.options.now())
       const detailCutoff = shiftedDay(today, -(USAGE_DETAIL_DAYS - 1))
       const historyCutoff = shiftedDay(today, -(historyDays - 1))
@@ -517,8 +634,11 @@ export class UsageJournalStore {
           if (
             files.some(
               (file) =>
-                file.tornLines + file.invalidLines + file.newerVersionRecords > 0 ||
-                file.entries.some((entry) => entry.day !== day),
+                file.tornLines +
+                  file.invalidLines +
+                  file.newerVersionRecords +
+                  file.inexactRecords >
+                  0 || file.entries.some((entry) => entry.day !== day),
             )
           )
             continue

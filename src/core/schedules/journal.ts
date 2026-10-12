@@ -7,6 +7,7 @@ import {
   SCHEDULE_JOURNAL_MAX_OPS,
   SCHEDULE_JOURNAL_SEAL_MAX_BYTES,
 } from '../../shared/constants'
+import { parseJsonWithExactNumbers } from '../../shared/exactJson'
 
 export interface ScheduleFsPort {
   read(file: string): Promise<string | undefined>
@@ -28,10 +29,32 @@ export function newestScheduleSlots(names: readonly string[], pattern: RegExp): 
     .toSorted((a, b) => Number.parseInt(b) - Number.parseInt(a))
 }
 
-/** Stored corruption must not quote private prompts or event contents. */
+/** Dollar fields a version 1 schedule wrote as JSON numbers (caps, consent budgets, fire costs). */
+export const SCHEDULE_LEGACY_MONEY_KEYS: ReadonlySet<string> = new Set([
+  'paidCapUsd',
+  'dailyCapUsd',
+  'sharedDailyBudgetUsd',
+  'maxBudgetUsd',
+  'usd',
+  'retainedLiabilityUsd',
+])
+
+/**
+ * Stored corruption must not quote private prompts or event contents. A
+ * version 1 dollar whose written digits a double cannot carry is refused
+ * here, never rounded: the written digits come from `parseJsonWithExactNumbers`,
+ * never the reviver's source text, so the refusal holds on Node 20 as well
+ * as newer runtimes (M121 P2-1). Version 2 writes decimal text, so the check
+ * is a no-op there.
+ */
 export function parseScheduleStoredJson(content: string | undefined): unknown {
   try {
-    return JSON.parse(content ?? 'null')
+    const { value, isExact } = parseJsonWithExactNumbers(
+      content ?? 'null',
+      SCHEDULE_LEGACY_MONEY_KEYS,
+    )
+    if (!isExact) throw new Error('scheduleStoredJsonInvalid')
+    return value
   } catch {
     throw new Error('scheduleStoredJsonInvalid')
   }

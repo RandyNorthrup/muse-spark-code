@@ -5,7 +5,19 @@ import path from 'node:path'
 import * as childProcess from 'node:child_process'
 import * as z from 'zod/mini'
 import { buildFixtureRepository } from './helpers/reporting/repository'
-import { reportOptions, REPORT_FIXTURE_AS_OF } from './helpers/reporting/snapshot'
+import {
+  availableSource,
+  buildSourceSnapshot,
+  reportOptions,
+  REPORT_FIXTURE_AS_OF,
+} from './helpers/reporting/snapshot'
+import { changeSelections } from './helpers/reporting/collect'
+import {
+  renderAllFormats,
+  reportTestCollector,
+  testSelections,
+  threeIndexOrders,
+} from './helpers/reporting/render'
 import { gitSource, type ReportGitIo } from '../../src/core/reporting/sources/git'
 import { REPORT_GIT_MAX_COMMITS } from '../../src/shared/constants'
 import { redactSecrets } from '../../src/core/redact'
@@ -25,6 +37,33 @@ const context = () => ({
   options: reportOptions(),
   signal: new AbortController().signal,
 })
+function permutedGitIo(
+  idsInOrder: readonly string[],
+  rows: {
+    log: (id: string) => string
+    worktree: (id: string) => string
+    tag: (id: string) => string
+    merged: string
+    branches: string
+  },
+): ReportGitIo {
+  return {
+    run: (args) => {
+      let stdout = ''
+      if (args.includes('--verify')) stdout = 'a'.repeat(40)
+      else if (args.includes('log')) stdout = idsInOrder.map((id) => rows.log(id)).join('')
+      else if (args.includes('worktree'))
+        stdout = idsInOrder.map((id) => rows.worktree(id)).join('')
+      else if (args.includes('refs/tags/')) stdout = idsInOrder.map((id) => rows.tag(id)).join('')
+      else if (args.some((arg) => arg.startsWith('--merged='))) stdout = rows.merged
+      else if (args.includes('for-each-ref')) stdout = rows.branches
+      return Promise.resolve({ stdout, code: args.includes('symbolic-ref') ? 1 : 0 })
+    },
+  }
+}
+function gitRecordAt(id: string): string {
+  return new Date(Date.parse(REPORT_FIXTURE_AS_OF) + (id.codePointAt(0) ?? 0)).toISOString()
+}
 describe('local Git report source', () => {
   let root: string
   let repo: Awaited<ReturnType<typeof buildFixtureRepository>>
@@ -120,6 +159,92 @@ describe('local Git report source', () => {
     const first = await port.read(context())
     expect(JSON.stringify(first)).not.toContain(canary)
     expect(first).toEqual(await port.read(context()))
+  })
+  it('produces byte-identical Git facts when shuffled records have tied scrubbed identities and paths', async () => {
+    const ids = ['a', 'b', 'c']
+    let expected: string | undefined
+    for (const order of [ids, ids.toReversed(), [...ids.slice(1), ids[0] ?? '']]) {
+      const fake = permutedGitIo(order, {
+        log: (id) => `\0${id.repeat(40)}\0${REPORT_FIXTURE_AS_OF}\0Subject ${id}\0\n${id}.ts\0`,
+        worktree: (id) =>
+          `worktree /fixture/private-${id}\0HEAD ${id.repeat(40)}\0branch refs/heads/${id}\0\0`,
+        tag: (id) =>
+          `private-${id}\0${id.repeat(40)}\0\0${new Date(Date.parse(REPORT_FIXTURE_AS_OF) + (id.codePointAt(0) ?? 0)).toISOString()}\n`,
+        merged: 'refs/heads/main\nrefs/heads/private-a\n',
+        branches:
+          `refs/heads/main\0${'a'.repeat(40)}\n` +
+          order.map((id) => `refs/heads/private-${id}\0${id.repeat(40)}\n`).join(''),
+      })
+      const result = await gitSource(fake, (text) =>
+        text.replaceAll(/private-[abc]|^[abc]{40}$/gu, '[redacted]'),
+      ).read(context())
+      expect(result.record.status).toBe('ok')
+      expect(result.data?.commits).toHaveLength(ids.length)
+      expect(result.data?.tags).toHaveLength(ids.length)
+      expect(result.data?.branches).toHaveLength(ids.length + 1)
+      expect(result.data?.worktrees).toHaveLength(ids.length)
+      const bytes = JSON.stringify(result)
+      expected ??= bytes
+      expect(bytes).toBe(expected)
+    }
+  })
+  it('renders byte-identical changes and project reports in every format for every commit order', async () => {
+    // RVCM1131 finding 1: the tied-identity test above proves source facts
+    // are stable, but only a rendered report certifies the report. This test
+    // carries permuted Git inputs (distinct post-scrub identities, so every
+    // collector row keeps a distinct key) through the production collector,
+    // finalizer and all four renderers, for both the changes kind (commits)
+    // and the project kind (tags surface as releases). Branches and
+    // worktrees have no collector consumer today, so their order is proven
+    // at the source level only; that boundary is recorded in
+    // docs/certification/m113-s-local-sources.md.
+    const ids = ['a', 'b', 'c']
+    const collect = reportTestCollector({ ...testSelections(), ...changeSelections() })
+    let expectedSource: string | undefined
+    let expectedRenders: Record<string, string> | undefined
+    for (const order of threeIndexOrders) {
+      const idsInOrder = order.map((step) => ids[step] ?? 'a')
+      const fake = permutedGitIo(idsInOrder, {
+        log: (id) => `\0${id.repeat(40)}\0${gitRecordAt(id)}\0Render subject ${id}\0\n${id}.ts\0`,
+        worktree: (id) =>
+          `worktree /fixture/render-${id}\0HEAD ${id.repeat(40)}\0branch refs/heads/render/${id}\0\0`,
+        tag: (id) => `render-tag-${id}\0${id.repeat(40)}\0\0${gitRecordAt(id)}\n`,
+        merged: 'refs/heads/main\n',
+        branches:
+          `refs/heads/main\0${'a'.repeat(40)}\n` +
+          idsInOrder.map((id) => `refs/heads/render/${id}\0${id.repeat(40)}\n`).join(''),
+      })
+      const result = await gitSource(fake, (text) =>
+        text.replaceAll('private-render-canary', '[redacted]'),
+      ).read(context())
+      expect(result.record.status).toBe('ok')
+      expect(result.data?.commits.map((row) => row.sha)).toEqual([
+        'a'.repeat(40),
+        'b'.repeat(40),
+        'c'.repeat(40),
+      ])
+      const bytes = JSON.stringify(result)
+      expectedSource ??= bytes
+      expect(bytes).toBe(expectedSource)
+      if (result.data === null) throw new Error('Missing test facts')
+      const snapshot = buildSourceSnapshot({
+        git: result,
+        changelog: availableSource('changelog', {
+          sections: [{ version: 'Unreleased', date: null, lines: ['Render change'] }],
+        }),
+      })
+      const rendered: Record<string, string> = {}
+      for (const kind of ['changes', 'project'] as const) {
+        const document = collect(snapshot, reportOptions(kind))
+        expect(document.header.contentHash).toMatch(/^[a-f0-9]{64}$/u)
+        const formats = renderAllFormats(document)
+        for (const [format, output] of Object.entries(formats)) {
+          rendered[`${kind}/${format}`] = output
+        }
+      }
+      expectedRenders ??= rendered
+      expect(rendered).toEqual(expectedRenders)
+    }
   })
   it('shows working-tree paths relative to the workspace before scrubbing', async () => {
     const result = await gitSource(io, redactSecrets, [repo.root]).read(context())

@@ -315,7 +315,9 @@ function activationHarness(
     bundleServices: services = harnessServices(),
     ...deps
   } = overrides
-  const consent: TabUseConsent = { requestUse: () => Promise.resolve(true) }
+  const consent: TabUseConsent = {
+    requestUse: () => Promise.resolve({ scope: 'window', isCurrent: () => true }),
+  }
   let servicesFound: TabServicesDeps | undefined
   const log = new FakeLogOutputChannel()
   const loadBundle = vi.fn(() => {
@@ -450,6 +452,26 @@ function activationHarness(
 }
 
 describe('createTabActivation', () => {
+  it('hands hook dispatch to the lazy provider without running hooks at activation', async () => {
+    const dispatch = {
+      isHooksEnabled: vi.fn(() => true),
+      load: vi.fn(() => Promise.resolve(undefined)),
+    }
+    const harness = activationHarness({ hookDispatch: dispatch })
+    harness.settingOn = true
+    harness.activation.refresh()
+    expect(harness.loadBundle).not.toHaveBeenCalled()
+    expect(dispatch.load).not.toHaveBeenCalled()
+    await harness.providers[0]?.provideInlineCompletionItems(
+      new FakeTextDocument(Uri.file('/ws/file.ts'), 'typescript', 'const y = '),
+      new Position(0, 10),
+      { triggerKind: InlineCompletionTriggerKind.Invoke, selectedCompletionInfo: undefined },
+      new FakeCancellationToken(),
+    )
+    expect(harness.providerDeps()?.hookDispatch).toBe(dispatch)
+    expect(dispatch.load).not.toHaveBeenCalled()
+    harness.activation.dispose()
+  })
   it('registers the commands but loads nothing while the setting is off', () => {
     const harness = activationHarness()
     expect(harness.registered.size).toBe(Object.values(TAB_COMMAND_IDS).length)
@@ -597,6 +619,25 @@ describe('createTabActivation', () => {
   })
 })
 
+describe('RVM94KR 1: the status says why Tab reads nothing', () => {
+  it('shows a broken hook file until a trigger finds it loads', async () => {
+    const harness = activationHarness()
+    harness.settingOn = true
+    harness.activation.refresh()
+    await loadThroughMenu(harness)
+    const providerDeps = harness.providerDeps()
+    providerDeps?.onOutcome({ kind: 'quiet', reason: 'hooks-invalid' })
+    expect(lastStatusItem().text).toBe(`$(error) ${UI_TEXT.tabStatusHooksInvalid}`)
+    expect(lastStatusItem().tooltip).toBe(UI_TEXT.tabStatusHooksInvalidDetail)
+    // A trigger that stops before the hooks are read says nothing about them.
+    providerDeps?.onOutcome({ kind: 'quiet', reason: 'suggest-selection' })
+    expect(lastStatusItem().text).toBe(`$(error) ${UI_TEXT.tabStatusHooksInvalid}`)
+    providerDeps?.onOutcome({ kind: 'served', mode: 'fast' })
+    expect(lastStatusItem().text).not.toContain(UI_TEXT.tabStatusHooksInvalid)
+    harness.activation.dispose()
+  })
+})
+
 describe('the shipped Tab bundle', () => {
   it('is the module the loader accepts', () => {
     const loaded = tabLoader({
@@ -689,7 +730,9 @@ describe('the shipped Tab bundle', () => {
       onIgnoreFilesChanged: () => ({ dispose: () => undefined }),
       onDidChangeTextDocument: () => ({ dispose: () => undefined }),
       ...services,
-      consent: { requestUse: () => Promise.resolve(true) },
+      consent: {
+        requestUse: () => Promise.resolve({ scope: 'window', isCurrent: () => true }),
+      },
       onOutcome: () => undefined,
       log: new FakeLogOutputChannel(),
       uiTable: UI_TEXT,

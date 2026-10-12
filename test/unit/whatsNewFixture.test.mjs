@@ -111,9 +111,14 @@ describe('the What’s New screenshot fixture', () => {
     const fixtures = readFileSync('test/harness/goldens/fixtures.mjs', 'utf8')
     expect(fixtures).toContain(`const WHATS_NEW_FIXTURE = '${FIXTURE}'`)
     expect(fixtures).toContain("await readFile(path.join(auditRoot, WHATS_NEW_FIXTURE), 'utf8'),")
+    // On the train the builder returns a result (the What's New budget): the
+    // capture encodes the fixture's releases, refuses an over-budget fixture
+    // and parses the encoded text.
     expect(fixtures).toContain(
-      'encodeWhatsNewContent(JSON.stringify({ schema: WHATS_NEW_CONTENT_SCHEMA_VERSION, releases }))',
+      'const encoded = encodeWhatsNewContent(\n    JSON.stringify({ schema: WHATS_NEW_CONTENT_SCHEMA_VERSION, releases }),\n  )',
     )
+    expect(fixtures).toContain("if (encoded.kind !== 'encoded')\n    throw new Error(")
+    expect(fixtures).toContain('const content = parseWhatsNewContent(encoded.text)')
     // Both releases, and the version line from the fixture's newest.
     expect(fixtures).toContain(
       '    releases,\n    from: undefined,\n    current: releases[0].version,',

@@ -3,7 +3,7 @@
 // task shows as interrupted with its partial usage; retention rolls old rows
 // into totals rows; briefs are redacted.
 
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import * as filesystem from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -115,6 +115,19 @@ async function lifetimeInput(ledger: TeamLedger, taskId: string, atMs: number): 
 }
 
 describe('teamLedger', () => {
+  it('reads a real 0.17 ledger file with its dollars exact (M121: no migration needed)', async () => {
+    // Written by 0.17.0's (8f0a75ea1) TeamLedger, unchanged: it already stored
+    // `costUsd` as decimal text, so M121 keeps the format and its version.
+    const directory = await ledgerDir()
+    await cp(new URL('../fixtures/m121/team-ledger-v1', import.meta.url), directory, {
+      recursive: true,
+    })
+    const read = await openLedger(directory, 'w017').read()
+    expect(read.skippedLines).toBe(0)
+    const latest = TeamLedger.latestByTask(read.rows)
+    expect(latest.get('t1')?.usage.costUsd).toBe('0.0001617')
+    expect(latest.get('t2')?.usage.costUsd).toBe('0.123456789')
+  })
   it('round-trips successful tasks that need no merge as done', async () => {
     const directory = await ledgerDir()
     const ledger = openLedger(directory)
