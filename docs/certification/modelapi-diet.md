@@ -491,11 +491,15 @@ kind (`missing lazy bundle must name itself` holds; the only
 `not available in this build` string left in `src` is the unrelated
 Models & Agents panel notice).
 
-### E8 packed-package turn (MODELAPIDIETR4, 2026-10-12, macmini, blocked)
+### E8 packed-package turn (MODELAPIDIETR4, 2026-10-12, macmini, passes)
 
-Attempted `execStdio.e2e.test.ts -t 'E8 completes one plan-mode turn'`
-on this Mac: the suite's `beforeAll` packaging fails before any
-assertion (`npm pack` inside the test copy exits 1 — npm cannot write
-its log directory `~/.npm/_logs` under this rig's sandbox), so all 46
-tests skip/fail in setup and E8 never runs here. No live or paid call
-was made. The lead runs E8 outside the sandbox.
+`execStdio.e2e.test.ts -t 'E8 completes one plan-mode turn'` passes on
+this Mac (1 passed, 44 skipped, 76.8 s). First attempt failed in
+`beforeAll` packaging because `npm pack` inside the test copy could not
+write its log directory `~/.npm/_logs` under this rig's sandbox; rerun
+with `NPM_CONFIG_CACHE="$TMPDIR/npm-cache"` (a writable temp dir, no
+shim) packs cleanly. The turn runs from the built tarball: exit 0,
+`status: completed` on `mistral/ministral-3b-latest`, `usage.requests`
+1, exactly one `/chat/completions` call in the provider report. The
+preload answers the models list and the one answer from the captured
+exchange, so nothing leaves the machine; no live or paid call was made.
