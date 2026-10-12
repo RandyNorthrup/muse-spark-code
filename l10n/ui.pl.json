@@ -3680,6 +3680,18 @@
     "other": "Tura zatrzymała się po {count} wywołaniach modelu, a ostateczna odpowiedź została ucięta przez limit wyjścia. Częściowa odpowiedź została zachowana. Wyślij wiadomość, aby kontynuować."
   },
   "modelApiWrapUpHookBlocked": "Hook zatrzymania poprosił o dalszą pracę, ale tura osiągnęła limit wywołań modelu, więc ostateczna odpowiedź zostaje.",
+  "modelApiWrapUpFailed": {
+    "one": "Tura zatrzymała się po {count} wywołaniu modelu, ale nie udało się utworzyć podsumowania końcowego ({reason}).",
+    "other": "Tura zatrzymała się po {count} wywołaniach modelu, ale nie udało się utworzyć podsumowania końcowego ({reason}).",
+    "few": "Tura zatrzymała się po {count} wywołaniach modelu, ale nie udało się utworzyć podsumowania końcowego ({reason}).",
+    "many": "Tura zatrzymała się po {count} wywołaniach modelu, ale nie udało się utworzyć podsumowania końcowego ({reason})."
+  },
+  "modelApiWrapUpFailedReason": {
+    "rateLimited": "limit szybkości",
+    "modelError": "błąd modelu",
+    "budget": "limit budżetu",
+    "stopped": "zatrzymano"
+  },
   "execRequestCapReached": {
     "one": "Osiągnięto limit {count} próby.",
     "other": "Osiągnięto limit prób: {count}.",

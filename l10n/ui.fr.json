@@ -3604,6 +3604,17 @@
     "many": "Le tour s’est arrêté après {count} appels au modèle, la réponse finale ayant été tronquée par la limite de sortie. La réponse partielle est conservée. Envoyez un message pour continuer."
   },
   "modelApiWrapUpHookBlocked": "Un hook d’arrêt a demandé du travail supplémentaire, mais le tour a atteint sa limite d’appels au modèle ; la réponse finale est donc conservée.",
+  "modelApiWrapUpFailed": {
+    "one": "Le tour s’est arrêté après {count} appel au modèle, mais le résumé final n’a pas pu être produit ({reason}).",
+    "other": "Le tour s’est arrêté après {count} appels au modèle, mais le résumé final n’a pas pu être produit ({reason}).",
+    "many": "Le tour s’est arrêté après {count} appels au modèle, mais le résumé final n’a pas pu être produit ({reason})."
+  },
+  "modelApiWrapUpFailedReason": {
+    "rateLimited": "limite de débit",
+    "modelError": "erreur du modèle",
+    "budget": "arrêt budgétaire",
+    "stopped": "arrêté"
+  },
   "execRequestCapReached": {
     "one": "La limite de {count} tentative a été atteinte.",
     "other": "La limite de {count} tentatives a été atteinte.",

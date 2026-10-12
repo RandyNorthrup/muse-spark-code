@@ -3528,6 +3528,16 @@
     "other": "Tur, {count} model çağrısından sonra durdu ve nihai yanıt çıktı sınırıyla kesildi. Kısmi yanıt korunur. Devam etmek için bir mesaj gönderin."
   },
   "modelApiWrapUpHookBlocked": "Bir durdurma kancası daha fazla iş istedi, ancak tur model çağrısı sınırına ulaştı, bu yüzden nihai yanıt geçerlidir.",
+  "modelApiWrapUpFailed": {
+    "one": "Tur {count} model çağrısından sonra durdu, ancak nihai özet üretilemedi ({reason}).",
+    "other": "Tur {count} model çağrısından sonra durdu, ancak nihai özet üretilemedi ({reason})."
+  },
+  "modelApiWrapUpFailedReason": {
+    "rateLimited": "hız sınırı",
+    "modelError": "model hatası",
+    "budget": "bütçe durağı",
+    "stopped": "durduruldu"
+  },
   "execRequestCapReached": {
     "one": "{count} denemelik istek sınırına ulaşıldı.",
     "other": "{count} denemelik istek sınırına ulaşıldı."

@@ -3604,6 +3604,17 @@
     "many": "Il turno si è fermato dopo {count} chiamate al modello, con la risposta finale troncata dal limite di output. La risposta parziale viene conservata. Invia un messaggio per continuare."
   },
   "modelApiWrapUpHookBlocked": "Un hook di arresto ha chiesto ulteriore lavoro, ma il turno ha raggiunto il limite di chiamate al modello, quindi la risposta finale resta valida.",
+  "modelApiWrapUpFailed": {
+    "one": "Il turno si è fermato dopo {count} chiamata al modello, ma non è stato possibile produrre il riepilogo finale ({reason}).",
+    "other": "Il turno si è fermato dopo {count} chiamate al modello, ma non è stato possibile produrre il riepilogo finale ({reason}).",
+    "many": "Il turno si è fermato dopo {count} chiamate al modello, ma non è stato possibile produrre il riepilogo finale ({reason})."
+  },
+  "modelApiWrapUpFailedReason": {
+    "rateLimited": "limite di frequenza",
+    "modelError": "errore del modello",
+    "budget": "limite di budget",
+    "stopped": "interrotto"
+  },
   "execRequestCapReached": {
     "one": "Raggiunto il limite di {count} tentativo.",
     "other": "Raggiunto il limite di {count} tentativi.",

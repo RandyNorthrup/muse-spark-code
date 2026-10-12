@@ -3452,6 +3452,15 @@
     "other": "最終回答が出力上限で途切れたため、このターンはモデルの呼び出しが {count} 回に達して停止しました。部分的な回答は保持されます。続けるにはメッセージを送信してください。"
   },
   "modelApiWrapUpHookBlocked": "停止フックが追加の作業を求めましたが、このターンはモデル呼び出しの上限に達したため、最終回答がそのまま残ります。",
+  "modelApiWrapUpFailed": {
+    "other": "ターンはモデル呼び出し{count}回で停止しましたが、最終サマリーを作成できませんでした（{reason}）。"
+  },
+  "modelApiWrapUpFailedReason": {
+    "rateLimited": "レート制限",
+    "modelError": "モデルエラー",
+    "budget": "予算停止",
+    "stopped": "停止"
+  },
   "execRequestCapReached": {
     "other": "リクエスト試行の上限 {count} 回に達しました。"
   },
