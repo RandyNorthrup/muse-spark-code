@@ -94,6 +94,40 @@ async function scheduleLeaseCleanup<T>(work: () => Promise<T>): Promise<T> {
   }, work)
 }
 
+/**
+ * Proof that one fence candidate belongs to its acquisition. Only the
+ * exclusive-publication success path constructs the known handle, and an
+ * interrupted publication is claimed only when the stored candidate bytes
+ * carry the acquisition's unique token. Only this handle authorises the
+ * immutable release marker; a bare candidate path can never release.
+ */
+interface OwnedScheduleFence {
+  readonly candidate: string
+}
+
+/**
+ * Folder fsync exists only where the platform honours it. Production and the
+ * lifecycle matrix share this predicate, so the matrix runs exactly the rows
+ * that can occur here: Windows runs the rows that exist there, and no row is
+ * silently lost elsewhere.
+ */
+export function canRunScheduleFsOperation(operation: string): boolean {
+  const requiresFolderSync = operation === 'disk.openFolder' || operation === 'disk.syncFolder'
+  return process.platform !== 'win32' || !requiresFolderSync
+}
+
+/**
+ * A pulse without a fencing token is a previous-version heartbeat: absence is
+ * legacy and compatible. A present token that contradicts the header stays invalid.
+ */
+function hasFencingContradiction(
+  pulseFencingToken: number | undefined,
+  headerFencingToken: number | undefined,
+): boolean {
+  // Absence fills from the header, so a missing pulse token never contradicts.
+  return (pulseFencingToken ?? headerFencingToken) !== headerFencingToken
+}
+
 /** Queue errors are a closed vocabulary; the reporting table covers this union. */
 export type ScheduleQueueFailure =
   | 'scheduleLeaseBusy'
@@ -187,9 +221,14 @@ export function createScheduleLeaseLock(fs: ScheduleFsPort): ScheduleFsPort['loc
         )
       }
       let fencingToken = 0
-      // A candidate can become authoritative even if publication settles after a
-      // stop or rejects after linking. Its ownership is checked during cleanup.
-      let header: string | undefined
+      // Only a candidate this acquisition published owns a release marker. A
+      // candidate can become authoritative even if publication settles after a
+      // stop or rejects after linking; its ownership is proved during cleanup.
+      let header: OwnedScheduleFence | undefined
+      // The last candidate whose publication outcome a stop obscured. It
+      // becomes a handle only through the token claim in cleanup; a cleanly
+      // lost publication clears it and owns nothing.
+      let attempted: string | undefined
       let heartbeat = Promise.resolve()
       let timer: ReturnType<typeof setInterval> | undefined
       let heartbeatError: Error | undefined
@@ -205,11 +244,15 @@ export function createScheduleLeaseLock(fs: ScheduleFsPort): ScheduleFsPort['loc
             const refreshed = parseLease(pulse)
             // A token-specific pulse cannot change an immutable owner. Only the
             // heartbeat and its sequence may evolve; fencing identity may not.
+            // A pulse without a fencing token is a previous-version heartbeat:
+            // absence is legacy and compatible, so release and expiry are
+            // judged as before. A present token that contradicts the header
+            // stays invalid.
             if (
               refreshed.token !== previous.lease.token ||
               refreshed.pid !== previous.lease.pid ||
               refreshed.start !== previous.lease.start ||
-              refreshed.fencingToken !== previous.lease.fencingToken
+              hasFencingContradiction(refreshed.fencingToken, previous.lease.fencingToken)
             )
               throw scheduleQueueFailure('scheduleQueueLeaseInvalid')
             const released = await scheduleFsOperation('lease.released', () =>
@@ -231,17 +274,19 @@ export function createScheduleLeaseLock(fs: ScheduleFsPort): ScheduleFsPort['loc
           }
           owner.heartbeat = Date.now()
           const candidate = `${folder}/${String(Math.floor(fencingToken / SCHEDULE_JOURNAL_MAX_OPS))}/${String(fencingToken)}.json`
-          header = candidate
-          if (
-            await scheduleFsOperation('lease.fence', () =>
-              fs.publish(candidate, JSON.stringify({ ...owner, fencingToken }), () => {
-                check()
-                return Promise.resolve()
-              }),
-            )
+          attempted = candidate
+          const isPublished = await scheduleFsOperation('lease.fence', () =>
+            fs.publish(candidate, JSON.stringify({ ...owner, fencingToken }), () => {
+              check()
+              return Promise.resolve()
+            }),
           )
-            break
-          header = undefined
+          attempted = undefined
+          // A lost publication owns nothing: keep no handle and loop, so
+          // cleanup cannot release the winner's fence.
+          if (!isPublished) continue
+          header = { candidate }
+          break
         }
         const guard: ScheduleLeaseGuard = Object.assign(
           async () => {
@@ -298,20 +343,34 @@ export function createScheduleLeaseLock(fs: ScheduleFsPort): ScheduleFsPort['loc
       } finally {
         if (timer !== undefined) clearInterval(timer)
         await heartbeat
-        const candidate = header
-        if (candidate !== undefined) {
+        const owned = header
+        const interrupted = owned === undefined ? attempted : undefined
+        if (owned !== undefined || interrupted !== undefined) {
           // This independent scope owns cleanup BEFORE publication begins.
           // Caller cancellation cannot suppress the immutable release marker.
           await scheduleLeaseCleanup(async () => {
-            const content = await scheduleFsOperation('cleanup.header', () => fs.read(candidate))
-            // A present candidate is ours: fence publication is exclusive and
-            // the content carries this acquisition's unique token, so no
-            // competing writer can own this slot. Only an absent candidate (a
-            // stop before any publication settled) releases nothing. The
-            // existence check is enough; the identity stays validated above.
-            if (content === undefined) return
+            // Ownership proof: the success path holds it by construction, and
+            // an interrupted publication earns it only when the stored bytes
+            // carry this acquisition's unique token. Anything else — a lost
+            // publication, a winner's fence, unreadable bytes — owns nothing
+            // and releases nothing.
+            let handle = owned
+            if (handle === undefined && interrupted !== undefined) {
+              const content = await scheduleFsOperation('cleanup.header', () =>
+                fs.read(interrupted),
+              )
+              if (content !== undefined) {
+                try {
+                  if (parseLease(content).token === owner.token) handle = { candidate: interrupted }
+                } catch {
+                  // Bytes this acquisition did not write are never its fence.
+                }
+              }
+            }
+            if (handle === undefined) return
+            const proven: OwnedScheduleFence = handle
             await scheduleFsOperation('cleanup.release', () =>
-              fs.publish(`${candidate}.released`, ''),
+              fs.publish(`${proven.candidate}.released`, ''),
             )
             // Never remove another holder's hint; token-specific pulses are ours.
             try {
@@ -439,7 +498,7 @@ export function createNodeScheduleFs(directory: string): ScheduleFsPort {
             return true
           throw error
         }
-        if (process.platform !== 'win32') {
+        if (canRunScheduleFsOperation('disk.openFolder')) {
           let folder: Awaited<ReturnType<typeof open>> | undefined
           try {
             await scheduleFsOperation('disk.openFolder', async () => {
