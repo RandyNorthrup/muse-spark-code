@@ -5399,6 +5399,8 @@ export const REPORT_WORKING_KINDS = [
   'usage',
   'session',
   'keybindings',
+  'accounts',
+  'security',
 ] as const
 export const REPORT_FORMATS = ['md', 'html', 'json', 'text'] as const
 export const REPORT_FAIL_ON = [
