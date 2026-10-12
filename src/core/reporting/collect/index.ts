@@ -69,8 +69,7 @@ function forward(
       // own data, never a reason to throw a raw parse error: make keys
       // unique before the schema validates everything else strictly.
       const parsed = reportSectionSchema.parse(dedupeUnknownRowKeys(value))
-      // Already omitted rows cannot be recovered; --full requires complete facts.
-      if (options.full && parsed.omittedRows !== 0) throw new Error('report/incompleteFullSource')
+      // Omitted source rows remain disclosed even with --full; accepted facets survive.
       const collected = sourcedSection(
         snapshot,
         options,

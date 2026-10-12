@@ -196,7 +196,13 @@ function dailyBudgetReads() {
 function expectDailyBudgetRow(partial: string | undefined, limits: readonly unknown[]): void {
   expect(partial ?? '').not.toContain(EN.reportDetailReasons.budgetsUnavailable)
   expect(limits).toEqual([
-    { key: 'paidDaily/daily', used: 0.5, limit: 1, resetsAt: null, unit: 'usd' },
+    {
+      key: 'paidDaily/daily',
+      used: Usd.from('0.5').toAmount(),
+      limit: Usd.from('1').toAmount(),
+      resetsAt: null,
+      unit: 'usd',
+    },
   ])
 }
 

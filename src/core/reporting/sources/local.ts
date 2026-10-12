@@ -47,16 +47,22 @@ export class LocalSourceError extends Error {
 }
 /** A failure code from any bundle copy, or undefined when it is not one. */
 export function localFailureOf(error: unknown): LocalFailure | undefined {
-  if (error instanceof LocalSourceError && Object.hasOwn(LOCAL_FAILURES, error.code))
-    return LOCAL_FAILURES[error.code]
-  if (typeof error === 'object' && error !== null) {
-    const branded = error as { isLocalSourceError?: unknown; code?: unknown }
+  try {
+    if (error instanceof LocalSourceError && Object.hasOwn(LOCAL_FAILURES, error.code))
+      return LOCAL_FAILURES[error.code]
     if (
-      branded.isLocalSourceError === true &&
-      typeof branded.code === 'string' &&
-      Object.hasOwn(LOCAL_FAILURES, branded.code)
+      typeof error === 'object' &&
+      error !== null &&
+      'isLocalSourceError' in error &&
+      error.isLocalSourceError === true &&
+      'code' in error &&
+      typeof error.code === 'string' &&
+      Object.hasOwn(LOCAL_FAILURES, error.code)
     )
-      return LOCAL_FAILURES[branded.code]
+      return LOCAL_FAILURES[error.code]
+  } catch {
+    // A caught value is untrusted too: prototype/brand/code getters may throw.
+    return undefined
   }
   return undefined
 }

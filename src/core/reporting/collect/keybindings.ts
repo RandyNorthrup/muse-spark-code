@@ -2,7 +2,7 @@
 // Pure: no file reads, no host calls, so VS Code, ACP and the CLI share the
 // mapping and report the same numbers from the same inputs.
 import type { ReportLabelKey, ReportRow, ReportSection } from '../../../shared/reportSchema'
-import { compare, list, row, text } from './common'
+import { compare, list, row, section as boundedSection, text } from './common'
 
 export interface EditorKeybindingFact {
   readonly command: string
@@ -191,8 +191,7 @@ function deduplicate(rows: ReportRow[]): ReportRow[] {
 }
 
 /**
- * Both facets uncapped: the collector's forward caps rows for display, and
- * `--full` refuses a source that omitted any itself. A skipped blank chord
+ * Both facets pass through the engine's final row admission before validation. A skipped blank chord
  * counts on the bindings section only, so the gap stays visible either way.
  */
 export function collectKeybindingSections(facts: KeybindingsFacts): readonly ReportSection[] {
@@ -201,14 +200,12 @@ export function collectKeybindingSections(facts: KeybindingsFacts): readonly Rep
     label: ReportLabelKey,
     rows: ReportRow[],
     omittedRows: number,
-  ): ReportSection => ({
-    id,
-    label,
-    sortKey: 'key',
-    columns: [...KEYBINDINGS_COLUMNS],
-    rows: deduplicate(rows).toSorted((left, right) => compare(left.key, right.key)),
-    omittedRows,
-  })
+  ): ReportSection => {
+    const admitted = boundedSection(id, label, KEYBINDINGS_COLUMNS, deduplicate(rows), {
+      full: true,
+    })
+    return { ...admitted, omittedRows: admitted.omittedRows + omittedRows }
+  }
   const bindings = bindingRows(facts)
   const conflicts = conflictRows(facts)
   return [

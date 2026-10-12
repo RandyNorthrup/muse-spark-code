@@ -1,3 +1,4 @@
+import { readReportSource } from '../../core/reporting/sources/boundary'
 import reportThemes from '../../../design/tokens/generated/report-themes.json'
 import { homedir } from 'node:os'
 import {
@@ -210,26 +211,26 @@ export function createReportingServices(context: ReportingContext): ReportsServi
         schedules,
         keybindings,
       ] = await Promise.all([
-        sources.plan.read(readContext),
-        sources.package.read(readContext),
-        sources.git.read(readContext),
-        sources.changelog.read(readContext),
-        sources.certification.read(readContext),
-        sources.session.read(readContext),
-        sources.questions.read(readContext),
-        sources.usage.read(readContext),
-        sources.agentUsage.read(readContext),
-        sources.checkRuns.read(readContext),
-        sources.github.read(readContext),
-        sources.stores.read(readContext),
-        sources.fleet.read(readContext),
-        sources.security.read(readContext),
-        sources.accounts.read(readContext),
-        sources.estimate.read(readContext),
-        sources.playbook.read(readContext),
-        sources.issues.read(readContext),
-        sources.schedules.read(readContext),
-        sources.keybindings.read(readContext),
+        readReportSource('plan', sources.plan, readContext),
+        readReportSource('package', sources.package, readContext),
+        readReportSource('git', sources.git, readContext),
+        readReportSource('changelog', sources.changelog, readContext),
+        readReportSource('certification', sources.certification, readContext),
+        readReportSource('session', sources.session, readContext),
+        readReportSource('questions', sources.questions, readContext),
+        readReportSource('usage', sources.usage, readContext),
+        readReportSource('agentUsage', sources.agentUsage, readContext),
+        readReportSource('checkRuns', sources.checkRuns, readContext),
+        readReportSource('github', sources.github, readContext),
+        readReportSource('stores', sources.stores, readContext),
+        readReportSource('fleet', sources.fleet, readContext),
+        readReportSource('security', sources.security, readContext),
+        readReportSource('accounts', sources.accounts, readContext),
+        readReportSource('estimate', sources.estimate, readContext),
+        readReportSource('playbook', sources.playbook, readContext),
+        readReportSource('issues', sources.issues, readContext),
+        readReportSource('schedules', sources.schedules, readContext),
+        readReportSource('keybindings', sources.keybindings, readContext),
       ])
       const latestGit = git.data
       const activeNetwork =
@@ -276,7 +277,10 @@ export function createReportingServices(context: ReportingContext): ReportsServi
       const [github, stores] =
         network === undefined
           ? [githubLocal, storesLocal]
-          : await Promise.all([network.github.read(readContext), network.stores.read(readContext)])
+          : await Promise.all([
+              readReportSource('github', network.github, readContext),
+              readReportSource('stores', network.stores, readContext),
+            ])
       const plan =
         planText === undefined || initialPlan.data === null
           ? initialPlan

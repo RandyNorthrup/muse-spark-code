@@ -144,7 +144,7 @@ export function section(
   heading: ReportLabelKey,
   columns: readonly (ReportLabelKey | ReportSection['columns'][number])[],
   rows: readonly ReportRow[],
-  options: ReportOptions,
+  options: Pick<ReportOptions, 'full'>,
 ): ReportSection {
   // Canonicalize ties before assigning duplicate suffixes, so identity stays
   // attached to the same fact when a reader returns its records in a new order.

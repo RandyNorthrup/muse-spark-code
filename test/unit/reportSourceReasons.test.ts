@@ -142,7 +142,7 @@ const cases: readonly ReasonCase[] = [
     },
     want: {
       status: 'partial',
-      reasons: ['Unavailable account details: usage, swaps, confirmations.'],
+      reasons: ['Unavailable account details: Usage, Swaps, Confirmations.'],
       check: checkAccounts({ providers: ['meta'] }),
     },
   },

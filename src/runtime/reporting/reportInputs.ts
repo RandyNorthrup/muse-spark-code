@@ -1,3 +1,5 @@
+import type { ReportLabelKey } from '../../shared/reportSchema'
+import { readReportField, readReportRows } from '../../core/reporting/sources/boundary'
 import type { UiText } from '../../shared/l10n/en'
 // Bound session and usage report inputs (M113 lane C-M113-2, PLAN.md D93.4).
 // Every engine construction (VS Code, ACP, CLI) builds these from the same
@@ -144,17 +146,22 @@ interface RowSchema<T> {
 }
 
 /** Admission owns the bound; final validation never drops accepted sibling facets. */
-function admitRow<T>(row: T, into: T[], partials: string[], reportText: UiText): void {
-  if (into.length >= REPORT_MAX_ROWS) keepReason(partials, reportText.reportSourceReasons.limit)
-  else into.push(row)
-}
 
-/**
- * One record stream that never discards its good rows for one bad record:
- * each row parses on its own, a bad row is skipped, and any skip keeps the
- * invalid reason beside the rows (RVCM1133B P2). A value that is not a row
- * list at all is the same failure, never a throw.
- */
+const rowFacets = new Map<RowSchema<unknown>, ReportLabelKey>([
+  [accountsUsageRowSchema, 'usage'],
+  [accountsEventRowSchema, 'swaps'],
+  [accountsConfirmationRowSchema, 'confirmations'],
+  [accountsAccountRowSchema, 'accounts'],
+  [accountsProviderRowSchema, 'accounts'],
+  [vaultGrantSchema, 'grants'],
+  [vaultItemMetadataSchema, 'vault'],
+  [vaultAuditRecordSchema, 'usage'],
+  [securityAuditRowSchema, 'usage'],
+  [securityDeveloperAuditRowSchema, 'developerAudit'],
+  [developerAuditSchema, 'developerAudit'],
+])
+
+/** The engine helper owns each array access, decoder and admission boundary. */
 function collectValidRows<T>(
   rows: unknown,
   schema: RowSchema<T>,
@@ -162,26 +169,16 @@ function collectValidRows<T>(
   partials: string[],
   reportText: UiText,
 ): void {
-  if (!Array.isArray(rows)) {
-    keepReason(partials, reportText.reportSourceReasons.invalid)
-    return
-  }
-  let skipped = 0
-  for (const row of rows) {
-    let parsed: ReturnType<RowSchema<T>['safeParse']>
-    try {
-      parsed = schema.safeParse(row)
-    } catch (error) {
-      keepReason(partials, failureReason(error, reportText))
-      continue
-    }
-    if (!parsed.success || parsed.data === undefined) {
-      skipped += 1
-      continue
-    }
-    admitRow(parsed.data, into, partials, reportText)
-  }
-  if (skipped > 0) keepReason(partials, reportText.reportSourceReasons.invalid)
+  const result = readReportRows(
+    reportText,
+    rowFacets.get(schema) ?? 'limits',
+    'records',
+    rows,
+    schema,
+    Math.max(0, REPORT_MAX_ROWS - into.length),
+  )
+  into.push(...result.rows)
+  for (const problem of result.problems) keepReason(partials, problem.reason)
 }
 
 /**
@@ -807,6 +804,11 @@ export function createAccountsReportReader(input: {
         keepReason(partials, failureReason(error, reportText))
       }
       const missing: string[] = []
+      const facetLabels: Record<string, string> = {
+        usage: reportText.reportLabels.usage,
+        swaps: reportText.reportLabels.swaps,
+        confirmations: reportText.reportLabels.confirmations,
+      }
       const usage: AccountsFacts['usage'][number][] = []
       if (input.readUsage === undefined) missing.push('usage')
       else {
@@ -854,7 +856,7 @@ export function createAccountsReportReader(input: {
       if (missing.length > 0)
         partials.push(
           fill(reportText.reportDetailReasons.accountsFacetsUnavailable, {
-            facets: missing.join(', '),
+            facets: missing.map((facet) => facetLabels[facet]).join(', '),
           }),
         )
       return {
@@ -883,14 +885,18 @@ function readSnapshotFacet(
   partials: string[],
   reportText: UiText,
 ): unknown {
-  try {
-    const field = z.object({ [key]: z.unknown() })
-    const parsed = field.safeParse(snapshot)
-    if (parsed.success) return parsed.data[key]
-    keepReason(partials, reportText.reportSourceReasons.invalid)
-  } catch (error) {
-    keepReason(partials, failureReason(error, reportText))
-  }
+  const result = readReportField(
+    reportText,
+    'vault',
+    `snapshot/${key}`,
+    () => {
+      if (typeof snapshot !== 'object' || snapshot === null) throw new LocalSourceError('invalid')
+      return Reflect.get(snapshot, key)
+    },
+    z.unknown(),
+  )
+  if (result.status === 'available') return result.value
+  keepReason(partials, result.problem.reason)
   return undefined
 }
 

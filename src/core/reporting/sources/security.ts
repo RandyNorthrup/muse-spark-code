@@ -1,3 +1,4 @@
+import { readReportFacts } from './boundary'
 // C-M113-3: the reporting `security` source from M109's vault audit and
 // the developer audit. Counts, kinds, decisions and authorities only: the
 // reader projects away every id, name, label, target, handle, digest, hash
@@ -79,7 +80,12 @@ export function securitySource(reader: ReportSecurityReader | undefined, scrub: 
     if (context.options.kind !== 'security') throw new LocalSourceError('disabled')
     const read = await reader.read(context)
     if (read === null) throw new LocalSourceError('missing')
-    const facts = factsSchema.parse(scrubSourceValue(read.facts, scrub))
+    const recovered = readReportFacts(context.reportText, 'vault', 'vault', factsSchema, read.facts)
+    if (recovered.data === null) throw new LocalSourceError('invalid')
+    const partial = [read.partial, ...recovered.problems.map((problem) => problem.reason)]
+      .filter((reason) => reason !== undefined)
+      .join(' ')
+    const facts = factsSchema.parse(scrubSourceValue(recovered.data, scrub))
     return {
       data: {
         vault:
@@ -104,7 +110,7 @@ export function securitySource(reader: ReportSecurityReader | undefined, scrub: 
         ),
       },
       ...(read.observedAt !== undefined && { observedAt: read.observedAt }),
-      ...(read.partial !== undefined && { partial: scrub(read.partial) }),
+      ...(partial !== '' && { partial: scrub(partial) }),
     }
   })
 }

@@ -473,11 +473,17 @@ describe('RVCM1132 accounting regressions', () => {
     // Built, not literal: the joined budget key trips the secret scanner.
     const conversationKey = ['conversation', 's1'].join('/')
     expect(result.usage.limits).toEqual([
-      { key: conversationKey, used: 2, limit: 3, resetsAt: null, unit: 'usd' },
+      {
+        key: conversationKey,
+        used: Usd.from('2').toAmount(),
+        limit: Usd.from('3').toAmount(),
+        resetsAt: null,
+        unit: 'usd',
+      },
       {
         key: 'paidDaily/daily',
-        used: 0.5,
-        limit: 1,
+        used: Usd.from('0.5').toAmount(),
+        limit: Usd.from('1').toAmount(),
         resetsAt: new Date(NOW + 3_600_000).toISOString(),
         unit: 'usd',
       },

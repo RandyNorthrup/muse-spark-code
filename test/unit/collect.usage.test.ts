@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 import { describe, expect, it } from 'vitest'
 import { collectFixture, fullSnapshot, getSection } from './helpers/reporting/collect'
 import { availableSource } from './helpers/reporting/snapshot'
@@ -90,7 +91,13 @@ describe('usage collector', () => {
     const report = collectWithUsage({
       limits: [
         { key: 'meta/weekly', used: 25, limit: 100, resetsAt: null, unit: 'percent' },
-        { key: 'paidDaily/daily', used: 0.5, limit: 1, resetsAt: null, unit: 'usd' },
+        {
+          key: 'paidDaily/daily',
+          used: Usd.from('0.5').toAmount(),
+          limit: Usd.from('1').toAmount(),
+          resetsAt: null,
+          unit: 'usd',
+        },
         { key: 'foreign/agent', used: 0.25, limit: 5, resetsAt: null },
       ],
     })

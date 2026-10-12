@@ -11,7 +11,7 @@ import {
   sourceReason,
 } from '../reporting/sources/local'
 import { aggregateUsage, shiftUsageDay, type UsageAggregation } from './aggregate'
-import { Usd, sumUsd, type UsdAmount } from '../../shared/usd'
+import { sumUsd, type UsdAmount } from '../../shared/usd'
 import type { UsageLimitSnapshot, UsageRecord } from '../../shared/usageJournal'
 import type { UsageQuery, UsageTotals } from '../../shared/usagePage'
 import type { ReportOptions } from '../../shared/reportSchema'
@@ -294,19 +294,6 @@ function journalLimits(
     }))
 }
 
-/**
- * Dollar-unit limit cells are legacy plain numbers (UsageFacts.limits), so a
- * budget amount crosses here at the end of its exact-decimal life; the
- * collector re-wraps it with Usd. Caps and spends are bounded two-place
- * dollars, which round-trip through a number exactly; anything else refuses
- * instead of rounding (M121).
- */
-function limitDollars(amount: UsdAmount): number {
-  const value = Number(amount)
-  if (!Number.isFinite(value) || Usd.from(value).toAmount() !== amount) fail()
-  return value
-}
-
 function capRows<T>(rows: readonly T[]): { rows: T[]; capped: boolean } {
   return rows.length <= REPORT_MAX_ROWS
     ? { rows: [...rows], capped: false }
@@ -380,8 +367,8 @@ export function usageReportFacts(input: {
       if (budget.capUsd === undefined) continue
       limits.push({
         key: `${budget.kind}/${budget.id}`,
-        used: limitDollars(budget.spentUsd),
-        limit: limitDollars(budget.capUsd),
+        used: budget.spentUsd,
+        limit: budget.capUsd,
         resetsAt: budget.resetsAt === undefined ? null : new Date(budget.resetsAt).toISOString(),
         unit: 'usd' as const,
       })
