@@ -61,7 +61,7 @@ describe('paid grant quote folder failures', () => {
     expect(log.warn).toHaveBeenCalledOnce()
     expect(String(log.warn.mock.calls[0]?.[0] ?? '')).toContain('(EACCES)')
     // The question it then asks carries the notice, so asking again is explained.
-    expect(store.quoteNotice()).toEqual({ kind: 'EACCES' })
+    expect(store.quoteNotice?.()).toEqual({ kind: 'EACCES' })
   })
 
   it('reads a malformed generation as no grant with its reason', async () => {
@@ -79,9 +79,11 @@ describe('paid grant quote folder failures', () => {
     const { store } = fileStore(file)
     await mkdir(path.join(`${file}.d`, 'webSearch'), { recursive: true })
     await writeFile(path.join(`${file}.d`, 'webSearch', 'generation.json'), '{oops')
+    const prepare = store.prepareQuoteGeneration
+    expect(prepare).toBeDefined()
     let failure: unknown
     try {
-      await store.prepareQuoteGeneration()
+      await prepare?.()
     } catch (error: unknown) {
       failure = error
     }
