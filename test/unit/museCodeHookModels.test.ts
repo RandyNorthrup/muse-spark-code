@@ -62,6 +62,16 @@ function ended(turnId: string): AgentEvent {
   return { type: 'turnCompleted', turnId, terminal: 'completed' }
 }
 
+function endedAtLimit(turnId: string): AgentEvent {
+  return {
+    type: 'turnCompleted',
+    turnId,
+    terminal: 'completed',
+    reason: 'The turn reached its model-call limit.',
+    errorKind: 'max_turn_requests',
+  }
+}
+
 describe('MuseCodeHookModels (M91 D70)', () => {
   it('runs one turn of a hidden side session and returns its reply', async () => {
     const t = setup()
@@ -135,6 +145,27 @@ describe('MuseCodeHookModels (M91 D70)', () => {
         expect(t.host.sessions).toHaveLength(2)
       })
       expect(await slow).toBeUndefined()
+    } finally {
+      t.runner.dispose()
+      await removeFolder(t.folder)
+    }
+  })
+
+  it('discards a reply cut at the model-call limit instead of answering with it', async () => {
+    const t = setup()
+    try {
+      const run = t.runner.runHookModelTurn(job(t.host))
+      await vi.waitFor(() => {
+        expect(t.host.sessions).toHaveLength(1)
+      })
+      const session = t.host.sessions[0]!
+      await vi.waitFor(() => {
+        expect(session.sendTurn).toHaveBeenCalledTimes(1)
+      })
+      // A completed turn carrying the typed limit outcome is not an
+      // ordinary completion: the truncated reply never becomes the answer.
+      session.emit(reply('turn-1', '{"decision":"allow"}'), endedAtLimit('turn-1'))
+      expect(await run).toBeUndefined()
     } finally {
       t.runner.dispose()
       await removeFolder(t.folder)

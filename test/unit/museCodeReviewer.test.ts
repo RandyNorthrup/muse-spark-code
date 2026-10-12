@@ -596,6 +596,27 @@ describe('the Auto reviewer on Muse Code (M90)', () => {
     })
   })
 
+  it('leaves the approval to the user when the review turn ends at the model-call limit', async () => {
+    const t = setup()
+    t.hold()
+    const turn = await reviewTurn(t.handle, 1)
+    // The reply streams, then the turn ends completed with the typed limit
+    // outcome on the captured wire shape: the truncated reply is never a
+    // verdict, so the approval stays with the user.
+    answer(t.handle, turn, CAPTURED_REPLY, { isEnded: false })
+    t.handle.server.notify('turn/completed', {
+      ...reviewTurnCompleted(turn.sessionId, turn.turnId),
+      error: { kind: 'max_turn_requests', message: 'The turn reached its model-call limit.' },
+    })
+    await vi.waitFor(() => {
+      expect(t.cards).toEqual([[expect.anything(), UI_TEXT.autoReviewerFailed]])
+    })
+    expect(t.conversation.decideApproval).not.toHaveBeenCalled()
+    // The side session survives a limit stop: the next review reuses it.
+    await allowOnce(t, 2, shellRequest('a2'), 1)
+    expect(t.sideIds).toEqual(['side-1'])
+  })
+
   it('trips its breaker after three declines, then asks with no review until the next message', async () => {
     const t = setup()
     for (const index of [1, 2, 3]) {
