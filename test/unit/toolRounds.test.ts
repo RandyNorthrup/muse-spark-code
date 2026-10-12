@@ -5,7 +5,10 @@ import {
   HookCancelledError,
   ModelApiHost,
   canReserveSideSlot,
+  releaseSideSlotToken,
+  takeSideSlotToken,
   type SideSlotReservation,
+  type SideSlotToken,
   wrapUpFailedKindFor,
 } from '../../src/core/backends/modelapi/ModelApiHost'
 import {
@@ -15,6 +18,7 @@ import {
 } from '../../src/core/backends/modelapi/sessionBudget'
 import { ModelApiError } from '../../src/core/backends/modelapi/transport'
 import {
+  HOOK_AGENT_MAX_STEPS,
   MODEL_API_MAX_TOOL_ROUNDS,
   MODEL_API_MODEL_TEXT,
   UI_TEXT,
@@ -728,6 +732,94 @@ describe('model-call turn limit', () => {
     expect(reservation.reserved).toBe(1)
     // With one call left even the first refuses.
     expect(canReserveSideSlot({ reserved: 0 }, 1)).toBe(false)
+  })
+
+  it('takes a side slot for exactly one of two parallel side calls, releasing only its own', async () => {
+    const reservation: SideSlotReservation = { reserved: 0 }
+    // Two side calls race from parallel tool calls through the same
+    // take/give the host uses: takes run to completion, so the first
+    // takes and the second refuses, and each give releases its own.
+    async function sideCall(): Promise<'ran' | 'refused'> {
+      const token = takeSideSlotToken(reservation, 2)
+      if (token === undefined) return 'refused'
+      await new Promise((resolve) => setImmediate(resolve))
+      releaseSideSlotToken(reservation, token)
+      return 'ran'
+    }
+    const [first, second] = await Promise.all([sideCall(), sideCall()])
+    expect(new Set([first, second])).toEqual(new Set(['ran', 'refused']))
+    expect(reservation.reserved).toBe(0)
+    // A ledger-free take returns a zero token that releases nothing...
+    const free: SideSlotToken = { count: 0 }
+    releaseSideSlotToken(reservation, free)
+    expect(reservation.reserved).toBe(0)
+    // ...while a multi-step hook agent reserves its maximum steps up front:
+    // with three calls left five do not fit, and nothing is held.
+    expect(takeSideSlotToken({ reserved: 0 }, 3, HOOK_AGENT_MAX_STEPS)).toBeUndefined()
+    const roomy: SideSlotReservation = { reserved: 0 }
+    const agent = takeSideSlotToken(roomy, 7, HOOK_AGENT_MAX_STEPS)
+    expect(agent).toEqual({ count: HOOK_AGENT_MAX_STEPS })
+    expect(roomy.reserved).toBe(HOOK_AGENT_MAX_STEPS)
+    releaseSideSlotToken(roomy, agent!)
+    expect(roomy.reserved).toBe(0)
+  })
+
+  it('refuses a 3-step hook agent on an exec ledger of 3 and still runs the wrap-up', async () => {
+    // By construction the caller's last call can only be spent by the
+    // wrap-up builder: the agent reserves its maximum steps up front, so
+    // with three calls left it never starts — no hook request goes out.
+    const t = await setup(3, {
+      isPaidFeatureOn: () => true,
+      allowsPaidUse: () => Promise.resolve(true),
+      loadHooks: () =>
+        Promise.resolve(
+          parseHookConfig(
+            JSON.stringify({
+              hooks: {
+                PreToolUse: [
+                  {
+                    hooks: [
+                      {
+                        type: 'agent',
+                        prompt: 'Check the call.',
+                        matcher: 'get_goal',
+                      },
+                    ],
+                  },
+                ],
+              },
+            }),
+            'project',
+            'linux',
+          ).hooks,
+        ),
+    })
+    try {
+      t.api.script(
+        { calls: [{ name: 'get_goal', arguments: '{}', callId: 'first' }] },
+        { calls: [{ name: 'get_goal', arguments: '{}', callId: 'second' }] },
+        { text: 'Done, found, remaining.' },
+      )
+      await t.session.sendTurn([{ type: 'text', text: 'Review within the limit' }])
+      await t.turnDone()
+      // The turn's own three requests went out (two tool rounds and the
+      // wrap-up); the hook agent sent none.
+      const bodies = t.api.responseBodies()
+      expect(bodies).toHaveLength(3)
+      const last = bodies.at(-1)!
+      expect(last).not.toHaveProperty('tools')
+      expect(last).not.toHaveProperty('tool_choice')
+      expect(wrapUpNotesOf(last)).toEqual([expect.stringContaining('limit of 3 model calls')])
+      expect(t.events.findLast((e) => e.type === 'turnCompleted')).toMatchObject({
+        terminal: 'completed',
+        errorKind: 'max_turn_requests',
+      })
+      expect(t.session.history().items).toContainEqual(
+        expect.objectContaining({ text: 'Done, found, remaining.' }),
+      )
+    } finally {
+      await t.host.close()
+    }
   })
 
   it('leaves a first-call overflow standing on a single-call allowance', async () => {

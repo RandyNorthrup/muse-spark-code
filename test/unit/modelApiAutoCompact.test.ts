@@ -384,7 +384,7 @@ describe('automatic compaction in the shared Model API loop', () => {
       const body = z
         .object({
           instructions: z.string(),
-          tools: z.array(z.unknown()),
+          tools: z.optional(z.array(z.unknown())),
           input: z.array(z.unknown()),
           max_output_tokens: z.number(),
         })
@@ -392,7 +392,7 @@ describe('automatic compaction in the shared Model API loop', () => {
       const input = estimateInput(
         [
           JSON.stringify(body.instructions),
-          JSON.stringify(body.tools),
+          JSON.stringify(body.tools ?? []),
           ...body.input.map((item) => JSON.stringify(item)),
         ],
         undefined,
@@ -652,7 +652,8 @@ describe('automatic compaction in the shared Model API loop', () => {
       expect(limitBodies).toHaveLength(3)
       const ordinary = limitBodies[1]!
       const wrapUp = limitBodies[2]!
-      expect(wrapUp['tools']).toEqual([])
+      expect(wrapUp).not.toHaveProperty('tools')
+      expect(wrapUp).not.toHaveProperty('tool_choice')
       // Manual compaction reuses the last ordinary body: no wrap-up
       // sentence, the full tools.
       expect(await t.session.compact()).toMatchObject({ status: 'accepted' })
@@ -714,7 +715,8 @@ describe('automatic compaction in the shared Model API loop', () => {
     expect(t.settled[2]).toBeDefined()
     expect(t.settlements).toEqual(['rate-limited', 'returned', 'returned'])
     expect(t.api.responseBodies()[3]?.['tools']).not.toEqual([])
-    expect(t.api.responseBodies()[4]?.['tools']).toEqual([])
+    expect(t.api.responseBodies()[4]).not.toHaveProperty('tools')
+    expect(t.api.responseBodies()[4]).not.toHaveProperty('tool_choice')
     expect(
       t.events.some((event) => event.type === 'itemStarted' && event.item.tool === 'read_file'),
     ).toBe(false)
