@@ -162,6 +162,9 @@ export class TeamHostBinding implements TeamSurfacePort {
 
   public async handle(message: TeamSurfaceMessage): Promise<void> {
     if (message.type === 'openTeamRoles') {
+      // Hidden means hidden: with the team switched off the Roles section is
+      // not reachable by command either, not only by panel.
+      if (!this.canConfigure()) throw new Error(UI_TEXT.teamTaskUnknown)
       await this.deps.openRoles(message.roleId)
       return
     }
