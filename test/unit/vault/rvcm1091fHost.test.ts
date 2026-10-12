@@ -95,6 +95,34 @@ function isRetryingFrame(message: unknown): boolean {
   return parsed.success && parsed.data.state.retrying === true
 }
 
+// RVAPP-CM1091D5 P2-1: the person's own Lock or Revoke during an Import or a
+// Delete aborts the in-flight call; the close reason the abort caused is
+// silent (the barrier owns the view), never a failure toast. The abort
+// rejects the way the real client now does (VaultChannelError('closed')),
+// not with the hand-built locked sentence the stale test used before.
+function abortableImport(f: ReturnType<typeof fixture>): void {
+  f.deps.service.importFile.mockImplementationOnce(
+    (_path: string, _authorize: () => void, signal: AbortSignal) => {
+      const pending = Promise.withResolvers<never>()
+      signal.addEventListener('abort', () => {
+        pending.reject(new VaultChannelError('closed'))
+      })
+      return pending.promise
+    },
+  )
+}
+function abortableDelete(f: ReturnType<typeof fixture>): void {
+  f.deps.service.deleteImport.mockImplementationOnce(
+    (_receipt: string, _authorize: () => void, signal: AbortSignal) => {
+      const pending = Promise.withResolvers<never>()
+      signal.addEventListener('abort', () => {
+        pending.reject(new VaultChannelError('closed'))
+      })
+      return pending.promise
+    },
+  )
+}
+
 describe('RVCM1091F P2 locked events reload and strip, later events recover', () => {
   it('a broker locked event reloads, strips labels and grants, and later events recover', async () => {
     const f = fixture()
@@ -533,37 +561,37 @@ describe('RVCM1091F P3 failures kept, barrier aborts silent, sentences true', ()
     f.host.dispose()
   })
 
-  it('a Revoke barrier aborts an in-flight Import without a false Locked toast', async () => {
-    const f = fixture()
-    f.state.ambientFiles = [{ path: '/home/user/.netrc', kind: 'netrc' }]
-    await f.host.refresh()
-    let rejectImport: ((error: unknown) => void) | undefined
-    f.deps.service.importFile.mockImplementationOnce(
-      (_path, _authorize, signal) =>
-        new Promise<never>((_resolve, reject) => {
-          rejectImport = reject
-          signal.addEventListener('abort', () => {
-            // The broker closes the aborted connection: the pending request
-            // fails with the locked sentence, as in production.
-            reject(new Error(UI_TEXT.vault.locked))
-          })
-        }),
-    )
-    f.deps.importDone.mockResolvedValueOnce('keep' as const)
-    const importing = f.host.handle({ type: 'vaultImport', path: '/home/user/.netrc' })
-    await vi.waitFor(() => {
-      expect(rejectImport).toBeDefined()
-    })
-    // Revocation is a barrier: it aborts the import and owns the view.
-    await f.host.handle({ type: 'vaultRevoke', grantId: 'a'.repeat(32) })
-    await importing
-    // The section still shows Unlocked truthfully, with no Locked toast
-    // beside it.
-    expect(lastState(f).status.state).toBe('unlocked')
-    for (const call of f.deps.showError.mock.calls)
-      expect(call[0] as string).not.toBe(UI_TEXT.vault.locked)
-    f.host.dispose()
-  })
+  it.each([
+    { barrier: 'lock', operation: 'import' },
+    { barrier: 'lock', operation: 'delete' },
+    { barrier: 'revoke', operation: 'import' },
+    { barrier: 'revoke', operation: 'delete' },
+  ] as const)(
+    'a personal $barrier during a $operation aborts it with no failure toast',
+    async ({ barrier, operation }) => {
+      const f = fixture()
+      f.state.ambientFiles = [{ path: '/home/user/.netrc', kind: 'netrc' }]
+      await f.host.refresh()
+      if (operation === 'import') abortableImport(f)
+      else abortableDelete(f)
+      f.deps.importDone.mockResolvedValueOnce('delete' as const)
+      const working = f.host.handle({ type: 'vaultImport', path: '/home/user/.netrc' })
+      await vi.waitFor(() => {
+        expect(
+          operation === 'import' ? f.deps.service.importFile : f.deps.service.deleteImport,
+        ).toHaveBeenCalled()
+      })
+      // The person's own barrier aborts the in-flight call and owns the view.
+      if (barrier === 'lock') await f.host.lock()
+      else await f.host.handle({ type: 'vaultRevoke', grantId: 'a'.repeat(32) })
+      await working
+      // The barrier's own state is shown (Locked after Lock, Unlocked after
+      // Revoke), with no failure toast beside it.
+      expect(lastState(f).status.state).toBe(barrier === 'lock' ? 'locked' : 'unlocked')
+      expect(f.deps.showError).not.toHaveBeenCalled()
+      f.host.dispose()
+    },
+  )
 
   it('a Delete that lost its receipt keeps the true sentence', async () => {
     const f = fixture()

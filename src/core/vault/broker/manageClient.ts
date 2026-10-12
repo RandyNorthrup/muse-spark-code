@@ -88,7 +88,18 @@ export class VaultManageSession {
     try {
       if (signal?.aborted) throw new Error(UI_TEXT.vault.useChanged)
       authorize?.()
-      const result = await work(client)
+      let result: T
+      try {
+        result = await work(client)
+      } catch (error: unknown) {
+        // The person's own barrier (Lock, revocation, disposal) closed this
+        // connection mid-call: the abort recorded on the signal owns the
+        // outcome, not the channel error the close produced. Report the veto
+        // the host settles silent on the retired generation — never a
+        // failure toast beside the person's own Lock (RVAPP-CM1091D5 P2-1).
+        if (signal?.aborted) throw new Error(UI_TEXT.vault.useChanged, { cause: error })
+        throw error
+      }
       if (signal?.aborted) throw new Error(UI_TEXT.vault.useChanged)
       return result
     } finally {
