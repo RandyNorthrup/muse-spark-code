@@ -38,6 +38,7 @@ import path from 'node:path'
 import {
   GIT_BATCH_KILL_GRACE_MS,
   GIT_OUTPUT_MAX_BYTES,
+  GIT_STDERR_MAX_CHARS,
   GIT_WORKTREE_TIMEOUT_MS,
   HELD_CHECKOUT_MAX_BYTES,
   HELD_CHECKOUT_MAX_ENTRIES,
@@ -308,7 +309,11 @@ export const nodeGitProcesses: GitProcessPort = {
     } catch (error: unknown) {
       options.signal.throwIfAborted()
       if (isGovernedRefusal(error)) throw new PullRequestServiceError(UI_TEXT.gitMachineBusy)
-      throw error instanceof Error ? error : new PullRequestServiceError(failureText(error))
+      if (error instanceof Error) {
+        error.message = failureText(error, [file, ...args].join(' '))
+        throw error
+      }
+      throw new PullRequestServiceError(failureText(error))
     }
   },
   start: async (file, args, options) => {
@@ -1159,8 +1164,20 @@ function pullHeadRef(number: number): string {
   return `pull/${String(number)}/head`
 }
 
-function failureText(error: unknown): string {
-  return redactSecrets(error instanceof Error ? error.message : String(error))
+function failureText(error: unknown, command?: string): string {
+  // execFile's original diagnostic includes its command and stderr. The
+  // governed runner keeps stderr separately; redact before the display cap
+  // so a credential crossing it can never be shown as a partial token.
+  let text = error instanceof Error ? error.message : String(error)
+  if (
+    command !== undefined &&
+    error instanceof Error &&
+    'stderr' in error &&
+    typeof error.stderr === 'string' &&
+    error.stderr.trim() !== ''
+  )
+    text = `Command failed: ${command}\n${error.stderr}`
+  return redactSecrets(text).slice(0, GIT_STDERR_MAX_CHARS)
 }
 
 /** What the checkout protocol needs of the service (`RuntimeCheckoutDeps` gives it). */
