@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { describe, expect, it, vi } from 'vitest'
+import type { McpOAuthVaultPort } from '../../../src/core/mcp/oauth/client'
 import { discoverMcpOAuth } from '../../../src/core/mcp/oauth/discovery'
 import { mcpOAuthTransport } from '../../../src/core/mcp/oauth/transport'
 import { UI_TEXT, MCP_OAUTH_LIMITS } from '../../../src/shared/constants'
@@ -427,5 +428,26 @@ describe('M109 O OAuth audience and PKCE', () => {
     }
     expect(String(failure)).toContain('caller stopped')
     expect(String(failure)).not.toContain(UI_TEXT.vault.noAccess)
+  })
+
+  it('denies a store failure racing a caller stop instead of leaking it', async () => {
+    const f = oauthFixture()
+    await f.client.signIn(f.binding, f.signal)
+    const stop = new AbortController()
+    // The stop lands while the read is in flight, then the read fails.
+    f.vault.read = vi.fn<McpOAuthVaultPort['read']>(() => {
+      stop.abort(new Error('caller stopped'))
+      return Promise.reject(new Error('private store text for sentinel-account'))
+    })
+    let failure: unknown
+    try {
+      await f.client.fetch(f.binding, f.binding.resource, { ...f.init, signal: stop.signal })
+    } catch (error: unknown) {
+      failure = error
+    }
+    expect(failure).toBeInstanceOf(Error)
+    expect(String(failure)).toContain(UI_TEXT.vault.noAccess)
+    expect(String(failure)).not.toContain('sentinel')
+    expect(String(failure)).not.toContain('caller stopped')
   })
 })
