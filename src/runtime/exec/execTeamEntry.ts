@@ -679,13 +679,13 @@ export async function createExecTeam(
                     // RVCM96B2 P2-6: a denied merge is held, never discarded:
                     // stash the denial and drive the merge, whose wrapper
                     // keeps the branch under a hold ref and tells the model.
-                    const denied =
-                      (item.teamMerge.protectedPaths?.length ?? 0) > 0
-                        ? ('protected' as const)
-                        : requiredReviews.has(item.teamMerge.roleId) &&
-                            item.teamMerge.review === 'not-reviewed'
-                          ? ('review' as const)
-                          : undefined
+                    let denied: 'protected' | 'review' | undefined
+                    if ((item.teamMerge.protectedPaths?.length ?? 0) > 0) denied = 'protected'
+                    else if (
+                      requiredReviews.has(item.teamMerge.roleId) &&
+                      item.teamMerge.review === 'not-reviewed'
+                    )
+                      denied = 'review'
                     if (denied !== undefined) deniedMerges.set(item.teamMerge.taskId, denied)
                     await service.decideMerge(item.teamMerge.taskId, 'merge')
                   }
