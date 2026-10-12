@@ -135,6 +135,15 @@ function runWithLosses(
   return runPairedEval(tasks, [BASELINE, RECHECK], deps)
 }
 
+/** The M75 strict-tools fake pair, checked as an incomplete two-arm run. */
+async function runStrictToolsPair(): Promise<{ api: Rig['api']; report: EvalReport }> {
+  const { api, deps } = rig()
+  api.script(...EVAL_TASKS.flatMap((task) => [...canonical(task), ...canonical(task)]))
+  const report = await runPairedEval(EVAL_TASKS, [BASELINE, STRICT_TOOLS], deps)
+  expectIncompleteTwoArmRun(report)
+  return { api, report }
+}
+
 /** The task's canonical replies, once per attempt the single-task run may take. */
 function canonicalAttempts(task: EvalTask, attempts: number): ScriptedReply[] {
   const replies: ScriptedReply[] = []
@@ -246,10 +255,7 @@ describe('runPairedEval', { timeout: RUNS_TIMEOUT_MS }, () => {
   })
 
   it('runs the M75 strict-tools fake pair with unchanged tasks, floors and attempt accounting (M106)', async () => {
-    const { api, deps } = rig()
-    api.script(...EVAL_TASKS.flatMap((task) => [...canonical(task), ...canonical(task)]))
-    const report = await runPairedEval(EVAL_TASKS, [BASELINE, STRICT_TOOLS], deps)
-    expectIncompleteTwoArmRun(report)
+    const { api, report } = await runStrictToolsPair()
     for (const arm of report.arms) {
       expect(arm.summaries).toMatchObject([
         { split: 'accept', tasks: 9, passed: 9, attempts: 27 },
@@ -270,10 +276,7 @@ describe('runPairedEval', { timeout: RUNS_TIMEOUT_MS }, () => {
   })
 
   it('records strict request evidence on the strict-tools fake pair, and demotes a regressed host to incomplete', async () => {
-    const { api, deps } = rig()
-    api.script(...EVAL_TASKS.flatMap((task) => [...canonical(task), ...canonical(task)]))
-    const report = await runPairedEval(EVAL_TASKS, [BASELINE, STRICT_TOOLS], deps)
-    expectIncompleteTwoArmRun(report)
+    const { report } = await runStrictToolsPair()
     for (const arm of report.arms) {
       for (const result of arm.results) {
         const evidence = result.requestEvidence ?? []
