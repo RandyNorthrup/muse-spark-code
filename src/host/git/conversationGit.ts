@@ -59,7 +59,7 @@ import {
 } from '../../core/git/gitText'
 import type { SideCallFormats } from '../../core/backends/modelapi/structuredOutput'
 import { isPlainRefName, isPlainRefspec, planPush, type PushPlan } from '../../core/git/pushPlan'
-import { usableReply } from '../../core/turns/usableReply'
+import { replyIfUsable } from '../../core/turns/usableReply'
 import { pullRequestFormProblem } from '../../core/git/pullRequestRef'
 import { wireWordForLog } from '../../core/logging'
 import { redactSecrets } from '../../core/redact'
@@ -938,8 +938,7 @@ export class ConversationGit implements ConversationGitPort {
     }
     // A capped turn's summary is never a draft: only a turn that completed
     // without a limit answers what was asked.
-    const usable = usableReply({ terminal: seen.terminal, errorKind: seen.errorKind }, seen.text)
-    const reply = usable.usable ? usable.reply : undefined
+    const reply = replyIfUsable({ terminal: seen.terminal, errorKind: seen.errorKind }, seen.text)
     if (reply !== undefined && generation.output !== undefined) {
       if (generation.isSettling === true) return
       generation.isSettling = true
