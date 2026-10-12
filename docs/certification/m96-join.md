@@ -68,10 +68,13 @@ Measured on this rig, same plugins, `--no-cache`, fixture `TMPDIR` on disk:
 
 Both committed increments are mandated review-fix feature code (rulings
 2/3/4/7). This session re-pinned the diet to the measured 531_016; the
-sibling reverted that hunk and is golfing the bundle to fit the original
-530_883 instead — their number to land. Recorded measurements (this rig):
-base `49a242da2` ≤ 530_883; `02cf0b6d2` = 530_939; `b4024585a` = 531_016;
-dirty pre-commit tree = 531_038.
+sibling reverted that hunk and golfed the bundle to fit the original
+530_883 instead — resolution: `e0e29c0bc` (veto-as-clamp-check, direct
+stamp, shaped adopt loop) plus follow-up simplifications measure
+**530_878**, five bytes under the untouched 530_883 pin. No gate changed.
+Recorded measurements (this rig): base `49a242da2` ≤ 530_883;
+`02cf0b6d2` = 530_939; `b4024585a` = 531_016; dirty pre-commit tree =
+531_038; final tree = 530_878.
 
 ## Verification run by this session (kubuntu, `--maxWorkers=3`, repo timeout)
 
@@ -88,12 +91,10 @@ dirty pre-commit tree = 531_038.
   `conversationController` 686 passed.
 - `node scripts/check-l10n.mjs`: 0 problems. `eslint --max-warnings=0` and
   `prettier --check` on both fixture files: clean.
-- Production `npm run build`: exit 0 on the combined committed src (this
-  session's remaining uncommitted files are tests/cert only and do not
-  enter the build). Exact bytes: extension.js 573880 / 614400; modelApi.js
-  531006 / 537600; teamHost.js 95870 / 133120; teamEngine.js 96829 /
-  102400; teamPanel.js 94000 / 102400; modelsPanel.js 120267 / 128000;
-  conversation.js 254493 / 256000.
+- Production `npm run build`: exit 0, 307 ok lines, no OVER/MISS/FAIL.
+  Exact bytes: extension.js 573912 / 614400; modelApi.js 530878 / 537600;
+  teamHost.js 95870 / 133120; teamEngine.js 96829 / 102400; teamPanel.js
+  94000 / 102400; modelsPanel.js 120267 / 128000; conversation.js 254493 / 256000.
 - `teamComposition.test.ts` (VS Code + loopback): NOT RUN HERE — sandbox
   blocks loopback sockets and VS Code. Lead runs: `npm run build:dev`, then
   `xvfb-run -a npx vscode-test --label stable --run
