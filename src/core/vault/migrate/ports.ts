@@ -76,7 +76,15 @@ export interface MigrationDeps {
 /** Never forward a store/codec exception that could contain credential bytes. */
 export class VaultMigrationFault extends Error {
   constructor(
-    readonly code: 'invalid' | 'conflict' | 'verification' | 'window' | 'storage' | 'orphaned',
+    readonly code:
+      | 'invalid'
+      | 'conflict'
+      | 'verification'
+      | 'window'
+      | 'storage'
+      | 'orphaned'
+      /** The source cannot be read (permissions): the receipt stays (RVCM1091G P2). */
+      | 'unreadable',
   ) {
     super(UI_TEXT.vault.noAccess)
     this.name = 'VaultMigrationFault'

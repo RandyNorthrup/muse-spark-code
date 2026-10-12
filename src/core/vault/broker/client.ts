@@ -21,6 +21,20 @@ import {
 import type { VaultPeerVerifier } from './peer'
 import type { VaultBrokerLocation } from './discovery'
 
+/**
+ * A dead or corrupted channel names itself, never the vault's state. A
+ * closed socket, a failed write and an invalid response previously all
+ * threw the `locked` sentence, so the panel toasted "Locked" beside a
+ * recovered unlocked section (RVCM1091G P3). The host maps every code here
+ * to `unreachable` (the operation failed, Retry offered).
+ */
+export class VaultChannelError extends Error {
+  constructor(readonly code: 'closed' | 'writeFailed' | 'invalidResponse') {
+    super(UI_TEXT.vault.operationFailed)
+    this.name = 'VaultChannelError'
+  }
+}
+
 export class VaultBrokerClient {
   static async open(
     location: VaultBrokerLocation,
@@ -113,7 +127,9 @@ export class VaultBrokerClient {
         clearTimeout(pending.timer)
         pending.resolve(response.response)
       } catch {
-        this.close() /* No unvalidated bytes or remote error text escape this boundary. */
+        this.close(
+          'invalidResponse',
+        ) /* No unvalidated bytes or remote error text escape this boundary. */
       }
     })
   }
@@ -126,7 +142,7 @@ export class VaultBrokerClient {
       try {
         event = vaultBrokerEventFrameSchema.parse(JSON.parse(line.toString('utf8'))).event
       } catch {
-        this.close()
+        this.close('invalidResponse')
         return
       }
       this.buffer = this.buffer.subarray(end + 1)
@@ -156,7 +172,7 @@ export class VaultBrokerClient {
       }
       return await new Promise<VaultChannelResponse['response']>((resolve, reject) => {
         if (this.socket.destroyed) {
-          reject(new Error(UI_TEXT.vault.locked))
+          reject(new VaultChannelError('closed'))
           return
         }
         const timer = setTimeout(() => {
@@ -173,18 +189,18 @@ export class VaultBrokerClient {
           }
           this.socket.write(bytes, (error) => {
             try {
-              if (error) this.close()
+              if (error) this.close('writeFailed')
             } finally {
               bytes.fill(0)
             }
           })
         } catch (error: unknown) {
           try {
-            this.close()
+            this.close('writeFailed')
           } finally {
             bytes.fill(0)
           }
-          reject(error instanceof Error ? error : new Error(UI_TEXT.vault.noAccess))
+          reject(error instanceof VaultChannelError ? error : new VaultChannelError('writeFailed'))
         }
       })
     })()
@@ -222,7 +238,7 @@ export class VaultBrokerClient {
       decoded.fill(0)
     }
   }
-  close(): void {
+  close(reason: VaultChannelError['code'] = 'closed'): void {
     try {
       this.socket.destroy()
     } finally {
@@ -232,7 +248,7 @@ export class VaultBrokerClient {
       this.pending = null
       if (pending) {
         clearTimeout(pending.timer)
-        pending.reject(new Error(UI_TEXT.vault.locked))
+        pending.reject(new VaultChannelError(reason))
       }
     }
   }

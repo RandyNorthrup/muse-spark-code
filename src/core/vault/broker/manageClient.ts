@@ -42,6 +42,9 @@ export function vaultRefusalMessage(reason: VaultManagementRefusal): string {
     case 'sourceGone': {
       return UI_TEXT.vault.sourceGone
     }
+    case 'sourceUnreadable': {
+      return UI_TEXT.vault.sourceUnreadable
+    }
     case 'busy': {
       return UI_TEXT.vault.busy
     }

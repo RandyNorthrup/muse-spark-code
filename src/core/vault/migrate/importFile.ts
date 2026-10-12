@@ -1,4 +1,4 @@
-import { constants, existsSync, unlinkSync, openSync, closeSync, realpathSync } from 'node:fs'
+import { constants, lstatSync, unlinkSync, openSync, closeSync, realpathSync } from 'node:fs'
 import { open } from 'node:fs/promises'
 import nodePath from 'node:path'
 import { createHash, randomUUID } from 'node:crypto'
@@ -31,6 +31,17 @@ const receiptSchema = z.strictObject({
     .check(z.minLength(1), z.maxLength(VAULT_LIMITS.items)),
 })
 type ImportReceipt = z.infer<typeof receiptSchema>
+/** The OS error code of a filesystem failure, without trusting its shape. */
+function systemCode(error: unknown): string | null {
+  return error instanceof Error && 'code' in error && typeof error.code === 'string'
+    ? error.code
+    : null
+}
+/** EACCES/EPERM: the file may be there, but this process may not read it. */
+function isAccessError(error: unknown): boolean {
+  const code = systemCode(error)
+  return code === 'EACCES' || code === 'EPERM'
+}
 export interface VaultFileImportPort {
   list(): Promise<readonly VaultItemMetadata[]>
   read(id: string): Promise<VaultItem>
@@ -289,7 +300,17 @@ export class VaultFileImporter {
       try {
         assertReceipt()
         assertUserAction()
-        if (!existsSync(saved.path)) {
+        // Only "does not exist" means gone: an unreadable source keeps its
+        // receipt and names the true reason instead of discarding it as
+        // deleted (RVCM1091G P2).
+        let isGone = false
+        try {
+          lstatSync(saved.path)
+        } catch (error: unknown) {
+          if (systemCode(error) !== 'ENOENT') throw new VaultMigrationFault('unreadable')
+          isGone = true
+        }
+        if (isGone) {
           // The file is already gone (a previous Delete removed it but could
           // not forget its receipt, or the person deleted it): clear the
           // leftover receipt at this next start and say what happened.
@@ -349,6 +370,12 @@ export class VaultFileImporter {
         }
       } catch (error: unknown) {
         if (error instanceof VaultMigrationFault) throw error
+        // A busy or rolled-back store before the unlink names itself: the
+        // source and the receipt both stay (RVCM1091G P3). An unreadable
+        // source after the probe keeps its receipt too (RVCM1091G P2).
+        if (error instanceof VaultError && (error.code === 'busy' || error.code === 'rollback'))
+          throw error
+        if (isAccessError(error)) throw new VaultMigrationFault('unreadable')
         throw new VaultMigrationFault('storage')
       } finally {
         source?.fill(0)
