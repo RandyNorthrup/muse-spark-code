@@ -4496,6 +4496,30 @@ const historyLoaded = {
   todos: [],
 }
 
+/** The account-files port with test defaults; the ledger binding adds `deleteNotice`. */
+function uploadedFilesPort(
+  overrides: {
+    readonly read?: () => Promise<unknown>
+    readonly deleteFile?: (
+      fileId: string,
+      isConfirmed: (name: string) => Promise<boolean>,
+    ) => Promise<void>
+    readonly deleteNotice?: () => Promise<{ provider: string; count: number } | undefined>
+  } = {},
+) {
+  return {
+    read: vi.fn(overrides.read ?? (() => Promise.resolve({}))),
+    post: vi.fn(),
+    deleteFile: vi.fn(
+      overrides.deleteFile ??
+        ((_fileId: string, _isConfirmed: (name: string) => Promise<boolean>) => Promise.resolve()),
+    ),
+    deleteAllOurs: vi.fn(() => Promise.resolve()),
+    confirmForeign: vi.fn(() => Promise.resolve(false)),
+    deleteNotice: vi.fn(overrides.deleteNotice ?? (() => Promise.resolve(undefined))),
+  }
+}
+
 describe('ConversationController: account & usage (M8)', () => {
   const usage = {
     observedAtMs: 1_800_000_000_000,
@@ -4650,15 +4674,12 @@ describe('ConversationController: account & usage (M8)', () => {
         },
       ],
     }
-    const port = {
-      read: vi.fn(() => Promise.resolve(report)),
-      post: vi.fn(),
-      deleteFile: vi.fn(async (_id: string, isConfirmed: (name: string) => Promise<boolean>) => {
+    const port = uploadedFilesPort({
+      read: () => Promise.resolve(report),
+      deleteFile: async (_id: string, isConfirmed: (name: string) => Promise<boolean>) => {
         await isConfirmed('other.pdf')
-      }),
-      deleteAllOurs: vi.fn(() => Promise.resolve()),
-      confirmForeign: vi.fn(() => Promise.resolve(false)),
-    }
+      },
+    })
     const t = setup({ status: 'signedOut', uploadedFiles: port })
     await t.controller.readUploadedFiles()
     expect(port.post).toHaveBeenCalledWith(report)
@@ -4671,13 +4692,9 @@ describe('ConversationController: account & usage (M8)', () => {
   })
 
   it('names the file, not its id, with a fixed reason when the provider refuses a delete', async () => {
-    const port = {
-      read: vi.fn(() => Promise.resolve({})),
-      post: vi.fn(),
-      deleteFile: vi.fn(() => Promise.reject(new UploadDeleteFailedError('clip.mp4'))),
-      deleteAllOurs: vi.fn(() => Promise.resolve()),
-      confirmForeign: vi.fn(() => Promise.resolve(false)),
-    }
+    const port = uploadedFilesPort({
+      deleteFile: () => Promise.reject(new UploadDeleteFailedError('clip.mp4')),
+    })
     const t = setup({ status: 'signedOut', uploadedFiles: port })
     await t.controller.deleteUploadedFiles('file-abc123')
     const notices = t.surface.posted.filter((message) => message.type === 'notice')
@@ -4700,17 +4717,14 @@ describe('ConversationController: account & usage (M8)', () => {
       usedBytes: 0,
       files: [],
     }
-    const port = {
-      read: vi.fn(() => Promise.resolve(report)),
-      post: vi.fn(),
-      deleteFile: vi.fn(() => Promise.resolve()),
-      deleteAllOurs: vi.fn(() => Promise.resolve()),
-      confirmForeign: vi.fn(() => Promise.resolve(false)),
-      deleteNotice: vi
-        .fn()
-        .mockResolvedValueOnce({ provider: 'meta', count: 2 })
-        .mockResolvedValue(undefined),
-    }
+    let reads = 0
+    const port = uploadedFilesPort({
+      read: () => Promise.resolve(report),
+      deleteNotice: () => {
+        reads += 1
+        return Promise.resolve(reads === 1 ? { provider: 'meta', count: 2 } : undefined)
+      },
+    })
     const t = setup({ status: 'signedOut', uploadedFiles: port })
     const notices = () => t.surface.posted.filter((message) => message.type === 'notice')
     await t.controller.readUploadedFiles()
@@ -4727,8 +4741,8 @@ describe('ConversationController: account & usage (M8)', () => {
   })
 
   it('refuses byte-bearing uploaded-file reports and does not post after disposal', async () => {
-    const port = {
-      read: vi.fn(() =>
+    const port = uploadedFilesPort({
+      read: () =>
         Promise.resolve({
           provider: 'meta',
           isReadOnly: false,
@@ -4745,12 +4759,7 @@ describe('ConversationController: account & usage (M8)', () => {
             },
           ],
         }),
-      ),
-      post: vi.fn(),
-      deleteFile: vi.fn(() => Promise.resolve()),
-      deleteAllOurs: vi.fn(() => Promise.resolve()),
-      confirmForeign: vi.fn(() => Promise.resolve(false)),
-    }
+    })
     const t = setup({ uploadedFiles: port })
     await t.controller.handle({ type: 'readUsage' })
     expect(port.post).not.toHaveBeenCalled()
