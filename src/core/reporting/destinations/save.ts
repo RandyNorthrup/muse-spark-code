@@ -27,7 +27,9 @@ export interface ReportSaveAdmission {
 }
 export class ReportSaveRefusedError extends Error {
   constructor() {
-    super(UI_TEXT.reportUi.saveFailed)
+    const reportUi = UI_TEXT.reportUi
+
+    super(reportUi.saveFailed)
   }
 }
 const fileName = z.string().check(
@@ -69,6 +71,8 @@ export function reportSaveName(
   destination: SaveDestination,
   payload: ReportDeliveryPayload,
 ): string {
+  const reportUi = UI_TEXT.reportUi
+
   const stamp = new Date(payload.document.header.asOf).toISOString()
   const [date, clock] = stamp.split('T', 2)
   const values: Readonly<Record<string, string>> = {
@@ -80,26 +84,30 @@ export function reportSaveName(
     ext: payload.format === 'text' ? 'txt' : payload.format,
   }
   const name = destination.template.replaceAll(/\{(\w+)\}/g, (_match, key: string) => {
-    if (!Object.hasOwn(values, key)) throw new Error(UI_TEXT.reportUi.saveFailed)
+    if (!Object.hasOwn(values, key)) throw new Error(reportUi.saveFailed)
     const value = values[key]
-    if (value === undefined) throw new Error(UI_TEXT.reportUi.saveFailed)
+    if (value === undefined) throw new Error(reportUi.saveFailed)
     return value
   })
   if (/[{}]/.test(name) || !isValidName(name) || name.length > REPORT_FILENAME_MAX_CHARS)
-    throw new Error(UI_TEXT.reportUi.saveFailed)
+    throw new Error(reportUi.saveFailed)
   return name
 }
 
 async function confined(target: string, root: string, roots: readonly string[]): Promise<string> {
+  const reportUi = UI_TEXT.reportUi
+
   const actual = await canonicalPath(target, { followsBrokenLinks: true })
   if (
     !isWithinFolder(actual, root, process.platform) ||
     roots.every((allowed) => !isWithinFolder(actual, allowed, process.platform))
   )
-    throw new Error(UI_TEXT.reportUi.saveFailed)
+    throw new Error(reportUi.saveFailed)
   return actual
 }
 async function existingContent(target: string): Promise<string | null> {
+  const reportUi = UI_TEXT.reportUi
+
   try {
     const info = await lstat(target)
     if (
@@ -107,7 +115,7 @@ async function existingContent(target: string): Promise<string | null> {
       info.nlink !== REPORT_STORAGE_LINK_COUNT ||
       info.size > REPORT_MAX_TEXT_CHARS * REPORT_SAVE_RETENTION_MAX
     )
-      throw new Error(UI_TEXT.reportUi.saveFailed)
+      throw new Error(reportUi.saveFailed)
     return await readFile(target, 'utf8')
   } catch (error: unknown) {
     if (isMissingPath(error)) return null
@@ -123,16 +131,18 @@ export async function saveReport(
   allowedRoots: readonly string[],
   admission: ReportSaveAdmission,
 ): Promise<string> {
+  const reportUi = UI_TEXT.reportUi
+
   if (
     !REPORT_STORAGE_KEY_PATTERN.test(scheduleId) ||
     !REPORT_STORAGE_KEY_PATTERN.test(destination.id) ||
     !path.isAbsolute(destination.root)
   )
-    throw new Error(UI_TEXT.reportUi.saveFailed)
+    throw new Error(reportUi.saveFailed)
   const root = await canonicalPath(destination.root, { followsBrokenLinks: true })
   // The grant holds canonical roots captured on consent, not freshly resolved aliases.
   if (allowedRoots.every((allowed) => !isWithinFolder(root, allowed, process.platform)))
-    throw new Error(UI_TEXT.reportUi.saveFailed)
+    throw new Error(reportUi.saveFailed)
   const recheck = async () => {
     const roots = await admission.recheck()
     if (
@@ -147,25 +157,24 @@ export async function saveReport(
   const manifestPath = path.join(root, `.${identity}.report-manifest.json`)
   const boundManifest = await confined(manifestPath, root, allowedRoots)
   if (!isSamePath(boundManifest, manifestPath, process.platform))
-    throw new Error(UI_TEXT.reportUi.saveFailed)
+    throw new Error(reportUi.saveFailed)
   const oldManifest = await existingContent(manifestPath)
   const manifest =
     oldManifest === null
       ? { scheduleId, destinationId: destination.id, entries: [] }
       : manifestSchema.parse(JSON.parse(oldManifest))
   if (manifest.scheduleId !== scheduleId || manifest.destinationId !== destination.id)
-    throw new Error(UI_TEXT.reportUi.saveFailed)
+    throw new Error(reportUi.saveFailed)
   const name = reportSaveName(destination, payload)
   const target = path.join(root, name)
   const boundTarget = await confined(target, root, allowedRoots)
-  if (!isSamePath(boundTarget, target, process.platform))
-    throw new Error(UI_TEXT.reportUi.saveFailed)
+  if (!isSamePath(boundTarget, target, process.platform)) throw new Error(reportUi.saveFailed)
   const owned = manifest.entries.find((entry) => entry.name === name)
   if (
     owned !== undefined &&
     Date.parse(owned.occurrence) > Date.parse(payload.document.header.asOf)
   )
-    throw new Error(UI_TEXT.reportUi.saveFailed)
+    throw new Error(reportUi.saveFailed)
   const canReplace = async () => {
     await recheck()
     if (owned === undefined) {
@@ -192,7 +201,7 @@ export async function saveReport(
     ...writeOptions,
     expectedCanonicalPath: boundTarget,
   })
-  if (written !== 'written') throw new Error(UI_TEXT.reportUi.saveFailed)
+  if (written !== 'written') throw new Error(reportUi.saveFailed)
   const entries = [
     ...manifest.entries.filter((entry) => entry.name !== name),
     {
@@ -219,13 +228,12 @@ export async function saveReport(
       expectedCanonicalPath: boundManifest,
     },
   )
-  if (recorded !== 'written') throw new Error(UI_TEXT.reportUi.saveFailed)
+  if (recorded !== 'written') throw new Error(reportUi.saveFailed)
   const expired = entries.slice(0, Math.max(0, entries.length - destination.retention))
   for (const entry of expired) {
     const expiredPath = path.join(root, entry.name)
     const bound = await confined(expiredPath, root, allowedRoots)
-    if (!isSamePath(bound, expiredPath, process.platform))
-      throw new Error(UI_TEXT.reportUi.saveFailed)
+    if (!isSamePath(bound, expiredPath, process.platform)) throw new Error(reportUi.saveFailed)
     await recheck()
     await deleteFileIfUnchanged(expiredPath, entry.fingerprint, {
       expectedCanonicalPath: bound,
@@ -248,7 +256,7 @@ export async function saveReport(
       `${JSON.stringify({ scheduleId, destinationId: destination.id, entries: retained })}\n`,
       { ...writeOptions, expectedCanonicalPath: boundManifest },
     )
-    if (pruned !== 'written') throw new Error(UI_TEXT.reportUi.saveFailed)
+    if (pruned !== 'written') throw new Error(reportUi.saveFailed)
   }
   return target
 }

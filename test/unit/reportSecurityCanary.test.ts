@@ -28,6 +28,7 @@ describe('security report canary', () => {
         readVault: () => Promise.resolve(canaryVaultSnapshot()),
       })
       const context = {
+        reportText: EN,
         asOf: REPORT_FIXTURE_AS_OF,
         workspaceKey: 'fixture',
         options: reportOptions('security'),

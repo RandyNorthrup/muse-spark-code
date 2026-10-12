@@ -1,3 +1,4 @@
+import type { UiText } from '../../shared/l10n/en'
 // Bound session and usage report inputs (M113 lane C-M113-2, PLAN.md D93.4).
 // Every engine construction (VS Code, ACP, CLI) builds these from the same
 // durable sources: M84's session history and M102's usage journal through
@@ -10,7 +11,6 @@ import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import * as z from 'zod/mini'
 import {
-  UI_TEXT,
   MILLISECONDS_PER_SECOND,
   SECONDS_PER_MINUTE,
   SESSION_EXPORT_MAX_BYTES,
@@ -133,9 +133,9 @@ function keepReason(partials: string[], reason: string): void {
  * ever enter a partial; a record's own text never does, so no secret, key
  * material or vault item value can reach a reason (RVCM1133B).
  */
-function failureReason(error: unknown): string {
+function failureReason(error: unknown, reportText: UiText): string {
   const code = localFailureOf(error)
-  return code === undefined ? UI_TEXT.reportSourceReasons.failed : sourceReason(code)
+  return code === undefined ? reportText.reportSourceReasons.failed : sourceReason(code, reportText)
 }
 
 /** A row schema any record stream below can be validated against one by one. */
@@ -144,8 +144,8 @@ interface RowSchema<T> {
 }
 
 /** Admission owns the bound; final validation never drops accepted sibling facets. */
-function admitRow<T>(row: T, into: T[], partials: string[]): void {
-  if (into.length >= REPORT_MAX_ROWS) keepReason(partials, UI_TEXT.reportSourceReasons.limit)
+function admitRow<T>(row: T, into: T[], partials: string[], reportText: UiText): void {
+  if (into.length >= REPORT_MAX_ROWS) keepReason(partials, reportText.reportSourceReasons.limit)
   else into.push(row)
 }
 
@@ -160,9 +160,10 @@ function collectValidRows<T>(
   schema: RowSchema<T>,
   into: T[],
   partials: string[],
+  reportText: UiText,
 ): void {
   if (!Array.isArray(rows)) {
-    keepReason(partials, UI_TEXT.reportSourceReasons.invalid)
+    keepReason(partials, reportText.reportSourceReasons.invalid)
     return
   }
   let skipped = 0
@@ -171,16 +172,16 @@ function collectValidRows<T>(
     try {
       parsed = schema.safeParse(row)
     } catch (error) {
-      keepReason(partials, failureReason(error))
+      keepReason(partials, failureReason(error, reportText))
       continue
     }
     if (!parsed.success || parsed.data === undefined) {
       skipped += 1
       continue
     }
-    admitRow(parsed.data, into, partials)
+    admitRow(parsed.data, into, partials, reportText)
   }
-  if (skipped > 0) keepReason(partials, UI_TEXT.reportSourceReasons.invalid)
+  if (skipped > 0) keepReason(partials, reportText.reportSourceReasons.invalid)
 }
 
 /**
@@ -204,7 +205,10 @@ export const SECURITY_REPORT_SUB_SOURCES = [
 ] as const
 
 /** The durable usage journal, tolerating a fresh install with no history yet. */
-export async function readUsageReportJournal(dataFolder: string): Promise<UsageReportJournal> {
+export async function readUsageReportJournal(
+  dataFolder: string,
+  reportText: UiText,
+): Promise<UsageReportJournal> {
   const store = new UsageJournalStore(new NodeUsageFs(dataFolder), {
     writerId: randomUUID(),
     now: Date.now,
@@ -231,7 +235,7 @@ export async function readUsageReportJournal(dataFolder: string): Promise<UsageR
     records: journal.records,
     rollups,
     limits: journal.limits,
-    ...(isDamaged && { partial: UI_TEXT.reportDetailReasons.journalIncomplete }),
+    ...(isDamaged && { partial: reportText.reportDetailReasons.journalIncomplete }),
   }
 }
 
@@ -275,11 +279,12 @@ export function createReportJournalReader(input: {
 }): (context: SourceReadContext) => Promise<UsageReportJournal> {
   const runs = new WeakMap<object, Promise<UsageReportJournal>>()
   return (context) => {
+    const reportText = context.reportText
     let pending = runs.get(context.run ?? context.options)
     if (pending === undefined) {
       pending = (async () => {
         await input.beforeRead?.()
-        const journal = await readUsageReportJournal(input.dataFolder)
+        const journal = await readUsageReportJournal(input.dataFolder, reportText)
         // Only the usage kinds render a Limits section; a session report
         // never touches budget machinery or its failure partial.
         if (
@@ -305,7 +310,7 @@ export function createReportJournalReader(input: {
           // finding 2).
           const reasons: string[] = []
           if (journal.partial !== undefined) pushPartialReason(reasons, journal.partial)
-          pushPartialReason(reasons, UI_TEXT.reportDetailReasons.budgetsUnavailable)
+          pushPartialReason(reasons, reportText.reportDetailReasons.budgetsUnavailable)
           return { ...journal, partial: reasons.join(' ') }
         }
       })()
@@ -328,8 +333,11 @@ export function createUsageReportReader(input: {
   readonly now?: () => number
 }): NonNullable<LocalReportSourceDeps['usage']> {
   return async (context: SourceReadContext) => {
-    const journal = await (input.readJournal?.(context) ?? readUsageReportJournal(input.dataFolder))
+    const reportText = context.reportText
+    const journal = await (input.readJournal?.(context) ??
+      readUsageReportJournal(input.dataFolder, reportText))
     const facts = usageReportFacts({
+      reportText,
       journal,
       scope: context.options.kind === 'usage' ? context.options.scope : '7d',
       by: context.options.by,
@@ -364,6 +372,7 @@ const storedReportSessionSchema = z.object({
 export async function readHostReportSession(
   host: Pick<AgentHost, 'info' | 'readSession' | 'listModels'>,
   sessionId: string,
+  reportText: UiText,
 ): Promise<SessionHistoryInput | null> {
   const history = await host.readSession(sessionId, { recoverGoal: false })
   if (history.mode === 'none') return null
@@ -380,7 +389,7 @@ export async function readHostReportSession(
       sessionId,
       backend: host.info.kind,
       modelId: 'unknown',
-      partial: UI_TEXT.reportDetailReasons.sessionModelUnavailable,
+      partial: reportText.reportDetailReasons.sessionModelUnavailable,
       ...(history.name !== undefined && { name: history.name }),
       items: history.items,
       turnIds: [],
@@ -472,12 +481,16 @@ export async function readStoredReportSession(
  * instead of inferred.
  */
 export function createSessionReportReader(input: {
-  readonly resolveSession: (sessionId: string | undefined) => Promise<SessionHistoryInput | null>
+  readonly resolveSession: (
+    sessionId: string | undefined,
+    context: SourceReadContext,
+  ) => Promise<SessionHistoryInput | null>
   readonly readJournal: (context: SourceReadContext) => Promise<UsageReportJournal>
 }): ReportSessionReader {
   return {
     read: async (context: SourceReadContext) => {
-      const history = await input.resolveSession(context.options.sessionId)
+      const reportText = context.reportText
+      const history = await input.resolveSession(context.options.sessionId, context)
       if (history === null) throw new LocalSourceError('history')
       const journal = await input.readJournal(context)
       // The transcript reader's own reason (an unknown catalogue model)
@@ -496,12 +509,12 @@ export function createSessionReportReader(input: {
         pushPartialReason(partials, reason)
       }
       if (journal.rollups.length > 0)
-        pushPartial(UI_TEXT.reportDetailReasons.rolledUpSessionExcluded)
+        pushPartial(reportText.reportDetailReasons.rolledUpSessionExcluded)
       if (
         history.items.length > 0 &&
         journal.records.every((record) => record.session !== history.sessionId)
       )
-        pushPartial(UI_TEXT.reportDetailReasons.sessionUsageUnavailable)
+        pushPartial(reportText.reportDetailReasons.sessionUsageUnavailable)
       const turns =
         history.turnIds.length > 0 ? history.turnIds.length : sessionTurnCount(history.items)
       return {
@@ -517,12 +530,12 @@ export function createSessionReportReader(input: {
             turns === null
               ? {
                   status: 'unavailable',
-                  reason: UI_TEXT.reportDetailReasons.sessionTurnsUnavailable,
+                  reason: reportText.reportDetailReasons.sessionTurnsUnavailable,
                 }
               : { status: 'available', count: turns },
           approvals: {
             status: 'unavailable',
-            reason: UI_TEXT.reportDetailReasons.sessionApprovalsUnavailable,
+            reason: reportText.reportDetailReasons.sessionApprovalsUnavailable,
           },
         },
         usage: sessionUsageFacts(journal.records, history.sessionId),
@@ -612,10 +625,11 @@ const recordFieldsSchema = z.record(z.string(), z.unknown())
 function projectThresholds(
   raw: unknown,
   partials: string[],
+  reportText: UiText,
 ): AccountsFacts['providers'][number]['accounts'][number]['thresholds'] {
   // Whole-shape validation discloses unknown fields without vetoing valid limits.
   if (!accountThresholdsSchema.safeParse(raw).success)
-    keepReason(partials, UI_TEXT.reportSourceReasons.invalid)
+    keepReason(partials, reportText.reportSourceReasons.invalid)
   const result: z.infer<typeof accountsThresholdsSchema> = {
     spendUsd: [],
     counts: [],
@@ -625,7 +639,7 @@ function projectThresholds(
     if (value === undefined) return {}
     const parsed = recordFieldsSchema.safeParse(value)
     if (parsed.success) return parsed.data
-    keepReason(partials, UI_TEXT.reportSourceReasons.invalid)
+    keepReason(partials, reportText.reportSourceReasons.invalid)
     return {}
   }
   const thresholds = fields(raw)
@@ -640,6 +654,7 @@ function projectThresholds(
           accountsThresholdsSchema.shape.spendUsd.def.element,
           result.spendUsd,
           partials,
+          reportText,
         )
       else
         collectValidRows(
@@ -647,13 +662,14 @@ function projectThresholds(
           accountsThresholdsSchema.shape.counts.def.element,
           result.counts,
           partials,
+          reportText,
         )
     }
   }
   const planWindows = Object.entries(fields(thresholds['planWindowPercent']))
   for (const [name, value] of planWindows) {
     if (!accountIdSchema.safeParse(name).success) {
-      keepReason(partials, UI_TEXT.reportSourceReasons.invalid)
+      keepReason(partials, reportText.reportSourceReasons.invalid)
       continue
     }
     collectValidRows(
@@ -661,6 +677,7 @@ function projectThresholds(
       accountsThresholdsSchema.shape.percents.def.element,
       result.percents,
       partials,
+      reportText,
     )
   }
   const headroom = fields(thresholds['rateLimitHeadroomPercent'])
@@ -672,6 +689,7 @@ function projectThresholds(
         accountsThresholdsSchema.shape.percents.def.element,
         result.percents,
         partials,
+        reportText,
       )
   }
   return result
@@ -698,6 +716,7 @@ export function createAccountsReportReader(input: {
 }): ReportAccountsReader {
   return {
     read: async (context: SourceReadContext) => {
+      const reportText = context.reportText
       const partials: string[] = []
       const providers: AccountsFacts['providers'][number][] = []
       try {
@@ -708,13 +727,13 @@ export function createAccountsReportReader(input: {
         )
         if (text === null && input.readUsage === undefined && input.readEvents === undefined)
           return null
-        if (text === null) keepReason(partials, UI_TEXT.reportSourceReasons.missing)
+        if (text === null) keepReason(partials, reportText.reportSourceReasons.missing)
         let raw: unknown
         try {
           raw = text === null ? undefined : JSON.parse(text)
         } catch {
           raw = undefined
-          keepReason(partials, UI_TEXT.reportSourceReasons.invalid)
+          keepReason(partials, reportText.reportSourceReasons.invalid)
         }
         if (raw !== undefined) {
           const envelope = z.object({ providers: z.record(z.string(), z.unknown()) }).safeParse(raw)
@@ -733,10 +752,10 @@ export function createAccountsReportReader(input: {
                     // Preserve the strict stored contract's disclosure while
                     // accepting independently valid metadata and limits below.
                     if (!accountSchema.safeParse(rawAccount).success)
-                      keepReason(partials, UI_TEXT.reportSourceReasons.invalid)
+                      keepReason(partials, reportText.reportSourceReasons.invalid)
                     const metadata = registryAccountMetadataSchema.safeParse(rawAccount)
                     if (!metadata.success) {
-                      keepReason(partials, UI_TEXT.reportSourceReasons.invalid)
+                      keepReason(partials, reportText.reportSourceReasons.invalid)
                       continue
                     }
                     collectValidRows(
@@ -746,16 +765,21 @@ export function createAccountsReportReader(input: {
                           label: metadata.data.label,
                           order: metadata.data.order,
                           limitGroup: metadata.data.limitGroup ?? null,
-                          thresholds: projectThresholds(metadata.data.thresholds, partials),
+                          thresholds: projectThresholds(
+                            metadata.data.thresholds,
+                            partials,
+                            reportText,
+                          ),
                         },
                       ],
                       accountsAccountRowSchema,
                       accounts,
                       partials,
+                      reportText,
                     )
                   }
                 } else {
-                  keepReason(partials, UI_TEXT.reportSourceReasons.invalid)
+                  keepReason(partials, reportText.reportSourceReasons.invalid)
                 }
               }
               collectValidRows(
@@ -770,16 +794,17 @@ export function createAccountsReportReader(input: {
                 accountsProviderRowSchema,
                 providers,
                 partials,
+                reportText,
               )
             }
-            if (invalidEntries > 0) keepReason(partials, UI_TEXT.reportSourceReasons.invalid)
-          } else keepReason(partials, UI_TEXT.reportSourceReasons.invalid)
+            if (invalidEntries > 0) keepReason(partials, reportText.reportSourceReasons.invalid)
+          } else keepReason(partials, reportText.reportSourceReasons.invalid)
         }
       } catch (error) {
         // An unreadable registry is one failed sub-source, never a failed
         // read: the injected facets below still report (RVCM1133B P2).
         if (context.signal.aborted) throw error
-        keepReason(partials, failureReason(error))
+        keepReason(partials, failureReason(error, reportText))
       }
       const missing: string[] = []
       const usage: AccountsFacts['usage'][number][] = []
@@ -788,10 +813,10 @@ export function createAccountsReportReader(input: {
         try {
           const read = await input.readUsage(context)
           if (read === null || read === undefined) missing.push('usage')
-          else collectValidRows(read, accountsUsageRowSchema, usage, partials)
+          else collectValidRows(read, accountsUsageRowSchema, usage, partials, reportText)
         } catch (error) {
           if (context.signal.aborted) throw error
-          keepReason(partials, failureReason(error))
+          keepReason(partials, failureReason(error, reportText))
         }
       }
       const events: AccountsFacts['events'][number][] = []
@@ -803,30 +828,32 @@ export function createAccountsReportReader(input: {
           if (read === null || read === undefined) missing.push('swaps', 'confirmations')
           else {
             if (typeof read !== 'object' || Array.isArray(read))
-              keepReason(partials, UI_TEXT.reportSourceReasons.invalid)
+              keepReason(partials, reportText.reportSourceReasons.invalid)
             else {
               collectValidRows(
-                readSnapshotFacet(read, 'events', partials),
+                readSnapshotFacet(read, 'events', partials, reportText),
                 accountsEventRowSchema,
                 events,
                 partials,
+                reportText,
               )
               collectValidRows(
-                readSnapshotFacet(read, 'confirmations', partials),
+                readSnapshotFacet(read, 'confirmations', partials, reportText),
                 accountsConfirmationRowSchema,
                 confirmations,
                 partials,
+                reportText,
               )
             }
           }
         } catch (error) {
           if (context.signal.aborted) throw error
-          keepReason(partials, failureReason(error))
+          keepReason(partials, failureReason(error, reportText))
         }
       }
       if (missing.length > 0)
         partials.push(
-          fill(UI_TEXT.reportDetailReasons.accountsFacetsUnavailable, {
+          fill(reportText.reportDetailReasons.accountsFacetsUnavailable, {
             facets: missing.join(', '),
           }),
         )
@@ -850,14 +877,19 @@ export interface SecurityVaultSnapshot {
 }
 
 /** An adapter may expose a throwing getter: isolate every result facet. */
-function readSnapshotFacet(snapshot: unknown, key: string, partials: string[]): unknown {
+function readSnapshotFacet(
+  snapshot: unknown,
+  key: string,
+  partials: string[],
+  reportText: UiText,
+): unknown {
   try {
     const field = z.object({ [key]: z.unknown() })
     const parsed = field.safeParse(snapshot)
     if (parsed.success) return parsed.data[key]
-    keepReason(partials, UI_TEXT.reportSourceReasons.invalid)
+    keepReason(partials, reportText.reportSourceReasons.invalid)
   } catch (error) {
-    keepReason(partials, failureReason(error))
+    keepReason(partials, failureReason(error, reportText))
   }
   return undefined
 }
@@ -881,6 +913,7 @@ export function createSecurityReportReader(input: {
 }): ReportSecurityReader {
   return {
     read: async (context: SourceReadContext) => {
+      const reportText = context.reportText
       const partials: string[] = []
       let vault: SecurityFacts['vault'] = null
       const vaultAudit: SecurityFacts['audit'][number][] = []
@@ -890,21 +923,22 @@ export function createSecurityReportReader(input: {
           snapshot = await input.readVault(context)
         } catch (error) {
           if (context.signal.aborted) throw error
-          keepReason(partials, failureReason(error))
+          keepReason(partials, failureReason(error, reportText))
         }
       }
       if (snapshot === null || snapshot === undefined)
-        keepReason(partials, UI_TEXT.reportDetailReasons.securityVaultUnavailable)
+        keepReason(partials, reportText.reportDetailReasons.securityVaultUnavailable)
       else {
         const envelope = z.object({}).safeParse(snapshot)
         if (envelope.success) {
           // Audit evidence is independent of view state/tier and item/grant validity.
           const records: z.infer<typeof vaultAuditRecordSchema>[] = []
           collectValidRows(
-            readSnapshotFacet(snapshot, 'audit', partials),
+            readSnapshotFacet(snapshot, 'audit', partials, reportText),
             vaultAuditRecordSchema,
             records,
             partials,
+            reportText,
           )
           for (const record of records)
             collectValidRows(
@@ -919,6 +953,7 @@ export function createSecurityReportReader(input: {
               securityAuditRowSchema,
               vaultAudit,
               partials,
+              reportText,
             )
           const view = z
             .strictObject({
@@ -926,23 +961,25 @@ export function createSecurityReportReader(input: {
               tier: vaultStatusSchema.shape.tier,
             })
             .safeParse({
-              state: readSnapshotFacet(snapshot, 'state', partials),
-              tier: readSnapshotFacet(snapshot, 'tier', partials),
+              state: readSnapshotFacet(snapshot, 'state', partials, reportText),
+              tier: readSnapshotFacet(snapshot, 'tier', partials, reportText),
             })
           if (view.success) {
             const items: z.infer<typeof vaultItemMetadataSchema>[] = []
             collectValidRows(
-              readSnapshotFacet(snapshot, 'items', partials),
+              readSnapshotFacet(snapshot, 'items', partials, reportText),
               vaultItemMetadataSchema,
               items,
               partials,
+              reportText,
             )
             const grants: z.infer<typeof vaultGrantSchema>[] = []
             collectValidRows(
-              readSnapshotFacet(snapshot, 'grants', partials),
+              readSnapshotFacet(snapshot, 'grants', partials, reportText),
               vaultGrantSchema,
               grants,
               partials,
+              reportText,
             )
             const itemsByKind = new Map<string, number>()
             for (const item of items)
@@ -960,10 +997,10 @@ export function createSecurityReportReader(input: {
               grants: Array.from(grantsByScope, ([scope, count]) => ({ scope, count })),
             }
           } else {
-            keepReason(partials, UI_TEXT.reportSourceReasons.invalid)
+            keepReason(partials, reportText.reportSourceReasons.invalid)
           }
         } else {
-          keepReason(partials, UI_TEXT.reportSourceReasons.invalid)
+          keepReason(partials, reportText.reportSourceReasons.invalid)
         }
       }
       const directory = path.join(input.dataDir, 'developer')
@@ -977,7 +1014,7 @@ export function createSecurityReportReader(input: {
           // An unreadable rotation is one failed sub-source: the vault
           // rows above and the other rotation still report (RVCM1133B P2).
           if (context.signal.aborted) throw error
-          keepReason(partials, failureReason(error))
+          keepReason(partials, failureReason(error, reportText))
           continue
         }
         if (text === null) continue
@@ -1004,12 +1041,13 @@ export function createSecurityReportReader(input: {
             securityDeveloperAuditRowSchema,
             developerAudit,
             partials,
+            reportText,
           )
         }
-        if (skipped > 0) keepReason(partials, UI_TEXT.reportSourceReasons.invalid)
+        if (skipped > 0) keepReason(partials, reportText.reportSourceReasons.invalid)
       }
       if (developerAudit === null)
-        partials.push(UI_TEXT.reportDetailReasons.securityDeveloperAuditUnavailable)
+        partials.push(reportText.reportDetailReasons.securityDeveloperAuditUnavailable)
       // Both sources absent is a partial naming both true reasons, never a
       // bare null that the source would report as a generic missing file.
       return {

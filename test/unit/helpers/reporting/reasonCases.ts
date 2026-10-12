@@ -1,3 +1,4 @@
+import { EN } from '../../../../src/shared/l10n/en'
 // Shared context and assertion for the accounts/security reason suites
 // (RVCM1133B): one copy of the boilerplate instead of a clone in every
 // file that reads a source through its real port.
@@ -20,6 +21,7 @@ export interface ReasonWant {
 
 /** A source-read context for the reason suites, identical in every file. */
 export const reasonContext = (kind: 'accounts' | 'security') => ({
+  reportText: EN,
   asOf: REPORT_FIXTURE_AS_OF,
   workspaceKey: 'fixture',
   options: {

@@ -6,7 +6,6 @@ import {
   MILLISECONDS_PER_SECOND,
   REPORT_GITHUB_RATE_FLOOR,
   REPORT_SOURCE_TIMEOUT_MS,
-  UI_TEXT,
 } from '../../../shared/constants'
 import { fill } from '../../../shared/l10n/text'
 import type { ReportSourceRecord } from '../../../shared/reportSchema'
@@ -270,7 +269,9 @@ export class ReportNetworkReader {
         throw new ReportNetworkFailure(
           limited === null
             ? `http-${String(response.status)}`
-            : fill(UI_TEXT.reportUi.rateLimitedUntil, { time: new Date(limited).toISOString() }),
+            : fill(context.reportText.reportUi.rateLimitedUntil, {
+                time: new Date(limited).toISOString(),
+              }),
         )
       }
       const raw = await this.body(response, signal)
@@ -363,8 +364,8 @@ export class ReportNetworkReader {
   private refusal(generation: NetworkGeneration): string | null {
     if (this.allowed(generation.context, new URL(generation.request.url).hostname)) return null
     return this.allowed(generation.context)
-      ? UI_TEXT.reportUi.signInRequired
-      : UI_TEXT.reportUi.networkOff
+      ? generation.context.reportText.reportUi.signInRequired
+      : generation.context.reportText.reportUi.networkOff
   }
 
   private execute(origin: string, effect: ReportAdmissionEffect<NetworkGeneration>): void {
@@ -378,7 +379,7 @@ export class ReportNetworkReader {
         generation.completion.reject(
           new ReportNetworkFailure(
             typeof effect.reason === 'number'
-              ? fill(UI_TEXT.reportUi.rateLimitedUntil, {
+              ? fill(generation.context.reportText.reportUi.rateLimitedUntil, {
                   time: new Date(effect.reason).toISOString(),
                 })
               : effect.reason,
@@ -539,7 +540,8 @@ export class ReportNetworkReader {
       reason: string | null
     }>,
   ): Promise<SourceResult<T>> {
-    if (!this.allowed(context)) return unavailableReportSource(id, UI_TEXT.reportUi.networkOff)
+    if (!this.allowed(context))
+      return unavailableReportSource(id, context.reportText.reportUi.networkOff)
     const controller = new AbortController()
     const signal = AbortSignal.any([context.signal, controller.signal])
     let observedAt: string | null = null
@@ -587,7 +589,7 @@ export class ReportNetworkReader {
       const detail = error instanceof ReportNetworkFailure ? error.message : 'source-failed'
       return unavailableReportSource(
         id,
-        `${UI_TEXT.reportUi.generationFailed} (${this.deps.scrub(detail)})`,
+        `${context.reportText.reportUi.generationFailed} (${this.deps.scrub(detail)})`,
       )
     } finally {
       clearTimeout(timer)

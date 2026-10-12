@@ -219,7 +219,7 @@ export function agentUsageSource(
   files: AgentUsageFiles,
   scrub: SourceScrub,
 ) {
-  return localSource('agentUsage', async ({ signal, asOf }) => {
+  return localSource('agentUsage', async ({ signal, asOf, reportText }) => {
     if (enabled.length === 0) throw new LocalSourceError('disabled')
     const selectedFiles = typeof files === 'function' ? await files(signal) : files
     if (selectedFiles.length > REPORT_MAX_ROWS) throw new LocalSourceError('limit')
@@ -265,7 +265,7 @@ export function agentUsageSource(
     return {
       data: rows,
       observedAt,
-      ...(failures.length > 0 && { partial: sourceReason(failures[0] ?? 'failed') }),
+      ...(failures.length > 0 && { partial: sourceReason(failures[0] ?? 'failed', reportText) }),
     }
   })
 }

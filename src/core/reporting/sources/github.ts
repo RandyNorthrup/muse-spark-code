@@ -8,7 +8,6 @@ import {
   GITHUB_MEDIA_TYPE,
   REPORT_MAX_ROWS,
   REPORT_SOURCE_TIMEOUT_MS,
-  UI_TEXT,
 } from '../../../shared/constants'
 import { withoutCredentials } from '../../credentialEnvironment'
 import { resolveExecutable, type ExecutableProbe } from '../../executables'
@@ -224,20 +223,20 @@ export function githubReportSource(options: ReportGitHubOptions): ReportSourcePo
     id: 'github',
     async read(context) {
       if (!options.reader.allowed(context))
-        return unavailableReportSource('github', UI_TEXT.reportUi.networkOff)
+        return unavailableReportSource('github', context.reportText.reportUi.networkOff)
       const repository = githubRepositoryOf(options.remote)
       if (repository === undefined)
         return unavailableReportSource(
           'github',
-          `${UI_TEXT.reportUi.generationFailed} (github-remote-required)`,
+          `${context.reportText.reportUi.generationFailed} (github-remote-required)`,
           'notApplicable',
         )
       if (!options.reader.allowed(context, 'api.github.com'))
-        return unavailableReportSource('github', UI_TEXT.reportUi.signInRequired)
+        return unavailableReportSource('github', context.reportText.reportUi.signInRequired)
       if (!isCommitSha(options.headSha) || options.defaultBranch.trim() === '')
         return unavailableReportSource(
           'github',
-          `${UI_TEXT.reportUi.generationFailed} (git-ref-required)`,
+          `${context.reportText.reportUi.generationFailed} (git-ref-required)`,
         )
       return await options.reader.read<GitHubFacts>(
         context,
@@ -558,12 +557,14 @@ export async function postReport(
   schedule?: unknown,
 ): Promise<ReportPostResult> {
   if (!isPostingAllowed(deps, context))
-    return { status: 'refused', reason: UI_TEXT.reportUi.networkOff }
+    return { status: 'refused', reason: context.reportText.reportUi.networkOff }
   const kind = reportKindSchema.parse(input.kind)
   const target = postTargetSchema.parse(input.target)
   if (!(await deps.enabled(kind, target)))
-    return { status: 'refused', reason: UI_TEXT.reportUi.previewPost }
-  const body = deps.scrub(`${deps.scrub(input.body)}\n\n${UI_TEXT.reportUi.automatedNote}\n`)
+    return { status: 'refused', reason: context.reportText.reportUi.previewPost }
+  const body = deps.scrub(
+    `${deps.scrub(input.body)}\n\n${context.reportText.reportUi.automatedNote}\n`,
+  )
   const preview: ReportPostPreview = { kind, target, body }
   let scheduleGrant: PostScheduleGrant | undefined
   if (schedule !== undefined) {
@@ -576,16 +577,16 @@ export async function postReport(
       !(await deps.previewed(kind, target)) ||
       !(await deps.authorizeSchedule(context, grant.data))
     )
-      return { status: 'refused', reason: UI_TEXT.reportUi.previewPost }
+      return { status: 'refused', reason: context.reportText.reportUi.previewPost }
     scheduleGrant = grant.data
   } else if ((await deps.confirm(structuredClone(preview), context.signal)) !== 'post')
-    return { status: 'refused', reason: UI_TEXT.reportUi.previewPost }
+    return { status: 'refused', reason: context.reportText.reportUi.previewPost }
   if (
     deps.scrub(body) !== body ||
     !isPostingAllowed(deps, context) ||
     !(await deps.enabled(kind, target))
   )
-    return { status: 'refused', reason: UI_TEXT.reportUi.previewPost }
+    return { status: 'refused', reason: context.reportText.reportUi.previewPost }
   const url = `https://api.github.com/repos/${target.repository}/issues/${String(target.number)}`
   const controller = new AbortController()
   const signal = AbortSignal.any([context.signal, controller.signal])
@@ -603,13 +604,13 @@ export async function postReport(
   }, REPORT_SOURCE_TIMEOUT_MS)
   const work = async (): Promise<ReportPostResult> => {
     if (!(await deps.policy.allowEgress(url, signal)))
-      return { status: 'refused', reason: UI_TEXT.reportUi.networkOff }
+      return { status: 'refused', reason: context.reportText.reportUi.networkOff }
     if (scheduleGrant !== undefined && !(await deps.authorizeSchedule(context, scheduleGrant)))
-      return { status: 'refused', reason: UI_TEXT.reportUi.previewPost }
+      return { status: 'refused', reason: context.reportText.reportUi.previewPost }
     if (!isPostingAllowed(deps, context) || !(await deps.enabled(kind, target)))
-      return { status: 'refused', reason: UI_TEXT.reportUi.previewPost }
+      return { status: 'refused', reason: context.reportText.reportUi.previewPost }
     if (deps.scrub(body) !== body || !isPostingAllowed(deps, context))
-      return { status: 'refused', reason: UI_TEXT.reportUi.previewPost }
+      return { status: 'refused', reason: context.reportText.reportUi.previewPost }
     signal.throwIfAborted()
     dispatch.hasStarted = true
     const receipt = z.strictObject({ url: z.url() }).parse(
@@ -639,7 +640,7 @@ export async function postReport(
   } catch {
     return {
       status: dispatch.hasStarted ? 'uncertain' : 'failed',
-      reason: UI_TEXT.reportUi.generationFailed,
+      reason: context.reportText.reportUi.generationFailed,
     }
   } finally {
     clearTimeout(timer)

@@ -1,5 +1,4 @@
 import * as z from 'zod/mini'
-import { UI_TEXT } from '../../../shared/constants'
 import { compareVersions, isVersion } from '../../whatsNew/whatsNewVersions'
 import type { ReportSourcePayloads, ReportSourcePort } from './types'
 import {
@@ -90,12 +89,12 @@ export function storesReportSource(options: ReportStoreOptions): ReportSourcePor
     id: 'stores',
     async read(context) {
       if (!options.reader.allowed(context))
-        return unavailableReportSource('stores', UI_TEXT.reportUi.networkOff)
+        return unavailableReportSource('stores', context.reportText.reportUi.networkOff)
       const targets = channels(options)
       if (targets.length === 0)
         return unavailableReportSource(
           'stores',
-          `${UI_TEXT.reportUi.generationFailed} (no-published-channels)`,
+          `${context.reportText.reportUi.generationFailed} (no-published-channels)`,
           'notApplicable',
         )
       return await options.reader.read(context, 'stores', storeRowsSchema, async (query) => {

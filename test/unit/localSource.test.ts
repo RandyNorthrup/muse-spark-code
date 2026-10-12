@@ -1,3 +1,4 @@
+import { EN } from '../../src/shared/l10n/en'
 // C-M113-2: failures thrown from a lazy bundle's own copy of
 // LocalSourceError must keep their code across the bundle boundary.
 import { describe, expect, it } from 'vitest'
@@ -43,6 +44,7 @@ describe('local source failures', () => {
       Promise.reject(new ForeignLocalSourceError('history')),
     )
     const result = await source.read({
+      reportText: EN,
       asOf: REPORT_FIXTURE_AS_OF,
       workspaceKey: 'fixture',
       options: reportOptions('session'),

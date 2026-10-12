@@ -1,3 +1,4 @@
+import { EN } from '../../src/shared/l10n/en'
 import * as ResourceLauncher from '../../src/core/resources/launcher'
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
@@ -513,6 +514,7 @@ describe('report history', () => {
     expect(maximum).toBe(1)
     const source = new CheckRunJournal({ storage: t.storage, scrub: (text) => text }).source()
     const result = await source.read({
+      reportText: EN,
       workspaceKey: 'workspace',
       asOf: at(1).header.asOf,
       options: reportOptions(),

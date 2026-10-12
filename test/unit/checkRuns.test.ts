@@ -1,3 +1,4 @@
+import { EN } from '../../src/shared/l10n/en'
 import { mkdir, mkdtemp, readFile, readdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
@@ -39,6 +40,7 @@ async function fixture() {
     scrub: (text) => text.replaceAll(CANARY, '[redacted]'),
   })
   const context = {
+    reportText: EN,
     asOf: '2026-10-06T13:00:00+00:00',
     workspaceKey: 'workspace',
     options: reportOptions(),

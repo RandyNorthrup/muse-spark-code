@@ -48,3 +48,21 @@ accounts/security and keybindings factory calls: 134 tests pass.
 Deliberately admitting one excess full row fires all 75 bound cases. Byte-exact
 restoration SHA-256: `454615f4bb528afaff4ac20102144e646e8e8a6e8e3c76bdad336689af0d7de0`;
 drill log SHA-256: `300e757526e82e734156c7ae319df29144831b17faaee82929baa5b7e491d058`. No schema cap moves.
+
+## Guarantee (a): request language
+
+The engine captures the request table and locale before its first await and
+passes `SourceReadContext.reportText` through every local/network reader,
+including the lazy input bundle. Usage reasons also receive this table.
+Network bindings are per generation; cache storage remains shared. Other
+report operations capture their error text before asynchronous work.
+
+`reportEngineLanguage` enumerates all 15 kinds: 15 overlapping English/Spanish
+generations resolve in reverse order, and 15 registry-derived source/collector
+import checks pass. The separate-bundle German input regression, source inputs,
+usage and history suites pass at repository deadlines; changed-file lint and
+host typecheck pass. Two deliberate mutations fire the language and structural
+guards, respectively; both source files restore byte-exactly.
+
+- request-table: `src/runtime/reporting/engine.ts`, restoration `7769db65d9b85543f9e2d709edfb68c2ee77cca3a5fcd91e907fb4e1cb067e9c`, red log `efb0f2d6699ed47362c419c421c7a85e1bcd85ec1078c55ed0f9412eac4f4b8b`.
+- structural-table: `src/core/reporting/sources/local.ts`, restoration `f975d467d035741573429d6a2ce8dd7f7a5e5866ba57d20d27cc7e09e854ce9c`, red log `1b767647e561358a28cee6dbe8b2c16decc65e85ecba47b7264dff8e100fbedb`.

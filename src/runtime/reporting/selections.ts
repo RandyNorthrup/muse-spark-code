@@ -1,3 +1,4 @@
+import type { UiText } from '../../shared/l10n/en'
 import * as z from 'zod/mini'
 import {
   GIT_METADATA_OPTIONS,
@@ -19,7 +20,13 @@ import { readPlan } from '../../core/reporting/plan/reader'
 const commitsSchema = z
   .array(z.string().check(z.regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/)))
   .check(z.maxLength(REPORT_GIT_MAX_COMMITS + 1))
-function result<T>(id: string, data: T, asOf: string, isPartial = false): SourceResult<T> {
+function result<T>(
+  id: string,
+  data: T,
+  asOf: string,
+  reportText: UiText,
+  isPartial = false,
+): SourceResult<T> {
   return {
     data,
     record: {
@@ -27,18 +34,18 @@ function result<T>(id: string, data: T, asOf: string, isPartial = false): Source
       observedAt: asOf,
       freshness: { state: 'fresh', ageMs: 0 },
       ...(isPartial
-        ? { status: 'partial' as const, reason: sourceReason('limit') }
+        ? { status: 'partial' as const, reason: sourceReason('limit', reportText) }
         : { status: 'ok' as const, reason: null }),
     },
   }
 }
-function unavailable(id: string): SourceResult<never> {
+function unavailable(id: string, reportText: UiText): SourceResult<never> {
   return {
     data: null,
     record: {
       id,
       status: 'unavailable',
-      reason: sourceReason('unbound'),
+      reason: sourceReason('unbound', reportText),
       observedAt: null,
       freshness: { state: 'unknown', ageMs: null },
     },
@@ -51,6 +58,7 @@ export async function readReportSelections(
   options: ReportOptions,
   io: ReportGitIo,
   outerSignal: AbortSignal,
+  reportText: UiText,
 ): Promise<ReportSelectionPorts> {
   const signal = AbortSignal.any([outerSignal, AbortSignal.timeout(REPORT_SOURCE_TIMEOUT_MS)])
   const git = snapshot.sources.git.data
@@ -71,9 +79,15 @@ export async function readReportSelections(
     ])
     return commitsSchema.parse(stdout.trim().split('\n').filter(Boolean))
   }
-  let changes: SourceResult<GitFacts['commits']> = unavailable('gitRange')
-  let memberships: ReturnType<ReportSelectionPorts['changeBranches']> = unavailable('gitMembership')
-  let risks: SourceResult<Pick<PlanFacts, 'risks' | 'residuals'>> = unavailable('planRevision')
+  let changes: SourceResult<GitFacts['commits']> = unavailable('gitRange', reportText)
+  let memberships: ReturnType<ReportSelectionPorts['changeBranches']> = unavailable(
+    'gitMembership',
+    reportText,
+  )
+  let risks: SourceResult<Pick<PlanFacts, 'risks' | 'residuals'>> = unavailable(
+    'planRevision',
+    reportText,
+  )
   if (git !== null && options.kind === 'changes') {
     try {
       let args: readonly string[]
@@ -95,6 +109,7 @@ export async function readReportSelections(
         'gitRange',
         known,
         snapshot.asOf,
+        reportText,
         selected.length > REPORT_GIT_MAX_COMMITS || known.length !== selected.length,
       )
       const defaultBranch = git.branches.find((branch) => branch.name === git.defaultBranch)
@@ -114,6 +129,7 @@ export async function readReportSelections(
         'gitMembership',
         Array.from(byCommit, ([commit, branches]) => ({ commit, branches })),
         snapshot.asOf,
+        reportText,
         isPartial,
       )
     } catch {
@@ -139,6 +155,7 @@ export async function readReportSelections(
           residuals: current.residuals.filter((entry) => !oldResiduals.has(JSON.stringify(entry))),
         },
         snapshot.asOf,
+        reportText,
       )
     } catch {
       /* Revision evidence is unavailable; do not infer dates from prose. */

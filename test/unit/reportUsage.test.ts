@@ -1,3 +1,4 @@
+import { EN } from '../../src/shared/l10n/en'
 // M113 C-M113-2: the usage report reads M102's journal through aggregate.ts.
 import { describe, expect, it } from 'vitest'
 import { codeUnitCompare, LocalSourceError } from '../../src/core/reporting/sources/local'
@@ -112,6 +113,7 @@ describe('usage report facts', () => {
       record({ day: shiftUsageDay(TODAY, -1) }),
     ]
     const facts = usageReportFacts({
+      reportText: EN,
       journal: journal({ records }),
       scope: '7d',
       by: 'provider',
@@ -139,6 +141,7 @@ describe('usage report facts', () => {
 
   it('carries certainty honestly: reported, estimated, then unknown', () => {
     const reported = usageReportFacts({
+      reportText: EN,
       journal: journal({ records: [record({ day: TODAY })] }),
       scope: 'today',
       by: undefined,
@@ -151,6 +154,7 @@ describe('usage report facts', () => {
     // Model rows carry their provider: two providers sharing a model stay distinct.
     expect(reported.usage.breakdown.map((row) => row.key)).toEqual(['meta/muse-spark'])
     const estimated = usageReportFacts({
+      reportText: EN,
       journal: journal({
         records: [record({ day: TODAY, cost: { certainty: 'estimated' } })],
       }),
@@ -163,6 +167,7 @@ describe('usage report facts', () => {
     expect(estimated.usage.certainty).toBe('estimated')
     expect(estimated.usage.costUsd).toBeNull()
     const unknown = usageReportFacts({
+      reportText: EN,
       journal: journal({
         records: [record({ day: TODAY, cost: { certainty: 'unpriced' } })],
       }),
@@ -182,6 +187,7 @@ describe('usage report facts', () => {
       record({ day: TODAY }),
     ]
     const bySession = usageReportFacts({
+      reportText: EN,
       journal: journal({ records }),
       scope: 'today',
       by: 'session',
@@ -194,6 +200,7 @@ describe('usage report facts', () => {
       ['unknown', 100],
     ])
     const byAccount = usageReportFacts({
+      reportText: EN,
       journal: journal({ records }),
       scope: 'today',
       by: 'account',
@@ -209,6 +216,7 @@ describe('usage report facts', () => {
 
   it('keeps per-tool breakdowns partial instead of inventing rows', () => {
     const facts = usageReportFacts({
+      reportText: EN,
       journal: journal({ records: [record({ day: TODAY })] }),
       scope: 'today',
       by: 'tool',
@@ -243,6 +251,7 @@ describe('usage report facts', () => {
       },
     ] as UsageReportJournal['rollups']
     const facts = usageReportFacts({
+      reportText: EN,
       journal: journal({ records, rollups }),
       scope: 'today',
       by: 'session',
@@ -259,6 +268,7 @@ describe('usage report facts', () => {
 
   it('maps limit windows to percent-scale limits, latest observation winning', () => {
     const facts = usageReportFacts({
+      reportText: EN,
       journal: journal({
         limits: [
           limitWindow('meta', 'weekly', 25, NOW - 3_600_000),
@@ -317,6 +327,7 @@ describe('session report inputs', () => {
 
 const regressionFacts = (input: Partial<Parameters<typeof usageReportFacts>[0]> = {}) =>
   usageReportFacts({
+    reportText: EN,
     journal: journal(),
     scope: 'today',
     by: undefined,

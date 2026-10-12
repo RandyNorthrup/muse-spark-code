@@ -9,6 +9,8 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Report generations keep their requested language across overlapping reads and lazy input bundles; network bindings also belong to each generation (REPORTJOIN).
+
 - **Repeated report rows preserve saved identities without delaying the host** (CM1132R7).
   Duplicate suffixes reserve every original key, including later rows and
   maximum-length keys, and allocation advances without rescanning. Definitive

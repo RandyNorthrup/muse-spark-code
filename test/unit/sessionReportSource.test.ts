@@ -1,3 +1,4 @@
+import { EN } from '../../src/shared/l10n/en'
 import { describe, expect, it, vi } from 'vitest'
 import { createHostReportSources } from '../../src/host/reporting/sources'
 import { createRuntimeReportSources } from '../../src/runtime/reporting/sources'
@@ -31,6 +32,7 @@ import type {
 } from '../../src/core/reporting/sources/types'
 
 const context = () => ({
+  reportText: EN,
   asOf: REPORT_FIXTURE_AS_OF,
   workspaceKey: 'fixture',
   options: reportOptions(),

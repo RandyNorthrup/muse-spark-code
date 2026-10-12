@@ -10,7 +10,7 @@ import {
 import type { ReportSourcePayloads } from './types'
 
 export function certificationSource(io: LocalFileIo, scrub: SourceScrub) {
-  return localSource('certification', async ({ signal }) => {
+  return localSource('certification', async ({ signal, reportText }) => {
     const records: ReportSourcePayloads['certification']['records'][number][] = []
     const failures: string[] = []
     let visited = 0
@@ -50,6 +50,9 @@ export function certificationSource(io: LocalFileIo, scrub: SourceScrub) {
     }
     await walk('docs/certification')
     if (failures.length > 0 && records.length === 0) throw new LocalSourceError('failed')
-    return { data: { records }, ...(failures.length > 0 && { partial: sourceReason('failed') }) }
+    return {
+      data: { records },
+      ...(failures.length > 0 && { partial: sourceReason('failed', reportText) }),
+    }
   })
 }

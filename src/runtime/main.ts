@@ -537,7 +537,7 @@ function runtimeReports(
                 inputs()
                   .createSessionReportReader(
                     {
-                      resolveSession: async (sessionId) => {
+                      resolveSession: async (sessionId, reportContext) => {
                         if (sessionId === undefined) return null
                         // A failed read is a failure with its reason, never a
                         // silent miss: precise stored/host brands propagate,
@@ -560,7 +560,11 @@ function runtimeReports(
                           try {
                             runtime ??= await runtimeFor(parsed.options, log)
                             const host = await runtime.backend.hostFor(cwd)
-                            return await inputs().readHostReportSession(host, sessionId)
+                            return await inputs().readHostReportSession(
+                              host,
+                              sessionId,
+                              reportContext.reportText,
+                            )
                           } finally {
                             if (current === undefined) await runtime?.close()
                           }

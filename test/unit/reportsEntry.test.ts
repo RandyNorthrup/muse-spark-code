@@ -251,7 +251,7 @@ it('R1 ACP binds primary history for its automatically selected session', async 
           enabledAgents: [],
           session: createSessionReportReader({
             resolveSession: (id) =>
-              id === undefined ? Promise.resolve(null) : readHostReportSession(host, id),
+              id === undefined ? Promise.resolve(null) : readHostReportSession(host, id, EN),
             readJournal: () => Promise.resolve({ records: [], rollups: [], limits: [] }),
           }),
         }),

@@ -1,3 +1,4 @@
+import type { UiText } from '../../shared/l10n/en'
 // Session and usage report inputs (M113 lane C-M113-2, PLAN.md D93.4).
 // Pure mapping from M102's journal onto the reporting UsageFacts contract:
 // the totals come from aggregate.ts itself, so they are the same numbers as
@@ -19,7 +20,6 @@ import {
   REPORT_MAX_ROWS,
   MILLISECONDS_PER_SECOND,
   SECONDS_PER_MINUTE,
-  UI_TEXT,
 } from '../../shared/constants'
 import type { UsageAggregateRow } from './aggregate'
 import type { UsageBudgetRead } from './usageService'
@@ -326,6 +326,7 @@ export interface UsageReportFacts {
  * recorded, so --by tool stays partial instead of inventing rows.
  */
 export function usageReportFacts(input: {
+  readonly reportText: UiText
   readonly journal: UsageReportJournal
   readonly scope: string
   readonly by: ReportOptions['by']
@@ -350,11 +351,11 @@ export function usageReportFacts(input: {
   let breakdown: UsageFacts['breakdown']
   if (by === 'tool') {
     breakdown = []
-    pushPartial(UI_TEXT.reportDetailReasons.toolBreakdownUnavailable)
+    pushPartial(input.reportText.reportDetailReasons.toolBreakdownUnavailable)
   } else if (by === 'session' || by === 'account') {
     breakdown = journalBreakdown(input.journal.records, range.from, range.to, by)
     if (input.journal.rollups.some((row) => row.day >= range.from && row.day <= range.to))
-      pushPartial(UI_TEXT.reportDetailReasons.rolledUpBreakdownExcluded)
+      pushPartial(input.reportText.reportDetailReasons.rolledUpBreakdownExcluded)
   } else {
     breakdown = pageBreakdown(aggregation, by)
   }
@@ -363,7 +364,7 @@ export function usageReportFacts(input: {
   const period = input.scope === '' ? 'today' : input.scope
   const facts = finishSums(totals, period)
   const cappedBreakdown = capRows(breakdown)
-  if (cappedBreakdown.capped) pushPartial(sourceReason('limit'))
+  if (cappedBreakdown.capped) pushPartial(sourceReason('limit', input.reportText))
   const limits = [
     ...journalLimits(input.journal.limits, range.from, range.to, Date.parse(input.asOf)),
   ]
@@ -373,7 +374,7 @@ export function usageReportFacts(input: {
     input.journal.budgetDay < range.from ||
     input.journal.budgetDay > range.to
   ) {
-    pushPartial(UI_TEXT.reportDetailReasons.budgetsUnavailable)
+    pushPartial(input.reportText.reportDetailReasons.budgetsUnavailable)
   } else {
     for (const { budget } of input.journal.budgets) {
       if (budget.capUsd === undefined) continue
@@ -387,7 +388,7 @@ export function usageReportFacts(input: {
     }
   }
   const cappedLimits = capRows(limits.toSorted((a, b) => codeUnitCompare(a.key, b.key)))
-  if (cappedLimits.capped) pushPartial(sourceReason('limit'))
+  if (cappedLimits.capped) pushPartial(sourceReason('limit', input.reportText))
   return {
     usage: { ...facts, breakdown: cappedBreakdown.rows, limits: cappedLimits.rows },
     observedAt: input.asOf,

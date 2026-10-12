@@ -1,3 +1,4 @@
+import { EN } from '../../src/shared/l10n/en'
 import { describe, expect, it } from 'vitest'
 import { Usd as PortUsd } from '../../src/shared/usd'
 import { accountsSource } from '../../src/core/reporting/sources/accounts'
@@ -32,6 +33,7 @@ const facts: AccountsFacts = {
 
 function contextFor(kind: SourceReadContext['options']['kind']): SourceReadContext {
   return {
+    reportText: EN,
     asOf: REPORT_FIXTURE_AS_OF,
     workspaceKey: 'fixture',
     options: reportOptions(kind),

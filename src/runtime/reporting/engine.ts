@@ -1,7 +1,6 @@
 import reportThemes from '../../../design/tokens/generated/report-themes.json'
 import { homedir } from 'node:os'
 import {
-  UI_TEXT,
   REPORT_EMPTY_HASH,
   REPORT_NEXT_STEP_LIMIT,
   REPORT_FORMAT_VERSION,
@@ -68,6 +67,8 @@ export interface ReportingContext {
 
   readonly accounts?: LocalReportSourceDeps['accounts']
   readonly security?: LocalReportSourceDeps['security']
+  /** Normalized source ports shared by embedded hosts and engine certification. */
+  readonly sources?: Partial<ReportSourcePorts>
   readonly networkSources?: Pick<ReportSourcePorts, 'github' | 'stores'>
   readonly network?:
     | Omit<ReportingNetworkContext, 'workspaceRoot' | 'storageRoot' | 'l10n'>
@@ -78,7 +79,7 @@ const unavailable = <K extends ReportSourceKind>(kind: K) =>
   localSource(kind, () => Promise.reject(new LocalSourceError('unbound')))
 
 const logUnavailable = () => {
-  throw new Error(UI_TEXT.reportUi.generationFailed)
+  throw new LocalSourceError('unbound')
 }
 
 /** One lazy pipeline for every host. Missing adapters fail as named sources. */
@@ -99,7 +100,7 @@ export function createReportingServices(context: ReportingContext): ReportsServi
     authorize: (scope) => {
       return scope.workspaceKey === workspaceKey
         ? Promise.resolve()
-        : Promise.reject(new Error(UI_TEXT.reportUi.generationFailed))
+        : Promise.reject(new Error(context.l10n.table.reportUi.generationFailed))
     },
   })
   const render = createReportRenderers({ textForLocale: () => context.l10n.table }, redaction)
@@ -114,15 +115,14 @@ export function createReportingServices(context: ReportingContext): ReportsServi
     data: null,
   })
   const requiredKey = () => {
-    if (workspaceKey === undefined) throw new Error(UI_TEXT.reportUi.generationFailed)
+    if (workspaceKey === undefined) throw new Error(context.l10n.table.reportUi.generationFailed)
     return workspaceKey
   }
-  let latestGit: SourceSnapshot['sources']['git']['data'] = null
-  let activeNetwork:
-    Omit<ReportingNetworkContext, 'workspaceRoot' | 'storageRoot' | 'l10n'> | undefined
-  let boundNetwork: Pick<ReportSourcePorts, 'github' | 'stores'> | undefined
   return {
     async generate(options, signal = new AbortController().signal) {
+      const reportText = { ...context.l10n.table }
+      const locale = context.l10n.locale
+      let boundNetwork: Pick<ReportSourcePorts, 'github' | 'stores'> | undefined
       const key = requiredKey()
       const local =
         root === undefined
@@ -140,7 +140,14 @@ export function createReportingServices(context: ReportingContext): ReportsServi
               ...(context.accounts !== undefined && { accounts: context.accounts }),
               ...(context.security !== undefined && { security: context.security }),
             }).sources
-      const readContext = { run: {}, options, asOf: options.asOf, workspaceKey: key, signal }
+      const readContext = {
+        reportText,
+        run: {},
+        options,
+        asOf: options.asOf,
+        workspaceKey: key,
+        signal,
+      }
       let planText: string | undefined
       const sources: ReportSourcePorts = {
         git: local?.git ?? unavailable('git'),
@@ -178,6 +185,7 @@ export function createReportingServices(context: ReportingContext): ReportsServi
           // of twice (RVCM1132D finding 4).
           return { data: emptyPlanFacts() }
         }),
+        ...context.sources,
       }
       // All reads share the request stamp; source ports bound time and cancellation.
       const [
@@ -223,8 +231,8 @@ export function createReportingServices(context: ReportingContext): ReportsServi
         sources.schedules.read(readContext),
         sources.keybindings.read(readContext),
       ])
-      latestGit = git.data
-      activeNetwork =
+      const latestGit = git.data
+      const activeNetwork =
         typeof context.network === 'function' ? await context.network() : context.network
       // Workspace identity is read on every networked report, never latched:
       // a version bump or a newly declared manifest shows up on the next
@@ -252,26 +260,9 @@ export function createReportingServices(context: ReportingContext): ReportsServi
           {
             workspaceRoot: root,
             storageRoot: context.storageRoot,
-            l10n: context.l10n,
-            policy: {
-              surface: policy.surface,
-              get mode() {
-                return activeNetwork?.policy.mode ?? 'off'
-              },
-              get githubSignedIn() {
-                return activeNetwork?.policy.githubSignedIn ?? false
-              },
-              allowEgress: (url, requestSignal) =>
-                activeNetwork?.policy.allowEgress(url, requestSignal) ?? Promise.resolve(false),
-            },
-            ...(activeNetwork.transport !== undefined && {
-              transport: (request, etag, requestSignal) => {
-                const transport = activeNetwork?.transport
-                return transport === undefined
-                  ? Promise.reject(new LocalSourceError('unbound'))
-                  : transport(request, etag, requestSignal)
-              },
-            }),
+            l10n: { table: reportText, locale },
+            policy,
+            ...(activeNetwork.transport !== undefined && { transport: activeNetwork.transport }),
           },
           () => latestGit,
           storeProject,
@@ -312,7 +303,7 @@ export function createReportingServices(context: ReportingContext): ReportsServi
         generatorVersion: context.generatorVersion,
         rendererVersion: REPORT_FORMAT_VERSION,
         icuVersion: process.versions['icu'] ?? 'unknown',
-        locale: context.l10n.locale,
+        locale,
         sources: {
           plan,
           package: pkg,
@@ -349,6 +340,7 @@ export function createReportingServices(context: ReportingContext): ReportsServi
               options,
               reportGitIo(root, process.platform, process.env),
               signal,
+              reportText,
             )
       const collector = createReportCollector({
         nextStepLimit: REPORT_NEXT_STEP_LIMIT,
@@ -415,7 +407,7 @@ export function createReportingServices(context: ReportingContext): ReportsServi
       const parsed = reportDiffSchema.parse(diff)
       const checked = verifyReport(to, redaction)
       if (parsed.to.contentHash !== checked.header.contentHash)
-        throw new Error(UI_TEXT.reportUi.generationFailed)
+        throw new Error(context.l10n.table.reportUi.generationFailed)
       const notice = reportDiffNotice(parsed, context.l10n.table.reportUi.noChange)
       if (notice !== undefined && (format === 'text' || format === 'md')) return notice
       // The comparison keeps the verified report's own header, needs-you rows
@@ -435,9 +427,10 @@ export function createReportingGeneration(context: ReportingContext): ReportGene
   return {
     async generate(options) {
       const generate = services.generate
-      if (generate === undefined) throw new Error(UI_TEXT.reportUi.generationFailed)
+      if (generate === undefined) throw new Error(context.l10n.table.reportUi.generationFailed)
       const result = await generate(options)
-      if (result.status !== 'generated') throw new Error(UI_TEXT.reportUi.generationFailed)
+      if (result.status !== 'generated')
+        throw new Error(context.l10n.table.reportUi.generationFailed)
       return result.document
     },
   }
@@ -464,17 +457,17 @@ export function createReportingEngine(
         return context.keepHistory
       },
       now: () => new Date().toISOString(),
-      readSaved: () => Promise.reject(new Error(UI_TEXT.reportUi.generationFailed)),
-      writeOut: () => Promise.reject(new Error(UI_TEXT.reportUi.saveFailed)),
+      readSaved: () => Promise.reject(new Error(context.l10n.table.reportUi.generationFailed)),
+      writeOut: () => Promise.reject(new Error(context.l10n.table.reportUi.saveFailed)),
       stdout: () => {
-        throw new Error(UI_TEXT.reportUi.generationFailed)
+        throw new Error(context.l10n.table.reportUi.generationFailed)
       },
       stderr: () => {
-        throw new Error(UI_TEXT.reportUi.generationFailed)
+        throw new Error(context.l10n.table.reportUi.generationFailed)
       },
       workspaceKey: context.workspaceKey,
       authorize: (key) => Promise.resolve(key === context.workspaceKey),
-      open: () => Promise.reject(new Error(UI_TEXT.reportUi.generationFailed)),
+      open: () => Promise.reject(new Error(context.l10n.table.reportUi.generationFailed)),
     }),
     render: createReportRenderers({ textForLocale: () => context.l10n.table }, redaction),
     verify: (value) => verifyReport(value, redaction),
@@ -488,7 +481,7 @@ export function createReportingCheckJournal(
 ) {
   setUiText(context.l10n.table, context.l10n.locale)
   const root = context.workspaceRoot
-  if (root === undefined) throw new Error(UI_TEXT.reportUi.generationFailed)
+  if (root === undefined) throw new Error(context.l10n.table.reportUi.generationFailed)
   const workspaceKey = reportWorkspaceKey(root, process.platform)
   const journal = new CheckRunJournal({
     storage: new ReportStorage(context.storageRoot),
@@ -501,7 +494,7 @@ export function createReportingCheckJournal(
         AbortSignal.timeout(REPORT_SOURCE_TIMEOUT_MS),
       )
       if (result.code !== 0 || !/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(result.stdout.trim()))
-        throw new Error(UI_TEXT.reportUi.generationFailed)
+        throw new Error(context.l10n.table.reportUi.generationFailed)
       return result.stdout.trim()
     },
     append: (record: CheckRunRecord) => journal.append(workspaceKey, record),
