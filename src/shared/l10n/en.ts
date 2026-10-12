@@ -5319,6 +5319,9 @@ export const EN = {
   modelsNotScanned: 'Refresh to list this provider’s models.',
   teamFileHelperMissing: 'The verified native worker file helper is unavailable.',
   teamFileNativeFailed: 'The native worker file proof failed; no file contents were written.',
+  // {kind}: the helper exception's type name, fixed vocabulary, never a path.
+  teamFileHelperFailed:
+    'The worker file helper itself failed ({kind}); no file contents were written.',
   teamFileLinked: 'The file path contains a link or a reinterpreted component.',
   teamFileOutside: 'The file is outside the admitted working copy.',
   teamFileRoleDenied: 'The role does not allow writing this path.',

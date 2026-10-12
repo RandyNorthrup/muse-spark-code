@@ -5547,6 +5547,7 @@
   },
   "teamFileHelperMissing": "Ověřený nativní pomocník pro soubory pracovníků není dostupný.",
   "teamFileNativeFailed": "Nativní ověření souboru pracovníka selhalo; nebyl zapsán žádný obsah souboru.",
+  "teamFileHelperFailed": "Nativní pomocník souboru pracovníka selhal ({kind}); nebyl zapsán žádný obsah souboru.",
   "teamFileOutside": "Soubor je mimo schválenou pracovní kopii.",
   "teamFileRoleDenied": "Role nepovoluje zápis do této cesty.",
   "teamFileExists": "Cesta nového souboru je již obsazena.",

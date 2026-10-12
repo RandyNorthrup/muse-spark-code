@@ -5088,6 +5088,7 @@
   },
   "teamFileHelperMissing": "无法使用经过验证的工作代理文件原生辅助程序。",
   "teamFileNativeFailed": "工作代理文件的原生验证失败；未写入文件内容。",
+  "teamFileHelperFailed": "工作代理文件原生助手本身失败（{kind}）；未写入文件内容。",
   "teamFileOutside": "文件位于获准的工作副本之外。",
   "teamFileRoleDenied": "该角色不允许写入此路径。",
   "teamFileExists": "新文件路径已被占用。",

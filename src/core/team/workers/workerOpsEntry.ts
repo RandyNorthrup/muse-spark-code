@@ -14,6 +14,7 @@ export {
   typedCreateError,
   workerWindowsCommand,
   CREATE_ERRNOS,
+  WORKER_HELPER_FAILED_PREFIX,
   WORKER_REFUSAL_PREFIX,
   WORKER_REFUSALS,
 } from './workerOps'

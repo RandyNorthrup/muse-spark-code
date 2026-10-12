@@ -5241,6 +5241,7 @@
   },
   "teamFileHelperMissing": "Az ellenőrzött natív segéd a dolgozók fájlműveleteihez nem érhető el.",
   "teamFileNativeFailed": "A dolgozó fájljának natív ellenőrzése sikertelen; fájltartalom nem lett írva.",
+  "teamFileHelperFailed": "Maga a dolgozófájl natív segédje meghibásodott ({kind}); fájltartalom nem lett írva.",
   "teamFileOutside": "A fájl az engedélyezett munkapéldányon kívül van.",
   "teamFileRoleDenied": "A szerepkör nem engedélyezi az írást erre az útvonalra.",
   "teamFileExists": "Az új fájl útvonala már foglalt.",
