@@ -72,7 +72,16 @@ export interface CheckResult {
 }
 export type RunnerDispatch =
   | { readonly kind: 'finished'; readonly result: CheckResult }
-  | { readonly kind: 'busy' | 'offline' | 'uncertain' }
+  | {
+      readonly kind: 'busy'
+      /**
+      A proved receiver refusal keeps its true reason instead of becoming
+      a bare busy: the source can say why the receiver refused. The check
+      still runs locally once.
+      */
+      readonly reason?: 'commandTooLong'
+    }
+  | { readonly kind: 'offline' | 'uncertain' }
 
 export interface CheckRoutingDeps {
   readonly isTrusted: () => boolean
@@ -195,6 +204,12 @@ export class ResourceRunnerRouter {
       // Relocation adds a route; it never removes one. The caller runs the
       // ordinary runner routing exactly as before this binding.
       return DECLINED
+    if (status.level !== 'relocate' && status.level !== 'pause')
+      // Pressure recovered after the busy decision: the route decision is
+      // taken once from this snapshot, so the ordinary route runs. A check
+      // whose labels live only on its runner still reaches it; pressure
+      // recovery never fails a check Offline on a machine that is online.
+      return DECLINED
     if (
       resourceRunnerPreference({
         level: status.level,
@@ -204,7 +219,7 @@ export class ResourceRunnerRouter {
         approvedRunner: () => runners.find((runner) => this.options.isApproved(runner, job)),
       }) === undefined
     )
-      // No approved runner (or pressure recovered): kept locally, no probes.
+      // No approved runner: kept locally, no probes.
       return undefined
     const state: { completion?: Promise<RunnerDispatch>; isClaimRefused: boolean } = {
       isClaimRefused: false,
@@ -341,6 +356,11 @@ export class ResourceRunnerRouter {
       })
       if (answer.kind === 'finished' && answer.result.runId === job.runId) receipt('admitted')
       else receipt(answer.kind === 'offline' || answer.kind === 'busy' ? 'refused' : 'uncertain')
+      // A target that became busy keeps the check on the source and says
+      // why: the known refusal reason reaches the source observer while the
+      // proved refusal still runs locally once.
+      if (answer.kind === 'busy' && answer.reason === 'commandTooLong')
+        this.options.onError(new Error(UI_TEXT.teamRunners.commandTooLong))
       return answer
     } catch (error: unknown) {
       receipt(sendState.sent ? 'uncertain' : 'refused')

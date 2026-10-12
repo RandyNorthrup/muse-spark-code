@@ -528,6 +528,17 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
   }
 
   /**
+  Runner routes arrived or left: rebind the relocation target on the same
+  governor. Active work, queued admissions and pressure/override state are
+  untouched; only the cached status is recomputed.
+  */
+  updateRelocationTarget(target: (() => boolean) | null): void {
+    if (this.disposed) return
+    this.options.governor.updateRelocationTarget(target)
+    this.changed()
+  }
+
+  /**
   Resume now: the governor's own fifteen-minute override for this window.
   An explicitly disabled governor stays off, and nothing is approved or paid.
   */

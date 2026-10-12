@@ -388,8 +388,9 @@ export class SshRunner {
       const initial = runStateSchema.parse(started)
       if (initial.runId !== job.runId) throw new Error(UI_TEXT.teamRunners.testFailed)
       if (initial.state === 'busy') return { kind: 'busy' }
-      // The receiver got the start and proved it admitted nothing: run locally once.
-      if (initial.state === 'refused') return { kind: 'busy' }
+      // The receiver got the start and proved it admitted nothing: run locally
+      // once, keeping the true refusal reason so the source can say why.
+      if (initial.state === 'refused') return { kind: 'busy', reason: initial.reason }
       if (initial.state === 'running' || initial.state === 'ended') job.onAdmitted?.()
       const deadline = this.deps.now() + job.timeoutMs + RUNNER_CONNECT_TIMEOUT_MS
       let output = ''
