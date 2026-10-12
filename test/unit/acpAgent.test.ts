@@ -30,6 +30,7 @@ import * as z from 'zod/mini'
 import { FakeQuestionClock } from './helpers/questions/clock'
 import { hookResult } from './helpers/fakeToolIo'
 import { queuedAnswerBackend } from './helpers/questions/queuedAnswerBackend'
+import { ModelApiClient } from '../../src/core/backends/modelapi/client'
 import { parseHookConfig } from '../../src/core/backends/modelapi/hooks'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -3364,16 +3365,17 @@ describe('M105 ACP attachment commands', () => {
   })
 
   it('reports a provider codec refusal by its own sentence without replacing it', async () => {
-    // M105 lane V R4 (RVCM1054C P3): the path the real Model API session
-    // takes. Its sendTurn never rejects with a codec refusal: submitTurn
-    // starts the turn detached and resolves, and the refusal fails the turn
-    // as turnCompleted with the sentence as reason (ModelApiHost.ts:
-    // reason = describe(error)), settled at settle. The sentence below is
-    // produced by the REAL chat encoder, not constructed by hand; the
-    // session double only replays the real session's observable contract
-    // (resolve on sendTurn, then the failed turnCompleted). The prompt
-    // rejects with that sentence under the SDK's fixed "Internal error: "
-    // prefix, today's shape for every failed turn here.
+    // M105 lane V R5 (RVCM1054D P3): a real agent over a real Model API
+    // session (fake transport). Its sendTurn never rejects with a codec
+    // refusal: submitTurn starts the turn detached and resolves, and the
+    // refusal fails the turn as turnCompleted with the sentence as reason
+    // (ModelApiHost.ts: reason = describe(error)), settled at settle. The
+    // refusal below is built by the REAL chat encoder, not constructed by
+    // hand; the spy raises that same instance where the session requests
+    // the turn, so the real error-to-reason mapping is what fails it. If
+    // that mapping stops preserving the refusal, this test fails. The
+    // prompt rejects with the sentence under the SDK's fixed
+    // "Internal error: " prefix, today's shape for every failed turn here.
     let refusal: unknown
     try {
       encodeChatRequest(
@@ -3417,31 +3419,24 @@ describe('M105 ACP attachment commands', () => {
     }
     if (!isChatCodecError(refusal)) throw new Error('the real encoder must refuse the held video')
     expect(refusal.message).toBe('gpt-6-astra is not known to take video.')
-    const h = harness()
-    await h.run(async (client) => {
-      const { sessionId } = await start(client)
-      const session = h.host.sessions.at(-1)
-      if (session === undefined) throw new Error('no session')
-      const calls = session.sendTurn.mock.calls.length
-      const response = prompt(client, sessionId)
-      await until(() => session.sendTurn.mock.calls.length > calls)
-      session.emit({
-        type: 'turnCompleted',
-        turnId: 'turn-1',
-        terminal: 'failed',
-        reason: refusal.message,
-      })
-      let error: unknown
-      try {
-        await response
-      } catch (error_) {
-        error = error_
-      }
-      if (error === undefined) throw new Error('the prompt must reject')
-      if (!(error instanceof Error)) throw new Error('expected a rejection error')
-      expect(error.message).toBe(`Internal error: ${refusal.message}`)
+    const sentence = refusal.message
+    const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
+    const { api, host } = queuedAnswerBackend(CWD, log)
+    const stream = vi.spyOn(ModelApiClient.prototype, 'streamResponse').mockImplementation(() => {
+      throw refusal
     })
-    expect(h.host.sessions[0]?.sendTurn).toHaveBeenCalledTimes(1)
+    const h = harness({ kind: 'modelApi', backendHost: host })
+    try {
+      await h.run(async (client) => {
+        const { sessionId } = await start(client)
+        await expect(prompt(client, sessionId)).rejects.toThrow(`Internal error: ${sentence}`)
+      })
+    } finally {
+      stream.mockRestore()
+      await host.close()
+    }
+    // No model request ever dispatched: the refusal fails the turn first.
+    expect(api.responseBodies()).toHaveLength(0)
   })
 
   it('refuses a headless /attach instead of queueing a file no turn sends', async () => {
