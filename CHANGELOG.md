@@ -9,6 +9,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Headless `exec` runs reported every result sentence in English whatever the
+  run language, because the language table was installed into the entry
+  bundle's copy instead of the headless bundle's copy the result (and, through
+  it, the engine) reads from. The run language now reaches the request-cap,
+  budget and error sentences and the engine's limit notice.
 - Model API turns reaching the hidden 50-call bound stopped as an English
   internal error and lost their answer. They now reserve the last permitted
   call for a summary without tools, keep it, report a translated request-limit
